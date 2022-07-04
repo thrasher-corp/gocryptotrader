@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -27,11 +29,28 @@ func (a *OrderBookResponse) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// UnmarshalJSON decerialize the timestamp information to TakerVolume.
+func (a *TakerVolume) UnmarshalJSON(data []byte) error {
+	type Alias TakerVolume
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"ts,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// UnmarshalJSON decerializes the integer timestamp to local time instance.
 func (a *TradeResponse) UnmarshalJSON(data []byte) error {
 	type Alias TradeResponse
 	chil := &struct {
 		*Alias
-		TimeStamp int64 `json:"ts,string"`
+		Timestamp int64 `json:"ts,string"`
 	}{
 		Alias: (*Alias)(a),
 	}
@@ -39,8 +58,8 @@ func (a *TradeResponse) UnmarshalJSON(data []byte) error {
 	if er != nil {
 		return er
 	}
-	if chil.TimeStamp > 0 {
-		a.TimeStamp = time.UnixMilli(chil.TimeStamp)
+	if chil.Timestamp > 0 {
+		a.Timestamp = time.UnixMilli(chil.Timestamp)
 	}
 	return nil
 }
@@ -108,9 +127,12 @@ func (a *Instrument) UnmarshalJSON(data []byte) error {
 	type Alias Instrument
 	chil := &struct {
 		*Alias
-		ListTime string `json:"listTime"`
-		ExpTime  string `json:"expTime"`
-	}{Alias: (*Alias)(a)}
+		ListTime       string `json:"listTime"`
+		ExpTime        string `json:"expTime"`
+		InstrumentType string `json:"instType"`
+	}{
+		Alias: (*Alias)(a),
+	}
 
 	if er := json.Unmarshal(data, chil); er != nil {
 		return er
@@ -125,10 +147,43 @@ func (a *Instrument) UnmarshalJSON(data []byte) error {
 			a.ExpTime = time.UnixMilli(int64(val))
 		}
 	}
+	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
+	switch chil.InstrumentType {
+	case "SWAP":
+		a.InstrumentType = asset.PerpetualSwap
+	case "SPOT":
+		a.InstrumentType = asset.Spot
+	case "FUTURES":
+		a.InstrumentType = asset.Futures
+	case "OPTION":
+		a.InstrumentType = asset.Option
+	case "CONTRACT":
+		a.InstrumentType = asset.PerpetualSwap
+	case "MARGIN":
+		a.InstrumentType = asset.Margin
+	case "ANY":
+		a.InstrumentType = asset.Item("")
+	}
 	return nil
 }
 
-// UnmarshalJSON unmarshals the json obeject to the DeliveryHistoryResponse
+// UnmarshalJSON decerializes the json obeject to the MarginLendRationItem.
+func (a *MarginLendRatioItem) UnmarshalJSON(data []byte) error {
+	type Alie MarginLendRatioItem
+	chil := &struct {
+		*Alie
+		Timestamp int64 `json:"ts,string"`
+	}{
+		Alie: (*Alie)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// UnmarshalJSON decerializes the json obeject to the DeliveryHistoryResponse
 func (a *DeliveryHistory) UnmarshalJSON(data []byte) error {
 	type Alias DeliveryHistory
 	chil := &struct {
@@ -151,13 +206,31 @@ func (a *OpenInterestResponse) UnmarshalJSON(data []byte) error {
 	type Alias OpenInterestResponse
 	chil := &struct {
 		*Alias
-		Timestamp int64 `json:"ts,string"`
+		Timestamp      int64  `json:"ts,string"`
+		InstrumentType string `json:"instType"`
 	}{Alias: (*Alias)(a)}
 	if er := json.Unmarshal(data, chil); er != nil {
 		return er
 	}
 	if chil.Timestamp > 0 {
 		a.Timestamp = time.UnixMilli(chil.Timestamp)
+	}
+	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	switch chil.InstrumentType {
+	case "SWAP":
+		a.InstrumentType = asset.PerpetualSwap
+	case "SPOT":
+		a.InstrumentType = asset.Spot
+	case "FUTURES":
+		a.InstrumentType = asset.Futures
+	case "OPTION":
+		a.InstrumentType = asset.Option
+	case "CONTRACT":
+		a.InstrumentType = asset.PerpetualSwap
+	case "MARGIN":
+		a.InstrumentType = asset.Margin
+	case "ANY":
+		a.InstrumentType = asset.Item("")
 	}
 	return nil
 }
@@ -168,6 +241,7 @@ func (a *FundingRateResponse) UnmarshalJSON(data []byte) error {
 		*Alias
 		FundingTime     int64  `json:"fundingTime,string"`
 		NextFundingTime string `json:"nextFundingTime"`
+		InstrumentType  string `json:"instType"`
 	}{
 		Alias: (*Alias)(a),
 	}
@@ -182,6 +256,23 @@ func (a *FundingRateResponse) UnmarshalJSON(data []byte) error {
 			a.NextFundingTime = time.UnixMilli(int64(val))
 		}
 	}
+	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	switch chil.InstrumentType {
+	case "SWAP":
+		a.InstrumentType = asset.PerpetualSwap
+	case "SPOT":
+		a.InstrumentType = asset.Spot
+	case "FUTURES":
+		a.InstrumentType = asset.Futures
+	case "OPTION":
+		a.InstrumentType = asset.Option
+	case "CONTRACT":
+		a.InstrumentType = asset.PerpetualSwap
+	case "MARGIN":
+		a.InstrumentType = asset.Margin
+	case "ANY":
+		a.InstrumentType = asset.Item("")
+	}
 	return nil
 }
 
@@ -189,7 +280,8 @@ func (a *LimitPriceResponse) UnmarshalJSON(data []byte) error {
 	type Alias LimitPriceResponse
 	chil := &struct {
 		*Alias
-		Timestamp int64 `json:"ts,string"`
+		Timestamp      int64  `json:"ts,string"`
+		InstrumentType string `json:"instType"`
 	}{
 		Alias: (*Alias)(a),
 	}
@@ -198,6 +290,59 @@ func (a *LimitPriceResponse) UnmarshalJSON(data []byte) error {
 	}
 	if chil.Timestamp > 0 {
 		a.Timestamp = time.UnixMilli(chil.Timestamp)
+	}
+	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	switch chil.InstrumentType {
+	case "SWAP":
+		a.InstrumentType = asset.PerpetualSwap
+	case "SPOT":
+		a.InstrumentType = asset.Spot
+	case "FUTURES":
+		a.InstrumentType = asset.Futures
+	case "OPTION":
+		a.InstrumentType = asset.Option
+	case "CONTRACT":
+		a.InstrumentType = asset.PerpetualSwap
+	case "MARGIN":
+		a.InstrumentType = asset.Margin
+	case "ANY":
+		a.InstrumentType = asset.Item("")
+	}
+	return nil
+}
+
+// UnmarshalJSON decerialize the account and position response.
+func (a *MarketDataResponse) UnmarshalJSON(data []byte) error {
+	type Alias MarketDataResponse
+	chil := &struct {
+		*Alias
+		InstrumentType           string `json:"instType"`
+		TickerDataGenerationTime int64  `json:"ts,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	if chil.TickerDataGenerationTime > 0 {
+		a.TickerDataGenerationTime = time.UnixMilli(chil.TickerDataGenerationTime)
+	}
+	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	switch chil.InstrumentType {
+	case "SWAP":
+		a.InstrumentType = asset.PerpetualSwap
+	case "SPOT":
+		a.InstrumentType = asset.Spot
+	case "FUTURES":
+		a.InstrumentType = asset.Futures
+	case "OPTION":
+		a.InstrumentType = asset.Option
+	case "CONTRACT":
+		a.InstrumentType = asset.PerpetualSwap
+	case "MARGIN":
+		a.InstrumentType = asset.Margin
+	case "ANY":
+		a.InstrumentType = asset.Item("")
 	}
 	return nil
 }
@@ -206,7 +351,8 @@ func (a *OptionMarketDataResponse) UnmarshalJSON(data []byte) error {
 	type Alias OptionMarketDataResponse
 	chil := &struct {
 		*Alias
-		Timestamp int64 `json:"ts,string"`
+		Timestamp      int64  `json:"ts,string"`
+		InstrumentType string `json:"instType"`
 	}{
 		Alias: (*Alias)(a),
 	}
@@ -215,6 +361,23 @@ func (a *OptionMarketDataResponse) UnmarshalJSON(data []byte) error {
 	}
 	if chil.Timestamp > 0 {
 		a.Timestamp = time.UnixMilli(chil.Timestamp)
+	}
+	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	switch chil.InstrumentType {
+	case "SWAP":
+		a.InstrumentType = asset.PerpetualSwap
+	case "SPOT":
+		a.InstrumentType = asset.Spot
+	case "FUTURES":
+		a.InstrumentType = asset.Futures
+	case "OPTION":
+		a.InstrumentType = asset.Option
+	case "CONTRACT":
+		a.InstrumentType = asset.PerpetualSwap
+	case "MARGIN":
+		a.InstrumentType = asset.Margin
+	case "ANY":
+		a.InstrumentType = asset.Item("")
 	}
 	return nil
 }
@@ -223,7 +386,8 @@ func (a *DeliveryEstimatedPrice) UnmarshalJSON(data []byte) error {
 	type Alias DeliveryEstimatedPrice
 	chil := &struct {
 		*Alias
-		Timestamp int64 `json:"ts,string"`
+		Timestamp      int64  `json:"ts,string"`
+		InstrumentType string `json:"instType"`
 	}{
 		Alias: (*Alias)(a),
 	}
@@ -232,6 +396,23 @@ func (a *DeliveryEstimatedPrice) UnmarshalJSON(data []byte) error {
 	}
 	if chil.Timestamp > 0 {
 		a.Timestamp = time.UnixMilli(chil.Timestamp)
+	}
+	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	switch chil.InstrumentType {
+	case "SWAP":
+		a.InstrumentType = asset.PerpetualSwap
+	case "SPOT":
+		a.InstrumentType = asset.Spot
+	case "FUTURES":
+		a.InstrumentType = asset.Futures
+	case "OPTION":
+		a.InstrumentType = asset.Option
+	case "CONTRACT":
+		a.InstrumentType = asset.PerpetualSwap
+	case "MARGIN":
+		a.InstrumentType = asset.Margin
+	case "ANY":
+		a.InstrumentType = asset.Item("")
 	}
 	return nil
 }
@@ -252,9 +433,9 @@ func (a *ServerTime) UnmarshalJSON(data []byte) error {
 		a.Timestamp = time.UnixMilli(chil.Timestamp)
 	}
 	return nil
-
 }
 
+// UnmarshalJSON decerialize the timestamp.
 func (a *LiquidationOrderDetailItem) UnmarshalJSON(data []byte) error {
 	type Alias LiquidationOrderDetailItem
 	chil := &struct {
@@ -272,12 +453,45 @@ func (a *LiquidationOrderDetailItem) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// UnmarshalJSON custom Unmarshaler to convert the Instrument type string to an asset.Item instance.
+func (a *LiquidationOrder) UnmarshalJSON(data []byte) error {
+	type Alias LiquidationOrder
+	chil := &struct {
+		*Alias
+		InstrumentType string `json:"instType"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	switch chil.InstrumentType {
+	case "SWAP":
+		a.InstrumentType = asset.PerpetualSwap
+	case "SPOT":
+		a.InstrumentType = asset.Spot
+	case "FUTURES":
+		a.InstrumentType = asset.Futures
+	case "OPTION":
+		a.InstrumentType = asset.Option
+	case "CONTRACT":
+		a.InstrumentType = asset.PerpetualSwap
+	case "MARGIN":
+		a.InstrumentType = asset.Margin
+	default:
+		a.InstrumentType = asset.Item("ANY")
+	}
+	return nil
+}
+
 // UnmarshalJSON unmarshals the timestamp for mark price data
 func (a *MarkPrice) UnmarshalJSON(data []byte) error {
 	type Alias MarkPrice
 	chil := &struct {
 		*Alias
-		Timestamp int64 `json:"ts,string"`
+		Timestamp      int64  `json:"ts,string"`
+		InstrumentType string `json:"instType"`
 	}{
 		Alias: (*Alias)(a),
 	}
@@ -286,6 +500,23 @@ func (a *MarkPrice) UnmarshalJSON(data []byte) error {
 	}
 	if chil.Timestamp > 0 {
 		a.Timestamp = time.UnixMilli(chil.Timestamp)
+	}
+	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	switch chil.InstrumentType {
+	case "SWAP":
+		a.InstrumentType = asset.PerpetualSwap
+	case "SPOT":
+		a.InstrumentType = asset.Spot
+	case "FUTURES":
+		a.InstrumentType = asset.Futures
+	case "OPTION":
+		a.InstrumentType = asset.Option
+	case "CONTRACT":
+		a.InstrumentType = asset.PerpetualSwap
+	case "MARGIN":
+		a.InstrumentType = asset.Margin
+	case "ANY":
+		a.InstrumentType = asset.Item("")
 	}
 	return nil
 }
@@ -311,9 +542,10 @@ func (a *OrderDetail) UnmarshalJSON(data []byte) error {
 	type Alias OrderDetail
 	chil := &struct {
 		*Alias
-		Side         string `json:"side"`
-		UpdateTime   int64  `json:"uTime,string"`
-		CreationTime int64  `json:"cTime,string"`
+		Side           string `json:"side"`
+		UpdateTime     int64  `json:"uTime,string"`
+		CreationTime   int64  `json:"cTime,string"`
+		InstrumentType string `json:"instType"`
 	}{
 		Alias: (*Alias)(a),
 	}
@@ -323,6 +555,23 @@ func (a *OrderDetail) UnmarshalJSON(data []byte) error {
 	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
 	a.CreationTime = time.UnixMilli(chil.CreationTime)
 	a.Side = order.ParseOrderSideString(chil.Side)
+	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	switch chil.InstrumentType {
+	case "SWAP":
+		a.InstrumentType = asset.PerpetualSwap
+	case "SPOT":
+		a.InstrumentType = asset.Spot
+	case "FUTURES":
+		a.InstrumentType = asset.Futures
+	case "OPTION":
+		a.InstrumentType = asset.Option
+	case "CONTRACT":
+		a.InstrumentType = asset.PerpetualSwap
+	case "MARGIN":
+		a.InstrumentType = asset.Margin
+	case "ANY":
+		a.InstrumentType = asset.Item("")
+	}
 	return nil
 }
 
@@ -330,9 +579,10 @@ func (a *PendingOrderItem) UnmarshalJSON(data []byte) error {
 	type Alias PendingOrderItem
 	chil := &struct {
 		*Alias
-		Side         string `json:"side"`
-		UpdateTime   int64  `json:"uTime,string"`
-		CreationTime int64  `json:"cTime,string"`
+		Side           string `json:"side"`
+		UpdateTime     int64  `json:"uTime,string"`
+		CreationTime   int64  `json:"cTime,string"`
+		InstrumentType string `json:"instType"`
 	}{
 		Alias: (*Alias)(a),
 	}
@@ -342,6 +592,23 @@ func (a *PendingOrderItem) UnmarshalJSON(data []byte) error {
 	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
 	a.CreationTime = time.UnixMilli(chil.CreationTime)
 	a.Side = order.ParseOrderSideString(chil.Side)
+	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	switch chil.InstrumentType {
+	case "SWAP":
+		a.InstrumentType = asset.PerpetualSwap
+	case "SPOT":
+		a.InstrumentType = asset.Spot
+	case "FUTURES":
+		a.InstrumentType = asset.Futures
+	case "OPTION":
+		a.InstrumentType = asset.Option
+	case "CONTRACT":
+		a.InstrumentType = asset.PerpetualSwap
+	case "MARGIN":
+		a.InstrumentType = asset.Margin
+	case "ANY":
+		a.InstrumentType = asset.Item("")
+	}
 	return nil
 }
 
@@ -349,7 +616,8 @@ func (a *TransactionDetail) UnmarshalJSON(data []byte) error {
 	type Alias TransactionDetail
 	chil := &struct {
 		*Alias
-		Timestamp int64 `json:"ts,string"`
+		Timestamp      int64  `json:"ts,string"`
+		InstrumentType string `json:"instType"`
 	}{
 		Alias: (*Alias)(a),
 	}
@@ -357,6 +625,23 @@ func (a *TransactionDetail) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	switch chil.InstrumentType {
+	case "SWAP":
+		a.InstrumentType = asset.PerpetualSwap
+	case "SPOT":
+		a.InstrumentType = asset.Spot
+	case "FUTURES":
+		a.InstrumentType = asset.Futures
+	case "OPTION":
+		a.InstrumentType = asset.Option
+	case "CONTRACT":
+		a.InstrumentType = asset.PerpetualSwap
+	case "MARGIN":
+		a.InstrumentType = asset.Margin
+	case "ANY":
+		a.InstrumentType = asset.Item("")
+	}
 	return nil
 }
 
@@ -364,8 +649,9 @@ func (a *AlgoOrderResponse) UnmarshalJSON(data []byte) error {
 	type Alias AlgoOrderResponse
 	chil := &struct {
 		*Alias
-		CreationTime int64 `json:"cTime,string"`
-		TriggerTime  int64 `json:"triggerTime,string"`
+		CreationTime   int64  `json:"cTime,string"`
+		TriggerTime    int64  `json:"triggerTime,string"`
+		InstrumentType string `json:"instType"`
 	}{
 		Alias: (*Alias)(a),
 	}
@@ -374,6 +660,23 @@ func (a *AlgoOrderResponse) UnmarshalJSON(data []byte) error {
 	}
 	a.CreationTime = time.UnixMilli(chil.CreationTime)
 	a.TriggerTime = time.UnixMilli(chil.TriggerTime)
+	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	switch chil.InstrumentType {
+	case "SWAP":
+		a.InstrumentType = asset.PerpetualSwap
+	case "SPOT":
+		a.InstrumentType = asset.Spot
+	case "FUTURES":
+		a.InstrumentType = asset.Futures
+	case "OPTION":
+		a.InstrumentType = asset.Option
+	case "CONTRACT":
+		a.InstrumentType = asset.PerpetualSwap
+	case "MARGIN":
+		a.InstrumentType = asset.Margin
+	case "ANY":
+		a.InstrumentType = asset.Item("")
+	}
 	return nil
 }
 
@@ -569,14 +872,46 @@ func (a *ConvertTradeResponse) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// UnmarshalJSON custom Unmarshaler to convert the Instrument type string to an asset.Item instance.
+func (a *PositionData) UnmarshalJSON(data []byte) error {
+	type Alias PositionData
+	chil := &struct {
+		*Alias
+		InstrumentType string `json:"instType"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	switch chil.InstrumentType {
+	case "SWAP":
+		a.InstrumentType = asset.PerpetualSwap
+	case "SPOT":
+		a.InstrumentType = asset.Spot
+	case "FUTURES":
+		a.InstrumentType = asset.Futures
+	case "OPTION":
+		a.InstrumentType = asset.Option
+	case "CONTRACT":
+		a.InstrumentType = asset.PerpetualSwap
+	case "MARGIN":
+		a.InstrumentType = asset.Margin
+	default:
+		a.InstrumentType = asset.Item("ANY")
+	}
+	return nil
+}
+
 // UnmarshalJSON deserialises the JSON info, including the timestamp (creation time and update time).
 func (a *AccountPosition) UnmarshalJSON(data []byte) error {
 	type Alias AccountPosition
 	chil := &struct {
 		*Alias
-		CreationTime int64 `json:"cTime,string"`
-		UpdatedTime  int64 `json:"uTime,string"` // Latest time position was adjusted,
-
+		CreationTime   int64  `json:"cTime,string"`
+		UpdatedTime    int64  `json:"uTime,string"` // Latest time position was adjusted,
+		InstrumentType string `json:"instType"`
 	}{
 		Alias: (*Alias)(a),
 	}
@@ -585,6 +920,23 @@ func (a *AccountPosition) UnmarshalJSON(data []byte) error {
 	}
 	a.CreationTime = time.UnixMilli(chil.CreationTime)
 	a.UpdatedTime = time.UnixMilli(chil.UpdatedTime)
+	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	switch chil.InstrumentType {
+	case "SWAP":
+		a.InstrumentType = asset.PerpetualSwap
+	case "SPOT":
+		a.InstrumentType = asset.Spot
+	case "FUTURES":
+		a.InstrumentType = asset.Futures
+	case "OPTION":
+		a.InstrumentType = asset.Option
+	case "CONTRACT":
+		a.InstrumentType = asset.PerpetualSwap
+	case "MARGIN":
+		a.InstrumentType = asset.Margin
+	case "ANY":
+		a.InstrumentType = asset.Item("")
+	}
 	return nil
 }
 
@@ -593,8 +945,9 @@ func (a *AccountPositionHistory) UnmarshalJSON(data []byte) error {
 	type Alias AccountPositionHistory
 	chil := &struct {
 		*Alias
-		CreationTime int64 `json:"cTime,string"`
-		UpdateTime   int64 `json:"uTime,string"`
+		CreationTime   int64  `json:"cTime,string"`
+		UpdateTime     int64  `json:"uTime,string"`
+		InstrumentType string `json:"instType"`
 	}{
 		Alias: (*Alias)(a),
 	}
@@ -603,6 +956,23 @@ func (a *AccountPositionHistory) UnmarshalJSON(data []byte) error {
 	}
 	a.CreationTime = time.UnixMilli(chil.CreationTime)
 	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
+	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	switch chil.InstrumentType {
+	case "SWAP":
+		a.InstrumentType = asset.PerpetualSwap
+	case "SPOT":
+		a.InstrumentType = asset.Spot
+	case "FUTURES":
+		a.InstrumentType = asset.Futures
+	case "OPTION":
+		a.InstrumentType = asset.Option
+	case "CONTRACT":
+		a.InstrumentType = asset.PerpetualSwap
+	case "MARGIN":
+		a.InstrumentType = asset.Margin
+	case "ANY":
+		a.InstrumentType = asset.Item("")
+	}
 	return nil
 }
 
@@ -627,7 +997,8 @@ func (a *BillsDetailResponse) UnmarshalJSON(data []byte) error {
 	type Alias BillsDetailResponse
 	chil := &struct {
 		*Alias
-		Timestamp int64 `json:"ts,string"`
+		Timestamp      int64  `json:"ts,string"`
+		InstrumentType string `json:"instType"`
 	}{
 		Alias: (*Alias)(a),
 	}
@@ -635,15 +1006,33 @@ func (a *BillsDetailResponse) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	switch chil.InstrumentType {
+	case "SWAP":
+		a.InstrumentType = asset.PerpetualSwap
+	case "SPOT":
+		a.InstrumentType = asset.Spot
+	case "FUTURES":
+		a.InstrumentType = asset.Futures
+	case "OPTION":
+		a.InstrumentType = asset.Option
+	case "CONTRACT":
+		a.InstrumentType = asset.PerpetualSwap
+	case "MARGIN":
+		a.InstrumentType = asset.Margin
+	case "ANY":
+		a.InstrumentType = asset.Item("")
+	}
 	return nil
 }
 
-// UnmarshalJSON decerialize the account and position response.
+// UnmarshalJSON decerialize the account and position response and custom Unmarshaler to convert the Instrument type string to an asset.Item instance.
 func (a *TradeFeeRate) UnmarshalJSON(data []byte) error {
 	type Alias TradeFeeRate
 	chil := &struct {
 		*Alias
-		Timestamp int64 `json:"ts,string"`
+		Timestamp      int64  `json:"ts,string"`
+		InstrumentType string `json:"instType"`
 	}{
 		Alias: (*Alias)(a),
 	}
@@ -651,6 +1040,23 @@ func (a *TradeFeeRate) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	switch chil.InstrumentType {
+	case "SWAP":
+		a.InstrumentType = asset.PerpetualSwap
+	case "SPOT":
+		a.InstrumentType = asset.Spot
+	case "FUTURES":
+		a.InstrumentType = asset.Futures
+	case "OPTION":
+		a.InstrumentType = asset.Option
+	case "CONTRACT":
+		a.InstrumentType = asset.PerpetualSwap
+	case "MARGIN":
+		a.InstrumentType = asset.Margin
+	default:
+		a.InstrumentType = asset.Item("ANY")
+	}
 	return nil
 }
 
@@ -707,8 +1113,8 @@ func (a *BorrowInterestAndLimitResponse) UnmarshalJSON(data []byte) error {
 	type Alias BorrowInterestAndLimitResponse
 	chil := &struct {
 		*Alias
-		NextDiscountTime int64 `json:"nextDiscountTime"`
-		NextInterestTime int64 `json:"nextInterestTime"`
+		NextDiscountTime int64 `json:"nextDiscountTime,string"`
+		NextInterestTime int64 `json:"nextInterestTime,string"`
 	}{
 		Alias: (*Alias)(a),
 	}
@@ -717,6 +1123,38 @@ func (a *BorrowInterestAndLimitResponse) UnmarshalJSON(data []byte) error {
 	}
 	a.NextDiscountTime = time.UnixMilli(chil.NextDiscountTime)
 	a.NextInterestTime = time.UnixMilli(chil.NextInterestTime)
+	return nil
+}
+
+// UnmarshalJSON custom unmarshaler to convert the Instrument type string to an asset.Item instance.
+func (a *PositionBuilderData) UnmarshalJSON(data []byte) error {
+	type Alias PositionBuilderData
+	chil := &struct {
+		*Alias
+		InstrumentType string `json:"instType"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	switch chil.InstrumentType {
+	case "SWAP":
+		a.InstrumentType = asset.PerpetualSwap
+	case "SPOT":
+		a.InstrumentType = asset.Spot
+	case "FUTURES":
+		a.InstrumentType = asset.Futures
+	case "OPTION":
+		a.InstrumentType = asset.Option
+	case "CONTRACT":
+		a.InstrumentType = asset.PerpetualSwap
+	case "MARGIN":
+		a.InstrumentType = asset.Margin
+	default:
+		a.InstrumentType = asset.Item("ANY")
+	}
 	return nil
 }
 
@@ -865,12 +1303,164 @@ func (a *SubaccountBalanceResponse) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalJSON decerialize the account and position response.
-func (a *GridAlgoOrderResponse) UnmarshalJSON(data []byte) error {
-	type Alias GridAlgoOrderResponse
+func (a *BlockTicker) UnmarshalJSON(data []byte) error {
+	type Alias BlockTicker
 	chil := &struct {
 		*Alias
-		UpdateTime   int64 `json:"uTime,string"`
-		CreationTime int64 `json:"cTime,string"`
+		Timestamp      int64  `json:"ts,string"`
+		InstrumentType string `json:"instType"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	switch chil.InstrumentType {
+	case "SWAP":
+		a.InstrumentType = asset.PerpetualSwap
+	case "SPOT":
+		a.InstrumentType = asset.Spot
+	case "FUTURES":
+		a.InstrumentType = asset.Futures
+	case "OPTION":
+		a.InstrumentType = asset.Option
+	case "CONTRACT":
+		a.InstrumentType = asset.PerpetualSwap
+	case "MARGIN":
+		a.InstrumentType = asset.Margin
+	case "ANY":
+		a.InstrumentType = asset.Item("")
+	}
+	return nil
+}
+
+// UnmarshalJSON decerialize the timestamp.
+func (a *OKXIndexTickerResponse) UnmarshalJSON(data []byte) error {
+	type Alias OKXIndexTickerResponse
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"ts,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// UnmarshalJSON decerialize the timestamp.
+func (a *LongShortRatio) UnmarshalJSON(data []byte) error {
+	type Alias LongShortRatio
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"ts,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// UnmarshalJSON decerialize the timestamp.
+func (a *OpenInterestVolume) UnmarshalJSON(data []byte) error {
+	type Alias OpenInterestVolume
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"ts,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// UnmarshalJSON decerialize the timestamp.
+func (a *OpenInterestVolumeRatio) UnmarshalJSON(data []byte) error {
+	type Alias OpenInterestVolumeRatio
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"ts,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// UnmarshalJSON decerialize the account and position response.
+func (a *BlockTrade) UnmarshalJSON(data []byte) error {
+	type Alias BlockTrade
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"ts,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// UnmarshalJSON decerialize the account and position response.
+func (a *UnitConvertResponse) UnmarshalJSON(data []byte) error {
+	type Alias UnitConvertResponse
+	chil := &struct {
+		*Alias
+		ConvertType int `json:"type,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	switch chil.ConvertType {
+	case 1:
+		a.ConvertType = CurrencyConvertType(1)
+	case 2:
+		a.ConvertType = CurrencyConvertType(2)
+	}
+	return nil
+}
+
+// UnmarshalJSON decerialize the timestamp.
+func (a *GreeksItem) UnmarshalJSON(data []byte) error {
+	type Alias GreeksItem
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"ts,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// UnmarshalJSON custom Unmarshaler to convert the Instrument type string to an asset.Item instance.
+func (a *GridAlgoSuborders) UnmarshalJSON(data []byte) error {
+	type Alias GridAlgoSuborders
+	chil := &struct {
+		*Alias
+		InstrumentType string `json:"instType"`
+		UpdateTime     int64  `json:"uTime,string"`
+		CreationTime   int64  `json:"cTime,string"`
 	}{
 		Alias: (*Alias)(a),
 	}
@@ -879,6 +1469,59 @@ func (a *GridAlgoOrderResponse) UnmarshalJSON(data []byte) error {
 	}
 	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
 	a.CreationTime = time.UnixMilli(chil.CreationTime)
+	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	switch chil.InstrumentType {
+	case "SWAP":
+		a.InstrumentType = asset.PerpetualSwap
+	case "SPOT":
+		a.InstrumentType = asset.Spot
+	case "FUTURES":
+		a.InstrumentType = asset.Futures
+	case "OPTION":
+		a.InstrumentType = asset.Option
+	case "CONTRACT":
+		a.InstrumentType = asset.PerpetualSwap
+	case "MARGIN":
+		a.InstrumentType = asset.Margin
+	default:
+		a.InstrumentType = asset.Item("ANY")
+	}
+	return nil
+}
+
+// UnmarshalJSON decerialize the account and position response.
+func (a *GridAlgoOrderResponse) UnmarshalJSON(data []byte) error {
+	type Alias GridAlgoOrderResponse
+	chil := &struct {
+		*Alias
+		UpdateTime     int64  `json:"uTime,string"`
+		CreationTime   int64  `json:"cTime,string"`
+		InstrumentType string `json:"instType"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
+	a.CreationTime = time.UnixMilli(chil.CreationTime)
+	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	switch chil.InstrumentType {
+	case "SWAP":
+		a.InstrumentType = asset.PerpetualSwap
+	case "SPOT":
+		a.InstrumentType = asset.Spot
+	case "FUTURES":
+		a.InstrumentType = asset.Futures
+	case "OPTION":
+		a.InstrumentType = asset.Option
+	case "CONTRACT":
+		a.InstrumentType = asset.PerpetualSwap
+	case "MARGIN":
+		a.InstrumentType = asset.Margin
+	case "ANY":
+		a.InstrumentType = asset.Item("")
+	}
 	return nil
 }
 
@@ -887,8 +1530,9 @@ func (a *AlgoOrderPosition) UnmarshalJSON(data []byte) error {
 	type Alias AlgoOrderPosition
 	chil := &struct {
 		*Alias
-		UpdateTime   int64 `json:"uTime,string"`
-		CreationTime int64 `json:"cTime,string"`
+		UpdateTime     int64  `json:"uTime,string"`
+		CreationTime   int64  `json:"cTime,string"`
+		InstrumentType string `json:"instType"`
 	}{
 		Alias: (*Alias)(a),
 	}
@@ -897,6 +1541,23 @@ func (a *AlgoOrderPosition) UnmarshalJSON(data []byte) error {
 	}
 	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
 	a.CreationTime = time.UnixMilli(chil.CreationTime)
+	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	switch chil.InstrumentType {
+	case "SWAP":
+		a.InstrumentType = asset.PerpetualSwap
+	case "SPOT":
+		a.InstrumentType = asset.Spot
+	case "FUTURES":
+		a.InstrumentType = asset.Futures
+	case "OPTION":
+		a.InstrumentType = asset.Option
+	case "CONTRACT":
+		a.InstrumentType = asset.PerpetualSwap
+	case "MARGIN":
+		a.InstrumentType = asset.Margin
+	case "ANY":
+		a.InstrumentType = asset.Item("")
+	}
 	return nil
 }
 

@@ -23,6 +23,7 @@ const (
 	Margin                 = Item("margin")
 	MarginFunding          = Item("marginfunding")
 	Index                  = Item("index")
+	Option                 = Item("option")
 	Binary                 = Item("binary")
 	PerpetualContract      = Item("perpetualcontract")
 	PerpetualSwap          = Item("perpetualswap")
@@ -38,6 +39,7 @@ var supported = Items{
 	Margin,
 	MarginFunding,
 	Index,
+	Option,
 	Binary,
 	PerpetualContract,
 	PerpetualSwap,

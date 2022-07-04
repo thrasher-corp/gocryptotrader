@@ -253,7 +253,9 @@
      "assetTypes": [
       "spot",
       "margin",
-      "perpetualswap"
+      "perpetualswap",
+      "futures",
+      "option"
      ],
      "pairs": {
       "futures": {
