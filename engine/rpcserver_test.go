@@ -184,7 +184,7 @@ func (f fExchange) FetchAccountInfo(_ context.Context, a asset.Item) (account.Ho
 }
 
 // GetFuturesPositions overrides testExchange's GetFuturesPositions function
-func (f fExchange) GetFuturesPositions(_ context.Context, a asset.Item, cp currency.Pair, _, _ time.Time) ([]order.Detail, error) {
+func (f fExchange) GetFuturesPositionsForCurrency(_ context.Context, a asset.Item, cp currency.Pair, _, _ time.Time) ([]order.Detail, error) {
 	return []order.Detail{
 		{
 			Price:     1337,

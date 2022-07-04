@@ -1634,69 +1634,96 @@ func (f *FTX) calculateTotalCollateralOnline(ctx context.Context, calc *order.To
 	return &result, nil
 }
 
-// GetFuturesPositions returns all futures positions within provided params
-func (f *FTX) GetFuturesPositions(ctx context.Context, a asset.Item, cp currency.Pair, start, end time.Time) ([]order.Detail, error) {
-	if !a.IsFutures() {
-		return nil, fmt.Errorf("%w futures asset type only", common.ErrFunctionNotSupported)
+// GetFuturesPositions returns futures positions based on supplied request
+func (f *FTX) GetFuturesPositions(ctx context.Context, request *order.PositionsRequest) ([]order.PositionDetails, error) {
+	if request == nil {
+		return nil, fmt.Errorf("%w position request", common.ErrNilPointer)
 	}
-	if err := f.CurrencyPairs.IsAssetEnabled(a); err != nil {
+	if !request.Asset.IsFutures() {
+		return nil, fmt.Errorf("%w '%s'", order.ErrNotFuturesAsset, request.Asset)
+	}
+	if err := f.CurrencyPairs.IsAssetEnabled(request.Asset); err != nil {
 		return nil, err
 	}
-	pairFmt, err := f.GetPairFormat(a, true)
+	enabledPairs, err := f.CurrencyPairs.GetPairs(request.Asset, true)
 	if err != nil {
 		return nil, err
 	}
-	fPair := cp.Format(pairFmt.Delimiter, pairFmt.Uppercase)
-	endTime := end
-	var resp []order.Detail
 
-allPositions:
-	for {
-		var fills []FillsData
-		fills, err = f.GetFills(ctx, cp, a, start, endTime)
-		if err != nil {
-			return nil, err
+	for i := range request.Pairs {
+		if !enabledPairs.Contains(request.Pairs[i], false) {
+			return nil, fmt.Errorf("%w %v", currency.ErrPairNotFound, request.Pairs[i])
 		}
-		if len(fills) == 0 {
-			break allPositions
-		}
-		sort.Slice(fills, func(i, j int) bool {
-			return fills[i].ID < (fills[j].ID)
-		})
-		for i := range fills {
-			if start.Equal(fills[i].Time) || fills[i].Time.Before(start) {
-				// reached end of trades to crawl
-				break allPositions
-			}
-			if fills[i].Time.After(endTime) {
-				continue
-			}
-			var side order.Side
-			side, err = order.StringToOrderSide(fills[i].Side)
+	}
+
+	positionsDetails := make([]order.PositionDetails, len(request.Pairs))
+	for x := range request.Pairs {
+		fillsOrders := make(map[string]*order.Detail)
+		endTime := time.Now()
+	allPositions:
+		for {
+			var fills []FillsData
+			fills, err = f.GetFills(ctx, request.Pairs[x], request.Asset, request.StartDate, endTime)
 			if err != nil {
 				return nil, err
 			}
-			resp = append(resp, order.Detail{
-				Fee:       fills[i].Fee,
-				FeeAsset:  fills[i].FeeCurrency,
-				Pair:      fPair,
-				Price:     fills[i].Price,
-				Amount:    fills[i].Size,
-				Exchange:  f.Name,
-				OrderID:   strconv.FormatInt(fills[i].ID, 10),
-				Side:      side,
-				Status:    order.Filled,
-				AssetType: a,
-				Date:      fills[i].Time,
+			if len(fills) == 0 {
+				break allPositions
+			}
+			sort.Slice(fills, func(i, j int) bool {
+				return fills[i].ID < (fills[j].ID)
 			})
+			for y := range fills {
+				if request.StartDate.Equal(fills[y].Time) || fills[y].Time.Before(request.StartDate) {
+					// reached end of trades to crawl
+					break allPositions
+				}
+				if fills[y].Time.After(endTime) {
+					continue
+				}
+				var side order.Side
+				side, err = order.StringToOrderSide(fills[y].Side)
+				if err != nil {
+					return nil, err
+				}
+				oID := strconv.FormatInt(fills[y].ID, 10)
+				_, ok := fillsOrders[oID]
+				if !ok {
+					fillsOrders[oID] = &order.Detail{
+						Fee:       fills[y].Fee,
+						FeeAsset:  fills[y].FeeCurrency,
+						Pair:      request.Pairs[x],
+						Price:     fills[y].Price,
+						Amount:    fills[y].Size,
+						Exchange:  f.Name,
+						OrderID:   oID,
+						Side:      side,
+						Status:    order.Filled,
+						AssetType: request.Asset,
+						Date:      fills[y].Time,
+					}
+				}
+			}
+			if endTime.Equal(fills[len(fills)-1].Time) {
+				break allPositions
+			}
+			endTime = fills[len(fills)-1].Time
 		}
-		if endTime.Equal(fills[len(fills)-1].Time) {
-			break allPositions
+		var ods []order.Detail
+		for _, v := range fillsOrders {
+			ods = append(ods, *v)
 		}
-		endTime = fills[len(fills)-1].Time
+		sort.Slice(ods, func(i, j int) bool {
+			return ods[i].OrderID < (ods[j].OrderID)
+		})
+		positionsDetails[x] = order.PositionDetails{
+			Exchange: f.Name,
+			Asset:    request.Asset,
+			Pair:     enabledPairs[x],
+			Orders:   ods,
+		}
 	}
-
-	return resp, nil
+	return positionsDetails, nil
 }
 
 // GetCollateralCurrencyForContract returns the collateral currency for an asset and contract pair
@@ -1795,92 +1822,6 @@ func (f *FTX) GetPositionSummary(ctx context.Context, request *order.PositionSum
 		}, nil
 	}
 	return nil, fmt.Errorf("unable to calculate position summary %w for %v %v", order.ErrPositionNotFound, request.Asset, request.Pair)
-}
-
-// GetOpenPositions returns all open positions
-func (f *FTX) GetOpenPositions(ctx context.Context, item asset.Item, startDate time.Time) ([]order.OpenPositionDetails, error) {
-	if !item.IsFutures() {
-		return nil, fmt.Errorf("%w '%s'", order.ErrNotFuturesAsset, item)
-	}
-	if err := f.CurrencyPairs.IsAssetEnabled(item); err != nil {
-		return nil, err
-	}
-	positions, err := f.GetPositions(ctx, true)
-	if err != nil {
-		return nil, err
-	}
-	var pairs currency.Pairs
-	pairFmt, err := f.GetPairFormat(item, true)
-	if err != nil {
-		return nil, err
-	}
-	positionsToProcess := make([]PositionData, 0, len(positions))
-	for x := range positions {
-		if !f.CurrencyPairs.Pairs[item].Enabled.Contains(positions[x].Future, false) ||
-			positions[x].OpenSize == 0 {
-			continue
-		}
-		pairs = append(pairs, positions[x].Future)
-		positionsToProcess = append(positionsToProcess, positions[x])
-	}
-	if len(pairs) == 0 {
-		return nil, nil
-	}
-	pairs = pairs.Format(pairFmt.Delimiter, pairFmt.Index, pairFmt.Uppercase)
-	response := make([]order.OpenPositionDetails, 0, len(positionsToProcess))
-	for x := range positionsToProcess {
-		if positionsToProcess[x].OpenSize == 0 {
-			continue
-		}
-		openPositionDetails := order.OpenPositionDetails{
-			Exchange: f.Name,
-			Asset:    item,
-			Pair:     positionsToProcess[x].Future,
-		}
-		var mpt *order.MultiPositionTracker
-		mpt, err = order.SetupMultiPositionTracker(&order.MultiPositionTrackerSetup{
-			Exchange:               f.Name,
-			Asset:                  item,
-			Pair:                   positionsToProcess[x].Future,
-			Underlying:             currency.USD,
-			ExchangePNLCalculation: &order.PNLCalculator{},
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		var orders []order.Detail
-		orders, err = f.GetFuturesPositions(ctx, item, positionsToProcess[x].Future, startDate, time.Now())
-		if err != nil {
-			return nil, err
-		}
-
-		for y := range orders {
-			if !positionsToProcess[x].Future.Equal(orders[y].Pair) || orders[y].Date.Before(startDate) {
-				continue
-			}
-			if orders[y].Price == 0 {
-				// sometimes FTX sends a null price
-				orders[y].Price = orders[y].AverageExecutedPrice
-			}
-			err = mpt.TrackNewOrder(&orders[y])
-			if err != nil {
-				return nil, err
-			}
-		}
-		allPositions := mpt.GetPositions()
-		for y := range allPositions {
-			if allPositions[y].Status != order.Open {
-				continue
-			}
-			openPositionDetails.Orders = append(openPositionDetails.Orders, allPositions[y].Orders...)
-		}
-		if len(openPositionDetails.Orders) == 0 {
-			return nil, fmt.Errorf("%w open position found for %v but could not find opening order in time range %v-%v", order.ErrPositionNotFound, positionsToProcess[x].Future, startDate, time.Now())
-		}
-		response = append(response, openPositionDetails)
-	}
-	return response, nil
 }
 
 // GetFundingRates returns stats about funding rates for pairs

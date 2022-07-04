@@ -973,8 +973,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{calculateTotalCollateralResponse}),
 		})
 
-		var openPositionsResponse []order.OpenPositionDetails
-		openPositionsResponse, err = e.GetOpenPositions(context.TODO(), assetTypes[i], time.Now().Add(-time.Hour))
+		var openPositionsResponse []order.PositionDetails
+		openPositionsResponse, err = e.GetFuturesPositions(context.TODO(), assetTypes[i], time.Now().Add(-time.Hour))
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -982,13 +982,13 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		}
 		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 			SentParams: jsonifyInterface([]interface{}{assetTypes[i], time.Now().Add(-time.Hour)}),
-			Function:   "GetOpenPositions",
+			Function:   "GetFuturesPositions",
 			Error:      msg,
 			Response:   jsonifyInterface([]interface{}{openPositionsResponse}),
 		})
 
 		var getFuturesPositionsResponse []order.Detail
-		getFuturesPositionsResponse, err = e.GetFuturesPositions(context.TODO(), assetTypes[i], p, time.Now().Add(-time.Hour), time.Now())
+		getFuturesPositionsResponse, err = e.GetFuturesPositionsForCurrency(context.TODO(), assetTypes[i], p, time.Now().Add(-time.Hour), time.Now())
 		msg = ""
 		if err != nil {
 			msg = err.Error()

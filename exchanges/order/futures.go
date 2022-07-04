@@ -188,11 +188,13 @@ func (c *PositionController) GetOpenPosition(exch string, item asset.Item, pair 
 	c.m.Lock()
 	defer c.m.Unlock()
 	exch = strings.ToLower(exch)
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
 	pKey, err := pair.Key()
 	if err != nil {
 		return nil, err
 	}
-loop:
 	for exchStr, exchM := range c.multiPositionTrackers {
 		if exch != "" && exch != exchStr {
 			continue
@@ -202,18 +204,16 @@ loop:
 				continue
 			}
 			for cp, multiPositionTracker := range itemM {
-				if !pair.IsEmpty() && !pKey.Equal(cp) {
+				if !pKey.Equal(cp) {
 					continue
 				}
 				positions := multiPositionTracker.GetPositions()
-				if len(positions) == 0 {
-					break loop
+				for i := range positions {
+					if positions[i].Status != Open {
+						continue
+					}
+					return &positions[i], nil
 				}
-				position := positions[len(positions)-1]
-				if position.Status == Closed {
-					break loop
-				}
-				return &position, nil
 			}
 		}
 	}
@@ -449,6 +449,9 @@ func (e *MultiPositionTracker) GetPositions() []Position {
 	for i := range e.positions {
 		resp[i] = e.positions[i].GetStats()
 	}
+	sort.Slice(resp, func(i, j int) bool {
+		return resp[i].OpeningDate.Before(resp[j].OpeningDate)
+	})
 	return resp
 }
 
@@ -778,7 +781,7 @@ func (p *PositionTracker) TrackFundingDetails(d *FundingRates) error {
 			d.Exchange, d.Asset, d.Pair, errDoesntMatch, p.exchange, p.asset, p.contractPair)
 	}
 	if err := common.StartEndTimeCheck(d.StartDate, d.EndDate); err != nil && !errors.Is(err, common.ErrStartEqualsEnd) {
-		// start end being equal is valid if say, only one funding rate is retrieved
+		// start end being equal is valid if only one funding rate is retrieved
 		return err
 	}
 	if len(p.pnlHistory) == 0 {

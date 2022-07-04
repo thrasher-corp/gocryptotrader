@@ -120,13 +120,13 @@ func (f omfExchange) ModifyOrder(ctx context.Context, action *order.Modify) (*or
 	return ans, nil
 }
 
-func (f omfExchange) GetOpenPositions(ctx context.Context, a asset.Item, tt time.Time) ([]order.OpenPositionDetails, error) {
+func (f omfExchange) GetFuturesPositions(ctx context.Context, a asset.Item, tt time.Time) ([]order.PositionDetails, error) {
 	cp := currency.NewPair(currency.BTC, currency.PERP)
 	id, err := uuid.NewV4()
 	if err != nil {
 		return nil, err
 	}
-	return []order.OpenPositionDetails{
+	return []order.PositionDetails{
 		{
 			Exchange: f.GetName(),
 			Asset:    a,
@@ -1615,7 +1615,7 @@ func TestProcessFuturesPositions(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, common.ErrNilPointer)
 	}
 
-	position := &order.OpenPositionDetails{
+	position := &order.PositionDetails{
 		Exchange: b.Name,
 		Asset:    asset.Spot,
 		Pair:     cp,

@@ -132,8 +132,7 @@ type FuturesManagement interface {
 	CalculatePNL(context.Context, *order.PNLCalculatorRequest) (*order.PNLResult, error)
 	ScaleCollateral(ctx context.Context, calculator *order.CollateralCalculator) (*order.CollateralByCurrency, error)
 	CalculateTotalCollateral(context.Context, *order.TotalCollateralCalculator) (*order.TotalCollateralResponse, error)
-	GetOpenPositions(context.Context, asset.Item, time.Time) ([]order.OpenPositionDetails, error)
-	GetFuturesPositions(context.Context, asset.Item, currency.Pair, time.Time, time.Time) ([]order.Detail, error)
+	GetFuturesPositions(context.Context, *order.PositionsRequest) ([]order.PositionDetails, error)
 	GetFundingRates(context.Context, *order.FundingRatesRequest) ([]order.FundingRates, error)
 	IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error)
 }

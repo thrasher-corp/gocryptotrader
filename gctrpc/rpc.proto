@@ -1073,9 +1073,10 @@ message FuturePosition {
   string unrealised_pnl = 12;
   string realised_pnl = 13;
   string closing_date = 14;
-  repeated OrderDetails orders = 15;
-  FuturesPositionStats position_stats = 16;
-  FundingData funding_data = 17;
+  int64 order_count=15;
+  repeated OrderDetails orders = 16;
+  FuturesPositionStats position_stats = 17;
+  FundingData funding_data = 18;
 }
 
 message GetManagedPositionRequest {

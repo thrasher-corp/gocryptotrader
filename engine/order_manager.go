@@ -707,20 +707,24 @@ func (m *OrderManager) processOrders() {
 				}
 			}
 			if m.trackFuturesPositions && enabledAssets[y].IsFutures() {
-				var openPositions []order.OpenPositionDetails
-				openPositions, err = exchanges[x].GetOpenPositions(context.TODO(), enabledAssets[y], time.Now().Add(m.openPositionSeekDuration))
+				var positions []order.PositionDetails
+				positions, err = exchanges[x].GetFuturesPositions(context.TODO(), &order.PositionsRequest{
+					Asset:     enabledAssets[y],
+					Pairs:     pairs,
+					StartDate: time.Now().Add(m.openPositionSeekDuration),
+				})
 				if err != nil {
 					if !errors.Is(err, common.ErrNotYetImplemented) {
 						log.Error(log.OrderMgr, err)
 					}
 				} else {
-					for z := range openPositions {
-						if len(openPositions[z].Orders) == 0 {
+					for z := range positions {
+						if len(positions[z].Orders) == 0 {
 							continue
 						}
-						err = m.processFuturesPositions(exchanges[x], &openPositions[z])
+						err = m.processFuturesPositions(exchanges[x], &positions[z])
 						if err != nil {
-							log.Errorf(log.OrderMgr, "unable to process future positions for %v %v %v. err: %v", openPositions[z].Exchange, openPositions[z].Asset, openPositions[z].Pair, err)
+							log.Errorf(log.OrderMgr, "unable to process future positions for %v %v %v. err: %v", positions[z].Exchange, positions[z].Asset, positions[z].Pair, err)
 						}
 					}
 				}
@@ -736,7 +740,7 @@ func (m *OrderManager) processOrders() {
 }
 
 // processFuturesPositions ensures any open position found is kept up to date in the order manager
-func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, position *order.OpenPositionDetails) error {
+func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, position *order.PositionDetails) error {
 	if !m.trackFuturesPositions {
 		return errFuturesTrackingDisabled
 	}
@@ -744,7 +748,7 @@ func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, posit
 		return fmt.Errorf("%w IBotExchange", common.ErrNilPointer)
 	}
 	if position == nil {
-		return fmt.Errorf("%w OpenPositionDetails", common.ErrNilPointer)
+		return fmt.Errorf("%w PositionDetails", common.ErrNilPointer)
 	}
 	if len(position.Orders) == 0 {
 		return fmt.Errorf("%w position for '%v' '%v' '%v' has no orders", errNilOrder, position.Exchange, position.Asset, position.Pair)
@@ -758,6 +762,13 @@ func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, posit
 		if err != nil {
 			return err
 		}
+	}
+	_, err = m.orderStore.futuresPositionController.GetOpenPosition(position.Exchange, position.Asset, position.Pair)
+	if err != nil {
+		if errors.Is(err, order.ErrPositionNotFound) {
+			return nil
+		}
+		return err
 	}
 	tick, err := exch.FetchTicker(context.TODO(), position.Pair, position.Asset)
 	if err != nil {

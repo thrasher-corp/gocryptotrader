@@ -1296,11 +1296,6 @@ func (b *Base) CalculateTotalCollateral(ctx context.Context, calculator *order.T
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetFuturesPositions returns futures positions according to the provided parameters
-func (b *Base) GetFuturesPositions(context.Context, asset.Item, currency.Pair, time.Time, time.Time) ([]order.Detail, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
 // GetCollateralCurrencyForContract returns the collateral currency for an asset and contract pair
 func (b *Base) GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error) {
 	return currency.Code{}, asset.Empty, common.ErrNotYetImplemented
@@ -1334,8 +1329,8 @@ func (b *Base) GetFundingPaymentDetails(context.Context, *order.FundingRatesRequ
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetOpenPositions returns all open futures positions
-func (b *Base) GetOpenPositions(context.Context, asset.Item, time.Time) ([]order.OpenPositionDetails, error) {
+// GetFuturesPositions returns futures positions for all currencies
+func (b *Base) GetFuturesPositions(context.Context, *order.PositionsRequest) ([]order.PositionDetails, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

@@ -2046,7 +2046,7 @@ func TestCalculatePNL(t *testing.T) {
 		t.Skip("skipping test, api keys not set")
 	}
 	pair := currency.NewPair(currency.BTC, currency.NewCode("20211231"))
-	positions, err := f.GetFuturesPositions(context.Background(), asset.Futures, pair, time.Date(2021, 1, 6, 4, 28, 0, 0, time.UTC), time.Date(2021, 12, 31, 4, 32, 0, 0, time.UTC))
+	positions, err := f.GetFuturesPositionsForCurrency(context.Background(), asset.Futures, pair, time.Date(2021, 1, 6, 4, 28, 0, 0, time.UTC), time.Date(2021, 12, 31, 4, 32, 0, 0, time.UTC))
 	if err != nil {
 		t.Error(err)
 	}
@@ -2100,7 +2100,7 @@ func TestGetFuturesPositions(t *testing.T) {
 	start := time.Now().Add(-time.Hour * 24 * 365)
 	end := time.Now()
 	a := asset.Futures
-	_, err := f.GetFuturesPositions(context.Background(), a, cp, start, end)
+	_, err := f.GetFuturesPositionsForCurrency(context.Background(), a, cp, start, end)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2218,7 +2218,7 @@ func TestGetPositionSummary(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	positions, err := f.GetFuturesPositions(
+	positions, err := f.GetFuturesPositionsForCurrency(
 		context.Background(),
 		asset.Futures,
 		currency.NewPair(currency.BTC, currency.NewCode("PERP")),
@@ -2371,12 +2371,12 @@ func TestGetOpenPositions(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetOpenPositions(context.Background(), asset.Spot, time.Now())
+	_, err := f.GetFuturesPositions(context.Background(), asset.Spot, time.Now())
 	if !errors.Is(err, order.ErrNotFuturesAsset) {
 		t.Errorf("received '%v' expected '%v'", err, order.ErrNotFuturesAsset)
 	}
 	f.Verbose = true
-	resp, err := f.GetOpenPositions(context.Background(), asset.Futures, time.Now().Add(-time.Hour*24*365))
+	resp, err := f.GetFuturesPositions(context.Background(), asset.Futures, time.Now().Add(-time.Hour*24*365))
 	if len(resp) == 0 {
 		// you have no open positions, that is okay
 		return

@@ -4609,6 +4609,10 @@
         "closingDate": {
           "type": "string"
         },
+        "orderCount": {
+          "type": "string",
+          "format": "int64"
+        },
         "orders": {
           "type": "array",
           "items": {

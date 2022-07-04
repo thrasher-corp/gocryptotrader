@@ -2261,14 +2261,6 @@ func TestCalculateTotalCollateral(t *testing.T) {
 	}
 }
 
-func TestGetFuturesPositions(t *testing.T) {
-	t.Parallel()
-	var b Base
-	if _, err := b.GetFuturesPositions(context.Background(), asset.Spot, currency.Pair{}, time.Time{}, time.Time{}); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
-	}
-}
-
 func TestUpdateCurrencyStates(t *testing.T) {
 	t.Parallel()
 	var b Base
@@ -2340,7 +2332,7 @@ func TestGetPositionSummary(t *testing.T) {
 func TestGetOpenPositions(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetOpenPositions(context.Background(), asset.Spot, time.Now()); !errors.Is(err, common.ErrNotYetImplemented) {
+	if _, err := b.GetFuturesPositions(context.Background(), asset.Spot, time.Now()); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }

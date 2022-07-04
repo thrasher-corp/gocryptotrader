@@ -385,11 +385,19 @@ type FundingRate struct {
 	Payment decimal.Decimal
 }
 
-// OpenPositionDetails are used to track open positions
+// PositionDetails are used to track open positions
 // in the order manager
-type OpenPositionDetails struct {
+type PositionDetails struct {
 	Exchange string
 	Asset    asset.Item
 	Pair     currency.Pair
 	Orders   []Detail
+}
+
+// PositionsRequest defines the request to
+// retrieve futures position data
+type PositionsRequest struct {
+	Asset     asset.Item
+	Pairs     currency.Pairs
+	StartDate time.Time
 }

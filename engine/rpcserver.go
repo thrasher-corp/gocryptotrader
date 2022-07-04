@@ -4183,6 +4183,7 @@ func (s *RPCServer) buildFuturePosition(position *order.Position, getFundingPaym
 		CurrentSize:      position.LatestSize.String(),
 		UnrealisedPnl:    position.UnrealisedPNL.String(),
 		RealisedPnl:      position.RealisedPNL.String(),
+		OrderCount:       int64(len(position.Orders)),
 	}
 	if getFundingPayments {
 		var sum decimal.Decimal
@@ -4382,19 +4383,25 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 	if creds.SubAccount != "" {
 		subAccount = "for subaccount: " + creds.SubAccount
 	}
-	orders, err := exch.GetFuturesPositions(ctx, ai, cp, start, end)
+	positionDetails, err := exch.GetFuturesPositions(ctx, &order.PositionsRequest{
+		Asset:     ai,
+		Pairs:     currency.Pairs{cp},
+		StartDate: start,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("%w %v", err, subAccount)
 	}
-
+	if len(positionDetails) != 1 {
+		return nil, errUnexpectedResponseSize
+	}
 	if r.Overwrite {
 		err = s.OrderManager.ClearFuturesTracking(r.Exchange, ai, cp)
 		if err != nil {
 			return nil, fmt.Errorf("cannot overwrite %w %v", err, subAccount)
 		}
 	}
-	for i := range orders {
-		err = s.OrderManager.orderStore.futuresPositionController.TrackNewOrder(&orders[i])
+	for i := range positionDetails[0].Orders {
+		err = s.OrderManager.orderStore.futuresPositionController.TrackNewOrder(&positionDetails[0].Orders[i])
 		if err != nil {
 			if !errors.Is(err, order.ErrPositionClosed) {
 				return nil, err
@@ -4448,6 +4455,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 			CurrentSize:      pos[i].LatestSize.String(),
 			UnrealisedPnl:    pos[i].UnrealisedPNL.String(),
 			RealisedPnl:      pos[i].RealisedPNL.String(),
+			OrderCount:       int64(len(pos[i].Orders)),
 		}
 		if !pos[i].UnrealisedPNL.IsZero() {
 			details.UnrealisedPnl = pos[i].UnrealisedPNL.String()
