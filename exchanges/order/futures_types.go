@@ -139,6 +139,7 @@ type UsedCollateralBreakdown struct {
 type PositionController struct {
 	m                     sync.Mutex
 	multiPositionTrackers map[string]map[asset.Item]map[currency.PairKey]*MultiPositionTracker
+	updated                    time.Time
 }
 
 // MultiPositionTracker will track the performance of

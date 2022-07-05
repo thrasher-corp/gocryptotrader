@@ -65,7 +65,12 @@ func (c *PositionController) TrackNewOrder(d *Detail) error {
 		}
 		itemM[pKey] = multiPositionTracker
 	}
-	return multiPositionTracker.TrackNewOrder(d)
+	err = multiPositionTracker.TrackNewOrder(d)
+	if err != nil {
+		return err
+	}
+	c.updated = time.Now()
+	return nil
 }
 
 // SetCollateralCurrency allows the setting of a collateral currency to all child trackers
@@ -177,7 +182,23 @@ func (c *PositionController) TrackFundingDetails(d *FundingRates) error {
 		}
 		itemM[pKey] = multiPositionTracker
 	}
-	return multiPositionTracker.TrackFundingDetails(d)
+	err = multiPositionTracker.TrackFundingDetails(d)
+	if err != nil {
+		return err
+	}
+	c.updated = time.Now()
+	return nil
+}
+
+// LastUpdated is used for the order manager as a way of knowing
+// what span of time to check for orders
+func (c *PositionController) LastUpdated() (time.Time, error) {
+	if c == nil {
+		return time.Time{}, fmt.Errorf("position controller %w", common.ErrNilPointer)
+	}
+	c.m.Lock()
+	defer c.m.Unlock()
+	return c.updated, nil
 }
 
 // GetOpenPosition returns an open positions that matches the exchange, asset, pair

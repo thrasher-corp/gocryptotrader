@@ -2329,10 +2329,10 @@ func TestGetPositionSummary(t *testing.T) {
 	}
 }
 
-func TestGetOpenPositions(t *testing.T) {
+func TestGetFuturesPositions(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetFuturesPositions(context.Background(), asset.Spot, time.Now()); !errors.Is(err, common.ErrNotYetImplemented) {
+	if _, err := b.GetFuturesPositions(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }

@@ -72,6 +72,9 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 	err = f.CurrencyPairs.EnablePair(asset.Futures, currency.NewPair(currency.BTC, currency.PERP))
+	if err != nil {
+		log.Fatal(err)
+	}
 	err = f.CurrencyPairs.EnablePair(asset.Futures, currency.NewPair(currency.OKB, currency.PERP))
 	if err != nil {
 		log.Fatal(err)
@@ -2046,22 +2049,29 @@ func TestCalculatePNL(t *testing.T) {
 		t.Skip("skipping test, api keys not set")
 	}
 	pair := currency.NewPair(currency.BTC, currency.NewCode("20211231"))
-	positions, err := f.GetFuturesPositionsForCurrency(context.Background(), asset.Futures, pair, time.Date(2021, 1, 6, 4, 28, 0, 0, time.UTC), time.Date(2021, 12, 31, 4, 32, 0, 0, time.UTC))
+	positions, err := f.GetFuturesPositions(context.Background(), &order.PositionsRequest{
+		Asset:     asset.Futures,
+		Pairs:     currency.Pairs{pair},
+		StartDate: time.Date(2021, 1, 6, 4, 28, 0, 0, time.UTC),
+	})
 	if err != nil {
 		t.Error(err)
 	}
+	if len(positions) != 1 {
+		t.Fatal("expected 1 position")
+	}
 	orders := make([]order.Detail, len(positions))
-	for i := range positions {
+	for i := range positions[0].Orders {
 		orders[i] = order.Detail{
-			Side:      positions[i].Side,
+			Side:      positions[0].Orders[i].Side,
 			Pair:      pair,
-			OrderID:   positions[i].OrderID,
-			Price:     positions[i].Price,
-			Amount:    positions[i].Amount,
+			OrderID:   positions[0].Orders[i].OrderID,
+			Price:     positions[0].Orders[i].Price,
+			Amount:    positions[0].Orders[i].Amount,
 			AssetType: asset.Futures,
 			Exchange:  f.Name,
-			Fee:       positions[i].Fee,
-			Date:      positions[i].Date,
+			Fee:       positions[0].Orders[i].Fee,
+			Date:      positions[0].Orders[i].Date,
 		}
 	}
 
@@ -2096,13 +2106,24 @@ func TestGetFuturesPositions(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test, api keys not set")
 	}
-	cp := currency.NewPair(currency.BTC, currency.NewCode("20211231"))
+	cp := currency.Pairs{currency.NewPair(currency.BTC, currency.PERP)}
 	start := time.Now().Add(-time.Hour * 24 * 365)
-	end := time.Now()
-	a := asset.Futures
-	_, err := f.GetFuturesPositionsForCurrency(context.Background(), a, cp, start, end)
+	_, err := f.GetFuturesPositions(context.Background(), &order.PositionsRequest{
+		Asset:     asset.Futures,
+		Pairs:     cp,
+		StartDate: start,
+	})
 	if err != nil {
 		t.Error(err)
+	}
+
+	_, err = f.GetFuturesPositions(context.Background(), &order.PositionsRequest{
+		Asset:     asset.Spot,
+		Pairs:     cp,
+		StartDate: start,
+	})
+	if !errors.Is(err, order.ErrNotFuturesAsset) {
+		t.Errorf("received '%v' expected '%v'", err, order.ErrNotFuturesAsset)
 	}
 }
 
@@ -2218,16 +2239,23 @@ func TestGetPositionSummary(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	positions, err := f.GetFuturesPositionsForCurrency(
+	positions, err := f.GetFuturesPositions(
 		context.Background(),
-		asset.Futures,
-		currency.NewPair(currency.BTC, currency.NewCode("PERP")),
-		time.Now().Add(-time.Hour*24*365),
-		time.Now())
+		&order.PositionsRequest{
+			Asset:     asset.Futures,
+			Pairs:     currency.Pairs{currency.NewPair(currency.BTC, currency.NewCode("PERP"))},
+			StartDate: time.Now().Add(-time.Hour * 24 * 365),
+		})
 	if err != nil {
 		t.Error(err)
 	}
 	if len(positions) == 0 {
+		t.Skip("no positions to get summary")
+	}
+	if len(positions) != 1 {
+		t.Fatal("expected 1 position")
+	}
+	if len(positions[0].Orders) == 0 {
 		t.Skip("no positions to get summary")
 	}
 	onlineCalculation, err := f.GetPositionSummary(context.Background(), &order.PositionSummaryRequest{Asset: asset.Futures, Pair: positions[0].Pair})
@@ -2242,7 +2270,7 @@ func TestGetPositionSummary(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	size := decimal.NewFromFloat(positions[0].Amount)
+	size := decimal.NewFromFloat(positions[0].Orders[0].Amount)
 	underlyingStr, err := f.FormatSymbol(currency.NewPair(currency.BTC, currency.USD), asset.Spot)
 	if err != nil {
 		t.Error(err)
@@ -2256,10 +2284,10 @@ func TestGetPositionSummary(t *testing.T) {
 		Asset:                     asset.Futures,
 		Pair:                      positions[0].Pair,
 		CalculateOffline:          true,
-		Direction:                 positions[0].Side,
+		Direction:                 positions[0].Orders[0].Side,
 		FreeCollateral:            decimal.NewFromFloat(acc.FreeCollateral),
 		TotalCollateral:           decimal.NewFromFloat(acc.Collateral),
-		OpeningPrice:              decimal.NewFromFloat(positions[0].Price),
+		OpeningPrice:              decimal.NewFromFloat(positions[0].Orders[0].Price),
 		CurrentPrice:              onlineCalculation.MarkPrice,
 		OpeningSize:               size,
 		CurrentSize:               size,
@@ -2364,27 +2392,6 @@ func TestGetFundingRates(t *testing.T) {
 	if resp[0].PaymentSum.IsZero() {
 		t.Log("expected payments, but you may not have had a position open, so not a failure")
 	}
-}
-
-func TestGetOpenPositions(t *testing.T) {
-	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip()
-	}
-	_, err := f.GetFuturesPositions(context.Background(), asset.Spot, time.Now())
-	if !errors.Is(err, order.ErrNotFuturesAsset) {
-		t.Errorf("received '%v' expected '%v'", err, order.ErrNotFuturesAsset)
-	}
-	f.Verbose = true
-	resp, err := f.GetFuturesPositions(context.Background(), asset.Futures, time.Now().Add(-time.Hour*24*365))
-	if len(resp) == 0 {
-		// you have no open positions, that is okay
-		return
-	}
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	t.Log(resp)
 }
 
 func TestIsPerpetualFutureCurrency(t *testing.T) {

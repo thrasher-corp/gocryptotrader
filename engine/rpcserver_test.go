@@ -71,6 +71,41 @@ func (f fExchange) GetPositionSummary(context.Context, *order.PositionSummaryReq
 	}, nil
 }
 
+func (f fExchange) GetFuturesPositions(ctx context.Context, req *order.PositionsRequest) ([]order.PositionDetails, error) {
+	id, err := uuid.NewV4()
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]order.PositionDetails, len(req.Pairs))
+	tt := time.Now()
+	for i := range req.Pairs {
+		resp[i] = order.PositionDetails{
+			Exchange: f.GetName(),
+			Asset:    req.Asset,
+			Pair:     req.Pairs[i],
+			Orders: []order.Detail{
+				{
+					Exchange:        f.GetName(),
+					Price:           1337,
+					Amount:          1337,
+					InternalOrderID: id,
+					OrderID:         "1337",
+					ClientOrderID:   "1337",
+					Type:            order.Market,
+					Side:            order.Short,
+					Status:          order.Open,
+					AssetType:       req.Asset,
+					Date:            tt,
+					CloseTime:       tt,
+					LastUpdated:     tt,
+					Pair:            req.Pairs[i],
+				},
+			},
+		}
+	}
+	return resp, nil
+}
+
 func (f fExchange) GetFundingRates(ctx context.Context, request *order.FundingRatesRequest) ([]order.FundingRates, error) {
 	leet := decimal.NewFromInt(1337)
 	return []order.FundingRates{
@@ -179,24 +214,6 @@ func (f fExchange) FetchAccountInfo(_ context.Context, a asset.Item) (account.Ho
 					},
 				},
 			},
-		},
-	}, nil
-}
-
-// GetFuturesPositions overrides testExchange's GetFuturesPositions function
-func (f fExchange) GetFuturesPositionsForCurrency(_ context.Context, a asset.Item, cp currency.Pair, _, _ time.Time) ([]order.Detail, error) {
-	return []order.Detail{
-		{
-			Price:     1337,
-			Amount:    1337,
-			Fee:       1.337,
-			Exchange:  f.GetName(),
-			OrderID:   "test",
-			Side:      order.Long,
-			Status:    order.Open,
-			AssetType: a,
-			Date:      time.Now(),
-			Pair:      cp,
 		},
 	}, nil
 }

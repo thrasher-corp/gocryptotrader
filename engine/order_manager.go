@@ -706,12 +706,27 @@ func (m *OrderManager) processOrders() {
 					}
 				}
 			}
+
+			if exchanges[x].GetBase().GetSupportedFeatures().RESTCapabilities.GetOrder {
+				wg.Add(1)
+				go m.processMatchingOrders(exchanges[x], orders, &wg)
+			}
+
 			if m.trackFuturesPositions && enabledAssets[y].IsFutures() {
 				var positions []order.PositionDetails
+				var sd time.Time
+				sd, err = m.orderStore.futuresPositionController.LastUpdated()
+				if err != nil {
+					log.Error(log.OrderMgr, err)
+					continue
+				}
+				if sd.IsZero() {
+					sd = time.Now().Add(m.openPositionSeekDuration)
+				}
 				positions, err = exchanges[x].GetFuturesPositions(context.TODO(), &order.PositionsRequest{
 					Asset:     enabledAssets[y],
 					Pairs:     pairs,
-					StartDate: time.Now().Add(m.openPositionSeekDuration),
+					StartDate: sd,
 				})
 				if err != nil {
 					if !errors.Is(err, common.ErrNotYetImplemented) {
@@ -729,11 +744,6 @@ func (m *OrderManager) processOrders() {
 					}
 				}
 			}
-			if !exchanges[x].GetBase().GetSupportedFeatures().RESTCapabilities.GetOrder {
-				continue
-			}
-			wg.Add(1)
-			go m.processMatchingOrders(exchanges[x], orders, &wg)
 		}
 	}
 	wg.Wait()

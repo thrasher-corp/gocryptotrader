@@ -120,17 +120,18 @@ func (f omfExchange) ModifyOrder(ctx context.Context, action *order.Modify) (*or
 	return ans, nil
 }
 
-func (f omfExchange) GetFuturesPositions(ctx context.Context, a asset.Item, tt time.Time) ([]order.PositionDetails, error) {
-	cp := currency.NewPair(currency.BTC, currency.PERP)
+func (f omfExchange) GetFuturesPositions(ctx context.Context, req *order.PositionsRequest) ([]order.PositionDetails, error) {
 	id, err := uuid.NewV4()
 	if err != nil {
 		return nil, err
 	}
-	return []order.PositionDetails{
-		{
+	resp := make([]order.PositionDetails, len(req.Pairs))
+	tt := time.Now()
+	for i := range req.Pairs {
+		resp[i] = order.PositionDetails{
 			Exchange: f.GetName(),
-			Asset:    a,
-			Pair:     cp,
+			Asset:    req.Asset,
+			Pair:     req.Pairs[i],
 			Orders: []order.Detail{
 				{
 					Exchange:        f.GetName(),
@@ -142,15 +143,16 @@ func (f omfExchange) GetFuturesPositions(ctx context.Context, a asset.Item, tt t
 					Type:            order.Market,
 					Side:            order.Short,
 					Status:          order.Open,
-					AssetType:       a,
+					AssetType:       req.Asset,
 					Date:            tt,
 					CloseTime:       tt,
 					LastUpdated:     tt,
-					Pair:            cp,
+					Pair:            req.Pairs[i],
 				},
 			},
-		},
-	}, nil
+		}
+	}
+	return resp, nil
 }
 
 func TestSetupOrderManager(t *testing.T) {

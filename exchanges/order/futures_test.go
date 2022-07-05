@@ -1375,3 +1375,28 @@ func TestAreFundingRatePrerequisitesMet(t *testing.T) {
 		t.Errorf("received '%v' expected '%v", err, ErrGetFundingDataRequired)
 	}
 }
+
+func TestLastUpdated(t *testing.T) {
+	t.Parallel()
+	p := &PositionController{}
+	tm, err := p.LastUpdated()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+	if !tm.IsZero() {
+		t.Errorf("received '%v' expected '%v", tm, time.Time{})
+	}
+	p.updated = time.Now()
+	tm, err = p.LastUpdated()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+	if !tm.Equal(p.updated) {
+		t.Errorf("received '%v' expected '%v", tm, p.updated)
+	}
+	p = nil
+	_, err = p.LastUpdated()
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v", err, common.ErrNilPointer)
+	}
+}
