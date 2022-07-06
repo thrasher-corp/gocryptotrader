@@ -126,7 +126,7 @@ var (
 	errAmountValueMustBeGreaterThan0          = errors.New("amount must be greater than 0")
 	errMissingPaymentAccountInfo              = errors.New("error: missing payment account")
 	errUnixMilliSecTypeAssertion              = errors.New("error while asserting unix time integer")
-	errMissingRequiredParameterAddress        = errors.New("missing required paramter \"address\"")
+	errMissingRequiredParameterAddress        = errors.New("missing required parameter \"address\"")
 	errMissingCurrencySymbol                  = errors.New("missing currency symbol")
 	errEitherOrderIDOrClientOrderIDIsRequired = errors.New("either order id or client order id is required")
 )
@@ -679,27 +679,18 @@ func (bi *Binanceus) getMultiplier(ctx context.Context, isMaker bool, feeBuilder
 	if er != nil {
 		return multiplier, er
 	}
-	println("symbol", symbol)
-	symbol = "BTC-USD"
 	trades, er := bi.GetTradeFee(ctx, 0, symbol)
 	if er != nil {
 		return multiplier, er
 	}
-	vla, _ := json.Marshal(trades)
-	println(string(vla))
-
 	for x := range trades.TradeFee {
 		if trades.TradeFee[x].Symbol == symbol {
 			if isMaker {
-				println("Is Maker" + strconv.FormatFloat(trades.TradeFee[x].Maker, 'f', 0, 64))
 				return trades.TradeFee[x].Maker, nil
 			}
-			println("Is Taker " + strconv.FormatFloat(trades.TradeFee[x].Taker, 'f', 0, 64))
 			return trades.TradeFee[x].Taker, nil
 		}
 	}
-	print(multiplier)
-	println("Don't reach here.")
 	return multiplier, nil
 }
 
@@ -1020,6 +1011,7 @@ func (bi *Binanceus) GetAllOpenOrders(ctx context.Context, symbol string) ([]*Or
 func (bi *Binanceus) CancelExistingOrder(ctx context.Context, arg *CancelOrderRequestParams) (*Order, error) {
 	params := url.Values{}
 	var response Order
+	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	symbolValue, err := bi.FormatSymbol(arg.Symbol, asset.Spot)
 	if err != nil || symbolValue == "" {
 		return nil, errMissingCurrencySymbol
@@ -1030,10 +1022,10 @@ func (bi *Binanceus) CancelExistingOrder(ctx context.Context, arg *CancelOrderRe
 	}
 	if arg.OrigClientOrderID != "" {
 		params.Set("origClientOrderId", arg.OrigClientOrderID)
+	} else {
+		params.Set("orderId", fmt.Sprint(arg.OrderID))
 	}
-	if arg.OrderID != 0 {
-		params.Set("orderID", fmt.Sprint(arg.OrderID))
-	}
+	params.Set("recvWindow", recvWindowSize5000String)
 	return &response, bi.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodDelete, orderRequest,

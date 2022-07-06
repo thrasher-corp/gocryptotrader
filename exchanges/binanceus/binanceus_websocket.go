@@ -289,6 +289,7 @@ func (bi *Binanceus) wsHandleData(respRaw []byte) error {
 	}
 	// Market Data Streams
 	if wsStream, ok := multiStreamData["stream"].(string); ok {
+		var pairs currency.Pairs
 		streamType := strings.Split(wsStream, "@")
 		if len(streamType) > 1 {
 			if data, ok := multiStreamData["data"]; ok {
@@ -297,7 +298,7 @@ func (bi *Binanceus) wsHandleData(respRaw []byte) error {
 					return err
 				}
 
-				pairs, err := bi.GetEnabledPairs(asset.Spot)
+				pairs, err = bi.GetEnabledPairs(asset.Spot)
 				if err != nil {
 					return err
 				}

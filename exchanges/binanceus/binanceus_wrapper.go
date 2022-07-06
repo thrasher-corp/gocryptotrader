@@ -260,7 +260,7 @@ func (bi *Binanceus) FetchTradablePairs(ctx context.Context, a asset.Item) ([]st
 		return nil, err
 	}
 	tradingStatus := "TRADING"
-	var pairs []string
+	pairs := []string{}
 
 	var info ExchangeInfo
 	info, err = bi.GetExchangeInfo(ctx)
@@ -844,14 +844,13 @@ func (bi *Binanceus) GetActiveOrders(ctx context.Context, getOrdersRequest *orde
 				})
 			}
 		}
-	} else {
-		return orders, fmt.Errorf("%s %w", getOrdersRequest.AssetType, asset.ErrNotSupported)
+		order.FilterOrdersByPairs(&orders, getOrdersRequest.Pairs)
+		order.FilterOrdersByType(&orders, getOrdersRequest.Type)
+		order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
+		err := order.FilterOrdersByTimeRange(&orders, getOrdersRequest.StartTime, getOrdersRequest.EndTime)
+		return orders, err
 	}
-	order.FilterOrdersByPairs(&orders, getOrdersRequest.Pairs)
-	order.FilterOrdersByType(&orders, getOrdersRequest.Type)
-	order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
-	err := order.FilterOrdersByTimeRange(&orders, getOrdersRequest.StartTime, getOrdersRequest.EndTime)
-	return orders, err
+	return orders, fmt.Errorf("%s %w", getOrdersRequest.AssetType, asset.ErrNotSupported)
 }
 
 // GetOrderHistory retrieves account order information

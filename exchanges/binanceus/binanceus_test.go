@@ -88,8 +88,6 @@ func TestGetExchangeInfo(t *testing.T) {
 	}
 }
 
-/************************************************************************/
-
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	r, err := bi.UpdateTicker(context.Background(), testPairMapping, asset.Spot)
@@ -151,10 +149,10 @@ func TestFetchAccountInfo(t *testing.T) {
 }
 
 func TestUpdateAccountInfo(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 	_, err := bi.UpdateAccountInfo(context.Background(), asset.Spot)
 	if err != nil {
 		t.Error("Binanceus UpdateAccountInfo() error", err)
@@ -181,6 +179,9 @@ func TestGetHistoricTrades(t *testing.T) {
 
 func TestGetFeeByType(t *testing.T) {
 	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
 	if _, er := bi.GetFeeByType(context.Background(), &exchange.FeeBuilder{
 		IsMaker: true,
 		Pair:    currency.NewPair(currency.USD, currency.BTC),
@@ -235,14 +236,16 @@ func TestCancelOrder(t *testing.T) {
 	}
 	pair := currency.NewPair(currency.BTC, currency.USD)
 	err := bi.CancelOrder(context.Background(), &order.Cancel{
-		OrderID: "1337",
+		AssetType: asset.Spot,
+		OrderID:   "1337",
 	})
 	if err != nil && !errors.Is(err, errMissingCurrencySymbol) {
 		t.Error("Okx CancelOrder() error", err)
 	}
 	err = bi.CancelOrder(context.Background(), &order.Cancel{
-		OrderID: "1337",
-		Pair:    currency.NewPair(currency.BTC, currency.USDT),
+		AssetType: asset.Spot,
+		OrderID:   "1337",
+		Pair:      currency.NewPair(currency.BTC, currency.USDT),
 	})
 	if err != nil && !errors.Is(err, errEitherOrderIDOrClientOrderIDIsRequired) {
 		t.Error("Okx CancelOrder() error", err)
@@ -256,9 +259,9 @@ func TestCancelOrder(t *testing.T) {
 	}
 	err = bi.CancelOrder(context.Background(), cancellationOrder)
 	switch {
-	case areTestAPIKeysSet() && err != nil:
+	case areTestAPIKeysSet() && err != nil && !strings.Contains(err.Error(), "Unknown order sent."):
 		t.Error("Binanceus CancelExchangeOrder() error", err)
-	case !areTestAPIKeysSet() && err == nil:
+	case !areTestAPIKeysSet() && err == nil && !strings.Contains(err.Error(), "Unknown order sent."):
 		t.Error("Binanceus CancelExchangeOrder() expecting an error when no keys are set")
 	case err != nil:
 		t.Error("Binanceus Mock CancelExchangeOrder() error", err)
@@ -412,6 +415,9 @@ func TestWithdraw(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
 	var feeBuilder = &exchange.FeeBuilder{
 		Amount:        1,
 		FeeType:       exchange.CryptocurrencyTradeFee,
@@ -465,7 +471,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	startTime := time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, 2, 15, 0, 0, 0, 0, time.UTC)
 	_, er := bi.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, startTime, endTime, kline.FourHour)
-	if !strings.Contains(er.Error(), "interval not supported") {
+	if er != nil && !strings.Contains(er.Error(), "interval not supported") {
 		t.Errorf("Binanceus GetHistoricCandlesExtended() expected %s, but found %v", "interval not supported", er)
 	}
 	startTime = time.Now().Add(-time.Hour * 30)
@@ -1144,10 +1150,9 @@ func TestFiatDepositHistory(t *testing.T) {
 // Since both binance and Binance US has same websocket functions,
 // the tests functions are also similar
 
-// TestWebsocketStreamKey .. this test mmethod handles the
+// TestWebsocketStreamKey  this test mmethod handles the
 // creating, updating, and deleting of user stream key or "listenKey"
 // all the three methods in one test methods.
-
 func TestWebsocketStreamKey(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
@@ -1433,7 +1438,7 @@ func TestWebsocketPartialOrderBookDepthStream(t *testing.T) {
 		]
 	  }}`)
 	var err error
-	if err := bi.wsHandleData(update1); err != nil {
+	if err = bi.wsHandleData(update1); err != nil {
 		t.Error("Binanceus Partial Order Book Depth Sream error", err)
 	}
 	update2 := []byte(`{
@@ -1461,7 +1466,7 @@ func TestWebsocketPartialOrderBookDepthStream(t *testing.T) {
 
 func TestWebsocketBookTicker(t *testing.T) {
 	t.Parallel()
-	var bookTickerJson = []byte(
+	var bookTickerJSON = []byte(
 		`{
 		"stream": "btcusdt@bookTicker",
 		"data": {
@@ -1473,7 +1478,7 @@ func TestWebsocketBookTicker(t *testing.T) {
 			"A":"40.66000000" 
 		}
 	  }`)
-	if err := bi.wsHandleData(bookTickerJson); err != nil {
+	if err := bi.wsHandleData(bookTickerJSON); err != nil {
 		t.Error("Binanceus Book Ticker error", err)
 	}
 	var bookTickerForAllSymbols = []byte(`
