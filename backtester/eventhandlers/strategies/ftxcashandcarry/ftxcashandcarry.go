@@ -104,7 +104,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 
 // createSignals creates signals based on the relationships between
 // futures and spot signals
-func (s *Strategy) createSignals(pos []order.PositionStats, spotSignal, futuresSignal *signal.Signal, diffBetweenFuturesSpot decimal.Decimal, isLastEvent bool) ([]signal.Event, error) {
+func (s *Strategy) createSignals(pos []order.Position, spotSignal, futuresSignal *signal.Signal, diffBetweenFuturesSpot decimal.Decimal, isLastEvent bool) ([]signal.Event, error) {
 	if spotSignal == nil {
 		return nil, fmt.Errorf("%w missing spot signal", common.ErrNilArguments)
 	}

@@ -63,15 +63,6 @@ type PNLCalculation interface {
 	GetCurrencyForRealisedPNL(realisedAsset asset.Item, realisedPair currency.Pair) (currency.Code, asset.Item, error)
 }
 
-// CollateralManagement is an interface that allows
-// multiple ways of calculating the size of collateral
-// on an exchange
-type CollateralManagement interface {
-	GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error)
-	ScaleCollateral(ctx context.Context, calculator *CollateralCalculator) (*CollateralByCurrency, error)
-	CalculateTotalCollateral(context.Context, *TotalCollateralCalculator) (*TotalCollateralResponse, error)
-}
-
 // TotalCollateralResponse holds all collateral
 type TotalCollateralResponse struct {
 	CollateralCurrency                          currency.Code
@@ -139,7 +130,7 @@ type UsedCollateralBreakdown struct {
 type PositionController struct {
 	m                     sync.Mutex
 	multiPositionTrackers map[string]map[asset.Item]map[currency.PairKey]*MultiPositionTracker
-	updated                    time.Time
+	updated               time.Time
 }
 
 // MultiPositionTracker will track the performance of
@@ -183,13 +174,11 @@ type MultiPositionTrackerSetup struct {
 // completely within this position tracker, however, can still provide a good
 // timeline of performance until the position is closed
 type PositionTracker struct {
-
+	m                         sync.Mutex
 	useExchangePNLCalculation bool
-
-	collateralCurrency    currency.Code
-	offlinePNLCalculation bool
+	collateralCurrency        currency.Code
+	offlinePNLCalculation     bool
 	PNLCalculation
-
 	exchange           string
 	asset              asset.Item
 	contractPair       currency.Pair
@@ -301,21 +290,21 @@ type Position struct {
 	Pair               currency.Pair
 	Underlying         currency.Code
 	CollateralCurrency currency.Code
-	RealisedPNL      decimal.Decimal
-	UnrealisedPNL    decimal.Decimal
-	Status           Status
-	OpeningDate      time.Time
-	OpeningPrice     decimal.Decimal
-	OpeningSize      decimal.Decimal
-	OpeningDirection Side
-	LatestPrice      decimal.Decimal
-	LatestSize       decimal.Decimal
-	LatestDirection  Side
-	LastUpdated      time.Time
-	CloseDate        time.Time
-	Orders           []Detail
-	PNLHistory       []PNLResult
-	FundingRates     FundingRates
+	RealisedPNL        decimal.Decimal
+	UnrealisedPNL      decimal.Decimal
+	Status             Status
+	OpeningDate        time.Time
+	OpeningPrice       decimal.Decimal
+	OpeningSize        decimal.Decimal
+	OpeningDirection   Side
+	LatestPrice        decimal.Decimal
+	LatestSize         decimal.Decimal
+	LatestDirection    Side
+	LastUpdated        time.Time
+	CloseDate          time.Time
+	Orders             []Detail
+	PNLHistory         []PNLResult
+	FundingRates       FundingRates
 }
 
 // PositionSummaryRequest is used to request a summary of an open position

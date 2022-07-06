@@ -26,6 +26,7 @@ var (
 	errFuturesTrackingDisabled  = errors.New("tracking futures positions disabled. enable it via config under orderManager trackFuturesPositions")
 	errFuturesTrackerNotSetup   = errors.New("futures position tracker not setup")
 	orderManagerDelay           = time.Second * 10
+	defaultOrderSeekTime        = -time.Hour * 24 * 365
 )
 
 type orderManagerConfig struct {
@@ -57,7 +58,6 @@ type OrderManager struct {
 	orderStore               store
 	cfg                      orderManagerConfig
 	verbose                  bool
-	trackFuturesPositions    bool
 	openPositionSeekDuration time.Duration
 }
 

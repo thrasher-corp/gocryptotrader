@@ -201,7 +201,7 @@ func TestCreateSignals(t *testing.T) {
 
 	// case len(pos) > 0 && pos[len(pos)-1].Status == order.Open &&
 	// 		diffBetweenFuturesSpot.LessThanOrEqual(s.closeShortDistancePercentage):
-	pos := []gctorder.PositionStats{
+	pos := []gctorder.Position{
 		{
 			Status: gctorder.Open,
 		},
@@ -303,8 +303,8 @@ type portfolerino struct {
 }
 
 // GetPositions overrides default implementation
-func (p portfolerino) GetPositions(common.EventHandler) ([]gctorder.PositionStats, error) {
-	return []gctorder.PositionStats{
+func (p portfolerino) GetPositions(common.EventHandler) ([]gctorder.Position, error) {
+	return []gctorder.Position{
 		{
 			Exchange:           exchangeName,
 			Asset:              asset.Spot,

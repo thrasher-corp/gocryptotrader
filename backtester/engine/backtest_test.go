@@ -777,6 +777,7 @@ func TestTriggerLiquidationsForExchange(t *testing.T) {
 	}
 }
 
+////////////////// WOOAH NELLY
 func TestUpdateStatsForDataEvent(t *testing.T) {
 	t.Parallel()
 	pt := &portfolio.Portfolio{}
@@ -1212,6 +1213,7 @@ func TestProcessFillEvent(t *testing.T) {
 	}
 }
 
+// WOAH NELLY
 func TestProcessFuturesFillEvent(t *testing.T) {
 	t.Parallel()
 	var expectedError error
@@ -1255,6 +1257,8 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	bb := exch.GetBase()
+	bb.Verbose = true
 	em.Add(exch)
 	f, err := funding.SetupFundingManager(em, false, true)
 	if !errors.Is(err, expectedError) {
@@ -1300,6 +1304,7 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 	}
 	bt.exchangeManager = em
 	bt.Funding = f
+
 	err = pt.SetupCurrencySettingsMap(&exchange.Settings{
 		Exchange: exch,
 		Pair:     cp,

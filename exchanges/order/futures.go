@@ -93,7 +93,11 @@ func (c *PositionController) SetCollateralCurrency(exch string, item asset.Item,
 	if !ok {
 		return fmt.Errorf("cannot set collateral %v for %v %v %v %w", collateralCurrency, exch, item, pair, ErrPositionsNotLoadedForAsset)
 	}
-	multiPositionTracker, ok := itemM[pair]
+	pKey, err := pair.Key()
+	if err != nil {
+		return err
+	}
+	multiPositionTracker, ok := itemM[pKey]
 	if !ok {
 		return fmt.Errorf("cannot set collateral %v for %v %v %v %w", collateralCurrency, exch, item, pair, ErrPositionsNotLoadedForPair)
 	}
@@ -349,50 +353,6 @@ func SetupMultiPositionTracker(setup *MultiPositionTrackerSetup) (*MultiPosition
 	}, nil
 }
 
-// SetupPositionTracker creates a new position tracker to track n futures orders
-// until the position(s) are closed
-func (m *MultiPositionTracker) SetupPositionTracker(setup *PositionTrackerSetup) (*PositionTracker, error) {
-	if m == nil {
-		return nil, fmt.Errorf("multi-position tracker %w", common.ErrNilPointer)
-	}
-	if m.exchange == "" {
-		return nil, errExchangeNameEmpty
-	}
-	if setup == nil {
-		return nil, errNilSetup
-	}
-	if !setup.Asset.IsValid() || !setup.Asset.IsFutures() {
-		return nil, ErrNotFuturesAsset
-	}
-	if setup.Pair.IsEmpty() {
-		return nil, ErrPairIsEmpty
-	}
-
-	resp := &PositionTracker{
-		exchange:                  strings.ToLower(m.exchange),
-		asset:                     setup.Asset,
-		contractPair:              setup.Pair,
-		underlyingAsset:           setup.Underlying,
-		status:                    Open,
-		entryPrice:                setup.EntryPrice,
-		currentDirection:          setup.Side,
-		openingDirection:          setup.Side,
-		useExchangePNLCalculation: setup.UseExchangePNLCalculation,
-		collateralCurrency:        setup.CollateralCurrency,
-		offlinePNLCalculation:     m.offlinePNLCalculation,
-	}
-	if !setup.UseExchangePNLCalculation {
-		// use position tracker's pnl calculation by default
-		resp.PNLCalculation = &PNLCalculator{}
-	} else {
-		if m.exchangePNLCalculation == nil {
-			return nil, ErrNilPNLCalculator
-		}
-		resp.PNLCalculation = m.exchangePNLCalculation
-	}
-	return resp, nil
-}
-
 // UpdateOpenPositionUnrealisedPNL updates the pnl for the latest open position
 // based on the last price and the time
 func (m *MultiPositionTracker) UpdateOpenPositionUnrealisedPNL(last float64, updated time.Time) (decimal.Decimal, error) {
@@ -460,15 +420,15 @@ func (c *PositionController) ClearPositionsForExchange(exch string, item asset.I
 }
 
 // GetPositions returns all positions
-func (e *MultiPositionTracker) GetPositions() []Position {
-	if e == nil {
+func (m *MultiPositionTracker) GetPositions() []Position {
+	if m == nil {
 		return nil
 	}
-	e.m.Lock()
-	defer e.m.Unlock()
-	resp := make([]Position, len(e.positions))
-	for i := range e.positions {
-		resp[i] = e.positions[i].GetStats()
+	m.m.Lock()
+	defer m.m.Unlock()
+	resp := make([]Position, len(m.positions))
+	for i := range m.positions {
+		resp[i] = m.positions[i].GetStats()
 	}
 	sort.Slice(resp, func(i, j int) bool {
 		return resp[i].OpeningDate.Before(resp[j].OpeningDate)
@@ -533,41 +493,38 @@ func (m *MultiPositionTracker) TrackNewOrder(d *Detail) error {
 }
 
 // TrackFundingDetails applies funding rate details to a tracked position
-func (e *MultiPositionTracker) TrackFundingDetails(d *FundingRates) error {
-	if e == nil {
+func (m *MultiPositionTracker) TrackFundingDetails(d *FundingRates) error {
+	if m == nil {
 		return fmt.Errorf("multi-position tracker %w", common.ErrNilPointer)
 	}
 	if d == nil {
 		return fmt.Errorf("%w FundingRates", common.ErrNilPointer)
 	}
-	e.m.Lock()
-	defer e.m.Unlock()
-	if d.Asset != e.asset {
-		return fmt.Errorf("%w tracker: %v supplied: %v", errAssetMismatch, e.asset, d.Asset)
+	m.m.Lock()
+	defer m.m.Unlock()
+	if d.Asset != m.asset {
+		return fmt.Errorf("%w tracker: %v supplied: %v", errAssetMismatch, m.asset, d.Asset)
 	}
-	if len(e.positions) == 0 {
+	if len(m.positions) == 0 {
 		return fmt.Errorf("%w %v %v %v", ErrPositionsNotLoadedForPair, d.Exchange, d.Asset, d.Pair)
 	}
-	for i := range e.positions {
-		if e.positions[i].pnlHistory[0].Time.Before(d.StartDate) || e.positions[i].pnlHistory[0].Time.After(d.EndDate) {
+	for i := range m.positions {
+		if m.positions[i].pnlHistory[0].Time.Before(d.StartDate) || m.positions[i].pnlHistory[0].Time.After(d.EndDate) {
 			continue
 		}
-		return e.positions[i].TrackFundingDetails(d)
+		return m.positions[i].TrackFundingDetails(d)
 	}
 	return fmt.Errorf("%w for timeframe %v %v %v %v-%v", ErrNoPositionsFound, d.Exchange, d.Asset, d.Pair, d.StartDate, d.EndDate)
 }
 
 // SetupPositionTracker creates a new position tracker to track n futures orders
 // until the position(s) are closed
-func (e *MultiPositionTracker) SetupPositionTracker(setup *PositionTrackerSetup) (*PositionTracker, error) {
-	if e == nil {
+func (m *MultiPositionTracker) SetupPositionTracker(setup *PositionTrackerSetup) (*PositionTracker, error) {
+	if m == nil {
 		return nil, fmt.Errorf("multi-position tracker %w", common.ErrNilPointer)
 	}
 	m.m.Lock()
 	defer m.m.Unlock()
-	if len(m.positions) == 0 {
-		return fmt.Errorf("%v %v %v %w", m.exchange, m.asset, m.pair, ErrPositionsNotLoadedForPair)
-	}
 	if setup == nil {
 		return nil, errNilSetup
 	}
@@ -579,7 +536,7 @@ func (e *MultiPositionTracker) SetupPositionTracker(setup *PositionTrackerSetup)
 	}
 
 	resp := &PositionTracker{
-		exchange:                  strings.ToLower(e.exchange),
+		exchange:                  strings.ToLower(m.exchange),
 		asset:                     setup.Asset,
 		contractPair:              setup.Pair,
 		underlying:                setup.Underlying,
@@ -588,17 +545,17 @@ func (e *MultiPositionTracker) SetupPositionTracker(setup *PositionTrackerSetup)
 		latestDirection:           setup.Side,
 		openingDirection:          setup.Side,
 		useExchangePNLCalculation: setup.UseExchangePNLCalculation,
-		offlinePNLCalculation:     e.offlinePNLCalculation,
+		offlinePNLCalculation:     m.offlinePNLCalculation,
 		lastUpdated:               time.Now(),
 	}
 	if !setup.UseExchangePNLCalculation {
 		// use position tracker's pnl calculation by default
 		resp.PNLCalculation = &PNLCalculator{}
 	} else {
-		if e.exchangePNLCalculation == nil {
+		if m.exchangePNLCalculation == nil {
 			return nil, ErrNilPNLCalculator
 		}
-		resp.PNLCalculation = e.exchangePNLCalculation
+		resp.PNLCalculation = m.exchangePNLCalculation
 	}
 	return resp, nil
 }
@@ -609,47 +566,15 @@ func (m *MultiPositionTracker) Liquidate(price decimal.Decimal, t time.Time) err
 	if m == nil {
 		return fmt.Errorf("multi-position tracker %w", common.ErrNilPointer)
 	}
-	if e.exchange == "" {
-		return nil, errExchangeNameEmpty
+	if m.exchange == "" {
+		return errExchangeNameEmpty
+	}
 	m.m.Lock()
 	defer m.m.Unlock()
 	if len(m.positions) == 0 {
 		return fmt.Errorf("%v %v %v %w", m.exchange, m.asset, m.pair, ErrPositionsNotLoadedForPair)
 	}
-	if setup == nil {
-		return nil, errNilSetup
-	}
-	if !setup.Asset.IsValid() || !setup.Asset.IsFutures() {
-		return nil, ErrNotFuturesAsset
-	}
-	if setup.Pair.IsEmpty() {
-		return nil, ErrPairIsEmpty
-	}
-
-	resp := &PositionTracker{
-		exchange:                  strings.ToLower(e.exchange),
-		asset:                     setup.Asset,
-		contractPair:              setup.Pair,
-		underlying:                setup.Underlying,
-		status:                    Open,
-		openingPrice:              setup.EntryPrice,
-		latestDirection:           setup.Side,
-		openingDirection:          setup.Side,
-		useExchangePNLCalculation: setup.UseExchangePNLCalculation,
-		offlinePNLCalculation:     e.offlinePNLCalculation,
-	}
-	if !setup.UseExchangePNLCalculation {
-		// use position tracker's pnl calculation by default
-		resp.PNLCalculation = &PNLCalculator{}
-	} else {
-		if e.exchangePNLCalculation == nil {
-			return nil, ErrNilPNLCalculator
-		}
-		resp.PNLCalculation = e.exchangePNLCalculation
-	}
-	return resp, nil
 	return m.positions[len(m.positions)-1].Liquidate(price, t)
-
 }
 
 // GetStats returns a summary of a future position
@@ -760,7 +685,7 @@ func (p *PositionTracker) Liquidate(price decimal.Decimal, t time.Time) error {
 		return fmt.Errorf("%w cannot liquidate from a different time. PNL snapshot %v. Liquidation request on %v Status: %v", errCannotLiquidate, latest.Time, t, p.status)
 	}
 	p.status = Liquidated
-	p.currentDirection = ClosePosition
+	p.latestDirection = ClosePosition
 	p.exposure = decimal.Zero
 	p.realisedPNL = decimal.Zero
 	p.unrealisedPNL = decimal.Zero
@@ -1034,7 +959,7 @@ func (p *PositionTracker) TrackNewOrder(d *Detail, isInitialOrder bool) error {
 	case shortSide.GreaterThan(longSide):
 		p.latestDirection = Short
 	default:
-		p.currentDirection = ClosePosition
+		p.latestDirection = ClosePosition
 	}
 
 	if p.latestDirection.IsLong() {
@@ -1050,7 +975,7 @@ func (p *PositionTracker) TrackNewOrder(d *Detail, isInitialOrder bool) error {
 		p.unrealisedPNL = decimal.Zero
 		p.pnlHistory[len(p.pnlHistory)-1].RealisedPNL = p.realisedPNL
 		p.pnlHistory[len(p.pnlHistory)-1].UnrealisedPNL = p.unrealisedPNL
-		p.pnlHistory[len(p.pnlHistory)-1].Direction = p.currentDirection
+		p.pnlHistory[len(p.pnlHistory)-1].Direction = p.latestDirection
 		p.closingDate = d.Date
 	} else if p.exposure.IsNegative() {
 		if p.latestDirection.IsLong() {

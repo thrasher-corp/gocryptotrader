@@ -32,18 +32,22 @@ func SetupOrderManager(exchangeManager iExchangeManager, communicationsManager i
 	if wg == nil {
 		return nil, errNilWaitGroup
 	}
-
+	if openPositionSeekDuration > 0 {
+		openPositionSeekDuration = -openPositionSeekDuration
+	}
+	if openPositionSeekDuration == 0 {
+		openPositionSeekDuration = defaultOrderSeekTime
+	}
 	om := &OrderManager{
 		shutdown: make(chan struct{}),
 		orderStore: store{
-			Orders:          make(map[string][]*order.Detail),
-			exchangeManager: exchangeManager,
-			commsManager:    communicationsManager,
-			wg:              wg,
-			trackFuturesPositions:     enabledFuturesTracking,
+			Orders:                make(map[string][]*order.Detail),
+			exchangeManager:       exchangeManager,
+			commsManager:          communicationsManager,
+			wg:                    wg,
+			trackFuturesPositions: trackFuturesPositions,
 		},
 		verbose:                  verbose,
-		trackFuturesPositions:    trackFuturesPositions,
 		openPositionSeekDuration: openPositionSeekDuration,
 	}
 	if trackFuturesPositions {
@@ -257,7 +261,9 @@ func (m *OrderManager) GetOpenFuturesPosition(exch string, item asset.Item, pair
 	if !item.IsFutures() {
 		return nil, fmt.Errorf("%v %w", item, order.ErrNotFuturesAsset)
 	}
-
+	if !m.orderStore.trackFuturesPositions {
+		return nil, errFuturesTrackingDisabled
+	}
 	return m.orderStore.futuresPositionController.GetOpenPosition(exch, item, pair)
 }
 
@@ -273,7 +279,9 @@ func (m *OrderManager) GetAllOpenFuturesPositions() ([]order.Position, error) {
 	if m.orderStore.futuresPositionController == nil {
 		return nil, errFuturesTrackerNotSetup
 	}
-
+	if !m.orderStore.trackFuturesPositions {
+		return nil, errFuturesTrackingDisabled
+	}
 	return m.orderStore.futuresPositionController.GetAllOpenPositions()
 }
 
@@ -712,7 +720,7 @@ func (m *OrderManager) processOrders() {
 				go m.processMatchingOrders(exchanges[x], orders, &wg)
 			}
 
-			if m.trackFuturesPositions && enabledAssets[y].IsFutures() {
+			if m.orderStore.trackFuturesPositions && enabledAssets[y].IsFutures() {
 				var positions []order.PositionDetails
 				var sd time.Time
 				sd, err = m.orderStore.futuresPositionController.LastUpdated()
@@ -751,7 +759,7 @@ func (m *OrderManager) processOrders() {
 
 // processFuturesPositions ensures any open position found is kept up to date in the order manager
 func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, position *order.PositionDetails) error {
-	if !m.trackFuturesPositions {
+	if !m.orderStore.trackFuturesPositions {
 		return errFuturesTrackingDisabled
 	}
 	if exch == nil {

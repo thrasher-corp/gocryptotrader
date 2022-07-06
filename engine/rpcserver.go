@@ -4290,9 +4290,6 @@ func (s *RPCServer) GetManagedPosition(_ context.Context, r *gctrpc.GetManagedPo
 	}
 	position, err := s.OrderManager.GetOpenFuturesPosition(r.Exchange, ai, cp)
 	if err != nil {
-		if !s.OrderManager.trackFuturesPositions {
-			return nil, fmt.Errorf("%v or use GetFuturesPositions command. err: %w", errFuturesTrackingDisabled, err)
-		}
 		return nil, err
 	}
 
@@ -4311,9 +4308,6 @@ func (s *RPCServer) GetAllManagedPositions(_ context.Context, r *gctrpc.GetAllMa
 	}
 	positions, err := s.OrderManager.GetAllOpenFuturesPositions()
 	if err != nil {
-		if !s.OrderManager.trackFuturesPositions {
-			return nil, fmt.Errorf("%v or use GetFuturesPositions command. err: %w", errFuturesTrackingDisabled, err)
-		}
 		return nil, err
 	}
 	sort.Slice(positions, func(i, j int) bool {

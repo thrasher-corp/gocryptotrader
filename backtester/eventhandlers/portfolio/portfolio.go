@@ -97,7 +97,7 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 				// cannot close a non existent position
 				return nil, errNoHoldings
 			}
-			sizingFunds = positions[len(positions)-1].Exposure
+			sizingFunds = positions[len(positions)-1].LatestSize
 			d := positions[len(positions)-1].OpeningDirection
 			switch d {
 			case gctorder.Short:
@@ -452,7 +452,7 @@ func (s *Settings) GetHoldingsForTime(t time.Time) holdings.Holding {
 }
 
 // GetPositions returns all futures positions for an event's exchange, asset, pair
-func (p *Portfolio) GetPositions(e common.EventHandler) ([]gctorder.PositionStats, error) {
+func (p *Portfolio) GetPositions(e common.EventHandler) ([]gctorder.Position, error) {
 	settings, err := p.getFuturesSettingsFromEvent(e)
 	if err != nil {
 		return nil, err
@@ -461,7 +461,7 @@ func (p *Portfolio) GetPositions(e common.EventHandler) ([]gctorder.PositionStat
 }
 
 // GetLatestPosition returns all futures positions for an event's exchange, asset, pair
-func (p *Portfolio) GetLatestPosition(e common.EventHandler) (*gctorder.PositionStats, error) {
+func (p *Portfolio) GetLatestPosition(e common.EventHandler) (*gctorder.Position, error) {
 	settings, err := p.getFuturesSettingsFromEvent(e)
 	if err != nil {
 		return nil, err
@@ -623,7 +623,7 @@ func (p *Portfolio) CreateLiquidationOrdersForExchange(ev common.DataEventHandle
 					continue
 				}
 				pos := positions[len(positions)-1]
-				if !pos.Exposure.IsPositive() {
+				if !pos.LatestSize.IsPositive() {
 					continue
 				}
 				direction := gctorder.Short
@@ -644,8 +644,8 @@ func (p *Portfolio) CreateLiquidationOrdersForExchange(ev common.DataEventHandle
 					Direction:           direction,
 					Status:              gctorder.Liquidated,
 					ClosePrice:          ev.GetClosePrice(),
-					Amount:              pos.Exposure,
-					AllocatedFunds:      pos.Exposure,
+					Amount:              pos.LatestSize,
+					AllocatedFunds:      pos.LatestSize,
 					OrderType:           gctorder.Market,
 					LiquidatingPosition: true,
 				})

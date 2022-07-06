@@ -50,7 +50,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 	var err error
 	bt := New()
 	bt.exchangeManager = engine.SetupExchangeManager()
-	bt.orderManager, err = engine.SetupOrderManager(bt.exchangeManager, &engine.CommunicationManager{}, &sync.WaitGroup{}, false, false)
+	bt.orderManager, err = engine.SetupOrderManager(bt.exchangeManager, &engine.CommunicationManager{}, &sync.WaitGroup{}, false, true, 0)
 	if err != nil {
 		return nil, err
 	}
