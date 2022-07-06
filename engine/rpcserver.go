@@ -2008,8 +2008,7 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 		}
 
 		if r.Enable {
-			err = exchCfg.CurrencyPairs.EnablePair(a,
-				p.Format(pairFmt.Delimiter, pairFmt.Uppercase))
+			err = exchCfg.CurrencyPairs.EnablePair(a, p.Format(pairFmt))
 			if err != nil {
 				newErrors = append(newErrors, err)
 				continue
@@ -2023,8 +2022,7 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 			continue
 		}
 
-		err = exchCfg.CurrencyPairs.DisablePair(a,
-			p.Format(pairFmt.Delimiter, pairFmt.Uppercase))
+		err = exchCfg.CurrencyPairs.DisablePair(a, p.Format(pairFmt))
 		if err != nil {
 			newErrors = append(newErrors, err)
 			continue

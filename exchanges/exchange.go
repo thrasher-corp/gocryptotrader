@@ -39,7 +39,11 @@ const (
 	ResetConfigPairsWarningMessage = "%s Enabled and available pairs for %s reset due to config upgrade, please enable the ones you would like to use again. Defaulting to %v"
 )
 
-var errEndpointStringNotFound = errors.New("endpoint string not found")
+var (
+	errEndpointStringNotFound            = errors.New("endpoint string not found")
+	errCurrencyPairDuplication           = errors.New("currency pair duplication")
+	errConfigPairFormatRequiresDelimiter = errors.New("config pair format requires delimiter")
+)
 
 // SetClientProxyAddress sets a proxy address for REST and websocket requests
 func (b *Base) SetClientProxyAddress(addr string) error {
@@ -360,7 +364,7 @@ func (b *Base) GetRequestFormattedPairAndAssetType(p string) (currency.Pair, ass
 		}
 
 		for j := range pairs {
-			formattedPair := pairs[j].Format(format.Delimiter, format.Uppercase)
+			formattedPair := pairs[j].Format(format)
 			if strings.EqualFold(formattedPair.String(), p) {
 				return formattedPair, assetTypes[i], nil
 			}
@@ -441,7 +445,7 @@ func (b *Base) FormatExchangeCurrency(p currency.Pair, assetType asset.Item) (cu
 	if err != nil {
 		return currency.EMPTYPAIR, err
 	}
-	return p.Format(pairFmt.Delimiter, pairFmt.Uppercase), nil
+	return p.Format(pairFmt), nil
 }
 
 // SetEnabled is a method that sets if the exchange is enabled
@@ -549,94 +553,119 @@ func (b *Base) SetPairs(pairs currency.Pairs, assetType asset.Item, enabled bool
 		return err
 	}
 
-	var newPairs currency.Pairs
 	for x := range pairs {
-		newPairs = append(newPairs, pairs[x].Format(pairFmt.Delimiter,
-			pairFmt.Uppercase))
+		pairs[x] = pairs[x].Format(pairFmt)
 	}
 
-	b.CurrencyPairs.StorePairs(assetType, newPairs, enabled)
-	b.Config.CurrencyPairs.StorePairs(assetType, newPairs, enabled)
+	b.CurrencyPairs.StorePairs(assetType, pairs, enabled)
+	b.Config.CurrencyPairs.StorePairs(assetType, pairs, enabled)
 	return nil
 }
 
 // UpdatePairs updates the exchange currency pairs for either enabledPairs or
 // availablePairs
-func (b *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType asset.Item, enabled, force bool) error {
-	exchangeProducts = exchangeProducts.Upper()
-	var products currency.Pairs
-	for x := range exchangeProducts {
-		if exchangeProducts[x].String() == "" {
-			continue
-		}
-		products = append(products, exchangeProducts[x])
-	}
-
-	var updateType string
-	targetPairs, err := b.CurrencyPairs.GetPairs(assetType, enabled)
+func (b *Base) UpdatePairs(incomingPairs currency.Pairs, assetType asset.Item, enabled, force bool) error {
+	pFmt, err := b.GetPairFormat(assetType, false)
 	if err != nil {
 		return err
 	}
 
+	duplications := make(map[currency.Pair]struct{}, len(incomingPairs))
+	for x := range incomingPairs {
+		if incomingPairs[x].IsEmpty() {
+			return fmt.Errorf("cannot update pairs %w", currency.ErrCurrencyPairEmpty)
+		}
+
+		incomingPairs[x] = incomingPairs[x].Format(pFmt)
+		_, ok := duplications[incomingPairs[x]]
+		if ok {
+			return fmt.Errorf("cannot update pairs %w with [%s]", errCurrencyPairDuplication, incomingPairs[x])
+		}
+		duplications[incomingPairs[x]] = struct{}{}
+	}
+
+	oldPairs, err := b.CurrencyPairs.GetPairs(assetType, enabled)
+	if err != nil {
+		return err
+	}
+
+	diff, err := oldPairs.FindDifferences(incomingPairs, pFmt)
+	if err != nil {
+		return err
+	}
+
+	if !force && len(diff.New) == 0 && len(diff.Remove) == 0 && !diff.FormatDifference {
+		return nil
+	}
+
+	var updateType string
 	if enabled {
 		updateType = "enabled"
 	} else {
 		updateType = "available"
 	}
 
-	newPairs, removedPairs := targetPairs.FindDifferences(products)
-	if force || len(newPairs) > 0 || len(removedPairs) > 0 {
-		if force {
+	if force {
+		log.Debugf(log.ExchangeSys,
+			"%s forced update of %s [%v] pairs.",
+			b.Name,
+			updateType,
+			strings.ToUpper(assetType.String()))
+	} else {
+		if len(diff.New) > 0 {
 			log.Debugf(log.ExchangeSys,
-				"%s forced update of %s [%v] pairs.",
+				"%s Updating %s pairs [%v] - Added: %s.\n",
 				b.Name,
 				updateType,
-				strings.ToUpper(assetType.String()))
-		} else {
-			if len(newPairs) > 0 {
-				log.Debugf(log.ExchangeSys,
-					"%s Updating %s pairs [%v] - Added: %s.\n",
-					b.Name,
-					updateType,
-					strings.ToUpper(assetType.String()),
-					newPairs)
-			}
-			if len(removedPairs) > 0 {
-				log.Debugf(log.ExchangeSys,
-					"%s Updating %s pairs [%v] - Removed: %s.\n",
-					b.Name,
-					updateType,
-					strings.ToUpper(assetType.String()),
-					removedPairs)
-			}
+				strings.ToUpper(assetType.String()),
+				diff.New)
 		}
-
-		b.Config.CurrencyPairs.StorePairs(assetType, products, enabled)
-		b.CurrencyPairs.StorePairs(assetType, products, enabled)
-
-		if !enabled {
-			// If available pairs are changed we will remove currency pair items
-			// that are still included in the enabled pairs list.
-			enabledPairs, err := b.CurrencyPairs.GetPairs(assetType, true)
-			if err == nil {
-				return nil
-			}
-			_, remove := enabledPairs.FindDifferences(products)
-			for i := range remove {
-				enabledPairs = enabledPairs.Remove(remove[i])
-			}
-
-			if len(remove) > 0 {
-				log.Debugf(log.ExchangeSys,
-					"%s Checked and updated enabled pairs [%v] - Removed: %s.\n",
-					b.Name,
-					strings.ToUpper(assetType.String()),
-					remove)
-				b.Config.CurrencyPairs.StorePairs(assetType, enabledPairs, true)
-				b.CurrencyPairs.StorePairs(assetType, enabledPairs, true)
-			}
+		if len(diff.Remove) > 0 {
+			log.Debugf(log.ExchangeSys,
+				"%s Updating %s pairs [%v] - Removed: %s.\n",
+				b.Name,
+				updateType,
+				strings.ToUpper(assetType.String()),
+				diff.Remove)
 		}
 	}
+
+	b.Config.CurrencyPairs.StorePairs(assetType, incomingPairs, enabled)
+	b.CurrencyPairs.StorePairs(assetType, incomingPairs, enabled)
+
+	if enabled {
+		return nil
+	}
+
+	// If available pairs are changed we will remove currency pair items
+	// that are still included in the enabled pairs list.
+	enabledPairs, err := b.CurrencyPairs.GetPairs(assetType, true)
+	if err == nil && !enabledPairs.FormatDifference(pFmt) {
+		return nil
+	}
+
+	diff, err = enabledPairs.FindDifferences(incomingPairs, pFmt)
+	if err != nil {
+		return err
+	}
+
+	var target int
+	for x := range enabledPairs {
+		if !diff.Remove.Contains(enabledPairs[x], true) {
+			enabledPairs[target] = enabledPairs[x].Format(pFmt)
+			target++
+		}
+	}
+	enabledPairs = enabledPairs[:target]
+
+	log.Debugf(log.ExchangeSys,
+		"%s Checked and updated enabled pairs [%v] - Removed: %s.\n",
+		b.Name,
+		strings.ToUpper(assetType.String()),
+		diff.Remove)
+	b.Config.CurrencyPairs.StorePairs(assetType, enabledPairs, true)
+	b.CurrencyPairs.StorePairs(assetType, enabledPairs, true)
+
 	return nil
 }
 
@@ -863,6 +892,10 @@ func (b *Base) StoreAssetPairFormat(a asset.Item, f currency.PairStore) error {
 			b.Name)
 	}
 
+	if f.ConfigFormat.Delimiter == "" {
+		return fmt.Errorf("cannot set asset %s pair format %w", a, errConfigPairFormatRequiresDelimiter)
+	}
+
 	if b.CurrencyPairs.Pairs == nil {
 		b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	}
@@ -887,6 +920,10 @@ func (b *Base) SetGlobalPairsManager(request, config *currency.PairFormat, asset
 	if len(assets) == 0 {
 		return fmt.Errorf("%s cannot set pairs manager, no assets provided",
 			b.Name)
+	}
+
+	if config.Delimiter == "" {
+		return fmt.Errorf("cannot set global pairs manager %w", errConfigPairFormatRequiresDelimiter)
 	}
 
 	b.CurrencyPairs.UseGlobalFormat = true

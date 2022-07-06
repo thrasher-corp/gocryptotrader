@@ -813,7 +813,7 @@ func (m *syncManager) FormatCurrency(p currency.Pair) currency.Pair {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return p
 	}
-	return p.Format(m.delimiter, m.uppercase)
+	return p.Format(currency.PairFormat{Delimiter: m.delimiter, Uppercase: m.uppercase})
 }
 
 const (

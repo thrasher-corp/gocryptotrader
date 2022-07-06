@@ -216,25 +216,52 @@ func (p Pairs) GetMatch(pair Pair) (Pair, error) {
 	return EMPTYPAIR, ErrPairNotFound
 }
 
+// PairDifference defines the difference between a set of pairs including a
+// change in format.
+type PairDifference struct {
+	New              Pairs
+	Remove           Pairs
+	FormatDifference bool
+}
+
 // FindDifferences returns pairs which are new or have been removed
-func (p Pairs) FindDifferences(pairs Pairs) (newPairs, removedPairs Pairs) {
-	for x := range pairs {
-		if pairs[x].String() == "" {
-			continue
+func (p Pairs) FindDifferences(incoming Pairs, pairFmt PairFormat) (PairDifference, error) {
+	newPairs := make(Pairs, 0, len(incoming))
+	for x := range incoming {
+		if incoming[x].IsEmpty() {
+			return PairDifference{}, fmt.Errorf("cannot find difference from new pairs %w", ErrCurrencyPairEmpty)
 		}
-		if !p.Contains(pairs[x], true) {
-			newPairs = append(newPairs, pairs[x])
+
+		if !p.Contains(incoming[x], true) {
+			newPairs = append(newPairs, incoming[x])
 		}
 	}
+	removedPairs := make(Pairs, 0, len(p))
 	for x := range p {
-		if p[x].String() == "" {
-			continue
+		if p[x].IsEmpty() {
+			return PairDifference{}, fmt.Errorf("cannot find difference from removed pairs %w", ErrCurrencyPairEmpty)
 		}
-		if !pairs.Contains(p[x], true) {
+		if !incoming.Contains(p[x], true) {
 			removedPairs = append(removedPairs, p[x])
 		}
 	}
-	return
+	return PairDifference{
+		New:              newPairs,
+		Remove:           removedPairs,
+		FormatDifference: p.FormatDifference(pairFmt),
+	}, nil
+}
+
+// FormatDifference checks and validates full formatting across a pairs list
+func (p Pairs) FormatDifference(pairFmt PairFormat) bool {
+	for x := range p {
+		if p[x].Delimiter != pairFmt.Delimiter ||
+			(!p[x].Base.IsEmpty() && p[x].Base.UpperCase != pairFmt.Uppercase) ||
+			(!p[x].Quote.IsEmpty() && p[x].Quote.UpperCase != pairFmt.Uppercase) {
+			return true
+		}
+	}
+	return false
 }
 
 // GetRandomPair returns a random pair from a list of pairs

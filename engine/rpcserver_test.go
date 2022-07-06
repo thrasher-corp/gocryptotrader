@@ -1359,6 +1359,7 @@ func TestCheckVars(t *testing.T) {
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
+			Delimiter: currency.DashDelimiter,
 		},
 	}
 	err = e.GetBase().StoreAssetPairFormat(asset.Spot, fmt1)

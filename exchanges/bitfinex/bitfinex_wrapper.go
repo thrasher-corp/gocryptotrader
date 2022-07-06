@@ -65,7 +65,7 @@ func (b *Bitfinex) SetDefaults() {
 
 	fmt1 := currency.PairStore{
 		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
 	}
 
 	fmt2 := currency.PairStore{
@@ -323,9 +323,20 @@ func (b *Bitfinex) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 			return err
 		}
 
-		p, err := currency.NewPairsFromStrings(pairs)
-		if err != nil {
-			return err
+		var p currency.Pairs
+		if assets[i] == asset.MarginFunding {
+			p = make(currency.Pairs, len(pairs))
+			for x := range pairs {
+				p[x], err = currency.NewPairFromStrings(pairs[x], "")
+				if err != nil {
+					return err
+				}
+			}
+		} else {
+			p, err = currency.NewPairsFromStrings(pairs)
+			if err != nil {
+				return err
+			}
 		}
 
 		err = b.UpdatePairs(p, assets[i], false, forceUpdate)

@@ -288,8 +288,7 @@ func (m *websocketRoutineManager) FormatCurrency(p currency.Pair) currency.Pair 
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return p
 	}
-	return p.Format(m.currencyConfig.CurrencyPairFormat.Delimiter,
-		m.currencyConfig.CurrencyPairFormat.Uppercase)
+	return p.Format(*m.currencyConfig.CurrencyPairFormat)
 }
 
 // printOrderSummary this function will be deprecated when a order manager

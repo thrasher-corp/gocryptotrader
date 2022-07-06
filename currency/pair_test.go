@@ -210,7 +210,7 @@ func TestDisplay(t *testing.T) {
 		)
 	}
 
-	actual = pair.Format("", false).String()
+	actual = pair.Format(PairFormat{}).String()
 	expected = "btcusd"
 	if actual != expected {
 		t.Errorf(
@@ -219,7 +219,7 @@ func TestDisplay(t *testing.T) {
 		)
 	}
 
-	actual = pair.Format("~", true).String()
+	actual = pair.Format(PairFormat{Delimiter: "~", Uppercase: true}).String()
 	expected = "BTC~USD"
 	if actual != expected {
 		t.Errorf(
@@ -618,33 +618,50 @@ func TestFindPairDifferences(t *testing.T) {
 	}
 
 	// Test new pair update
-	newPairs, removedPairs := pairList.FindDifferences(dash)
-	if len(newPairs) != 1 && len(removedPairs) != 3 {
-		t.Error("TestFindPairDifferences: Unexpected values")
+	diff, err := pairList.FindDifferences(dash, PairFormat{Delimiter: DashDelimiter, Uppercase: true})
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	emptyPairsList, err := NewPairsFromStrings([]string{""})
-	if !errors.Is(err, errCannotCreatePair) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errCannotCreatePair)
-	}
-
-	// Test that we don't allow empty strings for new pairs
-	newPairs, removedPairs = pairList.FindDifferences(emptyPairsList)
-	if len(newPairs) != 0 && len(removedPairs) != 3 {
+	if len(diff.New) != 1 && len(diff.Remove) != 3 && diff.FormatDifference {
 		t.Error("TestFindPairDifferences: Unexpected values")
 	}
 
 	// Test that we don't allow empty strings for new pairs
-	newPairs, removedPairs = emptyPairsList.FindDifferences(pairList)
-	if len(newPairs) != 3 && len(removedPairs) != 0 {
+	diff, err = pairList.FindDifferences(Pairs{}, PairFormat{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(diff.New) != 0 && len(diff.Remove) != 3 && !diff.FormatDifference {
+		t.Error("TestFindPairDifferences: Unexpected values")
+	}
+
+	// Test that we don't allow empty strings for new pairs
+	diff, err = Pairs{}.FindDifferences(pairList, PairFormat{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(diff.New) != 3 && len(diff.Remove) != 0 && diff.FormatDifference {
 		t.Error("TestFindPairDifferences: Unexpected values")
 	}
 
 	// Test that the supplied pair lists are the same, so
 	// no newPairs or removedPairs
-	newPairs, removedPairs = pairList.FindDifferences(pairList)
-	if len(newPairs) != 0 && len(removedPairs) != 0 {
+	diff, err = pairList.FindDifferences(pairList, PairFormat{Delimiter: DashDelimiter, Uppercase: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(diff.New) != 0 && len(diff.Remove) != 0 && !diff.FormatDifference {
 		t.Error("TestFindPairDifferences: Unexpected values")
+	}
+
+	_, err = pairList.FindDifferences(Pairs{EMPTYPAIR}, PairFormat{})
+	if !errors.Is(err, ErrCurrencyPairEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrCurrencyPairEmpty)
+	}
+
+	_, err = Pairs{EMPTYPAIR}.FindDifferences(pairList, PairFormat{})
+	if !errors.Is(err, ErrCurrencyPairEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrCurrencyPairEmpty)
 	}
 }
 

@@ -112,8 +112,8 @@ func NewPairFromFormattedPairs(currencyPair string, pairs Pairs, pairFmt PairFor
 }
 
 // Format formats the given pair as a string
-func (f *PairFormat) Format(pair Pair) string {
-	return pair.Format(f.Delimiter, f.Uppercase).String()
+func (f PairFormat) Format(pair Pair) string {
+	return pair.Format(f).String()
 }
 
 // MatchPairsWithNoDelimiter will move along a predictable index on the provided currencyPair
@@ -123,7 +123,7 @@ func (f *PairFormat) Format(pair Pair) string {
 // infer where the delimiter is located eg BETHERETH is BETHER ETH
 func MatchPairsWithNoDelimiter(currencyPair string, pairs Pairs, pairFmt PairFormat) (Pair, error) {
 	for i := range pairs {
-		fPair := pairs[i].Format(pairFmt.Delimiter, pairFmt.Uppercase)
+		fPair := pairs[i].Format(pairFmt)
 		maxLen := 6
 		if len(currencyPair) < maxLen {
 			maxLen = len(currencyPair)

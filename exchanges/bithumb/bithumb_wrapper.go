@@ -67,7 +67,7 @@ func (b *Bithumb) SetDefaults() {
 	b.API.CredentialsValidator.RequiresSecret = true
 
 	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
-	configFmt := &currency.PairFormat{Uppercase: true, Index: "KRW"}
+	configFmt := &currency.PairFormat{Uppercase: true, Index: "KRW", Delimiter: currency.DashDelimiter}
 	err := b.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)

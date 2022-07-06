@@ -74,6 +74,7 @@ func (h *HUOBI) SetDefaults() {
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
+			Delimiter: currency.DashDelimiter,
 		},
 	}
 	futures := currency.PairStore{
@@ -82,6 +83,7 @@ func (h *HUOBI) SetDefaults() {
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
+			Delimiter: currency.DashDelimiter,
 		},
 	}
 	err := h.StoreAssetPairFormat(asset.Spot, fmt1)

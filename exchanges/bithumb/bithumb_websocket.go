@@ -175,11 +175,16 @@ func (b *Bithumb) GenerateSubscriptions() ([]stream.ChannelSubscription, error) 
 		return nil, err
 	}
 
+	pFmt, err := b.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		return nil, err
+	}
+
 	for x := range pairs {
 		for y := range channels {
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  channels[y],
-				Currency: pairs[x].Format("_", true),
+				Currency: pairs[x].Format(pFmt),
 				Asset:    asset.Spot,
 			})
 		}

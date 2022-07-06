@@ -82,6 +82,7 @@ func (b *BTSE) SetDefaults() {
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
+			Delimiter: currency.DashDelimiter,
 		},
 	}
 	err = b.StoreAssetPairFormat(asset.Futures, fmt2)

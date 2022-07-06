@@ -1219,7 +1219,7 @@ func (h *HUOBI) formatFuturesCode(p currency.Code) (string, error) {
 // formatFuturesPair handles pairs in the format as "BTC-NW" and "BTC210827"
 func (h *HUOBI) formatFuturesPair(p currency.Pair) (string, error) {
 	if common.StringDataCompareInsensitive(validContractShortTypes, p.Quote.String()) {
-		return p.Format("_", true).String(), nil
+		return p.Format(currency.PairFormat{Delimiter: "_", Uppercase: true}).String(), nil
 	}
 	return h.FormatSymbol(p, asset.Futures)
 }

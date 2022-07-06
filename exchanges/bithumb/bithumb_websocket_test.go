@@ -40,6 +40,7 @@ func TestWsHandleData(t *testing.T) {
 						Enabled:   pairs,
 						ConfigFormat: &currency.PairFormat{
 							Uppercase: true,
+							Delimiter: currency.DashDelimiter,
 						},
 					},
 				},

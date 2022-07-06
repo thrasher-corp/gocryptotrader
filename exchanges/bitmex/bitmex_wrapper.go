@@ -63,7 +63,7 @@ func (b *Bitmex) SetDefaults() {
 	b.API.CredentialsValidator.RequiresSecret = true
 
 	requestFmt := &currency.PairFormat{Uppercase: true}
-	configFmt := &currency.PairFormat{Uppercase: true}
+	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
 	err := b.SetGlobalPairsManager(requestFmt,
 		configFmt,
 		asset.PerpetualContract,

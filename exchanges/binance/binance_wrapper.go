@@ -1882,7 +1882,7 @@ func (b *Binance) FormatExchangeCurrency(p currency.Pair, a asset.Item) (currenc
 	if a == asset.USDTMarginedFutures {
 		return b.formatUSDTMarginedFuturesPair(p, pairFmt), nil
 	}
-	return p.Format(pairFmt.Delimiter, pairFmt.Uppercase), nil
+	return p.Format(pairFmt), nil
 }
 
 // FormatSymbol formats the given pair to a string suitable for exchange API requests
@@ -1906,10 +1906,11 @@ func (b *Binance) formatUSDTMarginedFuturesPair(p currency.Pair, pairFmt currenc
 	for _, c := range quote {
 		if c < '0' || c > '9' {
 			// character rune is alphabetic, cannot be expiring contract
-			return p.Format(pairFmt.Delimiter, pairFmt.Uppercase)
+			return p.Format(pairFmt)
 		}
 	}
-	return p.Format(currency.UnderscoreDelimiter, pairFmt.Uppercase)
+	pairFmt.Delimiter = currency.UnderscoreDelimiter
+	return p.Format(pairFmt)
 }
 
 // GetServerTime returns the current exchange server time.
