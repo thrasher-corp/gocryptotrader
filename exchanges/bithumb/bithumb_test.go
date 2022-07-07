@@ -51,6 +51,11 @@ func TestMain(m *testing.M) {
 		log.Fatal("Bithumb setup error", err)
 	}
 
+	err = b.UpdateTradablePairs(context.Background(), false)
+	if err != nil {
+		log.Fatal("Bithumb Setup() init error")
+	}
+
 	os.Exit(m.Run())
 }
 
