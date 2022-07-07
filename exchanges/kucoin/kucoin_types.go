@@ -61,6 +61,30 @@ func (k kucoinTimeMilliSec) Time() time.Time {
 	return time.Time(k)
 }
 
+// kucoinTimeMilliSecStr provides an internal conversion helper
+type kucoinTimeMilliSecStr time.Time
+
+// UnmarshalJSON is custom type json unmarshaller for kucoinTimeMilliSecStr
+func (k *kucoinTimeMilliSecStr) UnmarshalJSON(data []byte) error {
+	var timestamp string
+	err := json.Unmarshal(data, &timestamp)
+	if err != nil {
+		return err
+	}
+
+	t, err := strconv.ParseInt(timestamp, 10, 64)
+	if err != nil {
+		return err
+	}
+	*k = kucoinTimeMilliSecStr(time.UnixMilli(t))
+	return nil
+}
+
+// Time returns a time.Time object
+func (k kucoinTimeMilliSecStr) Time() time.Time {
+	return time.Time(k)
+}
+
 // kucoinTimeNanoSec provides an internal conversion helper
 type kucoinTimeNanoSec time.Time
 
@@ -246,4 +270,20 @@ type MarginRiskLimit struct {
 type PostBorrowOrderResp struct {
 	OrderID  string `json:"orderId"`
 	Currency string `json:"currency"`
+}
+
+type BorrowOrder struct {
+	OrderID   string  `json:"orderId"`
+	Currency  string  `json:"currency"`
+	Size      float64 `json:"size,string"`
+	Filled    float64 `json:"filled"`
+	MatchList []struct {
+		Currency     string                `json:"currency"`
+		DailyIntRate float64               `json:"dailyIntRate,string"`
+		Size         float64               `json:"size,string"`
+		Term         int64                 `json:"term"`
+		Timestamp    kucoinTimeMilliSecStr `json:"timestamp"`
+		TradeID      string                `json:"tradeId"`
+	} `json:"matchList"`
+	Status string `json:"status"`
 }

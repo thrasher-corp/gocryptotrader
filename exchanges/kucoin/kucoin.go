@@ -50,7 +50,8 @@ const (
 	kucoinGetOrderbook       = "/api/v3/market/orderbook/level2"
 	kucoinGetMarginAccount   = "/api/v1/margin/account"
 	kucoinGetMarginRiskLimit = "/api/v1/risk/limit/strategy"
-	kucoinPostBorrowOrder    = "/api/v1/margin/borrow"
+	kucoinBorrowOrder        = "/api/v1/margin/borrow"
+	kucoinGetRepayRecord     = "/api/v1/margin/borrow/outstanding"
 )
 
 // GetSymbols gets pairs details on the exchange
@@ -413,7 +414,21 @@ func (k *Kucoin) PostBorrowOrder(ctx context.Context, currency, orderType, term 
 	if term != "" {
 		params["term"] = term
 	}
-	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinPostBorrowOrder, params, publicSpotRate, &resp)
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinBorrowOrder, params, publicSpotRate, &resp)
+}
+
+// GetBorrowOrder gets borrow order information
+func (k *Kucoin) GetBorrowOrder(ctx context.Context, orderID string) (BorrowOrder, error) {
+	resp := struct {
+		Data BorrowOrder `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinBorrowOrder, params), nil, publicSpotRate, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
