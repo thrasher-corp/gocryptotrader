@@ -1447,6 +1447,47 @@ func TestUpdatePairs(t *testing.T) {
 	if !uacEnabledPairs.Contains(currency.NewPair(currency.LTC, currency.USDT), true) {
 		t.Fatal("expected currency pair not found")
 	}
+
+	// This should be matched and formatted to `link-usd`
+	unintentionalInput, err := currency.NewPairFromString("linkusd")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	pairs = currency.Pairs{
+		currency.NewPair(currency.WABI, currency.USD),
+		currency.NewPair(currency.EASY, currency.USD),
+		currency.NewPair(currency.LARIX, currency.USD),
+		currency.NewPair(currency.LTC, currency.USDT),
+		unintentionalInput,
+	}
+
+	err = UAC.UpdatePairs(pairs, asset.Spot, true, true)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	pairs = currency.Pairs{
+		currency.NewPair(currency.WABI, currency.USD),
+		currency.NewPair(currency.EASY, currency.USD),
+		currency.NewPair(currency.LARIX, currency.USD),
+		currency.NewPair(currency.LTC, currency.USDT),
+		currency.NewPair(currency.LINK, currency.USD),
+	}
+
+	err = UAC.UpdatePairs(pairs, asset.Spot, false, true)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	uacEnabledPairs, err = UAC.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !uacEnabledPairs.Contains(currency.NewPair(currency.LINK, currency.USD), true) {
+		t.Fatalf("received: '%v' but expected: '%v'", false, true)
+	}
 }
 
 func TestSupportsWebsocket(t *testing.T) {
