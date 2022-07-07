@@ -107,10 +107,10 @@ type Config struct {
 
 // OrderManager holds settings used for the order manager
 type OrderManager struct {
-	Enabled                  *bool         `json:"enabled"`
-	TrackFuturesPositions    bool          `json:"trackFuturesPositions"`
-	Verbose                  bool          `json:"verbose"`
-	OpenPositionSeekDuration time.Duration `json:"openPositionSeekDuration"`
+	Enabled                       *bool         `json:"enabled"`
+	Verbose                       bool          `json:"verbose"`
+	ActivelyTrackFuturesPositions bool          `json:"activelyTrackFuturesPositions"`
+	FuturesTrackingSeekDuration   time.Duration `json:"futuresTrackingSeekDuration"`
 }
 
 // DataHistoryManager holds all information required for the data history manager

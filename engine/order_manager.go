@@ -22,7 +22,7 @@ import (
 )
 
 // SetupOrderManager will boot up the OrderManager
-func SetupOrderManager(exchangeManager iExchangeManager, communicationsManager iCommsManager, wg *sync.WaitGroup, verbose, trackFuturesPositions bool, openPositionSeekDuration time.Duration) (*OrderManager, error) {
+func SetupOrderManager(exchangeManager iExchangeManager, communicationsManager iCommsManager, wg *sync.WaitGroup, verbose, activelyTrackFuturesPositions bool, futuresTrackingSeekDuration time.Duration) (*OrderManager, error) {
 	if exchangeManager == nil {
 		return nil, errNilExchangeManager
 	}
@@ -32,26 +32,27 @@ func SetupOrderManager(exchangeManager iExchangeManager, communicationsManager i
 	if wg == nil {
 		return nil, errNilWaitGroup
 	}
-	if openPositionSeekDuration > 0 {
-		openPositionSeekDuration = -openPositionSeekDuration
-	}
-	if openPositionSeekDuration == 0 {
-		openPositionSeekDuration = defaultOrderSeekTime
-	}
+
 	om := &OrderManager{
-		shutdown: make(chan struct{}),
+		shutdown:                      make(chan struct{}),
+		activelyTrackFuturesPositions: activelyTrackFuturesPositions,
 		orderStore: store{
-			Orders:                make(map[string][]*order.Detail),
-			exchangeManager:       exchangeManager,
-			commsManager:          communicationsManager,
-			wg:                    wg,
-			trackFuturesPositions: trackFuturesPositions,
+			Orders:                    make(map[string][]*order.Detail),
+			exchangeManager:           exchangeManager,
+			commsManager:              communicationsManager,
+			wg:                        wg,
+			futuresPositionController: order.SetupPositionController(),
 		},
-		verbose:                  verbose,
-		openPositionSeekDuration: openPositionSeekDuration,
+		verbose: verbose,
 	}
-	if trackFuturesPositions {
-		om.orderStore.futuresPositionController = order.SetupPositionController()
+	if activelyTrackFuturesPositions {
+		if futuresTrackingSeekDuration > 0 {
+			futuresTrackingSeekDuration = -futuresTrackingSeekDuration
+		}
+		if futuresTrackingSeekDuration == 0 {
+			futuresTrackingSeekDuration = defaultOrderSeekTime
+		}
+		om.futuresPositionSeekDuration = futuresTrackingSeekDuration
 	}
 	return om, nil
 }
@@ -95,7 +96,7 @@ func (m *OrderManager) gracefulShutdown() {
 	if !m.cfg.CancelOrdersOnShutdown {
 		return
 	}
-	log.Debugln(log.OrderMgr, "Order manager: Cancelling any open orders...")
+	log.Debugln(log.OrderMgr, "Cancelling any open orders...")
 	exchanges, err := m.orderStore.exchangeManager.GetExchanges()
 	if err != nil {
 		log.Errorf(log.OrderMgr, "Order manager cannot get exchanges: %v", err)
@@ -143,7 +144,7 @@ func (m *OrderManager) CancelAllOrders(ctx context.Context, exchanges []exchange
 			continue
 		}
 		for j := range orders {
-			log.Debugf(log.OrderMgr, "Order manager: Cancelling order(s) for exchange %s.", exchanges[i].GetName())
+			log.Debugf(log.OrderMgr, "Cancelling order(s) for exchange %s.", exchanges[i].GetName())
 			cancel, err := orders[j].DeriveCancel()
 			if err != nil {
 				log.Error(log.OrderMgr, err)
@@ -199,7 +200,7 @@ func (m *OrderManager) Cancel(ctx context.Context, cancel *order.Cancel) error {
 		return err
 	}
 
-	log.Debugf(log.OrderMgr, "Order manager: Cancelling order ID %v [%+v]",
+	log.Debugf(log.OrderMgr, "Cancelling order ID %v [%+v]",
 		cancel.OrderID, cancel)
 
 	err = exch.CancelOrder(ctx, cancel)
@@ -220,7 +221,7 @@ func (m *OrderManager) Cancel(ctx context.Context, cancel *order.Cancel) error {
 		return err
 	}
 
-	msg := fmt.Sprintf("Order manager: Exchange %s order ID=%v cancelled.",
+	msg := fmt.Sprintf("Exchange %s order ID=%v cancelled.",
 		od.Exchange, od.OrderID)
 	log.Debugln(log.OrderMgr, msg)
 	m.orderStore.commsManager.PushEvent(base.Event{Type: "order", Message: msg})
@@ -235,9 +236,6 @@ func (m *OrderManager) GetFuturesPositionsForExchange(exch string, item asset.It
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
 		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
-	}
-	if m.orderStore.futuresPositionController == nil {
-		return nil, errFuturesTrackerNotSetup
 	}
 	if !item.IsFutures() {
 		return nil, fmt.Errorf("%v %w", item, order.ErrNotFuturesAsset)
@@ -255,13 +253,10 @@ func (m *OrderManager) GetOpenFuturesPosition(exch string, item asset.Item, pair
 	if atomic.LoadInt32(&m.started) == 0 {
 		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
-	if m.orderStore.futuresPositionController == nil {
-		return nil, errFuturesTrackerNotSetup
-	}
 	if !item.IsFutures() {
 		return nil, fmt.Errorf("%v %w", item, order.ErrNotFuturesAsset)
 	}
-	if !m.orderStore.trackFuturesPositions {
+	if !m.activelyTrackFuturesPositions {
 		return nil, errFuturesTrackingDisabled
 	}
 	return m.orderStore.futuresPositionController.GetOpenPosition(exch, item, pair)
@@ -276,10 +271,7 @@ func (m *OrderManager) GetAllOpenFuturesPositions() ([]order.Position, error) {
 	if atomic.LoadInt32(&m.started) == 0 {
 		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
-	if m.orderStore.futuresPositionController == nil {
-		return nil, errFuturesTrackerNotSetup
-	}
-	if !m.orderStore.trackFuturesPositions {
+	if !m.activelyTrackFuturesPositions {
 		return nil, errFuturesTrackingDisabled
 	}
 	return m.orderStore.futuresPositionController.GetAllOpenPositions()
@@ -293,9 +285,6 @@ func (m *OrderManager) ClearFuturesTracking(exch string, item asset.Item, pair c
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
 		return fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
-	}
-	if m.orderStore.futuresPositionController == nil {
-		return errFuturesTrackerNotSetup
 	}
 	if !item.IsFutures() {
 		return fmt.Errorf("%v %w", item, order.ErrNotFuturesAsset)
@@ -313,9 +302,6 @@ func (m *OrderManager) UpdateOpenPositionUnrealisedPNL(e string, item asset.Item
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
 		return decimal.Zero, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
-	}
-	if m.orderStore.futuresPositionController == nil {
-		return decimal.Zero, errFuturesTrackerNotSetup
 	}
 	if !item.IsFutures() {
 		return decimal.Zero, fmt.Errorf("%v %w", item, order.ErrNotFuturesAsset)
@@ -430,7 +416,7 @@ func (m *OrderManager) Modify(ctx context.Context, mod *order.Modify) (*order.Mo
 	res, err := exch.ModifyOrder(ctx, mod)
 	if err != nil {
 		message := fmt.Sprintf(
-			"Order manager: Exchange %s order ID=%v: failed to modify",
+			"Exchange %s order ID=%v: failed to modify",
 			mod.Exchange,
 			mod.OrderID,
 		)
@@ -450,9 +436,9 @@ func (m *OrderManager) Modify(ctx context.Context, mod *order.Modify) (*order.Mo
 	// Notify observers.
 	var message string
 	if err != nil {
-		message = "Order manager: Exchange %s order ID=%v: modified on exchange, but failed to modify locally"
+		message = "Exchange %s order ID=%v: modified on exchange, but failed to modify locally"
 	} else {
-		message = "Order manager: Exchange %s order ID=%v: modified successfully"
+		message = "Exchange %s order ID=%v: modified successfully"
 	}
 	m.orderStore.commsManager.PushEvent(base.Event{
 		Type:    "order",
@@ -600,7 +586,7 @@ func (m *OrderManager) processSubmittedOrder(newOrderResp *order.SubmitResponse)
 
 	id, err := uuid.NewV4()
 	if err != nil {
-		log.Warnf(log.OrderMgr, "Order manager: Unable to generate UUID. Err: %s", err)
+		log.Warnf(log.OrderMgr, "Unable to generate UUID. Err: %s", err)
 	}
 
 	detail, err := newOrderResp.DeriveDetail(id)
@@ -608,7 +594,7 @@ func (m *OrderManager) processSubmittedOrder(newOrderResp *order.SubmitResponse)
 		return nil, err
 	}
 
-	msg := fmt.Sprintf("Order manager: Exchange %s submitted order ID=%v [Ours: %v] pair=%v price=%v amount=%v quoteAmount=%v side=%v type=%v for time %v.",
+	msg := fmt.Sprintf("Exchange %s submitted order ID=%v [Ours: %v] pair=%v price=%v amount=%v quoteAmount=%v side=%v type=%v for time %v.",
 		detail.Exchange,
 		detail.OrderID,
 		detail.InternalOrderID.String(),
@@ -651,17 +637,18 @@ func (m *OrderManager) processOrders() {
 		if !exchanges[x].IsRESTAuthenticationSupported() {
 			continue
 		}
-		log.Debugf(log.OrderMgr,
-			"Order manager: Processing orders for exchange %v",
-			exchanges[x].GetName())
-
+		if m.verbose {
+			log.Debugf(log.OrderMgr,
+				"Processing orders for exchange %v",
+				exchanges[x].GetName())
+		}
 		enabledAssets := exchanges[x].GetAssetTypes(true)
 		for y := range enabledAssets {
 			var pairs currency.Pairs
 			pairs, err = exchanges[x].GetEnabledPairs(enabledAssets[y])
 			if err != nil {
 				log.Errorf(log.OrderMgr,
-					"Order manager: Unable to get enabled pairs for %s and asset type %s: %s",
+					"Unable to get enabled pairs for %s and asset type %s: %s",
 					exchanges[x].GetName(),
 					enabledAssets[y],
 					err)
@@ -671,7 +658,7 @@ func (m *OrderManager) processOrders() {
 			if len(pairs) == 0 {
 				if m.verbose {
 					log.Debugf(log.OrderMgr,
-						"Order manager: No pairs enabled for %s and asset type %s, skipping...",
+						"No pairs enabled for %s and asset type %s, skipping...",
 						exchanges[x].GetName(),
 						enabledAssets[y])
 				}
@@ -690,7 +677,7 @@ func (m *OrderManager) processOrders() {
 			})
 			if err != nil {
 				log.Errorf(log.OrderMgr,
-					"Order manager: Unable to get active orders for %s and asset type %s: %s",
+					"Unable to get active orders for %s and asset type %s: %s",
 					exchanges[x].GetName(),
 					enabledAssets[y],
 					err)
@@ -720,16 +707,16 @@ func (m *OrderManager) processOrders() {
 				go m.processMatchingOrders(exchanges[x], orders, &wg)
 			}
 
-			if m.orderStore.trackFuturesPositions && enabledAssets[y].IsFutures() {
+			if m.activelyTrackFuturesPositions && enabledAssets[y].IsFutures() {
 				var positions []order.PositionDetails
 				var sd time.Time
 				sd, err = m.orderStore.futuresPositionController.LastUpdated()
 				if err != nil {
 					log.Error(log.OrderMgr, err)
-					continue
+					return
 				}
 				if sd.IsZero() {
-					sd = time.Now().Add(m.openPositionSeekDuration)
+					sd = time.Now().Add(m.futuresPositionSeekDuration)
 				}
 				positions, err = exchanges[x].GetFuturesPositions(context.TODO(), &order.PositionsRequest{
 					Asset:     enabledAssets[y],
@@ -740,26 +727,29 @@ func (m *OrderManager) processOrders() {
 					if !errors.Is(err, common.ErrNotYetImplemented) {
 						log.Error(log.OrderMgr, err)
 					}
-				} else {
-					for z := range positions {
-						if len(positions[z].Orders) == 0 {
-							continue
-						}
-						err = m.processFuturesPositions(exchanges[x], &positions[z])
-						if err != nil {
-							log.Errorf(log.OrderMgr, "unable to process future positions for %v %v %v. err: %v", positions[z].Exchange, positions[z].Asset, positions[z].Pair, err)
-						}
+					return
+				}
+				for z := range positions {
+					if len(positions[z].Orders) == 0 {
+						continue
+					}
+					err = m.processFuturesPositions(exchanges[x], &positions[z])
+					if err != nil {
+						log.Errorf(log.OrderMgr, "unable to process future positions for %v %v %v. err: %v", positions[z].Exchange, positions[z].Asset, positions[z].Pair, err)
 					}
 				}
 			}
 		}
 	}
 	wg.Wait()
+	if m.verbose {
+		log.Debugf(log.OrderMgr, "Finished processing orders")
+	}
 }
 
 // processFuturesPositions ensures any open position found is kept up to date in the order manager
 func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, position *order.PositionDetails) error {
-	if !m.orderStore.trackFuturesPositions {
+	if !m.activelyTrackFuturesPositions {
 		return errFuturesTrackingDisabled
 	}
 	if exch == nil {
@@ -919,7 +909,7 @@ func (m *OrderManager) UpsertOrder(od *order.Detail) (resp *OrderUpsertResponse,
 	upsertResponse, err := m.orderStore.upsert(od)
 	if err != nil {
 		msg = fmt.Sprintf(
-			"Order manager: Exchange %s unable to upsert order ID=%v internal ID=%v pair=%v price=%.8f amount=%.8f side=%v type=%v status=%v: %s",
+			"Exchange %s unable to upsert order ID=%v internal ID=%v pair=%v price=%.8f amount=%.8f side=%v type=%v status=%v: %s",
 			od.Exchange, od.OrderID, od.InternalOrderID, od.Pair, od.Price, od.Amount, od.Side, od.Type, od.Status, err)
 		return nil, err
 	}
@@ -928,7 +918,7 @@ func (m *OrderManager) UpsertOrder(od *order.Detail) (resp *OrderUpsertResponse,
 	if upsertResponse.IsNewOrder {
 		status = "added"
 	}
-	msg = fmt.Sprintf("Order manager: Exchange %s %s order ID=%v internal ID=%v pair=%v price=%.8f amount=%.8f side=%v type=%v status=%v.",
+	msg = fmt.Sprintf("Exchange %s %s order ID=%v internal ID=%v pair=%v price=%.8f amount=%.8f side=%v type=%v status=%v.",
 		upsertResponse.OrderDetails.Exchange, status, upsertResponse.OrderDetails.OrderID, upsertResponse.OrderDetails.InternalOrderID,
 		upsertResponse.OrderDetails.Pair, upsertResponse.OrderDetails.Price, upsertResponse.OrderDetails.Amount,
 		upsertResponse.OrderDetails.Side, upsertResponse.OrderDetails.Type, upsertResponse.OrderDetails.Status)
@@ -1039,7 +1029,7 @@ func (s *store) upsert(od *order.Detail) (*OrderUpsertResponse, error) {
 	}
 	s.m.Lock()
 	defer s.m.Unlock()
-	if s.trackFuturesPositions && od.AssetType.IsFutures() {
+	if od.AssetType.IsFutures() {
 		err = s.futuresPositionController.TrackNewOrder(od)
 		if err != nil && !errors.Is(err, order.ErrPositionClosed) {
 			return nil, err

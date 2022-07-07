@@ -205,13 +205,16 @@ type PositionTracker struct {
 // PositionTrackerSetup contains all required fields to
 // setup a position tracker
 type PositionTrackerSetup struct {
+	Exchange                  string
+	Asset                     asset.Item
 	Pair                      currency.Pair
 	EntryPrice                decimal.Decimal
 	Underlying                currency.Code
 	CollateralCurrency        currency.Code
-	Asset                     asset.Item
 	Side                      Side
 	UseExchangePNLCalculation bool
+	OfflineCalculation        bool
+	PNLCalculator             PNLCalculation
 }
 
 // TotalCollateralCalculator holds many collateral calculators

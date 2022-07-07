@@ -2195,7 +2195,7 @@ func TestGetFuturesPositions(t *testing.T) {
 	}
 	em.Add(fakeExchange)
 	var wg sync.WaitGroup
-	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, true, time.Hour)
+	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, false, time.Hour)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -2230,7 +2230,7 @@ func TestGetFuturesPositions(t *testing.T) {
 	})
 
 	_, err = s.GetFuturesPositions(ctx, &gctrpc.GetFuturesPositionsRequest{
-		Exchange: fakeExchangeName,
+		Exchange: "test",
 		Asset:    asset.Futures.String(),
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: currency.DashDelimiter,
@@ -2243,8 +2243,8 @@ func TestGetFuturesPositions(t *testing.T) {
 		GetPositionStats:        true,
 		GetFundingPayments:      true,
 	})
-	if !errors.Is(err, order.ErrPositionsNotLoadedForExchange) {
-		t.Fatalf("received '%v', expected '%v'", err, order.ErrPositionsNotLoadedForExchange)
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("received '%v', expected '%v'", err, ErrExchangeNotFound)
 	}
 
 	od := &order.Detail{
@@ -2271,7 +2271,7 @@ func TestGetFuturesPositions(t *testing.T) {
 			Base:      cp.Base.String(),
 			Quote:     cp.Quote.String(),
 		},
-		Verbose: true,
+		IncludeFullOrderData: true,
 	})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received '%v', expected '%v'", err, nil)
@@ -2446,7 +2446,7 @@ func TestGetFundingRates(t *testing.T) {
 	}
 	em.Add(fakeExchange)
 	var wg sync.WaitGroup
-	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, true, time.Hour)
+	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, false, time.Hour)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -2591,16 +2591,12 @@ func TestGetManagedPosition(t *testing.T) {
 	}
 
 	request.Asset = asset.Futures.String()
-	_, err = s.GetManagedPosition(context.Background(), request)
-	if !errors.Is(err, errFuturesTrackerNotSetup) {
-		t.Errorf("received '%v', expected '%v'", err, errFuturesTrackerNotSetup)
-	}
-
-	s.OrderManager, err = SetupOrderManager(em, &CommunicationManager{}, &wg, false, true, time.Hour)
+	s.OrderManager, err = SetupOrderManager(em, &CommunicationManager{}, &wg, false, false, time.Hour)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 	s.OrderManager.started = 1
+	s.OrderManager.activelyTrackFuturesPositions = true
 	_, err = s.GetManagedPosition(context.Background(), request)
 	if !errors.Is(err, order.ErrPositionNotFound) {
 		t.Errorf("received '%v', expected '%v'", err, order.ErrPositionNotFound)
@@ -2705,11 +2701,6 @@ func TestGetAllManagedPositions(t *testing.T) {
 	}
 
 	request := &gctrpc.GetAllManagedPositionsRequest{}
-	_, err = s.GetAllManagedPositions(context.Background(), request)
-	if !errors.Is(err, errFuturesTrackerNotSetup) {
-		t.Errorf("received '%v', expected '%v'", err, errFuturesTrackerNotSetup)
-	}
-
 	s.OrderManager, err = SetupOrderManager(em, &CommunicationManager{}, &wg, false, true, time.Hour)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)

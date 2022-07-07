@@ -21,7 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
 
-// omfExchange aka ordermanager fake exchange overrides exchange functions
+// omfExchange aka order manager fake exchange overrides exchange functions
 // we're not testing an actual exchange's implemented functions
 type omfExchange struct {
 	exchange.IBotExchange
@@ -160,7 +160,6 @@ func TestSetupOrderManager(t *testing.T) {
 	if !errors.Is(err, errNilExchangeManager) {
 		t.Errorf("error '%v', expected '%v'", err, errNilExchangeManager)
 	}
-
 	_, err = SetupOrderManager(SetupExchangeManager(), nil, nil, false, false, 0)
 	if !errors.Is(err, errNilCommunicationsManager) {
 		t.Errorf("error '%v', expected '%v'", err, errNilCommunicationsManager)
@@ -171,6 +170,14 @@ func TestSetupOrderManager(t *testing.T) {
 	}
 	var wg sync.WaitGroup
 	_, err = SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, &wg, false, false, 0)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	_, err = SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, &wg, false, true, 0)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	_, err = SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, &wg, false, true, 1337)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -845,7 +852,6 @@ func TestProcessOrders(t *testing.T) {
 		}
 	}
 
-	m.trackFuturesPositions = true
 	m.orderStore.futuresPositionController = order.SetupPositionController()
 	if err = m.orderStore.add(&order.Detail{
 		Exchange:    testExchange,
@@ -1138,10 +1144,6 @@ func TestGetFuturesPositionsForExchange(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, ErrSubSystemNotStarted)
 	}
 	o.started = 1
-	_, err = o.GetFuturesPositionsForExchange("test", asset.Spot, cp)
-	if !errors.Is(err, errFuturesTrackerNotSetup) {
-		t.Errorf("received '%v', expected '%v'", err, errFuturesTrackerNotSetup)
-	}
 	o.orderStore.futuresPositionController = order.SetupPositionController()
 	_, err = o.GetFuturesPositionsForExchange("test", asset.Spot, cp)
 	if !errors.Is(err, order.ErrNotFuturesAsset) {
@@ -1189,10 +1191,6 @@ func TestClearFuturesPositionsForExchange(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, ErrSubSystemNotStarted)
 	}
 	o.started = 1
-	err = o.ClearFuturesTracking("test", asset.Spot, cp)
-	if !errors.Is(err, errFuturesTrackerNotSetup) {
-		t.Errorf("received '%v', expected '%v'", err, errFuturesTrackerNotSetup)
-	}
 	o.orderStore.futuresPositionController = order.SetupPositionController()
 	err = o.ClearFuturesTracking("test", asset.Spot, cp)
 	if !errors.Is(err, order.ErrNotFuturesAsset) {
@@ -1244,10 +1242,6 @@ func TestUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, ErrSubSystemNotStarted)
 	}
 	o.started = 1
-	_, err = o.UpdateOpenPositionUnrealisedPNL("test", asset.Spot, cp, 1, time.Now())
-	if !errors.Is(err, errFuturesTrackerNotSetup) {
-		t.Errorf("received '%v', expected '%v'", err, errFuturesTrackerNotSetup)
-	}
 	o.orderStore.futuresPositionController = order.SetupPositionController()
 	_, err = o.UpdateOpenPositionUnrealisedPNL("test", asset.Spot, cp, 1, time.Now())
 	if !errors.Is(err, order.ErrNotFuturesAsset) {
@@ -1453,12 +1447,8 @@ func TestGetAllOpenFuturesPositions(t *testing.T) {
 	}
 
 	o.started = 1
-	_, err = o.GetAllOpenFuturesPositions()
-	if !errors.Is(err, errFuturesTrackerNotSetup) {
-		t.Errorf("received '%v', expected '%v'", err, errFuturesTrackerNotSetup)
-	}
-	o.trackFuturesPositions = true
-	o.orderStore.futuresPositionController = &order.PositionController{}
+	o.activelyTrackFuturesPositions = true
+	o.orderStore.futuresPositionController = order.SetupPositionController()
 	_, err = o.GetAllOpenFuturesPositions()
 	if !errors.Is(err, order.ErrNoPositionsFound) {
 		t.Errorf("received '%v', expected '%v'", err, order.ErrNoPositionsFound)
@@ -1487,8 +1477,8 @@ func TestGetOpenFuturesPosition(t *testing.T) {
 
 	o.started = 1
 	_, err = o.GetOpenFuturesPosition(testExchange, asset.Spot, cp)
-	if !errors.Is(err, errFuturesTrackerNotSetup) {
-		t.Errorf("received '%v', expected '%v'", err, errFuturesTrackerNotSetup)
+	if !errors.Is(err, order.ErrNotFuturesAsset) {
+		t.Errorf("received '%v', expected '%v'", err, order.ErrNotFuturesAsset)
 	}
 
 	em := SetupExchangeManager()

@@ -1737,7 +1737,8 @@ func (f *FTX) GetCurrencyForRealisedPNL(_ asset.Item, _ currency.Pair) (currency
 }
 
 // GetPositionSummary returns an overview of a future position
-func (f *FTX) GetPositionSummary(ctx context.Context, request *order.PositionSummaryRequest) (*order.PositionSummary, error) {	if request == nil {
+func (f *FTX) GetPositionSummary(ctx context.Context, request *order.PositionSummaryRequest) (*order.PositionSummary, error) {
+	if request == nil {
 		return nil, fmt.Errorf("%w PositionSummaryRequest", common.ErrNilPointer)
 	}
 	if !request.Asset.IsFutures() {

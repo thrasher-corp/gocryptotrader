@@ -1342,12 +1342,12 @@ func (c *Config) CheckOrderManagerConfig() {
 	defer m.Unlock()
 	if c.OrderManager.Enabled == nil {
 		c.OrderManager.Enabled = convert.BoolPtr(true)
-		c.OrderManager.TrackFuturesPositions = true
+		c.OrderManager.ActivelyTrackFuturesPositions = true
 	}
-	if c.OrderManager.OpenPositionSeekDuration <= 0 {
+	if c.OrderManager.ActivelyTrackFuturesPositions && c.OrderManager.FuturesTrackingSeekDuration >= 0 {
 		// one isn't likely to have a perpetual futures order open
 		// for longer than a year
-		c.OrderManager.OpenPositionSeekDuration = -time.Hour * 24 * 365
+		c.OrderManager.FuturesTrackingSeekDuration = -time.Hour * 24 * 365
 	}
 }
 

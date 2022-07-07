@@ -16,8 +16,8 @@ import (
 
 // SetupPositionController creates a position controller
 // to track futures orders
-func SetupPositionController() *PositionController {
-	return &PositionController{
+func SetupPositionController() PositionController {
+	return PositionController{
 		multiPositionTrackers: make(map[string]map[asset.Item]map[currency.PairKey]*MultiPositionTracker),
 	}
 }
@@ -474,12 +474,15 @@ func (m *MultiPositionTracker) TrackNewOrder(d *Detail) error {
 		Pair:                      d.Pair,
 		EntryPrice:                decimal.NewFromFloat(d.Price),
 		Underlying:                d.Pair.Base,
+		CollateralCurrency:        m.collateralCurrency,
 		Asset:                     d.AssetType,
 		Side:                      d.Side,
 		UseExchangePNLCalculation: m.useExchangePNLCalculations,
-		CollateralCurrency:        m.collateralCurrency,
+		OfflineCalculation:        m.offlinePNLCalculation,
+		PNLCalculator:             m.exchangePNLCalculation,
+		Exchange:                  m.exchange,
 	}
-	tracker, err := m.SetupPositionTracker(setup)
+	tracker, err := SetupPositionTracker(setup)
 	if err != nil {
 		return err
 	}
@@ -519,12 +522,7 @@ func (m *MultiPositionTracker) TrackFundingDetails(d *FundingRates) error {
 
 // SetupPositionTracker creates a new position tracker to track n futures orders
 // until the position(s) are closed
-func (m *MultiPositionTracker) SetupPositionTracker(setup *PositionTrackerSetup) (*PositionTracker, error) {
-	if m == nil {
-		return nil, fmt.Errorf("multi-position tracker %w", common.ErrNilPointer)
-	}
-	m.m.Lock()
-	defer m.m.Unlock()
+func SetupPositionTracker(setup *PositionTrackerSetup) (*PositionTracker, error) {
 	if setup == nil {
 		return nil, errNilSetup
 	}
@@ -536,7 +534,7 @@ func (m *MultiPositionTracker) SetupPositionTracker(setup *PositionTrackerSetup)
 	}
 
 	resp := &PositionTracker{
-		exchange:                  strings.ToLower(m.exchange),
+		exchange:                  strings.ToLower(setup.Exchange),
 		asset:                     setup.Asset,
 		contractPair:              setup.Pair,
 		underlying:                setup.Underlying,
@@ -545,17 +543,17 @@ func (m *MultiPositionTracker) SetupPositionTracker(setup *PositionTrackerSetup)
 		latestDirection:           setup.Side,
 		openingDirection:          setup.Side,
 		useExchangePNLCalculation: setup.UseExchangePNLCalculation,
-		offlinePNLCalculation:     m.offlinePNLCalculation,
+		offlinePNLCalculation:     setup.OfflineCalculation,
 		lastUpdated:               time.Now(),
 	}
 	if !setup.UseExchangePNLCalculation {
 		// use position tracker's pnl calculation by default
 		resp.PNLCalculation = &PNLCalculator{}
 	} else {
-		if m.exchangePNLCalculation == nil {
+		if setup.PNLCalculator == nil {
 			return nil, ErrNilPNLCalculator
 		}
-		resp.PNLCalculation = m.exchangePNLCalculation
+		resp.PNLCalculation = setup.PNLCalculator
 	}
 	return resp, nil
 }

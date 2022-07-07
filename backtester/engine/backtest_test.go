@@ -777,7 +777,6 @@ func TestTriggerLiquidationsForExchange(t *testing.T) {
 	}
 }
 
-////////////////// WOOAH NELLY
 func TestUpdateStatsForDataEvent(t *testing.T) {
 	t.Parallel()
 	pt := &portfolio.Portfolio{}
@@ -1213,7 +1212,6 @@ func TestProcessFillEvent(t *testing.T) {
 	}
 }
 
-// WOAH NELLY
 func TestProcessFuturesFillEvent(t *testing.T) {
 	t.Parallel()
 	var expectedError error
