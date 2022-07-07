@@ -199,7 +199,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 		if err != nil {
 			return nil, fmt.Errorf("could not get pair format %v, %w", curr, err)
 		}
-		curr = curr.Format(requestFormat.Delimiter, requestFormat.Uppercase)
+		curr = curr.Format(requestFormat)
 		var avail, enabled currency.Pairs
 		avail, err = exch.GetAvailablePairs(a)
 		if err != nil {

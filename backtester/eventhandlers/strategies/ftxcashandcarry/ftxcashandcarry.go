@@ -164,6 +164,7 @@ func sortSignals(d []data.Handler) (map[currency.Pair]cashCarrySignals, error) {
 		return nil, errNoSignals
 	}
 	var response = make(map[currency.Pair]cashCarrySignals, len(d))
+	emptyFormat := currency.PairFormat{}
 	for i := range d {
 		l := d[i].Latest()
 		if !strings.EqualFold(l.GetExchange(), exchangeName) {
@@ -172,14 +173,14 @@ func sortSignals(d []data.Handler) (map[currency.Pair]cashCarrySignals, error) {
 		a := l.GetAssetType()
 		switch {
 		case a == asset.Spot:
-			entry := response[l.Pair().Format("", false)]
+			entry := response[l.Pair().Format(emptyFormat)]
 			entry.spotSignal = d[i]
-			response[l.Pair().Format("", false)] = entry
+			response[l.Pair().Format(emptyFormat)] = entry
 		case a.IsFutures():
 			u := l.GetUnderlyingPair()
-			entry := response[u.Format("", false)]
+			entry := response[u.Format(emptyFormat)]
 			entry.futureSignal = d[i]
-			response[u.Format("", false)] = entry
+			response[u.Format(emptyFormat)] = entry
 		default:
 			return nil, errFuturesOnly
 		}
