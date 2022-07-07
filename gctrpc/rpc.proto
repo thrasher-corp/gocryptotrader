@@ -1073,7 +1073,7 @@ message FuturePosition {
   string unrealised_pnl = 12;
   string realised_pnl = 13;
   string closing_date = 14;
-  int64 order_count=15;
+  int64 order_count = 15;
   repeated OrderDetails orders = 16;
   FuturesPositionStats position_stats = 17;
   FundingData funding_data = 18;
