@@ -40,39 +40,36 @@ func (mw *multiWriterHolder) Remove(writer io.Writer) error {
 	return errWriterNotFound
 }
 
+func loggerWorker() {
+	var n int
+	var err error
+	for j := range jobChannel {
+		n, err = j.Writer.Write(j.Data)
+		if err != nil {
+			displayError(fmt.Errorf("%T %w", j.Writer, err))
+		} else if n != len(j.Data) {
+			fmt.Println("WOW")
+			displayError(fmt.Errorf("%T %w", j.Writer, io.ErrShortWrite))
+		}
+		jobsPool.Put(j)
+	}
+}
+
 // Write concurrent safe Write for each writer
 func (mw *multiWriterHolder) Write(p []byte) (int, error) {
-	type data struct {
-		n   int
-		err error
-	}
-
-	results := make(chan data, len(mw.writers))
 	mw.mu.RLock()
 	defer mw.mu.RUnlock()
 	for x := range mw.writers {
-		go func(w io.Writer, p []byte, ch chan<- data) {
-			n, err := w.Write(p)
-			if err != nil {
-				ch <- data{n, fmt.Errorf("%T %w", w, err)}
-				return
-			}
-			if n != len(p) {
-				ch <- data{n, fmt.Errorf("%T %w", w, io.ErrShortWrite)}
-				return
-			}
-			ch <- data{n, nil}
-		}(mw.writers[x], p, results)
-	}
+		newJob := jobsPool.Get().(*job)
+		newJob.Writer = mw.writers[x]
+		newJob.Data = make([]byte, len(p))
+		copy(newJob.Data, p)
 
-	for range mw.writers {
-		// NOTE: These results do not necessarily reflect the current io.writer
-		// due to the go scheduler and writer finishing at different times, the
-		// response coming from the channel might not match up with the for loop
-		// writer.
-		d := <-results
-		if d.err != nil {
-			return d.n, d.err
+		select {
+		case jobChannel <- newJob:
+		default:
+			displayError(errors.New("logger jobs channel is filled"))
+			jobChannel <- newJob
 		}
 	}
 	return len(p), nil

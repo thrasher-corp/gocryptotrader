@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
@@ -155,6 +156,12 @@ func registerNewSubLogger(subLogger string) *SubLogger {
 
 // register all loggers at package init()
 func init() {
+	// Balance workers to max available processes
+	processes := runtime.GOMAXPROCS(-1)
+	for x := 0; x < processes; x++ {
+		go loggerWorker()
+	}
+
 	Global = registerNewSubLogger("LOG")
 
 	ConnectionMgr = registerNewSubLogger("CONNECTION")

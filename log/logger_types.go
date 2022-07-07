@@ -11,7 +11,7 @@ const (
 	// DefaultMaxFileSize for logger rotation file
 	DefaultMaxFileSize int64 = 100
 
-	defaultCapacityForSliceOfBytes = 100
+	defaultCapacityForSliceOfBytes = 200000 //200kb of memory lfg this doesn't exceed max cap
 )
 
 var (
@@ -30,12 +30,20 @@ var (
 		},
 	}
 
+	jobsPool   = &sync.Pool{New: func() interface{} { return &job{} }}
+	jobChannel = make(chan *job, 1000)
+
 	// LogPath system path to store log files in
 	LogPath string
 
 	// RWM read/write mutex for logger
 	RWM = &sync.RWMutex{}
 )
+
+type job struct {
+	Writer io.Writer
+	Data   []byte
+}
 
 // Config holds configuration settings loaded from bot config
 type Config struct {

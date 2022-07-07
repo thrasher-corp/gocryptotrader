@@ -49,11 +49,11 @@ func (l *Logger) newLogEvent(data, header, slName string, w io.Writer) error {
 	if data == "" || data[len(data)-1] != '\n' {
 		*pool = append(*pool, '\n')
 	}
-	_, err := w.Write(*pool)
+	_, _ = w.Write(*pool)
 	*pool = (*pool)[:0]
 	eventPool.Put(pool)
 
-	return err
+	return nil
 }
 
 // CloseLogger is called on shutdown of application

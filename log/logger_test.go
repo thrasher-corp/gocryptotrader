@@ -187,18 +187,18 @@ func TestMultiWriterWrite(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = mw.Write([]byte(payload))
-	if !errors.Is(err, io.ErrShortWrite) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, io.ErrShortWrite)
+	_, err = mw.Write([]byte(payload)) // Will display error: Logger write error: *log.WriteShorter short write
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
 	mw, err = multiWriter(&WriteError{}, io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = mw.Write([]byte(payload))
-	if !errors.Is(err, errWriteError) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errWriteError)
+	_, err = mw.Write([]byte(payload)) // Will display error: Logger write error: *log.WriteError write error
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 }
 
