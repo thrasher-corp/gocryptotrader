@@ -10,6 +10,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func clearScreen() error {
@@ -47,4 +48,9 @@ func negateLocalOffset(t time.Time) string {
 	loc := time.FixedZone("", -offset)
 
 	return t.In(loc).Format(common.SimpleTimeFormat)
+}
+
+func negateLocalOffsetTS(t time.Time) *timestamppb.Timestamp {
+	_, offset := time.Now().Zone()
+	return timestamppb.New(t.Add(time.Duration(-offset) * time.Second))
 }

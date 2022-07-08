@@ -19,6 +19,7 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/pquerna/otp/totp"
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gct-ta/indicators"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
@@ -36,6 +37,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
@@ -71,6 +73,7 @@ var (
 	errNoAccountInformation    = errors.New("account information does not exist")
 	errShutdownNotAllowed      = errors.New("shutting down this bot instance is not allowed via gRPC, please enable by command line flag --grpcshutdown or config.json field grpcAllowBotShutdown")
 	errGRPCShutdownSignalIsNil = errors.New("cannot shutdown, gRPC shutdown channel is nil")
+	errInvalidStrategy         = errors.New("invalid strategy")
 )
 
 // RPCServer struct
@@ -108,7 +111,15 @@ func (s *RPCServer) authenticateClient(ctx context.Context) (context.Context, er
 		password != s.Config.RemoteControl.Password {
 		return ctx, fmt.Errorf("username/password mismatch")
 	}
-	return exchange.ParseCredentialsMetadata(ctx, md)
+	ctx, err = exchange.ParseCredentialsMetadata(ctx, md)
+	if err != nil {
+		return ctx, err
+	}
+
+	if _, ok := md["verbose"]; ok {
+		ctx = request.WithVerbose(ctx)
+	}
+	return ctx, nil
 }
 
 // StartRPCServer starts a gRPC server with TLS auth
@@ -4574,4 +4585,167 @@ func (s *RPCServer) Shutdown(_ context.Context, _ *gctrpc.ShutdownRequest) (*gct
 	s.Engine.GRPCShutdownSignal <- struct{}{}
 	s.Engine.GRPCShutdownSignal = nil
 	return &gctrpc.ShutdownResponse{}, nil
+}
+
+// GetTechnicalAnalysis using the requested technical analysis method will
+// return a set(s) of signals for price action analysis.
+func (s *RPCServer) GetTechnicalAnalysis(ctx context.Context, r *gctrpc.GetTechnicalAnalysisRequest) (*gctrpc.GetTechnicalAnalysisResponse, error) {
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	as, err := asset.New(r.AssetType)
+	if err != nil {
+		return nil, err
+	}
+
+	pair, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+
+	klineInterval := kline.Interval(r.Interval)
+
+	err = exch.GetBase().ValidateKline(pair, as, klineInterval)
+	if err != nil {
+		return nil, err
+	}
+
+	klines, err := exch.GetHistoricCandlesExtended(ctx,
+		pair,
+		as,
+		r.Start.AsTime(),
+		r.End.AsTime(),
+		klineInterval)
+	if err != nil {
+		return nil, err
+	}
+
+	signals := make(map[string]*gctrpc.ListOfSignals)
+	switch strings.ToUpper(r.AlgorithmType) {
+	case "TWAP":
+		var price float64
+		price, err = klines.GetTWAP()
+		if err != nil {
+			return nil, err
+		}
+		signals["TWAP"] = &gctrpc.ListOfSignals{Signals: []float64{price}}
+	case "VWAP":
+		var prices []float64
+		prices, err = klines.GetVWAPs()
+		if err != nil {
+			return nil, err
+		}
+		signals["VWAP"] = &gctrpc.ListOfSignals{Signals: prices}
+	case "ATR":
+		var prices []float64
+		prices, err = klines.GetAverageTrueRange(r.Period)
+		if err != nil {
+			return nil, err
+		}
+		signals["ATR"] = &gctrpc.ListOfSignals{Signals: prices}
+	case "BBANDS":
+		var bollinger *kline.Bollinger
+		bollinger, err = klines.GetBollingerBands(r.Period,
+			r.StandardDeviationUp,
+			r.StandardDeviationDown,
+			indicators.MaType(r.MovingAverageType))
+		if err != nil {
+			return nil, err
+		}
+		signals["UPPER"] = &gctrpc.ListOfSignals{Signals: bollinger.Upper}
+		signals["MIDDLE"] = &gctrpc.ListOfSignals{Signals: bollinger.Middle}
+		signals["LOWER"] = &gctrpc.ListOfSignals{Signals: bollinger.Lower}
+	case "COCO":
+		otherExch := exch
+		if r.OtherExchange != "" {
+			otherExch, err = s.GetExchangeByName(r.OtherExchange)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		otherAs := as
+		if r.OtherAssetType != "" {
+			otherAs, err = asset.New(r.OtherAssetType)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if r.OtherPair.String() == "" {
+			return nil, errors.New("other pair is empty, to compare this must be specified")
+		}
+
+		var otherPair currency.Pair
+		otherPair, err = currency.NewPairFromStrings(r.OtherPair.Base, r.OtherPair.Quote)
+		if err != nil {
+			return nil, err
+		}
+
+		var otherKlines kline.Item
+		otherKlines, err = otherExch.GetHistoricCandlesExtended(ctx,
+			otherPair, otherAs, r.Start.AsTime(), r.End.AsTime(), klineInterval)
+		if err != nil {
+			return nil, err
+		}
+
+		var correlation []float64
+		correlation, err = klines.GetCorrelationCoefficient(&otherKlines, r.Period)
+		if err != nil {
+			return nil, err
+		}
+		signals["COCO"] = &gctrpc.ListOfSignals{Signals: correlation}
+	case "SMA":
+		var prices []float64
+		prices, err = klines.GetSimpleMovingAverageOnClose(r.Period)
+		if err != nil {
+			return nil, err
+		}
+		signals["SMA"] = &gctrpc.ListOfSignals{Signals: prices}
+	case "EMA":
+		var prices []float64
+		prices, err = klines.GetExponentialMovingAverageOnClose(r.Period)
+		if err != nil {
+			return nil, err
+		}
+		signals["EMA"] = &gctrpc.ListOfSignals{Signals: prices}
+	case "MACD":
+		var macd *kline.MACD
+		macd, err = klines.GetMovingAverageConvergenceDivergenceOnClose(r.FastPeriod,
+			r.SlowPeriod,
+			r.Period)
+		if err != nil {
+			return nil, err
+		}
+		signals["MACD"] = &gctrpc.ListOfSignals{Signals: macd.Results}
+		signals["SIGNAL"] = &gctrpc.ListOfSignals{Signals: macd.SignalVals}
+		signals["HISTOGRAM"] = &gctrpc.ListOfSignals{Signals: macd.Histogram}
+	case "MFI":
+		var prices []float64
+		prices, err = klines.GetMoneyFlowIndex(r.Period)
+		if err != nil {
+			return nil, err
+		}
+		signals["MFI"] = &gctrpc.ListOfSignals{Signals: prices}
+	case "OBV":
+		var prices []float64
+		prices, err = klines.GetOnBalanceVolume()
+		if err != nil {
+			return nil, err
+		}
+		signals["OBV"] = &gctrpc.ListOfSignals{Signals: prices}
+	case "RSI":
+		var prices []float64
+		prices, err = klines.GetRelativeStrengthIndexOnClose(r.Period)
+		if err != nil {
+			return nil, err
+		}
+		signals["RSI"] = &gctrpc.ListOfSignals{Signals: prices}
+	default:
+		return nil, fmt.Errorf("%w '%s'", errInvalidStrategy, r.AlgorithmType)
+	}
+
+	return &gctrpc.GetTechnicalAnalysisResponse{Signals: signals}, nil
 }
