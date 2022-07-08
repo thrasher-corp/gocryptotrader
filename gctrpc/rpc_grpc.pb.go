@@ -119,6 +119,7 @@ type GoCryptoTraderServiceClient interface {
 	GetFuturesPositions(ctx context.Context, in *GetFuturesPositionsRequest, opts ...grpc.CallOption) (*GetFuturesPositionsResponse, error)
 	GetCollateral(ctx context.Context, in *GetCollateralRequest, opts ...grpc.CallOption) (*GetCollateralResponse, error)
 	Shutdown(ctx context.Context, in *ShutdownRequest, opts ...grpc.CallOption) (*ShutdownResponse, error)
+	GetTechnicalAnalysis(ctx context.Context, in *GetTechnicalAnalysisRequest, opts ...grpc.CallOption) (*GetTechnicalAnalysisResponse, error)
 }
 
 type goCryptoTraderServiceClient struct {
@@ -1140,6 +1141,15 @@ func (c *goCryptoTraderServiceClient) Shutdown(ctx context.Context, in *Shutdown
 	return out, nil
 }
 
+func (c *goCryptoTraderServiceClient) GetTechnicalAnalysis(ctx context.Context, in *GetTechnicalAnalysisRequest, opts ...grpc.CallOption) (*GetTechnicalAnalysisResponse, error) {
+	out := new(GetTechnicalAnalysisResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTraderService/GetTechnicalAnalysis", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GoCryptoTraderServiceServer is the server API for GoCryptoTraderService service.
 // All implementations must embed UnimplementedGoCryptoTraderServiceServer
 // for forward compatibility
@@ -1241,6 +1251,7 @@ type GoCryptoTraderServiceServer interface {
 	GetFuturesPositions(context.Context, *GetFuturesPositionsRequest) (*GetFuturesPositionsResponse, error)
 	GetCollateral(context.Context, *GetCollateralRequest) (*GetCollateralResponse, error)
 	Shutdown(context.Context, *ShutdownRequest) (*ShutdownResponse, error)
+	GetTechnicalAnalysis(context.Context, *GetTechnicalAnalysisRequest) (*GetTechnicalAnalysisResponse, error)
 	mustEmbedUnimplementedGoCryptoTraderServiceServer()
 }
 
@@ -1538,6 +1549,9 @@ func (UnimplementedGoCryptoTraderServiceServer) GetCollateral(context.Context, *
 }
 func (UnimplementedGoCryptoTraderServiceServer) Shutdown(context.Context, *ShutdownRequest) (*ShutdownResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Shutdown not implemented")
+}
+func (UnimplementedGoCryptoTraderServiceServer) GetTechnicalAnalysis(context.Context, *GetTechnicalAnalysisRequest) (*GetTechnicalAnalysisResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTechnicalAnalysis not implemented")
 }
 func (UnimplementedGoCryptoTraderServiceServer) mustEmbedUnimplementedGoCryptoTraderServiceServer() {}
 
@@ -3316,6 +3330,24 @@ func _GoCryptoTraderService_Shutdown_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GoCryptoTraderService_GetTechnicalAnalysis_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTechnicalAnalysisRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServiceServer).GetTechnicalAnalysis(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTraderService/GetTechnicalAnalysis",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServiceServer).GetTechnicalAnalysis(ctx, req.(*GetTechnicalAnalysisRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // GoCryptoTraderService_ServiceDesc is the grpc.ServiceDesc for GoCryptoTraderService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -3686,6 +3718,10 @@ var GoCryptoTraderService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Shutdown",
 			Handler:    _GoCryptoTraderService_Shutdown_Handler,
+		},
+		{
+			MethodName: "GetTechnicalAnalysis",
+			Handler:    _GoCryptoTraderService_GetTechnicalAnalysis_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
