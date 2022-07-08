@@ -19,7 +19,7 @@ import (
 // ReadStrategyConfigFromFile will take a config from a path
 func ReadStrategyConfigFromFile(path string) (*Config, error) {
 	if !file.Exists(path) {
-		return nil, fmt.Errorf("%w %v", ErrFileNotFound, path)
+		return nil, fmt.Errorf("%w %v", common.ErrFileNotFound, path)
 	}
 
 	data, err := os.ReadFile(path)

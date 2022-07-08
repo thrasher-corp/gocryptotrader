@@ -2,7 +2,9 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"math"
 	"net"
 	"net/http"
 	"path/filepath"
@@ -19,7 +21,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	gctengine "github.com/thrasher-corp/gocryptotrader/engine"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc/auth"
@@ -28,6 +29,10 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
+)
+
+var (
+	errBadPort = errors.New("received bad port")
 )
 
 // GRPCServer struct
@@ -77,19 +82,18 @@ func StartRPCServer(server *GRPCServer) error {
 	log.Debugln(log.GRPCSys, "gRPC server started!")
 
 	if server.GRPC.GRPCProxyEnabled {
-		server.StartRPCRESTProxy()
+		return server.StartRPCRESTProxy()
 	}
 	return nil
 }
 
 // StartRPCRESTProxy starts a gRPC proxy
-func (s *GRPCServer) StartRPCRESTProxy() {
+func (s *GRPCServer) StartRPCRESTProxy() error {
 	log.Debugf(log.GRPCSys, "gRPC proxy server support enabled. Starting gRPC proxy server on http://%v.\n", s.GRPC.GRPCProxyListenAddress)
 	targetDir := utils.GetTLSDir(s.GRPC.TLSDir)
 	creds, err := credentials.NewClientTLSFromFile(filepath.Join(targetDir, "cert.pem"), "")
 	if err != nil {
-		log.Errorf(log.GRPCSys, "Unabled to start gRPC proxy. Err: %s\n", err)
-		return
+		return fmt.Errorf("unabled to start gRPC proxy. Err: %w", err)
 	}
 
 	mux := runtime.NewServeMux()
@@ -102,18 +106,17 @@ func (s *GRPCServer) StartRPCRESTProxy() {
 	err = btrpc.RegisterBacktesterHandlerFromEndpoint(context.Background(),
 		mux, s.GRPC.ListenAddress, opts)
 	if err != nil {
-		log.Errorf(log.GRPCSys, "Failed to register gRPC proxy. Err: %s\n", err)
-		return
+		return fmt.Errorf("failed to register gRPC proxy. Err: %w", err)
 	}
 
 	go func() {
-		if err := http.ListenAndServe(s.GRPC.GRPCProxyListenAddress, mux); err != nil {
+		if err = http.ListenAndServe(s.GRPC.GRPCProxyListenAddress, mux); err != nil {
 			log.Errorf(log.GRPCSys, "gRPC proxy failed to server: %s\n", err)
-			return
 		}
 	}()
 
-	log.Debugln(log.GRPCSys, "gRPC proxy server started!")
+	log.Debug(log.GRPCSys, "gRPC proxy server started!")
+	return nil
 }
 
 func (s *GRPCServer) authenticateClient(ctx context.Context) (context.Context, error) {
@@ -144,7 +147,7 @@ func (s *GRPCServer) authenticateClient(ctx context.Context) (context.Context, e
 		password != s.GRPC.Password {
 		return ctx, fmt.Errorf("username/password mismatch")
 	}
-	return exchange.ParseCredentialsMetadata(ctx, md)
+	return ctx, nil
 }
 
 // ExecuteStrategyFromFile will backtest a strategy from the filepath provided
@@ -174,7 +177,6 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		return nil, fmt.Errorf("%w nil request", common.ErrNilArguments)
 	}
 
-	// al the decimal conversions
 	rfr, err := decimal.NewFromString(request.Config.StatisticSettings.RiskFreeRate)
 	if err != nil {
 		return nil, err
@@ -406,6 +408,9 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 	}
 	var dbData *config.DatabaseData
 	if request.Config.DataSettings.DatabaseData != nil {
+		if request.Config.DataSettings.DatabaseData.Config.Config.Port > math.MaxUint16 {
+			return nil, fmt.Errorf("%w '%v' cannot exceed '%v'", errBadPort, request.Config.DataSettings.DatabaseData.Config.Config.Port, math.MaxUint16)
+		}
 		cfg := database.Config{
 			Enabled: request.Config.DataSettings.DatabaseData.Config.Enabled,
 			Verbose: request.Config.DataSettings.DatabaseData.Config.Verbose,

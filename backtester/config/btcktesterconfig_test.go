@@ -2,10 +2,12 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 )
 
@@ -28,6 +30,11 @@ func TestLoadBacktesterConfig(t *testing.T) {
 	_, err = ReadBacktesterConfigFromPath(f)
 	if err != nil {
 		t.Error(err)
+	}
+
+	_, err = ReadBacktesterConfigFromPath("test")
+	if !errors.Is(err, common.ErrFileNotFound) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrFileNotFound)
 	}
 }
 

@@ -24,16 +24,7 @@ func TestLoadLiveData(t *testing.T) {
 	b := &gctexchange.Base{
 		Name: testExchange,
 		API: gctexchange.API{
-			AuthenticatedSupport:          false,
-			AuthenticatedWebsocketSupport: false,
-			PEMKeySupport:                 false,
-			CredentialsValidator: struct {
-				RequiresPEM                bool
-				RequiresKey                bool
-				RequiresSecret             bool
-				RequiresClientID           bool
-				RequiresBase64DecodeSecret bool
-			}{
+			CredentialsValidator: gctexchange.CredentialsValidator{
 				RequiresPEM:                true,
 				RequiresKey:                true,
 				RequiresSecret:             true,
@@ -48,7 +39,6 @@ func TestLoadLiveData(t *testing.T) {
 		t.Error(err)
 	}
 	cfg.DataSettings.LiveData = &config.LiveData{
-
 		RealOrders: true,
 	}
 	cfg.DataSettings.Interval = gctkline.OneDay

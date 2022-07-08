@@ -35,3 +35,14 @@ jobs:
           
       - name: buf format
         run: buf format --diff --exit-code
+
+      - name: buf generate backtester
+        working-directory: ./backtester/btrpc
+        run: buf generate
+
+      - uses: bufbuild/buf-lint-action@v1
+        with:
+          input: btrpc
+
+      - name: buf format backtester
+        run: buf format --diff --exit-code

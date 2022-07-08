@@ -365,8 +365,15 @@ func TestValidate(t *testing.T) {
 			},
 		},
 	}
-	if err := c.Validate(); !errors.Is(err, nil) {
+	err := c.Validate()
+	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
+	}
+
+	c = nil
+	err = c.Validate()
+	if !errors.Is(err, common.ErrNilArguments) {
+		t.Errorf("received %v expected %v", err, common.ErrNilArguments)
 	}
 }
 
@@ -387,6 +394,11 @@ func TestReadStrategyConfigFromFile(t *testing.T) {
 	_, err = ReadStrategyConfigFromFile(passFile.Name())
 	if err != nil {
 		t.Error(err)
+	}
+
+	_, err = ReadStrategyConfigFromFile("test")
+	if !errors.Is(err, common.ErrFileNotFound) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrFileNotFound)
 	}
 }
 

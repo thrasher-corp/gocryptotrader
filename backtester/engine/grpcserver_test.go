@@ -26,8 +26,8 @@ func TestExecuteStrategyFromFile(t *testing.T) {
 	}
 
 	_, err = s.ExecuteStrategyFromFile(context.Background(), &btrpc.ExecuteStrategyFromFileRequest{})
-	if !errors.Is(err, config.ErrFileNotFound) {
-		t.Errorf("received '%v' expecting '%v'", err, config.ErrFileNotFound)
+	if !errors.Is(err, common.ErrFileNotFound) {
+		t.Errorf("received '%v' expecting '%v'", err, common.ErrFileNotFound)
 	}
 
 	_, err = s.ExecuteStrategyFromFile(context.Background(), &btrpc.ExecuteStrategyFromFileRequest{
@@ -174,7 +174,7 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 	if defaultConfig.DataSettings.DatabaseData != nil {
 		dbConnectionDetails := &btrpc.DatabaseConnectionDetails{
 			Host:     defaultConfig.DataSettings.DatabaseData.Config.Host,
-			Port:     int64(defaultConfig.DataSettings.DatabaseData.Config.Port),
+			Port:     uint32(defaultConfig.DataSettings.DatabaseData.Config.Port),
 			Password: defaultConfig.DataSettings.DatabaseData.Config.Password,
 			Database: defaultConfig.DataSettings.DatabaseData.Config.Database,
 			SslMode:  defaultConfig.DataSettings.DatabaseData.Config.SSLMode,

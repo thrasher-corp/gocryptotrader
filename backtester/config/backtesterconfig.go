@@ -2,7 +2,7 @@ package config
 
 import (
 	"encoding/json"
-	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -14,7 +14,7 @@ import (
 // ReadBacktesterConfigFromPath will take a config from a path
 func ReadBacktesterConfigFromPath(path string) (*BacktesterConfig, error) {
 	if !file.Exists(path) {
-		return nil, errors.New("file not found")
+		return nil, fmt.Errorf("%w %v", common.ErrFileNotFound, path)
 	}
 
 	data, err := os.ReadFile(path)
@@ -35,15 +35,12 @@ func GenerateDefaultConfig() (*BacktesterConfig, error) {
 	}
 	return &BacktesterConfig{
 		PrintLogo:               true,
-		SingleRun:               false,
 		SingleRunStrategyConfig: filepath.Join(wd, "config", "examples", "ftx-cash-carry.strat"),
-		Verbose:                 false,
 		LogSubheaders:           true,
 		Report: Report{
 			GenerateReport: true,
 			TemplatePath:   filepath.Join(wd, "report", "tpl.gohtml"),
 			OutputPath:     filepath.Join(wd, "results"),
-			DarkMode:       false,
 		},
 		GRPC: GRPC{
 			Username: "rpcuser",

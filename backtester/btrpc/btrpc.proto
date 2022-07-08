@@ -78,7 +78,7 @@ message DbConfig {
   bool verbose = 2;
   string driver = 3;
   string host = 4;
-  int64 port = 5;
+  uint32 port = 5;
   string username = 6;
   string password = 7;
   string database = 8;
@@ -99,7 +99,7 @@ message CsvData {
 
 message DatabaseConnectionDetails {
   string host = 1;
-  int64 port = 2;
+  uint32 port = 2;
   string user_name = 3;
   string password = 4;
   string database = 5;

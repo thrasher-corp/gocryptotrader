@@ -33,6 +33,8 @@ var (
 	ErrNilEvent = errors.New("nil event received")
 	// ErrInvalidDataType occurs when an invalid data type is defined in the config
 	ErrInvalidDataType = errors.New("invalid datatype received")
+	// ErrFileNotFound returned when the file is not found
+	ErrFileNotFound = errors.New("file not found")
 
 	errCannotGenerateFileName = errors.New("cannot generate filename")
 )

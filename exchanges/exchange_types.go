@@ -189,15 +189,17 @@ type API struct {
 	credentials *Credentials
 	credMu      sync.RWMutex
 
-	CredentialsValidator struct {
-		// For Huobi (optional)
-		RequiresPEM bool
+	CredentialsValidator CredentialsValidator
+}
 
-		RequiresKey                bool
-		RequiresSecret             bool
-		RequiresClientID           bool
-		RequiresBase64DecodeSecret bool
-	}
+// CredentialsValidator determines what is required
+// to make authenticated requests for an exchange
+type CredentialsValidator struct {
+	RequiresPEM                bool
+	RequiresKey                bool
+	RequiresSecret             bool
+	RequiresClientID           bool
+	RequiresBase64DecodeSecret bool
 }
 
 // Base stores the individual exchange information

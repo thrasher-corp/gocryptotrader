@@ -8,17 +8,16 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc/auth"
 	"github.com/thrasher-corp/gocryptotrader/signaler"
 	"github.com/urfave/cli/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/metadata"
 )
 
 const (
@@ -33,7 +32,6 @@ var (
 	pairDelimiter string
 	certPath      string
 	timeout       time.Duration
-	exchangeCreds exchange.Credentials
 )
 
 const defaultTimeout = time.Second * 30
@@ -61,20 +59,18 @@ func setupClient(c *cli.Context) (*grpc.ClientConn, context.CancelFunc, error) {
 
 	var cancel context.CancelFunc
 	c.Context, cancel = context.WithTimeout(c.Context, timeout)
-	if !exchangeCreds.IsEmpty() {
-		flag, values := exchangeCreds.GetMetaData()
-		c.Context = metadata.AppendToOutgoingContext(c.Context, flag, values)
-	}
 	conn, err := grpc.DialContext(c.Context, host, opts...)
 	return conn, cancel, err
 }
 
 func main() {
+	version := core.Version(true)
+	version = strings.Replace(version, "GoCryptoTrader", "GoCryptoTrader Backtester", 1)
 	app := cli.NewApp()
-	app.Name = "gctcli"
-	app.Version = core.Version(true)
+	app.Name = "btcli"
+	app.Version = version
 	app.EnableBashCompletion = true
-	app.Usage = "command line interface for managing the gocryptotrader backtester daemon"
+	app.Usage = "command line interface for managing the backtester daemon"
 	app.Flags = []cli.Flag{
 		&cli.StringFlag{
 			Name:        "rpchost",

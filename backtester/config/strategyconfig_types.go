@@ -12,9 +12,6 @@ import (
 )
 
 var (
-	// ErrFileNotFound returned when the file is not found
-	ErrFileNotFound = errors.New("file not found")
-
 	errNoCurrencySettings               = errors.New("no currency settings set in the config")
 	errBadInitialFunds                  = errors.New("initial funds set with invalid data, please check your config")
 	errUnsetExchange                    = errors.New("exchange name unset for currency settings, please check your config")

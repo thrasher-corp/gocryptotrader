@@ -179,17 +179,14 @@ func executeStrategyFromConfig(c *cli.Context) error {
 	if defaultConfig.DataSettings.DatabaseData != nil {
 		dbConnectionDetails := &btrpc.DatabaseConnectionDetails{
 			Host:     defaultConfig.DataSettings.DatabaseData.Config.Host,
-			Port:     int64(defaultConfig.DataSettings.DatabaseData.Config.Port),
+			Port:     uint32(defaultConfig.DataSettings.DatabaseData.Config.Port),
 			Password: defaultConfig.DataSettings.DatabaseData.Config.Password,
 			Database: defaultConfig.DataSettings.DatabaseData.Config.Database,
 			SslMode:  defaultConfig.DataSettings.DatabaseData.Config.SSLMode,
 			UserName: defaultConfig.DataSettings.DatabaseData.Config.Username,
 		}
 		dbConfig := &btrpc.DatabaseConfig{
-			Enabled: false,
-			Verbose: false,
-			Driver:  "",
-			Config:  dbConnectionDetails,
+			Config: dbConnectionDetails,
 		}
 		dataSettings.DatabaseData = &btrpc.DatabaseData{
 			StartDate:        timestamppb.New(defaultConfig.DataSettings.DatabaseData.StartDate),
