@@ -47,11 +47,20 @@ const (
 	kucoinGetMarginConfiguration = "/api/v1/margin/config"
 
 	// Authenticated endpoints
-	kucoinGetOrderbook       = "/api/v3/market/orderbook/level2"
-	kucoinGetMarginAccount   = "/api/v1/margin/account"
-	kucoinGetMarginRiskLimit = "/api/v1/risk/limit/strategy"
-	kucoinBorrowOrder        = "/api/v1/margin/borrow"
-	kucoinGetRepayRecord     = "/api/v1/margin/borrow/outstanding"
+	kucoinGetOrderbook         = "/api/v3/market/orderbook/level2"
+	kucoinGetMarginAccount     = "/api/v1/margin/account"
+	kucoinGetMarginRiskLimit   = "/api/v1/risk/limit/strategy"
+	kucoinBorrowOrder          = "/api/v1/margin/borrow"
+	kucoinGetOutstandingRecord = "/api/v1/margin/borrow/outstanding"
+	kucoinGetRepaidRecord      = "/api/v1/margin/borrow/repaid"
+	kucoinOneClickRepayment    = "/api/v1/margin/repay/all"
+	kucoinRepaySingleOrder     = " /api/v1/margin/repay/single"
+	kucoinPostLendOrder        = "/api/v1/margin/lend"
+	kucoinCancelLendOrder      = "/api/v1/margin/lend/%s"
+	kucoinSetAutoLend          = "/api/v1/margin/toggle-auto-lend"
+	kucoinGetActiveOrder       = "/api/v1/margin/lend/active"
+	kucoinGetLendHistory       = "/api/v1/margin/lend/done"
+	kucoinGetActiveLendOrder   = "/api/v1/margin/lend/trade/unsettled"
 )
 
 // GetSymbols gets pairs details on the exchange
@@ -425,10 +434,189 @@ func (k *Kucoin) GetBorrowOrder(ctx context.Context, orderID string) (BorrowOrde
 	}{}
 
 	params := url.Values{}
-	if orderID != "" {
-		params.Set("orderId", orderID)
+
+	if orderID == "" {
+		return resp.Data, errors.New("empty orderID")
 	}
+	params.Set("orderId", orderID)
 	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinBorrowOrder, params), nil, publicSpotRate, &resp)
+}
+
+// GetOutstandingRecord gets outstanding record information
+func (k *Kucoin) GetOutstandingRecord(ctx context.Context, currency string) ([]OutstandingRecord, error) {
+	resp := struct {
+		Data []OutstandingRecord `json:"items"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if currency != "" {
+		params.Set("currency", currency)
+	}
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetOutstandingRecord, params), nil, publicSpotRate, &resp)
+}
+
+// GetRepaidRecord gets repaid record information
+func (k *Kucoin) GetRepaidRecord(ctx context.Context, currency string) ([]RepaidRecord, error) {
+	resp := struct {
+		Data []RepaidRecord `json:"items"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if currency != "" {
+		params.Set("currency", currency)
+	}
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetRepaidRecord, params), nil, publicSpotRate, &resp)
+}
+
+// OneClickRepayment used to compplete repayment in single go
+func (k *Kucoin) OneClickRepayment(ctx context.Context, currency, sequence string, size float64) error {
+	resp := struct {
+		Error
+	}{}
+
+	params := make(map[string]interface{})
+	if currency == "" {
+		return errors.New("currency can't be empty")
+	}
+	params["currency"] = currency
+	if sequence == "" {
+		return errors.New("sequence can't be empty")
+	}
+	params["sequence"] = sequence
+	if size == 0 {
+		return errors.New("size can't be zero")
+	}
+	params["size"] = strconv.FormatFloat(size, 'f', -1, 64)
+	return k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinOneClickRepayment, params, publicSpotRate, &resp)
+}
+
+// SingleOrderRepayment used to repay single order
+func (k *Kucoin) SingleOrderRepayment(ctx context.Context, currency, tradeID string, size float64) error {
+	resp := struct {
+		Error
+	}{}
+
+	params := make(map[string]interface{})
+	if currency == "" {
+		return errors.New("currency can't be empty")
+	}
+	params["currency"] = currency
+	if tradeID == "" {
+		return errors.New("tradeId can't be empty")
+	}
+	params["tradeId"] = tradeID
+	if size == 0 {
+		return errors.New("size can't be zero")
+	}
+	params["size"] = strconv.FormatFloat(size, 'f', -1, 64)
+	return k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinRepaySingleOrder, params, publicSpotRate, &resp)
+}
+
+// PostLendOrder used to create lend order
+func (k *Kucoin) PostLendOrder(ctx context.Context, currency string, dailyIntRate, size float64, term int64) (string, error) {
+	resp := struct {
+		OrderID string `json:"orderId"`
+		Error
+	}{}
+
+	params := make(map[string]interface{})
+	if currency == "" {
+		return "", errors.New("currency can't be empty")
+	}
+	params["currency"] = currency
+	if dailyIntRate == 0 {
+		return "", errors.New("dailyIntRate can't be zero")
+	}
+	params["dailyIntRate"] = strconv.FormatFloat(dailyIntRate, 'f', -1, 64)
+	if size == 0 {
+		return "", errors.New("size can't be zero")
+	}
+	params["size"] = strconv.FormatFloat(size, 'f', -1, 64)
+	if term == 0 {
+		return "", errors.New("term can't be zero")
+	}
+	params["term"] = strconv.FormatInt(term, 10)
+	return resp.OrderID, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinPostLendOrder, params, publicSpotRate, &resp)
+}
+
+// CancelLendOrder used to cancel lend order
+func (k *Kucoin) CancelLendOrder(ctx context.Context, orderID string) error {
+	resp := struct {
+		Error
+	}{}
+
+	return k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, fmt.Sprintf(kucoinCancelLendOrder, orderID), nil, publicSpotRate, &resp)
+}
+
+// SetAutoLend used to set up the automatic lending for a specified currency
+func (k *Kucoin) SetAutoLend(ctx context.Context, currency string, dailyIntRate, retainSize float64, term int64, isEnable bool) error {
+	resp := struct {
+		Error
+	}{}
+
+	params := make(map[string]interface{})
+	if currency == "" {
+		return errors.New("currency can't be empty")
+	}
+	params["currency"] = currency
+	if dailyIntRate == 0 {
+		return errors.New("dailyIntRate can't be zero")
+	}
+	params["dailyIntRate"] = strconv.FormatFloat(dailyIntRate, 'f', -1, 64)
+	if retainSize == 0 {
+		return errors.New("retainSize can't be zero")
+	}
+	params["retainSize"] = strconv.FormatFloat(retainSize, 'f', -1, 64)
+	if term == 0 {
+		return errors.New("term can't be zero")
+	}
+	params["term"] = strconv.FormatInt(term, 10)
+	params["isEnable"] = isEnable
+	return k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinSetAutoLend, params, publicSpotRate, &resp)
+}
+
+// GetActiveOrder gets active lend orders
+func (k *Kucoin) GetActiveOrder(ctx context.Context, currency string) ([]LendOrder, error) {
+	resp := struct {
+		Data []LendOrder `json:"items"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if currency != "" {
+		params.Set("currency", currency)
+	}
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetActiveOrder, params), nil, publicSpotRate, &resp)
+}
+
+// GetLendHistory gets lend orders
+func (k *Kucoin) GetLendHistory(ctx context.Context, currency string) ([]LendOrderHistory, error) {
+	resp := struct {
+		Data []LendOrderHistory `json:"items"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if currency != "" {
+		params.Set("currency", currency)
+	}
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetLendHistory, params), nil, publicSpotRate, &resp)
+}
+
+// GetActiveOrder gets active lend orders
+func (k *Kucoin) GetActiveLendOrder(ctx context.Context, currency string) ([]LendOrder, error) {
+	resp := struct {
+		Data []LendOrder `json:"items"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if currency != "" {
+		params.Set("currency", currency)
+	}
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetActiveLendOrder, params), nil, publicSpotRate, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request

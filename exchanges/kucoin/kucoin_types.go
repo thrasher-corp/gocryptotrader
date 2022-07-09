@@ -287,3 +287,41 @@ type BorrowOrder struct {
 	} `json:"matchList"`
 	Status string `json:"status"`
 }
+
+type baseRecord struct {
+	TradeID      string  `json:"tradeId"`
+	Currency     string  `json:"currency"`
+	DailyIntRate float64 `json:"dailyIntRate,string"`
+	Principal    float64 `json:"principal,string"`
+	RepaidSize   float64 `json:"repaidSize,string"`
+	Term         int64   `json:"term"`
+}
+
+type OutstandingRecord struct {
+	baseRecord
+	AccruedInterest float64               `json:"accruedInterest,string"`
+	Liability       float64               `json:"liability,string"`
+	MaturityTime    kucoinTimeMilliSecStr `json:"maturityTime"`
+	CreatedAt       kucoinTimeMilliSecStr `json:"createdAt"`
+}
+
+type RepaidRecord struct {
+	baseRecord
+	Interest  float64               `json:"interest,string"`
+	RepayTime kucoinTimeMilliSecStr `json:"repayTime"`
+}
+
+type LendOrder struct {
+	OrderID      string                `json:"orderId"`
+	Currency     string                `json:"currency"`
+	Size         float64               `json:"size,string"`
+	FilledSize   float64               `json:"filledSize,string"`
+	DailyIntRate float64               `json:"dailyIntRate,string"`
+	Term         int64                 `json:"term"`
+	CreatedAt    kucoinTimeMilliSecStr `json:"createdAt"`
+}
+
+type LendOrderHistory struct {
+	LendOrder
+	Status string `json:"status"`
+}
