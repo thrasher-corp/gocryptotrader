@@ -325,3 +325,50 @@ type LendOrderHistory struct {
 	LendOrder
 	Status string `json:"status"`
 }
+
+type UnsettleLendOrder struct {
+	TradeID         string                `json:"tradeId"`
+	Currency        string                `json:"currency"`
+	Size            float64               `json:"size,string"`
+	AccruedInterest float64               `json:"accruedInterest,string"`
+	Repaid          float64               `json:"repaid,string"`
+	DailyIntRate    float64               `json:"dailyIntRate,string"`
+	Term            int64                 `json:"term"`
+	MaturityTime    kucoinTimeMilliSecStr `json:"maturityTime"`
+}
+
+type SettleLendOrder struct {
+	TradeID      string             `json:"tradeId"`
+	Currency     string             `json:"currency"`
+	Size         float64            `json:"size,string"`
+	Interest     float64            `json:"interest,string"`
+	Repaid       float64            `json:"repaid,string"`
+	DailyIntRate float64            `json:"dailyIntRate,string"`
+	Term         int64              `json:"term"`
+	SettledAt    kucoinTimeMilliSec `json:"settledAt"`
+	Note         string             `json:"note"`
+}
+
+type LendRecord struct {
+	Currency        string  `json:"currency"`
+	Outstanding     float64 `json:"outstanding"`
+	FilledSize      float64 `json:"filledSize,string"`
+	AccruedInterest float64 `json:"accruedInterest,string"`
+	RealizedProfit  float64 `json:"realizedProfit,string"`
+	IsAutoLend      bool    `json:"isAutoLend"`
+}
+
+type LendMarketData struct {
+	DailyIntRate float64 `json:"dailyIntRate,string"`
+	Term         int64   `json:"term"`
+	Size         float64 `json:"size,string"`
+}
+
+type MarginTradeData struct {
+	TradeID      string            `json:"tradeId"`
+	Currency     string            `json:"currency"`
+	Size         float64           `json:"size,string"`
+	DailyIntRate float64           `json:"dailyIntRate,string"`
+	Term         int64             `json:"term"`
+	Timestamp    kucoinTimeNanoSec `json:"timestamp"`
+}

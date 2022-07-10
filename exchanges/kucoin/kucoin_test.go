@@ -269,3 +269,15 @@ func TestPostBorrowOrder(t *testing.T) {
 		t.Error("PostBorrowOrder() error", err)
 	}
 }
+
+func TestGetBorrowOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetBorrowOrder(context.Background(), "orderID")
+	if err != nil {
+		t.Error("GetBorrowOrder() error", err)
+	}
+}
