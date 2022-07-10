@@ -237,12 +237,7 @@ func TestGetMarginRiskLimit(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 
-	_, err := k.GetMarginRiskLimit(context.Background(), "")
-	if err != nil {
-		t.Error("GetMarginRiskLimit() error", err)
-	}
-
-	_, err = k.GetMarginRiskLimit(context.Background(), "cross")
+	_, err := k.GetMarginRiskLimit(context.Background(), "cross")
 	if err != nil {
 		t.Error("GetMarginRiskLimit() error", err)
 	}
@@ -255,8 +250,8 @@ func TestGetMarginRiskLimit(t *testing.T) {
 
 func TestPostBorrowOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
 
 	_, err := k.PostBorrowOrder(context.Background(), "USDT", "FOK", "", 10, 0)
@@ -277,7 +272,205 @@ func TestGetBorrowOrder(t *testing.T) {
 	}
 
 	_, err := k.GetBorrowOrder(context.Background(), "orderID")
-	if err != nil {
+	if err != nil && err.Error() != "Not Found" {
 		t.Error("GetBorrowOrder() error", err)
+	}
+}
+
+func TestGetOutstandingRecord(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetOutstandingRecord(context.Background(), "BTC")
+	if err != nil {
+		t.Error("GetOutstandingRecord() error", err)
+	}
+}
+
+func TestGetRepaidRecord(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetRepaidRecord(context.Background(), "BTC")
+	if err != nil {
+		t.Error("GetRepaidRecord() error", err)
+	}
+}
+
+func TestOneClickRepayment(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	err := k.OneClickRepayment(context.Background(), "BTC", "RECENTLY_EXPIRE_FIRST", 2.5)
+	if err != nil && err.Error() != "Balance insufficient" {
+		t.Error("OneClickRepayment() error", err)
+	}
+}
+
+func TestSingleOrderRepayment(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	err := k.SingleOrderRepayment(context.Background(), "BTC", "fa3e34c980062c10dad74016", 2.5)
+	if err != nil && err.Error() != "Balance insufficient" {
+		t.Error("SingleOrderRepayment() error", err)
+	}
+}
+
+func TestPostLendOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	_, err := k.PostLendOrder(context.Background(), "BTC", 0.001, 5, 7)
+	if err != nil && err.Error() != "Balance insufficient" {
+		t.Error("PostLendOrder() error", err)
+	}
+}
+
+func TestCancelLendOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	err := k.CancelLendOrder(context.Background(), "OrderID")
+	if err != nil && err.Error() != "order not exist" {
+		t.Error("CancelLendOrder() error", err)
+	}
+}
+
+func TestSetAutoLend(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	err := k.SetAutoLend(context.Background(), "BTC", 0.002, 0.005, 7, true)
+	if err != nil {
+		t.Error("SetAutoLend() error", err)
+	}
+}
+
+func TestGetActiveOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetActiveOrder(context.Background(), "")
+	if err != nil {
+		t.Error("GetActiveOrder() error", err)
+	}
+
+	_, err = k.GetActiveOrder(context.Background(), "BTC")
+	if err != nil {
+		t.Error("GetActiveOrder() error", err)
+	}
+}
+
+func TestGetLendHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetLendHistory(context.Background(), "")
+	if err != nil {
+		t.Error("GetLendHistory() error", err)
+	}
+
+	_, err = k.GetLendHistory(context.Background(), "BTC")
+	if err != nil {
+		t.Error("GetLendHistory() error", err)
+	}
+}
+
+func TestGetUnsettleLendOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetUnsettleLendOrder(context.Background(), "")
+	if err != nil {
+		t.Error("GetUnsettleLendOrder() error", err)
+	}
+
+	_, err = k.GetUnsettleLendOrder(context.Background(), "BTC")
+	if err != nil {
+		t.Error("GetUnsettleLendOrder() error", err)
+	}
+}
+
+func TestGetSettleLendOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetSettleLendOrder(context.Background(), "")
+	if err != nil {
+		t.Error("GetSettleLendOrder() error", err)
+	}
+
+	_, err = k.GetSettleLendOrder(context.Background(), "BTC")
+	if err != nil {
+		t.Error("GetSettleLendOrder() error", err)
+	}
+}
+
+func TestGetAccountLendRecord(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetAccountLendRecord(context.Background(), "")
+	if err != nil {
+		t.Error("GetAccountLendRecord() error", err)
+	}
+
+	_, err = k.GetAccountLendRecord(context.Background(), "BTC")
+	if err != nil {
+		t.Error("GetAccountLendRecord() error", err)
+	}
+}
+
+func TestGetLendingMarketData(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetLendingMarketData(context.Background(), "BTC", 0)
+	if err != nil {
+		t.Error("GetLendingMarketData() error", err)
+	}
+
+	_, err = k.GetLendingMarketData(context.Background(), "BTC", 7)
+	if err != nil {
+		t.Error("GetLendingMarketData() error", err)
+	}
+}
+
+func TestGetMarginTradeData(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetMarginTradeData(context.Background(), "BTC")
+	if err != nil {
+		t.Error("GetMarginTradeData() error", err)
 	}
 }

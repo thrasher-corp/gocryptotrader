@@ -640,7 +640,7 @@ func (k *Kucoin) GetSettleLendOrder(ctx context.Context, currency string) ([]Set
 // GetAccountLendRecord get the lending history of the main account
 func (k *Kucoin) GetAccountLendRecord(ctx context.Context, currency string) ([]LendRecord, error) {
 	resp := struct {
-		Data []LendRecord `json:"items"`
+		Data []LendRecord `json:"data"`
 		Error
 	}{}
 
@@ -654,7 +654,7 @@ func (k *Kucoin) GetAccountLendRecord(ctx context.Context, currency string) ([]L
 // GetLendingMarketData get the lending market data
 func (k *Kucoin) GetLendingMarketData(ctx context.Context, currency string, term int64) ([]LendMarketData, error) {
 	resp := struct {
-		Data []LendMarketData `json:"items"`
+		Data []LendMarketData `json:"data"`
 		Error
 	}{}
 
@@ -672,7 +672,7 @@ func (k *Kucoin) GetLendingMarketData(ctx context.Context, currency string, term
 // GetMarginTradeData get the last 300 fills in the lending and borrowing market
 func (k *Kucoin) GetMarginTradeData(ctx context.Context, currency string) ([]MarginTradeData, error) {
 	resp := struct {
-		Data []MarginTradeData `json:"items"`
+		Data []MarginTradeData `json:"data"`
 		Error
 	}{}
 

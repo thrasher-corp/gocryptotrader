@@ -351,7 +351,7 @@ type SettleLendOrder struct {
 
 type LendRecord struct {
 	Currency        string  `json:"currency"`
-	Outstanding     float64 `json:"outstanding"`
+	Outstanding     float64 `json:"outstanding,string"`
 	FilledSize      float64 `json:"filledSize,string"`
 	AccruedInterest float64 `json:"accruedInterest,string"`
 	RealizedProfit  float64 `json:"realizedProfit,string"`
