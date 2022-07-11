@@ -4751,7 +4751,6 @@ func (s *RPCServer) GetTechnicalAnalysis(ctx context.Context, r *gctrpc.GetTechn
 	return &gctrpc.GetTechnicalAnalysisResponse{Signals: signals}, nil
 }
 
-
 // GetMarginRatesHistory returns the margin lending or borrow rates for an exchange, asset, currency along with many customisable options
 func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarginRatesHistoryRequest) (*gctrpc.GetMarginRatesHistoryResponse, error) {
 	if r == nil {
