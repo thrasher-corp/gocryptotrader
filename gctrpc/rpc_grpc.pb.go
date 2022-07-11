@@ -120,6 +120,9 @@ type GoCryptoTraderServiceClient interface {
 	GetCollateral(ctx context.Context, in *GetCollateralRequest, opts ...grpc.CallOption) (*GetCollateralResponse, error)
 	Shutdown(ctx context.Context, in *ShutdownRequest, opts ...grpc.CallOption) (*ShutdownResponse, error)
 	GetTechnicalAnalysis(ctx context.Context, in *GetTechnicalAnalysisRequest, opts ...grpc.CallOption) (*GetTechnicalAnalysisResponse, error)
+	GetManagedPosition(ctx context.Context, in *GetManagedPositionRequest, opts ...grpc.CallOption) (*GetManagedPositionsResponse, error)
+	GetAllManagedPositions(ctx context.Context, in *GetAllManagedPositionsRequest, opts ...grpc.CallOption) (*GetManagedPositionsResponse, error)
+	GetFundingRates(ctx context.Context, in *GetFundingRatesRequest, opts ...grpc.CallOption) (*GetFundingRatesResponse, error)
 }
 
 type goCryptoTraderServiceClient struct {
@@ -1150,6 +1153,33 @@ func (c *goCryptoTraderServiceClient) GetTechnicalAnalysis(ctx context.Context, 
 	return out, nil
 }
 
+func (c *goCryptoTraderServiceClient) GetManagedPosition(ctx context.Context, in *GetManagedPositionRequest, opts ...grpc.CallOption) (*GetManagedPositionsResponse, error) {
+	out := new(GetManagedPositionsResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTraderService/GetManagedPosition", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *goCryptoTraderServiceClient) GetAllManagedPositions(ctx context.Context, in *GetAllManagedPositionsRequest, opts ...grpc.CallOption) (*GetManagedPositionsResponse, error) {
+	out := new(GetManagedPositionsResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTraderService/GetAllManagedPositions", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *goCryptoTraderServiceClient) GetFundingRates(ctx context.Context, in *GetFundingRatesRequest, opts ...grpc.CallOption) (*GetFundingRatesResponse, error) {
+	out := new(GetFundingRatesResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTraderService/GetFundingRates", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GoCryptoTraderServiceServer is the server API for GoCryptoTraderService service.
 // All implementations must embed UnimplementedGoCryptoTraderServiceServer
 // for forward compatibility
@@ -1252,6 +1282,9 @@ type GoCryptoTraderServiceServer interface {
 	GetCollateral(context.Context, *GetCollateralRequest) (*GetCollateralResponse, error)
 	Shutdown(context.Context, *ShutdownRequest) (*ShutdownResponse, error)
 	GetTechnicalAnalysis(context.Context, *GetTechnicalAnalysisRequest) (*GetTechnicalAnalysisResponse, error)
+	GetManagedPosition(context.Context, *GetManagedPositionRequest) (*GetManagedPositionsResponse, error)
+	GetAllManagedPositions(context.Context, *GetAllManagedPositionsRequest) (*GetManagedPositionsResponse, error)
+	GetFundingRates(context.Context, *GetFundingRatesRequest) (*GetFundingRatesResponse, error)
 	mustEmbedUnimplementedGoCryptoTraderServiceServer()
 }
 
@@ -1552,6 +1585,15 @@ func (UnimplementedGoCryptoTraderServiceServer) Shutdown(context.Context, *Shutd
 }
 func (UnimplementedGoCryptoTraderServiceServer) GetTechnicalAnalysis(context.Context, *GetTechnicalAnalysisRequest) (*GetTechnicalAnalysisResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTechnicalAnalysis not implemented")
+}
+func (UnimplementedGoCryptoTraderServiceServer) GetManagedPosition(context.Context, *GetManagedPositionRequest) (*GetManagedPositionsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetManagedPosition not implemented")
+}
+func (UnimplementedGoCryptoTraderServiceServer) GetAllManagedPositions(context.Context, *GetAllManagedPositionsRequest) (*GetManagedPositionsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAllManagedPositions not implemented")
+}
+func (UnimplementedGoCryptoTraderServiceServer) GetFundingRates(context.Context, *GetFundingRatesRequest) (*GetFundingRatesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetFundingRates not implemented")
 }
 func (UnimplementedGoCryptoTraderServiceServer) mustEmbedUnimplementedGoCryptoTraderServiceServer() {}
 
@@ -3348,6 +3390,60 @@ func _GoCryptoTraderService_GetTechnicalAnalysis_Handler(srv interface{}, ctx co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GoCryptoTraderService_GetManagedPosition_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetManagedPositionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServiceServer).GetManagedPosition(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTraderService/GetManagedPosition",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServiceServer).GetManagedPosition(ctx, req.(*GetManagedPositionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GoCryptoTraderService_GetAllManagedPositions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAllManagedPositionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServiceServer).GetAllManagedPositions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTraderService/GetAllManagedPositions",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServiceServer).GetAllManagedPositions(ctx, req.(*GetAllManagedPositionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GoCryptoTraderService_GetFundingRates_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetFundingRatesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServiceServer).GetFundingRates(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTraderService/GetFundingRates",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServiceServer).GetFundingRates(ctx, req.(*GetFundingRatesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // GoCryptoTraderService_ServiceDesc is the grpc.ServiceDesc for GoCryptoTraderService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -3722,6 +3818,18 @@ var GoCryptoTraderService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetTechnicalAnalysis",
 			Handler:    _GoCryptoTraderService_GetTechnicalAnalysis_Handler,
+		},
+		{
+			MethodName: "GetManagedPosition",
+			Handler:    _GoCryptoTraderService_GetManagedPosition_Handler,
+		},
+		{
+			MethodName: "GetAllManagedPositions",
+			Handler:    _GoCryptoTraderService_GetAllManagedPositions_Handler,
+		},
+		{
+			MethodName: "GetFundingRates",
+			Handler:    _GoCryptoTraderService_GetFundingRates_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
