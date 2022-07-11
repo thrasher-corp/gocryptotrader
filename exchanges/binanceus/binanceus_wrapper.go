@@ -640,23 +640,19 @@ func (bi *Binanceus) CancelOrder(ctx context.Context, order *order.Cancel) error
 		return err
 	}
 	if order.AssetType == asset.Spot {
-		orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
-		if err != nil {
-			return err
-		}
-		_, err = bi.CancelExistingOrder(ctx,
+		_, err := bi.CancelExistingOrder(ctx,
 			&CancelOrderRequestParams{
-				Symbol:            order.Pair,
-				OrderID:           uint64(orderIDInt),
-				OrigClientOrderID: order.ClientOrderID,
+				Symbol:                order.Pair,
+				OrderID:               order.OrderID,
+				ClientSuppliedOrderID: order.ClientOrderID,
 			})
 		if err != nil {
 			return err
 		}
 	} else {
-		return fmt.Errorf("assetType not supported")
+		return errAssetTypeNotSupported
 	}
-	return common.ErrNotYetImplemented
+	return nil
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
@@ -686,9 +682,9 @@ func (bi *Binanceus) CancelAllOrders(ctx context.Context, orderCancellation *ord
 				return cancelAllOrdersResponse, er
 			}
 			_, err := bi.CancelExistingOrder(ctx, &CancelOrderRequestParams{
-				Symbol:            pair,
-				OrderID:           openOrders[ind].OrderID,
-				OrigClientOrderID: openOrders[ind].ClientOrderID,
+				Symbol:                pair,
+				OrderID:               strconv.FormatUint(openOrders[ind].OrderID, 10),
+				ClientSuppliedOrderID: openOrders[ind].ClientOrderID,
 			})
 			if err != nil {
 				return cancelAllOrdersResponse, err

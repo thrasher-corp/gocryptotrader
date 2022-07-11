@@ -335,7 +335,7 @@ type AssetHistory struct {
 	TranID  uint64  `json:"tranId"`        // Transaction ID
 }
 
-// AssetDictributionHistories this endpoint to query asset distribution records,
+// AssetDistributionHistories this endpoint to query asset distribution records,
 // including for staking, referrals and airdrops etc.
 type AssetDistributionHistories struct {
 	Rows  []*AssetHistory `json:"rows"`
@@ -346,7 +346,7 @@ type AssetDistributionHistories struct {
 // including the email and related information related to it.
 type SubAccount struct {
 	Email      string    `json:"email"`
-	Status     bool      `json:"status"`
+	Status     string    `json:"status"`
 	Activated  bool      `json:"activated"`
 	Mobile     string    `json:"mobile"`
 	GAuth      bool      `json:"gAuth"`
@@ -364,7 +364,7 @@ type TransferHistory struct {
 
 // SubAccountTransferRequestParams a argument variables holder used to transfer an asset from one account to another subaccount
 // this account has to be present in the sub accounts list information.
-type SubaccountTransferRequestParams struct {
+type SubAccountTransferRequestParams struct {
 	FromEmail  string  // Mandatory
 	ToEmail    string  // Mandatory
 	Asset      string  // Mandatory
@@ -374,12 +374,12 @@ type SubaccountTransferRequestParams struct {
 
 // SubAccountTransferResponse repsents a suabccount transffer history
 // having the transaction id which is to be returned due to the transfer
-type SubaccountTransferResponse struct {
+type SubAccountTransferResponse struct {
 	Success bool   `json:"success"`
 	TxnID   uint64 `json:"txnId,string"`
 }
 
-// SubaccountAsset holds asset informations.
+// AssetInfo holds asset informations.
 type AssetInfo struct {
 	Asset  string `json:"asset"`
 	Free   uint64 `json:"free"`
@@ -393,7 +393,7 @@ type SubAccountAssets struct {
 	SubaccountEmail string      `json:"email,omitempty"`
 }
 
-// OrderRateLimit
+// OrderRateLimit holds rate limits type, interval, and related information of trade orders.
 type OrderRateLimit struct {
 	RateLimitType string `json:"rateLimitType"`
 	Interval      string `json:"interval"`
@@ -488,16 +488,16 @@ type Order struct {
 	Time              time.Time `json:"time"`
 	UpdateTime        time.Time `json:"updateTime"`
 	IsWorking         bool      `json:"isWorking"`
-	OrigQuoteOrderQty float64   `json:"origQuoteOrderQty"`
+	OrigQuoteOrderQty float64   `json:"origQuoteOrderQty,string"`
 }
 
-// OrderReportItem this is used by the OCO order creating response
+// OCOOrderReportItem this is used by the OCO order creating response
 type OCOOrderReportItem struct {
 	CommonOrder
 	TransactionTime time.Time `json:"transactionTime"`
 }
 
-// GetOrderRequestParams this struct will be used to get a
+// OrderRequestParams this struct will be used to get a
 // order and its related information
 type OrderRequestParams struct {
 	Symbol            string `json:"symbol"` // REQUIRED
@@ -509,11 +509,11 @@ type OrderRequestParams struct {
 // CancelOrderRequestParams this struct will be used as a parameter for
 // cancel order method.
 type CancelOrderRequestParams struct {
-	Symbol            currency.Pair
-	OrderID           uint64
-	OrigClientOrderID string
-	NewClientOrderID  string
-	RecvWindow        uint
+	Symbol                currency.Pair
+	OrderID               string
+	ClientSuppliedOrderID string
+	NewClientOrderID      string
+	RecvWindow            uint
 }
 
 // GetTradesParams  request param to get the trade history
@@ -544,8 +544,7 @@ type Trade struct {
 	IsBestMatch     bool      `json:"isBestMatch"`
 }
 
-// OCOOrderParams
-// One -cancel-the-other order creation input Parameter
+// OCOOrderInputParams One-cancel-the-other order creation input Parameter
 type OCOOrderInputParams struct {
 	Symbol               string  `json:"symbol"`    // Required
 	StopPrice            float64 `json:"stopPrice"` // Required
@@ -563,19 +562,20 @@ type OCOOrderInputParams struct {
 	RecvWindow           uint64  `json:"recvWindow"`
 }
 
-// GetOCOPrderRequestParams
-type GetOCOPrderRequestParams struct {
-	OrderListID       uint64
+// GetOCOOrderRequestParams a parameter model to query specific list of OCO orders using their id
+type GetOCOOrderRequestParams struct {
+	OrderListID       string
 	OrigClientOrderID string
 }
 
+// OrderShortResponse holds symbol, and Identification informations of trade order.
 type OrderShortResponse struct {
 	Symbol        string `json:"symbol"`
 	OrderID       uint64 `json:"orderId"`
 	ClientOrderID string `json:"clientOrderId"`
 }
 
-// OCONewOrderResponse this model is to be used to fetch the respons of create new OCO order response
+// OCOOrderResponse  this model is to be used to fetch the response of create new OCO order response
 type OCOOrderResponse struct {
 	OrderListID       int64                 `json:"orderListId"`
 	ContingencyType   string                `json:"contingencyType"`
@@ -587,13 +587,13 @@ type OCOOrderResponse struct {
 	Orders            []*OrderShortResponse `json:"orders"`
 }
 
-// CreateNewOrderResponse
+// OCOFullOrderResponse holds detailed OCO order informations with the corresponding transaction time
 type OCOFullOrderResponse struct {
 	*OCOOrderResponse
 	OrderReports []*OCOOrderReportItem `json:"orderReports"`
 }
 
-// OCOOrdersRequestParams
+// OCOOrdersRequestParams a parameter model to query from list of OCO orders.
 type OCOOrdersRequestParams struct {
 	FromID     uint64
 	StartTime  time.Time
@@ -602,8 +602,7 @@ type OCOOrdersRequestParams struct {
 	RecvWindow uint
 }
 
-// OCOOrdersDeleteRequestParams
-// holds the params to delete a new order
+// OCOOrdersDeleteRequestParams holds the params to delete a new order
 type OCOOrdersDeleteRequestParams struct {
 	Symbol            string
 	OrderListID       uint64
@@ -614,7 +613,7 @@ type OCOOrdersDeleteRequestParams struct {
 
 // OTC endpoinsts
 
-// CoinPairInfo
+// CoinPairInfo holds supported coin pair for conversion with its detailed information
 type CoinPairInfo struct {
 	FromCoin          string  `json:"fromCoin"`
 	ToCoin            string  `json:"toCoin"`
@@ -624,33 +623,33 @@ type CoinPairInfo struct {
 	ToCoinMaxAmount   float64 `json:"toCoinMaxAmount,string"`
 }
 
-// RequestQuoteParams
+// RequestQuoteParams a parameter model to query quote information
 type RequestQuoteParams struct {
-	FromCoin      string  `json:"fronCoin"`
-	ToCoin        string  `json:"toCoin"`
-	RequestCoin   string  `json:"requestCoin"`
-	RequestAmount float64 `json:"requestAmount"`
+	FromCoin      string `json:"fronCoin"`
+	ToCoin        string `json:"toCoin"`
+	RequestCoin   string `json:"requestCoin"`
+	RequestAmount int64  `json:"requestAmount"`
 }
 
-// RequestQuote
-type RequestQuote struct {
+// Quote holds quote information for from-to-coin pair
+type Quote struct {
 	QuoteID        string  `json:"quoteId"`
 	Symbol         string  `json:"symbol"`
-	Ratio          float64 `json:"ratio"`
-	InverseRatio   float64 `json:"inverseRatio"`
+	Ratio          float64 `json:"ratio,string"`
+	InverseRatio   float64 `json:"inverseRatio,string"`
 	ValidTimestamp float64 `json:"validTimestamp"`
-	ToAmount       float64 `json:"toAmount"`
-	FromAmount     uint64  `json:"fromAmount"`
+	ToAmount       float64 `json:"toAmount,string"`
+	FromAmount     uint64  `json:"fromAmount,string"`
 }
 
-// OTCTradeOrderResponse
+// OTCTradeOrderResponse holds OTC(over-the-counter) order indentification and status information
 type OTCTradeOrderResponse struct {
 	OrderID     uint64    `json:"orderId,string"`
-	CreateTime  time.Time `json:"createTime"`
 	OrderStatus string    `json:"orderStatus"`
+	CreateTime  time.Time `json:"createTime"`
 }
 
-// OTCTradeOrder
+// OTCTradeOrder holds OTC(over-the-counter) orders response
 type OTCTradeOrder struct {
 	QuoteID      string    `json:"quoteId"`
 	OrderID      uint64    `json:"orderId,string"`
@@ -675,7 +674,6 @@ type OTCTradeOrderRequestParams struct {
 }
 
 // Wallet Endpoints
-//
 
 // AssetWalletDetail represents the wallet asset information.
 type AssetWalletDetail struct {
@@ -758,12 +756,12 @@ type FiatAssetRecord struct {
 	PlatformFee    string `json:"platformFee"`
 }
 
-// FiatWithdrawalHistory holds list of availabel fiat asset records.
+// FiatAssetsHistory  holds list of available fiat asset records.
 type FiatAssetsHistory struct {
 	AssetLogRecordList []FiatAssetRecord `json:"assetLogRecordList"`
 }
 
-// WithdrawFiatRequestParams repsents the fiat withdrawal request params.
+// WithdrawFiatRequestParams represents the fiat withdrawal request params.
 type WithdrawFiatRequestParams struct {
 	PaymentChannel string
 	PaymentMethod  string
@@ -827,7 +825,7 @@ type orderbookManager struct {
 	jobs chan job
 }
 
-// job defines a synchonisation job that tells a go routine to fetch an
+// job defines a synchronisation job that tells a go routine to fetch an
 // orderbook via the REST protocol
 type job struct {
 	Pair currency.Pair
@@ -879,7 +877,7 @@ type WsAccountInfoData struct {
 	} `json:"B"`
 }
 
-// wsAccountPosition websocke response of account position.
+// wsAccountPosition websocket response of account position.
 type wsAccountPosition struct {
 	Stream string                `json:"stream"`
 	Data   WsAccountPositionData `json:"data"`
@@ -897,7 +895,7 @@ type WsAccountPositionData struct {
 	EventType   string    `json:"e"`
 }
 
-// wsBalanceUpdate respresents the websocket response of update balance.
+// wsBalanceUpdate represents the websocket response of update balance.
 type wsBalanceUpdate struct {
 	Stream string              `json:"stream"`
 	Data   WsBalanceUpdateData `json:"data"`
@@ -959,7 +957,7 @@ type wsListStatus struct {
 	Data   WsListStatusData `json:"data"`
 }
 
-// WsListStatusData defines websocket account listing status data
+// wsListStatus holder for websocket account listing status response.
 type WsListStatusData struct {
 	ListClientOrderID string    `json:"C"`
 	EventTime         time.Time `json:"E"`
@@ -1048,7 +1046,7 @@ type TickerStream struct {
 	NumberOfTrades         int64     `json:"n"`
 }
 
-// Additional Data MOdels when adding the Market Data Streams
+// OrderBookTickerStream  contains websocket orderbook data
 type OrderBookTickerStream struct {
 	LastUpdateID int    `json:"u"`
 	S            string `json:"s"`
@@ -1059,7 +1057,7 @@ type OrderBookTickerStream struct {
 	BestAskQty   float64 `json:"A,string"`
 }
 
-// Websocket stream aggregate trade
+// WebsocketAggregateTradeStream aggregate trade streams push data
 type WebsocketAggregateTradeStream struct {
 	EventType        string    `json:"e"`
 	EventTime        time.Time `json:"E"`

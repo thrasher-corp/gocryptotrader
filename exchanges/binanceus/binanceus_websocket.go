@@ -23,6 +23,7 @@ import (
 
 const (
 	binanceusDefaultWebsocketURL = "wss://stream.binance.us:9443/stream"
+	binanceusAPIURL              = "https://api.binance.us"
 	pingDelay                    = time.Minute * 9
 )
 

@@ -32,8 +32,6 @@ type Binanceus struct {
 }
 
 const (
-	binanceusAPIURL     = "https://api.binance.us"
-	binanceusAPIVersion = "/v3"
 
 	// Public endpoints
 	exchangeInfo     = "/api/v3/exchangeInfo"
@@ -48,15 +46,15 @@ const (
 	historicalTrades = "/api/v3/historicalTrades"
 
 	// Withdraw API endpoints
-	accountStatus = "/wapi/v3/accountStatus.html"
-	tradingStatus = "/wapi/v3/apiTradingStatus.html"
+	accountStatus = "/sapi/v3/accountStatus"
+	tradingStatus = "/sapi/v3/apiTradingStatus"
 	tradeFee      = "/wapi/v3/tradeFee.html"
 
 	// Subaccounts
-	subaccountsInformation    = "/wapi/v3/sub-account/list.html"
-	subaccountTransferHistory = "/wapi/v3/sub-account/transfer/history.html"
-	subaccountTransfer        = "/wapi/v3/sub-account/transfer.html" // Not Implemented Yet
-	subaccountAssets          = "/wapi/v3/sub-account/assets.html"   // Not Implemented Yet
+	subaccountsInformation    = "/sapi/v3/sub-account/list"
+	subaccountTransferHistory = "/sapi/v3/sub-account/transfer/history"
+	subaccountTransfer        = "/sapi/v3/sub-account/transfer"
+	subaccountAssets          = "/sapi/v3/sub-account/assets"
 
 	// Trade Order Endpoints
 	orderRateLimit     = "/api/v3/rateLimit/order"
@@ -76,10 +74,12 @@ const (
 
 	// OTC Endpoints
 	// Over-The-Counter Endpoints
-	otcSelectors   = "/sapi/v1/otc/selectors"
+	otcSelectors   = "/sapi/v1/otc/coinPairs"
 	otcQuotes      = "/sapi/v1/otc/quotes"
 	otcTradeOrder  = "/sapi/v1/otc/orders"
 	otcTradeOrders = "/sapi/v1/otc/orders/"
+
+	//
 
 	// Wallet endpoints
 	assetDistribution       = "/sapi/v1/asset/assetDividend"
@@ -129,6 +129,12 @@ var (
 	errMissingRequiredParameterAddress        = errors.New("missing required parameter \"address\"")
 	errMissingCurrencySymbol                  = errors.New("missing currency symbol")
 	errEitherOrderIDOrClientOrderIDIsRequired = errors.New("either order id or client order id is required")
+	errMissingRequestAmount                   = errors.New("missing required value \"requestAmount\"")
+	errMissingRequestCoin                     = errors.New("missing required value \"requestCoin\" name")
+	errMissingToCoinName                      = errors.New("missing required value \"toCoin\" name")
+	errMissingFromCoinName                    = errors.New("missing required value \"fromCoin\" name")
+	errAssetTypeNotSupported                  = fmt.Errorf("assetType not supported")
+	errMissingQuoteID                         = errors.New("missing quote id")
 )
 
 // SetValues sets the default valid values
@@ -166,11 +172,11 @@ func (bi *Binanceus) GetHistoricalTrades(ctx context.Context, hist HistoricalTra
 	var resp []HistoricalTrade
 	params := url.Values{}
 	params.Set("symbol", hist.Symbol)
-	params.Set("limit", fmt.Sprintf("%d", hist.Limit))
+	params.Set("limit", strconv.Itoa(hist.Limit))
 	if hist.FromID > 0 {
-		params.Set("fromId", fmt.Sprintf("%d", hist.FromID))
+		params.Set("fromId", strconv.FormatUint(hist.FromID, 10))
 	}
-	path := historicalTrades + "?" + params.Encode()
+	path := common.EncodeURLValues(historicalTrades, params)
 	return resp, bi.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, path, spotHistoricalTradesRate, &resp)
 }
 
@@ -709,7 +715,7 @@ func (bi *Binanceus) GetTradeFee(ctx context.Context, recvWindow uint, symbol st
 	timestamp := time.Now().UnixMilli()
 	params := url.Values{}
 	var resp TradeFeeList
-	params.Set("timestamp", strconv.Itoa(int(timestamp)))
+	params.Set("timestamp", strconv.FormatInt(timestamp, 10))
 	if recvWindow > 0 {
 		if recvWindow < 2000 {
 			recvWindow += 3000
@@ -786,7 +792,7 @@ func (bi *Binanceus) GetSubaccountInformation(ctx context.Context, page, limit u
 		params.Set("limit", strconv.Itoa(int(limit)))
 	}
 	timestamp := time.Now().UnixMilli()
-	params.Set("timestamp", strconv.Itoa(int(timestamp)))
+	params.Set("timestamp", strconv.FormatInt(timestamp, 10))
 	return resp.Subaccounts, bi.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodGet,
@@ -843,9 +849,9 @@ func (bi *Binanceus) GetSubaccountTransferHistory(ctx context.Context,
 // ExecuteSubAccountTransfer to execute sub-account asset transfers.
 // POST /wapi/v3/sub-account/transfer.html (HMAC SHA256)
 // Use this endpoint to execute sub-account asset transfers.
-func (bi *Binanceus) ExecuteSubAccountTransfer(ctx context.Context, arg *SubaccountTransferRequestParams) (*SubaccountTransferResponse, error) {
+func (bi *Binanceus) ExecuteSubAccountTransfer(ctx context.Context, arg *SubAccountTransferRequestParams) (*SubAccountTransferResponse, error) {
 	params := url.Values{}
-	var response SubaccountTransferResponse
+	var response SubAccountTransferResponse
 	if !common.MatchesEmailPattern(arg.FromEmail) {
 		return nil, errUnacceptableSenderEmail
 	}
@@ -862,8 +868,7 @@ func (bi *Binanceus) ExecuteSubAccountTransfer(ctx context.Context, arg *Subacco
 	params.Set("toEmail", arg.ToEmail)
 	params.Set("asset", arg.Asset)
 	params.Set("amount", fmt.Sprintf("%f", arg.Amount))
-	params.Set("recvWindow", recvWindowSize5000String)
-	params.Set("timestamp", fmt.Sprintf("%d", time.Now().UnixMilli()))
+	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	return &response, bi.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, subaccountTransfer, params, spotDefaultRate, &response)
 }
 
@@ -889,9 +894,7 @@ func (bi *Binanceus) GetSubaccountAssets(ctx context.Context, email string) (*Su
 
 // Trade Order Endpoints
 
-// GetOrderRateLimits Get the current trade order count rate limits for all time intervals.
-// GET /api/v3/rateLimit/order (HMAC SHA256)
-// Get the current trade order count rate limits for all time intervals.
+// GetOrderRateLimits get the current trade order count rate limits for all time intervals.
 // INPUTS: recvWindow <= 60000
 func (bi *Binanceus) GetOrderRateLimits(ctx context.Context, recvWindow uint) ([]OrderRateLimit, error) {
 	params := url.Values{}
@@ -1017,13 +1020,13 @@ func (bi *Binanceus) CancelExistingOrder(ctx context.Context, arg *CancelOrderRe
 		return nil, errMissingCurrencySymbol
 	}
 	params.Set("symbol", symbolValue)
-	if arg.OrderID == 0 && arg.OrigClientOrderID == "" {
+	if arg.OrderID == "" && arg.ClientSuppliedOrderID == "" {
 		return nil, errEitherOrderIDOrClientOrderIDIsRequired
 	}
-	if arg.OrigClientOrderID != "" {
-		params.Set("origClientOrderId", arg.OrigClientOrderID)
+	if arg.ClientSuppliedOrderID != "" {
+		params.Set("origClientOrderId", arg.ClientSuppliedOrderID)
 	} else {
-		params.Set("orderId", fmt.Sprint(arg.OrderID))
+		params.Set("orderId", arg.OrderID)
 	}
 	params.Set("recvWindow", recvWindowSize5000String)
 	return &response, bi.SendAuthHTTPRequest(ctx,
@@ -1127,12 +1130,12 @@ func (bi *Binanceus) CreateNewOCOOrder(ctx context.Context, arg *OCOOrderInputPa
 }
 
 // GetOCOOrder to retrieve a specific OCO order based on provided optional parameters.
-func (bi *Binanceus) GetOCOOrder(ctx context.Context, arg *GetOCOPrderRequestParams) (*OCOOrderResponse, error) {
+func (bi *Binanceus) GetOCOOrder(ctx context.Context, arg *GetOCOOrderRequestParams) (*OCOOrderResponse, error) {
 	params := url.Values{}
 	params.Set("timestamp", fmt.Sprint(time.Now().UnixMilli()))
 	switch {
-	case arg.OrderListID > 0:
-		params.Set("orderListId", fmt.Sprint(arg.OrderListID))
+	case arg.OrderListID != "":
+		params.Set("orderListId", arg.OrderListID)
 	case arg.OrigClientOrderID != "":
 		params.Set("origClientOrderId", arg.OrigClientOrderID)
 	default:
@@ -1208,7 +1211,7 @@ func (bi *Binanceus) CancelOCOOrder(ctx context.Context, arg *OCOOrdersDeleteReq
 
 // OTC end points
 
-// GetSupportedCoinPairs  to get a list of supported coin pairs for convert.
+// GetSupportedCoinPairs to get a list of supported coin pairs for convert.
 // returns list of CoinPairInfo
 func (bi *Binanceus) GetSupportedCoinPairs(ctx context.Context, symbol currency.Pair) ([]*CoinPairInfo, error) {
 	params := url.Values{}
@@ -1223,40 +1226,41 @@ func (bi *Binanceus) GetSupportedCoinPairs(ctx context.Context, symbol currency.
 }
 
 // RequestForQuote endpoint to request a quote for a from-to coin pair.
-func (bi *Binanceus) RequestForQuote(ctx context.Context, arg *RequestQuoteParams) (*RequestQuote, error) {
+func (bi *Binanceus) RequestForQuote(ctx context.Context, arg *RequestQuoteParams) (*Quote, error) {
 	params := url.Values{}
-	var resp RequestQuote
+	var resp Quote
 	if arg.FromCoin == "" {
-		return nil, errIncompleteArguments
+		return nil, errMissingFromCoinName
 	}
 	if arg.ToCoin == "" {
-		return nil, errIncompleteArguments
+		return nil, errMissingToCoinName
 	}
 	if arg.RequestCoin == "" {
-		return nil, errIncompleteArguments
+		return nil, errMissingRequestCoin
 	}
 	if arg.RequestAmount <= 0 {
-		return nil, errIncompleteArguments
+		return nil, errMissingRequestAmount
 	}
 	params.Set("fromCoin", arg.FromCoin)
 	params.Set("toCoin", arg.ToCoin)
-	params.Set("requestAmount", fmt.Sprint(arg.RequestAmount))
+	params.Set("requestAmount", strconv.FormatInt(arg.RequestAmount, 10))
 	params.Set("requestCoin", arg.RequestCoin)
+	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	return &resp, bi.SendAuthHTTPRequest(ctx,
 		exchange.RestSpot,
 		http.MethodPost, otcQuotes, params,
-		spotDefaultRate, resp)
+		spotDefaultRate, &resp)
 }
 
 // PlaceOTCTradeOrder to place an order using an acquired quote.
 // returns OTCTradeOrderResponse response containing the OrderID,OrderStatus, and CreateTime information of an order.
 func (bi *Binanceus) PlaceOTCTradeOrder(ctx context.Context, quoteID string) (*OTCTradeOrderResponse, error) {
 	params := url.Values{}
-	if quoteID == "" {
-		return nil, errIncompleteArguments
+	if strings.Trim(quoteID, " ") == "" {
+		return nil, errMissingQuoteID
 	}
 	params.Set("quoteId", quoteID)
-	params.Set("timestamp", fmt.Sprint(time.Now().UnixMilli()))
+	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	var response OTCTradeOrderResponse
 	return &response, bi.SendAuthHTTPRequest(ctx,
 		exchange.RestSpot, http.MethodPost,
@@ -1348,7 +1352,7 @@ func (bi *Binanceus) WithdrawCrypto(ctx context.Context, arg *withdraw.Request, 
 		return "", errAmountValueMustBeGreaterThan0
 	}
 	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', 0, 64))
-	if recvWindow > 2000 {
+	if recvWindow != 0 {
 		params.Set("recvWindow", strconv.Itoa(int(recvWindow)))
 	}
 	var response WithdrawalResponse
