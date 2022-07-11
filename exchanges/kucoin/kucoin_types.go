@@ -104,6 +104,7 @@ func (k kucoinTimeNanoSec) Time() time.Time {
 	return time.Time(k)
 }
 
+// SymbolInfo stores symbol information
 type SymbolInfo struct {
 	Symbol          string  `json:"symbol"`
 	Name            string  `json:"name"`
@@ -124,6 +125,7 @@ type SymbolInfo struct {
 	EnableTrading   bool    `json:"enableTrading"`
 }
 
+// Ticker stores ticker data
 type Ticker struct {
 	Sequence    string  `json:"sequence"`
 	BestAsk     float64 `json:"bestAsk,string"`
@@ -153,11 +155,13 @@ type tickerInfoBase struct {
 	MakerCoefficient float64 `json:"makerCoefficient,string"`
 }
 
+// TickerInfo stores ticker information
 type TickerInfo struct {
 	tickerInfoBase
 	SymbolName string `json:"symbolName"`
 }
 
+// Stats24hrs stores 24 hrs statistics
 type Stats24hrs struct {
 	tickerInfoBase
 	Time uint64 `json:"time"`
@@ -180,6 +184,7 @@ type orderbookResponse struct {
 	Error
 }
 
+// Trade stores trade data
 type Trade struct {
 	Sequence string            `json:"sequence"`
 	Price    float64           `json:"price,string"`
@@ -188,6 +193,7 @@ type Trade struct {
 	Time     kucoinTimeNanoSec `json:"time"`
 }
 
+// Kline stores kline data
 type Kline struct {
 	StartTime time.Time
 	Open      float64
@@ -209,6 +215,7 @@ type currencyBase struct {
 	IsDebitEnabled  bool   `json:"isDebitEnabled"`
 }
 
+// Currency stores currency data
 type Currency struct {
 	currencyBase
 	WithdrawalMinSize float64 `json:"withdrawalMinSize,string"`
@@ -217,6 +224,7 @@ type Currency struct {
 	IsDepositEnabled  bool    `json:"isDepositEnabled"`
 }
 
+// Chain stores blockchain data
 type Chain struct {
 	Name              string  `json:"chainName"`
 	Confirms          int64   `json:"confirms"`
@@ -227,11 +235,13 @@ type Chain struct {
 	IsDepositEnabled  bool    `json:"isDepositEnabled"`
 }
 
+// CurrencyDetail stores currency details
 type CurrencyDetail struct {
 	currencyBase
 	Chains []Chain `json:"chains"`
 }
 
+// MarkPrice stores mark price data
 type MarkPrice struct {
 	Symbol      string             `json:"symbol"`
 	Granularity int64              `json:"granularity"`
@@ -239,6 +249,7 @@ type MarkPrice struct {
 	Value       float64            `json:"value"`
 }
 
+// MarginConfiguration stores margin configuration
 type MarginConfiguration struct {
 	CurrencyList     []string `json:"currencyList"`
 	WarningDebtRatio float64  `json:"warningDebtRatio,string"`
@@ -246,6 +257,7 @@ type MarginConfiguration struct {
 	MaxLeverage      float64  `json:"maxLeverage"`
 }
 
+// MarginAccount stores margin account data
 type MarginAccount struct {
 	CurrencyList  float64 `json:"availableBalance,string"`
 	Currency      string  `json:"currency"`
@@ -255,11 +267,13 @@ type MarginAccount struct {
 	TotalBalance  float64 `json:"totalBalance,string"`
 }
 
+// MarginAccounts stores margin accounts data
 type MarginAccounts struct {
 	Accounts  []MarginAccount `json:"accounts"`
 	DebtRatio float64         `json:"debtRatio,string"`
 }
 
+// MarginRiskLimit stores margin risk limit
 type MarginRiskLimit struct {
 	Currency        string  `json:"currency"`
 	BorrowMaxAmount float64 `json:"borrowMaxAmount,string"`
@@ -267,11 +281,13 @@ type MarginRiskLimit struct {
 	Precision       int64   `json:"precision"`
 }
 
+// PostBorrowOrderResp stores borrow order resposne
 type PostBorrowOrderResp struct {
 	OrderID  string `json:"orderId"`
 	Currency string `json:"currency"`
 }
 
+// BorrowOrder stores borrow order
 type BorrowOrder struct {
 	OrderID   string  `json:"orderId"`
 	Currency  string  `json:"currency"`
@@ -297,6 +313,7 @@ type baseRecord struct {
 	Term         int64   `json:"term"`
 }
 
+// OutstandingRecord stores outstanding record
 type OutstandingRecord struct {
 	baseRecord
 	AccruedInterest float64               `json:"accruedInterest,string"`
@@ -305,12 +322,14 @@ type OutstandingRecord struct {
 	CreatedAt       kucoinTimeMilliSecStr `json:"createdAt"`
 }
 
+// RepaidRecord stores repaid record
 type RepaidRecord struct {
 	baseRecord
 	Interest  float64               `json:"interest,string"`
 	RepayTime kucoinTimeMilliSecStr `json:"repayTime"`
 }
 
+// LendOrder stores lend order
 type LendOrder struct {
 	OrderID      string                `json:"orderId"`
 	Currency     string                `json:"currency"`
@@ -321,11 +340,13 @@ type LendOrder struct {
 	CreatedAt    kucoinTimeMilliSecStr `json:"createdAt"`
 }
 
+// LendOrderHistory stores lend order history
 type LendOrderHistory struct {
 	LendOrder
 	Status string `json:"status"`
 }
 
+// UnsettleLendOrder stores unsettle lend order
 type UnsettleLendOrder struct {
 	TradeID         string                `json:"tradeId"`
 	Currency        string                `json:"currency"`
@@ -337,6 +358,7 @@ type UnsettleLendOrder struct {
 	MaturityTime    kucoinTimeMilliSecStr `json:"maturityTime"`
 }
 
+// SettleLendOrder stores  settled lend order
 type SettleLendOrder struct {
 	TradeID      string             `json:"tradeId"`
 	Currency     string             `json:"currency"`
@@ -349,6 +371,7 @@ type SettleLendOrder struct {
 	Note         string             `json:"note"`
 }
 
+// LendRecord stores lend record
 type LendRecord struct {
 	Currency        string  `json:"currency"`
 	Outstanding     float64 `json:"outstanding,string"`
@@ -358,12 +381,14 @@ type LendRecord struct {
 	IsAutoLend      bool    `json:"isAutoLend"`
 }
 
+// LendMarketData stores lend market data
 type LendMarketData struct {
 	DailyIntRate float64 `json:"dailyIntRate,string"`
 	Term         int64   `json:"term"`
 	Size         float64 `json:"size,string"`
 }
 
+// MarginTradeData stores margin trade data
 type MarginTradeData struct {
 	TradeID      string            `json:"tradeId"`
 	Currency     string            `json:"currency"`
