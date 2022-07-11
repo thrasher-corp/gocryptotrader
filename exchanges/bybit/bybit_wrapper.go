@@ -942,7 +942,8 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			TimeInForce: timeInForce,
 			OrderLinkID: s.ClientOrderID,
 		}
-		response, err := by.CreatePostOrder(ctx, &orderRequest)
+		var response *PlaceOrderResponse
+		response, err = by.CreatePostOrder(ctx, &orderRequest)
 		if err != nil {
 			return nil, err
 		}
@@ -962,8 +963,8 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		default:
 			return nil, errUnsupportedOrderType
 		}
-
-		o, err := by.CreateCoinFuturesOrder(ctx, formattedPair, sideType, oType, timeInForce,
+		var o FuturesOrderDataResp
+		o, err = by.CreateCoinFuturesOrder(ctx, formattedPair, sideType, oType, timeInForce,
 			s.ClientOrderID, "", "",
 			s.Amount, s.Price, 0, 0, false, s.ReduceOnly)
 		if err != nil {
@@ -982,8 +983,8 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		default:
 			return nil, errUnsupportedOrderType
 		}
-
-		o, err := by.CreateUSDTFuturesOrder(ctx, formattedPair, sideType, oType, timeInForce,
+		var o FuturesOrderDataResp
+		o, err = by.CreateUSDTFuturesOrder(ctx, formattedPair, sideType, oType, timeInForce,
 			s.ClientOrderID, "", "",
 			s.Amount, s.Price, 0, 0, false, s.ReduceOnly)
 		if err != nil {
@@ -1002,8 +1003,8 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		default:
 			return nil, errUnsupportedOrderType
 		}
-
-		o, err := by.CreateFuturesOrder(ctx, 0, formattedPair, sideType, oType, timeInForce,
+		var o FuturesOrderDataResp
+		o, err = by.CreateFuturesOrder(ctx, 0, formattedPair, sideType, oType, timeInForce,
 			s.ClientOrderID, "", "",
 			s.Amount, s.Price, 0, 0, false, s.ReduceOnly)
 		if err != nil {
@@ -1022,8 +1023,8 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		default:
 			return nil, errUnsupportedOrderType
 		}
-
-		o, err := by.PlaceUSDCOrder(ctx, formattedPair, oType, "Order", sideType, timeInForce,
+		var o USDCCreateOrderResp
+		o, err = by.PlaceUSDCOrder(ctx, formattedPair, oType, "Order", sideType, timeInForce,
 			s.ClientOrderID, s.Price, s.Amount, 0, 0, 0, 0, s.TriggerPrice, 0, s.ReduceOnly, false, false)
 		if err != nil {
 			return nil, err
