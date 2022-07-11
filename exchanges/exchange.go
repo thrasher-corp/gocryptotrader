@@ -988,26 +988,22 @@ func (b *Base) FormatExchangeKlineInterval(in kline.Interval) string {
 	return strconv.FormatFloat(in.Duration().Seconds(), 'f', 0, 64)
 }
 
-// ValidateKline confirms that the requested pair, asset & interval are supported and/or enabled by the requested exchange
+// ValidateKline confirms that the requested pair, asset & interval are
+// supported and/or enabled by the requested exchange.
 func (b *Base) ValidateKline(pair currency.Pair, a asset.Item, interval kline.Interval) error {
 	var errorList []string
-	var err kline.Error
 	if b.CurrencyPairs.IsAssetEnabled(a) != nil {
-		err.Asset = a
-		errorList = append(errorList, "asset not enabled")
+		errorList = append(errorList, fmt.Sprintf("[%s] asset not enabled", a))
 	} else if !b.CurrencyPairs.Pairs[a].Enabled.Contains(pair, true) {
-		err.Pair = pair
-		errorList = append(errorList, "pair not enabled")
+		errorList = append(errorList, fmt.Sprintf("[%s] pair not enabled", pair))
 	}
 
 	if !b.klineIntervalEnabled(interval) {
-		err.Interval = interval
-		errorList = append(errorList, "interval not supported")
+		errorList = append(errorList, fmt.Sprintf("[%s] interval not supported", interval))
 	}
 
 	if len(errorList) > 0 {
-		err.Err = errors.New(strings.Join(errorList, ","))
-		return &err
+		return fmt.Errorf("%w: %v", kline.ErrValidatingParams, strings.Join(errorList, ", "))
 	}
 
 	return nil

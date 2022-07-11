@@ -114,9 +114,15 @@ func (b *BTCMarkets) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: map[string]bool{
-					kline.OneMin.Word():  true,
-					kline.OneHour.Word(): true,
-					kline.OneDay.Word():  true,
+					kline.OneMin.Word():     true,
+					kline.FiveMin.Word():    true,
+					kline.FifteenMin.Word(): true,
+					kline.ThirtyMin.Word():  true,
+					kline.OneHour.Word():    true,
+					kline.SixHour.Word():    true,
+					kline.OneDay.Word():     true,
+					kline.OneWeek.Word():    true,
+					kline.OneMonth.Word():   true,
 				},
 				ResultLimit: 1000,
 			},
@@ -978,8 +984,25 @@ func (b *BTCMarkets) ValidateCredentials(ctx context.Context, assetType asset.It
 
 // FormatExchangeKlineInterval returns Interval to exchange formatted string
 func (b *BTCMarkets) FormatExchangeKlineInterval(in kline.Interval) string {
-	if in == kline.OneDay {
+	switch in {
+	case kline.OneMin:
+		return "1m"
+	case kline.FiveMin:
+		return "5m"
+	case kline.FifteenMin:
+		return "15m"
+	case kline.ThirtyMin:
+		return "30m"
+	case kline.OneHour:
+		return "1h"
+	case kline.SixHour:
+		return "6h"
+	case kline.OneDay:
 		return "1d"
+	case kline.OneWeek:
+		return "1w"
+	case kline.OneMonth:
+		return "1mo"
 	}
 	return in.Short()
 }

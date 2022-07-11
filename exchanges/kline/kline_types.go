@@ -52,6 +52,10 @@ var (
 	// ErrNotFoundAtTime returned when looking up a candle at a specific time
 	ErrNotFoundAtTime = errors.New("candle not found at time")
 
+	// ErrValidatingParams defines an error when the kline params are either not
+	// enabled or are invalid.
+	ErrValidatingParams = errors.New("kline param(s) are invalid")
+
 	// SupportedIntervals is a list of all supported intervals
 	SupportedIntervals = []Interval{
 		FifteenSecond,
@@ -130,24 +134,6 @@ type ExchangeCapabilitiesEnabled struct {
 
 // Interval type for kline Interval usage
 type Interval time.Duration
-
-// Error struct to hold kline interval errors
-type Error struct {
-	Asset    asset.Item
-	Pair     currency.Pair
-	Interval Interval
-	Err      error
-}
-
-// Error returns short interval unsupported message
-func (e *Error) Error() string {
-	return e.Err.Error()
-}
-
-// Unwrap returns interval unsupported message
-func (e *Error) Unwrap() error {
-	return e.Err
-}
 
 // IntervalRangeHolder holds the entire range of intervals
 // and the start end dates of everything
