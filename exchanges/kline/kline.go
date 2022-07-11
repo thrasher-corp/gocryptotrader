@@ -222,7 +222,7 @@ func (k *Item) SortCandlesByTimestamp(desc bool) {
 	})
 }
 
-// FormatDates converts all date to UTC time
+// FormatDates converts all dates to UTC time
 func (k *Item) FormatDates() {
 	for x := range k.Candles {
 		k.Candles[x].Time = k.Candles[x].Time.UTC()
@@ -324,13 +324,15 @@ func TotalCandlesPerInterval(start, end time.Time, interval Interval) (out float
 	return -1
 }
 
+var oneYearDurationInNano = float64(OneYear.Duration().Nanoseconds())
+
 // IntervalsPerYear helps determine the number of intervals in a year
 // used in CAGR calculation to know the amount of time of an interval in a year
 func (i *Interval) IntervalsPerYear() float64 {
 	if i.Duration() == 0 {
 		return 0
 	}
-	return float64(OneYear.Duration().Nanoseconds()) / float64(i.Duration().Nanoseconds())
+	return oneYearDurationInNano / float64(i.Duration().Nanoseconds())
 }
 
 // ConvertToNewInterval allows the scaling of candles to larger candles
@@ -557,10 +559,7 @@ func (h *IntervalRangeHolder) createDateSummaryRange(start, end time.Time, hasDa
 
 // CreateIntervalTime is a simple helper function to set the time twice
 func CreateIntervalTime(tt time.Time) IntervalTime {
-	return IntervalTime{
-		Time:  tt,
-		Ticks: tt.Unix(),
-	}
+	return IntervalTime{Time: tt, Ticks: tt.Unix()}
 }
 
 // Equal allows for easier unix comparison
