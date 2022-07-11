@@ -11,7 +11,7 @@ option go_package = "github.com/thrasher-corp/gocryptotrader/backtester/btrpc";
 message StrategySettings {
   string name = 1;
   bool use_simultaneous_signal_processing = 2;
-  bool disable_USD_tracking = 3;
+  bool disable_usd_tracking = 3;
   repeated CustomSettings custom_settings = 4;
 }
 
@@ -62,7 +62,7 @@ message CurrencySettings {
   string maximum_holdings_ratio = 11;
   bool skip_candle_volume_fitting = 12;
   bool use_exchange_order_limits = 13;
-  bool use_exchange_PNL_calculation = 14;
+  bool use_exchange_pnl_calculation = 14;
   SpotDetails spot_details = 15;
   FuturesDetails futures_details = 16;
 }
@@ -185,7 +185,7 @@ message ExecuteStrategyFromConfigRequest {
   btrpc.Config config = 1;
 }
 
-service Backtester {
+service BacktesterService {
   rpc ExecuteStrategyFromFile(ExecuteStrategyFromFileRequest) returns (ExecuteStrategyResponse) {
     option (google.api.http) = {
       get: "/v1/executestrategyfromfile"

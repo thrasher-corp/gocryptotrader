@@ -37,7 +37,7 @@ var (
 
 // GRPCServer struct
 type GRPCServer struct {
-	btrpc.BacktesterServer
+	btrpc.BacktesterServiceServer
 	*config.BacktesterConfig
 }
 
@@ -70,7 +70,7 @@ func StartRPCServer(server *GRPCServer) error {
 		grpc.UnaryInterceptor(grpcauth.UnaryServerInterceptor(server.authenticateClient)),
 	}
 	s := grpc.NewServer(opts...)
-	btrpc.RegisterBacktesterServer(s, server)
+	btrpc.RegisterBacktesterServiceServer(s, server)
 
 	go func() {
 		if err = s.Serve(lis); err != nil {
@@ -103,7 +103,7 @@ func (s *GRPCServer) StartRPCRESTProxy() error {
 			Password: s.GRPC.Password,
 		}),
 	}
-	err = btrpc.RegisterBacktesterHandlerFromEndpoint(context.Background(),
+	err = btrpc.RegisterBacktesterServiceHandlerFromEndpoint(context.Background(),
 		mux, s.GRPC.ListenAddress, opts)
 	if err != nil {
 		return fmt.Errorf("failed to register gRPC proxy. Err: %w", err)
@@ -394,7 +394,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 			SkipCandleVolumeFitting:       request.Config.CurrencySettings[i].SkipCandleVolumeFitting,
 			CanUseExchangeLimits:          request.Config.CurrencySettings[i].UseExchangeOrderLimits,
 			ShowExchangeOrderLimitWarning: request.Config.CurrencySettings[i].UseExchangeOrderLimits,
-			UseExchangePNLCalculation:     request.Config.CurrencySettings[i].UseExchange_PNLCalculation,
+			UseExchangePNLCalculation:     request.Config.CurrencySettings[i].UseExchangePnlCalculation,
 		}
 	}
 
@@ -456,7 +456,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		StrategySettings: config.StrategySettings{
 			Name:                         request.Config.StrategySettings.Name,
 			SimultaneousSignalProcessing: request.Config.StrategySettings.UseSimultaneousSignalProcessing,
-			DisableUSDTracking:           request.Config.StrategySettings.Disable_USDTracking,
+			DisableUSDTracking:           request.Config.StrategySettings.DisableUsdTracking,
 			CustomSettings:               customSettings,
 		},
 		FundingSettings: config.FundingSettings{

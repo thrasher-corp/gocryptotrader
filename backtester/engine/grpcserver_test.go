@@ -121,16 +121,16 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 				MaximumSize:  defaultConfig.CurrencySettings[i].SellSide.MaximumSize.String(),
 				MaximumTotal: defaultConfig.CurrencySettings[i].SellSide.MaximumTotal.String(),
 			},
-			MinSlippagePercent:         defaultConfig.CurrencySettings[i].MinimumSlippagePercent.String(),
-			MaxSlippagePercent:         defaultConfig.CurrencySettings[i].MaximumSlippagePercent.String(),
-			MakerFeeOverride:           makerFee,
-			TakerFeeOverride:           takerFee,
-			MaximumHoldingsRatio:       defaultConfig.CurrencySettings[i].MaximumHoldingsRatio.String(),
-			SkipCandleVolumeFitting:    defaultConfig.CurrencySettings[i].SkipCandleVolumeFitting,
-			UseExchangeOrderLimits:     defaultConfig.CurrencySettings[i].CanUseExchangeLimits,
-			UseExchange_PNLCalculation: defaultConfig.CurrencySettings[i].UseExchangePNLCalculation,
-			SpotDetails:                sd,
-			FuturesDetails:             fd,
+			MinSlippagePercent:        defaultConfig.CurrencySettings[i].MinimumSlippagePercent.String(),
+			MaxSlippagePercent:        defaultConfig.CurrencySettings[i].MaximumSlippagePercent.String(),
+			MakerFeeOverride:          makerFee,
+			TakerFeeOverride:          takerFee,
+			MaximumHoldingsRatio:      defaultConfig.CurrencySettings[i].MaximumHoldingsRatio.String(),
+			SkipCandleVolumeFitting:   defaultConfig.CurrencySettings[i].SkipCandleVolumeFitting,
+			UseExchangeOrderLimits:    defaultConfig.CurrencySettings[i].CanUseExchangeLimits,
+			UseExchangePnlCalculation: defaultConfig.CurrencySettings[i].UseExchangePNLCalculation,
+			SpotDetails:               sd,
+			FuturesDetails:            fd,
 		}
 	}
 
@@ -201,7 +201,7 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 		StrategySettings: &btrpc.StrategySettings{
 			Name:                            defaultConfig.StrategySettings.Name,
 			UseSimultaneousSignalProcessing: defaultConfig.StrategySettings.SimultaneousSignalProcessing,
-			Disable_USDTracking:             defaultConfig.StrategySettings.DisableUSDTracking,
+			DisableUsdTracking:              defaultConfig.StrategySettings.DisableUSDTracking,
 			CustomSettings:                  customSettings,
 		},
 		FundingSettings: &btrpc.FundingSettings{

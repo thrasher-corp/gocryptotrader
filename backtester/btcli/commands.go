@@ -42,7 +42,7 @@ func executeStrategyFromFile(c *cli.Context) error {
 		path = c.Args().First()
 	}
 
-	client := btrpc.NewBacktesterClient(conn)
+	client := btrpc.NewBacktesterServiceClient(conn)
 	result, err := client.ExecuteStrategyFromFile(
 		c.Context,
 		&btrpc.ExecuteStrategyFromFileRequest{
@@ -126,16 +126,16 @@ func executeStrategyFromConfig(c *cli.Context) error {
 				MaximumSize:  defaultConfig.CurrencySettings[i].SellSide.MaximumSize.String(),
 				MaximumTotal: defaultConfig.CurrencySettings[i].SellSide.MaximumTotal.String(),
 			},
-			MinSlippagePercent:         defaultConfig.CurrencySettings[i].MinimumSlippagePercent.String(),
-			MaxSlippagePercent:         defaultConfig.CurrencySettings[i].MaximumSlippagePercent.String(),
-			MakerFeeOverride:           defaultConfig.CurrencySettings[i].MakerFee.String(),
-			TakerFeeOverride:           defaultConfig.CurrencySettings[i].TakerFee.String(),
-			MaximumHoldingsRatio:       defaultConfig.CurrencySettings[i].MaximumHoldingsRatio.String(),
-			SkipCandleVolumeFitting:    defaultConfig.CurrencySettings[i].SkipCandleVolumeFitting,
-			UseExchangeOrderLimits:     defaultConfig.CurrencySettings[i].CanUseExchangeLimits,
-			UseExchange_PNLCalculation: defaultConfig.CurrencySettings[i].UseExchangePNLCalculation,
-			SpotDetails:                sd,
-			FuturesDetails:             fd,
+			MinSlippagePercent:        defaultConfig.CurrencySettings[i].MinimumSlippagePercent.String(),
+			MaxSlippagePercent:        defaultConfig.CurrencySettings[i].MaximumSlippagePercent.String(),
+			MakerFeeOverride:          defaultConfig.CurrencySettings[i].MakerFee.String(),
+			TakerFeeOverride:          defaultConfig.CurrencySettings[i].TakerFee.String(),
+			MaximumHoldingsRatio:      defaultConfig.CurrencySettings[i].MaximumHoldingsRatio.String(),
+			SkipCandleVolumeFitting:   defaultConfig.CurrencySettings[i].SkipCandleVolumeFitting,
+			UseExchangeOrderLimits:    defaultConfig.CurrencySettings[i].CanUseExchangeLimits,
+			UseExchangePnlCalculation: defaultConfig.CurrencySettings[i].UseExchangePNLCalculation,
+			SpotDetails:               sd,
+			FuturesDetails:            fd,
 		}
 	}
 
@@ -203,7 +203,7 @@ func executeStrategyFromConfig(c *cli.Context) error {
 		StrategySettings: &btrpc.StrategySettings{
 			Name:                            defaultConfig.StrategySettings.Name,
 			UseSimultaneousSignalProcessing: defaultConfig.StrategySettings.SimultaneousSignalProcessing,
-			Disable_USDTracking:             defaultConfig.StrategySettings.DisableUSDTracking,
+			DisableUsdTracking:              defaultConfig.StrategySettings.DisableUSDTracking,
 			CustomSettings:                  customSettings,
 		},
 		FundingSettings: &btrpc.FundingSettings{
@@ -235,7 +235,7 @@ func executeStrategyFromConfig(c *cli.Context) error {
 		},
 	}
 
-	client := btrpc.NewBacktesterClient(conn)
+	client := btrpc.NewBacktesterServiceClient(conn)
 	result, err := client.ExecuteStrategyFromConfig(
 		c.Context,
 		&btrpc.ExecuteStrategyFromConfigRequest{

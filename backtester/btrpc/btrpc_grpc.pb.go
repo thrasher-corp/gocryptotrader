@@ -18,122 +18,122 @@ import (
 // Requires gRPC-Go v1.32.0 or later.
 const _ = grpc.SupportPackageIsVersion7
 
-// BacktesterClient is the client API for Backtester service.
+// BacktesterServiceClient is the client API for BacktesterService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type BacktesterClient interface {
+type BacktesterServiceClient interface {
 	ExecuteStrategyFromFile(ctx context.Context, in *ExecuteStrategyFromFileRequest, opts ...grpc.CallOption) (*ExecuteStrategyResponse, error)
 	ExecuteStrategyFromConfig(ctx context.Context, in *ExecuteStrategyFromConfigRequest, opts ...grpc.CallOption) (*ExecuteStrategyResponse, error)
 }
 
-type backtesterClient struct {
+type backtesterServiceClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewBacktesterClient(cc grpc.ClientConnInterface) BacktesterClient {
-	return &backtesterClient{cc}
+func NewBacktesterServiceClient(cc grpc.ClientConnInterface) BacktesterServiceClient {
+	return &backtesterServiceClient{cc}
 }
 
-func (c *backtesterClient) ExecuteStrategyFromFile(ctx context.Context, in *ExecuteStrategyFromFileRequest, opts ...grpc.CallOption) (*ExecuteStrategyResponse, error) {
+func (c *backtesterServiceClient) ExecuteStrategyFromFile(ctx context.Context, in *ExecuteStrategyFromFileRequest, opts ...grpc.CallOption) (*ExecuteStrategyResponse, error) {
 	out := new(ExecuteStrategyResponse)
-	err := c.cc.Invoke(ctx, "/btrpc.Backtester/ExecuteStrategyFromFile", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/btrpc.BacktesterService/ExecuteStrategyFromFile", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *backtesterClient) ExecuteStrategyFromConfig(ctx context.Context, in *ExecuteStrategyFromConfigRequest, opts ...grpc.CallOption) (*ExecuteStrategyResponse, error) {
+func (c *backtesterServiceClient) ExecuteStrategyFromConfig(ctx context.Context, in *ExecuteStrategyFromConfigRequest, opts ...grpc.CallOption) (*ExecuteStrategyResponse, error) {
 	out := new(ExecuteStrategyResponse)
-	err := c.cc.Invoke(ctx, "/btrpc.Backtester/ExecuteStrategyFromConfig", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/btrpc.BacktesterService/ExecuteStrategyFromConfig", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// BacktesterServer is the server API for Backtester service.
-// All implementations must embed UnimplementedBacktesterServer
+// BacktesterServiceServer is the server API for BacktesterService service.
+// All implementations must embed UnimplementedBacktesterServiceServer
 // for forward compatibility
-type BacktesterServer interface {
+type BacktesterServiceServer interface {
 	ExecuteStrategyFromFile(context.Context, *ExecuteStrategyFromFileRequest) (*ExecuteStrategyResponse, error)
 	ExecuteStrategyFromConfig(context.Context, *ExecuteStrategyFromConfigRequest) (*ExecuteStrategyResponse, error)
-	mustEmbedUnimplementedBacktesterServer()
+	mustEmbedUnimplementedBacktesterServiceServer()
 }
 
-// UnimplementedBacktesterServer must be embedded to have forward compatible implementations.
-type UnimplementedBacktesterServer struct {
+// UnimplementedBacktesterServiceServer must be embedded to have forward compatible implementations.
+type UnimplementedBacktesterServiceServer struct {
 }
 
-func (UnimplementedBacktesterServer) ExecuteStrategyFromFile(context.Context, *ExecuteStrategyFromFileRequest) (*ExecuteStrategyResponse, error) {
+func (UnimplementedBacktesterServiceServer) ExecuteStrategyFromFile(context.Context, *ExecuteStrategyFromFileRequest) (*ExecuteStrategyResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ExecuteStrategyFromFile not implemented")
 }
-func (UnimplementedBacktesterServer) ExecuteStrategyFromConfig(context.Context, *ExecuteStrategyFromConfigRequest) (*ExecuteStrategyResponse, error) {
+func (UnimplementedBacktesterServiceServer) ExecuteStrategyFromConfig(context.Context, *ExecuteStrategyFromConfigRequest) (*ExecuteStrategyResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ExecuteStrategyFromConfig not implemented")
 }
-func (UnimplementedBacktesterServer) mustEmbedUnimplementedBacktesterServer() {}
+func (UnimplementedBacktesterServiceServer) mustEmbedUnimplementedBacktesterServiceServer() {}
 
-// UnsafeBacktesterServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to BacktesterServer will
+// UnsafeBacktesterServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to BacktesterServiceServer will
 // result in compilation errors.
-type UnsafeBacktesterServer interface {
-	mustEmbedUnimplementedBacktesterServer()
+type UnsafeBacktesterServiceServer interface {
+	mustEmbedUnimplementedBacktesterServiceServer()
 }
 
-func RegisterBacktesterServer(s grpc.ServiceRegistrar, srv BacktesterServer) {
-	s.RegisterService(&Backtester_ServiceDesc, srv)
+func RegisterBacktesterServiceServer(s grpc.ServiceRegistrar, srv BacktesterServiceServer) {
+	s.RegisterService(&BacktesterService_ServiceDesc, srv)
 }
 
-func _Backtester_ExecuteStrategyFromFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _BacktesterService_ExecuteStrategyFromFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ExecuteStrategyFromFileRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(BacktesterServer).ExecuteStrategyFromFile(ctx, in)
+		return srv.(BacktesterServiceServer).ExecuteStrategyFromFile(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/btrpc.Backtester/ExecuteStrategyFromFile",
+		FullMethod: "/btrpc.BacktesterService/ExecuteStrategyFromFile",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BacktesterServer).ExecuteStrategyFromFile(ctx, req.(*ExecuteStrategyFromFileRequest))
+		return srv.(BacktesterServiceServer).ExecuteStrategyFromFile(ctx, req.(*ExecuteStrategyFromFileRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Backtester_ExecuteStrategyFromConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _BacktesterService_ExecuteStrategyFromConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ExecuteStrategyFromConfigRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(BacktesterServer).ExecuteStrategyFromConfig(ctx, in)
+		return srv.(BacktesterServiceServer).ExecuteStrategyFromConfig(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/btrpc.Backtester/ExecuteStrategyFromConfig",
+		FullMethod: "/btrpc.BacktesterService/ExecuteStrategyFromConfig",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BacktesterServer).ExecuteStrategyFromConfig(ctx, req.(*ExecuteStrategyFromConfigRequest))
+		return srv.(BacktesterServiceServer).ExecuteStrategyFromConfig(ctx, req.(*ExecuteStrategyFromConfigRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// Backtester_ServiceDesc is the grpc.ServiceDesc for Backtester service.
+// BacktesterService_ServiceDesc is the grpc.ServiceDesc for BacktesterService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var Backtester_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "btrpc.Backtester",
-	HandlerType: (*BacktesterServer)(nil),
+var BacktesterService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "btrpc.BacktesterService",
+	HandlerType: (*BacktesterServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "ExecuteStrategyFromFile",
-			Handler:    _Backtester_ExecuteStrategyFromFile_Handler,
+			Handler:    _BacktesterService_ExecuteStrategyFromFile_Handler,
 		},
 		{
 			MethodName: "ExecuteStrategyFromConfig",
-			Handler:    _Backtester_ExecuteStrategyFromConfig_Handler,
+			Handler:    _BacktesterService_ExecuteStrategyFromConfig_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

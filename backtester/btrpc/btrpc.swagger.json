@@ -6,7 +6,7 @@
   },
   "tags": [
     {
-      "name": "Backtester"
+      "name": "BacktesterService"
     }
   ],
   "consumes": [
@@ -18,7 +18,7 @@
   "paths": {
     "/v1/executestrategyfromconfig": {
       "get": {
-        "operationId": "Backtester_ExecuteStrategyFromConfig",
+        "operationId": "BacktesterService_ExecuteStrategyFromConfig",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -59,7 +59,7 @@
             "type": "boolean"
           },
           {
-            "name": "config.strategySettings.disableUSDTracking",
+            "name": "config.strategySettings.disableUsdTracking",
             "in": "query",
             "required": false,
             "type": "boolean"
@@ -294,13 +294,13 @@
           }
         ],
         "tags": [
-          "Backtester"
+          "BacktesterService"
         ]
       }
     },
     "/v1/executestrategyfromfile": {
       "get": {
-        "operationId": "Backtester_ExecuteStrategyFromFile",
+        "operationId": "BacktesterService_ExecuteStrategyFromFile",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -324,7 +324,7 @@
           }
         ],
         "tags": [
-          "Backtester"
+          "BacktesterService"
         ]
       }
     }
@@ -428,7 +428,7 @@
         "useExchangeOrderLimits": {
           "type": "boolean"
         },
-        "useExchangePNLCalculation": {
+        "useExchangePnlCalculation": {
           "type": "boolean"
         },
         "spotDetails": {
@@ -686,7 +686,7 @@
         "useSimultaneousSignalProcessing": {
           "type": "boolean"
         },
-        "disableUSDTracking": {
+        "disableUsdTracking": {
           "type": "boolean"
         },
         "customSettings": {
