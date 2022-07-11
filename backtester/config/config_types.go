@@ -5,7 +5,10 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
 // Errors for config validation
@@ -14,7 +17,6 @@ var (
 	errNoCurrencySettings               = errors.New("no currency settings set in the config")
 	errBadInitialFunds                  = errors.New("initial funds set with invalid data, please check your config")
 	errUnsetExchange                    = errors.New("exchange name unset for currency settings, please check your config")
-	errUnsetAsset                       = errors.New("asset unset for currency settings, please check your config")
 	errUnsetCurrency                    = errors.New("currency unset for currency settings, please check your config")
 	errBadSlippageRates                 = errors.New("invalid slippage rates in currency settings, please check your config")
 	errStartEndUnset                    = errors.New("data start and end dates are invalid, please check your config")
@@ -24,6 +26,8 @@ var (
 	errSizeLessThanZero                 = errors.New("size less than zero")
 	errMaxSizeMinSizeMismatch           = errors.New("maximum size must be greater to minimum size")
 	errMinMaxEqual                      = errors.New("minimum and maximum limits cannot be equal")
+	errPerpetualsUnsupported            = errors.New("perpetual futures not yet supported")
+	errFeatureIncompatible              = errors.New("feature is not compatible")
 )
 
 // Config defines what is in an individual strategy config
@@ -31,6 +35,7 @@ type Config struct {
 	Nickname          string             `json:"nickname"`
 	Goal              string             `json:"goal"`
 	StrategySettings  StrategySettings   `json:"strategy-settings"`
+	FundingSettings   FundingSettings    `json:"funding-settings"`
 	CurrencySettings  []CurrencySettings `json:"currency-settings"`
 	DataSettings      DataSettings       `json:"data-settings"`
 	PortfolioSettings PortfolioSettings  `json:"portfolio-settings"`
@@ -40,22 +45,27 @@ type Config struct {
 // DataSettings is a container for each type of data retrieval setting.
 // Only ONE can be populated per config
 type DataSettings struct {
-	Interval     time.Duration `json:"interval"`
-	DataType     string        `json:"data-type"`
-	APIData      *APIData      `json:"api-data,omitempty"`
-	DatabaseData *DatabaseData `json:"database-data,omitempty"`
-	LiveData     *LiveData     `json:"live-data,omitempty"`
-	CSVData      *CSVData      `json:"csv-data,omitempty"`
+	Interval     kline.Interval `json:"interval"`
+	DataType     string         `json:"data-type"`
+	APIData      *APIData       `json:"api-data,omitempty"`
+	DatabaseData *DatabaseData  `json:"database-data,omitempty"`
+	LiveData     *LiveData      `json:"live-data,omitempty"`
+	CSVData      *CSVData       `json:"csv-data,omitempty"`
+}
+
+// FundingSettings contains funding details for individual currencies
+type FundingSettings struct {
+	UseExchangeLevelFunding bool                   `json:"use-exchange-level-funding"`
+	ExchangeLevelFunding    []ExchangeLevelFunding `json:"exchange-level-funding,omitempty"`
 }
 
 // StrategySettings contains what strategy to load, along with custom settings map
 // (variables defined per strategy)
 // along with defining whether the strategy will assess all currencies at once, or individually
 type StrategySettings struct {
-	Name                         string                 `json:"name"`
-	SimultaneousSignalProcessing bool                   `json:"use-simultaneous-signal-processing"`
-	UseExchangeLevelFunding      bool                   `json:"use-exchange-level-funding"`
-	ExchangeLevelFunding         []ExchangeLevelFunding `json:"exchange-level-funding,omitempty"`
+	Name                         string `json:"name"`
+	SimultaneousSignalProcessing bool   `json:"use-simultaneous-signal-processing"`
+
 	// If true, won't track USD values against currency pair
 	// bool language is opposite to encourage use by default
 	DisableUSDTracking bool                   `json:"disable-usd-tracking"`
@@ -71,8 +81,8 @@ type StrategySettings struct {
 // will have dibs
 type ExchangeLevelFunding struct {
 	ExchangeName string          `json:"exchange-name"`
-	Asset        string          `json:"asset"`
-	Currency     string          `json:"currency"`
+	Asset        asset.Item      `json:"asset"`
+	Currency     currency.Code   `json:"currency"`
 	InitialFunds decimal.Decimal `json:"initial-funds"`
 	TransferFee  decimal.Decimal `json:"transfer-fee"`
 }
@@ -97,7 +107,12 @@ type PortfolioSettings struct {
 type Leverage struct {
 	CanUseLeverage                 bool            `json:"can-use-leverage"`
 	MaximumOrdersWithLeverageRatio decimal.Decimal `json:"maximum-orders-with-leverage-ratio"`
-	MaximumLeverageRate            decimal.Decimal `json:"maximum-leverage-rate"`
+	// MaximumOrderLeverageRate allows for orders to be placed with higher leverage rate. eg have $100 in collateral,
+	// but place an order for $200 using 2x leverage
+	MaximumOrderLeverageRate decimal.Decimal `json:"maximum-leverage-rate"`
+	// MaximumCollateralLeverageRate allows for orders to be placed at `1x leverage, but utilise collateral as leverage to place more.
+	// eg if this is 2x, and collateral is $100 I can place two long/shorts of $100
+	MaximumCollateralLeverageRate decimal.Decimal `json:"maximum-collateral-leverage-rate"`
 }
 
 // MinMax are the rules which limit the placement of orders.
@@ -112,32 +127,45 @@ type MinMax struct {
 // you wish to trade with
 // Backtester will load the data of the currencies specified here
 type CurrencySettings struct {
-	ExchangeName string `json:"exchange-name"`
-	Asset        string `json:"asset"`
-	Base         string `json:"base"`
-	Quote        string `json:"quote"`
+	ExchangeName string        `json:"exchange-name"`
+	Asset        asset.Item    `json:"asset"`
+	Base         currency.Code `json:"base"`
+	Quote        currency.Code `json:"quote"`
 	// USDTrackingPair is used for price tracking data only
 	USDTrackingPair bool `json:"-"`
 
-	InitialBaseFunds   *decimal.Decimal `json:"initial-base-funds,omitempty"`
-	InitialQuoteFunds  *decimal.Decimal `json:"initial-quote-funds,omitempty"`
-	InitialLegacyFunds float64          `json:"initial-funds,omitempty"`
+	SpotDetails    *SpotDetails    `json:"spot-details,omitempty"`
+	FuturesDetails *FuturesDetails `json:"futures-details,omitempty"`
 
-	Leverage Leverage `json:"leverage"`
-	BuySide  MinMax   `json:"buy-side"`
-	SellSide MinMax   `json:"sell-side"`
+	BuySide  MinMax `json:"buy-side"`
+	SellSide MinMax `json:"sell-side"`
 
 	MinimumSlippagePercent decimal.Decimal `json:"min-slippage-percent"`
 	MaximumSlippagePercent decimal.Decimal `json:"max-slippage-percent"`
 
-	MakerFee decimal.Decimal `json:"maker-fee-override"`
-	TakerFee decimal.Decimal `json:"taker-fee-override"`
+	UsingExchangeMakerFee bool             `json:"-"`
+	MakerFee              *decimal.Decimal `json:"maker-fee-override,omitempty"`
+	UsingExchangeTakerFee bool             `json:"-"`
+	TakerFee              *decimal.Decimal `json:"taker-fee-override,omitempty"`
 
-	MaximumHoldingsRatio decimal.Decimal `json:"maximum-holdings-ratio"`
+	MaximumHoldingsRatio    decimal.Decimal `json:"maximum-holdings-ratio"`
+	SkipCandleVolumeFitting bool            `json:"skip-candle-volume-fitting"`
 
 	CanUseExchangeLimits          bool `json:"use-exchange-order-limits"`
-	SkipCandleVolumeFitting       bool `json:"skip-candle-volume-fitting"`
 	ShowExchangeOrderLimitWarning bool `json:"-"`
+	UseExchangePNLCalculation     bool `json:"use-exchange-pnl-calculation"`
+}
+
+// SpotDetails contains funding information that cannot be shared with another
+// pair during the backtesting run. Use exchange level funding to share funds
+type SpotDetails struct {
+	InitialBaseFunds  *decimal.Decimal `json:"initial-base-funds,omitempty"`
+	InitialQuoteFunds *decimal.Decimal `json:"initial-quote-funds,omitempty"`
+}
+
+// FuturesDetails contains data relevant to futures currency pairs
+type FuturesDetails struct {
+	Leverage Leverage `json:"leverage"`
 }
 
 // APIData defines all fields to configure API based data

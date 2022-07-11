@@ -44,9 +44,9 @@ See below for a set of tables and fields, expected values and what they can do
 | Goal | A description of what you would hope the outcome to be. When verifying output, you can review and confirm whether the strategy met that goal  |
 | CurrencySettings | Currency settings is an array of settings for each individual currency you wish to run the strategy against |
 | StrategySettings | Select which strategy to run, what custom settings to load and whether the strategy can assess multiple currencies at once to make more in-depth decisions |
+| FundingSettings | Defines whether individual funding settings can be used. Defines the funding exchange, asset, currencies at an individual level |
 | PortfolioSettings | Contains a list of global rules for the portfolio manager. CurrencySettings contain their own rules on things like how big a position is allowable, the portfolio manager rules are the same, but override any individual currency's settings |
 | StatisticSettings | Contains settings that impact statistics calculation. Such as the risk-free rate for the sharpe ratio |
-| GoCryptoTraderConfigPath | The filepath for the location of GoCryptoTrader's config path. The Backtester utilises settings from GoCryptoTrader. If unset, will utilise the default filepath via `config.DefaultFilePath`, implemented [here](/config/config.go#L1460) |
 
 
 #### Strategy Settings
@@ -56,11 +56,18 @@ See below for a set of tables and fields, expected values and what they can do
 | Name | The strategy to use | `rsi` |
 | UsesSimultaneousProcessing | This denotes whether multiple currencies are processed simultaneously with the strategy function `OnSimultaneousSignals`. Eg If you have multiple CurrencySettings and only wish to purchase BTC-USDT when XRP-DOGE is 1337, this setting is useful as you can analyse both signal events to output a purchase call for BTC | `true` |
 | CustomSettings | This is a map where you can enter custom settings for a strategy. The RSI strategy allows for customisation of the upper, lower and length variables to allow you to change them from 70, 30 and 14 respectively to 69, 36, 12 | `"custom-settings": { "rsi-high": 70, "rsi-low": 30, "rsi-period": 14 } ` |
-| UseExchangeLevelFunding | Allows shared funding at an exchange asset level. You can set funding for `USDT` and all pairs that feature `USDT` will have access to those funds when making orders. See [this](/backtester/funding/README.md) for more information | `false` |
-| ExchangeLevelFunding | An array of exchange level funding settings.  See below, or [this](/backtester/funding/README.md) for more information | `[]` |
 | DisableUSDTracking | If `false`, will track all currencies used in your strategy against USD equivalent candles. For example, if you are running a strategy for BTC/XRP, then the GoCryptoTrader Backtester will also retreive candles data for BTC/USD and XRP/USD to then track strategy performance against a single currency. This also tracks against USDT and other USD tracked stablecoins, so one exchange supporting USDT and another BUSD will still allow unified strategy performance analysis. If disabled, will not track against USD, this can be especially helpful when running strategies under live, database and CSV based data  | `false` |
 
-##### Funding Config Settings
+
+#### Funding Config Settings
+
+| Key | Description | Example |
+| --- | ------- | --- |
+| UseExchangeLevelFunding | Allows shared funding at an exchange asset level. You can set funding for `USDT` and all pairs that feature `USDT` will have access to those funds when making orders. See [this](/backtester/funding/README.md) for more information | `false` |
+| ExchangeLevelFunding | An array of exchange level funding settings.  See below, or [this](/backtester/funding/README.md) for more information | `[]` |
+
+
+##### Funding Item Config Settings
 
 | Key | Description | Example |
 | --- | ------- | ----- |
@@ -80,18 +87,30 @@ See below for a set of tables and fields, expected values and what they can do
 | Base | The base of a currency | `BTC` |
 | Quote | The quote of a currency | `USDT` |
 | InitialFunds | A legacy field, will be temporarily migrated to `InitialQuoteFunds` if present in your strat config | `` |
-| InitialBaseFunds | The funds that the GoCryptoTraderBacktester has for the base currency. This is only required if the strategy setting `UseExchangeLevelFunding` is `false` | `2` |
-| InitialQuoteFunds | The funds that the GoCryptoTraderBacktester has for the quote currency. This is only required if the strategy setting `UseExchangeLevelFunding` is `false` | `10000` |
-| Leverage | This struct defines the leverage rules that this specific currency setting must abide by | `1` |
 | BuySide | This struct defines the buying side rules this specific currency setting must abide by such as maximum purchase amount | - |
 | SellSide | This struct defines the selling side rules this specific currency setting must abide by such as maximum selling amount | - |
 | MinimumSlippagePercent | Is the lower bounds in a random number generated that make purchases more expensive, or sell events less valuable. If this value is 90, then the most a price can be affected is 10% | `90` |
 | MaximumSlippagePercent | Is the upper bounds in a random number generated that make purchases more expensive, or sell events less valuable. If this value is 99, then the least a price can be affected is 1%. Set both upper and lower to 100 to have no randomness applied to purchase events | `100` |
-| MakerFee | The fee to use when sizing and purchasing currency | `0.001` |
-| TakerFee | Unused fee for when an order is placed in the orderbook, rather than taken from the orderbook | `0.002` |
+| MakerFee | The fee to use when sizing and purchasing currency. If `nil`, will lookup an exchange's fee details | `0.001` |
+| TakerFee | Unused fee for when an order is placed in the orderbook, rather than taken from the orderbook. If `nil`, will lookup an exchange's fee details | `0.002` |
 | MaximumHoldingsRatio | When multiple currency settings are used, you may set a maximum holdings ratio to prevent having too large a stake in a single currency | `0.5` |
 | CanUseExchangeLimits | Will lookup exchange rules around purchase sizing eg minimum order increments of 0.0005. Note: Will retrieve up-to-date rules which may not have existed for the data you are using. Best to use this when considering to use this strategy live | `false` |
 | SkipCandleVolumeFitting | When placing orders, by default the BackTester will shrink an order's size to fit the candle data's volume so as to not rewrite history. Set this to `true` to ignore this and to set order size at what the portfolio manager prescribes | `false` |
+| SpotSettings | An optional field which contains initial funding data for SPOT currency pairs | See SpotSettings table below |
+| FuturesSettings | An optional field which contains leverage data for FUTURES currency pairs | See FuturesSettings table below |
+
+##### SpotSettings
+
+| Key | Description | Example |
+| --- | ------- | ----- |
+| InitialBaseFunds | The funds that the GoCryptoTraderBacktester has for the base currency. This is only required if the strategy setting `UseExchangeLevelFunding` is `false` | `2` |
+| InitialQuoteFunds | The funds that the GoCryptoTraderBacktester has for the quote currency. This is only required if the strategy setting `UseExchangeLevelFunding` is `false` | `10000` |
+
+##### FuturesSettings
+
+| Key | Description | Example |
+| --- | ------- | ----- |
+| Leverage | This struct defines the leverage rules that this specific currency setting must abide by | `1` |
 
 #### PortfolioSettings
 

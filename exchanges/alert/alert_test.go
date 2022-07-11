@@ -1,6 +1,7 @@
 package alert
 
 import (
+	"errors"
 	"log"
 	"sync"
 	"testing"
@@ -88,5 +89,57 @@ func isLeaky(t *testing.T, a *Notice, ch chan struct{}) {
 	case <-check:
 		t.Fatal("leaky waiter")
 	default:
+	}
+}
+
+// 120801772	         9.334 ns/op	       0 B/op	       0 allocs/op // PREV
+// 146173060	         9.154 ns/op	       0 B/op	       0 allocs/op // CURRENT
+func BenchmarkAlert(b *testing.B) {
+	n := Notice{}
+	for x := 0; x < b.N; x++ {
+		n.Alert()
+	}
+}
+
+//   150352	      9916 ns/op	     681 B/op	       4 allocs/op // PREV
+//    87436	     14724 ns/op	     682 B/op	       4 allocs/op // CURRENT
+func BenchmarkWait(b *testing.B) {
+	n := Notice{}
+	for x := 0; x < b.N; x++ {
+		n.Wait(nil)
+	}
+}
+
+// getSize checks the buffer size for testing purposes
+func getSize() int {
+	mu.RLock()
+	defer mu.RUnlock()
+	return preAllocBufferSize
+}
+
+func TestSetPreAllocationCommsBuffer(t *testing.T) {
+	t.Parallel()
+	err := SetPreAllocationCommsBuffer(-1)
+	if !errors.Is(err, errInvalidBufferSize) {
+		t.Fatalf("received: '%v' but expected '%v'", err, errInvalidBufferSize)
+	}
+
+	if getSize() != 5 {
+		t.Fatal("unexpected amount")
+	}
+
+	err = SetPreAllocationCommsBuffer(7)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected '%v'", err, nil)
+	}
+
+	if getSize() != 7 {
+		t.Fatal("unexpected amount")
+	}
+
+	SetDefaultPreAllocationCommsBuffer()
+
+	if getSize() != PreAllocCommsDefaultBuffer {
+		t.Fatal("unexpected amount")
 	}
 }

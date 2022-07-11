@@ -43,14 +43,17 @@ An event-driven backtesting tool to test and iterate trading strategies using hi
 - Compliance manager to keep snapshots of every transaction and their changes at every interval
 - Exchange level funding allows funding to be shared across multiple currency pairs and to allow for complex strategy design
 - Fund transfer. At a strategy level, transfer funds between exchanges to allow for complex strategy design
+- Backtesting support for futures asset types
+- Example cash and carry spot futures strategy
 
 ## Planned Features
 We welcome pull requests on any feature for the Backtester! We will be especially appreciative of any contribution towards the following planned features:
 
 | Feature | Description |
 |---------|-------------|
-| Add backtesting support for futures asset types | Spot trading is currently the only supported asset type. Futures trading greatly expands the Backtester's potential |
-| Example futures pairs trading strategy | Providing a basic example will allow for esteemed traders to build and customise their own |
+| Long-running application | Transform the Backtester to run a GRPC server, where commands can be sent to run Backtesting operations. Allowing for many strategies to be run, analysed and tweaked in a more efficient manner |
+| Leverage support | Leverage is a good way to enhance profit and loss and is important to include in strategies |
+| Enhance config-builder | Create an application that can create strategy configs in a more visual manner and execute them via GRPC to allow for faster customisation of strategies |
 | Save Backtester results to database | This will allow for easier comparison of results over time |
 | Backtester result comparison report | Providing an executive summary of Backtester database results |
 | Currency correlation | Compare multiple exchange, asset, currencies for a candle interval against indicators to highlight correlated pairs for use in pairs trading |

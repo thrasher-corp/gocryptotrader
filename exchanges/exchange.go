@@ -988,26 +988,22 @@ func (b *Base) FormatExchangeKlineInterval(in kline.Interval) string {
 	return strconv.FormatFloat(in.Duration().Seconds(), 'f', 0, 64)
 }
 
-// ValidateKline confirms that the requested pair, asset & interval are supported and/or enabled by the requested exchange
+// ValidateKline confirms that the requested pair, asset & interval are
+// supported and/or enabled by the requested exchange.
 func (b *Base) ValidateKline(pair currency.Pair, a asset.Item, interval kline.Interval) error {
 	var errorList []string
-	var err kline.Error
 	if b.CurrencyPairs.IsAssetEnabled(a) != nil {
-		err.Asset = a
-		errorList = append(errorList, "asset not enabled")
+		errorList = append(errorList, fmt.Sprintf("[%s] asset not enabled", a))
 	} else if !b.CurrencyPairs.Pairs[a].Enabled.Contains(pair, true) {
-		err.Pair = pair
-		errorList = append(errorList, "pair not enabled")
+		errorList = append(errorList, fmt.Sprintf("[%s] pair not enabled", pair))
 	}
 
 	if !b.klineIntervalEnabled(interval) {
-		err.Interval = interval
-		errorList = append(errorList, "interval not supported")
+		errorList = append(errorList, fmt.Sprintf("[%s] interval not supported", interval))
 	}
 
 	if len(errorList) > 0 {
-		err.Err = errors.New(strings.Join(errorList, ","))
-		return &err
+		return fmt.Errorf("%w: %v", kline.ErrValidatingParams, strings.Join(errorList, ", "))
 	}
 
 	return nil
@@ -1282,7 +1278,7 @@ func (b *Base) GetAvailableTransferChains(_ context.Context, _ currency.Code) ([
 // CalculatePNL is an overridable function to allow PNL to be calculated on an
 // open position
 // It will also determine whether the position is considered to be liquidated
-// For live trading, an overrided function may wish to confirm the liquidation by
+// For live trading, an overriding function may wish to confirm the liquidation by
 // requesting the status of the asset
 func (b *Base) CalculatePNL(context.Context, *order.PNLCalculatorRequest) (*order.PNLResult, error) {
 	return nil, common.ErrNotYetImplemented
@@ -1303,6 +1299,18 @@ func (b *Base) CalculateTotalCollateral(ctx context.Context, calculator *order.T
 // GetFuturesPositions returns futures positions according to the provided parameters
 func (b *Base) GetFuturesPositions(context.Context, asset.Item, currency.Pair, time.Time, time.Time) ([]order.Detail, error) {
 	return nil, common.ErrNotYetImplemented
+}
+
+// GetCollateralCurrencyForContract returns the collateral currency for an asset and contract pair
+func (b *Base) GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error) {
+	return currency.Code{}, asset.Empty, common.ErrNotYetImplemented
+}
+
+// GetCurrencyForRealisedPNL returns where to put realised PNL
+// example 1: FTX PNL is paid out in USD to your spot wallet
+// example 2: Binance coin margined futures pays returns using the same currency eg BTC
+func (b *Base) GetCurrencyForRealisedPNL(_ asset.Item, _ currency.Pair) (currency.Code, asset.Item, error) {
+	return currency.Code{}, asset.Empty, common.ErrNotYetImplemented
 }
 
 // HasAssetTypeAccountSegregation returns if the accounts are divided into asset

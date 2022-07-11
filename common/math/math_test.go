@@ -36,7 +36,7 @@ func TestCalculatePercentageGainOrLoss(t *testing.T) {
 	actualResult := CalculatePercentageGainOrLoss(originalInput, secondInput)
 	if expectedOutput != actualResult {
 		t.Errorf(
-			"Expected '%f'. Actual '%f'.", expectedOutput, actualResult)
+			"Expected '%v'. Actual '%v'.", expectedOutput, actualResult)
 	}
 }
 
@@ -771,7 +771,7 @@ func TestDecimalGeometricAverage(t *testing.T) {
 	if !errors.Is(err, errGeometricNegative) {
 		t.Error(err)
 	}
-	if !mean.Equal(decimal.Zero) {
+	if !mean.IsZero() {
 		t.Errorf("expected %v, received %v", 0, mean)
 	}
 }
@@ -828,7 +828,7 @@ func TestDecimalFinancialGeometricAverage(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if !mean.Equal(decimal.Zero) {
+	if !mean.IsZero() {
 		t.Errorf("expected %v, received %v", 0, mean)
 	}
 

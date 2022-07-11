@@ -37,7 +37,7 @@ const (
 var (
 	h               HUOBI
 	wsSetupRan      bool
-	futuresTestPair = currency.NewPair(currency.BTC, currency.NewCode("NQ"))
+	futuresTestPair = currency.NewPair(currency.BTC, currency.NewCode("CW")) // represents this week - NQ (next quarter) is erroring out.
 )
 
 func TestMain(m *testing.M) {
@@ -138,7 +138,7 @@ func TestFIndexPriceInfo(t *testing.T) {
 func TestFContractPriceLimitations(t *testing.T) {
 	t.Parallel()
 	_, err := h.FContractPriceLimitations(context.Background(),
-		"BTC", "next_quarter", currency.EMPTYPAIR)
+		"BTC", "this_week", currency.EMPTYPAIR)
 	if err != nil {
 		t.Error(err)
 	}
@@ -147,7 +147,7 @@ func TestFContractPriceLimitations(t *testing.T) {
 func TestFContractOpenInterest(t *testing.T) {
 	t.Parallel()
 	_, err := h.FContractOpenInterest(context.Background(),
-		"BTC", "next_quarter", currency.EMPTYPAIR)
+		"BTC", "this_week", currency.EMPTYPAIR)
 	if err != nil {
 		t.Error(err)
 	}
@@ -231,7 +231,7 @@ func TestFQueryTieredAdjustmentFactor(t *testing.T) {
 func TestFQueryHisOpenInterest(t *testing.T) {
 	t.Parallel()
 	_, err := h.FQueryHisOpenInterest(context.Background(),
-		"BTC", "next_quarter", "60min", "cont", 3)
+		"BTC", "this_week", "60min", "cont", 3)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2732,8 +2732,8 @@ func TestFormatFuturesPair(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r != "BTC_NQ" {
-		t.Errorf("expected BTC_NQ, got %s", r)
+	if r != "BTC_CW" {
+		t.Errorf("expected BTC_CW, got %s", r)
 	}
 	availInstruments, err := h.FetchTradablePairs(context.Background(), asset.Futures)
 	if err != nil {
