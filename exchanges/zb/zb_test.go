@@ -989,7 +989,7 @@ func TestValidateCandlesRequest(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = z.validateCandlesRequest(currency.EMPTYPAIR, asset.Spot, time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC), time.Date(2020, 1, 1, 1, 1, 1, 3, time.UTC), kline.OneHour)
-	if err != nil && err.Error() != "pair not enabled" {
+	if !errors.Is(err, kline.ErrValidatingParams) {
 		t.Error(err)
 	}
 	var p currency.Pair

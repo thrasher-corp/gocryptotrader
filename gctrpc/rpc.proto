@@ -1119,6 +1119,33 @@ message ShutdownRequest {}
 
 message ShutdownResponse {}
 
+message GetTechnicalAnalysisRequest {
+  string exchange = 1;
+  CurrencyPair pair = 2;
+  string asset_type = 3;
+  string algorithm_type = 4;
+  int64 interval = 5;
+  google.protobuf.Timestamp start = 6;
+  google.protobuf.Timestamp end = 7;
+  int64 period = 8;
+  int64 fast_period = 9;
+  int64 slow_period = 10;
+  double standard_deviation_up = 11;
+  double standard_deviation_down = 12;
+  int64 moving_average_type = 13;
+  string other_exchange = 14;
+  CurrencyPair other_pair = 15;
+  string other_asset_type = 16;
+}
+
+message ListOfSignals {
+  repeated double signals = 1;
+}
+
+message GetTechnicalAnalysisResponse {
+  map<string, ListOfSignals> signals = 1;
+}
+
 service GoCryptoTraderService {
   rpc GetInfo(GetInfoRequest) returns (GetInfoResponse) {
     option (google.api.http) = {
@@ -1720,6 +1747,11 @@ service GoCryptoTraderService {
   rpc Shutdown(ShutdownRequest) returns (ShutdownResponse) {
     option (google.api.http) = {
       get: "/v1/shutdown"
+    };
+  }
+  rpc GetTechnicalAnalysis(GetTechnicalAnalysisRequest) returns (GetTechnicalAnalysisResponse) {
+    option (google.api.http) = {
+      get: "/v1/gettechnicalanalysis"
     };
   }
 }

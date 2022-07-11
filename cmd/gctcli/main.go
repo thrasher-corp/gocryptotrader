@@ -29,6 +29,7 @@ var (
 	certPath      string
 	timeout       time.Duration
 	exchangeCreds exchange.Credentials
+	verbose       bool
 )
 
 const defaultTimeout = time.Second * 30
@@ -59,6 +60,9 @@ func setupClient(c *cli.Context) (*grpc.ClientConn, context.CancelFunc, error) {
 	if !exchangeCreds.IsEmpty() {
 		flag, values := exchangeCreds.GetMetaData()
 		c.Context = metadata.AppendToOutgoingContext(c.Context, flag, values)
+	}
+	if verbose {
+		c.Context = metadata.AppendToOutgoingContext(c.Context, "verbose", "true")
 	}
 	conn, err := grpc.DialContext(c.Context, host, opts...)
 	return conn, cancel, err
@@ -137,6 +141,11 @@ func main() {
 			Usage:       "override config API One Time Password (OTP) for request",
 			Destination: &exchangeCreds.OneTimePassword,
 		},
+		&cli.BoolFlag{
+			Name:        "verbose",
+			Usage:       "allows the request to generate a more verbose outputs server side",
+			Destination: &verbose,
+		},
 	}
 	app.Commands = []*cli.Command{
 		getInfoCommand,
@@ -203,6 +212,7 @@ func main() {
 		getFuturesPositionsCommand,
 		getCollateralCommand,
 		shutdownCommand,
+		technicalAnalysisCommand,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
