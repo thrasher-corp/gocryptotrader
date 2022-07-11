@@ -42,7 +42,7 @@ jobs:
 
       - uses: bufbuild/buf-lint-action@v1
         with:
-          input: btrpc
+          input: ./backtester/btrpc
 
       - name: buf format backtester
         run: buf format --diff --exit-code
