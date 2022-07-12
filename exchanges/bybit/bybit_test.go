@@ -2516,10 +2516,10 @@ func TestSubmitOrder(t *testing.T) {
 		Price:     10000,
 		Amount:    1,
 		ClientID:  "newOrder",
-		AssetType: asset.Futures,
+		AssetType: asset.USDCMarginedFutures,
 	}
 	_, err = b.SubmitOrder(context.Background(), oUSDC)
-	if err != nil {
+	if err != nil && err.Error() != "margin account not exist" {
 		t.Error(err)
 	}
 }
