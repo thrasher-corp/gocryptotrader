@@ -120,6 +120,7 @@ type GoCryptoTraderServiceClient interface {
 	GetCollateral(ctx context.Context, in *GetCollateralRequest, opts ...grpc.CallOption) (*GetCollateralResponse, error)
 	Shutdown(ctx context.Context, in *ShutdownRequest, opts ...grpc.CallOption) (*ShutdownResponse, error)
 	GetTechnicalAnalysis(ctx context.Context, in *GetTechnicalAnalysisRequest, opts ...grpc.CallOption) (*GetTechnicalAnalysisResponse, error)
+	GetMarginRatesHistory(ctx context.Context, in *GetMarginRatesHistoryRequest, opts ...grpc.CallOption) (*GetMarginRatesHistoryResponse, error)
 }
 
 type goCryptoTraderServiceClient struct {
@@ -1150,6 +1151,15 @@ func (c *goCryptoTraderServiceClient) GetTechnicalAnalysis(ctx context.Context, 
 	return out, nil
 }
 
+func (c *goCryptoTraderServiceClient) GetMarginRatesHistory(ctx context.Context, in *GetMarginRatesHistoryRequest, opts ...grpc.CallOption) (*GetMarginRatesHistoryResponse, error) {
+	out := new(GetMarginRatesHistoryResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTraderService/GetMarginRatesHistory", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GoCryptoTraderServiceServer is the server API for GoCryptoTraderService service.
 // All implementations must embed UnimplementedGoCryptoTraderServiceServer
 // for forward compatibility
@@ -1252,6 +1262,7 @@ type GoCryptoTraderServiceServer interface {
 	GetCollateral(context.Context, *GetCollateralRequest) (*GetCollateralResponse, error)
 	Shutdown(context.Context, *ShutdownRequest) (*ShutdownResponse, error)
 	GetTechnicalAnalysis(context.Context, *GetTechnicalAnalysisRequest) (*GetTechnicalAnalysisResponse, error)
+	GetMarginRatesHistory(context.Context, *GetMarginRatesHistoryRequest) (*GetMarginRatesHistoryResponse, error)
 	mustEmbedUnimplementedGoCryptoTraderServiceServer()
 }
 
@@ -1552,6 +1563,9 @@ func (UnimplementedGoCryptoTraderServiceServer) Shutdown(context.Context, *Shutd
 }
 func (UnimplementedGoCryptoTraderServiceServer) GetTechnicalAnalysis(context.Context, *GetTechnicalAnalysisRequest) (*GetTechnicalAnalysisResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTechnicalAnalysis not implemented")
+}
+func (UnimplementedGoCryptoTraderServiceServer) GetMarginRatesHistory(context.Context, *GetMarginRatesHistoryRequest) (*GetMarginRatesHistoryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetMarginRatesHistory not implemented")
 }
 func (UnimplementedGoCryptoTraderServiceServer) mustEmbedUnimplementedGoCryptoTraderServiceServer() {}
 
@@ -3348,6 +3362,24 @@ func _GoCryptoTraderService_GetTechnicalAnalysis_Handler(srv interface{}, ctx co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GoCryptoTraderService_GetMarginRatesHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetMarginRatesHistoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServiceServer).GetMarginRatesHistory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTraderService/GetMarginRatesHistory",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServiceServer).GetMarginRatesHistory(ctx, req.(*GetMarginRatesHistoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // GoCryptoTraderService_ServiceDesc is the grpc.ServiceDesc for GoCryptoTraderService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -3722,6 +3754,10 @@ var GoCryptoTraderService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetTechnicalAnalysis",
 			Handler:    _GoCryptoTraderService_GetTechnicalAnalysis_Handler,
+		},
+		{
+			MethodName: "GetMarginRatesHistory",
+			Handler:    _GoCryptoTraderService_GetMarginRatesHistory_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

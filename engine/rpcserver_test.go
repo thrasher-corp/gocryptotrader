@@ -30,6 +30,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -96,6 +97,37 @@ func (f fExchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pa
 		Interval: interval,
 		Candles:  generateCandles(33, timeStart, interval),
 	}, nil
+}
+
+func (f fExchange) GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
+	leet := decimal.NewFromInt(1337)
+	rates := []margin.Rate{
+		{
+			Time:             time.Now(),
+			MarketBorrowSize: leet,
+			HourlyRate:       leet,
+			HourlyBorrowRate: leet,
+			LendingPayment: margin.LendingPayment{
+				Payment: leet,
+				Size:    leet,
+			},
+			BorrowCost: margin.BorrowCost{
+				Cost: leet,
+				Size: leet,
+			},
+		},
+	}
+	resp := &margin.RateHistoryResponse{
+		Rates:              rates,
+		SumBorrowCosts:     leet,
+		AverageBorrowSize:  leet,
+		SumLendingPayments: leet,
+		AverageLendingSize: leet,
+		PredictedRate:      rates[0],
+		TakerFeeRate:       leet,
+	}
+
+	return resp, nil
 }
 
 func (f fExchange) FetchTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
@@ -2617,5 +2649,143 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 
 	if len(resp.Signals["RSI"].Signals) != 33 {
 		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["RSI"].Signals), 33)
+	}
+}
+
+func TestGetMarginRatesHistory(t *testing.T) {
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+
+	cp, err := currency.NewPairFromString("btc-usd")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received '%v', expected '%v'", err, nil)
+	}
+
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+		ConfigFormat: &currency.PairFormat{},
+		Available:    currency.Pairs{cp},
+		Enabled:      currency.Pairs{cp},
+	}
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	em.Add(fakeExchange)
+	s := RPCServer{
+		Engine: &Engine{
+			ExchangeManager: em,
+			currencyStateManager: &CurrencyStateManager{
+				started: 1, iExchangeManager: em,
+			},
+		},
+	}
+	_, err = s.GetMarginRatesHistory(context.Background(), nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrNilPointer)
+	}
+
+	request := &gctrpc.GetMarginRatesHistoryRequest{}
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, ErrExchangeNameIsEmpty) {
+		t.Errorf("received '%v' expected '%v'", err, ErrExchangeNameIsEmpty)
+	}
+
+	request.Exchange = fakeExchangeName
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("received '%v' expected '%v'", err, asset.ErrNotSupported)
+	}
+
+	request.Asset = asset.Spot.String()
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, currency.ErrCurrencyNotFound) {
+		t.Errorf("received '%v' expected '%v'", err, currency.ErrCurrencyNotFound)
+	}
+
+	request.Currency = "usd"
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	request.GetBorrowRates = true
+	request.GetLendingPayments = true
+	request.GetBorrowCosts = true
+	request.GetPredictedRate = true
+	request.IncludeAllRates = true
+	resp, err := s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if len(resp.Rates) == 0 {
+		t.Errorf("received '%v' expected '%v'", len(resp.Rates), 1)
+	}
+	if resp.PredictedRate == nil {
+		t.Errorf("received '%v' expected '%v'", nil, "not nil")
+	}
+	if resp.TakerFeeRate != "1337" {
+		t.Errorf("received '%v' expected '%v'", resp.TakerFeeRate, "1337")
+	}
+	if resp.SumLendingPayments != "1337" {
+		t.Errorf("received '%v' expected '%v'", resp.SumLendingPayments, "1337")
+	}
+	if resp.AvgBorrowSize != "1337" {
+		t.Errorf("received '%v' expected '%v'", resp.AvgBorrowSize, "1337")
+	}
+	if resp.AvgLendingSize != "1337" {
+		t.Errorf("received '%v' expected '%v'", resp.AvgLendingSize, "1337")
+	}
+	if resp.SumBorrowCosts != "1337" {
+		t.Errorf("received '%v' expected '%v'", resp.SumBorrowCosts, "1337")
+	}
+
+	request.CalculateOffline = true
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, common.ErrCannotCalculateOffline) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrCannotCalculateOffline)
+	}
+
+	request.TakerFeeRate = "-1337"
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, common.ErrCannotCalculateOffline) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrCannotCalculateOffline)
+	}
+
+	request.TakerFeeRate = "1337"
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, common.ErrCannotCalculateOffline) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrCannotCalculateOffline)
+	}
+
+	request.Rates = []*gctrpc.MarginRate{
+		{
+			Time:       time.Now().Format(common.SimpleTimeFormat),
+			HourlyRate: "1337",
+		},
+	}
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	request.Rates = []*gctrpc.MarginRate{
+		{
+			Time:           time.Now().Format(common.SimpleTimeFormat),
+			HourlyRate:     "1337",
+			LendingPayment: &gctrpc.LendingPayment{Size: "1337"},
+			BorrowCost:     &gctrpc.BorrowCost{Size: "1337"},
+		},
+	}
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 }
