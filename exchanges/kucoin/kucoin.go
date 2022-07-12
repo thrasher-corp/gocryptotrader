@@ -45,6 +45,8 @@ const (
 	kucoinGetFiatPrice           = "/api/v1/prices"
 	kucoinGetMarkPrice           = "/api/v1/mark-price/%s/current"
 	kucoinGetMarginConfiguration = "/api/v1/margin/config"
+	kucoinGetServerTime          = "/api/v1/timestamp"
+	kucoinGetServiceStatus       = "/api/v1/status"
 
 	// Authenticated endpoints
 	kucoinGetOrderbook         = "/api/v3/market/orderbook/level2"
@@ -682,6 +684,27 @@ func (k *Kucoin) GetMarginTradeData(ctx context.Context, currency string) ([]Mar
 	}
 	params.Set("currency", currency)
 	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetMarginTradeData, params), nil, publicSpotRate, &resp)
+}
+
+// GetCurrentServerTime gets the server time
+func (k *Kucoin) GetCurrentServerTime(ctx context.Context) (time.Time, error) {
+	resp := struct {
+		Timestamp kucoinTimeMilliSec `json:"data"`
+		Error
+	}{}
+	return resp.Timestamp.Time(), k.SendHTTPRequest(ctx, exchange.RestSpot, kucoinGetServerTime, publicSpotRate, &resp)
+}
+
+// GetServiceStatus gets the service status
+func (k *Kucoin) GetServiceStatus(ctx context.Context) (string, string, error) {
+	resp := struct {
+		Data struct {
+			Status  string `json:"status"`
+			Message string `json:"msg"`
+		} `json:"data"`
+		Error
+	}{}
+	return resp.Data.Status, resp.Data.Message, k.SendHTTPRequest(ctx, exchange.RestSpot, kucoinGetServiceStatus, publicSpotRate, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request

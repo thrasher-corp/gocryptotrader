@@ -474,3 +474,21 @@ func TestGetMarginTradeData(t *testing.T) {
 		t.Error("GetMarginTradeData() error", err)
 	}
 }
+
+func TestGetCurrentServerTime(t *testing.T) {
+	t.Parallel()
+
+	_, err := k.GetCurrentServerTime(context.Background())
+	if err != nil {
+		t.Error("GetCurrentServerTime() error", err)
+	}
+}
+
+func TestGetServiceStatus(t *testing.T) {
+	t.Parallel()
+
+	_, _, err := k.GetServiceStatus(context.Background())
+	if err != nil {
+		t.Error("GetServiceStatus() error", err)
+	}
+}
