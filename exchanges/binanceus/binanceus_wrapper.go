@@ -296,75 +296,74 @@ func (bi *Binanceus) UpdateTradablePairs(ctx context.Context, forceUpdate bool) 
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (bi *Binanceus) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	if a == asset.Spot {
-		tick, err := bi.GetPriceChangeStats(ctx, p)
-		if err != nil {
-			return nil, err
-		}
-		err = ticker.ProcessTicker(&ticker.Price{
-			Last:         tick.LastPrice,
-			High:         tick.HighPrice,
-			Low:          tick.LowPrice,
-			Bid:          tick.BidPrice,
-			Ask:          tick.AskPrice,
-			Volume:       tick.Volume,
-			QuoteVolume:  tick.QuoteVolume,
-			Open:         tick.OpenPrice,
-			Close:        tick.PrevClosePrice,
-			Pair:         p,
-			ExchangeName: bi.Name,
-			AssetType:    a,
-		})
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		return nil, fmt.Errorf("assetType not supported: %v", a)
+	if a != asset.Spot {
+		return nil, fmt.Errorf("%w '%v'", asset.ErrNotSupported, a)
+	}
+	tick, err := bi.GetPriceChangeStats(ctx, p)
+	if err != nil {
+		return nil, err
+	}
+	err = ticker.ProcessTicker(&ticker.Price{
+		Last:         tick.LastPrice,
+		High:         tick.HighPrice,
+		Low:          tick.LowPrice,
+		Bid:          tick.BidPrice,
+		Ask:          tick.AskPrice,
+		Volume:       tick.Volume,
+		QuoteVolume:  tick.QuoteVolume,
+		Open:         tick.OpenPrice,
+		Close:        tick.PrevClosePrice,
+		Pair:         p,
+		ExchangeName: bi.Name,
+		AssetType:    a,
+	})
+	if err != nil {
+		return nil, err
 	}
 	return ticker.GetTicker(bi.Name, p, a)
 }
 
 // UpdateTickers updates all currency pairs of a given asset type
 func (bi *Binanceus) UpdateTickers(ctx context.Context, a asset.Item) error {
-	if a == asset.Spot {
-		tick, err := bi.GetTickers(ctx)
-		if err != nil {
-			return err
-		}
-		pairs, err := bi.GetEnabledPairs(a)
-		if err != nil {
-			return err
-		}
-		for i := range pairs {
-			for y := range tick {
-				pairFmt, err := bi.FormatExchangeCurrency(pairs[i], a)
-				if err != nil {
-					return err
-				}
-				if tick[y].Symbol != pairFmt.String() {
-					continue
-				}
-				err = ticker.ProcessTicker(&ticker.Price{
-					Last:         tick[y].LastPrice,
-					High:         tick[y].HighPrice,
-					Low:          tick[y].LowPrice,
-					Bid:          tick[y].BidPrice,
-					Ask:          tick[y].AskPrice,
-					Volume:       tick[y].Volume,
-					QuoteVolume:  tick[y].QuoteVolume,
-					Open:         tick[y].OpenPrice,
-					Close:        tick[y].PrevClosePrice,
-					Pair:         pairFmt,
-					ExchangeName: bi.Name,
-					AssetType:    a,
-				})
-				if err != nil {
-					return err
-				}
+	if a != asset.Spot {
+		return fmt.Errorf("assetType not supported: %v", a)
+	}
+	tick, err := bi.GetTickers(ctx)
+	if err != nil {
+		return err
+	}
+
+	pairs, err := bi.GetEnabledPairs(a)
+	if err != nil {
+		return err
+	}
+	for i := range pairs {
+		for y := range tick {
+			pairFmt, err := bi.FormatExchangeCurrency(pairs[i], a)
+			if err != nil {
+				return err
+			}
+			if tick[y].Symbol != pairFmt.String() {
+				continue
+			}
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         tick[y].LastPrice,
+				High:         tick[y].HighPrice,
+				Low:          tick[y].LowPrice,
+				Bid:          tick[y].BidPrice,
+				Ask:          tick[y].AskPrice,
+				Volume:       tick[y].Volume,
+				QuoteVolume:  tick[y].QuoteVolume,
+				Open:         tick[y].OpenPrice,
+				Close:        tick[y].PrevClosePrice,
+				Pair:         pairFmt,
+				ExchangeName: bi.Name,
+				AssetType:    a,
+			})
+			if err != nil {
+				return err
 			}
 		}
-	} else {
-		return fmt.Errorf("assetType not supported: %v", a)
 	}
 	return nil
 }
@@ -377,8 +376,8 @@ func (bi *Binanceus) FetchTicker(ctx context.Context, p currency.Pair, assetType
 	}
 	bi.appendOptionalDelimiter(&fpairs)
 
-	tickerNew, err := ticker.GetTicker(bi.Name, p, assetType)
-	if err != nil {
+	tickerNew, er := ticker.GetTicker(bi.Name, p, assetType)
+	if er != nil {
 		return bi.UpdateTicker(ctx, p, assetType)
 	}
 	return tickerNew, nil
@@ -448,27 +447,26 @@ func (bi *Binanceus) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 	var info account.Holdings
 	var acc account.SubAccount
 	info.Exchange = bi.Name
-	if assetType == asset.Spot {
-		theaccount, err := bi.GetAccount(ctx)
-		if err != nil {
-			return info, err
-		}
-		var currencyBalance []account.Balance
-		for i := range theaccount.Balances {
-			freeBalance := theaccount.Balances[i].Free.InexactFloat64()
-			locked := theaccount.Balances[i].Locked.InexactFloat64()
-
-			currencyBalance = append(currencyBalance, account.Balance{
-				CurrencyName: currency.NewCode(theaccount.Balances[i].Asset),
-				Total:        freeBalance + locked,
-				Hold:         locked,
-				Free:         freeBalance,
-			})
-		}
-		acc.Currencies = currencyBalance
-	} else {
+	if assetType != asset.Spot {
 		return info, fmt.Errorf("%v  assetType is not supported", assetType)
 	}
+	theaccount, err := bi.GetAccount(ctx)
+	if err != nil {
+		return info, err
+	}
+	var currencyBalance []account.Balance
+	for i := range theaccount.Balances {
+		freeBalance := theaccount.Balances[i].Free.InexactFloat64()
+		locked := theaccount.Balances[i].Locked.InexactFloat64()
+
+		currencyBalance = append(currencyBalance, account.Balance{
+			CurrencyName: currency.NewCode(theaccount.Balances[i].Asset),
+			Total:        freeBalance + locked,
+			Hold:         locked,
+			Free:         freeBalance,
+		})
+	}
+	acc.Currencies = currencyBalance
 	acc.AssetType = assetType
 	info.Accounts = append(info.Accounts, acc)
 	if er := account.Process(&info); er != nil {
@@ -573,58 +571,58 @@ func (bi *Binanceus) GetHistoricTrades(ctx context.Context, p currency.Pair,
 // SubmitOrder submits a new order
 func (bi *Binanceus) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	var submitOrderResponse order.SubmitResponse
+	var timeInForce RequestParamsTimeForceType
+	var sideType string
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
-	var timeInForce RequestParamsTimeForceType
-	if s.AssetType == asset.Spot {
-		var sideType string
-		if s.Side == order.Buy {
-			sideType = order.Buy.String()
-		} else {
-			sideType = order.Sell.String()
-		}
-		var requestParamOrderType RequestParamsOrderType
-		switch s.Type {
-		case order.Market:
-			requestParamOrderType = BinanceRequestParamsOrderMarket
-		case order.Limit:
-			timeInForce = BinanceRequestParamsTimeGTC
-			requestParamOrderType = BinanceRequestParamsOrderLimit
-		default:
-			return nil, errors.New(bi.Name + " unsupported order type")
-		}
-		var orderRequest = NewOrderRequest{
-			Symbol:           s.Pair,
-			Side:             sideType,
-			Price:            s.Price,
-			Quantity:         s.Amount,
-			TradeType:        requestParamOrderType,
-			TimeInForce:      timeInForce,
-			NewClientOrderID: s.ClientOrderID,
-		}
-		response, er := bi.NewOrder(ctx, &orderRequest)
-		if er != nil {
-			return nil, er
-		}
-		if response.OrderID > 0 {
-			submitOrderResponse.OrderID = strconv.FormatInt(response.OrderID, 10)
-		}
-		if response.ExecutedQty == response.OrigQty {
-			submitOrderResponse.Status = order.Filled
-		}
-		for i := range response.Fills {
-			submitOrderResponse.Trades = append(submitOrderResponse.Trades, order.TradeHistory{
-				Price:    response.Fills[i].Price,
-				Amount:   response.Fills[i].Qty,
-				Fee:      response.Fills[i].Commission,
-				FeeAsset: response.Fills[i].CommissionAsset,
-				Exchange: bi.Name,
-			})
-		}
-	} else {
+	if s.AssetType != asset.Spot {
 		return nil, fmt.Errorf("%s %w", s.AssetType, asset.ErrNotSupported)
 	}
+	if s.Side == order.Buy {
+		sideType = order.Buy.String()
+	} else {
+		sideType = order.Sell.String()
+	}
+	var requestParamOrderType RequestParamsOrderType
+	switch s.Type {
+	case order.Market:
+		requestParamOrderType = BinanceRequestParamsOrderMarket
+	case order.Limit:
+		timeInForce = BinanceRequestParamsTimeGTC
+		requestParamOrderType = BinanceRequestParamsOrderLimit
+	default:
+		return nil, errors.New(bi.Name + " unsupported order type")
+	}
+	var orderRequest = NewOrderRequest{
+		Symbol:           s.Pair,
+		Side:             sideType,
+		Price:            s.Price,
+		Quantity:         s.Amount,
+		TradeType:        requestParamOrderType,
+		TimeInForce:      timeInForce,
+		NewClientOrderID: s.ClientOrderID,
+	}
+	response, er := bi.NewOrder(ctx, &orderRequest)
+	if er != nil {
+		return nil, er
+	}
+	if response.OrderID > 0 {
+		submitOrderResponse.OrderID = strconv.FormatInt(response.OrderID, 10)
+	}
+	if response.ExecutedQty == response.OrigQty {
+		submitOrderResponse.Status = order.Filled
+	}
+	for i := range response.Fills {
+		submitOrderResponse.Trades = append(submitOrderResponse.Trades, order.TradeHistory{
+			Price:    response.Fills[i].Price,
+			Amount:   response.Fills[i].Qty,
+			Fee:      response.Fills[i].Commission,
+			FeeAsset: response.Fills[i].CommissionAsset,
+			Exchange: bi.Name,
+		})
+	}
+
 	return &submitOrderResponse, nil
 }
 
@@ -635,22 +633,22 @@ func (bi *Binanceus) ModifyOrder(ctx context.Context, action *order.Modify) (*or
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (bi *Binanceus) CancelOrder(ctx context.Context, order *order.Cancel) error {
-	if err := order.Validate(order.StandardCancel()); err != nil {
+func (bi *Binanceus) CancelOrder(ctx context.Context, o *order.Cancel) error {
+	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
-	if order.AssetType == asset.Spot {
+	if o.AssetType == asset.Spot {
 		_, err := bi.CancelExistingOrder(ctx,
 			&CancelOrderRequestParams{
-				Symbol:                order.Pair,
-				OrderID:               order.OrderID,
-				ClientSuppliedOrderID: order.ClientOrderID,
+				Symbol:                o.Pair,
+				OrderID:               o.OrderID,
+				ClientSuppliedOrderID: o.ClientOrderID,
 			})
 		if err != nil {
 			return err
 		}
 	} else {
-		return errAssetTypeNotSupported
+		return fmt.Errorf("%w '%v'", asset.ErrNotSupported, o.AssetType)
 	}
 	return nil
 }
@@ -691,7 +689,7 @@ func (bi *Binanceus) CancelAllOrders(ctx context.Context, orderCancellation *ord
 			}
 		}
 	} else {
-		return cancelAllOrdersResponse, fmt.Errorf("assetType not supported: %v", orderCancellation.AssetType)
+		return cancelAllOrdersResponse, fmt.Errorf("%w '%v'", asset.ErrNotSupported, orderCancellation.AssetType)
 	}
 	return cancelAllOrdersResponse, nil
 }
@@ -725,8 +723,9 @@ func (bi *Binanceus) GetOrderInfo(ctx context.Context, orderID string, pair curr
 			log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
 		}
 		orderType := order.Limit
-		if strings.EqualFold(resp.Type, "MARKET") {
-			orderType = order.Market
+		orderType, err = order.StringToOrderType(resp.Type)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
 		}
 
 		return order.Detail{
@@ -776,9 +775,7 @@ func (bi *Binanceus) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRe
 	}, nil
 }
 
-// WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
-// submitted
-// But, GCT has no concept of withdrawal via SEN
+// WithdrawFiatFunds returns a withdrawal ID when a withdrawal is submitted. But, GCT has no concept of withdrawal via SEN
 // the fiat withdrawal end point of Binance.US is built to submit a USD withdraw request via Silvergate Exchange Network (SEN).
 // So, this method is not implemented.
 func (bi *Binanceus) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
@@ -797,56 +794,72 @@ func (bi *Binanceus) GetActiveOrders(ctx context.Context, getOrdersRequest *orde
 	if err := getOrdersRequest.Validate(); err != nil {
 		return nil, err
 	}
-	if len(getOrdersRequest.Pairs) == 0 || len(getOrdersRequest.Pairs) >= 40 {
-		getOrdersRequest.Pairs = append(getOrdersRequest.Pairs, currency.EMPTYPAIR)
-	}
+	var err error
+	var symbol string
 	var orders []order.Detail
-	if getOrdersRequest.AssetType == asset.Spot {
-		for i := range getOrdersRequest.Pairs {
-			symbol, err := bi.FormatSymbol(getOrdersRequest.Pairs[i], asset.Spot)
-			if err != nil {
-				return orders, err
-			}
-			resp, err := bi.GetAllOpenOrders(ctx, symbol)
-			if err != nil {
-				return nil, err
-			}
-			for x := range resp {
-				orderSide, eer := order.StringToOrderSide(strings.ToUpper(resp[x].Side))
-				if eer != nil {
-					log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
-				}
-				orderType, err := order.StringToOrderType(strings.ToUpper(resp[x].Type))
-				if err != nil {
-					log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
-				}
-				orderStatus, err := order.StringToOrderStatus(resp[i].Status)
-				if err != nil {
-					log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
-				}
-				orders = append(orders, order.Detail{
-					Amount:        resp[x].OrigQty,
-					Date:          resp[x].Time,
-					Exchange:      bi.Name,
-					OrderID:       strconv.FormatInt(int64(resp[x].OrderID), 10),
-					ClientOrderID: resp[x].ClientOrderID,
-					Side:          orderSide,
-					Type:          orderType,
-					Price:         resp[x].Price,
-					Status:        orderStatus,
-					Pair:          getOrdersRequest.Pairs[i],
-					AssetType:     getOrdersRequest.AssetType,
-					LastUpdated:   resp[x].UpdateTime,
-				})
+	var selectedOrders []*Order
+	if getOrdersRequest.AssetType != asset.Spot {
+		return orders, fmt.Errorf("%s %w", getOrdersRequest.AssetType, asset.ErrNotSupported)
+	}
+	if len(getOrdersRequest.Pairs) != 1 {
+		symbol = ""
+	} else {
+		symbol, err = bi.FormatSymbol(getOrdersRequest.Pairs[0], asset.Spot)
+		if err != nil {
+			return orders, err
+		}
+	}
+	resp, err := bi.GetAllOpenOrders(ctx, symbol)
+	if err != nil {
+		return nil, err
+	}
+	for s := range resp {
+		ord := resp[s]
+		pair, er := currency.NewPairFromString(ord.Symbol)
+		if er != nil {
+			continue
+		}
+		for p := range getOrdersRequest.Pairs {
+			if getOrdersRequest.Pairs[p].Equal(pair) {
+				selectedOrders = append(selectedOrders, ord)
 			}
 		}
-		order.FilterOrdersByPairs(&orders, getOrdersRequest.Pairs)
-		order.FilterOrdersByType(&orders, getOrdersRequest.Type)
-		order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
-		err := order.FilterOrdersByTimeRange(&orders, getOrdersRequest.StartTime, getOrdersRequest.EndTime)
-		return orders, err
 	}
-	return orders, fmt.Errorf("%s %w", getOrdersRequest.AssetType, asset.ErrNotSupported)
+	for x := range selectedOrders {
+		orderSide, eer := order.StringToOrderSide(strings.ToUpper(resp[x].Side))
+		if eer != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
+		}
+		orderType, err := order.StringToOrderType(strings.ToUpper(resp[x].Type))
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
+		}
+		orderStatus, err := order.StringToOrderStatus(resp[x].Status)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
+		}
+		orders = append(orders, order.Detail{
+			Amount:        resp[x].OrigQty,
+			Date:          resp[x].Time,
+			Exchange:      bi.Name,
+			OrderID:       strconv.FormatInt(int64(resp[x].OrderID), 10),
+			ClientOrderID: resp[x].ClientOrderID,
+			Side:          orderSide,
+			Type:          orderType,
+			Price:         resp[x].Price,
+			Status:        orderStatus,
+			Pair:          getOrdersRequest.Pairs[0],
+			AssetType:     getOrdersRequest.AssetType,
+			LastUpdated:   resp[x].UpdateTime,
+		})
+	}
+
+	order.FilterOrdersByPairs(&orders, getOrdersRequest.Pairs)
+	order.FilterOrdersByType(&orders, getOrdersRequest.Type)
+	order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
+	err = order.FilterOrdersByTimeRange(&orders, getOrdersRequest.StartTime, getOrdersRequest.EndTime)
+	return orders, err
+
 }
 
 // GetOrderHistory retrieves account order information

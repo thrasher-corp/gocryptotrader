@@ -667,18 +667,12 @@ func (bi *Binanceus) SynchroniseWebsocketOrderbook() {
 func (bi *Binanceus) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDepthStream) error {
 	updateBid := make([]orderbook.Item, len(ws.UpdateBids))
 	for i := range ws.UpdateBids {
-		price, ok := ws.UpdateBids[i][0].(string)
-		if !ok {
-			return errors.New("type assertion failed for bid price")
-		}
+		price := ws.UpdateBids[i][0]
 		p, err := strconv.ParseFloat(price, 64)
 		if err != nil {
 			return err
 		}
-		amount, ok := ws.UpdateBids[i][1].(string)
-		if !ok {
-			return errors.New("type assertion failed for bid amount")
-		}
+		amount := ws.UpdateBids[i][1]
 		a, err := strconv.ParseFloat(amount, 64)
 		if err != nil {
 			return err
@@ -688,18 +682,12 @@ func (bi *Binanceus) ProcessUpdate(cp currency.Pair, a asset.Item, ws *Websocket
 
 	updateAsk := make([]orderbook.Item, len(ws.UpdateAsks))
 	for i := range ws.UpdateAsks {
-		price, ok := ws.UpdateAsks[i][0].(string)
-		if !ok {
-			return errors.New("type assertion failed for ask price")
-		}
+		price := ws.UpdateAsks[i][0]
 		p, err := strconv.ParseFloat(price, 64)
 		if err != nil {
 			return err
 		}
-		amount, ok := ws.UpdateAsks[i][1].(string)
-		if !ok {
-			return errors.New("type assertion failed for ask amount")
-		}
+		amount := ws.UpdateAsks[i][1]
 		a, err := strconv.ParseFloat(amount, 64)
 		if err != nil {
 			return err
@@ -722,7 +710,6 @@ func (bi *Binanceus) ProcessUpdate(cp currency.Pair, a asset.Item, ws *Websocket
 func (o *orderbookManager) fetchBookViaREST(pair currency.Pair) error {
 	o.Lock()
 	defer o.Unlock()
-
 	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
 	if !ok {
 		return fmt.Errorf("fetch book via rest cannot match currency pair %s asset type %s",

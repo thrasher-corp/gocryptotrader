@@ -146,7 +146,7 @@ type AggregatedTrade struct {
 	BestMatchPrice bool      `json:"M"`
 }
 
-// toTradeData this method converts the AggregatedTrade data into an instance of trade.Data...
+// toTradeData this method converts the AggregatedTrade data into an instance of trade.Data
 func (a *AggregatedTrade) toTradeData(p currency.Pair, exchange string, aType asset.Item) *trade.Data {
 	return &trade.Data{
 		CurrencyPair: p,
@@ -842,13 +842,13 @@ type update struct {
 
 // WebsocketDepthStream is the difference for the update depth stream
 type WebsocketDepthStream struct {
-	Event         string           `json:"e"`
-	Timestamp     time.Time        `json:"E"`
-	Pair          string           `json:"s"`
-	FirstUpdateID int64            `json:"U"`
-	LastUpdateID  int64            `json:"u"`
-	UpdateBids    [][2]interface{} `json:"b"`
-	UpdateAsks    [][2]interface{} `json:"a"`
+	Event         string      `json:"e"`
+	Timestamp     time.Time   `json:"E"`
+	Pair          string      `json:"s"`
+	FirstUpdateID int64       `json:"U"`
+	LastUpdateID  int64       `json:"u"`
+	UpdateBids    [][2]string `json:"b"`
+	UpdateAsks    [][2]string `json:"a"`
 }
 
 // WebsocketDepthDiffStream websocket response of depth diff stream
@@ -1069,4 +1069,105 @@ type WebsocketAggregateTradeStream struct {
 	LastTradeID      int       `json:"l"`
 	TradeTime        time.Time `json:"T"`
 	IsMaker          bool      `json:"m"`
+}
+
+// OCBSOrderRequestParams
+type OCBSOrderRequestParams struct {
+	OrderID   string
+	StartTime time.Time
+	EndTime   time.Time
+	Limit     uint
+}
+
+// OCBSTradeOrdersResponse holds the quantity and list of OCBS Orders.
+type OCBSTradeOrdersResponse struct {
+	Total     int         `json:"total"`
+	OCBSOrder []OCBSOrder `json:"dataList"`
+}
+
+// OCBSOrder holds OCBS orders details.
+type OCBSOrder struct {
+	QuoteID     string    `json:"quoteId"`
+	OrderID     string    `json:"orderId"`
+	OrderStatus string    `json:"orderStatus"`
+	FromCoin    string    `json:"fromCoin"`
+	FromAmount  float64   `json:"fromAmount"`
+	ToCoin      string    `json:"toCoin"`
+	ToAmount    float64   `json:"toAmount"`
+	FeeCoin     string    `json:"feeCoin"`
+	FeeAmount   float64   `json:"feeAmount"`
+	Ratio       float64   `json:"ratio"`
+	CreateTime  time.Time `json:"createTime"`
+}
+
+// ServerTime holds the exchange server time
+type ServerTime struct {
+	Timestamp time.Time `json:"serverTime"`
+}
+
+// SubUserToBTCAssets holds the number of BTC assets and the corresponding sub user email.
+type SubUserToBTCAssets struct {
+	Email      string `json:"email"`
+	TotalAsset int    `json:"totalAsset"`
+}
+
+// SpotUSDMasterAccounts holds the USD assets of a sub user.
+type SpotUSDMasterAccounts struct {
+	TotalCount                    int                  `json:"totalCount"`
+	MasterAccountTotalAsset       int                  `json:"masterAccountTotalAsset"`
+	SpotSubUserAssetBTCVolumeList []SubUserToBTCAssets `json:"spotSubUserAssetBtcVoList"`
+}
+
+// SubAccountStatus represents single sub accounts status information.
+type SubAccountStatus struct {
+	Email            string    `json:"email"`
+	InsertTime       time.Time `json:"insertTime"`
+	Mobile           string    `json:"mobile"`
+	IsUserActive     bool      `json:"isUserActive"`
+	IsMarginEnabled  bool      `json:"isMarginEnabled"`
+	IsSubUserEnabled bool      `json:"isSubUserEnabled"`
+	IsFutureEnabled  bool      `json:"isFutureEnabled"`
+}
+
+// SubAccountDepositAddressRequestParams holds query parameters for Sub-account deposit addresses.
+type SubAccountDepositAddressRequestParams struct {
+	Email   string        // [Required] Sub-account email
+	Coin    currency.Code // [Required]
+	Network string        // Network (If empty, returns the default network)
+}
+
+// SubAccountDepositAddress holds sub-accounts deposit address informations.
+type SubAccountDepositAddress struct {
+	Coin    string `json:"coin"`
+	Address string `json:"address"`
+	Tag     string `json:"tag"`
+	URL     string `json:"url"`
+}
+
+// SubAccountDepositItem holds the sub-account deposit information
+type SubAccountDepositItem struct {
+	Amount        string    `json:"amount"`
+	Coin          string    `json:"coin"`
+	Network       string    `json:"network"`
+	Status        int       `json:"status"`
+	Address       string    `json:"address"`
+	AddressTag    string    `json:"addressTag"`
+	TransactionID string    `json:"txId"`
+	InsertTime    time.Time `json:"insertTime"`
+	TransferType  int       `json:"transferType"`
+	ConfirmTimes  string    `json:"confirmTimes"`
+}
+
+// ReferalRewardHistoryResponse holds reward history response
+type ReferalRewardHistoryResponse struct {
+	Total int                     `json:"total"`
+	Rows  []ReferalWithdrawalItem `json:"rows"`
+}
+
+// ReferalWithdrawalItem holds reward history item
+type ReferalWithdrawalItem struct {
+	UserID          int       `json:"userId"`
+	RewardAmount    string    `json:"rewardAmount"`
+	ReceiveDateTime time.Time `json:"receiveDateTime"`
+	RewardType      string    `json:"rewardType"`
 }

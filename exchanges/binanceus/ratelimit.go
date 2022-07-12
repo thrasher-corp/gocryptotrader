@@ -107,21 +107,7 @@ func SetRateLimit() *RateLimit {
 	}
 }
 
-func bestPriceLimit(symbol string) request.EndpointLimit {
-	if symbol == "" {
-		return spotOrderbookTickerAllRate
-	}
-
-	return spotDefaultRate
-}
-
-func openOrdersLimit(symbol string) request.EndpointLimit {
-	if symbol == "" {
-		return spotOpenOrdersAllRate
-	}
-	return spotOpenOrdersSpecificRate
-}
-
+// orderbookLimit returns the endpoint rate limit representing enum given order depth
 func orderbookLimit(depth int) request.EndpointLimit {
 	switch {
 	case depth <= 100:

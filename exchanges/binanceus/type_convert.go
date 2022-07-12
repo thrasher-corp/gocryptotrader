@@ -507,3 +507,93 @@ func (t *binanceusTime) UnmarshalJSON(data []byte) error {
 func (t binanceusTime) Time() time.Time {
 	return time.Time(t)
 }
+
+// UnmarshalJSON deserialises createTime timestamp to built in time.
+func (a *OCBSOrder) UnmarshalJSON(data []byte) error {
+	type Alias OCBSOrder
+	chil := &struct {
+		*Alias
+		CreateTime int64 `json:"createTime"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	if chil.CreateTime > 0 {
+		a.CreateTime = time.UnixMilli(chil.CreateTime)
+	}
+	return nil
+}
+
+// UnmarshalJSON deserialises createTime timestamp to built in time.
+func (a *ServerTime) UnmarshalJSON(data []byte) error {
+	type Alias ServerTime
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"serverTime"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	if chil.Timestamp > 0 {
+		a.Timestamp = time.UnixMilli(chil.Timestamp)
+	}
+	return nil
+}
+
+// UnmarshalJSON deserialises createTime timestamp to built in time.
+func (a *SubAccountStatus) UnmarshalJSON(data []byte) error {
+	type Alias SubAccountStatus
+	chil := &struct {
+		*Alias
+		InsertTime int64 `json:"insertTime"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	if chil.InsertTime > 0 {
+		a.InsertTime = time.UnixMilli(chil.InsertTime)
+	}
+	return nil
+}
+
+// UnmarshalJSON deserialises createTime timestamp to built in time.
+func (a *SubAccountDepositItem) UnmarshalJSON(data []byte) error {
+	type Alias SubAccountDepositItem
+	chil := &struct {
+		*Alias
+		InsertTime int64 `json:"insertTime"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	if chil.InsertTime > 0 {
+		a.InsertTime = time.UnixMilli(chil.InsertTime)
+	}
+	return nil
+}
+
+// UnmarshalJSON deserialises createTime timestamp to built in time.
+func (a *ReferalWithdrawalItem) UnmarshalJSON(data []byte) error {
+	type Alias ReferalWithdrawalItem
+	chil := &struct {
+		*Alias
+		ReceiveDateTime int64 `json:"receiveDateTime"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	if chil.ReceiveDateTime > 0 {
+		a.ReceiveDateTime = time.UnixMilli(chil.ReceiveDateTime)
+	}
+	return nil
+}
