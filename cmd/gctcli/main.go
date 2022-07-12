@@ -212,6 +212,7 @@ func main() {
 		futuresCommands,
 		shutdownCommand,
 		technicalAnalysisCommand,
+		getMarginRatesHistoryCommand,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

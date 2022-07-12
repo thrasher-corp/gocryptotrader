@@ -1135,54 +1135,6 @@
         ]
       }
     },
-    "/v1/getallmanagedpositions": {
-      "get": {
-        "operationId": "GoCryptoTraderService_GetAllManagedPositions",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcGetManagedPositionsResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "includeFullOrderData",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
-          },
-          {
-            "name": "getFundingPayments",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
-          },
-          {
-            "name": "includeFullFundingRates",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
-          },
-          {
-            "name": "includePredictedRate",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
-          }
-        ],
-        "tags": [
-          "GoCryptoTraderService"
-        ]
-      }
-    },
     "/v1/getauditevent": {
       "get": {
         "operationId": "GoCryptoTraderService_GetAuditEvent",
@@ -1871,76 +1823,6 @@
         ]
       }
     },
-    "/v1/getfundingrates": {
-      "get": {
-        "operationId": "GoCryptoTraderService_GetFundingRates",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcGetFundingRatesResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "exchange",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "asset",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "pairs",
-            "in": "query",
-            "required": false,
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "collectionFormat": "multi"
-          },
-          {
-            "name": "startDate",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "endDate",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "includePredicted",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
-          },
-          {
-            "name": "includePayments",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
-          }
-        ],
-        "tags": [
-          "GoCryptoTraderService"
-        ]
-      }
-    },
     "/v1/getfuturespositions": {
       "get": {
         "operationId": "GoCryptoTraderService_GetFuturesPositions",
@@ -2015,37 +1897,13 @@
             "format": "int64"
           },
           {
+            "name": "verbose",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
             "name": "overwrite",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
-          },
-          {
-            "name": "getPositionStats",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
-          },
-          {
-            "name": "includeFullOrderData",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
-          },
-          {
-            "name": "getFundingPayments",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
-          },
-          {
-            "name": "includeFullFundingRates",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
-          },
-          {
-            "name": "includePredictedRate",
             "in": "query",
             "required": false,
             "type": "boolean"
@@ -2318,14 +2176,14 @@
         ]
       }
     },
-    "/v1/getmanagedposition": {
+    "/v1/getmarginrateshistory": {
       "get": {
-        "operationId": "GoCryptoTraderService_GetManagedPosition",
+        "operationId": "GoCryptoTraderService_GetMarginRatesHistory",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGetManagedPositionsResponse"
+              "$ref": "#/definitions/gctrpcGetMarginRatesHistoryResponse"
             }
           },
           "default": {
@@ -2349,46 +2207,64 @@
             "type": "string"
           },
           {
-            "name": "pair.delimiter",
+            "name": "currency",
             "in": "query",
             "required": false,
             "type": "string"
           },
           {
-            "name": "pair.base",
+            "name": "startDate",
             "in": "query",
             "required": false,
             "type": "string"
           },
           {
-            "name": "pair.quote",
+            "name": "endDate",
             "in": "query",
             "required": false,
             "type": "string"
           },
           {
-            "name": "includeFullOrderData",
+            "name": "getPredictedRate",
             "in": "query",
             "required": false,
             "type": "boolean"
           },
           {
-            "name": "getFundingPayments",
+            "name": "getLendingPayments",
             "in": "query",
             "required": false,
             "type": "boolean"
           },
           {
-            "name": "includeFullFundingRates",
+            "name": "getBorrowRates",
             "in": "query",
             "required": false,
             "type": "boolean"
           },
           {
-            "name": "includePredictedRate",
+            "name": "getBorrowCosts",
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "includeAllRates",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "calculateOffline",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "takerFeeRate",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
@@ -4108,6 +3984,17 @@
         }
       }
     },
+    "gctrpcBorrowCost": {
+      "type": "object",
+      "properties": {
+        "cost": {
+          "type": "string"
+        },
+        "size": {
+          "type": "string"
+        }
+      }
+    },
     "gctrpcCancelAllOrdersRequest": {
       "type": "object",
       "properties": {
@@ -4668,89 +4555,13 @@
         }
       }
     },
-    "gctrpcFundingData": {
-      "type": "object",
-      "properties": {
-        "exchange": {
-          "type": "string"
-        },
-        "asset": {
-          "type": "string"
-        },
-        "pair": {
-          "$ref": "#/definitions/gctrpcCurrencyPair"
-        },
-        "startDate": {
-          "type": "string"
-        },
-        "endDate": {
-          "type": "string"
-        },
-        "rates": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/gctrpcFundingRate"
-          }
-        },
-        "latestRate": {
-          "$ref": "#/definitions/gctrpcFundingRate"
-        },
-        "upcomingRate": {
-          "$ref": "#/definitions/gctrpcFundingRate"
-        },
-        "paymentSum": {
-          "type": "string"
-        }
-      }
-    },
-    "gctrpcFundingRate": {
-      "type": "object",
-      "properties": {
-        "date": {
-          "type": "string"
-        },
-        "rate": {
-          "type": "string"
-        },
-        "payment": {
-          "type": "string"
-        }
-      }
-    },
     "gctrpcFuturePosition": {
       "type": "object",
       "properties": {
-        "exchange": {
-          "type": "string"
-        },
-        "asset": {
-          "type": "string"
-        },
-        "pair": {
-          "$ref": "#/definitions/gctrpcCurrencyPair"
-        },
         "status": {
           "type": "string"
         },
-        "openingDate": {
-          "type": "string"
-        },
-        "openingDirection": {
-          "type": "string"
-        },
-        "openingPrice": {
-          "type": "string"
-        },
-        "openingSize": {
-          "type": "string"
-        },
         "currentDirection": {
-          "type": "string"
-        },
-        "currentPrice": {
-          "type": "string"
-        },
-        "currentSize": {
           "type": "string"
         },
         "unrealisedPnl": {
@@ -4759,65 +4570,17 @@
         "realisedPnl": {
           "type": "string"
         },
-        "closingDate": {
+        "openingDate": {
           "type": "string"
         },
-        "orderCount": {
-          "type": "string",
-          "format": "int64"
+        "closingDate": {
+          "type": "string"
         },
         "orders": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/gctrpcOrderDetails"
           }
-        },
-        "positionStats": {
-          "$ref": "#/definitions/gctrpcFuturesPositionStats"
-        },
-        "fundingData": {
-          "$ref": "#/definitions/gctrpcFundingData"
-        }
-      }
-    },
-    "gctrpcFuturesPositionStats": {
-      "type": "object",
-      "properties": {
-        "maintenanceMarginRequirement": {
-          "type": "string"
-        },
-        "initialMarginRequirement": {
-          "type": "string"
-        },
-        "estimatedLiquidationPrice": {
-          "type": "string"
-        },
-        "collateralUsed": {
-          "type": "string"
-        },
-        "markPrice": {
-          "type": "string"
-        },
-        "currentSize": {
-          "type": "string"
-        },
-        "breakEvenPrice": {
-          "type": "string"
-        },
-        "averageOpenPrice": {
-          "type": "string"
-        },
-        "recentPnl": {
-          "type": "string"
-        },
-        "marginFraction": {
-          "type": "string"
-        },
-        "freeCollateral": {
-          "type": "string"
-        },
-        "totalCollateral": {
-          "type": "string"
         }
       }
     },
@@ -5241,17 +5004,6 @@
         }
       }
     },
-    "gctrpcGetFundingRatesResponse": {
-      "type": "object",
-      "properties": {
-        "fundingPayments": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/gctrpcFundingData"
-          }
-        }
-      }
-    },
     "gctrpcGetFuturesPositionsResponse": {
       "type": "object",
       "properties": {
@@ -5356,14 +5108,39 @@
         }
       }
     },
-    "gctrpcGetManagedPositionsResponse": {
+    "gctrpcGetMarginRatesHistoryResponse": {
       "type": "object",
       "properties": {
-        "positions": {
+        "rates": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/gctrpcFuturePosition"
+            "$ref": "#/definitions/gctrpcMarginRate"
           }
+        },
+        "totalRates": {
+          "type": "string",
+          "format": "int64"
+        },
+        "sumBorrowCosts": {
+          "type": "string"
+        },
+        "avgBorrowSize": {
+          "type": "string"
+        },
+        "sumLendingPayments": {
+          "type": "string"
+        },
+        "avgLendingSize": {
+          "type": "string"
+        },
+        "latestRate": {
+          "$ref": "#/definitions/gctrpcMarginRate"
+        },
+        "predictedRate": {
+          "$ref": "#/definitions/gctrpcMarginRate"
+        },
+        "takerFeeRate": {
+          "type": "string"
         }
       }
     },
@@ -5544,6 +5321,17 @@
         }
       }
     },
+    "gctrpcLendingPayment": {
+      "type": "object",
+      "properties": {
+        "payment": {
+          "type": "string"
+        },
+        "size": {
+          "type": "string"
+        }
+      }
+    },
     "gctrpcListOfSignals": {
       "type": "object",
       "properties": {
@@ -5553,6 +5341,35 @@
             "type": "number",
             "format": "double"
           }
+        }
+      }
+    },
+    "gctrpcMarginRate": {
+      "type": "object",
+      "properties": {
+        "time": {
+          "type": "string"
+        },
+        "marketBorrowSize": {
+          "type": "string"
+        },
+        "hourlyRate": {
+          "type": "string"
+        },
+        "yearlyRate": {
+          "type": "string"
+        },
+        "hourlyBorrowRate": {
+          "type": "string"
+        },
+        "yearlyBorrowRate": {
+          "type": "string"
+        },
+        "lendingPayment": {
+          "$ref": "#/definitions/gctrpcLendingPayment"
+        },
+        "borrowCost": {
+          "$ref": "#/definitions/gctrpcBorrowCost"
         }
       }
     },
@@ -5643,10 +5460,12 @@
           "type": "string"
         },
         "creationTime": {
-          "type": "string"
+          "type": "string",
+          "format": "int64"
         },
         "updateTime": {
-          "type": "string"
+          "type": "string",
+          "format": "int64"
         },
         "status": {
           "type": "string"

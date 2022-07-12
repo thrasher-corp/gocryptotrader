@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -135,5 +136,6 @@ type FuturesManagement interface {
 	GetFundingRates(context.Context, *order.FundingRatesRequest) ([]order.FundingRates, error)
 	IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error)
 	GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error)
+	GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error)
 	order.PNLCalculation
 }

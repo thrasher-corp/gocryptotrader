@@ -4750,3 +4750,202 @@ func shutdown(c *cli.Context) error {
 	jsonOutput(result)
 	return nil
 }
+
+var getMarginRatesHistoryCommand = &cli.Command{
+	Name:      "getmarginrateshistory",
+	Usage:     "returns margin lending/borrow rates for a period",
+	ArgsUsage: "<exchange> <asset> <currency> <start> <end> <getpredictedrate> <getlendingpayments> <getborrowrates> <getborrowcosts> <includeallrates>",
+	Action:    getMarginRatesHistory,
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:    "exchange",
+			Aliases: []string{"e"},
+			Usage:   "the exchange to retrieve margin rates from",
+		},
+		&cli.StringFlag{
+			Name:    "asset",
+			Aliases: []string{"a"},
+			Usage:   "the asset type of the currency pair",
+		},
+		&cli.StringFlag{
+			Name:    "currency",
+			Aliases: []string{"c"},
+			Usage:   "must be an enabled currency",
+		},
+		&cli.StringFlag{
+			Name:        "start",
+			Aliases:     []string{"sd"},
+			Usage:       "<start>",
+			Value:       time.Now().AddDate(0, -1, 0).Truncate(time.Hour).Format(common.SimpleTimeFormat),
+			Destination: &startTime,
+		},
+		&cli.StringFlag{
+			Name:        "end",
+			Aliases:     []string{"ed"},
+			Usage:       "<end>",
+			Value:       time.Now().Format(common.SimpleTimeFormat),
+			Destination: &endTime,
+		},
+		&cli.BoolFlag{
+			Name:    "getpredictedrate",
+			Aliases: []string{"p"},
+			Usage:   "include the predicted upcoming rate in the response",
+		},
+		&cli.BoolFlag{
+			Name:    "getlendingpayments",
+			Aliases: []string{"lp"},
+			Usage:   "retrieve and summarise your lending payments over the time period",
+		},
+		&cli.BoolFlag{
+			Name:    "getborrowrates",
+			Aliases: []string{"br"},
+			Usage:   "retrieve borrowing rates",
+		},
+		&cli.BoolFlag{
+			Name:    "getborrowcosts",
+			Aliases: []string{"bc"},
+			Usage:   "retrieve and summarise your borrowing costs over the time period",
+		},
+		&cli.BoolFlag{
+			Name:    "includeallrates",
+			Aliases: []string{"ar", "v", "verbose"},
+			Usage:   "include a detailed slice of all lending/borrowing rates over the time period",
+		},
+	},
+}
+
+func getMarginRatesHistory(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, c.Command.Name)
+	}
+
+	var exchangeName string
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	var assetType string
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(1)
+	}
+
+	if !validAsset(assetType) {
+		return errInvalidAsset
+	}
+
+	var curr string
+	if c.IsSet("currency") {
+		curr = c.String("currency")
+	} else {
+		curr = c.Args().Get(2)
+	}
+
+	if !c.IsSet("start") {
+		if c.Args().Get(3) != "" {
+			startTime = c.Args().Get(3)
+		}
+	}
+
+	if !c.IsSet("end") {
+		if c.Args().Get(4) != "" {
+			endTime = c.Args().Get(4)
+		}
+	}
+
+	var err error
+	var getPredictedRate bool
+	if c.IsSet("getpredictedrate") {
+		getPredictedRate = c.Bool("getpredictedrate")
+	} else if c.Args().Get(5) != "" {
+		getPredictedRate, err = strconv.ParseBool(c.Args().Get(5))
+		if err != nil {
+			return err
+		}
+	}
+
+	var getLendingPayments bool
+	if c.IsSet("getlendingpayments") {
+		getLendingPayments = c.Bool("getlendingpayments")
+	} else if c.Args().Get(6) != "" {
+		getLendingPayments, err = strconv.ParseBool(c.Args().Get(6))
+		if err != nil {
+			return err
+		}
+	}
+
+	var getBorrowRates bool
+	if c.IsSet("getborrowrates") {
+		getBorrowRates = c.Bool("getborrowrates")
+	} else if c.Args().Get(7) != "" {
+		getBorrowRates, err = strconv.ParseBool(c.Args().Get(7))
+		if err != nil {
+			return err
+		}
+	}
+
+	var getBorrowCosts bool
+	if c.IsSet("getborrowcosts") {
+		getBorrowCosts = c.Bool("getborrowcosts")
+	} else if c.Args().Get(8) != "" {
+		getBorrowCosts, err = strconv.ParseBool(c.Args().Get(8))
+		if err != nil {
+			return err
+		}
+	}
+
+	var includeAllRates bool
+	if c.IsSet("includeallrates") {
+		includeAllRates = c.Bool("includeallrates")
+	} else if c.Args().Get(9) != "" {
+		includeAllRates, err = strconv.ParseBool(c.Args().Get(9))
+		if err != nil {
+			return err
+		}
+	}
+
+	var s, e time.Time
+	s, err = time.Parse(common.SimpleTimeFormat, startTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for start: %v", err)
+	}
+	e, err = time.Parse(common.SimpleTimeFormat, endTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for end: %v", err)
+	}
+
+	err = common.StartEndTimeCheck(s, e)
+	if err != nil {
+		return err
+	}
+
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
+	result, err := client.GetMarginRatesHistory(c.Context,
+		&gctrpc.GetMarginRatesHistoryRequest{
+			Exchange:           exchangeName,
+			Asset:              assetType,
+			Currency:           curr,
+			StartDate:          negateLocalOffset(s),
+			EndDate:            negateLocalOffset(e),
+			GetPredictedRate:   getPredictedRate,
+			GetLendingPayments: getLendingPayments,
+			GetBorrowRates:     getBorrowRates,
+			GetBorrowCosts:     getBorrowCosts,
+			IncludeAllRates:    includeAllRates,
+		})
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}

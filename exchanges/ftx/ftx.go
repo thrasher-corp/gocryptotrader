@@ -405,7 +405,7 @@ func (f *FTX) GetMarginLendingRates(ctx context.Context) ([]MarginFundingData, e
 	r := struct {
 		Data []MarginFundingData `json:"result"`
 	}{}
-	return r.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, marginLendingRates, nil, &r)
+	return r.Data, f.SendHTTPRequest(ctx, exchange.RestSpot, marginLendingRates, &r)
 }
 
 // MarginDailyBorrowedAmounts gets daily borrowed amounts for margin
@@ -442,7 +442,7 @@ func (f *FTX) GetMarginBorrowHistory(ctx context.Context, startTime, endTime tim
 	return r.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, nil, &r)
 }
 
-// GetMarginMarketLendingHistory gets the markets margin lending rate history
+// GetMarginMarketLendingHistory gets the market's margin lending rate history
 func (f *FTX) GetMarginMarketLendingHistory(ctx context.Context, coin currency.Code, startTime, endTime time.Time) ([]MarginTransactionHistoryData, error) {
 	r := struct {
 		Data []MarginTransactionHistoryData `json:"result"`
@@ -459,7 +459,7 @@ func (f *FTX) GetMarginMarketLendingHistory(ctx context.Context, coin currency.C
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
 	endpoint := common.EncodeURLValues(marginLendingHistory, params)
-	return r.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, params, &r)
+	return r.Data, f.SendHTTPRequest(ctx, exchange.RestSpot, endpoint, &r)
 }
 
 // GetMarginLendingHistory gets margin lending history
