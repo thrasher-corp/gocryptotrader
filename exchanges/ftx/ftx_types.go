@@ -10,9 +10,9 @@ import (
 
 // MarginFundingData stores borrowing/lending data for margin trading
 type MarginFundingData struct {
-	Coin     string  `json:"coin"`
-	Estimate float64 `json:"estimate"`
-	Previous float64 `json:"previous"`
+	Coin     currency.Code `json:"coin"`
+	Estimate float64       `json:"estimate"`
+	Previous float64       `json:"previous"`
 }
 
 // MarginDailyBorrowStats stores the daily borrowed amounts
@@ -32,11 +32,12 @@ type MarginMarketInfo struct {
 
 // MarginTransactionHistoryData stores margin borrowing/lending history
 type MarginTransactionHistoryData struct {
-	Coin string    `json:"coin"`
-	Cost float64   `json:"cost"`
-	Rate float64   `json:"rate"`
-	Size float64   `json:"size"`
-	Time time.Time `json:"time"`
+	Coin     currency.Code `json:"coin"`
+	Cost     float64       `json:"cost"`
+	Rate     float64       `json:"rate"`
+	Size     float64       `json:"size"`
+	Proceeds float64       `json:"proceeds"`
+	Time     time.Time     `json:"time"`
 }
 
 // LendingOffersData stores data for lending offers
@@ -747,17 +748,6 @@ type WsFillsDataStore struct {
 
 // TimeInterval represents interval enum.
 type TimeInterval string
-
-// Vars related to time intervals
-var (
-	TimeIntervalFifteenSeconds = TimeInterval("15")
-	TimeIntervalMinute         = TimeInterval("60")
-	TimeIntervalFiveMinutes    = TimeInterval("300")
-	TimeIntervalFifteenMinutes = TimeInterval("900")
-	TimeIntervalHour           = TimeInterval("3600")
-	TimeIntervalFourHours      = TimeInterval("14400")
-	TimeIntervalDay            = TimeInterval("86400")
-)
 
 // OrderVars stores side, status and type for any order/trade
 type OrderVars struct {

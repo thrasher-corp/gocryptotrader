@@ -1147,6 +1147,55 @@ message GetTechnicalAnalysisResponse {
   map<string, ListOfSignals> signals = 1;
 }
 
+message GetMarginRatesHistoryRequest {
+  string exchange = 1;
+  string asset = 2;
+  string currency = 3;
+  string start_date = 4;
+  string end_date = 5;
+  bool get_predicted_rate = 6;
+  bool get_lending_payments = 7;
+  bool get_borrow_rates = 8;
+  bool get_borrow_costs = 9;
+  bool include_all_rates = 10;
+  bool calculate_offline = 11;
+  string taker_fee_rate = 12;
+  repeated MarginRate rates = 13;
+}
+
+message LendingPayment {
+  string payment = 1;
+  string size = 2;
+}
+
+message BorrowCost {
+  string cost = 1;
+  string size = 2;
+}
+
+message MarginRate {
+  string time = 1;
+  string market_borrow_size = 2;
+  string hourly_rate = 3;
+  string yearly_rate = 4;
+  string hourly_borrow_rate = 5;
+  string yearly_borrow_rate = 6;
+  LendingPayment lending_payment = 7;
+  BorrowCost borrow_cost = 8;
+}
+
+message GetMarginRatesHistoryResponse {
+  repeated MarginRate rates = 1;
+  int64 total_rates = 2;
+  string sum_borrow_costs = 3;
+  string avg_borrow_size = 4;
+  string sum_lending_payments = 5;
+  string avg_lending_size = 6;
+  MarginRate latest_rate = 7;
+  MarginRate predicted_rate = 8;
+  string taker_fee_rate = 9;
+}
+
 service GoCryptoTraderService {
   rpc GetInfo(GetInfoRequest) returns (GetInfoResponse) {
     option (google.api.http) = {
@@ -1753,6 +1802,11 @@ service GoCryptoTraderService {
   rpc GetTechnicalAnalysis(GetTechnicalAnalysisRequest) returns (GetTechnicalAnalysisResponse) {
     option (google.api.http) = {
       get: "/v1/gettechnicalanalysis"
+    };
+  }
+  rpc GetMarginRatesHistory(GetMarginRatesHistoryRequest) returns (GetMarginRatesHistoryResponse) {
+    option (google.api.http) = {
+      get: "/v1/getmarginrateshistory"
     };
   }
 }
