@@ -350,9 +350,6 @@ func TestGetMarginBorrowRates(t *testing.T) {
 
 func TestGetMarginLendingRates(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip()
-	}
 	_, err := f.GetMarginLendingRates(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -410,9 +407,6 @@ func TestGetMarginMarketLendingHistory(t *testing.T) {
 		t.Errorf("expected %s, got %s", errStartTimeCannotBeAfterEndTime, err)
 	}
 
-	if !areTestAPIKeysSet() {
-		t.Skip("api keys not set")
-	}
 	_, err = f.GetMarginMarketLendingHistory(context.Background(),
 		currency.USD, tmNow.AddDate(0, 0, -1), tmNow)
 	if err != nil {

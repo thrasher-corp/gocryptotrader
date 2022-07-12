@@ -4799,7 +4799,7 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 		return nil, err
 	}
 
-	request := &margin.RateHistoryRequest{
+	req := &margin.RateHistoryRequest{
 		Exchange:           exch.GetName(),
 		Asset:              a,
 		Currency:           c,
@@ -4811,21 +4811,22 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 		GetBorrowCosts:     r.GetBorrowCosts,
 		CalculateOffline:   r.CalculateOffline,
 	}
-	if request.CalculateOffline {
+	if req.CalculateOffline {
 		if r.TakerFeeRate == "" {
 			return nil, fmt.Errorf("%w for offline calculations", common.ErrCannotCalculateOffline)
 		}
-		request.TakeFeeRate, err = decimal.NewFromString(r.TakerFeeRate)
+		req.TakeFeeRate, err = decimal.NewFromString(r.TakerFeeRate)
 		if err != nil {
 			return nil, err
 		}
 
-		if request.TakeFeeRate.LessThanOrEqual(decimal.Zero) {
+		if req.TakeFeeRate.LessThanOrEqual(decimal.Zero) {
 			return nil, fmt.Errorf("%w for offline calculations", common.ErrCannotCalculateOffline)
 		}
 		if len(r.Rates) == 0 {
 			return nil, fmt.Errorf("%w for offline calculations", common.ErrCannotCalculateOffline)
 		}
+		req.Rates = make([]margin.Rate, len(r.Rates))
 		for i := range r.Rates {
 			var offlineRate margin.Rate
 			offlineRate.Time, err = time.Parse(common.SimpleTimeFormat, r.Rates[i].Time)
@@ -4851,11 +4852,11 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 				}
 			}
 
-			request.Rates = append(request.Rates, offlineRate)
+			req.Rates[i] = offlineRate
 		}
 	}
 
-	lendingResp, err := exch.GetMarginRatesHistory(ctx, request)
+	lendingResp, err := exch.GetMarginRatesHistory(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -4898,6 +4899,7 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 		}
 	}
 	if r.IncludeAllRates {
+		resp.Rates = make([]*gctrpc.MarginRate, len(lendingResp.Rates))
 		for i := range lendingResp.Rates {
 			rate := &gctrpc.MarginRate{
 				Time:             lendingResp.Rates[i].Time.Format(common.SimpleTimeFormatWithTimezone),
@@ -4921,7 +4923,7 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 					Size:    lendingResp.Rates[i].LendingPayment.Size.String(),
 				}
 			}
-			resp.Rates = append(resp.Rates, rate)
+			resp.Rates[i] = rate
 		}
 	}
 

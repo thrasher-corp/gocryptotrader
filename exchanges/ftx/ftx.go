@@ -435,7 +435,7 @@ func (f *FTX) GetMarginBorrowHistory(ctx context.Context, startTime, endTime tim
 	return r.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, nil, &r)
 }
 
-// GetMarginMarketLendingHistory gets the markets margin lending rate history
+// GetMarginMarketLendingHistory gets the market's margin lending rate history
 func (f *FTX) GetMarginMarketLendingHistory(ctx context.Context, coin currency.Code, startTime, endTime time.Time) ([]MarginTransactionHistoryData, error) {
 	r := struct {
 		Data []MarginTransactionHistoryData `json:"result"`
