@@ -912,7 +912,6 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   marginRateHistoryResponse,
 		})
 
-
 		positionSummaryRequest := &order.PositionSummaryRequest{
 			Asset: assetTypes[i],
 			Pair:  p,
