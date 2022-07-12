@@ -213,6 +213,7 @@ func main() {
 		getCollateralCommand,
 		shutdownCommand,
 		technicalAnalysisCommand,
+		getMarginRatesHistoryCommand,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
