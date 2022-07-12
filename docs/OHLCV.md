@@ -74,6 +74,7 @@ A helper tool [cmd/dbseed](../cmd/dbseed/README.md) has been created for assisti
 | BTC Markets    | Y           | 
 | Bittrex        |             | 
 | BTSE           | Y           |      
+| Bybit          | Y           | 
 | Coinbase Pro   | Y           |
 | Coinut         |             |         
 | Exmo           |             |
