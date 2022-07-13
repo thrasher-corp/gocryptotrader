@@ -30,6 +30,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -72,23 +73,61 @@ func (f fExchange) GetHistoricCandles(ctx context.Context, p currency.Pair, a as
 	}, nil
 }
 
+func generateCandles(amount int, timeStart time.Time, interval kline.Interval) []kline.Candle {
+	candy := make([]kline.Candle, amount)
+	for x := 0; x < amount; x++ {
+		candy[x] = kline.Candle{
+			Time:   timeStart,
+			Open:   1337,
+			High:   1337,
+			Low:    1337,
+			Close:  1337,
+			Volume: 1337,
+		}
+		timeStart = timeStart.Add(interval.Duration())
+	}
+	return candy
+}
+
 func (f fExchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{
 		Exchange: fakeExchangeName,
 		Pair:     p,
 		Asset:    a,
 		Interval: interval,
-		Candles: []kline.Candle{
-			{
-				Time:   timeStart,
-				Open:   1337,
-				High:   1337,
-				Low:    1337,
-				Close:  1337,
-				Volume: 1337,
+		Candles:  generateCandles(33, timeStart, interval),
+	}, nil
+}
+
+func (f fExchange) GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
+	leet := decimal.NewFromInt(1337)
+	rates := []margin.Rate{
+		{
+			Time:             time.Now(),
+			MarketBorrowSize: leet,
+			HourlyRate:       leet,
+			HourlyBorrowRate: leet,
+			LendingPayment: margin.LendingPayment{
+				Payment: leet,
+				Size:    leet,
+			},
+			BorrowCost: margin.BorrowCost{
+				Cost: leet,
+				Size: leet,
 			},
 		},
-	}, nil
+	}
+	resp := &margin.RateHistoryResponse{
+		Rates:              rates,
+		SumBorrowCosts:     leet,
+		AverageBorrowSize:  leet,
+		SumLendingPayments: leet,
+		AverageLendingSize: leet,
+		PredictedRate:      rates[0],
+		TakerFeeRate:       leet,
+	}
+
+	return resp, nil
 }
 
 func (f fExchange) FetchTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
@@ -2342,5 +2381,415 @@ func TestShutdown(t *testing.T) {
 	_, err = s.Shutdown(context.Background(), &gctrpc.ShutdownRequest{})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+}
+
+func TestGetTechnicalAnalysis(t *testing.T) {
+	t.Parallel()
+
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+
+	cp, err := currency.NewPairFromString("btc-usd")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received '%v', expected '%v'", err, nil)
+	}
+
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Futures] = &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+		ConfigFormat: &currency.PairFormat{},
+		Available:    currency.Pairs{cp},
+		Enabled:      currency.Pairs{cp},
+	}
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+		ConfigFormat: &currency.PairFormat{},
+		Available:    currency.Pairs{cp},
+		Enabled:      currency.Pairs{cp},
+	}
+
+	b.Features.Enabled.Kline.Intervals = map[string]bool{
+		kline.OneDay.Word(): true,
+	}
+	em.Add(fExchange{IBotExchange: exch})
+	s := RPCServer{
+		Engine: &Engine{
+			ExchangeManager: em,
+			currencyStateManager: &CurrencyStateManager{
+				started:          1,
+				iExchangeManager: em,
+			},
+		},
+	}
+
+	_, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{})
+	if !errors.Is(err, ErrExchangeNameIsEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeNameIsEmpty)
+	}
+
+	_, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{
+		Exchange: fakeExchangeName,
+	})
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	_, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{
+		Exchange:  fakeExchangeName,
+		AssetType: "upsideprofitcontract",
+		Pair:      &gctrpc.CurrencyPair{},
+	})
+	if !errors.Is(err, kline.ErrValidatingParams) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrValidatingParams)
+	}
+
+	_, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{
+		Exchange:  fakeExchangeName,
+		AssetType: "spot",
+		Pair:      &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"},
+		Interval:  int64(kline.OneDay),
+	})
+	if !errors.Is(err, errInvalidStrategy) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidStrategy)
+	}
+
+	resp, err := s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{
+		Exchange:      fakeExchangeName,
+		AssetType:     "spot",
+		Pair:          &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"},
+		Interval:      int64(kline.OneDay),
+		AlgorithmType: "twap",
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if resp.Signals["TWAP"].Signals[0] != 1337 {
+		t.Fatalf("received: '%v' but expected: '%v'", resp.Signals["TWAP"].Signals[0], 1337)
+	}
+
+	resp, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{
+		Exchange:      fakeExchangeName,
+		AssetType:     "spot",
+		Pair:          &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"},
+		Interval:      int64(kline.OneDay),
+		AlgorithmType: "vwap",
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(resp.Signals["VWAP"].Signals) != 33 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["VWAP"].Signals), 33)
+	}
+
+	resp, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{
+		Exchange:      fakeExchangeName,
+		AssetType:     "spot",
+		Pair:          &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"},
+		Interval:      int64(kline.OneDay),
+		AlgorithmType: "atr",
+		Period:        9,
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(resp.Signals["ATR"].Signals) != 33 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["ATR"].Signals), 33)
+	}
+
+	resp, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{
+		Exchange:              fakeExchangeName,
+		AssetType:             "spot",
+		Pair:                  &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"},
+		Interval:              int64(kline.OneDay),
+		AlgorithmType:         "bbands",
+		Period:                9,
+		StandardDeviationUp:   0.5,
+		StandardDeviationDown: 0.5,
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(resp.Signals["UPPER"].Signals) != 33 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["UPPER"].Signals), 33)
+	}
+
+	if len(resp.Signals["MIDDLE"].Signals) != 33 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["MIDDLE"].Signals), 33)
+	}
+
+	if len(resp.Signals["LOWER"].Signals) != 33 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["LOWER"].Signals), 33)
+	}
+
+	resp, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{
+		Exchange:      fakeExchangeName,
+		AssetType:     "spot",
+		Pair:          &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"},
+		OtherPair:     &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"},
+		Interval:      int64(kline.OneDay),
+		AlgorithmType: "COCO",
+		Period:        9,
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(resp.Signals["COCO"].Signals) != 33 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["COCO"].Signals), 33)
+	}
+
+	resp, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{
+		Exchange:      fakeExchangeName,
+		AssetType:     "spot",
+		Pair:          &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"},
+		Interval:      int64(kline.OneDay),
+		AlgorithmType: "sma",
+		Period:        9,
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(resp.Signals["SMA"].Signals) != 33 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["SMA"].Signals), 33)
+	}
+
+	resp, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{
+		Exchange:      fakeExchangeName,
+		AssetType:     "spot",
+		Pair:          &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"},
+		Interval:      int64(kline.OneDay),
+		AlgorithmType: "ema",
+		Period:        9,
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(resp.Signals["EMA"].Signals) != 33 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["EMA"].Signals), 33)
+	}
+
+	resp, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{
+		Exchange:      fakeExchangeName,
+		AssetType:     "spot",
+		Pair:          &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"},
+		Interval:      int64(kline.OneDay),
+		AlgorithmType: "macd",
+		Period:        9,
+		FastPeriod:    12,
+		SlowPeriod:    26,
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(resp.Signals["MACD"].Signals) != 33 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["MACD"].Signals), 33)
+	}
+
+	if len(resp.Signals["SIGNAL"].Signals) != 33 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["SIGNAL"].Signals), 33)
+	}
+
+	if len(resp.Signals["HISTOGRAM"].Signals) != 33 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["HISTOGRAM"].Signals), 33)
+	}
+
+	resp, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{
+		Exchange:      fakeExchangeName,
+		AssetType:     "spot",
+		Pair:          &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"},
+		Interval:      int64(kline.OneDay),
+		AlgorithmType: "mfi",
+		Period:        9,
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(resp.Signals["MFI"].Signals) != 33 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["MFI"].Signals), 33)
+	}
+
+	resp, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{
+		Exchange:      fakeExchangeName,
+		AssetType:     "spot",
+		Pair:          &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"},
+		Interval:      int64(kline.OneDay),
+		AlgorithmType: "obv",
+		Period:        9,
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(resp.Signals["OBV"].Signals) != 33 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["OBV"].Signals), 33)
+	}
+
+	resp, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{
+		Exchange:      fakeExchangeName,
+		AssetType:     "spot",
+		Pair:          &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"},
+		Interval:      int64(kline.OneDay),
+		AlgorithmType: "rsi",
+		Period:        9,
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(resp.Signals["RSI"].Signals) != 33 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["RSI"].Signals), 33)
+	}
+}
+
+func TestGetMarginRatesHistory(t *testing.T) {
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+
+	cp, err := currency.NewPairFromString("btc-usd")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received '%v', expected '%v'", err, nil)
+	}
+
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+		ConfigFormat: &currency.PairFormat{},
+		Available:    currency.Pairs{cp},
+		Enabled:      currency.Pairs{cp},
+	}
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	em.Add(fakeExchange)
+	s := RPCServer{
+		Engine: &Engine{
+			ExchangeManager: em,
+			currencyStateManager: &CurrencyStateManager{
+				started: 1, iExchangeManager: em,
+			},
+		},
+	}
+	_, err = s.GetMarginRatesHistory(context.Background(), nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrNilPointer)
+	}
+
+	request := &gctrpc.GetMarginRatesHistoryRequest{}
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, ErrExchangeNameIsEmpty) {
+		t.Errorf("received '%v' expected '%v'", err, ErrExchangeNameIsEmpty)
+	}
+
+	request.Exchange = fakeExchangeName
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("received '%v' expected '%v'", err, asset.ErrNotSupported)
+	}
+
+	request.Asset = asset.Spot.String()
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, currency.ErrCurrencyNotFound) {
+		t.Errorf("received '%v' expected '%v'", err, currency.ErrCurrencyNotFound)
+	}
+
+	request.Currency = "usd"
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	request.GetBorrowRates = true
+	request.GetLendingPayments = true
+	request.GetBorrowCosts = true
+	request.GetPredictedRate = true
+	request.IncludeAllRates = true
+	resp, err := s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if len(resp.Rates) == 0 {
+		t.Errorf("received '%v' expected '%v'", len(resp.Rates), 1)
+	}
+	if resp.PredictedRate == nil {
+		t.Errorf("received '%v' expected '%v'", nil, "not nil")
+	}
+	if resp.TakerFeeRate != "1337" {
+		t.Errorf("received '%v' expected '%v'", resp.TakerFeeRate, "1337")
+	}
+	if resp.SumLendingPayments != "1337" {
+		t.Errorf("received '%v' expected '%v'", resp.SumLendingPayments, "1337")
+	}
+	if resp.AvgBorrowSize != "1337" {
+		t.Errorf("received '%v' expected '%v'", resp.AvgBorrowSize, "1337")
+	}
+	if resp.AvgLendingSize != "1337" {
+		t.Errorf("received '%v' expected '%v'", resp.AvgLendingSize, "1337")
+	}
+	if resp.SumBorrowCosts != "1337" {
+		t.Errorf("received '%v' expected '%v'", resp.SumBorrowCosts, "1337")
+	}
+
+	request.CalculateOffline = true
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, common.ErrCannotCalculateOffline) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrCannotCalculateOffline)
+	}
+
+	request.TakerFeeRate = "-1337"
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, common.ErrCannotCalculateOffline) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrCannotCalculateOffline)
+	}
+
+	request.TakerFeeRate = "1337"
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, common.ErrCannotCalculateOffline) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrCannotCalculateOffline)
+	}
+
+	request.Rates = []*gctrpc.MarginRate{
+		{
+			Time:       time.Now().Format(common.SimpleTimeFormat),
+			HourlyRate: "1337",
+		},
+	}
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	request.Rates = []*gctrpc.MarginRate{
+		{
+			Time:           time.Now().Format(common.SimpleTimeFormat),
+			HourlyRate:     "1337",
+			LendingPayment: &gctrpc.LendingPayment{Size: "1337"},
+			BorrowCost:     &gctrpc.BorrowCost{Size: "1337"},
+		},
+	}
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 }

@@ -17,6 +17,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -349,9 +350,6 @@ func TestGetMarginBorrowRates(t *testing.T) {
 
 func TestGetMarginLendingRates(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip()
-	}
 	_, err := f.GetMarginLendingRates(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -409,9 +407,6 @@ func TestGetMarginMarketLendingHistory(t *testing.T) {
 		t.Errorf("expected %s, got %s", errStartTimeCannotBeAfterEndTime, err)
 	}
 
-	if !areTestAPIKeysSet() {
-		t.Skip("api keys not set")
-	}
 	_, err = f.GetMarginMarketLendingHistory(context.Background(),
 		currency.USD, tmNow.AddDate(0, 0, -1), tmNow)
 	if err != nil {
@@ -2195,5 +2190,277 @@ func TestGetCollateral(t *testing.T) {
 	_, err = f.GetCollateral(context.Background(), true)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetMarginRatesHistory(t *testing.T) {
+	t.Parallel()
+	type testCase struct {
+		name         string
+		request      *margin.RateHistoryRequest
+		err          error
+		requiresAuth bool
+	}
+	tests := []testCase{
+		{
+			name:    "nil request",
+			request: nil,
+			err:     common.ErrNilPointer,
+		},
+		{
+			name:    "empty request",
+			request: &margin.RateHistoryRequest{},
+			err:     currency.ErrCurrencyCodeEmpty,
+		},
+		{
+			name: "disabled currency request",
+			request: &margin.RateHistoryRequest{
+				Asset:    asset.Futures,
+				Currency: currency.LUNA,
+			},
+			err: currency.ErrCurrencyNotFound,
+		},
+		{
+			name: "empty date request",
+			request: &margin.RateHistoryRequest{
+				Asset:    asset.Spot,
+				Currency: currency.USD,
+			},
+			err: common.ErrDateUnset,
+		},
+		{
+			name: "nice basic request",
+			request: &margin.RateHistoryRequest{
+				Asset:     asset.Spot,
+				Currency:  currency.USD,
+				StartDate: time.Now().Add(-time.Hour * 24 * 7),
+				EndDate:   time.Now(),
+			},
+			err: nil,
+		},
+		{
+			name: "include predicted rate",
+			request: &margin.RateHistoryRequest{
+				Asset:            asset.Spot,
+				Currency:         currency.USD,
+				StartDate:        time.Now().Add(-time.Hour * 24 * 7),
+				EndDate:          time.Now(),
+				GetPredictedRate: true,
+			},
+			err: nil,
+		},
+		{
+			name: "include borrowed rates",
+			request: &margin.RateHistoryRequest{
+				Asset:          asset.Spot,
+				Currency:       currency.USD,
+				StartDate:      time.Now().Add(-time.Hour * 24 * 7),
+				EndDate:        time.Now(),
+				GetBorrowRates: true,
+			},
+			err:          nil,
+			requiresAuth: true,
+		},
+		{
+			name: "include predicted borrowed rates",
+			request: &margin.RateHistoryRequest{
+				Asset:            asset.Spot,
+				Currency:         currency.USD,
+				StartDate:        time.Now().Add(-time.Hour * 24 * 7),
+				EndDate:          time.Now(),
+				GetBorrowRates:   true,
+				GetPredictedRate: true,
+			},
+			err:          nil,
+			requiresAuth: true,
+		},
+		{
+			name: "all you can eat",
+			request: &margin.RateHistoryRequest{
+				Asset:              asset.Spot,
+				Currency:           currency.USD,
+				StartDate:          time.Now().Add(-time.Hour * 24 * 365 * 2),
+				EndDate:            time.Now(),
+				GetBorrowRates:     true,
+				GetPredictedRate:   true,
+				GetLendingPayments: true,
+				GetBorrowCosts:     true,
+			},
+			err:          nil,
+			requiresAuth: true,
+		},
+		{
+			name: "offline failure, no rates",
+			request: &margin.RateHistoryRequest{
+				Asset:            asset.Spot,
+				Currency:         currency.USD,
+				StartDate:        time.Now().Add(-time.Hour * 24 * 7),
+				EndDate:          time.Now(),
+				CalculateOffline: true,
+			},
+			err: common.ErrCannotCalculateOffline,
+		},
+		{
+			name: "offline failure, no fee for lending",
+			request: &margin.RateHistoryRequest{
+				Asset:              asset.Spot,
+				Currency:           currency.USD,
+				StartDate:          time.Now().Add(-time.Hour * 24 * 7),
+				EndDate:            time.Now(),
+				CalculateOffline:   true,
+				GetLendingPayments: true,
+				Rates: []margin.Rate{
+					{
+						Time:       time.Now().Add(-time.Hour),
+						HourlyRate: decimal.NewFromInt(1337),
+					},
+				},
+			},
+			err: common.ErrCannotCalculateOffline,
+		},
+		{
+			name: "offline failure, no fee for borrow",
+			request: &margin.RateHistoryRequest{
+				Asset:            asset.Spot,
+				Currency:         currency.USD,
+				StartDate:        time.Now().Add(-time.Hour * 24 * 7),
+				EndDate:          time.Now(),
+				CalculateOffline: true,
+				GetBorrowCosts:   true,
+				Rates: []margin.Rate{
+					{
+						Time:       time.Now().Add(-time.Hour),
+						HourlyRate: decimal.NewFromInt(1337),
+					},
+				},
+			},
+			err: common.ErrCannotCalculateOffline,
+		},
+		{
+			name: "offline pass, lending w fee",
+			request: &margin.RateHistoryRequest{
+				Asset:              asset.Spot,
+				Currency:           currency.USD,
+				StartDate:          time.Now().Add(-time.Hour * 24 * 7),
+				EndDate:            time.Now(),
+				CalculateOffline:   true,
+				TakeFeeRate:        decimal.NewFromFloat(0.01),
+				GetLendingPayments: true,
+				Rates: []margin.Rate{
+					{
+						Time:       time.Now().Add(-time.Hour),
+						HourlyRate: decimal.NewFromInt(1337),
+					},
+				},
+			},
+			err: nil,
+		},
+		{
+			name: "offline pass, borrow w fee",
+			request: &margin.RateHistoryRequest{
+				Asset:            asset.Spot,
+				Currency:         currency.USD,
+				StartDate:        time.Now().Add(-time.Hour * 24 * 7),
+				EndDate:          time.Now(),
+				CalculateOffline: true,
+				TakeFeeRate:      decimal.NewFromFloat(0.01),
+				GetBorrowCosts:   true,
+				Rates: []margin.Rate{
+					{
+						Time:       time.Now().Add(-time.Hour),
+						HourlyRate: decimal.NewFromInt(1337),
+						BorrowCost: margin.BorrowCost{Size: decimal.NewFromFloat(1337)},
+					},
+				},
+			},
+			err: nil,
+		},
+		{
+			name: "offline pass, lending size",
+			request: &margin.RateHistoryRequest{
+				Asset:              asset.Spot,
+				Currency:           currency.USD,
+				StartDate:          time.Now().Add(-time.Hour * 24 * 7),
+				EndDate:            time.Now(),
+				CalculateOffline:   true,
+				TakeFeeRate:        decimal.NewFromFloat(0.01),
+				GetLendingPayments: true,
+				Rates: []margin.Rate{
+					{
+						Time:           time.Now().Add(-time.Hour),
+						HourlyRate:     decimal.NewFromInt(1337),
+						LendingPayment: margin.LendingPayment{Size: decimal.NewFromFloat(1337)},
+					},
+				},
+			},
+			err: nil,
+		},
+		{
+			name: "offline failure, cannot predict offline",
+			request: &margin.RateHistoryRequest{
+				Asset:            asset.Spot,
+				Currency:         currency.USD,
+				StartDate:        time.Now().Add(-time.Hour * 24 * 7),
+				EndDate:          time.Now(),
+				CalculateOffline: true,
+				TakeFeeRate:      decimal.NewFromFloat(0.01),
+				Rates: []margin.Rate{
+					{
+						Time:       time.Now().Add(-time.Hour),
+						HourlyRate: decimal.NewFromInt(1337),
+					},
+				},
+				GetPredictedRate: true,
+			},
+			err: common.ErrCannotCalculateOffline,
+		},
+	}
+	for i := range tests {
+		tt := tests[i]
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if tt.requiresAuth && !areTestAPIKeysSet() {
+				t.Skip("requires auth")
+			}
+
+			_, err := f.GetMarginRatesHistory(context.Background(), tt.request)
+			if !errors.Is(err, tt.err) {
+				t.Errorf("receieved '%v' expected '%v'", err, tt.err)
+			}
+		})
+	}
+	if !areTestAPIKeysSet() {
+		return
+	}
+
+	// test offline calculation against real data
+	online, err := f.GetMarginRatesHistory(context.Background(), &margin.RateHistoryRequest{
+		Asset:          asset.Spot,
+		Currency:       currency.USD,
+		StartDate:      time.Now().Add(-time.Hour * 24 * 2),
+		EndDate:        time.Now(),
+		GetBorrowRates: true,
+		GetBorrowCosts: true,
+	})
+	if !errors.Is(err, nil) {
+		t.Errorf("receieved '%v' expected '%v'", err, nil)
+	}
+
+	offline, err := f.GetMarginRatesHistory(context.Background(), &margin.RateHistoryRequest{
+		Asset:            asset.Spot,
+		Currency:         currency.USD,
+		StartDate:        time.Now().Add(-time.Hour * 24 * 2),
+		EndDate:          time.Now(),
+		GetBorrowRates:   true,
+		GetBorrowCosts:   true,
+		Rates:            online.Rates,
+		TakeFeeRate:      online.TakerFeeRate,
+		CalculateOffline: true,
+	})
+	if !errors.Is(err, nil) {
+		t.Errorf("receieved '%v' expected '%v'", err, nil)
+	}
+	if !online.Rates[0].BorrowCost.Cost.Equal(offline.Rates[0].BorrowCost.Cost) {
+		t.Errorf("expected '%v' received '%v'", online.Rates[0].BorrowCost.Cost, offline.Rates[0].BorrowCost.Cost)
 	}
 }
