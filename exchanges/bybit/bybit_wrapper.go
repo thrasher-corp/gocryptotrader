@@ -1123,6 +1123,9 @@ func (by *Bybit) CancelAllOrders(ctx context.Context, orderCancellation *order.C
 			return cancelAllOrdersResponse, err
 		}
 
+		if len(activeOrder) == 0 { // avoid further call if no active order present
+			break
+		}
 		var orderType, side string
 		if orderCancellation.Type != order.UnknownType {
 			orderType = orderCancellation.Type.String()
@@ -1172,6 +1175,9 @@ func (by *Bybit) CancelAllOrders(ctx context.Context, orderCancellation *order.C
 			return cancelAllOrdersResponse, err
 		}
 
+		if len(activeOrder) == 0 { // avoid further call if no active order present
+			break
+		}
 		err = by.CancelAllActiveUSDCOrder(ctx, orderCancellation.Pair, "Order")
 		if err != nil {
 			status = err.Error()
@@ -1362,30 +1368,35 @@ func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 	}
 
 	var orders []order.Detail
-	for i := range req.Pairs {
-		switch req.AssetType {
-		case asset.Spot:
-			openOrders, err := by.ListOpenOrders(ctx, req.Pairs[i].String(), "", 0)
-			if err != nil {
-				return nil, err
+	switch req.AssetType {
+	case asset.Spot:
+		openOrders, err := by.ListOpenOrders(ctx, "", "", 0)
+		if err != nil {
+			return nil, err
+		}
+
+		for x := range openOrders {
+			for i := range req.Pairs {
+				if req.Pairs[i].String() == openOrders[x].SymbolName {
+					orders = append(orders, order.Detail{
+						Amount:        openOrders[x].Quantity,
+						Date:          openOrders[x].Time.Time(),
+						Exchange:      by.Name,
+						OrderID:       strconv.FormatInt(openOrders[x].OrderID, 10),
+						ClientOrderID: openOrders[x].OrderLinkID,
+						Side:          getSide(openOrders[x].Side),
+						Type:          getTradeType(openOrders[x].TradeType),
+						Price:         openOrders[x].Price,
+						Status:        getOrderStatus(openOrders[x].Status),
+						Pair:          req.Pairs[i],
+						AssetType:     req.AssetType,
+						LastUpdated:   openOrders[x].UpdateTime.Time(),
+					})
+				}
 			}
-			for x := range openOrders {
-				orders = append(orders, order.Detail{
-					Amount:        openOrders[x].Quantity,
-					Date:          openOrders[x].Time.Time(),
-					Exchange:      by.Name,
-					OrderID:       strconv.FormatInt(openOrders[x].OrderID, 10),
-					ClientOrderID: openOrders[x].OrderLinkID,
-					Side:          getSide(openOrders[x].Side),
-					Type:          getTradeType(openOrders[x].TradeType),
-					Price:         openOrders[x].Price,
-					Status:        getOrderStatus(openOrders[x].Status),
-					Pair:          req.Pairs[i],
-					AssetType:     req.AssetType,
-					LastUpdated:   openOrders[x].UpdateTime.Time(),
-				})
-			}
-		case asset.CoinMarginedFutures:
+		}
+	case asset.CoinMarginedFutures:
+		for i := range req.Pairs {
 			openOrders, err := by.GetActiveCoinFuturesOrders(ctx, req.Pairs[i], "", "", "", 0)
 			if err != nil {
 				return nil, err
@@ -1409,8 +1420,9 @@ func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 					Date:            openOrders[x].CreatedAt,
 				})
 			}
-
-		case asset.USDTMarginedFutures:
+		}
+	case asset.USDTMarginedFutures:
+		for i := range req.Pairs {
 			openOrders, err := by.GetActiveUSDTFuturesOrders(ctx, req.Pairs[i], "", "", "", "", 0, 0)
 			if err != nil {
 				return nil, err
@@ -1434,7 +1446,9 @@ func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 					Date:            openOrders[x].CreatedAt,
 				})
 			}
-		case asset.Futures:
+		}
+	case asset.Futures:
+		for i := range req.Pairs {
 			openOrders, err := by.GetActiveFuturesOrders(ctx, req.Pairs[i], "", "", "", 0)
 			if err != nil {
 				return nil, err
@@ -1458,35 +1472,37 @@ func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 					Date:            openOrders[x].CreatedAt,
 				})
 			}
-
-		case asset.USDCMarginedFutures:
-			openOrders, err := by.GetActiveUSDCOrder(ctx, req.Pairs[i], "PERPETUAL", "", "", "", "", "", 0)
-			if err != nil {
-				return nil, err
-			}
-
-			for x := range openOrders {
-				orders = append(orders, order.Detail{
-					Price:           openOrders[x].Price,
-					Amount:          openOrders[x].Qty,
-					ExecutedAmount:  openOrders[x].TotalFilledQty,
-					RemainingAmount: openOrders[x].Qty - openOrders[x].TotalFilledQty,
-					Fee:             openOrders[x].TotalFee,
-					Exchange:        by.Name,
-					OrderID:         openOrders[x].ID,
-					ClientOrderID:   openOrders[x].OrderLinkID,
-					Type:            getTradeType(openOrders[x].OrderType),
-					Side:            getSide(openOrders[x].Side),
-					Status:          getOrderStatus(openOrders[x].OrderStatus),
-					Pair:            req.Pairs[i],
-					AssetType:       req.AssetType,
-					Date:            openOrders[x].CreatedAt.Time(),
-				})
-			}
-
-		default:
-			return orders, fmt.Errorf("%s %w", req.AssetType, asset.ErrNotSupported)
 		}
+	case asset.USDCMarginedFutures:
+		openOrders, err := by.GetActiveUSDCOrder(ctx, currency.EMPTYPAIR, "PERPETUAL", "", "", "", "", "", 0)
+		if err != nil {
+			return nil, err
+		}
+
+		for x := range openOrders {
+			for i := range req.Pairs {
+				if req.Pairs[i].String() == openOrders[x].Symbol {
+					orders = append(orders, order.Detail{
+						Price:           openOrders[x].Price,
+						Amount:          openOrders[x].Qty,
+						ExecutedAmount:  openOrders[x].TotalFilledQty,
+						RemainingAmount: openOrders[x].Qty - openOrders[x].TotalFilledQty,
+						Fee:             openOrders[x].TotalFee,
+						Exchange:        by.Name,
+						OrderID:         openOrders[x].ID,
+						ClientOrderID:   openOrders[x].OrderLinkID,
+						Type:            getTradeType(openOrders[x].OrderType),
+						Side:            getSide(openOrders[x].Side),
+						Status:          getOrderStatus(openOrders[x].OrderStatus),
+						Pair:            req.Pairs[i],
+						AssetType:       req.AssetType,
+						Date:            openOrders[x].CreatedAt.Time(),
+					})
+				}
+			}
+		}
+	default:
+		return orders, fmt.Errorf("%s %w", req.AssetType, asset.ErrNotSupported)
 	}
 	order.FilterOrdersByPairs(&orders, req.Pairs)
 	order.FilterOrdersByType(&orders, req.Type)
