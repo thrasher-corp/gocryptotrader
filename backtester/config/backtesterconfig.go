@@ -35,7 +35,7 @@ func GenerateDefaultConfig() (*BacktesterConfig, error) {
 	}
 	return &BacktesterConfig{
 		PrintLogo:               true,
-		SingleRunStrategyConfig: filepath.Join(wd, "config", "examples", "ftx-cash-carry.strat"),
+		SingleRunStrategyConfig: filepath.Join(wd, "examples", "ftx-cash-carry.strat"),
 		LogSubheaders:           true,
 		Report: Report{
 			GenerateReport: true,

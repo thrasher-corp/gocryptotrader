@@ -48,7 +48,7 @@ func TestGenerateDefaultConfig(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if cfg.SingleRunStrategyConfig != filepath.Join(wd, "config", "examples", "ftx-cash-carry.strat") {
-		t.Error("Wrong default SingleRunStrategyConfig")
+	if filepath.Join(wd, "examples", "ftx-cash-carry.strat") != cfg.SingleRunStrategyConfig {
+		t.Errorf("expected '%v' received '%v'", filepath.Join(wd, "examples", "ftx-cash-carry.strat"), cfg.SingleRunStrategyConfig)
 	}
 }

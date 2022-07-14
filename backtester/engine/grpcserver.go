@@ -54,7 +54,7 @@ func StartRPCServer(server *GRPCServer) error {
 	if err := gctengine.CheckCerts(targetDir); err != nil {
 		return err
 	}
-	log.Debugf(log.GRPCSys, "gRPC server support enabled. Starting gRPC server on https://%v.\n", server.GRPC.ListenAddress)
+	log.Debugf(log.GRPCSys, "backtester gRPC server enabled. Starting gRPC server on https://%v.\n", server.GRPC.ListenAddress)
 	lis, err := net.Listen("tcp", server.GRPC.ListenAddress)
 	if err != nil {
 		return err
