@@ -1136,7 +1136,7 @@ func (by *Bybit) CancelAllOrders(ctx context.Context, orderCancellation *order.C
 
 		successful, err := by.BatchCancelOrder(ctx, orderCancellation.Pair.String(), side, orderType)
 		if !successful {
-			return cancelAllOrdersResponse, fmt.Errorf("failed to cancelAllOrder")
+			status = "failed"
 		}
 		if err != nil {
 			status = err.Error()
