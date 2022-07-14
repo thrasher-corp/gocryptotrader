@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
@@ -88,7 +89,7 @@ func main() {
 	log.GlobalLogConfig.AdvancedSettings.Headers.Warn = common.ColourWarn + "[WARN]" + common.ColourDefault
 	log.GlobalLogConfig.AdvancedSettings.Headers.Debug = common.ColourDebug + "[DEBUG]" + common.ColourDefault
 	log.GlobalLogConfig.AdvancedSettings.Headers.Error = common.ColourError + "[ERROR]" + common.ColourDefault
-	err = log.SetupGlobalLogger()
+	err = log.SetupGlobalLogger(runtime.GOMAXPROCS(-1))
 	if err != nil {
 		fmt.Printf("Could not setup global logger. Error: %v.\n", err)
 		os.Exit(1)

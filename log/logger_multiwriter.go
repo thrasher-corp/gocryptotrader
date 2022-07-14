@@ -4,11 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
+	"time"
 )
 
 var (
 	errWriterAlreadyLoaded = errors.New("io.Writer already loaded")
 	errWriterNotFound      = errors.New("io.Writer not found")
+	errJobsChannelIsFull   = errors.New("logger jobs channel is filled")
 )
 
 // Add appends a new writer to the multiwriter slice
@@ -41,38 +44,67 @@ func (mw *multiWriterHolder) Remove(writer io.Writer) error {
 }
 
 func loggerWorker() {
+	defer workerWg.Done()
+	// Localise a persistent buffer for a worker, this does not need to be
+	// garbage collected.
+	buffer := make([]byte, 0, defaultBufferCapacity)
 	var n int
 	var err error
-	for j := range jobChannel {
-		n, err = j.Writer.Write(j.Data)
-		if err != nil {
-			displayError(fmt.Errorf("%T %w", j.Writer, err))
-		} else if n != len(j.Data) {
-			fmt.Println("WOW")
-			displayError(fmt.Errorf("%T %w", j.Writer, io.ErrShortWrite))
+	for {
+		select {
+		case j := <-jobsChannel:
+			buffer = append(buffer, j.Header...)
+			if j.ShowLogSystemName {
+				buffer = append(buffer, j.Spacer...)
+				buffer = append(buffer, j.SlName...)
+			}
+			buffer = append(buffer, j.Spacer...)
+			if j.TimestampFormat != "" {
+				buffer = time.Now().AppendFormat(buffer, j.TimestampFormat)
+			}
+			buffer = append(buffer, j.Spacer...)
+			buffer = append(buffer, j.Data...)
+			if j.Data[len(j.Data)-1] != '\n' {
+				buffer = append(buffer, '\n')
+			}
+
+			for x := range j.Writers {
+				n, err = j.Writers[x].Write(buffer)
+				if err != nil {
+					displayError(fmt.Errorf("%T %w", j.Writers[x], err))
+				} else if n != len(buffer) {
+					displayError(fmt.Errorf("%T %w", j.Writers[x], io.ErrShortWrite))
+				}
+			}
+			buffer = buffer[:0] // Clean buffer
+			jobsPool.Put(j)
+		case <-workerShutdown:
+			return
 		}
-		jobsPool.Put(j)
 	}
 }
 
-// Write concurrent safe Write for each writer
-func (mw *multiWriterHolder) Write(p []byte) (int, error) {
-	mw.mu.RLock()
-	defer mw.mu.RUnlock()
-	for x := range mw.writers {
-		newJob := jobsPool.Get().(*job)
-		newJob.Writer = mw.writers[x]
-		newJob.Data = make([]byte, len(p))
-		copy(newJob.Data, p)
+// StageLogEvent stages a new logger event in a jobs channel to be processed by
+// a worker pool. This segregates the need to process the log string and the
+// writes to the required io.Writer.
+func (mw *multiWriterHolder) StageLogEvent(data string, header, slName, spacer, timestampFormat string, showLogSystemName bool) {
+	newJob := jobsPool.Get().(*job) // nolint:forcetypeassert // Not neccessary from a pool
+	newJob.Writers = mw.writers
+	newJob.Data = data
+	newJob.Header = header
+	newJob.SlName = slName
+	newJob.ShowLogSystemName = showLogSystemName
+	newJob.Spacer = spacer
+	newJob.TimestampFormat = timestampFormat
 
-		select {
-		case jobChannel <- newJob:
-		default:
-			displayError(errors.New("logger jobs channel is filled"))
-			jobChannel <- newJob
-		}
+	select {
+	case jobsChannel <- newJob:
+	default:
+		// This will cause temporary caller impedance, which can have a knock
+		// on effect in processing.
+		log.Printf("Logger warning: %v\n", errJobsChannelIsFull)
+		jobsChannel <- newJob
 	}
-	return len(p), nil
 }
 
 // multiWriter make and return a new copy of multiWriterHolder

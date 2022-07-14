@@ -11,7 +11,10 @@ const (
 	// DefaultMaxFileSize for logger rotation file
 	DefaultMaxFileSize int64 = 100
 
-	defaultCapacityForSliceOfBytes = 200000 //200kb of memory lfg this doesn't exceed max cap
+	// defaultBufferCapacity has 200kb of memory per buffer, there has been some
+	// instances where it was 3/4 of this. This size so as to not need a resize.
+	defaultBufferCapacity     = 200000
+	defaultJobChannelCapacity = 10000
 )
 
 var (
@@ -23,26 +26,29 @@ var (
 	// GlobalLogFile hold global configuration options for file logger
 	GlobalLogFile = &Rotate{}
 
-	eventPool = &sync.Pool{
-		New: func() interface{} {
-			sliceOBytes := make([]byte, 0, defaultCapacityForSliceOfBytes)
-			return &sliceOBytes
-		},
-	}
+	jobsPool    = &sync.Pool{New: func() interface{} { return new(job) }}
+	jobsChannel = make(chan *job, defaultJobChannelCapacity)
 
-	jobsPool   = &sync.Pool{New: func() interface{} { return &job{} }}
-	jobChannel = make(chan *job, 1000)
+	logFieldsPool = &sync.Pool{New: func() interface{} { return new(logFields) }}
 
 	// LogPath system path to store log files in
 	LogPath string
+
+	workerWg       sync.WaitGroup
+	workerShutdown = make(chan struct{})
 
 	// RWM read/write mutex for logger
 	RWM = &sync.RWMutex{}
 )
 
 type job struct {
-	Writer io.Writer
-	Data   []byte
+	Writers           []io.Writer
+	Data              string
+	Header            string
+	SlName            string
+	Spacer            string
+	TimestampFormat   string
+	ShowLogSystemName bool
 }
 
 // Config holds configuration settings loaded from bot config
@@ -84,7 +90,7 @@ type loggerFileConfig struct {
 // Logger each instance of logger settings
 type Logger struct {
 	ShowLogSystemName                                bool
-	Timestamp                                        string
+	TimestampFormat                                  string
 	InfoHeader, ErrorHeader, DebugHeader, WarnHeader string
 	Spacer                                           string
 }

@@ -1,7 +1,6 @@
 package log
 
 import (
-	"io"
 	"sync"
 )
 
@@ -42,7 +41,7 @@ var (
 type SubLogger struct {
 	name   string
 	levels Levels
-	output io.Writer
+	output *multiWriterHolder
 	mtx    sync.RWMutex
 }
 
@@ -54,6 +53,6 @@ type logFields struct {
 	debug  bool
 	error  bool
 	name   string
-	output io.Writer
+	output *multiWriterHolder
 	logger Logger
 }

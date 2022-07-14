@@ -2,7 +2,6 @@ package log
 
 import (
 	"fmt"
-	"io"
 	"strings"
 )
 
@@ -22,7 +21,7 @@ func NewSubLogger(name string) (*SubLogger, error) {
 }
 
 // SetOutput overrides the default output with a new writer
-func (sl *SubLogger) SetOutput(o io.Writer) {
+func (sl *SubLogger) SetOutput(o *multiWriterHolder) {
 	sl.mtx.Lock()
 	sl.output = o
 	sl.mtx.Unlock()
@@ -53,15 +52,16 @@ func (sl *SubLogger) getFields() *logFields {
 		return nil
 	}
 
+	fields := logFieldsPool.Get().(*logFields) // nolint:forcetypeassert // Not neccessary from a pool
+
 	sl.mtx.RLock()
 	defer sl.mtx.RUnlock()
-	return &logFields{
-		info:   sl.levels.Info,
-		warn:   sl.levels.Warn,
-		debug:  sl.levels.Debug,
-		error:  sl.levels.Error,
-		name:   sl.name,
-		output: sl.output,
-		logger: logger,
-	}
+	fields.info = sl.levels.Info
+	fields.warn = sl.levels.Warn
+	fields.debug = sl.levels.Debug
+	fields.error = sl.levels.Error
+	fields.name = sl.name
+	fields.output = sl.output
+	fields.logger = logger
+	return fields
 }

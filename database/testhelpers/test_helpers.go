@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
@@ -122,7 +123,7 @@ func EnableVerboseTestOutput() error {
 	log.RWM.Lock()
 	log.GlobalLogConfig = log.GenDefaultSettings()
 	log.RWM.Unlock()
-	if err := log.SetupGlobalLogger(); err != nil {
+	if err := log.SetupGlobalLogger(runtime.GOMAXPROCS(-1)); err != nil {
 		return err
 	}
 	DBLogger := database.Logger{}

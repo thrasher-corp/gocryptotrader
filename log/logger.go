@@ -3,8 +3,6 @@ package log
 import (
 	"errors"
 	"fmt"
-	"io"
-	"time"
 )
 
 var (
@@ -15,7 +13,7 @@ var (
 
 func newLogger(c *Config) Logger {
 	return Logger{
-		Timestamp:         c.AdvancedSettings.TimeStampFormat,
+		TimestampFormat:   c.AdvancedSettings.TimeStampFormat,
 		Spacer:            c.AdvancedSettings.Spacer,
 		ErrorHeader:       c.AdvancedSettings.Headers.Error,
 		InfoHeader:        c.AdvancedSettings.Headers.Info,
@@ -23,37 +21,6 @@ func newLogger(c *Config) Logger {
 		DebugHeader:       c.AdvancedSettings.Headers.Debug,
 		ShowLogSystemName: *c.AdvancedSettings.ShowLogSystemName,
 	}
-}
-
-func (l *Logger) newLogEvent(data, header, slName string, w io.Writer) error {
-	if w == nil {
-		return errors.New("io.Writer not set")
-	}
-
-	pool, ok := eventPool.Get().(*[]byte)
-	if !ok {
-		return errors.New("unable to type assert slice of bytes pointer")
-	}
-
-	*pool = append(*pool, header...)
-	if l.ShowLogSystemName {
-		*pool = append(*pool, l.Spacer...)
-		*pool = append(*pool, slName...)
-	}
-	*pool = append(*pool, l.Spacer...)
-	if l.Timestamp != "" {
-		*pool = time.Now().AppendFormat(*pool, l.Timestamp)
-	}
-	*pool = append(*pool, l.Spacer...)
-	*pool = append(*pool, data...)
-	if data == "" || data[len(data)-1] != '\n' {
-		*pool = append(*pool, '\n')
-	}
-	_, _ = w.Write(*pool)
-	*pool = (*pool)[:0]
-	eventPool.Put(pool)
-
-	return nil
 }
 
 // CloseLogger is called on shutdown of application

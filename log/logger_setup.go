@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"runtime"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
@@ -16,7 +15,7 @@ var (
 	errUnhandledOutputWriter = errors.New("unhandled output writer")
 )
 
-func getWriters(s *SubLoggerConfig) (io.Writer, error) {
+func getWriters(s *SubLoggerConfig) (*multiWriterHolder, error) {
 	if s == nil {
 		return nil, errSubloggerConfigIsNil
 	}
@@ -35,8 +34,8 @@ func getWriters(s *SubLoggerConfig) (io.Writer, error) {
 				writer = GlobalLogFile
 			}
 		default:
-			// Note: Do not want to add a io.Discard here as this adds
-			// additional routines for every write for no reason.
+			// Note: Do not want to add an io.Discard here as this adds
+			// additional write calls for no reason.
 			return nil, fmt.Errorf("%w: %s", errUnhandledOutputWriter, outputWriters[x])
 		}
 		writers = append(writers, writer)
@@ -71,7 +70,7 @@ func GenDefaultSettings() *Config {
 	}
 }
 
-func configureSubLogger(subLogger, levels string, output io.Writer) error {
+func configureSubLogger(subLogger, levels string, output *multiWriterHolder) error {
 	RWM.Lock()
 	defer RWM.Unlock()
 	logPtr, found := SubLoggers[subLogger]
@@ -101,9 +100,17 @@ func SetupSubLoggers(s []SubLoggerConfig) error {
 }
 
 // SetupGlobalLogger setup the global loggers with the default global config values
-func SetupGlobalLogger() error {
+func SetupGlobalLogger(workerCount int) error {
 	RWM.Lock()
 	defer RWM.Unlock()
+
+	close(workerShutdown)
+	workerWg.Wait()
+	workerShutdown = make(chan struct{})
+	for x := 0; x < workerCount; x++ {
+		workerWg.Add(1)
+		go loggerWorker()
+	}
 
 	if FileLoggingConfiguredCorrectly {
 		GlobalLogFile = &Rotate{
@@ -113,13 +120,13 @@ func SetupGlobalLogger() error {
 		}
 	}
 
-	for x := range SubLoggers {
-		SubLoggers[x].SetLevels(splitLevel(GlobalLogConfig.Level))
+	for _, subLogger := range SubLoggers {
+		subLogger.SetLevels(splitLevel(GlobalLogConfig.Level))
 		writers, err := getWriters(&GlobalLogConfig.SubLoggerConfig)
 		if err != nil {
 			return err
 		}
-		SubLoggers[x].SetOutput(writers)
+		subLogger.SetOutput(writers)
 	}
 	logger = newLogger(GlobalLogConfig)
 	return nil
@@ -128,7 +135,7 @@ func SetupGlobalLogger() error {
 func splitLevel(level string) (l Levels) {
 	enabledLevels := strings.Split(level, "|")
 	for x := range enabledLevels {
-		switch level := enabledLevels[x]; level {
+		switch enabledLevels[x] {
 		case "DEBUG":
 			l.Debug = true
 		case "INFO":
@@ -143,9 +150,17 @@ func splitLevel(level string) (l Levels) {
 }
 
 func registerNewSubLogger(subLogger string) *SubLogger {
+	tempHolder, err := getWriters(&SubLoggerConfig{
+		Name:   strings.ToUpper(subLogger),
+		Level:  "INFO|WARN|DEBUG|ERROR",
+		Output: "stdout"})
+	if err != nil {
+		return nil
+	}
+
 	temp := &SubLogger{
 		name:   strings.ToUpper(subLogger),
-		output: os.Stdout,
+		output: tempHolder,
 		levels: splitLevel("INFO|WARN|DEBUG|ERROR"),
 	}
 	RWM.Lock()
@@ -156,11 +171,9 @@ func registerNewSubLogger(subLogger string) *SubLogger {
 
 // register all loggers at package init()
 func init() {
-	// Balance workers to max available processes
-	processes := runtime.GOMAXPROCS(-1)
-	for x := 0; x < processes; x++ {
-		go loggerWorker()
-	}
+	// Start worker to handle basic logs
+	workerWg.Add(1)
+	go loggerWorker()
 
 	Global = registerNewSubLogger("LOG")
 

@@ -8,26 +8,35 @@ import (
 // Info takes a pointer subLogger struct and string sends to newLogEvent
 func Info(sl *SubLogger, data string) {
 	fields := sl.getFields()
-	if fields == nil || !fields.info {
+	if fields == nil {
 		return
 	}
-
-	displayError(fields.logger.newLogEvent(data,
-		fields.logger.InfoHeader,
-		fields.name,
-		fields.output))
+	if fields.info {
+		fields.output.StageLogEvent(data,
+			fields.logger.InfoHeader,
+			fields.name,
+			fields.logger.Spacer,
+			fields.logger.TimestampFormat,
+			fields.logger.ShowLogSystemName)
+	}
+	logFieldsPool.Put(fields)
 }
 
 // Infoln takes a pointer subLogger struct and interface sends to newLogEvent
 func Infoln(sl *SubLogger, v ...interface{}) {
 	fields := sl.getFields()
-	if fields == nil || !fields.info {
+	if fields == nil {
 		return
 	}
-	displayError(fields.logger.newLogEvent(fmt.Sprintln(v...),
-		fields.logger.InfoHeader,
-		fields.name,
-		fields.output))
+	if fields.info {
+		fields.output.StageLogEvent(fmt.Sprintln(v...),
+			fields.logger.InfoHeader,
+			fields.name,
+			fields.logger.Spacer,
+			fields.logger.TimestampFormat,
+			fields.logger.ShowLogSystemName)
+	}
+	logFieldsPool.Put(fields)
 }
 
 // Infof takes a pointer subLogger struct, string & interface formats and sends to Info()
@@ -38,26 +47,35 @@ func Infof(sl *SubLogger, data string, v ...interface{}) {
 // Debug takes a pointer subLogger struct and string sends to multiwriter
 func Debug(sl *SubLogger, data string) {
 	fields := sl.getFields()
-	if fields == nil || !fields.debug {
+	if fields == nil {
 		return
 	}
-	displayError(fields.logger.newLogEvent(data,
-		fields.logger.DebugHeader,
-		fields.name,
-		fields.output))
+	if fields.debug {
+		fields.output.StageLogEvent(data,
+			fields.logger.DebugHeader,
+			fields.name,
+			fields.logger.Spacer,
+			fields.logger.TimestampFormat,
+			fields.logger.ShowLogSystemName)
+	}
+	logFieldsPool.Put(fields)
 }
 
 // Debugln  takes a pointer subLogger struct, string and interface sends to newLogEvent
 func Debugln(sl *SubLogger, v ...interface{}) {
 	fields := sl.getFields()
-	if fields == nil || !fields.debug {
+	if fields == nil {
 		return
 	}
-
-	displayError(fields.logger.newLogEvent(fmt.Sprintln(v...),
-		fields.logger.DebugHeader,
-		fields.name,
-		fields.output))
+	if fields.debug {
+		fields.output.StageLogEvent(fmt.Sprintln(v...),
+			fields.logger.DebugHeader,
+			fields.name,
+			fields.logger.Spacer,
+			fields.logger.TimestampFormat,
+			fields.logger.ShowLogSystemName)
+	}
+	logFieldsPool.Put(fields)
 }
 
 // Debugf takes a pointer subLogger struct, string & interface formats and sends to Info()
@@ -68,25 +86,35 @@ func Debugf(sl *SubLogger, data string, v ...interface{}) {
 // Warn takes a pointer subLogger struct & string  and sends to newLogEvent()
 func Warn(sl *SubLogger, data string) {
 	fields := sl.getFields()
-	if fields == nil || !fields.warn {
+	if fields == nil {
 		return
 	}
-	displayError(fields.logger.newLogEvent(data,
-		fields.logger.WarnHeader,
-		fields.name,
-		fields.output))
+	if fields.warn {
+		fields.output.StageLogEvent(data,
+			fields.logger.WarnHeader,
+			fields.name,
+			fields.logger.Spacer,
+			fields.logger.TimestampFormat,
+			fields.logger.ShowLogSystemName)
+	}
+	logFieldsPool.Put(fields)
 }
 
 // Warnln takes a pointer subLogger struct & interface formats and sends to newLogEvent()
 func Warnln(sl *SubLogger, v ...interface{}) {
 	fields := sl.getFields()
-	if fields == nil || !fields.warn {
+	if fields == nil {
 		return
 	}
-	displayError(fields.logger.newLogEvent(fmt.Sprintln(v...),
-		fields.logger.WarnHeader,
-		fields.name,
-		fields.output))
+	if fields.warn {
+		fields.output.StageLogEvent(fmt.Sprintln(v...),
+			fields.logger.WarnHeader,
+			fields.name,
+			fields.logger.Spacer,
+			fields.logger.TimestampFormat,
+			fields.logger.ShowLogSystemName)
+	}
+	logFieldsPool.Put(fields)
 }
 
 // Warnf takes a pointer subLogger struct, string & interface formats and sends to Warn()
@@ -97,25 +125,35 @@ func Warnf(sl *SubLogger, data string, v ...interface{}) {
 // Error takes a pointer subLogger struct & interface formats and sends to newLogEvent()
 func Error(sl *SubLogger, data ...interface{}) {
 	fields := sl.getFields()
-	if fields == nil || !fields.error {
+	if fields == nil {
 		return
 	}
-	displayError(fields.logger.newLogEvent(fmt.Sprint(data...),
-		fields.logger.ErrorHeader,
-		fields.name,
-		fields.output))
+	if fields.error {
+		fields.output.StageLogEvent(fmt.Sprint(data...),
+			fields.logger.ErrorHeader,
+			fields.name,
+			fields.logger.Spacer,
+			fields.logger.TimestampFormat,
+			fields.logger.ShowLogSystemName)
+	}
+	logFieldsPool.Put(fields)
 }
 
 // Errorln takes a pointer subLogger struct, string & interface formats and sends to newLogEvent()
 func Errorln(sl *SubLogger, v ...interface{}) {
 	fields := sl.getFields()
-	if fields == nil || !fields.error {
+	if fields == nil {
 		return
 	}
-	displayError(fields.logger.newLogEvent(fmt.Sprintln(v...),
-		fields.logger.ErrorHeader,
-		fields.name,
-		fields.output))
+	if fields.error {
+		fields.output.StageLogEvent(fmt.Sprintln(v...),
+			fields.logger.ErrorHeader,
+			fields.name,
+			fields.logger.Spacer,
+			fields.logger.TimestampFormat,
+			fields.logger.ShowLogSystemName)
+	}
+	logFieldsPool.Put(fields)
 }
 
 // Errorf takes a pointer subLogger struct, string & interface formats and sends to Debug()

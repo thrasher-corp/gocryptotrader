@@ -89,7 +89,7 @@ func NewFromSettings(settings *Settings, flagSet map[string]bool) (*Engine, erro
 	}
 
 	if *b.Config.Logging.Enabled {
-		err = gctlog.SetupGlobalLogger()
+		err = gctlog.SetupGlobalLogger(settings.GoMaxProcs)
 		if err != nil {
 			return nil, fmt.Errorf("failed to setup global logger. %w", err)
 		}

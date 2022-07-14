@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -105,7 +106,7 @@ func main() {
 	log.RWM.Lock()
 	log.GlobalLogConfig = log.GenDefaultSettings()
 	log.RWM.Unlock()
-	err = log.SetupGlobalLogger()
+	err = log.SetupGlobalLogger(runtime.GOMAXPROCS(-1))
 	if err != nil {
 		fmt.Printf("Could not setup global logger. Error: %v.\n", err)
 		os.Exit(1)
