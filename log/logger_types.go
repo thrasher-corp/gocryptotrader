@@ -43,7 +43,7 @@ var (
 
 type job struct {
 	Writers           []io.Writer
-	Data              string
+	fn                deferral
 	Header            string
 	SlName            string
 	Spacer            string

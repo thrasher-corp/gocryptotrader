@@ -53,6 +53,7 @@ func loggerWorker() {
 	for {
 		select {
 		case j := <-jobsChannel:
+			data := j.fn()
 			buffer = append(buffer, j.Header...)
 			if j.ShowLogSystemName {
 				buffer = append(buffer, j.Spacer...)
@@ -63,8 +64,8 @@ func loggerWorker() {
 				buffer = time.Now().AppendFormat(buffer, j.TimestampFormat)
 			}
 			buffer = append(buffer, j.Spacer...)
-			buffer = append(buffer, j.Data...)
-			if j.Data[len(j.Data)-1] != '\n' {
+			buffer = append(buffer, data...)
+			if data[len(data)-1] != '\n' {
 				buffer = append(buffer, '\n')
 			}
 
@@ -84,13 +85,17 @@ func loggerWorker() {
 	}
 }
 
+// deferral defines functionality that will capture data string processing and
+// defer that to the worker pool if needed.
+type deferral func() string
+
 // StageLogEvent stages a new logger event in a jobs channel to be processed by
 // a worker pool. This segregates the need to process the log string and the
 // writes to the required io.Writer.
-func (mw *multiWriterHolder) StageLogEvent(data string, header, slName, spacer, timestampFormat string, showLogSystemName bool) {
+func (mw *multiWriterHolder) StageLogEvent(fn deferral, header, slName, spacer, timestampFormat string, showLogSystemName bool) {
 	newJob := jobsPool.Get().(*job) // nolint:forcetypeassert // Not neccessary from a pool
 	newJob.Writers = mw.writers
-	newJob.Data = data
+	newJob.fn = fn
 	newJob.Header = header
 	newJob.SlName = slName
 	newJob.ShowLogSystemName = showLogSystemName
