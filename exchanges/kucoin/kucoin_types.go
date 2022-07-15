@@ -397,3 +397,42 @@ type MarginTradeData struct {
 	Term         int64             `json:"term"`
 	Timestamp    kucoinTimeNanoSec `json:"timestamp"`
 }
+
+type IsolatedMarginPairConfig struct {
+	Symbol                string  `json:"symbol"`
+	SymbolName            string  `json:"symbolName"`
+	BaseCurrency          string  `json:"baseCurrency"`
+	QuoteCurrency         string  `json:"quoteCurrency"`
+	MaxLeverage           int64   `json:"maxLeverage"`
+	LiquidationDebtRatio  float64 `json:"flDebtRatio,string"`
+	TradeEnable           bool    `json:"tradeEnable"`
+	AutoRenewMaxDebtRatio float64 `json:"autoRenewMaxDebtRatio,string"`
+	BaseBorrowEnable      bool    `json:"baseBorrowEnable"`
+	QuoteBorrowEnable     bool    `json:"quoteBorrowEnable"`
+	BaseTransferInEnable  bool    `json:"baseTransferInEnable"`
+	QuoteTransferInEnable bool    `json:"quoteTransferInEnable"`
+}
+
+type baseAsset struct {
+	Currency         string  `json:"currency"`
+	TotalBalance     float64 `json:"totalBalance,string"`
+	HoldBalance      float64 `json:"holdBalance,string"`
+	AvailableBalance float64 `json:"availableBalance,string"`
+	Liability        float64 `json:"liability,string"`
+	Interest         float64 `json:"interest,string"`
+	BorrowableAmount float64 `json:"borrowableAmount,string"`
+}
+
+type assetInfo struct {
+	Symbol     string    `json:"symbol"`
+	Status     string    `json:"status"`
+	DebtRatio  float64   `json:"debtRatio,string"`
+	BaseAsset  baseAsset `json:"baseAsset"`
+	QuoteAsset baseAsset `json:"quoteAsset"`
+}
+
+type IsolatedMarginAccountInfo struct {
+	TotalConversionBalance     float64     `json:"totalConversionBalance,string"`
+	LiabilityConversionBalance float64     `json:"liabilityConversionBalance,string"`
+	Assets                     []assetInfo `json:"assets"`
+}

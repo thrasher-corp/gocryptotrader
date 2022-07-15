@@ -67,6 +67,9 @@ const (
 	kucoinGetAccountLendRecord = "/api/v1/margin/lend/assets"
 	kucoinGetLendingMarketData = "/api/v1/margin/market"
 	kucoinGetMarginTradeData   = "/api/v1/margin/trade/last"
+
+	kucoinGetIsolatedMarginPairConfig  = "/api/v1/isolated/symbols"
+	kucoinGetIsolatedMarginAccountInfo = "/api/v1/isolated/accounts"
 )
 
 // GetSymbols gets pairs details on the exchange
@@ -705,6 +708,30 @@ func (k *Kucoin) GetServiceStatus(ctx context.Context) (string, string, error) {
 		Error
 	}{}
 	return resp.Data.Status, resp.Data.Message, k.SendHTTPRequest(ctx, exchange.RestSpot, kucoinGetServiceStatus, publicSpotRate, &resp)
+}
+
+// GetIsolatedMarginPairConfig get the current isolated margin trading pair configuration.
+func (k *Kucoin) GetIsolatedMarginPairConfig(ctx context.Context) ([]IsolatedMarginPairConfig, error) {
+	resp := struct {
+		Data []IsolatedMarginPairConfig `json:"data"`
+		Error
+	}{}
+
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, kucoinGetIsolatedMarginPairConfig, nil, publicSpotRate, &resp)
+}
+
+// GetIsolatedMarginAccountInfo get all isolated margin accounts of the current user.
+func (k *Kucoin) GetIsolatedMarginAccountInfo(ctx context.Context, balanceCurrency string) ([]IsolatedMarginAccountInfo, error) {
+	resp := struct {
+		Data []IsolatedMarginAccountInfo `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if balanceCurrency != "" {
+		params.Set("balanceCurrency", balanceCurrency)
+	}
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetIsolatedMarginAccountInfo, params), nil, publicSpotRate, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
