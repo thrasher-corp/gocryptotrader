@@ -2073,7 +2073,7 @@ func TestTimeSecUnmarshalJSON(t *testing.T) {
 	tInSec := time.Now().Unix()
 
 	var ts bybitTimeSec
-	err := ts.UnmarshalJSON([]byte(strconv.Itoa(int(tInSec))))
+	err := ts.UnmarshalJSON([]byte(strconv.FormatInt(tInSec, 10)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2088,7 +2088,7 @@ func TestTimeMilliSecUnmarshalJSON(t *testing.T) {
 	tInMilliSec := time.Now().UnixMilli()
 
 	var tms bybitTimeMilliSec
-	err := tms.UnmarshalJSON([]byte(strconv.Itoa(int(tInMilliSec))))
+	err := tms.UnmarshalJSON([]byte(strconv.FormatInt(tInMilliSec, 10)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2103,7 +2103,7 @@ func TestTimeNanoSecUnmarshalJSON(t *testing.T) {
 	tInNanoSec := time.Now().UnixNano()
 
 	var tns bybitTimeNanoSec
-	err := tns.UnmarshalJSON([]byte(strconv.Itoa(int(tInNanoSec))))
+	err := tns.UnmarshalJSON([]byte(strconv.FormatInt(tInNanoSec, 10)))
 	if err != nil {
 		t.Fatal(err)
 	}
