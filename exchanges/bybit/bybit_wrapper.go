@@ -947,7 +947,7 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		if err != nil {
 			return nil, err
 		}
-		orderID = strconv.FormatInt(response.OrderID, 10)
+		orderID = response.OrderID
 		if response.ExecutedQty == response.Quantity {
 			status = order.Filled
 		}
@@ -1142,7 +1142,7 @@ func (by *Bybit) CancelAllOrders(ctx context.Context, orderCancellation *order.C
 			status = err.Error()
 		}
 		for i := range activeOrder {
-			cancelAllOrdersResponse.Status[strconv.FormatInt(activeOrder[i].OrderID, 10)] = status
+			cancelAllOrdersResponse.Status[activeOrder[i].OrderID] = status
 		}
 
 	case asset.CoinMarginedFutures:
@@ -1203,7 +1203,7 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		return order.Detail{
 			Amount:         resp.Quantity,
 			Exchange:       by.Name,
-			OrderID:        strconv.FormatInt(resp.OrderID, 10),
+			OrderID:        resp.OrderID,
 			ClientOrderID:  resp.OrderLinkID,
 			Side:           getSide(resp.Side),
 			Type:           getTradeType(resp.TradeType),
@@ -1382,7 +1382,7 @@ func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 						Amount:        openOrders[x].Quantity,
 						Date:          openOrders[x].Time.Time(),
 						Exchange:      by.Name,
-						OrderID:       strconv.FormatInt(openOrders[x].OrderID, 10),
+						OrderID:       openOrders[x].OrderID,
 						ClientOrderID: openOrders[x].OrderLinkID,
 						Side:          getSide(openOrders[x].Side),
 						Type:          getTradeType(openOrders[x].TradeType),

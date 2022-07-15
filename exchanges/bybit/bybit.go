@@ -559,14 +559,21 @@ func (by *Bybit) CancelExistingOrder(ctx context.Context, orderID, orderLinkID s
 }
 
 // FastCancelExistingOrder cancels existing order based upon orderID or orderLinkID
-func (by *Bybit) FastCancelExistingOrder(ctx context.Context, symbol, orderID, orderLinkID string) (*CancelOrderResponse, error) {
+func (by *Bybit) FastCancelExistingOrder(ctx context.Context, symbol, orderID, orderLinkID string) (bool, error) {
+	resp := struct {
+		Data struct {
+			IsCancelled bool `json:"isCancelled"`
+		} `json:"result"`
+		Error
+	}{}
+
 	if orderID == "" && orderLinkID == "" {
-		return nil, errOrderOrOrderLinkIDMissing
+		return resp.Data.IsCancelled, errOrderOrOrderLinkIDMissing
 	}
 
 	params := url.Values{}
 	if symbol == "" {
-		return nil, errSymbolMissing
+		return resp.Data.IsCancelled, errSymbolMissing
 	}
 	params.Set("symbolId", symbol)
 
@@ -577,11 +584,7 @@ func (by *Bybit) FastCancelExistingOrder(ctx context.Context, symbol, orderID, o
 		params.Set("orderLinkId", orderLinkID)
 	}
 
-	resp := struct {
-		Data CancelOrderResponse `json:"result"`
-		Error
-	}{}
-	return &resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitFastCancelSpotOrder, params, &resp, privateSpotRate)
+	return resp.Data.IsCancelled, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitFastCancelSpotOrder, params, &resp, privateSpotRate)
 }
 
 // BatchCancelOrder cancels orders in batch based upon symbol, side or orderType

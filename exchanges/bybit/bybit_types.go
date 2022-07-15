@@ -267,7 +267,7 @@ type PlaceOrderRequest struct {
 
 // PlaceOrderResponse store new order response type
 type PlaceOrderResponse struct {
-	OrderID     int64                `json:"orderId"`
+	OrderID     string               `json:"orderId"`
 	OrderLinkID string               `json:"orderLinkId"`
 	Symbol      string               `json:"symbol"`
 	Time        bybitTimeMilliSecStr `json:"transactTime"`
@@ -277,19 +277,19 @@ type PlaceOrderResponse struct {
 	Side        string               `json:"side"`
 	Status      string               `json:"status"`
 	TimeInForce string               `json:"timeInForce"`
-	AccountID   int64                `json:"accountId"`
+	AccountID   string               `json:"accountId"`
 	SymbolName  string               `json:"symbolName"`
 	ExecutedQty float64              `json:"executedQty,string"`
 }
 
 // QueryOrderResponse holds query order data
 type QueryOrderResponse struct {
-	AccountID           int64                `json:"accountId"`
-	ExchangeID          int64                `json:"exchangeId"`
+	AccountID           string               `json:"accountId"`
+	ExchangeID          string               `json:"exchangeId"`
 	Symbol              string               `json:"symbol"`
 	SymbolName          string               `json:"symbolName"`
 	OrderLinkID         string               `json:"orderLinkId"`
-	OrderID             int64                `json:"orderId"`
+	OrderID             string               `json:"orderId"`
 	Price               float64              `json:"price,string"`
 	Quantity            float64              `json:"origQty,string"`
 	ExecutedQty         float64              `json:"executedQty,string"`
@@ -308,11 +308,11 @@ type QueryOrderResponse struct {
 
 // CancelOrderResponse is the return structured response from the exchange
 type CancelOrderResponse struct {
-	OrderID     int64                `json:"orderId"`
+	OrderID     string               `json:"orderId"`
 	OrderLinkID string               `json:"orderLinkId"`
 	Symbol      string               `json:"symbol"`
 	Status      string               `json:"status"`
-	AccountID   int64                `json:"accountId"`
+	AccountID   string               `json:"accountId"`
 	Time        bybitTimeMilliSecStr `json:"transactTime"`
 	Price       float64              `json:"price,string"`
 	Quantity    float64              `json:"origQty,string"`
@@ -324,23 +324,23 @@ type CancelOrderResponse struct {
 
 // HistoricalTrade holds recent trade data
 type HistoricalTrade struct {
-	Symbol          string            `json:"symbol"`
-	ID              string            `json:"id"`
-	OrderID         int64             `json:"orderId"`
-	TicketID        string            `json:"ticketId"`
-	Price           float64           `json:"price,string"`
-	Quantity        float64           `json:"qty,string"`
-	Commission      float64           `json:"commission,string"`
-	CommissionAsset float64           `json:"commissionAsset,string"`
-	Time            bybitTimeMilliSec `json:"time"` // Note: it is string in doc. ex
-	IsBuyer         bool              `json:"isBuyer"`
-	IsMaker         bool              `json:"isMaker"`
-	SymbolName      string            `json:"symbolName"`
-	MatchOrderID    int64             `json:"matchOrderId"`
-	Fee             FeeData           `json:"fee"`
-	FeeTokenID      string            `json:"feeTokenId"`
-	FeeAmount       float64           `json:"feeAmount,string"`
-	MakerRebate     float64           `json:"makerRebate,string"`
+	Symbol          string               `json:"symbol"`
+	ID              string               `json:"id"`
+	OrderID         string               `json:"orderId"`
+	TicketID        string               `json:"ticketId"`
+	Price           float64              `json:"price,string"`
+	Quantity        float64              `json:"qty,string"`
+	Commission      float64              `json:"commission,string"`
+	CommissionAsset float64              `json:"commissionAsset,string"`
+	Time            bybitTimeMilliSecStr `json:"time"`
+	IsBuyer         bool                 `json:"isBuyer"`
+	IsMaker         bool                 `json:"isMaker"`
+	SymbolName      string               `json:"symbolName"`
+	MatchOrderID    string               `json:"matchOrderId"`
+	Fee             FeeData              `json:"fee"`
+	FeeTokenID      string               `json:"feeTokenId"`
+	FeeAmount       float64              `json:"feeAmount,string"`
+	MakerRebate     float64              `json:"makerRebate,string"`
 }
 
 // FeeData store fees data
