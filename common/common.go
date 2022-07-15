@@ -52,7 +52,14 @@ var (
 	// ErrStartAfterTimeNow is an error for start end check calculations
 	ErrStartAfterTimeNow = errors.New("start date is after current time")
 	// ErrNilPointer defines an error for a nil pointer
-	ErrNilPointer              = errors.New("nil pointer")
+	ErrNilPointer = errors.New("nil pointer")
+	// ErrCannotCalculateOffline is returned when a request wishes to calculate
+	// something offline, but has an online requirement
+	ErrCannotCalculateOffline = errors.New("cannot calculate offline")
+	// ErrNoResponse is returned when a response has no entries/is empty
+	// when one is expected
+	ErrNoResponse = errors.New("no response")
+
 	errCannotSetInvalidTimeout = errors.New("cannot set new HTTP client with timeout that is equal or less than 0")
 	errUserAgentInvalid        = errors.New("cannot set invalid user agent")
 	errHTTPClientInvalid       = errors.New("custom http client cannot be nil")

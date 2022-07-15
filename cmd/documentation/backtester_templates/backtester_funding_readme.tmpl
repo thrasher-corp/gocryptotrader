@@ -18,6 +18,9 @@ A funding item holds the initial funding, current funding, reserved funding and 
 ### What is a funding Pair?
 A funding Pair consists of two funding Items, the Base and Quote. If Exchange Level Funding is disabled, the Base and Quote are linked to each other and the funds cannot be shared with other Pairs or Items. If Exchange Level Funding is enabled, the pair can access the same funds as every other currency that shares the exchange and asset type.
 
+### What is a collateral Pair?
+A collateral Pair consists of two funding Items, the Contract and Collateral. These are exclusive to FUTURES asset type and help track how much money there is, along with how many contract holdings there are
+
 ### What does Exchange Level Funding mean?
 Exchange level funding allows funds to be shared during a backtesting run. If the strategy contains the two pairs BTC-USDT and BNB-USDT and the strategy sells 3 BTC for $100,000 USDT, then BNB-USDT can use that $100,000 USDT to make a purchase of $20,000 BNB.
 It is restricted to an exchange and asset type, so BTC used in spot, cannot be used in a futures contract (futures backtesting is not currently supported). However, the funding manager can transfer funds between exchange and asset types.
@@ -49,6 +52,11 @@ No. The already existing `CurrencySettings` will populate the funding manager wi
 | Name | The strategy to use | `rsi` |
 | UsesSimultaneousProcessing | This denotes whether multiple currencies are processed simultaneously with the strategy function `OnSimultaneousSignals`. Eg If you have multiple CurrencySettings and only wish to purchase BTC-USDT when XRP-DOGE is 1337, this setting is useful as you can analyse both signal events to output a purchase call for BTC | `true` |
 | CustomSettings | This is a map where you can enter custom settings for a strategy. The RSI strategy allows for customisation of the upper, lower and length variables to allow you to change them from 70, 30 and 14 respectively to 69, 36, 12 | `"custom-settings": { "rsi-high": 70, "rsi-low": 30, "rsi-period": 14 } ` |
+
+#### Funding Settings
+
+| Key | Description | Example |
+| --- | ------- | --- |
 | UseExchangeLevelFunding | This allows shared exchange funds to be used in your strategy. Requires `UsesSimultaneousProcessing` to be set to `true` to use  | `false` |
 | ExchangeLevelFunding | This is a list of funding definitions if `UseExchangeLevelFunding` is set to true  | See below table |
 

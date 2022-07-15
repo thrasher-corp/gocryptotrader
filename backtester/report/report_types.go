@@ -32,28 +32,37 @@ type Handler interface {
 // Data holds all statistical information required to output detailed backtesting results
 type Data struct {
 	OriginalCandles       []*kline.Item
-	EnhancedCandles       []DetailedKline
+	EnhancedCandles       []EnhancedKline
 	Statistics            *statistics.Statistic
 	Config                *config.Config
 	TemplatePath          string
 	OutputPath            string
 	Warnings              []Warning
 	UseDarkTheme          bool
-	USDTotalsChart        []TotalsChart
-	HoldingsOverTimeChart []TotalsChart
+	USDTotalsChart        *Chart
+	HoldingsOverTimeChart *Chart
+	PNLOverTimeChart      *Chart
+	FuturesSpotDiffChart  *Chart
 	Prettify              PrettyNumbers
 }
 
-// TotalsChart holds chart plot data
-// to render charts in the report
-type TotalsChart struct {
-	Name       string
-	DataPoints []ChartPlot
+// Chart holds chart data along with an axis
+type Chart struct {
+	AxisType           string
+	ShowZeroDisclaimer bool
+	Data               []ChartLine
 }
 
-// ChartPlot holds value data
+// ChartLine holds chart plot data
+// to render charts in the report
+type ChartLine struct {
+	Name      string
+	LinePlots []LinePlot
+}
+
+// LinePlot holds value data
 // for a chart
-type ChartPlot struct {
+type LinePlot struct {
 	Value     float64
 	UnixMilli int64
 	Flag      string
@@ -67,8 +76,8 @@ type Warning struct {
 	Message  string
 }
 
-// DetailedKline enhances kline details for the purpose of rich reporting results
-type DetailedKline struct {
+// EnhancedKline enhances kline details for the purpose of rich reporting results
+type EnhancedKline struct {
 	IsOverLimit bool
 	Watermark   string
 	Exchange    string
@@ -95,6 +104,14 @@ type DetailedCandle struct {
 	Position       string
 	Colour         string
 	PurchasePrice  float64
+}
+
+type linkCurrencyDiff struct {
+	FuturesPair   currency.Pair
+	SpotPair      currency.Pair
+	FuturesEvents []statistics.DataAtOffset
+	SpotEvents    []statistics.DataAtOffset
+	DiffPercent   []decimal.Decimal
 }
 
 // PrettyNumbers is used for report rendering

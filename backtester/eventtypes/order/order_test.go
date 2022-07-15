@@ -5,6 +5,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -39,10 +40,10 @@ func TestSetAmount(t *testing.T) {
 	}
 }
 
-func TestPair(t *testing.T) {
+func TestIsEmpty(t *testing.T) {
 	t.Parallel()
 	o := Order{
-		Base: event.Base{
+		Base: &event.Base{
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
 		},
 	}
@@ -82,5 +83,89 @@ func TestGetFunds(t *testing.T) {
 	funds := o.GetAllocatedFunds()
 	if !funds.Equal(decimal.NewFromInt(1337)) {
 		t.Error("expected decimal.NewFromInt(1337)")
+	}
+}
+
+func TestOpen(t *testing.T) {
+	t.Parallel()
+	k := Order{
+		ClosePrice: decimal.NewFromInt(1337),
+	}
+	if !k.GetClosePrice().Equal(decimal.NewFromInt(1337)) {
+		t.Error("expected decimal.NewFromInt(1337)")
+	}
+}
+
+func TestIsLiquidating(t *testing.T) {
+	t.Parallel()
+	k := Order{}
+	if k.IsLiquidating() {
+		t.Error("expected false")
+	}
+	k.LiquidatingPosition = true
+	if !k.IsLiquidating() {
+		t.Error("expected true")
+	}
+}
+
+func TestGetBuyLimit(t *testing.T) {
+	t.Parallel()
+	k := Order{
+		BuyLimit: decimal.NewFromInt(1337),
+	}
+	if !k.GetBuyLimit().Equal(decimal.NewFromInt(1337)) {
+		t.Errorf("received '%v' expected '%v'", k.GetBuyLimit(), decimal.NewFromInt(1337))
+	}
+}
+
+func TestGetSellLimit(t *testing.T) {
+	t.Parallel()
+	k := Order{
+		SellLimit: decimal.NewFromInt(1337),
+	}
+	if !k.GetSellLimit().Equal(decimal.NewFromInt(1337)) {
+		t.Errorf("received '%v' expected '%v'", k.GetSellLimit(), decimal.NewFromInt(1337))
+	}
+}
+
+func TestPair(t *testing.T) {
+	t.Parallel()
+	cp := currency.NewPair(currency.BTC, currency.USDT)
+	k := Order{
+		Base: &event.Base{
+			CurrencyPair: cp,
+		},
+	}
+	if !k.Pair().Equal(cp) {
+		t.Errorf("received '%v' expected '%v'", k.Pair(), cp)
+	}
+}
+
+func TestGetStatus(t *testing.T) {
+	t.Parallel()
+	k := Order{
+		Status: gctorder.UnknownStatus,
+	}
+	if k.GetStatus() != gctorder.UnknownStatus {
+		t.Errorf("received '%v' expected '%v'", k.GetStatus(), gctorder.UnknownStatus)
+	}
+}
+
+func TestGetFillDependentEvent(t *testing.T) {
+	t.Parallel()
+	k := Order{
+		FillDependentEvent: &signal.Signal{Amount: decimal.NewFromInt(1337)},
+	}
+	if !k.GetFillDependentEvent().GetAmount().Equal(decimal.NewFromInt(1337)) {
+		t.Errorf("received '%v' expected '%v'", k.GetFillDependentEvent(), decimal.NewFromInt(1337))
+	}
+}
+func TestIsClosingPosition(t *testing.T) {
+	t.Parallel()
+	k := Order{
+		ClosingPosition: true,
+	}
+	if !k.IsClosingPosition() {
+		t.Errorf("received '%v' expected '%v'", k.IsClosingPosition(), true)
 	}
 }

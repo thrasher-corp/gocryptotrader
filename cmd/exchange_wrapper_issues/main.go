@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -580,12 +581,13 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		modifyRequest := order.Modify{
-			OrderID: config.OrderSubmission.OrderID,
-			Type:    testOrderType,
-			Side:    testOrderSide,
-			Pair:    p,
-			Price:   config.OrderSubmission.Price,
-			Amount:  config.OrderSubmission.Amount,
+			OrderID:   config.OrderSubmission.OrderID,
+			Type:      testOrderType,
+			Side:      testOrderSide,
+			Pair:      p,
+			Price:     config.OrderSubmission.Price,
+			Amount:    config.OrderSubmission.Amount,
+			AssetType: assetTypes[i],
 		}
 		modifyOrderResponse, err := e.ModifyOrder(context.TODO(), &modifyRequest)
 		msg = ""
@@ -670,9 +672,10 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		historyRequest := order.GetOrdersRequest{
-			Type:  testOrderType,
-			Side:  testOrderSide,
-			Pairs: []currency.Pair{p},
+			Type:      testOrderType,
+			Side:      testOrderSide,
+			Pairs:     []currency.Pair{p},
+			AssetType: assetTypes[i],
 		}
 		var getOrderHistoryResponse []order.Detail
 		getOrderHistoryResponse, err = e.GetOrderHistory(context.TODO(), &historyRequest)
@@ -689,9 +692,10 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		orderRequest := order.GetOrdersRequest{
-			Type:  testOrderType,
-			Side:  testOrderSide,
-			Pairs: []currency.Pair{p},
+			Type:      testOrderType,
+			Side:      testOrderSide,
+			Pairs:     []currency.Pair{p},
+			AssetType: assetTypes[i],
 		}
 		var getActiveOrdersResponse []order.Detail
 		getActiveOrdersResponse, err = e.GetActiveOrders(context.TODO(), &orderRequest)
@@ -843,6 +847,31 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Error:      msg,
 			Response:   withdrawFiatFundsInternationalResponse,
 		})
+
+		marginRateHistoryRequest := &margin.RateHistoryRequest{
+			Exchange:           e.GetName(),
+			Asset:              assetTypes[i],
+			Currency:           p.Base,
+			StartDate:          time.Now().Add(-time.Hour * 24),
+			EndDate:            time.Now(),
+			GetPredictedRate:   true,
+			GetLendingPayments: true,
+			GetBorrowRates:     true,
+			GetBorrowCosts:     true,
+		}
+		marginRateHistoryResponse, err := e.GetMarginRatesHistory(context.TODO(), marginRateHistoryRequest)
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+			responseContainer.ErrorCount++
+		}
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+			SentParams: jsonifyInterface([]interface{}{marginRateHistoryRequest}),
+			Function:   "GetMarginRatesHistory",
+			Error:      msg,
+			Response:   marginRateHistoryResponse,
+		})
+
 		response = append(response, responseContainer)
 	}
 	return response

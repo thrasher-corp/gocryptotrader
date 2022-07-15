@@ -1,6 +1,7 @@
 package data
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -37,8 +38,15 @@ func (h *HandlerPerCurrency) GetAllData() map[string]map[asset.Item]map[currency
 }
 
 // GetDataForCurrency returns the Handler for a specific exchange, asset, currency
-func (h *HandlerPerCurrency) GetDataForCurrency(e string, a asset.Item, p currency.Pair) Handler {
-	return h.data[e][a][p]
+func (h *HandlerPerCurrency) GetDataForCurrency(ev common.EventHandler) (Handler, error) {
+	if ev == nil {
+		return nil, common.ErrNilEvent
+	}
+	handler, ok := h.data[ev.GetExchange()][ev.GetAssetType()][ev.Pair()]
+	if !ok {
+		return nil, fmt.Errorf("%s %s %s %w", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), ErrHandlerNotFound)
+	}
+	return handler, nil
 }
 
 // Reset returns the struct to defaults
@@ -98,6 +106,9 @@ func (b *Base) History() []common.DataEventHandler {
 
 // Latest will return latest data event
 func (b *Base) Latest() common.DataEventHandler {
+	if b.latest == nil && len(b.stream) >= b.offset+1 {
+		b.latest = b.stream[b.offset]
+	}
 	return b.latest
 }
 
@@ -105,6 +116,11 @@ func (b *Base) Latest() common.DataEventHandler {
 // ill-advised to use this in strategies because you don't know the future in real life
 func (b *Base) List() []common.DataEventHandler {
 	return b.stream[b.offset:]
+}
+
+// IsLastEvent determines whether the latest event is the last event
+func (b *Base) IsLastEvent() bool {
+	return b.latest != nil && b.latest.GetOffset() == int64(len(b.stream))
 }
 
 // SortStream sorts the stream by timestamp

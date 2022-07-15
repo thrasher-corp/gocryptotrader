@@ -18,7 +18,7 @@ const (
 	orderSubmissionValidSides = Buy | Sell | Bid | Ask | Long | Short
 	shortSide                 = Short | Sell | Ask
 	longSide                  = Long | Buy | Bid
-	inactiveStatuses          = Filled | Cancelled | InsufficientBalance | MarketUnavailable | Rejected | PartiallyCancelled | Expired | Closed | AnyStatus | Cancelling
+	inactiveStatuses          = Filled | Cancelled | InsufficientBalance | MarketUnavailable | Rejected | PartiallyCancelled | Expired | Closed | AnyStatus | Cancelling | Liquidated
 	activeStatuses            = Active | Open | PartiallyFilled | New | PendingCancel | Hidden | AutoDeleverage | Pending
 	notPlaced                 = InsufficientBalance | MarketUnavailable | Rejected
 )
@@ -375,7 +375,13 @@ func (d *Detail) IsActive() bool {
 func (d *Detail) IsInactive() bool {
 	return d.Amount <= 0 ||
 		d.Amount <= d.ExecutedAmount ||
-		inactiveStatuses&d.Status == d.Status
+		d.Status.IsInactive()
+}
+
+// IsInactive returns true if the status indicates it is
+// currently not available on the exchange
+func (s Status) IsInactive() bool {
+	return inactiveStatuses&s == s
 }
 
 // WasOrderPlaced returns true if an order has a status that indicates that it
@@ -636,6 +642,8 @@ func (s Side) String() string {
 		return "SHORT"
 	case AnySide:
 		return "ANY"
+	case ClosePosition:
+		return "CLOSE POSITION"
 		// Backtester signal types below.
 	case DoNothing:
 		return "DO NOTHING"
@@ -645,6 +653,14 @@ func (s Side) String() string {
 		return "COULD NOT BUY"
 	case CouldNotSell:
 		return "COULD NOT SELL"
+	case CouldNotShort:
+		return "COULD NOT SHORT"
+	case CouldNotLong:
+		return "COULD NOT LONG"
+	case CouldNotCloseShort:
+		return "COULD NOT CLOSE SHORT"
+	case CouldNotCloseLong:
+		return "COULD NOT CLOSE LONG"
 	case MissingData:
 		return "MISSING DATA"
 	default:
