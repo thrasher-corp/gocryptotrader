@@ -68,8 +68,14 @@ const (
 	kucoinGetLendingMarketData = "/api/v1/margin/market"
 	kucoinGetMarginTradeData   = "/api/v1/margin/trade/last"
 
-	kucoinGetIsolatedMarginPairConfig  = "/api/v1/isolated/symbols"
-	kucoinGetIsolatedMarginAccountInfo = "/api/v1/isolated/accounts"
+	kucoinGetIsolatedMarginPairConfig            = "/api/v1/isolated/symbols"
+	kucoinGetIsolatedMarginAccountInfo           = "/api/v1/isolated/accounts"
+	kucoinGetSingleIsolatedMarginAccountInfo     = "/api/v1/isolated/account/%s"
+	kucoinInitiateIsolatedMarginBorrowing        = "/api/v1/isolated/borrow"
+	kucoinGetIsolatedOutstandingRepaymentRecords = "/api/v1/isolated/borrow/outstanding"
+	kucoinGetIsolatedMarginRepaymentRecords      = "/api/v1/isolated/borrow/repaid"
+	kucoinInitiateIsolatedMarginQuickRepayment   = "/api/v1/isolated/repay/all"
+	kucoinInitiateIsolatedMarginSingleRepayment  = "/api/v1/isolated/repay/single"
 )
 
 // GetSymbols gets pairs details on the exchange
@@ -710,7 +716,7 @@ func (k *Kucoin) GetServiceStatus(ctx context.Context) (string, string, error) {
 	return resp.Data.Status, resp.Data.Message, k.SendHTTPRequest(ctx, exchange.RestSpot, kucoinGetServiceStatus, publicSpotRate, &resp)
 }
 
-// GetIsolatedMarginPairConfig get the current isolated margin trading pair configuration.
+// GetIsolatedMarginPairConfig get the current isolated margin trading pair configuration
 func (k *Kucoin) GetIsolatedMarginPairConfig(ctx context.Context) ([]IsolatedMarginPairConfig, error) {
 	resp := struct {
 		Data []IsolatedMarginPairConfig `json:"data"`
@@ -720,10 +726,10 @@ func (k *Kucoin) GetIsolatedMarginPairConfig(ctx context.Context) ([]IsolatedMar
 	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, kucoinGetIsolatedMarginPairConfig, nil, publicSpotRate, &resp)
 }
 
-// GetIsolatedMarginAccountInfo get all isolated margin accounts of the current user.
-func (k *Kucoin) GetIsolatedMarginAccountInfo(ctx context.Context, balanceCurrency string) ([]IsolatedMarginAccountInfo, error) {
+// GetIsolatedMarginAccountInfo get all isolated margin accounts of the current user
+func (k *Kucoin) GetIsolatedMarginAccountInfo(ctx context.Context, balanceCurrency string) (IsolatedMarginAccountInfo, error) {
 	resp := struct {
-		Data []IsolatedMarginAccountInfo `json:"data"`
+		Data IsolatedMarginAccountInfo `json:"data"`
 		Error
 	}{}
 
@@ -732,6 +738,164 @@ func (k *Kucoin) GetIsolatedMarginAccountInfo(ctx context.Context, balanceCurren
 		params.Set("balanceCurrency", balanceCurrency)
 	}
 	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetIsolatedMarginAccountInfo, params), nil, publicSpotRate, &resp)
+}
+
+// GetSingleIsolatedMarginAccountInfo get single isolated margin accounts of the current user
+func (k *Kucoin) GetSingleIsolatedMarginAccountInfo(ctx context.Context, symbol string) (AssetInfo, error) {
+	resp := struct {
+		Data AssetInfo `json:"data"`
+		Error
+	}{}
+
+	if symbol == "" {
+		return resp.Data, errors.New("symbol can't be empty")
+	}
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf(kucoinGetSingleIsolatedMarginAccountInfo, symbol), nil, publicSpotRate, &resp)
+}
+
+// InitiateIsolateMarginBorrowing initiates isolated margin borrowing
+func (k *Kucoin) InitiateIsolateMarginBorrowing(ctx context.Context, symbol, currency, borrowStrategy, period string, size, maxRate int64) (string, string, float64, error) {
+	resp := struct {
+		Data struct {
+			OrderID    string  `json:"orderId"`
+			Currency   string  `json:"currency"`
+			ActualSize float64 `json:"actualSize,string"`
+		} `json:"data"`
+		Error
+	}{}
+	params := make(map[string]interface{})
+	if symbol == "" {
+		return resp.Data.OrderID, resp.Data.Currency, resp.Data.ActualSize, errors.New("symbol can't be empty")
+	}
+	params["symbol"] = symbol
+	if currency == "" {
+		return resp.Data.OrderID, resp.Data.Currency, resp.Data.ActualSize, errors.New("currency can't be empty")
+	}
+	params["currency"] = currency
+	if borrowStrategy == "" {
+		return resp.Data.OrderID, resp.Data.Currency, resp.Data.ActualSize, errors.New("borrowStrategy can't be empty")
+	}
+	params["borrowStrategy"] = borrowStrategy
+	if size == 0 {
+		return resp.Data.OrderID, resp.Data.Currency, resp.Data.ActualSize, errors.New("size can't be zero")
+	}
+	params["size"] = strconv.FormatInt(size, 10)
+
+	if period != "" {
+		params["period"] = period
+	}
+	if maxRate == 0 {
+		params["maxRate"] = strconv.FormatInt(maxRate, 10)
+	}
+	return resp.Data.OrderID, resp.Data.Currency, resp.Data.ActualSize, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinInitiateIsolatedMarginBorrowing, params, publicSpotRate, &resp)
+}
+
+// GetIsolatedOutstandingRepaymentRecords get the outstanding repayment records of isolated margin positions
+func (k *Kucoin) GetIsolatedOutstandingRepaymentRecords(ctx context.Context, symbol, currency string, pageSize, currentPage int64) ([]OutstandingRepaymentRecord, error) {
+	resp := struct {
+		Data struct {
+			CurrentPage int64                        `json:"currentPage"`
+			PageSize    int64                        `json:"pageSize"`
+			TotalNum    int64                        `json:"totalNum"`
+			TotalPage   int64                        `json:"totalPage"`
+			Items       []OutstandingRepaymentRecord `json:"items"`
+		} `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if currency != "" {
+		params.Set("currency", currency)
+	}
+	if pageSize != 0 {
+		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
+	}
+	if currentPage != 0 {
+		params.Set("currentPage", strconv.FormatInt(currentPage, 10))
+	}
+	return resp.Data.Items, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetIsolatedOutstandingRepaymentRecords, params), nil, publicSpotRate, &resp)
+}
+
+// GetIsolatedMarginRepaymentRecords get the repayment records of isolated margin positions
+func (k *Kucoin) GetIsolatedMarginRepaymentRecords(ctx context.Context, symbol, currency string, pageSize, currentPage int64) ([]CompletedRepaymentRecord, error) {
+	resp := struct {
+		Data struct {
+			CurrentPage int64                      `json:"currentPage"`
+			PageSize    int64                      `json:"pageSize"`
+			TotalNum    int64                      `json:"totalNum"`
+			TotalPage   int64                      `json:"totalPage"`
+			Items       []CompletedRepaymentRecord `json:"items"`
+		} `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if currency != "" {
+		params.Set("currency", currency)
+	}
+	if pageSize != 0 {
+		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
+	}
+	if currentPage != 0 {
+		params.Set("currentPage", strconv.FormatInt(currentPage, 10))
+	}
+	return resp.Data.Items, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetIsolatedMarginRepaymentRecords, params), nil, publicSpotRate, &resp)
+}
+
+// InitiateIsolatedMarginQuickRepayment is used to initiate quick repayment for isolated margin accounts
+func (k *Kucoin) InitiateIsolatedMarginQuickRepayment(ctx context.Context, symbol, currency, seqStrategy string, size int64) error {
+	resp := struct {
+		Error
+	}{}
+	params := make(map[string]interface{})
+	if symbol == "" {
+		return errors.New("symbol can't be empty")
+	}
+	params["symbol"] = symbol
+	if currency == "" {
+		return errors.New("currency can't be empty")
+	}
+	params["currency"] = currency
+	if seqStrategy == "" {
+		return errors.New("seqStrategy can't be empty")
+	}
+	params["seqStrategy"] = seqStrategy
+	if size == 0 {
+		return errors.New("size can't be zero")
+	}
+	params["size"] = strconv.FormatInt(size, 10)
+	return k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinInitiateIsolatedMarginQuickRepayment, params, publicSpotRate, &resp)
+}
+
+// InitiateIsolatedMarginSingleRepayment is used to initiate quick repayment for single margin accounts
+func (k *Kucoin) InitiateIsolatedMarginSingleRepayment(ctx context.Context, symbol, currency, loanId string, size int64) error {
+	resp := struct {
+		Error
+	}{}
+	params := make(map[string]interface{})
+	if symbol == "" {
+		return errors.New("symbol can't be empty")
+	}
+	params["symbol"] = symbol
+	if currency == "" {
+		return errors.New("currency can't be empty")
+	}
+	params["currency"] = currency
+	if loanId == "" {
+		return errors.New("loanId can't be empty")
+	}
+	params["loanId"] = loanId
+	if size == 0 {
+		return errors.New("size can't be zero")
+	}
+	params["size"] = strconv.FormatInt(size, 10)
+	return k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinInitiateIsolatedMarginSingleRepayment, params, publicSpotRate, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request

@@ -492,3 +492,114 @@ func TestGetServiceStatus(t *testing.T) {
 		t.Error("GetServiceStatus() error", err)
 	}
 }
+
+func TestGetIsolatedMarginPairConfig(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetIsolatedMarginPairConfig(context.Background())
+	if err != nil {
+		t.Error("GetIsolatedMarginPairConfig() error", err)
+	}
+}
+
+func TestGetIsolatedMarginAccountInfo(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetIsolatedMarginAccountInfo(context.Background(), "")
+	if err != nil {
+		t.Error("GetIsolatedMarginAccountInfo() error", err)
+	}
+
+	_, err = k.GetIsolatedMarginAccountInfo(context.Background(), "USDT")
+	if err != nil {
+		t.Error("GetIsolatedMarginAccountInfo() error", err)
+	}
+}
+
+func TestGetSingleIsolatedMarginAccountInfo(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetSingleIsolatedMarginAccountInfo(context.Background(), "BTC-USDT")
+	if err != nil {
+		t.Error("GetSingleIsolatedMarginAccountInfo() error", err)
+	}
+}
+
+func TestInitiateIsolateMarginBorrowing(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	_, _, _, err := k.InitiateIsolateMarginBorrowing(context.Background(), "BTC-USDT", "USDT", "FOK", "", 10, 0)
+	if err != nil {
+		t.Error("InitiateIsolateMarginBorrowing() error", err)
+	}
+}
+
+func TestGetIsolatedOutstandingRepaymentRecords(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetIsolatedOutstandingRepaymentRecords(context.Background(), "", "", 0, 0)
+	if err != nil {
+		t.Error("GetIsolatedOutstandingRepaymentRecords() error", err)
+	}
+
+	_, err = k.GetIsolatedOutstandingRepaymentRecords(context.Background(), "BTC-USDT", "USDT", 0, 0)
+	if err != nil {
+		t.Error("GetIsolatedOutstandingRepaymentRecords() error", err)
+	}
+}
+
+func TestGetIsolatedMarginRepaymentRecords(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetIsolatedMarginRepaymentRecords(context.Background(), "", "", 0, 0)
+	if err != nil {
+		t.Error("GetIsolatedMarginRepaymentRecords() error", err)
+	}
+
+	_, err = k.GetIsolatedMarginRepaymentRecords(context.Background(), "BTC-USDT", "USDT", 0, 0)
+	if err != nil {
+		t.Error("GetIsolatedMarginRepaymentRecords() error", err)
+	}
+}
+
+func TestInitiateIsolatedMarginQuickRepayment(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	err := k.InitiateIsolatedMarginQuickRepayment(context.Background(), "BTC-USDT", "USDT", "RECENTLY_EXPIRE_FIRST", 10)
+	if err != nil {
+		t.Error("InitiateIsolatedMarginQuickRepayment() error", err)
+	}
+}
+
+func TestInitiateIsolatedMarginSingleRepayment(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	err := k.InitiateIsolatedMarginSingleRepayment(context.Background(), "BTC-USDT", "USDT", "628c570f7818320001d52b69", 10)
+	if err != nil {
+		t.Error("InitiateIsolatedMarginSingleRepayment() error", err)
+	}
+}

@@ -423,7 +423,7 @@ type baseAsset struct {
 	BorrowableAmount float64 `json:"borrowableAmount,string"`
 }
 
-type assetInfo struct {
+type AssetInfo struct {
 	Symbol     string    `json:"symbol"`
 	Status     string    `json:"status"`
 	DebtRatio  float64   `json:"debtRatio,string"`
@@ -434,5 +434,28 @@ type assetInfo struct {
 type IsolatedMarginAccountInfo struct {
 	TotalConversionBalance     float64     `json:"totalConversionBalance,string"`
 	LiabilityConversionBalance float64     `json:"liabilityConversionBalance,string"`
-	Assets                     []assetInfo `json:"assets"`
+	Assets                     []AssetInfo `json:"assets"`
+}
+
+type baseRepaymentRecord struct {
+	LoanID            string  `json:"loanId"`
+	Symbol            string  `json:"symbol"`
+	Currency          string  `json:"currency"`
+	PrincipalTotal    float64 `json:"principalTotal,string"`
+	InterestBalance   float64 `json:"interestBalance,string"`
+	CreatedAt         int64   `json:"createdAt"`
+	Period            int64   `json:"period"`
+	RepaidSize        float64 `json:"repaidSize,string"`
+	DailyInterestRate float64 `json:"dailyInterestRate,string"`
+}
+
+type OutstandingRepaymentRecord struct {
+	baseRepaymentRecord
+	LiabilityBalance float64 `json:"liabilityBalance,string"`
+	MaturityTime     int64   `json:"maturityTime"`
+}
+
+type CompletedRepaymentRecord struct {
+	baseRepaymentRecord
+	RepayFinishAt int64 `json:"repayFinishAt"`
 }
