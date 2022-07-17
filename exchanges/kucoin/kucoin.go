@@ -76,6 +76,8 @@ const (
 	kucoinGetIsolatedMarginRepaymentRecords      = "/api/v1/isolated/borrow/repaid"
 	kucoinInitiateIsolatedMarginQuickRepayment   = "/api/v1/isolated/repay/all"
 	kucoinInitiateIsolatedMarginSingleRepayment  = "/api/v1/isolated/repay/single"
+
+	kucoinPostOrder = "/api/v1/orders"
 )
 
 // GetSymbols gets pairs details on the exchange
@@ -896,6 +898,74 @@ func (k *Kucoin) GetServiceStatus(ctx context.Context) (string, string, error) {
 		Error
 	}{}
 	return resp.Data.Status, resp.Data.Message, k.SendHTTPRequest(ctx, exchange.RestSpot, kucoinGetServiceStatus, publicSpotRate, &resp)
+}
+
+// PostOrder used to place two types of orders: limit and market
+func (k *Kucoin) PostOrder(ctx context.Context, clientOID, side, symbol, orderType, leverage, remark, stop, stopPrice, stopPriceType, price, timeInForce string, size, visibleSize float64, reduceOnly, closeOrder, forceHold, postOnly, hidden, iceberg bool) (string, error) {
+	resp := struct {
+		Data struct {
+			OrderID string `json:"orderId"`
+		} `json:"data"`
+		Error
+	}{}
+
+	params := make(map[string]interface{})
+	if clientOID == "" {
+		return resp.Data.OrderID, errors.New("clientOid can't be empty")
+	}
+	params["clientOid"] = clientOID
+	if side == "" {
+		return resp.Data.OrderID, errors.New("side can't be empty")
+	}
+	params["side"] = side
+	if symbol == "" {
+		return resp.Data.OrderID, errors.New("symbol can't be empty")
+	}
+	params["symbol"] = symbol
+	if orderType != "" {
+		params["type"] = orderType
+	}
+	if leverage == "" {
+		return resp.Data.OrderID, errors.New("leverage can't be empty")
+	}
+	params["leverage"] = leverage
+	if remark != "" {
+		params["remark"] = remark
+	}
+	if stop != "" {
+		if stopPrice == "" || stopPriceType == "" {
+			return resp.Data.OrderID, errors.New("stopPrice and stopPriceType can't be empty when stop is set")
+		}
+		params["stop"] = stop
+		params["stopPrice"] = stopPrice
+		params["stopPriceType"] = stopPriceType
+	}
+	params["reduceOnly"] = reduceOnly
+	params["closeOrder"] = closeOrder
+	params["forceHold"] = forceHold
+
+	if orderType == "limit" {
+		if price == "" {
+			return resp.Data.OrderID, errors.New("price can't be empty")
+		}
+		params["price"] = price
+		if size <= 0 {
+			return resp.Data.OrderID, errors.New("size can't be zero or negative")
+		}
+		params["size"] = strconv.FormatFloat(size, 'f', -1, 64)
+		if timeInForce != "" {
+			params["timeInForce"] = timeInForce
+		}
+		params["postOnly"] = postOnly
+		params["hidden"] = hidden
+		params["iceberg"] = iceberg
+
+		if visibleSize > 0 {
+			params["visibleSize"] = strconv.FormatFloat(visibleSize, 'f', -1, 64)
+		}
+	}
+
+	return resp.Data.OrderID, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinBorrowOrder, params, publicSpotRate, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
