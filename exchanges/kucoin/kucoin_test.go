@@ -475,24 +475,6 @@ func TestGetMarginTradeData(t *testing.T) {
 	}
 }
 
-func TestGetCurrentServerTime(t *testing.T) {
-	t.Parallel()
-
-	_, err := k.GetCurrentServerTime(context.Background())
-	if err != nil {
-		t.Error("GetCurrentServerTime() error", err)
-	}
-}
-
-func TestGetServiceStatus(t *testing.T) {
-	t.Parallel()
-
-	_, _, err := k.GetServiceStatus(context.Background())
-	if err != nil {
-		t.Error("GetServiceStatus() error", err)
-	}
-}
-
 func TestGetIsolatedMarginPairConfig(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
@@ -601,5 +583,23 @@ func TestInitiateIsolatedMarginSingleRepayment(t *testing.T) {
 	err := k.InitiateIsolatedMarginSingleRepayment(context.Background(), "BTC-USDT", "USDT", "628c570f7818320001d52b69", 10)
 	if err != nil {
 		t.Error("InitiateIsolatedMarginSingleRepayment() error", err)
+	}
+}
+
+func TestGetCurrentServerTime(t *testing.T) {
+	t.Parallel()
+
+	_, err := k.GetCurrentServerTime(context.Background())
+	if err != nil {
+		t.Error("GetCurrentServerTime() error", err)
+	}
+}
+
+func TestGetServiceStatus(t *testing.T) {
+	t.Parallel()
+
+	_, _, err := k.GetServiceStatus(context.Background())
+	if err != nil {
+		t.Error("GetServiceStatus() error", err)
 	}
 }
