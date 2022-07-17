@@ -603,3 +603,22 @@ func TestGetServiceStatus(t *testing.T) {
 		t.Error("GetServiceStatus() error", err)
 	}
 }
+
+func TestPostOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	// default order type is limit
+	_, err := k.PostOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "USDT", "", "", "", "10000", "", 0.1, 0, 0, 0, true, false, false)
+	if err != nil {
+		t.Error("PostOrder() error", err)
+	}
+
+	// market order
+	_, err = k.PostOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "USDT", "market", "remark", "", "", "", 0.1, 0, 0, 0, true, false, false)
+	if err != nil {
+		t.Error("PostOrder() error", err)
+	}
+}

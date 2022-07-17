@@ -901,7 +901,8 @@ func (k *Kucoin) GetServiceStatus(ctx context.Context) (string, string, error) {
 }
 
 // PostOrder used to place two types of orders: limit and market
-func (k *Kucoin) PostOrder(ctx context.Context, clientOID, side, symbol, orderType, leverage, remark, stop, stopPrice, stopPriceType, price, timeInForce string, size, visibleSize float64, reduceOnly, closeOrder, forceHold, postOnly, hidden, iceberg bool) (string, error) {
+// Note: use this only for SPOT trades
+func (k *Kucoin) PostOrder(ctx context.Context, clientOID, side, symbol, currency, orderType, remark, stop, price, timeInForce string, size, cancelAfter, visibleSize, funds float64, postOnly, hidden, iceberg bool) (string, error) {
 	resp := struct {
 		Data struct {
 			OrderID string `json:"orderId"`
@@ -922,29 +923,17 @@ func (k *Kucoin) PostOrder(ctx context.Context, clientOID, side, symbol, orderTy
 		return resp.Data.OrderID, errors.New("symbol can't be empty")
 	}
 	params["symbol"] = symbol
-	if orderType != "" {
-		params["type"] = orderType
+	if currency == "" {
+		return resp.Data.OrderID, errors.New("currency can't be empty")
 	}
-	if leverage == "" {
-		return resp.Data.OrderID, errors.New("leverage can't be empty")
-	}
-	params["leverage"] = leverage
+	params["currency"] = currency
 	if remark != "" {
 		params["remark"] = remark
 	}
 	if stop != "" {
-		if stopPrice == "" || stopPriceType == "" {
-			return resp.Data.OrderID, errors.New("stopPrice and stopPriceType can't be empty when stop is set")
-		}
-		params["stop"] = stop
-		params["stopPrice"] = stopPrice
-		params["stopPriceType"] = stopPriceType
+		params["stp"] = stop
 	}
-	params["reduceOnly"] = reduceOnly
-	params["closeOrder"] = closeOrder
-	params["forceHold"] = forceHold
-
-	if orderType == "limit" {
+	if orderType == "limit" || orderType == "" {
 		if price == "" {
 			return resp.Data.OrderID, errors.New("price can't be empty")
 		}
@@ -956,15 +945,33 @@ func (k *Kucoin) PostOrder(ctx context.Context, clientOID, side, symbol, orderTy
 		if timeInForce != "" {
 			params["timeInForce"] = timeInForce
 		}
+		if cancelAfter > 0 && timeInForce == "GTT" {
+			params["cancelAfter"] = strconv.FormatFloat(cancelAfter, 'f', -1, 64)
+		}
 		params["postOnly"] = postOnly
 		params["hidden"] = hidden
 		params["iceberg"] = iceberg
-
 		if visibleSize > 0 {
 			params["visibleSize"] = strconv.FormatFloat(visibleSize, 'f', -1, 64)
 		}
+	} else if orderType == "market" {
+		if size == 0 && funds == 0 {
+			return resp.Data.OrderID, errors.New("atleast one required among size and funds")
+		}
+
+		if size > 0 {
+			params["size"] = strconv.FormatFloat(size, 'f', -1, 64)
+		}
+		if funds > 0 {
+			params["funds"] = strconv.FormatFloat(funds, 'f', -1, 64)
+		}
+	} else {
+		return resp.Data.OrderID, errors.New("invalid orderType")
 	}
 
+	if orderType != "" {
+		params["type"] = orderType
+	}
 	return resp.Data.OrderID, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinBorrowOrder, params, publicSpotRate, &resp)
 }
 
