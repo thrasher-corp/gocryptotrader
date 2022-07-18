@@ -17,8 +17,8 @@ import (
 )
 
 func main() {
-	var strategyConfigPath, templatePath, outputPath, btConfigDir string
-	var generateReport, darkReport, colourOutput, logSubHeader, singleRun, printLogo bool
+	var singleRunStrategyPath, templatePath, outputPath, btConfigDir string
+	var generateReport, darkReport, colourOutput, logSubHeader, printLogo bool
 
 	wd, err := os.Getwd()
 	if err != nil {
@@ -38,17 +38,11 @@ func main() {
 	defaultReportOutput := filepath.Join(
 		wd,
 		"results")
-
-	flag.BoolVar(
-		&singleRun,
-		"singlerun",
-		false,
-		"will execute the strategyconfigpath strategy and exit")
 	flag.StringVar(
-		&strategyConfigPath,
-		"strategyconfigpath",
-		defaultStrategy,
-		"the config containing strategy params, only used if --singlerun=true")
+		&singleRunStrategyPath,
+		"singlerunstrategypath",
+		"",
+		fmt.Sprintf("path to a strategy file. Will execute strategy and exit, instead of creating a GRPC server. Example %v", defaultStrategy))
 	flag.StringVar(
 		&btConfigDir,
 		"backtesterconfigpath",
@@ -136,18 +130,14 @@ func main() {
 	}
 
 	flagSet := engine.FlagSet(flags)
-	flagSet.WithBool("singlerun", &singleRun, btCfg.SingleRun)
 	flagSet.WithBool("printlogo", &printLogo, btCfg.PrintLogo)
 	flagSet.WithBool("darkreport", &darkReport, btCfg.Report.DarkMode)
 	flagSet.WithBool("generatereport", &generateReport, btCfg.Report.GenerateReport)
 	flagSet.WithBool("logsubheaders", &logSubHeader, btCfg.LogSubheaders)
 	flagSet.WithBool("colouroutput", &colourOutput, btCfg.UseCMDColours)
 
-	if singleRun && strategyConfigPath != defaultStrategy {
-		btCfg.SingleRunStrategyConfig = strategyConfigPath
-	}
-	if singleRun && !file.Exists(btCfg.SingleRunStrategyConfig) {
-		fmt.Printf("strategy config path not found '%v'", strategyConfigPath)
+	if singleRunStrategyPath != "" && !file.Exists(singleRunStrategyPath) {
+		fmt.Printf("strategy config path not found '%v'", singleRunStrategyPath)
 		os.Exit(1)
 	}
 
@@ -195,8 +185,8 @@ func main() {
 		fmt.Println(common.Logo())
 	}
 
-	if singleRun {
-		dir := btCfg.SingleRunStrategyConfig
+	if singleRunStrategyPath != "" {
+		dir := singleRunStrategyPath
 		var cfg *config.Config
 		cfg, err = config.ReadStrategyConfigFromFile(dir)
 		if err != nil {

@@ -3,7 +3,6 @@ package config
 import (
 	"encoding/json"
 	"errors"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -44,11 +43,7 @@ func TestGenerateDefaultConfig(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Error(err)
-	}
-	if filepath.Join(wd, "examples", "ftx-cash-carry.strat") != cfg.SingleRunStrategyConfig {
-		t.Errorf("expected '%v' received '%v'", filepath.Join(wd, "examples", "ftx-cash-carry.strat"), cfg.SingleRunStrategyConfig)
+	if !cfg.PrintLogo {
+		t.Errorf("received '%v' expected '%v'", cfg.PrintLogo, true)
 	}
 }

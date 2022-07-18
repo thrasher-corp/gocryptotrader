@@ -18,15 +18,13 @@ var (
 
 // BacktesterConfig contains the configuration for the backtester
 type BacktesterConfig struct {
-	PrintLogo               bool           `json:"print-logo"`
-	Verbose                 bool           `json:"verbose"`
-	LogSubheaders           bool           `json:"log-subheaders"`
-	SingleRun               bool           `json:"single-run"`
-	SingleRunStrategyConfig string         `json:"single-run-strategy-config"`
-	Report                  Report         `json:"report"`
-	GRPC                    GRPC           `json:"grpc"`
-	UseCMDColours           bool           `json:"use-cmd-colours"`
-	Colours                 common.Colours `json:"cmd-colours"`
+	PrintLogo     bool           `json:"print-logo"`
+	Verbose       bool           `json:"verbose"`
+	LogSubheaders bool           `json:"log-subheaders"`
+	Report        Report         `json:"report"`
+	GRPC          GRPC           `json:"grpc"`
+	UseCMDColours bool           `json:"use-cmd-colours"`
+	Colours       common.Colours `json:"cmd-colours"`
 }
 
 // Report contains the report settings
