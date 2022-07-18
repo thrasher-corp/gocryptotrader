@@ -159,7 +159,7 @@ func (bi *Binanceus) SetValues() {
 // General Data Endpoints
 
 // GetServerTime this endpoint returns the exchange server time.
-func (bi *Binanceus) GetServerTime(ctx context.Context) (time.Time, error) {
+func (bi *Binanceus) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
 	var response ServerTime
 	return response.Timestamp,
 		bi.SendHTTPRequest(ctx,
@@ -1433,7 +1433,7 @@ func (bi *Binanceus) GetAssetFeesAndWalletStatus(ctx context.Context) (AssetWall
 }
 
 // WithdrawCrypto method to withdraw crypto
-func (bi *Binanceus) WithdrawCrypto(ctx context.Context, arg *withdraw.Request, withdrawOrderID string, recvWindow uint) (string, error) {
+func (bi *Binanceus) WithdrawCrypto(ctx context.Context, arg *withdraw.Request) (string, error) {
 	params := url.Values{}
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	if arg.Currency.String() == "" {
@@ -1444,8 +1444,8 @@ func (bi *Binanceus) WithdrawCrypto(ctx context.Context, arg *withdraw.Request, 
 		return "", errMissingRequiredArgumentNetwork
 	}
 	params.Set("network", arg.Crypto.Chain)
-	if withdrawOrderID != "" {
-		params.Set("withdrawOrderId", withdrawOrderID)
+	if arg.ClientOrderID != "" {
+		params.Set("withdrawOrderId", arg.ClientOrderID)
 	}
 	if arg.Crypto.Address == "" {
 		return "", errMissingRequiredParameterAddress
@@ -1458,9 +1458,6 @@ func (bi *Binanceus) WithdrawCrypto(ctx context.Context, arg *withdraw.Request, 
 		return "", errAmountValueMustBeGreaterThan0
 	}
 	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', 0, 64))
-	if recvWindow != 0 {
-		params.Set("recvWindow", strconv.Itoa(int(recvWindow)))
-	}
 	var response WithdrawalResponse
 	var er = bi.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
@@ -1484,7 +1481,6 @@ func (bi *Binanceus) WithdrawalHistory(ctx context.Context, c currency.Code, sta
 		if err != nil {
 			return nil, fmt.Errorf("wrong param (status): %s. Error: %v", status, err)
 		}
-
 		switch i {
 		case EmailSent, Cancelled, AwaitingApproval, Rejected, Processing, Failure, Completed:
 		default:

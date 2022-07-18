@@ -66,7 +66,7 @@ func TestMain(m *testing.M) {
 	bi.setupOrderbookManager()
 	err = bi.Start(nil)
 	if !errors.Is(err, common.ErrNilPointer) {
-		log.Fatalf("%s received: '%v' but expected: '%v'", bi.Name, err, common.ErrNilPointer)
+		log.Fatalf("Binanceus %s received: '%v' but expected: '%v'", bi.Name, err, common.ErrNilPointer)
 	}
 	var testWg sync.WaitGroup
 	err = bi.Start(&testWg)
@@ -82,8 +82,8 @@ func areTestAPIKeysSet() bool {
 
 func TestServerTime(t *testing.T) {
 	t.Parallel()
-	if _, er := bi.GetServerTime(context.Background()); er != nil {
-		t.Error("Okx SystemTime() error", er)
+	if _, er := bi.GetServerTime(context.Background(), asset.Spot); er != nil {
+		t.Error("Binanceus SystemTime() error", er)
 	}
 }
 
@@ -93,7 +93,7 @@ func TestServerStatus(t *testing.T) {
 		t.SkipNow()
 	}
 	if _, er := bi.GetSystemStatus(context.Background()); er != nil {
-		t.Error("Okx GetSystemStatus() error", er)
+		t.Error("Binanceus GetSystemStatus() error", er)
 	}
 }
 
@@ -101,7 +101,7 @@ func TestGetExchangeInfo(t *testing.T) {
 	t.Parallel()
 	_, err := bi.GetExchangeInfo(context.Background())
 	if err != nil {
-		t.Error(err)
+		t.Error("Binanceus GetExchangeInfo() error", err)
 	}
 }
 
@@ -112,7 +112,7 @@ func TestUpdateTicker(t *testing.T) {
 		t.Error(err)
 	}
 	if r.Pair.Base != currency.BTC && r.Pair.Quote != currency.USDT {
-		t.Error("invalid pair values")
+		t.Error("Binanceus UpdateTicker() invalid pair values")
 	}
 }
 
@@ -236,13 +236,13 @@ func TestSubmitOrder(t *testing.T) {
 	response, err := bi.SubmitOrder(context.Background(), orderSubmission)
 	switch {
 	case areTestAPIKeysSet() && err != nil && strings.Contains(err.Error(), "{\"code\":-1013,\"msg\":\"Market is closed.\""):
-		t.Skip("Market is Closed")
+		t.Skip("Binanceus SubmitOrder() Market is Closed")
 	case areTestAPIKeysSet() && err != nil:
-		t.Errorf("Could not place order: %v", err)
+		t.Errorf("Binanceus SubmitOrder() Could not place order: %v", err)
 	case areTestAPIKeysSet() && response.Status != order.Filled:
-		t.Error("Order not placed")
+		t.Error("Binanceus SubmitOrder() Order not placed")
 	case !areTestAPIKeysSet() && err == nil:
-		t.Error("Expecting an error when no keys are set")
+		t.Error("Binanceus SubmitOrder() Expecting an error when no keys are set")
 	}
 }
 
@@ -267,11 +267,9 @@ func TestCancelOrder(t *testing.T) {
 		t.Errorf("Binanceus CancelOrder() expecting %v, but found %v", errEitherOrderIDOrClientOrderIDIsRequired, err)
 	}
 	var cancellationOrder = &order.Cancel{
-		OrderID:       "1",
-		AccountID:     "1",
-		Pair:          pair,
-		AssetType:     asset.Spot,
-		ClientOrderID: "",
+		OrderID:   "1",
+		Pair:      pair,
+		AssetType: asset.Spot,
 	}
 	err = bi.CancelOrder(context.Background(), cancellationOrder)
 	if err != nil && !strings.Contains(err.Error(), "Unknown order sent.") {
@@ -285,7 +283,7 @@ func TestCancelAllOrders(t *testing.T) {
 		t.SkipNow()
 	}
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
-		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+		t.Skip("Binanceus API keys set, canManipulateRealOrders false, skipping test")
 	}
 	var orderCancellation = &order.Cancel{
 		Pair:      currency.NewPair(currency.LTC, currency.BTC),
@@ -325,11 +323,11 @@ func TestGetDepositAddress(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	_, err := bi.GetDepositAddress(context.Background(), currency.NewCode(""), "", currency.BNB.String())
+	_, err := bi.GetDepositAddress(context.Background(), currency.NewCode(""), currency.BNB.String())
 	if err != nil && !errors.Is(err, errMissingRequiredArgumentCoin) {
 		t.Errorf("Binanceus GetDepositAddress() expecting %v, but found %v", errMissingRequiredArgumentCoin, err)
 	}
-	if _, err := bi.GetDepositAddress(context.Background(), currency.USDT, "", currency.BNB.String()); err != nil {
+	if _, err := bi.GetDepositAddress(context.Background(), currency.USDT, currency.BNB.String()); err != nil {
 		t.Error("Binanceus GetDepositAddress() error", err)
 	}
 }
@@ -1313,17 +1311,28 @@ func TestWithdrawCrypto(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
-	_, er := bi.WithdrawCrypto(context.Background(), &withdraw.Request{}, "", 0)
+	_, er := bi.WithdrawCrypto(context.Background(), &withdraw.Request{})
 	if !errors.Is(er, errMissingRequiredArgumentCoin) {
 		t.Errorf("Binanceus WithdrawCrypto() error expecting %v, but found %v", errMissingRequiredArgumentCoin, er)
 	}
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("Binanceus CancelExistingOrder() skipping test, either api keys or canManipulateRealOrders isn't set")
-	}
-	_, er = bi.WithdrawCrypto(context.Background(), &withdraw.Request{
+	if _, er = bi.WithdrawCrypto(context.Background(), &withdraw.Request{
 		Currency: currency.BTC,
-	}, "", 0)
-	if er != nil && !strings.Contains(er.Error(), "missing required argument,network") {
+	}); !errors.Is(er, errMissingRequiredArgumentNetwork) {
+		t.Errorf("Binanceus WithdrawCrypto() expecting %v, but found %v", errMissingRequiredArgumentNetwork, er)
+	}
+	params := &withdraw.Request{
+		Currency: currency.BTC,
+	}
+	params.Crypto.Chain = "BSC"
+	if _, er = bi.WithdrawCrypto(context.Background(), params); !errors.Is(er, errMissingRequiredParameterAddress) {
+		t.Errorf("Binanceus WithdrawCrypto() expecting %v, but found %v", errMissingRequiredParameterAddress, er)
+	}
+	params.Crypto.Address = "1234567"
+	if _, er = bi.WithdrawCrypto(context.Background(), params); !errors.Is(er, errAmountValueMustBeGreaterThan0) {
+		t.Errorf("Binanceus WithdrawCrypto() expecting %v, but found %v", errAmountValueMustBeGreaterThan0, er)
+	}
+	params.Amount = 1
+	if _, er = bi.WithdrawCrypto(context.Background(), params); er != nil && !strings.Contains(er.Error(), "You are not authorized to execute this request.") {
 		t.Error("Binanceus WithdrawCrypto() error", er)
 	}
 }
@@ -1909,5 +1918,15 @@ func TestWebsocketOutboundAccountPosition(t *testing.T) {
 	payload := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"outboundAccountPosition","E":1616628815745,"u":1616628815745,"B":[{"a":"BTC","f":"0.00225109","l":"0.00123000"},{"a":"BNB","f":"0.00000000","l":"0.00000000"},{"a":"USDT","f":"54.43390661","l":"0.00000000"}]}}`)
 	if err := bi.wsHandleData(payload); err != nil {
 		t.Fatal("Binanceus testing \"outboundAccountPosition\" data conversion error", err)
+	}
+}
+
+func TestGetAvailableTransferChains(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := bi.GetAvailableTransferChains(context.Background(), currency.BTC); er != nil {
+		t.Error("Binanceus GetAvailableTransferChains() error", er)
 	}
 }

@@ -749,7 +749,7 @@ func (bi *Binanceus) GetOrderInfo(ctx context.Context, orderID string, pair curr
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (bi *Binanceus) GetDepositAddress(ctx context.Context, c currency.Code, accountID, chain string) (*deposit.Address, error) {
+func (bi *Binanceus) GetDepositAddress(ctx context.Context, c currency.Code, chain string) (*deposit.Address, error) {
 	address, err := bi.GetDepositAddressForCurrency(ctx, c.String(), chain)
 	if err != nil {
 		return nil, err
@@ -760,18 +760,17 @@ func (bi *Binanceus) GetDepositAddress(ctx context.Context, c currency.Code, acc
 	}, nil
 }
 
-// WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
-// submitted
+// WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is submitted
 func (bi *Binanceus) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	resp, er := bi.WithdrawCrypto(ctx, withdrawRequest, "", 0)
+	withdrawID, er := bi.WithdrawCrypto(ctx, withdrawRequest)
 	if er != nil {
 		return nil, er
 	}
 	return &withdraw.ExchangeResponse{
-		ID: resp,
+		ID: withdrawID,
 	}, nil
 }
 
@@ -983,4 +982,25 @@ func (bi *Binanceus) GetHistoricCandlesExtended(ctx context.Context, pair curren
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
+}
+
+
+
+// GetAvailableTransferChains returns the available transfer blockchains for the specific
+// cryptocurrency
+func (bi *Binanceus) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
+	coinInfo, err := bi.GetAssetFeesAndWalletStatus(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var availableChains []string
+	for x := range coinInfo {
+		if strings.EqualFold(coinInfo[x].Coin, cryptocurrency.String()) {
+			for y := range coinInfo[x].NetworkList {
+				availableChains = append(availableChains, coinInfo[x].NetworkList[y].Network)
+			}
+		}
+	}
+	return availableChains, nil
 }
