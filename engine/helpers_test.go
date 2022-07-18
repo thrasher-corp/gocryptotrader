@@ -1065,7 +1065,7 @@ func createDepositEngine(opts *fakeDepositExchangeOpts) *Engine {
 					Enabled: true,
 					CurrencyPairs: &currency.PairsManager{
 						UseGlobalFormat: true,
-						ConfigFormat:    &currency.PairFormat{},
+						ConfigFormat:    &currency.EMPTYFORMAT,
 						Pairs: map[asset.Item]*currency.PairStore{
 							asset.Spot: &ps,
 						},

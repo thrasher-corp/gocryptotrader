@@ -263,7 +263,7 @@ func (z *ZB) UpdateTickers(ctx context.Context, a asset.Item) error {
 	for x := range enabledPairs {
 		// We can't use either pair format here, so format it to lower-
 		// case and without any delimiter
-		curr := enabledPairs[x].Format(currency.PairFormat{}).String()
+		curr := enabledPairs[x].Format(currency.EMPTYFORMAT).String()
 		if _, ok := result[curr]; !ok {
 			continue
 		}

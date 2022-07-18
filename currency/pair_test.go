@@ -529,7 +529,7 @@ func TestNewPairFromFormattedPairs(t *testing.T) {
 	}
 
 	// Now a wrong one, will default to NewPairFromString
-	p, err = NewPairFromFormattedPairs("ethusdt", pairs, PairFormat{})
+	p, err = NewPairFromFormattedPairs("ethusdt", pairs, EMPTYFORMAT)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -627,7 +627,7 @@ func TestFindPairDifferences(t *testing.T) {
 	}
 
 	// Test that we don't allow empty strings for new pairs
-	diff, err = pairList.FindDifferences(Pairs{}, PairFormat{})
+	diff, err = pairList.FindDifferences(Pairs{}, EMPTYFORMAT)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -636,7 +636,7 @@ func TestFindPairDifferences(t *testing.T) {
 	}
 
 	// Test that we don't allow empty strings for new pairs
-	diff, err = Pairs{}.FindDifferences(pairList, PairFormat{})
+	diff, err = Pairs{}.FindDifferences(pairList, EMPTYFORMAT)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -654,12 +654,12 @@ func TestFindPairDifferences(t *testing.T) {
 		t.Error("TestFindPairDifferences: Unexpected values")
 	}
 
-	_, err = pairList.FindDifferences(Pairs{EMPTYPAIR}, PairFormat{})
+	_, err = pairList.FindDifferences(Pairs{EMPTYPAIR}, EMPTYFORMAT)
 	if !errors.Is(err, ErrCurrencyPairEmpty) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrCurrencyPairEmpty)
 	}
 
-	_, err = Pairs{EMPTYPAIR}.FindDifferences(pairList, PairFormat{})
+	_, err = Pairs{EMPTYPAIR}.FindDifferences(pairList, EMPTYFORMAT)
 	if !errors.Is(err, ErrCurrencyPairEmpty) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrCurrencyPairEmpty)
 	}

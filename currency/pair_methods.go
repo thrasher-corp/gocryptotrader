@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 )
 
+// EMPTYFORMAT defines an empty pair format
+var EMPTYFORMAT = PairFormat{}
+
 // String returns a currency pair string
 func (p Pair) String() string {
 	return p.Base.String() + p.Delimiter + p.Quote.String()

@@ -41,7 +41,6 @@ const (
 
 var (
 	errEndpointStringNotFound            = errors.New("endpoint string not found")
-	errCurrencyPairDuplication           = errors.New("currency pair duplication")
 	errConfigPairFormatRequiresDelimiter = errors.New("config pair format requires delimiter")
 )
 
@@ -142,11 +141,8 @@ func (b *Base) SupportsRESTTickerBatchUpdates() bool {
 // SupportsAutoPairUpdates returns whether or not the exchange supports
 // auto currency pair updating
 func (b *Base) SupportsAutoPairUpdates() bool {
-	if b.Features.Supports.RESTCapabilities.AutoPairUpdates ||
-		b.Features.Supports.WebsocketCapabilities.AutoPairUpdates {
-		return true
-	}
-	return false
+	return b.Features.Supports.RESTCapabilities.AutoPairUpdates ||
+		b.Features.Supports.WebsocketCapabilities.AutoPairUpdates
 }
 
 // GetLastPairsUpdateTime returns the unix timestamp of when the exchanges
@@ -293,14 +289,14 @@ func (b *Base) GetPairFormat(assetType asset.Item, requestFormat bool) (currency
 	if b.CurrencyPairs.UseGlobalFormat {
 		if requestFormat {
 			if b.CurrencyPairs.RequestFormat == nil {
-				return currency.PairFormat{},
+				return currency.EMPTYFORMAT,
 					errors.New("global request format is nil")
 			}
 			return *b.CurrencyPairs.RequestFormat, nil
 		}
 
 		if b.CurrencyPairs.ConfigFormat == nil {
-			return currency.PairFormat{},
+			return currency.EMPTYFORMAT,
 				errors.New("global config format is nil")
 		}
 		return *b.CurrencyPairs.ConfigFormat, nil
@@ -308,19 +304,19 @@ func (b *Base) GetPairFormat(assetType asset.Item, requestFormat bool) (currency
 
 	ps, err := b.CurrencyPairs.Get(assetType)
 	if err != nil {
-		return currency.PairFormat{}, err
+		return currency.EMPTYFORMAT, err
 	}
 
 	if requestFormat {
 		if ps.RequestFormat == nil {
-			return currency.PairFormat{},
+			return currency.EMPTYFORMAT,
 				errors.New("asset type request format is nil")
 		}
 		return *ps.RequestFormat, nil
 	}
 
 	if ps.ConfigFormat == nil {
-		return currency.PairFormat{},
+		return currency.EMPTYFORMAT,
 			errors.New("asset type config format is nil")
 	}
 	return *ps.ConfigFormat, nil
@@ -338,14 +334,11 @@ func (b *Base) GetEnabledPairs(a asset.Item) (currency.Pairs, error) {
 	if err != nil {
 		return nil, err
 	}
-	enabledpairs, err := b.CurrencyPairs.GetPairs(a, true)
+	enabledPairs, err := b.CurrencyPairs.GetPairs(a, true)
 	if err != nil {
 		return nil, err
 	}
-	return enabledpairs.Format(format.Delimiter,
-			format.Index,
-			format.Uppercase),
-		nil
+	return enabledPairs.Format(format), nil
 }
 
 // GetRequestFormattedPairAndAssetType is a method that returns the enabled currency pair of
@@ -384,28 +377,23 @@ func (b *Base) GetAvailablePairs(assetType asset.Item) (currency.Pairs, error) {
 	if err != nil {
 		return nil, err
 	}
-	return pairs.Format(format.Delimiter, format.Index, format.Uppercase), nil
+	return pairs.Format(format), nil
 }
 
 // SupportsPair returns true or not whether a currency pair exists in the
 // exchange available currencies or not
 func (b *Base) SupportsPair(p currency.Pair, enabledPairs bool, assetType asset.Item) error {
+	var pairs currency.Pairs
+	var err error
 	if enabledPairs {
-		pairs, err := b.GetEnabledPairs(assetType)
-		if err != nil {
-			return err
-		}
-		if pairs.Contains(p, false) {
-			return nil
-		}
-		return errors.New("pair not supported")
+		pairs, err = b.GetEnabledPairs(assetType)
+	} else {
+		pairs, err = b.GetAvailablePairs(assetType)
 	}
-
-	avail, err := b.GetAvailablePairs(assetType)
 	if err != nil {
 		return err
 	}
-	if avail.Contains(p, false) {
+	if pairs.Contains(p, false) {
 		return nil
 	}
 	return errors.New("pair not supported")
@@ -574,20 +562,20 @@ func (b *Base) UpdatePairs(incomingPairs currency.Pairs, assetType asset.Item, e
 	// formatting entry duplications can be found e.g. `LINKUSDTM21`,
 	// `LIN-KUSDTM21` or `LINK-USDTM21 are all the same instances but with
 	// different unintentional processes for formatting.
-	duplications := make(map[string]struct{}, len(incomingPairs))
+	processedPairs := make(map[string]struct{}, len(incomingPairs))
 	for x := range incomingPairs {
 		if incomingPairs[x].IsEmpty() {
 			return fmt.Errorf("cannot update pairs %w", currency.ErrCurrencyPairEmpty)
 		}
 
-		strippedFormat := incomingPairs[x].Base.Lower().String() + incomingPairs[x].Quote.Lower().String()
-		_, ok := duplications[strippedFormat]
+		strippedPair := currency.EMPTYFORMAT.Format(incomingPairs[x])
+		_, ok := processedPairs[strippedPair]
 		if ok {
-			return fmt.Errorf("cannot update pairs %w with [%s]", errCurrencyPairDuplication, incomingPairs[x])
+			return fmt.Errorf("cannot update pairs %w with [%s]", currency.ErrPairDuplication, incomingPairs[x])
 		}
 		// Force application of config formatting
 		incomingPairs[x] = incomingPairs[x].Format(pFmt)
-		duplications[strippedFormat] = struct{}{}
+		processedPairs[strippedPair] = struct{}{}
 	}
 
 	oldPairs, err := b.CurrencyPairs.GetPairs(assetType, enabled)
@@ -658,7 +646,7 @@ func (b *Base) UpdatePairs(incomingPairs currency.Pairs, assetType asset.Item, e
 // duplication.
 func (b *Base) inspectEnabledPairs(availPairs currency.Pairs, assetType asset.Item, pFmt currency.PairFormat) error {
 	enabledPairs, err := b.CurrencyPairs.GetPairs(assetType, true)
-	if err == nil && !enabledPairs.FormatDifference(pFmt) {
+	if err == nil && !enabledPairs.HasFormatDifference(pFmt) {
 		return nil
 	}
 
@@ -674,7 +662,7 @@ func (b *Base) inspectEnabledPairs(availPairs currency.Pairs, assetType asset.It
 			target++
 		} else {
 			var match currency.Pair
-			match, err = availPairs.DeriveFrom(enabledPairs[x].Format(currency.PairFormat{}).String())
+			match, err = availPairs.DeriveFrom(enabledPairs[x].Format(currency.EMPTYFORMAT).String())
 			if err != nil {
 				continue
 			}

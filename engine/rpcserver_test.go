@@ -2070,7 +2070,7 @@ func TestCurrencyStateTradingPair(t *testing.T) {
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		AssetEnabled: convert.BoolPtr(true),
-		ConfigFormat: &currency.PairFormat{},
+		ConfigFormat: &currency.EMPTYFORMAT,
 		Available:    currency.Pairs{cp},
 		Enabled:      currency.Pairs{cp},
 	}
@@ -2243,13 +2243,13 @@ func TestGetCollateral(t *testing.T) {
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Futures] = &currency.PairStore{
 		AssetEnabled: convert.BoolPtr(true),
-		ConfigFormat: &currency.PairFormat{},
+		ConfigFormat: &currency.EMPTYFORMAT,
 		Available:    currency.Pairs{cp},
 		Enabled:      currency.Pairs{cp},
 	}
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		AssetEnabled: convert.BoolPtr(true),
-		ConfigFormat: &currency.PairFormat{},
+		ConfigFormat: &currency.EMPTYFORMAT,
 		Available:    currency.Pairs{cp},
 		Enabled:      currency.Pairs{cp},
 	}

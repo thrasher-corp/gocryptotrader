@@ -58,7 +58,7 @@ func (b *Bitstamp) SetDefaults() {
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 	b.API.CredentialsValidator.RequiresClientID = true
-	requestFmt := &currency.PairFormat{}
+	requestFmt := &currency.EMPTYFORMAT
 	configFmt := &currency.PairFormat{
 		Uppercase: true,
 		Delimiter: currency.ForwardSlashDelimiter,

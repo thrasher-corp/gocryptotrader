@@ -611,12 +611,12 @@ func (c *Config) SupportsPair(exchName string, p currency.Pair, assetType asset.
 func (c *Config) GetPairFormat(exchName string, assetType asset.Item) (currency.PairFormat, error) {
 	exchCfg, err := c.GetExchangeConfig(exchName)
 	if err != nil {
-		return currency.PairFormat{}, err
+		return currency.EMPTYFORMAT, err
 	}
 
 	err = c.SupportsExchangeAssetType(exchName, assetType)
 	if err != nil {
-		return currency.PairFormat{}, err
+		return currency.EMPTYFORMAT, err
 	}
 
 	if exchCfg.CurrencyPairs.UseGlobalFormat {
@@ -625,18 +625,18 @@ func (c *Config) GetPairFormat(exchName string, assetType asset.Item) (currency.
 
 	p, err := exchCfg.CurrencyPairs.Get(assetType)
 	if err != nil {
-		return currency.PairFormat{}, err
+		return currency.EMPTYFORMAT, err
 	}
 
 	if p == nil {
-		return currency.PairFormat{},
+		return currency.EMPTYFORMAT,
 			fmt.Errorf("exchange %s pair store for asset type %s is nil",
 				exchName,
 				assetType)
 	}
 
 	if p.ConfigFormat == nil {
-		return currency.PairFormat{},
+		return currency.EMPTYFORMAT,
 			fmt.Errorf("exchange %s pair config format for asset type %s is nil",
 				exchName,
 				assetType)
@@ -666,8 +666,7 @@ func (c *Config) GetAvailablePairs(exchName string, assetType asset.Item) (curre
 		return nil, nil
 	}
 
-	return pairs.Format(pairFormat.Delimiter, pairFormat.Index,
-		pairFormat.Uppercase), nil
+	return pairs.Format(pairFormat), nil
 }
 
 // GetEnabledPairs returns a list of currency pairs for a specifc exchange
@@ -691,10 +690,7 @@ func (c *Config) GetEnabledPairs(exchName string, assetType asset.Item) (currenc
 		return nil, nil
 	}
 
-	return pairs.Format(pairFormat.Delimiter,
-			pairFormat.Index,
-			pairFormat.Uppercase),
-		nil
+	return pairs.Format(pairFormat), nil
 }
 
 // GetEnabledExchanges returns a list of enabled exchanges

@@ -492,8 +492,8 @@ func TestLoadConfigPairs(t *testing.T) {
 			},
 			Pairs: map[asset.Item]*currency.PairStore{
 				asset.Spot: {
-					RequestFormat: &currency.PairFormat{},
-					ConfigFormat:  &currency.PairFormat{},
+					RequestFormat: &currency.EMPTYFORMAT,
+					ConfigFormat:  &currency.EMPTYFORMAT,
 				},
 			},
 		},
@@ -1381,8 +1381,8 @@ func TestUpdatePairs(t *testing.T) {
 
 	pairs = currency.Pairs{p, p}
 	err = UAC.UpdatePairs(pairs, asset.Spot, false, true)
-	if !errors.Is(err, errCurrencyPairDuplication) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errCurrencyPairDuplication)
+	if !errors.Is(err, currency.ErrPairDuplication) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrPairDuplication)
 	}
 
 	pairs = currency.Pairs{p}

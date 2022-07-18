@@ -676,12 +676,12 @@ func TestCheckPairConfigFormats(t *testing.T) {
 	c.Exchanges[0].CurrencyPairs = &currency.PairsManager{
 		Pairs: map[asset.Item]*currency.PairStore{
 			asset.Spot: {
-				RequestFormat: &currency.PairFormat{},
-				ConfigFormat:  &currency.PairFormat{},
+				RequestFormat: &currency.EMPTYFORMAT,
+				ConfigFormat:  &currency.EMPTYFORMAT,
 			},
 			asset.Futures: {
-				RequestFormat: &currency.PairFormat{},
-				ConfigFormat:  &currency.PairFormat{},
+				RequestFormat: &currency.EMPTYFORMAT,
+				ConfigFormat:  &currency.EMPTYFORMAT,
 			},
 		},
 	}
@@ -901,7 +901,7 @@ func TestCheckPairConsistency(t *testing.T) {
 
 func TestSupportsPair(t *testing.T) {
 	t.Parallel()
-	fmt := &currency.PairFormat{}
+	fmt := &currency.EMPTYFORMAT
 	cfg := &Config{
 		Exchanges: []Exchange{
 			{
@@ -1859,8 +1859,8 @@ func TestCheckConfig(t *testing.T) {
 							AssetEnabled:  convert.BoolPtr(true),
 							Available:     currency.Pairs{cp1, cp2},
 							Enabled:       currency.Pairs{cp1},
-							ConfigFormat:  &currency.PairFormat{},
-							RequestFormat: &currency.PairFormat{},
+							ConfigFormat:  &currency.EMPTYFORMAT,
+							RequestFormat: &currency.EMPTYFORMAT,
 						},
 					},
 				},

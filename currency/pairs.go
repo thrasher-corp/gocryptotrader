@@ -14,6 +14,9 @@ var (
 	errSymbolEmpty = errors.New("symbol is empty")
 	errPairsEmpty  = errors.New("pairs are empty")
 	errNoDelimiter = errors.New("no delimiter was supplied")
+	// ErrCurrencyPairDuplication defines an error when there is multiple of the
+	// same currency pairs found.
+	ErrPairDuplication = errors.New("currency pair duplication")
 )
 
 // NewPairsFromStrings takes in currency pair strings and returns a currency
@@ -54,20 +57,20 @@ func (p Pairs) Join() string {
 }
 
 // Format formats the pair list to the exchange format configuration
-func (p Pairs) Format(delimiter, index string, uppercase bool) Pairs {
+func (p Pairs) Format(pairFmt PairFormat) Pairs {
 	pairs := make(Pairs, 0, len(p))
 	var err error
 	for _, format := range p {
-		if index != "" {
-			format, err = NewPairFromIndex(format.String(), index)
+		if pairFmt.Index != "" {
+			format, err = NewPairFromIndex(format.String(), pairFmt.Index)
 			if err != nil {
 				log.Errorf(log.Global,
 					"failed to create NewPairFromIndex. Err: %s\n", err)
 				continue
 			}
 		}
-		format.Delimiter = delimiter
-		if uppercase {
+		format.Delimiter = pairFmt.Delimiter
+		if pairFmt.Uppercase {
 			pairs = append(pairs, format.Upper())
 		} else {
 			pairs = append(pairs, format.Lower())
@@ -248,12 +251,12 @@ func (p Pairs) FindDifferences(incoming Pairs, pairFmt PairFormat) (PairDifferen
 	return PairDifference{
 		New:              newPairs,
 		Remove:           removedPairs,
-		FormatDifference: p.FormatDifference(pairFmt),
+		FormatDifference: p.HasFormatDifference(pairFmt),
 	}, nil
 }
 
-// FormatDifference checks and validates full formatting across a pairs list
-func (p Pairs) FormatDifference(pairFmt PairFormat) bool {
+// HasFormatDifference checks and validates full formatting across a pairs list
+func (p Pairs) HasFormatDifference(pairFmt PairFormat) bool {
 	for x := range p {
 		if p[x].Delimiter != pairFmt.Delimiter ||
 			(!p[x].Base.IsEmpty() && p[x].Base.UpperCase != pairFmt.Uppercase) ||
