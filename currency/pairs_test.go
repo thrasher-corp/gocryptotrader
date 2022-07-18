@@ -590,3 +590,75 @@ func TestGetPairsByCurrencies(t *testing.T) {
 		t.Fatalf("received %v but expected  %v", enabled, 5)
 	}
 }
+
+func TestValidateAndConform(t *testing.T) {
+	t.Parallel()
+
+	conformMe := Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(USD, NZD),
+		NewPair(LTC, USDT),
+		NewPair(LTC, DAI),
+		NewPair(USDT, XRP),
+		NewPair(EMPTYCODE, EMPTYCODE),
+	}
+
+	err := conformMe.ValidateAndConform(EMPTYFORMAT)
+	if !errors.Is(err, ErrCurrencyPairEmpty) {
+		t.Fatalf("received: '%v' but expected '%v'", err, ErrCurrencyPairEmpty)
+	}
+
+	duplication, err := NewPairFromString("linkusdt")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	conformMe = Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(LINK, USDT),
+		NewPair(USD, NZD),
+		NewPair(LTC, USDT),
+		NewPair(LTC, DAI),
+		NewPair(USDT, XRP),
+		duplication,
+	}
+
+	err = conformMe.ValidateAndConform(EMPTYFORMAT)
+	if !errors.Is(err, ErrPairDuplication) {
+		t.Fatalf("received: '%v' but expected '%v'", err, ErrPairDuplication)
+	}
+
+	conformMe = Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(LINK, USDT),
+		NewPair(USD, NZD),
+		NewPair(LTC, USDT),
+		NewPair(LTC, DAI),
+		NewPair(USDT, XRP),
+	}
+
+	err = conformMe.ValidateAndConform(EMPTYFORMAT)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected '%v'", err, nil)
+	}
+
+	expected := "btcusd,ltcusd,linkusdt,usdnzd,ltcusdt,ltcdai,usdtxrp"
+
+	if conformMe.Join() != expected {
+		t.Fatalf("received: '%v' but expected '%v'", conformMe.Join(), expected)
+	}
+
+	err = conformMe.ValidateAndConform(PairFormat{Delimiter: DashDelimiter, Uppercase: true})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected '%v'", err, nil)
+	}
+
+	expected = "BTC-USD,LTC-USD,LINK-USDT,USD-NZD,LTC-USDT,LTC-DAI,USDT-XRP"
+
+	if conformMe.Join() != expected {
+		t.Fatalf("received: '%v' but expected '%v'", conformMe.Join(), expected)
+	}
+}

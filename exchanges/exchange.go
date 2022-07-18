@@ -558,24 +558,9 @@ func (b *Base) UpdatePairs(incomingPairs currency.Pairs, assetType asset.Item, e
 		return err
 	}
 
-	// Map string is used to make sure delimiters are not included so different
-	// formatting entry duplications can be found e.g. `LINKUSDTM21`,
-	// `LIN-KUSDTM21` or `LINK-USDTM21 are all the same instances but with
-	// different unintentional processes for formatting.
-	processedPairs := make(map[string]struct{}, len(incomingPairs))
-	for x := range incomingPairs {
-		if incomingPairs[x].IsEmpty() {
-			return fmt.Errorf("cannot update pairs %w", currency.ErrCurrencyPairEmpty)
-		}
-
-		strippedPair := currency.EMPTYFORMAT.Format(incomingPairs[x])
-		_, ok := processedPairs[strippedPair]
-		if ok {
-			return fmt.Errorf("cannot update pairs %w with [%s]", currency.ErrPairDuplication, incomingPairs[x])
-		}
-		// Force application of config formatting
-		incomingPairs[x] = incomingPairs[x].Format(pFmt)
-		processedPairs[strippedPair] = struct{}{}
+	err = incomingPairs.ValidateAndConform(pFmt)
+	if err != nil {
+		return err
 	}
 
 	oldPairs, err := b.CurrencyPairs.GetPairs(assetType, enabled)
@@ -588,66 +573,71 @@ func (b *Base) UpdatePairs(incomingPairs currency.Pairs, assetType asset.Item, e
 		return err
 	}
 
-	if !force && len(diff.New) == 0 && len(diff.Remove) == 0 && !diff.FormatDifference {
-		if !enabled {
-			return b.inspectEnabledPairs(incomingPairs, assetType, pFmt)
+	if force || len(diff.New) != 0 || len(diff.Remove) != 0 || diff.FormatDifference {
+		var updateType string
+		if enabled {
+			updateType = "enabled"
+		} else {
+			updateType = "available"
 		}
-		return nil
-	}
 
-	var updateType string
-	if enabled {
-		updateType = "enabled"
-	} else {
-		updateType = "available"
-	}
-
-	if force {
-		log.Debugf(log.ExchangeSys,
-			"%s forced update of %s [%v] pairs.",
-			b.Name,
-			updateType,
-			strings.ToUpper(assetType.String()))
-	} else {
-		if len(diff.New) > 0 {
+		if force {
 			log.Debugf(log.ExchangeSys,
-				"%s Updating %s pairs [%v] - Added: %s.\n",
+				"%s forced update of %s [%v] pairs.",
 				b.Name,
 				updateType,
-				strings.ToUpper(assetType.String()),
-				diff.New)
+				strings.ToUpper(assetType.String()))
+		} else {
+			if len(diff.New) > 0 {
+				log.Debugf(log.ExchangeSys,
+					"%s Updating %s pairs [%v] - Added: %s.\n",
+					b.Name,
+					updateType,
+					strings.ToUpper(assetType.String()),
+					diff.New)
+			}
+			if len(diff.Remove) > 0 {
+				log.Debugf(log.ExchangeSys,
+					"%s Updating %s pairs [%v] - Removed: %s.\n",
+					b.Name,
+					updateType,
+					strings.ToUpper(assetType.String()),
+					diff.Remove)
+			}
 		}
-		if len(diff.Remove) > 0 {
-			log.Debugf(log.ExchangeSys,
-				"%s Updating %s pairs [%v] - Removed: %s.\n",
-				b.Name,
-				updateType,
-				strings.ToUpper(assetType.String()),
-				diff.Remove)
-		}
-	}
 
-	b.Config.CurrencyPairs.StorePairs(assetType, incomingPairs, enabled)
-	b.CurrencyPairs.StorePairs(assetType, incomingPairs, enabled)
+		b.Config.CurrencyPairs.StorePairs(assetType, incomingPairs, enabled)
+		b.CurrencyPairs.StorePairs(assetType, incomingPairs, enabled)
+	}
 
 	if !enabled {
-		return b.inspectEnabledPairs(incomingPairs, assetType, pFmt)
+		return b.compareAvailableToEnabledPairs(assetType, pFmt)
 	}
 
 	return nil
 }
 
-// inspectEnabledPairs checks for differences after an available pairs
-// adjustment which will remove currency pairs that have been disabled by an
-// exchange or adjust the entire list of enabled pairs if there is a formatting
-// change. It will also capture unintentional client inputs e.g. a client can
-// enter `linkusd` via config and that might be unintentionally be formatted too
-// `lin-kusd` which can cause system discrepencies for fetching, saving and
-// duplication.
-func (b *Base) inspectEnabledPairs(availPairs currency.Pairs, assetType asset.Item, pFmt currency.PairFormat) error {
+// compareAvailableToEnabledPairs checks for differences after an available
+// pairs adjustment which will remove currency pairs that have been disabled by
+// an exchange, adjust the entire list of enabled pairs if there is a formatting
+// change or it will also capture unintentional client inputs e.g. a client can
+// enter `linkusd` via config and that might be unintentionally formatted too
+// `lin-kusd` which can cause system discrepancies for fetching, saving and
+// duplication, it then will match that against the correct available pair in
+// memory and apply correct formatting (LINK-USD).
+func (b *Base) compareAvailableToEnabledPairs(assetType asset.Item, pFmt currency.PairFormat) error {
 	enabledPairs, err := b.CurrencyPairs.GetPairs(assetType, true)
+	if err != nil && !errors.Is(err, currency.ErrPairNotContainedInAvailablePairs) {
+		return err
+	}
+
 	if err == nil && !enabledPairs.HasFormatDifference(pFmt) {
 		return nil
+	}
+
+	availPairs, err := b.CurrencyPairs.GetPairs(assetType, false)
+	if err != nil {
+		return err
 	}
 
 	diff, err := enabledPairs.FindDifferences(availPairs, pFmt)
@@ -661,13 +651,14 @@ func (b *Base) inspectEnabledPairs(availPairs currency.Pairs, assetType asset.It
 			enabledPairs[target] = enabledPairs[x].Format(pFmt)
 			target++
 		} else {
+			strippedPair := enabledPairs[x].Format(currency.EMPTYFORMAT).String()
 			var match currency.Pair
-			match, err = availPairs.DeriveFrom(enabledPairs[x].Format(currency.EMPTYFORMAT).String())
+			match, err = availPairs.DeriveFrom(strippedPair)
 			if err != nil {
 				continue
 			}
 			diff.Remove = diff.Remove.Remove(enabledPairs[x])
-			enabledPairs[target] = match // Should have correct formatting already
+			enabledPairs[target] = match.Format(pFmt)
 			target++
 		}
 	}

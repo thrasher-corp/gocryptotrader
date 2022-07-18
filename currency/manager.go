@@ -23,6 +23,10 @@ var (
 	// ErrAssetIsNil is an error when the asset has not been populated by the
 	// configuration
 	ErrAssetIsNil = errors.New("asset is nil")
+	// ErrPairNotContainedInAvailablePairs defines an error when a pair is not
+	// contained in the available pairs list and is not supported by the
+	// exchange for that asset type.
+	ErrPairNotContainedInAvailablePairs = errors.New("pair not contained in available pairs")
 )
 
 // GetAssetTypes returns a list of stored asset types
@@ -88,10 +92,9 @@ func (p *PairsManager) GetPairs(a asset.Item, enabled bool) (Pairs, error) {
 	if enabled {
 		for i := range c.Enabled {
 			if !c.Available.Contains(c.Enabled[i], true) {
-				return c.Enabled,
-					fmt.Errorf("enabled pair %s of asset type %s not contained in available list",
-						c.Enabled[i],
-						a)
+				return c.Enabled, fmt.Errorf("enabled pair %s of asset type %s %w",
+					c.Enabled[i],
+					a, ErrPairNotContainedInAvailablePairs)
 			}
 		}
 		return c.Enabled, nil

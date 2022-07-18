@@ -385,3 +385,25 @@ func (p Pairs) GetStablesMatch(code Code) Pairs {
 	}
 	return stablePairs
 }
+
+// ValidateAndConform checks for duplications and empty pairs then conforms the
+// entire pairs list to the supplied formatting. Map[string]bool type is used to
+// make sure delimiters are not included so different formatting entry
+// duplications can be found e.g. `LINKUSDTM21`,`LIN-KUSDTM21` or `LINK-USDTM21
+// are all the same instances but with different unintentional processes for
+// formatting.
+func (p Pairs) ValidateAndConform(pFmt PairFormat) error {
+	processedPairs := make(map[string]bool, len(p))
+	for x := range p {
+		if p[x].IsEmpty() {
+			return fmt.Errorf("cannot update pairs %w", ErrCurrencyPairEmpty)
+		}
+		strippedPair := EMPTYFORMAT.Format(p[x])
+		if processedPairs[strippedPair] {
+			return fmt.Errorf("cannot update pairs %w with [%s]", ErrPairDuplication, p[x])
+		}
+		p[x] = p[x].Format(pFmt) // Force application of supplied formatting
+		processedPairs[strippedPair] = true
+	}
+	return nil
+}
