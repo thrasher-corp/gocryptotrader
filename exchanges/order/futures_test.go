@@ -81,17 +81,17 @@ func TestTrackNewOrder(t *testing.T) {
 		Asset:    item,
 		Pair:     pair,
 	}
-	f, err := SetupPositionTracker(setup)
+	c, err := SetupPositionTracker(setup)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
 
-	err = f.TrackNewOrder(nil, false)
-	if !errors.Is(err, ErrSubmissionIsNil) {
+	err = c.TrackNewOrder(nil, false)
+	if !errors.Is(err, common.ErrNilPointer) {
 		t.Error(err)
 	}
-	err = f.TrackNewOrder(&Detail{}, false)
-	if !errors.Is(err, errOrderNotEqualToTracker) {
+	err = c.TrackNewOrder(&Detail{}, false)
+	if !errors.Is(err, errExchangeNameEmpty) {
 		t.Error(err)
 	}
 
@@ -102,7 +102,7 @@ func TestTrackNewOrder(t *testing.T) {
 		OrderID:   "1",
 		Price:     1337,
 	}
-	err = f.TrackNewOrder(od, false)
+	err = c.TrackNewOrder(od, false)
 	if !errors.Is(err, ErrSideIsInvalid) {
 		t.Error(err)
 	}
@@ -110,26 +110,26 @@ func TestTrackNewOrder(t *testing.T) {
 	od.Side = Long
 	od.Amount = 1
 	od.OrderID = "2"
-	err = f.TrackNewOrder(od, false)
+	err = c.TrackNewOrder(od, false)
 	if !errors.Is(err, errTimeUnset) {
 		t.Error(err)
 	}
-	f.openingDirection = Long
+	c.openingDirection = Long
 	od.Date = time.Now()
-	err = f.TrackNewOrder(od, false)
+	err = c.TrackNewOrder(od, false)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
-	if !f.openingPrice.Equal(decimal.NewFromInt(1337)) {
-		t.Errorf("expected 1337, received %v", f.openingPrice)
+	if !c.openingPrice.Equal(decimal.NewFromInt(1337)) {
+		t.Errorf("expected 1337, received %v", c.openingPrice)
 	}
-	if len(f.longPositions) != 1 {
+	if len(c.longPositions) != 1 {
 		t.Error("expected a long")
 	}
-	if f.latestDirection != Long {
+	if c.latestDirection != Long {
 		t.Error("expected recognition that its long")
 	}
-	if f.exposure.InexactFloat64() != od.Amount {
+	if c.exposure.InexactFloat64() != od.Amount {
 		t.Error("expected 1")
 	}
 
@@ -137,17 +137,17 @@ func TestTrackNewOrder(t *testing.T) {
 	od.Amount = 0.4
 	od.Side = Short
 	od.OrderID = "3"
-	err = f.TrackNewOrder(od, false)
+	err = c.TrackNewOrder(od, false)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
-	if len(f.shortPositions) != 1 {
+	if len(c.shortPositions) != 1 {
 		t.Error("expected a short")
 	}
-	if f.latestDirection != Long {
+	if c.latestDirection != Long {
 		t.Error("expected recognition that its long")
 	}
-	if f.exposure.InexactFloat64() != 0.6 {
+	if c.exposure.InexactFloat64() != 0.6 {
 		t.Error("expected 0.6")
 	}
 
@@ -156,59 +156,64 @@ func TestTrackNewOrder(t *testing.T) {
 	od.Side = Short
 	od.OrderID = "4"
 	od.Fee = 0.1
-	err = f.TrackNewOrder(od, false)
+	err = c.TrackNewOrder(od, false)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
-	if f.latestDirection != Short {
+	if c.latestDirection != Short {
 		t.Error("expected recognition that its short")
 	}
-	if !f.exposure.Equal(decimal.NewFromFloat(0.2)) {
-		t.Errorf("expected %v received %v", 0.2, f.exposure)
+	if !c.exposure.Equal(decimal.NewFromFloat(0.2)) {
+		t.Errorf("expected %v received %v", 0.2, c.exposure)
 	}
 
 	od.Date = od.Date.Add(1)
 	od.OrderID = "5"
 	od.Side = Long
 	od.Amount = 0.2
-	err = f.TrackNewOrder(od, false)
+	err = c.TrackNewOrder(od, false)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
-	if f.latestDirection != ClosePosition {
-		t.Errorf("expected recognition that its closed, received '%v'", f.latestDirection)
+	if c.latestDirection != ClosePosition {
+		t.Errorf("expected recognition that its closed, received '%v'", c.latestDirection)
 	}
-	if f.status != Closed {
-		t.Errorf("expected recognition that its closed, received '%v'", f.status)
+	if c.status != Closed {
+		t.Errorf("expected recognition that its closed, received '%v'", c.status)
 	}
 
-	err = f.TrackNewOrder(od, false)
+	err = c.TrackNewOrder(od, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
 	od.OrderID = "hellomoto"
-	err = f.TrackNewOrder(od, false)
+	err = c.TrackNewOrder(od, false)
 	if !errors.Is(err, ErrPositionClosed) {
 		t.Errorf("received %v expected %v", err, ErrPositionClosed)
 	}
-	if f.latestDirection != ClosePosition {
-		t.Errorf("expected recognition that its closed, received '%v'", f.latestDirection)
+	if c.latestDirection != ClosePosition {
+		t.Errorf("expected recognition that its closed, received '%v'", c.latestDirection)
 	}
-	if f.status != Closed {
-		t.Errorf("expected recognition that its closed, received '%v'", f.status)
+	if c.status != Closed {
+		t.Errorf("expected recognition that its closed, received '%v'", c.status)
 	}
 
-	err = f.TrackNewOrder(od, true)
+	err = c.TrackNewOrder(od, true)
 	if !errors.Is(err, errCannotTrackInvalidParams) {
 		t.Error(err)
 	}
 
-	f, err = SetupPositionTracker(setup)
+	c, err = SetupPositionTracker(setup)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
-	err = f.TrackNewOrder(od, true)
+	err = c.TrackNewOrder(od, true)
 	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	var ptp *PositionTracker
+	err = ptp.TrackNewOrder(nil, false)
+	if !errors.Is(err, common.ErrNilPointer) {
 		t.Error(err)
 	}
 }
@@ -265,24 +270,40 @@ func TestSetupMultiPositionTracker(t *testing.T) {
 	}
 }
 
-func TestExchangeTrackNewOrder(t *testing.T) {
+func TestMultiPositionTrackerTrackNewOrder(t *testing.T) {
 	t.Parallel()
 	exch := testExchange
 	item := asset.Futures
 	pair := currency.NewPair(currency.BTC, currency.USDT)
 	setup := &MultiPositionTrackerSetup{
-		Exchange:               exch,
 		Asset:                  item,
 		Pair:                   pair,
 		Underlying:             pair.Base,
 		ExchangePNLCalculation: &FakePNL{},
 	}
+	_, err := SetupMultiPositionTracker(setup)
+	if !errors.Is(err, errExchangeNameEmpty) {
+		t.Error(err)
+	}
+
+	setup.Exchange = testExchange
 	resp, err := SetupMultiPositionTracker(setup)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
 
 	tt := time.Now()
+	err = resp.TrackNewOrder(&Detail{
+		Date:      tt,
+		AssetType: item,
+		Pair:      pair,
+		Side:      Short,
+		OrderID:   "1",
+		Amount:    1,
+	})
+	if !errors.Is(err, errExchangeNameEmpty) {
+		t.Error(err)
+	}
 
 	err = resp.TrackNewOrder(&Detail{
 		Date:      tt,
@@ -412,13 +433,29 @@ func TestPositionControllerTestTrackNewOrder(t *testing.T) {
 
 	err = pc.TrackNewOrder(&Detail{
 		Date:      time.Now(),
-		Exchange:  "hi",
+		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		AssetType: asset.Futures,
+		Side:      Long,
+		OrderID:   "lol",
+	})
+	if !errors.Is(err, errExchangeNameEmpty) {
+		t.Error(err)
+	}
+
+	err = pc.TrackNewOrder(&Detail{
+		Exchange:  testExchange,
+		Date:      time.Now(),
 		Pair:      currency.NewPair(currency.BTC, currency.USDT),
 		AssetType: asset.Futures,
 		Side:      Long,
 		OrderID:   "lol",
 	})
 	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	var pcp *PositionController
+	err = pcp.TrackNewOrder(nil)
+	if !errors.Is(err, common.ErrNilPointer) {
 		t.Error(err)
 	}
 }
@@ -473,8 +510,8 @@ func TestGetStats(t *testing.T) {
 
 	p = nil
 	stats = p.GetStats()
-	if len(stats.Orders) != 0 {
-		t.Error("expected 0")
+	if stats != nil {
+		t.Errorf("expected '%v' received '%v'", nil, stats)
 	}
 }
 
@@ -512,6 +549,12 @@ func TestGetPositionsForExchange(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v", err, nil)
 	}
+
+	_, err = c.GetPositionsForExchange("", asset.Futures, p)
+	if !errors.Is(err, errExchangeNameEmpty) {
+		t.Errorf("received '%v' expected '%v", err, errExchangeNameEmpty)
+	}
+
 	pos, err := c.GetPositionsForExchange(testExchange, asset.Futures, p)
 	if !errors.Is(err, ErrPositionsNotLoadedForExchange) {
 		t.Errorf("received '%v' expected '%v", err, ErrPositionsNotLoadedForExchange)
@@ -581,6 +624,11 @@ func TestClearPositionsForExchange(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v", err, nil)
 	}
+	err = c.ClearPositionsForExchange("", asset.Futures, p)
+	if !errors.Is(err, errExchangeNameEmpty) {
+		t.Errorf("received '%v' expected '%v", err, errExchangeNameEmpty)
+	}
+
 	err = c.ClearPositionsForExchange(testExchange, asset.Futures, p)
 	if !errors.Is(err, ErrPositionsNotLoadedForExchange) {
 		t.Errorf("received '%v' expected '%v", err, ErrPositionsNotLoadedForExchange)
@@ -782,7 +830,12 @@ func TestUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 	t.Parallel()
 	pc := SetupPositionController()
 
-	_, err := pc.UpdateOpenPositionUnrealisedPNL("hi", asset.Futures, currency.NewPair(currency.BTC, currency.USDT), 2, time.Now())
+	_, err := pc.UpdateOpenPositionUnrealisedPNL("", asset.Futures, currency.NewPair(currency.BTC, currency.USDT), 2, time.Now())
+	if !errors.Is(err, errExchangeNameEmpty) {
+		t.Errorf("received '%v' expected '%v", err, errExchangeNameEmpty)
+	}
+
+	_, err = pc.UpdateOpenPositionUnrealisedPNL("hi", asset.Futures, currency.NewPair(currency.BTC, currency.USDT), 2, time.Now())
 	if !errors.Is(err, ErrPositionsNotLoadedForExchange) {
 		t.Errorf("received '%v' expected '%v", err, ErrPositionsNotLoadedForExchange)
 	}
@@ -838,9 +891,15 @@ func TestUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 
 func TestSetCollateralCurrency(t *testing.T) {
 	t.Parallel()
-	var expectedError = ErrNotFuturesAsset
+	var expectedError = errExchangeNameEmpty
 	pc := SetupPositionController()
-	err := pc.SetCollateralCurrency("hi", asset.Spot, currency.Pair{}, currency.Code{})
+	err := pc.SetCollateralCurrency("", asset.Spot, currency.Pair{}, currency.Code{})
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v", err, expectedError)
+	}
+
+	expectedError = ErrNotFuturesAsset
+	err = pc.SetCollateralCurrency("hi", asset.Spot, currency.Pair{}, currency.Code{})
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v", err, expectedError)
 	}
@@ -990,6 +1049,12 @@ func TestMPTLiquidate(t *testing.T) {
 		Asset: item,
 	}
 	_, err = SetupPositionTracker(setup)
+	if !errors.Is(err, errExchangeNameEmpty) {
+		t.Error(err)
+	}
+
+	setup.Exchange = "exch"
+	_, err = SetupPositionTracker(setup)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
@@ -1094,7 +1159,12 @@ func TestGetOpenPosition(t *testing.T) {
 	cp := currency.NewPair(currency.BTC, currency.PERP)
 	tn := time.Now()
 
-	_, err := pc.GetOpenPosition(testExchange, asset.Futures, cp)
+	_, err := pc.GetOpenPosition("", asset.Futures, cp)
+	if !errors.Is(err, errExchangeNameEmpty) {
+		t.Errorf("received '%v' expected '%v", err, errExchangeNameEmpty)
+	}
+
+	_, err = pc.GetOpenPosition(testExchange, asset.Futures, cp)
 	if !errors.Is(err, ErrPositionNotFound) {
 		t.Errorf("received '%v' expected '%v", err, ErrPositionNotFound)
 	}
@@ -1162,10 +1232,15 @@ func TestPCTrackFundingDetails(t *testing.T) {
 		t.Errorf("received '%v' expected '%v", err, nil)
 	}
 	rates := &FundingRates{
-		Exchange: testExchange,
-		Asset:    asset.Futures,
-		Pair:     cp,
+		Asset: asset.Futures,
+		Pair:  cp,
 	}
+	err = pc.TrackFundingDetails(rates)
+	if !errors.Is(err, errExchangeNameEmpty) {
+		t.Errorf("received '%v' expected '%v", err, errExchangeNameEmpty)
+	}
+
+	rates.Exchange = testExchange
 	err = pc.TrackFundingDetails(rates)
 	if !errors.Is(err, ErrPositionsNotLoadedForPair) {
 		t.Errorf("received '%v' expected '%v", err, ErrPositionsNotLoadedForPair)
@@ -1216,6 +1291,16 @@ func TestMPTTrackFundingDetails(t *testing.T) {
 
 	cp := currency.NewPair(currency.BTC, currency.PERP)
 	rates := &FundingRates{
+		Asset: asset.Futures,
+		Pair:  cp,
+	}
+	err = mpt.TrackFundingDetails(rates)
+	if !errors.Is(err, errExchangeNameEmpty) {
+		t.Errorf("received '%v' expected '%v", err, errExchangeNameEmpty)
+	}
+
+	mpt.exchange = testExchange
+	rates = &FundingRates{
 		Exchange: testExchange,
 		Asset:    asset.Futures,
 		Pair:     cp,
@@ -1226,7 +1311,6 @@ func TestMPTTrackFundingDetails(t *testing.T) {
 	}
 
 	mpt.asset = rates.Asset
-	mpt.exchange = testExchange
 	mpt.pair = cp
 	err = mpt.TrackFundingDetails(rates)
 	if !errors.Is(err, ErrPositionsNotLoadedForPair) {
@@ -1259,9 +1343,10 @@ func TestMPTTrackFundingDetails(t *testing.T) {
 	}
 	mpt.orderPositions["lol"].openingDate = tn.Add(-time.Hour)
 	mpt.orderPositions["lol"].lastUpdated = tn
+	rates.Exchange = "lol"
 	err = mpt.TrackFundingDetails(rates)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v", err, nil)
+	if !errors.Is(err, errExchangeNameMismatch) {
+		t.Errorf("received '%v' expected '%v", err, errExchangeNameMismatch)
 	}
 }
 
@@ -1334,6 +1419,18 @@ func TestPTTrackFundingDetails(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v", err, nil)
 	}
+
+	rates.Exchange = ""
+	err = p.TrackFundingDetails(rates)
+	if !errors.Is(err, errExchangeNameEmpty) {
+		t.Errorf("received '%v' expected '%v", err, errExchangeNameEmpty)
+	}
+
+	p = nil
+	err = p.TrackFundingDetails(rates)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v", err, common.ErrNilPointer)
+	}
 }
 
 func TestAreFundingRatePrerequisitesMet(t *testing.T) {
@@ -1401,5 +1498,19 @@ func TestLastUpdated(t *testing.T) {
 	_, err = p.LastUpdated()
 	if !errors.Is(err, common.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v", err, common.ErrNilPointer)
+	}
+}
+
+func TestGetCurrencyForRealisedPNL(t *testing.T) {
+	p := PNLCalculator{}
+	code, a, err := p.GetCurrencyForRealisedPNL(asset.Spot, currency.NewPair(currency.DOGE, currency.XRP))
+	if err != nil {
+		t.Error(err)
+	}
+	if !code.Equal(currency.DOGE) {
+		t.Errorf("received '%v' expected '%v", code, currency.DOGE)
+	}
+	if a != asset.Spot {
+		t.Errorf("received '%v' expected '%v", a, asset.Spot)
 	}
 }

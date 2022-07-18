@@ -136,20 +136,20 @@ func (s *Strategy) createSignals(pos []order.Position, spotSignal, futuresSignal
 		// only appending spotSignal as futuresSignal will be raised later
 		response = append(response, spotSignal)
 	case pos[len(pos)-1].Status == order.Open &&
-		isLastEvent:
-		// closing positions on last event
-		spotSignal.SetDirection(order.ClosePosition)
-		spotSignal.AppendReason("Selling asset on last event")
-		futuresSignal.SetDirection(order.ClosePosition)
-		futuresSignal.AppendReason("Closing position on last event")
-		response = append(response, futuresSignal, spotSignal)
-	case pos[len(pos)-1].Status == order.Open &&
 		diffBetweenFuturesSpot.LessThanOrEqual(s.closeShortDistancePercentage):
 		// closing positions when custom threshold met
 		spotSignal.SetDirection(order.ClosePosition)
 		spotSignal.AppendReasonf("Closing position. Met threshold of %v", s.closeShortDistancePercentage)
 		futuresSignal.SetDirection(order.ClosePosition)
 		futuresSignal.AppendReasonf("Closing position. Met threshold %v", s.closeShortDistancePercentage)
+		response = append(response, futuresSignal, spotSignal)
+	case pos[len(pos)-1].Status == order.Open &&
+		isLastEvent:
+		// closing positions on last event
+		spotSignal.SetDirection(order.ClosePosition)
+		spotSignal.AppendReason("Selling asset on last event")
+		futuresSignal.SetDirection(order.ClosePosition)
+		futuresSignal.AppendReason("Closing position on last event")
 		response = append(response, futuresSignal, spotSignal)
 	default:
 		response = append(response, spotSignal, futuresSignal)

@@ -42,6 +42,7 @@ var (
 	ErrGetFundingDataRequired = errors.New("getfundingdata is a prerequisite")
 
 	errExchangeNameEmpty              = errors.New("exchange name empty")
+	errExchangeNameMismatch           = errors.New("exchange name mismatch")
 	errTimeUnset                      = errors.New("time unset")
 	errMissingPNLCalculationFunctions = errors.New("futures tracker requires exchange PNL calculation functions")
 	errOrderNotEqualToTracker         = errors.New("order does not match tracker data")

@@ -1255,8 +1255,7 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bb := exch.GetBase()
-	bb.Verbose = true
+
 	em.Add(exch)
 	f, err := funding.SetupFundingManager(em, false, true)
 	if !errors.Is(err, expectedError) {

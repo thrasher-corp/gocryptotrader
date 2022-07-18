@@ -961,8 +961,6 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Asset:              assetTypes[i],
 			Side:               testOrderSide,
 			USDPrice:           decimal.NewFromInt(1337),
-			IsLiquidating:      false,
-			IsForNewPosition:   false,
 			FreeCollateral:     decimal.NewFromInt(1337),
 			LockedCollateral:   decimal.NewFromInt(1337),
 			UnrealisedPNL:      decimal.NewFromInt(1337),

@@ -1909,7 +1909,6 @@ func TestCalculateTotalCollateral(t *testing.T) {
 				Asset:              asset.Spot,
 				Side:               order.Buy,
 				FreeCollateral:     total,
-				USDPrice:           total,
 				CalculateOffline:   true,
 			}
 			continue
