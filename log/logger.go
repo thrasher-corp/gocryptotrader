@@ -19,7 +19,7 @@ func newLogger(c *Config) Logger {
 		InfoHeader:        c.AdvancedSettings.Headers.Info,
 		WarnHeader:        c.AdvancedSettings.Headers.Warn,
 		DebugHeader:       c.AdvancedSettings.Headers.Debug,
-		ShowLogSystemName: *c.AdvancedSettings.ShowLogSystemName,
+		ShowLogSystemName: c.AdvancedSettings.ShowLogSystemName != nil && *c.AdvancedSettings.ShowLogSystemName,
 	}
 }
 
