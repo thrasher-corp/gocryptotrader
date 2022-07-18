@@ -52,7 +52,7 @@ func (sl *SubLogger) getFields() *logFields {
 		return nil
 	}
 
-	fields := logFieldsPool.Get().(*logFields) // nolint:forcetypeassert // Not neccessary from a pool
+	fields := logFieldsPool.Get().(*logFields) // nolint:forcetypeassert // Not necessary from a pool
 
 	sl.mtx.RLock()
 	defer sl.mtx.RUnlock()

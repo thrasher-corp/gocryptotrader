@@ -93,7 +93,7 @@ type deferral func() string
 // a worker pool. This segregates the need to process the log string and the
 // writes to the required io.Writer.
 func (mw *multiWriterHolder) StageLogEvent(fn deferral, header, slName, spacer, timestampFormat string, showLogSystemName bool) {
-	newJob := jobsPool.Get().(*job) // nolint:forcetypeassert // Not neccessary from a pool
+	newJob := jobsPool.Get().(*job) // nolint:forcetypeassert // Not necessary from a pool
 	newJob.Writers = mw.writers
 	newJob.fn = fn
 	newJob.Header = header

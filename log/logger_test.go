@@ -182,8 +182,7 @@ func TestMultiWriterWrite(t *testing.T) {
 	}
 
 	<-buff.Finished
-	contents := buff.Read()
-	if !strings.Contains(contents, payload) {
+	if contents := buff.Read(); !strings.Contains(contents, payload) {
 		t.Errorf("received: '%v' but expected: '%v'", contents, payload)
 	}
 
@@ -310,9 +309,7 @@ func TestStageNewLogEvent(t *testing.T) {
 	fields.output.StageLogEvent(func() string { return "out" }, "header", "SUBLOGGER", " space ", "", false)
 
 	<-w.Finished
-	contents := w.Read()
-
-	if contents != "header space  space out\n" {
+	if contents := w.Read(); contents != "header space  space out\n" {
 		t.Errorf("received: '%v' but expected: '%v'", contents, "header space  space out\n")
 	}
 }
