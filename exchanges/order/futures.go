@@ -551,13 +551,14 @@ func (m *MultiPositionTracker) TrackFundingDetails(d *FundingRates) error {
 	if len(m.positions) == 0 {
 		return fmt.Errorf("%w %v %v %v", ErrPositionsNotLoadedForPair, d.Exchange, d.Asset, d.Pair)
 	}
+	var err error
 	for i := range m.positions {
-		if m.positions[i].pnlHistory[0].Time.Before(d.StartDate) || m.positions[i].pnlHistory[0].Time.After(d.EndDate) {
-			continue
+		err = m.positions[i].TrackFundingDetails(d)
+		if err != nil {
+			return err
 		}
-		return m.positions[i].TrackFundingDetails(d)
 	}
-	return fmt.Errorf("%w for timeframe %v %v %v %v-%v", ErrNoPositionsFound, d.Exchange, d.Asset, d.Pair, d.StartDate, d.EndDate)
+	return nil
 }
 
 // SetupPositionTracker creates a new position tracker to track n futures orders
@@ -628,13 +629,8 @@ func (p *PositionTracker) GetStats() *Position {
 	sort.Slice(orders, func(i, j int) bool {
 		return orders[i].Date.Before(orders[j].Date)
 	})
-	var fr FundingRates
-	if p.fundingRateDetails != nil {
-		fr = *p.fundingRateDetails
-		copy(fr.FundingRates, p.fundingRateDetails.FundingRates)
-	}
 
-	return &Position{
+	pos := &Position{
 		Exchange:         p.exchange,
 		Asset:            p.asset,
 		Pair:             p.contractPair,
@@ -652,9 +648,26 @@ func (p *PositionTracker) GetStats() *Position {
 		CloseDate:        p.closingDate,
 		Orders:           orders,
 		PNLHistory:       p.pnlHistory,
-		FundingRates:     fr,
 		LastUpdated:      p.lastUpdated,
 	}
+
+	if p.fundingRateDetails != nil {
+		frs := make([]FundingRate, len(p.fundingRateDetails.FundingRates))
+		copy(frs, p.fundingRateDetails.FundingRates)
+		pos.FundingRates = FundingRates{
+			Exchange:              p.fundingRateDetails.Exchange,
+			Asset:                 p.fundingRateDetails.Asset,
+			Pair:                  p.fundingRateDetails.Pair,
+			StartDate:             p.fundingRateDetails.StartDate,
+			EndDate:               p.fundingRateDetails.EndDate,
+			LatestRate:            p.fundingRateDetails.LatestRate,
+			PredictedUpcomingRate: p.fundingRateDetails.PredictedUpcomingRate,
+			FundingRates:          frs,
+			PaymentSum:            p.fundingRateDetails.PaymentSum,
+		}
+	}
+
+	return pos
 }
 
 // TrackPNLByTime calculates the PNL based on a position tracker's exposure
@@ -776,23 +789,35 @@ func (p *PositionTracker) TrackFundingDetails(d *FundingRates) error {
 		return fmt.Errorf("%w for timeframe %v %v %v %v-%v", ErrNoPositionsFound, p.exchange, p.asset, p.contractPair, d.StartDate, d.EndDate)
 	}
 	if p.fundingRateDetails == nil {
-		p.fundingRateDetails = d
-		return nil
-	}
-	for i := range p.fundingRateDetails.FundingRates {
-		for j := range d.FundingRates {
-			if d.FundingRates[j].Time.After(p.closingDate) || d.FundingRates[j].Time.Before(p.openingDate) {
-				continue
-			}
-			if !p.fundingRateDetails.FundingRates[i].Time.Equal(d.FundingRates[j].Time) {
-				continue
-			}
-			p.fundingRateDetails.FundingRates[i] = d.FundingRates[j]
-			d.FundingRates = append(d.FundingRates[:j], d.FundingRates[j+1:]...)
-			break
+		p.fundingRateDetails = &FundingRates{
+			Exchange:              d.Exchange,
+			Asset:                 d.Asset,
+			Pair:                  d.Pair,
+			StartDate:             d.StartDate,
+			EndDate:               d.EndDate,
+			LatestRate:            d.LatestRate,
+			PredictedUpcomingRate: d.PredictedUpcomingRate,
+			PaymentSum:            d.PaymentSum,
 		}
 	}
-	p.fundingRateDetails.FundingRates = append(p.fundingRateDetails.FundingRates, d.FundingRates...)
+	rates := make([]FundingRate, 0, len(d.FundingRates))
+fundingRates:
+	for i := range d.FundingRates {
+		if d.FundingRates[i].Time.Before(p.openingDate) ||
+			(!p.closingDate.IsZero() && d.FundingRates[i].Time.After(p.closingDate)) {
+			continue
+		}
+		for j := range p.fundingRateDetails.FundingRates {
+			if !p.fundingRateDetails.FundingRates[j].Time.Equal(d.FundingRates[i].Time) {
+				continue
+			}
+			p.fundingRateDetails.FundingRates[j] = d.FundingRates[i]
+			continue fundingRates
+		}
+		rates = append(rates, d.FundingRates[i])
+	}
+
+	p.fundingRateDetails.FundingRates = append(p.fundingRateDetails.FundingRates, rates...)
 	p.lastUpdated = time.Now()
 	return nil
 }
