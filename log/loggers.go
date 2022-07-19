@@ -17,7 +17,8 @@ func Info(sl *SubLogger, data string) {
 			fields.name,
 			fields.logger.Spacer,
 			fields.logger.TimestampFormat,
-			fields.logger.ShowLogSystemName)
+			fields.logger.ShowLogSystemName,
+			fields.logger.BypassJobChannelFilledWarning)
 	}
 	logFieldsPool.Put(fields)
 }
@@ -34,7 +35,8 @@ func Infoln(sl *SubLogger, v ...interface{}) {
 			fields.name,
 			fields.logger.Spacer,
 			fields.logger.TimestampFormat,
-			fields.logger.ShowLogSystemName)
+			fields.logger.ShowLogSystemName,
+			fields.logger.BypassJobChannelFilledWarning)
 	}
 	logFieldsPool.Put(fields)
 }
@@ -51,7 +53,8 @@ func Infof(sl *SubLogger, data string, v ...interface{}) {
 			fields.name,
 			fields.logger.Spacer,
 			fields.logger.TimestampFormat,
-			fields.logger.ShowLogSystemName)
+			fields.logger.ShowLogSystemName,
+			fields.logger.BypassJobChannelFilledWarning)
 	}
 	logFieldsPool.Put(fields)
 }
@@ -68,7 +71,8 @@ func Debug(sl *SubLogger, data string) {
 			fields.name,
 			fields.logger.Spacer,
 			fields.logger.TimestampFormat,
-			fields.logger.ShowLogSystemName)
+			fields.logger.ShowLogSystemName,
+			fields.logger.BypassJobChannelFilledWarning)
 	}
 	logFieldsPool.Put(fields)
 }
@@ -85,7 +89,8 @@ func Debugln(sl *SubLogger, v ...interface{}) {
 			fields.name,
 			fields.logger.Spacer,
 			fields.logger.TimestampFormat,
-			fields.logger.ShowLogSystemName)
+			fields.logger.ShowLogSystemName,
+			fields.logger.BypassJobChannelFilledWarning)
 	}
 	logFieldsPool.Put(fields)
 }
@@ -102,7 +107,8 @@ func Debugf(sl *SubLogger, data string, v ...interface{}) {
 			fields.name,
 			fields.logger.Spacer,
 			fields.logger.TimestampFormat,
-			fields.logger.ShowLogSystemName)
+			fields.logger.ShowLogSystemName,
+			fields.logger.BypassJobChannelFilledWarning)
 	}
 	logFieldsPool.Put(fields)
 }
@@ -119,7 +125,8 @@ func Warn(sl *SubLogger, data string) {
 			fields.name,
 			fields.logger.Spacer,
 			fields.logger.TimestampFormat,
-			fields.logger.ShowLogSystemName)
+			fields.logger.ShowLogSystemName,
+			fields.logger.BypassJobChannelFilledWarning)
 	}
 	logFieldsPool.Put(fields)
 }
@@ -136,7 +143,8 @@ func Warnln(sl *SubLogger, v ...interface{}) {
 			fields.name,
 			fields.logger.Spacer,
 			fields.logger.TimestampFormat,
-			fields.logger.ShowLogSystemName)
+			fields.logger.ShowLogSystemName,
+			fields.logger.BypassJobChannelFilledWarning)
 	}
 	logFieldsPool.Put(fields)
 }
@@ -153,7 +161,8 @@ func Warnf(sl *SubLogger, data string, v ...interface{}) {
 			fields.name,
 			fields.logger.Spacer,
 			fields.logger.TimestampFormat,
-			fields.logger.ShowLogSystemName)
+			fields.logger.ShowLogSystemName,
+			fields.logger.BypassJobChannelFilledWarning)
 	}
 	logFieldsPool.Put(fields)
 }
@@ -170,7 +179,8 @@ func Error(sl *SubLogger, data ...interface{}) {
 			fields.name,
 			fields.logger.Spacer,
 			fields.logger.TimestampFormat,
-			fields.logger.ShowLogSystemName)
+			fields.logger.ShowLogSystemName,
+			fields.logger.BypassJobChannelFilledWarning)
 	}
 	logFieldsPool.Put(fields)
 }
@@ -187,7 +197,8 @@ func Errorln(sl *SubLogger, v ...interface{}) {
 			fields.name,
 			fields.logger.Spacer,
 			fields.logger.TimestampFormat,
-			fields.logger.ShowLogSystemName)
+			fields.logger.ShowLogSystemName,
+			fields.logger.BypassJobChannelFilledWarning)
 	}
 	logFieldsPool.Put(fields)
 }
@@ -204,7 +215,8 @@ func Errorf(sl *SubLogger, data string, v ...interface{}) {
 			fields.name,
 			fields.logger.Spacer,
 			fields.logger.TimestampFormat,
-			fields.logger.ShowLogSystemName)
+			fields.logger.ShowLogSystemName,
+			fields.logger.BypassJobChannelFilledWarning)
 	}
 	logFieldsPool.Put(fields)
 }

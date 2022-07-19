@@ -29,7 +29,9 @@ var (
 	jobsPool    = &sync.Pool{New: func() interface{} { return new(job) }}
 	jobsChannel = make(chan *job, defaultJobChannelCapacity)
 
-	logFieldsPool = &sync.Pool{New: func() interface{} { return new(logFields) }}
+	// Note: Logger state within logFields will be persistent until it's garbage
+	// collected. This is a little bit more efficient.
+	logFieldsPool = &sync.Pool{New: func() interface{} { return &logFields{logger: logger} }}
 
 	// LogPath system path to store log files in
 	LogPath string
@@ -61,10 +63,11 @@ type Config struct {
 }
 
 type advancedSettings struct {
-	ShowLogSystemName *bool   `json:"showLogSystemName"`
-	Spacer            string  `json:"spacer"`
-	TimeStampFormat   string  `json:"timeStampFormat"`
-	Headers           headers `json:"headers"`
+	ShowLogSystemName             *bool   `json:"showLogSystemName"`
+	Spacer                        string  `json:"spacer"`
+	TimeStampFormat               string  `json:"timeStampFormat"`
+	Headers                       headers `json:"headers"`
+	BypassJobChannelFilledWarning bool    `json:"bypassJobChannelFilledWarning"`
 }
 
 type headers struct {
@@ -89,7 +92,7 @@ type loggerFileConfig struct {
 
 // Logger each instance of logger settings
 type Logger struct {
-	ShowLogSystemName                                bool
+	ShowLogSystemName, BypassJobChannelFilledWarning bool
 	TimestampFormat                                  string
 	InfoHeader, ErrorHeader, DebugHeader, WarnHeader string
 	Spacer                                           string

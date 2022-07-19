@@ -62,6 +62,5 @@ func (sl *SubLogger) getFields() *logFields {
 	fields.error = sl.levels.Error
 	fields.name = sl.name
 	fields.output = sl.output
-	fields.logger = logger
 	return fields
 }

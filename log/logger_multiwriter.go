@@ -43,6 +43,9 @@ func (mw *multiWriterHolder) Remove(writer io.Writer) error {
 	return errWriterNotFound
 }
 
+// loggerWorker handles all work staged to be written to confgured io.Writer(s)
+// this must be called as a go routine through SetupGlobalLogger() an initial
+// worker is generated via init() to handle first workload.
 func loggerWorker() {
 	defer workerWg.Done()
 	// Localise a persistent buffer for a worker, this does not need to be
@@ -92,7 +95,7 @@ type deferral func() string
 // StageLogEvent stages a new logger event in a jobs channel to be processed by
 // a worker pool. This segregates the need to process the log string and the
 // writes to the required io.Writer.
-func (mw *multiWriterHolder) StageLogEvent(fn deferral, header, slName, spacer, timestampFormat string, showLogSystemName bool) {
+func (mw *multiWriterHolder) StageLogEvent(fn deferral, header, slName, spacer, timestampFormat string, showLogSystemName, bypassWarning bool) {
 	newJob := jobsPool.Get().(*job) // nolint:forcetypeassert // Not necessary from a pool
 	newJob.Writers = mw.writers
 	newJob.fn = fn
@@ -107,7 +110,9 @@ func (mw *multiWriterHolder) StageLogEvent(fn deferral, header, slName, spacer, 
 	default:
 		// This will cause temporary caller impedance, which can have a knock
 		// on effect in processing.
-		log.Printf("Logger warning: %v\n", errJobsChannelIsFull)
+		if !bypassWarning {
+			log.Printf("Logger warning: %v\n", errJobsChannelIsFull)
+		}
 		jobsChannel <- newJob
 	}
 }

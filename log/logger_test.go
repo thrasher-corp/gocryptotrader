@@ -176,7 +176,7 @@ func TestMultiWriterWrite(t *testing.T) {
 	}
 
 	payload := "woooooooooooooooooooooooooooooooooooow"
-	fields.output.StageLogEvent(func() string { return payload }, "", "", "", "", false)
+	fields.output.StageLogEvent(func() string { return payload }, "", "", "", "", false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,13 +190,13 @@ func TestMultiWriterWrite(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fields.output.StageLogEvent(func() string { return payload }, "", "", "", "", false) // Will display error: Logger write error: *log.WriteShorter short write
+	fields.output.StageLogEvent(func() string { return payload }, "", "", "", "", false, false) // Will display error: Logger write error: *log.WriteShorter short write
 
 	fields.output, err = multiWriter(&WriteError{}, io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}
-	fields.output.StageLogEvent(func() string { return payload }, "", "", "", "", false) // Will display error: Logger write error: *log.WriteError write error
+	fields.output.StageLogEvent(func() string { return payload }, "", "", "", "", false, false) // Will display error: Logger write error: *log.WriteError write error
 }
 
 func TestGetWriters(t *testing.T) {
@@ -306,7 +306,7 @@ func TestStageNewLogEvent(t *testing.T) {
 	mw := &multiWriterHolder{writers: []io.Writer{w}}
 
 	fields := &logFields{output: mw}
-	fields.output.StageLogEvent(func() string { return "out" }, "header", "SUBLOGGER", " space ", "", false)
+	fields.output.StageLogEvent(func() string { return "out" }, "header", "SUBLOGGER", " space ", "", false, false)
 
 	<-w.Finished
 	if contents := w.Read(); contents != "header space  space out\n" {
@@ -523,14 +523,14 @@ func TestSubLoggerName(t *testing.T) {
 	w := newTestBuffer()
 	mw := &multiWriterHolder{writers: []io.Writer{w}}
 
-	mw.StageLogEvent(func() string { return "out" }, "header", "SUBLOGGER", "||", time.RFC3339, true)
+	mw.StageLogEvent(func() string { return "out" }, "header", "SUBLOGGER", "||", time.RFC3339, true, false)
 	<-w.Finished
 	contents := w.Read()
 	if !strings.Contains(contents, "SUBLOGGER") {
 		t.Error("Expected SUBLOGGER in output")
 	}
 
-	mw.StageLogEvent(func() string { return "out" }, "header", "SUBLOGGER", "||", time.RFC3339, false)
+	mw.StageLogEvent(func() string { return "out" }, "header", "SUBLOGGER", "||", time.RFC3339, false, false)
 	<-w.Finished
 	contents = w.Read()
 	if strings.Contains(contents, "SUBLOGGER") {
@@ -628,7 +628,7 @@ func newTestBuffer() *testBuffer {
 func BenchmarkNewLogEvent(b *testing.B) {
 	mw := &multiWriterHolder{writers: []io.Writer{io.Discard}}
 	for i := 0; i < b.N; i++ {
-		mw.StageLogEvent(func() string { return "somedata" }, "header", "sublog", "||", time.RFC3339, true)
+		mw.StageLogEvent(func() string { return "somedata" }, "header", "sublog", "||", time.RFC3339, true, false)
 	}
 }
 
