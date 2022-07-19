@@ -350,7 +350,7 @@ func TestInfo(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	// Should not write to buffer at all as it shhould return if functionality
+	// Should not write to buffer at all as it should return if functionality
 	// is not enabled.
 	Info(sl, "HelloHello")
 	contents = w.Read()
