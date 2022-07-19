@@ -13,13 +13,14 @@ var (
 
 func newLogger(c *Config) Logger {
 	return Logger{
-		TimestampFormat:   c.AdvancedSettings.TimeStampFormat,
-		Spacer:            c.AdvancedSettings.Spacer,
-		ErrorHeader:       c.AdvancedSettings.Headers.Error,
-		InfoHeader:        c.AdvancedSettings.Headers.Info,
-		WarnHeader:        c.AdvancedSettings.Headers.Warn,
-		DebugHeader:       c.AdvancedSettings.Headers.Debug,
-		ShowLogSystemName: c.AdvancedSettings.ShowLogSystemName != nil && *c.AdvancedSettings.ShowLogSystemName,
+		TimestampFormat:               c.AdvancedSettings.TimeStampFormat,
+		Spacer:                        c.AdvancedSettings.Spacer,
+		ErrorHeader:                   c.AdvancedSettings.Headers.Error,
+		InfoHeader:                    c.AdvancedSettings.Headers.Info,
+		WarnHeader:                    c.AdvancedSettings.Headers.Warn,
+		DebugHeader:                   c.AdvancedSettings.Headers.Debug,
+		ShowLogSystemName:             c.AdvancedSettings.ShowLogSystemName != nil && *c.AdvancedSettings.ShowLogSystemName,
+		BypassJobChannelFilledWarning: c.AdvancedSettings.BypassJobChannelFilledWarning,
 	}
 }
 
