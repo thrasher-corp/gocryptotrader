@@ -492,8 +492,8 @@ func TestLoadConfigPairs(t *testing.T) {
 			},
 			Pairs: map[asset.Item]*currency.PairStore{
 				asset.Spot: {
-					RequestFormat: &currency.EMPTYFORMAT,
-					ConfigFormat:  &currency.EMPTYFORMAT,
+					RequestFormat: &currency.PairFormat{}, // NOTE: These cannot be currency.EMPTYFORMAT, needs diff addr.
+					ConfigFormat:  &currency.PairFormat{},
 				},
 			},
 		},
@@ -598,7 +598,7 @@ func TestLoadConfigPairs(t *testing.T) {
 	// 2) pair format is set for RequestFormat
 	// 3) pair format is set for ConfigFormat
 	// 4) Config pair store formats are the same as the exchanges
-	pFmt, err = b.GetPairFormat(asset.Spot, false)
+	configFmt, err := b.GetPairFormat(asset.Spot, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -606,7 +606,7 @@ func TestLoadConfigPairs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p = pairs[2].Format(pFmt).String()
+	p = pairs[2].Format(configFmt).String()
 	if p != "xrp/usd" {
 		t.Error("incorrect value, expected xrp/usd", p)
 	}

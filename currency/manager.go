@@ -80,10 +80,6 @@ func (p *PairsManager) Delete(a asset.Item) {
 func (p *PairsManager) GetPairs(a asset.Item, enabled bool) (Pairs, error) {
 	p.m.RLock()
 	defer p.m.RUnlock()
-	if p.Pairs == nil {
-		return nil, nil
-	}
-
 	c, ok := p.Pairs[a]
 	if !ok {
 		return nil, nil
@@ -114,8 +110,8 @@ func (p *PairsManager) StorePairs(a asset.Item, pairs Pairs, enabled bool) {
 
 	c, ok := p.Pairs[a]
 	if !ok {
-		p.Pairs[a] = new(PairStore)
-		c = p.Pairs[a]
+		c = new(PairStore)
+		p.Pairs[a] = c
 	}
 
 	if enabled {
@@ -135,11 +131,14 @@ func (p *PairsManager) DisablePair(a asset.Item, pair Pair) error {
 		return err
 	}
 
-	if !c.Enabled.Contains(pair, true) {
-		return errors.New("specified pair is not enabled")
+	enabled, err := c.Enabled.Remove(pair)
+	if err != nil {
+		if errors.Is(err, ErrPairNotFound) {
+			return errors.New("specified pair is not enabled")
+		}
+		return err
 	}
-
-	c.Enabled = c.Enabled.Remove(pair)
+	c.Enabled = enabled
 	return nil
 }
 

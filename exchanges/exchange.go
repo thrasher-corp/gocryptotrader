@@ -233,21 +233,22 @@ func (b *Base) SetConfigPairs() error {
 				assetTypes[x])
 			continue // If there are unsupported assets contained in config, skip.
 		}
-		cfgPS, err := b.Config.CurrencyPairs.Get(assetTypes[x])
-		if err != nil {
-			return err
-		}
 
 		var enabledAsset bool
 		if b.Config.CurrencyPairs.IsAssetEnabled(assetTypes[x]) == nil {
 			enabledAsset = true
 		}
 
-		err = b.CurrencyPairs.SetAssetEnabled(assetTypes[x], enabledAsset)
+		err := b.CurrencyPairs.SetAssetEnabled(assetTypes[x], enabledAsset)
 		// Suppress error when assets are enabled by default and they are being
 		// enabled by config. A check for the inverse
 		// e.g. currency.ErrAssetAlreadyDisabled is not needed.
-		if err != nil && err != currency.ErrAssetAlreadyEnabled {
+		if err != nil && !errors.Is(err, currency.ErrAssetAlreadyEnabled) {
+			return err
+		}
+
+		cfgPS, err := b.Config.CurrencyPairs.Get(assetTypes[x])
+		if err != nil {
 			return err
 		}
 
@@ -605,27 +606,25 @@ func (b *Base) UpdatePairs(incomingPairs currency.Pairs, assetType asset.Item, e
 					diff.Remove)
 			}
 		}
-
 		b.Config.CurrencyPairs.StorePairs(assetType, incomingPairs, enabled)
 		b.CurrencyPairs.StorePairs(assetType, incomingPairs, enabled)
 	}
 
-	if !enabled {
-		return b.compareAvailableToEnabledPairs(assetType, pFmt)
+	if enabled {
+		return nil
 	}
 
-	return nil
-}
+	// This section checks for differences after an available pairs adjustment
+	// which will remove currency pairs from enabled pairs that have been
+	// disabled by an exchange, adjust the entire list of enabled pairs if there
+	// is a required formatting change and it will also capture unintentional
+	// client inputs e.g. a client can enter `linkusd` via config and loaded
+	// into memory that might be unintentionally formatted too `lin-kusd` it
+	// will match that against the correct available pair in memory and apply
+	// correct formatting (LINK-USD) instead of being removed altogether which
+	// will require a shutdown and update of the config file to enable that
+	// asset.
 
-// compareAvailableToEnabledPairs checks for differences after an available
-// pairs adjustment which will remove currency pairs that have been disabled by
-// an exchange, adjust the entire list of enabled pairs if there is a formatting
-// change or it will also capture unintentional client inputs e.g. a client can
-// enter `linkusd` via config and that might be unintentionally formatted too
-// `lin-kusd` which can cause system discrepancies for fetching, saving and
-// duplication, it then will match that against the correct available pair in
-// memory and apply correct formatting (LINK-USD).
-func (b *Base) compareAvailableToEnabledPairs(assetType asset.Item, pFmt currency.PairFormat) error {
 	enabledPairs, err := b.CurrencyPairs.GetPairs(assetType, true)
 	if err != nil && !errors.Is(err, currency.ErrPairNotContainedInAvailablePairs) {
 		return err
@@ -635,12 +634,7 @@ func (b *Base) compareAvailableToEnabledPairs(assetType asset.Item, pFmt currenc
 		return nil
 	}
 
-	availPairs, err := b.CurrencyPairs.GetPairs(assetType, false)
-	if err != nil {
-		return err
-	}
-
-	diff, err := enabledPairs.FindDifferences(availPairs, pFmt)
+	diff, err = enabledPairs.FindDifferences(incomingPairs, pFmt)
 	if err != nil {
 		return err
 	}
@@ -649,31 +643,31 @@ func (b *Base) compareAvailableToEnabledPairs(assetType asset.Item, pFmt currenc
 	for x := range enabledPairs {
 		if !diff.Remove.Contains(enabledPairs[x], true) {
 			enabledPairs[target] = enabledPairs[x].Format(pFmt)
-			target++
 		} else {
 			strippedPair := enabledPairs[x].Format(currency.EMPTYFORMAT).String()
 			var match currency.Pair
-			match, err = availPairs.DeriveFrom(strippedPair)
+			match, err = incomingPairs.DeriveFrom(strippedPair)
 			if err != nil {
 				continue
 			}
-			diff.Remove = diff.Remove.Remove(enabledPairs[x])
+			diff.Remove, err = diff.Remove.Remove(enabledPairs[x])
+			if err != nil {
+				return err
+			}
 			enabledPairs[target] = match.Format(pFmt)
-			target++
 		}
+		target++
 	}
 	enabledPairs = enabledPairs[:target]
 
 	if len(diff.Remove) > 0 {
-		log.Debugf(log.ExchangeSys,
-			"%s Checked and updated enabled pairs [%v] - Removed: %s.\n",
+		log.Debugf(log.ExchangeSys, "%s Checked and updated enabled pairs [%v] - Removed: %s.\n",
 			b.Name,
 			strings.ToUpper(assetType.String()),
 			diff.Remove)
 	}
 	b.Config.CurrencyPairs.StorePairs(assetType, enabledPairs, true)
 	b.CurrencyPairs.StorePairs(assetType, enabledPairs, true)
-
 	return nil
 }
 
@@ -901,7 +895,8 @@ func (b *Base) StoreAssetPairFormat(a asset.Item, f currency.PairStore) error {
 	}
 
 	if f.ConfigFormat.Delimiter == "" {
-		return fmt.Errorf("cannot set asset %s pair format %w", a, errConfigPairFormatRequiresDelimiter)
+		return fmt.Errorf("exchange %s cannot set asset %s pair format %w",
+			b.Name, a, errConfigPairFormatRequiresDelimiter)
 	}
 
 	if b.CurrencyPairs.Pairs == nil {
@@ -931,7 +926,8 @@ func (b *Base) SetGlobalPairsManager(request, config *currency.PairFormat, asset
 	}
 
 	if config.Delimiter == "" {
-		return fmt.Errorf("cannot set global pairs manager %w", errConfigPairFormatRequiresDelimiter)
+		return fmt.Errorf("exchange %s cannot set global pairs manager %w for assets %s",
+			b.Name, errConfigPairFormatRequiresDelimiter, assets)
 	}
 
 	b.CurrencyPairs.UseGlobalFormat = true

@@ -231,9 +231,41 @@ func TestRemove(t *testing.T) {
 	}
 
 	p := NewPair(BTC, USD)
-	pairs = pairs.Remove(p)
+	pairs, err := pairs.Remove(p)
+	if !errors.Is(err, nil) {
+		t.Fatalf("recieved: '%v' but expected '%v'", err, nil)
+	}
 	if pairs.Contains(p, true) || len(pairs) != 2 {
 		t.Error("TestRemove unexpected result")
+	}
+
+	_, err = pairs.Remove(p)
+	if !errors.Is(err, ErrPairNotFound) {
+		t.Fatalf("recieved: '%v' but expected '%v'", err, ErrPairNotFound)
+	}
+
+	pairs, err = pairs.Remove(NewPair(LTC, USD))
+	if !errors.Is(err, nil) {
+		t.Fatalf("recieved: '%v' but expected '%v'", err, nil)
+	}
+
+	_, err = pairs.Remove(NewPair(LTC, USD))
+	if !errors.Is(err, ErrPairNotFound) {
+		t.Fatalf("recieved: '%v' but expected '%v'", err, ErrPairNotFound)
+	}
+
+	pairs, err = pairs.Remove(NewPair(LTC, USDT))
+	if !errors.Is(err, nil) {
+		t.Fatalf("recieved: '%v' but expected '%v'", err, nil)
+	}
+
+	if len(pairs) != 0 {
+		t.Error("unexpected value")
+	}
+
+	_, err = pairs.Remove(NewPair(LTC, USDT))
+	if !errors.Is(err, ErrPairNotFound) {
+		t.Fatalf("recieved: '%v' but expected '%v'", err, ErrPairNotFound)
 	}
 }
 

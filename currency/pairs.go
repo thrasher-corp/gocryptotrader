@@ -187,15 +187,13 @@ func (p Pairs) GetPairsByCurrencies(currencies Currencies) Pairs {
 }
 
 // Remove removes the specified pair from the list of pairs if it exists
-func (p Pairs) Remove(pair Pair) Pairs {
-	pairs := make(Pairs, 0, len(p))
+func (p Pairs) Remove(pair Pair) (Pairs, error) {
 	for x := range p {
 		if p[x].Equal(pair) {
-			continue
+			return append(p[:x], p[x+1:]...), nil
 		}
-		pairs = append(pairs, p[x])
 	}
-	return pairs
+	return nil, fmt.Errorf("%s %w", pair, ErrPairNotFound)
 }
 
 // Add adds a specified pair to the list of pairs if it doesn't exist
