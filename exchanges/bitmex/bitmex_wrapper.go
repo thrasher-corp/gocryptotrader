@@ -245,7 +245,6 @@ func (b *Bitmex) Run() {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (b *Bitmex) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, error) {
-	// b.Verbose = true
 	marketInfo, err := b.GetActiveAndIndexInstruments(ctx)
 	if err != nil {
 		return nil, err
