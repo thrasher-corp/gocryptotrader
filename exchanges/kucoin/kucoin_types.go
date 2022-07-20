@@ -465,3 +465,21 @@ type PostMarginOrderResp struct {
 	BorrowSize  float64 `json:"borrowSize"`
 	LoanApplyID string  `json:"loanApplyId"`
 }
+
+type OrderRequest struct {
+	ClientOID   string `json:"clientOid"`
+	Side        string `json:"side"`
+	Symbol      string `json:"symbol"`
+	Remark      string `json:"remark,omitempty"`    // optional
+	Stop        string `json:"stop,omitempty"`      // optional
+	StopPrice   string `json:"stopPrice,omitempty"` // optional
+	STP         string `json:"stp,omitempty"`       // optional
+	Price       string `json:"price,omitempty"`
+	Size        string `json:"size,omitempty"`
+	TimeInForce string `json:"timeInForce,omitempty"` // optional
+	CancelAfter string `json:"cancelAfter,omitempty"` // optional
+	PostOnly    string `json:"postOnly,omitempty"`    // optional
+	Hidden      string `json:"hidden,omitempty"`      // optional
+	Iceberg     string `json:"iceberg,omitempty"`     // optional
+	VisibleSize string `json:"visibleSize,omitempty"` // optional
+}

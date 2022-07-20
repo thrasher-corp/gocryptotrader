@@ -79,6 +79,7 @@ const (
 
 	kucoinPostOrder       = "/api/v1/orders"
 	kucoinPostMarginOrder = "/api/v1/margin/order"
+	kucoinPostBulkOrder   = "/api/v1/orders/multi"
 )
 
 // GetSymbols gets pairs details on the exchange
@@ -1034,6 +1035,69 @@ func (k *Kucoin) PostMarginOrder(ctx context.Context, clientOID, side, symbol, o
 		params["type"] = orderType
 	}
 	return resp.PostMarginOrderResp, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinPostMarginOrder, params, publicSpotRate, &resp)
+}
+
+// PostBulkOrder used to place 5 orders at the same time. The order type must be a limit order of the same symbol
+// Note: it supports only SPOT trades
+func (k *Kucoin) PostBulkOrder(ctx context.Context, orderList OrderRequest) (string, error) {
+	resp := struct {
+		OrderID string `json:"orderId"`
+		Error
+	}{}
+
+	params := make(map[string]interface{})
+	if clientOID == "" {
+		return resp.OrderID, errors.New("clientOid can't be empty")
+	}
+	params["clientOid"] = clientOID
+	if side == "" {
+		return resp.OrderID, errors.New("side can't be empty")
+	}
+	params["side"] = side
+	if symbol == "" {
+		return resp.OrderID, errors.New("symbol can't be empty")
+	}
+	params["symbol"] = symbol
+	if remark != "" {
+		params["remark"] = remark
+	}
+	if stop != "" {
+		params["stp"] = stop
+	}
+	if orderType == "limit" || orderType == "" {
+		if price == "" {
+			return resp.OrderID, errors.New("price can't be empty")
+		}
+		params["price"] = price
+		if size <= 0 {
+			return resp.OrderID, errors.New("size can't be zero or negative")
+		}
+		params["size"] = strconv.FormatFloat(size, 'f', -1, 64)
+		if timeInForce != "" {
+			params["timeInForce"] = timeInForce
+		}
+		if cancelAfter > 0 && timeInForce == "GTT" {
+			params["cancelAfter"] = strconv.FormatFloat(cancelAfter, 'f', -1, 64)
+		}
+		params["postOnly"] = postOnly
+		params["hidden"] = hidden
+		params["iceberg"] = iceberg
+		if visibleSize > 0 {
+			params["visibleSize"] = strconv.FormatFloat(visibleSize, 'f', -1, 64)
+		}
+	} else if orderType == "market" {
+		if size > 0 {
+			params["size"] = strconv.FormatFloat(size, 'f', -1, 64)
+		} else if funds > 0 {
+			params["funds"] = strconv.FormatFloat(funds, 'f', -1, 64)
+		} else {
+			return resp.OrderID, errors.New("atleast one required among size and funds")
+		}
+	} else {
+		return resp.OrderID, errors.New("invalid orderType")
+	}
+
+	return resp.OrderID, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinPostBulkOrder, params, publicSpotRate, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
