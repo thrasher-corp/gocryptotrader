@@ -555,7 +555,16 @@ func (by *Bybit) CancelExistingOrder(ctx context.Context, orderID, orderLinkID s
 		Data CancelOrderResponse `json:"result"`
 		Error
 	}{}
-	return &resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitSpotOrder, params, &resp, privateSpotRate)
+	err := by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitSpotOrder, params, &resp, privateSpotRate)
+	if err != nil {
+		return nil, err
+	}
+
+	// In case open order is cancelled, this endpoint return status as NEW whereas if we try to cancel a already cancelled order then it's status is returned as CANCELED without any error. So this check is added to prevent this obscurity.
+	if resp.Data.Status == "CANCELED" {
+		return nil, fmt.Errorf("%s order already cancelled", resp.Data.OrderID)
+	}
+	return &resp.Data, nil
 }
 
 // FastCancelExistingOrder cancels existing order based upon orderID or orderLinkID
