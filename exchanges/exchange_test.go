@@ -2447,3 +2447,72 @@ func TestGetFundingRateHistory(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }
+
+func TestGetPairAndAssetTypeRequestFormatted(t *testing.T) {
+	t.Parallel()
+
+	expected := currency.Pair{Base: currency.BTC, Quote: currency.USDT}
+	enabledPairs := currency.Pairs{expected}
+	availablePairs := currency.Pairs{
+		currency.Pair{Base: currency.BTC, Quote: currency.USDT},
+		currency.Pair{Base: currency.BTC, Quote: currency.AUD},
+	}
+
+	b := Base{
+		CurrencyPairs: currency.PairsManager{
+			Pairs: map[asset.Item]*currency.PairStore{
+				asset.Spot: {
+					AssetEnabled:  convert.BoolPtr(true),
+					Enabled:       enabledPairs,
+					Available:     availablePairs,
+					RequestFormat: &currency.PairFormat{Delimiter: "-", Uppercase: true},
+					ConfigFormat:  &currency.EMPTYFORMAT,
+				},
+				asset.PerpetualContract: {
+					AssetEnabled:  convert.BoolPtr(true),
+					Enabled:       enabledPairs,
+					Available:     availablePairs,
+					RequestFormat: &currency.PairFormat{Delimiter: "_", Uppercase: true},
+					ConfigFormat:  &currency.EMPTYFORMAT,
+				},
+			},
+		},
+	}
+
+	_, _, err := b.GetPairAndAssetTypeRequestFormatted("")
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrCurrencyPairEmpty)
+	}
+
+	_, _, err = b.GetPairAndAssetTypeRequestFormatted("BTCAUD")
+	if !errors.Is(err, errSymbolCannotBeMatched) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errSymbolCannotBeMatched)
+	}
+
+	_, _, err = b.GetPairAndAssetTypeRequestFormatted("BTCUSDT")
+	if !errors.Is(err, errSymbolCannotBeMatched) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errSymbolCannotBeMatched)
+	}
+
+	p, a, err := b.GetPairAndAssetTypeRequestFormatted("BTC-USDT")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+	if a != asset.Spot {
+		t.Fatal("unexpected value", a)
+	}
+	if !p.Equal(expected) {
+		t.Fatalf("received: '%v' but expected: '%v'", p, expected)
+	}
+
+	p, a, err = b.GetPairAndAssetTypeRequestFormatted("BTC_USDT")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+	if a != asset.PerpetualContract {
+		t.Fatal("unexpected value", a)
+	}
+	if !p.Equal(expected) {
+		t.Fatalf("received: '%v' but expected: '%v'", p, expected)
+	}
+}

@@ -103,6 +103,14 @@ const (
 	ContractDownsideProfit
 	// ContractUpsideProfit upside profit contract type
 	ContractUpsideProfit
+
+	perpetualContractID         = "FFWCSX"
+	spotID                      = "IFXXXP"
+	futuresID                   = "FFCCSX"
+	bitMEXBasketIndexID         = "MRBXXX"
+	bitMEXPriceIndexID          = "MRCXXX"
+	bitMEXLendingPremiumIndexID = "MRRXXX"
+	bitMEXVolatilityIndexID     = "MRIXXX"
 )
 
 // GetAnnouncement returns the general announcements from Bitmex

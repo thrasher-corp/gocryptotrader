@@ -62,14 +62,6 @@ const (
 	bitmexActionInsertData  = "insert"
 	bitmexActionDeleteData  = "delete"
 	bitmexActionUpdateData  = "update"
-
-	perpetualContractID         = "FFWCSX"
-	spotID                      = "IFXXXP"
-	futuresID                   = "FFCCSX"
-	bitMEXBasketIndexID         = "MRBXXX"
-	bitMEXPriceIndexID          = "MRCXXX"
-	bitMEXLendingPremiumIndexID = "MRRXXX"
-	bitMEXVolatilityIndexID     = "MRIXXX"
 )
 
 // WsConnect initiates a new websocket connection
@@ -194,26 +186,18 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 			if len(orderbooks.Data) == 0 {
 				return fmt.Errorf("%s - Empty orderbook data received: %s", b.Name, respRaw)
 			}
-			var p currency.Pair
-			p, err = currency.NewPairFromString(orderbooks.Data[0].Symbol)
-			if err != nil {
-				return err
-			}
 
+			var pair currency.Pair
 			var a asset.Item
-			a, err = b.GetPairAssetType(p)
+			pair, a, err = b.GetPairAndAssetTypeRequestFormatted(orderbooks.Data[0].Symbol)
 			if err != nil {
 				return err
 			}
 
-			err = b.processOrderbook(orderbooks.Data,
-				orderbooks.Action,
-				p,
-				a)
+			err = b.processOrderbook(orderbooks.Data, orderbooks.Action, pair, a)
 			if err != nil {
 				return err
 			}
-
 		case bitmexWSTrade:
 			if !b.IsSaveTradeDataEnabled() {
 				return nil
@@ -231,13 +215,8 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 					continue
 				}
 				var p currency.Pair
-				p, err = currency.NewPairFromString(tradeHolder.Data[i].Symbol)
-				if err != nil {
-					return err
-				}
-
 				var a asset.Item
-				a, err = b.GetPairAssetType(p)
+				p, a, err = b.GetPairAndAssetTypeRequestFormatted(tradeHolder.Data[i].Symbol)
 				if err != nil {
 					return err
 				}
@@ -293,13 +272,8 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 
 			for i := range response.Data {
 				var p currency.Pair
-				p, err = currency.NewPairFromString(response.Data[i].Symbol)
-				if err != nil {
-					return err
-				}
-
 				var a asset.Item
-				a, err = b.GetPairAssetType(p)
+				p, a, err = b.GetPairAndAssetTypeRequestFormatted(response.Data[i].Symbol)
 				if err != nil {
 					return err
 				}
@@ -578,6 +552,10 @@ func (b *Bitmex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 
 	assets := b.GetAssetTypes(true)
 	for x := range assets {
+		pFmt, err := b.GetPairFormat(assets[x], true)
+		if err != nil {
+			return nil, err
+		}
 		contracts, err := b.GetEnabledPairs(assets[x])
 		if err != nil {
 			return nil, err
@@ -589,7 +567,7 @@ func (b *Bitmex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 					continue
 				}
 				subscriptions = append(subscriptions, stream.ChannelSubscription{
-					Channel:  channels[z] + ":" + contracts[y].String(),
+					Channel:  channels[z] + ":" + contracts[y].Format(pFmt).String(),
 					Currency: contracts[y],
 					Asset:    assets[x],
 				})
@@ -603,6 +581,11 @@ func (b *Bitmex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 func (b *Bitmex) GenerateAuthenticatedSubscriptions() ([]stream.ChannelSubscription, error) {
 	if !b.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, nil
+	}
+
+	pFmt, err := b.GetPairFormat(asset.PerpetualContract, true)
+	if err != nil {
+		return nil, err
 	}
 	contracts, err := b.GetEnabledPairs(asset.PerpetualContract)
 	if err != nil {
@@ -634,7 +617,7 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() ([]stream.ChannelSubscript
 	for i := range channels {
 		for j := range contracts {
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel:  channels[i] + ":" + contracts[j].String(),
+				Channel:  channels[i] + ":" + contracts[j].Format(pFmt).String(),
 				Currency: contracts[j],
 				Asset:    asset.PerpetualContract,
 			})
@@ -647,7 +630,6 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() ([]stream.ChannelSubscript
 func (b *Bitmex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
 	var subscriber WebsocketRequest
 	subscriber.Command = "subscribe"
-
 	for i := range channelsToSubscribe {
 		subscriber.Arguments = append(subscriber.Arguments,
 			channelsToSubscribe[i].Channel)

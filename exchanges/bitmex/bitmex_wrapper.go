@@ -62,14 +62,30 @@ func (b *Bitmex) SetDefaults() {
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 
-	requestFmt := &currency.PairFormat{Uppercase: true}
 	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
-	err := b.SetGlobalPairsManager(requestFmt,
-		configFmt,
-		asset.PerpetualContract,
-		asset.Futures,
-		asset.Index,
-		asset.Spot)
+	standardRequestFmt := &currency.PairFormat{Uppercase: true}
+	spotRequestFormat := &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
+
+	spot := currency.PairStore{RequestFormat: spotRequestFormat, ConfigFormat: configFmt}
+	err := b.StoreAssetPairFormat(asset.Spot, spot)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	perp := currency.PairStore{RequestFormat: standardRequestFmt, ConfigFormat: configFmt}
+	err = b.StoreAssetPairFormat(asset.PerpetualContract, perp)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	futures := currency.PairStore{RequestFormat: standardRequestFmt, ConfigFormat: configFmt}
+	err = b.StoreAssetPairFormat(asset.Futures, futures)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	index := currency.PairStore{RequestFormat: standardRequestFmt, ConfigFormat: configFmt}
+	err = b.StoreAssetPairFormat(asset.Index, index)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}

@@ -43,6 +43,7 @@ const (
 var (
 	errEndpointStringNotFound            = errors.New("endpoint string not found")
 	errConfigPairFormatRequiresDelimiter = errors.New("config pair format requires delimiter")
+	errSymbolCannotBeMatched             = errors.New("symbol cannot be matched")
 )
 
 // SetClientProxyAddress sets a proxy address for REST and websocket requests
@@ -173,6 +174,33 @@ func (b *Base) GetPairAssetType(c currency.Pair) (asset.Item, error) {
 		}
 	}
 	return asset.Empty, errors.New("asset type not associated with currency pair")
+}
+
+// GetPairAndAssetTypeRequestFormatted returns the pair and the asset type
+// when there is distinct differentiation between exchange request symbols asset
+// types. e.g. "BTC-USD" Spot and "BTC_USD" PERP request formatted.
+func (b *Base) GetPairAndAssetTypeRequestFormatted(symbol string) (currency.Pair, asset.Item, error) {
+	if symbol == "" {
+		return currency.Pair{}, asset.Empty, currency.ErrCurrencyPairEmpty
+	}
+	assetTypes := b.GetAssetTypes(true)
+	for i := range assetTypes {
+		pFmt, err := b.GetPairFormat(assetTypes[i], true)
+		if err != nil {
+			return currency.Pair{}, asset.Empty, err
+		}
+
+		enabled, err := b.GetEnabledPairs(assetTypes[i])
+		if err != nil {
+			return currency.Pair{}, asset.Empty, err
+		}
+		for j := range enabled {
+			if enabled[j].Format(pFmt).String() == symbol {
+				return enabled[j], assetTypes[i], nil
+			}
+		}
+	}
+	return currency.Pair{}, asset.Empty, errSymbolCannotBeMatched
 }
 
 // GetClientBankAccounts returns banking details associated with
