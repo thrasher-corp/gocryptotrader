@@ -68,7 +68,8 @@ func (b *Bitmex) SetDefaults() {
 		configFmt,
 		asset.PerpetualContract,
 		asset.Futures,
-		asset.Index)
+		asset.Index,
+		asset.Spot)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -227,66 +228,87 @@ func (b *Bitmex) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *Bitmex) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
+func (b *Bitmex) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, error) {
+	// b.Verbose = true
 	marketInfo, err := b.GetActiveAndIndexInstruments(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	products := make([]string, len(marketInfo))
+	products := make([]string, 0, len(marketInfo))
 	for x := range marketInfo {
-		products[x] = marketInfo[x].Symbol.String()
-	}
+		if marketInfo[x].State != "Open" && a != asset.Index {
+			continue
+		}
 
+		switch a {
+		case asset.Spot:
+			if marketInfo[x].Typ == spotID {
+				products = append(products, marketInfo[x].Symbol)
+			}
+		case asset.PerpetualContract:
+			if marketInfo[x].Typ == perpetualContractID {
+				var settleTrail string
+				if strings.Contains(marketInfo[x].Symbol, "_") {
+					// Example: ETHUSD_ETH quoted in USD, paid out in ETH.
+					settlement := strings.Split(marketInfo[x].Symbol, "_")
+					if len(settlement) != 2 {
+						return nil, fmt.Errorf("settlement currency can not be handled")
+					}
+					settleTrail = "_" + settlement[1]
+				}
+				products = append(products, marketInfo[x].Underlying+"-"+marketInfo[x].QuoteCurrency+settleTrail)
+			}
+		case asset.Futures:
+			if marketInfo[x].Typ == futuresID {
+				isolate := strings.Split(marketInfo[x].Symbol, "_")
+				var settleTrail string
+				if len(isolate) == 2 {
+					// Example: ETHUSDU22_ETH quoted in USD, paid out in ETH.
+					settleTrail = "_" + isolate[1]
+				}
+
+				root := isolate[0][:len(isolate[0])-3]
+				contract := isolate[0][len(isolate[0])-3:]
+
+				products = append(products, root+"-"+contract+settleTrail)
+			}
+		case asset.Index:
+			// NOTE: This can be expanded into individual assets later.
+			if marketInfo[x].Typ == bitMEXBasketIndexID ||
+				marketInfo[x].Typ == bitMEXPriceIndexID ||
+				marketInfo[x].Typ == bitMEXLendingPremiumIndexID ||
+				marketInfo[x].Typ == bitMEXVolatilityIndexID {
+				products = append(products, marketInfo[x].Symbol)
+			}
+		default:
+			return nil, errors.New("unhandled asset type")
+		}
+	}
 	return products, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (b *Bitmex) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	pairs, err := b.FetchTradablePairs(ctx, asset.Spot)
-	if err != nil {
-		return err
-	}
+	assets := b.GetAssetTypes(false)
 
-	// Zerovalue current list which will remove old asset pairs when contract
-	// types expire or become obsolete
-	var assetPairs = map[asset.Item][]string{
-		asset.Index:             {},
-		asset.PerpetualContract: {},
-		asset.Futures:           {},
-	}
-
-	for x := range pairs {
-		if strings.Contains(pairs[x], ".") {
-			assetPairs[asset.Index] = append(assetPairs[asset.Index], pairs[x])
-			continue
-		}
-
-		if strings.Contains(pairs[x], "USD") {
-			assetPairs[asset.PerpetualContract] = append(assetPairs[asset.PerpetualContract],
-				pairs[x])
-			continue
-		}
-
-		assetPairs[asset.Futures] = append(assetPairs[asset.Futures], pairs[x])
-	}
-
-	for a, values := range assetPairs {
-		p, err := currency.NewPairsFromStrings(values)
+	for x := range assets {
+		pairsStr, err := b.FetchTradablePairs(ctx, assets[x])
 		if err != nil {
 			return err
 		}
 
-		err = b.UpdatePairs(p, a, false, false)
+		pairs, err := currency.NewPairsFromStrings(pairsStr)
 		if err != nil {
-			log.Warnf(log.ExchangeSys,
-				"%s failed to update available pairs. Err: %v",
-				b.Name,
-				err)
+			return err
+		}
+
+		err = b.UpdatePairs(pairs, assets[x], false, false)
+		if err != nil {
+			return err
 		}
 	}
-
 	return nil
 }
 
@@ -303,7 +325,13 @@ func (b *Bitmex) UpdateTickers(ctx context.Context, a asset.Item) error {
 	}
 
 	for j := range tick {
-		if !pairs.Contains(tick[j].Symbol, true) {
+		var pair currency.Pair
+		pair, err = currency.NewPairFromString(tick[j].Symbol)
+		if err != nil {
+			return err
+		}
+
+		if !pairs.Contains(pair, true) {
 			continue
 		}
 
@@ -315,7 +343,7 @@ func (b *Bitmex) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Ask:          tick[j].AskPrice,
 			Volume:       tick[j].Volume24h,
 			Close:        tick[j].PrevClosePrice,
-			Pair:         tick[j].Symbol,
+			Pair:         pair,
 			LastUpdated:  tick[j].Timestamp,
 			ExchangeName: b.Name,
 			AssetType:    a})

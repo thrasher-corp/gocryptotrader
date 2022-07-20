@@ -62,6 +62,14 @@ const (
 	bitmexActionInsertData  = "insert"
 	bitmexActionDeleteData  = "delete"
 	bitmexActionUpdateData  = "update"
+
+	perpetualContractID         = "FFWCSX"
+	spotID                      = "IFXXXP"
+	futuresID                   = "FFCCSX"
+	bitMEXBasketIndexID         = "MRBXXX"
+	bitMEXPriceIndexID          = "MRCXXX"
+	bitMEXLendingPremiumIndexID = "MRRXXX"
+	bitMEXVolatilityIndexID     = "MRIXXX"
 )
 
 // WsConnect initiates a new websocket connection
