@@ -459,3 +459,9 @@ type CompletedRepaymentRecord struct {
 	baseRepaymentRecord
 	RepayFinishAt int64 `json:"repayFinishAt"`
 }
+
+type PostMarginOrderResp struct {
+	OrderID     string  `json:"orderId"`
+	BorrowSize  float64 `json:"borrowSize"`
+	LoanApplyID string  `json:"loanApplyId"`
+}

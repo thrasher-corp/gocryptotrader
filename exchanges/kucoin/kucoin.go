@@ -77,7 +77,8 @@ const (
 	kucoinInitiateIsolatedMarginQuickRepayment   = "/api/v1/isolated/repay/all"
 	kucoinInitiateIsolatedMarginSingleRepayment  = "/api/v1/isolated/repay/single"
 
-	kucoinPostOrder = "/api/v1/orders"
+	kucoinPostOrder       = "/api/v1/orders"
+	kucoinPostMarginOrder = "/api/v1/margin/order"
 )
 
 // GetSymbols gets pairs details on the exchange
@@ -904,27 +905,25 @@ func (k *Kucoin) GetServiceStatus(ctx context.Context) (string, string, error) {
 // Note: use this only for SPOT trades
 func (k *Kucoin) PostOrder(ctx context.Context, clientOID, side, symbol, currency, orderType, remark, stop, price, timeInForce string, size, cancelAfter, visibleSize, funds float64, postOnly, hidden, iceberg bool) (string, error) {
 	resp := struct {
-		Data struct {
-			OrderID string `json:"orderId"`
-		} `json:"data"`
+		OrderID string `json:"orderId"`
 		Error
 	}{}
 
 	params := make(map[string]interface{})
 	if clientOID == "" {
-		return resp.Data.OrderID, errors.New("clientOid can't be empty")
+		return resp.OrderID, errors.New("clientOid can't be empty")
 	}
 	params["clientOid"] = clientOID
 	if side == "" {
-		return resp.Data.OrderID, errors.New("side can't be empty")
+		return resp.OrderID, errors.New("side can't be empty")
 	}
 	params["side"] = side
 	if symbol == "" {
-		return resp.Data.OrderID, errors.New("symbol can't be empty")
+		return resp.OrderID, errors.New("symbol can't be empty")
 	}
 	params["symbol"] = symbol
 	if currency == "" {
-		return resp.Data.OrderID, errors.New("currency can't be empty")
+		return resp.OrderID, errors.New("currency can't be empty")
 	}
 	params["currency"] = currency
 	if remark != "" {
@@ -935,11 +934,11 @@ func (k *Kucoin) PostOrder(ctx context.Context, clientOID, side, symbol, currenc
 	}
 	if orderType == "limit" || orderType == "" {
 		if price == "" {
-			return resp.Data.OrderID, errors.New("price can't be empty")
+			return resp.OrderID, errors.New("price can't be empty")
 		}
 		params["price"] = price
 		if size <= 0 {
-			return resp.Data.OrderID, errors.New("size can't be zero or negative")
+			return resp.OrderID, errors.New("size can't be zero or negative")
 		}
 		params["size"] = strconv.FormatFloat(size, 'f', -1, 64)
 		if timeInForce != "" {
@@ -956,7 +955,7 @@ func (k *Kucoin) PostOrder(ctx context.Context, clientOID, side, symbol, currenc
 		}
 	} else if orderType == "market" {
 		if size == 0 && funds == 0 {
-			return resp.Data.OrderID, errors.New("atleast one required among size and funds")
+			return resp.OrderID, errors.New("atleast one required among size and funds")
 		}
 
 		if size > 0 {
@@ -966,13 +965,89 @@ func (k *Kucoin) PostOrder(ctx context.Context, clientOID, side, symbol, currenc
 			params["funds"] = strconv.FormatFloat(funds, 'f', -1, 64)
 		}
 	} else {
-		return resp.Data.OrderID, errors.New("invalid orderType")
+		return resp.OrderID, errors.New("invalid orderType")
 	}
 
 	if orderType != "" {
 		params["type"] = orderType
 	}
-	return resp.Data.OrderID, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinBorrowOrder, params, publicSpotRate, &resp)
+	return resp.OrderID, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinPostOrder, params, publicSpotRate, &resp)
+}
+
+// PostMarginOrder used to place two types of margin orders: limit and market
+func (k *Kucoin) PostMarginOrder(ctx context.Context, clientOID, side, symbol, orderType, remark, stop, marginMode, price, timeInForce string, size, cancelAfter, visibleSize, funds float64, postOnly, hidden, iceberg, autoBorrow bool) (PostMarginOrderResp, error) {
+	resp := struct {
+		PostMarginOrderResp
+		Error
+	}{}
+
+	params := make(map[string]interface{})
+	if clientOID == "" {
+		return resp.PostMarginOrderResp, errors.New("clientOid can't be empty")
+	}
+	params["clientOid"] = clientOID
+	if side == "" {
+		return resp.PostMarginOrderResp, errors.New("side can't be empty")
+	}
+	params["side"] = side
+	if symbol == "" {
+		return resp.PostMarginOrderResp, errors.New("symbol can't be empty")
+	}
+	params["symbol"] = symbol
+	// if currency == "" {
+	// 	return resp.PostMarginOrderResp, errors.New("currency can't be empty")
+	// }
+	// params["currency"] = currency
+	if remark != "" {
+		params["remark"] = remark
+	}
+	if stop != "" {
+		params["stp"] = stop
+	}
+	if marginMode != "" {
+		params["marginMode"] = marginMode
+	}
+	params["autoBorrow"] = autoBorrow
+	if orderType == "limit" || orderType == "" {
+		if price == "" {
+			return resp.PostMarginOrderResp, errors.New("price can't be empty")
+		}
+		params["price"] = price
+		if size <= 0 {
+			return resp.PostMarginOrderResp, errors.New("size can't be zero or negative")
+		}
+		params["size"] = strconv.FormatFloat(size, 'f', -1, 64)
+		if timeInForce != "" {
+			params["timeInForce"] = timeInForce
+		}
+		if cancelAfter > 0 && timeInForce == "GTT" {
+			params["cancelAfter"] = strconv.FormatFloat(cancelAfter, 'f', -1, 64)
+		}
+		params["postOnly"] = postOnly
+		params["hidden"] = hidden
+		params["iceberg"] = iceberg
+		if visibleSize > 0 {
+			params["visibleSize"] = strconv.FormatFloat(visibleSize, 'f', -1, 64)
+		}
+	} else if orderType == "market" {
+		if size == 0 && funds == 0 {
+			return resp.PostMarginOrderResp, errors.New("atleast one required among size and funds")
+		}
+
+		if size > 0 {
+			params["size"] = strconv.FormatFloat(size, 'f', -1, 64)
+		}
+		if funds > 0 {
+			params["funds"] = strconv.FormatFloat(funds, 'f', -1, 64)
+		}
+	} else {
+		return resp.PostMarginOrderResp, errors.New("invalid orderType")
+	}
+
+	if orderType != "" {
+		params["type"] = orderType
+	}
+	return resp.PostMarginOrderResp, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinPostMarginOrder, params, publicSpotRate, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request

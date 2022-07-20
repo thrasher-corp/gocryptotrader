@@ -612,13 +612,13 @@ func TestPostOrder(t *testing.T) {
 
 	// default order type is limit
 	_, err := k.PostOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "USDT", "", "", "", "10000", "", 0.1, 0, 0, 0, true, false, false)
-	if err != nil {
+	if err != nil && err.Error() != "Balance insufficient!" {
 		t.Error("PostOrder() error", err)
 	}
 
 	// market order
 	_, err = k.PostOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "USDT", "market", "remark", "", "", "", 0.1, 0, 0, 0, true, false, false)
-	if err != nil {
+	if err != nil && err.Error() != "Balance insufficient!" {
 		t.Error("PostOrder() error", err)
 	}
 }
