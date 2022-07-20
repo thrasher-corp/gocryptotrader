@@ -257,7 +257,7 @@ func (e *ExchangeRateHost) SendHTTPRequest(endpoint string, v url.Values, result
 		Method:  http.MethodGet,
 		Path:    path,
 		Result:  &result,
-		Verbose: true,
+		Verbose: e.Verbose,
 	}
 	return e.Requester.SendPayload(context.TODO(), request.Unset, func() (*request.Item, error) {
 		return item, nil
