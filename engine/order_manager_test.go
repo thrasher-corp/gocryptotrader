@@ -1151,8 +1151,8 @@ func TestGetFuturesPositionsForExchange(t *testing.T) {
 	}
 
 	_, err = o.GetFuturesPositionsForExchange("test", asset.Futures, cp)
-	if !errors.Is(err, order.ErrPositionsNotLoadedForExchange) {
-		t.Errorf("received '%v', expected '%v'", err, order.ErrPositionsNotLoadedForExchange)
+	if !errors.Is(err, order.ErrPositionNotFound) {
+		t.Errorf("received '%v', expected '%v'", err, order.ErrPositionNotFound)
 	}
 
 	err = o.orderStore.futuresPositionController.TrackNewOrder(&order.Detail{
@@ -1198,8 +1198,8 @@ func TestClearFuturesPositionsForExchange(t *testing.T) {
 	}
 
 	err = o.ClearFuturesTracking("test", asset.Futures, cp)
-	if !errors.Is(err, order.ErrPositionsNotLoadedForExchange) {
-		t.Errorf("received '%v', expected '%v'", err, order.ErrPositionsNotLoadedForExchange)
+	if !errors.Is(err, order.ErrPositionNotFound) {
+		t.Errorf("received '%v', expected '%v'", err, order.ErrPositionNotFound)
 	}
 
 	err = o.orderStore.futuresPositionController.TrackNewOrder(&order.Detail{
@@ -1249,8 +1249,8 @@ func TestUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 	}
 
 	_, err = o.UpdateOpenPositionUnrealisedPNL("test", asset.Futures, cp, 1, time.Now())
-	if !errors.Is(err, order.ErrPositionsNotLoadedForExchange) {
-		t.Errorf("received '%v', expected '%v'", err, order.ErrPositionsNotLoadedForExchange)
+	if !errors.Is(err, order.ErrPositionNotFound) {
+		t.Errorf("received '%v', expected '%v'", err, order.ErrPositionNotFound)
 	}
 
 	err = o.orderStore.futuresPositionController.TrackNewOrder(&order.Detail{

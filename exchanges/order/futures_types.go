@@ -14,12 +14,6 @@ import (
 var (
 	// ErrPositionClosed returned when attempting to amend a closed position
 	ErrPositionClosed = errors.New("the position is closed")
-	// ErrPositionsNotLoadedForExchange returned when no position data exists for an exchange
-	ErrPositionsNotLoadedForExchange = errors.New("no positions loaded for exchange")
-	// ErrPositionsNotLoadedForAsset returned when no position data exists for an asset
-	ErrPositionsNotLoadedForAsset = errors.New("no positions loaded for asset")
-	// ErrPositionsNotLoadedForPair returned when no position data exists for a pair
-	ErrPositionsNotLoadedForPair = errors.New("no positions loaded for pair")
 	// ErrNilPNLCalculator is raised when pnl calculation is requested for
 	// an exchange, but the fields are not set properly
 	ErrNilPNLCalculator = errors.New("nil pnl calculator received")
@@ -130,7 +124,7 @@ type UsedCollateralBreakdown struct {
 // the position controller and its all tracked happily
 type PositionController struct {
 	m                     sync.Mutex
-	multiPositionTrackers map[string]map[asset.Item]map[currency.PairKey]*MultiPositionTracker
+	multiPositionTrackers map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*MultiPositionTracker
 	updated               time.Time
 }
 

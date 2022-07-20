@@ -468,7 +468,7 @@ func (p *Portfolio) GetLatestPosition(e common.EventHandler) (*gctorder.Position
 	}
 	positions := settings.FuturesTracker.GetPositions()
 	if len(positions) == 0 {
-		return nil, fmt.Errorf("%w %v %v %v", gctorder.ErrPositionsNotLoadedForPair, e.GetExchange(), e.GetAssetType(), e.Pair())
+		return nil, fmt.Errorf("%w %v %v %v", gctorder.ErrPositionNotFound, e.GetExchange(), e.GetAssetType(), e.Pair())
 	}
 	return &positions[len(positions)-1], nil
 }

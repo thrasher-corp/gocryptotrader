@@ -9,6 +9,3 @@ type Pair struct {
 
 // Pairs defines a list of pairs
 type Pairs []Pair
-
-// PairKey is an identifier for use in maps
-type PairKey string

@@ -131,17 +131,3 @@ func (p Pair) Other(c Code) (Code, error) {
 	}
 	return EMPTYCODE, ErrCurrencyCodeEmpty
 }
-
-// Key is a basic method to use in map based comparisons
-// where delimiter or other formatting do not get considered
-func (p *Pair) Key() (PairKey, error) {
-	if p.Base.IsEmpty() || p.Quote.IsEmpty() {
-		return "", ErrCurrencyPairEmpty
-	}
-	return PairKey(p.Base.Item.Symbol + p.Quote.Item.Symbol), nil
-}
-
-// Equal verifies if keys are the same
-func (k PairKey) Equal(p PairKey) bool {
-	return k == p
-}
