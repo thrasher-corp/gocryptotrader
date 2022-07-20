@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -846,6 +847,31 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Error:      msg,
 			Response:   withdrawFiatFundsInternationalResponse,
 		})
+
+		marginRateHistoryRequest := &margin.RateHistoryRequest{
+			Exchange:           e.GetName(),
+			Asset:              assetTypes[i],
+			Currency:           p.Base,
+			StartDate:          time.Now().Add(-time.Hour * 24),
+			EndDate:            time.Now(),
+			GetPredictedRate:   true,
+			GetLendingPayments: true,
+			GetBorrowRates:     true,
+			GetBorrowCosts:     true,
+		}
+		marginRateHistoryResponse, err := e.GetMarginRatesHistory(context.TODO(), marginRateHistoryRequest)
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+			responseContainer.ErrorCount++
+		}
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+			SentParams: jsonifyInterface([]interface{}{marginRateHistoryRequest}),
+			Function:   "GetMarginRatesHistory",
+			Error:      msg,
+			Response:   marginRateHistoryResponse,
+		})
+
 		response = append(response, responseContainer)
 	}
 	return response
