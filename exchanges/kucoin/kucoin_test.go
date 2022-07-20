@@ -611,13 +611,32 @@ func TestPostOrder(t *testing.T) {
 	}
 
 	// default order type is limit
-	_, err := k.PostOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "USDT", "", "", "", "10000", "", 0.1, 0, 0, 0, true, false, false)
+	_, err := k.PostOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "", "", "", "10000", "", 0.1, 0, 0, 0, true, false, false)
 	if err != nil && err.Error() != "Balance insufficient!" {
 		t.Error("PostOrder() error", err)
 	}
 
 	// market order
-	_, err = k.PostOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "USDT", "market", "remark", "", "", "", 0.1, 0, 0, 0, true, false, false)
+	_, err = k.PostOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "market", "remark", "", "", "", 0.1, 0, 0, 0, true, false, false)
+	if err != nil && err.Error() != "Balance insufficient!" {
+		t.Error("PostOrder() error", err)
+	}
+}
+
+func TestPostMarginOrder(t *testing.T) {
+	//	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	// default order type is limit and margin mode is cross
+	_, err := k.PostMarginOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "", "", "", "", "10000", "", 0.1, 0, 0, 0, true, false, false, false)
+	if err != nil && err.Error() != "Balance insufficient!" {
+		t.Error("PostOrder() error", err)
+	}
+
+	// market isolated order
+	_, err = k.PostMarginOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "market", "remark", "", "isolated", "", "", 0.1, 0, 0, 5, true, false, false, true)
 	if err != nil && err.Error() != "Balance insufficient!" {
 		t.Error("PostOrder() error", err)
 	}
