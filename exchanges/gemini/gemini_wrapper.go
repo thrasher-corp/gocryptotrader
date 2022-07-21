@@ -333,7 +333,11 @@ func (g *Gemini) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		Currencies: currencies,
 	})
 
-	err = account.Process(&response)
+	creds, err := g.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&response, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -343,11 +347,14 @@ func (g *Gemini) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (g *Gemini) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(g.Name, assetType)
+	creds, err := g.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(g.Name, creds, assetType)
 	if err != nil {
 		return g.UpdateAccountInfo(ctx, assetType)
 	}
-
 	return acc, nil
 }
 

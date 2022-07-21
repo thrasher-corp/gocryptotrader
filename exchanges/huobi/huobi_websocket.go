@@ -15,7 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -545,7 +545,7 @@ func (h *HUOBI) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, er
 
 // Subscribe sends a websocket message to receive data from the channel
 func (h *HUOBI) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	var creds *exchange.Credentials
+	var creds *account.Credentials
 	if h.Websocket.CanUseAuthenticatedEndpoints() {
 		var err error
 		creds, err = h.GetCredentials(context.TODO())
@@ -585,7 +585,7 @@ func (h *HUOBI) Subscribe(channelsToSubscribe []stream.ChannelSubscription) erro
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (h *HUOBI) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
-	var creds *exchange.Credentials
+	var creds *account.Credentials
 	if h.Websocket.CanUseAuthenticatedEndpoints() {
 		var err error
 		creds, err = h.GetCredentials(context.TODO())
@@ -623,7 +623,7 @@ func (h *HUOBI) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) 
 	return nil
 }
 
-func (h *HUOBI) wsGenerateSignature(creds *exchange.Credentials, timestamp, endpoint string) ([]byte, error) {
+func (h *HUOBI) wsGenerateSignature(creds *account.Credentials, timestamp, endpoint string) ([]byte, error) {
 	values := url.Values{}
 	values.Set("AccessKeyId", creds.Key)
 	values.Set("SignatureMethod", signatureMethod)
@@ -668,7 +668,7 @@ func (h *HUOBI) wsLogin(ctx context.Context) error {
 	return nil
 }
 
-func (h *HUOBI) wsAuthenticatedSubscribe(creds *exchange.Credentials, operation, endpoint, topic string) error {
+func (h *HUOBI) wsAuthenticatedSubscribe(creds *account.Credentials, operation, endpoint, topic string) error {
 	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
 	request := WsAuthenticatedSubscriptionRequest{
 		Op:               operation,
