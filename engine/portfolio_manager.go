@@ -57,10 +57,7 @@ func setupPortfolioManager(e *ExchangeManager, portfolioManagerDelay time.Durati
 
 // IsRunning safely checks whether the subsystem is running
 func (m *portfolioManager) IsRunning() bool {
-	if m == nil {
-		return false
-	}
-	return atomic.LoadInt32(&m.started) == 1
+	return m != nil && atomic.LoadInt32(&m.started) == 1
 }
 
 // Start runs the subsystem
@@ -160,11 +157,10 @@ func (m *portfolioManager) seedExchangeAccountInfo(accounts []account.Holdings) 
 		return
 	}
 	for x := range accounts {
-		exchangeName := accounts[x].Exchange
 		var currencies []account.Balance
 		for y := range accounts[x].Accounts {
+		next:
 			for z := range accounts[x].Accounts[y].Currencies {
-				var update bool
 				for i := range currencies {
 					if !accounts[x].Accounts[y].Currencies[z].CurrencyName.Equal(currencies[i].CurrencyName) {
 						continue
@@ -174,10 +170,7 @@ func (m *portfolioManager) seedExchangeAccountInfo(accounts []account.Holdings) 
 					currencies[i].AvailableWithoutBorrow += accounts[x].Accounts[y].Currencies[z].AvailableWithoutBorrow
 					currencies[i].Free += accounts[x].Accounts[y].Currencies[z].Free
 					currencies[i].Borrowed += accounts[x].Accounts[y].Currencies[z].Borrowed
-					update = true
-				}
-				if update {
-					continue
+					continue next
 				}
 				currencies = append(currencies, account.Balance{
 					CurrencyName:           accounts[x].Accounts[y].Currencies[z].CurrencyName,
@@ -190,51 +183,50 @@ func (m *portfolioManager) seedExchangeAccountInfo(accounts []account.Holdings) 
 			}
 		}
 
-		for x := range currencies {
-			currencyName := currencies[x].CurrencyName
-			total := currencies[x].Total
-
-			if !m.base.ExchangeAddressExists(exchangeName, currencyName) {
-				if total <= 0 {
+		for j := range currencies {
+			if !m.base.ExchangeAddressExists(accounts[x].Exchange, currencies[j].CurrencyName) {
+				if currencies[j].Total <= 0 {
 					continue
 				}
 
 				log.Debugf(log.PortfolioMgr, "Portfolio: Adding new exchange address: %s, %s, %f, %s\n",
-					exchangeName,
-					currencyName,
-					total,
+					accounts[x].Exchange,
+					currencies[j].CurrencyName,
+					currencies[j].Total,
 					portfolio.ExchangeAddress)
 
-				m.base.Addresses = append(
-					m.base.Addresses,
-					portfolio.Address{Address: exchangeName,
-						CoinType:    currencyName,
-						Balance:     total,
-						Description: portfolio.ExchangeAddress})
-			} else {
-				if total <= 0 {
-					log.Debugf(log.PortfolioMgr, "Portfolio: Removing %s %s entry.\n",
-						exchangeName,
-						currencyName)
-					m.base.RemoveExchangeAddress(exchangeName, currencyName)
-				} else {
-					balance, ok := m.base.GetAddressBalance(exchangeName,
-						portfolio.ExchangeAddress,
-						currencyName)
-					if !ok {
-						continue
-					}
+				m.base.Addresses = append(m.base.Addresses, portfolio.Address{
+					Address:     accounts[x].Exchange,
+					CoinType:    currencies[j].CurrencyName,
+					Balance:     currencies[j].Total,
+					Description: portfolio.ExchangeAddress,
+				})
+				continue
+			}
 
-					if balance != total {
-						log.Debugf(log.PortfolioMgr, "Portfolio: Updating %s %s entry with balance %f.\n",
-							exchangeName,
-							currencyName,
-							total)
-						m.base.UpdateExchangeAddressBalance(exchangeName,
-							currencyName,
-							total)
-					}
-				}
+			if currencies[j].Total <= 0 {
+				log.Debugf(log.PortfolioMgr, "Portfolio: Removing %s %s entry.\n",
+					accounts[x].Exchange,
+					currencies[j].CurrencyName)
+				m.base.RemoveExchangeAddress(accounts[x].Exchange, currencies[j].CurrencyName)
+				continue
+			}
+
+			balance, ok := m.base.GetAddressBalance(accounts[x].Exchange,
+				portfolio.ExchangeAddress,
+				currencies[j].CurrencyName)
+			if !ok {
+				continue
+			}
+
+			if balance != currencies[j].Total {
+				log.Debugf(log.PortfolioMgr, "Portfolio: Updating %s %s entry with balance %f.\n",
+					accounts[x].Exchange,
+					currencies[j].CurrencyName,
+					currencies[j].Total)
+				m.base.UpdateExchangeAddressBalance(accounts[x].Exchange,
+					currencies[j].CurrencyName,
+					currencies[j].Total)
 			}
 		}
 	}
