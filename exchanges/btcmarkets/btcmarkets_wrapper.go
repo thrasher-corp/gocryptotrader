@@ -114,9 +114,15 @@ func (b *BTCMarkets) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: map[string]bool{
-					kline.OneMin.Word():  true,
-					kline.OneHour.Word(): true,
-					kline.OneDay.Word():  true,
+					kline.OneMin.Word():     true,
+					kline.FiveMin.Word():    true,
+					kline.FifteenMin.Word(): true,
+					kline.ThirtyMin.Word():  true,
+					kline.OneHour.Word():    true,
+					kline.SixHour.Word():    true,
+					kline.OneDay.Word():     true,
+					kline.OneWeek.Word():    true,
+					kline.OneMonth.Word():   true,
 				},
 				ResultLimit: 1000,
 			},
@@ -451,7 +457,11 @@ func (b *BTCMarkets) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 	resp.Accounts = append(resp.Accounts, acc)
 	resp.Exchange = b.Name
 
-	err = account.Process(&resp)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&resp, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -461,7 +471,11 @@ func (b *BTCMarkets) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (b *BTCMarkets) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(b.Name, assetType)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(b.Name, creds, assetType)
 	if err != nil {
 		return b.UpdateAccountInfo(ctx, assetType)
 	}
@@ -530,10 +544,9 @@ func (b *BTCMarkets) GetHistoricTrades(_ context.Context, _ currency.Pair, _ ass
 }
 
 // SubmitOrder submits a new order
-func (b *BTCMarkets) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var resp order.SubmitResponse
+func (b *BTCMarkets) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	if s.Side == order.Sell {
@@ -545,17 +558,17 @@ func (b *BTCMarkets) SubmitOrder(ctx context.Context, s *order.Submit) (order.Su
 
 	fpair, err := b.FormatExchangeCurrency(s.Pair, asset.Spot)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	fOrderType, err := b.formatOrderType(s.Type)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	fOrderSide, err := b.formatOrderSide(s.Side)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	tempResp, err := b.NewOrder(ctx,
@@ -571,50 +584,47 @@ func (b *BTCMarkets) SubmitOrder(ctx context.Context, s *order.Submit) (order.Su
 		s.ClientID,
 		s.PostOnly)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	resp.IsOrderPlaced = true
-	resp.OrderID = tempResp.OrderID
-	return resp, nil
+	return s.DeriveSubmitResponse(tempResp.OrderID)
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *BTCMarkets) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Modify, error) {
+func (b *BTCMarkets) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
 		return nil, err
 	}
-	resp, err := b.ReplaceOrder(ctx, action.ID, action.ClientOrderID, action.Price, action.Amount)
+	resp, err := b.ReplaceOrder(ctx, action.OrderID, action.ClientOrderID, action.Price, action.Amount)
 	if err != nil {
 		return nil, err
 	}
-	pair, err := currency.NewPairFromString(resp.MarketID)
+	mod, err := action.DeriveModifyResponse()
 	if err != nil {
 		return nil, err
 	}
-	side, err := order.StringToOrderSide(resp.Side)
+	mod.Pair, err = currency.NewPairFromString(resp.MarketID)
 	if err != nil {
 		return nil, err
 	}
-	orderT, err := order.StringToOrderType(resp.Type)
+	mod.Side, err = order.StringToOrderSide(resp.Side)
 	if err != nil {
 		return nil, err
 	}
-	status, err := order.StringToOrderStatus(resp.Status)
+	mod.Type, err = order.StringToOrderType(resp.Type)
 	if err != nil {
 		return nil, err
 	}
-	return &order.Modify{
-		ID:              resp.OrderID,
-		Pair:            pair,
-		Side:            side,
-		Type:            orderT,
-		Date:            resp.CreationTime,
-		Price:           resp.Price,
-		Amount:          resp.Amount,
-		RemainingAmount: resp.OpenAmount,
-		Status:          status,
-	}, nil
+	mod.Status, err = order.StringToOrderStatus(resp.Status)
+	if err != nil {
+		return nil, err
+	}
+	mod.OrderID = resp.OrderID
+	mod.LastUpdated = resp.CreationTime
+	mod.Price = resp.Price
+	mod.Amount = resp.Amount
+	mod.RemainingAmount = resp.OpenAmount
+	return mod, nil
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -623,7 +633,7 @@ func (b *BTCMarkets) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err != nil {
 		return err
 	}
-	_, err = b.RemoveOrder(ctx, o.ID)
+	_, err = b.RemoveOrder(ctx, o.OrderID)
 	return err
 }
 
@@ -676,7 +686,7 @@ func (b *BTCMarkets) GetOrderInfo(ctx context.Context, orderID string, pair curr
 	}
 
 	resp.Exchange = b.Name
-	resp.ID = orderID
+	resp.OrderID = orderID
 	resp.Pair = p
 	resp.Price = o.Price
 	resp.Date = o.CreationTime
@@ -829,7 +839,7 @@ func (b *BTCMarkets) GetActiveOrders(ctx context.Context, req *order.GetOrdersRe
 			var tempResp order.Detail
 			tempResp.Exchange = b.Name
 			tempResp.Pair = req.Pairs[x]
-			tempResp.ID = tempData[y].OrderID
+			tempResp.OrderID = tempData[y].OrderID
 			tempResp.Side = order.Bid
 			if tempData[y].Side == ask {
 				tempResp.Side = order.Ask
@@ -946,7 +956,7 @@ func (b *BTCMarkets) GetOrderHistory(ctx context.Context, req *order.GetOrdersRe
 			if tempData.Orders[c].Side == ask {
 				tempResp.Side = order.Ask
 			}
-			tempResp.ID = tempData.Orders[c].OrderID
+			tempResp.OrderID = tempData.Orders[c].OrderID
 			tempResp.Date = tempData.Orders[c].CreationTime
 			tempResp.Price = tempData.Orders[c].Price
 			tempResp.Amount = tempData.Orders[c].Amount
@@ -982,8 +992,25 @@ func (b *BTCMarkets) ValidateCredentials(ctx context.Context, assetType asset.It
 
 // FormatExchangeKlineInterval returns Interval to exchange formatted string
 func (b *BTCMarkets) FormatExchangeKlineInterval(in kline.Interval) string {
-	if in == kline.OneDay {
+	switch in {
+	case kline.OneMin:
+		return "1m"
+	case kline.FiveMin:
+		return "5m"
+	case kline.FifteenMin:
+		return "15m"
+	case kline.ThirtyMin:
+		return "30m"
+	case kline.OneHour:
+		return "1h"
+	case kline.SixHour:
+		return "6h"
+	case kline.OneDay:
 		return "1d"
+	case kline.OneWeek:
+		return "1w"
+	case kline.OneMonth:
+		return "1mo"
 	}
 	return in.Short()
 }
@@ -1157,12 +1184,12 @@ func (b *BTCMarkets) UpdateOrderExecutionLimits(ctx context.Context, a asset.Ite
 		}
 
 		limits[x] = order.MinMaxLevel{
-			Pair:       pair,
-			Asset:      asset.Spot,
-			MinAmount:  markets[x].MinOrderAmount,
-			MaxAmount:  markets[x].MaxOrderAmount,
-			StepAmount: math.Pow(10, -markets[x].AmountDecimals),
-			StepPrice:  math.Pow(10, -markets[x].PriceDecimals),
+			Pair:                    pair,
+			Asset:                   asset.Spot,
+			MinAmount:               markets[x].MinOrderAmount,
+			MaxAmount:               markets[x].MaxOrderAmount,
+			AmountStepIncrementSize: math.Pow(10, -markets[x].AmountDecimals),
+			PriceStepIncrementSize:  math.Pow(10, -markets[x].PriceDecimals),
 		}
 	}
 	return b.LoadLimits(limits)

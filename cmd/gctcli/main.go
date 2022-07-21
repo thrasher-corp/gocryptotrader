@@ -12,7 +12,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc/auth"
 	"github.com/thrasher-corp/gocryptotrader/signaler"
 	"github.com/urfave/cli/v2"
@@ -28,7 +28,8 @@ var (
 	pairDelimiter string
 	certPath      string
 	timeout       time.Duration
-	exchangeCreds exchange.Credentials
+	exchangeCreds account.Credentials
+	verbose       bool
 )
 
 const defaultTimeout = time.Second * 30
@@ -59,6 +60,9 @@ func setupClient(c *cli.Context) (*grpc.ClientConn, context.CancelFunc, error) {
 	if !exchangeCreds.IsEmpty() {
 		flag, values := exchangeCreds.GetMetaData()
 		c.Context = metadata.AppendToOutgoingContext(c.Context, flag, values)
+	}
+	if verbose {
+		c.Context = metadata.AppendToOutgoingContext(c.Context, "verbose", "true")
 	}
 	conn, err := grpc.DialContext(c.Context, host, opts...)
 	return conn, cancel, err
@@ -137,6 +141,11 @@ func main() {
 			Usage:       "override config API One Time Password (OTP) for request",
 			Destination: &exchangeCreds.OneTimePassword,
 		},
+		&cli.BoolFlag{
+			Name:        "verbose",
+			Usage:       "allows the request to generate a more verbose outputs server side",
+			Destination: &verbose,
+		},
 	}
 	app.Commands = []*cli.Command{
 		getInfoCommand,
@@ -198,7 +207,12 @@ func main() {
 		getFuturesPositionsCommand,
 		getCollateralCommand,
 		shutdownCommand,
+<<<<<<< HEAD
 		orderbookCommand,
+=======
+		technicalAnalysisCommand,
+		getMarginRatesHistoryCommand,
+>>>>>>> master
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

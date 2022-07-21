@@ -1770,6 +1770,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var orderSubmission = &order.Submit{
+		Exchange: b.Name,
 		Pair: currency.Pair{
 			Delimiter: "_",
 			Base:      currency.LTC,
@@ -1801,7 +1802,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 	var orderCancellation = &order.Cancel{
-		ID:            "1",
+		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currency.NewPair(currency.LTC, currency.BTC),
@@ -1826,7 +1827,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 	var orderCancellation = &order.Cancel{
-		ID:            "1",
+		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currency.NewPair(currency.LTC, currency.BTC),
@@ -1959,7 +1960,7 @@ func TestCancelOrder(t *testing.T) {
 	err = b.CancelOrder(context.Background(), &order.Cancel{
 		AssetType: asset.CoinMarginedFutures,
 		Pair:      fpair,
-		ID:        "1234",
+		OrderID:   "1234",
 	})
 	if err != nil {
 		t.Error(err)
@@ -1976,7 +1977,7 @@ func TestCancelOrder(t *testing.T) {
 	err = b.CancelOrder(context.Background(), &order.Cancel{
 		AssetType: asset.USDTMarginedFutures,
 		Pair:      fpair2,
-		ID:        "1234",
+		OrderID:   "1234",
 	})
 	if err != nil {
 		t.Error(err)
@@ -2622,7 +2623,7 @@ func TestSetExchangeOrderExecutionLimits(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if limit == nil {
+	if limit == (order.MinMaxLevel{}) {
 		t.Fatal("exchange limit should be loaded")
 	}
 
@@ -2653,7 +2654,7 @@ func TestWsOrderExecutionReport(t *testing.T) {
 		Fee:                  0,
 		FeeAsset:             currency.BTC,
 		Exchange:             "Binance",
-		ID:                   "5340845958",
+		OrderID:              "5340845958",
 		ClientOrderID:        "c4wyKsIhoAaittTYlIVLqk",
 		Type:                 order.Limit,
 		Side:                 order.Buy,
@@ -2837,7 +2838,7 @@ func TestFetchSpotExchangeLimits(t *testing.T) {
 	t.Parallel()
 	limits, err := b.FetchSpotExchangeLimits(context.Background())
 	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', epected '%v'", err, nil)
+		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 	if len(limits) == 0 {
 		t.Error("expected a response")

@@ -8,8 +8,9 @@ import (
 )
 
 var (
-	errEmptyLoggerName            = errors.New("cannot have empty logger name")
-	errSubLoggerAlreadyregistered = errors.New("sub logger already registered")
+	errEmptyLoggerName = errors.New("cannot have empty logger name")
+	// ErrSubLoggerAlreadyRegistered Returned when a sublogger is registered multiple times
+	ErrSubLoggerAlreadyRegistered = errors.New("sub logger already registered")
 )
 
 func newLogger(c *Config) Logger {

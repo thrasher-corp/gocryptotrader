@@ -427,7 +427,11 @@ func (p *Poloniex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 		Currencies: currencies,
 	})
 
-	err = account.Process(&response)
+	creds, err := p.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&response, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -437,7 +441,11 @@ func (p *Poloniex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (p *Poloniex) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(p.Name, assetType)
+	creds, err := p.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(p.Name, creds, assetType)
 	if err != nil {
 		return p.UpdateAccountInfo(ctx, assetType)
 	}
@@ -531,48 +539,36 @@ allTrades:
 }
 
 // SubmitOrder submits a new order
-func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	fPair, err := p.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
-
-	fillOrKill := s.Type == order.Market
-	isBuyOrder := s.Side == order.Buy
 	response, err := p.PlaceOrder(ctx,
 		fPair.String(),
 		s.Price,
 		s.Amount,
 		false,
-		fillOrKill,
-		isBuyOrder)
+		s.Type == order.Market,
+		s.Side == order.Buy)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
-	if response.OrderNumber > 0 {
-		submitOrderResponse.OrderID = strconv.FormatInt(response.OrderNumber, 10)
-	}
-
-	submitOrderResponse.IsOrderPlaced = true
-	if s.Type == order.Market {
-		submitOrderResponse.FullyMatched = true
-	}
-	return submitOrderResponse, nil
+	return s.DeriveSubmitResponse(strconv.FormatInt(response.OrderNumber, 10))
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (p *Poloniex) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Modify, error) {
+func (p *Poloniex) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
 		return nil, err
 	}
 
-	oID, err := strconv.ParseInt(action.ID, 10, 64)
+	oID, err := strconv.ParseInt(action.OrderID, 10, 64)
 	if err != nil {
 		return nil, err
 	}
@@ -587,16 +583,12 @@ func (p *Poloniex) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		return nil, err
 	}
 
-	return &order.Modify{
-		Exchange:          action.Exchange,
-		AssetType:         action.AssetType,
-		Pair:              action.Pair,
-		ID:                strconv.FormatInt(resp.OrderNumber, 10),
-		Price:             action.Price,
-		Amount:            action.Amount,
-		PostOnly:          action.PostOnly,
-		ImmediateOrCancel: action.ImmediateOrCancel,
-	}, nil
+	modResp, err := action.DeriveModifyResponse()
+	if err != nil {
+		return nil, err
+	}
+	modResp.OrderID = strconv.FormatInt(resp.OrderNumber, 10)
+	return modResp, nil
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -605,7 +597,7 @@ func (p *Poloniex) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -859,7 +851,7 @@ func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 			}
 
 			orders = append(orders, order.Detail{
-				ID:       strconv.FormatInt(resp.Data[key][i].OrderNumber, 10),
+				OrderID:  strconv.FormatInt(resp.Data[key][i].OrderNumber, 10),
 				Side:     orderSide,
 				Amount:   resp.Data[key][i].Amount,
 				Date:     orderDate,
@@ -925,7 +917,7 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 			}
 
 			detail := order.Detail{
-				ID:                   strconv.FormatInt(resp.Data[key][i].GlobalTradeID, 10),
+				OrderID:              strconv.FormatInt(resp.Data[key][i].GlobalTradeID, 10),
 				Side:                 orderSide,
 				Amount:               resp.Data[key][i].Amount,
 				ExecutedAmount:       resp.Data[key][i].Amount,

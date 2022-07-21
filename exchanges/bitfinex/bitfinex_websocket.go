@@ -1292,7 +1292,7 @@ func (b *Bitfinex) wsHandleOrder(data []interface{}) {
 	od.Exchange = b.Name
 	if data[0] != nil {
 		if id, ok := data[0].(float64); ok {
-			od.ID = strconv.FormatFloat(id, 'f', -1, 64)
+			od.OrderID = strconv.FormatFloat(id, 'f', -1, 64)
 		}
 	}
 	if data[16] != nil {
@@ -1340,7 +1340,7 @@ func (b *Bitfinex) wsHandleOrder(data []interface{}) {
 			if err != nil {
 				b.Websocket.DataHandler <- order.ClassificationError{
 					Exchange: b.Name,
-					OrderID:  od.ID,
+					OrderID:  od.OrderID,
 					Err:      err,
 				}
 			}
@@ -1353,7 +1353,7 @@ func (b *Bitfinex) wsHandleOrder(data []interface{}) {
 			if err != nil {
 				b.Websocket.DataHandler <- order.ClassificationError{
 					Exchange: b.Name,
-					OrderID:  od.ID,
+					OrderID:  od.OrderID,
 					Err:      err,
 				}
 			}

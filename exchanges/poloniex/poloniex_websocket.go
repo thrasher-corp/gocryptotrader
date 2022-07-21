@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -542,7 +541,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 
 // Subscribe sends a websocket message to receive data from the channel
 func (p *Poloniex) Subscribe(sub []stream.ChannelSubscription) error {
-	var creds *exchange.Credentials
+	var creds *account.Credentials
 	if p.IsWebsocketAuthenticationSupported() {
 		var err error
 		creds, err = p.GetCredentials(context.TODO())
@@ -589,7 +588,7 @@ channels:
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (p *Poloniex) Unsubscribe(unsub []stream.ChannelSubscription) error {
-	var creds *exchange.Credentials
+	var creds *account.Credentials
 	if p.IsWebsocketAuthenticationSupported() {
 		var err error
 		creds, err = p.GetCredentials(context.TODO())
@@ -753,7 +752,7 @@ func (p *Poloniex) processAccountPendingOrder(notification []interface{}) error 
 
 	p.Websocket.DataHandler <- &order.Detail{
 		Exchange:        p.Name,
-		ID:              strconv.FormatFloat(orderID, 'f', -1, 64),
+		OrderID:         strconv.FormatFloat(orderID, 'f', -1, 64),
 		Pair:            pair,
 		AssetType:       asset.Spot,
 		Side:            orderSide,
@@ -822,12 +821,12 @@ func (p *Poloniex) processAccountOrderUpdate(notification []interface{}) error {
 	// null returned so ok check is not needed
 	clientOrderID, _ := notification[4].(string)
 
-	p.Websocket.DataHandler <- &order.Modify{
+	p.Websocket.DataHandler <- &order.Detail{
 		Exchange:        p.Name,
 		RemainingAmount: cancelledAmount,
 		Amount:          amount + cancelledAmount,
 		ExecutedAmount:  amount,
-		ID:              strconv.FormatFloat(orderID, 'f', -1, 64),
+		OrderID:         strconv.FormatFloat(orderID, 'f', -1, 64),
 		Type:            order.Limit,
 		Status:          oStatus,
 		AssetType:       asset.Spot,
@@ -915,7 +914,7 @@ func (p *Poloniex) processAccountOrderLimit(notification []interface{}) error {
 		RemainingAmount: orderAmount,
 		ExecutedAmount:  origOrderAmount - orderAmount,
 		Amount:          origOrderAmount,
-		ID:              strconv.FormatFloat(orderID, 'f', -1, 64),
+		OrderID:         strconv.FormatFloat(orderID, 'f', -1, 64),
 		Type:            order.Limit,
 		Side:            orderSide,
 		Status:          order.New,
@@ -1048,9 +1047,9 @@ func (p *Poloniex) processAccountTrades(notification []interface{}) error {
 		return err
 	}
 
-	p.Websocket.DataHandler <- &order.Modify{
+	p.Websocket.DataHandler <- &order.Detail{
 		Exchange: p.Name,
-		ID:       strconv.FormatFloat(orderID, 'f', -1, 64),
+		OrderID:  strconv.FormatFloat(orderID, 'f', -1, 64),
 		Fee:      totalFee,
 		Trades: []order.TradeHistory{{
 			Price:     rate,
@@ -1080,9 +1079,9 @@ func (p *Poloniex) processAccountKilledOrder(notification []interface{}) error {
 	// null returned so ok check is not needed
 	clientOrderID, _ := notification[2].(string)
 
-	p.Websocket.DataHandler <- &order.Modify{
+	p.Websocket.DataHandler <- &order.Detail{
 		Exchange:      p.Name,
-		ID:            strconv.FormatFloat(orderID, 'f', -1, 64),
+		OrderID:       strconv.FormatFloat(orderID, 'f', -1, 64),
 		Status:        order.Cancelled,
 		AssetType:     asset.Spot,
 		ClientOrderID: clientOrderID,

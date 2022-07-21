@@ -416,6 +416,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var orderSubmission = &order.Submit{
+		Exchange: b.Name,
 		Pair: currency.Pair{
 			Base:  currency.BTC,
 			Quote: currency.LTC,
@@ -428,7 +429,7 @@ func TestSubmitOrder(t *testing.T) {
 		AssetType: asset.Spot,
 	}
 	response, err := b.SubmitOrder(context.Background(), orderSubmission)
-	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
+	if areTestAPIKeysSet() && (err != nil || response.Status != order.New) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
@@ -443,7 +444,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
-		ID:            "1",
+		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
@@ -467,7 +468,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
-		ID:            "1",
+		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
@@ -510,7 +511,7 @@ func TestModifyOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = b.ModifyOrder(context.Background(), &order.Modify{
-		ID:        "1337",
+		OrderID:   "1337",
 		Price:     100,
 		Amount:    1000,
 		Side:      order.Sell,

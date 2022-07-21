@@ -22,21 +22,22 @@ func (d *DataFromKline) HasDataAtTime(t time.Time) bool {
 
 // Load sets the candle data to the stream for processing
 func (d *DataFromKline) Load() error {
-	d.addedTimes = make(map[time.Time]bool)
+	d.addedTimes = make(map[int64]bool)
 	if len(d.Item.Candles) == 0 {
 		return errNoCandleData
 	}
 
 	klineData := make([]common.DataEventHandler, len(d.Item.Candles))
 	for i := range d.Item.Candles {
-		klineData[i] = &kline.Kline{
-			Base: event.Base{
-				Offset:       int64(i + 1),
-				Exchange:     d.Item.Exchange,
-				Time:         d.Item.Candles[i].Time,
-				Interval:     d.Item.Interval,
-				CurrencyPair: d.Item.Pair,
-				AssetType:    d.Item.Asset,
+		newKline := &kline.Kline{
+			Base: &event.Base{
+				Offset:         int64(i + 1),
+				Exchange:       d.Item.Exchange,
+				Time:           d.Item.Candles[i].Time.UTC(),
+				Interval:       d.Item.Interval,
+				CurrencyPair:   d.Item.Pair,
+				AssetType:      d.Item.Asset,
+				UnderlyingPair: d.Item.UnderlyingPair,
 			},
 			Open:             decimal.NewFromFloat(d.Item.Candles[i].Open),
 			High:             decimal.NewFromFloat(d.Item.Candles[i].High),
@@ -45,7 +46,8 @@ func (d *DataFromKline) Load() error {
 			Volume:           decimal.NewFromFloat(d.Item.Candles[i].Volume),
 			ValidationIssues: d.Item.Candles[i].ValidationIssues,
 		}
-		d.addedTimes[d.Item.Candles[i].Time] = true
+		klineData[i] = newKline
+		d.addedTimes[d.Item.Candles[i].Time.UTC().UnixNano()] = true
 	}
 
 	d.SetStream(klineData)
@@ -56,14 +58,14 @@ func (d *DataFromKline) Load() error {
 // AppendResults adds a candle item to the data stream and sorts it to ensure it is all in order
 func (d *DataFromKline) AppendResults(ki *gctkline.Item) {
 	if d.addedTimes == nil {
-		d.addedTimes = make(map[time.Time]bool)
+		d.addedTimes = make(map[int64]bool)
 	}
 
 	var gctCandles []gctkline.Candle
 	for i := range ki.Candles {
-		if _, ok := d.addedTimes[ki.Candles[i].Time]; !ok {
+		if _, ok := d.addedTimes[ki.Candles[i].Time.UnixNano()]; !ok {
 			gctCandles = append(gctCandles, ki.Candles[i])
-			d.addedTimes[ki.Candles[i].Time] = true
+			d.addedTimes[ki.Candles[i].Time.UnixNano()] = true
 		}
 	}
 
@@ -71,7 +73,7 @@ func (d *DataFromKline) AppendResults(ki *gctkline.Item) {
 	candleTimes := make([]time.Time, len(gctCandles))
 	for i := range gctCandles {
 		klineData[i] = &kline.Kline{
-			Base: event.Base{
+			Base: &event.Base{
 				Offset:       int64(i + 1),
 				Exchange:     ki.Exchange,
 				Time:         gctCandles[i].Time,
@@ -93,7 +95,7 @@ func (d *DataFromKline) AppendResults(ki *gctkline.Item) {
 			d.RangeHolder.Ranges[i].Intervals[j].HasData = true
 		}
 	}
-	log.Debugf(log.BackTester, "appending %v candle intervals: %v", len(gctCandles), candleTimes)
+	log.Debugf(common.Data, "appending %v candle intervals: %v", len(gctCandles), candleTimes)
 	d.AppendStream(klineData...)
 	d.SortStream()
 }
@@ -108,7 +110,7 @@ func (d *DataFromKline) StreamOpen() []decimal.Decimal {
 		if val, ok := s[x].(*kline.Kline); ok {
 			ret[x] = val.Open
 		} else {
-			log.Errorf(log.BackTester, "incorrect data loaded into stream")
+			log.Errorf(common.Data, "incorrect data loaded into stream")
 		}
 	}
 	return ret
@@ -124,7 +126,7 @@ func (d *DataFromKline) StreamHigh() []decimal.Decimal {
 		if val, ok := s[x].(*kline.Kline); ok {
 			ret[x] = val.High
 		} else {
-			log.Errorf(log.BackTester, "incorrect data loaded into stream")
+			log.Errorf(common.Data, "incorrect data loaded into stream")
 		}
 	}
 	return ret
@@ -140,7 +142,7 @@ func (d *DataFromKline) StreamLow() []decimal.Decimal {
 		if val, ok := s[x].(*kline.Kline); ok {
 			ret[x] = val.Low
 		} else {
-			log.Errorf(log.BackTester, "incorrect data loaded into stream")
+			log.Errorf(common.Data, "incorrect data loaded into stream")
 		}
 	}
 	return ret
@@ -156,7 +158,7 @@ func (d *DataFromKline) StreamClose() []decimal.Decimal {
 		if val, ok := s[x].(*kline.Kline); ok {
 			ret[x] = val.Close
 		} else {
-			log.Errorf(log.BackTester, "incorrect data loaded into stream")
+			log.Errorf(common.Data, "incorrect data loaded into stream")
 		}
 	}
 	return ret
@@ -172,7 +174,7 @@ func (d *DataFromKline) StreamVol() []decimal.Decimal {
 		if val, ok := s[x].(*kline.Kline); ok {
 			ret[x] = val.Volume
 		} else {
-			log.Errorf(log.BackTester, "incorrect data loaded into stream")
+			log.Errorf(common.Data, "incorrect data loaded into stream")
 		}
 	}
 	return ret

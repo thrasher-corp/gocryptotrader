@@ -155,7 +155,7 @@ type DataHistoryJob struct {
 	MaxRetryAttempts         int64
 	Status                   dataHistoryStatus
 	CreatedDate              time.Time
-	Results                  map[time.Time][]DataHistoryJobResult
+	Results                  map[int64][]DataHistoryJobResult
 	rangeHolder              *kline.IntervalRangeHolder
 	OverwriteExistingData    bool
 	ConversionInterval       kline.Interval

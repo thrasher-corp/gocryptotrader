@@ -346,7 +346,11 @@ func (c *CoinbasePro) UpdateAccountInfo(ctx context.Context, assetType asset.Ite
 		return account.Holdings{}, err
 	}
 
-	err = account.Process(&response)
+	creds, err := c.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&response, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -356,11 +360,14 @@ func (c *CoinbasePro) UpdateAccountInfo(ctx context.Context, assetType asset.Ite
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (c *CoinbasePro) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(c.Name, assetType)
+	creds, err := c.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(c.Name, creds, assetType)
 	if err != nil {
 		return c.UpdateAccountInfo(ctx, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -526,21 +533,20 @@ func (c *CoinbasePro) GetHistoricTrades(_ context.Context, _ currency.Pair, _ as
 }
 
 // SubmitOrder submits a new order
-func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	fpair, err := c.FormatExchangeCurrency(s.Pair, asset.Spot)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
-	var response string
+	var orderID string
 	switch s.Type {
 	case order.Market:
-		response, err = c.PlaceMarketOrder(ctx,
+		orderID, err = c.PlaceMarketOrder(ctx,
 			"",
 			s.Amount,
 			s.Amount,
@@ -548,7 +554,7 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (order.S
 			fpair.String(),
 			"")
 	case order.Limit:
-		response, err = c.PlaceLimitOrder(ctx,
+		orderID, err = c.PlaceLimitOrder(ctx,
 			"",
 			s.Price,
 			s.Amount,
@@ -562,23 +568,14 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (order.S
 		err = errors.New("order type not supported")
 	}
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
-	if s.Type == order.Market {
-		submitOrderResponse.FullyMatched = true
-	}
-	if response != "" {
-		submitOrderResponse.OrderID = response
-	}
-
-	submitOrderResponse.IsOrderPlaced = true
-
-	return submitOrderResponse, nil
+	return s.DeriveSubmitResponse(orderID)
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (c *CoinbasePro) ModifyOrder(_ context.Context, _ *order.Modify) (*order.Modify, error) {
+func (c *CoinbasePro) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -587,7 +584,7 @@ func (c *CoinbasePro) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
-	return c.CancelExistingOrder(ctx, o.ID)
+	return c.CancelExistingOrder(ctx, o.OrderID)
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
@@ -627,7 +624,7 @@ func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, pair cur
 
 	response := order.Detail{
 		Exchange:        c.GetName(),
-		ID:              genOrderDetail.ID,
+		OrderID:         genOrderDetail.ID,
 		Pair:            p,
 		Side:            ss,
 		Type:            tt,
@@ -793,7 +790,7 @@ func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.GetOrdersR
 			log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
 		}
 		orders[i] = order.Detail{
-			ID:             respOrders[i].ID,
+			OrderID:        respOrders[i].ID,
 			Amount:         respOrders[i].Size,
 			ExecutedAmount: respOrders[i].FilledSize,
 			Type:           orderType,
@@ -873,7 +870,7 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersR
 			log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
 		}
 		detail := order.Detail{
-			ID:              respOrders[i].ID,
+			OrderID:         respOrders[i].ID,
 			Amount:          respOrders[i].Size,
 			ExecutedAmount:  respOrders[i].FilledSize,
 			RemainingAmount: respOrders[i].Size - respOrders[i].FilledSize,

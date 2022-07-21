@@ -10,7 +10,6 @@ var (
 	SubLoggers = map[string]*SubLogger{}
 
 	Global           *SubLogger
-	BackTester       *SubLogger
 	ConnectionMgr    *SubLogger
 	CommunicationMgr *SubLogger
 	APIServerMgr     *SubLogger

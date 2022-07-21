@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -250,6 +251,15 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 				err)
 		}
 	}
+
+	if b.Settings.AlertSystemPreAllocationCommsBuffer != alert.PreAllocCommsDefaultBuffer {
+		err = alert.SetPreAllocationCommsBuffer(b.Settings.AlertSystemPreAllocationCommsBuffer)
+		if err != nil {
+			gctlog.Errorf(gctlog.Global, "Could not set alert pre-allocation comms buffer to %v: %v",
+				b.Settings.AlertSystemPreAllocationCommsBuffer,
+				err)
+		}
+	}
 }
 
 // PrintSettings returns the engine settings
@@ -283,6 +293,7 @@ func PrintSettings(s *Settings) {
 	gctlog.Debugf(gctlog.Global, "\t Enable dispatcher: %v", s.EnableDispatcher)
 	gctlog.Debugf(gctlog.Global, "\t Dispatch package max worker amount: %d", s.DispatchMaxWorkerAmount)
 	gctlog.Debugf(gctlog.Global, "\t Dispatch package jobs limit: %d", s.DispatchJobsLimit)
+	gctlog.Debugf(gctlog.Global, "\t Futures PNL tracking: %v", s.EnableFuturesTracking)
 	gctlog.Debugf(gctlog.Global, "- EXCHANGE SYNCER SETTINGS:\n")
 	gctlog.Debugf(gctlog.Global, "\t Exchange sync continuously: %v\n", s.SyncContinuously)
 	gctlog.Debugf(gctlog.Global, "\t Exchange sync workers count: %v\n", s.SyncWorkersCount)
@@ -308,6 +319,7 @@ func PrintSettings(s *Settings) {
 	gctlog.Debugf(gctlog.Global, "\t Max HTTP request jobs: %v", s.MaxHTTPRequestJobsLimit)
 	gctlog.Debugf(gctlog.Global, "\t HTTP request max retry attempts: %v", s.RequestMaxRetryAttempts)
 	gctlog.Debugf(gctlog.Global, "\t Trade buffer processing interval: %v", s.TradeBufferProcessingInterval)
+	gctlog.Debugf(gctlog.Global, "\t Alert communications channel pre-allocation buffer size: %v", s.AlertSystemPreAllocationCommsBuffer)
 	gctlog.Debugf(gctlog.Global, "\t HTTP timeout: %v", s.HTTPTimeout)
 	gctlog.Debugf(gctlog.Global, "\t HTTP user agent: %v", s.HTTPUserAgent)
 	gctlog.Debugf(gctlog.Global, "- GCTSCRIPT SETTINGS: ")
@@ -513,6 +525,7 @@ func (bot *Engine) Start() error {
 			bot.ExchangeManager,
 			bot.CommunicationsManager,
 			&bot.ServicesWG,
+			bot.Settings.EnableFuturesTracking,
 			bot.Settings.Verbose)
 		if err != nil {
 			gctlog.Errorf(gctlog.Global, "Order manager unable to setup: %s", err)

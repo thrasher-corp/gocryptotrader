@@ -320,11 +320,14 @@ func (b *Bitflyer) UpdateAccountInfo(_ context.Context, _ asset.Item) (account.H
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (b *Bitflyer) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(b.Name, assetType)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(b.Name, creds, assetType)
 	if err != nil {
 		return b.UpdateAccountInfo(ctx, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -389,13 +392,13 @@ func (b *Bitflyer) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset
 }
 
 // SubmitOrder submits a new order
-func (b *Bitflyer) SubmitOrder(_ context.Context, _ *order.Submit) (order.SubmitResponse, error) {
-	return order.SubmitResponse{}, common.ErrNotYetImplemented
+func (b *Bitflyer) SubmitOrder(_ context.Context, _ *order.Submit) (*order.SubmitResponse, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bitflyer) ModifyOrder(_ context.Context, _ *order.Modify) (*order.Modify, error) {
+func (b *Bitflyer) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

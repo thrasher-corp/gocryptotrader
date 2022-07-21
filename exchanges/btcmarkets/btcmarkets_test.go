@@ -217,6 +217,7 @@ func TestGetTradeByID(t *testing.T) {
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	_, err := b.SubmitOrder(context.Background(), &order.Submit{
+		Exchange:  b.Name,
 		Price:     100,
 		Amount:    1,
 		Type:      order.TrailingStop,
@@ -229,6 +230,7 @@ func TestSubmitOrder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrTypeIsInvalid)
 	}
 	_, err = b.SubmitOrder(context.Background(), &order.Submit{
+		Exchange:  b.Name,
 		Price:     100,
 		Amount:    1,
 		Type:      order.Limit,
@@ -245,6 +247,7 @@ func TestSubmitOrder(t *testing.T) {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 	_, err = b.SubmitOrder(context.Background(), &order.Submit{
+		Exchange:  b.Name,
 		Price:     100,
 		Amount:    1,
 		Type:      order.Limit,
@@ -1083,7 +1086,7 @@ func TestWrapperModifyOrder(t *testing.T) {
 		AssetType:     asset.Spot,
 		Price:         100000,
 		Amount:        0.001,
-		ID:            "8207123461",
+		OrderID:       "8207123461",
 		ClientOrderID: "bruh3",
 	})
 	if !errors.Is(err, nil) {
@@ -1112,7 +1115,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	if lim == nil {
+	if lim == (order.MinMaxLevel{}) {
 		t.Fatal("expected value return")
 	}
 }

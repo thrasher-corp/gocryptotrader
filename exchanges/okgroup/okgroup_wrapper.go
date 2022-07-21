@@ -216,7 +216,11 @@ func (o *OKGroup) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 
 	resp.Accounts = append(resp.Accounts, currencyAccount)
 
-	err = account.Process(&resp)
+	creds, err := o.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&resp, creds)
 	if err != nil {
 		return resp, err
 	}
@@ -226,11 +230,14 @@ func (o *OKGroup) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (o *OKGroup) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(o.Name, assetType)
+	creds, err := o.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(o.Name, creds, assetType)
 	if err != nil {
 		return o.UpdateAccountInfo(ctx, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -278,14 +285,14 @@ func (o *OKGroup) GetFundingHistory(ctx context.Context) (resp []exchange.FundHi
 }
 
 // SubmitOrder submits a new order
-func (o *OKGroup) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
+func (o *OKGroup) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return order.SubmitResponse{}, err
+		return nil, err
 	}
 
 	fpair, err := o.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return order.SubmitResponse{}, err
+		return nil, err
 	}
 
 	request := PlaceOrderRequest{
@@ -301,22 +308,18 @@ func (o *OKGroup) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 
 	orderResponse, err := o.PlaceSpotOrder(ctx, &request)
 	if err != nil {
-		return order.SubmitResponse{}, err
+		return nil, err
 	}
 
-	var resp order.SubmitResponse
-	resp.IsOrderPlaced = orderResponse.Result
-	resp.OrderID = orderResponse.OrderID
-	if s.Type == order.Market {
-		resp.FullyMatched = true
+	if !orderResponse.Result {
+		return nil, order.ErrUnableToPlaceOrder
 	}
-
-	return resp, nil
+	return s.DeriveSubmitResponse(orderResponse.OrderID)
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (o *OKGroup) ModifyOrder(_ context.Context, _ *order.Modify) (*order.Modify, error) {
+func (o *OKGroup) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -327,7 +330,7 @@ func (o *OKGroup) CancelOrder(ctx context.Context, cancel *order.Cancel) (err er
 		return
 	}
 
-	orderID, err := strconv.ParseInt(cancel.ID, 10, 64)
+	orderID, err := strconv.ParseInt(cancel.OrderID, 10, 64)
 	if err != nil {
 		return
 	}
@@ -358,7 +361,7 @@ func (o *OKGroup) CancelAllOrders(ctx context.Context, orderCancellation *order.
 		return order.CancelAllResponse{}, err
 	}
 
-	orderIDs := strings.Split(orderCancellation.ID, ",")
+	orderIDs := strings.Split(orderCancellation.OrderID, ",")
 	resp := order.CancelAllResponse{}
 	resp.Status = make(map[string]string)
 	orderIDNumbers := make([]int64, 0, len(orderIDs))
@@ -539,7 +542,7 @@ func (o *OKGroup) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 				log.Errorf(log.ExchangeSys, "%s %v", o.Name, err)
 			}
 			resp = append(resp, order.Detail{
-				ID:             spotOpenOrders[i].OrderID,
+				OrderID:        spotOpenOrders[i].OrderID,
 				Price:          spotOpenOrders[i].Price,
 				Amount:         spotOpenOrders[i].Size,
 				Pair:           req.Pairs[x],
@@ -595,7 +598,7 @@ func (o *OKGroup) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 				log.Errorf(log.ExchangeSys, "%s %v", o.Name, err)
 			}
 			detail := order.Detail{
-				ID:                   spotOrders[i].OrderID,
+				OrderID:              spotOrders[i].OrderID,
 				Price:                spotOrders[i].Price,
 				AverageExecutedPrice: spotOrders[i].PriceAvg,
 				Amount:               spotOrders[i].Size,

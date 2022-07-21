@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -52,7 +53,6 @@ type IBotExchange interface {
 	GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, accountID, chain string) (*deposit.Address, error)
 	GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error)
 	GetWithdrawalsHistory(ctx context.Context, code currency.Code) ([]WithdrawalHistory, error)
-
 	WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
 	WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
 	WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
@@ -67,6 +67,7 @@ type IBotExchange interface {
 	EnableRateLimiter() error
 	GetServerTime(ctx context.Context, ai asset.Item) (time.Time, error)
 	CurrencyStateManagement
+	GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error)
 
 	order.PNLCalculation
 	order.CollateralManagement
@@ -79,12 +80,12 @@ type IBotExchange interface {
 	FlushWebsocketChannels() error
 	AuthenticateWebsocket(ctx context.Context) error
 
-	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (*order.Limits, error)
+	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (order.MinMaxLevel, error)
 	CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
 
 	AccountManagement
-	GetCredentials(ctx context.Context) (*Credentials, error)
+	GetCredentials(ctx context.Context) (*account.Credentials, error)
 	ValidateCredentials(ctx context.Context, a asset.Item) error
 
 	FunctionalityChecker
@@ -92,8 +93,8 @@ type IBotExchange interface {
 
 // OrderManagement defines functionality for order management
 type OrderManagement interface {
-	SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error)
-	ModifyOrder(ctx context.Context, action *order.Modify) (*order.Modify, error)
+	SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error)
+	ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error)
 	CancelOrder(ctx context.Context, o *order.Cancel) error
 	CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error)
 	CancelAllOrders(ctx context.Context, orders *order.Cancel) (order.CancelAllResponse, error)

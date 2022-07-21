@@ -14,7 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -190,7 +190,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 				RemainingAmount: wsOrder.RemainingSize,
 				Fee:             wsOrder.TakerFeeRate,
 				Exchange:        c.Name,
-				ID:              wsOrder.OrderID,
+				OrderID:         wsOrder.OrderID,
 				AccountID:       wsOrder.ProfileID,
 				ClientID:        creds.ClientID,
 				Type:            oType,
@@ -223,7 +223,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 
 		if wsOrder.UserID != "" {
 			c.Websocket.DataHandler <- &order.Detail{
-				ID:        wsOrder.OrderID,
+				OrderID:   wsOrder.OrderID,
 				Pair:      p,
 				AssetType: a,
 				Trades: []order.TradeHistory{
@@ -401,7 +401,7 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]stream.ChannelSubscripti
 
 // Subscribe sends a websocket message to receive data from the channel
 func (c *CoinbasePro) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	var creds *exchange.Credentials
+	var creds *account.Credentials
 	var err error
 	if c.IsWebsocketAuthenticationSupported() {
 		creds, err = c.GetCredentials(context.TODO())
