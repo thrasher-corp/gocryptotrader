@@ -56,6 +56,9 @@ func loggerWorker() {
 	for {
 		select {
 		case j := <-jobsChannel:
+			if j == nil {
+				return
+			}
 			data := j.fn()
 			buffer = append(buffer, j.Header...)
 			if j.ShowLogSystemName {

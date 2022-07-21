@@ -3,6 +3,8 @@ package log
 import (
 	"errors"
 	"fmt"
+
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 )
 
 var (
@@ -26,6 +28,11 @@ func newLogger(c *Config) Logger {
 
 // CloseLogger is called on shutdown of application
 func CloseLogger() error {
+	RWM.Lock()
+	GlobalLogConfig.Enabled = convert.BoolPtr(false)
+	close(jobsChannel)
+	RWM.Unlock()
+	workerWg.Wait()
 	return GlobalLogFile.Close()
 }
 

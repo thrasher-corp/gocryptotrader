@@ -148,7 +148,6 @@ func main() {
 	go waitForInterupt(settings.Shutdown)
 	<-settings.Shutdown
 	engine.Bot.Stop()
-	gctlog.Infoln(gctlog.Global, "Exiting.")
 }
 
 func waitForInterupt(waiter chan<- struct{}) {
