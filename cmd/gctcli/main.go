@@ -207,12 +207,9 @@ func main() {
 		getFuturesPositionsCommand,
 		getCollateralCommand,
 		shutdownCommand,
-<<<<<<< HEAD
-		orderbookCommand,
-=======
 		technicalAnalysisCommand,
 		getMarginRatesHistoryCommand,
->>>>>>> master
+		orderbookCommand,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
