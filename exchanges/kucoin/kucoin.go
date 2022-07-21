@@ -1039,7 +1039,7 @@ func (k *Kucoin) PostMarginOrder(ctx context.Context, clientOID, side, symbol, o
 
 // PostBulkOrder used to place 5 orders at the same time. The order type must be a limit order of the same symbol
 // Note: it supports only SPOT trades
-func (k *Kucoin) PostBulkOrder(ctx context.Context, orderList OrderRequest) (string, error) {
+func (k *Kucoin) PostBulkOrder(ctx context.Context, orderList []OrderRequest) (string, error) {
 	resp := struct {
 		OrderID string `json:"orderId"`
 		Error
