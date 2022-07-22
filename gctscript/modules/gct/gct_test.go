@@ -9,6 +9,7 @@ import (
 
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
@@ -358,8 +359,8 @@ func TestSetVerbose(t *testing.T) {
 		t.Fatal("should be of type *Context")
 	}
 
-	_, ok = ctx.Value["verbose"]
-	if !ok {
+	val := ctx.Value["verbose"]
+	if val.String() != objects.TrueValue.String() {
 		t.Fatal("should contain verbose string in map")
 	}
 }
@@ -418,29 +419,76 @@ func TestSetAccount(t *testing.T) {
 		t.Fatal("should be of type *Context")
 	}
 
-	_, ok = ctx.Value["apikey"]
-	if !ok {
+	val := ctx.Value["apikey"]
+	if val.String() != dummyStr.String() {
 		t.Fatal("should contain apikey string in map")
 	}
-	_, ok = ctx.Value["apisecret"]
-	if !ok {
+	val = ctx.Value["apisecret"]
+	if val.String() != dummyStr.String() {
 		t.Fatal("should contain apisecret string in map")
 	}
-	_, ok = ctx.Value["subaccount"]
-	if !ok {
+	val = ctx.Value["subaccount"]
+	if val.String() != dummyStr.String() {
 		t.Fatal("should contain subaccount string in map")
 	}
-	_, ok = ctx.Value["clientid"]
-	if !ok {
+	val = ctx.Value["clientid"]
+	if val.String() != dummyStr.String() {
 		t.Fatal("should contain clientid string in map")
 	}
-	_, ok = ctx.Value["pemkey"]
-	if !ok {
+	val = ctx.Value["pemkey"]
+	if val.String() != dummyStr.String() {
 		t.Fatal("should contain pemkey string in map")
 	}
-	_, ok = ctx.Value["otp"]
-	if !ok {
+	val = ctx.Value["otp"]
+	if val.String() != dummyStr.String() {
 		t.Fatal("should contain otp string in map")
+	}
+}
+
+func TestSetSubAccount(t *testing.T) {
+	t.Parallel()
+	_, err := setSubAccount()
+	if !errors.Is(err, objects.ErrWrongNumArguments) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, objects.ErrWrongNumArguments)
+	}
+
+	_, err = setSubAccount(objects.TrueValue, objects.TrueValue)
+	if !errors.Is(err, common.ErrTypeAssertFailure) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrTypeAssertFailure)
+	}
+
+	_, err = setSubAccount(&Context{}, objects.TrueValue)
+	if !errors.Is(err, common.ErrTypeAssertFailure) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrTypeAssertFailure)
+	}
+
+	subby, err := setSubAccount(&Context{}, dummyStr)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	ctxWSubAcc, ok := subby.(*Context)
+	if !ok {
+		t.Fatal("unexpected type returned")
+	}
+
+	if ctxWSubAcc.Value["subaccount"].String() != dummyStr.String() {
+		t.Fatalf("received: '%v' but expected: '%v'", ctxWSubAcc.Value["subaccount"].String(), dummyStr.String())
+	}
+
+	// Deploy overide to actual context.Context type
+	ctx := processScriptContext(ctxWSubAcc)
+	if ctx == nil {
+		t.Fatal("should not be nil")
+	}
+
+	subaccount, ok := ctx.Value(account.ContextSubAccountFlag).(string)
+	if !ok {
+		t.Fatal("wrong type")
+	}
+
+	if subaccount != dummyStr.String()[1:5] {
+		t.Fatalf("received: '%v' but expected: '%v'", subaccount, dummyStr.String()[1:5])
 	}
 }
 
@@ -451,17 +499,17 @@ func TestProcessScriptContext(t *testing.T) {
 		t.Fatal("should not be nil")
 	}
 
-	ctx, err := setAccount(&Context{}, dummyStr, dummyStr, dummyStr, dummyStr, dummyStr, dummyStr)
+	fromScript, err := setAccount(&Context{}, dummyStr, dummyStr, dummyStr, dummyStr, dummyStr, dummyStr)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	resp, err = setVerbose(resp)
+	fromScript, err = setVerbose(fromScript)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	scriptCTX, ok := objects.ToInterface(resp).(*Context)
+	scriptCTX, ok := objects.ToInterface(fromScript).(*Context)
 	if !ok {
 		t.Fatal("should assert correctly")
 	}

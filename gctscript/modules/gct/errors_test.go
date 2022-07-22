@@ -1,11 +1,22 @@
 package gct
 
 import (
+	"errors"
 	"testing"
 )
 
 func TestErrorResponse(t *testing.T) {
-	errResp, err := errorResponse("error %s", "hello")
+	_, err := errorResponsef("")
+	if !errors.Is(err, errFormatStringIsEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errFormatStringIsEmpty)
+	}
+
+	_, err = errorResponsef("--")
+	if !errors.Is(err, errNoArguments) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNoArguments)
+	}
+
+	errResp, err := errorResponsef("error %s", "hello")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -13,6 +13,9 @@ load := func() {
     ctx = global.set_verbose(ctx)
 
     // Any verbose logs will be output according to logger settings defined in the config
+    // NOTE: Get account info is cached and updated by another worker thread 
+    // therefore calling this script multiple times, if data has already been 
+    // fetched request verbosity will be limited. 
     info := exch.accountinfo(ctx, "ftx", "spot")
     if is_error(info) {
         // handle error 

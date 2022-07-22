@@ -12,8 +12,13 @@ load := func() {
     // different subaccounts while trading or retrieving fund details. 
     // Basic required implementation below:
     ctx = global.set_account(ctx, "api_key_str", "api_secret_str")
+
     // Full implementation:
     // ctx = global.set_account(ctx, "api_key_str", "api_secret_str", "sub_account_str", "client_Id_str", "PEM_key_str", "OTP_Str")
+
+    // Set sub account func allows the setting of just the individual sub 
+    // account details while utilizing the configured config.json apikeys. 
+    // ctx = global.set_sub_account(ctx, "sub_account_str")
 
     info := exch.accountinfo(ctx, "ftx", "spot")
     if is_error(info) {

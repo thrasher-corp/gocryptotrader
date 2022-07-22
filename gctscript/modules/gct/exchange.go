@@ -59,18 +59,18 @@ func ExchangeOrderbook(args ...objects.Object) (objects.Object, error) {
 
 	pair, err := currency.NewPairDelimiter(currencyPair, delimiter)
 	if err != nil {
-		return errorResponse("%s", err)
+		return errorResponsef(standardFormatting, err)
 	}
 
 	assetType, err := asset.New(assetTypeParam)
 	if err != nil {
-		return errorResponse("%s", err)
+		return errorResponsef(standardFormatting, err)
 	}
 
 	ctx := processScriptContext(scriptCtx)
 	ob, err := wrappers.GetWrapper().Orderbook(ctx, exchangeName, pair, assetType)
 	if err != nil {
-		return errorResponse("%s", err)
+		return errorResponsef(standardFormatting, err)
 	}
 
 	asks := objects.Array{Value: make([]objects.Object, len(ob.Asks))}
@@ -134,13 +134,13 @@ func ExchangeTicker(args ...objects.Object) (objects.Object, error) {
 
 	assetType, err := asset.New(assetTypeParam)
 	if err != nil {
-		return errorResponse("%s", err)
+		return errorResponsef(standardFormatting, err)
 	}
 
 	ctx := processScriptContext(scriptCtx)
 	tx, err := wrappers.GetWrapper().Ticker(ctx, exchangeName, pair, assetType)
 	if err != nil {
-		return errorResponse("%s", err)
+		return errorResponsef(standardFormatting, err)
 	}
 
 	data := make(map[string]objects.Object, 14)
@@ -206,12 +206,12 @@ func ExchangePairs(args ...objects.Object) (objects.Object, error) {
 	}
 	assetType, err := asset.New(assetTypeParam)
 	if err != nil {
-		return errorResponse("%s", err)
+		return errorResponsef(standardFormatting, err)
 	}
 
 	pairs, err := wrappers.GetWrapper().Pairs(exchangeName, enabledOnly, assetType)
 	if err != nil {
-		return errorResponse("%s", err)
+		return errorResponsef(standardFormatting, err)
 	}
 
 	r := objects.Array{
@@ -244,14 +244,14 @@ func ExchangeAccountInfo(args ...objects.Object) (objects.Object, error) {
 	}
 	assetType, err := asset.New(assetString)
 	if err != nil {
-		return errorResponse("%s", err)
+		return errorResponsef(standardFormatting, err)
 	}
 
 	ctx := processScriptContext(scriptCtx)
 	rtnValue, err := wrappers.GetWrapper().
 		AccountInformation(ctx, exchangeName, assetType)
 	if err != nil {
-		return errorResponse("%s", err)
+		return errorResponsef(standardFormatting, err)
 	}
 
 	var funds objects.Array
@@ -315,14 +315,14 @@ func ExchangeOrderQuery(args ...objects.Object) (objects.Object, error) {
 
 	assetType, err := asset.New(assetTypeString)
 	if err != nil {
-		return errorResponse("%s", err)
+		return errorResponsef(standardFormatting, err)
 	}
 
 	ctx := processScriptContext(scriptCtx)
 	orderDetails, err := wrappers.GetWrapper().
 		QueryOrder(ctx, exchangeName, orderID, pair, assetType)
 	if err != nil {
-		return errorResponse("%s", err)
+		return errorResponsef(standardFormatting, err)
 	}
 
 	var tradeHistory objects.Array
@@ -393,7 +393,7 @@ func ExchangeOrderCancel(args ...objects.Object) (objects.Object, error) {
 		}
 		cp, err = currency.NewPairFromString(currencyPair)
 		if err != nil {
-			return errorResponse("%s", err)
+			return errorResponsef(standardFormatting, err)
 		}
 	}
 	var a asset.Item
@@ -405,7 +405,7 @@ func ExchangeOrderCancel(args ...objects.Object) (objects.Object, error) {
 		}
 		a, err = asset.New(assetType)
 		if err != nil {
-			return errorResponse("%s", err)
+			return errorResponsef(standardFormatting, err)
 		}
 	}
 
@@ -413,7 +413,7 @@ func ExchangeOrderCancel(args ...objects.Object) (objects.Object, error) {
 	isCancelled, err := wrappers.GetWrapper().
 		CancelOrder(ctx, exchangeName, orderID, cp, a)
 	if err != nil {
-		return errorResponse("%s", err)
+		return errorResponsef(standardFormatting, err)
 	}
 
 	if isCancelled {
@@ -471,22 +471,22 @@ func ExchangeOrderSubmit(args ...objects.Object) (objects.Object, error) {
 
 	pair, err := currency.NewPairDelimiter(currencyPair, delimiter)
 	if err != nil {
-		return errorResponse("%s", err)
+		return errorResponsef(standardFormatting, err)
 	}
 
 	a, err := asset.New(assetType)
 	if err != nil {
-		return errorResponse("%s", err)
+		return errorResponsef(standardFormatting, err)
 	}
 
 	side, err := order.StringToOrderSide(orderSide)
 	if err != nil {
-		return errorResponse("%s", err)
+		return errorResponsef(standardFormatting, err)
 	}
 
 	oType, err := order.StringToOrderType(orderType)
 	if err != nil {
-		return errorResponse("%s", err)
+		return errorResponsef(standardFormatting, err)
 	}
 
 	tempSubmit := &order.Submit{
@@ -503,7 +503,7 @@ func ExchangeOrderSubmit(args ...objects.Object) (objects.Object, error) {
 	ctx := processScriptContext(scriptCtx)
 	rtn, err := wrappers.GetWrapper().SubmitOrder(ctx, tempSubmit)
 	if err != nil {
-		return errorResponse("%s", err)
+		return errorResponsef(standardFormatting, err)
 	}
 
 	data := make(map[string]objects.Object, 2)
@@ -536,7 +536,7 @@ func ExchangeDepositAddress(args ...objects.Object) (objects.Object, error) {
 
 	rtn, err := wrappers.GetWrapper().DepositAddress(exchangeName, chain, currCode)
 	if err != nil {
-		return errorResponse("%s", err)
+		return errorResponsef(standardFormatting, err)
 	}
 
 	data := make(map[string]objects.Object, 2)
@@ -599,7 +599,7 @@ func ExchangeWithdrawCrypto(args ...objects.Object) (objects.Object, error) {
 	ctx := processScriptContext(scriptCtx)
 	rtn, err := wrappers.GetWrapper().WithdrawalCryptoFunds(ctx, withdrawRequest)
 	if err != nil {
-		return errorResponse("%s", err)
+		return errorResponsef(standardFormatting, err)
 	}
 
 	return &objects.String{Value: rtn}, nil
@@ -647,7 +647,7 @@ func ExchangeWithdrawFiat(args ...objects.Object) (objects.Object, error) {
 	rtn, err := wrappers.GetWrapper().
 		WithdrawalFiatFunds(ctx, bankAccountID, withdrawRequest)
 	if err != nil {
-		return errorResponse("%s", err)
+		return errorResponsef(standardFormatting, err)
 	}
 
 	return &objects.String{Value: rtn}, nil
@@ -705,15 +705,15 @@ func exchangeOHLCV(args ...objects.Object) (objects.Object, error) {
 	}
 	interval, err := parseInterval(intervalStr)
 	if err != nil {
-		return errorResponse("%s", err)
+		return errorResponsef(standardFormatting, err)
 	}
 	pair, err := currency.NewPairDelimiter(currencyPair, delimiter)
 	if err != nil {
-		return errorResponse("%s", err)
+		return errorResponsef(standardFormatting, err)
 	}
 	assetType, err := asset.New(assetTypeParam)
 	if err != nil {
-		return errorResponse("%s", err)
+		return errorResponsef(standardFormatting, err)
 	}
 
 	ctx := processScriptContext(scriptCtx)
@@ -726,7 +726,7 @@ func exchangeOHLCV(args ...objects.Object) (objects.Object, error) {
 			endTime,
 			kline.Interval(interval))
 	if err != nil {
-		return errorResponse("%s", err)
+		return errorResponsef(standardFormatting, err)
 	}
 
 	candles := objects.Array{Value: make([]objects.Object, len(ret.Candles))}

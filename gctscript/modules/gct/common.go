@@ -78,7 +78,7 @@ func WriteAsCSV(args ...objects.Object) (objects.Object, error) {
 				return nil, errors.New("failed to convert incoming output to string")
 			}
 
-			processTarget(&target)
+			target = processTarget(target)
 		case "string":
 			if target != "" {
 				return nil, fmt.Errorf("filename already set, extra string %v cannot be processed", args[i])
@@ -93,7 +93,7 @@ func WriteAsCSV(args ...objects.Object) (objects.Object, error) {
 				return nil, errors.New("script context details not specified")
 			}
 
-			processTarget(&target)
+			target = processTarget(target)
 		default:
 			err = fmt.Errorf("%s type is not handled", args[i].TypeName())
 		}
@@ -131,7 +131,7 @@ func WriteAsCSV(args ...objects.Object) (objects.Object, error) {
 		return nil, err
 	}
 
-	log.Infof(log.GCTScriptMgr,
+	log.Debugf(log.GCTScriptMgr,
 		"CSV file successfully saved to: %s",
 		target)
 	return nil, nil
@@ -486,24 +486,23 @@ func convertOHLCV(a objects.Object) ([][]string, error) {
 	return bucket, nil
 }
 
-func processTarget(target *string) {
+func processTarget(target string) string {
 	// Removes file transversal
-	*target = filepath.Base(*target)
+	target = filepath.Base(target)
 
 	// checks to see if file is context defined, if not it will allow
 	// a client defined filename and append a date, forces the use of
 	// .csv file extension
 	switch {
-	case filepath.Ext(*target) != ".csv" && strings.Contains(*target, common.GctExt):
-		*target += ".csv"
-	case filepath.Ext(*target) == ".csv":
-		s := strings.Split(*target, ".")
+	case filepath.Ext(target) != ".csv" && strings.Contains(target, common.GctExt):
+		target += ".csv"
+	case filepath.Ext(target) == ".csv":
+		s := strings.Split(target, ".")
 		if len(s) == 2 {
-			*target = s[0] + "-" + strconv.FormatInt(time.Now().UnixNano(), 10) + ".csv"
+			target = s[0] + "-" + strconv.FormatInt(time.Now().UnixNano(), 10) + ".csv"
 		}
 	default:
-		*target += "-" + strconv.FormatInt(time.Now().UnixNano(), 10) + ".csv"
+		target += "-" + strconv.FormatInt(time.Now().UnixNano(), 10) + ".csv"
 	}
-
-	*target = filepath.Join(OutputDir, *target)
+	return filepath.Join(OutputDir, target)
 }

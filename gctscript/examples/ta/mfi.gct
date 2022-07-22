@@ -7,8 +7,7 @@ load := func() {
     start := t.date(2017, 8 , 17 , 0 , 0 , 0, 0)
     end := t.add_date(start, 0, 6 , 0)
     // 'ctx' is already defined when we construct our bytecode from file.
-    // We can add debugging info or account info see verbose.gct or account.gct
-    // for more details. 
+    // To add debugging information to the request, see verbose.gct. To add account credentials, see account.gct
     ohlcvData := exch.ohlcv(ctx, "binance", "BTC-USDT", "-", "SPOT", start, end, "1d")
     if is_error(ohlcvData) {
         // handle error 

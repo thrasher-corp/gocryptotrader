@@ -2,6 +2,7 @@ package gct
 
 import (
 	"context"
+	"fmt"
 
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -19,8 +20,9 @@ func AllModuleNames() []string {
 }
 
 var globalModules = map[string]objects.Object{
-	"set_verbose": &objects.UserFunction{Name: "set_verbose", Value: setVerbose},
-	"set_account": &objects.UserFunction{Name: "set_account", Value: setAccount},
+	"set_verbose":     &objects.UserFunction{Name: "set_verbose", Value: setVerbose},
+	"set_account":     &objects.UserFunction{Name: "set_account", Value: setAccount},
+	"set_sub_account": &objects.UserFunction{Name: "set_sub_account", Value: setSubAccount},
 }
 
 // setVerbose specifically sets verbosity for http rest requests for this script
@@ -116,55 +118,85 @@ func setAccount(args ...objects.Object) (objects.Object, error) {
 			ctx.Value["otp"] = &objects.String{Value: oneTimePassword}
 		}
 	}
+	return ctx, nil
+}
 
+// setSubAccount sets sub account details which overrides default credential
+// sub account but uses the same configured api keys.
+// Params: scriptCTX, subAccount string
+func setSubAccount(args ...objects.Object) (objects.Object, error) {
+	if len(args) != 2 {
+		return nil, objects.ErrWrongNumArguments
+	}
+
+	ctx, ok := objects.ToInterface(args[0]).(*Context)
+	if !ok {
+		return nil, common.GetAssertError("*gct.Context for arg 1", args[0])
+	}
+
+	sub, ok := objects.ToInterface(args[1]).(string)
+	if !ok {
+		return nil, common.GetAssertError("string for arg 2", args[1])
+	}
+
+	if ctx.Value == nil {
+		ctx.Value = make(map[string]objects.Object)
+	}
+
+	ctx.Value["subaccount"] = &objects.String{Value: sub}
 	return ctx, nil
 }
 
 func processScriptContext(scriptCtx *Context) context.Context {
 	ctx := context.Background()
-	if scriptCtx == nil {
+	if scriptCtx == nil || scriptCtx.Value == nil {
 		return ctx
 	}
-	if _, ok := scriptCtx.Value["verbose"]; ok {
+	var object objects.Object
+	if object = scriptCtx.Value["verbose"]; object != nil {
+		fmt.Println("verbose is set bros")
 		ctx = request.WithVerbose(ctx)
 	}
-	if apikeyobj, ok := scriptCtx.Value["apikey"]; ok {
-		key, _ := objects.ToString(apikeyobj)
+
+	if object = scriptCtx.Value["apikey"]; object != nil {
+		key, _ := objects.ToString(object)
 
 		var secret string
-		if secretObj, ok := scriptCtx.Value["apisecret"]; ok {
-			secret, _ = objects.ToString(secretObj)
+		if object = scriptCtx.Value["apisecret"]; object != nil {
+			secret, _ = objects.ToString(object)
 		}
 
-		var subaccount string
-		if subaccountObj, ok := scriptCtx.Value["subaccount"]; ok {
-			subaccount, _ = objects.ToString(subaccountObj)
+		var subAccount string
+		if object = scriptCtx.Value["subaccount"]; object != nil {
+			subAccount, _ = objects.ToString(object)
 		}
 
 		var clientID string
-		if clientidObj, ok := scriptCtx.Value["clientid"]; ok {
-			clientID, _ = objects.ToString(clientidObj)
+		if object = scriptCtx.Value["clientid"]; object != nil {
+			clientID, _ = objects.ToString(object)
 		}
 
 		var pemKey string
-		if pemkeyObj, ok := scriptCtx.Value["pemkey"]; ok {
-			pemKey, _ = objects.ToString(pemkeyObj)
+		if object = scriptCtx.Value["pemkey"]; object != nil {
+			pemKey, _ = objects.ToString(object)
 		}
 
 		var otp string
-		if otpObj, ok := scriptCtx.Value["otp"]; ok {
-			otp, _ = objects.ToString(otpObj)
+		if object = scriptCtx.Value["otp"]; object != nil {
+			otp, _ = objects.ToString(object)
 		}
 
-		creds := &account.Credentials{
+		ctx = account.DeployCredentialsToContext(ctx, &account.Credentials{
 			Key:             key,
 			Secret:          secret,
-			SubAccount:      subaccount,
+			SubAccount:      subAccount,
 			ClientID:        clientID,
 			PEMKey:          pemKey,
 			OneTimePassword: otp,
-		}
-		ctx = account.DeployCredentialsToContext(ctx, creds)
+		})
+	} else if object = scriptCtx.Value["subaccount"]; object != nil {
+		subAccount, _ := objects.ToString(object)
+		ctx = account.DeploySubAccountOverrideToContext(ctx, subAccount)
 	}
 	return ctx
 }

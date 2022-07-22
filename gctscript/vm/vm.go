@@ -171,15 +171,20 @@ func (vm *VM) CompileAndRun() {
 			}
 			return
 		}
-		if vm.T < time.Nanosecond {
-			log.Error(log.GCTScriptMgr, "Repeat timer cannot be under 1 nano second")
-			err = vm.Shutdown()
-			if err != nil {
-				log.Errorln(log.GCTScriptMgr, err)
-			}
+		if vm.T > time.Nanosecond {
+			vm.runner()
 			return
 		}
-		vm.runner()
+
+		if vm.T > 0 {
+			log.Error(log.GCTScriptMgr, "Repeat timer cannot be under 1 nano second")
+		}
+		err = vm.Shutdown()
+		if err != nil {
+			log.Errorln(log.GCTScriptMgr, err)
+		}
+		return
+
 	} else {
 		err = vm.Shutdown()
 		if err != nil {

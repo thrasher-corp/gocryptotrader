@@ -18,8 +18,7 @@ load := func() {
 
    // Submit request to withdraw funds
    // 'ctx' is already defined when we construct our bytecode from file.
-   // We can add debugging info or account info see verbose.gct or account.gct
-   // for more details.
+   // To add debugging information to the request, see verbose.gct. To add account credentials, see account.gct
    info := exch.withdrawfiat(ctx, "BTC Markets", "AUD", "hello", 1, "-")
    if is_error(info) {
       // handle error
