@@ -83,7 +83,7 @@ func processOB(ob [][2]string) ([]orderbook.Item, error) {
 	return o, nil
 }
 
-func constructOrderbook(o *orderbookResponse) (s Orderbook, err error) {
+func constructOrderbook(o *orderbookResponse) (s *Orderbook, err error) {
 	s.Bids, err = processOB(o.Data.Bids)
 	if err != nil {
 		return s, err
@@ -97,7 +97,7 @@ func constructOrderbook(o *orderbookResponse) (s Orderbook, err error) {
 }
 
 // GetOrderBook gets orderbook for a given market with a given depth (default depth 100)
-func (by *Bybit) GetOrderBook(ctx context.Context, symbol string, depth int64) (Orderbook, error) {
+func (by *Bybit) GetOrderBook(ctx context.Context, symbol string, depth int64) (*Orderbook, error) {
 	var o orderbookResponse
 	strDepth := "100" // default depth
 	if depth > 0 && depth < 100 {
@@ -110,14 +110,14 @@ func (by *Bybit) GetOrderBook(ctx context.Context, symbol string, depth int64) (
 	path := common.EncodeURLValues(bybitOrderBook, params)
 	err := by.SendHTTPRequest(ctx, exchange.RestSpot, path, publicSpotRate, &o)
 	if err != nil {
-		return Orderbook{}, err
+		return nil, err
 	}
 
 	return constructOrderbook(&o)
 }
 
 // GetMergedOrderBook gets orderbook for a given market with a given depth (default depth 100)
-func (by *Bybit) GetMergedOrderBook(ctx context.Context, symbol string, scale, depth int64) (Orderbook, error) {
+func (by *Bybit) GetMergedOrderBook(ctx context.Context, symbol string, scale, depth int64) (*Orderbook, error) {
 	var o orderbookResponse
 	params := url.Values{}
 	if scale > 0 {
@@ -134,7 +134,7 @@ func (by *Bybit) GetMergedOrderBook(ctx context.Context, symbol string, scale, d
 	path := common.EncodeURLValues(bybitMergedOrderBook, params)
 	err := by.SendHTTPRequest(ctx, exchange.RestSpot, path, publicSpotRate, &o)
 	if err != nil {
-		return Orderbook{}, err
+		return nil, err
 	}
 
 	return constructOrderbook(&o)

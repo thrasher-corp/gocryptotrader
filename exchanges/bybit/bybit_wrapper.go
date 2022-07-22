@@ -296,20 +296,13 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 		if err != nil {
 			return nil, err
 		}
-		m := make(map[string]struct{})
+		pairs := make([]string, 0, len(allPairs))
 		for x := range allPairs {
 			if allPairs[x].Status != "Trading" || allPairs[x].QuoteCurrency != "USD" {
 				continue
 			}
 			symbol := allPairs[x].BaseCurrency + currency.DashDelimiter + allPairs[x].QuoteCurrency
-			m[symbol] = struct{}{}
-		}
-
-		pairs := make([]string, len(m))
-		target := 0
-		for symbol := range m {
-			pairs[target] = symbol
-			target++
+			pairs = append(pairs, symbol)
 		}
 		return pairs, nil
 	case asset.USDTMarginedFutures:
@@ -317,7 +310,7 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 		if err != nil {
 			return nil, err
 		}
-		m := make(map[string]struct{})
+		pairs := make([]string, 0, len(allPairs))
 		for x := range allPairs {
 			if allPairs[x].Status != "Trading" || allPairs[x].QuoteCurrency != "USDT" {
 				continue
@@ -326,13 +319,7 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 			symbol := allPairs[x].BaseCurrency +
 				currency.DashDelimiter +
 				allPairs[x].QuoteCurrency
-			m[symbol] = struct{}{}
-		}
-		pairs := make([]string, len(m))
-		target := 0
-		for symbol := range m {
-			pairs[target] = symbol
-			target++
+			pairs = append(pairs, symbol)
 		}
 		return pairs, nil
 	case asset.Futures:
@@ -633,19 +620,12 @@ func (by *Bybit) FetchOrderbook(ctx context.Context, currency currency.Pair, ass
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (by *Bybit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	var orderbookNew Orderbook
+	var orderbookNew *Orderbook
 	var err error
 
 	formattedPair, err := by.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
-	}
-
-	book := &orderbook.Base{
-		Exchange:        by.Name,
-		Pair:            formattedPair,
-		Asset:           assetType,
-		VerifyOrderbook: by.CanVerifyOrderbook,
 	}
 
 	switch assetType {
@@ -659,21 +639,30 @@ func (by *Bybit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		return nil, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
 	if err != nil {
-		return book, err
+		return nil, err
+	}
+
+	book := &orderbook.Base{
+		Exchange:        by.Name,
+		Pair:            formattedPair,
+		Asset:           assetType,
+		VerifyOrderbook: by.CanVerifyOrderbook,
+		Bids:            make([]orderbook.Item, len(orderbookNew.Bids)),
+		Asks:            make([]orderbook.Item, len(orderbookNew.Asks)),
 	}
 
 	for x := range orderbookNew.Bids {
-		book.Bids = append(book.Bids, orderbook.Item{
+		book.Bids[x] = orderbook.Item{
 			Amount: orderbookNew.Bids[x].Amount,
 			Price:  orderbookNew.Bids[x].Price,
-		})
+		}
 	}
 
 	for x := range orderbookNew.Asks {
-		book.Asks = append(book.Asks, orderbook.Item{
+		book.Asks[x] = orderbook.Item{
 			Amount: orderbookNew.Asks[x].Amount,
 			Price:  orderbookNew.Asks[x].Price,
-		})
+		}
 	}
 	err = book.Process()
 	if err != nil {
@@ -892,7 +881,7 @@ func (by *Bybit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (by *Bybit) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order

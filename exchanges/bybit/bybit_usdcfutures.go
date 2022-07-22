@@ -56,7 +56,7 @@ const (
 )
 
 // GetUSDCFuturesOrderbook gets orderbook data for USDCMarginedFutures.
-func (by *Bybit) GetUSDCFuturesOrderbook(ctx context.Context, symbol currency.Pair) (Orderbook, error) {
+func (by *Bybit) GetUSDCFuturesOrderbook(ctx context.Context, symbol currency.Pair) (*Orderbook, error) {
 	var resp Orderbook
 	data := struct {
 		Result []USDCOrderbookData `json:"result"`
@@ -66,13 +66,13 @@ func (by *Bybit) GetUSDCFuturesOrderbook(ctx context.Context, symbol currency.Pa
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	params.Set("symbol", symbolValue)
 
 	err = by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetOrderbook, params), usdcPublicRate, &data)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	for x := range data.Result {
@@ -88,10 +88,10 @@ func (by *Bybit) GetUSDCFuturesOrderbook(ctx context.Context, symbol currency.Pa
 				Amount: data.Result[x].Size,
 			})
 		default:
-			return resp, errInvalidSide
+			return nil, errInvalidSide
 		}
 	}
-	return resp, nil
+	return &resp, nil
 }
 
 // GetUSDCContracts gets all contract information for USDCMarginedFutures.

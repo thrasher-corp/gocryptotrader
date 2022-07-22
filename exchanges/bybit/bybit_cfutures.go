@@ -74,7 +74,7 @@ const (
 )
 
 // GetFuturesOrderbook gets orderbook data for CoinMarginedFutures.
-func (by *Bybit) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair) (Orderbook, error) {
+func (by *Bybit) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair) (*Orderbook, error) {
 	var resp Orderbook
 	data := struct {
 		Result []OrderbookData `json:"result"`
@@ -84,14 +84,14 @@ func (by *Bybit) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair) 
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	params.Set("symbol", symbolValue)
 
 	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesOrderbook, params)
 	err = by.SendHTTPRequest(ctx, exchange.RestCoinMargined, path, publicFuturesRate, &data)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	for x := range data.Result {
@@ -107,10 +107,10 @@ func (by *Bybit) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair) 
 				Amount: data.Result[x].Size,
 			})
 		default:
-			return resp, errInvalidSide
+			return nil, errInvalidSide
 		}
 	}
-	return resp, nil
+	return &resp, nil
 }
 
 // GetFuturesKlineData gets futures kline data for CoinMarginedFutures.
