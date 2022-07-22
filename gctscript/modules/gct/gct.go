@@ -2,7 +2,6 @@ package gct
 
 import (
 	"context"
-	"fmt"
 
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -154,7 +153,6 @@ func processScriptContext(scriptCtx *Context) context.Context {
 	}
 	var object objects.Object
 	if object = scriptCtx.Value["verbose"]; object != nil {
-		fmt.Println("verbose is set bros")
 		ctx = request.WithVerbose(ctx)
 	}
 
