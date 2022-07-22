@@ -12,7 +12,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc/auth"
 	"github.com/thrasher-corp/gocryptotrader/signaler"
 	"github.com/urfave/cli/v2"
@@ -28,7 +28,7 @@ var (
 	pairDelimiter string
 	certPath      string
 	timeout       time.Duration
-	exchangeCreds exchange.Credentials
+	exchangeCreds account.Credentials
 	verbose       bool
 )
 

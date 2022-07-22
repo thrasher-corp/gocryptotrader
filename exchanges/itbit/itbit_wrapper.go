@@ -302,7 +302,11 @@ func (i *ItBit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 		Currencies: fullBalance,
 	})
 
-	err = account.Process(&info)
+	creds, err := i.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&info, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -312,11 +316,14 @@ func (i *ItBit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (i *ItBit) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(i.Name, assetType)
+	creds, err := i.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(i.Name, creds, assetType)
 	if err != nil {
 		return i.UpdateAccountInfo(ctx, assetType)
 	}
-
 	return acc, nil
 }
 
