@@ -27,6 +27,10 @@ func TestMain(m *testing.M) {
 	log.Println("temp dir created at:", tempDir)
 	LogPath = tempDir
 	r := m.Run()
+	err = CloseLogger()
+	if err != nil {
+		log.Fatalf("CloseLogger() failed %v", err)
+	}
 	err = os.Remove(tempDir)
 	if err != nil {
 		log.Println("failed to remove temp file:", tempDir)
@@ -258,13 +262,6 @@ func TestSetLevel(t *testing.T) {
 	_, err = SetLevel("abc12345556665", "ERROR")
 	if err == nil {
 		t.Error("SetLevel() Should return error on invalid logger")
-	}
-}
-
-func TestCloseLogger(t *testing.T) {
-	t.Parallel()
-	if err := CloseLogger(); err != nil {
-		t.Errorf("CloseLogger() failed %v", err)
 	}
 }
 

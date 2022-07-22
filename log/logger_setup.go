@@ -13,6 +13,7 @@ import (
 var (
 	errSubloggerConfigIsNil  = errors.New("sublogger config is nil")
 	errUnhandledOutputWriter = errors.New("unhandled output writer")
+	errInvalidWorkerCount    = errors.New("invalid worker count")
 )
 
 func getWriters(s *SubLoggerConfig) (*multiWriterHolder, error) {
@@ -101,15 +102,22 @@ func SetupSubLoggers(s []SubLoggerConfig) error {
 
 // SetupGlobalLogger setup the global loggers with the default global config values
 func SetupGlobalLogger(workerCount int) error {
+	if workerCount <= 0 {
+		return fmt.Errorf("%w must be >= 1, received '%v'",
+			errInvalidWorkerCount, workerCount)
+	}
+
 	RWM.Lock()
 	defer RWM.Unlock()
 
-	close(workerShutdown)
-	workerWg.Wait()
-	workerShutdown = make(chan struct{})
-	for x := 0; x < workerCount; x++ {
-		workerWg.Add(1)
-		go loggerWorker()
+	if workerCount > 1 {
+		close(workerShutdown)
+		workerWg.Wait()
+		workerShutdown = make(chan struct{})
+		for x := 0; x < workerCount; x++ {
+			workerWg.Add(1)
+			go loggerWorker()
+		}
 	}
 
 	if FileLoggingConfiguredCorrectly {
