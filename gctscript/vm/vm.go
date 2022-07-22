@@ -134,7 +134,7 @@ func (vm *VM) RunCtx() (err error) {
 		return Error{Action: "RunCtx", Cause: err}
 	}
 	vm.event(StatusSuccess, TypeExecute)
-	return
+	return nil
 }
 
 // CompileAndRun Compile and Run script with support for task running
