@@ -97,8 +97,8 @@ func TestAddStrategy(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, common.ErrNilPointer)
 	}
 	err = AddStrategy(new(dollarcostaverage.Strategy))
-	if !errors.Is(err, errStrategyAlreadyExists) {
-		t.Errorf("received '%v' expected '%v'", err, errStrategyAlreadyExists)
+	if !errors.Is(err, ErrStrategyAlreadyExists) {
+		t.Errorf("received '%v' expected '%v'", err, ErrStrategyAlreadyExists)
 	}
 
 	err = AddStrategy(new(customStrategy))

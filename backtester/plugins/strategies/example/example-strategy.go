@@ -19,9 +19,9 @@ type CustomStrategy struct {
 	base.Strategy
 }
 
-// GetStrategy is required to load the strategy into the GoCryptoTrader Backtester
-func GetStrategy() strategies.Handler {
-	return &CustomStrategy{}
+// GetStrategies is required to load the strategy or strategies into the GoCryptoTrader Backtester
+func GetStrategies() []strategies.Handler {
+	return []strategies.Handler{&CustomStrategy{}}
 }
 
 // Name returns the name of the strategy

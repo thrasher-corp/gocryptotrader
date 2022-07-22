@@ -9,7 +9,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 )
 
-var errStrategyAlreadyExists = errors.New("strategy already exists")
+// ErrStrategyAlreadyExists returned when a strategy matches the same name
+var ErrStrategyAlreadyExists = errors.New("strategy already exists")
 
 // StrategyHolder holds strategies
 type StrategyHolder []Handler

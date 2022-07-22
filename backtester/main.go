@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"plugin"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	backtest "github.com/thrasher-corp/gocryptotrader/backtester/engine"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
+	"github.com/thrasher-corp/gocryptotrader/backtester/plugins/strategies"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/signaler"
@@ -50,9 +49,9 @@ func main() {
 	}
 
 	if strategyPluginPath != "" {
-		err = loadCustomStrategy(strategyPluginPath)
+		err = strategies.LoadCustomStrategies(strategyPluginPath)
 		if err != nil {
-			fmt.Printf("Could not load custom strategy. Error: %v.\n", err)
+			fmt.Printf("Could not load custom strategies. Error: %v.\n", err)
 			os.Exit(1)
 		}
 	}
@@ -105,22 +104,6 @@ func main() {
 			log.Error(log.Global, err)
 		}
 	}
-}
-
-func loadCustomStrategy(strategyPluginPath string) error {
-	p, err := plugin.Open(strategyPluginPath)
-	if err != nil {
-		return fmt.Errorf("could not open plugin: %w", err)
-	}
-	v, err := p.Lookup("GetStrategy")
-	if err != nil {
-		return fmt.Errorf("could not lookup plugin. Plugin must have function `GetStrategy`. Error: %w", err)
-	}
-	customStrategy, ok := v.(func() strategies.Handler)
-	if !ok {
-		return fmt.Errorf("could not cast plugin to strategies.Handler")
-	}
-	return strategies.AddStrategy(customStrategy())
 }
 
 func parseFlags(wd string) {

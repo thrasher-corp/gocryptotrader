@@ -51,7 +51,7 @@ func AddStrategy(strategy Handler) error {
 	defer m.Unlock()
 	for i := range strategyHolder {
 		if strings.EqualFold(strategyHolder[i].Name(), strategy.Name()) {
-			return fmt.Errorf("'%v' %w", strategy.Name(), errStrategyAlreadyExists)
+			return fmt.Errorf("'%v' %w", strategy.Name(), ErrStrategyAlreadyExists)
 		}
 	}
 	strategyHolder = append(strategyHolder, strategy)
