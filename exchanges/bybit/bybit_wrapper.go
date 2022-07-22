@@ -1320,7 +1320,21 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (by *Bybit) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, chain string) (*deposit.Address, error) {
-	return nil, common.ErrNotYetImplemented
+	dAddressInfo, err := by.GetDepositAddressForCurrency(ctx, cryptocurrency.String())
+	if err != nil {
+		return nil, err
+	}
+
+	for x := range dAddressInfo.Chains {
+		if dAddressInfo.Chains[x].Chain == chain {
+			return &deposit.Address{
+				Address: dAddressInfo.Chains[x].DepositAddress,
+				Tag:     dAddressInfo.Chains[x].DepositTag,
+				Chain:   dAddressInfo.Chains[x].Chain,
+			}, nil
+		}
+	}
+	return nil, fmt.Errorf("deposit address not found for currency: %s chain: %s", cryptocurrency, chain)
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

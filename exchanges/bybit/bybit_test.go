@@ -301,6 +301,18 @@ func TestGetSpotServerTime(t *testing.T) {
 	}
 }
 
+func GetDepositAddressForCoin(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := b.GetDepositAddressForCurrency(context.Background(), currency.BTC.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 // test cases for WS SPOT
 
 func TestWsSubscription(t *testing.T) {
@@ -2858,6 +2870,18 @@ func TestGetServerTime(t *testing.T) {
 	}
 
 	_, err = b.GetServerTime(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetDepositAddress(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := b.GetDepositAddress(context.Background(), currency.USDT, "", currency.ETH.String())
 	if err != nil {
 		t.Error(err)
 	}

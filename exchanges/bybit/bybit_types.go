@@ -32,6 +32,7 @@ var (
 	errInvalidOrderRequest       = errors.New("order request param can't be nil")
 	errInvalidOrderFilter        = errors.New("orderFilter can't be empty or missing")
 	errInvalidCategory           = errors.New("invalid category")
+	errInvalidCoin               = errors.New("coin can't be empty")
 
 	errStopOrderOrOrderLinkIDMissing = errors.New("atleast one should be present among stopOrderID and orderLinkID")
 	errOrderOrOrderLinkIDMissing     = errors.New("atleast one should be present among orderID and orderLinkID")
@@ -367,6 +368,18 @@ type orderbookResponse struct {
 		Time bybitTimeMilliSec `json:"time"`
 	} `json:"result"`
 	Error
+}
+
+type DepositWalletInfo struct {
+	Coin   string      `json:"coin"`
+	Chains []ChainInfo `json:"chains"`
+}
+
+type ChainInfo struct {
+	ChainType      string `json:"chain_type"`
+	DepositAddress string `json:"address_deposit"`
+	DepositTag     string `json:"tag_deposit"`
+	Chain          string `json:"chain"`
 }
 
 // Websocket Structures

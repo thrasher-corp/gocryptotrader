@@ -24,7 +24,6 @@ type Bybit struct {
 	exchange.Base
 }
 
-// TODO: Visit change logs for all asset which were made after development started
 const (
 	bybitAPIURL       = "https://api.bybit.com"
 	defaultRecvWindow = "5000" // 5000 milli second
@@ -52,6 +51,7 @@ const (
 	bybitTradeHistory             = "/spot/v1/myTrades"
 	bybitWalletBalance            = "/spot/v1/account"
 	bybitServerTime               = "/spot/v1/time"
+	bybitGetDepositAddress        = "/asset/v1/private/deposit/address"
 )
 
 // GetAllSpotPairs gets all pairs on the exchange
@@ -754,6 +754,21 @@ func (by *Bybit) GetSpotServerTime(ctx context.Context) (time.Time, error) {
 	}{}
 	err := by.SendHTTPRequest(ctx, exchange.RestSpot, bybitServerTime, publicSpotRate, &resp)
 	return time.UnixMilli(resp.Result.ServerTime), err
+}
+
+// GetDepositAddressForCoin returns deposit wallet address based upon the coin.
+func (by *Bybit) GetDepositAddressForCoin(ctx context.Context, coin string) (DepositWalletInfo, error) {
+	resp := struct {
+		Result DepositWalletInfo `json:"result"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if coin == "" {
+		return resp.Result, errInvalidCoin
+	}
+	params.Set("coin", strings.ToUpper(coin))
+	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitGetDepositAddress, params, &resp, publicSpotRate)
 }
 
 // SendHTTPRequest sends an unauthenticated request
