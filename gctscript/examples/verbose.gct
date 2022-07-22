@@ -12,8 +12,7 @@ load := func() {
     // request for debugging purposes. 
     ctx = global.set_verbose(ctx)
 
-    // If this request needs to send an http request to the exchange then the
-    // request details will be logged on the gct instance. 
+    // Any verbose logs will be output according to logger settings defined in the config
     info := exch.accountinfo(ctx, "ftx", "spot")
     if is_error(info) {
         // handle error 
