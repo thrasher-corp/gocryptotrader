@@ -29,11 +29,14 @@ const (
 	spotOrderbookTickerAllRate
 	spotPriceChangeAllRate
 	spotSymbolPriceAllRate
+	spotSingleOCOOrderRate
 	spotOpenOrdersAllRate
 	spotOpenOrdersSpecificRate
 	spotOrderRate
 	spotOrderQueryRate
 	spotAllOrdersRate
+	spotAllOCOOrdersRate
+	spotOrderRateLimitRate
 	spotAccountInformationRate
 )
 
@@ -66,12 +69,16 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		limiter, tokens = r.SpotRate, 50
 	case spotOrderRate:
 		limiter, tokens = r.SpotOrdersRate, 1
-	case spotOrderQueryRate:
+	case spotOrderQueryRate,
+		spotSingleOCOOrderRate:
 		limiter, tokens = r.SpotOrdersRate, 2
 	case spotOpenOrdersSpecificRate:
 		limiter, tokens = r.SpotOrdersRate, 3
-	case spotAllOrdersRate:
+	case spotAllOrdersRate,
+		spotAllOCOOrdersRate:
 		limiter, tokens = r.SpotOrdersRate, 10
+	case spotOrderRateLimitRate:
+		limiter, tokens = r.SpotOrdersRate, 20
 	case spotOpenOrdersAllRate:
 		limiter, tokens = r.SpotOrdersRate, 40
 	default:

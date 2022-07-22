@@ -66,7 +66,7 @@ func TestMain(m *testing.M) {
 	bi.setupOrderbookManager()
 	err = bi.Start(nil)
 	if !errors.Is(err, common.ErrNilPointer) {
-		log.Fatalf("Binanceus %s received: '%v' but expected: '%v'", bi.Name, err, common.ErrNilPointer)
+		log.Fatalf("%s received: '%v' but expected: '%v'", bi.Name, err, common.ErrNilPointer)
 	}
 	var testWg sync.WaitGroup
 	err = bi.Start(&testWg)
@@ -323,11 +323,11 @@ func TestGetDepositAddress(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	_, err := bi.GetDepositAddress(context.Background(), currency.NewCode(""), currency.BNB.String())
+	_, err := bi.GetDepositAddress(context.Background(), currency.EMPTYCODE, "", currency.BNB.String())
 	if err != nil && !errors.Is(err, errMissingRequiredArgumentCoin) {
 		t.Errorf("Binanceus GetDepositAddress() expecting %v, but found %v", errMissingRequiredArgumentCoin, err)
 	}
-	if _, err := bi.GetDepositAddress(context.Background(), currency.USDT, currency.BNB.String()); err != nil {
+	if _, err := bi.GetDepositAddress(context.Background(), currency.USDT, "", currency.BNB.String()); err != nil {
 		t.Error("Binanceus GetDepositAddress() error", err)
 	}
 }
@@ -627,12 +627,9 @@ func TestGetTradeFee(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	resp, er := bi.GetTradeFee(context.Background(), 3000, "BTC-USDT")
+	_, er := bi.GetTradeFee(context.Background(), 3000, "BTC-USDT")
 	if er != nil {
 		t.Error("Binanceus GetTradeFee() error", er)
-	} else {
-		val, _ := json.Marshal(resp)
-		println(string(val))
 	}
 }
 
@@ -759,7 +756,7 @@ var referalRewardHistoryResponse = `{
 
 func TestGetReferralRewardHistory(t *testing.T) {
 	t.Parallel()
-	var resp ReferalRewardHistoryResponse
+	var resp ReferralRewardHistoryResponse
 	if er := json.Unmarshal([]byte(referalRewardHistoryResponse), &resp); er != nil {
 		t.Error("Binanceus decerializing to ReferalRewardHistoryResponse error", er)
 	}
@@ -1255,7 +1252,7 @@ func TestGetAllOTCTradeOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	var orders []*OTCTradeOrder
+	var orders []OTCTradeOrder
 	er := json.Unmarshal([]byte(getAllOTCTradeOrders), &orders)
 	if er != nil {
 		t.Error(er)
@@ -1869,26 +1866,21 @@ func TestProcessUpdate(t *testing.T) {
 func TestWebsocketOrderExecutionReport(t *testing.T) {
 	payload := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"executionReport","E":1616627567900,"s":"BTCUSDT","c":"c4wyKsIhoAaittTYlIVLqk","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00028400","p":"52789.10000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":5340845958,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":"BTC","T":1616627567900,"t":-1,"I":11388173160,"w":true,"m":false,"M":false,"O":1616627567900,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000"}}`)
 	expRes := order.Detail{
-		Price:                52789.1,
-		Amount:               0.00028400,
-		AverageExecutedPrice: 0,
-		QuoteAmount:          0,
-		ExecutedAmount:       0,
-		RemainingAmount:      0.00028400,
-		Cost:                 0,
-		CostAsset:            currency.USDT,
-		Fee:                  0,
-		FeeAsset:             currency.BTC,
-		Exchange:             "Binanceus",
-		OrderID:              "5340845958",
-		ClientOrderID:        "c4wyKsIhoAaittTYlIVLqk",
-		Type:                 order.Limit,
-		Side:                 order.Buy,
-		Status:               order.New,
-		AssetType:            asset.Spot,
-		Date:                 time.UnixMilli(1616627567900),
-		LastUpdated:          time.UnixMilli(1616627567900),
-		Pair:                 currency.NewPair(currency.BTC, currency.USDT),
+		Price:           52789.1,
+		Amount:          0.00028400,
+		RemainingAmount: 0.00028400,
+		CostAsset:       currency.USDT,
+		FeeAsset:        currency.BTC,
+		Exchange:        "Binanceus",
+		OrderID:         "5340845958",
+		ClientOrderID:   "c4wyKsIhoAaittTYlIVLqk",
+		Type:            order.Limit,
+		Side:            order.Buy,
+		Status:          order.New,
+		AssetType:       asset.Spot,
+		Date:            time.UnixMilli(1616627567900),
+		LastUpdated:     time.UnixMilli(1616627567900),
+		Pair:            currency.NewPair(currency.BTC, currency.USDT),
 	}
 	for len(bi.Websocket.DataHandler) > 0 {
 		<-bi.Websocket.DataHandler
@@ -1928,5 +1920,31 @@ func TestGetAvailableTransferChains(t *testing.T) {
 	}
 	if _, er := bi.GetAvailableTransferChains(context.Background(), currency.BTC); er != nil {
 		t.Error("Binanceus GetAvailableTransferChains() error", er)
+	}
+}
+
+func TestQuickEnableCryptoWithdrawal(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if er := bi.QuickEnableCryptoWithdrawal(context.Background()); er != nil && !strings.Contains(er.Error(), "unexpected end of JSON input") {
+		t.Errorf("Binanceus QuickEnableCryptoWithdrawal() expecting %s, but found %v", "unexpected end of JSON input", er)
+	}
+}
+func TestQuickDisableCryptoWithdrawal(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if er := bi.QuickDisableCryptoWithdrawal(context.Background()); er != nil && !strings.Contains(er.Error(), "unexpected end of JSON input") {
+		t.Errorf("Binanceus QuickDisableCryptoWithdrawal() expecting %s, but found %v", "unexpected end of JSON input", er)
+	}
+}
+
+func TestGetUsersSpotAssetSnapshot(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := bi.GetUsersSpotAssetSnapshot(context.Background(), time.Time{}, time.Time{}, 10, 6); er != nil {
+		t.Error("Binanceus GetUsersSpotAssetSnapshot() error", er)
 	}
 }

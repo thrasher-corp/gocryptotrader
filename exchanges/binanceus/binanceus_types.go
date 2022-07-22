@@ -338,8 +338,8 @@ type AssetHistory struct {
 // AssetDistributionHistories this endpoint to query asset distribution records,
 // including for staking, referrals and airdrops etc.
 type AssetDistributionHistories struct {
-	Rows  []*AssetHistory `json:"rows"`
-	Total uint            `json:"total"`
+	Rows  []AssetHistory `json:"rows"`
+	Total uint           `json:"total"`
 }
 
 // SubAccount  holds a single sub account instance in a Binance US account.
@@ -577,20 +577,20 @@ type OrderShortResponse struct {
 
 // OCOOrderResponse  this model is to be used to fetch the response of create new OCO order response
 type OCOOrderResponse struct {
-	OrderListID       int64                 `json:"orderListId"`
-	ContingencyType   string                `json:"contingencyType"`
-	ListStatusType    string                `json:"listStatusType"`
-	ListOrderStatus   string                `json:"listOrderStatus"`
-	ListClientOrderID string                `json:"listClientOrderId"`
-	TransactionTime   time.Time             `json:"transactionTime"`
-	Symbol            string                `json:"symbol"`
-	Orders            []*OrderShortResponse `json:"orders"`
+	OrderListID       int64                `json:"orderListId"`
+	ContingencyType   string               `json:"contingencyType"`
+	ListStatusType    string               `json:"listStatusType"`
+	ListOrderStatus   string               `json:"listOrderStatus"`
+	ListClientOrderID string               `json:"listClientOrderId"`
+	TransactionTime   time.Time            `json:"transactionTime"`
+	Symbol            string               `json:"symbol"`
+	Orders            []OrderShortResponse `json:"orders"`
 }
 
 // OCOFullOrderResponse holds detailed OCO order informations with the corresponding transaction time
 type OCOFullOrderResponse struct {
 	*OCOOrderResponse
-	OrderReports []*OCOOrderReportItem `json:"orderReports"`
+	OrderReports []OCOOrderReportItem `json:"orderReports"`
 }
 
 // OCOOrdersRequestParams a parameter model to query from list of OCO orders.
@@ -633,13 +633,12 @@ type RequestQuoteParams struct {
 
 // Quote holds quote information for from-to-coin pair
 type Quote struct {
-	QuoteID        string  `json:"quoteId"`
-	Symbol         string  `json:"symbol"`
-	Ratio          float64 `json:"ratio,string"`
-	InverseRatio   float64 `json:"inverseRatio,string"`
-	ValidTimestamp float64 `json:"validTimestamp"`
-	ToAmount       float64 `json:"toAmount,string"`
-	FromAmount     uint64  `json:"fromAmount,string"`
+	Symbol         string    `json:"symbol"`
+	Ratio          float64   `json:"ratio,string"`
+	InverseRatio   float64   `json:"inverseRatio,string"`
+	ValidTimestamp time.Time `json:"validTimestamp"`
+	ToAmount       float64   `json:"toAmount,string"`
+	FromAmount     uint64    `json:"fromAmount,string"`
 }
 
 // OTCTradeOrderResponse holds OTC(over-the-counter) order indentification and status information
@@ -663,7 +662,7 @@ type OTCTradeOrder struct {
 	CreateTime   time.Time `json:"createTime"`
 }
 
-// OTCTradeOrderParams request param for Over-the-Counter trade order params.
+// OTCTradeOrderRequestParams request param for Over-the-Counter trade order params.
 type OTCTradeOrderRequestParams struct {
 	OrderID   string
 	FromCoin  string
@@ -951,13 +950,13 @@ type WsOrderUpdateData struct {
 	QuoteOrderQuantity                float64   `json:"Q,string"`
 }
 
-// wsListStatus holder for websocker account listing status response.
-type wsListStatus struct {
+// WsListStatus holder for websocket account listing status response including the stream information
+type WsListStatus struct {
 	Stream string           `json:"stream"`
 	Data   WsListStatusData `json:"data"`
 }
 
-// wsListStatus holder for websocket account listing status response.
+// WsListStatusData holder for websocket account listing status response.
 type WsListStatusData struct {
 	ListClientOrderID string    `json:"C"`
 	EventTime         time.Time `json:"E"`
@@ -1071,7 +1070,7 @@ type WebsocketAggregateTradeStream struct {
 	IsMaker          bool      `json:"m"`
 }
 
-// OCBSOrderRequestParams
+// OCBSOrderRequestParams holds parameters to retrieve OCBS orders.
 type OCBSOrderRequestParams struct {
 	OrderID   string
 	StartTime time.Time
@@ -1158,16 +1157,23 @@ type SubAccountDepositItem struct {
 	ConfirmTimes  string    `json:"confirmTimes"`
 }
 
-// ReferalRewardHistoryResponse holds reward history response
-type ReferalRewardHistoryResponse struct {
-	Total int                     `json:"total"`
-	Rows  []ReferalWithdrawalItem `json:"rows"`
+// ReferralRewardHistoryResponse holds reward history response
+type ReferralRewardHistoryResponse struct {
+	Total int                      `json:"total"`
+	Rows  []ReferralWithdrawalItem `json:"rows"`
 }
 
-// ReferalWithdrawalItem holds reward history item
-type ReferalWithdrawalItem struct {
+// ReferralWithdrawalItem holds reward history item
+type ReferralWithdrawalItem struct {
 	UserID          int       `json:"userId"`
 	RewardAmount    string    `json:"rewardAmount"`
 	ReceiveDateTime time.Time `json:"receiveDateTime"`
 	RewardType      string    `json:"rewardType"`
+}
+
+// SpotAssetsSnapshotResponse represents spot asset types snapshot information.
+type SpotAssetsSnapshotResponse struct {
+	Code        int      `json:"code"`
+	Msg         string   `json:"msg"`
+	SnapshotVos []string `json:"snapshotVos"`
 }

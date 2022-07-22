@@ -302,8 +302,8 @@ func (a *OTCTradeOrder) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalJSON deserialises the JSON info, including the (EventTime , and TransactionTime) timestamp
-func (a *wsListStatus) UnmarshalJSON(data []byte) error {
-	type Alias wsListStatus
+func (a *WsListStatus) UnmarshalJSON(data []byte) error {
+	type Alias WsListStatus
 	aux := &struct {
 		Data struct {
 			EventTime       binanceusTime `json:"E"`
@@ -562,6 +562,24 @@ func (a *SubAccountStatus) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// UnmarshalJSON deserialises ValidTimestamp timestamp to built in time.Time instance.
+func (a *Quote) UnmarshalJSON(data []byte) error {
+	type Alias Quote
+	chil := &struct {
+		*Alias
+		ValidTimestamp int64 `json:"validTimestamp,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	if chil.ValidTimestamp > 0 {
+		a.ValidTimestamp = time.UnixMilli(chil.ValidTimestamp)
+	}
+	return nil
+}
+
 // UnmarshalJSON deserialises createTime timestamp to built in time.
 func (a *SubAccountDepositItem) UnmarshalJSON(data []byte) error {
 	type Alias SubAccountDepositItem
@@ -581,8 +599,8 @@ func (a *SubAccountDepositItem) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalJSON deserialises createTime timestamp to built in time.
-func (a *ReferalWithdrawalItem) UnmarshalJSON(data []byte) error {
-	type Alias ReferalWithdrawalItem
+func (a *ReferralWithdrawalItem) UnmarshalJSON(data []byte) error {
+	type Alias ReferralWithdrawalItem
 	chil := &struct {
 		*Alias
 		ReceiveDateTime int64 `json:"receiveDateTime"`

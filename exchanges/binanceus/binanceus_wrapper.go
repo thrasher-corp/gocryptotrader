@@ -79,29 +79,30 @@ func (bi *Binanceus) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerBatching:      true,
-				TickerFetching:      true,
-				OrderbookFetching:   true,
-				AutoPairUpdates:     true,
-				AccountInfo:         true,
-				CryptoDeposit:       true,
-				CryptoWithdrawal:    true,
-				GetOrder:            true,
-				GetOrders:           true,
-				CancelOrders:        true,
-				CancelOrder:         true,
-				SubmitOrder:         true,
-				SubmitOrders:        true,
-				DepositHistory:      true,
-				WithdrawalHistory:   true,
-				TradeFetching:       true,
-				UserTradeHistory:    true,
-				TradeFee:            true,
-				CryptoDepositFee:    true,
-				CryptoWithdrawalFee: true,
+				TickerBatching:        true,
+				TickerFetching:        true,
+				OrderbookFetching:     true,
+				AutoPairUpdates:       true,
+				AccountInfo:           true,
+				CryptoDeposit:         true,
+				CryptoWithdrawal:      true,
+				GetOrder:              true,
+				GetOrders:             true,
+				CancelOrders:          true,
+				CancelOrder:           true,
+				SubmitOrder:           true,
+				SubmitOrders:          true,
+				DepositHistory:        true,
+				WithdrawalHistory:     true,
+				TradeFetching:         true,
+				UserTradeHistory:      true,
+				TradeFee:              true,
+				CryptoDepositFee:      true,
+				CryptoWithdrawalFee:   true,
+				MultiChainDeposits:    true,
+				MultiChainWithdrawals: true,
 			},
 			WebsocketCapabilities: protocol.Features{
-
 				TickerFetching:         true,
 				OrderbookFetching:      true,
 				Subscribe:              true,
@@ -484,11 +485,9 @@ func (bi *Binanceus) FetchAccountInfo(ctx context.Context, assetType asset.Item)
 	return acc, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
-// withdrawals
+// GetFundingHistory returns funding history, deposits and withdrawals
 func (bi *Binanceus) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
-	// Not Implemented in the Binanceus endpoint
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
@@ -629,7 +628,7 @@ func (bi *Binanceus) SubmitOrder(ctx context.Context, s *order.Submit) (*order.S
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
 func (bi *Binanceus) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -655,7 +654,7 @@ func (bi *Binanceus) CancelOrder(ctx context.Context, o *order.Cancel) error {
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
 func (bi *Binanceus) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+	return order.CancelBatchResponse{}, common.ErrFunctionNotSupported
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -706,6 +705,7 @@ func (bi *Binanceus) GetOrderInfo(ctx context.Context, orderID string, pair curr
 		return respData, err
 	}
 	if assetType == asset.Spot {
+		var orderType order.Type
 		resp, err := bi.GetOrder(ctx, &OrderRequestParams{
 			Symbol:            symbolValue,
 			OrderID:           uint64(orderIDInt),
@@ -722,7 +722,6 @@ func (bi *Binanceus) GetOrderInfo(ctx context.Context, orderID string, pair curr
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
 		}
-		orderType := order.Limit
 		orderType, err = order.StringToOrderType(resp.Type)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
@@ -749,7 +748,7 @@ func (bi *Binanceus) GetOrderInfo(ctx context.Context, orderID string, pair curr
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (bi *Binanceus) GetDepositAddress(ctx context.Context, c currency.Code, chain string) (*deposit.Address, error) {
+func (bi *Binanceus) GetDepositAddress(ctx context.Context, c currency.Code, _ /*accountID*/, chain string) (*deposit.Address, error) {
 	address, err := bi.GetDepositAddressForCurrency(ctx, c.String(), chain)
 	if err != nil {
 		return nil, err
@@ -782,8 +781,7 @@ func (bi *Binanceus) WithdrawFiatFunds(ctx context.Context, withdrawRequest *wit
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is submitted
-// But, GCT has no concept of withdrawal via SEN
-// the fiat withdrawal end point of Binance.US is built to submit a USD withdraw request via Silvergate Exchange Network (SEN).
+// But, GCT has no concept of withdrawal via SEN the fiat withdrawal end point of Binance.US is built to submit a USD withdraw request via Silvergate Exchange Network (SEN).
 func (bi *Binanceus) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
@@ -795,8 +793,9 @@ func (bi *Binanceus) GetActiveOrders(ctx context.Context, getOrdersRequest *orde
 	}
 	var err error
 	var symbol string
-	var orders []order.Detail
-	var selectedOrders []*Order
+	var pair currency.Pair
+	var selectedOrders []Order
+	orders := []order.Detail{}
 	if getOrdersRequest.AssetType != asset.Spot {
 		return orders, fmt.Errorf("%s %w", getOrdersRequest.AssetType, asset.ErrNotSupported)
 	}
@@ -814,8 +813,8 @@ func (bi *Binanceus) GetActiveOrders(ctx context.Context, getOrdersRequest *orde
 	}
 	for s := range resp {
 		ord := resp[s]
-		pair, er := currency.NewPairFromString(ord.Symbol)
-		if er != nil {
+		pair, err = currency.NewPairFromString(ord.Symbol)
+		if err != nil {
 			continue
 		}
 		for p := range getOrdersRequest.Pairs {
@@ -825,15 +824,18 @@ func (bi *Binanceus) GetActiveOrders(ctx context.Context, getOrdersRequest *orde
 		}
 	}
 	for x := range selectedOrders {
-		orderSide, eer := order.StringToOrderSide(strings.ToUpper(resp[x].Side))
-		if eer != nil {
-			log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
-		}
-		orderType, err := order.StringToOrderType(strings.ToUpper(resp[x].Type))
+		var orderSide order.Side
+		var orderType order.Type
+		var orderStatus order.Status
+		orderSide, err = order.StringToOrderSide(strings.ToUpper(resp[x].Side))
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
 		}
-		orderStatus, err := order.StringToOrderStatus(resp[x].Status)
+		orderType, err = order.StringToOrderType(strings.ToUpper(resp[x].Type))
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
+		}
+		orderStatus, err = order.StringToOrderStatus(resp[x].Status)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
 		}
@@ -858,14 +860,12 @@ func (bi *Binanceus) GetActiveOrders(ctx context.Context, getOrdersRequest *orde
 	order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
 	err = order.FilterOrdersByTimeRange(&orders, getOrdersRequest.StartTime, getOrdersRequest.EndTime)
 	return orders, err
-
 }
 
-// GetOrderHistory retrieves account order information
-// Can Limit response to specific order status
+// GetOrderHistory retrieves account order information Can Limit response to specific order status
 func (bi *Binanceus) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	// An endpoint like /api/v3/allOrders does not exist in the binance us
-	// so This end point is left Un Implemented
+	// so This end point is left unimplemented
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -998,7 +998,9 @@ func (bi *Binanceus) GetAvailableTransferChains(ctx context.Context, cryptocurre
 	for x := range coinInfo {
 		if strings.EqualFold(coinInfo[x].Coin, cryptocurrency.String()) {
 			for y := range coinInfo[x].NetworkList {
-				availableChains = append(availableChains, coinInfo[x].NetworkList[y].Network)
+				if coinInfo[x].NetworkList[y].DepositEnable {
+					availableChains = append(availableChains, coinInfo[x].NetworkList[y].Network)
+				}
 			}
 		}
 	}

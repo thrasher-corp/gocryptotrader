@@ -276,7 +276,7 @@ func (bi *Binanceus) wsHandleData(respRaw []byte) error {
 				}
 				return nil
 			case "listStatus":
-				var data wsListStatus
+				var data WsListStatus
 				err := json.Unmarshal(respRaw, &data)
 				if err != nil {
 					return fmt.Errorf("%v - Could not convert to listStatus structure %s",
