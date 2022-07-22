@@ -476,7 +476,7 @@ func TestSetSubAccount(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", ctxWSubAcc.Value["subaccount"].String(), dummyStr.String())
 	}
 
-	// Deploy overide to actual context.Context type
+	// Deploy override to actual context.Context type
 	ctx := processScriptContext(ctxWSubAcc)
 	if ctx == nil {
 		t.Fatal("should not be nil")
