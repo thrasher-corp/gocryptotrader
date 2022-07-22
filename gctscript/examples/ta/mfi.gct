@@ -10,7 +10,9 @@ load := func() {
     // To add debugging information to the request, see verbose.gct. To add account credentials, see account.gct
     ohlcvData := exch.ohlcv(ctx, "binance", "BTC-USDT", "-", "SPOT", start, end, "1d")
     if is_error(ohlcvData) {
-        // handle error 
+        // handle error
+        fmt.println(ohlcvData)
+        return  
     }
 
     ret := mfi.calculate(ohlcvData.candles, 14)

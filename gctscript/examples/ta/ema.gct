@@ -12,6 +12,8 @@ load := func() {
     ohlcvData := exch.ohlcv(ctx, "binance", "BTC-USDT", "-", "SPOT", start, end, "1d")
     if is_error(ohlcvData) {
         // handle error
+        fmt.println(ohlcvData)
+        return
     }
     ret := ema.calculate(ohlcvData.candles, 9)
     fmt.println(ret)
