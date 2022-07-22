@@ -113,7 +113,7 @@ func (vm *VM) Load(file string) error {
 // Compile compiles to byte code loaded copy of vm script
 func (vm *VM) Compile() (err error) {
 	vm.Compiled, err = vm.Script.Compile()
-	return
+	return err
 }
 
 // RunCtx runs compiled byte code with context.Context support.
