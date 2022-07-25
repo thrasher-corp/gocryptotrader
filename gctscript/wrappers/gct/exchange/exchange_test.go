@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -34,13 +35,10 @@ const (
 
 var (
 	settings = engine.Settings{
-		ConfigFile:          filepath.Join("..", "..", "..", "..", "testdata", "configtest.json"),
-		EnableDryRun:        true,
-		DataDir:             filepath.Join("..", "..", "..", "..", "testdata", "gocryptotrader"),
-		Verbose:             false,
-		EnableGRPC:          false,
-		EnableDeprecatedRPC: false,
-		EnableWebsocketRPC:  false,
+		ConfigFile:   filepath.Join("..", "..", "..", "..", "testdata", "configtest.json"),
+		EnableDryRun: true,
+		DataDir:      filepath.Join("..", "..", "..", "..", "testdata", "gocryptotrader"),
+		GoMaxProcs:   runtime.GOMAXPROCS(-1),
 	}
 	exchangeTest = Exchange{}
 )
