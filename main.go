@@ -141,8 +141,11 @@ func main() {
 
 	engine.PrintSettings(&engine.Bot.Settings)
 	if err = engine.Bot.Start(); err != nil {
-		gctlog.Errorf(gctlog.Global, "Unable to start bot engine. Error: %s\n", err)
-		os.Exit(1)
+		errClose := gctlog.CloseLogger()
+		if errClose != nil {
+			log.Fatalf("Unable to close logger. Error: %s\n", errClose)
+		}
+		log.Fatalf("Unable to start bot engine. Error: %s\n", err)
 	}
 
 	go waitForInterupt(settings.Shutdown)
