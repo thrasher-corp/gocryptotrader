@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"testing"
 
 	objects "github.com/d5/tengo/v2"
@@ -23,6 +24,7 @@ func TestMain(m *testing.M) {
 		EnableDryRun:                true,
 		DataDir:                     filepath.Join("..", "..", "..", "testdata", "gocryptotrader"),
 		EnableDepositAddressManager: true,
+		GoMaxProcs:                  runtime.GOMAXPROCS(-1),
 	}
 	var err error
 	engine.Bot, err = engine.NewFromSettings(&settings, nil)

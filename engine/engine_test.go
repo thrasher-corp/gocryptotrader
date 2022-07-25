@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"os"
+	"runtime"
 	"testing"
 	"time"
 
@@ -81,6 +82,7 @@ func TestStartStopDoesNotCausePanic(t *testing.T) {
 		ConfigFile:   config.TestFile,
 		EnableDryRun: true,
 		DataDir:      tempDir,
+		GoMaxProcs:   runtime.GOMAXPROCS(-1),
 	}, nil)
 	if err != nil {
 		t.Fatal(err)
