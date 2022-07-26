@@ -1028,7 +1028,7 @@ func TestGetClosedCoinTrades(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetClosedCoinTrades(context.Background(), pair, "", 0, 0, 0, 0)
+	_, err = b.GetClosedCoinTrades(context.Background(), pair, "", time.Time{}, time.Time{}, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1665,7 +1665,7 @@ func TestGetClosedUSDTTrades(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetClosedUSDTTrades(context.Background(), pair, "", 0, 0, 0, 0)
+	_, err = b.GetClosedUSDTTrades(context.Background(), pair, "", time.Time{}, time.Time{}, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2056,7 +2056,7 @@ func TestGetClosedTrades(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetClosedTrades(context.Background(), pair, "", 0, 0, 0, 0)
+	_, err = b.GetClosedTrades(context.Background(), pair, "", time.Time{}, time.Time{}, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}

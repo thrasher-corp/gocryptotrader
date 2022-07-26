@@ -576,24 +576,24 @@ type TradeResp struct {
 
 // ClosedTrades stores closed trades
 type ClosedTrades struct {
-	ID                   int64   `json:"id"`
-	UserID               int64   `json:"user_id"`
-	Symbol               string  `json:"symbol"`
-	OrderID              string  `json:"order_id"`
-	OrderSide            string  `json:"side"`
-	Qty                  float64 `json:"qty"`
-	OrderPrice           float64 `json:"order_price"`
-	OrderType            string  `json:"order_type"`
-	ExecutionType        string  `json:"exec_type"`
-	ClosedSize           float64 `json:"closed_size"`
-	CumulativeEntryValue float64 `json:"cum_entry_value"`
-	AvgEntryPrice        float64 `json:"avg_entry_price"`
-	CumulativeExitValue  float64 `json:"cum_exit_value"`
-	AvgEntryValue        float64 `json:"avg_exit_price"`
-	ClosedProfitLoss     float64 `json:"closed_pnl"`
-	FillCount            int64   `json:"fill_count"`
-	Leverage             float64 `json:"leverage"`
-	CreatedAt            int64   `json:"created_at"`
+	ID                   int64        `json:"id"`
+	UserID               int64        `json:"user_id"`
+	Symbol               string       `json:"symbol"`
+	OrderID              string       `json:"order_id"`
+	OrderSide            string       `json:"side"`
+	Qty                  float64      `json:"qty"`
+	OrderPrice           float64      `json:"order_price"`
+	OrderType            string       `json:"order_type"`
+	ExecutionType        string       `json:"exec_type"`
+	ClosedSize           float64      `json:"closed_size"`
+	CumulativeEntryValue float64      `json:"cum_entry_value"`
+	AvgEntryPrice        float64      `json:"avg_entry_price"`
+	CumulativeExitValue  float64      `json:"cum_exit_value"`
+	AvgEntryValue        float64      `json:"avg_exit_price"`
+	ClosedProfitLoss     float64      `json:"closed_pnl"`
+	FillCount            int64        `json:"fill_count"`
+	Leverage             float64      `json:"leverage"`
+	CreatedAt            bybitTimeSec `json:"created_at"`
 }
 
 // FundingFee stores funding fee

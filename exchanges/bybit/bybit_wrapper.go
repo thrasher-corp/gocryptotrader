@@ -1561,11 +1561,90 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 				Pair:            pair,
 				Status:          getOrderStatus(resp[i].Status),
 			}
-			detail.InferCostsAndTimes()
 			orders = append(orders, detail)
 		}
+		order.FilterOrdersByPairs(&orders, req.Pairs)
+	case asset.CoinMarginedFutures:
+		for i := range req.Pairs {
+			resp, err := by.GetClosedCoinTrades(ctx, req.Pairs[i], "", req.StartTime, req.EndTime, 0, 0)
+			if err != nil {
+				return nil, err
+			}
 
-	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures:
+			for i := range resp {
+				var pair currency.Pair
+				pair, err = currency.NewPairFromString(resp[i].Symbol)
+				if err != nil {
+					return nil, err
+				}
+				detail := order.Detail{
+					Amount:   resp[i].Qty,
+					Date:     resp[i].CreatedAt.Time(),
+					Exchange: by.Name,
+					OrderID:  resp[i].OrderID,
+					Side:     getSide(resp[i].OrderSide),
+					Type:     getTradeType(resp[i].OrderType),
+					Price:    resp[i].OrderPrice,
+					Pair:     pair,
+					Leverage: resp[i].Leverage,
+				}
+				orders = append(orders, detail)
+			}
+		}
+	case asset.Futures:
+		for i := range req.Pairs {
+			resp, err := by.GetClosedTrades(ctx, req.Pairs[i], "", req.StartTime, req.EndTime, 0, 0)
+			if err != nil {
+				return nil, err
+			}
+
+			for i := range resp {
+				var pair currency.Pair
+				pair, err = currency.NewPairFromString(resp[i].Symbol)
+				if err != nil {
+					return nil, err
+				}
+				detail := order.Detail{
+					Amount:   resp[i].Qty,
+					Date:     resp[i].CreatedAt.Time(),
+					Exchange: by.Name,
+					OrderID:  resp[i].OrderID,
+					Side:     getSide(resp[i].OrderSide),
+					Type:     getTradeType(resp[i].OrderType),
+					Price:    resp[i].OrderPrice,
+					Pair:     pair,
+					Leverage: resp[i].Leverage,
+				}
+				orders = append(orders, detail)
+			}
+		}
+	case asset.USDTMarginedFutures:
+		for i := range req.Pairs {
+			resp, err := by.GetClosedUSDTTrades(ctx, req.Pairs[i], "", req.StartTime, req.EndTime, 0, 0)
+			if err != nil {
+				return nil, err
+			}
+
+			for i := range resp {
+				var pair currency.Pair
+				pair, err = currency.NewPairFromString(resp[i].Symbol)
+				if err != nil {
+					return nil, err
+				}
+				detail := order.Detail{
+					Amount:   resp[i].Qty,
+					Date:     resp[i].CreatedAt.Time(),
+					Exchange: by.Name,
+					OrderID:  resp[i].OrderID,
+					Side:     getSide(resp[i].OrderSide),
+					Type:     getTradeType(resp[i].OrderType),
+					Price:    resp[i].OrderPrice,
+					Pair:     pair,
+					Leverage: resp[i].Leverage,
+				}
+				orders = append(orders, detail)
+			}
+		}
 	case asset.USDCMarginedFutures:
 		resp, err := by.GetUSDCOrderHistory(ctx, currency.EMPTYPAIR, "PERPETUAL", req.OrderID, "", "", "", "", 0)
 		if err != nil {
@@ -1602,14 +1681,13 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 				Pair:            pair,
 				Status:          orderStatus,
 			}
-			detail.InferCostsAndTimes()
 			orders = append(orders, detail)
 		}
+		order.FilterOrdersByPairs(&orders, req.Pairs)
 	default:
 		return orders, fmt.Errorf("%s %w", req.AssetType, asset.ErrNotSupported)
 	}
 
-	order.FilterOrdersByPairs(&orders, req.Pairs)
 	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersBySide(&orders, req.Side)
 	err := order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)

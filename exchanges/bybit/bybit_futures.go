@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -692,7 +693,7 @@ func (by *Bybit) GetTradeRecords(ctx context.Context, symbol currency.Pair, orde
 }
 
 // GetClosedTrades returns closed profit and loss records
-func (by *Bybit) GetClosedTrades(ctx context.Context, symbol currency.Pair, executionType string, startTime, endTime, page, limit int64) ([]ClosedTrades, error) {
+func (by *Bybit) GetClosedTrades(ctx context.Context, symbol currency.Pair, executionType string, startTime, endTime time.Time, page, limit int64) ([]ClosedTrades, error) {
 	params := url.Values{}
 	resp := struct {
 		Data struct {
@@ -711,11 +712,11 @@ func (by *Bybit) GetClosedTrades(ctx context.Context, symbol currency.Pair, exec
 	if executionType != "" {
 		params.Set("execution_type", executionType)
 	}
-	if startTime != 0 {
-		params.Set("start_time", strconv.FormatInt(startTime, 10))
+	if !startTime.IsZero() {
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 	}
-	if endTime != 0 {
-		params.Set("end_time", strconv.FormatInt(endTime, 10))
+	if !endTime.IsZero() {
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
 	if page > 0 && page <= 50 {
 		params.Set("page", strconv.FormatInt(page, 10))
