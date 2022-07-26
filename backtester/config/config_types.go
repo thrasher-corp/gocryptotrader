@@ -7,6 +7,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
@@ -191,10 +192,14 @@ type DatabaseData struct {
 
 // LiveData defines all fields to configure live data
 type LiveData struct {
-	APIKeyOverride        string `json:"api-key-override"`
-	APISecretOverride     string `json:"api-secret-override"`
-	APIClientIDOverride   string `json:"api-client-id-override"`
-	API2FAOverride        string `json:"api-2fa-override"`
-	APISubAccountOverride string `json:"api-sub-account-override"`
-	RealOrders            bool   `json:"real-orders"`
+	NewEventTimeout     time.Duration `json:"new-event-timeout"`
+	DataCheckTimer      time.Duration `json:"data-check-timer"`
+	RunTimer            time.Duration `json:"run-timer"`
+	RealOrders          bool          `json:"real-orders"`
+	ExchangeCredentials []Credentials `json:"exchange-credentials"`
+}
+
+type Credentials struct {
+	Exchange    string              `json:"exchange"`
+	Credentials account.Credentials `json:"credentials"`
 }

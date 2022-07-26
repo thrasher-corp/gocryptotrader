@@ -409,12 +409,12 @@ func TestLoadDataLive(t *testing.T) {
 
 func TestLoadLiveData(t *testing.T) {
 	t.Parallel()
-	err := loadLiveData(nil, nil)
+	err := setExchangeCredentials(nil, nil)
 	if !errors.Is(err, common.ErrNilArguments) {
 		t.Error(err)
 	}
 	cfg := &config.Config{}
-	err = loadLiveData(cfg, nil)
+	err = setExchangeCredentials(cfg, nil)
 	if !errors.Is(err, common.ErrNilArguments) {
 		t.Error(err)
 	}
@@ -440,7 +440,7 @@ func TestLoadLiveData(t *testing.T) {
 		},
 	}
 
-	err = loadLiveData(cfg, b)
+	err = setExchangeCredentials(cfg, b)
 	if !errors.Is(err, common.ErrNilArguments) {
 		t.Error(err)
 	}
@@ -450,7 +450,7 @@ func TestLoadLiveData(t *testing.T) {
 	}
 	cfg.DataSettings.Interval = gctkline.OneDay
 	cfg.DataSettings.DataType = common.CandleStr
-	err = loadLiveData(cfg, b)
+	err = setExchangeCredentials(cfg, b)
 	if err != nil {
 		t.Error(err)
 	}
@@ -460,7 +460,7 @@ func TestLoadLiveData(t *testing.T) {
 	cfg.DataSettings.LiveData.APIClientIDOverride = "1234"
 	cfg.DataSettings.LiveData.API2FAOverride = "1234"
 	cfg.DataSettings.LiveData.APISubAccountOverride = "1234"
-	err = loadLiveData(cfg, b)
+	err = setExchangeCredentials(cfg, b)
 	if err != nil {
 		t.Error(err)
 	}

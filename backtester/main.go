@@ -29,7 +29,7 @@ func main() {
 			wd,
 			"config",
 			"examples",
-			"ftx-cash-carry.strat"),
+			"dca-candles-live.strat"),
 		"the config containing strategy params")
 	flag.StringVar(
 		&templatePath,
@@ -131,6 +131,7 @@ func main() {
 		log.Infof(log.Global, "Captured %v, shutdown requested.\n", interrupt)
 		bt.Stop()
 	} else {
+		log.Info(common.Backtester, "running backtester against pre-defined data")
 		bt.Run()
 	}
 

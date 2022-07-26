@@ -566,3 +566,14 @@ func CreateIntervalTime(tt time.Time) IntervalTime {
 func (i *IntervalTime) Equal(tt time.Time) bool {
 	return tt.Unix() == i.Ticks
 }
+
+// EqualSource checks whether two sets of candles
+// come from the same data source
+func (k *Item) EqualSource(i *Item) bool {
+	return k != nil &&
+		i != nil &&
+		k.Exchange == i.Exchange &&
+		k.Asset == i.Asset &&
+		k.Pair.Equal(i.Pair) &&
+		k.UnderlyingPair.Equal(i.UnderlyingPair)
+}

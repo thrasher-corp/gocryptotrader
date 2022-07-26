@@ -111,13 +111,20 @@ func (d *Data) AddKlineItem(k *kline.Item) {
 }
 
 // UpdateItem updates an existing kline item for LIVE data usage
-func (d *Data) UpdateItem(k *kline.Item) {
+func (d *Data) UpdateItem(k *kline.Item) error {
 	if len(d.OriginalCandles) == 0 {
-		d.OriginalCandles = append(d.OriginalCandles, k)
-	} else {
-		d.OriginalCandles[0].Candles = append(d.OriginalCandles[0].Candles, k.Candles...)
-		d.OriginalCandles[0].RemoveDuplicates()
+		d.AddKlineItem(k)
+		return nil
 	}
+	for i := range d.OriginalCandles {
+		if !d.OriginalCandles[i].EqualSource(k) {
+			continue
+		}
+		d.OriginalCandles[i].Candles = append(d.OriginalCandles[i].Candles, k.Candles...)
+		d.OriginalCandles[i].RemoveDuplicates()
+		return nil
+	}
+	return fmt.Errorf("%w candles to update not found %v %v %v", errNoCandles, k.Exchange, k.Asset, k.Pair)
 }
 
 // enhanceCandles will enhance candle data with order information allowing

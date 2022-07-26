@@ -6,7 +6,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
@@ -27,9 +26,8 @@ import (
 // New returns a new BackTest instance
 func New() *BackTest {
 	return &BackTest{
-		shutdown:   make(chan struct{}),
-		Datas:      &data.HandlerPerCurrency{},
-		EventQueue: &eventholder.Holder{},
+		shutdown: make(chan struct{}),
+		Datas:    &data.HandlerPerCurrency{},
 	}
 }
 
@@ -49,7 +47,6 @@ func (bt *BackTest) Reset() {
 // Run will iterate over loaded data events
 // save them and then handle the event based on its type
 func (bt *BackTest) Run() {
-	log.Info(common.Backtester, "running backtester against pre-defined data")
 dataLoadingIssue:
 	for ev := bt.EventQueue.NextEvent(); ; ev = bt.EventQueue.NextEvent() {
 		if ev == nil {

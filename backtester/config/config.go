@@ -312,7 +312,7 @@ func (c *Config) PrintSetting() {
 		log.Infof(common.Config, "Data type: %v", c.DataSettings.DataType)
 		log.Infof(common.Config, "Interval: %v", c.DataSettings.Interval)
 		log.Infof(common.Config, "REAL ORDERS: %v", c.DataSettings.LiveData.RealOrders)
-		log.Infof(common.Config, "Overriding GCT API settings: %v", c.DataSettings.LiveData.APIClientIDOverride != "")
+		//log.Infof(common.Config, "Overriding GCT API settings: %v", c.DataSettings.LiveData.APIClientIDOverride != "")
 	}
 	if c.DataSettings.APIData != nil {
 		log.Info(common.Config, common.ColourH2+"------------------API Settings-------------------------------"+common.ColourDefault)

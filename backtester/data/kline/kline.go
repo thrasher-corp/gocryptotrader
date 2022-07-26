@@ -90,9 +90,13 @@ func (d *DataFromKline) AppendResults(ki *gctkline.Item) {
 		}
 		candleTimes[i] = gctCandles[i].Time
 	}
-	for i := range d.RangeHolder.Ranges {
-		for j := range d.RangeHolder.Ranges[i].Intervals {
-			d.RangeHolder.Ranges[i].Intervals[j].HasData = true
+	if d.RangeHolder != nil {
+		// offline data check when there is a known range
+		// live data does not need this
+		for i := range d.RangeHolder.Ranges {
+			for j := range d.RangeHolder.Ranges[i].Intervals {
+				d.RangeHolder.Ranges[i].Intervals[j].HasData = true
+			}
 		}
 	}
 	log.Debugf(common.Data, "appending %v candle intervals: %v", len(gctCandles), candleTimes)

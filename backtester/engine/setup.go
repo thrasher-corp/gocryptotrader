@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/api"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/csv"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/database"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange/slippage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
@@ -633,6 +634,8 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		return nil, err
 	}
 
+	eventQueue := &eventholder.Holder{}
+
 	log.Infof(common.Setup, "loading data for %v %v %v...\n", exch.GetName(), a, fPair)
 	resp := &kline.DataFromKline{}
 	switch {
@@ -725,16 +728,16 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			return resp, err
 		}
 	case cfg.DataSettings.LiveData != nil:
-		if isUSDTrackingPair {
-			return nil, errLiveUSDTrackingNotSupported
-		}
-		if len(cfg.CurrencySettings) > 1 {
-			return nil, errors.New("live data simulation only supports one currency")
-		}
-		err = loadLiveData(cfg, b)
+		err = setExchangeCredentials(cfg, b)
 		if err != nil {
 			return nil, err
 		}
+
+		eventQueue.NewEventTimeout = cfg.DataSettings.LiveData.NewEventTimeout
+		eventQueue.DataCheckTimer = cfg.DataSettings.LiveData.DataCheckTimer
+		eventQueue.RunTimer = cfg.DataSettings.LiveData.RunTimer
+		bt.EventQueue = eventQueue
+
 		go bt.loadLiveDataLoop(
 			resp,
 			cfg,
@@ -742,6 +745,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			fPair,
 			a,
 			dataType)
+
 		return resp, nil
 	}
 	if resp == nil {
@@ -775,6 +779,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		return nil, err
 	}
 	bt.Reports.AddKlineItem(&resp.Item)
+	bt.EventQueue = eventQueue
 	return resp, nil
 }
 
@@ -833,7 +838,7 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	}, nil
 }
 
-func loadLiveData(cfg *config.Config, base *gctexchange.Base) error {
+func setExchangeCredentials(cfg *config.Config, base *gctexchange.Base) error {
 	if cfg == nil || base == nil || cfg.DataSettings.LiveData == nil {
 		return common.ErrNilArguments
 	}
@@ -841,27 +846,26 @@ func loadLiveData(cfg *config.Config, base *gctexchange.Base) error {
 		return errIntervalUnset
 	}
 
-	if cfg.DataSettings.LiveData.APIKeyOverride != "" {
-		base.API.SetKey(cfg.DataSettings.LiveData.APIKeyOverride)
-	}
-	if cfg.DataSettings.LiveData.APISecretOverride != "" {
-		base.API.SetSecret(cfg.DataSettings.LiveData.APISecretOverride)
-	}
-	if cfg.DataSettings.LiveData.APIClientIDOverride != "" {
-		base.API.SetClientID(cfg.DataSettings.LiveData.APIClientIDOverride)
-	}
-	if cfg.DataSettings.LiveData.API2FAOverride != "" {
-		base.API.SetPEMKey(cfg.DataSettings.LiveData.API2FAOverride)
-	}
-	if cfg.DataSettings.LiveData.APISubAccountOverride != "" {
-		base.API.SetSubAccount(cfg.DataSettings.LiveData.APISubAccountOverride)
+	for i := range cfg.DataSettings.LiveData.ExchangeCredentials {
+		if cfg.DataSettings.LiveData.ExchangeCredentials[i].Exchange != base.Name {
+			continue
+		}
+		base.SetCredentials(
+			cfg.DataSettings.LiveData.ExchangeCredentials[i].Credentials.Key,
+			cfg.DataSettings.LiveData.ExchangeCredentials[i].Credentials.Secret,
+			cfg.DataSettings.LiveData.ExchangeCredentials[i].Credentials.ClientID,
+			cfg.DataSettings.LiveData.ExchangeCredentials[i].Credentials.SubAccount,
+			cfg.DataSettings.LiveData.ExchangeCredentials[i].Credentials.PEMKey,
+			cfg.DataSettings.LiveData.ExchangeCredentials[i].Credentials.OneTimePassword,
+		)
+		validated := base.AreCredentialsValid(context.TODO())
+		base.API.AuthenticatedSupport = validated
+		if !validated && cfg.DataSettings.LiveData.RealOrders {
+			log.Warn(common.Setup, "invalid API credentials set, real orders set to false")
+			cfg.DataSettings.LiveData.RealOrders = false
+		}
+		return nil
 	}
 
-	validated := base.AreCredentialsValid(context.TODO())
-	base.API.AuthenticatedSupport = validated
-	if !validated && cfg.DataSettings.LiveData.RealOrders {
-		log.Warn(common.Setup, "invalid API credentials set, real orders set to false")
-		cfg.DataSettings.LiveData.RealOrders = false
-	}
 	return nil
 }
