@@ -171,7 +171,7 @@ func (vm *VM) CompileAndRun() {
 			}
 			return
 		}
-		if vm.T > time.Nanosecond {
+		if vm.T >= time.Nanosecond {
 			vm.runner()
 			return
 		}
