@@ -54,6 +54,7 @@ const (
 
 	// Account asset endpoint
 	bybitGetDepositAddress = "/asset/v1/private/deposit/address"
+	bybitWithdrawFund      = "/asset/v1/private/withdraw"
 )
 
 // GetAllSpotPairs gets all pairs on the exchange
@@ -775,6 +776,26 @@ func (by *Bybit) GetDepositAddressForCurrency(ctx context.Context, coin string) 
 	}
 	params.Set("coin", strings.ToUpper(coin))
 	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitGetDepositAddress, params, &resp, publicSpotRate)
+}
+
+// WithdrawFund creates request for fund withdrawal.
+func (by *Bybit) WithdrawFund(ctx context.Context, coin, chain, address, tag, amount string) (string, error) {
+	resp := struct {
+		Data struct {
+			ID string `json:"id"`
+		} `json:"result"`
+		Error
+	}{}
+
+	params := url.Values{}
+	params.Set("coin", coin)
+	params.Set("chain", chain)
+	params.Set("address", address)
+	params.Set("amount", amount)
+	if tag != "" {
+		params.Set("tag", tag)
+	}
+	return resp.Data.ID, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, bybitWithdrawFund, params, &resp, privateSpotRate)
 }
 
 // SendHTTPRequest sends an unauthenticated request

@@ -301,13 +301,25 @@ func TestGetSpotServerTime(t *testing.T) {
 	}
 }
 
-func GetDepositAddressForCoin(t *testing.T) {
+func TestGetDepositAddressForCurrency(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
 
 	_, err := b.GetDepositAddressForCurrency(context.Background(), currency.BTC.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWithdrawFund(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := b.WithdrawFund(context.Background(), currency.LTC.String(), currency.LTC.String(), "3CDJNfdWX8m2NwuGUV3nhXHXEeLygMXoAj", "", "10")
 	if err != nil {
 		t.Fatal(err)
 	}
