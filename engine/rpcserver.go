@@ -4953,11 +4953,26 @@ func (s *RPCServer) GetOrderbookMovement(ctx context.Context, r *gctrpc.GetOrder
 		return nil, err
 	}
 
+	isRest, err := depth.IsRESTSnapshot()
+	if err != nil {
+		return nil, err
+	}
+
+	updateProtocol := "WEBSOCKET"
+	if isRest {
+		updateProtocol = "REST"
+	}
+
 	var move *orderbook.Movement
+	var bought, sold, side string
 	if r.Sell {
 		move, err = depth.GetMovementByBaseFromBest(r.Amount)
+		bought = pair.Base.Upper().String()
+		side = order.Bid.String()
 	} else {
 		move, err = depth.GetMovementByQuoteFromBest(r.Amount)
+		bought = pair.Quote.Upper().String()
+		side = order.Ask.String()
 	}
 	if err != nil {
 		return nil, err
@@ -4967,6 +4982,10 @@ func (s *RPCServer) GetOrderbookMovement(ctx context.Context, r *gctrpc.GetOrder
 		NominalPercentage: move.NominalPercentage,
 		ImpactPercentage:  move.ImpactPercentage,
 		SlippageCost:      move.SlippageCost,
+		CurrencyBought:    bought,
+		CurrencySold:      sold,
+		SideAffected:      side,
+		UpdateProtocol:    updateProtocol,
 	}, nil
 }
 
@@ -4993,16 +5012,40 @@ func (s *RPCServer) GetOrderbookAmountByNominal(ctx context.Context, r *gctrpc.G
 		return nil, err
 	}
 
-	var amount float64
+	isRest, err := depth.IsRESTSnapshot()
+	if err != nil {
+		return nil, err
+	}
+
+	updateProtocol := "WEBSOCKET"
+	if isRest {
+		updateProtocol = "REST"
+	}
+
+	var nominal orderbook.Shift
+	var used, side string
 	if r.Sell {
-		amount, err = depth.GetBaseFromNominalSlippageFromBest(r.NominalPercentage)
+		nominal, err = depth.GetBaseFromNominalSlippageFromBest(r.NominalPercentage)
+		used = pair.Upper().Base.String()
+		side = order.Bid.String()
 	} else {
-		amount, err = depth.GetQuoteFromNominalSlippageFromBest(r.NominalPercentage)
+		nominal, err = depth.GetQuoteFromNominalSlippageFromBest(r.NominalPercentage)
+		used = pair.Upper().Quote.String()
+		side = order.Ask.String()
 	}
 	if err != nil {
 		return nil, err
 	}
-	return &gctrpc.GetOrderbookAmountByNominalResponse{Amount: amount}, nil
+	return &gctrpc.GetOrderbookAmountByNominalResponse{
+		AmountRequired:                       nominal.AmountRequired,
+		Currency:                             used,
+		SideAffected:                         side,
+		ApproximateNominalSlippagePercentage: nominal.ApproximatePercentage,
+		UpdateProtocol:                       updateProtocol,
+		FullOrderbookSideConsumed:            nominal.FullBookSideConsumed,
+		StartPrice:                           nominal.StartPrice,
+		EndPrice:                             nominal.EndPrice,
+	}, nil
 }
 
 // GetOrderbookAmountByImpact using the requested impact percentage requirement
@@ -5028,14 +5071,38 @@ func (s *RPCServer) GetOrderbookAmountByImpact(ctx context.Context, r *gctrpc.Ge
 		return nil, err
 	}
 
-	var amount float64
+	isRest, err := depth.IsRESTSnapshot()
+	if err != nil {
+		return nil, err
+	}
+
+	updateProtocol := "WEBSOCKET"
+	if isRest {
+		updateProtocol = "REST"
+	}
+
+	var impact orderbook.Shift
+	var used, side string
 	if r.Sell {
-		amount, err = depth.GetBaseFromImpactSlippageFromBest(r.ImpactPercentage)
+		impact, err = depth.GetBaseFromImpactSlippageFromBest(r.ImpactPercentage)
+		used = pair.Base.Upper().String()
+		side = order.Bid.String()
 	} else {
-		amount, err = depth.GetQuoteFromImpactSlippageFromBest(r.ImpactPercentage)
+		impact, err = depth.GetQuoteFromImpactSlippageFromBest(r.ImpactPercentage)
+		used = pair.Quote.Upper().String()
+		side = order.Ask.String()
 	}
 	if err != nil {
 		return nil, err
 	}
-	return &gctrpc.GetOrderbookAmountByImpactResponse{Amount: amount}, nil
+	return &gctrpc.GetOrderbookAmountByImpactResponse{
+		AmountRequired:                      impact.AmountRequired,
+		Currency:                            used,
+		SideAffected:                        side,
+		ApproximateImpactSlippagePercentage: impact.ApproximatePercentage,
+		UpdateProtocol:                      updateProtocol,
+		FullOrderbookSideConsumed:           impact.FullBookSideConsumed,
+		StartPrice:                          impact.StartPrice,
+		EndPrice:                            impact.EndPrice,
+	}, nil
 }

@@ -169,3 +169,13 @@ type SideAmounts struct {
 	QuoteValue float64
 	BaseAmount float64
 }
+
+// Shift defines the required details to shift the book price by the supplied
+// percentage.
+type Shift struct {
+	AmountRequired        float64
+	ApproximatePercentage float64
+	StartPrice            float64
+	EndPrice              float64
+	FullBookSideConsumed  bool
+}

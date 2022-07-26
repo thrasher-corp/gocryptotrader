@@ -2396,6 +2396,12 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "requiresRestOrderbook",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -2463,6 +2469,12 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "requiresRestOrderbook",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -2527,6 +2539,12 @@
           },
           {
             "name": "sell",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "requiresRestOrderbook",
             "in": "query",
             "required": false,
             "type": "boolean"
@@ -5365,7 +5383,31 @@
     "gctrpcGetOrderbookAmountByImpactResponse": {
       "type": "object",
       "properties": {
-        "amount": {
+        "amountRequired": {
+          "type": "number",
+          "format": "double"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "sideAffected": {
+          "type": "string"
+        },
+        "approximateImpactSlippagePercentage": {
+          "type": "number",
+          "format": "double"
+        },
+        "updateProtocol": {
+          "type": "string"
+        },
+        "fullOrderbookSideConsumed": {
+          "type": "boolean"
+        },
+        "startPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "endPrice": {
           "type": "number",
           "format": "double"
         }
@@ -5374,7 +5416,31 @@
     "gctrpcGetOrderbookAmountByNominalResponse": {
       "type": "object",
       "properties": {
-        "amount": {
+        "amountRequired": {
+          "type": "number",
+          "format": "double"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "sideAffected": {
+          "type": "string"
+        },
+        "approximateNominalSlippagePercentage": {
+          "type": "number",
+          "format": "double"
+        },
+        "updateProtocol": {
+          "type": "string"
+        },
+        "fullOrderbookSideConsumed": {
+          "type": "boolean"
+        },
+        "startPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "endPrice": {
           "type": "number",
           "format": "double"
         }
@@ -5392,6 +5458,29 @@
           "format": "double"
         },
         "slippageCost": {
+          "type": "number",
+          "format": "double"
+        },
+        "currencyBought": {
+          "type": "string"
+        },
+        "currencySold": {
+          "type": "string"
+        },
+        "sideAffected": {
+          "type": "string"
+        },
+        "updateProtocol": {
+          "type": "string"
+        },
+        "fullOrderbookSideConsumed": {
+          "type": "boolean"
+        },
+        "startPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "endPrice": {
           "type": "number",
           "format": "double"
         }
