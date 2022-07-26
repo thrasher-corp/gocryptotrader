@@ -821,7 +821,8 @@ func (by *Bybit) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path s
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
-func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, result UnmarshalTo, f request.EndpointLimit) error {
+// If payload is non-nil then request is considered to be JSON
+func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, jsonPayload map[string]interface{}, result UnmarshalTo, f request.EndpointLimit) error {
 	creds, err := by.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -844,28 +845,38 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 		params.Set("recvWindow", defaultRecvWindow)
 	}
 
-	err = by.SendPayload(ctx, f, func() (*request.Item, error) {
-		params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
-		params.Set("api_key", creds.Key)
-		signature := params.Encode()
-		var hmacSigned []byte
-		hmacSigned, err = crypto.GetHMAC(crypto.HashSHA256, []byte(signature), []byte(creds.Secret))
-		if err != nil {
-			return nil, err
-		}
-		hmacSignedStr := crypto.HexEncodeToString(hmacSigned)
+	if jsonPayload != nil {
+		jsonPayload["recvWindow"] = defaultRecvWindow
+	}
 
-		headers := make(map[string]string)
+	err = by.SendPayload(ctx, f, func() (*request.Item, error) {
 		var payload []byte
-		headers["Content-Type"] = "application/x-www-form-urlencoded"
-		switch method {
-		case http.MethodPost:
-			params.Set("sign", hmacSignedStr)
-			payload = []byte(params.Encode())
-		default:
-			path = common.EncodeURLValues(path, params)
-			path += "&sign=" + hmacSignedStr
+		headers := make(map[string]string)
+
+		if jsonPayload != nil {
+			jsonPayload["timestamp"] = strconv.FormatInt(time.Now().UnixMilli(), 10)
+			jsonPayload["api_key"] = creds.Key
+			jsonPayload["sign"] = getJSONRequestSignature(jsonPayload, creds.Secret)
+			headers["Content-Type"] = "application/json"
+		} else {
+			params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
+			params.Set("api_key", creds.Key)
+			hmacSignedStr, err := getSign(params.Encode(), creds.Secret)
+			if err != nil {
+				return nil, err
+			}
+
+			headers["Content-Type"] = "application/x-www-form-urlencoded"
+			switch method {
+			case http.MethodPost:
+				params.Set("sign", hmacSignedStr)
+				payload = []byte(params.Encode())
+			default:
+				path = common.EncodeURLValues(path, params)
+				path += "&sign=" + hmacSignedStr
+			}
 		}
+
 		return &request.Item{
 			Method:        method,
 			Path:          endpointPath + path,
@@ -945,4 +956,17 @@ func getOrderStatus(status string) order.Status {
 	default:
 		return order.UnknownStatus
 	}
+}
+
+func getJSONRequestSignature(payload map[string]interface{}, secret string) (string, error) {
+
+	return getSign("", secret)
+}
+
+func getSign(sign, secret string) (string, error) {
+	hmacSigned, err := crypto.GetHMAC(crypto.HashSHA256, []byte(sign), []byte(secret))
+	if err != nil {
+		return "", err
+	}
+	return crypto.HexEncodeToString(hmacSigned), nil
 }
