@@ -85,17 +85,21 @@ func processOB(ob [][2]string) ([]orderbook.Item, error) {
 	return o, nil
 }
 
-func constructOrderbook(o *orderbookResponse) (s *Orderbook, err error) {
+func constructOrderbook(o *orderbookResponse) (*Orderbook, error) {
+	var (
+		s   Orderbook
+		err error
+	)
 	s.Bids, err = processOB(o.Data.Bids)
 	if err != nil {
-		return s, err
+		return nil, err
 	}
 	s.Asks, err = processOB(o.Data.Asks)
 	if err != nil {
-		return s, err
+		return nil, err
 	}
 	s.Time = o.Data.Time.Time()
-	return
+	return &s, err
 }
 
 // GetOrderBook gets orderbook for a given market with a given depth (default depth 100)
