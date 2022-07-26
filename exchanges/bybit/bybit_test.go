@@ -2844,6 +2844,83 @@ func TestGetActiveOrders(t *testing.T) {
 	}
 }
 
+func TestGetOrderHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	pair, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var getOrdersRequestSpot = order.GetOrdersRequest{
+		Pairs:     currency.Pairs{pair},
+		AssetType: asset.Spot,
+	}
+
+	_, err = b.GetOrderHistory(context.Background(), &getOrdersRequestSpot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	var getOrdersRequestUMF = order.GetOrdersRequest{
+		Pairs:     currency.Pairs{pair},
+		AssetType: asset.USDTMarginedFutures,
+	}
+
+	_, err = b.GetOrderHistory(context.Background(), &getOrdersRequestUMF)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pair1, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var getOrdersRequestCMF = order.GetOrdersRequest{
+		Pairs:     currency.Pairs{pair1},
+		AssetType: asset.CoinMarginedFutures,
+	}
+
+	_, err = b.GetOrderHistory(context.Background(), &getOrdersRequestCMF)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pair2, err := currency.NewPairFromString("BTCUSDZ22")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var getOrdersRequestFutures = order.GetOrdersRequest{
+		Pairs:     currency.Pairs{pair2},
+		AssetType: asset.Futures,
+	}
+
+	_, err = b.GetOrderHistory(context.Background(), &getOrdersRequestFutures)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pair3, err := currency.NewPairFromString("BTCPERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var getOrdersRequestUSDC = order.GetOrdersRequest{
+		Pairs:     currency.Pairs{pair3},
+		AssetType: asset.USDCMarginedFutures,
+	}
+
+	_, err = b.GetOrderHistory(context.Background(), &getOrdersRequestUSDC)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
