@@ -51,7 +51,9 @@ const (
 	bybitTradeHistory             = "/spot/v1/myTrades"
 	bybitWalletBalance            = "/spot/v1/account"
 	bybitServerTime               = "/spot/v1/time"
-	bybitGetDepositAddress        = "/asset/v1/private/deposit/address"
+
+	// Account asset endpoint
+	bybitGetDepositAddress = "/asset/v1/private/deposit/address"
 )
 
 // GetAllSpotPairs gets all pairs on the exchange
@@ -756,8 +758,8 @@ func (by *Bybit) GetSpotServerTime(ctx context.Context) (time.Time, error) {
 	return time.UnixMilli(resp.Result.ServerTime), err
 }
 
-// GetDepositAddressForCoin returns deposit wallet address based upon the coin.
-func (by *Bybit) GetDepositAddressForCoin(ctx context.Context, coin string) (DepositWalletInfo, error) {
+// GetDepositAddressForCurrency returns deposit wallet address based upon the coin.
+func (by *Bybit) GetDepositAddressForCurrency(ctx context.Context, coin string) (DepositWalletInfo, error) {
 	resp := struct {
 		Result DepositWalletInfo `json:"result"`
 		Error

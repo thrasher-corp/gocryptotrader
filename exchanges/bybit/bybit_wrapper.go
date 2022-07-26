@@ -91,27 +91,29 @@ func (by *Bybit) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerFetching:    true,
-				TradeFetching:     true,
-				KlineFetching:     true,
-				OrderbookFetching: true,
-				AutoPairUpdates:   true,
-				AccountInfo:       true,
-				GetOrder:          true,
-				GetOrders:         true,
-				CancelOrders:      true,
-				CancelOrder:       true,
-				SubmitOrder:       true,
-				DepositHistory:    true,
-				WithdrawalHistory: true,
-				UserTradeHistory:  true,
-				CryptoDeposit:     true,
-				CryptoWithdrawal:  true,
-				TradeFee:          true,
-				FiatDepositFee:    true,
-				FiatWithdrawalFee: true,
-				CryptoDepositFee:  true,
-				ModifyOrder:       true,
+				TickerFetching:        true,
+				TradeFetching:         true,
+				KlineFetching:         true,
+				OrderbookFetching:     true,
+				AutoPairUpdates:       true,
+				AccountInfo:           true,
+				GetOrder:              true,
+				GetOrders:             true,
+				CancelOrders:          true,
+				CancelOrder:           true,
+				SubmitOrder:           true,
+				DepositHistory:        true,
+				WithdrawalHistory:     true,
+				UserTradeHistory:      true,
+				CryptoDeposit:         true,
+				CryptoWithdrawal:      true,
+				TradeFee:              true,
+				FiatDepositFee:        true,
+				FiatWithdrawalFee:     true,
+				CryptoDepositFee:      true,
+				ModifyOrder:           true,
+				MultiChainDeposits:    true,
+				MultiChainWithdrawals: true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TradeFetching:          true,
@@ -1346,13 +1348,13 @@ func (by *Bybit) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReques
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (by *Bybit) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
 func (by *Bybit) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetActiveOrders retrieves any orders that are active/open
@@ -1519,8 +1521,102 @@ func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (by *Bybit) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	return nil, common.ErrNotYetImplemented
+func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+	var orders []order.Detail
+	switch req.AssetType {
+	case asset.Spot:
+		resp, err := by.GetPastOrders(ctx, "", req.OrderID, 0, req.StartTime, req.EndTime)
+		if err != nil {
+			return nil, err
+		}
+
+		for i := range resp {
+			// here, we are not using getSide because in sample response side's are in upper
+			var side order.Side
+			side, err = order.StringToOrderSide(resp[i].Side)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", by.Name, err)
+			}
+
+			var pair currency.Pair
+			pair, err = currency.NewPairFromString(resp[i].Symbol)
+			if err != nil {
+				return nil, err
+			}
+			detail := order.Detail{
+				Amount:          resp[i].Quantity,
+				ExecutedAmount:  resp[i].ExecutedQty,
+				RemainingAmount: resp[i].Quantity - resp[i].ExecutedQty,
+				Cost:            resp[i].CummulativeQuoteQty,
+				Date:            resp[i].Time.Time(),
+				LastUpdated:     resp[i].UpdateTime.Time(),
+				Exchange:        by.Name,
+				OrderID:         resp[i].OrderID,
+				Side:            side,
+				Type:            getTradeType(resp[i].TradeType),
+				Price:           resp[i].Price,
+				Pair:            pair,
+				Status:          getOrderStatus(resp[i].Status),
+			}
+			detail.InferCostsAndTimes()
+			orders = append(orders, detail)
+		}
+
+	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures:
+	case asset.USDCMarginedFutures:
+		resp, err := by.GetUSDCOrderHistory(ctx, currency.EMPTYPAIR, "PERPETUAL", req.OrderID, "", "", "", "", 0)
+		if err != nil {
+			return nil, err
+		}
+
+		for i := range resp {
+			var orderType order.Type
+			orderType, err = order.StringToOrderType(resp[i].OrderType)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", by.Name, err)
+			}
+			orderStatus, err := order.StringToOrderStatus(resp[i].OrderStatus)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", by.Name, err)
+			}
+
+			var pair currency.Pair
+			pair, err = currency.NewPairFromString(resp[i].Symbol)
+			if err != nil {
+				return nil, err
+			}
+			detail := order.Detail{
+				Amount:          resp[i].Qty,
+				ExecutedAmount:  resp[i].TotalFilledQty,
+				RemainingAmount: resp[i].LeavesQty,
+				Date:            resp[i].CreatedAt.Time(),
+				LastUpdated:     resp[i].UpdatedAt.Time(),
+				Exchange:        by.Name,
+				OrderID:         resp[i].ID,
+				Side:            getSide(resp[i].Side),
+				Type:            orderType,
+				Price:           resp[i].Price,
+				Pair:            pair,
+				Status:          orderStatus,
+			}
+			detail.InferCostsAndTimes()
+			orders = append(orders, detail)
+		}
+	default:
+		return orders, fmt.Errorf("%s %w", req.AssetType, asset.ErrNotSupported)
+	}
+
+	order.FilterOrdersByPairs(&orders, req.Pairs)
+	order.FilterOrdersByType(&orders, req.Type)
+	order.FilterOrdersBySide(&orders, req.Side)
+	err := order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", by.Name, err)
+	}
+	return orders, nil
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction

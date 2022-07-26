@@ -833,10 +833,10 @@ type USDCOrder struct {
 // USDCOrderHistory stores order history
 type USDCOrderHistory struct {
 	USDCOrder
-	LeavesValue float64 `json:"leavesValue,string"` // Est. order value of unfilled orders
-	CashFlow    string  `json:"cashFlow"`
-	RealisedPnl float64 `json:"realisedPnl,string"`
-	UpdatedAt   string  `json:"updatedAt"`
+	LeavesQty   float64              `json:"leavesQty,string"` // Est. unfilled order qty
+	CashFlow    string               `json:"cashFlow"`
+	RealisedPnl float64              `json:"realisedPnl,string"`
+	UpdatedAt   bybitTimeMilliSecStr `json:"updatedAt"`
 }
 
 // USDCTradeHistory stores trade history
