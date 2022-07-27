@@ -97,7 +97,7 @@ func (by *Bybit) CreateFuturesOrder(ctx context.Context, positionMode int64, sym
 	if reduceOnly {
 		params.Set("reduce_only", "true")
 	}
-	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresCreateOrder, params, &resp, futuresCreateOrderRate)
+	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresCreateOrder, params, nil, &resp, futuresCreateOrderRate)
 }
 
 // GetActiveFuturesOrders gets list of futures active orders
@@ -128,7 +128,7 @@ func (by *Bybit) GetActiveFuturesOrders(ctx context.Context, symbol currency.Pai
 	if cursor != "" {
 		params.Set("cursor", cursor)
 	}
-	return resp.Result.Data, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, futuresGetActiveOrders, params, &resp, futuresGetActiveOrderRate)
+	return resp.Result.Data, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, futuresGetActiveOrders, params, nil, &resp, futuresGetActiveOrderRate)
 }
 
 // CancelActiveFuturesOrders cancels futures unfilled or partially filled orders
@@ -152,7 +152,7 @@ func (by *Bybit) CancelActiveFuturesOrders(ctx context.Context, symbol currency.
 	if orderLinkID != "" {
 		params.Set("order_link_id", orderLinkID)
 	}
-	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresCancelActiveOrder, params, &resp, futuresCancelOrderRate)
+	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresCancelActiveOrder, params, nil, &resp, futuresCancelOrderRate)
 }
 
 // CancelAllActiveFuturesOrders cancels all futures unfilled or partially filled orders
@@ -167,7 +167,7 @@ func (by *Bybit) CancelAllActiveFuturesOrders(ctx context.Context, symbol curren
 		return resp.Result, err
 	}
 	params.Set("symbol", symbolValue)
-	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresCancelAllActiveOrders, params, &resp, futuresCancelAllOrderRate)
+	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresCancelAllActiveOrders, params, nil, &resp, futuresCancelAllOrderRate)
 }
 
 // ReplaceActiveFuturesOrders modify unfilled or partially filled orders
@@ -213,7 +213,7 @@ func (by *Bybit) ReplaceActiveFuturesOrders(ctx context.Context, symbol currency
 	if stopLossTriggerBy != "" {
 		params.Set("sl_trigger_by", stopLossTriggerBy)
 	}
-	return resp.Result.OrderID, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresReplaceActiveOrder, params, &resp, futuresReplaceOrderRate)
+	return resp.Result.OrderID, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresReplaceActiveOrder, params, nil, &resp, futuresReplaceOrderRate)
 }
 
 // GetActiveRealtimeOrders query real time order data
@@ -237,7 +237,7 @@ func (by *Bybit) GetActiveRealtimeOrders(ctx context.Context, symbol currency.Pa
 			Result []FuturesActiveRealtimeOrder `json:"result"`
 			Error
 		}{}
-		err = by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, futuresGetActiveRealtimeOrders, params, &resp, futuresGetActiveRealtimeOrderRate)
+		err = by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, futuresGetActiveRealtimeOrders, params, nil, &resp, futuresGetActiveRealtimeOrderRate)
 		if err != nil {
 			return data, err
 		}
@@ -247,7 +247,7 @@ func (by *Bybit) GetActiveRealtimeOrders(ctx context.Context, symbol currency.Pa
 			Result FuturesActiveRealtimeOrder `json:"result"`
 			Error
 		}{}
-		err = by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, futuresGetActiveRealtimeOrders, params, &resp, futuresGetActiveRealtimeOrderRate)
+		err = by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, futuresGetActiveRealtimeOrders, params, nil, &resp, futuresGetActiveRealtimeOrderRate)
 		if err != nil {
 			return data, err
 		}
@@ -321,7 +321,7 @@ func (by *Bybit) CreateConditionalFuturesOrder(ctx context.Context, positionMode
 	if stopLossTriggerBy != "" {
 		params.Set("sl_trigger_by", stopLossTriggerBy)
 	}
-	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresCreateConditionalOrder, params, &resp, futuresCreateConditionalOrderRate)
+	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresCreateConditionalOrder, params, nil, &resp, futuresCreateConditionalOrderRate)
 }
 
 // GetConditionalFuturesOrders gets list of futures conditional orders
@@ -351,7 +351,7 @@ func (by *Bybit) GetConditionalFuturesOrders(ctx context.Context, symbol currenc
 	if cursor != "" {
 		params.Set("cursor", cursor)
 	}
-	return resp.Result.Result, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, futuresGetConditionalOrders, params, &resp, futuresGetConditionalOrderRate)
+	return resp.Result.Result, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, futuresGetConditionalOrders, params, nil, &resp, futuresGetConditionalOrderRate)
 }
 
 // CancelConditionalFuturesOrders cancels untriggered conditional orders
@@ -377,7 +377,7 @@ func (by *Bybit) CancelConditionalFuturesOrders(ctx context.Context, symbol curr
 	if orderLinkID != "" {
 		params.Set("order_link_id", orderLinkID)
 	}
-	return resp.Result.StopOrderID, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresCancelConditionalOrder, params, &resp, futuresCancelConditionalOrderRate)
+	return resp.Result.StopOrderID, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresCancelConditionalOrder, params, nil, &resp, futuresCancelConditionalOrderRate)
 }
 
 // CancelAllConditionalFuturesOrders cancels all untriggered conditional orders
@@ -392,7 +392,7 @@ func (by *Bybit) CancelAllConditionalFuturesOrders(ctx context.Context, symbol c
 		return resp.Result, err
 	}
 	params.Set("symbol", symbolValue)
-	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresCancelAllConditionalOrders, params, &resp, futuresCancelAllConditionalOrderRate)
+	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresCancelAllConditionalOrders, params, nil, &resp, futuresCancelAllConditionalOrderRate)
 }
 
 // ReplaceConditionalFuturesOrders modify unfilled or partially filled conditional orders
@@ -441,7 +441,7 @@ func (by *Bybit) ReplaceConditionalFuturesOrders(ctx context.Context, symbol cur
 	if stopLossTriggerBy != "" {
 		params.Set("sl_trigger_by", stopLossTriggerBy)
 	}
-	return resp.Result.OrderID, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresReplaceConditionalOrder, params, &resp, futuresReplaceConditionalOrderRate)
+	return resp.Result.OrderID, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresReplaceConditionalOrder, params, nil, &resp, futuresReplaceConditionalOrderRate)
 }
 
 // GetConditionalRealtimeOrders query real time conditional order data
@@ -465,7 +465,7 @@ func (by *Bybit) GetConditionalRealtimeOrders(ctx context.Context, symbol curren
 			Result []FuturesConditionalRealtimeOrder `json:"result"`
 			Error
 		}{}
-		err = by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, futuresGetConditionalRealtimeOrders, params, &resp, futuresGetConditionalRealtimeOrderRate)
+		err = by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, futuresGetConditionalRealtimeOrders, params, nil, &resp, futuresGetConditionalRealtimeOrderRate)
 		if err != nil {
 			return data, err
 		}
@@ -475,7 +475,7 @@ func (by *Bybit) GetConditionalRealtimeOrders(ctx context.Context, symbol curren
 			Result FuturesConditionalRealtimeOrder `json:"result"`
 			Error
 		}{}
-		err = by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, futuresGetConditionalRealtimeOrders, params, &resp, futuresGetConditionalRealtimeOrderRate)
+		err = by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, futuresGetConditionalRealtimeOrders, params, nil, &resp, futuresGetConditionalRealtimeOrderRate)
 		if err != nil {
 			return data, err
 		}
@@ -502,7 +502,7 @@ func (by *Bybit) GetPositions(ctx context.Context, symbol currency.Pair) ([]Posi
 		}
 		params.Set("symbol", symbolValue)
 	}
-	err := by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, futuresPosition, params, &resp, futuresPositionRate)
+	err := by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, futuresPosition, params, nil, &resp, futuresPositionRate)
 	if err != nil {
 		return nil, err
 	}
@@ -536,7 +536,7 @@ func (by *Bybit) SetMargin(ctx context.Context, positionMode int64, symbol curre
 	}
 	params.Set("margin", margin)
 
-	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresUpdateMargin, params, &resp, futuresUpdateMarginRate)
+	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresUpdateMargin, params, nil, &resp, futuresUpdateMarginRate)
 }
 
 // SetTradingAndStop sets take profit, stop loss, and trailing stop for your open position
@@ -580,7 +580,7 @@ func (by *Bybit) SetTradingAndStop(ctx context.Context, positionMode int64, symb
 	if stopLossTriggerBy != "" {
 		params.Set("sl_trigger_by", stopLossTriggerBy)
 	}
-	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSetTradingStop, params, &resp, futuresSetTradingStopRate)
+	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSetTradingStop, params, nil, &resp, futuresSetTradingStopRate)
 }
 
 // SetLeverage sets leverage
@@ -598,7 +598,7 @@ func (by *Bybit) SetLeverage(ctx context.Context, symbol currency.Pair, buyLever
 	params.Set("buy_leverage", strconv.FormatFloat(buyLeverage, 'f', -1, 64))
 	params.Set("sell_leverage", strconv.FormatFloat(sellLeverage, 'f', -1, 64))
 
-	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSetLeverage, params, &resp, futuresSetLeverageRate)
+	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSetLeverage, params, nil, &resp, futuresSetLeverageRate)
 }
 
 // ChangePositionMode switches mode between One-Way or Hedge Mode
@@ -611,7 +611,7 @@ func (by *Bybit) ChangePositionMode(ctx context.Context, symbol currency.Pair, m
 	params.Set("symbol", symbolValue)
 	params.Set("mode", strconv.FormatInt(mode, 10))
 
-	return by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSwitchPositionMode, params, nil, futuresSwitchPositionModeRate)
+	return by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSwitchPositionMode, params, nil, nil, futuresSwitchPositionModeRate)
 }
 
 // ChangeMode switches mode between full or partial position
@@ -633,7 +633,7 @@ func (by *Bybit) ChangeMode(ctx context.Context, symbol currency.Pair, takeProfi
 	}
 	params.Set("tp_sl_mode", takeProfitStopLoss)
 
-	return resp.Result.Mode, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSwitchPosition, params, &resp, futuresSwitchPositionRate)
+	return resp.Result.Mode, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSwitchPosition, params, nil, &resp, futuresSwitchPositionRate)
 }
 
 // ChangeMargin switches margin between cross or isolated
@@ -653,7 +653,7 @@ func (by *Bybit) ChangeMargin(ctx context.Context, symbol currency.Pair, buyLeve
 		params.Set("is_isolated", "false")
 	}
 
-	return by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSwitchMargin, params, nil, futuresSwitchMarginRate)
+	return by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSwitchMargin, params, nil, nil, futuresSwitchMarginRate)
 }
 
 // GetTradeRecords returns list of user trades
@@ -689,7 +689,7 @@ func (by *Bybit) GetTradeRecords(ctx context.Context, symbol currency.Pair, orde
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
-	return resp.Data.Trades, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, futuresGetTrades, params, &resp, futuresGetTradeRate)
+	return resp.Data.Trades, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, futuresGetTrades, params, nil, &resp, futuresGetTradeRate)
 }
 
 // GetClosedTrades returns closed profit and loss records
@@ -725,7 +725,7 @@ func (by *Bybit) GetClosedTrades(ctx context.Context, symbol currency.Pair, exec
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
-	return resp.Data.Trades, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, futuresGetClosedTrades, params, &resp, futuresDefaultRate)
+	return resp.Data.Trades, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, futuresGetClosedTrades, params, nil, &resp, futuresDefaultRate)
 }
 
 // SetRiskLimit sets risk limit
@@ -753,5 +753,5 @@ func (by *Bybit) SetRiskLimit(ctx context.Context, symbol currency.Pair, riskID,
 		return resp.Result.RiskID, errInvalidPositionMode
 	}
 	params.Set("position_idx", strconv.FormatInt(positionMode, 10))
-	return resp.Result.RiskID, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSetRiskLimit, params, &resp, futuresDefaultRate)
+	return resp.Result.RiskID, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSetRiskLimit, params, nil, &resp, futuresDefaultRate)
 }

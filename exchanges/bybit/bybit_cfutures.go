@@ -462,7 +462,7 @@ func (by *Bybit) CreateCoinFuturesOrder(ctx context.Context, symbol currency.Pai
 	if reduceOnly {
 		params.Set("reduce_only", "true")
 	}
-	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesCreateOrder, params, &resp, cFuturesCreateOrderRate)
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesCreateOrder, params, nil, &resp, cFuturesCreateOrderRate)
 }
 
 // GetActiveCoinFuturesOrders gets list of futures active orders
@@ -493,7 +493,7 @@ func (by *Bybit) GetActiveCoinFuturesOrders(ctx context.Context, symbol currency
 	if cursor != "" {
 		params.Set("cursor", cursor)
 	}
-	return resp.Result.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetActiveOrders, params, &resp, cFuturesGetActiveOrderRate)
+	return resp.Result.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetActiveOrders, params, nil, &resp, cFuturesGetActiveOrderRate)
 }
 
 // CancelActiveCoinFuturesOrders cancels futures unfilled or partially filled orders
@@ -517,7 +517,7 @@ func (by *Bybit) CancelActiveCoinFuturesOrders(ctx context.Context, symbol curre
 	if orderLinkID != "" {
 		params.Set("order_link_id", orderLinkID)
 	}
-	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesCancelActiveOrder, params, &resp, cFuturesCancelActiveOrderRate)
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesCancelActiveOrder, params, nil, &resp, cFuturesCancelActiveOrderRate)
 }
 
 // CancelAllActiveCoinFuturesOrders cancels all futures unfilled or partially filled orders
@@ -532,7 +532,7 @@ func (by *Bybit) CancelAllActiveCoinFuturesOrders(ctx context.Context, symbol cu
 		return resp.Data, err
 	}
 	params.Set("symbol", symbolValue)
-	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesCancelAllActiveOrders, params, &resp, cFuturesCancelAllActiveOrderRate)
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesCancelAllActiveOrders, params, nil, &resp, cFuturesCancelAllActiveOrderRate)
 }
 
 // ReplaceActiveCoinFuturesOrders modify unfilled or partially filled orders
@@ -578,7 +578,7 @@ func (by *Bybit) ReplaceActiveCoinFuturesOrders(ctx context.Context, symbol curr
 	if stopLossTriggerBy != "" {
 		params.Set("sl_trigger_by", stopLossTriggerBy)
 	}
-	return resp.Data.OrderID, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesReplaceActiveOrder, params, &resp, cFuturesReplaceActiveOrderRate)
+	return resp.Data.OrderID, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesReplaceActiveOrder, params, nil, &resp, cFuturesReplaceActiveOrderRate)
 }
 
 // GetActiveRealtimeCoinOrders query real time order data
@@ -602,7 +602,7 @@ func (by *Bybit) GetActiveRealtimeCoinOrders(ctx context.Context, symbol currenc
 			Data []FuturesActiveRealtimeOrder `json:"result"`
 			Error
 		}{}
-		err = by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetActiveRealtimeOrders, params, &resp, cFuturesGetRealtimeOrderRate)
+		err = by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetActiveRealtimeOrders, params, nil, &resp, cFuturesGetRealtimeOrderRate)
 		if err != nil {
 			return data, err
 		}
@@ -612,7 +612,7 @@ func (by *Bybit) GetActiveRealtimeCoinOrders(ctx context.Context, symbol currenc
 			Data FuturesActiveRealtimeOrder `json:"result"`
 			Error
 		}{}
-		err = by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetActiveRealtimeOrders, params, &resp, cFuturesGetRealtimeOrderRate)
+		err = by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetActiveRealtimeOrders, params, nil, &resp, cFuturesGetRealtimeOrderRate)
 		if err != nil {
 			return data, err
 		}
@@ -681,7 +681,7 @@ func (by *Bybit) CreateConditionalCoinFuturesOrder(ctx context.Context, symbol c
 	if stopLossTriggerBy != "" {
 		params.Set("sl_trigger_by", stopLossTriggerBy)
 	}
-	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesCreateConditionalOrder, params, &resp, cFuturesCreateConditionalOrderRate)
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesCreateConditionalOrder, params, nil, &resp, cFuturesCreateConditionalOrderRate)
 }
 
 // GetConditionalCoinFuturesOrders gets list of futures conditional orders
@@ -711,7 +711,7 @@ func (by *Bybit) GetConditionalCoinFuturesOrders(ctx context.Context, symbol cur
 	if cursor != "" {
 		params.Set("cursor", cursor)
 	}
-	return resp.Result.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetConditionalOrders, params, &resp, cFuturesGetConditionalOrderRate)
+	return resp.Result.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetConditionalOrders, params, nil, &resp, cFuturesGetConditionalOrderRate)
 }
 
 // CancelConditionalCoinFuturesOrders cancels untriggered conditional orders
@@ -737,7 +737,7 @@ func (by *Bybit) CancelConditionalCoinFuturesOrders(ctx context.Context, symbol 
 	if orderLinkID != "" {
 		params.Set("order_link_id", orderLinkID)
 	}
-	return resp.Data.StopOrderID, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesCancelConditionalOrder, params, &resp, cFuturesCancelConditionalOrderRate)
+	return resp.Data.StopOrderID, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesCancelConditionalOrder, params, nil, &resp, cFuturesCancelConditionalOrderRate)
 }
 
 // CancelAllConditionalCoinFuturesOrders cancels all untriggered conditional orders
@@ -752,7 +752,7 @@ func (by *Bybit) CancelAllConditionalCoinFuturesOrders(ctx context.Context, symb
 		return resp.Data, err
 	}
 	params.Set("symbol", symbolValue)
-	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesCancelAllConditionalOrders, params, &resp, cFuturesCancelAllConditionalOrderRate)
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesCancelAllConditionalOrders, params, nil, &resp, cFuturesCancelAllConditionalOrderRate)
 }
 
 // ReplaceConditionalCoinFuturesOrders modify unfilled or partially filled conditional orders
@@ -801,7 +801,7 @@ func (by *Bybit) ReplaceConditionalCoinFuturesOrders(ctx context.Context, symbol
 	if stopLossTriggerBy != "" {
 		params.Set("sl_trigger_by", stopLossTriggerBy)
 	}
-	return resp.Data.OrderID, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesReplaceConditionalOrder, params, &resp, cFuturesReplaceConditionalOrderRate)
+	return resp.Data.OrderID, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesReplaceConditionalOrder, params, nil, &resp, cFuturesReplaceConditionalOrderRate)
 }
 
 // GetConditionalRealtimeCoinOrders query real time conditional order data
@@ -825,7 +825,7 @@ func (by *Bybit) GetConditionalRealtimeCoinOrders(ctx context.Context, symbol cu
 			Data []CoinFuturesConditionalRealtimeOrder `json:"result"`
 			Error
 		}{}
-		err = by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetConditionalRealtimeOrders, params, &resp, cFuturesDefaultRate)
+		err = by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetConditionalRealtimeOrders, params, nil, &resp, cFuturesDefaultRate)
 		if err != nil {
 			return data, err
 		}
@@ -835,7 +835,7 @@ func (by *Bybit) GetConditionalRealtimeCoinOrders(ctx context.Context, symbol cu
 			Data CoinFuturesConditionalRealtimeOrder `json:"result"`
 			Error
 		}{}
-		err = by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetConditionalRealtimeOrders, params, &resp, cFuturesDefaultRate)
+		err = by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetConditionalRealtimeOrders, params, nil, &resp, cFuturesDefaultRate)
 		if err != nil {
 			return data, err
 		}
@@ -861,7 +861,7 @@ func (by *Bybit) GetCoinPositions(ctx context.Context, symbol currency.Pair) ([]
 		}
 		params.Set("symbol", symbolValue)
 
-		err = by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesPosition, params, &resp, cFuturesPositionRate)
+		err = by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesPosition, params, nil, &resp, cFuturesPositionRate)
 		if err != nil {
 			return data, err
 		}
@@ -871,7 +871,7 @@ func (by *Bybit) GetCoinPositions(ctx context.Context, symbol currency.Pair) ([]
 			Data []PositionResp `json:"result"`
 			Error
 		}{}
-		err := by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesPosition, params, &resp, cFuturesPositionRate)
+		err := by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesPosition, params, nil, &resp, cFuturesPositionRate)
 		if err != nil {
 			return data, err
 		}
@@ -897,7 +897,7 @@ func (by *Bybit) SetCoinMargin(ctx context.Context, symbol currency.Pair, margin
 	}
 	params.Set("margin", margin)
 
-	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesUpdateMargin, params, &resp, cFuturesUpdateMarginRate)
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesUpdateMargin, params, nil, &resp, cFuturesUpdateMarginRate)
 }
 
 // SetCoinTradingAndStop sets take profit, stop loss, and trailing stop for your open position
@@ -938,7 +938,7 @@ func (by *Bybit) SetCoinTradingAndStop(ctx context.Context, symbol currency.Pair
 		params.Set("sl_trigger_by", stopLossTriggerBy)
 	}
 
-	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSetTrading, params, &resp, cFuturesDefaultRate)
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSetTrading, params, nil, &resp, cFuturesDefaultRate)
 }
 
 // SetCoinLeverage sets leverage
@@ -962,7 +962,7 @@ func (by *Bybit) SetCoinLeverage(ctx context.Context, symbol currency.Pair, leve
 		params.Set("leverage_only", "true")
 	}
 
-	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSetLeverage, params, &resp, cFuturesSetLeverageRate)
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSetLeverage, params, nil, &resp, cFuturesSetLeverageRate)
 }
 
 // GetCoinTradeRecords returns list of user trades
@@ -999,7 +999,7 @@ func (by *Bybit) GetCoinTradeRecords(ctx context.Context, symbol currency.Pair, 
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
-	return resp.Data.Trades, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetTrades, params, &resp, cFuturesTradeRate)
+	return resp.Data.Trades, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetTrades, params, nil, &resp, cFuturesTradeRate)
 }
 
 // GetClosedCoinTrades returns closed profit and loss records
@@ -1036,7 +1036,7 @@ func (by *Bybit) GetClosedCoinTrades(ctx context.Context, symbol currency.Pair, 
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
-	return resp.Data.Trades, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetClosedTrades, params, &resp, cFuturesDefaultRate)
+	return resp.Data.Trades, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetClosedTrades, params, nil, &resp, cFuturesDefaultRate)
 }
 
 // ChangeCoinMode switches mode between full or partial position
@@ -1058,7 +1058,7 @@ func (by *Bybit) ChangeCoinMode(ctx context.Context, symbol currency.Pair, takeP
 	}
 	params.Set("tp_sl_mode", takeProfitStopLoss)
 
-	return resp.Data.Mode, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSwitchPosition, params, &resp, cFuturesSwitchPositionRate)
+	return resp.Data.Mode, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSwitchPosition, params, nil, &resp, cFuturesSwitchPositionRate)
 }
 
 // ChangeCoinMargin switches margin between cross or isolated
@@ -1078,7 +1078,7 @@ func (by *Bybit) ChangeCoinMargin(ctx context.Context, symbol currency.Pair, buy
 		params.Set("is_isolated", "false")
 	}
 
-	return by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSwitchMargin, params, nil, cFuturesDefaultRate)
+	return by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSwitchMargin, params, nil, nil, cFuturesDefaultRate)
 }
 
 // GetTradingFeeRate returns trading taker and maker fee rate
@@ -1098,7 +1098,7 @@ func (by *Bybit) GetTradingFeeRate(ctx context.Context, symbol currency.Pair) (t
 	}
 	params.Set("symbol", symbolValue)
 
-	takerFee, makerFee, err = resp.Result.TakerFeeRate, resp.Result.MakerFeeRate, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetTradingFeeRate, params, &resp, cFuturesGetTradingFeeRate)
+	takerFee, makerFee, err = resp.Result.TakerFeeRate, resp.Result.MakerFeeRate, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetTradingFeeRate, params, nil, &resp, cFuturesGetTradingFeeRate)
 	return
 }
 
@@ -1123,7 +1123,7 @@ func (by *Bybit) SetCoinRiskLimit(ctx context.Context, symbol currency.Pair, ris
 	}
 	params.Set("risk_id", strconv.FormatInt(riskID, 10))
 
-	return resp.Data.RiskID, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSetRiskLimit, params, &resp, cFuturesDefaultRate)
+	return resp.Data.RiskID, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSetRiskLimit, params, nil, &resp, cFuturesDefaultRate)
 }
 
 // GetCoinLastFundingFee returns last funding fees
@@ -1141,7 +1141,7 @@ func (by *Bybit) GetCoinLastFundingFee(ctx context.Context, symbol currency.Pair
 	}
 	params.Set("symbol", symbolValue)
 
-	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetMyLastFundingFee, params, &resp, cFuturesLastFundingFeeRate)
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetMyLastFundingFee, params, nil, &resp, cFuturesLastFundingFeeRate)
 }
 
 // GetCoinPredictedFundingRate returns predicted funding rates and fees
@@ -1163,7 +1163,7 @@ func (by *Bybit) GetCoinPredictedFundingRate(ctx context.Context, symbol currenc
 	}
 	params.Set("symbol", symbolValue)
 
-	err = by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesPredictFundingRate, params, &resp, cFuturesPredictFundingRate)
+	err = by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesPredictFundingRate, params, nil, &resp, cFuturesPredictFundingRate)
 	fundingRate = resp.Data.PredictedFundingRate
 	fundingFee = resp.Data.PredictedFundingFee
 	return
@@ -1178,7 +1178,7 @@ func (by *Bybit) GetAPIKeyInfo(ctx context.Context) ([]APIKeyData, error) {
 		Error
 	}{}
 
-	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetAPIKeyInfo, params, &resp, cFuturesAPIKeyInfoRate)
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetAPIKeyInfo, params, nil, &resp, cFuturesAPIKeyInfoRate)
 }
 
 // GetLiquidityContributionPointsInfo returns latest LCP information
@@ -1198,7 +1198,7 @@ func (by *Bybit) GetLiquidityContributionPointsInfo(ctx context.Context, symbol 
 	}
 	params.Set("symbol", symbolValue)
 
-	return resp.Data.LCPList, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetLiquidityContributionPoints, params, &resp, cFuturesDefaultRate)
+	return resp.Data.LCPList, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetLiquidityContributionPoints, params, nil, &resp, cFuturesDefaultRate)
 }
 
 // GetFutureWalletBalance returns wallet balance
@@ -1214,7 +1214,7 @@ func (by *Bybit) GetFutureWalletBalance(ctx context.Context, coin string) (map[s
 		params.Set("coin", coin)
 	}
 
-	return resp.Wallets, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetWalletBalance, params, &resp, cFuturesWalletBalanceRate)
+	return resp.Wallets, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetWalletBalance, params, nil, &resp, cFuturesWalletBalanceRate)
 }
 
 // GetWalletFundRecords returns wallet fund records
@@ -1250,7 +1250,7 @@ func (by *Bybit) GetWalletFundRecords(ctx context.Context, startDate, endDate, c
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
-	return resp.Data.Records, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetWalletFundRecords, params, &resp, cFuturesWalletFundRecordRate)
+	return resp.Data.Records, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetWalletFundRecords, params, nil, &resp, cFuturesWalletFundRecordRate)
 }
 
 // GetWalletWithdrawalRecords returns wallet withdrawal records
@@ -1283,7 +1283,7 @@ func (by *Bybit) GetWalletWithdrawalRecords(ctx context.Context, startDate, endD
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
-	return resp.Data.Records, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetWalletWithdrawalRecords, params, &resp, cFuturesWalletWithdrawalRate)
+	return resp.Data.Records, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetWalletWithdrawalRecords, params, nil, &resp, cFuturesWalletWithdrawalRate)
 }
 
 // GetAssetExchangeRecords returns wallet asset exchange records
@@ -1306,5 +1306,5 @@ func (by *Bybit) GetAssetExchangeRecords(ctx context.Context, direction string, 
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
-	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetAssetExchangeRecords, params, &resp, cFuturesDefaultRate)
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetAssetExchangeRecords, params, nil, &resp, cFuturesDefaultRate)
 }

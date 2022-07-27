@@ -522,7 +522,7 @@ func (by *Bybit) CreatePostOrder(ctx context.Context, o *PlaceOrderRequest) (*Pl
 		Data PlaceOrderResponse `json:"result"`
 		Error
 	}{}
-	return &resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, bybitSpotOrder, params, &resp, privateSpotRate)
+	return &resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, bybitSpotOrder, params, nil, &resp, privateSpotRate)
 }
 
 // QueryOrder returns order data based upon orderID or orderLinkID
@@ -543,7 +543,7 @@ func (by *Bybit) QueryOrder(ctx context.Context, orderID, orderLinkID string) (*
 		Data QueryOrderResponse `json:"result"`
 		Error
 	}{}
-	return &resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitSpotOrder, params, &resp, privateSpotRate)
+	return &resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitSpotOrder, params, nil, &resp, privateSpotRate)
 }
 
 // CancelExistingOrder cancels existing order based upon orderID or orderLinkID
@@ -564,7 +564,7 @@ func (by *Bybit) CancelExistingOrder(ctx context.Context, orderID, orderLinkID s
 		Data CancelOrderResponse `json:"result"`
 		Error
 	}{}
-	err := by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitSpotOrder, params, &resp, privateSpotRate)
+	err := by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitSpotOrder, params, nil, &resp, privateSpotRate)
 	if err != nil {
 		return nil, err
 	}
@@ -602,7 +602,7 @@ func (by *Bybit) FastCancelExistingOrder(ctx context.Context, symbol, orderID, o
 		params.Set("orderLinkId", orderLinkID)
 	}
 
-	return resp.Data.IsCancelled, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitFastCancelSpotOrder, params, &resp, privateSpotRate)
+	return resp.Data.IsCancelled, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitFastCancelSpotOrder, params, nil, &resp, privateSpotRate)
 }
 
 // BatchCancelOrder cancels orders in batch based upon symbol, side or orderType
@@ -624,7 +624,7 @@ func (by *Bybit) BatchCancelOrder(ctx context.Context, symbol, side, orderTypes 
 		} `json:"result"`
 		Error
 	}{}
-	return resp.Result.Success, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitBatchCancelSpotOrder, params, &resp, privateSpotRate)
+	return resp.Result.Success, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitBatchCancelSpotOrder, params, nil, &resp, privateSpotRate)
 }
 
 // BatchFastCancelOrder cancels orders in batch based upon symbol, side or orderType
@@ -646,7 +646,7 @@ func (by *Bybit) BatchFastCancelOrder(ctx context.Context, symbol, side, orderTy
 		} `json:"result"`
 		Error
 	}{}
-	return resp.Result.Success, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitFastBatchCancelSpotOrder, params, &resp, privateSpotRate)
+	return resp.Result.Success, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitFastBatchCancelSpotOrder, params, nil, &resp, privateSpotRate)
 }
 
 // BatchCancelOrderByIDs cancels orders in batch based on comma separated order id's
@@ -663,7 +663,7 @@ func (by *Bybit) BatchCancelOrderByIDs(ctx context.Context, orderIDs []string) (
 		} `json:"result"`
 		Error
 	}{}
-	return resp.Result.Success, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitFastBatchCancelSpotOrder, params, &resp, privateSpotRate)
+	return resp.Result.Success, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitFastBatchCancelSpotOrder, params, nil, &resp, privateSpotRate)
 }
 
 // ListOpenOrders returns all open orders
@@ -683,7 +683,7 @@ func (by *Bybit) ListOpenOrders(ctx context.Context, symbol, orderID string, lim
 		Data []QueryOrderResponse `json:"result"`
 		Error
 	}{}
-	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitOpenOrder, params, &resp, privateSpotRate)
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitOpenOrder, params, nil, &resp, privateSpotRate)
 }
 
 // GetPastOrders returns all past orders from history
@@ -708,7 +708,7 @@ func (by *Bybit) GetPastOrders(ctx context.Context, symbol, orderID string, limi
 		Data []QueryOrderResponse `json:"result"`
 		Error
 	}{}
-	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitPastOrder, params, &resp, privateSpotRate)
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitPastOrder, params, nil, &resp, privateSpotRate)
 }
 
 // GetTradeHistory returns user trades
@@ -739,7 +739,7 @@ func (by *Bybit) GetTradeHistory(ctx context.Context, limit int64, symbol, fromI
 		Data []HistoricalTrade `json:"result"`
 		Error
 	}{}
-	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitTradeHistory, params, &resp, privateSpotRate)
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitTradeHistory, params, nil, &resp, privateSpotRate)
 }
 
 // GetWalletBalance returns user wallet balance
@@ -750,7 +750,7 @@ func (by *Bybit) GetWalletBalance(ctx context.Context) ([]Balance, error) {
 		} `json:"result"`
 		Error
 	}{}
-	return resp.Data.Balances, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitWalletBalance, url.Values{}, &resp, privateSpotRate)
+	return resp.Data.Balances, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitWalletBalance, url.Values{}, nil, &resp, privateSpotRate)
 }
 
 // GetSpotServerTime returns server time
@@ -777,7 +777,7 @@ func (by *Bybit) GetDepositAddressForCurrency(ctx context.Context, coin string) 
 		return resp.Result, errInvalidCoin
 	}
 	params.Set("coin", strings.ToUpper(coin))
-	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitGetDepositAddress, params, &resp, publicSpotRate)
+	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitGetDepositAddress, params, nil, &resp, publicSpotRate)
 }
 
 // WithdrawFund creates request for fund withdrawal.
@@ -789,15 +789,15 @@ func (by *Bybit) WithdrawFund(ctx context.Context, coin, chain, address, tag, am
 		Error
 	}{}
 
-	params := url.Values{}
-	params.Set("coin", coin)
-	params.Set("chain", chain)
-	params.Set("address", address)
-	params.Set("amount", amount)
+	params := make(map[string]interface{})
+	params["coin"] = coin
+	params["chain"] = chain
+	params["address"] = address
+	params["amount"] = amount
 	if tag != "" {
-		params.Set("tag", tag)
+		params["tag"] = tag
 	}
-	return resp.Data.ID, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, bybitWithdrawFund, params, &resp, privateSpotRate)
+	return resp.Data.ID, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, bybitWithdrawFund, nil, params, &resp, privateSpotRate)
 }
 
 // SendHTTPRequest sends an unauthenticated request
@@ -839,16 +839,14 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 		return err
 	}
 
-	if params == nil {
+	if params == nil && jsonPayload == nil {
 		params = url.Values{}
-	}
-
-	if params.Get("recvWindow") == "" {
-		params.Set("recvWindow", defaultRecvWindow)
 	}
 
 	if jsonPayload != nil {
 		jsonPayload["recvWindow"] = defaultRecvWindow
+	} else if params.Get("recvWindow") == "" {
+		params.Set("recvWindow", defaultRecvWindow)
 	}
 
 	err = by.SendPayload(ctx, f, func() (*request.Item, error) {
@@ -864,7 +862,6 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 				return nil, err
 			}
 			jsonPayload["sign"] = sign
-
 			payload, err = json.Marshal(jsonPayload)
 			if err != nil {
 				return nil, err
@@ -986,7 +983,7 @@ func getJSONRequestSignature(payload map[string]interface{}, secret string) (str
 			return "", errors.New("non-string payload parameter not expected")
 		}
 	}
-	return getSign(signStr, secret)
+	return getSign(signStr[:len(signStr)-1], secret)
 }
 
 func getSign(sign, secret string) (string, error) {
