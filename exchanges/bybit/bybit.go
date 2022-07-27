@@ -850,18 +850,21 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 	}
 
 	err = by.SendPayload(ctx, f, func() (*request.Item, error) {
-		var payload []byte
+		var (
+			payload       []byte
+			hmacSignedStr string
+		)
 		headers := make(map[string]string)
 
 		if jsonPayload != nil {
 			headers["Content-Type"] = "application/json"
 			jsonPayload["timestamp"] = strconv.FormatInt(time.Now().UnixMilli(), 10)
 			jsonPayload["api_key"] = creds.Key
-			sign, err := getJSONRequestSignature(jsonPayload, creds.Secret)
+			hmacSignedStr, err = getJSONRequestSignature(jsonPayload, creds.Secret)
 			if err != nil {
 				return nil, err
 			}
-			jsonPayload["sign"] = sign
+			jsonPayload["sign"] = hmacSignedStr
 			payload, err = json.Marshal(jsonPayload)
 			if err != nil {
 				return nil, err
@@ -869,7 +872,7 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 		} else {
 			params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 			params.Set("api_key", creds.Key)
-			hmacSignedStr, err := getSign(params.Encode(), creds.Secret)
+			hmacSignedStr, err = getSign(params.Encode(), creds.Secret)
 			if err != nil {
 				return nil, err
 			}
