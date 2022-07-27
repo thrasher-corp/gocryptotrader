@@ -138,7 +138,7 @@ func setSubAccount(args ...objects.Object) (objects.Object, error) {
 		return nil, constructRuntimeError(1, setSubAccountFunc, "*gct.Context", args[0])
 	}
 
-	sub, ok := objects.ToInterface(args[1]).(string)
+	sub, ok := objects.ToString(args[1])
 	if !ok {
 		return nil, constructRuntimeError(2, setSubAccountFunc, "string", args[1])
 	}
