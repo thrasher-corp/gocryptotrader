@@ -441,18 +441,20 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			return resp, err
 		}
 
-		err = bt.Funding.AddUSDTrackingData(klineData)
-		if err != nil &&
-			!errors.Is(err, trackingcurrencies.ErrCurrencyDoesNotContainsUSD) &&
-			!errors.Is(err, funding.ErrUSDTrackingDisabled) {
-			return resp, err
-		}
+		if !bt.isLive {
+			err = bt.Funding.AddUSDTrackingData(klineData)
+			if err != nil &&
+				!errors.Is(err, trackingcurrencies.ErrCurrencyDoesNotContainsUSD) &&
+				!errors.Is(err, funding.ErrUSDTrackingDisabled) {
+				return resp, err
+			}
 
-		if cfg.CurrencySettings[i].USDTrackingPair {
-			continue
-		}
+			if cfg.CurrencySettings[i].USDTrackingPair {
+				continue
+			}
 
-		bt.Datas.SetDataForCurrency(exchangeName, a, pair, klineData)
+			bt.Datas.SetDataForCurrency(exchangeName, a, pair, klineData)
+		}
 
 		var makerFee, takerFee decimal.Decimal
 		if cfg.CurrencySettings[i].MakerFee != nil && cfg.CurrencySettings[i].MakerFee.GreaterThan(decimal.Zero) {
@@ -733,12 +735,13 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if err != nil {
 			return nil, err
 		}
-
+		resp.Item.Exchange = exch.GetName()
+		resp.Item.Asset = a
+		resp.Item.Pair = fPair
 		eventQueue.NewEventTimeout = cfg.DataSettings.LiveData.NewEventTimeout
 		eventQueue.DataCheckTimer = cfg.DataSettings.LiveData.DataCheckTimer
 		eventQueue.RunTimer = cfg.DataSettings.LiveData.RunTimer
 		bt.EventQueue = eventQueue
-
 		go bt.loadLiveDataLoop(
 			resp,
 			cfg,
@@ -746,8 +749,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			fPair,
 			a,
 			dataType)
-
-		return resp, nil
+		return nil, nil
 	}
 	if resp == nil {
 		return nil, fmt.Errorf("processing error, response returned nil")

@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -9,6 +10,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/live"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding/trackingcurrencies"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -57,7 +60,6 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Conf
 			err = bt.loadLiveData(resp, cfg, exch, fPair, a, dataType)
 			if err != nil {
 				log.Error(common.Livetester, err)
-				return
 			}
 			loadNewDataTimer.Reset(dataCheckInterval)
 		}
@@ -86,12 +88,34 @@ func (bt *BackTest) loadLiveData(resp *kline.DataFromKline, cfg *config.Config, 
 	if len(candles.Candles) == 0 {
 		return nil
 	}
+	if a.IsFutures() {
+		// returning the collateral currency along with using the
+		// fPair base creates a pair that links the futures contract to
+		// is underlying pair
+		// eg BTC-PERP on FTX has a collateral currency of USD
+		// taking the BTC base and USD as quote, allows linking
+		// BTC-USD and BTC-PERP
+		var curr currency.Code
+		curr, _, err = exch.GetCollateralCurrencyForContract(a, fPair)
+		if err != nil {
+			return err
+		}
+		resp.Item.UnderlyingPair = currency.NewPair(fPair.Base, curr)
+	}
+
 	resp.AppendResults(candles)
 	if !resp.IsLive() {
 		resp.SetLive(true)
 	}
 	err = bt.Reports.UpdateItem(&resp.Item)
 	if err != nil {
+		return err
+	}
+
+	err = bt.Funding.AddUSDTrackingData(resp)
+	if err != nil &&
+		!errors.Is(err, trackingcurrencies.ErrCurrencyDoesNotContainsUSD) &&
+		!errors.Is(err, funding.ErrUSDTrackingDisabled) {
 		return err
 	}
 	return nil

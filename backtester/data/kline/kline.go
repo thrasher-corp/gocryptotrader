@@ -63,7 +63,6 @@ func (d *DataFromKline) AppendResults(ki *gctkline.Item) {
 	if d.addedTimes == nil {
 		d.addedTimes = make(map[int64]bool)
 	}
-
 	var gctCandles []gctkline.Candle
 	for i := range ki.Candles {
 		if _, ok := d.addedTimes[ki.Candles[i].Time.UnixNano()]; !ok {

@@ -124,7 +124,8 @@ func (d *Data) UpdateItem(k *kline.Item) error {
 		d.OriginalCandles[i].RemoveDuplicates()
 		return nil
 	}
-	return fmt.Errorf("%w candles to update not found %v %v %v", errNoCandles, k.Exchange, k.Asset, k.Pair)
+	d.AddKlineItem(k)
+	return nil
 }
 
 // enhanceCandles will enhance candle data with order information allowing
