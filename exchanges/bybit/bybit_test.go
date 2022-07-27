@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -319,8 +320,8 @@ func TestWithdrawFund(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 
-	_, err := b.WithdrawFund(context.Background(), currency.LTC.String(), currency.LTC.String(), "3CDJNfdWX8m2NwuGUV3nhXHXEeLygMXoAj", "", "10")
-	if err != nil {
+	_, err := b.WithdrawFund(context.Background(), currency.ETH.String(), currency.ETH.String(), "0xEA13A385BcB74e631AAF1B424d7a01c61bF27Fe0", "", "10")
+	if err != nil && err.Error() != "Withdraw address chain or destination tag are not equal" {
 		t.Fatal(err)
 	}
 }
@@ -2991,8 +2992,8 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 			Address:    "3CDJNfdWX8m2NwuGUV3nhXHXEeLygMXoAj",
 			AddressTag: "",
 		}})
-	if err != nil {
-		t.Error(err)
+	if err != nil && err.Error() != "Withdraw address chain or destination tag are not equal" {
+		t.Fatal(err)
 	}
 }
 
