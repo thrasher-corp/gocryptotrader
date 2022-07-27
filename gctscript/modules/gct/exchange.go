@@ -711,7 +711,7 @@ func exchangeOHLCV(args ...objects.Object) (objects.Object, error) {
 
 	endTime, ok := objects.ToTime(args[6])
 	if !ok {
-		return nil, constructRuntimeError(5, ohlcvFunc, "time.Time", args[6])
+		return nil, constructRuntimeError(7, ohlcvFunc, "time.Time", args[6])
 	}
 
 	intervalStr, ok := objects.ToString(args[7])
