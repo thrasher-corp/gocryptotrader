@@ -279,7 +279,7 @@ func ExchangeOrderQuery(args ...objects.Object) (objects.Object, error) {
 
 	scriptCtx, ok := objects.ToInterface(args[0]).(*Context)
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, scriptCtx)
+		return nil, common.GetAssertError("*gct.Context", args[0])
 	}
 	exchangeName, ok := objects.ToString(args[1])
 	if !ok {
