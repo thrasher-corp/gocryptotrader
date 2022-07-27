@@ -60,7 +60,7 @@ func setAccount(args ...objects.Object) (objects.Object, error) {
 		return nil, constructRuntimeError(1, setAccountFunc, "*gct.Context", args[0])
 	}
 
-	apikey, ok := objects.ToInterface(args[1]).(string)
+	apikey, ok := objects.ToString(args[1])
 	if !ok {
 		return nil, constructRuntimeError(2, setAccountFunc, "string", args[1])
 	}
