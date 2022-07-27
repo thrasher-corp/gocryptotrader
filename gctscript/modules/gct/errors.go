@@ -31,9 +31,9 @@ func errorResponsef(format string, a ...interface{}) (objects.Object, error) {
 	}, nil
 }
 
-func constructRuntimeError(argPosition int, funcName, expectedType string, whatYouGot interface{}) error {
+func constructRuntimeError(argPosition int, funcName, expectedType string, unexpectedData interface{}) error {
 	return fmt.Errorf("function [%s] argument position [%d] - %w",
 		funcName,
 		argPosition,
-		common.GetAssertError(expectedType, whatYouGot))
+		common.GetAssertError(expectedType, unexpectedData))
 }

@@ -60,7 +60,7 @@ func setAccount(args ...objects.Object) (objects.Object, error) {
 		return nil, constructRuntimeError(1, setAccountFunc, "*gct.Context", args[0])
 	}
 
-	apikey, ok := objects.ToString(args[1])
+	apikey, ok := objects.ToInterface(args[1]).(string)
 	if !ok {
 		return nil, constructRuntimeError(2, setAccountFunc, "string", args[1])
 	}
@@ -71,7 +71,7 @@ func setAccount(args ...objects.Object) (objects.Object, error) {
 
 	ctx.Value["apikey"] = &objects.String{Value: apikey}
 
-	apisecret, ok := objects.ToString(args[2])
+	apisecret, ok := objects.ToInterface(args[2]).(string)
 	if !ok {
 		return nil, constructRuntimeError(3, setAccountFunc, "string", args[2])
 	}
@@ -80,7 +80,7 @@ func setAccount(args ...objects.Object) (objects.Object, error) {
 
 	if len(args) > 3 {
 		var subaccount string
-		subaccount, ok = objects.ToString(args[3])
+		subaccount, ok = objects.ToInterface(args[3]).(string)
 		if !ok {
 			return nil, constructRuntimeError(4, setAccountFunc, "string", args[3])
 		}
@@ -92,7 +92,7 @@ func setAccount(args ...objects.Object) (objects.Object, error) {
 
 	if len(args) > 4 {
 		var clientID string
-		clientID, ok = objects.ToString(args[4])
+		clientID, ok = objects.ToInterface(args[4]).(string)
 		if !ok {
 			return nil, constructRuntimeError(5, setAccountFunc, "string", args[4])
 		}
@@ -103,7 +103,7 @@ func setAccount(args ...objects.Object) (objects.Object, error) {
 
 	if len(args) > 5 {
 		var pemKey string
-		pemKey, ok = objects.ToString(args[5])
+		pemKey, ok = objects.ToInterface(args[5]).(string)
 		if !ok {
 			return nil, constructRuntimeError(6, setAccountFunc, "string", args[5])
 		}
@@ -114,7 +114,7 @@ func setAccount(args ...objects.Object) (objects.Object, error) {
 
 	if len(args) > 5 {
 		var oneTimePassword string
-		oneTimePassword, ok = objects.ToString(args[6])
+		oneTimePassword, ok = objects.ToInterface(args[6]).(string)
 		if !ok {
 			return nil, constructRuntimeError(7, setAccountFunc, "string", args[6])
 		}
@@ -138,7 +138,7 @@ func setSubAccount(args ...objects.Object) (objects.Object, error) {
 		return nil, constructRuntimeError(1, setSubAccountFunc, "*gct.Context", args[0])
 	}
 
-	sub, ok := objects.ToString(args[1])
+	sub, ok := objects.ToInterface(args[1]).(string)
 	if !ok {
 		return nil, constructRuntimeError(2, setSubAccountFunc, "string", args[1])
 	}
