@@ -103,7 +103,7 @@ func setAccount(args ...objects.Object) (objects.Object, error) {
 
 	if len(args) > 5 {
 		var pemKey string
-		pemKey, ok = objects.ToInterface(args[5]).(string)
+		pemKey, ok = objects.ToString(args[5])
 		if !ok {
 			return nil, constructRuntimeError(6, setAccountFunc, "string", args[5])
 		}
