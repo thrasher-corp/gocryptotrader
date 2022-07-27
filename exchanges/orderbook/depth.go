@@ -590,13 +590,12 @@ func (d *Depth) GetMovementByQuoteFromMid(quote float64) (*Movement, error) {
 // amount. This lifts the offers when you are bid/buy side.
 func (d *Depth) GetMovementByQuoteFromBest(quote float64) (*Movement, error) {
 	d.m.Lock()
+	defer d.m.Unlock()
 	head, err := d.asks.getHeadPrice()
 	if err != nil {
-		d.m.Unlock()
 		return nil, err
 	}
 	move, err := d.asks.getMovementByQuoteAmount(quote, head)
-	d.m.Unlock()
 	return move, d.AddTrimmingToError(err, false)
 }
 
