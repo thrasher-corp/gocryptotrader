@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	objects "github.com/d5/tengo/v2"
+	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 const standardFormatting = "%s"
@@ -28,4 +29,11 @@ func errorResponsef(format string, a ...interface{}) (objects.Object, error) {
 	return &objects.Error{
 		Value: &objects.String{Value: fmt.Sprintf(format, a...)},
 	}, nil
+}
+
+func constructRuntimeError(argPosition int, funcName, expectedType string, whatYouGot interface{}) error {
+	return fmt.Errorf("function [%s] argument position [%d] - %w",
+		funcName,
+		argPosition,
+		common.GetAssertError(expectedType, whatYouGot))
 }

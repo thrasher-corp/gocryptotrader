@@ -15,19 +15,34 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	orderbookFunc      = "orderbook"
+	tickerFunc         = "ticker"
+	exchangesFunc      = "exchanges"
+	pairsFunc          = "pairs"
+	accountInfoFunc    = "accountinfo"
+	depositAddressFunc = "depositaddress"
+	orderQueryFunc     = "orderquery"
+	orderCancelFunc    = "ordercancel"
+	orderSubmitFunc    = "ordersubmit"
+	withdrawCryptoFunc = "withdrawcrypto"
+	withdrawFiatFunc   = "withdrawfiat"
+	ohlcvFunc          = "ohlcv"
+)
+
 var exchangeModule = map[string]objects.Object{
-	"orderbook":      &objects.UserFunction{Name: "orderbook", Value: ExchangeOrderbook},
-	"ticker":         &objects.UserFunction{Name: "ticker", Value: ExchangeTicker},
-	"exchanges":      &objects.UserFunction{Name: "exchanges", Value: ExchangeExchanges},
-	"pairs":          &objects.UserFunction{Name: "pairs", Value: ExchangePairs},
-	"accountinfo":    &objects.UserFunction{Name: "accountinfo", Value: ExchangeAccountInfo},
-	"depositaddress": &objects.UserFunction{Name: "depositaddress", Value: ExchangeDepositAddress},
-	"orderquery":     &objects.UserFunction{Name: "orderquery", Value: ExchangeOrderQuery},
-	"ordercancel":    &objects.UserFunction{Name: "ordercancel", Value: ExchangeOrderCancel},
-	"ordersubmit":    &objects.UserFunction{Name: "ordersubmit", Value: ExchangeOrderSubmit},
-	"withdrawcrypto": &objects.UserFunction{Name: "withdrawcrypto", Value: ExchangeWithdrawCrypto},
-	"withdrawfiat":   &objects.UserFunction{Name: "withdrawfiat", Value: ExchangeWithdrawFiat},
-	"ohlcv":          &objects.UserFunction{Name: "ohlcv", Value: exchangeOHLCV},
+	orderbookFunc:      &objects.UserFunction{Name: orderbookFunc, Value: ExchangeOrderbook},
+	tickerFunc:         &objects.UserFunction{Name: tickerFunc, Value: ExchangeTicker},
+	exchangesFunc:      &objects.UserFunction{Name: exchangesFunc, Value: ExchangeExchanges},
+	pairsFunc:          &objects.UserFunction{Name: pairsFunc, Value: ExchangePairs},
+	accountInfoFunc:    &objects.UserFunction{Name: accountInfoFunc, Value: ExchangeAccountInfo},
+	depositAddressFunc: &objects.UserFunction{Name: depositAddressFunc, Value: ExchangeDepositAddress},
+	orderQueryFunc:     &objects.UserFunction{Name: orderQueryFunc, Value: ExchangeOrderQuery},
+	orderCancelFunc:    &objects.UserFunction{Name: orderCancelFunc, Value: ExchangeOrderCancel},
+	orderSubmitFunc:    &objects.UserFunction{Name: orderSubmitFunc, Value: ExchangeOrderSubmit},
+	withdrawCryptoFunc: &objects.UserFunction{Name: withdrawCryptoFunc, Value: ExchangeWithdrawCrypto},
+	withdrawFiatFunc:   &objects.UserFunction{Name: withdrawFiatFunc, Value: ExchangeWithdrawFiat},
+	ohlcvFunc:          &objects.UserFunction{Name: ohlcvFunc, Value: exchangeOHLCV},
 }
 
 // ExchangeOrderbook returns orderbook for requested exchange & currencypair
@@ -38,23 +53,23 @@ func ExchangeOrderbook(args ...objects.Object) (objects.Object, error) {
 
 	scriptCtx, ok := objects.ToInterface(args[0]).(*Context)
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, scriptCtx)
+		return nil, constructRuntimeError(1, orderbookFunc, "*gct.Context", args[0])
 	}
 	exchangeName, ok := objects.ToString(args[1])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
+		return nil, constructRuntimeError(2, orderbookFunc, "string", args[1])
 	}
 	currencyPair, ok := objects.ToString(args[2])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, currencyPair)
+		return nil, constructRuntimeError(3, orderbookFunc, "string", args[2])
 	}
 	delimiter, ok := objects.ToString(args[3])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, delimiter)
+		return nil, constructRuntimeError(4, orderbookFunc, "string", args[3])
 	}
 	assetTypeParam, ok := objects.ToString(args[4])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, assetTypeParam)
+		return nil, constructRuntimeError(5, orderbookFunc, "string", args[4])
 	}
 
 	pair, err := currency.NewPairDelimiter(currencyPair, delimiter)
@@ -107,24 +122,24 @@ func ExchangeTicker(args ...objects.Object) (objects.Object, error) {
 
 	scriptCtx, ok := objects.ToInterface(args[0]).(*Context)
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, scriptCtx)
+		return nil, constructRuntimeError(1, tickerFunc, "*gct.Context", args[0])
 	}
 
 	exchangeName, ok := objects.ToString(args[1])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
+		return nil, constructRuntimeError(2, tickerFunc, "string", args[1])
 	}
 	currencyPair, ok := objects.ToString(args[2])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, currencyPair)
+		return nil, constructRuntimeError(3, tickerFunc, "string", args[2])
 	}
 	delimiter, ok := objects.ToString(args[3])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, delimiter)
+		return nil, constructRuntimeError(4, tickerFunc, "string", args[3])
 	}
 	assetTypeParam, ok := objects.ToString(args[4])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, assetTypeParam)
+		return nil, constructRuntimeError(5, tickerFunc, "string", args[4])
 	}
 
 	pair, err := currency.NewPairDelimiter(currencyPair, delimiter)
@@ -172,7 +187,7 @@ func ExchangeExchanges(args ...objects.Object) (objects.Object, error) {
 
 	enabledOnly, ok := objects.ToBool(args[0])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, enabledOnly)
+		return nil, constructRuntimeError(1, exchangesFunc, "bool", args[0])
 	}
 	rtnValue := wrappers.GetWrapper().Exchanges(enabledOnly)
 
@@ -194,15 +209,15 @@ func ExchangePairs(args ...objects.Object) (objects.Object, error) {
 
 	exchangeName, ok := objects.ToString(args[0])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
+		return nil, constructRuntimeError(1, pairsFunc, "string", args[0])
 	}
 	enabledOnly, ok := objects.ToBool(args[1])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, enabledOnly)
+		return nil, constructRuntimeError(2, pairsFunc, "bool", args[1])
 	}
 	assetTypeParam, ok := objects.ToString(args[2])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, assetTypeParam)
+		return nil, constructRuntimeError(3, pairsFunc, "string", args[2])
 	}
 	assetType, err := asset.New(assetTypeParam)
 	if err != nil {
@@ -232,15 +247,15 @@ func ExchangeAccountInfo(args ...objects.Object) (objects.Object, error) {
 
 	scriptCtx, ok := objects.ToInterface(args[0]).(*Context)
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, scriptCtx)
+		return nil, constructRuntimeError(1, accountInfoFunc, "*gct.Context", args[0])
 	}
 	exchangeName, ok := objects.ToString(args[1])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
+		return nil, constructRuntimeError(2, accountInfoFunc, "string", args[1])
 	}
 	assetString, ok := objects.ToString(args[2])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, assetString)
+		return nil, constructRuntimeError(3, accountInfoFunc, "string", args[2])
 	}
 	assetType, err := asset.New(assetString)
 	if err != nil {
@@ -279,15 +294,15 @@ func ExchangeOrderQuery(args ...objects.Object) (objects.Object, error) {
 
 	scriptCtx, ok := objects.ToInterface(args[0]).(*Context)
 	if !ok {
-		return nil, common.GetAssertError("*gct.Context", args[0])
+		return nil, constructRuntimeError(1, orderQueryFunc, "*gct.Context", args[0])
 	}
 	exchangeName, ok := objects.ToString(args[1])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
+		return nil, constructRuntimeError(2, orderQueryFunc, "string", args[1])
 	}
 	orderID, ok := objects.ToString(args[2])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, orderID)
+		return nil, constructRuntimeError(3, orderQueryFunc, "string", args[2])
 	}
 
 	var pair currency.Pair
@@ -297,19 +312,19 @@ func ExchangeOrderQuery(args ...objects.Object) (objects.Object, error) {
 	case 5:
 		assetTypeString, ok = objects.ToString(args[4])
 		if !ok {
-			return nil, fmt.Errorf(ErrParameterConvertFailed, assetTypeString)
+			return nil, constructRuntimeError(5, orderQueryFunc, "string", args[4])
 		}
 		fallthrough
 	case 4:
 		currencyPairString, isOk := objects.ToString(args[3])
 		if !isOk {
-			return nil, fmt.Errorf(ErrParameterConvertFailed, currencyPairString)
+			return nil, constructRuntimeError(4, orderQueryFunc, "string", args[3])
 		}
 
 		var err error
 		pair, err = currency.NewPairFromString(currencyPairString)
 		if err != nil {
-			return nil, fmt.Errorf(ErrParameterConvertFailed, currencyPairString)
+			return errorResponsef(standardFormatting, err)
 		}
 	}
 
@@ -366,11 +381,11 @@ func ExchangeOrderCancel(args ...objects.Object) (objects.Object, error) {
 
 	scriptCtx, ok := objects.ToInterface(args[0]).(*Context)
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, scriptCtx)
+		return nil, constructRuntimeError(1, orderCancelFunc, "*gct.Context", args[0])
 	}
 	exchangeName, ok := objects.ToString(args[1])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
+		return nil, constructRuntimeError(2, orderCancelFunc, "string", args[1])
 	}
 	if exchangeName == "" {
 		return nil, fmt.Errorf(ErrEmptyParameter, "exchange name")
@@ -378,7 +393,7 @@ func ExchangeOrderCancel(args ...objects.Object) (objects.Object, error) {
 	var orderID string
 	orderID, ok = objects.ToString(args[2])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, orderID)
+		return nil, constructRuntimeError(3, orderCancelFunc, "string", args[2])
 	}
 	if orderID == "" {
 		return nil, fmt.Errorf(ErrEmptyParameter, "orderID")
@@ -389,7 +404,7 @@ func ExchangeOrderCancel(args ...objects.Object) (objects.Object, error) {
 		var currencyPair string
 		currencyPair, ok = objects.ToString(args[3])
 		if !ok {
-			return nil, fmt.Errorf(ErrParameterConvertFailed, currencyPair)
+			return nil, constructRuntimeError(4, orderCancelFunc, "string", args[3])
 		}
 		cp, err = currency.NewPairFromString(currencyPair)
 		if err != nil {
@@ -401,7 +416,7 @@ func ExchangeOrderCancel(args ...objects.Object) (objects.Object, error) {
 		var assetType string
 		assetType, ok = objects.ToString(args[4])
 		if !ok {
-			return nil, fmt.Errorf(ErrParameterConvertFailed, assetType)
+			return nil, constructRuntimeError(5, orderCancelFunc, "string", args[4])
 		}
 		a, err = asset.New(assetType)
 		if err != nil {
@@ -430,43 +445,43 @@ func ExchangeOrderSubmit(args ...objects.Object) (objects.Object, error) {
 
 	scriptCtx, ok := objects.ToInterface(args[0]).(*Context)
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, scriptCtx)
+		return nil, constructRuntimeError(1, orderSubmitFunc, "*gct.Context", args[0])
 	}
 	exchangeName, ok := objects.ToString(args[1])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
+		return nil, constructRuntimeError(2, orderSubmitFunc, "string", args[1])
 	}
 	currencyPair, ok := objects.ToString(args[2])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, currencyPair)
+		return nil, constructRuntimeError(3, orderSubmitFunc, "string", args[2])
 	}
 	delimiter, ok := objects.ToString(args[3])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, delimiter)
+		return nil, constructRuntimeError(4, orderSubmitFunc, "string", args[3])
 	}
 	orderType, ok := objects.ToString(args[4])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, orderType)
+		return nil, constructRuntimeError(5, orderSubmitFunc, "string", args[4])
 	}
 	orderSide, ok := objects.ToString(args[5])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, orderSide)
+		return nil, constructRuntimeError(6, orderSubmitFunc, "string", args[5])
 	}
 	orderPrice, ok := objects.ToFloat64(args[6])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, orderPrice)
+		return nil, constructRuntimeError(7, orderSubmitFunc, "string", args[6])
 	}
 	orderAmount, ok := objects.ToFloat64(args[7])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, orderAmount)
+		return nil, constructRuntimeError(8, orderSubmitFunc, "string", args[7])
 	}
 	orderClientID, ok := objects.ToString(args[8])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, orderClientID)
+		return nil, constructRuntimeError(9, orderSubmitFunc, "string", args[8])
 	}
 	assetType, ok := objects.ToString(args[9])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, orderClientID)
+		return nil, constructRuntimeError(10, orderSubmitFunc, "string", args[9])
 	}
 
 	pair, err := currency.NewPairDelimiter(currencyPair, delimiter)
@@ -521,15 +536,15 @@ func ExchangeDepositAddress(args ...objects.Object) (objects.Object, error) {
 
 	exchangeName, ok := objects.ToString(args[0])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
+		return nil, constructRuntimeError(1, depositAddressFunc, "*gct.Context", args[0])
 	}
 	currencyCode, ok := objects.ToString(args[1])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, currencyCode)
+		return nil, constructRuntimeError(2, depositAddressFunc, "string", args[1])
 	}
 	chain, ok := objects.ToString(args[2])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, chain)
+		return nil, constructRuntimeError(3, depositAddressFunc, "string", args[2])
 	}
 
 	currCode := currency.NewCode(currencyCode)
@@ -553,35 +568,35 @@ func ExchangeWithdrawCrypto(args ...objects.Object) (objects.Object, error) {
 
 	scriptCtx, ok := objects.ToInterface(args[0]).(*Context)
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, scriptCtx)
+		return nil, constructRuntimeError(1, withdrawCryptoFunc, "*gct.Context", args[0])
 	}
 	exchangeName, ok := objects.ToString(args[1])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
+		return nil, constructRuntimeError(2, withdrawCryptoFunc, "string", args[1])
 	}
 	cur, ok := objects.ToString(args[2])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, cur)
+		return nil, constructRuntimeError(3, withdrawCryptoFunc, "string", args[2])
 	}
 	address, ok := objects.ToString(args[3])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, address)
+		return nil, constructRuntimeError(4, withdrawCryptoFunc, "string", args[3])
 	}
 	addressTag, ok := objects.ToString(args[4])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, addressTag)
+		return nil, constructRuntimeError(5, withdrawCryptoFunc, "string", args[4])
 	}
 	amount, ok := objects.ToFloat64(args[5])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, amount)
+		return nil, constructRuntimeError(6, withdrawCryptoFunc, "float64", args[5])
 	}
 	feeAmount, ok := objects.ToFloat64(args[6])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, feeAmount)
+		return nil, constructRuntimeError(7, withdrawCryptoFunc, "float64", args[6])
 	}
 	description, ok := objects.ToString(args[7])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, description)
+		return nil, constructRuntimeError(8, withdrawCryptoFunc, "string", args[7])
 	}
 
 	withdrawRequest := &withdraw.Request{
@@ -613,27 +628,27 @@ func ExchangeWithdrawFiat(args ...objects.Object) (objects.Object, error) {
 
 	scriptCtx, ok := objects.ToInterface(args[0]).(*Context)
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, scriptCtx)
+		return nil, constructRuntimeError(1, withdrawFiatFunc, "*gct.Context", args[0])
 	}
 	exchangeName, ok := objects.ToString(args[1])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
+		return nil, constructRuntimeError(2, withdrawFiatFunc, "string", args[1])
 	}
 	cur, ok := objects.ToString(args[2])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, cur)
+		return nil, constructRuntimeError(3, withdrawFiatFunc, "string", args[2])
 	}
 	description, ok := objects.ToString(args[3])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, description)
+		return nil, constructRuntimeError(4, withdrawFiatFunc, "string", args[3])
 	}
 	amount, ok := objects.ToFloat64(args[4])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, amount)
+		return nil, constructRuntimeError(5, withdrawFiatFunc, "float64", args[4])
 	}
 	bankAccountID, ok := objects.ToString(args[5])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, bankAccountID)
+		return nil, constructRuntimeError(6, withdrawFiatFunc, "string", args[5])
 	}
 
 	withdrawRequest := &withdraw.Request{
@@ -670,38 +685,38 @@ func exchangeOHLCV(args ...objects.Object) (objects.Object, error) {
 
 	scriptCtx, ok := objects.ToInterface(args[0]).(*Context)
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, scriptCtx)
+		return nil, constructRuntimeError(1, ohlcvFunc, "*gct.Context", args[0])
 	}
 	exchangeName, ok := objects.ToString(args[1])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
+		return nil, constructRuntimeError(2, ohlcvFunc, "string", args[1])
 	}
 	currencyPair, ok := objects.ToString(args[2])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, currencyPair)
+		return nil, constructRuntimeError(3, ohlcvFunc, "string", args[2])
 	}
 	delimiter, ok := objects.ToString(args[3])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, delimiter)
+		return nil, constructRuntimeError(4, ohlcvFunc, "string", args[3])
 	}
 	assetTypeParam, ok := objects.ToString(args[4])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, assetTypeParam)
+		return nil, constructRuntimeError(5, ohlcvFunc, "string", args[4])
 	}
 
 	startTime, ok := objects.ToTime(args[5])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, startTime)
+		return nil, constructRuntimeError(6, ohlcvFunc, "string", args[5])
 	}
 
 	endTime, ok := objects.ToTime(args[6])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, endTime)
+		return nil, constructRuntimeError(5, ohlcvFunc, "time.Time", args[6])
 	}
 
 	intervalStr, ok := objects.ToString(args[7])
 	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, endTime)
+		return nil, constructRuntimeError(8, ohlcvFunc, "string", args[7])
 	}
 	interval, err := parseInterval(intervalStr)
 	if err != nil {

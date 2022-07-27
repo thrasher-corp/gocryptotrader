@@ -4,10 +4,21 @@ import (
 	"context"
 
 	objects "github.com/d5/tengo/v2"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
+
+const (
+	setVerboseFunc    = "set_verbose"
+	setAccountFunc    = "set_account"
+	setSubAccountFunc = "set_sub_account"
+)
+
+var globalModules = map[string]objects.Object{
+	setVerboseFunc:    &objects.UserFunction{Name: setVerboseFunc, Value: setVerbose},
+	setAccountFunc:    &objects.UserFunction{Name: setAccountFunc, Value: setAccount},
+	setSubAccountFunc: &objects.UserFunction{Name: setSubAccountFunc, Value: setSubAccount},
+}
 
 // AllModuleNames returns a list of all default module names.
 func AllModuleNames() []string {
@@ -16,12 +27,6 @@ func AllModuleNames() []string {
 		names = append(names, name)
 	}
 	return names
-}
-
-var globalModules = map[string]objects.Object{
-	"set_verbose":     &objects.UserFunction{Name: "set_verbose", Value: setVerbose},
-	"set_account":     &objects.UserFunction{Name: "set_account", Value: setAccount},
-	"set_sub_account": &objects.UserFunction{Name: "set_sub_account", Value: setSubAccount},
 }
 
 // setVerbose specifically sets verbosity for http rest requests for this script
@@ -33,7 +38,7 @@ func setVerbose(args ...objects.Object) (objects.Object, error) {
 
 	ctx, ok := objects.ToInterface(args[0]).(*Context)
 	if !ok {
-		return nil, common.GetAssertError("*gct.Convert for arg 1", args[0])
+		return nil, constructRuntimeError(1, setVerboseFunc, "*gct.Context", args[0])
 	}
 	if ctx.Value == nil {
 		ctx.Value = make(map[string]objects.Object)
@@ -52,12 +57,12 @@ func setAccount(args ...objects.Object) (objects.Object, error) {
 
 	ctx, ok := objects.ToInterface(args[0]).(*Context)
 	if !ok {
-		return nil, common.GetAssertError("*gct.Context for arg 1", args[0])
+		return nil, constructRuntimeError(1, setAccountFunc, "*gct.Context", args[0])
 	}
 
 	apikey, ok := objects.ToInterface(args[1]).(string)
 	if !ok {
-		return nil, common.GetAssertError("string for arg 2", args[1])
+		return nil, constructRuntimeError(2, setAccountFunc, "string", args[1])
 	}
 
 	if ctx.Value == nil {
@@ -68,7 +73,7 @@ func setAccount(args ...objects.Object) (objects.Object, error) {
 
 	apisecret, ok := objects.ToInterface(args[2]).(string)
 	if !ok {
-		return nil, common.GetAssertError("string for arg 3", args[2])
+		return nil, constructRuntimeError(3, setAccountFunc, "string", args[2])
 	}
 
 	ctx.Value["apisecret"] = &objects.String{Value: apisecret}
@@ -77,7 +82,7 @@ func setAccount(args ...objects.Object) (objects.Object, error) {
 		var subaccount string
 		subaccount, ok = objects.ToInterface(args[3]).(string)
 		if !ok {
-			return nil, common.GetAssertError("string for arg 4", args[3])
+			return nil, constructRuntimeError(4, setAccountFunc, "string", args[3])
 		}
 
 		if subaccount != "" {
@@ -89,7 +94,7 @@ func setAccount(args ...objects.Object) (objects.Object, error) {
 		var clientID string
 		clientID, ok = objects.ToInterface(args[4]).(string)
 		if !ok {
-			return nil, common.GetAssertError("string for arg 5", args[4])
+			return nil, constructRuntimeError(5, setAccountFunc, "string", args[4])
 		}
 		if clientID != "" {
 			ctx.Value["clientid"] = &objects.String{Value: clientID}
@@ -100,7 +105,7 @@ func setAccount(args ...objects.Object) (objects.Object, error) {
 		var pemKey string
 		pemKey, ok = objects.ToInterface(args[5]).(string)
 		if !ok {
-			return nil, common.GetAssertError("string for arg 6", args[5])
+			return nil, constructRuntimeError(6, setAccountFunc, "string", args[5])
 		}
 		if pemKey != "" {
 			ctx.Value["pemkey"] = &objects.String{Value: pemKey}
@@ -111,7 +116,7 @@ func setAccount(args ...objects.Object) (objects.Object, error) {
 		var oneTimePassword string
 		oneTimePassword, ok = objects.ToInterface(args[6]).(string)
 		if !ok {
-			return nil, common.GetAssertError("string for arg 7", args[6])
+			return nil, constructRuntimeError(7, setAccountFunc, "string", args[6])
 		}
 		if oneTimePassword != "" {
 			ctx.Value["otp"] = &objects.String{Value: oneTimePassword}
@@ -130,12 +135,12 @@ func setSubAccount(args ...objects.Object) (objects.Object, error) {
 
 	ctx, ok := objects.ToInterface(args[0]).(*Context)
 	if !ok {
-		return nil, common.GetAssertError("*gct.Context for arg 1", args[0])
+		return nil, constructRuntimeError(1, setSubAccountFunc, "*gct.Context", args[0])
 	}
 
 	sub, ok := objects.ToInterface(args[1]).(string)
 	if !ok {
-		return nil, common.GetAssertError("string for arg 2", args[1])
+		return nil, constructRuntimeError(2, setSubAccountFunc, "string", args[1])
 	}
 
 	if ctx.Value == nil {
