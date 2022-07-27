@@ -71,7 +71,7 @@ func setAccount(args ...objects.Object) (objects.Object, error) {
 
 	ctx.Value["apikey"] = &objects.String{Value: apikey}
 
-	apisecret, ok := objects.ToInterface(args[2]).(string)
+	apisecret, ok := objects.ToString(args[2])
 	if !ok {
 		return nil, constructRuntimeError(3, setAccountFunc, "string", args[2])
 	}
