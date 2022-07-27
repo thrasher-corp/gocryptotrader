@@ -469,7 +469,7 @@ func ExchangeOrderSubmit(args ...objects.Object) (objects.Object, error) {
 	}
 	orderPrice, ok := objects.ToFloat64(args[6])
 	if !ok {
-		return nil, constructRuntimeError(7, orderSubmitFunc, "string", args[6])
+		return nil, constructRuntimeError(7, orderSubmitFunc, "float64", args[6])
 	}
 	orderAmount, ok := objects.ToFloat64(args[7])
 	if !ok {
