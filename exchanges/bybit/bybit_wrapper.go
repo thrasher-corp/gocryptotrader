@@ -1342,7 +1342,22 @@ func (by *Bybit) GetDepositAddress(ctx context.Context, cryptocurrency currency.
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (by *Bybit) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	return nil, common.ErrNotYetImplemented
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
+	amountStr := strconv.FormatFloat(withdrawRequest.Amount, 'f', -1, 64)
+	wID, err := by.WithdrawFund(ctx,
+		withdrawRequest.Currency.String(),
+		withdrawRequest.Crypto.Chain,
+		withdrawRequest.Crypto.Address,
+		withdrawRequest.Crypto.AddressTag,
+		amountStr)
+	if err != nil {
+		return nil, err
+	}
+	return &withdraw.ExchangeResponse{
+		ID: wID,
+	}, nil
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is

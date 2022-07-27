@@ -2976,6 +2976,26 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
+func TestWithdrawCryptocurrencyFunds(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := b.WithdrawCryptocurrencyFunds(context.Background(), &withdraw.Request{
+		Exchange: "Bybit",
+		Amount:   10,
+		Currency: currency.LTC,
+		Crypto: withdraw.CryptoRequest{
+			Chain:      currency.LTC.String(),
+			Address:    "3CDJNfdWX8m2NwuGUV3nhXHXEeLygMXoAj",
+			AddressTag: "",
+		}})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // test cases for USDCMarginedFutures
 
 func TestGetUSDCFuturesOrderbook(t *testing.T) {
