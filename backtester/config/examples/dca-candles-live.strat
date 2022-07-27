@@ -36,6 +36,33 @@
    "skip-candle-volume-fitting": false,
    "use-exchange-order-limits": false,
    "use-exchange-pnl-calculation": false
+  },
+  {
+   "exchange-name": "ftx",
+   "asset": "spot",
+   "base": "ETH",
+   "quote": "USD",
+   "spot-details": {
+    "initial-quote-funds": "100000"
+   },
+   "buy-side": {
+    "minimum-size": "0.005",
+    "maximum-size": "2",
+    "maximum-total": "40000"
+   },
+   "sell-side": {
+    "minimum-size": "0.005",
+    "maximum-size": "2",
+    "maximum-total": "40000"
+   },
+   "min-slippage-percent": "0",
+   "max-slippage-percent": "0",
+   "maker-fee-override": "0.0002",
+   "taker-fee-override": "0.0007",
+   "maximum-holdings-ratio": "0",
+   "skip-candle-volume-fitting": false,
+   "use-exchange-order-limits": false,
+   "use-exchange-pnl-calculation": false
   }
  ],
  "data-settings": {
@@ -46,6 +73,7 @@
    "data-check-timer": 1000000000,
    "run-timer": 1000000000,
    "real-orders": false,
+   "verbose-data-check": false,
    "exchange-credentials": null
   }
  },

@@ -58,6 +58,7 @@ type EventHandler interface {
 // custom subloggers for backtester use
 var (
 	Backtester         *log.SubLogger
+	Livetester         *log.SubLogger
 	Setup              *log.SubLogger
 	Strategy           *log.SubLogger
 	Config             *log.SubLogger

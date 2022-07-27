@@ -28,11 +28,12 @@ type Holder interface {
 }
 
 // Base is the base implementation of some interface functions
-// where further specific functions are implmented in DataFromKline
+// where further specific functions are implemented in DataFromKline
 type Base struct {
-	latest common.DataEventHandler
-	stream []common.DataEventHandler
-	offset int
+	latest     common.DataEventHandler
+	stream     []common.DataEventHandler
+	offset     int
+	isLiveData bool
 }
 
 // Handler interface for Loading and Streaming data

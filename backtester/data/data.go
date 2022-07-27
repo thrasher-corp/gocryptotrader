@@ -132,3 +132,15 @@ func (b *Base) SortStream() {
 		return b1.GetTime().Before(b2.GetTime())
 	})
 }
+
+// IsLive returns if the data source is a live one
+// less scrutiny on checks is required on live data sourcing
+func (b *Base) IsLive() bool {
+	return b.isLiveData
+}
+
+// SetLive sets if the data source is a live one
+// less scrutiny on checks is required on live data sourcing
+func (b *Base) SetLive(isLive bool) {
+	b.isLiveData = isLive
+}

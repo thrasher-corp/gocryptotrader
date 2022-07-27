@@ -826,6 +826,82 @@ func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 	}
 }
 
+func TestGenerateConfigForLiveCashAndCarry(t *testing.T) {
+	if !saveConfig {
+		t.Skip()
+	}
+	cfg := Config{
+		Nickname: "ExampleFTXLiveCashAndCarry",
+		Goal:     "To demonstrate a cash and carry strategy using a live data source",
+		StrategySettings: StrategySettings{
+			Name:                         "ftx-cash-carry",
+			SimultaneousSignalProcessing: true,
+		},
+		FundingSettings: FundingSettings{
+			UseExchangeLevelFunding: true,
+			ExchangeLevelFunding: []ExchangeLevelFunding{
+				{
+					ExchangeName: "ftx",
+					Asset:        asset.Spot,
+					Currency:     currency.USD,
+					InitialFunds: *initialFunds100000,
+				},
+			},
+		},
+		CurrencySettings: []CurrencySettings{
+			{
+				ExchangeName: "ftx",
+				Asset:        asset.Futures,
+				Base:         currency.BTC,
+				Quote:        currency.NewCode("1230"),
+				MakerFee:     &makerFee,
+				TakerFee:     &takerFee,
+			},
+			{
+				ExchangeName: "ftx",
+				Asset:        asset.Spot,
+				Base:         currency.BTC,
+				Quote:        currency.USD,
+				MakerFee:     &makerFee,
+				TakerFee:     &takerFee,
+			},
+		},
+		DataSettings: DataSettings{
+			Interval: kline.OneMin,
+			DataType: common.CandleStr,
+			LiveData: &LiveData{
+				NewEventTimeout: time.Minute,
+				DataCheckTimer:  time.Second,
+				RunTimer:        time.Second,
+			},
+		},
+		PortfolioSettings: PortfolioSettings{
+			BuySide:  minMax,
+			SellSide: minMax,
+			Leverage: Leverage{
+				CanUseLeverage: false,
+			},
+		},
+		StatisticSettings: StatisticSettings{
+			RiskFreeRate: decimal.NewFromFloat(0.03),
+		},
+	}
+	if saveConfig {
+		result, err := json.MarshalIndent(cfg, "", " ")
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, err := os.Getwd()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = os.WriteFile(filepath.Join(p, "examples", "ftx-live-cash-and-carry.strat"), result, file.DefaultPermissionOctal)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+}
+
 func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 	if !saveConfig {
 		t.Skip()
@@ -843,6 +919,19 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 				Asset:        asset.Spot,
 				Base:         currency.BTC,
 				Quote:        currency.USDT,
+				SpotDetails: &SpotDetails{
+					InitialQuoteFunds: initialFunds100000,
+				},
+				BuySide:  minMax,
+				SellSide: minMax,
+				MakerFee: &makerFee,
+				TakerFee: &takerFee,
+			},
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot,
+				Base:         currency.ETH,
+				Quote:        currency.USD,
 				SpotDetails: &SpotDetails{
 					InitialQuoteFunds: initialFunds100000,
 				},

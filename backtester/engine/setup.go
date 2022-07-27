@@ -728,6 +728,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			return resp, err
 		}
 	case cfg.DataSettings.LiveData != nil:
+		bt.isLive = true
 		err = setExchangeCredentials(cfg, b)
 		if err != nil {
 			return nil, err

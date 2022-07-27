@@ -196,6 +196,7 @@ type LiveData struct {
 	DataCheckTimer      time.Duration `json:"data-check-timer"`
 	RunTimer            time.Duration `json:"run-timer"`
 	RealOrders          bool          `json:"real-orders"`
+	VerboseDataCheck    bool          `json:"verbose-data-check"`
 	ExchangeCredentials []Credentials `json:"exchange-credentials"`
 }
 

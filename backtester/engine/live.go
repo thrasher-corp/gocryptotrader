@@ -19,7 +19,7 @@ import (
 // It runs by constantly checking for new live datas and running through the list of events
 // once new data is processed. It will run until application close event has been received
 func (bt *BackTest) RunLive() error {
-	log.Info(common.Backtester, "running backtester against live data")
+	log.Info(common.Livetester, "running backtester against live data")
 	timer := bt.EventQueue.GetRunTimer()
 	timeout := bt.EventQueue.GetNewEventTimeout()
 	timeoutTimer := time.NewTimer(timeout)
@@ -51,10 +51,12 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Conf
 		case <-bt.shutdown:
 			return
 		case <-loadNewDataTimer.C:
-			log.Infof(common.Backtester, "%v has passed, fetching data for %v %v %v ", dataCheckInterval, exch.GetName(), a, fPair)
+			if cfg.DataSettings.LiveData.VerboseDataCheck {
+				log.Infof(common.Livetester, "%v has passed, fetching data for %v %v %v ", dataCheckInterval, exch.GetName(), a, fPair)
+			}
 			err = bt.loadLiveData(resp, cfg, exch, fPair, a, dataType)
 			if err != nil {
-				log.Error(common.Backtester, err)
+				log.Error(common.Livetester, err)
 				return
 			}
 			loadNewDataTimer.Reset(dataCheckInterval)
@@ -85,6 +87,9 @@ func (bt *BackTest) loadLiveData(resp *kline.DataFromKline, cfg *config.Config, 
 		return nil
 	}
 	resp.AppendResults(candles)
+	if !resp.IsLive() {
+		resp.SetLive(true)
+	}
 	err = bt.Reports.UpdateItem(&resp.Item)
 	if err != nil {
 		return err

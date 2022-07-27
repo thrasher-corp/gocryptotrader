@@ -77,6 +77,7 @@ type Handler interface {
 	Reset()
 	Serialise() (string, error)
 	AddPNLForTime(*portfolio.PNLSummary) error
+	CreateLog(common.EventHandler) (string, error)
 }
 
 // Results holds some statistics on results

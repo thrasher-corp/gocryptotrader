@@ -86,6 +86,10 @@ func RegisterBacktesterSubLoggers() error {
 	if err != nil {
 		return err
 	}
+	Livetester, err = log.NewSubLogger("Livetester")
+	if err != nil {
+		return err
+	}
 	Setup, err = log.NewSubLogger("Setup")
 	if err != nil {
 		return err

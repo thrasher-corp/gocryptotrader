@@ -1,6 +1,6 @@
 {
- "nickname": "ExampleCashAndCarry",
- "goal": "To demonstrate a cash and carry strategy",
+ "nickname": "ExampleFTXLiveCashAndCarry",
+ "goal": "To demonstrate a cash and carry strategy using a live data source",
  "strategy-settings": {
   "name": "ftx-cash-carry",
   "use-simultaneous-signal-processing": true,
@@ -23,7 +23,7 @@
    "exchange-name": "ftx",
    "asset": "futures",
    "base": "BTC",
-   "quote": "20210924",
+   "quote": "1230",
    "buy-side": {
     "minimum-size": "0",
     "maximum-size": "0",
@@ -69,30 +69,33 @@
   }
  ],
  "data-settings": {
-  "interval": 86400000000000,
+  "interval": 60000000000,
   "data-type": "candle",
-  "api-data": {
-   "start-date": "2021-01-14T00:00:00Z",
-   "end-date": "2021-09-24T00:00:00Z",
-   "inclusive-end-date": false
+  "live-data": {
+   "new-event-timeout": 60000000000,
+   "data-check-timer": 1000000000,
+   "run-timer": 1000000000,
+   "real-orders": false,
+   "verbose-data-check": false,
+   "exchange-credentials": null
   }
  },
  "portfolio-settings": {
   "leverage": {
-   "can-use-leverage": true,
+   "can-use-leverage": false,
    "maximum-orders-with-leverage-ratio": "0",
    "maximum-leverage-rate": "0",
    "maximum-collateral-leverage-rate": "0"
   },
   "buy-side": {
-   "minimum-size": "0",
-   "maximum-size": "0",
-   "maximum-total": "0"
+   "minimum-size": "0.005",
+   "maximum-size": "2",
+   "maximum-total": "40000"
   },
   "sell-side": {
-   "minimum-size": "0",
-   "maximum-size": "0",
-   "maximum-total": "0"
+   "minimum-size": "0.005",
+   "maximum-size": "2",
+   "maximum-total": "40000"
   }
  },
  "statistic-settings": {

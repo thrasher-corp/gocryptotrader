@@ -118,6 +118,16 @@ func (bt *BackTest) handleEvent(ev common.EventHandler) error {
 		err = bt.processOrderEvent(eType, funds.FundReleaser())
 	case fill.Event:
 		err = bt.processFillEvent(eType, funds.FundReleaser())
+		if bt.isLive {
+			var result string
+			result, err = bt.Statistic.CreateLog(eType)
+			if err != nil {
+				log.Error(common.Livetester, err)
+			} else {
+				log.Info(common.Livetester, result)
+			}
+
+		}
 	default:
 		return fmt.Errorf("handleEvent %w %T received, could not process",
 			errUnhandledDatatype,

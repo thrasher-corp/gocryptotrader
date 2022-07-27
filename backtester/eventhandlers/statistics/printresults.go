@@ -3,10 +3,13 @@ package statistics
 import (
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -66,81 +69,40 @@ func (s *Statistic) PrintTotalResults() {
 // rather than separated by exchange, asset and currency pair, it's
 // grouped by time to allow a clearer picture of events
 func (s *Statistic) PrintAllEventsChronologically() {
-	var results []eventOutputHolder
 	log.Info(common.Statistics, common.ColourH1+"------------------Events-------------------------------------"+common.ColourDefault)
 	var errs gctcommon.Errors
-	colour := common.ColourDefault
-	for exch, x := range s.ExchangeAssetPairStatistics {
-		for a, y := range x {
-			for pair, currencyStatistic := range y {
+	var err error
+	var results []eventOutputHolder
+	for _, x := range s.ExchangeAssetPairStatistics {
+		for _, y := range x {
+			for _, currencyStatistic := range y {
 				for i := range currencyStatistic.Events {
+					var result string
+					var tt time.Time
 					switch {
 					case currencyStatistic.Events[i].FillEvent != nil:
-						direction := currencyStatistic.Events[i].FillEvent.GetDirection()
-						if direction == order.CouldNotBuy ||
-							direction == order.CouldNotSell ||
-							direction == order.MissingData ||
-							direction == order.DoNothing ||
-							direction == order.TransferredFunds ||
-							direction == order.UnknownSide {
-							if direction == order.DoNothing {
-								colour = common.ColourDarkGrey
-							}
-							msg := fmt.Sprintf(colour+
-								"%v %v%v%v| Price: %v\tDirection: %v",
-								currencyStatistic.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
-								fSIL(exch, limit12),
-								fSIL(a.String(), limit10),
-								fSIL(currencyStatistic.Events[i].FillEvent.Pair().String(), limit14),
-								currencyStatistic.Events[i].FillEvent.GetClosePrice().Round(8),
-								currencyStatistic.Events[i].FillEvent.GetDirection())
-							msg = addReason(currencyStatistic.Events[i].FillEvent.GetConcatReasons(), msg)
-							msg += common.ColourDefault
-							results = addEventOutputToTime(results, currencyStatistic.Events[i].FillEvent.GetTime(), msg)
-						} else {
-							// successful order!
-							colour = common.ColourSuccess
-							if currencyStatistic.Events[i].FillEvent.IsLiquidated() {
-								colour = common.ColourError
-							}
-							msg := fmt.Sprintf(colour+
-								"%v %v%v%v| Price: %v\tDirection %v\tOrder placed: Amount: %v\tFee: %v\tTotal: %v",
-								currencyStatistic.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
-								fSIL(exch, limit12),
-								fSIL(a.String(), limit10),
-								fSIL(currencyStatistic.Events[i].FillEvent.Pair().String(), limit14),
-								currencyStatistic.Events[i].FillEvent.GetPurchasePrice().Round(8),
-								currencyStatistic.Events[i].FillEvent.GetDirection(),
-								currencyStatistic.Events[i].FillEvent.GetAmount().Round(8),
-								currencyStatistic.Events[i].FillEvent.GetExchangeFee(),
-								currencyStatistic.Events[i].FillEvent.GetTotal().Round(8))
-							msg = addReason(currencyStatistic.Events[i].FillEvent.GetConcatReasons(), msg)
-							msg += common.ColourDefault
-							results = addEventOutputToTime(results, currencyStatistic.Events[i].FillEvent.GetTime(), msg)
+						result, err = s.CreateLog(currencyStatistic.Events[i].FillEvent)
+						if err != nil {
+							errs = append(errs, err)
+							continue
 						}
+						tt = currencyStatistic.Events[i].FillEvent.GetTime()
 					case currencyStatistic.Events[i].SignalEvent != nil:
-						msg := fmt.Sprintf("%v %v%v%v| Price: $%v",
-							currencyStatistic.Events[i].SignalEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
-							fSIL(exch, limit12),
-							fSIL(a.String(), limit10),
-							fSIL(currencyStatistic.Events[i].SignalEvent.Pair().String(), limit14),
-							currencyStatistic.Events[i].SignalEvent.GetClosePrice().Round(8))
-						msg = addReason(currencyStatistic.Events[i].SignalEvent.GetConcatReasons(), msg)
-						msg += common.ColourDefault
-						results = addEventOutputToTime(results, currencyStatistic.Events[i].SignalEvent.GetTime(), msg)
+						result, err = s.CreateLog(currencyStatistic.Events[i].SignalEvent)
+						if err != nil {
+							errs = append(errs, err)
+							continue
+						}
+						tt = currencyStatistic.Events[i].SignalEvent.GetTime()
 					case currencyStatistic.Events[i].DataEvent != nil:
-						msg := fmt.Sprintf("%v %v%v%v| Price: $%v",
-							currencyStatistic.Events[i].DataEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
-							fSIL(exch, limit12),
-							fSIL(a.String(), limit10),
-							fSIL(currencyStatistic.Events[i].DataEvent.Pair().String(), limit14),
-							currencyStatistic.Events[i].DataEvent.GetClosePrice().Round(8))
-						msg = addReason(currencyStatistic.Events[i].DataEvent.GetConcatReasons(), msg)
-						msg += common.ColourDefault
-						results = addEventOutputToTime(results, currencyStatistic.Events[i].DataEvent.GetTime(), msg)
-					default:
-						errs = append(errs, fmt.Errorf(common.ColourError+"%v%v%v unexpected data received %+v"+common.ColourDefault, exch, a, fSIL(pair.String(), limit14), currencyStatistic.Events[i]))
+						result, err = s.CreateLog(currencyStatistic.Events[i].DataEvent)
+						if err != nil {
+							errs = append(errs, err)
+							continue
+						}
+						tt = currencyStatistic.Events[i].DataEvent.GetTime()
 					}
+					results = addEventOutputToTime(results, tt, result)
 				}
 			}
 		}
@@ -162,6 +124,77 @@ func (s *Statistic) PrintAllEventsChronologically() {
 			log.Error(common.Statistics, errs[i].Error())
 		}
 	}
+}
+
+func (s *Statistic) CreateLog(data common.EventHandler) (string, error) {
+	var (
+		result string
+		colour = common.ColourDefault
+	)
+	switch ev := data.(type) {
+	case fill.Event:
+		direction := ev.GetDirection()
+		if direction == order.CouldNotBuy ||
+			direction == order.CouldNotSell ||
+			direction == order.MissingData ||
+			direction == order.DoNothing ||
+			direction == order.TransferredFunds ||
+			direction == order.UnknownSide {
+			if direction == order.DoNothing {
+				colour = common.ColourDarkGrey
+			}
+			result = fmt.Sprintf(colour+
+				"%v %v%v%v| Price: %v\tDirection: %v",
+				ev.GetTime().Format(gctcommon.SimpleTimeFormat),
+				fSIL(ev.GetExchange(), limit12),
+				fSIL(ev.GetAssetType().String(), limit10),
+				fSIL(ev.Pair().String(), limit14),
+				ev.GetClosePrice().Round(8),
+				ev.GetDirection())
+			result = addReason(ev.GetConcatReasons(), result)
+			result += common.ColourDefault
+		} else {
+			// successful order!
+			colour = common.ColourSuccess
+			if ev.IsLiquidated() {
+				colour = common.ColourError
+			}
+			result = fmt.Sprintf(colour+
+				"%v %v%v%v| Price: %v\tDirection %v\tOrder placed: Amount: %v\tFee: %v\tTotal: %v",
+				ev.GetTime().Format(gctcommon.SimpleTimeFormat),
+				fSIL(ev.GetExchange(), limit12),
+				fSIL(ev.GetAssetType().String(), limit10),
+				fSIL(ev.Pair().String(), limit14),
+				ev.GetPurchasePrice().Round(8),
+				ev.GetDirection(),
+				ev.GetAmount().Round(8),
+				ev.GetExchangeFee(),
+				ev.GetTotal().Round(8))
+			result = addReason(ev.GetConcatReasons(), result)
+			result += common.ColourDefault
+		}
+	case signal.Event:
+		result = fmt.Sprintf("%v %v%v%v| Price: $%v",
+			ev.GetTime().Format(gctcommon.SimpleTimeFormat),
+			fSIL(ev.GetExchange(), limit12),
+			fSIL(ev.GetAssetType().String(), limit10),
+			fSIL(ev.Pair().String(), limit14),
+			ev.GetClosePrice().Round(8))
+		result = addReason(ev.GetConcatReasons(), result)
+		result += common.ColourDefault
+	case common.DataEventHandler:
+		result = fmt.Sprintf("%v %v%v%v| Price: $%v",
+			ev.GetTime().Format(gctcommon.SimpleTimeFormat),
+			fSIL(ev.GetExchange(), limit12),
+			fSIL(ev.GetAssetType().String(), limit10),
+			fSIL(ev.Pair().String(), limit14),
+			ev.GetClosePrice().Round(8))
+		result = addReason(ev.GetConcatReasons(), result)
+		result += common.ColourDefault
+	default:
+		return "", fmt.Errorf(common.ColourError+"unexpected data received %T %+v"+common.ColourDefault, data, data)
+	}
+	return result, nil
 }
 
 // PrintResults outputs all calculated statistics to the command line

@@ -311,8 +311,13 @@ func (c *Config) PrintSetting() {
 		log.Info(common.Config, common.ColourH2+"------------------Live Settings------------------------------"+common.ColourDefault)
 		log.Infof(common.Config, "Data type: %v", c.DataSettings.DataType)
 		log.Infof(common.Config, "Interval: %v", c.DataSettings.Interval)
-		log.Infof(common.Config, "REAL ORDERS: %v", c.DataSettings.LiveData.RealOrders)
-		//log.Infof(common.Config, "Overriding GCT API settings: %v", c.DataSettings.LiveData.APIClientIDOverride != "")
+		log.Infof(common.Config, "Using real orders: %v", c.DataSettings.LiveData.RealOrders)
+		log.Infof(common.Config, "Data check timer: %v", c.DataSettings.LiveData.DataCheckTimer)
+		log.Infof(common.Config, "New event timeout: %v", c.DataSettings.LiveData.NewEventTimeout)
+		log.Infof(common.Config, "Run timer: %v", c.DataSettings.LiveData.RunTimer)
+		for i := range c.DataSettings.LiveData.ExchangeCredentials {
+			log.Infof(common.Config, "%s credentials: %s", c.DataSettings.LiveData.ExchangeCredentials[i].Exchange, c.DataSettings.LiveData.ExchangeCredentials[i].Credentials.String())
+		}
 	}
 	if c.DataSettings.APIData != nil {
 		log.Info(common.Config, common.ColourH2+"------------------API Settings-------------------------------"+common.ColourDefault)

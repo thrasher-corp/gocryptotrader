@@ -14,6 +14,9 @@ import (
 // HasDataAtTime verifies checks the underlying range data
 // To determine whether there is any candle data present at the time provided
 func (d *DataFromKline) HasDataAtTime(t time.Time) bool {
+	if d.Base.IsLive() {
+		return true
+	}
 	if d.RangeHolder == nil {
 		return false
 	}
