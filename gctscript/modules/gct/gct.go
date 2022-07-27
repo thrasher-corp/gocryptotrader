@@ -114,7 +114,7 @@ func setAccount(args ...objects.Object) (objects.Object, error) {
 
 	if len(args) > 5 {
 		var oneTimePassword string
-		oneTimePassword, ok = objects.ToInterface(args[6]).(string)
+		oneTimePassword, ok = objects.ToString(args[6])
 		if !ok {
 			return nil, constructRuntimeError(7, setAccountFunc, "string", args[6])
 		}
