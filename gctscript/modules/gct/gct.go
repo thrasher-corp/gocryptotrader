@@ -80,7 +80,7 @@ func setAccount(args ...objects.Object) (objects.Object, error) {
 
 	if len(args) > 3 {
 		var subaccount string
-		subaccount, ok = objects.ToInterface(args[3]).(string)
+		subaccount, ok = objects.ToString(args[3])
 		if !ok {
 			return nil, constructRuntimeError(4, setAccountFunc, "string", args[3])
 		}
