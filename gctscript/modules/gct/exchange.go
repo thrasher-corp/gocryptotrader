@@ -536,7 +536,7 @@ func ExchangeDepositAddress(args ...objects.Object) (objects.Object, error) {
 
 	exchangeName, ok := objects.ToString(args[0])
 	if !ok {
-		return nil, constructRuntimeError(1, depositAddressFunc, "*gct.Context", args[0])
+		return nil, constructRuntimeError(1, depositAddressFunc, "string", args[0])
 	}
 	currencyCode, ok := objects.ToString(args[1])
 	if !ok {
