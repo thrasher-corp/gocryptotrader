@@ -3,10 +3,12 @@ package bybit
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -854,10 +856,19 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 		headers := make(map[string]string)
 
 		if jsonPayload != nil {
+			headers["Content-Type"] = "application/json"
 			jsonPayload["timestamp"] = strconv.FormatInt(time.Now().UnixMilli(), 10)
 			jsonPayload["api_key"] = creds.Key
-			jsonPayload["sign"] = getJSONRequestSignature(jsonPayload, creds.Secret)
-			headers["Content-Type"] = "application/json"
+			sign, err := getJSONRequestSignature(jsonPayload, creds.Secret)
+			if err != nil {
+				return nil, err
+			}
+			jsonPayload["sign"] = sign
+
+			payload, err = json.Marshal(jsonPayload)
+			if err != nil {
+				return nil, err
+			}
 		} else {
 			params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 			params.Set("api_key", creds.Key)
@@ -865,7 +876,6 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 			if err != nil {
 				return nil, err
 			}
-
 			headers["Content-Type"] = "application/x-www-form-urlencoded"
 			switch method {
 			case http.MethodPost:
@@ -959,8 +969,24 @@ func getOrderStatus(status string) order.Status {
 }
 
 func getJSONRequestSignature(payload map[string]interface{}, secret string) (string, error) {
-
-	return getSign("", secret)
+	payloadArr := make([]string, len(payload))
+	var i int
+	for p := range payload {
+		payloadArr[i] = p
+		i++
+	}
+	sort.Strings(payloadArr)
+	var signStr string
+	for _, key := range payloadArr {
+		if value, found := payload[key]; found {
+			if v, ok := value.(string); ok {
+				signStr += key + "=" + v + "&"
+			}
+		} else {
+			return "", errors.New("non-string payload parameter not expected")
+		}
+	}
+	return getSign(signStr, secret)
 }
 
 func getSign(sign, secret string) (string, error) {
