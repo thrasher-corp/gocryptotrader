@@ -92,7 +92,7 @@ func setAccount(args ...objects.Object) (objects.Object, error) {
 
 	if len(args) > 4 {
 		var clientID string
-		clientID, ok = objects.ToInterface(args[4]).(string)
+		clientID, ok = objects.ToString(args[4])
 		if !ok {
 			return nil, constructRuntimeError(5, setAccountFunc, "string", args[4])
 		}
