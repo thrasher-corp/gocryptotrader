@@ -51,7 +51,7 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Conf
 		case <-bt.shutdown:
 			return
 		case <-loadNewDataTimer.C:
-			log.Infof(common.Backtester, "fetching data for %v %v %v %v", exch.GetName(), a, fPair, cfg.DataSettings.Interval)
+			log.Infof(common.Backtester, "%v has passed, fetching data for %v %v %v ", dataCheckInterval, exch.GetName(), a, fPair)
 			err = bt.loadLiveData(resp, cfg, exch, fPair, a, dataType)
 			if err != nil {
 				log.Error(common.Backtester, err)

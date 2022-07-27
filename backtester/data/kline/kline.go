@@ -68,13 +68,13 @@ func (d *DataFromKline) AppendResults(ki *gctkline.Item) {
 			d.addedTimes[ki.Candles[i].Time.UnixNano()] = true
 		}
 	}
-
+	latestOffset := len(d.StreamClose()) + 1
 	klineData := make([]common.DataEventHandler, len(gctCandles))
 	candleTimes := make([]time.Time, len(gctCandles))
 	for i := range gctCandles {
 		klineData[i] = &kline.Kline{
 			Base: &event.Base{
-				Offset:       int64(i + 1),
+				Offset:       int64(latestOffset + i),
 				Exchange:     ki.Exchange,
 				Time:         gctCandles[i].Time,
 				Interval:     ki.Interval,
@@ -98,6 +98,9 @@ func (d *DataFromKline) AppendResults(ki *gctkline.Item) {
 				d.RangeHolder.Ranges[i].Intervals[j].HasData = true
 			}
 		}
+	}
+	if len(gctCandles) == 0 {
+		return
 	}
 	log.Debugf(common.Data, "appending %v candle intervals: %v", len(gctCandles), candleTimes)
 	d.AppendStream(klineData...)

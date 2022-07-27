@@ -110,10 +110,6 @@ func RegisterBacktesterSubLoggers() error {
 	if err != nil {
 		return err
 	}
-	Backtester, err = log.NewSubLogger("Sizing")
-	if err != nil {
-		return err
-	}
 	Holdings, err = log.NewSubLogger("Holdings")
 	if err != nil {
 		return err
