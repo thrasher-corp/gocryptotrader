@@ -66,6 +66,11 @@ func (b *Base) GetStream() []common.DataEventHandler {
 	return b.stream
 }
 
+// GetBase will return the base
+func (b Base) GetBase() Base {
+	return b
+}
+
 // Offset returns the current iteration of candle data the backtester is assessing
 func (b *Base) Offset() int {
 	return b.offset
@@ -119,8 +124,10 @@ func (b *Base) List() []common.DataEventHandler {
 }
 
 // IsLastEvent determines whether the latest event is the last event
+// for live data, this will be false, as all appended data is the latest available data
+// and this signal cannot be completely relied upon
 func (b *Base) IsLastEvent() bool {
-	return b.latest != nil && b.latest.GetOffset() == int64(len(b.stream))
+	return b.latest != nil && b.latest.GetOffset() == int64(len(b.stream)) && !b.isLiveData
 }
 
 // SortStream sorts the stream by timestamp

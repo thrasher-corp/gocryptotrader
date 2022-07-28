@@ -192,12 +192,13 @@ type DatabaseData struct {
 
 // LiveData defines all fields to configure live data
 type LiveData struct {
-	NewEventTimeout     time.Duration `json:"new-event-timeout"`
-	DataCheckTimer      time.Duration `json:"data-check-timer"`
-	RunTimer            time.Duration `json:"run-timer"`
-	RealOrders          bool          `json:"real-orders"`
-	VerboseDataCheck    bool          `json:"verbose-data-check"`
-	ExchangeCredentials []Credentials `json:"exchange-credentials"`
+	NewEventTimeout      time.Duration `json:"new-event-timeout"`
+	DataCheckTimer       time.Duration `json:"data-check-timer"`
+	RunTimer             time.Duration `json:"run-timer"`
+	RealOrders           bool          `json:"real-orders"`
+	VerboseDataCheck     bool          `json:"verbose-data-check"`
+	ClosePositionsOnExit bool          `json:"close-positions-on-exit"`
+	ExchangeCredentials  []Credentials `json:"exchange-credentials"`
 }
 
 type Credentials struct {

@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/api"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/csv"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/database"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/live"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange/slippage"
@@ -441,20 +442,18 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			return resp, err
 		}
 
-		if !bt.isLive {
-			err = bt.Funding.AddUSDTrackingData(klineData)
-			if err != nil &&
-				!errors.Is(err, trackingcurrencies.ErrCurrencyDoesNotContainsUSD) &&
-				!errors.Is(err, funding.ErrUSDTrackingDisabled) {
-				return resp, err
-			}
-
-			if cfg.CurrencySettings[i].USDTrackingPair {
-				continue
-			}
-
-			bt.Datas.SetDataForCurrency(exchangeName, a, pair, klineData)
+		err = bt.Funding.AddUSDTrackingData(klineData)
+		if err != nil &&
+			!errors.Is(err, trackingcurrencies.ErrCurrencyDoesNotContainsUSD) &&
+			!errors.Is(err, funding.ErrUSDTrackingDisabled) {
+			return resp, err
 		}
+
+		if cfg.CurrencySettings[i].USDTrackingPair {
+			continue
+		}
+
+		bt.Datas.SetDataForCurrency(exchangeName, a, pair, klineData)
 
 		var makerFee, takerFee decimal.Decimal
 		if cfg.CurrencySettings[i].MakerFee != nil && cfg.CurrencySettings[i].MakerFee.GreaterThan(decimal.Zero) {
@@ -735,9 +734,13 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if err != nil {
 			return nil, err
 		}
-		resp.Item.Exchange = exch.GetName()
-		resp.Item.Asset = a
-		resp.Item.Pair = fPair
+		var candles *gctkline.Item
+		candles, err = live.LoadData(context.TODO(), exch, dataType, cfg.DataSettings.Interval.Duration(), fPair, a)
+		if err != nil {
+			return nil, err
+		}
+		resp.Item = *candles
+		resp.SetLive(true)
 		eventQueue.NewEventTimeout = cfg.DataSettings.LiveData.NewEventTimeout
 		eventQueue.DataCheckTimer = cfg.DataSettings.LiveData.DataCheckTimer
 		eventQueue.RunTimer = cfg.DataSettings.LiveData.RunTimer
@@ -749,7 +752,6 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			fPair,
 			a,
 			dataType)
-		return nil, nil
 	}
 	if resp == nil {
 		return nil, fmt.Errorf("processing error, response returned nil")

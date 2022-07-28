@@ -128,6 +128,12 @@ func main() {
 			}
 		}()
 		interrupt := signaler.WaitForInterrupt()
+		if cfg.DataSettings.LiveData.ClosePositionsOnExit {
+			err = bt.CloseAllPositions()
+			if err != nil {
+				fmt.Printf("could not close all positions on exit: %v", err)
+			}
+		}
 		log.Infof(log.Global, "Captured %v, shutdown requested.\n", interrupt)
 		bt.Stop()
 	} else {
