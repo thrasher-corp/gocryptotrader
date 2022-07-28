@@ -738,7 +738,11 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	acc.AssetType = assetType
 	info.Accounts = append(info.Accounts, acc)
 
-	if err := account.Process(&info); err != nil {
+	creds, err := by.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	if err := account.Process(&info, creds); err != nil {
 		return account.Holdings{}, err
 	}
 	return info, nil
@@ -746,7 +750,11 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (by *Bybit) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(by.Name, assetType)
+	creds, err := by.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(by.Name, creds, assetType)
 	if err != nil {
 		return by.UpdateAccountInfo(ctx, assetType)
 	}
