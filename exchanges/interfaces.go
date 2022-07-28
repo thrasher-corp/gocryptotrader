@@ -85,7 +85,7 @@ type IBotExchange interface {
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
 
 	AccountManagement
-	GetCredentials(ctx context.Context) (*Credentials, error)
+	GetCredentials(ctx context.Context) (*account.Credentials, error)
 	ValidateCredentials(ctx context.Context, a asset.Item) error
 
 	FunctionalityChecker

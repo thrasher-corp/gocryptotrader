@@ -320,11 +320,14 @@ func (b *Bitflyer) UpdateAccountInfo(_ context.Context, _ asset.Item) (account.H
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (b *Bitflyer) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(b.Name, assetType)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(b.Name, creds, assetType)
 	if err != nil {
 		return b.UpdateAccountInfo(ctx, assetType)
 	}
-
 	return acc, nil
 }
 
