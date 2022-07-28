@@ -624,7 +624,7 @@ func TestPostOrder(t *testing.T) {
 }
 
 func TestPostMarginOrder(t *testing.T) {
-	//	t.Parallel()
+	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
@@ -632,12 +632,41 @@ func TestPostMarginOrder(t *testing.T) {
 	// default order type is limit and margin mode is cross
 	_, err := k.PostMarginOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "", "", "", "", "10000", "", 0.1, 0, 0, 0, true, false, false, false)
 	if err != nil && err.Error() != "Balance insufficient!" {
-		t.Error("PostOrder() error", err)
+		t.Error("PostMarginOrder() error", err)
 	}
 
 	// market isolated order
 	_, err = k.PostMarginOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "market", "remark", "", "isolated", "", "", 0.1, 0, 0, 5, true, false, false, true)
 	if err != nil && err.Error() != "Balance insufficient!" {
-		t.Error("PostOrder() error", err)
+		t.Error("PostMarginOrder() error", err)
+	}
+}
+
+func TestPostBulkOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	req := []OrderRequest{
+		{
+			ClientOID: "3d07008668054da6b3cb12e432c2b13a",
+			Side:      "buy",
+			Type:      "limit",
+			Price:     "1000",
+			Size:      "0.01",
+		},
+		{
+			ClientOID: "37245dbe6e134b5c97732bfb36cd4a9d",
+			Side:      "buy",
+			Type:      "limit",
+			Price:     "1000",
+			Size:      "0.01",
+		},
+	}
+
+	_, err := k.PostBulkOrder(context.Background(), "BTC-USDT", req)
+	if err != nil {
+		t.Error("PostBulkOrder() error", err)
 	}
 }

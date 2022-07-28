@@ -468,8 +468,9 @@ type PostMarginOrderResp struct {
 
 type OrderRequest struct {
 	ClientOID   string `json:"clientOid"`
-	Side        string `json:"side"`
 	Symbol      string `json:"symbol"`
+	Side        string `json:"side"`
+	Type        string `json:"type,omitempty"`      // optional
 	Remark      string `json:"remark,omitempty"`    // optional
 	Stop        string `json:"stop,omitempty"`      // optional
 	StopPrice   string `json:"stopPrice,omitempty"` // optional
@@ -482,4 +483,12 @@ type OrderRequest struct {
 	Hidden      string `json:"hidden,omitempty"`      // optional
 	Iceberg     string `json:"iceberg,omitempty"`     // optional
 	VisibleSize string `json:"visibleSize,omitempty"` // optional
+}
+
+type PostBulkOrderResp struct {
+	OrderRequest
+	Channel string `json:"channel"`
+	ID      string `json:"id"`
+	Status  string `json:"status"`
+	FailMsg string `json:"failMsg"`
 }
