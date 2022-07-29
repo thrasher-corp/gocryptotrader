@@ -20,6 +20,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
+// TODO:
+// run linter
+// handle rate limit for all API
+
 // Kucoin is the overarching type across this package
 type Kucoin struct {
 	exchange.Base
@@ -77,9 +81,12 @@ const (
 	kucoinInitiateIsolatedMarginQuickRepayment   = "/api/v1/isolated/repay/all"
 	kucoinInitiateIsolatedMarginSingleRepayment  = "/api/v1/isolated/repay/single"
 
-	kucoinPostOrder       = "/api/v1/orders"
-	kucoinPostMarginOrder = "/api/v1/margin/order"
-	kucoinPostBulkOrder   = "/api/v1/orders/multi"
+	kucoinPostOrder              = "/api/v1/orders"
+	kucoinPostMarginOrder        = "/api/v1/margin/order"
+	kucoinPostBulkOrder          = "/api/v1/orders/multi"
+	kucoinCancelOrder            = "/api/v1/orders/%s"
+	kucoinCancelOrderByClientOID = "/api/v1/order/client-order/%s"
+	kucoinCancelAllOrders        = "/api/v1/orders"
 )
 
 // GetSymbols gets pairs details on the exchange
@@ -1069,6 +1076,44 @@ func (k *Kucoin) PostBulkOrder(ctx context.Context, symbol string, orderList []O
 	params["symbol"] = symbol
 	params["orderList"] = orderList
 	return resp.Data.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinPostBulkOrder, params, publicSpotRate, &resp)
+}
+
+// CancelSingleOrder used to cancel single order previously placed
+func (k *Kucoin) CancelSingleOrder(ctx context.Context, orderID string) ([]string, error) {
+	resp := struct {
+		CancelledOrderIDs []string `json:"cancelledOrderIds"`
+		Error
+	}{}
+
+	return resp.CancelledOrderIDs, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, fmt.Sprintf(kucoinCancelOrder, orderID), nil, publicSpotRate, &resp)
+}
+
+// CancelOrderByClientOID used to cancel order via the clientOid
+func (k *Kucoin) CancelOrderByClientOID(ctx context.Context, orderID string) (string, string, error) {
+	resp := struct {
+		CancelledOrderID string `json:"cancelledOrderId"`
+		ClientOID        string `json:"clientOid"`
+		Error
+	}{}
+
+	return resp.CancelledOrderID, resp.ClientOID, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, fmt.Sprintf(kucoinCancelOrderByClientOID, orderID), nil, publicSpotRate, &resp)
+}
+
+// CancelAllOpenOrders used to cancel all order based upon the parameters passed
+func (k *Kucoin) CancelAllOpenOrders(ctx context.Context, symbol, tradeType string) ([]string, error) {
+	resp := struct {
+		CancelledOrderIDs []string `json:"cancelledOrderIds"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if tradeType != "" {
+		params.Set("tradeType", tradeType)
+	}
+	return resp.CancelledOrderIDs, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, common.EncodeURLValues(kucoinCancelAllOrders, params), nil, publicSpotRate, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request

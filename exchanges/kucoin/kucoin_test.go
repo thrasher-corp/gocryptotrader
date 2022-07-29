@@ -670,3 +670,39 @@ func TestPostBulkOrder(t *testing.T) {
 		t.Error("PostBulkOrder() error", err)
 	}
 }
+
+func TestCancelSingleOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	_, err := k.CancelSingleOrder(context.Background(), "5bd6e9286d99522a52e458de")
+	if err != nil {
+		t.Error("CancelSingleOrder() error", err)
+	}
+}
+
+func TestCancelOrderByClientOID(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	_, _, err := k.CancelOrderByClientOID(context.Background(), "5bd6e9286d99522a52e458de")
+	if err != nil {
+		t.Error("CancelOrderByClientOID() error", err)
+	}
+}
+
+func TestCancelAllOpenOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	_, err := k.CancelAllOpenOrders(context.Background(), "", "")
+	if err != nil {
+		t.Error("CancelAllOpenOrders() error", err)
+	}
+}
