@@ -678,7 +678,7 @@ func TestCancelSingleOrder(t *testing.T) {
 	}
 
 	_, err := k.CancelSingleOrder(context.Background(), "5bd6e9286d99522a52e458de")
-	if err != nil {
+	if err != nil && err.Error() != "order_not_exist_or_not_allow_to_cancel" {
 		t.Error("CancelSingleOrder() error", err)
 	}
 }
@@ -690,7 +690,7 @@ func TestCancelOrderByClientOID(t *testing.T) {
 	}
 
 	_, _, err := k.CancelOrderByClientOID(context.Background(), "5bd6e9286d99522a52e458de")
-	if err != nil {
+	if err != nil && err.Error() != "order_not_exist_or_not_allow_to_cancel" {
 		t.Error("CancelOrderByClientOID() error", err)
 	}
 }
