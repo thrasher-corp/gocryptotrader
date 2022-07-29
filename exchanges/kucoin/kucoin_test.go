@@ -719,6 +719,7 @@ func TestGetOrders(t *testing.T) {
 	}
 }
 
+// TODO: ambiguity in doc. and API response
 func TestGetRecentOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
@@ -731,6 +732,7 @@ func TestGetRecentOrders(t *testing.T) {
 	}
 }
 
+// TODO: not sure of response after looking at doc.
 func TestGetOrderByID(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
@@ -738,7 +740,7 @@ func TestGetOrderByID(t *testing.T) {
 	}
 
 	_, err := k.GetOrderByID(context.Background(), "5c35c02703aa673ceec2a168")
-	if err != nil {
+	if err != nil && err.Error() != "order not exist." {
 		t.Error("GetOrderByID() error", err)
 	}
 }
