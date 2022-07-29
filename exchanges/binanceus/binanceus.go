@@ -547,7 +547,7 @@ func (bi *Binanceus) GetSinglePriceData(ctx context.Context, symbol currency.Pai
 // GetPriceDatas to get the latest price for symbols.
 func (bi *Binanceus) GetPriceDatas(ctx context.Context) (SymbolPrices, error) {
 	var res SymbolPrices
-	return res, bi.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, tickerPrice, spotOrderbookTickerAllRate, &res)
+	return res, bi.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, tickerPrice, spotSymbolPriceAllRate, &res)
 }
 
 // GetAveragePrice returns current average price for a symbol.
@@ -991,7 +991,7 @@ func (bi *Binanceus) GetMasterAccountTotalUSDValue(ctx context.Context, email st
 		spotDefaultRate, &response)
 }
 
-// GetSubaccountStatusList this endpoint retrives a status list of sub-accounts.
+// GetSubaccountStatusList this endpoint retrieves a status list of sub-accounts.
 func (bi *Binanceus) GetSubaccountStatusList(ctx context.Context, email string) ([]SubAccountStatus, error) {
 	params := url.Values{}
 	if !common.MatchesEmailPattern(email) {
@@ -1019,7 +1019,7 @@ func (bi *Binanceus) GetOrderRateLimits(ctx context.Context, recvWindow uint) ([
 		params.Set("recvWindow", strconv.Itoa(30000))
 	}
 	var resp []OrderRateLimit
-	return resp, bi.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, orderRateLimit, params, spotDefaultRate, &resp)
+	return resp, bi.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, orderRateLimit, params, spotOrderRateLimitRate, &resp)
 }
 
 // NewOrder sends a new order to Binanceus
@@ -1151,7 +1151,7 @@ func (bi *Binanceus) CancelExistingOrder(ctx context.Context, arg *CancelOrderRe
 	return &response, bi.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodDelete, orderRequest,
-		params, spotDefaultRate, &response)
+		params, spotOrderRate, &response)
 }
 
 // CancelOpenOrdersForSymbol request to cancel an open orders.
@@ -1166,7 +1166,7 @@ func (bi *Binanceus) CancelOpenOrdersForSymbol(ctx context.Context, symbol strin
 	var response []Order
 	return response, bi.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
 		http.MethodDelete, openOrders,
-		params, spotDefaultRate, response)
+		params, spotOrderRate, response)
 }
 
 // GetTrades to get trade data for a specific account and token symbol.
@@ -1195,7 +1195,7 @@ func (bi *Binanceus) GetTrades(ctx context.Context, arg *GetTradesParams) ([]Tra
 	} else if arg.Limit > 1000 {
 		params.Set("limit", strconv.Itoa(1000))
 	}
-	return resp, bi.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, myTrades, params, spotDefaultRate, &resp)
+	return resp, bi.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, myTrades, params, spotTradesQueryRate, &resp)
 }
 
 // OCO Orders
@@ -1304,7 +1304,7 @@ func (bi *Binanceus) GetOpenOCOOrders(ctx context.Context, recvWindow uint) ([]O
 	var response []OCOOrderResponse
 	return response, bi.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet,
 		ocoOpenOrders, params,
-		spotDefaultRate, &response)
+		spotOpenOrdersSpecificRate, &response)
 }
 
 // CancelOCOOrder to cancel an entire order list.
@@ -1325,7 +1325,7 @@ func (bi *Binanceus) CancelOCOOrder(ctx context.Context, arg *OCOOrdersDeleteReq
 	}
 	return &response, bi.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
 		http.MethodGet, ocoOrderList,
-		params, spotDefaultRate, &response)
+		params, spotOrderRate, &response)
 }
 
 // OTC end points
@@ -1384,7 +1384,7 @@ func (bi *Binanceus) PlaceOTCTradeOrder(ctx context.Context, quoteID string) (*O
 	return &response, bi.SendAuthHTTPRequest(ctx,
 		exchange.RestSpot, http.MethodPost,
 		otcTradeOrder, params,
-		spotDefaultRate, &response)
+		spotOrderRate, &response)
 }
 
 // GetOTCTradeOrder returns a single OTC Trade Order instance.
@@ -1394,14 +1394,15 @@ func (bi *Binanceus) GetOTCTradeOrder(ctx context.Context, orderID uint64) (*OTC
 	if orderID <= 0 {
 		return nil, errIncompleteArguments
 	}
-	params.Set("orderid", fmt.Sprint(orderID))
+	orderIDStr := strconv.FormatUint(orderID, 10)
+	params.Set("orderId", orderIDStr)
 	params.Set("timestamp", fmt.Sprint(time.Now().UnixMilli()))
-	path := otcTradeOrders + fmt.Sprint(orderID)
+	path := otcTradeOrders + orderIDStr
 	return &response, bi.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodGet,
 		path, params,
-		spotDefaultRate, response)
+		spotOrderRate, response)
 }
 
 // GetAllOTCTradeOrders returns list of OTC Trade Orders
@@ -1413,10 +1414,10 @@ func (bi *Binanceus) GetAllOTCTradeOrders(ctx context.Context, arg *OTCTradeOrde
 	if arg.FromCoin != "" {
 		params.Set("fromCoin", arg.FromCoin)
 	}
-	if (arg.StartTime) != nil {
+	if !(arg.StartTime.IsZero()) {
 		params.Set("startTime", strconv.FormatInt(arg.StartTime.UnixMilli(), 10))
 	}
-	if arg.EndTime != nil {
+	if !(arg.EndTime.IsZero()) {
 		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
 	}
 	if arg.ToCoin != "" {
@@ -1429,7 +1430,7 @@ func (bi *Binanceus) GetAllOTCTradeOrders(ctx context.Context, arg *OTCTradeOrde
 	return response, bi.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodGet, otcTradeOrder,
-		params, spotDefaultRate, &response)
+		params, spotOrderRate, &response)
 }
 
 // GetAllOCBSTradeOrders use this endpoint to query all OCBS orders by condition.
@@ -1452,7 +1453,7 @@ func (bi *Binanceus) GetAllOCBSTradeOrders(ctx context.Context, arg OCBSOrderReq
 	return &resp, bi.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodGet, ocbsTradeOrders,
-		params, spotDefaultRate, &resp)
+		params, spotOrderRate, &resp)
 }
 
 // Wallet End points
@@ -1564,7 +1565,7 @@ func (bi *Binanceus) FiatWithdrawalHistory(ctx context.Context, arg *FiatWithdra
 		params.Set("fiatCurrency", arg.FiatCurrency)
 	}
 	if arg.Offset > 0 {
-		params.Set("offset", strconv.Itoa(arg.Offset))
+		params.Set("offset", strconv.FormatInt(arg.Offset, 10))
 	}
 	if arg.PaymentChannel != "" {
 		params.Set("paymentChannel", arg.PaymentChannel)
@@ -1708,7 +1709,7 @@ func (bi *Binanceus) FiatDepositHistory(ctx context.Context, arg *FiatWithdrawal
 		fiatDepositHistory, params, spotDefaultRate, &response)
 }
 
-// GetSubAccountDepositAddress retrives sub-account’s deposit address.
+// GetSubAccountDepositAddress retrieves sub-account’s deposit address.
 func (bi *Binanceus) GetSubAccountDepositAddress(ctx context.Context, arg SubAccountDepositAddressRequestParams) (*SubAccountDepositAddress, error) {
 	params := url.Values{}
 	if !common.MatchesEmailPattern(arg.Email) {
@@ -1723,7 +1724,7 @@ func (bi *Binanceus) GetSubAccountDepositAddress(ctx context.Context, arg SubAcc
 		subAccountDepositAddress, params, spotDefaultRate, &response)
 }
 
-// GetSubAccountDepositHistory retrives sub-account deposit history.
+// GetSubAccountDepositHistory retrieves sub-account deposit history.
 func (bi *Binanceus) GetSubAccountDepositHistory(ctx context.Context, email string, coin currency.Code,
 	status int, startTime, endTime time.Time, limit, offset int) ([]SubAccountDepositItem, error) {
 	params := url.Values{}
@@ -1754,9 +1755,9 @@ func (bi *Binanceus) GetSubAccountDepositHistory(ctx context.Context, email stri
 		subAccountDepositHistory, params, spotDefaultRate, &response)
 }
 
-// Refereal Endpoints
+// Referral Endpoints
 
-// GetReferralRewardHistory retrives the user’s referral reward history.
+// GetReferralRewardHistory retrieves the user’s referral reward history.
 func (bi *Binanceus) GetReferralRewardHistory(ctx context.Context, userBusinessType, page, rows int) (*ReferralRewardHistoryResponse, error) {
 	params := url.Values{}
 	if !(userBusinessType == 0 || userBusinessType == 1) {

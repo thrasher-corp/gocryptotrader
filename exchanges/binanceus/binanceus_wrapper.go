@@ -38,9 +38,9 @@ func (bi *Binanceus) GetDefaultConfig() (*config.Exchange, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = bi.BaseCurrencies
 
-	er := bi.SetupDefaults(exchCfg)
-	if er != nil {
-		return nil, er
+	err := bi.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
 	}
 
 	if bi.Features.Supports.RESTCapabilities.AutoPairUpdates {
@@ -153,15 +153,15 @@ func (bi *Binanceus) SetDefaults() {
 	}
 
 	bi.API.Endpoints = bi.NewEndpoints()
-	if er := bi.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+	if err := bi.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:                   binanceusAPIURL,
 		exchange.RestSpotSupplementary:      binanceusAPIURL,
 		exchange.WebsocketSpot:              binanceusDefaultWebsocketURL,
 		exchange.WebsocketSpotSupplementary: binanceusDefaultWebsocketURL,
-	}); er != nil {
+	}); err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s setting default endpoints error %v",
-			bi.Name, er)
+			bi.Name, err)
 	}
 	bi.Websocket = stream.New()
 	bi.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -261,14 +261,12 @@ func (bi *Binanceus) FetchTradablePairs(ctx context.Context, a asset.Item) ([]st
 		return nil, err
 	}
 	tradingStatus := "TRADING"
-	pairs := []string{}
-
 	var info ExchangeInfo
 	info, err = bi.GetExchangeInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
-
+	pairs := make([]string, 0, len(info.Symbols))
 	for x := range info.Symbols {
 		if info.Symbols[x].Status != tradingStatus || !info.Symbols[x].IsSpotTradingAllowed {
 			continue
@@ -470,16 +468,24 @@ func (bi *Binanceus) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 	acc.Currencies = currencyBalance
 	acc.AssetType = assetType
 	info.Accounts = append(info.Accounts, acc)
-	if er := account.Process(&info); er != nil {
-		return account.Holdings{}, er
+	creds, err := bi.GetCredentials(ctx)
+	if err != nil {
+		return info, err
+	}
+	if err := account.Process(&info, creds); err != nil {
+		return account.Holdings{}, err
 	}
 	return info, nil
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (bi *Binanceus) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, er := account.GetHoldings(bi.Name, assetType)
-	if er != nil {
+	creds, err := bi.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(bi.Name, creds, assetType)
+	if err != nil {
 		return bi.UpdateAccountInfo(ctx, assetType)
 	}
 	return acc, nil
@@ -572,7 +578,8 @@ func (bi *Binanceus) SubmitOrder(ctx context.Context, s *order.Submit) (*order.S
 	var submitOrderResponse order.SubmitResponse
 	var timeInForce RequestParamsTimeForceType
 	var sideType string
-	if err := s.Validate(); err != nil {
+	err := s.Validate()
+	if err != nil {
 		return nil, err
 	}
 	if s.AssetType != asset.Spot {
@@ -593,7 +600,8 @@ func (bi *Binanceus) SubmitOrder(ctx context.Context, s *order.Submit) (*order.S
 	default:
 		return nil, errors.New(bi.Name + " unsupported order type")
 	}
-	var orderRequest = NewOrderRequest{
+	var response NewOrderResponse
+	response, err = bi.NewOrder(ctx, &NewOrderRequest{
 		Symbol:           s.Pair,
 		Side:             sideType,
 		Price:            s.Price,
@@ -601,10 +609,9 @@ func (bi *Binanceus) SubmitOrder(ctx context.Context, s *order.Submit) (*order.S
 		TradeType:        requestParamOrderType,
 		TimeInForce:      timeInForce,
 		NewClientOrderID: s.ClientOrderID,
-	}
-	response, er := bi.NewOrder(ctx, &orderRequest)
-	if er != nil {
-		return nil, er
+	})
+	if err != nil {
+		return nil, err
 	}
 	if response.OrderID > 0 {
 		submitOrderResponse.OrderID = strconv.FormatInt(response.OrderID, 10)
@@ -627,7 +634,7 @@ func (bi *Binanceus) SubmitOrder(ctx context.Context, s *order.Submit) (*order.S
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (bi *Binanceus) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
+func (bi *Binanceus) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -636,20 +643,16 @@ func (bi *Binanceus) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
-	if o.AssetType == asset.Spot {
-		_, err := bi.CancelExistingOrder(ctx,
-			&CancelOrderRequestParams{
-				Symbol:                o.Pair,
-				OrderID:               o.OrderID,
-				ClientSuppliedOrderID: o.ClientOrderID,
-			})
-		if err != nil {
-			return err
-		}
-	} else {
+	if o.AssetType != asset.Spot {
 		return fmt.Errorf("%w '%v'", asset.ErrNotSupported, o.AssetType)
 	}
-	return nil
+	_, err := bi.CancelExistingOrder(ctx,
+		&CancelOrderRequestParams{
+			Symbol:                o.Pair,
+			OrderID:               o.OrderID,
+			ClientSuppliedOrderID: o.ClientOrderID,
+		})
+	return err
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
@@ -669,16 +672,16 @@ func (bi *Binanceus) CancelAllOrders(ctx context.Context, orderCancellation *ord
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
-		openOrders, er := bi.GetAllOpenOrders(ctx, symbolValue)
-		if er != nil {
-			return cancelAllOrdersResponse, er
+		openOrders, err := bi.GetAllOpenOrders(ctx, symbolValue)
+		if err != nil {
+			return cancelAllOrdersResponse, err
 		}
 		for ind := range openOrders {
-			pair, er := currency.NewPairFromString(openOrders[ind].Symbol)
-			if er != nil {
-				return cancelAllOrdersResponse, er
+			pair, err := currency.NewPairFromString(openOrders[ind].Symbol)
+			if err != nil {
+				return cancelAllOrdersResponse, err
 			}
-			_, err := bi.CancelExistingOrder(ctx, &CancelOrderRequestParams{
+			_, err = bi.CancelExistingOrder(ctx, &CancelOrderRequestParams{
 				Symbol:                pair,
 				OrderID:               strconv.FormatUint(openOrders[ind].OrderID, 10),
 				ClientSuppliedOrderID: openOrders[ind].ClientOrderID,
@@ -698,53 +701,53 @@ func (bi *Binanceus) GetOrderInfo(ctx context.Context, orderID string, pair curr
 	var respData order.Detail
 	orderIDInt, err := strconv.ParseInt(orderID, 10, 64)
 	if err != nil {
-		return respData, err
+		return respData, fmt.Errorf("invalid orderID %w", err)
 	}
 	symbolValue, err := bi.FormatSymbol(pair, asset.Spot)
 	if err != nil {
 		return respData, err
 	}
-	if assetType == asset.Spot {
-		var orderType order.Type
-		resp, err := bi.GetOrder(ctx, &OrderRequestParams{
-			Symbol:            symbolValue,
-			OrderID:           uint64(orderIDInt),
-			OrigClientOrderID: "",
-		})
-		if err != nil {
-			return respData, err
-		}
-		orderSide, err := order.StringToOrderSide(resp.Side)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
-		}
-		status, err := order.StringToOrderStatus(resp.Status)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
-		}
-		orderType, err = order.StringToOrderType(resp.Type)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
-		}
-
-		return order.Detail{
-			Amount:         resp.OrigQty,
-			Exchange:       bi.Name,
-			OrderID:        strconv.FormatInt(int64(resp.OrderID), 10),
-			ClientOrderID:  resp.ClientOrderID,
-			Side:           orderSide,
-			Type:           orderType,
-			Pair:           pair,
-			Cost:           resp.CummulativeQuoteQty,
-			AssetType:      assetType,
-			Status:         status,
-			Price:          resp.Price,
-			ExecutedAmount: resp.ExecutedQty,
-			Date:           resp.Time,
-			LastUpdated:    resp.UpdateTime,
-		}, nil
+	if assetType != asset.Spot {
+		return respData, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
-	return respData, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
+	var orderType order.Type
+	resp, err := bi.GetOrder(ctx, &OrderRequestParams{
+		Symbol:            symbolValue,
+		OrderID:           uint64(orderIDInt),
+		OrigClientOrderID: "",
+	})
+	if err != nil {
+		return respData, err
+	}
+	orderSide, err := order.StringToOrderSide(resp.Side)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
+	}
+	status, err := order.StringToOrderStatus(resp.Status)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
+	}
+	orderType, err = order.StringToOrderType(resp.Type)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
+	}
+
+	return order.Detail{
+		Amount:         resp.OrigQty,
+		Exchange:       bi.Name,
+		OrderID:        strconv.FormatInt(int64(resp.OrderID), 10),
+		ClientOrderID:  resp.ClientOrderID,
+		Side:           orderSide,
+		Type:           orderType,
+		Pair:           pair,
+		Cost:           resp.CummulativeQuoteQty,
+		AssetType:      assetType,
+		Status:         status,
+		Price:          resp.Price,
+		ExecutedAmount: resp.ExecutedQty,
+		Date:           resp.Time,
+		LastUpdated:    resp.UpdateTime,
+	}, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -764,9 +767,9 @@ func (bi *Binanceus) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRe
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	withdrawID, er := bi.WithdrawCrypto(ctx, withdrawRequest)
-	if er != nil {
-		return nil, er
+	withdrawID, err := bi.WithdrawCrypto(ctx, withdrawRequest)
+	if err != nil {
+		return nil, err
 	}
 	return &withdraw.ExchangeResponse{
 		ID: withdrawID,
@@ -795,16 +798,15 @@ func (bi *Binanceus) GetActiveOrders(ctx context.Context, getOrdersRequest *orde
 	var symbol string
 	var pair currency.Pair
 	var selectedOrders []Order
-	orders := []order.Detail{}
 	if getOrdersRequest.AssetType != asset.Spot {
-		return orders, fmt.Errorf("%s %w", getOrdersRequest.AssetType, asset.ErrNotSupported)
+		return nil, fmt.Errorf("%s %w", getOrdersRequest.AssetType, asset.ErrNotSupported)
 	}
 	if len(getOrdersRequest.Pairs) != 1 {
 		symbol = ""
 	} else {
 		symbol, err = bi.FormatSymbol(getOrdersRequest.Pairs[0], asset.Spot)
 		if err != nil {
-			return orders, err
+			return nil, err
 		}
 	}
 	resp, err := bi.GetAllOpenOrders(ctx, symbol)
@@ -823,6 +825,7 @@ func (bi *Binanceus) GetActiveOrders(ctx context.Context, getOrdersRequest *orde
 			}
 		}
 	}
+	orders := make([]order.Detail, len(selectedOrders))
 	for x := range selectedOrders {
 		var orderSide order.Side
 		var orderType order.Type
@@ -839,7 +842,7 @@ func (bi *Binanceus) GetActiveOrders(ctx context.Context, getOrdersRequest *orde
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
 		}
-		orders = append(orders, order.Detail{
+		orders[x] = order.Detail{
 			Amount:        resp[x].OrigQty,
 			Date:          resp[x].Time,
 			Exchange:      bi.Name,
@@ -852,7 +855,7 @@ func (bi *Binanceus) GetActiveOrders(ctx context.Context, getOrdersRequest *orde
 			Pair:          getOrdersRequest.Pairs[0],
 			AssetType:     getOrdersRequest.AssetType,
 			LastUpdated:   resp[x].UpdateTime,
-		})
+		}
 	}
 
 	order.FilterOrdersByPairs(&orders, getOrdersRequest.Pairs)
@@ -983,8 +986,6 @@ func (bi *Binanceus) GetHistoricCandlesExtended(ctx context.Context, pair curren
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }
-
-
 
 // GetAvailableTransferChains returns the available transfer blockchains for the specific
 // cryptocurrency

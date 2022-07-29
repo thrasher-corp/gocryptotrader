@@ -184,7 +184,7 @@ func (a *ExchangeInfo) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	if chil.Servertime > 0 {
-		a.Servertime = time.UnixMilli(int64(chil.Servertime))
+		a.ServerTime = time.UnixMilli(int64(chil.Servertime))
 	}
 	return nil
 }

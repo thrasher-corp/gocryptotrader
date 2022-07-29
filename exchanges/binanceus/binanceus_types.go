@@ -44,23 +44,23 @@ const (
 
 // ExchangeInfo holds the full exchange information type
 type ExchangeInfo struct {
-	Code       int       `json:"code"`
+	Code       int64     `json:"code"`
 	Msg        string    `json:"msg"`
 	Timezone   string    `json:"timezone"`
-	Servertime time.Time `json:"serverTime"`
+	ServerTime time.Time `json:"serverTime"`
 	RateLimits []struct {
 		RateLimitType string `json:"rateLimitType"`
 		Interval      string `json:"interval"`
-		Limit         int    `json:"limit"`
+		Limit         int64  `json:"limit"`
 	} `json:"rateLimits"`
 	ExchangeFilters interface{} `json:"exchangeFilters"`
 	Symbols         []struct {
 		Symbol                     string   `json:"symbol"`
 		Status                     string   `json:"status"`
 		BaseAsset                  string   `json:"baseAsset"`
-		BaseAssetPrecision         int      `json:"baseAssetPrecision"`
+		BaseAssetPrecision         int64    `json:"baseAssetPrecision"`
 		QuoteAsset                 string   `json:"quoteAsset"`
-		QuotePrecision             int      `json:"quotePrecision"`
+		QuotePrecision             int64    `json:"quotePrecision"`
 		OrderTypes                 []string `json:"orderTypes"`
 		IcebergAllowed             bool     `json:"icebergAllowed"`
 		OCOAllowed                 bool     `json:"ocoAllowed"`
@@ -106,9 +106,9 @@ type RecentTrade struct {
 }
 
 type HistoricalTradeParams struct {
-	Symbol string `json:"symbol"`  // Required field. example LTCBTC, BTCUSDT
-	Limit  int    `json:"limit"`   // Default 500; max 1000.
-	FromID uint64 `json:"from_id"` // Optional Field. Specifies the trade ID to fetch most recent trade histories from
+	Symbol string `json:"symbol"` // Required field. example LTCBTC, BTCUSDT
+	Limit  int    `json:"limit"`  // Default 500; max 1000.
+	FromID uint64 `json:"fromId"` // Optional Field. Specifies the trade ID to fetch most recent trade histories from
 }
 
 // HistoricalTrade holds recent trade data
@@ -262,21 +262,21 @@ type PriceChangeStats struct {
 
 // Response holds basic binance api response data
 type Response struct {
-	Code int    `json:"code"`
+	Code int64  `json:"code"`
 	Msg  string `json:"msg"`
 }
 
 // Account holds the account data
 type Account struct {
-	MakerCommission  int       `json:"makerCommission"`
-	TakerCommission  int       `json:"takerCommission"`
-	BuyerCommission  int       `json:"buyerCommission"`
-	SellerCommission int       `json:"sellerCommission"`
+	MakerCommission  int64     `json:"makerCommission"`
+	TakerCommission  int64     `json:"takerCommission"`
+	BuyerCommission  int64     `json:"buyerCommission"`
+	SellerCommission int64     `json:"sellerCommission"`
 	CanTrade         bool      `json:"canTrade"`
 	CanWithdraw      bool      `json:"canWithdraw"`
 	CanDeposit       bool      `json:"canDeposit"`
 	UpdateTime       time.Time `json:"updateTime"`
-	AccounType       string    `json:"spot"`
+	AccountType      string    `json:"accountType"`
 	Balances         []Balance `json:"balances"`
 	Permissions      []string  `json:"permissions"`
 }
@@ -288,7 +288,7 @@ type Balance struct {
 	Locked decimal.Decimal `json:"locked"`
 }
 
-// AccountStatusResponse holds informations related to the
+// AccountStatusResponse holds information related to the
 // User Account status information request
 type AccountStatusResponse struct {
 	Msg     string   `json:"msg"`
@@ -355,15 +355,15 @@ type SubAccount struct {
 
 // TransferHistory a single asset transfer history between Sub accounts
 type TransferHistory struct {
-	Fron      string    `json:"from"`
+	From      string    `json:"from"`
 	To        string    `json:"to"`
 	Asset     string    `json:"asset"`
 	Qty       uint      `json:"qty,string"`
 	TimeStamp time.Time `json:"time"`
 }
 
-// SubAccountTransferRequestParams a argument variables holder used to transfer an asset from one account to another subaccount
-// this account has to be present in the sub accounts list information.
+// SubAccountTransferRequestParams contains argument variables holder used to transfer an
+// asset from one account to another subaccount
 type SubAccountTransferRequestParams struct {
 	FromEmail  string  // Mandatory
 	ToEmail    string  // Mandatory
@@ -372,14 +372,14 @@ type SubAccountTransferRequestParams struct {
 	RecvWindow uint64
 }
 
-// SubAccountTransferResponse repsents a suabccount transffer history
+// SubAccountTransferResponse represents a suabccount transfer history
 // having the transaction id which is to be returned due to the transfer
 type SubAccountTransferResponse struct {
 	Success bool   `json:"success"`
 	TxnID   uint64 `json:"txnId,string"`
 }
 
-// AssetInfo holds asset informations.
+// AssetInfo holds asset information
 type AssetInfo struct {
 	Asset  string `json:"asset"`
 	Free   uint64 `json:"free"`
@@ -434,7 +434,7 @@ type NewOrderRequest struct {
 	NewOrderRespType string
 }
 
-// NewOrderResponse is the return structured response from the exchange
+// NewOrderResponse represents trade order's detailed information.
 type NewOrderResponse struct {
 	Symbol          string    `json:"symbol"`
 	OrderID         int64     `json:"orderId"`
@@ -462,7 +462,7 @@ type NewOrderResponse struct {
 	} `json:"fills"`
 }
 
-// CommonOrder instance holds the order informations common to both
+// CommonOrder instance holds the order information common to both
 // for Order and OrderReportItem
 type CommonOrder struct {
 	Symbol        string `json:"symbol"`
@@ -532,7 +532,7 @@ type Trade struct {
 	Symbol          string    `json:"symbol"`
 	ID              uint64    `json:"id"`
 	OrderID         uint64    `json:"orderId"`
-	OrderListID     int       `json:"orderListId"`
+	OrderListID     int64     `json:"orderListId"`
 	Price           float64   `json:"price"`
 	Qty             float64   `json:"qty"`
 	QuoteQty        float64   `json:"quoteQty"`
@@ -568,7 +568,7 @@ type GetOCOOrderRequestParams struct {
 	OrigClientOrderID string
 }
 
-// OrderShortResponse holds symbol, and Identification informations of trade order.
+// OrderShortResponse holds symbol Identification information of trade orders.
 type OrderShortResponse struct {
 	Symbol        string `json:"symbol"`
 	OrderID       uint64 `json:"orderId"`
@@ -587,7 +587,7 @@ type OCOOrderResponse struct {
 	Orders            []OrderShortResponse `json:"orders"`
 }
 
-// OCOFullOrderResponse holds detailed OCO order informations with the corresponding transaction time
+// OCOFullOrderResponse holds detailed OCO order information with the corresponding transaction time
 type OCOFullOrderResponse struct {
 	*OCOOrderResponse
 	OrderReports []OCOOrderReportItem `json:"orderReports"`
@@ -611,7 +611,7 @@ type OCOOrdersDeleteRequestParams struct {
 	RecvWindow        uint
 }
 
-// OTC endpoinsts
+// OTC endpoints
 
 // CoinPairInfo holds supported coin pair for conversion with its detailed information
 type CoinPairInfo struct {
@@ -625,7 +625,7 @@ type CoinPairInfo struct {
 
 // RequestQuoteParams a parameter model to query quote information
 type RequestQuoteParams struct {
-	FromCoin      string `json:"fronCoin"`
+	FromCoin      string `json:"fromCoin"`
 	ToCoin        string `json:"toCoin"`
 	RequestCoin   string `json:"requestCoin"`
 	RequestAmount int64  `json:"requestAmount"`
@@ -641,7 +641,7 @@ type Quote struct {
 	FromAmount     uint64    `json:"fromAmount,string"`
 }
 
-// OTCTradeOrderResponse holds OTC(over-the-counter) order indentification and status information
+// OTCTradeOrderResponse holds OTC(over-the-counter) order identification and status information
 type OTCTradeOrderResponse struct {
 	OrderID     uint64    `json:"orderId,string"`
 	OrderStatus string    `json:"orderStatus"`
@@ -667,8 +667,8 @@ type OTCTradeOrderRequestParams struct {
 	OrderID   string
 	FromCoin  string
 	ToCoin    string
-	StartTime *time.Time
-	EndTime   *time.Time
+	StartTime time.Time
+	EndTime   time.Time
 	Limit     int8
 }
 
@@ -705,8 +705,8 @@ type AssetWalletDetail struct {
 		WithdrawMax             float64 `json:"withdrawMax,string"`
 		AddressRegex            string  `json:"addressRegex,omitempty"`
 		MemoRegex               string  `json:"memoRegex,omitempty"`
-		MinConfirm              int     `json:"minConfirm,omitempty"`
-		UnLockConfirm           int     `json:"unLockConfirm,omitempty"`
+		MinConfirm              int64   `json:"minConfirm,omitempty"`
+		UnLockConfirm           int64   `json:"unLockConfirm,omitempty"`
 	} `json:"networkList"`
 }
 
@@ -774,7 +774,7 @@ type WithdrawFiatRequestParams struct {
 type FiatWithdrawalRequestParams struct {
 	FiatCurrency   string
 	OrderID        string
-	Offset         int
+	Offset         int64
 	PaymentChannel string
 	PaymentMethod  string
 	StartTime      time.Time
@@ -794,12 +794,12 @@ type DepositHistory struct {
 	Amount       string `json:"amount"`
 	Coin         string `json:"coin"`
 	Network      string `json:"network"`
-	Status       int    `json:"status"`
+	Status       int64  `json:"status"`
 	Address      string `json:"address"`
 	AddressTag   string `json:"addressTag"`
 	TxID         string `json:"txId"`
 	InsertTime   int64  `json:"insertTime"`
-	TransferType int    `json:"transferType"`
+	TransferType int64  `json:"transferType"`
 	ConfirmTimes string `json:"confirmTimes"`
 }
 
@@ -830,7 +830,7 @@ type job struct {
 	Pair currency.Pair
 }
 
-// update holds websocker depth stream response data and update informations.
+// update holds websocket depth stream response data and update information
 type update struct {
 	buffer            chan *WebsocketDepthStream
 	fetchingBook      bool
@@ -1135,7 +1135,7 @@ type SubAccountDepositAddressRequestParams struct {
 	Network string        // Network (If empty, returns the default network)
 }
 
-// SubAccountDepositAddress holds sub-accounts deposit address informations.
+// SubAccountDepositAddress holds sub-accounts deposit address information
 type SubAccountDepositAddress struct {
 	Coin    string `json:"coin"`
 	Address string `json:"address"`

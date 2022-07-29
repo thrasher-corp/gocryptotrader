@@ -180,12 +180,12 @@ func (bi *Binanceus) wsHandleData(respRaw []byte) error {
 			return nil
 		}
 	}
-	if newdata, ok := multiStreamData["data"].(map[string]interface{}); ok {
-		if e, ok := newdata["e"].(string); ok {
+	if newData, ok := multiStreamData["data"].(map[string]interface{}); ok {
+		if e, ok := newData["e"].(string); ok {
 			switch e {
 			case "outboundAccountPosition":
 				var data wsAccountPosition
-				err := json.Unmarshal(respRaw, &data)
+				err = json.Unmarshal(respRaw, &data)
 				if err != nil {
 					return fmt.Errorf("%v - Could not convert to outboundAccountPosition structure %s",
 						bi.Name,
@@ -318,7 +318,7 @@ func (bi *Binanceus) wsHandleData(respRaw []byte) error {
 						return nil
 					}
 					var t TradeStream
-					err := json.Unmarshal(rawData, &t)
+					err = json.Unmarshal(rawData, &t)
 					if err != nil {
 						return fmt.Errorf("%v - Could not unmarshal trade data: %s",
 							bi.Name,

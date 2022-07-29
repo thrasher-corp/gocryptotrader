@@ -34,6 +34,7 @@ const (
 	spotOpenOrdersSpecificRate
 	spotOrderRate
 	spotOrderQueryRate
+	spotTradesQueryRate
 	spotAllOrdersRate
 	spotAllOCOOrdersRate
 	spotOrderRateLimitRate
@@ -61,7 +62,8 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		limiter, tokens = r.SpotRate, 5
 	case spotOrderbookDepth1000Rate,
 		spotAccountInformationRate,
-		spotExchangeInfo:
+		spotExchangeInfo,
+		spotTradesQueryRate:
 		limiter, tokens = r.SpotRate, 10
 	case spotPriceChangeAllRate:
 		limiter, tokens = r.SpotRate, 40
