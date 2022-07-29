@@ -29,10 +29,10 @@ services:
       # - /var/run/docker.sock:/var/run/docker.sock 
 
     # Uncomment the next four lines if you will use a ptrace-based debugger like C++, Go, and Rust.
-    cap_add:
-      - SYS_PTRACE
-    security_opt:
-      - seccomp:unconfined
+    #cap_add:
+    #  - SYS_PTRACE
+    #security_opt:
+    #  - seccomp:unconfined
 
     # Overrides default command so things don't shut down after the process ends.
     command: /bin/sh -c "while sleep 1000; do :; done"
