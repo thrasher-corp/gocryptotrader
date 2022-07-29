@@ -40,7 +40,7 @@ go build -buildmode=plugin
 
 This outputs a file named `plugins.so` which can be loaded by the backtester. At present, only custom strategies can be loaded. See [here](/strategies/example/README.md) for more information on building custom strategies via plugins.
 
-You must ensure that the plugin is built with the same version of code as the GoCryptoTrader Backtester. Otherwise the plugin will refuse to load
+You must ensure that the plugin is built with the same version of code as the GoCryptoTrader Backtester. Otherwise the plugin will refuse to load.
 
 
 

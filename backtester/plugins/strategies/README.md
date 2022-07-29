@@ -23,12 +23,12 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 ### Designing a strategy
 - File must contain `main` package
 - Custom strategy plugins must adhere to the strategy.Handler interface. See the [strategy.Handler interface documentation](./backtester/eventhandlers/strategies/README.md) for more information.
-- Must contain function `func GetStrategies() []strategy.Handler` to return a slice of implemented `strategy.Handler`
-   - If only using one custom strategy, can simply `return []strategy.Handler{&customStrategy{}}`
+- Must contain function `func GetStrategies() []strategy.Handler` to return a slice of implemented `strategy.Handler`.
+   - If only using one custom strategy, can simply `return []strategy.Handler{&customStrategy{}}`.
 
 
 ### Building
-See [here](./backtester/plugins/README.md) for details on how to build the plugin file
+See [here](./backtester/plugins/README.md) for details on how to build the plugin file.
 
 ### Running
 Plugins can only be loaded via Linux, macOS and WSL. Windows itself is not supported.

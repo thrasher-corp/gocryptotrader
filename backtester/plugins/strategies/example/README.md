@@ -23,13 +23,13 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 This is a custom strategy for the GoCryptoTrader Backtester. It is a simple example of a strategy that trades a pair of assets and is used to highlight how strategies can be loaded from external sources.
 
 ### Designing a strategy
-- File must contain `main` package
+- File must contain `main` package.
 - Custom strategy plugins must adhere to the strategy.Handler interface. See the [strategy.Handler interface documentation](./backtester/eventhandlers/strategies/README.md) for more information.
-- Must contain function `func GetStrategies() []strategy.Handler` to return a slice of implemented `strategy.Handler`
-   - If only using one custom strategy, can simply `return []strategy.Handler{&customStrategy{}}`
+- Must contain function `func GetStrategies() []strategy.Handler` to return a slice of implemented `strategy.Handler`.
+   - If only using one custom strategy, can simply `return []strategy.Handler{&customStrategy{}}`.
 
 ### Building
-See [here](./backtester/plugins/README.md) for details on how to build the plugin file
+See [here](./backtester/plugins/README.md) for details on how to build the plugin file.
 
 ### Running
 Plugins can only be loaded via Linux, macOS and WSL. Windows itself is not supported.
