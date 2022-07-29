@@ -706,3 +706,15 @@ func TestCancelAllOpenOrders(t *testing.T) {
 		t.Error("CancelAllOpenOrders() error", err)
 	}
 }
+
+func TestGetOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetOrders(context.Background(), "", "", "", "", "", time.Time{}, time.Time{})
+	if err != nil {
+		t.Error("GetOrders() error", err)
+	}
+}

@@ -492,3 +492,21 @@ type PostBulkOrderResp struct {
 	Status  string `json:"status"`
 	FailMsg string `json:"failMsg"`
 }
+
+type OrderDetail struct {
+	OrderRequest
+	Channel       string             `json:"channel"`
+	ID            string             `json:"id"`
+	OpType        string             `json:"opType"` // operation type: DEAL
+	Funds         string             `json:"funds"`
+	DealFunds     string             `json:"dealFunds"`
+	DealSize      string             `json:"dealSize"`
+	Fee           string             `json:"fee"`
+	FeeCurrency   string             `json:"feeCurrency"`
+	StopTriggered bool               `json:"stopTriggered"`
+	Tags          string             `json:"tags"`
+	IsActive      bool               `json:"isActive"`
+	CancelExist   bool               `json:"cancelExist"`
+	CreatedAt     kucoinTimeMilliSec `json:"createdAt"`
+	TradeType     string             `json:"tradeType"`
+}

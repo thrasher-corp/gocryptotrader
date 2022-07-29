@@ -86,7 +86,7 @@ const (
 	kucoinPostBulkOrder          = "/api/v1/orders/multi"
 	kucoinCancelOrder            = "/api/v1/orders/%s"
 	kucoinCancelOrderByClientOID = "/api/v1/order/client-order/%s"
-	kucoinCancelAllOrders        = "/api/v1/orders"
+	kucoinOrders                 = "/api/v1/orders"
 )
 
 // GetSymbols gets pairs details on the exchange
@@ -1113,7 +1113,45 @@ func (k *Kucoin) CancelAllOpenOrders(ctx context.Context, symbol, tradeType stri
 	if tradeType != "" {
 		params.Set("tradeType", tradeType)
 	}
-	return resp.CancelledOrderIDs, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, common.EncodeURLValues(kucoinCancelAllOrders, params), nil, publicSpotRate, &resp)
+	return resp.CancelledOrderIDs, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, common.EncodeURLValues(kucoinOrders, params), nil, publicSpotRate, &resp)
+}
+
+// GetOrders gets the user order list
+func (k *Kucoin) GetOrders(ctx context.Context, status, symbol, side, orderType, tradeType string, startAt, endAt time.Time) ([]OrderDetail, error) {
+	resp := struct {
+		Data struct {
+			CurrentPage int64         `json:"currentPage"`
+			PageSize    int64         `json:"pageSize"`
+			TotalNum    int64         `json:"totalNum"`
+			TotalPage   int64         `json:"totalPage"`
+			Items       []OrderDetail `json:"items"`
+		} `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if status != "" {
+		params.Set("status", status)
+	}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if side != "" {
+		params.Set("side", side)
+	}
+	if orderType != "" {
+		params.Set("type", orderType)
+	}
+	if tradeType != "" { // TODO: check if this is optional or not
+		params.Set("tradeType", tradeType)
+	}
+	if !startAt.IsZero() {
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("startAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	return resp.Data.Items, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinOrders, params), nil, publicSpotRate, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
