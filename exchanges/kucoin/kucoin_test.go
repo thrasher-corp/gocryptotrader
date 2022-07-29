@@ -718,3 +718,27 @@ func TestGetOrders(t *testing.T) {
 		t.Error("GetOrders() error", err)
 	}
 }
+
+func TestGetRecentOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetRecentOrders(context.Background())
+	if err != nil {
+		t.Error("GetRecentOrders() error", err)
+	}
+}
+
+func TestGetOrderByID(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetOrderByID(context.Background(), "5c35c02703aa673ceec2a168")
+	if err != nil {
+		t.Error("GetOrderByID() error", err)
+	}
+}

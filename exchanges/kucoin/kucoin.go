@@ -84,9 +84,10 @@ const (
 	kucoinPostOrder              = "/api/v1/orders"
 	kucoinPostMarginOrder        = "/api/v1/margin/order"
 	kucoinPostBulkOrder          = "/api/v1/orders/multi"
-	kucoinCancelOrder            = "/api/v1/orders/%s"
+	kucoinOrderByID              = "/api/v1/orders/%s" // used by CancelSingleOrder and GetOrderByID
 	kucoinCancelOrderByClientOID = "/api/v1/order/client-order/%s"
-	kucoinOrders                 = "/api/v1/orders"
+	kucoinOrders                 = "/api/v1/orders" // used by CancelAllOpenOrders and GetOrders
+	kucoinGetRecentOrders        = "/api/v1/limit/orders"
 )
 
 // GetSymbols gets pairs details on the exchange
@@ -1085,7 +1086,10 @@ func (k *Kucoin) CancelSingleOrder(ctx context.Context, orderID string) ([]strin
 		Error
 	}{}
 
-	return resp.CancelledOrderIDs, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, fmt.Sprintf(kucoinCancelOrder, orderID), nil, publicSpotRate, &resp)
+	if orderID == "" {
+		return resp.CancelledOrderIDs, errors.New("orderID can't be empty")
+	}
+	return resp.CancelledOrderIDs, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, fmt.Sprintf(kucoinOrderByID, orderID), nil, publicSpotRate, &resp)
 }
 
 // CancelOrderByClientOID used to cancel order via the clientOid
@@ -1142,7 +1146,7 @@ func (k *Kucoin) GetOrders(ctx context.Context, status, symbol, side, orderType,
 	if orderType != "" {
 		params.Set("type", orderType)
 	}
-	if tradeType != "" { // TODO: check if this is optional or not
+	if tradeType != "" {
 		params.Set("tradeType", tradeType)
 	}
 	if !startAt.IsZero() {
@@ -1152,6 +1156,35 @@ func (k *Kucoin) GetOrders(ctx context.Context, status, symbol, side, orderType,
 		params.Set("startAt", strconv.FormatInt(endAt.UnixMilli(), 10))
 	}
 	return resp.Data.Items, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinOrders, params), nil, publicSpotRate, &resp)
+}
+
+// GetRecentOrders get orders in the last 24 hours.
+func (k *Kucoin) GetRecentOrders(ctx context.Context) ([]OrderDetail, error) {
+	resp := struct {
+		Data struct {
+			CurrentPage int64         `json:"currentPage"`
+			PageSize    int64         `json:"pageSize"`
+			TotalNum    int64         `json:"totalNum"`
+			TotalPage   int64         `json:"totalPage"`
+			Items       []OrderDetail `json:"items"`
+		} `json:"data"`
+		Error
+	}{}
+
+	return resp.Data.Items, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, kucoinGetRecentOrders, nil, publicSpotRate, &resp)
+}
+
+// GetOrderByID get a single order info by order ID
+func (k *Kucoin) GetOrderByID(ctx context.Context, orderID string) (OrderDetail, error) {
+	resp := struct {
+		Data OrderDetail `json:"data"`
+		Error
+	}{}
+
+	if orderID == "" {
+		return resp.Data, errors.New("orderID can't be empty")
+	}
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf(kucoinOrderByID, orderID), nil, publicSpotRate, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
