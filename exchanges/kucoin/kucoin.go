@@ -1039,33 +1039,36 @@ func (k *Kucoin) PostMarginOrder(ctx context.Context, clientOID, side, symbol, o
 
 // PostBulkOrder used to place 5 orders at the same time. The order type must be a limit order of the same symbol
 // Note: it supports only SPOT trades
+// Note: To check if order was posted successfully, check status field in response
 func (k *Kucoin) PostBulkOrder(ctx context.Context, symbol string, orderList []OrderRequest) ([]PostBulkOrderResp, error) {
 	resp := struct {
-		Data []PostBulkOrderResp `json:"data"`
+		Data struct {
+			Data []PostBulkOrderResp `json:"data"`
+		} `json:"data"`
 		Error
 	}{}
 
 	if symbol == "" {
-		return resp.Data, errors.New("symbol can't be empty")
+		return resp.Data.Data, errors.New("symbol can't be empty")
 	}
 	for i := range orderList {
 		if orderList[i].ClientOID == "" {
-			return resp.Data, errors.New("clientOid can't be empty")
+			return resp.Data.Data, errors.New("clientOid can't be empty")
 		}
 		if orderList[i].Side == "" {
-			return resp.Data, errors.New("side can't be empty")
+			return resp.Data.Data, errors.New("side can't be empty")
 		}
 		if orderList[i].Price == "" {
-			return resp.Data, errors.New("price can't be empty")
+			return resp.Data.Data, errors.New("price can't be empty")
 		}
 		if orderList[i].Size == "" {
-			return resp.Data, errors.New("size can't be empty")
+			return resp.Data.Data, errors.New("size can't be empty")
 		}
 	}
 	params := make(map[string]interface{})
 	params["symbol"] = symbol
 	params["orderList"] = orderList
-	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinPostBulkOrder, params, publicSpotRate, &resp)
+	return resp.Data.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinPostBulkOrder, params, publicSpotRate, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request

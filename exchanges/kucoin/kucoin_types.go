@@ -478,10 +478,10 @@ type OrderRequest struct {
 	Price       string `json:"price,omitempty"`
 	Size        string `json:"size,omitempty"`
 	TimeInForce string `json:"timeInForce,omitempty"` // optional
-	CancelAfter string `json:"cancelAfter,omitempty"` // optional
-	PostOnly    string `json:"postOnly,omitempty"`    // optional
-	Hidden      string `json:"hidden,omitempty"`      // optional
-	Iceberg     string `json:"iceberg,omitempty"`     // optional
+	CancelAfter int64  `json:"cancelAfter,omitempty"` // optional
+	PostOnly    bool   `json:"postOnly,omitempty"`    // optional
+	Hidden      bool   `json:"hidden,omitempty"`      // optional
+	Iceberg     bool   `json:"iceberg,omitempty"`     // optional
 	VisibleSize string `json:"visibleSize,omitempty"` // optional
 }
 
