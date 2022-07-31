@@ -162,7 +162,7 @@ func (a *Instrument) UnmarshalJSON(data []byte) error {
 	case "MARGIN":
 		a.InstrumentType = asset.Margin
 	case "ANY":
-		a.InstrumentType = asset.Item("")
+		a.InstrumentType = asset.Empty
 	}
 	return nil
 }
@@ -202,8 +202,8 @@ func (a *DeliveryHistory) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalJSON decoder for OpenInterestResponse instance.
-func (a *OpenInterestResponse) UnmarshalJSON(data []byte) error {
-	type Alias OpenInterestResponse
+func (a *OpenInterest) UnmarshalJSON(data []byte) error {
+	type Alias OpenInterest
 	chil := &struct {
 		*Alias
 		Timestamp      int64  `json:"ts,string"`
@@ -230,7 +230,7 @@ func (a *OpenInterestResponse) UnmarshalJSON(data []byte) error {
 	case "MARGIN":
 		a.InstrumentType = asset.Margin
 	case "ANY":
-		a.InstrumentType = asset.Item("")
+		a.InstrumentType = asset.Empty
 	}
 	return nil
 }
@@ -271,7 +271,7 @@ func (a *FundingRateResponse) UnmarshalJSON(data []byte) error {
 	case "MARGIN":
 		a.InstrumentType = asset.Margin
 	case "ANY":
-		a.InstrumentType = asset.Item("")
+		a.InstrumentType = asset.Empty
 	}
 	return nil
 }
@@ -306,14 +306,14 @@ func (a *LimitPriceResponse) UnmarshalJSON(data []byte) error {
 	case "MARGIN":
 		a.InstrumentType = asset.Margin
 	case "ANY":
-		a.InstrumentType = asset.Item("")
+		a.InstrumentType = asset.Empty
 	}
 	return nil
 }
 
 // UnmarshalJSON decerialize the account and position response.
-func (a *MarketDataResponse) UnmarshalJSON(data []byte) error {
-	type Alias MarketDataResponse
+func (a *TickerResponse) UnmarshalJSON(data []byte) error {
+	type Alias TickerResponse
 	chil := &struct {
 		*Alias
 		InstrumentType           string `json:"instType"`
@@ -342,7 +342,7 @@ func (a *MarketDataResponse) UnmarshalJSON(data []byte) error {
 	case "MARGIN":
 		a.InstrumentType = asset.Margin
 	case "ANY":
-		a.InstrumentType = asset.Item("")
+		a.InstrumentType = asset.Empty
 	}
 	return nil
 }
@@ -377,7 +377,7 @@ func (a *OptionMarketDataResponse) UnmarshalJSON(data []byte) error {
 	case "MARGIN":
 		a.InstrumentType = asset.Margin
 	case "ANY":
-		a.InstrumentType = asset.Item("")
+		a.InstrumentType = asset.Empty
 	}
 	return nil
 }
@@ -412,7 +412,7 @@ func (a *DeliveryEstimatedPrice) UnmarshalJSON(data []byte) error {
 	case "MARGIN":
 		a.InstrumentType = asset.Margin
 	case "ANY":
-		a.InstrumentType = asset.Item("")
+		a.InstrumentType = asset.Empty
 	}
 	return nil
 }
@@ -480,7 +480,7 @@ func (a *LiquidationOrder) UnmarshalJSON(data []byte) error {
 	case "MARGIN":
 		a.InstrumentType = asset.Margin
 	default:
-		a.InstrumentType = asset.Item("ANY")
+		a.InstrumentType = asset.Empty
 	}
 	return nil
 }
@@ -516,7 +516,7 @@ func (a *MarkPrice) UnmarshalJSON(data []byte) error {
 	case "MARGIN":
 		a.InstrumentType = asset.Margin
 	case "ANY":
-		a.InstrumentType = asset.Item("")
+		a.InstrumentType = asset.Empty
 	}
 	return nil
 }
@@ -570,7 +570,7 @@ func (a *OrderDetail) UnmarshalJSON(data []byte) error {
 	case "MARGIN":
 		a.InstrumentType = asset.Margin
 	case "ANY":
-		a.InstrumentType = asset.Item("")
+		a.InstrumentType = asset.Empty
 	}
 	return nil
 }
@@ -607,7 +607,7 @@ func (a *PendingOrderItem) UnmarshalJSON(data []byte) error {
 	case "MARGIN":
 		a.InstrumentType = asset.Margin
 	case "ANY":
-		a.InstrumentType = asset.Item("")
+		a.InstrumentType = asset.Empty
 	}
 	return nil
 }
@@ -640,7 +640,7 @@ func (a *TransactionDetail) UnmarshalJSON(data []byte) error {
 	case "MARGIN":
 		a.InstrumentType = asset.Margin
 	case "ANY":
-		a.InstrumentType = asset.Item("")
+		a.InstrumentType = asset.Empty
 	}
 	return nil
 }
@@ -675,7 +675,7 @@ func (a *AlgoOrderResponse) UnmarshalJSON(data []byte) error {
 	case "MARGIN":
 		a.InstrumentType = asset.Margin
 	case "ANY":
-		a.InstrumentType = asset.Item("")
+		a.InstrumentType = asset.Empty
 	}
 	return nil
 }
@@ -899,7 +899,7 @@ func (a *PositionData) UnmarshalJSON(data []byte) error {
 	case "MARGIN":
 		a.InstrumentType = asset.Margin
 	default:
-		a.InstrumentType = asset.Item("ANY")
+		a.InstrumentType = asset.Empty
 	}
 	return nil
 }
@@ -912,6 +912,7 @@ func (a *AccountPosition) UnmarshalJSON(data []byte) error {
 		CreationTime   int64  `json:"cTime,string"`
 		UpdatedTime    int64  `json:"uTime,string"` // Latest time position was adjusted,
 		InstrumentType string `json:"instType"`
+		PushTime       string `json:"pTime"`
 	}{
 		Alias: (*Alias)(a),
 	}
@@ -920,6 +921,13 @@ func (a *AccountPosition) UnmarshalJSON(data []byte) error {
 	}
 	a.CreationTime = time.UnixMilli(chil.CreationTime)
 	a.UpdatedTime = time.UnixMilli(chil.UpdatedTime)
+	if chil.PushTime != "" {
+		val, er := strconv.ParseUint(chil.PushTime, 10, 64)
+		if er != nil {
+			return er
+		}
+		a.PushTime = time.UnixMilli(int64(val))
+	}
 	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
 	switch chil.InstrumentType {
 	case "SWAP":
@@ -935,7 +943,7 @@ func (a *AccountPosition) UnmarshalJSON(data []byte) error {
 	case "MARGIN":
 		a.InstrumentType = asset.Margin
 	case "ANY":
-		a.InstrumentType = asset.Item("")
+		a.InstrumentType = asset.Empty
 	}
 	return nil
 }
@@ -971,7 +979,7 @@ func (a *AccountPositionHistory) UnmarshalJSON(data []byte) error {
 	case "MARGIN":
 		a.InstrumentType = asset.Margin
 	case "ANY":
-		a.InstrumentType = asset.Item("")
+		a.InstrumentType = asset.Empty
 	}
 	return nil
 }
@@ -1021,7 +1029,7 @@ func (a *BillsDetailResponse) UnmarshalJSON(data []byte) error {
 	case "MARGIN":
 		a.InstrumentType = asset.Margin
 	case "ANY":
-		a.InstrumentType = asset.Item("")
+		a.InstrumentType = asset.Empty
 	}
 	return nil
 }
@@ -1055,7 +1063,7 @@ func (a *TradeFeeRate) UnmarshalJSON(data []byte) error {
 	case "MARGIN":
 		a.InstrumentType = asset.Margin
 	default:
-		a.InstrumentType = asset.Item("ANY")
+		a.InstrumentType = asset.Empty
 	}
 	return nil
 }
@@ -1153,7 +1161,7 @@ func (a *PositionBuilderData) UnmarshalJSON(data []byte) error {
 	case "MARGIN":
 		a.InstrumentType = asset.Margin
 	default:
-		a.InstrumentType = asset.Item("ANY")
+		a.InstrumentType = asset.Empty
 	}
 	return nil
 }
@@ -1331,14 +1339,14 @@ func (a *BlockTicker) UnmarshalJSON(data []byte) error {
 	case "MARGIN":
 		a.InstrumentType = asset.Margin
 	case "ANY":
-		a.InstrumentType = asset.Item("")
+		a.InstrumentType = asset.Empty
 	}
 	return nil
 }
 
 // UnmarshalJSON decerialize the timestamp.
-func (a *OKXIndexTickerResponse) UnmarshalJSON(data []byte) error {
-	type Alias OKXIndexTickerResponse
+func (a *IndexTicker) UnmarshalJSON(data []byte) error {
+	type Alias IndexTicker
 	chil := &struct {
 		*Alias
 		Timestamp int64 `json:"ts,string"`
@@ -1405,12 +1413,20 @@ func (a *BlockTrade) UnmarshalJSON(data []byte) error {
 	type Alias BlockTrade
 	chil := &struct {
 		*Alias
-		Timestamp int64 `json:"ts,string"`
+		Timestamp int64  `json:"ts,string"`
+		Side      string `json:"side"`
 	}{
 		Alias: (*Alias)(a),
 	}
 	if er := json.Unmarshal(data, chil); er != nil {
 		return er
+	}
+	if strings.EqualFold(chil.Side, "buy") {
+		a.Side = order.Buy
+	} else if strings.EqualFold(chil.Side, "sell") {
+		a.Side = order.Sell
+	} else {
+		a.Side = order.UnknownSide
 	}
 	a.Timestamp = time.UnixMilli(chil.Timestamp)
 	return nil
@@ -1484,7 +1500,7 @@ func (a *GridAlgoSuborders) UnmarshalJSON(data []byte) error {
 	case "MARGIN":
 		a.InstrumentType = asset.Margin
 	default:
-		a.InstrumentType = asset.Item("ANY")
+		a.InstrumentType = asset.Empty
 	}
 	return nil
 }
@@ -1520,7 +1536,7 @@ func (a *GridAlgoOrderResponse) UnmarshalJSON(data []byte) error {
 	case "MARGIN":
 		a.InstrumentType = asset.Margin
 	case "ANY":
-		a.InstrumentType = asset.Item("")
+		a.InstrumentType = asset.Empty
 	}
 	return nil
 }
@@ -1556,7 +1572,7 @@ func (a *AlgoOrderPosition) UnmarshalJSON(data []byte) error {
 	case "MARGIN":
 		a.InstrumentType = asset.Margin
 	case "ANY":
-		a.InstrumentType = asset.Item("")
+		a.InstrumentType = asset.Empty
 	}
 	return nil
 }
@@ -1566,8 +1582,9 @@ func (a *SystemStatusResponse) UnmarshalJSON(data []byte) error {
 	type Alias SystemStatusResponse
 	chil := &struct {
 		*Alias
-		Begin int64 `json:"begin,string"`
-		End   int64 `json:"end,string"`
+		Begin    int64  `json:"begin,string"`
+		End      int64  `json:"end,string"`
+		PushTime string `json:"ts"`
 	}{
 		Alias: (*Alias)(a),
 	}
@@ -1576,6 +1593,9 @@ func (a *SystemStatusResponse) UnmarshalJSON(data []byte) error {
 	}
 	a.Begin = time.UnixMilli(chil.Begin)
 	a.End = time.UnixMilli(chil.End)
+	if ts, er := strconv.ParseInt(chil.PushTime, 10, 64); er == nil && ts > 0 {
+		a.PushTime = time.UnixMilli(ts)
+	}
 	return nil
 }
 
@@ -1616,5 +1636,246 @@ func (a *QuoteResponse) UnmarshalJSON(data []byte) error {
 	a.CreationTime = time.UnixMilli(chil.CreationTime)
 	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
 	a.ValidUntil = time.UnixMilli(chil.ValidUntil)
+	return nil
+}
+
+// MarshalJSON cerializes the WebsocketLoginData object
+func (a *WebsocketLoginData) MarshalJSON() ([]byte, error) {
+	type Alias WebsocketLoginData
+	return json.Marshal(struct {
+		Timestamp int64 `json:"timestamp"`
+		*Alias
+	}{
+		Timestamp: a.Timestamp.UTC().Unix(),
+		Alias:     (*Alias)(a),
+	})
+}
+
+// UnmarshalJSON decerializes the timestamp instance to built in time.Time
+func (a *WebsocketLoginData) UnmarshalJSON(data []byte) error {
+	type Alias WebsocketLoginData
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"timestamp"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// UnmarshalJSON decerailizis a unix timestamp number to built in time.Time instance.
+func (a *WSTradeData) UnmarshalJSON(data []byte) error {
+	type Alias WSTradeData
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"ts,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, &chil); er != nil {
+		return er
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// // UnmarshalJSON decerailizis a unix timestamp number to built in time.Time instance.
+func (a *BalanceData) UnmarshalJSON(data []byte) error {
+	type Alias BalanceData
+	chil := &struct {
+		*Alias
+		UpdateTime int64 `json:"uTime,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, &chil); er != nil {
+		return er
+	}
+	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
+	return nil
+}
+
+// // UnmarshalJSON decerailizis a unix timestamp number to built in time.Time instance.
+func (a *BalanceAndPositionData) UnmarshalJSON(data []byte) error {
+	type Alias BalanceAndPositionData
+	chil := &struct {
+		*Alias
+		PushTime int64 `json:"pTime,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, &chil); er != nil {
+		return er
+	}
+	a.PushTime = time.UnixMilli(chil.PushTime)
+	return nil
+}
+
+// UnmarshalJSON unix millisecond timestamps to built in time.Time instance.
+func (a *WsAlgoOrderDetail) UnmarshalJSON(data []byte) error {
+	type Alias WsAlgoOrderDetail
+	chil := &struct {
+		*Alias
+		TriggerTime  int64 `json:"triggerTime,string"`
+		CreationTime int64 `json:"cTime,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, &chil); er != nil {
+		return er
+	}
+	a.TriggerTime = time.UnixMilli(chil.TriggerTime)
+	a.CreationTime = time.UnixMilli(chil.CreationTime)
+	return nil
+}
+
+// UnmarshalJSON decerializes unix millisecond timestamps to built in time.Time instance.
+func (a *WsAdvancedAlgoOrderDetail) UnmarshalJSON(data []byte) error {
+	type Alias WsAdvancedAlgoOrderDetail
+	chil := &struct {
+		*Alias
+		CreationTime int64 `json:"cTime,string"`
+		PushTime     int64 `json:"pTime,string"`
+		TriggerTime  int64 `json:"triggerTime,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.CreationTime = time.UnixMilli(chil.CreationTime)
+	a.PushTime = time.UnixMilli(chil.PushTime)
+	a.TriggerTime = time.UnixMilli(chil.TriggerTime)
+	return nil
+}
+
+// UnmarshalJSON decerialization function to convert unix millisecond timestamp to time.Time instance.
+func (a *WsGreekData) UnmarshalJSON(data []byte) error {
+	type Alias WsGreekData
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"ts"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// UnmarshalJSON decerialization function to convert unix millisecond timestamp to time.Time instance.
+func (a *WsQuoteData) UnmarshalJSON(data []byte) error {
+	type Alias WsQuoteData
+	chil := &struct {
+		*Alias
+		ValidUntil   int64 `json:"validUntil,string"`
+		UpdatedTime  int64 `json:"uTime,string"`
+		CreationTime int64 `json:"cTime,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.ValidUntil = time.UnixMilli(chil.ValidUntil)
+	a.UpdatedTime = time.UnixMilli(chil.UpdatedTime)
+	a.CreationTime = time.UnixMilli(chil.CreationTime)
+	return nil
+}
+
+func (a *WsBlocTradeResponse) UnmarshalJSON(data []byte) error {
+	type Alias WsBlocTradeResponse
+	chil := &struct {
+		*Alias
+		CreationTime int64 `json:"cTime,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.CreationTime = time.UnixMilli(chil.CreationTime)
+	return nil
+}
+
+// UnmarshalJSON decerializes timestamp information to built in time.Time instance
+func (a *SpotGridAlgoData) UnmarshalJSON(data []byte) error {
+	type Alias SpotGridAlgoData
+	chil := &struct {
+		*Alias
+		TriggerTime  int64 `json:"triggerTime,string"`
+		CreationTime int64 `json:"cTime,string"`
+		PushTime     int64 `json:"pTime,string"`
+		UpdateTime   int64 `json:"uTime,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.TriggerTime = time.UnixMilli(chil.TriggerTime)
+	a.CreationTime = time.UnixMilli(chil.CreationTime)
+	a.PushTime = time.UnixMilli(chil.PushTime)
+	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
+	return nil
+}
+
+// UnmarshalJSON decerializes to ContractGridAlgoOrder instance to convert the timestamp information to built int time.Time instance.
+func (a *ContractGridAlgoOrder) UnmarshalJSON(data []byte) error {
+	type Alias ContractGridAlgoOrder
+	chil := &struct {
+		*Alias
+		CreationTime int64 `json:"cTime,string"`
+		PushTime     int64 `json:"pTime,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.CreationTime = time.UnixMilli(chil.CreationTime)
+	a.PushTime = time.UnixMilli(chil.PushTime)
+	return nil
+}
+
+// UnmarshalJSON decerializes to GridPositionData instance to convert the timestamp information to built int time.Time instance.
+func (a *GridPositionData) UnmarshalJSON(data []byte) error {
+	type Alias GridPositionData
+	chil := &struct {
+		*Alias
+		PushTime     int64 `json:"pTime,string"`
+		UpdateTime   int64 `json:"uTime,string"`
+		CreationTime int64 `json:"cTime,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.PushTime = time.UnixMilli(chil.PushTime)
+	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
+	a.CreationTime = time.UnixMilli(chil.CreationTime)
+	return nil
+}
+
+// UnmarshalJSON decerializes to OrderBookData instance and convert the timestamp information to built int time.Time instance
+func (a *WsOrderBookData) UnmarshalJSON(data []byte) error {
+	type Alias WsOrderBookData
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"ts,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
 	return nil
 }

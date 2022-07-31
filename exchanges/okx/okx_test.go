@@ -16,13 +16,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
-	passphrase              = ""
+	apiKey                  = "979bd241-8b96-426e-8110-92a31aedf32d"
+	apiSecret               = "E1212852CA92CE593E78795A30F59FFB"
+	passphrase              = "J1h6A7tHn.WjOYp5K6+4"
 	canManipulateRealOrders = true
 )
 
@@ -57,21 +58,44 @@ func areTestAPIKeysSet() bool {
 	return ok.ValidateAPICredentials(ok.GetDefaultCredentials()) == nil
 }
 
+var marketDataResponseJSON = `{
+	"instType": "SWAP",
+	"instId": "LTC-USD-SWAP",
+	"last": "9999.99",
+	"lastSz": "0.1",
+	"askPx": "9999.99",
+	"askSz": "11",
+	"bidPx": "8888.88",
+	"bidSz": "5",
+	"open24h": "9000",
+	"high24h": "10000",
+	"low24h": "8888.88",
+	"volCcy24h": "2222",
+	"vol24h": "2222",
+	"sodUtc0": "2222",
+	"sodUtc8": "2222",
+	"ts": "1597026383085"
+  }`
+
 func TestGetTickers(t *testing.T) {
 	t.Parallel()
+	var resp TickerResponse
+	if er := json.Unmarshal([]byte(marketDataResponseJSON), &resp); er != nil {
+		t.Error("Okx decerializing to MarketDataResponse error", er)
+	}
 	_, er := ok.GetTickers(context.Background(), "SPOT", "", "BTC-USD-SWAP")
 	if er != nil {
 		t.Error("Okx GetTickers() error", er)
 	}
 }
 
-// func TestGetIndexTicker(t *testing.T) {
-// 	t.Parallel()
-// 	_, er := ok.GetIndexTicker(context.Background(), "USDT", "")
-// 	if er != nil {
-// 		t.Error("OKX GetIndexTicker() error", er)
-// 	}
-// }
+func TestGetIndexTicker(t *testing.T) {
+	t.Parallel()
+	_, er := ok.GetIndexTickers(context.Background(), "USDT", "")
+	if er != nil {
+		t.Error("OKX GetIndexTicker() error", er)
+	}
+}
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
@@ -232,17 +256,25 @@ func TestGetBlockTrade(t *testing.T) {
 	}
 }
 
-func TestGetinstrument(t *testing.T) {
+func TestGetInstrument(t *testing.T) {
 	t.Parallel()
-	instruments, er := ok.GetInstruments(context.Background(), &InstrumentsFetchParams{
+	_, er := ok.GetInstruments(context.Background(), &InstrumentsFetchParams{
 		InstrumentType: "MARGIN",
 	})
+	if er != nil {
+		t.Error("Okx GetInstruments() error", er)
+	}
+	instruments, er := ok.GetInstruments(context.Background(), &InstrumentsFetchParams{
+		InstrumentType: "OPTION",
+		Underlying:     "BTC-USD",
+	})
+	for x := range instruments {
+		print(instruments[x].InstrumentID, " , ")
+	}
 
 	if er != nil {
 		t.Error("Okx GetInstruments() error", er)
 	}
-	val, _ := json.Marshal(instruments)
-	println(string(val))
 }
 
 var deliveryHistoryData = `{
@@ -2136,7 +2168,7 @@ func TestGetFeeRate(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := ok.GetTradeFeeRate(context.Background(), "SPOT", "", ""); er != nil {
+	if _, er := ok.GetTradeFee(context.Background(), "SPOT", "", ""); er != nil {
 		t.Error("Okx GetTradeFeeRate() error", er)
 	}
 }
@@ -2178,7 +2210,7 @@ func TestIsolatedMarginTradingSettings(t *testing.T) {
 	}
 	if _, er := ok.IsolatedMarginTradingSettings(context.Background(), IsolatedMode{
 		IsoMode:        "automatic",
-		InstrumentType: "CONTRACTS",
+		InstrumentType: asset.PerpetualContract,
 	}); er != nil {
 		t.Error("Okx IsolatedMarginTradingSettings() error", er)
 	}
@@ -2634,7 +2666,7 @@ func TestSystemStatusResponse(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	if _, er := ok.FetchTradablePairs(context.Background(), asset.PerpetualSwap); er != nil {
+	if _, er := ok.FetchTradablePairs(context.Background(), asset.Futures); er != nil {
 		t.Error("Okx FetchTradablePairs() error", er)
 	}
 }
@@ -2648,14 +2680,14 @@ func TestUpdateTradablePairs(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	if _, er := ok.UpdateTicker(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.Spot); er != nil {
+	if _, er := ok.UpdateTicker(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.Futures); er != nil {
 		t.Error("Okx UpdateTicker() error", er)
 	}
 }
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
-	if er := ok.UpdateTickers(context.Background(), asset.Spot); er != nil {
+	if er := ok.UpdateTickers(context.Background(), asset.Futures); er != nil {
 		t.Error("Okx UpdateTicker() error", er)
 	}
 }
@@ -2768,7 +2800,7 @@ func TestCancelOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 	var orderCancellation = &order.Cancel{
-		ID:            "1",
+		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currency.NewPair(currency.LTC, currency.BTC),
@@ -2792,14 +2824,14 @@ func TestCancelBatchOrders(t *testing.T) {
 	}
 	var orderCancellationParams = []order.Cancel{
 		{
-			ID:            "1",
+			OrderID:       "1",
 			WalletAddress: core.BitcoinDonationAddress,
 			AccountID:     "1",
 			Pair:          currency.NewPair(currency.LTC, currency.BTC),
 			AssetType:     asset.Spot,
 		},
 		{
-			ID:            "1",
+			OrderID:       "1",
 			WalletAddress: core.BitcoinDonationAddress,
 			AccountID:     "1",
 			Pair:          currency.NewPair(currency.LTC, currency.BTC),
@@ -2840,7 +2872,154 @@ func TestGetOrderInfo(t *testing.T) {
 	}
 	_, err = ok.GetOrderInfo(context.Background(),
 		"123", cp, asset.Futures)
+	if err != nil && !strings.Contains(err.Error(), "Order does not exist") {
+		t.Errorf("Okx GetOrderInfo() expecting %s, but found %v", "Order does not exist", err)
+	}
+}
+
+func TestGetDepositAddress(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := ok.GetDepositAddress(context.Background(), currency.USDT, "", currency.BNB.String()); err != nil && !errors.Is(err, errDepositAddressNotFound) {
+		t.Error("Okx GetDepositAddress() error", err)
+	}
+}
+
+func TestWithdraw(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	withdrawCryptoRequest := withdraw.Request{
+		Exchange: ok.Name,
+		Amount:   0.00000000001,
+		Currency: currency.BTC,
+		Crypto: withdraw.CryptoRequest{
+			Address: core.BitcoinDonationAddress,
+		},
+	}
+	if _, err := ok.WithdrawCryptocurrencyFunds(context.Background(), &withdrawCryptoRequest); err != nil && !strings.Contains(err.Error(), "Invalid Authority") {
+		t.Error("Okx WithdrawCryptoCurrencyFunds() error", err)
+	}
+}
+
+func TestGetPairFromInstrumentID(t *testing.T) {
+	t.Parallel()
+	instruments := []string{
+		"BTC-USDT",
+		"BTC-USDT-SWAP",
+		"BTC-USDT-ER33234",
+	}
+	if _, er := ok.GetPairFromInstrumentID(instruments[0]); er != nil {
+		t.Error("Okx GetPairFromInstrumentID() error", er)
+	}
+	if _, ere := ok.GetPairFromInstrumentID(instruments[1]); ere != nil {
+		t.Error("Okx GetPairFromInstrumentID() error", ere)
+	}
+	if _, erf := ok.GetPairFromInstrumentID(instruments[2]); erf != nil {
+		t.Error("Okx GetPairFromInstrumentID() error", erf)
+	}
+}
+
+func TestGetActiveOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	pair, err := currency.NewPairFromString("BTC_USDT")
 	if err != nil {
-		t.Error("Okx GetOrderInfo() error", err)
+		t.Error(err)
+	}
+	var getOrdersRequest = order.GetOrdersRequest{
+		Type:      order.AnyType,
+		Pairs:     currency.Pairs{pair},
+		AssetType: asset.Spot,
+	}
+	if _, err = ok.GetActiveOrders(context.Background(), &getOrdersRequest); err != nil {
+		t.Error("Okx GetActiveOrders() error", err)
+	}
+}
+
+func TestGetOrderHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	var getOrdersRequest = order.GetOrdersRequest{
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
+	}
+	_, err := ok.GetOrderHistory(context.Background(), &getOrdersRequest)
+	if err == nil {
+		t.Errorf("Okx GetOrderHistory() Expected: %v. received nil", err)
+	} else if err != nil && !errors.Is(err, errMissingAtLeast1CurrencyPair) {
+		t.Errorf("Okx GetOrderHistory() Expected: %v, but found %v", errMissingAtLeast1CurrencyPair, err)
+	}
+	getOrdersRequest.Pairs = []currency.Pair{
+		currency.NewPair(currency.LTC,
+			currency.BTC)}
+	if _, er := ok.GetOrderHistory(context.Background(), &getOrdersRequest); er != nil {
+		t.Error("Okx GetOrderHistory() error", er)
+	}
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	t.Parallel()
+	pair := currency.NewPair(currency.BTC, currency.USDT)
+	startTime := time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
+	endTime := time.Date(2021, 2, 15, 0, 0, 0, 0, time.UTC)
+	_, er := ok.GetHistoricCandles(context.Background(), pair, asset.Spot, startTime, endTime, kline.Interval(time.Hour*5))
+	if er != nil && !strings.Contains(er.Error(), "interval not supported") {
+		t.Errorf("Okx GetHistoricCandles() expected %s, but found %v", "interval not supported", er)
+	}
+	_, er = ok.GetHistoricCandles(context.Background(), pair, asset.Spot, time.Time{}, time.Time{}, kline.Interval(time.Hour*4))
+	if er != nil {
+		t.Error("Okx GetHistoricCandles() error", er)
+	}
+}
+
+var wsInstrumentResp = `{
+	"arg": {
+	  "channel": "instruments",
+	  "instType": "FUTURES"
+	},
+	"data": [
+	  {
+		"instType": "FUTURES",
+		"instId": "BTC-USD-191115",
+		"uly": "BTC-USD",
+		"category": "1",
+		"baseCcy": "",
+		"quoteCcy": "",
+		"settleCcy": "BTC",
+		"ctVal": "10",
+		"ctMult": "1",
+		"ctValCcy": "USD",
+		"optType": "",
+		"stk": "",
+		"listTime": "",
+		"expTime": "",
+		"tickSz": "0.01",
+		"lotSz": "1",
+		"minSz": "1",
+		"ctType": "linear",
+		"alias": "this_week",
+		"state": "live",
+		"maxLmtSz":"10000",
+		"maxMktSz":"99999",
+		"maxTwapSz":"99999",
+		"maxIcebergSz":"99999",
+		"maxTriggerSz":"9999",
+		"maxStopSz":"9999"
+	  }
+	]
+}`
+
+func TestWSInstruments(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(wsInstrumentResp)); er != nil {
+		t.Errorf("%s Websocket Instruments Push Data error %v", ok.Name, er)
 	}
 }

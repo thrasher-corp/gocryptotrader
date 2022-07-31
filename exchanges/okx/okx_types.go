@@ -49,13 +49,13 @@ var (
 
 // OkxMarkerDataResponse
 type OkxMarketDataResponse struct {
-	Code int                   `json:"code,string"`
-	Msg  string                `json:"msg"`
-	Data []*MarketDataResponse `json:"data"`
+	Code int               `json:"code,string"`
+	Msg  string            `json:"msg"`
+	Data []*TickerResponse `json:"data"`
 }
 
 // MarketData represents the Market data endpoint.
-type MarketDataResponse struct {
+type TickerResponse struct {
 	InstrumentType asset.Item `json:"instType"`
 	InstrumentID   string     `json:"instId"`
 	LastTradePrice float64    `json:"last,string"`
@@ -72,10 +72,11 @@ type MarketDataResponse struct {
 	//
 	OpenPriceInUTC0          float64   `json:"sodUtc0,string"`
 	OpenPriceInUTC8          float64   `json:"sodUtc8,string"`
-	TickerDataGenerationTime time.Time `json:"ts,string"`
+	TickerDataGenerationTime time.Time `json:"ts"`
 }
 
-type OKXIndexTickerResponse struct {
+// IndexTicker represents Index ticker data.
+type IndexTicker struct {
 	InstID    string    `json:"instId"`
 	IdxPx     float64   `json:"idxPx,string"`
 	High24H   float64   `json:"high24h,string"`
@@ -195,7 +196,7 @@ type CandleStick struct {
 // TradeRsponse represents the recent transaction instance.
 type TradeResponse struct {
 	InstrumentID string    `json:"instId"`
-	TradeID      int       `json:"tradeId,string"`
+	TradeID      string    `json:"tradeId"`
 	Price        float64   `json:"px,string"`
 	Quantity     float64   `json:"sz,string"`
 	Side         string    `json:"side"`
@@ -255,7 +256,7 @@ type Instrument struct {
 	BaseCurrency                    string     `json:"baseCcy"`
 	QuoteCurrency                   string     `json:"quoteCcy"`
 	SettlementCurrency              string     `json:"settleCcy"`
-	ContactValue                    string     `json:"ctVal"`
+	ContractValue                   string     `json:"ctVal"`
 	ContractMultiplier              string     `json:"ctMult"`
 	ContractValueCurrency           string     `json:"ctValCcy"`
 	OptionType                      string     `json:"optType"`
@@ -277,16 +278,6 @@ type Instrument struct {
 	MaxStopSize                     float64    `json:"maxStopSz,string"`
 }
 
-// {   "ts":"1597026383085",
-// "details":[
-// 	{
-// 		"type":"delivery",
-// 		"instId":"BTC-USD-190927",
-// 		"px":"0.016"
-// 	}
-// ]
-// },
-
 // DeliveryHistoryDetail ...
 type DeliveryHistoryDetail struct {
 	Type          string  `json:"type"`
@@ -307,8 +298,8 @@ type DeliveryHistoryResponse struct {
 	Data []*DeliveryHistory `json:"data"`
 }
 
-// OpenInterestResponse Retrieve the total open interest for contracts on OKX.
-type OpenInterestResponse struct {
+// OpenInterest Retrieve the total open interest for contracts on OKX.
+type OpenInterest struct {
 	InstrumentType       asset.Item `json:"instType"`
 	InstrumentID         string     `json:"instId"`
 	OpenInterest         float64    `json:"oi,string"`
@@ -323,7 +314,9 @@ type FundingRateResponse struct {
 	InstrumentID    string     `json:"instId"`
 	InstrumentType  asset.Item `json:"instType"`
 	NextFundingRate float64    `json:"nextFundingRate,string"`
-	NextFundingTime time.Time  `json:"nextFundingTime"`
+
+	//
+	NextFundingTime time.Time `json:"nextFundingTime"`
 }
 
 // LimitPriceResponse hold an information for
@@ -667,6 +660,9 @@ type PlaceOrderRequestParam struct {
 	ReduceOnly            bool    `json:"reduceOnly,string,omitempty"`
 	QuantityType          string  `json:"tgtCcy,omitempty"` // values base_ccy and quote_ccy
 
+	// Added in the websocket requests
+	BanAmend   bool      `json:"banAmend"` // Whether the SPOT Market Order size can be amended by the system.
+	ExpiryTime time.Time `json:"expTime"`
 }
 
 // PlaceOrderResponse respnse message for placing an order.
@@ -794,16 +790,16 @@ type OrderHistoryRequestParams struct {
 
 // PendingOrderItem represents a pending order Item in pending orders list.
 type PendingOrderItem struct {
-	AccumulatedFillSize        string     `json:"accFillSz"`
-	AvgPx                      string     `json:"avgPx"`
+	AccumulatedFillSize        float64    `json:"accFillSz,string"`
+	AveragePrice               float64    `json:"avgPx,string"`
 	CreationTime               time.Time  `json:"cTime"`
 	Category                   string     `json:"category"`
 	Currency                   string     `json:"ccy"`
 	ClientSupplierOrderID      string     `json:"clOrdId"`
 	TransactionFee             string     `json:"fee"`
-	FeeCcy                     string     `json:"feeCcy"`
+	FeeCurrency                float64    `json:"feeCcy,string"`
 	LastFilledPrice            string     `json:"fillPx"`
-	FillSize                   string     `json:"fillSz"`
+	LastFilledSize             float64    `json:"fillSz,string"`
 	FillTime                   string     `json:"fillTime"`
 	InstrumentID               string     `json:"instId"`
 	InstrumentType             asset.Item `json:"instType"`
@@ -1068,12 +1064,16 @@ type LightningDepositItem struct {
 
 // CurrencyDepositResponseItem represents the deposit address information item.
 type CurrencyDepositResponseItem struct {
-	Chain                string `json:"chain"`
-	ContractAddress      string `json:"ctAddr"`
-	Currency             string `json:"ccy"`
-	ToBeneficiaryAccount string `json:"to"`
-	Address              string `json:"addr"`
-	Selected             bool   `json:"selected"`
+	Tag                       string `json:"tag"`
+	Chain                     string `json:"chain"`
+	ContractAddress           string `json:"ctAddr"`
+	Currency                  string `json:"ccy"`
+	ToBeneficiaryAccount      string `json:"to"`
+	Address                   string `json:"addr"`
+	Selected                  bool   `json:"selected"`
+	Memo                      string `json:"memo"`
+	DepositAddressAttachement string `json:"addrEx"`
+	PaymentID                 string `json:"pmtId"`
 }
 
 // DepositHistoryResponseItem deposit history response item.
@@ -1290,7 +1290,7 @@ type ConvertHistory struct {
 	Timestamp     time.Time `json:"ts"`
 }
 
-// Account
+// Account holds currency account balance and related information
 type Account struct {
 	AdjEq       string           `json:"adjEq"`
 	Details     []*AccountDetail `json:"details"`
@@ -1372,6 +1372,10 @@ type AccountPosition struct {
 	UPLRatio                      float64    `json:"uplRatio,string,omitempty"` // Unrealized profit and loss ratio
 	VegaBS                        string     `json:"vegaBS"`                    // vega：Black-Scholes Greeks in dollars,only applicable to OPTION
 	VegaPA                        string     `json:"vegaPA"`                    // vega：Greeks in coins,only applicable to OPTION
+
+	// PushTime added feature in the websocket push data.
+
+	PushTime time.Time `json:"pTime"` // The time when the account position data is pushed.
 }
 
 // AccountPositionHistory hold account position history.
@@ -1722,18 +1726,19 @@ type CounterpartiesResponse struct {
 	TraderCode string `json:"traderCode"`
 	Type       string `json:"type"`
 }
+type RFQOrderLeg struct {
+	Size         string `json:"sz"`
+	Side         string `json:"side"`
+	InstrumentID string `json:"instId"`
+	TgtCurrency  string `json:"tgtCcy,omitempty"`
+}
 
 // CreateRFQInput RFQ create method input.
 type CreateRFQInput struct {
-	Anonymous           bool     `json:"anonymous"`
-	CounterParties      []string `json:"counterparties"`
-	ClientSuppliedRFQID string   `json:"clRfqId"`
-	Legs                []struct {
-		Size         string `json:"sz"`
-		Side         string `json:"side"`
-		InstrumentID string `json:"instId"`
-		TgtCurrency  string `json:"tgtCcy,omitempty"`
-	} `json:"legs"`
+	Anonymous           bool          `json:"anonymous"`
+	CounterParties      []string      `json:"counterparties"`
+	ClientSuppliedRFQID string        `json:"clRfqId"`
+	Legs                []RFQOrderLeg `json:"legs"`
 }
 
 // CancelRFQRequestParam
@@ -1769,23 +1774,29 @@ type ExecuteQuoteParams struct {
 
 // ExecuteQuoteResponse
 type ExecuteQuoteResponse struct {
-	BlockTradedID         string    `json:"blockTdId"`
-	RfqID                 string    `json:"rfqId"`
-	ClientSuppliedRfqID   string    `json:"clRfqId"`
-	QuoteID               string    `json:"quoteId"`
-	ClientSuppliedQuoteID string    `json:"clQuoteId"`
-	TraderCode            string    `json:"tTraderCode"`
-	MakerTraderCode       string    `json:"mTraderCode"`
-	CreationTime          time.Time `json:"cTime"`
-	Legs                  []struct {
-		Price        string `json:"px"`
-		Size         string `json:"sz"`
-		InstrumentID string `json:"instId"`
-		Side         string `json:"side"`
-		Fee          string `json:"fee"`
-		FeeCurrency  string `json:"feeCcy"`
-		TradeID      string `json:"tradeId"`
-	} `json:"legs"`
+	BlockTradedID         string     `json:"blockTdId"`
+	RfqID                 string     `json:"rfqId"`
+	ClientSuppliedRfqID   string     `json:"clRfqId"`
+	QuoteID               string     `json:"quoteId"`
+	ClientSuppliedQuoteID string     `json:"clQuoteId"`
+	TraderCode            string     `json:"tTraderCode"`
+	MakerTraderCode       string     `json:"mTraderCode"`
+	CreationTime          time.Time  `json:"cTime"`
+	Legs                  []OrderLeg `json:"legs"`
+}
+
+// OrderLeg represents legs information for both websocket and REST available Quote informations.
+type OrderLeg struct {
+	Price          string `json:"px"`
+	Size           string `json:"sz"`
+	InstrumentID   string `json:"instId"`
+	Side           string `json:"side"`
+	TargetCurrency string `json:"tgtCcy"`
+
+	// available in REST only
+	Fee         float64 `json:"fee,string"`
+	FeeCurrency string  `json:"feeCcy"`
+	TradeID     string  `json:"tradeId"`
 }
 
 // CreateQuoteParams holds information related to create quote.
@@ -1918,15 +1929,16 @@ type RFQTradeLeg struct {
 	Size         string  `json:"sz"`
 	Price        float64 `json:"px,string"`
 	TradeID      string  `json:"tradeId"`
-	Fee          float64 `json:"fee,string,omitempty"`
-	FeeCurrency  string  `json:"feeCcy,omitempty"`
+
+	Fee         float64 `json:"fee,string,omitempty"`
+	FeeCurrency string  `json:"feeCcy,omitempty"`
 }
 
-// PublicTradesResponse
+// PublicTradesResponse represents data will be pushed whenever there is a block trade.
 type PublicTradesResponse struct {
 	BlockTradeID string        `json:"blockTdId"`
-	Legs         []RFQTradeLeg `json:"legs"`
 	CreationTime time.Time     `json:"cTime"`
+	Legs         []RFQTradeLeg `json:"legs"`
 }
 
 // SubaccountInfo
@@ -2197,6 +2209,9 @@ type SystemStatusResponse struct {
 	ServiceType         string    `json:"serviceType"`
 	System              string    `json:"system"`
 	ScheduleDescription string    `json:"scheDesc"`
+
+	// PushTime timestamp information when the data is pushed
+	PushTime time.Time `json:"ts"`
 }
 
 // BlockTicker holds block trading information.
@@ -2225,4 +2240,694 @@ type UnitConvertResponse struct {
 	Size         float64             `json:"sz,string"`
 	ConvertType  CurrencyConvertType `json:"type"`
 	Unit         string              `json:"unit"`
+}
+
+// Websocket Models
+
+// WebsocketEventRequest contains event data for a websocket channel
+type WebsocketEventRequest struct {
+	Operation string               `json:"op"`   // 1--subscribe 2--unsubscribe 3--login
+	Arguments []WebsocketLoginData `json:"args"` // args: the value is the channel name, which can be one or more channels
+}
+
+// WebsocketLoginData represents the websocket login data input json data.
+type WebsocketLoginData struct {
+	APIKey     string    `json:"apiKey"`
+	Passphrase string    `json:"passphrase"`
+	Timestamp  time.Time `json:"timestamp"`
+	Sign       string    `json:"sign"`
+}
+
+// WSLoginResponse represents a websocket login response.
+type WSLoginResponse struct {
+	Event string `json:"event"`
+	Code  int    `json:"code,string"`
+	Msg   string `json:"msg"`
+}
+
+// SubscriptionInfo holds the channel and instrument IDs.
+type SubscriptionInfo struct {
+	Channel        string `json:"channel"`
+	InstrumentID   string `json:"instId,omitempty"`
+	InstrumentType string `json:"instType,omitempty"`
+	Underlying     string `json:"uly"`
+	UID            string `json:"uid,omitempty"` // user identifier
+
+	// For Algo Orders
+	AlgoID   string `json:"algoId"`
+	Currency string `json:"ccy,omitempty"` // Currency:
+}
+
+// WSSubscriptionInformation websocket subscription and unsubscription operation inputs.
+type WSSubscriptionInformation struct {
+	Operation string           `json:"op"`
+	Agruments SubscriptionInfo `json:"arg"`
+}
+
+// WSSubscriptionInformations websocket subscription and unsubscription operation inputs.
+type WSSubscriptionInformations struct {
+	Operation string             `json:"op"`
+	Arguments []SubscriptionInfo `json:"args"`
+}
+
+// WSSubscriptionResponserepresents websocket subscription information.
+type WSSubscriptionResponse struct {
+	Event    string           `json:"event"`
+	Argument SubscriptionInfo `json:"arg,,omitempty"`
+	Code     int              `json:"code,string,omitempty"`
+	Msg      string           `json:"msg,omitempty"`
+}
+
+// WSInstrumentsResponse represents instrument subscription response.
+type WSInstrumentsResponse struct {
+	Arguments []SubscriptionInfo `json:"args"`
+	Data      []Instrument       `json:"data"`
+}
+
+// WSMarketDataResponse represents market data response and it's arguments.
+type WSMarketDataResponse struct {
+	Arguments []SubscriptionInfo `json:"args"`
+	Data      []TickerResponse   `json:"data"`
+}
+
+// WSPlaceOrderData holds websocket order information.
+type WSPlaceOrderData struct {
+	ClientSuppliedOrderID string  `json:"clOrdId,omitempty"`
+	Currency              string  `json:"ccy,omitempty"`
+	Tag                   string  `json:"tag,omitempty"`
+	PositionSide          string  `json:"posSide,omitempty"`
+	ExpiryTime            int64   `json:"expTime,string,omitempty"`
+	BanAmend              bool    `json:"banAmend,omitempty"`
+	Side                  string  `json:"side"`
+	InstrumentID          string  `json:"instId"`
+	TradeMode             string  `json:"tdMode"`
+	OrderType             string  `json:"ordType"`
+	Size                  float64 `json:"sz"`
+	Price                 float64 `json:"px,string,omitempty"`
+	ReduceOnly            bool    `json:"reduceOnly,string,omitempty"`
+	TargetCurrency        string  `json:"tgtCurrency,omitempty"`
+}
+
+// WSPlaceOrder holds the websocket place order input data.
+type WSPlaceOrder struct {
+	ID        string             `json:"id"`
+	Operation string             `json:"op"`
+	Arguments []WSPlaceOrderData `json:"args"`
+}
+
+// WSPlaceOrderResponse place order response throught the websocket connection.
+type WSPlaceOrderResponse struct {
+	ID        string               `json:"id"`
+	Operation string               `json:"op"`
+	Data      []PlaceOrderResponse `json:"data"`
+	Code      string               `json:"code,omitempty"`
+	Msg       string               `json:"msg,omitempty"`
+}
+
+// WebsocketDataResponse represents all pushed websocket data coming throught the websocket connection
+type WebsocketDataResponse struct {
+	Argument SubscriptionInfo `json:"arg"`
+	Action   string           `json:"action"`
+	Data     []interface{}    `json:"data"`
+}
+
+// WSInstrumentResponse represents websocket instruments push message.
+type WSInstrumentResponse struct {
+	Argument SubscriptionInfo `json:"arg"`
+	Data     []Instrument     `json:"data"`
+}
+
+// WSTickerResponse represents websocket ticker response.
+type WSTickerResponse struct {
+	Argument SubscriptionInfo `json:"arg"`
+	Data     []TickerResponse `json:"data"`
+}
+
+// WSCandlestickData
+type WSCandlestickData struct {
+	Timestamp                     time.Time `json:"ts"`
+	OpenPrice                     float64   `json:"o"`
+	HighestPrice                  float64   `json:"p"`
+	LowestPrice                   float64   `json:"l"`
+	ClosePrice                    float64   `json:"c"`
+	TradingVolume                 float64   `json:"vol"`
+	TradingVolumeWithCurrencyUnit float64   `json:"volCcy"`
+}
+
+// WSCandlestickResponse represents candlestick response of with list of candlestick and
+type WSCandlestickResponse struct {
+	Argument SubscriptionInfo    `json:"arg"`
+	Data     []WSCandlestickData `json:"data"`
+}
+
+// WSOpenInterestResponse represents an open interest instance.
+type WSOpenInterestResponse struct {
+	Argument SubscriptionInfo `json:"arg"`
+	Data     []OpenInterest   `json:"data"`
+}
+
+// WSTradeData websocket trade data response.
+type WSTradeData struct {
+	InstrumentID string    `json:"instId"`
+	TradeID      string    `json:"tradeId"`
+	Price        float64   `json:"px,string"`
+	Size         float64   `json:"sz,string"`
+	Side         string    `json:"side"`
+	Timestamp    time.Time `json:"ts"`
+}
+
+// WSPlaceOrderInput place order input variables as a json.
+type WSPlaceOrderInput struct {
+	Side           order.Side `json:"side"`
+	InstrumentID   string     `json:"instId"`
+	TradeMode      string     `json:"tdMode"`
+	OrderType      string     `json:"ordType"`
+	Size           float64    `json:"sz,string"`
+	Currency       string     `json:"ccy"`
+	ClientOrderID  string     `json:"clOrdId,omitempty"`
+	Tag            string     `json:"tag,omitempty"`
+	PositionSide   string     `json:"posSide,omitempty"`
+	Price          float64    `json:"px,string,omitempty"`
+	ReduceOnly     bool       `json:"reduceOnly,omitempty"`
+	TargetCurrency string     `json:"tgtCcy"`
+}
+
+// WsPlaceOrderInput for all websocket request inputs.
+type WsPlaceOrderInput struct {
+	ID        string                   `json:"id"`
+	Operation string                   `json:"op"`
+	Arguments []PlaceOrderRequestParam `json:"args"`
+}
+
+// WsCancelOrderInput websocker cancel order request
+type WsCancelOrderInput struct {
+	ID        string                    `json:"id"`
+	Operation string                    `json:"op"`
+	Arguments []CancelOrderRequestParam `json:"args"`
+}
+
+// WsAmendOrderInput websocket handler amend Order response
+type WsAmendOrderInput struct {
+	ID        string                    `json:"id"`
+	Operation string                    `json:"op"`
+	Arguments []AmendOrderRequestParams `json:"args"`
+}
+
+// WsAmendOrderResponse holds websocket response Amendment request
+type WsAmendOrderResponse struct {
+	ID        string                `json:"id"`
+	Operation string                `json:"op"`
+	Data      []*AmendOrderResponse `json:"data"`
+	Code      string                `json:"code"`
+	Msg       string                `json:"msg"`
+}
+
+// SubscriptionOperationInput represents the account channel input datas
+type SubscriptionOperationInput struct {
+	Operation string             `json:"op"`
+	Arguments []SubscriptionInfo `json:"args"`
+}
+
+// SubscriptionOperationResponse holds account subscription response throught the websocket channel.
+type SubscriptionOperationResponse struct {
+	Event    string            `json:"event"`
+	Argument *SubscriptionInfo `json:"arg,omitempty"`
+	Code     string            `json:"code,omitempty"`
+	Msg      string            `json:"msg,omitempty"`
+}
+
+// WsAccountChannelPushData holds the websocket push data following the subscription.
+type WsAccountChannelPushData struct {
+	Argument SubscriptionInfo `json:"arg"`
+	Data     []Account        `json:"data,omitempty"`
+}
+
+// WsPositionResponse represents pushd position data through the websocket channel.
+type WsPositionResponse struct {
+	Argument  SubscriptionInfo  `json:"arg"`
+	Arguments []AccountPosition `json:"data"`
+}
+
+// PositionDataDetail position data information for the websocket push data
+type PositionDataDetail struct {
+	PositionID       string    `json:"posId"`
+	TradeID          string    `json:"tradeId"`
+	InstrumentID     string    `json:"instId"`
+	InstrumentType   string    `json:"instType"`
+	MarginMode       string    `json:"mgnMode"`
+	PositionSide     string    `json:"posSide"`
+	Position         string    `json:"pos"`
+	Currency         string    `json:"ccy"`
+	PositionCurrency string    `json:"posCcy"`
+	AveragePrice     string    `json:"avgPx"`
+	UpdateTime       time.Time `json:"uTIme"`
+}
+
+// BalanceData represents currency and it's Cash balance with the update time.
+type BalanceData struct {
+	Currency    string    `json:"ccy"`
+	CashBalance string    `json:"cashBal"`
+	UpdateTime  time.Time `json:"uTime"`
+}
+
+// BalanceAndPositionData represents balance and position data with the push time.
+type BalanceAndPositionData struct {
+	PushTime      time.Time            `json:"pTime"`
+	EventType     string               `json:"eventType"`
+	BalanceData   []BalanceData        `json:"balData"`
+	PositionDatas []PositionDataDetail `json:"posData"`
+}
+
+// WsBalanceAndPosition websocket push data for lis of BalanceAndPosition information.
+type WsBalanceAndPosition struct {
+	Argument SubscriptionInfo         `json:"arg"`
+	Data     []BalanceAndPositionData `json:"data"`
+}
+
+// WsOrder represents a websocket order.
+type WsOrder struct {
+	PendingOrderItem
+	AmendResult     string  `json:"amendResult"`
+	Code            string  `json:"code"`
+	ExecType        string  `json:"execType"`
+	FillFee         string  `json:"fillFee"`
+	FillFeeCurrency string  `json:"fillFeeCcy"`
+	FillNationalUsd float64 `json:"fillNationalUsd,string"`
+	Msg             string  `json:"msg"`
+	NationalUSD     string  `json:"nationalUsd"`
+	ReduceOnly      bool    `json:"reduceOnly"`
+	RequestID       string  `json:"reqId"`
+}
+
+// WsOrderResponse holds order list push data through the websocket connection
+type WsOrderResponse struct {
+	Argument SubscriptionInfo `json:"arg"`
+	Data     []WsOrder        `json:"data"`
+}
+
+// WsAlgoOrder algo order detailed data.
+type WsAlgoOrder struct {
+	Argument SubscriptionInfo    `json:"arg"`
+	Data     []WsAlgoOrderDetail `json:"data"`
+}
+
+// WsAlgoOrderDetail algo order response pushed through the websocket conn
+type WsAlgoOrderDetail struct {
+	InstrumentType             string    `json:"instType"`
+	InstrumentID               string    `json:"instId"`
+	OrderID                    string    `json:"ordId"`
+	Currency                   string    `json:"ccy"`
+	AlgoID                     string    `json:"algoId"`
+	Price                      string    `json:"px"`
+	Size                       string    `json:"sz"`
+	TradeMode                  string    `json:"tdMode"`
+	TargetCurrency             string    `json:"tgtCcy"`
+	NotionalUsd                string    `json:"notionalUsd"`
+	OrderType                  string    `json:"ordType"`
+	Side                       string    `json:"side"`
+	PositionSide               string    `json:"posSide"`
+	State                      string    `json:"state"`
+	Leverage                   string    `json:"lever"`
+	TakeProfitTriggerPrice     string    `json:"tpTriggerPx"`
+	TakeProfitTriggerPriceType string    `json:"tpTriggerPxType"`
+	TakeProfitOrdPrice         string    `json:"tpOrdPx"`
+	StopLossTriggerPrice       string    `json:"slTriggerPx"`
+	StopLossTriggerPriceType   string    `json:"slTriggerPxType"`
+	TriggerPrice               string    `json:"triggerPx"`
+	TriggerPriceType           string    `json:"triggerPxType"`
+	OrderPrice                 float64   `json:"ordPx,string"`
+	ActualSize                 string    `json:"actualSz"`
+	ActualPrice                string    `json:"actualPx"`
+	Tag                        string    `json:"tag"`
+	ActualSide                 string    `json:"actualSide"`
+	TriggerTime                time.Time `json:"triggerTime"`
+	CreationTime               time.Time `json:"cTime"`
+}
+
+// WsAdvancedAlgoOrder advanced algo order response.
+type WsAdvancedAlgoOrder struct {
+	Argument SubscriptionInfo            `json:"arg"`
+	Data     []WsAdvancedAlgoOrderDetail `json:"data"`
+}
+
+// WsAdvancedAlgoOrderDetail advanced algo order response pushed through the websocket conn
+type WsAdvancedAlgoOrderDetail struct {
+	ActualPrice            string    `json:"actualPx"`
+	ActualSide             string    `json:"actualSide"`
+	ActualSize             string    `json:"actualSz"`
+	AlgoID                 string    `json:"algoId"`
+	Currency               string    `json:"ccy"`
+	Count                  string    `json:"count"`
+	InstrumentID           string    `json:"instId"`
+	InstrumentType         string    `json:"instType"`
+	Leverage               string    `json:"lever"`
+	NotionalUsd            string    `json:"notionalUsd"`
+	OrderPrice             string    `json:"ordPx"`
+	OrdType                string    `json:"ordType"`
+	PositionSide           string    `json:"posSide"`
+	PriceLimit             string    `json:"pxLimit"`
+	PriceSpread            string    `json:"pxSpread"`
+	PriceVariation         string    `json:"pxVar"`
+	Side                   string    `json:"side"`
+	StopLossOrderPrice     string    `json:"slOrdPx"`
+	StopLossTriggerPrice   string    `json:"slTriggerPx"`
+	State                  string    `json:"state"`
+	Size                   string    `json:"sz"`
+	SizeLimit              string    `json:"szLimit"`
+	TradeMode              string    `json:"tdMode"`
+	TimeInterval           string    `json:"timeInterval"`
+	TakeProfitOrderPrice   string    `json:"tpOrdPx"`
+	TakeProfitTriggerPrice string    `json:"tpTriggerPx"`
+	Tag                    string    `json:"tag"`
+	TriggerPrice           string    `json:"triggerPx"`
+	CallbackRatio          string    `json:"callbackRatio"`
+	CallbackSpread         string    `json:"callbackSpread"`
+	ActivePrice            string    `json:"activePx"`
+	MoveTriggerPrice       string    `json:"moveTriggerPx"`
+	CreationTime           time.Time `json:"cTime"`
+	PushTime               time.Time `json:"pTime"`
+	TriggerTime            time.Time `json:"triggerTime"`
+}
+
+// WsGreeks greeks push data with the subcription info through websocket channel
+type WsGreeks struct {
+	Argument SubscriptionInfo `json:"arg"`
+	Data     []WsGreekData    `json:"data"`
+}
+
+// WsGreekData greeks push data through websocket channel
+type WsGreekData struct {
+	ThetaBS   string    `json:"thetaBS"`
+	ThetaPA   string    `json:"thetaPA"`
+	DeltaBS   string    `json:"deltaBS"`
+	DeltaPA   string    `json:"deltaPA"`
+	GammaBS   string    `json:"gammaBS"`
+	GammaPA   string    `json:"gammaPA"`
+	VegaBS    string    `json:"vegaBS"`
+	VegaPA    string    `json:"vegaPA"`
+	Currency  string    `json:"ccy"`
+	Timestamp time.Time `json:"ts"`
+}
+
+// WsRFQ represents websocket push data for "rfqs" subscription
+type WsRFQ struct {
+	Argument SubscriptionInfo `json:"arg"`
+	Data     []WsRfqData      `json:"data"`
+}
+
+// WsRfqData represents rfq order response data streamed through the websocket channel
+type WsRfqData struct {
+	CreationTime        time.Time     `json:"cTime"`
+	UpdateTime          time.Time     `json:"uTime"`
+	TraderCode          string        `json:"traderCode"`
+	RfqID               string        `json:"rfqId"`
+	ClientSuppliedRfqID string        `json:"clRfqId"`
+	State               string        `json:"state"`
+	ValidUntil          string        `json:"validUntil"`
+	Counterparties      []string      `json:"counterparties"`
+	Legs                []RFQOrderLeg `json:"legs"`
+}
+
+// WsQuote represents websocket push data for "quotes" subscription
+type WsQuote struct {
+	Arguments SubscriptionInfo `json:"arg"`
+	Data      []WsQuoteData    `json:"data"`
+}
+
+// WsQuoteData represents a single quote order information
+type WsQuoteData struct {
+	ValidUntil            time.Time  `json:"validUntil"`
+	UpdatedTime           time.Time  `json:"uTime"`
+	CreationTime          time.Time  `json:"cTime"`
+	Legs                  []OrderLeg `json:"legs"`
+	QuoteID               string     `json:"quoteId"`
+	RfqID                 string     `json:"rfqId"`
+	TraderCode            string     `json:"traderCode"`
+	QuoteSide             string     `json:"quoteSide"`
+	State                 string     `json:"state"`
+	ClientSuppliedQuoteID string     `json:"clQuoteId"`
+}
+
+// WsStructureBlocTrade represents websocket push data for "struc-block-trades" subscription
+type WsStructureBlocTrade struct {
+	Argument SubscriptionInfo      `json:"arg"`
+	Data     []WsBlocTradeResponse `json:"data"`
+}
+
+// WsBlocTradeResponse represents a structure bloc order information
+type WsBlocTradeResponse struct {
+	CreationTime          time.Time  `json:"cTime"`
+	RfqID                 string     `json:"rfqId"`
+	ClientSuppliedRfqID   string     `json:"clRfqId"`
+	QuoteID               string     `json:"quoteId"`
+	ClientSuppliedQuoteID string     `json:"clQuoteId"`
+	BlockTradeID          string     `json:"blockTdId"`
+	TakerTraderCode       string     `json:"tTraderCode"`
+	MakerTraderCode       string     `json:"mTraderCode"`
+	Legs                  []OrderLeg `json:"legs"`
+}
+
+// WsSpotGridAlgoOrder represents websocket push data for "struc-block-trades" subscription
+type WsSpotGridAlgoOrder struct {
+	Argument SubscriptionInfo   `json:"arg"`
+	Data     []SpotGridAlgoData `json:"data"`
+}
+
+// SpotGridAlgoData represents spot grid algo orders.
+type SpotGridAlgoData struct {
+	AlgoID          string `json:"algoId"`
+	AlgoOrderType   string `json:"algoOrdType"`
+	AnnualizedRate  string `json:"annualizedRate"`
+	ArbitrageNumber string `json:"arbitrageNum"`
+	BaseSize        string `json:"baseSz"`
+	// Algo order stop reason 0: None 1: Manual stop 2: Take profit
+	// 3: Stop loss 4: Risk control 5: delivery
+	CancelType           string `json:"cancelType"`
+	CurBaseSize          string `json:"curBaseSz"`
+	CurQuoteSize         string `json:"curQuoteSz"`
+	FloatProfit          string `json:"floatProfit"`
+	GridNumber           string `json:"gridNum"`
+	GridProfit           string `json:"gridProfit"`
+	InstrumentID         string `json:"instId"`
+	InstrumentType       string `json:"instType"`
+	Investment           string `json:"investment"`
+	MaximumPrice         string `json:"maxPx"`
+	MinimumPrice         string `json:"minPx"`
+	PerMaximumProfitRate string `json:"perMaxProfitRate"`
+	PerMinimumProfitRate string `json:"perMinProfitRate"`
+	ProfitAndLossRatio   string `json:"pnlRatio"`
+	QuoteSize            string `json:"quoteSz"`
+	RunPrice             string `json:"runPx"`
+	RunType              string `json:"runType"`
+	SingleAmount         string `json:"singleAmt"`
+	StopLossTriggerPrice string `json:"slTriggerPx"`
+	State                string `json:"state"`
+	// Stop result of spot grid
+	// 0: default, 1: Successful selling of currency at market price,
+	// -1: Failed to sell currency at market price
+	StopResult string `json:"stopResult"`
+	// Stop type Spot grid 1: Sell base currency 2: Keep base currency
+	// Contract grid 1: Market Close All positions 2: Keep positions
+	StopType               string    `json:"stopType"`
+	TotalAnnualizedRate    string    `json:"totalAnnualizedRate"`
+	TotalProfitAndLoss     string    `json:"totalPnl"`
+	TakeProfitTriggerPrice string    `json:"tpTriggerPx"`
+	TradeNum               string    `json:"tradeNum"`
+	TriggerTime            time.Time `json:"triggerTime"`
+	CreationTime           time.Time `json:"cTime"`
+	PushTime               time.Time `json:"pTime"`
+	UpdateTime             time.Time `json:"uTime"`
+}
+
+// WsContractGridAlgoOrder represents websocket push data for "grid-orders-contract" subscription
+type WsContractGridAlgoOrder struct {
+	Argument SubscriptionInfo        `json:"arg"`
+	Data     []ContractGridAlgoOrder `json:"data"`
+}
+
+// ContractGridAlgoOrder represents contrat grid algo order
+type ContractGridAlgoOrder struct {
+	ActualLever            string    `json:"actualLever"`
+	AlgoID                 string    `json:"algoId"`
+	AlgoOrderType          string    `json:"algoOrdType"`
+	AnnualizedRate         string    `json:"annualizedRate"`
+	ArbitrageNumber        string    `json:"arbitrageNum"`
+	BasePosition           bool      `json:"basePos"`
+	CancelType             string    `json:"cancelType"`
+	Direction              string    `json:"direction"`
+	Eq                     string    `json:"eq"`
+	FloatProfit            string    `json:"floatProfit"`
+	GridQuantitty          string    `json:"gridNum"`
+	GridProfit             string    `json:"gridProfit"`
+	InstrumentID           string    `json:"instId"`
+	InstrumentType         string    `json:"instType"`
+	Investment             string    `json:"investment"`
+	Leverage               string    `json:"lever"`
+	LiqPrice               string    `json:"liqPx"`
+	MaxPrice               string    `json:"maxPx"`
+	MinPrice               string    `json:"minPx"`
+	CreationTime           time.Time `json:"cTime"`
+	PushTime               time.Time `json:"pTime"`
+	PerMaxProfitRate       string    `json:"perMaxProfitRate"`
+	PerMinProfitRate       string    `json:"perMinProfitRate"`
+	ProfitAndLossRatio     string    `json:"pnlRatio"`
+	RunPrice               string    `json:"runPx"`
+	RunType                string    `json:"runType"`
+	SingleAmount           string    `json:"singleAmt"`
+	SlTriggerPx            string    `json:"slTriggerPx"`
+	State                  string    `json:"state"`
+	StopType               string    `json:"stopType"`
+	Size                   string    `json:"sz"`
+	Tag                    string    `json:"tag"`
+	TotalAnnualizedRate    string    `json:"totalAnnualizedRate"`
+	TotalProfitAndLoss     string    `json:"totalPnl"`
+	TakeProfitTriggerPrice string    `json:"tpTriggerPx"`
+	TradeNumber            string    `json:"tradeNum"`
+	TriggerTime            string    `json:"triggerTime"`
+	UpdateTime             string    `json:"uTime"`
+	Underlying             string    `json:"uly"`
+}
+
+// WsGridPosition represents websocket push data for "grid-positions" subscription
+type WsGridPosition struct {
+	Argument SubscriptionInfo   `json:"arg"`
+	Data     []GridPositionData `json:"data"`
+}
+
+// GridPositionData represents a position data
+type GridPositionData struct {
+	AutoDeleverging               string    `json:"adl"`
+	AlgoID                        string    `json:"algoId"`
+	AveragePrice                  string    `json:"avgPx"`
+	Currency                      string    `json:"ccy"`
+	InitialMarginRequirement      string    `json:"imr"`
+	InstrumentID                  string    `json:"instId"`
+	InstrumentType                string    `json:"instType"`
+	Last                          string    `json:"last"`
+	Leverage                      string    `json:"lever"`
+	LiquidationPrice              string    `json:"liqPx"`
+	MarkPrice                     string    `json:"markPx"`
+	MarginMode                    string    `json:"mgnMode"`
+	MarginRatio                   string    `json:"mgnRatio"`
+	MaintainanceMarginRequirement string    `json:"mmr"`
+	NotionalUsd                   string    `json:"notionalUsd"`
+	QuantityOfPositions           string    `json:"pos"`
+	PositionSide                  string    `json:"posSide"`
+	UnrealizedProfitAndLoss       string    `json:"upl"`
+	UnrealizedProfitAndLossRatio  string    `json:"uplRatio"`
+	PushTime                      time.Time `json:"pTime"`
+	UpdateTime                    time.Time `json:"uTime"`
+	CreationTime                  time.Time `json:"cTime"`
+}
+
+// WsGridSubOrderData to retrieve grid sub orders. Data will be pushed when first subscribed. Data will be pushed when triggered by events such as placing order.
+type WsGridSubOrderData struct {
+	Argument SubscriptionInfo   `json:"arg"`
+	Data     []GridSubOrderData `json:"data"`
+}
+
+// GridSubOrderData represents a single sub order detailed info
+type GridSubOrderData struct {
+	AccumulatedFillSize string    `json:"accFillSz"`
+	AlgoID              string    `json:"algoId"`
+	AlgoOrderType       string    `json:"algoOrdType"`
+	AveragePrice        string    `json:"avgPx"`
+	CreationTime        string    `json:"cTime"`
+	ContractValue       string    `json:"ctVal"`
+	Fee                 string    `json:"fee"`
+	FeeCurrency         string    `json:"feeCcy"`
+	GroupID             string    `json:"groupId"`
+	InstrumentID        string    `json:"instId"`
+	InstrumentType      string    `json:"instType"`
+	Leverage            string    `json:"lever"`
+	OrderID             string    `json:"ordId"`
+	OrderType           string    `json:"ordType"`
+	PushTime            time.Time `json:"pTime"`
+	ProfitAdLoss        string    `json:"pnl"`
+	PositionSide        string    `json:"posSide"`
+	Price               string    `json:"px"`
+	Side                string    `json:"side"`
+	State               string    `json:"state"`
+	Size                string    `json:"sz"`
+	Tag                 string    `json:"tag"`
+	TradeMode           string    `json:"tdMode"`
+	UpdateTime          time.Time `json:"uTime"`
+}
+
+// WsTrade represents a trade push data response as a result subscription to "trades" channel
+type WsTradeOrder struct {
+	Argument SubscriptionInfo `json:"arg"`
+	Data     []TradeResponse  `json:"data"`
+}
+
+// WsMarkPrice represents an estimated mark price push data as a result of subscription to "mark-price" channel
+type WsMarkPrice struct {
+	Argument SubscriptionInfo `json:"arg"`
+	Data     []MarkPrice      `json:"data"`
+}
+
+// WsDeliveryEstimatedPrice represents an estimated delivery/exercise price push data as a result of subscription to "estimated-price" channel
+type WsDeliveryEstimatedPrice struct {
+	Argument SubscriptionInfo         `json:"arg"`
+	Data     []DeliveryEstimatedPrice `json:"data"`
+}
+
+// CandlestickMarkPrice represents candlestick mark price push data as a result of  subscription to "mark-price-candle*" channel.
+type CandlestickMarkPrice struct {
+	Timestamp    time.Time `json:"ts"`
+	OpenPrice    float64   `json:"o"`
+	HighestPrice float64   `json:"h"`
+	LowestPrice  float64   `json:"l"`
+	ClosePrice   float64   `json:"s"`
+}
+
+// WsOrderBook order book represents order book push data which is returned as a result of subscription to "books*" channel
+type WsOrderBook struct {
+	Argument SubscriptionInfo  `json:"arg"`
+	Action   string            `json:"action"`
+	Data     []WsOrderBookData `json:"data"`
+}
+
+// WsOrderBookData represents a book order push data.
+type WsOrderBookData struct {
+	Asks      [][4]string `json:"asks"`
+	Bids      [][4]string `json:"bids"`
+	Timestamp time.Time   `json:"ts"`
+	Checksum  int32       `json:"checksum"`
+}
+
+// WsOptionSummary represents option summary
+type WsOptionSummary struct {
+	Argument SubscriptionInfo           `json:"arg"`
+	Data     []OptionMarketDataResponse `json:"data"`
+}
+
+// WsFundingRate represents websocket push data funding rate response.
+type WsFundingRate struct {
+	Argument SubscriptionInfo      `json:"arg"`
+	Data     []FundingRateResponse `json:"data"`
+}
+
+// WsIndexTicker represents websocket push data index ticker response
+type WsIndexTicker struct {
+	Argument SubscriptionInfo `json:"arg"`
+	Data     []IndexTicker    `json:"data"`
+}
+
+// WsSystemStatusResponse represents websocket push data system status push data
+type WsSystemStatusResponse struct {
+	Argument SubscriptionInfo       `json:"arg"`
+	Data     []SystemStatusResponse `json:"data"`
+}
+
+// WsPublicTradesResponse represents websocket push data of structured bloc trades as a result of subscription to "public-struc-block-trades"
+type WsPublicTradesResponse struct {
+	Argument SubscriptionInfo       `json:"arg"`
+	Data     []PublicTradesResponse `json:"data"`
+}
+
+// WsBlockTicker represents websocket push data as a result of subscription to channel "block-tickers".
+type WsBlockTicker struct {
+	Argument SubscriptionInfo `json:"arg"`
+	Data     []BlockTicker    `json:"data"`
 }

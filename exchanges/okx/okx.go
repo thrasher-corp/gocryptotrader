@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
@@ -31,16 +32,16 @@ type Okx struct {
 
 const (
 	okxRateInterval = time.Second
-	okxAPIURL       = "https://aws.okx.com/" + okxAPIPath
+	okxAPIURL       = "https://aws.okex.com/" + okxAPIPath
 	okxAPIVersion   = "/v5/"
 
 	okxStandardRequestRate = 6
 	okxAPIPath             = "api" + okxAPIVersion
-	okxExchangeName        = "OKCOIN International"
+	okxExchangeName        = "Okx"
 	okxWebsocketURL        = "wss://ws.okx.com:8443/ws" + okxAPIVersion
 
-	// publicWsURL  = okxWebsocketURL + "public"
-	// privateWsURL = okxWebsocketURL + "private"
+	okxAPIWebsocketPublicURL  = okxWebsocketURL + "public"
+	okxAPIWebsocketPrivateURL = okxWebsocketURL + "private"
 
 	// tradeEndpoints
 	tradeOrder                = "trade/order"
@@ -290,6 +291,11 @@ var (
 	errMissingValidStopType                         = errors.New("invalid grid order stop type, only valiues are \"1\" and \"2\" ")
 	errMissingSubOrderType                          = errors.New("missing sub order type")
 	errMissingQuantity                              = errors.New("invalid quantity to buy or sell")
+	errDepositAddressNotFound                       = errors.New("deposit address with the specified currency code and chain not found")
+	errMissingAtLeast1CurrencyPair                  = errors.New("at least one currenct is required to fetch order history")
+	errNoCandlestickDataFound                       = errors.New("no candlesticks data found")
+	errInvalidWebsocketEvent                        = errors.New("invalid websocket event")
+	errMissingValidChannelInformation               = errors.New("missing channel information")
 )
 
 /************************************ MarketData Endpoints *************************************************/
@@ -627,7 +633,7 @@ func (ok *Okx) getOrderHistory(ctx context.Context, arg *OrderHistoryRequestPara
 	if strings.EqualFold("twap", arg.Category) || strings.EqualFold("adl", arg.Category) || strings.EqualFold("full_liquidation", arg.Category) || strings.EqualFold("partial_liquidation", arg.Category) || strings.EqualFold("delivery", arg.Category) || strings.EqualFold("ddh", arg.Category) {
 		params.Set("category", strings.ToLower(arg.Category))
 	}
-	path := common.EncodeURLValues(tradeHistory, params)
+	path := common.EncodeURLValues(route, params)
 	type response struct {
 		Code string              `json:"code"`
 		Msg  string              `json:"msg"`
@@ -709,7 +715,7 @@ func (ok *Okx) PlaceAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoO
 	if !(arg.TradeMode != "") {
 		return nil, errMissingTradeMode
 	}
-	if arg.Side == "" {
+	if arg.Side == order.UnknownSide {
 		return nil, errMissingOrderSide
 	}
 	if arg.OrderType == "" {
@@ -1076,7 +1082,7 @@ func (ok *Okx) CreateQuote(ctx context.Context, arg CreateQuoteParams) (*QuoteRe
 			return nil, errMissingSizeOfQuote
 		} else if arg.Legs[x].Price <= 0 {
 			return nil, errMossingLegsQuotePrice
-		} else if arg.Legs[x].Side == "" {
+		} else if arg.Legs[x].Side == order.UnknownSide {
 			return nil, errMissingOrderSide
 		}
 	}
@@ -2292,7 +2298,7 @@ func (ok *Okx) GetMaximumLoanOfInstrument(ctx context.Context, instrumentID, mar
 }
 
 // GetTradeFeeRate query trade fee rate of various instrument types and instrument ids.
-func (ok *Okx) GetTradeFeeRate(ctx context.Context, instrumentType, instrumentID, underlying string) ([]*TradeFeeRate, error) {
+func (ok *Okx) GetTradeFee(ctx context.Context, instrumentType, instrumentID, underlying string) ([]*TradeFeeRate, error) {
 	params := url.Values{}
 	if !(strings.EqualFold(instrumentType, "SPOT") || strings.EqualFold(instrumentType, "margin") || strings.EqualFold(instrumentType, "swap") || strings.EqualFold(instrumentType, "futures") || strings.EqualFold(instrumentType, "option")) {
 		return nil, errInvalidInstrumentType
@@ -2397,9 +2403,7 @@ func (ok *Okx) IsolatedMarginTradingSettings(ctx context.Context, arg IsolatedMo
 	if !(arg.InstrumentType == asset.Margin || arg.InstrumentType == asset.PerpetualContract) {
 		return nil, errMissingInstrumentID
 	}
-	if arg.InstrumentType == asset.PerpetualContract {
-		arg.InstrumentType = asset.Item("CONTRACT")
-	}
+
 	type response struct {
 		Code string          `json:"code"`
 		Msg  string          `json:"msg"`
@@ -3021,7 +3025,7 @@ func (ok *Okx) SpotGridWithdrawProfit(ctx context.Context, algoID string) (*Algo
 /*************************************** Grid Trading End ***************************************************/
 
 // GetTickers retrives the latest price snopshots best bid/ ask price, and tranding volume in the last 34 hours.
-func (ok *Okx) GetTickers(ctx context.Context, instType, uly, instId string) ([]*MarketDataResponse, error) {
+func (ok *Okx) GetTickers(ctx context.Context, instType, uly, instId string) ([]*TickerResponse, error) {
 	params := url.Values{}
 	if strings.EqualFold(instType, "spot") || strings.EqualFold(instType, "swap") || strings.EqualFold(instType, "futures") || strings.EqualFold(instType, "option") {
 		params.Set("instType", instType)
@@ -3039,7 +3043,7 @@ func (ok *Okx) GetTickers(ctx context.Context, instType, uly, instId string) ([]
 }
 
 // GetTicker retrieve the latest price snapshot, best bid/ask price, and trading volume in the last 24 hours.
-func (ok *Okx) GetTicker(ctx context.Context, instrumentID string) (*MarketDataResponse, error) {
+func (ok *Okx) GetTicker(ctx context.Context, instrumentID string) (*TickerResponse, error) {
 	params := url.Values{}
 	if instrumentID != "" {
 		params.Set("instId", instrumentID)
@@ -3062,11 +3066,11 @@ func (ok *Okx) GetTicker(ctx context.Context, instrumentID string) (*MarketDataR
 }
 
 // GetIndexTickers Retrieves index tickers.
-func (ok *Okx) GetIndexTickers(ctx context.Context, quoteCurrency, instId string) ([]OKXIndexTickerResponse, error) {
+func (ok *Okx) GetIndexTickers(ctx context.Context, quoteCurrency, instId string) ([]IndexTicker, error) {
 	response := &struct {
-		Code string                   `json:"code"`
-		Msg  string                   `json:"msg"`
-		Data []OKXIndexTickerResponse `json:"data"`
+		Code string        `json:"code"`
+		Msg  string        `json:"msg"`
+		Data []IndexTicker `json:"data"`
 	}{}
 	if instId == "" && quoteCurrency == "" {
 		return nil, errors.New("missing required variable! param quoteCcy or instId has to be set")
@@ -3093,18 +3097,79 @@ func (ok *Okx) GetInstrumentIDFromPair(pair currency.Pair, a asset.Item) (string
 	}
 	if a == asset.PerpetualSwap {
 		return pair.Base.String() + format.Delimiter + pair.Quote.String() + format.Delimiter + "SWAP", nil
+	} else if a == asset.Option {
+		instruments, er := ok.GetInstruments(context.Background(), &InstrumentsFetchParams{
+			InstrumentType: "OPTION",
+			Underlying:     pair.Base.String() + format.Delimiter + pair.Quote.String(),
+		})
+		if er != nil {
+			return "", er
+		}
+		for x := range instruments {
+			p, er := currency.NewPairFromString(instruments[x].Underlying)
+			if er != nil {
+				continue
+			}
+			if p.Equal(pair) {
+				return instruments[x].InstrumentID, nil
+			}
+		}
+	} else if a == asset.Futures {
+		instruments, er := ok.GetInstruments(context.Background(), &InstrumentsFetchParams{
+			InstrumentType: "FUTURES",
+		})
+		if er != nil {
+			return "", er
+		}
+		for x := range instruments {
+			p, er := currency.NewPairFromString(instruments[x].Underlying)
+			if er != nil {
+				continue
+			}
+			if p.Equal(pair) {
+				return instruments[x].InstrumentID, nil
+			}
+		}
+		return "", errors.New("instrument id with this asset pairs not found")
+	}
+	return pair.Base.String() + format.Delimiter + pair.Quote.String(), nil
+}
+
+// GetInstrumentTypeFromAssetItem returns a string representation of asset.Item; which is an equivalent term for InstrumentType in Okx exchange.
+func (ok *Okx) GetInstrumentTypeFromAssetItem(assetType asset.Item) string {
+	switch assetType {
+	case asset.Spot:
+		return "SPOT"
+	case asset.PerpetualSwap:
+		return "SWAP"
+	case asset.Futures:
+		return "FUTURES"
+	case asset.Option:
+		return "OPTION"
+	case asset.Margin:
+		return "MARGIN"
+	default:
+		return ""
+	}
+}
+
+// GetUnderlying returns the instrument ID for the corresponding asset pairs and asset type( Instrument Type )
+func (ok *Okx) GetUnderlying(pair currency.Pair, a asset.Item) (string, error) {
+	format, err := ok.GetPairFormat(a, false)
+	if err != nil {
+		return "", err
+	}
+	if pair.IsEmpty() || pair.Base.String() == "" || pair.Quote.String() == "" {
+		return "", errors.New("incomplete currency pair")
 	}
 	return pair.Base.String() + format.Delimiter + pair.Quote.String(), nil
 }
 
 // GetPairFromInstrumentID returns a currency pair give an instrument ID and asset Item, which represents the instrument type.
-func (ok *Okx) GetPairFromInstrumentID(instrumentID string, assetType asset.Item) (currency.Pair, error) {
-	if assetType == asset.PerpetualSwap {
-		instrumentID = strings.TrimSuffix(instrumentID, "-SWAP")
-	}
-	if !(assetType == asset.PerpetualSwap || assetType == asset.Spot || assetType == asset.Margin || assetType == asset.Futures ||
-		assetType == asset.Option) {
-		return currency.Pair{}, errInvalidInstrumentType
+func (ok *Okx) GetPairFromInstrumentID(instrumentID string) (currency.Pair, error) {
+	codes := strings.Split(instrumentID, "-")
+	if len(codes) >= 2 {
+		instrumentID = codes[0] + "-" + codes[1]
 	}
 	pair, er := currency.NewPairFromString(instrumentID)
 	return pair, er
@@ -3219,7 +3284,7 @@ func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, inte
 	var resp response
 	if limit > 0 && limit <= 100 {
 		params.Set("limit", strconv.Itoa(int(limit)))
-	} else {
+	} else if limit > 100 {
 		return nil, errLimitExceedsMaximumResultPerRequest
 	}
 	if !before.IsZero() {
@@ -3526,7 +3591,7 @@ func (ok *Okx) GetDeliveryHistory(ctx context.Context, instrumentType, underlyin
 }
 
 // GetOpenInterest retrieve the total open interest for contracts on OKX
-func (ok *Okx) GetOpenInterest(ctx context.Context, instType, uly, instId string) ([]*OpenInterestResponse, error) {
+func (ok *Okx) GetOpenInterest(ctx context.Context, instType, uly, instId string) ([]*OpenInterest, error) {
 	params := url.Values{}
 	if !(strings.EqualFold(instType, "SPOT") || strings.EqualFold(instType, "FUTURES") || strings.EqualFold(instType, "OPTION")) {
 		return nil, errMissingRequiredArgInstType
@@ -3540,9 +3605,9 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, instType, uly, instId string
 		params.Set("instId", instId)
 	}
 	type response struct {
-		Code int                     `json:"code,string"`
-		Msg  string                  `json:"msg"`
-		Data []*OpenInterestResponse `json:"data"`
+		Code int             `json:"code,string"`
+		Msg  string          `json:"msg"`
+		Data []*OpenInterest `json:"data"`
 	}
 	var resp response
 	path := common.EncodeURLValues(publicOpenInterestValues, params)
@@ -3740,7 +3805,6 @@ func (ok *Okx) GetLiquidationOrders(ctx context.Context, arg *LiquidationOrderRe
 	}
 	path := common.EncodeURLValues(publicLiquidationOrders, params)
 	var response LiquidationOrderResponse
-	println("No ERROR MESSAGE UNTIL NOW")
 	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, getLiquidationOrdersEPL, http.MethodGet, path, nil, &response, false)
 	if er != nil {
 		return nil, er
@@ -4476,7 +4540,7 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
 		if authenticated {
-			var creds *exchange.Credentials
+			var creds *account.Credentials
 			creds, err = ok.GetCredentials(ctx)
 			if err != nil {
 				return nil, err
@@ -4493,7 +4557,7 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 			headers["OK-ACCESS-SIGN"] = crypto.Base64Encode(hmac)
 			headers["OK-ACCESS-TIMESTAMP"] = utcTime
 			headers["OK-ACCESS-PASSPHRASE"] = creds.ClientID
-			headers["x-simulated-trading"] = "1"
+			// headers["x-simulated-trading"] = "1"
 		}
 		return &request.Item{
 			Method:        strings.ToUpper(httpMethod),
@@ -4549,4 +4613,25 @@ func (ok *Okx) SystemStatusResponse(ctx context.Context, state string) ([]*Syste
 	path := common.EncodeURLValues(systemStatus, params)
 	var resp response
 	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, getEventStatusEPL, http.MethodGet, path, nil, &resp, true)
+}
+
+// GetAssetTypeFromInstrumentType returns an asset Item instance given and Instrument Type string.
+func (ok *Okx) GetAssetTypeFromInstrumentType(instrumentType string) (asset.Item, error) {
+	switch instrumentType {
+	case "SWAP":
+		return asset.PerpetualSwap, nil
+	case "SPOT":
+		return asset.Spot, nil
+	case "FUTURES":
+		return asset.Futures, nil
+	case "OPTION":
+		return asset.Option, nil
+	case "CONTRACT":
+		return asset.PerpetualSwap, nil
+	case "MARGIN":
+		return asset.Margin, nil
+	case "ANY":
+		return asset.Empty, nil
+	}
+	return asset.Empty, errors.New("invalid asset type")
 }

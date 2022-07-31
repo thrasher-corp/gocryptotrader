@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
@@ -29,6 +30,13 @@ const (
 	// GctExt is the extension for GCT Tengo script files
 	GctExt         = ".gct"
 	defaultTimeout = time.Second * 15
+)
+
+// characters representing the small, capital, and Numberic characters as a string.
+const (
+	SmallLetters     = "abcdefghijklmnopqrstuvwxyz"
+	CapitalLetters   = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	NumberCharacters = "0123456789"
 )
 
 // Vars for common.go operations
@@ -434,4 +442,14 @@ func StartEndTimeCheck(start, end time.Time) error {
 	}
 
 	return nil
+}
+
+// GenerateRandomString generates a random string provided a length and list of Character types {  }.
+func GenerateRandomString(length int, characters ...string) string {
+	b := make([]byte, length)
+	chars := strings.Join(characters, "")
+	for i := range b {
+		b[i] = chars[rand.Intn(len(chars))]
+	}
+	return string(b)
 }

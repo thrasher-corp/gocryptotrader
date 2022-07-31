@@ -70,7 +70,7 @@ func (ok *Okx) SetDefaults() {
 		},
 	}
 
-	err := ok.SetGlobalPairsManager(fmt1.RequestFormat, fmt1.ConfigFormat, asset.Spot, asset.Futures, asset.PerpetualSwap)
+	err := ok.SetGlobalPairsManager(fmt1.RequestFormat, fmt1.ConfigFormat, asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Option, asset.Margin)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -83,19 +83,50 @@ func (ok *Okx) SetDefaults() {
 			RESTCapabilities: protocol.Features{
 				TickerFetching:    true,
 				OrderbookFetching: true,
+				AutoPairUpdates:   true,
+				AccountInfo:       true,
 			},
 			WebsocketCapabilities: protocol.Features{
-				TickerFetching:    true,
-				OrderbookFetching: true,
+				TickerFetching:         true,
+				OrderbookFetching:      true,
+				Subscribe:              true,
+				Unsubscribe:            true,
+				AuthenticatedEndpoints: true,
+				AccountInfo:            true,
+				GetOrders:              true,
+				TradeFetching:          true,
+				KlineFetching:          true,
+				GetOrder:               true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.AutoWithdrawFiat,
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			Kline: kline.ExchangeCapabilitiesEnabled{
+				Intervals: map[string]bool{
+					kline.OneMin.Word():     true,
+					kline.ThreeMin.Word():   true,
+					kline.FiveMin.Word():    true,
+					kline.FifteenMin.Word(): true,
+					kline.ThirtyMin.Word():  true,
+					kline.OneHour.Word():    true,
+					kline.TwoHour.Word():    true,
+					kline.FourHour.Word():   true,
+					kline.SixHour.Word():    true,
+					kline.TwelveHour.Word(): true,
+					kline.OneDay.Word():     true,
+					kline.ThreeDay.Word():   true,
+					kline.OneWeek.Word():    true,
+					kline.OneMonth.Word():   true,
+					kline.ThreeMonth.Word(): true,
+					kline.SixMonth.Word():   true,
+					kline.OneYear.Word():    true,
+				},
+				ResultLimit: 1440,
+			},
 		},
 	}
-	// NOTE: SET THE EXCHANGES RATE LIMIT HERE
 	ok.Requester, err = request.New(ok.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
@@ -103,11 +134,10 @@ func (ok *Okx) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	// NOTE: SET THE URLs HERE
 	ok.API.Endpoints = ok.NewEndpoints()
 	ok.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      okxAPIURL,
-		exchange.WebsocketSpot: okxWebsocketURL,
+		exchange.WebsocketSpot: okxAPIWebsocketPublicURL,
 	})
 	ok.Websocket = stream.New()
 	ok.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -130,37 +160,39 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	/*
-		wsRunningEndpoint, err := ok.API.Endpoints.GetURL(exchange.WebsocketSpot)
-		if err != nil {
-			return err
-		}
+	wsRunningEndpoint, err := ok.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+	err = ok.Websocket.Setup(
+		&stream.WebsocketSetup{
+			ExchangeConfig:        exch,
+			DefaultURL:            okxAPIWebsocketPublicURL,
+			RunningURL:            wsRunningEndpoint,
+			Connector:             ok.WsConnect,
+			Subscriber:            ok.Subscribe,
+			Unsubscriber:          ok.Unsubscribe,
+			GenerateSubscriptions: ok.GenerateDefaultSubscriptions,
+			Features:              &ok.Features.Supports.WebsocketCapabilities,
+		})
+	if err != nil {
+		return err
+	}
+	er := ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		URL:                  okxAPIWebsocketPublicURL,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	})
+	if er != nil {
+		return er
+	}
+	return ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		URL:                  okxAPIWebsocketPrivateURL,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		Authenticated:        true,
+	})
 
-		// If websocket is supported, please fill out the following
-
-		err = ok.Websocket.Setup(
-			&stream.WebsocketSetup{
-				ExchangeConfig:  exch,
-				DefaultURL:      okxWSAPIURL,
-				RunningURL:      wsRunningEndpoint,
-				Connector:       ok.WsConnect,
-				Subscriber:      ok.Subscribe,
-				UnSubscriber:    ok.Unsubscribe,
-				Features:        &ok.Features.Supports.WebsocketCapabilities,
-			})
-		if err != nil {
-			return err
-		}
-
-		ok.WebsocketConn = &stream.WebsocketConnection{
-			ExchangeName:         ok.Name,
-			URL:                  ok.Websocket.GetWebsocketURL(),
-			ProxyURL:             ok.Websocket.GetProxyAddress(),
-			Verbose:              ok.Verbose,
-			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		}
-	*/
 	return nil
 }
 
@@ -224,20 +256,39 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, 
 			InstrumentType: "SWAP",
 		})
 	case asset.Option:
+		var instsb []*Instrument
+		var instsc []*Instrument
 		insts, er = ok.GetInstruments(ctx, &InstrumentsFetchParams{
 			InstrumentType: "OPTION",
+			Underlying:     "BTC-USD",
 		})
+		if er != nil {
+			goto checkErrorAndContinue
+		}
+		instsb, er = ok.GetInstruments(ctx, &InstrumentsFetchParams{
+			InstrumentType: "OPTION",
+			Underlying:     "ETH-USD",
+		})
+		if er != nil {
+			goto checkErrorAndContinue
+		}
+		instsc, er = ok.GetInstruments(ctx, &InstrumentsFetchParams{
+			InstrumentType: "OPTION",
+			Underlying:     "SOL-USD",
+		})
+		insts = append(insts, instsb...)
+		insts = append(insts, instsc...)
 	case asset.Margin:
 		insts, er = ok.GetInstruments(ctx, &InstrumentsFetchParams{
 			InstrumentType: "MARGIN",
 		})
 	}
+checkErrorAndContinue:
 	if er != nil || len(insts) == 0 {
 		return pairs, er
 	}
 	for x := range insts {
 		var pair string
-		println(insts[x].InstrumentID)
 		switch insts[x].InstrumentType {
 		case asset.Spot:
 			pair = insts[x].BaseCurrency + format.Delimiter + insts[x].QuoteCurrency
@@ -253,16 +304,32 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, 
 	return pairs, nil
 }
 
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
+// UpdateTradablePairs updates the exchanges available pairs and stores them in the exchanges config
 func (ok *Okx) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 	assetTypes := ok.GetAssetTypes(false)
 	for i := range assetTypes {
+		if !(assetTypes[i] == asset.Spot || assetTypes[i] == asset.PerpetualSwap || assetTypes[i] == asset.Option || assetTypes[i] == asset.Futures || assetTypes[i] == asset.Margin) {
+			return errInvalidInstrumentType
+		}
 		p, err := ok.FetchTradablePairs(ctx, assetTypes[i])
 		if err != nil {
 			return err
 		}
-		pairs, err := currency.NewPairsFromStrings(p)
+		selectedPairs := []string{}
+		pairsMap := map[string]int{}
+		for i := range p {
+			if strings.Trim(p[i], " ") == "" {
+				continue
+			}
+			count, ok := pairsMap[p[i]]
+			if !ok || count == 0 {
+				pairsMap[p[i]] = 1
+				selectedPairs = append(selectedPairs, p[i])
+			} else {
+				continue
+			}
+		}
+		pairs, err := currency.NewPairsFromStrings(selectedPairs)
 		if err != nil {
 			return err
 		}
@@ -276,7 +343,7 @@ func (ok *Okx) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error 
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (ok *Okx) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	var mdata *MarketDataResponse
+	var mdata *TickerResponse
 	var er error
 	var instrumentID string
 	instrumentID, er = ok.GetInstrumentIDFromPair(p, a)
@@ -336,7 +403,7 @@ func (ok *Okx) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 				if err != nil {
 					return err
 				}
-				pair, er := ok.GetPairFromInstrumentID(ticks[y].InstrumentID, assetType)
+				pair, er := ok.GetPairFromInstrumentID(ticks[y].InstrumentID)
 				if er != nil {
 					return er
 				}
@@ -461,7 +528,11 @@ func (ok *Okx) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 	}
 	acc.AssetType = assetType
 	info.Accounts = append(info.Accounts, acc)
-	if er := account.Process(&info); er != nil {
+	creds, er := ok.GetCredentials(ctx)
+	if er != nil {
+		return info, er
+	}
+	if er := account.Process(&info, creds); er != nil {
 		return account.Holdings{}, er
 	}
 	return info, nil
@@ -469,7 +540,11 @@ func (ok *Okx) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (ok *Okx) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, er := account.GetHoldings(ok.Name, assetType)
+	creds, er := ok.GetCredentials(ctx)
+	if er != nil {
+		return account.Holdings{}, er
+	}
+	acc, er := account.GetHoldings(ok.Name, creds, assetType)
 	if er != nil {
 		return ok.UpdateAccountInfo(ctx, assetType)
 	}
@@ -555,7 +630,7 @@ func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 	resp := make([]trade.Data, len(tradeData))
 	for x := range tradeData {
 		resp[x] = trade.Data{
-			TID:          strconv.FormatInt(int64(tradeData[x].TradeID), 10),
+			TID:          tradeData[x].TradeID,
 			Exchange:     ok.Name,
 			CurrencyPair: p,
 			AssetType:    assetType,
@@ -588,7 +663,7 @@ func (ok *Okx) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType
 	resp := make([]trade.Data, len(tradeData))
 	for x := range tradeData {
 		resp[x] = trade.Data{
-			TID:          strconv.FormatInt(int64(tradeData[x].TradeID), 10),
+			TID:          tradeData[x].TradeID,
 			Exchange:     ok.Name,
 			CurrencyPair: p,
 			AssetType:    assetType,
@@ -674,7 +749,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitRe
 	if placeOrderResponse.OrderID != "0" && placeOrderResponse.OrderID != "" {
 		submitOrderResponse.OrderID = placeOrderResponse.OrderID
 	}
-	submitOrderResponse.IsOrderPlaced = true
+	// submitOrderResponse.IsOrderPlaced = true
 	return submitOrderResponse, nil
 }
 
@@ -695,7 +770,7 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (order.Mod
 	}
 	amendRequest.InstrumentID = instrumentID
 	amendRequest.NewQuantity = action.Amount
-	amendRequest.OrderID = action.ID
+	amendRequest.OrderID = action.OrderID
 	amendRequest.ClientSuppliedOrderID = action.ClientOrderID
 	response, er := ok.AmendOrder(ctx, &amendRequest)
 	if er != nil {
@@ -705,7 +780,7 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (order.Mod
 		Exchange:  action.Exchange,
 		AssetType: action.AssetType,
 		Pair:      action.Pair,
-		ID:        response.OrderID,
+		OrderID:   response.OrderID,
 		Price:     action.Price,
 		Amount:    amendRequest.NewQuantity,
 	}, nil
@@ -724,7 +799,7 @@ func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		}
 		req := CancelOrderRequestParam{
 			InstrumentID:          instrumentID,
-			OrderID:               ord.ID,
+			OrderID:               ord.OrderID,
 			ClientSupplierOrderID: ord.ClientOrderID,
 		}
 		_, er = ok.CancelSingleOrder(ctx, req)
@@ -752,7 +827,7 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (or
 			}
 			req := CancelOrderRequestParam{
 				InstrumentID:          instrumentID,
-				OrderID:               ord.ID,
+				OrderID:               ord.OrderID,
 				ClientSupplierOrderID: ord.ClientOrderID,
 			}
 			cancelOrderParams = append(cancelOrderParams, req)
@@ -808,7 +883,7 @@ func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 		return order.Detail{
 			Amount:         orderDetail.Size,
 			Exchange:       ok.Name,
-			ID:             orderDetail.OrderID,
+			OrderID:        orderDetail.OrderID,
 			ClientOrderID:  orderDetail.ClientSupplierOrderID,
 			Side:           orderSide,
 			Type:           orderType,
@@ -828,56 +903,255 @@ func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (ok *Okx) GetDepositAddress(ctx context.Context, c currency.Code, accountID string, chain string) (*deposit.Address, error) {
-	return nil, common.ErrNotYetImplemented
+	response, er := ok.GetCurrencyDepositAddress(ctx, c.String())
+	if er != nil {
+		return nil, er
+	}
+
+	for x := range response {
+		if accountID == response[x].Address && (strings.EqualFold(response[x].Chain, chain) || strings.HasPrefix(response[x].Chain, c.String()+"-"+chain)) {
+			return &deposit.Address{
+				Address: response[x].Address,
+				Tag:     response[x].Tag,
+				Chain:   response[x].Chain,
+			}, nil
+		}
+	}
+	return nil, errDepositAddressNotFound
 }
 
-// WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
-// submitted
+// WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is submitted
 func (ok *Okx) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	// if err := withdrawRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
-	return nil, common.ErrNotYetImplemented
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
+	var input WithdrawalInput
+	input.ChainName = withdrawRequest.Crypto.Chain
+	input.Amount = withdrawRequest.Amount
+	input.Currency = withdrawRequest.Currency.String()
+	input.ToAddress = withdrawRequest.Crypto.Address
+	input.TransactionFee = withdrawRequest.Crypto.FeeAmount
+	input.WithdrawalDestination = "3"
+	resp, err := ok.Withdrawal(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	return &withdraw.ExchangeResponse{
+		ID: resp.WithdrawalID,
+	}, nil
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (ok *Okx) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	// if err := withdrawRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
 	return nil, common.ErrNotYetImplemented
 }
 
-// WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
-// submitted
+// WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is submitted
 func (ok *Okx) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	// if err := withdrawRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (ok *Okx) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	// if err := getOrdersRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
-	return nil, common.ErrNotYetImplemented
+func (ok *Okx) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+	if len(req.Pairs) == 0 || len(req.Pairs) >= 40 {
+		req.Pairs = append(req.Pairs, currency.EMPTYPAIR)
+	}
+	var orders []order.Detail
+	switch req.AssetType {
+	case asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Option, asset.Margin:
+		var orderType string
+		switch req.Type {
+		case order.Market:
+			orderType = "market"
+		case order.Limit:
+			orderType = "limit"
+		case order.PostOnly:
+			orderType = "post_only"
+		case order.FillOrKill:
+			orderType = "fok"
+		case order.IOS:
+			orderType = "ioc"
+			// case order.OptimalLimitIoc:
+			// 	orderType = "optimal_limit_ioc"
+		}
+		response, er := ok.GetOrderList(ctx, &OrderListRequestParams{
+			OrderType: orderType,
+		})
+		if er != nil {
+			return nil, er
+		}
+		for x := range response {
+			orderSide := response[x].Side
+			pair, er := ok.GetPairFromInstrumentID(response[x].InstrumentID)
+			if er != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", ok.Name, er)
+				continue
+			}
+			for i := range req.Pairs {
+				if req.Pairs[i].Equal(pair) {
+					goto createDetail
+				}
+			}
+			continue
+		createDetail:
+			if strings.EqualFold(response[x].State, "live") {
+				response[x].State = "new"
+			}
+			orderStatus, er := order.StringToOrderStatus(strings.ToUpper(response[x].State))
+			if er != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", ok.Name, er)
+			}
+			var oType order.Type
+			switch response[x].OrderType {
+			case "market":
+				oType = order.Market
+			case "limit":
+				oType = order.Limit
+			case "post_only":
+				oType = order.PostOnly
+			case "fok":
+				oType = order.FillOrKill
+			case "ioc":
+				oType = order.IOS
+			case "optimal_limit_ioc":
+				oType = order.UnknownType
+			}
+			orders = append(orders, order.Detail{
+				Amount:          response[x].Size,
+				Pair:            pair,
+				Price:           response[x].Price,
+				ExecutedAmount:  response[x].LastFilledSize,
+				RemainingAmount: response[x].Size - response[x].LastFilledSize,
+				Fee:             response[x].FeeCurrency,
+				Exchange:        ok.Name,
+				OrderID:         response[x].OrderID,
+				ClientOrderID:   response[x].ClientSupplierOrderID,
+				Type:            oType,
+				Side:            orderSide,
+				Status:          orderStatus,
+				AssetType:       req.AssetType,
+				Date:            response[x].CreationTime,
+				LastUpdated:     response[x].UpdateTime,
+			})
+		}
+	default:
+		return nil, errInvalidInstrumentType
+	}
+	order.FilterOrdersByPairs(&orders, req.Pairs)
+	order.FilterOrdersByType(&orders, req.Type)
+	order.FilterOrdersBySide(&orders, req.Side)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	return orders, nil
 }
 
-// GetOrderHistory retrieves account order information
-// Can Limit response to specific order status
-func (ok *Okx) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	// if err := getOrdersRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
-	return nil, common.ErrNotYetImplemented
+// GetOrderHistory retrieves account order information Can Limit response to specific order status
+func (ok *Okx) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+	if len(req.Pairs) == 0 {
+		return nil, errMissingAtLeast1CurrencyPair
+	}
+	var orders []order.Detail
+	switch req.AssetType {
+	case asset.Spot, asset.Margin, asset.Futures, asset.PerpetualSwap, asset.Option:
+		var instrumentType string
+		switch req.AssetType {
+		case asset.PerpetualSwap:
+			instrumentType = "SWAP"
+		default:
+			instrumentType = strings.ToUpper(req.AssetType.String())
+		}
+		response, er := ok.Get3MonthOrderHistory(ctx, &OrderHistoryRequestParams{
+			OrderListRequestParams: OrderListRequestParams{
+				InstrumentType: instrumentType,
+			},
+		})
+		if er != nil {
+			return nil, er
+		}
+		for i := range response {
+			orderSide := response[i].Side
+			var orderStatus order.Status
+			if strings.EqualFold(response[i].State, "canceled") || strings.EqualFold(response[i].State, "cancelled") {
+				orderStatus = order.Cancelled
+			} else {
+				orderStatus, er = order.StringToOrderStatus(strings.ToUpper(response[i].State))
+				if er != nil {
+					log.Errorf(log.ExchangeSys, "%s %v", ok.Name, er)
+				}
+			}
+			if orderStatus == order.New {
+				continue
+			}
+			pair, er := ok.GetPairFromInstrumentID(response[i].InstrumentID)
+			if er != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", ok.Name, er)
+				continue
+			}
+			if len(req.Pairs) == 0 || len(req.Pairs) == 1 && req.Pairs[0].Equal(currency.EMPTYPAIR) {
+				goto createDetail
+			} else {
+				for x := range req.Pairs {
+					if req.Pairs[x].Equal(pair) {
+						goto createDetail
+					}
+				}
+			}
+			continue
+		createDetail:
+			var oType order.Type
+			switch response[i].OrderType {
+			case "market":
+				oType = order.Market
+			case "limit":
+				oType = order.Limit
+			case "post_only":
+				oType = order.PostOnly
+			case "fok":
+				oType = order.FillOrKill
+			case "ioc":
+				oType = order.IOS
+			case "optimal_limit_ioc":
+				oType = order.UnknownType
+			}
+			orders = append(orders, order.Detail{
+				Amount:          response[i].Size,
+				Pair:            pair,
+				Price:           response[i].Price,
+				ExecutedAmount:  response[i].LastFilledSize,
+				RemainingAmount: response[i].Size - response[i].LastFilledSize,
+				Fee:             response[i].FeeCurrency,
+				Exchange:        ok.Name,
+				OrderID:         response[i].OrderID,
+				ClientOrderID:   response[i].ClientSupplierOrderID,
+				Type:            oType,
+				Side:            orderSide,
+				Status:          orderStatus,
+				AssetType:       req.AssetType,
+				Date:            response[i].CreationTime,
+				LastUpdated:     response[i].UpdateTime,
+			})
+		}
+	default:
+		return nil, errInvalidInstrumentType
+	}
+	return orders, nil
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
 func (ok *Okx) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
-	return 0, common.ErrNotYetImplemented
+	if feeBuilder == nil {
+		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
+	}
+	if !ok.AreCredentialsValid(ctx) && feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
+	return ok.GetFee(ctx, feeBuilder)
 }
 
 // ValidateCredentials validates current credentials used for wrapper
@@ -888,7 +1162,38 @@ func (ok *Okx) ValidateCredentials(ctx context.Context, assetType asset.Item) er
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (ok *Okx) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrNotYetImplemented
+	if err := ok.ValidateKline(pair, a, interval); err != nil {
+		return kline.Item{}, err
+	}
+	if kline.TotalCandlesPerInterval(start, end, interval) > float64(ok.Features.Enabled.Kline.ResultLimit) {
+		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
+	}
+	instrumentID, err := ok.GetInstrumentIDFromPair(pair, a)
+	if err != nil {
+		return kline.Item{}, err
+	}
+	candles, err := ok.GetCandlesticksHistory(ctx, instrumentID, interval, time.Time{}, time.Time{}, 0)
+	if err != nil {
+		return kline.Item{}, err
+	}
+	response := kline.Item{
+		Exchange: ok.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+	for x := range candles {
+		response.Candles = append(response.Candles, kline.Candle{
+			Time:   candles[x].OpenTime,
+			Open:   candles[x].OpenPrice,
+			High:   candles[x].HighestPrice,
+			Low:    candles[x].LowestPrice,
+			Close:  candles[x].ClosePrice,
+			Volume: candles[x].Volume,
+		})
+	}
+	response.SortCandlesByTimestamp(false)
+	return response, nil
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
