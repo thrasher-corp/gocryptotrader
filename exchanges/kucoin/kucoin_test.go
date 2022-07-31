@@ -744,3 +744,15 @@ func TestGetOrderByID(t *testing.T) {
 		t.Error("GetOrderByID() error", err)
 	}
 }
+
+func TestGetOrderByClientOID(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetOrderByClientOID(context.Background(), "6d539dc614db312")
+	if err != nil && err.Error() != "order not exist." {
+		t.Error("GetOrderByClientOID() error", err)
+	}
+}

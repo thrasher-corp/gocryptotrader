@@ -81,13 +81,13 @@ const (
 	kucoinInitiateIsolatedMarginQuickRepayment   = "/api/v1/isolated/repay/all"
 	kucoinInitiateIsolatedMarginSingleRepayment  = "/api/v1/isolated/repay/single"
 
-	kucoinPostOrder              = "/api/v1/orders"
-	kucoinPostMarginOrder        = "/api/v1/margin/order"
-	kucoinPostBulkOrder          = "/api/v1/orders/multi"
-	kucoinOrderByID              = "/api/v1/orders/%s" // used by CancelSingleOrder and GetOrderByID
-	kucoinCancelOrderByClientOID = "/api/v1/order/client-order/%s"
-	kucoinOrders                 = "/api/v1/orders" // used by CancelAllOpenOrders and GetOrders
-	kucoinGetRecentOrders        = "/api/v1/limit/orders"
+	kucoinPostOrder        = "/api/v1/orders"
+	kucoinPostMarginOrder  = "/api/v1/margin/order"
+	kucoinPostBulkOrder    = "/api/v1/orders/multi"
+	kucoinOrderByID        = "/api/v1/orders/%s"             // used by CancelSingleOrder and GetOrderByID
+	kucoinOrderByClientOID = "/api/v1/order/client-order/%s" // used by CancelOrderByClientOID and GetOrderByClientOID
+	kucoinOrders           = "/api/v1/orders"                // used by CancelAllOpenOrders and GetOrders
+	kucoinGetRecentOrders  = "/api/v1/limit/orders"
 )
 
 // GetSymbols gets pairs details on the exchange
@@ -1100,7 +1100,7 @@ func (k *Kucoin) CancelOrderByClientOID(ctx context.Context, orderID string) (st
 		Error
 	}{}
 
-	return resp.CancelledOrderID, resp.ClientOID, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, fmt.Sprintf(kucoinCancelOrderByClientOID, orderID), nil, publicSpotRate, &resp)
+	return resp.CancelledOrderID, resp.ClientOID, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, fmt.Sprintf(kucoinOrderByClientOID, orderID), nil, publicSpotRate, &resp)
 }
 
 // CancelAllOpenOrders used to cancel all order based upon the parameters passed
@@ -1185,6 +1185,19 @@ func (k *Kucoin) GetOrderByID(ctx context.Context, orderID string) (OrderDetail,
 		return resp.Data, errors.New("orderID can't be empty")
 	}
 	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf(kucoinOrderByID, orderID), nil, publicSpotRate, &resp)
+}
+
+// GetOrderByClientOID get a single order info by client order ID
+func (k *Kucoin) GetOrderByClientOID(ctx context.Context, clientOID string) (OrderDetail, error) {
+	resp := struct {
+		Data OrderDetail `json:"data"`
+		Error
+	}{}
+
+	if clientOID == "" {
+		return resp.Data, errors.New("clientOID can't be empty")
+	}
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf(kucoinOrderByClientOID, clientOID), nil, publicSpotRate, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
