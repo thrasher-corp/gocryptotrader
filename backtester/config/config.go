@@ -8,10 +8,12 @@ import (
 	"strings"
 
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -33,112 +35,6 @@ func ReadConfigFromFile(path string) (*Config, error) {
 func LoadConfig(data []byte) (resp *Config, err error) {
 	err = json.Unmarshal(data, &resp)
 	return resp, err
-}
-
-// PrintSetting prints relevant settings to the console for easy reading
-func (c *Config) PrintSetting() {
-	log.Info(log.BackTester, "-------------------------------------------------------------")
-	log.Info(log.BackTester, "------------------Backtester Settings------------------------")
-	log.Info(log.BackTester, "-------------------------------------------------------------")
-	log.Info(log.BackTester, "------------------Strategy Settings--------------------------")
-	log.Info(log.BackTester, "-------------------------------------------------------------")
-	log.Infof(log.BackTester, "Strategy: %s", c.StrategySettings.Name)
-	if len(c.StrategySettings.CustomSettings) > 0 {
-		log.Info(log.BackTester, "Custom strategy variables:")
-		for k, v := range c.StrategySettings.CustomSettings {
-			log.Infof(log.BackTester, "%s: %v", k, v)
-		}
-	} else {
-		log.Info(log.BackTester, "Custom strategy variables: unset")
-	}
-	log.Infof(log.BackTester, "Simultaneous Signal Processing: %v", c.StrategySettings.SimultaneousSignalProcessing)
-	log.Infof(log.BackTester, "Use Exchange Level Funding: %v", c.StrategySettings.UseExchangeLevelFunding)
-	log.Infof(log.BackTester, "USD value tracking: %v", !c.StrategySettings.DisableUSDTracking)
-	if c.StrategySettings.UseExchangeLevelFunding && c.StrategySettings.SimultaneousSignalProcessing {
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Info(log.BackTester, "------------------Funding Settings---------------------------")
-		for i := range c.StrategySettings.ExchangeLevelFunding {
-			log.Infof(log.BackTester, "Initial funds for %v %v %v: %v",
-				c.StrategySettings.ExchangeLevelFunding[i].ExchangeName,
-				c.StrategySettings.ExchangeLevelFunding[i].Asset,
-				c.StrategySettings.ExchangeLevelFunding[i].Currency,
-				c.StrategySettings.ExchangeLevelFunding[i].InitialFunds.Round(8))
-		}
-	}
-
-	for i := range c.CurrencySettings {
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		currStr := fmt.Sprintf("------------------%v %v-%v Currency Settings---------------------------------------------------------",
-			c.CurrencySettings[i].Asset,
-			c.CurrencySettings[i].Base,
-			c.CurrencySettings[i].Quote)
-		log.Infof(log.BackTester, currStr[:61])
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Infof(log.BackTester, "Exchange: %v", c.CurrencySettings[i].ExchangeName)
-		if !c.StrategySettings.UseExchangeLevelFunding {
-			if c.CurrencySettings[i].InitialBaseFunds != nil {
-				log.Infof(log.BackTester, "Initial base funds: %v %v",
-					c.CurrencySettings[i].InitialBaseFunds.Round(8),
-					c.CurrencySettings[i].Base)
-			}
-			if c.CurrencySettings[i].InitialQuoteFunds != nil {
-				log.Infof(log.BackTester, "Initial quote funds: %v %v",
-					c.CurrencySettings[i].InitialQuoteFunds.Round(8),
-					c.CurrencySettings[i].Quote)
-			}
-		}
-		log.Infof(log.BackTester, "Maker fee: %v", c.CurrencySettings[i].TakerFee.Round(8))
-		log.Infof(log.BackTester, "Taker fee: %v", c.CurrencySettings[i].MakerFee.Round(8))
-		log.Infof(log.BackTester, "Minimum slippage percent %v", c.CurrencySettings[i].MinimumSlippagePercent.Round(8))
-		log.Infof(log.BackTester, "Maximum slippage percent: %v", c.CurrencySettings[i].MaximumSlippagePercent.Round(8))
-		log.Infof(log.BackTester, "Buy rules: %+v", c.CurrencySettings[i].BuySide)
-		log.Infof(log.BackTester, "Sell rules: %+v", c.CurrencySettings[i].SellSide)
-		log.Infof(log.BackTester, "Leverage rules: %+v", c.CurrencySettings[i].Leverage)
-		log.Infof(log.BackTester, "Can use exchange defined order execution limits: %+v", c.CurrencySettings[i].CanUseExchangeLimits)
-	}
-
-	log.Info(log.BackTester, "-------------------------------------------------------------")
-	log.Info(log.BackTester, "------------------Portfolio Settings-------------------------")
-	log.Info(log.BackTester, "-------------------------------------------------------------")
-	log.Infof(log.BackTester, "Buy rules: %+v", c.PortfolioSettings.BuySide)
-	log.Infof(log.BackTester, "Sell rules: %+v", c.PortfolioSettings.SellSide)
-	log.Infof(log.BackTester, "Leverage rules: %+v", c.PortfolioSettings.Leverage)
-	if c.DataSettings.LiveData != nil {
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Info(log.BackTester, "------------------Live Settings------------------------------")
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Infof(log.BackTester, "Data type: %v", c.DataSettings.DataType)
-		log.Infof(log.BackTester, "Interval: %v", c.DataSettings.Interval)
-		log.Infof(log.BackTester, "REAL ORDERS: %v", c.DataSettings.LiveData.RealOrders)
-		log.Infof(log.BackTester, "Overriding GCT API settings: %v", c.DataSettings.LiveData.APIClientIDOverride != "")
-	}
-	if c.DataSettings.APIData != nil {
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Info(log.BackTester, "------------------API Settings-------------------------------")
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Infof(log.BackTester, "Data type: %v", c.DataSettings.DataType)
-		log.Infof(log.BackTester, "Interval: %v", c.DataSettings.Interval)
-		log.Infof(log.BackTester, "Start date: %v", c.DataSettings.APIData.StartDate.Format(gctcommon.SimpleTimeFormat))
-		log.Infof(log.BackTester, "End date: %v", c.DataSettings.APIData.EndDate.Format(gctcommon.SimpleTimeFormat))
-	}
-	if c.DataSettings.CSVData != nil {
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Info(log.BackTester, "------------------CSV Settings-------------------------------")
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Infof(log.BackTester, "Data type: %v", c.DataSettings.DataType)
-		log.Infof(log.BackTester, "Interval: %v", c.DataSettings.Interval)
-		log.Infof(log.BackTester, "CSV file: %v", c.DataSettings.CSVData.FullPath)
-	}
-	if c.DataSettings.DatabaseData != nil {
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Info(log.BackTester, "------------------Database Settings--------------------------")
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Infof(log.BackTester, "Data type: %v", c.DataSettings.DataType)
-		log.Infof(log.BackTester, "Interval: %v", c.DataSettings.Interval)
-		log.Infof(log.BackTester, "Start date: %v", c.DataSettings.DatabaseData.StartDate.Format(gctcommon.SimpleTimeFormat))
-		log.Infof(log.BackTester, "End date: %v", c.DataSettings.DatabaseData.EndDate.Format(gctcommon.SimpleTimeFormat))
-	}
-	log.Info(log.BackTester, "-------------------------------------------------------------\n\n")
 }
 
 // Validate checks all config settings
@@ -207,23 +103,23 @@ func (c *Config) validateMinMaxes() (err error) {
 }
 
 func (c *Config) validateStrategySettings() error {
-	if c.StrategySettings.UseExchangeLevelFunding && !c.StrategySettings.SimultaneousSignalProcessing {
+	if c.FundingSettings.UseExchangeLevelFunding && !c.StrategySettings.SimultaneousSignalProcessing {
 		return errSimultaneousProcessingRequired
 	}
-	if len(c.StrategySettings.ExchangeLevelFunding) > 0 && !c.StrategySettings.UseExchangeLevelFunding {
+	if len(c.FundingSettings.ExchangeLevelFunding) > 0 && !c.FundingSettings.UseExchangeLevelFunding {
 		return errExchangeLevelFundingRequired
 	}
-	if c.StrategySettings.UseExchangeLevelFunding && len(c.StrategySettings.ExchangeLevelFunding) == 0 {
+	if c.FundingSettings.UseExchangeLevelFunding && len(c.FundingSettings.ExchangeLevelFunding) == 0 {
 		return errExchangeLevelFundingDataRequired
 	}
-	if c.StrategySettings.UseExchangeLevelFunding {
-		for i := range c.StrategySettings.ExchangeLevelFunding {
-			if c.StrategySettings.ExchangeLevelFunding[i].InitialFunds.IsNegative() {
+	if c.FundingSettings.UseExchangeLevelFunding {
+		for i := range c.FundingSettings.ExchangeLevelFunding {
+			if c.FundingSettings.ExchangeLevelFunding[i].InitialFunds.IsNegative() {
 				return fmt.Errorf("%w for %v %v %v",
 					errBadInitialFunds,
-					c.StrategySettings.ExchangeLevelFunding[i].ExchangeName,
-					c.StrategySettings.ExchangeLevelFunding[i].Asset,
-					c.StrategySettings.ExchangeLevelFunding[i].Currency,
+					c.FundingSettings.ExchangeLevelFunding[i].ExchangeName,
+					c.FundingSettings.ExchangeLevelFunding[i].Asset,
+					c.FundingSettings.ExchangeLevelFunding[i].Currency,
 				)
 			}
 		}
@@ -268,50 +164,60 @@ func (c *Config) validateCurrencySettings() error {
 	if len(c.CurrencySettings) == 0 {
 		return errNoCurrencySettings
 	}
+	var hasFutures, hasSlippage bool
 	for i := range c.CurrencySettings {
-		if c.CurrencySettings[i].InitialLegacyFunds > 0 {
-			// temporarily migrate legacy start config value
-			log.Warn(log.BackTester, "config field 'initial-funds' no longer supported, please use 'initial-quote-funds'")
-			log.Warnf(log.BackTester, "temporarily setting 'initial-quote-funds' to 'initial-funds' value of %v", c.CurrencySettings[i].InitialLegacyFunds)
-			iqf := decimal.NewFromFloat(c.CurrencySettings[i].InitialLegacyFunds)
-			c.CurrencySettings[i].InitialQuoteFunds = &iqf
+		if c.CurrencySettings[i].Asset == asset.PerpetualSwap ||
+			c.CurrencySettings[i].Asset == asset.PerpetualContract {
+			return errPerpetualsUnsupported
 		}
-		if c.StrategySettings.UseExchangeLevelFunding {
-			if c.CurrencySettings[i].InitialQuoteFunds != nil &&
-				c.CurrencySettings[i].InitialQuoteFunds.GreaterThan(decimal.Zero) {
-				return fmt.Errorf("non-nil quote %w", errBadInitialFunds)
-			}
-			if c.CurrencySettings[i].InitialBaseFunds != nil &&
-				c.CurrencySettings[i].InitialBaseFunds.GreaterThan(decimal.Zero) {
-				return fmt.Errorf("non-nil base %w", errBadInitialFunds)
-			}
-		} else {
-			if c.CurrencySettings[i].InitialQuoteFunds == nil &&
-				c.CurrencySettings[i].InitialBaseFunds == nil {
-				return fmt.Errorf("nil base and quote %w", errBadInitialFunds)
-			}
-			if c.CurrencySettings[i].InitialQuoteFunds != nil &&
-				c.CurrencySettings[i].InitialBaseFunds != nil &&
-				c.CurrencySettings[i].InitialBaseFunds.IsZero() &&
-				c.CurrencySettings[i].InitialQuoteFunds.IsZero() {
-				return fmt.Errorf("base or quote funds set to zero %w", errBadInitialFunds)
-			}
-			if c.CurrencySettings[i].InitialQuoteFunds == nil {
-				c.CurrencySettings[i].InitialQuoteFunds = &decimal.Zero
-			}
-			if c.CurrencySettings[i].InitialBaseFunds == nil {
-				c.CurrencySettings[i].InitialBaseFunds = &decimal.Zero
+		if c.CurrencySettings[i].Asset == asset.Futures &&
+			(c.CurrencySettings[i].Quote.String() == "PERP" || c.CurrencySettings[i].Base.String() == "PI") {
+			return errPerpetualsUnsupported
+		}
+		if c.CurrencySettings[i].Asset.IsFutures() {
+			hasFutures = true
+		}
+		if c.CurrencySettings[i].SpotDetails != nil {
+			if c.FundingSettings.UseExchangeLevelFunding {
+				if c.CurrencySettings[i].SpotDetails.InitialQuoteFunds != nil &&
+					c.CurrencySettings[i].SpotDetails.InitialQuoteFunds.GreaterThan(decimal.Zero) {
+					return fmt.Errorf("non-nil quote %w", errBadInitialFunds)
+				}
+				if c.CurrencySettings[i].SpotDetails.InitialBaseFunds != nil &&
+					c.CurrencySettings[i].SpotDetails.InitialBaseFunds.GreaterThan(decimal.Zero) {
+					return fmt.Errorf("non-nil base %w", errBadInitialFunds)
+				}
+			} else {
+				if c.CurrencySettings[i].SpotDetails.InitialQuoteFunds == nil &&
+					c.CurrencySettings[i].SpotDetails.InitialBaseFunds == nil {
+					return fmt.Errorf("nil base and quote %w", errBadInitialFunds)
+				}
+				if c.CurrencySettings[i].SpotDetails.InitialQuoteFunds != nil &&
+					c.CurrencySettings[i].SpotDetails.InitialBaseFunds != nil &&
+					c.CurrencySettings[i].SpotDetails.InitialBaseFunds.IsZero() &&
+					c.CurrencySettings[i].SpotDetails.InitialQuoteFunds.IsZero() {
+					return fmt.Errorf("base or quote funds set to zero %w", errBadInitialFunds)
+				}
+				if c.CurrencySettings[i].SpotDetails.InitialQuoteFunds == nil {
+					c.CurrencySettings[i].SpotDetails.InitialQuoteFunds = &decimal.Zero
+				}
+				if c.CurrencySettings[i].SpotDetails.InitialBaseFunds == nil {
+					c.CurrencySettings[i].SpotDetails.InitialBaseFunds = &decimal.Zero
+				}
 			}
 		}
-
-		if c.CurrencySettings[i].Base == "" {
+		if c.CurrencySettings[i].Base.IsEmpty() {
 			return errUnsetCurrency
 		}
-		if c.CurrencySettings[i].Asset == "" {
-			return errUnsetAsset
+		if !c.CurrencySettings[i].Asset.IsValid() {
+			return fmt.Errorf("%v %w", c.CurrencySettings[i].Asset, asset.ErrNotSupported)
 		}
 		if c.CurrencySettings[i].ExchangeName == "" {
 			return errUnsetExchange
+		}
+		if !c.CurrencySettings[i].MinimumSlippagePercent.IsZero() ||
+			!c.CurrencySettings[i].MaximumSlippagePercent.IsZero() {
+			hasSlippage = true
 		}
 		if c.CurrencySettings[i].MinimumSlippagePercent.LessThan(decimal.Zero) ||
 			c.CurrencySettings[i].MaximumSlippagePercent.LessThan(decimal.Zero) ||
@@ -320,5 +226,112 @@ func (c *Config) validateCurrencySettings() error {
 		}
 		c.CurrencySettings[i].ExchangeName = strings.ToLower(c.CurrencySettings[i].ExchangeName)
 	}
+	if hasSlippage && hasFutures {
+		return fmt.Errorf("%w futures sizing currently incompatible with slippage", errFeatureIncompatible)
+	}
 	return nil
+}
+
+// PrintSetting prints relevant settings to the console for easy reading
+func (c *Config) PrintSetting() {
+	log.Info(common.Config, common.ColourH1+"------------------Backtester Settings------------------------"+common.ColourDefault)
+	log.Info(common.Config, common.ColourH2+"------------------Strategy Settings--------------------------"+common.ColourDefault)
+	log.Infof(common.Config, "Strategy: %s", c.StrategySettings.Name)
+	if len(c.StrategySettings.CustomSettings) > 0 {
+		log.Info(common.Config, "Custom strategy variables:")
+		for k, v := range c.StrategySettings.CustomSettings {
+			log.Infof(common.Config, "%s: %v", k, v)
+		}
+	} else {
+		log.Info(common.Config, "Custom strategy variables: unset")
+	}
+	log.Infof(common.Config, "Simultaneous Signal Processing: %v", c.StrategySettings.SimultaneousSignalProcessing)
+	log.Infof(common.Config, "USD value tracking: %v", !c.StrategySettings.DisableUSDTracking)
+
+	if c.FundingSettings.UseExchangeLevelFunding && c.StrategySettings.SimultaneousSignalProcessing {
+		log.Info(common.Config, common.ColourH2+"------------------Funding Settings---------------------------"+common.ColourDefault)
+		log.Infof(common.Config, "Use Exchange Level Funding: %v", c.FundingSettings.UseExchangeLevelFunding)
+		for i := range c.FundingSettings.ExchangeLevelFunding {
+			log.Infof(common.Config, "Initial funds for %v %v %v: %v",
+				c.FundingSettings.ExchangeLevelFunding[i].ExchangeName,
+				c.FundingSettings.ExchangeLevelFunding[i].Asset,
+				c.FundingSettings.ExchangeLevelFunding[i].Currency,
+				c.FundingSettings.ExchangeLevelFunding[i].InitialFunds.Round(8))
+		}
+	}
+
+	for i := range c.CurrencySettings {
+		currStr := fmt.Sprintf(common.ColourH2+"------------------%v %v-%v Currency Settings---------------------------------------------------------"+common.ColourDefault,
+			c.CurrencySettings[i].Asset,
+			c.CurrencySettings[i].Base,
+			c.CurrencySettings[i].Quote)
+		log.Infof(common.Config, currStr[:61])
+		log.Infof(common.Config, "Exchange: %v", c.CurrencySettings[i].ExchangeName)
+		if !c.FundingSettings.UseExchangeLevelFunding && c.CurrencySettings[i].SpotDetails != nil {
+			if c.CurrencySettings[i].SpotDetails.InitialBaseFunds != nil {
+				log.Infof(common.Config, "Initial base funds: %v %v",
+					c.CurrencySettings[i].SpotDetails.InitialBaseFunds.Round(8),
+					c.CurrencySettings[i].Base)
+			}
+			if c.CurrencySettings[i].SpotDetails.InitialQuoteFunds != nil {
+				log.Infof(common.Config, "Initial quote funds: %v %v",
+					c.CurrencySettings[i].SpotDetails.InitialQuoteFunds.Round(8),
+					c.CurrencySettings[i].Quote)
+			}
+		}
+		if c.CurrencySettings[i].TakerFee != nil {
+			if c.CurrencySettings[i].UsingExchangeTakerFee {
+				log.Infof(common.Config, "Taker fee: Using Exchange's API default taker rate: %v", c.CurrencySettings[i].TakerFee.Round(8))
+			} else {
+				log.Infof(common.Config, "Taker fee: %v", c.CurrencySettings[i].TakerFee.Round(8))
+			}
+		}
+		if c.CurrencySettings[i].MakerFee != nil {
+			if c.CurrencySettings[i].UsingExchangeMakerFee {
+				log.Infof(common.Config, "Maker fee: Using Exchange's API default maker rate: %v", c.CurrencySettings[i].MakerFee.Round(8))
+			} else {
+				log.Infof(common.Config, "Maker fee: %v", c.CurrencySettings[i].MakerFee.Round(8))
+			}
+		}
+		log.Infof(common.Config, "Minimum slippage percent: %v", c.CurrencySettings[i].MinimumSlippagePercent.Round(8))
+		log.Infof(common.Config, "Maximum slippage percent: %v", c.CurrencySettings[i].MaximumSlippagePercent.Round(8))
+		log.Infof(common.Config, "Buy rules: %+v", c.CurrencySettings[i].BuySide)
+		log.Infof(common.Config, "Sell rules: %+v", c.CurrencySettings[i].SellSide)
+		if c.CurrencySettings[i].FuturesDetails != nil && c.CurrencySettings[i].Asset == asset.Futures {
+			log.Infof(common.Config, "Leverage rules: %+v", c.CurrencySettings[i].FuturesDetails.Leverage)
+		}
+		log.Infof(common.Config, "Can use exchange defined order execution limits: %+v", c.CurrencySettings[i].CanUseExchangeLimits)
+	}
+
+	log.Info(common.Config, common.ColourH2+"------------------Portfolio Settings-------------------------"+common.ColourDefault)
+	log.Infof(common.Config, "Buy rules: %+v", c.PortfolioSettings.BuySide)
+	log.Infof(common.Config, "Sell rules: %+v", c.PortfolioSettings.SellSide)
+	log.Infof(common.Config, "Leverage rules: %+v", c.PortfolioSettings.Leverage)
+	if c.DataSettings.LiveData != nil {
+		log.Info(common.Config, common.ColourH2+"------------------Live Settings------------------------------"+common.ColourDefault)
+		log.Infof(common.Config, "Data type: %v", c.DataSettings.DataType)
+		log.Infof(common.Config, "Interval: %v", c.DataSettings.Interval)
+		log.Infof(common.Config, "REAL ORDERS: %v", c.DataSettings.LiveData.RealOrders)
+		log.Infof(common.Config, "Overriding GCT API settings: %v", c.DataSettings.LiveData.APIClientIDOverride != "")
+	}
+	if c.DataSettings.APIData != nil {
+		log.Info(common.Config, common.ColourH2+"------------------API Settings-------------------------------"+common.ColourDefault)
+		log.Infof(common.Config, "Data type: %v", c.DataSettings.DataType)
+		log.Infof(common.Config, "Interval: %v", c.DataSettings.Interval)
+		log.Infof(common.Config, "Start date: %v", c.DataSettings.APIData.StartDate.Format(gctcommon.SimpleTimeFormat))
+		log.Infof(common.Config, "End date: %v", c.DataSettings.APIData.EndDate.Format(gctcommon.SimpleTimeFormat))
+	}
+	if c.DataSettings.CSVData != nil {
+		log.Info(common.Config, common.ColourH2+"------------------CSV Settings-------------------------------"+common.ColourDefault)
+		log.Infof(common.Config, "Data type: %v", c.DataSettings.DataType)
+		log.Infof(common.Config, "Interval: %v", c.DataSettings.Interval)
+		log.Infof(common.Config, "CSV file: %v", c.DataSettings.CSVData.FullPath)
+	}
+	if c.DataSettings.DatabaseData != nil {
+		log.Info(common.Config, common.ColourH2+"------------------Database Settings--------------------------"+common.ColourDefault)
+		log.Infof(common.Config, "Data type: %v", c.DataSettings.DataType)
+		log.Infof(common.Config, "Interval: %v", c.DataSettings.Interval)
+		log.Infof(common.Config, "Start date: %v", c.DataSettings.DatabaseData.StartDate.Format(gctcommon.SimpleTimeFormat))
+		log.Infof(common.Config, "End date: %v", c.DataSettings.DatabaseData.EndDate.Format(gctcommon.SimpleTimeFormat))
+	}
 }

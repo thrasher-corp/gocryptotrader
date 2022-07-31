@@ -457,7 +457,11 @@ func (b *Bitmex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	}
 	info.Exchange = b.Name
 
-	if err := account.Process(&info); err != nil {
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	if err := account.Process(&info, creds); err != nil {
 		return account.Holdings{}, err
 	}
 
@@ -466,11 +470,14 @@ func (b *Bitmex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (b *Bitmex) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(b.Name, assetType)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(b.Name, creds, assetType)
 	if err != nil {
 		return b.UpdateAccountInfo(ctx, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -565,20 +572,19 @@ allTrades:
 }
 
 // SubmitOrder submits a new order
-func (b *Bitmex) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (b *Bitmex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	if math.Mod(s.Amount, 1) != 0 {
-		return submitOrderResponse,
+		return nil,
 			errors.New("order contract amount can not have decimals")
 	}
 
 	fPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	var orderNewParams = OrderNewParams{
@@ -594,50 +600,39 @@ func (b *Bitmex) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 
 	response, err := b.CreateOrder(ctx, &orderNewParams)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
-	if response.OrderID != "" {
-		submitOrderResponse.OrderID = response.OrderID
-	}
-	if s.Type == order.Market {
-		submitOrderResponse.FullyMatched = true
-	}
-	submitOrderResponse.IsOrderPlaced = true
-
-	return submitOrderResponse, nil
+	return s.DeriveSubmitResponse(response.OrderID)
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bitmex) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
+func (b *Bitmex) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
-		return order.Modify{}, err
+		return nil, err
 	}
-
-	var params OrderAmendParams
 
 	if math.Mod(action.Amount, 1) != 0 {
-		return order.Modify{}, errors.New("contract amount can not have decimals")
+		return nil, errors.New("contract amount can not have decimals")
 	}
 
-	params.OrderID = action.ID
-	params.OrderQty = int32(action.Amount)
-	params.Price = action.Price
-
-	o, err := b.AmendOrder(ctx, &params)
+	o, err := b.AmendOrder(ctx, &OrderAmendParams{
+		OrderID:  action.OrderID,
+		OrderQty: int32(action.Amount),
+		Price:    action.Price})
 	if err != nil {
-		return order.Modify{}, err
+		return nil, err
 	}
 
-	return order.Modify{
-		Exchange:  action.Exchange,
-		AssetType: action.AssetType,
-		Pair:      action.Pair,
-		ID:        o.OrderID,
+	resp, err := action.DeriveModifyResponse()
+	if err != nil {
+		return nil, err
+	}
 
-		Price:  action.Price,
-		Amount: float64(params.OrderQty),
-	}, nil
+	resp.OrderID = o.OrderID
+	resp.RemainingAmount = o.OrderQty
+	resp.LastUpdated = o.TransactTime
+	return resp, nil
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -645,10 +640,9 @@ func (b *Bitmex) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
-	var params = OrderCancelParams{
-		OrderID: o.ID,
-	}
-	_, err := b.CancelOrders(ctx, &params)
+	_, err := b.CancelOrders(ctx, &OrderCancelParams{
+		OrderID: o.OrderID,
+	})
 	return err
 }
 
@@ -767,16 +761,16 @@ func (b *Bitmex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 
 	orders := make([]order.Detail, len(resp))
 	for i := range resp {
-		orderSide := orderSideMap[resp[i].Side]
-		orderStatus, err := order.StringToOrderStatus(resp[i].OrdStatus)
+		var orderStatus order.Status
+		orderStatus, err = order.StringToOrderStatus(resp[i].OrdStatus)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
 		}
-		orderType := orderTypeMap[resp[i].OrdType]
-		if orderType == "" {
-			orderType = order.UnknownType
+		var oType order.Type
+		oType, err = b.getOrderType(resp[i].OrdType)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
 		}
-
 		orderDetail := order.Detail{
 			Date:            resp[i].Timestamp,
 			Price:           resp[i].Price,
@@ -784,10 +778,10 @@ func (b *Bitmex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			ExecutedAmount:  resp[i].CumQty,
 			RemainingAmount: resp[i].LeavesQty,
 			Exchange:        b.Name,
-			ID:              resp[i].OrderID,
-			Side:            orderSide,
+			OrderID:         resp[i].OrderID,
+			Side:            orderSideMap[resp[i].Side],
 			Status:          orderStatus,
-			Type:            orderType,
+			Type:            oType,
 			Pair: currency.NewPairWithDelimiter(resp[i].Symbol,
 				resp[i].SettlCurrency,
 				format.Delimiter),
@@ -798,8 +792,11 @@ func (b *Bitmex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 
 	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByType(&orders, req.Type)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
 
@@ -825,15 +822,19 @@ func (b *Bitmex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 	orders := make([]order.Detail, len(resp))
 	for i := range resp {
 		orderSide := orderSideMap[resp[i].Side]
-		orderStatus, err := order.StringToOrderStatus(resp[i].OrdStatus)
+		var orderStatus order.Status
+		orderStatus, err = order.StringToOrderStatus(resp[i].OrdStatus)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
 		}
-		orderType := orderTypeMap[resp[i].OrdType]
-		if orderType == "" {
-			orderType = order.UnknownType
-		}
+
 		pair := currency.NewPairWithDelimiter(resp[i].Symbol, resp[i].SettlCurrency, format.Delimiter)
+
+		var oType order.Type
+		oType, err = b.getOrderType(resp[i].OrdType)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+		}
 
 		orderDetail := order.Detail{
 			Price:                resp[i].Price,
@@ -844,10 +845,10 @@ func (b *Bitmex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 			Date:                 resp[i].TransactTime,
 			CloseTime:            resp[i].Timestamp,
 			Exchange:             b.Name,
-			ID:                   resp[i].OrderID,
+			OrderID:              resp[i].OrderID,
 			Side:                 orderSide,
 			Status:               orderStatus,
-			Type:                 orderType,
+			Type:                 oType,
 			Pair:                 pair,
 		}
 		orderDetail.InferCostsAndTimes()
@@ -857,8 +858,11 @@ func (b *Bitmex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 
 	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByType(&orders, req.Type)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
 
@@ -882,4 +886,13 @@ func (b *Bitmex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (b *Bitmex) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrFunctionNotSupported
+}
+
+// getOrderType derives an order type from bitmex int representation
+func (b *Bitmex) getOrderType(id int64) (order.Type, error) {
+	o, ok := orderTypeMap[id]
+	if !ok {
+		return order.UnknownType, fmt.Errorf("unhandled order type for '%d': %w", id, order.ErrTypeIsInvalid)
+	}
+	return o, nil
 }

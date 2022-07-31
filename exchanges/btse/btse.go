@@ -162,8 +162,8 @@ func (b *BTSE) GetPrice(ctx context.Context, symbol string) (Price, error) {
 	return p, b.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, &p, true, queryFunc)
 }
 
-// GetServerTime returns the exchanges server time
-func (b *BTSE) GetServerTime(ctx context.Context) (*ServerTime, error) {
+// GetCurrentServerTime returns the exchanges server time
+func (b *BTSE) GetCurrentServerTime(ctx context.Context) (*ServerTime, error) {
 	var s ServerTime
 	return &s, b.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, btseTime, &s, true, queryFunc)
 }

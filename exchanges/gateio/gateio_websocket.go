@@ -15,12 +15,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
@@ -44,7 +42,7 @@ func (g *Gateio) WsConnect() error {
 	g.Websocket.Wg.Add(1)
 	go g.wsReadData()
 
-	if g.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if g.IsWebsocketAuthenticationSupported() {
 		err = g.wsServerSignIn(context.TODO())
 		if err != nil {
 			g.Websocket.DataHandler <- err
@@ -336,7 +334,7 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 			RemainingAmount: left,
 			Fee:             fee,
 			Exchange:        g.Name,
-			ID:              strconv.FormatFloat(orderID, 'f', -1, 64),
+			OrderID:         strconv.FormatFloat(orderID, 'f', -1, 64),
 			Type:            oType,
 			Side:            oSide,
 			Status:          oStatus,
@@ -412,7 +410,7 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 				return err
 			}
 		} else {
-			err = g.Websocket.Orderbook.Update(&buffer.Update{
+			err = g.Websocket.Orderbook.Update(&orderbook.Update{
 				Asks:       asks,
 				Bids:       bids,
 				Pair:       p,

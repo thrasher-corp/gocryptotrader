@@ -22,7 +22,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -1293,7 +1292,7 @@ func (b *Bitfinex) wsHandleOrder(data []interface{}) {
 	od.Exchange = b.Name
 	if data[0] != nil {
 		if id, ok := data[0].(float64); ok {
-			od.ID = strconv.FormatFloat(id, 'f', -1, 64)
+			od.OrderID = strconv.FormatFloat(id, 'f', -1, 64)
 		}
 	}
 	if data[16] != nil {
@@ -1341,7 +1340,7 @@ func (b *Bitfinex) wsHandleOrder(data []interface{}) {
 			if err != nil {
 				b.Websocket.DataHandler <- order.ClassificationError{
 					Exchange: b.Name,
-					OrderID:  od.ID,
+					OrderID:  od.OrderID,
 					Err:      err,
 				}
 			}
@@ -1354,7 +1353,7 @@ func (b *Bitfinex) wsHandleOrder(data []interface{}) {
 			if err != nil {
 				b.Websocket.DataHandler <- order.ClassificationError{
 					Exchange: b.Name,
-					OrderID:  od.ID,
+					OrderID:  od.OrderID,
 					Err:      err,
 				}
 			}
@@ -1409,7 +1408,7 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 // WsUpdateOrderbook updates the orderbook list, removing and adding to the
 // orderbook sides
 func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book []WebsocketBook, channelID int, sequenceNo int64, fundingRate bool) error {
-	orderbookUpdate := buffer.Update{
+	orderbookUpdate := orderbook.Update{
 		Asset: assetType,
 		Pair:  p,
 		Bids:  make([]orderbook.Item, 0, len(book)),
@@ -1425,7 +1424,7 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 		}
 
 		if book[i].Price > 0 {
-			orderbookUpdate.Action = buffer.UpdateInsert
+			orderbookUpdate.Action = orderbook.UpdateInsert
 			if fundingRate {
 				if book[i].Amount < 0 {
 					item.Amount *= -1
@@ -1442,7 +1441,7 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 				}
 			}
 		} else {
-			orderbookUpdate.Action = buffer.Delete
+			orderbookUpdate.Action = orderbook.Delete
 			if fundingRate {
 				if book[i].Amount == 1 {
 					// delete bid

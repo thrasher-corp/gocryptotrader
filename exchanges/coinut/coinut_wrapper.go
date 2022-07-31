@@ -391,10 +391,15 @@ func (c *COINUT) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	}
 	info.Exchange = c.Name
 	info.Accounts = append(info.Accounts, account.SubAccount{
+		AssetType:  assetType,
 		Currencies: balances,
 	})
 
-	err = account.Process(&info)
+	creds, err := c.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&info, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -404,11 +409,14 @@ func (c *COINUT) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (c *COINUT) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(c.Name, assetType)
+	creds, err := c.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(c.Name, creds, assetType)
 	if err != nil {
 		return c.UpdateAccountInfo(ctx, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -586,17 +594,19 @@ func (c *COINUT) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.I
 }
 
 // SubmitOrder submits a new order
-func (c *COINUT) SubmitOrder(ctx context.Context, o *order.Submit) (order.SubmitResponse, error) {
-	if err := o.Validate(); err != nil {
-		return order.SubmitResponse{}, err
+func (c *COINUT) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitResponse, error) {
+	err := o.Validate()
+	if err != nil {
+		return nil, err
 	}
 
-	var submitOrderResponse order.SubmitResponse
-	var err error
 	if _, err = strconv.Atoi(o.ClientID); err != nil {
-		return submitOrderResponse, fmt.Errorf("%s - ClientID must be a number, received: %s", c.Name, o.ClientID)
+		return nil, fmt.Errorf("%s - ClientID must be a number, received: %s",
+			c.Name, o.ClientID)
 	}
 
+	var orderID string
+	status := order.New
 	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var response *order.Detail
 		response, err = c.wsSubmitOrder(&WsSubmitOrderParameters{
@@ -606,80 +616,79 @@ func (c *COINUT) SubmitOrder(ctx context.Context, o *order.Submit) (order.Submit
 			Price:    o.Price,
 		})
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
-		submitOrderResponse.OrderID = response.ID
-		submitOrderResponse.IsOrderPlaced = true
+		orderID = response.OrderID
 	} else {
 		err = c.loadInstrumentsIfNotLoaded()
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
 
-		fpair, err := c.FormatExchangeCurrency(o.Pair, asset.Spot)
+		var fPair currency.Pair
+		fPair, err = c.FormatExchangeCurrency(o.Pair, asset.Spot)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
 
-		currencyID := c.instrumentMap.LookupID(fpair.String())
+		currencyID := c.instrumentMap.LookupID(fPair.String())
 		if currencyID == 0 {
-			return submitOrderResponse, errLookupInstrumentID
+			return nil, errLookupInstrumentID
 		}
 
 		var APIResponse interface{}
 		var clientIDInt uint64
-		isBuyOrder := o.Side == order.Buy
-		clientIDInt, err = strconv.ParseUint(o.ClientID, 0, 32)
+		clientIDInt, err = strconv.ParseUint(o.ClientID, 10, 32)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
-		clientIDUint := uint32(clientIDInt)
 		APIResponse, err = c.NewOrder(ctx,
 			currencyID,
 			o.Amount,
 			o.Price,
-			isBuyOrder,
-			clientIDUint)
+			o.Side == order.Buy,
+			uint32(clientIDInt))
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
 		responseMap, ok := APIResponse.(map[string]interface{})
 		if !ok {
-			return submitOrderResponse, errors.New("unable to type assert responseMap")
+			return nil, errors.New("unable to type assert responseMap")
 		}
 		orderType, ok := responseMap["reply"].(string)
 		if !ok {
-			return submitOrderResponse, errors.New("unable to type assert orderType")
+			return nil, errors.New("unable to type assert orderType")
 		}
 		switch orderType {
 		case "order_rejected":
-			return submitOrderResponse, fmt.Errorf("clientOrderID: %v was rejected: %v", o.ClientID, responseMap["reasons"])
+			return nil, fmt.Errorf("clientOrderID: %v was rejected: %v", o.ClientID, responseMap["reasons"])
 		case "order_filled":
-			orderID, ok := responseMap["order_id"].(float64)
+			orderIDResp, ok := responseMap["order_id"].(float64)
 			if !ok {
-				return submitOrderResponse, errors.New("unable to type assert orderID")
+				return nil, errors.New("unable to type assert orderID")
 			}
-			submitOrderResponse.OrderID = strconv.FormatFloat(orderID, 'f', -1, 64)
-			submitOrderResponse.IsOrderPlaced = true
-			submitOrderResponse.FullyMatched = true
-			return submitOrderResponse, nil
+			orderID = strconv.FormatFloat(orderIDResp, 'f', -1, 64)
+			status = order.Filled
 		case "order_accepted":
-			orderID, ok := responseMap["order_id"].(float64)
+			orderIDResp, ok := responseMap["order_id"].(float64)
 			if !ok {
-				return submitOrderResponse, errors.New("unable to type assert orderID")
+				return nil, errors.New("unable to type assert orderID")
 			}
-			submitOrderResponse.OrderID = strconv.FormatFloat(orderID, 'f', -1, 64)
-			submitOrderResponse.IsOrderPlaced = true
-			return submitOrderResponse, nil
+			orderID = strconv.FormatFloat(orderIDResp, 'f', -1, 64)
 		}
 	}
-	return submitOrderResponse, nil
+	resp, err := o.DeriveSubmitResponse(orderID)
+	if err != nil {
+		return nil, err
+	}
+	resp.Status = status
+	return resp, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (c *COINUT) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
-	return order.Modify{}, common.ErrFunctionNotSupported
+func (c *COINUT) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -692,7 +701,7 @@ func (c *COINUT) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err != nil {
 		return err
 	}
-	orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -714,7 +723,7 @@ func (c *COINUT) CancelOrder(ctx context.Context, o *order.Cancel) error {
 			return err
 		}
 		if len(resp.Status) >= 1 && resp.Status[0] != "OK" {
-			return errors.New(c.Name + " - Failed to cancel order " + o.ID)
+			return errors.New(c.Name + " - Failed to cancel order " + o.OrderID)
 		}
 	} else {
 		if currencyID == 0 {
@@ -871,11 +880,12 @@ func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 	var currenciesToCheck []string
 	if len(req.Pairs) == 0 {
 		for i := range req.Pairs {
-			fpair, err := c.FormatExchangeCurrency(req.Pairs[i], asset.Spot)
+			var fPair currency.Pair
+			fPair, err = c.FormatExchangeCurrency(req.Pairs[i], asset.Spot)
 			if err != nil {
 				return nil, err
 			}
-			currenciesToCheck = append(currenciesToCheck, fpair.String())
+			currenciesToCheck = append(currenciesToCheck, fPair.String())
 		}
 	} else {
 		for k := range c.instrumentMap.Instruments {
@@ -884,26 +894,35 @@ func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 	}
 	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		for x := range currenciesToCheck {
-			openOrders, err := c.wsGetOpenOrders(currenciesToCheck[x])
+			var openOrders *WsUserOpenOrdersResponse
+			openOrders, err = c.wsGetOpenOrders(currenciesToCheck[x])
 			if err != nil {
 				return nil, err
 			}
 			for i := range openOrders.Orders {
-				p, err := currency.NewPairFromString(currenciesToCheck[x])
+				var p currency.Pair
+				p, err = currency.NewPairFromString(currenciesToCheck[x])
 				if err != nil {
 					return nil, err
 				}
 
-				fpair, err := c.FormatExchangeCurrency(p, asset.Spot)
+				var fPair currency.Pair
+				fPair, err = c.FormatExchangeCurrency(p, asset.Spot)
+				if err != nil {
+					return nil, err
+				}
+
+				var side order.Side
+				side, err = order.StringToOrderSide(openOrders.Orders[i].Side)
 				if err != nil {
 					return nil, err
 				}
 
 				orders = append(orders, order.Detail{
 					Exchange:        c.Name,
-					ID:              strconv.FormatInt(openOrders.Orders[i].OrderID, 10),
-					Pair:            fpair,
-					Side:            order.Side(openOrders.Orders[i].Side),
+					OrderID:         strconv.FormatInt(openOrders.Orders[i].OrderID, 10),
+					Pair:            fPair,
+					Side:            side,
 					Date:            time.Unix(0, openOrders.Orders[i].Timestamp),
 					Status:          order.Active,
 					Price:           openOrders.Orders[i].Price,
@@ -916,8 +935,8 @@ func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 	} else {
 		var instrumentsToUse []int64
 		for x := range req.Pairs {
-			curr, err := c.FormatExchangeCurrency(req.Pairs[x],
-				asset.Spot)
+			var curr currency.Pair
+			curr, err = c.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
 			if err != nil {
 				return nil, err
 			}
@@ -928,46 +947,55 @@ func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			instrumentsToUse = c.instrumentMap.GetInstrumentIDs()
 		}
 
-		pairs, err := c.GetEnabledPairs(asset.Spot)
+		var pairs currency.Pairs
+		pairs, err = c.GetEnabledPairs(asset.Spot)
 		if err != nil {
 			return nil, err
 		}
 
-		format, err := c.GetPairFormat(asset.Spot, true)
+		var format currency.PairFormat
+		format, err = c.GetPairFormat(asset.Spot, true)
 		if err != nil {
 			return nil, err
 		}
 
 		for x := range instrumentsToUse {
-			openOrders, err := c.GetOpenOrders(ctx, instrumentsToUse[x])
+			var openOrders GetOpenOrdersResponse
+			openOrders, err = c.GetOpenOrders(ctx, instrumentsToUse[x])
 			if err != nil {
 				return nil, err
 			}
 			for y := range openOrders.Orders {
 				curr := c.instrumentMap.LookupInstrument(instrumentsToUse[x])
-				p, err := currency.NewPairFromFormattedPairs(curr,
-					pairs,
-					format)
+				var p currency.Pair
+				p, err = currency.NewPairFromFormattedPairs(curr, pairs, format)
 				if err != nil {
 					return nil, err
 				}
 
-				orderSide := order.Side(strings.ToUpper(openOrders.Orders[y].Side))
-				orderDate := time.Unix(openOrders.Orders[y].Timestamp, 0)
+				var side order.Side
+				side, err = order.StringToOrderSide(openOrders.Orders[y].Side)
+				if err != nil {
+					return nil, err
+				}
+
 				orders = append(orders, order.Detail{
-					ID:       strconv.FormatInt(openOrders.Orders[y].OrderID, 10),
+					OrderID:  strconv.FormatInt(openOrders.Orders[y].OrderID, 10),
 					Amount:   openOrders.Orders[y].Quantity,
 					Price:    openOrders.Orders[y].Price,
 					Exchange: c.Name,
-					Side:     orderSide,
-					Date:     orderDate,
+					Side:     side,
+					Date:     time.Unix(openOrders.Orders[y].Timestamp, 0),
 					Pair:     p,
 				})
 			}
 		}
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
+	}
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
@@ -987,22 +1015,30 @@ func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		for i := range req.Pairs {
 			for j := int64(0); ; j += 100 {
-				trades, err := c.wsGetTradeHistory(req.Pairs[i], j, 100)
+				var trades *WsTradeHistoryResponse
+				trades, err = c.wsGetTradeHistory(req.Pairs[i], j, 100)
 				if err != nil {
 					return allOrders, err
 				}
 				for x := range trades.Trades {
 					curr := c.instrumentMap.LookupInstrument(trades.Trades[x].InstrumentID)
-					p, err := currency.NewPairFromString(curr)
+					var p currency.Pair
+					p, err = currency.NewPairFromString(curr)
+					if err != nil {
+						return nil, err
+					}
+
+					var side order.Side
+					side, err = order.StringToOrderSide(trades.Trades[x].Side)
 					if err != nil {
 						return nil, err
 					}
 
 					detail := order.Detail{
 						Exchange:        c.Name,
-						ID:              strconv.FormatInt(trades.Trades[x].OrderID, 10),
+						OrderID:         strconv.FormatInt(trades.Trades[x].OrderID, 10),
 						Pair:            p,
-						Side:            order.Side(trades.Trades[x].Side),
+						Side:            side,
 						Date:            time.Unix(0, trades.Trades[x].Timestamp),
 						Status:          order.Filled,
 						Price:           trades.Trades[x].Price,
@@ -1021,8 +1057,8 @@ func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 	} else {
 		var instrumentsToUse []int64
 		for x := range req.Pairs {
-			curr, err := c.FormatExchangeCurrency(req.Pairs[x],
-				asset.Spot)
+			var curr currency.Pair
+			curr, err = c.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
 			if err != nil {
 				return nil, err
 			}
@@ -1036,46 +1072,55 @@ func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 			instrumentsToUse = c.instrumentMap.GetInstrumentIDs()
 		}
 
-		pairs, err := c.GetEnabledPairs(asset.Spot)
+		var pairs currency.Pairs
+		pairs, err = c.GetEnabledPairs(asset.Spot)
 		if err != nil {
 			return nil, err
 		}
 
-		format, err := c.GetPairFormat(asset.Spot, true)
+		var format currency.PairFormat
+		format, err = c.GetPairFormat(asset.Spot, true)
 		if err != nil {
 			return nil, err
 		}
 
 		for x := range instrumentsToUse {
-			orders, err := c.GetTradeHistory(ctx, instrumentsToUse[x], -1, -1)
+			var orders TradeHistory
+			orders, err = c.GetTradeHistory(ctx, instrumentsToUse[x], -1, -1)
 			if err != nil {
 				return nil, err
 			}
 			for y := range orders.Trades {
 				curr := c.instrumentMap.LookupInstrument(instrumentsToUse[x])
-				p, err := currency.NewPairFromFormattedPairs(curr,
-					pairs,
-					format)
+				var p currency.Pair
+				p, err = currency.NewPairFromFormattedPairs(curr, pairs, format)
 				if err != nil {
 					return nil, err
 				}
 
-				orderSide := order.Side(strings.ToUpper(orders.Trades[y].Order.Side))
-				orderDate := time.Unix(orders.Trades[y].Order.Timestamp, 0)
+				var side order.Side
+				side, err = order.StringToOrderSide(orders.Trades[y].Order.Side)
+				if err != nil {
+					return nil, err
+				}
+
 				allOrders = append(allOrders, order.Detail{
-					ID:       strconv.FormatInt(orders.Trades[y].Order.OrderID, 10),
+					OrderID:  strconv.FormatInt(orders.Trades[y].Order.OrderID, 10),
 					Amount:   orders.Trades[y].Order.Quantity,
 					Price:    orders.Trades[y].Order.Price,
 					Exchange: c.Name,
-					Side:     orderSide,
-					Date:     orderDate,
+					Side:     side,
+					Date:     time.Unix(orders.Trades[y].Order.Timestamp, 0),
 					Pair:     p,
 				})
 			}
 		}
 	}
 
-	order.FilterOrdersByTimeRange(&allOrders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersByTimeRange(&allOrders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
+	}
 	order.FilterOrdersBySide(&allOrders, req.Side)
 	return allOrders, nil
 }

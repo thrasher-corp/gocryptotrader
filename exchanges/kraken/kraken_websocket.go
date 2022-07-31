@@ -16,12 +16,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -101,7 +99,7 @@ func (k *Kraken) WsConnect() error {
 	go k.wsReadData(comms)
 	go k.wsFunnelConnectionData(k.Websocket.Conn, comms)
 
-	if k.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if k.IsWebsocketAuthenticationSupported() {
 		authToken, err = k.GetWebsocketToken(context.TODO())
 		if err != nil {
 			k.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -341,7 +339,7 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 
 				k.Websocket.DataHandler <- &order.Detail{
 					Exchange: k.Name,
-					ID:       status.TransactionID,
+					OrderID:  status.TransactionID,
 					Status:   order.New,
 				}
 
@@ -528,7 +526,7 @@ func (k *Kraken) wsProcessOwnTrades(ownOrders interface{}) error {
 				}
 				k.Websocket.DataHandler <- &order.Detail{
 					Exchange: k.Name,
-					ID:       val.OrderTransactionID,
+					OrderID:  val.OrderTransactionID,
 					Trades:   []order.TradeHistory{trade},
 				}
 			}
@@ -595,7 +593,7 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 					if err != nil {
 						return err
 					}
-					k.Websocket.DataHandler <- &order.Modify{
+					k.Websocket.DataHandler <- &order.Detail{
 						Leverage:        val.Description.Leverage,
 						Price:           val.Price,
 						Amount:          val.Volume,
@@ -604,7 +602,7 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 						RemainingAmount: val.Volume - val.ExecutedVolume,
 						Fee:             val.Fee,
 						Exchange:        k.Name,
-						ID:              key,
+						OrderID:         key,
 						Type:            oType,
 						Side:            oSide,
 						Status:          oStatus,
@@ -613,9 +611,9 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 						Pair:            p,
 					}
 				} else {
-					k.Websocket.DataHandler <- &order.Modify{
+					k.Websocket.DataHandler <- &order.Detail{
 						Exchange: k.Name,
-						ID:       key,
+						OrderID:  key,
 						Status:   oStatus,
 					}
 				}
@@ -934,7 +932,7 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 
 // wsProcessOrderBookUpdate updates an orderbook entry for a given currency pair
 func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, askData, bidData []interface{}, checksum string) error {
-	update := buffer.Update{
+	update := orderbook.Update{
 		Asset:    asset.Spot,
 		Pair:     channelData.Pair,
 		MaxDepth: krakenWsOrderbookDepth,

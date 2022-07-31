@@ -30,6 +30,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	okxWebsocketResponseMaxLimit = time.Second * 15
+)
+
 // GetDefaultConfig returns a default exchange config
 func (ok *Okx) GetDefaultConfig() (*config.Exchange, error) {
 	ok.SetDefaults()
@@ -81,10 +85,19 @@ func (ok *Okx) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerFetching:    true,
-				OrderbookFetching: true,
-				AutoPairUpdates:   true,
-				AccountInfo:       true,
+				TickerFetching:      true,
+				OrderbookFetching:   true,
+				AutoPairUpdates:     true,
+				AccountInfo:         true,
+				CryptoDeposit:       true,
+				CryptoWithdrawalFee: true,
+				CryptoWithdrawal:    true,
+				TradeFee:            true,
+				SubmitOrder:         true,
+				CancelOrder:         true,
+				CancelOrders:        true,
+				TradeFetching:       true,
+				UserTradeHistory:    true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TickerFetching:         true,
@@ -98,8 +111,7 @@ func (ok *Okx) SetDefaults() {
 				KlineFetching:          true,
 				GetOrder:               true,
 			},
-			WithdrawPermissions: exchange.AutoWithdrawCrypto |
-				exchange.AutoWithdrawFiat,
+			WithdrawPermissions: exchange.AutoWithdrawCrypto,
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
@@ -135,13 +147,16 @@ func (ok *Okx) SetDefaults() {
 	}
 
 	ok.API.Endpoints = ok.NewEndpoints()
-	ok.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+	err = ok.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      okxAPIURL,
 		exchange.WebsocketSpot: okxAPIWebsocketPublicURL,
 	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	ok.Websocket = stream.New()
-	ok.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
-	ok.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	ok.WebsocketResponseMaxLimit = okxWebsocketResponseMaxLimit
+	ok.WebsocketResponseCheckTimeout = okxWebsocketResponseMaxLimit
 	ok.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
@@ -164,24 +179,23 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	err = ok.Websocket.Setup(
-		&stream.WebsocketSetup{
-			ExchangeConfig:        exch,
-			DefaultURL:            okxAPIWebsocketPublicURL,
-			RunningURL:            wsRunningEndpoint,
-			Connector:             ok.WsConnect,
-			Subscriber:            ok.Subscribe,
-			Unsubscriber:          ok.Unsubscribe,
-			GenerateSubscriptions: ok.GenerateDefaultSubscriptions,
-			Features:              &ok.Features.Supports.WebsocketCapabilities,
-		})
+	err = ok.Websocket.Setup(&stream.WebsocketSetup{
+		ExchangeConfig:        exch,
+		DefaultURL:            okxAPIWebsocketPublicURL,
+		RunningURL:            wsRunningEndpoint,
+		Connector:             ok.WsConnect,
+		Subscriber:            ok.Subscribe,
+		Unsubscriber:          ok.Unsubscribe,
+		GenerateSubscriptions: ok.GenerateDefaultSubscriptions,
+		Features:              &ok.Features.Supports.WebsocketCapabilities,
+	})
 	if err != nil {
 		return err
 	}
 	er := ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  okxAPIWebsocketPublicURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
 	})
 	if er != nil {
 		return er
@@ -189,11 +203,9 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 	return ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  okxAPIWebsocketPrivateURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
 		Authenticated:        true,
 	})
-
-	return nil
 }
 
 // Start starts the Okx go routine
@@ -209,7 +221,6 @@ func (ok *Okx) Start(wg *sync.WaitGroup) error {
 	return nil
 }
 
-// Run implements the Okx wrapper
 func (ok *Okx) Run() {
 	if ok.Verbose {
 		log.Debugf(log.ExchangeSys,
@@ -240,7 +251,7 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, 
 		return nil, err
 	}
 	pairs := []string{}
-	insts := []*Instrument{}
+	insts := []Instrument{}
 	var er error
 	switch a {
 	case asset.Spot:
@@ -256,8 +267,8 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, 
 			InstrumentType: "SWAP",
 		})
 	case asset.Option:
-		var instsb []*Instrument
-		var instsc []*Instrument
+		var instsb []Instrument
+		var instsc []Instrument
 		insts, er = ok.GetInstruments(ctx, &InstrumentsFetchParams{
 			InstrumentType: "OPTION",
 			Underlying:     "BTC-USD",
@@ -683,10 +694,10 @@ func (ok *Okx) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType
 }
 
 // SubmitOrder submits a new order
-func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
+func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	var submitOrderResponse order.SubmitResponse
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 	var orderType string
 	switch s.Type {
@@ -702,13 +713,13 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitRe
 		orderType = "ioc"
 	default:
 		if !(s.AssetType == asset.PerpetualSwap || s.AssetType == asset.Futures) {
-			return submitOrderResponse, errInvalidOrderType
+			return nil, errInvalidOrderType
 		}
 		orderType = ""
 	}
 	instrumentID, er := ok.GetInstrumentIDFromPair(s.Pair, s.AssetType)
 	if er != nil {
-		return submitOrderResponse, er
+		return nil, er
 	}
 	tradeMode := "cash"
 	var sideType string
@@ -741,32 +752,31 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitRe
 		orderRequest.PositionSide = "long"
 		placeOrderResponse, er = ok.PlaceOrder(ctx, orderRequest)
 	default:
-		return submitOrderResponse, errInvalidInstrumentType
+		return nil, errInvalidInstrumentType
 	}
 	if er != nil {
-		return submitOrderResponse, er
+		return nil, er
 	}
 	if placeOrderResponse.OrderID != "0" && placeOrderResponse.OrderID != "" {
 		submitOrderResponse.OrderID = placeOrderResponse.OrderID
 	}
 	// submitOrderResponse.IsOrderPlaced = true
-	return submitOrderResponse, nil
+	return &submitOrderResponse, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to market conversion
-func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
+func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
-		return order.Modify{}, err
+		return nil, err
 	}
-	var modify order.Modify
 	var amendRequest AmendOrderRequestParams
 	var er error
 	if math.Mod(action.Amount, 1) != 0 {
-		return modify, errors.New("Okx contract amount can not be decimal")
+		return nil, errors.New("Okx contract amount can not be decimal")
 	}
 	instrumentID, er := ok.GetInstrumentIDFromPair(action.Pair, action.AssetType)
 	if er != nil {
-		return modify, er
+		return nil, er
 	}
 	amendRequest.InstrumentID = instrumentID
 	amendRequest.NewQuantity = action.Amount
@@ -774,9 +784,9 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (order.Mod
 	amendRequest.ClientSuppliedOrderID = action.ClientOrderID
 	response, er := ok.AmendOrder(ctx, &amendRequest)
 	if er != nil {
-		return modify, er
+		return nil, er
 	}
-	return order.Modify{
+	return &order.ModifyResponse{
 		Exchange:  action.Exchange,
 		AssetType: action.AssetType,
 		Pair:      action.Pair,

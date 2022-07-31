@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -48,6 +49,7 @@ type Engine struct {
 	currencyStateManager    *CurrencyStateManager
 	Settings                Settings
 	uptime                  time.Time
+	GRPCShutdownSignal      chan struct{}
 	ServicesWG              sync.WaitGroup
 }
 
@@ -181,6 +183,13 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 
 	flagSet.WithBool("grpc", &b.Settings.EnableGRPC, b.Config.RemoteControl.GRPC.Enabled)
 	flagSet.WithBool("grpcproxy", &b.Settings.EnableGRPCProxy, b.Config.RemoteControl.GRPC.GRPCProxyEnabled)
+
+	flagSet.WithBool("grpcshutdown", &b.Settings.EnableGRPCShutdown, b.Config.RemoteControl.GRPC.GRPCAllowBotShutdown)
+	if b.Settings.EnableGRPCShutdown {
+		b.GRPCShutdownSignal = make(chan struct{})
+		go b.waitForGPRCShutdown()
+	}
+
 	flagSet.WithBool("websocketrpc", &b.Settings.EnableWebsocketRPC, b.Config.RemoteControl.WebsocketRPC.Enabled)
 	flagSet.WithBool("deprecatedrpc", &b.Settings.EnableDeprecatedRPC, b.Config.RemoteControl.DeprecatedRPC.Enabled)
 
@@ -242,6 +251,15 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 				err)
 		}
 	}
+
+	if b.Settings.AlertSystemPreAllocationCommsBuffer != alert.PreAllocCommsDefaultBuffer {
+		err = alert.SetPreAllocationCommsBuffer(b.Settings.AlertSystemPreAllocationCommsBuffer)
+		if err != nil {
+			gctlog.Errorf(gctlog.Global, "Could not set alert pre-allocation comms buffer to %v: %v",
+				b.Settings.AlertSystemPreAllocationCommsBuffer,
+				err)
+		}
+	}
 }
 
 // PrintSettings returns the engine settings
@@ -260,6 +278,7 @@ func PrintSettings(s *Settings) {
 	gctlog.Debugf(gctlog.Global, "\t Portfolio manager sleep delay: %v\n", s.PortfolioManagerDelay)
 	gctlog.Debugf(gctlog.Global, "\t Enable gPRC: %v", s.EnableGRPC)
 	gctlog.Debugf(gctlog.Global, "\t Enable gRPC Proxy: %v", s.EnableGRPCProxy)
+	gctlog.Debugf(gctlog.Global, "\t Enable gRPC shutdown of bot instance: %v", s.EnableGRPCShutdown)
 	gctlog.Debugf(gctlog.Global, "\t Enable websocket RPC: %v", s.EnableWebsocketRPC)
 	gctlog.Debugf(gctlog.Global, "\t Enable deprecated RPC: %v", s.EnableDeprecatedRPC)
 	gctlog.Debugf(gctlog.Global, "\t Enable comms relayer: %v", s.EnableCommsRelayer)
@@ -274,6 +293,7 @@ func PrintSettings(s *Settings) {
 	gctlog.Debugf(gctlog.Global, "\t Enable dispatcher: %v", s.EnableDispatcher)
 	gctlog.Debugf(gctlog.Global, "\t Dispatch package max worker amount: %d", s.DispatchMaxWorkerAmount)
 	gctlog.Debugf(gctlog.Global, "\t Dispatch package jobs limit: %d", s.DispatchJobsLimit)
+	gctlog.Debugf(gctlog.Global, "\t Futures PNL tracking: %v", s.EnableFuturesTracking)
 	gctlog.Debugf(gctlog.Global, "- EXCHANGE SYNCER SETTINGS:\n")
 	gctlog.Debugf(gctlog.Global, "\t Exchange sync continuously: %v\n", s.SyncContinuously)
 	gctlog.Debugf(gctlog.Global, "\t Exchange sync workers count: %v\n", s.SyncWorkersCount)
@@ -299,6 +319,7 @@ func PrintSettings(s *Settings) {
 	gctlog.Debugf(gctlog.Global, "\t Max HTTP request jobs: %v", s.MaxHTTPRequestJobsLimit)
 	gctlog.Debugf(gctlog.Global, "\t HTTP request max retry attempts: %v", s.RequestMaxRetryAttempts)
 	gctlog.Debugf(gctlog.Global, "\t Trade buffer processing interval: %v", s.TradeBufferProcessingInterval)
+	gctlog.Debugf(gctlog.Global, "\t Alert communications channel pre-allocation buffer size: %v", s.AlertSystemPreAllocationCommsBuffer)
 	gctlog.Debugf(gctlog.Global, "\t HTTP timeout: %v", s.HTTPTimeout)
 	gctlog.Debugf(gctlog.Global, "\t HTTP user agent: %v", s.HTTPUserAgent)
 	gctlog.Debugf(gctlog.Global, "- GCTSCRIPT SETTINGS: ")
@@ -504,6 +525,7 @@ func (bot *Engine) Start() error {
 			bot.ExchangeManager,
 			bot.CommunicationsManager,
 			&bot.ServicesWG,
+			bot.Settings.EnableFuturesTracking,
 			bot.Settings.Verbose)
 		if err != nil {
 			gctlog.Errorf(gctlog.Global, "Order manager unable to setup: %s", err)
@@ -947,4 +969,32 @@ func (bot *Engine) SetupExchanges() error {
 // of the currency pair syncer management system.
 func (bot *Engine) WaitForInitialCurrencySync() error {
 	return bot.currencyPairSyncer.WaitForInitialSync()
+}
+
+// RegisterWebsocketDataHandler registers an externally defined data handler
+// for diverting and handling websocket notifications across all enabled
+// exchanges. InterceptorOnly as true will purge all other registered handlers
+// (including default) bypassing all other handling.
+func (bot *Engine) RegisterWebsocketDataHandler(fn WebsocketDataHandler, interceptorOnly bool) error {
+	if bot == nil {
+		return errNilBot
+	}
+	return bot.websocketRoutineManager.registerWebsocketDataHandler(fn, interceptorOnly)
+}
+
+// SetDefaultWebsocketDataHandler sets the default websocket handler and
+// removing all pre-existing handlers
+func (bot *Engine) SetDefaultWebsocketDataHandler() error {
+	if bot == nil {
+		return errNilBot
+	}
+	return bot.websocketRoutineManager.setWebsocketDataHandler(bot.websocketRoutineManager.websocketDataHandler)
+}
+
+// waitForGPRCShutdown routines waits for a signal from the grpc server to
+// send a shutdown signal.
+func (bot *Engine) waitForGPRCShutdown() {
+	<-bot.GRPCShutdownSignal
+	gctlog.Warnln(gctlog.Global, "Captured gRPC shutdown request.")
+	bot.Settings.Shutdown <- struct{}{}
 }

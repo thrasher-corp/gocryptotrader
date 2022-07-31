@@ -398,7 +398,7 @@ func (f *FTX) GetMarginLendingRates(ctx context.Context) ([]MarginFundingData, e
 	r := struct {
 		Data []MarginFundingData `json:"result"`
 	}{}
-	return r.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, marginLendingRates, nil, &r)
+	return r.Data, f.SendHTTPRequest(ctx, exchange.RestSpot, marginLendingRates, &r)
 }
 
 // MarginDailyBorrowedAmounts gets daily borrowed amounts for margin
@@ -435,7 +435,7 @@ func (f *FTX) GetMarginBorrowHistory(ctx context.Context, startTime, endTime tim
 	return r.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, nil, &r)
 }
 
-// GetMarginMarketLendingHistory gets the markets margin lending rate history
+// GetMarginMarketLendingHistory gets the market's margin lending rate history
 func (f *FTX) GetMarginMarketLendingHistory(ctx context.Context, coin currency.Code, startTime, endTime time.Time) ([]MarginTransactionHistoryData, error) {
 	r := struct {
 		Data []MarginTransactionHistoryData `json:"result"`
@@ -452,7 +452,7 @@ func (f *FTX) GetMarginMarketLendingHistory(ctx context.Context, coin currency.C
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
 	endpoint := common.EncodeURLValues(marginLendingHistory, params)
-	return r.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, params, &r)
+	return r.Data, f.SendHTTPRequest(ctx, exchange.RestSpot, endpoint, &r)
 }
 
 // GetMarginLendingHistory gets margin lending history
@@ -1290,7 +1290,7 @@ func (f *FTX) SendAuthHTTPRequest(ctx context.Context, ep exchange.URL, method, 
 // GetFee returns an estimate of fee based on type of transaction
 func (f *FTX) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
-	if !f.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+	if !f.IsRESTAuthenticationSupported() {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
 	switch feeBuilder.FeeType {
@@ -1534,11 +1534,11 @@ func (f *FTX) FetchExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, err
 		}
 
 		limits = append(limits, order.MinMaxLevel{
-			Pair:       cp,
-			Asset:      a,
-			StepPrice:  data[x].PriceIncrement,
-			StepAmount: data[x].SizeIncrement,
-			MinAmount:  data[x].MinProvideSize,
+			Pair:                    cp,
+			Asset:                   a,
+			PriceStepIncrementSize:  data[x].PriceIncrement,
+			AmountStepIncrementSize: data[x].SizeIncrement,
+			MinAmount:               data[x].MinProvideSize,
 		})
 	}
 	return limits, nil
@@ -1697,7 +1697,7 @@ func (f *FTX) LoadCollateralWeightings(ctx context.Context) error {
 	f.collateralWeight.load("ZM", 0.9, 0.85, 0.01)
 	f.collateralWeight.load("ZRX", 0.85, 0.8, 0.001)
 
-	if !f.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+	if !f.IsRESTAuthenticationSupported() {
 		return nil
 	}
 	coins, err := f.GetCoins(ctx)

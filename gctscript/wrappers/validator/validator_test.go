@@ -105,7 +105,7 @@ func TestWrapper_CancelOrder(t *testing.T) {
 	}
 
 	_, err = testWrapper.CancelOrder(context.Background(),
-		exchName, orderID, cp, "")
+		exchName, orderID, cp, asset.Empty)
 	if err != nil {
 		t.Error(err)
 	}

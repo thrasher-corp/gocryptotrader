@@ -318,11 +318,91 @@ func (a *TickerResponse) UnmarshalJSON(data []byte) error {
 		*Alias
 		InstrumentType           string `json:"instType"`
 		TickerDataGenerationTime int64  `json:"ts,string"`
+
+		LastTradePrice string `json:"last"`
+		LastTradeSize  string `json:"lastSz"`
+		BestAskPrice   string `json:"askPx"`
+		BestAskSize    string `json:"askSz"`
+		BidPrice       string `json:"bidPx"`
+		BidSize        string `json:"bidSz"`
+		Open24H        string `json:"open24h"`
+		High24H        string `json:"high24h"`
+		Low24H         string `json:"low24h"`
+		VolCcy24H      string `json:"volCcy24h"`
+		Vol24H         string `json:"vol24h"`
 	}{
 		Alias: (*Alias)(a),
 	}
 	if er := json.Unmarshal(data, chil); er != nil {
 		return er
+	}
+	var val float64
+	var er error
+	if chil.LastTradePrice != "" {
+		val, er = strconv.ParseFloat(chil.LastTradePrice, 64)
+		if er == nil {
+			a.LastTradePrice = val
+		}
+	}
+	if chil.LastTradeSize != "" {
+		val, er = strconv.ParseFloat(chil.LastTradeSize, 64)
+		if er == nil {
+			a.LastTradeSize = val
+		}
+	}
+	if chil.BestAskPrice != "" {
+		val, er = strconv.ParseFloat(chil.BestAskPrice, 64)
+		if er == nil {
+			a.BestAskPrice = val
+		}
+	}
+	if chil.BestAskSize != "" {
+		val, er = strconv.ParseFloat(chil.BestAskSize, 64)
+		if er == nil {
+			a.BestAskSize = val
+		}
+	}
+	if chil.BidPrice != "" {
+		val, er = strconv.ParseFloat(chil.BidPrice, 64)
+		if er == nil {
+			a.BidPrice = val
+		}
+	}
+	if chil.BidSize != "" {
+		val, er = strconv.ParseFloat(chil.BidSize, 64)
+		if er == nil {
+			a.BidSize = val
+		}
+	}
+	if chil.Open24H != "" {
+		val, er = strconv.ParseFloat(chil.Open24H, 64)
+		if er == nil {
+			a.Open24H = val
+		}
+	}
+	if chil.High24H != "" {
+		val, er = strconv.ParseFloat(chil.High24H, 64)
+		if er == nil {
+			a.High24H = val
+		}
+	}
+	if chil.Low24H != "" {
+		val, er = strconv.ParseFloat(chil.Low24H, 64)
+		if er == nil {
+			a.Low24H = val
+		}
+	}
+	if chil.VolCcy24H != "" {
+		val, er = strconv.ParseFloat(chil.VolCcy24H, 64)
+		if er == nil {
+			a.VolCcy24H = val
+		}
+	}
+	if chil.Vol24H != "" {
+		val, er = strconv.ParseFloat(chil.Vol24H, 64)
+		if er == nil {
+			a.Vol24H = val
+		}
 	}
 	if chil.TickerDataGenerationTime > 0 {
 		a.TickerDataGenerationTime = time.UnixMilli(chil.TickerDataGenerationTime)
@@ -546,16 +626,27 @@ func (a *OrderDetail) UnmarshalJSON(data []byte) error {
 		UpdateTime     int64  `json:"uTime,string"`
 		CreationTime   int64  `json:"cTime,string"`
 		InstrumentType string `json:"instType"`
+
+		Leverage     string `json:"lever"`
+		RebateAmount string `json:"rebate"`
 	}{
 		Alias: (*Alias)(a),
 	}
-	if er := json.Unmarshal(data, chil); er != nil {
+	var val float64
+	var er error
+	if er = json.Unmarshal(data, chil); er != nil {
 		return er
 	}
 	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
 	a.CreationTime = time.UnixMilli(chil.CreationTime)
 	a.Side = order.ParseOrderSideString(chil.Side)
 	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	if val, er = strconv.ParseFloat(chil.Leverage, 64); er == nil {
+		a.Leverage = val
+	}
+	if val, er = strconv.ParseFloat(chil.RebateAmount, 64); er == nil {
+		a.RebateAmount = val
+	}
 	switch chil.InstrumentType {
 	case "SWAP":
 		a.InstrumentType = asset.PerpetualSwap
@@ -583,16 +674,39 @@ func (a *PendingOrderItem) UnmarshalJSON(data []byte) error {
 		UpdateTime     int64  `json:"uTime,string"`
 		CreationTime   int64  `json:"cTime,string"`
 		InstrumentType string `json:"instType"`
+		//
+		AccumulatedFillSize string `json:"accFillSz"`
+		AveragePrice        string `json:"avgPx"`
+		FeeCurrency         string `json:"feeCcy"`
+		LastFilledSize      string `json:"fillSz"`
+		Leverage            string `json:"lever"`
 	}{
 		Alias: (*Alias)(a),
 	}
-	if er := json.Unmarshal(data, chil); er != nil {
+	var er error
+	if er = json.Unmarshal(data, chil); er != nil {
 		return er
 	}
 	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
 	a.CreationTime = time.UnixMilli(chil.CreationTime)
 	a.Side = order.ParseOrderSideString(chil.Side)
 	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	var val float64
+	if val, er = strconv.ParseFloat(chil.AccumulatedFillSize, 64); er == nil {
+		a.AccumulatedFillSize = val
+	}
+	if val, er = strconv.ParseFloat(chil.AveragePrice, 64); er == nil {
+		a.AveragePrice = val
+	}
+	if val, er = strconv.ParseFloat(chil.FeeCurrency, 64); er == nil {
+		a.FeeCurrency = val
+	}
+	if val, er = strconv.ParseFloat(chil.LastFilledSize, 64); er == nil {
+		a.LastFilledSize = val
+	}
+	if val, er = strconv.ParseFloat(chil.Leverage, 64); er == nil {
+		a.Leverage = val
+	}
 	switch chil.InstrumentType {
 	case "SWAP":
 		a.InstrumentType = asset.PerpetualSwap

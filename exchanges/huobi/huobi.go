@@ -324,20 +324,17 @@ func (h *HUOBI) GetCurrenciesIncludingChains(ctx context.Context, curr currency.
 	return resp.Data, nil
 }
 
-// GetTimestamp returns the Huobi server time
-func (h *HUOBI) GetTimestamp(ctx context.Context) (int64, error) {
-	type response struct {
+// GetCurrentServerTime returns the Huobi server time
+func (h *HUOBI) GetCurrentServerTime(ctx context.Context) (time.Time, error) {
+	var result struct {
 		Response
 		Timestamp int64 `json:"data"`
 	}
-
-	var result response
-
 	err := h.SendHTTPRequest(ctx, exchange.RestSpot, "/v"+huobiAPIVersion+"/"+huobiTimestamp, &result)
 	if result.ErrorMessage != "" {
-		return 0, errors.New(result.ErrorMessage)
+		return time.Time{}, errors.New(result.ErrorMessage)
 	}
-	return result.Timestamp, err
+	return time.UnixMilli(result.Timestamp), err
 }
 
 // GetAccounts returns the Huobi user accounts

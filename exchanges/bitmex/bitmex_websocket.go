@@ -17,7 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -314,9 +313,9 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 						Err:      err,
 					}
 				}
-				b.Websocket.DataHandler <- &order.Modify{
+				b.Websocket.DataHandler <- &order.Detail{
 					Exchange:  b.Name,
-					ID:        response.Data[i].OrderID,
+					OrderID:   response.Data[i].OrderID,
 					AccountID: strconv.FormatInt(response.Data[i].Account, 10),
 					AssetType: a,
 					Pair:      p,
@@ -380,7 +379,7 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 						Price:     response.Data[x].Price,
 						Amount:    response.Data[x].OrderQuantity,
 						Exchange:  b.Name,
-						ID:        response.Data[x].OrderID,
+						OrderID:   response.Data[x].OrderID,
 						AccountID: strconv.FormatInt(response.Data[x].Account, 10),
 						Type:      oType,
 						Side:      oSide,
@@ -425,11 +424,11 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 							Err:      err,
 						}
 					}
-					b.Websocket.DataHandler <- &order.Modify{
+					b.Websocket.DataHandler <- &order.Detail{
 						Price:     response.Data[x].Price,
 						Amount:    response.Data[x].OrderQuantity,
 						Exchange:  b.Name,
-						ID:        response.Data[x].OrderID,
+						OrderID:   response.Data[x].OrderID,
 						AccountID: strconv.FormatInt(response.Data[x].Account, 10),
 						Type:      oType,
 						Side:      oSide,
@@ -526,6 +525,11 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 				err)
 		}
 	default:
+		updateAction, err := b.GetActionFromString(action)
+		if err != nil {
+			return err
+		}
+
 		asks := make([]orderbook.Item, 0, len(data))
 		bids := make([]orderbook.Item, 0, len(data))
 		for i := range data {
@@ -541,12 +545,12 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 			bids = append(bids, nItem)
 		}
 
-		err := b.Websocket.Orderbook.Update(&buffer.Update{
+		err = b.Websocket.Orderbook.Update(&orderbook.Update{
 			Bids:   bids,
 			Asks:   asks,
 			Pair:   p,
 			Asset:  a,
-			Action: buffer.Action(action),
+			Action: updateAction,
 		})
 		if err != nil {
 			return err
@@ -692,4 +696,19 @@ func (b *Bitmex) websocketSendAuth(ctx context.Context) error {
 		return err
 	}
 	return nil
+}
+
+// GetActionFromString matches a string action to an internal action.
+func (b *Bitmex) GetActionFromString(s string) (orderbook.Action, error) {
+	switch s {
+	case "update":
+		return orderbook.Amend, nil
+	case "delete":
+		return orderbook.Delete, nil
+	case "insert":
+		return orderbook.Insert, nil
+	case "update/insert":
+		return orderbook.UpdateInsert, nil
+	}
+	return 0, fmt.Errorf("%s %w", s, orderbook.ErrInvalidAction)
 }

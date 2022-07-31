@@ -18,7 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -195,9 +194,9 @@ func (c *COINUT) wsHandleData(ctx context.Context, respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		c.Websocket.DataHandler <- &order.Modify{
+		c.Websocket.DataHandler <- &order.Detail{
 			Exchange:    c.Name,
-			ID:          strconv.FormatInt(cancel.OrderID, 10),
+			OrderID:     strconv.FormatInt(cancel.OrderID, 10),
 			Status:      order.Cancelled,
 			LastUpdated: time.Now(),
 			AssetType:   asset.Spot,
@@ -209,9 +208,9 @@ func (c *COINUT) wsHandleData(ctx context.Context, respRaw []byte) error {
 			return err
 		}
 		for i := range cancels.Results {
-			c.Websocket.DataHandler <- &order.Modify{
+			c.Websocket.DataHandler <- &order.Detail{
 				Exchange:    c.Name,
-				ID:          strconv.FormatInt(cancels.Results[i].OrderID, 10),
+				OrderID:     strconv.FormatInt(cancels.Results[i].OrderID, 10),
 				Status:      order.Cancelled,
 				LastUpdated: time.Now(),
 				AssetType:   asset.Spot,
@@ -448,7 +447,7 @@ func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detai
 		ExecutedAmount:  oContainer.FillQuantity,
 		RemainingAmount: oContainer.OpenQuantity,
 		Exchange:        c.Name,
-		ID:              orderID,
+		OrderID:         orderID,
 		Side:            oSide,
 		Status:          oStatus,
 		Date:            time.Unix(0, oContainer.Timestamp),
@@ -465,7 +464,7 @@ func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detai
 		}
 		o.RemainingAmount = oContainer.Order.OpenQuantity
 		o.Amount = oContainer.Order.Quantity
-		o.ID = strconv.FormatInt(oContainer.Order.OrderID, 10)
+		o.OrderID = strconv.FormatInt(oContainer.Order.OrderID, 10)
 		o.LastUpdated = time.Unix(0, oContainer.Timestamp)
 		o.Pair, o.AssetType, err = c.GetRequestFormattedPairAndAssetType(c.instrumentMap.LookupInstrument(oContainer.Order.InstrumentID))
 		if err != nil {
@@ -582,7 +581,7 @@ func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 		return err
 	}
 
-	bufferUpdate := &buffer.Update{
+	bufferUpdate := &orderbook.Update{
 		Pair:     p,
 		UpdateID: update.TransID,
 		Asset:    asset.Spot,
@@ -776,7 +775,7 @@ func (c *COINUT) wsSubmitOrder(o *WsSubmitOrderParameters) (*order.Detail, error
 	orderSubmissionRequest.InstrumentID = c.instrumentMap.LookupID(curr.String())
 	orderSubmissionRequest.Quantity = o.Amount
 	orderSubmissionRequest.Price = o.Price
-	orderSubmissionRequest.Side = string(o.Side)
+	orderSubmissionRequest.Side = o.Side.String()
 
 	if o.OrderID > 0 {
 		orderSubmissionRequest.OrderID = o.OrderID
@@ -817,7 +816,7 @@ func (c *COINUT) wsSubmitOrders(orders []WsSubmitOrderParameters) ([]order.Detai
 			WsSubmitOrdersRequestData{
 				Quantity:      orders[i].Amount,
 				Price:         orders[i].Price,
-				Side:          string(orders[i].Side),
+				Side:          orders[i].Side.String(),
 				InstrumentID:  c.instrumentMap.LookupID(curr.String()),
 				ClientOrderID: i + 1,
 			})

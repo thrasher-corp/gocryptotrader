@@ -56,7 +56,7 @@ func TestOnSignal(t *testing.T) {
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := data.Base{}
 	d.SetStream([]common.DataEventHandler{&eventkline.Kline{
-		Base: event.Base{
+		Base: &event.Base{
 			Exchange:     exch,
 			Time:         dInsert,
 			Interval:     gctkline.OneDay,
@@ -80,7 +80,7 @@ func TestOnSignal(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if resp.GetDirection() != common.MissingData {
+	if resp.GetDirection() != gctorder.MissingData {
 		t.Error("expected missing data")
 	}
 
@@ -134,7 +134,7 @@ func TestOnSignals(t *testing.T) {
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := data.Base{}
 	d.SetStream([]common.DataEventHandler{&eventkline.Kline{
-		Base: event.Base{
+		Base: &event.Base{
 			Offset:       1,
 			Exchange:     exch,
 			Time:         dInsert,
@@ -162,7 +162,7 @@ func TestOnSignals(t *testing.T) {
 	if len(resp) != 1 {
 		t.Fatal("expected 1 response")
 	}
-	if resp[0].GetDirection() != common.MissingData {
+	if resp[0].GetDirection() != gctorder.MissingData {
 		t.Error("expected missing data")
 	}
 

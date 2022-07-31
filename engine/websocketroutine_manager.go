@@ -33,14 +33,15 @@ func setupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager
 	if cfg.CurrencyPairFormat == nil && verbose {
 		return nil, errNilCurrencyPairFormat
 	}
-	return &websocketRoutineManager{
+	man := &websocketRoutineManager{
 		verbose:         verbose,
 		exchangeManager: exchangeManager,
 		orderManager:    orderManager,
 		syncer:          syncer,
 		currencyConfig:  cfg,
 		shutdown:        make(chan struct{}),
-	}, nil
+	}
+	return man, man.registerWebsocketDataHandler(man.websocketDataHandler, false)
 }
 
 // Start runs the subsystem
@@ -113,7 +114,12 @@ func (m *websocketRoutineManager) websocketRoutine() {
 					if err != nil {
 						log.Errorf(log.WebsocketMgr, "%v", err)
 					}
-					go m.WebsocketDataReceiver(ws)
+
+					err = m.websocketDataReceiver(ws)
+					if err != nil {
+						log.Errorf(log.WebsocketMgr, "%v", err)
+					}
+
 					err = ws.FlushChannels()
 					if err != nil {
 						log.Errorf(log.WebsocketMgr, "Failed to subscribe: %v", err)
@@ -131,34 +137,48 @@ func (m *websocketRoutineManager) websocketRoutine() {
 
 // WebsocketDataReceiver handles websocket data coming from a websocket feed
 // associated with an exchange
-func (m *websocketRoutineManager) WebsocketDataReceiver(ws *stream.Websocket) {
-	if m == nil || atomic.LoadInt32(&m.started) == 0 {
-		return
+func (m *websocketRoutineManager) websocketDataReceiver(ws *stream.Websocket) error {
+	if m == nil {
+		return fmt.Errorf("websocket routine manager %w", ErrNilSubsystem)
 	}
-	m.wg.Add(1)
-	defer m.wg.Done()
 
-	for {
-		select {
-		case <-m.shutdown:
-			return
-		case data := <-ws.ToRoutine:
-			err := m.WebsocketDataHandler(ws.GetName(), data)
-			if err != nil {
-				log.Error(log.WebsocketMgr, err)
+	if ws == nil {
+		return errNilWebsocket
+	}
+
+	if atomic.LoadInt32(&m.started) == 0 {
+		return errRoutineManagerNotStarted
+	}
+
+	m.wg.Add(1)
+	go func() {
+		defer m.wg.Done()
+		for {
+			select {
+			case <-m.shutdown:
+				return
+			case data := <-ws.ToRoutine:
+				if data == nil {
+					log.Errorf(log.WebsocketMgr, "exchange %s nil data sent to websocket", ws.GetName())
+				}
+				m.mu.RLock()
+				for x := range m.dataHandlers {
+					err := m.dataHandlers[x](ws.GetName(), data)
+					if err != nil {
+						log.Error(log.WebsocketMgr, err)
+					}
+				}
+				m.mu.RUnlock()
 			}
 		}
-	}
+	}()
+	return nil
 }
 
-// WebsocketDataHandler is a central point for exchange websocket implementations to send
-// processed data. WebsocketDataHandler will then pass that to an appropriate handler
-func (m *websocketRoutineManager) WebsocketDataHandler(exchName string, data interface{}) error {
-	if data == nil {
-		return fmt.Errorf("exchange %s nil data sent to websocket",
-			exchName)
-	}
-
+// websocketDataHandler is the default central point for exchange websocket
+// implementations to send processed data which will then pass that to an
+// appropriate handler.
+func (m *websocketRoutineManager) websocketDataHandler(exchName string, data interface{}) error {
 	switch d := data.(type) {
 	case string:
 		log.Info(log.WebsocketMgr, d)
@@ -196,47 +216,44 @@ func (m *websocketRoutineManager) WebsocketDataHandler(exchName string, data int
 				d.AssetType,
 				d)
 		}
-	case *orderbook.Base:
+	case *orderbook.Depth:
+		base, err := d.Retrieve()
+		if err != nil {
+			return err
+		}
 		if m.syncer.IsRunning() {
 			err := m.syncer.Update(exchName,
-				d.Pair,
-				d.Asset,
+				base.Pair,
+				base.Asset,
 				SyncItemOrderbook,
 				nil)
 			if err != nil {
 				return err
 			}
 		}
-		m.syncer.PrintOrderbookSummary(d, "websocket", nil)
+		m.syncer.PrintOrderbookSummary(base, "websocket", nil)
 	case *order.Detail:
-		m.printOrderSummary(d)
 		if !m.orderManager.Exists(d) {
 			err := m.orderManager.Add(d)
 			if err != nil {
 				return err
 			}
+			m.printOrderSummary(d, false)
 		} else {
-			od, err := m.orderManager.GetByExchangeAndID(d.Exchange, d.ID)
+			od, err := m.orderManager.GetByExchangeAndID(d.Exchange, d.OrderID)
 			if err != nil {
 				return err
 			}
-			od.UpdateOrderFromDetail(d)
+			err = od.UpdateOrderFromDetail(d)
+			if err != nil {
+				return err
+			}
 
 			err = m.orderManager.UpdateExistingOrder(od)
 			if err != nil {
 				return err
 			}
-		}
-	case *order.Modify:
-		m.printOrderChangeSummary(d)
-		od, err := m.orderManager.GetByExchangeAndID(d.Exchange, d.ID)
-		if err != nil {
-			return err
-		}
-		od.UpdateOrderFromModify(d)
-		err = m.orderManager.UpdateExistingOrder(od)
-		if err != nil {
-			return err
+			m.printOrderSummary(d, true)
 		}
 	case order.ClassificationError:
 		return fmt.Errorf("%w %s", d.Err, d.Error())
@@ -275,44 +292,28 @@ func (m *websocketRoutineManager) FormatCurrency(p currency.Pair) currency.Pair 
 		m.currencyConfig.CurrencyPairFormat.Uppercase)
 }
 
-// printOrderChangeSummary this function will be deprecated when a order manager
-// update is done.
-func (m *websocketRoutineManager) printOrderChangeSummary(o *order.Modify) {
-	if m == nil || atomic.LoadInt32(&m.started) == 0 || o == nil {
-		return
-	}
-
-	log.Debugf(log.WebsocketMgr,
-		"Order Change: %s %s %s %s %s %s OrderID:%s ClientOrderID:%s Price:%f Amount:%f Executed Amount:%f Remaining Amount:%f",
-		o.Exchange,
-		o.AssetType,
-		o.Pair,
-		o.Status,
-		o.Type,
-		o.Side,
-		o.ID,
-		o.ClientOrderID,
-		o.Price,
-		o.Amount,
-		o.ExecutedAmount,
-		o.RemainingAmount)
-}
-
 // printOrderSummary this function will be deprecated when a order manager
 // update is done.
-func (m *websocketRoutineManager) printOrderSummary(o *order.Detail) {
+func (m *websocketRoutineManager) printOrderSummary(o *order.Detail, isUpdate bool) {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 || o == nil {
 		return
 	}
+
+	orderNotif := "New Order:"
+	if isUpdate {
+		orderNotif = "Order Change:"
+	}
+
 	log.Debugf(log.WebsocketMgr,
-		"New Order: %s %s %s %s %s %s OrderID:%s ClientOrderID:%s Price:%f Amount:%f Executed Amount:%f Remaining Amount:%f",
+		"%s %s %s %s %s %s %s OrderID:%s ClientOrderID:%s Price:%f Amount:%f Executed Amount:%f Remaining Amount:%f",
+		orderNotif,
 		o.Exchange,
 		o.AssetType,
 		o.Pair,
 		o.Status,
 		o.Type,
 		o.Side,
-		o.ID,
+		o.OrderID,
 		o.ClientOrderID,
 		o.Price,
 		o.Amount,
@@ -333,4 +334,44 @@ func (m *websocketRoutineManager) printAccountHoldingsChangeSummary(o account.Ch
 		o.Currency,
 		o.Amount,
 		o.Account)
+}
+
+// registerWebsocketDataHandler registers an externally (GCT Library) defined
+// dedicated filter specific data types for internal & external strategy use.
+// InterceptorOnly as true will purge all other registered handlers
+// (including default) bypassing all other handling.
+func (m *websocketRoutineManager) registerWebsocketDataHandler(fn WebsocketDataHandler, interceptorOnly bool) error {
+	if m == nil {
+		return fmt.Errorf("%T %w", m, ErrNilSubsystem)
+	}
+
+	if fn == nil {
+		return errNilWebsocketDataHandlerFunction
+	}
+
+	if interceptorOnly {
+		return m.setWebsocketDataHandler(fn)
+	}
+
+	m.mu.Lock()
+	// Push front so that any registered data handler has first preference
+	// over the gct default handler.
+	m.dataHandlers = append([]WebsocketDataHandler{fn}, m.dataHandlers...)
+	m.mu.Unlock()
+	return nil
+}
+
+// setWebsocketDataHandler sets a single websocket data handler, removing all
+// pre-existing handlers.
+func (m *websocketRoutineManager) setWebsocketDataHandler(fn WebsocketDataHandler) error {
+	if m == nil {
+		return fmt.Errorf("%T %w", m, ErrNilSubsystem)
+	}
+	if fn == nil {
+		return errNilWebsocketDataHandlerFunction
+	}
+	m.mu.Lock()
+	m.dataHandlers = []WebsocketDataHandler{fn}
+	m.mu.Unlock()
+	return nil
 }

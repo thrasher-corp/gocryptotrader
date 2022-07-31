@@ -14,12 +14,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -400,7 +398,7 @@ func (h *HitBTC) wsHandleOrderData(o *wsOrderData) error {
 		ExecutedAmount:  o.CumQuantity,
 		RemainingAmount: o.Quantity - o.CumQuantity,
 		Exchange:        h.Name,
-		ID:              o.ID,
+		OrderID:         o.ID,
 		Type:            oType,
 		Side:            oSide,
 		Status:          oStatus,
@@ -454,7 +452,7 @@ func (h *HitBTC) WsProcessOrderbookUpdate(update *WsOrderbook) error {
 		return err
 	}
 
-	return h.Websocket.Orderbook.Update(&buffer.Update{
+	return h.Websocket.Orderbook.Update(&orderbook.Update{
 		Asks:     asks,
 		Bids:     bids,
 		Pair:     p,
@@ -567,7 +565,7 @@ func (h *HitBTC) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (h *HitBTC) wsLogin(ctx context.Context) error {
-	if !h.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if !h.IsWebsocketAuthenticationSupported() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", h.Name)
 	}
 	creds, err := h.GetCredentials(ctx)

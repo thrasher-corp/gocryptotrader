@@ -363,6 +363,7 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		}
 		info.Accounts = append(info.Accounts, account.SubAccount{
 			Currencies: currData,
+			AssetType:  assetType,
 		})
 	} else {
 		balance, err := g.GetBalances(ctx)
@@ -420,12 +421,17 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		}
 
 		info.Accounts = append(info.Accounts, account.SubAccount{
+			AssetType:  assetType,
 			Currencies: balances,
 		})
 	}
 
 	info.Exchange = g.Name
-	if err := account.Process(&info); err != nil {
+	creds, err := g.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	if err := account.Process(&info, creds); err != nil {
 		return account.Holdings{}, err
 	}
 
@@ -434,11 +440,14 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (g *Gateio) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(g.Name, assetType)
+	creds, err := g.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(g.Name, creds, assetType)
 	if err != nil {
 		return g.UpdateAccountInfo(ctx, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -500,10 +509,9 @@ func (g *Gateio) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.I
 
 // SubmitOrder submits a new order
 // TODO: support multiple order types (IOC)
-func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	var orderTypeFormat string
@@ -515,7 +523,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 
 	fPair, err := g.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	var spotNewOrderRequestParams = SpotNewOrderRequestParams{
@@ -527,23 +535,22 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 
 	response, err := g.SpotNewOrder(ctx, spotNewOrderRequestParams)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
-	if response.OrderNumber > 0 {
-		submitOrderResponse.OrderID = strconv.FormatInt(response.OrderNumber, 10)
+	subResp, err := s.DeriveSubmitResponse(strconv.FormatInt(response.OrderNumber, 10))
+	if err != nil {
+		return nil, err
 	}
 	if response.LeftAmount == 0 {
-		submitOrderResponse.FullyMatched = true
+		subResp.Status = order.Filled
 	}
-	submitOrderResponse.IsOrderPlaced = true
-
-	return submitOrderResponse, nil
+	return subResp, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (g *Gateio) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
-	return order.Modify{}, common.ErrFunctionNotSupported
+func (g *Gateio) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -552,7 +559,7 @@ func (g *Gateio) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -604,7 +611,7 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		return orderDetail, errors.New("failed to get open orders")
 	}
 
-	if assetType == "" {
+	if assetType == asset.Empty {
 		assetType = asset.Spot
 	}
 
@@ -618,7 +625,7 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			continue
 		}
 		orderDetail.Exchange = g.Name
-		orderDetail.ID = orders.Orders[x].OrderNumber
+		orderDetail.OrderID = orders.Orders[x].OrderNumber
 		orderDetail.RemainingAmount = orders.Orders[x].InitialAmount - orders.Orders[x].FilledAmount
 		orderDetail.ExecutedAmount = orders.Orders[x].FilledAmount
 		orderDetail.Amount = orders.Orders[x].InitialAmount
@@ -748,7 +755,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 				orders = append(orders, order.Detail{
 					Exchange:        g.Name,
 					AccountID:       strconv.FormatInt(resp.WebSocketOrderQueryRecords[j].User, 10),
-					ID:              strconv.FormatInt(resp.WebSocketOrderQueryRecords[j].ID, 10),
+					OrderID:         strconv.FormatInt(resp.WebSocketOrderQueryRecords[j].ID, 10),
 					Pair:            p,
 					Side:            orderSide,
 					Type:            orderType,
@@ -785,14 +792,18 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			if err != nil {
 				return nil, err
 			}
-			side := order.Side(strings.ToUpper(resp.Orders[i].Type))
+			var side order.Side
+			side, err = order.StringToOrderSide(resp.Orders[i].Type)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
+			}
 			status, err := order.StringToOrderStatus(resp.Orders[i].Status)
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
 			}
 			orderDate := time.Unix(resp.Orders[i].Timestamp, 0)
 			orders = append(orders, order.Detail{
-				ID:              resp.Orders[i].OrderNumber,
+				OrderID:         resp.Orders[i].OrderNumber,
 				Amount:          resp.Orders[i].Amount,
 				ExecutedAmount:  resp.Orders[i].Amount - resp.Orders[i].FilledAmount,
 				RemainingAmount: resp.Orders[i].FilledAmount,
@@ -805,7 +816,10 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			})
 		}
 	}
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err := order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
+	}
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
@@ -838,10 +852,14 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		if err != nil {
 			return nil, err
 		}
-		side := order.Side(strings.ToUpper(trades[i].Type))
+		var side order.Side
+		side, err = order.StringToOrderSide(trades[i].Type)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
+		}
 		orderDate := time.Unix(trades[i].TimeUnix, 0)
 		detail := order.Detail{
-			ID:                   strconv.FormatInt(trades[i].OrderID, 10),
+			OrderID:              strconv.FormatInt(trades[i].OrderID, 10),
 			Amount:               trades[i].Amount,
 			ExecutedAmount:       trades[i].Amount,
 			Price:                trades[i].Rate,
@@ -855,7 +873,10 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		orders[i] = detail
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
+	}
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }

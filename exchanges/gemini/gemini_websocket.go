@@ -21,7 +21,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -178,7 +177,7 @@ func (g *Gemini) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 
 // WsAuth will connect to Gemini's secure endpoint
 func (g *Gemini) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
-	if !g.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if !g.IsWebsocketAuthenticationSupported() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", g.Name)
 	}
 	creds, err := g.GetCredentials(ctx)
@@ -324,7 +323,7 @@ func (g *Gemini) wsHandleData(respRaw []byte) error {
 				ExecutedAmount:  result[i].ExecutedAmount,
 				RemainingAmount: result[i].RemainingAmount,
 				Exchange:        g.Name,
-				ID:              result[i].OrderID,
+				OrderID:         result[i].OrderID,
 				Type:            oType,
 				Side:            oSide,
 				Status:          oStatus,
@@ -569,7 +568,7 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 		if len(asks) == 0 && len(bids) == 0 {
 			return nil
 		}
-		err := g.Websocket.Orderbook.Update(&buffer.Update{
+		err := g.Websocket.Orderbook.Update(&orderbook.Update{
 			Asks:  asks,
 			Bids:  bids,
 			Pair:  pair,

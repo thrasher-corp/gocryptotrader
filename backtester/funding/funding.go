@@ -1,6 +1,7 @@
 package funding
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
@@ -12,9 +13,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding/trackingcurrencies"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 var (
@@ -23,7 +26,8 @@ var (
 	// ErrAlreadyExists used when a matching item or pair is already in the funding manager
 	ErrAlreadyExists = errors.New("funding already exists")
 	// ErrUSDTrackingDisabled used when attempting to track USD values when disabled
-	ErrUSDTrackingDisabled        = errors.New("USD tracking disabled")
+	ErrUSDTrackingDisabled = errors.New("USD tracking disabled")
+
 	errCannotAllocate             = errors.New("cannot allocate funds")
 	errZeroAmountReceived         = errors.New("amount received less than or equal to zero")
 	errNegativeAmountReceived     = errors.New("received negative decimal")
@@ -31,15 +35,30 @@ var (
 	errCannotTransferToSameFunds  = errors.New("cannot send funds to self")
 	errTransferMustBeSameCurrency = errors.New("cannot transfer to different currency")
 	errCannotMatchTrackingToItem  = errors.New("cannot match tracking data to funding items")
+	errNotFutures                 = errors.New("item linking collateral currencies must be a futures asset")
+	errExchangeManagerRequired    = errors.New("exchange manager required")
 )
 
 // SetupFundingManager creates the funding holder. It carries knowledge about levels of funding
 // across all execution handlers and enables fund transfers
-func SetupFundingManager(usingExchangeLevelFunding, disableUSDTracking bool) *FundManager {
+func SetupFundingManager(exchManager *engine.ExchangeManager, usingExchangeLevelFunding, disableUSDTracking bool) (*FundManager, error) {
+	if exchManager == nil {
+		return nil, errExchangeManagerRequired
+	}
 	return &FundManager{
 		usingExchangeLevelFunding: usingExchangeLevelFunding,
 		disableUSDTracking:        disableUSDTracking,
-	}
+		exchangeManager:           exchManager,
+	}, nil
+}
+
+// CreateFuturesCurrencyCode converts a currency pair into a code
+// The main reasoning is that as a contract, it exists as an item even if
+// it is formatted as BTC-1231. To treat it as a pair in the funding system
+// would cause an increase in funds for BTC, when it is an increase in contracts
+// This function is basic, but is important be explicit in why this is occurring
+func CreateFuturesCurrencyCode(b, q currency.Code) currency.Code {
+	return currency.NewCode(fmt.Sprintf("%s-%s", b, q))
 }
 
 // CreateItem creates a new funding item
@@ -52,14 +71,50 @@ func CreateItem(exch string, a asset.Item, ci currency.Code, initialFunds, trans
 	}
 
 	return &Item{
-		exchange:     exch,
+		exchange:     strings.ToLower(exch),
 		asset:        a,
 		currency:     ci,
 		initialFunds: initialFunds,
 		available:    initialFunds,
 		transferFee:  transferFee,
-		snapshot:     make(map[time.Time]ItemSnapshot),
+		snapshot:     make(map[int64]ItemSnapshot),
 	}, nil
+}
+
+// LinkCollateralCurrency links an item to an existing currency code
+// for collateral purposes
+func (f *FundManager) LinkCollateralCurrency(item *Item, code currency.Code) error {
+	if item == nil {
+		return fmt.Errorf("%w missing item", common.ErrNilArguments)
+	}
+	if code.IsEmpty() {
+		return fmt.Errorf("%w unset currency", common.ErrNilArguments)
+	}
+	if !item.asset.IsFutures() {
+		return errNotFutures
+	}
+	if item.pairedWith != nil {
+		return fmt.Errorf("%w item already paired with %v", ErrAlreadyExists, item.pairedWith.currency)
+	}
+
+	for i := range f.items {
+		if f.items[i].currency.Equal(code) && f.items[i].asset == item.asset {
+			item.pairedWith = f.items[i]
+			return nil
+		}
+	}
+	collateral := &Item{
+		exchange:     item.exchange,
+		asset:        item.asset,
+		currency:     code,
+		pairedWith:   item,
+		isCollateral: true,
+	}
+	if err := f.AddItem(collateral); err != nil {
+		return err
+	}
+	item.pairedWith = collateral
+	return nil
 }
 
 // CreateSnapshot creates a Snapshot for an event's point in time
@@ -68,18 +123,20 @@ func CreateItem(exch string, a asset.Item, ci currency.Code, initialFunds, trans
 func (f *FundManager) CreateSnapshot(t time.Time) {
 	for i := range f.items {
 		if f.items[i].snapshot == nil {
-			f.items[i].snapshot = make(map[time.Time]ItemSnapshot)
+			f.items[i].snapshot = make(map[int64]ItemSnapshot)
 		}
+
 		iss := ItemSnapshot{
 			Available: f.items[i].available,
 			Time:      t,
 		}
+
 		if !f.disableUSDTracking {
 			var usdClosePrice decimal.Decimal
-			if f.items[i].usdTrackingCandles == nil {
+			if f.items[i].trackingCandles == nil {
 				continue
 			}
-			usdCandles := f.items[i].usdTrackingCandles.GetStream()
+			usdCandles := f.items[i].trackingCandles.GetStream()
 			for j := range usdCandles {
 				if usdCandles[j].GetTime().Equal(t) {
 					usdClosePrice = usdCandles[j].GetClosePrice()
@@ -90,7 +147,7 @@ func (f *FundManager) CreateSnapshot(t time.Time) {
 			iss.USDValue = usdClosePrice.Mul(f.items[i].available)
 		}
 
-		f.items[i].snapshot[t] = iss
+		f.items[i].snapshot[t.UnixNano()] = iss
 	}
 }
 
@@ -110,12 +167,25 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 		if baseSet && quoteSet {
 			return nil
 		}
+		if f.items[i].asset.IsFutures() && k.Item.Asset.IsFutures() {
+			if f.items[i].isCollateral {
+				err := f.setUSDCandles(k, i)
+				if err != nil {
+					return err
+				}
+			} else {
+				f.items[i].trackingCandles = k
+				baseSet = true
+			}
+			continue
+		}
+
 		if strings.EqualFold(f.items[i].exchange, k.Item.Exchange) &&
 			f.items[i].asset == k.Item.Asset {
 			if f.items[i].currency.Equal(k.Item.Pair.Base) {
-				if f.items[i].usdTrackingCandles == nil &&
+				if f.items[i].trackingCandles == nil &&
 					trackingcurrencies.CurrencyIsUSDTracked(k.Item.Pair.Quote) {
-					f.items[i].usdTrackingCandles = k
+					f.items[i].trackingCandles = k
 					if f.items[i].pairedWith != nil {
 						basePairedWith = f.items[i].pairedWith.currency
 					}
@@ -126,31 +196,11 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 				if f.items[i].pairedWith != nil && !f.items[i].currency.Equal(basePairedWith) {
 					continue
 				}
-				if f.items[i].usdTrackingCandles == nil {
-					usdCandles := gctkline.Item{
-						Exchange: k.Item.Exchange,
-						Pair:     currency.Pair{Delimiter: k.Item.Pair.Delimiter, Base: f.items[i].currency, Quote: currency.USD},
-						Asset:    k.Item.Asset,
-						Interval: k.Item.Interval,
-						Candles:  make([]gctkline.Candle, len(k.Item.Candles)),
-					}
-					copy(usdCandles.Candles, k.Item.Candles)
-					for j := range usdCandles.Candles {
-						// usd stablecoins do not always match in value,
-						// this is a simplified implementation that can allow
-						// USD tracking for many different currencies across many exchanges
-						// without retrieving n candle history and exchange rates
-						usdCandles.Candles[j].Open = 1
-						usdCandles.Candles[j].High = 1
-						usdCandles.Candles[j].Low = 1
-						usdCandles.Candles[j].Close = 1
-					}
-					cpy := *k
-					cpy.Item = usdCandles
-					if err := cpy.Load(); err != nil {
+				if f.items[i].trackingCandles == nil {
+					err := f.setUSDCandles(k, i)
+					if err != nil {
 						return err
 					}
-					f.items[i].usdTrackingCandles = &cpy
 				}
 				quoteSet = true
 			}
@@ -162,11 +212,41 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 	return fmt.Errorf("%w %v %v %v", errCannotMatchTrackingToItem, k.Item.Exchange, k.Item.Asset, k.Item.Pair)
 }
 
+// setUSDCandles sets usd tracking candles
+// usd stablecoins do not always match in value,
+// this is a simplified implementation that can allow
+// USD tracking for many currencies across many exchanges
+func (f *FundManager) setUSDCandles(k *kline.DataFromKline, i int) error {
+	usdCandles := gctkline.Item{
+		Exchange: k.Item.Exchange,
+		Pair:     currency.Pair{Delimiter: k.Item.Pair.Delimiter, Base: f.items[i].currency, Quote: currency.USD},
+		Asset:    k.Item.Asset,
+		Interval: k.Item.Interval,
+		Candles:  make([]gctkline.Candle, len(k.Item.Candles)),
+	}
+	for j := range usdCandles.Candles {
+		usdCandles.Candles[j] = gctkline.Candle{
+			Time:  k.Item.Candles[j].Time,
+			Open:  1,
+			High:  1,
+			Low:   1,
+			Close: 1,
+		}
+	}
+	cpy := *k
+	cpy.Item = usdCandles
+	if err := cpy.Load(); err != nil {
+		return err
+	}
+	f.items[i].trackingCandles = &cpy
+	return nil
+}
+
 // CreatePair adds two funding items and associates them with one another
 // the association allows for the same currency to be used multiple times when
 // usingExchangeLevelFunding is false. eg BTC-USDT and LTC-USDT do not share the same
 // USDT level funding
-func CreatePair(base, quote *Item) (*Pair, error) {
+func CreatePair(base, quote *Item) (*SpotPair, error) {
 	if base == nil {
 		return nil, fmt.Errorf("base %w", common.ErrNilArguments)
 	}
@@ -179,7 +259,27 @@ func CreatePair(base, quote *Item) (*Pair, error) {
 	qCopy := *quote
 	bCopy.pairedWith = &qCopy
 	qCopy.pairedWith = &bCopy
-	return &Pair{Base: &bCopy, Quote: &qCopy}, nil
+	return &SpotPair{base: &bCopy, quote: &qCopy}, nil
+}
+
+// CreateCollateral adds two funding items and associates them with one another
+// the association allows for the same currency to be used multiple times when
+// usingExchangeLevelFunding is false. eg BTC-USDT and LTC-USDT do not share the same
+// USDT level funding
+func CreateCollateral(contract, collateral *Item) (*CollateralPair, error) {
+	if contract == nil {
+		return nil, fmt.Errorf("base %w", common.ErrNilArguments)
+	}
+	if collateral == nil {
+		return nil, fmt.Errorf("quote %w", common.ErrNilArguments)
+	}
+	// copy to prevent the off chance of sending in the same base OR quote
+	// to create a new pair with a new base OR quote
+	bCopy := *contract
+	qCopy := *collateral
+	bCopy.pairedWith = &qCopy
+	qCopy.pairedWith = &bCopy
+	return &CollateralPair{contract: &bCopy, collateral: &qCopy}, nil
 }
 
 // Reset clears all settings
@@ -195,56 +295,88 @@ func (f *FundManager) USDTrackingDisabled() bool {
 // GenerateReport builds report data for result HTML report
 func (f *FundManager) GenerateReport() *Report {
 	report := Report{
-		USDTotalsOverTime:         make(map[time.Time]ItemSnapshot),
 		UsingExchangeLevelFunding: f.usingExchangeLevelFunding,
 		DisableUSDTracking:        f.disableUSDTracking,
 	}
 	items := make([]ReportItem, len(f.items))
-	for i := range f.items {
+	for x := range f.items {
 		item := ReportItem{
-			Exchange:     f.items[i].exchange,
-			Asset:        f.items[i].asset,
-			Currency:     f.items[i].currency,
-			InitialFunds: f.items[i].initialFunds,
-			TransferFee:  f.items[i].transferFee,
-			FinalFunds:   f.items[i].available,
-		}
-		if !f.disableUSDTracking &&
-			f.items[i].usdTrackingCandles != nil {
-			usdStream := f.items[i].usdTrackingCandles.GetStream()
-			item.USDInitialFunds = f.items[i].initialFunds.Mul(usdStream[0].GetClosePrice())
-			item.USDFinalFunds = f.items[i].available.Mul(usdStream[len(usdStream)-1].GetClosePrice())
-			item.USDInitialCostForOne = usdStream[0].GetClosePrice()
-			item.USDFinalCostForOne = usdStream[len(usdStream)-1].GetClosePrice()
-			item.USDPairCandle = f.items[i].usdTrackingCandles
+			Exchange:     f.items[x].exchange,
+			Asset:        f.items[x].asset,
+			Currency:     f.items[x].currency,
+			InitialFunds: f.items[x].initialFunds,
+			TransferFee:  f.items[x].transferFee,
+			FinalFunds:   f.items[x].available,
+			IsCollateral: f.items[x].isCollateral,
 		}
 
-		var pricingOverTime []ItemSnapshot
-		for _, v := range f.items[i].snapshot {
-			pricingOverTime = append(pricingOverTime, v)
-			if !f.disableUSDTracking {
-				usdTotalForPeriod := report.USDTotalsOverTime[v.Time]
-				usdTotalForPeriod.Time = v.Time
-				usdTotalForPeriod.USDValue = usdTotalForPeriod.USDValue.Add(v.USDValue)
-				report.USDTotalsOverTime[v.Time] = usdTotalForPeriod
-			}
+		if !f.disableUSDTracking &&
+			f.items[x].trackingCandles != nil {
+			usdStream := f.items[x].trackingCandles.GetStream()
+			item.USDInitialFunds = f.items[x].initialFunds.Mul(usdStream[0].GetClosePrice())
+			item.USDFinalFunds = f.items[x].available.Mul(usdStream[len(usdStream)-1].GetClosePrice())
+			item.USDInitialCostForOne = usdStream[0].GetClosePrice()
+			item.USDFinalCostForOne = usdStream[len(usdStream)-1].GetClosePrice()
+			item.USDPairCandle = f.items[x].trackingCandles
 		}
+
+		// create a breakdown of USD values and currency contributions over the span of run
+		var pricingOverTime []ItemSnapshot
+	snaps:
+		for _, snapshot := range f.items[x].snapshot {
+			pricingOverTime = append(pricingOverTime, snapshot)
+			if f.items[x].asset.IsFutures() || f.disableUSDTracking {
+				// futures contracts / collateral does not contribute to USD value
+				// no USD tracking means no USD values to breakdown
+				continue
+			}
+			for y := range report.USDTotalsOverTime {
+				if report.USDTotalsOverTime[y].Time.Equal(snapshot.Time) {
+					report.USDTotalsOverTime[y].USDValue = report.USDTotalsOverTime[y].USDValue.Add(snapshot.USDValue)
+					report.USDTotalsOverTime[y].Breakdown = append(report.USDTotalsOverTime[y].Breakdown, CurrencyContribution{
+						Currency:        f.items[x].currency,
+						USDContribution: snapshot.USDValue,
+					})
+					continue snaps
+				}
+			}
+			report.USDTotalsOverTime = append(report.USDTotalsOverTime, ItemSnapshot{
+				Time:     snapshot.Time,
+				USDValue: snapshot.USDValue,
+				Breakdown: []CurrencyContribution{
+					{
+						Currency:        f.items[x].currency,
+						USDContribution: snapshot.USDValue,
+					},
+				},
+			})
+		}
+
 		sort.Slice(pricingOverTime, func(i, j int) bool {
 			return pricingOverTime[i].Time.Before(pricingOverTime[j].Time)
 		})
 		item.Snapshots = pricingOverTime
 
-		if f.items[i].initialFunds.IsZero() {
+		if f.items[x].initialFunds.IsZero() {
 			item.ShowInfinite = true
 		} else {
-			item.Difference = f.items[i].available.Sub(f.items[i].initialFunds).Div(f.items[i].initialFunds).Mul(decimal.NewFromInt(100))
+			item.Difference = f.items[x].available.Sub(f.items[x].initialFunds).Div(f.items[x].initialFunds).Mul(decimal.NewFromInt(100))
 		}
-		if f.items[i].pairedWith != nil {
-			item.PairedWith = f.items[i].pairedWith.currency
+		if f.items[x].pairedWith != nil {
+			item.PairedWith = f.items[x].pairedWith.currency
 		}
+		report.InitialFunds = report.InitialFunds.Add(item.USDInitialFunds)
 
-		items[i] = item
+		items[x] = item
 	}
+
+	if len(report.USDTotalsOverTime) > 0 {
+		sort.Slice(report.USDTotalsOverTime, func(i, j int) bool {
+			return report.USDTotalsOverTime[i].Time.Before(report.USDTotalsOverTime[j].Time)
+		})
+		report.FinalFunds = report.USDTotalsOverTime[len(report.USDTotalsOverTime)-1].USDValue
+	}
+
 	report.Items = items
 	return &report
 }
@@ -287,7 +419,10 @@ func (f *FundManager) Transfer(amount decimal.Decimal, sender, receiver *Item, i
 	if err != nil {
 		return err
 	}
-	receiver.IncreaseAvailable(receiveAmount)
+	err = receiver.IncreaseAvailable(receiveAmount)
+	if err != nil {
+		return err
+	}
 	return sender.Release(sendAmount, decimal.Zero)
 }
 
@@ -312,14 +447,14 @@ func (f *FundManager) Exists(item *Item) bool {
 }
 
 // AddPair adds a pair to the fund manager if it does not exist
-func (f *FundManager) AddPair(p *Pair) error {
-	if f.Exists(p.Base) {
-		return fmt.Errorf("%w %v", ErrAlreadyExists, p.Base)
+func (f *FundManager) AddPair(p *SpotPair) error {
+	if f.Exists(p.base) {
+		return fmt.Errorf("%w %v", ErrAlreadyExists, p.base)
 	}
-	if f.Exists(p.Quote) {
-		return fmt.Errorf("%w %v", ErrAlreadyExists, p.Quote)
+	if f.Exists(p.quote) {
+		return fmt.Errorf("%w %v", ErrAlreadyExists, p.quote)
 	}
-	f.items = append(f.items, p.Base, p.Quote)
+	f.items = append(f.items, p.base, p.quote)
 	return nil
 }
 
@@ -329,12 +464,46 @@ func (f *FundManager) IsUsingExchangeLevelFunding() bool {
 }
 
 // GetFundingForEvent This will construct a funding based on a backtesting event
-func (f *FundManager) GetFundingForEvent(ev common.EventHandler) (*Pair, error) {
-	return f.GetFundingForEAP(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
+func (f *FundManager) GetFundingForEvent(ev common.EventHandler) (IFundingPair, error) {
+	return f.getFundingForEAP(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
+}
+
+// GetFundingForEAP This will construct a funding based on the exchange, asset, currency pair
+func (f *FundManager) getFundingForEAP(exch string, a asset.Item, p currency.Pair) (IFundingPair, error) {
+	if a.IsFutures() {
+		var collat CollateralPair
+		for i := range f.items {
+			if f.items[i].MatchesCurrency(currency.NewCode(p.String())) {
+				collat.contract = f.items[i]
+				collat.collateral = f.items[i].pairedWith
+				return &collat, nil
+			}
+		}
+	} else {
+		var resp SpotPair
+		for i := range f.items {
+			if f.items[i].BasicEqual(exch, a, p.Base, p.Quote) {
+				resp.base = f.items[i]
+				continue
+			}
+			if f.items[i].BasicEqual(exch, a, p.Quote, p.Base) {
+				resp.quote = f.items[i]
+			}
+		}
+		if resp.base == nil {
+			return nil, fmt.Errorf("base %v %w", p.Base, ErrFundsNotFound)
+		}
+		if resp.quote == nil {
+			return nil, fmt.Errorf("quote %v %w", p.Quote, ErrFundsNotFound)
+		}
+		return &resp, nil
+	}
+
+	return nil, fmt.Errorf("%v %v %v %w", exch, a, p, ErrFundsNotFound)
 }
 
 // GetFundingForEAC This will construct a funding based on the exchange, asset, currency code
-func (f *FundManager) GetFundingForEAC(exch string, a asset.Item, c currency.Code) (*Item, error) {
+func (f *FundManager) getFundingForEAC(exch string, a asset.Item, c currency.Code) (*Item, error) {
 	for i := range f.items {
 		if f.items[i].BasicEqual(exch, a, c, currency.EMPTYCODE) {
 			return f.items[i], nil
@@ -343,216 +512,151 @@ func (f *FundManager) GetFundingForEAC(exch string, a asset.Item, c currency.Cod
 	return nil, ErrFundsNotFound
 }
 
-// GetFundingForEAP This will construct a funding based on the exchange, asset, currency pair
-func (f *FundManager) GetFundingForEAP(exch string, a asset.Item, p currency.Pair) (*Pair, error) {
-	var resp Pair
-	for i := range f.items {
-		if f.items[i].BasicEqual(exch, a, p.Base, p.Quote) {
-			resp.Base = f.items[i]
-			continue
-		}
-		if f.items[i].BasicEqual(exch, a, p.Quote, p.Base) {
-			resp.Quote = f.items[i]
-		}
-	}
-	if resp.Base == nil {
-		return nil, fmt.Errorf("base %w", ErrFundsNotFound)
-	}
-	if resp.Quote == nil {
-		return nil, fmt.Errorf("quote %w", ErrFundsNotFound)
-	}
-	return &resp, nil
-}
-
-// BaseInitialFunds returns the initial funds
-// from the base in a currency pair
-func (p *Pair) BaseInitialFunds() decimal.Decimal {
-	return p.Base.initialFunds
-}
-
-// QuoteInitialFunds returns the initial funds
-// from the quote in a currency pair
-func (p *Pair) QuoteInitialFunds() decimal.Decimal {
-	return p.Quote.initialFunds
-}
-
-// BaseAvailable returns the available funds
-// from the base in a currency pair
-func (p *Pair) BaseAvailable() decimal.Decimal {
-	return p.Base.available
-}
-
-// QuoteAvailable returns the available funds
-// from the quote in a currency pair
-func (p *Pair) QuoteAvailable() decimal.Decimal {
-	return p.Quote.available
-}
-
-// Reserve allocates an amount of funds to be used at a later time
-// it prevents multiple events from claiming the same resource
-// changes which currency to affect based on the order side
-func (p *Pair) Reserve(amount decimal.Decimal, side order.Side) error {
-	switch side {
-	case order.Buy:
-		return p.Quote.Reserve(amount)
-	case order.Sell:
-		return p.Base.Reserve(amount)
-	default:
-		return fmt.Errorf("%w for %v %v %v. Unknown side %v",
-			errCannotAllocate,
-			p.Base.exchange,
-			p.Base.asset,
-			p.Base.currency,
-			side)
-	}
-}
-
-// Release reduces the amount of funding reserved and adds any difference
-// back to the available amount
-// changes which currency to affect based on the order side
-func (p *Pair) Release(amount, diff decimal.Decimal, side order.Side) error {
-	switch side {
-	case order.Buy:
-		return p.Quote.Release(amount, diff)
-	case order.Sell:
-		return p.Base.Release(amount, diff)
-	default:
-		return fmt.Errorf("%w for %v %v %v. Unknown side %v",
-			errCannotAllocate,
-			p.Base.exchange,
-			p.Base.asset,
-			p.Base.currency,
-			side)
-	}
-}
-
-// IncreaseAvailable adds funding to the available amount
-// changes which currency to affect based on the order side
-func (p *Pair) IncreaseAvailable(amount decimal.Decimal, side order.Side) {
-	switch side {
-	case order.Buy:
-		p.Base.IncreaseAvailable(amount)
-	case order.Sell:
-		p.Quote.IncreaseAvailable(amount)
-	}
-}
-
-// CanPlaceOrder does a > 0 check to see if there are any funds
-// to place an order with
-// changes which currency to affect based on the order side
-func (p *Pair) CanPlaceOrder(side order.Side) bool {
-	switch side {
-	case order.Buy:
-		return p.Quote.CanPlaceOrder()
-	case order.Sell:
-		return p.Base.CanPlaceOrder()
-	}
-	return false
-}
-
-// Reserve allocates an amount of funds to be used at a later time
-// it prevents multiple events from claiming the same resource
-func (i *Item) Reserve(amount decimal.Decimal) error {
-	if amount.LessThanOrEqual(decimal.Zero) {
-		return errZeroAmountReceived
-	}
-	if amount.GreaterThan(i.available) {
-		return fmt.Errorf("%w for %v %v %v. Requested %v Available: %v",
-			errCannotAllocate,
-			i.exchange,
-			i.asset,
-			i.currency,
-			amount,
-			i.available)
-	}
-	i.available = i.available.Sub(amount)
-	i.reserved = i.reserved.Add(amount)
-	return nil
-}
-
-// Release reduces the amount of funding reserved and adds any difference
-// back to the available amount
-func (i *Item) Release(amount, diff decimal.Decimal) error {
-	if amount.LessThanOrEqual(decimal.Zero) {
-		return errZeroAmountReceived
-	}
-	if diff.IsNegative() {
-		return fmt.Errorf("%w diff", errNegativeAmountReceived)
-	}
-	if amount.GreaterThan(i.reserved) {
-		return fmt.Errorf("%w for %v %v %v. Requested %v Reserved: %v",
-			errCannotAllocate,
-			i.exchange,
-			i.asset,
-			i.currency,
-			amount,
-			i.reserved)
-	}
-	i.reserved = i.reserved.Sub(amount)
-	i.available = i.available.Add(diff)
-	return nil
-}
-
-// IncreaseAvailable adds funding to the available amount
-func (i *Item) IncreaseAvailable(amount decimal.Decimal) {
-	if amount.IsNegative() || amount.IsZero() {
+// Liquidate will remove all funding for all items belonging to an exchange
+func (f *FundManager) Liquidate(ev common.EventHandler) {
+	if ev == nil {
 		return
 	}
-	i.available = i.available.Add(amount)
+	for i := range f.items {
+		if f.items[i].exchange == ev.GetExchange() {
+			f.items[i].reserved = decimal.Zero
+			f.items[i].available = decimal.Zero
+			f.items[i].isLiquidated = true
+		}
+	}
 }
 
-// CanPlaceOrder checks if the item has any funds available
-func (i *Item) CanPlaceOrder() bool {
-	return i.available.GreaterThan(decimal.Zero)
+// GetAllFunding returns basic representations of all current
+// holdings from the latest point
+func (f *FundManager) GetAllFunding() []BasicItem {
+	result := make([]BasicItem, len(f.items))
+	for i := range f.items {
+		var usd decimal.Decimal
+		if f.items[i].trackingCandles != nil {
+			latest := f.items[i].trackingCandles.Latest()
+			if latest != nil {
+				usd = latest.GetClosePrice()
+			}
+		}
+		result[i] = BasicItem{
+			Exchange:     f.items[i].exchange,
+			Asset:        f.items[i].asset,
+			Currency:     f.items[i].currency,
+			InitialFunds: f.items[i].initialFunds,
+			Available:    f.items[i].available,
+			Reserved:     f.items[i].reserved,
+			USDPrice:     usd,
+		}
+	}
+	return result
 }
 
-// Equal checks for equality via an Item to compare to
-func (i *Item) Equal(item *Item) bool {
-	if i == nil && item == nil {
-		return true
+// UpdateCollateral will recalculate collateral for an exchange
+// based on the event passed in
+func (f *FundManager) UpdateCollateral(ev common.EventHandler) error {
+	if ev == nil {
+		return common.ErrNilEvent
 	}
-	if item == nil || i == nil {
-		return false
+	exchMap := make(map[string]exchange.IBotExchange)
+	var collateralAmount decimal.Decimal
+	var err error
+	calculator := gctorder.TotalCollateralCalculator{
+		CalculateOffline: true,
 	}
-	if i.currency.Equal(item.currency) &&
-		i.asset == item.asset &&
-		i.exchange == item.exchange {
-		if i.pairedWith == nil && item.pairedWith == nil {
-			return true
+
+	for i := range f.items {
+		if f.items[i].asset.IsFutures() {
+			// futures positions aren't collateral, they use it
+			continue
 		}
-		if i.pairedWith == nil || item.pairedWith == nil {
-			return false
+		_, ok := exchMap[f.items[i].exchange]
+		if !ok {
+			var exch exchange.IBotExchange
+			exch, err = f.exchangeManager.GetExchangeByName(f.items[i].exchange)
+			if err != nil {
+				return err
+			}
+			exchMap[f.items[i].exchange] = exch
 		}
-		if i.pairedWith.currency.Equal(item.pairedWith.currency) &&
-			i.pairedWith.asset == item.pairedWith.asset &&
-			i.pairedWith.exchange == item.pairedWith.exchange {
+		var usd decimal.Decimal
+		if f.items[i].trackingCandles != nil {
+			latest := f.items[i].trackingCandles.Latest()
+			if latest != nil {
+				usd = latest.GetClosePrice()
+			}
+		}
+		if usd.IsZero() {
+			continue
+		}
+		var side = gctorder.Buy
+		if !f.items[i].available.GreaterThan(decimal.Zero) {
+			side = gctorder.Sell
+		}
+
+		calculator.CollateralAssets = append(calculator.CollateralAssets, gctorder.CollateralCalculator{
+			CalculateOffline:   true,
+			CollateralCurrency: f.items[i].currency,
+			Asset:              f.items[i].asset,
+			Side:               side,
+			FreeCollateral:     f.items[i].available,
+			LockedCollateral:   f.items[i].reserved,
+			USDPrice:           usd,
+		})
+	}
+	exch, ok := exchMap[ev.GetExchange()]
+	if !ok {
+		return fmt.Errorf("%v %w", ev.GetExchange(), engine.ErrExchangeNotFound)
+	}
+	futureCurrency, futureAsset, err := exch.GetCollateralCurrencyForContract(ev.GetAssetType(), ev.Pair())
+	if err != nil {
+		return err
+	}
+
+	collat, err := exchMap[ev.GetExchange()].CalculateTotalCollateral(context.TODO(), &calculator)
+	if err != nil {
+		return err
+	}
+
+	for i := range f.items {
+		if f.items[i].exchange == ev.GetExchange() &&
+			f.items[i].asset == futureAsset &&
+			f.items[i].currency.Equal(futureCurrency) {
+			f.items[i].available = collat.AvailableCollateral
+			return nil
+		}
+	}
+	return fmt.Errorf("%w to allocate %v to %v %v %v", ErrFundsNotFound, collateralAmount, ev.GetExchange(), ev.GetAssetType(), futureCurrency)
+}
+
+// HasFutures returns whether the funding manager contains any futures assets
+func (f *FundManager) HasFutures() bool {
+	for i := range f.items {
+		if f.items[i].isCollateral || f.items[i].asset.IsFutures() {
 			return true
 		}
 	}
 	return false
 }
 
-// BasicEqual checks for equality via passed in values
-func (i *Item) BasicEqual(exch string, a asset.Item, currency, pairedCurrency currency.Code) bool {
-	return i != nil &&
-		i.exchange == exch &&
-		i.asset == a &&
-		i.currency.Equal(currency) &&
-		(i.pairedWith == nil ||
-			(i.pairedWith != nil && i.pairedWith.currency.Equal(pairedCurrency)))
+// RealisePNL adds the realised PNL to a receiving exchange asset pair
+func (f *FundManager) RealisePNL(receivingExchange string, receivingAsset asset.Item, receivingCurrency currency.Code, realisedPNL decimal.Decimal) error {
+	for i := range f.items {
+		if f.items[i].exchange == receivingExchange &&
+			f.items[i].asset == receivingAsset &&
+			f.items[i].currency.Equal(receivingCurrency) {
+			return f.items[i].TakeProfit(realisedPNL)
+		}
+	}
+	return fmt.Errorf("%w to allocate %v to %v %v %v", ErrFundsNotFound, realisedPNL, receivingExchange, receivingAsset, receivingCurrency)
 }
 
-// MatchesCurrency checks that an item's currency is equal
-func (i *Item) MatchesCurrency(c currency.Code) bool {
-	return i != nil && i.currency.Equal(c)
-}
-
-// MatchesItemCurrency checks that an item's currency is equal
-func (i *Item) MatchesItemCurrency(item *Item) bool {
-	return i != nil && item != nil && i.currency.Equal(item.currency)
-}
-
-// MatchesExchange checks that an item's exchange is equal
-func (i *Item) MatchesExchange(item *Item) bool {
-	return i != nil && item != nil && i.exchange == item.exchange
+// HasExchangeBeenLiquidated checks for any items with a matching exchange
+// and returns whether it has been liquidated
+func (f *FundManager) HasExchangeBeenLiquidated(ev common.EventHandler) bool {
+	for i := range f.items {
+		if ev.GetExchange() == f.items[i].exchange {
+			return f.items[i].isLiquidated
+		}
+	}
+	return false
 }

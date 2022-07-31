@@ -8,7 +8,6 @@ import (
 
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/binanceus"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitflyer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bithumb"
@@ -149,8 +148,6 @@ func (m *ExchangeManager) NewExchangeByName(name string) (exchange.IBotExchange,
 	switch nameLower {
 	case "okx":
 		exch = new(okx.Okx)
-	case "binanceus":
-		exch = new(binanceus.Binanceus)
 	case "binance":
 		exch = new(binance.Binance)
 	case "bitfinex":

@@ -122,12 +122,12 @@ func (w Wrapper) QueryOrder(ctx context.Context, exch, _ string, _ currency.Pair
 	return &order.Detail{
 		Exchange:        exch,
 		AccountID:       "hello",
-		ID:              "1",
+		OrderID:         "1",
 		Pair:            pair,
-		Side:            "ask",
-		Type:            "limit",
+		Side:            order.Ask,
+		Type:            order.Limit,
 		Date:            time.Now(),
-		Status:          "cancelled",
+		Status:          order.Cancelled,
 		Price:           1,
 		Amount:          2,
 		ExecutedAmount:  1,
@@ -139,8 +139,8 @@ func (w Wrapper) QueryOrder(ctx context.Context, exch, _ string, _ currency.Pair
 				Price:       1,
 				Amount:      2,
 				Exchange:    exch,
-				Type:        "limit",
-				Side:        "ask",
+				Type:        order.Limit,
+				Side:        order.Ask,
 				Fee:         0,
 				Description: "",
 			},
@@ -157,16 +157,17 @@ func (w Wrapper) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Submi
 		return nil, errTestFailed
 	}
 
-	tempOrder := &order.SubmitResponse{
-		IsOrderPlaced: false,
-		OrderID:       o.Exchange,
+	resp, err := o.DeriveSubmitResponse(o.Exchange)
+	if err != nil {
+		return nil, err
 	}
 
+	resp.Status = order.Rejected
 	if o.Exchange == "true" {
-		tempOrder.IsOrderPlaced = true
+		resp.Status = order.New
 	}
 
-	return tempOrder, nil
+	return resp, nil
 }
 
 // CancelOrder validator for test execution/scripts
@@ -180,7 +181,7 @@ func (w Wrapper) CancelOrder(ctx context.Context, exch, orderid string, cp curre
 	if !cp.IsEmpty() && cp.IsInvalid() {
 		return false, errTestFailed
 	}
-	if a != "" && !a.IsValid() {
+	if a != asset.Empty && !a.IsValid() {
 		return false, errTestFailed
 	}
 	return true, nil
@@ -196,7 +197,8 @@ func (w Wrapper) AccountInformation(ctx context.Context, exch string, assetType 
 		Exchange: exch,
 		Accounts: []account.SubAccount{
 			{
-				ID: exch,
+				ID:        exch,
+				AssetType: assetType,
 				Currencies: []account.Balance{
 					{
 						CurrencyName: currency.Code{

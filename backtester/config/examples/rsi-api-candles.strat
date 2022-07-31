@@ -4,7 +4,6 @@
  "strategy-settings": {
   "name": "rsi",
   "use-simultaneous-signal-processing": false,
-  "use-exchange-level-funding": false,
   "disable-usd-tracking": false,
   "custom-settings": {
    "rsi-high": 70,
@@ -12,17 +11,17 @@
    "rsi-period": 14
   }
  },
+ "funding-settings": {
+  "use-exchange-level-funding": false
+ },
  "currency-settings": [
   {
-   "exchange-name": "binance",
+   "exchange-name": "ftx",
    "asset": "spot",
    "base": "BTC",
    "quote": "USDT",
-   "initial-quote-funds": "100000",
-   "leverage": {
-    "can-use-leverage": false,
-    "maximum-orders-with-leverage-ratio": "0",
-    "maximum-leverage-rate": "0"
+   "spot-details": {
+    "initial-quote-funds": "100000"
    },
    "buy-side": {
     "minimum-size": "0.005",
@@ -36,23 +35,21 @@
    },
    "min-slippage-percent": "0",
    "max-slippage-percent": "0",
-   "maker-fee-override": "0.001",
-   "taker-fee-override": "0.002",
+   "maker-fee-override": "0.0002",
+   "taker-fee-override": "0.0007",
    "maximum-holdings-ratio": "0",
+   "skip-candle-volume-fitting": false,
    "use-exchange-order-limits": false,
-   "skip-candle-volume-fitting": false
+   "use-exchange-pnl-calculation": false
   },
   {
-   "exchange-name": "binance",
+   "exchange-name": "ftx",
    "asset": "spot",
    "base": "ETH",
    "quote": "USDT",
-   "initial-base-funds": "10",
-   "initial-quote-funds": "1000000",
-   "leverage": {
-    "can-use-leverage": false,
-    "maximum-orders-with-leverage-ratio": "0",
-    "maximum-leverage-rate": "0"
+   "spot-details": {
+    "initial-base-funds": "10",
+    "initial-quote-funds": "1000000"
    },
    "buy-side": {
     "minimum-size": "0.005",
@@ -66,19 +63,20 @@
    },
    "min-slippage-percent": "0",
    "max-slippage-percent": "0",
-   "maker-fee-override": "0.001",
-   "taker-fee-override": "0.002",
+   "maker-fee-override": "0.0002",
+   "taker-fee-override": "0.0007",
    "maximum-holdings-ratio": "0",
+   "skip-candle-volume-fitting": false,
    "use-exchange-order-limits": false,
-   "skip-candle-volume-fitting": false
+   "use-exchange-pnl-calculation": false
   }
  ],
  "data-settings": {
   "interval": 86400000000000,
   "data-type": "candle",
   "api-data": {
-   "start-date": "2020-08-01T00:00:00+10:00",
-   "end-date": "2020-12-01T00:00:00+11:00",
+   "start-date": "2021-08-01T00:00:00+10:00",
+   "end-date": "2021-12-01T00:00:00+11:00",
    "inclusive-end-date": false
   }
  },
@@ -86,7 +84,8 @@
   "leverage": {
    "can-use-leverage": false,
    "maximum-orders-with-leverage-ratio": "0",
-   "maximum-leverage-rate": "0"
+   "maximum-leverage-rate": "0",
+   "maximum-collateral-leverage-rate": "0"
   },
   "buy-side": {
    "minimum-size": "0.005",

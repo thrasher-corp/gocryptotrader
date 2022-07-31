@@ -43,18 +43,18 @@ func TestGetSnapshot(t *testing.T) {
 
 func TestCanTradePair(t *testing.T) {
 	t.Parallel()
-	err := (*States)(nil).CanTradePair(currency.EMPTYPAIR, "")
+	err := (*States)(nil).CanTradePair(currency.EMPTYPAIR, asset.Empty)
 	if !errors.Is(err, errNilStates) {
 		t.Fatalf("received: %v, but expected: %v", err, errNilStates)
 	}
 
-	err = (&States{}).CanTradePair(currency.EMPTYPAIR, "")
+	err = (&States{}).CanTradePair(currency.EMPTYPAIR, asset.Empty)
 	if !errors.Is(err, errEmptyCurrency) {
 		t.Fatalf("received: %v, but expected: %v", err, errEmptyCurrency)
 	}
 
 	cp := currency.NewPair(currency.BTC, currency.USD)
-	err = (&States{}).CanTradePair(cp, "")
+	err = (&States{}).CanTradePair(cp, asset.Empty)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: %v, but expected: %v", err, asset.ErrNotSupported)
 	}
@@ -115,11 +115,11 @@ func TestCanTradePair(t *testing.T) {
 
 func TestStatesCanTrade(t *testing.T) {
 	t.Parallel()
-	err := (*States)(nil).CanTrade(currency.EMPTYCODE, "")
+	err := (*States)(nil).CanTrade(currency.EMPTYCODE, asset.Empty)
 	if !errors.Is(err, errNilStates) {
 		t.Fatalf("received: %v, but expected: %v", err, errNilStates)
 	}
-	err = (&States{}).CanTrade(currency.EMPTYCODE, "")
+	err = (&States{}).CanTrade(currency.EMPTYCODE, asset.Empty)
 	if !errors.Is(err, errEmptyCurrency) {
 		t.Fatalf("received: %v, but expected: %v", err, errEmptyCurrency)
 	}
@@ -127,11 +127,11 @@ func TestStatesCanTrade(t *testing.T) {
 
 func TestStatesCanWithdraw(t *testing.T) {
 	t.Parallel()
-	err := (*States)(nil).CanWithdraw(currency.EMPTYCODE, "")
+	err := (*States)(nil).CanWithdraw(currency.EMPTYCODE, asset.Empty)
 	if !errors.Is(err, errNilStates) {
 		t.Fatalf("received: %v, but expected: %v", err, errNilStates)
 	}
-	err = (&States{}).CanWithdraw(currency.EMPTYCODE, "")
+	err = (&States{}).CanWithdraw(currency.EMPTYCODE, asset.Empty)
 	if !errors.Is(err, errEmptyCurrency) {
 		t.Fatalf("received: %v, but expected: %v", err, errEmptyCurrency)
 	}
@@ -161,11 +161,11 @@ func TestStatesCanWithdraw(t *testing.T) {
 
 func TestStatesCanDeposit(t *testing.T) {
 	t.Parallel()
-	err := (*States)(nil).CanDeposit(currency.EMPTYCODE, "")
+	err := (*States)(nil).CanDeposit(currency.EMPTYCODE, asset.Empty)
 	if !errors.Is(err, errNilStates) {
 		t.Fatalf("received: %v, but expected: %v", err, errNilStates)
 	}
-	err = (&States{}).CanDeposit(currency.EMPTYCODE, "")
+	err = (&States{}).CanDeposit(currency.EMPTYCODE, asset.Empty)
 	if !errors.Is(err, errEmptyCurrency) {
 		t.Fatalf("received: %v, but expected: %v", err, errEmptyCurrency)
 	}
@@ -195,12 +195,12 @@ func TestStatesCanDeposit(t *testing.T) {
 
 func TestStatesUpdateAll(t *testing.T) {
 	t.Parallel()
-	err := (*States)(nil).UpdateAll("", nil)
+	err := (*States)(nil).UpdateAll(asset.Empty, nil)
 	if !errors.Is(err, errNilStates) {
 		t.Fatalf("received: %v, but expected: %v", err, errNilStates)
 	}
 
-	err = (&States{}).UpdateAll("", nil)
+	err = (&States{}).UpdateAll(asset.Empty, nil)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: %v, but expected: %v", err, asset.ErrNotSupported)
 	}
@@ -246,17 +246,17 @@ func TestStatesUpdateAll(t *testing.T) {
 
 func TestStatesUpdate(t *testing.T) {
 	t.Parallel()
-	err := (*States)(nil).Update(currency.EMPTYCODE, "", Options{})
+	err := (*States)(nil).Update(currency.EMPTYCODE, asset.Empty, Options{})
 	if !errors.Is(err, errNilStates) {
 		t.Fatalf("received: %v, but expected: %v", err, errNilStates)
 	}
 
-	err = (&States{}).Update(currency.EMPTYCODE, "", Options{})
+	err = (&States{}).Update(currency.EMPTYCODE, asset.Empty, Options{})
 	if !errors.Is(err, errEmptyCurrency) {
 		t.Fatalf("received: %v, but expected: %v", err, errEmptyCurrency)
 	}
 
-	err = (&States{}).Update(currency.BTC, "", Options{})
+	err = (&States{}).Update(currency.BTC, asset.Empty, Options{})
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: %v, but expected: %v", err, asset.ErrNotSupported)
 	}
@@ -273,17 +273,17 @@ func TestStatesUpdate(t *testing.T) {
 
 func TestStatesGet(t *testing.T) {
 	t.Parallel()
-	_, err := (*States)(nil).Get(currency.EMPTYCODE, "")
+	_, err := (*States)(nil).Get(currency.EMPTYCODE, asset.Empty)
 	if !errors.Is(err, errNilStates) {
 		t.Fatalf("received: %v, but expected: %v", err, errNilStates)
 	}
 
-	_, err = (&States{}).Get(currency.EMPTYCODE, "")
+	_, err = (&States{}).Get(currency.EMPTYCODE, asset.Empty)
 	if !errors.Is(err, errEmptyCurrency) {
 		t.Fatalf("received: %v, but expected: %v", err, errEmptyCurrency)
 	}
 
-	_, err = (&States{}).Get(currency.BTC, "")
+	_, err = (&States{}).Get(currency.BTC, asset.Empty)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: %v, but expected: %v", err, asset.ErrNotSupported)
 	}

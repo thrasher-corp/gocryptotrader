@@ -262,31 +262,6 @@ func TestDurationToWord(t *testing.T) {
 	}
 }
 
-func TestKlineErrors(t *testing.T) {
-	t.Parallel()
-	v := Error{
-		Interval: OneYear,
-		Pair:     currency.NewPair(currency.BTC, currency.AUD),
-		Err:      errors.New("hello world"),
-	}
-
-	if v.Interval != OneYear {
-		t.Fatalf("expected OneYear received %v:", v.Interval)
-	}
-
-	if v.Pair != currency.NewPair(currency.BTC, currency.AUD) {
-		t.Fatalf("expected OneYear received %v:", v.Pair)
-	}
-
-	if v.Error() != "hello world" {
-		t.Fatal("expected error return received empty value")
-	}
-
-	if v.Unwrap().Error() != "hello world" {
-		t.Fatal("expected error return received empty value")
-	}
-}
-
 func TestTotalCandlesPerInterval(t *testing.T) {
 	t.Parallel()
 	start := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)

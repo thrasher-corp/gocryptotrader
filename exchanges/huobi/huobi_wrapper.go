@@ -102,22 +102,23 @@ func (h *HUOBI) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerFetching:        true,
-				KlineFetching:         true,
-				TradeFetching:         true,
-				OrderbookFetching:     true,
-				AutoPairUpdates:       true,
-				AccountInfo:           true,
-				GetOrder:              true,
-				GetOrders:             true,
-				CancelOrders:          true,
-				CancelOrder:           true,
-				SubmitOrder:           true,
-				CryptoDeposit:         true,
-				CryptoWithdrawal:      true,
-				TradeFee:              true,
-				MultiChainDeposits:    true,
-				MultiChainWithdrawals: true,
+				TickerFetching:                 true,
+				KlineFetching:                  true,
+				TradeFetching:                  true,
+				OrderbookFetching:              true,
+				AutoPairUpdates:                true,
+				AccountInfo:                    true,
+				GetOrder:                       true,
+				GetOrders:                      true,
+				CancelOrders:                   true,
+				CancelOrder:                    true,
+				SubmitOrder:                    true,
+				CryptoDeposit:                  true,
+				CryptoWithdrawal:               true,
+				TradeFee:                       true,
+				MultiChainDeposits:             true,
+				MultiChainWithdrawals:          true,
+				HasAssetTypeAccountSegregation: true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				KlineFetching:          true,
@@ -807,7 +808,11 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	}
 	acc.AssetType = assetType
 	info.Accounts = append(info.Accounts, acc)
-	if err := account.Process(&info); err != nil {
+	creds, err := h.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	if err := account.Process(&info, creds); err != nil {
 		return info, err
 	}
 	return info, nil
@@ -815,7 +820,11 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (h *HUOBI) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(h.Name, assetType)
+	creds, err := h.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(h.Name, creds, assetType)
 	if err != nil {
 		return h.UpdateAccountInfo(ctx, assetType)
 	}
@@ -877,16 +886,18 @@ func (h *HUOBI) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.It
 }
 
 // SubmitOrder submits a new order
-func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
+
+	var orderID string
+	status := order.New
 	switch s.AssetType {
 	case asset.Spot:
 		accountID, err := strconv.ParseInt(s.ClientID, 10, 64)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
 		var formattedType SpotNewOrderRequestParamsType
 		var params = SpotNewOrderRequestParams{
@@ -910,14 +921,12 @@ func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitR
 		params.Type = formattedType
 		response, err := h.SpotNewOrder(ctx, &params)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
-		if response > 0 {
-			submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
-		}
-		submitOrderResponse.IsOrderPlaced = true
+		orderID = strconv.FormatInt(response, 10)
+
 		if s.Type == order.Market {
-			submitOrderResponse.FullyMatched = true
+			status = order.Filled
 		}
 	case asset.CoinMarginedFutures:
 		var oDirection string
@@ -934,20 +943,23 @@ func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitR
 		case order.PostOnly:
 			oType = "post_only"
 		}
-		order, err := h.PlaceSwapOrders(ctx,
+		offset := "open"
+		if s.ReduceOnly {
+			offset = "close"
+		}
+		orderResp, err := h.PlaceSwapOrders(ctx,
 			s.Pair,
 			s.ClientOrderID,
 			oDirection,
-			s.Offset,
+			offset,
 			oType,
 			s.Price,
 			s.Amount,
 			s.Leverage)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
-		submitOrderResponse.OrderID = order.Data.OrderIDString
-		submitOrderResponse.IsOrderPlaced = true
+		orderID = orderResp.Data.OrderIDString
 	case asset.Futures:
 		var oDirection string
 		switch s.Side {
@@ -976,30 +988,38 @@ func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitR
 		case order.PostOnly:
 			oType = "post_only"
 		}
+		offset := "open"
+		if s.ReduceOnly {
+			offset = "close"
+		}
 		order, err := h.FOrder(ctx,
 			s.Pair,
 			"",
 			"",
 			s.ClientOrderID,
 			oDirection,
-			s.Offset,
+			offset,
 			oType,
 			s.Price,
 			s.Amount,
 			s.Leverage)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
-		submitOrderResponse.OrderID = order.Data.OrderIDStr
-		submitOrderResponse.IsOrderPlaced = true
+		orderID = order.Data.OrderIDStr
 	}
-	return submitOrderResponse, nil
+	resp, err := s.DeriveSubmitResponse(orderID)
+	if err != nil {
+		return nil, err
+	}
+	resp.Status = status
+	return resp, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (h *HUOBI) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
-	return order.Modify{}, common.ErrFunctionNotSupported
+func (h *HUOBI) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -1011,15 +1031,15 @@ func (h *HUOBI) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	switch o.AssetType {
 	case asset.Spot:
 		var orderIDInt int64
-		orderIDInt, err = strconv.ParseInt(o.ID, 10, 64)
+		orderIDInt, err = strconv.ParseInt(o.OrderID, 10, 64)
 		if err != nil {
 			return err
 		}
 		_, err = h.CancelExistingOrder(ctx, orderIDInt)
 	case asset.CoinMarginedFutures:
-		_, err = h.CancelSwapOrder(ctx, o.ID, o.ClientID, o.Pair)
+		_, err = h.CancelSwapOrder(ctx, o.OrderID, o.ClientID, o.Pair)
 	case asset.Futures:
-		_, err = h.FCancelOrder(ctx, o.Symbol, o.ClientID, o.ClientOrderID)
+		_, err = h.FCancelOrder(ctx, o.Pair.Base, o.ClientID, o.ClientOrderID)
 	default:
 		return fmt.Errorf("%v assetType not supported", o.AssetType)
 	}
@@ -1204,7 +1224,7 @@ func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 		}
 		orderDetail = order.Detail{
 			Exchange:       h.Name,
-			ID:             orderID,
+			OrderID:        orderID,
 			AccountID:      strconv.FormatInt(respData.AccountID, 10),
 			Pair:           p,
 			Type:           orderType,
@@ -1350,9 +1370,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 			return nil, errors.New("currency must be supplied")
 		}
 		side := ""
-		if req.Side == order.AnySide || req.Side == "" {
-			side = ""
-		} else if req.Side == order.Sell {
+		if req.Side == order.Sell {
 			side = req.Side.Lower()
 		}
 		if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
@@ -1392,7 +1410,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 					orders = append(orders, order.Detail{
 						Exchange:        h.Name,
 						AccountID:       strconv.FormatInt(resp.Data[j].AccountID, 10),
-						ID:              orderID,
+						OrderID:         orderID,
 						Pair:            req.Pairs[i],
 						Type:            orderType,
 						Side:            orderSide,
@@ -1422,7 +1440,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 				}
 				for x := range resp {
 					orderDetail := order.Detail{
-						ID:              strconv.FormatInt(resp[x].ID, 10),
+						OrderID:         strconv.FormatInt(resp[x].ID, 10),
 						Price:           resp[x].Price,
 						Amount:          resp[x].Amount,
 						ExecutedAmount:  resp[x].FilledAmount,
@@ -1470,7 +1488,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 						Fee:             openOrders.Data.Orders[x].Fee,
 						Exchange:        h.Name,
 						AssetType:       req.AssetType,
-						ID:              openOrders.Data.Orders[x].OrderIDString,
+						OrderID:         openOrders.Data.Orders[x].OrderIDString,
 						Side:            orderVars.Side,
 						Type:            orderVars.OrderType,
 						Status:          orderVars.Status,
@@ -1512,7 +1530,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 						Fee:             openOrders.Data.Orders[x].Fee,
 						Exchange:        h.Name,
 						AssetType:       req.AssetType,
-						ID:              openOrders.Data.Orders[x].OrderIDString,
+						OrderID:         openOrders.Data.Orders[x].OrderIDString,
 						Side:            orderVars.Side,
 						Type:            orderVars.OrderType,
 						Status:          orderVars.Status,
@@ -1526,7 +1544,10 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 	}
 	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err := order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", h.Name, err)
+	}
 	return orders, nil
 }
 
@@ -1558,7 +1579,7 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 			}
 			for x := range resp {
 				orderDetail := order.Detail{
-					ID:              strconv.FormatInt(resp[x].ID, 10),
+					OrderID:         strconv.FormatInt(resp[x].ID, 10),
 					Price:           resp[x].Price,
 					Amount:          resp[x].Amount,
 					ExecutedAmount:  resp[x].FilledAmount,
@@ -1615,7 +1636,7 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 						Fee:             orderHistory.Data.Orders[x].Fee,
 						Exchange:        h.Name,
 						AssetType:       req.AssetType,
-						ID:              orderHistory.Data.Orders[x].OrderIDString,
+						OrderID:         orderHistory.Data.Orders[x].OrderIDString,
 						Side:            orderVars.Side,
 						Type:            orderVars.OrderType,
 						Status:          orderVars.Status,
@@ -1673,7 +1694,7 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 						Fee:             openOrders.Data.Orders[x].Fee,
 						Exchange:        h.Name,
 						AssetType:       req.AssetType,
-						ID:              openOrders.Data.Orders[x].OrderIDString,
+						OrderID:         openOrders.Data.Orders[x].OrderIDString,
 						Side:            orderVars.Side,
 						Type:            orderVars.OrderType,
 						Status:          orderVars.Status,
@@ -1686,7 +1707,10 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 			}
 		}
 	}
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err := order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", h.Name, err)
+	}
 	return orders, nil
 }
 
@@ -1842,4 +1866,9 @@ func (h *HUOBI) GetAvailableTransferChains(ctx context.Context, cryptocurrency c
 		availableChains[x] = chains[0].ChainData[x].Chain
 	}
 	return availableChains, nil
+}
+
+// GetServerTime returns the current exchange server time.
+func (h *HUOBI) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+	return h.GetCurrentServerTime(ctx)
 }

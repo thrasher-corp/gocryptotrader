@@ -7,30 +7,33 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
+
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = "979bd241-8b96-426e-8110-92a31aedf32d"
-	apiSecret               = "E1212852CA92CE593E78795A30F59FFB"
-	passphrase              = "J1h6A7tHn.WjOYp5K6+4"
-	canManipulateRealOrders = true
+	apiKey                  = ""
+	apiSecret               = ""
+	passphrase              = ""
+	canManipulateRealOrders = false
 )
 
 var ok Okx
 
 func TestMain(m *testing.M) {
-	ok.SetDefaults()
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
@@ -40,18 +43,39 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	exchCfg.API.AuthenticatedSupport = true
-	exchCfg.API.AuthenticatedWebsocketSupport = true
+	ok.SkipAuthCheck = true
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
 	exchCfg.API.Credentials.ClientID = passphrase
+	ok.SetDefaults()
 
+	if apiKey != "" && apiSecret != "" {
+		exchCfg.API.AuthenticatedSupport = true
+		exchCfg.API.AuthenticatedWebsocketSupport = true
+	}
+
+	ok.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = ok.Setup(exchCfg)
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	ok.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	ok.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
+}
+
+func TestStart(t *testing.T) {
+	t.Parallel()
+	err := ok.Start(nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
+	}
+	var testWg sync.WaitGroup
+	err = ok.Start(&testWg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testWg.Wait()
 }
 
 func areTestAPIKeysSet() bool {
@@ -83,7 +107,7 @@ func TestGetTickers(t *testing.T) {
 	if er := json.Unmarshal([]byte(marketDataResponseJSON), &resp); er != nil {
 		t.Error("Okx decerializing to MarketDataResponse error", er)
 	}
-	_, er := ok.GetTickers(context.Background(), "SPOT", "", "BTC-USD-SWAP")
+	_, er := ok.GetTickers(context.Background(), "OPTION", "", "SOL-USD")
 	if er != nil {
 		t.Error("Okx GetTickers() error", er)
 	}
@@ -553,7 +577,7 @@ func TestPlaceOrder(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if resp, er := ok.PlaceOrder(context.Background(), PlaceOrderRequestParam{
+	if _, er := ok.PlaceOrder(context.Background(), PlaceOrderRequestParam{
 		InstrumentID:        "MATIC-USDC",
 		TradeMode:           "cross",
 		Side:                "sell",
@@ -562,9 +586,6 @@ func TestPlaceOrder(t *testing.T) {
 		OrderPrice:          1,
 	}); er != nil {
 		t.Error("Okx PlaceOrder() error", er)
-	} else {
-		binary, _ := json.Marshal(resp)
-		println(string(binary))
 	}
 }
 
@@ -647,54 +668,15 @@ func TestClosePositions(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	// this test function has to be re-modified
 	if _, er := ok.ClosePositions(context.Background(), &ClosePositionsRequestParams{
 		InstrumentID: "BTC-USDT",
 		MarginMode:   "cross",
-		PositionSide: "long",
-		Currency:     currency.BTC.String(),
-	}); !strings.Contains(er.Error(), "Token does not exist.") {
+	}); er != nil && !strings.Contains(er.Error(), "Operation is not supported under the current account mode") {
 		t.Error("Okc ClosePositions() error", er)
 	}
 }
 
-var orderDetail = `{
-	"instType": "FUTURES",
-	"instId": "BTC-USD-200329",
-	"ccy": "",
-	"ordId": "312269865356374016",
-	"clOrdId": "b1",
-	"tag": "",
-	"px": "999",
-	"sz": "3",
-	"pnl": "5",
-	"ordType": "limit",
-	"side": "buy",
-	"posSide": "long",
-	"tdMode": "isolated",
-	"accFillSz": "0",
-	"fillPx": "0",
-	"tradeId": "0",
-	"fillSz": "0",
-	"fillTime": "0",
-	"state": "live",
-	"avgPx": "0",
-	"lever": "20",
-	"tpTriggerPx": "",
-	"tpTriggerPxType": "last",
-	"tpOrdPx": "",
-	"slTriggerPx": "",
-	"slTriggerPxType": "last",
-	"slOrdPx": "",
-	"feeCcy": "",
-	"fee": "",
-	"rebateCcy": "",
-	"rebate": "",
-	"tgtCcy":"",
-	"category": "",
-	"uTime": "1597026383085",
-	"cTime": "1597026383085"
-  }`
+var orderDetail = `{"instType": "FUTURES","instId": "BTC-USD-200329","ccy": "","ordId": "312269865356374016","clOrdId": "b1","tag": "","px": "999","sz": "3","pnl": "5","ordType": "limit","side": "buy","posSide": "long","tdMode": "isolated","accFillSz": "0","fillPx": "0","tradeId": "0","fillSz": "0","fillTime": "0","state": "live","avgPx": "0","lever": "20","tpTriggerPx": "","tpTriggerPxType": "last","tpOrdPx": "","slTriggerPx": "","slTriggerPxType": "last","slOrdPx": "","feeCcy": "","fee": "","rebateCcy": "","rebate": "","tgtCcy":"","category": "","uTime": "1597026383085","cTime": "1597026383085"}`
 
 func TestGetOrderDetail(t *testing.T) {
 	t.Parallel()
@@ -708,49 +690,12 @@ func TestGetOrderDetail(t *testing.T) {
 	if _, er := ok.GetOrderDetail(context.Background(), &OrderDetailRequestParam{
 		InstrumentID: "BTC-USDT",
 		OrderID:      "2510789768709120",
-	}); !strings.Contains(er.Error(), "Instrument ID does not exist.") {
+	}); !strings.Contains(er.Error(), "Order does not exist") {
 		t.Error("Okx GetOrderDetail() error", er)
 	}
 }
 
-const pendingOrderItemJSON = `{
-	"accFillSz": "0",
-	"avgPx": "",
-	"cTime": "1618235248028",
-	"category": "normal",
-	"ccy": "",
-	"clOrdId": "",
-	"fee": "0",
-	"feeCcy": "BTC",
-	"fillPx": "",
-	"fillSz": "0",
-	"fillTime": "",
-	"instId": "BTC-USDT",
-	"instType": "SPOT",
-	"lever": "5.6",
-	"ordId": "301835739059335168",
-	"ordType": "limit",
-	"pnl": "0",
-	"posSide": "net",
-	"px": "59200",
-	"rebate": "0",
-	"rebateCcy": "USDT",
-	"side": "buy",
-	"slOrdPx": "",
-	"slTriggerPx": "",
-	"slTriggerPxType": "last",
-	"state": "live",
-	"sz": "1",
-	"tag": "",
-	"tgtCcy": "",
-	"tdMode": "cross",
-	"source":"",
-	"tpOrdPx": "",
-	"tpTriggerPx": "",
-	"tpTriggerPxType": "last",
-	"tradeId": "",
-	"uTime": "1618235248028"
-}`
+const pendingOrderItemJSON = `{"accFillSz": "0","avgPx": "","cTime": "1618235248028","category": "normal","ccy": "","clOrdId": "","fee": "0","feeCcy": "BTC","fillPx": "","fillSz": "0","fillTime": "","instId": "BTC-USDT","instType": "SPOT","lever": "5.6","ordId": "301835739059335168","ordType": "limit","pnl": "0","posSide": "net","px": "59200","rebate": "0","rebateCcy": "USDT","side": "buy","slOrdPx": "","slTriggerPx": "","slTriggerPxType": "last","state": "live","sz": "1","tag": "","tgtCcy": "","tdMode": "cross","source":"","tpOrdPx": "","tpTriggerPx": "","tpTriggerPxType": "last","tradeId": "","uTime": "1618235248028"}`
 
 func TestGetOrderList(t *testing.T) {
 	t.Parallel()
@@ -1230,7 +1175,7 @@ func TestCancelAllQuotes(t *testing.T) {
 func TestGetRFQs(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Parallel()
+		t.SkipNow()
 	}
 	if _, er := ok.GetRfqs(context.Background(), RfqRequestParams{}); er != nil {
 		t.Error("Okx GetRfqs() error", er)
@@ -1475,22 +1420,12 @@ func TestGetCurrencyDepositAddress(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er = ok.GetCurrencyDepositAddress(context.Background(), "BTC"); er != nil {
+	if _, er := ok.GetCurrencyDepositAddress(context.Background(), "BTC"); er != nil {
 		t.Error("Okx GetCurrencyDepositAddress() error", er)
 	}
 }
 
-var depositHistoryResponseString = `{
-	"amt": "0.01044408",
-	"txId": "1915737_3_0_0_asset",
-	"ccy": "BTC",
-	"chain":"BTC-Bitcoin",
-	"from": "13801825426",
-	"to": "",
-	"ts": "1597026383085",
-	"state": "2",
-	"depId": "4703879"
-  }`
+var depositHistoryResponseString = `{"amt": "0.01044408","txId": "1915737_3_0_0_asset","ccy": "BTC","chain":"BTC-Bitcoin","from": "13801825426","to": "","ts": "1597026383085","state": "2","depId": "4703879"}`
 
 func TestGetCurrencyDepositHistory(t *testing.T) {
 	t.Parallel()
@@ -1498,6 +1433,9 @@ func TestGetCurrencyDepositHistory(t *testing.T) {
 	er := json.Unmarshal([]byte(depositHistoryResponseString), &response)
 	if er != nil {
 		t.Error("Okx DepositHistoryResponseItem unmarshaling error", er)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
 	}
 	if _, er := ok.GetCurrencyDepositHistory(context.Background(), "BTC", "", "", 0, time.Time{}, time.Time{}, 5); er != nil {
 		t.Error("Okx GetCurrencyDepositHistory() error", er)
@@ -1638,10 +1576,7 @@ func TestSavingsPurchase(t *testing.T) {
 	}
 }
 
-var setLendingRate = `{
-	"ccy": "BTC",
-	"rate": "0.02"
-}`
+var setLendingRate = `{"ccy": "BTC","rate": "0.02"}`
 
 func TestSetLendingRate(t *testing.T) {
 	t.Parallel()
@@ -1652,18 +1587,13 @@ func TestSetLendingRate(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
-	if _, er := ok.SetLendingRate(context.Background(), LendingRate{Currency: "BTC", Rate: 2}); er != nil {
+	if _, er := ok.SetLendingRate(context.Background(), LendingRate{Currency: "BTC", Rate: 2}); er != nil &&
+		!strings.Contains(er.Error(), "You do not have assets in this currency") {
 		t.Error("Okx SetLendingRate() error", er)
 	}
 }
 
-var lendinghistoryJSON = `{
-	"ccy": "BTC",
-	"amt": "0.01",
-	"earnings": "0.001",
-	"rate": "0.01",
-	"ts": "1597026383085"
-}`
+var lendinghistoryJSON = `{"ccy": "BTC","amt": "0.01","earnings": "0.001","rate": "0.01","ts": "1597026383085"}`
 
 func TestGetLendingHistory(t *testing.T) {
 	t.Parallel()
@@ -1772,7 +1702,7 @@ func TestEstimateQuote(t *testing.T) {
 	if _, er := ok.EstimateQuote(context.Background(), EstimateQuoteRequestInput{
 		BaseCurrency:  "BTC",
 		QuoteCurrency: "USDT",
-		Side:          order.Buy,
+		Side:          "Buy",
 		RFQAmount:     30,
 		RFQSzCurrency: "USDT",
 	}); er != nil {
@@ -1804,12 +1734,10 @@ func TestConvertTrade(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	// By default, because of the input I used in this method call, this test returns an error message of no valid response from the server.
-	// so, I am catching other error messages.
 	if _, er := ok.ConvertTrade(context.Background(), ConvertTradeInput{
 		BaseCurrency:  "BTC",
 		QuoteCurrency: "USDT",
-		Side:          order.Buy,
+		Side:          "Buy",
 		Size:          2,
 		SizeCurrency:  "USDT",
 		QuoteID:       "quoterETH-USDT16461885104612381",
@@ -2095,14 +2023,12 @@ func TestSetLeverage(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	// for this test, there is no response from the server and i am handling the response with errNoValidResponseFromServer
 	if _, er := ok.SetLeverage(context.Background(), SetLeverageInput{
-		Leverage:     "30",
-		MarginMode:   "cross",
-		InstrumentID: "",
-		Currency:     "BTC",
+		Leverage:     30,
+		MarginMode:   "isolated",
+		InstrumentID: "BTC-USDT",
 		PositionSide: "long",
-	}); er != nil && !errors.Is(er, errNoValidResponseFromServer) {
+	}); er != nil && !errors.Is(er, errNoValidResponseFromServer) && !strings.Contains(er.Error(), "System error, please try again later.") {
 		t.Error("Okx SetLeverage() error", er)
 	}
 }
@@ -2112,7 +2038,7 @@ func TestGetMaximumBuySellAmountOROpenAmount(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := ok.GetMaximumBuySellAmountOROpenAmount(context.Background(), "BTC-USDT", "cross", "BTC", "", 0); er != nil {
+	if _, er := ok.GetMaximumBuySellAmountOROpenAmount(context.Background(), "BTC-USDT", "cross", "BTC", "", 5); er != nil {
 		t.Error("Okx GetMaximumBuySellAmountOROpenAmount() error", er)
 	}
 }
@@ -2209,9 +2135,9 @@ func TestIsolatedMarginTradingSettings(t *testing.T) {
 		t.SkipNow()
 	}
 	if _, er := ok.IsolatedMarginTradingSettings(context.Background(), IsolatedMode{
-		IsoMode:        "automatic",
-		InstrumentType: asset.PerpetualContract,
-	}); er != nil {
+		IsoMode:        "autonomy",
+		InstrumentType: "MARGIN",
+	}); er != nil && !strings.Contains(er.Error(), "Operation is not supported under the current account mode") {
 		t.Error("Okx IsolatedMarginTradingSettings() error", er)
 	}
 }
@@ -2241,7 +2167,8 @@ func TestVIPLoansBorrowAndRepay(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := ok.VIPLoansBorrowAndRepay(context.Background(), LoanBorrowAndReplayInput{Currency: "BTC", Side: "borrow", Amount: 12}); er != nil {
+	if _, er := ok.VIPLoansBorrowAndRepay(context.Background(), LoanBorrowAndReplayInput{Currency: "BTC", Side: "borrow", Amount: 12}); er != nil &&
+		!strings.Contains(er.Error(), "Your account does not support VIP loan") {
 		t.Error("Okx VIPLoansBorrowAndRepay() error", er)
 	}
 }
@@ -2301,7 +2228,9 @@ func TestPositionBuilder(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := ok.PositionBuilder(context.Background(), PositionBuilderInput{}); er != nil {
+	if _, er := ok.PositionBuilder(context.Background(), PositionBuilderInput{
+		ImportExistingPosition: true,
+	}); er != nil {
 		t.Error("Okx PositionBuilder() error", er)
 	}
 }
@@ -2332,6 +2261,9 @@ var subaccountsResponseJson = `{
 func TestViewSubaccountList(t *testing.T) {
 	t.Parallel()
 	var resp SubaccountInfo
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
 	if er := json.Unmarshal([]byte(subaccountsResponseJson), &resp); er != nil {
 		t.Error("Okx Decerializing to SubaccountInfo error", er)
 	}
@@ -2343,45 +2275,13 @@ func TestViewSubaccountList(t *testing.T) {
 	}
 }
 
-var subaccountBalanceResponseJson = `{
-	"adjEq": "10679688.0460531643092577",
-	"details": [
-		{
-			"availBal": "",
-			"availEq": "9930359.9998",
-			"cashBal": "9930359.9998",
-			"ccy": "USDT",
-			"crossLiab": "0",
-			"disEq": "9439737.0772999514",
-			"eq": "9930359.9998",
-			"eqUsd": "9933041.196999946",
-			"frozenBal": "0",
-			"interest": "0",
-			"isoEq": "0",
-			"isoLiab": "0",
-			"liab": "0",
-			"maxLoan": "10000",
-			"mgnRatio": "",
-			"notionalLever": "",
-			"ordFrozen": "0",
-			"twap": "0",
-			"uTime": "1620722938250",
-			"upl": "0",
-			"uplLiab": "0"
-		}
-	],
-	"imr": "3372.2942371050594217",
-	"isoEq": "0",
-	"mgnRatio": "70375.35408747017",
-	"mmr": "134.8917694842024",
-	"notionalUsd": "33722.9423710505978888",
-	"ordFroz": "0",
-	"totalEq": "11172992.1657531589092577",
-	"uTime": "1623392334718"
-}`
+var subaccountBalanceResponseJson = `{"adjEq": "10679688.0460531643092577","details": [{"availBal": "","availEq": "9930359.9998","cashBal": "9930359.9998","ccy": "USDT","crossLiab": "0","disEq": "9439737.0772999514","eq": "9930359.9998","eqUsd": "9933041.196999946","frozenBal": "0","interest": "0","isoEq": "0","isoLiab": "0","liab": "0","maxLoan": "10000","mgnRatio": "","notionalLever": "","ordFrozen": "0","twap": "0","uTime": "1620722938250","upl": "0","uplLiab": "0"}],"imr": "3372.2942371050594217","isoEq": "0","mgnRatio": "70375.35408747017","mmr": "134.8917694842024","notionalUsd": "33722.9423710505978888","ordFroz": "0","totalEq": "11172992.1657531589092577","uTime": "1623392334718"}`
 
 func TestGetSubaccountTradingBalance(t *testing.T) {
 	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
 	var resp SubaccountBalanceResponse
 	if er := json.Unmarshal([]byte(subaccountBalanceResponseJson), &resp); er != nil {
 		t.Error("Okx ", er)
@@ -2430,6 +2330,9 @@ func TestHistoryOfSubaccountTransfer(t *testing.T) {
 	if er := json.Unmarshal([]byte(historyOfSubaccountTransfer), &resp); er != nil {
 		t.Error("Okx Decerializing to SubaccountBillItem error", er)
 	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
 	if _, er := ok.HistoryOfSubaccountTransfer(context.Background(), "", 0, "", time.Time{}, time.Time{}, 10); er != nil {
 		t.Error("Okx HistoryOfSubaccountTransfer() error", er)
 	}
@@ -2453,7 +2356,7 @@ func TestSetPermissionOfTransferOut(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := ok.SetPermissionOfTransferOut(context.Background(), PermissingOfTransfer{SubAcct: "Test1"}); er != nil && !strings.Contains(er.Error(), "Sub-account does not exist (transfer endpoint: sub-account does not exist") {
+	if _, er := ok.SetPermissionOfTransferOut(context.Background(), PermissingOfTransfer{SubAcct: "Test1"}); er != nil && !strings.Contains(er.Error(), "Sub-account does not exist") {
 		t.Error("Okx SetPermissionOfTransferOut() error", er)
 	}
 }
@@ -2468,19 +2371,8 @@ func TestGetCustodyTradingSubaccountList(t *testing.T) {
 	}
 }
 
-var gridTradingPlaceOrder = `{
-    "instId": "BTC-USDT-SWAP",
-    "algoOrdType": "contract_grid",
-    "maxPx": "5000",
-    "minPx": "400",
-    "gridNum": "10",
-    "runType": "1",
-    "sz": "200", 
-    "direction": "long",
-    "lever": "2"
-}`
+var gridTradingPlaceOrder = `{"instId": "BTC-USDT-SWAP","algoOrdType": "contract_grid","maxPx": "5000","minPx": "400","gridNum": "10","runType": "1","sz": "200", "direction": "long","lever": "2"}`
 
-// Grid Trading Endpoints
 func TestPlaceGridAlgoOrder(t *testing.T) {
 	t.Parallel()
 	var input GridAlgoOrder
@@ -2578,29 +2470,7 @@ func TestGetGridAlgoSubOrders(t *testing.T) {
 	}
 }
 
-var spotGridAlgoOrderPosition = `{
-	"adl": "1",
-	"algoId": "449327675342323712",
-	"avgPx": "29215.0142857142857149",
-	"cTime": "1653400065917",
-	"ccy": "USDT",
-	"imr": "2045.386",
-	"instId": "BTC-USDT-SWAP",
-	"instType": "SWAP",
-	"last": "29206.7",
-	"lever": "5",
-	"liqPx": "661.1684795867162",
-	"markPx": "29213.9",
-	"mgnMode": "cross",
-	"mgnRatio": "217.19370606167573",
-	"mmr": "40.907720000000005",
-	"notionalUsd": "10216.70307",
-	"pos": "35",
-	"posSide": "net",
-	"uTime": "1653400066938",
-	"upl": "1.674999999999818",
-	"uplRatio": "0.0008190504784478"
-}`
+var spotGridAlgoOrderPosition = `{"adl": "1","algoId": "449327675342323712","avgPx": "29215.0142857142857149","cTime": "1653400065917","ccy": "USDT","imr": "2045.386","instId": "BTC-USDT-SWAP","instType": "SWAP","last": "29206.7","lever": "5","liqPx": "661.1684795867162","markPx": "29213.9","mgnMode": "cross","mgnRatio": "217.19370606167573","mmr": "40.907720000000005","notionalUsd": "10216.70307","pos": "35","posSide": "net","uTime": "1653400066938","upl": "1.674999999999818","uplRatio": "0.0008190504784478"}`
 
 func TestGetGridAlgoOrderPositions(t *testing.T) {
 	t.Parallel()
@@ -2637,16 +2507,7 @@ func TestSpotGridWithdrawProfit(t *testing.T) {
 	}
 }
 
-var systemStatusResponseJson = `{
-	"title": "Spot System Upgrade",
-	"state": "scheduled",
-	"begin": "1620723600000",
-	"end": "1620724200000",
-	"href": "",
-	"serviceType": "1",
-	"system": "classic",
-	"scheDesc": ""       
-}`
+var systemStatusResponseJson = `{"title": "Spot System Upgrade","state": "scheduled","begin": "1620723600000","end": "1620724200000","href": "","serviceType": "1","system": "classic","scheDesc": ""}`
 
 func TestSystemStatusResponse(t *testing.T) {
 	t.Parallel()
@@ -2768,14 +2629,15 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
-	if areTestAPIKeysSet() && !canManipulateRealOrders {
-		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
 	}
 	var orderSubmission = &order.Submit{
 		Pair: currency.Pair{
 			Base:  currency.LTC,
 			Quote: currency.BTC,
 		},
+		Exchange:  ok.Name,
 		Side:      order.Buy,
 		Type:      order.Limit,
 		Price:     1,
@@ -2784,20 +2646,15 @@ func TestSubmitOrder(t *testing.T) {
 		AssetType: asset.Spot,
 	}
 	_, err := ok.SubmitOrder(context.Background(), orderSubmission)
-	switch {
-	case areTestAPIKeysSet() && err != nil:
+	if err != nil {
 		t.Error("Okx SubmitOrder() error", err)
-	case !areTestAPIKeysSet() && err == nil:
-		t.Error("Okx SubmitOrder() expecting an error when no keys are set")
-	case err != nil:
-		t.Error("Okx Mock SubmitOrder() error", err)
 	}
 }
 
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
-	if areTestAPIKeysSet() && !canManipulateRealOrders {
-		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
 	}
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
@@ -2980,46 +2837,315 @@ func TestGetHistoricCandles(t *testing.T) {
 	}
 }
 
-var wsInstrumentResp = `{
-	"arg": {
-	  "channel": "instruments",
-	  "instType": "FUTURES"
-	},
-	"data": [
-	  {
-		"instType": "FUTURES",
-		"instId": "BTC-USD-191115",
-		"uly": "BTC-USD",
-		"category": "1",
-		"baseCcy": "",
-		"quoteCcy": "",
-		"settleCcy": "BTC",
-		"ctVal": "10",
-		"ctMult": "1",
-		"ctValCcy": "USD",
-		"optType": "",
-		"stk": "",
-		"listTime": "",
-		"expTime": "",
-		"tickSz": "0.01",
-		"lotSz": "1",
-		"minSz": "1",
-		"ctType": "linear",
-		"alias": "this_week",
-		"state": "live",
-		"maxLmtSz":"10000",
-		"maxMktSz":"99999",
-		"maxTwapSz":"99999",
-		"maxIcebergSz":"99999",
-		"maxTriggerSz":"9999",
-		"maxStopSz":"9999"
-	  }
-	]
-}`
+var wsInstrumentResp = `{"arg": {"channel": "instruments","instType": "FUTURES"},"data": [{"instType": "FUTURES","instId": "BTC-USD-191115","uly": "BTC-USD","category": "1","baseCcy": "","quoteCcy": "","settleCcy": "BTC","ctVal": "10","ctMult": "1","ctValCcy": "USD","optType": "","stk": "","listTime": "","expTime": "","tickSz": "0.01","lotSz": "1","minSz": "1","ctType": "linear","alias": "this_week","state": "live","maxLmtSz":"10000","maxMktSz":"99999","maxTwapSz":"99999","maxIcebergSz":"99999","maxTriggerSz":"9999","maxStopSz":"9999"}]}`
 
 func TestWSInstruments(t *testing.T) {
 	t.Parallel()
 	if er := ok.WsHandleData([]byte(wsInstrumentResp)); er != nil {
 		t.Errorf("%s Websocket Instruments Push Data error %v", ok.Name, er)
+	}
+}
+
+var tickerChannelJSON = `{"arg": {"channel": "tickers","instId": "LTC-USD-200327"},"data": [{"instType": "SWAP","instId": "LTC-USD-SWAP","last": "9999.99","lastSz": "0.1","askPx": "9999.99","askSz": "11","bidPx": "8888.88","bidSz": "5","open24h": "9000","high24h": "10000","low24h": "8888.88","volCcy24h": "2222","vol24h": "2222","sodUtc0": "2222","sodUtc8": "2222","ts": "1597026383085"}]}`
+
+func TestTickerChannel(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(tickerChannelJSON)); er != nil {
+		t.Error("Okx TickerChannel push data error", er)
+	}
+}
+
+var openInterestChannel = `{"arg": {"channel": "open-interest","instId": "LTC-USD-SWAP"},"data": [{"instType": "SWAP","instId": "LTC-USD-SWAP","oi": "5000","oiCcy": "555.55","ts": "1597026383085"}]}`
+
+func TestOpenInterestPushData(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(openInterestChannel)); er != nil {
+		t.Error("Okx Open Interest Push Data error", er)
+	}
+}
+
+var candlesticksPushData = `{"arg": {"channel": "candle1D","instId": "BTC-USD-191227"},"data": [["1597026383085","8533.02","8553.74","8527.17","8548.26","45247","529.5858061"]]}`
+
+func TestCandlestickPushData(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(candlesticksPushData)); er != nil {
+		t.Error("Okx Candlestick Push Data error", er)
+	}
+}
+
+var tradePushDataJSON = `{"arg": {"channel": "trades","instId": "BTC-USDT"},"data": [{"instId": "BTC-USDT","tradeId": "130639474","px": "42219.9","sz": "0.12060306","side": "buy","ts": "1630048897897"}]}`
+
+func TestTradePushData(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(tradePushDataJSON)); er != nil {
+		t.Error("Okx Trade Push Data error", er)
+	}
+}
+
+var estimatedDeliveryAndExercisePricePushDataJSON = `{"arg": {"args": "estimated-price","instType": "FUTURES","uly": "BTC-USD"},"data": [{"instType": "FUTURES","instId": "BTC-USD-170310","settlePx": "200","ts": "1597026383085"}]}`
+
+func TestEstimatedDeliveryAndExercisePricePushData(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(estimatedDeliveryAndExercisePricePushDataJSON)); er != nil {
+		t.Error("Okx Estimated Delivery and Exercise Price Push Data error", er)
+	}
+}
+
+var markPricePushData = `{"arg": {"channel": "mark-price","instId": "LTC-USD-190628"},"data": [{"instType": "FUTURES","instId": "LTC-USD-190628","markPx": "0.1","ts": "1597026383085"}]}`
+
+func TestMarkPricePushData(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(markPricePushData)); er != nil {
+		t.Error("Okx Mark Price Push Data error", er)
+	}
+}
+
+var markPriceCandlestickPushData = `{"arg": {"channel": "mark-price-candle1D","instId": "BTC-USD-190628"},"data": [["1597026383085", "3.721", "3.743", "3.677", "3.708"],["1597026383085", "3.731", "3.799", "3.494", "3.72"]]}`
+
+func TestMarkPriceCandlestickPushData(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(markPriceCandlestickPushData)); er != nil {
+		t.Error("Okx Mark Price Candlestick Push Data error", er)
+	}
+}
+
+var priceLimitPushDataJSON = `{"arg": {"channel": "mark-price","instId": "BTC-USDT"},"data": [{"instType": "MARGIN","instId": "BTC-USDT","markPx": "42310.6","ts": "1630049139746"}]}`
+
+func TestPriceLimitPushData(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(priceLimitPushDataJSON)); er != nil {
+		t.Error("Okx Price Limit Push Data error", er)
+	}
+}
+
+var snapshotOrderBookPushData = `{"arg": {"channel": "books","instId": "BTC-USDT"},
+"action": "snapshot",
+"data": [
+	{
+		"bids": [
+	["3366.1","7","0","3"]
+  ],
+  "asks": [
+	["3366.8","9", "10", "3"],
+	["3368", "8", "3", "4"],
+	["3372", "8", "3", "4"]],
+  "ts": "1597026383085",
+  "checksum": -855196043}]}`
+
+func TestSnapshotOrderBookPushData(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(snapshotOrderBookPushData)); er != nil {
+		t.Error("Okx Snapshot order book push data error", er)
+	}
+}
+
+var updateOrderBookPushDataJSON = `{"arg": {"channel": "books","instId": "BTC-USDT"},"action": "update","data": [{"asks": [["8476.98", "415", "0", "13"],["8477", "7", "0", "2"],["8477.34", "85", "0","1"],["8477.56","1","0","1"],["8505.84","8","0","1"],["8506.37", "85", "0", "1"],["8506.49", "2", "0", "1"],["8506.96", "100", "0", "2"]],"bids": [["8476.97", "256", "0", "12"],["8475.55", "101", "0", "1"],["8475.54", "100", "0", "1"],["8475.3", "1", "0", "1"],["8447.32", "6", "0", "1"],["8447.02", "246", "0", "1"],["8446.83", "24", "0", "1"],["8446", "95", "0", "3"]],"ts": "1597026383085","checksum": -855196043}]}`
+
+func TestUpdateOrderBookPushData(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(updateOrderBookPushDataJSON)); er != nil {
+		t.Error("Okx Update Order Book Push Data error", er)
+	}
+}
+
+var optionSummaryPushDataJSON = `{"arg": {"channel": "opt-summary","uly": "BTC-USD"},"data": [{"instType": "OPTION","instId": "BTC-USD-200103-5500-C","uly": "BTC-USD","delta": "0.7494223636","gamma": "-0.6765419039","theta": "-0.0000809873","vega": "0.0000077307","deltaBS": "0.7494223636","gammaBS": "-0.6765419039","thetaBS": "-0.0000809873","vegaBS": "0.0000077307","realVol": "0","bidVol": "","askVol": "1.5625","markVol": "0.9987","lever": "4.0342","fwdPx": "39016.8143629068452065","ts": "1597026383085"}]}`
+
+func TestOptionSummaryPushData(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(optionSummaryPushDataJSON)); er != nil {
+		t.Error("Okx Option Summary Push Data error", er)
+	}
+}
+
+var fundingRatePushDataJSON = `{"arg": {"channel": "funding-rate","instId": "BTC-USD-SWAP"},"data": [{"instType": "SWAP","instId": "BTC-USD-SWAP","fundingRate": "0.018","nextFundingRate": "","fundingTime": "1597026383085"}]}`
+
+func TestFundingRatePushData(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(fundingRatePushDataJSON)); er != nil {
+		t.Error("Okx Funding Rate Push Data error", er)
+	}
+}
+
+var indexCandlestickPushDataJSON = `{"arg": {"channel": "index-candle30m","instId": "BTC-USD"},"data": [["1597026383085", "3811.31", "3811.31", "3811.31", "3811.31"]]}`
+
+func TestIndexCandlestickPushData(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(indexCandlestickPushDataJSON)); er != nil {
+		t.Error("Okx Index Candlestick Push Data error", er)
+	}
+}
+
+var indexTickerPushDataJSON = `{"arg": {"channel": "index-tickers","instId": "BTC-USDT"},"data": [{"instId": "BTC-USDT","idxPx": "0.1","high24h": "0.5","low24h": "0.1","open24h": "0.1","sodUtc0": "0.1","sodUtc8": "0.1","ts": "1597026383085"}]}`
+
+func TestIndexTickersPushData(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(indexTickerPushDataJSON)); er != nil {
+		t.Error("Okx Index Ticker Push Data error", er)
+	}
+}
+
+var statusPushDataJSON = `{"arg": {"channel": "status"},"data": [{"title": "Spot System Upgrade","state": "scheduled","begin": "1610019546","href": "","end": "1610019546","serviceType": "1","system": "classic","scheDesc": "","ts": "1597026383085"}]}`
+
+func TestStatusPushData(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(statusPushDataJSON)); er != nil {
+		t.Error("Okx Status Push Data error", er)
+	}
+}
+
+var publicStructBlockTradesPushDataJSON = `{"arg":{"channel":"public-struc-block-trades"},"data":[{"cTime":"1608267227834","blockTdId":"1802896","legs":[{"px":"0.323","sz":"25.0","instId":"BTC-USD-20220114-13250-C","side":"sell","tradeId":"15102"},{"px":"0.666","sz":"25","instId":"BTC-USD-20220114-21125-C","side":"buy","tradeId":"15103"}]}]}`
+
+func TestPublicStructBlockTrades(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(publicStructBlockTradesPushDataJSON)); er != nil {
+		t.Error("Okx Public Struct Block Trades error", er)
+	}
+}
+
+var blockTickerPushDataJSON = `{"arg": {"channel": "block-tickers"},"data": [{"instType": "SWAP","instId": "LTC-USD-SWAP","volCcy24h": "0","vol24h": "0","ts": "1597026383085"}]}`
+
+func TestBlockTickerPushData(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(blockTickerPushDataJSON)); er != nil {
+		t.Error("Okx Block Tickers push data error", er)
+	}
+}
+
+var accountPushDataJSON = `{"arg": {"channel": "block-tickers"},"data": [{"instType": "SWAP","instId": "LTC-USD-SWAP","volCcy24h": "0","vol24h": "0","ts": "1597026383085"}]}`
+
+func TestAccountPushData(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(accountPushDataJSON)); er != nil {
+		t.Error("Okx Account Push Data error", er)
+	}
+}
+
+var positionPushDataJSON = `{"arg":{"channel":"positions","instType":"FUTURES"},"data":[{"adl":"1","availPos":"1","avgPx":"2566.31","cTime":"1619507758793","ccy":"ETH","deltaBS":"","deltaPA":"","gammaBS":"","gammaPA":"","imr":"","instId":"ETH-USD-210430","instType":"FUTURES","interest":"0","last":"2566.22","lever":"10","liab":"","liabCcy":"","liqPx":"2352.8496681818233","markPx":"2353.849","margin":"0.0003896645377994","mgnMode":"isolated","mgnRatio":"11.731726509588816","mmr":"0.0000311811092368","notionalUsd":"2276.2546609009605","optVal":"","pTime":"1619507761462","pos":"1","posCcy":"","posId":"307173036051017730","posSide":"long","thetaBS":"","thetaPA":"","tradeId":"109844","uTime":"1619507761462","upl":"-0.0000009932766034","uplRatio":"-0.0025490556801078","vegaBS":"","vegaPA":""}]}`
+var positionPushDataWithUnderlyingJSON = `{"arg": {"channel": "positions","uid": "77982378738415879","instType": "ANY"},"data": [{"adl":"1","availPos":"1","avgPx":"2566.31","cTime":"1619507758793","ccy":"ETH","deltaBS":"","deltaPA":"","gammaBS":"","gammaPA":"","imr":"","instId":"ETH-USD-210430","instType":"FUTURES","interest":"0","last":"2566.22","usdPx":"","lever":"10","liab":"","liabCcy":"","liqPx":"2352.8496681818233","markPx":"2353.849","margin":"0.0003896645377994","mgnMode":"isolated","mgnRatio":"11.731726509588816","mmr":"0.0000311811092368","notionalUsd":"2276.2546609009605","optVal":"","pTime":"1619507761462","pos":"1","posCcy":"","posId":"307173036051017730","posSide":"long","thetaBS":"","thetaPA":"","tradeId":"109844","uTime":"1619507761462","upl":"-0.0000009932766034","uplRatio":"-0.0025490556801078","vegaBS":"","vegaPA":""}, {"adl":"1","availPos":"1","avgPx":"2566.31","cTime":"1619507758793","ccy":"ETH","deltaBS":"","deltaPA":"","gammaBS":"","gammaPA":"","imr":"","instId":"ETH-USD-SWAP","instType":"SWAP","interest":"0","last":"2566.22","usdPx":"","lever":"10","liab":"","liabCcy":"","liqPx":"2352.8496681818233","markPx":"2353.849","margin":"0.0003896645377994","mgnMode":"isolated","mgnRatio":"11.731726509588816","mmr":"0.0000311811092368","notionalUsd":"2276.2546609009605","optVal":"","pTime":"1619507761462","pos":"1","posCcy":"","posId":"307173036051017730","posSide":"long","thetaBS":"","thetaPA":"","tradeId":"109844","uTime":"1619507761462","upl":"-0.0000009932766034","uplRatio":"-0.0025490556801078","vegaBS":"","vegaPA":""}]}`
+
+func TestPositionPushData(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(positionPushDataJSON)); er != nil {
+		t.Error("Okx Account Push Data error", er)
+	}
+	if er := ok.WsHandleData([]byte(positionPushDataWithUnderlyingJSON)); er != nil {
+		t.Error("Okx Account Push Data error", er)
+	}
+}
+
+var balanceAndPositionJSON = `{"arg": {"channel": "balance_and_position","uid": "77982378738415879"},"data": [{"pTime": "1597026383085","eventType": "snapshot","balData": [{"ccy": "BTC","cashBal": "1","uTime": "1597026383085"}],"posData": [{"posId": "1111111111","tradeId": "2","instId": "BTC-USD-191018","instType": "FUTURES","mgnMode": "cross","posSide": "long","pos": "10","ccy": "BTC","posCcy": "","avgPx": "3320","uTIme": "1597026383085"}]}]}`
+
+func TestBalanceAndPosition(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(balanceAndPositionJSON)); er != nil {
+		t.Error("Okx Balance And Position error", er)
+	}
+}
+
+var orderPushDataJSON = `{"arg": {"channel": "balance_and_position","uid": "77982378738415879"},"data": [{"pTime": "1597026383085","eventType": "snapshot","balData": [{"ccy": "BTC","cashBal": "1","uTime": "1597026383085"}],"posData": [{"posId": "1111111111","tradeId": "2","instId": "BTC-USD-191018","instType": "FUTURES","mgnMode": "cross","posSide": "long","pos": "10","ccy": "BTC","posCcy": "","avgPx": "3320","uTIme": "1597026383085"}]}]}`
+
+func TestOrderPushData(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(orderPushDataJSON)); er != nil {
+		t.Error("Okx Order Push Data error", er)
+	}
+}
+
+var algoOrdersPushDataJSON = `{"arg": {"channel": "orders-algo","uid": "77982378738415879","instType": "FUTURES","instId": "BTC-USD-200329"},"data": [{"instType": "FUTURES","instId": "BTC-USD-200329","ordId": "312269865356374016","ccy": "BTC","algoId": "1234","px": "999","sz": "3","tdMode": "cross","tgtCcy": "","notionalUsd": "","ordType": "trigger","side": "buy","posSide": "long","state": "live","lever": "20","tpTriggerPx": "","tpTriggerPxType": "","tpOrdPx": "","slTriggerPx": "","slTriggerPxType": "","triggerPx": "99","triggerPxType": "last","ordPx": "12","actualSz": "","actualPx": "","tag": "adadadadad","actualSide": "","triggerTime": "1597026383085","cTime": "1597026383000"}]}`
+
+func TestAlgoOrderPushData(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(algoOrdersPushDataJSON)); er != nil {
+		t.Error("Okx Algo Order Push Data error", er)
+	}
+}
+
+var advancedAlgoOrderPushDataJSON = `{"arg":{"channel":"algo-advance","uid": "77982378738415879","instType":"SPOT","instId":"BTC-USDT"},"data":[{"actualPx":"","actualSide":"","actualSz":"0","algoId":"355056228680335360","cTime":"1630924001545","ccy":"","count":"1","instId":"BTC-USDT","instType":"SPOT","lever":"0","notionalUsd":"","ordPx":"","ordType":"iceberg","pTime":"1630924295204","posSide":"net","pxLimit":"10","pxSpread":"1","pxVar":"","side":"buy","slOrdPx":"","slTriggerPx":"","state":"pause","sz":"0.1","szLimit":"0.1","tdMode":"cash","timeInterval":"","tpOrdPx":"","tpTriggerPx":"","tag": "adadadadad","triggerPx":"","triggerTime":"","callbackRatio":"","callbackSpread":"","activePx":"","moveTriggerPx":""}]}`
+
+func TestAdvancedAlgoOrderPushData(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(advancedAlgoOrderPushDataJSON)); er != nil {
+		t.Error("Okx Advanced Algo Orders Push Data error", er)
+	}
+}
+
+var positionRiskPushDataJSON = `{"arg": {"channel": "liquidation-warning","uid": "77982378738415879","instType": "ANY"},"data": [{"adl":"1","availPos":"1","avgPx":"2566.31","cTime":"1619507758793","ccy":"ETH","deltaBS":"","deltaPA":"","gammaBS":"","gammaPA":"","imr":"","instId":"ETH-USD-210430","instType":"FUTURES","interest":"0","last":"2566.22","lever":"10","liab":"","liabCcy":"","liqPx":"2352.8496681818233","markPx":"2353.849","margin":"0.0003896645377994","mgnMode":"isolated","mgnRatio":"11.731726509588816","mmr":"0.0000311811092368","notionalUsd":"2276.2546609009605","optVal":"","pTime":"1619507761462","pos":"1","posCcy":"","posId":"307173036051017730","posSide":"long","thetaBS":"","thetaPA":"","tradeId":"109844","uTime":"1619507761462","upl":"-0.0000009932766034","uplRatio":"-0.0025490556801078","vegaBS":"","vegaPA":""}, {"adl":"1","availPos":"1","avgPx":"2566.31","cTime":"1619507758793","ccy":"ETH","deltaBS":"","deltaPA":"","gammaBS":"","gammaPA":"","imr":"","instId":"ETH-USD-SWAP","instType":"SWAP","interest":"0","last":"2566.22","lever":"10","liab":"","liabCcy":"","liqPx":"2352.8496681818233","markPx":"2353.849","margin":"0.0003896645377994","mgnMode":"isolated","mgnRatio":"11.731726509588816","mmr":"0.0000311811092368","notionalUsd":"2276.2546609009605","optVal":"","pTime":"1619507761462","pos":"1","posCcy":"","posId":"307173036051017730","posSide":"long","thetaBS":"","thetaPA":"","tradeId":"109844","uTime":"1619507761462","upl":"-0.0000009932766034","uplRatio":"-0.0025490556801078","vegaBS":"","vegaPA":""}]}`
+
+func TestPositionRiskPushDataJSON(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(positionRiskPushDataJSON)); er != nil {
+		t.Error("Okx Position Risk Push Data error", er)
+	}
+}
+
+var accountGreeksPushData = `{"arg": {"channel": "account-greeks","ccy": "BTC"},"data": [{"thetaBS": "","thetaPA":"","deltaBS":"","deltaPA":"","gammaBS":"","gammaPA":"","vegaBS":"",    "vegaPA":"","ccy":"BTC","ts":"1620282889345"}]}`
+
+func TestAccountGreeksPushData(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(accountGreeksPushData)); er != nil {
+		t.Error("Okx Account Greeks Push Data error", er)
+	}
+}
+
+var rfqsPushDataJSON = `{"arg": {"channel": "account-greeks","ccy": "BTC"},"data": [{"thetaBS": "","thetaPA":"","deltaBS":"","deltaPA":"","gammaBS":"","gammaPA":"","vegaBS":"",    "vegaPA":"","ccy":"BTC","ts":"1620282889345"}]}`
+
+func TestRfqs(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(rfqsPushDataJSON)); er != nil {
+		t.Error("Okx RFQS Push Data error", er)
+	}
+}
+
+var quotesPushDataJSON = `{"arg":{"channel":"quotes"},"data":[{"validUntil":"1608997227854","uTime":"1608267227834","cTime":"1608267227834","legs":[{"px":"0.0023","sz":"25.0","instId":"BTC-USD-220114-25000-C","side":"sell","tgtCcy":""},{"px":"0.0045","sz":"25","instId":"BTC-USD-220114-35000-C","side":"buy","tgtCcy":""}],"quoteId":"25092","rfqId":"18753","traderCode":"SATS","quoteSide":"sell","state":"canceled","clQuoteId":""}]}`
+
+func TestQuotesPushData(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(quotesPushDataJSON)); er != nil {
+		t.Error("Okx Quotes Push Data error", er)
+	}
+}
+
+var structureBlockTradesPushDataJSON = `{"arg":{"channel":"struc-block-trades"},"data":[{"cTime":"1608267227834","rfqId":"18753","clRfqId":"","quoteId":"25092","clQuoteId":"","blockTdId":"180184","tTraderCode":"ANAND","mTraderCode":"WAGMI","legs":[{"px":"0.0023","sz":"25.0","instId":"BTC-USD-20220630-60000-C","side":"sell","fee":"0.1001","feeCcy":"BTC","tradeId":"10211","tgtCcy":""},{"px":"0.0033","sz":"25","instId":"BTC-USD-20220630-50000-C","side":"buy","fee":"0.1001","feeCcy":"BTC","tradeId":"10212","tgtCcy":""}]}]}`
+
+func TestStructureBlockTradesPushData(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(structureBlockTradesPushDataJSON)); er != nil {
+		t.Error("Okx Structure Block Trades error", er)
+	}
+}
+
+var spotGridAlgoOrdersPushDataJSON = `{"arg": {"channel": "grid-orders-spot","instType": "ANY"},"data": [{"algoId": "448965992920907776","algoOrdType": "grid","annualizedRate": "0","arbitrageNum": "0","baseSz": "0","cTime": "1653313834104","cancelType": "0","curBaseSz": "0.001776289214","curQuoteSz": "46.801755866","floatProfit": "-0.4953878967772","gridNum": "6","gridProfit": "0","instId": "BTC-USDC","instType": "SPOT","investment": "100","maxPx": "33444.8","minPx": "24323.5","pTime": "1653476023742","perMaxProfitRate": "0.060375293181491054543","perMinProfitRate": "0.0455275366818586","pnlRatio": "0","quoteSz": "100","runPx": "30478.1","runType": "1","singleAmt": "0.00059261","slTriggerPx": "","state": "running","stopResult": "0","stopType": "0","totalAnnualizedRate": "-0.9643551057262827","totalPnl": "-0.4953878967772","tpTriggerPx": "","tradeNum": "3","triggerTime": "1653378736894","uTime": "1653378736894"}]}`
+
+func TestSpotGridAlgoOrdersPushData(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(spotGridAlgoOrdersPushDataJSON)); er != nil {
+		t.Error("Okx Spot Grid Algo Orders Push Data error", er)
+	}
+}
+
+var contractGridAlgoOrdersPushDataJSON = `{"arg": {"channel": "grid-orders-contract","instType": "ANY"},"data": [{"actualLever": "1.02","algoId": "449327675342323712","algoOrdType": "contract_grid","annualizedRate": "0.7572437878956523","arbitrageNum": "1","basePos": true,"cTime": "1653400065912","cancelType": "0","direction": "long","eq": "10129.419829834853","floatProfit": "109.537858234853","gridNum": "50","gridProfit": "19.8819716","instId": "BTC-USDT-SWAP","instType": "SWAP","investment": "10000","lever": "5","liqPx": "603.2149534767834","maxPx": "100000","minPx": "10","pTime": "1653484573918","perMaxProfitRate": "995.7080916791230692","perMinProfitRate": "0.0946277854875634","pnlRatio": "0.0129419829834853","runPx": "29216.3","runType": "1","singleAmt": "1","slTriggerPx": "","state": "running","stopType": "0","sz": "10000","tag": "","totalAnnualizedRate": "4.929207431970923","totalPnl": "129.419829834853","tpTriggerPx": "","tradeNum": "37","triggerTime": "1653400066940","uTime": "1653484573589","uly": "BTC-USDT"}]}`
+
+func TestContractGridAlgoOrdersPushData(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(contractGridAlgoOrdersPushDataJSON)); er != nil {
+		t.Error("Okx Contract Grid Algo Order Push Data error", er)
+	}
+}
+
+var gridPositionsPushDataJSON = `{"arg": {"channel": "grid-positions","uid": "44705892343619584","algoId": "449327675342323712"},"data": [{"adl": "1","algoId": "449327675342323712","avgPx": "29181.4638888888888895","cTime": "1653400065917","ccy": "USDT","imr": "2089.2690000000002","instId": "BTC-USDT-SWAP","instType": "SWAP","last": "29852.7","lever": "5","liqPx": "604.7617536513744","markPx": "29849.7","mgnMode": "cross","mgnRatio": "217.71740878394456","mmr": "41.78538","notionalUsd": "10435.794191550001","pTime": "1653536068723","pos": "35","posSide": "net","uTime": "1653445498682","upl": "232.83263888888962","uplRatio": "0.1139826489932205"}]}`
+
+func GridPositionsPushData(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(gridPositionsPushDataJSON)); er != nil {
+		t.Error("Okx Grid Positions Push Data error", er)
+	}
+}
+
+var gridSubOrdersPushDataJSON = `{"arg": {"channel": "grid-sub-orders","uid": "44705892343619584","algoId": "449327675342323712"},"data": [{"accFillSz": "0","algoId": "449327675342323712","algoOrdType": "contract_grid","avgPx": "0","cTime": "1653445498664","ctVal": "0.01","fee": "0","feeCcy": "USDT","groupId": "-1","instId": "BTC-USDT-SWAP","instType": "SWAP","lever": "5","ordId": "449518234142904321","ordType": "limit","pTime": "1653486524502","pnl": "","posSide": "net","px": "28007.2","side": "buy","state": "live","sz": "1","tag":"","tdMode": "cross","uTime": "1653445498674"}]}`
+
+func TestGridSubOrdersPushData(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(gridSubOrdersPushDataJSON)); er != nil {
+		t.Error("Okx Grid Sub orders Push Data error", er)
 	}
 }

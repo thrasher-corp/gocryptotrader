@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 func TestName(t *testing.T) {
@@ -96,7 +97,7 @@ func TestOnSignal(t *testing.T) {
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := data.Base{}
 	d.SetStream([]common.DataEventHandler{&eventkline.Kline{
-		Base: event.Base{
+		Base: &event.Base{
 			Offset:       3,
 			Exchange:     exch,
 			Time:         dInsert,
@@ -160,7 +161,7 @@ func TestOnSignal(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if resp.GetDirection() != common.DoNothing {
+	if resp.GetDirection() != order.DoNothing {
 		t.Error("expected do nothing")
 	}
 }
@@ -178,7 +179,7 @@ func TestOnSignals(t *testing.T) {
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := data.Base{}
 	d.SetStream([]common.DataEventHandler{&eventkline.Kline{
-		Base: event.Base{
+		Base: &event.Base{
 			Exchange:     exch,
 			Time:         dInsert,
 			Interval:     gctkline.OneDay,

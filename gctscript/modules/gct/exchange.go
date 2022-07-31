@@ -322,7 +322,7 @@ func ExchangeOrderQuery(args ...objects.Object) (objects.Object, error) {
 
 	data := make(map[string]objects.Object, 14)
 	data["exchange"] = &objects.String{Value: orderDetails.Exchange}
-	data["id"] = &objects.String{Value: orderDetails.ID}
+	data["id"] = &objects.String{Value: orderDetails.OrderID}
 	data["accountid"] = &objects.String{Value: orderDetails.AccountID}
 	data["currencypair"] = &objects.String{Value: orderDetails.Pair.String()}
 	data["price"] = &objects.Float{Value: orderDetails.Price}
@@ -452,10 +452,20 @@ func ExchangeOrderSubmit(args ...objects.Object) (objects.Object, error) {
 		return nil, err
 	}
 
+	side, err := order.StringToOrderSide(orderSide)
+	if err != nil {
+		return nil, err
+	}
+
+	oType, err := order.StringToOrderType(orderType)
+	if err != nil {
+		return nil, err
+	}
+
 	tempSubmit := &order.Submit{
 		Pair:      pair,
-		Type:      order.Type(orderType),
-		Side:      order.Side(orderSide),
+		Type:      oType,
+		Side:      side,
 		Price:     orderPrice,
 		Amount:    orderAmount,
 		ClientID:  orderClientID,
@@ -470,11 +480,7 @@ func ExchangeOrderSubmit(args ...objects.Object) (objects.Object, error) {
 
 	data := make(map[string]objects.Object, 2)
 	data["orderid"] = &objects.String{Value: rtn.OrderID}
-	if rtn.IsOrderPlaced {
-		data["isorderplaced"] = objects.TrueValue
-	} else {
-		data["isorderplaced"] = objects.FalseValue
-	}
+	data["isorderplaced"] = objects.TrueValue
 
 	return &objects.Map{
 		Value: data,

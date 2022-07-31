@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -243,7 +244,7 @@ func (f *FTX) Run() {
 		f.PrintEnabledPairs()
 	}
 
-	err := f.UpdateOrderExecutionLimits(context.TODO(), "")
+	err := f.UpdateOrderExecutionLimits(context.TODO(), asset.Empty)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to set exchange order execution limits. Err: %v",
@@ -506,7 +507,7 @@ func (f *FTX) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Hold
 	}
 
 	resp.Exchange = f.Name
-	if err := account.Process(&resp); err != nil {
+	if err := account.Process(&resp, creds); err != nil {
 		return account.Holdings{}, err
 	}
 
@@ -515,11 +516,14 @@ func (f *FTX) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Hold
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (f *FTX) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(f.Name, assetType)
+	creds, err := f.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(f.Name, creds, assetType)
 	if err != nil {
 		return f.UpdateAccountInfo(ctx, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -644,10 +648,9 @@ allTrades:
 }
 
 // SubmitOrder submits a new order
-func (f *FTX) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var resp order.SubmitResponse
+func (f *FTX) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	if s.Side == order.Ask {
@@ -659,7 +662,7 @@ func (f *FTX) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitRes
 
 	fPair, err := f.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	tempResp, err := f.Order(ctx,
@@ -673,73 +676,66 @@ func (f *FTX) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitRes
 		s.Price,
 		s.Amount)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	resp.IsOrderPlaced = true
-	resp.OrderID = strconv.FormatInt(tempResp.ID, 10)
-	return resp, nil
+
+	return s.DeriveSubmitResponse(strconv.FormatInt(tempResp.ID, 10))
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (f *FTX) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
+func (f *FTX) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
-		return order.Modify{}, err
+		return nil, err
 	}
 
-	if action.TriggerPrice != 0 {
+	var id string
+	var remainingAmount float64
+	switch {
+	case action.TriggerPrice != 0:
+		var a TriggerOrderData
 		a, err := f.ModifyTriggerOrder(ctx,
-			action.ID,
+			action.OrderID,
 			action.Type.String(),
 			action.Amount,
 			action.TriggerPrice,
 			action.Price,
 			0)
 		if err != nil {
-			return order.Modify{}, err
+			return nil, err
 		}
-		return order.Modify{
-			Exchange:  action.Exchange,
-			AssetType: action.AssetType,
-			Pair:      action.Pair,
-			ID:        strconv.FormatInt(a.ID, 10),
-
-			Price:        action.Price,
-			Amount:       action.Amount,
-			TriggerPrice: action.TriggerPrice,
-			Type:         action.Type,
-		}, err
-	}
-	var o OrderData
-	var err error
-	if action.ID == "" {
-		o, err = f.ModifyOrderByClientID(ctx,
+		id = strconv.FormatInt(a.ID, 10)
+		remainingAmount = a.Size - a.FilledSize
+	case action.OrderID == "":
+		o, err := f.ModifyOrderByClientID(ctx,
 			action.ClientOrderID,
 			action.ClientOrderID,
 			action.Price,
 			action.Amount)
 		if err != nil {
-			return order.Modify{}, err
+			return nil, err
 		}
-	} else {
-		o, err = f.ModifyPlacedOrder(ctx,
-			action.ID,
+		id = strconv.FormatInt(o.ID, 10)
+		remainingAmount = o.RemainingSize
+	default:
+		o, err := f.ModifyPlacedOrder(ctx,
+			action.OrderID,
 			action.ClientOrderID,
 			action.Price,
 			action.Amount)
 		if err != nil {
-			return order.Modify{}, err
+			return nil, err
 		}
+		id = strconv.FormatInt(o.ID, 10)
+		remainingAmount = o.RemainingSize
 	}
-	return order.Modify{
-		Exchange:  action.Exchange,
-		AssetType: action.AssetType,
-		Pair:      action.Pair,
-		ID:        strconv.FormatInt(o.ID, 10),
-
-		Price:  action.Price,
-		Amount: action.Amount,
-	}, err
+	resp, err := action.DeriveModifyResponse()
+	if err != nil {
+		return nil, err
+	}
+	resp.OrderID = id
+	resp.RemainingAmount = remainingAmount
+	return resp, nil
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -753,7 +749,7 @@ func (f *FTX) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	_, err := f.DeleteOrder(ctx, o.ID)
+	_, err := f.DeleteOrder(ctx, o.OrderID)
 	return err
 }
 
@@ -851,7 +847,7 @@ func (f *FTX) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair,
 	if err != nil {
 		return resp, err
 	}
-	resp.ID = strconv.FormatInt(orderData.ID, 10)
+	resp.OrderID = strconv.FormatInt(orderData.ID, 10)
 	resp.Amount = orderData.Size
 	resp.ClientOrderID = orderData.ClientID
 	resp.Date = orderData.CreatedAt
@@ -955,7 +951,7 @@ func (f *FTX) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOr
 				return nil, err
 			}
 
-			tempResp.ID = strconv.FormatInt(orderData[y].ID, 10)
+			tempResp.OrderID = strconv.FormatInt(orderData[y].ID, 10)
 			tempResp.Amount = orderData[y].Size
 			tempResp.AssetType = assetType
 			tempResp.ClientOrderID = orderData[y].ClientID
@@ -995,7 +991,7 @@ func (f *FTX) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOr
 			if err != nil {
 				return nil, err
 			}
-			tempResp.ID = strconv.FormatInt(triggerOrderData[z].ID, 10)
+			tempResp.OrderID = strconv.FormatInt(triggerOrderData[z].ID, 10)
 			tempResp.Amount = triggerOrderData[z].Size
 			tempResp.AssetType = assetType
 			tempResp.Date = triggerOrderData[z].CreatedAt
@@ -1059,7 +1055,7 @@ func (f *FTX) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOr
 			if err != nil {
 				return nil, err
 			}
-			tempResp.ID = strconv.FormatInt(orderData[y].ID, 10)
+			tempResp.OrderID = strconv.FormatInt(orderData[y].ID, 10)
 			tempResp.Amount = orderData[y].Size
 			tempResp.AssetType = assetType
 			tempResp.AverageExecutedPrice = orderData[y].AvgFillPrice
@@ -1103,7 +1099,7 @@ func (f *FTX) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOr
 			if err != nil {
 				return nil, err
 			}
-			tempResp.ID = strconv.FormatInt(triggerOrderData[z].ID, 10)
+			tempResp.OrderID = strconv.FormatInt(triggerOrderData[z].ID, 10)
 			tempResp.Amount = triggerOrderData[z].Size
 			tempResp.AssetType = assetType
 			tempResp.Date = triggerOrderData[z].CreatedAt
@@ -1298,7 +1294,8 @@ func (f *FTX) CalculatePNL(ctx context.Context, pnl *order.PNLCalculatorRequest)
 		return nil, fmt.Errorf("%v %w", f.Name, order.ErrNilPNLCalculator)
 	}
 	result := &order.PNLResult{
-		Time: pnl.Time,
+		Time:    pnl.Time,
+		IsOrder: true,
 	}
 	creds, err := f.GetCredentials(ctx)
 	if err != nil {
@@ -1318,7 +1315,7 @@ func (f *FTX) CalculatePNL(ctx context.Context, pnl *order.PNLCalculatorRequest)
 	if err != nil {
 		return nil, err
 	}
-	if info.Liquidating || info.Collateral == 0 {
+	if info.Liquidating || info.Collateral <= 0 {
 		result.IsLiquidated = true
 		return result, fmt.Errorf("%s %s %w", f.Name, creds.SubAccount, order.ErrPositionLiquidated)
 	}
@@ -1674,7 +1671,7 @@ func (f *FTX) GetFuturesPositions(ctx context.Context, a asset.Item, cp currency
 		resp[i] = order.Detail{
 			Side:      side,
 			Pair:      cp,
-			ID:        strconv.FormatInt(fills[i].ID, 10),
+			OrderID:   strconv.FormatInt(fills[i].ID, 10),
 			Price:     price,
 			Amount:    fills[i].Size,
 			AssetType: a,
@@ -1689,4 +1686,235 @@ func (f *FTX) GetFuturesPositions(ctx context.Context, a asset.Item, cp currency
 	})
 
 	return resp, nil
+}
+
+// GetCollateralCurrencyForContract returns the collateral currency for an asset and contract pair
+func (f *FTX) GetCollateralCurrencyForContract(_ asset.Item, _ currency.Pair) (currency.Code, asset.Item, error) {
+	return currency.USD, asset.Futures, nil
+}
+
+// GetCurrencyForRealisedPNL returns where to put realised PNL
+func (f *FTX) GetCurrencyForRealisedPNL(_ asset.Item, _ currency.Pair) (currency.Code, asset.Item, error) {
+	return currency.USD, asset.Spot, nil
+}
+
+// GetMarginRatesHistory gets the margin rate history for the given currency, asset, pair
+// Can also include borrow rates, or lending income/borrow payments
+func (f *FTX) GetMarginRatesHistory(ctx context.Context, request *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
+	if request == nil {
+		return nil, fmt.Errorf("%w funding rate request is nil", common.ErrNilPointer)
+	}
+	if request.Currency.IsEmpty() {
+		return nil, fmt.Errorf("%w funding rate request is empty", currency.ErrCurrencyCodeEmpty)
+	}
+	pairs, err := f.GetEnabledPairs(request.Asset)
+	if err != nil {
+		return nil, err
+	}
+
+	if !pairs.ContainsCurrency(request.Currency) {
+		return nil, fmt.Errorf("%w '%v' in enabled pairs", currency.ErrCurrencyNotFound, request.Currency)
+	}
+
+	err = common.StartEndTimeCheck(request.StartDate, request.EndDate)
+	if err != nil {
+		return nil, err
+	}
+
+	var (
+		one                                              = decimal.NewFromInt(1)
+		fiveHundred                                      = decimal.NewFromInt(500)
+		twentyFour                                       = decimal.NewFromInt(24)
+		threeSixFive                                     = decimal.NewFromInt(365)
+		takerFeeRate, averageBorrowSize, averageLendSize decimal.Decimal
+		borrowSizeLen, lendSizeLen                       int64
+	)
+
+	switch {
+	case request.CalculateOffline:
+		takerFeeRate = request.TakeFeeRate
+	case request.GetBorrowRates:
+		var accountInfo AccountInfoData
+		accountInfo, err = f.GetAccountInfo(ctx)
+		if err != nil {
+			return nil, err
+		}
+		takerFeeRate = decimal.NewFromFloat(accountInfo.TakerFee)
+	}
+	response := &margin.RateHistoryResponse{
+		TakerFeeRate: takerFeeRate,
+	}
+	if request.CalculateOffline {
+		if len(request.Rates) == 0 {
+			return nil, fmt.Errorf("%w calculation requires rates", common.ErrCannotCalculateOffline)
+		}
+		response.Rates = request.Rates
+	} else {
+		var responseRates []margin.Rate
+		endDate := request.EndDate
+		for {
+			var rates []MarginTransactionHistoryData
+			rates, err = f.GetMarginMarketLendingHistory(ctx, request.Currency, request.StartDate, endDate)
+			if err != nil {
+				return nil, err
+			}
+			if len(rates) == 0 || rates[len(rates)-1].Time.Equal(endDate) {
+				break
+			}
+			for i := range rates {
+				if !rates[i].Coin.Equal(request.Currency) {
+					continue
+				}
+				rate := margin.Rate{
+					Time:             rates[i].Time,
+					HourlyRate:       decimal.NewFromFloat(rates[i].Rate),
+					MarketBorrowSize: decimal.NewFromFloat(rates[i].Size),
+				}
+				rate.YearlyRate = rate.HourlyRate.Mul(twentyFour.Mul(threeSixFive))
+				if request.GetBorrowRates {
+					rate.HourlyBorrowRate = rate.HourlyRate.Mul(one.Add(fiveHundred.Mul(takerFeeRate)))
+					rate.YearlyBorrowRate = rate.HourlyBorrowRate.Mul(twentyFour.Mul(threeSixFive))
+				}
+				responseRates = append(responseRates, rate)
+			}
+			if rates[len(rates)-1].Time.Before(request.StartDate) {
+				break
+			}
+			endDate = rates[len(rates)-1].Time
+		}
+		if len(responseRates) == 0 {
+			return nil, fmt.Errorf("%w no rates returned between %v-%v", common.ErrNoResponse, request.StartDate, request.EndDate)
+		}
+		sort.Slice(responseRates, func(i, j int) bool {
+			return responseRates[i].Time.Before(responseRates[j].Time)
+		})
+		response.Rates = responseRates
+	}
+
+	if request.GetPredictedRate {
+		if request.CalculateOffline {
+			return nil, fmt.Errorf("%w predicted rate is online only", common.ErrCannotCalculateOffline)
+		}
+		var borrowRates []MarginFundingData
+		borrowRates, err = f.GetMarginLendingRates(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for i := range borrowRates {
+			if !borrowRates[i].Coin.Equal(request.Currency) {
+				continue
+			}
+			response.PredictedRate = margin.Rate{
+				Time:       response.Rates[len(response.Rates)-1].Time.Add(time.Hour),
+				HourlyRate: decimal.NewFromFloat(borrowRates[i].Estimate),
+			}
+			response.PredictedRate.YearlyRate = response.PredictedRate.HourlyRate.Mul(twentyFour.Mul(threeSixFive))
+
+			if request.GetBorrowRates {
+				response.PredictedRate.HourlyBorrowRate = response.PredictedRate.HourlyRate.Mul(one.Add(fiveHundred.Mul(takerFeeRate)))
+				response.PredictedRate.YearlyBorrowRate = response.PredictedRate.HourlyBorrowRate.Mul(twentyFour.Mul(threeSixFive))
+			}
+		}
+	}
+	if request.GetLendingPayments {
+		if request.CalculateOffline {
+			if request.TakeFeeRate.IsZero() {
+				return nil, fmt.Errorf("%w taker fee unset", common.ErrCannotCalculateOffline)
+			}
+			for i := range request.Rates {
+				response.Rates[i].LendingPayment.Payment = response.Rates[i].HourlyRate.Mul(response.Rates[i].LendingPayment.Size)
+				response.SumLendingPayments = response.SumLendingPayments.Add(response.Rates[i].LendingPayment.Payment)
+				averageLendSize = averageLendSize.Add(response.Rates[i].LendingPayment.Size)
+				lendSizeLen++
+			}
+		} else {
+			endDate := request.EndDate
+			for {
+				var payments []MarginTransactionHistoryData
+				payments, err = f.GetMarginLendingHistory(ctx, request.Currency, request.StartDate, endDate)
+				if err != nil {
+					return nil, err
+				}
+				if len(payments) == 0 || payments[len(payments)-1].Time.Equal(endDate) {
+					break
+				}
+				for i := range payments {
+					if !payments[i].Coin.Equal(request.Currency) {
+						continue
+					}
+					for j := range response.Rates {
+						if !response.Rates[j].Time.Equal(payments[i].Time) {
+							continue
+						}
+						response.Rates[j].LendingPayment.Payment = decimal.NewFromFloat(payments[i].Proceeds)
+						response.Rates[j].LendingPayment.Size = decimal.NewFromFloat(payments[i].Size)
+						response.SumLendingPayments = response.SumLendingPayments.Add(response.Rates[j].LendingPayment.Payment)
+						averageLendSize = averageLendSize.Add(response.Rates[j].LendingPayment.Size)
+						lendSizeLen++
+						break
+					}
+				}
+				if payments[len(payments)-1].Time.Before(request.StartDate) {
+					break
+				}
+				endDate = payments[len(payments)-1].Time
+			}
+		}
+	}
+	if request.GetBorrowCosts {
+		if request.CalculateOffline {
+			if request.TakeFeeRate.IsZero() {
+				return nil, fmt.Errorf("%w taker fee unset", common.ErrCannotCalculateOffline)
+			}
+			for i := range request.Rates {
+				response.Rates[i].HourlyBorrowRate = response.Rates[i].HourlyRate.Mul(one.Add(fiveHundred.Mul(takerFeeRate)))
+				response.Rates[i].YearlyBorrowRate = response.Rates[i].HourlyBorrowRate.Mul(one.Add(fiveHundred.Mul(takerFeeRate)))
+				response.Rates[i].BorrowCost.Cost = response.Rates[i].HourlyBorrowRate.Mul(response.Rates[i].BorrowCost.Size)
+				response.SumBorrowCosts = response.SumBorrowCosts.Add(response.Rates[i].BorrowCost.Cost)
+				averageBorrowSize = averageBorrowSize.Add(response.Rates[i].BorrowCost.Size)
+				borrowSizeLen++
+			}
+		} else {
+			endDate := request.EndDate
+			for {
+				var costs []MarginTransactionHistoryData
+				costs, err = f.GetMarginBorrowHistory(ctx, request.StartDate, endDate)
+				if err != nil {
+					return nil, err
+				}
+				if len(costs) == 0 || costs[len(costs)-1].Time.Equal(endDate) {
+					break
+				}
+				for i := range costs {
+					if !costs[i].Coin.Equal(request.Currency) {
+						continue
+					}
+					for j := range response.Rates {
+						if !response.Rates[j].Time.Equal(costs[i].Time) {
+							continue
+						}
+						response.Rates[j].BorrowCost.Cost = decimal.NewFromFloat(costs[i].Cost)
+						response.Rates[j].BorrowCost.Size = decimal.NewFromFloat(costs[i].Size)
+						response.SumBorrowCosts = response.SumBorrowCosts.Add(response.Rates[j].BorrowCost.Cost)
+						averageBorrowSize = averageBorrowSize.Add(response.Rates[j].BorrowCost.Size)
+						borrowSizeLen++
+						break
+					}
+				}
+				if costs[len(costs)-1].Time.Before(request.StartDate) {
+					break
+				}
+				endDate = costs[len(costs)-1].Time
+			}
+		}
+	}
+
+	if borrowSizeLen > 0 {
+		response.AverageBorrowSize = averageBorrowSize.Div(decimal.NewFromInt(borrowSizeLen))
+	}
+	if lendSizeLen > 0 {
+		response.AverageLendingSize = averageLendSize.Div(decimal.NewFromInt(lendSizeLen))
+	}
+
+	return response, nil
 }

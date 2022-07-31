@@ -1006,10 +1006,6 @@ func (f fakeDepositExchange) GetName() string {
 	return "fake"
 }
 
-func (f fakeDepositExchange) GetAuthenticatedAPISupport(endpoint uint8) bool {
-	return f.SupportsAuth
-}
-
 func (f fakeDepositExchange) GetBase() *exchange.Base {
 	return &exchange.Base{
 		Features: exchange.Features{Supports: exchange.FeaturesSupported{
@@ -1019,6 +1015,10 @@ func (f fakeDepositExchange) GetBase() *exchange.Base {
 			},
 		}},
 	}
+}
+
+func (f fakeDepositExchange) IsRESTAuthenticationSupported() bool {
+	return f.SupportsAuth
 }
 
 func (f fakeDepositExchange) GetAvailableTransferChains(_ context.Context, c currency.Code) ([]string, error) {

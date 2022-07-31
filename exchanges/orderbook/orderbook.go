@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -81,7 +80,7 @@ func (s *Service) Update(b *Base) error {
 	}
 	book.LoadSnapshot(b.Bids, b.Asks, b.LastUpdateID, b.LastUpdated, true)
 	s.mu.Unlock()
-	return s.Mux.Publish([]uuid.UUID{m1.ID}, book.Retrieve())
+	return s.Mux.Publish(book, m1.ID)
 }
 
 // DeployDepth used for subsystem deployment creates a depth item in the struct
@@ -194,7 +193,7 @@ func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Bas
 			errCannotFindOrderbook,
 			p.Quote)
 	}
-	return book.Retrieve(), nil
+	return book.Retrieve()
 }
 
 // TotalBidsAmount returns the total amount of bids and the total orderbook

@@ -15,12 +15,10 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -196,7 +194,7 @@ func (o *OKGroup) WsConnect() error {
 	o.Websocket.Wg.Add(1)
 	go o.WsReadData()
 
-	if o.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if o.IsWebsocketAuthenticationSupported() {
 		err = o.WsLogin(context.TODO())
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
@@ -387,7 +385,7 @@ func (o *OKGroup) wsProcessOrder(respRaw []byte) error {
 			ExecutedAmount:    resp.Data[i].LastFillQty,
 			RemainingAmount:   resp.Data[i].Size - resp.Data[i].LastFillQty,
 			Exchange:          o.Name,
-			ID:                resp.Data[i].OrderID,
+			OrderID:           resp.Data[i].OrderID,
 			Type:              oType,
 			Side:              oSide,
 			Status:            oStatus,
@@ -708,7 +706,7 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketOrderBook, ins
 // After merging WS data, it will sort, validate and finally update the existing
 // orderbook
 func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketOrderBook, instrument currency.Pair, a asset.Item) error {
-	update := buffer.Update{
+	update := orderbook.Update{
 		Asset:      a,
 		Pair:       instrument,
 		UpdateTime: wsEventData.Timestamp,
@@ -823,7 +821,7 @@ func (o *OKGroup) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 		switch assets[x] {
 		case asset.Spot:
 			channels := defaultSpotSubscribedChannels
-			if o.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+			if o.IsWebsocketAuthenticationSupported() {
 				channels = append(channels,
 					okGroupWsSpotMarginAccount,
 					okGroupWsSpotAccount,
@@ -846,7 +844,7 @@ func (o *OKGroup) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 			}
 		case asset.Futures:
 			channels := defaultFuturesSubscribedChannels
-			if o.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+			if o.IsWebsocketAuthenticationSupported() {
 				channels = append(channels,
 					okGroupWsFuturesAccount,
 					okGroupWsFuturesPosition,
@@ -907,7 +905,7 @@ func (o *OKGroup) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 			}
 		case asset.PerpetualSwap:
 			channels := defaultSwapSubscribedChannels
-			if o.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+			if o.IsWebsocketAuthenticationSupported() {
 				channels = append(channels,
 					okGroupWsSwapAccount,
 					okGroupWsSwapPosition,
@@ -1060,6 +1058,6 @@ func (o *OKGroup) GetAssetTypeFromTableName(table string) asset.Item {
 		log.Warnf(log.ExchangeSys, "%s unhandled asset type %s",
 			o.Name,
 			table[:assetIndex])
-		return asset.Item(table[:assetIndex])
+		return asset.Empty
 	}
 }

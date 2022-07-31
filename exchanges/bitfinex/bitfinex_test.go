@@ -875,6 +875,7 @@ func TestSubmitOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 	var orderSubmission = &order.Submit{
+		Exchange: b.Name,
 		Pair: currency.Pair{
 			Delimiter: "_",
 			Base:      currency.XRP,
@@ -892,7 +893,7 @@ func TestSubmitOrder(t *testing.T) {
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not place order: %v", err)
 	}
-	if areTestAPIKeysSet() && !response.IsOrderPlaced {
+	if areTestAPIKeysSet() && response.Status != order.New {
 		t.Error("Order not placed")
 	}
 	if !areTestAPIKeysSet() && err == nil {
@@ -908,7 +909,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
-		ID:            "1",
+		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
@@ -932,7 +933,7 @@ func TestCancelAllExchangeOrdera(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
-		ID:            "1",
+		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,

@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -299,10 +298,15 @@ func (i *ItBit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	}
 
 	info.Accounts = append(info.Accounts, account.SubAccount{
+		AssetType:  assetType,
 		Currencies: fullBalance,
 	})
 
-	err = account.Process(&info)
+	creds, err := i.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&info, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -312,11 +316,14 @@ func (i *ItBit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (i *ItBit) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(i.Name, assetType)
+	creds, err := i.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(i.Name, creds, assetType)
 	if err != nil {
 		return i.UpdateAccountInfo(ctx, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -372,16 +379,15 @@ func (i *ItBit) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.It
 }
 
 // SubmitOrder submits a new order
-func (i *ItBit) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (i *ItBit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	var wallet string
 	wallets, err := i.GetWallets(ctx, url.Values{})
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	// Determine what wallet ID to use if there is any actual available currency to make the trade!
@@ -395,7 +401,7 @@ func (i *ItBit) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitR
 	}
 
 	if wallet == "" {
-		return submitOrderResponse,
+		return nil,
 			fmt.Errorf("no wallet found with currency: %s with amount >= %v",
 				s.Pair.Base,
 				s.Amount)
@@ -403,7 +409,7 @@ func (i *ItBit) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitR
 
 	fPair, err := i.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	response, err := i.PlaceOrder(ctx,
@@ -416,23 +422,22 @@ func (i *ItBit) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitR
 		fPair.String(),
 		"")
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
-	if response.ID != "" {
-		submitOrderResponse.OrderID = response.ID
+	subResp, err := s.DeriveSubmitResponse(response.ID)
+	if err != nil {
+		return nil, err
 	}
-
 	if response.AmountFilled == s.Amount {
-		submitOrderResponse.FullyMatched = true
+		subResp.Status = order.Filled
 	}
-	submitOrderResponse.IsOrderPlaced = true
-	return submitOrderResponse, nil
+	return subResp, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (i *ItBit) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
-	return order.Modify{}, common.ErrFunctionNotSupported
+func (i *ItBit) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -440,7 +445,7 @@ func (i *ItBit) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
-	return i.CancelExistingOrder(ctx, o.WalletAddress, o.ID)
+	return i.CancelExistingOrder(ctx, o.WalletAddress, o.OrderID)
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
@@ -550,13 +555,18 @@ func (i *ItBit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 	orders := make([]order.Detail, 0, len(allOrders))
 	for j := range allOrders {
 		var symbol currency.Pair
-		symbol, err := currency.NewPairDelimiter(allOrders[j].Instrument,
+		symbol, err = currency.NewPairDelimiter(allOrders[j].Instrument,
 			format.Delimiter)
 		if err != nil {
 			return nil, err
 		}
-		side := order.Side(strings.ToUpper(allOrders[j].Side))
-		orderDate, err := time.Parse(time.RFC3339, allOrders[j].CreatedTime)
+		var side order.Side
+		side, err = order.StringToOrderSide(allOrders[j].Side)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", i.Name, err)
+		}
+		var orderDate time.Time
+		orderDate, err = time.Parse(time.RFC3339, allOrders[j].CreatedTime)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
@@ -567,7 +577,7 @@ func (i *ItBit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 		}
 
 		orders = append(orders, order.Detail{
-			ID:              allOrders[j].ID,
+			OrderID:         allOrders[j].ID,
 			Side:            side,
 			Amount:          allOrders[j].Amount,
 			ExecutedAmount:  allOrders[j].AmountFilled,
@@ -578,9 +588,12 @@ func (i *ItBit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 		})
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", i.Name, err)
+	}
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
 
@@ -622,13 +635,18 @@ func (i *ItBit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 		if err != nil {
 			return nil, err
 		}
-
-		side := order.Side(strings.ToUpper(allOrders[j].Side))
-		status, err := order.StringToOrderStatus(allOrders[j].Status)
+		var side order.Side
+		side, err = order.StringToOrderSide(allOrders[j].Side)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", i.Name, err)
 		}
-		orderDate, err := time.Parse(time.RFC3339, allOrders[j].CreatedTime)
+		var status order.Status
+		status, err = order.StringToOrderStatus(allOrders[j].Status)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", i.Name, err)
+		}
+		var orderDate time.Time
+		orderDate, err = time.Parse(time.RFC3339, allOrders[j].CreatedTime)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
@@ -639,7 +657,7 @@ func (i *ItBit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 		}
 
 		detail := order.Detail{
-			ID:                   allOrders[j].ID,
+			OrderID:              allOrders[j].ID,
 			Side:                 side,
 			Status:               status,
 			Amount:               allOrders[j].Amount,
@@ -655,9 +673,12 @@ func (i *ItBit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 		orders = append(orders, detail)
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", i.Name, err)
+	}
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
 

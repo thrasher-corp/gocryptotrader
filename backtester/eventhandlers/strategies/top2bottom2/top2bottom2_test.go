@@ -111,7 +111,7 @@ func TestOnSignals(t *testing.T) {
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := data.Base{}
 	d.SetStream([]common.DataEventHandler{&eventkline.Kline{
-		Base: event.Base{
+		Base: &event.Base{
 			Exchange:     exch,
 			Time:         dInsert,
 			Interval:     gctkline.OneDay,
@@ -166,40 +166,45 @@ func TestSelectTopAndBottomPerformers(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
+	b := &event.Base{}
 	fundEvents := []mfiFundEvent{
 		{
 			event: &signal.Signal{
+				Base:       b,
 				ClosePrice: decimal.NewFromInt(99),
-				Direction:  common.DoNothing,
+				Direction:  order.DoNothing,
 			},
 			mfi: decimal.NewFromInt(99),
 		},
 		{
 			event: &signal.Signal{
+				Base:       b,
 				ClosePrice: decimal.NewFromInt(98),
-				Direction:  common.DoNothing,
+				Direction:  order.DoNothing,
 			},
 			mfi: decimal.NewFromInt(98),
 		},
 		{
 			event: &signal.Signal{
+				Base:       b,
 				ClosePrice: decimal.NewFromInt(1),
-				Direction:  common.DoNothing,
+				Direction:  order.DoNothing,
 			},
 			mfi: decimal.NewFromInt(1),
 		},
 		{
 			event: &signal.Signal{
+				Base:       b,
 				ClosePrice: decimal.NewFromInt(2),
-				Direction:  common.DoNothing,
+				Direction:  order.DoNothing,
 			},
 			mfi: decimal.NewFromInt(2),
 		},
 		{
 			event: &signal.Signal{
+				Base:       b,
 				ClosePrice: decimal.NewFromInt(50),
-				Direction:  common.DoNothing,
+				Direction:  order.DoNothing,
 			},
 			mfi: decimal.NewFromInt(50),
 		},
@@ -214,15 +219,15 @@ func TestSelectTopAndBottomPerformers(t *testing.T) {
 	for i := range resp {
 		switch resp[i].GetDirection() {
 		case order.Buy:
-			if !resp[i].GetPrice().Equal(decimal.NewFromInt(1)) && !resp[i].GetPrice().Equal(decimal.NewFromInt(2)) {
+			if !resp[i].GetClosePrice().Equal(decimal.NewFromInt(1)) && !resp[i].GetClosePrice().Equal(decimal.NewFromInt(2)) {
 				t.Error("expected 1 or 2")
 			}
 		case order.Sell:
-			if !resp[i].GetPrice().Equal(decimal.NewFromInt(99)) && !resp[i].GetPrice().Equal(decimal.NewFromInt(98)) {
+			if !resp[i].GetClosePrice().Equal(decimal.NewFromInt(99)) && !resp[i].GetClosePrice().Equal(decimal.NewFromInt(98)) {
 				t.Error("expected 99 or 98")
 			}
-		case common.DoNothing:
-			if !resp[i].GetPrice().Equal(decimal.NewFromInt(50)) {
+		case order.DoNothing:
+			if !resp[i].GetClosePrice().Equal(decimal.NewFromInt(50)) {
 				t.Error("expected 50")
 			}
 		}

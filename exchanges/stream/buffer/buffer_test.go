@@ -3,6 +3,7 @@ package buffer
 import (
 	"errors"
 	"math/rand"
+	"strings"
 	"testing"
 	"time"
 
@@ -44,9 +45,14 @@ func createSnapshot() (holder *Orderbook, asks, bids orderbook.Items, err error)
 
 	newBook := make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
 
+	ch := make(chan interface{})
+	go func(<-chan interface{}) { // reader
+		for range ch {
+		}
+	}(ch)
 	holder = &Orderbook{
 		exchangeName: exchangeName,
-		dataHandler:  make(chan interface{}, 100),
+		dataHandler:  ch,
 		ob:           newBook,
 	}
 	err = holder.LoadSnapshot(book)
@@ -78,7 +84,7 @@ func BenchmarkUpdateBidsByPrice(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		bidAsks := bidAskGenerator()
-		update := &Update{
+		update := &orderbook.Update{
 			Bids:       bidAsks,
 			Asks:       bidAsks,
 			Pair:       cp,
@@ -98,7 +104,7 @@ func BenchmarkUpdateAsksByPrice(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		bidAsks := bidAskGenerator()
-		update := &Update{
+		update := &orderbook.Update{
 			Bids:       bidAsks,
 			Asks:       bidAsks,
 			Pair:       cp,
@@ -112,14 +118,14 @@ func BenchmarkUpdateAsksByPrice(b *testing.B) {
 
 // BenchmarkBufferPerformance demonstrates buffer more performant than multi
 // process calls
-// 4219518	       287 ns/op	     176 B/op	       1 allocs/op
+// 890016	      1688 ns/op	     416 B/op	       3 allocs/op
 func BenchmarkBufferPerformance(b *testing.B) {
 	holder, asks, bids, err := createSnapshot()
 	if err != nil {
 		b.Fatal(err)
 	}
 	holder.bufferEnabled = true
-	update := &Update{
+	update := &orderbook.Update{
 		Bids:       bids,
 		Asks:       asks,
 		Pair:       cp,
@@ -139,7 +145,7 @@ func BenchmarkBufferPerformance(b *testing.B) {
 }
 
 // BenchmarkBufferSortingPerformance benchmark
-// 2693391	       467 ns/op	     208 B/op	       2 allocs/op
+//  613964	      2093 ns/op	     440 B/op	       4 allocs/op
 func BenchmarkBufferSortingPerformance(b *testing.B) {
 	holder, asks, bids, err := createSnapshot()
 	if err != nil {
@@ -147,7 +153,7 @@ func BenchmarkBufferSortingPerformance(b *testing.B) {
 	}
 	holder.bufferEnabled = true
 	holder.sortBuffer = true
-	update := &Update{
+	update := &orderbook.Update{
 		Bids:       bids,
 		Asks:       asks,
 		Pair:       cp,
@@ -167,7 +173,7 @@ func BenchmarkBufferSortingPerformance(b *testing.B) {
 }
 
 // BenchmarkBufferSortingPerformance benchmark
-// 1000000	      1019 ns/op	     208 B/op	       2 allocs/op
+// 914500	      1599 ns/op	     440 B/op	       4 allocs/op
 func BenchmarkBufferSortingByIDPerformance(b *testing.B) {
 	holder, asks, bids, err := createSnapshot()
 	if err != nil {
@@ -176,7 +182,7 @@ func BenchmarkBufferSortingByIDPerformance(b *testing.B) {
 	holder.bufferEnabled = true
 	holder.sortBuffer = true
 	holder.sortBufferByUpdateIDs = true
-	update := &Update{
+	update := &orderbook.Update{
 		Bids:       bids,
 		Asks:       asks,
 		Pair:       cp,
@@ -197,13 +203,15 @@ func BenchmarkBufferSortingByIDPerformance(b *testing.B) {
 
 // BenchmarkNoBufferPerformance demonstrates orderbook process more performant
 // than buffer
-// 9516966	       141 ns/op	       0 B/op	       0 allocs/op
+//   122659	     12792 ns/op	     972 B/op	       7 allocs/op PRIOR
+//  1225924	      1028 ns/op	     240 B/op	       2 allocs/op CURRENT
+
 func BenchmarkNoBufferPerformance(b *testing.B) {
 	obl, asks, bids, err := createSnapshot()
 	if err != nil {
 		b.Fatal(err)
 	}
-	update := &Update{
+	update := &orderbook.Update{
 		Bids:       bids,
 		Asks:       asks,
 		Pair:       cp,
@@ -211,6 +219,7 @@ func BenchmarkNoBufferPerformance(b *testing.B) {
 		Asset:      asset.Spot,
 	}
 	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		randomIndex := rand.Intn(4) // nolint:gosec // no need to import crypo/rand for testing
 		update.Asks = itemArray[randomIndex]
@@ -229,7 +238,7 @@ func TestUpdates(t *testing.T) {
 	}
 
 	book := holder.ob[cp.Base][cp.Quote][asset.Spot]
-	book.updateByPrice(&Update{
+	book.updateByPrice(&orderbook.Update{
 		Bids:       itemArray[5],
 		Asks:       itemArray[5],
 		Pair:       cp,
@@ -240,7 +249,7 @@ func TestUpdates(t *testing.T) {
 		t.Error(err)
 	}
 
-	book.updateByPrice(&Update{
+	book.updateByPrice(&orderbook.Update{
 		Bids:       itemArray[0],
 		Asks:       itemArray[0],
 		Pair:       cp,
@@ -251,7 +260,12 @@ func TestUpdates(t *testing.T) {
 		t.Error(err)
 	}
 
-	if book.ob.GetAskLength() != 3 {
+	askLen, err := book.ob.GetAskLength()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if askLen != 3 {
 		t.Error("Did not update")
 	}
 }
@@ -267,7 +281,7 @@ func TestHittingTheBuffer(t *testing.T) {
 	for i := range itemArray {
 		asks := itemArray[i]
 		bids := itemArray[i]
-		err = holder.Update(&Update{
+		err = holder.Update(&orderbook.Update{
 			Bids:       bids,
 			Asks:       asks,
 			Pair:       cp,
@@ -280,11 +294,22 @@ func TestHittingTheBuffer(t *testing.T) {
 	}
 
 	book := holder.ob[cp.Base][cp.Quote][asset.Spot]
-	if book.ob.GetAskLength() != 3 {
-		t.Errorf("expected 3 entries, received: %v", book.ob.GetAskLength())
+	askLen, err := book.ob.GetAskLength()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
-	if book.ob.GetBidLength() != 3 {
-		t.Errorf("expected 3 entries, received: %v", book.ob.GetBidLength())
+
+	if askLen != 3 {
+		t.Errorf("expected 3 entries, received: %v", askLen)
+	}
+
+	bidLen, err := book.ob.GetBidLength()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if bidLen != 3 {
+		t.Errorf("expected 3 entries, received: %v", bidLen)
 	}
 }
 
@@ -303,13 +328,13 @@ func TestInsertWithIDs(t *testing.T) {
 			continue
 		}
 		bids := itemArray[i]
-		err = holder.Update(&Update{
+		err = holder.Update(&orderbook.Update{
 			Bids:       bids,
 			Asks:       asks,
 			Pair:       cp,
 			UpdateTime: time.Now(),
 			Asset:      asset.Spot,
-			Action:     UpdateInsert,
+			Action:     orderbook.UpdateInsert,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -317,11 +342,20 @@ func TestInsertWithIDs(t *testing.T) {
 	}
 
 	book := holder.ob[cp.Base][cp.Quote][asset.Spot]
-	if book.ob.GetAskLength() != 6 {
-		t.Errorf("expected 5 entries, received: %v", book.ob.GetAskLength())
+	askLen, err := book.ob.GetAskLength()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
-	if book.ob.GetBidLength() != 6 {
-		t.Errorf("expected 5 entries, received: %v", book.ob.GetBidLength())
+	if askLen != 6 {
+		t.Errorf("expected 6 entries, received: %v", askLen)
+	}
+
+	bidLen, err := book.ob.GetBidLength()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+	if bidLen != 6 {
+		t.Errorf("expected 6 entries, received: %v", bidLen)
 	}
 }
 
@@ -338,7 +372,7 @@ func TestSortIDs(t *testing.T) {
 	for i := range itemArray {
 		asks := itemArray[i]
 		bids := itemArray[i]
-		err = holder.Update(&Update{
+		err = holder.Update(&orderbook.Update{
 			Bids:     bids,
 			Asks:     asks,
 			Pair:     cp,
@@ -350,11 +384,20 @@ func TestSortIDs(t *testing.T) {
 		}
 	}
 	book := holder.ob[cp.Base][cp.Quote][asset.Spot]
-	if book.ob.GetAskLength() != 3 {
-		t.Errorf("expected 3 entries, received: %v", book.ob.GetAskLength())
+	askLen, err := book.ob.GetAskLength()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
-	if book.ob.GetAskLength() != 3 {
-		t.Errorf("expected 3 entries, received: %v", book.ob.GetAskLength())
+	if askLen != 3 {
+		t.Errorf("expected 3 entries, received: %v", askLen)
+	}
+
+	bidLen, err := book.ob.GetBidLength()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+	if bidLen != 3 {
+		t.Errorf("expected 3 entries, received: %v", bidLen)
 	}
 }
 
@@ -374,7 +417,7 @@ func TestOutOfOrderIDs(t *testing.T) {
 	holder.obBufferLimit = 5
 	for i := range itemArray {
 		asks := itemArray[i]
-		err = holder.Update(&Update{
+		err = holder.Update(&orderbook.Update{
 			Asks:     asks,
 			Pair:     cp,
 			UpdateID: outOFOrderIDs[i],
@@ -385,14 +428,15 @@ func TestOutOfOrderIDs(t *testing.T) {
 		}
 	}
 	book := holder.ob[cp.Base][cp.Quote][asset.Spot]
-	cpy := book.ob.Retrieve()
+	cpy, err := book.ob.Retrieve()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	// Index 1 since index 0 is price 7000
 	if cpy.Asks[1].Price != 2000 {
 		t.Errorf("expected sorted price to be 2000, received: %v", cpy.Asks[1].Price)
 	}
 }
-
-var errTest = errors.New("test error")
 
 func TestOrderbookLastUpdateID(t *testing.T) {
 	holder, _, _, err := createSnapshot()
@@ -404,16 +448,22 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 			exp, itemArray[1][0].Price)
 	}
 
-	holder.checksum = func(state *orderbook.Base, checksum uint32) error { return errTest }
+	holder.checksum = func(state *orderbook.Base, checksum uint32) error { return errors.New("testerino") }
 
-	err = holder.Update(&Update{
+	// this update invalidates the book
+	err = holder.Update(&orderbook.Update{
 		Asks:     []orderbook.Item{{Price: 999999}},
 		Pair:     cp,
 		UpdateID: -1,
 		Asset:    asset.Spot,
 	})
-	if !errors.Is(err, errTest) {
-		t.Fatalf("received: %v but expected: %v", err, errTest)
+	if !errors.Is(err, orderbook.ErrOrderbookInvalid) {
+		t.Fatalf("received: %v but expected: %v", err, orderbook.ErrOrderbookInvalid)
+	}
+
+	holder, _, _, err = createSnapshot()
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	holder.checksum = func(state *orderbook.Base, checksum uint32) error { return nil }
@@ -421,7 +471,7 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 
 	for i := range itemArray {
 		asks := itemArray[i]
-		err = holder.Update(&Update{
+		err = holder.Update(&orderbook.Update{
 			Asks:     asks,
 			Pair:     cp,
 			UpdateID: int64(i) + 1,
@@ -434,7 +484,7 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 
 	// out of order
 	holder.verbose = true
-	err = holder.Update(&Update{
+	err = holder.Update(&orderbook.Update{
 		Asks:     []orderbook.Item{{Price: 999999}},
 		Pair:     cp,
 		UpdateID: 1,
@@ -470,7 +520,7 @@ func TestRunUpdateWithoutSnapshot(t *testing.T) {
 	snapShot1.Asset = asset.Spot
 	snapShot1.Pair = cp
 	holder.exchangeName = exchangeName
-	err := holder.Update(&Update{
+	err := holder.Update(&orderbook.Update{
 		Bids:       bids,
 		Asks:       asks,
 		Pair:       cp,
@@ -492,7 +542,7 @@ func TestRunUpdateWithoutAnyUpdates(t *testing.T) {
 	snapShot1.Asset = asset.Spot
 	snapShot1.Pair = cp
 	obl.exchangeName = exchangeName
-	err := obl.Update(&Update{
+	err := obl.Update(&orderbook.Update{
 		Bids:       snapShot1.Asks,
 		Asks:       snapShot1.Bids,
 		Pair:       cp,
@@ -729,9 +779,21 @@ func TestGetOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 	bufferOb := holder.ob[cp.Base][cp.Quote][asset.Spot]
-	b := bufferOb.ob.Retrieve()
-	if bufferOb.ob.GetAskLength() != len(ob.Asks) ||
-		bufferOb.ob.GetBidLength() != len(ob.Bids) ||
+	b, err := bufferOb.ob.Retrieve()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+	askLen, err := bufferOb.ob.GetAskLength()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	bidLen, err := bufferOb.ob.GetBidLength()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+	if askLen != len(ob.Asks) ||
+		bidLen != len(ob.Bids) ||
 		b.Asset != ob.Asset ||
 		b.Exchange != ob.Exchange ||
 		b.LastUpdateID != ob.LastUpdateID ||
@@ -795,7 +857,7 @@ func TestValidate(t *testing.T) {
 		t.Fatalf("expected error %v but received %v", errUpdateIsNil, err)
 	}
 
-	err = w.validate(&Update{})
+	err = w.validate(&orderbook.Update{})
 	if !errors.Is(err, errUpdateNoTargets) {
 		t.Fatalf("expected error %v but received %v", errUpdateNoTargets, err)
 	}
@@ -810,7 +872,7 @@ func TestEnsureMultipleUpdatesViaPrice(t *testing.T) {
 
 	asks := bidAskGenerator()
 	book := holder.ob[cp.Base][cp.Quote][asset.Spot]
-	book.updateByPrice(&Update{
+	book.updateByPrice(&orderbook.Update{
 		Bids:       asks,
 		Asks:       asks,
 		Pair:       cp,
@@ -821,7 +883,12 @@ func TestEnsureMultipleUpdatesViaPrice(t *testing.T) {
 		t.Error(err)
 	}
 
-	if book.ob.GetAskLength() <= 3 {
+	askLen, err := book.ob.GetAskLength()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if askLen <= 3 {
 		t.Errorf("Insufficient updates")
 	}
 }
@@ -851,20 +918,25 @@ func TestUpdateByIDAndAction(t *testing.T) {
 
 	book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...), 0, time.Time{}, true)
 
-	err = book.Retrieve().Verify()
-	if err != nil {
-		t.Fatal(err)
+	ob, err := book.Retrieve()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	err = ob.Verify()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
 	holder.ob = book
 
-	err = holder.updateByIDAndAction(&Update{})
-	if err == nil {
-		t.Fatal("error cannot be nil")
+	err = holder.updateByIDAndAction(&orderbook.Update{})
+	if !errors.Is(err, errInvalidAction) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidAction)
 	}
 
-	err = holder.updateByIDAndAction(&Update{
-		Action: Amend,
+	err = holder.updateByIDAndAction(&orderbook.Update{
+		Action: orderbook.Amend,
 		Bids: []orderbook.Item{
 			{
 				Price: 100,
@@ -872,13 +944,14 @@ func TestUpdateByIDAndAction(t *testing.T) {
 			},
 		},
 	})
-	if err == nil {
-		t.Fatal("error cannot be nil")
+	if !strings.Contains(err.Error(), errAmendFailure.Error()) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errAmendFailure)
 	}
 
+	book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...), 0, time.Time{}, true)
 	// append to slice
-	err = holder.updateByIDAndAction(&Update{
-		Action: UpdateInsert,
+	err = holder.updateByIDAndAction(&orderbook.Update{
+		Action: orderbook.UpdateInsert,
 		Bids: []orderbook.Item{
 			{
 				Price:  0,
@@ -894,11 +967,14 @@ func TestUpdateByIDAndAction(t *testing.T) {
 			},
 		},
 	})
-	if err != nil {
-		t.Fatal(err)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	cpy := book.Retrieve()
+	cpy, err := book.Retrieve()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 
 	if cpy.Bids[len(cpy.Bids)-1].Price != 0 {
 		t.Fatal("did not append bid item")
@@ -908,8 +984,8 @@ func TestUpdateByIDAndAction(t *testing.T) {
 	}
 
 	// Change amount
-	err = holder.updateByIDAndAction(&Update{
-		Action: UpdateInsert,
+	err = holder.updateByIDAndAction(&orderbook.Update{
+		Action: orderbook.UpdateInsert,
 		Bids: []orderbook.Item{
 			{
 				Price:  0,
@@ -925,11 +1001,14 @@ func TestUpdateByIDAndAction(t *testing.T) {
 			},
 		},
 	})
-	if err != nil {
-		t.Fatal(err)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	cpy = book.Retrieve()
+	cpy, err = book.Retrieve()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 
 	if cpy.Bids[len(cpy.Bids)-1].Amount != 100 {
 		t.Fatal("did not update bid amount", cpy.Bids[len(cpy.Bids)-1].Amount)
@@ -940,8 +1019,8 @@ func TestUpdateByIDAndAction(t *testing.T) {
 	}
 
 	// Change price level
-	err = holder.updateByIDAndAction(&Update{
-		Action: UpdateInsert,
+	err = holder.updateByIDAndAction(&orderbook.Update{
+		Action: orderbook.UpdateInsert,
 		Bids: []orderbook.Item{
 			{
 				Price:  100,
@@ -957,11 +1036,14 @@ func TestUpdateByIDAndAction(t *testing.T) {
 			},
 		},
 	})
-	if err != nil {
-		t.Fatal(err)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	cpy = book.Retrieve()
+	cpy, err = book.Retrieve()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 
 	if cpy.Bids[0].Amount != 99 && cpy.Bids[0].Price != 100 {
 		t.Fatal("did not adjust bid item placement and details")
@@ -972,10 +1054,9 @@ func TestUpdateByIDAndAction(t *testing.T) {
 	}
 
 	book.LoadSnapshot(append(bids[:0:0], bids...), append(bids[:0:0], bids...), 0, time.Time{}, true) // nolint:gocritic
-
 	// Delete - not found
-	err = holder.updateByIDAndAction(&Update{
-		Action: Delete,
+	err = holder.updateByIDAndAction(&orderbook.Update{
+		Action: orderbook.Delete,
 		Asks: []orderbook.Item{
 			{
 				Price:  0,
@@ -984,54 +1065,54 @@ func TestUpdateByIDAndAction(t *testing.T) {
 			},
 		},
 	})
-	if err == nil {
-		t.Fatal("error cannot be nil")
-	}
-	err = holder.updateByIDAndAction(&Update{
-		Action: Delete,
-		Bids: []orderbook.Item{
-			{
-				Price:  0,
-				ID:     1337,
-				Amount: 99,
-			},
-		},
-	})
-	if err == nil {
-		t.Fatal("error cannot be nil")
+	if !strings.Contains(err.Error(), errDeleteFailure.Error()) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errDeleteFailure)
 	}
 
+	book.LoadSnapshot(append(bids[:0:0], bids...), append(bids[:0:0], bids...), 0, time.Time{}, true) // nolint:gocritic
 	// Delete - found
-	err = holder.updateByIDAndAction(&Update{
-		Action: Delete,
+	err = holder.updateByIDAndAction(&orderbook.Update{
+		Action: orderbook.Delete,
 		Asks: []orderbook.Item{
 			asks[0],
 		},
 	})
-	if err != nil {
-		t.Fatal(err)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	if book.GetAskLength() != 99 {
+	askLen, err := book.GetAskLength()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if askLen != 99 {
 		t.Fatal("element not deleted")
 	}
 
 	// Apply update
-	err = holder.updateByIDAndAction(&Update{
-		Action: Amend,
+	err = holder.updateByIDAndAction(&orderbook.Update{
+		Action: orderbook.Amend,
 		Asks: []orderbook.Item{
 			{ID: 123456},
 		},
 	})
-	if err == nil {
-		t.Fatal("error cannot be nil")
+	if !strings.Contains(err.Error(), errAmendFailure.Error()) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errAmendFailure)
 	}
 
-	update := book.Retrieve().Asks[0]
+	book.LoadSnapshot(bids, bids, 0, time.Time{}, true)
+
+	ob, err = book.Retrieve()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	update := ob.Asks[0]
 	update.Amount = 1337
 
-	err = holder.updateByIDAndAction(&Update{
-		Action: Amend,
+	err = holder.updateByIDAndAction(&orderbook.Update{
+		Action: orderbook.Amend,
 		Asks: []orderbook.Item{
 			update,
 		},
@@ -1040,7 +1121,12 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if book.Retrieve().Asks[0].Amount != 1337 {
+	ob, err = book.Retrieve()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if ob.Asks[0].Amount != 1337 {
 		t.Fatal("element not updated")
 	}
 }
@@ -1086,12 +1172,8 @@ func TestFlushOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	o, err := w.GetOrderbook(cp, asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(o.Bids) != 0 || len(o.Asks) != 0 {
-		t.Fatal("orderbook items not flushed")
+	_, err = w.GetOrderbook(cp, asset.Spot)
+	if !errors.Is(err, orderbook.ErrOrderbookInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, orderbook.ErrOrderbookInvalid)
 	}
 }

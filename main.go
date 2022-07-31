@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/gctscript"
@@ -39,10 +40,12 @@ func main() {
 	flag.DurationVar(&settings.PortfolioManagerDelay, "portfoliomanagerdelay", time.Duration(0), "sets the portfolio managers sleep delay between updates")
 	flag.BoolVar(&settings.EnableGRPC, "grpc", true, "enables the grpc server")
 	flag.BoolVar(&settings.EnableGRPCProxy, "grpcproxy", false, "enables the grpc proxy server")
+	flag.BoolVar(&settings.EnableGRPCShutdown, "grpcshutdown", false, "enables gRPC bot instance shutdown functionality")
 	flag.BoolVar(&settings.EnableWebsocketRPC, "websocketrpc", true, "enables the websocket RPC server")
 	flag.BoolVar(&settings.EnableDeprecatedRPC, "deprecatedrpc", true, "enables the deprecated RPC server")
 	flag.BoolVar(&settings.EnableCommsRelayer, "enablecommsrelayer", true, "enables available communications relayer")
 	flag.BoolVar(&settings.Verbose, "verbose", false, "increases logging verbosity for GoCryptoTrader")
+	flag.BoolVar(&settings.EnableFuturesTracking, "enablefuturestracking", true, "tracks futures orders PNL is supported by the exchange")
 	flag.BoolVar(&settings.EnableExchangeSyncManager, "syncmanager", true, "enables to exchange sync manager")
 	flag.BoolVar(&settings.EnableWebsocketRoutine, "websocketroutine", true, "enables the websocket routine for all loaded exchanges")
 	flag.BoolVar(&settings.EnableCoinmarketcapAnalysis, "coinmarketcap", false, "overrides config and runs currency analysis")
@@ -93,6 +96,7 @@ func main() {
 	flag.StringVar(&settings.HTTPProxy, "httpproxy", "", "sets the HTTP proxy server")
 	flag.BoolVar(&settings.EnableExchangeHTTPDebugging, "exchangehttpdebugging", false, "sets the exchanges HTTP debugging")
 	flag.DurationVar(&settings.TradeBufferProcessingInterval, "tradeprocessinginterval", trade.DefaultProcessorIntervalTime, "sets the interval to save trade buffer data to the database")
+	flag.IntVar(&settings.AlertSystemPreAllocationCommsBuffer, "alertbuffer", alert.PreAllocCommsDefaultBuffer, "sets the size of the pre-allocation communications buffer")
 
 	// Common tuning settings
 	flag.DurationVar(&settings.GlobalHTTPTimeout, "globalhttptimeout", time.Duration(0), "sets common HTTP timeout value for HTTP requests")
@@ -127,6 +131,7 @@ func main() {
 		settings.ConfigFile = ""
 	}
 
+	settings.Shutdown = make(chan struct{})
 	engine.Bot, err = engine.NewFromSettings(&settings, flagSet)
 	if engine.Bot == nil || err != nil {
 		log.Fatalf("Unable to initialise bot engine. Error: %s\n", err)
@@ -141,8 +146,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	interrupt := signaler.WaitForInterrupt()
-	gctlog.Infof(gctlog.Global, "Captured %v, shutdown requested.\n", interrupt)
+	go waitForInterupt(settings.Shutdown)
+	<-settings.Shutdown
 	engine.Bot.Stop()
 	gctlog.Infoln(gctlog.Global, "Exiting.")
+}
+
+func waitForInterupt(waiter chan<- struct{}) {
+	interrupt := signaler.WaitForInterrupt()
+	gctlog.Infof(gctlog.Global, "Captured %v, shutdown requested.\n", interrupt)
+	waiter <- struct{}{}
 }

@@ -294,6 +294,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var orderSubmission = &order.Submit{
+		Exchange: z.Name,
 		Pair: currency.Pair{
 			Delimiter: "_",
 			Base:      currency.XRP,
@@ -327,7 +328,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.XRP, currency.USDT)
 	var orderCancellation = &order.Cancel{
-		ID:            "1",
+		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
@@ -352,7 +353,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.XRP, currency.USDT)
 	var orderCancellation = &order.Cancel{
-		ID:            "1",
+		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
@@ -979,16 +980,16 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 }
 
 func TestValidateCandlesRequest(t *testing.T) {
-	_, err := z.validateCandlesRequest(currency.EMPTYPAIR, "", time.Time{}, time.Time{}, kline.Interval(-1))
+	_, err := z.validateCandlesRequest(currency.EMPTYPAIR, asset.Empty, time.Time{}, time.Time{}, kline.Interval(-1))
 	if !errors.Is(err, common.ErrDateUnset) {
 		t.Error(err)
 	}
-	_, err = z.validateCandlesRequest(currency.EMPTYPAIR, "", time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC), time.Time{}, kline.Interval(-1))
+	_, err = z.validateCandlesRequest(currency.EMPTYPAIR, asset.Empty, time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC), time.Time{}, kline.Interval(-1))
 	if !errors.Is(err, common.ErrDateUnset) {
 		t.Error(err)
 	}
 	_, err = z.validateCandlesRequest(currency.EMPTYPAIR, asset.Spot, time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC), time.Date(2020, 1, 1, 1, 1, 1, 3, time.UTC), kline.OneHour)
-	if err != nil && err.Error() != "pair not enabled" {
+	if !errors.Is(err, kline.ErrValidatingParams) {
 		t.Error(err)
 	}
 	var p currency.Pair

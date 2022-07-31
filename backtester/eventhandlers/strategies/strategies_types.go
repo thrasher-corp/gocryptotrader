@@ -11,8 +11,8 @@ import (
 type Handler interface {
 	Name() string
 	Description() string
-	OnSignal(data.Handler, funding.IFundTransferer, portfolio.Handler) (signal.Event, error)
-	OnSimultaneousSignals([]data.Handler, funding.IFundTransferer, portfolio.Handler) ([]signal.Event, error)
+	OnSignal(data.Handler, funding.IFundingTransferer, portfolio.Handler) (signal.Event, error)
+	OnSimultaneousSignals([]data.Handler, funding.IFundingTransferer, portfolio.Handler) ([]signal.Event, error)
 	UsingSimultaneousProcessing() bool
 	SupportsSimultaneousProcessing() bool
 	SetSimultaneousProcessing(bool)

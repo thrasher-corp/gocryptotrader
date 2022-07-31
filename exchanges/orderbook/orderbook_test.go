@@ -229,7 +229,7 @@ func TestGetOrderbook(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = Get("Exchange", newCurrency, "meowCats")
+	_, err = Get("Exchange", newCurrency, asset.Empty)
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
@@ -288,7 +288,7 @@ func TestGetDepth(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = GetDepth("Exchange", newCurrency, "meowCats")
+	_, err = GetDepth("Exchange", newCurrency, asset.Empty)
 	if !errors.Is(err, errCannotFindOrderbook) {
 		t.Fatalf("expecting %s error but received %v", errCannotFindOrderbook, err)
 	}
@@ -307,7 +307,7 @@ func TestDeployDepth(t *testing.T) {
 	if !errors.Is(err, errPairNotSet) {
 		t.Fatalf("expecting %s error but received %v", errPairNotSet, err)
 	}
-	_, err = DeployDepth("test", c, "")
+	_, err = DeployDepth("test", c, asset.Empty)
 	if !errors.Is(err, errAssetTypeNotSet) {
 		t.Fatalf("expecting %s error but received %v", errAssetTypeNotSet, err)
 	}
@@ -434,13 +434,13 @@ func TestProcessOrderbook(t *testing.T) {
 	}
 
 	base.Asks = []Item{{Price: 200, Amount: 200}}
-	base.Asset = "monthly"
+	base.Asset = asset.Spot
 	err = base.Process()
 	if err != nil {
 		t.Error("Process() error", err)
 	}
 
-	result, err = Get("ProcessOrderbook", c, "monthly")
+	result, err = Get("ProcessOrderbook", c, asset.Spot)
 	if err != nil {
 		t.Fatal("TestProcessOrderbook failed to retrieve new orderbook")
 	}
@@ -452,13 +452,13 @@ func TestProcessOrderbook(t *testing.T) {
 
 	base.Bids = []Item{{Price: 420, Amount: 200}}
 	base.Exchange = "Blah"
-	base.Asset = "quarterly"
+	base.Asset = asset.CoinMarginedFutures
 	err = base.Process()
 	if err != nil {
 		t.Error("Process() error", err)
 	}
 
-	_, err = Get("Blah", c, "quarterly")
+	_, err = Get("Blah", c, asset.CoinMarginedFutures)
 	if err != nil {
 		t.Fatal("TestProcessOrderbook failed to create new orderbook")
 	}

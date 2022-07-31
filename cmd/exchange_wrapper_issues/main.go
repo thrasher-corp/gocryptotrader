@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -480,6 +481,20 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				SentParams: jsonifyInterface([]interface{}{p, assetTypes[i], startTime, endTime, kline.OneDay}),
 			})
 
+			var getServerTimeResponse time.Time
+			getServerTimeResponse, err = e.GetServerTime(context.TODO(), assetTypes[i])
+			msg = ""
+			if err != nil {
+				msg = err.Error()
+				responseContainer.ErrorCount++
+			}
+			responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+				Function:   "GetServerTime",
+				Error:      msg,
+				Response:   getServerTimeResponse,
+				SentParams: jsonifyInterface([]interface{}{assetTypes[i]}),
+			})
+
 			err = e.UpdateOrderExecutionLimits(context.TODO(), assetTypes[i])
 			msg = ""
 			if err != nil {
@@ -542,6 +557,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		s := &order.Submit{
+			Exchange:  e.GetName(),
 			Pair:      p,
 			Side:      testOrderSide,
 			Type:      testOrderType,
@@ -550,7 +566,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			ClientID:  config.OrderSubmission.OrderID,
 			AssetType: assetTypes[i],
 		}
-		var submitOrderResponse order.SubmitResponse
+		var submitOrderResponse *order.SubmitResponse
 		submitOrderResponse, err = e.SubmitOrder(context.TODO(), s)
 		msg = ""
 		if err != nil {
@@ -565,12 +581,13 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		modifyRequest := order.Modify{
-			ID:     config.OrderSubmission.OrderID,
-			Type:   testOrderType,
-			Side:   testOrderSide,
-			Pair:   p,
-			Price:  config.OrderSubmission.Price,
-			Amount: config.OrderSubmission.Amount,
+			OrderID:   config.OrderSubmission.OrderID,
+			Type:      testOrderType,
+			Side:      testOrderSide,
+			Pair:      p,
+			Price:     config.OrderSubmission.Price,
+			Amount:    config.OrderSubmission.Amount,
+			AssetType: assetTypes[i],
 		}
 		modifyOrderResponse, err := e.ModifyOrder(context.TODO(), &modifyRequest)
 		msg = ""
@@ -588,7 +605,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		cancelRequest := order.Cancel{
 			Side:      testOrderSide,
 			Pair:      p,
-			ID:        config.OrderSubmission.OrderID,
+			OrderID:   config.OrderSubmission.OrderID,
 			AssetType: assetTypes[i],
 		}
 		err = e.CancelOrder(context.TODO(), &cancelRequest)
@@ -608,7 +625,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		request = append(request, order.Cancel{
 			Side:      testOrderSide,
 			Pair:      p,
-			ID:        config.OrderSubmission.OrderID,
+			OrderID:   config.OrderSubmission.OrderID,
 			AssetType: assetTypes[i],
 		})
 
@@ -655,9 +672,10 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		historyRequest := order.GetOrdersRequest{
-			Type:  testOrderType,
-			Side:  testOrderSide,
-			Pairs: []currency.Pair{p},
+			Type:      testOrderType,
+			Side:      testOrderSide,
+			Pairs:     []currency.Pair{p},
+			AssetType: assetTypes[i],
 		}
 		var getOrderHistoryResponse []order.Detail
 		getOrderHistoryResponse, err = e.GetOrderHistory(context.TODO(), &historyRequest)
@@ -674,9 +692,10 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		orderRequest := order.GetOrdersRequest{
-			Type:  testOrderType,
-			Side:  testOrderSide,
-			Pairs: []currency.Pair{p},
+			Type:      testOrderType,
+			Side:      testOrderSide,
+			Pairs:     []currency.Pair{p},
+			AssetType: assetTypes[i],
 		}
 		var getActiveOrdersResponse []order.Detail
 		getActiveOrdersResponse, err = e.GetActiveOrders(context.TODO(), &orderRequest)
@@ -828,6 +847,31 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Error:      msg,
 			Response:   withdrawFiatFundsInternationalResponse,
 		})
+
+		marginRateHistoryRequest := &margin.RateHistoryRequest{
+			Exchange:           e.GetName(),
+			Asset:              assetTypes[i],
+			Currency:           p.Base,
+			StartDate:          time.Now().Add(-time.Hour * 24),
+			EndDate:            time.Now(),
+			GetPredictedRate:   true,
+			GetLendingPayments: true,
+			GetBorrowRates:     true,
+			GetBorrowCosts:     true,
+		}
+		marginRateHistoryResponse, err := e.GetMarginRatesHistory(context.TODO(), marginRateHistoryRequest)
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+			responseContainer.ErrorCount++
+		}
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+			SentParams: jsonifyInterface([]interface{}{marginRateHistoryRequest}),
+			Function:   "GetMarginRatesHistory",
+			Error:      msg,
+			Response:   marginRateHistoryResponse,
+		})
+
 		response = append(response, responseContainer)
 	}
 	return response

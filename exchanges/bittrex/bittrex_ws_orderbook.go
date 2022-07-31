@@ -7,7 +7,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -64,7 +63,7 @@ func (b *Bittrex) ProcessUpdateOB(pair currency.Pair, message *OrderbookUpdateMe
 		}
 	}
 
-	return b.Websocket.Orderbook.Update(&buffer.Update{
+	return b.Websocket.Orderbook.Update(&orderbook.Update{
 		Asset:    asset.Spot,
 		Pair:     pair,
 		UpdateID: message.Sequence,

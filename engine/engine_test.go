@@ -2,7 +2,6 @@ package engine
 
 import (
 	"errors"
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -77,16 +76,7 @@ func TestLoadConfigWithSettings(t *testing.T) {
 
 func TestStartStopDoesNotCausePanic(t *testing.T) {
 	t.Parallel()
-	tempDir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("Problem creating temp dir at %s: %s\n", tempDir, err)
-	}
-	defer func() {
-		err = os.RemoveAll(tempDir)
-		if err != nil {
-			t.Error(err)
-		}
-	}()
+	tempDir := t.TempDir()
 	botOne, err := NewFromSettings(&Settings{
 		ConfigFile:   config.TestFile,
 		EnableDryRun: true,
@@ -116,24 +106,8 @@ func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
 	if !enableExperimentalTest {
 		t.Skip("test is functional, however does not need to be included in go test runs")
 	}
-	tempDir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("Problem creating temp dir at %s: %s\n", tempDir, err)
-	}
-	tempDir2, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("Problem creating temp dir at %s: %s\n", tempDir, err)
-	}
-	defer func() {
-		err = os.RemoveAll(tempDir)
-		if err != nil {
-			t.Error(err)
-		}
-		err = os.RemoveAll(tempDir2)
-		if err != nil {
-			t.Error(err)
-		}
-	}()
+	tempDir := t.TempDir()
+	tempDir2 := t.TempDir()
 	botOne, err := NewFromSettings(&Settings{
 		ConfigFile:   config.TestFile,
 		EnableDryRun: true,
@@ -317,5 +291,35 @@ func TestFlagSetWith(t *testing.T) {
 	flags.WithBool("IS SET", &isRunning, false)
 	if isRunning {
 		t.Fatalf("received: '%v' but expected: '%v'", isRunning, false)
+	}
+}
+
+func TestRegisterWebsocketDataHandler(t *testing.T) {
+	t.Parallel()
+	var e *Engine
+	err := e.RegisterWebsocketDataHandler(nil, false)
+	if !errors.Is(err, errNilBot) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNilBot)
+	}
+
+	e = &Engine{websocketRoutineManager: &websocketRoutineManager{}}
+	err = e.RegisterWebsocketDataHandler(func(_ string, _ interface{}) error { return nil }, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+}
+
+func TestSetDefaultWebsocketDataHandler(t *testing.T) {
+	t.Parallel()
+	var e *Engine
+	err := e.SetDefaultWebsocketDataHandler()
+	if !errors.Is(err, errNilBot) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNilBot)
+	}
+
+	e = &Engine{websocketRoutineManager: &websocketRoutineManager{}}
+	err = e.SetDefaultWebsocketDataHandler()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 }

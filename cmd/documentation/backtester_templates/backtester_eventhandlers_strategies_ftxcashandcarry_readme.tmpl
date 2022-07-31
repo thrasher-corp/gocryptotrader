@@ -1,0 +1,34 @@
+{{define "backtester eventhandlers strategies ftxcashandcarry" -}}
+{{template "backtester-header" .}}
+## FTX Cash and carry strategy overview
+
+### Description
+Cash and carry is a strategy which takes advantage of the difference in pricing between a long-dated futures contract and a SPOT asset.
+By default, this cash and carry strategy will, upon the first data event, purchase BTC-USD SPOT asset from FTX exchange and then, once filled, raise a SHORT for BTC-20210924 FUTURES contract.
+On the last event, the strategy will close the SHORT position by raising a LONG of the same contract amount, thereby netting the difference in prices
+
+### Requirements
+- At this time of writing, this strategy is only compatible with FTX
+- This strategy *requires* `Simultaneous Signal Processing` aka [use-simultaneous-signal-processing](/backtester/config/README.md).
+- This strategy *requires* `Exchange Level Funding` aka [use-exchange-level-funding](/backtester/config/README.md).
+
+### Creating a strategy config
+- The long-dated futures contract will need to be part of the `currency-settings` of the contract
+- Funding for purchasing SPOT assets will need to be part of `funding-settings`
+- See the [example config](./config/examples/ftx-cash-carry.strat)
+
+### Customisation
+This strategy does support strategy customisation in the following ways:
+
+| Field | Description |  Example |
+| --- | ------- | --- |
+| openShortDistancePercentage | If there is no short position open, and the difference between FUTURES and SPOT pricing goes above this this percentage threshold, raise a SHORT order of the FUTURES contract | 10 |
+| closeShortDistancePercentage | If there is an open SHORT position on a FUTURES contract, and the difference in FUTURES and SPOT pricing goes below this percentage threshold, close the SHORT position | 1 |
+
+### External Resources
+- [This](https://ftxcashandcarry.com/) is a very informative site on describing what a cash and carry trade will look like
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations" .}}
+{{end}}

@@ -15,13 +15,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -65,7 +63,7 @@ func (f *FTX) WsConnect() error {
 	f.Websocket.Wg.Add(1)
 	go f.wsReadData()
 
-	if f.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if f.IsWebsocketAuthenticationSupported() {
 		err = f.WsAuth(context.TODO())
 		if err != nil {
 			f.Websocket.DataHandler <- err
@@ -207,7 +205,7 @@ func (f *FTX) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, erro
 			}
 		}
 	}
-	if f.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if f.IsWebsocketAuthenticationSupported() {
 		var authchan = []string{wsOrders, wsFills}
 		for x := range authchan {
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
@@ -373,7 +371,7 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			resp.Cost = resp.AverageExecutedPrice * resultData.OrderData.FilledSize
 			// Fee: orderVars.Fee is incorrect.
 			resp.Exchange = f.Name
-			resp.ID = strconv.FormatInt(resultData.OrderData.ID, 10)
+			resp.OrderID = strconv.FormatInt(resultData.OrderData.ID, 10)
 			resp.ClientOrderID = resultData.OrderData.ClientID
 			resp.Type = orderVars.OrderType
 			resp.Side = orderVars.Side
@@ -477,7 +475,7 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 
 // WsProcessUpdateOB processes an update on the orderbook
 func (f *FTX) WsProcessUpdateOB(data *WsOrderbookData, p currency.Pair, a asset.Item) error {
-	update := buffer.Update{
+	update := orderbook.Update{
 		Asset:      a,
 		Pair:       p,
 		Bids:       make([]orderbook.Item, len(data.Bids)),

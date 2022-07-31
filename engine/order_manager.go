@@ -21,7 +21,7 @@ import (
 )
 
 // SetupOrderManager will boot up the OrderManager
-func SetupOrderManager(exchangeManager iExchangeManager, communicationsManager iCommsManager, wg *sync.WaitGroup, verbose bool) (*OrderManager, error) {
+func SetupOrderManager(exchangeManager iExchangeManager, communicationsManager iCommsManager, wg *sync.WaitGroup, enabledFuturesTracking, verbose bool) (*OrderManager, error) {
 	if exchangeManager == nil {
 		return nil, errNilExchangeManager
 	}
@@ -40,6 +40,7 @@ func SetupOrderManager(exchangeManager iExchangeManager, communicationsManager i
 			commsManager:              communicationsManager,
 			wg:                        wg,
 			futuresPositionController: order.SetupPositionController(),
+			trackFuturesPositions:     enabledFuturesTracking,
 		},
 		verbose: verbose,
 	}, nil
@@ -47,10 +48,7 @@ func SetupOrderManager(exchangeManager iExchangeManager, communicationsManager i
 
 // IsRunning safely checks whether the subsystem is running
 func (m *OrderManager) IsRunning() bool {
-	if m == nil {
-		return false
-	}
-	return atomic.LoadInt32(&m.started) == 1
+	return m != nil && atomic.LoadInt32(&m.started) == 1
 }
 
 // Start runs the subsystem
@@ -63,6 +61,7 @@ func (m *OrderManager) Start() error {
 	}
 	log.Debugln(log.OrderMgr, "Order manager starting...")
 	m.shutdown = make(chan struct{})
+	m.orderStore.wg.Add(1)
 	go m.run()
 	return nil
 }
@@ -75,81 +74,72 @@ func (m *OrderManager) Stop() error {
 	if atomic.LoadInt32(&m.started) == 0 {
 		return fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
-
-	defer func() {
-		atomic.CompareAndSwapInt32(&m.started, 1, 0)
-	}()
-
 	log.Debugln(log.OrderMgr, "Order manager shutting down...")
 	close(m.shutdown)
+	atomic.CompareAndSwapInt32(&m.started, 1, 0)
 	return nil
 }
 
 // gracefulShutdown cancels all orders (if enabled) before shutting down
 func (m *OrderManager) gracefulShutdown() {
-	if m.cfg.CancelOrdersOnShutdown {
-		log.Debugln(log.OrderMgr, "Order manager: Cancelling any open orders...")
-		exchanges, err := m.orderStore.exchangeManager.GetExchanges()
-		if err != nil {
-			log.Errorf(log.OrderMgr, "Order manager cannot get exchanges: %v", err)
-			return
-		}
-		m.CancelAllOrders(context.TODO(), exchanges)
+	if !m.cfg.CancelOrdersOnShutdown {
+		return
 	}
+	log.Debugln(log.OrderMgr, "Order manager: Cancelling any open orders...")
+	exchanges, err := m.orderStore.exchangeManager.GetExchanges()
+	if err != nil {
+		log.Errorf(log.OrderMgr, "Order manager cannot get exchanges: %v", err)
+		return
+	}
+	m.CancelAllOrders(context.TODO(), exchanges)
 }
 
 // run will periodically process orders
 func (m *OrderManager) run() {
 	log.Debugln(log.OrderMgr, "Order manager started.")
-	m.processOrders()
-	tick := time.NewTicker(orderManagerDelay)
-	m.orderStore.wg.Add(1)
-	defer func() {
-		log.Debugln(log.OrderMgr, "Order manager shutdown.")
-		tick.Stop()
-		m.orderStore.wg.Done()
-	}()
-
+	timer := time.NewTimer(orderManagerDelay)
 	for {
 		select {
 		case <-m.shutdown:
 			m.gracefulShutdown()
+			if !timer.Stop() {
+				<-timer.C
+			}
+			m.orderStore.wg.Done()
+			log.Debugln(log.OrderMgr, "Order manager shutdown.")
 			return
-		case <-tick.C:
+		case <-timer.C:
+			// Process orders go routine allows shutdown procedures to continue
 			go m.processOrders()
+			timer.Reset(orderManagerDelay)
 		}
 	}
 }
 
 // CancelAllOrders iterates and cancels all orders for each exchange provided
-func (m *OrderManager) CancelAllOrders(ctx context.Context, exchangeNames []exchange.IBotExchange) {
+func (m *OrderManager) CancelAllOrders(ctx context.Context, exchanges []exchange.IBotExchange) {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return
 	}
 
-	orders := m.orderStore.get()
-	if orders == nil {
+	allOrders := m.orderStore.get()
+	if len(allOrders) == 0 {
 		return
 	}
 
-	for i := range exchangeNames {
-		exchangeOrders, ok := orders[strings.ToLower(exchangeNames[i].GetName())]
+	for i := range exchanges {
+		orders, ok := allOrders[strings.ToLower(exchanges[i].GetName())]
 		if !ok {
 			continue
 		}
-		for j := range exchangeOrders {
-			log.Debugf(log.OrderMgr, "Order manager: Cancelling order(s) for exchange %s.", exchangeNames[i].GetName())
-			err := m.Cancel(ctx, &order.Cancel{
-				Exchange:      exchangeOrders[j].Exchange,
-				ID:            exchangeOrders[j].ID,
-				AccountID:     exchangeOrders[j].AccountID,
-				ClientID:      exchangeOrders[j].ClientID,
-				WalletAddress: exchangeOrders[j].WalletAddress,
-				Type:          exchangeOrders[j].Type,
-				Side:          exchangeOrders[j].Side,
-				Pair:          exchangeOrders[j].Pair,
-				AssetType:     exchangeOrders[j].AssetType,
-			})
+		for j := range orders {
+			log.Debugf(log.OrderMgr, "Order manager: Cancelling order(s) for exchange %s.", exchanges[i].GetName())
+			cancel, err := orders[j].DeriveCancel()
+			if err != nil {
+				log.Error(log.OrderMgr, err)
+				continue
+			}
+			err = m.Cancel(ctx, cancel)
 			if err != nil {
 				log.Error(log.OrderMgr, err)
 			}
@@ -184,7 +174,7 @@ func (m *OrderManager) Cancel(ctx context.Context, cancel *order.Cancel) error {
 		err = errors.New("order exchange name is empty")
 		return err
 	}
-	if cancel.ID == "" {
+	if cancel.OrderID == "" {
 		err = errors.New("order id is empty")
 		return err
 	}
@@ -200,29 +190,30 @@ func (m *OrderManager) Cancel(ctx context.Context, cancel *order.Cancel) error {
 	}
 
 	log.Debugf(log.OrderMgr, "Order manager: Cancelling order ID %v [%+v]",
-		cancel.ID, cancel)
+		cancel.OrderID, cancel)
 
 	err = exch.CancelOrder(ctx, cancel)
 	if err != nil {
 		err = fmt.Errorf("%v - Failed to cancel order: %w", cancel.Exchange, err)
 		return err
 	}
-	var od *order.Detail
-	od, err = m.orderStore.getByExchangeAndID(cancel.Exchange, cancel.ID)
+	od, err := m.orderStore.getByExchangeAndID(cancel.Exchange, cancel.OrderID)
 	if err != nil {
-		err = fmt.Errorf("%v - Failed to retrieve order %v to update cancelled status: %w", cancel.Exchange, cancel.ID, err)
+		err = fmt.Errorf("%v - Failed to retrieve order %v to update cancelled status: %w",
+			cancel.Exchange, cancel.OrderID, err)
+		return err
+	}
+	od.Status = order.Cancelled
+	err = m.orderStore.updateExisting(od)
+	if err != nil {
+		err = fmt.Errorf("%v - Failed to update existing order when cancelled: %w", cancel.Exchange, err)
 		return err
 	}
 
-	od.Status = order.Cancelled
 	msg := fmt.Sprintf("Order manager: Exchange %s order ID=%v cancelled.",
-		od.Exchange, od.ID)
+		od.Exchange, od.OrderID)
 	log.Debugln(log.OrderMgr, msg)
-	m.orderStore.commsManager.PushEvent(base.Event{
-		Type:    "order",
-		Message: msg,
-	})
-
+	m.orderStore.commsManager.PushEvent(base.Event{Type: "order", Message: msg})
 	return nil
 }
 
@@ -361,7 +352,7 @@ func (m *OrderManager) Modify(ctx context.Context, mod *order.Modify) (*order.Mo
 	}
 
 	// Fetch details from locally managed order store.
-	det, err := m.orderStore.getByExchangeAndID(mod.Exchange, mod.ID)
+	det, err := m.orderStore.getByExchangeAndID(mod.Exchange, mod.OrderID)
 	if det == nil || err != nil {
 		return nil, fmt.Errorf("order does not exist: %w", err)
 	}
@@ -392,7 +383,7 @@ func (m *OrderManager) Modify(ctx context.Context, mod *order.Modify) (*order.Mo
 		message := fmt.Sprintf(
 			"Order manager: Exchange %s order ID=%v: failed to modify",
 			mod.Exchange,
-			mod.ID,
+			mod.OrderID,
 		)
 		m.orderStore.commsManager.PushEvent(base.Event{
 			Type:    "order",
@@ -405,7 +396,7 @@ func (m *OrderManager) Modify(ctx context.Context, mod *order.Modify) (*order.Mo
 	//
 	// XXX: This comes with a race condition, because [request -> changes] are not
 	// atomic.
-	err = m.orderStore.modifyExisting(mod.ID, &res)
+	err = m.orderStore.modifyExisting(mod.OrderID, res)
 
 	// Notify observers.
 	var message string
@@ -416,9 +407,9 @@ func (m *OrderManager) Modify(ctx context.Context, mod *order.Modify) (*order.Mo
 	}
 	m.orderStore.commsManager.PushEvent(base.Event{
 		Type:    "order",
-		Message: fmt.Sprintf(message, mod.Exchange, res.ID),
+		Message: fmt.Sprintf(message, mod.Exchange, res.OrderID),
 	})
-	return &order.ModifyResponse{OrderID: res.ID}, err
+	return &order.ModifyResponse{OrderID: res.OrderID}, err
 }
 
 // Submit will take in an order struct, send it to the exchange and
@@ -469,12 +460,12 @@ func (m *OrderManager) Submit(ctx context.Context, newOrder *order.Submit) (*Ord
 		return nil, err
 	}
 
-	return m.processSubmittedOrder(newOrder, result)
+	return m.processSubmittedOrder(result)
 }
 
 // SubmitFakeOrder runs through the same process as order submission
 // but does not touch live endpoints
-func (m *OrderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder order.SubmitResponse, checkExchangeLimits bool) (*OrderSubmitResponse, error) {
+func (m *OrderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder *order.SubmitResponse, checkExchangeLimits bool) (*OrderSubmitResponse, error) {
 	if m == nil {
 		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
@@ -505,7 +496,7 @@ func (m *OrderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder or
 				err)
 		}
 	}
-	return m.processSubmittedOrder(newOrder, resultingOrder)
+	return m.processSubmittedOrder(resultingOrder)
 }
 
 // GetOrdersSnapshot returns a snapshot of all orders in the orderstore. It optionally filters any orders that do not match the status
@@ -518,9 +509,7 @@ func (m *OrderManager) GetOrdersSnapshot(s order.Status) []order.Detail {
 	var os []order.Detail
 	for _, v := range m.orderStore.Orders {
 		for i := range v {
-			if s != v[i].Status &&
-				s != order.AnyStatus &&
-				s != "" {
+			if s != v[i].Status && s != order.AnyStatus && s != order.UnknownStatus {
 				continue
 			}
 			os = append(os, *v[i])
@@ -535,9 +524,6 @@ func (m *OrderManager) GetOrdersSnapshot(s order.Status) []order.Detail {
 func (m *OrderManager) GetOrdersFiltered(f *order.Filter) ([]order.Detail, error) {
 	if m == nil {
 		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
-	}
-	if f == nil {
-		return nil, fmt.Errorf("order manager, GetOrdersFiltered: Filter is nil")
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
 		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
@@ -558,82 +544,45 @@ func (m *OrderManager) GetOrdersActive(f *order.Filter) ([]order.Detail, error) 
 }
 
 // processSubmittedOrder adds a new order to the manager
-func (m *OrderManager) processSubmittedOrder(newOrder *order.Submit, result order.SubmitResponse) (*OrderSubmitResponse, error) {
-	if !result.IsOrderPlaced {
-		return nil, errUnableToPlaceOrder
+func (m *OrderManager) processSubmittedOrder(newOrderResp *order.SubmitResponse) (*OrderSubmitResponse, error) {
+	if newOrderResp == nil {
+		return nil, order.ErrOrderDetailIsNil
 	}
 
 	id, err := uuid.NewV4()
 	if err != nil {
-		log.Warnf(log.OrderMgr,
-			"Order manager: Unable to generate UUID. Err: %s",
-			err)
+		log.Warnf(log.OrderMgr, "Order manager: Unable to generate UUID. Err: %s", err)
 	}
-	if newOrder.Date.IsZero() {
-		newOrder.Date = time.Now()
+
+	detail, err := newOrderResp.DeriveDetail(id)
+	if err != nil {
+		return nil, err
 	}
+
 	msg := fmt.Sprintf("Order manager: Exchange %s submitted order ID=%v [Ours: %v] pair=%v price=%v amount=%v quoteAmount=%v side=%v type=%v for time %v.",
-		newOrder.Exchange,
-		result.OrderID,
-		id.String(),
-		newOrder.Pair,
-		newOrder.Price,
-		newOrder.Amount,
-		newOrder.QuoteAmount,
-		newOrder.Side,
-		newOrder.Type,
-		newOrder.Date)
+		detail.Exchange,
+		detail.OrderID,
+		detail.InternalOrderID.String(),
+		detail.Pair,
+		detail.Price,
+		detail.Amount,
+		detail.QuoteAmount,
+		detail.Side,
+		detail.Type,
+		detail.Date)
 
 	log.Debugln(log.OrderMgr, msg)
-	m.orderStore.commsManager.PushEvent(base.Event{
-		Type:    "order",
-		Message: msg,
-	})
-	status := order.New
-	if result.FullyMatched {
-		status = order.Filled
-	}
-	err = m.orderStore.add(&order.Detail{
-		ImmediateOrCancel: newOrder.ImmediateOrCancel,
-		HiddenOrder:       newOrder.HiddenOrder,
-		FillOrKill:        newOrder.FillOrKill,
-		PostOnly:          newOrder.PostOnly,
-		Price:             newOrder.Price,
-		Amount:            newOrder.Amount,
-		LimitPriceUpper:   newOrder.LimitPriceUpper,
-		LimitPriceLower:   newOrder.LimitPriceLower,
-		TriggerPrice:      newOrder.TriggerPrice,
-		QuoteAmount:       newOrder.QuoteAmount,
-		ExecutedAmount:    newOrder.ExecutedAmount,
-		RemainingAmount:   newOrder.RemainingAmount,
-		Fee:               newOrder.Fee,
-		Exchange:          newOrder.Exchange,
-		InternalOrderID:   id.String(),
-		ID:                result.OrderID,
-		AccountID:         newOrder.AccountID,
-		ClientID:          newOrder.ClientID,
-		ClientOrderID:     newOrder.ClientOrderID,
-		WalletAddress:     newOrder.WalletAddress,
-		Type:              newOrder.Type,
-		Side:              newOrder.Side,
-		Status:            status,
-		AssetType:         newOrder.AssetType,
-		Date:              time.Now(),
-		LastUpdated:       time.Now(),
-		Pair:              newOrder.Pair,
-		Leverage:          newOrder.Leverage,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("unable to add %v order %v to orderStore: %s", newOrder.Exchange, result.OrderID, err)
+	if m.orderStore.commsManager != nil {
+		m.orderStore.commsManager.PushEvent(base.Event{Type: "order", Message: msg})
 	}
 
-	return &OrderSubmitResponse{
-		SubmitResponse: order.SubmitResponse{
-			IsOrderPlaced: result.IsOrderPlaced,
-			OrderID:       result.OrderID,
-		},
-		InternalOrderID: id.String(),
-	}, nil
+	err = m.orderStore.add(detail.CopyToPointer())
+	if err != nil {
+		return nil, fmt.Errorf("unable to add %v order %v to orderStore: %s",
+			detail.Exchange, detail.OrderID, err)
+	}
+
+	return &OrderSubmitResponse{Detail: detail, InternalOrderID: id.String()}, nil
 }
 
 // processOrders iterates over all exchange orders via API
@@ -642,9 +591,8 @@ func (m *OrderManager) processOrders() {
 	if !atomic.CompareAndSwapInt32(&m.processingOrders, 0, 1) {
 		return
 	}
-	defer func() {
-		atomic.StoreInt32(&m.processingOrders, 0)
-	}()
+	defer atomic.StoreInt32(&m.processingOrders, 0)
+
 	exchanges, err := m.orderStore.exchangeManager.GetExchanges()
 	if err != nil {
 		log.Errorf(log.OrderMgr, "Order manager cannot get exchanges: %v", err)
@@ -652,21 +600,21 @@ func (m *OrderManager) processOrders() {
 	}
 	var wg sync.WaitGroup
 	for i := range exchanges {
-		if !exchanges[i].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+		if !exchanges[i].IsRESTAuthenticationSupported() {
 			continue
 		}
 		log.Debugf(log.OrderMgr,
 			"Order manager: Processing orders for exchange %v.",
 			exchanges[i].GetName())
 
-		supportedAssets := exchanges[i].GetAssetTypes(true)
-		for y := range supportedAssets {
-			pairs, err := exchanges[i].GetEnabledPairs(supportedAssets[y])
+		enabledAssets := exchanges[i].GetAssetTypes(true)
+		for y := range enabledAssets {
+			pairs, err := exchanges[i].GetEnabledPairs(enabledAssets[y])
 			if err != nil {
 				log.Errorf(log.OrderMgr,
 					"Order manager: Unable to get enabled pairs for %s and asset type %s: %s",
 					exchanges[i].GetName(),
-					supportedAssets[y],
+					enabledAssets[y],
 					err)
 				continue
 			}
@@ -676,33 +624,26 @@ func (m *OrderManager) processOrders() {
 					log.Debugf(log.OrderMgr,
 						"Order manager: No pairs enabled for %s and asset type %s, skipping...",
 						exchanges[i].GetName(),
-						supportedAssets[y])
+						enabledAssets[y])
 				}
 				continue
 			}
 
-			filter := &order.Filter{
-				Exchange: exchanges[i].GetName(),
-			}
+			filter := &order.Filter{Exchange: exchanges[i].GetName()}
 			orders := m.orderStore.getActiveOrders(filter)
-			order.FilterOrdersByCurrencies(&orders, pairs)
-			requiresProcessing := make(map[string]bool, len(orders))
-			for x := range orders {
-				requiresProcessing[orders[x].InternalOrderID] = true
-			}
+			order.FilterOrdersByPairs(&orders, pairs)
 
-			req := order.GetOrdersRequest{
+			result, err := exchanges[i].GetActiveOrders(context.TODO(), &order.GetOrdersRequest{
 				Side:      order.AnySide,
 				Type:      order.AnyType,
 				Pairs:     pairs,
-				AssetType: supportedAssets[y],
-			}
-			result, err := exchanges[i].GetActiveOrders(context.TODO(), &req)
+				AssetType: enabledAssets[y],
+			})
 			if err != nil {
 				log.Errorf(log.OrderMgr,
 					"Order manager: Unable to get active orders for %s and asset type %s: %s",
 					exchanges[i].GetName(),
-					supportedAssets[y],
+					enabledAssets[y],
 					err)
 				continue
 			}
@@ -715,35 +656,37 @@ func (m *OrderManager) processOrders() {
 				if err != nil {
 					log.Error(log.OrderMgr, err)
 				} else {
-					requiresProcessing[upsertResponse.OrderDetails.InternalOrderID] = false
+					for i := range orders {
+						if orders[i].InternalOrderID != upsertResponse.OrderDetails.InternalOrderID {
+							continue
+						}
+						orders[i] = orders[len(orders)-1]
+						orders = orders[:len(orders)-1]
+					}
 				}
 			}
 			if !exchanges[i].GetBase().GetSupportedFeatures().RESTCapabilities.GetOrder {
 				continue
 			}
 			wg.Add(1)
-			go m.processMatchingOrders(exchanges[i], orders, requiresProcessing, &wg)
+			go m.processMatchingOrders(exchanges[i], orders, &wg)
 		}
 	}
 	wg.Wait()
 }
 
-func (m *OrderManager) processMatchingOrders(exch exchange.IBotExchange, orders []order.Detail, requiresProcessing map[string]bool, wg *sync.WaitGroup) {
-	defer func() {
-		if wg != nil {
-			wg.Done()
-		}
-	}()
+func (m *OrderManager) processMatchingOrders(exch exchange.IBotExchange, orders []order.Detail, wg *sync.WaitGroup) {
 	for x := range orders {
 		if time.Since(orders[x].LastUpdated) < time.Minute {
 			continue
 		}
-		if requiresProcessing[orders[x].InternalOrderID] {
-			err := m.FetchAndUpdateExchangeOrder(exch, &orders[x], orders[x].AssetType)
-			if err != nil {
-				log.Error(log.OrderMgr, err)
-			}
+		err := m.FetchAndUpdateExchangeOrder(exch, &orders[x], orders[x].AssetType)
+		if err != nil {
+			log.Error(log.OrderMgr, err)
 		}
+	}
+	if wg != nil {
+		wg.Done()
 	}
 }
 
@@ -752,7 +695,7 @@ func (m *OrderManager) FetchAndUpdateExchangeOrder(exch exchange.IBotExchange, o
 	if ord == nil {
 		return errors.New("order manager: Order is nil")
 	}
-	fetchedOrder, err := exch.GetOrderInfo(context.TODO(), ord.ID, ord.Pair, assetType)
+	fetchedOrder, err := exch.GetOrderInfo(context.TODO(), ord.OrderID, ord.Pair, assetType)
 	if err != nil {
 		ord.Status = order.UnknownStatus
 		return err
@@ -764,11 +707,7 @@ func (m *OrderManager) FetchAndUpdateExchangeOrder(exch exchange.IBotExchange, o
 
 // Exists checks whether an order exists in the order store
 func (m *OrderManager) Exists(o *order.Detail) bool {
-	if m == nil || atomic.LoadInt32(&m.started) == 0 {
-		return false
-	}
-
-	return m.orderStore.exists(o)
+	return m != nil && atomic.LoadInt32(&m.started) != 0 && m.orderStore.exists(o)
 }
 
 // Add adds an order to the orderstore
@@ -791,14 +730,7 @@ func (m *OrderManager) GetByExchangeAndID(exchangeName, id string) (*order.Detai
 	if atomic.LoadInt32(&m.started) == 0 {
 		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
-
-	o, err := m.orderStore.getByExchangeAndID(exchangeName, id)
-	if err != nil {
-		return nil, err
-	}
-	var cpy order.Detail
-	cpy.UpdateOrderFromDetail(o)
-	return &cpy, nil
+	return m.orderStore.getByExchangeAndID(exchangeName, id)
 }
 
 // UpdateExistingOrder will update an existing order in the orderstore
@@ -839,7 +771,7 @@ func (m *OrderManager) UpsertOrder(od *order.Detail) (resp *OrderUpsertResponse,
 	if err != nil {
 		msg = fmt.Sprintf(
 			"Order manager: Exchange %s unable to upsert order ID=%v internal ID=%v pair=%v price=%.8f amount=%.8f side=%v type=%v status=%v: %s",
-			od.Exchange, od.ID, od.InternalOrderID, od.Pair, od.Price, od.Amount, od.Side, od.Type, od.Status, err)
+			od.Exchange, od.OrderID, od.InternalOrderID, od.Pair, od.Price, od.Amount, od.Side, od.Type, od.Status, err)
 		return nil, err
 	}
 
@@ -848,7 +780,7 @@ func (m *OrderManager) UpsertOrder(od *order.Detail) (resp *OrderUpsertResponse,
 		status = "added"
 	}
 	msg = fmt.Sprintf("Order manager: Exchange %s %s order ID=%v internal ID=%v pair=%v price=%.8f amount=%.8f side=%v type=%v status=%v.",
-		upsertResponse.OrderDetails.Exchange, status, upsertResponse.OrderDetails.ID, upsertResponse.OrderDetails.InternalOrderID,
+		upsertResponse.OrderDetails.Exchange, status, upsertResponse.OrderDetails.OrderID, upsertResponse.OrderDetails.InternalOrderID,
 		upsertResponse.OrderDetails.Pair, upsertResponse.OrderDetails.Price, upsertResponse.OrderDetails.Amount,
 		upsertResponse.OrderDetails.Side, upsertResponse.OrderDetails.Type, upsertResponse.OrderDetails.Status)
 	if upsertResponse.IsNewOrder {
@@ -859,11 +791,13 @@ func (m *OrderManager) UpsertOrder(od *order.Detail) (resp *OrderUpsertResponse,
 	return upsertResponse, nil
 }
 
-// get returns all orders for all exchanges
-// should not be exported as it can have large impact if used improperly
+// get returns a copy of all orders for all exchanges.
 func (s *store) get() map[string][]*order.Detail {
+	orders := make(map[string][]*order.Detail)
 	s.m.Lock()
-	orders := s.Orders
+	for k, val := range s.Orders {
+		orders[k] = order.CopyPointerOrderSlice(val)
+	}
 	s.m.Unlock()
 	return orders
 }
@@ -878,8 +812,8 @@ func (s *store) getByExchangeAndID(exchange, id string) (*order.Detail, error) {
 	}
 
 	for x := range r {
-		if r[x].ID == id {
-			return r[x], nil
+		if r[x].OrderID == id {
+			return r[x].CopyToPointer(), nil
 		}
 	}
 	return nil, ErrOrderNotFound
@@ -898,26 +832,28 @@ func (s *store) updateExisting(od *order.Detail) error {
 		return ErrExchangeNotFound
 	}
 	for x := range r {
-		if r[x].ID == od.ID {
-			r[x].UpdateOrderFromDetail(od)
-			if r[x].AssetType.IsFutures() {
-				err := s.futuresPositionController.TrackNewOrder(r[x])
-				if err != nil {
-					if !errors.Is(err, order.ErrPositionClosed) {
-						return err
-					}
-				}
-			}
+		if r[x].OrderID != od.OrderID {
+			continue
+		}
+		err := r[x].UpdateOrderFromDetail(od)
+		if err != nil {
+			return err
+		}
+		if !r[x].AssetType.IsFutures() {
 			return nil
 		}
+		err = s.futuresPositionController.TrackNewOrder(r[x])
+		if err != nil && !errors.Is(err, order.ErrPositionClosed) {
+			return err
+		}
+		return nil
 	}
-
 	return ErrOrderNotFound
 }
 
 // modifyExisting depends on mod.Exchange and given ID to uniquely identify an order and
 // modify it.
-func (s *store) modifyExisting(id string, mod *order.Modify) error {
+func (s *store) modifyExisting(id string, mod *order.ModifyResponse) error {
 	s.m.Lock()
 	defer s.m.Unlock()
 	r, ok := s.Orders[strings.ToLower(mod.Exchange)]
@@ -925,97 +861,61 @@ func (s *store) modifyExisting(id string, mod *order.Modify) error {
 		return ErrExchangeNotFound
 	}
 	for x := range r {
-		if r[x].ID == id {
-			r[x].UpdateOrderFromModify(mod)
-			if r[x].AssetType.IsFutures() {
-				err := s.futuresPositionController.TrackNewOrder(r[x])
-				if err != nil {
-					if !errors.Is(err, order.ErrPositionClosed) {
-						return err
-					}
-				}
-			}
+		if r[x].OrderID != id {
+			continue
+		}
+		r[x].UpdateOrderFromModifyResponse(mod)
+		if !r[x].AssetType.IsFutures() {
 			return nil
 		}
+		err := s.futuresPositionController.TrackNewOrder(r[x])
+		if err != nil && !errors.Is(err, order.ErrPositionClosed) {
+			return err
+		}
+		return nil
 	}
 	return ErrOrderNotFound
 }
 
 // upsert (1) checks if such an exchange exists in the exchangeManager, (2) checks if
 // order exists and updates/creates it.
-func (s *store) upsert(od *order.Detail) (resp *OrderUpsertResponse, err error) {
+func (s *store) upsert(od *order.Detail) (*OrderUpsertResponse, error) {
 	if od == nil {
 		return nil, errNilOrder
 	}
 	lName := strings.ToLower(od.Exchange)
-	_, err = s.exchangeManager.GetExchangeByName(lName)
+	_, err := s.exchangeManager.GetExchangeByName(lName)
 	if err != nil {
 		return nil, err
 	}
 	s.m.Lock()
 	defer s.m.Unlock()
-	if od.AssetType.IsFutures() {
+	if s.trackFuturesPositions && od.AssetType.IsFutures() {
 		err = s.futuresPositionController.TrackNewOrder(od)
+		if err != nil && !errors.Is(err, order.ErrPositionClosed) {
+			return nil, err
+		}
+	}
+	// TODO: Return pointer to slice because new orders we are accessing map
+	// twice for lookup.
+	exchangeOrders := s.Orders[lName]
+	for x := range exchangeOrders {
+		if exchangeOrders[x].OrderID != od.OrderID {
+			continue
+		}
+		err := exchangeOrders[x].UpdateOrderFromDetail(od)
 		if err != nil {
-			if !errors.Is(err, order.ErrPositionClosed) {
-				return nil, err
-			}
+			return nil, err
 		}
-	}
-	r, ok := s.Orders[lName]
-	if !ok {
-		od.GenerateInternalOrderID()
-		s.Orders[lName] = []*order.Detail{od}
-		resp = &OrderUpsertResponse{
-			OrderDetails: od.Copy(),
-			IsNewOrder:   true,
-		}
-		return resp, nil
-	}
-	for x := range r {
-		if r[x].ID == od.ID {
-			r[x].UpdateOrderFromDetail(od)
-			resp = &OrderUpsertResponse{
-				OrderDetails: r[x].Copy(),
-				IsNewOrder:   false,
-			}
-			return resp, nil
-		}
+		return &OrderUpsertResponse{
+			OrderDetails: exchangeOrders[x].Copy(),
+			IsNewOrder:   false,
+		}, nil
 	}
 	// Untracked websocket orders will not have internalIDs yet
 	od.GenerateInternalOrderID()
 	s.Orders[lName] = append(s.Orders[lName], od)
-	resp = &OrderUpsertResponse{
-		OrderDetails: od.Copy(),
-		IsNewOrder:   true,
-	}
-	return resp, nil
-}
-
-// getByExchange returns orders by exchange
-func (s *store) getByExchange(exchange string) ([]*order.Detail, error) {
-	s.m.RLock()
-	defer s.m.RUnlock()
-	r, ok := s.Orders[strings.ToLower(exchange)]
-	if !ok {
-		return nil, ErrExchangeNotFound
-	}
-	return r, nil
-}
-
-// getByInternalOrderID will search all orders for our internal orderID
-// and return the order
-func (s *store) getByInternalOrderID(internalOrderID string) (*order.Detail, error) {
-	s.m.RLock()
-	defer s.m.RUnlock()
-	for _, v := range s.Orders {
-		for x := range v {
-			if v[x].InternalOrderID == internalOrderID {
-				return v[x], nil
-			}
-		}
-	}
-	return nil, ErrOrderNotFound
+	return &OrderUpsertResponse{OrderDetails: od.Copy(), IsNewOrder: true}, nil
 }
 
 // exists verifies if the orderstore contains the provided order
@@ -1025,13 +925,9 @@ func (s *store) exists(det *order.Detail) bool {
 	}
 	s.m.RLock()
 	defer s.m.RUnlock()
-	r, ok := s.Orders[strings.ToLower(det.Exchange)]
-	if !ok {
-		return false
-	}
-
-	for x := range r {
-		if r[x].ID == det.ID {
+	exchangeOrders := s.Orders[strings.ToLower(det.Exchange)]
+	for x := range exchangeOrders {
+		if exchangeOrders[x].OrderID == det.OrderID {
 			return true
 		}
 	}
@@ -1043,28 +939,24 @@ func (s *store) add(det *order.Detail) error {
 	if det == nil {
 		return errNilOrder
 	}
-	_, err := s.exchangeManager.GetExchangeByName(det.Exchange)
+	name := strings.ToLower(det.Exchange)
+	_, err := s.exchangeManager.GetExchangeByName(name)
 	if err != nil {
 		return err
 	}
-	if s.exists(det) {
+	if s.exists(det) { // TODO: Error on conflict; remove unnecessary locking.
 		return ErrOrdersAlreadyExists
 	}
+
 	// Untracked websocket orders will not have internalIDs yet
 	det.GenerateInternalOrderID()
 	s.m.Lock()
 	defer s.m.Unlock()
-	orders := s.Orders[strings.ToLower(det.Exchange)]
-	orders = append(orders, det)
-	s.Orders[strings.ToLower(det.Exchange)] = orders
-
-	if det.AssetType.IsFutures() {
-		err = s.futuresPositionController.TrackNewOrder(det)
-		if err != nil {
-			return err
-		}
+	s.Orders[name] = append(s.Orders[name], det)
+	if !det.AssetType.IsFutures() {
+		return nil
 	}
-	return nil
+	return s.futuresPositionController.TrackNewOrder(det)
 }
 
 // getFilteredOrders returns a filtered copy of the orders
@@ -1109,7 +1001,7 @@ func (s *store) getActiveOrders(f *order.Filter) []order.Detail {
 	case f == nil:
 		for _, e := range s.Orders {
 			for i := range e {
-				if !e[i].IsActive() {
+				if e[i].Status != order.UnknownStatus && !e[i].IsActive() {
 					continue
 				}
 				orders = append(orders, e[i].Copy())
@@ -1119,7 +1011,7 @@ func (s *store) getActiveOrders(f *order.Filter) []order.Detail {
 		// optimization if Exchange is filtered
 		if e, ok := s.Orders[strings.ToLower(f.Exchange)]; ok {
 			for i := range e {
-				if !e[i].IsActive() || !e[i].MatchFilter(f) {
+				if e[i].Status != order.UnknownStatus && (!e[i].IsActive() || !e[i].MatchFilter(f)) {
 					continue
 				}
 				orders = append(orders, e[i].Copy())
@@ -1128,7 +1020,7 @@ func (s *store) getActiveOrders(f *order.Filter) []order.Detail {
 	default:
 		for _, e := range s.Orders {
 			for i := range e {
-				if !e[i].IsActive() || !e[i].MatchFilter(f) {
+				if e[i].Status != order.UnknownStatus && (!e[i].IsActive() || !e[i].MatchFilter(f)) {
 					continue
 				}
 				orders = append(orders, e[i].Copy())

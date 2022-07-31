@@ -448,10 +448,15 @@ func (b *Bitstamp) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 		})
 	}
 	response.Accounts = append(response.Accounts, account.SubAccount{
+		AssetType:  assetType,
 		Currencies: currencies,
 	})
 
-	err = account.Process(&response)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&response, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -461,11 +466,14 @@ func (b *Bitstamp) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (b *Bitstamp) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(b.Name, assetType)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(b.Name, creds, assetType)
 	if err != nil {
 		return b.UpdateAccountInfo(ctx, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -525,43 +533,32 @@ func (b *Bitstamp) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset
 }
 
 // SubmitOrder submits a new order
-func (b *Bitstamp) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (b *Bitstamp) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	fPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
-	buy := s.Side == order.Buy
-	market := s.Type == order.Market
 	response, err := b.PlaceOrder(ctx,
 		fPair.String(),
 		s.Price,
 		s.Amount,
-		buy,
-		market)
+		s.Side == order.Buy,
+		s.Type == order.Market)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
-	if response.ID > 0 {
-		submitOrderResponse.OrderID = strconv.FormatInt(response.ID, 10)
-	}
-
-	submitOrderResponse.IsOrderPlaced = true
-	if s.Type == order.Market {
-		submitOrderResponse.FullyMatched = true
-	}
-	return submitOrderResponse, nil
+	return s.DeriveSubmitResponse(strconv.FormatInt(response.ID, 10))
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bitstamp) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
-	return order.Modify{}, common.ErrFunctionNotSupported
+func (b *Bitstamp) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -570,7 +567,7 @@ func (b *Bitstamp) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -729,7 +726,8 @@ func (b *Bitstamp) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 			orderSide = order.Sell
 		}
 
-		tm, err := parseTime(resp[i].DateTime)
+		var tm time.Time
+		tm, err = parseTime(resp[i].DateTime)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s GetActiveOrders unable to parse time: %s\n", b.Name, err)
@@ -749,7 +747,7 @@ func (b *Bitstamp) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 
 		orders[i] = order.Detail{
 			Amount:   resp[i].Amount,
-			ID:       strconv.FormatInt(resp[i].ID, 10),
+			OrderID:  strconv.FormatInt(resp[i].ID, 10),
 			Price:    resp[i].Price,
 			Type:     order.Limit,
 			Side:     orderSide,
@@ -759,8 +757,11 @@ func (b *Bitstamp) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 		}
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
 
@@ -828,22 +829,26 @@ func (b *Bitstamp) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 				format.Delimiter)
 		}
 
-		tm, err := parseTime(resp[i].Date)
+		var tm time.Time
+		tm, err = parseTime(resp[i].Date)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s GetOrderHistory unable to parse time: %s\n", b.Name, err)
 		}
 
 		orders = append(orders, order.Detail{
-			ID:       strconv.FormatInt(resp[i].OrderID, 10),
+			OrderID:  strconv.FormatInt(resp[i].OrderID, 10),
 			Date:     tm,
 			Exchange: b.Name,
 			Pair:     currPair,
 		})
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
 

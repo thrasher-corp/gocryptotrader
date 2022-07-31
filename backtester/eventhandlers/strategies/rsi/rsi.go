@@ -47,7 +47,7 @@ func (s *Strategy) Description() string {
 // OnSignal handles a data event and returns what action the strategy believes should occur
 // For rsi, this means returning a buy signal when rsi is at or below a certain level, and a
 // sell signal when it is at or above a certain level
-func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundTransferer, _ portfolio.Handler) (signal.Event, error) {
+func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, _ portfolio.Handler) (signal.Event, error) {
 	if d == nil {
 		return nil, common.ErrNilEvent
 	}
@@ -59,7 +59,7 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundTransferer, _ portfol
 
 	if offset := d.Offset(); offset <= int(s.rsiPeriod.IntPart()) {
 		es.AppendReason("Not enough data for signal generation")
-		es.SetDirection(common.DoNothing)
+		es.SetDirection(order.DoNothing)
 		return &es, nil
 	}
 
@@ -72,8 +72,8 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundTransferer, _ portfol
 	rsi := indicators.RSI(massagedData, int(s.rsiPeriod.IntPart()))
 	latestRSIValue := decimal.NewFromFloat(rsi[len(rsi)-1])
 	if !d.HasDataAtTime(d.Latest().GetTime()) {
-		es.SetDirection(common.MissingData)
-		es.AppendReason(fmt.Sprintf("missing data at %v, cannot perform any actions. RSI %v", d.Latest().GetTime(), latestRSIValue))
+		es.SetDirection(order.MissingData)
+		es.AppendReasonf("missing data at %v, cannot perform any actions. RSI %v", d.Latest().GetTime(), latestRSIValue)
 		return &es, nil
 	}
 
@@ -83,9 +83,9 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundTransferer, _ portfol
 	case latestRSIValue.LessThanOrEqual(s.rsiLow):
 		es.SetDirection(order.Buy)
 	default:
-		es.SetDirection(common.DoNothing)
+		es.SetDirection(order.DoNothing)
 	}
-	es.AppendReason(fmt.Sprintf("RSI at %v", latestRSIValue))
+	es.AppendReasonf("RSI at %v", latestRSIValue)
 
 	return &es, nil
 }
@@ -99,7 +99,7 @@ func (s *Strategy) SupportsSimultaneousProcessing() bool {
 
 // OnSimultaneousSignals analyses multiple data points simultaneously, allowing flexibility
 // in allowing a strategy to only place an order for X currency if Y currency's price is Z
-func (s *Strategy) OnSimultaneousSignals(d []data.Handler, _ funding.IFundTransferer, _ portfolio.Handler) ([]signal.Event, error) {
+func (s *Strategy) OnSimultaneousSignals(d []data.Handler, _ funding.IFundingTransferer, _ portfolio.Handler) ([]signal.Event, error) {
 	var resp []signal.Event
 	var errs gctcommon.Errors
 	for i := range d {

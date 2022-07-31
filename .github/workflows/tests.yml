@@ -22,7 +22,7 @@ jobs:
 
     steps:
     - name: Cancel previous workflow runs
-      uses: styfle/cancel-workflow-action@0.9.1
+      uses: styfle/cancel-workflow-action@0.10.0
       with:
         access_token: ${{ github.token }}
 
@@ -76,7 +76,7 @@ jobs:
 
     steps:
     - name: Cancel previous workflow runs
-      uses: styfle/cancel-workflow-action@0.9.1
+      uses: styfle/cancel-workflow-action@0.10.0
       with:
         access_token: ${{ github.token }}
 
@@ -96,6 +96,9 @@ jobs:
           ~/.cache/go-build
         key: ${{ runner.os }}-go-386-${{ hashFiles('**/go.sum') }}
         restore-keys: ${{ runner.os }}-go-386-
+
+    - name: Update apt-get
+      run: sudo apt-get update
 
     - name: Install gcc-multilib
       run: sudo apt-get install gcc-multilib
@@ -121,7 +124,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Cancel previous workflow runs
-      uses: styfle/cancel-workflow-action@0.9.1
+      uses: styfle/cancel-workflow-action@0.10.0
       with:
         access_token: ${{ github.token }}
 

@@ -60,10 +60,21 @@ var (
 	// ErrStartAfterTimeNow is an error for start end check calculations
 	ErrStartAfterTimeNow = errors.New("start date is after current time")
 	// ErrNilPointer defines an error for a nil pointer
-	ErrNilPointer              = errors.New("nil pointer")
+	ErrNilPointer = errors.New("nil pointer")
+	// ErrCannotCalculateOffline is returned when a request wishes to calculate
+	// something offline, but has an online requirement
+	ErrCannotCalculateOffline = errors.New("cannot calculate offline")
+	// ErrNoResponse is returned when a response has no entries/is empty
+	// when one is expected
+	ErrNoResponse = errors.New("no response")
+
 	errCannotSetInvalidTimeout = errors.New("cannot set new HTTP client with timeout that is equal or less than 0")
 	errUserAgentInvalid        = errors.New("cannot set invalid user agent")
 	errHTTPClientInvalid       = errors.New("custom http client cannot be nil")
+
+	zeroValueUnix = time.Unix(0, 0)
+	// ErrTypeAssertFailure defines an error when type assertion fails
+	ErrTypeAssertFailure = errors.New("type assert failure")
 )
 
 // SetHTTPClientWithTimeout sets a new *http.Client with different timeout
@@ -422,13 +433,22 @@ func (e Errors) Error() string {
 	return r[:len(r)-2]
 }
 
+// Unwrap implements interface behaviour for errors.Is() matching NOTE: only
+// returns first element.
+func (e Errors) Unwrap() error {
+	if len(e) == 0 {
+		return nil
+	}
+	return e[0]
+}
+
 // StartEndTimeCheck provides some basic checks which occur
 // frequently in the codebase
 func StartEndTimeCheck(start, end time.Time) error {
-	if start.IsZero() {
+	if start.IsZero() || start.Equal(zeroValueUnix) {
 		return fmt.Errorf("start %w", ErrDateUnset)
 	}
-	if end.IsZero() {
+	if end.IsZero() || end.Equal(zeroValueUnix) {
 		return fmt.Errorf("end %w", ErrDateUnset)
 	}
 	if start.After(time.Now()) {
@@ -452,4 +472,10 @@ func GenerateRandomString(length int, characters ...string) string {
 		b[i] = chars[rand.Intn(len(chars))]
 	}
 	return string(b)
+}
+
+// GetAssertError returns additional information for when an assertion failure
+// occurs.
+func GetAssertError(required string, received interface{}) error {
+	return fmt.Errorf("%w from %T to %s", ErrTypeAssertFailure, received, required)
 }

@@ -75,11 +75,23 @@ func TestStart(t *testing.T) {
 	testWg.Wait()
 }
 
-func TestGetServerTime(t *testing.T) {
+func TestGetCurrentServerTime(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetServerTime(context.Background())
+	_, err := k.GetCurrentServerTime(context.Background())
 	if err != nil {
-		t.Error("GetServerTime() error", err)
+		t.Error("GetCurrentServerTime() error", err)
+	}
+}
+
+func TestWrapperGetServerTime(t *testing.T) {
+	t.Parallel()
+	st, err := k.GetServerTime(context.Background(), asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if st.IsZero() {
+		t.Fatal("expected a time")
 	}
 }
 
@@ -909,6 +921,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var orderSubmission = &order.Submit{
+		Exchange: k.Name,
 		Pair: currency.Pair{
 			Base:  currency.XBT,
 			Quote: currency.USD,
@@ -921,7 +934,7 @@ func TestSubmitOrder(t *testing.T) {
 		AssetType: asset.Spot,
 	}
 	response, err := k.SubmitOrder(context.Background(), orderSubmission)
-	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
+	if areTestAPIKeysSet() && (err != nil || response.Status != order.New) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
@@ -936,7 +949,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 
 	var orderCancellation = &order.Cancel{
-		ID:        "OGEX6P-B5Q74-IGZ72R",
+		OrderID:   "OGEX6P-B5Q74-IGZ72R",
 		AssetType: asset.Spot,
 	}
 
@@ -965,7 +978,7 @@ func TestCancelBatchExchangeOrder(t *testing.T) {
 	var ordersCancellation []order.Cancel
 	ordersCancellation = append(ordersCancellation, order.Cancel{
 		Pair:      pair,
-		ID:        "OGEX6P-B5Q74-IGZ72R,OGEX6P-B5Q74-IGZ722",
+		OrderID:   "OGEX6P-B5Q74-IGZ72R,OGEX6P-B5Q74-IGZ722",
 		AssetType: asset.Spot,
 	})
 

@@ -3,33 +3,12 @@ package archive
 import (
 	"archive/zip"
 	"errors"
-	"fmt"
-	"io/ioutil"
-	"os"
 	"path/filepath"
 	"testing"
 )
 
-var (
-	tempDir string
-)
-
-func TestMain(m *testing.M) {
-	var err error
-	tempDir, err = ioutil.TempDir("", "gct-temp")
-	if err != nil {
-		fmt.Printf("failed to create tempDir: %v", err)
-		os.Exit(1)
-	}
-	t := m.Run()
-	err = os.RemoveAll(tempDir)
-	if err != nil {
-		fmt.Printf("Failed to remove tempDir %v", err)
-	}
-	os.Exit(t)
-}
-
 func TestUnZip(t *testing.T) {
+	tempDir := t.TempDir()
 	zipFile := filepath.Join("..", "..", "..", "testdata", "testdata.zip")
 	files, err := UnZip(zipFile, tempDir)
 	if err != nil {
@@ -53,6 +32,7 @@ func TestUnZip(t *testing.T) {
 }
 
 func TestZip(t *testing.T) {
+	tempDir := t.TempDir()
 	singleFile := filepath.Join("..", "..", "..", "testdata", "configtest.json")
 	outFile := filepath.Join(tempDir, "out.zip")
 	err := Zip(singleFile, outFile)

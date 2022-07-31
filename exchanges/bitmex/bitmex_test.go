@@ -18,6 +18,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -662,6 +663,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var orderSubmission = &order.Submit{
+		Exchange: b.Name,
 		Pair: currency.Pair{
 			Base:  currency.XBT,
 			Quote: currency.USD,
@@ -674,7 +676,7 @@ func TestSubmitOrder(t *testing.T) {
 		AssetType: asset.Futures,
 	}
 	response, err := b.SubmitOrder(context.Background(), orderSubmission)
-	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
+	if areTestAPIKeysSet() && (err != nil || response.Status != order.New) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
@@ -689,7 +691,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
-		ID:            "123456789012345678901234567890123456",
+		OrderID:       "123456789012345678901234567890123456",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
@@ -713,7 +715,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
-		ID:            "123456789012345678901234567890123456",
+		OrderID:       "123456789012345678901234567890123456",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
@@ -765,7 +767,7 @@ func TestModifyOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 	_, err := b.ModifyOrder(context.Background(),
-		&order.Modify{ID: "1337", AssetType: asset.Futures})
+		&order.Modify{OrderID: "1337", AssetType: asset.Futures})
 	if err == nil {
 		t.Error("ModifyOrder() error")
 	}
@@ -1041,11 +1043,8 @@ func TestWSOrderbookHandling(t *testing.T) {
       ]
     }`)
 	err = b.wsHandleData(pressXToJSON)
-	if err != nil && err.Error() != "delete error: cannot match ID on linked list 17999995000 not found" {
+	if !errors.Is(err, orderbook.ErrOrderbookInvalid) {
 		t.Error(err)
-	}
-	if err == nil {
-		t.Error("expecting error")
 	}
 }
 
@@ -1173,5 +1172,65 @@ func TestCurrencyNormalization(t *testing.T) {
 
 	if w.Amount != 1.0 {
 		t.Errorf("amount mismatch, expected 1.0, got %f", w.Amount)
+	}
+}
+
+func TestGetOrderType(t *testing.T) {
+	t.Parallel()
+	if _, err := b.getOrderType(0); !errors.Is(err, order.ErrTypeIsInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrTypeIsInvalid)
+	}
+
+	o, err := b.getOrderType(1)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if o != order.Market {
+		t.Fatal("unexpected value")
+	}
+}
+
+func TestGetActionFromString(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetActionFromString("meow")
+	if !errors.Is(err, orderbook.ErrInvalidAction) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, orderbook.ErrInvalidAction)
+	}
+
+	action, err := b.GetActionFromString("update")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if action != orderbook.Amend {
+		t.Fatalf("received: '%v' but expected: '%v'", action, orderbook.Amend)
+	}
+
+	action, err = b.GetActionFromString("delete")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if action != orderbook.Delete {
+		t.Fatalf("received: '%v' but expected: '%v'", action, orderbook.Delete)
+	}
+
+	action, err = b.GetActionFromString("insert")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if action != orderbook.Insert {
+		t.Fatalf("received: '%v' but expected: '%v'", action, orderbook.Insert)
+	}
+
+	action, err = b.GetActionFromString("update/insert")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if action != orderbook.UpdateInsert {
+		t.Fatalf("received: '%v' but expected: '%v'", action, orderbook.UpdateInsert)
 	}
 }

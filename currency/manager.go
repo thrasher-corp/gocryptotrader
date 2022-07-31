@@ -1,6 +1,7 @@
 package currency
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -45,7 +46,7 @@ func (p *PairsManager) Get(a asset.Item) (*PairStore, error) {
 	c, ok := p.Pairs[a]
 	if !ok {
 		return nil,
-			fmt.Errorf("cannot get pair store, asset type %s not supported", a)
+			fmt.Errorf("cannot get pair store, %v %w", a, asset.ErrNotSupported)
 	}
 	return c, nil
 }
@@ -223,4 +224,34 @@ func (p *PairsManager) getPairStore(a asset.Item) (*PairStore, error) {
 	}
 
 	return c, nil
+}
+
+// UnmarshalJSON implements the unmarshal json interface so that the key can be
+// correctly unmarshalled from a string into a uint.
+func (fs *FullStore) UnmarshalJSON(d []byte) error {
+	var temp map[string]*PairStore
+	err := json.Unmarshal(d, &temp)
+	if err != nil {
+		return err
+	}
+
+	*fs = make(FullStore, len(temp))
+	for key, val := range temp {
+		ai, err := asset.New(key)
+		if err != nil {
+			return err
+		}
+		(*fs)[ai] = val
+	}
+	return nil
+}
+
+// MarshalJSON implements the marshal json interface so that the key can be
+// correctly marshalled from a uint.
+func (fs FullStore) MarshalJSON() ([]byte, error) {
+	temp := make(map[string]*PairStore, len(fs))
+	for key, val := range fs {
+		temp[key.String()] = val
+	}
+	return json.Marshal(temp)
 }

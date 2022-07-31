@@ -82,7 +82,6 @@ func TestAddTradesToBuffer(t *testing.T) {
 			AssetType:    asset.Spot,
 			Price:        -1,
 			Amount:       -1,
-			Side:         "",
 		},
 	}...)
 	if err != nil {

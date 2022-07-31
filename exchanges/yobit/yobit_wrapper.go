@@ -324,10 +324,15 @@ func (y *Yobit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	}
 
 	response.Accounts = append(response.Accounts, account.SubAccount{
+		AssetType:  assetType,
 		Currencies: currencies,
 	})
 
-	err = account.Process(&response)
+	creds, err := y.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&response, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -337,11 +342,14 @@ func (y *Yobit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (y *Yobit) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(y.Name, assetType)
+	creds, err := y.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(y.Name, creds, assetType)
 	if err != nil {
 		return y.UpdateAccountInfo(ctx, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -405,19 +413,18 @@ func (y *Yobit) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.It
 
 // SubmitOrder submits a new order
 // Yobit only supports limit orders
-func (y *Yobit) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (y *Yobit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	if s.Type != order.Limit {
-		return submitOrderResponse, errors.New("only limit orders are allowed")
+		return nil, errors.New("only limit orders are allowed")
 	}
 
 	fPair, err := y.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	response, err := y.Trade(ctx,
@@ -426,20 +433,15 @@ func (y *Yobit) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitR
 		s.Amount,
 		s.Price)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
-	if response > 0 {
-		submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
-	}
-
-	submitOrderResponse.IsOrderPlaced = true
-	return submitOrderResponse, nil
+	return s.DeriveSubmitResponse(strconv.FormatInt(response, 10))
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (y *Yobit) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
-	return order.Modify{}, common.ErrFunctionNotSupported
+func (y *Yobit) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -448,7 +450,7 @@ func (y *Yobit) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -582,11 +584,13 @@ func (y *Yobit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 	}
 
 	for x := range req.Pairs {
-		fCurr, err := y.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
+		var fCurr currency.Pair
+		fCurr, err = y.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
-		resp, err := y.GetOpenOrders(ctx, fCurr.String())
+		var resp map[string]ActiveOrders
+		resp, err = y.GetOpenOrders(ctx, fCurr.String())
 		if err != nil {
 			return nil, err
 		}
@@ -597,21 +601,27 @@ func (y *Yobit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 			if err != nil {
 				return nil, err
 			}
-			orderDate := time.Unix(int64(resp[id].TimestampCreated), 0)
-			side := order.Side(strings.ToUpper(resp[id].Type))
+			var side order.Side
+			side, err = order.StringToOrderSide(resp[id].Type)
+			if err != nil {
+				return nil, err
+			}
 			orders = append(orders, order.Detail{
-				ID:       id,
+				OrderID:  id,
 				Amount:   resp[id].Amount,
 				Price:    resp[id].Rate,
 				Side:     side,
-				Date:     orderDate,
+				Date:     time.Unix(int64(resp[id].TimestampCreated), 0),
 				Pair:     symbol,
 				Exchange: y.Name,
 			})
 		}
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", y.Name, err)
+	}
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
@@ -659,9 +669,13 @@ func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 			return nil, err
 		}
 		orderDate := time.Unix(int64(allOrders[i].Timestamp), 0)
-		side := order.Side(strings.ToUpper(allOrders[i].Type))
+		var side order.Side
+		side, err = order.StringToOrderSide(allOrders[i].Type)
+		if err != nil {
+			return nil, err
+		}
 		detail := order.Detail{
-			ID:                   strconv.FormatFloat(allOrders[i].OrderID, 'f', -1, 64),
+			OrderID:              strconv.FormatFloat(allOrders[i].OrderID, 'f', -1, 64),
 			Amount:               allOrders[i].Amount,
 			ExecutedAmount:       allOrders[i].Amount,
 			Price:                allOrders[i].Rate,
@@ -677,7 +691,6 @@ func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 	}
 
 	order.FilterOrdersBySide(&orders, req.Side)
-
 	return orders, nil
 }
 
@@ -696,4 +709,13 @@ func (y *Yobit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (y *Yobit) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrFunctionNotSupported
+}
+
+// GetServerTime returns the current exchange server time.
+func (y *Yobit) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+	info, err := y.GetInfo(ctx)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return time.Unix(info.ServerTime, 0), nil
 }

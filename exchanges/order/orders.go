@@ -10,10 +10,33 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 )
 
-var errTimeInForceConflict = errors.New("multiple time in force options applied")
+const (
+	orderSubmissionValidSides = Buy | Sell | Bid | Ask | Long | Short
+	shortSide                 = Short | Sell | Ask
+	longSide                  = Long | Buy | Bid
+	inactiveStatuses          = Filled | Cancelled | InsufficientBalance | MarketUnavailable | Rejected | PartiallyCancelled | Expired | Closed | AnyStatus | Cancelling | Liquidated
+	activeStatuses            = Active | Open | PartiallyFilled | New | PendingCancel | Hidden | AutoDeleverage | Pending
+	notPlaced                 = InsufficientBalance | MarketUnavailable | Rejected
+)
+
+var (
+	// ErrUnableToPlaceOrder defines an error when an order submission has
+	// failed.
+	ErrUnableToPlaceOrder = errors.New("order not placed")
+
+	errTimeInForceConflict      = errors.New("multiple time in force options applied")
+	errUnrecognisedOrderSide    = errors.New("unrecognised order side")
+	errUnrecognisedOrderType    = errors.New("unrecognised order type")
+	errUnrecognisedOrderStatus  = errors.New("unrecognised order status")
+	errExchangeNameUnset        = errors.New("exchange name unset")
+	errOrderSubmitIsNil         = errors.New("order submit is nil")
+	errOrderSubmitResponseIsNil = errors.New("order submit response is nil")
+	errOrderDetailIsNil         = errors.New("order detail is nil")
+)
 
 // ParseOrderSideString converts an order side string to an order.Side instance
 func ParseOrderSideString(orderString string) Side {
@@ -41,18 +64,23 @@ func (s *Submit) Validate(opt ...validate.Checker) error {
 		return ErrSubmissionIsNil
 	}
 
+	if s.Exchange == "" {
+		return errExchangeNameUnset
+	}
+
 	if s.Pair.IsEmpty() {
 		return ErrPairIsEmpty
 	}
 
-	if s.AssetType == "" {
+	if s.AssetType == asset.Empty {
 		return ErrAssetNotSet
 	}
 
-	if s.Side != Buy &&
-		s.Side != Sell &&
-		s.Side != Bid &&
-		s.Side != Ask {
+	if !s.AssetType.IsValid() {
+		return fmt.Errorf("'%s' %w", s.AssetType, asset.ErrNotSupported)
+	}
+
+	if s.Side == UnknownSide || orderSubmissionValidSides&s.Side != s.Side {
 		return ErrSideIsInvalid
 	}
 
@@ -92,7 +120,15 @@ func (s *Submit) Validate(opt ...validate.Checker) error {
 
 // UpdateOrderFromDetail Will update an order detail (used in order management)
 // by comparing passed in and existing values
-func (d *Detail) UpdateOrderFromDetail(m *Detail) {
+func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
+	if d == nil {
+		return ErrOrderDetailIsNil
+	}
+
+	if m == nil {
+		return fmt.Errorf("incoming %w", ErrOrderDetailIsNil)
+	}
+
 	var updated bool
 	if d.ImmediateOrCancel != m.ImmediateOrCancel {
 		d.ImmediateOrCancel = m.ImmediateOrCancel
@@ -164,69 +200,67 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 		d.WalletAddress = m.WalletAddress
 		updated = true
 	}
-	if m.Type != "" && m.Type != d.Type {
+	if m.Type != UnknownType && m.Type != d.Type {
 		d.Type = m.Type
 		updated = true
 	}
-	if m.Side != "" && m.Side != d.Side {
+	if m.Side != UnknownSide && m.Side != d.Side {
 		d.Side = m.Side
 		updated = true
 	}
-	if m.Status != "" && m.Status != d.Status {
+	if m.Status != UnknownStatus && m.Status != d.Status {
 		d.Status = m.Status
 		updated = true
 	}
-	if m.AssetType != "" && m.AssetType != d.AssetType {
+	if m.AssetType != asset.Empty && m.AssetType != d.AssetType {
 		d.AssetType = m.AssetType
 		updated = true
 	}
-	if m.Trades != nil {
-		for x := range m.Trades {
-			var found bool
-			for y := range d.Trades {
-				if d.Trades[y].TID != m.Trades[x].TID {
-					continue
-				}
-				found = true
-				if d.Trades[y].Fee != m.Trades[x].Fee {
-					d.Trades[y].Fee = m.Trades[x].Fee
-					updated = true
-				}
-				if m.Trades[x].Price != 0 && d.Trades[y].Price != m.Trades[x].Price {
-					d.Trades[y].Price = m.Trades[x].Price
-					updated = true
-				}
-				if d.Trades[y].Side != m.Trades[x].Side {
-					d.Trades[y].Side = m.Trades[x].Side
-					updated = true
-				}
-				if d.Trades[y].Type != m.Trades[x].Type {
-					d.Trades[y].Type = m.Trades[x].Type
-					updated = true
-				}
-				if d.Trades[y].Description != m.Trades[x].Description {
-					d.Trades[y].Description = m.Trades[x].Description
-					updated = true
-				}
-				if m.Trades[x].Amount != 0 && d.Trades[y].Amount != m.Trades[x].Amount {
-					d.Trades[y].Amount = m.Trades[x].Amount
-					updated = true
-				}
-				if d.Trades[y].Timestamp != m.Trades[x].Timestamp {
-					d.Trades[y].Timestamp = m.Trades[x].Timestamp
-					updated = true
-				}
-				if d.Trades[y].IsMaker != m.Trades[x].IsMaker {
-					d.Trades[y].IsMaker = m.Trades[x].IsMaker
-					updated = true
-				}
+	for x := range m.Trades {
+		var found bool
+		for y := range d.Trades {
+			if d.Trades[y].TID != m.Trades[x].TID {
+				continue
 			}
-			if !found {
-				d.Trades = append(d.Trades, m.Trades[x])
+			found = true
+			if d.Trades[y].Fee != m.Trades[x].Fee {
+				d.Trades[y].Fee = m.Trades[x].Fee
 				updated = true
 			}
-			m.RemainingAmount -= m.Trades[x].Amount
+			if m.Trades[x].Price != 0 && d.Trades[y].Price != m.Trades[x].Price {
+				d.Trades[y].Price = m.Trades[x].Price
+				updated = true
+			}
+			if d.Trades[y].Side != m.Trades[x].Side {
+				d.Trades[y].Side = m.Trades[x].Side
+				updated = true
+			}
+			if d.Trades[y].Type != m.Trades[x].Type {
+				d.Trades[y].Type = m.Trades[x].Type
+				updated = true
+			}
+			if d.Trades[y].Description != m.Trades[x].Description {
+				d.Trades[y].Description = m.Trades[x].Description
+				updated = true
+			}
+			if m.Trades[x].Amount != 0 && d.Trades[y].Amount != m.Trades[x].Amount {
+				d.Trades[y].Amount = m.Trades[x].Amount
+				updated = true
+			}
+			if d.Trades[y].Timestamp != m.Trades[x].Timestamp {
+				d.Trades[y].Timestamp = m.Trades[x].Timestamp
+				updated = true
+			}
+			if d.Trades[y].IsMaker != m.Trades[x].IsMaker {
+				d.Trades[y].IsMaker = m.Trades[x].IsMaker
+				updated = true
+			}
 		}
+		if !found {
+			d.Trades = append(d.Trades, m.Trades[x])
+			updated = true
+		}
+		m.RemainingAmount -= m.Trades[x].Amount
 	}
 	if m.RemainingAmount > 0 && m.RemainingAmount != d.RemainingAmount {
 		d.RemainingAmount = m.RemainingAmount
@@ -242,32 +276,25 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 	if d.Exchange == "" {
 		d.Exchange = m.Exchange
 	}
-	if d.ID == "" {
-		d.ID = m.ID
+	if d.OrderID == "" {
+		d.OrderID = m.OrderID
 	}
-	if d.InternalOrderID == "" {
+	if d.InternalOrderID.IsNil() {
 		d.InternalOrderID = m.InternalOrderID
 	}
+	return nil
 }
 
-// UpdateOrderFromModify Will update an order detail (used in order management)
+// UpdateOrderFromModifyResponse Will update an order detail (used in order management)
 // by comparing passed in and existing values
-func (d *Detail) UpdateOrderFromModify(m *Modify) {
+func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
 	var updated bool
-	if m.ID != "" && d.ID != m.ID {
-		d.ID = m.ID
+	if m.OrderID != "" && d.OrderID != m.OrderID {
+		d.OrderID = m.OrderID
 		updated = true
 	}
 	if d.ImmediateOrCancel != m.ImmediateOrCancel {
 		d.ImmediateOrCancel = m.ImmediateOrCancel
-		updated = true
-	}
-	if d.HiddenOrder != m.HiddenOrder {
-		d.HiddenOrder = m.HiddenOrder
-		updated = true
-	}
-	if d.FillOrKill != m.FillOrKill {
-		d.FillOrKill = m.FillOrKill
 		updated = true
 	}
 	if m.Price > 0 && m.Price != d.Price {
@@ -278,32 +305,8 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 		d.Amount = m.Amount
 		updated = true
 	}
-	if m.LimitPriceUpper > 0 && m.LimitPriceUpper != d.LimitPriceUpper {
-		d.LimitPriceUpper = m.LimitPriceUpper
-		updated = true
-	}
-	if m.LimitPriceLower > 0 && m.LimitPriceLower != d.LimitPriceLower {
-		d.LimitPriceLower = m.LimitPriceLower
-		updated = true
-	}
 	if m.TriggerPrice > 0 && m.TriggerPrice != d.TriggerPrice {
 		d.TriggerPrice = m.TriggerPrice
-		updated = true
-	}
-	if m.QuoteAmount > 0 && m.QuoteAmount != d.QuoteAmount {
-		d.QuoteAmount = m.QuoteAmount
-		updated = true
-	}
-	if m.ExecutedAmount > 0 && m.ExecutedAmount != d.ExecutedAmount {
-		d.ExecutedAmount = m.ExecutedAmount
-		updated = true
-	}
-	if m.Fee > 0 && m.Fee != d.Fee {
-		d.Fee = m.Fee
-		updated = true
-	}
-	if m.AccountID != "" && m.AccountID != d.AccountID {
-		d.AccountID = m.AccountID
 		updated = true
 	}
 	if m.PostOnly != d.PostOnly {
@@ -316,81 +319,21 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 		d.Pair = m.Pair
 		updated = true
 	}
-	if m.Leverage != 0 && m.Leverage != d.Leverage {
-		d.Leverage = m.Leverage
-		updated = true
-	}
-	if m.ClientID != "" && m.ClientID != d.ClientID {
-		d.ClientID = m.ClientID
-		updated = true
-	}
-	if m.WalletAddress != "" && m.WalletAddress != d.WalletAddress {
-		d.WalletAddress = m.WalletAddress
-		updated = true
-	}
-	if m.Type != "" && m.Type != d.Type {
+	if m.Type != UnknownType && m.Type != d.Type {
 		d.Type = m.Type
 		updated = true
 	}
-	if m.Side != "" && m.Side != d.Side {
+	if m.Side != UnknownSide && m.Side != d.Side {
 		d.Side = m.Side
 		updated = true
 	}
-	if m.Status != "" && m.Status != d.Status {
+	if m.Status != UnknownStatus && m.Status != d.Status {
 		d.Status = m.Status
 		updated = true
 	}
-	if m.AssetType != "" && m.AssetType != d.AssetType {
+	if m.AssetType != asset.Empty && m.AssetType != d.AssetType {
 		d.AssetType = m.AssetType
 		updated = true
-	}
-	if m.Trades != nil {
-		for x := range m.Trades {
-			var found bool
-			for y := range d.Trades {
-				if d.Trades[y].TID != m.Trades[x].TID {
-					continue
-				}
-				found = true
-				if d.Trades[y].Fee != m.Trades[x].Fee {
-					d.Trades[y].Fee = m.Trades[x].Fee
-					updated = true
-				}
-				if m.Trades[x].Price != 0 && d.Trades[y].Price != m.Trades[x].Price {
-					d.Trades[y].Price = m.Trades[x].Price
-					updated = true
-				}
-				if d.Trades[y].Side != m.Trades[x].Side {
-					d.Trades[y].Side = m.Trades[x].Side
-					updated = true
-				}
-				if d.Trades[y].Type != m.Trades[x].Type {
-					d.Trades[y].Type = m.Trades[x].Type
-					updated = true
-				}
-				if d.Trades[y].Description != m.Trades[x].Description {
-					d.Trades[y].Description = m.Trades[x].Description
-					updated = true
-				}
-				if m.Trades[x].Amount != 0 && d.Trades[y].Amount != m.Trades[x].Amount {
-					d.Trades[y].Amount = m.Trades[x].Amount
-					updated = true
-				}
-				if d.Trades[y].Timestamp != m.Trades[x].Timestamp {
-					d.Trades[y].Timestamp = m.Trades[x].Timestamp
-					updated = true
-				}
-				if d.Trades[y].IsMaker != m.Trades[x].IsMaker {
-					d.Trades[y].IsMaker = m.Trades[x].IsMaker
-					updated = true
-				}
-			}
-			if !found {
-				d.Trades = append(d.Trades, m.Trades[x])
-				updated = true
-			}
-			m.RemainingAmount -= m.Trades[x].Amount
-		}
 	}
 	if m.RemainingAmount > 0 && m.RemainingAmount != d.RemainingAmount {
 		d.RemainingAmount = m.RemainingAmount
@@ -408,80 +351,89 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 // MatchFilter will return true if a detail matches the filter criteria
 // empty elements are ignored
 func (d *Detail) MatchFilter(f *Filter) bool {
-	if f.Exchange != "" && !strings.EqualFold(d.Exchange, f.Exchange) {
+	switch {
+	case f.Exchange != "" && !strings.EqualFold(d.Exchange, f.Exchange):
 		return false
-	}
-	if f.AssetType != "" && d.AssetType != f.AssetType {
+	case f.AssetType != asset.Empty && d.AssetType != f.AssetType:
 		return false
-	}
-	if !f.Pair.IsEmpty() && !d.Pair.Equal(f.Pair) {
+	case !f.Pair.IsEmpty() && !d.Pair.Equal(f.Pair):
 		return false
-	}
-	if f.ID != "" && d.ID != f.ID {
+	case f.OrderID != "" && d.OrderID != f.OrderID:
 		return false
-	}
-	if f.Type != "" && f.Type != AnyType && d.Type != f.Type {
+	case f.Type != UnknownType && f.Type != AnyType && d.Type != f.Type:
 		return false
-	}
-	if f.Side != "" && f.Side != AnySide && d.Side != f.Side {
+	case f.Side != UnknownSide && f.Side != AnySide && d.Side != f.Side:
 		return false
-	}
-	if f.Status != "" && f.Status != AnyStatus && d.Status != f.Status {
+	case f.Status != UnknownStatus && f.Status != AnyStatus && d.Status != f.Status:
 		return false
-	}
-	if f.ClientOrderID != "" && d.ClientOrderID != f.ClientOrderID {
+	case f.ClientOrderID != "" && d.ClientOrderID != f.ClientOrderID:
 		return false
-	}
-	if f.ClientID != "" && d.ClientID != f.ClientID {
+	case f.ClientID != "" && d.ClientID != f.ClientID:
 		return false
-	}
-	if f.InternalOrderID != "" && d.InternalOrderID != f.InternalOrderID {
+	case !f.InternalOrderID.IsNil() && d.InternalOrderID != f.InternalOrderID:
 		return false
-	}
-	if f.AccountID != "" && d.AccountID != f.AccountID {
+	case f.AccountID != "" && d.AccountID != f.AccountID:
 		return false
-	}
-	if f.WalletAddress != "" && d.WalletAddress != f.WalletAddress {
+	case f.WalletAddress != "" && d.WalletAddress != f.WalletAddress:
 		return false
+	default:
+		return true
 	}
-	return true
 }
 
-// IsActive returns true if an order has a status that indicates it is
-// currently available on the exchange
+// IsActive returns true if an order has a status that indicates it is currently
+// available on the exchange
 func (d *Detail) IsActive() bool {
-	if d.Amount <= 0 || d.Amount <= d.ExecutedAmount {
-		return false
-	}
-	return d.Status == Active || d.Status == Open || d.Status == PartiallyFilled || d.Status == New ||
-		d.Status == AnyStatus || d.Status == PendingCancel || d.Status == Hidden || d.Status == UnknownStatus ||
-		d.Status == AutoDeleverage || d.Status == Pending
+	return d.Status != UnknownStatus &&
+		d.Amount > 0 &&
+		d.Amount > d.ExecutedAmount &&
+		activeStatuses&d.Status == d.Status
 }
 
 // IsInactive returns true if an order has a status that indicates it is
 // currently not available on the exchange
 func (d *Detail) IsInactive() bool {
-	if d.Amount <= 0 || d.Amount <= d.ExecutedAmount {
-		return true
+	return d.Amount <= 0 ||
+		d.Amount <= d.ExecutedAmount ||
+		d.Status.IsInactive()
+}
+
+// IsInactive returns true if the status indicates it is
+// currently not available on the exchange
+func (s Status) IsInactive() bool {
+	return inactiveStatuses&s == s
+}
+
+// WasOrderPlaced returns true if an order has a status that indicates that it
+// was accepted by an exchange.
+func (d *Detail) WasOrderPlaced() bool {
+	if d.Status == UnknownStatus || d.Status == AnyStatus {
+		return false
 	}
-	return d.Status == Filled || d.Status == Cancelled || d.Status == InsufficientBalance || d.Status == MarketUnavailable ||
-		d.Status == Rejected || d.Status == PartiallyCancelled || d.Status == Expired || d.Status == Closed
+	return notPlaced&d.Status != d.Status
 }
 
 // GenerateInternalOrderID sets a new V4 order ID or a V5 order ID if
 // the V4 function returns an error
 func (d *Detail) GenerateInternalOrderID() {
-	if d.InternalOrderID == "" {
-		var id uuid.UUID
-		id, err := uuid.NewV4()
-		if err != nil {
-			id = uuid.NewV5(uuid.UUID{}, d.ID)
-		}
-		d.InternalOrderID = id.String()
+	if !d.InternalOrderID.IsNil() {
+		return
+	}
+	var err error
+	d.InternalOrderID, err = uuid.NewV4()
+	if err != nil {
+		d.InternalOrderID = uuid.NewV5(uuid.UUID{}, d.OrderID)
 	}
 }
 
-// Copy will return a copy of Detail
+// CopyToPointer will return the address of a new copy of the order Detail
+// WARNING: DO NOT DEREFERENCE USE METHOD Copy().
+func (d *Detail) CopyToPointer() *Detail {
+	c := d.Copy()
+	return &c
+}
+
+// Copy makes a full copy of underlying details NOTE: This is Addressable.
 func (d *Detail) Copy() Detail {
 	c := *d
 	if len(d.Trades) > 0 {
@@ -491,52 +443,317 @@ func (d *Detail) Copy() Detail {
 	return c
 }
 
+// DeriveSubmitResponse will construct an order SubmitResponse when a successful
+// submission has occurred. NOTE: order status is populated as order.Filled for a
+// market order else order.New if an order is accepted as default, date and
+// lastupdated fields have been populated as time.Now(). All fields can be
+// customized in caller scope if needed.
+func (s *Submit) DeriveSubmitResponse(orderID string) (*SubmitResponse, error) {
+	if s == nil {
+		return nil, errOrderSubmitIsNil
+	}
+
+	if orderID == "" {
+		return nil, ErrOrderIDNotSet
+	}
+
+	status := New
+	if s.Type == Market { // NOTE: This will need to be scrutinized.
+		status = Filled
+	}
+
+	return &SubmitResponse{
+		Exchange:  s.Exchange,
+		Type:      s.Type,
+		Side:      s.Side,
+		Pair:      s.Pair,
+		AssetType: s.AssetType,
+
+		ImmediateOrCancel: s.ImmediateOrCancel,
+		FillOrKill:        s.FillOrKill,
+		PostOnly:          s.PostOnly,
+		ReduceOnly:        s.ReduceOnly,
+		Leverage:          s.Leverage,
+		Price:             s.Price,
+		Amount:            s.Amount,
+		QuoteAmount:       s.QuoteAmount,
+		TriggerPrice:      s.TriggerPrice,
+		ClientID:          s.ClientID,
+		ClientOrderID:     s.ClientOrderID,
+
+		LastUpdated: time.Now(),
+		Date:        time.Now(),
+		Status:      status,
+		OrderID:     orderID,
+	}, nil
+}
+
+// DeriveDetail will construct an order detail when a successful submission
+// has occurred. Has an optional parameter field internal uuid for internal
+// management.
+func (s *SubmitResponse) DeriveDetail(internal uuid.UUID) (*Detail, error) {
+	if s == nil {
+		return nil, errOrderSubmitResponseIsNil
+	}
+
+	return &Detail{
+		Exchange:  s.Exchange,
+		Type:      s.Type,
+		Side:      s.Side,
+		Pair:      s.Pair,
+		AssetType: s.AssetType,
+
+		ImmediateOrCancel: s.ImmediateOrCancel,
+		FillOrKill:        s.FillOrKill,
+		PostOnly:          s.PostOnly,
+		ReduceOnly:        s.ReduceOnly,
+		Leverage:          s.Leverage,
+		Price:             s.Price,
+		Amount:            s.Amount,
+		QuoteAmount:       s.QuoteAmount,
+		TriggerPrice:      s.TriggerPrice,
+		ClientID:          s.ClientID,
+		ClientOrderID:     s.ClientOrderID,
+
+		InternalOrderID: internal,
+
+		LastUpdated: s.LastUpdated,
+		Date:        s.Date,
+		Status:      s.Status,
+		OrderID:     s.OrderID,
+		Trades:      s.Trades,
+		Fee:         s.Fee,
+		Cost:        s.Cost,
+	}, nil
+}
+
+// CopyPointerOrderSlice returns a copy of all order detail and returns a slice
+// of pointers.
+func CopyPointerOrderSlice(old []*Detail) []*Detail {
+	copySlice := make([]*Detail, len(old))
+	for x := range old {
+		copySlice[x] = old[x].CopyToPointer()
+	}
+	return copySlice
+}
+
+// DeriveModify populates a modify struct by the managed order details. Note:
+// Price, Amount, Trigger price and order execution bools need to be changed
+// in scope. This only derives identifiers for ease.
+func (d *Detail) DeriveModify() (*Modify, error) {
+	if d == nil {
+		return nil, errOrderDetailIsNil
+	}
+	return &Modify{
+		Exchange:      d.Exchange,
+		OrderID:       d.OrderID,
+		ClientOrderID: d.ClientOrderID,
+		Type:          d.Type,
+		Side:          d.Side,
+		AssetType:     d.AssetType,
+		Pair:          d.Pair,
+	}, nil
+}
+
+// DeriveModifyResponse populates a modify response with its identifiers for
+// cross exchange standard. NOTE: New OrderID and/or ClientOrderID plus any
+// changes *might* need to be populated in scope.
+func (m *Modify) DeriveModifyResponse() (*ModifyResponse, error) {
+	if m == nil {
+		return nil, errOrderDetailIsNil
+	}
+	return &ModifyResponse{
+		Exchange:          m.Exchange,
+		OrderID:           m.OrderID,
+		ClientOrderID:     m.ClientOrderID,
+		Type:              m.Type,
+		Side:              m.Side,
+		AssetType:         m.AssetType,
+		Pair:              m.Pair,
+		ImmediateOrCancel: m.ImmediateOrCancel,
+		PostOnly:          m.PostOnly,
+		Price:             m.Price,
+		Amount:            m.Amount,
+		TriggerPrice:      m.TriggerPrice,
+	}, nil
+}
+
+// DeriveCancel populates a cancel struct by the managed order details
+func (d *Detail) DeriveCancel() (*Cancel, error) {
+	if d == nil {
+		return nil, errOrderDetailIsNil
+	}
+	return &Cancel{
+		Exchange:      d.Exchange,
+		OrderID:       d.OrderID,
+		AccountID:     d.AccountID,
+		ClientID:      d.ClientID,
+		ClientOrderID: d.ClientOrderID,
+		WalletAddress: d.WalletAddress,
+		Type:          d.Type,
+		Side:          d.Side,
+		Pair:          d.Pair,
+		AssetType:     d.AssetType,
+	}, nil
+}
+
 // String implements the stringer interface
 func (t Type) String() string {
-	return string(t)
+	switch t {
+	case AnyType:
+		return "ANY"
+	case Limit:
+		return "LIMIT"
+	case Market:
+		return "MARKET"
+	case PostOnly:
+		return "POST_ONLY"
+	case ImmediateOrCancel:
+		return "IMMEDIATE_OR_CANCEL"
+	case Stop:
+		return "STOP"
+	case StopLimit:
+		return "STOP LIMIT"
+	case StopMarket:
+		return "STOP MARKET"
+	case TakeProfit:
+		return "TAKE PROFIT"
+	case TakeProfitMarket:
+		return "TAKE PROFIT MARKET"
+	case TrailingStop:
+		return "TRAILING_STOP"
+	case FillOrKill:
+		return "FOK"
+	case IOS:
+		return "IOS"
+	case Liquidation:
+		return "LIQUIDATION"
+	case Trigger:
+		return "TRIGGER"
+	default:
+		return "UNKNOWN"
+	}
 }
 
 // Lower returns the type lower case string
 func (t Type) Lower() string {
-	return strings.ToLower(string(t))
+	return strings.ToLower(t.String())
 }
 
 // Title returns the type titleized, eg "Limit"
 func (t Type) Title() string {
-	return strings.Title(strings.ToLower(string(t))) // nolint:staticcheck // Ignore Title usage warning
+	return strings.Title(strings.ToLower(t.String())) // nolint:staticcheck // Ignore Title usage warning
 }
 
 // String implements the stringer interface
 func (s Side) String() string {
-	return string(s)
+	switch s {
+	case Buy:
+		return "BUY"
+	case Sell:
+		return "SELL"
+	case Bid:
+		return "BID"
+	case Ask:
+		return "ASK"
+	case Long:
+		return "LONG"
+	case Short:
+		return "SHORT"
+	case AnySide:
+		return "ANY"
+	case ClosePosition:
+		return "CLOSE POSITION"
+		// Backtester signal types below.
+	case DoNothing:
+		return "DO NOTHING"
+	case TransferredFunds:
+		return "TRANSFERRED FUNDS"
+	case CouldNotBuy:
+		return "COULD NOT BUY"
+	case CouldNotSell:
+		return "COULD NOT SELL"
+	case CouldNotShort:
+		return "COULD NOT SHORT"
+	case CouldNotLong:
+		return "COULD NOT LONG"
+	case CouldNotCloseShort:
+		return "COULD NOT CLOSE SHORT"
+	case CouldNotCloseLong:
+		return "COULD NOT CLOSE LONG"
+	case MissingData:
+		return "MISSING DATA"
+	default:
+		return "UNKNOWN"
+	}
 }
 
 // Lower returns the side lower case string
 func (s Side) Lower() string {
-	return strings.ToLower(string(s))
+	return strings.ToLower(s.String())
 }
 
 // Title returns the side titleized, eg "Buy"
 func (s Side) Title() string {
-	return strings.Title(strings.ToLower(string(s))) // nolint:staticcheck // Ignore Title usage warning
+	return strings.Title(strings.ToLower(s.String())) // nolint:staticcheck // Ignore Title usage warning
 }
 
 // IsShort returns if the side is short
 func (s Side) IsShort() bool {
-	return s == Short || s == Sell
+	return s != UnknownSide && shortSide&s == s
 }
 
 // IsLong returns if the side is long
 func (s Side) IsLong() bool {
-	return s == Long || s == Buy
+	return s != UnknownSide && longSide&s == s
 }
 
 // String implements the stringer interface
 func (s Status) String() string {
-	return string(s)
+	switch s {
+	case AnyStatus:
+		return "ANY"
+	case New:
+		return "NEW"
+	case Active:
+		return "ACTIVE"
+	case PartiallyCancelled:
+		return "PARTIALLY_CANCELLED"
+	case PartiallyFilled:
+		return "PARTIALLY_FILLED"
+	case Filled:
+		return "FILLED"
+	case Cancelled:
+		return "CANCELLED"
+	case PendingCancel:
+		return "PENDING_CANCEL"
+	case InsufficientBalance:
+		return "INSUFFICIENT_BALANCE"
+	case MarketUnavailable:
+		return "MARKET_UNAVAILABLE"
+	case Rejected:
+		return "REJECTED"
+	case Expired:
+		return "EXPIRED"
+	case Hidden:
+		return "HIDDEN"
+	case Open:
+		return "OPEN"
+	case AutoDeleverage:
+		return "ADL"
+	case Closed:
+		return "CLOSED"
+	case Pending:
+		return "PENDING"
+	case Cancelling:
+		return "CANCELLING"
+	default:
+		return "UNKNOWN"
+	}
 }
 
-// InferCostsAndTimes infer order costs using execution information and times when available
+// InferCostsAndTimes infer order costs using execution information and times
+// when available
 func (d *Detail) InferCostsAndTimes() {
 	if d.CostAsset.IsEmpty() {
 		d.CostAsset = d.Pair.Quote
@@ -566,83 +783,86 @@ func (d *Detail) InferCostsAndTimes() {
 	}
 }
 
-// FilterOrdersBySide removes any order details that don't match the
-// order status provided
+// FilterOrdersBySide removes any order details that don't match the order
+// status provided
 func FilterOrdersBySide(orders *[]Detail, side Side) {
-	if side == "" || side == AnySide {
+	if AnySide == side || len(*orders) == 0 {
 		return
 	}
 
-	var filteredOrders []Detail
+	target := 0
 	for i := range *orders {
-		if strings.EqualFold(string((*orders)[i].Side), string(side)) {
-			filteredOrders = append(filteredOrders, (*orders)[i])
+		if (*orders)[i].Side == side {
+			(*orders)[target] = (*orders)[i]
+			target++
 		}
 	}
-
-	*orders = filteredOrders
+	*orders = (*orders)[:target]
 }
 
 // FilterOrdersByType removes any order details that don't match the order type
 // provided
 func FilterOrdersByType(orders *[]Detail, orderType Type) {
-	if orderType == "" || orderType == AnyType {
+	if AnyType == orderType || len(*orders) == 0 {
 		return
 	}
 
-	var filteredOrders []Detail
+	target := 0
 	for i := range *orders {
-		if strings.EqualFold(string((*orders)[i].Type), string(orderType)) {
-			filteredOrders = append(filteredOrders, (*orders)[i])
+		if (*orders)[i].Type == orderType {
+			(*orders)[target] = (*orders)[i]
+			target++
 		}
 	}
-
-	*orders = filteredOrders
+	*orders = (*orders)[:target]
 }
 
 // FilterOrdersByTimeRange removes any OrderDetails outside of the time range
-func FilterOrdersByTimeRange(orders *[]Detail, startTime, endTime time.Time) {
-	if startTime.IsZero() ||
-		endTime.IsZero() ||
-		startTime.Unix() == 0 ||
-		endTime.Unix() == 0 ||
-		endTime.Before(startTime) {
-		return
+func FilterOrdersByTimeRange(orders *[]Detail, startTime, endTime time.Time) error {
+	if len(*orders) == 0 {
+		return nil
 	}
 
-	var filteredOrders []Detail
+	if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+		if errors.Is(err, common.ErrDateUnset) {
+			return nil
+		}
+		return fmt.Errorf("cannot filter orders by time range %w", err)
+	}
+
+	target := 0
 	for i := range *orders {
 		if ((*orders)[i].Date.Unix() >= startTime.Unix() && (*orders)[i].Date.Unix() <= endTime.Unix()) ||
 			(*orders)[i].Date.IsZero() {
-			filteredOrders = append(filteredOrders, (*orders)[i])
+			(*orders)[target] = (*orders)[i]
+			target++
 		}
 	}
-
-	*orders = filteredOrders
+	*orders = (*orders)[:target]
+	return nil
 }
 
-// FilterOrdersByCurrencies removes any order details that do not match the
-// provided currency list. It is forgiving in that the provided currencies can
-// match quote or base currencies
-func FilterOrdersByCurrencies(orders *[]Detail, currencies []currency.Pair) {
-	if len(currencies) == 0 {
-		return
-	}
-	if len(currencies) == 1 && currencies[0].IsEmpty() {
+// FilterOrdersByPairs removes any order details that do not match the
+// provided currency pairs list. It is forgiving in that the provided pairs can
+// match quote or base pairs
+func FilterOrdersByPairs(orders *[]Detail, pairs []currency.Pair) {
+	if len(pairs) == 0 ||
+		(len(pairs) == 1 && pairs[0].IsEmpty()) ||
+		len(*orders) == 0 {
 		return
 	}
 
-	var filteredOrders []Detail
-	for i := range *orders {
-		for _, c := range currencies {
-			if (*orders)[i].Pair.EqualIncludeReciprocal(c) {
-				filteredOrders = append(filteredOrders, (*orders)[i])
+	target := 0
+	for x := range *orders {
+		for y := range pairs {
+			if (*orders)[x].Pair.EqualIncludeReciprocal(pairs[y]) {
+				(*orders)[target] = (*orders)[x]
+				target++
 				break
 			}
 		}
 	}
-
-	*orders = filteredOrders
+	*orders = (*orders)[:target]
 }
 
 func (b ByPrice) Len() int {
@@ -753,118 +973,100 @@ func SortOrdersBySide(orders *[]Detail, reverse bool) {
 // StringToOrderSide for converting case insensitive order side
 // and returning a real Side
 func StringToOrderSide(side string) (Side, error) {
-	switch {
-	case strings.EqualFold(side, Buy.String()):
+	side = strings.ToUpper(side)
+	switch side {
+	case Buy.String():
 		return Buy, nil
-	case strings.EqualFold(side, Sell.String()):
+	case Sell.String():
 		return Sell, nil
-	case strings.EqualFold(side, Bid.String()):
+	case Bid.String():
 		return Bid, nil
-	case strings.EqualFold(side, Ask.String()):
+	case Ask.String():
 		return Ask, nil
-	case strings.EqualFold(side, Long.String()):
+	case Long.String():
 		return Long, nil
-	case strings.EqualFold(side, Short.String()):
+	case Short.String():
 		return Short, nil
-	case strings.EqualFold(side, AnySide.String()):
+	case AnySide.String():
 		return AnySide, nil
 	default:
-		return UnknownSide, errors.New(side + " not recognised as order side")
+		return UnknownSide, fmt.Errorf("'%s' %w", side, errUnrecognisedOrderSide)
 	}
 }
 
 // StringToOrderType for converting case insensitive order type
 // and returning a real Type
 func StringToOrderType(oType string) (Type, error) {
-	switch {
-	case strings.EqualFold(oType, Limit.String()),
-		strings.EqualFold(oType, "EXCHANGE LIMIT"):
+	oType = strings.ToUpper(oType)
+	switch oType {
+	case Limit.String(), "EXCHANGE LIMIT":
 		return Limit, nil
-	case strings.EqualFold(oType, Market.String()),
-		strings.EqualFold(oType, "EXCHANGE MARKET"):
+	case Market.String(), "EXCHANGE MARKET":
 		return Market, nil
-	case strings.EqualFold(oType, ImmediateOrCancel.String()),
-		strings.EqualFold(oType, "immediate or cancel"),
-		strings.EqualFold(oType, "IOC"),
-		strings.EqualFold(oType, "EXCHANGE IOC"):
+	case ImmediateOrCancel.String(), "IMMEDIATE OR CANCEL", "IOC", "EXCHANGE IOC":
 		return ImmediateOrCancel, nil
-	case strings.EqualFold(oType, Stop.String()),
-		strings.EqualFold(oType, "stop loss"),
-		strings.EqualFold(oType, "stop_loss"),
-		strings.EqualFold(oType, "EXCHANGE STOP"):
+	case Stop.String(), "STOP LOSS", "STOP_LOSS", "EXCHANGE STOP":
 		return Stop, nil
-	case strings.EqualFold(oType, StopLimit.String()),
-		strings.EqualFold(oType, "EXCHANGE STOP LIMIT"):
+	case StopLimit.String(), "EXCHANGE STOP LIMIT":
 		return StopLimit, nil
-	case strings.EqualFold(oType, TrailingStop.String()),
-		strings.EqualFold(oType, "trailing stop"),
-		strings.EqualFold(oType, "EXCHANGE TRAILING STOP"):
+	case TrailingStop.String(), "TRAILING STOP", "EXCHANGE TRAILING STOP":
 		return TrailingStop, nil
-	case strings.EqualFold(oType, FillOrKill.String()),
-		strings.EqualFold(oType, "EXCHANGE FOK"):
+	case FillOrKill.String(), "EXCHANGE FOK":
 		return FillOrKill, nil
-	case strings.EqualFold(oType, IOS.String()):
+	case IOS.String():
 		return IOS, nil
-	case strings.EqualFold(oType, PostOnly.String()):
+	case PostOnly.String():
 		return PostOnly, nil
-	case strings.EqualFold(oType, AnyType.String()):
+	case AnyType.String():
 		return AnyType, nil
-	case strings.EqualFold(oType, Trigger.String()):
+	case Trigger.String():
 		return Trigger, nil
+	case OptimalLimitIOC.String():
+		return OptimalLimitIOC, nil
 	default:
-		return UnknownType, errors.New(oType + " not recognised as order type")
+		return UnknownType, fmt.Errorf("'%v' %w", oType, errUnrecognisedOrderType)
 	}
 }
 
 // StringToOrderStatus for converting case insensitive order status
 // and returning a real Status
 func StringToOrderStatus(status string) (Status, error) {
-	switch {
-	case strings.EqualFold(status, AnyStatus.String()):
+	status = strings.ToUpper(status)
+	switch status {
+	case AnyStatus.String():
 		return AnyStatus, nil
-	case strings.EqualFold(status, New.String()),
-		strings.EqualFold(status, "placed"):
+	case New.String(), "PLACED", "ACCEPTED":
 		return New, nil
-	case strings.EqualFold(status, Active.String()),
-		strings.EqualFold(status, "STATUS_ACTIVE"): // BTSE case
+	case Active.String(), "STATUS_ACTIVE":
 		return Active, nil
-	case strings.EqualFold(status, PartiallyFilled.String()),
-		strings.EqualFold(status, "partially matched"),
-		strings.EqualFold(status, "partially filled"):
+	case PartiallyFilled.String(), "PARTIALLY MATCHED", "PARTIALLY FILLED":
 		return PartiallyFilled, nil
-	case strings.EqualFold(status, Filled.String()),
-		strings.EqualFold(status, "fully matched"),
-		strings.EqualFold(status, "fully filled"),
-		strings.EqualFold(status, "ORDER_FULLY_TRANSACTED"): // BTSE case
+	case Filled.String(), "FULLY MATCHED", "FULLY FILLED", "ORDER_FULLY_TRANSACTED":
 		return Filled, nil
-	case strings.EqualFold(status, PartiallyCancelled.String()),
-		strings.EqualFold(status, "partially cancelled"),
-		strings.EqualFold(status, "ORDER_PARTIALLY_TRANSACTED"): // BTSE case
+	case PartiallyCancelled.String(), "PARTIALLY CANCELLED", "ORDER_PARTIALLY_TRANSACTED":
 		return PartiallyCancelled, nil
-	case strings.EqualFold(status, Open.String()):
+	case Open.String():
 		return Open, nil
-	case strings.EqualFold(status, Closed.String()):
+	case Closed.String():
 		return Closed, nil
-	case strings.EqualFold(status, Cancelled.String()),
-		strings.EqualFold(status, "CANCELED"),        // Binance and Kraken case
-		strings.EqualFold(status, "ORDER_CANCELLED"): // BTSE case
+	case Cancelled.String(), "CANCELED", "ORDER_CANCELLED":
 		return Cancelled, nil
-	case strings.EqualFold(status, PendingCancel.String()),
-		strings.EqualFold(status, "pending cancel"),
-		strings.EqualFold(status, "pending cancellation"):
+	case PendingCancel.String(), "PENDING CANCEL", "PENDING CANCELLATION":
 		return PendingCancel, nil
-	case strings.EqualFold(status, Rejected.String()):
+	case Rejected.String(), "FAILED":
 		return Rejected, nil
-	case strings.EqualFold(status, Expired.String()):
+	case Expired.String():
 		return Expired, nil
-	case strings.EqualFold(status, Hidden.String()):
+	case Hidden.String():
 		return Hidden, nil
-	case strings.EqualFold(status, InsufficientBalance.String()):
+	case InsufficientBalance.String():
 		return InsufficientBalance, nil
-	case strings.EqualFold(status, MarketUnavailable.String()):
+	case MarketUnavailable.String():
 		return MarketUnavailable, nil
+	case Cancelling.String():
+		return Cancelling, nil
 	default:
-		return UnknownStatus, errors.New(status + " not recognised as order status")
+		return UnknownStatus, fmt.Errorf("'%s' %w", status, errUnrecognisedOrderStatus)
 	}
 }
 
@@ -884,7 +1086,7 @@ func (o *ClassificationError) Error() string {
 // for a standard cancel
 func (c *Cancel) StandardCancel() validate.Checker {
 	return validate.Check(func() error {
-		if c.ID == "" {
+		if c.OrderID == "" {
 			return errors.New("ID not set")
 		}
 		return nil
@@ -899,7 +1101,7 @@ func (c *Cancel) PairAssetRequired() validate.Checker {
 			return ErrPairIsEmpty
 		}
 
-		if c.AssetType == "" {
+		if c.AssetType == asset.Empty {
 			return ErrAssetNotSet
 		}
 		return nil
@@ -932,7 +1134,7 @@ func (g *GetOrdersRequest) Validate(opt ...validate.Checker) error {
 		return ErrGetOrdersRequestIsNil
 	}
 	if !g.AssetType.IsValid() {
-		return fmt.Errorf("assetType %v not supported", g.AssetType)
+		return fmt.Errorf("%v %w", g.AssetType, asset.ErrNotSupported)
 	}
 	var errs common.Errors
 	for _, o := range opt {
@@ -958,7 +1160,7 @@ func (m *Modify) Validate(opt ...validate.Checker) error {
 		return ErrPairIsEmpty
 	}
 
-	if m.AssetType.String() == "" {
+	if m.AssetType == asset.Empty {
 		return ErrAssetNotSet
 	}
 
@@ -973,7 +1175,7 @@ func (m *Modify) Validate(opt ...validate.Checker) error {
 	if errs != nil {
 		return errs
 	}
-	if m.ClientOrderID == "" && m.ID == "" {
+	if m.ClientOrderID == "" && m.OrderID == "" {
 		return ErrOrderIDNotSet
 	}
 	return nil
