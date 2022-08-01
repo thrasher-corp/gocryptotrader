@@ -547,10 +547,15 @@ func (bi *Binanceus) GenerateSubscriptions() ([]stream.ChannelSubscription, erro
 		return nil, err
 	}
 
+subs:
 	for y := range pairs {
 		for z := range channels {
 			lp := pairs[y].Lower()
 			lp.Delimiter = ""
+			if len(subscriptions) >= 1023 {
+				log.Warnf(log.WebsocketMgr, "BinanceUS has 1024 subscription limit, only subscribing within limit. Requested %v", len(pairs)*len(channels))
+				break subs
+			}
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  lp.String() + channels[z],
 				Currency: pairs[y],

@@ -369,11 +369,11 @@ func (bi *Binanceus) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // FetchTicker returns the ticker for a currency pair
 func (bi *Binanceus) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	fpairs, er := bi.FormatExchangeCurrency(p, assetType)
+	fPairs, er := bi.FormatExchangeCurrency(p, assetType)
 	if er != nil {
 		return nil, er
 	}
-	bi.appendOptionalDelimiter(&fpairs)
+	bi.appendOptionalDelimiter(&fPairs)
 
 	tickerNew, er := ticker.GetTicker(bi.Name, p, assetType)
 	if er != nil {
@@ -449,21 +449,21 @@ func (bi *Binanceus) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 	if assetType != asset.Spot {
 		return info, fmt.Errorf("%v  assetType is not supported", assetType)
 	}
-	theaccount, err := bi.GetAccount(ctx)
+	theAccount, err := bi.GetAccount(ctx)
 	if err != nil {
 		return info, err
 	}
-	var currencyBalance []account.Balance
-	for i := range theaccount.Balances {
-		freeBalance := theaccount.Balances[i].Free.InexactFloat64()
-		locked := theaccount.Balances[i].Locked.InexactFloat64()
+	currencyBalance := make([]account.Balance, len(theAccount.Balances))
+	for i := range theAccount.Balances {
+		freeBalance := theAccount.Balances[i].Free.InexactFloat64()
+		locked := theAccount.Balances[i].Locked.InexactFloat64()
 
-		currencyBalance = append(currencyBalance, account.Balance{
-			CurrencyName: currency.NewCode(theaccount.Balances[i].Asset),
+		currencyBalance[i] = account.Balance{
+			CurrencyName: currency.NewCode(theAccount.Balances[i].Asset),
 			Total:        freeBalance + locked,
 			Hold:         locked,
 			Free:         freeBalance,
-		})
+		}
 	}
 	acc.Currencies = currencyBalance
 	acc.AssetType = assetType
@@ -497,7 +497,7 @@ func (bi *Binanceus) GetFundingHistory(ctx context.Context) ([]exchange.FundHist
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (bi *Binanceus) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (bi *Binanceus) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	w, err := bi.WithdrawalHistory(ctx, c, "", time.Time{}, time.Time{}, 0, 10000)
 	if err != nil {
 		return nil, err
@@ -712,9 +712,8 @@ func (bi *Binanceus) GetOrderInfo(ctx context.Context, orderID string, pair curr
 	}
 	var orderType order.Type
 	resp, err := bi.GetOrder(ctx, &OrderRequestParams{
-		Symbol:            symbolValue,
-		OrderID:           uint64(orderIDInt),
-		OrigClientOrderID: "",
+		Symbol:  symbolValue,
+		OrderID: uint64(orderIDInt),
 	})
 	if err != nil {
 		return respData, err
@@ -903,7 +902,7 @@ func (bi *Binanceus) GetHistoricCandles(ctx context.Context, pair currency.Pair,
 		Symbol:    pair,
 		StartTime: start,
 		EndTime:   end,
-		Limit:     int(bi.Features.Enabled.Kline.ResultLimit),
+		Limit:     int64(bi.Features.Enabled.Kline.ResultLimit),
 	}
 	ret := kline.Item{
 		Exchange: bi.Name,
@@ -952,7 +951,7 @@ func (bi *Binanceus) GetHistoricCandlesExtended(ctx context.Context, pair curren
 			Symbol:    pair,
 			StartTime: dates.Ranges[x].Start.Time,
 			EndTime:   dates.Ranges[x].End.Time,
-			Limit:     int(bi.Features.Enabled.Kline.ResultLimit),
+			Limit:     int64(bi.Features.Enabled.Kline.ResultLimit),
 		}
 
 		candles, err = bi.GetSpotKline(ctx, &req)

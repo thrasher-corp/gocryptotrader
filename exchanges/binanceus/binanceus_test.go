@@ -39,7 +39,7 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	bi.validLimits = []int{5, 10, 20, 50, 100, 500, 1000}
+	bi.validLimits = []int64{5, 10, 20, 50, 100, 500, 1000}
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
@@ -337,7 +337,7 @@ func TestGetWithdrawalHistory(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("Binanceus API keys set, canManipulateRealOrders false, skipping test")
 	}
-	_, err := bi.GetWithdrawalsHistory(context.Background(), currency.ETH)
+	_, err := bi.GetWithdrawalsHistory(context.Background(), currency.ETH, asset.Spot)
 	switch {
 	case areTestAPIKeysSet() && err != nil:
 		t.Error("Binanceus GetWithdrawalsHistory() error", err)

@@ -26,7 +26,7 @@ import (
 
 // Binanceus is the overarching type across this package
 type Binanceus struct {
-	validLimits []int
+	validLimits []int64
 	exchange.Base
 	obm *orderbookManager
 }
@@ -70,7 +70,7 @@ const (
 	// Trade Order Endpoints
 	orderRateLimit     = "/api/v3/rateLimit/order"
 	testCreateNeworder = "/api/v3/order/test" // Method: POST
-	orderRequest       = "/api/v3/order"      // Used in Create {Method: POST}, Cancel {DELTE}, and get{GET} OrderRequest
+	orderRequest       = "/api/v3/order"      // Used in Create {Method: POST}, Cancel {DELETE}, and get{GET} OrderRequest
 	openOrders         = "/api/v3/openOrders"
 	myTrades           = "/api/v3/myTrades"
 
@@ -155,7 +155,7 @@ var (
 
 // SetValues sets the default valid values
 func (bi *Binanceus) SetValues() {
-	bi.validLimits = []int{5, 10, 20, 50, 100, 500, 1000, 5000}
+	bi.validLimits = []int64{5, 10, 20, 50, 100, 500, 1000, 5000}
 }
 
 // General Data Endpoints
@@ -197,7 +197,7 @@ func (bi *Binanceus) GetMostRecentTrades(ctx context.Context, rtr RecentTradeReq
 		return nil, err
 	}
 	params.Set("symbol", symbol)
-	params.Set("limit", strconv.Itoa(rtr.Limit))
+	params.Set("limit", strconv.FormatInt(rtr.Limit, 10))
 	path := common.EncodeURLValues(recentTrades, params)
 	var resp []RecentTrade
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
@@ -210,7 +210,7 @@ func (bi *Binanceus) GetHistoricalTrades(ctx context.Context, hist HistoricalTra
 	var resp []HistoricalTrade
 	params := url.Values{}
 	params.Set("symbol", hist.Symbol)
-	params.Set("limit", strconv.Itoa(hist.Limit))
+	params.Set("limit", strconv.FormatInt(hist.Limit, 10))
 	if hist.FromID > 0 {
 		params.Set("fromId", strconv.FormatUint(hist.FromID, 10))
 	}
@@ -399,7 +399,7 @@ func (bi *Binanceus) GetOrderBookDepth(ctx context.Context, arg *OrderBookDataRe
 }
 
 // CheckLimit checks value against a variable list
-func (bi *Binanceus) CheckLimit(limit int) error {
+func (bi *Binanceus) CheckLimit(limit int64) error {
 	for x := range bi.validLimits {
 		if bi.validLimits[x] == limit {
 			return nil
@@ -456,7 +456,7 @@ func (bi *Binanceus) GetSpotKline(ctx context.Context, arg *KlinesRequestParams)
 	params.Set("symbol", symbol)
 	params.Set("interval", arg.Interval)
 	if arg.Limit != 0 {
-		params.Set("limit", strconv.Itoa(arg.Limit))
+		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
 	}
 	if !arg.StartTime.IsZero() && arg.StartTime.Unix() != 0 {
 		params.Set("startTime", strconv.FormatInt((arg.StartTime).UnixMilli(), 10))
@@ -718,14 +718,13 @@ func (bi *Binanceus) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder
 
 // getMultiplier retrieves account based taker/maker fees
 func (bi *Binanceus) getMultiplier(ctx context.Context, isMaker bool, feeBuilder *exchange.FeeBuilder) (float64, error) {
-	multiplier := float64(0.0)
 	symbol, er := bi.FormatSymbol(feeBuilder.Pair, asset.Spot)
 	if er != nil {
-		return multiplier, er
+		return 0, er
 	}
 	trades, er := bi.GetTradeFee(ctx, 0, symbol)
 	if er != nil {
-		return multiplier, er
+		return 0, er
 	}
 	for x := range trades.TradeFee {
 		if trades.TradeFee[x].Symbol == symbol {
@@ -735,7 +734,7 @@ func (bi *Binanceus) getMultiplier(ctx context.Context, isMaker bool, feeBuilder
 			return trades.TradeFee[x].Taker, nil
 		}
 	}
-	return multiplier, nil
+	return 0, nil
 }
 
 // getOfflineTradeFee calculates the worst case-scenario trading fee
@@ -743,7 +742,7 @@ func getOfflineTradeFee(price, amount float64) float64 {
 	return 0.001 * price * amount
 }
 
-// calculateTradingFee returns the fee for trading any currency on Bittrex
+// calculateTradingFee returns the fee for trading any currency on Binanceus
 func calculateTradingFee(purchasePrice, amount, multiplier float64) float64 {
 	return (multiplier / 100) * purchasePrice * amount
 }
@@ -829,7 +828,7 @@ func (bi *Binanceus) QuickDisableCryptoWithdrawal(ctx context.Context) error {
 		accountDisableCryptoWithdrawalEndpoint, params, spotDefaultRate, nil)
 }
 
-// GetUsersSpotAssetSnapshot retrives a snapshot of list of assets found the the account.
+// GetUsersSpotAssetSnapshot retrives a snapshot of list of assets in the account.
 func (bi *Binanceus) GetUsersSpotAssetSnapshot(ctx context.Context, startTime, endTime time.Time, limit, offset uint) (*SpotAssetsSnapshotResponse, error) {
 	params := url.Values{}
 	params.Set("type", "SPOT")
@@ -949,7 +948,7 @@ func (bi *Binanceus) ExecuteSubAccountTransfer(ctx context.Context, arg *SubAcco
 	params.Set("fromEmail", arg.FromEmail)
 	params.Set("toEmail", arg.ToEmail)
 	params.Set("asset", arg.Asset)
-	params.Set("amount", fmt.Sprintf("%f", arg.Amount))
+	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', 0, 64))
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	return &response, bi.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, subaccountTransfer, params, spotDefaultRate, &response)
 }
@@ -1362,7 +1361,7 @@ func (bi *Binanceus) RequestForQuote(ctx context.Context, arg *RequestQuoteParam
 	}
 	params.Set("fromCoin", arg.FromCoin)
 	params.Set("toCoin", arg.ToCoin)
-	params.Set("requestAmount", strconv.FormatInt(arg.RequestAmount, 10))
+	params.Set("requestAmount", strconv.FormatFloat(arg.RequestAmount, 'f', 0, 64))
 	params.Set("requestCoin", arg.RequestCoin)
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	return &resp, bi.SendAuthHTTPRequest(ctx,

@@ -92,7 +92,7 @@ type ExchangeInfo struct {
 // RecentTradeRequestParams represents Klines request data.
 type RecentTradeRequestParams struct {
 	Symbol currency.Pair `json:"symbol"` // Required field. example LTCBTC, BTCUSDT
-	Limit  int           `json:"limit"`  // Default 500; max 1000.
+	Limit  int64         `json:"limit"`  // Default 500; max 1000.
 }
 
 // RecentTrade holds recent trade data
@@ -107,7 +107,7 @@ type RecentTrade struct {
 
 type HistoricalTradeParams struct {
 	Symbol string `json:"symbol"` // Required field. example LTCBTC, BTCUSDT
-	Limit  int    `json:"limit"`  // Default 500; max 1000.
+	Limit  int64  `json:"limit"`  // Default 500; max 1000.
 	FromID uint64 `json:"fromId"` // Optional Field. Specifies the trade ID to fetch most recent trade histories from
 }
 
@@ -163,7 +163,7 @@ func (a *AggregatedTrade) toTradeData(p currency.Pair, exchange string, aType as
 // OrderBookDataRequestParams represents Klines request data.
 type OrderBookDataRequestParams struct {
 	Symbol currency.Pair `json:"symbol"` // Required field; example LTCBTC,BTCUSDT
-	Limit  int           `json:"limit"`  // Default 100; max 1000. Valid limits:[5, 10, 20, 50, 100, 500, 1000]
+	Limit  int64         `json:"limit"`  // Default 100; max 1000. Valid limits:[5, 10, 20, 50, 100, 500, 1000]
 }
 
 // OrderbookItem stores an individual orderbook item
@@ -193,7 +193,7 @@ type OrderBook struct {
 type KlinesRequestParams struct {
 	Symbol    currency.Pair // Required field; example LTCBTC, BTCUSDT
 	Interval  string        // Time interval period
-	Limit     int           // Default 500; max 500.
+	Limit     int64         // Default 500; max 500.
 	StartTime time.Time
 	EndTime   time.Time
 }
@@ -451,7 +451,7 @@ type NewOrderResponse struct {
 	Type               string  `json:"type"`
 	Side               string  `json:"side"`
 	// --
-	Code int    `json:"code"`
+	Code int64  `json:"code"`
 	Msg  string `json:"msg"`
 	// --
 	Fills []struct {
@@ -625,10 +625,10 @@ type CoinPairInfo struct {
 
 // RequestQuoteParams a parameter model to query quote information
 type RequestQuoteParams struct {
-	FromCoin      string `json:"fromCoin"`
-	ToCoin        string `json:"toCoin"`
-	RequestCoin   string `json:"requestCoin"`
-	RequestAmount int64  `json:"requestAmount"`
+	FromCoin      string  `json:"fromCoin"`
+	ToCoin        string  `json:"toCoin"`
+	RequestCoin   string  `json:"requestCoin"`
+	RequestAmount float64 `json:"requestAmount"`
 }
 
 // Quote holds quote information for from-to-coin pair
@@ -638,7 +638,7 @@ type Quote struct {
 	InverseRatio   float64   `json:"inverseRatio,string"`
 	ValidTimestamp time.Time `json:"validTimestamp"`
 	ToAmount       float64   `json:"toAmount,string"`
-	FromAmount     uint64    `json:"fromAmount,string"`
+	FromAmount     float64   `json:"fromAmount,string"`
 }
 
 // OTCTradeOrderResponse holds OTC(over-the-counter) order identification and status information
@@ -736,11 +736,11 @@ type WithdrawStatusResponse struct {
 	Amount         float64 `json:"amount,string"`
 	TransactionFee float64 `json:"transactionFee,string"`
 	Coin           string  `json:"coin"`
-	Status         int     `json:"status"`
+	Status         int64   `json:"status"`
 	Address        string  `json:"address"`
 	ApplyTime      string  `json:"applyTime"`
 	Network        string  `json:"network"`
-	TransferType   int     `json:"transferType"`
+	TransferType   int64   `json:"transferType"`
 }
 
 // FiatAssetRecord asset information for fiat.
@@ -852,7 +852,7 @@ type WebsocketDepthStream struct {
 
 // WebsocketDepthDiffStream websocket response of depth diff stream
 type WebsocketDepthDiffStream struct {
-	LastUpdateID int         `json:"lastUpdateId"`
+	LastUpdateID int64       `json:"lastUpdateId"`
 	Bids         [][2]string `json:"bids"`
 	Asks         [][2]string `json:"asks"`
 }
@@ -1047,7 +1047,7 @@ type TickerStream struct {
 
 // OrderBookTickerStream  contains websocket orderbook data
 type OrderBookTickerStream struct {
-	LastUpdateID int    `json:"u"`
+	LastUpdateID int64  `json:"u"`
 	S            string `json:"s"`
 	Symbol       currency.Pair
 	BestBidPrice float64 `json:"b,string"`
@@ -1061,11 +1061,11 @@ type WebsocketAggregateTradeStream struct {
 	EventType        string    `json:"e"`
 	EventTime        time.Time `json:"E"`
 	Symbol           string    `json:"s"`
-	AggregateTradeID int       `json:"a"`
+	AggregateTradeID int64     `json:"a"`
 	Price            float64   `json:"p,string"`
 	Quantity         float64   `json:"q,string"`
-	FirstTradeID     int       `json:"f"`
-	LastTradeID      int       `json:"l"`
+	FirstTradeID     int64     `json:"f"`
+	LastTradeID      int64     `json:"l"`
 	TradeTime        time.Time `json:"T"`
 	IsMaker          bool      `json:"m"`
 }
@@ -1080,7 +1080,7 @@ type OCBSOrderRequestParams struct {
 
 // OCBSTradeOrdersResponse holds the quantity and list of OCBS Orders.
 type OCBSTradeOrdersResponse struct {
-	Total     int         `json:"total"`
+	Total     int64       `json:"total"`
 	OCBSOrder []OCBSOrder `json:"dataList"`
 }
 
@@ -1107,13 +1107,13 @@ type ServerTime struct {
 // SubUserToBTCAssets holds the number of BTC assets and the corresponding sub user email.
 type SubUserToBTCAssets struct {
 	Email      string `json:"email"`
-	TotalAsset int    `json:"totalAsset"`
+	TotalAsset int64  `json:"totalAsset"`
 }
 
 // SpotUSDMasterAccounts holds the USD assets of a sub user.
 type SpotUSDMasterAccounts struct {
-	TotalCount                    int                  `json:"totalCount"`
-	MasterAccountTotalAsset       int                  `json:"masterAccountTotalAsset"`
+	TotalCount                    int64                `json:"totalCount"`
+	MasterAccountTotalAsset       int64                `json:"masterAccountTotalAsset"`
 	SpotSubUserAssetBTCVolumeList []SubUserToBTCAssets `json:"spotSubUserAssetBtcVoList"`
 }
 
@@ -1148,24 +1148,24 @@ type SubAccountDepositItem struct {
 	Amount        string    `json:"amount"`
 	Coin          string    `json:"coin"`
 	Network       string    `json:"network"`
-	Status        int       `json:"status"`
+	Status        int64     `json:"status"`
 	Address       string    `json:"address"`
 	AddressTag    string    `json:"addressTag"`
 	TransactionID string    `json:"txId"`
 	InsertTime    time.Time `json:"insertTime"`
-	TransferType  int       `json:"transferType"`
+	TransferType  int64     `json:"transferType"`
 	ConfirmTimes  string    `json:"confirmTimes"`
 }
 
 // ReferralRewardHistoryResponse holds reward history response
 type ReferralRewardHistoryResponse struct {
-	Total int                      `json:"total"`
+	Total int64                    `json:"total"`
 	Rows  []ReferralWithdrawalItem `json:"rows"`
 }
 
 // ReferralWithdrawalItem holds reward history item
 type ReferralWithdrawalItem struct {
-	UserID          int       `json:"userId"`
+	UserID          int64     `json:"userId"`
 	RewardAmount    string    `json:"rewardAmount"`
 	ReceiveDateTime time.Time `json:"receiveDateTime"`
 	RewardType      string    `json:"rewardType"`
@@ -1173,7 +1173,7 @@ type ReferralWithdrawalItem struct {
 
 // SpotAssetsSnapshotResponse represents spot asset types snapshot information.
 type SpotAssetsSnapshotResponse struct {
-	Code        int      `json:"code"`
+	Code        int64    `json:"code"`
 	Msg         string   `json:"msg"`
 	SnapshotVos []string `json:"snapshotVos"`
 }

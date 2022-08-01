@@ -117,7 +117,7 @@ func SetRateLimit() *RateLimit {
 }
 
 // orderbookLimit returns the endpoint rate limit representing enum given order depth
-func orderbookLimit(depth int) request.EndpointLimit {
+func orderbookLimit(depth int64) request.EndpointLimit {
 	switch {
 	case depth <= 100:
 		return spotDefaultRate

@@ -567,7 +567,7 @@ func (a *Quote) UnmarshalJSON(data []byte) error {
 	type Alias Quote
 	chil := &struct {
 		*Alias
-		ValidTimestamp int64 `json:"validTimestamp,string"`
+		ValidTimestamp int64 `json:"validTimestamp"`
 	}{
 		Alias: (*Alias)(a),
 	}
