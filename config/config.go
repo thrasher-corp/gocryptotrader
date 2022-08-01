@@ -1175,20 +1175,23 @@ func (c *Config) CheckLoggerConfig() error {
 			log.Warnf(log.ConfigMgr, "Logger rotation size invalid, defaulting to %v", log.DefaultMaxFileSize)
 			c.Logging.LoggerFileConfig.MaxSize = log.DefaultMaxFileSize
 		}
-		log.FileLoggingConfiguredCorrectly = true
+		err := log.SetFileLoggingState( /*Is correctly configured*/ true)
+		if err != nil {
+			return err
+		}
 	}
-	log.RWM.Lock()
-	log.GlobalLogConfig = &c.Logging
-	log.RWM.Unlock()
 
-	logPath := c.GetDataPath("logs")
-	err := common.CreateDir(logPath)
+	err := log.SetGlobalLogConfig(&c.Logging)
 	if err != nil {
 		return err
 	}
-	log.LogPath = logPath
 
-	return nil
+	logPath := c.GetDataPath("logs")
+	err = common.CreateDir(logPath)
+	if err != nil {
+		return err
+	}
+	return log.SetLogPath(logPath)
 }
 
 func (c *Config) checkGCTScriptConfig() error {

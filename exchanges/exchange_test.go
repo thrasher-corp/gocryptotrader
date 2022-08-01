@@ -3,10 +3,7 @@ package exchange
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net"
-	"os"
-	"runtime"
 	"testing"
 	"time"
 
@@ -28,16 +25,16 @@ const (
 	defaultTestCurrencyPair = "BTC-USD"
 )
 
-func TestMain(m *testing.M) {
-	log.RWM.Lock()
-	log.GlobalLogConfig = log.GenDefaultSettings()
-	log.RWM.Unlock()
-	if err := log.SetupGlobalLogger(runtime.GOMAXPROCS(-1)); err != nil {
-		fmt.Println("Cannot setup global logger. Error:", err)
-		os.Exit(1)
-	}
-	os.Exit(m.Run())
-}
+// func TestMain(m *testing.M) {
+// 	log.RWM.Lock()
+// 	log.GlobalLogConfig = log.GenDefaultSettings()
+// 	log.RWM.Unlock()
+// 	if err := log.SetupGlobalLogger(runtime.GOMAXPROCS(-1)); err != nil {
+// 		fmt.Println("Cannot setup global logger. Error:", err)
+// 		os.Exit(1)
+// 	}
+// 	os.Exit(m.Run())
+// }
 
 func TestSupportsRESTTickerBatchUpdates(t *testing.T) {
 	t.Parallel()

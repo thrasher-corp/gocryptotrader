@@ -28,18 +28,18 @@ func newLogger(c *Config) Logger {
 
 // CloseLogger is called on shutdown of application
 func CloseLogger() error {
-	RWM.Lock()
-	GlobalLogConfig.Enabled = convert.BoolPtr(false)
+	mu.Lock()
+	globalLogConfig.Enabled = convert.BoolPtr(false)
 	close(jobsChannel)
-	RWM.Unlock()
+	mu.Unlock()
 	workerWg.Wait()
-	return GlobalLogFile.Close()
+	return globalLogFile.Close()
 }
 
 // Level retries the current sublogger levels
 func Level(name string) (Levels, error) {
-	RWM.RLock()
-	defer RWM.RUnlock()
+	mu.RLock()
+	defer mu.RUnlock()
 	subLogger, found := SubLoggers[name]
 	if !found {
 		return Levels{}, fmt.Errorf("logger %s not found", name)
@@ -49,8 +49,8 @@ func Level(name string) (Levels, error) {
 
 // SetLevel sets sublogger levels
 func SetLevel(s, level string) (Levels, error) {
-	RWM.Lock()
-	defer RWM.Unlock()
+	mu.Lock()
+	defer mu.Unlock()
 	subLogger, found := SubLoggers[s]
 	if !found {
 		return Levels{}, fmt.Errorf("sub logger %v not found", s)

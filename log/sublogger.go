@@ -11,12 +11,12 @@ func NewSubLogger(name string) (*SubLogger, error) {
 		return nil, errEmptyLoggerName
 	}
 	name = strings.ToUpper(name)
-	RWM.RLock()
+	mu.RLock()
 	if _, ok := SubLoggers[name]; ok {
-		RWM.RUnlock()
+		mu.RUnlock()
 		return nil, fmt.Errorf("'%v' %w", name, ErrSubLoggerAlreadyRegistered)
 	}
-	RWM.RUnlock()
+	mu.RUnlock()
 	return registerNewSubLogger(name), nil
 }
 
@@ -42,10 +42,10 @@ func (sl *SubLogger) GetLevels() Levels {
 }
 
 func (sl *SubLogger) getFields() *logFields {
-	RWM.RLock()
-	defer RWM.RUnlock()
+	mu.RLock()
+	defer mu.RUnlock()
 
-	if sl == nil || GlobalLogConfig == nil || GlobalLogConfig.Enabled == nil || !*GlobalLogConfig.Enabled {
+	if sl == nil || globalLogConfig == nil || globalLogConfig.Enabled == nil || !*globalLogConfig.Enabled {
 		return nil
 	}
 

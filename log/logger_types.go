@@ -20,11 +20,11 @@ const (
 var (
 	logger = Logger{}
 	// FileLoggingConfiguredCorrectly flag set during config check if file logging meets requirements
-	FileLoggingConfiguredCorrectly bool
+	fileLoggingConfiguredCorrectly bool
 	// GlobalLogConfig holds global configuration options for logger
-	GlobalLogConfig = &Config{}
+	globalLogConfig = &Config{}
 	// GlobalLogFile hold global configuration options for file logger
-	GlobalLogFile = &Rotate{}
+	globalLogFile = &Rotate{}
 
 	jobsPool    = &sync.Pool{New: func() interface{} { return new(job) }}
 	jobsChannel = make(chan *job, defaultJobChannelCapacity)
@@ -34,13 +34,13 @@ var (
 	logFieldsPool = &sync.Pool{New: func() interface{} { return &logFields{logger: logger} }}
 
 	// LogPath system path to store log files in
-	LogPath string
+	logPath string
 
 	workerWg       sync.WaitGroup
 	workerShutdown = make(chan struct{})
 
-	// RWM read/write mutex for logger
-	RWM = &sync.RWMutex{}
+	// read/write mutex for logger
+	mu = &sync.RWMutex{}
 )
 
 type job struct {

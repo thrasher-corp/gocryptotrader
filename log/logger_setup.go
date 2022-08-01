@@ -11,9 +11,12 @@ import (
 )
 
 var (
-	errSubloggerConfigIsNil  = errors.New("sublogger config is nil")
-	errUnhandledOutputWriter = errors.New("unhandled output writer")
-	errInvalidWorkerCount    = errors.New("invalid worker count")
+	errSubloggerConfigIsNil   = errors.New("sublogger config is nil")
+	errUnhandledOutputWriter  = errors.New("unhandled output writer")
+	errInvalidWorkerCount     = errors.New("invalid worker count")
+	errLoggingStateAlreadySet = errors.New("correct file logging bool state already set")
+	errLogPathIsEmpty         = errors.New("log path is empty")
+	errConfigNil              = errors.New("config is nil")
 )
 
 func getWriters(s *SubLoggerConfig) (*multiWriterHolder, error) {
@@ -31,8 +34,8 @@ func getWriters(s *SubLoggerConfig) (*multiWriterHolder, error) {
 		case "stderr":
 			writer = os.Stderr
 		case "file":
-			if FileLoggingConfiguredCorrectly {
-				writer = GlobalLogFile
+			if fileLoggingConfiguredCorrectly {
+				writer = globalLogFile
 			}
 		default:
 			// Note: Do not want to add an io.Discard here as this adds
@@ -71,9 +74,38 @@ func GenDefaultSettings() *Config {
 	}
 }
 
+// SetGlobalLogConfig sets the global config with the supplied config
+func SetGlobalLogConfig(config *Config) error {
+	if config == nil {
+		return errConfigNil
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	globalLogConfig = config
+	return nil
+}
+
+// SetLogPath sets the log path for writing to file
+func SetLogPath(newLogPath string) error {
+	if newLogPath == "" {
+		return errLogPathIsEmpty
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	logPath = newLogPath
+	return nil
+}
+
+// GetLogPath returns path of log file
+func GetLogPath() string {
+	mu.RLock()
+	defer mu.RUnlock()
+	return logPath
+}
+
 func configureSubLogger(subLogger, levels string, output *multiWriterHolder) error {
-	RWM.Lock()
-	defer RWM.Unlock()
+	mu.Lock()
+	defer mu.Unlock()
 	logPtr, found := SubLoggers[subLogger]
 	if !found {
 		return fmt.Errorf("sub logger %v not found", subLogger)
@@ -107,8 +139,8 @@ func SetupGlobalLogger(workerCount int) error {
 			errInvalidWorkerCount, workerCount)
 	}
 
-	RWM.Lock()
-	defer RWM.Unlock()
+	mu.Lock()
+	defer mu.Unlock()
 
 	if workerCount > 1 {
 		close(workerShutdown)
@@ -120,23 +152,36 @@ func SetupGlobalLogger(workerCount int) error {
 		}
 	}
 
-	if FileLoggingConfiguredCorrectly {
-		GlobalLogFile = &Rotate{
-			FileName: GlobalLogConfig.LoggerFileConfig.FileName,
-			MaxSize:  GlobalLogConfig.LoggerFileConfig.MaxSize,
-			Rotate:   GlobalLogConfig.LoggerFileConfig.Rotate,
+	if fileLoggingConfiguredCorrectly {
+		globalLogFile = &Rotate{
+			FileName: globalLogConfig.LoggerFileConfig.FileName,
+			MaxSize:  globalLogConfig.LoggerFileConfig.MaxSize,
+			Rotate:   globalLogConfig.LoggerFileConfig.Rotate,
 		}
 	}
 
 	for _, subLogger := range SubLoggers {
-		subLogger.SetLevels(splitLevel(GlobalLogConfig.Level))
-		writers, err := getWriters(&GlobalLogConfig.SubLoggerConfig)
+		subLogger.SetLevels(splitLevel(globalLogConfig.Level))
+		writers, err := getWriters(&globalLogConfig.SubLoggerConfig)
 		if err != nil {
 			return err
 		}
 		subLogger.SetOutput(writers)
 	}
-	logger = newLogger(GlobalLogConfig)
+	logger = newLogger(globalLogConfig)
+	return nil
+}
+
+// SetFileLoggingState can set file logging state if it is correctly configured
+// or not. This will bypass the ability to log to file if set as false.
+func SetFileLoggingState(correctlyConfigured bool) error {
+	mu.Lock()
+	defer mu.Unlock()
+
+	if fileLoggingConfiguredCorrectly == correctlyConfigured {
+		return fmt.Errorf("%w as %v", errLoggingStateAlreadySet, correctlyConfigured)
+	}
+
 	return nil
 }
 
@@ -171,9 +216,9 @@ func registerNewSubLogger(subLogger string) *SubLogger {
 		output: tempHolder,
 		levels: splitLevel("INFO|WARN|DEBUG|ERROR"),
 	}
-	RWM.Lock()
+	mu.Lock()
 	SubLoggers[subLogger] = temp
-	RWM.Unlock()
+	mu.Unlock()
 	return temp
 }
 

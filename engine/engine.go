@@ -394,8 +394,11 @@ func (bot *Engine) Start() error {
 	gctlog.Debugf(gctlog.Global, "Bot '%s' started.\n", bot.Config.Name)
 	gctlog.Debugf(gctlog.Global, "Using data dir: %s\n", bot.Settings.DataDir)
 	if *bot.Config.Logging.Enabled && strings.Contains(bot.Config.Logging.Output, "file") {
-		gctlog.Debugf(gctlog.Global, "Using log file: %s\n",
-			filepath.Join(gctlog.LogPath, bot.Config.Logging.LoggerFileConfig.FileName))
+		gctlog.Debugf(gctlog.Global,
+			"Using log file: %s\n",
+			filepath.Join(gctlog.GetLogPath(),
+				bot.Config.Logging.LoggerFileConfig.FileName),
+		)
 	}
 	gctlog.Debugf(gctlog.Global,
 		"Using %d out of %d logical processors for runtime performance\n",
