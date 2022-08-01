@@ -118,7 +118,8 @@ func (bt *BackTest) handleEvent(ev common.EventHandler) error {
 		err = bt.processOrderEvent(eType, funds.FundReleaser())
 	case fill.Event:
 		err = bt.processFillEvent(eType, funds.FundReleaser())
-		if bt.isLive {
+		if bt.LiveDataHandler != nil {
+			// output log data per interval instead of at the end
 			var result string
 			result, err = bt.Statistic.CreateLog(eType)
 			if err != nil {

@@ -4,6 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/engine"
+	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -20,6 +25,207 @@ import (
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
+
+// LiveHandler is all the functionality required in order to
+// run a backtester with live data
+type LiveHandler interface {
+	AppendDataSource(item *gctkline.Item, exch gctexchange.IBotExchange, dataType int64) error
+	FetchLatestData() error
+	Start() error
+	IsRunning() bool
+	DataFetcher() error
+	Stop() error
+	Reset()
+	// AppendUSDTrackingData ??
+}
+
+// LiveDataChecker is responsible for managing all data retrieval
+// for a live data option
+type LiveDataChecker struct {
+	m                  sync.Mutex
+	wg                 sync.WaitGroup
+	started            uint32
+	exchangeManager    *engine.ExchangeManager
+	exchangesToCheck   []liveExchangeDataHandler
+	eventCheckInterval time.Duration
+	eventTimeout       time.Duration
+	dataCheckInterval  time.Duration
+	shutdown           chan struct{}
+}
+
+type LiveExchangeHandler interface {
+	UpdateData() error
+}
+
+type liveExchangeDataHandler struct {
+	m              sync.Mutex
+	exchange       gctexchange.IBotExchange
+	asset          asset.Item
+	pair           currency.Pair
+	underlyingPair currency.Pair
+	pairCandles    kline.DataFromKline
+	dataType       int64
+}
+
+func SetupLiveDataHandler(em *engine.ExchangeManager, evenCheckInterval, eventTimeout, dataCheckInterval time.Duration) (LiveHandler, error) {
+	if em == nil {
+		return nil, fmt.Errorf("%w engine manager", gctcommon.ErrNilPointer)
+	}
+
+	return &LiveDataChecker{
+		exchangeManager:    em,
+		eventCheckInterval: evenCheckInterval,
+		eventTimeout:       eventTimeout,
+		dataCheckInterval:  dataCheckInterval,
+	}, nil
+}
+
+func (l *LiveDataChecker) Start() error {
+	if l == nil {
+		return gctcommon.ErrNilPointer
+	}
+	if atomic.CompareAndSwapUint32(&l.started, 0, 1) {
+		return engine.ErrSubSystemAlreadyStarted
+	}
+	var err error
+	l.wg.Add(1)
+	go func() {
+		err := l.DataFetcher()
+		if err != nil {
+			return
+		}
+	}()
+
+	return err
+}
+
+func (l *LiveDataChecker) IsRunning() bool {
+	return l != nil && atomic.LoadUint32(&l.started) == 1
+}
+
+func (l *LiveDataChecker) Stop() error {
+	if l == nil {
+		return gctcommon.ErrNilPointer
+	}
+	if atomic.CompareAndSwapUint32(&l.started, 0, 1) {
+		return engine.ErrSubSystemAlreadyStarted
+	}
+	l.m.Lock()
+	defer l.m.Unlock()
+	close(l.shutdown)
+	l.wg.Wait()
+	l.shutdown = make(chan struct{})
+	return nil
+}
+
+func (l *LiveDataChecker) DataFetcher() error {
+	checkTimer := time.NewTimer(0)
+	timeoutTimer := time.NewTimer(l.eventTimeout)
+	var err error
+	for {
+		select {
+		case <-l.shutdown:
+			return nil
+		case <-timeoutTimer.C:
+			return errLiveDataTimeout
+		case <-checkTimer.C:
+			err = l.FetchLatestData()
+			if err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func (l *LiveDataChecker) Reset() {
+	if l == nil {
+		return
+	}
+	l.m.Lock()
+	defer l.m.Unlock()
+	l.dataCheckInterval = 0
+	l.eventCheckInterval = 0
+	l.eventTimeout = 0
+	l.exchangeManager = nil
+	l.exchangesToCheck = nil
+}
+
+func (l *LiveDataChecker) AppendDataSource(item *gctkline.Item, exch gctexchange.IBotExchange, dataType int64) error {
+	if l == nil {
+		return fmt.Errorf("%w LiveDataChecker", gctcommon.ErrNilPointer)
+	}
+	l.m.Lock()
+	defer l.m.Unlock()
+
+	for i := range l.exchangesToCheck {
+		if strings.ToLower(l.exchangesToCheck[i].exchange.GetName()) == item.Exchange &&
+			l.exchangesToCheck[i].asset == item.Asset &&
+			l.exchangesToCheck[i].pair.Equal(item.Pair) {
+			return funding.ErrAlreadyExists
+		}
+	}
+
+	dataeroo := kline.DataFromKline{
+		Item: *item,
+	}
+	underlying := currency.EMPTYPAIR
+	if item.Asset.IsFutures() {
+		curr, _, err := exch.GetCollateralCurrencyForContract(item.Asset, item.Pair)
+		if err != nil {
+			return err
+		}
+		underlying.Base = item.Pair.Base
+		underlying.Quote = curr
+	}
+
+	l.exchangesToCheck = append(l.exchangesToCheck, liveExchangeDataHandler{
+		exchange:       exch,
+		asset:          item.Asset,
+		pair:           item.Pair,
+		pairCandles:    dataeroo,
+		dataType:       dataType,
+		underlyingPair: underlying,
+	})
+	return nil
+}
+
+func (l *LiveDataChecker) FetchLatestData() error {
+	if l == nil {
+		return fmt.Errorf("%w LiveDataChecker", gctcommon.ErrNilPointer)
+	}
+	l.m.Lock()
+	defer l.m.Unlock()
+	var err error
+	for i := range l.exchangesToCheck {
+		err = l.exchangesToCheck[i].loadCandleData()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *liveExchangeDataHandler) loadCandleData() error {
+	if c == nil {
+		return gctcommon.ErrNilPointer
+	}
+	c.m.Lock()
+	defer c.m.Unlock()
+	candles, err := live.LoadData(context.TODO(),
+		c.exchange,
+		c.dataType,
+		c.pairCandles.Item.Interval.Duration(),
+		c.pair,
+		c.asset)
+	if err != nil {
+		return err
+	}
+	if len(candles.Candles) == 0 {
+		return nil
+	}
+	c.pairCandles.AppendResults(candles)
+	return c.pairCandles.Load()
+}
 
 // RunLive is a proof of concept function that does not yet support multi currency usage
 // It runs by constantly checking for new live datas and running through the list of events

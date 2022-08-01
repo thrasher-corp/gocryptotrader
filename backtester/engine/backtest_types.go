@@ -36,10 +36,10 @@ type BackTest struct {
 	Exchange        exchange.ExecutionHandler
 	Statistic       statistics.Handler
 	EventQueue      eventholder.EventHolder
+	LiveDataHandler LiveHandler
 	Reports         report.Handler
 	Funding         funding.IFundingManager
 	exchangeManager *engine.ExchangeManager
 	orderManager    *engine.OrderManager
 	databaseManager *engine.DatabaseConnectionManager
-	isLive          bool
 }
