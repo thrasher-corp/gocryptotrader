@@ -27,7 +27,7 @@ const (
 	bybitWSBaseURL      = "wss://stream.bybit.com/"
 	wsSpotPublicTopicV2 = "spot/quote/ws/v2"
 	wsSpotPrivate       = "spot/ws"
-	bybitWebsocketTimer = 30 * time.Second
+	bybitWebsocketTimer = 20 * time.Second
 	wsOrderbook         = "depth"
 	wsTicker            = "bookTicker"
 	wsTrades            = "trade"

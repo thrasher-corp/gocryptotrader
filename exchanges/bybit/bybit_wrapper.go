@@ -1347,6 +1347,21 @@ func (by *Bybit) GetDepositAddress(ctx context.Context, cryptocurrency currency.
 	return nil, fmt.Errorf("deposit address not found for currency: %s chain: %s", cryptocurrency, chain)
 }
 
+// GetAvailableTransferChains returns the available transfer blockchains for the specific
+// cryptocurrency
+func (by *Bybit) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
+	info, err := by.GetDepositAddressForCurrency(ctx, cryptocurrency.String())
+	if err != nil {
+		return nil, err
+	}
+
+	availableChains := make([]string, len(info.Chains))
+	for x := range info.Chains {
+		availableChains[x] = info.Chains[x].Chain
+	}
+	return availableChains, nil
+}
+
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (by *Bybit) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {

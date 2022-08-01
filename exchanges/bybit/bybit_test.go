@@ -2977,6 +2977,18 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
+func TestGetAvailableTransferChains(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := b.GetAvailableTransferChains(context.Background(), currency.USDT)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
