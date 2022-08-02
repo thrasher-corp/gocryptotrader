@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
@@ -26,8 +27,9 @@ import (
 // New returns a new BackTest instance
 func New() *BackTest {
 	return &BackTest{
-		shutdown: make(chan struct{}),
-		Datas:    &data.HandlerPerCurrency{},
+		shutdown:   make(chan struct{}),
+		Datas:      &data.HandlerPerCurrency{},
+		EventQueue: &eventholder.Holder{},
 	}
 }
 
@@ -44,6 +46,8 @@ func (bt *BackTest) Reset() {
 	bt.databaseManager = nil
 }
 
+var hasProcessedDataAtOffset = make(map[int64]bool)
+
 // Run will iterate over loaded data events
 // save them and then handle the event based on its type
 func (bt *BackTest) Run() {
@@ -51,7 +55,6 @@ dataLoadingIssue:
 	for ev := bt.EventQueue.NextEvent(); ; ev = bt.EventQueue.NextEvent() {
 		if ev == nil {
 			dataHandlerMap := bt.Datas.GetAllData()
-			var hasProcessedData bool
 			for exchangeName, exchangeMap := range dataHandlerMap {
 				for assetItem, assetMap := range exchangeMap {
 					for currencyPair, dataHandler := range assetMap {
@@ -62,14 +65,17 @@ dataLoadingIssue:
 							}
 							break dataLoadingIssue
 						}
-						if bt.Strategy.UsingSimultaneousProcessing() && hasProcessedData {
+						o := d.GetOffset()
+						if bt.Strategy.UsingSimultaneousProcessing() && hasProcessedDataAtOffset[o] {
 							// only append one event, as simultaneous processing
 							// will retrieve all relevant events to process under
 							// processSimultaneousDataEvents()
 							continue
 						}
 						bt.EventQueue.AppendEvent(d)
-						hasProcessedData = true
+						if !hasProcessedDataAtOffset[o] {
+							hasProcessedDataAtOffset[o] = true
+						}
 					}
 				}
 			}
@@ -130,7 +136,7 @@ func (bt *BackTest) handleEvent(ev common.EventHandler) error {
 
 		}
 	default:
-		return fmt.Errorf("handleEvent %w %T received, could not process",
+		err = fmt.Errorf("handleEvent %w %T received, could not process",
 			errUnhandledDatatype,
 			ev)
 	}

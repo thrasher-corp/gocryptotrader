@@ -70,18 +70,21 @@ func (d *DataFromKline) AppendResults(ki *gctkline.Item) {
 			d.addedTimes[ki.Candles[i].Time.UnixNano()] = true
 		}
 	}
+	if len(gctCandles) == 0 {
+		return
+	}
 	latestOffset := len(d.StreamClose()) + 1
 	klineData := make([]common.DataEventHandler, len(gctCandles))
-	candleTimes := make([]time.Time, len(gctCandles))
 	for i := range gctCandles {
 		klineData[i] = &kline.Kline{
 			Base: &event.Base{
-				Offset:       int64(latestOffset + i),
-				Exchange:     ki.Exchange,
-				Time:         gctCandles[i].Time,
-				Interval:     ki.Interval,
-				CurrencyPair: ki.Pair,
-				AssetType:    ki.Asset,
+				Offset:         int64(latestOffset + i),
+				Exchange:       ki.Exchange,
+				Time:           gctCandles[i].Time,
+				Interval:       ki.Interval,
+				CurrencyPair:   ki.Pair,
+				AssetType:      ki.Asset,
+				UnderlyingPair: ki.UnderlyingPair,
 			},
 			Open:             decimal.NewFromFloat(gctCandles[i].Open),
 			High:             decimal.NewFromFloat(gctCandles[i].High),
@@ -90,7 +93,6 @@ func (d *DataFromKline) AppendResults(ki *gctkline.Item) {
 			Volume:           decimal.NewFromFloat(gctCandles[i].Volume),
 			ValidationIssues: gctCandles[i].ValidationIssues,
 		}
-		candleTimes[i] = gctCandles[i].Time
 	}
 	if d.RangeHolder != nil {
 		// offline data check when there is a known range
@@ -101,10 +103,7 @@ func (d *DataFromKline) AppendResults(ki *gctkline.Item) {
 			}
 		}
 	}
-	if len(gctCandles) == 0 {
-		return
-	}
-	log.Debugf(common.Data, "appending %v candle intervals: %v", len(gctCandles), candleTimes)
+
 	d.AppendStream(klineData...)
 	d.SortStream()
 }

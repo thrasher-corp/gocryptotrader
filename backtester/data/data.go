@@ -67,8 +67,8 @@ func (b *Base) GetStream() []common.DataEventHandler {
 }
 
 // GetBase will return the base
-func (b Base) GetBase() Base {
-	return b
+func (b *Base) GetBase() Base {
+	return *b
 }
 
 // Offset returns the current iteration of candle data the backtester is assessing
@@ -93,7 +93,7 @@ func (b *Base) AppendStream(s ...common.DataEventHandler) {
 }
 
 // Next will return the next event in the list and also shift the offset one
-func (b *Base) Next() (dh common.DataEventHandler) {
+func (b *Base) Next() common.DataEventHandler {
 	if len(b.stream) <= b.offset {
 		return nil
 	}

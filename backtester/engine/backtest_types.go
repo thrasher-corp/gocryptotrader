@@ -2,6 +2,7 @@ package engine
 
 import (
 	"errors"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/live"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
@@ -21,7 +22,6 @@ var (
 	errNoDataSource        = errors.New("no data settings set in config")
 	errIntervalUnset       = errors.New("candle interval unset")
 	errUnhandledDatatype   = errors.New("unhandled datatype")
-	errLiveDataTimeout     = errors.New("shutting down due to no data returned in")
 	errNilData             = errors.New("nil data received")
 	errNilExchange         = errors.New("nil exchange received")
 )
@@ -36,7 +36,7 @@ type BackTest struct {
 	Exchange        exchange.ExecutionHandler
 	Statistic       statistics.Handler
 	EventQueue      eventholder.EventHolder
-	LiveDataHandler LiveHandler
+	LiveDataHandler live.Handler
 	Reports         report.Handler
 	Funding         funding.IFundingManager
 	exchangeManager *engine.ExchangeManager

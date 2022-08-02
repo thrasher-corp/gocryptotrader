@@ -1,8 +1,6 @@
 package eventholder
 
 import (
-	"time"
-
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 )
 
@@ -26,16 +24,4 @@ func (e *Holder) NextEvent() (i common.EventHandler) {
 	e.Queue = e.Queue[1:]
 
 	return i
-}
-
-func (e *Holder) GetRunTimer() time.Duration {
-	return e.RunTimer
-}
-
-func (e *Holder) GetNewEventTimeout() time.Duration {
-	return e.NewEventTimeout
-}
-
-func (e *Holder) GetDataCheckTimer() time.Duration {
-	return e.DataCheckTimer
 }

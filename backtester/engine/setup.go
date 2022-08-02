@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	live2 "github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/live"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -18,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/csv"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/database"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/live"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange/slippage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
@@ -52,7 +52,12 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 	var err error
 	bt := New()
 	bt.exchangeManager = engine.SetupExchangeManager()
-	bt.orderManager, err = engine.SetupOrderManager(bt.exchangeManager, &engine.CommunicationManager{}, &sync.WaitGroup{}, false, false)
+	bt.orderManager, err = engine.SetupOrderManager(
+		bt.exchangeManager,
+		&engine.CommunicationManager{},
+		&sync.WaitGroup{},
+		false,
+		false)
 	if err != nil {
 		return nil, err
 	}
@@ -67,6 +72,20 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 		}
 	}
 
+	bt.Datas.Setup()
+	if cfg.DataSettings.LiveData != nil {
+		bt.LiveDataHandler, err = live2.SetupLiveDataHandler(
+			bt.exchangeManager,
+			bt.Datas,
+			cfg.DataSettings.LiveData.NewEventTimeout,
+			cfg.DataSettings.LiveData.NewEventTimeout,
+			cfg.DataSettings.LiveData.DataCheckTimer,
+			verbose)
+		if err != nil {
+			return nil, err
+		}
+		defer bt.LiveDataHandler.Start()
+	}
 	reports := &report.Data{
 		Config:       cfg,
 		TemplatePath: templatePath,
@@ -425,6 +444,11 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 	log.Infoln(common.Setup, "setting exchange settings...")
 	resp := exchange.Exchange{}
 
+	realOrders := false
+	if cfg.DataSettings.LiveData != nil {
+		realOrders = cfg.DataSettings.LiveData.RealOrders
+	}
+
 	for i := range cfg.CurrencySettings {
 		exch, pair, a, err := bt.loadExchangePairAssetBase(
 			cfg.CurrencySettings[i].ExchangeName,
@@ -436,7 +460,6 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		}
 
 		exchangeName := strings.ToLower(exch.GetName())
-		bt.Datas.Setup()
 		klineData, err := bt.loadData(cfg, exch, pair, a, cfg.CurrencySettings[i].USDTrackingPair)
 		if err != nil {
 			return resp, err
@@ -497,11 +520,6 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		}
 		if cfg.CurrencySettings[i].MaximumSlippagePercent.LessThan(cfg.CurrencySettings[i].MinimumSlippagePercent) {
 			cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
-		}
-
-		realOrders := false
-		if cfg.DataSettings.LiveData != nil {
-			realOrders = cfg.DataSettings.LiveData.RealOrders
 		}
 
 		buyRule := exchange.MinMax{
@@ -635,10 +653,24 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		return nil, err
 	}
 
-	eventQueue := &eventholder.Holder{}
-
 	log.Infof(common.Setup, "loading data for %v %v %v...\n", exch.GetName(), a, fPair)
 	resp := &kline.DataFromKline{}
+	underlyingPair := currency.EMPTYPAIR
+	if a.IsFutures() {
+		// returning the collateral currency along with using the
+		// fPair base creates a pair that links the futures contract to
+		// is underlying pair
+		// eg BTC-PERP on FTX has a collateral currency of USD
+		// taking the BTC base and USD as quote, allows linking
+		// BTC-USD and BTC-PERP
+		var curr currency.Code
+		curr, _, err = exch.GetCollateralCurrencyForContract(a, fPair)
+		if err != nil {
+			return resp, err
+		}
+		underlyingPair = currency.NewPair(fPair.Base, curr)
+	}
+
 	switch {
 	case cfg.DataSettings.CSVData != nil:
 		if cfg.DataSettings.Interval <= 0 {
@@ -729,7 +761,6 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			return resp, err
 		}
 	case cfg.DataSettings.LiveData != nil:
-		bt.isLive = true
 		err = setExchangeCredentials(cfg, b)
 		if err != nil {
 			return nil, err
@@ -739,39 +770,20 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if err != nil {
 			return nil, err
 		}
+		candles.UnderlyingPair = underlyingPair
 		resp.Item = *candles
 		resp.SetLive(true)
-		eventQueue.NewEventTimeout = cfg.DataSettings.LiveData.NewEventTimeout
-		eventQueue.DataCheckTimer = cfg.DataSettings.LiveData.DataCheckTimer
-		eventQueue.RunTimer = cfg.DataSettings.LiveData.RunTimer
-		bt.EventQueue = eventQueue
-		go bt.loadLiveDataLoop(
-			resp,
-			cfg,
+		err = bt.LiveDataHandler.AppendDataSource(
+			candles,
 			exch,
-			fPair,
-			a,
 			dataType)
+		return resp, err
 	}
 	if resp == nil {
 		return nil, fmt.Errorf("processing error, response returned nil")
 	}
 
-	if a.IsFutures() {
-		// returning the collateral currency along with using the
-		// fPair base creates a pair that links the futures contract to
-		// is underlying pair
-		// eg BTC-PERP on FTX has a collateral currency of USD
-		// taking the BTC base and USD as quote, allows linking
-		// BTC-USD and BTC-PERP
-		var curr currency.Code
-		curr, _, err = exch.GetCollateralCurrencyForContract(a, fPair)
-		if err != nil {
-			return resp, err
-		}
-		resp.Item.UnderlyingPair = currency.NewPair(fPair.Base, curr)
-	}
-
+	resp.Item.UnderlyingPair = underlyingPair
 	err = b.ValidateKline(fPair, a, resp.Item.Interval)
 	if err != nil {
 		if dataType != common.DataTrade || !strings.EqualFold(err.Error(), "interval not supported") {
@@ -784,7 +796,6 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		return nil, err
 	}
 	bt.Reports.AddKlineItem(&resp.Item)
-	bt.EventQueue = eventQueue
 	return resp, nil
 }
 
