@@ -1336,7 +1336,7 @@ func (by *Bybit) GetDepositAddress(ctx context.Context, cryptocurrency currency.
 	}
 
 	for x := range dAddressInfo.Chains {
-		if dAddressInfo.Chains[x].Chain == chain {
+		if dAddressInfo.Chains[x].Chain == chain || chain == "" {
 			return &deposit.Address{
 				Address: dAddressInfo.Chains[x].DepositAddress,
 				Tag:     dAddressInfo.Chains[x].DepositTag,
