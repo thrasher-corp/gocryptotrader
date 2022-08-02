@@ -208,7 +208,7 @@ func registerNewSubLogger(subLogger string) *SubLogger {
 
 // register all loggers at package init()
 func init() {
-	// Start persistant worker to handle logs
+	// Start persistent worker to handle logs
 	workerWg.Add(1)
 	go loggerWorker()
 

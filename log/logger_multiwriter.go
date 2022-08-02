@@ -71,7 +71,7 @@ func loggerWorker() {
 			}
 			buffer = append(buffer, j.Spacer...)
 			buffer = append(buffer, data...)
-			if len(data) == 0 || data[len(data)-1] != '\n' {
+			if data == "" || data[len(data)-1] != '\n' {
 				buffer = append(buffer, '\n')
 			}
 
