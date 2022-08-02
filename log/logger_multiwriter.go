@@ -52,41 +52,33 @@ func loggerWorker() {
 	buffer := make([]byte, 0, defaultBufferCapacity)
 	var n int
 	var err error
-	for {
-		select {
-		case j := <-jobsChannel:
-			if j == nil {
-				return
-			}
-			data := j.fn()
-			buffer = append(buffer, j.Header...)
-			if j.ShowLogSystemName {
-				buffer = append(buffer, j.Spacer...)
-				buffer = append(buffer, j.SlName...)
-			}
+	for j := range jobsChannel {
+		data := j.fn()
+		buffer = append(buffer, j.Header...)
+		if j.ShowLogSystemName {
 			buffer = append(buffer, j.Spacer...)
-			if j.TimestampFormat != "" {
-				buffer = time.Now().AppendFormat(buffer, j.TimestampFormat)
-			}
-			buffer = append(buffer, j.Spacer...)
-			buffer = append(buffer, data...)
-			if data == "" || data[len(data)-1] != '\n' {
-				buffer = append(buffer, '\n')
-			}
-
-			for x := range j.Writers {
-				n, err = j.Writers[x].Write(buffer)
-				if err != nil {
-					displayError(fmt.Errorf("%T %w", j.Writers[x], err))
-				} else if n != len(buffer) {
-					displayError(fmt.Errorf("%T %w", j.Writers[x], io.ErrShortWrite))
-				}
-			}
-			buffer = buffer[:0] // Clean buffer
-			jobsPool.Put(j)
-		case <-workerShutdown:
-			return
+			buffer = append(buffer, j.SlName...)
 		}
+		buffer = append(buffer, j.Spacer...)
+		if j.TimestampFormat != "" {
+			buffer = time.Now().AppendFormat(buffer, j.TimestampFormat)
+		}
+		buffer = append(buffer, j.Spacer...)
+		buffer = append(buffer, data...)
+		if data == "" || data[len(data)-1] != '\n' {
+			buffer = append(buffer, '\n')
+		}
+
+		for x := range j.Writers {
+			n, err = j.Writers[x].Write(buffer)
+			if err != nil {
+				displayError(fmt.Errorf("%T %w", j.Writers[x], err))
+			} else if n != len(buffer) {
+				displayError(fmt.Errorf("%T %w", j.Writers[x], io.ErrShortWrite))
+			}
+		}
+		buffer = buffer[:0] // Clean buffer
+		jobsPool.Put(j)
 	}
 }
 

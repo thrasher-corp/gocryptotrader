@@ -117,8 +117,7 @@ func TestSetLogPath(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	path := GetLogPath()
-	if path != tempDir {
+	if path := GetLogPath(); path != tempDir {
 		t.Fatalf("received: '%v' but expected: '%v'", path, tempDir)
 	}
 }

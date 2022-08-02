@@ -36,8 +36,7 @@ var (
 	// LogPath system path to store log files in
 	logPath string
 
-	workerWg       sync.WaitGroup
-	workerShutdown = make(chan struct{})
+	workerWg sync.WaitGroup
 
 	// read/write mutex for logger
 	mu = &sync.RWMutex{}
