@@ -11,9 +11,8 @@ import (
 )
 
 var (
-	errSubloggerConfigIsNil  = errors.New("sublogger config is nil")
-	errUnhandledOutputWriter = errors.New("unhandled output writer")
-	// errInvalidWorkerCount     = errors.New("invalid worker count")
+	errSubloggerConfigIsNil   = errors.New("sublogger config is nil")
+	errUnhandledOutputWriter  = errors.New("unhandled output writer")
 	errLoggingStateAlreadySet = errors.New("correct file logging bool state already set")
 	errLogPathIsEmpty         = errors.New("log path is empty")
 	errConfigNil              = errors.New("config is nil")
@@ -134,23 +133,8 @@ func SetupSubLoggers(s []SubLoggerConfig) error {
 
 // SetupGlobalLogger setup the global loggers with the default global config values
 func SetupGlobalLogger() error {
-	// if workerCount <= 0 {
-	// 	return fmt.Errorf("%w must be >= 1, received '%v'",
-	// 		errInvalidWorkerCount, workerCount)
-	// }
-
 	mu.Lock()
 	defer mu.Unlock()
-
-	// if workerCount > 1 {
-	// 	close(workerShutdown)
-	// 	workerWg.Wait()
-	// 	workerShutdown = make(chan struct{})
-	// 	for x := 0; x < workerCount; x++ {
-	// 		workerWg.Add(1)
-	// 		go loggerWorker()
-	// 	}
-	// }
 
 	if fileLoggingConfiguredCorrectly {
 		globalLogFile = &Rotate{
