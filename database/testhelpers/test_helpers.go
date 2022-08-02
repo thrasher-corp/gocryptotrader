@@ -118,12 +118,6 @@ func migrateDB(db *sql.DB) error {
 
 // EnableVerboseTestOutput enables debug output for SQL queries
 func EnableVerboseTestOutput() error {
-	// log.RWM.Lock()
-	// log.GlobalLogConfig = log.GenDefaultSettings()
-	// log.RWM.Unlock()
-	// if err := log.SetupGlobalLogger(runtime.GOMAXPROCS(-1)); err != nil {
-	// 	return err
-	// }
 	boil.DebugMode = true
 	boil.DebugWriter = database.Logger{}
 	return nil
