@@ -137,9 +137,17 @@ func TestSetFileLoggingState(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
+	if !getFileLoggingState() {
+		t.Fatal("unexpected value")
+	}
+
 	err = SetFileLoggingState(false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if getFileLoggingState() {
+		t.Fatal("unexpected value")
 	}
 }
 
