@@ -49,7 +49,7 @@ func (r *Rotate) Write(output []byte) (n int, err error) {
 }
 
 func (r *Rotate) openOrCreateFile(n int64) error {
-	logFile := filepath.Join(logPath, r.FileName)
+	logFile := filepath.Join(GetLogPath(), r.FileName)
 	info, err := os.Stat(logFile)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -79,12 +79,12 @@ func (r *Rotate) openNew() error {
 	if r.FileName == "" {
 		return fmt.Errorf("cannot open new file: %w", errFileNameIsEmpty)
 	}
-	name := filepath.Join(logPath, r.FileName)
+	name := filepath.Join(GetLogPath(), r.FileName)
 	_, err := os.Stat(name)
 
 	if err == nil {
 		timestamp := time.Now().Format("2006-01-02T15-04-05")
-		newName := filepath.Join(logPath, timestamp+"-"+r.FileName)
+		newName := filepath.Join(GetLogPath(), timestamp+"-"+r.FileName)
 
 		err = file.Move(name, newName)
 		if err != nil {

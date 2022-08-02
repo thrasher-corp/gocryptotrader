@@ -33,7 +33,7 @@ func getWriters(s *SubLoggerConfig) (*multiWriterHolder, error) {
 		case "stderr":
 			writer = os.Stderr
 		case "file":
-			if fileLoggingConfiguredCorrectly {
+			if getFileLogginState() {
 				writer = globalLogFile
 			}
 		default:
@@ -167,6 +167,12 @@ func SetFileLoggingState(correctlyConfigured bool) error {
 	}
 	fileLoggingConfiguredCorrectly = correctlyConfigured
 	return nil
+}
+
+func getFileLogginState() bool {
+	mu.RLock()
+	defer mu.RUnlock()
+	return fileLoggingConfiguredCorrectly
 }
 
 func splitLevel(level string) (l Levels) {

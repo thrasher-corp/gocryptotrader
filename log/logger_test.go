@@ -57,7 +57,10 @@ func TestMain(m *testing.M) {
 		log.Fatal("Cannot create temporary file", err)
 	}
 	log.Println("temp dir created at:", tempDir)
-	logPath = tempDir
+	err = SetLogPath(tempDir)
+	if err != nil {
+		log.Fatal("Cannot set log path", err)
+	}
 	r := m.Run()
 	err = CloseLogger()
 	if err != nil {

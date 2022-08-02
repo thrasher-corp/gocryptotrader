@@ -1177,7 +1177,7 @@ func (c *Config) CheckLoggerConfig() error {
 		}
 		err := log.SetFileLoggingState( /*Is correctly configured*/ true)
 		if err != nil {
-			return err
+			log.Warnf(log.ConfigMgr, "Failed to set state: %v", err)
 		}
 	}
 
