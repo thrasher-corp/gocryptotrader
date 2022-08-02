@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
@@ -81,15 +80,20 @@ func main() {
 	if !colourOutput {
 		common.PurgeColours()
 	}
-	var bt *backtest.BackTest
-	var cfg *config.Config
-	log.GlobalLogConfig = log.GenDefaultSettings()
-	log.GlobalLogConfig.AdvancedSettings.ShowLogSystemName = convert.BoolPtr(logSubHeader)
-	log.GlobalLogConfig.AdvancedSettings.Headers.Info = common.ColourInfo + "[INFO]" + common.ColourDefault
-	log.GlobalLogConfig.AdvancedSettings.Headers.Warn = common.ColourWarn + "[WARN]" + common.ColourDefault
-	log.GlobalLogConfig.AdvancedSettings.Headers.Debug = common.ColourDebug + "[DEBUG]" + common.ColourDefault
-	log.GlobalLogConfig.AdvancedSettings.Headers.Error = common.ColourError + "[ERROR]" + common.ColourDefault
-	err = log.SetupGlobalLogger(runtime.GOMAXPROCS(-1))
+
+	defaultLogSettings := log.GenDefaultSettings()
+	defaultLogSettings.AdvancedSettings.ShowLogSystemName = convert.BoolPtr(logSubHeader)
+	defaultLogSettings.AdvancedSettings.Headers.Info = common.ColourInfo + "[INFO]" + common.ColourDefault
+	defaultLogSettings.AdvancedSettings.Headers.Warn = common.ColourWarn + "[WARN]" + common.ColourDefault
+	defaultLogSettings.AdvancedSettings.Headers.Debug = common.ColourDebug + "[DEBUG]" + common.ColourDefault
+	defaultLogSettings.AdvancedSettings.Headers.Error = common.ColourError + "[ERROR]" + common.ColourDefault
+	err = log.SetGlobalLogConfig(defaultLogSettings)
+	if err != nil {
+		fmt.Printf("Could not setup global logger. Error: %v.\n", err)
+		os.Exit(1)
+	}
+
+	err = log.SetupGlobalLogger()
 	if err != nil {
 		fmt.Printf("Could not setup global logger. Error: %v.\n", err)
 		os.Exit(1)
@@ -101,7 +105,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	cfg, err = config.ReadConfigFromFile(configPath)
+	cfg, err := config.ReadConfigFromFile(configPath)
 	if err != nil {
 		fmt.Printf("Could not read config. Error: %v.\n", err)
 		os.Exit(1)
@@ -115,7 +119,8 @@ func main() {
 		fmt.Printf("Could not read config. Error: %v.\n", err)
 		os.Exit(1)
 	}
-	bt, err = backtest.NewFromConfig(cfg, templatePath, reportOutput, verbose)
+
+	bt, err := backtest.NewFromConfig(cfg, templatePath, reportOutput, verbose)
 	if err != nil {
 		fmt.Printf("Could not setup backtester from config. Error: %v.\n", err)
 		os.Exit(1)

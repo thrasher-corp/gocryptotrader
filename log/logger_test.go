@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -25,7 +24,7 @@ func TestMain(m *testing.M) {
 		log.Fatal("Cannot create temporary file", err)
 	}
 	log.Println("temp dir created at:", tempDir)
-	LogPath = tempDir
+	logPath = tempDir
 	r := m.Run()
 	err = CloseLogger()
 	if err != nil {
@@ -39,7 +38,7 @@ func TestMain(m *testing.M) {
 }
 
 func setupTestLoggers() error {
-	logTest := Config{
+	testConfig := &Config{
 		Enabled: convert.BoolPtr(true),
 		SubLoggerConfig: SubLoggerConfig{
 			Output: "console",
@@ -63,28 +62,31 @@ func setupTestLoggers() error {
 				Output: "stdout",
 			}},
 	}
-	RWM.Lock()
-	GlobalLogConfig = &logTest
-	RWM.Unlock()
-	if err := SetupGlobalLogger(runtime.GOMAXPROCS(-1)); err != nil {
+	err := SetGlobalLogConfig(testConfig)
+	if err != nil {
 		return err
 	}
-	return SetupSubLoggers(logTest.SubLoggers)
+	err = SetupGlobalLogger()
+	if err != nil {
+		return err
+	}
+	return SetupSubLoggers(testConfig.SubLoggers)
 }
 
 func SetupDisabled() error {
-	logTest := Config{
+	testConfig := &Config{
 		Enabled:         convert.BoolPtr(false),
 		SubLoggerConfig: SubLoggerConfig{Output: "console"},
 	}
-	RWM.Lock()
-	GlobalLogConfig = &logTest
-	RWM.Unlock()
-
-	if err := SetupGlobalLogger(runtime.GOMAXPROCS(-1)); err != nil {
+	err := SetGlobalLogConfig(testConfig)
+	if err != nil {
 		return err
 	}
-	return SetupSubLoggers(logTest.SubLoggers)
+	err = SetupGlobalLogger()
+	if err != nil {
+		return err
+	}
+	return SetupSubLoggers(testConfig.SubLoggers)
 }
 
 func TestAddWriter(t *testing.T) {

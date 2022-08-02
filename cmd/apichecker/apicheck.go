@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"os"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -102,11 +101,14 @@ func main() {
 	flag.BoolVar(&verbose, "verbose", false, "increases logging verbosity for API Update Checker")
 	flag.BoolVar(&create, "create", false, "specifies whether to automatically create trello list, card and checklist in a given board")
 	flag.Parse()
-	var err error
-	log.RWM.Lock()
-	log.GlobalLogConfig = log.GenDefaultSettings()
-	log.RWM.Unlock()
-	err = log.SetupGlobalLogger(runtime.GOMAXPROCS(-1))
+
+	err := log.SetGlobalLogConfig(log.GenDefaultSettings())
+	if err != nil {
+		fmt.Printf("Could not setup global logger. Error: %v.\n", err)
+		os.Exit(1)
+	}
+
+	err = log.SetupGlobalLogger()
 	if err != nil {
 		fmt.Printf("Could not setup global logger. Error: %v.\n", err)
 		os.Exit(1)
