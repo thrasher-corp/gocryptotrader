@@ -31,8 +31,8 @@ func CloseLogger() error {
 	mu.Lock()
 	globalLogConfig.Enabled = convert.BoolPtr(false)
 	close(jobsChannel)
-	mu.Unlock()
 	workerWg.Wait()
+	mu.Unlock()
 	return globalLogFile.Close()
 }
 

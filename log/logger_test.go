@@ -14,31 +14,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 )
 
-func TestMain(m *testing.M) {
-	err := setupTestLoggers()
-	if err != nil {
-		log.Fatal("cannot set up test loggers", err)
-	}
-	tempDir, err := ioutil.TempDir(os.TempDir(), "")
-	if err != nil {
-		log.Fatal("Cannot create temporary file", err)
-	}
-	log.Println("temp dir created at:", tempDir)
-	logPath = tempDir
-	r := m.Run()
-	err = CloseLogger()
-	if err != nil {
-		log.Fatalf("CloseLogger() failed %v", err)
-	}
-	err = os.Remove(tempDir)
-	if err != nil {
-		log.Println("failed to remove temp file:", tempDir)
-	}
-	os.Exit(r)
-}
-
-func setupTestLoggers() error {
-	testConfig := &Config{
+var (
+	testConfigEnabled = &Config{
 		Enabled: convert.BoolPtr(true),
 		SubLoggerConfig: SubLoggerConfig{
 			Output: "console",
@@ -62,23 +39,39 @@ func setupTestLoggers() error {
 				Output: "stdout",
 			}},
 	}
-	err := SetGlobalLogConfig(testConfig)
-	if err != nil {
-		return err
-	}
-	err = SetupGlobalLogger()
-	if err != nil {
-		return err
-	}
-	return SetupSubLoggers(testConfig.SubLoggers)
-}
-
-func SetupDisabled() error {
-	testConfig := &Config{
+	testConfigDisabled = &Config{
 		Enabled:         convert.BoolPtr(false),
 		SubLoggerConfig: SubLoggerConfig{Output: "console"},
 	}
-	err := SetGlobalLogConfig(testConfig)
+
+	tempDir string
+)
+
+func TestMain(m *testing.M) {
+	err := setupTestLoggers()
+	if err != nil {
+		log.Fatal("cannot set up test loggers", err)
+	}
+	tempDir, err = ioutil.TempDir(os.TempDir(), "")
+	if err != nil {
+		log.Fatal("Cannot create temporary file", err)
+	}
+	log.Println("temp dir created at:", tempDir)
+	logPath = tempDir
+	r := m.Run()
+	err = CloseLogger()
+	if err != nil {
+		log.Fatalf("CloseLogger() failed %v", err)
+	}
+	err = os.Remove(tempDir)
+	if err != nil {
+		log.Println("failed to remove temp file:", tempDir)
+	}
+	os.Exit(r)
+}
+
+func setupTestLoggers() error {
+	err := SetGlobalLogConfig(testConfigEnabled)
 	if err != nil {
 		return err
 	}
@@ -86,7 +79,66 @@ func SetupDisabled() error {
 	if err != nil {
 		return err
 	}
-	return SetupSubLoggers(testConfig.SubLoggers)
+	return SetupSubLoggers(testConfigEnabled.SubLoggers)
+}
+
+func SetupDisabled() error {
+	err := SetGlobalLogConfig(testConfigDisabled)
+	if err != nil {
+		return err
+	}
+	err = SetupGlobalLogger()
+	if err != nil {
+		return err
+	}
+	return SetupSubLoggers(testConfigDisabled.SubLoggers)
+}
+
+func TestSetGlobalLogConfig(t *testing.T) {
+	t.Parallel()
+	err := SetGlobalLogConfig(nil)
+	if !errors.Is(err, errConfigNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errConfigNil)
+	}
+	err = SetGlobalLogConfig(testConfigEnabled)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+}
+
+func TestSetLogPath(t *testing.T) {
+	t.Parallel()
+	err := SetLogPath("")
+	if !errors.Is(err, errLogPathIsEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errLogPathIsEmpty)
+	}
+	err = SetLogPath(tempDir)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	path := GetLogPath()
+	if path != tempDir {
+		t.Fatalf("received: '%v' but expected: '%v'", path, tempDir)
+	}
+}
+
+func TestSetFileLoggingState(t *testing.T) {
+	t.Parallel()
+	err := SetFileLoggingState(false)
+	if !errors.Is(err, errLoggingStateAlreadySet) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errLoggingStateAlreadySet)
+	}
+
+	err = SetFileLoggingState(true)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	err = SetFileLoggingState(false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 }
 
 func TestAddWriter(t *testing.T) {

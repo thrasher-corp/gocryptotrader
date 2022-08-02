@@ -165,7 +165,7 @@ func SetFileLoggingState(correctlyConfigured bool) error {
 	if fileLoggingConfiguredCorrectly == correctlyConfigured {
 		return fmt.Errorf("%w as %v", errLoggingStateAlreadySet, correctlyConfigured)
 	}
-
+	fileLoggingConfiguredCorrectly = correctlyConfigured
 	return nil
 }
 

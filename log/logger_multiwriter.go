@@ -44,8 +44,7 @@ func (mw *multiWriterHolder) Remove(writer io.Writer) error {
 }
 
 // loggerWorker handles all work staged to be written to confgured io.Writer(s)
-// this must be called as a go routine through SetupGlobalLogger() an initial
-// worker is generated via init() to handle first workload.
+// This worker is generated in init() to handle full workload.
 func loggerWorker() {
 	defer workerWg.Done()
 	// Localise a persistent buffer for a worker, this does not need to be
