@@ -57,7 +57,6 @@ func GenDefaultSettings() *Config {
 		LoggerFileConfig: &loggerFileConfig{
 			FileName: "log.txt",
 			Rotate:   convert.BoolPtr(false),
-			MaxSize:  0,
 		},
 		AdvancedSettings: advancedSettings{
 			ShowLogSystemName: convert.BoolPtr(false),
