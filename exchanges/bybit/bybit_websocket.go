@@ -54,7 +54,8 @@ func (by *Bybit) WsConnect() error {
 		return err
 	}
 	by.Websocket.Conn.SetupPingHandler(stream.PingHandler{
-		MessageType: websocket.PingMessage,
+		MessageType: websocket.TextMessage,
+		Message:     []byte(`{"op":"ping"}`),
 		Delay:       bybitWebsocketTimer,
 	})
 
@@ -360,8 +361,8 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 			return nil
 		}
 
-		if m, ok := d["ping"]; ok {
-			log.Infof(log.WebsocketMgr, "%v received ping: %v", by.Name, m)
+		if m, ok := d["pong"]; ok {
+			log.Infof(log.WebsocketMgr, "%v received pong: %v", by.Name, m)
 			return nil
 		}
 	case []interface{}:
