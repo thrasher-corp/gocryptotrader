@@ -23,23 +23,23 @@ var (
 	errIntervalUnset       = errors.New("candle interval unset")
 	errUnhandledDatatype   = errors.New("unhandled datatype")
 	errNilData             = errors.New("nil data received")
-	errNilExchange         = errors.New("nil exchange received")
 )
 
 // BackTest is the main holder of all backtesting functionality
 type BackTest struct {
-	hasHandledEvent bool
-	shutdown        chan struct{}
-	Datas           data.Holder
-	Strategy        strategies.Handler
-	Portfolio       portfolio.Handler
-	Exchange        exchange.ExecutionHandler
-	Statistic       statistics.Handler
-	EventQueue      eventholder.EventHolder
-	LiveDataHandler live.Handler
-	Reports         report.Handler
-	Funding         funding.IFundingManager
-	exchangeManager *engine.ExchangeManager
-	orderManager    *engine.OrderManager
-	databaseManager *engine.DatabaseConnectionManager
+	hasHandledEvent          bool
+	shutdown                 chan struct{}
+	DataHolder               data.Holder
+	LiveDataHandler          live.Handler
+	Strategy                 strategies.Handler
+	Portfolio                portfolio.Handler
+	Exchange                 exchange.ExecutionHandler
+	Statistic                statistics.Handler
+	EventQueue               eventholder.EventHolder
+	Reports                  report.Handler
+	Funding                  funding.IFundingManager
+	exchangeManager          *engine.ExchangeManager
+	orderManager             *engine.OrderManager
+	databaseManager          *engine.DatabaseConnectionManager
+	hasProcessedDataAtOffset map[int64]bool
 }

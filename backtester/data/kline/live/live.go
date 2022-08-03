@@ -3,6 +3,7 @@ package live
 import (
 	"context"
 	"fmt"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"strings"
 	"time"
 
@@ -15,7 +16,11 @@ import (
 )
 
 // LoadData retrieves data from a GoCryptoTrader exchange wrapper which calls the exchange's API for the latest interval
-func LoadData(ctx context.Context, exch exchange.IBotExchange, dataType int64, interval time.Duration, fPair currency.Pair, a asset.Item) (*kline.Item, error) {
+// note: this is not in a state to utilise with realOrders = true
+func LoadData(ctx context.Context, exch exchange.IBotExchange, dataType int64, interval time.Duration, fPair, underlyingPair currency.Pair, a asset.Item) (*kline.Item, error) {
+	if exch == nil {
+		return nil, fmt.Errorf("%w IBotExchange", gctcommon.ErrNilPointer)
+	}
 	var candles kline.Item
 	var err error
 	switch dataType {
@@ -61,8 +66,9 @@ func LoadData(ctx context.Context, exch exchange.IBotExchange, dataType int64, i
 			}
 		}
 	default:
-		return nil, fmt.Errorf("could not retrieve live data for %v %v %v, %w", exch.GetName(), a, fPair, common.ErrInvalidDataType)
+		return nil, fmt.Errorf("could not retrieve live data for %v %v %v, %w: '%v'", exch.GetName(), a, fPair, common.ErrInvalidDataType, dataType)
 	}
 	candles.Exchange = strings.ToLower(exch.GetName())
+	candles.UnderlyingPair = underlyingPair
 	return &candles, nil
 }

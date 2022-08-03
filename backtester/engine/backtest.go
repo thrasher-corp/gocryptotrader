@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
@@ -27,16 +28,17 @@ import (
 // New returns a new BackTest instance
 func New() *BackTest {
 	return &BackTest{
-		shutdown:   make(chan struct{}),
-		Datas:      &data.HandlerPerCurrency{},
-		EventQueue: &eventholder.Holder{},
+		shutdown:                 make(chan struct{}),
+		DataHolder:               &data.HandlerPerCurrency{},
+		EventQueue:               &eventholder.Holder{},
+		hasProcessedDataAtOffset: make(map[int64]bool),
 	}
 }
 
 // Reset BackTest values to default
 func (bt *BackTest) Reset() {
 	bt.EventQueue.Reset()
-	bt.Datas.Reset()
+	bt.DataHolder.Reset()
 	bt.Portfolio.Reset()
 	bt.Statistic.Reset()
 	bt.Exchange.Reset()
@@ -46,7 +48,20 @@ func (bt *BackTest) Reset() {
 	bt.databaseManager = nil
 }
 
-var hasProcessedDataAtOffset = make(map[int64]bool)
+// RunLive is a proof of concept function that does not yet support multi currency usage
+// It runs by constantly checking for new live datas and running through the list of events
+// once new data is processed. It will run until application close event has been received
+func (bt *BackTest) RunLive() error {
+	log.Info(common.Livetester, "running backtester against live data")
+	for {
+		select {
+		case <-bt.shutdown:
+			return nil
+		case <-bt.LiveDataHandler.Updated():
+			bt.Run()
+		}
+	}
+}
 
 // Run will iterate over loaded data events
 // save them and then handle the event based on its type
@@ -54,7 +69,7 @@ func (bt *BackTest) Run() {
 dataLoadingIssue:
 	for ev := bt.EventQueue.NextEvent(); ; ev = bt.EventQueue.NextEvent() {
 		if ev == nil {
-			dataHandlerMap := bt.Datas.GetAllData()
+			dataHandlerMap := bt.DataHolder.GetAllData()
 			for exchangeName, exchangeMap := range dataHandlerMap {
 				for assetItem, assetMap := range exchangeMap {
 					for currencyPair, dataHandler := range assetMap {
@@ -66,15 +81,15 @@ dataLoadingIssue:
 							break dataLoadingIssue
 						}
 						o := d.GetOffset()
-						if bt.Strategy.UsingSimultaneousProcessing() && hasProcessedDataAtOffset[o] {
+						if bt.Strategy.UsingSimultaneousProcessing() && bt.hasProcessedDataAtOffset[o] {
 							// only append one event, as simultaneous processing
 							// will retrieve all relevant events to process under
 							// processSimultaneousDataEvents()
 							continue
 						}
 						bt.EventQueue.AppendEvent(d)
-						if !hasProcessedDataAtOffset[o] {
-							hasProcessedDataAtOffset[o] = true
+						if !bt.hasProcessedDataAtOffset[o] {
+							bt.hasProcessedDataAtOffset[o] = true
 						}
 					}
 				}
@@ -154,7 +169,7 @@ func (bt *BackTest) processSingleDataEvent(ev common.DataEventHandler, funds fun
 	if err != nil {
 		return err
 	}
-	d, err := bt.Datas.GetDataForCurrency(ev)
+	d, err := bt.DataHolder.GetDataForCurrency(ev)
 	if err != nil {
 		return err
 	}
@@ -181,7 +196,7 @@ func (bt *BackTest) processSingleDataEvent(ev common.DataEventHandler, funds fun
 // currencies to act upon
 func (bt *BackTest) processSimultaneousDataEvents() error {
 	var dataEvents []data.Handler
-	dataHandlerMap := bt.Datas.GetAllData()
+	dataHandlerMap := bt.DataHolder.GetAllData()
 	for _, exchangeMap := range dataHandlerMap {
 		for _, assetMap := range exchangeMap {
 			for _, dataHandler := range assetMap {
@@ -307,7 +322,7 @@ func (bt *BackTest) triggerLiquidationsForExchange(ev common.DataEventHandler, p
 		// this will create and store stats for each order
 		// then liquidate it at the funding level
 		var datas data.Handler
-		datas, err = bt.Datas.GetDataForCurrency(orders[i])
+		datas, err = bt.DataHolder.GetDataForCurrency(orders[i])
 		if err != nil {
 			return err
 		}
@@ -363,7 +378,7 @@ func (bt *BackTest) processOrderEvent(ev order.Event, funds funding.IFundRelease
 	if funds == nil {
 		return fmt.Errorf("%w funds", common.ErrNilArguments)
 	}
-	d, err := bt.Datas.GetDataForCurrency(ev)
+	d, err := bt.DataHolder.GetDataForCurrency(ev)
 	if err != nil {
 		return err
 	}
@@ -484,4 +499,13 @@ func (bt *BackTest) processFuturesFillEvent(ev fill.Event, funds funding.IFundRe
 // Stop shuts down the live data loop
 func (bt *BackTest) Stop() {
 	close(bt.shutdown)
+}
+
+func (bt *BackTest) CloseAllPositions() error {
+	err := bt.Strategy.CloseAllPositions(bt.Portfolio.GetLatestHoldingsForAllCurrencies())
+	if err != nil && errors.Is(err, gctcommon.ErrNotYetImplemented) {
+		return err
+	}
+
+	return nil
 }

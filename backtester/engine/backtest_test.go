@@ -474,7 +474,7 @@ func TestReset(t *testing.T) {
 	}
 	bt := BackTest{
 		shutdown:   make(chan struct{}),
-		Datas:      &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerPerCurrency{},
 		Strategy:   &dollarcostaverage.Strategy{},
 		Portfolio:  &portfolio.Portfolio{},
 		Exchange:   &exchange.Exchange{},
@@ -536,7 +536,7 @@ func TestFullCycle(t *testing.T) {
 	}
 	bt := BackTest{
 		shutdown:   nil,
-		Datas:      &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerPerCurrency{},
 		Strategy:   &dollarcostaverage.Strategy{},
 		Portfolio:  port,
 		Exchange:   &exchange.Exchange{},
@@ -546,7 +546,7 @@ func TestFullCycle(t *testing.T) {
 		Funding:    f,
 	}
 
-	bt.Datas.Setup()
+	bt.DataHolder.Setup()
 	k := kline.DataFromKline{
 		Item: gctkline.Item{
 			Exchange: ex,
@@ -585,7 +585,7 @@ func TestFullCycle(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	bt.Datas.SetDataForCurrency(ex, a, cp, &k)
+	bt.DataHolder.SetDataForCurrency(ex, a, cp, &k)
 
 	bt.Run()
 }
@@ -641,7 +641,7 @@ func TestFullCycleMulti(t *testing.T) {
 	}
 	bt := BackTest{
 		shutdown:   nil,
-		Datas:      &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerPerCurrency{},
 		Portfolio:  port,
 		Exchange:   &exchange.Exchange{},
 		Statistic:  stats,
@@ -655,7 +655,7 @@ func TestFullCycleMulti(t *testing.T) {
 		t.Error(err)
 	}
 
-	bt.Datas.Setup()
+	bt.DataHolder.Setup()
 	k := kline.DataFromKline{
 		Item: gctkline.Item{
 			Exchange: ex,
@@ -695,7 +695,7 @@ func TestFullCycleMulti(t *testing.T) {
 		t.Error(err)
 	}
 
-	bt.Datas.SetDataForCurrency(ex, a, cp, &k)
+	bt.DataHolder.SetDataForCurrency(ex, a, cp, &k)
 
 	bt.Run()
 }
@@ -724,7 +724,7 @@ func TestTriggerLiquidationsForExchange(t *testing.T) {
 
 	bt.Portfolio = &portfolioOverride{}
 	pnl := &portfolio.PNLSummary{}
-	bt.Datas = &data.HandlerPerCurrency{}
+	bt.DataHolder = &data.HandlerPerCurrency{}
 	d := data.Base{}
 	d.SetStream([]common.DataEventHandler{&evkline.Kline{
 		Base: &event.Base{
@@ -755,7 +755,7 @@ func TestTriggerLiquidationsForExchange(t *testing.T) {
 
 	bt.EventQueue = &eventholder.Holder{}
 	bt.Funding = &funding.FundManager{}
-	bt.Datas.SetDataForCurrency(testExchange, a, cp, da)
+	bt.DataHolder.SetDataForCurrency(testExchange, a, cp, da)
 	err = bt.Statistic.SetupEventForTime(ev)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
@@ -950,7 +950,7 @@ func TestProcessOrderEvent(t *testing.T) {
 		Portfolio:  pt,
 		Exchange:   &exchange.Exchange{},
 		EventQueue: &eventholder.Holder{},
-		Datas:      &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerPerCurrency{},
 	}
 	cp := currency.NewPair(currency.BTC, currency.USDT)
 	a := asset.Futures
@@ -1006,7 +1006,7 @@ func TestProcessOrderEvent(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 	tt := time.Now()
-	bt.Datas.Setup()
+	bt.DataHolder.Setup()
 	k := kline.DataFromKline{
 		Item: gctkline.Item{
 			Exchange: testExchange,
@@ -1046,7 +1046,7 @@ func TestProcessOrderEvent(t *testing.T) {
 		t.Error(err)
 	}
 
-	bt.Datas.SetDataForCurrency(testExchange, a, cp, &k)
+	bt.DataHolder.SetDataForCurrency(testExchange, a, cp, &k)
 	err = bt.processOrderEvent(ev, pair)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
@@ -1070,7 +1070,7 @@ func TestProcessFillEvent(t *testing.T) {
 		Portfolio:  pt,
 		Exchange:   &exchange.Exchange{},
 		EventQueue: &eventholder.Holder{},
-		Datas:      &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerPerCurrency{},
 	}
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	a := asset.Futures
@@ -1165,7 +1165,7 @@ func TestProcessFillEvent(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 	tt := time.Now()
-	bt.Datas.Setup()
+	bt.DataHolder.Setup()
 	k := kline.DataFromKline{
 		Item: gctkline.Item{
 			Exchange: testExchange,
@@ -1205,7 +1205,7 @@ func TestProcessFillEvent(t *testing.T) {
 		t.Error(err)
 	}
 
-	bt.Datas.SetDataForCurrency(testExchange, a, cp, &k)
+	bt.DataHolder.SetDataForCurrency(testExchange, a, cp, &k)
 	err = bt.processFillEvent(ev, pair)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
@@ -1225,7 +1225,7 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 		Portfolio:  pt,
 		Exchange:   &exchange.Exchange{},
 		EventQueue: &eventholder.Holder{},
-		Datas:      &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerPerCurrency{},
 	}
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	a := asset.Futures
@@ -1320,7 +1320,7 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 	tt := time.Now()
-	bt.Datas.Setup()
+	bt.DataHolder.Setup()
 	k := kline.DataFromKline{
 		Item: gctkline.Item{
 			Exchange: testExchange,
@@ -1369,7 +1369,7 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 		OrderID:   "1",
 		Date:      time.Now(),
 	}
-	bt.Datas.SetDataForCurrency(testExchange, a, cp, &k)
+	bt.DataHolder.SetDataForCurrency(testExchange, a, cp, &k)
 	err = bt.processFuturesFillEvent(ev, pair)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)

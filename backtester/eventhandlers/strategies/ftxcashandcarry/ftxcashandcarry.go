@@ -3,7 +3,10 @@ package ftxcashandcarry
 import (
 	"errors"
 	"fmt"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"strings"
+	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -100,6 +103,37 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 		response = append(response, signals...)
 	}
 	return response, nil
+}
+
+func (s *Strategy) CloseAllPositions(pos []holdings.Holding) ([]signal.Event, error) {
+	for i := range pos {
+		amount := pos[i].BaseSize
+		signal.Signal{
+			Base: &event.Base{
+				Offset:         0,
+				Exchange:       "",
+				Time:           time.Time{},
+				Interval:       0,
+				CurrencyPair:   currency.Pair{},
+				UnderlyingPair: currency.Pair{},
+				AssetType:      0,
+				Reasons:        nil,
+			},
+			OpenPrice:          decimal.Decimal{},
+			HighPrice:          decimal.Decimal{},
+			LowPrice:           decimal.Decimal{},
+			ClosePrice:         decimal.Decimal{},
+			Volume:             decimal.Decimal{},
+			BuyLimit:           decimal.Decimal{},
+			SellLimit:          decimal.Decimal{},
+			Amount:             decimal.Decimal{},
+			Direction:          0,
+			FillDependentEvent: nil,
+			CollateralCurrency: currency.Code{},
+			MatchesOrderAmount: false,
+		}
+	}
+	return nil
 }
 
 // createSignals creates signals based on the relationships between

@@ -72,11 +72,11 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 		}
 	}
 
-	bt.Datas.Setup()
+	bt.DataHolder.Setup()
 	if cfg.DataSettings.LiveData != nil {
 		bt.LiveDataHandler, err = live2.SetupLiveDataHandler(
 			bt.exchangeManager,
-			bt.Datas,
+			bt.DataHolder,
 			cfg.DataSettings.LiveData.NewEventTimeout,
 			cfg.DataSettings.LiveData.NewEventTimeout,
 			cfg.DataSettings.LiveData.DataCheckTimer,
@@ -84,7 +84,10 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 		if err != nil {
 			return nil, err
 		}
-		defer bt.LiveDataHandler.Start()
+		err = bt.LiveDataHandler.Start()
+		if err != nil {
+			return nil, err
+		}
 	}
 	reports := &report.Data{
 		Config:       cfg,
@@ -476,7 +479,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			continue
 		}
 
-		bt.Datas.SetDataForCurrency(exchangeName, a, pair, klineData)
+		bt.DataHolder.SetDataForCurrency(exchangeName, a, pair, klineData)
 
 		var makerFee, takerFee decimal.Decimal
 		if cfg.CurrencySettings[i].MakerFee != nil && cfg.CurrencySettings[i].MakerFee.GreaterThan(decimal.Zero) {
@@ -766,11 +769,10 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			return nil, err
 		}
 		var candles *gctkline.Item
-		candles, err = live.LoadData(context.TODO(), exch, dataType, cfg.DataSettings.Interval.Duration(), fPair, a)
+		candles, err = live.LoadData(context.TODO(), exch, dataType, cfg.DataSettings.Interval.Duration(), fPair, underlyingPair, a)
 		if err != nil {
 			return nil, err
 		}
-		candles.UnderlyingPair = underlyingPair
 		resp.Item = *candles
 		resp.SetLive(true)
 		err = bt.LiveDataHandler.AppendDataSource(

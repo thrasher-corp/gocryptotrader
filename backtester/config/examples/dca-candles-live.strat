@@ -74,6 +74,7 @@
    "run-timer": 1000000000,
    "real-orders": false,
    "verbose-data-check": false,
+   "close-positions-on-exit": false,
    "exchange-credentials": null
   }
  },

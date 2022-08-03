@@ -1,0 +1,65 @@
+package live
+
+import (
+	"errors"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine"
+	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"sync"
+	"time"
+)
+
+// ErrLiveDataTimeout returns when an event has not been processed within the timeframe
+var ErrLiveDataTimeout = errors.New("no data processed within timeframe")
+
+var (
+	defaultEventCheckInterval = time.Second
+	defaultEventTimeout       = time.Minute
+	defaultDataCheckInterval  = time.Second
+)
+
+// Handler is all the functionality required in order to
+// run a backtester with live data
+type Handler interface {
+	AppendDataSource(*gctkline.Item, gctexchange.IBotExchange, int64) error
+	FetchLatestData() error
+	Start() error
+	IsRunning() bool
+	DataFetcher() error
+	Stop() error
+	Reset()
+	Updated() chan struct{}
+	// AppendUSDTrackingData ??
+}
+
+// DataChecker is responsible for managing all data retrieval
+// for a live data option
+type DataChecker struct {
+	m                  sync.Mutex
+	wg                 sync.WaitGroup
+	started            uint32
+	verbose            bool
+	exchangeManager    *engine.ExchangeManager
+	exchangesToCheck   []liveExchangeDataHandler
+	eventCheckInterval time.Duration
+	eventTimeout       time.Duration
+	dataCheckInterval  time.Duration
+	dataHolder         data.Holder
+	updated            chan struct{}
+	shutdown           chan struct{}
+}
+
+type liveExchangeDataHandler struct {
+	m              sync.Mutex
+	exchange       gctexchange.IBotExchange
+	exchangeName   string
+	asset          asset.Item
+	pair           currency.Pair
+	underlyingPair currency.Pair
+	pairCandles    kline.DataFromKline
+	dataType       int64
+}

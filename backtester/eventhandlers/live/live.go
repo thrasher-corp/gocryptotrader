@@ -2,7 +2,6 @@ package live
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
@@ -22,73 +21,40 @@ import (
 	"time"
 )
 
-var ErrLiveDataTimeout = errors.New("shutting down due to no data returned in")
-
-// Handler is all the functionality required in order to
-// run a backtester with live data
-type Handler interface {
-	AppendDataSource(item *gctkline.Item, exch gctexchange.IBotExchange, dataType int64) error
-	FetchLatestData() error
-	Start() error
-	IsRunning() bool
-	DataFetcher() error
-	Stop() error
-	Reset()
-	Updated() chan struct{}
-	// AppendUSDTrackingData ??
-}
-
-// DataChecker is responsible for managing all data retrieval
-// for a live data option
-type DataChecker struct {
-	m                  sync.Mutex
-	wg                 sync.WaitGroup
-	started            uint32
-	verbose            bool
-	exchangeManager    *engine.ExchangeManager
-	exchangesToCheck   []liveExchangeDataHandler
-	eventCheckInterval time.Duration
-	eventTimeout       time.Duration
-	dataCheckInterval  time.Duration
-	datas              data.Holder
-	updated            chan struct{}
-	shutdown           chan struct{}
-}
-
-type ExchangeHandler interface {
-	UpdateData() error
-}
-
-type liveExchangeDataHandler struct {
-	m              sync.Mutex
-	exchange       gctexchange.IBotExchange
-	exchangeName   string
-	asset          asset.Item
-	pair           currency.Pair
-	underlyingPair currency.Pair
-	pairCandles    kline.DataFromKline
-	dataType       int64
-}
-
-func SetupLiveDataHandler(em *engine.ExchangeManager, datas data.Holder, evenCheckInterval, eventTimeout, dataCheckInterval time.Duration, verbose bool) (Handler, error) {
+// SetupLiveDataHandler creates a live data handler to retrieve and append
+// live data as it comes in
+func SetupLiveDataHandler(em *engine.ExchangeManager, dataHolder data.Holder, eventCheckInterval, eventTimeout, dataCheckInterval time.Duration, verbose bool) (Handler, error) {
 	if em == nil {
 		return nil, fmt.Errorf("%w engine manager", gctcommon.ErrNilPointer)
 	}
+	if dataHolder == nil {
+		return nil, fmt.Errorf("%w data holder", gctcommon.ErrNilPointer)
+	}
+	if eventCheckInterval <= 0 {
+		log.Warnf(common.Livetester, "invalid event check interval '%v', defaulting to '%v'", eventCheckInterval, defaultEventCheckInterval)
+		eventCheckInterval = defaultEventCheckInterval
+	}
+	if eventTimeout <= 0 {
+		log.Warnf(common.Livetester, "invalid event timeout '%v', defaulting to '%v'", eventTimeout, defaultEventTimeout)
+		eventTimeout = defaultEventTimeout
+	}
+	if dataCheckInterval <= 0 {
+		log.Warnf(common.Livetester, "invalid data check interval '%v', defaulting to '%v'", dataCheckInterval, defaultDataCheckInterval)
+		dataCheckInterval = defaultEventCheckInterval
+	}
 	return &DataChecker{
 		exchangeManager:    em,
-		eventCheckInterval: evenCheckInterval,
+		eventCheckInterval: eventCheckInterval,
 		eventTimeout:       eventTimeout,
 		dataCheckInterval:  dataCheckInterval,
 		verbose:            verbose,
-		datas:              datas,
+		dataHolder:         dataHolder,
 		updated:            make(chan struct{}),
+		shutdown:           make(chan struct{}),
 	}, nil
 }
 
-func (l *DataChecker) Updated() chan struct{} {
-	return l.updated
-}
-
+// Start begins fetching and appending live data
 func (l *DataChecker) Start() error {
 	if l == nil {
 		return gctcommon.ErrNilPointer
@@ -107,15 +73,17 @@ func (l *DataChecker) Start() error {
 	return nil
 }
 
+// IsRunning verifies whether the live data checker is running
 func (l *DataChecker) IsRunning() bool {
 	return l != nil && atomic.LoadUint32(&l.started) == 1
 }
 
+// Stop ceases fetching and processing live data
 func (l *DataChecker) Stop() error {
 	if l == nil {
 		return gctcommon.ErrNilPointer
 	}
-	if !atomic.CompareAndSwapUint32(&l.started, 0, 1) {
+	if !atomic.CompareAndSwapUint32(&l.started, 1, 0) {
 		return engine.ErrSubSystemNotStarted
 	}
 	l.m.Lock()
@@ -126,7 +94,15 @@ func (l *DataChecker) Stop() error {
 	return nil
 }
 
+// DataFetcher will fetch and append live data
 func (l *DataChecker) DataFetcher() error {
+	if l == nil {
+		return fmt.Errorf("%w DataChecker", gctcommon.ErrNilPointer)
+	}
+	if atomic.LoadUint32(&l.started) == 0 {
+		return engine.ErrSubSystemNotStarted
+	}
+	defer l.wg.Done()
 	checkTimer := time.NewTimer(0)
 	timeoutTimer := time.NewTimer(l.eventTimeout)
 	var err error
@@ -135,25 +111,32 @@ func (l *DataChecker) DataFetcher() error {
 		case <-l.shutdown:
 			return nil
 		case <-timeoutTimer.C:
-			return ErrLiveDataTimeout
+			return fmt.Errorf("%w of %v", ErrLiveDataTimeout, l.eventTimeout)
 		case <-checkTimer.C:
-			if !l.verbose {
-				log.Info(common.Livetester, "fetching data...")
-			}
 			err = l.FetchLatestData()
 			if err != nil {
 				return err
 			}
-			if !l.verbose {
-				log.Info(common.Livetester, "fetching data... complete")
-			}
-			l.updated <- struct{}{}
+			close(l.updated)
+			l.updated = make(chan struct{})
 			checkTimer.Reset(l.dataCheckInterval)
 			timeoutTimer.Reset(l.eventTimeout)
 		}
 	}
 }
 
+// Updated gives other endpoints the ability to listen to
+// when data is updated from live sources
+func (l *DataChecker) Updated() chan struct{} {
+	if l == nil {
+		immediateClosure := make(chan struct{})
+		defer close(immediateClosure)
+		return immediateClosure
+	}
+	return l.updated
+}
+
+// Reset clears all stored data
 func (l *DataChecker) Reset() {
 	if l == nil {
 		return
@@ -165,11 +148,35 @@ func (l *DataChecker) Reset() {
 	l.eventTimeout = 0
 	l.exchangeManager = nil
 	l.exchangesToCheck = nil
+	l.shutdown = nil
+	l.updated = nil
+	l.exchangeManager = nil
+	l.verbose = false
+	l.wg = sync.WaitGroup{}
 }
 
+// AppendDataSource stores params to allow the datachecker to fetch and append live data
 func (l *DataChecker) AppendDataSource(item *gctkline.Item, exch gctexchange.IBotExchange, dataType int64) error {
 	if l == nil {
 		return fmt.Errorf("%w DataChecker", gctcommon.ErrNilPointer)
+	}
+	if atomic.LoadUint32(&l.started) == 0 {
+		return engine.ErrSubSystemNotStarted
+	}
+	if item == nil {
+		return fmt.Errorf("%w kline item", gctcommon.ErrNilPointer)
+	}
+	if exch == nil {
+		return fmt.Errorf("%w IBotExchange", gctcommon.ErrNilPointer)
+	}
+	if dataType != common.DataCandle && dataType != common.DataTrade {
+		return fmt.Errorf("%w '%v'", common.ErrInvalidDataType, dataType)
+	}
+	if !item.Asset.IsValid() {
+		return fmt.Errorf("%w '%v'", asset.ErrNotSupported, item.Asset)
+	}
+	if item.Pair.IsEmpty() {
+		return currency.ErrCurrencyPairEmpty
 	}
 	l.m.Lock()
 	defer l.m.Unlock()
@@ -182,16 +189,16 @@ func (l *DataChecker) AppendDataSource(item *gctkline.Item, exch gctexchange.IBo
 		}
 	}
 
-	dataeroo := kline.DataFromKline{
+	d := kline.DataFromKline{
 		Item: *item,
 	}
-	dataeroo.SetLive(true)
+	d.SetLive(true)
 	l.exchangesToCheck = append(l.exchangesToCheck, liveExchangeDataHandler{
 		exchange:       exch,
 		exchangeName:   strings.ToLower(exch.GetName()),
 		asset:          item.Asset,
 		pair:           item.Pair,
-		pairCandles:    dataeroo,
+		pairCandles:    d,
 		dataType:       dataType,
 		underlyingPair: item.UnderlyingPair,
 	})
@@ -199,27 +206,32 @@ func (l *DataChecker) AppendDataSource(item *gctkline.Item, exch gctexchange.IBo
 	return nil
 }
 
+// FetchLatestData loads the latest data for all stored data sources
 func (l *DataChecker) FetchLatestData() error {
 	if l == nil {
 		return fmt.Errorf("%w DataChecker", gctcommon.ErrNilPointer)
 	}
 	if atomic.LoadUint32(&l.started) == 0 {
-		return engine.ErrSubSystemAlreadyStarted
+		return engine.ErrSubSystemNotStarted
 	}
 	l.m.Lock()
 	defer l.m.Unlock()
 	var err error
 	for i := range l.exchangesToCheck {
+		if !l.verbose {
+			log.Infof(common.Livetester, "fetching live data for %v %v %v", l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair)
+		}
 		err = l.exchangesToCheck[i].loadCandleData()
 		if err != nil {
 			return err
 		}
-		l.datas.SetDataForCurrency(l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair, &l.exchangesToCheck[i].pairCandles)
-
+		l.dataHolder.SetDataForCurrency(l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair, &l.exchangesToCheck[i].pairCandles)
 	}
 	return nil
 }
 
+// loadCandleData fetches data from the exchange API and appends it
+// to the candles to be added to the backtester event queue
 func (c *liveExchangeDataHandler) loadCandleData() error {
 	if c == nil {
 		return gctcommon.ErrNilPointer
@@ -231,8 +243,8 @@ func (c *liveExchangeDataHandler) loadCandleData() error {
 		c.dataType,
 		c.pairCandles.Item.Interval.Duration(),
 		c.pair,
+		c.underlyingPair,
 		c.asset)
-	candles.UnderlyingPair = c.underlyingPair
 	if err != nil {
 		return err
 	}

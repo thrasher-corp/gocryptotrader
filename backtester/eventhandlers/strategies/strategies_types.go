@@ -3,6 +3,7 @@ package strategies
 import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 )
@@ -18,4 +19,5 @@ type Handler interface {
 	SetSimultaneousProcessing(bool)
 	SetCustomSettings(map[string]interface{}) error
 	SetDefaults()
+	CloseAllPositions([]holdings.Holding) ([]signal.Event, error)
 }

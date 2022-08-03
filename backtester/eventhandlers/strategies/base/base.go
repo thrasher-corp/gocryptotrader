@@ -3,7 +3,9 @@ package base
 import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 )
 
 // Strategy is base implementation of the Handler interface
@@ -48,4 +50,12 @@ func (s *Strategy) UsingExchangeLevelFunding() bool {
 // SetExchangeLevelFunding sets whether funding is based on currency pairs or individual currencies at the exchange level
 func (s *Strategy) SetExchangeLevelFunding(b bool) {
 	s.usingExchangeLevelFunding = b
+}
+
+// CloseAllPositions sends a closing signal to supported
+// strategies, allowing them to sell off any positions held
+// default usecase is for when a user closes the application when running
+// a live strategy
+func (s *Strategy) CloseAllPositions([]holdings.Holding) ([]signal.Event, error) {
+	return gctcommon.ErrNotYetImplemented
 }
