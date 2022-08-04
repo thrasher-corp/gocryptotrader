@@ -180,7 +180,7 @@ func TestReset(t *testing.T) {
 	}
 }
 
-// methods that satisfy the common.DataEventHandler interface
+// methods that satisfy the common.DataEvent interface
 func (f fakeDataHandler) GetOffset() int64 {
 	return 4
 }

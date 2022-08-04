@@ -30,7 +30,7 @@ func (d *DataFromKline) Load() error {
 		return errNoCandleData
 	}
 
-	klineData := make([]common.DataEventHandler, len(d.Item.Candles))
+	klineData := make([]common.DataEvent, len(d.Item.Candles))
 	for i := range d.Item.Candles {
 		newKline := &kline.Kline{
 			Base: &event.Base{
@@ -74,7 +74,7 @@ func (d *DataFromKline) AppendResults(ki *gctkline.Item) {
 		return
 	}
 	latestOffset := len(d.StreamClose()) + 1
-	klineData := make([]common.DataEventHandler, len(gctCandles))
+	klineData := make([]common.DataEvent, len(gctCandles))
 	for i := range gctCandles {
 		klineData[i] = &kline.Kline{
 			Base: &event.Base{

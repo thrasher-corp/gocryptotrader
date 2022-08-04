@@ -50,19 +50,19 @@ type Portfolio struct {
 type Handler interface {
 	OnSignal(signal.Event, *exchange.Settings, funding.IFundReserver) (*order.Order, error)
 	OnFill(fill.Event, funding.IFundReleaser) (fill.Event, error)
-	GetLatestOrderSnapshotForEvent(common.EventHandler) (compliance.Snapshot, error)
+	GetLatestOrderSnapshotForEvent(common.Event) (compliance.Snapshot, error)
 	GetLatestOrderSnapshots() ([]compliance.Snapshot, error)
-	ViewHoldingAtTimePeriod(common.EventHandler) (*holdings.Holding, error)
+	ViewHoldingAtTimePeriod(common.Event) (*holdings.Holding, error)
 	setHoldingsForOffset(*holdings.Holding, bool) error
-	UpdateHoldings(common.DataEventHandler, funding.IFundReleaser) error
+	UpdateHoldings(common.DataEvent, funding.IFundReleaser) error
 	GetComplianceManager(string, asset.Item, currency.Pair) (*compliance.Manager, error)
-	GetPositions(common.EventHandler) ([]gctorder.PositionStats, error)
+	GetPositions(common.Event) ([]gctorder.PositionStats, error)
 	TrackFuturesOrder(fill.Event, funding.IFundReleaser) (*PNLSummary, error)
-	UpdatePNL(common.EventHandler, decimal.Decimal) error
-	GetLatestPNLForEvent(common.EventHandler) (*PNLSummary, error)
+	UpdatePNL(common.Event, decimal.Decimal) error
+	GetLatestPNLForEvent(common.Event) (*PNLSummary, error)
 	GetLatestPNLs() []PNLSummary
-	CheckLiquidationStatus(common.DataEventHandler, funding.ICollateralReader, *PNLSummary) error
-	CreateLiquidationOrdersForExchange(common.DataEventHandler, funding.IFundingManager) ([]order.Event, error)
+	CheckLiquidationStatus(common.DataEvent, funding.ICollateralReader, *PNLSummary) error
+	CreateLiquidationOrdersForExchange(common.DataEvent, funding.IFundingManager) ([]order.Event, error)
 	GetLatestHoldingsForAllCurrencies() []holdings.Holding
 	Reset()
 }

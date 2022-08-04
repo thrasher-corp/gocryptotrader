@@ -96,7 +96,7 @@ func TestOnSignal(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := data.Base{}
-	d.SetStream([]common.DataEventHandler{&eventkline.Kline{
+	d.SetStream([]common.DataEvent{&eventkline.Kline{
 		Base: &event.Base{
 			Offset:       3,
 			Exchange:     exch,
@@ -178,7 +178,7 @@ func TestOnSignals(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := data.Base{}
-	d.SetStream([]common.DataEventHandler{&eventkline.Kline{
+	d.SetStream([]common.DataEvent{&eventkline.Kline{
 		Base: &event.Base{
 			Exchange:     exch,
 			Time:         dInsert,

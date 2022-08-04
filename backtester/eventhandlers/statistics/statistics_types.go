@@ -2,6 +2,7 @@ package statistics
 
 import (
 	"errors"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -69,15 +70,14 @@ type FinalResultsHolder struct {
 // Handler interface details what a statistic is expected to do
 type Handler interface {
 	SetStrategyName(string)
-	SetupEventForTime(common.DataEventHandler) error
-	SetEventForOffset(common.EventHandler) error
+	SetEventForOffset(common.Event) error
 	AddHoldingsForTime(*holdings.Holding) error
 	AddComplianceSnapshotForTime(compliance.Snapshot, fill.Event) error
 	CalculateAllResults() error
 	Reset()
 	Serialise() (string, error)
 	AddPNLForTime(*portfolio.PNLSummary) error
-	CreateLog(common.EventHandler) (string, error)
+	CreateLog(common.Event) (string, error)
 }
 
 // Results holds some statistics on results
@@ -127,7 +127,7 @@ type DataAtOffset struct {
 	Time         time.Time
 	Holdings     holdings.Holding
 	Transactions compliance.Snapshot
-	DataEvent    common.DataEventHandler
+	DataEvent    kline.Event
 	SignalEvent  signal.Event
 	OrderEvent   order.Event
 	FillEvent    fill.Event

@@ -3,6 +3,8 @@ package statistics
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -12,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -23,42 +24,13 @@ func (s *Statistic) Reset() {
 }
 
 // SetupEventForTime sets up the big map for to store important data at each time interval
-func (s *Statistic) SetupEventForTime(ev common.DataEventHandler) error {
+func (s *Statistic) SetEventForOffset(ev common.Event) error {
 	if ev == nil {
 		return common.ErrNilEvent
 	}
 	ex := ev.GetExchange()
 	a := ev.GetAssetType()
 	p := ev.Pair()
-	s.setupMap(ex, a)
-	lookup := s.ExchangeAssetPairStatistics[ex][a][p]
-	if lookup == nil {
-		lookup = &CurrencyPairStatistic{
-			Exchange:       ev.GetExchange(),
-			Asset:          ev.GetAssetType(),
-			Currency:       ev.Pair(),
-			UnderlyingPair: ev.GetUnderlyingPair(),
-		}
-	}
-	for i := range lookup.Events {
-		if lookup.Events[i].Offset == ev.GetOffset() {
-			return ErrAlreadyProcessed
-		}
-	}
-	lookup.Events = append(lookup.Events,
-		DataAtOffset{
-			DataEvent: ev,
-			Offset:    ev.GetOffset(),
-			Time:      ev.GetTime(),
-		},
-	)
-
-	s.ExchangeAssetPairStatistics[ex][a][p] = lookup
-
-	return nil
-}
-
-func (s *Statistic) setupMap(ex string, a asset.Item) {
 	if s.ExchangeAssetPairStatistics == nil {
 		s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic)
 	}
@@ -68,49 +40,61 @@ func (s *Statistic) setupMap(ex string, a asset.Item) {
 	if s.ExchangeAssetPairStatistics[ex][a] == nil {
 		s.ExchangeAssetPairStatistics[ex][a] = make(map[currency.Pair]*CurrencyPairStatistic)
 	}
-}
-
-// SetEventForOffset sets the event for the time period in the event
-func (s *Statistic) SetEventForOffset(ev common.EventHandler) error {
-	if ev == nil {
-		return common.ErrNilEvent
+	lookup, ok := s.ExchangeAssetPairStatistics[ex][a][p]
+	if !ok {
+		lookup = &CurrencyPairStatistic{
+			Exchange:       ev.GetExchange(),
+			Asset:          ev.GetAssetType(),
+			Currency:       ev.Pair(),
+			UnderlyingPair: ev.GetUnderlyingPair(),
+		}
 	}
-	if s.ExchangeAssetPairStatistics == nil {
-		return errExchangeAssetPairStatsUnset
-	}
-	exch := ev.GetExchange()
-	a := ev.GetAssetType()
-	p := ev.Pair()
-	offset := ev.GetOffset()
-	lookup := s.ExchangeAssetPairStatistics[exch][a][p]
-	if lookup == nil {
-		return fmt.Errorf("%w for %v %v %v to set signal event", errCurrencyStatisticsUnset, exch, a, p)
-	}
-	for i := len(lookup.Events) - 1; i >= 0; i-- {
-		if lookup.Events[i].Offset == offset {
+	for i := range lookup.Events {
+		if lookup.Events[i].Offset == ev.GetOffset() {
 			return applyEventAtOffset(ev, lookup, i)
 		}
 	}
+	lookup.Events = append(lookup.Events, DataAtOffset{
+		Offset: ev.GetOffset(),
+		Time:   ev.GetTime(),
+	})
+	err := applyEventAtOffset(ev, lookup, 0)
+	if err != nil {
+		return err
+	}
 
-	return fmt.Errorf("%w for event %v %v %v at offset %v", errNoRelevantStatsFound, exch, a, p, ev.GetOffset())
+	s.ExchangeAssetPairStatistics[ex][a][p] = lookup
+
+	return nil
 }
 
-func applyEventAtOffset(ev common.EventHandler, lookup *CurrencyPairStatistic, i int) error {
+func applyEventAtOffset(ev common.Event, lookup *CurrencyPairStatistic, i int) error {
 	switch t := ev.(type) {
-	case common.DataEventHandler:
+	case kline.Event:
+		if lookup.Events[i].DataEvent != nil {
+			return fmt.Errorf("data event %w", ErrAlreadyProcessed)
+		}
 		lookup.Events[i].DataEvent = t
 	case signal.Event:
+		if lookup.Events[i].SignalEvent != nil {
+			return fmt.Errorf("signal event %w", ErrAlreadyProcessed)
+		}
 		lookup.Events[i].SignalEvent = t
 	case order.Event:
+		if lookup.Events[i].OrderEvent != nil {
+			return fmt.Errorf("order event %w", ErrAlreadyProcessed)
+		}
 		lookup.Events[i].OrderEvent = t
 	case fill.Event:
+		if lookup.Events[i].FillEvent != nil {
+			return fmt.Errorf("fill event %w", ErrAlreadyProcessed)
+		}
 		lookup.Events[i].FillEvent = t
 	default:
 		return fmt.Errorf("unknown event type received: %v", ev)
 	}
 	lookup.Events[i].Time = ev.GetTime()
 	lookup.Events[i].ClosePrice = ev.GetClosePrice()
-	lookup.Events[i].Offset = ev.GetOffset()
 
 	return nil
 }

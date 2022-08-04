@@ -65,7 +65,7 @@ func (h *Holding) Update(e fill.Event, f funding.IFundReader) error {
 }
 
 // UpdateValue calculates the holding's value for a data event's time and price
-func (h *Holding) UpdateValue(d common.DataEventHandler) {
+func (h *Holding) UpdateValue(d common.DataEvent) {
 	h.Timestamp = d.GetTime()
 	latest := d.GetClosePrice()
 	h.Offset = d.GetOffset()

@@ -50,11 +50,11 @@ func TestAddDataEventForTime(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	s := Statistic{}
-	err := s.SetupEventForTime(nil)
+	err := s.SetEventForOffset(nil)
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
-	err = s.SetupEventForTime(&kline.Kline{
+	err = s.SetEventForOffset(&kline.Kline{
 		Base: &event.Base{
 			Exchange:     exch,
 			Time:         tt,
@@ -108,7 +108,7 @@ func TestAddSignalEventForTime(t *testing.T) {
 	b.Interval = gctkline.OneDay
 	b.CurrencyPair = p
 	b.AssetType = a
-	err = s.SetupEventForTime(&kline.Kline{
+	err = s.SetEventForOffset(&kline.Kline{
 		Base:   b,
 		Open:   eleet,
 		Close:  eleet,
@@ -158,7 +158,7 @@ func TestAddExchangeEventForTime(t *testing.T) {
 	b.Interval = gctkline.OneDay
 	b.CurrencyPair = p
 	b.AssetType = a
-	err = s.SetupEventForTime(&kline.Kline{
+	err = s.SetEventForOffset(&kline.Kline{
 		Base:   b,
 		Open:   eleet,
 		Close:  eleet,
@@ -215,7 +215,7 @@ func TestAddFillEventForTime(t *testing.T) {
 	b.CurrencyPair = p
 	b.AssetType = a
 
-	err = s.SetupEventForTime(&kline.Kline{
+	err = s.SetEventForOffset(&kline.Kline{
 		Base:   b,
 		Open:   eleet,
 		Close:  eleet,
@@ -258,7 +258,7 @@ func TestAddHoldingsForTime(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, errCurrencyStatisticsUnset)
 	}
 
-	err = s.SetupEventForTime(&kline.Kline{
+	err = s.SetEventForOffset(&kline.Kline{
 		Base: &event.Base{
 			Exchange:     exch,
 			Time:         tt,
@@ -328,7 +328,7 @@ func TestAddComplianceSnapshotForTime(t *testing.T) {
 	b.Interval = gctkline.OneDay
 	b.CurrencyPair = p
 	b.AssetType = a
-	err = s.SetupEventForTime(&kline.Kline{
+	err = s.SetEventForOffset(&kline.Kline{
 		Base:   b,
 		Open:   eleet,
 		Close:  eleet,
@@ -488,11 +488,11 @@ func TestPrintAllEventsChronologically(t *testing.T) {
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	err := s.SetupEventForTime(nil)
+	err := s.SetEventForOffset(nil)
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
-	err = s.SetupEventForTime(&kline.Kline{
+	err = s.SetEventForOffset(&kline.Kline{
 		Base: &event.Base{
 			Exchange:     exch,
 			Time:         tt,
@@ -562,11 +562,11 @@ func TestCalculateTheResults(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	p2 := currency.NewPair(currency.XRP, currency.DOGE)
-	err = s.SetupEventForTime(nil)
+	err = s.SetEventForOffset(nil)
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
-	err = s.SetupEventForTime(&kline.Kline{
+	err = s.SetEventForOffset(&kline.Kline{
 		Base: &event.Base{
 			Exchange:     exch,
 			Time:         tt,
@@ -603,7 +603,7 @@ func TestCalculateTheResults(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = s.SetupEventForTime(&kline.Kline{
+	err = s.SetEventForOffset(&kline.Kline{
 		Base: &event.Base{
 			Exchange:     exch,
 			Time:         tt,
@@ -642,7 +642,7 @@ func TestCalculateTheResults(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = s.SetupEventForTime(&kline.Kline{
+	err = s.SetEventForOffset(&kline.Kline{
 		Base: &event.Base{
 			Exchange:     exch,
 			Time:         tt2,
@@ -680,7 +680,7 @@ func TestCalculateTheResults(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = s.SetupEventForTime(&kline.Kline{
+	err = s.SetEventForOffset(&kline.Kline{
 		Base: &event.Base{
 			Exchange:     exch,
 			Time:         tt2,
@@ -794,7 +794,7 @@ func TestCalculateBiggestEventDrawdown(t *testing.T) {
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	var events []common.DataEventHandler
+	var events []common.DataEvent
 	for i := int64(0); i < 100; i++ {
 		tt1 = tt1.Add(gctkline.OneDay.Duration())
 		even := &event.Base{
@@ -881,7 +881,7 @@ func TestCalculateBiggestEventDrawdown(t *testing.T) {
 	}
 
 	// bogus scenario
-	bogusEvent := []common.DataEventHandler{
+	bogusEvent := []common.DataEvent{
 		&kline.Kline{
 			Base: &event.Base{
 				Exchange:     exch,

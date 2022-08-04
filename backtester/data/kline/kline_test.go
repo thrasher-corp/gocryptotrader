@@ -138,7 +138,7 @@ func TestStreamOpen(t *testing.T) {
 	if bad := d.StreamOpen(); len(bad) > 0 {
 		t.Error("expected no stream")
 	}
-	d.SetStream([]common.DataEventHandler{
+	d.SetStream([]common.DataEvent{
 		&kline.Kline{
 			Base: &event.Base{
 				Exchange:     exch,
@@ -169,7 +169,7 @@ func TestStreamVolume(t *testing.T) {
 	if bad := d.StreamVol(); len(bad) > 0 {
 		t.Error("expected no stream")
 	}
-	d.SetStream([]common.DataEventHandler{
+	d.SetStream([]common.DataEvent{
 		&kline.Kline{
 			Base: &event.Base{
 				Exchange:     exch,
@@ -200,7 +200,7 @@ func TestStreamClose(t *testing.T) {
 	if bad := d.StreamClose(); len(bad) > 0 {
 		t.Error("expected no stream")
 	}
-	d.SetStream([]common.DataEventHandler{
+	d.SetStream([]common.DataEvent{
 		&kline.Kline{
 			Base: &event.Base{
 				Exchange:     exch,
@@ -231,7 +231,7 @@ func TestStreamHigh(t *testing.T) {
 	if bad := d.StreamHigh(); len(bad) > 0 {
 		t.Error("expected no stream")
 	}
-	d.SetStream([]common.DataEventHandler{
+	d.SetStream([]common.DataEvent{
 		&kline.Kline{
 			Base: &event.Base{
 				Exchange:     exch,
@@ -264,7 +264,7 @@ func TestStreamLow(t *testing.T) {
 	if bad := d.StreamLow(); len(bad) > 0 {
 		t.Error("expected no stream")
 	}
-	d.SetStream([]common.DataEventHandler{
+	d.SetStream([]common.DataEvent{
 		&kline.Kline{
 			Base: &event.Base{
 				Exchange:     exch,

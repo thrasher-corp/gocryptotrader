@@ -9,7 +9,7 @@ import (
 
 func TestReset(t *testing.T) {
 	t.Parallel()
-	e := Holder{Queue: []common.EventHandler{}}
+	e := Holder{Queue: []common.Event{}}
 	e.Reset()
 	if e.Queue != nil {
 		t.Error("expected nil")
@@ -18,7 +18,7 @@ func TestReset(t *testing.T) {
 
 func TestAppendEvent(t *testing.T) {
 	t.Parallel()
-	e := Holder{Queue: []common.EventHandler{}}
+	e := Holder{Queue: []common.Event{}}
 	e.AppendEvent(&order.Order{})
 	if len(e.Queue) != 1 {
 		t.Error("expected 1")
@@ -27,12 +27,12 @@ func TestAppendEvent(t *testing.T) {
 
 func TestNextEvent(t *testing.T) {
 	t.Parallel()
-	e := Holder{Queue: []common.EventHandler{}}
+	e := Holder{Queue: []common.Event{}}
 	if ev := e.NextEvent(); ev != nil {
 		t.Error("expected not ok")
 	}
 
-	e = Holder{Queue: []common.EventHandler{
+	e = Holder{Queue: []common.Event{
 		&order.Order{},
 		&order.Order{},
 		&order.Order{},

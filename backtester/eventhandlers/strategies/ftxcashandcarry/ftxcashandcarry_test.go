@@ -113,7 +113,7 @@ func TestSortSignals(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := data.Base{}
-	d.SetStream([]common.DataEventHandler{&eventkline.Kline{
+	d.SetStream([]common.DataEvent{&eventkline.Kline{
 		Base: &event.Base{
 			Exchange:     exch,
 			Time:         dInsert,
@@ -139,7 +139,7 @@ func TestSortSignals(t *testing.T) {
 	}
 
 	d2 := data.Base{}
-	d2.SetStream([]common.DataEventHandler{&eventkline.Kline{
+	d2.SetStream([]common.DataEvent{&eventkline.Kline{
 		Base: &event.Base{
 			Exchange:       exch,
 			Time:           dInsert,
@@ -293,7 +293,7 @@ type funderino struct {
 }
 
 // HasExchangeBeenLiquidated overrides default implementation
-func (f funderino) HasExchangeBeenLiquidated(_ common.EventHandler) bool {
+func (f funderino) HasExchangeBeenLiquidated(_ common.Event) bool {
 	return f.hasBeenLiquidated
 }
 
@@ -303,7 +303,7 @@ type portfolerino struct {
 }
 
 // GetPositions overrides default implementation
-func (p portfolerino) GetPositions(common.EventHandler) ([]gctorder.PositionStats, error) {
+func (p portfolerino) GetPositions(common.Event) ([]gctorder.PositionStats, error) {
 	return []gctorder.PositionStats{
 		{
 			Exchange:           exchangeName,
@@ -336,7 +336,7 @@ func TestOnSimultaneousSignals(t *testing.T) {
 		},
 	}
 	tt := time.Now()
-	d.SetStream([]common.DataEventHandler{&eventkline.Kline{
+	d.SetStream([]common.DataEvent{&eventkline.Kline{
 		Base: &event.Base{
 			Exchange:     exchangeName,
 			Time:         tt,
@@ -378,7 +378,7 @@ func TestOnSimultaneousSignals(t *testing.T) {
 			UnderlyingPair: cp,
 		},
 	}
-	d2.SetStream([]common.DataEventHandler{&eventkline.Kline{
+	d2.SetStream([]common.DataEvent{&eventkline.Kline{
 		Base: &event.Base{
 			Exchange:       exchangeName,
 			Time:           tt,

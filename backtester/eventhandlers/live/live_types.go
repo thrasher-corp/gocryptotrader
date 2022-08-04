@@ -26,7 +26,7 @@ var (
 // run a backtester with live data
 type Handler interface {
 	AppendDataSource(*gctkline.Item, gctexchange.IBotExchange, int64) error
-	FetchLatestData() error
+	FetchLatestData() (bool, error)
 	Start() error
 	IsRunning() bool
 	DataFetcher() error

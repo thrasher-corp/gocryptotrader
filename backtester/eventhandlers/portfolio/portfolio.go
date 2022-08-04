@@ -338,7 +338,7 @@ func (p *Portfolio) setHoldingsForOffset(h *holdings.Holding, overwriteExisting 
 }
 
 // GetLatestOrderSnapshotForEvent gets orders related to the event
-func (p *Portfolio) GetLatestOrderSnapshotForEvent(e common.EventHandler) (compliance.Snapshot, error) {
+func (p *Portfolio) GetLatestOrderSnapshotForEvent(e common.Event) (compliance.Snapshot, error) {
 	eapSettings, ok := p.exchangeAssetPairSettings[e.GetExchange()][e.GetAssetType()][e.Pair()]
 	if !ok {
 		return compliance.Snapshot{}, fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, e.GetExchange(), e.GetAssetType(), e.Pair())
@@ -372,7 +372,7 @@ func (p *Portfolio) GetComplianceManager(exchangeName string, a asset.Item, cp c
 }
 
 // UpdateHoldings updates the portfolio holdings for the data event
-func (p *Portfolio) UpdateHoldings(e common.DataEventHandler, funds funding.IFundReleaser) error {
+func (p *Portfolio) UpdateHoldings(e common.DataEvent, funds funding.IFundReleaser) error {
 	if e == nil {
 		return common.ErrNilEvent
 	}
@@ -417,7 +417,7 @@ func (p *Portfolio) GetLatestHoldingsForAllCurrencies() []holdings.Holding {
 
 // ViewHoldingAtTimePeriod retrieves a snapshot of holdings at a specific time period,
 // returning empty when not found
-func (p *Portfolio) ViewHoldingAtTimePeriod(ev common.EventHandler) (*holdings.Holding, error) {
+func (p *Portfolio) ViewHoldingAtTimePeriod(ev common.Event) (*holdings.Holding, error) {
 	exchangeAssetPairSettings := p.exchangeAssetPairSettings[ev.GetExchange()][ev.GetAssetType()][ev.Pair()]
 	if exchangeAssetPairSettings == nil {
 		return nil, fmt.Errorf("%w for %v %v %v", errNoHoldings, ev.GetExchange(), ev.GetAssetType(), ev.Pair())
@@ -452,7 +452,7 @@ func (s *Settings) GetHoldingsForTime(t time.Time) holdings.Holding {
 }
 
 // GetPositions returns all futures positions for an event's exchange, asset, pair
-func (p *Portfolio) GetPositions(e common.EventHandler) ([]gctorder.PositionStats, error) {
+func (p *Portfolio) GetPositions(e common.Event) ([]gctorder.PositionStats, error) {
 	settings, err := p.getFuturesSettingsFromEvent(e)
 	if err != nil {
 		return nil, err
@@ -461,7 +461,7 @@ func (p *Portfolio) GetPositions(e common.EventHandler) ([]gctorder.PositionStat
 }
 
 // GetLatestPosition returns all futures positions for an event's exchange, asset, pair
-func (p *Portfolio) GetLatestPosition(e common.EventHandler) (*gctorder.PositionStats, error) {
+func (p *Portfolio) GetLatestPosition(e common.Event) (*gctorder.PositionStats, error) {
 	settings, err := p.getFuturesSettingsFromEvent(e)
 	if err != nil {
 		return nil, err
@@ -475,7 +475,7 @@ func (p *Portfolio) GetLatestPosition(e common.EventHandler) (*gctorder.Position
 
 // UpdatePNL will analyse any futures orders that have been placed over the backtesting run
 // that are not closed and calculate their PNL
-func (p *Portfolio) UpdatePNL(e common.EventHandler, closePrice decimal.Decimal) error {
+func (p *Portfolio) UpdatePNL(e common.Event, closePrice decimal.Decimal) error {
 	settings, err := p.getFuturesSettingsFromEvent(e)
 	if err != nil {
 		return err
@@ -552,7 +552,7 @@ func (p *Portfolio) TrackFuturesOrder(ev fill.Event, fund funding.IFundReleaser)
 
 // GetLatestPNLForEvent takes in an event and returns the latest PNL data
 // if it exists
-func (p *Portfolio) GetLatestPNLForEvent(e common.EventHandler) (*PNLSummary, error) {
+func (p *Portfolio) GetLatestPNLForEvent(e common.Event) (*PNLSummary, error) {
 	if e == nil {
 		return nil, common.ErrNilEvent
 	}
@@ -577,7 +577,7 @@ func (p *Portfolio) GetLatestPNLForEvent(e common.EventHandler) (*PNLSummary, er
 
 // CheckLiquidationStatus checks funding against position
 // and liquidates and removes funding if position unable to continue
-func (p *Portfolio) CheckLiquidationStatus(ev common.DataEventHandler, collateralReader funding.ICollateralReader, pnl *PNLSummary) error {
+func (p *Portfolio) CheckLiquidationStatus(ev common.DataEvent, collateralReader funding.ICollateralReader, pnl *PNLSummary) error {
 	if ev == nil {
 		return common.ErrNilEvent
 	}
@@ -602,7 +602,7 @@ func (p *Portfolio) CheckLiquidationStatus(ev common.DataEventHandler, collatera
 }
 
 // CreateLiquidationOrdersForExchange creates liquidation orders, for any that exist on the same exchange where a liquidation is occurring
-func (p *Portfolio) CreateLiquidationOrdersForExchange(ev common.DataEventHandler, funds funding.IFundingManager) ([]order.Event, error) {
+func (p *Portfolio) CreateLiquidationOrdersForExchange(ev common.DataEvent, funds funding.IFundingManager) ([]order.Event, error) {
 	if ev == nil {
 		return nil, common.ErrNilEvent
 	}
@@ -685,7 +685,7 @@ func (p *Portfolio) CreateLiquidationOrdersForExchange(ev common.DataEventHandle
 	return closingOrders, nil
 }
 
-func (p *Portfolio) getFuturesSettingsFromEvent(e common.EventHandler) (*Settings, error) {
+func (p *Portfolio) getFuturesSettingsFromEvent(e common.Event) (*Settings, error) {
 	if e == nil {
 		return nil, common.ErrNilEvent
 	}

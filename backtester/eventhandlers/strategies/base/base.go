@@ -56,6 +56,6 @@ func (s *Strategy) SetExchangeLevelFunding(b bool) {
 // strategies, allowing them to sell off any positions held
 // default usecase is for when a user closes the application when running
 // a live strategy
-func (s *Strategy) CloseAllPositions([]holdings.Holding) ([]signal.Event, error) {
-	return gctcommon.ErrNotYetImplemented
+func (s *Strategy) CloseAllPositions([]holdings.Holding, []common.DataEvent) ([]signal.Event, error) {
+	return nil, gctcommon.ErrFunctionNotSupported
 }

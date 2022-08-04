@@ -23,15 +23,15 @@ type Holder interface {
 	Setup()
 	SetDataForCurrency(string, asset.Item, currency.Pair, Handler)
 	GetAllData() map[string]map[asset.Item]map[currency.Pair]Handler
-	GetDataForCurrency(ev common.EventHandler) (Handler, error)
+	GetDataForCurrency(ev common.Event) (Handler, error)
 	Reset()
 }
 
 // Base is the base implementation of some interface functions
 // where further specific functions are implemented in DataFromKline
 type Base struct {
-	latest     common.DataEventHandler
-	stream     []common.DataEventHandler
+	latest     common.DataEvent
+	stream     []common.DataEvent
 	offset     int
 	isLiveData bool
 }
@@ -46,17 +46,17 @@ type Handler interface {
 // Loader interface for Loading data into backtest supported format
 type Loader interface {
 	Load() error
-	AppendStream(s ...common.DataEventHandler)
+	AppendStream(s ...common.DataEvent)
 	GetBase() Base
 }
 
 // Streamer interface handles loading, parsing, distributing BackTest data
 type Streamer interface {
-	Next() common.DataEventHandler
-	GetStream() []common.DataEventHandler
-	History() []common.DataEventHandler
-	Latest() common.DataEventHandler
-	List() []common.DataEventHandler
+	Next() common.DataEvent
+	GetStream() []common.DataEvent
+	History() []common.DataEvent
+	Latest() common.DataEvent
+	List() []common.DataEvent
 	IsLastEvent() bool
 	Offset() int
 

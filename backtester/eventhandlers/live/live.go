@@ -113,13 +113,17 @@ func (l *DataChecker) DataFetcher() error {
 		case <-timeoutTimer.C:
 			return fmt.Errorf("%w of %v", ErrLiveDataTimeout, l.eventTimeout)
 		case <-checkTimer.C:
-			err = l.FetchLatestData()
+			checkTimer.Reset(l.dataCheckInterval)
+			var updated bool
+			updated, err = l.FetchLatestData()
 			if err != nil {
 				return err
 			}
+			if !updated {
+				continue
+			}
 			close(l.updated)
 			l.updated = make(chan struct{})
-			checkTimer.Reset(l.dataCheckInterval)
 			timeoutTimer.Reset(l.eventTimeout)
 		}
 	}
@@ -207,34 +211,39 @@ func (l *DataChecker) AppendDataSource(item *gctkline.Item, exch gctexchange.IBo
 }
 
 // FetchLatestData loads the latest data for all stored data sources
-func (l *DataChecker) FetchLatestData() error {
+func (l *DataChecker) FetchLatestData() (bool, error) {
 	if l == nil {
-		return fmt.Errorf("%w DataChecker", gctcommon.ErrNilPointer)
+		return false, fmt.Errorf("%w DataChecker", gctcommon.ErrNilPointer)
 	}
 	if atomic.LoadUint32(&l.started) == 0 {
-		return engine.ErrSubSystemNotStarted
+		return false, engine.ErrSubSystemNotStarted
 	}
 	l.m.Lock()
 	defer l.m.Unlock()
 	var err error
+	var updated bool
 	for i := range l.exchangesToCheck {
 		if !l.verbose {
 			log.Infof(common.Livetester, "fetching live data for %v %v %v", l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair)
 		}
-		err = l.exchangesToCheck[i].loadCandleData()
+		var loaded bool
+		loaded, err = l.exchangesToCheck[i].loadCandleData()
 		if err != nil {
-			return err
+			return false, err
 		}
 		l.dataHolder.SetDataForCurrency(l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair, &l.exchangesToCheck[i].pairCandles)
+		if loaded && !updated {
+			updated = true
+		}
 	}
-	return nil
+	return updated, nil
 }
 
 // loadCandleData fetches data from the exchange API and appends it
 // to the candles to be added to the backtester event queue
-func (c *liveExchangeDataHandler) loadCandleData() error {
+func (c *liveExchangeDataHandler) loadCandleData() (bool, error) {
 	if c == nil {
-		return gctcommon.ErrNilPointer
+		return false, gctcommon.ErrNilPointer
 	}
 	c.m.Lock()
 	defer c.m.Unlock()
@@ -246,11 +255,11 @@ func (c *liveExchangeDataHandler) loadCandleData() error {
 		c.underlyingPair,
 		c.asset)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if len(candles.Candles) == 0 {
-		return nil
+		return false, nil
 	}
 	c.pairCandles.AppendResults(candles)
-	return nil
+	return true, nil
 }

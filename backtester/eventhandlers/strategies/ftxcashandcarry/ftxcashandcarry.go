@@ -3,21 +3,20 @@ package ftxcashandcarry
 import (
 	"errors"
 	"fmt"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
-	"strings"
-	"time"
-
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"strings"
+	"time"
 )
 
 // Name returns the name of the strategy
@@ -105,35 +104,46 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 	return response, nil
 }
 
-func (s *Strategy) CloseAllPositions(pos []holdings.Holding) ([]signal.Event, error) {
-	for i := range pos {
-		amount := pos[i].BaseSize
-		signal.Signal{
-			Base: &event.Base{
-				Offset:         0,
-				Exchange:       "",
-				Time:           time.Time{},
-				Interval:       0,
-				CurrencyPair:   currency.Pair{},
-				UnderlyingPair: currency.Pair{},
-				AssetType:      0,
-				Reasons:        nil,
-			},
-			OpenPrice:          decimal.Decimal{},
-			HighPrice:          decimal.Decimal{},
-			LowPrice:           decimal.Decimal{},
-			ClosePrice:         decimal.Decimal{},
-			Volume:             decimal.Decimal{},
-			BuyLimit:           decimal.Decimal{},
-			SellLimit:          decimal.Decimal{},
-			Amount:             decimal.Decimal{},
-			Direction:          0,
-			FillDependentEvent: nil,
-			CollateralCurrency: currency.Code{},
-			MatchesOrderAmount: false,
+// CloseAllPositions is this strategy's implementation on how to
+// unwind all positions in the event of a closure
+func (s *Strategy) CloseAllPositions(holdings []holdings.Holding, prices []common.DataEvent) ([]signal.Event, error) {
+	var spotSignals, futureSignals []signal.Event
+
+	for i := range holdings {
+		for j := range prices {
+			if prices[j].GetExchange() != holdings[i].Exchange ||
+				prices[j].GetAssetType() != holdings[i].Asset ||
+				!prices[j].Pair().Equal(holdings[i].Pair) {
+				continue
+			}
+			sig := &signal.Signal{
+				Base: &event.Base{
+					Offset:         holdings[i].Offset + 1,
+					Exchange:       holdings[i].Exchange,
+					Time:           time.Now(), // as this is for live, use current time as there has not been a new interval to close on
+					Interval:       prices[j].GetInterval(),
+					CurrencyPair:   holdings[i].Pair,
+					UnderlyingPair: prices[j].GetUnderlyingPair(),
+					AssetType:      holdings[i].Asset,
+					Reasons:        []string{"closing position on close"},
+				},
+				OpenPrice:          prices[j].GetOpenPrice(),
+				HighPrice:          prices[j].GetHighPrice(),
+				LowPrice:           prices[j].GetLowPrice(),
+				ClosePrice:         prices[j].GetClosePrice(),
+				Amount:             holdings[i].BaseSize,
+				Direction:          order.ClosePosition,
+				CollateralCurrency: holdings[i].Pair.Base,
+			}
+			if prices[j].GetAssetType().IsFutures() {
+				futureSignals = append(futureSignals, sig)
+			} else {
+				spotSignals = append(spotSignals, sig)
+			}
 		}
 	}
-	return nil
+	// close out future positions first
+	return append(futureSignals, spotSignals...), nil
 }
 
 // createSignals creates signals based on the relationships between

@@ -49,7 +49,7 @@ type portfolioOverride struct {
 	portfolio.Portfolio
 }
 
-func (p portfolioOverride) CreateLiquidationOrdersForExchange(ev common.DataEventHandler, _ funding.IFundingManager) ([]order.Event, error) {
+func (p portfolioOverride) CreateLiquidationOrdersForExchange(ev common.DataEvent, _ funding.IFundingManager) ([]order.Event, error) {
 	if p.Err != nil {
 		return nil, p.Err
 	}
@@ -726,7 +726,7 @@ func TestTriggerLiquidationsForExchange(t *testing.T) {
 	pnl := &portfolio.PNLSummary{}
 	bt.DataHolder = &data.HandlerPerCurrency{}
 	d := data.Base{}
-	d.SetStream([]common.DataEventHandler{&evkline.Kline{
+	d.SetStream([]common.DataEvent{&evkline.Kline{
 		Base: &event.Base{
 			Exchange:     testExchange,
 			Time:         time.Now(),
@@ -756,7 +756,7 @@ func TestTriggerLiquidationsForExchange(t *testing.T) {
 	bt.EventQueue = &eventholder.Holder{}
 	bt.Funding = &funding.FundManager{}
 	bt.DataHolder.SetDataForCurrency(testExchange, a, cp, da)
-	err = bt.Statistic.SetupEventForTime(ev)
+	err = bt.Statistic.SetEventForOffset(ev)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
@@ -885,7 +885,7 @@ func TestProcessSignalEvent(t *testing.T) {
 			AssetType:    a,
 			CurrencyPair: cp},
 	}
-	err = bt.Statistic.SetupEventForTime(de)
+	err = bt.Statistic.SetEventForOffset(de)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
@@ -959,7 +959,7 @@ func TestProcessOrderEvent(t *testing.T) {
 			AssetType:    a,
 			CurrencyPair: cp},
 	}
-	err = bt.Statistic.SetupEventForTime(de)
+	err = bt.Statistic.SetEventForOffset(de)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
@@ -1079,7 +1079,7 @@ func TestProcessFillEvent(t *testing.T) {
 			AssetType:    a,
 			CurrencyPair: cp},
 	}
-	err = bt.Statistic.SetupEventForTime(de)
+	err = bt.Statistic.SetEventForOffset(de)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
@@ -1234,7 +1234,7 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 			AssetType:    a,
 			CurrencyPair: cp},
 	}
-	err = bt.Statistic.SetupEventForTime(de)
+	err = bt.Statistic.SetEventForOffset(de)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}

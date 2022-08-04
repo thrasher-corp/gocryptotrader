@@ -89,7 +89,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		f.Slippage = price.Sub(f.ClosePrice).Div(f.ClosePrice).Mul(decimal.NewFromInt(100))
 	} else {
 		slippageRate := slippage.EstimateSlippagePercentage(cs.MinimumSlippageRate, cs.MaximumSlippageRate)
-		if cs.SkipCandleVolumeFitting || o.GetAssetType().IsFutures() {
+		if cs.SkipCandleVolumeFitting || o.GetAssetType().IsFutures() || o.GetDirection() == gctorder.ClosePosition {
 			f.VolumeAdjustedPrice = f.ClosePrice
 			amount = f.Amount
 		} else {

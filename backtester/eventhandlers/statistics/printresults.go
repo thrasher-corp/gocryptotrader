@@ -126,7 +126,7 @@ func (s *Statistic) PrintAllEventsChronologically() {
 	}
 }
 
-func (s *Statistic) CreateLog(data common.EventHandler) (string, error) {
+func (s *Statistic) CreateLog(data common.Event) (string, error) {
 	var (
 		result string
 		colour = common.ColourDefault
@@ -182,7 +182,7 @@ func (s *Statistic) CreateLog(data common.EventHandler) (string, error) {
 			ev.GetClosePrice().Round(8))
 		result = addReason(ev.GetConcatReasons(), result)
 		result += common.ColourDefault
-	case common.DataEventHandler:
+	case common.DataEvent:
 		result = fmt.Sprintf("%v %v%v%v| Price: $%v",
 			ev.GetTime().Format(gctcommon.SimpleTimeFormat),
 			fSIL(ev.GetExchange(), limit12),

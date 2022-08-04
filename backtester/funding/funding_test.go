@@ -27,7 +27,7 @@ var (
 	pair     = currency.NewPair(base, quote)
 )
 
-// fakeEvent implements common.EventHandler without
+// fakeEvent implements common.Event without
 // caring about the response, or dealing with import cycles
 type fakeEvent struct{}
 

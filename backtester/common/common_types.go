@@ -36,8 +36,8 @@ var (
 	errCannotGenerateFileName = errors.New("cannot generate filename")
 )
 
-// EventHandler interface implements required GetTime() & Pair() return
-type EventHandler interface {
+// Event interface implements required GetTime() & Pair() return
+type Event interface {
 	GetBase() *event.Base
 	GetOffset() int64
 	SetOffset(int64)
@@ -73,9 +73,9 @@ var (
 	Data               *log.SubLogger
 )
 
-// DataEventHandler interface used for loading and interacting with Data
-type DataEventHandler interface {
-	EventHandler
+// DataEvent interface used for loading and interacting with Data
+type DataEvent interface {
+	Event
 	GetUnderlyingPair() currency.Pair
 	GetClosePrice() decimal.Decimal
 	GetHighPrice() decimal.Decimal

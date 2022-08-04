@@ -10,12 +10,12 @@ func (e *Holder) Reset() {
 }
 
 // AppendEvent adds and event to the queue
-func (e *Holder) AppendEvent(i common.EventHandler) {
+func (e *Holder) AppendEvent(i common.Event) {
 	e.Queue = append(e.Queue, i)
 }
 
 // NextEvent removes the current event and returns the next event in the queue
-func (e *Holder) NextEvent() (i common.EventHandler) {
+func (e *Holder) NextEvent() (i common.Event) {
 	if len(e.Queue) == 0 {
 		return nil
 	}

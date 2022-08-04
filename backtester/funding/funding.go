@@ -464,7 +464,7 @@ func (f *FundManager) IsUsingExchangeLevelFunding() bool {
 }
 
 // GetFundingForEvent This will construct a funding based on a backtesting event
-func (f *FundManager) GetFundingForEvent(ev common.EventHandler) (IFundingPair, error) {
+func (f *FundManager) GetFundingForEvent(ev common.Event) (IFundingPair, error) {
 	return f.getFundingForEAP(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 }
 
@@ -513,7 +513,7 @@ func (f *FundManager) getFundingForEAC(exch string, a asset.Item, c currency.Cod
 }
 
 // Liquidate will remove all funding for all items belonging to an exchange
-func (f *FundManager) Liquidate(ev common.EventHandler) {
+func (f *FundManager) Liquidate(ev common.Event) {
 	if ev == nil {
 		return
 	}
@@ -553,7 +553,7 @@ func (f *FundManager) GetAllFunding() []BasicItem {
 
 // UpdateCollateral will recalculate collateral for an exchange
 // based on the event passed in
-func (f *FundManager) UpdateCollateral(ev common.EventHandler) error {
+func (f *FundManager) UpdateCollateral(ev common.Event) error {
 	if ev == nil {
 		return common.ErrNilEvent
 	}
@@ -652,7 +652,7 @@ func (f *FundManager) RealisePNL(receivingExchange string, receivingAsset asset.
 
 // HasExchangeBeenLiquidated checks for any items with a matching exchange
 // and returns whether it has been liquidated
-func (f *FundManager) HasExchangeBeenLiquidated(ev common.EventHandler) bool {
+func (f *FundManager) HasExchangeBeenLiquidated(ev common.Event) bool {
 	for i := range f.items {
 		if ev.GetExchange() == f.items[i].exchange {
 			return f.items[i].isLiquidated

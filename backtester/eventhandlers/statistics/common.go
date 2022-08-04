@@ -19,7 +19,7 @@ func fSIL(str string, limit int) string {
 }
 
 // CalculateBiggestEventDrawdown calculates the biggest drawdown using a slice of DataEvents
-func CalculateBiggestEventDrawdown(closePrices []common.DataEventHandler) (Swing, error) {
+func CalculateBiggestEventDrawdown(closePrices []common.DataEvent) (Swing, error) {
 	if len(closePrices) == 0 {
 		return Swing{}, fmt.Errorf("%w to calculate drawdowns", errReceivedNoData)
 	}

@@ -3,11 +3,9 @@ package engine
 import (
 	"errors"
 	"fmt"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
-	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
-
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
@@ -15,9 +13,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -56,6 +56,9 @@ func (bt *BackTest) RunLive() error {
 	for {
 		select {
 		case <-bt.shutdown:
+			if bt.LiveDataHandler != nil {
+				return bt.LiveDataHandler.Stop()
+			}
 			return nil
 		case <-bt.LiveDataHandler.Updated():
 			bt.Run()
@@ -110,7 +113,7 @@ dataLoadingIssue:
 // after data has been loaded and Run has appended a data event to the queue,
 // handle event will process events and add further events to the queue if they
 // are required
-func (bt *BackTest) handleEvent(ev common.EventHandler) error {
+func (bt *BackTest) handleEvent(ev common.Event) error {
 	if ev == nil {
 		return fmt.Errorf("cannot handle event %w", errNilData)
 	}
@@ -127,7 +130,7 @@ func (bt *BackTest) handleEvent(ev common.EventHandler) error {
 	}
 
 	switch eType := ev.(type) {
-	case common.DataEventHandler:
+	case kline.Event:
 		if bt.Strategy.UsingSimultaneousProcessing() {
 			err = bt.processSimultaneousDataEvents()
 		} else {
@@ -164,7 +167,7 @@ func (bt *BackTest) handleEvent(ev common.EventHandler) error {
 }
 
 // processSingleDataEvent will pass the event to the strategy and determine how it should be handled
-func (bt *BackTest) processSingleDataEvent(ev common.DataEventHandler, funds funding.IFundReleaser) error {
+func (bt *BackTest) processSingleDataEvent(ev common.DataEvent, funds funding.IFundReleaser) error {
 	err := bt.updateStatsForDataEvent(ev, funds)
 	if err != nil {
 		return err
@@ -209,6 +212,7 @@ func (bt *BackTest) processSimultaneousDataEvents() error {
 				if err != nil {
 					switch {
 					case errors.Is(err, statistics.ErrAlreadyProcessed):
+						log.Warnf(common.Livetester, "%v %v", latestData.GetOffset(), err)
 						continue
 					case errors.Is(err, gctorder.ErrPositionLiquidated):
 						return nil
@@ -241,7 +245,7 @@ func (bt *BackTest) processSimultaneousDataEvents() error {
 
 // updateStatsForDataEvent makes various systems aware of price movements from
 // data events
-func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds funding.IFundReleaser) error {
+func (bt *BackTest) updateStatsForDataEvent(ev common.DataEvent, funds funding.IFundReleaser) error {
 	if ev == nil {
 		return common.ErrNilEvent
 	}
@@ -249,12 +253,12 @@ func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds fu
 		return fmt.Errorf("%v %v %v %w missing fund releaser", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), common.ErrNilArguments)
 	}
 	// update statistics with the latest price
-	err := bt.Statistic.SetupEventForTime(ev)
+	err := bt.Statistic.SetEventForOffset(ev)
 	if err != nil {
 		if errors.Is(err, statistics.ErrAlreadyProcessed) {
 			return err
 		}
-		log.Errorf(common.Backtester, "SetupEventForTime %v", err)
+		log.Errorf(common.Backtester, "SetEventForOffset %v", err)
 	}
 	// update portfolio manager with the latest price
 	err = bt.Portfolio.UpdateHoldings(ev, funds)
@@ -305,7 +309,7 @@ func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds fu
 	return nil
 }
 
-func (bt *BackTest) triggerLiquidationsForExchange(ev common.DataEventHandler, pnl *portfolio.PNLSummary) error {
+func (bt *BackTest) triggerLiquidationsForExchange(ev common.DataEvent, pnl *portfolio.PNLSummary) error {
 	if ev == nil {
 		return common.ErrNilEvent
 	}
@@ -327,14 +331,14 @@ func (bt *BackTest) triggerLiquidationsForExchange(ev common.DataEventHandler, p
 			return err
 		}
 		latest := datas.Latest()
-		err = bt.Statistic.SetupEventForTime(latest)
+		err = bt.Statistic.SetEventForOffset(latest)
 		if err != nil && !errors.Is(err, statistics.ErrAlreadyProcessed) {
 			return err
 		}
 		bt.EventQueue.AppendEvent(orders[i])
 		err = bt.Statistic.SetEventForOffset(orders[i])
 		if err != nil {
-			log.Errorf(common.Backtester, "SetupEventForTime %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+			log.Errorf(common.Backtester, "SetEventForOffset %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 		}
 		bt.Funding.Liquidate(orders[i])
 	}
@@ -502,10 +506,40 @@ func (bt *BackTest) Stop() {
 }
 
 func (bt *BackTest) CloseAllPositions() error {
-	err := bt.Strategy.CloseAllPositions(bt.Portfolio.GetLatestHoldingsForAllCurrencies())
-	if err != nil && errors.Is(err, gctcommon.ErrNotYetImplemented) {
+	close(bt.shutdown)
+	allData := bt.DataHolder.GetAllData()
+	var latestPrices []common.DataEvent
+	for _, exchangeMap := range allData {
+		for _, assetMap := range exchangeMap {
+			for _, dataHolder := range assetMap {
+				latestPrices = append(latestPrices, dataHolder.Latest())
+			}
+		}
+	}
+	events, err := bt.Strategy.CloseAllPositions(bt.Portfolio.GetLatestHoldingsForAllCurrencies(), latestPrices)
+	if err != nil {
+		if errors.Is(err, gctcommon.ErrFunctionNotSupported) {
+			return nil
+		}
 		return err
 	}
-
+	for i := range events {
+		k := events[i].ToKline()
+		err = bt.Statistic.SetEventForOffset(k)
+		if err != nil {
+			log.Errorf(common.Backtester, "SetEventForOffset kline %v %v %v %v", events[i].GetExchange(), events[i].GetAssetType(), events[i].Pair(), err)
+		}
+		err = bt.Statistic.SetEventForOffset(events[i])
+		if err != nil {
+			log.Errorf(common.Backtester, "SetEventForOffset signal %v %v %v %v", events[i].GetExchange(), events[i].GetAssetType(), events[i].Pair(), err)
+		}
+		bt.EventQueue.AppendEvent(events[i])
+	}
+	// portfolio run
+	bt.Run()
+	// exchange run
+	bt.Run()
+	// fill run
+	bt.Run()
 	return nil
 }

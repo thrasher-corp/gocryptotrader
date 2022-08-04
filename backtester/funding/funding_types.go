@@ -16,17 +16,17 @@ import (
 type IFundingManager interface {
 	Reset()
 	IsUsingExchangeLevelFunding() bool
-	GetFundingForEvent(common.EventHandler) (IFundingPair, error)
+	GetFundingForEvent(common.Event) (IFundingPair, error)
 	Transfer(decimal.Decimal, *Item, *Item, bool) error
 	GenerateReport() *Report
 	AddUSDTrackingData(*kline.DataFromKline) error
 	CreateSnapshot(time.Time)
 	USDTrackingDisabled() bool
-	Liquidate(common.EventHandler)
+	Liquidate(common.Event)
 	GetAllFunding() []BasicItem
-	UpdateCollateral(common.EventHandler) error
+	UpdateCollateral(common.Event) error
 	HasFutures() bool
-	HasExchangeBeenLiquidated(handler common.EventHandler) bool
+	HasExchangeBeenLiquidated(handler common.Event) bool
 	RealisePNL(receivingExchange string, receivingAsset asset.Item, receivingCurrency currency.Code, realisedPNL decimal.Decimal) error
 }
 
@@ -35,15 +35,15 @@ type IFundingManager interface {
 type IFundingTransferer interface {
 	IsUsingExchangeLevelFunding() bool
 	Transfer(decimal.Decimal, *Item, *Item, bool) error
-	GetFundingForEvent(common.EventHandler) (IFundingPair, error)
-	HasExchangeBeenLiquidated(handler common.EventHandler) bool
+	GetFundingForEvent(common.Event) (IFundingPair, error)
+	HasExchangeBeenLiquidated(handler common.Event) bool
 }
 
 // IFundingReader is a simple interface of
 // IFundingManager for readonly access at portfolio
 // manager
 type IFundingReader interface {
-	GetFundingForEvent(common.EventHandler) (IFundingPair, error)
+	GetFundingForEvent(common.Event) (IFundingPair, error)
 	GetAllFunding() []BasicItem
 }
 
