@@ -81,6 +81,13 @@ func (by *Bybit) WsAuth(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	by.Websocket.AuthConn.SetupPingHandler(stream.PingHandler{
+		MessageType: websocket.TextMessage,
+		Message:     []byte(`{"op":"ping"}`),
+		Delay:       bybitWebsocketTimer,
+	})
+
 	by.Websocket.Wg.Add(1)
 	go by.wsReadData(by.Websocket.AuthConn)
 
