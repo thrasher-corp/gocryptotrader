@@ -1,6 +1,7 @@
 package kline
 
 import (
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -30,7 +31,7 @@ func (d *DataFromKline) Load() error {
 		return errNoCandleData
 	}
 
-	klineData := make([]common.DataEvent, len(d.Item.Candles))
+	klineData := make([]data.Event, len(d.Item.Candles))
 	for i := range d.Item.Candles {
 		newKline := &kline.Kline{
 			Base: &event.Base{
@@ -62,6 +63,9 @@ func (d *DataFromKline) Load() error {
 func (d *DataFromKline) AppendResults(ki *gctkline.Item) {
 	if d.addedTimes == nil {
 		d.addedTimes = make(map[int64]bool)
+		for i := range d.Item.Candles {
+			d.addedTimes[d.Item.Candles[i].Time.UnixNano()] = true
+		}
 	}
 	var gctCandles []gctkline.Candle
 	for i := range ki.Candles {
@@ -73,26 +77,8 @@ func (d *DataFromKline) AppendResults(ki *gctkline.Item) {
 	if len(gctCandles) == 0 {
 		return
 	}
-	latestOffset := len(d.StreamClose()) + 1
-	klineData := make([]common.DataEvent, len(gctCandles))
 	for i := range gctCandles {
-		klineData[i] = &kline.Kline{
-			Base: &event.Base{
-				Offset:         int64(latestOffset + i),
-				Exchange:       ki.Exchange,
-				Time:           gctCandles[i].Time,
-				Interval:       ki.Interval,
-				CurrencyPair:   ki.Pair,
-				AssetType:      ki.Asset,
-				UnderlyingPair: ki.UnderlyingPair,
-			},
-			Open:             decimal.NewFromFloat(gctCandles[i].Open),
-			High:             decimal.NewFromFloat(gctCandles[i].High),
-			Low:              decimal.NewFromFloat(gctCandles[i].Low),
-			Close:            decimal.NewFromFloat(gctCandles[i].Close),
-			Volume:           decimal.NewFromFloat(gctCandles[i].Volume),
-			ValidationIssues: gctCandles[i].ValidationIssues,
-		}
+		d.Item.Candles = append(d.Item.Candles, gctCandles[i])
 	}
 	if d.RangeHolder != nil {
 		// offline data check when there is a known range
@@ -103,8 +89,10 @@ func (d *DataFromKline) AppendResults(ki *gctkline.Item) {
 			}
 		}
 	}
-
-	d.AppendStream(klineData...)
+	err := d.Load()
+	if err != nil {
+		log.Errorf(common.Data, "unable to load candles %v", err)
+	}
 	d.SortStream()
 }
 

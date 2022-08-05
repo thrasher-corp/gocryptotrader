@@ -226,24 +226,32 @@ func (l *DataChecker) FetchLatestData() (bool, error) {
 		if !l.verbose {
 			log.Infof(common.Livetester, "fetching live data for %v %v %v", l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair)
 		}
-		var loaded bool
-		loaded, err = l.exchangesToCheck[i].loadCandleData()
+		preCandleLen := len(l.exchangesToCheck[i].pairCandles.Item.Candles)
+		err = l.exchangesToCheck[i].loadCandleData()
 		if err != nil {
 			return false, err
 		}
 		l.dataHolder.SetDataForCurrency(l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair, &l.exchangesToCheck[i].pairCandles)
-		if loaded && !updated {
+		if len(l.exchangesToCheck[i].pairCandles.Item.Candles) > preCandleLen {
 			updated = true
 		}
 	}
 	return updated, nil
 }
 
+func (l *DataChecker) GetKlines() []kline.DataFromKline {
+	var response []kline.DataFromKline
+	for i := range l.exchangesToCheck {
+		response = append(response, l.exchangesToCheck[i].pairCandles)
+	}
+	return response
+}
+
 // loadCandleData fetches data from the exchange API and appends it
 // to the candles to be added to the backtester event queue
-func (c *liveExchangeDataHandler) loadCandleData() (bool, error) {
+func (c *liveExchangeDataHandler) loadCandleData() error {
 	if c == nil {
-		return false, gctcommon.ErrNilPointer
+		return gctcommon.ErrNilPointer
 	}
 	c.m.Lock()
 	defer c.m.Unlock()
@@ -255,11 +263,12 @@ func (c *liveExchangeDataHandler) loadCandleData() (bool, error) {
 		c.underlyingPair,
 		c.asset)
 	if err != nil {
-		return false, err
+		return err
 	}
 	if len(candles.Candles) == 0 {
-		return false, nil
+		return nil
 	}
 	c.pairCandles.AppendResults(candles)
-	return true, nil
+	c.pairCandles.Load()
+	return nil
 }

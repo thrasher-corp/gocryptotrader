@@ -49,7 +49,7 @@ type portfolioOverride struct {
 	portfolio.Portfolio
 }
 
-func (p portfolioOverride) CreateLiquidationOrdersForExchange(ev common.DataEvent, _ funding.IFundingManager) ([]order.Event, error) {
+func (p portfolioOverride) CreateLiquidationOrdersForExchange(ev data.Event, _ funding.IFundingManager) ([]order.Event, error) {
 	if p.Err != nil {
 		return nil, p.Err
 	}
@@ -726,7 +726,7 @@ func TestTriggerLiquidationsForExchange(t *testing.T) {
 	pnl := &portfolio.PNLSummary{}
 	bt.DataHolder = &data.HandlerPerCurrency{}
 	d := data.Base{}
-	d.SetStream([]common.DataEvent{&evkline.Kline{
+	d.SetStream([]data.Event{&evkline.Kline{
 		Base: &event.Base{
 			Exchange:     testExchange,
 			Time:         time.Now(),

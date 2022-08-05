@@ -33,7 +33,7 @@ type Handler interface {
 	Stop() error
 	Reset()
 	Updated() chan struct{}
-	// AppendUSDTrackingData ??
+	GetKlines() []kline.DataFromKline
 }
 
 // DataChecker is responsible for managing all data retrieval

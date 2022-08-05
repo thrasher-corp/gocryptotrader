@@ -62,7 +62,7 @@ func (b *Base) Reset() {
 }
 
 // GetStream will return entire data list
-func (b *Base) GetStream() []common.DataEvent {
+func (b *Base) GetStream() []Event {
 	return b.stream
 }
 
@@ -77,13 +77,13 @@ func (b *Base) Offset() int {
 }
 
 // SetStream sets the data stream for candle analysis
-func (b *Base) SetStream(s []common.DataEvent) {
+func (b *Base) SetStream(s []Event) {
 	b.stream = s
 }
 
 // AppendStream appends new datas onto the stream, however, will not
 // add duplicates. Used for live analysis
-func (b *Base) AppendStream(s ...common.DataEvent) {
+func (b *Base) AppendStream(s ...Event) {
 	for i := range s {
 		if s[i] == nil {
 			continue
@@ -93,7 +93,7 @@ func (b *Base) AppendStream(s ...common.DataEvent) {
 }
 
 // Next will return the next event in the list and also shift the offset one
-func (b *Base) Next() common.DataEvent {
+func (b *Base) Next() Event {
 	if len(b.stream) <= b.offset {
 		return nil
 	}
@@ -105,12 +105,12 @@ func (b *Base) Next() common.DataEvent {
 }
 
 // History will return all previous data events that have happened
-func (b *Base) History() []common.DataEvent {
+func (b *Base) History() []Event {
 	return b.stream[:b.offset]
 }
 
 // Latest will return latest data event
-func (b *Base) Latest() common.DataEvent {
+func (b *Base) Latest() Event {
 	if b.latest == nil && len(b.stream) >= b.offset+1 {
 		b.latest = b.stream[b.offset]
 	}
@@ -119,7 +119,7 @@ func (b *Base) Latest() common.DataEvent {
 
 // List returns all future data events from the current iteration
 // ill-advised to use this in strategies because you don't know the future in real life
-func (b *Base) List() []common.DataEvent {
+func (b *Base) List() []Event {
 	return b.stream[b.offset:]
 }
 

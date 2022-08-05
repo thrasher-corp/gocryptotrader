@@ -797,7 +797,10 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 	if err != nil {
 		return nil, err
 	}
-	bt.Reports.AddKlineItem(&resp.Item)
+	err = bt.Reports.SetKlineData(&resp.Item)
+	if err != nil {
+		return nil, err
+	}
 	return resp, nil
 }
 

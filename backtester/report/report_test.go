@@ -456,7 +456,7 @@ func TestUpdateItem(t *testing.T) {
 	t.Parallel()
 	d := Data{}
 	tt := time.Now()
-	d.UpdateItem(&gctkline.Item{
+	d.SetKlineData(&gctkline.Item{
 		Candles: []gctkline.Candle{
 			{
 				Time: tt,
@@ -469,7 +469,7 @@ func TestUpdateItem(t *testing.T) {
 	if len(d.OriginalCandles[0].Candles) != 1 {
 		t.Error("expected one candle")
 	}
-	d.UpdateItem(&gctkline.Item{
+	d.SetKlineData(&gctkline.Item{
 		Candles: []gctkline.Candle{
 			{
 				Time: tt,
@@ -480,7 +480,7 @@ func TestUpdateItem(t *testing.T) {
 		t.Error("expected one candle")
 	}
 
-	d.UpdateItem(&gctkline.Item{
+	d.SetKlineData(&gctkline.Item{
 		Candles: []gctkline.Candle{
 			{
 				Time: tt.Add(1),

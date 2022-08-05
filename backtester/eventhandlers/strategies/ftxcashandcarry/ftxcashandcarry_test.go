@@ -113,7 +113,7 @@ func TestSortSignals(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := data.Base{}
-	d.SetStream([]common.DataEvent{&eventkline.Kline{
+	d.SetStream([]data.Event{&eventkline.Kline{
 		Base: &event.Base{
 			Exchange:     exch,
 			Time:         dInsert,
@@ -139,7 +139,7 @@ func TestSortSignals(t *testing.T) {
 	}
 
 	d2 := data.Base{}
-	d2.SetStream([]common.DataEvent{&eventkline.Kline{
+	d2.SetStream([]data.Event{&eventkline.Kline{
 		Base: &event.Base{
 			Exchange:       exch,
 			Time:           dInsert,
@@ -336,7 +336,7 @@ func TestOnSimultaneousSignals(t *testing.T) {
 		},
 	}
 	tt := time.Now()
-	d.SetStream([]common.DataEvent{&eventkline.Kline{
+	d.SetStream([]data.Event{&eventkline.Kline{
 		Base: &event.Base{
 			Exchange:     exchangeName,
 			Time:         tt,
@@ -378,7 +378,7 @@ func TestOnSimultaneousSignals(t *testing.T) {
 			UnderlyingPair: cp,
 		},
 	}
-	d2.SetStream([]common.DataEvent{&eventkline.Kline{
+	d2.SetStream([]data.Event{&eventkline.Kline{
 		Base: &event.Base{
 			Exchange:       exchangeName,
 			Time:           tt,

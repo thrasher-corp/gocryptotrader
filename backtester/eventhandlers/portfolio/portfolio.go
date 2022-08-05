@@ -3,6 +3,7 @@ package portfolio
 import (
 	"errors"
 	"fmt"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"strings"
 	"time"
 
@@ -372,7 +373,7 @@ func (p *Portfolio) GetComplianceManager(exchangeName string, a asset.Item, cp c
 }
 
 // UpdateHoldings updates the portfolio holdings for the data event
-func (p *Portfolio) UpdateHoldings(e common.DataEvent, funds funding.IFundReleaser) error {
+func (p *Portfolio) UpdateHoldings(e data.Event, funds funding.IFundReleaser) error {
 	if e == nil {
 		return common.ErrNilEvent
 	}
@@ -577,7 +578,7 @@ func (p *Portfolio) GetLatestPNLForEvent(e common.Event) (*PNLSummary, error) {
 
 // CheckLiquidationStatus checks funding against position
 // and liquidates and removes funding if position unable to continue
-func (p *Portfolio) CheckLiquidationStatus(ev common.DataEvent, collateralReader funding.ICollateralReader, pnl *PNLSummary) error {
+func (p *Portfolio) CheckLiquidationStatus(ev data.Event, collateralReader funding.ICollateralReader, pnl *PNLSummary) error {
 	if ev == nil {
 		return common.ErrNilEvent
 	}
@@ -602,7 +603,7 @@ func (p *Portfolio) CheckLiquidationStatus(ev common.DataEvent, collateralReader
 }
 
 // CreateLiquidationOrdersForExchange creates liquidation orders, for any that exist on the same exchange where a liquidation is occurring
-func (p *Portfolio) CreateLiquidationOrdersForExchange(ev common.DataEvent, funds funding.IFundingManager) ([]order.Event, error) {
+func (p *Portfolio) CreateLiquidationOrdersForExchange(ev data.Event, funds funding.IFundingManager) ([]order.Event, error) {
 	if ev == nil {
 		return nil, common.ErrNilEvent
 	}

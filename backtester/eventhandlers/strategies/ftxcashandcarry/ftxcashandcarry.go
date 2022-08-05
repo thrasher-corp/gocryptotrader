@@ -106,7 +106,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 
 // CloseAllPositions is this strategy's implementation on how to
 // unwind all positions in the event of a closure
-func (s *Strategy) CloseAllPositions(holdings []holdings.Holding, prices []common.DataEvent) ([]signal.Event, error) {
+func (s *Strategy) CloseAllPositions(holdings []holdings.Holding, prices []data.Event) ([]signal.Event, error) {
 	var spotSignals, futureSignals []signal.Event
 
 	for i := range holdings {

@@ -3,7 +3,7 @@ package statistics
 import (
 	"fmt"
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -61,7 +61,7 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 	returnsPerCandle := make([]decimal.Decimal, len(c.Events))
 	benchmarkRates := make([]decimal.Decimal, len(c.Events))
 
-	allDataEvents := make([]common.DataEvent, len(c.Events))
+	allDataEvents := make([]data.Event, len(c.Events))
 	for i := range c.Events {
 		returnsPerCandle[i] = c.Events[i].Holdings.ChangeInTotalValuePercent
 		allDataEvents[i] = c.Events[i].DataEvent

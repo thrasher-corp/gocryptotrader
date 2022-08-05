@@ -104,16 +104,10 @@ func (d *Data) GenerateReport() error {
 	return nil
 }
 
-// AddKlineItem appends a SET of candles for the report to enhance upon
-// generation
-func (d *Data) AddKlineItem(k *kline.Item) {
-	d.OriginalCandles = append(d.OriginalCandles, k)
-}
-
-// UpdateItem updates an existing kline item for LIVE data usage
-func (d *Data) UpdateItem(k *kline.Item) error {
+// SetKlineData updates an existing kline item for LIVE data usage
+func (d *Data) SetKlineData(k *kline.Item) error {
 	if len(d.OriginalCandles) == 0 {
-		d.AddKlineItem(k)
+		d.OriginalCandles = append(d.OriginalCandles, k)
 		return nil
 	}
 	for i := range d.OriginalCandles {
@@ -124,7 +118,7 @@ func (d *Data) UpdateItem(k *kline.Item) error {
 		d.OriginalCandles[i].RemoveDuplicates()
 		return nil
 	}
-	d.AddKlineItem(k)
+	d.OriginalCandles = append(d.OriginalCandles, k)
 	return nil
 }
 

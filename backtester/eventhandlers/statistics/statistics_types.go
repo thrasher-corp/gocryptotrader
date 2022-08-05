@@ -2,7 +2,7 @@ package statistics
 
 import (
 	"errors"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -127,7 +127,7 @@ type DataAtOffset struct {
 	Time         time.Time
 	Holdings     holdings.Holding
 	Transactions compliance.Snapshot
-	DataEvent    kline.Event
+	DataEvent    data.Event
 	SignalEvent  signal.Event
 	OrderEvent   order.Event
 	FillEvent    fill.Event

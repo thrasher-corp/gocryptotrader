@@ -183,8 +183,7 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 		if strings.EqualFold(f.items[i].exchange, k.Item.Exchange) &&
 			f.items[i].asset == k.Item.Asset {
 			if f.items[i].currency.Equal(k.Item.Pair.Base) {
-				if f.items[i].trackingCandles == nil &&
-					trackingcurrencies.CurrencyIsUSDTracked(k.Item.Pair.Quote) {
+				if trackingcurrencies.CurrencyIsUSDTracked(k.Item.Pair.Quote) {
 					f.items[i].trackingCandles = k
 					if f.items[i].pairedWith != nil {
 						basePairedWith = f.items[i].pairedWith.currency
@@ -196,11 +195,9 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 				if f.items[i].pairedWith != nil && !f.items[i].currency.Equal(basePairedWith) {
 					continue
 				}
-				if f.items[i].trackingCandles == nil {
-					err := f.setUSDCandles(k, i)
-					if err != nil {
-						return err
-					}
+				err := f.setUSDCandles(k, i)
+				if err != nil {
+					return err
 				}
 				quoteSet = true
 			}

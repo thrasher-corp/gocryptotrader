@@ -1400,7 +1400,8 @@
 									</tr>
 									</tbody>
 								</table>
-								{{if  $val.ShowMissingDataWarning}}
+								{{ if gt $val.TotalOrders 1}}
+									{{if  $val.ShowMissingDataWarning}}
 									<h3 class="bg-warning">Missing data was detected during this backtesting run<br />
 										Ratio calculations will be skewed</h3>
 								{{end}}
@@ -1446,6 +1447,7 @@
 									</tr>
 									</tbody>
 								</table>
+									{{end}}
 							{{end }}
 						</div>
 					</div>

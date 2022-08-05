@@ -3,6 +3,7 @@ package statistics
 import (
 	"errors"
 	"fmt"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -19,7 +20,7 @@ func fSIL(str string, limit int) string {
 }
 
 // CalculateBiggestEventDrawdown calculates the biggest drawdown using a slice of DataEvents
-func CalculateBiggestEventDrawdown(closePrices []common.DataEvent) (Swing, error) {
+func CalculateBiggestEventDrawdown(closePrices []data.Event) (Swing, error) {
 	if len(closePrices) == 0 {
 		return Swing{}, fmt.Errorf("%w to calculate drawdowns", errReceivedNoData)
 	}

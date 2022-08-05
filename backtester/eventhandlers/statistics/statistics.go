@@ -23,7 +23,7 @@ func (s *Statistic) Reset() {
 	*s = Statistic{}
 }
 
-// SetupEventForTime sets up the big map for to store important data at each time interval
+// SetEventForOffset sets up the big map for to store important data at each time interval
 func (s *Statistic) SetEventForOffset(ev common.Event) error {
 	if ev == nil {
 		return common.ErrNilEvent
@@ -50,15 +50,18 @@ func (s *Statistic) SetEventForOffset(ev common.Event) error {
 		}
 	}
 	for i := range lookup.Events {
-		if lookup.Events[i].Offset == ev.GetOffset() {
-			return applyEventAtOffset(ev, lookup, i)
+		if lookup.Events[i].Offset != ev.GetOffset() {
+			continue
 		}
+		return applyEventAtOffset(ev, lookup, i)
 	}
+
+	// add to events and then apply the supplied event to it
 	lookup.Events = append(lookup.Events, DataAtOffset{
 		Offset: ev.GetOffset(),
 		Time:   ev.GetTime(),
 	})
-	err := applyEventAtOffset(ev, lookup, 0)
+	err := applyEventAtOffset(ev, lookup, len(lookup.Events)-1)
 	if err != nil {
 		return err
 	}
@@ -71,8 +74,9 @@ func (s *Statistic) SetEventForOffset(ev common.Event) error {
 func applyEventAtOffset(ev common.Event, lookup *CurrencyPairStatistic, i int) error {
 	switch t := ev.(type) {
 	case kline.Event:
-		if lookup.Events[i].DataEvent != nil {
-			return fmt.Errorf("data event %w", ErrAlreadyProcessed)
+		// using kline.Event as signal.Event also matches data.Event
+		if lookup.Events[i].DataEvent != nil && lookup.Events[i].DataEvent != ev {
+			return fmt.Errorf("kline event %w", ErrAlreadyProcessed)
 		}
 		lookup.Events[i].DataEvent = t
 	case signal.Event:

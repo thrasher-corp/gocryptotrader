@@ -2,6 +2,7 @@ package statistics
 
 import (
 	"errors"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"testing"
 	"time"
 
@@ -794,7 +795,7 @@ func TestCalculateBiggestEventDrawdown(t *testing.T) {
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	var events []common.DataEvent
+	var events []data.Event
 	for i := int64(0); i < 100; i++ {
 		tt1 = tt1.Add(gctkline.OneDay.Duration())
 		even := &event.Base{
@@ -881,7 +882,7 @@ func TestCalculateBiggestEventDrawdown(t *testing.T) {
 	}
 
 	// bogus scenario
-	bogusEvent := []common.DataEvent{
+	bogusEvent := []data.Event{
 		&kline.Kline{
 			Base: &event.Base{
 				Exchange:     exch,

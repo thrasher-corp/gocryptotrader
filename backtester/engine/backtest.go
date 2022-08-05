@@ -62,6 +62,17 @@ func (bt *BackTest) RunLive() error {
 			return nil
 		case <-bt.LiveDataHandler.Updated():
 			bt.Run()
+			klines := bt.LiveDataHandler.GetKlines()
+			for i := range klines {
+				err := bt.Reports.SetKlineData(&klines[i].Item)
+				if err != nil {
+					log.Errorf(common.Livetester, "issue processing kline data: %v", err)
+				}
+				err = bt.Funding.AddUSDTrackingData(&klines[i])
+				if err != nil && !errors.Is(err, funding.ErrUSDTrackingDisabled) {
+					log.Errorf(common.Livetester, "issue processing USD tracking data: %v", err)
+				}
+			}
 		}
 	}
 }
@@ -78,7 +89,7 @@ dataLoadingIssue:
 					for currencyPair, dataHandler := range assetMap {
 						d := dataHandler.Next()
 						if d == nil {
-							if !bt.hasHandledEvent {
+							if !bt.hasHandledEvent && bt.LiveDataHandler == nil {
 								log.Errorf(common.Backtester, "Unable to perform `Next` for %v %v %v", exchangeName, assetItem, currencyPair)
 							}
 							break dataLoadingIssue
@@ -131,6 +142,7 @@ func (bt *BackTest) handleEvent(ev common.Event) error {
 
 	switch eType := ev.(type) {
 	case kline.Event:
+		// using kline.Event as signal.Event also matches data.Event
 		if bt.Strategy.UsingSimultaneousProcessing() {
 			err = bt.processSimultaneousDataEvents()
 		} else {
@@ -167,7 +179,7 @@ func (bt *BackTest) handleEvent(ev common.Event) error {
 }
 
 // processSingleDataEvent will pass the event to the strategy and determine how it should be handled
-func (bt *BackTest) processSingleDataEvent(ev common.DataEvent, funds funding.IFundReleaser) error {
+func (bt *BackTest) processSingleDataEvent(ev data.Event, funds funding.IFundReleaser) error {
 	err := bt.updateStatsForDataEvent(ev, funds)
 	if err != nil {
 		return err
@@ -245,7 +257,7 @@ func (bt *BackTest) processSimultaneousDataEvents() error {
 
 // updateStatsForDataEvent makes various systems aware of price movements from
 // data events
-func (bt *BackTest) updateStatsForDataEvent(ev common.DataEvent, funds funding.IFundReleaser) error {
+func (bt *BackTest) updateStatsForDataEvent(ev data.Event, funds funding.IFundReleaser) error {
 	if ev == nil {
 		return common.ErrNilEvent
 	}
@@ -309,7 +321,7 @@ func (bt *BackTest) updateStatsForDataEvent(ev common.DataEvent, funds funding.I
 	return nil
 }
 
-func (bt *BackTest) triggerLiquidationsForExchange(ev common.DataEvent, pnl *portfolio.PNLSummary) error {
+func (bt *BackTest) triggerLiquidationsForExchange(ev data.Event, pnl *portfolio.PNLSummary) error {
 	if ev == nil {
 		return common.ErrNilEvent
 	}
@@ -405,13 +417,9 @@ func (bt *BackTest) processOrderEvent(ev order.Event, funds funding.IFundRelease
 }
 
 func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser) error {
-	t, err := bt.Portfolio.OnFill(ev, funds)
+	_, err := bt.Portfolio.OnFill(ev, funds)
 	if err != nil {
 		return fmt.Errorf("OnFill %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
-	}
-	err = bt.Statistic.SetEventForOffset(t)
-	if err != nil {
-		log.Errorf(common.Backtester, "SetEventForOffset %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 	}
 
 	var holding *holdings.Holding
@@ -508,7 +516,7 @@ func (bt *BackTest) Stop() {
 func (bt *BackTest) CloseAllPositions() error {
 	close(bt.shutdown)
 	allData := bt.DataHolder.GetAllData()
-	var latestPrices []common.DataEvent
+	var latestPrices []data.Event
 	for _, exchangeMap := range allData {
 		for _, assetMap := range exchangeMap {
 			for _, dataHolder := range assetMap {
@@ -541,5 +549,6 @@ func (bt *BackTest) CloseAllPositions() error {
 	bt.Run()
 	// fill run
 	bt.Run()
+
 	return nil
 }

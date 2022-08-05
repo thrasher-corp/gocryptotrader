@@ -2,6 +2,7 @@ package statistics
 
 import (
 	"fmt"
+	data2 "github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"sort"
 	"time"
 
@@ -182,7 +183,7 @@ func (s *Statistic) CreateLog(data common.Event) (string, error) {
 			ev.GetClosePrice().Round(8))
 		result = addReason(ev.GetConcatReasons(), result)
 		result += common.ColourDefault
-	case common.DataEvent:
+	case data2.Event:
 		result = fmt.Sprintf("%v %v%v%v| Price: $%v",
 			ev.GetTime().Format(gctcommon.SimpleTimeFormat),
 			fSIL(ev.GetExchange(), limit12),
@@ -238,7 +239,7 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 	log.Infof(common.CurrencyStatistics, "%s Calculated Drawdown: %s%%", sep, convert.DecimalToHumanFriendlyString(c.MaxDrawdown.DrawdownPercent, 8, ".", ","))
 	log.Infof(common.CurrencyStatistics, "%s Difference: %s", sep, convert.DecimalToHumanFriendlyString(c.MaxDrawdown.Highest.Value.Sub(c.MaxDrawdown.Lowest.Value), 2, ".", ","))
 	log.Infof(common.CurrencyStatistics, "%s Drawdown length: %s", sep, convert.IntToHumanFriendlyString(c.MaxDrawdown.IntervalDuration, ","))
-	if !usingExchangeLevelFunding {
+	if !usingExchangeLevelFunding && c.TotalOrders > 1 {
 		log.Info(common.CurrencyStatistics, common.ColourH2+"------------------Ratios------------------------------------------------"+common.ColourDefault)
 		log.Info(common.CurrencyStatistics, common.ColourH3+"------------------Rates-------------------------------------------------"+common.ColourDefault)
 		log.Infof(common.CurrencyStatistics, "%s Compound Annual Growth Rate: %s", sep, convert.DecimalToHumanFriendlyString(c.CompoundAnnualGrowthRate, 2, ".", ","))

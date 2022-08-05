@@ -30,8 +30,8 @@ type Holder interface {
 // Base is the base implementation of some interface functions
 // where further specific functions are implemented in DataFromKline
 type Base struct {
-	latest     common.DataEvent
-	stream     []common.DataEvent
+	latest     Event
+	stream     []Event
 	offset     int
 	isLiveData bool
 }
@@ -46,17 +46,17 @@ type Handler interface {
 // Loader interface for Loading data into backtest supported format
 type Loader interface {
 	Load() error
-	AppendStream(s ...common.DataEvent)
+	AppendStream(s ...Event)
 	GetBase() Base
 }
 
 // Streamer interface handles loading, parsing, distributing BackTest data
 type Streamer interface {
-	Next() common.DataEvent
-	GetStream() []common.DataEvent
-	History() []common.DataEvent
-	Latest() common.DataEvent
-	List() []common.DataEvent
+	Next() Event
+	GetStream() []Event
+	History() []Event
+	Latest() Event
+	List() []Event
 	IsLastEvent() bool
 	Offset() int
 
@@ -67,4 +67,14 @@ type Streamer interface {
 	StreamVol() []decimal.Decimal
 
 	HasDataAtTime(time.Time) bool
+}
+
+// Event interface used for loading and interacting with Data
+type Event interface {
+	common.Event
+	GetUnderlyingPair() currency.Pair
+	GetClosePrice() decimal.Decimal
+	GetHighPrice() decimal.Decimal
+	GetLowPrice() decimal.Decimal
+	GetOpenPrice() decimal.Decimal
 }

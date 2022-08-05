@@ -2,11 +2,11 @@ package kline
 
 import (
 	"errors"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"testing"
 	"time"
 
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -138,7 +138,7 @@ func TestStreamOpen(t *testing.T) {
 	if bad := d.StreamOpen(); len(bad) > 0 {
 		t.Error("expected no stream")
 	}
-	d.SetStream([]common.DataEvent{
+	d.SetStream([]data.Event{
 		&kline.Kline{
 			Base: &event.Base{
 				Exchange:     exch,
@@ -169,7 +169,7 @@ func TestStreamVolume(t *testing.T) {
 	if bad := d.StreamVol(); len(bad) > 0 {
 		t.Error("expected no stream")
 	}
-	d.SetStream([]common.DataEvent{
+	d.SetStream([]data.Event{
 		&kline.Kline{
 			Base: &event.Base{
 				Exchange:     exch,
@@ -200,7 +200,7 @@ func TestStreamClose(t *testing.T) {
 	if bad := d.StreamClose(); len(bad) > 0 {
 		t.Error("expected no stream")
 	}
-	d.SetStream([]common.DataEvent{
+	d.SetStream([]data.Event{
 		&kline.Kline{
 			Base: &event.Base{
 				Exchange:     exch,
@@ -231,7 +231,7 @@ func TestStreamHigh(t *testing.T) {
 	if bad := d.StreamHigh(); len(bad) > 0 {
 		t.Error("expected no stream")
 	}
-	d.SetStream([]common.DataEvent{
+	d.SetStream([]data.Event{
 		&kline.Kline{
 			Base: &event.Base{
 				Exchange:     exch,
@@ -264,7 +264,7 @@ func TestStreamLow(t *testing.T) {
 	if bad := d.StreamLow(); len(bad) > 0 {
 		t.Error("expected no stream")
 	}
-	d.SetStream([]common.DataEvent{
+	d.SetStream([]data.Event{
 		&kline.Kline{
 			Base: &event.Base{
 				Exchange:     exch,

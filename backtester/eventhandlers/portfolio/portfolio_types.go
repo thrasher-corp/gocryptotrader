@@ -2,6 +2,7 @@ package portfolio
 
 import (
 	"errors"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -54,15 +55,15 @@ type Handler interface {
 	GetLatestOrderSnapshots() ([]compliance.Snapshot, error)
 	ViewHoldingAtTimePeriod(common.Event) (*holdings.Holding, error)
 	setHoldingsForOffset(*holdings.Holding, bool) error
-	UpdateHoldings(common.DataEvent, funding.IFundReleaser) error
+	UpdateHoldings(data.Event, funding.IFundReleaser) error
 	GetComplianceManager(string, asset.Item, currency.Pair) (*compliance.Manager, error)
 	GetPositions(common.Event) ([]gctorder.PositionStats, error)
 	TrackFuturesOrder(fill.Event, funding.IFundReleaser) (*PNLSummary, error)
 	UpdatePNL(common.Event, decimal.Decimal) error
 	GetLatestPNLForEvent(common.Event) (*PNLSummary, error)
 	GetLatestPNLs() []PNLSummary
-	CheckLiquidationStatus(common.DataEvent, funding.ICollateralReader, *PNLSummary) error
-	CreateLiquidationOrdersForExchange(common.DataEvent, funding.IFundingManager) ([]order.Event, error)
+	CheckLiquidationStatus(data.Event, funding.ICollateralReader, *PNLSummary) error
+	CreateLiquidationOrdersForExchange(data.Event, funding.IFundingManager) ([]order.Event, error)
 	GetLatestHoldingsForAllCurrencies() []holdings.Holding
 	Reset()
 }

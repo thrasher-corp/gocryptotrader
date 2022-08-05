@@ -73,16 +73,6 @@ var (
 	Data               *log.SubLogger
 )
 
-// DataEvent interface used for loading and interacting with Data
-type DataEvent interface {
-	Event
-	GetUnderlyingPair() currency.Pair
-	GetClosePrice() decimal.Decimal
-	GetHighPrice() decimal.Decimal
-	GetLowPrice() decimal.Decimal
-	GetOpenPrice() decimal.Decimal
-}
-
 // Directioner dictates the side of an order
 type Directioner interface {
 	SetDirection(side order.Side)
