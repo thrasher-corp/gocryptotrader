@@ -351,7 +351,7 @@ func (by *Bybit) GetUSDCAccountRatio(ctx context.Context, symbol currency.Pair, 
 	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetAccountRatio, params), usdcPublicRate, &resp)
 }
 
-// GetUSDCLatestTrades gets lastest 500 trades for USDCMarginedFutures.
+// GetUSDCLatestTrades gets latest 500 trades for USDCMarginedFutures.
 func (by *Bybit) GetUSDCLatestTrades(ctx context.Context, symbol currency.Pair, category string, limit int64) ([]USDCTrade, error) {
 	resp := struct {
 		Result struct {

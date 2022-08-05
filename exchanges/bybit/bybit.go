@@ -195,7 +195,7 @@ func (by *Bybit) GetTrades(ctx context.Context, symbol string, limit int64) ([]T
 	return trades, nil
 }
 
-// GetKlines data returns the kline data for a specific symbol. Limitation: It only returns lastest 3500 candles irrespective of interval passed
+// GetKlines data returns the kline data for a specific symbol. Limitation: It only returns latest 3500 candles irrespective of interval passed
 func (by *Bybit) GetKlines(ctx context.Context, symbol, period string, limit int64, start, end time.Time) ([]KlineItem, error) {
 	resp := struct {
 		Data [][]interface{} `json:"result"`
