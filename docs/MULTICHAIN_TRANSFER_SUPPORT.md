@@ -52,7 +52,7 @@ $ ./gctcli withdrawcryptofunds --exchange=ftx --currency=USDT --address=TJU9piX2
 | Bittrex | No | No | NA |
 | BTCMarkets | No | No| NA  |
 | BTSE | No | No | Only through website |
-| Bybit | No | No | Only through website |
+| Bybit | Yes | Yes | |
 | CoinbasePro | No | No | No|
 | COINUT | No | No | NA |
 | Exmo | Yes | Yes | Addresses must be created via their website first |
