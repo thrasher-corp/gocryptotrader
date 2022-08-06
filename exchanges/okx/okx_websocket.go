@@ -36,6 +36,10 @@ var responseStream = make(chan stream.Response)
 // defaultSubscribedChannels list of chanels which are subscribed by default
 var defaultSubscribedChannels = []string{
 	OkxChannelTrades,
+	OkxChannelOrderBooks,
+	OkxChannelOrderBooks5,
+	OkxChannelOrderBooks50TBT,
+	OkxChannelOrderBooksTBT,
 	OkxChannelCandle5m,
 	OkxChannelTickers,
 }
@@ -120,6 +124,7 @@ const (
 	OkxChannelOrderBooks5     = "books5"
 	OkxChannelOrderBooks50TBT = "books50-l2-tbt"
 	OkxChannelOrderBooksTBT   = "books-l2-tbt"
+	OkxChannelBBO_TBT         = "bbo-tbt"
 	OkxChannelOptSummary      = "opt-summary"
 	OkxChannelFundingRate     = "funding-rate"
 
@@ -336,7 +341,13 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 			uid, _ = subscriptions[i].Params["uid"].(string)
 		}
 
-		if strings.HasPrefix(arg.Channel, "candle") || strings.EqualFold(arg.Channel, "tickers") || strings.EqualFold(arg.Channel, "") {
+		if strings.HasPrefix(arg.Channel, "candle") ||
+			strings.EqualFold(arg.Channel, OkxChannelTickers) ||
+			strings.EqualFold(arg.Channel, OkxChannelOrderBooks) ||
+			strings.EqualFold(arg.Channel, OkxChannelOrderBooks5) ||
+			strings.EqualFold(arg.Channel, OkxChannelOrderBooks50TBT) ||
+			strings.EqualFold(arg.Channel, OkxChannelOrderBooksTBT) ||
+			strings.EqualFold(arg.Channel, OkxChannelTrades) {
 			if subscriptions[i].Params["instId"] != "" {
 				instrumentID, okay = subscriptions[i].Params["instId"].(string)
 				if !okay {
@@ -372,12 +383,12 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 			underlying, _ = ok.GetUnderlying(subscriptions[i].Currency, subscriptions[i].Asset)
 		}
 
-		if (!subscriptions[i].Currency.IsEmpty()) && subscriptions[i].Asset.IsValid() {
-			underlying, er = ok.GetUnderlying(subscriptions[i].Currency, subscriptions[i].Asset)
-			if er != nil {
-				underlying = ""
-			}
-		}
+		// if (!subscriptions[i].Currency.IsEmpty()) && subscriptions[i].Asset.IsValid() {
+		// 	underlying, er = ok.GetUnderlying(subscriptions[i].Currency, subscriptions[i].Asset)
+		// 	if er != nil {
+		// 		underlying = ""
+		// 	}
+		// }
 		arg.InstrumentID = instrumentID
 		arg.Underlying = underlying
 		arg.InstrumentType = instrumentType
@@ -431,15 +442,19 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 		}
 	}
 	if len(request.Arguments) > 0 {
+		val, _ := json.Marshal(request)
+		log.Debugf(log.ExchangeSys, "Subscription %s", string(val))
 		er = ok.Websocket.Conn.SendJSONMessage(request)
 		if er != nil {
 			return er
 		}
 	}
-	if len(authRequests.Arguments) > 0 {
+	log.Debugf(log.ExchangeSys, "Can Use Authenticated Websocket Endpoints: %v", ok.Websocket.CanUseAuthenticatedEndpoints())
+	if len(authRequests.Arguments) > 0 && ok.Websocket.CanUseAuthenticatedEndpoints() {
+		val, _ := json.Marshal(authRequests)
+		log.Debugf(log.ExchangeSys, "Auth Subscription %s", string(val))
 		er = ok.Websocket.AuthConn.SendJSONMessage(authRequests)
 		if er != nil {
-			log.Debugf(log.ExchangeSys, "Okx Websocket Auth Conn Found an error %v", er)
 			return er
 		}
 	}
@@ -499,9 +514,6 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		}
 		return er
 	}
-	// if strings.EqualFold(dataResponse.Argument.Channel, "books") {
-	// 	log.Debugf(log.ExchangeSys, "Order Book Coming Data: ", string(respRaw))
-	// }
 	if len(dataResponse.Data) > 0 {
 		switch strings.ToLower(dataResponse.Argument.Channel) {
 		case OkxChannelCandle1Y, OkxChannelCandle6M, OkxChannelCandle3M, OkxChannelCandle1M, OkxChannelCandle1W,
@@ -595,6 +607,7 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		case OkxChannelOrderBooks,
 			OkxChannelOrderBooks5,
 			OkxChannelOrderBooks50TBT,
+			OkxChannelBBO_TBT,
 			OkxChannelOrderBooksTBT:
 			return ok.wsProcessOrderBooks(respRaw)
 		case OkxChannelOptSummary:
@@ -677,7 +690,13 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 	if er = json.Unmarshal(data, &response); er != nil {
 		return er
 	}
-	if !(strings.EqualFold(response.Action, OkxOrderBookUpdate) || strings.EqualFold(response.Action, OkxOrderBookFull)) {
+	if !(strings.EqualFold(response.Action, OkxOrderBookUpdate) ||
+		strings.EqualFold(response.Action, OkxOrderBookFull) ||
+		strings.EqualFold(response.Argument.Channel, OkxChannelOrderBooks5) ||
+		strings.EqualFold(response.Argument.Channel, OkxChannelBBO_TBT) ||
+
+		strings.EqualFold(response.Argument.Channel, OkxChannelOrderBooks50TBT) ||
+		strings.EqualFold(response.Argument.Channel, OkxChannelOrderBooksTBT)) {
 		return errors.New("invalid order book action ")
 	}
 	OkxOrderbookMutex.Lock()
@@ -693,7 +712,9 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 		pair.Delimiter = currency.DashDelimiter
 	}
 	for i := range response.Data {
-		if strings.EqualFold(response.Action, OkxOrderBookFull) {
+		if strings.EqualFold(response.Action, OkxOrderBookFull) ||
+			strings.EqualFold(response.Argument.Channel, OkxChannelOrderBooks5) ||
+			strings.EqualFold(response.Argument.Channel, OkxChannelBBO_TBT) {
 			er = ok.WsProcessFullOrderBook(response.Data[i], pair, a)
 			if er != nil {
 				_, err2 := ok.OrderBooksSubscription("subscribe", response.Argument.Channel, a, pair)
@@ -706,7 +727,7 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 			if len(response.Data[i].Asks) == 0 && len(response.Data[i].Bids) == 0 {
 				return nil
 			}
-			er := ok.WsProcessUpdateOrderbook(response.Data[i], pair, a)
+			er := ok.WsProcessUpdateOrderbook(response.Argument.Channel, response.Data[i], pair, a)
 			if er != nil {
 				_, err2 := ok.OrderBooksSubscription("subscribe", response.Argument.Channel, a, pair)
 				if err2 != nil {
@@ -721,15 +742,19 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 
 // WsProcessFullOrderBook processes snapshot order books
 func (ok *Okx) WsProcessFullOrderBook(data WsOrderBookData, pair currency.Pair, a asset.Item) error {
-	signedChecksum, er := ok.CalculatePartialOrderbookChecksum(data)
-	if er != nil {
-		return fmt.Errorf("%s channel: Orderbook unable to calculate orderbook checksum: %s", ok.Name, er)
+	var er error
+	if data.Checksum != 0 {
+		signedChecksum, er := ok.CalculatePartialOrderbookChecksum(data)
+		if er != nil {
+			return fmt.Errorf("%s channel: Orderbook unable to calculate orderbook checksum: %s", ok.Name, er)
+		}
+		if signedChecksum != data.Checksum {
+			return fmt.Errorf("%s channel: Orderbook for %v checksum invalid",
+				ok.Name,
+				pair)
+		}
 	}
-	if signedChecksum != data.Checksum {
-		return fmt.Errorf("%s channel: Orderbook for %v checksum invalid",
-			ok.Name,
-			pair)
-	}
+
 	if ok.Verbose {
 		log.Debugf(log.ExchangeSys,
 			"%s passed checksum for pair %v",
@@ -761,7 +786,7 @@ func (ok *Okx) WsProcessFullOrderBook(data WsOrderBookData, pair currency.Pair, 
 // WsProcessUpdateOrderbook updates an existing orderbook using websocket data
 // After merging WS data, it will sort, validate and finally update the existing
 // orderbook
-func (ok *Okx) WsProcessUpdateOrderbook(data WsOrderBookData, pair currency.Pair, a asset.Item) error {
+func (ok *Okx) WsProcessUpdateOrderbook(channel string, data WsOrderBookData, pair currency.Pair, a asset.Item) error {
 	update := &orderbook.Update{
 		Asset: a,
 		Pair:  pair,
@@ -775,6 +800,12 @@ func (ok *Okx) WsProcessUpdateOrderbook(data WsOrderBookData, pair currency.Pair
 	if err != nil {
 		return err
 	}
+	switch {
+	case strings.EqualFold(channel, OkxChannelOrderBooksTBT):
+		update.MaxDepth = 400
+	case strings.EqualFold(channel, OkxChannelOrderBooks50TBT):
+		update.MaxDepth = 50
+	}
 	err = ok.Websocket.Orderbook.Update(update)
 	if err != nil {
 		return err
@@ -783,12 +814,14 @@ func (ok *Okx) WsProcessUpdateOrderbook(data WsOrderBookData, pair currency.Pair
 	if err != nil {
 		return err
 	}
-	checksum := ok.CalculateUpdateOrderbookChecksum(updatedOb)
-	if checksum != data.Checksum {
-		log.Warnf(log.ExchangeSys, "%s checksum failure for pair %v",
-			ok.Name,
-			pair)
-		return errors.New("checksum failed")
+	if data.Checksum != 0 {
+		checksum := ok.CalculateUpdateOrderbookChecksum(updatedOb)
+		if checksum != data.Checksum {
+			log.Warnf(log.ExchangeSys, "%s checksum failure for pair %v",
+				ok.Name,
+				pair)
+			return errors.New("checksum failed")
+		}
 	}
 	return nil
 }
@@ -1126,6 +1159,10 @@ func (ok *Okx) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, err
 			if defaultSubscribedChannels[y] == OkxChannelCandle5m ||
 				defaultSubscribedChannels[y] == OkxChannelTickers ||
 				defaultSubscribedChannels[y] == OkxChannelOrders ||
+				defaultSubscribedChannels[y] == OkxChannelOrderBooks ||
+				defaultSubscribedChannels[y] == OkxChannelOrderBooks5 ||
+				defaultSubscribedChannels[y] == OkxChannelOrderBooks50TBT ||
+				defaultSubscribedChannels[y] == OkxChannelOrderBooksTBT ||
 				defaultSubscribedChannels[y] == OkxChannelTrades {
 				for p := range pairs {
 					subscriptions = append(subscriptions, stream.ChannelSubscription{

@@ -727,18 +727,19 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketOrderBook, inst
 		return err
 	}
 
-	updatedOb, err := o.Websocket.Orderbook.GetOrderbook(instrument, a)
-	if err != nil {
-		return err
-	}
-	checksum := o.CalculateUpdateOrderbookChecksum(updatedOb)
-
-	if checksum != wsEventData.Checksum {
-		// re-sub
-		log.Warnf(log.ExchangeSys, "%s checksum failure for item %s",
-			o.Name,
-			wsEventData.InstrumentID)
-		return errors.New("checksum failed")
+	if wsEventData.Checksum != 0 {
+		updatedOb, err := o.Websocket.Orderbook.GetOrderbook(instrument, a)
+		if err != nil {
+			return err
+		}
+		checksum := o.CalculateUpdateOrderbookChecksum(updatedOb)
+		if checksum != wsEventData.Checksum {
+			// re-sub
+			log.Warnf(log.ExchangeSys, "%s checksum failure for item %s",
+				o.Name,
+				wsEventData.InstrumentID)
+			return errors.New("checksum failed")
+		}
 	}
 	return nil
 }

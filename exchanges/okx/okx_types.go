@@ -2893,7 +2893,7 @@ type WsOrderBookData struct {
 	Asks      [][4]string `json:"asks"`
 	Bids      [][4]string `json:"bids"`
 	Timestamp time.Time   `json:"ts"`
-	Checksum  int32       `json:"checksum"`
+	Checksum  int32       `json:"checksum,omitempty"`
 }
 
 // WsOptionSummary represents option summary

@@ -154,6 +154,7 @@ func (ok *Okx) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
+
 	ok.Websocket = stream.New()
 	ok.WebsocketResponseMaxLimit = okxWebsocketResponseMaxLimit
 	ok.WebsocketResponseCheckTimeout = okxWebsocketResponseMaxLimit
