@@ -88,6 +88,15 @@ const (
 	kucoinOrderByClientOID = "/api/v1/order/client-order/%s" // used by CancelOrderByClientOID and GetOrderByClientOID
 	kucoinOrders           = "/api/v1/orders"                // used by CancelAllOpenOrders and GetOrders
 	kucoinGetRecentOrders  = "/api/v1/limit/orders"
+
+	kucoinGetFills       = "/api/v1/fills"
+	kucoinGetRecentFills = "/api/v1/limit/fills"
+
+	kucoinStopOrder                 = "/api/v1/stop-order"
+	kucoinStopOrderByID             = "/api/v1/stop-order/%s"
+	kucoinCancelAllStopOrder        = "/api/v1/stop-order/cancel"
+	kucoinGetStopOrderByClientID    = "/api/v1/stop-order/queryOrderByClientOid"
+	kucoinCancelStopOrderByClientID = "/api/v1/stop-order/cancelOrderByClientOid"
 )
 
 // GetSymbols gets pairs details on the exchange
@@ -1198,6 +1207,250 @@ func (k *Kucoin) GetOrderByClientOID(ctx context.Context, clientOID string) (Ord
 		return resp.Data, errors.New("clientOID can't be empty")
 	}
 	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf(kucoinOrderByClientOID, clientOID), nil, publicSpotRate, &resp)
+}
+
+// GetFills get fills
+func (k *Kucoin) GetFills(ctx context.Context, orderID, symbol, side, orderType, tradeType string, startAt, endAt time.Time) ([]Fill, error) {
+	resp := struct {
+		Data []Fill `json:"items"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if side != "" {
+		params.Set("side", side)
+	}
+	if orderType != "" {
+		params.Set("type", orderType)
+	}
+	if !startAt.IsZero() {
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	if tradeType != "" {
+		params.Set("tradeType", tradeType)
+	}
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetFills, params), nil, publicSpotRate, &resp)
+}
+
+// GetRecentFills get a list of 1000 fills in last 24 hours
+func (k *Kucoin) GetRecentFills(ctx context.Context) ([]Fill, error) {
+	resp := struct {
+		Data []Fill `json:"data"`
+		Error
+	}{}
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, kucoinGetRecentFills, nil, publicSpotRate, &resp)
+}
+
+// PostStopOrder used to place two types of stop orders: limit and market
+func (k *Kucoin) PostStopOrder(ctx context.Context, clientOID, side, symbol, orderType, remark, stop, price, stopPrice, stp, tradeType, timeInForce string, size, cancelAfter, visibleSize, funds float64, postOnly, hidden, iceberg bool) (string, error) {
+	resp := struct {
+		OrderID string `json:"orderId"`
+		Error
+	}{}
+
+	params := make(map[string]interface{})
+	if clientOID == "" {
+		return resp.OrderID, errors.New("clientOid can't be empty")
+	}
+	params["clientOid"] = clientOID
+	if side == "" {
+		return resp.OrderID, errors.New("side can't be empty")
+	}
+	params["side"] = side
+	if symbol == "" {
+		return resp.OrderID, errors.New("symbol can't be empty")
+	}
+	params["symbol"] = symbol
+	if remark != "" {
+		params["remark"] = remark
+	}
+	if stop != "" {
+		params["stop"] = stop
+		if stopPrice == "" {
+			return resp.OrderID, errors.New("stopPrice can't be empty when stop is set")
+		}
+		params["stopPrice"] = stopPrice
+	}
+	if stp != "" {
+		params["stp"] = stp
+	}
+	if tradeType != "" {
+		params["tradeType"] = tradeType
+	}
+	if orderType == "limit" || orderType == "" {
+		if price == "" {
+			return resp.OrderID, errors.New("price can't be empty")
+		}
+		params["price"] = price
+		if size <= 0 {
+			return resp.OrderID, errors.New("size can't be zero or negative")
+		}
+		params["size"] = strconv.FormatFloat(size, 'f', -1, 64)
+		if timeInForce != "" {
+			params["timeInForce"] = timeInForce
+		}
+		if cancelAfter > 0 && timeInForce == "GTT" {
+			params["cancelAfter"] = strconv.FormatFloat(cancelAfter, 'f', -1, 64)
+		}
+		params["postOnly"] = postOnly
+		params["hidden"] = hidden
+		params["iceberg"] = iceberg
+		if visibleSize > 0 {
+			params["visibleSize"] = strconv.FormatFloat(visibleSize, 'f', -1, 64)
+		}
+	} else if orderType == "market" {
+		if size > 0 {
+			params["size"] = strconv.FormatFloat(size, 'f', -1, 64)
+		} else if funds > 0 {
+			params["funds"] = strconv.FormatFloat(funds, 'f', -1, 64)
+		} else {
+			return resp.OrderID, errors.New("atleast one required among size and funds")
+		}
+	} else {
+		return resp.OrderID, errors.New("invalid orderType")
+	}
+
+	if orderType != "" {
+		params["type"] = orderType
+	}
+	return resp.OrderID, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinStopOrder, params, publicSpotRate, &resp)
+}
+
+// CancelStopOrder used to cancel single stop order previously placed
+func (k *Kucoin) CancelStopOrder(ctx context.Context, orderID string) ([]string, error) {
+	resp := struct {
+		Data []string `json:"cancelledOrderIds"`
+		Error
+	}{}
+
+	if orderID == "" {
+		return resp.Data, errors.New("orderID can't be empty")
+	}
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, fmt.Sprintf(kucoinStopOrderByID, orderID), nil, publicSpotRate, &resp)
+}
+
+// CancelAllStopOrder used to cancel all order based upon the parameters passed
+func (k *Kucoin) CancelAllStopOrder(ctx context.Context, symbol, tradeType, orderIDs string) ([]string, error) {
+	resp := struct {
+		CancelledOrderIDs []string `json:"cancelledOrderIds"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if tradeType != "" {
+		params.Set("tradeType", tradeType)
+	}
+	if orderIDs != "" {
+		params.Set("orderIds", orderIDs)
+	}
+	return resp.CancelledOrderIDs, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, common.EncodeURLValues(kucoinCancelAllStopOrder, params), nil, publicSpotRate, &resp)
+}
+
+// GetStopOrder used to cancel single stop order previously placed
+func (k *Kucoin) GetStopOrder(ctx context.Context, orderID string) (StopOrder, error) {
+	resp := struct {
+		StopOrder
+		Error
+	}{}
+
+	if orderID == "" {
+		return resp.StopOrder, errors.New("orderID can't be empty")
+	}
+	return resp.StopOrder, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf(kucoinStopOrderByID, orderID), nil, publicSpotRate, &resp)
+}
+
+// GetAllStopOrder get all current untriggered stop orders
+func (k *Kucoin) GetAllStopOrder(ctx context.Context, symbol, side, orderType, tradeType, orderIDs string, startAt, endAt time.Time, currentPage, pageSize int64) ([]StopOrder, error) {
+	resp := struct {
+		Data struct {
+			CurrentPage int64       `json:"currentPage"`
+			PageSize    int64       `json:"pageSize"`
+			TotalNum    int64       `json:"totalNum"`
+			TotalPage   int64       `json:"totalPage"`
+			Items       []StopOrder `json:"items"`
+		} `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if side != "" {
+		params.Set("side", side)
+	}
+	if orderType != "" {
+		params.Set("type", orderType)
+	}
+	if tradeType != "" {
+		params.Set("tradeType", tradeType)
+	}
+	if orderIDs != "" {
+		params.Set("orderIds", orderIDs)
+	}
+	if !startAt.IsZero() {
+		params.Set("startAt", strconv.FormatInt(startAt.Unix(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("endAt", strconv.FormatInt(endAt.Unix(), 10))
+	}
+	if currentPage != 0 {
+		params.Set("currentPage", strconv.FormatInt(currentPage, 10))
+	}
+	if pageSize != 0 {
+		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
+	}
+	return resp.Data.Items, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinStopOrder, params), nil, publicSpotRate, &resp)
+}
+
+// GetStopOrderByClientID get a stop order information via the clientOID
+func (k *Kucoin) GetStopOrderByClientID(ctx context.Context, symbol, clientOID string) ([]StopOrder, error) {
+	resp := struct {
+		Data []StopOrder `json:"data"`
+		Error
+	}{}
+	//TODO: verify response
+
+	params := url.Values{}
+	if clientOID == "" {
+		return resp.Data, errors.New("clientOID can't be empty")
+	}
+	params.Set("clientOid", clientOID)
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetStopOrderByClientID, params), nil, publicSpotRate, &resp)
+}
+
+// CancelStopOrderByClientID used to cancel a stop order via the clientOID.
+func (k *Kucoin) CancelStopOrderByClientID(ctx context.Context, symbol, clientOID string) (string, string, error) {
+	resp := struct {
+		CancelledOrderID string `json:"cancelledOrderId"`
+		ClientOID        string `json:"clientOid"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if clientOID == "" {
+		return resp.CancelledOrderID, resp.ClientOID, errors.New("clientOID can't be empty")
+	}
+	params.Set("clientOid", clientOID)
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	return resp.CancelledOrderID, resp.ClientOID, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, common.EncodeURLValues(kucoinCancelStopOrderByClientID, params), nil, publicSpotRate, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request

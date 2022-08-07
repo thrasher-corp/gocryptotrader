@@ -510,3 +510,42 @@ type OrderDetail struct {
 	CreatedAt     kucoinTimeMilliSec `json:"createdAt"`
 	TradeType     string             `json:"tradeType"`
 }
+
+type Fill struct {
+	Symbol         string             `json:"symbol"`
+	TradeID        string             `json:"tradeId"`
+	OrderID        string             `json:"orderId"`
+	CounterOrderId string             `json:"counterOrderId"`
+	Side           string             `json:"side"`
+	Liquidity      string             `json:"liquidity"`
+	ForceTaker     bool               `json:"forceTaker"`
+	Price          float64            `json:"price,string"`
+	Size           float64            `json:"size,string"`
+	Funds          float64            `json:"funds,string"`
+	Fee            float64            `json:"fee,string"`
+	FeeRate        float64            `json:"feeRate,string"`
+	FeeCurrency    string             `json:"feeCurrency"`
+	Stop           string             `json:"stop"`
+	OrderType      string             `json:"type"`
+	CreatedAt      kucoinTimeMilliSec `json:"createdAt"`
+	TradeType      string             `json:"tradeType"`
+}
+
+type StopOrder struct {
+	OrderRequest
+	ID              string             `json:"id"`
+	UserID          string             `json:"userId"`
+	Status          string             `json:"status"`
+	Funds           float64            `json:"funds,string"`
+	Channel         string             `json:"channel"`
+	Tags            string             `json:"tags"`
+	DomainId        string             `json:"domainId"`
+	TradeSource     string             `json:"tradeSource"`
+	TradeType       string             `json:"tradeType"`
+	FeeCurrency     string             `json:"feeCurrency"`
+	TakerFeeRate    string             `json:"takerFeeRate"`
+	MakerFeeRate    string             `json:"makerFeeRate"`
+	CreatedAt       kucoinTimeMilliSec `json:"createdAt"`
+	OrderTime       kucoinTimeNanoSec  `json:"orderTime"`
+	StopTriggerTime kucoinTimeMilliSec `json:"stopTriggerTime"`
+}

@@ -756,3 +756,116 @@ func TestGetOrderByClientOID(t *testing.T) {
 		t.Error("GetOrderByClientOID() error", err)
 	}
 }
+
+func TestGetFills(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetFills(context.Background(), "", "", "", "", "", time.Time{}, time.Time{})
+	if err != nil {
+		t.Error("GetFills() error", err)
+	}
+
+	_, err = k.GetFills(context.Background(), "5c35c02703aa673ceec2a168", "BTC-USDT", "buy", "limit", "TRADE", time.Now().Add(-time.Hour*12), time.Now())
+	if err != nil {
+		t.Error("GetFills() error", err)
+	}
+}
+
+func TestGetRecentFills(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetRecentFills(context.Background())
+	if err != nil {
+		t.Error("GetRecentFills() error", err)
+	}
+}
+
+func TestPostStopOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.PostStopOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "", "", "", "10000", "", "", "", "", 0.1, 0, 0, 0, true, false, false)
+	if err != nil {
+		t.Error("PostStopOrder() error", err)
+	}
+}
+
+func TestCancelStopOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.CancelStopOrder(context.Background(), "5bd6e9286d99522a52e458de")
+	if err != nil {
+		t.Error("CancelStopOrder() error", err)
+	}
+}
+
+func TestCancelAllStopOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.CancelAllStopOrder(context.Background(), "", "", "")
+	if err != nil {
+		t.Error("CancelAllStopOrder() error", err)
+	}
+}
+
+func TestGetStopOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetStopOrder(context.Background(), "5bd6e9286d99522a52e458de")
+	if err != nil {
+		t.Error("GetStopOrder() error", err)
+	}
+}
+
+func TestGetAllStopOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetAllStopOrder(context.Background(), "", "", "", "", "", time.Time{}, time.Time{}, 0, 0)
+	if err != nil {
+		t.Error("GetAllStopOrder() error", err)
+	}
+}
+
+func TestGetStopOrderByClientID(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetStopOrderByClientID(context.Background(), "", "5bd6e9286d99522a52e458de")
+	if err != nil {
+		t.Error("GetStopOrderByClientID() error", err)
+	}
+}
+
+func TestCancelStopOrderByClientID(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, _, err := k.CancelStopOrderByClientID(context.Background(), "", "5bd6e9286d99522a52e458de")
+	if err != nil {
+		t.Error("CancelStopOrderByClientID() error", err)
+	}
+}
