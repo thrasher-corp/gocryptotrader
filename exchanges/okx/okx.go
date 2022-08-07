@@ -16,18 +16,19 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
+
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 // Okx is the overarching type across this package
 type Okx struct {
-	okgroup.OKGroup
+	exchange.Base
 }
 
 const (
@@ -44,23 +45,22 @@ const (
 	okxAPIWebsocketPrivateURL = okxWebsocketURL + "private"
 
 	// tradeEndpoints
-	tradeOrder                = "trade/order"
-	placeMultipleOrderUrl     = "trade/batch-orders"
-	cancelTradeOrder          = "trade/cancel-order"
-	cancelBatchTradeOrders    = "trade/cancel-batch-orders"
-	amendOrder                = "trade/amend-order"
-	amendBatchOrders          = "trade/amend-batch-orders"
-	closePositionPath         = "trade/close-position"
-	pandingTradeOrders        = "trade/orders-pending"
-	tradeHistory              = "trade/orders-history"
-	orderHistoryArchive       = "trade/orders-history-archive"
-	tradeFills                = "trade/fills"
-	tradeFillsHistory         = "trade/fills-history"
-	assetbills                = "asset/bills"
-	lightningDeposit          = "asset/deposit-lightning"
-	assetDeposits             = "asset/deposit-address"
-	pathToAssetDepositHistory = "asset/deposit-history"
-	//
+	tradeOrder                          = "trade/order"
+	placeMultipleOrderUrl               = "trade/batch-orders"
+	cancelTradeOrder                    = "trade/cancel-order"
+	cancelBatchTradeOrders              = "trade/cancel-batch-orders"
+	amendOrder                          = "trade/amend-order"
+	amendBatchOrders                    = "trade/amend-batch-orders"
+	closePositionPath                   = "trade/close-position"
+	pandingTradeOrders                  = "trade/orders-pending"
+	tradeHistory                        = "trade/orders-history"
+	orderHistoryArchive                 = "trade/orders-history-archive"
+	tradeFills                          = "trade/fills"
+	tradeFillsHistory                   = "trade/fills-history"
+	assetbills                          = "asset/bills"
+	lightningDeposit                    = "asset/deposit-lightning"
+	assetDeposits                       = "asset/deposit-address"
+	pathToAssetDepositHistory           = "asset/deposit-history"
 	assetWithdrawal                     = "asset/withdrawal"
 	assetLightningWithdrawal            = "asset/withdrawal-lightning"
 	cancelWithdrawal                    = "asset/cancel-withdrawal"
@@ -309,15 +309,21 @@ func (ok *Okx) PlaceOrder(ctx context.Context, arg PlaceOrderRequestParam) (*Pla
 		return nil, errMissingOrderSide
 	}
 	arg.Side = strings.Trim(strings.ToLower(arg.Side), " ")
-	if !(strings.EqualFold(arg.OrderType, "market") || strings.EqualFold(arg.OrderType, "limit") || strings.EqualFold(arg.OrderType, "post_only") ||
-		strings.EqualFold(arg.OrderType, "fok") || strings.EqualFold(arg.OrderType, "ioc") || strings.EqualFold(arg.OrderType, "optimal_limit_ioc")) {
+	if !(strings.EqualFold(arg.OrderType, OkxOrderMarket) ||
+		strings.EqualFold(arg.OrderType, OkxOrderLimit) ||
+		strings.EqualFold(arg.OrderType, OkxOrderPostOnly) ||
+		strings.EqualFold(arg.OrderType, OkxOrderFOK) ||
+		strings.EqualFold(arg.OrderType, OkxOrderIOC) ||
+		strings.EqualFold(arg.OrderType, OkxOrderOptimalLimitIOC)) {
 		return nil, errInvalidOrderType
 	}
 	if arg.QuantityToBuyOrSell <= 0 {
 		return nil, errInvalidQuantityToButOrSell
 	}
-	if arg.OrderPrice <= 0 && (strings.EqualFold(arg.OrderType, "limit") || strings.EqualFold(arg.OrderType, "post_only") ||
-		strings.EqualFold(arg.OrderType, "fok") || strings.EqualFold(arg.OrderType, "ioc")) {
+	if arg.OrderPrice <= 0 && (strings.EqualFold(arg.OrderType, OkxOrderLimit) ||
+		strings.EqualFold(arg.OrderType, OkxOrderPostOnly) ||
+		strings.EqualFold(arg.OrderType, OkxOrderFOK) ||
+		strings.EqualFold(arg.OrderType, OkxOrderIOC)) {
 		return nil, fmt.Errorf("invalid order price for %s order types", arg.OrderType)
 	}
 	if !(strings.EqualFold(arg.QuantityType, "base_ccy") || strings.EqualFold(arg.QuantityType, "quote_ccy")) {
@@ -360,8 +366,10 @@ func (ok *Okx) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequest
 		if arg.QuantityToBuyOrSell <= 0 {
 			return nil, errInvalidQuantityToButOrSell
 		}
-		if arg.OrderPrice <= 0 && (strings.EqualFold(arg.OrderType, "limit") || strings.EqualFold(arg.OrderType, "post_only") ||
-			strings.EqualFold(arg.OrderType, "fok") || strings.EqualFold(arg.OrderType, "ioc")) {
+		if arg.OrderPrice <= 0 && (strings.EqualFold(arg.OrderType, OkxOrderLimit) ||
+			strings.EqualFold(arg.OrderType, OkxOrderPostOnly) ||
+			strings.EqualFold(arg.OrderType, OkxOrderFOK) ||
+			strings.EqualFold(arg.OrderType, OkxOrderIOC)) {
 			return nil, fmt.Errorf("invalid order price for %s order types", arg.OrderType)
 		}
 		if !(strings.EqualFold(arg.QuantityType, "base_ccy") || strings.EqualFold(arg.QuantityType, "quote_ccy")) {
@@ -480,9 +488,6 @@ func (ok *Okx) ClosePositions(ctx context.Context, arg *ClosePositionsRequestPar
 	if !(arg.MarginMode != "" && (strings.EqualFold(arg.MarginMode, "cross") || strings.EqualFold(arg.MarginMode, "isolated"))) {
 		return nil, errMissingMarginMode
 	}
-	// if arg.MarginMode != "" && strings.EqualFold(arg.MarginMode, "cross") && (arg.Currency == "") {
-	// 	return nil, errMissingRequiredParamCurrency
-	// }
 	type response struct {
 		Msg  string                  `json:"msg"`
 		Code string                  `json:"code"`
@@ -533,11 +538,11 @@ func (ok *Okx) GetOrderDetail(ctx context.Context, arg *OrderDetailRequestParam)
 // GetOrderList retrieve all incomplete orders under the current account.
 func (ok *Okx) GetOrderList(ctx context.Context, arg *OrderListRequestParams) ([]PendingOrderItem, error) {
 	params := url.Values{}
-	if strings.EqualFold(arg.InstrumentType, "SPOT") ||
-		strings.EqualFold(arg.InstrumentType, "MARGIN") ||
-		strings.EqualFold(arg.InstrumentType, "SWAP") ||
-		strings.EqualFold(arg.InstrumentType, "FUTURES") ||
-		strings.EqualFold(arg.InstrumentType, "OPTION") {
+	if strings.EqualFold(arg.InstrumentType, OkxInstTypeSpot) ||
+		strings.EqualFold(arg.InstrumentType, OkxInstTypeMargin) ||
+		strings.EqualFold(arg.InstrumentType, OkxInstTypeSwap) ||
+		strings.EqualFold(arg.InstrumentType, OkxInstTypeFutures) ||
+		strings.EqualFold(arg.InstrumentType, OkxInstTypeOption) {
 		params.Set("instType", arg.InstrumentType)
 	}
 	if arg.InstrumentID != "" {
@@ -546,12 +551,12 @@ func (ok *Okx) GetOrderList(ctx context.Context, arg *OrderListRequestParams) ([
 	if arg.Underlying != "" {
 		params.Set("uly", arg.Underlying)
 	}
-	if strings.EqualFold(arg.OrderType, "market") ||
-		strings.EqualFold(arg.OrderType, "limit") ||
-		strings.EqualFold(arg.OrderType, "post_only") ||
-		strings.EqualFold(arg.OrderType, "fok") ||
-		strings.EqualFold(arg.OrderType, "ioc") ||
-		strings.EqualFold(arg.OrderType, "optimal_limit_ioc") {
+	if strings.EqualFold(arg.OrderType, OkxOrderMarket) ||
+		strings.EqualFold(arg.OrderType, OkxOrderLimit) ||
+		strings.EqualFold(arg.OrderType, OkxOrderPostOnly) ||
+		strings.EqualFold(arg.OrderType, OkxOrderFOK) ||
+		strings.EqualFold(arg.OrderType, OkxOrderIOC) ||
+		strings.EqualFold(arg.OrderType, OkxOrderOptimalLimitIOC) {
 		params.Set("orderType", arg.OrderType)
 	}
 	if strings.EqualFold(arg.State, "canceled") ||
@@ -590,11 +595,11 @@ func (ok *Okx) Get3MonthOrderHistory(ctx context.Context, arg *OrderHistoryReque
 // getOrderHistory retrives the order history of the past limited times
 func (ok *Okx) getOrderHistory(ctx context.Context, arg *OrderHistoryRequestParams, route string) ([]PendingOrderItem, error) {
 	params := url.Values{}
-	if strings.EqualFold(arg.InstrumentType, "SPOT") ||
-		strings.EqualFold(arg.InstrumentType, "MARGIN") ||
-		strings.EqualFold(arg.InstrumentType, "SWAP") ||
-		strings.EqualFold(arg.InstrumentType, "FUTURES") ||
-		strings.EqualFold(arg.InstrumentType, "OPTION") {
+	if strings.EqualFold(arg.InstrumentType, OkxInstTypeSpot) ||
+		strings.EqualFold(arg.InstrumentType, OkxInstTypeMargin) ||
+		strings.EqualFold(arg.InstrumentType, OkxInstTypeSwap) ||
+		strings.EqualFold(arg.InstrumentType, OkxInstTypeFutures) ||
+		strings.EqualFold(arg.InstrumentType, OkxInstTypeOption) {
 		params.Set("instType", arg.InstrumentType)
 	} else {
 		return nil, errMissingRequiredArgInstType
@@ -605,12 +610,12 @@ func (ok *Okx) getOrderHistory(ctx context.Context, arg *OrderHistoryRequestPara
 	if arg.Underlying != "" {
 		params.Set("uly", arg.Underlying)
 	}
-	if strings.EqualFold(arg.OrderType, "market") ||
-		strings.EqualFold(arg.OrderType, "limit") ||
-		strings.EqualFold(arg.OrderType, "post_only") ||
-		strings.EqualFold(arg.OrderType, "fok") ||
-		strings.EqualFold(arg.OrderType, "ioc") ||
-		strings.EqualFold(arg.OrderType, "optimal_limit_ioc") {
+	if strings.EqualFold(arg.OrderType, OkxOrderMarket) ||
+		strings.EqualFold(arg.OrderType, OkxOrderLimit) ||
+		strings.EqualFold(arg.OrderType, OkxOrderPostOnly) ||
+		strings.EqualFold(arg.OrderType, OkxOrderFOK) ||
+		strings.EqualFold(arg.OrderType, OkxOrderIOC) ||
+		strings.EqualFold(arg.OrderType, OkxOrderOptimalLimitIOC) {
 		params.Set("orderType", arg.OrderType)
 	}
 	if strings.EqualFold(arg.State, "canceled") ||
@@ -652,11 +657,11 @@ func (ok *Okx) GetTransactionDetailsLast3Months(ctx context.Context, arg *Transa
 // GetTransactionDetails retrieve recently-filled transaction details.
 func (ok *Okx) getTransactionDetails(ctx context.Context, arg *TransactionDetailRequestParams, route string) ([]TransactionDetail, error) {
 	params := url.Values{}
-	if strings.EqualFold(arg.InstrumentType, "SPOT") ||
-		strings.EqualFold(arg.InstrumentType, "MARGIN") ||
-		strings.EqualFold(arg.InstrumentType, "SWAP") ||
-		strings.EqualFold(arg.InstrumentType, "FUTURES") ||
-		strings.EqualFold(arg.InstrumentType, "OPTION") {
+	if strings.EqualFold(arg.InstrumentType, OkxInstTypeSpot) ||
+		strings.EqualFold(arg.InstrumentType, OkxInstTypeMargin) ||
+		strings.EqualFold(arg.InstrumentType, OkxInstTypeSwap) ||
+		strings.EqualFold(arg.InstrumentType, OkxInstTypeFutures) ||
+		strings.EqualFold(arg.InstrumentType, OkxInstTypeOption) {
 		params.Set("instType", arg.InstrumentType)
 	} else {
 		return nil, errMissingRequiredArgInstType
@@ -667,12 +672,12 @@ func (ok *Okx) getTransactionDetails(ctx context.Context, arg *TransactionDetail
 	if arg.Underlying != "" {
 		params.Set("uly", arg.Underlying)
 	}
-	if strings.EqualFold(arg.OrderType, "market") ||
-		strings.EqualFold(arg.OrderType, "limit") ||
-		strings.EqualFold(arg.OrderType, "post_only") ||
-		strings.EqualFold(arg.OrderType, "fok") ||
-		strings.EqualFold(arg.OrderType, "ioc") ||
-		strings.EqualFold(arg.OrderType, "optimal_limit_ioc") {
+	if strings.EqualFold(arg.OrderType, OkxOrderMarket) ||
+		strings.EqualFold(arg.OrderType, OkxOrderLimit) ||
+		strings.EqualFold(arg.OrderType, OkxOrderPostOnly) ||
+		strings.EqualFold(arg.OrderType, OkxOrderFOK) ||
+		strings.EqualFold(arg.OrderType, OkxOrderIOC) ||
+		strings.EqualFold(arg.OrderType, OkxOrderOptimalLimitIOC) {
 		params.Set("orderType", arg.OrderType)
 	}
 	if !(arg.Begin.IsZero()) {
@@ -869,8 +874,8 @@ func (ok *Okx) GetAlgoOrderList(ctx context.Context, orderType, algoOrderID, ins
 	if algoOrderID != "" {
 		params.Set("algoId", algoOrderID)
 	}
-	if strings.EqualFold(instrumentType, "spot") || strings.EqualFold(instrumentType, "swap") ||
-		strings.EqualFold(instrumentType, "futures") || strings.EqualFold(instrumentType, "option") {
+	if strings.EqualFold(instrumentType, OkxInstTypeSpot) || strings.EqualFold(instrumentType, OkxInstTypeSwap) ||
+		strings.EqualFold(instrumentType, OkxInstTypeFutures) || strings.EqualFold(instrumentType, OkxInstTypeOption) {
 		params.Set("instType", instrumentType)
 	}
 	if instrumentID != "" {
@@ -917,8 +922,8 @@ func (ok *Okx) GetAlgoOrderHistory(ctx context.Context, orderType, state, algoOr
 			params.Set("state", state)
 		}
 	}
-	if strings.EqualFold(instrumentType, "spot") || strings.EqualFold(instrumentType, "swap") ||
-		strings.EqualFold(instrumentType, "futures") || strings.EqualFold(instrumentType, "option") {
+	if strings.EqualFold(instrumentType, OkxInstTypeSpot) || strings.EqualFold(instrumentType, OkxInstTypeSwap) ||
+		strings.EqualFold(instrumentType, OkxInstTypeFutures) || strings.EqualFold(instrumentType, OkxInstTypeOption) {
 		params.Set("instType", instrumentType)
 	}
 	if instrumentID != "" {
@@ -1311,8 +1316,6 @@ func (ok *Okx) GetPublicTrades(ctx context.Context, beginID, endID string, limit
 	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, getPublicTradesEPL, http.MethodGet, path, nil, &resp, true)
 }
 
-/********************************* Block Trading Order End ****************************/
-
 /*************************************** Funding Tradings ********************************/
 
 // GetCurrencies Retrieve a list of all currencies.
@@ -1404,7 +1407,7 @@ func (ok *Okx) FundingTransfer(ctx context.Context, arg *FundingTransferRequestI
 }
 
 // GetFundsTransferState get funding rate response.
-func (ok *Okx) GetFundsTransferState(ctx context.Context, transferID, clientID string, transfer_type int) ([]TransferFundRateResponse, error) {
+func (ok *Okx) GetFundsTransferState(ctx context.Context, transferID, clientID string, transferType int) ([]TransferFundRateResponse, error) {
 	params := url.Values{}
 	if transferID == "" && clientID == "" {
 		return nil, errors.New("either 'transfer id' or 'client id' is required")
@@ -1413,8 +1416,8 @@ func (ok *Okx) GetFundsTransferState(ctx context.Context, transferID, clientID s
 	} else if clientID == "" {
 		params.Set("clientId", clientID)
 	}
-	if transfer_type > 0 && transfer_type <= 2 {
-		params.Set("type", strconv.Itoa(transfer_type))
+	if transferType > 0 && transferType <= 2 {
+		params.Set("type", strconv.Itoa(transferType))
 	}
 	path := common.EncodeURLValues(assetTransferState, params)
 	type response struct {
@@ -1790,8 +1793,6 @@ func (ok *Okx) GetPublicBorrowInfo(ctx context.Context, currency string) ([]Publ
 	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, getPublicBorrowInfoEPL, http.MethodGet, path, nil, &resp, false)
 }
 
-/***************************** Funding Endpoints Ends here ***************************/
-
 /***********************************Convert Endpoints | Authenticated s*****************************************/
 
 func (ok *Okx) GetConvertCurrencies(ctx context.Context) ([]ConvertCurrency, error) {
@@ -1971,8 +1972,8 @@ func (ok *Okx) GetPositions(ctx context.Context, instrumentType, instrumentID, p
 // GetPositionsHistory  retrieve the updated position data for the last 3 months.
 func (ok *Okx) GetPositionsHistory(ctx context.Context, instrumentType, instrumentID, marginMode string, closePositionType uint, after, before time.Time, limit uint) ([]AccountPositionHistory, error) {
 	params := url.Values{}
-	if strings.EqualFold(instrumentType, "MARGIN") || strings.EqualFold(instrumentType, "SWAP") || strings.EqualFold(instrumentType, "FUTURES") ||
-		strings.EqualFold(instrumentType, "OPTION") {
+	if strings.EqualFold(instrumentType, OkxInstTypeMargin) || strings.EqualFold(instrumentType, OkxInstTypeSwap) || strings.EqualFold(instrumentType, OkxInstTypeFutures) ||
+		strings.EqualFold(instrumentType, OkxInstTypeOption) {
 		params.Set("instType", strings.ToUpper(instrumentType))
 	}
 	if instrumentID != "" {
@@ -2038,8 +2039,8 @@ func (ok *Okx) GetBillsDetail3Months(ctx context.Context, arg BillsDetailQueryPa
 // GetBillsDetail retrieve the bills of the account.
 func (ok *Okx) GetBillsDetail(ctx context.Context, arg BillsDetailQueryParameter, route string) ([]BillsDetailResponse, error) {
 	params := url.Values{}
-	if strings.EqualFold(arg.InstrumentType, "MARGIN") || strings.EqualFold(arg.InstrumentType, "SWAP") || strings.EqualFold(arg.InstrumentType, "FUTURES") ||
-		strings.EqualFold(arg.InstrumentType, "OPTION") || strings.EqualFold(arg.InstrumentType, "FUTURES") {
+	if strings.EqualFold(arg.InstrumentType, OkxInstTypeMargin) || strings.EqualFold(arg.InstrumentType, OkxInstTypeSwap) || strings.EqualFold(arg.InstrumentType, OkxInstTypeFutures) ||
+		strings.EqualFold(arg.InstrumentType, OkxInstTypeOption) || strings.EqualFold(arg.InstrumentType, OkxInstTypeFutures) {
 		params.Set("instType", strings.ToUpper(arg.InstrumentType))
 	}
 	if arg.Currency != "" {
@@ -2176,9 +2177,6 @@ func (ok *Okx) GetMaximumBuySellAmountOROpenAmount(ctx context.Context, instrume
 	if price > 0 {
 		params.Set("px", strconv.Itoa(int(price)))
 	}
-	//  else {
-	// 	return nil, errInvalidPriceValue
-	// }
 	if leverage != "" {
 		params.Set("leverage", leverage)
 	}
@@ -2299,10 +2297,56 @@ func (ok *Okx) GetMaximumLoanOfInstrument(ctx context.Context, instrumentID, mar
 	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTheMaximumLoanOfInstrumentEPL, http.MethodGet, path, nil, &resp, true)
 }
 
+// GetFee returns Cryptocurrency trade fee, and offline trade fee
+func (ok *Okx) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	// Here the Asset Type for the instrument Type is needed for getting the CryptocurrencyTrading Fee.
+	var fee float64
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		var responses []TradeFeeRate
+		uly, er := ok.GetUnderlying(feeBuilder.Pair, asset.Spot)
+		if er != nil {
+			return 0, er
+		}
+		responses, er = ok.GetTradeFee(ctx, OkxInstTypeSpot, "", uly)
+		if er != nil {
+			return 0, er
+		} else if len(responses) == 0 {
+			return 0, errors.New("no trade fee response found")
+		}
+		var fee float64
+		if feeBuilder.IsMaker {
+			if fee, er = strconv.ParseFloat(responses[0].FeeRateMaker, 64); er != nil || fee == 0 {
+				fee, er = strconv.ParseFloat(responses[0].FeeRateMakerUSDT, 64)
+				if er != nil {
+					return fee, er
+				}
+			}
+		} else {
+			if fee, er = strconv.ParseFloat(responses[0].FeeRateTaker, 64); er != nil || fee == 0 {
+				fee, er = strconv.ParseFloat(responses[0].FeeRateTakerUSDT, 64)
+				if er != nil {
+					return fee, er
+				}
+			}
+		}
+		if fee < 0 {
+			fee = -fee
+		}
+		return fee * feeBuilder.Amount * feeBuilder.PurchasePrice, nil
+	case exchange.OfflineTradeFee:
+		return 0.0015 * feeBuilder.PurchasePrice * feeBuilder.Amount, nil
+	}
+	if fee < 0 {
+		fee = 0
+	}
+	return fee, nil
+}
+
 // GetTradeFeeRate query trade fee rate of various instrument types and instrument ids.
 func (ok *Okx) GetTradeFee(ctx context.Context, instrumentType, instrumentID, underlying string) ([]TradeFeeRate, error) {
 	params := url.Values{}
-	if !(strings.EqualFold(instrumentType, "SPOT") || strings.EqualFold(instrumentType, "margin") || strings.EqualFold(instrumentType, "swap") || strings.EqualFold(instrumentType, "futures") || strings.EqualFold(instrumentType, "option")) {
+	if !(strings.EqualFold(instrumentType, OkxInstTypeSpot) || strings.EqualFold(instrumentType, OkxInstTypeMargin) || strings.EqualFold(instrumentType, OkxInstTypeSwap) || strings.EqualFold(instrumentType, OkxInstTypeFutures) || strings.EqualFold(instrumentType, OkxInstTypeOption)) {
 		return nil, errInvalidInstrumentType
 	}
 	params.Set("instType", strings.ToUpper(instrumentType))
@@ -2334,7 +2378,8 @@ func (ok *Okx) GetInterestAccruedData(ctx context.Context, loanType int, currenc
 	if instrumentID != "" {
 		params.Set("instId", instrumentID)
 	}
-	if strings.EqualFold(marginMode, "cross") || strings.EqualFold(marginMode, "isolated") {
+	if strings.EqualFold(marginMode, "cross") ||
+		strings.EqualFold(marginMode, "isolated") {
 		params.Set("mgnMode", marginMode)
 	}
 	if !after.IsZero() {
@@ -2372,8 +2417,7 @@ func (ok *Okx) GetInterestRate(ctx context.Context, currency string) ([]Interest
 	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, getInterestRateEPL, http.MethodGet, path, nil, &resp, true)
 }
 
-// SetGeeks set the display type of Greeks.
-// PA: Greeks in coins BS: Black-Scholes Greeks in dollars
+// SetGeeks set the display type of Greeks. PA: Greeks in coins BS: Black-Scholes Greeks in dollars
 func (ok *Okx) SetGeeks(ctx context.Context, greeksType string) (*GreeksType, error) {
 	if !(strings.EqualFold(greeksType, "PA") || strings.EqualFold(greeksType, "BS")) {
 		return nil, errMissingValidGeeskType
@@ -2402,7 +2446,7 @@ func (ok *Okx) IsolatedMarginTradingSettings(ctx context.Context, arg IsolatedMo
 	if !(strings.EqualFold(arg.IsoMode, "automatic") || strings.EqualFold(arg.IsoMode, "autonomy")) {
 		return nil, errMissingIsolatedMarginTradingSetting
 	}
-	if !(strings.EqualFold(arg.InstrumentType, "MARGIN") || strings.EqualFold(arg.InstrumentType, "CONTRACT")) {
+	if !(strings.EqualFold(arg.InstrumentType, OkxInstTypeMargin) || strings.EqualFold(arg.InstrumentType, OkxInstTypeContract)) {
 		return nil, errMissingInstrumentID
 	}
 
@@ -2522,7 +2566,7 @@ func (ok *Okx) GetBorrowInterestAndLimit(ctx context.Context, loanType int, curr
 
 // PositionBuilder calculates portfolio margin information for simulated position or current position of the user. You can add up to 200 simulated positions in one request.
 func (ok *Okx) PositionBuilder(ctx context.Context, arg PositionBuilderInput) ([]PositionBuilderResponse, error) {
-	if !(strings.EqualFold(arg.InstrumentType, "SWAP") || strings.EqualFold(arg.InstrumentType, "FUTURES") || strings.EqualFold(arg.InstrumentType, "OPTIONS")) {
+	if !(strings.EqualFold(arg.InstrumentType, OkxInstTypeSwap) || strings.EqualFold(arg.InstrumentType, OkxInstTypeFutures) || strings.EqualFold(arg.InstrumentType, "OPTIONS")) {
 		arg.InstrumentType = ""
 	}
 	type response struct {
@@ -2728,8 +2772,6 @@ func (ok *Okx) GetCustodyTradingSubaccountList(ctx context.Context, subaccountNa
 	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, getCustoryTradingSubaccountListEPL, http.MethodGet, path, nil, &resp, true)
 }
 
-/*************************************** Subaccount End ***************************************************/
-
 /*************************************** Grid Trading Endpoints ***************************************************/
 
 // PlaceGridAlgoOrder place spot grid algo order.
@@ -2868,8 +2910,8 @@ func (ok *Okx) getGridAlgoOrders(ctx context.Context, algoOrderType, algoID,
 	if instrumentID != "" {
 		params.Set("instId", instrumentID)
 	}
-	if strings.EqualFold(instrumentType, "SPOT") || strings.EqualFold(instrumentType, "MARGIN") || strings.EqualFold(instrumentType, "FUTURES") ||
-		strings.EqualFold(instrumentType, "SWAP") {
+	if strings.EqualFold(instrumentType, OkxInstTypeSpot) || strings.EqualFold(instrumentType, OkxInstTypeMargin) || strings.EqualFold(instrumentType, OkxInstTypeFutures) ||
+		strings.EqualFold(instrumentType, OkxInstTypeSwap) {
 		params.Set("instType", strings.ToUpper(instrumentType))
 	}
 	if after != "" {
@@ -3012,18 +3054,16 @@ func (ok *Okx) SpotGridWithdrawProfit(ctx context.Context, algoID string) (*Algo
 	return &resp.Data[0], nil
 }
 
-/*************************************** Grid Trading End ***************************************************/
-
 // GetTickers retrives the latest price snopshots best bid/ ask price, and tranding volume in the last 34 hours.
-func (ok *Okx) GetTickers(ctx context.Context, instType, uly, instId string) ([]TickerResponse, error) {
+func (ok *Okx) GetTickers(ctx context.Context, instType, uly, instID string) ([]TickerResponse, error) {
 	params := url.Values{}
-	if strings.EqualFold(instType, "spot") || strings.EqualFold(instType, "swap") || strings.EqualFold(instType, "futures") || strings.EqualFold(instType, "option") {
+	if strings.EqualFold(instType, OkxInstTypeSpot) || strings.EqualFold(instType, OkxInstTypeSwap) || strings.EqualFold(instType, OkxInstTypeFutures) || strings.EqualFold(instType, OkxInstTypeOption) {
 		params.Set("instType", instType)
-		if (strings.EqualFold(instType, "swap") || strings.EqualFold(instType, "futures") || strings.EqualFold(instType, "option")) && uly != "" {
+		if (strings.EqualFold(instType, OkxInstTypeSwap) || strings.EqualFold(instType, OkxInstTypeFutures) || strings.EqualFold(instType, OkxInstTypeOption)) && uly != "" {
 			params.Set("uly", uly)
 		}
-	} else if instId != "" {
-		params.Set("instId", instId)
+	} else if instID != "" {
+		params.Set("instId", instID)
 	} else {
 		return nil, errors.New("missing required variable instType (instrument type) or insId( Instrument ID )")
 	}
@@ -3047,7 +3087,7 @@ func (ok *Okx) GetTicker(ctx context.Context, instrumentID string) (*TickerRespo
 		return nil, er
 	}
 	if len(response.Data) == 0 {
-		if len(response.Msg) == 0 {
+		if response.Msg == "" {
 			return nil, errNoValidResponseFromServer
 		}
 		return nil, errors.New(response.Msg)
@@ -3085,10 +3125,10 @@ func (ok *Okx) GetInstrumentIDFromPair(pair currency.Pair, a asset.Item) (string
 		return "", errors.New("incomplete currency pair")
 	}
 	if a == asset.PerpetualSwap {
-		return pair.Base.String() + format.Delimiter + pair.Quote.String() + format.Delimiter + "SWAP", nil
+		return pair.Base.String() + format.Delimiter + pair.Quote.String() + format.Delimiter + OkxInstTypeSwap, nil
 	} else if a == asset.Option {
 		instruments, er := ok.GetInstruments(context.Background(), &InstrumentsFetchParams{
-			InstrumentType: "OPTION",
+			InstrumentType: OkxInstTypeOption,
 			Underlying:     pair.Base.String() + format.Delimiter + pair.Quote.String(),
 		})
 		if er != nil {
@@ -3105,7 +3145,7 @@ func (ok *Okx) GetInstrumentIDFromPair(pair currency.Pair, a asset.Item) (string
 		}
 	} else if a == asset.Futures {
 		instruments, er := ok.GetInstruments(context.Background(), &InstrumentsFetchParams{
-			InstrumentType: "FUTURES",
+			InstrumentType: OkxInstTypeFutures,
 		})
 		if er != nil {
 			return "", er
@@ -3126,20 +3166,10 @@ func (ok *Okx) GetInstrumentIDFromPair(pair currency.Pair, a asset.Item) (string
 
 // GetInstrumentTypeFromAssetItem returns a string representation of asset.Item; which is an equivalent term for InstrumentType in Okx exchange.
 func (ok *Okx) GetInstrumentTypeFromAssetItem(assetType asset.Item) string {
-	switch assetType {
-	case asset.Spot:
-		return "SPOT"
-	case asset.PerpetualSwap:
-		return "SWAP"
-	case asset.Futures:
-		return "FUTURES"
-	case asset.Option:
-		return "OPTION"
-	case asset.Margin:
-		return "MARGIN"
-	default:
-		return ""
+	if assetType == asset.PerpetualSwap {
+		return OkxInstTypeSwap
 	}
+	return assetType.String()
 }
 
 // GetUnderlying returns the instrument ID for the corresponding asset pairs and asset type( Instrument Type )
@@ -3460,7 +3490,7 @@ func (ok *Okx) GetIndexComponents(ctx context.Context, index string) (*IndexComp
 // Instrument Type Is Mendatory, and Underlying is Optional.
 func (ok *Okx) GetBlockTickers(ctx context.Context, instrumentType, underlying string) ([]BlockTicker, error) {
 	params := url.Values{}
-	if !(strings.EqualFold(instrumentType, "SPOT") || strings.EqualFold(instrumentType, "SWAP") || strings.EqualFold(instrumentType, "FUTURES") || strings.EqualFold(instrumentType, "OPTION")) {
+	if !(strings.EqualFold(instrumentType, OkxInstTypeSpot) || strings.EqualFold(instrumentType, OkxInstTypeSwap) || strings.EqualFold(instrumentType, OkxInstTypeFutures) || strings.EqualFold(instrumentType, OkxInstTypeOption)) {
 		return nil, errMissingRequiredArgInstType
 	}
 	params.Set("instType", instrumentType)
@@ -3526,7 +3556,7 @@ func (ok *Okx) GetBlockTrades(ctx context.Context, instrumentID string) ([]Block
 // GetInstruments Retrieve a list of instruments with open contracts.
 func (ok *Okx) GetInstruments(ctx context.Context, arg *InstrumentsFetchParams) ([]Instrument, error) {
 	params := url.Values{}
-	if !(strings.EqualFold(arg.InstrumentType, "SPOT") || strings.EqualFold(arg.InstrumentType, "MARGIN") || strings.EqualFold(arg.InstrumentType, "SWAP") || strings.EqualFold(arg.InstrumentType, "FUTURES") || strings.EqualFold(arg.InstrumentType, "OPTION")) {
+	if !(strings.EqualFold(arg.InstrumentType, OkxInstTypeSpot) || strings.EqualFold(arg.InstrumentType, OkxInstTypeMargin) || strings.EqualFold(arg.InstrumentType, OkxInstTypeSwap) || strings.EqualFold(arg.InstrumentType, OkxInstTypeFutures) || strings.EqualFold(arg.InstrumentType, OkxInstTypeOption)) {
 		return nil, errMissingRequiredArgInstType
 	} else {
 		params.Set("instType", arg.InstrumentType)
@@ -3550,8 +3580,8 @@ func (ok *Okx) GetInstruments(ctx context.Context, arg *InstrumentsFetchParams) 
 // GetDeliveryHistory retrieve the estimated delivery price of the last 3 months, which will only have a return value one hour before the delivery/exercise.
 func (ok *Okx) GetDeliveryHistory(ctx context.Context, instrumentType, underlying string, after, before time.Time, limit int) ([]DeliveryHistory, error) {
 	params := url.Values{}
-	if instrumentType != "" && !(strings.EqualFold(instrumentType, "FUTURES") || strings.EqualFold(instrumentType, "OPTION")) {
-		return nil, fmt.Errorf("unacceptable instrument Type! Only %s and %s are allowed", "FUTURE", "OPTION")
+	if instrumentType != "" && !(strings.EqualFold(instrumentType, OkxInstTypeFutures) || strings.EqualFold(instrumentType, OkxInstTypeOption)) {
+		return nil, fmt.Errorf("unacceptable instrument Type! Only %s and %s are allowed", "FUTURE", OkxInstTypeOption)
 	} else if instrumentType == "" {
 		return nil, errMissingRequiredArgInstType
 	} else {
@@ -3582,7 +3612,7 @@ func (ok *Okx) GetDeliveryHistory(ctx context.Context, instrumentType, underlyin
 // GetOpenInterest retrieve the total open interest for contracts on OKX
 func (ok *Okx) GetOpenInterest(ctx context.Context, instType, uly, instId string) ([]OpenInterest, error) {
 	params := url.Values{}
-	if !(strings.EqualFold(instType, "SPOT") || strings.EqualFold(instType, "FUTURES") || strings.EqualFold(instType, "OPTION")) {
+	if !(strings.EqualFold(instType, OkxInstTypeSpot) || strings.EqualFold(instType, OkxInstTypeFutures) || strings.EqualFold(instType, OkxInstTypeOption)) {
 		return nil, errMissingRequiredArgInstType
 	} else {
 		params.Set("instType", instType)
@@ -3758,7 +3788,7 @@ func (ok *Okx) GetSystemTime(ctx context.Context) (*time.Time, error) {
 // GetLiquidationOrders retrieve information on liquidation orders in the last day.
 func (ok *Okx) GetLiquidationOrders(ctx context.Context, arg *LiquidationOrderRequestParams) (*LiquidationOrder, error) {
 	params := url.Values{}
-	if !(strings.EqualFold(arg.InstrumentType, "MARGIN") || strings.EqualFold(arg.InstrumentType, "FUTURES") || strings.EqualFold(arg.InstrumentType, "SWAP") || strings.EqualFold(arg.InstrumentType, "OPTION")) {
+	if !(strings.EqualFold(arg.InstrumentType, OkxInstTypeMargin) || strings.EqualFold(arg.InstrumentType, OkxInstTypeFutures) || strings.EqualFold(arg.InstrumentType, OkxInstTypeSwap) || strings.EqualFold(arg.InstrumentType, OkxInstTypeOption)) {
 		return nil, errMissingRequiredArgInstType
 	} else {
 		params.Set("instType", arg.InstrumentType)
@@ -3766,20 +3796,20 @@ func (ok *Okx) GetLiquidationOrders(ctx context.Context, arg *LiquidationOrderRe
 	if strings.EqualFold(arg.MarginMode, "isolated") || strings.EqualFold(arg.MarginMode, "cross") {
 		params.Set("mgnMode", arg.MarginMode)
 	}
-	if strings.EqualFold(arg.InstrumentType, "MARGIN") && arg.InstrumentID != "" {
+	if strings.EqualFold(arg.InstrumentType, OkxInstTypeMargin) && arg.InstrumentID != "" {
 		params.Set("instId", arg.InstrumentID)
-	} else if strings.EqualFold("MARGIN", arg.InstrumentType) && arg.Currency.String() != "" {
+	} else if strings.EqualFold(arg.InstrumentType, OkxInstTypeMargin) && arg.Currency.String() != "" {
 		params.Set("ccy", arg.Currency.String())
 	} else {
 		return nil, errEitherInstIDOrCcyIsRequired
 	}
-	if (strings.EqualFold(arg.InstrumentType, "FUTURES") || strings.EqualFold(arg.InstrumentType, "SWAP") || strings.EqualFold(arg.InstrumentType, "OPTION")) && arg.Underlying != "" {
+	if (strings.EqualFold(arg.InstrumentType, OkxInstTypeFutures) || strings.EqualFold(arg.InstrumentType, OkxInstTypeSwap) || strings.EqualFold(arg.InstrumentType, OkxInstTypeOption)) && arg.Underlying != "" {
 		params.Set("uly", arg.Underlying)
 	}
-	if strings.EqualFold(arg.InstrumentType, "FUTURES") && (strings.EqualFold(arg.Alias, "this_week") || strings.EqualFold(arg.Alias, "next_week ") || strings.EqualFold(arg.Alias, "quarter") || strings.EqualFold(arg.Alias, "next_quarter")) {
+	if strings.EqualFold(arg.InstrumentType, OkxInstTypeFutures) && (strings.EqualFold(arg.Alias, "this_week") || strings.EqualFold(arg.Alias, "next_week ") || strings.EqualFold(arg.Alias, "quarter") || strings.EqualFold(arg.Alias, "next_quarter")) {
 		params.Set("alias", arg.Alias)
 	}
-	if ((strings.EqualFold(arg.InstrumentType, "FUTURES") || strings.EqualFold(arg.InstrumentType, "SWAP")) &&
+	if ((strings.EqualFold(arg.InstrumentType, OkxInstTypeFutures) || strings.EqualFold(arg.InstrumentType, OkxInstTypeSwap)) &&
 		strings.EqualFold(arg.Alias, "unfilled")) || strings.EqualFold(arg.Alias, "filled ") {
 		params.Set("alias", arg.Underlying)
 	}
@@ -3807,10 +3837,10 @@ func (ok *Okx) GetLiquidationOrders(ctx context.Context, arg *LiquidationOrderRe
 // GetMarkPrice  Retrieve mark price.
 func (ok *Okx) GetMarkPrice(ctx context.Context, instrumentType, underlying, instrumentID string) ([]MarkPrice, error) {
 	params := url.Values{}
-	if !(strings.EqualFold(instrumentType, "MARGIN") ||
-		strings.EqualFold(instrumentType, "FUTURES") ||
-		strings.EqualFold(instrumentType, "SWAP") ||
-		strings.EqualFold(instrumentType, "OPTION")) {
+	if !(strings.EqualFold(instrumentType, OkxInstTypeMargin) ||
+		strings.EqualFold(instrumentType, OkxInstTypeFutures) ||
+		strings.EqualFold(instrumentType, OkxInstTypeSwap) ||
+		strings.EqualFold(instrumentType, OkxInstTypeOption)) {
 		return nil, errMissingRequiredArgInstType
 	} else {
 		params.Set("instType", instrumentType)
@@ -3829,10 +3859,10 @@ func (ok *Okx) GetMarkPrice(ctx context.Context, instrumentType, underlying, ins
 // GetPositionTiers retrieve position tiers information，maximum leverage depends on your borrowings and margin ratio.
 func (ok *Okx) GetPositionTiers(ctx context.Context, instrumentType, tradeMode, underlying, instrumentID, tiers string) ([]PositionTiers, error) {
 	params := url.Values{}
-	if !(strings.EqualFold(instrumentType, "MARGIN") ||
-		strings.EqualFold(instrumentType, "FUTURES") ||
-		strings.EqualFold(instrumentType, "SWAP") ||
-		strings.EqualFold(instrumentType, "OPTION")) {
+	if !(strings.EqualFold(instrumentType, OkxInstTypeMargin) ||
+		strings.EqualFold(instrumentType, OkxInstTypeFutures) ||
+		strings.EqualFold(instrumentType, OkxInstTypeSwap) ||
+		strings.EqualFold(instrumentType, OkxInstTypeOption)) {
 		return nil, errMissingRequiredArgInstType
 	} else {
 		params.Set("instType", instrumentType)
@@ -3842,12 +3872,12 @@ func (ok *Okx) GetPositionTiers(ctx context.Context, instrumentType, tradeMode, 
 	} else {
 		params.Set("tdMode", tradeMode)
 	}
-	if (!strings.EqualFold(instrumentType, "MARGIN")) && underlying != "" {
+	if (!strings.EqualFold(instrumentType, OkxInstTypeMargin)) && underlying != "" {
 		params.Set("uly", underlying)
 	}
-	if strings.EqualFold(instrumentType, "MARGIN") && instrumentID != "" {
+	if strings.EqualFold(instrumentType, OkxInstTypeMargin) && instrumentID != "" {
 		params.Set("instId", instrumentID)
-	} else if strings.EqualFold(instrumentType, "MARGIN") {
+	} else if strings.EqualFold(instrumentType, OkxInstTypeMargin) {
 		return nil, errMissingInstrumentID
 	}
 	if tiers != "" {
@@ -3885,9 +3915,9 @@ func (ok *Okx) GetInterestRateAndLoanQuotaForVIPLoans(ctx context.Context) (*VIP
 // GetPublicUnderlyings returns list of underlyings for various instrument types.
 func (ok *Okx) GetPublicUnderlyings(ctx context.Context, instrumentType string) ([]string, error) {
 	params := url.Values{}
-	if !(strings.EqualFold(instrumentType, "FUTURES") ||
-		strings.EqualFold(instrumentType, "SWAP") ||
-		strings.EqualFold(instrumentType, "OPTION")) {
+	if !(strings.EqualFold(instrumentType, OkxInstTypeFutures) ||
+		strings.EqualFold(instrumentType, OkxInstTypeSwap) ||
+		strings.EqualFold(instrumentType, OkxInstTypeOption)) {
 		return nil, errMissingRequiredArgInstType
 	} else {
 		params.Set("instType", strings.ToUpper(instrumentType))
@@ -3911,10 +3941,10 @@ func (ok *Okx) GetPublicUnderlyings(ctx context.Context, instrumentType string) 
 // GetInsuranceFund returns insurance fund balance informations.
 func (ok *Okx) GetInsuranceFundInformations(ctx context.Context, arg InsuranceFundInformationRequestParams) (*InsuranceFundInformation, error) {
 	params := url.Values{}
-	if !(strings.EqualFold(arg.InstrumentType, "FUTURES") ||
-		strings.EqualFold(arg.InstrumentType, "MARGIN") ||
-		strings.EqualFold(arg.InstrumentType, "SWAP") ||
-		strings.EqualFold(arg.InstrumentType, "OPTION")) {
+	if !(strings.EqualFold(arg.InstrumentType, OkxInstTypeFutures) ||
+		strings.EqualFold(arg.InstrumentType, OkxInstTypeMargin) ||
+		strings.EqualFold(arg.InstrumentType, OkxInstTypeSwap) ||
+		strings.EqualFold(arg.InstrumentType, OkxInstTypeOption)) {
 		return nil, errMissingRequiredArgInstType
 	} else {
 		params.Set("instType", strings.ToUpper(arg.InstrumentType))
@@ -3924,12 +3954,12 @@ func (ok *Okx) GetInsuranceFundInformations(ctx context.Context, arg InsuranceFu
 		strings.EqualFold(arg.Type, "platform_revenue ") {
 		params.Set("type", arg.Type)
 	}
-	if (!strings.EqualFold(arg.InstrumentType, "MARGIN")) && arg.Underlying != "" {
+	if (!strings.EqualFold(arg.InstrumentType, OkxInstTypeMargin)) && arg.Underlying != "" {
 		params.Set("uly", arg.Underlying)
-	} else if !strings.EqualFold(arg.InstrumentType, "MARGIN") {
+	} else if !strings.EqualFold(arg.InstrumentType, OkxInstTypeMargin) {
 		return nil, errParameterUnderlyingCanNotBeEmpty
 	}
-	if (strings.EqualFold(arg.InstrumentType, "MARGIN")) && arg.Currency != "" {
+	if (strings.EqualFold(arg.InstrumentType, OkxInstTypeMargin)) && arg.Currency != "" {
 		params.Set("ccy", arg.Currency)
 	}
 	if !arg.Before.IsZero() {
@@ -4004,12 +4034,12 @@ func (ok *Okx) GetSupportCoins(ctx context.Context) (*SupportedCoinsData, error)
 func (ok *Okx) GetTakerVolume(ctx context.Context, currency, instrumentType string, begin, end time.Time, period kline.Interval) ([]TakerVolume, error) {
 	params := url.Values{}
 	if !(strings.EqualFold(instrumentType, "CONTRACTS") ||
-		strings.EqualFold(instrumentType, "SPOT")) {
+		strings.EqualFold(instrumentType, OkxInstTypeSpot)) {
 		return nil, errMissingRequiredArgInstType
-	} else if strings.EqualFold(instrumentType, "FUTURES") ||
-		strings.EqualFold(instrumentType, "MARGIN") ||
-		strings.EqualFold(instrumentType, "SWAP") ||
-		strings.EqualFold(instrumentType, "OPTION") {
+	} else if strings.EqualFold(instrumentType, OkxInstTypeFutures) ||
+		strings.EqualFold(instrumentType, OkxInstTypeMargin) ||
+		strings.EqualFold(instrumentType, OkxInstTypeSwap) ||
+		strings.EqualFold(instrumentType, OkxInstTypeOption) {
 		return nil, fmt.Errorf("instrument type %s is not allowed for this query", instrumentType)
 	} else {
 		params.Set("instType", strings.ToUpper(instrumentType))
@@ -4546,7 +4576,6 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 			headers["OK-ACCESS-SIGN"] = crypto.Base64Encode(hmac)
 			headers["OK-ACCESS-TIMESTAMP"] = utcTime
 			headers["OK-ACCESS-PASSPHRASE"] = creds.ClientID
-			// headers["x-simulated-trading"] = "1"
 		}
 		return &request.Item{
 			Method:        strings.ToUpper(httpMethod),
@@ -4577,7 +4606,7 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 		}
 		if errCap.Error > 0 {
 			return fmt.Errorf("sendHTTPRequest error - %s",
-				ok.ErrorCodes[strconv.FormatInt(errCap.Error, 10)])
+				ErrorCodes[strconv.FormatInt(errCap.Error, 10)])
 		}
 		if !errCap.Result {
 			return errors.New("unspecified error occurred")
@@ -4606,28 +4635,21 @@ func (ok *Okx) SystemStatusResponse(ctx context.Context, state string) ([]System
 
 // GetAssetTypeFromInstrumentType returns an asset Item instance given and Instrument Type string.
 func (ok *Okx) GetAssetTypeFromInstrumentType(instrumentType string) (asset.Item, error) {
-	switch instrumentType {
-	case "SWAP":
+	switch strings.ToUpper(instrumentType) {
+	case OkxInstTypeContract:
+		return asset.PerpetualContract, nil
+	case OkxInstTypeSwap:
 		return asset.PerpetualSwap, nil
-	case "SPOT":
-		return asset.Spot, nil
-	case "FUTURES":
-		return asset.Futures, nil
-	case "OPTION":
-		return asset.Option, nil
-	case "CONTRACT":
-		return asset.PerpetualSwap, nil
-	case "MARGIN":
-		return asset.Margin, nil
-	case "ANY":
+	case OkxInstTypeANY:
 		return asset.Empty, nil
+	default:
+		return asset.New(strings.ToLower(instrumentType))
 	}
-	return asset.Empty, errors.New("invalid asset type")
 }
 
 // GuessAssetTypeFromInstrumentID returns or guesses the instrument id.
 func (ok *Okx) GuessAssetTypeFromInstrumentID(instrumentID string) asset.Item {
-	if strings.HasSuffix(instrumentID, "SWAP") {
+	if strings.HasSuffix(instrumentID, OkxInstTypeSwap) {
 		return asset.PerpetualSwap
 	}
 	filter := strings.Split(instrumentID, "-")

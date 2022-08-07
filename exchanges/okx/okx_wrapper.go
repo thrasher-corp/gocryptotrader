@@ -257,42 +257,42 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, 
 	switch a {
 	case asset.Spot:
 		insts, er = ok.GetInstruments(ctx, &InstrumentsFetchParams{
-			InstrumentType: "SPOT",
+			InstrumentType: OkxInstTypeSpot,
 		})
 	case asset.Futures:
 		insts, er = ok.GetInstruments(ctx, &InstrumentsFetchParams{
-			InstrumentType: "FUTURES",
+			InstrumentType: OkxInstTypeFutures,
 		})
 	case asset.PerpetualSwap:
 		insts, er = ok.GetInstruments(ctx, &InstrumentsFetchParams{
-			InstrumentType: "SWAP",
+			InstrumentType: OkxInstTypeSwap,
 		})
 	case asset.Option:
 		var instsb []Instrument
 		var instsc []Instrument
 		insts, er = ok.GetInstruments(ctx, &InstrumentsFetchParams{
-			InstrumentType: "OPTION",
+			InstrumentType: OkxInstTypeOption,
 			Underlying:     "BTC-USD",
 		})
 		if er != nil {
 			goto checkErrorAndContinue
 		}
 		instsb, er = ok.GetInstruments(ctx, &InstrumentsFetchParams{
-			InstrumentType: "OPTION",
+			InstrumentType: OkxInstTypeOption,
 			Underlying:     "ETH-USD",
 		})
 		if er != nil {
 			goto checkErrorAndContinue
 		}
 		instsc, er = ok.GetInstruments(ctx, &InstrumentsFetchParams{
-			InstrumentType: "OPTION",
+			InstrumentType: OkxInstTypeOption,
 			Underlying:     "SOL-USD",
 		})
 		insts = append(insts, instsb...)
 		insts = append(insts, instsc...)
 	case asset.Margin:
 		insts, er = ok.GetInstruments(ctx, &InstrumentsFetchParams{
-			InstrumentType: "MARGIN",
+			InstrumentType: OkxInstTypeMargin,
 		})
 	}
 checkErrorAndContinue:
@@ -703,15 +703,15 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 	var orderType string
 	switch s.Type {
 	case order.Market:
-		orderType = "market"
+		orderType = OkxOrderMarket
 	case order.Limit:
-		orderType = "limit"
+		orderType = OkxOrderLimit
 	case order.FillOrKill:
-		orderType = "fok"
+		orderType = OkxOrderFOK
 	case order.PostOnly:
-		orderType = "post_only"
-	case order.IOS:
-		orderType = "ioc"
+		orderType = OkxOrderPostOnly
+	case order.ImmediateOrCancel:
+		orderType = OkxOrderIOC
 	default:
 		if !(s.AssetType == asset.PerpetualSwap || s.AssetType == asset.Futures) {
 			return nil, errInvalidOrderType
@@ -739,7 +739,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		ClientSupplierOrderID: s.ClientOrderID,
 	}
 	switch orderType {
-	case "limit", "post_only", "fok", "ioc":
+	case OkxOrderLimit, OkxOrderPostOnly, OkxOrderFOK, OkxOrderIOC:
 		orderRequest.OrderPrice = s.Price
 	}
 	var placeOrderResponse *PlaceOrderResponse
@@ -748,7 +748,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		placeOrderResponse, er = ok.PlaceOrder(ctx, orderRequest)
 	case asset.PerpetualSwap, asset.Futures:
 		if orderType == "" {
-			orderType = "optimal_limit_ioc" // only applicable for Futures and Perpetual Swap Types.
+			orderType = OkxOrderOptimalLimitIOC // only applicable for Futures and Perpetual Swap Types.
 		}
 		orderRequest.PositionSide = "long"
 		placeOrderResponse, er = ok.PlaceOrder(ctx, orderRequest)
@@ -876,18 +876,18 @@ func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 			log.Errorf(log.ExchangeSys, "%s %v", ok.Name, err)
 		}
 		var orderType order.Type
-		switch orderDetail.OrderType {
-		case "market":
+		switch strings.ToUpper(orderDetail.OrderType) {
+		case OkxOrderMarket:
 			orderType = order.Market
-		case "limit":
+		case OkxOrderLimit:
 			orderType = order.Limit
-		case "post_only":
+		case OkxOrderPostOnly:
 			orderType = order.PostOnly
-		case "fok":
+		case OkxOrderFOK:
 			orderType = order.FillOrKill
-		case "ioc":
-			orderType = order.IOS
-		case "optimal_limit_ioc":
+		case OkxOrderIOC:
+			orderType = order.ImmediateOrCancel
+		case OkxOrderOptimalLimitIOC:
 			orderType = order.UnknownType
 		}
 		orderSide := order.Side(orderDetail.Side)
@@ -977,17 +977,17 @@ func (ok *Okx) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 		var orderType string
 		switch req.Type {
 		case order.Market:
-			orderType = "market"
+			orderType = OkxOrderMarket
 		case order.Limit:
-			orderType = "limit"
+			orderType = OkxOrderLimit
 		case order.PostOnly:
-			orderType = "post_only"
+			orderType = OkxOrderPostOnly
 		case order.FillOrKill:
-			orderType = "fok"
+			orderType = OkxOrderFOK
 		case order.IOS:
-			orderType = "ioc"
+			orderType = OkxOrderIOC
 			// case order.OptimalLimitIoc:
-			// 	orderType = "optimal_limit_ioc"
+			// 	orderType = OkxOrderOptimalLimitIOC
 		}
 		response, er := ok.GetOrderList(ctx, &OrderListRequestParams{
 			OrderType: orderType,
@@ -1017,18 +1017,18 @@ func (ok *Okx) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 				log.Errorf(log.ExchangeSys, "%s %v", ok.Name, er)
 			}
 			var oType order.Type
-			switch response[x].OrderType {
-			case "market":
+			switch strings.ToUpper(response[x].OrderType) {
+			case OkxOrderMarket:
 				oType = order.Market
-			case "limit":
+			case OkxOrderLimit:
 				oType = order.Limit
-			case "post_only":
+			case OkxOrderPostOnly:
 				oType = order.PostOnly
-			case "fok":
+			case OkxOrderFOK:
 				oType = order.FillOrKill
-			case "ioc":
+			case OkxOrderIOC:
 				oType = order.IOS
-			case "optimal_limit_ioc":
+			case OkxOrderOptimalLimitIOC:
 				oType = order.UnknownType
 			}
 			orders = append(orders, order.Detail{
@@ -1055,8 +1055,7 @@ func (ok *Okx) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 	order.FilterOrdersByPairs(&orders, req.Pairs)
 	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	return orders, nil
+	return orders, order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 }
 
 // GetOrderHistory retrieves account order information Can Limit response to specific order status
@@ -1116,18 +1115,18 @@ func (ok *Okx) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 			continue
 		createDetail:
 			var oType order.Type
-			switch response[i].OrderType {
-			case "market":
+			switch strings.ToUpper(response[i].OrderType) {
+			case OkxOrderMarket:
 				oType = order.Market
-			case "limit":
+			case OkxOrderLimit:
 				oType = order.Limit
-			case "post_only":
+			case OkxOrderPostOnly:
 				oType = order.PostOnly
-			case "fok":
+			case OkxOrderFOK:
 				oType = order.FillOrKill
-			case "ioc":
+			case OkxOrderIOC:
 				oType = order.IOS
-			case "optimal_limit_ioc":
+			case OkxOrderOptimalLimitIOC:
 				oType = order.UnknownType
 			}
 			orders = append(orders, order.Detail{

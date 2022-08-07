@@ -14,8 +14,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
-
 	"github.com/thrasher-corp/gocryptotrader/currency"
+
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -164,7 +164,7 @@ func TestGetTrades(t *testing.T) {
 	}
 }
 
-var tradeHistoryJson = `{
+var tradeHistoryJSON = `{
 	"instId": "BTC-USDT",
 	"side": "sell",
 	"sz": "0.00001",
@@ -176,7 +176,7 @@ var tradeHistoryJson = `{
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
 	var resp TradeResponse
-	if er := json.Unmarshal([]byte(tradeHistoryJson), &resp); er != nil {
+	if er := json.Unmarshal([]byte(tradeHistoryJSON), &resp); er != nil {
 		t.Error("Okx decerializing to TradeResponse struct error", er)
 	}
 	if _, er := ok.GetTradesHistory(context.Background(), "BTC-USDT", "", "", 0); er != nil {
@@ -223,7 +223,7 @@ func TestGetIndexComponents(t *testing.T) {
 	}
 }
 
-var blockTickerItemJson = `{
+var blockTickerItemJSON = `{
 	"instType":"SWAP",
 	"instId":"LTC-USD-SWAP",
 	"volCcy24h":"2222",
@@ -234,7 +234,7 @@ var blockTickerItemJson = `{
 func TestGetBlockTickers(t *testing.T) {
 	t.Parallel()
 	var resp BlockTicker
-	if er := json.Unmarshal([]byte(blockTickerItemJson), &resp); er != nil {
+	if er := json.Unmarshal([]byte(blockTickerItemJSON), &resp); er != nil {
 		t.Error("Okx Decerializing to BlockTickerItem error", er)
 	}
 	if !areTestAPIKeysSet() {
@@ -257,19 +257,12 @@ func TestGetBlockTicker(t *testing.T) {
 	}
 }
 
-var blockTradeItemJson = `{
-	"instId":"BTC-USDT-SWAP",
-	"tradeId":"90167",
-	"px":"42000",
-	"sz":"100",
-	"side":"sell",
-	"ts":"1642670926504"
-}`
+var blockTradeItemJSON = `{"instId":"BTC-USDT-SWAP","tradeId":"90167","px":"42000","sz":"100","side":"sell","ts":"1642670926504"}`
 
 func TestGetBlockTrade(t *testing.T) {
 	t.Parallel()
 	var resp BlockTrade
-	if er := json.Unmarshal([]byte(blockTradeItemJson), &resp); er != nil {
+	if er := json.Unmarshal([]byte(blockTradeItemJSON), &resp); er != nil {
 		t.Error("Okx Decerializing to BlockTrade error", er)
 	}
 	if !areTestAPIKeysSet() {
@@ -483,7 +476,7 @@ func TestGetInsuranceFundInformations(t *testing.T) {
 	}
 }
 
-var currencyConvertJson = `{
+var currencyConvertJSON = `{
 	"instId": "BTC-USD-SWAP",
 	"px": "35000",
 	"sz": "311",
@@ -494,7 +487,7 @@ var currencyConvertJson = `{
 func TestCurrencyUnitConvert(t *testing.T) {
 	t.Parallel()
 	var resp UnitConvertResponse
-	if er := json.Unmarshal([]byte(currencyConvertJson), &resp); er != nil {
+	if er := json.Unmarshal([]byte(currencyConvertJSON), &resp); er != nil {
 		t.Error("Okx Decerializing to UnitConvertResponse error", er)
 	}
 	if _, er := ok.CurrencyUnitConvert(context.Background(), "BTC-USD-SWAP", 1, 3500, CurrencyToContract, ""); er != nil {
@@ -953,8 +946,7 @@ func TestGetCounterparties(t *testing.T) {
 	}
 }
 
-var createRFQInputJson = `
-{
+var createRFQInputJSON = `{
     "anonymous": true,
     "counterparties":[
         "Trader1",
@@ -975,7 +967,7 @@ var createRFQInputJson = `
         }
     ]
 }`
-var createRFQOutputJson = `{
+var createRFQOutputJSON = `{
 	"cTime":"1611033737572",
 	"uTime":"1611033737572",
 	"traderCode":"SATOSHI",
@@ -1006,11 +998,11 @@ var createRFQOutputJson = `{
 func TestCreateRFQ(t *testing.T) {
 	t.Parallel()
 	var input CreateRFQInput
-	if er := json.Unmarshal([]byte(createRFQInputJson), &input); er != nil {
+	if er := json.Unmarshal([]byte(createRFQInputJSON), &input); er != nil {
 		t.Error("Okx Decerializing to CreateRFQInput", er)
 	}
 	var resp RFQResponse
-	if er := json.Unmarshal([]byte(createRFQOutputJson), &resp); er != nil {
+	if er := json.Unmarshal([]byte(createRFQOutputJSON), &resp); er != nil {
 		t.Error("Okx Decerializing to CreateRFQResponse", er)
 	}
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
@@ -1055,41 +1047,12 @@ func TestMultipleCancelRFQ(t *testing.T) {
 	}
 }
 
-var executeQuoteJson = `{
-	"blockTdId":"180184",
-	"rfqId":"1419",
-	"clRfqId":"r0001",
-	"quoteId":"1046",
-	"clQuoteId":"q0001",
-	"tTraderCode":"Trader1",
-	"mTraderCode":"Trader2",
-	"cTime":"1649670009",
-	"legs":[
-		{
-			"px":"0.1",
-			"sz":"25",
-			"instId":"BTC-USD-20220114-13250-C",
-			"side":"sell",
-			"fee":"-1.001",
-			"feeCcy":"BTC",
-			"tradeId":"10211"
-		},
-		{
-			"px":"0.2",
-			"sz":"25",
-			"instId":"BTC-USDT",
-			"side":"buy",
-			"fee":"-1.001",
-			"feeCcy":"BTC",
-			"tradeId":"10212"
-		}
-	]
-}`
+var executeQuoteJSON = `{"blockTdId":"180184","rfqId":"1419","clRfqId":"r0001","quoteId":"1046","clQuoteId":"q0001","tTraderCode":"Trader1","mTraderCode":"Trader2","cTime":"1649670009","legs":[{	"px":"0.1",	"sz":"25",	"instId":"BTC-USD-20220114-13250-C",	"side":"sell",	"fee":"-1.001",	"feeCcy":"BTC",	"tradeId":"10211"},{	"px":"0.2",	"sz":"25",	"instId":"BTC-USDT",	"side":"buy",	"fee":"-1.001",	"feeCcy":"BTC",	"tradeId":"10212"}]}`
 
 func TestExecuteQuote(t *testing.T) {
 	t.Parallel()
 	var resp ExecuteQuoteResponse
-	if er := json.Unmarshal([]byte(executeQuoteJson), &resp); er != nil {
+	if er := json.Unmarshal([]byte(executeQuoteJSON), &resp); er != nil {
 		t.Error("Okx Decerialing error", er)
 	}
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
@@ -1106,7 +1069,7 @@ func TestExecuteQuote(t *testing.T) {
 	}
 }
 
-var createQuoteJson = `{
+var createQuoteJSON = `{
 	"cTime":"1611038342698",
 	"uTime":"1611038342698",
 	"quoteId":"84069", 
@@ -1129,7 +1092,7 @@ var createQuoteJson = `{
 func TestCreateQuote(t *testing.T) {
 	t.Parallel()
 	var resp QuoteResponse
-	if er := json.Unmarshal([]byte(createQuoteJson), &resp); er != nil {
+	if er := json.Unmarshal([]byte(createQuoteJSON), &resp); er != nil {
 		t.Error("Okx Decerializing to CreateQuoteResponse error", er)
 	}
 	if !areTestAPIKeysSet() {
@@ -1192,7 +1155,7 @@ func TestGetQuotes(t *testing.T) {
 	}
 }
 
-var rfqTradeResponseJson = `{
+var rfqTradeResponseJSON = `{
 	"rfqId": "1234567",
 	"clRfqId": "",
 	"quoteId": "0T533T0",
@@ -1217,7 +1180,7 @@ var rfqTradeResponseJson = `{
 func TestGetRFQTrades(t *testing.T) {
 	t.Parallel()
 	var resp RfqTradeResponse
-	if er := json.Unmarshal([]byte(rfqTradeResponseJson), &resp); er != nil {
+	if er := json.Unmarshal([]byte(rfqTradeResponseJSON), &resp); er != nil {
 		t.Error("Okx Decerializing to RFQTradeResponse error", er)
 	}
 	if !areTestAPIKeysSet() {
@@ -1228,7 +1191,7 @@ func TestGetRFQTrades(t *testing.T) {
 	}
 }
 
-var publicTradesResponseJson = `{
+var publicTradesResponseJSON = `{
 	"blockTdId": "439161457415012352",
 	"legs": [
 		{
@@ -1245,7 +1208,7 @@ var publicTradesResponseJson = `{
 func TestGetPublicTrades(t *testing.T) {
 	t.Parallel()
 	var resp PublicTradesResponse
-	if er := json.Unmarshal([]byte(publicTradesResponseJson), &resp); er != nil {
+	if er := json.Unmarshal([]byte(publicTradesResponseJSON), &resp); er != nil {
 		t.Error("Okx Decerializing to PublicTradesResponse error", er)
 	}
 	if !areTestAPIKeysSet() {
@@ -1466,7 +1429,7 @@ func TestWithdrawal(t *testing.T) {
 	}
 }
 
-var lightningWithdrawalResponseJson = `{
+var lightningWithdrawalResponseJSON = `{
 	"wdId": "121212",
 	"cTime": "1597026383085"
 }`
@@ -1477,7 +1440,7 @@ func TestLightningWithdrawal(t *testing.T) {
 		t.SkipNow()
 	}
 	var response LightningWithdrawalResponse
-	if er := json.Unmarshal([]byte(lightningWithdrawalResponseJson), &response); er != nil {
+	if er := json.Unmarshal([]byte(lightningWithdrawalResponseJSON), &response); er != nil {
 		t.Error("Binanceus LightningWithdrawalResponse Json Conversion error ", er)
 	}
 	_, er := ok.LightningWithdrawal(context.Background(), LightningWithdrawalRequestInput{
@@ -1544,7 +1507,7 @@ func TestGetSavingBalance(t *testing.T) {
 	}
 }
 
-var redemptionOrPurchaseSavingJson = `{
+var redemptionOrPurchaseSavingJSON = `{
 	"ccy":"BTC",
 	"amt":"1",
 	"side":"purchase",
@@ -1554,7 +1517,7 @@ var redemptionOrPurchaseSavingJson = `{
 func TestSavingsPurchase(t *testing.T) {
 	t.Parallel()
 	var resp SavingsPurchaseRedemptionResponse
-	if er := json.Unmarshal([]byte(redemptionOrPurchaseSavingJson), &resp); er != nil {
+	if er := json.Unmarshal([]byte(redemptionOrPurchaseSavingJSON), &resp); er != nil {
 		t.Error("Okx Unmarshaling purchase or redemption error", er)
 	}
 	if !areTestAPIKeysSet() {
@@ -1609,7 +1572,7 @@ func TestGetLendingHistory(t *testing.T) {
 	}
 }
 
-var publicBorrowInfoJson = `{
+var publicBorrowInfoJSON = `{
 	"ccy": "BTC",
 	"amt": "0.01",
 	"rate": "0.001",
@@ -1619,7 +1582,7 @@ var publicBorrowInfoJson = `{
 func TestGetPublicBorrowInfo(t *testing.T) {
 	t.Parallel()
 	var resp LendingHistory
-	if er := json.Unmarshal([]byte(publicBorrowInfoJson), &resp); er != nil {
+	if er := json.Unmarshal([]byte(publicBorrowInfoJSON), &resp); er != nil {
 		t.Error("Okx Unmarshaling to LendingHistory error", er)
 	}
 	if !areTestAPIKeysSet() {
@@ -1630,7 +1593,7 @@ func TestGetPublicBorrowInfo(t *testing.T) {
 	}
 }
 
-var convertCurrencyResponseJson = `{
+var convertCurrencyResponseJSON = `{
 	"min": "0.0001",
 	"max": "0.5",
 	"ccy": "BTC"
@@ -1639,7 +1602,7 @@ var convertCurrencyResponseJson = `{
 func TestGetConvertCurrencies(t *testing.T) {
 	t.Parallel()
 	var resp ConvertCurrency
-	if er := json.Unmarshal([]byte(convertCurrencyResponseJson), &resp); er != nil {
+	if er := json.Unmarshal([]byte(convertCurrencyResponseJSON), &resp); er != nil {
 		t.Error("Okx Unmarshaling Json error", er)
 	}
 	if !areTestAPIKeysSet() {
@@ -1650,7 +1613,7 @@ func TestGetConvertCurrencies(t *testing.T) {
 	}
 }
 
-var convertCurrencyPairResponseJson = `{
+var convertCurrencyPairResponseJSON = `{
 	"baseCcy": "BTC",
 	"baseCcyMax": "0.5",
 	"baseCcyMin": "0.0001",
@@ -1663,7 +1626,7 @@ var convertCurrencyPairResponseJson = `{
 func TestGetConvertCurrencyPair(t *testing.T) {
 	t.Parallel()
 	var resp ConvertCurrencyPair
-	if er := json.Unmarshal([]byte(convertCurrencyPairResponseJson), &resp); er != nil {
+	if er := json.Unmarshal([]byte(convertCurrencyPairResponseJSON), &resp); er != nil {
 		t.Error("Okx Unmarshaling ConvertCurrencyPair error", er)
 	}
 	if !areTestAPIKeysSet() {

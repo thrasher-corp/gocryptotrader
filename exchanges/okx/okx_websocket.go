@@ -45,6 +45,10 @@ var defaultSubscribedChannels = []string{
 }
 
 const (
+
+	// allowableIterations use the first 25 bids and asks in the full load to form a string
+	allowableIterations = 25
+
 	OkxOrderBookFull   = "snapshot"
 	OkxOrderBookUpdate = "update"
 
@@ -124,6 +128,7 @@ const (
 	OkxChannelOrderBooks5     = "books5"
 	OkxChannelOrderBooks50TBT = "books50-l2-tbt"
 	OkxChannelOrderBooksTBT   = "books-l2-tbt"
+	OkxChannelBBOTBT          = "bbo-tbt"
 	OkxChannelBBO_TBT         = "bbo-tbt"
 	OkxChannelOptSummary      = "opt-summary"
 	OkxChannelFundingRate     = "funding-rate"
@@ -274,7 +279,15 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 			},
 		},
 	}
-	go ok.Websocket.AuthConn.SendMessageReturnResponse("login", request)
+	go func() {
+		var response []byte
+		response, err = ok.Websocket.AuthConn.SendMessageReturnResponse("login", request)
+		var resp WSLoginResponse
+		err = json.Unmarshal(response, &resp)
+		if err == nil && (strings.EqualFold(resp.Event, "login") && resp.Code == 0) {
+			ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		}
+	}()
 	return nil
 }
 
@@ -382,13 +395,6 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 		if strings.EqualFold(arg.Channel, "positions") || strings.EqualFold(arg.Channel, "orders") || strings.EqualFold(arg.Channel, "orders-algo") || strings.EqualFold(arg.Channel, "estimated-price") || strings.EqualFold(arg.Channel, "opt-summary") {
 			underlying, _ = ok.GetUnderlying(subscriptions[i].Currency, subscriptions[i].Asset)
 		}
-
-		// if (!subscriptions[i].Currency.IsEmpty()) && subscriptions[i].Asset.IsValid() {
-		// 	underlying, er = ok.GetUnderlying(subscriptions[i].Currency, subscriptions[i].Asset)
-		// 	if er != nil {
-		// 		underlying = ""
-		// 	}
-		// }
 		arg.InstrumentID = instrumentID
 		arg.Underlying = underlying
 		arg.InstrumentType = instrumentType
@@ -607,7 +613,7 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		case OkxChannelOrderBooks,
 			OkxChannelOrderBooks5,
 			OkxChannelOrderBooks50TBT,
-			OkxChannelBBO_TBT,
+			OkxChannelBBOTBT,
 			OkxChannelOrderBooksTBT:
 			return ok.wsProcessOrderBooks(respRaw)
 		case OkxChannelOptSummary:
@@ -693,8 +699,7 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 	if !(strings.EqualFold(response.Action, OkxOrderBookUpdate) ||
 		strings.EqualFold(response.Action, OkxOrderBookFull) ||
 		strings.EqualFold(response.Argument.Channel, OkxChannelOrderBooks5) ||
-		strings.EqualFold(response.Argument.Channel, OkxChannelBBO_TBT) ||
-
+		strings.EqualFold(response.Argument.Channel, OkxChannelBBOTBT) ||
 		strings.EqualFold(response.Argument.Channel, OkxChannelOrderBooks50TBT) ||
 		strings.EqualFold(response.Argument.Channel, OkxChannelOrderBooksTBT)) {
 		return errors.New("invalid order book action ")
@@ -714,7 +719,7 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 	for i := range response.Data {
 		if strings.EqualFold(response.Action, OkxOrderBookFull) ||
 			strings.EqualFold(response.Argument.Channel, OkxChannelOrderBooks5) ||
-			strings.EqualFold(response.Argument.Channel, OkxChannelBBO_TBT) {
+			strings.EqualFold(response.Argument.Channel, OkxChannelBBOTBT) {
 			er = ok.WsProcessFullOrderBook(response.Data[i], pair, a)
 			if er != nil {
 				_, err2 := ok.OrderBooksSubscription("subscribe", response.Argument.Channel, a, pair)
@@ -826,9 +831,32 @@ func (ok *Okx) WsProcessUpdateOrderbook(channel string, data WsOrderBookData, pa
 	return nil
 }
 
+// CalculateUpdateOrderbookChecksum alternates over the first 25 bid and ask
+// entries of a merged orderbook. The checksum is made up of the price and the
+// quantity with a semicolon (:) deliminating them. This will also work when
+// there are less than 25 entries (for whatever reason)
+// eg Bid:Ask:Bid:Ask:Ask:Ask
+func (ok *Okx) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base) int32 {
+	var checksum strings.Builder
+	for i := 0; i < allowableIterations; i++ {
+		if len(orderbookData.Bids)-1 >= i {
+			price := strconv.FormatFloat(orderbookData.Bids[i].Price, 'f', -1, 64)
+			amount := strconv.FormatFloat(orderbookData.Bids[i].Amount, 'f', -1, 64)
+			checksum.WriteString(price + ColonDelimiter + amount + ColonDelimiter)
+		}
+		if len(orderbookData.Asks)-1 >= i {
+			price := strconv.FormatFloat(orderbookData.Asks[i].Price, 'f', -1, 64)
+			amount := strconv.FormatFloat(orderbookData.Asks[i].Amount, 'f', -1, 64)
+			checksum.WriteString(price + ColonDelimiter + amount + ColonDelimiter)
+		}
+	}
+	checksumStr := strings.TrimSuffix(checksum.String(), ColonDelimiter)
+	return int32(crc32.ChecksumIEEE([]byte(checksumStr)))
+}
+
 // AppendWsOrderbookItems adds websocket orderbook data bid/asks into an
 // orderbook item array
-func (o *Okx) AppendWsOrderbookItems(entries [][4]string) ([]orderbook.Item, error) {
+func (ok *Okx) AppendWsOrderbookItems(entries [][4]string) ([]orderbook.Item, error) {
 	items := make([]orderbook.Item, len(entries))
 	for j := range entries {
 		amount, err := strconv.ParseFloat(entries[j][1], 64)
@@ -847,7 +875,7 @@ func (o *Okx) AppendWsOrderbookItems(entries [][4]string) ([]orderbook.Item, err
 // CalculatePartialOrderbookChecksum alternates over the first 25 bid and ask entries from websocket data.
 func (ok *Okx) CalculatePartialOrderbookChecksum(orderbookData WsOrderBookData) (int32, error) {
 	var checksum strings.Builder
-	for i := 0; i < 25; i++ {
+	for i := 0; i < allowableIterations; i++ {
 		if len(orderbookData.Bids)-1 >= i {
 			bidPrice := orderbookData.Bids[i][0]
 			bidAmount := orderbookData.Bids[i][1]
@@ -1467,12 +1495,12 @@ func (ok *Okx) WsChannelSubscription(operation, channel string, assetType asset.
 	var er error
 	if len(tooglers) > 0 && tooglers[0] {
 		instrumentType = strings.ToUpper(assetType.String())
-		if !(strings.EqualFold(instrumentType, "SPOT") ||
-			strings.EqualFold(instrumentType, "MARGIN") ||
-			strings.EqualFold(instrumentType, "SWAP") ||
-			strings.EqualFold(instrumentType, "FUTURES") ||
-			strings.EqualFold(instrumentType, "OPTION")) {
-			instrumentType = "ANY"
+		if !(strings.EqualFold(instrumentType, OkxInstTypeSpot) ||
+			strings.EqualFold(instrumentType, OkxInstTypeMargin) ||
+			strings.EqualFold(instrumentType, OkxInstTypeSwap) ||
+			strings.EqualFold(instrumentType, OkxInstTypeFutures) ||
+			strings.EqualFold(instrumentType, OkxInstTypeOption)) {
+			instrumentType = OkxInstTypeANY
 		}
 	}
 	if len(tooglers) > 2 && tooglers[2] {
@@ -1527,16 +1555,16 @@ func (ok *Okx) WsAuthChannelSubscription(operation, channel string, assetType as
 	var underlying string
 	var instrumentID string
 	var instrumentType string
-	var currency string
+	var ccy string
 	var er error
 	if len(tooglers) > 0 && tooglers[0] {
 		instrumentType = strings.ToUpper(assetType.String())
-		if !(strings.EqualFold(instrumentType, "SPOT") ||
-			strings.EqualFold(instrumentType, "MARGIN") ||
-			strings.EqualFold(instrumentType, "SWAP") ||
-			strings.EqualFold(instrumentType, "FUTURES") ||
-			strings.EqualFold(instrumentType, "OPTION")) {
-			instrumentType = "ANY"
+		if !(strings.EqualFold(instrumentType, OkxInstTypeSpot) ||
+			strings.EqualFold(instrumentType, OkxInstTypeMargin) ||
+			strings.EqualFold(instrumentType, OkxInstTypeSwap) ||
+			strings.EqualFold(instrumentType, OkxInstTypeFutures) ||
+			strings.EqualFold(instrumentType, OkxInstTypeOption)) {
+			instrumentType = OkxInstTypeANY
 		}
 	}
 	if len(tooglers) > 2 && tooglers[2] {
@@ -1553,9 +1581,9 @@ func (ok *Okx) WsAuthChannelSubscription(operation, channel string, assetType as
 	if len(tooglers) > 3 && tooglers[3] {
 		if !(pair.IsEmpty()) {
 			if !(pair.Base.IsEmpty()) {
-				currency = strings.ToUpper(pair.Base.String())
+				ccy = strings.ToUpper(pair.Base.String())
 			} else {
-				currency = strings.ToUpper(pair.Quote.String())
+				ccy = strings.ToUpper(pair.Quote.String())
 			}
 		}
 	}
@@ -1570,7 +1598,7 @@ func (ok *Okx) WsAuthChannelSubscription(operation, channel string, assetType as
 				InstrumentType: instrumentType,
 				Underlying:     underlying,
 				InstrumentID:   instrumentID,
-				Currency:       currency,
+				Currency:       ccy,
 				UID:            uid,
 			},
 		},

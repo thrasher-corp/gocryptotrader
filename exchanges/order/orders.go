@@ -40,19 +40,20 @@ var (
 
 // ParseOrderSideString converts an order side string to an order.Side instance
 func ParseOrderSideString(orderString string) Side {
-	if strings.EqualFold(orderString, "any") {
+	switch orderString {
+	case "any":
 		return AnySide
-	} else if strings.EqualFold(orderString, "buy") {
+	case "buy":
 		return Buy
-	} else if strings.EqualFold(orderString, "Sell") {
+	case "Sell":
 		return Sell
-	} else if strings.EqualFold(orderString, "bid") {
+	case "bid":
 		return Bid
-	} else if strings.EqualFold(orderString, "ask") {
+	case "ask":
 		return Ask
-	} else if strings.EqualFold(orderString, "long") {
+	case "long":
 		return Long
-	} else if strings.EqualFold(orderString, "short") {
+	case "short":
 		return Short
 	}
 	return UnknownSide

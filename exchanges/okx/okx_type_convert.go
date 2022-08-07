@@ -148,20 +148,20 @@ func (a *Instrument) UnmarshalJSON(data []byte) error {
 		}
 	}
 	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
-	switch chil.InstrumentType {
-	case "SWAP":
+	switch strings.ToUpper(chil.InstrumentType) {
+	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
-	case "SPOT":
+	case OkxInstTypeSpot:
 		a.InstrumentType = asset.Spot
-	case "FUTURES":
+	case OkxInstTypeFutures:
 		a.InstrumentType = asset.Futures
-	case "OPTION":
+	case OkxInstTypeOption:
 		a.InstrumentType = asset.Option
-	case "CONTRACT":
-		a.InstrumentType = asset.PerpetualSwap
-	case "MARGIN":
+	case OkxInstTypeContract:
+		a.InstrumentType = asset.PerpetualContract
+	case OkxInstTypeMargin:
 		a.InstrumentType = asset.Margin
-	case "ANY":
+	case OkxInstTypeANY:
 		a.InstrumentType = asset.Empty
 	}
 	return nil
@@ -216,20 +216,20 @@ func (a *OpenInterest) UnmarshalJSON(data []byte) error {
 		a.Timestamp = time.UnixMilli(chil.Timestamp)
 	}
 	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
-	switch chil.InstrumentType {
-	case "SWAP":
+	switch strings.ToUpper(chil.InstrumentType) {
+	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
-	case "SPOT":
+	case OkxInstTypeSpot:
 		a.InstrumentType = asset.Spot
-	case "FUTURES":
+	case OkxInstTypeFutures:
 		a.InstrumentType = asset.Futures
-	case "OPTION":
+	case OkxInstTypeOption:
 		a.InstrumentType = asset.Option
-	case "CONTRACT":
+	case OkxInstTypeContract:
 		a.InstrumentType = asset.PerpetualSwap
-	case "MARGIN":
+	case OkxInstTypeMargin:
 		a.InstrumentType = asset.Margin
-	case "ANY":
+	case OkxInstTypeANY:
 		a.InstrumentType = asset.Empty
 	}
 	return nil
@@ -257,20 +257,20 @@ func (a *FundingRateResponse) UnmarshalJSON(data []byte) error {
 		}
 	}
 	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
-	switch chil.InstrumentType {
-	case "SWAP":
+	switch strings.ToUpper(chil.InstrumentType) {
+	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
-	case "SPOT":
+	case OkxInstTypeSpot:
 		a.InstrumentType = asset.Spot
-	case "FUTURES":
+	case OkxInstTypeFutures:
 		a.InstrumentType = asset.Futures
-	case "OPTION":
+	case OkxInstTypeOption:
 		a.InstrumentType = asset.Option
-	case "CONTRACT":
+	case OkxInstTypeContract:
 		a.InstrumentType = asset.PerpetualSwap
-	case "MARGIN":
+	case OkxInstTypeMargin:
 		a.InstrumentType = asset.Margin
-	case "ANY":
+	case OkxInstTypeANY:
 		a.InstrumentType = asset.Empty
 	}
 	return nil
@@ -292,20 +292,20 @@ func (a *LimitPriceResponse) UnmarshalJSON(data []byte) error {
 		a.Timestamp = time.UnixMilli(chil.Timestamp)
 	}
 	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
-	switch chil.InstrumentType {
-	case "SWAP":
+	switch strings.ToUpper(chil.InstrumentType) {
+	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
-	case "SPOT":
+	case OkxInstTypeSpot:
 		a.InstrumentType = asset.Spot
-	case "FUTURES":
+	case OkxInstTypeFutures:
 		a.InstrumentType = asset.Futures
-	case "OPTION":
+	case OkxInstTypeOption:
 		a.InstrumentType = asset.Option
-	case "CONTRACT":
+	case OkxInstTypeContract:
 		a.InstrumentType = asset.PerpetualSwap
-	case "MARGIN":
+	case OkxInstTypeMargin:
 		a.InstrumentType = asset.Margin
-	case "ANY":
+	case OkxInstTypeANY:
 		a.InstrumentType = asset.Empty
 	}
 	return nil
@@ -408,20 +408,20 @@ func (a *TickerResponse) UnmarshalJSON(data []byte) error {
 		a.TickerDataGenerationTime = time.UnixMilli(chil.TickerDataGenerationTime)
 	}
 	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
-	switch chil.InstrumentType {
-	case "SWAP":
+	switch strings.ToUpper(chil.InstrumentType) {
+	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
-	case "SPOT":
+	case OkxInstTypeSpot:
 		a.InstrumentType = asset.Spot
-	case "FUTURES":
+	case OkxInstTypeFutures:
 		a.InstrumentType = asset.Futures
-	case "OPTION":
+	case OkxInstTypeOption:
 		a.InstrumentType = asset.Option
-	case "CONTRACT":
+	case OkxInstTypeContract:
 		a.InstrumentType = asset.PerpetualSwap
-	case "MARGIN":
+	case OkxInstTypeMargin:
 		a.InstrumentType = asset.Margin
-	case "ANY":
+	case OkxInstTypeANY:
 		a.InstrumentType = asset.Empty
 	}
 	return nil
@@ -443,20 +443,20 @@ func (a *OptionMarketDataResponse) UnmarshalJSON(data []byte) error {
 		a.Timestamp = time.UnixMilli(chil.Timestamp)
 	}
 	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
-	switch chil.InstrumentType {
-	case "SWAP":
+	switch strings.ToUpper(chil.InstrumentType) {
+	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
-	case "SPOT":
+	case OkxInstTypeSpot:
 		a.InstrumentType = asset.Spot
-	case "FUTURES":
+	case OkxInstTypeFutures:
 		a.InstrumentType = asset.Futures
-	case "OPTION":
+	case OkxInstTypeOption:
 		a.InstrumentType = asset.Option
-	case "CONTRACT":
+	case OkxInstTypeContract:
 		a.InstrumentType = asset.PerpetualSwap
-	case "MARGIN":
+	case OkxInstTypeMargin:
 		a.InstrumentType = asset.Margin
-	case "ANY":
+	case OkxInstTypeANY:
 		a.InstrumentType = asset.Empty
 	}
 	return nil
@@ -478,20 +478,20 @@ func (a *DeliveryEstimatedPrice) UnmarshalJSON(data []byte) error {
 		a.Timestamp = time.UnixMilli(chil.Timestamp)
 	}
 	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
-	switch chil.InstrumentType {
-	case "SWAP":
+	switch strings.ToUpper(chil.InstrumentType) {
+	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
-	case "SPOT":
+	case OkxInstTypeSpot:
 		a.InstrumentType = asset.Spot
-	case "FUTURES":
+	case OkxInstTypeFutures:
 		a.InstrumentType = asset.Futures
-	case "OPTION":
+	case OkxInstTypeOption:
 		a.InstrumentType = asset.Option
-	case "CONTRACT":
+	case OkxInstTypeContract:
 		a.InstrumentType = asset.PerpetualSwap
-	case "MARGIN":
+	case OkxInstTypeMargin:
 		a.InstrumentType = asset.Margin
-	case "ANY":
+	case OkxInstTypeANY:
 		a.InstrumentType = asset.Empty
 	}
 	return nil
@@ -546,18 +546,18 @@ func (a *LiquidationOrder) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
-	switch chil.InstrumentType {
-	case "SWAP":
+	switch strings.ToUpper(chil.InstrumentType) {
+	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
-	case "SPOT":
+	case OkxInstTypeSpot:
 		a.InstrumentType = asset.Spot
-	case "FUTURES":
+	case OkxInstTypeFutures:
 		a.InstrumentType = asset.Futures
-	case "OPTION":
+	case OkxInstTypeOption:
 		a.InstrumentType = asset.Option
-	case "CONTRACT":
+	case OkxInstTypeContract:
 		a.InstrumentType = asset.PerpetualSwap
-	case "MARGIN":
+	case OkxInstTypeMargin:
 		a.InstrumentType = asset.Margin
 	default:
 		a.InstrumentType = asset.Empty
@@ -582,20 +582,20 @@ func (a *MarkPrice) UnmarshalJSON(data []byte) error {
 		a.Timestamp = time.UnixMilli(chil.Timestamp)
 	}
 	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
-	switch chil.InstrumentType {
-	case "SWAP":
+	switch strings.ToUpper(chil.InstrumentType) {
+	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
-	case "SPOT":
+	case OkxInstTypeSpot:
 		a.InstrumentType = asset.Spot
-	case "FUTURES":
+	case OkxInstTypeFutures:
 		a.InstrumentType = asset.Futures
-	case "OPTION":
+	case OkxInstTypeOption:
 		a.InstrumentType = asset.Option
-	case "CONTRACT":
+	case OkxInstTypeContract:
 		a.InstrumentType = asset.PerpetualSwap
-	case "MARGIN":
+	case OkxInstTypeMargin:
 		a.InstrumentType = asset.Margin
-	case "ANY":
+	case OkxInstTypeANY:
 		a.InstrumentType = asset.Empty
 	}
 	return nil
@@ -647,20 +647,20 @@ func (a *OrderDetail) UnmarshalJSON(data []byte) error {
 	if val, er = strconv.ParseFloat(chil.RebateAmount, 64); er == nil {
 		a.RebateAmount = val
 	}
-	switch chil.InstrumentType {
-	case "SWAP":
+	switch strings.ToUpper(chil.InstrumentType) {
+	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
-	case "SPOT":
+	case OkxInstTypeSpot:
 		a.InstrumentType = asset.Spot
-	case "FUTURES":
+	case OkxInstTypeFutures:
 		a.InstrumentType = asset.Futures
-	case "OPTION":
+	case OkxInstTypeOption:
 		a.InstrumentType = asset.Option
-	case "CONTRACT":
+	case OkxInstTypeContract:
 		a.InstrumentType = asset.PerpetualSwap
-	case "MARGIN":
+	case OkxInstTypeMargin:
 		a.InstrumentType = asset.Margin
-	case "ANY":
+	case OkxInstTypeANY:
 		a.InstrumentType = asset.Empty
 	}
 	return nil
@@ -707,20 +707,20 @@ func (a *PendingOrderItem) UnmarshalJSON(data []byte) error {
 	if val, er = strconv.ParseFloat(chil.Leverage, 64); er == nil {
 		a.Leverage = val
 	}
-	switch chil.InstrumentType {
-	case "SWAP":
+	switch strings.ToUpper(chil.InstrumentType) {
+	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
-	case "SPOT":
+	case OkxInstTypeSpot:
 		a.InstrumentType = asset.Spot
-	case "FUTURES":
+	case OkxInstTypeFutures:
 		a.InstrumentType = asset.Futures
-	case "OPTION":
+	case OkxInstTypeOption:
 		a.InstrumentType = asset.Option
-	case "CONTRACT":
+	case OkxInstTypeContract:
 		a.InstrumentType = asset.PerpetualSwap
-	case "MARGIN":
+	case OkxInstTypeMargin:
 		a.InstrumentType = asset.Margin
-	case "ANY":
+	case OkxInstTypeANY:
 		a.InstrumentType = asset.Empty
 	}
 	return nil
@@ -740,20 +740,20 @@ func (a *TransactionDetail) UnmarshalJSON(data []byte) error {
 	}
 	a.Timestamp = time.UnixMilli(chil.Timestamp)
 	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
-	switch chil.InstrumentType {
-	case "SWAP":
+	switch strings.ToUpper(chil.InstrumentType) {
+	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
-	case "SPOT":
+	case OkxInstTypeSpot:
 		a.InstrumentType = asset.Spot
-	case "FUTURES":
+	case OkxInstTypeFutures:
 		a.InstrumentType = asset.Futures
-	case "OPTION":
+	case OkxInstTypeOption:
 		a.InstrumentType = asset.Option
-	case "CONTRACT":
+	case OkxInstTypeContract:
 		a.InstrumentType = asset.PerpetualSwap
-	case "MARGIN":
+	case OkxInstTypeMargin:
 		a.InstrumentType = asset.Margin
-	case "ANY":
+	case OkxInstTypeANY:
 		a.InstrumentType = asset.Empty
 	}
 	return nil
@@ -775,20 +775,20 @@ func (a *AlgoOrderResponse) UnmarshalJSON(data []byte) error {
 	a.CreationTime = time.UnixMilli(chil.CreationTime)
 	a.TriggerTime = time.UnixMilli(chil.TriggerTime)
 	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
-	switch chil.InstrumentType {
-	case "SWAP":
+	switch strings.ToUpper(chil.InstrumentType) {
+	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
-	case "SPOT":
+	case OkxInstTypeSpot:
 		a.InstrumentType = asset.Spot
-	case "FUTURES":
+	case OkxInstTypeFutures:
 		a.InstrumentType = asset.Futures
-	case "OPTION":
+	case OkxInstTypeOption:
 		a.InstrumentType = asset.Option
-	case "CONTRACT":
+	case OkxInstTypeContract:
 		a.InstrumentType = asset.PerpetualSwap
-	case "MARGIN":
+	case OkxInstTypeMargin:
 		a.InstrumentType = asset.Margin
-	case "ANY":
+	case OkxInstTypeANY:
 		a.InstrumentType = asset.Empty
 	}
 	return nil
@@ -999,18 +999,18 @@ func (a *PositionData) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
-	switch chil.InstrumentType {
-	case "SWAP":
+	switch strings.ToUpper(chil.InstrumentType) {
+	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
-	case "SPOT":
+	case OkxInstTypeSpot:
 		a.InstrumentType = asset.Spot
-	case "FUTURES":
+	case OkxInstTypeFutures:
 		a.InstrumentType = asset.Futures
-	case "OPTION":
+	case OkxInstTypeOption:
 		a.InstrumentType = asset.Option
-	case "CONTRACT":
+	case OkxInstTypeContract:
 		a.InstrumentType = asset.PerpetualSwap
-	case "MARGIN":
+	case OkxInstTypeMargin:
 		a.InstrumentType = asset.Margin
 	default:
 		a.InstrumentType = asset.Empty
@@ -1043,20 +1043,20 @@ func (a *AccountPosition) UnmarshalJSON(data []byte) error {
 		a.PushTime = time.UnixMilli(int64(val))
 	}
 	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
-	switch chil.InstrumentType {
-	case "SWAP":
+	switch strings.ToUpper(chil.InstrumentType) {
+	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
-	case "SPOT":
+	case OkxInstTypeSpot:
 		a.InstrumentType = asset.Spot
-	case "FUTURES":
+	case OkxInstTypeFutures:
 		a.InstrumentType = asset.Futures
-	case "OPTION":
+	case OkxInstTypeOption:
 		a.InstrumentType = asset.Option
-	case "CONTRACT":
+	case OkxInstTypeContract:
 		a.InstrumentType = asset.PerpetualSwap
-	case "MARGIN":
+	case OkxInstTypeMargin:
 		a.InstrumentType = asset.Margin
-	case "ANY":
+	case OkxInstTypeANY:
 		a.InstrumentType = asset.Empty
 	}
 	return nil
@@ -1079,20 +1079,20 @@ func (a *AccountPositionHistory) UnmarshalJSON(data []byte) error {
 	a.CreationTime = time.UnixMilli(chil.CreationTime)
 	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
 	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
-	switch chil.InstrumentType {
-	case "SWAP":
+	switch strings.ToUpper(chil.InstrumentType) {
+	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
-	case "SPOT":
+	case OkxInstTypeSpot:
 		a.InstrumentType = asset.Spot
-	case "FUTURES":
+	case OkxInstTypeFutures:
 		a.InstrumentType = asset.Futures
-	case "OPTION":
+	case OkxInstTypeOption:
 		a.InstrumentType = asset.Option
-	case "CONTRACT":
+	case OkxInstTypeContract:
 		a.InstrumentType = asset.PerpetualSwap
-	case "MARGIN":
+	case OkxInstTypeMargin:
 		a.InstrumentType = asset.Margin
-	case "ANY":
+	case OkxInstTypeANY:
 		a.InstrumentType = asset.Empty
 	}
 	return nil
@@ -1129,20 +1129,20 @@ func (a *BillsDetailResponse) UnmarshalJSON(data []byte) error {
 	}
 	a.Timestamp = time.UnixMilli(chil.Timestamp)
 	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
-	switch chil.InstrumentType {
-	case "SWAP":
+	switch strings.ToUpper(chil.InstrumentType) {
+	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
-	case "SPOT":
+	case OkxInstTypeSpot:
 		a.InstrumentType = asset.Spot
-	case "FUTURES":
+	case OkxInstTypeFutures:
 		a.InstrumentType = asset.Futures
-	case "OPTION":
+	case OkxInstTypeOption:
 		a.InstrumentType = asset.Option
-	case "CONTRACT":
+	case OkxInstTypeContract:
 		a.InstrumentType = asset.PerpetualSwap
-	case "MARGIN":
+	case OkxInstTypeMargin:
 		a.InstrumentType = asset.Margin
-	case "ANY":
+	case OkxInstTypeANY:
 		a.InstrumentType = asset.Empty
 	}
 	return nil
@@ -1163,18 +1163,18 @@ func (a *TradeFeeRate) UnmarshalJSON(data []byte) error {
 	}
 	a.Timestamp = time.UnixMilli(chil.Timestamp)
 	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
-	switch chil.InstrumentType {
-	case "SWAP":
+	switch strings.ToUpper(chil.InstrumentType) {
+	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
-	case "SPOT":
+	case OkxInstTypeSpot:
 		a.InstrumentType = asset.Spot
-	case "FUTURES":
+	case OkxInstTypeFutures:
 		a.InstrumentType = asset.Futures
-	case "OPTION":
+	case OkxInstTypeOption:
 		a.InstrumentType = asset.Option
-	case "CONTRACT":
+	case OkxInstTypeContract:
 		a.InstrumentType = asset.PerpetualSwap
-	case "MARGIN":
+	case OkxInstTypeMargin:
 		a.InstrumentType = asset.Margin
 	default:
 		a.InstrumentType = asset.Empty
@@ -1261,18 +1261,18 @@ func (a *PositionBuilderData) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
-	switch chil.InstrumentType {
-	case "SWAP":
+	switch strings.ToUpper(chil.InstrumentType) {
+	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
-	case "SPOT":
+	case OkxInstTypeSpot:
 		a.InstrumentType = asset.Spot
-	case "FUTURES":
+	case OkxInstTypeFutures:
 		a.InstrumentType = asset.Futures
-	case "OPTION":
+	case OkxInstTypeOption:
 		a.InstrumentType = asset.Option
-	case "CONTRACT":
+	case OkxInstTypeContract:
 		a.InstrumentType = asset.PerpetualSwap
-	case "MARGIN":
+	case OkxInstTypeMargin:
 		a.InstrumentType = asset.Margin
 	default:
 		a.InstrumentType = asset.Empty
@@ -1439,20 +1439,20 @@ func (a *BlockTicker) UnmarshalJSON(data []byte) error {
 	}
 	a.Timestamp = time.UnixMilli(chil.Timestamp)
 	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
-	switch chil.InstrumentType {
-	case "SWAP":
+	switch strings.ToUpper(chil.InstrumentType) {
+	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
-	case "SPOT":
+	case OkxInstTypeSpot:
 		a.InstrumentType = asset.Spot
-	case "FUTURES":
+	case OkxInstTypeFutures:
 		a.InstrumentType = asset.Futures
-	case "OPTION":
+	case OkxInstTypeOption:
 		a.InstrumentType = asset.Option
-	case "CONTRACT":
+	case OkxInstTypeContract:
 		a.InstrumentType = asset.PerpetualSwap
-	case "MARGIN":
+	case OkxInstTypeMargin:
 		a.InstrumentType = asset.Margin
-	case "ANY":
+	case OkxInstTypeANY:
 		a.InstrumentType = asset.Empty
 	}
 	return nil
@@ -1600,18 +1600,18 @@ func (a *GridAlgoSuborders) UnmarshalJSON(data []byte) error {
 	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
 	a.CreationTime = time.UnixMilli(chil.CreationTime)
 	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
-	switch chil.InstrumentType {
-	case "SWAP":
+	switch strings.ToUpper(chil.InstrumentType) {
+	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
-	case "SPOT":
+	case OkxInstTypeSpot:
 		a.InstrumentType = asset.Spot
-	case "FUTURES":
+	case OkxInstTypeFutures:
 		a.InstrumentType = asset.Futures
-	case "OPTION":
+	case OkxInstTypeOption:
 		a.InstrumentType = asset.Option
-	case "CONTRACT":
+	case OkxInstTypeContract:
 		a.InstrumentType = asset.PerpetualSwap
-	case "MARGIN":
+	case OkxInstTypeMargin:
 		a.InstrumentType = asset.Margin
 	default:
 		a.InstrumentType = asset.Empty
@@ -1636,20 +1636,20 @@ func (a *GridAlgoOrderResponse) UnmarshalJSON(data []byte) error {
 	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
 	a.CreationTime = time.UnixMilli(chil.CreationTime)
 	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
-	switch chil.InstrumentType {
-	case "SWAP":
+	switch strings.ToUpper(chil.InstrumentType) {
+	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
-	case "SPOT":
+	case OkxInstTypeSpot:
 		a.InstrumentType = asset.Spot
-	case "FUTURES":
+	case OkxInstTypeFutures:
 		a.InstrumentType = asset.Futures
-	case "OPTION":
+	case OkxInstTypeOption:
 		a.InstrumentType = asset.Option
-	case "CONTRACT":
+	case OkxInstTypeContract:
 		a.InstrumentType = asset.PerpetualSwap
-	case "MARGIN":
+	case OkxInstTypeMargin:
 		a.InstrumentType = asset.Margin
-	case "ANY":
+	case OkxInstTypeANY:
 		a.InstrumentType = asset.Empty
 	}
 	return nil
@@ -1672,20 +1672,20 @@ func (a *AlgoOrderPosition) UnmarshalJSON(data []byte) error {
 	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
 	a.CreationTime = time.UnixMilli(chil.CreationTime)
 	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
-	switch chil.InstrumentType {
-	case "SWAP":
+	switch strings.ToUpper(chil.InstrumentType) {
+	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
-	case "SPOT":
+	case OkxInstTypeSpot:
 		a.InstrumentType = asset.Spot
-	case "FUTURES":
+	case OkxInstTypeFutures:
 		a.InstrumentType = asset.Futures
-	case "OPTION":
+	case OkxInstTypeOption:
 		a.InstrumentType = asset.Option
-	case "CONTRACT":
+	case OkxInstTypeContract:
 		a.InstrumentType = asset.PerpetualSwap
-	case "MARGIN":
+	case OkxInstTypeMargin:
 		a.InstrumentType = asset.Margin
-	case "ANY":
+	case OkxInstTypeANY:
 		a.InstrumentType = asset.Empty
 	}
 	return nil
