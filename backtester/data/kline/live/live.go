@@ -6,8 +6,6 @@ import (
 	"strings"
 	"time"
 
-	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
-
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"

@@ -10,8 +10,6 @@ import (
 	"sync"
 	"time"
 
-	live2 "github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/live"
-
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"

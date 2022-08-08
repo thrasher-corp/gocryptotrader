@@ -66,8 +66,8 @@ func TestStart(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemAlreadyStarted)
 	}
 
-	dataHandler = nil
-	err = dataHandler.Start()
+	var dh *DataChecker
+	err = dh.Start()
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
@@ -86,8 +86,8 @@ func TestIsRunning(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", false, true)
 	}
 
-	dataHandler = nil
-	if dataHandler.IsRunning() {
+	var dh *DataChecker
+	if dh.IsRunning() {
 		t.Errorf("received '%v' expected '%v'", true, false)
 	}
 }
@@ -112,8 +112,8 @@ func TestStop(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemNotStarted)
 	}
 
-	dataHandler = nil
-	err = dataHandler.Stop()
+	var dh *DataChecker
+	err = dh.Stop()
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
@@ -140,16 +140,16 @@ func TestDataFetcher(t *testing.T) {
 	dataHandler.updated = make(chan struct{})
 	dataHandler.eventTimeout = time.Minute
 	go func() {
-		err = dataHandler.DataFetcher()
-		if !errors.Is(err, nil) {
-			t.Errorf("received '%v' expected '%v'", err, nil)
+		asyncErr := dataHandler.DataFetcher()
+		if !errors.Is(asyncErr, nil) {
+			t.Errorf("received '%v' expected '%v'", asyncErr, nil)
 		}
 	}()
 	close(dataHandler.shutdown)
 	dataHandler.wg.Wait()
 
-	dataHandler = nil
-	err = dataHandler.DataFetcher()
+	var dh *DataChecker
+	err = dh.DataFetcher()
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
@@ -172,11 +172,11 @@ func TestUpdated(t *testing.T) {
 	close(dataHandler.updated)
 	wg.Wait()
 
-	dataHandler = nil
+	var dh *DataChecker
 	wg.Add(1)
 	go func() {
 		select {
-		case <-dataHandler.Updated():
+		case <-dh.Updated():
 			wg.Done()
 		}
 	}()
@@ -193,8 +193,8 @@ func TestReset(t *testing.T) {
 	if dataHandler.eventTimeout != 0 {
 		t.Errorf("received '%v' expected '%v'", dataHandler.eventTimeout, 0)
 	}
-	dataHandler = nil
-	dataHandler.Reset()
+	var dh *DataChecker
+	dh.Reset()
 }
 
 func TestAppendDataSource(t *testing.T) {
@@ -243,8 +243,8 @@ func TestAppendDataSource(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, funding.ErrAlreadyExists)
 	}
 
-	dataHandler = nil
-	err = dataHandler.AppendDataSource(item, &ftx.FTX{}, common.DataTrade)
+	var dh *DataChecker
+	err = dh.AppendDataSource(item, &ftx.FTX{}, common.DataTrade)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
@@ -293,8 +293,8 @@ func TestFetchLatestData(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
-	dataHandler = nil
-	_, err = dataHandler.FetchLatestData()
+	var dh *DataChecker
+	_, err = dh.FetchLatestData()
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
@@ -327,8 +327,8 @@ func TestLoadCandleData(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 
-	l = nil
-	err = l.loadCandleData()
+	var ldh *liveExchangeDataHandler
+	err = ldh.loadCandleData()
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
