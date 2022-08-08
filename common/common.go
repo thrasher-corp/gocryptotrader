@@ -2,10 +2,11 @@ package common
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
-	"math/rand"
+	"math/big"
 	"net/http"
 	"net/url"
 	"os"
@@ -469,7 +470,12 @@ func GenerateRandomString(length int, characters ...string) string {
 	b := make([]byte, length)
 	chars := strings.Join(characters, "")
 	for i := range b {
-		b[i] = chars[rand.Intn(len(chars))]
+		nBig, err := rand.Int(rand.Reader, big.NewInt(27))
+		if err != nil {
+			return ""
+		}
+		n := nBig.Int64()
+		b[i] = chars[n]
 	}
 	return string(b)
 }
