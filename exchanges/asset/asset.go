@@ -50,11 +50,19 @@ const (
 	downsideProfitContract = "downsideprofitcontract"
 	coinMarginedFutures    = "coinmarginedfutures"
 	usdtMarginedFutures    = "usdtmarginedfutures"
+<<<<<<< HEAD
 	option                 = "option"
 )
 
 var (
 	supportedList = Items{Spot, Margin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, Option}
+=======
+	usdcMarginedFutures    = "usdcmarginedfutures"
+)
+
+var (
+	supportedList = Items{Spot, Margin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures}
+>>>>>>> cdb626a1bab41bfdf029560496a2d4844b7dac1e
 )
 
 // Supported returns a list of supported asset types
@@ -89,8 +97,13 @@ func (a Item) String() string {
 		return coinMarginedFutures
 	case USDTMarginedFutures:
 		return usdtMarginedFutures
+<<<<<<< HEAD
 	case Option:
 		return option
+=======
+	case USDCMarginedFutures:
+		return usdcMarginedFutures
+>>>>>>> cdb626a1bab41bfdf029560496a2d4844b7dac1e
 	default:
 		return ""
 	}
