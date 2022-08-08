@@ -87,8 +87,8 @@ func TestEvaluateOrder(t *testing.T) {
 		BaseSize: decimal.NewFromInt(1),
 	})
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	h = append(h, holdings.Holding{
@@ -109,8 +109,8 @@ func TestEvaluateOrder(t *testing.T) {
 	r.MaximumLeverage = decimal.NewFromInt(33)
 	r.CurrencySettings[e][a][p].MaxLeverageRate = decimal.NewFromInt(33)
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	r.MaximumLeverage = decimal.NewFromInt(33)
@@ -132,8 +132,8 @@ func TestEvaluateOrder(t *testing.T) {
 	h = append(h, holdings.Holding{Pair: p, BaseValue: decimal.NewFromInt(1337)}, holdings.Holding{Pair: p, BaseValue: decimal.NewFromFloat(1337.42)})
 	r.CurrencySettings[e][a][p].MaximumHoldingRatio = decimal.NewFromFloat(0.1)
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	h = append(h, holdings.Holding{Pair: currency.NewPair(currency.DOGE, currency.LTC), BaseValue: decimal.NewFromInt(1337)})

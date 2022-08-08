@@ -57,8 +57,8 @@ func TestMain(m *testing.M) {
 func TestLoadConfig(t *testing.T) {
 	t.Parallel()
 	_, err := LoadConfig([]byte(`{}`))
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 }
 
@@ -66,8 +66,8 @@ func TestValidateDate(t *testing.T) {
 	t.Parallel()
 	c := Config{}
 	err := c.validateDate()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	c.DataSettings = DataSettings{
 		DatabaseData: &DatabaseData{},
@@ -84,8 +84,8 @@ func TestValidateDate(t *testing.T) {
 	}
 	c.DataSettings.DatabaseData.EndDate = c.DataSettings.DatabaseData.StartDate.Add(time.Minute)
 	err = c.validateDate()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	c.DataSettings.APIData = &APIData{}
 	err = c.validateDate()
@@ -100,8 +100,8 @@ func TestValidateDate(t *testing.T) {
 	}
 	c.DataSettings.APIData.EndDate = c.DataSettings.APIData.StartDate.Add(time.Minute)
 	err = c.validateDate()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 }
 
@@ -135,8 +135,8 @@ func TestValidateCurrencySettings(t *testing.T) {
 	}
 	c.CurrencySettings[0].ExchangeName = "lol"
 	err = c.validateCurrencySettings()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	c.CurrencySettings[0].Asset = asset.PerpetualSwap
@@ -213,8 +213,8 @@ func TestValidateMinMaxes(t *testing.T) {
 	t.Parallel()
 	c := &Config{}
 	err := c.validateMinMaxes()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	c.CurrencySettings = []CurrencySettings{
@@ -452,16 +452,16 @@ func TestReadConfigFromFile(t *testing.T) {
 		t.Fatalf("Problem creating temp file at %v: %s\n", passFile, err)
 	}
 	_, err = passFile.WriteString("{}")
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	err = passFile.Close()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	_, err = ReadConfigFromFile(passFile.Name())
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 }
 

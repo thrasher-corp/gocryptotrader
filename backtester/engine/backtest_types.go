@@ -2,11 +2,12 @@ package engine
 
 import (
 	"errors"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/live"
+
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/live"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"

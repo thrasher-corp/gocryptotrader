@@ -72,9 +72,9 @@
   "interval": 60000000000,
   "data-type": "candle",
   "live-data": {
-   "new-event-timeout": 600000000000,
-   "data-check-timer": 10000000000,
-   "run-timer": 10000000000,
+   "new-event-timeout": 60000000000,
+   "data-check-timer": 1000000000,
+   "run-timer": 1000000000,
    "real-orders": false,
    "verbose-data-check": false,
    "close-positions-on-exit": true,

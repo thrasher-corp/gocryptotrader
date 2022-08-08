@@ -2,6 +2,10 @@ package live
 
 import (
 	"errors"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
@@ -11,9 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ftx"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"sync"
-	"testing"
-	"time"
 )
 
 func TestSetupLiveDataHandler(t *testing.T) {
@@ -252,13 +253,13 @@ func TestAppendDataSource(t *testing.T) {
 func TestFetchLatestData(t *testing.T) {
 	t.Parallel()
 	dataHandler := &DataChecker{}
-	err := dataHandler.FetchLatestData()
+	_, err := dataHandler.FetchLatestData()
 	if !errors.Is(err, engine.ErrSubSystemNotStarted) {
 		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemNotStarted)
 	}
 
 	dataHandler.started = 1
-	err = dataHandler.FetchLatestData()
+	_, err = dataHandler.FetchLatestData()
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -287,13 +288,13 @@ func TestFetchLatestData(t *testing.T) {
 	}
 
 	dataHandler.dataHolder = &data.HandlerPerCurrency{}
-	err = dataHandler.FetchLatestData()
+	_, err = dataHandler.FetchLatestData()
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	dataHandler = nil
-	err = dataHandler.FetchLatestData()
+	_, err = dataHandler.FetchLatestData()
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}

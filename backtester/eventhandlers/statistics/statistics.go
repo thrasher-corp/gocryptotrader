@@ -3,17 +3,18 @@ package statistics
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	"time"
+
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -27,6 +28,9 @@ func (s *Statistic) Reset() {
 func (s *Statistic) SetEventForOffset(ev common.Event) error {
 	if ev == nil {
 		return common.ErrNilEvent
+	}
+	if ev.GetBase() == nil {
+		return fmt.Errorf("%w event base", common.ErrNilEvent)
 	}
 	ex := ev.GetExchange()
 	a := ev.GetAssetType()

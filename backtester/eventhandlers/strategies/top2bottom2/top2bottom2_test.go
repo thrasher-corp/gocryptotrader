@@ -47,8 +47,8 @@ func TestSetCustomSettings(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
 	err := s.SetCustomSettings(nil)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	float14 := float64(14)
 	mappalopalous := make(map[string]interface{})
@@ -57,8 +57,8 @@ func TestSetCustomSettings(t *testing.T) {
 	mappalopalous[mfiHighKey] = float14
 
 	err = s.SetCustomSettings(mappalopalous)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	mappalopalous[mfiPeriodKey] = "14"
@@ -162,8 +162,8 @@ func TestSelectTopAndBottomPerformers(t *testing.T) {
 	s := Strategy{}
 	s.SetDefaults()
 	_, err := s.selectTopAndBottomPerformers(nil, nil)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	b := &event.Base{}
 	fundEvents := []mfiFundEvent{
@@ -209,8 +209,8 @@ func TestSelectTopAndBottomPerformers(t *testing.T) {
 		},
 	}
 	resp, err := s.selectTopAndBottomPerformers(fundEvents, nil)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	if len(resp) != 5 {
 		t.Error("expected 5 events")

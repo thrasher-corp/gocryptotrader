@@ -128,7 +128,7 @@ func TestCreatePNLCharts(t *testing.T) {
 		},
 	}
 
-	d.AddKlineItem(&gctkline.Item{
+	err = d.SetKlineData(&gctkline.Item{
 		Exchange: testExchange,
 		Pair:     currency.NewPair(currency.BTC, currency.USDT),
 		Asset:    asset.Spot,
@@ -144,9 +144,12 @@ func TestCreatePNLCharts(t *testing.T) {
 			},
 		},
 	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 	err = d.enhanceCandles()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	_, err = createPNLCharts(d.Statistics.ExchangeAssetPairStatistics)

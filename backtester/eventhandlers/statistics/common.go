@@ -3,11 +3,11 @@ package statistics
 import (
 	"errors"
 	"fmt"
-	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/log"

@@ -6,6 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/live"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
@@ -13,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/live"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/size"
@@ -34,6 +38,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ftx"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -216,8 +221,8 @@ func TestLoadDataAPI(t *testing.T) {
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
 
 	_, err = bt.loadData(cfg, exch, cp, asset.Spot, false)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 }
 
@@ -352,6 +357,7 @@ func TestLoadDataLive(t *testing.T) {
 		Reports:  &report.Data{},
 		shutdown: make(chan struct{}),
 	}
+
 	cp := currency.NewPair(currency.BTC, currency.USDT)
 	cfg := &config.Config{
 		CurrencySettings: []config.CurrencySettings{
@@ -373,11 +379,20 @@ func TestLoadDataLive(t *testing.T) {
 			DataType: common.CandleStr,
 			Interval: gctkline.OneMin,
 			LiveData: &config.LiveData{
-				APIKeyOverride:      "test",
-				APISecretOverride:   "test",
-				APIClientIDOverride: "test",
-				API2FAOverride:      "test",
-				RealOrders:          true,
+				ExchangeCredentials: []config.Credentials{
+					{
+						Exchange: "Binance",
+						Credentials: account.Credentials{
+							Key:             "test",
+							Secret:          "test",
+							ClientID:        "test",
+							PEMKey:          "test",
+							SubAccount:      "test",
+							OneTimePassword: "test",
+						},
+					},
+				},
+				RealOrders: true,
 			}},
 		StrategySettings: config.StrategySettings{
 			Name: dollarcostaverage.Name,
@@ -393,6 +408,11 @@ func TestLoadDataLive(t *testing.T) {
 	}
 	exch.SetDefaults()
 	b := exch.GetBase()
+	bt.LiveDataHandler, err = live.SetupLiveDataHandler(&em, &data.HandlerPerCurrency{}, 0, 0, 0, false)
+	err = bt.LiveDataHandler.Start()
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Available:     currency.Pairs{cp},
@@ -401,8 +421,8 @@ func TestLoadDataLive(t *testing.T) {
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
 	_, err = bt.loadData(cfg, exch, cp, asset.Spot, false)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	bt.Stop()
 }
@@ -445,32 +465,39 @@ func TestLoadLiveData(t *testing.T) {
 		t.Error(err)
 	}
 	cfg.DataSettings.LiveData = &config.LiveData{
-
 		RealOrders: true,
 	}
 	cfg.DataSettings.Interval = gctkline.OneDay
 	cfg.DataSettings.DataType = common.CandleStr
 	err = setExchangeCredentials(cfg, b)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	cfg.DataSettings.LiveData.APIKeyOverride = "1234"
-	cfg.DataSettings.LiveData.APISecretOverride = "1234"
-	cfg.DataSettings.LiveData.APIClientIDOverride = "1234"
-	cfg.DataSettings.LiveData.API2FAOverride = "1234"
-	cfg.DataSettings.LiveData.APISubAccountOverride = "1234"
+	cfg.DataSettings.LiveData.ExchangeCredentials = []config.Credentials{
+		{
+			Exchange: testExchange,
+			Credentials: account.Credentials{
+				Key:             "1234",
+				Secret:          "1234",
+				ClientID:        "1234",
+				PEMKey:          "1234",
+				SubAccount:      "1234",
+				OneTimePassword: "1234",
+			},
+		},
+	}
 	err = setExchangeCredentials(cfg, b)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 }
 
 func TestReset(t *testing.T) {
 	t.Parallel()
 	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, true, false)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	bt := BackTest{
 		shutdown:   make(chan struct{}),
@@ -505,45 +532,45 @@ func TestFullCycle(t *testing.T) {
 		BuySide:  exchange.MinMax{},
 		SellSide: exchange.MinMax{},
 	}, &risk.Risk{}, decimal.Zero)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	fx := &ftx.FTX{}
 	fx.Name = testExchange
 	err = port.SetupCurrencySettingsMap(&exchange.Settings{Exchange: fx, Asset: a, Pair: cp})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	b, err := funding.CreateItem(ex, a, cp.Base, decimal.Zero, decimal.Zero)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	quote, err := funding.CreateItem(ex, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	pair, err := funding.CreatePair(b, quote)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	err = f.AddPair(pair)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	bt := BackTest{
-		shutdown:   nil,
-		DataHolder: &data.HandlerPerCurrency{},
-		Strategy:   &dollarcostaverage.Strategy{},
-		Portfolio:  port,
-		Exchange:   &exchange.Exchange{},
-		Statistic:  stats,
-		EventQueue: &eventholder.Holder{},
-		Reports:    &report.Data{},
-		Funding:    f,
+		DataHolder:               &data.HandlerPerCurrency{},
+		Strategy:                 &dollarcostaverage.Strategy{},
+		Portfolio:                port,
+		Exchange:                 &exchange.Exchange{},
+		Statistic:                stats,
+		EventQueue:               &eventholder.Holder{},
+		Reports:                  &report.Data{},
+		hasProcessedDataAtOffset: make(map[int64]bool),
+		Funding:                  f,
 	}
 
 	bt.DataHolder.Setup()
@@ -582,8 +609,8 @@ func TestFullCycle(t *testing.T) {
 		},
 	}
 	err = k.Load()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	bt.DataHolder.SetDataForCurrency(ex, a, cp, &k)
 
@@ -612,47 +639,48 @@ func TestFullCycleMulti(t *testing.T) {
 		BuySide:  exchange.MinMax{},
 		SellSide: exchange.MinMax{},
 	}, &risk.Risk{}, decimal.Zero)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	err = port.SetupCurrencySettingsMap(&exchange.Settings{Exchange: &ftx.FTX{}, Asset: a, Pair: cp})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	b, err := funding.CreateItem(ex, a, cp.Base, decimal.Zero, decimal.Zero)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	quote, err := funding.CreateItem(ex, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	pair, err := funding.CreatePair(b, quote)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	err = f.AddPair(pair)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	bt := BackTest{
-		shutdown:   nil,
-		DataHolder: &data.HandlerPerCurrency{},
-		Portfolio:  port,
-		Exchange:   &exchange.Exchange{},
-		Statistic:  stats,
-		EventQueue: &eventholder.Holder{},
-		Reports:    &report.Data{},
-		Funding:    f,
+		shutdown:                 nil,
+		DataHolder:               &data.HandlerPerCurrency{},
+		Portfolio:                port,
+		Exchange:                 &exchange.Exchange{},
+		Statistic:                stats,
+		EventQueue:               &eventholder.Holder{},
+		Reports:                  &report.Data{},
+		Funding:                  f,
+		hasProcessedDataAtOffset: make(map[int64]bool),
 	}
 
 	bt.Strategy, err = strategies.LoadStrategyByName(dollarcostaverage.Name, true)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	bt.DataHolder.Setup()
@@ -691,8 +719,8 @@ func TestFullCycleMulti(t *testing.T) {
 		},
 	}
 	err = k.Load()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	bt.DataHolder.SetDataForCurrency(ex, a, cp, &k)
@@ -1042,8 +1070,8 @@ func TestProcessOrderEvent(t *testing.T) {
 		},
 	}
 	err = k.Load()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	bt.DataHolder.SetDataForCurrency(testExchange, a, cp, &k)
@@ -1201,8 +1229,8 @@ func TestProcessFillEvent(t *testing.T) {
 		},
 	}
 	err = k.Load()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	bt.DataHolder.SetDataForCurrency(testExchange, a, cp, &k)
@@ -1356,8 +1384,8 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 		},
 	}
 	err = k.Load()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	ev.Order = &gctorder.Detail{
 		Exchange:  testExchange,

@@ -2,6 +2,7 @@ package statistics
 
 import (
 	"fmt"
+
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"

@@ -47,7 +47,6 @@ type Handler interface {
 type Loader interface {
 	Load() error
 	AppendStream(s ...Event)
-	GetBase() Base
 }
 
 // Streamer interface handles loading, parsing, distributing BackTest data

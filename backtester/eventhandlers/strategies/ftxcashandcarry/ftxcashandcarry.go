@@ -3,6 +3,9 @@ package ftxcashandcarry
 import (
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
@@ -15,8 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"strings"
-	"time"
 )
 
 // Name returns the name of the strategy

@@ -54,8 +54,8 @@ func TestGetBase(t *testing.T) {
 		Base:        d,
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 }
 

@@ -108,7 +108,7 @@ func main() {
 	yn := quickParse(reader)
 	if yn == y || yn == yes {
 		var fp, wd string
-		extension := "strat" // nolint:misspell // its shorthand for strategy
+		extension := "strat" //nolint:misspell // its shorthand for strategy
 		for {
 			wd, err = os.Getwd()
 			if err != nil {
@@ -460,19 +460,33 @@ func parseLive(reader *bufio.Reader, cfg *config.Config) {
 	input := quickParse(reader)
 	cfg.DataSettings.LiveData.RealOrders = input == y || input == yes
 	if cfg.DataSettings.LiveData.RealOrders {
-		fmt.Printf("Do you want to override GoCryptoTrader's API credentials for %s? y/n\n", cfg.CurrencySettings[0].ExchangeName)
+		fmt.Printf("Do you want to set credentials for exchanges? y/n\n")
 		input = quickParse(reader)
-		if input == y || input == yes {
+		if input != yes && input != y {
+			return
+		}
+	exchanges:
+		for {
+			var creds config.Credentials
+			fmt.Printf("What is the exchange name? y/n\n")
+			creds.Exchange = quickParse(reader)
 			fmt.Println("What is the API key?")
-			cfg.DataSettings.LiveData.APIKeyOverride = quickParse(reader)
+			creds.Credentials.Key = quickParse(reader)
 			fmt.Println("What is the API secret?")
-			cfg.DataSettings.LiveData.APISecretOverride = quickParse(reader)
-			fmt.Println("What is the Client ID?")
-			cfg.DataSettings.LiveData.APIClientIDOverride = quickParse(reader)
-			fmt.Println("What is the 2FA seed?")
-			cfg.DataSettings.LiveData.API2FAOverride = quickParse(reader)
-			fmt.Println("What is the subaccount to use?")
-			cfg.DataSettings.LiveData.APISubAccountOverride = quickParse(reader)
+			creds.Credentials.Secret = quickParse(reader)
+			fmt.Println("What is the Client ID? (leave blank if not applicable)")
+			creds.Credentials.ClientID = quickParse(reader)
+			fmt.Println("What is the 2FA seed? (leave blank if not applicable)")
+			creds.Credentials.OneTimePassword = quickParse(reader)
+			fmt.Println("What is the subaccount to use? (leave blank if not applicable)")
+			creds.Credentials.SubAccount = quickParse(reader)
+			fmt.Println("What is the PEM key? (leave blank if not applicable)")
+			creds.Credentials.SubAccount = quickParse(reader)
+			cfg.DataSettings.LiveData.ExchangeCredentials = append(cfg.DataSettings.LiveData.ExchangeCredentials, creds)
+			fmt.Printf("Do you want to add another? y/n\n")
+			if input != yes && input != y {
+				break exchanges
+			}
 		}
 	}
 }

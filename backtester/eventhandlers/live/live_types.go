@@ -2,6 +2,9 @@ package live
 
 import (
 	"errors"
+	"sync"
+	"time"
+
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -9,8 +12,6 @@ import (
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"sync"
-	"time"
 )
 
 // ErrLiveDataTimeout returns when an event has not been processed within the timeframe

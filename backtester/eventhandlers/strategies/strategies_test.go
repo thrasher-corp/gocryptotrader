@@ -29,23 +29,23 @@ func TestLoadStrategyByName(t *testing.T) {
 	}
 
 	resp, err = LoadStrategyByName(dollarcostaverage.Name, false)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	if resp.Name() != dollarcostaverage.Name {
 		t.Error("expected dca")
 	}
 	resp, err = LoadStrategyByName(dollarcostaverage.Name, true)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	if !resp.UsingSimultaneousProcessing() {
 		t.Error("expected true")
 	}
 
 	resp, err = LoadStrategyByName(rsi.Name, false)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	if resp.Name() != rsi.Name {
 		t.Error("expected rsi")

@@ -77,8 +77,8 @@ func TestOnSignal(t *testing.T) {
 	}
 	var resp signal.Event
 	resp, err = s.OnSignal(da, nil, nil)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	if resp.GetDirection() != gctorder.MissingData {
 		t.Error("expected missing data")
@@ -101,19 +101,19 @@ func TestOnSignal(t *testing.T) {
 		},
 	}
 	err = da.Load()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	ranger, err := gctkline.CalculateCandleDateRanges(dStart, dEnd, gctkline.OneDay, 100000)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	da.RangeHolder = ranger
 	da.RangeHolder.SetHasDataFromCandles(da.Item.Candles)
 	resp, err = s.OnSignal(da, nil, nil)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	if resp.GetDirection() != gctorder.Buy {
 		t.Errorf("expected buy, received %v", resp.GetDirection())
@@ -156,8 +156,8 @@ func TestOnSignals(t *testing.T) {
 	}
 	var resp []signal.Event
 	resp, err = s.OnSimultaneousSignals([]data.Handler{da}, nil, nil)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	if len(resp) != 1 {
 		t.Fatal("expected 1 response")
@@ -183,19 +183,19 @@ func TestOnSignals(t *testing.T) {
 		},
 	}
 	err = da.Load()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	ranger, err := gctkline.CalculateCandleDateRanges(dStart, dEnd, gctkline.OneDay, 100000)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	da.RangeHolder = ranger
 	da.RangeHolder.SetHasDataFromCandles(da.Item.Candles)
 	resp, err = s.OnSimultaneousSignals([]data.Handler{da}, nil, nil)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	if len(resp) != 1 {
 		t.Fatal("expected 1 response")

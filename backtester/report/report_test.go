@@ -323,15 +323,18 @@ func TestEnhanceCandles(t *testing.T) {
 	if !errors.Is(err, errNoCandles) {
 		t.Errorf("received: %v, expected: %v", err, errNoCandles)
 	}
-	d.AddKlineItem(&gctkline.Item{})
+	err = d.SetKlineData(&gctkline.Item{})
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 	err = d.enhanceCandles()
 	if !errors.Is(err, errStatisticsUnset) {
 		t.Errorf("received: %v, expected: %v", err, errStatisticsUnset)
 	}
 	d.Statistics = &statistics.Statistic{}
 	err = d.enhanceCandles()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	d.Statistics.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*statistics.CurrencyPairStatistic)
@@ -339,7 +342,7 @@ func TestEnhanceCandles(t *testing.T) {
 	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot] = make(map[currency.Pair]*statistics.CurrencyPairStatistic)
 	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.NewPair(currency.BTC, currency.USDT)] = &statistics.CurrencyPairStatistic{}
 
-	d.AddKlineItem(&gctkline.Item{
+	err = d.SetKlineData(&gctkline.Item{
 		Exchange: testExchange,
 		Pair:     currency.NewPair(currency.BTC, currency.USDT),
 		Asset:    asset.Spot,
@@ -355,12 +358,15 @@ func TestEnhanceCandles(t *testing.T) {
 			},
 		},
 	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 	err = d.enhanceCandles()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	d.AddKlineItem(&gctkline.Item{
+	err = d.SetKlineData(&gctkline.Item{
 		Exchange: testExchange,
 		Pair:     currency.NewPair(currency.BTC, currency.USDT),
 		Asset:    asset.Spot,
@@ -384,10 +390,13 @@ func TestEnhanceCandles(t *testing.T) {
 			},
 		},
 	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 
 	err = d.enhanceCandles()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.NewPair(currency.BTC, currency.USDT)].FinalOrders = compliance.Snapshot{
@@ -403,8 +412,8 @@ func TestEnhanceCandles(t *testing.T) {
 		Timestamp: tt,
 	}
 	err = d.enhanceCandles()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.NewPair(currency.BTC, currency.USDT)].FinalOrders = compliance.Snapshot{
@@ -423,8 +432,8 @@ func TestEnhanceCandles(t *testing.T) {
 		Timestamp: tt,
 	}
 	err = d.enhanceCandles()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.NewPair(currency.BTC, currency.USDT)].FinalOrders = compliance.Snapshot{
@@ -443,8 +452,8 @@ func TestEnhanceCandles(t *testing.T) {
 		Timestamp: tt,
 	}
 	err = d.enhanceCandles()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	if len(d.EnhancedCandles) == 0 {
@@ -456,37 +465,46 @@ func TestUpdateItem(t *testing.T) {
 	t.Parallel()
 	d := Data{}
 	tt := time.Now()
-	d.SetKlineData(&gctkline.Item{
+	err := d.SetKlineData(&gctkline.Item{
 		Candles: []gctkline.Candle{
 			{
 				Time: tt,
 			},
 		},
 	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 	if len(d.OriginalCandles) != 1 {
 		t.Fatal("expected Original Candles len of 1")
 	}
 	if len(d.OriginalCandles[0].Candles) != 1 {
 		t.Error("expected one candle")
 	}
-	d.SetKlineData(&gctkline.Item{
+	err = d.SetKlineData(&gctkline.Item{
 		Candles: []gctkline.Candle{
 			{
 				Time: tt,
 			},
 		},
 	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 	if len(d.OriginalCandles[0].Candles) != 1 {
 		t.Error("expected one candle")
 	}
 
-	d.SetKlineData(&gctkline.Item{
+	err = d.SetKlineData(&gctkline.Item{
 		Candles: []gctkline.Candle{
 			{
 				Time: tt.Add(1),
 			},
 		},
 	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 	if len(d.OriginalCandles[0].Candles) != 2 {
 		t.Error("expected two candles")
 	}

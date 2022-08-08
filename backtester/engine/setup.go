@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	live2 "github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/live"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
 	"time"
+
+	live2 "github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/live"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -21,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/live"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange/slippage"
+	live2 "github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/live"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/size"
@@ -885,7 +887,6 @@ func setExchangeCredentials(cfg *config.Config, base *gctexchange.Base) error {
 			log.Warn(common.Setup, "invalid API credentials set, real orders set to false")
 			cfg.DataSettings.LiveData.RealOrders = false
 		}
-		return nil
 	}
 
 	return nil

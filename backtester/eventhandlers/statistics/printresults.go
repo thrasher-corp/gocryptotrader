@@ -2,12 +2,12 @@ package statistics
 
 import (
 	"fmt"
-	data2 "github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"sort"
 	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	data2 "github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"

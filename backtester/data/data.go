@@ -42,7 +42,10 @@ func (h *HandlerPerCurrency) GetDataForCurrency(ev common.Event) (Handler, error
 	if ev == nil {
 		return nil, common.ErrNilEvent
 	}
-	handler, ok := h.data[ev.GetExchange()][ev.GetAssetType()][ev.Pair()]
+	exch := ev.GetExchange()
+	a := ev.GetAssetType()
+	p := ev.Pair()
+	handler, ok := h.data[exch][a][p]
 	if !ok {
 		return nil, fmt.Errorf("%s %s %s %w", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), ErrHandlerNotFound)
 	}
@@ -64,11 +67,6 @@ func (b *Base) Reset() {
 // GetStream will return entire data list
 func (b *Base) GetStream() []Event {
 	return b.stream
-}
-
-// GetBase will return the base
-func (b *Base) GetBase() Base {
-	return *b
 }
 
 // Offset returns the current iteration of candle data the backtester is assessing

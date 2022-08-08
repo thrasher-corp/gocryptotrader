@@ -95,8 +95,8 @@ func TestSetCurrency(t *testing.T) {
 	}
 	e.SetExchangeAssetCurrencySettings(asset.Spot, currency.NewPair(currency.BTC, currency.USDT), cs)
 	result, err := e.GetCurrencySettings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	if !result.UseRealOrders {
 		t.Error("expected true")
@@ -159,12 +159,12 @@ func TestPlaceOrder(t *testing.T) {
 	em.Add(exch)
 	bot.ExchangeManager = em
 	bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &bot.ServicesWG, false, false)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	err = bot.OrderManager.Start()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	e := Exchange{}
 	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), decimal.Zero, false, true, nil, nil)
@@ -188,8 +188,8 @@ func TestPlaceOrder(t *testing.T) {
 	f.AssetType = asset.Spot
 	f.Direction = gctorder.Buy
 	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), decimal.Zero, false, true, f, bot.OrderManager)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), decimal.Zero, true, true, f, bot.OrderManager)
@@ -219,12 +219,12 @@ func TestExecuteOrder(t *testing.T) {
 	em.Add(exch)
 	bot.ExchangeManager = em
 	bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &bot.ServicesWG, false, false)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	err = bot.OrderManager.Start()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	p := currency.NewPair(currency.BTC, currency.USDT)
@@ -278,8 +278,8 @@ func TestExecuteOrder(t *testing.T) {
 		Item: item,
 	}
 	err = d.Load()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	d.Next()
 	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
@@ -319,12 +319,12 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	em.Add(exch)
 	bot.ExchangeManager = em
 	bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &bot.ServicesWG, false, false)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	err = bot.OrderManager.Start()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	a := asset.Spot
@@ -394,8 +394,8 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		},
 	}
 	err = d.Load()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	d.Next()
 	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})

@@ -2,11 +2,13 @@ package kline
 
 import (
 	"errors"
-	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
+
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -46,8 +48,8 @@ func TestLoad(t *testing.T) {
 		},
 	}
 	err = d.Load()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 }
 
@@ -91,8 +93,8 @@ func TestHasDataAtTime(t *testing.T) {
 	}
 
 	ranger, err := gctkline.CalculateCandleDateRanges(dStart, dEnd, gctkline.OneDay, 100000)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	d.RangeHolder = ranger
 	d.RangeHolder.SetHasDataFromCandles(d.Item.Candles)

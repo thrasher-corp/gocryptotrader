@@ -3,6 +3,11 @@ package live
 import (
 	"context"
 	"fmt"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
+
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
@@ -15,10 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/log"
-	"strings"
-	"sync"
-	"sync/atomic"
-	"time"
 )
 
 // SetupLiveDataHandler creates a live data handler to retrieve and append
@@ -269,6 +270,5 @@ func (c *liveExchangeDataHandler) loadCandleData() error {
 		return nil
 	}
 	c.pairCandles.AppendResults(candles)
-	c.pairCandles.Load()
-	return nil
+	return c.pairCandles.Load()
 }

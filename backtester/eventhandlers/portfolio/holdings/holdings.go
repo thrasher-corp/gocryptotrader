@@ -2,10 +2,11 @@ package holdings
 
 import (
 	"fmt"
-	"github.com/thrasher-corp/gocryptotrader/backtester/data"
+
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"

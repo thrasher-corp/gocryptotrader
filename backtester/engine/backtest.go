@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"fmt"
+
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
@@ -163,7 +164,6 @@ func (bt *BackTest) handleEvent(ev common.Event) error {
 			} else {
 				log.Info(common.Livetester, result)
 			}
-
 		}
 	default:
 		err = fmt.Errorf("handleEvent %w %T received, could not process",

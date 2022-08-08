@@ -201,6 +201,7 @@ type LiveData struct {
 	ExchangeCredentials  []Credentials `json:"exchange-credentials"`
 }
 
+// Credentials holds each exchanges credentials
 type Credentials struct {
 	Exchange    string              `json:"exchange"`
 	Credentials account.Credentials `json:"credentials"`
