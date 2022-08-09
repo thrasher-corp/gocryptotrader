@@ -34,6 +34,8 @@ func CloseLogger() error {
 	workerWg.Wait()
 	close(kick)
 	processingBacklog.Wait()
+	jobsChannel = make(chan *job, defaultJobChannelCapacity)
+	kick = make(chan struct{})
 	mu.Unlock()
 	return globalLogFile.Close()
 }
