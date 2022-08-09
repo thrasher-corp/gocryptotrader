@@ -135,6 +135,13 @@ func SetupGlobalLogger() error {
 	mu.Lock()
 	defer mu.Unlock()
 
+	if jobsChannel == nil {
+		jobsChannel = make(chan *job, defaultJobChannelCapacity)
+		kick = make(chan struct{})
+		workerWg.Add(1)
+		go loggerWorker()
+	}
+
 	if fileLoggingConfiguredCorrectly {
 		globalLogFile = &Rotate{
 			FileName: globalLogConfig.LoggerFileConfig.FileName,
