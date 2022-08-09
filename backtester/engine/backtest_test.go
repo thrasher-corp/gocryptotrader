@@ -17,7 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/live"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/size"
@@ -409,7 +408,7 @@ func TestLoadDataLive(t *testing.T) {
 	}
 	exch.SetDefaults()
 	b := exch.GetBase()
-	bt.LiveDataHandler, err = live.SetupLiveDataHandler(&em, &data.HandlerPerCurrency{}, 0, 0, 0, false)
+	bt.LiveDataHandler, err = SetupLiveDataHandler(&em, &data.HandlerPerCurrency{}, 0, 0, 0, false)
 	err = bt.LiveDataHandler.Start()
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
@@ -1421,7 +1420,7 @@ func TestCloseAllPositions(t *testing.T) {
 	}
 
 	bt.shutdown = make(chan struct{})
-	bt.LiveDataHandler = &live.DataChecker{}
+	bt.LiveDataHandler = &DataChecker{}
 	err = bt.CloseAllPositions()
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
@@ -1457,10 +1456,11 @@ func TestRunLive(t *testing.T) {
 
 	em := engine.SetupExchangeManager()
 	holder := &data.HandlerPerCurrency{}
-	bt.LiveDataHandler, err = live.SetupLiveDataHandler(em, holder, -1, -1, -1, false)
+	bt.LiveDataHandler, err = SetupLiveDataHandler(em, holder, -1, -1, -1, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
+
 	err = bt.LiveDataHandler.Start()
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
@@ -1482,16 +1482,41 @@ func TestRunLive(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
+
+	cp := currency.NewPair(currency.BTC, currency.USD)
+	i := &gctkline.Item{
+		Exchange:       testExchange,
+		Pair:           cp,
+		UnderlyingPair: cp,
+		Asset:          asset.Spot,
+		Interval:       gctkline.FifteenSecond,
+		Candles: []gctkline.Candle{
+			{
+				Time:   time.Now(),
+				Open:   1337,
+				High:   1337,
+				Low:    1337,
+				Close:  1337,
+				Volume: 1337,
+			},
+		},
+	}
+	err = bt.LiveDataHandler.AppendDataSource(i, &ftx.FTX{}, common.DataCandle)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	bt.Reports = &report.Data{}
+	bt.Funding = &fakeFunding{}
+
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		err = bt.RunLive()
-		if !errors.Is(err, errLiveOnly) {
-			t.Errorf("received '%v' expected '%v'", err, errLiveOnly)
+		if !errors.Is(err, nil) {
+			t.Errorf("received '%v' expected '%v'", err, nil)
 		}
 	}()
 	bt.LiveDataHandler.Updated() <- struct{}{}
-
 	close(bt.shutdown)
 	wg.Wait()
 }

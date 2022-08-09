@@ -20,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/live"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange/slippage"
-	live2 "github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/live"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/size"
@@ -74,7 +73,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 
 	bt.DataHolder.Setup()
 	if cfg.DataSettings.LiveData != nil {
-		bt.LiveDataHandler, err = live2.SetupLiveDataHandler(
+		bt.LiveDataHandler, err = SetupLiveDataHandler(
 			bt.exchangeManager,
 			bt.DataHolder,
 			cfg.DataSettings.LiveData.NewEventTimeout,

@@ -3,6 +3,7 @@ package common
 import (
 	"errors"
 	"fmt"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	"testing"
 
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -242,5 +243,18 @@ func TestGenerateFileName(t *testing.T) {
 	}
 	if name != "hell0_.moto" {
 		t.Errorf("received '%v' expected '%v'", name, "hell0_.moto")
+	}
+}
+
+func TestRegisterBacktesterSubLoggers(t *testing.T) {
+	t.Parallel()
+	err := RegisterBacktesterSubLoggers()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	err = RegisterBacktesterSubLoggers()
+	if !errors.Is(err, log.ErrSubLoggerAlreadyRegistered) {
+		t.Errorf("received '%v' expected '%v'", err, log.ErrSubLoggerAlreadyRegistered)
 	}
 }

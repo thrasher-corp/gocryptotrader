@@ -1,7 +1,8 @@
-package live
+package engine
 
 import (
 	"errors"
+	datakline "github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"sync"
 	"testing"
 	"time"
@@ -92,7 +93,7 @@ func TestIsRunning(t *testing.T) {
 	}
 }
 
-func TestStop(t *testing.T) {
+func TestLiveHandlerStop(t *testing.T) {
 	t.Parallel()
 	dataHandler := &DataChecker{}
 	err := dataHandler.Stop()
@@ -184,7 +185,7 @@ func TestUpdated(t *testing.T) {
 	wg.Wait()
 }
 
-func TestReset(t *testing.T) {
+func TestLiveHandlerReset(t *testing.T) {
 	t.Parallel()
 	dataHandler := &DataChecker{
 		eventTimeout: 1,
@@ -263,31 +264,39 @@ func TestFetchLatestData(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-
-	item := &kline.Item{}
-	item.Asset = asset.Spot
-	item.Pair = currency.NewPair(currency.BTC, currency.USD)
-	item.Interval = kline.FifteenMin
-	exch := &ftx.FTX{}
-	exch.SetDefaults()
-	exch.Config, err = exch.GetDefaultConfig()
+	cp := currency.NewPair(currency.BTC, currency.USD)
+	f := &ftx.FTX{}
+	f.SetDefaults()
+	cfg, err := f.GetDefaultConfig()
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	err = exch.SetPairs(currency.Pairs{item.Pair}, asset.Spot, false)
+	err = f.SetupDefaults(cfg)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	err = exch.SetPairs(currency.Pairs{item.Pair}, asset.Spot, true)
+	err = f.CurrencyPairs.EnablePair(asset.Spot, cp)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	err = dataHandler.AppendDataSource(item, exch, common.DataCandle)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
+	dataHandler.exchangesToCheck = []liveExchangeDataHandler{
+		{
+			m:              sync.Mutex{},
+			exchange:       f,
+			exchangeName:   "ftx",
+			asset:          asset.Spot,
+			pair:           cp,
+			underlyingPair: cp,
+			pairCandles: datakline.DataFromKline{
+				Base: data.Base{},
+				Item: kline.Item{
+					Interval: kline.OneHour,
+				},
+			},
+			dataType: common.DataCandle,
+		},
 	}
-
-	dataHandler.dataHolder = &data.HandlerPerCurrency{}
+	dataHandler.dataHolder = &fakeDataHolder{}
 	_, err = dataHandler.FetchLatestData()
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
