@@ -120,7 +120,7 @@ func (a *IndexComponent) UnmarshalJSON(data []byte) error {
 }
 
 // NumbersOnlyRegexp for checking the value is numberics only
-var NumbersOnlyRegexp = regexp.MustCompile("^[0-9]*$")
+var NumbersOnlyRegexp = regexp.MustCompile(`^\d*$`)
 
 // UnmarshalJSON
 func (a *Instrument) UnmarshalJSON(data []byte) error {
@@ -242,8 +242,16 @@ func (a *FundingRateResponse) UnmarshalJSON(data []byte) error {
 		FundingTime     int64  `json:"fundingTime,string"`
 		NextFundingTime string `json:"nextFundingTime"`
 		InstrumentType  string `json:"instType"`
+		FundingRate     string `json:"fundingRate"`
+		NextFundingRate string `json:"nextFundingRate"`
 	}{
 		Alias: (*Alias)(a),
+	}
+	if val, er := strconv.ParseFloat(chil.FundingRate, 64); er == nil {
+		a.FundingRate = val
+	}
+	if val, er := strconv.ParseFloat(chil.NextFundingRate, 64); er == nil {
+		a.NextFundingRate = val
 	}
 	if er := json.Unmarshal(data, chil); er != nil {
 		return er
@@ -576,7 +584,7 @@ func (a *MarkPrice) UnmarshalJSON(data []byte) error {
 		Alias: (*Alias)(a),
 	}
 	if er := json.Unmarshal(data, chil); er != nil {
-		return nil
+		return er
 	}
 	if chil.Timestamp > 0 {
 		a.Timestamp = time.UnixMilli(chil.Timestamp)
@@ -632,19 +640,17 @@ func (a *OrderDetail) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(a),
 	}
-	var val float64
-	var er error
-	if er = json.Unmarshal(data, chil); er != nil {
+	if er := json.Unmarshal(data, chil); er != nil {
 		return er
 	}
 	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
 	a.CreationTime = time.UnixMilli(chil.CreationTime)
 	a.Side = order.ParseOrderSideString(chil.Side)
 	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
-	if val, er = strconv.ParseFloat(chil.Leverage, 64); er == nil {
+	if val, er := strconv.ParseFloat(chil.Leverage, 64); er == nil {
 		a.Leverage = val
 	}
-	if val, er = strconv.ParseFloat(chil.RebateAmount, 64); er == nil {
+	if val, er := strconv.ParseFloat(chil.RebateAmount, 64); er == nil {
 		a.RebateAmount = val
 	}
 	switch strings.ToUpper(chil.InstrumentType) {
@@ -683,28 +689,26 @@ func (a *PendingOrderItem) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(a),
 	}
-	var er error
-	if er = json.Unmarshal(data, chil); er != nil {
+	if er := json.Unmarshal(data, chil); er != nil {
 		return er
 	}
 	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
 	a.CreationTime = time.UnixMilli(chil.CreationTime)
 	a.Side = order.ParseOrderSideString(chil.Side)
 	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
-	var val float64
-	if val, er = strconv.ParseFloat(chil.AccumulatedFillSize, 64); er == nil {
+	if val, er := strconv.ParseFloat(chil.AccumulatedFillSize, 64); er == nil {
 		a.AccumulatedFillSize = val
 	}
-	if val, er = strconv.ParseFloat(chil.AveragePrice, 64); er == nil {
+	if val, er := strconv.ParseFloat(chil.AveragePrice, 64); er == nil {
 		a.AveragePrice = val
 	}
-	if val, er = strconv.ParseFloat(chil.FeeCurrency, 64); er == nil {
+	if val, er := strconv.ParseFloat(chil.FeeCurrency, 64); er == nil {
 		a.FeeCurrency = val
 	}
-	if val, er = strconv.ParseFloat(chil.LastFilledSize, 64); er == nil {
+	if val, er := strconv.ParseFloat(chil.LastFilledSize, 64); er == nil {
 		a.LastFilledSize = val
 	}
-	if val, er = strconv.ParseFloat(chil.Leverage, 64); er == nil {
+	if val, er := strconv.ParseFloat(chil.Leverage, 64); er == nil {
 		a.Leverage = val
 	}
 	switch strings.ToUpper(chil.InstrumentType) {
@@ -1535,11 +1539,12 @@ func (a *BlockTrade) UnmarshalJSON(data []byte) error {
 	if er := json.Unmarshal(data, chil); er != nil {
 		return er
 	}
-	if strings.EqualFold(chil.Side, "buy") {
+	switch {
+	case strings.EqualFold(chil.Side, "buy"):
 		a.Side = order.Buy
-	} else if strings.EqualFold(chil.Side, "sell") {
+	case strings.EqualFold(chil.Side, "sell"):
 		a.Side = order.Sell
-	} else {
+	default:
 		a.Side = order.UnknownSide
 	}
 	a.Timestamp = time.UnixMilli(chil.Timestamp)
@@ -1813,19 +1818,37 @@ func (a *BalanceData) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// // UnmarshalJSON decerailizis a unix timestamp number to built in time.Time instance.
+// UnmarshalJSON decerailizis a unix timestamp number to built in time.Time instance.
 func (a *BalanceAndPositionData) UnmarshalJSON(data []byte) error {
 	type Alias BalanceAndPositionData
 	chil := &struct {
 		*Alias
-		PushTime int64 `json:"pTime,string"`
+		PushTime string `json:"pTime"`
 	}{
 		Alias: (*Alias)(a),
 	}
 	if er := json.Unmarshal(data, &chil); er != nil {
 		return er
 	}
-	a.PushTime = time.UnixMilli(chil.PushTime)
+	if val, er := strconv.ParseInt(chil.PushTime, 10, 64); er != nil {
+		a.PushTime = time.UnixMilli(val)
+	}
+	return nil
+}
+
+// UnmarshalJSON to decerialize unix timestamp in millisecond to built in time.Time instance.
+func (a *PositionDataDetail) UnmarshalJSON(data []byte) error {
+	type Alias PositionDataDetail
+	chil := &struct {
+		*Alias
+		UpdateTime int64 `json:"uTIme,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
 	return nil
 }
 
@@ -1852,18 +1875,24 @@ func (a *WsAdvancedAlgoOrderDetail) UnmarshalJSON(data []byte) error {
 	type Alias WsAdvancedAlgoOrderDetail
 	chil := &struct {
 		*Alias
-		CreationTime int64 `json:"cTime,string"`
-		PushTime     int64 `json:"pTime,string"`
-		TriggerTime  int64 `json:"triggerTime,string"`
+		CreationTime string `json:"cTime"`
+		TriggerTime  string `json:"triggerTime"`
+		PushTime     string `json:"pTime"`
 	}{
 		Alias: (*Alias)(a),
 	}
 	if er := json.Unmarshal(data, chil); er != nil {
 		return er
 	}
-	a.CreationTime = time.UnixMilli(chil.CreationTime)
-	a.PushTime = time.UnixMilli(chil.PushTime)
-	a.TriggerTime = time.UnixMilli(chil.TriggerTime)
+	if val, er := strconv.ParseInt(chil.CreationTime, 10, 64); er != nil {
+		a.CreationTime = time.UnixMilli(val)
+	}
+	if val, er := strconv.ParseInt(chil.TriggerTime, 10, 64); er != nil {
+		a.TriggerTime = time.UnixMilli(val)
+	}
+	if val, er := strconv.ParseInt(chil.PushTime, 10, 64); er != nil {
+		a.PushTime = time.UnixMilli(val)
+	}
 	return nil
 }
 
@@ -1872,7 +1901,7 @@ func (a *WsGreekData) UnmarshalJSON(data []byte) error {
 	type Alias WsGreekData
 	chil := &struct {
 		*Alias
-		Timestamp int64 `json:"ts"`
+		Timestamp int64 `json:"ts,string"`
 	}{
 		Alias: (*Alias)(a),
 	}
@@ -1991,5 +2020,23 @@ func (a *WsOrderBookData) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// UnmarshalJSON decerializes push time and update timestamp information to built in time.Time instance.
+func (a *GridSubOrderData) UnmarshalJSON(data []byte) error {
+	type Alias GridSubOrderData
+	chil := &struct {
+		*Alias
+		PushTime   int64 `json:"pTime,string"`
+		UpdateTime int64 `json:"uTime,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.PushTime = time.UnixMilli(chil.PushTime)
+	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
 	return nil
 }

@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -82,24 +81,7 @@ func areTestAPIKeysSet() bool {
 	return ok.ValidateAPICredentials(ok.GetDefaultCredentials()) == nil
 }
 
-var marketDataResponseJSON = `{
-	"instType": "SWAP",
-	"instId": "LTC-USD-SWAP",
-	"last": "9999.99",
-	"lastSz": "0.1",
-	"askPx": "9999.99",
-	"askSz": "11",
-	"bidPx": "8888.88",
-	"bidSz": "5",
-	"open24h": "9000",
-	"high24h": "10000",
-	"low24h": "8888.88",
-	"volCcy24h": "2222",
-	"vol24h": "2222",
-	"sodUtc0": "2222",
-	"sodUtc8": "2222",
-	"ts": "1597026383085"
-  }`
+var marketDataResponseJSON = `{"instType": "SWAP","instId": "LTC-USD-SWAP","last": "9999.99","lastSz": "0.1","askPx": "9999.99","askSz": "11","bidPx": "8888.88","bidSz": "5","open24h": "9000","high24h": "10000","low24h": "8888.88","volCcy24h": "2222","vol24h": "2222","sodUtc0": "2222","sodUtc8": "2222","ts": "1597026383085"}`
 
 func TestGetTickers(t *testing.T) {
 	t.Parallel()
@@ -223,13 +205,7 @@ func TestGetIndexComponents(t *testing.T) {
 	}
 }
 
-var blockTickerItemJSON = `{
-	"instType":"SWAP",
-	"instId":"LTC-USD-SWAP",
-	"volCcy24h":"2222",
-	"vol24h":"2222",
-	"ts":"1597026383085"
- }`
+var blockTickerItemJSON = `{"instType":"SWAP","instId":"LTC-USD-SWAP","volCcy24h":"2222","vol24h":"2222","ts":"1597026383085"}`
 
 func TestGetBlockTickers(t *testing.T) {
 	t.Parallel()
@@ -294,37 +270,7 @@ func TestGetInstrument(t *testing.T) {
 	}
 }
 
-var deliveryHistoryData = `{
-    "code":"0",
-    "msg":"",
-    "data":[
-        {
-            "ts":"1597026383085",
-            "details":[
-                {
-                    "type":"delivery",
-                    "instId":"ZIL-BTC",
-                    "px":"0.016"
-                }
-            ]
-        },
-        {
-            "ts":"1597026383085",
-            "details":[
-                {
-                    "instId":"BTC-USD-200529-6000-C",
-                    "type":"exercised",
-                    "px":"0.016"
-                },
-                {
-                    "instId":"BTC-USD-200529-8000-C",
-                    "type":"exercised",
-                    "px":"0.016"
-                }
-            ]
-        }
-    ]
-}`
+var deliveryHistoryData = `{"code":"0","msg":"","data":[{"ts":"1597026383085","details":[{"type":"delivery","instId":"ZIL-BTC","px":"0.016"}]},{"ts":"1597026383085","details":[{"instId":"BTC-USD-200529-6000-C","type":"exercised","px":"0.016"},{"instId":"BTC-USD-200529-8000-C","type":"exercised","px":"0.016"}]}]}`
 
 func TestGetDeliveryHistory(t *testing.T) {
 	t.Parallel()
@@ -373,18 +319,7 @@ func TestGetOptionMarketData(t *testing.T) {
 	}
 }
 
-var estimatedDeliveryResponseString = `{
-    "code":"0",
-    "msg":"",
-    "data":[
-    {
-        "instType":"FUTURES",
-        "instId":"BTC-USDT-201227",
-        "settlePx":"200",
-        "ts":"1597026383085"
-    }
-  ]
-}`
+var estimatedDeliveryResponseString = `{"code":"0","msg":"","data":[{"instType":"FUTURES","instId":"BTC-USDT-201227","settlePx":"200","ts":"1597026383085"}]}`
 
 func TestGetEstimatedDeliveryPrice(t *testing.T) {
 	t.Parallel()
@@ -468,7 +403,7 @@ func TestGetInsuranceFundInformations(t *testing.T) {
 		t.Error("Okx GetPublicUnderlyings() error", er)
 		t.SkipNow()
 	}
-	if _, er := ok.GetInsuranceFundInformations(context.Background(), InsuranceFundInformationRequestParams{
+	if _, er := ok.GetInsuranceFundInformations(context.Background(), &InsuranceFundInformationRequestParams{
 		InstrumentType: "FUTURES",
 		Underlying:     underlyings[0],
 	}); er != nil {
@@ -704,44 +639,7 @@ func TestGetOrderList(t *testing.T) {
 	}
 }
 
-var orderHistory = `{
-	"instType": "FUTURES",
-	"instId": "BTC-USD-200329",
-	"ccy": "",
-	"ordId": "312269865356374016",
-	"clOrdId": "b1",
-	"tag": "",
-	"px": "999",
-	"sz": "3",
-	"ordType": "limit",
-	"side": "buy",
-	"posSide": "long",
-	"tdMode": "isolated",
-	"accFillSz": "0",
-	"fillPx": "0",
-	"tradeId": "0",
-	"fillSz": "0",
-	"fillTime": "0",
-	"state": "filled",
-	"avgPx": "0",
-	"lever": "20",
-	"tpTriggerPx": "",
-	"tpTriggerPxType": "last",
-	"tpOrdPx": "",
-	"slTriggerPx": "",
-	"slTriggerPxType": "last",
-	"slOrdPx": "",
-	"feeCcy": "",
-	"fee": "",
-	"rebateCcy": "",
-	"source":"",
-	"rebate": "",
-	"tgtCcy":"",
-	"pnl": "",
-	"category": "",
-	"uTime": "1597026383085",
-	"cTime": "1597026383085"
-  }`
+var orderHistory = `{"instType": "FUTURES","instId": "BTC-USD-200329","ccy": "","ordId": "312269865356374016","clOrdId": "b1","tag": "","px": "999","sz": "3","ordType": "limit","side": "buy","posSide": "long","tdMode": "isolated","accFillSz": "0","fillPx": "0","tradeId": "0","fillSz": "0","fillTime": "0","state": "filled","avgPx": "0","lever": "20","tpTriggerPx": "","tpTriggerPxType": "last","tpOrdPx": "","slTriggerPx": "","slTriggerPxType": "last","slOrdPx": "","feeCcy": "","fee": "","rebateCcy": "","source":"","rebate": "","tgtCcy":"","pnl": "","category": "","uTime": "1597026383085","cTime": "1597026383085"}`
 
 func TestGet7And3MonthDayOrderHistory(t *testing.T) {
 	t.Parallel()
@@ -764,23 +662,7 @@ func TestGet7And3MonthDayOrderHistory(t *testing.T) {
 	}
 }
 
-var transactionhistoryJSON = `{
-	"instType":"FUTURES",
-	"instId":"BTC-USD-200329",
-	"tradeId":"123",
-	"ordId":"123445",
-	"clOrdId": "b16",
-	"billId":"1111",
-	"tag":"",
-	"fillPx":"999",
-	"fillSz":"3",
-	"side":"buy",
-	"posSide":"long",
-	"execType":"M",             
-	"feeCcy":"",
-	"fee":"",
-	"ts":"1597026383085"
-}`
+var transactionhistoryJSON = `{"instType":"FUTURES","instId":"BTC-USD-200329","tradeId":"123","ordId":"123445","clOrdId": "b16","billId":"1111","tag":"","fillPx":"999","fillSz":"3","side":"buy","posSide":"long","execType":"M","feeCcy":"","fee":"","ts":"1597026383085"}`
 
 func TestTransactionHistory(t *testing.T) {
 	t.Parallel()
@@ -869,43 +751,7 @@ func TestCancelAdvanceAlgoOrder(t *testing.T) {
 	}
 }
 
-var algoOrderResponse = `{
-	"instType": "FUTURES",
-	"instId": "BTC-USD-200329",
-	"ordId": "312269865356374016",
-	"ccy": "BTC",
-	"algoId": "1234",
-	"sz": "999",
-	"ordType": "oco",
-	"side": "buy",
-	"posSide": "long",
-	"tdMode": "cross",
-	"tgtCcy": "",
-	"state": "1",
-	"lever": "20",
-	"tpTriggerPx": "",
-	"tpTriggerPxType": "",
-	"tpOrdPx": "",
-	"slTriggerPx": "",
-	"slTriggerPxType": "",
-	"triggerPx": "99",
-	"triggerPxType": "last",
-	"ordPx": "12",
-	"actualSz": "",
-	"actualPx": "",
-	"actualSide": "",
-	"pxVar":"",
-	"pxSpread":"",
-	"pxLimit":"",
-	"szLimit":"",
-	"timeInterval":"",
-	"triggerTime": "1597026383085",
-	"callbackRatio":"",
-	"callbackSpread":"",
-	"activePx":"",
-	"moveTriggerPx":"",
-	"cTime": "1597026383000"
-  }`
+var algoOrderResponse = `{"instType": "FUTURES","instId": "BTC-USD-200329","ordId": "312269865356374016","ccy": "BTC","algoId": "1234","sz": "999","ordType": "oco","side": "buy","posSide": "long","tdMode": "cross","tgtCcy": "","state": "1","lever": "20","tpTriggerPx": "","tpTriggerPxType": "","tpOrdPx": "","slTriggerPx": "","slTriggerPxType": "","triggerPx": "99","triggerPxType": "last","ordPx": "12","actualSz": "","actualPx": "","actualSide": "","pxVar":"","pxSpread":"","pxLimit":"","szLimit":"","timeInterval":"","triggerTime": "1597026383085","callbackRatio":"","callbackSpread":"","activePx":"","moveTriggerPx":"","cTime": "1597026383000"}`
 
 func TestGetAlgoOrderList(t *testing.T) {
 	t.Parallel()
@@ -1128,9 +974,15 @@ func TestCancelAllQuotes(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if time, er := ok.CancelAllQuotes(context.Background()); er != nil && !strings.Contains(er.Error(), "Cancellation failed as you do not have any active Quotes.") {
+	time, er := ok.CancelAllQuotes(context.Background())
+	switch {
+	case er != nil &&
+		(strings.Contains(er.Error(), "Cancellation failed as you do not have any active Quotes.") ||
+			strings.Contains(er.Error(), "No permission to use this API.")):
+		t.Skip("Skiping test with reason:", er)
+	case er != nil:
 		t.Error("Okx CancelAllQuotes() error", er)
-	} else if er == nil && time.IsZero() {
+	case er == nil && time.IsZero():
 		t.Error("Okx CancelAllQuotes() zero timestamp message ")
 	}
 }
@@ -1673,7 +1525,7 @@ func TestEstimateQuote(t *testing.T) {
 	}
 }
 
-var convertTradeJsonResponse = `{
+var convertTradeJSONResponse = `{
 	"baseCcy": "ETH",
 	"clTReqId": "",
 	"fillBaseSz": "0.01023052",
@@ -1691,7 +1543,7 @@ var convertTradeJsonResponse = `{
 func TestConvertTrade(t *testing.T) {
 	t.Parallel()
 	var convert ConvertTradeResponse
-	if er := json.Unmarshal([]byte(convertTradeJsonResponse), &convert); er != nil {
+	if er := json.Unmarshal([]byte(convertTradeJSONResponse), &convert); er != nil {
 		t.Error("Okx Unmarshaling to ConvertTradeResponse error", er)
 	}
 	if !areTestAPIKeysSet() {
@@ -1709,7 +1561,7 @@ func TestConvertTrade(t *testing.T) {
 	}
 }
 
-var convertHistoryResponseJson = `{
+var convertHistoryResponseJSON = `{
 	"instId": "ETH-USDT",
 	"side": "buy",
 	"fillPx": "2932.401044",
@@ -1725,7 +1577,7 @@ var convertHistoryResponseJson = `{
 func TestGetConvertHistory(t *testing.T) {
 	t.Parallel()
 	var convertHistory ConvertHistory
-	if er := json.Unmarshal([]byte(convertHistoryResponseJson), &convertHistory); er != nil {
+	if er := json.Unmarshal([]byte(convertHistoryResponseJSON), &convertHistory); er != nil {
 		t.Error("Okx Unmarshaling ConvertHistory error", er)
 	}
 	if !areTestAPIKeysSet() {
@@ -1869,31 +1721,12 @@ func TestGetPositions(t *testing.T) {
 	}
 }
 
-var accountPositionHistoryJson = `{
-	"cTime": "1654177169995",
-	"ccy": "BTC",
-	"closeAvgPx": "29786.5999999789081085",
-	"closeTotalPos": "1",
-	"instId": "BTC-USD-SWAP",
-	"instType": "SWAP",
-	"lever": "10.0",
-	"mgnMode": "cross",
-	"openAvgPx": "29783.8999999995535393",
-	"openMaxPos": "1",
-	"pnl": "0.00000030434156",
-	"pnlRatio": "0.000906447858888",
-	"posId": "452587086133239818",
-	"posSide": "long",
-	"triggerPx": "",
-	"type": "allClose",
-	"uTime": "1654177174419",
-	"uly": "BTC-USD"
-}`
+var accountPositionHistoryJSON = `{"cTime": "1654177169995","ccy": "BTC","closeAvgPx": "29786.5999999789081085","closeTotalPos": "1","instId": "BTC-USD-SWAP","instType": "SWAP","lever": "10.0","mgnMode": "cross","openAvgPx": "29783.8999999995535393","openMaxPos": "1","pnl": "0.00000030434156","pnlRatio": "0.000906447858888","posId": "452587086133239818","posSide": "long","triggerPx": "","type": "allClose","uTime": "1654177174419","uly": "BTC-USD"}`
 
 func TestGetPositionsHistory(t *testing.T) {
 	t.Parallel()
 	var accountHistory AccountPositionHistory
-	if er := json.Unmarshal([]byte(accountPositionHistoryJson), &accountHistory); er != nil {
+	if er := json.Unmarshal([]byte(accountPositionHistoryJSON), &accountHistory); er != nil {
 		t.Error("Okx Unmarshal AccountPositionHistory error", er)
 	}
 	if !areTestAPIKeysSet() {
@@ -1904,7 +1737,7 @@ func TestGetPositionsHistory(t *testing.T) {
 	}
 }
 
-var accountAndPositionRiskJson = `{
+var accountAndPositionRiskJSON = `{
 	"adjEq":"174238.6793649711331679",
 	"balData":[
 		{
@@ -1940,7 +1773,7 @@ var accountAndPositionRiskJson = `{
 func TestGetAccountAndPositionRisk(t *testing.T) {
 	t.Parallel()
 	var accountAndPositionRisk AccountAndPositionRisk
-	if er := json.Unmarshal([]byte(accountAndPositionRiskJson), &accountAndPositionRisk); er != nil {
+	if er := json.Unmarshal([]byte(accountAndPositionRiskJSON), &accountAndPositionRisk); er != nil {
 		t.Error("Okx Decerializing AccountAndPositionRisk error", er)
 	}
 	if !areTestAPIKeysSet() {
@@ -2156,7 +1989,7 @@ func TestGetBorrowInterestAndLimit(t *testing.T) {
 	}
 }
 
-var positionBuilderJson = `{
+var positionBuilderJSON = `{
 	"imr": "0.005432310199023",
 	"mmr": "0.0041787001530946",
 	"mr1": "0.0041787001530946",
@@ -2185,7 +2018,7 @@ var positionBuilderJson = `{
 func TestPositionBuilder(t *testing.T) {
 	t.Parallel()
 	var resp PositionBuilderResponse
-	if er := json.Unmarshal([]byte(positionBuilderJson), &resp); er != nil {
+	if er := json.Unmarshal([]byte(positionBuilderJSON), &resp); er != nil {
 		t.Error("Okx Decerializing to PositionBuilderResponse error", er)
 	}
 	if !areTestAPIKeysSet() {
@@ -2210,7 +2043,7 @@ func TestGetGreeks(t *testing.T) {
 
 // Subaccount endpoint tests.
 
-var subaccountsResponseJson = `{
+var subaccountsResponseJSON = `{
 	"enable":true,
 	"subAcct":"test-1",
 	"type":"1",
@@ -2227,7 +2060,7 @@ func TestViewSubaccountList(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if er := json.Unmarshal([]byte(subaccountsResponseJson), &resp); er != nil {
+	if er := json.Unmarshal([]byte(subaccountsResponseJSON), &resp); er != nil {
 		t.Error("Okx Decerializing to SubaccountInfo error", er)
 	}
 	if !areTestAPIKeysSet() {
@@ -2238,7 +2071,7 @@ func TestViewSubaccountList(t *testing.T) {
 	}
 }
 
-var subaccountBalanceResponseJson = `{"adjEq": "10679688.0460531643092577","details": [{"availBal": "","availEq": "9930359.9998","cashBal": "9930359.9998","ccy": "USDT","crossLiab": "0","disEq": "9439737.0772999514","eq": "9930359.9998","eqUsd": "9933041.196999946","frozenBal": "0","interest": "0","isoEq": "0","isoLiab": "0","liab": "0","maxLoan": "10000","mgnRatio": "","notionalLever": "","ordFrozen": "0","twap": "0","uTime": "1620722938250","upl": "0","uplLiab": "0"}],"imr": "3372.2942371050594217","isoEq": "0","mgnRatio": "70375.35408747017","mmr": "134.8917694842024","notionalUsd": "33722.9423710505978888","ordFroz": "0","totalEq": "11172992.1657531589092577","uTime": "1623392334718"}`
+var subaccountBalanceResponseJSON = `{"adjEq": "10679688.0460531643092577","details": [{"availBal": "","availEq": "9930359.9998","cashBal": "9930359.9998","ccy": "USDT","crossLiab": "0","disEq": "9439737.0772999514","eq": "9930359.9998","eqUsd": "9933041.196999946","frozenBal": "0","interest": "0","isoEq": "0","isoLiab": "0","liab": "0","maxLoan": "10000","mgnRatio": "","notionalLever": "","ordFrozen": "0","twap": "0","uTime": "1620722938250","upl": "0","uplLiab": "0"}],"imr": "3372.2942371050594217","isoEq": "0","mgnRatio": "70375.35408747017","mmr": "134.8917694842024","notionalUsd": "33722.9423710505978888","ordFroz": "0","totalEq": "11172992.1657531589092577","uTime": "1623392334718"}`
 
 func TestGetSubaccountTradingBalance(t *testing.T) {
 	t.Parallel()
@@ -2246,7 +2079,7 @@ func TestGetSubaccountTradingBalance(t *testing.T) {
 		t.SkipNow()
 	}
 	var resp SubaccountBalanceResponse
-	if er := json.Unmarshal([]byte(subaccountBalanceResponseJson), &resp); er != nil {
+	if er := json.Unmarshal([]byte(subaccountBalanceResponseJSON), &resp); er != nil {
 		t.Error("Okx ", er)
 	}
 	if _, er := ok.GetSubaccountTradingBalance(context.Background(), ""); er != nil && !errors.Is(er, errMissingRequiredParameterSubaccountName) {
@@ -2257,7 +2090,7 @@ func TestGetSubaccountTradingBalance(t *testing.T) {
 	}
 }
 
-var fundingBalanceJson = `{
+var fundingBalanceJSON = `{
 	"availBal": "37.11827078",
 	"bal": "37.11827078",
 	"ccy": "ETH",
@@ -2267,7 +2100,7 @@ var fundingBalanceJson = `{
 func TestGetSubaccountFundingBalance(t *testing.T) {
 	t.Parallel()
 	var resp FundingBalance
-	if er := json.Unmarshal([]byte(fundingBalanceJson), &resp); er != nil {
+	if er := json.Unmarshal([]byte(fundingBalanceJSON), &resp); er != nil {
 		t.Error("okx Decerializing to FundingBalance error", er)
 	}
 	if !areTestAPIKeysSet() {
@@ -2345,7 +2178,7 @@ func TestPlaceGridAlgoOrder(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := ok.PlaceGridAlgoOrder(context.Background(), input); er != nil {
+	if _, er := ok.PlaceGridAlgoOrder(context.Background(), &input); er != nil {
 		t.Error("Okx PlaceGridAlgoOrder() error", er)
 	}
 }
@@ -2470,12 +2303,12 @@ func TestSpotGridWithdrawProfit(t *testing.T) {
 	}
 }
 
-var systemStatusResponseJson = `{"title": "Spot System Upgrade","state": "scheduled","begin": "1620723600000","end": "1620724200000","href": "","serviceType": "1","system": "classic","scheDesc": ""}`
+var systemStatusResponseJSON = `{"title": "Spot System Upgrade","state": "scheduled","begin": "1620723600000","end": "1620724200000","href": "","serviceType": "1","system": "classic","scheDesc": ""}`
 
 func TestSystemStatusResponse(t *testing.T) {
 	t.Parallel()
 	var resp SystemStatusResponse
-	if er := json.Unmarshal([]byte(systemStatusResponseJson), &resp); er != nil {
+	if er := json.Unmarshal([]byte(systemStatusResponseJSON), &resp); er != nil {
 		t.Error("Okx Decerializing to SystemStatusResponse error", er)
 	}
 	if !areTestAPIKeysSet() {
@@ -2578,7 +2411,7 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := ok.GetWithdrawalsHistory(context.Background(), currency.BTC); er != nil {
+	if _, er := ok.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot); er != nil {
 		t.Error("Okx GetWithdrawalsHistory() error", er)
 	}
 }
@@ -2993,7 +2826,7 @@ func TestBalanceAndPosition(t *testing.T) {
 	}
 }
 
-var orderPushDataJSON = `{"arg": {"channel": "balance_and_position","uid": "77982378738415879"},"data": [{"pTime": "1597026383085","eventType": "snapshot","balData": [{"ccy": "BTC","cashBal": "1","uTime": "1597026383085"}],"posData": [{"posId": "1111111111","tradeId": "2","instId": "BTC-USD-191018","instType": "FUTURES","mgnMode": "cross","posSide": "long","pos": "10","ccy": "BTC","posCcy": "","avgPx": "3320","uTIme": "1597026383085"}]}]}`
+var orderPushDataJSON = `{"arg": {"channel": "balance_and_position","uid": "77982378738415879"},"data": [{"pTime": "1597026383075","eventType": "snapshot","balData": [{"ccy": "BTC","cashBal": "1","uTime": "1597026383085"}],"posData": [{"posId": "1111111111","tradeId": "2","instId": "BTC-USD-191018","instType": "FUTURES","mgnMode": "cross","posSide": "long","pos": "10","ccy": "BTC","posCcy": "","avgPx": "3320","uTime": "1597026383095"}]}]}`
 
 func TestOrderPushData(t *testing.T) {
 	t.Parallel()
@@ -3085,7 +2918,7 @@ func TestContractGridAlgoOrdersPushData(t *testing.T) {
 
 var gridPositionsPushDataJSON = `{"arg": {"channel": "grid-positions","uid": "44705892343619584","algoId": "449327675342323712"},"data": [{"adl": "1","algoId": "449327675342323712","avgPx": "29181.4638888888888895","cTime": "1653400065917","ccy": "USDT","imr": "2089.2690000000002","instId": "BTC-USDT-SWAP","instType": "SWAP","last": "29852.7","lever": "5","liqPx": "604.7617536513744","markPx": "29849.7","mgnMode": "cross","mgnRatio": "217.71740878394456","mmr": "41.78538","notionalUsd": "10435.794191550001","pTime": "1653536068723","pos": "35","posSide": "net","uTime": "1653445498682","upl": "232.83263888888962","uplRatio": "0.1139826489932205"}]}`
 
-func GridPositionsPushData(t *testing.T) {
+func TestGridPositionsPushData(t *testing.T) {
 	t.Parallel()
 	if er := ok.WsHandleData([]byte(gridPositionsPushDataJSON)); er != nil {
 		t.Error("Okx Grid Positions Push Data error", er)

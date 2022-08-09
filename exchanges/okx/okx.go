@@ -16,12 +16,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -46,7 +44,7 @@ const (
 
 	// tradeEndpoints
 	tradeOrder                          = "trade/order"
-	placeMultipleOrderUrl               = "trade/batch-orders"
+	placeMultipleOrderURL               = "trade/batch-orders"
 	cancelTradeOrder                    = "trade/cancel-order"
 	cancelBatchTradeOrders              = "trade/cancel-batch-orders"
 	amendOrder                          = "trade/amend-order"
@@ -386,7 +384,7 @@ func (ok *Okx) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequest
 		Data []PlaceOrderResponse `json:"data"`
 	}
 	var resp response
-	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeMultipleOrdersEPL, http.MethodPost, placeMultipleOrderUrl, &args, &resp, true)
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeMultipleOrdersEPL, http.MethodPost, placeMultipleOrderURL, &args, &resp, true)
 }
 
 // CancelSingleOrder cancel an incomplete order.
@@ -510,16 +508,20 @@ func (ok *Okx) ClosePositions(ctx context.Context, arg *ClosePositionsRequestPar
 
 // GetOrderDetails retrieve order details.
 func (ok *Okx) GetOrderDetail(ctx context.Context, arg *OrderDetailRequestParam) (*OrderDetail, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
 	params := url.Values{}
 	if strings.Trim(arg.InstrumentID, " ") == "" {
 		return nil, errMissingInstrumentID
 	}
 	params.Set("instId", arg.InstrumentID)
-	if arg.OrderID == "" && arg.ClientSupplierOrderID == "" {
+	switch {
+	case arg.OrderID == "" && arg.ClientSupplierOrderID == "":
 		return nil, errMissingClientOrderIDOrOrderID
-	} else if arg.ClientSupplierOrderID == "" {
+	case arg.ClientSupplierOrderID == "":
 		params.Set("ordId", arg.OrderID)
-	} else {
+	default:
 		params.Set("clOrdId", arg.ClientSupplierOrderID)
 	}
 	type response struct {
@@ -541,6 +543,9 @@ func (ok *Okx) GetOrderDetail(ctx context.Context, arg *OrderDetailRequestParam)
 
 // GetOrderList retrieve all incomplete orders under the current account.
 func (ok *Okx) GetOrderList(ctx context.Context, arg *OrderListRequestParams) ([]PendingOrderItem, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
 	params := url.Values{}
 	if strings.EqualFold(arg.InstrumentType, OkxInstTypeSpot) ||
 		strings.EqualFold(arg.InstrumentType, OkxInstTypeMargin) ||
@@ -785,13 +790,14 @@ func (ok *Okx) PlaceTWAPOrder(ctx context.Context, arg *TWAPOrderRequestParams) 
 		Msg  string      `json:"msg"`
 		Data []AlgoOrder `json:"data"`
 	}
-	if arg.PriceRatio == "" || arg.PriceVariance == "" {
+	switch {
+	case arg.PriceRatio == "" || arg.PriceVariance == "":
 		return nil, fmt.Errorf("missing price ratio or price variance parameter")
-	} else if arg.AverageAmount <= 0 {
+	case arg.AverageAmount <= 0:
 		return nil, errInvalidAverageAmountParameterValue
-	} else if arg.PriceLimit <= 0 {
+	case arg.PriceLimit <= 0:
 		return nil, errInvalidPriceLimit
-	} else if ok.GetIntervalEnum(arg.Timeinterval) == "" {
+	case ok.GetIntervalEnum(arg.Timeinterval) == "":
 		return nil, errMissingIntervalValue
 	}
 	var resp response
@@ -1070,21 +1076,23 @@ func (ok *Okx) ExecuteQuote(ctx context.Context, arg ExecuteQuoteParams) (*Execu
 // CreateQuote llows the user to Quote an RFQ that they are a counterparty to. The user MUST quote
 // the entire RFQ and not part of the legs or part of the quantity. Partial quoting or partial fills are not allowed.
 func (ok *Okx) CreateQuote(ctx context.Context, arg CreateQuoteParams) (*QuoteResponse, error) {
-	if arg.RfqID == "" {
+	switch {
+	case arg.RfqID == "":
 		return nil, errMissingRfqID
-	} else if !(strings.EqualFold(arg.QuoteSide.String(), order.Buy.String()) || strings.EqualFold(arg.QuoteSide.String(), order.Sell.String())) {
+	case !(strings.EqualFold(arg.QuoteSide.String(), order.Buy.String()) || strings.EqualFold(arg.QuoteSide.String(), order.Sell.String())):
 		return nil, errMissingOrderSide
-	} else if len(arg.Legs) == 0 {
+	case len(arg.Legs) == 0:
 		return nil, errMissingLegs
 	}
 	for x := range arg.Legs {
-		if arg.Legs[x].InstrumentID == "" {
+		switch {
+		case arg.Legs[x].InstrumentID == "":
 			return nil, errMissingInstrumentID
-		} else if arg.Legs[x].SizeOfQuoteLeg <= 0 {
+		case arg.Legs[x].SizeOfQuoteLeg <= 0:
 			return nil, errMissingSizeOfQuote
-		} else if arg.Legs[x].Price <= 0 {
+		case arg.Legs[x].Price <= 0:
 			return nil, errMossingLegsQuotePrice
-		} else if arg.Legs[x].Side == order.UnknownSide {
+		case arg.Legs[x].Side == order.UnknownSide:
 			return nil, errMissingOrderSide
 		}
 	}
@@ -1243,7 +1251,7 @@ func (ok *Okx) GetQuotes(ctx context.Context, arg *QuoteRequestParams) ([]QuoteR
 		params.Set("endId", arg.EndID)
 	}
 	if arg.Limit > 0 {
-		params.Set("limit", strconv.Itoa(int(arg.Limit)))
+		params.Set("limit", strconv.Itoa(arg.Limit))
 	}
 	type response struct {
 		Code string          `json:"code"`
@@ -1255,7 +1263,7 @@ func (ok *Okx) GetQuotes(ctx context.Context, arg *QuoteRequestParams) ([]QuoteR
 	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, getQuotesEPL, http.MethodGet, path, nil, &resp, true)
 }
 
-// GetTrades retrieves the executed trades that the user is a counterparty to (either as the creator or the receiver).
+// GetRFQTrades retrieves the executed trades that the user is a counterparty to (either as the creator or the receiver).
 func (ok *Okx) GetRFQTrades(ctx context.Context, arg *RFQTradesRequestParams) ([]RfqTradeResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
@@ -1419,11 +1427,12 @@ func (ok *Okx) FundingTransfer(ctx context.Context, arg *FundingTransferRequestI
 // GetFundsTransferState get funding rate response.
 func (ok *Okx) GetFundsTransferState(ctx context.Context, transferID, clientID string, transferType int) ([]TransferFundRateResponse, error) {
 	params := url.Values{}
-	if transferID == "" && clientID == "" {
+	switch {
+	case transferID == "" && clientID == "":
 		return nil, errors.New("either 'transfer id' or 'client id' is required")
-	} else if transferID != "" {
+	case transferID != "":
 		params.Set("transId", transferID)
-	} else if clientID == "" {
+	case clientID == "":
 		params.Set("clientId", clientID)
 	}
 	if transferType > 0 && transferType <= 2 {
@@ -1440,12 +1449,12 @@ func (ok *Okx) GetFundsTransferState(ctx context.Context, transferID, clientID s
 }
 
 //  AssetBillsDeta Query the billing record, you can get the latest 1 month historical data
-func (ok *Okx) GetAssetBillsDetails(ctx context.Context, currency string, bill_type int, clientID string, clientSecret string, after time.Time, before time.Time, limit int) ([]AssetBillDetail, error) {
+func (ok *Okx) GetAssetBillsDetails(ctx context.Context, currency string, billType int, clientID, clientSecret string, after, before time.Time, limit int) ([]AssetBillDetail, error) {
 	params := url.Values{}
 	billTypeIDS := []int{1, 2, 13, 20, 21, 28, 41, 42, 47, 48, 49, 50, 51, 52, 53, 54, 59, 60, 61, 68, 69, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 150, 151, 198, 199}
 	for x := range billTypeIDS {
-		if billTypeIDS[x] == bill_type {
-			params.Set("type", strconv.Itoa(bill_type))
+		if billTypeIDS[x] == billType {
+			params.Set("type", strconv.Itoa(billType))
 		}
 	}
 	if currency != "" {
@@ -1516,7 +1525,7 @@ func (ok *Okx) GetCurrencyDepositAddress(ctx context.Context, currency string) (
 }
 
 // GetCurrencyDepositHistory retrives deposit records and withdrawal status information depending on the currency, timestamp, and chronogical order.
-func (ok *Okx) GetCurrencyDepositHistory(ctx context.Context, currency string, depositID string, transactionID string, state int, after, before time.Time, limit uint) ([]DepositHistoryResponseItem, error) {
+func (ok *Okx) GetCurrencyDepositHistory(ctx context.Context, currency, depositID, transactionID string, state int, after, before time.Time, limit uint) ([]DepositHistoryResponseItem, error) {
 	params := url.Values{}
 	if currency != "" {
 		params.Set("ccy", currency)
@@ -1562,13 +1571,14 @@ func (ok *Okx) Withdrawal(ctx context.Context, input *WithdrawalInput) (*Withdra
 		Data []WithdrawalResponse `json:"data"`
 	}
 	var resp response
-	if input.Currency == "" {
+	switch {
+	case input.Currency == "":
 		return nil, errInvalidCurrencyValue
-	} else if input.Amount <= 0 {
+	case input.Amount <= 0:
 		return nil, errors.New("invalid withdrawal amount")
-	} else if input.WithdrawalDestination == "" {
+	case input.WithdrawalDestination == "":
 		return nil, errors.New("withdrawal destination")
-	} else if input.ToAddress == "" {
+	case input.ToAddress == "":
 		return nil, errors.New("missing verified digital currency address \"toAddr\" information")
 	}
 	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, withdrawalEPL, http.MethodPost, assetWithdrawal, &input, &resp, true)
@@ -1713,14 +1723,19 @@ func (ok *Okx) SavingsRedemption(ctx context.Context, arg *SavingsPurchaseRedemp
 	return ok.savingsPurchaseOrRedemption(ctx, arg)
 }
 
+// savingsPurchaseOrRedemption creates a purchase or redemption instance
 func (ok *Okx) savingsPurchaseOrRedemption(ctx context.Context, arg *SavingsPurchaseRedemptionInput) (*SavingsPurchaseRedemptionResponse, error) {
-	if arg.Currency == "" {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	switch {
+	case arg.Currency == "":
 		return nil, errInvalidCurrencyValue
-	} else if arg.Amount <= 0 {
+	case arg.Amount <= 0:
 		return nil, errUnacceptableAmount
-	} else if !(strings.EqualFold(arg.ActionType, "purchase") || strings.EqualFold(arg.ActionType, "redempt")) {
+	case !(strings.EqualFold(arg.ActionType, "purchase") || strings.EqualFold(arg.ActionType, "redempt")):
 		return nil, errors.New("invalid side value, side has to be either \"redemption\" or \"purchase\"")
-	} else if strings.EqualFold(arg.ActionType, "purchase") && !(arg.Rate >= 1 && arg.Rate <= 365) {
+	case strings.EqualFold(arg.ActionType, "purchase") && !(arg.Rate >= 1 && arg.Rate <= 365):
 		return nil, errors.New("the rate value range is between 1% and 365%")
 	}
 	type response struct {
@@ -1781,7 +1796,10 @@ func (ok *Okx) SetLendingRate(ctx context.Context, arg LendingRate) (*LendingRat
 		return nil, er
 	}
 	if len(resp.Data) == 0 {
-		val, _ := json.Marshal(resp)
+		val, er := json.Marshal(resp)
+		if er != nil {
+			return nil, errNoValidResponseFromServer
+		}
 		return nil, errors.New(string(val))
 	}
 	return &resp.Data[0], nil
@@ -2333,7 +2351,6 @@ func (ok *Okx) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (flo
 		} else if len(responses) == 0 {
 			return 0, errors.New("no trade fee response found")
 		}
-		var fee float64
 		if feeBuilder.IsMaker {
 			if fee, er = strconv.ParseFloat(responses[0].FeeRateMaker, 64); er != nil || fee == 0 {
 				fee, er = strconv.ParseFloat(responses[0].FeeRateMakerUSDT, 64)
@@ -2629,7 +2646,7 @@ func (ok *Okx) ViewSubaccountList(ctx context.Context, enable bool, subaccountNa
 		params.Set("before", strconv.FormatInt(after.UnixMilli(), 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.Itoa(int(limit)))
+		params.Set("limit", strconv.Itoa(limit))
 	}
 	type response struct {
 		Code string           `json:"code"`
@@ -2792,7 +2809,10 @@ func (ok *Okx) GetCustodyTradingSubaccountList(ctx context.Context, subaccountNa
 /*************************************** Grid Trading Endpoints ***************************************************/
 
 // PlaceGridAlgoOrder place spot grid algo order.
-func (ok *Okx) PlaceGridAlgoOrder(ctx context.Context, arg GridAlgoOrder) (*GridAlgoOrderIDResponse, error) {
+func (ok *Okx) PlaceGridAlgoOrder(ctx context.Context, arg *GridAlgoOrder) (*GridAlgoOrderIDResponse, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
@@ -3074,18 +3094,19 @@ func (ok *Okx) SpotGridWithdrawProfit(ctx context.Context, algoID string) (*Algo
 // GetTickers retrives the latest price snopshots best bid/ ask price, and tranding volume in the last 34 hours.
 func (ok *Okx) GetTickers(ctx context.Context, instType, uly, instID string) ([]TickerResponse, error) {
 	params := url.Values{}
-	if strings.EqualFold(instType, OkxInstTypeSpot) || strings.EqualFold(instType, OkxInstTypeSwap) || strings.EqualFold(instType, OkxInstTypeFutures) || strings.EqualFold(instType, OkxInstTypeOption) {
+	switch {
+	case strings.EqualFold(instType, OkxInstTypeSpot) || strings.EqualFold(instType, OkxInstTypeSwap) || strings.EqualFold(instType, OkxInstTypeFutures) || strings.EqualFold(instType, OkxInstTypeOption):
 		params.Set("instType", instType)
 		if (strings.EqualFold(instType, OkxInstTypeSwap) || strings.EqualFold(instType, OkxInstTypeFutures) || strings.EqualFold(instType, OkxInstTypeOption)) && uly != "" {
 			params.Set("uly", uly)
 		}
-	} else if instID != "" {
+	case instID != "":
 		params.Set("instId", instID)
-	} else {
+	default:
 		return nil, errors.New("missing required variable instType (instrument type) or insId( Instrument ID )")
 	}
 	path := common.EncodeURLValues(marketTickers, params)
-	var response OkxMarketDataResponse
+	var response MarketDataResponse
 	return response.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTickersEPL, http.MethodGet, path, nil, &response, false)
 }
 
@@ -3098,7 +3119,7 @@ func (ok *Okx) GetTicker(ctx context.Context, instrumentID string) (*TickerRespo
 		return nil, errors.New("missing required variable instType(instruction type) or insId( Instrument ID )")
 	}
 	path := common.EncodeURLValues(marketTicker, params)
-	var response OkxMarketDataResponse
+	var response MarketDataResponse
 	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, getTickersEPL, http.MethodGet, path, nil, &response, false)
 	if er != nil {
 		return nil, er
@@ -3113,20 +3134,20 @@ func (ok *Okx) GetTicker(ctx context.Context, instrumentID string) (*TickerRespo
 }
 
 // GetIndexTickers Retrieves index tickers.
-func (ok *Okx) GetIndexTickers(ctx context.Context, quoteCurrency, instId string) ([]IndexTicker, error) {
+func (ok *Okx) GetIndexTickers(ctx context.Context, quoteCurrency, instID string) ([]IndexTicker, error) {
 	response := &struct {
 		Code string        `json:"code"`
 		Msg  string        `json:"msg"`
 		Data []IndexTicker `json:"data"`
 	}{}
-	if instId == "" && quoteCurrency == "" {
+	if instID == "" && quoteCurrency == "" {
 		return nil, errors.New("missing required variable! param quoteCcy or instId has to be set")
 	}
 	params := url.Values{}
 	if quoteCurrency != "" {
 		params.Set("quoteCcy", quoteCurrency)
-	} else if instId != "" {
-		params.Set("instId", instId)
+	} else if instID != "" {
+		params.Set("instId", instID)
 	}
 	path := common.EncodeURLValues(indexTickers, params)
 	return response.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, getIndexTickersEPL, http.MethodGet, path, nil, response, false)
@@ -3141,9 +3162,10 @@ func (ok *Okx) GetInstrumentIDFromPair(pair currency.Pair, a asset.Item) (string
 	if pair.IsEmpty() || pair.Base.String() == "" || pair.Quote.String() == "" {
 		return "", errors.New("incomplete currency pair")
 	}
-	if a == asset.PerpetualSwap {
+	switch a {
+	case asset.PerpetualSwap:
 		return pair.Base.String() + format.Delimiter + pair.Quote.String() + format.Delimiter + OkxInstTypeSwap, nil
-	} else if a == asset.Option {
+	case asset.Option:
 		instruments, er := ok.GetInstruments(context.Background(), &InstrumentsFetchParams{
 			InstrumentType: OkxInstTypeOption,
 			Underlying:     pair.Base.String() + format.Delimiter + pair.Quote.String(),
@@ -3160,7 +3182,7 @@ func (ok *Okx) GetInstrumentIDFromPair(pair currency.Pair, a asset.Item) (string
 				return instruments[x].InstrumentID, nil
 			}
 		}
-	} else if a == asset.Futures {
+	case asset.Futures:
 		instruments, er := ok.GetInstruments(context.Background(), &InstrumentsFetchParams{
 			InstrumentType: OkxInstTypeFutures,
 		})
@@ -3284,28 +3306,28 @@ func (ok *Okx) GetIntervalEnum(interval kline.Interval) string {
 }
 
 // GetCandlesticks Retrieve the candlestick charts. This endpoint can retrieve the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
-func (ok *Okx) GetCandlesticks(ctx context.Context, instrumentID string, interval kline.Interval, before time.Time, after time.Time, limit uint64) ([]CandleStick, error) {
+func (ok *Okx) GetCandlesticks(ctx context.Context, instrumentID string, interval kline.Interval, before, after time.Time, limit uint64) ([]CandleStick, error) {
 	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketCandles)
 }
 
 // GetCandlesticksHistory Retrieve history candlestick charts from recent years.
-func (ok *Okx) GetCandlesticksHistory(ctx context.Context, instrumentID string, interval kline.Interval, before time.Time, after time.Time, limit uint64) ([]CandleStick, error) {
+func (ok *Okx) GetCandlesticksHistory(ctx context.Context, instrumentID string, interval kline.Interval, before, after time.Time, limit uint64) ([]CandleStick, error) {
 	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketCandlesHistory)
 }
 
 // GetIndexCandlesticks Retrieve the candlestick charts of the index. This endpoint can retrieve the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
 // the respos is a lis of Candlestick data.
-func (ok *Okx) GetIndexCandlesticks(ctx context.Context, instrumentID string, interval kline.Interval, before time.Time, after time.Time, limit uint64) ([]CandleStick, error) {
+func (ok *Okx) GetIndexCandlesticks(ctx context.Context, instrumentID string, interval kline.Interval, before, after time.Time, limit uint64) ([]CandleStick, error) {
 	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketCandlesIndex)
 }
 
 // GetMarkPriceCandlesticks Retrieve the candlestick charts of mark price. This endpoint can retrieve the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
-func (ok *Okx) GetMarkPriceCandlesticks(ctx context.Context, instrumentID string, interval kline.Interval, before time.Time, after time.Time, limit uint64) ([]CandleStick, error) {
+func (ok *Okx) GetMarkPriceCandlesticks(ctx context.Context, instrumentID string, interval kline.Interval, before, after time.Time, limit uint64) ([]CandleStick, error) {
 	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketPriceCandles)
 }
 
 // GetCandlestickData handles fetching the data for both the default GetCandlesticks, GetCandlesticksHistory, and GetIndexCandlesticks() methods.
-func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, interval kline.Interval, before time.Time, after time.Time, limit uint64, route string) ([]CandleStick, error) {
+func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, interval kline.Interval, before, after time.Time, limit uint64, route string) ([]CandleStick, error) {
 	params := url.Values{}
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -3381,7 +3403,7 @@ func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, inte
 }
 
 // GetTrades Retrieve the recent transactions of an instrument.
-func (ok *Okx) GetTrades(ctx context.Context, instrumentId string, limit uint) ([]TradeResponse, error) {
+func (ok *Okx) GetTrades(ctx context.Context, instrumentID string, limit uint) ([]TradeResponse, error) {
 	type response struct {
 		Msg  string          `json:"msg"`
 		Code int             `json:"code,string"`
@@ -3389,10 +3411,10 @@ func (ok *Okx) GetTrades(ctx context.Context, instrumentId string, limit uint) (
 	}
 	var resp response
 	params := url.Values{}
-	if instrumentId == "" {
+	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
-	params.Set("instId", instrumentId)
+	params.Set("instId", instrumentID)
 	if limit > 0 && limit <= 500 {
 		params.Set("limit", strconv.Itoa(int(limit)))
 	}
@@ -3520,7 +3542,7 @@ func (ok *Okx) GetBlockTickers(ctx context.Context, instrumentType, underlying s
 	}
 	var resp response
 	path := common.EncodeURLValues(marketBlockTickers, params)
-	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBlockTickersEPL, http.MethodGet, path, nil, &resp, true)
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBlockTickersEPL, http.MethodGet, path, nil, &resp, false)
 }
 
 // GetBlockTicker retrieve the latest block trading volume in the last 24 hours.
@@ -3537,7 +3559,7 @@ func (ok *Okx) GetBlockTicker(ctx context.Context, instrumentID string) (*BlockT
 		Data []BlockTicker `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, getBlockTickersEPL, http.MethodGet, path, nil, &resp, true)
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, getBlockTickersEPL, http.MethodGet, path, nil, &resp, false)
 	if er != nil {
 		return nil, er
 	}
@@ -3564,7 +3586,7 @@ func (ok *Okx) GetBlockTrades(ctx context.Context, instrumentID string) ([]Block
 		Data []BlockTrade `json:"data"`
 	}
 	var resp response
-	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBlockTradesEPL, http.MethodGet, path, nil, &resp, true)
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBlockTradesEPL, http.MethodGet, path, nil, &resp, false)
 }
 
 /************************************ Public Data Endpoinst *************************************************/
@@ -3622,7 +3644,7 @@ func (ok *Okx) GetDeliveryHistory(ctx context.Context, instrumentType, underlyin
 }
 
 // GetOpenInterest retrieve the total open interest for contracts on OKX
-func (ok *Okx) GetOpenInterest(ctx context.Context, instType, uly, instId string) ([]OpenInterest, error) {
+func (ok *Okx) GetOpenInterest(ctx context.Context, instType, uly, instID string) ([]OpenInterest, error) {
 	params := url.Values{}
 	if !(strings.EqualFold(instType, OkxInstTypeSpot) || strings.EqualFold(instType, OkxInstTypeFutures) || strings.EqualFold(instType, OkxInstTypeOption)) {
 		return nil, errMissingRequiredArgInstType
@@ -3631,8 +3653,8 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, instType, uly, instId string
 	if uly != "" {
 		params.Set("uly", uly)
 	}
-	if instId != "" {
-		params.Set("instId", instId)
+	if instID != "" {
+		params.Set("instId", instID)
 	}
 	type response struct {
 		Code int            `json:"code,string"`
@@ -3666,7 +3688,7 @@ func (ok *Okx) GetFundingRate(ctx context.Context, instrumentID string) (*Fundin
 }
 
 // GetFundingRateHistory retrieve funding rate history. This endpoint can retrieve data from the last 3 months.
-func (ok *Okx) GetFundingRateHistory(ctx context.Context, instrumentID string, before time.Time, after time.Time, limit uint) ([]FundingRateResponse, error) {
+func (ok *Okx) GetFundingRateHistory(ctx context.Context, instrumentID string, before, after time.Time, limit uint) ([]FundingRateResponse, error) {
 	params := url.Values{}
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -3801,11 +3823,12 @@ func (ok *Okx) GetLiquidationOrders(ctx context.Context, arg *LiquidationOrderRe
 	if strings.EqualFold(arg.MarginMode, "isolated") || strings.EqualFold(arg.MarginMode, "cross") {
 		params.Set("mgnMode", arg.MarginMode)
 	}
-	if strings.EqualFold(arg.InstrumentType, OkxInstTypeMargin) && arg.InstrumentID != "" {
+	switch {
+	case strings.EqualFold(arg.InstrumentType, OkxInstTypeMargin) && arg.InstrumentID != "":
 		params.Set("instId", arg.InstrumentID)
-	} else if strings.EqualFold(arg.InstrumentType, OkxInstTypeMargin) && arg.Currency.String() != "" {
+	case strings.EqualFold(arg.InstrumentType, OkxInstTypeMargin) && arg.Currency.String() != "":
 		params.Set("ccy", arg.Currency.String())
-	} else {
+	default:
 		return nil, errEitherInstIDOrCcyIsRequired
 	}
 	if (strings.EqualFold(arg.InstrumentType, OkxInstTypeFutures) || strings.EqualFold(arg.InstrumentType, OkxInstTypeSwap) || strings.EqualFold(arg.InstrumentType, OkxInstTypeOption)) && arg.Underlying != "" {
@@ -3940,7 +3963,10 @@ func (ok *Okx) GetPublicUnderlyings(ctx context.Context, instrumentType string) 
 }
 
 // GetInsuranceFund returns insurance fund balance informations.
-func (ok *Okx) GetInsuranceFundInformations(ctx context.Context, arg InsuranceFundInformationRequestParams) (*InsuranceFundInformation, error) {
+func (ok *Okx) GetInsuranceFundInformations(ctx context.Context, arg *InsuranceFundInformationRequestParams) (*InsuranceFundInformation, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
 	params := url.Values{}
 	if !(strings.EqualFold(arg.InstrumentType, OkxInstTypeFutures) ||
 		strings.EqualFold(arg.InstrumentType, OkxInstTypeMargin) ||
@@ -4337,8 +4363,10 @@ func (ok *Okx) GetOpenInterestAndVolumeExpiry(ctx context.Context, currency stri
 	if er != nil {
 		return nil, er
 	}
-	var volumes []ExpiryOpenInterestAndVolume
+	volumes := []ExpiryOpenInterestAndVolume{}
 	for x := range resp.Data {
+		var timestamp int
+
 		if len(resp.Data[x]) != 6 {
 			continue
 		}
@@ -4349,11 +4377,14 @@ func (ok *Okx) GetOpenInterestAndVolumeExpiry(ctx context.Context, currency stri
 		var expiryTime time.Time
 		expTime := resp.Data[x][1]
 		if expTime != "" && len(expTime) == 8 {
-			year, er := strconv.Atoi(expTime[0:4])
+			var month int
+			var year int
+			var day int
+			year, er = strconv.Atoi(expTime[0:4])
 			if er != nil {
 				continue
 			}
-			month, er := strconv.Atoi(expTime[4:6])
+			month, er = strconv.Atoi(expTime[4:6])
 			var months string
 			var days string
 			if month <= 9 {
@@ -4364,7 +4395,7 @@ func (ok *Okx) GetOpenInterestAndVolumeExpiry(ctx context.Context, currency stri
 			if er != nil {
 				continue
 			}
-			day, er := strconv.Atoi(expTime[6:])
+			day, er = strconv.Atoi(expTime[6:])
 			if day <= 9 {
 				days = fmt.Sprintf("0%d", day)
 			} else {
@@ -4429,7 +4460,7 @@ func (ok *Okx) GetOpenInterestAndVolumeStrike(ctx context.Context, currency stri
 		if expTime.Day() <= 9 {
 			days = fmt.Sprintf("0%d", expTime.Day())
 		} else {
-			days = strconv.Itoa(int(expTime.Day()))
+			days = strconv.Itoa(expTime.Day())
 		}
 		params.Set("expTime", fmt.Sprintf("%d%s%s", expTime.Year(), months, days))
 	} else {
@@ -4446,7 +4477,7 @@ func (ok *Okx) GetOpenInterestAndVolumeStrike(ctx context.Context, currency stri
 	if er != nil {
 		return nil, er
 	}
-	var volumes []StrikeOpenInterestAndVolume
+	volumes := []StrikeOpenInterestAndVolume{}
 	for x := range resp.Data {
 		if len(resp.Data[x]) != 6 {
 			continue

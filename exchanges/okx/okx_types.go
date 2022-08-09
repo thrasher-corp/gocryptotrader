@@ -187,14 +187,14 @@ const (
 
 // Market Data Endoints
 
-// OkxMarkerDataResponse
-type OkxMarketDataResponse struct {
+// MarketDataResponse represents list of ticker market data.
+type MarketDataResponse struct {
 	Code int              `json:"code,string"`
 	Msg  string           `json:"msg"`
 	Data []TickerResponse `json:"data"`
 }
 
-// MarketData represents the Market data endpoint.
+// MarketData represents the market data endpoint ticker data item
 type TickerResponse struct {
 	InstrumentType asset.Item `json:"instType"`
 	InstrumentID   string     `json:"instId"`
@@ -258,29 +258,31 @@ type OrderBid struct {
 }
 
 // GetOrderBookResponseDetail returns the OrderBookResponseDetail instance from OrderBookResponse object.
-func (o *OrderBookResponse) GetOrderBookResponseDetail() *OrderBookResponseDetail {
+func (a *OrderBookResponse) GetOrderBookResponseDetail() *OrderBookResponseDetail {
 	return &OrderBookResponseDetail{
-		Asks:                o.GetAsks(),
-		Bids:                o.GetBids(),
-		GenerationTimestamp: o.GenerationTimeStamp,
+		Asks:                a.GetAsks(),
+		Bids:                a.GetBids(),
+		GenerationTimestamp: a.GenerationTimeStamp,
 	}
 }
-func (o *OrderBookResponse) GetAsks() []OrderAsk {
+
+// GetAsks returns list of asks from an order book response instance.
+func (a *OrderBookResponse) GetAsks() []OrderAsk {
 	asks := []OrderAsk{}
-	for x := range o.Asks {
-		depthPrice, er := strconv.ParseFloat(o.Asks[x][0], 64)
+	for x := range a.Asks {
+		depthPrice, er := strconv.ParseFloat(a.Asks[x][0], 64)
 		if er != nil {
 			continue
 		}
-		contracts, er := strconv.ParseFloat(o.Asks[x][1], 64)
+		contracts, er := strconv.ParseFloat(a.Asks[x][1], 64)
 		if er != nil {
 			continue
 		}
-		liquidation, er := strconv.Atoi(o.Asks[x][2])
+		liquidation, er := strconv.Atoi(a.Asks[x][2])
 		if er != nil {
 			continue
 		}
-		orders, er := strconv.Atoi(o.Asks[x][3])
+		orders, er := strconv.Atoi(a.Asks[x][3])
 		if er != nil {
 			continue
 		}
@@ -293,22 +295,22 @@ func (o *OrderBookResponse) GetAsks() []OrderAsk {
 	}
 	return asks
 }
-func (o *OrderBookResponse) GetBids() []OrderBid {
+func (a *OrderBookResponse) GetBids() []OrderBid {
 	bids := []OrderBid{}
-	for x := range o.Bids {
-		depthPrice, er := strconv.ParseFloat(o.Bids[x][0], 64)
+	for x := range a.Bids {
+		depthPrice, er := strconv.ParseFloat(a.Bids[x][0], 64)
 		if er != nil {
 			continue
 		}
-		currencies, er := strconv.ParseFloat(o.Bids[x][1], 64)
+		currencies, er := strconv.ParseFloat(a.Bids[x][1], 64)
 		if er != nil {
 			continue
 		}
-		liquidation, er := strconv.Atoi(o.Bids[x][2])
+		liquidation, er := strconv.Atoi(a.Bids[x][2])
 		if er != nil {
 			continue
 		}
-		orders, er := strconv.Atoi(o.Bids[x][3])
+		orders, er := strconv.Atoi(a.Bids[x][3])
 		if er != nil {
 			continue
 		}
@@ -358,9 +360,9 @@ type OracleSmartContractResponse struct {
 	Timestamp  time.Time         `json:"timestamp"`
 }
 
-// UsdCnvExchangeRate the exchange rate for converting from USD to CNV
+// UsdCnyExchangeRate the exchange rate for converting from USD to CNV
 type UsdCnyExchangeRate struct {
-	USD_CNY float64 `json:"usdCny,string"`
+	UsdCny float64 `json:"usdCny,string"`
 }
 
 // IndexComponent represents index component data on the market
@@ -380,7 +382,7 @@ type IndexComponentItem struct {
 	ExchangeName    string `json:"exch"`
 }
 
-// InstrumentsFetchParams ...
+// InstrumentsFetchParams request params for requesting list of instruments
 type InstrumentsFetchParams struct {
 	InstrumentType string // Mandatory
 	Underlying     string // Optional
@@ -418,14 +420,14 @@ type Instrument struct {
 	MaxStopSize                     float64    `json:"maxStopSz,string"`
 }
 
-// DeliveryHistoryDetail ...
+// DeliveryHistoryDetail holds instrument id and delivery price information detail
 type DeliveryHistoryDetail struct {
 	Type          string  `json:"type"`
 	InstrumentID  string  `json:"instId"`
 	DeliveryPrice float64 `json:"px,string"`
 }
 
-// DeliveryHistory
+// DeliveryHistory represents list of delivery history detail items and timestamp information
 type DeliveryHistory struct {
 	Timestamp time.Time               `json:"ts"`
 	Details   []DeliveryHistoryDetail `json:"details"`
@@ -449,11 +451,11 @@ type OpenInterest struct {
 
 // FundingRateResponse response data for the Funding Rate for an instruction type
 type FundingRateResponse struct {
-	FundingRate     float64    `json:"fundingRate,string"`
+	FundingRate     float64    `json:"fundingRate"`
 	FundingTime     time.Time  `json:"fundingTime"`
 	InstrumentID    string     `json:"instId"`
 	InstrumentType  asset.Item `json:"instType"`
-	NextFundingRate float64    `json:"nextFundingRate,string"`
+	NextFundingRate float64    `json:"nextFundingRate"`
 
 	//
 	NextFundingTime time.Time `json:"nextFundingTime"`
@@ -505,7 +507,7 @@ type DeliveryEstimatedPriceResponse struct {
 	Data []DeliveryEstimatedPrice `json:"data"`
 }
 
-// DiscountRateResponse
+// DiscountRateResponse represents list of discount rate, status code, and response message information
 type DiscountRateResponse struct {
 	Code string         `json:"code"`
 	Msg  string         `json:"msg"`
@@ -529,7 +531,7 @@ type ServerTime struct {
 	Timestamp time.Time `json:"ts"`
 }
 
-// LiquidationOrderRequestParams
+// LiquidationOrderRequestParams holds information to request liquidation orders
 type LiquidationOrderRequestParams struct {
 	InstrumentType string
 	MarginMode     string // values are either isolated or crossed
@@ -543,7 +545,7 @@ type LiquidationOrderRequestParams struct {
 	Limit          int64
 }
 
-// LiquidationOrder
+// LiquidationOrder represents liquidation order item detailed information
 type LiquidationOrder struct {
 	Details        []LiquidationOrderDetailItem `json:"details"`
 	InstrumentID   string                       `json:"instId"`
@@ -552,7 +554,7 @@ type LiquidationOrder struct {
 	Underlying     string                       `json:"uly"`
 }
 
-// LiquidationOrderResponse
+// LiquidationOrderResponse represents list of liquidation order, status code, and status message
 type LiquidationOrderResponse struct {
 	Code string             `json:"code"`
 	Msg  string             `json:"msg"`
@@ -585,14 +587,14 @@ type MarkPrice struct {
 	Timestamp      time.Time  `json:"ts"`
 }
 
-// PositionTiersResponse response
+// PositionTiersResponse represents list of position tier, status code, and status message information
 type PositionTiersResponse struct {
 	Code string          `json:"code"`
 	Msg  string          `json:"msg"`
 	Data []PositionTiers `json:"data"`
 }
 
-// PositionTiers ...
+// PositionTiers represents position tier detailed information
 type PositionTiers struct {
 	BaseMaxLoan                   string  `json:"baseMaxLoan"`
 	InitialMarginRequirement      string  `json:"imr"`
@@ -700,27 +702,27 @@ type TakerVolumeResponse struct {
 	Data [][3]string `json:"data"`
 }
 
-// TakerVolume
+// TakerVolume represents taker volume information with creation timestamp
 type TakerVolume struct {
 	Timestamp  time.Time `json:"ts"`
 	SellVolume float64
 	BuyVolume  float64
 }
 
-// MarginLendRatioItem
+// MarginLendRatioItem represents margin lend ration information and creation timestamp
 type MarginLendRatioItem struct {
 	Timestamp       time.Time `json:"ts"`
 	MarginLendRatio float64   `json:"ratio"`
 }
 
-// MarginLendRatioResponse
+// MarginLendRatioResponse represents detailed margin lend ratio data, status code, and status message information
 type MarginLendRatioResponse struct {
 	Code string      `json:"code"`
 	Msg  string      `json:"msg"`
 	Data [][2]string `json:"data"`
 }
 
-// // LongShortRatio
+// LongShortRatio
 type LongShortRatio struct {
 	Timestamp       time.Time `json:"ts"`
 	MarginLendRatio float64   `json:"ratio"`
@@ -764,7 +766,7 @@ type ExpiryOpenInterestAndVolume struct {
 	PutVolume        float64
 }
 
-// StrikeOpenInterestAndVolume ..
+// StrikeOpenInterestAndVolume
 type StrikeOpenInterestAndVolume struct {
 	Timestamp        time.Time
 	Strike           int64
@@ -1047,7 +1049,7 @@ type TrailingStopOrderRequestParam struct {
 	ActivePrice            string  `json:"activePx"`
 }
 
-// IceburgOrder ...
+// IceburgOrder
 type IceburgOrder struct {
 	PriceRatio    string  `json:"pxVar"`          // Optional
 	PriceVariance string  `json:"pxSpread"`       // Optional
@@ -1229,7 +1231,7 @@ type DepositHistoryResponseItem struct {
 	DepositID        string    `json:"depId"`
 }
 
-// WithdrawalInput ...
+// WithdrawalInput
 type WithdrawalInput struct {
 	Amount                float64 `json:"amt,string"`
 	TransactionFee        float64 `json:"fee,string"`
@@ -1489,7 +1491,7 @@ type AccountPosition struct {
 	Interest                      string     `json:"interest"`
 	USDPrice                      string     `json:"usdPx"`
 	LastTradePrice                string     `json:"last"`
-	Leverage                      string     `json:"lever"`   //Leverage, not applicable to OPTION seller
+	Leverage                      string     `json:"lever"`   // Leverage, not applicable to OPTION seller
 	Liabilities                   string     `json:"liab"`    // Liabilities, only applicable to MARGIN.
 	LiabilitiesCurrency           string     `json:"liabCcy"` // Liabilities currency, only applicable to MARGIN.
 	LiquidationPrice              string     `json:"liqPx"`   // Estimated liquidation price Not applicable to OPTION
@@ -1842,7 +1844,7 @@ type PositionBuilderData struct {
 	InstrumentType     asset.Item `json:"instType"`
 	NotionalUsd        string     `json:"notionalUsd"` // Quantity of positions usd
 	QuantityOfPosition string     `json:"pos"`         // Quantity of positions
-	Theta              string     `json:"theta"`       //Sensitivity of option price to remaining maturity
+	Theta              string     `json:"theta"`       // Sensitivity of option price to remaining maturity
 	Vega               string     `json:"vega"`        // Sensitivity of option price to implied volatility
 }
 
@@ -2421,7 +2423,7 @@ type SubscriptionInfo struct {
 // WSSubscriptionInformation websocket subscription and unsubscription operation inputs.
 type WSSubscriptionInformation struct {
 	Operation string           `json:"op"`
-	Agruments SubscriptionInfo `json:"arg"`
+	Arguments SubscriptionInfo `json:"arg"`
 }
 
 // WSSubscriptionInformations websocket subscription and unsubscription operation inputs.
@@ -2475,7 +2477,7 @@ type WSPlaceOrder struct {
 	Arguments []WSPlaceOrderData `json:"args"`
 }
 
-// WSPlaceOrderResponse place order response throught the websocket connection.
+// WSPlaceOrderResponse place order response thought the websocket connection.
 type WSPlaceOrderResponse struct {
 	ID        string               `json:"id"`
 	Operation string               `json:"op"`
@@ -2484,7 +2486,7 @@ type WSPlaceOrderResponse struct {
 	Msg       string               `json:"msg,omitempty"`
 }
 
-// WebsocketDataResponse represents all pushed websocket data coming throught the websocket connection
+// WebsocketDataResponse represents all pushed websocket data coming thought the websocket connection
 type WebsocketDataResponse struct {
 	Argument SubscriptionInfo `json:"arg"`
 	Action   string           `json:"action"`
@@ -2588,7 +2590,7 @@ type SubscriptionOperationInput struct {
 	Arguments []SubscriptionInfo `json:"args"`
 }
 
-// SubscriptionOperationResponse holds account subscription response throught the websocket channel.
+// SubscriptionOperationResponse holds account subscription response thought the websocket channel.
 type SubscriptionOperationResponse struct {
 	Event    string            `json:"event"`
 	Argument *SubscriptionInfo `json:"arg,omitempty"`

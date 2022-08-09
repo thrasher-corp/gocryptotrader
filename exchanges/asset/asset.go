@@ -33,10 +33,11 @@ const (
 	DownsideProfitContract
 	CoinMarginedFutures
 	USDTMarginedFutures
+	USDCMarginedFutures
 	Option
 
-	futuresFlag   = PerpetualContract | PerpetualSwap | Futures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures
-	supportedFlag = Spot | Margin | MarginFunding | Index | Binary | PerpetualContract | PerpetualSwap | Futures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | Option
+	futuresFlag   = PerpetualContract | PerpetualSwap | Futures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures
+	supportedFlag = Spot | Margin | MarginFunding | Index | Binary | PerpetualContract | PerpetualSwap | Futures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Option
 
 	spot                   = "spot"
 	margin                 = "margin"
@@ -50,19 +51,12 @@ const (
 	downsideProfitContract = "downsideprofitcontract"
 	coinMarginedFutures    = "coinmarginedfutures"
 	usdtMarginedFutures    = "usdtmarginedfutures"
-<<<<<<< HEAD
+	usdcMarginedFutures    = "usdcmarginedfutures"
 	option                 = "option"
 )
 
 var (
-	supportedList = Items{Spot, Margin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, Option}
-=======
-	usdcMarginedFutures    = "usdcmarginedfutures"
-)
-
-var (
-	supportedList = Items{Spot, Margin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures}
->>>>>>> cdb626a1bab41bfdf029560496a2d4844b7dac1e
+	supportedList = Items{Spot, Margin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, Option}
 )
 
 // Supported returns a list of supported asset types
@@ -97,13 +91,10 @@ func (a Item) String() string {
 		return coinMarginedFutures
 	case USDTMarginedFutures:
 		return usdtMarginedFutures
-<<<<<<< HEAD
-	case Option:
-		return option
-=======
 	case USDCMarginedFutures:
 		return usdcMarginedFutures
->>>>>>> cdb626a1bab41bfdf029560496a2d4844b7dac1e
+	case Option:
+		return option
 	default:
 		return ""
 	}
@@ -197,6 +188,8 @@ func New(input string) (Item, error) {
 		return CoinMarginedFutures, nil
 	case usdtMarginedFutures:
 		return USDTMarginedFutures, nil
+	case usdcMarginedFutures:
+		return USDCMarginedFutures, nil
 	case option:
 		return Option, nil
 	default:

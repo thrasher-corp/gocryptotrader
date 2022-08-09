@@ -394,7 +394,7 @@ func (ok *Okx) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) 
 func (ok *Okx) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 	switch assetType {
 	case asset.Spot, asset.Margin, asset.Futures, asset.PerpetualSwap, asset.Option:
-		instrumentType := ""
+		var instrumentType string
 		switch assetType {
 		case asset.PerpetualSwap:
 			instrumentType = "SWAP"
@@ -479,7 +479,8 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 	var er error
 	switch assetType {
 	case asset.Spot, asset.Margin, asset.PerpetualSwap, asset.Option, asset.Futures:
-		instrumentID, er := ok.GetInstrumentIDFromPair(pair, assetType)
+		var instrumentID string
+		instrumentID, er = ok.GetInstrumentIDFromPair(pair, assetType)
 		if er != nil {
 			return book, er
 		}
@@ -605,7 +606,7 @@ func (ok *Okx) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, e
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (ok *Okx) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (ok *Okx) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	withdrawals, er := ok.GetWithdrawalHistory(ctx, c.String(), "", "", "", -5, time.Time{}, time.Time{}, 0)
 	if er != nil {
 		return nil, er
@@ -751,6 +752,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			orderType = OkxOrderOptimalLimitIOC // only applicable for Futures and Perpetual Swap Types.
 		}
 		orderRequest.PositionSide = "long"
+		orderRequest.OrderType = orderType
 		placeOrderResponse, er = ok.PlaceOrder(ctx, orderRequest)
 	default:
 		return nil, errInvalidInstrumentType
@@ -761,7 +763,6 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 	if placeOrderResponse.OrderID != "0" && placeOrderResponse.OrderID != "" {
 		submitOrderResponse.OrderID = placeOrderResponse.OrderID
 	}
-	// submitOrderResponse.IsOrderPlaced = true
 	return &submitOrderResponse, nil
 }
 
@@ -832,7 +833,8 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (or
 		}
 		switch ord.AssetType {
 		case asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Option:
-			instrumentID, er := ok.GetInstrumentIDFromPair(ord.Pair, ord.AssetType)
+			var instrumentID string
+			instrumentID, er = ok.GetInstrumentIDFromPair(ord.Pair, ord.AssetType)
 			if er != nil {
 				return cancelBatchResponse, er
 			}
@@ -890,13 +892,12 @@ func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 		case OkxOrderOptimalLimitIOC:
 			orderType = order.UnknownType
 		}
-		orderSide := order.Side(orderDetail.Side)
 		return order.Detail{
 			Amount:         orderDetail.Size,
 			Exchange:       ok.Name,
 			OrderID:        orderDetail.OrderID,
 			ClientOrderID:  orderDetail.ClientSupplierOrderID,
-			Side:           orderSide,
+			Side:           orderDetail.Side,
 			Type:           orderType,
 			Pair:           pair,
 			Cost:           orderDetail.Price,
@@ -913,7 +914,7 @@ func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (ok *Okx) GetDepositAddress(ctx context.Context, c currency.Code, accountID string, chain string) (*deposit.Address, error) {
+func (ok *Okx) GetDepositAddress(ctx context.Context, c currency.Code, accountID, chain string) (*deposit.Address, error) {
 	response, er := ok.GetCurrencyDepositAddress(ctx, c.String())
 	if er != nil {
 		return nil, er
@@ -1074,7 +1075,7 @@ func (ok *Okx) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 		case asset.PerpetualSwap:
 			instrumentType = "SWAP"
 		default:
-			instrumentType = strings.ToUpper(req.AssetType.String())
+			instrumentType = strings.ToUpper(ok.GetInstrumentTypeFromAssetItem(req.AssetType))
 		}
 		response, er := ok.Get3MonthOrderHistory(ctx, &OrderHistoryRequestParams{
 			OrderListRequestParams: OrderListRequestParams{
