@@ -65,6 +65,7 @@ func (l *DataChecker) Start() error {
 	}
 	l.wg.Add(1)
 	go func() {
+		defer l.wg.Done()
 		err := l.DataFetcher()
 		if err != nil {
 			return
@@ -103,7 +104,6 @@ func (l *DataChecker) DataFetcher() error {
 	if atomic.LoadUint32(&l.started) == 0 {
 		return engine.ErrSubSystemNotStarted
 	}
-	defer l.wg.Done()
 	checkTimer := time.NewTimer(0)
 	timeoutTimer := time.NewTimer(l.eventTimeout)
 	var err error
