@@ -77,6 +77,9 @@ func (m *DataHistoryManager) Start() error {
 	if m == nil {
 		return ErrNilSubsystem
 	}
+	if m.databaseConnectionInstance == nil {
+		return errNilDatabaseConnectionManager
+	}
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
 		return ErrSubSystemAlreadyStarted
 	}
@@ -225,7 +228,7 @@ func (m *DataHistoryManager) run() {
 			case <-m.shutdown:
 				return
 			case <-m.interval.C:
-				if m.databaseConnectionInstance.IsConnected() {
+				if m.databaseConnectionInstance != nil && m.databaseConnectionInstance.IsConnected() {
 					go func() {
 						if err := m.runJobs(); err != nil {
 							log.Error(log.DataHistory, err)
