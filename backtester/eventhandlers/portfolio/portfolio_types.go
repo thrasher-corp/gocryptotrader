@@ -54,7 +54,7 @@ type Handler interface {
 	GetLatestOrderSnapshotForEvent(common.Event) (compliance.Snapshot, error)
 	GetLatestOrderSnapshots() ([]compliance.Snapshot, error)
 	ViewHoldingAtTimePeriod(common.Event) (*holdings.Holding, error)
-	setHoldingsForOffset(*holdings.Holding, bool) error
+	SetHoldingsForOffset(*holdings.Holding, bool) error
 	UpdateHoldings(data.Event, funding.IFundReleaser) error
 	GetComplianceManager(string, asset.Item, currency.Pair) (*compliance.Manager, error)
 	GetPositions(common.Event) ([]gctorder.PositionStats, error)

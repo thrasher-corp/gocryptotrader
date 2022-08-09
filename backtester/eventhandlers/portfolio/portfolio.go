@@ -259,9 +259,9 @@ func (p *Portfolio) OnFill(ev fill.Event, funds funding.IFundReleaser) (fill.Eve
 			}
 		}
 	}
-	err = p.setHoldingsForOffset(&h, true)
+	err = p.SetHoldingsForOffset(&h, true)
 	if errors.Is(err, errNoHoldings) {
-		err = p.setHoldingsForOffset(&h, false)
+		err = p.SetHoldingsForOffset(&h, false)
 	}
 	if err != nil {
 		log.Error(common.Portfolio, err)
@@ -307,7 +307,7 @@ func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
 	return complianceManager.AddSnapshot(snap, false)
 }
 
-func (p *Portfolio) setHoldingsForOffset(h *holdings.Holding, overwriteExisting bool) error {
+func (p *Portfolio) SetHoldingsForOffset(h *holdings.Holding, overwriteExisting bool) error {
 	if h.Timestamp.IsZero() {
 		return errHoldingsNoTimestamp
 	}
@@ -392,9 +392,9 @@ func (p *Portfolio) UpdateHoldings(e data.Event, funds funding.IFundReleaser) er
 		}
 	}
 	h.UpdateValue(e)
-	err = p.setHoldingsForOffset(&h, true)
+	err = p.SetHoldingsForOffset(&h, true)
 	if errors.Is(err, errNoHoldings) {
-		err = p.setHoldingsForOffset(&h, false)
+		err = p.SetHoldingsForOffset(&h, false)
 	}
 	return err
 }

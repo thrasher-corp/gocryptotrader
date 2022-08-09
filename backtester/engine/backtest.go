@@ -81,16 +81,22 @@ func (bt *BackTest) RunLive() error {
 // Run will iterate over loaded data events
 // save them and then handle the event based on its type
 func (bt *BackTest) Run() {
+	var doubleNil bool
 dataLoadingIssue:
 	for ev := bt.EventQueue.NextEvent(); ; ev = bt.EventQueue.NextEvent() {
 		if ev == nil {
+			if doubleNil {
+				log.Error(common.Backtester, errDoubleNil)
+				break dataLoadingIssue
+			}
+			doubleNil = true
 			dataHandlerMap := bt.DataHolder.GetAllData()
 			for exchangeName, exchangeMap := range dataHandlerMap {
 				for assetItem, assetMap := range exchangeMap {
 					for currencyPair, dataHandler := range assetMap {
 						d := dataHandler.Next()
 						if d == nil {
-							if !bt.hasHandledEvent && bt.LiveDataHandler == nil {
+							if !bt.hasProcessedAnEvent && bt.LiveDataHandler == nil {
 								log.Errorf(common.Backtester, "Unable to perform `Next` for %v %v %v", exchangeName, assetItem, currencyPair)
 							}
 							break dataLoadingIssue
@@ -110,13 +116,14 @@ dataLoadingIssue:
 				}
 			}
 		} else {
+			doubleNil = false
 			err := bt.handleEvent(ev)
 			if err != nil {
 				log.Error(common.Backtester, err)
 			}
-		}
-		if !bt.hasHandledEvent {
-			bt.hasHandledEvent = true
+			if !bt.hasProcessedAnEvent {
+				bt.hasProcessedAnEvent = true
+			}
 		}
 	}
 }
@@ -515,6 +522,9 @@ func (bt *BackTest) Stop() {
 
 func (bt *BackTest) CloseAllPositions() error {
 	close(bt.shutdown)
+	if bt.LiveDataHandler == nil {
+		return errLiveOnly
+	}
 	allData := bt.DataHolder.GetAllData()
 	var latestPrices []data.Event
 	for _, exchangeMap := range allData {

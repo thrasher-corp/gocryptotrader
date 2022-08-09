@@ -2,6 +2,9 @@ package engine
 
 import (
 	"errors"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/ftxcashandcarry"
 	"strings"
 	"testing"
 	"time"
@@ -1399,4 +1402,262 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
+	hi := make(chan struct{})
+	t.Log(hi)
+	hi = make(chan struct{})
 }
+
+func TestCloseAllPositions(t *testing.T) {
+	t.Parallel()
+	bt := New()
+	pt := &portfolio.Portfolio{}
+	bt.Portfolio = pt
+	bt.Strategy = &dollarcostaverage.Strategy{}
+
+	err := bt.CloseAllPositions()
+	if !errors.Is(err, errLiveOnly) {
+		t.Errorf("received '%v' expected '%v'", err, errLiveOnly)
+	}
+
+	bt.shutdown = make(chan struct{})
+	bt.LiveDataHandler = &live.DataChecker{}
+	err = bt.CloseAllPositions()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	bt.shutdown = make(chan struct{})
+	bt.Strategy = &ftxcashandcarry.Strategy{}
+	err = bt.CloseAllPositions()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	bt.shutdown = make(chan struct{})
+	bt.Portfolio = &fakeFolio{}
+	bt.Strategy = &fakeStrat{}
+	bt.Exchange = &exchange.Exchange{}
+	bt.Statistic = &statistics.Statistic{}
+	bt.Funding = &fakeFunding{}
+	bt.DataHolder = &fakeDataHolder{}
+	err = bt.CloseAllPositions()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+}
+
+// Overriding functions
+// these are designed to override interface implementations
+// so there is less requirement gathering per test as the functions are
+// tested in their own package
+
+type fakeDataHolder struct{}
+
+func (f fakeDataHolder) Setup() {
+}
+
+func (f fakeDataHolder) SetDataForCurrency(s string, item asset.Item, pair currency.Pair, handler data.Handler) {
+}
+
+func (f fakeDataHolder) GetAllData() map[string]map[asset.Item]map[currency.Pair]data.Handler {
+	return map[string]map[asset.Item]map[currency.Pair]data.Handler{
+		testExchange: {
+			asset.Spot: map[currency.Pair]data.Handler{
+				currency.NewPair(currency.BTC, currency.USD): &kline.DataFromKline{},
+			},
+		},
+	}
+}
+
+func (f fakeDataHolder) GetDataForCurrency(ev common.Event) (data.Handler, error) {
+	return nil, nil
+}
+
+func (f fakeDataHolder) Reset() {}
+
+type fakeFunding struct{}
+
+func (f fakeFunding) Reset() {
+}
+
+func (f fakeFunding) IsUsingExchangeLevelFunding() bool {
+	return true
+}
+
+func (f fakeFunding) GetFundingForEvent(c common.Event) (funding.IFundingPair, error) {
+	return &funding.SpotPair{}, nil
+}
+
+func (f fakeFunding) Transfer(d decimal.Decimal, item *funding.Item, item2 *funding.Item, b bool) error {
+	return nil
+}
+
+func (f fakeFunding) GenerateReport() *funding.Report {
+	return nil
+}
+
+func (f fakeFunding) AddUSDTrackingData(fromKline *kline.DataFromKline) error {
+	return nil
+}
+
+func (f fakeFunding) CreateSnapshot(t time.Time) {
+}
+
+func (f fakeFunding) USDTrackingDisabled() bool {
+	return false
+}
+
+func (f fakeFunding) Liquidate(c common.Event) {
+}
+
+func (f fakeFunding) GetAllFunding() []funding.BasicItem {
+	return nil
+}
+
+func (f fakeFunding) UpdateCollateral(c common.Event) error {
+	return nil
+}
+
+func (f fakeFunding) HasFutures() bool {
+	return false
+}
+
+func (f fakeFunding) HasExchangeBeenLiquidated(handler common.Event) bool {
+	return false
+}
+
+func (f fakeFunding) RealisePNL(receivingExchange string, receivingAsset asset.Item, receivingCurrency currency.Code, realisedPNL decimal.Decimal) error {
+	return nil
+}
+
+type fakeStrat struct{}
+
+func (f fakeStrat) Name() string {
+	return "fake"
+}
+
+func (f fakeStrat) Description() string {
+	return "fake"
+}
+
+func (f fakeStrat) OnSignal(handler data.Handler, transferer funding.IFundingTransferer, handler2 portfolio.Handler) (signal.Event, error) {
+	return nil, nil
+}
+
+func (f fakeStrat) OnSimultaneousSignals(handlers []data.Handler, transferer funding.IFundingTransferer, handler portfolio.Handler) ([]signal.Event, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (f fakeStrat) UsingSimultaneousProcessing() bool {
+	return true
+}
+
+func (f fakeStrat) SupportsSimultaneousProcessing() bool {
+	return true
+}
+
+func (f fakeStrat) SetSimultaneousProcessing(b bool) {}
+
+func (f fakeStrat) SetCustomSettings(m map[string]interface{}) error {
+	return nil
+}
+
+func (f fakeStrat) SetDefaults() {}
+
+func (f fakeStrat) CloseAllPositions(i []holdings.Holding, events []data.Event) ([]signal.Event, error) {
+	return []signal.Event{
+		&signal.Signal{
+			Base: &event.Base{
+				Offset:         1,
+				Exchange:       testExchange,
+				Time:           time.Now(),
+				Interval:       gctkline.FifteenSecond,
+				CurrencyPair:   currency.NewPair(currency.BTC, currency.USD),
+				UnderlyingPair: currency.NewPair(currency.BTC, currency.USD),
+				AssetType:      asset.Spot,
+			},
+			OpenPrice:  leet,
+			HighPrice:  leet,
+			LowPrice:   leet,
+			ClosePrice: leet,
+			Volume:     leet,
+			BuyLimit:   leet,
+			SellLimit:  leet,
+			Amount:     leet,
+			Direction:  gctorder.Buy,
+		},
+	}, nil
+}
+
+type fakeFolio struct{}
+
+func (f fakeFolio) SetHoldingsForOffset(holding *holdings.Holding, b bool) error {
+	return nil
+}
+
+func (f fakeFolio) OnSignal(s signal.Event, settings *exchange.Settings, reserver funding.IFundReserver) (*order.Order, error) {
+	return nil, nil
+}
+
+func (f fakeFolio) OnFill(f2 fill.Event, releaser funding.IFundReleaser) (fill.Event, error) {
+	return nil, nil
+}
+
+func (f fakeFolio) GetLatestOrderSnapshotForEvent(c common.Event) (compliance.Snapshot, error) {
+	return compliance.Snapshot{}, nil
+}
+
+func (f fakeFolio) GetLatestOrderSnapshots() ([]compliance.Snapshot, error) {
+	return nil, nil
+}
+
+func (f fakeFolio) ViewHoldingAtTimePeriod(c common.Event) (*holdings.Holding, error) {
+	return nil, nil
+}
+
+func (f fakeFolio) setHoldingsForOffset(holding *holdings.Holding, b bool) error {
+	return nil
+}
+
+func (f fakeFolio) UpdateHoldings(d data.Event, releaser funding.IFundReleaser) error {
+	return nil
+}
+
+func (f fakeFolio) GetComplianceManager(s string, item asset.Item, pair currency.Pair) (*compliance.Manager, error) {
+	return nil, nil
+}
+
+func (f fakeFolio) GetPositions(c common.Event) ([]gctorder.PositionStats, error) {
+	return nil, nil
+}
+
+func (f fakeFolio) TrackFuturesOrder(f2 fill.Event, releaser funding.IFundReleaser) (*portfolio.PNLSummary, error) {
+	return nil, nil
+}
+
+func (f fakeFolio) UpdatePNL(c common.Event, d decimal.Decimal) error {
+	return nil
+}
+
+func (f fakeFolio) GetLatestPNLForEvent(c common.Event) (*portfolio.PNLSummary, error) {
+	return nil, nil
+}
+
+func (f fakeFolio) GetLatestPNLs() []portfolio.PNLSummary {
+	return nil
+}
+
+func (f fakeFolio) CheckLiquidationStatus(d data.Event, reader funding.ICollateralReader, summary *portfolio.PNLSummary) error {
+	return nil
+}
+
+func (f fakeFolio) CreateLiquidationOrdersForExchange(d data.Event, manager funding.IFundingManager) ([]order.Event, error) {
+	return nil, nil
+}
+
+func (f fakeFolio) GetLatestHoldingsForAllCurrencies() []holdings.Holding {
+	return nil
+}
+
+func (f fakeFolio) Reset() {}

@@ -101,13 +101,13 @@ func TestSetHoldings(t *testing.T) {
 	t.Parallel()
 	p := &Portfolio{}
 
-	err := p.setHoldingsForOffset(&holdings.Holding{}, false)
+	err := p.SetHoldingsForOffset(&holdings.Holding{}, false)
 	if !errors.Is(err, errHoldingsNoTimestamp) {
 		t.Errorf("received: %v, expected: %v", err, errHoldingsNoTimestamp)
 	}
 	tt := time.Now()
 
-	err = p.setHoldingsForOffset(&holdings.Holding{Timestamp: tt}, false)
+	err = p.SetHoldingsForOffset(&holdings.Holding{Timestamp: tt}, false)
 	if !errors.Is(err, errNoPortfolioSettings) {
 		t.Errorf("received: %v, expected: %v", err, errNoPortfolioSettings)
 	}
@@ -118,7 +118,7 @@ func TestSetHoldings(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	err = p.setHoldingsForOffset(&holdings.Holding{
+	err = p.SetHoldingsForOffset(&holdings.Holding{
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USD),
@@ -127,7 +127,7 @@ func TestSetHoldings(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	err = p.setHoldingsForOffset(&holdings.Holding{
+	err = p.SetHoldingsForOffset(&holdings.Holding{
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USD),
@@ -145,7 +145,7 @@ func TestGetLatestHoldingsForAllCurrencies(t *testing.T) {
 		t.Error("expected 0")
 	}
 	tt := time.Now()
-	err := p.setHoldingsForOffset(&holdings.Holding{
+	err := p.SetHoldingsForOffset(&holdings.Holding{
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USD),
@@ -164,7 +164,7 @@ func TestGetLatestHoldingsForAllCurrencies(t *testing.T) {
 	if len(h) != 0 {
 		t.Errorf("received %v, expected %v", len(h), 0)
 	}
-	err = p.setHoldingsForOffset(&holdings.Holding{
+	err = p.SetHoldingsForOffset(&holdings.Holding{
 		Offset:    1,
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
@@ -177,7 +177,7 @@ func TestGetLatestHoldingsForAllCurrencies(t *testing.T) {
 	if len(h) != 1 {
 		t.Errorf("received %v, expected %v", len(h), 1)
 	}
-	err = p.setHoldingsForOffset(&holdings.Holding{
+	err = p.SetHoldingsForOffset(&holdings.Holding{
 		Offset:    1,
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
@@ -186,7 +186,7 @@ func TestGetLatestHoldingsForAllCurrencies(t *testing.T) {
 	if !errors.Is(err, errHoldingsAlreadySet) {
 		t.Errorf("received: %v, expected: %v", err, errHoldingsAlreadySet)
 	}
-	err = p.setHoldingsForOffset(&holdings.Holding{
+	err = p.SetHoldingsForOffset(&holdings.Holding{
 		Offset:    1,
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
@@ -225,7 +225,7 @@ func TestViewHoldingAtTimePeriod(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	err = p.setHoldingsForOffset(&holdings.Holding{
+	err = p.SetHoldingsForOffset(&holdings.Holding{
 		Offset:    1,
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
@@ -234,7 +234,7 @@ func TestViewHoldingAtTimePeriod(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	err = p.setHoldingsForOffset(&holdings.Holding{
+	err = p.SetHoldingsForOffset(&holdings.Holding{
 		Offset:    2,
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
@@ -287,7 +287,7 @@ func TestUpdate(t *testing.T) {
 	}
 
 	tt := time.Now()
-	err = p.setHoldingsForOffset(&holdings.Holding{
+	err = p.SetHoldingsForOffset(&holdings.Holding{
 		Offset:    1,
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
@@ -522,7 +522,7 @@ func TestOnSignal(t *testing.T) {
 	}
 
 	s.Direction = gctorder.Buy
-	err = p.setHoldingsForOffset(&holdings.Holding{
+	err = p.SetHoldingsForOffset(&holdings.Holding{
 		Exchange:  "lol",
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USD),
