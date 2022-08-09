@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"sync"
 	"time"
 )
 
@@ -12,6 +13,9 @@ var (
 	errWriterAlreadyLoaded = errors.New("io.Writer already loaded")
 	errWriterNotFound      = errors.New("io.Writer not found")
 	errJobsChannelIsFull   = errors.New("logger jobs channel is filled")
+
+	processingBacklog sync.WaitGroup
+	kick              = make(chan struct{})
 )
 
 // Add appends a new writer to the multiwriter slice
@@ -105,12 +109,17 @@ func (mw *multiWriterHolder) StageLogEvent(fn deferral, header, slName, spacer, 
 	select {
 	case jobsChannel <- newJob:
 	default:
+		processingBacklog.Add(1)
 		// This will cause temporary caller impedance, which can have a knock
 		// on effect in processing.
 		if !bypassWarning {
 			log.Printf("Logger warning: %v\n", errJobsChannelIsFull)
 		}
-		jobsChannel <- newJob
+		select {
+		case jobsChannel <- newJob:
+		case <-kick:
+		}
+		processingBacklog.Done()
 	}
 }
 

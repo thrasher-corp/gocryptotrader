@@ -32,11 +32,8 @@ func CloseLogger() error {
 	globalLogConfig.Enabled = convert.BoolPtr(false)
 	close(jobsChannel)
 	workerWg.Wait()
-	// NOTE: Below is to make sure we have a worker if we are testing externally.
-	jobsChannel = make(chan *job, defaultJobChannelCapacity)
-	workerWg.Add(1)
-	go loggerWorker()
-	// ----
+	close(kick)
+	processingBacklog.Wait()
 	mu.Unlock()
 	return globalLogFile.Close()
 }

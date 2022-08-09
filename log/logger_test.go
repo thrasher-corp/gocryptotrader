@@ -115,6 +115,7 @@ func TestSetLogPath(t *testing.T) {
 	if !errors.Is(err, errLogPathIsEmpty) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errLogPathIsEmpty)
 	}
+
 	err = SetLogPath(tempDir)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -685,7 +686,7 @@ func newTestBuffer() *testBuffer {
 	return &testBuffer{Finished: make(chan struct{}, 1)}
 }
 
-//  2140294	       770.0 ns/op	       0 B/op	       0 allocs/op
+// 2140294	       770.0 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkNewLogEvent(b *testing.B) {
 	mw := &multiWriterHolder{writers: []io.Writer{io.Discard}}
 	for i := 0; i < b.N; i++ {
