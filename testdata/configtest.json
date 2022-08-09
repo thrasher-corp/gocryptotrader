@@ -258,7 +258,8 @@
             "uppercase": true
            },
            "configFormat": {
-            "uppercase": true
+            "uppercase": true,
+            "delimiter": "-"
            }
           }
          }

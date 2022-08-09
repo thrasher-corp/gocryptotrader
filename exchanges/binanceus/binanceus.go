@@ -101,8 +101,8 @@ const (
 	subAccountDepositAddress = "/sapi/v1/capital/sub-account/deposit/address"
 	subAccountDepositHistory = "/sapi/v1/capital/sub-account/deposit/history"
 
-	// Referal Reward Endpoints
-	referalRewardHistory = "/sapi/v1/marketing/referral/reward/history"
+	// Referral Reward Endpoints
+	referralRewardHistory = "/sapi/v1/marketing/referral/reward/history"
 
 	// Web socket related route
 	userAccountStream = "/api/v3/userDataStream"
@@ -148,7 +148,7 @@ var (
 	errMissingQuoteID                         = errors.New("missing quote id")
 	errMissingSubAccountEmail                 = errors.New("missing sub-account email address")
 	errMissingCurrencyCoin                    = errors.New("missing currency coin")
-	errInvalidUserBusineddType                = errors.New("only 0: referrer and 1: referee are allowed")
+	errInvalidUserBusinessType                = errors.New("only 0: referrer and 1: referee are allowed")
 	errMissingPageNumber                      = errors.New("missing page number")
 	errInvalidRowNumber                       = errors.New("invalid row number")
 )
@@ -828,7 +828,7 @@ func (bi *Binanceus) QuickDisableCryptoWithdrawal(ctx context.Context) error {
 		accountDisableCryptoWithdrawalEndpoint, params, spotDefaultRate, nil)
 }
 
-// GetUsersSpotAssetSnapshot retrives a snapshot of list of assets in the account.
+// GetUsersSpotAssetSnapshot retrieves a snapshot of list of assets in the account.
 func (bi *Binanceus) GetUsersSpotAssetSnapshot(ctx context.Context, startTime, endTime time.Time, limit, offset uint) (*SpotAssetsSnapshotResponse, error) {
 	params := url.Values{}
 	params.Set("type", "SPOT")
@@ -1463,7 +1463,8 @@ func (bi *Binanceus) GetAssetFeesAndWalletStatus(ctx context.Context) (AssetWall
 	params := url.Values{}
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	var response AssetWalletList
-	return response, bi.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
+	return response, bi.SendAuthHTTPRequest(ctx,
+		exchange.RestSpotSupplementary,
 		http.MethodGet, assetFeeAndWalletStatus,
 		params, spotDefaultRate, &response)
 }
@@ -1759,11 +1760,12 @@ func (bi *Binanceus) GetSubAccountDepositHistory(ctx context.Context, email stri
 // GetReferralRewardHistory retrieves the user’s referral reward history.
 func (bi *Binanceus) GetReferralRewardHistory(ctx context.Context, userBusinessType, page, rows int) (*ReferralRewardHistoryResponse, error) {
 	params := url.Values{}
-	if !(userBusinessType == 0 || userBusinessType == 1) {
-		return nil, errInvalidUserBusineddType
-	} else if page == 0 {
+	switch {
+	case !(userBusinessType == 0 || userBusinessType == 1):
+		return nil, errInvalidUserBusinessType
+	case page == 0:
 		return nil, errMissingPageNumber
-	} else if rows < 1 || rows > 200 {
+	case rows < 1 || rows > 200:
 		return nil, errInvalidRowNumber
 	}
 	params.Set("userBizType", strconv.Itoa(userBusinessType))
@@ -1771,7 +1773,7 @@ func (bi *Binanceus) GetReferralRewardHistory(ctx context.Context, userBusinessT
 	params.Set("rows", strconv.Itoa(rows))
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	var response ReferralRewardHistoryResponse
-	return &response, bi.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, referalRewardHistory, params, spotDefaultRate, &response)
+	return &response, bi.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, referralRewardHistory, params, spotDefaultRate, &response)
 }
 
 // SendHTTPRequest sends an unauthenticated request
@@ -1912,7 +1914,7 @@ func (bi *Binanceus) GetWsAuthStreamKey(ctx context.Context) (string, error) {
 		HTTPRecording: bi.HTTPRecording,
 	}
 
-	err = bi.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	err = bi.SendPayload(ctx, spotDefaultRate, func() (*request.Item, error) {
 		return item, nil
 	})
 	if err != nil {

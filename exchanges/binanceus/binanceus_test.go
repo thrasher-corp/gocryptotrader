@@ -39,7 +39,6 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	bi.validLimits = []int64{5, 10, 20, 50, 100, 500, 1000}
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
@@ -50,8 +49,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	bi.SkipAuthCheck = true
-
 	exchCfg.API.AuthenticatedSupport = true
 	exchCfg.API.AuthenticatedWebsocketSupport = true
 	exchCfg.API.Credentials.Key = apiKey
@@ -126,11 +123,7 @@ func TestUpdateTickers(t *testing.T) {
 
 func TestUpdateOrderBook(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Error("Binanceus UpdateOrderBook() error", err)
-	}
-	_, er := bi.UpdateOrderbook(context.Background(), currencyPair, asset.Spot)
+	_, er := bi.UpdateOrderbook(context.Background(), testPairMapping, asset.Spot)
 	if er != nil {
 		t.Error("Binanceus UpdateOrderBook() error", er)
 	}
@@ -763,8 +756,8 @@ func TestGetReferralRewardHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := bi.GetReferralRewardHistory(context.Background(), 9, 5, 50); !errors.Is(er, errInvalidUserBusineddType) {
-		t.Errorf("Binanceus GetReferralRewardHistory() expecting %v, but found %v", errInvalidUserBusineddType, er)
+	if _, er := bi.GetReferralRewardHistory(context.Background(), 9, 5, 50); !errors.Is(er, errInvalidUserBusinessType) {
+		t.Errorf("Binanceus GetReferralRewardHistory() expecting %v, but found %v", errInvalidUserBusinessType, er)
 	}
 	if _, er := bi.GetReferralRewardHistory(context.Background(), 1, 0, 50); !errors.Is(er, errMissingPageNumber) {
 		t.Errorf("Binanceus GetReferralRewardHistory() expecting %v, but found %v", errMissingPageNumber, er)
@@ -1893,10 +1886,10 @@ func TestWebsocketOrderExecutionReport(t *testing.T) {
 	switch r := res.(type) {
 	case *order.Detail:
 		if !reflects.DeepEqual(expRes, *r) {
-			t.Errorf("Results do not match:\nexpected: %v\nreceived: %v", expRes, *r)
+			t.Errorf("Binanceus Results do not match:\nexpected: %v\nreceived: %v", expRes, *r)
 		}
 	default:
-		t.Fatalf("expected type order.Detail, found %T", res)
+		t.Fatalf("Binanceus expected type order.Detail, found %T", res)
 	}
 	payload = []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"executionReport","E":1616633041556,"s":"BTCUSDT","c":"YeULctvPAnHj5HXCQo9Mob","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00028600","p":"52436.85000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"FILLED","r":"NONE","i":5341783271,"l":"0.00028600","z":"0.00028600","L":"52436.85000000","n":"0.00000029","N":"BTC","T":1616633041555,"t":726946523,"I":11390206312,"w":false,"m":false,"M":true,"O":1616633041555,"Z":"14.99693910","Y":"14.99693910","Q":"0.00000000"}}`)
 	err = bi.wsHandleData(payload)

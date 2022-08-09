@@ -29,7 +29,7 @@ var (
 	BinanceRequestParamsOrderLimitMarker = RequestParamsOrderType("LIMIT_MAKER")
 )
 
-const wsRateLimitMilliseconds = 250
+const wsRateLimitMilliseconds = 300
 
 // crypto withdrawals status codes description
 const (
@@ -105,6 +105,7 @@ type RecentTrade struct {
 	IsBestMatch  bool      `json:"isBestMatch"`
 }
 
+// HistoricalTradeParams represents historical trades request params.
 type HistoricalTradeParams struct {
 	Symbol string `json:"symbol"` // Required field. example LTCBTC, BTCUSDT
 	Limit  int64  `json:"limit"`  // Default 500; max 1000.

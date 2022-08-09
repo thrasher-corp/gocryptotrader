@@ -535,6 +535,7 @@ message WithdrawalEventsByExchangeRequest {
   string id = 2;
   int32 limit = 3;
   string currency = 4;
+  string asset_type = 5;
 }
 
 message WithdrawalEventsByDateRequest {
@@ -1115,57 +1116,6 @@ message CollateralUsedBreakdown {
   string used_in_spot_margin = 8;
 }
 
-message ShutdownRequest {}
-
-message ShutdownResponse {}
-
-message GetTechnicalAnalysisRequest {
-  string exchange = 1;
-  CurrencyPair pair = 2;
-  string asset_type = 3;
-  string algorithm_type = 4;
-  int64 interval = 5;
-  google.protobuf.Timestamp start = 6;
-  google.protobuf.Timestamp end = 7;
-  int64 period = 8;
-  int64 fast_period = 9;
-  int64 slow_period = 10;
-  double standard_deviation_up = 11;
-  double standard_deviation_down = 12;
-  int64 moving_average_type = 13;
-  string other_exchange = 14;
-  CurrencyPair other_pair = 15;
-  string other_asset_type = 16;
-}
-
-message ListOfSignals {
-  repeated double signals = 1;
-}
-
-message GetTechnicalAnalysisResponse {
-  map<string, ListOfSignals> signals = 1;
-}
-
-message GetMarginRatesHistoryRequest {
-  string exchange = 1;
-  string asset = 2;
-  string currency = 3;
-  string start_date = 4;
-  string end_date = 5;
-  bool get_predicted_rate = 6;
-  bool get_lending_payments = 7;
-  bool get_borrow_rates = 8;
-  bool get_borrow_costs = 9;
-  bool include_all_rates = 10;
-  bool calculate_offline = 11;
-  string taker_fee_rate = 12;
-  repeated MarginRate rates = 13;
-}
-
-message LendingPayment {
-  string payment = 1;
-  string size = 2;
-}
 message ShutdownRequest {}
 
 message ShutdownResponse {}

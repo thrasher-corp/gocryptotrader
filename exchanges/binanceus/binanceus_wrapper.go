@@ -56,10 +56,9 @@ func (bi *Binanceus) GetDefaultConfig() (*config.Exchange, error) {
 func (bi *Binanceus) SetDefaults() {
 	bi.Name = "Binanceus"
 	bi.Enabled = true
-	bi.Verbose = false
+	bi.Verbose = true
 	bi.API.CredentialsValidator.RequiresKey = true
 	bi.API.CredentialsValidator.RequiresSecret = true
-	bi.SkipAuthCheck = false
 	bi.SetValues()
 
 	fmt1 := currency.PairStore{
@@ -242,7 +241,7 @@ func (bi *Binanceus) Run() {
 		return
 	}
 
-	err := bi.UpdateTradablePairs(context.TODO(), true)
+	err := bi.UpdateTradablePairs(context.TODO(), false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
@@ -373,22 +372,12 @@ func (bi *Binanceus) FetchTicker(ctx context.Context, p currency.Pair, assetType
 	if er != nil {
 		return nil, er
 	}
-	bi.appendOptionalDelimiter(&fPairs)
 
-	tickerNew, er := ticker.GetTicker(bi.Name, p, assetType)
+	tickerNew, er := ticker.GetTicker(bi.Name, fPairs, assetType)
 	if er != nil {
 		return bi.UpdateTicker(ctx, p, assetType)
 	}
 	return tickerNew, nil
-}
-
-// appendOptionalDelimiter ensures that a delimiter is
-// present for long character currencies
-func (bi *Binanceus) appendOptionalDelimiter(p *currency.Pair) {
-	if len(p.Quote.String()) > 3 ||
-		len(p.Base.String()) > 3 {
-		p.Delimiter = ":"
-	}
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
@@ -397,8 +386,7 @@ func (bi *Binanceus) FetchOrderbook(ctx context.Context, pair currency.Pair, ass
 	if err != nil {
 		return nil, err
 	}
-	bi.appendOptionalDelimiter(&fPair)
-	ob, err := orderbook.Get(bi.Name, pair, assetType)
+	ob, err := orderbook.Get(bi.Name, fPair, assetType)
 	if err != nil {
 		return bi.UpdateOrderbook(ctx, pair, assetType)
 	}
