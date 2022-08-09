@@ -77,7 +77,10 @@ func SetGlobalLogConfig(incoming *Config) error {
 	if incoming == nil {
 		return errConfigNil
 	}
-	fileConf := *incoming.LoggerFileConfig
+	var fileConf loggerFileConfig
+	if incoming.LoggerFileConfig != nil {
+		fileConf = *incoming.LoggerFileConfig
+	}
 	subs := make([]SubLoggerConfig, len(incoming.SubLoggers))
 	copy(subs, incoming.SubLoggers)
 	mu.Lock()
