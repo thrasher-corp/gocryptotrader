@@ -53,6 +53,9 @@ func (bt *BackTest) Reset() {
 // It runs by constantly checking for new live datas and running through the list of events
 // once new data is processed. It will run until application close event has been received
 func (bt *BackTest) RunLive() error {
+	if bt.LiveDataHandler == nil {
+		return errLiveOnly
+	}
 	log.Info(common.Livetester, "running backtester against live data")
 	for {
 		select {

@@ -6,6 +6,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/ftxcashandcarry"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1444,6 +1445,55 @@ func TestCloseAllPositions(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
+}
+
+func TestRunLive(t *testing.T) {
+	t.Parallel()
+	bt := New()
+	err := bt.RunLive()
+	if !errors.Is(err, errLiveOnly) {
+		t.Errorf("received '%v' expected '%v'", err, errLiveOnly)
+	}
+
+	em := engine.SetupExchangeManager()
+	holder := &data.HandlerPerCurrency{}
+	bt.LiveDataHandler, err = live.SetupLiveDataHandler(em, holder, -1, -1, -1, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	err = bt.LiveDataHandler.Start()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err = bt.RunLive()
+		if !errors.Is(err, nil) {
+			t.Errorf("received '%v' expected '%v'", err, nil)
+		}
+	}()
+	close(bt.shutdown)
+	wg.Wait()
+
+	bt.shutdown = make(chan struct{})
+	err = bt.LiveDataHandler.Start()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err = bt.RunLive()
+		if !errors.Is(err, errLiveOnly) {
+			t.Errorf("received '%v' expected '%v'", err, errLiveOnly)
+		}
+	}()
+	bt.LiveDataHandler.Updated() <- struct{}{}
+
+	close(bt.shutdown)
+	wg.Wait()
 }
 
 // Overriding functions
