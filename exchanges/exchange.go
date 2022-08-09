@@ -1175,6 +1175,8 @@ func (u URL) String() string {
 		return restCoinMarginedFuturesURL
 	case RestFutures:
 		return restFuturesURL
+	case RestUSDCMargined:
+		return restUSDCMarginedFuturesURL
 	case RestSandbox:
 		return restSandboxURL
 	case RestSwap:
@@ -1209,6 +1211,8 @@ func getURLTypeFromString(ep string) (URL, error) {
 		return RestCoinMargined, nil
 	case restFuturesURL:
 		return RestFutures, nil
+	case restUSDCMarginedFuturesURL:
+		return RestUSDCMargined, nil
 	case restSandboxURL:
 		return RestSandbox, nil
 	case restSwapURL:

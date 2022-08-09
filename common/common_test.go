@@ -665,6 +665,16 @@ func TestParseStartEndDate(t *testing.T) {
 		t.Errorf("received %v, expected %v", err, ErrDateUnset)
 	}
 
+	err = StartEndTimeCheck(et, zeroValueUnix)
+	if !errors.Is(err, ErrDateUnset) {
+		t.Errorf("received %v, expected %v", err, ErrDateUnset)
+	}
+
+	err = StartEndTimeCheck(zeroValueUnix, et)
+	if !errors.Is(err, ErrDateUnset) {
+		t.Errorf("received %v, expected %v", err, ErrDateUnset)
+	}
+
 	err = StartEndTimeCheck(et, et)
 	if !errors.Is(err, ErrStartEqualsEnd) {
 		t.Errorf("received %v, expected %v", err, ErrStartEqualsEnd)
@@ -683,6 +693,23 @@ func TestParseStartEndDate(t *testing.T) {
 	err = StartEndTimeCheck(pt, et)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
+	}
+}
+
+func TestGetAssertError(t *testing.T) {
+	err := GetAssertError("*[]string", float64(0))
+	if err.Error() != "type assert failure from float64 to *[]string" {
+		t.Fatal(err)
+	}
+
+	err = GetAssertError("<nil>", nil)
+	if err.Error() != "type assert failure from <nil> to <nil>" {
+		t.Fatal(err)
+	}
+
+	err = GetAssertError("bruh", struct{}{})
+	if !errors.Is(err, ErrTypeAssertFailure) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrTypeAssertFailure)
 	}
 }
 
