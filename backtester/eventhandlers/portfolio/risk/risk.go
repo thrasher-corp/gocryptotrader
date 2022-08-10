@@ -23,8 +23,8 @@ func (r *Risk) EvaluateOrder(o order.Event, latestHoldings []holdings.Holding, s
 	}
 	ex := o.GetExchange()
 	a := o.GetAssetType()
-	p := o.Pair()
-	lookup, ok := r.CurrencySettings[ex][a][p]
+	p := o.Pair().Format("", true)
+	lookup, ok := r.CurrencySettings[ex][a][p.Base.Item][p.Quote.Item]
 	if !ok {
 		return nil, fmt.Errorf("%v %v %v %w", ex, a, p, errNoCurrencySettings)
 	}

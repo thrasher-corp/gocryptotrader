@@ -74,7 +74,7 @@ func TestCalculateFundingStatistics(t *testing.T) {
 		t.Errorf("received %v expected %v", err, funding.ErrUSDTrackingDisabled)
 	}
 
-	cs := make(map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic)
+	cs := make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*CurrencyPairStatistic)
 	_, err = CalculateFundingStatistics(f, cs, decimal.Zero, gctkline.OneHour)
 	if !errors.Is(err, errNoRelevantStatsFound) {
 		t.Errorf("received %v expected %v", err, errNoRelevantStatsFound)
@@ -96,16 +96,18 @@ func TestCalculateFundingStatistics(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
-	cs["binance"] = make(map[asset.Item]map[currency.Pair]*CurrencyPairStatistic)
-	cs["binance"][asset.Spot] = make(map[currency.Pair]*CurrencyPairStatistic)
-	cs["binance"][asset.Spot][currency.NewPair(currency.LTC, currency.USD)] = &CurrencyPairStatistic{}
+	cs["binance"] = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*CurrencyPairStatistic)
+	cs["binance"][asset.Spot] = make(map[*currency.Item]map[*currency.Item]*CurrencyPairStatistic)
+	cs["binance"][asset.Spot][currency.LTC.Item] = make(map[*currency.Item]*CurrencyPairStatistic)
+	cs["binance"][asset.Spot][currency.LTC.Item][currency.USD.Item] = &CurrencyPairStatistic{}
 	_, err = CalculateFundingStatistics(f, cs, decimal.Zero, gctkline.OneHour)
 	if !errors.Is(err, errMissingSnapshots) {
 		t.Errorf("received %v expected %v", err, errMissingSnapshots)
 	}
 	f.CreateSnapshot(usdKline.Candles[0].Time)
 	f.CreateSnapshot(usdKline.Candles[1].Time)
-	cs["binance"][asset.Spot][currency.NewPair(currency.BTC, currency.USDT)] = &CurrencyPairStatistic{}
+	cs["binance"][asset.Spot][currency.BTC.Item] = make(map[*currency.Item]*CurrencyPairStatistic)
+	cs["binance"][asset.Spot][currency.BTC.Item][currency.USDT.Item] = &CurrencyPairStatistic{}
 
 	_, err = CalculateFundingStatistics(f, cs, decimal.Zero, gctkline.OneHour)
 	if !errors.Is(err, nil) {

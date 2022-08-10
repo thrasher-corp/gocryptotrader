@@ -95,24 +95,26 @@ dataLoadingIssue:
 			dataHandlerMap := bt.DataHolder.GetAllData()
 			for exchangeName, exchangeMap := range dataHandlerMap {
 				for assetItem, assetMap := range exchangeMap {
-					for currencyPair, dataHandler := range assetMap {
-						d := dataHandler.Next()
-						if d == nil {
-							if !bt.hasProcessedAnEvent && bt.LiveDataHandler == nil {
-								log.Errorf(common.Backtester, "Unable to perform `Next` for %v %v %v", exchangeName, assetItem, currencyPair)
+					for currencyPair, baseMap := range assetMap {
+						for _, dataHandler := range baseMap {
+							d := dataHandler.Next()
+							if d == nil {
+								if !bt.hasProcessedAnEvent && bt.LiveDataHandler == nil {
+									log.Errorf(common.Backtester, "Unable to perform `Next` for %v %v %v", exchangeName, assetItem, currencyPair)
+								}
+								break dataLoadingIssue
 							}
-							break dataLoadingIssue
-						}
-						o := d.GetOffset()
-						if bt.Strategy.UsingSimultaneousProcessing() && bt.hasProcessedDataAtOffset[o] {
-							// only append one event, as simultaneous processing
-							// will retrieve all relevant events to process under
-							// processSimultaneousDataEvents()
-							continue
-						}
-						bt.EventQueue.AppendEvent(d)
-						if !bt.hasProcessedDataAtOffset[o] {
-							bt.hasProcessedDataAtOffset[o] = true
+							o := d.GetOffset()
+							if bt.Strategy.UsingSimultaneousProcessing() && bt.hasProcessedDataAtOffset[o] {
+								// only append one event, as simultaneous processing
+								// will retrieve all relevant events to process under
+								// processSimultaneousDataEvents()
+								continue
+							}
+							bt.EventQueue.AppendEvent(d)
+							if !bt.hasProcessedDataAtOffset[o] {
+								bt.hasProcessedDataAtOffset[o] = true
+							}
 						}
 					}
 				}
@@ -223,25 +225,27 @@ func (bt *BackTest) processSimultaneousDataEvents() error {
 	dataHandlerMap := bt.DataHolder.GetAllData()
 	for _, exchangeMap := range dataHandlerMap {
 		for _, assetMap := range exchangeMap {
-			for _, dataHandler := range assetMap {
-				latestData := dataHandler.Latest()
-				funds, err := bt.Funding.GetFundingForEvent(latestData)
-				if err != nil {
-					return err
-				}
-				err = bt.updateStatsForDataEvent(latestData, funds.FundReleaser())
-				if err != nil {
-					switch {
-					case errors.Is(err, statistics.ErrAlreadyProcessed):
-						log.Warnf(common.Livetester, "%v %v", latestData.GetOffset(), err)
-						continue
-					case errors.Is(err, gctorder.ErrPositionLiquidated):
-						return nil
-					default:
-						log.Error(common.Backtester, err)
+			for _, baseMap := range assetMap {
+				for _, dataHandler := range baseMap {
+					latestData := dataHandler.Latest()
+					funds, err := bt.Funding.GetFundingForEvent(latestData)
+					if err != nil {
+						return err
 					}
+					err = bt.updateStatsForDataEvent(latestData, funds.FundReleaser())
+					if err != nil {
+						switch {
+						case errors.Is(err, statistics.ErrAlreadyProcessed):
+							log.Warnf(common.Livetester, "%v %v", latestData.GetOffset(), err)
+							continue
+						case errors.Is(err, gctorder.ErrPositionLiquidated):
+							return nil
+						default:
+							log.Error(common.Backtester, err)
+						}
+					}
+					dataEvents = append(dataEvents, dataHandler)
 				}
-				dataEvents = append(dataEvents, dataHandler)
 			}
 		}
 	}
@@ -531,8 +535,10 @@ func (bt *BackTest) CloseAllPositions() error {
 	var latestPrices []data.Event
 	for _, exchangeMap := range allData {
 		for _, assetMap := range exchangeMap {
-			for _, dataHolder := range assetMap {
-				latestPrices = append(latestPrices, dataHolder.Latest())
+			for _, baseMap := range assetMap {
+				for _, handler := range baseMap {
+					latestPrices = append(latestPrices, handler.Latest())
+				}
 			}
 		}
 	}

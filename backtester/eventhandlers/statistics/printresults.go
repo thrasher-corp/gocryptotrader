@@ -74,36 +74,38 @@ func (s *Statistic) PrintAllEventsChronologically() {
 	var errs gctcommon.Errors
 	var err error
 	var results []eventOutputHolder
-	for _, x := range s.ExchangeAssetPairStatistics {
-		for _, y := range x {
-			for _, currencyStatistic := range y {
-				for i := range currencyStatistic.Events {
-					var result string
-					var tt time.Time
-					switch {
-					case currencyStatistic.Events[i].FillEvent != nil:
-						result, err = s.CreateLog(currencyStatistic.Events[i].FillEvent)
-						if err != nil {
-							errs = append(errs, err)
-							continue
+	for _, exchangeMap := range s.ExchangeAssetPairStatistics {
+		for _, assetMap := range exchangeMap {
+			for _, baseMap := range assetMap {
+				for _, currencyStatistic := range baseMap {
+					for i := range currencyStatistic.Events {
+						var result string
+						var tt time.Time
+						switch {
+						case currencyStatistic.Events[i].FillEvent != nil:
+							result, err = s.CreateLog(currencyStatistic.Events[i].FillEvent)
+							if err != nil {
+								errs = append(errs, err)
+								continue
+							}
+							tt = currencyStatistic.Events[i].FillEvent.GetTime()
+						case currencyStatistic.Events[i].SignalEvent != nil:
+							result, err = s.CreateLog(currencyStatistic.Events[i].SignalEvent)
+							if err != nil {
+								errs = append(errs, err)
+								continue
+							}
+							tt = currencyStatistic.Events[i].SignalEvent.GetTime()
+						case currencyStatistic.Events[i].DataEvent != nil:
+							result, err = s.CreateLog(currencyStatistic.Events[i].DataEvent)
+							if err != nil {
+								errs = append(errs, err)
+								continue
+							}
+							tt = currencyStatistic.Events[i].DataEvent.GetTime()
 						}
-						tt = currencyStatistic.Events[i].FillEvent.GetTime()
-					case currencyStatistic.Events[i].SignalEvent != nil:
-						result, err = s.CreateLog(currencyStatistic.Events[i].SignalEvent)
-						if err != nil {
-							errs = append(errs, err)
-							continue
-						}
-						tt = currencyStatistic.Events[i].SignalEvent.GetTime()
-					case currencyStatistic.Events[i].DataEvent != nil:
-						result, err = s.CreateLog(currencyStatistic.Events[i].DataEvent)
-						if err != nil {
-							errs = append(errs, err)
-							continue
-						}
-						tt = currencyStatistic.Events[i].DataEvent.GetTime()
+						results = addEventOutputToTime(results, tt, result)
 					}
-					results = addEventOutputToTime(results, tt, result)
 				}
 			}
 		}

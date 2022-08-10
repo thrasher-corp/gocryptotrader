@@ -15,11 +15,14 @@ import (
 
 // CalculateFundingStatistics calculates funding statistics for total USD strategy results
 // along with individual funding item statistics
-func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic, riskFreeRate decimal.Decimal, interval gctkline.Interval) (*FundingStatistics, error) {
+func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*CurrencyPairStatistic, riskFreeRate decimal.Decimal, interval gctkline.Interval) (*FundingStatistics, error) {
 	if currStats == nil {
 		return nil, common.ErrNilArguments
 	}
 	report := funds.GenerateReport()
+	if report == nil {
+		return nil, errReceivedNoData
+	}
 	response := &FundingStatistics{
 		Report: report,
 	}
@@ -32,13 +35,15 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 				report.Items[i].Asset)
 		}
 		var relevantStats []relatedCurrencyPairStatistics
-		for k, v := range exchangeAssetStats {
-			if k.Base.Equal(report.Items[i].Currency) {
-				relevantStats = append(relevantStats, relatedCurrencyPairStatistics{isBaseCurrency: true, stat: v})
-				continue
-			}
-			if k.Quote.Equal(report.Items[i].Currency) {
-				relevantStats = append(relevantStats, relatedCurrencyPairStatistics{stat: v})
+		for b, baseMap := range exchangeAssetStats {
+			for q, v := range baseMap {
+				if b.Currency().Equal(report.Items[i].Currency) {
+					relevantStats = append(relevantStats, relatedCurrencyPairStatistics{isBaseCurrency: true, stat: v})
+					continue
+				}
+				if q.Currency().Equal(report.Items[i].Currency) {
+					relevantStats = append(relevantStats, relatedCurrencyPairStatistics{stat: v})
+				}
 			}
 		}
 		fundingStat, err := CalculateIndividualFundingStatistics(report.DisableUSDTracking, &report.Items[i], relevantStats)

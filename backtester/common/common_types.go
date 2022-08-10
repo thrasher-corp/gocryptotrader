@@ -71,6 +71,7 @@ var (
 	FundingStatistics  *log.SubLogger
 	Holdings           *log.SubLogger
 	Data               *log.SubLogger
+	FundManager        *log.SubLogger
 )
 
 // Directioner dictates the side of an order

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	"sort"
 	"strings"
 	"time"
@@ -313,6 +314,10 @@ func (f *FundManager) GenerateReport() *Report {
 		if !f.disableUSDTracking &&
 			f.items[x].trackingCandles != nil {
 			usdStream := f.items[x].trackingCandles.GetStream()
+			if usdStream == nil {
+				log.Error(common.FundManager, "usd tracking data is nil, please ensure data is present")
+				return nil
+			}
 			item.USDInitialFunds = f.items[x].initialFunds.Mul(usdStream[0].GetClosePrice())
 			item.USDFinalFunds = f.items[x].available.Mul(usdStream[len(usdStream)-1].GetClosePrice())
 			item.USDInitialCostForOne = usdStream[0].GetClosePrice()

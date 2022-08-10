@@ -44,7 +44,7 @@ type Portfolio struct {
 	riskFreeRate              decimal.Decimal
 	sizeManager               SizeHandler
 	riskManager               risk.Handler
-	exchangeAssetPairSettings map[string]map[asset.Item]map[currency.Pair]*Settings
+	exchangeAssetPairSettings map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings
 }
 
 // Handler contains all functions expected to operate a portfolio manager

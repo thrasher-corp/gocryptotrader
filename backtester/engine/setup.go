@@ -177,12 +177,12 @@ func (bt *BackTest) NewFromConfig(cfg *config.Config, templatePath, output strin
 	}
 
 	portfolioRisk := &risk.Risk{
-		CurrencySettings: make(map[string]map[asset.Item]map[currency.Pair]*risk.CurrencySettings),
+		CurrencySettings: make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*risk.CurrencySettings),
 	}
 
 	for i := range cfg.CurrencySettings {
 		if portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName] == nil {
-			portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName] = make(map[asset.Item]map[currency.Pair]*risk.CurrencySettings)
+			portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName] = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*risk.CurrencySettings)
 		}
 		a := cfg.CurrencySettings[i].Asset
 		if err != nil {
@@ -196,13 +196,16 @@ func (bt *BackTest) NewFromConfig(cfg *config.Config, templatePath, output strin
 				err)
 		}
 		if portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a] == nil {
-			portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a] = make(map[currency.Pair]*risk.CurrencySettings)
+			portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a] = make(map[*currency.Item]map[*currency.Item]*risk.CurrencySettings)
+		}
+		if portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a][cfg.CurrencySettings[i].Base.Item] == nil {
+			portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a][cfg.CurrencySettings[i].Base.Item] = make(map[*currency.Item]*risk.CurrencySettings)
 		}
 		var curr currency.Pair
 		var b, q currency.Code
 		b = cfg.CurrencySettings[i].Base
 		q = cfg.CurrencySettings[i].Quote
-		curr = currency.NewPair(b, q)
+		curr = currency.NewPair(b, q).Format("", false)
 		var exch gctexchange.IBotExchange
 		exch, err = bt.exchangeManager.GetExchangeByName(cfg.CurrencySettings[i].ExchangeName)
 		if err != nil {
@@ -215,7 +218,7 @@ func (bt *BackTest) NewFromConfig(cfg *config.Config, templatePath, output strin
 			portSet.MaximumOrdersWithLeverageRatio = cfg.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrdersWithLeverageRatio
 			portSet.MaxLeverageRate = cfg.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrderLeverageRate
 		}
-		portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a][curr] = portSet
+		portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a][curr.Base.Item][curr.Quote.Item] = portSet
 		if cfg.CurrencySettings[i].MakerFee != nil &&
 			cfg.CurrencySettings[i].TakerFee != nil &&
 			cfg.CurrencySettings[i].MakerFee.GreaterThan(*cfg.CurrencySettings[i].TakerFee) {
@@ -345,7 +348,7 @@ func (bt *BackTest) NewFromConfig(cfg *config.Config, templatePath, output strin
 		StrategyNickname:            cfg.Nickname,
 		StrategyDescription:         bt.Strategy.Description(),
 		StrategyGoal:                cfg.Goal,
-		ExchangeAssetPairStatistics: make(map[string]map[asset.Item]map[currency.Pair]*statistics.CurrencyPairStatistic),
+		ExchangeAssetPairStatistics: make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*statistics.CurrencyPairStatistic),
 		RiskFreeRate:                cfg.StatisticSettings.RiskFreeRate,
 		CandleInterval:              cfg.DataSettings.Interval,
 		FundManager:                 bt.Funding,

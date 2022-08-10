@@ -32,7 +32,7 @@ const testExchange = "ftx"
 func TestReset(t *testing.T) {
 	t.Parallel()
 	p := Portfolio{
-		exchangeAssetPairSettings: make(map[string]map[asset.Item]map[currency.Pair]*Settings),
+		exchangeAssetPairSettings: make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings),
 	}
 	p.Reset()
 	if p.exchangeAssetPairSettings != nil {
@@ -590,7 +590,7 @@ func TestGetSnapshotAtTime(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	tt := time.Now()
-	s, ok := p.exchangeAssetPairSettings[testExchange][asset.Spot][cp]
+	s, ok := p.exchangeAssetPairSettings[testExchange][asset.Spot][cp.Base.Item][cp.Quote.Item]
 	if !ok {
 		t.Fatal("couldn't get settings")
 	}
@@ -644,7 +644,7 @@ func TestGetLatestSnapshot(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	s, ok := p.exchangeAssetPairSettings[testExchange][asset.Spot][cp]
+	s, ok := p.exchangeAssetPairSettings[testExchange][asset.Spot][cp.Base.Item][cp.Quote.Item]
 	if !ok {
 		t.Fatal("couldn't get settings")
 	}
@@ -745,7 +745,7 @@ func TestCalculatePNL(t *testing.T) {
 		OrderID:   "lol",
 	}
 
-	s, ok := p.exchangeAssetPairSettings[strings.ToLower(exch.Name)][a][pair]
+	s, ok := p.exchangeAssetPairSettings[strings.ToLower(exch.Name)][a][pair.Base.Item][pair.Quote.Item]
 	if !ok {
 		t.Fatal("couldn't get settings")
 	}
@@ -970,7 +970,7 @@ func TestGetLatestPNLForEvent(t *testing.T) {
 		t.Fatalf("received '%v' expected '%v'", err, expectedError)
 	}
 
-	settings, ok := p.exchangeAssetPairSettings[ev.GetExchange()][ev.GetAssetType()][ev.Pair()]
+	settings, ok := p.exchangeAssetPairSettings[ev.GetExchange()][ev.GetAssetType()][ev.Pair().Base.Item][ev.Pair().Quote.Item]
 	if !ok {
 		t.Fatalf("where did settings go?")
 	}
@@ -1066,7 +1066,7 @@ func TestGetLatestPNLs(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	settings, ok := p.exchangeAssetPairSettings[ev.GetExchange()][ev.GetAssetType()][ev.Pair()]
+	settings, ok := p.exchangeAssetPairSettings[ev.GetExchange()][ev.GetAssetType()][ev.Pair().Base.Item][ev.Pair().Quote.Item]
 	if !ok {
 		t.Fatalf("where did settings go?")
 	}

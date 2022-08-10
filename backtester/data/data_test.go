@@ -103,7 +103,7 @@ func TestSetDataForCurrency(t *testing.T) {
 	if d.data == nil {
 		t.Error("expected not nil")
 	}
-	if d.data[exch][a][p] != nil {
+	if d.data[exch][a][p.Base.Item][p.Quote.Item] != nil {
 		t.Error("expected nil")
 	}
 }
@@ -117,7 +117,7 @@ func TestGetAllData(t *testing.T) {
 	if len(result) != 1 {
 		t.Error("expected 1")
 	}
-	if len(result[exch][a]) != 2 {
+	if len(result[exch][a][currency.BTC.Item]) != 2 {
 		t.Error("expected 2")
 	}
 }

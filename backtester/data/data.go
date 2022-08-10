@@ -13,7 +13,7 @@ import (
 // Setup creates a basic map
 func (h *HandlerPerCurrency) Setup() {
 	if h.data == nil {
-		h.data = make(map[string]map[asset.Item]map[currency.Pair]Handler)
+		h.data = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]Handler)
 	}
 }
 
@@ -24,16 +24,19 @@ func (h *HandlerPerCurrency) SetDataForCurrency(e string, a asset.Item, p curren
 	}
 	e = strings.ToLower(e)
 	if h.data[e] == nil {
-		h.data[e] = make(map[asset.Item]map[currency.Pair]Handler)
+		h.data[e] = make(map[asset.Item]map[*currency.Item]map[*currency.Item]Handler)
 	}
 	if h.data[e][a] == nil {
-		h.data[e][a] = make(map[currency.Pair]Handler)
+		h.data[e][a] = make(map[*currency.Item]map[*currency.Item]Handler)
 	}
-	h.data[e][a][p] = k
+	if h.data[e][a][p.Base.Item] == nil {
+		h.data[e][a][p.Base.Item] = make(map[*currency.Item]Handler)
+	}
+	h.data[e][a][p.Base.Item][p.Quote.Item] = k
 }
 
 // GetAllData returns all set data in the data map
-func (h *HandlerPerCurrency) GetAllData() map[string]map[asset.Item]map[currency.Pair]Handler {
+func (h *HandlerPerCurrency) GetAllData() map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]Handler {
 	return h.data
 }
 
@@ -45,7 +48,7 @@ func (h *HandlerPerCurrency) GetDataForCurrency(ev common.Event) (Handler, error
 	exch := ev.GetExchange()
 	a := ev.GetAssetType()
 	p := ev.Pair()
-	handler, ok := h.data[exch][a][p]
+	handler, ok := h.data[exch][a][p.Base.Item][p.Quote.Item]
 	if !ok {
 		return nil, fmt.Errorf("%s %s %s %w", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), ErrHandlerNotFound)
 	}

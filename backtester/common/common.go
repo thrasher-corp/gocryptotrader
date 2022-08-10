@@ -8,7 +8,7 @@ import (
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
- 
+
 // CanTransact checks whether an order side is valid
 // to the backtester's standards
 func CanTransact(side gctorder.Side) bool {
@@ -119,6 +119,10 @@ func RegisterBacktesterSubLoggers() error {
 		return err
 	}
 	Data, err = log.NewSubLogger("Data")
+	if err != nil {
+		return err
+	}
+	FundManager, err = log.NewSubLogger("FundManager")
 	if err != nil {
 		return err
 	}

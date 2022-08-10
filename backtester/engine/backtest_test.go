@@ -512,9 +512,10 @@ func TestFullCycle(t *testing.T) {
 	tt := time.Now()
 
 	stats := &statistics.Statistic{}
-	stats.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*statistics.CurrencyPairStatistic)
-	stats.ExchangeAssetPairStatistics[ex] = make(map[asset.Item]map[currency.Pair]*statistics.CurrencyPairStatistic)
-	stats.ExchangeAssetPairStatistics[ex][a] = make(map[currency.Pair]*statistics.CurrencyPairStatistic)
+	stats.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*statistics.CurrencyPairStatistic)
+	stats.ExchangeAssetPairStatistics[ex] = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*statistics.CurrencyPairStatistic)
+	stats.ExchangeAssetPairStatistics[ex][a] = make(map[*currency.Item]map[*currency.Item]*statistics.CurrencyPairStatistic)
+	stats.ExchangeAssetPairStatistics[ex][a][cp.Base.Item] = make(map[*currency.Item]*statistics.CurrencyPairStatistic)
 
 	port, err := portfolio.Setup(&size.Size{
 		BuySide:  exchange.MinMax{},
@@ -619,9 +620,10 @@ func TestFullCycleMulti(t *testing.T) {
 	tt := time.Now()
 
 	stats := &statistics.Statistic{}
-	stats.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*statistics.CurrencyPairStatistic)
-	stats.ExchangeAssetPairStatistics[ex] = make(map[asset.Item]map[currency.Pair]*statistics.CurrencyPairStatistic)
-	stats.ExchangeAssetPairStatistics[ex][a] = make(map[currency.Pair]*statistics.CurrencyPairStatistic)
+	stats.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*statistics.CurrencyPairStatistic)
+	stats.ExchangeAssetPairStatistics[ex] = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*statistics.CurrencyPairStatistic)
+	stats.ExchangeAssetPairStatistics[ex][a] = make(map[*currency.Item]map[*currency.Item]*statistics.CurrencyPairStatistic)
+	stats.ExchangeAssetPairStatistics[ex][a][cp.Base.Item] = make(map[*currency.Item]*statistics.CurrencyPairStatistic)
 
 	port, err := portfolio.Setup(&size.Size{
 		BuySide:  exchange.MinMax{},
@@ -1512,11 +1514,13 @@ func (f fakeDataHolder) Setup() {
 func (f fakeDataHolder) SetDataForCurrency(s string, item asset.Item, pair currency.Pair, handler data.Handler) {
 }
 
-func (f fakeDataHolder) GetAllData() map[string]map[asset.Item]map[currency.Pair]data.Handler {
-	return map[string]map[asset.Item]map[currency.Pair]data.Handler{
+func (f fakeDataHolder) GetAllData() map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]data.Handler {
+	return map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]data.Handler{
 		testExchange: {
-			asset.Spot: map[currency.Pair]data.Handler{
-				currency.NewPair(currency.BTC, currency.USD): &kline.DataFromKline{},
+			asset.Spot: {
+				currency.BTC.Item: map[*currency.Item]data.Handler{
+					currency.USD.Item: &kline.DataFromKline{},
+				},
 			},
 		},
 	}

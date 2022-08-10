@@ -15,14 +15,14 @@ var ErrHandlerNotFound = errors.New("handler not found")
 
 // HandlerPerCurrency stores an event handler per exchange asset pair
 type HandlerPerCurrency struct {
-	data map[string]map[asset.Item]map[currency.Pair]Handler
+	data map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]Handler
 }
 
 // Holder interface dictates what a data holder is expected to do
 type Holder interface {
 	Setup()
 	SetDataForCurrency(string, asset.Item, currency.Pair, Handler)
-	GetAllData() map[string]map[asset.Item]map[currency.Pair]Handler
+	GetAllData() map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]Handler
 	GetDataForCurrency(ev common.Event) (Handler, error)
 	Reset()
 }
