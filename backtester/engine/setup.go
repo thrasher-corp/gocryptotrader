@@ -4,20 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
-	"runtime"
-	"strings"
-	"sync"
-	"time"
-
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/api"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/csv"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/database"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/live"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange/slippage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
@@ -31,7 +27,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
-	gctconfig "github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctdatabase "github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/engine"
@@ -40,16 +35,21 @@ import (
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"sync"
 )
 
-// NewFromConfig takes a strategy config and configures a backtester variable to run
-func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool) (*BackTest, error) {
-	log.Infoln(common.Setup, "loading config...")
-	if cfg == nil {
-		return nil, errNilConfig
+// NewBacktester returns a new BackTest instance
+func NewBacktester() (*BackTest, error) {
+	bt := &BackTest{
+		shutdown:                 make(chan struct{}),
+		DataHolder:               &data.HandlerPerCurrency{},
+		EventQueue:               &eventholder.Holder{},
+		hasProcessedDataAtOffset: make(map[int64]bool),
 	}
 	var err error
-	bt := New()
 	bt.exchangeManager = engine.SetupExchangeManager()
 	bt.orderManager, err = engine.SetupOrderManager(
 		bt.exchangeManager,
@@ -64,10 +64,20 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 	if err != nil {
 		return nil, err
 	}
+	return bt, nil
+}
+
+// NewFromConfig takes a strategy config and configures a backtester variable to run
+func (bt *BackTest) NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool) error {
+	log.Infoln(common.Setup, "loading config...")
+	if cfg == nil {
+		return errNilConfig
+	}
+	var err error
 	if cfg.DataSettings.DatabaseData != nil {
 		bt.databaseManager, err = engine.SetupDatabaseConnectionManager(&cfg.DataSettings.DatabaseData.Config)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
@@ -81,11 +91,11 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 			cfg.DataSettings.LiveData.DataCheckTimer,
 			verbose)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		err = bt.LiveDataHandler.Start()
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 	reports := &report.Data{
@@ -116,7 +126,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 		cfg.StrategySettings.DisableUSDTracking,
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if cfg.FundingSettings.UseExchangeLevelFunding {
@@ -130,58 +140,40 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 				cfg.FundingSettings.ExchangeLevelFunding[i].InitialFunds,
 				cfg.FundingSettings.ExchangeLevelFunding[i].TransferFee)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			err = funds.AddItem(item)
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 	}
-
-	var emm = make(map[string]gctexchange.IBotExchange)
 	for i := range cfg.CurrencySettings {
-		_, ok := emm[cfg.CurrencySettings[i].ExchangeName]
-		if ok {
-			continue
-		}
 		var exch gctexchange.IBotExchange
-		exch, err = bt.exchangeManager.NewExchangeByName(cfg.CurrencySettings[i].ExchangeName)
+		exch, err = bt.exchangeManager.GetExchangeByName(cfg.CurrencySettings[i].ExchangeName)
 		if err != nil {
-			return nil, err
-		}
-		var conf *gctconfig.Exchange
-		conf, err = exch.GetDefaultConfig()
-		if err != nil {
-			return nil, err
-		}
-		conf.Enabled = true
-		conf.WebsocketTrafficTimeout = time.Second
-		conf.Websocket = convert.BoolPtr(false)
-		conf.WebsocketResponseCheckTimeout = time.Second
-		conf.WebsocketResponseMaxLimit = time.Second
-		conf.Verbose = verbose
-		err = exch.Setup(conf)
-		if err != nil {
-			return nil, err
-		}
-
-		exchBase := exch.GetBase()
-		err = exch.UpdateTradablePairs(context.Background(), true)
-		if err != nil {
-			return nil, err
-		}
-		assets := exchBase.CurrencyPairs.GetAssetTypes(false)
-		for i := range assets {
-			exchBase.CurrencyPairs.Pairs[assets[i]].AssetEnabled = convert.BoolPtr(true)
-			err = exch.SetPairs(exchBase.CurrencyPairs.Pairs[assets[i]].Available, assets[i], true)
-			if err != nil {
-				return nil, err
+			if errors.Is(err, engine.ErrExchangeNotFound) {
+				exch, err = bt.exchangeManager.NewExchangeByName(cfg.CurrencySettings[i].ExchangeName)
+				if err != nil {
+					return err
+				}
+				exch.SetDefaults()
+				bt.exchangeManager.Add(exch)
+			} else {
+				return err
 			}
 		}
 
-		bt.exchangeManager.Add(exch)
-		emm[cfg.CurrencySettings[i].ExchangeName] = exch
+		exchBase := exch.GetBase()
+		exchangeAsset, ok := exchBase.CurrencyPairs.Pairs[cfg.CurrencySettings[i].Asset]
+		if !ok {
+			return fmt.Errorf("%v %v %w", cfg.CurrencySettings[i].ExchangeName, cfg.CurrencySettings[i].Asset, asset.ErrNotSupported)
+		}
+		exchangeAsset.AssetEnabled = convert.BoolPtr(true)
+		cp := currency.NewPair(cfg.CurrencySettings[i].Base, cfg.CurrencySettings[i].Quote).Format(exchangeAsset.RequestFormat.Delimiter, exchangeAsset.RequestFormat.Uppercase)
+		exchangeAsset.Available = exchangeAsset.Available.Add(cp)
+		exchangeAsset.Enabled = exchangeAsset.Enabled.Add(cp)
+		exchBase.CurrencyPairs.Pairs[cfg.CurrencySettings[i].Asset] = exchangeAsset
 	}
 
 	portfolioRisk := &risk.Risk{
@@ -194,7 +186,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 		}
 		a := cfg.CurrencySettings[i].Asset
 		if err != nil {
-			return nil, fmt.Errorf(
+			return fmt.Errorf(
 				"%w for %v %v %v-%v. Err %v",
 				errInvalidConfigAsset,
 				cfg.CurrencySettings[i].ExchangeName,
@@ -214,36 +206,8 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 		var exch gctexchange.IBotExchange
 		exch, err = bt.exchangeManager.GetExchangeByName(cfg.CurrencySettings[i].ExchangeName)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		exchBase := exch.GetBase()
-		var requestFormat currency.PairFormat
-		requestFormat, err = exchBase.GetPairFormat(a, true)
-		if err != nil {
-			return nil, fmt.Errorf("could not get pair format %v, %w", curr, err)
-		}
-		curr = curr.Format(requestFormat.Delimiter, requestFormat.Uppercase)
-		var avail, enabled currency.Pairs
-		avail, err = exch.GetAvailablePairs(a)
-		if err != nil {
-			return nil, fmt.Errorf("could not format currency %v, %w", curr, err)
-		}
-		enabled, err = exch.GetEnabledPairs(a)
-		if err != nil {
-			return nil, fmt.Errorf("could not format currency %v, %w", curr, err)
-		}
-
-		avail = avail.Add(curr)
-		enabled = enabled.Add(curr)
-		err = exch.SetPairs(enabled, a, true)
-		if err != nil {
-			return nil, fmt.Errorf("could not format currency %v, %w", curr, err)
-		}
-		err = exch.SetPairs(avail, a, false)
-		if err != nil {
-			return nil, fmt.Errorf("could not format currency %v, %w", curr, err)
-		}
-
 		portSet := &risk.CurrencySettings{
 			MaximumHoldingRatio: cfg.CurrencySettings[i].MaximumHoldingsRatio,
 		}
@@ -271,7 +235,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 					decimal.Zero,
 					decimal.Zero)
 				if err != nil {
-					return nil, err
+					return err
 				}
 				quoteItem, err = funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,
 					a,
@@ -279,15 +243,15 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 					decimal.Zero,
 					decimal.Zero)
 				if err != nil {
-					return nil, err
+					return err
 				}
 				err = funds.AddItem(baseItem)
 				if err != nil && !errors.Is(err, funding.ErrAlreadyExists) {
-					return nil, err
+					return err
 				}
 				err = funds.AddItem(quoteItem)
 				if err != nil && !errors.Is(err, funding.ErrAlreadyExists) {
-					return nil, err
+					return err
 				}
 			case a.IsFutures():
 				// setup contract items
@@ -298,25 +262,25 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 					decimal.Zero,
 					decimal.Zero)
 				if err != nil {
-					return nil, err
+					return err
 				}
 
 				var collateralCurrency currency.Code
 				collateralCurrency, _, err = exch.GetCollateralCurrencyForContract(a, currency.NewPair(b, q))
 				if err != nil {
-					return nil, err
+					return err
 				}
 
 				err = funds.LinkCollateralCurrency(futureItem, collateralCurrency)
 				if err != nil {
-					return nil, err
+					return err
 				}
 				err = funds.AddItem(futureItem)
 				if err != nil {
-					return nil, err
+					return err
 				}
 			default:
-				return nil, fmt.Errorf("%w: %v unsupported", errInvalidConfigAsset, a)
+				return fmt.Errorf("%w: %v unsupported", errInvalidConfigAsset, a)
 			}
 		} else {
 			var bFunds, qFunds decimal.Decimal
@@ -335,7 +299,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 				bFunds,
 				decimal.Zero)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			quoteItem, err = funding.CreateItem(
 				cfg.CurrencySettings[i].ExchangeName,
@@ -344,16 +308,16 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 				qFunds,
 				decimal.Zero)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			var pair *funding.SpotPair
 			pair, err = funding.CreatePair(baseItem, quoteItem)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			err = funds.AddPair(pair)
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 	}
@@ -362,18 +326,18 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 	var p *portfolio.Portfolio
 	p, err = portfolio.Setup(sizeManager, portfolioRisk, cfg.StatisticSettings.RiskFreeRate)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	bt.Strategy, err = strategies.LoadStrategyByName(cfg.StrategySettings.Name, cfg.StrategySettings.SimultaneousSignalProcessing)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	bt.Strategy.SetDefaults()
 	if cfg.StrategySettings.CustomSettings != nil {
 		err = bt.Strategy.SetCustomSettings(cfg.StrategySettings.CustomSettings)
 		if err != nil && !errors.Is(err, base.ErrCustomSettingsUnsupported) {
-			return nil, err
+			return err
 		}
 	}
 	stats := &statistics.Statistic{
@@ -401,7 +365,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 		}
 		trackingPairs, err = trackingcurrencies.CreateUSDTrackingPairs(trackingPairs, bt.exchangeManager)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	trackingPairCheck:
 		for i := range trackingPairs {
@@ -425,21 +389,21 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 
 	e, err := bt.setupExchangeSettings(cfg)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	bt.Exchange = &e
 	for i := range e.CurrencySettings {
 		err = p.SetupCurrencySettingsMap(&e.CurrencySettings[i])
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 	bt.Portfolio = p
 
 	cfg.PrintSetting()
 
-	return bt, nil
+	return nil
 }
 
 func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange, error) {

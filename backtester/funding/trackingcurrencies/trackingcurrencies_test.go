@@ -2,6 +2,7 @@ package trackingcurrencies
 
 import (
 	"errors"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -10,10 +11,10 @@ import (
 )
 
 var (
-	exch = "binance"
-	a    = asset.Spot
-	b    = currency.BTC
-	q    = currency.USDT
+	eName = "ftx"
+	a     = asset.Spot
+	b     = currency.BTC
+	q     = currency.USD
 )
 
 func TestCreateUSDTrackingPairs(t *testing.T) {
@@ -30,26 +31,37 @@ func TestCreateUSDTrackingPairs(t *testing.T) {
 	}
 
 	em := engine.SetupExchangeManager()
-	_, err = CreateUSDTrackingPairs([]TrackingPair{{Exchange: exch}}, em)
+	_, err = CreateUSDTrackingPairs([]TrackingPair{{Exchange: eName}}, em)
 	if !errors.Is(err, engine.ErrExchangeNotFound) {
 		t.Errorf("received '%v' expected '%v'", err, engine.ErrExchangeNotFound)
 	}
 
 	s1 := TrackingPair{
-		Exchange: exch,
+		Exchange: eName,
 		Asset:    a,
 		Base:     b,
 		Quote:    q,
 	}
-	excher, err := em.NewExchangeByName(exch)
+
+	exch, err := em.NewExchangeByName(eName)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = excher.GetDefaultConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-	em.Add(excher)
+	exch.SetDefaults()
+	cp := currency.NewPair(s1.Base, s1.Quote)
+	cp2 := currency.NewPair(currency.LTC, currency.USD)
+	cp3 := currency.NewPair(currency.LTC, currency.BTC)
+	exchB := exch.GetBase()
+	eba := exchB.CurrencyPairs.Pairs[a]
+	eba.Available = eba.Available.Add(cp)
+	eba.Enabled = eba.Enabled.Add(cp)
+	eba.Available = eba.Available.Add(cp2)
+	eba.Enabled = eba.Enabled.Add(cp2)
+	eba.Available = eba.Available.Add(cp3)
+	eba.Enabled = eba.Enabled.Add(cp3)
+	eba.AssetEnabled = convert.BoolPtr(true)
+
+	em.Add(exch)
 	resp, err := CreateUSDTrackingPairs([]TrackingPair{s1}, em)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
@@ -59,6 +71,7 @@ func TestCreateUSDTrackingPairs(t *testing.T) {
 	}
 	s1.Base = currency.LTC
 	s1.Quote = currency.BTC
+
 	resp, err = CreateUSDTrackingPairs([]TrackingPair{s1}, em)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)

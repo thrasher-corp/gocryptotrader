@@ -2,6 +2,7 @@ package ftxcashandcarry
 
 import (
 	"errors"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"testing"
 	"time"
 
@@ -416,5 +417,85 @@ func TestOnSimultaneousSignals(t *testing.T) {
 	}
 	if resp[0].GetDirection() != gctorder.DoNothing {
 		t.Errorf("received '%v' expected '%v", resp[0].GetDirection(), gctorder.DoNothing)
+	}
+}
+
+func TestCloseAllPositions(t *testing.T) {
+	t.Parallel()
+	s := Strategy{}
+	_, err := s.CloseAllPositions(nil, nil)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+	leet := decimal.NewFromInt(1337)
+	cp := currency.NewPair(currency.BTC, currency.USD)
+	h := []holdings.Holding{
+		{
+			Offset:   1,
+			Item:     cp.Base,
+			Pair:     cp,
+			Asset:    asset.Spot,
+			Exchange: "ftx",
+		},
+		{
+			Offset:   1,
+			Item:     cp.Base,
+			Pair:     cp,
+			Asset:    asset.Futures,
+			Exchange: "ftx",
+		},
+	}
+
+	p := []data.Event{
+		&signal.Signal{
+			Base: &event.Base{
+				Offset:         1,
+				Exchange:       "ftx",
+				Time:           time.Now(),
+				Interval:       gctkline.OneDay,
+				CurrencyPair:   cp,
+				UnderlyingPair: cp,
+				AssetType:      asset.Spot,
+			},
+			OpenPrice:  leet,
+			HighPrice:  leet,
+			LowPrice:   leet,
+			ClosePrice: leet,
+			Volume:     leet,
+			BuyLimit:   leet,
+			SellLimit:  leet,
+			Amount:     leet,
+			Direction:  gctorder.Buy,
+		},
+		&signal.Signal{
+			Base: &event.Base{
+				Offset:         1,
+				Exchange:       "ftx",
+				Time:           time.Now(),
+				Interval:       gctkline.OneDay,
+				CurrencyPair:   cp,
+				UnderlyingPair: cp,
+				AssetType:      asset.Futures,
+			},
+			OpenPrice:  leet,
+			HighPrice:  leet,
+			LowPrice:   leet,
+			ClosePrice: leet,
+			Volume:     leet,
+			BuyLimit:   leet,
+			SellLimit:  leet,
+			Amount:     leet,
+			Direction:  gctorder.Buy,
+		},
+	}
+	positionsToClose, err := s.CloseAllPositions(h, p)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+	if len(positionsToClose) != 2 {
+		t.Errorf("received '%v' expected '%v", len(positionsToClose), 2)
+	}
+	if !positionsToClose[0].GetAssetType().IsFutures() {
+		t.Errorf("received '%v' expected '%v", positionsToClose[0].GetAssetType(), asset.Futures)
 	}
 }

@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	datakline "github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"sync"
 	"testing"
 	"time"
@@ -139,15 +140,29 @@ func TestDataFetcher(t *testing.T) {
 	dataHandler.wg.Add(1)
 	dataHandler.shutdown = make(chan struct{})
 	dataHandler.updated = make(chan struct{})
-	dataHandler.eventTimeout = time.Minute
+	dataHandler.eventTimeout = time.Second
+	var localWg sync.WaitGroup
+	localWg.Add(1)
 	go func() {
+		defer localWg.Done()
+		asyncErr := dataHandler.DataFetcher()
+		if !errors.Is(asyncErr, ErrLiveDataTimeout) {
+			t.Errorf("received '%v' expected '%v'", asyncErr, ErrLiveDataTimeout)
+		}
+	}()
+	localWg.Wait()
+
+	dataHandler.wg.Add(1)
+	close(dataHandler.shutdown)
+	localWg.Add(1)
+	go func() {
+		defer localWg.Done()
 		asyncErr := dataHandler.DataFetcher()
 		if !errors.Is(asyncErr, nil) {
 			t.Errorf("received '%v' expected '%v'", asyncErr, nil)
 		}
 	}()
-	close(dataHandler.shutdown)
-	dataHandler.wg.Wait()
+	localWg.Wait()
 
 	var dh *DataChecker
 	err = dh.DataFetcher()
@@ -264,21 +279,13 @@ func TestFetchLatestData(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewPair(currency.BTC, currency.USD).Format("/", true)
 	f := &ftx.FTX{}
 	f.SetDefaults()
-	cfg, err := f.GetDefaultConfig()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	err = f.SetupDefaults(cfg)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	err = f.CurrencyPairs.EnablePair(asset.Spot, cp)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	fb := f.GetBase()
+	fbA := fb.CurrencyPairs.Pairs[asset.Spot]
+	fbA.Enabled = fbA.Enabled.Add(cp)
+	fbA.Available = fbA.Available.Add(cp)
 	dataHandler.exchangesToCheck = []liveExchangeDataHandler{
 		{
 			m:              sync.Mutex{},
@@ -319,21 +326,27 @@ func TestLoadCandleData(t *testing.T) {
 
 	exch := &ftx.FTX{}
 	exch.SetDefaults()
-	exch.Config, err = exch.GetDefaultConfig()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	err = exch.SetPairs(currency.Pairs{currency.NewPair(currency.BTC, currency.USD)}, asset.Spot, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	err = exch.SetPairs(currency.Pairs{currency.NewPair(currency.BTC, currency.USD)}, asset.Spot, true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
+	cp := currency.NewPair(currency.BTC, currency.USD).Format("/", true)
+	eba := exch.CurrencyPairs.Pairs[asset.Spot]
+	eba.Available = eba.Available.Add(cp)
+	eba.Enabled = eba.Enabled.Add(cp)
+	eba.AssetEnabled = convert.BoolPtr(true)
+	l.exchange = exch
+	l.dataType = common.DataCandle
+	l.asset = asset.Spot
+	l.pair = cp
+	l.pairCandles = datakline.DataFromKline{
+		Item: kline.Item{
+			Exchange:       testExchange,
+			Asset:          asset.Spot,
+			Pair:           cp,
+			UnderlyingPair: cp,
+			Interval:       kline.OneHour,
+		},
 	}
 	err = l.loadCandleData()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	var ldh *liveExchangeDataHandler

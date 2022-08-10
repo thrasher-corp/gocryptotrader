@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
@@ -21,6 +20,9 @@ import (
 
 // Reset returns the struct to defaults
 func (s *Statistic) Reset() {
+	if s == nil {
+		return
+	}
 	*s = Statistic{}
 }
 

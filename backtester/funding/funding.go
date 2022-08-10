@@ -281,6 +281,9 @@ func CreateCollateral(contract, collateral *Item) (*CollateralPair, error) {
 
 // Reset clears all settings
 func (f *FundManager) Reset() {
+	if f == nil {
+		return
+	}
 	*f = FundManager{}
 }
 

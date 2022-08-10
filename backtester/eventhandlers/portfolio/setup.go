@@ -33,6 +33,9 @@ func Setup(sh SizeHandler, r risk.Handler, riskFreeRate decimal.Decimal) (*Portf
 
 // Reset returns the portfolio manager to its default state
 func (p *Portfolio) Reset() {
+	if p == nil {
+		return
+	}
 	p.exchangeAssetPairSettings = nil
 }
 

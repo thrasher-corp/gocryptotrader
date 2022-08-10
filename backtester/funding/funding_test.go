@@ -787,14 +787,6 @@ func TestUpdateCollateral(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
-	cfg, err := exch.GetDefaultConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = exch.Setup(cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
 	em.Add(exch)
 	f.exchangeManager = em
 

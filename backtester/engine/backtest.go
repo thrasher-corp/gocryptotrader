@@ -3,10 +3,8 @@ package engine
 import (
 	"errors"
 	"fmt"
-
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
@@ -26,18 +24,19 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// New returns a new BackTest instance
-func New() *BackTest {
-	return &BackTest{
-		shutdown:                 make(chan struct{}),
-		DataHolder:               &data.HandlerPerCurrency{},
-		EventQueue:               &eventholder.Holder{},
-		hasProcessedDataAtOffset: make(map[int64]bool),
-	}
-}
-
 // Reset BackTest values to default
 func (bt *BackTest) Reset() {
+	if bt == nil {
+		return
+	}
+	err := bt.orderManager.Stop()
+	if err != nil {
+		log.Error(common.Backtester, err)
+	}
+	err = bt.databaseManager.Stop()
+	if err != nil {
+		log.Error(common.Backtester, err)
+	}
 	bt.EventQueue.Reset()
 	bt.DataHolder.Reset()
 	bt.Portfolio.Reset()

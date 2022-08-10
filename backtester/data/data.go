@@ -54,11 +54,17 @@ func (h *HandlerPerCurrency) GetDataForCurrency(ev common.Event) (Handler, error
 
 // Reset returns the struct to defaults
 func (h *HandlerPerCurrency) Reset() {
+	if h == nil {
+		return
+	}
 	h.data = nil
 }
 
 // Reset loaded data to blank state
 func (b *Base) Reset() {
+	if b == nil {
+		return
+	}
 	b.latest = nil
 	b.offset = 0
 	b.stream = nil

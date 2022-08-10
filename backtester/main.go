@@ -80,7 +80,6 @@ func main() {
 	if !colourOutput {
 		common.PurgeColours()
 	}
-	var bt *backtest.BackTest
 	var cfg *config.Config
 	log.GlobalLogConfig = log.GenDefaultSettings()
 	log.GlobalLogConfig.AdvancedSettings.ShowLogSystemName = convert.BoolPtr(logSubHeader)
@@ -114,7 +113,12 @@ func main() {
 		fmt.Printf("Could not read config. Error: %v.\n", err)
 		os.Exit(1)
 	}
-	bt, err = backtest.NewFromConfig(cfg, templatePath, reportOutput, verbose)
+	bt, err := backtest.NewBacktester()
+	if err != nil {
+		fmt.Printf("Could not create backtester. Error: %v.\n", err)
+		os.Exit(1)
+	}
+	err = bt.NewFromConfig(cfg, templatePath, reportOutput, verbose)
 	if err != nil {
 		fmt.Printf("Could not setup backtester from config. Error: %v.\n", err)
 		os.Exit(1)

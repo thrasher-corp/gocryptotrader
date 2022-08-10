@@ -6,6 +6,9 @@ import (
 
 // Reset returns struct to defaults
 func (h *Holder) Reset() {
+	if h == nil {
+		return
+	}
 	h.Queue = nil
 }
 

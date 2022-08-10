@@ -63,6 +63,7 @@ func (l *DataChecker) Start() error {
 	if !atomic.CompareAndSwapUint32(&l.started, 0, 1) {
 		return engine.ErrSubSystemAlreadyStarted
 	}
+	l.shutdown = make(chan struct{})
 	l.wg.Add(1)
 	go func() {
 		defer l.wg.Done()
@@ -92,7 +93,6 @@ func (l *DataChecker) Stop() error {
 	defer l.m.Unlock()
 	close(l.shutdown)
 	l.wg.Wait()
-	l.shutdown = make(chan struct{})
 	return nil
 }
 
@@ -111,8 +111,6 @@ func (l *DataChecker) DataFetcher() error {
 		select {
 		case <-l.shutdown:
 			return nil
-		case <-timeoutTimer.C:
-			return fmt.Errorf("%w of %v", ErrLiveDataTimeout, l.eventTimeout)
 		case <-checkTimer.C:
 			checkTimer.Reset(l.dataCheckInterval)
 			var updated bool
@@ -126,6 +124,8 @@ func (l *DataChecker) DataFetcher() error {
 			close(l.updated)
 			l.updated = make(chan struct{})
 			timeoutTimer.Reset(l.eventTimeout)
+		case <-timeoutTimer.C:
+			return fmt.Errorf("%w of %v", ErrLiveDataTimeout, l.eventTimeout)
 		}
 	}
 }
