@@ -595,3 +595,9 @@ func TestItemString(t *testing.T) {
 			&newItem)
 	}
 }
+
+func TestItemCurrency(t *testing.T) {
+	if !BTC.Item.Currency().Equal(BTC) {
+		t.Errorf("received '%v' expected '%v'", BTC.Item.Currency(), BTC)
+	}
+}

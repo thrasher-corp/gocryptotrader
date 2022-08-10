@@ -306,3 +306,8 @@ func (c Code) IsCryptocurrency() bool {
 func (c Code) IsStableCurrency() bool {
 	return c.Item != nil && c.Item.Role == Stable
 }
+
+// Currency allows an item to revert to a code
+func (i *Item) Currency() Code {
+	return NewCode(i.Symbol)
+}
