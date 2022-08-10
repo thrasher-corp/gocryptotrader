@@ -36,8 +36,6 @@ var (
 	// LogPath system path to store log files in
 	logPath string
 
-	workerWg sync.WaitGroup
-
 	// read/write mutex for logger
 	mu = &sync.RWMutex{}
 )
@@ -104,5 +102,4 @@ type Levels struct {
 
 type multiWriterHolder struct {
 	writers []io.Writer
-	mu      sync.RWMutex
 }

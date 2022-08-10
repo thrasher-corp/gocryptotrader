@@ -17,9 +17,6 @@ var (
 
 // Write implementation to satisfy io.Writer handles length check and rotation
 func (r *Rotate) Write(output []byte) (n int, err error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	outputLen := int64(len(output))
 	if outputLen > r.maxSize() {
 		return 0, fmt.Errorf(
@@ -113,8 +110,6 @@ func (r *Rotate) close() (err error) {
 
 // Close handler for open file
 func (r *Rotate) Close() error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
 	return r.close()
 }
 

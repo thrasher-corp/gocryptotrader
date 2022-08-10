@@ -110,21 +110,21 @@ func GetLogPath() string {
 }
 
 func configureSubLogger(subLogger, levels string, output *multiWriterHolder) error {
-	mu.Lock()
-	defer mu.Unlock()
 	logPtr, found := SubLoggers[subLogger]
 	if !found {
 		return fmt.Errorf("sub logger %v not found", subLogger)
 	}
 
-	logPtr.SetOutput(output)
-	logPtr.SetLevels(splitLevel(levels))
+	logPtr.setOutput(output)
+	logPtr.setLevels(splitLevel(levels))
 	SubLoggers[subLogger] = logPtr
 	return nil
 }
 
 // SetupSubLoggers configure all sub loggers with provided configuration values
 func SetupSubLoggers(s []SubLoggerConfig) error {
+	mu.Lock()
+	defer mu.Unlock()
 	for x := range s {
 		output, err := getWriters(&s[x])
 		if err != nil {
@@ -143,13 +143,6 @@ func SetupGlobalLogger() error {
 	mu.Lock()
 	defer mu.Unlock()
 
-	if jobsChannel == nil {
-		jobsChannel = make(chan *job, defaultJobChannelCapacity)
-		kick = make(chan struct{})
-		workerWg.Add(1)
-		go loggerWorker()
-	}
-
 	if fileLoggingConfiguredCorrectly {
 		globalLogFile = &Rotate{
 			FileName: globalLogConfig.LoggerFileConfig.FileName,
@@ -159,12 +152,12 @@ func SetupGlobalLogger() error {
 	}
 
 	for _, subLogger := range SubLoggers {
-		subLogger.SetLevels(splitLevel(globalLogConfig.Level))
+		subLogger.setLevels(splitLevel(globalLogConfig.Level))
 		writers, err := getWriters(&globalLogConfig.SubLoggerConfig)
 		if err != nil {
 			return err
 		}
-		subLogger.SetOutput(writers)
+		subLogger.setOutput(writers)
 	}
 	logger = newLogger(globalLogConfig)
 	return nil
@@ -184,8 +177,6 @@ func SetFileLoggingState(correctlyConfigured bool) error {
 }
 
 func getFileLoggingState() bool {
-	mu.RLock()
-	defer mu.RUnlock()
 	return fileLoggingConfiguredCorrectly
 }
 
@@ -220,18 +211,16 @@ func registerNewSubLogger(subLogger string) *SubLogger {
 		output: tempHolder,
 		levels: splitLevel("INFO|WARN|DEBUG|ERROR"),
 	}
-	mu.Lock()
 	SubLoggers[subLogger] = temp
-	mu.Unlock()
 	return temp
 }
 
 // register all loggers at package init()
 func init() {
 	// Start persistent worker to handle logs
-	workerWg.Add(1)
 	go loggerWorker()
 
+	mu.Lock()
 	Global = registerNewSubLogger("LOG")
 
 	ConnectionMgr = registerNewSubLogger("CONNECTION")
@@ -259,4 +248,5 @@ func init() {
 	Trade = registerNewSubLogger("TRADE")
 	Fill = registerNewSubLogger("FILL")
 	Currency = registerNewSubLogger("CURRENCY")
+	mu.Unlock()
 }

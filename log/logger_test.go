@@ -1,7 +1,6 @@
 package log
 
 import (
-	"bytes"
 	"errors"
 	"io"
 	"io/ioutil"
@@ -163,58 +162,21 @@ func TestAddWriter(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
-	err = mw.Add(io.Discard)
+	err = mw.add(io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = mw.Add(os.Stdin)
+	err = mw.add(os.Stdin)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = mw.Add(os.Stdout)
+	err = mw.add(os.Stdout)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if total := len(mw.writers); total != 3 {
 		t.Errorf("expected m.Writers to be 3 %v", total)
-	}
-}
-
-func TestRemoveWriter(t *testing.T) {
-	t.Parallel()
-	mw, err := multiWriter()
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = mw.Add(io.Discard)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = mw.Add(os.Stdin)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = mw.Add(os.Stdout)
-	if err != nil {
-		t.Fatal(err)
-	}
-	total := len(mw.writers)
-	err = mw.Remove(os.Stdin)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = mw.Remove(os.Stdout)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = mw.Remove(&bytes.Buffer{})
-	if !errors.Is(err, errWriterNotFound) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errWriterNotFound)
-	}
-
-	if len(mw.writers) != total-2 {
-		t.Errorf("expected m.Writers to be %v got %v", total-2, len(mw.writers))
 	}
 }
 
@@ -333,12 +295,13 @@ func TestSetLevel(t *testing.T) {
 func TestConfigureSubLogger(t *testing.T) {
 	t.Parallel()
 	mw := &multiWriterHolder{writers: []io.Writer{newTestBuffer()}}
+	mu.Lock()
 	err := configureSubLogger("LOG", "INFO", mw)
+	mu.Unlock()
 	if err != nil {
 		t.Skipf("configureSubLogger() returned unexpected error %v", err)
 	}
-	levels := Global.GetLevels()
-	if (levels != Levels{Info: true, Debug: false}) {
+	if (Global.levels != Levels{Info: true}) {
 		t.Error("configureSubLogger() incorrectly configure subLogger")
 	}
 	if Global.name != "LOG" {
@@ -381,9 +344,12 @@ func TestInfo(t *testing.T) {
 	w := newTestBuffer()
 	mw := &multiWriterHolder{writers: []io.Writer{w}}
 
-	sl := registerNewSubLogger("TESTYMCTESTALOTINFO")
-	sl.SetLevels(splitLevel("INFO"))
-	sl.SetOutput(mw)
+	sl, err := NewSubLogger("TESTYMCTESTALOTINFO")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sl.setLevels(splitLevel("INFO"))
+	sl.setOutput(mw)
 
 	Info(sl, "Hello")
 	<-w.Finished
@@ -407,7 +373,7 @@ func TestInfo(t *testing.T) {
 		t.Errorf("received: '%v' but expected: '%v'", contents, "hello hello")
 	}
 
-	_, err := SetLevel("TESTYMCTESTALOTINFO", "")
+	_, err = SetLevel("TESTYMCTESTALOTINFO", "")
 	if err != nil {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -432,9 +398,12 @@ func TestDebug(t *testing.T) {
 	w := newTestBuffer()
 	mw := &multiWriterHolder{writers: []io.Writer{w}}
 
-	sl := registerNewSubLogger("TESTYMCTESTALOTDEBUG")
-	sl.SetLevels(splitLevel("DEBUG"))
-	sl.SetOutput(mw)
+	sl, err := NewSubLogger("TESTYMCTESTALOTDEBUG")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sl.setLevels(splitLevel("DEBUG"))
+	sl.setOutput(mw)
 
 	Debug(sl, "Hello")
 	<-w.Finished
@@ -458,7 +427,7 @@ func TestDebug(t *testing.T) {
 		t.Errorf("received: '%v' but expected: '%v'", contents, "hello hello")
 	}
 
-	_, err := SetLevel("TESTYMCTESTALOTDEBUG", "")
+	_, err = SetLevel("TESTYMCTESTALOTDEBUG", "")
 	if err != nil {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -483,9 +452,12 @@ func TestWarn(t *testing.T) {
 	w := newTestBuffer()
 	mw := &multiWriterHolder{writers: []io.Writer{w}}
 
-	sl := registerNewSubLogger("TESTYMCTESTALOTWARN")
-	sl.SetLevels(splitLevel("WARN"))
-	sl.SetOutput(mw)
+	sl, err := NewSubLogger("TESTYMCTESTALOTWARN")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sl.setLevels(splitLevel("WARN"))
+	sl.setOutput(mw)
 
 	Warn(sl, "Hello")
 	<-w.Finished
@@ -509,7 +481,7 @@ func TestWarn(t *testing.T) {
 		t.Errorf("received: '%v' but expected: '%v'", contents, "hello hello")
 	}
 
-	_, err := SetLevel("TESTYMCTESTALOTWARN", "")
+	_, err = SetLevel("TESTYMCTESTALOTWARN", "")
 	if err != nil {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -534,9 +506,12 @@ func TestError(t *testing.T) {
 	w := newTestBuffer()
 	mw := &multiWriterHolder{writers: []io.Writer{w}}
 
-	sl := registerNewSubLogger("TESTYMCTESTALOTERROR")
-	sl.SetLevels(splitLevel("ERROR"))
-	sl.SetOutput(mw)
+	sl, err := NewSubLogger("TESTYMCTESTALOTERROR")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sl.setLevels(splitLevel("ERROR"))
+	sl.setOutput(mw)
 
 	Error(sl, "Hello")
 	<-w.Finished
@@ -560,7 +535,7 @@ func TestError(t *testing.T) {
 		t.Errorf("received: '%v' but expected: '%v'", contents, "hello hello")
 	}
 
-	_, err := SetLevel("TESTYMCTESTALOTERROR", "")
+	_, err = SetLevel("TESTYMCTESTALOTERROR", "")
 	if err != nil {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}

@@ -7,6 +7,8 @@ import (
 
 // Info takes a pointer subLogger struct and string sends to StageLogEvent
 func Info(sl *SubLogger, data string) {
+	mu.RLock()
+	defer mu.RUnlock()
 	fields := sl.getFields()
 	if fields == nil {
 		return
@@ -25,6 +27,8 @@ func Info(sl *SubLogger, data string) {
 
 // Infoln takes a pointer subLogger struct and interface sends to StageLogEvent
 func Infoln(sl *SubLogger, v ...interface{}) {
+	mu.RLock()
+	defer mu.RUnlock()
 	fields := sl.getFields()
 	if fields == nil {
 		return
@@ -43,6 +47,8 @@ func Infoln(sl *SubLogger, v ...interface{}) {
 
 // Infof takes a pointer subLogger struct, string & interface formats
 func Infof(sl *SubLogger, data string, v ...interface{}) {
+	mu.RLock()
+	defer mu.RUnlock()
 	fields := sl.getFields()
 	if fields == nil {
 		return
@@ -61,6 +67,8 @@ func Infof(sl *SubLogger, data string, v ...interface{}) {
 
 // Debug takes a pointer subLogger struct and string sends to StageLogEvent
 func Debug(sl *SubLogger, data string) {
+	mu.RLock()
+	defer mu.RUnlock()
 	fields := sl.getFields()
 	if fields == nil {
 		return
@@ -79,6 +87,8 @@ func Debug(sl *SubLogger, data string) {
 
 // Debugln takes a pointer subLogger struct, string and interface sends to StageLogEvent
 func Debugln(sl *SubLogger, v ...interface{}) {
+	mu.RLock()
+	defer mu.RUnlock()
 	fields := sl.getFields()
 	if fields == nil {
 		return
@@ -97,6 +107,8 @@ func Debugln(sl *SubLogger, v ...interface{}) {
 
 // Debugf takes a pointer subLogger struct, string & interface formats
 func Debugf(sl *SubLogger, data string, v ...interface{}) {
+	mu.RLock()
+	defer mu.RUnlock()
 	fields := sl.getFields()
 	if fields == nil {
 		return
@@ -115,6 +127,8 @@ func Debugf(sl *SubLogger, data string, v ...interface{}) {
 
 // Warn takes a pointer subLogger struct & string and sends to StageLogEvent
 func Warn(sl *SubLogger, data string) {
+	mu.RLock()
+	defer mu.RUnlock()
 	fields := sl.getFields()
 	if fields == nil {
 		return
@@ -133,6 +147,8 @@ func Warn(sl *SubLogger, data string) {
 
 // Warnln takes a pointer subLogger struct & interface formats and sends to StageLogEvent
 func Warnln(sl *SubLogger, v ...interface{}) {
+	mu.RLock()
+	defer mu.RUnlock()
 	fields := sl.getFields()
 	if fields == nil {
 		return
@@ -151,6 +167,8 @@ func Warnln(sl *SubLogger, v ...interface{}) {
 
 // Warnf takes a pointer subLogger struct, string & interface formats
 func Warnf(sl *SubLogger, data string, v ...interface{}) {
+	mu.RLock()
+	defer mu.RUnlock()
 	fields := sl.getFields()
 	if fields == nil {
 		return
@@ -169,6 +187,8 @@ func Warnf(sl *SubLogger, data string, v ...interface{}) {
 
 // Error takes a pointer subLogger struct & interface formats and sends to StageLogEvent
 func Error(sl *SubLogger, data ...interface{}) {
+	mu.RLock()
+	defer mu.RUnlock()
 	fields := sl.getFields()
 	if fields == nil {
 		return
@@ -187,6 +207,8 @@ func Error(sl *SubLogger, data ...interface{}) {
 
 // Errorln takes a pointer subLogger struct, string & interface formats and sends to StageLogEvent
 func Errorln(sl *SubLogger, v ...interface{}) {
+	mu.RLock()
+	defer mu.RUnlock()
 	fields := sl.getFields()
 	if fields == nil {
 		return
@@ -205,6 +227,8 @@ func Errorln(sl *SubLogger, v ...interface{}) {
 
 // Errorf takes a pointer subLogger struct, string & interface formats
 func Errorf(sl *SubLogger, data string, v ...interface{}) {
+	mu.RLock()
+	defer mu.RUnlock()
 	fields := sl.getFields()
 	if fields == nil {
 		return

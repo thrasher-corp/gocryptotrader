@@ -5,52 +5,17 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"sync"
 	"time"
 )
 
 var (
 	errWriterAlreadyLoaded = errors.New("io.Writer already loaded")
-	errWriterNotFound      = errors.New("io.Writer not found")
 	errJobsChannelIsFull   = errors.New("logger jobs channel is filled")
-
-	processingBacklog sync.WaitGroup
-	kick              = make(chan struct{})
 )
-
-// Add appends a new writer to the multiwriter slice
-func (mw *multiWriterHolder) Add(writer io.Writer) error {
-	mw.mu.Lock()
-	defer mw.mu.Unlock()
-	for i := range mw.writers {
-		if mw.writers[i] == writer {
-			return errWriterAlreadyLoaded
-		}
-	}
-	mw.writers = append(mw.writers, writer)
-	return nil
-}
-
-// Remove removes existing writer from multiwriter slice
-func (mw *multiWriterHolder) Remove(writer io.Writer) error {
-	mw.mu.Lock()
-	defer mw.mu.Unlock()
-	for i := range mw.writers {
-		if mw.writers[i] != writer {
-			continue
-		}
-		mw.writers[i] = mw.writers[len(mw.writers)-1]
-		mw.writers[len(mw.writers)-1] = nil
-		mw.writers = mw.writers[:len(mw.writers)-1]
-		return nil
-	}
-	return errWriterNotFound
-}
 
 // loggerWorker handles all work staged to be written to confgured io.Writer(s)
 // This worker is generated in init() to handle full workload.
 func loggerWorker() {
-	defer workerWg.Done()
 	// Localise a persistent buffer for a worker, this does not need to be
 	// garbage collected.
 	buffer := make([]byte, 0, defaultBufferCapacity)
@@ -94,9 +59,6 @@ type deferral func() string
 // a worker pool. This segregates the need to process the log string and the
 // writes to the required io.Writer.
 func (mw *multiWriterHolder) StageLogEvent(fn deferral, header, slName, spacer, timestampFormat string, showLogSystemName, bypassWarning bool) {
-	mw.mu.RLock()
-	defer mw.mu.RUnlock()
-
 	newJob := jobsPool.Get().(*job) // nolint:forcetypeassert // Not necessary from a pool
 	newJob.Writers = mw.writers
 	newJob.fn = fn
@@ -109,17 +71,12 @@ func (mw *multiWriterHolder) StageLogEvent(fn deferral, header, slName, spacer, 
 	select {
 	case jobsChannel <- newJob:
 	default:
-		processingBacklog.Add(1)
 		// This will cause temporary caller impedance, which can have a knock
 		// on effect in processing.
 		if !bypassWarning {
 			log.Printf("Logger warning: %v\n", errJobsChannelIsFull)
 		}
-		select {
-		case jobsChannel <- newJob:
-		case <-kick:
-		}
-		processingBacklog.Done()
+		jobsChannel <- newJob
 	}
 }
 
@@ -127,10 +84,21 @@ func (mw *multiWriterHolder) StageLogEvent(fn deferral, header, slName, spacer, 
 func multiWriter(writers ...io.Writer) (*multiWriterHolder, error) {
 	mw := &multiWriterHolder{}
 	for x := range writers {
-		err := mw.Add(writers[x])
+		err := mw.add(writers[x])
 		if err != nil {
 			return nil, err
 		}
 	}
 	return mw, nil
+}
+
+// Add appends a new writer to the multiwriter slice
+func (mw *multiWriterHolder) add(writer io.Writer) error {
+	for i := range mw.writers {
+		if mw.writers[i] == writer {
+			return errWriterAlreadyLoaded
+		}
+	}
+	mw.writers = append(mw.writers, writer)
+	return nil
 }

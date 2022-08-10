@@ -1,9 +1,5 @@
 package log
 
-import (
-	"sync"
-)
-
 // Global vars related to the logger package
 var (
 	SubLoggers = map[string]*SubLogger{}
@@ -42,7 +38,6 @@ type SubLogger struct {
 	name   string
 	levels Levels
 	output *multiWriterHolder
-	mtx    sync.RWMutex
 }
 
 // logFields is used to store data in a non-global and thread-safe manner

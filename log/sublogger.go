@@ -11,48 +11,30 @@ func NewSubLogger(name string) (*SubLogger, error) {
 		return nil, errEmptyLoggerName
 	}
 	name = strings.ToUpper(name)
-	mu.RLock()
+	mu.Lock()
+	defer mu.Unlock()
 	if _, ok := SubLoggers[name]; ok {
-		mu.RUnlock()
 		return nil, fmt.Errorf("'%v' %w", name, ErrSubLoggerAlreadyRegistered)
 	}
-	mu.RUnlock()
 	return registerNewSubLogger(name), nil
 }
 
 // SetOutput overrides the default output with a new writer
-func (sl *SubLogger) SetOutput(o *multiWriterHolder) {
-	sl.mtx.Lock()
+func (sl *SubLogger) setOutput(o *multiWriterHolder) {
 	sl.output = o
-	sl.mtx.Unlock()
 }
 
 // SetLevels overrides the default levels with new levels; levelception
-func (sl *SubLogger) SetLevels(newLevels Levels) {
-	sl.mtx.Lock()
+func (sl *SubLogger) setLevels(newLevels Levels) {
 	sl.levels = newLevels
-	sl.mtx.Unlock()
-}
-
-// GetLevels returns current functional log levels
-func (sl *SubLogger) GetLevels() Levels {
-	sl.mtx.RLock()
-	defer sl.mtx.RUnlock()
-	return sl.levels
 }
 
 func (sl *SubLogger) getFields() *logFields {
-	mu.RLock()
-	defer mu.RUnlock()
-
 	if sl == nil || globalLogConfig == nil || globalLogConfig.Enabled == nil || !*globalLogConfig.Enabled {
 		return nil
 	}
 
 	fields := logFieldsPool.Get().(*logFields) // nolint:forcetypeassert // Not necessary from a pool
-
-	sl.mtx.RLock()
-	defer sl.mtx.RUnlock()
 	fields.info = sl.levels.Info
 	fields.warn = sl.levels.Warn
 	fields.debug = sl.levels.Debug

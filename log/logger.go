@@ -29,18 +29,12 @@ func newLogger(c *Config) Logger {
 // CloseLogger is called on shutdown of application
 func CloseLogger() error {
 	mu.Lock()
+	defer mu.Unlock()
 	globalLogConfig.Enabled = convert.BoolPtr(false)
-	close(jobsChannel)
-	workerWg.Wait()
-	close(kick)
-	processingBacklog.Wait()
-	jobsChannel = nil
-	kick = nil
-	mu.Unlock()
 	return globalLogFile.Close()
 }
 
-// Level retries the current sublogger levels
+// Level retrieves the current sublogger levels
 func Level(name string) (Levels, error) {
 	mu.RLock()
 	defer mu.RUnlock()
@@ -59,6 +53,6 @@ func SetLevel(s, level string) (Levels, error) {
 	if !found {
 		return Levels{}, fmt.Errorf("sub logger %v not found", s)
 	}
-	subLogger.SetLevels(splitLevel(level))
+	subLogger.setLevels(splitLevel(level))
 	return subLogger.levels, nil
 }
