@@ -88,6 +88,7 @@ func SetGlobalLogConfig(incoming *Config) error {
 	globalLogConfig.SubLoggerConfig = incoming.SubLoggerConfig
 	globalLogConfig.Enabled = convert.BoolPtr(incoming.Enabled != nil && *incoming.Enabled)
 	globalLogConfig.LoggerFileConfig = &fileConf
+	globalLogConfig.AdvancedSettings = incoming.AdvancedSettings
 	return nil
 }
 
