@@ -226,23 +226,29 @@ func TestMultiWriterWrite(t *testing.T) {
 
 func TestGetWriters(t *testing.T) {
 	t.Parallel()
-	_, err := getWriters(nil)
+	_, err := getWritersProtected(nil)
 	if !errors.Is(err, errSubloggerConfigIsNil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errSubloggerConfigIsNil)
 	}
 
 	outputWriters := "stDout|stderr|filE"
 
-	_, err = getWriters(&SubLoggerConfig{Output: outputWriters})
+	_, err = getWritersProtected(&SubLoggerConfig{Output: outputWriters})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
 	outputWriters = "stdout|stderr|file|noobs"
-	_, err = getWriters(&SubLoggerConfig{Output: outputWriters})
+	_, err = getWritersProtected(&SubLoggerConfig{Output: outputWriters})
 	if !errors.Is(err, errUnhandledOutputWriter) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errUnhandledOutputWriter)
 	}
+}
+
+func getWritersProtected(s *SubLoggerConfig) (*multiWriterHolder, error) {
+	mu.RLock()
+	defer mu.RUnlock()
+	return getWriters(s)
 }
 
 func TestGenDefaultSettings(t *testing.T) {
@@ -290,8 +296,8 @@ func TestConfigureSubLogger(t *testing.T) {
 	t.Parallel()
 	mw := &multiWriterHolder{writers: []io.Writer{newTestBuffer()}}
 	mu.Lock()
+	defer mu.Unlock()
 	err := configureSubLogger("LOG", "INFO", mw)
-	mu.Unlock()
 	if err != nil {
 		t.Skipf("configureSubLogger() returned unexpected error %v", err)
 	}
@@ -342,8 +348,8 @@ func TestInfo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sl.setLevels(splitLevel("INFO"))
-	sl.setOutput(mw)
+	sl.setLevelsProtected(splitLevel("INFO"))
+	sl.setOutputProtected(mw)
 
 	Info(sl, "Hello")
 	<-w.Finished
@@ -396,8 +402,8 @@ func TestDebug(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sl.setLevels(splitLevel("DEBUG"))
-	sl.setOutput(mw)
+	sl.setLevelsProtected(splitLevel("DEBUG"))
+	sl.setOutputProtected(mw)
 
 	Debug(sl, "Hello")
 	<-w.Finished
@@ -450,8 +456,8 @@ func TestWarn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sl.setLevels(splitLevel("WARN"))
-	sl.setOutput(mw)
+	sl.setLevelsProtected(splitLevel("WARN"))
+	sl.setOutputProtected(mw)
 
 	Warn(sl, "Hello")
 	<-w.Finished
@@ -504,8 +510,8 @@ func TestError(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sl.setLevels(splitLevel("ERROR"))
-	sl.setOutput(mw)
+	sl.setLevelsProtected(splitLevel("ERROR"))
+	sl.setOutputProtected(mw)
 
 	Error(sl, "Hello")
 	<-w.Finished
@@ -547,6 +553,18 @@ func TestError(t *testing.T) {
 	if contents != "" {
 		t.Errorf("received: '%v' but expected: '%v'", contents, "")
 	}
+}
+
+func (sl *SubLogger) setLevelsProtected(newLevels Levels) {
+	mu.Lock()
+	sl.setLevels(newLevels)
+	mu.Unlock()
+}
+
+func (sl *SubLogger) setOutputProtected(o *multiWriterHolder) {
+	mu.Lock()
+	sl.setOutput(o)
+	mu.Unlock()
 }
 
 func TestSubLoggerName(t *testing.T) {
