@@ -105,7 +105,7 @@ func Debugln(sl *SubLogger, v ...interface{}) {
 	logFieldsPool.Put(fields)
 }
 
-// Debugf takes a pointer subLogger struct, string & interface formats
+// Debugf takes a pointer subLogger struct, string and interface formats sends to StageLogEvent
 func Debugf(sl *SubLogger, data string, v ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
