@@ -45,7 +45,7 @@ func Infoln(sl *SubLogger, v ...interface{}) {
 	logFieldsPool.Put(fields)
 }
 
-// Infof takes a pointer subLogger struct, string & interface formats
+// Infof takes a pointer subLogger struct, string and interface formats sends to StageLogEvent
 func Infof(sl *SubLogger, data string, v ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
