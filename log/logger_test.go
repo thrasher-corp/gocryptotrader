@@ -226,29 +226,30 @@ func TestMultiWriterWrite(t *testing.T) {
 
 func TestGetWriters(t *testing.T) {
 	t.Parallel()
-	_, err := getWritersProtected(nil)
+	err := getWritersProtected(nil)
 	if !errors.Is(err, errSubloggerConfigIsNil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errSubloggerConfigIsNil)
 	}
 
 	outputWriters := "stDout|stderr|filE"
 
-	_, err = getWritersProtected(&SubLoggerConfig{Output: outputWriters})
+	err = getWritersProtected(&SubLoggerConfig{Output: outputWriters})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
 	outputWriters = "stdout|stderr|file|noobs"
-	_, err = getWritersProtected(&SubLoggerConfig{Output: outputWriters})
+	err = getWritersProtected(&SubLoggerConfig{Output: outputWriters})
 	if !errors.Is(err, errUnhandledOutputWriter) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errUnhandledOutputWriter)
 	}
 }
 
-func getWritersProtected(s *SubLoggerConfig) (*multiWriterHolder, error) {
+func getWritersProtected(s *SubLoggerConfig) error {
 	mu.RLock()
 	defer mu.RUnlock()
-	return getWriters(s)
+	_, err := getWriters(s)
+	return err
 }
 
 func TestGenDefaultSettings(t *testing.T) {
