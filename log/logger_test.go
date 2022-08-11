@@ -65,9 +65,9 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("CloseLogger() failed %v", err)
 	}
-	err = os.Remove(tempDir)
+	err = os.RemoveAll(tempDir)
 	if err != nil {
-		log.Println("failed to remove temp file:", tempDir)
+		log.Fatal("failed to remove temp file:", tempDir, err)
 	}
 	os.Exit(r)
 }
@@ -618,6 +618,11 @@ func TestRotateWrite(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
+
+	err = empty.Close()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
 }
 
 func TestOpenNew(t *testing.T) {
@@ -630,6 +635,11 @@ func TestOpenNew(t *testing.T) {
 
 	empty.FileName = "wow.txt"
 	err = empty.openNew()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+
+	err = empty.Close()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
