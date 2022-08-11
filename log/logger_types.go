@@ -48,6 +48,7 @@ type job struct {
 	Spacer            string
 	TimestampFormat   string
 	ShowLogSystemName bool
+	Passback          chan struct{}
 }
 
 // Config holds configuration settings loaded from bot config
@@ -89,7 +90,8 @@ type loggerFileConfig struct {
 
 // Logger each instance of logger settings
 type Logger struct {
-	ShowLogSystemName, BypassJobChannelFilledWarning bool
+	ShowLogSystemName                                bool
+	BypassJobChannelFilledWarning                    bool
 	TimestampFormat                                  string
 	InfoHeader, ErrorHeader, DebugHeader, WarnHeader string
 	Spacer                                           string

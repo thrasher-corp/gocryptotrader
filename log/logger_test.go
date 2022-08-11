@@ -127,28 +127,22 @@ func TestSetLogPath(t *testing.T) {
 
 func TestSetFileLoggingState(t *testing.T) {
 	t.Parallel()
-	err := SetFileLoggingState(false)
-	if !errors.Is(err, errLoggingStateAlreadySet) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errLoggingStateAlreadySet)
-	}
 
-	err = SetFileLoggingState(true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
+	SetFileLoggingState(true)
 	if !getFileLoggingState() {
 		t.Fatal("unexpected value")
 	}
 
-	err = SetFileLoggingState(false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
+	SetFileLoggingState(false)
 	if getFileLoggingState() {
 		t.Fatal("unexpected value")
 	}
+}
+
+func getFileLoggingState() bool {
+	mu.RLock()
+	defer mu.RUnlock()
+	return fileLoggingConfiguredCorrectly
 }
 
 func TestAddWriter(t *testing.T) {

@@ -31,6 +31,9 @@ func CloseLogger() error {
 	mu.Lock()
 	defer mu.Unlock()
 	globalLogConfig.Enabled = convert.BoolPtr(false)
+	ch := make(chan struct{})
+	jobsChannel <- &job{Passback: ch}
+	<-ch
 	return globalLogFile.Close()
 }
 

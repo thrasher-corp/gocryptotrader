@@ -29,6 +29,8 @@ func (sl *SubLogger) setLevels(newLevels Levels) {
 	sl.levels = newLevels
 }
 
+// getFields returns sub logger specific fields for the potential log job.
+// Note: Calling function must have mutex lock in place.
 func (sl *SubLogger) getFields() *logFields {
 	if sl == nil || globalLogConfig == nil || globalLogConfig.Enabled == nil || !*globalLogConfig.Enabled {
 		return nil

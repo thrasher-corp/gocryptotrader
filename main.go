@@ -143,7 +143,7 @@ func main() {
 	if err = engine.Bot.Start(); err != nil {
 		errClose := gctlog.CloseLogger()
 		if errClose != nil {
-			log.Fatalf("Unable to close logger. Error: %s\n", errClose)
+			log.Printf("Unable to close logger. Error: %s\n", errClose)
 		}
 		log.Fatalf("Unable to start bot engine. Error: %s\n", err)
 	}
