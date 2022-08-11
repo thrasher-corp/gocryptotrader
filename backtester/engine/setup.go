@@ -4,6 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"sync"
+
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
@@ -35,10 +40,6 @@ import (
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
-	"path/filepath"
-	"runtime"
-	"strings"
-	"sync"
 )
 
 // NewBacktester returns a new BackTest instance
@@ -82,22 +83,6 @@ func (bt *BackTest) NewFromConfig(cfg *config.Config, templatePath, output strin
 	}
 
 	bt.DataHolder.Setup()
-	if cfg.DataSettings.LiveData != nil {
-		bt.LiveDataHandler, err = SetupLiveDataHandler(
-			bt.exchangeManager,
-			bt.DataHolder,
-			cfg.DataSettings.LiveData.NewEventTimeout,
-			cfg.DataSettings.LiveData.NewEventTimeout,
-			cfg.DataSettings.LiveData.DataCheckTimer,
-			verbose)
-		if err != nil {
-			return err
-		}
-		err = bt.LiveDataHandler.Start()
-		if err != nil {
-			return err
-		}
-	}
 	reports := &report.Data{
 		Config:       cfg,
 		TemplatePath: templatePath,
@@ -173,6 +158,7 @@ func (bt *BackTest) NewFromConfig(cfg *config.Config, templatePath, output strin
 		cp := currency.NewPair(cfg.CurrencySettings[i].Base, cfg.CurrencySettings[i].Quote).Format(exchangeAsset.RequestFormat.Delimiter, exchangeAsset.RequestFormat.Uppercase)
 		exchangeAsset.Available = exchangeAsset.Available.Add(cp)
 		exchangeAsset.Enabled = exchangeAsset.Enabled.Add(cp)
+		exchBase.Verbose = false
 		exchBase.CurrencyPairs.Pairs[cfg.CurrencySettings[i].Asset] = exchangeAsset
 	}
 
@@ -326,6 +312,22 @@ func (bt *BackTest) NewFromConfig(cfg *config.Config, templatePath, output strin
 	}
 
 	bt.Funding = funds
+
+	if cfg.DataSettings.LiveData != nil {
+		bt.LiveDataHandler, err = bt.SetupLiveDataHandler(
+			cfg.DataSettings.LiveData.NewEventTimeout,
+			cfg.DataSettings.LiveData.NewEventTimeout,
+			cfg.DataSettings.LiveData.DataCheckTimer,
+			verbose)
+		if err != nil {
+			return err
+		}
+		err = bt.LiveDataHandler.Start()
+		if err != nil {
+			return err
+		}
+	}
+
 	var p *portfolio.Portfolio
 	p, err = portfolio.Setup(sizeManager, portfolioRisk, cfg.StatisticSettings.RiskFreeRate)
 	if err != nil {

@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
-	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/live"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
@@ -24,12 +24,18 @@ import (
 
 // SetupLiveDataHandler creates a live data handler to retrieve and append
 // live data as it comes in
-func SetupLiveDataHandler(em *engine.ExchangeManager, dataHolder data.Holder, eventCheckInterval, eventTimeout, dataCheckInterval time.Duration, verbose bool) (Handler, error) {
-	if em == nil {
+func (bt *BackTest) SetupLiveDataHandler(eventCheckInterval, eventTimeout, dataCheckInterval time.Duration, verbose bool) (Handler, error) {
+	if bt.exchangeManager == nil {
 		return nil, fmt.Errorf("%w engine manager", gctcommon.ErrNilPointer)
 	}
-	if dataHolder == nil {
+	if bt.DataHolder == nil {
 		return nil, fmt.Errorf("%w data holder", gctcommon.ErrNilPointer)
+	}
+	if bt.Reports == nil {
+		return nil, fmt.Errorf("%w reports", gctcommon.ErrNilPointer)
+	}
+	if bt.Funding == nil {
+		return nil, fmt.Errorf("%w funding manager", gctcommon.ErrNilPointer)
 	}
 	if eventCheckInterval <= 0 {
 		log.Warnf(common.Livetester, "invalid event check interval '%v', defaulting to '%v'", eventCheckInterval, defaultEventCheckInterval)
@@ -44,14 +50,16 @@ func SetupLiveDataHandler(em *engine.ExchangeManager, dataHolder data.Holder, ev
 		dataCheckInterval = defaultEventCheckInterval
 	}
 	return &DataChecker{
-		exchangeManager:    em,
+		verbose:            verbose,
+		exchangeManager:    bt.exchangeManager,
 		eventCheckInterval: eventCheckInterval,
 		eventTimeout:       eventTimeout,
 		dataCheckInterval:  dataCheckInterval,
-		verbose:            verbose,
-		dataHolder:         dataHolder,
+		dataHolder:         bt.DataHolder,
 		updated:            make(chan struct{}),
 		shutdown:           make(chan struct{}),
+		report:             bt.Reports,
+		funding:            bt.Funding,
 	}, nil
 }
 
@@ -66,7 +74,6 @@ func (l *DataChecker) Start() error {
 	l.shutdown = make(chan struct{})
 	l.wg.Add(1)
 	go func() {
-		defer l.wg.Done()
 		err := l.DataFetcher()
 		if err != nil {
 			return
@@ -101,6 +108,7 @@ func (l *DataChecker) DataFetcher() error {
 	if l == nil {
 		return fmt.Errorf("%w DataChecker", gctcommon.ErrNilPointer)
 	}
+	defer l.wg.Done()
 	if atomic.LoadUint32(&l.started) == 0 {
 		return engine.ErrSubSystemNotStarted
 	}
@@ -236,7 +244,16 @@ func (l *DataChecker) FetchLatestData() (bool, error) {
 		if len(l.exchangesToCheck[i].pairCandles.Item.Candles) > preCandleLen {
 			updated = true
 		}
+		err = l.report.SetKlineData(&l.exchangesToCheck[i].pairCandles.Item)
+		if err != nil {
+			log.Errorf(common.Livetester, "issue processing kline data: %v", err)
+		}
+		err = l.funding.AddUSDTrackingData(&l.exchangesToCheck[i].pairCandles)
+		if err != nil && !errors.Is(err, funding.ErrUSDTrackingDisabled) {
+			log.Errorf(common.Livetester, "issue processing USD tracking data: %v", err)
+		}
 	}
+
 	return updated, nil
 }
 

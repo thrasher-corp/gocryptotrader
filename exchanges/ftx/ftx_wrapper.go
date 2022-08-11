@@ -168,6 +168,14 @@ func (f *FTX) SetDefaults() {
 	f.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	f.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	f.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
+
+	err = f.LoadCollateralWeightings(context.TODO())
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to store collateral weightings. Err: %s",
+			f.Name,
+			err)
+	}
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -206,15 +214,6 @@ func (f *FTX) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	if err = f.CurrencyPairs.IsAssetEnabled(asset.Futures); err == nil {
-		err = f.LoadCollateralWeightings(context.TODO())
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to store collateral weightings. Err: %s",
-				f.Name,
-				err)
-		}
-	}
 	return f.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,

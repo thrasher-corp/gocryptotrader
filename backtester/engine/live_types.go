@@ -7,6 +7,8 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
+	"github.com/thrasher-corp/gocryptotrader/backtester/report"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -52,6 +54,8 @@ type DataChecker struct {
 	dataHolder         data.Holder
 	updated            chan struct{}
 	shutdown           chan struct{}
+	report             report.Handler
+	funding            funding.IFundingManager
 }
 
 type liveExchangeDataHandler struct {

@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"fmt"
+
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
@@ -65,17 +66,6 @@ func (bt *BackTest) RunLive() error {
 			return nil
 		case <-bt.LiveDataHandler.Updated():
 			bt.Run()
-			klines := bt.LiveDataHandler.GetKlines()
-			for i := range klines {
-				err := bt.Reports.SetKlineData(&klines[i].Item)
-				if err != nil {
-					log.Errorf(common.Livetester, "issue processing kline data: %v", err)
-				}
-				err = bt.Funding.AddUSDTrackingData(&klines[i])
-				if err != nil && !errors.Is(err, funding.ErrUSDTrackingDisabled) {
-					log.Errorf(common.Livetester, "issue processing USD tracking data: %v", err)
-				}
-			}
 		}
 	}
 }
