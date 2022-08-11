@@ -13,7 +13,7 @@ var (
 	errJobsChannelIsFull   = errors.New("logger jobs channel is filled")
 )
 
-// loggerWorker handles all work staged to be written to confgured io.Writer(s)
+// loggerWorker handles all work staged to be written to configured io.Writer(s)
 // This worker is generated in init() to handle full workload.
 func loggerWorker() {
 	// Localise a persistent buffer for a worker, this does not need to be
