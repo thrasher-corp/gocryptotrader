@@ -225,7 +225,7 @@ func Errorln(sl *SubLogger, v ...interface{}) {
 	logFieldsPool.Put(fields)
 }
 
-// Errorf takes a pointer subLogger struct, string & interface formats
+// Errorf takes a pointer subLogger struct, string and interface formats sends to StageLogEvent
 func Errorf(sl *SubLogger, data string, v ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
