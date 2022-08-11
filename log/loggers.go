@@ -165,7 +165,7 @@ func Warnln(sl *SubLogger, v ...interface{}) {
 	logFieldsPool.Put(fields)
 }
 
-// Warnf takes a pointer subLogger struct, string & interface formats
+// Warnf takes a pointer subLogger struct, string and interface formats sends to StageLogEvent
 func Warnf(sl *SubLogger, data string, v ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
