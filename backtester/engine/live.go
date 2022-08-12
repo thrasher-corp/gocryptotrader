@@ -169,15 +169,9 @@ func (l *DataChecker) Reset() {
 }
 
 // AppendDataSource stores params to allow the datachecker to fetch and append live data
-func (l *DataChecker) AppendDataSource(item *gctkline.Item, exch gctexchange.IBotExchange, dataType int64) error {
+func (l *DataChecker) AppendDataSource(exch gctexchange.IBotExchange, interval gctkline.Interval, item asset.Item, curr, underlying currency.Pair, dataType int64) error {
 	if l == nil {
 		return fmt.Errorf("%w DataChecker", gctcommon.ErrNilPointer)
-	}
-	if atomic.LoadUint32(&l.started) == 0 {
-		return engine.ErrSubSystemNotStarted
-	}
-	if item == nil {
-		return fmt.Errorf("%w kline item", gctcommon.ErrNilPointer)
 	}
 	if exch == nil {
 		return fmt.Errorf("%w IBotExchange", gctcommon.ErrNilPointer)
@@ -185,35 +179,41 @@ func (l *DataChecker) AppendDataSource(item *gctkline.Item, exch gctexchange.IBo
 	if dataType != common.DataCandle && dataType != common.DataTrade {
 		return fmt.Errorf("%w '%v'", common.ErrInvalidDataType, dataType)
 	}
-	if !item.Asset.IsValid() {
-		return fmt.Errorf("%w '%v'", asset.ErrNotSupported, item.Asset)
+	if !item.IsValid() {
+		return fmt.Errorf("%w '%v'", asset.ErrNotSupported, item)
 	}
-	if item.Pair.IsEmpty() {
-		return currency.ErrCurrencyPairEmpty
+	if curr.IsEmpty() {
+		return fmt.Errorf("main %w", currency.ErrCurrencyPairEmpty)
 	}
 	l.m.Lock()
 	defer l.m.Unlock()
-
+	exchName := strings.ToLower(exch.GetName())
 	for i := range l.exchangesToCheck {
-		if l.exchangesToCheck[i].exchangeName == item.Exchange &&
-			l.exchangesToCheck[i].asset == item.Asset &&
-			l.exchangesToCheck[i].pair.Equal(item.Pair) {
+		if l.exchangesToCheck[i].exchangeName == exchName &&
+			l.exchangesToCheck[i].asset == item &&
+			l.exchangesToCheck[i].pair.Equal(curr) {
 			return funding.ErrAlreadyExists
 		}
 	}
 
 	d := kline.DataFromKline{
-		Item: *item,
+		Item: gctkline.Item{
+			Exchange:       exchName,
+			Pair:           curr,
+			UnderlyingPair: underlying,
+			Asset:          item,
+			Interval:       interval,
+		},
 	}
 	d.SetLive(true)
 	l.exchangesToCheck = append(l.exchangesToCheck, liveExchangeDataHandler{
 		exchange:       exch,
-		exchangeName:   strings.ToLower(exch.GetName()),
-		asset:          item.Asset,
-		pair:           item.Pair,
+		exchangeName:   exchName,
+		asset:          item,
+		pair:           curr,
 		pairCandles:    d,
 		dataType:       dataType,
-		underlyingPair: item.UnderlyingPair,
+		underlyingPair: underlying,
 	})
 
 	return nil

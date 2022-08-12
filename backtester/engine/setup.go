@@ -17,7 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/api"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/csv"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/database"
-	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/live"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange/slippage"
@@ -158,7 +157,7 @@ func (bt *BackTest) NewFromConfig(cfg *config.Config, templatePath, output strin
 		cp := currency.NewPair(cfg.CurrencySettings[i].Base, cfg.CurrencySettings[i].Quote).Format(exchangeAsset.RequestFormat.Delimiter, exchangeAsset.RequestFormat.Uppercase)
 		exchangeAsset.Available = exchangeAsset.Available.Add(cp)
 		exchangeAsset.Enabled = exchangeAsset.Enabled.Add(cp)
-		exchBase.Verbose = false
+		exchBase.Verbose = verbose
 		exchBase.CurrencyPairs.Pairs[cfg.CurrencySettings[i].Asset] = exchangeAsset
 	}
 
@@ -312,17 +311,12 @@ func (bt *BackTest) NewFromConfig(cfg *config.Config, templatePath, output strin
 	}
 
 	bt.Funding = funds
-
 	if cfg.DataSettings.LiveData != nil {
 		bt.LiveDataHandler, err = bt.SetupLiveDataHandler(
 			cfg.DataSettings.LiveData.NewEventTimeout,
 			cfg.DataSettings.LiveData.NewEventTimeout,
 			cfg.DataSettings.LiveData.DataCheckTimer,
 			verbose)
-		if err != nil {
-			return err
-		}
-		err = bt.LiveDataHandler.Start()
 		if err != nil {
 			return err
 		}
@@ -407,6 +401,9 @@ func (bt *BackTest) NewFromConfig(cfg *config.Config, templatePath, output strin
 	bt.Portfolio = p
 
 	cfg.PrintSetting()
+	if bt.LiveDataHandler != nil {
+		return bt.LiveDataHandler.Start()
+	}
 
 	return nil
 }
@@ -435,20 +432,20 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		if err != nil {
 			return resp, err
 		}
+		if bt.LiveDataHandler == nil {
+			err = bt.Funding.AddUSDTrackingData(klineData)
+			if err != nil &&
+				!errors.Is(err, trackingcurrencies.ErrCurrencyDoesNotContainsUSD) &&
+				!errors.Is(err, funding.ErrUSDTrackingDisabled) {
+				return resp, err
+			}
 
-		err = bt.Funding.AddUSDTrackingData(klineData)
-		if err != nil &&
-			!errors.Is(err, trackingcurrencies.ErrCurrencyDoesNotContainsUSD) &&
-			!errors.Is(err, funding.ErrUSDTrackingDisabled) {
-			return resp, err
+			if cfg.CurrencySettings[i].USDTrackingPair {
+				continue
+			}
+
+			bt.DataHolder.SetDataForCurrency(exchangeName, a, pair, klineData)
 		}
-
-		if cfg.CurrencySettings[i].USDTrackingPair {
-			continue
-		}
-
-		bt.DataHolder.SetDataForCurrency(exchangeName, a, pair, klineData)
-
 		var makerFee, takerFee decimal.Decimal
 		if cfg.CurrencySettings[i].MakerFee != nil && cfg.CurrencySettings[i].MakerFee.GreaterThan(decimal.Zero) {
 			makerFee = *cfg.CurrencySettings[i].MakerFee
@@ -736,18 +733,15 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if err != nil {
 			return nil, err
 		}
-		var candles *gctkline.Item
-		candles, err = live.LoadData(context.TODO(), exch, dataType, cfg.DataSettings.Interval.Duration(), fPair, underlyingPair, a)
-		if err != nil {
-			return nil, err
-		}
-		resp.Item = *candles
-		resp.SetLive(true)
 		err = bt.LiveDataHandler.AppendDataSource(
-			candles,
 			exch,
-			dataType)
-		return resp, err
+			cfg.DataSettings.Interval,
+			a,
+			fPair,
+			underlyingPair,
+			dataType,
+		)
+		return nil, err
 	}
 	if resp == nil {
 		return nil, fmt.Errorf("processing error, response returned nil")

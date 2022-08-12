@@ -28,7 +28,7 @@ var (
 // Handler is all the functionality required in order to
 // run a backtester with live data
 type Handler interface {
-	AppendDataSource(*gctkline.Item, gctexchange.IBotExchange, int64) error
+	AppendDataSource(exch gctexchange.IBotExchange, interval gctkline.Interval, item asset.Item, curr, underlying currency.Pair, dataType int64) error
 	FetchLatestData() (bool, error)
 	Start() error
 	IsRunning() bool
