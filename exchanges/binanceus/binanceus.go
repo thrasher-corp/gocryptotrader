@@ -1959,7 +1959,7 @@ func (bi *Binanceus) MaintainWsAuthStreamKey(ctx context.Context) error {
 		HTTPRecording: bi.HTTPRecording,
 	}
 
-	return bi.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	return bi.SendPayload(ctx, spotDefaultRate, func() (*request.Item, error) {
 		return item, nil
 	})
 }
@@ -1996,7 +1996,7 @@ func (bi *Binanceus) CloseUserDataStream(ctx context.Context) error {
 		HTTPRecording: bi.HTTPRecording,
 	}
 
-	return bi.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	return bi.SendPayload(ctx, spotDefaultRate, func() (*request.Item, error) {
 		return item, nil
 	})
 }
