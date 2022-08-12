@@ -233,7 +233,7 @@ func (l *DataChecker) FetchLatestData() (bool, error) {
 	var updated bool
 	for i := range l.exchangesToCheck {
 		if !l.verbose {
-			log.Infof(common.Livetester, "fetching live data for %v %v %v", l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair)
+			log.Infof(common.Livetester, "checking for new data for %v %v %v", l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair)
 		}
 		preCandleLen := len(l.exchangesToCheck[i].pairCandles.Item.Candles)
 		err = l.exchangesToCheck[i].loadCandleData()
@@ -244,13 +244,18 @@ func (l *DataChecker) FetchLatestData() (bool, error) {
 		if len(l.exchangesToCheck[i].pairCandles.Item.Candles) > preCandleLen {
 			updated = true
 		}
-		err = l.report.SetKlineData(&l.exchangesToCheck[i].pairCandles.Item)
-		if err != nil {
-			log.Errorf(common.Livetester, "issue processing kline data: %v", err)
-		}
-		err = l.funding.AddUSDTrackingData(&l.exchangesToCheck[i].pairCandles)
-		if err != nil && !errors.Is(err, funding.ErrUSDTrackingDisabled) {
-			log.Errorf(common.Livetester, "issue processing USD tracking data: %v", err)
+		if updated {
+			if !l.verbose {
+				log.Infof(common.Livetester, "new data for %v %v %v", l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair)
+			}
+			err = l.report.SetKlineData(&l.exchangesToCheck[i].pairCandles.Item)
+			if err != nil {
+				log.Errorf(common.Livetester, "issue processing kline data: %v", err)
+			}
+			err = l.funding.AddUSDTrackingData(&l.exchangesToCheck[i].pairCandles)
+			if err != nil && !errors.Is(err, funding.ErrUSDTrackingDisabled) {
+				log.Errorf(common.Livetester, "issue processing USD tracking data: %v", err)
+			}
 		}
 	}
 
