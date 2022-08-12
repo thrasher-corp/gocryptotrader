@@ -115,6 +115,7 @@ jobs:
         PSQL_SSLMODE: disable
         GOARCH: 386
         CGO_ENABLED: 1
+        CGO_CFLAGS: -fno-stack-protector
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
