@@ -58,8 +58,8 @@ const (
 
 	// Authenticated endpoints
 	bitmexEndpointAPIkeys               = "/apiKey"
-	bitmexEndpointDisableAPIkey         = "/apiKey/disable" // nolint:gosec // false positive
-	bitmexEndpointEnableAPIkey          = "/apiKey/enable"  // nolint:gosec // false positive
+	bitmexEndpointDisableAPIkey         = "/apiKey/disable" //nolint:gosec // false positive
+	bitmexEndpointEnableAPIkey          = "/apiKey/enable"  //nolint:gosec // false positive
 	bitmexEndpointTrollboxSend          = "/chat"
 	bitmexEndpointExecution             = "/execution"
 	bitmexEndpointExecutionTradeHistory = "/execution/tradeHistory"

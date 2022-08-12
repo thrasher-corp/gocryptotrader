@@ -775,8 +775,9 @@ func (bi *Binanceus) GetTradeFee(ctx context.Context, recvWindow uint, symbol st
 
 // GetAssetDistributionHistory this endpoint to query
 // asset distribution records, including for staking, referrals and airdrops etc.
+//
 // INPUTS:
-//       asset: string , startTime & endTime unix time in Milli seconds, recvWindow(duration in milli seconds > 2000 to < 6000)
+// asset: string , startTime & endTime unix time in Milli seconds, recvWindow(duration in milli seconds > 2000 to < 6000)
 func (bi *Binanceus) GetAssetDistributionHistory(ctx context.Context, asset string, startTime, endTime uint64, recvWindow uint) (*AssetDistributionHistories, error) {
 	params := url.Values{}
 	timestamp := time.Now().UnixMilli()

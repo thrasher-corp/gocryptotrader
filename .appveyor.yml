@@ -36,7 +36,7 @@ services:
 
 init:
   - set PATH=%POSTGRES_PATH%\bin;%PATH%
-  - set PATH=C:\go118\bin;%PATH%
+  - set PATH=C:\go119\bin;%PATH%
 
 install:
   - set Path=C:\mingw-w64\x86_64-8.1.0-posix-seh-rt_v6-rev0\mingw64\bin;%Path%
@@ -55,7 +55,7 @@ before_test:
 
 test_script:
   # test back-end
-  - go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.46.2
+  - go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.48.8
   - '%GOPATH%\bin\golangci-lint.exe run --verbose'
   - ps: >-
       if($env:APPVEYOR_SCHEDULED_BUILD -eq 'true') {

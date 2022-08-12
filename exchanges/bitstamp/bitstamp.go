@@ -17,7 +17,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -653,4 +655,17 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 
 func parseTime(dateTime string) (time.Time, error) {
 	return time.Parse(bitstampTimeLayout, dateTime)
+}
+
+func filterOrderbookZeroBidPrice(ob *orderbook.Base) {
+	if len(ob.Bids) == 0 {
+		return
+	}
+
+	if ob.Bids[len(ob.Bids)-1].Price != 0 {
+		return
+	}
+
+	log.Warnf(log.ExchangeSys, "%s %s %s orderbook has zero bid price, filtering.", ob.Exchange, ob.Pair, ob.Asset)
+	ob.Bids = ob.Bids[0 : len(ob.Bids)-1]
 }

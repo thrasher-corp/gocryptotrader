@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	bitstampWSURL = "wss://ws.bitstamp.net" // nolint // gosec false positive
+	bitstampWSURL = "wss://ws.bitstamp.net" //nolint // gosec false positive
 )
 
 // WsConnect connects to a websocket feed
@@ -118,7 +118,7 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		err = b.wsUpdateOrderbook(wsOrderBookTemp.Data, p, asset.Spot)
+		err = b.wsUpdateOrderbook(&wsOrderBookTemp.Data, p, asset.Spot)
 		if err != nil {
 			return err
 		}
@@ -251,12 +251,21 @@ func (b *Bitstamp) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscriptio
 	return nil
 }
 
-func (b *Bitstamp) wsUpdateOrderbook(update websocketOrderBook, p currency.Pair, assetType asset.Item) error {
+func (b *Bitstamp) wsUpdateOrderbook(update *websocketOrderBook, p currency.Pair, assetType asset.Item) error {
 	if len(update.Asks) == 0 && len(update.Bids) == 0 {
 		return errors.New("no orderbook data")
 	}
-	asks := make([]orderbook.Item, len(update.Asks))
-	bids := make([]orderbook.Item, len(update.Bids))
+
+	obUpdate := &orderbook.Base{
+		Bids:            make(orderbook.Items, len(update.Bids)),
+		Asks:            make(orderbook.Items, len(update.Asks)),
+		Pair:            p,
+		LastUpdated:     time.Unix(update.Timestamp, 0),
+		Asset:           assetType,
+		Exchange:        b.Name,
+		VerifyOrderbook: b.CanVerifyOrderbook,
+	}
+
 	for i := range update.Asks {
 		target, err := strconv.ParseFloat(update.Asks[i][0], 64)
 		if err != nil {
@@ -266,7 +275,7 @@ func (b *Bitstamp) wsUpdateOrderbook(update websocketOrderBook, p currency.Pair,
 		if err != nil {
 			return err
 		}
-		asks[i] = orderbook.Item{Price: target, Amount: amount}
+		obUpdate.Asks[i] = orderbook.Item{Price: target, Amount: amount}
 	}
 	for i := range update.Bids {
 		target, err := strconv.ParseFloat(update.Bids[i][0], 64)
@@ -277,17 +286,10 @@ func (b *Bitstamp) wsUpdateOrderbook(update websocketOrderBook, p currency.Pair,
 		if err != nil {
 			return err
 		}
-		bids[i] = orderbook.Item{Price: target, Amount: amount}
+		obUpdate.Bids[i] = orderbook.Item{Price: target, Amount: amount}
 	}
-	return b.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-		Bids:            bids,
-		Asks:            asks,
-		Pair:            p,
-		LastUpdated:     time.Unix(update.Timestamp, 0),
-		Asset:           assetType,
-		Exchange:        b.Name,
-		VerifyOrderbook: b.CanVerifyOrderbook,
-	})
+	filterOrderbookZeroBidPrice(obUpdate)
+	return b.Websocket.Orderbook.LoadSnapshot(obUpdate)
 }
 
 func (b *Bitstamp) seedOrderBook(ctx context.Context) error {
@@ -306,27 +308,31 @@ func (b *Bitstamp) seedOrderBook(ctx context.Context) error {
 			return err
 		}
 
-		var newOrderBook orderbook.Base
-		newOrderBook.Asks = make(orderbook.Items, len(orderbookSeed.Asks))
+		newOrderBook := &orderbook.Base{
+			Pair:            p[x],
+			Asset:           asset.Spot,
+			Exchange:        b.Name,
+			VerifyOrderbook: b.CanVerifyOrderbook,
+			Bids:            make(orderbook.Items, len(orderbookSeed.Bids)),
+			Asks:            make(orderbook.Items, len(orderbookSeed.Asks)),
+		}
+
 		for i := range orderbookSeed.Asks {
 			newOrderBook.Asks[i] = orderbook.Item{
 				Price:  orderbookSeed.Asks[i].Price,
 				Amount: orderbookSeed.Asks[i].Amount,
 			}
 		}
-		newOrderBook.Bids = make(orderbook.Items, len(orderbookSeed.Bids))
 		for i := range orderbookSeed.Bids {
 			newOrderBook.Bids[i] = orderbook.Item{
 				Price:  orderbookSeed.Bids[i].Price,
 				Amount: orderbookSeed.Bids[i].Amount,
 			}
 		}
-		newOrderBook.Pair = p[x]
-		newOrderBook.Asset = asset.Spot
-		newOrderBook.Exchange = b.Name
-		newOrderBook.VerifyOrderbook = b.CanVerifyOrderbook
 
-		err = b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+		filterOrderbookZeroBidPrice(newOrderBook)
+
+		err = b.Websocket.Orderbook.LoadSnapshot(newOrderBook)
 		if err != nil {
 			return err
 		}

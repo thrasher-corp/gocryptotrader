@@ -130,24 +130,24 @@ func (c *Coinmarketcap) GetCryptocurrencyHistoricalListings() ([]CryptocurrencyH
 	// 	Status Status                             `json:"status"`
 	// }{}
 
-	// nolint:gocritic // unused code, used as example
+	//nolint:gocritic // unused code, used as example
 	// err := c.CheckAccountPlan(0)
 	// if err != nil {
 	// 	return resp.Data, err
 	// }
 
-	// nolint:gocritic // unused code, used as example
+	//nolint:gocritic // unused code, used as example
 	// err = c.SendHTTPRequest(http.MethodGet, endpointCryptocurrencyHistoricalListings, nil, &resp)
 	// if err != nil {
 	// 	return resp.Data, err
 	// }
 
-	// nolint:gocritic // unused code, used as example
+	//nolint:gocritic // unused code, used as example
 	// if resp.Status.ErrorCode != 0 {
 	// 	return resp.Data, errors.New(resp.Status.ErrorMessage)
 	// }
 
-	// nolint:gocritic // unused code, used as example
+	//nolint:gocritic // unused code, used as example
 	// return resp.Data, nil
 }
 

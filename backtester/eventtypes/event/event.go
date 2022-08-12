@@ -77,6 +77,7 @@ func (b *Base) GetReasons() []string {
 	return b.Reasons
 }
 
+// GetBase returns an event base
 func (b *Base) GetBase() *Base {
 	return b
 }

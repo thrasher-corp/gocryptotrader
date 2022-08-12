@@ -18,12 +18,12 @@ linters:
     - govet
     - ineffassign
     - staticcheck
-    - structcheck
     - typecheck
 #   - unused
 #   - varcheck
 
 # disabled by default linters
+#   - asasalint
     - asciicheck
     - bidichk
     - bodyclose
@@ -38,8 +38,9 @@ linters:
     - errchkjson
     - errname
 #   - errorlint
+    - execinquery
 #   - exhaustive
-#   - exhaustivestruct
+#   - exhaustivestruct # deprecated
     - exportloopref
 #   - forbidigo
     - forcetypeassert
@@ -65,7 +66,7 @@ linters:
     - goprintffuncname
     - gosec
     - grouper
-    - ifshort
+#   - ifshort // deprecated by its owner
 #   - importas
 #   - interfacer // deprecated by its owner
 #   - ireturn
@@ -77,9 +78,13 @@ linters:
     - nakedret
 #   - nestif
     - nilerr
+#   - nilnil
 #   - nlreturn
     - noctx
     - nolintlint
+#   - nonamedreturns
+#   - nosnakecase
+    - nosprintfhostport
 #   - paralleltest
     - prealloc
     - predeclared
@@ -87,14 +92,18 @@ linters:
     - revive
     - rowserrcheck
 #   - scopelint // deprecated since v1.39.0, replaced by exportloopref
-#   - sqlclosecheck
+    - sqlclosecheck
+    - structcheck
     - stylecheck
 #   - tagliatelle
+    - tenv
 #   - testpackage
     - thelper
     - tparallel
     - unconvert
     - unparam
+    - usestdlibvars
+#   - varnamelen
     - wastedassign
     - whitespace
 #   - wrapcheck
@@ -103,8 +112,6 @@ linters:
 linters-settings:
   govet:
     check-shadowing: true
-  golint:
-    min-confidence: 0
   goconst:
     min-occurrences: 6
   depguard:
@@ -139,3 +146,6 @@ issues:
     # The following silences false positives in table tests
     #   https://github.com/kyoh86/scopelint/issues/4
      - Using the variable on range scope `ti` in function literal
+  include: 
+    - EXC0012 # revive: Comment exported (.+) should have comment( \(or a comment on this block\))? or be unexported
+    - EXC0014 # revive: Comment on exported (.+) should be of the form "(.+)..."

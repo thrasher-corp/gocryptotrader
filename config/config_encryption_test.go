@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -142,7 +141,7 @@ func TestEncryptTwiceReusesSaltButNewCipher(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Prepare input
-	passFile, err := ioutil.TempFile(tempDir, "*.pw")
+	passFile, err := os.CreateTemp(tempDir, "*.pw")
 	if err != nil {
 		t.Fatalf("Problem creating temp file at %s: %s\n", tempDir, err)
 	}
@@ -318,7 +317,7 @@ func TestSaveConfigToFileWithErrorInPasswordPrompt(t *testing.T) {
 		EncryptConfig: fileEncryptionEnabled,
 	}
 	testData := []byte("testdata")
-	f, err := ioutil.TempFile("", "")
+	f, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -355,7 +354,7 @@ func TestSaveConfigToFileWithErrorInPasswordPrompt(t *testing.T) {
 func withInteractiveResponse(t *testing.T, response string, body func() error) error {
 	t.Helper()
 	// Answers to the prompt
-	responseFile, err := ioutil.TempFile("", "*.in")
+	responseFile, err := os.CreateTemp("", "*.in")
 	if err != nil {
 		return fmt.Errorf("problem creating temp file: %w", err)
 	}
