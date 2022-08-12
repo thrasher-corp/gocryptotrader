@@ -28,10 +28,10 @@ func newLogger(c *Config) Logger {
 
 // CloseLogger is called on shutdown of application
 func CloseLogger() error {
+	ch := make(chan struct{})
 	mu.Lock()
 	defer mu.Unlock()
 	globalLogConfig.Enabled = convert.BoolPtr(false)
-	ch := make(chan struct{})
 	jobsChannel <- &job{Passback: ch}
 	<-ch
 	return globalLogFile.Close()

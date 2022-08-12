@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 	"time"
 
@@ -38,7 +37,6 @@ var (
 		ConfigFile:   filepath.Join("..", "..", "..", "..", "testdata", "configtest.json"),
 		EnableDryRun: true,
 		DataDir:      filepath.Join("..", "..", "..", "..", "testdata", "gocryptotrader"),
-		GoMaxProcs:   runtime.GOMAXPROCS(-1),
 	}
 	exchangeTest = Exchange{}
 )
