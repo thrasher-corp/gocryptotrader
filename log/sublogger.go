@@ -1,9 +1,12 @@
 package log
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
+
+var errMultiWriterHolderIsNil = errors.New("multiwriter holder is nil")
 
 // NewSubLogger allows for a new sub logger to be registered.
 func NewSubLogger(name string) (*SubLogger, error) {
@@ -20,8 +23,12 @@ func NewSubLogger(name string) (*SubLogger, error) {
 }
 
 // SetOutput overrides the default output with a new writer
-func (sl *SubLogger) setOutput(o *multiWriterHolder) {
+func (sl *SubLogger) setOutput(o *multiWriterHolder) error {
+	if o == nil {
+		return errMultiWriterHolderIsNil
+	}
 	sl.output = o
+	return nil
 }
 
 // SetLevels overrides the default levels with new levels; levelception

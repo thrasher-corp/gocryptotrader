@@ -48,7 +48,7 @@ type job struct {
 	Spacer            string
 	TimestampFormat   string
 	ShowLogSystemName bool
-	Passback          chan struct{}
+	Passback          chan<- struct{}
 }
 
 // Config holds configuration settings loaded from bot config

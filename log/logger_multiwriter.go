@@ -11,6 +11,7 @@ import (
 var (
 	errWriterAlreadyLoaded = errors.New("io.Writer already loaded")
 	errJobsChannelIsFull   = errors.New("logger jobs channel is filled")
+	errWriterIsNil         = errors.New("io writer is nil")
 )
 
 // loggerWorker handles all work staged to be written to configured io.Writer(s)
@@ -98,6 +99,9 @@ func multiWriter(writers ...io.Writer) (*multiWriterHolder, error) {
 
 // Add appends a new writer to the multiwriter slice
 func (mw *multiWriterHolder) add(writer io.Writer) error {
+	if writer == nil {
+		return errWriterIsNil
+	}
 	for i := range mw.writers {
 		if mw.writers[i] == writer {
 			return errWriterAlreadyLoaded

@@ -11,10 +11,11 @@ import (
 )
 
 var (
-	errSubloggerConfigIsNil  = errors.New("sublogger config is nil")
-	errUnhandledOutputWriter = errors.New("unhandled output writer")
-	errLogPathIsEmpty        = errors.New("log path is empty")
-	errConfigNil             = errors.New("config is nil")
+	errSubloggerConfigIsNil              = errors.New("sublogger config is nil")
+	errUnhandledOutputWriter             = errors.New("unhandled output writer")
+	errLogPathIsEmpty                    = errors.New("log path is empty")
+	errConfigNil                         = errors.New("config is nil")
+	errFileLoggingNotConfiguredCorrectly = errors.New("file logging not configured correctly")
 )
 
 // getWriters returns a new multi writer holder from sub logger configuration.
@@ -34,9 +35,10 @@ func getWriters(s *SubLoggerConfig) (*multiWriterHolder, error) {
 		case "stderr":
 			writer = os.Stderr
 		case "file":
-			if fileLoggingConfiguredCorrectly {
-				writer = globalLogFile
+			if !fileLoggingConfiguredCorrectly {
+				return nil, errFileLoggingNotConfiguredCorrectly
 			}
+			writer = globalLogFile
 		default:
 			// Note: Do not want to add an io.Discard here as this adds
 			// additional write calls for no reason.
@@ -119,7 +121,10 @@ func configureSubLogger(subLogger, levels string, output *multiWriterHolder) err
 		return fmt.Errorf("sub logger %v not found", subLogger)
 	}
 
-	logPtr.setOutput(output)
+	err := logPtr.setOutput(output)
+	if err != nil {
+		return err
+	}
 	logPtr.setLevels(splitLevel(levels))
 	SubLoggers[subLogger] = logPtr
 	return nil
@@ -162,7 +167,10 @@ func SetupGlobalLogger() error {
 
 	for _, subLogger := range SubLoggers {
 		subLogger.setLevels(splitLevel(globalLogConfig.Level))
-		subLogger.setOutput(writers)
+		err = subLogger.setOutput(writers)
+		if err != nil {
+			return err
+		}
 	}
 	logger = newLogger(globalLogConfig)
 	return nil
