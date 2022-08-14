@@ -130,12 +130,31 @@ func (a *Instrument) UnmarshalJSON(data []byte) error {
 		ListTime       string `json:"listTime"`
 		ExpTime        string `json:"expTime"`
 		InstrumentType string `json:"instType"`
+
+		MaxLeverage      string `json:"lever"`
+		TickSize         string `json:"tickSz"`
+		LotSize          string `json:"lotSz"`
+		MinimumOrderSize string `json:"minSz"`
 	}{
 		Alias: (*Alias)(a),
 	}
 
-	if er := json.Unmarshal(data, chil); er != nil {
+	er := json.Unmarshal(data, chil)
+	if er != nil {
 		return er
+	}
+	var val float64
+	if val, er = strconv.ParseFloat(chil.MaxLeverage, 64); er == nil {
+		a.MaxLeverage = val
+	}
+	if val, er = strconv.ParseFloat(chil.TickSize, 64); er == nil {
+		a.TickSize = val
+	}
+	if val, er = strconv.ParseFloat(chil.LotSize, 64); er == nil {
+		a.LotSize = val
+	}
+	if val, er = strconv.ParseFloat(chil.MinimumOrderSize, 64); er == nil {
+		a.MinimumOrderSize = val
 	}
 	if NumbersOnlyRegexp.MatchString(chil.ListTime) {
 		if val, er := strconv.Atoi(chil.ListTime); er == nil {
@@ -215,7 +234,7 @@ func (a *OpenInterest) UnmarshalJSON(data []byte) error {
 	if chil.Timestamp > 0 {
 		a.Timestamp = time.UnixMilli(chil.Timestamp)
 	}
-	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
 	switch strings.ToUpper(chil.InstrumentType) {
 	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
@@ -264,7 +283,7 @@ func (a *FundingRateResponse) UnmarshalJSON(data []byte) error {
 			a.NextFundingTime = time.UnixMilli(int64(val))
 		}
 	}
-	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
 	switch strings.ToUpper(chil.InstrumentType) {
 	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
@@ -299,7 +318,7 @@ func (a *LimitPriceResponse) UnmarshalJSON(data []byte) error {
 	if chil.Timestamp > 0 {
 		a.Timestamp = time.UnixMilli(chil.Timestamp)
 	}
-	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
 	switch strings.ToUpper(chil.InstrumentType) {
 	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
@@ -415,7 +434,7 @@ func (a *TickerResponse) UnmarshalJSON(data []byte) error {
 	if chil.TickerDataGenerationTime > 0 {
 		a.TickerDataGenerationTime = time.UnixMilli(chil.TickerDataGenerationTime)
 	}
-	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
 	switch strings.ToUpper(chil.InstrumentType) {
 	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
@@ -450,7 +469,7 @@ func (a *OptionMarketDataResponse) UnmarshalJSON(data []byte) error {
 	if chil.Timestamp > 0 {
 		a.Timestamp = time.UnixMilli(chil.Timestamp)
 	}
-	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
 	switch strings.ToUpper(chil.InstrumentType) {
 	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
@@ -485,7 +504,7 @@ func (a *DeliveryEstimatedPrice) UnmarshalJSON(data []byte) error {
 	if chil.Timestamp > 0 {
 		a.Timestamp = time.UnixMilli(chil.Timestamp)
 	}
-	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
 	switch strings.ToUpper(chil.InstrumentType) {
 	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
@@ -553,7 +572,7 @@ func (a *LiquidationOrder) UnmarshalJSON(data []byte) error {
 	if er := json.Unmarshal(data, chil); er != nil {
 		return er
 	}
-	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
 	switch strings.ToUpper(chil.InstrumentType) {
 	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
@@ -589,7 +608,7 @@ func (a *MarkPrice) UnmarshalJSON(data []byte) error {
 	if chil.Timestamp > 0 {
 		a.Timestamp = time.UnixMilli(chil.Timestamp)
 	}
-	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
 	switch strings.ToUpper(chil.InstrumentType) {
 	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
@@ -646,7 +665,7 @@ func (a *OrderDetail) UnmarshalJSON(data []byte) error {
 	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
 	a.CreationTime = time.UnixMilli(chil.CreationTime)
 	a.Side = order.ParseOrderSideString(chil.Side)
-	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
 	if val, er := strconv.ParseFloat(chil.Leverage, 64); er == nil {
 		a.Leverage = val
 	}
@@ -695,7 +714,7 @@ func (a *PendingOrderItem) UnmarshalJSON(data []byte) error {
 	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
 	a.CreationTime = time.UnixMilli(chil.CreationTime)
 	a.Side = order.ParseOrderSideString(chil.Side)
-	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
 	if val, er := strconv.ParseFloat(chil.AccumulatedFillSize, 64); er == nil {
 		a.AccumulatedFillSize = val
 	}
@@ -743,7 +762,7 @@ func (a *TransactionDetail) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	a.Timestamp = time.UnixMilli(chil.Timestamp)
-	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
 	switch strings.ToUpper(chil.InstrumentType) {
 	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
@@ -778,7 +797,7 @@ func (a *AlgoOrderResponse) UnmarshalJSON(data []byte) error {
 	}
 	a.CreationTime = time.UnixMilli(chil.CreationTime)
 	a.TriggerTime = time.UnixMilli(chil.TriggerTime)
-	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
 	switch strings.ToUpper(chil.InstrumentType) {
 	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
@@ -1002,7 +1021,7 @@ func (a *PositionData) UnmarshalJSON(data []byte) error {
 	if er := json.Unmarshal(data, chil); er != nil {
 		return er
 	}
-	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
 	switch strings.ToUpper(chil.InstrumentType) {
 	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
@@ -1046,7 +1065,7 @@ func (a *AccountPosition) UnmarshalJSON(data []byte) error {
 		}
 		a.PushTime = time.UnixMilli(int64(val))
 	}
-	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
 	switch strings.ToUpper(chil.InstrumentType) {
 	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
@@ -1082,7 +1101,7 @@ func (a *AccountPositionHistory) UnmarshalJSON(data []byte) error {
 	}
 	a.CreationTime = time.UnixMilli(chil.CreationTime)
 	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
-	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
 	switch strings.ToUpper(chil.InstrumentType) {
 	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
@@ -1132,7 +1151,7 @@ func (a *BillsDetailResponse) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	a.Timestamp = time.UnixMilli(chil.Timestamp)
-	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
 	switch strings.ToUpper(chil.InstrumentType) {
 	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
@@ -1166,7 +1185,7 @@ func (a *TradeFeeRate) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	a.Timestamp = time.UnixMilli(chil.Timestamp)
-	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
 	switch strings.ToUpper(chil.InstrumentType) {
 	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
@@ -1264,7 +1283,7 @@ func (a *PositionBuilderData) UnmarshalJSON(data []byte) error {
 	if er := json.Unmarshal(data, chil); er != nil {
 		return er
 	}
-	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
 	switch strings.ToUpper(chil.InstrumentType) {
 	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
@@ -1442,7 +1461,7 @@ func (a *BlockTicker) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	a.Timestamp = time.UnixMilli(chil.Timestamp)
-	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
 	switch strings.ToUpper(chil.InstrumentType) {
 	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
@@ -1604,7 +1623,7 @@ func (a *GridAlgoSuborders) UnmarshalJSON(data []byte) error {
 	}
 	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
 	a.CreationTime = time.UnixMilli(chil.CreationTime)
-	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
 	switch strings.ToUpper(chil.InstrumentType) {
 	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
@@ -1640,7 +1659,7 @@ func (a *GridAlgoOrderResponse) UnmarshalJSON(data []byte) error {
 	}
 	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
 	a.CreationTime = time.UnixMilli(chil.CreationTime)
-	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
 	switch strings.ToUpper(chil.InstrumentType) {
 	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap
@@ -1676,7 +1695,7 @@ func (a *AlgoOrderPosition) UnmarshalJSON(data []byte) error {
 	}
 	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
 	a.CreationTime = time.UnixMilli(chil.CreationTime)
-	chil.InstrumentType = strings.ToUpper(strings.Trim(chil.InstrumentType, " "))
+	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
 	switch strings.ToUpper(chil.InstrumentType) {
 	case OkxInstTypeSwap:
 		a.InstrumentType = asset.PerpetualSwap

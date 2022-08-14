@@ -45,7 +45,6 @@ var defaultSubscribedChannels = []string{
 }
 
 const (
-
 	// allowableIterations use the first 25 bids and asks in the full load to form a string
 	allowableIterations = 25
 
@@ -203,12 +202,10 @@ func (ok *Okx) WsConnect() error {
 	var dialer websocket.Dialer
 	dialer.ReadBufferSize = 8192
 	dialer.WriteBufferSize = 8192
-	var authDialer websocket.Dialer
-	authDialer.ReadBufferSize = 8192
-	authDialer.WriteBufferSize = 8192
-	err := ok.Websocket.Conn.Dial(&dialer, http.Header{})
-	if err != nil {
-		return err
+
+	er := ok.Websocket.Conn.Dial(&dialer, http.Header{})
+	if er != nil {
+		return er
 	}
 	if ok.Verbose {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
@@ -220,11 +217,14 @@ func (ok *Okx) WsConnect() error {
 		Delay:             time.Second * 5,
 	})
 
-	ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	if ok.IsWebsocketAuthenticationSupported() {
+		var authDialer websocket.Dialer
+		authDialer.ReadBufferSize = 8192
+		authDialer.WriteBufferSize = 8192
 		go func() {
-			er := ok.WsAuth(context.Background(), &authDialer)
+			er = ok.WsAuth(context.Background(), &authDialer)
 			if er != nil {
+				ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
 				return
 			}
 			ok.Websocket.Wg.Add(1)
@@ -372,7 +372,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 				}
 			}
 			if instrumentID == "" {
-				instrumentID, er = ok.GetInstrumentIDFromPair(subscriptions[i].Currency, subscriptions[i].Asset)
+				instrumentID, er = ok.getInstrumentIDFromPair(subscriptions[i].Currency, subscriptions[i].Asset)
 				if er != nil {
 					instrumentID = ""
 				}
@@ -658,7 +658,7 @@ func (ok *Okx) wsProcessIndexCandles(intermediate *WebsocketDataResponse) error 
 	for i := range response.Data {
 		candles, okay := (intermediate.Data[i]).([5]string)
 		if !okay {
-			continue
+			return errIncompleteCandlestickData
 		}
 		timestamp, er := strconv.Atoi(candles[0])
 		if er != nil {
@@ -1090,7 +1090,7 @@ func (ok *Okx) wsProcessCandles(intermediate *WebsocketDataResponse) error {
 	for i := range response.Data {
 		candles, okay := (intermediate.Data[i]).([7]string)
 		if !okay {
-			continue
+			return errIncompleteCandlestickData
 		}
 		timestamp, er := strconv.Atoi(candles[0])
 		if er != nil {
@@ -1139,7 +1139,7 @@ func (ok *Okx) wsProcessTickers(data []byte) error {
 		if a == asset.Empty {
 			a = ok.GuessAssetTypeFromInstrumentID(response.Data[i].InstrumentID)
 		}
-		if !(a == asset.Futures || a == asset.PerpetualSwap || a == asset.Margin || a == asset.Option || a == asset.Spot) {
+		if !(ok.SupportsAsset(a)) {
 			return errInvalidInstrumentType
 		}
 		var c currency.Pair
@@ -1237,7 +1237,6 @@ func (ok *Okx) WSPlaceOrder(arg *PlaceOrderRequestParam) (*PlaceOrderResponse, e
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
-	arg.TradeMode = strings.Trim(arg.TradeMode, " ")
 	if !(strings.EqualFold("cross", arg.TradeMode) || strings.EqualFold("isolated", arg.TradeMode) || strings.EqualFold("cash", arg.TradeMode)) {
 		return nil, errInvalidTradeModeValue
 	}
@@ -1258,7 +1257,7 @@ func (ok *Okx) WSPlaceOrder(arg *PlaceOrderRequestParam) (*PlaceOrderResponse, e
 	if !(strings.EqualFold(arg.QuantityType, "base_ccy") || strings.EqualFold(arg.QuantityType, "quote_ccy")) {
 		arg.QuantityType = ""
 	}
-	randomID := common.GenerateRandomString(4, common.NumberCharacters)
+	randomID := common.GenerateRandomString(32, common.SmallLetters, common.CapitalLetters, common.NumberCharacters)
 	input := WsPlaceOrderInput{
 		ID:        randomID,
 		Arguments: []PlaceOrderRequestParam{*arg},
@@ -1288,14 +1287,13 @@ func (ok *Okx) WSPlaceOrder(arg *PlaceOrderRequestParam) (*PlaceOrderResponse, e
 	return &(placeOrderResponse.Data[0]), nil
 }
 
-// WsPlaceMultipleOrder
+// WsPlaceMultipleOrder creates an order through the websocket stream.
 func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]PlaceOrderResponse, error) {
 	for x := range args {
 		arg := args[x]
 		if arg.InstrumentID == "" {
 			return nil, errMissingInstrumentID
 		}
-		arg.TradeMode = strings.Trim(arg.TradeMode, " ")
 		if !(strings.EqualFold("cross", arg.TradeMode) || strings.EqualFold("isolated", arg.TradeMode) || strings.EqualFold("cash", arg.TradeMode)) {
 			return nil, errInvalidTradeModeValue
 		}
@@ -1344,7 +1342,7 @@ func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]PlaceOrder
 
 // WsCancelOrder websocket function to cancel a trade order
 func (ok *Okx) WsCancelOrder(arg CancelOrderRequestParam) (*PlaceOrderResponse, error) {
-	if strings.Trim(arg.InstrumentID, " ") == "" {
+	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
 	if arg.OrderID == "" && arg.ClientSupplierOrderID == "" {
@@ -1383,7 +1381,7 @@ func (ok *Okx) WsCancelOrder(arg CancelOrderRequestParam) (*PlaceOrderResponse, 
 func (ok *Okx) WsCancleMultipleOrder(args []CancelOrderRequestParam) ([]PlaceOrderResponse, error) {
 	for x := range args {
 		arg := args[x]
-		if strings.Trim(arg.InstrumentID, " ") == "" {
+		if arg.InstrumentID == "" {
 			return nil, errMissingInstrumentID
 		}
 		if arg.OrderID == "" && arg.ClientSupplierOrderID == "" {
@@ -1420,7 +1418,7 @@ func (ok *Okx) WsAmendOrder(arg *AmendOrderRequestParams) (*AmendOrderResponse, 
 	if arg == nil {
 		return nil, errNilArgument
 	}
-	if strings.Trim(arg.InstrumentID, " ") == "" {
+	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
 	if arg.ClientSuppliedOrderID == "" && arg.OrderID == "" {
@@ -1464,7 +1462,7 @@ func (ok *Okx) WsAmendOrder(arg *AmendOrderRequestParams) (*AmendOrderResponse, 
 // WsAmendMultipleOrders a request through the websocket connection to amend multiple trade orders.
 func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]AmendOrderResponse, error) {
 	for x := range args {
-		if strings.Trim(args[x].InstrumentID, " ") == "" {
+		if args[x].InstrumentID == "" {
 			return nil, errMissingInstrumentID
 		}
 		if args[x].ClientSuppliedOrderID == "" && args[x].OrderID == "" {
@@ -1531,7 +1529,7 @@ func (ok *Okx) WsChannelSubscription(operation, channel string, assetType asset.
 		}
 	}
 	if len(tooglers) > 1 && tooglers[1] {
-		instrumentID, er = ok.GetInstrumentIDFromPair(pair, assetType)
+		instrumentID, er = ok.getInstrumentIDFromPair(pair, assetType)
 		if er != nil {
 			instrumentID = ""
 		}
@@ -1596,7 +1594,7 @@ func (ok *Okx) WsAuthChannelSubscription(operation, channel string, assetType as
 		}
 	}
 	if len(tooglers) > 1 && tooglers[1] {
-		instrumentID, er = ok.GetInstrumentIDFromPair(pair, assetType)
+		instrumentID, er = ok.getInstrumentIDFromPair(pair, assetType)
 		if er != nil {
 			instrumentID = ""
 		}

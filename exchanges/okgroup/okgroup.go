@@ -82,7 +82,7 @@ const (
 	okGroupGetRepayment          = "repayment"
 )
 
-// OKGroup is the overaching type across the all of OKEx's exchange methods
+// OKGroup is the overaching type across the all of Okx's exchange methods
 type OKGroup struct {
 	exchange.Base
 	ExchangeName string

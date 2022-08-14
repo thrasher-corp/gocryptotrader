@@ -330,7 +330,7 @@ func (ok *Okx) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error 
 		selectedPairs := []string{}
 		pairsMap := map[string]int{}
 		for i := range p {
-			if strings.Trim(p[i], " ") == "" {
+			if p[i] == "" {
 				continue
 			}
 			count, ok := pairsMap[p[i]]
@@ -358,7 +358,7 @@ func (ok *Okx) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) 
 	var mdata *TickerResponse
 	var er error
 	var instrumentID string
-	instrumentID, er = ok.GetInstrumentIDFromPair(p, a)
+	instrumentID, er = ok.getInstrumentIDFromPair(p, a)
 	if er != nil {
 		return nil, er
 	}
@@ -480,7 +480,7 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 	switch assetType {
 	case asset.Spot, asset.Margin, asset.PerpetualSwap, asset.Option, asset.Futures:
 		var instrumentID string
-		instrumentID, er = ok.GetInstrumentIDFromPair(pair, assetType)
+		instrumentID, er = ok.getInstrumentIDFromPair(pair, assetType)
 		if er != nil {
 			return book, er
 		}
@@ -491,7 +491,10 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 	default:
 		return nil, errInvalidInstrumentType
 	}
-	orderBookD := orderbookNew.GetOrderBookResponseDetail()
+	orderBookD, er := orderbookNew.GetOrderBookResponseDetail()
+	if er != nil {
+		return nil, er
+	}
 	book.Bids = make(orderbook.Items, len(orderBookD.Bids))
 	for x := range orderBookD.Bids {
 		book.Bids[x] = orderbook.Item{
@@ -632,7 +635,7 @@ func (ok *Okx) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ ass
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	const limit = 1000
-	instrumentID, er := ok.GetInstrumentIDFromPair(p, assetType)
+	instrumentID, er := ok.getInstrumentIDFromPair(p, assetType)
 	if er != nil {
 		return nil, er
 	}
@@ -665,7 +668,7 @@ func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (ok *Okx) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	const limit = 1000
-	instrumentID, er := ok.GetInstrumentIDFromPair(p, assetType)
+	instrumentID, er := ok.getInstrumentIDFromPair(p, assetType)
 	if er != nil {
 		return nil, er
 	}
@@ -719,7 +722,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		}
 		orderType = ""
 	}
-	instrumentID, er := ok.GetInstrumentIDFromPair(s.Pair, s.AssetType)
+	instrumentID, er := ok.getInstrumentIDFromPair(s.Pair, s.AssetType)
 	if er != nil {
 		return nil, er
 	}
@@ -776,7 +779,7 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 	if math.Mod(action.Amount, 1) != 0 {
 		return nil, errors.New("Okx contract amount can not be decimal")
 	}
-	instrumentID, er := ok.GetInstrumentIDFromPair(action.Pair, action.AssetType)
+	instrumentID, er := ok.getInstrumentIDFromPair(action.Pair, action.AssetType)
 	if er != nil {
 		return nil, er
 	}
@@ -805,7 +808,7 @@ func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	}
 	switch ord.AssetType {
 	case asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Option:
-		instrumentID, er := ok.GetInstrumentIDFromPair(ord.Pair, ord.AssetType)
+		instrumentID, er := ok.getInstrumentIDFromPair(ord.Pair, ord.AssetType)
 		if er != nil {
 			return er
 		}
@@ -834,7 +837,7 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (or
 		switch ord.AssetType {
 		case asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Option:
 			var instrumentID string
-			instrumentID, er = ok.GetInstrumentIDFromPair(ord.Pair, ord.AssetType)
+			instrumentID, er = ok.getInstrumentIDFromPair(ord.Pair, ord.AssetType)
 			if er != nil {
 				return cancelBatchResponse, er
 			}
@@ -860,7 +863,7 @@ func (ok *Okx) CancelAllOrders(ctx context.Context, orderCancellation *order.Can
 // GetOrderInfo returns order information based on order ID
 func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var respData order.Detail
-	instrumentID, er := ok.GetInstrumentIDFromPair(pair, assetType)
+	instrumentID, er := ok.getInstrumentIDFromPair(pair, assetType)
 	if er != nil {
 		return respData, er
 	}
@@ -1179,7 +1182,7 @@ func (ok *Okx) GetHistoricCandles(ctx context.Context, pair currency.Pair, a ass
 	if kline.TotalCandlesPerInterval(start, end, interval) > float64(ok.Features.Enabled.Kline.ResultLimit) {
 		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
 	}
-	instrumentID, err := ok.GetInstrumentIDFromPair(pair, a)
+	instrumentID, err := ok.getInstrumentIDFromPair(pair, a)
 	if err != nil {
 		return kline.Item{}, err
 	}

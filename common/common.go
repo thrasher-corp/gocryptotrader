@@ -33,7 +33,7 @@ const (
 	defaultTimeout = time.Second * 15
 )
 
-// characters representing the small, capital, and Numberic characters as a string.
+// Strings representing the full lower, upper case English character alphabet and base-10 numbers for generating a random string.
 const (
 	SmallLetters     = "abcdefghijklmnopqrstuvwxyz"
 	CapitalLetters   = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"

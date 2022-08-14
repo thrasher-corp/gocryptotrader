@@ -45,7 +45,7 @@ func ParseOrderSideString(orderString string) Side {
 		return AnySide
 	case "buy":
 		return Buy
-	case "Sell":
+	case "Sell", "sell":
 		return Sell
 	case "bid":
 		return Bid

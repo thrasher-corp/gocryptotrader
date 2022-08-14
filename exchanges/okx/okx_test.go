@@ -112,7 +112,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetOrderBookDepth(t *testing.T) {
 	t.Parallel()
-	instrumentID, er := ok.GetInstrumentIDFromPair(currency.NewPair(currency.BTC, currency.USDT), asset.Spot)
+	instrumentID, er := ok.getInstrumentIDFromPair(currency.NewPair(currency.BTC, currency.USDT), asset.Spot)
 	if er != nil {
 		t.Error("Okx GetInstrumentIDFromPair() error", er)
 	}
@@ -188,7 +188,7 @@ func TestGetIndexComponents(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	instID, er := ok.GetInstrumentIDFromPair(currency.NewPair(currency.BTC, currency.USDT), asset.Spot)
+	instID, er := ok.getInstrumentIDFromPair(currency.NewPair(currency.BTC, currency.USDT), asset.Spot)
 	if er != nil {
 		t.Error("Okx GetInstrumentIDFromPair() error", er)
 	}
@@ -1260,7 +1260,7 @@ func TestSmallAssetsConvert(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := ok.SmallAssetsConvert(context.Background(), []string{"BTC", "USDT"}); er != nil {
+	if _, er := ok.SmallAssetsConvert(context.Background(), []string{"BTC", "USDT"}); er != nil && !strings.Contains(er.Error(), "You do not have assets in this currency") {
 		t.Error("Okx SmallAssetsConvert() error", er)
 	}
 }
@@ -1850,7 +1850,7 @@ func TestSetGeeks(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := ok.SetGeeks(context.Background(), "PA"); er != nil {
+	if _, er := ok.SetGreeks(context.Background(), "PA"); er != nil {
 		t.Error("Okx SetGeeks() error", er)
 	}
 }

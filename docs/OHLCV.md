@@ -89,7 +89,6 @@ A helper tool [cmd/dbseed](../cmd/dbseed/README.md) has been created for assisti
 | lBank          | Y           |          
 | Localbitcoins  |             |          
 | Okcoin         | Y           |           
-| Okex           | Y           |    
 | Poloniex       | Y           |          
 | Yobit          |            |    
 | ZB             | Y           |          

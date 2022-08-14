@@ -45,7 +45,7 @@ func (o *OKCoin) GetDefaultConfig() (*config.Exchange, error) {
 	return exchCfg, nil
 }
 
-// SetDefaults method assignes the default values for OKEX
+// SetDefaults method assignes the default values for Okx
 func (o *OKCoin) SetDefaults() {
 	o.SetErrorDefaults()
 	o.SetCheckVarDefaults()

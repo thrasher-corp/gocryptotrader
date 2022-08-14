@@ -147,12 +147,6 @@
    "clientID": "ClientID",
    "otpSecret": "-"
   },
-  "okex": {
-   "key": "Key",
-   "secret": "Secret",
-   "clientID": "ClientID",
-   "otpSecret": "-"
-  },
   "poloniex": {
    "key": "Key",
    "secret": "Secret",
