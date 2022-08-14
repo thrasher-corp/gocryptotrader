@@ -238,6 +238,90 @@
   ]
  },
  "exchanges": [
+    {
+        "name": "Binanceus",
+        "enabled": true,
+        "verbose": false,
+        "httpTimeout": 15000000000,
+        "websocketResponseCheckTimeout": 30000000,
+        "websocketResponseMaxLimit": 7000000000,
+        "websocketTrafficTimeout": 30000000000,
+        "baseCurrencies": "USD",
+        "currencyPairs": {
+         "bypassConfigFormatUpgrades": false,
+         "pairs": {
+          "spot": {
+           "assetEnabled": true,
+           "enabled": "BTC-USDT,ETH-USDT,LTC-USDT,ADA-USDT",
+           "available": "BTC-USD,BCH-USD,LTC-USD,USDT-USD,BTC-USDT,ETH-USDT,BCH-USDT,LTC-USDT,BNB-USD,BNB-USDT,ETH-BTC,BNB-BTC,LTC-BTC,BCH-BTC,ADA-USD,BAT-USD,ETC-USD,XLM-USD,ZRX-USD,ADA-USDT,BAT-USDT,ETC-USDT,XLM-USDT,ZRX-USDT,LINK-USD,RVN-USD,DASH-USD,ZEC-USD,ALGO-USD,IOTA-USD,BUSD-USD,BTCB-USD,DOGE-USDT,WAVES-USD,ATOM-USDT,ATOM-USD,NEO-USDT,NEO-USD,VET-USDT,QTUM-USDT,QTUM-USD,ICX-USD,ENJ-USD,ONT-USD,ONT-USDT,ZIL-USD,ZILB-USD,VET-USD,BNBB-USD,ETHB-USD,ALGO-BUSD,XTZ-USD,XTZ-BUSD,HBAR-USD,HBAR-BUSD,OMG-USD,OMG-BUSD,MATIC-USD,MATIC-BUSD,XTZ-BTC,ADA-BTC,REP-BUSD,REP-USD,EOS-BUSD,EOS-USD,DOGE-USD,KNC-USD,KNC-USDT,VTHO-USDT,VTHO-USD,USDC-USD,COMP-USDT,COMP-USD,MANA-USD,HNT-USD,HNT-USDT,MKR-USD,MKR-USDT,DAI-USD,ONE-USDT,ONE-USD,BAND-USDT,BAND-USD,STORJ-USDT,STORJ-USD,UNI-USD,UNI-USDT,SOL-USD,SOL-USDT,LINK-BTC,VET-BTC,UNI-BTC,EGLD-USDT,EGLD-USD,PAXG-USDT,PAXG-USD,OXT-USDT,OXT-USD,ZEN-USDT,ZEN-USD,BTC-USDC,ONEB-USD,FIL-USDT,FIL-USD,AAVE-USDT,AAVE-USD,GRT-USDT,GRT-USD,SUSHI-USD,ANKR-USD,AMP-USD,SHIB-USDT,SHIB-BUSD,CRV-USDT,CRV-USD,AXS-USDT,AXS-USD,SOL-BTC,AVAX-USDT,AVAX-USD,CTSI-USDT,CTSI-USD,DOT-USDT,DOT-USD,YFI-USDT,YFI-USD,1INCH-USDT,1INCH-USD,FTM-USDT,FTM-USD,USDC-USDT,ETH-USDC,USDC-BUSD,MATIC-USDT,MANA-USDT,MANA-BUSD,ALGO-USDT,ADA-BUSD,SOL-BUSD,EOS-USDT,ENJ-USDT,NEAR-USDT,NEAR-BUSD,NEAR-USD,OMG-USDT,SUSHI-USDT,LRC-USDT,LRC-USD,LRC-BTC,KSHI-BUSD,LPT-USDT,LPT-BUSD,LPT-USD,POLY-USDT,POLY-BUSD,POLY-USD,POLY-BTC,MATIC-BTC,DOT-BTC,NMR-USDT,NMR-USD,SLP-USDT,ANT-USD,XNO-USD,CHZ-USDT,CHZ-USD,OGN-USDT,OGN-USD,GALA-USDT,GALA-USD,TLM-USDT,TLM-USD,SNX-USDT,SNX-USD,AUDIO-USDT,AUDIO-USD,ENS-USDT,MANA-BTC,ATOM-BTC,AVAX-BTC,WBTC-BTC,REQ-USDT,REQ-USD,APE-USDT,APE-USD,FLUX-USDT,FLUX-USD,TRX-BTC,TRX-BUSD,TRX-USDT,TRX-USD,COTI-USDT,COTI-USD,VOXEL-USDT,VOXEL-USD,RLC-USDT,RLC-USD,UST-USDT,UST-USD,BICO-USDT,BICO-USD,API3-USDT,API3-USD,ENS-USD,BTC-UST,BNT-USDT,BNT-USD,IMX-USDT,IMX-USD,SPELL-USDT,SPELL-USD,JASMY-USDT,JASMY-USD,FLOW-USDT,FLOW-USD,GTC-USDT,GTC-USD,BTC-BUSD,ZIL-BUSD,BNB-BUSD,ETH-BUSD,BUSD-USDT,ONE-BUSD,LINK-USDT,ZEC-USDT,SLP-USD,ANT-USDT",
+           "requestFormat": {
+            "uppercase": true
+           },
+           "configFormat": {
+            "uppercase": true,
+            "delimiter": "-"
+           }
+          }
+         }
+        },
+        "api": {
+         "authenticatedSupport": false,
+         "authenticatedWebsocketApiSupport": false,
+         "credentials": {
+          "key": "",
+          "secret": ""
+         },
+         "credentialsValidator": {
+          "requiresKey": true,
+          "requiresSecret": true
+         },
+         "urlEndpoints": {
+          "RestSpotSupplementaryURL": "https://api.binance.us",
+          "RestSpotURL": "https://api.binance.us",
+          "WebsocketSpotSupplementaryURL": "wss://stream.binance.us:9443/stream",
+          "WebsocketSpotURL": "wss://stream.binance.us:9443/stream"
+         }
+        },
+        "features": {
+         "supports": {
+          "restAPI": true,
+          "restCapabilities": {
+           "tickerBatching": true,
+           "autoPairUpdates": true
+          },
+          "websocketAPI": true,
+          "websocketCapabilities": {}
+         },
+         "enabled": {
+          "autoPairUpdates": true,
+          "websocketAPI": true,
+          "saveTradeData": false,
+          "tradeFeed": false,
+          "fillsFeed": false
+         }
+        },
+        "bankAccounts": [
+         {
+          "enabled": false,
+          "bankName": "",
+          "bankAddress": "",
+          "bankPostalCode": "",
+          "bankPostalCity": "",
+          "bankCountry": "",
+          "accountName": "",
+          "accountNumber": "",
+          "swiftCode": "",
+          "iban": "",
+          "supportedCurrencies": ""
+         }
+        ],
+        "orderbook": {
+         "verificationBypass": false,
+         "websocketBufferLimit": 5,
+         "websocketBufferEnabled": false,
+         "publishPeriod": 10000000000
+        }
+    },
   {
    "name": "Binance",
    "enabled": true,
@@ -637,6 +721,112 @@
      "supportedCurrencies": ""
     }
    ]
+  },
+  {
+   "name": "Bybit",
+   "enabled": true,
+   "verbose": false,
+   "httpTimeout": 15000000000,
+   "websocketResponseCheckTimeout": 30000000,
+   "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
+   "baseCurrencies": "",
+   "currencyPairs": {
+    "bypassConfigFormatUpgrades": false,
+    "requestFormat": {
+     "uppercase": true
+    },
+    "configFormat": {
+     "uppercase": true,
+     "delimiter": "-"
+    },
+    "useGlobalFormat": true,
+    "pairs": {
+     "coinmarginedfutures": {
+      "assetEnabled": true,
+      "enabled": "BTC-USD",
+      "available": "BTC-USD,XRP-USD,SOL-USD,ADA-USD,MANA-USD,LTC-USD,ETH-USD,EOS-USD,DOT-USD,BIT-USD"
+     },
+     "futures": {
+      "assetEnabled": true,
+      "enabled": "BTCUSD-Z22",
+      "available": "BTCUSD-U22,BTCUSD-M22,BTCUSD-Z22,ETHUSD-U22,ETHUSD-M22"
+     },
+     "spot": {
+      "assetEnabled": true,
+      "enabled": "BTC-USDT,ETH-USDT",
+      "available": "BTC-USDT,ETH-USDT,XRP-USDT,EOS-USDT,ETH-BTC,XRP-BTC,DOT-USDT,XLM-USDT,LTC-USDT,DOGE-USDT,BIT-USDT,CHZ-USDT,AXS-USDT,MANA-USDT,DYDX-USDT,MKR-USDT,COMP-USDT,AAVE-USDT,YFI-USDT,LINK-USDT,SUSHI-USDT,UNI-USDT,KSM-USDT,ICP-USDT,ADA-USDT,KLAY-USDT,XTZ-USDT,BCH-USDT,SRM-USDT,QNT-USDT,USDC-USDT,GRT-USDT,SOL-USDT,FIL-USDT,OMG-USDT,TRIBE-USDT,BAT-USDT,ZRX-USDT,CRV-USDT,AGLD-USDT,ANKR-USDT,PERP-USDT,MATIC-USDT,WAVES-USDT,LUNC-USDT,SPELL-USDT,SHIB-USDT,FTM-USDT,ATOM-USDT,ALGO-USDT,ENJ-USDT,CBX-USDT,SAND-USDT,AVAX-USDT,WOO-USDT,FTT-USDT,GODS-USDT,IMX-USDT,ENS-USDT,GM-USDT,CWAR-USDT,CAKE-USDT,STETH-USDT,GALFT-USDT,LFW-USDT,SLP-USDT,C98-USDT,PSP-USDT,GENE-USDT,AVA-USDT,ONE-USDT,PTU-USDT,SHILL-USDT,XYM-USDT,BOBA-USDT,INSUR-USDT,JASMY-USDT,GALA-USDT,RNDR-USDT,TRVL-USDT,WEMIX-USDT,XEM-USDT,KMA-USDT,BICO-USDT,CEL-USDT,UMA-USDT,HOT-USDT,NEXO-USDT,AMP-USDT,BNT-USDT,SNX-USDT,REN-USDT,1INCH-USDT,TEL-USDT,SIS-USDT,LRC-USDT,LDO-USDT,REAL-USDT,KRL-USDT,DEVT-USDT,CRAFT-USDT,BIT-BTC,BIT-USDC,ETH-USDC,BTC-USDC,1SOL-USDT,PLT-USDT,IZI-USDT,QTUM-USDT,DCR-USDT,ZEN-USDT,THETA-USDT,MX-USDT,DGB-USDT,RVN-USDT,EGLD-USDT,RUNE-USDT,XLM-BTC,XLM-USDC,SOL-USDC,XRP-USDC,ALGO-BTC,SOL-BTC,DFL-USDT,RAIN-USDT,RUN-USDT,XEC-USDT,ICX-USDT,XDC-USDT,HNT-USDT,BTG-USDT,ZIL-USDT,HBAR-USDT,FLOW-USDT,SOS-USDT,KASTA-USDT,GAS-USDT,STX-USDT,SIDUS-USDT,VPAD-USDT,GGM-USDT,LOOKS-USDT,MBS-USDT,DAI-USDT,BUSD-USDT,ACA-USDT,MV-USDT,MIX-USDT,LTC-USDC,MANA-BTC,MATIC-BTC,LTC-BTC,DOT-BTC,SAND-BTC,MANA-USDC,MATIC-USDC,SAND-USDC,DOT-USDC,LUNC-USDC,RSS3-USDT,SYNR-USDT,TAP-USDT,ERTHA-USDT,GMX-USDT,POSI-USDT,T-USDT,ACH-USDT,JST-USDT,SUN-USDT,BTT-USDT,TRX-USDT,NFT-USDT,POKT-USDT,SCRT-USDT,PSTAKE-USDT,SON-USDT,HERO-USDT,DOME-USDT,ZBC-USDT,USTC-USDT,BNB-USDT,NEAR-USDT,PAXG-USDT,SD-USDT,APE-USDT,BTC3S-USDT,BTC3L-USDT,FIDA-USDT,MINA-USDT,SC-USDT,RACA-USDT,IME-USDT,CAPS-USDT,STG-USDT,LMR-USDT,GLMR-USDT,MOVR-USDT,ZAM-USDT,ETH-DAI,BTC-DAI,WBTC-USDT,XAVA-USDT,MELOS-USDT,GMT-USDT,GST-USDT,CELO-USDT,SFUND-USDT,ELT-USDT,LGX-USDT,BIT-DAI,APEX-USDT,CTC-USDT,COT-USDT,KMON-USDT,PLY-USDT,XWG-USDT,FITFI-USDT,STRM-USDT,GAL-USDT,FCD-USDT,ETH3S-USDT,ETH3L-USDT,KOK-USDT,FAME-USDT,XRP3S-USDT,XRP3L-USDT,USDD-USDT,LUNA-USDT"
+     },
+     "usdcmarginedfutures": {
+      "assetEnabled": true,
+      "enabled": "BTC-PERP",
+      "available": "BTC-PERP"
+     },
+     "usdtmarginedfutures": {
+      "assetEnabled": true,
+      "enabled": "BTC-USDT",
+      "available": "BTC-USDT,AGLD-USDT,RAY-USDT,ASTR-USDT,XTZ-USDT,SFP-USDT,REEF-USDT,XEM-USDT,IOST-USDT,SLP-USDT,JASMY-USDT,ZEC-USDT,SC-USDT,MINA-USDT,HNT-USDT,XRP-USDT,MATIC-USDT,BNB-USDT,CHZ-USDT,OMG-USDT,ZEN-USDT,PEOPLE-USDT,DAR-USDT,SUN-USDT,DODO-USDT,AKRO-USDT,RUNE-USDT,YGG-USDT,XCN-USDT,FITFI-USDT,BIT-USDT,PAXG-USDT,KDA-USDT,AVAX-USDT,GALA-USDT,RVN-USDT,MTL-USDT,GAL-USDT,SXP-USDT,KAVA-USDT,CREAM-USDT,CKB-USDT,BSW-USDT,EOS-USDT,UNI-USDT,SUSHI-USDT,ATOM-USDT,LRC-USDT,SAND-USDT,GRT-USDT,CVC-USDT,1000BTT-USDT,FLM-USDT,VET-USDT,CELO-USDT,OGN-USDT,BCH-USDT,DOGE-USDT,CRV-USDT,LPT-USDT,DGB-USDT,TOMO-USDT,ETC-USDT,FLOW-USDT,STORJ-USDT,KLAY-USDT,SPELL-USDT,10000NFT-USDT,STMX-USDT,ALGO-USDT,DASH-USDT,API3-USDT,GLMR-USDT,ZRX-USDT,IOTX-USDT,QTUM-USDT,SKL-USDT,IOTA-USDT,KNC-USDT,ROSE-USDT,ARPA-USDT,SOL-USDT,BAT-USDT,ICX-USDT,ACH-USDT,XLM-USDT,SHIB1000-USDT,YFI-USDT,EGLD-USDT,REQ-USDT,APE-USDT,BOBA-USDT,TRX-USDT,COMP-USDT,CRO-USDT,ALPHA-USDT,LTC-USDT,AAVE-USDT,NEAR-USDT,ENS-USDT,RSR-USDT,STX-USDT,XMR-USDT,BNX-USDT,CVX-USDT,GST-USDT,ADA-USDT,SRM-USDT,CELR-USDT,C98-USDT,GTC-USDT,AR-USDT,SCRT-USDT,LINK-USDT,DOT-USDT,DYDX-USDT,ANKR-USDT,AUDIO-USDT,KSM-USDT,REN-USDT,IMX-USDT,MASK-USDT,WAVES-USDT,CTSI-USDT,LINA-USDT,MKR-USDT,ANT-USDT,DUSK-USDT,HOT-USDT,BSV-USDT,ALICE-USDT,GMT-USDT,BAKE-USDT,SNX-USDT,BICO-USDT,ZIL-USDT,FIL-USDT,ENJ-USDT,ICP-USDT,FTT-USDT,ILV-USDT,CTK-USDT,LOOKS-USDT,THETA-USDT,ONE-USDT,TLM-USDT,RNDR-USDT,DENT-USDT,NEO-USDT,OCEAN-USDT,ETH-USDT,AXS-USDT,COTI-USDT,JST-USDT,FXS-USDT,HBAR-USDT,CHR-USDT,1INCH-USDT,RSS3-USDT,1000XEC-USDT,BAL-USDT,CTC-USDT,MANA-USDT,FTM-USDT,WOO-USDT,LIT-USDT,BAND-USDT"
+     }
+    }
+   },
+   "api": {
+    "authenticatedSupport": true,
+    "authenticatedWebsocketApiSupport": false,
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret"
+    },
+    "credentialsValidator": {
+     "requiresKey": true,
+     "requiresSecret": true
+    },
+    "urlEndpoints": {
+     "RestCoinMarginedFuturesURL": "https://api.bybit.com",
+     "RestFuturesURL": "https://api.bybit.com",
+     "RestSpotURL": "https://api.bybit.com",
+     "RestUSDTMarginedFuturesURL": "https://api.bybit.com",
+     "WebsocketSpotURL": "wss://stream.bybit.com/spot/quote/ws/v2",
+     "RestUSDCMarginedFuturesURL": "https://api.bybit.com"
+    }
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "autoPairUpdates": false
+     },
+     "websocketAPI": true,
+     "websocketCapabilities": {}
+    },
+    "enabled": {
+     "autoPairUpdates": false,
+     "websocketAPI": true,
+     "saveTradeData": false,
+     "tradeFeed": false,
+     "fillsFeed": false
+    }
+   },
+   "bankAccounts": [
+    {
+     "enabled": false,
+     "bankName": "",
+     "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
+     "accountName": "",
+     "accountNumber": "",
+     "swiftCode": "",
+     "iban": "",
+     "supportedCurrencies": ""
+    }
+   ],
+   "orderbook": {
+    "verificationBypass": false,
+    "websocketBufferLimit": 5,
+    "websocketBufferEnabled": false,
+    "publishPeriod": 10000000000
+   }
   },
   {
    "name": "LBank",
