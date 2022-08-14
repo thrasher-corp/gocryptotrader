@@ -40,6 +40,11 @@ const (
 	NumberCharacters = "0123456789"
 )
 
+var (
+	// emailRX represents email address matching pattern
+	emailRX = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+)
+
 // Vars for common.go operations
 var (
 	_HTTPClient    *http.Client
@@ -77,6 +82,14 @@ var (
 	// ErrTypeAssertFailure defines an error when type assertion fails
 	ErrTypeAssertFailure = errors.New("type assert failure")
 )
+
+// MatchesEmailPattern ensures that the string is an email address by regexp check
+func MatchesEmailPattern(value string) bool {
+	if len(value) < 3 || len(value) > 254 {
+		return false
+	}
+	return emailRX.MatchString(value)
+}
 
 // SetHTTPClientWithTimeout sets a new *http.Client with different timeout
 // settings
