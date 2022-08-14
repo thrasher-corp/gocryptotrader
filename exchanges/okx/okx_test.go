@@ -146,14 +146,7 @@ func TestGetTrades(t *testing.T) {
 	}
 }
 
-var tradeHistoryJSON = `{
-	"instId": "BTC-USDT",
-	"side": "sell",
-	"sz": "0.00001",
-	"px": "29963.2",
-	"tradeId": "242720720",
-	"ts": "1654161646974"
-}`
+var tradeHistoryJSON = `{"instId": "BTC-USDT","side": "sell","sz": "0.00001","px": "29963.2","tradeId": "242720720","ts": "1654161646974"}`
 
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
@@ -257,14 +250,10 @@ func TestGetInstrument(t *testing.T) {
 	if er != nil {
 		t.Error("Okx GetInstruments() error", er)
 	}
-	instruments, er := ok.GetInstruments(context.Background(), &InstrumentsFetchParams{
+	_, er = ok.GetInstruments(context.Background(), &InstrumentsFetchParams{
 		InstrumentType: "OPTION",
-		Underlying:     "BTC-USD",
+		Underlying:     "SOL-USD",
 	})
-	for x := range instruments {
-		print(instruments[x].InstrumentID, " , ")
-	}
-
 	if er != nil {
 		t.Error("Okx GetInstruments() error", er)
 	}
@@ -684,40 +673,62 @@ func TestTransactionHistory(t *testing.T) {
 		t.Error("Okx GetTransactionDetailsLast3Days() error", er)
 	}
 }
+
 func TestStopOrder(t *testing.T) {
 	t.Parallel()
-	t.SkipNow()
-	// this test function had to be re modified.
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
-	if _, er := ok.StopOrderParams(context.Background(), &StopOrderParams{
+	if _, er := ok.PlaceStopOrder(context.Background(), &AlgoOrderParams{
 		TakeProfitTriggerPriceType: "index",
-	}); !strings.Contains(er.Error(), "Unsupported operation") {
-		t.Error("Okx StopOrderParams() error", er)
+
+		InstrumentID: "BTC-USDT",
+		OrderType:    "move_order_stop",
+		Side:         order.Buy,
+	}); er != nil && errors.Is(er, errMissingTakeProfitTriggerPrice) {
+		t.Errorf("Okx StopOrderParams() expecting %v, but found %v", errMissingTakeProfitTriggerPrice, er)
 	}
-	if _, er := ok.PlaceTrailingStopOrder(context.Background(), &TrailingStopOrderRequestParam{
+	if _, er := ok.PlaceStopOrder(context.Background(), &AlgoOrderParams{
+		TakeProfitTriggerPriceType: "index",
+		InstrumentID:               "BTC-USDT",
+		OrderType:                  "move_order_stop",
+		Side:                       order.Buy,
+	}); er != nil && errors.Is(er, errMissingTakeProfitTriggerPrice) {
+		t.Errorf("Okx StopOrderParams() expecting %v, but found %v", errMissingTakeProfitTriggerPrice, er)
+	}
+	if _, er := ok.PlaceTrailingStopOrder(context.Background(), &AlgoOrderParams{
 		CallbackRatio: 0.01,
+		InstrumentID:  "BTC-USDT",
+		OrderType:     "move_order_stop",
+		Side:          order.Buy,
 	}); er != nil {
 		t.Error("Okx PlaceTrailingStopOrder error", er)
 	}
-	if _, er := ok.PlaceIceburgOrder(context.Background(), &IceburgOrder{
-		PriceLimit:    100.22,
-		AverageAmount: 9999.9,
-		PriceRatio:    "0.04",
+	if _, er := ok.PlaceIceburgOrder(context.Background(), &AlgoOrderParams{
+		PriceLimit:  100.22,
+		SizeLimit:   9999.9,
+		PriceSpread: "0.04",
+
+		InstrumentID: "BTC-USDT",
+		OrderType:    "move_order_stop",
+		Side:         order.Buy,
 	}); er != nil {
 		t.Error("Okx PlaceIceburgOrder() error", er)
 	}
-	if _, er := ok.PlaceTWAPOrder(context.Background(), &TWAPOrderRequestParams{
-		PriceLimit:    100.22,
-		AverageAmount: 9999.9,
-		PriceRatio:    "0.4",
-		Timeinterval:  kline.ThreeDay,
+	if _, er := ok.PlaceTWAPOrder(context.Background(), &AlgoOrderParams{
+		PriceLimit:   100.22,
+		SizeLimit:    9999.9,
+		PriceSpread:  "0.4",
+		TimeInterval: kline.ThreeDay,
 	}); er != nil {
 		t.Error("Okx PlaceTWAPOrder() error", er)
 	}
-	if _, er := ok.TriggerAlogOrder(context.Background(), &TriggerAlogOrderParams{
+	if _, er := ok.TriggerAlogOrder(context.Background(), &AlgoOrderParams{
 		TriggerPriceType: "mark",
+
+		InstrumentID: "BTC-USDT",
+		OrderType:    "move_order_stop",
+		Side:         order.Buy,
 	}); er != nil {
 		t.Error("Okx TriggerAlogOrder() error", er)
 	}
@@ -792,54 +803,8 @@ func TestGetCounterparties(t *testing.T) {
 	}
 }
 
-var createRFQInputJSON = `{
-    "anonymous": true,
-    "counterparties":[
-        "Trader1",
-        "Trader2"
-    ],
-    "clRfqId":"rfq01",
-    "legs":[
-        {
-            "sz":"25",
-            "side":"buy",
-            "instId":"BTCUSD-221208-100000-C"
-        },
-        {
-            "sz":"150",
-            "side":"buy",
-            "instId":"ETH-USDT",
-            "tgtCcy":"base_ccy"
-        }
-    ]
-}`
-var createRFQOutputJSON = `{
-	"cTime":"1611033737572",
-	"uTime":"1611033737572",
-	"traderCode":"SATOSHI",
-	"rfqId":"22534",
-	"clRfqId":"rfq01",
-	"state":"active",
-	"validUntil":"1611033857557",
-	"counterparties":[
-		"Trader1",
-		"Trader2"
-	],
-	"legs":[
-		{
-			"instId":"BTCUSD-221208-100000-C",
-			"sz":"25",
-			"side":"buy",
-			"tgtCcy":""
-		},
-		{
-			"instId":"ETH-USDT",
-			"sz":"150",
-			"side":"buy",
-			"tgtCcy":"base_ccy"     
-		}
-	]
-}`
+var createRFQInputJSON = `{"anonymous": true,"counterparties":["Trader1","Trader2"],"clRfqId":"rfq01","legs":[{"sz":"25","side":"buy","instId":"BTCUSD-221208-100000-C"},{"sz":"150","side":"buy","instId":"ETH-USDT","tgtCcy":"base_ccy"}]}`
+var createRFQOutputJSON = `{"cTime":"1611033737572","uTime":"1611033737572","traderCode":"SATOSHI","rfqId":"22534","clRfqId":"rfq01","state":"active","validUntil":"1611033857557","counterparties":["Trader1","Trader2"],"legs":[{"instId":"BTCUSD-221208-100000-C","sz":"25","side":"buy","tgtCcy":""},{"instId":"ETH-USDT","sz":"150","side":"buy","tgtCcy":"base_ccy"}]}`
 
 func TestCreateRFQ(t *testing.T) {
 	t.Parallel()
@@ -1101,23 +1066,9 @@ func TestGetAccountAssetValuation(t *testing.T) {
 	}
 }
 
-var fundingTransferRequest = `{
-    "ccy":"USDT",
-    "type":"4",
-    "amt":"1.5",
-    "from":"6",
-    "to":"6",
-    "subAcct":"mini"
-}`
+var fundingTransferRequest = `{"ccy":"USDT","type":"4","amt":"1.5","from":"6","to":"6","subAcct":"mini"}`
 
-var fundingTransferResponseMessage = `{
-	"transId": "754147",
-	"ccy": "USDT",
-	"clientId": "",
-	"from": "6",
-	"amt": "0.1",
-	"to": "18"
-  }`
+var fundingTransferResponseMessage = `{"transId": "754147","ccy": "USDT","clientId": "","from": "6","amt": "0.1","to": "18"}`
 
 func TestFundingTransfer(t *testing.T) {
 	t.Parallel()
@@ -1142,19 +1093,7 @@ func TestFundingTransfer(t *testing.T) {
 	}
 }
 
-var fundingRateTransferResponseJSON = `{
-	"amt": "1.5",
-	"ccy": "USDT",
-	"clientId": "",
-	"from": "18",
-	"instId": "",
-	"state": "success",
-	"subAcct": "test",
-	"to": "6",
-	"toInstId": "",
-	"transId": "1",
-	"type": "1"
-}`
+var fundingRateTransferResponseJSON = `{"amt": "1.5","ccy": "USDT","clientId": "","from": "18","instId": "","state": "success","subAcct": "test","to": "6","toInstId": "","transId": "1","type": "1"}`
 
 func TestGetFundsTransferState(t *testing.T) {
 	t.Parallel()
@@ -1165,20 +1104,12 @@ func TestGetFundsTransferState(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := ok.GetFundsTransferState(context.Background(), "abcdefg", "", 2); er != nil {
+	if _, er := ok.GetFundsTransferState(context.Background(), "", "abcdefg", 2); er != nil {
 		t.Error("Okx GetFundsTransferState() error", er)
 	}
 }
 
-var assetBillDetailResponse = `{
-	"billId": "12344",
-	"ccy": "BTC",
-	"clientId": "",
-	"balChg": "2",
-	"bal": "12",
-	"type": "1",
-	"ts": "1597026383085"
-}`
+var assetBillDetailResponse = `{"billId": "12344","ccy": "BTC","clientId": "","balChg": "2","bal": "12","type": "1","ts": "1597026383085"}`
 
 func TestGetAssetBillsDetails(t *testing.T) {
 	t.Parallel()
@@ -1293,14 +1224,14 @@ func TestLightningWithdrawal(t *testing.T) {
 	}
 	var response LightningWithdrawalResponse
 	if er := json.Unmarshal([]byte(lightningWithdrawalResponseJSON), &response); er != nil {
-		t.Error("Binanceus LightningWithdrawalResponse Json Conversion error ", er)
+		t.Error("Okx LightningWithdrawalResponse Json Conversion error ", er)
 	}
 	_, er := ok.LightningWithdrawal(context.Background(), LightningWithdrawalRequestInput{
 		Currency: currency.BTC.String(),
 		Invoice:  "lnbc100u1psnnvhtpp5yq2x3q5hhrzsuxpwx7ptphwzc4k4wk0j3stp0099968m44cyjg9sdqqcqzpgxqzjcsp5hz",
 	})
 	if !strings.Contains(er.Error(), `401 raw response: {"msg":"Invalid Authority","code":"50114"}`) {
-		t.Error("Binanceus LightningWithdrawal() error", er)
+		t.Error("Okx LightningWithdrawal() error", er)
 	}
 }
 
@@ -1363,8 +1294,7 @@ var redemptionOrPurchaseSavingJSON = `{
 	"ccy":"BTC",
 	"amt":"1",
 	"side":"purchase",
-	"rate": "0.01"
-}`
+	"rate": "0.01"}`
 
 func TestSavingsPurchase(t *testing.T) {
 	t.Parallel()
@@ -1379,14 +1309,14 @@ func TestSavingsPurchase(t *testing.T) {
 		Amount:   123.4,
 		Currency: "BTC",
 		Rate:     1,
-	}); er != nil {
+	}); er != nil && !strings.EqualFold(er.Error(), "Insufficient balance") {
 		t.Error("Okx SavingsPurchase() error", er)
 	}
 	if _, er := ok.SavingsRedemption(context.Background(), &SavingsPurchaseRedemptionInput{
 		Amount:   123.4,
 		Currency: "BTC",
 		Rate:     1,
-	}); er != nil {
+	}); er != nil && !strings.EqualFold(er.Error(), "Insufficient balance") {
 		t.Error("Okx SavingsPurchase() error", er)
 	}
 }
@@ -2723,10 +2653,14 @@ func TestSnapshotOrderBookPushData(t *testing.T) {
 	}
 }
 
-var updateOrderBookPushDataJSON = `{"arg":{"channel":"books","instId":"BTC-USDT"},"action":"update","data":[{"asks":[["23209.9","0","0","0"],["23211.2","0.02871319","0","2"],["23331.6","0.0008665","0","2"]],"bids":[["23187.6","0.05","0","1"],["23185.5","0","0","0"],["23119.3","0","0","0"],["23071.5","0.00011777","0","1"]],"ts":"1659794601607","checksum":-350736830}]}`
+var testSnapshotOrderbookPushData = `{"arg":{"channel":"books","instId":"BTC-USDT"},"action":"snapshot","data":[{"asks":[["0.07026","5","0","1"],["0.07027","765","0","3"],["0.07028","110","0","1"],["0.0703","1264","0","1"],["0.07034","280","0","1"],["0.07035","2255","0","1"],["0.07036","28","0","1"],["0.07037","63","0","1"],["0.07039","137","0","2"],["0.0704","48","0","1"],["0.07041","32","0","1"],["0.07043","3985","0","1"],["0.07057","257","0","1"],["0.07058","7870","0","1"],["0.07059","161","0","1"],["0.07061","4539","0","1"],["0.07068","1438","0","3"],["0.07088","3162","0","1"],["0.07104","99","0","1"],["0.07108","5018","0","1"],["0.07115","1540","0","1"],["0.07129","5080","0","1"],["0.07145","1512","0","1"],["0.0715","5016","0","1"],["0.07171","5026","0","1"],["0.07192","5062","0","1"],["0.07197","1517","0","1"],["0.0726","1511","0","1"],["0.07314","10376","0","1"],["0.07354","1","0","1"],["0.07466","10277","0","1"],["0.07626","269","0","1"],["0.07636","269","0","1"],["0.0809","1","0","1"],["0.08899","1","0","1"],["0.09789","1","0","1"],["0.10768","1","0","1"]],"bids":[["0.07014","56","0","2"],["0.07011","608","0","1"],["0.07009","110","0","1"],["0.07006","1264","0","1"],["0.07004","2347","0","3"],["0.07003","279","0","1"],["0.07001","52","0","1"],["0.06997","91","0","1"],["0.06996","4242","0","2"],["0.06995","486","0","1"],["0.06992","161","0","1"],["0.06991","63","0","1"],["0.06988","7518","0","1"],["0.06976","186","0","1"],["0.06975","71","0","1"],["0.06973","1086","0","1"],["0.06961","513","0","2"],["0.06959","4603","0","1"],["0.0695","186","0","1"],["0.06946","3043","0","1"],["0.06939","103","0","1"],["0.0693","5053","0","1"],["0.06909","5039","0","1"],["0.06888","5037","0","1"],["0.06886","1526","0","1"],["0.06867","5008","0","1"],["0.06846","5065","0","1"],["0.06826","1572","0","1"],["0.06801","1565","0","1"],["0.06748","67","0","1"],["0.0674","111","0","1"],["0.0672","10038","0","1"],["0.06652","1","0","1"],["0.06625","1526","0","1"],["0.06619","10924","0","1"],["0.05986","1","0","1"],["0.05387","1","0","1"],["0.04848","1","0","1"],["0.04363","1","0","1"]],"ts":"1659792392540","checksum":-1462286744}]}`
+var updateOrderBookPushDataJSON = `{"arg":{"channel":"books","instId":"BTC-USDT"},"action":"update","data":[{"asks":[["0.07026","5","0","1"],["0.07027","765","0","3"],["0.07028","110","0","1"],["0.0703","1264","0","1"],["0.07034","280","0","1"],["0.07035","2255","0","1"],["0.07036","28","0","1"],["0.07037","63","0","1"],["0.07039","137","0","2"],["0.0704","48","0","1"],["0.07041","32","0","1"],["0.07043","3985","0","1"],["0.07057","257","0","1"],["0.07058","7870","0","1"],["0.07059","161","0","1"],["0.07061","4539","0","1"],["0.07068","1438","0","3"],["0.07088","3162","0","1"],["0.07104","99","0","1"],["0.07108","5018","0","1"],["0.07115","1540","0","1"],["0.07129","5080","0","1"],["0.07145","1512","0","1"],["0.0715","5016","0","1"],["0.07171","5026","0","1"],["0.07192","5062","0","1"],["0.07197","1517","0","1"],["0.0726","1511","0","1"],["0.07314","10376","0","1"],["0.07354","1","0","1"],["0.07466","10277","0","1"],["0.07626","269","0","1"],["0.07636","269","0","1"],["0.0809","1","0","1"],["0.08899","1","0","1"],["0.09789","1","0","1"],["0.10768","1","0","1"]],"bids":[["0.07014","56","0","2"],["0.07011","608","0","1"],["0.07009","110","0","1"],["0.07006","1264","0","1"],["0.07004","2347","0","3"],["0.07003","279","0","1"],["0.07001","52","0","1"],["0.06997","91","0","1"],["0.06996","4242","0","2"],["0.06995","486","0","1"],["0.06992","161","0","1"],["0.06991","63","0","1"],["0.06988","7518","0","1"],["0.06976","186","0","1"],["0.06975","71","0","1"],["0.06973","1086","0","1"],["0.06961","513","0","2"],["0.06959","4603","0","1"],["0.0695","186","0","1"],["0.06946","3043","0","1"],["0.06939","103","0","1"],["0.0693","5053","0","1"],["0.06909","5039","0","1"],["0.06888","5037","0","1"],["0.06886","1526","0","1"],["0.06867","5008","0","1"],["0.06846","5065","0","1"],["0.06826","1572","0","1"],["0.06801","1565","0","1"],["0.06748","67","0","1"],["0.0674","111","0","1"],["0.0672","10038","0","1"],["0.06652","1","0","1"],["0.06625","1526","0","1"],["0.06619","10924","0","1"],["0.05986","1","0","1"],["0.05387","1","0","1"],["0.04848","1","0","1"],["0.04363","1","0","1"]],"ts":"1659792392540","checksum":-1462286744}]}`
 
 func TestUpdateOrderBookPushData(t *testing.T) {
 	t.Parallel()
+	if er := ok.WsHandleData([]byte(testSnapshotOrderbookPushData)); er != nil {
+		t.Error("Okx Snapshot order book push data error", er)
+	}
 	if er := ok.WsHandleData([]byte(updateOrderBookPushDataJSON)); er != nil {
 		t.Error("Okx Update Order Book Push Data error", er)
 	}

@@ -1015,10 +1015,39 @@ type AlgoOrderParams struct {
 	OrderTag     string     `json:"tag"`
 	ReduceOnly   bool       `json:"reduceOnly"`
 	QuantityType string     `json:"tgtCcy"`
+
+	// Place Stop Order params
+	TakeProfitTriggerPrice     string `json:"tpTriggerPx"`
+	TakeProfitTriggerPriceType string `json:"tpTriggerPxType"`
+	TakeProfitOrderPrice       string `json:"tpOrdPx"`
+	StopLossTriggerPrice       string `json:"slTriggerPx"`
+	StopLossTriggerPriceType   string `json:"slTriggerPxType"`
+	StopLossOrderPrice         string `json:"slOrdPx"`
+
+	// Trigger Price  Or TrailingStopOrderRequestParam
+	CallbackRatio          float64 `json:"callbackRatio,string"`
+	CallbackSpreadVariance string  `json:"callbackSpread"`
+	ActivePrice            string  `json:"activePx"`
+
+	// trigger algo orders params.
+	// notice: Trigger orders are not available in the net mode of futures and perpetual swaps
+	TriggerPrice     float64 `json:"triggerPx,string"`
+	TriggerPriceType string  `json:"triggerPxType"`  // last, index, and mark
+	OrderPrice       int     `json:"orderPx,string"` // if the price i -1, then the order will be executed on the market.
+
+	//
+	PriceVariance string  `json:"pxVar"`          // Optional
+	PriceSpread   string  `json:"pxSpread"`       // Optional
+	SizeLimit     float64 `json:"szLimit,string"` // Required
+	PriceLimit    float64 `json:"pxLimit,string"` // Required
+
+	// TWAPOrder
+	TimeInterval kline.Interval `json:"interval"` // Required
 }
 
 // StopOrder holds stop order request payload.
 type StopOrderParams struct {
+	AlgoOrderParams
 	TakeProfitTriggerPrice     string `json:"tpTriggerPx"`
 	TakeProfitTriggerPriceType string `json:"tpTriggerPxType"`
 	TakeProfitOrderType        string `json:"tpOrdPx"`
@@ -1034,36 +1063,12 @@ type AlgoOrder struct {
 	StatusMsg  string `json:"sMsg"`
 }
 
-// TriggerAlogOrderParams trigger algo orders params.
-// notice: Trigger orders are not available in the net mode of futures and perpetual swaps
-type TriggerAlogOrderParams struct {
-	TriggerPrice     float64 `json:"triggerPx,string"`
-	TriggerPriceType string  `json:"triggerPxType"`  // last, index, and mark
-	OrderPrice       int     `json:"orderPx,string"` // if the price i -1, then the order will be executed on the market.
-}
-
-// TrailingStopOrderRequestParam
-type TrailingStopOrderRequestParam struct {
-	CallbackRatio          float64 `json:"callbackRatio,string"` // Optional
-	CallbackSpreadVariance string  `json:"callbackSpread"`       // Optional
-	ActivePrice            string  `json:"activePx"`
-}
-
 // IceburgOrder
 type IceburgOrder struct {
 	PriceRatio    string  `json:"pxVar"`          // Optional
 	PriceVariance string  `json:"pxSpread"`       // Optional
 	AverageAmount float64 `json:"szLimit,string"` // Required
 	PriceLimit    float64 `json:"pxLimit,string"` // Required
-}
-
-// TWAPOrder
-type TWAPOrderRequestParams struct {
-	PriceRatio    string         `json:"pxVar"`          // optional with pxSpread
-	PriceVariance string         `json:"pxSpread"`       // optional
-	AverageAmount float64        `json:"szLimit,string"` // Required
-	PriceLimit    float64        `json:"pxLimit"`        // Required
-	Timeinterval  kline.Interval `json:"interval"`       // Required
 }
 
 // AlgoOrderCancelParams algo order request parameter

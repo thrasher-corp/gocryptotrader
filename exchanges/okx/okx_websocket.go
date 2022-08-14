@@ -391,7 +391,11 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 			instrumentType = ok.GetInstrumentTypeFromAssetItem(subscriptions[i].Asset)
 		}
 
-		if strings.EqualFold(arg.Channel, "positions") || strings.EqualFold(arg.Channel, "orders") || strings.EqualFold(arg.Channel, "orders-algo") || strings.EqualFold(arg.Channel, "estimated-price") || strings.EqualFold(arg.Channel, "opt-summary") {
+		if strings.EqualFold(arg.Channel, "positions") ||
+			strings.EqualFold(arg.Channel, "orders") ||
+			strings.EqualFold(arg.Channel, "orders-algo") ||
+			strings.EqualFold(arg.Channel, "estimated-price") ||
+			strings.EqualFold(arg.Channel, "opt-summary") {
 			underlying, _ = ok.GetUnderlying(subscriptions[i].Currency, subscriptions[i].Asset)
 		}
 		arg.InstrumentID = instrumentID
@@ -750,7 +754,7 @@ func (ok *Okx) WsProcessFullOrderBook(data WsOrderBookData, pair currency.Pair, 
 	var er error
 	if data.Checksum != 0 {
 		var signedChecksum int32
-		signedChecksum, er = ok.CalculatePartialOrderbookChecksum(data)
+		signedChecksum, er = ok.CalculateOrderbookChecksum(data)
 		if er != nil {
 			return fmt.Errorf("%s channel: Orderbook unable to calculate orderbook checksum: %s", ok.Name, er)
 		}
@@ -822,12 +826,13 @@ func (ok *Okx) WsProcessUpdateOrderbook(channel string, data WsOrderBookData, pa
 	if err != nil {
 		return err
 	}
-	updatedOb, err := ok.Websocket.Orderbook.GetOrderbook(pair, a)
-	if err != nil {
-		return err
-	}
+
 	if data.Checksum != 0 {
-		checksum := ok.CalculateUpdateOrderbookChecksum(updatedOb)
+		var checksum int32
+		checksum, err = ok.CalculateOrderbookChecksum(data)
+		if err != nil {
+			return err
+		}
 		if checksum != data.Checksum {
 			log.Warnf(log.ExchangeSys, "%s checksum failure for pair %v",
 				ok.Name,
@@ -836,29 +841,6 @@ func (ok *Okx) WsProcessUpdateOrderbook(channel string, data WsOrderBookData, pa
 		}
 	}
 	return nil
-}
-
-// CalculateUpdateOrderbookChecksum alternates over the first 25 bid and ask
-// entries of a merged orderbook. The checksum is made up of the price and the
-// quantity with a semicolon (:) deliminating them. This will also work when
-// there are less than 25 entries (for whatever reason)
-// eg Bid:Ask:Bid:Ask:Ask:Ask
-func (ok *Okx) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base) int32 {
-	var checksum strings.Builder
-	for i := 0; i < allowableIterations; i++ {
-		if len(orderbookData.Bids)-1 >= i {
-			price := strconv.FormatFloat(orderbookData.Bids[i].Price, 'f', -1, 64)
-			amount := strconv.FormatFloat(orderbookData.Bids[i].Amount, 'f', -1, 64)
-			checksum.WriteString(price + ColonDelimiter + amount + ColonDelimiter)
-		}
-		if len(orderbookData.Asks)-1 >= i {
-			price := strconv.FormatFloat(orderbookData.Asks[i].Price, 'f', -1, 64)
-			amount := strconv.FormatFloat(orderbookData.Asks[i].Amount, 'f', -1, 64)
-			checksum.WriteString(price + ColonDelimiter + amount + ColonDelimiter)
-		}
-	}
-	checksumStr := strings.TrimSuffix(checksum.String(), ColonDelimiter)
-	return int32(crc32.ChecksumIEEE([]byte(checksumStr)))
 }
 
 // AppendWsOrderbookItems adds websocket orderbook data bid/asks into an
@@ -879,8 +861,8 @@ func (ok *Okx) AppendWsOrderbookItems(entries [][4]string) ([]orderbook.Item, er
 	return items, nil
 }
 
-// CalculatePartialOrderbookChecksum alternates over the first 25 bid and ask entries from websocket data.
-func (ok *Okx) CalculatePartialOrderbookChecksum(orderbookData WsOrderBookData) (int32, error) {
+// CalculateOrderbookChecksum alternates over the first 25 bid and ask entries from websocket data.
+func (ok *Okx) CalculateOrderbookChecksum(orderbookData WsOrderBookData) (int32, error) {
 	var checksum strings.Builder
 	for i := 0; i < allowableIterations; i++ {
 		if len(orderbookData.Bids)-1 >= i {
@@ -903,6 +885,29 @@ func (ok *Okx) CalculatePartialOrderbookChecksum(orderbookData WsOrderBookData) 
 	}
 	checksumStr := strings.TrimSuffix(checksum.String(), ColonDelimiter)
 	return int32(crc32.ChecksumIEEE([]byte(checksumStr))), nil
+}
+
+// CalculateUpdateOrderbookChecksum alternates over the first 25 bid and ask
+// entries of a merged orderbook. The checksum is made up of the price and the
+// quantity with a semicolon (:) deliminating them. This will also work when
+// there are less than 25 entries (for whatever reason)
+// eg Bid:Ask:Bid:Ask:Ask:Ask
+func (ok *Okx) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base) int32 {
+	var checksum strings.Builder
+	for i := 0; i < allowableIterations; i++ {
+		if len(orderbookData.Bids)-1 >= i {
+			price := strconv.FormatFloat(orderbookData.Bids[i].Price, 'f', 0, 64)
+			amount := strconv.FormatFloat(orderbookData.Bids[i].Amount, 'f', 0, 64)
+			checksum.WriteString(price + ColonDelimiter + amount + ColonDelimiter)
+		}
+		if len(orderbookData.Asks)-1 >= i {
+			price := strconv.FormatFloat(orderbookData.Asks[i].Price, 'f', 0, 64)
+			amount := strconv.FormatFloat(orderbookData.Asks[i].Amount, 'f', 0, 64)
+			checksum.WriteString(price + ColonDelimiter + amount + ColonDelimiter)
+		}
+	}
+	checksumStr := strings.TrimSuffix(checksum.String(), ColonDelimiter)
+	return int32(crc32.ChecksumIEEE([]byte(checksumStr)))
 }
 
 // wsHandleMarkPriceCandles processes candlestick mark price push data as a result of  subscription to "mark-price-candle*" channel.

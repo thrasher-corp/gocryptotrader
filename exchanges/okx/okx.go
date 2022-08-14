@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -211,6 +212,9 @@ const (
 )
 
 var (
+	Letters = regexp.MustCompile(`^[a-zA-Z]+$`)
+	Numbers = regexp.MustCompile(`^[0-9]+$`)
+
 	errUnableToTypeAssertResponseData               = errors.New("unable to type assert responseData")
 	errUnableToTypeAssertKlineData                  = errors.New("unable to type assert kline data")
 	errUnexpectedKlineDataLength                    = errors.New("unexpected kline data length")
@@ -245,9 +249,12 @@ var (
 	errMissingTradeMode                             = errors.New("missing trade mode")
 	errInvalidTriggerPrice                          = errors.New("invalid trigger price value")
 	errMssingAlgoOrderID                            = errors.New("missing algo orders id")
-	errInvalidAverageAmountParameterValue           = errors.New("invalid average amount parameter value")
+	errInvalidAverageAmountValue                    = errors.New("invalid average amount parameter value")
 	errInvalidPriceLimit                            = errors.New("invalid price limit value")
 	errMissingIntervalValue                         = errors.New("missing interval value")
+	errMissingTakeProfitTriggerPrice                = errors.New("missing take profit trigger price")
+	errMissingTakeProfitOrderPrice                  = errors.New("missing take profit order price")
+	errMissingSizeLimit                             = errors.New("missing required parameter \"size limit\"")
 	errMissingEitherAlgoIDOrState                   = errors.New("either algo id or order state is required")
 	errUnacceptableAmount                           = errors.New("amount must be greater than 0")
 	errInvalidCurrencyValue                         = errors.New("invalid currency value")
@@ -291,6 +298,7 @@ var (
 	errInvalidWebsocketEvent                        = errors.New("invalid websocket event")
 	errMissingValidChannelInformation               = errors.New("missing channel information")
 	errNilArgument                                  = errors.New("nil argument is not acceptable")
+	errEitherPriceVarianceOrPriceSpreadRequired     = errors.New("either pxVar or pxSpread is allowed to be passed.")
 )
 
 /************************************ MarketData Endpoints *************************************************/
@@ -719,16 +727,23 @@ func (ok *Okx) getTransactionDetails(ctx context.Context, arg *TransactionDetail
 
 // PlaceAlgoOrder order includes trigger order, oco order, conditional order,iceberg order, twap order and trailing order.
 func (ok *Okx) PlaceAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoOrder, error) {
-	if !(arg.InstrumentID != "") {
+	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
-	if !(arg.TradeMode != "") {
+	if !(strings.EqualFold(arg.TradeMode, "cross") ||
+		strings.EqualFold(arg.TradeMode, "isolated")) {
 		return nil, errMissingTradeMode
 	}
-	if arg.Side == order.UnknownSide {
+	if !(arg.Side == order.Buy ||
+		arg.Side == order.Sell) {
 		return nil, errMissingOrderSide
 	}
-	if arg.OrderType == "" {
+	if !(strings.EqualFold(arg.OrderType, "conditional") ||
+		strings.EqualFold(arg.OrderType, "oco") ||
+		strings.EqualFold(arg.OrderType, "trigger") ||
+		strings.EqualFold(arg.OrderType, "move_order_stop") ||
+		strings.EqualFold(arg.OrderType, "iceberg") ||
+		strings.EqualFold(arg.OrderType, "twap")) {
 		return nil, errInvalidOrderType
 	}
 	if arg.Size <= 0 {
@@ -750,66 +765,97 @@ func (ok *Okx) PlaceAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoO
 	return nil, errors.New(resp.Msg)
 }
 
-// StopOrderParams
-func (ok *Okx) StopOrderParams(ctx context.Context, arg *StopOrderParams) ([]AlgoOrder, error) {
-	type response struct {
-		Code string      `json:"code"`
-		Msg  string      `json:"msg"`
-		Data []AlgoOrder `json:"data"`
+// PlaceStopOrder to place stop order
+func (ok *Okx) PlaceStopOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoOrder, error) {
+	if arg == nil {
+		return nil, errNilArgument
 	}
-	var resp response
-	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeAlgoOrderEPL, http.MethodPost, algoTradeOrder, arg, &resp, true)
+	if !strings.EqualFold(arg.OrderType, "conditional") {
+		return nil, errInvalidOrderType
+	}
+	if arg.TakeProfitTriggerPrice == "" {
+		return nil, errMissingTakeProfitTriggerPrice
+	}
+	if arg.TakeProfitTriggerPriceType == "" {
+		return nil, errMissingTakeProfitOrderPrice
+	}
+	if !(arg.TakeProfitOrderPrice != "" &&
+		(strings.EqualFold(arg.TakeProfitOrderPrice, "index") ||
+			strings.EqualFold(arg.TakeProfitOrderPrice, "last") ||
+			strings.EqualFold(arg.TakeProfitOrderPrice, "mark"))) {
+		arg.TakeProfitOrderPrice = ""
+	}
+	if !(arg.StopLossTriggerPriceType != "" &&
+		(strings.EqualFold(arg.StopLossTriggerPriceType, "index") ||
+			strings.EqualFold(arg.StopLossTriggerPriceType, "last") ||
+			strings.EqualFold(arg.StopLossTriggerPriceType, "mark"))) {
+		arg.StopLossTriggerPriceType = ""
+	}
+	return ok.PlaceAlgoOrder(ctx, arg)
 }
 
-// PlaceTrailingStopOrder
-func (ok *Okx) PlaceTrailingStopOrder(ctx context.Context, arg *TrailingStopOrderRequestParam) ([]AlgoOrder, error) {
-	type response struct {
-		Code string      `json:"code"`
-		Msg  string      `json:"msg"`
-		Data []AlgoOrder `json:"data"`
+// PlaceTrailingStopOrder to place trailing stop order
+func (ok *Okx) PlaceTrailingStopOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoOrder, error) {
+	if arg == nil {
+		return nil, errNilArgument
 	}
-	var resp response
-	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeAlgoOrderEPL, http.MethodPost, algoTradeOrder, arg, &resp, true)
+	if !strings.EqualFold(arg.OrderType, "move_order_stop") {
+		return nil, errInvalidOrderType
+	}
+	if arg.CallbackRatio == 0 &&
+		arg.CallbackSpreadVariance == "" {
+		return nil, errors.New("either \"callbackRatio\" or \"callbackSpread\" is allowed to be passed.")
+	}
+	return ok.PlaceAlgoOrder(ctx, arg)
 }
 
-// IceburgOrder
-func (ok *Okx) PlaceIceburgOrder(ctx context.Context, arg *IceburgOrder) ([]AlgoOrder, error) {
-	type response struct {
-		Code string      `json:"code"`
-		Msg  string      `json:"msg"`
-		Data []AlgoOrder `json:"data"`
+// IceburgOrder to place iceburg algo order
+func (ok *Okx) PlaceIceburgOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoOrder, error) {
+	if arg == nil {
+		return nil, errNilArgument
 	}
-	var resp response
-	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeAlgoOrderEPL, http.MethodPost, algoTradeOrder, arg, &resp, true)
-}
-
-// PlaceTWAPOrder
-func (ok *Okx) PlaceTWAPOrder(ctx context.Context, arg *TWAPOrderRequestParams) ([]AlgoOrder, error) {
-	type response struct {
-		Code string      `json:"code"`
-		Msg  string      `json:"msg"`
-		Data []AlgoOrder `json:"data"`
+	if !strings.EqualFold(arg.OrderType, "iceberg") {
+		return nil, errInvalidOrderType
 	}
-	switch {
-	case arg.PriceRatio == "" || arg.PriceVariance == "":
-		return nil, fmt.Errorf("missing price ratio or price variance parameter")
-	case arg.AverageAmount <= 0:
-		return nil, errInvalidAverageAmountParameterValue
-	case arg.PriceLimit <= 0:
+	if arg.PriceVariance == "" && arg.PriceSpread == "" {
+		return nil, errEitherPriceVarianceOrPriceSpreadRequired
+	}
+	if arg.SizeLimit <= 0 {
+		return nil, errMissingSizeLimit
+	}
+	if arg.PriceLimit <= 0 {
 		return nil, errInvalidPriceLimit
-	case ok.GetIntervalEnum(arg.Timeinterval) == "":
+	}
+	return ok.PlaceAlgoOrder(ctx, arg)
+}
+
+// PlaceTWAPOrder to place TWAP algo orders
+func (ok *Okx) PlaceTWAPOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoOrder, error) {
+	if arg.PriceVariance == "" && arg.PriceSpread == "" {
+		return nil, errEitherPriceVarianceOrPriceSpreadRequired
+	}
+	if !strings.EqualFold(arg.OrderType, "twap") {
+		return nil, errInvalidOrderType
+	}
+	if arg.SizeLimit <= 0 {
+		return nil, errors.New("missing required parameter \"size limit\"")
+	}
+	if arg.PriceLimit <= 0 {
+		return nil, errInvalidPriceLimit
+	}
+	if ok.GetIntervalEnum(arg.TimeInterval) == "" {
 		return nil, errMissingIntervalValue
 	}
-	var resp response
-	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeAlgoOrderEPL, http.MethodPost, algoTradeOrder, arg, &resp, true)
+	return ok.PlaceAlgoOrder(ctx, arg)
 }
 
-// TriggerAlogOrder  fetches algo trigger orders for SWAP market types.
-func (ok *Okx) TriggerAlogOrder(ctx context.Context, arg *TriggerAlogOrderParams) (*AlgoOrder, error) {
-	type response struct {
-		Code string      `json:"code"`
-		Msg  string      `json:"msg"`
-		Data []AlgoOrder `json:"data"`
+// TriggerAlogOrder fetches algo trigger orders for SWAP market types.
+func (ok *Okx) TriggerAlogOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoOrder, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	if !strings.EqualFold(arg.OrderType, "trigger") {
+		return nil, errInvalidOrderType
 	}
 	if arg.TriggerPrice <= 0 {
 		return nil, errInvalidTriggerPrice
@@ -819,15 +865,7 @@ func (ok *Okx) TriggerAlogOrder(ctx context.Context, arg *TriggerAlogOrderParams
 		strings.EqualFold(arg.TriggerPriceType, "mark")) {
 		arg.TriggerPriceType = ""
 	}
-	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, placeAlgoOrderEPL, http.MethodPost, algoTradeOrder, arg, &resp, true)
-	if er != nil {
-		return nil, er
-	}
-	if len(resp.Data) > 0 {
-		return &resp.Data[0], nil
-	}
-	return nil, errors.New(resp.Msg)
+	return ok.PlaceAlgoOrder(ctx, arg)
 }
 
 // CancelAdvanceAlgoOrder Cancel unfilled algo orders
@@ -855,7 +893,7 @@ func (ok *Okx) cancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams
 		}
 	}
 	if len(args) == 0 {
-		return nil, errors.New("missing important arguments")
+		return nil, errors.New("no parameter")
 	}
 	type response struct {
 		Code string      `json:"code"`
@@ -1432,10 +1470,13 @@ func (ok *Okx) GetFundsTransferState(ctx context.Context, transferID, clientID s
 		return nil, errors.New("either 'transfer id' or 'client id' is required")
 	case transferID != "":
 		params.Set("transId", transferID)
-	case clientID == "":
+	case clientID != "":
+		if !((Letters.MatchString(clientID) || Numbers.MatchString(clientID)) && clientID != "") {
+			return nil, errors.New("invalid client id")
+		}
 		params.Set("clientId", clientID)
 	}
-	if transferType > 0 && transferType <= 2 {
+	if transferType > 0 && transferType <= 4 {
 		params.Set("type", strconv.Itoa(transferType))
 	}
 	path := common.EncodeURLValues(assetTransferState, params)
@@ -1748,7 +1789,10 @@ func (ok *Okx) savingsPurchaseOrRedemption(ctx context.Context, arg *SavingsPurc
 	if er != nil {
 		return nil, er
 	} else if len(resp.Data) == 0 {
-		return nil, errors.New("no response from the server")
+		if resp.Msg != "" {
+			return nil, errors.New(resp.Msg)
+		}
+		return nil, errNoValidResponseFromServer
 	}
 	return &resp.Data[0], nil
 }
@@ -2176,7 +2220,8 @@ func (ok *Okx) SetLeverage(ctx context.Context, arg SetLeverageInput) (*SetLever
 		return nil, errors.New("only applicable to \"isolated\" margin mode of FUTURES/SWAP")
 	}
 	if !(strings.EqualFold(arg.PositionSide, "long") ||
-		strings.EqualFold(arg.PositionSide, "short")) && strings.EqualFold(arg.MarginMode, "isolated") {
+		strings.EqualFold(arg.PositionSide, "short")) &&
+		strings.EqualFold(arg.MarginMode, "isolated") {
 		return nil, errors.New("\"long\" \"short\" Only applicable to isolated margin mode of FUTURES/SWAP")
 	} else if !strings.EqualFold(arg.MarginMode, "isolated") {
 		arg.MarginMode = ""
