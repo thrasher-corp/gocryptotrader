@@ -129,6 +129,8 @@ func (s *Statistic) PrintAllEventsChronologically() {
 	}
 }
 
+// CreateLog renders a string log depending on what events are populated
+// at a given offset. Can render logs live, or at the end of a backtesting run
 func (s *Statistic) CreateLog(data common.Event) (string, error) {
 	var (
 		result string

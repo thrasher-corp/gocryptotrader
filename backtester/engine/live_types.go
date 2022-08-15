@@ -16,13 +16,16 @@ import (
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
-// ErrLiveDataTimeout returns when an event has not been processed within the timeframe
-var ErrLiveDataTimeout = errors.New("no data processed within timeframe")
+var (
+	// ErrLiveDataTimeout returns when an event has not been processed within the timeframe
+	ErrLiveDataTimeout = errors.New("no data processed within timeframe")
+
+	errDataSourceExists = errors.New("data source already exists")
+)
 
 var (
-	defaultEventCheckInterval = time.Second
-	defaultEventTimeout       = time.Minute
-	defaultDataCheckInterval  = time.Second
+	defaultEventTimeout      = time.Minute
+	defaultDataCheckInterval = time.Second
 )
 
 // Handler is all the functionality required in order to
@@ -36,26 +39,24 @@ type Handler interface {
 	Stop() error
 	Reset()
 	Updated() chan struct{}
-	GetKlines() []kline.DataFromKline
 }
 
 // DataChecker is responsible for managing all data retrieval
 // for a live data option
 type DataChecker struct {
-	m                  sync.Mutex
-	wg                 sync.WaitGroup
-	started            uint32
-	verbose            bool
-	exchangeManager    *engine.ExchangeManager
-	exchangesToCheck   []liveExchangeDataHandler
-	eventCheckInterval time.Duration
-	eventTimeout       time.Duration
-	dataCheckInterval  time.Duration
-	dataHolder         data.Holder
-	updated            chan struct{}
-	shutdown           chan struct{}
-	report             report.Handler
-	funding            funding.IFundingManager
+	m                 sync.Mutex
+	wg                sync.WaitGroup
+	started           uint32
+	verbose           bool
+	exchangeManager   *engine.ExchangeManager
+	exchangesToCheck  []liveExchangeDataHandler
+	eventTimeout      time.Duration
+	dataCheckInterval time.Duration
+	dataHolder        data.Holder
+	updated           chan struct{}
+	shutdown          chan struct{}
+	report            report.Handler
+	funding           funding.IFundingManager
 }
 
 type liveExchangeDataHandler struct {

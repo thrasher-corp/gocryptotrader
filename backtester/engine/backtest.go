@@ -516,8 +516,9 @@ func (bt *BackTest) Stop() {
 	close(bt.shutdown)
 }
 
+// CloseAllPositions will close sell any positions held on closure
+// can only be with live testing and where a strategy supports it
 func (bt *BackTest) CloseAllPositions() error {
-	close(bt.shutdown)
 	if bt.LiveDataHandler == nil {
 		return errLiveOnly
 	}
@@ -535,6 +536,7 @@ func (bt *BackTest) CloseAllPositions() error {
 	events, err := bt.Strategy.CloseAllPositions(bt.Portfolio.GetLatestHoldingsForAllCurrencies(), latestPrices)
 	if err != nil {
 		if errors.Is(err, gctcommon.ErrFunctionNotSupported) {
+			log.Warnf(common.Livetester, "closing all positions is not supported by strategy %v", bt.Strategy.Name())
 			return nil
 		}
 		return err
@@ -551,11 +553,11 @@ func (bt *BackTest) CloseAllPositions() error {
 		}
 		bt.EventQueue.AppendEvent(events[i])
 	}
-	// portfolio run
+	// signal.Event run
 	bt.Run()
-	// exchange run
+	// order.Event run
 	bt.Run()
-	// fill run
+	// fill.Event run
 	bt.Run()
 
 	return nil

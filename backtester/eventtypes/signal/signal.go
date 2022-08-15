@@ -109,6 +109,10 @@ func (s *Signal) MatchOrderAmount() bool {
 	return s.MatchesOrderAmount
 }
 
+// ToKline is used to convert a signal event
+// to a data event for the purpose of closing all positions
+// function CloseAllPositions is builds signal data, but
+// data event data must still be populated
 func (s *Signal) ToKline() kline.Event {
 	return &kline.Kline{
 		Base:             s.Base,

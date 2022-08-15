@@ -24,22 +24,21 @@ import (
 
 // SetupLiveDataHandler creates a live data handler to retrieve and append
 // live data as it comes in
-func (bt *BackTest) SetupLiveDataHandler(eventCheckInterval, eventTimeout, dataCheckInterval time.Duration, verbose bool) (Handler, error) {
+func (bt *BackTest) SetupLiveDataHandler(eventTimeout, dataCheckInterval time.Duration, verbose bool) error {
+	if bt == nil {
+		return fmt.Errorf("%w backtester", gctcommon.ErrNilPointer)
+	}
 	if bt.exchangeManager == nil {
-		return nil, fmt.Errorf("%w engine manager", gctcommon.ErrNilPointer)
+		return fmt.Errorf("%w engine manager", gctcommon.ErrNilPointer)
 	}
 	if bt.DataHolder == nil {
-		return nil, fmt.Errorf("%w data holder", gctcommon.ErrNilPointer)
+		return fmt.Errorf("%w data holder", gctcommon.ErrNilPointer)
 	}
 	if bt.Reports == nil {
-		return nil, fmt.Errorf("%w reports", gctcommon.ErrNilPointer)
+		return fmt.Errorf("%w reports", gctcommon.ErrNilPointer)
 	}
 	if bt.Funding == nil {
-		return nil, fmt.Errorf("%w funding manager", gctcommon.ErrNilPointer)
-	}
-	if eventCheckInterval <= 0 {
-		log.Warnf(common.Livetester, "invalid event check interval '%v', defaulting to '%v'", eventCheckInterval, defaultEventCheckInterval)
-		eventCheckInterval = defaultEventCheckInterval
+		return fmt.Errorf("%w funding manager", gctcommon.ErrNilPointer)
 	}
 	if eventTimeout <= 0 {
 		log.Warnf(common.Livetester, "invalid event timeout '%v', defaulting to '%v'", eventTimeout, defaultEventTimeout)
@@ -47,20 +46,20 @@ func (bt *BackTest) SetupLiveDataHandler(eventCheckInterval, eventTimeout, dataC
 	}
 	if dataCheckInterval <= 0 {
 		log.Warnf(common.Livetester, "invalid data check interval '%v', defaulting to '%v'", dataCheckInterval, defaultDataCheckInterval)
-		dataCheckInterval = defaultEventCheckInterval
+		dataCheckInterval = defaultDataCheckInterval
 	}
-	return &DataChecker{
-		verbose:            verbose,
-		exchangeManager:    bt.exchangeManager,
-		eventCheckInterval: eventCheckInterval,
-		eventTimeout:       eventTimeout,
-		dataCheckInterval:  dataCheckInterval,
-		dataHolder:         bt.DataHolder,
-		updated:            make(chan struct{}),
-		shutdown:           make(chan struct{}),
-		report:             bt.Reports,
-		funding:            bt.Funding,
-	}, nil
+	bt.LiveDataHandler = &DataChecker{
+		verbose:           verbose,
+		exchangeManager:   bt.exchangeManager,
+		eventTimeout:      eventTimeout,
+		dataCheckInterval: dataCheckInterval,
+		dataHolder:        bt.DataHolder,
+		updated:           make(chan struct{}),
+		shutdown:          make(chan struct{}),
+		report:            bt.Reports,
+		funding:           bt.Funding,
+	}
+	return nil
 }
 
 // Start begins fetching and appending live data
@@ -157,7 +156,6 @@ func (l *DataChecker) Reset() {
 	l.m.Lock()
 	defer l.m.Unlock()
 	l.dataCheckInterval = 0
-	l.eventCheckInterval = 0
 	l.eventTimeout = 0
 	l.exchangeManager = nil
 	l.exchangesToCheck = nil
@@ -185,6 +183,9 @@ func (l *DataChecker) AppendDataSource(exch gctexchange.IBotExchange, interval g
 	if curr.IsEmpty() {
 		return fmt.Errorf("main %w", currency.ErrCurrencyPairEmpty)
 	}
+	if interval.Duration() == 0 {
+		return gctkline.ErrUnsetInterval
+	}
 	l.m.Lock()
 	defer l.m.Unlock()
 	exchName := strings.ToLower(exch.GetName())
@@ -192,7 +193,7 @@ func (l *DataChecker) AppendDataSource(exch gctexchange.IBotExchange, interval g
 		if l.exchangesToCheck[i].exchangeName == exchName &&
 			l.exchangesToCheck[i].asset == item &&
 			l.exchangesToCheck[i].pair.Equal(curr) {
-			return funding.ErrAlreadyExists
+			return fmt.Errorf("%w %v %v %v", errDataSourceExists, exchName, item, curr)
 		}
 	}
 
@@ -232,7 +233,7 @@ func (l *DataChecker) FetchLatestData() (bool, error) {
 	var err error
 	var updated bool
 	for i := range l.exchangesToCheck {
-		if !l.verbose {
+		if l.verbose {
 			log.Infof(common.Livetester, "checking for new data for %v %v %v", l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair)
 		}
 		preCandleLen := len(l.exchangesToCheck[i].pairCandles.Item.Candles)
@@ -245,8 +246,8 @@ func (l *DataChecker) FetchLatestData() (bool, error) {
 			updated = true
 		}
 		if updated {
-			if !l.verbose {
-				log.Infof(common.Livetester, "new data for %v %v %v", l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair)
+			if l.verbose {
+				log.Infof(common.Livetester, "found new data for %v %v %v", l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair)
 			}
 			err = l.report.SetKlineData(&l.exchangesToCheck[i].pairCandles.Item)
 			if err != nil {
@@ -260,14 +261,6 @@ func (l *DataChecker) FetchLatestData() (bool, error) {
 	}
 
 	return updated, nil
-}
-
-func (l *DataChecker) GetKlines() []kline.DataFromKline {
-	var response []kline.DataFromKline
-	for i := range l.exchangesToCheck {
-		response = append(response, l.exchangesToCheck[i].pairCandles)
-	}
-	return response
 }
 
 // loadCandleData fetches data from the exchange API and appends it

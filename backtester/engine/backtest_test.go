@@ -342,8 +342,11 @@ func TestLoadDataCSV(t *testing.T) {
 func TestLoadDataLive(t *testing.T) {
 	t.Parallel()
 	bt := BackTest{
-		Reports:  &report.Data{},
-		shutdown: make(chan struct{}),
+		Reports:         &report.Data{},
+		Funding:         &funding.FundManager{},
+		DataHolder:      &data.HandlerPerCurrency{},
+		exchangeManager: engine.SetupExchangeManager(),
+		shutdown:        make(chan struct{}),
 	}
 
 	cp := currency.NewPair(currency.BTC, currency.USD)
@@ -389,18 +392,20 @@ func TestLoadDataLive(t *testing.T) {
 			},
 		},
 	}
-	em := engine.ExchangeManager{}
-	exch, err := em.NewExchangeByName(testExchange)
+	exch, err := bt.exchangeManager.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
-	b := exch.GetBase()
-	bt.LiveDataHandler, err = SetupLiveDataHandler(&em, &data.HandlerPerCurrency{}, 0, 0, 0, false)
+	err = bt.SetupLiveDataHandler(0, 0, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v, expected: %v", err, nil)
+	}
 	err = bt.LiveDataHandler.Start()
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
+	b := exch.GetBase()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Available:     currency.Pairs{cp},
@@ -1434,11 +1439,12 @@ func TestRunLive(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, errLiveOnly)
 	}
 
-	em := engine.SetupExchangeManager()
-	holder := &data.HandlerPerCurrency{}
-	bt.LiveDataHandler, err = SetupLiveDataHandler(em, holder, -1, -1, -1, false)
+	bt.Funding = &funding.FundManager{}
+	bt.Reports = &report.Data{}
+
+	err = bt.SetupLiveDataHandler(-1, -1, false)
 	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
+		t.Fatalf("received '%v' expected '%v'", err, nil)
 	}
 
 	err = bt.LiveDataHandler.Start()
@@ -1481,7 +1487,8 @@ func TestRunLive(t *testing.T) {
 			},
 		},
 	}
-	err = bt.LiveDataHandler.AppendDataSource(i, &ftx.FTX{}, common.DataCandle)
+	// 	AppendDataSource(exch gctexchange.IBotExchange, interval gctkline.Interval, item asset.Item, curr, underlying currency.Pair, dataType int64) error
+	err = bt.LiveDataHandler.AppendDataSource(&ftx.FTX{}, i.Interval, i.Asset, i.Pair, i.UnderlyingPair, common.DataCandle)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}

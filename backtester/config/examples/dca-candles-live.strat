@@ -71,7 +71,6 @@
   "live-data": {
    "new-event-timeout": 60000000000,
    "data-check-timer": 1000000000,
-   "run-timer": 1000000000,
    "real-orders": false,
    "verbose-data-check": false,
    "close-positions-on-exit": false,

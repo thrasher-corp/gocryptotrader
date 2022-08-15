@@ -194,7 +194,6 @@ type DatabaseData struct {
 type LiveData struct {
 	NewEventTimeout      time.Duration `json:"new-event-timeout"`
 	DataCheckTimer       time.Duration `json:"data-check-timer"`
-	RunTimer             time.Duration `json:"run-timer"`
 	RealOrders           bool          `json:"real-orders"`
 	VerboseDataCheck     bool          `json:"verbose-data-check"`
 	ClosePositionsOnExit bool          `json:"close-positions-on-exit"`

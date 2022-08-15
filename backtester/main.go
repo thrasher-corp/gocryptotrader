@@ -133,14 +133,13 @@ func main() {
 		}()
 		interrupt := signaler.WaitForInterrupt()
 		log.Infof(log.Global, "Captured %v, shutdown requested.\n", interrupt)
+		bt.Stop()
 		if cfg.DataSettings.LiveData.ClosePositionsOnExit {
 			log.Info(common.Backtester, "closing all positions on shutdown")
 			err = bt.CloseAllPositions()
 			if err != nil {
 				fmt.Printf("could not close all positions on exit: %v", err)
 			}
-		} else {
-			bt.Stop()
 		}
 	} else {
 		log.Info(common.Backtester, "running backtester against pre-defined data")

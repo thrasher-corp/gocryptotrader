@@ -312,11 +312,7 @@ func (bt *BackTest) NewFromConfig(cfg *config.Config, templatePath, output strin
 
 	bt.Funding = funds
 	if cfg.DataSettings.LiveData != nil {
-		bt.LiveDataHandler, err = bt.SetupLiveDataHandler(
-			cfg.DataSettings.LiveData.NewEventTimeout,
-			cfg.DataSettings.LiveData.NewEventTimeout,
-			cfg.DataSettings.LiveData.DataCheckTimer,
-			verbose)
+		err = bt.SetupLiveDataHandler(cfg.DataSettings.LiveData.NewEventTimeout, cfg.DataSettings.LiveData.DataCheckTimer, verbose)
 		if err != nil {
 			return err
 		}

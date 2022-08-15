@@ -39,7 +39,7 @@
    "maker-fee-override": "0.0002",
    "taker-fee-override": "0.0007",
    "maximum-holdings-ratio": "0",
-   "skip-candle-volume-fitting": false,
+   "skip-candle-volume-fitting": true,
    "use-exchange-order-limits": false,
    "use-exchange-pnl-calculation": false
   },
@@ -63,18 +63,17 @@
    "maker-fee-override": "0.0002",
    "taker-fee-override": "0.0007",
    "maximum-holdings-ratio": "0",
-   "skip-candle-volume-fitting": false,
+   "skip-candle-volume-fitting": true,
    "use-exchange-order-limits": false,
    "use-exchange-pnl-calculation": false
   }
  ],
  "data-settings": {
-  "interval": 60000000000,
+  "interval": 15000000000,
   "data-type": "candle",
   "live-data": {
    "new-event-timeout": 60000000000,
    "data-check-timer": 1000000000,
-   "run-timer": 1000000000,
    "real-orders": false,
    "verbose-data-check": false,
    "close-positions-on-exit": true,

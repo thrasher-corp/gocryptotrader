@@ -307,6 +307,8 @@ func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
 	return complianceManager.AddSnapshot(snap, false)
 }
 
+// SetHoldingsForOffset stores a holdings struct in the portfolio for a given offset
+// will return error if already exists, unless overwriteExisting is true
 func (p *Portfolio) SetHoldingsForOffset(h *holdings.Holding, overwriteExisting bool) error {
 	if h.Timestamp.IsZero() {
 		return errHoldingsNoTimestamp

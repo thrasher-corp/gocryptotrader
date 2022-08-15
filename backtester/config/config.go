@@ -314,7 +314,6 @@ func (c *Config) PrintSetting() {
 		log.Infof(common.Config, "Using real orders: %v", c.DataSettings.LiveData.RealOrders)
 		log.Infof(common.Config, "Data check timer: %v", c.DataSettings.LiveData.DataCheckTimer)
 		log.Infof(common.Config, "New event timeout: %v", c.DataSettings.LiveData.NewEventTimeout)
-		log.Infof(common.Config, "Run timer: %v", c.DataSettings.LiveData.RunTimer)
 		for i := range c.DataSettings.LiveData.ExchangeCredentials {
 			log.Infof(common.Config, "%s credentials: %s", c.DataSettings.LiveData.ExchangeCredentials[i].Exchange, c.DataSettings.LiveData.ExchangeCredentials[i].Credentials.String())
 		}
