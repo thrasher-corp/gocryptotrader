@@ -123,7 +123,7 @@ func (s *Strategy) CloseAllPositions(holdings []holdings.Holding, prices []data.
 				Base: &event.Base{
 					Offset:         holdings[i].Offset + 1,
 					Exchange:       holdings[i].Exchange,
-					Time:           time.Now().UTC(), // as this is for live, use current time as there has not been a new interval to close on
+					Time:           time.Now().UTC(),
 					Interval:       prices[j].GetInterval(),
 					CurrencyPair:   holdings[i].Pair,
 					UnderlyingPair: prices[j].GetUnderlyingPair(),

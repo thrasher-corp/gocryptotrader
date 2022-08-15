@@ -32,7 +32,7 @@ type Holder interface {
 type Base struct {
 	latest     Event
 	stream     []Event
-	offset     int
+	offset     int64
 	isLiveData bool
 }
 
@@ -57,7 +57,7 @@ type Streamer interface {
 	Latest() Event
 	List() []Event
 	IsLastEvent() bool
-	Offset() int
+	Offset() int64
 
 	StreamOpen() []decimal.Decimal
 	StreamHigh() []decimal.Decimal

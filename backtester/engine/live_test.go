@@ -339,7 +339,7 @@ func TestFetchLatestData(t *testing.T) {
 func TestLoadCandleData(t *testing.T) {
 	t.Parallel()
 	l := &liveExchangeDataHandler{}
-	err := l.loadCandleData()
+	err := l.loadCandleData(time.Now())
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
@@ -364,13 +364,13 @@ func TestLoadCandleData(t *testing.T) {
 			Interval:       kline.OneHour,
 		},
 	}
-	err = l.loadCandleData()
+	err = l.loadCandleData(time.Now())
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	var ldh *liveExchangeDataHandler
-	err = ldh.loadCandleData()
+	err = ldh.loadCandleData(time.Now())
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}

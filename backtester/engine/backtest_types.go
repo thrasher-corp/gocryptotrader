@@ -23,11 +23,11 @@ var (
 	errUnhandledDatatype   = errors.New("unhandled datatype")
 	errNilData             = errors.New("nil data received")
 	errLiveOnly            = errors.New("close all positions is only supported by live data type")
-	errDoubleNil           = errors.New("two attempts at retrieving event data result in nil")
 )
 
 // BackTest is the main holder of all backtesting functionality
 type BackTest struct {
+	verbose                  bool
 	hasProcessedAnEvent      bool
 	shutdown                 chan struct{}
 	DataHolder               data.Holder

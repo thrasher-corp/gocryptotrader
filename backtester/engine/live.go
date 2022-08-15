@@ -231,47 +231,63 @@ func (l *DataChecker) FetchLatestData() (bool, error) {
 	l.m.Lock()
 	defer l.m.Unlock()
 	var err error
-	var updated bool
+
+	hello := make(map[string]bool)
+	// timeToRetrieve ensures consistent data retrieval
+	// in the event of a candle rollover mid-loop
+	timeToRetrieve := time.Now().UTC()
 	for i := range l.exchangesToCheck {
 		if l.verbose {
 			log.Infof(common.Livetester, "checking for new data for %v %v %v", l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair)
 		}
 		preCandleLen := len(l.exchangesToCheck[i].pairCandles.Item.Candles)
-		err = l.exchangesToCheck[i].loadCandleData()
+		err = l.exchangesToCheck[i].loadCandleData(timeToRetrieve)
 		if err != nil {
 			return false, err
 		}
 		l.dataHolder.SetDataForCurrency(l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair, &l.exchangesToCheck[i].pairCandles)
 		if len(l.exchangesToCheck[i].pairCandles.Item.Candles) > preCandleLen {
-			updated = true
-		}
-		if updated {
-			if l.verbose {
-				log.Infof(common.Livetester, "found new data for %v %v %v", l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair)
-			}
-			err = l.report.SetKlineData(&l.exchangesToCheck[i].pairCandles.Item)
-			if err != nil {
-				log.Errorf(common.Livetester, "issue processing kline data: %v", err)
-			}
-			err = l.funding.AddUSDTrackingData(&l.exchangesToCheck[i].pairCandles)
-			if err != nil && !errors.Is(err, funding.ErrUSDTrackingDisabled) {
-				log.Errorf(common.Livetester, "issue processing USD tracking data: %v", err)
-			}
+			hello[l.exchangesToCheck[i].exchangeName+l.exchangesToCheck[i].asset.String()+l.exchangesToCheck[i].pair.String()] = true
+		} else {
+			hello[l.exchangesToCheck[i].exchangeName+l.exchangesToCheck[i].asset.String()+l.exchangesToCheck[i].pair.String()] = false
 		}
 	}
-
-	return updated, nil
+	allUpdated := true
+	for _, v := range hello {
+		if !v {
+			allUpdated = false
+		}
+	}
+	if !allUpdated {
+		log.Info(common.Livetester, "not all candles updated")
+		return false, nil
+	}
+	for i := range l.exchangesToCheck {
+		if l.verbose {
+			log.Infof(common.Livetester, "found new data for %v %v %v", l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair)
+		}
+		err = l.report.SetKlineData(&l.exchangesToCheck[i].pairCandles.Item)
+		if err != nil {
+			log.Errorf(common.Livetester, "issue processing kline data: %v", err)
+		}
+		err = l.funding.AddUSDTrackingData(&l.exchangesToCheck[i].pairCandles)
+		if err != nil && !errors.Is(err, funding.ErrUSDTrackingDisabled) {
+			log.Errorf(common.Livetester, "issue processing USD tracking data: %v", err)
+		}
+	}
+	return true, nil
 }
 
 // loadCandleData fetches data from the exchange API and appends it
 // to the candles to be added to the backtester event queue
-func (c *liveExchangeDataHandler) loadCandleData() error {
+func (c *liveExchangeDataHandler) loadCandleData(timeToRetrieve time.Time) error {
 	if c == nil {
 		return gctcommon.ErrNilPointer
 	}
 	c.m.Lock()
 	defer c.m.Unlock()
 	candles, err := live.LoadData(context.TODO(),
+		timeToRetrieve,
 		c.exchange,
 		c.dataType,
 		c.pairCandles.Item.Interval.Duration(),
@@ -285,5 +301,5 @@ func (c *liveExchangeDataHandler) loadCandleData() error {
 		return nil
 	}
 	c.pairCandles.AppendResults(candles)
-	return c.pairCandles.Load()
+	return nil
 }

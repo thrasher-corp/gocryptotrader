@@ -79,13 +79,16 @@ func (b *Base) GetStream() []Event {
 }
 
 // Offset returns the current iteration of candle data the backtester is assessing
-func (b *Base) Offset() int {
+func (b *Base) Offset() int64 {
 	return b.offset
 }
 
 // SetStream sets the data stream for candle analysis
 func (b *Base) SetStream(s []Event) {
 	b.stream = s
+	if b.IsLive() {
+		b.offset = int64(len(s)) - 1
+	}
 }
 
 // AppendStream appends new datas onto the stream, however, will not
@@ -101,10 +104,9 @@ func (b *Base) AppendStream(s ...Event) {
 
 // Next will return the next event in the list and also shift the offset one
 func (b *Base) Next() Event {
-	if len(b.stream) <= b.offset {
+	if int64(len(b.stream)) <= b.offset {
 		return nil
 	}
-
 	ret := b.stream[b.offset]
 	b.offset++
 	b.latest = ret
@@ -118,7 +120,7 @@ func (b *Base) History() []Event {
 
 // Latest will return latest data event
 func (b *Base) Latest() Event {
-	if b.latest == nil && len(b.stream) >= b.offset+1 {
+	if b.latest == nil && int64(len(b.stream)) >= b.offset+1 {
 		b.latest = b.stream[b.offset]
 	}
 	return b.latest
@@ -140,10 +142,7 @@ func (b *Base) IsLastEvent() bool {
 // SortStream sorts the stream by timestamp
 func (b *Base) SortStream() {
 	sort.Slice(b.stream, func(i, j int) bool {
-		b1 := b.stream[i]
-		b2 := b.stream[j]
-
-		return b1.GetTime().Before(b2.GetTime())
+		return b.stream[i].GetTime().Before(b.stream[j].GetTime())
 	})
 }
 

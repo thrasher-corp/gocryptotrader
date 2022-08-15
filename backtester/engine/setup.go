@@ -80,7 +80,7 @@ func (bt *BackTest) NewFromConfig(cfg *config.Config, templatePath, output strin
 			return err
 		}
 	}
-
+	bt.verbose = verbose
 	bt.DataHolder.Setup()
 	reports := &report.Data{
 		Config:       cfg,

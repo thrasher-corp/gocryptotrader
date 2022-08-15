@@ -26,7 +26,9 @@ func (d *DataFromKline) HasDataAtTime(t time.Time) bool {
 
 // Load sets the candle data to the stream for processing
 func (d *DataFromKline) Load() error {
-	d.addedTimes = make(map[int64]bool)
+	if d.addedTimes == nil {
+		d.addedTimes = make(map[int64]bool)
+	}
 	if len(d.Item.Candles) == 0 {
 		return errNoCandleData
 	}
@@ -61,17 +63,23 @@ func (d *DataFromKline) Load() error {
 
 // AppendResults adds a candle item to the data stream and sorts it to ensure it is all in order
 func (d *DataFromKline) AppendResults(ki *gctkline.Item) {
+	if ki == nil {
+		return
+	}
+	if !d.Item.EqualSource(ki) {
+		return
+	}
 	if d.addedTimes == nil {
 		d.addedTimes = make(map[int64]bool)
-		for i := range d.Item.Candles {
-			d.addedTimes[d.Item.Candles[i].Time.UnixNano()] = true
-		}
+	}
+	for i := range d.Item.Candles {
+		d.addedTimes[d.Item.Candles[i].Time.UTC().UnixNano()] = true
 	}
 	var gctCandles []gctkline.Candle
 	for i := range ki.Candles {
-		if _, ok := d.addedTimes[ki.Candles[i].Time.UnixNano()]; !ok {
+		if _, ok := d.addedTimes[ki.Candles[i].Time.UTC().UnixNano()]; !ok {
 			gctCandles = append(gctCandles, ki.Candles[i])
-			d.addedTimes[ki.Candles[i].Time.UnixNano()] = true
+			d.addedTimes[ki.Candles[i].Time.UTC().UnixNano()] = true
 		}
 	}
 	if len(gctCandles) == 0 {
@@ -80,14 +88,11 @@ func (d *DataFromKline) AppendResults(ki *gctkline.Item) {
 	for i := range gctCandles {
 		d.Item.Candles = append(d.Item.Candles, gctCandles[i])
 	}
+	d.Item.RemoveDuplicates()
 	if d.RangeHolder != nil {
 		// offline data check when there is a known range
 		// live data does not need this
-		for i := range d.RangeHolder.Ranges {
-			for j := range d.RangeHolder.Ranges[i].Intervals {
-				d.RangeHolder.Ranges[i].Intervals[j].HasData = true
-			}
-		}
+		d.RangeHolder.SetHasDataFromCandles(d.Item.Candles)
 	}
 	err := d.Load()
 	if err != nil {

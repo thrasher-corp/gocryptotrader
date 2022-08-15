@@ -105,7 +105,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 		es.SetPrice(d[i].Latest().GetClosePrice())
 		offset := d[i].Offset()
 
-		if offset <= int(s.mfiPeriod.IntPart()) {
+		if offset <= s.mfiPeriod.IntPart() {
 			es.AppendReason("Not enough data for signal generation")
 			es.SetDirection(order.DoNothing)
 			resp = append(resp, &es)

@@ -199,6 +199,7 @@ func (s *Statistic) CreateLog(data common.Event) (string, error) {
 	default:
 		return "", fmt.Errorf(common.ColourError+"unexpected data received %T %+v"+common.ColourDefault, data, data)
 	}
+	result += fmt.Sprintf(" %v", data.GetOffset())
 	return result, nil
 }
 

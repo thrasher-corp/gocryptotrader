@@ -250,7 +250,7 @@ func CalculateRatios(benchmarkRates, returnsPerCandle []decimal.Decimal, riskFre
 	}
 	arithmeticCalmar, err = gctmath.DecimalCalmarRatio(maxDrawdown.Highest.Value, maxDrawdown.Lowest.Value, arithmeticReturnsPerCandle, riskFreeRateForPeriod)
 	if err != nil {
-		return nil, nil, err
+		log.Warnf(common.Statistics, "%s funding arithmetic calmar ratio %v", logMessage, err)
 	}
 
 	arithmeticStats = &Ratios{}
@@ -285,7 +285,7 @@ func CalculateRatios(benchmarkRates, returnsPerCandle []decimal.Decimal, riskFre
 	}
 	geomCalmar, err = gctmath.DecimalCalmarRatio(maxDrawdown.Highest.Value, maxDrawdown.Lowest.Value, geometricReturnsPerCandle, riskFreeRateForPeriod)
 	if err != nil {
-		return nil, nil, err
+		log.Warnf(common.Statistics, "%s funding geometric calmar ratio %v", logMessage, err)
 	}
 	geometricStats = &Ratios{}
 	if !arithmeticSharpe.IsZero() {

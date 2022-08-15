@@ -17,7 +17,7 @@ import (
 
 // LoadData retrieves data from a GoCryptoTrader exchange wrapper which calls the exchange's API for the latest interval
 // note: this is not in a state to utilise with realOrders = true
-func LoadData(ctx context.Context, exch exchange.IBotExchange, dataType int64, interval time.Duration, fPair, underlyingPair currency.Pair, a asset.Item) (*kline.Item, error) {
+func LoadData(ctx context.Context, timeToRetrieve time.Time, exch exchange.IBotExchange, dataType int64, interval time.Duration, fPair, underlyingPair currency.Pair, a asset.Item) (*kline.Item, error) {
 	if exch == nil {
 		return nil, fmt.Errorf("%w IBotExchange", gctcommon.ErrNilPointer)
 	}
@@ -28,8 +28,8 @@ func LoadData(ctx context.Context, exch exchange.IBotExchange, dataType int64, i
 		candles, err = exch.GetHistoricCandles(ctx,
 			fPair,
 			a,
-			time.Now().Add(-interval*2), // multiplied by 2 to ensure the latest candle is always included
-			time.Now(),
+			timeToRetrieve.Truncate(interval).Add(-interval*2),
+			timeToRetrieve.Truncate(interval),
 			kline.Interval(interval))
 		if err != nil {
 			return nil, fmt.Errorf("could not retrieve live candle data for %v %v %v, %v", exch.GetName(), a, fPair, err)
@@ -39,8 +39,8 @@ func LoadData(ctx context.Context, exch exchange.IBotExchange, dataType int64, i
 		trades, err = exch.GetHistoricTrades(ctx,
 			fPair,
 			a,
-			time.Now().Add(-interval*2), // multiplied by 2 to ensure the latest candle is always included
-			time.Now())
+			timeToRetrieve.Truncate(interval).Add(-interval*2),
+			timeToRetrieve.Truncate(interval))
 		if err != nil {
 			return nil, err
 		}
@@ -54,8 +54,8 @@ func LoadData(ctx context.Context, exch exchange.IBotExchange, dataType int64, i
 			trades, err = exch.GetHistoricTrades(ctx,
 				fPair,
 				a,
-				time.Now().Add(-interval),
-				time.Now())
+				timeToRetrieve.Add(-interval),
+				timeToRetrieve)
 			if err != nil {
 				return nil, fmt.Errorf("could not retrieve live trade data for %v %v %v, %v", exch.GetName(), a, fPair, err)
 			}

@@ -78,19 +78,21 @@ dataLoadingIssue:
 	for ev := bt.EventQueue.NextEvent(); ; ev = bt.EventQueue.NextEvent() {
 		if ev == nil {
 			if doubleNil {
-				log.Error(common.Backtester, errDoubleNil)
+				if bt.verbose {
+					log.Info(common.Backtester, "no new data on second check")
+				}
 				break dataLoadingIssue
 			}
 			doubleNil = true
 			dataHandlerMap := bt.DataHolder.GetAllData()
 			for exchangeName, exchangeMap := range dataHandlerMap {
 				for assetItem, assetMap := range exchangeMap {
-					for currencyPair, baseMap := range assetMap {
-						for _, dataHandler := range baseMap {
+					for baseCurrency, baseMap := range assetMap {
+						for quoteCurrency, dataHandler := range baseMap {
 							d := dataHandler.Next()
 							if d == nil {
 								if !bt.hasProcessedAnEvent && bt.LiveDataHandler == nil {
-									log.Errorf(common.Backtester, "Unable to perform `Next` for %v %v %v", exchangeName, assetItem, currencyPair)
+									log.Errorf(common.Backtester, "Unable to perform `Next` for %v %v %v-%v", exchangeName, assetItem, baseCurrency, quoteCurrency)
 								}
 								break dataLoadingIssue
 							}
@@ -533,6 +535,7 @@ func (bt *BackTest) CloseAllPositions() error {
 			}
 		}
 	}
+
 	events, err := bt.Strategy.CloseAllPositions(bt.Portfolio.GetLatestHoldingsForAllCurrencies(), latestPrices)
 	if err != nil {
 		if errors.Is(err, gctcommon.ErrFunctionNotSupported) {
