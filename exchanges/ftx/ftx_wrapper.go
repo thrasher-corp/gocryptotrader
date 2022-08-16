@@ -2157,8 +2157,6 @@ func (f *FTX) GetFundingRates(ctx context.Context, request *order.FundingRatesRe
 			return pairResponse.FundingRates[i].Time.Before(pairResponse.FundingRates[j].Time)
 		})
 		pairResponse.LatestRate = pairResponse.FundingRates[len(pairResponse.FundingRates)-1]
-		log.Infof(log.ExchangeSys, "%v", len(pairResponse.FundingRates))
-
 		response = append(response, pairResponse)
 	}
 	return response, nil
@@ -2187,7 +2185,6 @@ allRates:
 			}
 			for y := range payments {
 				if fundingDetails[x].Time.Equal(payments[y].Time) {
-					requestEndTime = fundingDetails[x].Time
 					continue responseRates
 				}
 			}
