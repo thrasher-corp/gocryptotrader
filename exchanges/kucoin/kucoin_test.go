@@ -792,7 +792,7 @@ func TestPostStopOrder(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 
-	_, err := k.PostStopOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "", "", "", "10000", "", "", "", "", 0.1, 0, 0, 0, true, false, false)
+	_, err := k.PostStopOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "", "", "entry", "10000", "11000", "", "", "", 0.1, 0, 0, 0, true, false, false)
 	if err != nil {
 		t.Error("PostStopOrder() error", err)
 	}
@@ -805,7 +805,7 @@ func TestCancelStopOrder(t *testing.T) {
 	}
 
 	_, err := k.CancelStopOrder(context.Background(), "5bd6e9286d99522a52e458de")
-	if err != nil {
+	if err != nil && err.Error() != "order_not_exist_or_not_allow_to_cancel" {
 		t.Error("CancelStopOrder() error", err)
 	}
 }
@@ -865,7 +865,7 @@ func TestCancelStopOrderByClientID(t *testing.T) {
 	}
 
 	_, _, err := k.CancelStopOrderByClientID(context.Background(), "", "5bd6e9286d99522a52e458de")
-	if err != nil {
+	if err != nil && err.Error() != "order_not_exist_or_not_allow_to_cancel" {
 		t.Error("CancelStopOrderByClientID() error", err)
 	}
 }
