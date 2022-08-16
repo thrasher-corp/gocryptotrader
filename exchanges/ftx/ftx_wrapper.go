@@ -1980,9 +1980,9 @@ func (f *FTX) GetPositionSummary(ctx context.Context, request *order.PositionSum
 		if positionSize.IsPositive() && request.TotalCollateral.IsPositive() {
 			marginFraction = request.TotalCollateral.Div(positionSize).Mul(decimal.NewFromFloat(100))
 		}
-		breakEventPrice := request.OpeningPrice
+		breakEvenPrice := request.OpeningPrice
 		if !request.OpeningSize.Equal(request.CurrentSize) {
-			breakEventPrice = request.OpeningPrice.Mul(request.OpeningSize).Sub(request.CurrentSize.Mul(request.CurrentPrice)).Div(request.OpeningSize.Sub(request.CurrentSize))
+			breakEvenPrice = request.OpeningPrice.Mul(request.OpeningSize).Sub(request.CurrentSize.Mul(request.CurrentPrice)).Div(request.OpeningSize.Sub(request.CurrentSize))
 		}
 		var maintenanceMarginRequirement, positionMaintenanceMarginFraction decimal.Decimal
 		currSize := request.CurrentSize
@@ -2012,7 +2012,7 @@ func (f *FTX) GetPositionSummary(ctx context.Context, request *order.PositionSum
 			CollateralUsed:               request.CollateralUsed,
 			MarkPrice:                    request.CurrentPrice,
 			CurrentSize:                  request.CurrentSize.Abs(),
-			BreakEvenPrice:               breakEventPrice,
+			BreakEvenPrice:               breakEvenPrice,
 			AverageOpenPrice:             request.OpeningPrice,
 			RecentPNL:                    request.CurrentPrice.Mul(currSize).Sub(request.OpeningPrice.Mul(openSize)),
 			MarginFraction:               marginFraction,
@@ -2058,7 +2058,7 @@ func (f *FTX) GetFundingRates(ctx context.Context, request *order.FundingRatesRe
 	if len(request.Pairs) == 0 {
 		return nil, currency.ErrCurrencyPairsEmpty
 	}
-
+	limit := 1000
 	err := common.StartEndTimeCheck(request.StartDate, request.EndDate)
 	if err != nil {
 		return nil, err
@@ -2093,49 +2093,54 @@ func (f *FTX) GetFundingRates(ctx context.Context, request *order.FundingRatesRe
 		endTime := request.EndDate
 	allRates:
 		for {
-			rates, err = f.FundingRates(ctx, request.StartDate, endTime, request.Pairs[x])
+			rates, err = f.FundingRates(ctx, request.StartDate, endTime, request.Pairs[x], limit)
 			if err != nil {
 				return nil, err
 			}
 			if len(rates) == 0 {
 				break allRates
 			}
+		responseRates:
 			for y := range rates {
-				if request.StartDate.Equal(rates[y].Time) || rates[y].Time.Before(request.StartDate) {
-					// reached end of trades to crawl
+				if rates[y].Time.Before(request.StartDate) {
 					break allRates
 				}
 				if rates[y].Time.After(endTime) {
 					continue
+				}
+				for z := range pairResponse.FundingRates {
+					if rates[y].Time.Equal(pairResponse.FundingRates[z].Time) {
+						continue responseRates
+					}
 				}
 				pairResponse.FundingRates = append(pairResponse.FundingRates, order.FundingRate{
 					Rate: decimal.NewFromFloat(rates[y].Rate),
 					Time: rates[y].Time,
 				})
 			}
-			if request.IncludePayments {
-				fundingDetails, err = f.FundingPayments(ctx, request.StartDate, endTime, request.Pairs[x])
-				if err != nil {
-					return nil, err
-				}
-				for y := range fundingDetails {
-					for z := range pairResponse.FundingRates {
-						if !fundingDetails[y].Time.Equal(pairResponse.FundingRates[z].Time) {
-							continue
-						}
-						pairResponse.FundingRates[z].Payment = decimal.NewFromFloat(fundingDetails[y].Payment)
-						pairResponse.PaymentSum = pairResponse.PaymentSum.Add(decimal.NewFromFloat(fundingDetails[y].Payment))
-						break
-					}
-				}
-			}
-			if endTime.Equal(rates[len(rates)-1].Time) {
+			if endTime.Equal(rates[len(rates)-1].Time) || len(rates) < limit {
 				break allRates
 			}
 			endTime = rates[len(rates)-1].Time
 		}
 		if len(pairResponse.FundingRates) == 0 {
 			continue
+		}
+		if request.IncludePayments {
+			fundingDetails, err = f.getFundingPayments(ctx, request.StartDate, request.EndDate, request.Pairs[x])
+			if err != nil {
+				return nil, err
+			}
+			for y := range fundingDetails {
+				for z := range pairResponse.FundingRates {
+					if !fundingDetails[y].Time.Equal(pairResponse.FundingRates[z].Time) {
+						continue
+					}
+					pairResponse.FundingRates[z].Payment = decimal.NewFromFloat(fundingDetails[y].Payment)
+					pairResponse.PaymentSum = pairResponse.PaymentSum.Add(decimal.NewFromFloat(fundingDetails[y].Payment))
+					break
+				}
+			}
 		}
 		if request.IncludePredictedRate {
 			stats, err = f.GetFutureStats(ctx, request.Pairs[x])
@@ -2152,9 +2157,48 @@ func (f *FTX) GetFundingRates(ctx context.Context, request *order.FundingRatesRe
 			return pairResponse.FundingRates[i].Time.Before(pairResponse.FundingRates[j].Time)
 		})
 		pairResponse.LatestRate = pairResponse.FundingRates[len(pairResponse.FundingRates)-1]
+		log.Infof(log.ExchangeSys, "%v", len(pairResponse.FundingRates))
+
 		response = append(response, pairResponse)
 	}
 	return response, nil
+}
+
+func (f *FTX) getFundingPayments(ctx context.Context, startDate, endDate time.Time, future currency.Pair) ([]FundingPaymentsData, error) {
+	limit := 1000
+	requestEndTime := endDate
+	var payments []FundingPaymentsData
+allRates:
+	for {
+		fundingDetails, err := f.FundingPayments(ctx, startDate, requestEndTime, future, limit)
+		if err != nil {
+			return nil, err
+		}
+		if len(fundingDetails) == 0 {
+			break allRates
+		}
+	responseRates:
+		for x := range fundingDetails {
+			if fundingDetails[x].Time.Before(startDate) {
+				break allRates
+			}
+			if fundingDetails[x].Time.After(requestEndTime) {
+				continue
+			}
+			for y := range payments {
+				if fundingDetails[x].Time.Equal(payments[y].Time) {
+					requestEndTime = fundingDetails[x].Time
+					continue responseRates
+				}
+			}
+			payments = append(payments, fundingDetails[x])
+		}
+		if requestEndTime.Equal(fundingDetails[len(fundingDetails)-1].Time) || len(fundingDetails) < limit {
+			break allRates
+		}
+		requestEndTime = fundingDetails[len(fundingDetails)-1].Time
+	}
+	return payments, nil
 }
 
 // IsPerpetualFutureCurrency returns whether a currency is a perpetual future

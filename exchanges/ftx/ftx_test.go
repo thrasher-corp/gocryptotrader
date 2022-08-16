@@ -257,12 +257,12 @@ func TestGetFutureStats(t *testing.T) {
 func TestFundingRates(t *testing.T) {
 	t.Parallel()
 	// optional params
-	_, err := f.FundingRates(context.Background(), time.Time{}, time.Time{}, currency.EMPTYPAIR)
+	_, err := f.FundingRates(context.Background(), time.Time{}, time.Time{}, currency.EMPTYPAIR, -1)
 	if err != nil {
 		t.Error(err)
 	}
 	_, err = f.FundingRates(context.Background(),
-		time.Now().Add(-time.Hour), time.Now(), currency.NewPair(currency.BTC, currency.PERP))
+		time.Now().Add(-time.Hour), time.Now(), currency.NewPair(currency.BTC, currency.PERP), 1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -790,19 +790,22 @@ func TestFundingPayments(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	// optional params
-	_, err := f.FundingPayments(context.Background(),
-		time.Time{}, time.Time{}, currency.EMPTYPAIR)
+
+	_, err := f.FundingPayments(context.Background(), time.Time{}, time.Time{}, currency.EMPTYPAIR, -1)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.FundingPayments(context.Background(),
-		time.Unix(authStartTime, 0), time.Unix(authEndTime, 0), currency.NewPair(currency.DOGE, currency.PERP))
+
+	cp, err := currency.NewPairFromString("BTC-PERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = f.FundingPayments(context.Background(), time.Unix(authStartTime, 0), time.Unix(authEndTime, 0), cp, 1)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.FundingPayments(context.Background(),
-		time.Unix(authEndTime, 0), time.Unix(authStartTime, 0), currency.NewPair(currency.DOGE, currency.PERP))
+
+	_, err = f.FundingPayments(context.Background(), time.Unix(authEndTime, 0), time.Unix(authStartTime, 0), cp, -1)
 	if err != errStartTimeCannotBeAfterEndTime {
 		t.Errorf("should have thrown errStartTimeCannotBeAfterEndTime, got %v", err)
 	}
@@ -2700,5 +2703,33 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 	}
 	if !result {
 		t.Error("expected true")
+	}
+}
+
+func TestGetFundingPayments(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+
+	_, err := f.getFundingPayments(context.Background(), time.Time{}, time.Time{}, currency.EMPTYPAIR)
+	if err != nil {
+		t.Error(err)
+	}
+
+	cp, err := currency.NewPairFromString("BTC-PERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+	startDate := time.Now().Add(-time.Hour * 24 * 31)
+	endDate := time.Now()
+	_, err = f.getFundingPayments(context.Background(), startDate, endDate, cp)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = f.getFundingPayments(context.Background(), time.Unix(authEndTime, 0), time.Unix(authStartTime, 0), cp)
+	if err != errStartTimeCannotBeAfterEndTime {
+		t.Errorf("should have thrown errStartTimeCannotBeAfterEndTime, got %v", err)
 	}
 }
