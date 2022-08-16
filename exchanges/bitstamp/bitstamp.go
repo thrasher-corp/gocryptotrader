@@ -658,11 +658,7 @@ func parseTime(dateTime string) (time.Time, error) {
 }
 
 func filterOrderbookZeroBidPrice(ob *orderbook.Base) {
-	if len(ob.Bids) == 0 {
-		return
-	}
-
-	if ob.Bids[len(ob.Bids)-1].Price != 0 {
+	if len(ob.Bids) == 0 || ob.Bids[len(ob.Bids)-1].Price != 0 {
 		return
 	}
 

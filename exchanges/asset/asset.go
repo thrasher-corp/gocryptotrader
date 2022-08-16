@@ -62,7 +62,7 @@ func Supported() Items {
 	return supportedList
 }
 
-// String converts an Item its string representation
+// String converts an Item to its string representation
 func (a Item) String() string {
 	switch a {
 	case Spot:
