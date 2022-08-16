@@ -40,7 +40,8 @@ linters:
 #   - errorlint
     - execinquery
 #   - exhaustive
-#   - exhaustivestruct # deprecated
+#   - exhaustivestruct // abandoned by its owner, replaced with exhaustruct
+#   - exhaustruct
     - exportloopref
 #   - forbidigo
     - forcetypeassert
