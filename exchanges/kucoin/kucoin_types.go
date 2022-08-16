@@ -549,3 +549,12 @@ type StopOrder struct {
 	OrderTime       kucoinTimeNanoSec  `json:"orderTime"`
 	StopTriggerTime kucoinTimeMilliSec `json:"stopTriggerTime"`
 }
+
+type AccountInfo struct {
+	ID        string  `json:"id"`
+	Currency  string  `json:"currency"`
+	Type      string  `json:"type"`
+	Balance   float64 `json:"balance,string"`
+	Available float64 `json:"available,string"`
+	Holds     float64 `json:"holds,string"`
+}

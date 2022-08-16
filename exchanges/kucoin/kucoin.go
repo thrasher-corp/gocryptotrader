@@ -97,6 +97,9 @@ const (
 	kucoinCancelAllStopOrder        = "/api/v1/stop-order/cancel"
 	kucoinGetStopOrderByClientID    = "/api/v1/stop-order/queryOrderByClientOid"
 	kucoinCancelStopOrderByClientID = "/api/v1/stop-order/cancelOrderByClientOid"
+
+	// account
+	kucoinAccount = "/api/v1/accounts"
 )
 
 // GetSymbols gets pairs details on the exchange
@@ -1451,6 +1454,43 @@ func (k *Kucoin) CancelStopOrderByClientID(ctx context.Context, symbol, clientOI
 		params.Set("symbol", symbol)
 	}
 	return resp.CancelledOrderID, resp.ClientOID, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, common.EncodeURLValues(kucoinCancelStopOrderByClientID, params), nil, publicSpotRate, &resp)
+}
+
+// CreateAccount creates a account
+func (k *Kucoin) CreateAccount(ctx context.Context, currency, accountType string) (string, error) {
+	resp := struct {
+		ID string `json:"id"`
+		Error
+	}{}
+
+	params := make(map[string]interface{})
+	if accountType == "" {
+		return resp.ID, errors.New("accountType can't be empty")
+	}
+	params["type"] = accountType
+	if currency == "" {
+		return resp.ID, errors.New("currency can't be empty")
+	}
+	params["currency"] = currency
+	return resp.ID, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinAccount, params, publicSpotRate, &resp)
+}
+
+// GetAllAccounts get all accounts
+func (k *Kucoin) GetAllAccounts(ctx context.Context, currency, accountType string) ([]AccountInfo, error) {
+	resp := struct {
+		Data []AccountInfo `json:"data"`
+		Error
+	}{}
+	// TODO: verify response struct
+
+	params := url.Values{}
+	if currency != "" {
+		params.Set("currency", currency)
+	}
+	if accountType != "" {
+		params.Set("type", accountType)
+	}
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinAccount, params), nil, publicSpotRate, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
