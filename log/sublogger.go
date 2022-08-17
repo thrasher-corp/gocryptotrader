@@ -43,7 +43,7 @@ func (sl *SubLogger) getFields() *logFields {
 		return nil
 	}
 
-	fields := logFieldsPool.Get().(*logFields) // nolint:forcetypeassert // Not necessary from a pool
+	fields := logFieldsPool.Get().(*logFields) //nolint:forcetypeassert // Not necessary from a pool
 	fields.info = sl.levels.Info
 	fields.warn = sl.levels.Warn
 	fields.debug = sl.levels.Debug
