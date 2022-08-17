@@ -414,6 +414,8 @@ func (b *Bitstamp) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		}
 	}
 
+	filterOrderbookZeroBidPrice(book)
+
 	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
 		book.Asks[x] = orderbook.Item{
@@ -421,6 +423,7 @@ func (b *Bitstamp) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 			Price:  orderbookNew.Asks[x].Price,
 		}
 	}
+
 	err = book.Process()
 	if err != nil {
 		return book, err
@@ -484,7 +487,7 @@ func (b *Bitstamp) GetFundingHistory(ctx context.Context) ([]exchange.FundHistor
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *Bitstamp) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (b *Bitstamp) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 

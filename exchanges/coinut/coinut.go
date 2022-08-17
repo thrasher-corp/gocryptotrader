@@ -497,5 +497,5 @@ func (i *instrumentMap) GetInstrumentIDs() []int64 {
 }
 
 func getNonce() int64 {
-	return rand.Int63n(coinutMaxNonce-1) + 1 // nolint:gosec // basic number generation required, no need for crypo/rand
+	return rand.Int63n(coinutMaxNonce-1) + 1 //nolint:gosec // basic number generation required, no need for crypo/rand
 }

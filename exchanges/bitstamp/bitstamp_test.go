@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -755,5 +756,39 @@ func TestGetHistoricTrades(t *testing.T) {
 		currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil && err != common.ErrFunctionNotSupported {
 		t.Error(err)
+	}
+}
+
+func TestOrderbookZeroBidPrice(t *testing.T) {
+	t.Parallel()
+	ob := &orderbook.Base{
+		Exchange: "Bitstamp",
+		Pair:     currency.NewPair(currency.BTC, currency.USD),
+		Asset:    asset.Spot,
+	}
+
+	filterOrderbookZeroBidPrice(ob)
+
+	ob.Bids = orderbook.Items{
+		{Price: 69, Amount: 1337},
+		{Price: 0, Amount: 69},
+	}
+
+	filterOrderbookZeroBidPrice(ob)
+
+	if ob.Bids[0].Price != 69 || ob.Bids[0].Amount != 1337 || len(ob.Bids) != 1 {
+		t.Error("invalid orderbook bid values")
+	}
+
+	ob.Bids = orderbook.Items{
+		{Price: 59, Amount: 1337},
+		{Price: 42, Amount: 8595},
+	}
+
+	filterOrderbookZeroBidPrice(ob)
+
+	if ob.Bids[0].Price != 59 || ob.Bids[0].Amount != 1337 ||
+		ob.Bids[1].Price != 42 || ob.Bids[1].Amount != 8595 || len(ob.Bids) != 2 {
+		t.Error("invalid orderbook bid values")
 	}
 }

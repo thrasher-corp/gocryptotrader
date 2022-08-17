@@ -22,14 +22,17 @@ const (
 	// changed while the same keys can be used.
 	ContextSubAccountFlag contextCredential = "subaccountoverride"
 
+	apiKeyDisplaySize = 16
+)
+
+// Default credential values
+const (
 	Key             = "key"
 	Secret          = "secret"
 	SubAccountSTR   = "subaccount"
 	ClientID        = "clientid"
 	OneTimePassword = "otp"
 	PEMKey          = "pemkey"
-
-	apiKeyDisplaySize = 16
 )
 
 var (

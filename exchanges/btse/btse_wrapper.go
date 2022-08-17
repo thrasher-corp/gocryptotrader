@@ -379,7 +379,7 @@ func (b *BTSE) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 			Amount: a.SellQuote[x].Size,
 		})
 	}
-	book.Asks.Reverse() // Reverse asks for correct alignment
+	book.Asks.SortAsks() // Sort asks for correct alignment
 	book.Pair = p
 	book.Exchange = b.Name
 	book.Asset = assetType
@@ -459,7 +459,7 @@ func (b *BTSE) withinLimits(pair currency.Pair, amount float64) bool {
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *BTSE) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (b *BTSE) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 

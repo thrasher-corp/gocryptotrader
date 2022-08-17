@@ -63,12 +63,12 @@ func bidAskGenerator() []orderbook.Item {
 	var response []orderbook.Item
 	randIterator := 100
 	for i := 0; i < randIterator; i++ {
-		price := float64(rand.Intn(1000)) // nolint:gosec // no need to import crypo/rand for testing
+		price := float64(rand.Intn(1000)) //nolint:gosec // no need to import crypo/rand for testing
 		if price == 0 {
 			price = 1
 		}
 		response = append(response, orderbook.Item{
-			Amount: float64(rand.Intn(10)), // nolint:gosec // no need to import crypo/rand for testing
+			Amount: float64(rand.Intn(10)), //nolint:gosec // no need to import crypo/rand for testing
 			Price:  price,
 			ID:     int64(i),
 		})
@@ -134,7 +134,7 @@ func BenchmarkBufferPerformance(b *testing.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		randomIndex := rand.Intn(4) // nolint:gosec // no need to import crypo/rand for testing
+		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypo/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
 		err = holder.Update(update)
@@ -145,7 +145,8 @@ func BenchmarkBufferPerformance(b *testing.B) {
 }
 
 // BenchmarkBufferSortingPerformance benchmark
-//  613964	      2093 ns/op	     440 B/op	       4 allocs/op
+//
+//	613964	      2093 ns/op	     440 B/op	       4 allocs/op
 func BenchmarkBufferSortingPerformance(b *testing.B) {
 	holder, asks, bids, err := createSnapshot()
 	if err != nil {
@@ -162,7 +163,7 @@ func BenchmarkBufferSortingPerformance(b *testing.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		randomIndex := rand.Intn(4) // nolint:gosec // no need to import crypo/rand for testing
+		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypo/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
 		err = holder.Update(update)
@@ -191,7 +192,7 @@ func BenchmarkBufferSortingByIDPerformance(b *testing.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		randomIndex := rand.Intn(4) // nolint:gosec // no need to import crypo/rand for testing
+		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypo/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
 		err = holder.Update(update)
@@ -221,7 +222,7 @@ func BenchmarkNoBufferPerformance(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		randomIndex := rand.Intn(4) // nolint:gosec // no need to import crypo/rand for testing
+		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypo/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
 		err = obl.Update(update)
@@ -897,7 +898,7 @@ func deploySliceOrdered(size int) orderbook.Items {
 	rand.Seed(time.Now().UnixNano())
 	var items []orderbook.Item
 	for i := 0; i < size; i++ {
-		items = append(items, orderbook.Item{Amount: 1, Price: rand.Float64() + float64(i), ID: rand.Int63()}) // nolint:gosec // Not needed for tests
+		items = append(items, orderbook.Item{Amount: 1, Price: rand.Float64() + float64(i), ID: rand.Int63()}) //nolint:gosec // Not needed for tests
 	}
 	return items
 }
@@ -907,7 +908,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 	holder := orderbookHolder{}
 
 	asks := deploySliceOrdered(100)
-	// nolint: gocritic
+	//nolint: gocritic
 	bids := append(asks[:0:0], asks...)
 	bids.Reverse()
 
@@ -1053,7 +1054,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		t.Fatal("did not adjust ask item placement and details")
 	}
 
-	book.LoadSnapshot(append(bids[:0:0], bids...), append(bids[:0:0], bids...), 0, time.Time{}, true) // nolint:gocritic
+	book.LoadSnapshot(append(bids[:0:0], bids...), append(bids[:0:0], bids...), 0, time.Time{}, true) //nolint:gocritic
 	// Delete - not found
 	err = holder.updateByIDAndAction(&orderbook.Update{
 		Action: orderbook.Delete,
@@ -1069,7 +1070,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errDeleteFailure)
 	}
 
-	book.LoadSnapshot(append(bids[:0:0], bids...), append(bids[:0:0], bids...), 0, time.Time{}, true) // nolint:gocritic
+	book.LoadSnapshot(append(bids[:0:0], bids...), append(bids[:0:0], bids...), 0, time.Time{}, true) //nolint:gocritic
 	// Delete - found
 	err = holder.updateByIDAndAction(&orderbook.Update{
 		Action: orderbook.Delete,

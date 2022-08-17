@@ -52,7 +52,7 @@ type IBotExchange interface {
 
 	GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, accountID, chain string) (*deposit.Address, error)
 	GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error)
-	GetWithdrawalsHistory(ctx context.Context, code currency.Code) ([]WithdrawalHistory, error)
+	GetWithdrawalsHistory(ctx context.Context, code currency.Code, a asset.Item) ([]WithdrawalHistory, error)
 	WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
 	WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
 	WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)

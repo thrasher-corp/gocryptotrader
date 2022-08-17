@@ -6241,6 +6241,9 @@
         },
         "currency": {
           "type": "string"
+        },
+        "assetType": {
+          "type": "string"
         }
       }
     },

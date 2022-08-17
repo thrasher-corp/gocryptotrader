@@ -3014,6 +3014,10 @@ var withdrawalRequestCommand = &cli.Command{
 					Name:  "currency",
 					Usage: "<currency>",
 				},
+				&cli.StringFlag{
+					Name:  "asset",
+					Usage: "the asset type of the currency pair",
+				},
 			},
 			Action: withdrawlRequestByExchangeID,
 		},
@@ -3089,7 +3093,7 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchange, currency string
+	var exchange, currency, assetType string
 	if c.IsSet("exchange") {
 		exchange = c.String("exchange")
 	} else {
@@ -3126,6 +3130,15 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 		if c.IsSet("currency") {
 			currency = c.String("currency")
 		}
+
+		if c.IsSet("asset") {
+			assetType = c.String("asset")
+		}
+
+		assetType = strings.ToLower(assetType)
+		if !validAsset(assetType) {
+			return errInvalidAsset
+		}
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -3138,10 +3151,11 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 
 	result, err := client.WithdrawalEventsByExchange(c.Context,
 		&gctrpc.WithdrawalEventsByExchangeRequest{
-			Exchange: exchange,
-			Id:       ID,
-			Limit:    int32(limit),
-			Currency: currency,
+			Exchange:  exchange,
+			Id:        ID,
+			Limit:     int32(limit),
+			Currency:  currency,
+			AssetType: assetType,
 		},
 	)
 	if err != nil {

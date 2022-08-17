@@ -13,7 +13,9 @@ const (
 	alerting
 
 	dataToActuatorDefaultBuffer = 1
-	PreAllocCommsDefaultBuffer  = 5
+
+	// PreAllocCommsDefaultBuffer is the default buffer size for comms
+	PreAllocCommsDefaultBuffer = 5
 )
 
 var (
