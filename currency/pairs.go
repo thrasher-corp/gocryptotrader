@@ -14,8 +14,9 @@ var (
 	errSymbolEmpty = errors.New("symbol is empty")
 	errPairsEmpty  = errors.New("pairs are empty")
 	errNoDelimiter = errors.New("no delimiter was supplied")
-	// ErrCurrencyPairDuplication defines an error when there is multiple of the
-	// same currency pairs found.
+
+	// ErrPairDuplication defines an error when there is multiple of the same
+	// currency pairs found.
 	ErrPairDuplication = errors.New("currency pair duplication")
 )
 
