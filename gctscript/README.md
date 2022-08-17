@@ -39,6 +39,10 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 To Enable database logging support you must have an active migrated database by following the [database setup guide](../database/README.md)
 
+##### Syntax Highlighting
+
+To enable syntax highlighting for vscode download extension [graphman65/vscode-tengo](https://github.com/graphman65/vscode-tengo/) then add `".gct"` to vscode-tengo package.json [settings](https://github.com/graphman65/vscode-tengo/blob/master/package.json#L27) to enable highlighting of our files. 
+
 ##### Configuration
 
 The gctscript configuration struct is currently: 

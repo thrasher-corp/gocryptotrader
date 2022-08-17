@@ -1,0 +1,27 @@
+global := import("global")
+exch := import("exchange")
+fmt := import("fmt")
+
+load := func() {
+    // 'ctx' is already defined when we construct our bytecode from file. 
+    // It contains script ID and shortname of file as save details to default
+    // script output directory.
+
+    // Set verbosity func allows the setting of rest request verbosity to
+    // specifically log out this scripts interaction with any http outbound
+    // request for debugging purposes. 
+    ctx = global.set_verbose(ctx)
+
+    // Any verbose logs will be output according to logger settings defined in the config
+    // NOTE: Get account info is cached and updated by another worker thread 
+    // therefore calling this script multiple times, if data has already been 
+    // fetched request verbosity will be limited. 
+    info := exch.accountinfo(ctx, "ftx", "spot")
+    if is_error(info) {
+        // handle error 
+    }
+
+    fmt.println(info)
+}
+
+load()
