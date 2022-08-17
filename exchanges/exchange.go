@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -27,7 +28,7 @@ import (
 )
 
 const (
-	warningBase64DecryptSecretKeyFailed = "exchange %s unable to base64 decode secret key.. Disabling Authenticated API support" // nolint // False positive (G101: Potential hardcoded credentials)
+	warningBase64DecryptSecretKeyFailed = "exchange %s unable to base64 decode secret key.. Disabling Authenticated API support" //nolint // False positive (G101: Potential hardcoded credentials)
 	// DefaultHTTPTimeout is the default HTTP/HTTPS Timeout for exchange requests
 	DefaultHTTPTimeout = time.Second * 15
 	// DefaultWebsocketResponseCheckTimeout is the default delay in checking for an expected websocket response
@@ -358,7 +359,7 @@ func (b *Base) GetPairFormat(assetType asset.Item, requestFormat bool) (currency
 func (b *Base) GetEnabledPairs(a asset.Item) (currency.Pairs, error) {
 	err := b.CurrencyPairs.IsAssetEnabled(a)
 	if err != nil {
-		return nil, nil // nolint:nilerr // non-fatal error
+		return nil, nil //nolint:nilerr // non-fatal error
 	}
 	format, err := b.GetPairFormat(a, false)
 	if err != nil {
@@ -491,7 +492,7 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 	b.API.AuthenticatedSupport = exch.API.AuthenticatedSupport
 	b.API.AuthenticatedWebsocketSupport = exch.API.AuthenticatedWebsocketSupport
 	if b.API.credentials == nil {
-		b.API.credentials = &Credentials{}
+		b.API.credentials = &account.Credentials{}
 	}
 	b.API.credentials.SubAccount = exch.API.Credentials.Subaccount
 	if b.API.AuthenticatedSupport || b.API.AuthenticatedWebsocketSupport {
@@ -1185,7 +1186,7 @@ func (e *Endpoints) SetRunning(key, val string) error {
 			key,
 			val,
 			e.Exchange)
-		return nil // nolint:nilerr // non-fatal error as we won't update the running URL
+		return nil //nolint:nilerr // non-fatal error as we won't update the running URL
 	}
 	e.defaults[key] = val
 	return nil
@@ -1243,6 +1244,8 @@ func (u URL) String() string {
 		return restCoinMarginedFuturesURL
 	case RestFutures:
 		return restFuturesURL
+	case RestUSDCMargined:
+		return restUSDCMarginedFuturesURL
 	case RestSandbox:
 		return restSandboxURL
 	case RestSwap:
@@ -1277,6 +1280,8 @@ func getURLTypeFromString(ep string) (URL, error) {
 		return RestCoinMargined, nil
 	case restFuturesURL:
 		return RestFutures, nil
+	case restUSDCMarginedFuturesURL:
+		return RestUSDCMargined, nil
 	case restSandboxURL:
 		return RestSandbox, nil
 	case restSwapURL:

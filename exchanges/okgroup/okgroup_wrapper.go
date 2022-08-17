@@ -216,7 +216,11 @@ func (o *OKGroup) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 
 	resp.Accounts = append(resp.Accounts, currencyAccount)
 
-	err = account.Process(&resp)
+	creds, err := o.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&resp, creds)
 	if err != nil {
 		return resp, err
 	}
@@ -226,11 +230,14 @@ func (o *OKGroup) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (o *OKGroup) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(o.Name, assetType)
+	creds, err := o.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(o.Name, creds, assetType)
 	if err != nil {
 		return o.UpdateAccountInfo(ctx, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -493,7 +500,7 @@ func (o *OKGroup) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *wit
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (o *OKGroup) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (o *OKGroup) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 

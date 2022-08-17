@@ -507,7 +507,7 @@ func (f *FTX) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Hold
 	}
 
 	resp.Exchange = f.Name
-	if err := account.Process(&resp); err != nil {
+	if err := account.Process(&resp, creds); err != nil {
 		return account.Holdings{}, err
 	}
 
@@ -516,11 +516,14 @@ func (f *FTX) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Hold
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (f *FTX) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(f.Name, assetType)
+	creds, err := f.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(f.Name, creds, assetType)
 	if err != nil {
 		return f.UpdateAccountInfo(ctx, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -568,7 +571,7 @@ func (f *FTX) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, er
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (f *FTX) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (f *FTX) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 

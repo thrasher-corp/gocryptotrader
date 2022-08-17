@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -29,6 +30,11 @@ const (
 	// GctExt is the extension for GCT Tengo script files
 	GctExt         = ".gct"
 	defaultTimeout = time.Second * 15
+)
+
+var (
+	// emailRX represents email address matching pattern
+	emailRX = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 )
 
 // Vars for common.go operations
@@ -68,6 +74,14 @@ var (
 	// ErrTypeAssertFailure defines an error when type assertion fails
 	ErrTypeAssertFailure = errors.New("type assert failure")
 )
+
+// MatchesEmailPattern ensures that the string is an email address by regexp check
+func MatchesEmailPattern(value string) bool {
+	if len(value) < 3 || len(value) > 254 {
+		return false
+	}
+	return emailRX.MatchString(value)
+}
 
 // SetHTTPClientWithTimeout sets a new *http.Client with different timeout
 // settings
@@ -292,7 +306,7 @@ func EncodeURLValues(urlPath string, values url.Values) string {
 
 // ExtractHost returns the hostname out of a string
 func ExtractHost(address string) string {
-	host := strings.Split(address, ":")[0]
+	host, _, _ := net.SplitHostPort(address)
 	if host == "" {
 		return "localhost"
 	}
@@ -301,12 +315,12 @@ func ExtractHost(address string) string {
 
 // ExtractPort returns the port name out of a string
 func ExtractPort(host string) int {
-	portStrs := strings.Split(host, ":")
-	if len(portStrs) == 1 {
+	_, port, _ := net.SplitHostPort(host)
+	if port == "" {
 		return 80
 	}
-	port, _ := strconv.Atoi(portStrs[1])
-	return port
+	portInt, _ := strconv.Atoi(port)
+	return portInt
 }
 
 // GetURIPath returns the path of a URL given a URI

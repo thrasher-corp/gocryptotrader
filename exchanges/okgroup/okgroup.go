@@ -16,6 +16,7 @@ import (
 	"github.com/google/go-querystring/query"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -585,7 +586,7 @@ func (o *OKGroup) SendHTTPRequest(ctx context.Context, ep exchange.URL, httpMeth
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
 		if authenticated {
-			var creds *exchange.Credentials
+			var creds *account.Credentials
 			creds, err = o.GetCredentials(ctx)
 			if err != nil {
 				return nil, err

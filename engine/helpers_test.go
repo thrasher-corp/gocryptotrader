@@ -118,7 +118,7 @@ func TestGetRPCEndpoints(t *testing.T) {
 	}
 }
 
-func TestSetSubsystem(t *testing.T) { // nolint // TO-DO: Fix race t.Parallel() usage
+func TestSetSubsystem(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() usage
 	testCases := []struct {
 		Subsystem    string
 		Engine       *Engine

@@ -397,7 +397,11 @@ func (z *ZB) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (accou
 		Currencies: balances,
 	})
 
-	if err := account.Process(&info); err != nil {
+	creds, err := z.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	if err := account.Process(&info, creds); err != nil {
 		return account.Holdings{}, err
 	}
 
@@ -406,11 +410,14 @@ func (z *ZB) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (accou
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (z *ZB) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(z.Name, assetType)
+	creds, err := z.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(z.Name, creds, assetType)
 	if err != nil {
 		return z.UpdateAccountInfo(ctx, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -421,7 +428,7 @@ func (z *ZB) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, err
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (z *ZB) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (z *ZB) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 

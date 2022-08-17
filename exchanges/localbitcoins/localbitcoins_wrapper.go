@@ -302,7 +302,11 @@ func (l *LocalBitcoins) UpdateAccountInfo(ctx context.Context, assetType asset.I
 			}},
 	})
 
-	err = account.Process(&response)
+	creds, err := l.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&response, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -312,11 +316,14 @@ func (l *LocalBitcoins) UpdateAccountInfo(ctx context.Context, assetType asset.I
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (l *LocalBitcoins) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(l.Name, assetType)
+	creds, err := l.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(l.Name, creds, assetType)
 	if err != nil {
 		return l.UpdateAccountInfo(ctx, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -327,7 +334,7 @@ func (l *LocalBitcoins) GetFundingHistory(ctx context.Context) ([]exchange.FundH
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (l *LocalBitcoins) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (l *LocalBitcoins) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 

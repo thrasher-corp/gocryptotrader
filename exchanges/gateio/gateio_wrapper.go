@@ -427,7 +427,11 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	}
 
 	info.Exchange = g.Name
-	if err := account.Process(&info); err != nil {
+	creds, err := g.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	if err := account.Process(&info, creds); err != nil {
 		return account.Holdings{}, err
 	}
 
@@ -436,11 +440,14 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (g *Gateio) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(g.Name, assetType)
+	creds, err := g.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(g.Name, creds, assetType)
 	if err != nil {
 		return g.UpdateAccountInfo(ctx, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -451,7 +458,7 @@ func (g *Gateio) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory,
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (g *Gateio) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (g *Gateio) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 

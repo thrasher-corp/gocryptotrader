@@ -3,6 +3,9 @@ exch := import("exchange")
 
 load := func() {
    info := exch.depositaddress("BTC Markets", "BTC", "")
+   if is_error(info) {
+      // handle error
+   }
    fmt.println(info)
 }
 

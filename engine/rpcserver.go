@@ -112,7 +112,7 @@ func (s *RPCServer) authenticateClient(ctx context.Context) (context.Context, er
 		password != s.Config.RemoteControl.Password {
 		return ctx, fmt.Errorf("username/password mismatch")
 	}
-	ctx, err = exchange.ParseCredentialsMetadata(ctx, md)
+	ctx, err = account.ParseCredentialsMetadata(ctx, md)
 	if err != nil {
 		return ctx, err
 	}
@@ -618,7 +618,7 @@ func createAccountInfoRequest(h account.Holdings) (*gctrpc.GetAccountInfoRespons
 	accounts := make([]*gctrpc.Account, len(h.Accounts))
 	for x := range h.Accounts {
 		var a gctrpc.Account
-		a.Id = h.Accounts[x].ID
+		a.Id = h.Accounts[x].Credentials.String()
 		for _, y := range h.Accounts[x].Currencies {
 			if y.Total == 0 &&
 				y.Hold == 0 &&
@@ -1863,7 +1863,11 @@ func (s *RPCServer) WithdrawalEventsByExchange(ctx context.Context, r *gctrpc.Wi
 			}
 
 			c := currency.NewCode(strings.ToUpper(r.Currency))
-			ret, err := exch.GetWithdrawalsHistory(ctx, c)
+			a, err := asset.New(r.AssetType)
+			if err != nil {
+				return nil, err
+			}
+			ret, err := exch.GetWithdrawalsHistory(ctx, c, a)
 			if err != nil {
 				return nil, err
 			}
@@ -2573,7 +2577,7 @@ func (s *RPCServer) GCTScriptQuery(_ context.Context, r *gctrpc.GCTScriptQueryRe
 
 	UUID, err := uuid.FromString(r.Script.Uuid)
 	if err != nil {
-		// nolint:nilerr // error is returned in the GCTScriptQueryResponse
+		//nolint:nilerr // error is returned in the GCTScriptQueryResponse
 		return &gctrpc.GCTScriptQueryResponse{Status: MsgStatusError, Data: err.Error()}, nil
 	}
 
@@ -2620,7 +2624,7 @@ func (s *RPCServer) GCTScriptExecute(_ context.Context, r *gctrpc.GCTScriptExecu
 
 	script := filepath.Join(r.Script.Path, r.Script.Name)
 	if err := gctVM.Load(script); err != nil {
-		return &gctrpc.GenericResponse{ // nolint:nilerr // error is returned in the generic response
+		return &gctrpc.GenericResponse{ //nolint:nilerr // error is returned in the generic response
 			Status: MsgStatusError,
 			Data:   err.Error(),
 		}, nil
@@ -2642,7 +2646,7 @@ func (s *RPCServer) GCTScriptStop(_ context.Context, r *gctrpc.GCTScriptStopRequ
 
 	UUID, err := uuid.FromString(r.Script.Uuid)
 	if err != nil {
-		return &gctrpc.GenericResponse{Status: MsgStatusError, Data: err.Error()}, nil // nolint:nilerr // error is returned in the generic response
+		return &gctrpc.GenericResponse{Status: MsgStatusError, Data: err.Error()}, nil //nolint:nilerr // error is returned in the generic response
 	}
 
 	v, f := gctscript.AllVMSync.Load(UUID)
@@ -2812,7 +2816,7 @@ func (s *RPCServer) GCTScriptStopAll(context.Context, *gctrpc.GCTScriptStopAllRe
 
 	err := s.gctScriptManager.ShutdownAll()
 	if err != nil {
-		return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil // nolint:nilerr // error is returned in the generic response
+		return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil //nolint:nilerr // error is returned in the generic response
 	}
 
 	return &gctrpc.GenericResponse{
@@ -2830,7 +2834,7 @@ func (s *RPCServer) GCTScriptAutoLoadToggle(_ context.Context, r *gctrpc.GCTScri
 	if r.Status {
 		err := s.gctScriptManager.Autoload(r.Script, true)
 		if err != nil {
-			// nolint:nilerr // error is returned in the generic response
+			//nolint:nilerr // error is returned in the generic response
 			return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil
 		}
 		return &gctrpc.GenericResponse{Status: "success", Data: "script " + r.Script + " removed from autoload list"}, nil
@@ -2838,7 +2842,7 @@ func (s *RPCServer) GCTScriptAutoLoadToggle(_ context.Context, r *gctrpc.GCTScri
 
 	err := s.gctScriptManager.Autoload(r.Script, false)
 	if err != nil {
-		return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil // nolint:nilerr // error is returned in the generic response
+		return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil //nolint:nilerr // error is returned in the generic response
 	}
 	return &gctrpc.GenericResponse{Status: "success", Data: "script " + r.Script + " added to autoload list"}, nil
 }

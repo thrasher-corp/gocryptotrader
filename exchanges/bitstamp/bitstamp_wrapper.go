@@ -414,6 +414,8 @@ func (b *Bitstamp) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		}
 	}
 
+	filterOrderbookZeroBidPrice(book)
+
 	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
 		book.Asks[x] = orderbook.Item{
@@ -421,6 +423,7 @@ func (b *Bitstamp) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 			Price:  orderbookNew.Asks[x].Price,
 		}
 	}
+
 	err = book.Process()
 	if err != nil {
 		return book, err
@@ -452,7 +455,11 @@ func (b *Bitstamp) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 		Currencies: currencies,
 	})
 
-	err = account.Process(&response)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&response, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -462,11 +469,14 @@ func (b *Bitstamp) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (b *Bitstamp) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(b.Name, assetType)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(b.Name, creds, assetType)
 	if err != nil {
 		return b.UpdateAccountInfo(ctx, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -477,7 +487,7 @@ func (b *Bitstamp) GetFundingHistory(ctx context.Context) ([]exchange.FundHistor
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *Bitstamp) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (b *Bitstamp) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 

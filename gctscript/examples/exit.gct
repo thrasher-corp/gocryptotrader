@@ -1,14 +1,16 @@
 fmt := import("fmt")
 
+// 'timer' is a GCT key word that is captured at compilation and used to execute
+// this script task every defined duration. 
 timer := "5s"
 
 exit := func() {
-    timer = 0
+    timer = "0s" // This will reset the timer to zero and shutdown the script.
 }
 
 load := func() {
    for x := 0 ; x < 20; x++ {
-      fmt.printf("Hello %v", x)
+      fmt.printf("Hello %v\n", x)
    }
    exit()
 }

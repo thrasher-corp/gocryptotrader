@@ -2199,10 +2199,12 @@ func TestGetFuturesPositions(t *testing.T) {
 		t.Fatalf("received '%v', expected '%v'", err, exchange.ErrCredentialsAreEmpty)
 	}
 
-	ctx := exchange.DeployCredentialsToContext(context.Background(), &exchange.Credentials{
-		Key:    "wow",
-		Secret: "super wow",
-	})
+	ctx := account.DeployCredentialsToContext(context.Background(),
+		&account.Credentials{
+			Key:    "wow",
+			Secret: "super wow",
+		},
+	)
 
 	_, err = s.GetFuturesPositions(ctx, &gctrpc.GetFuturesPositionsRequest{
 		Exchange: fakeExchangeName,
@@ -2313,7 +2315,8 @@ func TestGetCollateral(t *testing.T) {
 		t.Fatalf("received '%v', expected '%v'", err, exchange.ErrCredentialsAreEmpty)
 	}
 
-	ctx := exchange.DeployCredentialsToContext(context.Background(), &exchange.Credentials{Key: "fakerino", Secret: "supafake"})
+	ctx := account.DeployCredentialsToContext(context.Background(),
+		&account.Credentials{Key: "fakerino", Secret: "supafake"})
 
 	_, err = s.GetCollateral(ctx, &gctrpc.GetCollateralRequest{
 		Exchange: fakeExchangeName,
@@ -2323,7 +2326,8 @@ func TestGetCollateral(t *testing.T) {
 		t.Fatalf("received '%v', expected '%v'", err, errNoAccountInformation)
 	}
 
-	ctx = exchange.DeployCredentialsToContext(context.Background(), &exchange.Credentials{Key: "fakerino", Secret: "supafake", SubAccount: "1337"})
+	ctx = account.DeployCredentialsToContext(context.Background(),
+		&account.Credentials{Key: "fakerino", Secret: "supafake", SubAccount: "1337"})
 
 	r, err := s.GetCollateral(ctx, &gctrpc.GetCollateralRequest{
 		Exchange:         fakeExchangeName,

@@ -3,13 +3,13 @@ module github.com/thrasher-corp/gocryptotrader
 go 1.17
 
 require (
-	github.com/d5/tengo/v2 v2.12.0
+	github.com/d5/tengo/v2 v2.12.1
 	github.com/gofrs/uuid v4.2.0+incompatible
 	github.com/google/go-querystring v1.1.0
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.10.3
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.11.2
 	github.com/kat-co/vala v0.0.0-20170210184112-42e1d8b61f12
 	github.com/lib/pq v1.10.6
 	github.com/mattn/go-sqlite3 v1.14.13
@@ -20,17 +20,18 @@ require (
 	github.com/thrasher-corp/gct-ta v0.0.0-20200623072738-f2b55b7f9f41
 	github.com/thrasher-corp/goose v2.7.0-rc4.0.20191002032028-0f2c2a27abdb+incompatible
 	github.com/thrasher-corp/sqlboiler v1.0.1-0.20191001234224-71e17f37a85e
-	github.com/urfave/cli/v2 v2.11.0
+	github.com/urfave/cli/v2 v2.11.2
 	github.com/volatiletech/null v8.0.0+incompatible
 	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e
-	golang.org/x/net v0.0.0-20220617184016-355a448f1bc9
+	golang.org/x/net v0.0.0-20220624214902-1bab6f366d9e
 	golang.org/x/time v0.0.0-20220609170525-579cf78fd858
-	google.golang.org/genproto v0.0.0-20220617124728-180714bec0ad
+	google.golang.org/genproto v0.0.0-20220805133916-01dd62135a58
 	google.golang.org/grpc v1.48.0
-	google.golang.org/protobuf v1.28.0
+	google.golang.org/protobuf v1.28.1
 )
 
 require (
+	cloud.google.com/go/compute v1.7.0 // indirect
 	github.com/boombuler/barcode v1.0.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/friendsofgo/errors v0.9.2 // indirect
