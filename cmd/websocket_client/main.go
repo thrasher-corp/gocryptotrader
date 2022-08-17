@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -83,8 +85,8 @@ func main() {
 	}
 
 	listenAddr := cfg.RemoteControl.WebsocketRPC.ListenAddress
-	wsHost := fmt.Sprintf("ws://%s:%d/ws", common.ExtractHost(listenAddr),
-		common.ExtractPort(listenAddr))
+	wsHost := fmt.Sprintf("ws://%s/ws", net.JoinHostPort(common.ExtractHost(listenAddr),
+		strconv.Itoa(common.ExtractPort(listenAddr))))
 	log.Printf("Connecting to websocket host: %s", wsHost)
 
 	var dialer websocket.Dialer

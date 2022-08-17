@@ -2579,7 +2579,7 @@ func (s *RPCServer) GCTScriptQuery(_ context.Context, r *gctrpc.GCTScriptQueryRe
 
 	UUID, err := uuid.FromString(r.Script.Uuid)
 	if err != nil {
-		// nolint:nilerr // error is returned in the GCTScriptQueryResponse
+		//nolint:nilerr // error is returned in the GCTScriptQueryResponse
 		return &gctrpc.GCTScriptQueryResponse{Status: MsgStatusError, Data: err.Error()}, nil
 	}
 
@@ -2626,7 +2626,7 @@ func (s *RPCServer) GCTScriptExecute(_ context.Context, r *gctrpc.GCTScriptExecu
 
 	script := filepath.Join(r.Script.Path, r.Script.Name)
 	if err := gctVM.Load(script); err != nil {
-		return &gctrpc.GenericResponse{ // nolint:nilerr // error is returned in the generic response
+		return &gctrpc.GenericResponse{ //nolint:nilerr // error is returned in the generic response
 			Status: MsgStatusError,
 			Data:   err.Error(),
 		}, nil
@@ -2648,7 +2648,7 @@ func (s *RPCServer) GCTScriptStop(_ context.Context, r *gctrpc.GCTScriptStopRequ
 
 	UUID, err := uuid.FromString(r.Script.Uuid)
 	if err != nil {
-		return &gctrpc.GenericResponse{Status: MsgStatusError, Data: err.Error()}, nil // nolint:nilerr // error is returned in the generic response
+		return &gctrpc.GenericResponse{Status: MsgStatusError, Data: err.Error()}, nil //nolint:nilerr // error is returned in the generic response
 	}
 
 	v, f := gctscript.AllVMSync.Load(UUID)
@@ -2818,7 +2818,7 @@ func (s *RPCServer) GCTScriptStopAll(context.Context, *gctrpc.GCTScriptStopAllRe
 
 	err := s.gctScriptManager.ShutdownAll()
 	if err != nil {
-		return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil // nolint:nilerr // error is returned in the generic response
+		return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil //nolint:nilerr // error is returned in the generic response
 	}
 
 	return &gctrpc.GenericResponse{
@@ -2836,7 +2836,7 @@ func (s *RPCServer) GCTScriptAutoLoadToggle(_ context.Context, r *gctrpc.GCTScri
 	if r.Status {
 		err := s.gctScriptManager.Autoload(r.Script, true)
 		if err != nil {
-			// nolint:nilerr // error is returned in the generic response
+			//nolint:nilerr // error is returned in the generic response
 			return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil
 		}
 		return &gctrpc.GenericResponse{Status: "success", Data: "script " + r.Script + " removed from autoload list"}, nil
@@ -2844,7 +2844,7 @@ func (s *RPCServer) GCTScriptAutoLoadToggle(_ context.Context, r *gctrpc.GCTScri
 
 	err := s.gctScriptManager.Autoload(r.Script, false)
 	if err != nil {
-		return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil // nolint:nilerr // error is returned in the generic response
+		return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil //nolint:nilerr // error is returned in the generic response
 	}
 	return &gctrpc.GenericResponse{Status: "success", Data: "script " + r.Script + " added to autoload list"}, nil
 }

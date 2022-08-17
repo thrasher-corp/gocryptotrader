@@ -254,14 +254,7 @@ func TestMarketSellOrder(t *testing.T) {
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	cp := currency.NewPair(currency.QTUM, currency.KRW)
-	_, err := b.UpdateTicker(context.Background(), cp, asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	cp = currency.NewPair(currency.BTC, currency.KRW)
-	_, err = b.UpdateTicker(context.Background(), cp, asset.Spot)
-	if err != nil {
+	if _, err := b.UpdateTicker(context.Background(), cp, asset.Spot); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -129,7 +129,7 @@ func (p *Processor) Run(wg *sync.WaitGroup) {
 	for {
 		<-ticker.C
 		p.mutex.Lock()
-		// nolint: gocritic
+		//nolint: gocritic
 		bufferCopy := append(p.buffer[:0:0], p.buffer...)
 		p.buffer = nil
 		p.mutex.Unlock()

@@ -977,11 +977,12 @@ func (k *Kraken) CancelExistingOrder(ctx context.Context, txid string) (CancelOr
 	return response.Result, GetError(response.Error)
 }
 
-// GetError parse Exchange errors in response and return the first one
+// GetError parse Exchange errors in response and return the first one.
+//
 // Error format from API doc:
-//   error = array of error messages in the format of:
-//       <char-severity code><string-error category>:<string-error type>[:<string-extra info>]
-//       severity code can be E for error or W for warning
+//   - error = array of error messages in the format of:
+//     <char-severity code><string-error category>:<string-error type>[:<string-extra info>]
+//     severity code can be E for error or W for warning
 func GetError(apiErrors []string) error {
 	const exchangeName = "Kraken"
 	for _, e := range apiErrors {

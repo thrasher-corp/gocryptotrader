@@ -654,7 +654,7 @@ func TestCompareJobsToData(t *testing.T) {
 	}
 }
 
-func TestRunJob(t *testing.T) { // nolint // TO-DO: Fix race t.Parallel() usage
+func TestRunJob(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() usage
 	testCases := []*DataHistoryJob{
 		{
 			Nickname:  "TestRunJobDataHistoryCandleDataType",
