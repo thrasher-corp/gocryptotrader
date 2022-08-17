@@ -788,7 +788,11 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 	}
 	acc.AssetType = assetType
 	info.Accounts = append(info.Accounts, acc)
-	if err := account.Process(&info); err != nil {
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	if err := account.Process(&info, creds); err != nil {
 		return account.Holdings{}, err
 	}
 	return info, nil
@@ -796,7 +800,11 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (b *Binance) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(b.Name, assetType)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(b.Name, creds, assetType)
 	if err != nil {
 		return b.UpdateAccountInfo(ctx, assetType)
 	}
@@ -810,7 +818,7 @@ func (b *Binance) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *Binance) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (b *Binance) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	w, err := b.WithdrawHistory(ctx, c, "", time.Time{}, time.Time{}, 0, 10000)
 	if err != nil {
 		return nil, err

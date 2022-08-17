@@ -75,8 +75,9 @@ func (i *ItBit) GetTradeHistory(ctx context.Context, currencyPair, tradeID strin
 // GetWallets returns information about all wallets associated with the account.
 //
 // params --
-// 					page - [optional] page to return example 1. default 1
-//					perPage - [optional] items per page example 50, default 50 max 50
+//
+//	page - [optional] page to return example 1. default 1
+//	perPage - [optional] items per page example 50, default 50 max 50
 func (i *ItBit) GetWallets(ctx context.Context, params url.Values) ([]Wallet, error) {
 	creds, err := i.GetCredentials(ctx)
 	if err != nil {

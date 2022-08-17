@@ -1995,6 +1995,9 @@ func TestString(t *testing.T) {
 	if RestFutures.String() != "RestFuturesURL" {
 		t.Errorf("invalid string conversion")
 	}
+	if RestUSDCMargined.String() != "RestUSDCMarginedFuturesURL" {
+		t.Errorf("invalid string conversion")
+	}
 	if RestSandbox.String() != "RestSandboxURL" {
 		t.Errorf("invalid string conversion")
 	}
@@ -2189,6 +2192,7 @@ func TestGetGetURLTypeFromString(t *testing.T) {
 		{Endpoint: "RestUSDTMarginedFuturesURL", Expected: RestUSDTMargined},
 		{Endpoint: "RestCoinMarginedFuturesURL", Expected: RestCoinMargined},
 		{Endpoint: "RestFuturesURL", Expected: RestFutures},
+		{Endpoint: "RestUSDCMarginedFuturesURL", Expected: RestUSDCMargined},
 		{Endpoint: "RestSandboxURL", Expected: RestSandbox},
 		{Endpoint: "RestSwapURL", Expected: RestSwap},
 		{Endpoint: "WebsocketSpotURL", Expected: WebsocketSpot},
@@ -2312,6 +2316,14 @@ func TestGetServerTime(t *testing.T) {
 	t.Parallel()
 	var b Base
 	if _, err := b.GetServerTime(context.Background(), asset.Spot); !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
+	}
+}
+
+func TestGetFundingRateHistory(t *testing.T) {
+	t.Parallel()
+	var b Base
+	if _, err := b.GetMarginRatesHistory(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }

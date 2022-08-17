@@ -3,6 +3,8 @@ package postgres
 import (
 	"database/sql"
 	"fmt"
+	"net"
+	"strconv"
 
 	// import go libpq driver package
 	_ "github.com/lib/pq"
@@ -21,11 +23,11 @@ func Connect(cfg *database.Config) (*database.Instance, error) {
 		cfg.SSLMode = "disable"
 	}
 
-	configDSN := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
+	host := net.JoinHostPort(cfg.Host, strconv.FormatUint(uint64(cfg.Port), 10))
+	configDSN := fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=%s",
 		cfg.Username,
 		cfg.Password,
-		cfg.Host,
-		cfg.Port,
+		host,
 		cfg.Database,
 		cfg.SSLMode)
 

@@ -6,6 +6,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -186,7 +187,7 @@ type API struct {
 
 	Endpoints *Endpoints
 
-	credentials *Credentials
+	credentials *account.Credentials
 	credMu      sync.RWMutex
 
 	CredentialsValidator struct {
@@ -240,6 +241,7 @@ const (
 	RestUSDTMargined
 	RestCoinMargined
 	RestFutures
+	RestUSDCMargined
 	RestSwap
 	RestSandbox
 	WebsocketSpot
@@ -253,6 +255,7 @@ const (
 	restSpotSupplementaryURL      = "RestSpotSupplementaryURL"
 	restUSDTMarginedFuturesURL    = "RestUSDTMarginedFuturesURL"
 	restCoinMarginedFuturesURL    = "RestCoinMarginedFuturesURL"
+	restUSDCMarginedFuturesURL    = "RestUSDCMarginedFuturesURL"
 	restFuturesURL                = "RestFuturesURL"
 	restSandboxURL                = "RestSandboxURL"
 	restSwapURL                   = "RestSwapURL"
@@ -269,6 +272,7 @@ var keyURLs = []URL{RestSpot,
 	RestUSDTMargined,
 	RestCoinMargined,
 	RestFutures,
+	RestUSDCMargined,
 	RestSwap,
 	RestSandbox,
 	WebsocketSpot,

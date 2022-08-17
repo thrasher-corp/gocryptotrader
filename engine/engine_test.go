@@ -271,7 +271,7 @@ func TestFlagSetWith(t *testing.T) {
 
 	flags["IS SET"] = true
 	isRunning = true
-	// Flag set true which will overide config
+	// Flag set true which will override config
 	flags.WithBool("IS SET", &isRunning, true)
 	if !isRunning {
 		t.Fatalf("received: '%v' but expected: '%v'", isRunning, true)
@@ -283,7 +283,7 @@ func TestFlagSetWith(t *testing.T) {
 
 	flags["IS SET"] = true
 	isRunning = false
-	// Flag set false which will overide config
+	// Flag set false which will override config
 	flags.WithBool("IS SET", &isRunning, true)
 	if isRunning {
 		t.Fatalf("received: '%v' but expected: '%v'", isRunning, false)

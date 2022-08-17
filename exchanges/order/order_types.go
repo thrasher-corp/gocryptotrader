@@ -23,7 +23,10 @@ var (
 	ErrAmountIsInvalid            = errors.New("order amount is equal or less than zero")
 	ErrPriceMustBeSetIfLimitOrder = errors.New("order price must be set if limit order type is desired")
 	ErrOrderIDNotSet              = errors.New("order id or client order id is not set")
-	errCannotLiquidate            = errors.New("cannot liquidate position")
+	// ErrNoRates is returned when no margin rates are returned when they are expected
+	ErrNoRates = errors.New("no rates")
+
+	errCannotLiquidate = errors.New("cannot liquidate position")
 )
 
 // Submit contains all properties of an order that may be required
