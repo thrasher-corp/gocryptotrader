@@ -16,7 +16,13 @@ import (
 // To determine whether there is any candle data present at the time provided
 func (d *DataFromKline) HasDataAtTime(t time.Time) bool {
 	if d.Base.IsLive() {
-		return true
+		s := d.GetStream()
+		for i := range s {
+			if s[i].GetTime().Equal(t) {
+				return true
+			}
+		}
+		return false
 	}
 	if d.RangeHolder == nil {
 		return false
@@ -62,12 +68,12 @@ func (d *DataFromKline) Load() error {
 }
 
 // AppendResults adds a candle item to the data stream and sorts it to ensure it is all in order
-func (d *DataFromKline) AppendResults(ki *gctkline.Item) {
+func (d *DataFromKline) AppendResults(ki *gctkline.Item) bool {
 	if ki == nil {
-		return
+		return false
 	}
 	if !d.Item.EqualSource(ki) {
-		return
+		return false
 	}
 	if d.addedTimes == nil {
 		d.addedTimes = make(map[int64]bool)
@@ -79,26 +85,46 @@ func (d *DataFromKline) AppendResults(ki *gctkline.Item) {
 	for i := range ki.Candles {
 		if _, ok := d.addedTimes[ki.Candles[i].Time.UTC().UnixNano()]; !ok {
 			gctCandles = append(gctCandles, ki.Candles[i])
-			d.addedTimes[ki.Candles[i].Time.UTC().UnixNano()] = true
 		}
 	}
 	if len(gctCandles) == 0 {
-		return
+		return false
 	}
 	for i := range gctCandles {
 		d.Item.Candles = append(d.Item.Candles, gctCandles[i])
 	}
 	d.Item.RemoveDuplicates()
+	d.Item.SortCandlesByTimestamp(false)
+
 	if d.RangeHolder != nil {
 		// offline data check when there is a known range
 		// live data does not need this
 		d.RangeHolder.SetHasDataFromCandles(d.Item.Candles)
 	}
-	err := d.Load()
-	if err != nil {
-		log.Errorf(common.Data, "unable to load candles %v", err)
+
+	klineData := make([]data.Event, len(d.Item.Candles))
+	for i := range d.Item.Candles {
+		newKline := &kline.Kline{
+			Base: &event.Base{
+				Offset:         int64(i + 1),
+				Exchange:       d.Item.Exchange,
+				Time:           d.Item.Candles[i].Time.UTC(),
+				Interval:       d.Item.Interval,
+				CurrencyPair:   d.Item.Pair,
+				AssetType:      d.Item.Asset,
+				UnderlyingPair: d.Item.UnderlyingPair,
+			},
+			Open:             decimal.NewFromFloat(d.Item.Candles[i].Open),
+			High:             decimal.NewFromFloat(d.Item.Candles[i].High),
+			Low:              decimal.NewFromFloat(d.Item.Candles[i].Low),
+			Close:            decimal.NewFromFloat(d.Item.Candles[i].Close),
+			Volume:           decimal.NewFromFloat(d.Item.Candles[i].Volume),
+			ValidationIssues: d.Item.Candles[i].ValidationIssues,
+		}
+		klineData[i] = newKline
 	}
-	d.SortStream()
+
+	return d.AppendStream(klineData...)
 }
 
 // StreamOpen returns all Open prices from the beginning until the current iteration

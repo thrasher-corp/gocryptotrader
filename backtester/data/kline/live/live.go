@@ -23,14 +23,17 @@ func LoadData(ctx context.Context, timeToRetrieve time.Time, exch exchange.IBotE
 	}
 	var candles kline.Item
 	var err error
+	b := exch.GetBase()
+	b.Verbose = true
 	switch dataType {
 	case common.DataCandle:
 		candles, err = exch.GetHistoricCandles(ctx,
 			fPair,
 			a,
 			timeToRetrieve.Truncate(interval).Add(-interval*2),
-			timeToRetrieve.Truncate(interval),
-			kline.Interval(interval))
+			timeToRetrieve,
+			kline.Interval(interval),
+		)
 		if err != nil {
 			return nil, fmt.Errorf("could not retrieve live candle data for %v %v %v, %v", exch.GetName(), a, fPair, err)
 		}
@@ -40,7 +43,8 @@ func LoadData(ctx context.Context, timeToRetrieve time.Time, exch exchange.IBotE
 			fPair,
 			a,
 			timeToRetrieve.Truncate(interval).Add(-interval*2),
-			timeToRetrieve.Truncate(interval))
+			timeToRetrieve,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -55,7 +59,8 @@ func LoadData(ctx context.Context, timeToRetrieve time.Time, exch exchange.IBotE
 				fPair,
 				a,
 				timeToRetrieve.Add(-interval),
-				timeToRetrieve)
+				timeToRetrieve,
+			)
 			if err != nil {
 				return nil, fmt.Errorf("could not retrieve live trade data for %v %v %v, %v", exch.GetName(), a, fPair, err)
 			}
@@ -68,6 +73,7 @@ func LoadData(ctx context.Context, timeToRetrieve time.Time, exch exchange.IBotE
 	default:
 		return nil, fmt.Errorf("could not retrieve live data for %v %v %v, %w: '%v'", exch.GetName(), a, fPair, common.ErrInvalidDataType, dataType)
 	}
+	b.Verbose = false
 	candles.Exchange = strings.ToLower(exch.GetName())
 	candles.UnderlyingPair = underlyingPair
 	return &candles, nil

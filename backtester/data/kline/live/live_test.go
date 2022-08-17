@@ -81,3 +81,31 @@ func TestLoadTrades(t *testing.T) {
 		t.Error("expected candles")
 	}
 }
+
+type hello struct {
+	shutdown chan struct{}
+	updated  chan struct{}
+	timer    *time.Timer
+}
+
+func butts(yo *hello) {
+	for {
+		select {
+		case <-yo.shutdown:
+			return
+		case <-yo.timer.C:
+			yo.timer.Reset(time.Second)
+			time.Sleep(time.Second * 5)
+			continue
+		}
+	}
+}
+
+func TestButts(t *testing.T) {
+	hi := hello{
+		shutdown: make(chan struct{}),
+		updated:  make(chan struct{}),
+		timer:    time.NewTimer(0),
+	}
+
+}

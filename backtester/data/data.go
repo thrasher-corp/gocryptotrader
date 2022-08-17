@@ -2,6 +2,7 @@ package data
 
 import (
 	"fmt"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	"sort"
 	"strings"
 
@@ -86,20 +87,34 @@ func (b *Base) Offset() int64 {
 // SetStream sets the data stream for candle analysis
 func (b *Base) SetStream(s []Event) {
 	b.stream = s
-	if b.IsLive() {
-		b.offset = int64(len(s)) - 1
-	}
 }
 
 // AppendStream appends new datas onto the stream, however, will not
 // add duplicates. Used for live analysis
-func (b *Base) AppendStream(s ...Event) {
-	for i := range s {
-		if s[i] == nil {
+func (b *Base) AppendStream(s ...Event) bool {
+	var updated bool
+candles:
+	for x := range s {
+		if s[x] == nil {
 			continue
 		}
-		b.stream = append(b.stream, s[i])
+		for y := range b.stream {
+			if s[x].GetTime().Equal(b.stream[y].GetTime()) {
+				o := s[x].GetOffset()
+				o2 := b.stream[y].GetOffset()
+				log.Warnf(common.Data, "%v %v %v REJECTING %v FOR %v", b.stream[y].GetExchange(), b.stream[y].GetAssetType(), b.stream[y].Pair(), o, o2)
+				continue candles
+			}
+		}
+		b.stream = append(b.stream, s[x])
+		updated = true
 	}
+	for i := range b.stream {
+		o := b.stream[i].GetOffset()
+		log.Warnf(common.Data, "%v %v %v OFFSETS WITHIN STREAM %v", b.stream[i].GetExchange(), b.stream[i].GetAssetType(), b.stream[i].Pair(), o)
+	}
+	b.SortStream()
+	return updated
 }
 
 // Next will return the next event in the list and also shift the offset one
@@ -108,6 +123,7 @@ func (b *Base) Next() Event {
 		return nil
 	}
 	ret := b.stream[b.offset]
+	ret.SetOffset(b.offset)
 	b.offset++
 	b.latest = ret
 	return ret

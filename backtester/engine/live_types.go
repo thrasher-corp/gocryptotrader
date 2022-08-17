@@ -2,6 +2,7 @@ package engine
 
 import (
 	"errors"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"sync"
 	"time"
 
@@ -38,7 +39,7 @@ type Handler interface {
 	DataFetcher() error
 	Stop() error
 	Reset()
-	Updated() chan struct{}
+	Updated() <-chan bool
 }
 
 // DataChecker is responsible for managing all data retrieval
@@ -49,11 +50,11 @@ type DataChecker struct {
 	started           uint32
 	verbose           bool
 	exchangeManager   *engine.ExchangeManager
-	exchangesToCheck  []liveExchangeDataHandler
+	exchangesToCheck  []*liveExchangeDataHandler
 	eventTimeout      time.Duration
 	dataCheckInterval time.Duration
 	dataHolder        data.Holder
-	updated           chan struct{}
+	notice            alert.Notice
 	shutdown          chan struct{}
 	report            report.Handler
 	funding           funding.IFundingManager

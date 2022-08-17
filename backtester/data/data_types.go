@@ -46,7 +46,7 @@ type Handler interface {
 // Loader interface for Loading data into backtest supported format
 type Loader interface {
 	Load() error
-	AppendStream(s ...Event)
+	AppendStream(s ...Event) bool
 }
 
 // Streamer interface handles loading, parsing, distributing BackTest data

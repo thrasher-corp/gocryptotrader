@@ -54,7 +54,6 @@ func (bt *BackTest) SetupLiveDataHandler(eventTimeout, dataCheckInterval time.Du
 		eventTimeout:      eventTimeout,
 		dataCheckInterval: dataCheckInterval,
 		dataHolder:        bt.DataHolder,
-		updated:           make(chan struct{}),
 		shutdown:          make(chan struct{}),
 		report:            bt.Reports,
 		funding:           bt.Funding,
@@ -128,8 +127,7 @@ func (l *DataChecker) DataFetcher() error {
 			if !updated {
 				continue
 			}
-			close(l.updated)
-			l.updated = make(chan struct{})
+			l.notice.Alert()
 			timeoutTimer.Reset(l.eventTimeout)
 		case <-timeoutTimer.C:
 			return fmt.Errorf("%w of %v", ErrLiveDataTimeout, l.eventTimeout)
@@ -139,13 +137,20 @@ func (l *DataChecker) DataFetcher() error {
 
 // Updated gives other endpoints the ability to listen to
 // when data is updated from live sources
-func (l *DataChecker) Updated() chan struct{} {
+func (l *DataChecker) Updated() <-chan bool {
 	if l == nil {
-		immediateClosure := make(chan struct{})
+		immediateClosure := make(chan bool)
 		defer close(immediateClosure)
 		return immediateClosure
 	}
-	return l.updated
+	ch := make(chan struct{})
+	go func(ch chan<- struct{}, until time.Duration) {
+		time.Sleep(until)
+		log.Warnf(common.Livetester, "yo, nothing was updated and we needed to kick the channel")
+		close(ch)
+	}(ch, l.eventTimeout)
+
+	return l.notice.Wait(ch)
 }
 
 // Reset clears all stored data
@@ -160,7 +165,6 @@ func (l *DataChecker) Reset() {
 	l.exchangeManager = nil
 	l.exchangesToCheck = nil
 	l.shutdown = nil
-	l.updated = nil
 	l.exchangeManager = nil
 	l.verbose = false
 	l.wg = sync.WaitGroup{}
@@ -207,7 +211,7 @@ func (l *DataChecker) AppendDataSource(exch gctexchange.IBotExchange, interval g
 		},
 	}
 	d.SetLive(true)
-	l.exchangesToCheck = append(l.exchangesToCheck, liveExchangeDataHandler{
+	l.exchangesToCheck = append(l.exchangesToCheck, &liveExchangeDataHandler{
 		exchange:       exch,
 		exchangeName:   exchName,
 		asset:          item,
@@ -232,29 +236,24 @@ func (l *DataChecker) FetchLatestData() (bool, error) {
 	defer l.m.Unlock()
 	var err error
 
-	hello := make(map[string]bool)
+	var results []bool
 	// timeToRetrieve ensures consistent data retrieval
 	// in the event of a candle rollover mid-loop
-	timeToRetrieve := time.Now().UTC()
+	timeToRetrieve := time.Now()
 	for i := range l.exchangesToCheck {
 		if l.verbose {
 			log.Infof(common.Livetester, "checking for new data for %v %v %v", l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair)
 		}
-		preCandleLen := len(l.exchangesToCheck[i].pairCandles.Item.Candles)
-		err = l.exchangesToCheck[i].loadCandleData(timeToRetrieve)
+		var updated bool
+		updated, err = l.exchangesToCheck[i].loadCandleData(timeToRetrieve)
 		if err != nil {
 			return false, err
 		}
-		l.dataHolder.SetDataForCurrency(l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair, &l.exchangesToCheck[i].pairCandles)
-		if len(l.exchangesToCheck[i].pairCandles.Item.Candles) > preCandleLen {
-			hello[l.exchangesToCheck[i].exchangeName+l.exchangesToCheck[i].asset.String()+l.exchangesToCheck[i].pair.String()] = true
-		} else {
-			hello[l.exchangesToCheck[i].exchangeName+l.exchangesToCheck[i].asset.String()+l.exchangesToCheck[i].pair.String()] = false
-		}
+		results = append(results, updated)
 	}
 	allUpdated := true
-	for _, v := range hello {
-		if !v {
+	for i := range results {
+		if !results[i] {
 			allUpdated = false
 		}
 	}
@@ -266,6 +265,7 @@ func (l *DataChecker) FetchLatestData() (bool, error) {
 		if l.verbose {
 			log.Infof(common.Livetester, "found new data for %v %v %v", l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair)
 		}
+		l.dataHolder.SetDataForCurrency(l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair, &l.exchangesToCheck[i].pairCandles)
 		err = l.report.SetKlineData(&l.exchangesToCheck[i].pairCandles.Item)
 		if err != nil {
 			log.Errorf(common.Livetester, "issue processing kline data: %v", err)
@@ -280,9 +280,9 @@ func (l *DataChecker) FetchLatestData() (bool, error) {
 
 // loadCandleData fetches data from the exchange API and appends it
 // to the candles to be added to the backtester event queue
-func (c *liveExchangeDataHandler) loadCandleData(timeToRetrieve time.Time) error {
+func (c *liveExchangeDataHandler) loadCandleData(timeToRetrieve time.Time) (bool, error) {
 	if c == nil {
-		return gctcommon.ErrNilPointer
+		return false, gctcommon.ErrNilPointer
 	}
 	c.m.Lock()
 	defer c.m.Unlock()
@@ -295,11 +295,10 @@ func (c *liveExchangeDataHandler) loadCandleData(timeToRetrieve time.Time) error
 		c.underlyingPair,
 		c.asset)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if len(candles.Candles) == 0 {
-		return nil
+		return false, nil
 	}
-	c.pairCandles.AppendResults(candles)
-	return nil
+	return c.pairCandles.AppendResults(candles), nil
 }

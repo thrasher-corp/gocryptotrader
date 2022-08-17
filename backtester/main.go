@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 
@@ -12,6 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/signaler"
+
+	_ "net/http/pprof"
 )
 
 func main() {
@@ -92,6 +95,10 @@ func main() {
 		fmt.Printf("Could not setup global logger. Error: %v.\n", err)
 		os.Exit(1)
 	}
+
+	go func() {
+		fmt.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
 
 	err = common.RegisterBacktesterSubLoggers()
 	if err != nil {
