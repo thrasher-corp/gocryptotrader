@@ -11,7 +11,9 @@ import (
 
 // Consts here define basic time intervals
 const (
+	TenSecond     = Interval(10 * time.Second)
 	FifteenSecond = Interval(15 * time.Second)
+	ThirtySecond  = FifteenSecond * 2
 	OneMin        = Interval(time.Minute)
 	ThreeMin      = 3 * OneMin
 	FiveMin       = 5 * OneMin
@@ -30,6 +32,7 @@ const (
 	FifteenDay    = 15 * OneDay
 	OneWeek       = 7 * OneDay
 	TwoWeek       = 2 * OneWeek
+	ThirtyDay     = 30 * OneDay
 	OneMonth      = 31 * OneDay
 	OneYear       = 365 * OneDay
 )

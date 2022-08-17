@@ -24,7 +24,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -111,21 +110,36 @@ func (g *Gateio) SetDefaults() {
 				Intervals: true,
 			},
 		},
+
+		/*"10s"
+		"1m"
+		"5m"
+		"15m"
+		"30m"
+		"1h"
+		"4h"
+		"8h"
+		"1d"
+		"7d"
+		"30d" */
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: map[string]bool{
-					kline.OneMin.Word():     true,
-					kline.ThreeMin.Word():   true,
-					kline.FiveMin.Word():    true,
-					kline.FifteenMin.Word(): true,
-					kline.ThirtyMin.Word():  true,
-					kline.OneHour.Word():    true,
-					kline.TwoHour.Word():    true,
-					kline.FourHour.Word():   true,
-					kline.SixHour.Word():    true,
-					kline.TwelveHour.Word(): true,
-					kline.OneDay.Word():     true,
+					kline.TenSecond.Word():    true,
+					kline.ThirtySecond.Word(): true,
+					kline.OneMin.Word():       true,
+					kline.FiveMin.Word():      true,
+					kline.FifteenMin.Word():   true,
+					kline.ThirtyMin.Word():    true,
+					kline.OneHour.Word():      true,
+					kline.TwoHour.Word():      true,
+					kline.FourHour.Word():     true,
+					kline.EightHour.Word():    true,
+					kline.TwelveHour.Word():   true,
+					kline.OneDay.Word():       true,
+					kline.OneWeek.Word():      true,
+					kline.ThirtyDay.Word():    true,
 				},
 			},
 		},
@@ -138,7 +152,7 @@ func (g *Gateio) SetDefaults() {
 	g.API.Endpoints = g.NewEndpoints()
 	err = g.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:              gateioTradeURL,
-		exchange.RestSpotSupplementary: gateioMarketURL,
+		exchange.RestSpotSupplementary: gateioFuturesTestnetTrading,
 		exchange.WebsocketSpot:         gateioWebsocketEndpoint,
 	})
 	if err != nil {
@@ -240,57 +254,57 @@ func (g *Gateio) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
-	result, err := g.GetTickers(ctx)
-	if err != nil {
-		return err
-	}
-	pairs, err := g.GetEnabledPairs(a)
-	if err != nil {
-		return err
-	}
-	for p := range pairs {
-		for k := range result {
-			if !strings.EqualFold(k, pairs[p].String()) {
-				continue
-			}
+// func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
+// 	result, err := g.GetTickers(ctx)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	pairs, err := g.GetEnabledPairs(a)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	for p := range pairs {
+// 		for k := range result {
+// 			if !strings.EqualFold(k, pairs[p].String()) {
+// 				continue
+// 			}
 
-			err = ticker.ProcessTicker(&ticker.Price{
-				Last:         result[k].Last,
-				High:         result[k].High,
-				Low:          result[k].Low,
-				Volume:       result[k].BaseVolume,
-				QuoteVolume:  result[k].QuoteVolume,
-				Open:         result[k].Open,
-				Close:        result[k].Close,
-				Pair:         pairs[p],
-				ExchangeName: g.Name,
-				AssetType:    a})
-			if err != nil {
-				return err
-			}
-		}
-	}
+// 			err = ticker.ProcessTicker(&ticker.Price{
+// 				Last:         result[k].Last,
+// 				High:         result[k].High,
+// 				Low:          result[k].Low,
+// 				Volume:       result[k].BaseVolume,
+// 				QuoteVolume:  result[k].QuoteVolume,
+// 				Open:         result[k].Open,
+// 				Close:        result[k].Close,
+// 				Pair:         pairs[p],
+// 				ExchangeName: g.Name,
+// 				AssetType:    a})
+// 			if err != nil {
+// 				return err
+// 			}
+// 		}
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	if err := g.UpdateTickers(ctx, a); err != nil {
-		return nil, err
-	}
-	return ticker.GetTicker(g.Name, p, a)
-}
+// func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+// 	if err := g.UpdateTickers(ctx, a); err != nil {
+// 		return nil, err
+// 	}
+// 	return ticker.GetTicker(g.Name, p, a)
+// }
 
 // FetchTicker returns the ticker for a currency pair
-func (g *Gateio) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(g.Name, p, assetType)
-	if err != nil {
-		return g.UpdateTicker(ctx, p, assetType)
-	}
-	return tickerNew, nil
-}
+// func (g *Gateio) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+// 	tickerNew, err := ticker.GetTicker(g.Name, p, assetType)
+// 	if err != nil {
+// 		return g.UpdateTicker(ctx, p, assetType)
+// 	}
+// 	return tickerNew, nil
+// }
 
 // FetchOrderbook returns orderbook base on the currency pair
 func (g *Gateio) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
@@ -303,42 +317,43 @@ func (g *Gateio) FetchOrderbook(ctx context.Context, p currency.Pair, assetType 
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	book := &orderbook.Base{
-		Exchange:        g.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: g.CanVerifyOrderbook,
-	}
-	curr, err := g.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return book, err
-	}
+	return nil, nil
+	// book := &orderbook.Base{
+	// 	Exchange:        g.Name,
+	// 	Pair:            p,
+	// 	Asset:           assetType,
+	// 	VerifyOrderbook: g.CanVerifyOrderbook,
+	// }
+	// curr, err := g.FormatExchangeCurrency(p, assetType)
+	// if err != nil {
+	// 	return book, err
+	// }
 
-	orderbookNew, err := g.GetOrderbook(ctx, curr.String())
-	if err != nil {
-		return book, err
-	}
+	// orderbookNew, err := g.GetOrderbook(ctx, curr.String())
+	// if err != nil {
+	// 	return book, err
+	// }
 
-	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
-	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Item{
-			Amount: orderbookNew.Bids[x].Amount,
-			Price:  orderbookNew.Bids[x].Price,
-		}
-	}
+	// book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
+	// for x := range orderbookNew.Bids {
+	// 	book.Bids[x] = orderbook.Item{
+	// 		Amount: orderbookNew.Bids[x].Amount,
+	// 		Price:  orderbookNew.Bids[x].Price,
+	// 	}
+	// }
 
-	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
-	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Item{
-			Amount: orderbookNew.Asks[x].Amount,
-			Price:  orderbookNew.Asks[x].Price,
-		}
-	}
-	err = book.Process()
-	if err != nil {
-		return book, err
-	}
-	return orderbook.Get(g.Name, p, assetType)
+	// book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
+	// for x := range orderbookNew.Asks {
+	// 	book.Asks[x] = orderbook.Item{
+	// 		Amount: orderbookNew.Asks[x].Amount,
+	// 		Price:  orderbookNew.Asks[x].Price,
+	// 	}
+	// }
+	// err = book.Process()
+	// if err != nil {
+	// 	return book, err
+	// }
+	// return orderbook.Get(g.Name, p, assetType)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the

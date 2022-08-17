@@ -13,7 +13,7 @@ var (
 )
 
 // Item stores the asset type
-type Item uint16
+type Item uint32
 
 // Items stores a list of assets types
 type Items []Item
@@ -23,29 +23,35 @@ const (
 	Empty Item = 0
 	Spot  Item = 1 << iota
 	Margin
+	CrossMargin
 	MarginFunding
 	Index
 	Binary
+	Options
 	PerpetualContract
 	PerpetualSwap
 	Futures
+	DeliveryFutures
 	UpsideProfitContract
 	DownsideProfitContract
 	CoinMarginedFutures
 	USDTMarginedFutures
 	USDCMarginedFutures
 
-	futuresFlag   = PerpetualContract | PerpetualSwap | Futures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures
-	supportedFlag = Spot | Margin | MarginFunding | Index | Binary | PerpetualContract | PerpetualSwap | Futures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures
+	futuresFlag   = PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures
+	supportedFlag = Spot | Margin | CrossMargin | MarginFunding | Index | Binary | Options | PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures
 
 	spot                   = "spot"
 	margin                 = "margin"
+	crossMargin            = "cross_margin" // for Gateio exchange
 	marginFunding          = "marginfunding"
 	index                  = "index"
 	binary                 = "binary"
+	option                 = "option"
 	perpetualContract      = "perpetualcontract"
 	perpetualSwap          = "perpetualswap"
 	futures                = "futures"
+	delivery               = "delivery"
 	upsideProfitContract   = "upsideprofitcontract"
 	downsideProfitContract = "downsideprofitcontract"
 	coinMarginedFutures    = "coinmarginedfutures"
@@ -54,7 +60,7 @@ const (
 )
 
 var (
-	supportedList = Items{Spot, Margin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures}
+	supportedList = Items{Spot, Margin, CrossMargin, MarginFunding, Index, Binary, Options, PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures}
 )
 
 // Supported returns a list of supported asset types
@@ -69,18 +75,24 @@ func (a Item) String() string {
 		return spot
 	case Margin:
 		return margin
+	case CrossMargin:
+		return crossMargin
 	case MarginFunding:
 		return marginFunding
 	case Index:
 		return index
 	case Binary:
 		return binary
+	case Options:
+		return option
 	case PerpetualContract:
 		return perpetualContract
 	case PerpetualSwap:
 		return perpetualSwap
 	case Futures:
 		return futures
+	case DeliveryFutures:
+		return delivery
 	case UpsideProfitContract:
 		return upsideProfitContract
 	case DownsideProfitContract:

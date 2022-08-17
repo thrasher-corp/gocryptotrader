@@ -13,7 +13,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -72,11 +71,11 @@ func (g *Gateio) wsServerSignIn(ctx context.Context) error {
 		return err
 	}
 	nonce := int(time.Now().Unix() * 1000)
-	sigTemp, err := g.GenerateSignature(creds.Secret, strconv.Itoa(nonce))
+	sigTemp, err := g.GenerateSignature(creds.Secret, strconv.Itoa(nonce), "", "", "", time.Now())
 	if err != nil {
 		return err
 	}
-	signature := crypto.Base64Encode(sigTemp)
+	signature := sigTemp																																																																																		
 	signinWsRequest := WebsocketRequest{
 		ID:     g.Websocket.Conn.GenerateMessageID(false),
 		Method: "server.sign",
