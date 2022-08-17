@@ -869,3 +869,27 @@ func TestCancelStopOrderByClientID(t *testing.T) {
 		t.Error("CancelStopOrderByClientID() error", err)
 	}
 }
+
+func TestCreateAccount(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	_, err := k.CreateAccount(context.Background(), "BTC", "main")
+	if err != nil {
+		t.Error("CreateAccount() error", err)
+	}
+}
+
+func TestGetAllAccounts(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetAllAccounts(context.Background(), "", "")
+	if err != nil {
+		t.Error("GetAllAccounts() error", err)
+	}
+}

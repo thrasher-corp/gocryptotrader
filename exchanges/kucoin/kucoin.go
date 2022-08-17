@@ -1481,7 +1481,6 @@ func (k *Kucoin) GetAllAccounts(ctx context.Context, currency, accountType strin
 		Data []AccountInfo `json:"data"`
 		Error
 	}{}
-	// TODO: verify response struct
 
 	params := url.Values{}
 	if currency != "" {
