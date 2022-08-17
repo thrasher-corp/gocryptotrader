@@ -493,6 +493,11 @@ func TestFetchDepositAddress(t *testing.T) {
 	if r.Method != "trx" {
 		t.Error("expected trx method")
 	}
+
+	_, err = f.FetchDepositAddress(context.Background(), currency.NewCode("SUSHIBEAR"), "")
+	if !errors.Is(err, errDepositAddressDoesNotExist) {
+		t.Error(err)
+	}
 }
 
 func TestFetchDepositHistory(t *testing.T) {
@@ -1254,7 +1259,7 @@ func TestGetDepositAddress(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := f.GetDepositAddress(context.Background(), currency.NewCode("FTT"), "", "")
+	_, err := f.GetDepositAddress(context.Background(), currency.NewCode("BTC"), "", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -2712,7 +2717,7 @@ func TestGetFundingPayments(t *testing.T) {
 		t.Skip()
 	}
 
-	_, err := f.getFundingPayments(context.Background(), time.Time{}, time.Time{}, currency.EMPTYPAIR)
+	_, err := f.getFundingPayments(context.Background(), time.Time{}, time.Time{}, currency.EMPTYPAIR, -1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2723,12 +2728,12 @@ func TestGetFundingPayments(t *testing.T) {
 	}
 	startDate := time.Now().Add(-time.Hour * 24 * 31)
 	endDate := time.Now()
-	_, err = f.getFundingPayments(context.Background(), startDate, endDate, cp)
+	_, err = f.getFundingPayments(context.Background(), startDate, endDate, cp, 100)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = f.getFundingPayments(context.Background(), time.Unix(authEndTime, 0), time.Unix(authStartTime, 0), cp)
+	_, err = f.getFundingPayments(context.Background(), time.Unix(authEndTime, 0), time.Unix(authStartTime, 0), cp, -1)
 	if err != errStartTimeCannotBeAfterEndTime {
 		t.Errorf("should have thrown errStartTimeCannotBeAfterEndTime, got %v", err)
 	}

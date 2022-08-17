@@ -2058,7 +2058,7 @@ func (f *FTX) GetFundingRates(ctx context.Context, request *order.FundingRatesRe
 	if len(request.Pairs) == 0 {
 		return nil, currency.ErrCurrencyPairsEmpty
 	}
-	limit := 1000
+	var limit int64 = 1000
 	err := common.StartEndTimeCheck(request.StartDate, request.EndDate)
 	if err != nil {
 		return nil, err
@@ -2118,7 +2118,7 @@ func (f *FTX) GetFundingRates(ctx context.Context, request *order.FundingRatesRe
 					Time: rates[y].Time,
 				})
 			}
-			if endTime.Equal(rates[len(rates)-1].Time) || len(rates) < limit {
+			if endTime.Equal(rates[len(rates)-1].Time) || int64(len(rates)) < limit {
 				break allRates
 			}
 			endTime = rates[len(rates)-1].Time
@@ -2127,7 +2127,7 @@ func (f *FTX) GetFundingRates(ctx context.Context, request *order.FundingRatesRe
 			continue
 		}
 		if request.IncludePayments {
-			fundingDetails, err = f.getFundingPayments(ctx, request.StartDate, request.EndDate, request.Pairs[x])
+			fundingDetails, err = f.getFundingPayments(ctx, request.StartDate, request.EndDate, request.Pairs[x], limit)
 			if err != nil {
 				return nil, err
 			}
@@ -2162,8 +2162,7 @@ func (f *FTX) GetFundingRates(ctx context.Context, request *order.FundingRatesRe
 	return response, nil
 }
 
-func (f *FTX) getFundingPayments(ctx context.Context, startDate, endDate time.Time, future currency.Pair) ([]FundingPaymentsData, error) {
-	limit := 1000
+func (f *FTX) getFundingPayments(ctx context.Context, startDate, endDate time.Time, future currency.Pair, limit int64) ([]FundingPaymentsData, error) {
 	requestEndTime := endDate
 	var payments []FundingPaymentsData
 allRates:
@@ -2190,7 +2189,7 @@ allRates:
 			}
 			payments = append(payments, fundingDetails[x])
 		}
-		if requestEndTime.Equal(fundingDetails[len(fundingDetails)-1].Time) || len(fundingDetails) < limit {
+		if requestEndTime.Equal(fundingDetails[len(fundingDetails)-1].Time) || int64(len(fundingDetails)) < limit {
 			break allRates
 		}
 		requestEndTime = fundingDetails[len(fundingDetails)-1].Time

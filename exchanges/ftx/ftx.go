@@ -145,7 +145,9 @@ var (
 	errInvalidOrderAmounts                               = errors.New("filled amount should not exceed order amount")
 	errCollateralCurrencyNotFound                        = errors.New("no collateral scaling information found")
 	errCollateralInitialMarginFractionMissing            = errors.New("cannot scale collateral, missing initial margin fraction information")
-	validResolutionData                                  = []int64{15, 60, 300, 900, 3600, 14400, 86400}
+	errDepositAddressDoesNotExist                        = errors.New("deposit address does not exist")
+
+	validResolutionData = []int64{15, 60, 300, 900, 3600, 14400, 86400}
 )
 
 // GetHistoricalIndex gets historical index data
@@ -344,7 +346,7 @@ func (f *FTX) GetExpiredFutures(ctx context.Context) ([]FuturesData, error) {
 }
 
 // FundingRates gets data on funding rates
-func (f *FTX) FundingRates(ctx context.Context, startTime, endTime time.Time, pair currency.Pair, limit int) ([]FundingRatesData, error) {
+func (f *FTX) FundingRates(ctx context.Context, startTime, endTime time.Time, pair currency.Pair, limit int64) ([]FundingRatesData, error) {
 	resp := struct {
 		Data []FundingRatesData `json:"result"`
 	}{}
@@ -364,7 +366,7 @@ func (f *FTX) FundingRates(ctx context.Context, startTime, endTime time.Time, pa
 		params.Set("future", p)
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(int64(limit), 10))
+		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	endpoint := common.EncodeURLValues(getFundingRates, params)
 	return resp.Data, f.SendHTTPRequest(ctx, exchange.RestSpot, endpoint, &resp)
@@ -585,15 +587,31 @@ func (f *FTX) GetAllWalletBalances(ctx context.Context) (AllWalletBalances, erro
 
 // FetchDepositAddress gets deposit address for a given coin
 func (f *FTX) FetchDepositAddress(ctx context.Context, coin currency.Code, chain string) (*DepositData, error) {
-	resp := struct {
-		Data DepositData `json:"result"`
+	var jsonResp json.RawMessage
+	resp := &struct {
+		Data *DepositData `json:"result"`
+	}{}
+	addressDoesNotExistResponse := &struct {
+		Data bool `json:"result"`
 	}{}
 	vals := url.Values{}
 	if chain != "" {
 		vals.Set("method", strings.ToLower(chain))
 	}
 	path := common.EncodeURLValues(getDepositAddress+coin.Upper().String(), vals)
-	return &resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp)
+	err := f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &jsonResp)
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(jsonResp, resp)
+	if err != nil {
+		errSecondPass := json.Unmarshal(jsonResp, addressDoesNotExistResponse)
+		if errSecondPass != nil {
+			return nil, errSecondPass
+		}
+		return nil, fmt.Errorf("%w %v %v", errDepositAddressDoesNotExist, coin, chain)
+	}
+	return resp.Data, nil
 }
 
 // FetchDepositHistory gets deposit history
@@ -952,7 +970,7 @@ func (f *FTX) GetFills(ctx context.Context, market currency.Pair, item asset.Ite
 }
 
 // FundingPayments gets funding payments
-func (f *FTX) FundingPayments(ctx context.Context, startTime, endTime time.Time, future currency.Pair, limit int) ([]FundingPaymentsData, error) {
+func (f *FTX) FundingPayments(ctx context.Context, startTime, endTime time.Time, future currency.Pair, limit int64) ([]FundingPaymentsData, error) {
 	resp := struct {
 		Data []FundingPaymentsData `json:"result"`
 	}{}
@@ -968,7 +986,7 @@ func (f *FTX) FundingPayments(ctx context.Context, startTime, endTime time.Time,
 		params.Set("future", future.String())
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(int64(limit), 10))
+		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	endpoint := common.EncodeURLValues(getFundingPayments, params)
 	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, nil, &resp)
