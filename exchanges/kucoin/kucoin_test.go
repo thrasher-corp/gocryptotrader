@@ -788,8 +788,8 @@ func TestGetRecentFills(t *testing.T) {
 
 func TestPostStopOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
 
 	_, err := k.PostStopOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "", "", "entry", "10000", "11000", "", "", "", 0.1, 0, 0, 0, true, false, false)
@@ -800,8 +800,8 @@ func TestPostStopOrder(t *testing.T) {
 
 func TestCancelStopOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
 
 	_, err := k.CancelStopOrder(context.Background(), "5bd6e9286d99522a52e458de")
@@ -812,8 +812,8 @@ func TestCancelStopOrder(t *testing.T) {
 
 func TestCancelAllStopOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
 
 	_, err := k.CancelAllStopOrder(context.Background(), "", "", "")
