@@ -60,12 +60,11 @@ func (bt *BackTest) RunLive() error {
 	for {
 		select {
 		case <-bt.shutdown:
-			if bt.LiveDataHandler != nil {
-				return bt.LiveDataHandler.Stop()
-			}
-			return nil
+			return bt.LiveDataHandler.Stop()
 		case <-bt.LiveDataHandler.Updated():
 			bt.Run()
+		case <-bt.LiveDataHandler.HasShutdown():
+			return nil
 		}
 	}
 }

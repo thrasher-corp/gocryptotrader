@@ -134,16 +134,14 @@ func main() {
 		go func() {
 			err = bt.RunLive()
 			if err != nil {
-				fmt.Printf("Could not complete live run. Error: %v.\n", err)
-				os.Exit(-1)
+				log.Error(common.Backtester, err)
 			}
 		}()
-		interrupt := signaler.WaitForInterrupt()
-		log.Infof(log.Global, "Captured %v, shutdown requested.\n", interrupt)
-		bt.Stop()
+		go waitForInterrupt(bt)
+		<-bt.LiveDataHandler.HasShutdown()
 		if cfg.DataSettings.LiveData.ClosePositionsOnExit {
 			log.Info(common.Backtester, "closing all positions on shutdown")
-			err = bt.CloseAllPositions()
+			err := bt.CloseAllPositions()
 			if err != nil {
 				fmt.Printf("could not close all positions on exit: %v", err)
 			}
@@ -166,4 +164,10 @@ func main() {
 			log.Error(log.Global, err)
 		}
 	}
+}
+
+func waitForInterrupt(bt *backtest.BackTest) {
+	interrupt := signaler.WaitForInterrupt()
+	log.Infof(common.Backtester, "Captured %v, shutdown requested.\n", interrupt)
+	bt.Stop()
 }

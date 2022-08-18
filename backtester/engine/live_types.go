@@ -40,6 +40,7 @@ type Handler interface {
 	Stop() error
 	Reset()
 	Updated() <-chan bool
+	HasShutdown() <-chan bool
 }
 
 // DataChecker is responsible for managing all data retrieval
@@ -55,18 +56,20 @@ type DataChecker struct {
 	dataCheckInterval time.Duration
 	dataHolder        data.Holder
 	notice            alert.Notice
+	hasShutdown       alert.Notice
 	shutdown          chan struct{}
 	report            report.Handler
 	funding           funding.IFundingManager
 }
 
 type liveExchangeDataHandler struct {
-	m              sync.Mutex
-	exchange       gctexchange.IBotExchange
-	exchangeName   string
-	asset          asset.Item
-	pair           currency.Pair
-	underlyingPair currency.Pair
-	pairCandles    kline.DataFromKline
-	dataType       int64
+	exchange        gctexchange.IBotExchange
+	exchangeName    string
+	asset           asset.Item
+	pair            currency.Pair
+	underlyingPair  currency.Pair
+	pairCandles     kline.DataFromKline
+	dataType        int64
+	processedData   map[int64]struct{}
+	candlesToAppend *gctkline.Item
 }

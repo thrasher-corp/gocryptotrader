@@ -74,7 +74,11 @@ func (l *DataChecker) Start() error {
 	go func() {
 		err := l.DataFetcher()
 		if err != nil {
-			return
+			log.Error(common.Livetester, err)
+			err2 := l.Stop()
+			if err2 != nil {
+				log.Error(common.Livetester, err2)
+			}
 		}
 	}()
 
@@ -96,6 +100,7 @@ func (l *DataChecker) Stop() error {
 	}
 	l.m.Lock()
 	defer l.m.Unlock()
+	l.hasShutdown.Alert()
 	close(l.shutdown)
 	l.wg.Wait()
 	return nil
@@ -106,7 +111,9 @@ func (l *DataChecker) DataFetcher() error {
 	if l == nil {
 		return fmt.Errorf("%w DataChecker", gctcommon.ErrNilPointer)
 	}
-	defer l.wg.Done()
+	defer func() {
+		l.wg.Done()
+	}()
 	if atomic.LoadUint32(&l.started) == 0 {
 		return engine.ErrSubSystemNotStarted
 	}
@@ -128,6 +135,10 @@ func (l *DataChecker) DataFetcher() error {
 				continue
 			}
 			l.notice.Alert()
+			if !timeoutTimer.Stop() {
+				// drain to avoid closure
+				<-timeoutTimer.C
+			}
 			timeoutTimer.Reset(l.eventTimeout)
 		case <-timeoutTimer.C:
 			return fmt.Errorf("%w of %v", ErrLiveDataTimeout, l.eventTimeout)
@@ -143,14 +154,18 @@ func (l *DataChecker) Updated() <-chan bool {
 		defer close(immediateClosure)
 		return immediateClosure
 	}
-	ch := make(chan struct{})
-	go func(ch chan<- struct{}, until time.Duration) {
-		time.Sleep(until)
-		log.Warnf(common.Livetester, "yo, nothing was updated and we needed to kick the channel")
-		close(ch)
-	}(ch, l.eventTimeout)
+	return l.notice.Wait(l.shutdown)
+}
 
-	return l.notice.Wait(ch)
+// HasShutdown indicates when the live data checker
+// has been shutdown
+func (l *DataChecker) HasShutdown() <-chan bool {
+	if l == nil {
+		immediateClosure := make(chan bool)
+		defer close(immediateClosure)
+		return immediateClosure
+	}
+	return l.hasShutdown.Wait(nil)
 }
 
 // Reset clears all stored data
@@ -164,7 +179,6 @@ func (l *DataChecker) Reset() {
 	l.eventTimeout = 0
 	l.exchangeManager = nil
 	l.exchangesToCheck = nil
-	l.shutdown = nil
 	l.exchangeManager = nil
 	l.verbose = false
 	l.wg = sync.WaitGroup{}
@@ -219,6 +233,7 @@ func (l *DataChecker) AppendDataSource(exch gctexchange.IBotExchange, interval g
 		pairCandles:    d,
 		dataType:       dataType,
 		underlyingPair: underlying,
+		processedData:  make(map[int64]struct{}),
 	})
 
 	return nil
@@ -242,7 +257,7 @@ func (l *DataChecker) FetchLatestData() (bool, error) {
 	timeToRetrieve := time.Now()
 	for i := range l.exchangesToCheck {
 		if l.verbose {
-			log.Infof(common.Livetester, "checking for new data for %v %v %v", l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair)
+			log.Infof(common.Livetester, "%v %v %v checking for new data", l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair)
 		}
 		var updated bool
 		updated, err = l.exchangesToCheck[i].loadCandleData(timeToRetrieve)
@@ -258,21 +273,22 @@ func (l *DataChecker) FetchLatestData() (bool, error) {
 		}
 	}
 	if !allUpdated {
-		log.Info(common.Livetester, "not all candles updated")
 		return false, nil
 	}
 	for i := range l.exchangesToCheck {
 		if l.verbose {
-			log.Infof(common.Livetester, "found new data for %v %v %v", l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair)
+			log.Infof(common.Livetester, "%v %v %v found new data", l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair)
 		}
+		l.exchangesToCheck[i].pairCandles.AppendResults(l.exchangesToCheck[i].candlesToAppend)
+		l.exchangesToCheck[i].candlesToAppend.Candles = nil
 		l.dataHolder.SetDataForCurrency(l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair, &l.exchangesToCheck[i].pairCandles)
 		err = l.report.SetKlineData(&l.exchangesToCheck[i].pairCandles.Item)
 		if err != nil {
-			log.Errorf(common.Livetester, "issue processing kline data: %v", err)
+			log.Errorf(common.Livetester, "%v %v %v issue processing kline data: %v", l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair, err)
 		}
 		err = l.funding.AddUSDTrackingData(&l.exchangesToCheck[i].pairCandles)
 		if err != nil && !errors.Is(err, funding.ErrUSDTrackingDisabled) {
-			log.Errorf(common.Livetester, "issue processing USD tracking data: %v", err)
+			log.Errorf(common.Livetester, "%v %v %v issue processing USD tracking data: %v", l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair, err)
 		}
 	}
 	return true, nil
@@ -284,8 +300,6 @@ func (c *liveExchangeDataHandler) loadCandleData(timeToRetrieve time.Time) (bool
 	if c == nil {
 		return false, gctcommon.ErrNilPointer
 	}
-	c.m.Lock()
-	defer c.m.Unlock()
 	candles, err := live.LoadData(context.TODO(),
 		timeToRetrieve,
 		c.exchange,
@@ -300,5 +314,21 @@ func (c *liveExchangeDataHandler) loadCandleData(timeToRetrieve time.Time) (bool
 	if len(candles.Candles) == 0 {
 		return false, nil
 	}
-	return c.pairCandles.AppendResults(candles), nil
+	var unprocessedCandles []gctkline.Candle
+	for i := range candles.Candles {
+		if _, ok := c.processedData[candles.Candles[i].Time.UnixNano()]; !ok {
+			unprocessedCandles = append(unprocessedCandles, candles.Candles[i])
+			c.processedData[candles.Candles[i].Time.UnixNano()] = struct{}{}
+		}
+	}
+	if len(unprocessedCandles) > 0 {
+		if c.candlesToAppend == nil {
+			c.candlesToAppend = candles
+			c.candlesToAppend.Candles = unprocessedCandles
+		} else {
+			c.candlesToAppend.Candles = append(c.candlesToAppend.Candles, unprocessedCandles...)
+		}
+		return true, nil
+	}
+	return false, nil
 }

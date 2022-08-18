@@ -68,12 +68,12 @@ func (d *DataFromKline) Load() error {
 }
 
 // AppendResults adds a candle item to the data stream and sorts it to ensure it is all in order
-func (d *DataFromKline) AppendResults(ki *gctkline.Item) bool {
+func (d *DataFromKline) AppendResults(ki *gctkline.Item) {
 	if ki == nil {
-		return false
+		return
 	}
 	if !d.Item.EqualSource(ki) {
-		return false
+		return
 	}
 	if d.addedTimes == nil {
 		d.addedTimes = make(map[int64]bool)
@@ -88,7 +88,7 @@ func (d *DataFromKline) AppendResults(ki *gctkline.Item) bool {
 		}
 	}
 	if len(gctCandles) == 0 {
-		return false
+		return
 	}
 	for i := range gctCandles {
 		d.Item.Candles = append(d.Item.Candles, gctCandles[i])
@@ -124,7 +124,7 @@ func (d *DataFromKline) AppendResults(ki *gctkline.Item) bool {
 		klineData[i] = newKline
 	}
 
-	return d.AppendStream(klineData...)
+	d.AppendStream(klineData...)
 }
 
 // StreamOpen returns all Open prices from the beginning until the current iteration

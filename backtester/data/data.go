@@ -91,8 +91,7 @@ func (b *Base) SetStream(s []Event) {
 
 // AppendStream appends new datas onto the stream, however, will not
 // add duplicates. Used for live analysis
-func (b *Base) AppendStream(s ...Event) bool {
-	var updated bool
+func (b *Base) AppendStream(s ...Event) {
 candles:
 	for x := range s {
 		if s[x] == nil {
@@ -107,14 +106,12 @@ candles:
 			}
 		}
 		b.stream = append(b.stream, s[x])
-		updated = true
 	}
 	for i := range b.stream {
 		o := b.stream[i].GetOffset()
 		log.Warnf(common.Data, "%v %v %v OFFSETS WITHIN STREAM %v", b.stream[i].GetExchange(), b.stream[i].GetAssetType(), b.stream[i].Pair(), o)
 	}
 	b.SortStream()
-	return updated
 }
 
 // Next will return the next event in the list and also shift the offset one
