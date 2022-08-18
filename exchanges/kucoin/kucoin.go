@@ -99,7 +99,14 @@ const (
 	kucoinCancelStopOrderByClientID = "/api/v1/stop-order/cancelOrderByClientOid"
 
 	// account
-	kucoinAccount = "/api/v1/accounts"
+	kucoinAccount                        = "/api/v1/accounts"
+	kucoinGetAccount                     = "/api/v1/accounts/%s"
+	kucoinGetAccountLedgers              = "/api/v1/accounts/ledgers"
+	kucoinGetSubAccountBalance           = "/api/v1/sub-accounts/%s"
+	kucoinGetAggregatedSubAccountBalance = "/api/v1/sub-accounts"
+	kucoinGetTransferableBalance         = "/api/v1/accounts/transferable"
+	kucoinTransferMainToSubAccount       = "/api/v2/accounts/sub-transfer"
+	kucoinInnerTransfer                  = "/api/v2/accounts/inner-transfer"
 )
 
 // GetSymbols gets pairs details on the exchange
@@ -1490,6 +1497,168 @@ func (k *Kucoin) GetAllAccounts(ctx context.Context, currency, accountType strin
 		params.Set("type", accountType)
 	}
 	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinAccount, params), nil, publicSpotRate, &resp)
+}
+
+// GetAccount get information of single account
+func (k *Kucoin) GetAccount(ctx context.Context, accountID string) (AccountInfo, error) {
+	resp := struct {
+		Data AccountInfo `json:"data"`
+		Error
+	}{}
+
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf(kucoinGetAccount, accountID), nil, publicSpotRate, &resp)
+}
+
+// GetAccountLedgers get the history of deposit/withdrawal of all accounts, supporting inquiry of various currencies
+func (k *Kucoin) GetAccountLedgers(ctx context.Context, currency, direction, bizType string, startAt, endAt time.Time) ([]LedgerInfo, error) {
+	resp := struct {
+		Data struct {
+			CurrentPage int64        `json:"currentPage"`
+			PageSize    int64        `json:"pageSize"`
+			TotalNum    int64        `json:"totalNum"`
+			TotalPage   int64        `json:"totalPage"`
+			Items       []LedgerInfo `json:"items"`
+		} `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if currency != "" {
+		params.Set("currency", currency)
+	}
+	if direction != "" {
+		params.Set("direction", direction)
+	}
+	if bizType != "" {
+		params.Set("bizType", bizType)
+	}
+	if !startAt.IsZero() {
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	return resp.Data.Items, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetAccountLedgers, params), nil, publicSpotRate, &resp)
+}
+
+// GetSubAccountBalance get account info of a sub-user specified by the subUserID
+func (k *Kucoin) GetSubAccountBalance(ctx context.Context, subUserID string) (SubAccountInfo, error) {
+	resp := struct {
+		Data SubAccountInfo `json:"data"`
+		Error
+	}{}
+
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf(kucoinGetSubAccountBalance, subUserID), nil, publicSpotRate, &resp)
+}
+
+// GetAggregatedSubAccountBalance get the account info of all sub-users
+func (k *Kucoin) GetAggregatedSubAccountBalance(ctx context.Context) ([]SubAccountInfo, error) {
+	resp := struct {
+		Data []SubAccountInfo `json:"data"`
+		Error
+	}{}
+
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, kucoinGetAggregatedSubAccountBalance, nil, publicSpotRate, &resp)
+}
+
+// GetTransferableBalance get the transferable balance of a specified account
+func (k *Kucoin) GetTransferableBalance(ctx context.Context, currency, accountType, tag string) (TransferableBalanceInfo, error) {
+	resp := struct {
+		Data TransferableBalanceInfo `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if currency == "" {
+		return resp.Data, errors.New("currency can't be empty")
+	}
+	params.Set("currency", currency)
+	if accountType == "" {
+		return resp.Data, errors.New("accountType can't be empty")
+	}
+	params.Set("type", accountType)
+	if tag != "" {
+		params.Set("tag", tag)
+	}
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetTransferableBalance, params), nil, publicSpotRate, &resp)
+}
+
+// TransferMainToSubAccount used to transfer funds from main account to sub-account
+func (k *Kucoin) TransferMainToSubAccount(ctx context.Context, clientOID, currency, amount, direction, accountType, subAccountType, subUserID string) (string, error) {
+	resp := struct {
+		Data struct {
+			OrderID string `json:"orderId"`
+		} `json:"data"`
+		Error
+	}{}
+
+	params := make(map[string]interface{})
+	if clientOID == "" {
+		return resp.Data.OrderID, errors.New("clientOID can't be empty")
+	}
+	params["clientOid"] = clientOID
+	if currency == "" {
+		return resp.Data.OrderID, errors.New("currency can't be empty")
+	}
+	params["currency"] = currency
+	if amount == "" {
+		return resp.Data.OrderID, errors.New("amount can't be empty")
+	}
+	params["amount"] = amount
+	if direction == "" {
+		return resp.Data.OrderID, errors.New("direction can't be empty")
+	}
+	params["direction"] = direction
+	if accountType != "" {
+		params["accountType"] = accountType
+	}
+	if subAccountType != "" {
+		params["subAccountType"] = subAccountType
+	}
+	if subUserID == "" {
+		return resp.Data.OrderID, errors.New("subUserID can't be empty")
+	}
+	params["subUserId"] = subUserID
+	return resp.Data.OrderID, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinTransferMainToSubAccount, params, publicSpotRate, &resp)
+}
+
+// MakeInnerTransfer used to transfer funds between accounts internally
+func (k *Kucoin) MakeInnerTransfer(ctx context.Context, clientOID, currency, from, to, amount, fromTag, toTag string) (string, error) {
+	resp := struct {
+		Data struct {
+			OrderID string `json:"orderId"`
+		} `json:"data"`
+		Error
+	}{}
+
+	params := make(map[string]interface{})
+	if clientOID == "" {
+		return resp.Data.OrderID, errors.New("clientOID can't be empty")
+	}
+	params["clientOid"] = clientOID
+	if currency == "" {
+		return resp.Data.OrderID, errors.New("currency can't be empty")
+	}
+	params["currency"] = currency
+	if amount == "" {
+		return resp.Data.OrderID, errors.New("amount can't be empty")
+	}
+	params["amount"] = amount
+	if from == "" {
+		return resp.Data.OrderID, errors.New("from can't be empty")
+	}
+	params["from"] = from
+	if to == "" {
+		return resp.Data.OrderID, errors.New("to can't be empty")
+	}
+	params["to"] = to
+	if fromTag != "" {
+		params["fromTag"] = fromTag
+	}
+	if toTag != "" {
+		params["toTag"] = toTag
+	}
+	return resp.Data.OrderID, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinInnerTransfer, params, publicSpotRate, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request

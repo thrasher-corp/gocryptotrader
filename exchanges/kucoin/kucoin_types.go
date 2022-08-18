@@ -550,11 +550,48 @@ type StopOrder struct {
 	StopTriggerTime kucoinTimeMilliSec `json:"stopTriggerTime"`
 }
 
-type AccountInfo struct {
-	ID        string  `json:"id"`
+type baseAccount struct {
 	Currency  string  `json:"currency"`
-	Type      string  `json:"type"`
 	Balance   float64 `json:"balance,string"`
 	Available float64 `json:"available,string"`
 	Holds     float64 `json:"holds,string"`
+}
+
+type AccountInfo struct {
+	baseAccount
+	ID   string `json:"id"`
+	Type string `json:"type"`
+}
+
+type LedgerInfo struct {
+	ID          string             `json:"id"`
+	Currency    string             `json:"currency"`
+	Amount      float64            `json:"amount,string"`
+	Fee         float64            `json:"fee,string"`
+	Balance     float64            `json:"balance,string"`
+	AccountType string             `json:"accountType"`
+	BizType     string             `json:"bizType"`
+	Direction   string             `json:"direction"`
+	CreatedAt   kucoinTimeMilliSec `json:"createdAt"`
+	Context     string             `json:"context"`
+}
+
+type MainAccountInfo struct {
+	baseAccount
+	BaseCurrency      string  `json:"baseCurrency"`
+	BaseCurrencyPrice float64 `json:"baseCurrencyPrice,string"`
+	BaseAmount        float64 `json:"baseAmount,string"`
+}
+
+type SubAccountInfo struct {
+	SubUserID      string            `json:"subUserId"`
+	SubName        string            `json:"subName"`
+	MainAccounts   []MainAccountInfo `json:"mainAccounts"`
+	TradeAccounts  []MainAccountInfo `json:"tradeAccounts"`
+	MarginAccounts []MainAccountInfo `json:"marginAccounts"`
+}
+
+type TransferableBalanceInfo struct {
+	baseAccount
+	Transferable float64 `json:"transferable,string"`
 }

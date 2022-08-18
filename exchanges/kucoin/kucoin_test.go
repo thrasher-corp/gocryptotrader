@@ -893,3 +893,87 @@ func TestGetAllAccounts(t *testing.T) {
 		t.Error("GetAllAccounts() error", err)
 	}
 }
+
+func TestGetAccount(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetAccount(context.Background(), "62fcd1969474ea0001fd20e4")
+	if err != nil && err.Error() != "account not exist" {
+		t.Error("GetAccount() error", err)
+	}
+}
+
+func TestGetAccountLedgers(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetAccountLedgers(context.Background(), "", "", "", time.Time{}, time.Time{})
+	if err != nil {
+		t.Error("GetAccountLedgers() error", err)
+	}
+}
+
+func TestGetSubAccountBalance(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetSubAccountBalance(context.Background(), "62fcd1969474ea0001fd20e4")
+	if err != nil && err.Error() != "User not found." {
+		t.Error("GetSubAccountBalance() error", err)
+	}
+}
+
+func TestGetAggregatedSubAccountBalance(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetAggregatedSubAccountBalance(context.Background())
+	if err != nil {
+		t.Error("GetAggregatedSubAccountBalance() error", err)
+	}
+}
+
+func TestGetTransferableBalance(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetTransferableBalance(context.Background(), "BTC", "MAIN", "")
+	if err != nil {
+		t.Error("GetTransferableBalance() error", err)
+	}
+}
+
+func TestTransferMainToSubAccount(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	_, err := k.TransferMainToSubAccount(context.Background(), "62fcd1969474ea0001fd20e4", "BTC", "1", "OUT", "", "", "5caefba7d9575a0688f83c45")
+	if err != nil {
+		t.Error("TransferMainToSubAccount() error", err)
+	}
+}
+
+func TestMakeInnerTransfer(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	_, err := k.MakeInnerTransfer(context.Background(), "62fcd1969474ea0001fd20e4", "BTC", "trade", "main", "1", "", "")
+	if err != nil {
+		t.Error("MakeInnerTransfer() error", err)
+	}
+}
