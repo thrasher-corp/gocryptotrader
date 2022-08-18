@@ -267,8 +267,8 @@ func TestAppendDataSource(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
-	if len(dataHandler.exchangesToCheck) != 1 {
-		t.Errorf("received '%v' expected '%v'", len(dataHandler.exchangesToCheck), 1)
+	if len(dataHandler.sourcesToCheck) != 1 {
+		t.Errorf("received '%v' expected '%v'", len(dataHandler.sourcesToCheck), 1)
 	}
 
 	err = dataHandler.AppendDataSource(&ftx.FTX{}, kline.OneHour, asset.Spot, currency.NewPair(currency.BTC, currency.USD), currency.EMPTYPAIR, dt)
@@ -306,7 +306,7 @@ func TestFetchLatestData(t *testing.T) {
 	fbA := fb.CurrencyPairs.Pairs[asset.Spot]
 	fbA.Enabled = fbA.Enabled.Add(cp)
 	fbA.Available = fbA.Available.Add(cp)
-	dataHandler.exchangesToCheck = []liveExchangeDataHandler{
+	dataHandler.sourcesToCheck = []liveDataSourceDataHandler{
 		{
 			m:              sync.Mutex{},
 			exchange:       f,
@@ -338,7 +338,7 @@ func TestFetchLatestData(t *testing.T) {
 
 func TestLoadCandleData(t *testing.T) {
 	t.Parallel()
-	l := &liveExchangeDataHandler{}
+	l := &liveDataSourceDataHandler{}
 	err := l.loadCandleData(time.Now())
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
@@ -369,7 +369,7 @@ func TestLoadCandleData(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
-	var ldh *liveExchangeDataHandler
+	var ldh *liveDataSourceDataHandler
 	err = ldh.loadCandleData(time.Now())
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)

@@ -1253,7 +1253,7 @@ func (f *FTX) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a
 	if len(summary) > 0 {
 		log.Warnf(log.ExchangeSys, "%v - %v", f.Name, summary)
 	}
-	ret.RemoveDuplicates()
+	ret.RemoveDuplicateCandlesByTime()
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil

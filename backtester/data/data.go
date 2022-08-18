@@ -2,7 +2,6 @@ package data
 
 import (
 	"fmt"
-	"github.com/thrasher-corp/gocryptotrader/log"
 	"sort"
 	"strings"
 
@@ -99,17 +98,13 @@ candles:
 		}
 		for y := range b.stream {
 			if s[x].GetTime().Equal(b.stream[y].GetTime()) {
-				o := s[x].GetOffset()
-				o2 := b.stream[y].GetOffset()
-				log.Warnf(common.Data, "%v %v %v REJECTING %v FOR %v", b.stream[y].GetExchange(), b.stream[y].GetAssetType(), b.stream[y].Pair(), o, o2)
 				continue candles
 			}
 		}
 		b.stream = append(b.stream, s[x])
 	}
 	for i := range b.stream {
-		o := b.stream[i].GetOffset()
-		log.Warnf(common.Data, "%v %v %v OFFSETS WITHIN STREAM %v", b.stream[i].GetExchange(), b.stream[i].GetAssetType(), b.stream[i].Pair(), o)
+		b.stream[i].SetOffset(int64(i + 1))
 	}
 	b.SortStream()
 }

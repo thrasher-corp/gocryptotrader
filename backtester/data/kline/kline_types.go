@@ -13,7 +13,6 @@ var errNoCandleData = errors.New("no candle data provided")
 // It holds candle data for a specified range with helper functions
 type DataFromKline struct {
 	data.Base
-	addedTimes  map[int64]bool
 	Item        gctkline.Item
 	RangeHolder *gctkline.IntervalRangeHolder
 }

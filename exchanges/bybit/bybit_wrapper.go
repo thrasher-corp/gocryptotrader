@@ -2025,7 +2025,7 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 	if len(summary) > 0 {
 		log.Warnf(log.ExchangeSys, "%v - %v", by.Name, summary)
 	}
-	klineItem.RemoveDuplicates()
+	klineItem.RemoveDuplicateCandlesByTime()
 	klineItem.RemoveOutsideRange(start, end)
 	klineItem.SortCandlesByTimestamp(false)
 	return klineItem, nil

@@ -1153,7 +1153,7 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(ctx context.Context, p currency.
 	if len(summary) > 0 {
 		log.Warnf(log.ExchangeSys, "%v - %v", b.Name, summary)
 	}
-	ret.RemoveDuplicates()
+	ret.RemoveDuplicateCandlesByTime()
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil

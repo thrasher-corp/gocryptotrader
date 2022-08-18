@@ -183,17 +183,14 @@ func (k *Item) FillMissingDataWithEmptyEntries(i *IntervalRangeHolder) {
 	}
 }
 
-// RemoveDuplicates removes any duplicate candles
-func (k *Item) RemoveDuplicates() {
+// RemoveDuplicateCandlesByTime removes any duplicate candles
+func (k *Item) RemoveDuplicateCandlesByTime() {
 	var newCandles []Candle
+	candleMap := make(map[int64]struct{})
 	for x := range k.Candles {
-		if x == 0 {
+		if _, ok := candleMap[k.Candles[x].Time.UnixNano()]; !ok {
 			newCandles = append(newCandles, k.Candles[x])
-			continue
-		}
-		if !k.Candles[x].Time.Equal(k.Candles[x-1].Time) {
-			// don't add duplicate
-			newCandles = append(newCandles, k.Candles[x])
+			candleMap[k.Candles[x].Time.UnixNano()] = struct{}{}
 		}
 	}
 

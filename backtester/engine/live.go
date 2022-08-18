@@ -16,7 +16,6 @@ import (
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
-	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -178,62 +177,70 @@ func (l *DataChecker) Reset() {
 	l.dataCheckInterval = 0
 	l.eventTimeout = 0
 	l.exchangeManager = nil
-	l.exchangesToCheck = nil
+	l.sourcesToCheck = nil
 	l.exchangeManager = nil
 	l.verbose = false
 	l.wg = sync.WaitGroup{}
 }
 
 // AppendDataSource stores params to allow the datachecker to fetch and append live data
-func (l *DataChecker) AppendDataSource(exch gctexchange.IBotExchange, interval gctkline.Interval, item asset.Item, curr, underlying currency.Pair, dataType int64) error {
+func (l *DataChecker) AppendDataSource(dataSource *LiveDataSourceSetup) error {
 	if l == nil {
 		return fmt.Errorf("%w DataChecker", gctcommon.ErrNilPointer)
 	}
-	if exch == nil {
+	if dataSource.exch == nil {
 		return fmt.Errorf("%w IBotExchange", gctcommon.ErrNilPointer)
 	}
-	if dataType != common.DataCandle && dataType != common.DataTrade {
-		return fmt.Errorf("%w '%v'", common.ErrInvalidDataType, dataType)
+	if dataSource.dataType != common.DataCandle && dataSource.dataType != common.DataTrade {
+		return fmt.Errorf("%w '%v'", common.ErrInvalidDataType, dataSource.dataType)
 	}
-	if !item.IsValid() {
-		return fmt.Errorf("%w '%v'", asset.ErrNotSupported, item)
+	if !dataSource.item.IsValid() {
+		return fmt.Errorf("%w '%v'", asset.ErrNotSupported, dataSource.item)
 	}
-	if curr.IsEmpty() {
+	if dataSource.curr.IsEmpty() {
 		return fmt.Errorf("main %w", currency.ErrCurrencyPairEmpty)
 	}
-	if interval.Duration() == 0 {
+	if dataSource.interval.Duration() == 0 {
 		return gctkline.ErrUnsetInterval
 	}
 	l.m.Lock()
 	defer l.m.Unlock()
-	exchName := strings.ToLower(exch.GetName())
-	for i := range l.exchangesToCheck {
-		if l.exchangesToCheck[i].exchangeName == exchName &&
-			l.exchangesToCheck[i].asset == item &&
-			l.exchangesToCheck[i].pair.Equal(curr) {
-			return fmt.Errorf("%w %v %v %v", errDataSourceExists, exchName, item, curr)
+	exchName := strings.ToLower(dataSource.exch.GetName())
+	for i := range l.sourcesToCheck {
+		if l.sourcesToCheck[i].exchangeName == exchName &&
+			l.sourcesToCheck[i].asset == dataSource.item &&
+			l.sourcesToCheck[i].pair.Equal(dataSource.curr) {
+			return fmt.Errorf("%w %v %v %v", errDataSourceExists, exchName, dataSource.item, dataSource.curr)
 		}
 	}
 
 	d := kline.DataFromKline{
 		Item: gctkline.Item{
 			Exchange:       exchName,
-			Pair:           curr,
-			UnderlyingPair: underlying,
-			Asset:          item,
-			Interval:       interval,
+			Pair:           dataSource.curr,
+			UnderlyingPair: dataSource.underlying,
+			Asset:          dataSource.item,
+			Interval:       dataSource.interval,
 		},
 	}
 	d.SetLive(true)
-	l.exchangesToCheck = append(l.exchangesToCheck, &liveExchangeDataHandler{
-		exchange:       exch,
-		exchangeName:   exchName,
-		asset:          item,
-		pair:           curr,
-		pairCandles:    d,
-		dataType:       dataType,
-		underlyingPair: underlying,
-		processedData:  make(map[int64]struct{}),
+	if dataSource.dataRequestRetryTolerance == 0 {
+		dataSource.dataRequestRetryTolerance = 1
+	}
+	if dataSource.dataRequestRetryWaitTime <= 0 {
+		dataSource.dataRequestRetryWaitTime = defaultDataRequestWaitTime
+	}
+	l.sourcesToCheck = append(l.sourcesToCheck, &liveDataSourceDataHandler{
+		exchange:                  dataSource.exch,
+		exchangeName:              exchName,
+		asset:                     dataSource.item,
+		pair:                      dataSource.curr,
+		underlyingPair:            dataSource.underlying,
+		pairCandles:               d,
+		dataType:                  dataSource.dataType,
+		processedData:             make(map[int64]struct{}),
+		dataRequestRetryTolerance: dataSource.dataRequestRetryTolerance,
+		dataRequestRetryWaitTime:  dataSource.dataRequestRetryWaitTime,
 	})
 
 	return nil
@@ -255,12 +262,12 @@ func (l *DataChecker) FetchLatestData() (bool, error) {
 	// timeToRetrieve ensures consistent data retrieval
 	// in the event of a candle rollover mid-loop
 	timeToRetrieve := time.Now()
-	for i := range l.exchangesToCheck {
+	for i := range l.sourcesToCheck {
 		if l.verbose {
-			log.Infof(common.Livetester, "%v %v %v checking for new data", l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair)
+			log.Infof(common.Livetester, "%v %v %v checking for new data", l.sourcesToCheck[i].exchangeName, l.sourcesToCheck[i].asset, l.sourcesToCheck[i].pair)
 		}
 		var updated bool
-		updated, err = l.exchangesToCheck[i].loadCandleData(timeToRetrieve)
+		updated, err = l.sourcesToCheck[i].loadCandleData(timeToRetrieve)
 		if err != nil {
 			return false, err
 		}
@@ -275,20 +282,20 @@ func (l *DataChecker) FetchLatestData() (bool, error) {
 	if !allUpdated {
 		return false, nil
 	}
-	for i := range l.exchangesToCheck {
+	for i := range l.sourcesToCheck {
 		if l.verbose {
-			log.Infof(common.Livetester, "%v %v %v found new data", l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair)
+			log.Infof(common.Livetester, "%v %v %v found new data", l.sourcesToCheck[i].exchangeName, l.sourcesToCheck[i].asset, l.sourcesToCheck[i].pair)
 		}
-		l.exchangesToCheck[i].pairCandles.AppendResults(l.exchangesToCheck[i].candlesToAppend)
-		l.exchangesToCheck[i].candlesToAppend.Candles = nil
-		l.dataHolder.SetDataForCurrency(l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair, &l.exchangesToCheck[i].pairCandles)
-		err = l.report.SetKlineData(&l.exchangesToCheck[i].pairCandles.Item)
+		l.sourcesToCheck[i].pairCandles.AppendResults(l.sourcesToCheck[i].candlesToAppend)
+		l.sourcesToCheck[i].candlesToAppend.Candles = nil
+		l.dataHolder.SetDataForCurrency(l.sourcesToCheck[i].exchangeName, l.sourcesToCheck[i].asset, l.sourcesToCheck[i].pair, &l.sourcesToCheck[i].pairCandles)
+		err = l.report.SetKlineData(&l.sourcesToCheck[i].pairCandles.Item)
 		if err != nil {
-			log.Errorf(common.Livetester, "%v %v %v issue processing kline data: %v", l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair, err)
+			log.Errorf(common.Livetester, "%v %v %v issue processing kline data: %v", l.sourcesToCheck[i].exchangeName, l.sourcesToCheck[i].asset, l.sourcesToCheck[i].pair, err)
 		}
-		err = l.funding.AddUSDTrackingData(&l.exchangesToCheck[i].pairCandles)
+		err = l.funding.AddUSDTrackingData(&l.sourcesToCheck[i].pairCandles)
 		if err != nil && !errors.Is(err, funding.ErrUSDTrackingDisabled) {
-			log.Errorf(common.Livetester, "%v %v %v issue processing USD tracking data: %v", l.exchangesToCheck[i].exchangeName, l.exchangesToCheck[i].asset, l.exchangesToCheck[i].pair, err)
+			log.Errorf(common.Livetester, "%v %v %v issue processing USD tracking data: %v", l.sourcesToCheck[i].exchangeName, l.sourcesToCheck[i].asset, l.sourcesToCheck[i].pair, err)
 		}
 	}
 	return true, nil
@@ -296,20 +303,30 @@ func (l *DataChecker) FetchLatestData() (bool, error) {
 
 // loadCandleData fetches data from the exchange API and appends it
 // to the candles to be added to the backtester event queue
-func (c *liveExchangeDataHandler) loadCandleData(timeToRetrieve time.Time) (bool, error) {
+func (c *liveDataSourceDataHandler) loadCandleData(timeToRetrieve time.Time) (bool, error) {
 	if c == nil {
 		return false, gctcommon.ErrNilPointer
 	}
-	candles, err := live.LoadData(context.TODO(),
-		timeToRetrieve,
-		c.exchange,
-		c.dataType,
-		c.pairCandles.Item.Interval.Duration(),
-		c.pair,
-		c.underlyingPair,
-		c.asset)
-	if err != nil {
-		return false, err
+	var candles *gctkline.Item
+	var err error
+	for i := int64(1); i <= c.dataRequestRetryTolerance; i++ {
+		candles, err = live.LoadData(context.TODO(),
+			timeToRetrieve,
+			c.exchange,
+			c.dataType,
+			c.pairCandles.Item.Interval.Duration(),
+			c.pair,
+			c.underlyingPair,
+			c.asset)
+		if err != nil {
+			if i < c.dataRequestRetryTolerance {
+				log.Errorf(common.Data, "%v %v %v failed to retrieve data %v of %v attempts: %v", c.exchangeName, c.asset, c.pair, i, c.dataRequestRetryTolerance, err)
+				continue
+			} else {
+				return false, err
+			}
+		}
+		break
 	}
 	if len(candles.Candles) == 0 {
 		return false, nil

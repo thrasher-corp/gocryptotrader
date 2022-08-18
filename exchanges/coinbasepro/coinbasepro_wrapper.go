@@ -1026,7 +1026,7 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(ctx context.Context, p currency
 	if len(summary) > 0 {
 		log.Warnf(log.ExchangeSys, "%v - %v", c.Name, summary)
 	}
-	ret.RemoveDuplicates()
+	ret.RemoveDuplicateCandlesByTime()
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil

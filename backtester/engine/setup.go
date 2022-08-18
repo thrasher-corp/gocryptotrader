@@ -651,7 +651,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if err != nil {
 			return nil, fmt.Errorf("%v. Please check your GoCryptoTrader configuration", err)
 		}
-		resp.Item.RemoveDuplicates()
+		resp.Item.RemoveDuplicateCandlesByTime()
 		resp.Item.SortCandlesByTimestamp(false)
 		resp.RangeHolder, err = gctkline.CalculateCandleDateRanges(
 			resp.Item.Candles[0].Time,
@@ -694,7 +694,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			return nil, fmt.Errorf("unable to retrieve data from GoCryptoTrader database. Error: %v. Please ensure the database is setup correctly and has data before use", err)
 		}
 
-		resp.Item.RemoveDuplicates()
+		resp.Item.RemoveDuplicateCandlesByTime()
 		resp.Item.SortCandlesByTimestamp(false)
 		resp.RangeHolder, err = gctkline.CalculateCandleDateRanges(
 			cfg.DataSettings.DatabaseData.StartDate,
@@ -729,14 +729,16 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if err != nil {
 			return nil, err
 		}
-		err = bt.LiveDataHandler.AppendDataSource(
-			exch,
-			cfg.DataSettings.Interval,
-			a,
-			fPair,
-			underlyingPair,
-			dataType,
-		)
+		err = bt.LiveDataHandler.AppendDataSource(&LiveDataSourceSetup{
+			exch:                      exch,
+			interval:                  cfg.DataSettings.Interval,
+			item:                      a,
+			curr:                      fPair,
+			underlying:                underlyingPair,
+			dataType:                  dataType,
+			dataRequestRetryTolerance: cfg.DataSettings.LiveData.DataRequestRetryTolerance,
+			dataRequestRetryWaitTime:  cfg.DataSettings.LiveData.DataRequestRetryWaitTime,
+		})
 		return nil, err
 	}
 	if resp == nil {

@@ -25,14 +25,15 @@ var (
 )
 
 var (
-	defaultEventTimeout      = time.Minute
-	defaultDataCheckInterval = time.Second
+	defaultEventTimeout        = time.Minute
+	defaultDataCheckInterval   = time.Second
+	defaultDataRequestWaitTime = time.Millisecond * 500
 )
 
 // Handler is all the functionality required in order to
 // run a backtester with live data
 type Handler interface {
-	AppendDataSource(exch gctexchange.IBotExchange, interval gctkline.Interval, item asset.Item, curr, underlying currency.Pair, dataType int64) error
+	AppendDataSource(*LiveDataSourceSetup) error
 	FetchLatestData() (bool, error)
 	Start() error
 	IsRunning() bool
@@ -51,7 +52,7 @@ type DataChecker struct {
 	started           uint32
 	verbose           bool
 	exchangeManager   *engine.ExchangeManager
-	exchangesToCheck  []*liveExchangeDataHandler
+	sourcesToCheck    []*liveDataSourceDataHandler
 	eventTimeout      time.Duration
 	dataCheckInterval time.Duration
 	dataHolder        data.Holder
@@ -62,14 +63,27 @@ type DataChecker struct {
 	funding           funding.IFundingManager
 }
 
-type liveExchangeDataHandler struct {
-	exchange        gctexchange.IBotExchange
-	exchangeName    string
-	asset           asset.Item
-	pair            currency.Pair
-	underlyingPair  currency.Pair
-	pairCandles     kline.DataFromKline
-	dataType        int64
-	processedData   map[int64]struct{}
-	candlesToAppend *gctkline.Item
+type LiveDataSourceSetup struct {
+	exch                      gctexchange.IBotExchange
+	interval                  gctkline.Interval
+	item                      asset.Item
+	curr                      currency.Pair
+	underlying                currency.Pair
+	dataType                  int64
+	dataRequestRetryTolerance int64
+	dataRequestRetryWaitTime  time.Duration
+}
+
+type liveDataSourceDataHandler struct {
+	exchange                  gctexchange.IBotExchange
+	exchangeName              string
+	asset                     asset.Item
+	pair                      currency.Pair
+	underlyingPair            currency.Pair
+	pairCandles               kline.DataFromKline
+	dataType                  int64
+	processedData             map[int64]struct{}
+	candlesToAppend           *gctkline.Item
+	dataRequestRetryTolerance int64
+	dataRequestRetryWaitTime  time.Duration
 }

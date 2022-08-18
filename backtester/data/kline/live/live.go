@@ -58,7 +58,7 @@ func LoadData(ctx context.Context, timeToRetrieve time.Time, exch exchange.IBotE
 			trades, err = exch.GetHistoricTrades(ctx,
 				fPair,
 				a,
-				timeToRetrieve.Add(-interval),
+				timeToRetrieve.Add(-interval*2),
 				timeToRetrieve,
 			)
 			if err != nil {

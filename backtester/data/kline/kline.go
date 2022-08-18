@@ -32,9 +32,6 @@ func (d *DataFromKline) HasDataAtTime(t time.Time) bool {
 
 // Load sets the candle data to the stream for processing
 func (d *DataFromKline) Load() error {
-	if d.addedTimes == nil {
-		d.addedTimes = make(map[int64]bool)
-	}
 	if len(d.Item.Candles) == 0 {
 		return errNoCandleData
 	}
@@ -59,7 +56,6 @@ func (d *DataFromKline) Load() error {
 			ValidationIssues: d.Item.Candles[i].ValidationIssues,
 		}
 		klineData[i] = newKline
-		d.addedTimes[d.Item.Candles[i].Time.UTC().UnixNano()] = true
 	}
 
 	d.SetStream(klineData)
@@ -75,56 +71,48 @@ func (d *DataFromKline) AppendResults(ki *gctkline.Item) {
 	if !d.Item.EqualSource(ki) {
 		return
 	}
-	if d.addedTimes == nil {
-		d.addedTimes = make(map[int64]bool)
-	}
-	for i := range d.Item.Candles {
-		d.addedTimes[d.Item.Candles[i].Time.UTC().UnixNano()] = true
-	}
 	var gctCandles []gctkline.Candle
-	for i := range ki.Candles {
-		if _, ok := d.addedTimes[ki.Candles[i].Time.UTC().UnixNano()]; !ok {
-			gctCandles = append(gctCandles, ki.Candles[i])
+candleLoop:
+	for x := range ki.Candles {
+		for y := range d.Item.Candles {
+			if d.Item.Candles[y].Time.Equal(ki.Candles[x].Time) {
+				continue candleLoop
+			}
 		}
+		gctCandles = append(gctCandles, ki.Candles[x])
 	}
 	if len(gctCandles) == 0 {
 		return
 	}
+	klineData := make([]data.Event, len(gctCandles))
 	for i := range gctCandles {
 		d.Item.Candles = append(d.Item.Candles, gctCandles[i])
+		newKline := &kline.Kline{
+			Base: &event.Base{
+				Exchange:       d.Item.Exchange,
+				Interval:       d.Item.Interval,
+				CurrencyPair:   d.Item.Pair,
+				AssetType:      d.Item.Asset,
+				UnderlyingPair: d.Item.UnderlyingPair,
+				Time:           gctCandles[i].Time.UTC(),
+			},
+			Open:   decimal.NewFromFloat(gctCandles[i].Open),
+			High:   decimal.NewFromFloat(gctCandles[i].High),
+			Low:    decimal.NewFromFloat(gctCandles[i].Low),
+			Close:  decimal.NewFromFloat(gctCandles[i].Close),
+			Volume: decimal.NewFromFloat(gctCandles[i].Volume),
+		}
+		klineData[i] = newKline
 	}
-	d.Item.RemoveDuplicates()
-	d.Item.SortCandlesByTimestamp(false)
+	d.AppendStream(klineData...)
 
+	d.Item.RemoveDuplicateCandlesByTime()
+	d.Item.SortCandlesByTimestamp(false)
 	if d.RangeHolder != nil {
 		// offline data check when there is a known range
 		// live data does not need this
 		d.RangeHolder.SetHasDataFromCandles(d.Item.Candles)
 	}
-
-	klineData := make([]data.Event, len(d.Item.Candles))
-	for i := range d.Item.Candles {
-		newKline := &kline.Kline{
-			Base: &event.Base{
-				Offset:         int64(i + 1),
-				Exchange:       d.Item.Exchange,
-				Time:           d.Item.Candles[i].Time.UTC(),
-				Interval:       d.Item.Interval,
-				CurrencyPair:   d.Item.Pair,
-				AssetType:      d.Item.Asset,
-				UnderlyingPair: d.Item.UnderlyingPair,
-			},
-			Open:             decimal.NewFromFloat(d.Item.Candles[i].Open),
-			High:             decimal.NewFromFloat(d.Item.Candles[i].High),
-			Low:              decimal.NewFromFloat(d.Item.Candles[i].Low),
-			Close:            decimal.NewFromFloat(d.Item.Candles[i].Close),
-			Volume:           decimal.NewFromFloat(d.Item.Candles[i].Volume),
-			ValidationIssues: d.Item.Candles[i].ValidationIssues,
-		}
-		klineData[i] = newKline
-	}
-
-	d.AppendStream(klineData...)
 }
 
 // StreamOpen returns all Open prices from the beginning until the current iteration

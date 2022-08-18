@@ -1417,9 +1417,11 @@ func TestGenerateConfigForLiveCashAndCarry(t *testing.T) {
 			Interval: kline.FifteenSecond,
 			DataType: common.CandleStr,
 			LiveData: &LiveData{
-				NewEventTimeout:      time.Minute,
-				DataCheckTimer:       time.Second,
-				ClosePositionsOnExit: true,
+				NewEventTimeout:           time.Minute,
+				DataCheckTimer:            time.Second,
+				ClosePositionsOnExit:      true,
+				DataRequestRetryTolerance: 3,
+				DataRequestRetryWaitTime:  time.Millisecond * 500,
 			},
 		},
 		PortfolioSettings: PortfolioSettings{

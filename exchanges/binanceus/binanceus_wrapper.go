@@ -968,7 +968,7 @@ func (bi *Binanceus) GetHistoricCandlesExtended(ctx context.Context, pair curren
 	if len(summary) > 0 {
 		log.Warnf(log.ExchangeSys, "%v - %v", bi.Name, summary)
 	}
-	ret.RemoveDuplicates()
+	ret.RemoveDuplicateCandlesByTime()
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil

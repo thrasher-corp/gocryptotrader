@@ -1059,7 +1059,7 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		})
 	}
 	ret.SortCandlesByTimestamp(false)
-	ret.RemoveDuplicates()
+	ret.RemoveDuplicateCandlesByTime()
 	return ret, nil
 }
 

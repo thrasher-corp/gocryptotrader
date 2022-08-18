@@ -983,7 +983,7 @@ func (l *Lbank) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 	if len(summary) > 0 {
 		log.Warnf(log.ExchangeSys, "%v - %v", l.Name, summary)
 	}
-	ret.RemoveDuplicates()
+	ret.RemoveDuplicateCandlesByTime()
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil

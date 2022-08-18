@@ -801,7 +801,7 @@ func (o *OKGroup) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 	if len(summary) > 0 {
 		log.Warnf(log.ExchangeSys, "%v - %v", o.Base.Name, summary)
 	}
-	ret.RemoveDuplicates()
+	ret.RemoveDuplicateCandlesByTime()
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil

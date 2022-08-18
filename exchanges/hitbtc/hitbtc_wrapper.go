@@ -964,7 +964,7 @@ func (h *HitBTC) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 	if len(summary) > 0 {
 		log.Warnf(log.ExchangeSys, "%v - %v", h.Name, summary)
 	}
-	ret.RemoveDuplicates()
+	ret.RemoveDuplicateCandlesByTime()
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
