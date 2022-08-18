@@ -48,7 +48,7 @@ func (bt *BackTest) SetupLiveDataHandler(eventTimeout, dataCheckInterval time.Du
 		dataCheckInterval = defaultDataCheckInterval
 	}
 	bt.LiveDataHandler = &DataChecker{
-		verbose:           verbose,
+		verboseDataCheck:  verbose,
 		exchangeManager:   bt.exchangeManager,
 		eventTimeout:      eventTimeout,
 		dataCheckInterval: dataCheckInterval,
@@ -179,7 +179,7 @@ func (l *DataChecker) Reset() {
 	l.exchangeManager = nil
 	l.sourcesToCheck = nil
 	l.exchangeManager = nil
-	l.verbose = false
+	l.verboseDataCheck = false
 	l.wg = sync.WaitGroup{}
 }
 
@@ -241,6 +241,7 @@ func (l *DataChecker) AppendDataSource(dataSource *LiveDataSourceSetup) error {
 		processedData:             make(map[int64]struct{}),
 		dataRequestRetryTolerance: dataSource.dataRequestRetryTolerance,
 		dataRequestRetryWaitTime:  dataSource.dataRequestRetryWaitTime,
+		verboseExchangeRequest:    dataSource.verboseExchangeRequest,
 	})
 
 	return nil
@@ -263,7 +264,7 @@ func (l *DataChecker) FetchLatestData() (bool, error) {
 	// in the event of a candle rollover mid-loop
 	timeToRetrieve := time.Now()
 	for i := range l.sourcesToCheck {
-		if l.verbose {
+		if l.verboseDataCheck {
 			log.Infof(common.Livetester, "%v %v %v checking for new data", l.sourcesToCheck[i].exchangeName, l.sourcesToCheck[i].asset, l.sourcesToCheck[i].pair)
 		}
 		var updated bool
@@ -283,7 +284,7 @@ func (l *DataChecker) FetchLatestData() (bool, error) {
 		return false, nil
 	}
 	for i := range l.sourcesToCheck {
-		if l.verbose {
+		if l.verboseDataCheck {
 			log.Infof(common.Livetester, "%v %v %v found new data", l.sourcesToCheck[i].exchangeName, l.sourcesToCheck[i].asset, l.sourcesToCheck[i].pair)
 		}
 		l.sourcesToCheck[i].pairCandles.AppendResults(l.sourcesToCheck[i].candlesToAppend)
@@ -317,7 +318,8 @@ func (c *liveDataSourceDataHandler) loadCandleData(timeToRetrieve time.Time) (bo
 			c.pairCandles.Item.Interval.Duration(),
 			c.pair,
 			c.underlyingPair,
-			c.asset)
+			c.asset,
+			c.verboseExchangeRequest)
 		if err != nil {
 			if i < c.dataRequestRetryTolerance {
 				log.Errorf(common.Data, "%v %v %v failed to retrieve data %v of %v attempts: %v", c.exchangeName, c.asset, c.pair, i, c.dataRequestRetryTolerance, err)

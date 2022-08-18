@@ -50,7 +50,7 @@ type DataChecker struct {
 	m                 sync.Mutex
 	wg                sync.WaitGroup
 	started           uint32
-	verbose           bool
+	verboseDataCheck  bool
 	exchangeManager   *engine.ExchangeManager
 	sourcesToCheck    []*liveDataSourceDataHandler
 	eventTimeout      time.Duration
@@ -72,6 +72,7 @@ type LiveDataSourceSetup struct {
 	dataType                  int64
 	dataRequestRetryTolerance int64
 	dataRequestRetryWaitTime  time.Duration
+	verboseExchangeRequest    bool
 }
 
 type liveDataSourceDataHandler struct {
@@ -86,4 +87,5 @@ type liveDataSourceDataHandler struct {
 	candlesToAppend           *gctkline.Item
 	dataRequestRetryTolerance int64
 	dataRequestRetryWaitTime  time.Duration
+	verboseExchangeRequest    bool
 }

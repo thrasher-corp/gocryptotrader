@@ -196,6 +196,7 @@ type LiveData struct {
 	DataCheckTimer            time.Duration `json:"data-check-timer"`
 	RealOrders                bool          `json:"real-orders"`
 	VerboseDataCheck          bool          `json:"verbose-data-check"`
+	VerboseExchangeRequests   bool          `json:"verbose-exchange-requests"`
 	ClosePositionsOnExit      bool          `json:"close-positions-on-exit"`
 	DataRequestRetryTolerance int64         `json:"data-request-retry-tolerance"`
 	DataRequestRetryWaitTime  time.Duration `json:"data-request-retry-wait-time"`

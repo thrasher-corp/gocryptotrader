@@ -738,6 +738,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			dataType:                  dataType,
 			dataRequestRetryTolerance: cfg.DataSettings.LiveData.DataRequestRetryTolerance,
 			dataRequestRetryWaitTime:  cfg.DataSettings.LiveData.DataRequestRetryWaitTime,
+			verboseExchangeRequest:    cfg.DataSettings.LiveData.VerboseExchangeRequests,
 		})
 		return nil, err
 	}
