@@ -73,12 +73,12 @@ func TestNewFromConfig(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
 	}
-	err = bt.NewFromConfig(nil, "", "", false)
+	err = bt.SetupFromConfig(nil, "", "", false)
 	if !errors.Is(err, errNilConfig) {
 		t.Errorf("received %v, expected %v", err, errNilConfig)
 	}
 	cfg := &config.Config{}
-	err = bt.NewFromConfig(cfg, "", "", false)
+	err = bt.SetupFromConfig(cfg, "", "", false)
 	if !errors.Is(err, base.ErrStrategyNotFound) {
 		t.Errorf("received: %v, expected: %v", err, base.ErrStrategyNotFound)
 	}
@@ -91,7 +91,7 @@ func TestNewFromConfig(t *testing.T) {
 			Asset:        asset.Spot,
 		},
 	}
-	err = bt.NewFromConfig(cfg, "", "", false)
+	err = bt.SetupFromConfig(cfg, "", "", false)
 	if !errors.Is(err, base.ErrStrategyNotFound) {
 		t.Errorf("received: %v, expected: %v", err, base.ErrStrategyNotFound)
 	}
@@ -109,19 +109,19 @@ func TestNewFromConfig(t *testing.T) {
 		EndDate:   time.Time{},
 	}
 
-	err = bt.NewFromConfig(cfg, "", "", false)
+	err = bt.SetupFromConfig(cfg, "", "", false)
 	if err != nil && !strings.Contains(err.Error(), "unrecognised dataType") {
 		t.Error(err)
 	}
 	cfg.DataSettings.DataType = common.CandleStr
-	err = bt.NewFromConfig(cfg, "", "", false)
+	err = bt.SetupFromConfig(cfg, "", "", false)
 	if !errors.Is(err, errIntervalUnset) {
 		t.Errorf("received: %v, expected: %v", err, errIntervalUnset)
 	}
 	cfg.DataSettings.Interval = gctkline.OneMin
 	cfg.CurrencySettings[0].MakerFee = &decimal.Zero
 	cfg.CurrencySettings[0].TakerFee = &decimal.Zero
-	err = bt.NewFromConfig(cfg, "", "", false)
+	err = bt.SetupFromConfig(cfg, "", "", false)
 	if !errors.Is(err, gctcommon.ErrDateUnset) {
 		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrDateUnset)
 	}
@@ -129,7 +129,7 @@ func TestNewFromConfig(t *testing.T) {
 	cfg.DataSettings.APIData.StartDate = time.Now().Add(-time.Minute)
 	cfg.DataSettings.APIData.EndDate = time.Now()
 	cfg.DataSettings.APIData.InclusiveEndDate = true
-	err = bt.NewFromConfig(cfg, "", "", false)
+	err = bt.SetupFromConfig(cfg, "", "", false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -150,7 +150,7 @@ func TestNewFromConfig(t *testing.T) {
 			TransferFee:  leet,
 		},
 	}
-	err = bt.NewFromConfig(cfg, "", "", false)
+	err = bt.SetupFromConfig(cfg, "", "", false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}

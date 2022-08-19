@@ -125,7 +125,7 @@ func main() {
 		fmt.Printf("Could not create backtester. Error: %v.\n", err)
 		os.Exit(1)
 	}
-	err = bt.NewFromConfig(cfg, templatePath, reportOutput, verbose)
+	err = bt.SetupFromConfig(cfg, templatePath, reportOutput, verbose)
 	if err != nil {
 		fmt.Printf("Could not setup backtester from config. Error: %v.\n", err)
 		os.Exit(1)

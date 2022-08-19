@@ -67,8 +67,8 @@ func NewBacktester() (*BackTest, error) {
 	return bt, nil
 }
 
-// NewFromConfig takes a strategy config and configures a backtester variable to run
-func (bt *BackTest) NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool) error {
+// SetupFromConfig takes a strategy config and configures a backtester variable to run
+func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output string, verbose bool) error {
 	log.Infoln(common.Setup, "loading config...")
 	if cfg == nil {
 		return errNilConfig
