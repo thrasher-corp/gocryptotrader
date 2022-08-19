@@ -170,10 +170,10 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 			portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName] = make(map[asset.Item]map[currency.Pair]*risk.CurrencySettings)
 		}
 		a := cfg.CurrencySettings[i].Asset
-		if err != nil {
+		if !a.IsValid() {
 			return nil, fmt.Errorf(
 				"%w for %v %v %v-%v. Err %v",
-				errInvalidConfigAsset,
+				asset.ErrNotSupported,
 				cfg.CurrencySettings[i].ExchangeName,
 				cfg.CurrencySettings[i].Asset,
 				cfg.CurrencySettings[i].Base,
@@ -266,6 +266,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 				if err != nil && !errors.Is(err, funding.ErrAlreadyExists) {
 					return nil, err
 				}
+				err = nil
 			case a.IsFutures():
 				// setup contract items
 				c := funding.CreateFuturesCurrencyCode(b, q)
@@ -293,7 +294,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 					return nil, err
 				}
 			default:
-				return nil, fmt.Errorf("%w: %v unsupported", errInvalidConfigAsset, a)
+				return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, a)
 			}
 		} else {
 			var bFunds, qFunds decimal.Decimal
@@ -352,6 +353,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 		if err != nil && !errors.Is(err, base.ErrCustomSettingsUnsupported) {
 			return nil, err
 		}
+		err = nil
 	}
 	stats := &statistics.Statistic{
 		StrategyName:                bt.Strategy.Name(),
@@ -446,6 +448,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			!errors.Is(err, funding.ErrUSDTrackingDisabled) {
 			return resp, err
 		}
+		err = nil
 
 		if cfg.CurrencySettings[i].USDTrackingPair {
 			continue
@@ -517,6 +520,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		if err != nil && !errors.Is(err, gctorder.ErrExchangeLimitNotLoaded) {
 			return resp, err
 		}
+		err = nil
 
 		if limits != (gctorder.MinMaxLevel{}) {
 			if !cfg.CurrencySettings[i].CanUseExchangeLimits {
