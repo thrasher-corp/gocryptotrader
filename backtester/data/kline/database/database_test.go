@@ -3,7 +3,6 @@ package database
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -39,7 +38,7 @@ func TestMain(m *testing.M) {
 	var err error
 	testhelpers.PostgresTestDatabase = testhelpers.GetConnectionDetails()
 	testhelpers.GetConnectionDetails()
-	testhelpers.TempDir, err = ioutil.TempDir("", "gct-temp")
+	testhelpers.TempDir, err = os.MkdirTemp("", "gct-temp")
 	if err != nil {
 		fmt.Printf("failed to create temp file: %v", err)
 		os.Exit(1)
@@ -85,18 +84,9 @@ func TestLoadDataCandles(t *testing.T) {
 	}
 	database.MigrationDir = filepath.Join("..", "..", "..", "..", "database", "migrations")
 	testhelpers.MigrationDir = filepath.Join("..", "..", "..", "..", "database", "migrations")
-	_, err = testhelpers.ConnectToDatabase(&dbConfg)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
-
-	bot.DatabaseManager, err = engine.SetupDatabaseConnectionManager(&bot.Config.Database)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
-	err = bot.DatabaseManager.Start(&bot.ServicesWG)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
+	conn, err := testhelpers.ConnectToDatabase(&dbConfg)
+	if err != nil {
+		t.Error(err)
 	}
 
 	err = exchangeDB.InsertMany([]exchangeDB.Details{{Name: testExchange}})
@@ -133,6 +123,10 @@ func TestLoadDataCandles(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
+
+	if err = conn.SQL.Close(); err != nil {
+		t.Error(err)
+	}
 }
 
 func TestLoadDataTrades(t *testing.T) {
@@ -165,18 +159,9 @@ func TestLoadDataTrades(t *testing.T) {
 	}
 	database.MigrationDir = filepath.Join("..", "..", "..", "..", "database", "migrations")
 	testhelpers.MigrationDir = filepath.Join("..", "..", "..", "..", "database", "migrations")
-	_, err = testhelpers.ConnectToDatabase(&dbConfg)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
-
-	bot.DatabaseManager, err = engine.SetupDatabaseConnectionManager(&bot.Config.Database)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
-	err = bot.DatabaseManager.Start(&bot.ServicesWG)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
+	conn, err := testhelpers.ConnectToDatabase(&dbConfg)
+	if err != nil {
+		t.Error(err)
 	}
 
 	err = exchangeDB.InsertMany([]exchangeDB.Details{{Name: testExchange}})
@@ -205,6 +190,10 @@ func TestLoadDataTrades(t *testing.T) {
 	_, err = LoadData(dStart, dEnd, gctkline.FifteenMin.Duration(), exch, common.DataTrade, p, a, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+
+	if err = conn.SQL.Close(); err != nil {
+		t.Error(err)
 	}
 }
 

@@ -33,7 +33,7 @@ func UnZip(src, dest string) (fileList []string, err error) {
 	}
 
 	for x := range z.File {
-		fPath := filepath.Join(dest, z.File[x].Name) // nolint // We ignore
+		fPath := filepath.Join(dest, z.File[x].Name) //nolint // We ignore
 		// gosec linter above because the code below files the file traversal
 		// bug when extracting archives
 		if !strings.HasPrefix(fPath, filepath.Clean(dest)+string(os.PathSeparator)) {

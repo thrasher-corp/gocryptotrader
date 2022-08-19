@@ -427,9 +427,9 @@ func parseDatabase(reader *bufio.Reader, cfg *config.Config) error {
 	}
 	fmt.Println("What is the database Port? eg 1337")
 	input = quickParse(reader)
-	var port float64
+	var port uint64
 	if input != "" {
-		port, err = strconv.ParseFloat(input, 64)
+		port, err = strconv.ParseUint(input, 10, 16)
 		if err != nil {
 			return err
 		}

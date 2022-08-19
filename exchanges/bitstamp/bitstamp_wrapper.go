@@ -414,6 +414,8 @@ func (b *Bitstamp) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		}
 	}
 
+	filterOrderbookZeroBidPrice(book)
+
 	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
 		book.Asks[x] = orderbook.Item{
@@ -421,6 +423,7 @@ func (b *Bitstamp) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 			Price:  orderbookNew.Asks[x].Price,
 		}
 	}
+
 	err = book.Process()
 	if err != nil {
 		return book, err

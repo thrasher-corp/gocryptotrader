@@ -1,5 +1,6 @@
 exch := import("exchange")
 t := import("times")
+fmt := import("fmt")
 // Import all the indicators you want
 atr := import("indicator/atr")
 sma := import("indicator/sma")
@@ -12,7 +13,12 @@ load := func() {
     end := t.add_date(start, 0, 6 , 0)
 
     // This fetches the ohlcv 
-    ohlcvData := exch.ohlcv("binance", "BTC-USDT", "-", "SPOT", start, end, "1d")
+    // To add debugging information to the request, see verbose.gct. To add account credentials, see account.gct
+    ohlcvData := exch.ohlcv(ctx, "binance", "BTC-USDT", "-", "SPOT", start, end, "1d")
+    if is_error(ohlcvData) {
+        fmt.println(ohlcvData)
+        return
+    }
 
     // construct ta values 
     avgtr := atr.calculate(ohlcvData.candles, 14)
@@ -22,7 +28,14 @@ load := func() {
     // 'ctx' is already defined when we construct our bytecode from file. 
     // It contains script ID and shortname of file as save details to default
     // script output directory.
+    // To add debugging information to the request, see verbose.gct. To add account credentials, see account.gct
     common.writeascsv(ctx, ohlcvData, avgtr, simma, expma)
+
+    // A custom filename can also be declared when using a string instead of the
+    // context variable like below. This will continue to save in the output 
+    // folder of the scripts file and will look something like this
+    // 'super_cool_filename-1658465844999067400.csv'.
+    // common.writeascsv("super_cool_filename", ohlcvData, avgtr, simma, expma)
 }
 
 load()

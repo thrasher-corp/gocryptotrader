@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -305,7 +306,7 @@ func EncodeURLValues(urlPath string, values url.Values) string {
 
 // ExtractHost returns the hostname out of a string
 func ExtractHost(address string) string {
-	host := strings.Split(address, ":")[0]
+	host, _, _ := net.SplitHostPort(address)
 	if host == "" {
 		return "localhost"
 	}
@@ -314,12 +315,12 @@ func ExtractHost(address string) string {
 
 // ExtractPort returns the port name out of a string
 func ExtractPort(host string) int {
-	portStrs := strings.Split(host, ":")
-	if len(portStrs) == 1 {
+	_, port, _ := net.SplitHostPort(host)
+	if port == "" {
 		return 80
 	}
-	port, _ := strconv.Atoi(portStrs[1])
-	return port
+	portInt, _ := strconv.Atoi(port)
+	return portInt
 }
 
 // GetURIPath returns the path of a URL given a URI
