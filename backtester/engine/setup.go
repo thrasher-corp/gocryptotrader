@@ -266,7 +266,6 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 				if err != nil && !errors.Is(err, funding.ErrAlreadyExists) {
 					return nil, err
 				}
-				err = nil
 			case a.IsFutures():
 				// setup contract items
 				c := funding.CreateFuturesCurrencyCode(b, q)
@@ -353,7 +352,6 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 		if err != nil && !errors.Is(err, base.ErrCustomSettingsUnsupported) {
 			return nil, err
 		}
-		err = nil
 	}
 	stats := &statistics.Statistic{
 		StrategyName:                bt.Strategy.Name(),
@@ -448,7 +446,6 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			!errors.Is(err, funding.ErrUSDTrackingDisabled) {
 			return resp, err
 		}
-		err = nil
 
 		if cfg.CurrencySettings[i].USDTrackingPair {
 			continue
@@ -520,7 +517,6 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		if err != nil && !errors.Is(err, gctorder.ErrExchangeLimitNotLoaded) {
 			return resp, err
 		}
-		err = nil
 
 		if limits != (gctorder.MinMaxLevel{}) {
 			if !cfg.CurrencySettings[i].CanUseExchangeLimits {
