@@ -67,6 +67,11 @@ func (s *Signal) GetOpenPrice() decimal.Decimal {
 	return s.OpenPrice
 }
 
+// GetVolume returns the volume of a signal
+func (s *Signal) GetVolume() decimal.Decimal {
+	return s.Volume
+}
+
 // SetPrice sets the price
 func (s *Signal) SetPrice(f decimal.Decimal) {
 	s.ClosePrice = f

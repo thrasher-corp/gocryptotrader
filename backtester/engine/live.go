@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -47,7 +48,7 @@ func (bt *BackTest) SetupLiveDataHandler(eventTimeout, dataCheckInterval time.Du
 		log.Warnf(common.Livetester, "invalid data check interval '%v', defaulting to '%v'", dataCheckInterval, defaultDataCheckInterval)
 		dataCheckInterval = defaultDataCheckInterval
 	}
-	bt.LiveDataHandler = &DataChecker{
+	bt.LiveDataHandler = &dataChecker{
 		verboseDataCheck:  verbose,
 		exchangeManager:   bt.exchangeManager,
 		eventTimeout:      eventTimeout,
@@ -61,7 +62,7 @@ func (bt *BackTest) SetupLiveDataHandler(eventTimeout, dataCheckInterval time.Du
 }
 
 // Start begins fetching and appending live data
-func (l *DataChecker) Start() error {
+func (l *dataChecker) Start() error {
 	if l == nil {
 		return gctcommon.ErrNilPointer
 	}
@@ -85,12 +86,12 @@ func (l *DataChecker) Start() error {
 }
 
 // IsRunning verifies whether the live data checker is running
-func (l *DataChecker) IsRunning() bool {
+func (l *dataChecker) IsRunning() bool {
 	return l != nil && atomic.LoadUint32(&l.started) == 1
 }
 
 // Stop ceases fetching and processing live data
-func (l *DataChecker) Stop() error {
+func (l *dataChecker) Stop() error {
 	if l == nil {
 		return gctcommon.ErrNilPointer
 	}
@@ -106,9 +107,9 @@ func (l *DataChecker) Stop() error {
 }
 
 // DataFetcher will fetch and append live data
-func (l *DataChecker) DataFetcher() error {
+func (l *dataChecker) DataFetcher() error {
 	if l == nil {
-		return fmt.Errorf("%w DataChecker", gctcommon.ErrNilPointer)
+		return fmt.Errorf("%w dataChecker", gctcommon.ErrNilPointer)
 	}
 	defer func() {
 		l.wg.Done()
@@ -147,7 +148,7 @@ func (l *DataChecker) DataFetcher() error {
 
 // Updated gives other endpoints the ability to listen to
 // when data is updated from live sources
-func (l *DataChecker) Updated() <-chan bool {
+func (l *dataChecker) Updated() <-chan bool {
 	if l == nil {
 		immediateClosure := make(chan bool)
 		defer close(immediateClosure)
@@ -158,7 +159,7 @@ func (l *DataChecker) Updated() <-chan bool {
 
 // HasShutdown indicates when the live data checker
 // has been shutdown
-func (l *DataChecker) HasShutdown() <-chan bool {
+func (l *dataChecker) HasShutdown() <-chan bool {
 	if l == nil {
 		immediateClosure := make(chan bool)
 		defer close(immediateClosure)
@@ -168,7 +169,7 @@ func (l *DataChecker) HasShutdown() <-chan bool {
 }
 
 // Reset clears all stored data
-func (l *DataChecker) Reset() {
+func (l *dataChecker) Reset() {
 	if l == nil {
 		return
 	}
@@ -184,20 +185,23 @@ func (l *DataChecker) Reset() {
 }
 
 // AppendDataSource stores params to allow the datachecker to fetch and append live data
-func (l *DataChecker) AppendDataSource(dataSource *LiveDataSourceSetup) error {
+func (l *dataChecker) AppendDataSource(dataSource *liveDataSourceSetup) error {
 	if l == nil {
-		return fmt.Errorf("%w DataChecker", gctcommon.ErrNilPointer)
+		return fmt.Errorf("%w dataChecker", gctcommon.ErrNilPointer)
 	}
-	if dataSource.exch == nil {
+	if dataSource == nil {
+		return fmt.Errorf("%w live data source", gctcommon.ErrNilPointer)
+	}
+	if dataSource.exchange == nil {
 		return fmt.Errorf("%w IBotExchange", gctcommon.ErrNilPointer)
 	}
 	if dataSource.dataType != common.DataCandle && dataSource.dataType != common.DataTrade {
 		return fmt.Errorf("%w '%v'", common.ErrInvalidDataType, dataSource.dataType)
 	}
-	if !dataSource.item.IsValid() {
-		return fmt.Errorf("%w '%v'", asset.ErrNotSupported, dataSource.item)
+	if !dataSource.asset.IsValid() {
+		return fmt.Errorf("%w '%v'", asset.ErrNotSupported, dataSource.asset)
 	}
-	if dataSource.curr.IsEmpty() {
+	if dataSource.pair.IsEmpty() {
 		return fmt.Errorf("main %w", currency.ErrCurrencyPairEmpty)
 	}
 	if dataSource.interval.Duration() == 0 {
@@ -205,21 +209,21 @@ func (l *DataChecker) AppendDataSource(dataSource *LiveDataSourceSetup) error {
 	}
 	l.m.Lock()
 	defer l.m.Unlock()
-	exchName := strings.ToLower(dataSource.exch.GetName())
+	exchName := strings.ToLower(dataSource.exchange.GetName())
 	for i := range l.sourcesToCheck {
 		if l.sourcesToCheck[i].exchangeName == exchName &&
-			l.sourcesToCheck[i].asset == dataSource.item &&
-			l.sourcesToCheck[i].pair.Equal(dataSource.curr) {
-			return fmt.Errorf("%w %v %v %v", errDataSourceExists, exchName, dataSource.item, dataSource.curr)
+			l.sourcesToCheck[i].asset == dataSource.asset &&
+			l.sourcesToCheck[i].pair.Equal(dataSource.pair) {
+			return fmt.Errorf("%w %v %v %v", errDataSourceExists, exchName, dataSource.asset, dataSource.pair)
 		}
 	}
 
 	d := kline.DataFromKline{
 		Item: gctkline.Item{
 			Exchange:       exchName,
-			Pair:           dataSource.curr,
-			UnderlyingPair: dataSource.underlying,
-			Asset:          dataSource.item,
+			Pair:           dataSource.pair,
+			UnderlyingPair: dataSource.underlyingPair,
+			Asset:          dataSource.asset,
 			Interval:       dataSource.interval,
 		},
 	}
@@ -231,11 +235,11 @@ func (l *DataChecker) AppendDataSource(dataSource *LiveDataSourceSetup) error {
 		dataSource.dataRequestRetryWaitTime = defaultDataRequestWaitTime
 	}
 	l.sourcesToCheck = append(l.sourcesToCheck, &liveDataSourceDataHandler{
-		exchange:                  dataSource.exch,
+		exchange:                  dataSource.exchange,
 		exchangeName:              exchName,
-		asset:                     dataSource.item,
-		pair:                      dataSource.curr,
-		underlyingPair:            dataSource.underlying,
+		asset:                     dataSource.asset,
+		pair:                      dataSource.pair,
+		underlyingPair:            dataSource.underlyingPair,
 		pairCandles:               d,
 		dataType:                  dataSource.dataType,
 		processedData:             make(map[int64]struct{}),
@@ -248,9 +252,9 @@ func (l *DataChecker) AppendDataSource(dataSource *LiveDataSourceSetup) error {
 }
 
 // FetchLatestData loads the latest data for all stored data sources
-func (l *DataChecker) FetchLatestData() (bool, error) {
+func (l *dataChecker) FetchLatestData() (bool, error) {
 	if l == nil {
-		return false, fmt.Errorf("%w DataChecker", gctcommon.ErrNilPointer)
+		return false, fmt.Errorf("%w dataChecker", gctcommon.ErrNilPointer)
 	}
 	if atomic.LoadUint32(&l.started) == 0 {
 		return false, engine.ErrSubSystemNotStarted
@@ -302,6 +306,60 @@ func (l *DataChecker) FetchLatestData() (bool, error) {
 	return true, nil
 }
 
+var errNoDataSetForClosingPositions = errors.New("no data was set for closing positions")
+
+// SetDataForClosingAllPositions is triggered on a live data run
+// when closing all positions on close is true.
+// it will ensure all data is set such as USD tracking data
+func (l *dataChecker) SetDataForClosingAllPositions(s ...signal.Event) error {
+	if l == nil {
+		return fmt.Errorf("%w dataChecker", gctcommon.ErrNilPointer)
+	}
+	if len(s) == 0 {
+		return fmt.Errorf("%w signal events", gctcommon.ErrNilPointer)
+	}
+	l.m.Lock()
+	defer l.m.Unlock()
+	var err error
+
+	setData := false
+	for x := range s {
+		if s[x] == nil {
+			return fmt.Errorf("%w signal events", errNilData)
+		}
+		for y := range l.sourcesToCheck {
+			if s[x].GetExchange() != l.sourcesToCheck[y].exchangeName ||
+				s[x].GetAssetType() != l.sourcesToCheck[y].asset ||
+				!s[x].Pair().Equal(l.sourcesToCheck[y].pair) {
+				continue
+			}
+			l.sourcesToCheck[y].pairCandles.Item.Candles = append(l.sourcesToCheck[y].pairCandles.Item.Candles, gctkline.Candle{
+				Time:   s[x].GetTime(),
+				Open:   s[x].GetOpenPrice().InexactFloat64(),
+				High:   s[x].GetHighPrice().InexactFloat64(),
+				Low:    s[x].GetLowPrice().InexactFloat64(),
+				Close:  s[x].GetClosePrice().InexactFloat64(),
+				Volume: s[x].GetVolume().InexactFloat64(),
+			})
+			l.dataHolder.SetDataForCurrency(l.sourcesToCheck[y].exchangeName, l.sourcesToCheck[y].asset, l.sourcesToCheck[y].pair, &l.sourcesToCheck[y].pairCandles)
+			err = l.report.SetKlineData(&l.sourcesToCheck[y].pairCandles.Item)
+			if err != nil {
+				log.Errorf(common.Livetester, "%v %v %v issue processing kline data: %v", l.sourcesToCheck[y].exchangeName, l.sourcesToCheck[y].asset, l.sourcesToCheck[y].pair, err)
+			}
+			err = l.funding.AddUSDTrackingData(&l.sourcesToCheck[y].pairCandles)
+			if err != nil && !errors.Is(err, funding.ErrUSDTrackingDisabled) {
+				log.Errorf(common.Livetester, "%v %v %v issue processing USD tracking data: %v", l.sourcesToCheck[y].exchangeName, l.sourcesToCheck[y].asset, l.sourcesToCheck[y].pair, err)
+			}
+			setData = true
+		}
+	}
+	if !setData {
+		return errNoDataSetForClosingPositions
+	}
+
+	return nil
+}
+
 // loadCandleData fetches data from the exchange API and appends it
 // to the candles to be added to the backtester event queue
 func (c *liveDataSourceDataHandler) loadCandleData(timeToRetrieve time.Time) (bool, error) {
@@ -329,6 +387,9 @@ func (c *liveDataSourceDataHandler) loadCandleData(timeToRetrieve time.Time) (bo
 			}
 		}
 		break
+	}
+	if candles == nil {
+		return false, fmt.Errorf("%w kline Asset", gctcommon.ErrNilPointer)
 	}
 	if len(candles.Candles) == 0 {
 		return false, nil

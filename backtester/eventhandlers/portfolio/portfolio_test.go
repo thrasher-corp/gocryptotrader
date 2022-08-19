@@ -1093,7 +1093,7 @@ func TestGetUnrealisedPNL(t *testing.T) {
 	t.Parallel()
 	p := PNLSummary{
 		Exchange:           testExchange,
-		Item:               asset.Futures,
+		Asset:              asset.Futures,
 		Pair:               currency.NewPair(currency.BTC, currency.USDT),
 		CollateralCurrency: currency.USD,
 		Offset:             1,
@@ -1125,7 +1125,7 @@ func TestGetRealisedPNL(t *testing.T) {
 	t.Parallel()
 	p := PNLSummary{
 		Exchange:           testExchange,
-		Item:               asset.Futures,
+		Asset:              asset.Futures,
 		Pair:               currency.NewPair(currency.BTC, currency.USDT),
 		CollateralCurrency: currency.USD,
 		Offset:             1,
@@ -1157,7 +1157,7 @@ func TestGetExposure(t *testing.T) {
 	t.Parallel()
 	p := PNLSummary{
 		Exchange:           testExchange,
-		Item:               asset.Futures,
+		Asset:              asset.Futures,
 		Pair:               currency.NewPair(currency.BTC, currency.USDT),
 		CollateralCurrency: currency.USD,
 		Offset:             1,
@@ -1182,7 +1182,7 @@ func TestGetCollateralCurrency(t *testing.T) {
 	t.Parallel()
 	p := PNLSummary{
 		Exchange:           testExchange,
-		Item:               asset.Futures,
+		Asset:              asset.Futures,
 		Pair:               currency.NewPair(currency.BTC, currency.USDT),
 		CollateralCurrency: currency.USD,
 		Offset:             1,
@@ -1208,7 +1208,7 @@ func TestGetDirection(t *testing.T) {
 	t.Parallel()
 	p := PNLSummary{
 		Exchange:           testExchange,
-		Item:               asset.Futures,
+		Asset:              asset.Futures,
 		Pair:               currency.NewPair(currency.BTC, currency.USDT),
 		CollateralCurrency: currency.USD,
 		Offset:             1,
@@ -1454,7 +1454,7 @@ func TestCheckLiquidationStatus(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, expectedError)
 	}
 
-	pnl.Item = asset.Futures
+	pnl.Asset = asset.Futures
 	ev.AssetType = asset.Futures
 	ev.Exchange = "ftx"
 	ev.CurrencyPair = pair

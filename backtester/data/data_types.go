@@ -76,4 +76,5 @@ type Event interface {
 	GetHighPrice() decimal.Decimal
 	GetLowPrice() decimal.Decimal
 	GetOpenPrice() decimal.Decimal
+	GetVolume() decimal.Decimal
 }

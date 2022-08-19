@@ -318,10 +318,13 @@ func (f *FundManager) GenerateReport() *Report {
 				log.Error(common.FundManager, "usd tracking data is nil, please ensure data is present")
 				return nil
 			}
+
 			item.USDInitialFunds = f.items[x].initialFunds.Mul(usdStream[0].GetClosePrice())
-			item.USDFinalFunds = f.items[x].available.Mul(usdStream[len(usdStream)-1].GetClosePrice())
+			lastClosePrice := usdStream[len(usdStream)-1].GetClosePrice()
+			item.USDFinalFunds = f.items[x].available.Mul(lastClosePrice)
+
 			item.USDInitialCostForOne = usdStream[0].GetClosePrice()
-			item.USDFinalCostForOne = usdStream[len(usdStream)-1].GetClosePrice()
+			item.USDFinalCostForOne = lastClosePrice
 			item.USDPairCandle = f.items[x].trackingCandles
 		}
 

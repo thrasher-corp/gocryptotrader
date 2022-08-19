@@ -623,7 +623,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 	if a.IsFutures() {
 		// returning the collateral currency along with using the
 		// fPair base creates a pair that links the futures contract to
-		// is underlying pair
+		// is underlyingPair pair
 		// eg BTC-PERP on FTX has a collateral currency of USD
 		// taking the BTC base and USD as quote, allows linking
 		// BTC-USD and BTC-PERP
@@ -729,12 +729,12 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if err != nil {
 			return nil, err
 		}
-		err = bt.LiveDataHandler.AppendDataSource(&LiveDataSourceSetup{
-			exch:                      exch,
+		err = bt.LiveDataHandler.AppendDataSource(&liveDataSourceSetup{
+			exchange:                  exch,
 			interval:                  cfg.DataSettings.Interval,
-			item:                      a,
-			curr:                      fPair,
-			underlying:                underlyingPair,
+			asset:                     a,
+			pair:                      fPair,
+			underlyingPair:            underlyingPair,
 			dataType:                  dataType,
 			dataRequestRetryTolerance: cfg.DataSettings.LiveData.DataRequestRetryTolerance,
 			dataRequestRetryWaitTime:  cfg.DataSettings.LiveData.DataRequestRetryWaitTime,

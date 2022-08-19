@@ -2,6 +2,7 @@ package engine
 
 import (
 	"errors"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"sync"
 	"time"
@@ -33,7 +34,7 @@ var (
 // Handler is all the functionality required in order to
 // run a backtester with live data
 type Handler interface {
-	AppendDataSource(*LiveDataSourceSetup) error
+	AppendDataSource(*liveDataSourceSetup) error
 	FetchLatestData() (bool, error)
 	Start() error
 	IsRunning() bool
@@ -42,11 +43,12 @@ type Handler interface {
 	Reset()
 	Updated() <-chan bool
 	HasShutdown() <-chan bool
+	SetDataForClosingAllPositions(events ...signal.Event) error
 }
 
-// DataChecker is responsible for managing all data retrieval
+// dataChecker is responsible for managing all data retrieval
 // for a live data option
-type DataChecker struct {
+type dataChecker struct {
 	m                 sync.Mutex
 	wg                sync.WaitGroup
 	started           uint32
@@ -63,26 +65,30 @@ type DataChecker struct {
 	funding           funding.IFundingManager
 }
 
-type LiveDataSourceSetup struct {
-	exch                      gctexchange.IBotExchange
+// liveDataSourceSetup is used to add new data sources
+// to retrieve live data
+type liveDataSourceSetup struct {
+	exchange                  gctexchange.IBotExchange
 	interval                  gctkline.Interval
-	item                      asset.Item
-	curr                      currency.Pair
-	underlying                currency.Pair
+	asset                     asset.Item
+	pair                      currency.Pair
+	underlyingPair            currency.Pair
 	dataType                  int64
 	dataRequestRetryTolerance int64
 	dataRequestRetryWaitTime  time.Duration
 	verboseExchangeRequest    bool
 }
 
+// liveDataSourceDataHandler is used to collect
+// and store live data
 type liveDataSourceDataHandler struct {
 	exchange                  gctexchange.IBotExchange
 	exchangeName              string
 	asset                     asset.Item
 	pair                      currency.Pair
 	underlyingPair            currency.Pair
-	pairCandles               kline.DataFromKline
 	dataType                  int64
+	pairCandles               kline.DataFromKline
 	processedData             map[int64]struct{}
 	candlesToAppend           *gctkline.Item
 	dataRequestRetryTolerance int64

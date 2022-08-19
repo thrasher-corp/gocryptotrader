@@ -2,6 +2,7 @@ package base
 
 import (
 	"errors"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"testing"
 	"time"
 
@@ -94,5 +95,14 @@ func TestSetExchangeLevelFunding(t *testing.T) {
 	}
 	if !s.UsingExchangeLevelFunding() {
 		t.Error("expected true")
+	}
+}
+
+func TestCloseAllPositions(t *testing.T) {
+	t.Parallel()
+	s := &Strategy{}
+	_, err := s.CloseAllPositions(nil, nil)
+	if !errors.Is(err, gctcommon.ErrFunctionNotSupported) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrFunctionNotSupported)
 	}
 }

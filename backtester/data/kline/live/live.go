@@ -25,7 +25,7 @@ func LoadData(ctx context.Context, timeToRetrieve time.Time, exch exchange.IBotE
 	var err error
 	var b *exchange.Base
 	if verbose {
-		b = b.GetBase()
+		b = exch.GetBase()
 		b.Verbose = verbose
 	}
 	switch dataType {

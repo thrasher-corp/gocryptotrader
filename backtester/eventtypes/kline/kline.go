@@ -25,6 +25,11 @@ func (k *Kline) GetOpenPrice() decimal.Decimal {
 	return k.Open
 }
 
+// GetVolume returns the volume of a kline
+func (k *Kline) GetVolume() decimal.Decimal {
+	return k.Volume
+}
+
 // GetUnderlyingPair returns the open price of a kline
 func (k *Kline) GetUnderlyingPair() currency.Pair {
 	return k.UnderlyingPair

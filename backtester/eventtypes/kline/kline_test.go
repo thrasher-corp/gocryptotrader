@@ -59,3 +59,11 @@ func TestGetUnderlyingPair(t *testing.T) {
 		t.Errorf("expected '%v'", k.Base.UnderlyingPair)
 	}
 }
+
+func TestIsKLine(t *testing.T) {
+	t.Parallel()
+	k := Kline{}
+	if !k.IsKline() {
+		t.Errorf("receieved '%v' expected '%v'", false, true)
+	}
+}

@@ -89,7 +89,7 @@ type Settings struct {
 // exchange details
 type PNLSummary struct {
 	Exchange           string
-	Item               asset.Item
+	Asset              asset.Item
 	Pair               currency.Pair
 	CollateralCurrency currency.Code
 	Offset             int64

@@ -3,6 +3,8 @@ package engine
 import (
 	"errors"
 	datakline "github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
@@ -53,9 +55,9 @@ func TestSetupLiveDataHandler(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
-	dc, ok := bt.LiveDataHandler.(*DataChecker)
+	dc, ok := bt.LiveDataHandler.(*dataChecker)
 	if !ok {
-		t.Fatalf("received '%T' expected '%v'", dc, "DataChecker")
+		t.Fatalf("received '%T' expected '%v'", dc, "dataChecker")
 	}
 	if dc.eventTimeout != defaultEventTimeout {
 		t.Errorf("received '%v' expected '%v'", dc.eventTimeout, defaultEventTimeout)
@@ -73,7 +75,7 @@ func TestSetupLiveDataHandler(t *testing.T) {
 
 func TestStart(t *testing.T) {
 	t.Parallel()
-	dataHandler := &DataChecker{
+	dataHandler := &dataChecker{
 		shutdown: make(chan struct{}),
 	}
 	err := dataHandler.Start()
@@ -87,7 +89,7 @@ func TestStart(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemAlreadyStarted)
 	}
 
-	var dh *DataChecker
+	var dh *dataChecker
 	err = dh.Start()
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
@@ -96,7 +98,7 @@ func TestStart(t *testing.T) {
 
 func TestIsRunning(t *testing.T) {
 	t.Parallel()
-	dataHandler := &DataChecker{}
+	dataHandler := &dataChecker{}
 	if dataHandler.IsRunning() {
 		t.Errorf("received '%v' expected '%v'", true, false)
 	}
@@ -107,7 +109,7 @@ func TestIsRunning(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", false, true)
 	}
 
-	var dh *DataChecker
+	var dh *dataChecker
 	if dh.IsRunning() {
 		t.Errorf("received '%v' expected '%v'", true, false)
 	}
@@ -115,7 +117,7 @@ func TestIsRunning(t *testing.T) {
 
 func TestLiveHandlerStop(t *testing.T) {
 	t.Parallel()
-	dataHandler := &DataChecker{}
+	dataHandler := &dataChecker{}
 	err := dataHandler.Stop()
 	if !errors.Is(err, engine.ErrSubSystemNotStarted) {
 		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemNotStarted)
@@ -133,7 +135,7 @@ func TestLiveHandlerStop(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemNotStarted)
 	}
 
-	var dh *DataChecker
+	var dh *dataChecker
 	err = dh.Stop()
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
@@ -142,7 +144,7 @@ func TestLiveHandlerStop(t *testing.T) {
 
 func TestDataFetcher(t *testing.T) {
 	t.Parallel()
-	dataHandler := &DataChecker{}
+	dataHandler := &dataChecker{}
 	dataHandler.wg.Add(1)
 	err := dataHandler.DataFetcher()
 	if !errors.Is(err, engine.ErrSubSystemNotStarted) {
@@ -151,7 +153,6 @@ func TestDataFetcher(t *testing.T) {
 
 	dataHandler.started = 1
 	dataHandler.wg.Add(1)
-	dataHandler.updated = make(chan struct{})
 	err = dataHandler.DataFetcher()
 	if !errors.Is(err, ErrLiveDataTimeout) {
 		t.Errorf("received '%v' expected '%v'", err, ErrLiveDataTimeout)
@@ -159,8 +160,7 @@ func TestDataFetcher(t *testing.T) {
 
 	dataHandler.wg.Add(1)
 	dataHandler.shutdown = make(chan struct{})
-	dataHandler.updated = make(chan struct{})
-	dataHandler.eventTimeout = time.Second
+	dataHandler.eventTimeout = time.Nanosecond
 	var localWg sync.WaitGroup
 	localWg.Add(1)
 	go func() {
@@ -172,19 +172,7 @@ func TestDataFetcher(t *testing.T) {
 	}()
 	localWg.Wait()
 
-	dataHandler.wg.Add(1)
-	close(dataHandler.shutdown)
-	localWg.Add(1)
-	go func() {
-		defer localWg.Done()
-		asyncErr := dataHandler.DataFetcher()
-		if !errors.Is(asyncErr, nil) {
-			t.Errorf("received '%v' expected '%v'", asyncErr, nil)
-		}
-	}()
-	localWg.Wait()
-
-	var dh *DataChecker
+	var dh *dataChecker
 	err = dh.DataFetcher()
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
@@ -193,76 +181,86 @@ func TestDataFetcher(t *testing.T) {
 
 func TestUpdated(t *testing.T) {
 	t.Parallel()
-	dataHandler := &DataChecker{
-		updated: make(chan struct{}),
+	dataHandler := &dataChecker{
+		shutdown: make(chan struct{}),
 	}
 	var wg sync.WaitGroup
 	wg.Add(1)
+	waitChan := dataHandler.Updated()
 	go func() {
 		select {
-		case <-dataHandler.Updated():
+		case <-waitChan:
 			wg.Done()
 		}
 	}()
-
-	close(dataHandler.updated)
+	dataHandler.notice.Alert()
 	wg.Wait()
 
-	var dh *DataChecker
+	dataHandler = nil
 	wg.Add(1)
+	waitChan = dataHandler.Updated()
 	go func() {
 		select {
-		case <-dh.Updated():
+		case <-waitChan:
 			wg.Done()
 		}
 	}()
-
 	wg.Wait()
 }
 
 func TestLiveHandlerReset(t *testing.T) {
 	t.Parallel()
-	dataHandler := &DataChecker{
+	dataHandler := &dataChecker{
 		eventTimeout: 1,
 	}
 	dataHandler.Reset()
 	if dataHandler.eventTimeout != 0 {
 		t.Errorf("received '%v' expected '%v'", dataHandler.eventTimeout, 0)
 	}
-	var dh *DataChecker
+	var dh *dataChecker
 	dh.Reset()
 }
 
 func TestAppendDataSource(t *testing.T) {
 	t.Parallel()
-	dataHandler := &DataChecker{}
-	err := dataHandler.AppendDataSource(nil, 0, 0, currency.EMPTYPAIR, currency.EMPTYPAIR, 0)
+	dataHandler := &dataChecker{}
+	err := dataHandler.AppendDataSource(nil)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 
-	err = dataHandler.AppendDataSource(&ftx.FTX{}, 0, 0, currency.EMPTYPAIR, currency.EMPTYPAIR, 0)
+	setup := &liveDataSourceSetup{}
+	err = dataHandler.AppendDataSource(setup)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
+	}
+
+	setup.exchange = &ftx.FTX{}
+	err = dataHandler.AppendDataSource(setup)
 	if !errors.Is(err, common.ErrInvalidDataType) {
 		t.Errorf("received '%v' expected '%v'", err, common.ErrInvalidDataType)
 	}
 
-	dt := common.DataCandle
-	err = dataHandler.AppendDataSource(&ftx.FTX{}, 0, 0, currency.EMPTYPAIR, currency.EMPTYPAIR, dt)
+	setup.dataType = common.DataCandle
+	err = dataHandler.AppendDataSource(setup)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("received '%v' expected '%v'", err, asset.ErrNotSupported)
 	}
 
-	err = dataHandler.AppendDataSource(&ftx.FTX{}, 0, asset.Spot, currency.EMPTYPAIR, currency.EMPTYPAIR, dt)
+	setup.asset = asset.Spot
+	err = dataHandler.AppendDataSource(setup)
 	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
 		t.Errorf("received '%v' expected '%v'", err, currency.ErrCurrencyPairEmpty)
 	}
 
-	err = dataHandler.AppendDataSource(&ftx.FTX{}, 0, asset.Spot, currency.NewPair(currency.BTC, currency.USD), currency.EMPTYPAIR, dt)
+	setup.pair = currency.NewPair(currency.BTC, currency.USD)
+	err = dataHandler.AppendDataSource(setup)
 	if !errors.Is(err, kline.ErrUnsetInterval) {
 		t.Errorf("received '%v' expected '%v'", err, kline.ErrUnsetInterval)
 	}
 
-	err = dataHandler.AppendDataSource(&ftx.FTX{}, kline.OneHour, asset.Spot, currency.NewPair(currency.BTC, currency.USD), currency.EMPTYPAIR, dt)
+	setup.interval = kline.OneDay
+	err = dataHandler.AppendDataSource(setup)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -271,13 +269,13 @@ func TestAppendDataSource(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", len(dataHandler.sourcesToCheck), 1)
 	}
 
-	err = dataHandler.AppendDataSource(&ftx.FTX{}, kline.OneHour, asset.Spot, currency.NewPair(currency.BTC, currency.USD), currency.EMPTYPAIR, dt)
+	err = dataHandler.AppendDataSource(setup)
 	if !errors.Is(err, errDataSourceExists) {
 		t.Errorf("received '%v' expected '%v'", err, errDataSourceExists)
 	}
 
 	dataHandler = nil
-	err = dataHandler.AppendDataSource(nil, 0, 0, currency.EMPTYPAIR, currency.EMPTYPAIR, 0)
+	err = dataHandler.AppendDataSource(setup)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
@@ -285,7 +283,7 @@ func TestAppendDataSource(t *testing.T) {
 
 func TestFetchLatestData(t *testing.T) {
 	t.Parallel()
-	dataHandler := &DataChecker{
+	dataHandler := &dataChecker{
 		report:  &report.Data{},
 		funding: &funding.FundManager{},
 	}
@@ -306,21 +304,23 @@ func TestFetchLatestData(t *testing.T) {
 	fbA := fb.CurrencyPairs.Pairs[asset.Spot]
 	fbA.Enabled = fbA.Enabled.Add(cp)
 	fbA.Available = fbA.Available.Add(cp)
-	dataHandler.sourcesToCheck = []liveDataSourceDataHandler{
+	dataHandler.sourcesToCheck = []*liveDataSourceDataHandler{
 		{
-			m:              sync.Mutex{},
-			exchange:       f,
-			exchangeName:   "ftx",
-			asset:          asset.Spot,
-			pair:           cp,
-			underlyingPair: cp,
+			exchange:                  f,
+			exchangeName:              "ftx",
+			asset:                     asset.Spot,
+			pair:                      cp,
+			dataRequestRetryWaitTime:  defaultDataRequestWaitTime,
+			dataRequestRetryTolerance: 1,
+			underlyingPair:            cp,
 			pairCandles: datakline.DataFromKline{
 				Base: data.Base{},
 				Item: kline.Item{
 					Interval: kline.OneHour,
 				},
 			},
-			dataType: common.DataCandle,
+			dataType:      common.DataCandle,
+			processedData: make(map[int64]struct{}),
 		},
 	}
 	dataHandler.dataHolder = &fakeDataHolder{}
@@ -329,7 +329,7 @@ func TestFetchLatestData(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
-	var dh *DataChecker
+	var dh *dataChecker
 	_, err = dh.FetchLatestData()
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
@@ -338,8 +338,12 @@ func TestFetchLatestData(t *testing.T) {
 
 func TestLoadCandleData(t *testing.T) {
 	t.Parallel()
-	l := &liveDataSourceDataHandler{}
-	err := l.loadCandleData(time.Now())
+	l := &liveDataSourceDataHandler{
+		dataRequestRetryTolerance: 1,
+		dataRequestRetryWaitTime:  defaultDataRequestWaitTime,
+		processedData:             make(map[int64]struct{}),
+	}
+	_, err := l.loadCandleData(time.Now())
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
@@ -364,13 +368,118 @@ func TestLoadCandleData(t *testing.T) {
 			Interval:       kline.OneHour,
 		},
 	}
-	err = l.loadCandleData(time.Now())
+	updated, err := l.loadCandleData(time.Now())
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if !updated {
+		t.Errorf("received '%v' expected '%v'", updated, true)
+	}
+
+	var ldh *liveDataSourceDataHandler
+	_, err = ldh.loadCandleData(time.Now())
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
+	}
+}
+
+func TestSetDataForClosingAllPositions(t *testing.T) {
+	t.Parallel()
+	dataHandler := &dataChecker{
+		report:  &report.Data{},
+		funding: &funding.FundManager{},
+	}
+
+	dataHandler.started = 1
+	cp := currency.NewPair(currency.BTC, currency.USD).Format("/", true)
+	f := &ftx.FTX{}
+	f.SetDefaults()
+	fb := f.GetBase()
+	fbA := fb.CurrencyPairs.Pairs[asset.Spot]
+	fbA.Enabled = fbA.Enabled.Add(cp)
+	fbA.Available = fbA.Available.Add(cp)
+	dataHandler.sourcesToCheck = []*liveDataSourceDataHandler{
+		{
+			exchange:                  f,
+			exchangeName:              "ftx",
+			asset:                     asset.Spot,
+			pair:                      cp,
+			dataRequestRetryWaitTime:  defaultDataRequestWaitTime,
+			dataRequestRetryTolerance: 1,
+			underlyingPair:            cp,
+			pairCandles: datakline.DataFromKline{
+				Base: data.Base{},
+				Item: kline.Item{
+					Interval: kline.OneHour,
+				},
+			},
+			dataType:      common.DataCandle,
+			processedData: make(map[int64]struct{}),
+		},
+	}
+	dataHandler.dataHolder = &fakeDataHolder{}
+	_, err := dataHandler.FetchLatestData()
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
-	var ldh *liveDataSourceDataHandler
-	err = ldh.loadCandleData(time.Now())
+	err = dataHandler.SetDataForClosingAllPositions()
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
+	}
+
+	err = dataHandler.SetDataForClosingAllPositions(nil)
+	if !errors.Is(err, errNilData) {
+		t.Errorf("received '%v' expected '%v'", err, errNilData)
+	}
+	err = dataHandler.SetDataForClosingAllPositions(&signal.Signal{
+		Base: &event.Base{
+			Offset:         3,
+			Exchange:       "ftx",
+			Time:           time.Now(),
+			Interval:       kline.OneHour,
+			CurrencyPair:   cp,
+			UnderlyingPair: cp,
+			AssetType:      asset.Spot,
+		},
+		OpenPrice:  leet,
+		HighPrice:  leet,
+		LowPrice:   leet,
+		ClosePrice: leet,
+		Volume:     leet,
+		BuyLimit:   leet,
+		SellLimit:  leet,
+		Amount:     leet,
+	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	err = dataHandler.SetDataForClosingAllPositions(&signal.Signal{
+		Base: &event.Base{
+			Offset:         3,
+			Exchange:       "binance",
+			Time:           time.Now(),
+			Interval:       kline.OneHour,
+			CurrencyPair:   cp,
+			UnderlyingPair: cp,
+			AssetType:      asset.Spot,
+		},
+		OpenPrice:  leet,
+		HighPrice:  leet,
+		LowPrice:   leet,
+		ClosePrice: leet,
+		Volume:     leet,
+		BuyLimit:   leet,
+		SellLimit:  leet,
+		Amount:     leet,
+	})
+	if !errors.Is(err, errNoDataSetForClosingPositions) {
+		t.Errorf("received '%v' expected '%v'", err, errNoDataSetForClosingPositions)
+	}
+
+	dataHandler = nil
+	err = dataHandler.SetDataForClosingAllPositions()
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}

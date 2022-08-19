@@ -86,6 +86,11 @@ func (b *Base) Offset() int64 {
 // SetStream sets the data stream for candle analysis
 func (b *Base) SetStream(s []Event) {
 	b.stream = s
+	// due to the Next() function, we cannot take
+	// stream offsets as is, and we re-set them
+	for i := range b.stream {
+		b.stream[i].SetOffset(int64(i + 1))
+	}
 }
 
 // AppendStream appends new datas onto the stream, however, will not
@@ -93,7 +98,7 @@ func (b *Base) SetStream(s []Event) {
 func (b *Base) AppendStream(s ...Event) {
 candles:
 	for x := range s {
-		if s[x] == nil {
+		if s[x] == nil || !b.equalSource(s[x]) {
 			continue
 		}
 		for y := range b.stream {
@@ -107,6 +112,23 @@ candles:
 		b.stream[i].SetOffset(int64(i + 1))
 	}
 	b.SortStream()
+}
+
+// equalSource verifies that incoming data matches
+// internal source
+func (b *Base) equalSource(s Event) bool {
+	if b == nil || s == nil {
+		return false
+	}
+	if s.GetExchange() == "" || !s.GetAssetType().IsValid() || s.Pair().IsEmpty() {
+		return false
+	}
+	if len(b.stream) == 0 {
+		return true
+	}
+	return s.GetExchange() == b.stream[0].GetExchange() &&
+		s.GetAssetType() == b.stream[0].GetAssetType() &&
+		s.Pair().Equal(b.stream[0].Pair())
 }
 
 // Next will return the next event in the list and also shift the offset one

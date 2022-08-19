@@ -134,6 +134,7 @@ func (s *Strategy) CloseAllPositions(holdings []holdings.Holding, prices []data.
 				HighPrice:          prices[j].GetHighPrice(),
 				LowPrice:           prices[j].GetLowPrice(),
 				ClosePrice:         prices[j].GetClosePrice(),
+				Volume:             prices[j].GetVolume(),
 				Amount:             holdings[i].BaseSize,
 				Direction:          order.ClosePosition,
 				CollateralCurrency: holdings[i].Pair.Base,

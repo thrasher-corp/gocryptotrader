@@ -565,7 +565,7 @@ func (p *Portfolio) GetLatestPNLForEvent(e common.Event) (*PNLSummary, error) {
 	}
 	response := &PNLSummary{
 		Exchange: e.GetExchange(),
-		Item:     e.GetAssetType(),
+		Asset:    e.GetAssetType(),
 		Pair:     e.Pair(),
 		Offset:   e.GetOffset(),
 	}
@@ -750,7 +750,7 @@ func (p *Portfolio) GetLatestPNLs() []PNLSummary {
 					cp := currency.NewPair(b.Currency(), q.Currency())
 					summary := PNLSummary{
 						Exchange: exch,
-						Item:     ai,
+						Asset:    ai,
 						Pair:     cp,
 					}
 					positions := settings.FuturesTracker.GetPositions()

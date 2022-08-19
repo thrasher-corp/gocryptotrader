@@ -73,7 +73,10 @@
    "data-check-timer": 1000000000,
    "real-orders": false,
    "verbose-data-check": false,
+   "verbose-exchange-requests": false,
    "close-positions-on-exit": false,
+   "data-request-retry-tolerance": 3,
+   "data-request-retry-wait-time": 500000000,
    "exchange-credentials": null
   }
  },

@@ -33,7 +33,7 @@ func TestSetPrice(t *testing.T) {
 	}
 	s.SetPrice(decimal.NewFromInt(1337))
 	if !s.GetClosePrice().Equal(decimal.NewFromInt(1337)) {
-		t.Error("expected decimal.NewFromInt(1337)")
+		t.Errorf("received '%v' expected '%v'", s.GetClosePrice(), 1337)
 	}
 }
 
@@ -152,5 +152,49 @@ func TestMatchOrderAmount(t *testing.T) {
 	s.MatchesOrderAmount = true
 	if !s.MatchOrderAmount() {
 		t.Error("expected true")
+	}
+}
+
+func TestGetHighPrice(t *testing.T) {
+	t.Parallel()
+	s := Signal{
+		HighPrice: decimal.NewFromInt(1337),
+	}
+	if !s.GetHighPrice().Equal(decimal.NewFromInt(1337)) {
+		t.Errorf("received '%v' expected '%v'", s.GetHighPrice(), 1337)
+	}
+}
+
+func TestGetLowPrice(t *testing.T) {
+	t.Parallel()
+	s := Signal{
+		LowPrice: decimal.NewFromInt(1337),
+	}
+	if !s.GetLowPrice().Equal(decimal.NewFromInt(1337)) {
+		t.Errorf("received '%v' expected '%v'", s.GetLowPrice(), 1337)
+	}
+}
+
+func TestGetOpenPrice(t *testing.T) {
+	t.Parallel()
+	s := Signal{
+		OpenPrice: decimal.NewFromInt(1337),
+	}
+	if !s.GetOpenPrice().Equal(decimal.NewFromInt(1337)) {
+		t.Errorf("received '%v' expected '%v'", s.GetOpenPrice(), 1337)
+	}
+}
+
+func TestToKline(t *testing.T) {
+	t.Parallel()
+	s := Signal{
+		OpenPrice: decimal.NewFromInt(1337),
+	}
+	k := s.ToKline()
+	if !k.IsKline() {
+		t.Errorf("received '%v' expected '%v'", false, true)
+	}
+	if !k.GetOpenPrice().Equal(decimal.NewFromInt(1337)) {
+		t.Errorf("received '%v' expected '%v'", k.GetOpenPrice(), 1337)
 	}
 }

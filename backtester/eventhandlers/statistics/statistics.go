@@ -138,9 +138,9 @@ func (s *Statistic) AddPNLForTime(pnl *portfolio.PNLSummary) error {
 	if s.ExchangeAssetPairStatistics == nil {
 		return errExchangeAssetPairStatsUnset
 	}
-	lookup := s.ExchangeAssetPairStatistics[pnl.Exchange][pnl.Item][pnl.Pair.Base.Item][pnl.Pair.Quote.Item]
+	lookup := s.ExchangeAssetPairStatistics[pnl.Exchange][pnl.Asset][pnl.Pair.Base.Item][pnl.Pair.Quote.Item]
 	if lookup == nil {
-		return fmt.Errorf("%w for %v %v %v to set pnl", errCurrencyStatisticsUnset, pnl.Exchange, pnl.Item, pnl.Pair)
+		return fmt.Errorf("%w for %v %v %v to set pnl", errCurrencyStatisticsUnset, pnl.Exchange, pnl.Asset, pnl.Pair)
 	}
 	for i := len(lookup.Events) - 1; i >= 0; i-- {
 		if lookup.Events[i].Offset == pnl.Offset {
@@ -149,7 +149,7 @@ func (s *Statistic) AddPNLForTime(pnl *portfolio.PNLSummary) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("%v %v %v %w %v", pnl.Exchange, pnl.Item, pnl.Pair, errNoDataAtOffset, pnl.Offset)
+	return fmt.Errorf("%v %v %v %w %v", pnl.Exchange, pnl.Asset, pnl.Pair, errNoDataAtOffset, pnl.Offset)
 }
 
 // AddComplianceSnapshotForTime adds the compliance snapshot to the statistics at the time period

@@ -311,7 +311,7 @@ func TestAnalysePNLGrowth(t *testing.T) {
 	c.Events = append(c.Events,
 		DataAtOffset{PNL: &portfolio.PNLSummary{
 			Exchange: e,
-			Item:     a,
+			Asset:    a,
 			Pair:     p,
 			Offset:   0,
 			Result: order.PNLResult{
@@ -333,7 +333,7 @@ func TestAnalysePNLGrowth(t *testing.T) {
 	c.Events = append(c.Events,
 		DataAtOffset{PNL: &portfolio.PNLSummary{
 			Exchange: e,
-			Item:     a,
+			Asset:    a,
 			Pair:     p,
 			Offset:   0,
 			Result: order.PNLResult{

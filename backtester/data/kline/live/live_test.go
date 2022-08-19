@@ -14,38 +14,38 @@ import (
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
-const testExchange = "binance"
+const testExchange = "ftx"
 
 func TestLoadCandles(t *testing.T) {
 	t.Parallel()
 	interval := gctkline.OneHour
-	cp1 := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewPair(currency.BTC, currency.USD)
 	a := asset.Spot
 	em := engine.SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
 	}
-	pFormat := &currency.PairFormat{Uppercase: true}
+	pFormat := &currency.PairFormat{Uppercase: true, Delimiter: currency.ForwardSlashDelimiter}
 	b := exch.GetBase()
 	exch.SetDefaults()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
-		Available:     currency.Pairs{cp1},
-		Enabled:       currency.Pairs{cp1},
+		Available:     currency.Pairs{cp},
+		Enabled:       currency.Pairs{cp},
 		AssetEnabled:  convert.BoolPtr(true),
 		RequestFormat: pFormat,
 		ConfigFormat:  pFormat,
 	}
 	var data *gctkline.Item
-	data, err = LoadData(context.Background(), time.Now(), exch, common.DataCandle, interval.Duration(), cp1, currency.EMPTYPAIR, a)
+	data, err = LoadData(context.Background(), time.Now(), exch, common.DataCandle, interval.Duration(), cp, currency.EMPTYPAIR, a, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(data.Candles) == 0 {
 		t.Error("expected candles")
 	}
-	_, err = LoadData(context.Background(), time.Now(), exch, -1, interval.Duration(), cp1, currency.EMPTYPAIR, a)
+	_, err = LoadData(context.Background(), time.Now(), exch, -1, interval.Duration(), cp, currency.EMPTYPAIR, a, false)
 	if !errors.Is(err, common.ErrInvalidDataType) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrInvalidDataType)
 	}
@@ -54,26 +54,26 @@ func TestLoadCandles(t *testing.T) {
 func TestLoadTrades(t *testing.T) {
 	t.Parallel()
 	interval := gctkline.OneMin
-	cp1 := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewPair(currency.BTC, currency.USD)
 	a := asset.Spot
 	em := engine.SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
 	}
-	pFormat := &currency.PairFormat{Uppercase: true}
+	pFormat := &currency.PairFormat{Uppercase: true, Delimiter: currency.ForwardSlashDelimiter}
 	b := exch.GetBase()
 	exch.SetDefaults()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
-		Available:     currency.Pairs{cp1},
-		Enabled:       currency.Pairs{cp1},
+		Available:     currency.Pairs{cp},
+		Enabled:       currency.Pairs{cp},
 		AssetEnabled:  convert.BoolPtr(true),
 		RequestFormat: pFormat,
 		ConfigFormat:  pFormat,
 	}
 	var data *gctkline.Item
-	data, err = LoadData(context.Background(), time.Now(), exch, common.DataTrade, interval.Duration(), cp1, currency.EMPTYPAIR, a)
+	data, err = LoadData(context.Background(), time.Now(), exch, common.DataTrade, interval.Duration(), cp, currency.EMPTYPAIR, a, true)
 	if err != nil {
 		t.Fatal(err)
 	}

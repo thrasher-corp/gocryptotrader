@@ -784,7 +784,7 @@ func TestTriggerLiquidationsForExchange(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 	pnl.Exchange = ev.Exchange
-	pnl.Item = ev.AssetType
+	pnl.Asset = ev.AssetType
 	pnl.Pair = ev.CurrencyPair
 	err = bt.triggerLiquidationsForExchange(ev, pnl)
 	if !errors.Is(err, expectedError) {
@@ -1402,7 +1402,7 @@ func TestCloseAllPositions(t *testing.T) {
 	}
 
 	bt.shutdown = make(chan struct{})
-	bt.LiveDataHandler = &DataChecker{}
+	bt.LiveDataHandler = &dataChecker{}
 	err = bt.CloseAllPositions()
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
@@ -1487,8 +1487,16 @@ func TestRunLive(t *testing.T) {
 			},
 		},
 	}
-	// 	AppendDataSource(exch gctexchange.IBotExchange, interval gctkline.Interval, item asset.Item, curr, underlying currency.Pair, dataType int64) error
-	err = bt.LiveDataHandler.AppendDataSource(&ftx.FTX{}, i.Interval, i.Asset, i.Pair, i.UnderlyingPair, common.DataCandle)
+	// 	AppendDataSource(exchange gctexchange.IBotExchange, interval gctkline.Interval, asset asset.Asset, pair, underlyingPair currency.Pair, dataType int64) error
+	setup := &liveDataSourceSetup{
+		exchange:       &ftx.FTX{},
+		interval:       i.Interval,
+		asset:          i.Asset,
+		pair:           i.Pair,
+		underlyingPair: i.UnderlyingPair,
+		dataType:       common.DataCandle,
+	}
+	err = bt.LiveDataHandler.AppendDataSource(setup)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -1503,7 +1511,6 @@ func TestRunLive(t *testing.T) {
 			t.Errorf("received '%v' expected '%v'", err, nil)
 		}
 	}()
-	bt.LiveDataHandler.Updated() <- struct{}{}
 	close(bt.shutdown)
 	wg.Wait()
 }

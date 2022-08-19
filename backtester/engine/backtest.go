@@ -543,6 +543,11 @@ func (bt *BackTest) CloseAllPositions() error {
 		}
 		return err
 	}
+	err = bt.LiveDataHandler.SetDataForClosingAllPositions(events...)
+	if err != nil {
+		return err
+	}
+
 	for i := range events {
 		k := events[i].ToKline()
 		err = bt.Statistic.SetEventForOffset(k)

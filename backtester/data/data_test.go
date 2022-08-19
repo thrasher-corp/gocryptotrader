@@ -26,67 +26,6 @@ type fakeEvent struct {
 
 type fakeHandler struct{}
 
-func TestLatest(t *testing.T) {
-	t.Parallel()
-	var d Base
-	d.AppendStream(&fakeEvent{time: 1})
-	if latest := d.Latest(); latest != d.stream[d.offset] {
-		t.Error("expected latest to match offset")
-	}
-}
-
-func TestBaseDataFunctions(t *testing.T) {
-	t.Parallel()
-	var d Base
-
-	d.Next()
-	o := d.Offset()
-	if o != 0 {
-		t.Error("expected 0")
-	}
-	d.AppendStream(nil)
-	if d.IsLastEvent() {
-		t.Error("no")
-	}
-	d.AppendStream(nil)
-	if len(d.stream) != 0 {
-		t.Error("expected 0")
-	}
-	d.AppendStream(&fakeEvent{time: 1, Base: &event.Base{Offset: 1}})
-	d.AppendStream(&fakeEvent{time: 2, Base: &event.Base{Offset: 2}})
-	d.AppendStream(&fakeEvent{time: 3, Base: &event.Base{Offset: 3}})
-	d.AppendStream(&fakeEvent{time: 4, Base: &event.Base{Offset: 4}})
-	d.Next()
-
-	d.Next()
-	if list := d.List(); len(list) != 2 {
-		t.Errorf("expected 2 received %v", len(list))
-	}
-	d.Next()
-	d.Next()
-	if !d.IsLastEvent() {
-		t.Error("expected last event")
-	}
-	o = d.Offset()
-	if o != 4 {
-		t.Error("expected 4")
-	}
-	if list := d.List(); len(list) != 0 {
-		t.Error("expected 0")
-	}
-	if history := d.History(); len(history) != 4 {
-		t.Errorf("expected 4 received %v", len(history))
-	}
-
-	d.SetStream(nil)
-	if st := d.GetStream(); st != nil {
-		t.Error("expected nil")
-	}
-	d.Reset()
-	d.GetStream()
-	d.SortStream()
-}
-
 func TestSetup(t *testing.T) {
 	t.Parallel()
 	d := HandlerPerCurrency{}
@@ -155,13 +94,26 @@ func TestGetDataForCurrency(t *testing.T) {
 
 func TestReset(t *testing.T) {
 	t.Parallel()
-	d := HandlerPerCurrency{}
+	d := &HandlerPerCurrency{}
 	d.SetDataForCurrency(exch, a, p, nil)
 	d.SetDataForCurrency(exch, a, currency.NewPair(currency.BTC, currency.DOGE), nil)
 	d.Reset()
 	if d.data != nil {
 		t.Error("expected nil")
 	}
+	d = nil
+	d.Reset()
+}
+
+func TestBaseReset(t *testing.T) {
+	t.Parallel()
+	hello := &Base{offset: 1}
+	hello.Reset()
+	if hello.offset != 0 {
+		t.Errorf("recieved '%v' expected '%v'", hello.offset, 0)
+	}
+	hello = nil
+	hello.Reset()
 }
 
 func TestSortStream(t *testing.T) {
@@ -185,6 +137,213 @@ func TestSortStream(t *testing.T) {
 	hello.SortStream()
 	if hello.stream[0].GetOffset() != 1337 {
 		t.Error("expected 1337")
+	}
+}
+
+func TestGetStream(t *testing.T) {
+	t.Parallel()
+	hello := Base{}
+	resp := hello.GetStream()
+	if len(resp) != 0 {
+		t.Errorf("recieved '%v' expected '%v'", len(resp), 0)
+	}
+	hello.stream = []Event{
+		&fakeEvent{
+			Base: &event.Base{
+				Offset: 2048,
+				Time:   time.Now(),
+			},
+		},
+		&fakeEvent{
+			Base: &event.Base{
+				Offset: 1337,
+				Time:   time.Now().Add(-time.Hour),
+			},
+		},
+	}
+	resp = hello.GetStream()
+	if len(resp) != 2 {
+		t.Errorf("recieved '%v' expected '%v'", len(resp), 2)
+	}
+}
+
+func TestOffset(t *testing.T) {
+	t.Parallel()
+	hello := Base{}
+	o := hello.Offset()
+	if o != 0 {
+		t.Errorf("recieved '%v' expected '%v'", o, 0)
+	}
+	hello.offset = 1337
+	o = hello.Offset()
+	if o != 1337 {
+		t.Errorf("recieved '%v' expected '%v'", o, 1337)
+	}
+}
+
+func TestSetStream(t *testing.T) {
+	t.Parallel()
+	hello := Base{}
+	hello.SetStream(nil)
+	if len(hello.stream) != 0 {
+		t.Errorf("recieved '%v' expected '%v'", len(hello.stream), 0)
+	}
+	hello.SetStream([]Event{
+		&fakeEvent{
+			Base: &event.Base{
+				Offset: 2048,
+				Time:   time.Now(),
+			},
+		},
+		&fakeEvent{
+			Base: &event.Base{
+				Offset: 1337,
+				Time:   time.Now().Add(-time.Hour),
+			},
+		},
+	})
+	if len(hello.stream) != 2 {
+		t.Fatalf("recieved '%v' expected '%v'", len(hello.stream), 2)
+	}
+	if hello.stream[0].GetOffset() != 1 {
+		t.Errorf("recieved '%v' expected '%v'", hello.stream[0].GetOffset(), 1)
+	}
+}
+
+func TestNext(t *testing.T) {
+	hello := Base{}
+	hello.SetStream([]Event{
+		&fakeEvent{
+			Base: &event.Base{
+				Offset: 2048,
+				Time:   time.Now(),
+			},
+		},
+		&fakeEvent{
+			Base: &event.Base{
+				Offset: 1337,
+				Time:   time.Now().Add(-time.Hour),
+			},
+		},
+	})
+	resp := hello.Next()
+	if resp != hello.stream[0] {
+		t.Errorf("recieved '%v' expected '%v'", resp, hello.stream[0])
+	}
+	if hello.offset != 1 {
+		t.Errorf("recieved '%v' expected '%v'", hello.offset, 1)
+	}
+	_ = hello.Next()
+	resp = hello.Next()
+	if resp != nil {
+		t.Errorf("recieved '%v' expected '%v'", resp, nil)
+	}
+
+}
+
+func TestHistory(t *testing.T) {
+	hello := Base{}
+	hello.SetStream([]Event{
+		&fakeEvent{
+			Base: &event.Base{
+				Offset: 2048,
+				Time:   time.Now(),
+			},
+		},
+		&fakeEvent{
+			Base: &event.Base{
+				Offset: 1337,
+				Time:   time.Now().Add(-time.Hour),
+			},
+		},
+	})
+	resp := hello.History()
+	if len(resp) != 0 {
+		t.Errorf("recieved '%v' expected '%v'", len(resp), 0)
+	}
+
+	_ = hello.Next()
+	resp = hello.History()
+	if len(resp) != 1 {
+		t.Errorf("recieved '%v' expected '%v'", len(resp), 1)
+	}
+}
+
+func TestLatest(t *testing.T) {
+	hello := Base{}
+	hello.SetStream([]Event{
+		&fakeEvent{
+			Base: &event.Base{
+				Offset: 2048,
+				Time:   time.Now(),
+			},
+		},
+		&fakeEvent{
+			Base: &event.Base{
+				Offset: 1337,
+				Time:   time.Now().Add(-time.Hour),
+			},
+		},
+	})
+	resp := hello.Latest()
+	if resp != hello.stream[0] {
+		t.Errorf("recieved '%v' expected '%v'", resp, hello.stream[0])
+	}
+	_ = hello.Next()
+	resp = hello.Latest()
+	if resp != hello.stream[0] {
+		t.Errorf("recieved '%v' expected '%v'", resp, hello.stream[0])
+	}
+
+	_ = hello.Next()
+	resp = hello.Latest()
+	if resp != hello.stream[1] {
+		t.Errorf("recieved '%v' expected '%v'", resp, hello.stream[1])
+	}
+}
+
+func TestList(t *testing.T) {
+	hello := Base{}
+	hello.SetStream([]Event{
+		&fakeEvent{
+			Base: &event.Base{
+				Offset: 2048,
+				Time:   time.Now(),
+			},
+		},
+		&fakeEvent{
+			Base: &event.Base{
+				Offset: 1337,
+				Time:   time.Now().Add(-time.Hour),
+			},
+		},
+	})
+	list := hello.List()
+	if len(list) != 2 {
+		t.Errorf("recieved '%v' expected '%v'", len(list), 2)
+	}
+}
+
+func TestIsLastEvent(t *testing.T) {
+	t.Parallel()
+	hello := Base{}
+	hello.SetStream([]Event{
+		&fakeEvent{
+			Base: &event.Base{
+				Offset: 1,
+				Time:   time.Now(),
+			},
+		},
+	})
+	hello.latest = hello.stream[0]
+	hello.offset = hello.stream[0].GetOffset()
+	if !hello.IsLastEvent() {
+		t.Errorf("recieved '%v' expected '%v'", false, true)
+	}
+
+	hello.isLiveData = true
+	if hello.IsLastEvent() {
+		t.Errorf("recieved '%v' expected '%v'", true, false)
 	}
 }
 
@@ -214,12 +373,100 @@ func TestSetLive(t *testing.T) {
 	}
 }
 
+func TestAppendResults(t *testing.T) {
+	t.Parallel()
+	hello := Base{}
+	validEvent := &fakeEvent{
+		Base: &event.Base{},
+	}
+	hello.AppendStream(validEvent)
+	if len(hello.stream) != 0 {
+		t.Errorf("recieved '%v' expected '%v'", len(hello.stream), 0)
+	}
+	tt := time.Now()
+	validEvent.Exchange = "hello"
+	validEvent.AssetType = asset.Spot
+	validEvent.CurrencyPair = currency.NewPair(currency.BTC, currency.USD)
+	validEvent.Time = tt
+	hello.AppendStream(validEvent)
+	if len(hello.stream) != 1 {
+		t.Errorf("recieved '%v' expected '%v'", len(hello.stream), 1)
+	}
+
+	hello.AppendStream(validEvent)
+	if len(hello.stream) != 1 {
+		t.Errorf("recieved '%v' expected '%v'", len(hello.stream), 1)
+	}
+
+	misMatchEvent := &fakeEvent{
+		Base: &event.Base{
+			Exchange:     "mismatch",
+			CurrencyPair: currency.NewPair(currency.BTC, currency.DOGE),
+			AssetType:    asset.Futures,
+			Time:         tt,
+		},
+	}
+	hello.AppendStream(misMatchEvent)
+	if len(hello.stream) != 1 {
+		t.Errorf("recieved '%v' expected '%v'", len(hello.stream), 1)
+	}
+
+	hello.AppendStream(nil)
+	if len(hello.stream) != 1 {
+		t.Errorf("recieved '%v' expected '%v'", len(hello.stream), 1)
+	}
+}
+
+func TestEqualSource(t *testing.T) {
+	t.Parallel()
+	hello := Base{}
+
+	if hello.equalSource(nil) {
+		t.Errorf("recieved '%v' expected '%v'", false, true)
+	}
+
+	emptyEvent := &fakeEvent{
+		Base: &event.Base{},
+	}
+	if hello.equalSource(emptyEvent) {
+		t.Errorf("recieved '%v' expected '%v'", false, true)
+	}
+
+	validEvent := &fakeEvent{
+		Base: &event.Base{
+			Exchange:     "hello",
+			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
+			AssetType:    asset.Spot,
+		},
+	}
+	if !hello.equalSource(validEvent) {
+		t.Errorf("recieved '%v' expected '%v'", true, false)
+	}
+
+	hello.stream = append(hello.stream, validEvent)
+	if !hello.equalSource(validEvent) {
+		t.Errorf("recieved '%v' expected '%v'", true, false)
+	}
+
+	misMatchEvent := &fakeEvent{
+		Base: &event.Base{
+			Exchange:     "mismatch",
+			CurrencyPair: currency.NewPair(currency.BTC, currency.DOGE),
+			AssetType:    asset.Futures,
+		},
+	}
+	if hello.equalSource(misMatchEvent) {
+		t.Errorf("recieved '%v' expected '%v'", false, true)
+	}
+}
+
 // methods that satisfy the common.Event interface
 func (f fakeEvent) GetOffset() int64 {
 	return f.Offset
 }
 
-func (f fakeEvent) SetOffset(int64) {
+func (f fakeEvent) SetOffset(o int64) {
+	f.Offset = o
 }
 
 func (f fakeEvent) IsEvent() bool {
@@ -227,7 +474,7 @@ func (f fakeEvent) IsEvent() bool {
 }
 
 func (f fakeEvent) GetTime() time.Time {
-	return time.Now().Add(time.Hour * time.Duration(f.time))
+	return f.Base.Time
 }
 
 func (f fakeEvent) Pair() currency.Pair {
@@ -266,6 +513,10 @@ func (f fakeEvent) GetLowPrice() decimal.Decimal {
 }
 
 func (f fakeEvent) GetOpenPrice() decimal.Decimal {
+	return decimal.Zero
+}
+
+func (f fakeEvent) GetVolume() decimal.Decimal {
 	return decimal.Zero
 }
 
@@ -323,7 +574,7 @@ func (f fakeHandler) IsLastEvent() bool {
 	return false
 }
 
-func (f fakeHandler) Offset() int {
+func (f fakeHandler) Offset() int64 {
 	return 0
 }
 

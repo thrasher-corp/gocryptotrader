@@ -25,7 +25,7 @@ const (
 	testExchange = "ftx"
 	dca          = "dollarcostaverage"
 	// change this if you modify a config and want it to save to the example folder
-	saveConfig = !false
+	saveConfig = false
 )
 
 var (
@@ -869,16 +869,16 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 			Interval: kline.OneMin,
 			DataType: common.CandleStr,
 			LiveData: &LiveData{
-				NewEventTimeout: time.Minute,
-				DataCheckTimer:  time.Second,
+				NewEventTimeout:           time.Minute,
+				DataCheckTimer:            time.Second,
+				DataRequestRetryTolerance: 3,
+				DataRequestRetryWaitTime:  time.Millisecond * 500,
 			},
 		},
 		PortfolioSettings: PortfolioSettings{
 			BuySide:  minMax,
 			SellSide: minMax,
-			Leverage: Leverage{
-				CanUseLeverage: false,
-			},
+			Leverage: Leverage{},
 		},
 		StatisticSettings: StatisticSettings{
 			RiskFreeRate: decimal.NewFromFloat(0.03),
@@ -956,9 +956,7 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 		PortfolioSettings: PortfolioSettings{
 			BuySide:  minMax,
 			SellSide: minMax,
-			Leverage: Leverage{
-				CanUseLeverage: false,
-			},
+			Leverage: Leverage{},
 		},
 		StatisticSettings: StatisticSettings{
 			RiskFreeRate: decimal.NewFromFloat(0.03),
@@ -1017,9 +1015,7 @@ func TestGenerateConfigForDCACSVCandles(t *testing.T) {
 		PortfolioSettings: PortfolioSettings{
 			BuySide:  minMax,
 			SellSide: minMax,
-			Leverage: Leverage{
-				CanUseLeverage: false,
-			},
+			Leverage: Leverage{},
 		},
 		StatisticSettings: StatisticSettings{
 			RiskFreeRate: decimal.NewFromFloat(0.03),
@@ -1074,9 +1070,7 @@ func TestGenerateConfigForDCACSVTrades(t *testing.T) {
 			},
 		},
 		PortfolioSettings: PortfolioSettings{
-			Leverage: Leverage{
-				CanUseLeverage: false,
-			},
+			Leverage: Leverage{},
 		},
 		StatisticSettings: StatisticSettings{
 			RiskFreeRate: decimal.NewFromFloat(0.03),
@@ -1144,9 +1138,7 @@ func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
 		PortfolioSettings: PortfolioSettings{
 			BuySide:  minMax,
 			SellSide: minMax,
-			Leverage: Leverage{
-				CanUseLeverage: false,
-			},
+			Leverage: Leverage{},
 		},
 		StatisticSettings: StatisticSettings{
 			RiskFreeRate: decimal.NewFromFloat(0.03),
@@ -1425,11 +1417,7 @@ func TestGenerateConfigForLiveCashAndCarry(t *testing.T) {
 			},
 		},
 		PortfolioSettings: PortfolioSettings{
-			BuySide:  minMax,
-			SellSide: minMax,
-			Leverage: Leverage{
-				CanUseLeverage: false,
-			},
+			Leverage: Leverage{},
 		},
 		StatisticSettings: StatisticSettings{
 			RiskFreeRate: decimal.NewFromFloat(0.03),

@@ -76,7 +76,10 @@
    "data-check-timer": 1000000000,
    "real-orders": false,
    "verbose-data-check": false,
+   "verbose-exchange-requests": false,
    "close-positions-on-exit": true,
+   "data-request-retry-tolerance": 3,
+   "data-request-retry-wait-time": 500000000,
    "exchange-credentials": null
   }
  },
@@ -88,14 +91,14 @@
    "maximum-collateral-leverage-rate": "0"
   },
   "buy-side": {
-   "minimum-size": "0.005",
-   "maximum-size": "2",
-   "maximum-total": "40000"
+   "minimum-size": "0",
+   "maximum-size": "0",
+   "maximum-total": "0"
   },
   "sell-side": {
-   "minimum-size": "0.005",
-   "maximum-size": "2",
-   "maximum-total": "40000"
+   "minimum-size": "0",
+   "maximum-size": "0",
+   "maximum-total": "0"
   }
  },
  "statistic-settings": {

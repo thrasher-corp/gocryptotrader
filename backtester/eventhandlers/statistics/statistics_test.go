@@ -2,6 +2,7 @@ package statistics
 
 import (
 	"errors"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"testing"
 	"time"
 
@@ -901,5 +902,62 @@ func TestCalculateBiggestValueAtTimeDrawdown(t *testing.T) {
 	_, err = CalculateBiggestValueAtTimeDrawdown(nil, interval)
 	if !errors.Is(err, errReceivedNoData) {
 		t.Errorf("received %v expected %v", err, errReceivedNoData)
+	}
+}
+
+func TestAddPNLForTime(t *testing.T) {
+	t.Parallel()
+	s := &Statistic{}
+	err := s.AddPNLForTime(nil)
+	if !errors.Is(err, common.ErrNilArguments) {
+		t.Errorf("received %v expected %v", err, common.ErrNilArguments)
+	}
+
+	sum := &portfolio.PNLSummary{}
+	err = s.AddPNLForTime(sum)
+	if !errors.Is(err, errExchangeAssetPairStatsUnset) {
+		t.Errorf("received %v expected %v", err, errExchangeAssetPairStatsUnset)
+	}
+
+	tt := time.Now().Add(-gctkline.OneDay.Duration() * 7)
+	exch := testExchange
+	a := asset.Spot
+	p := currency.NewPair(currency.BTC, currency.USDT)
+	err = s.SetEventForOffset(&kline.Kline{
+		Base: &event.Base{
+			Exchange:     exch,
+			Time:         tt,
+			Interval:     gctkline.OneDay,
+			CurrencyPair: p,
+			AssetType:    a,
+			Offset:       1,
+		},
+		Open:   eleet,
+		Close:  eleet,
+		Low:    eleet,
+		High:   eleet,
+		Volume: eleet,
+	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+
+	err = s.AddPNLForTime(sum)
+	if !errors.Is(err, errCurrencyStatisticsUnset) {
+		t.Errorf("received %v expected %v", err, errCurrencyStatisticsUnset)
+	}
+
+	sum.Exchange = exch
+	sum.Asset = a
+	sum.Pair = p
+	err = s.AddPNLForTime(sum)
+	if !errors.Is(err, errNoDataAtOffset) {
+		t.Errorf("received %v expected %v", err, errNoDataAtOffset)
+	}
+
+	sum.Offset = 1
+	err = s.AddPNLForTime(sum)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
 	}
 }

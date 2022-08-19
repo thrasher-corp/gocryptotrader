@@ -325,7 +325,7 @@ func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) error {
 		log.Info(common.FundingStatistics, common.ColourH1+"------------------Funding------------------------------------"+common.ColourDefault)
 	}
 	if len(spotResults) > 0 {
-		log.Info(common.FundingStatistics, common.ColourH2+"------------------Funding Spot Item Results------------------"+common.ColourDefault)
+		log.Info(common.FundingStatistics, common.ColourH2+"------------------Funding Spot Asset Results------------------"+common.ColourDefault)
 		for i := range spotResults {
 			sep := fmt.Sprintf("%v%v%v| ", fSIL(spotResults[i].ReportItem.Exchange, limit12), fSIL(spotResults[i].ReportItem.Asset.String(), limit10), fSIL(spotResults[i].ReportItem.Currency.String(), limit14))
 			if !spotResults[i].ReportItem.PairedWith.IsEmpty() {
@@ -352,7 +352,7 @@ func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) error {
 		}
 	}
 	if len(futuresResults) > 0 {
-		log.Info(common.FundingStatistics, common.ColourH2+"------------------Funding Futures Item Results---------------"+common.ColourDefault)
+		log.Info(common.FundingStatistics, common.ColourH2+"------------------Funding Futures Asset Results---------------"+common.ColourDefault)
 		for i := range futuresResults {
 			sep := fmt.Sprintf("%v%v%v| ", fSIL(futuresResults[i].ReportItem.Exchange, limit12), fSIL(futuresResults[i].ReportItem.Asset.String(), limit10), fSIL(futuresResults[i].ReportItem.Currency.String(), limit14))
 			log.Infof(common.FundingStatistics, "%s Is Collateral: %v", sep, futuresResults[i].IsCollateral)

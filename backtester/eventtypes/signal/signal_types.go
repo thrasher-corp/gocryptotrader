@@ -19,6 +19,7 @@ type Event interface {
 	GetHighPrice() decimal.Decimal
 	GetOpenPrice() decimal.Decimal
 	GetLowPrice() decimal.Decimal
+	GetVolume() decimal.Decimal
 	IsSignal() bool
 	GetSellLimit() decimal.Decimal
 	GetBuyLimit() decimal.Decimal
