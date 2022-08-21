@@ -595,3 +595,33 @@ type TransferableBalanceInfo struct {
 	baseAccount
 	Transferable float64 `json:"transferable,string"`
 }
+
+type DepositAddress struct {
+	Address         string `json:"address"`
+	Memo            string `json:"memo"`
+	Chain           string `json:"chain"`
+	ContractAddress string `json:"contractAddress"`
+}
+
+type baseDeposit struct {
+	Currency   string  `json:"currency"`
+	Amount     float64 `json:"amount"`
+	WalletTxID string  `json:"walletTxId"`
+	IsInner    bool    `json:"isInner"`
+	Status     string  `json:"status"`
+}
+
+type Deposit struct {
+	baseDeposit
+	Address   string  `json:"address"`
+	Memo      string  `json:"memo"`
+	Fee       float64 `json:"fee"`
+	Remark    string  `json:"remark"`
+	CreatedAt kucoinTimeMilliSec
+	UpdatedAt kucoinTimeMilliSec
+}
+
+type HistoricalDeposit struct {
+	baseDeposit
+	CreatedAt kucoinTimeMilliSec `json:"createAt"`
+}

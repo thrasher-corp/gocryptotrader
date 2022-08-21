@@ -107,6 +107,13 @@ const (
 	kucoinGetTransferableBalance         = "/api/v1/accounts/transferable"
 	kucoinTransferMainToSubAccount       = "/api/v2/accounts/sub-transfer"
 	kucoinInnerTransfer                  = "/api/v2/accounts/inner-transfer"
+
+	// deposit
+	kucoinCreateDepositAddress     = "/api/v1/deposit-addresses"
+	kucoinGetDepositAddressV2      = "/api/v2/deposit-addresses"
+	kucoinGetDepositAddressV1      = "/api/v1/deposit-addresses"
+	kucoinGetDepositList           = "/api/v1/deposits"
+	kucoinGetHistoricalDepositList = "/api/v1/hist-deposits"
 )
 
 // GetSymbols gets pairs details on the exchange
@@ -1659,6 +1666,113 @@ func (k *Kucoin) MakeInnerTransfer(ctx context.Context, clientOID, currency, fro
 		params["toTag"] = toTag
 	}
 	return resp.Data.OrderID, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinInnerTransfer, params, publicSpotRate, &resp)
+}
+
+// CreateDepositAddress create a deposit address for a currency you intend to deposit
+func (k *Kucoin) CreateDepositAddress(ctx context.Context, currency, chain string) (DepositAddress, error) {
+	resp := struct {
+		Data DepositAddress `json:"data"`
+		Error
+	}{}
+
+	params := make(map[string]interface{})
+	if currency == "" {
+		return resp.Data, errors.New("currency can't be empty")
+	}
+	params["currency"] = currency
+	if chain != "" {
+		params["chain"] = chain
+	}
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinCreateDepositAddress, params, publicSpotRate, &resp)
+}
+
+// GetDepositAddressV2 get all deposit addresses for the currency you intend to deposit
+func (k *Kucoin) GetDepositAddressV2(ctx context.Context, currency string) ([]DepositAddress, error) {
+	resp := struct {
+		Data []DepositAddress `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if currency == "" {
+		return resp.Data, errors.New("currency can't be empty")
+	}
+	params.Set("currency", currency)
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetDepositAddressV2, params), nil, publicSpotRate, &resp)
+}
+
+// GetDepositAddressV1 get a deposit address for the currency you intend to deposit
+func (k *Kucoin) GetDepositAddressV1(ctx context.Context, currency, chain string) (DepositAddress, error) {
+	resp := struct {
+		Data DepositAddress `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if currency == "" {
+		return resp.Data, errors.New("currency can't be empty")
+	}
+	params.Set("currency", currency)
+	if chain != "" {
+		params.Set("chain", chain)
+	}
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetDepositAddressV1, params), nil, publicSpotRate, &resp)
+}
+
+// GetDepositList get deposit list items and sorted to show the latest first
+func (k *Kucoin) GetDepositList(ctx context.Context, currency, status string, startAt, endAt time.Time) ([]Deposit, error) {
+	resp := struct {
+		Data struct {
+			CurrentPage int64     `json:"currentPage"`
+			PageSize    int64     `json:"pageSize"`
+			TotalNum    int64     `json:"totalNum"`
+			TotalPage   int64     `json:"totalPage"`
+			Items       []Deposit `json:"items"`
+		} `json:"data"`
+		Error
+	}{}
+	params := url.Values{}
+	if currency != "" {
+		params.Set("currency", currency)
+	}
+	if status != "" {
+		params.Set("status", status)
+	}
+	if !startAt.IsZero() {
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	return resp.Data.Items, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetDepositList, params), nil, publicSpotRate, &resp)
+}
+
+// GetHistoricalDepositList get historical deposit list items
+func (k *Kucoin) GetHistoricalDepositList(ctx context.Context, currency, status string, startAt, endAt time.Time) ([]Deposit, error) {
+	resp := struct {
+		Data struct {
+			CurrentPage int64     `json:"currentPage"`
+			PageSize    int64     `json:"pageSize"`
+			TotalNum    int64     `json:"totalNum"`
+			TotalPage   int64     `json:"totalPage"`
+			Items       []Deposit `json:"items"`
+		} `json:"data"`
+		Error
+	}{}
+	params := url.Values{}
+	if currency != "" {
+		params.Set("currency", currency)
+	}
+	if status != "" {
+		params.Set("status", status)
+	}
+	if !startAt.IsZero() {
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	return resp.Data.Items, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetHistoricalDepositList, params), nil, publicSpotRate, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request

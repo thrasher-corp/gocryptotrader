@@ -977,3 +977,68 @@ func TestMakeInnerTransfer(t *testing.T) {
 		t.Error("MakeInnerTransfer() error", err)
 	}
 }
+
+func TestCreateDepositAddress(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	_, err := k.CreateDepositAddress(context.Background(), "BTC", "")
+	if err != nil {
+		t.Error("CreateDepositAddress() error", err)
+	}
+
+	_, err = k.CreateDepositAddress(context.Background(), "USDT", "TRC20")
+	if err != nil {
+		t.Error("CreateDepositAddress() error", err)
+	}
+}
+
+func TestGetDepositAddressV2(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetDepositAddressV2(context.Background(), "BTC")
+	if err != nil {
+		t.Error("GetDepositAddressV2() error", err)
+	}
+}
+
+func TestGetDepositAddressV1(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetDepositAddressV1(context.Background(), "BTC", "")
+	if err != nil {
+		t.Error("GetDepositAddressV1() error", err)
+	}
+}
+
+func TestGetDepositList(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetDepositList(context.Background(), "", "", time.Time{}, time.Time{})
+	if err != nil {
+		t.Error("GetDepositList() error", err)
+	}
+}
+
+func TestGetHistoricalDepositList(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetHistoricalDepositList(context.Background(), "", "", time.Time{}, time.Time{})
+	if err != nil {
+		t.Error("GetHistoricalDepositList() error", err)
+	}
+}
