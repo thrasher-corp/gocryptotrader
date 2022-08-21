@@ -31,6 +31,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	gctconfig "github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctdatabase "github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/engine"
@@ -142,6 +143,26 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 					return err
 				}
 				exch.SetDefaults()
+				exchBase := exch.GetBase()
+				exchBase.Config = &gctconfig.Exchange{
+					Name:           exchBase.Name,
+					HTTPTimeout:    gctexchange.DefaultHTTPTimeout,
+					BaseCurrencies: exchBase.BaseCurrencies,
+					CurrencyPairs:  &currency.PairsManager{},
+				}
+				err = exch.UpdateTradablePairs(context.TODO(), true)
+				if err != nil {
+					return err
+				}
+				assets := exchBase.CurrencyPairs.GetAssetTypes(false)
+				for x := range assets {
+					var pairs currency.Pairs
+					pairs, err = exchBase.CurrencyPairs.GetPairs(assets[x], false)
+					if err != nil {
+						return err
+					}
+					exchBase.CurrencyPairs.StorePairs(assets[x], pairs, true)
+				}
 				bt.exchangeManager.Add(exch)
 			} else {
 				return err
@@ -170,10 +191,10 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 			portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName] = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*risk.CurrencySettings)
 		}
 		a := cfg.CurrencySettings[i].Asset
-		if err != nil {
+		if !a.IsValid() {
 			return fmt.Errorf(
 				"%w for %v %v %v-%v. Err %v",
-				errInvalidConfigAsset,
+				asset.ErrNotSupported,
 				cfg.CurrencySettings[i].ExchangeName,
 				cfg.CurrencySettings[i].Asset,
 				cfg.CurrencySettings[i].Base,
@@ -268,7 +289,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 					return err
 				}
 			default:
-				return fmt.Errorf("%w: %v unsupported", errInvalidConfigAsset, a)
+				return fmt.Errorf("%w: %v", asset.ErrNotSupported, a)
 			}
 		} else {
 			var bFunds, qFunds decimal.Decimal

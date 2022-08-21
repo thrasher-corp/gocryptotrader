@@ -1402,7 +1402,8 @@ func TestCloseAllPositions(t *testing.T) {
 	}
 
 	bt.shutdown = make(chan struct{})
-	bt.LiveDataHandler = &dataChecker{}
+	dc := &dataChecker{}
+	bt.LiveDataHandler = dc
 	err = bt.CloseAllPositions()
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
@@ -1411,8 +1412,8 @@ func TestCloseAllPositions(t *testing.T) {
 	bt.shutdown = make(chan struct{})
 	bt.Strategy = &ftxcashandcarry.Strategy{}
 	err = bt.CloseAllPositions()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
+	if !errors.Is(err, common.ErrNilArguments) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrNilArguments)
 	}
 
 	bt.shutdown = make(chan struct{})
@@ -1422,6 +1423,19 @@ func TestCloseAllPositions(t *testing.T) {
 	bt.Statistic = &statistics.Statistic{}
 	bt.Funding = &fakeFunding{}
 	bt.DataHolder = &fakeDataHolder{}
+	dc.dataHolder = bt.DataHolder
+	dc.report = &report.Data{}
+	dc.funding = bt.Funding
+	cp := currency.NewPair(currency.BTC, currency.USD)
+	dc.sourcesToCheck = append(dc.sourcesToCheck, &liveDataSourceDataHandler{
+		exchange:                  &ftx.FTX{},
+		exchangeName:              testExchange,
+		asset:                     asset.Spot,
+		pair:                      cp,
+		underlyingPair:            cp,
+		dataType:                  common.DataCandle,
+		dataRequestRetryTolerance: 1,
+	})
 	err = bt.CloseAllPositions()
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)

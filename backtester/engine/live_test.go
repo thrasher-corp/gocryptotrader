@@ -424,8 +424,8 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 	}
 
 	err = dataHandler.SetDataForClosingAllPositions()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
+	if !errors.Is(err, common.ErrNilArguments) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrNilArguments)
 	}
 
 	err = dataHandler.SetDataForClosingAllPositions(nil)

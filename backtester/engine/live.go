@@ -316,7 +316,7 @@ func (l *dataChecker) SetDataForClosingAllPositions(s ...signal.Event) error {
 		return fmt.Errorf("%w dataChecker", gctcommon.ErrNilPointer)
 	}
 	if len(s) == 0 {
-		return fmt.Errorf("%w signal events", gctcommon.ErrNilPointer)
+		return fmt.Errorf("%w signal events", common.ErrNilArguments)
 	}
 	l.m.Lock()
 	defer l.m.Unlock()
