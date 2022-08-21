@@ -1237,7 +1237,7 @@ func (ok *Okx) WSPlaceOrder(arg *PlaceOrderRequestParam) (*PlaceOrderResponse, e
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
-	if !(strings.EqualFold("cross", arg.TradeMode) || strings.EqualFold("isolated", arg.TradeMode) || strings.EqualFold("cash", arg.TradeMode)) {
+	if !(strings.EqualFold(TradeModeCross, arg.TradeMode) || strings.EqualFold(TradeModeIsolated, arg.TradeMode) || strings.EqualFold(TradeModeCash, arg.TradeMode)) {
 		return nil, errInvalidTradeModeValue
 	}
 	if !(strings.EqualFold(arg.Side, "buy") || strings.EqualFold(arg.Side, "sell")) {
@@ -1294,7 +1294,7 @@ func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]PlaceOrder
 		if arg.InstrumentID == "" {
 			return nil, errMissingInstrumentID
 		}
-		if !(strings.EqualFold("cross", arg.TradeMode) || strings.EqualFold("isolated", arg.TradeMode) || strings.EqualFold("cash", arg.TradeMode)) {
+		if !(strings.EqualFold(TradeModeCross, arg.TradeMode) || strings.EqualFold(TradeModeIsolated, arg.TradeMode) || strings.EqualFold(TradeModeCash, arg.TradeMode)) {
 			return nil, errInvalidTradeModeValue
 		}
 		if !(strings.EqualFold(arg.Side, "buy") || strings.EqualFold(arg.Side, "sell")) {
@@ -1643,7 +1643,7 @@ func (ok *Okx) WsAuthChannelSubscription(operation, channel string, assetType as
 }
 
 // WsAccountSubscription retrieve account information. Data will be pushed when triggered by
-//  events such as placing order, canceling order, transaction execution, etc.
+// events such as placing order, canceling order, transaction execution, etc.
 // It will also be pushed in regular interval according to subscription granularity.
 func (ok *Okx) WsAccountSubscription(operation string, assetType asset.Item, pair currency.Pair) (*SubscriptionOperationResponse, error) {
 	return ok.WsAuthChannelSubscription(operation, "account", assetType, pair, "", "", false, false, false, true)

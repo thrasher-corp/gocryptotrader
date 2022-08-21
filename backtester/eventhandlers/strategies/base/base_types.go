@@ -11,7 +11,7 @@ var (
 	// ErrSimultaneousProcessingOnly is raised when a strategy is improperly configured
 	ErrSimultaneousProcessingOnly = errors.New("this strategy only supports simultaneous processing")
 	// ErrStrategyNotFound used when strategy specified in strategy config does not exist
-	ErrStrategyNotFound = errors.New("not found. Please ensure the strategy-settings field 'name' is spelled properly in your .strat config") // nolint:misspell // its shorthand for strategy
+	ErrStrategyNotFound = errors.New("not found. Please ensure the strategy-settings field 'name' is spelled properly in your .strat config") //nolint:misspell // its shorthand for strategy
 	// ErrInvalidCustomSettings used when bad custom settings are found in the strategy config
 	ErrInvalidCustomSettings = errors.New("invalid custom settings in config")
 	// ErrTooMuchBadData used when there is too much missing data

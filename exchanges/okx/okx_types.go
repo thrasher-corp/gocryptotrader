@@ -18,6 +18,12 @@ const (
 	CurrencyToContract = CurrencyConvertType(1)
 	// ContractToCurrency 2: Convert contract to currency.
 	ContractToCurrency = CurrencyConvertType(2)
+
+	// Trade Modes
+
+	TradeModeCross    = "cross"
+	TradeModeIsolated = "isolated"
+	TradeModeCash     = "cash"
 )
 
 // Error codes and their corresponding error messages.

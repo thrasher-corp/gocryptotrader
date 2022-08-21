@@ -212,7 +212,9 @@ const (
 )
 
 var (
+	// Letters represents a regular expression for both uppercase and lowercase english characters.
 	Letters = regexp.MustCompile(`^[a-zA-Z]+$`)
+	// Numbers represents 
 	Numbers = regexp.MustCompile(`^\d+$`)
 
 	errUnableToTypeAssertResponseData               = errors.New("unable to type assert responseData")
@@ -311,7 +313,7 @@ func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*Pl
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
-	if !(arg.TradeMode == "cross" || arg.TradeMode == "isolated" || arg.TradeMode == "cash") {
+	if !(arg.TradeMode == TradeModeCross || arg.TradeMode == TradeModeIsolated || arg.TradeMode == TradeModeCash) {
 		return nil, errInvalidTradeModeValue
 	}
 	arg.Side = strings.ToUpper(arg.Side)
@@ -366,9 +368,9 @@ func (ok *Okx) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequest
 		if arg.InstrumentID == "" {
 			return nil, errMissingInstrumentID
 		}
-		if !(arg.TradeMode == "cross" ||
-			arg.TradeMode == "isolated" ||
-			arg.TradeMode == "cash") {
+		if !(arg.TradeMode == TradeModeCross ||
+			arg.TradeMode == TradeModeIsolated ||
+			arg.TradeMode == TradeModeCash) {
 			return nil, errInvalidTradeModeValue
 		}
 		arg.Side = strings.ToUpper(arg.Side)
@@ -507,7 +509,7 @@ func (ok *Okx) ClosePositions(ctx context.Context, arg *ClosePositionsRequestPar
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
-	if !(arg.MarginMode != "" && (arg.MarginMode == "cross" || arg.MarginMode == "isolated")) {
+	if !(arg.MarginMode != "" && (arg.MarginMode == TradeModeCross || arg.MarginMode == TradeModeIsolated)) {
 		return nil, errMissingMarginMode
 	}
 	type response struct {
@@ -588,8 +590,9 @@ func (ok *Okx) GetOrderList(ctx context.Context, arg *OrderListRequestParams) ([
 		arg.OrderType == OkxOrderOptimalLimitIOC {
 		params.Set("orderType", arg.OrderType)
 	}
-	if arg.State == "canceled" ||
-		arg.State == "filled" {
+	arg.State = strings.ToUpper(arg.State)
+	if arg.State == order.Cancelled.String() ||
+		arg.State == order.Filled.String() {
 		params.Set("state", arg.State)
 	}
 	if !arg.Before.IsZero() {
@@ -648,8 +651,8 @@ func (ok *Okx) getOrderHistory(ctx context.Context, arg *OrderHistoryRequestPara
 		arg.OrderType == OkxOrderOptimalLimitIOC {
 		params.Set("orderType", arg.OrderType)
 	}
-	if arg.State == "canceled" ||
-		arg.State == "filled" {
+	if arg.State == order.Cancelled.String() ||
+		arg.State == order.Filled.String() {
 		params.Set("state", arg.State)
 	}
 	if !arg.Before.IsZero() {
@@ -747,8 +750,8 @@ func (ok *Okx) PlaceAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoO
 		return nil, errMissingInstrumentID
 	}
 	arg.TradeMode = strings.ToLower(arg.TradeMode)
-	if !(arg.TradeMode == "cross" ||
-		arg.TradeMode == "isolated") {
+	if !(arg.TradeMode == TradeModeCross ||
+		arg.TradeMode == TradeModeIsolated) {
 		return nil, errMissingTradeMode
 	}
 	if !(arg.Side == order.Buy ||
@@ -1256,14 +1259,14 @@ func (ok *Okx) GetRfqs(ctx context.Context, arg *RfqRequestParams) ([]RFQRespons
 	if arg.ClientSuppliedRfqID != "" {
 		params.Set("clRfqId", arg.ClientSuppliedRfqID)
 	}
-	arg.State = strings.ToLower(arg.State)
-	if arg.State == "active" ||
-		arg.State == "canceled" ||
-		arg.State == "pending_fill" ||
-		arg.State == "filled" ||
-		arg.State == "expired" ||
-		arg.State == "traded_away" ||
-		arg.State == "failed" {
+	arg.State = strings.ToUpper(arg.State)
+	if arg.State == order.Active.String() ||
+		arg.State == order.Cancelled.String() ||
+		arg.State == "PENDING_FILL" ||
+		arg.State == order.Filled.String() ||
+		arg.State == order.Expired.String() ||
+		arg.State == "TRADED_AWAY" ||
+		arg.State == "FAILED" {
 		params.Set("state", strings.ToLower(arg.State))
 	}
 	if arg.BeginingID != "" {
@@ -1304,12 +1307,13 @@ func (ok *Okx) GetQuotes(ctx context.Context, arg *QuoteRequestParams) ([]QuoteR
 	if arg.ClientSuppliedQuoteID != "" {
 		params.Set("clQuoteId", arg.ClientSuppliedQuoteID)
 	}
-	if arg.State == "active" ||
-		arg.State == "canceled" ||
-		arg.State == "pending_fill" ||
-		arg.State == "filled" ||
-		arg.State == "expired" ||
-		arg.State == "failed" {
+	arg.State = strings.ToUpper(arg.State)
+	if arg.State == order.Active.String() ||
+		arg.State == order.Cancelled.String() ||
+		arg.State == "PENDING_FILL" ||
+		arg.State == order.Filled.String() ||
+		arg.State == order.Expired.String() ||
+		arg.State == "FAILED" {
 		params.Set("state", strings.ToLower(arg.State))
 	}
 	if arg.BeginID != "" {
@@ -1349,13 +1353,13 @@ func (ok *Okx) GetRFQTrades(ctx context.Context, arg *RFQTradesRequestParams) ([
 	if arg.ClientSuppliedQuoteID != "" {
 		params.Set("clQuoteId", arg.ClientSuppliedQuoteID)
 	}
-	if arg.State == "active" ||
-		arg.State == "canceled" ||
-		arg.State == "pending_fill" ||
-		arg.State == "filled" ||
-		arg.State == "expired" ||
-		arg.State == "traded_away" ||
-		arg.State == "failed" {
+	if arg.State == order.Active.String() ||
+		arg.State == "CANCELED" ||
+		arg.State == "PENDING_FILL" ||
+		arg.State == order.Filled.String() ||
+		arg.State == order.Expired.String() ||
+		arg.State == "TRADED_AWAY" ||
+		arg.State == "FAILED" {
 		params.Set("state", strings.ToLower(arg.State))
 	}
 	if arg.BlockTradeID != "" {
@@ -2102,7 +2106,7 @@ func (ok *Okx) GetPositionsHistory(ctx context.Context, instrumentType, instrume
 	if instrumentID != "" {
 		params.Set("instId", instrumentID)
 	}
-	if strings.EqualFold(marginMode, "cross") || strings.EqualFold(marginMode, "isolated") {
+	if strings.EqualFold(marginMode, TradeModeCross) || strings.EqualFold(marginMode, TradeModeIsolated) {
 		params.Set("mgnMode", marginMode)
 	}
 	// The type of closing position
@@ -2174,7 +2178,7 @@ func (ok *Okx) GetBillsDetail(ctx context.Context, arg *BillsDetailQueryParamete
 	if arg.Currency != "" {
 		params.Set("ccy", strings.ToUpper(arg.Currency))
 	}
-	if arg.MarginMode == "isolated" || arg.MarginMode == "cross" {
+	if arg.MarginMode == TradeModeIsolated || arg.MarginMode == TradeModeCross {
 		params.Set("mgnMode", arg.MarginMode)
 	}
 	if arg.ContractType == "linear" || arg.ContractType == "inverse" {
@@ -2259,15 +2263,15 @@ func (ok *Okx) SetLeverage(ctx context.Context, arg SetLeverageInput) (*SetLever
 	if arg.Leverage < 0 {
 		return nil, errors.New("missing leverage")
 	}
-	if !(arg.MarginMode == "isolated" || arg.MarginMode == "cross") {
+	if !(arg.MarginMode == TradeModeIsolated || arg.MarginMode == TradeModeCross) {
 		return nil, errors.New("invalid margin mode")
-	} else if arg.MarginMode == "cross" {
+	} else if arg.MarginMode == TradeModeCross {
 		arg.PositionSide = ""
 	}
-	if arg.InstrumentID == "" && arg.MarginMode == "isolated" {
+	if arg.InstrumentID == "" && arg.MarginMode == TradeModeIsolated {
 		return nil, errors.New("only can be cross if ccy is passed")
 	}
-	if !(arg.MarginMode == "cross" || arg.MarginMode == "isolated") {
+	if !(arg.MarginMode == TradeModeCross || arg.MarginMode == TradeModeIsolated) {
 		return nil, errors.New("only applicable to \"isolated\" margin mode of FUTURES/SWAP")
 	}
 	arg.PositionSide = strings.ToLower(arg.PositionSide)
@@ -2283,8 +2287,6 @@ func (ok *Okx) SetLeverage(ctx context.Context, arg SetLeverageInput) (*SetLever
 		Msg  string                `json:"msg"`
 		Data []SetLeverageResponse `json:"data"`
 	}
-	val, _ := json.Marshal(arg)
-	println(string(val))
 	var resp response
 	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, setLeverateEPL, http.MethodPost, accountSetLeverage, &arg, &resp, true)
 	if er != nil {
@@ -2306,7 +2308,7 @@ func (ok *Okx) GetMaximumBuySellAmountOROpenAmount(ctx context.Context, instrume
 		return nil, errors.New("missing instrument id")
 	}
 	params.Set("instId", instrumentID)
-	if !(tradeMode == "cross" || tradeMode == "isolated" || tradeMode == "cash") {
+	if !(tradeMode == TradeModeCross || tradeMode == TradeModeIsolated || tradeMode == TradeModeCash) {
 		return nil, errors.New("missing valid trade mode")
 	}
 	params.Set("tdMode", tradeMode)
@@ -2340,9 +2342,9 @@ func (ok *Okx) GetMaximumAvailableTradableAmount(ctx context.Context, instrument
 	if currency != "" {
 		params.Set("ccy", currency)
 	}
-	if !(tradeMode == "isolated" ||
-		tradeMode == "cross" ||
-		tradeMode == "cash") {
+	if !(tradeMode == TradeModeIsolated ||
+		tradeMode == TradeModeCross ||
+		tradeMode == TradeModeCash) {
 		return nil, errors.New("missing trade mode")
 	}
 	params.Set("tdMode", tradeMode)
@@ -2397,7 +2399,7 @@ func (ok *Okx) GetLeverage(ctx context.Context, instrumentID, marginMode string)
 	} else {
 		return nil, errors.New("invalid instrument id \"instId\" ")
 	}
-	if marginMode == "cross" || marginMode == "isolated" {
+	if marginMode == TradeModeCross || marginMode == TradeModeIsolated {
 		params.Set("mgnMode", marginMode)
 	} else {
 		return nil, errors.New("missing margin mode \"mgnMode\"")
@@ -2420,7 +2422,7 @@ func (ok *Okx) GetMaximumLoanOfInstrument(ctx context.Context, instrumentID, mar
 	} else {
 		return nil, errors.New("invalid instrument id \"instId\"")
 	}
-	if marginMode == "cross" || marginMode == "isolated" {
+	if marginMode == TradeModeCross || marginMode == TradeModeIsolated {
 		params.Set("mgnMode", marginMode)
 	} else {
 		return nil, errors.New("missing margin mode \"mgnMode\"")
@@ -2520,8 +2522,8 @@ func (ok *Okx) GetInterestAccruedData(ctx context.Context, loanType int, currenc
 		params.Set("instId", instrumentID)
 	}
 	marginMode = strings.ToLower(marginMode)
-	if marginMode == "cross" ||
-		marginMode == "isolated" {
+	if marginMode == TradeModeCross ||
+		marginMode == TradeModeIsolated {
 		params.Set("mgnMode", marginMode)
 	}
 	if !after.IsZero() {
@@ -3136,7 +3138,8 @@ func (ok *Okx) GetGridAlgoSubOrders(ctx context.Context, algoOrderType, algoID, 
 	} else {
 		return nil, errMissingAlgoOrderID
 	}
-	if subOrderType == "live" || subOrderType == "filled" {
+	subOrderType = strings.ToUpper(subOrderType)
+	if subOrderType == "LIVE" || subOrderType == order.Filled.String() {
 		params.Set("type", subOrderType)
 	} else {
 		return nil, errMissingSubOrderType
@@ -3948,7 +3951,7 @@ func (ok *Okx) GetLiquidationOrders(ctx context.Context, arg *LiquidationOrderRe
 	}
 	params.Set("instType", arg.InstrumentType)
 	arg.MarginMode = strings.ToLower(arg.MarginMode)
-	if arg.MarginMode == "isolated" || arg.MarginMode == "cross" {
+	if arg.MarginMode == TradeModeIsolated || arg.MarginMode == TradeModeCross {
 		params.Set("mgnMode", arg.MarginMode)
 	}
 	switch {
@@ -4023,7 +4026,7 @@ func (ok *Okx) GetPositionTiers(ctx context.Context, instrumentType, tradeMode, 
 	}
 	params.Set("instType", instrumentType)
 	tradeMode = strings.ToLower(tradeMode)
-	if !(tradeMode == "cross" || tradeMode == "isolated") {
+	if !(tradeMode == TradeModeCross || tradeMode == TradeModeIsolated) {
 		return nil, errIncorrectRequiredParameterTradeMode
 	}
 	params.Set("tdMode", tradeMode)

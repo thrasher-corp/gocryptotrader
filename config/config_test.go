@@ -2,7 +2,6 @@ package config
 
 import (
 	"errors"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -1576,7 +1575,7 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	}
 
 	// Make a sneaky copy for bank account testing
-	// nolint: gocritic
+	//nolint: gocritic
 	cpy := append(cfg.Exchanges[:0:0], cfg.Exchanges...)
 
 	// Test empty exchange name for an enabled exchange
@@ -1729,7 +1728,7 @@ func TestSaveConfigToFile(t *testing.T) {
 	if err != nil {
 		t.Errorf("TestSaveConfig.LoadConfig: %s", err.Error())
 	}
-	f, err := ioutil.TempFile("", "")
+	f, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Errorf("TestSaveConfig create file: %s", err)
 	}
