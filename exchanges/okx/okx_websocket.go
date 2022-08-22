@@ -35,163 +35,167 @@ var responseStream = make(chan stream.Response)
 
 // defaultSubscribedChannels list of chanels which are subscribed by default
 var defaultSubscribedChannels = []string{
-	OkxChannelTrades,
-	OkxChannelOrderBooks,
-	OkxChannelOrderBooks5,
-	OkxChannelOrderBooks50TBT,
-	OkxChannelOrderBooksTBT,
-	OkxChannelCandle5m,
-	OkxChannelTickers,
+	okxChannelTrades,
+	okxChannelOrderBooks,
+	okxChannelOrderBooks5,
+	okxChannelOrderBooks50TBT,
+	okxChannelOrderBooksTBT,
+	okxChannelCandle5m,
+	okxChannelTickers,
 }
 
 const (
 	// allowableIterations use the first 25 bids and asks in the full load to form a string
 	allowableIterations = 25
 
-	OkxOrderBookFull   = "snapshot"
+	// OkxOrderBookSnapshot orderbook push data type 'snapshot'
+	OkxOrderBookSnapshot = "snapshot"
+	// OkxOrderBookUpdate orderbook push data type 'update'
 	OkxOrderBookUpdate = "update"
 
-	// To be used in validating checksum
+	// ColonDelimiter to be used in validating checksum
 	ColonDelimiter = ":"
 
 	// maxConnByteLen otal length of multiple channels cannot exceed 4096 bytes.
 	maxConnByteLen = 4096
 
 	// Candlestick channels
+
 	markPrice        = "mark-price-"
 	indexCandlestick = "index-"
 	candle           = "candle"
 
 	// Candlesticks
-	OkxChannelCandle1Y     = candle + "1Y"
-	OkxChannelCandle6M     = candle + "6M"
-	OkxChannelCandle3M     = candle + "3M"
-	OkxChannelCandle1M     = candle + "1M"
-	OkxChannelCandle1W     = candle + "1W"
-	OkxChannelCandle1D     = candle + "1D"
-	OkxChannelCandle2D     = candle + "2D"
-	OkxChannelCandle3D     = candle + "3D"
-	OkxChannelCandle5D     = candle + "5D"
-	OkxChannelCandle12H    = candle + "12H"
-	OkxChannelCandle6H     = candle + "6H"
-	OkxChannelCandle4H     = candle + "4H"
-	OkxChannelCandle2H     = candle + "2H"
-	OkxChannelCandle1H     = candle + "1H"
-	OkxChannelCandle30m    = candle + "30m"
-	OkxChannelCandle15m    = candle + "15m"
-	OkxChannelCandle5m     = candle + "5m"
-	OkxChannelCandle3m     = candle + "3m"
-	OkxChannelCandle1m     = candle + "1m"
-	OkxChannelCandle1Yutc  = candle + "1Yutc"
-	OkxChannelCandle3Mutc  = candle + "3Mutc"
-	OkxChannelCandle1Mutc  = candle + "1Mutc"
-	OkxChannelCandle1Wutc  = candle + "1Wutc"
-	OkxChannelCandle1Dutc  = candle + "1Dutc"
-	OkxChannelCandle2Dutc  = candle + "2Dutc"
-	OkxChannelCandle3Dutc  = candle + "3Dutc"
-	OkxChannelCandle5Dutc  = candle + "5Dutc"
-	OkxChannelCandle12Hutc = candle + "12Hutc"
-	OkxChannelCandle6Hutc  = candle + "6Hutc"
+
+	okxChannelCandle1Y     = candle + "1Y"
+	okxChannelCandle6M     = candle + "6M"
+	okxChannelCandle3M     = candle + "3M"
+	okxChannelCandle1M     = candle + "1M"
+	okxChannelCandle1W     = candle + "1W"
+	okxChannelCandle1D     = candle + "1D"
+	okxChannelCandle2D     = candle + "2D"
+	okxChannelCandle3D     = candle + "3D"
+	okxChannelCandle5D     = candle + "5D"
+	okxChannelCandle12H    = candle + "12H"
+	okxChannelCandle6H     = candle + "6H"
+	okxChannelCandle4H     = candle + "4H"
+	okxChannelCandle2H     = candle + "2H"
+	okxChannelCandle1H     = candle + "1H"
+	okxChannelCandle30m    = candle + "30m"
+	okxChannelCandle15m    = candle + "15m"
+	okxChannelCandle5m     = candle + "5m"
+	okxChannelCandle3m     = candle + "3m"
+	okxChannelCandle1m     = candle + "1m"
+	okxChannelCandle1Yutc  = candle + "1Yutc"
+	okxChannelCandle3Mutc  = candle + "3Mutc"
+	okxChannelCandle1Mutc  = candle + "1Mutc"
+	okxChannelCandle1Wutc  = candle + "1Wutc"
+	okxChannelCandle1Dutc  = candle + "1Dutc"
+	okxChannelCandle2Dutc  = candle + "2Dutc"
+	okxChannelCandle3Dutc  = candle + "3Dutc"
+	okxChannelCandle5Dutc  = candle + "5Dutc"
+	okxChannelCandle12Hutc = candle + "12Hutc"
+	okxChannelCandle6Hutc  = candle + "6Hutc"
 
 	// Ticker channel
-	OkxChannelTickers                = "tickers"
-	OkxChannelIndexTickers           = "index-tickers"
-	OkxChannelStatus                 = "status"
-	OkxChannelPublicStrucBlockTrades = "public-struc-block-trades"
-	OkxChannelBlockTickers           = "block-tickers"
+	okxChannelTickers                = "tickers"
+	okxChannelIndexTickers           = "index-tickers"
+	okxChannelStatus                 = "status"
+	okxChannelPublicStrucBlockTrades = "public-struc-block-trades"
+	okxChannelBlockTickers           = "block-tickers"
 
 	// Private Channels
-	OkxChannelAccount            = "account"
-	OkxChannelPositions          = "positions"
-	OkxChannelBalanceAndPosition = "balance_and_position"
-	OkxChannelOrders             = "orders"
-	OkxChannelAlgoOrders         = "orders-algo"
-	OkxChannelAlgoAdvanced       = "algo-advance"
-	OkxChannelLiquidationWarning = "liquidation-warning"
-	OkxChannelAccountGreeks      = "account-greeks"
-	OkxChannelRFQs               = "rfqs"
-	OkxChannelQuotes             = "quotes"
-	OkxChannelStruckeBlockTrades = "struc-block-trades"
-	OkxChannelSpotGridOrder      = "grid-orders-spot"
-	OkxChannelGridOrdersConstuct = "grid-orders-contract"
-	OkxChannelGridPositions      = "grid-positions"
-	OkcChannelGridSubOrders      = "grid-sub-orders"
-	OkxChannelInstruments        = "instruments"
-	OkxChannelOpenInterest       = "open-interest"
-	OkxChannelTrades             = "trades"
+	okxChannelAccount            = "account"
+	okxChannelPositions          = "positions"
+	okxChannelBalanceAndPosition = "balance_and_position"
+	okxChannelOrders             = "orders"
+	okxChannelAlgoOrders         = "orders-algo"
+	okxChannelAlgoAdvanced       = "algo-advance"
+	okxChannelLiquidationWarning = "liquidation-warning"
+	okxChannelAccountGreeks      = "account-greeks"
+	okxChannelRFQs               = "rfqs"
+	okxChannelQuotes             = "quotes"
+	okxChannelStruckeBlockTrades = "struc-block-trades"
+	okxChannelSpotGridOrder      = "grid-orders-spot"
+	okxChannelGridOrdersConstuct = "grid-orders-contract"
+	okxChannelGridPositions      = "grid-positions"
+	okcChannelGridSubOrders      = "grid-sub-orders"
+	okxChannelInstruments        = "instruments"
+	okxChannelOpenInterest       = "open-interest"
+	okxChannelTrades             = "trades"
 
-	OkxChannelEstimatedPrice  = "estimated-price"
-	OkxChannelMarkPrice       = "mark-price"
-	OkxChannelPriceLimit      = "price-limit"
-	OkxChannelOrderBooks      = "books"
-	OkxChannelOrderBooks5     = "books5"
-	OkxChannelOrderBooks50TBT = "books50-l2-tbt"
-	OkxChannelOrderBooksTBT   = "books-l2-tbt"
-	OkxChannelBBOTBT          = "bbo-tbt"
-	OkxChannelOptSummary      = "opt-summary"
-	OkxChannelFundingRate     = "funding-rate"
+	okxChannelEstimatedPrice  = "estimated-price"
+	okxChannelMarkPrice       = "mark-price"
+	okxChannelPriceLimit      = "price-limit"
+	okxChannelOrderBooks      = "books"
+	okxChannelOrderBooks5     = "books5"
+	okxChannelOrderBooks50TBT = "books50-l2-tbt"
+	okxChannelOrderBooksTBT   = "books-l2-tbt"
+	okxChannelBBOTBT          = "bbo-tbt"
+	okxChannelOptSummary      = "opt-summary"
+	okxChannelFundingRate     = "funding-rate"
 
 	// Index Candlesticks Channels
-	OkxChannelIndexCandle1Y     = indexCandlestick + OkxChannelCandle1Y
-	OkxChannelIndexCandle6M     = indexCandlestick + OkxChannelCandle6M
-	OkxChannelIndexCandle3M     = indexCandlestick + OkxChannelCandle3M
-	OkxChannelIndexCandle1M     = indexCandlestick + OkxChannelCandle1M
-	OkxChannelIndexCandle1W     = indexCandlestick + OkxChannelCandle1W
-	OkxChannelIndexCandle1D     = indexCandlestick + OkxChannelCandle1D
-	OkxChannelIndexCandle2D     = indexCandlestick + OkxChannelCandle2D
-	OkxChannelIndexCandle3D     = indexCandlestick + OkxChannelCandle3D
-	OkxChannelIndexCandle5D     = indexCandlestick + OkxChannelCandle5D
-	OkxChannelIndexCandle12H    = indexCandlestick + OkxChannelCandle12H
-	OkxChannelIndexCandle6H     = indexCandlestick + OkxChannelCandle6H
-	OkxChannelIndexCandle4H     = indexCandlestick + OkxChannelCandle4H
-	OkxChannelIndexCandle2H     = indexCandlestick + OkxChannelCandle2H
-	OkxChannelIndexCandle1H     = indexCandlestick + OkxChannelCandle1H
-	OkxChannelIndexCandle30m    = indexCandlestick + OkxChannelCandle30m
-	OkxChannelIndexCandle15m    = indexCandlestick + OkxChannelCandle15m
-	OkxChannelIndexCandle5m     = indexCandlestick + OkxChannelCandle5m
-	OkxChannelIndexCandle3m     = indexCandlestick + OkxChannelCandle3m
-	OkxChannelIndexCandle1m     = indexCandlestick + OkxChannelCandle1m
-	OkxChannelIndexCandle1Yutc  = indexCandlestick + OkxChannelCandle1Yutc
-	OkxChannelIndexCandle3Mutc  = indexCandlestick + OkxChannelCandle3Mutc
-	OkxChannelIndexCandle1Mutc  = indexCandlestick + OkxChannelCandle1Mutc
-	OkxChannelIndexCandle1Wutc  = indexCandlestick + OkxChannelCandle1Wutc
-	OkxChannelIndexCandle1Dutc  = indexCandlestick + OkxChannelCandle1Dutc
-	OkxChannelIndexCandle2Dutc  = indexCandlestick + OkxChannelCandle2Dutc
-	OkxChannelIndexCandle3Dutc  = indexCandlestick + OkxChannelCandle3Dutc
-	OkxChannelIndexCandle5Dutc  = indexCandlestick + OkxChannelCandle5Dutc
-	OkxChannelIndexCandle12Hutc = indexCandlestick + OkxChannelCandle12Hutc
-	OkxChannelIndexCandle6Hutc  = indexCandlestick + OkxChannelCandle6Hutc
+	okxChannelIndexCandle1Y     = indexCandlestick + okxChannelCandle1Y
+	okxChannelIndexCandle6M     = indexCandlestick + okxChannelCandle6M
+	okxChannelIndexCandle3M     = indexCandlestick + okxChannelCandle3M
+	okxChannelIndexCandle1M     = indexCandlestick + okxChannelCandle1M
+	okxChannelIndexCandle1W     = indexCandlestick + okxChannelCandle1W
+	okxChannelIndexCandle1D     = indexCandlestick + okxChannelCandle1D
+	okxChannelIndexCandle2D     = indexCandlestick + okxChannelCandle2D
+	okxChannelIndexCandle3D     = indexCandlestick + okxChannelCandle3D
+	okxChannelIndexCandle5D     = indexCandlestick + okxChannelCandle5D
+	okxChannelIndexCandle12H    = indexCandlestick + okxChannelCandle12H
+	okxChannelIndexCandle6H     = indexCandlestick + okxChannelCandle6H
+	okxChannelIndexCandle4H     = indexCandlestick + okxChannelCandle4H
+	okxChannelIndexCandle2H     = indexCandlestick + okxChannelCandle2H
+	okxChannelIndexCandle1H     = indexCandlestick + okxChannelCandle1H
+	okxChannelIndexCandle30m    = indexCandlestick + okxChannelCandle30m
+	okxChannelIndexCandle15m    = indexCandlestick + okxChannelCandle15m
+	okxChannelIndexCandle5m     = indexCandlestick + okxChannelCandle5m
+	okxChannelIndexCandle3m     = indexCandlestick + okxChannelCandle3m
+	okxChannelIndexCandle1m     = indexCandlestick + okxChannelCandle1m
+	okxChannelIndexCandle1Yutc  = indexCandlestick + okxChannelCandle1Yutc
+	okxChannelIndexCandle3Mutc  = indexCandlestick + okxChannelCandle3Mutc
+	okxChannelIndexCandle1Mutc  = indexCandlestick + okxChannelCandle1Mutc
+	okxChannelIndexCandle1Wutc  = indexCandlestick + okxChannelCandle1Wutc
+	okxChannelIndexCandle1Dutc  = indexCandlestick + okxChannelCandle1Dutc
+	okxChannelIndexCandle2Dutc  = indexCandlestick + okxChannelCandle2Dutc
+	okxChannelIndexCandle3Dutc  = indexCandlestick + okxChannelCandle3Dutc
+	okxChannelIndexCandle5Dutc  = indexCandlestick + okxChannelCandle5Dutc
+	okxChannelIndexCandle12Hutc = indexCandlestick + okxChannelCandle12Hutc
+	okxChannelIndexCandle6Hutc  = indexCandlestick + okxChannelCandle6Hutc
 
 	// Mark price candlesticks channel
-	OkxChannelMarkPriceCandle1Y     = markPrice + OkxChannelCandle1Y
-	OkxChannelMarkPriceCandle6M     = markPrice + OkxChannelCandle6M
-	OkxChannelMarkPriceCandle3M     = markPrice + OkxChannelCandle3M
-	OkxChannelMarkPriceCandle1M     = markPrice + OkxChannelCandle1M
-	OkxChannelMarkPriceCandle1W     = markPrice + OkxChannelCandle1W
-	OkxChannelMarkPriceCandle1D     = markPrice + OkxChannelCandle1D
-	OkxChannelMarkPriceCandle2D     = markPrice + OkxChannelCandle2D
-	OkxChannelMarkPriceCandle3D     = markPrice + OkxChannelCandle3D
-	OkxChannelMarkPriceCandle5D     = markPrice + OkxChannelCandle5D
-	OkxChannelMarkPriceCandle12H    = markPrice + OkxChannelCandle12H
-	OkxChannelMarkPriceCandle6H     = markPrice + OkxChannelCandle6H
-	OkxChannelMarkPriceCandle4H     = markPrice + OkxChannelCandle4H
-	OkxChannelMarkPriceCandle2H     = markPrice + OkxChannelCandle2H
-	OkxChannelMarkPriceCandle1H     = markPrice + OkxChannelCandle1H
-	OkxChannelMarkPriceCandle30m    = markPrice + OkxChannelCandle30m
-	OkxChannelMarkPriceCandle15m    = markPrice + OkxChannelCandle15m
-	OkxChannelMarkPriceCandle5m     = markPrice + OkxChannelCandle5m
-	OkxChannelMarkPriceCandle3m     = markPrice + OkxChannelCandle3m
-	OkxChannelMarkPriceCandle1m     = markPrice + OkxChannelCandle1m
-	OkxChannelMarkPriceCandle1Yutc  = markPrice + OkxChannelCandle1Yutc
-	OkxChannelMarkPriceCandle3Mutc  = markPrice + OkxChannelCandle3Mutc
-	OkxChannelMarkPriceCandle1Mutc  = markPrice + OkxChannelCandle1Mutc
-	OkxChannelMarkPriceCandle1Wutc  = markPrice + OkxChannelCandle1Wutc
-	OkxChannelMarkPriceCandle1Dutc  = markPrice + OkxChannelCandle1Dutc
-	OkxChannelMarkPriceCandle2Dutc  = markPrice + OkxChannelCandle2Dutc
-	OkxChannelMarkPriceCandle3Dutc  = markPrice + OkxChannelCandle3Dutc
-	OkxChannelMarkPriceCandle5Dutc  = markPrice + OkxChannelCandle5Dutc
-	OkxChannelMarkPriceCandle12Hutc = markPrice + OkxChannelCandle12Hutc
-	OkxChannelMarkPriceCandle6Hutc  = markPrice + OkxChannelCandle6Hutc
+	okxChannelMarkPriceCandle1Y     = markPrice + okxChannelCandle1Y
+	okxChannelMarkPriceCandle6M     = markPrice + okxChannelCandle6M
+	okxChannelMarkPriceCandle3M     = markPrice + okxChannelCandle3M
+	okxChannelMarkPriceCandle1M     = markPrice + okxChannelCandle1M
+	okxChannelMarkPriceCandle1W     = markPrice + okxChannelCandle1W
+	okxChannelMarkPriceCandle1D     = markPrice + okxChannelCandle1D
+	okxChannelMarkPriceCandle2D     = markPrice + okxChannelCandle2D
+	okxChannelMarkPriceCandle3D     = markPrice + okxChannelCandle3D
+	okxChannelMarkPriceCandle5D     = markPrice + okxChannelCandle5D
+	okxChannelMarkPriceCandle12H    = markPrice + okxChannelCandle12H
+	okxChannelMarkPriceCandle6H     = markPrice + okxChannelCandle6H
+	okxChannelMarkPriceCandle4H     = markPrice + okxChannelCandle4H
+	okxChannelMarkPriceCandle2H     = markPrice + okxChannelCandle2H
+	okxChannelMarkPriceCandle1H     = markPrice + okxChannelCandle1H
+	okxChannelMarkPriceCandle30m    = markPrice + okxChannelCandle30m
+	okxChannelMarkPriceCandle15m    = markPrice + okxChannelCandle15m
+	okxChannelMarkPriceCandle5m     = markPrice + okxChannelCandle5m
+	okxChannelMarkPriceCandle3m     = markPrice + okxChannelCandle3m
+	okxChannelMarkPriceCandle1m     = markPrice + okxChannelCandle1m
+	okxChannelMarkPriceCandle1Yutc  = markPrice + okxChannelCandle1Yutc
+	okxChannelMarkPriceCandle3Mutc  = markPrice + okxChannelCandle3Mutc
+	okxChannelMarkPriceCandle1Mutc  = markPrice + okxChannelCandle1Mutc
+	okxChannelMarkPriceCandle1Wutc  = markPrice + okxChannelCandle1Wutc
+	okxChannelMarkPriceCandle1Dutc  = markPrice + okxChannelCandle1Dutc
+	okxChannelMarkPriceCandle2Dutc  = markPrice + okxChannelCandle2Dutc
+	okxChannelMarkPriceCandle3Dutc  = markPrice + okxChannelCandle3Dutc
+	okxChannelMarkPriceCandle5Dutc  = markPrice + okxChannelCandle5Dutc
+	okxChannelMarkPriceCandle12Hutc = markPrice + okxChannelCandle12Hutc
+	okxChannelMarkPriceCandle6Hutc  = markPrice + okxChannelCandle6Hutc
 )
 
 // WsConnect initiates a websocket connection
@@ -341,8 +345,8 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 		var algoID string
 		var uid string
 
-		if strings.EqualFold(arg.Channel, OkxChannelAccount) ||
-			strings.EqualFold(arg.Channel, OkxChannelOrders) {
+		if strings.EqualFold(arg.Channel, okxChannelAccount) ||
+			strings.EqualFold(arg.Channel, okxChannelOrders) {
 			authSubscription = true
 		}
 		if strings.EqualFold(arg.Channel, "grid-positions") {
@@ -354,12 +358,12 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 		}
 
 		if strings.HasPrefix(arg.Channel, "candle") ||
-			strings.EqualFold(arg.Channel, OkxChannelTickers) ||
-			strings.EqualFold(arg.Channel, OkxChannelOrderBooks) ||
-			strings.EqualFold(arg.Channel, OkxChannelOrderBooks5) ||
-			strings.EqualFold(arg.Channel, OkxChannelOrderBooks50TBT) ||
-			strings.EqualFold(arg.Channel, OkxChannelOrderBooksTBT) ||
-			strings.EqualFold(arg.Channel, OkxChannelTrades) {
+			strings.EqualFold(arg.Channel, okxChannelTickers) ||
+			strings.EqualFold(arg.Channel, okxChannelOrderBooks) ||
+			strings.EqualFold(arg.Channel, okxChannelOrderBooks5) ||
+			strings.EqualFold(arg.Channel, okxChannelOrderBooks50TBT) ||
+			strings.EqualFold(arg.Channel, okxChannelOrderBooksTBT) ||
+			strings.EqualFold(arg.Channel, okxChannelTrades) {
 			if subscriptions[i].Params["instId"] != "" {
 				instrumentID, okay = subscriptions[i].Params["instId"].(string)
 				if !okay {
@@ -522,114 +526,114 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 	}
 	if len(dataResponse.Data) > 0 {
 		switch strings.ToLower(dataResponse.Argument.Channel) {
-		case OkxChannelCandle1Y, OkxChannelCandle6M, OkxChannelCandle3M, OkxChannelCandle1M, OkxChannelCandle1W,
-			OkxChannelCandle1D, OkxChannelCandle2D, OkxChannelCandle3D, OkxChannelCandle5D, OkxChannelCandle12H,
-			OkxChannelCandle6H, OkxChannelCandle4H, OkxChannelCandle2H, OkxChannelCandle1H, OkxChannelCandle30m,
-			OkxChannelCandle15m, OkxChannelCandle5m, OkxChannelCandle3m, OkxChannelCandle1m, OkxChannelCandle1Yutc,
-			OkxChannelCandle3Mutc, OkxChannelCandle1Mutc, OkxChannelCandle1Wutc, OkxChannelCandle1Dutc,
-			OkxChannelCandle2Dutc, OkxChannelCandle3Dutc, OkxChannelCandle5Dutc, OkxChannelCandle12Hutc,
-			OkxChannelCandle6Hutc:
+		case okxChannelCandle1Y, okxChannelCandle6M, okxChannelCandle3M, okxChannelCandle1M, okxChannelCandle1W,
+			okxChannelCandle1D, okxChannelCandle2D, okxChannelCandle3D, okxChannelCandle5D, okxChannelCandle12H,
+			okxChannelCandle6H, okxChannelCandle4H, okxChannelCandle2H, okxChannelCandle1H, okxChannelCandle30m,
+			okxChannelCandle15m, okxChannelCandle5m, okxChannelCandle3m, okxChannelCandle1m, okxChannelCandle1Yutc,
+			okxChannelCandle3Mutc, okxChannelCandle1Mutc, okxChannelCandle1Wutc, okxChannelCandle1Dutc,
+			okxChannelCandle2Dutc, okxChannelCandle3Dutc, okxChannelCandle5Dutc, okxChannelCandle12Hutc,
+			okxChannelCandle6Hutc:
 			return ok.wsProcessCandles(&dataResponse)
-		case OkxChannelIndexCandle1Y, OkxChannelIndexCandle6M, OkxChannelIndexCandle3M, OkxChannelIndexCandle1M,
-			OkxChannelIndexCandle1W, OkxChannelIndexCandle1D, OkxChannelIndexCandle2D, OkxChannelIndexCandle3D,
-			OkxChannelIndexCandle5D, OkxChannelIndexCandle12H, OkxChannelIndexCandle6H, OkxChannelIndexCandle4H,
-			OkxChannelIndexCandle2H, OkxChannelIndexCandle1H, OkxChannelIndexCandle30m, OkxChannelIndexCandle15m,
-			OkxChannelIndexCandle5m, OkxChannelIndexCandle3m, OkxChannelIndexCandle1m, OkxChannelIndexCandle1Yutc,
-			OkxChannelIndexCandle3Mutc, OkxChannelIndexCandle1Mutc, OkxChannelIndexCandle1Wutc,
-			OkxChannelIndexCandle1Dutc, OkxChannelIndexCandle2Dutc, OkxChannelIndexCandle3Dutc, OkxChannelIndexCandle5Dutc,
-			OkxChannelIndexCandle12Hutc, OkxChannelIndexCandle6Hutc:
+		case okxChannelIndexCandle1Y, okxChannelIndexCandle6M, okxChannelIndexCandle3M, okxChannelIndexCandle1M,
+			okxChannelIndexCandle1W, okxChannelIndexCandle1D, okxChannelIndexCandle2D, okxChannelIndexCandle3D,
+			okxChannelIndexCandle5D, okxChannelIndexCandle12H, okxChannelIndexCandle6H, okxChannelIndexCandle4H,
+			okxChannelIndexCandle2H, okxChannelIndexCandle1H, okxChannelIndexCandle30m, okxChannelIndexCandle15m,
+			okxChannelIndexCandle5m, okxChannelIndexCandle3m, okxChannelIndexCandle1m, okxChannelIndexCandle1Yutc,
+			okxChannelIndexCandle3Mutc, okxChannelIndexCandle1Mutc, okxChannelIndexCandle1Wutc,
+			okxChannelIndexCandle1Dutc, okxChannelIndexCandle2Dutc, okxChannelIndexCandle3Dutc, okxChannelIndexCandle5Dutc,
+			okxChannelIndexCandle12Hutc, okxChannelIndexCandle6Hutc:
 			return ok.wsProcessIndexCandles(&dataResponse)
-		case OkxChannelTickers:
+		case okxChannelTickers:
 			return ok.wsProcessTickers(respRaw)
-		case OkxChannelIndexTickers:
+		case okxChannelIndexTickers:
 			var response WsIndexTicker
 			return ok.wsProcessPushData(respRaw, &response)
-		case OkxChannelStatus:
+		case okxChannelStatus:
 			var response WsSystemStatusResponse
 			return ok.wsProcessPushData(respRaw, &response)
-		case OkxChannelPublicStrucBlockTrades:
+		case okxChannelPublicStrucBlockTrades:
 			var response WsPublicTradesResponse
 			return ok.wsProcessPushData(respRaw, &response)
-		case OkxChannelBlockTickers:
+		case okxChannelBlockTickers:
 			var response WsBlockTicker
 			return ok.wsProcessPushData(respRaw, &response)
-		case OkxChannelAccountGreeks:
+		case okxChannelAccountGreeks:
 			var response WsGreeks
 			return ok.wsProcessPushData(respRaw, &response)
-		case OkxChannelAccount:
+		case okxChannelAccount:
 			var response WsAccountChannelPushData
 			return ok.wsProcessPushData(respRaw, &response)
-		case OkxChannelPositions,
-			OkxChannelLiquidationWarning:
+		case okxChannelPositions,
+			okxChannelLiquidationWarning:
 			var response WsPositionResponse
 			return ok.wsProcessPushData(respRaw, &response)
-		case OkxChannelBalanceAndPosition:
+		case okxChannelBalanceAndPosition:
 			var response WsBalanceAndPosition
 			return ok.wsProcessPushData(respRaw, &response)
-		case OkxChannelOrders:
+		case okxChannelOrders:
 			return ok.wsProcessOrders(respRaw)
-		case OkxChannelAlgoOrders:
+		case okxChannelAlgoOrders:
 			var response WsAlgoOrder
 			return ok.wsProcessPushData(respRaw, &response)
-		case OkxChannelAlgoAdvanced:
+		case okxChannelAlgoAdvanced:
 			var response WsAdvancedAlgoOrder
 			return ok.wsProcessPushData(respRaw, &response)
-		case OkxChannelRFQs:
+		case okxChannelRFQs:
 			var response WsRFQ
 			return ok.wsProcessPushData(respRaw, &response)
-		case OkxChannelQuotes:
+		case okxChannelQuotes:
 			var response WsQuote
 			return ok.wsProcessPushData(respRaw, &response)
-		case OkxChannelStruckeBlockTrades:
+		case okxChannelStruckeBlockTrades:
 			var response WsStructureBlocTrade
 			return ok.wsProcessPushData(respRaw, &response)
-		case OkxChannelSpotGridOrder:
+		case okxChannelSpotGridOrder:
 			var response WsSpotGridAlgoOrder
 			return ok.wsProcessPushData(respRaw, &response)
-		case OkxChannelGridOrdersConstuct:
+		case okxChannelGridOrdersConstuct:
 			var response WsContractGridAlgoOrder
 			return ok.wsProcessPushData(respRaw, &response)
-		case OkxChannelGridPositions:
+		case okxChannelGridPositions:
 			var response WsContractGridAlgoOrder
 			return ok.wsProcessPushData(respRaw, &response)
-		case OkcChannelGridSubOrders:
+		case okcChannelGridSubOrders:
 			var response WsGridSubOrderData
 			return ok.wsProcessPushData(respRaw, &response)
-		case OkxChannelInstruments:
+		case okxChannelInstruments:
 			var response WSInstrumentResponse
 			return ok.wsProcessPushData(respRaw, &response)
-		case OkxChannelOpenInterest:
+		case okxChannelOpenInterest:
 			var response WSOpenInterestResponse
 			return ok.wsProcessPushData(respRaw, &response)
-		case OkxChannelTrades:
+		case okxChannelTrades:
 			return ok.wsProcessTrades(respRaw)
-		case OkxChannelEstimatedPrice:
+		case okxChannelEstimatedPrice:
 			var response WsDeliveryEstimatedPrice
 			return ok.wsProcessPushData(respRaw, &response)
-		case OkxChannelMarkPrice,
-			OkxChannelPriceLimit:
+		case okxChannelMarkPrice,
+			okxChannelPriceLimit:
 			var response WsMarkPrice
 			return ok.wsProcessPushData(respRaw, &response)
-		case OkxChannelOrderBooks,
-			OkxChannelOrderBooks5,
-			OkxChannelOrderBooks50TBT,
-			OkxChannelBBOTBT,
-			OkxChannelOrderBooksTBT:
+		case okxChannelOrderBooks,
+			okxChannelOrderBooks5,
+			okxChannelOrderBooks50TBT,
+			okxChannelBBOTBT,
+			okxChannelOrderBooksTBT:
 			return ok.wsProcessOrderBooks(respRaw)
-		case OkxChannelOptSummary:
+		case okxChannelOptSummary:
 			var response WsOptionSummary
 			return ok.wsProcessPushData(respRaw, &response)
-		case OkxChannelFundingRate:
+		case okxChannelFundingRate:
 			var response WsFundingRate
 			return ok.wsProcessPushData(respRaw, &response)
-		case OkxChannelMarkPriceCandle1Y, OkxChannelMarkPriceCandle6M, OkxChannelMarkPriceCandle3M, OkxChannelMarkPriceCandle1M,
-			OkxChannelMarkPriceCandle1W, OkxChannelMarkPriceCandle1D, OkxChannelMarkPriceCandle2D, OkxChannelMarkPriceCandle3D,
-			OkxChannelMarkPriceCandle5D, OkxChannelMarkPriceCandle12H, OkxChannelMarkPriceCandle6H, OkxChannelMarkPriceCandle4H,
-			OkxChannelMarkPriceCandle2H, OkxChannelMarkPriceCandle1H, OkxChannelMarkPriceCandle30m, OkxChannelMarkPriceCandle15m,
-			OkxChannelMarkPriceCandle5m, OkxChannelMarkPriceCandle3m, OkxChannelMarkPriceCandle1m, OkxChannelMarkPriceCandle1Yutc,
-			OkxChannelMarkPriceCandle3Mutc, OkxChannelMarkPriceCandle1Mutc, OkxChannelMarkPriceCandle1Wutc, OkxChannelMarkPriceCandle1Dutc,
-			OkxChannelMarkPriceCandle2Dutc, OkxChannelMarkPriceCandle3Dutc, OkxChannelMarkPriceCandle5Dutc, OkxChannelMarkPriceCandle12Hutc,
-			OkxChannelMarkPriceCandle6Hutc:
+		case okxChannelMarkPriceCandle1Y, okxChannelMarkPriceCandle6M, okxChannelMarkPriceCandle3M, okxChannelMarkPriceCandle1M,
+			okxChannelMarkPriceCandle1W, okxChannelMarkPriceCandle1D, okxChannelMarkPriceCandle2D, okxChannelMarkPriceCandle3D,
+			okxChannelMarkPriceCandle5D, okxChannelMarkPriceCandle12H, okxChannelMarkPriceCandle6H, okxChannelMarkPriceCandle4H,
+			okxChannelMarkPriceCandle2H, okxChannelMarkPriceCandle1H, okxChannelMarkPriceCandle30m, okxChannelMarkPriceCandle15m,
+			okxChannelMarkPriceCandle5m, okxChannelMarkPriceCandle3m, okxChannelMarkPriceCandle1m, okxChannelMarkPriceCandle1Yutc,
+			okxChannelMarkPriceCandle3Mutc, okxChannelMarkPriceCandle1Mutc, okxChannelMarkPriceCandle1Wutc, okxChannelMarkPriceCandle1Dutc,
+			okxChannelMarkPriceCandle2Dutc, okxChannelMarkPriceCandle3Dutc, okxChannelMarkPriceCandle5Dutc, okxChannelMarkPriceCandle12Hutc,
+			okxChannelMarkPriceCandle6Hutc:
 			return ok.wsHandleMarkPriceCandles(respRaw)
 		default:
 			ok.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: ok.Name + stream.UnhandledMessage + string(respRaw)}
@@ -701,11 +705,11 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 		return er
 	}
 	if !(strings.EqualFold(response.Action, OkxOrderBookUpdate) ||
-		strings.EqualFold(response.Action, OkxOrderBookFull) ||
-		strings.EqualFold(response.Argument.Channel, OkxChannelOrderBooks5) ||
-		strings.EqualFold(response.Argument.Channel, OkxChannelBBOTBT) ||
-		strings.EqualFold(response.Argument.Channel, OkxChannelOrderBooks50TBT) ||
-		strings.EqualFold(response.Argument.Channel, OkxChannelOrderBooksTBT)) {
+		strings.EqualFold(response.Action, OkxOrderBookSnapshot) ||
+		strings.EqualFold(response.Argument.Channel, okxChannelOrderBooks5) ||
+		strings.EqualFold(response.Argument.Channel, okxChannelBBOTBT) ||
+		strings.EqualFold(response.Argument.Channel, okxChannelOrderBooks50TBT) ||
+		strings.EqualFold(response.Argument.Channel, okxChannelOrderBooksTBT)) {
 		return errors.New("invalid order book action ")
 	}
 	OkxOrderbookMutex.Lock()
@@ -721,9 +725,9 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 		pair.Delimiter = currency.DashDelimiter
 	}
 	for i := range response.Data {
-		if strings.EqualFold(response.Action, OkxOrderBookFull) ||
-			strings.EqualFold(response.Argument.Channel, OkxChannelOrderBooks5) ||
-			strings.EqualFold(response.Argument.Channel, OkxChannelBBOTBT) {
+		if strings.EqualFold(response.Action, OkxOrderBookSnapshot) ||
+			strings.EqualFold(response.Argument.Channel, okxChannelOrderBooks5) ||
+			strings.EqualFold(response.Argument.Channel, okxChannelBBOTBT) {
 			er = ok.WsProcessFullOrderBook(response.Data[i], pair, a)
 			if er != nil {
 				_, err2 := ok.OrderBooksSubscription("subscribe", response.Argument.Channel, a, pair)
@@ -802,15 +806,15 @@ func (ok *Okx) WsProcessUpdateOrderbook(channel string, data WsOrderBookData, pa
 		Pair:  pair,
 	}
 	switch channel {
-	case OkxChannelOrderBooks,
-		OkxChannelOrderBooksTBT:
+	case okxChannelOrderBooks,
+		okxChannelOrderBooksTBT:
 		update.MaxDepth = 400
-	case OkxChannelOrderBooks5:
+	case okxChannelOrderBooks5:
 		update.MaxDepth = 5
-	case OkxChannelBBOTBT:
+	case okxChannelBBOTBT:
 		update.MaxDepth = 1
 		update.MaxDepth = 400
-	case OkxChannelOrderBooks50TBT:
+	case okxChannelOrderBooks50TBT:
 		update.MaxDepth = 50
 	}
 	var err error
@@ -1183,8 +1187,8 @@ func (ok *Okx) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, err
 	assets := ok.GetAssetTypes(true)
 	if ok.Websocket.CanUseAuthenticatedEndpoints() {
 		defaultSubscribedChannels = append(defaultSubscribedChannels,
-			OkxChannelAccount,
-			OkxChannelOrders,
+			okxChannelAccount,
+			okxChannelOrders,
 		)
 	}
 	for x := range assets {
@@ -1193,14 +1197,14 @@ func (ok *Okx) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, err
 			return nil, err
 		}
 		for y := range defaultSubscribedChannels {
-			if defaultSubscribedChannels[y] == OkxChannelCandle5m ||
-				defaultSubscribedChannels[y] == OkxChannelTickers ||
-				defaultSubscribedChannels[y] == OkxChannelOrders ||
-				defaultSubscribedChannels[y] == OkxChannelOrderBooks ||
-				defaultSubscribedChannels[y] == OkxChannelOrderBooks5 ||
-				defaultSubscribedChannels[y] == OkxChannelOrderBooks50TBT ||
-				defaultSubscribedChannels[y] == OkxChannelOrderBooksTBT ||
-				defaultSubscribedChannels[y] == OkxChannelTrades {
+			if defaultSubscribedChannels[y] == okxChannelCandle5m ||
+				defaultSubscribedChannels[y] == okxChannelTickers ||
+				defaultSubscribedChannels[y] == okxChannelOrders ||
+				defaultSubscribedChannels[y] == okxChannelOrderBooks ||
+				defaultSubscribedChannels[y] == okxChannelOrderBooks5 ||
+				defaultSubscribedChannels[y] == okxChannelOrderBooks50TBT ||
+				defaultSubscribedChannels[y] == okxChannelOrderBooksTBT ||
+				defaultSubscribedChannels[y] == okxChannelTrades {
 				for p := range pairs {
 					subscriptions = append(subscriptions, stream.ChannelSubscription{
 						Channel:  defaultSubscribedChannels[y],
@@ -1377,7 +1381,7 @@ func (ok *Okx) WsCancelOrder(arg CancelOrderRequestParam) (*PlaceOrderResponse, 
 	return &(cancelOrderResponse.Data[0]), nil
 }
 
-// WsCancelMultipleOrder cancel multiple order through the websocket channel.
+// WsCancleMultipleOrder cancel multiple order through the websocket channel.
 func (ok *Okx) WsCancleMultipleOrder(args []CancelOrderRequestParam) ([]PlaceOrderResponse, error) {
 	for x := range args {
 		arg := args[x]
@@ -1515,12 +1519,12 @@ func (ok *Okx) WsChannelSubscription(operation, channel string, assetType asset.
 	var er error
 	if len(tooglers) > 0 && tooglers[0] {
 		instrumentType = strings.ToUpper(assetType.String())
-		if !(strings.EqualFold(instrumentType, OkxInstTypeSpot) ||
-			strings.EqualFold(instrumentType, OkxInstTypeMargin) ||
-			strings.EqualFold(instrumentType, OkxInstTypeSwap) ||
-			strings.EqualFold(instrumentType, OkxInstTypeFutures) ||
-			strings.EqualFold(instrumentType, OkxInstTypeOption)) {
-			instrumentType = OkxInstTypeANY
+		if !(strings.EqualFold(instrumentType, okxInstTypeSpot) ||
+			strings.EqualFold(instrumentType, okxInstTypeMargin) ||
+			strings.EqualFold(instrumentType, okxInstTypeSwap) ||
+			strings.EqualFold(instrumentType, okxInstTypeFutures) ||
+			strings.EqualFold(instrumentType, okxInstTypeOption)) {
+			instrumentType = okxInstTypeANY
 		}
 	}
 	if len(tooglers) > 2 && tooglers[2] {
@@ -1580,12 +1584,12 @@ func (ok *Okx) WsAuthChannelSubscription(operation, channel string, assetType as
 	var er error
 	if len(tooglers) > 0 && tooglers[0] {
 		instrumentType = strings.ToUpper(assetType.String())
-		if !(strings.EqualFold(instrumentType, OkxInstTypeSpot) ||
-			strings.EqualFold(instrumentType, OkxInstTypeMargin) ||
-			strings.EqualFold(instrumentType, OkxInstTypeSwap) ||
-			strings.EqualFold(instrumentType, OkxInstTypeFutures) ||
-			strings.EqualFold(instrumentType, OkxInstTypeOption)) {
-			instrumentType = OkxInstTypeANY
+		if !(strings.EqualFold(instrumentType, okxInstTypeSpot) ||
+			strings.EqualFold(instrumentType, okxInstTypeMargin) ||
+			strings.EqualFold(instrumentType, okxInstTypeSwap) ||
+			strings.EqualFold(instrumentType, okxInstTypeFutures) ||
+			strings.EqualFold(instrumentType, okxInstTypeOption)) {
+			instrumentType = okxInstTypeANY
 		}
 	}
 	if len(tooglers) > 2 && tooglers[2] {
@@ -1752,7 +1756,7 @@ func (ok *Okx) TradesSubscription(operation string, assetType asset.Item, pair c
 	return ok.WsChannelSubscription(operation, "trades", assetType, pair, false, true)
 }
 
-// EstimatedDeliveryExercisePriceChannel to subscribe or unsubscribe to "estimated-price" channel to retrieve the estimated delivery/exercise price of FUTURES contracts and OPTION.
+// EstimatedDeliveryExercisePriceSubscription to subscribe or unsubscribe to "estimated-price" channel to retrieve the estimated delivery/exercise price of FUTURES contracts and OPTION.
 func (ok *Okx) EstimatedDeliveryExercisePriceSubscription(operation string, assetType asset.Item, pair currency.Pair) (*SubscriptionOperationResponse, error) {
 	return ok.WsChannelSubscription(operation, "estimated-price", assetType, pair, true, false, true)
 }
@@ -1844,12 +1848,12 @@ func (ok *Okx) StatusSubscription(operation string, assetType asset.Item, pair c
 	return ok.WsChannelSubscription(operation, "status", assetType, pair)
 }
 
-// PublicStructureBlockTrades a method to subscribe or unsubscribe to "public-struc-block-trades" channel
+// PublicStructureBlockTradesSubscription a method to subscribe or unsubscribe to "public-struc-block-trades" channel
 func (ok *Okx) PublicStructureBlockTradesSubscription(operation string, assetType asset.Item, pair currency.Pair) (*SubscriptionOperationResponse, error) {
 	return ok.WsChannelSubscription(operation, "public-struc-block-trades", assetType, pair)
 }
 
-// BlocTickerSubscription a method to subscribe and unsubscribe to a "block-tickers" channel to retrieve the latest block trading volume in the last 24 hours.
+// BlockTickerSubscription a method to subscribe and unsubscribe to a "block-tickers" channel to retrieve the latest block trading volume in the last 24 hours.
 // The data will be pushed when triggered by transaction execution event. In addition, it will also be pushed in 5 minutes interval according to subscription granularity.
 func (ok *Okx) BlockTickerSubscription(operation string, assetType asset.Item, pair currency.Pair) (*SubscriptionOperationResponse, error) {
 	return ok.WsChannelSubscription(operation, "block-tickers", assetType, pair, false, true)

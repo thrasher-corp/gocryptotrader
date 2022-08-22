@@ -778,7 +778,6 @@ func TestGetAlgoOrderList(t *testing.T) {
 	}
 }
 
-//
 func TestGetAlgoOrderHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {

@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+// CurrencyConvertType represents two types of currency convert 1: currency-contract and 2: contract-currency
 type CurrencyConvertType uint
 
 const (
@@ -21,9 +22,19 @@ const (
 
 	// Trade Modes
 
-	TradeModeCross    = "cross"
+	// TradeModeCross trade mode, cross
+	TradeModeCross = "cross"
+	// TradeModeIsolated trade mode, isolated
 	TradeModeIsolated = "isolated"
-	TradeModeCash     = "cash"
+	// TradeModeCash trade mode, cash
+	TradeModeCash = "cash"
+
+	// Algo Order Types
+
+	// AlgoOrdTypeGrid algo order type,grid
+	AlgoOrdTypeGrid = "grid"
+	// AlgoOrdTypeContractGrid algo order type, contract_grid
+	AlgoOrdTypeContractGrid = "contract_grid"
 )
 
 // Error codes and their corresponding error messages.
@@ -172,7 +183,7 @@ const (
 	OkxOrderLimit = "LIMIT"
 	// OkxOrderMarket Market order
 	OkxOrderMarket = "MARKET"
-	// OkxOrderPostonly POST_ONLY order type
+	// OkxOrderPostOnly POST_ONLY order type
 	OkxOrderPostOnly = "POST_ONLY"
 	// OkxOrderFOK fill or kill order type
 	OkxOrderFOK = "FOK"
@@ -182,13 +193,14 @@ const (
 	OkxOrderOptimalLimitIOC = "OPTIMAL_LIMIT_IOC"
 
 	// Instrument Types ( Asset Types )
-	OkxInstTypeFutures  = "FUTURES"  // Okx Instrument Type "futures"
-	OkxInstTypeANY      = "ANY"      // Okx Instrument Type ""
-	OkxInstTypeSpot     = "SPOT"     // Okx Instrument Type "spot"
-	OkxInstTypeSwap     = "SWAP"     // Okx Instrument Type "swap"
-	OkxInstTypeOption   = "OPTION"   // Okx Instrument Type "option"
-	OkxInstTypeMargin   = "MARGIN"   // Okx Instrument Type "margin"
-	OkxInstTypeContract = "CONTRACT" // Okx Instrument Type "contract"
+
+	okxInstTypeFutures  = "FUTURES"  // Okx Instrument Type "futures"
+	okxInstTypeANY      = "ANY"      // Okx Instrument Type ""
+	okxInstTypeSpot     = "SPOT"     // Okx Instrument Type "spot"
+	okxInstTypeSwap     = "SWAP"     // Okx Instrument Type "swap"
+	okxInstTypeOption   = "OPTION"   // Okx Instrument Type "option"
+	okxInstTypeMargin   = "MARGIN"   // Okx Instrument Type "margin"
+	okxInstTypeContract = "CONTRACT" // Okx Instrument Type "contract"
 )
 
 // Market Data Endoints
@@ -200,7 +212,7 @@ type MarketDataResponse struct {
 	Data []TickerResponse `json:"data"`
 }
 
-// MarketData represents the market data endpoint ticker data item
+// TickerResponse represents the market data endpoint ticker detail
 type TickerResponse struct {
 	InstrumentType asset.Item `json:"instType"`
 	InstrumentID   string     `json:"instId"`
@@ -351,7 +363,7 @@ type CandleStick struct {
 	QuoteAssetVolume float64
 }
 
-// TradeRsponse represents the recent transaction instance.
+// TradeResponse represents the recent transaction instance.
 type TradeResponse struct {
 	InstrumentID string    `json:"instId"`
 	TradeID      string    `json:"tradeId"`
@@ -389,7 +401,7 @@ type IndexComponent struct {
 	Timestamp  time.Time            `json:"ts"`
 }
 
-// IndexParameter  an item representing the index component item
+// IndexComponentItem an item representing the index component item
 type IndexComponentItem struct {
 	Symbol          string `json:"symbol"`
 	SymbolPairPrice string `json:"symbolPx"`
@@ -506,7 +518,7 @@ type OptionMarketDataResponse struct {
 	Timestamp      time.Time  `json:"ts"`
 }
 
-// DeliveryEstimatedPriceResponse holds an estimated delivery or exercise price response.
+// DeliveryEstimatedPrice holds an estimated delivery or exercise price response.
 type DeliveryEstimatedPrice struct {
 	InstrumentType         asset.Item `json:"instType"`
 	InstrumentID           string     `json:"instId"`
@@ -586,7 +598,7 @@ type LiquidationOrderDetailItem struct {
 	Timestamp             time.Time `json:"ts"`
 }
 
-// MarkPrice endpoint response data; this holds list of information for mark price.
+// MarkPriceResponse endpoint response data; this holds list of information for mark price.
 type MarkPriceResponse struct {
 	Code string      `json:"code"`
 	Msg  string      `json:"msg"`
@@ -623,7 +635,7 @@ type PositionTiers struct {
 	Underlying                    string  `json:"uly"`
 }
 
-// InterestRateLoanQuotaItem holds the basic Currency, loan,and interest rate informations.
+// InterestRateLoanQuotaBasic holds the basic Currency, loan,and interest rate informations.
 type InterestRateLoanQuotaBasic struct {
 	Currency     string  `json:"ccy"`
 	LoanQuota    string  `json:"quota"`
@@ -749,7 +761,7 @@ type LongShortRatioResponse struct {
 	Data [][2]string `json:"data"`
 }
 
-// OpenIntereseVolume represents open interest and trading volume item for currencies of futures and perpetual swaps.
+// OpenInterestVolume represents open interest and trading volume item for currencies of futures and perpetual swaps.
 type OpenInterestVolume struct {
 	Timestamp    time.Time `json:"ts"`
 	OpenInterest float64   `json:"oi"`
@@ -830,7 +842,7 @@ type PlaceOrderResponse struct {
 	StatusMessage         string `json:"sMsg"`
 }
 
-// CancelOrderRequestParams represents order parameters to cancel an order.
+// CancelOrderRequestParam represents order parameters to cancel an order.
 type CancelOrderRequestParam struct {
 	InstrumentID          string `json:"instId"`
 	OrderID               string `json:"ordId"`
@@ -887,7 +899,7 @@ type OrderDetailRequestParam struct {
 	ClientSupplierOrderID string `json:"clOrdId"`
 }
 
-// OrderDetailResponse returns a order detail information
+// OrderDetail returns a order detail information
 type OrderDetail struct {
 	InstrumentType             asset.Item `json:"instType"`
 	InstrumentID               string     `json:"instId"`
@@ -1058,7 +1070,7 @@ type AlgoOrderParams struct {
 	TimeInterval kline.Interval `json:"interval"` // Required
 }
 
-// StopOrder holds stop order request payload.
+// StopOrderParams holds stop order request payload.
 type StopOrderParams struct {
 	AlgoOrderParams
 	TakeProfitTriggerPrice     string `json:"tpTriggerPx"`
@@ -1069,7 +1081,7 @@ type StopOrderParams struct {
 	StopLossOrderPrice         string `json:"slOrdPx"`
 }
 
-// AlgoOrderResponse algo order requests response.
+// AlgoOrder algo order requests response.
 type AlgoOrder struct {
 	AlgoID     string `json:"algoId"`
 	StatusCode string `json:"sCode"`
@@ -1208,7 +1220,7 @@ type AssetBillDetail struct {
 	Timestamp      time.Time `json:"ts"`
 }
 
-// LightningDeposit for creating an invoice.
+// LightningDepositItem for creating an invoice.
 type LightningDepositItem struct {
 	CreationTime time.Time `json:"cTime"`
 	Invoice      string    `json:"invoice"`
@@ -1261,7 +1273,7 @@ type WithdrawalResponse struct {
 	Chain        string  `json:"chain"`
 }
 
-// LightningRequestInput to request Lightning Withdrawal requests.
+// LightningWithdrawalRequestInput to request Lightning Withdrawal requests.
 type LightningWithdrawalRequestInput struct {
 	Currency string `json:"ccy"`     // REQUIRED Token symbol. Currently only BTC is supported.
 	Invoice  string `json:"invoice"` // REQUIRED Invoice text
@@ -1313,7 +1325,7 @@ type SavingBalanceResponse struct {
 	PendingAmount float64 `json:"pendingAmt,string"`
 }
 
-// SavingsPurchaseInput input json to SavingPurchase Post merthod.
+// SavingsPurchaseRedemptionInput input json to SavingPurchase Post merthod.
 type SavingsPurchaseRedemptionInput struct {
 	Currency   string  `json:"ccy"`         // REQUIRED:
 	Amount     float64 `json:"amt,string"`  // REQUIRED: purchase or redemption amount
@@ -1354,7 +1366,7 @@ type PublicBorrowInfo struct {
 	EstRate   float64 `json:"estRate,string"`
 }
 
-// ConvertCurrency struct representing a convert currency item response.
+// ConvertCurrency represents currency conversion detailed data.
 type ConvertCurrency struct {
 	Currency string  `json:"currency"`
 	Min      float64 `json:"min,string"`
@@ -1683,7 +1695,7 @@ type IncreaseDecreaseMarginInput struct {
 	LoadTransffer     bool    `json:"loanTrans"`
 }
 
-// IncreateDecreaseMargin represents increase or decrease the margin of the isolated position response
+// IncreaseDecreaseMargin represents increase or decrease the margin of the isolated position response
 type IncreaseDecreaseMargin struct {
 	Amt          string `json:"amt"`
 	Ccy          string `json:"ccy"`
@@ -1761,7 +1773,7 @@ type MaximumWithdrawal struct {
 	MaximumWithdrawalEx string `json:"maxWdEx"` // Max withdrawal (allowing borrowed crypto transfer out under Multi-currency margin)
 }
 
-// AccountRiskState
+// AccountRiskState represents account risk state.
 type AccountRiskState struct {
 	IsTheAccountAtRisk bool          `json:"atRisk"`
 	AtRiskIdx          []interface{} `json:"atRiskIdx"` // derivatives risk unit list
@@ -1821,7 +1833,7 @@ type PositionItem struct {
 	InstrumentID string `json:"instId"`
 }
 
-// PositionBuilderInput
+// PositionBuilderInput represents request parameter for position builder item.
 type PositionBuilderInput struct {
 	InstrumentType         string         `json:"instType,omitempty"`
 	InstrumentID           string         `json:"instId,omitempty"`
@@ -2276,8 +2288,8 @@ type GridAlgoOrderResponse struct {
 	CurQuoteSz     string `json:"curQuoteSz,omitempty"`
 }
 
-// GridAlgoSuborders
-type GridAlgoSuborders struct {
+// GridAlgoSuborder represents a grid algo suborder item.
+type GridAlgoSuborder struct {
 	ActualLeverage      string     `json:"actualLever"`
 	AlgoID              string     `json:"algoId"`
 	AlgoOrderType       string     `json:"algoOrdType"`
@@ -2322,7 +2334,7 @@ type GridAlgoSuborders struct {
 	CreationTime        time.Time  `json:"cTime"`
 }
 
-// AlgoOrderPosition
+// AlgoOrderPosition represents algo order position detailed data.
 type AlgoOrderPosition struct {
 	AutoDecreasingLine            string     `json:"adl"`
 	AlgoID                        string     `json:"algoId"`
@@ -2347,13 +2359,13 @@ type AlgoOrderPosition struct {
 	CreationTime                  time.Time  `json:"cTime"`
 }
 
-// AlgoOrderWithdrawaProfit
-type AlgoOrderWithdrawaProfit struct {
+// AlgoOrderWithdrawalProfit algo withdrawal order profit info.
+type AlgoOrderWithdrawalProfit struct {
 	AlgoID         string `json:"algoId"`
 	WithdrawProfit string `json:"profit"`
 }
 
-// SystemStatusResponse
+// SystemStatusResponse represents the system status and other details.
 type SystemStatusResponse struct {
 	Title               string    `json:"title"`
 	State               string    `json:"state"`
@@ -2444,7 +2456,7 @@ type WSSubscriptionInformations struct {
 	Arguments []SubscriptionInfo `json:"args"`
 }
 
-// WSSubscriptionResponserepresents websocket subscription information.
+// WSSubscriptionResponse represents websocket subscription information.
 type WSSubscriptionResponse struct {
 	Event    string           `json:"event"`
 	Argument SubscriptionInfo `json:"arg,,omitempty"`
@@ -2517,7 +2529,7 @@ type WSTickerResponse struct {
 	Data     []TickerResponse `json:"data"`
 }
 
-// WSCandlestickData
+// WSCandlestickData represents candlestick data coming through the web socket channels
 type WSCandlestickData struct {
 	Timestamp                     time.Time `json:"ts"`
 	OpenPrice                     float64   `json:"o"`
@@ -3008,7 +3020,7 @@ type GridSubOrderData struct {
 	UpdateTime          time.Time `json:"uTime"`
 }
 
-// WsTrade represents a trade push data response as a result subscription to "trades" channel
+// WsTradeOrder represents a trade push data response as a result subscription to "trades" channel
 type WsTradeOrder struct {
 	Argument SubscriptionInfo `json:"arg"`
 	Data     []TradeResponse  `json:"data"`

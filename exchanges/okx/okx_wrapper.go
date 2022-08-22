@@ -222,6 +222,7 @@ func (ok *Okx) Start(wg *sync.WaitGroup) error {
 	return nil
 }
 
+// Run implements the Okx wrapper
 func (ok *Okx) Run() {
 	if ok.Verbose {
 		log.Debugf(log.ExchangeSys,
@@ -257,42 +258,42 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, 
 	switch a {
 	case asset.Spot:
 		insts, er = ok.GetInstruments(ctx, &InstrumentsFetchParams{
-			InstrumentType: OkxInstTypeSpot,
+			InstrumentType: okxInstTypeSpot,
 		})
 	case asset.Futures:
 		insts, er = ok.GetInstruments(ctx, &InstrumentsFetchParams{
-			InstrumentType: OkxInstTypeFutures,
+			InstrumentType: okxInstTypeFutures,
 		})
 	case asset.PerpetualSwap:
 		insts, er = ok.GetInstruments(ctx, &InstrumentsFetchParams{
-			InstrumentType: OkxInstTypeSwap,
+			InstrumentType: okxInstTypeSwap,
 		})
 	case asset.Option:
 		var instsb []Instrument
 		var instsc []Instrument
 		insts, er = ok.GetInstruments(ctx, &InstrumentsFetchParams{
-			InstrumentType: OkxInstTypeOption,
+			InstrumentType: okxInstTypeOption,
 			Underlying:     "BTC-USD",
 		})
 		if er != nil {
 			goto checkErrorAndContinue
 		}
 		instsb, er = ok.GetInstruments(ctx, &InstrumentsFetchParams{
-			InstrumentType: OkxInstTypeOption,
+			InstrumentType: okxInstTypeOption,
 			Underlying:     "ETH-USD",
 		})
 		if er != nil {
 			goto checkErrorAndContinue
 		}
 		instsc, er = ok.GetInstruments(ctx, &InstrumentsFetchParams{
-			InstrumentType: OkxInstTypeOption,
+			InstrumentType: okxInstTypeOption,
 			Underlying:     "SOL-USD",
 		})
 		insts = append(insts, instsb...)
 		insts = append(insts, instsc...)
 	case asset.Margin:
 		insts, er = ok.GetInstruments(ctx, &InstrumentsFetchParams{
-			InstrumentType: OkxInstTypeMargin,
+			InstrumentType: okxInstTypeMargin,
 		})
 	}
 checkErrorAndContinue:
