@@ -114,6 +114,12 @@ const (
 	kucoinGetDepositAddressV1      = "/api/v1/deposit-addresses"
 	kucoinGetDepositList           = "/api/v1/deposits"
 	kucoinGetHistoricalDepositList = "/api/v1/hist-deposits"
+
+	// withdrawal
+	kucoinWithdrawal                  = "/api/v1/withdrawals"
+	kucoinGetHistoricalWithdrawalList = "/api/v1/hist-withdrawals"
+	kucoinGetWithdrawalQuotas         = "/api/v1/withdrawals/quotas"
+	kucoinCancelWithdrawal            = "/api/v1/withdrawals/%s"
 )
 
 // GetSymbols gets pairs details on the exchange
