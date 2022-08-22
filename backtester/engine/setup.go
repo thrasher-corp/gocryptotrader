@@ -133,6 +133,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 			}
 		}
 	}
+	var wg sync.WaitGroup
 	for i := range cfg.CurrencySettings {
 		var exch gctexchange.IBotExchange
 		exch, err = bt.exchangeManager.GetExchangeByName(cfg.CurrencySettings[i].ExchangeName)
@@ -144,6 +145,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 				}
 				exch.SetDefaults()
 				exchBase := exch.GetBase()
+				exchBase.Verbose = cfg.DataSettings.VerboseExchangeRequests
 				exchBase.Config = &gctconfig.Exchange{
 					Name:           exchBase.Name,
 					HTTPTimeout:    gctexchange.DefaultHTTPTimeout,
@@ -163,12 +165,17 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 					}
 					exchBase.CurrencyPairs.StorePairs(assets[x], pairs, true)
 				}
+				err = exch.Start(&wg)
+				if err != nil {
+					return err
+				}
 				bt.exchangeManager.Add(exch)
 			} else {
 				return err
 			}
 		}
 
+		wg.Wait()
 		exchBase := exch.GetBase()
 		exchangeAsset, ok := exchBase.CurrencyPairs.Pairs[cfg.CurrencySettings[i].Asset]
 		if !ok {
@@ -331,11 +338,35 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		}
 	}
 
-	bt.Funding = funds
 	if cfg.DataSettings.LiveData != nil {
 		err = bt.SetupLiveDataHandler(cfg.DataSettings.LiveData.NewEventTimeout, cfg.DataSettings.LiveData.DataCheckTimer, verbose)
 		if err != nil {
 			return err
+		}
+
+		if cfg.DataSettings.LiveData.RealOrders {
+			// reset funding and use funds from account info
+			exchanges, err := bt.exchangeManager.GetExchanges()
+			if err != nil {
+				return err
+			}
+			for x := range exchanges {
+				assets := exchanges[x].GetAssetTypes(false)
+				for y := range assets {
+					acc, err := exchanges[x].FetchAccountInfo(context.TODO(), assets[y])
+					if err != nil {
+						return err
+					}
+					for z := range acc.Accounts {
+						for i := range acc.Accounts[z].Currencies {
+							err = bt.Funding.SetFunding(exchanges[x].GetName(), assets[y], acc.Accounts[z].Currencies[i].CurrencyName, decimal.NewFromFloat(acc.Accounts[z].Currencies[i].AvailableWithoutBorrow))
+							if err != nil {
+								return err
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -572,10 +603,6 @@ func (bt *BackTest) loadExchangePairAssetBase(exch string, base, quote currency.
 	cp = currency.NewPair(base, quote)
 
 	exchangeBase := e.GetBase()
-	if exchangeBase.ValidateAPICredentials(exchangeBase.GetDefaultCredentials()) != nil {
-		log.Warnf(common.Setup, "no credentials set for %v, this is theoretical only", exchangeBase.Name)
-	}
-
 	fPair, err = exchangeBase.FormatExchangeCurrency(cp, ai)
 	if err != nil {
 		return nil, currency.EMPTYPAIR, asset.Empty, err
@@ -759,7 +786,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			dataType:                  dataType,
 			dataRequestRetryTolerance: cfg.DataSettings.LiveData.DataRequestRetryTolerance,
 			dataRequestRetryWaitTime:  cfg.DataSettings.LiveData.DataRequestRetryWaitTime,
-			verboseExchangeRequest:    cfg.DataSettings.LiveData.VerboseExchangeRequests,
+			verboseExchangeRequest:    cfg.DataSettings.VerboseExchangeRequests,
 		})
 		return nil, err
 	}
@@ -867,6 +894,7 @@ func setExchangeCredentials(cfg *config.Config, base *gctexchange.Base) error {
 			log.Warn(common.Setup, "invalid API credentials set, real orders set to false")
 			cfg.DataSettings.LiveData.RealOrders = false
 		}
+
 	}
 
 	return nil

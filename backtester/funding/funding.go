@@ -668,3 +668,18 @@ func (f *FundManager) HasExchangeBeenLiquidated(ev common.Event) bool {
 	}
 	return false
 }
+
+// SetFunding overwrites a funding setting. This is for live trading
+// where external wallet amounts need to be synced
+// only the amount is to be overwritten
+func (f *FundManager) SetFunding(string, asset.Item, currency.Code, decimal.Decimal) error {
+	if 	f.Exists()
+		f.items = append(f.items, &Item{
+		exchange:     exch,
+		asset:        item,
+		currency:     curr,
+		initialFunds: amount,
+		available:    amount,
+	})
+	return nil
+}

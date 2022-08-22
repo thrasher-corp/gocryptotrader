@@ -34,7 +34,7 @@ var ErrCannotTransact = errors.New("cannot transact")
 
 // ExecuteOrder assesses the portfolio manager's order event and if it passes validation
 // will send an order to the exchange/fake order manager to be stored and raise a fill event
-func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *engine.OrderManager, funds funding.IFundReleaser) (fill.Event, error) {
+func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, om *engine.OrderManager, funds funding.IFundReleaser) (fill.Event, error) {
 	f := &fill.Fill{
 		Base:               o.GetBase(),
 		Direction:          o.GetDirection(),
@@ -83,7 +83,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		}
 		// get current orderbook
 		var ob *orderbook.Base
-		ob, err = orderbook.Get(f.Exchange, f.CurrencyPair, f.AssetType)
+		ob, err = cs.Exchange.FetchOrderbook(context.TODO(), f.CurrencyPair, f.AssetType)
 		if err != nil {
 			return f, err
 		}
@@ -165,12 +165,13 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 	}
 
 	fee = calculateExchangeFee(price, amount, cs.TakerFee)
-	orderID, err := e.placeOrder(context.TODO(), price, amount, fee, cs.UseRealOrders, cs.CanUseExchangeLimits, f, orderManager)
+	orderID, err := e.placeOrder(context.TODO(), price, amount, fee, cs.UseRealOrders, cs.CanUseExchangeLimits, f, om)
 	if err != nil {
+		f.AppendReasonf("could not place order: %v", err)
 		return f, err
 	}
 
-	ords := orderManager.GetOrdersSnapshot(gctorder.UnknownStatus)
+	ords := om.GetOrdersSnapshot(gctorder.UnknownStatus)
 	for i := range ords {
 		if ords[i].OrderID != orderID {
 			continue

@@ -209,12 +209,12 @@ func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, origi
 	switch d.GetDirection() {
 	case gctorder.Buy,
 		gctorder.Bid,
-		gctorder.Sell,
-		gctorder.Ask,
 		gctorder.Short,
 		gctorder.Long:
 		sizedOrder.AllocatedFunds = sizedOrder.Amount.Mul(sizedOrder.ClosePrice).Add(estFee)
-	case gctorder.ClosePosition:
+	case gctorder.Sell,
+		gctorder.Ask,
+		gctorder.ClosePosition:
 		sizedOrder.AllocatedFunds = sizedOrder.Amount
 	default:
 		return nil, errInvalidDirection

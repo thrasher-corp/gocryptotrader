@@ -56,7 +56,7 @@ func (bt *BackTest) RunLive() error {
 	if bt.LiveDataHandler == nil {
 		return errLiveOnly
 	}
-	log.Info(common.Livetester, "running backtester against live data")
+	log.Info(common.LiveStrategy, "running backtester against live data")
 	for {
 		select {
 		case <-bt.shutdown:
@@ -162,9 +162,9 @@ func (bt *BackTest) handleEvent(ev common.Event) error {
 			var result string
 			result, err = bt.Statistic.CreateLog(eType)
 			if err != nil {
-				log.Error(common.Livetester, err)
+				log.Error(common.LiveStrategy, err)
 			} else {
-				log.Info(common.Livetester, result)
+				log.Info(common.LiveStrategy, result)
 			}
 		}
 	default:
@@ -227,7 +227,7 @@ func (bt *BackTest) processSimultaneousDataEvents() error {
 					if err != nil {
 						switch {
 						case errors.Is(err, statistics.ErrAlreadyProcessed):
-							log.Warnf(common.Livetester, "%v %v", latestData.GetOffset(), err)
+							log.Warnf(common.LiveStrategy, "%v %v", latestData.GetOffset(), err)
 							continue
 						case errors.Is(err, gctorder.ErrPositionLiquidated):
 							return nil
@@ -538,7 +538,7 @@ func (bt *BackTest) CloseAllPositions() error {
 	events, err := bt.Strategy.CloseAllPositions(bt.Portfolio.GetLatestHoldingsForAllCurrencies(), latestPrices)
 	if err != nil {
 		if errors.Is(err, gctcommon.ErrFunctionNotSupported) {
-			log.Warnf(common.Livetester, "closing all positions is not supported by strategy %v", bt.Strategy.Name())
+			log.Warnf(common.LiveStrategy, "closing all positions is not supported by strategy %v", bt.Strategy.Name())
 			return nil
 		}
 		return err

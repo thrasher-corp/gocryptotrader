@@ -46,12 +46,13 @@ type Config struct {
 // DataSettings is a container for each type of data retrieval setting.
 // Only ONE can be populated per config
 type DataSettings struct {
-	Interval     kline.Interval `json:"interval"`
-	DataType     string         `json:"data-type"`
-	APIData      *APIData       `json:"api-data,omitempty"`
-	DatabaseData *DatabaseData  `json:"database-data,omitempty"`
-	LiveData     *LiveData      `json:"live-data,omitempty"`
-	CSVData      *CSVData       `json:"csv-data,omitempty"`
+	Interval                kline.Interval `json:"interval"`
+	VerboseExchangeRequests bool           `json:"verbose-exchange-requests"`
+	DataType                string         `json:"data-type"`
+	APIData                 *APIData       `json:"api-data,omitempty"`
+	DatabaseData            *DatabaseData  `json:"database-data,omitempty"`
+	LiveData                *LiveData      `json:"live-data,omitempty"`
+	CSVData                 *CSVData       `json:"csv-data,omitempty"`
 }
 
 // FundingSettings contains funding details for individual currencies
@@ -196,7 +197,6 @@ type LiveData struct {
 	DataCheckTimer            time.Duration `json:"data-check-timer"`
 	RealOrders                bool          `json:"real-orders"`
 	VerboseDataCheck          bool          `json:"verbose-data-check"`
-	VerboseExchangeRequests   bool          `json:"verbose-exchange-requests"`
 	ClosePositionsOnExit      bool          `json:"close-positions-on-exit"`
 	DataRequestRetryTolerance int64         `json:"data-request-retry-tolerance"`
 	DataRequestRetryWaitTime  time.Duration `json:"data-request-retry-wait-time"`

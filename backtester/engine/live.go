@@ -41,11 +41,11 @@ func (bt *BackTest) SetupLiveDataHandler(eventTimeout, dataCheckInterval time.Du
 		return fmt.Errorf("%w funding manager", gctcommon.ErrNilPointer)
 	}
 	if eventTimeout <= 0 {
-		log.Warnf(common.Livetester, "invalid event timeout '%v', defaulting to '%v'", eventTimeout, defaultEventTimeout)
+		log.Warnf(common.LiveStrategy, "invalid event timeout '%v', defaulting to '%v'", eventTimeout, defaultEventTimeout)
 		eventTimeout = defaultEventTimeout
 	}
 	if dataCheckInterval <= 0 {
-		log.Warnf(common.Livetester, "invalid data check interval '%v', defaulting to '%v'", dataCheckInterval, defaultDataCheckInterval)
+		log.Warnf(common.LiveStrategy, "invalid data check interval '%v', defaulting to '%v'", dataCheckInterval, defaultDataCheckInterval)
 		dataCheckInterval = defaultDataCheckInterval
 	}
 	bt.LiveDataHandler = &dataChecker{
@@ -74,10 +74,10 @@ func (l *dataChecker) Start() error {
 	go func() {
 		err := l.DataFetcher()
 		if err != nil {
-			log.Error(common.Livetester, err)
+			log.Error(common.LiveStrategy, err)
 			err2 := l.Stop()
 			if err2 != nil {
-				log.Error(common.Livetester, err2)
+				log.Error(common.LiveStrategy, err2)
 			}
 		}
 	}()
@@ -269,7 +269,7 @@ func (l *dataChecker) FetchLatestData() (bool, error) {
 	timeToRetrieve := time.Now()
 	for i := range l.sourcesToCheck {
 		if l.verboseDataCheck {
-			log.Infof(common.Livetester, "%v %v %v checking for new data", l.sourcesToCheck[i].exchangeName, l.sourcesToCheck[i].asset, l.sourcesToCheck[i].pair)
+			log.Infof(common.LiveStrategy, "%v %v %v checking for new data", l.sourcesToCheck[i].exchangeName, l.sourcesToCheck[i].asset, l.sourcesToCheck[i].pair)
 		}
 		var updated bool
 		updated, err = l.sourcesToCheck[i].loadCandleData(timeToRetrieve)
@@ -289,18 +289,18 @@ func (l *dataChecker) FetchLatestData() (bool, error) {
 	}
 	for i := range l.sourcesToCheck {
 		if l.verboseDataCheck {
-			log.Infof(common.Livetester, "%v %v %v found new data", l.sourcesToCheck[i].exchangeName, l.sourcesToCheck[i].asset, l.sourcesToCheck[i].pair)
+			log.Infof(common.LiveStrategy, "%v %v %v found new data", l.sourcesToCheck[i].exchangeName, l.sourcesToCheck[i].asset, l.sourcesToCheck[i].pair)
 		}
 		l.sourcesToCheck[i].pairCandles.AppendResults(l.sourcesToCheck[i].candlesToAppend)
 		l.sourcesToCheck[i].candlesToAppend.Candles = nil
 		l.dataHolder.SetDataForCurrency(l.sourcesToCheck[i].exchangeName, l.sourcesToCheck[i].asset, l.sourcesToCheck[i].pair, &l.sourcesToCheck[i].pairCandles)
 		err = l.report.SetKlineData(&l.sourcesToCheck[i].pairCandles.Item)
 		if err != nil {
-			log.Errorf(common.Livetester, "%v %v %v issue processing kline data: %v", l.sourcesToCheck[i].exchangeName, l.sourcesToCheck[i].asset, l.sourcesToCheck[i].pair, err)
+			log.Errorf(common.LiveStrategy, "%v %v %v issue processing kline data: %v", l.sourcesToCheck[i].exchangeName, l.sourcesToCheck[i].asset, l.sourcesToCheck[i].pair, err)
 		}
 		err = l.funding.AddUSDTrackingData(&l.sourcesToCheck[i].pairCandles)
 		if err != nil && !errors.Is(err, funding.ErrUSDTrackingDisabled) {
-			log.Errorf(common.Livetester, "%v %v %v issue processing USD tracking data: %v", l.sourcesToCheck[i].exchangeName, l.sourcesToCheck[i].asset, l.sourcesToCheck[i].pair, err)
+			log.Errorf(common.LiveStrategy, "%v %v %v issue processing USD tracking data: %v", l.sourcesToCheck[i].exchangeName, l.sourcesToCheck[i].asset, l.sourcesToCheck[i].pair, err)
 		}
 	}
 	return true, nil
@@ -344,11 +344,11 @@ func (l *dataChecker) SetDataForClosingAllPositions(s ...signal.Event) error {
 			l.dataHolder.SetDataForCurrency(l.sourcesToCheck[y].exchangeName, l.sourcesToCheck[y].asset, l.sourcesToCheck[y].pair, &l.sourcesToCheck[y].pairCandles)
 			err = l.report.SetKlineData(&l.sourcesToCheck[y].pairCandles.Item)
 			if err != nil {
-				log.Errorf(common.Livetester, "%v %v %v issue processing kline data: %v", l.sourcesToCheck[y].exchangeName, l.sourcesToCheck[y].asset, l.sourcesToCheck[y].pair, err)
+				log.Errorf(common.LiveStrategy, "%v %v %v issue processing kline data: %v", l.sourcesToCheck[y].exchangeName, l.sourcesToCheck[y].asset, l.sourcesToCheck[y].pair, err)
 			}
 			err = l.funding.AddUSDTrackingData(&l.sourcesToCheck[y].pairCandles)
 			if err != nil && !errors.Is(err, funding.ErrUSDTrackingDisabled) {
-				log.Errorf(common.Livetester, "%v %v %v issue processing USD tracking data: %v", l.sourcesToCheck[y].exchangeName, l.sourcesToCheck[y].asset, l.sourcesToCheck[y].pair, err)
+				log.Errorf(common.LiveStrategy, "%v %v %v issue processing USD tracking data: %v", l.sourcesToCheck[y].exchangeName, l.sourcesToCheck[y].asset, l.sourcesToCheck[y].pair, err)
 			}
 			setData = true
 		}

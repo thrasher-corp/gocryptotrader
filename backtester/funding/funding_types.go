@@ -28,6 +28,7 @@ type IFundingManager interface {
 	HasFutures() bool
 	HasExchangeBeenLiquidated(handler common.Event) bool
 	RealisePNL(receivingExchange string, receivingAsset asset.Item, receivingCurrency currency.Code, realisedPNL decimal.Decimal) error
+	SetFunding(string, asset.Item, currency.Code, decimal.Decimal) error
 }
 
 // IFundingTransferer allows for funding amounts to be transferred

@@ -14,46 +14,19 @@
    "exchange-name": "ftx",
    "asset": "spot",
    "base": "BTC",
-   "quote": "USDT",
-   "spot-details": {
-    "initial-quote-funds": "100000"
-   },
-   "buy-side": {
-    "minimum-size": "0.005",
-    "maximum-size": "2",
-    "maximum-total": "40000"
-   },
-   "sell-side": {
-    "minimum-size": "0.005",
-    "maximum-size": "2",
-    "maximum-total": "40000"
-   },
-   "min-slippage-percent": "0",
-   "max-slippage-percent": "0",
-   "maker-fee-override": "0.0002",
-   "taker-fee-override": "0.0007",
-   "maximum-holdings-ratio": "0",
-   "skip-candle-volume-fitting": false,
-   "use-exchange-order-limits": false,
-   "use-exchange-pnl-calculation": false
-  },
-  {
-   "exchange-name": "ftx",
-   "asset": "spot",
-   "base": "ETH",
    "quote": "USD",
    "spot-details": {
     "initial-quote-funds": "100000"
    },
    "buy-side": {
-    "minimum-size": "0.005",
-    "maximum-size": "2",
-    "maximum-total": "40000"
+    "minimum-size": "0.001",
+    "maximum-size": "0.05",
+    "maximum-total": "100"
    },
    "sell-side": {
-    "minimum-size": "0.005",
-    "maximum-size": "2",
-    "maximum-total": "40000"
+    "minimum-size": "0.001",
+    "maximum-size": "0.05",
+    "maximum-total": "100"
    },
    "min-slippage-percent": "0",
    "max-slippage-percent": "0",
@@ -67,17 +40,29 @@
  ],
  "data-settings": {
   "interval": 60000000000,
+  "verbose-exchange-requests": false,
   "data-type": "candle",
   "live-data": {
    "new-event-timeout": 60000000000,
    "data-check-timer": 1000000000,
-   "real-orders": false,
+   "real-orders": true,
    "verbose-data-check": false,
-   "verbose-exchange-requests": false,
    "close-positions-on-exit": false,
    "data-request-retry-tolerance": 3,
    "data-request-retry-wait-time": 500000000,
-   "exchange-credentials": null
+   "exchange-credentials": [
+    {
+     "exchange": "ftx",
+     "credentials": {
+      "Key": "",
+      "Secret": "",
+      "ClientID": "",
+      "PEMKey": "",
+      "SubAccount": "",
+      "OneTimePassword": ""
+     }
+    }
+   ]
   }
  },
  "portfolio-settings": {
@@ -88,14 +73,14 @@
    "maximum-collateral-leverage-rate": "0"
   },
   "buy-side": {
-   "minimum-size": "0.005",
-   "maximum-size": "2",
-   "maximum-total": "40000"
+   "minimum-size": "0.001",
+   "maximum-size": "0.05",
+   "maximum-total": "100"
   },
   "sell-side": {
-   "minimum-size": "0.005",
-   "maximum-size": "2",
-   "maximum-total": "40000"
+   "minimum-size": "0.001",
+   "maximum-size": "0.05",
+   "maximum-total": "100"
   }
  },
  "statistic-settings": {

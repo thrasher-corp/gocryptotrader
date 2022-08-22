@@ -86,7 +86,7 @@ func RegisterBacktesterSubLoggers() error {
 	if err != nil {
 		return err
 	}
-	Livetester, err = log.NewSubLogger("Livetester")
+	LiveStrategy, err = log.NewSubLogger("LiveStrategy")
 	if err != nil {
 		return err
 	}
