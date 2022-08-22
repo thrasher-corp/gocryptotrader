@@ -672,14 +672,27 @@ func (f *FundManager) HasExchangeBeenLiquidated(ev common.Event) bool {
 // SetFunding overwrites a funding setting. This is for live trading
 // where external wallet amounts need to be synced
 // only the amount is to be overwritten
-func (f *FundManager) SetFunding(string, asset.Item, currency.Code, decimal.Decimal) error {
-	if 	f.Exists()
-		f.items = append(f.items, &Item{
-		exchange:     exch,
+func (f *FundManager) SetFunding(exchName string, item asset.Item, curr currency.Code, amount decimal.Decimal) error {
+	if exchName == "" || !item.IsValid() || curr.IsEmpty() || amount.LessThanOrEqual(decimal.Zero) {
+		return errCannotTransferToSameFunds
+	}
+	for i := range f.items {
+		if f.items[i].exchange != exchName ||
+			f.items[i].asset != item ||
+			!f.items[i].currency.Equal(curr) {
+			continue
+		}
+		log.Infof(common.FundManager, "%v %v %v set funding to %v", exchName, item, curr, amount)
+		f.items[i].available = amount
+		return nil
+	}
+	f.items = append(f.items, &Item{
+		exchange:     exchName,
 		asset:        item,
 		currency:     curr,
 		initialFunds: amount,
 		available:    amount,
 	})
+	log.Infof(common.FundManager, "%v %v %v set funding to %v", exchName, item, curr, amount)
 	return nil
 }

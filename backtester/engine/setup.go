@@ -338,35 +338,11 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		}
 	}
 
+	bt.Funding = funds
 	if cfg.DataSettings.LiveData != nil {
 		err = bt.SetupLiveDataHandler(cfg.DataSettings.LiveData.NewEventTimeout, cfg.DataSettings.LiveData.DataCheckTimer, verbose)
 		if err != nil {
 			return err
-		}
-
-		if cfg.DataSettings.LiveData.RealOrders {
-			// reset funding and use funds from account info
-			exchanges, err := bt.exchangeManager.GetExchanges()
-			if err != nil {
-				return err
-			}
-			for x := range exchanges {
-				assets := exchanges[x].GetAssetTypes(false)
-				for y := range assets {
-					acc, err := exchanges[x].FetchAccountInfo(context.TODO(), assets[y])
-					if err != nil {
-						return err
-					}
-					for z := range acc.Accounts {
-						for i := range acc.Accounts[z].Currencies {
-							err = bt.Funding.SetFunding(exchanges[x].GetName(), assets[y], acc.Accounts[z].Currencies[i].CurrencyName, decimal.NewFromFloat(acc.Accounts[z].Currencies[i].AvailableWithoutBorrow))
-							if err != nil {
-								return err
-							}
-						}
-					}
-				}
-			}
 		}
 	}
 
@@ -450,6 +426,30 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 
 	cfg.PrintSetting()
 	if bt.LiveDataHandler != nil {
+		if cfg.DataSettings.LiveData.RealOrders {
+			// reset funding and use funds from account info
+			exchanges, err := bt.exchangeManager.GetExchanges()
+			if err != nil {
+				return err
+			}
+			for x := range exchanges {
+				assets := exchanges[x].GetAssetTypes(false)
+				for y := range assets {
+					acc, err := exchanges[x].FetchAccountInfo(context.TODO(), assets[y])
+					if err != nil {
+						return err
+					}
+					for z := range acc.Accounts {
+						for i := range acc.Accounts[z].Currencies {
+							err = bt.Funding.SetFunding(exchanges[x].GetName(), assets[y], acc.Accounts[z].Currencies[i].CurrencyName, decimal.NewFromFloat(acc.Accounts[z].Currencies[i].AvailableWithoutBorrow))
+							if err != nil {
+								return err
+							}
+						}
+					}
+				}
+			}
+		}
 		return bt.LiveDataHandler.Start()
 	}
 
