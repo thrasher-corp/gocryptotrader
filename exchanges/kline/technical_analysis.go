@@ -185,7 +185,7 @@ func (o *OHLC) GetSimpleMovingAverage(option []float64, period int64) ([]float64
 }
 
 // GetExponentialMovingAverageOnClose returns the EMA on the close price set for
-//  the given period.
+// the given period.
 func (k *Item) GetExponentialMovingAverageOnClose(period int64) ([]float64, error) {
 	ohlc := k.GetOHLC()
 	return ohlc.GetExponentialMovingAverage(ohlc.Close, period)

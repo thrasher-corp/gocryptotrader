@@ -3,7 +3,6 @@ package config
 import (
 	"encoding/json"
 	"errors"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -379,7 +378,7 @@ func TestValidate(t *testing.T) {
 
 func TestReadStrategyConfigFromFile(t *testing.T) {
 	tempDir := t.TempDir()
-	passFile, err := ioutil.TempFile(tempDir, "*.start")
+	passFile, err := os.CreateTemp(tempDir, "*.start")
 	if err != nil {
 		t.Fatalf("Problem creating temp file at %v: %s\n", passFile, err)
 	}

@@ -42,7 +42,7 @@ const (
 	huobiBasisData                       = "/index/market/history/swap_basis"
 	huobiSwapAccInfo                     = "/swap-api/v1/swap_account_info"
 	huobiSwapPosInfo                     = "/swap-api/v1/swap_position_info"
-	huobiSwapAssetsAndPos                = "/swap-api/v1/swap_account_position_info" // nolint // false positive gosec
+	huobiSwapAssetsAndPos                = "/swap-api/v1/swap_account_position_info" //nolint // false positive gosec
 	huobiSwapSubAccList                  = "/swap-api/v1/swap_sub_account_list"
 	huobiSwapSubAccInfo                  = "/swap-api/v1/swap_sub_account_info"
 	huobiSwapSubAccPosInfo               = "/swap-api/v1/swap_sub_position_info"

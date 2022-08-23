@@ -114,7 +114,7 @@ var (
 	BAT              = NewCode("BAT")
 	ETP              = NewCode("ETP")
 	HOT              = NewCode("HOT")
-	STRAT            = NewCode("STRAT") // nolint // Cryptocurrency code
+	STRAT            = NewCode("STRAT") //nolint // Cryptocurrency code
 	GNT              = NewCode("GNT")
 	REP              = NewCode("REP")
 	SNT              = NewCode("SNT")
@@ -372,9 +372,9 @@ var (
 	STQ              = NewCode("STQ")
 	INK              = NewCode("INK")
 	HBZ              = NewCode("HBZ")
-	USDT_ETH         = NewCode("USDT_ETH") // nolint // Cryptocurrency code
-	QTUM_ETH         = NewCode("QTUM_ETH") // nolint // Cryptocurrency code
-	BTM_ETH          = NewCode("BTM_ETH")  // nolint // Cryptocurrency code
+	USDT_ETH         = NewCode("USDT_ETH") //nolint // Cryptocurrency code
+	QTUM_ETH         = NewCode("QTUM_ETH") //nolint // Cryptocurrency code
+	BTM_ETH          = NewCode("BTM_ETH")  //nolint // Cryptocurrency code
 	FIL              = NewCode("FIL")
 	STX              = NewCode("STX")
 	BOT              = NewCode("BOT")
@@ -387,7 +387,7 @@ var (
 	GOD              = NewCode("GOD")
 	SMT              = NewCode("SMT")
 	BTF              = NewCode("BTF")
-	NAS_ETH          = NewCode("NAS_ETH") // nolint // Cryptocurrency code
+	NAS_ETH          = NewCode("NAS_ETH") //nolint // Cryptocurrency code
 	TSL              = NewCode("TSL")
 	BIFI             = NewCode("BIFI")
 	BNTY             = NewCode("BNTY")
@@ -413,7 +413,7 @@ var (
 	MOBI             = NewCode("MOBI")
 	LEDU             = NewCode("LEDU")
 	DBC              = NewCode("DBC")
-	MKR_OLD          = NewCode("MKR_OLD") // nolint // Cryptocurrency code
+	MKR_OLD          = NewCode("MKR_OLD") //nolint // Cryptocurrency code
 	DPY              = NewCode("DPY")
 	BCDN             = NewCode("BCDN")
 	EOSDAC           = NewCode("EOSDAC")
@@ -422,7 +422,7 @@ var (
 	PPS              = NewCode("PPS")
 	BOE              = NewCode("BOE")
 	MEDX             = NewCode("MEDX")
-	SMT_ETH          = NewCode("SMT_ETH") // nolint // Cryptocurrency code
+	SMT_ETH          = NewCode("SMT_ETH") //nolint // Cryptocurrency code
 	CS               = NewCode("CS")
 	MAN              = NewCode("MAN")
 	REM              = NewCode("REM")
@@ -442,7 +442,7 @@ var (
 	SWTH             = NewCode("SWTH")
 	NKN              = NewCode("NKN")
 	SOUL             = NewCode("SOUL")
-	GALA_NEO         = NewCode("GALA_NEO") // nolint // Cryptocurrency code
+	GALA_NEO         = NewCode("GALA_NEO") //nolint // Cryptocurrency code
 	LRN              = NewCode("LRN")
 	GSE              = NewCode("GSE")
 	RATING           = NewCode("RATING")
@@ -1669,7 +1669,7 @@ var (
 	YER              = NewCode("YER")
 	ZWD              = NewCode("ZWD")
 	XETH             = NewCode("XETH")
-	FX_BTC           = NewCode("FX_BTC") // nolint // Cryptocurrency code
+	FX_BTC           = NewCode("FX_BTC") //nolint // Cryptocurrency code
 	AAVE             = NewCode("AAVE")
 	YFI              = NewCode("YFI")
 	BAL              = NewCode("BAL")
@@ -2512,7 +2512,7 @@ var (
 	NAFT             = NewCode("NAFT")
 	SHIBLITE         = NewCode("SHIBLITE")
 	BHD              = NewCode("BHD")
-	THN              = NewCode("THN") // nolint:misspell // false positive
+	THN              = NewCode("THN") //nolint:misspell // false positive
 	DOGEDASH         = NewCode("DOGEDASH")
 	FARA             = NewCode("FARA")
 	FIL120           = NewCode("FIL120")
@@ -2811,7 +2811,7 @@ var (
 	SBR              = NewCode("SBR")
 	BMARS            = NewCode("BMARS")
 	GOMI             = NewCode("GOMI")
-	ONOT             = NewCode("ONOT") // nolint:misspell // false positive
+	ONOT             = NewCode("ONOT") //nolint:misspell // false positive
 	GOKU             = NewCode("GOKU")
 	MINTYS           = NewCode("MINTYS")
 	PONYO            = NewCode("PONYO")

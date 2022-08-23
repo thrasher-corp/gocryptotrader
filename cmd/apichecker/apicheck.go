@@ -1717,7 +1717,7 @@ func htmlScrapeBitfinex(htmlData *HTMLScrapingData) ([]string, error) {
 	return resp, nil
 }
 
-//  htmlScrapeBinance gets checkstring for binance exchange
+// htmlScrapeBinance gets checkstring for binance exchange
 func htmlScrapeBinance(htmlData *HTMLScrapingData) ([]string, error) {
 	temp, err := sendHTTPGetRequest(htmlData.Path, nil)
 	if err != nil {

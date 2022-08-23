@@ -295,8 +295,8 @@ message OrderDetails {
   string asset_type = 6;
   string order_side = 7;
   string order_type = 8;
-  int64 creation_time = 9;
-  int64 update_time = 10;
+  string creation_time = 9;
+  string update_time = 10;
   string status = 11;
   double price = 12;
   double amount = 13;
@@ -535,6 +535,7 @@ message WithdrawalEventsByExchangeRequest {
   string id = 2;
   int32 limit = 3;
   string currency = 4;
+  string asset_type = 5;
 }
 
 message WithdrawalEventsByDateRequest {
@@ -1025,6 +1026,81 @@ message CurrencyState {
   bool trading_enabled = 5;
 }
 
+message FundingRate {
+  string date = 1;
+  string rate = 2;
+  string payment = 3;
+}
+
+message FundingData {
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+  string start_date = 4;
+  string end_date = 5;
+  repeated FundingRate rates = 6;
+  FundingRate latest_rate = 7;
+  FundingRate upcoming_rate = 8;
+  string payment_sum = 9;
+}
+
+message FuturesPositionStats {
+  string maintenance_margin_requirement = 1;
+  string initial_margin_requirement = 2;
+  string estimated_liquidation_price = 3;
+  string collateral_used = 4;
+  string mark_price = 5;
+  string current_size = 6;
+  string break_even_price = 7;
+  string average_open_price = 8;
+  string recent_pnl = 9;
+  string margin_fraction = 10;
+  string free_collateral = 11;
+  string total_collateral = 12;
+}
+
+message FuturePosition {
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+  string status = 4;
+  string opening_date = 5;
+  string opening_direction = 6;
+  string opening_price = 7;
+  string opening_size = 8;
+  string current_direction = 9;
+  string current_price = 10;
+  string current_size = 11;
+  string unrealised_pnl = 12;
+  string realised_pnl = 13;
+  string closing_date = 14;
+  int64 order_count = 15;
+  repeated OrderDetails orders = 16;
+  FuturesPositionStats position_stats = 17;
+  FundingData funding_data = 18;
+}
+
+message GetManagedPositionRequest {
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+  bool include_full_order_data = 4;
+  bool get_funding_payments = 5;
+  bool include_full_funding_rates = 6;
+  bool include_predicted_rate = 7;
+}
+
+message GetAllManagedPositionsRequest {
+  bool include_full_order_data = 1;
+  bool get_funding_payments = 2;
+  bool include_full_funding_rates = 3;
+  bool include_predicted_rate = 4;
+}
+
+message GetManagedPositionsResponse {
+  repeated FuturePosition positions = 1;
+}
+
 message GetFuturesPositionsRequest {
   string exchange = 1;
   string asset = 2;
@@ -1033,8 +1109,12 @@ message GetFuturesPositionsRequest {
   string end_date = 5;
   string status = 6;
   int64 position_limit = 7;
-  bool verbose = 8;
-  bool overwrite = 9;
+  bool overwrite = 8;
+  bool get_position_stats = 9;
+  bool include_full_order_data = 10;
+  bool get_funding_payments = 11;
+  bool include_full_funding_rates = 12;
+  bool include_predicted_rate = 13;
 }
 
 message GetFuturesPositionsResponse {
@@ -1044,16 +1124,6 @@ message GetFuturesPositionsResponse {
   string total_unrealised_pnl = 4;
   string total_pnl = 5;
   repeated FuturePosition positions = 6;
-}
-
-message FuturePosition {
-  string status = 1;
-  string current_direction = 2;
-  string unrealised_pnl = 3;
-  string realised_pnl = 4;
-  string opening_date = 5;
-  string closing_date = 6;
-  repeated OrderDetails orders = 7;
 }
 
 message GetCollateralRequest {
@@ -1115,6 +1185,20 @@ message CollateralUsedBreakdown {
   string used_in_spot_margin = 8;
 }
 
+message GetFundingRatesRequest {
+  string exchange = 1;
+  string asset = 2;
+  repeated string pairs = 3;
+  string start_date = 4;
+  string end_date = 5;
+  bool include_predicted = 6;
+  bool include_payments = 7;
+}
+
+message GetFundingRatesResponse {
+  repeated FundingData funding_payments = 1;
+}
+
 message ShutdownRequest {}
 
 message ShutdownResponse {}
@@ -1144,6 +1228,55 @@ message ListOfSignals {
 
 message GetTechnicalAnalysisResponse {
   map<string, ListOfSignals> signals = 1;
+}
+
+message GetMarginRatesHistoryRequest {
+  string exchange = 1;
+  string asset = 2;
+  string currency = 3;
+  string start_date = 4;
+  string end_date = 5;
+  bool get_predicted_rate = 6;
+  bool get_lending_payments = 7;
+  bool get_borrow_rates = 8;
+  bool get_borrow_costs = 9;
+  bool include_all_rates = 10;
+  bool calculate_offline = 11;
+  string taker_fee_rate = 12;
+  repeated MarginRate rates = 13;
+}
+
+message LendingPayment {
+  string payment = 1;
+  string size = 2;
+}
+
+message BorrowCost {
+  string cost = 1;
+  string size = 2;
+}
+
+message MarginRate {
+  string time = 1;
+  string market_borrow_size = 2;
+  string hourly_rate = 3;
+  string yearly_rate = 4;
+  string hourly_borrow_rate = 5;
+  string yearly_borrow_rate = 6;
+  LendingPayment lending_payment = 7;
+  BorrowCost borrow_cost = 8;
+}
+
+message GetMarginRatesHistoryResponse {
+  repeated MarginRate rates = 1;
+  int64 total_rates = 2;
+  string sum_borrow_costs = 3;
+  string avg_borrow_size = 4;
+  string sum_lending_payments = 5;
+  string avg_lending_size = 6;
+  MarginRate latest_rate = 7;
+  MarginRate predicted_rate = 8;
+  string taker_fee_rate = 9;
 }
 
 service GoCryptoTraderService {
@@ -1752,6 +1885,26 @@ service GoCryptoTraderService {
   rpc GetTechnicalAnalysis(GetTechnicalAnalysisRequest) returns (GetTechnicalAnalysisResponse) {
     option (google.api.http) = {
       get: "/v1/gettechnicalanalysis"
+    };
+  }
+  rpc GetMarginRatesHistory(GetMarginRatesHistoryRequest) returns (GetMarginRatesHistoryResponse) {
+    option (google.api.http) = {
+      get: "/v1/getmarginrateshistory"
+    };
+  }
+  rpc GetManagedPosition(GetManagedPositionRequest) returns (GetManagedPositionsResponse) {
+    option (google.api.http) = {
+      get: "/v1/getmanagedposition"
+    };
+  }
+  rpc GetAllManagedPositions(GetAllManagedPositionsRequest) returns (GetManagedPositionsResponse) {
+    option (google.api.http) = {
+      get: "/v1/getallmanagedpositions"
+    };
+  }
+  rpc GetFundingRates(GetFundingRatesRequest) returns (GetFundingRatesResponse) {
+    option (google.api.http) = {
+      get: "/v1/getfundingrates"
     };
   }
 }

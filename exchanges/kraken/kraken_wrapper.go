@@ -630,7 +630,11 @@ func (k *Kraken) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 			})
 		}
 	}
-	if err := account.Process(&info); err != nil {
+	creds, err := k.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	if err := account.Process(&info, creds); err != nil {
 		return account.Holdings{}, err
 	}
 	return info, nil
@@ -638,7 +642,11 @@ func (k *Kraken) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (k *Kraken) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(k.Name, assetType)
+	creds, err := k.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(k.Name, creds, assetType)
 	if err != nil {
 		return k.UpdateAccountInfo(ctx, assetType)
 	}
@@ -652,7 +660,7 @@ func (k *Kraken) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory,
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (k *Kraken) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (k *Kraken) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	withdrawals, err := k.WithdrawStatus(ctx, c, "")
 	for i := range withdrawals {
 		resp = append(resp, exchange.WithdrawalHistory{

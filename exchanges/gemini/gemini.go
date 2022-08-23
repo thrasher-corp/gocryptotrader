@@ -133,11 +133,17 @@ func (g *Gemini) GetAuction(ctx context.Context, currencyPair string) (Auction, 
 //
 // currencyPair - example "btcusd"
 // params -- [optional]
-//          since - [timestamp] Only returns auction events after the specified
+//
+//	since - [timestamp] Only returns auction events after the specified
+//
 // timestamp.
-//          limit_auction_results - [integer] The maximum number of auction
+//
+//	limit_auction_results - [integer] The maximum number of auction
+//
 // events to return.
-//          include_indicative - [bool] Whether to include publication of
+//
+//	include_indicative - [bool] Whether to include publication of
+//
 // indicative prices and quantities.
 func (g *Gemini) GetAuctionHistory(ctx context.Context, currencyPair string, params url.Values) ([]AuctionHistory, error) {
 	path := common.EncodeURLValues(fmt.Sprintf("/v%s/%s/%s/%s", geminiAPIVersion, geminiAuction, currencyPair, geminiAuctionHistory), params)

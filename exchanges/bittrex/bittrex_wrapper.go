@@ -425,12 +425,20 @@ func (b *Bittrex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 	})
 	resp.Exchange = b.Name
 
-	return resp, account.Process(&resp)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	return resp, account.Process(&resp, creds)
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (b *Bittrex) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	resp, err := account.GetHoldings(b.Name, assetType)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	resp, err := account.GetHoldings(b.Name, creds, assetType)
 	if err != nil {
 		return b.UpdateAccountInfo(ctx, assetType)
 	}
@@ -498,7 +506,7 @@ func (b *Bittrex) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *Bittrex) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (b *Bittrex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 

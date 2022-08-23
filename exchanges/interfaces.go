@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -46,12 +47,9 @@ type IBotExchange interface {
 	GetWithdrawPermissions() uint32
 	FormatWithdrawPermissions() string
 	GetFundingHistory(ctx context.Context) ([]FundHistory, error)
-
-	OrderManagement
-
 	GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, accountID, chain string) (*deposit.Address, error)
 	GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error)
-	GetWithdrawalsHistory(ctx context.Context, code currency.Code) ([]WithdrawalHistory, error)
+	GetWithdrawalsHistory(ctx context.Context, code currency.Code, a asset.Item) ([]WithdrawalHistory, error)
 	WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
 	WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
 	WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
@@ -65,28 +63,23 @@ type IBotExchange interface {
 	DisableRateLimiter() error
 	EnableRateLimiter() error
 	GetServerTime(ctx context.Context, ai asset.Item) (time.Time, error)
-	CurrencyStateManagement
-
-	order.PNLCalculation
-	order.CollateralManagement
-	GetFuturesPositions(context.Context, asset.Item, currency.Pair, time.Time, time.Time) ([]order.Detail, error)
-
 	GetWebsocket() (*stream.Websocket, error)
 	SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error
 	UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error
 	GetSubscriptions() ([]stream.ChannelSubscription, error)
 	FlushWebsocketChannels() error
 	AuthenticateWebsocket(ctx context.Context) error
-
 	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (order.MinMaxLevel, error)
 	CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
-
-	AccountManagement
-	GetCredentials(ctx context.Context) (*Credentials, error)
+	GetCredentials(ctx context.Context) (*account.Credentials, error)
 	ValidateCredentials(ctx context.Context, a asset.Item) error
 
 	FunctionalityChecker
+	AccountManagement
+	OrderManagement
+	CurrencyStateManagement
+	FuturesManagement
 }
 
 // OrderManagement defines functionality for order management
@@ -132,4 +125,17 @@ type FunctionalityChecker interface {
 	SupportsAutoPairUpdates() bool
 	IsWebsocketAuthenticationSupported() bool
 	IsRESTAuthenticationSupported() bool
+}
+
+// FuturesManagement manages futures orders, pnl and collateral calculations
+type FuturesManagement interface {
+	GetPositionSummary(context.Context, *order.PositionSummaryRequest) (*order.PositionSummary, error)
+	ScaleCollateral(ctx context.Context, calculator *order.CollateralCalculator) (*order.CollateralByCurrency, error)
+	CalculateTotalCollateral(context.Context, *order.TotalCollateralCalculator) (*order.TotalCollateralResponse, error)
+	GetFuturesPositions(context.Context, *order.PositionsRequest) ([]order.PositionDetails, error)
+	GetFundingRates(context.Context, *order.FundingRatesRequest) ([]order.FundingRates, error)
+	IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error)
+	GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error)
+	GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error)
+	order.PNLCalculation
 }

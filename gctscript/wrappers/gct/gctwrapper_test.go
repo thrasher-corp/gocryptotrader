@@ -11,7 +11,6 @@ import (
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/engine"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules/gct"
@@ -60,7 +59,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	engine.Bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &engine.Bot.ServicesWG, false, false)
+	engine.Bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &engine.Bot.ServicesWG, false, false, 0)
 	if err != nil {
 		log.Print(err)
 		os.Exit(1)
@@ -102,6 +101,8 @@ var (
 		Value: "1235",
 	}
 
+	ctx = &gct.Context{}
+
 	tv            = objects.TrueValue
 	fv            = objects.FalseValue
 	errTestFailed = errors.New("test failed")
@@ -109,12 +110,12 @@ var (
 
 func TestExchangeOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := gct.ExchangeOrderbook(exch, currencyPair, delimiter, assetType)
+	_, err := gct.ExchangeOrderbook(ctx, exch, currencyPair, delimiter, assetType)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = gct.ExchangeOrderbook(exchError, currencyPair, delimiter, assetType)
+	_, err = gct.ExchangeOrderbook(ctx, exchError, currencyPair, delimiter, assetType)
 	if err != nil && errors.Is(err, errTestFailed) {
 		t.Fatal(err)
 	}
@@ -127,12 +128,12 @@ func TestExchangeOrderbook(t *testing.T) {
 
 func TestExchangeTicker(t *testing.T) {
 	t.Parallel()
-	_, err := gct.ExchangeTicker(exch, currencyPair, delimiter, assetType)
+	_, err := gct.ExchangeTicker(ctx, exch, currencyPair, delimiter, assetType)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = gct.ExchangeTicker(exchError, currencyPair, delimiter, assetType)
+	_, err = gct.ExchangeTicker(ctx, exchError, currencyPair, delimiter, assetType)
 	if err != nil && errors.Is(err, errTestFailed) {
 		t.Fatal(err)
 	}
@@ -190,9 +191,14 @@ func TestAccountInfo(t *testing.T) {
 	if !errors.Is(err, objects.ErrWrongNumArguments) {
 		t.Fatal(err)
 	}
-	_, err = gct.ExchangeAccountInfo(exch, assetType)
-	if !errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {
-		t.Errorf("received: %v but expected: %v", err, exchange.ErrAuthenticationSupportNotEnabled)
+	obj, err := gct.ExchangeAccountInfo(ctx, exch, assetType)
+	if err != nil {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+	rString, _ := objects.ToString(obj)
+	if rString != `error: "Bitstamp REST or Websocket authentication support is not enabled"` {
+		t.Errorf("received: %v but expected: %v",
+			rString, `error: "Bitstamp REST or Websocket authentication support is not enabled"`)
 	}
 }
 
@@ -204,7 +210,7 @@ func TestExchangeOrderQuery(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = gct.ExchangeOrderQuery(exch, orderID)
+	_, err = gct.ExchangeOrderQuery(ctx, exch, orderID)
 	if err != nil && err != common.ErrNotYetImplemented {
 		t.Error(err)
 	}
@@ -216,7 +222,7 @@ func TestExchangeOrderCancel(t *testing.T) {
 	if !errors.Is(err, objects.ErrWrongNumArguments) {
 		t.Fatal(err)
 	}
-	_, err = gct.ExchangeOrderCancel(exch, orderID, currencyPair, assetType)
+	_, err = gct.ExchangeOrderCancel(ctx, exch, orderID, currencyPair, assetType)
 	if err != nil && err != common.ErrNotYetImplemented {
 		t.Error(err)
 	}
@@ -235,10 +241,25 @@ func TestExchangeOrderSubmit(t *testing.T) {
 	orderAmount := &objects.Float{Value: 1}
 	orderAsset := &objects.String{Value: asset.Spot.String()}
 
-	_, err = gct.ExchangeOrderSubmit(exch, currencyPair, delimiter,
-		orderType, orderSide, orderPrice, orderAmount, orderID, orderAsset)
-	if !errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {
-		t.Errorf("received: %v but expected: %v", err, exchange.ErrAuthenticationSupportNotEnabled)
+	obj, err := gct.ExchangeOrderSubmit(ctx,
+		exch,
+		currencyPair,
+		delimiter,
+		orderType,
+		orderSide,
+		orderPrice,
+		orderAmount,
+		orderID,
+		orderAsset)
+	if err != nil {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+
+	rString, _ := objects.ToString(obj)
+	if rString != `error: "Bitstamp REST or Websocket authentication support is not enabled"` {
+		t.Errorf("received: [%v] but expected: %v",
+			rString,
+			`error: "Bitstamp REST or Websocket authentication support is not enabled"`)
 	}
 }
 
@@ -278,7 +299,14 @@ func TestExchangeWithdrawCrypto(t *testing.T) {
 	address := &objects.String{Value: "0xTHISISALEGITBTCADDRESSS"}
 	amount := &objects.Float{Value: 1.0}
 
-	_, err = gct.ExchangeWithdrawCrypto(exch, currCode, address, address, amount, amount, desc)
+	_, err = gct.ExchangeWithdrawCrypto(ctx,
+		exch,
+		currCode,
+		address,
+		address,
+		amount,
+		amount,
+		desc)
 	if err != nil {
 		t.Error(err)
 	}
@@ -295,7 +323,7 @@ func TestExchangeWithdrawFiat(t *testing.T) {
 	amount := &objects.Float{Value: 1.0}
 	desc := &objects.String{Value: "2"}
 	bankID := &objects.String{Value: "3!"}
-	_, err = gct.ExchangeWithdrawFiat(exch, currCode, desc, amount, bankID)
+	_, err = gct.ExchangeWithdrawFiat(ctx, exch, currCode, desc, amount, bankID)
 	if err != nil && err.Error() != "exchange Bitstamp bank details not found for TEST" {
 		t.Error(err)
 	}
