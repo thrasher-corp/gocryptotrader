@@ -275,7 +275,6 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 	for i := range cfg.CurrencySettings {
 		cfg.CurrencySettings[i].SpotDetails.InitialQuoteFunds = ""
 		cfg.CurrencySettings[i].SpotDetails.InitialBaseFunds = ""
-
 	}
 	_, err = s.ExecuteStrategyFromConfig(context.Background(), &btrpc.ExecuteStrategyFromConfigRequest{
 		Config: cfg,
