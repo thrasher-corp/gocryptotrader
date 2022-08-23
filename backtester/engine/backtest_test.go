@@ -154,7 +154,6 @@ func TestNewFromConfig(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-
 }
 
 func TestLoadDataAPI(t *testing.T) {
@@ -1381,9 +1380,6 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
-	hi := make(chan struct{})
-	t.Log(hi)
-	hi = make(chan struct{})
 }
 
 func TestCloseAllPositions(t *testing.T) {

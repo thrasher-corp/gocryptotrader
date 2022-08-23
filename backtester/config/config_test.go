@@ -914,26 +914,12 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 				MakerFee: &makerFee,
 				TakerFee: &takerFee,
 			},
-			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot,
-				Base:         currency.ETH,
-				Quote:        currency.USDT,
-				SpotDetails: &SpotDetails{
-					InitialBaseFunds:  initialFunds10,
-					InitialQuoteFunds: initialFunds1000000,
-				},
-				BuySide:  minMax,
-				SellSide: minMax,
-				MakerFee: &makerFee,
-				TakerFee: &takerFee,
-			},
 		},
 		DataSettings: DataSettings{
 			Interval: kline.OneDay,
 			DataType: common.CandleStr,
 			APIData: &APIData{
-				StartDate:        startDate,
+				StartDate:        time.Date(2021, 5, 1, 0, 0, 0, 0, time.Local),
 				EndDate:          endDate,
 				InclusiveEndDate: false,
 			},

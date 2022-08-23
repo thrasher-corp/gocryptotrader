@@ -14,12 +14,6 @@ import (
 var (
 	// ErrPositionClosed returned when attempting to amend a closed position
 	ErrPositionClosed = errors.New("the position is closed")
-	// ErrPositionsNotLoadedForExchange returned when no position data exists for an exchange
-	ErrPositionsNotLoadedForExchange = errors.New("no positions loaded for exchange")
-	// ErrPositionsNotLoadedForAsset returned when no position data exists for an asset
-	ErrPositionsNotLoadedForAsset = errors.New("no positions loaded for asset")
-	// ErrPositionsNotLoadedForPair returned when no position data exists for a pair
-	ErrPositionsNotLoadedForPair = errors.New("no positions loaded for pair")
 	// ErrNilPNLCalculator is raised when pnl calculation is requested for
 	// an exchange, but the fields are not set properly
 	ErrNilPNLCalculator = errors.New("nil pnl calculator received")
@@ -32,8 +26,17 @@ var (
 	ErrUSDValueRequired = errors.New("USD value required")
 	// ErrOfflineCalculationSet is raised when collateral calculation is set to be offline, yet is attempted online
 	ErrOfflineCalculationSet = errors.New("offline calculation set")
+	// ErrPositionNotFound is raised when a position is not found
+	ErrPositionNotFound = errors.New("position not found")
+	// ErrNotPerpetualFuture is returned when a currency is not a perpetual future
+	ErrNotPerpetualFuture = errors.New("not a perpetual future")
+	// ErrNoPositionsFound returned when there is no positions returned
+	ErrNoPositionsFound = errors.New("no positions found")
+	// ErrGetFundingDataRequired is returned when requesting funding rate data without the prerequisite
+	ErrGetFundingDataRequired = errors.New("getfundingdata is a prerequisite")
 
 	errExchangeNameEmpty              = errors.New("exchange name empty")
+	errExchangeNameMismatch           = errors.New("exchange name mismatch")
 	errTimeUnset                      = errors.New("time unset")
 	errMissingPNLCalculationFunctions = errors.New("futures tracker requires exchange PNL calculation functions")
 	errOrderNotEqualToTracker         = errors.New("order does not match tracker data")
@@ -44,6 +47,7 @@ var (
 	errNilOrder                       = errors.New("nil order received")
 	errNoPNLHistory                   = errors.New("no pnl history")
 	errCannotCalculateUnrealisedPNL   = errors.New("cannot calculate unrealised PNL")
+	errDoesntMatch                    = errors.New("doesn't match")
 	errCannotTrackInvalidParams       = errors.New("parameters set incorrectly, cannot track")
 )
 
@@ -52,15 +56,6 @@ var (
 type PNLCalculation interface {
 	CalculatePNL(context.Context, *PNLCalculatorRequest) (*PNLResult, error)
 	GetCurrencyForRealisedPNL(realisedAsset asset.Item, realisedPair currency.Pair) (currency.Code, asset.Item, error)
-}
-
-// CollateralManagement is an interface that allows
-// multiple ways of calculating the size of collateral
-// on an exchange
-type CollateralManagement interface {
-	GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error)
-	ScaleCollateral(ctx context.Context, calculator *CollateralCalculator) (*CollateralByCurrency, error)
-	CalculateTotalCollateral(context.Context, *TotalCollateralCalculator) (*TotalCollateralResponse, error)
 }
 
 // TotalCollateralResponse holds all collateral
@@ -129,7 +124,8 @@ type UsedCollateralBreakdown struct {
 // the position controller and its all tracked happily
 type PositionController struct {
 	m                     sync.Mutex
-	multiPositionTrackers map[string]map[asset.Item]map[currency.Pair]*MultiPositionTracker
+	multiPositionTrackers map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*MultiPositionTracker
+	updated               time.Time
 }
 
 // MultiPositionTracker will track the performance of
@@ -173,39 +169,47 @@ type MultiPositionTrackerSetup struct {
 // completely within this position tracker, however, can still provide a good
 // timeline of performance until the position is closed
 type PositionTracker struct {
-	m                     sync.Mutex
-	exchange              string
-	asset                 asset.Item
-	contractPair          currency.Pair
-	underlyingAsset       currency.Code
-	collateralCurrency    currency.Code
-	exposure              decimal.Decimal
-	currentDirection      Side
-	openingDirection      Side
-	status                Status
-	unrealisedPNL         decimal.Decimal
-	realisedPNL           decimal.Decimal
-	shortPositions        []Detail
-	longPositions         []Detail
-	pnlHistory            []PNLResult
-	entryPrice            decimal.Decimal
-	closingPrice          decimal.Decimal
-	offlinePNLCalculation bool
-	PNLCalculation
-	latestPrice               decimal.Decimal
+	m                         sync.Mutex
 	useExchangePNLCalculation bool
+	collateralCurrency        currency.Code
+	offlinePNLCalculation     bool
+	PNLCalculation
+	exchange           string
+	asset              asset.Item
+	contractPair       currency.Pair
+	underlying         currency.Code
+	exposure           decimal.Decimal
+	openingDirection   Side
+	openingPrice       decimal.Decimal
+	openingSize        decimal.Decimal
+	openingDate        time.Time
+	latestDirection    Side
+	latestPrice        decimal.Decimal
+	lastUpdated        time.Time
+	unrealisedPNL      decimal.Decimal
+	realisedPNL        decimal.Decimal
+	status             Status
+	closingPrice       decimal.Decimal
+	closingDate        time.Time
+	shortPositions     []Detail
+	longPositions      []Detail
+	pnlHistory         []PNLResult
+	fundingRateDetails *FundingRates
 }
 
 // PositionTrackerSetup contains all required fields to
 // setup a position tracker
 type PositionTrackerSetup struct {
+	Exchange                  string
+	Asset                     asset.Item
 	Pair                      currency.Pair
 	EntryPrice                decimal.Decimal
 	Underlying                currency.Code
 	CollateralCurrency        currency.Code
-	Asset                     asset.Item
 	Side                      Side
 	UseExchangePNLCalculation bool
+	OfflineCalculation        bool
+	PNLCalculator             PNLCalculation
 }
 
 // TotalCollateralCalculator holds many collateral calculators
@@ -277,22 +281,111 @@ type PNLResult struct {
 	IsOrder bool
 }
 
-// PositionStats is a basic holder
-// for position information
-type PositionStats struct {
+// Position is a basic holder for position information
+type Position struct {
 	Exchange           string
 	Asset              asset.Item
 	Pair               currency.Pair
 	Underlying         currency.Code
 	CollateralCurrency currency.Code
-	Orders             []Detail
 	RealisedPNL        decimal.Decimal
 	UnrealisedPNL      decimal.Decimal
-	Exposure           decimal.Decimal
-	LatestDirection    Side
 	Status             Status
-	OpeningDirection   Side
+	OpeningDate        time.Time
 	OpeningPrice       decimal.Decimal
+	OpeningSize        decimal.Decimal
+	OpeningDirection   Side
 	LatestPrice        decimal.Decimal
+	LatestSize         decimal.Decimal
+	LatestDirection    Side
+	LastUpdated        time.Time
+	CloseDate          time.Time
+	Orders             []Detail
 	PNLHistory         []PNLResult
+	FundingRates       FundingRates
+}
+
+// PositionSummaryRequest is used to request a summary of an open position
+type PositionSummaryRequest struct {
+	Asset asset.Item
+	Pair  currency.Pair
+
+	// offline calculation requirements below
+	CalculateOffline          bool
+	Direction                 Side
+	FreeCollateral            decimal.Decimal
+	TotalCollateral           decimal.Decimal
+	OpeningPrice              decimal.Decimal
+	CurrentPrice              decimal.Decimal
+	OpeningSize               decimal.Decimal
+	CurrentSize               decimal.Decimal
+	CollateralUsed            decimal.Decimal
+	NotionalPrice             decimal.Decimal
+	Leverage                  decimal.Decimal
+	MaxLeverageForAccount     decimal.Decimal
+	TotalAccountValue         decimal.Decimal
+	TotalOpenPositionNotional decimal.Decimal
+}
+
+// PositionSummary returns basic details on an open position
+type PositionSummary struct {
+	MaintenanceMarginRequirement decimal.Decimal
+	InitialMarginRequirement     decimal.Decimal
+	EstimatedLiquidationPrice    decimal.Decimal
+	CollateralUsed               decimal.Decimal
+	MarkPrice                    decimal.Decimal
+	CurrentSize                  decimal.Decimal
+	BreakEvenPrice               decimal.Decimal
+	AverageOpenPrice             decimal.Decimal
+	RecentPNL                    decimal.Decimal
+	MarginFraction               decimal.Decimal
+	FreeCollateral               decimal.Decimal
+	TotalCollateral              decimal.Decimal
+}
+
+// FundingRatesRequest is used to request funding rate details for a position
+type FundingRatesRequest struct {
+	Asset                asset.Item
+	Pairs                currency.Pairs
+	StartDate            time.Time
+	EndDate              time.Time
+	IncludePayments      bool
+	IncludePredictedRate bool
+}
+
+// FundingRates is used to return funding rate details for a position
+type FundingRates struct {
+	Exchange              string
+	Asset                 asset.Item
+	Pair                  currency.Pair
+	StartDate             time.Time
+	EndDate               time.Time
+	LatestRate            FundingRate
+	PredictedUpcomingRate FundingRate
+	FundingRates          []FundingRate
+	PaymentSum            decimal.Decimal
+}
+
+// FundingRate holds details for an individual funding rate
+type FundingRate struct {
+	Time    time.Time
+	Rate    decimal.Decimal
+	Payment decimal.Decimal
+}
+
+// PositionDetails are used to track open positions
+// in the order manager
+type PositionDetails struct {
+	Exchange string
+	Asset    asset.Item
+	Pair     currency.Pair
+	Orders   []Detail
+}
+
+// PositionsRequest defines the request to
+// retrieve futures position data
+type PositionsRequest struct {
+	Asset     asset.Item
+	Pairs     currency.Pairs
+	StartDate time.Time
 }

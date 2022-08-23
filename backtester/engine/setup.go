@@ -57,7 +57,8 @@ func NewBacktester() (*BackTest, error) {
 		&engine.CommunicationManager{},
 		&sync.WaitGroup{},
 		false,
-		false)
+		false,
+		0)
 	if err != nil {
 		return nil, err
 	}

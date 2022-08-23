@@ -2,7 +2,6 @@ package ftxcashandcarry
 
 import (
 	"errors"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"testing"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	datakline "github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	eventkline "github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
@@ -184,7 +184,7 @@ func TestCreateSignals(t *testing.T) {
 		t.Errorf("received '%v' expected '%v", err, expectedError)
 	}
 
-	// case len(pos) == 0:
+	// targeting first case
 	expectedError = nil
 	futuresSignal := &signal.Signal{
 		Base: &event.Base{AssetType: asset.Futures},
@@ -200,9 +200,8 @@ func TestCreateSignals(t *testing.T) {
 		t.Errorf("received '%v' expected '%v", resp[0].GetAssetType(), asset.Spot)
 	}
 
-	// case len(pos) > 0 && pos[len(pos)-1].Status == order.Open &&
-	// 		diffBetweenFuturesSpot.LessThanOrEqual(s.closeShortDistancePercentage):
-	pos := []gctorder.PositionStats{
+	// targeting second case:
+	pos := []gctorder.Position{
 		{
 			Status: gctorder.Open,
 		},
@@ -227,9 +226,7 @@ func TestCreateSignals(t *testing.T) {
 		t.Fatal("unhandled issue in test scenario")
 	}
 
-	// case len(pos) > 0 &&
-	//		pos[len(pos)-1].Status == order.Open &&
-	//		isLastEvent:
+	// targeting third case
 	resp, err = s.createSignals(pos, spotSignal, futuresSignal, decimal.Zero, true)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v", err, expectedError)
@@ -249,9 +246,8 @@ func TestCreateSignals(t *testing.T) {
 	if !caseTested {
 		t.Fatal("unhandled issue in test scenario")
 	}
-	// case len(pos) > 0 &&
-	//		pos[len(pos)-1].Status == order.Closed &&
-	//		diffBetweenFuturesSpot.GreaterThan(s.openShortDistancePercentage):
+
+	// targeting first case after a cash and carry is completed, have a new one opened
 	pos[0].Status = gctorder.Closed
 	resp, err = s.createSignals(pos, spotSignal, futuresSignal, decimal.NewFromInt(1337), true)
 	if !errors.Is(err, expectedError) {
@@ -276,7 +272,7 @@ func TestCreateSignals(t *testing.T) {
 		t.Fatal("unhandled issue in test scenario")
 	}
 
-	// default:
+	// targeting default case
 	pos[0].Status = gctorder.UnknownStatus
 	resp, err = s.createSignals(pos, spotSignal, futuresSignal, decimal.NewFromInt(1337), true)
 	if !errors.Is(err, expectedError) {
@@ -304,8 +300,8 @@ type portfolerino struct {
 }
 
 // GetPositions overrides default implementation
-func (p portfolerino) GetPositions(common.Event) ([]gctorder.PositionStats, error) {
-	return []gctorder.PositionStats{
+func (p portfolerino) GetPositions(common.Event) ([]gctorder.Position, error) {
+	return []gctorder.Position{
 		{
 			Exchange:           exchangeName,
 			Asset:              asset.Spot,

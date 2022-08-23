@@ -57,7 +57,7 @@ type Handler interface {
 	SetHoldingsForOffset(*holdings.Holding, bool) error
 	UpdateHoldings(data.Event, funding.IFundReleaser) error
 	GetComplianceManager(string, asset.Item, currency.Pair) (*compliance.Manager, error)
-	GetPositions(common.Event) ([]gctorder.PositionStats, error)
+	GetPositions(common.Event) ([]gctorder.Position, error)
 	TrackFuturesOrder(fill.Event, funding.IFundReleaser) (*PNLSummary, error)
 	UpdatePNL(common.Event, decimal.Decimal) error
 	GetLatestPNLForEvent(common.Event) (*PNLSummary, error)

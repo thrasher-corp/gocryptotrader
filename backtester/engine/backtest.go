@@ -291,7 +291,7 @@ func (bt *BackTest) updateStatsForDataEvent(ev data.Event, funds funding.IFundRe
 
 		err = bt.Portfolio.UpdatePNL(ev, ev.GetClosePrice())
 		if err != nil {
-			if errors.Is(err, gctorder.ErrPositionsNotLoadedForPair) {
+			if errors.Is(err, gctorder.ErrPositionNotFound) {
 				// if there is no position yet, there's nothing to update
 				return nil
 			}
