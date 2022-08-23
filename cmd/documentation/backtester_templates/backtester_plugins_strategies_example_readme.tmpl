@@ -19,13 +19,13 @@ Plugins can only be loaded via Linux, macOS and WSL. Windows itself is not suppo
 To run this strategy you will need to use the following flags when running the GoCryptoTrader Backtester:
 
 ```bash
-./backtester -strategypluginpath="path/to/strategy/example.so"
+./backtester -strategypluginpath="custom/path/to/strategy/example.so"
 ```
 
 To run this specific example strategy, use:
 
 ```bash
-./backtester --strategypluginpath="/plugins/strategies/example/example.so"
+./backtester --strategypluginpath="./plugins/strategies/example/example.so"
 ```
 
 Upon startup, the GoCryptoTrader Backtester will load the strategy and run it for all events.
