@@ -1746,7 +1746,7 @@
 												</td>
 											{{ else if ne $ev.SignalEvent nil}}
 												<td>{{$ev.SignalEvent.GetTime}}</td>
-												<td>{{ $.Prettify.Decimal8 $ev.SignalEvent.GetPrice}} {{if $asset.IsFutures}}{{if ne $ev.PNL nil }}{{$ev.PNL.GetCollateralCurrency}}{{end}}{{else}}{{$pair.Quote}}{{end}}</td>
+												<td>{{ $.Prettify.Decimal8 $ev.SignalEvent.GetClosePrice}} {{if $asset.IsFutures}}{{if ne $ev.PNL nil }}{{$ev.PNL.GetCollateralCurrency}}{{end}}{{else}}{{$pair.Quote}}{{end}}</td>
 												<td>{{$ev.SignalEvent.GetDirection}}</td>
 												<td>
 													<ul>

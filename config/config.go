@@ -1332,6 +1332,21 @@ func (c *Config) CheckCurrencyStateManager() {
 	}
 }
 
+// CheckOrderManagerConfig ensures the order manager is setup correctly
+func (c *Config) CheckOrderManagerConfig() {
+	m.Lock()
+	defer m.Unlock()
+	if c.OrderManager.Enabled == nil {
+		c.OrderManager.Enabled = convert.BoolPtr(true)
+		c.OrderManager.ActivelyTrackFuturesPositions = true
+	}
+	if c.OrderManager.ActivelyTrackFuturesPositions && c.OrderManager.FuturesTrackingSeekDuration >= 0 {
+		// one isn't likely to have a perpetual futures order open
+		// for longer than a year
+		c.OrderManager.FuturesTrackingSeekDuration = -time.Hour * 24 * 365
+	}
+}
+
 // CheckConnectionMonitorConfig checks and if zero value assigns default values
 func (c *Config) CheckConnectionMonitorConfig() {
 	m.Lock()
@@ -1680,6 +1695,7 @@ func (c *Config) CheckConfig() error {
 	c.CheckConnectionMonitorConfig()
 	c.CheckDataHistoryMonitorConfig()
 	c.CheckCurrencyStateManager()
+	c.CheckOrderManagerConfig()
 	c.CheckCommunicationsConfig()
 	c.CheckClientBankAccounts()
 	c.CheckBankAccountConfig()

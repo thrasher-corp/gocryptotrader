@@ -1367,11 +1367,6 @@ func (b *Base) CalculateTotalCollateral(ctx context.Context, calculator *order.T
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetFuturesPositions returns futures positions according to the provided parameters
-func (b *Base) GetFuturesPositions(context.Context, asset.Item, currency.Pair, time.Time, time.Time) ([]order.Detail, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
 // GetCollateralCurrencyForContract returns the collateral currency for an asset and contract pair
 func (b *Base) GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error) {
 	return currency.Code{}, asset.Empty, common.ErrNotYetImplemented
@@ -1391,11 +1386,37 @@ func (b *Base) HasAssetTypeAccountSegregation() bool {
 }
 
 // GetServerTime returns the current exchange server time.
-func (b *Base) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
+func (b *Base) GetServerTime(context.Context, asset.Item) (time.Time, error) {
 	return time.Time{}, common.ErrNotYetImplemented
 }
 
 // GetMarginRatesHistory returns the margin rate history for the supplied currency
 func (b *Base) GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
 	return nil, common.ErrNotYetImplemented
+}
+
+// GetPositionSummary returns stats for a future position
+func (b *Base) GetPositionSummary(context.Context, *order.PositionSummaryRequest) (*order.PositionSummary, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetFundingPaymentDetails returns funding payment details for a future for a specific time period
+func (b *Base) GetFundingPaymentDetails(context.Context, *order.FundingRatesRequest) (*order.FundingRates, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetFuturesPositions returns futures positions for all currencies
+func (b *Base) GetFuturesPositions(context.Context, *order.PositionsRequest) ([]order.PositionDetails, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetFundingRates returns funding rates based on request data
+func (b *Base) GetFundingRates(ctx context.Context, request *order.FundingRatesRequest) ([]order.FundingRates, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
+// differs by exchange
+func (b *Base) IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error) {
+	return false, common.ErrNotYetImplemented
 }
