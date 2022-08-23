@@ -1,0 +1,36 @@
+{{define "backtester plugins" -}}
+{{template "backtester-header" .}}
+## {{.CapitalName}} package overview
+
+Golang Plugins are supported by the GoCryptoTrader Backtester. At present, only custom strategies are supported.
+
+Please read the Golang documentation on [plugins](https://golang.org/pkg/plugin/) for more information.
+
+## Building Golang Plugins
+
+### Windows
+Plugin support is not yet available for Windows. However, you can still build via WSL. See below for instructions on a basic setup for WSL. Once completed, follow the instructions for Linux.
+#### WSL Setup
+The following is a basic setup for WSL: [here](https://pureinfotech.com/install-wsl-windows-11/)
+
+### Linux, macOS & WSL
+A plugin is a Go main package with exported functions and variables that has been built with:
+
+```bash
+go build -buildmode=plugin
+```
+
+This outputs a file named `{{.Name}}.so` which can be loaded by the backtester. At present, only custom strategies can be loaded. See [here](/strategies/example/README.md) for more information on building custom strategies via plugins.
+
+You must ensure that the plugin is built with the same version of code as the GoCryptoTrader Backtester. Otherwise the plugin will refuse to load.
+
+
+
+#### Installing Golang in WSL
+See the following for instructions on installing Golang in WSL: [here](https://ao.ms/how-to-install-golang-on-wsl-wsl2/)
+
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations" .}}
+{{end}}
