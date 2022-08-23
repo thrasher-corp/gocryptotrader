@@ -704,7 +704,7 @@ func TestStopOrder(t *testing.T) {
 	}); er != nil {
 		t.Error("Okx PlaceTrailingStopOrder error", er)
 	}
-	if _, er := ok.PlaceIceburgOrder(context.Background(), &AlgoOrderParams{
+	if _, er := ok.PlaceIcebergOrder(context.Background(), &AlgoOrderParams{
 		PriceLimit:  100.22,
 		SizeLimit:   9999.9,
 		PriceSpread: "0.04",
@@ -723,7 +723,7 @@ func TestStopOrder(t *testing.T) {
 	}); er != nil {
 		t.Error("Okx PlaceTWAPOrder() error", er)
 	}
-	if _, er := ok.TriggerAlogOrder(context.Background(), &AlgoOrderParams{
+	if _, er := ok.TriggerAlgoOrder(context.Background(), &AlgoOrderParams{
 		TriggerPriceType: "mark",
 
 		InstrumentID: "BTC-USDT",
@@ -928,7 +928,7 @@ func TestCancelMultipleQuote(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := ok.CancelMultipleQuote(context.Background(), CancelQuotesRequestParams{}); er != nil && !errors.Is(errMissingEitherQuoteIDAOrlientSuppliedQuoteIDs, er) {
+	if _, er := ok.CancelMultipleQuote(context.Background(), CancelQuotesRequestParams{}); er != nil && !errors.Is(errMissingEitherQuoteIDAOrClientSuppliedQuoteIDs, er) {
 		t.Error("Okx CancelQuote() error", er)
 	}
 }
@@ -1007,19 +1007,7 @@ func TestGetRFQTrades(t *testing.T) {
 	}
 }
 
-var publicTradesResponseJSON = `{
-	"blockTdId": "439161457415012352",
-	"legs": [
-		{
-			"instId": "BTC-USD-210826",
-			"side": "sell",
-			"sz": "100",
-			"px": "11000",
-			"tradeId": "439161457415012354"
-		}
-	],
-	"cTime": "1650976251241"
-}`
+var publicTradesResponseJSON = `{"blockTdId": "439161457415012352","legs": [{"instId": "BTC-USD-210826","side": "sell","sz": "100","px": "11000","tradeId": "439161457415012354"}],"cTime": "1650976251241"}`
 
 func TestGetPublicTrades(t *testing.T) {
 	t.Parallel()
@@ -1187,13 +1175,7 @@ func TestGetCurrencyDepositHistory(t *testing.T) {
 	}
 }
 
-var withdrawalResponseString = `{
-	"amt": "0.1",
-	"wdId": "67485",
-	"ccy": "BTC",
-	"clientId": "",
-	"chain": "BTC-Bitcoin"
-}`
+var withdrawalResponseString = `{"amt": "0.1","wdId": "67485","ccy": "BTC","clientId": "","chain": "BTC-Bitcoin"}`
 
 func TestWithdrawal(t *testing.T) {
 	t.Parallel()
@@ -1211,10 +1193,7 @@ func TestWithdrawal(t *testing.T) {
 	}
 }
 
-var lightningWithdrawalResponseJSON = `{
-	"wdId": "121212",
-	"cTime": "1597026383085"
-}`
+var lightningWithdrawalResponseJSON = `{"wdId": "121212","cTime": "1597026383085"}`
 
 func TestLightningWithdrawal(t *testing.T) {
 	t.Parallel()
@@ -1304,19 +1283,21 @@ func TestSavingsPurchase(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := ok.SavingsPurchase(context.Background(), &SavingsPurchaseRedemptionInput{
-		Amount:   123.4,
-		Currency: "BTC",
-		Rate:     1,
+	if _, er := ok.SavingsPurchaseOrRedemption(context.Background(), &SavingsPurchaseRedemptionInput{
+		Amount:     123.4,
+		Currency:   "BTC",
+		Rate:       1,
+		ActionType: "purchase",
 	}); er != nil && !strings.EqualFold(er.Error(), "Insufficient balance") {
-		t.Error("Okx SavingsPurchase() error", er)
+		t.Error("Okx SavingsPurchaseOrRedemption() error", er)
 	}
-	if _, er := ok.SavingsRedemption(context.Background(), &SavingsPurchaseRedemptionInput{
-		Amount:   123.4,
-		Currency: "BTC",
-		Rate:     1,
+	if _, er := ok.SavingsPurchaseOrRedemption(context.Background(), &SavingsPurchaseRedemptionInput{
+		Amount:     123.4,
+		Currency:   "BTC",
+		Rate:       1,
+		ActionType: "redempt",
 	}); er != nil && !strings.EqualFold(er.Error(), "Insufficient balance") {
-		t.Error("Okx SavingsPurchase() error", er)
+		t.Error("Okx SavingsPurchaseOrRedemption() error", er)
 	}
 }
 
@@ -1749,10 +1730,9 @@ func TestSetLeverage(t *testing.T) {
 		t.SkipNow()
 	}
 	if _, er := ok.SetLeverage(context.Background(), SetLeverageInput{
-		Leverage:     30,
-		MarginMode:   "isolated",
-		InstrumentID: "BTC-USDT",
-		PositionSide: "long",
+		Currency:   "BTC",
+		Leverage:   30,
+		MarginMode: "cross",
 	}); er != nil && !errors.Is(er, errNoValidResponseFromServer) && !strings.Contains(er.Error(), "System error, please try again later.") {
 		t.Error("Okx SetLeverage() error", er)
 	}
@@ -2040,14 +2020,7 @@ func TestGetSubaccountFundingBalance(t *testing.T) {
 	}
 }
 
-var historyOfSubaccountTransfer = `{
-	"billId": "12344",
-	"type":"1",
-	"ccy": "BTC",
-	"amt":"2",
-	"subAcct":"test-1",
-	"ts":"1597026383085"
-}`
+var historyOfSubaccountTransfer = `{"billId": "12344","type":"1","ccy": "BTC","amt":"2","subAcct":"test-1","ts":"1597026383085"}`
 
 func TestHistoryOfSubaccountTransfer(t *testing.T) {
 	t.Parallel()

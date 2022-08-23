@@ -670,11 +670,16 @@ func (a *OrderDetail) UnmarshalJSON(data []byte) error {
 	if er := json.Unmarshal(data, chil); er != nil {
 		return er
 	}
+	var er error
 	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
 	a.CreationTime = time.UnixMilli(chil.CreationTime)
-	a.Side = order.ParseOrderSideString(chil.Side)
+	a.Side, er = order.StringToOrderSide(chil.Side)
+	if er != nil {
+		return er
+	}
 	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
-	if val, er := strconv.ParseFloat(chil.Leverage, 64); er == nil {
+	val, er := strconv.ParseFloat(chil.Leverage, 64)
+	if er == nil {
 		a.Leverage = val
 	}
 	if val, er := strconv.ParseFloat(chil.RebateAmount, 64); er == nil {
@@ -722,7 +727,11 @@ func (a *PendingOrderItem) UnmarshalJSON(data []byte) error {
 	}
 	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
 	a.CreationTime = time.UnixMilli(chil.CreationTime)
-	a.Side = order.ParseOrderSideString(chil.Side)
+	var er error
+	a.Side, er = order.StringToOrderSide(chil.Side)
+	if er != nil {
+		return er
+	}
 	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
 	if val, er := strconv.ParseFloat(chil.AccumulatedFillSize, 64); er == nil {
 		a.AccumulatedFillSize = val

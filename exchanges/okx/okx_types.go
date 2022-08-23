@@ -207,7 +207,7 @@ const (
 
 // MarketDataResponse represents list of ticker market data.
 type MarketDataResponse struct {
-	Code int              `json:"code,string"`
+	Code string           `json:"code"`
 	Msg  string           `json:"msg"`
 	Data []TickerResponse `json:"data"`
 }
@@ -2427,7 +2427,7 @@ type WebsocketLoginData struct {
 // WSLoginResponse represents a websocket login response.
 type WSLoginResponse struct {
 	Event string `json:"event"`
-	Code  int    `json:"code,string"`
+	Code  string `json:"code"`
 	Msg   string `json:"msg"`
 }
 

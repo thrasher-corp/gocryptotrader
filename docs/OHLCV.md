@@ -88,7 +88,8 @@ A helper tool [cmd/dbseed](../cmd/dbseed/README.md) has been created for assisti
 | Kraken         | Y           |                 
 | lBank          | Y           |          
 | Localbitcoins  |             |          
-| Okcoin         | Y           |           
+| Okcoin         | Y           |  
+| Okx            | Y           |         
 | Poloniex       | Y           |          
 | Yobit          |            |    
 | ZB             | Y           |          

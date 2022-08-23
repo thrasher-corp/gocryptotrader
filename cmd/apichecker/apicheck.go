@@ -34,7 +34,6 @@ const (
 	htmlScrape           = "HTML String Check"
 	pathBinance          = "https://binance-docs.github.io/apidocs/spot/en/#change-log"
 	pathOkCoin           = "https://www.okcoin.com/docs/en/#change-change"
-	pathOkx              = "https://www.okx.com/docs/en/#change-change"
 	pathFTX              = "https://github.com/ftexchange/ftx"
 	pathBTSE             = "https://www.btse.com/apiexplorer/spot/#btse-spot-api"
 	pathBitfinex         = "https://docs.bitfinex.com/docs/changelog"
@@ -491,7 +490,7 @@ func checkChangeLog(htmlData *HTMLScrapingData) (string, error) {
 		dataStrings, err = htmlScrapeYobit(htmlData)
 	case pathLocalBitcoins:
 		dataStrings, err = htmlScrapeLocalBitcoins(htmlData)
-	case pathOkCoin, pathOkx:
+	case pathOkCoin:
 		dataStrings, err = htmlScrapeOk(htmlData)
 	default:
 		dataStrings, err = htmlScrapeDefault(htmlData)

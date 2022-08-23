@@ -152,8 +152,8 @@ func TestExchangeAddressExists(t *testing.T) {
 func TestAddExchangeAddress(t *testing.T) {
 	t.Parallel()
 	newBase := Base{}
-	newBase.AddExchangeAddress("Ok", currency.BTC, 100)
-	newBase.AddExchangeAddress("Ok", currency.BTC, 200)
+	newBase.AddExchangeAddress("Okx", currency.BTC, 100)
+	newBase.AddExchangeAddress("Okx", currency.BTC, 200)
 
 	if !newBase.ExchangeAddressExists("Ok", currency.BTC) {
 		t.Error("address doesn't exist")

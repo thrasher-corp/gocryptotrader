@@ -38,27 +38,6 @@ var (
 	errOrderDetailIsNil         = errors.New("order detail is nil")
 )
 
-// ParseOrderSideString converts an order side string to an order.Side instance
-func ParseOrderSideString(orderString string) Side {
-	switch orderString {
-	case "any":
-		return AnySide
-	case "buy":
-		return Buy
-	case "Sell", "sell":
-		return Sell
-	case "bid":
-		return Bid
-	case "ask":
-		return Ask
-	case "long":
-		return Long
-	case "short":
-		return Short
-	}
-	return UnknownSide
-}
-
 // Validate checks the supplied data and returns whether or not it's valid
 func (s *Submit) Validate(opt ...validate.Checker) error {
 	if s == nil {

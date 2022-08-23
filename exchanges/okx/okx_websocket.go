@@ -110,7 +110,7 @@ const (
 	okxChannelBalanceAndPosition = "balance_and_position"
 	okxChannelOrders             = "orders"
 	okxChannelAlgoOrders         = "orders-algo"
-	okxChannelAlgoAdvanced       = "algo-advance"
+	okxChannelAlgoAdvance        = "algo-advance"
 	okxChannelLiquidationWarning = "liquidation-warning"
 	okxChannelAccountGreeks      = "account-greeks"
 	okxChannelRFQs               = "rfqs"
@@ -287,7 +287,7 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 		response, err = ok.Websocket.AuthConn.SendMessageReturnResponse("login", request)
 		var resp WSLoginResponse
 		err = json.Unmarshal(response, &resp)
-		if err == nil && (strings.EqualFold(resp.Event, "login") && resp.Code == 0) {
+		if err == nil && (strings.EqualFold(resp.Event, "login") && resp.Code == "0") {
 			ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
 		}
 	}()
@@ -345,25 +345,26 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 		var algoID string
 		var uid string
 
-		if strings.EqualFold(arg.Channel, okxChannelAccount) ||
-			strings.EqualFold(arg.Channel, okxChannelOrders) {
+		if arg.Channel == okxChannelAccount ||
+			arg.Channel == okxChannelOrders {
 			authSubscription = true
 		}
-		if strings.EqualFold(arg.Channel, "grid-positions") {
+		if arg.Channel == okxChannelGridPositions {
 			algoID, _ = subscriptions[i].Params["algoId"].(string)
 		}
 
-		if strings.EqualFold(arg.Channel, "grid-sub-orders") || strings.EqualFold(arg.Channel, "grid-positions") {
+		if arg.Channel == okcChannelGridSubOrders ||
+			arg.Channel == okxChannelGridPositions {
 			uid, _ = subscriptions[i].Params["uid"].(string)
 		}
 
 		if strings.HasPrefix(arg.Channel, "candle") ||
-			strings.EqualFold(arg.Channel, okxChannelTickers) ||
-			strings.EqualFold(arg.Channel, okxChannelOrderBooks) ||
-			strings.EqualFold(arg.Channel, okxChannelOrderBooks5) ||
-			strings.EqualFold(arg.Channel, okxChannelOrderBooks50TBT) ||
-			strings.EqualFold(arg.Channel, okxChannelOrderBooksTBT) ||
-			strings.EqualFold(arg.Channel, okxChannelTrades) {
+			arg.Channel == okxChannelTickers ||
+			arg.Channel == okxChannelOrderBooks ||
+			arg.Channel == okxChannelOrderBooks5 ||
+			arg.Channel == okxChannelOrderBooks50TBT ||
+			arg.Channel == okxChannelOrderBooksTBT ||
+			arg.Channel == okxChannelTrades {
 			if subscriptions[i].Params["instId"] != "" {
 				instrumentID, okay = subscriptions[i].Params["instId"].(string)
 				if !okay {
@@ -382,24 +383,23 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 				}
 			}
 		}
-		if strings.EqualFold(arg.Channel, "instruments") ||
-			strings.EqualFold(arg.Channel, "positions") ||
-			strings.EqualFold(arg.Channel, "orders") ||
-			strings.EqualFold(arg.Channel, "orders-algo") ||
-			strings.EqualFold(arg.Channel, "algo-advance") ||
-			strings.EqualFold(arg.Channel, "liquidation-warning") ||
-			strings.EqualFold(arg.Channel, "grid-orders-spot") ||
-			strings.EqualFold(arg.Channel, "grid-orders-spot") ||
-			strings.EqualFold(arg.Channel, "grid-orders-contract") ||
-			strings.EqualFold(arg.Channel, "estimated-price") {
+		if arg.Channel == okxChannelInstruments ||
+			arg.Channel == okxChannelPositions ||
+			arg.Channel == okxChannelOrders ||
+			arg.Channel == okxChannelAlgoOrders ||
+			arg.Channel == okxChannelAlgoAdvance ||
+			arg.Channel == okxChannelLiquidationWarning ||
+			arg.Channel == okxChannelSpotGridOrder ||
+			arg.Channel == okxChannelGridOrdersConstuct ||
+			arg.Channel == okxChannelEstimatedPrice {
 			instrumentType = ok.GetInstrumentTypeFromAssetItem(subscriptions[i].Asset)
 		}
 
-		if strings.EqualFold(arg.Channel, "positions") ||
-			strings.EqualFold(arg.Channel, "orders") ||
-			strings.EqualFold(arg.Channel, "orders-algo") ||
-			strings.EqualFold(arg.Channel, "estimated-price") ||
-			strings.EqualFold(arg.Channel, "opt-summary") {
+		if arg.Channel == okxChannelPositions ||
+			arg.Channel == okxChannelOrders ||
+			arg.Channel == okxChannelAlgoOrders ||
+			arg.Channel == okxChannelEstimatedPrice ||
+			arg.Channel == okxChannelOptSummary {
 			underlying, _ = ok.GetUnderlying(subscriptions[i].Currency, subscriptions[i].Asset)
 		}
 		arg.InstrumentID = instrumentID
@@ -517,9 +517,11 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 	if er != nil {
 		var resp WSLoginResponse
 		er = json.Unmarshal(respRaw, &resp)
-		if er == nil && (strings.EqualFold(resp.Event, "login") && resp.Code == 0) {
+		if er == nil && (strings.EqualFold(resp.Event, "login") && resp.Code == "0") {
 			ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
-		} else if er == nil && (strings.EqualFold(resp.Event, "error") || resp.Code == 60006 || resp.Code == 60007 || resp.Code == 60009 || resp.Code == 60026) {
+		} else if er == nil && (strings.EqualFold(resp.Event, "error") ||
+			resp.Code == "60006" || resp.Code == "60007" ||
+			resp.Code == "60009" || resp.Code == "60026") {
 			ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 		return er
@@ -575,7 +577,7 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		case okxChannelAlgoOrders:
 			var response WsAlgoOrder
 			return ok.wsProcessPushData(respRaw, &response)
-		case okxChannelAlgoAdvanced:
+		case okxChannelAlgoAdvance:
 			var response WsAdvancedAlgoOrder
 			return ok.wsProcessPushData(respRaw, &response)
 		case okxChannelRFQs:
@@ -847,8 +849,7 @@ func (ok *Okx) WsProcessUpdateOrderbook(channel string, data WsOrderBookData, pa
 	return nil
 }
 
-// AppendWsOrderbookItems adds websocket orderbook data bid/asks into an
-// orderbook item array
+// AppendWsOrderbookItems adds websocket orderbook data bid/asks into an orderbook item array
 func (ok *Okx) AppendWsOrderbookItems(entries [][4]string) ([]orderbook.Item, error) {
 	items := make([]orderbook.Item, len(entries))
 	for j := range entries {
@@ -982,6 +983,7 @@ func (ok *Okx) wsProcessTrades(data []byte) error {
 	trades := make([]trade.Data, len(response.Data))
 	for i := range response.Data {
 		var pair currency.Pair
+		var side order.Side
 		pair, er = ok.GetPairFromInstrumentID(response.Data[i].InstrumentID)
 		if er != nil {
 			ok.Websocket.DataHandler <- order.ClassificationError{
@@ -991,7 +993,10 @@ func (ok *Okx) wsProcessTrades(data []byte) error {
 			return er
 		}
 		amount := response.Data[i].Quantity
-		side := order.ParseOrderSideString(response.Data[i].Side)
+		side, er = order.StringToOrderSide(response.Data[i].Side)
+		if er != nil {
+			return er
+		}
 		trades[i] = trade.Data{
 			Amount:       amount,
 			AssetType:    assetType,
@@ -1267,7 +1272,7 @@ func (ok *Okx) WSPlaceOrder(arg *PlaceOrderRequestParam) (*PlaceOrderResponse, e
 		Arguments: []PlaceOrderRequestParam{*arg},
 		Operation: "batch-orders",
 	}
-	respData, er := ok.Websocket.Conn.SendMessageReturnResponse("order", input)
+	respData, er := ok.Websocket.Conn.SendMessageReturnResponse(input.ID, input)
 	if er != nil {
 		return nil, er
 	}
@@ -1298,7 +1303,9 @@ func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]PlaceOrder
 		if arg.InstrumentID == "" {
 			return nil, errMissingInstrumentID
 		}
-		if !(strings.EqualFold(TradeModeCross, arg.TradeMode) || strings.EqualFold(TradeModeIsolated, arg.TradeMode) || strings.EqualFold(TradeModeCash, arg.TradeMode)) {
+		if !(TradeModeCross == arg.TradeMode ||
+			TradeModeIsolated == arg.TradeMode ||
+			TradeModeCash == arg.TradeMode) {
 			return nil, errInvalidTradeModeValue
 		}
 		if !(strings.EqualFold(arg.Side, "buy") || strings.EqualFold(arg.Side, "sell")) {
@@ -1325,7 +1332,7 @@ func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]PlaceOrder
 		Arguments: args,
 		Operation: "batch-orders",
 	}
-	respData, er := ok.Websocket.Conn.SendMessageReturnResponse("orders", input)
+	respData, er := ok.Websocket.Conn.SendMessageReturnResponse(randomID, input)
 	if er != nil {
 		return nil, er
 	}
@@ -1398,7 +1405,7 @@ func (ok *Okx) WsCancleMultipleOrder(args []CancelOrderRequestParam) ([]PlaceOrd
 		Arguments: args,
 		Operation: "batch-cancel-orders",
 	}
-	respData, er := ok.Websocket.Conn.SendMessageReturnResponse("cancel-orders", input)
+	respData, er := ok.Websocket.Conn.SendMessageReturnResponse(randomID, input)
 	if er != nil {
 		return nil, er
 	}
@@ -1447,9 +1454,9 @@ func (ok *Okx) WsAmendOrder(arg *AmendOrderRequestParams) (*AmendOrderResponse, 
 		return nil, er
 	}
 
-	if !strings.EqualFold(amendOrderResponse.Code, "0") ||
-		strings.EqualFold(amendOrderResponse.Code, "1") ||
-		strings.EqualFold(amendOrderResponse.Code, "60013") {
+	if amendOrderResponse.Code != "0" ||
+		amendOrderResponse.Code == "1" ||
+		amendOrderResponse.Code == "60013" {
 		if amendOrderResponse.Msg == "" {
 			return nil, errNoValidResponseFromServer
 		}
@@ -1491,10 +1498,10 @@ func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]AmendOrd
 	if er != nil {
 		return nil, er
 	}
-	if !strings.EqualFold(amendOrderResponse.Code, "0") ||
-		!strings.EqualFold(amendOrderResponse.Code, "2") ||
-		strings.EqualFold(amendOrderResponse.Code, "1") ||
-		strings.EqualFold(amendOrderResponse.Code, "60013") {
+	if !(amendOrderResponse.Code == "0" ||
+		amendOrderResponse.Code == "2") &&
+		amendOrderResponse.Code == "1" ||
+		amendOrderResponse.Code == "60013" {
 		if amendOrderResponse.Msg == "" {
 			return nil, errNoValidResponseFromServer
 		}
@@ -1518,12 +1525,12 @@ func (ok *Okx) WsChannelSubscription(operation, channel string, assetType asset.
 	var instrumentType string
 	var er error
 	if len(tooglers) > 0 && tooglers[0] {
-		instrumentType = strings.ToUpper(assetType.String())
-		if !(strings.EqualFold(instrumentType, okxInstTypeSpot) ||
-			strings.EqualFold(instrumentType, okxInstTypeMargin) ||
-			strings.EqualFold(instrumentType, okxInstTypeSwap) ||
-			strings.EqualFold(instrumentType, okxInstTypeFutures) ||
-			strings.EqualFold(instrumentType, okxInstTypeOption)) {
+		instrumentType = strings.ToUpper(ok.GetInstrumentTypeFromAssetItem(assetType))
+		if !(instrumentType == okxInstTypeSpot ||
+			instrumentType == okxInstTypeMargin ||
+			instrumentType == okxInstTypeSwap ||
+			instrumentType == okxInstTypeFutures ||
+			instrumentType == okxInstTypeOption) {
 			instrumentType = okxInstTypeANY
 		}
 	}
@@ -1583,12 +1590,12 @@ func (ok *Okx) WsAuthChannelSubscription(operation, channel string, assetType as
 	var ccy string
 	var er error
 	if len(tooglers) > 0 && tooglers[0] {
-		instrumentType = strings.ToUpper(assetType.String())
-		if !(strings.EqualFold(instrumentType, okxInstTypeSpot) ||
-			strings.EqualFold(instrumentType, okxInstTypeMargin) ||
-			strings.EqualFold(instrumentType, okxInstTypeSwap) ||
-			strings.EqualFold(instrumentType, okxInstTypeFutures) ||
-			strings.EqualFold(instrumentType, okxInstTypeOption)) {
+		instrumentType = ok.GetInstrumentTypeFromAssetItem(assetType)
+		if !(instrumentType == okxInstTypeSpot ||
+			instrumentType == okxInstTypeMargin ||
+			instrumentType == okxInstTypeSwap ||
+			instrumentType == okxInstTypeFutures ||
+			instrumentType == okxInstTypeOption) {
 			instrumentType = okxInstTypeANY
 		}
 	}
@@ -1650,78 +1657,78 @@ func (ok *Okx) WsAuthChannelSubscription(operation, channel string, assetType as
 // events such as placing order, canceling order, transaction execution, etc.
 // It will also be pushed in regular interval according to subscription granularity.
 func (ok *Okx) WsAccountSubscription(operation string, assetType asset.Item, pair currency.Pair) (*SubscriptionOperationResponse, error) {
-	return ok.WsAuthChannelSubscription(operation, "account", assetType, pair, "", "", false, false, false, true)
+	return ok.WsAuthChannelSubscription(operation, okxChannelAccount, assetType, pair, "", "", false, false, false, true)
 }
 
 // WsPositionChannel retrieve the position data. The first snapshot will be sent in accordance with the granularity of the subscription. Data will be pushed when certain actions, such placing or canceling an order, trigger it. It will also be pushed periodically based on the granularity of the subscription.
 func (ok *Okx) WsPositionChannel(operation string, assetType asset.Item, pair currency.Pair) (*SubscriptionOperationResponse, error) {
-	return ok.WsAuthChannelSubscription(operation, "positions", assetType, pair, "", "", true)
+	return ok.WsAuthChannelSubscription(operation, okxChannelPositions, assetType, pair, "", "", true)
 }
 
 // BalanceAndPositionSubscription retrieve account balance and position information. Data will be pushed when triggered by events such as filled order, funding transfer.
 func (ok *Okx) BalanceAndPositionSubscription(operation, uid string) (*SubscriptionOperationResponse, error) {
-	return ok.WsAuthChannelSubscription(operation, "balance_and_position", asset.Empty, currency.EMPTYPAIR, "", "")
+	return ok.WsAuthChannelSubscription(operation, okxChannelBalanceAndPosition, asset.Empty, currency.EMPTYPAIR, "", "")
 }
 
 // WsOrderChannel for subscribing for orders.
 func (ok *Okx) WsOrderChannel(operation string, assetType asset.Item, pair currency.Pair, instrumentID string) (*SubscriptionOperationResponse, error) {
-	return ok.WsAuthChannelSubscription(operation, "orders", assetType, pair, "", "", true, true, true)
+	return ok.WsAuthChannelSubscription(operation, okxChannelOrders, assetType, pair, "", "", true, true, true)
 }
 
 // AlgoOrdersSubscription for subscribing to algo - order channels
 func (ok *Okx) AlgoOrdersSubscription(operation string, assetType asset.Item, pair currency.Pair) (*SubscriptionOperationResponse, error) {
-	return ok.WsAuthChannelSubscription(operation, "orders-algo", assetType, pair, "", "", true, true, true)
+	return ok.WsAuthChannelSubscription(operation, okxChannelAlgoOrders, assetType, pair, "", "", true, true, true)
 }
 
 // AdvanceAlgoOrdersSubscription algo order subscription to retrieve advance algo orders (including Iceberg order, TWAP order, Trailing order). Data will be pushed when first subscribed. Data will be pushed when triggered by events such as placing/canceling order.
 func (ok *Okx) AdvanceAlgoOrdersSubscription(operation string, assetType asset.Item, pair currency.Pair, algoID string) (*SubscriptionOperationResponse, error) {
-	return ok.WsAuthChannelSubscription(operation, "algo-advance", assetType, pair, "", algoID, true, true)
+	return ok.WsAuthChannelSubscription(operation, okxChannelAlgoAdvance, assetType, pair, "", algoID, true, true)
 }
 
 // PositionRiskWarningSubscription this push channel is only used as a risk warning, and is not recommended as a risk judgment for strategic trading
 // In the case that the market is not moving violently, there may be the possibility that the position has been liquidated at the same time that this message is pushed.
 func (ok *Okx) PositionRiskWarningSubscription(operation string, assetType asset.Item, pair currency.Pair) (*SubscriptionOperationResponse, error) {
-	return ok.WsAuthChannelSubscription(operation, "liquidation-warning", assetType, pair, "", "", true, true, true)
+	return ok.WsAuthChannelSubscription(operation, okxChannelLiquidationWarning, assetType, pair, "", "", true, true, true)
 }
 
 // AccountGreeksSubscription algo order subscription to retrieve account greeks information. Data will be pushed when triggered by events such as increase/decrease positions or cash balance in account, and will also be pushed in regular interval according to subscription granularity.
 func (ok *Okx) AccountGreeksSubscription(operation string, pair currency.Pair) (*SubscriptionOperationResponse, error) {
-	return ok.WsAuthChannelSubscription(operation, "account-greeks", asset.Empty, pair, "", "", false, false, false, true)
+	return ok.WsAuthChannelSubscription(operation, okxChannelAccountGreeks, asset.Empty, pair, "", "", false, false, false, true)
 }
 
 // RfqSubscription subscription to retrieve Rfq updates on RFQ orders.
 func (ok *Okx) RfqSubscription(operation, uid string) (*SubscriptionOperationResponse, error) {
-	return ok.WsAuthChannelSubscription(operation, "rfqs", asset.Empty, currency.EMPTYPAIR, uid, "")
+	return ok.WsAuthChannelSubscription(operation, okxChannelRFQs, asset.Empty, currency.EMPTYPAIR, uid, "")
 }
 
 // QuotesSubscription subscription to retrieve Quote subscription
 func (ok *Okx) QuotesSubscription(operation string) (*SubscriptionOperationResponse, error) {
-	return ok.WsAuthChannelSubscription(operation, "quotes", asset.Empty, currency.EMPTYPAIR, "", "")
+	return ok.WsAuthChannelSubscription(operation, okxChannelQuotes, asset.Empty, currency.EMPTYPAIR, "", "")
 }
 
 // StructureBlockTradesSubscription to retrieve Structural block subscription
 func (ok *Okx) StructureBlockTradesSubscription(operation string) (*SubscriptionOperationResponse, error) {
-	return ok.WsAuthChannelSubscription(operation, "struc-block-trades", asset.Empty, currency.EMPTYPAIR, "", "")
+	return ok.WsAuthChannelSubscription(operation, okxChannelStruckeBlockTrades, asset.Empty, currency.EMPTYPAIR, "", "")
 }
 
 // SpotGridAlgoOrdersSubscription to retrieve spot grid algo orders. Data will be pushed when first subscribed. Data will be pushed when triggered by events such as placing/canceling order.
 func (ok *Okx) SpotGridAlgoOrdersSubscription(operation string, assetType asset.Item, pair currency.Pair, algoID string) (*SubscriptionOperationResponse, error) {
-	return ok.WsAuthChannelSubscription(operation, "grid-orders-spot", assetType, pair, "", algoID, true, true, true)
+	return ok.WsAuthChannelSubscription(operation, okxChannelSpotGridOrder, assetType, pair, "", algoID, true, true, true)
 }
 
 // ContractGridAlgoOrders to retrieve contract grid algo orders. Data will be pushed when first subscribed. Data will be pushed when triggered by events such as placing/canceling order.
 func (ok *Okx) ContractGridAlgoOrders(operation string, assetType asset.Item, pair currency.Pair, algoID string) (*SubscriptionOperationResponse, error) {
-	return ok.WsAuthChannelSubscription(operation, "grid-orders-contract", assetType, pair, "", algoID, true, true, true)
+	return ok.WsAuthChannelSubscription(operation, okxChannelGridOrdersConstuct, assetType, pair, "", algoID, true, true, true)
 }
 
 // GridPositionsSubscription to retrieve grid positions. Data will be pushed when first subscribed. Data will be pushed when triggered by events such as placing/canceling order.
 func (ok *Okx) GridPositionsSubscription(operation, algoID string) (*SubscriptionOperationResponse, error) {
-	return ok.WsAuthChannelSubscription(operation, "grid-positions", asset.Empty, currency.EMPTYPAIR, "", algoID)
+	return ok.WsAuthChannelSubscription(operation, okxChannelGridPositions, asset.Empty, currency.EMPTYPAIR, "", algoID)
 }
 
 // GridSubOrders to retrieve grid sub orders. Data will be pushed when first subscribed. Data will be pushed when triggered by events such as placing order.
 func (ok *Okx) GridSubOrders(operation, algoID string) (*SubscriptionOperationResponse, error) {
-	return ok.WsAuthChannelSubscription(operation, "grid-sub-orders", asset.Empty, currency.EMPTYPAIR, "", algoID)
+	return ok.WsAuthChannelSubscription(operation, okcChannelGridSubOrders, asset.Empty, currency.EMPTYPAIR, "", algoID)
 }
 
 // Public Websocket stream subscription
@@ -1730,22 +1737,22 @@ func (ok *Okx) GridSubOrders(operation, algoID string) (*SubscriptionOperationRe
 // for the first time after subscription. Subsequently, the instruments will be pushed if there is any change to the instrument’s state (such as delivery of FUTURES,
 // exercise of OPTION, listing of new contracts / trading pairs, trading suspension, etc.).
 func (ok *Okx) InstrumentsSubscription(operation string, assetType asset.Item, pair currency.Pair) (*SubscriptionOperationResponse, error) {
-	return ok.WsChannelSubscription(operation, "instruments", assetType, pair, true)
+	return ok.WsChannelSubscription(operation, okxChannelInstruments, assetType, pair, true)
 }
 
 // TickersSubscription subscribing to "ticker" channel to retrieve the last traded price, bid price, ask price and 24-hour trading volume of instruments. Data will be pushed every 100 ms.
 func (ok *Okx) TickersSubscription(operation string, assetType asset.Item, pair currency.Pair) (*SubscriptionOperationResponse, error) {
-	return ok.WsChannelSubscription(operation, "tickers", assetType, pair, false, true)
+	return ok.WsChannelSubscription(operation, okxChannelTickers, assetType, pair, false, true)
 }
 
 // OpenInterestSubscription to subscribe or unsubscribe to "open-interest" channel to retrieve the open interest. Data will by pushed every 3 seconds.
 func (ok *Okx) OpenInterestSubscription(operation string, assetType asset.Item, pair currency.Pair) (*SubscriptionOperationResponse, error) {
-	return ok.WsChannelSubscription(operation, "open-interest", assetType, pair, false, true)
+	return ok.WsChannelSubscription(operation, okxChannelOpenInterest, assetType, pair, false, true)
 }
 
 // CandlesticksSubscription to subscribe or unsubscribe to "candle" channels to retrieve the candlesticks data of an instrument. the push frequency is the fastest interval 500ms push the data.
 func (ok *Okx) CandlesticksSubscription(operation, channel string, assetType asset.Item, pair currency.Pair) (*SubscriptionOperationResponse, error) {
-	if !(strings.EqualFold(channel, "candle1Y") || strings.EqualFold(channel, "candle6M") || strings.EqualFold(channel, "candle3M") || strings.EqualFold(channel, "candle1M") || strings.EqualFold(channel, "candle1W") || strings.EqualFold(channel, "candle1D") || strings.EqualFold(channel, "candle2D") || strings.EqualFold(channel, "candle3D") || strings.EqualFold(channel, "candle5D") || strings.EqualFold(channel, "candle12H") || strings.EqualFold(channel, "candle6H") || strings.EqualFold(channel, "candle4H") || strings.EqualFold(channel, "candle2H") || strings.EqualFold(channel, "candle1H") || strings.EqualFold(channel, "candle30m") || strings.EqualFold(channel, "candle15m") || strings.EqualFold(channel, "candle5m") || strings.EqualFold(channel, "candle3m") || strings.EqualFold(channel, "candle1m") || strings.EqualFold(channel, "candle1Yutc") || strings.EqualFold(channel, "candle3Mutc") || strings.EqualFold(channel, "candle1Mutc") || strings.EqualFold(channel, "candle1Wutc") || strings.EqualFold(channel, "candle1Dutc") || strings.EqualFold(channel, "candle2Dutc") || strings.EqualFold(channel, "candle3Dutc") || strings.EqualFold(channel, "candle5Dutc") || strings.EqualFold(channel, "candle12Hutc") || strings.EqualFold(channel, "candle6Hutc")) {
+	if !(channel == okxChannelCandle1Y || channel == okxChannelCandle6M || channel == okxChannelCandle3M || channel == okxChannelCandle1M || channel == okxChannelCandle1W || channel == okxChannelCandle1D || channel == okxChannelCandle2D || channel == okxChannelCandle3D || channel == okxChannelCandle5D || channel == okxChannelCandle12H || channel == okxChannelCandle6H || channel == okxChannelCandle4H || channel == okxChannelCandle2H || channel == okxChannelCandle1H || channel == okxChannelCandle30m || channel == okxChannelCandle15m || channel == okxChannelCandle5m || channel == okxChannelCandle3m || channel == okxChannelCandle1m || channel == okxChannelCandle1Yutc || channel == okxChannelCandle3Mutc || channel == okxChannelCandle1Mutc || channel == okxChannelCandle1Wutc || channel == okxChannelCandle1Dutc || channel == okxChannelCandle2Dutc || channel == okxChannelCandle3Dutc || channel == okxChannelCandle5Dutc || channel == okxChannelCandle12Hutc || channel == okxChannelCandle6Hutc) {
 		return nil, errMissingValidChannelInformation
 	}
 	return ok.WsChannelSubscription(operation, channel, assetType, pair, false, true)
@@ -1753,22 +1760,22 @@ func (ok *Okx) CandlesticksSubscription(operation, channel string, assetType ass
 
 // TradesSubscription to subscribe or unsubscribe to "trades" channel to retrieve the recent trades data. Data will be pushed whenever there is a trade. Every update contain only one trade.
 func (ok *Okx) TradesSubscription(operation string, assetType asset.Item, pair currency.Pair) (*SubscriptionOperationResponse, error) {
-	return ok.WsChannelSubscription(operation, "trades", assetType, pair, false, true)
+	return ok.WsChannelSubscription(operation, okxChannelTrades, assetType, pair, false, true)
 }
 
 // EstimatedDeliveryExercisePriceSubscription to subscribe or unsubscribe to "estimated-price" channel to retrieve the estimated delivery/exercise price of FUTURES contracts and OPTION.
 func (ok *Okx) EstimatedDeliveryExercisePriceSubscription(operation string, assetType asset.Item, pair currency.Pair) (*SubscriptionOperationResponse, error) {
-	return ok.WsChannelSubscription(operation, "estimated-price", assetType, pair, true, false, true)
+	return ok.WsChannelSubscription(operation, okxChannelEstimatedPrice, assetType, pair, true, false, true)
 }
 
 // MarkPriceSubscription to subscribe or unsubscribe to to "mark-price" to retrieve the mark price. Data will be pushed every 200 ms when the mark price changes, and will be pushed every 10 seconds when the mark price does not change.
 func (ok *Okx) MarkPriceSubscription(operation string, assetType asset.Item, pair currency.Pair) (*SubscriptionOperationResponse, error) {
-	return ok.WsChannelSubscription(operation, "mark-price", assetType, pair, false, true)
+	return ok.WsChannelSubscription(operation, okxChannelMarkPrice, assetType, pair, false, true)
 }
 
 // MarkPriceCandlesticksSubscription to subscribe or unsubscribe to "mark-price-candles" channels to retrieve the candlesticks data of the mark price. Data will be pushed every 500 ms.
 func (ok *Okx) MarkPriceCandlesticksSubscription(operation, channel string, assetType asset.Item, pair currency.Pair) (*SubscriptionOperationResponse, error) {
-	if !(strings.EqualFold(channel, "mark-price-candle1Y") || strings.EqualFold(channel, "mark-price-candle6M") || strings.EqualFold(channel, "mark-price-candle3M") || strings.EqualFold(channel, "mark-price-candle1M") || strings.EqualFold(channel, "mark-price-candle1W") || strings.EqualFold(channel, "mark-price-candle1D") || strings.EqualFold(channel, "mark-price-candle2D") || strings.EqualFold(channel, "mark-price-candle3D") || strings.EqualFold(channel, "mark-price-candle5D") || strings.EqualFold(channel, "mark-price-candle12H") || strings.EqualFold(channel, "mark-price-candle6H") || strings.EqualFold(channel, "mark-price-candle4H") || strings.EqualFold(channel, "mark-price-candle2H") || strings.EqualFold(channel, "mark-price-candle1H") || strings.EqualFold(channel, "mark-price-candle30m") || strings.EqualFold(channel, "mark-price-candle15m") || strings.EqualFold(channel, "mark-price-candle5m") || strings.EqualFold(channel, "mark-price-candle3m") || strings.EqualFold(channel, "mark-price-candle1m") || strings.EqualFold(channel, "mark-price-candle1Yutc") || strings.EqualFold(channel, "mark-price-candle3Mutc") || strings.EqualFold(channel, "mark-price-candle1Mutc") || strings.EqualFold(channel, "mark-price-candle1Wutc") || strings.EqualFold(channel, "mark-price-candle1Dutc") || strings.EqualFold(channel, "mark-price-candle2Dutc") || strings.EqualFold(channel, "mark-price-candle3Dutc") || strings.EqualFold(channel, "mark-price-candle5Dutc") || strings.EqualFold(channel, "mark-price-candle12Hutc") || strings.EqualFold(channel, "mark-price-candle6Hutc")) {
+	if !(channel == okxChannelMarkPriceCandle1Y || channel == okxChannelMarkPriceCandle6M || channel == okxChannelMarkPriceCandle3M || channel == okxChannelMarkPriceCandle1M || channel == okxChannelMarkPriceCandle1W || channel == okxChannelMarkPriceCandle1D || channel == okxChannelMarkPriceCandle2D || channel == okxChannelMarkPriceCandle3D || channel == okxChannelMarkPriceCandle5D || channel == okxChannelMarkPriceCandle12H || channel == okxChannelMarkPriceCandle6H || channel == okxChannelMarkPriceCandle4H || channel == okxChannelMarkPriceCandle2H || channel == okxChannelMarkPriceCandle1H || channel == okxChannelMarkPriceCandle30m || channel == okxChannelMarkPriceCandle15m || channel == okxChannelMarkPriceCandle5m || channel == okxChannelMarkPriceCandle3m || channel == okxChannelMarkPriceCandle1m || channel == okxChannelMarkPriceCandle1Yutc || channel == okxChannelMarkPriceCandle3Mutc || channel == okxChannelMarkPriceCandle1Mutc || channel == okxChannelMarkPriceCandle1Wutc || channel == okxChannelMarkPriceCandle1Dutc || channel == okxChannelMarkPriceCandle2Dutc || channel == okxChannelMarkPriceCandle3Dutc || channel == okxChannelMarkPriceCandle5Dutc || channel == okxChannelMarkPriceCandle12Hutc || channel == okxChannelMarkPriceCandle6Hutc) {
 		return nil, errMissingValidChannelInformation
 	}
 	return ok.WsChannelSubscription(operation, channel, assetType, pair, false, true)
@@ -1784,12 +1791,12 @@ func (ok *Okx) PriceLimitSubscription(operation, instrumentID string) (*Subscrip
 		Operation: operation,
 		Arguments: []SubscriptionInfo{
 			{
-				Channel:      "price-limit",
+				Channel:      okxChannelPriceLimit,
 				InstrumentID: instrumentID,
 			},
 		},
 	}
-	respData, er := ok.Websocket.Conn.SendMessageReturnResponse("price-limit", input)
+	respData, er := ok.Websocket.Conn.SendMessageReturnResponse(okxChannelPriceLimit, input)
 	if er != nil {
 		return nil, er
 	}
@@ -1800,7 +1807,7 @@ func (ok *Okx) PriceLimitSubscription(operation, instrumentID string) (*Subscrip
 	}
 	if strings.EqualFold(resp.Event, "error") || strings.EqualFold(resp.Code, "60012") {
 		if resp.Msg == "" {
-			return nil, fmt.Errorf("%s %s error %s", "price-limit", operation, string(respData))
+			return nil, fmt.Errorf("%s %s error %s", okxChannelPriceLimit, operation, string(respData))
 		}
 		return nil, errors.New(resp.Msg)
 	}
@@ -1809,7 +1816,7 @@ func (ok *Okx) PriceLimitSubscription(operation, instrumentID string) (*Subscrip
 
 // OrderBooksSubscription subscribe or unsubscribe to "books*" channel to retrieve order book data.
 func (ok *Okx) OrderBooksSubscription(operation, channel string, assetType asset.Item, pair currency.Pair) (*SubscriptionOperationResponse, error) {
-	if !(strings.EqualFold(channel, "books") || strings.EqualFold(channel, "books5") || strings.EqualFold(channel, "books50-l2-tbt") || strings.EqualFold(channel, "books-l2-tbt")) {
+	if !(channel == okxChannelOrderBooks || channel == okxChannelOrderBooks5 || channel == okxChannelOrderBooks50TBT || channel == okxChannelOrderBooksTBT || channel == okxChannelBBOTBT) {
 		return nil, errMissingValidChannelInformation
 	}
 	return ok.WsChannelSubscription(operation, channel, assetType, pair, false, true)
@@ -1818,20 +1825,19 @@ func (ok *Okx) OrderBooksSubscription(operation, channel string, assetType asset
 // OptionSummarySubscription a method to subscribe or unsubscribe to "opt-summary" channel
 // to retrieve detailed pricing information of all OPTION contracts. Data will be pushed at once.
 func (ok *Okx) OptionSummarySubscription(operation string, assetType asset.Item, pair currency.Pair) (*SubscriptionOperationResponse, error) {
-	return ok.WsChannelSubscription(operation, "opt-summary", assetType, pair, false, false, true)
+	return ok.WsChannelSubscription(operation, okxChannelOptSummary, assetType, pair, false, false, true)
 }
 
 // FundingRateSubscription a methos to subscribe and unsubscribe to "funding-rate" channel.
 // retrieve funding rate. Data will be pushed in 30s to 90s.
 func (ok *Okx) FundingRateSubscription(operation string, assetType asset.Item, pair currency.Pair) (*SubscriptionOperationResponse, error) {
-	return ok.WsChannelSubscription(operation, "funding-rate", assetType, pair, false, true)
+	return ok.WsChannelSubscription(operation, okxChannelFundingRate, assetType, pair, false, true)
 }
 
 // IndexCandlesticksSubscription a method to subscribe and unsubscribe to "index-candle*" channel
 // to retrieve the candlesticks data of the index. Data will be pushed every 500 ms.
 func (ok *Okx) IndexCandlesticksSubscription(operation, channel string, assetType asset.Item, pair currency.Pair) (*SubscriptionOperationResponse, error) {
-	if !(strings.EqualFold(channel, "index-candle1Y") || strings.EqualFold(channel, "index-candle6M") || strings.EqualFold(channel, "index-candle3M") || strings.EqualFold(channel, "index-candle1M") || strings.EqualFold(channel, "index-candle1W") || strings.EqualFold(channel, "index-candle1D") || strings.EqualFold(channel, "index-candle2D") || strings.EqualFold(channel, "index-candle3D") || strings.EqualFold(channel, "index-candle5D") || strings.EqualFold(channel, "index-candle12H") ||
-		strings.EqualFold(channel, "index-candle6H") || strings.EqualFold(channel, "index-candle4H") || strings.EqualFold(channel, "index -candle2H") || strings.EqualFold(channel, "index-candle1H") || strings.EqualFold(channel, "index-candle30m") || strings.EqualFold(channel, "index-candle15m") || strings.EqualFold(channel, "index-candle5m") || strings.EqualFold(channel, "index-candle3m") || strings.EqualFold(channel, "index-candle1m") || strings.EqualFold(channel, "index-candle1Yutc") || strings.EqualFold(channel, "index-candle3Mutc") || strings.EqualFold(channel, "index-candle1Mutc") || strings.EqualFold(channel, "index-candle1Wutc") || strings.EqualFold(channel, "index-candle1Dutc") || strings.EqualFold(channel, "index-candle2Dutc") || strings.EqualFold(channel, "index-candle3Dutc") || strings.EqualFold(channel, "index-candle5Dutc") || strings.EqualFold(channel, "index-candle12Hutc") || strings.EqualFold(channel, "index-candle6Hutc")) {
+	if !(channel == okxChannelIndexCandle1Y || channel == okxChannelIndexCandle6M || channel == okxChannelIndexCandle3M || channel == okxChannelIndexCandle1M || channel == okxChannelIndexCandle1W || channel == okxChannelIndexCandle1D || channel == okxChannelIndexCandle2D || channel == okxChannelIndexCandle3D || channel == okxChannelIndexCandle5D || channel == okxChannelIndexCandle12H || channel == okxChannelIndexCandle6H || channel == okxChannelIndexCandle4H || channel == okxChannelIndexCandle2H || channel == okxChannelIndexCandle1H || channel == okxChannelIndexCandle30m || channel == okxChannelIndexCandle15m || channel == okxChannelIndexCandle5m || channel == okxChannelIndexCandle3m || channel == okxChannelIndexCandle1m || channel == okxChannelIndexCandle1Yutc || channel == okxChannelIndexCandle3Mutc || channel == okxChannelIndexCandle1Mutc || channel == okxChannelIndexCandle1Wutc || channel == okxChannelIndexCandle1Dutc || channel == okxChannelIndexCandle2Dutc || channel == okxChannelIndexCandle3Dutc || channel == okxChannelIndexCandle5Dutc || channel == okxChannelIndexCandle12Hutc || channel == okxChannelIndexCandle6Hutc) {
 		return nil, errMissingValidChannelInformation
 	}
 	return ok.WsChannelSubscription(operation, channel, assetType, pair, false, true)
@@ -1839,22 +1845,22 @@ func (ok *Okx) IndexCandlesticksSubscription(operation, channel string, assetTyp
 
 // IndexTickerChannel a method to subscribe and unsubscribe to "index-tickers" channel
 func (ok *Okx) IndexTickerChannel(operation string, assetType asset.Item, pair currency.Pair) (*SubscriptionOperationResponse, error) {
-	return ok.WsChannelSubscription(operation, "index-tickers", assetType, pair, false, true)
+	return ok.WsChannelSubscription(operation, okxChannelIndexTickers, assetType, pair, false, true)
 }
 
 // StatusSubscription get the status of system maintenance and push when the system maintenance status changes.
 // First subscription: "Push the latest change data"; every time there is a state change, push the changed content
 func (ok *Okx) StatusSubscription(operation string, assetType asset.Item, pair currency.Pair) (*SubscriptionOperationResponse, error) {
-	return ok.WsChannelSubscription(operation, "status", assetType, pair)
+	return ok.WsChannelSubscription(operation, okxChannelStatus, assetType, pair)
 }
 
 // PublicStructureBlockTradesSubscription a method to subscribe or unsubscribe to "public-struc-block-trades" channel
 func (ok *Okx) PublicStructureBlockTradesSubscription(operation string, assetType asset.Item, pair currency.Pair) (*SubscriptionOperationResponse, error) {
-	return ok.WsChannelSubscription(operation, "public-struc-block-trades", assetType, pair)
+	return ok.WsChannelSubscription(operation, okxChannelPublicStrucBlockTrades, assetType, pair)
 }
 
 // BlockTickerSubscription a method to subscribe and unsubscribe to a "block-tickers" channel to retrieve the latest block trading volume in the last 24 hours.
 // The data will be pushed when triggered by transaction execution event. In addition, it will also be pushed in 5 minutes interval according to subscription granularity.
 func (ok *Okx) BlockTickerSubscription(operation string, assetType asset.Item, pair currency.Pair) (*SubscriptionOperationResponse, error) {
-	return ok.WsChannelSubscription(operation, "block-tickers", assetType, pair, false, true)
+	return ok.WsChannelSubscription(operation, okxChannelBlockTickers, assetType, pair, false, true)
 }
