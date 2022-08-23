@@ -11,7 +11,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/btrpc"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
-	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -242,6 +241,8 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 
 	// coverage test to ensure the rest of the config can successfully be converted
 	// this will not have a successful response
+	cfg.FundingSettings.UseExchangeLevelFunding = true
+	cfg.StrategySettings.UseSimultaneousSignalProcessing = true
 	cfg.FundingSettings.ExchangeLevelFunding = append(cfg.FundingSettings.ExchangeLevelFunding, &btrpc.ExchangeLevelFunding{
 		ExchangeName: defaultConfig.CurrencySettings[0].ExchangeName,
 		Asset:        defaultConfig.CurrencySettings[0].Asset.String(),
@@ -271,10 +272,15 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 	cfg.DataSettings.CsvData = &btrpc.CSVData{
 		Path: "test",
 	}
+	for i := range cfg.CurrencySettings {
+		cfg.CurrencySettings[i].SpotDetails.InitialQuoteFunds = ""
+		cfg.CurrencySettings[i].SpotDetails.InitialBaseFunds = ""
+
+	}
 	_, err = s.ExecuteStrategyFromConfig(context.Background(), &btrpc.ExecuteStrategyFromConfigRequest{
 		Config: cfg,
 	})
-	if !errors.Is(err, gctcommon.ErrStartEqualsEnd) {
-		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrStartEqualsEnd)
+	if err == nil {
+		t.Error("expected an error from a bad setup")
 	}
 }
