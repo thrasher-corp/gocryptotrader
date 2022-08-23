@@ -316,6 +316,62 @@ func TestContains(t *testing.T) {
 	}
 }
 
+func TestContainsAll(t *testing.T) {
+	t.Parallel()
+	var pairs = Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(USD, ZRX),
+	}
+
+	err := pairs.ContainsAll(nil, true)
+	if !errors.Is(err, errPairsEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errPairsEmpty)
+	}
+
+	err = pairs.ContainsAll(Pairs{NewPair(BTC, USD)}, true)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	err = pairs.ContainsAll(Pairs{NewPair(USD, BTC)}, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	err = pairs.ContainsAll(Pairs{NewPair(XRP, BTC)}, false)
+	if !errors.Is(err, ErrPairNotContainedInAvailablePairs) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrPairNotContainedInAvailablePairs)
+	}
+
+	err = pairs.ContainsAll(Pairs{NewPair(XRP, BTC)}, true)
+	if !errors.Is(err, ErrPairNotContainedInAvailablePairs) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrPairNotContainedInAvailablePairs)
+	}
+
+	err = pairs.ContainsAll(pairs, true)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	err = pairs.ContainsAll(pairs, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	var duplication = Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(USD, ZRX),
+		NewPair(USD, ZRX),
+	}
+
+	err = pairs.ContainsAll(duplication, false)
+	if !errors.Is(err, ErrPairDuplication) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrPairDuplication)
+	}
+}
+
 func TestDeriveFrom(t *testing.T) {
 	t.Parallel()
 	_, err := Pairs{}.DeriveFrom("")

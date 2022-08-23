@@ -137,6 +137,37 @@ func (p Pairs) Contains(check Pair, exact bool) bool {
 	return false
 }
 
+// ContainsAll checks to see if all pairs supplied are contained within the
+// original pairs list.
+func (p Pairs) ContainsAll(check Pairs, exact bool) error {
+	if len(check) == 0 {
+		return errPairsEmpty
+	}
+
+	comparative := make(Pairs, len(p))
+	copy(comparative, p)
+list:
+	for x := range check {
+		for y := range comparative {
+			if exact && check[x].Equal(comparative[y]) ||
+				!exact && check[x].EqualIncludeReciprocal(comparative[y]) {
+				// Reduce list size to decrease array traversal speed on iteration.
+				comparative[y] = comparative[len(comparative)-1]
+				comparative = comparative[:len(comparative)-1]
+				continue list
+			}
+		}
+
+		// Opted for in error original check for duplication.
+		if p.Contains(check[x], exact) {
+			return fmt.Errorf("%s %w", check[x], ErrPairDuplication)
+		}
+
+		return fmt.Errorf("%s %w", check[x], ErrPairNotContainedInAvailablePairs)
+	}
+	return nil
+}
+
 // ContainsCurrency checks to see if a specified currency code exists inside a
 // currency pair array
 func (p Pairs) ContainsCurrency(check Code) bool {
