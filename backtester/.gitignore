@@ -1,0 +1,25 @@
+# Binaries for programs and plugins
+backtester
+btcli/btcli
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, build with `go test -c`
+*.test
+
+# InteliJ
+.idea
+*.iml
+vendor/
+
+# Designated generated files dir
+target/
+
+# Delve compiled executable
+__debug_bin
+
+# Coverage reports
+coverage.txt
