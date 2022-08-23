@@ -18,6 +18,7 @@ var (
 
 // BacktesterConfig contains the configuration for the backtester
 type BacktesterConfig struct {
+	PluginPath    string         `json:"plugin-path"`
 	PrintLogo     bool           `json:"print-logo"`
 	Verbose       bool           `json:"verbose"`
 	LogSubheaders bool           `json:"log-subheaders"`

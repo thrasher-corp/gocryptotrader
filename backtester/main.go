@@ -132,12 +132,16 @@ func main() {
 		fmt.Println(common.Logo())
 	}
 
+	if strategyPluginPath == "" && btCfg.PluginPath != "" {
+		strategyPluginPath = btCfg.PluginPath
+	}
 	if strategyPluginPath != "" {
 		err = strategies.LoadCustomStrategies(strategyPluginPath)
 		if err != nil {
 			fmt.Printf("Could not load custom strategies. Error: %v.\n", err)
 			os.Exit(1)
 		}
+		log.Infof(common.Backtester, "loaded plugin %v\n", strategyPluginPath)
 	}
 
 	if singleRunStrategyPath != "" {
