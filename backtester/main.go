@@ -29,13 +29,6 @@ func main() {
 
 	flags := parseFlags(wd)
 	var btCfg *config.BacktesterConfig
-	flagSet := engine.FlagSet(flags)
-	flagSet.WithBool("printlogo", &printLogo, btCfg.PrintLogo)
-	flagSet.WithBool("darkreport", &darkReport, btCfg.Report.DarkMode)
-	flagSet.WithBool("generatereport", &generateReport, btCfg.Report.GenerateReport)
-	flagSet.WithBool("logsubheaders", &logSubHeader, btCfg.LogSubheaders)
-	flagSet.WithBool("colouroutput", &colourOutput, btCfg.UseCMDColours)
-
 	if btConfigDir == "" {
 		btConfigDir = config.DefaultBTConfigDir
 		log.Infof(log.Global, "blank config received, using default path '%v'", btConfigDir)
@@ -74,6 +67,13 @@ func main() {
 		log.Errorf(log.Global, "non-standard config '%v' does not exist. Exiting...", btConfigDir)
 		return
 	}
+
+	flagSet := engine.FlagSet(flags)
+	flagSet.WithBool("printlogo", &printLogo, btCfg.PrintLogo)
+	flagSet.WithBool("darkreport", &darkReport, btCfg.Report.DarkMode)
+	flagSet.WithBool("generatereport", &generateReport, btCfg.Report.GenerateReport)
+	flagSet.WithBool("logsubheaders", &logSubHeader, btCfg.LogSubheaders)
+	flagSet.WithBool("colouroutput", &colourOutput, btCfg.UseCMDColours)
 
 	if singleRunStrategyPath != "" && !file.Exists(singleRunStrategyPath) {
 		fmt.Printf("strategy config path not found '%v'", singleRunStrategyPath)
