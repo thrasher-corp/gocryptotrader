@@ -114,9 +114,15 @@ func (b *BTCMarkets) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: map[string]bool{
-					kline.OneMin.Word():  true,
-					kline.OneHour.Word(): true,
-					kline.OneDay.Word():  true,
+					kline.OneMin.Word():     true,
+					kline.FiveMin.Word():    true,
+					kline.FifteenMin.Word(): true,
+					kline.ThirtyMin.Word():  true,
+					kline.OneHour.Word():    true,
+					kline.SixHour.Word():    true,
+					kline.OneDay.Word():     true,
+					kline.OneWeek.Word():    true,
+					kline.OneMonth.Word():   true,
 				},
 				ResultLimit: 1000,
 			},
@@ -451,7 +457,11 @@ func (b *BTCMarkets) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 	resp.Accounts = append(resp.Accounts, acc)
 	resp.Exchange = b.Name
 
-	err = account.Process(&resp)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&resp, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -461,7 +471,11 @@ func (b *BTCMarkets) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (b *BTCMarkets) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(b.Name, assetType)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(b.Name, creds, assetType)
 	if err != nil {
 		return b.UpdateAccountInfo(ctx, assetType)
 	}
@@ -476,7 +490,7 @@ func (b *BTCMarkets) GetFundingHistory(ctx context.Context) ([]exchange.FundHist
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *BTCMarkets) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (b *BTCMarkets) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -978,8 +992,25 @@ func (b *BTCMarkets) ValidateCredentials(ctx context.Context, assetType asset.It
 
 // FormatExchangeKlineInterval returns Interval to exchange formatted string
 func (b *BTCMarkets) FormatExchangeKlineInterval(in kline.Interval) string {
-	if in == kline.OneDay {
+	switch in {
+	case kline.OneMin:
+		return "1m"
+	case kline.FiveMin:
+		return "5m"
+	case kline.FifteenMin:
+		return "15m"
+	case kline.ThirtyMin:
+		return "30m"
+	case kline.OneHour:
+		return "1h"
+	case kline.SixHour:
+		return "6h"
+	case kline.OneDay:
 		return "1d"
+	case kline.OneWeek:
+		return "1w"
+	case kline.OneMonth:
+		return "1mo"
 	}
 	return in.Short()
 }

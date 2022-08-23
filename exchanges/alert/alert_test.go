@@ -101,8 +101,10 @@ func BenchmarkAlert(b *testing.B) {
 	}
 }
 
-//   150352	      9916 ns/op	     681 B/op	       4 allocs/op // PREV
-//    87436	     14724 ns/op	     682 B/op	       4 allocs/op // CURRENT
+// BenchmarkWait benchmark
+//
+// 150352	      9916 ns/op	     681 B/op	       4 allocs/op // PREV
+// 87436	     14724 ns/op	     682 B/op	       4 allocs/op // CURRENT
 func BenchmarkWait(b *testing.B) {
 	n := Notice{}
 	for x := 0; x < b.N; x++ {

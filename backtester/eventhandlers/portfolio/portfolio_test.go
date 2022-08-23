@@ -730,8 +730,8 @@ func TestCalculatePNL(t *testing.T) {
 	ev.Time = tt0
 
 	err = p.UpdatePNL(ev, decimal.Zero)
-	if !errors.Is(err, gctorder.ErrPositionsNotLoadedForPair) {
-		t.Errorf("received: %v, expected: %v", err, gctorder.ErrPositionsNotLoadedForPair)
+	if !errors.Is(err, gctorder.ErrPositionNotFound) {
+		t.Errorf("received: %v, expected: %v", err, gctorder.ErrPositionNotFound)
 	}
 
 	od := &gctorder.Detail{
@@ -964,7 +964,7 @@ func TestGetLatestPNLForEvent(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	expectedError = gctorder.ErrPositionsNotLoadedForPair
+	expectedError = gctorder.ErrPositionNotFound
 	_, err = p.GetLatestPNLForEvent(ev)
 	if !errors.Is(err, expectedError) {
 		t.Fatalf("received '%v' expected '%v'", err, expectedError)

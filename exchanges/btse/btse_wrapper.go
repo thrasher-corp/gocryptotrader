@@ -379,7 +379,7 @@ func (b *BTSE) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 			Amount: a.SellQuote[x].Size,
 		})
 	}
-	book.Asks.Reverse() // Reverse asks for correct alignment
+	book.Asks.SortAsks() // Sort asks for correct alignment
 	book.Pair = p
 	book.Exchange = b.Name
 	book.Asset = assetType
@@ -416,7 +416,11 @@ func (b *BTSE) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 		},
 	}
 
-	err = account.Process(&a)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&a, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -426,7 +430,11 @@ func (b *BTSE) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (b *BTSE) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(b.Name, assetType)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(b.Name, creds, assetType)
 	if err != nil {
 		return b.UpdateAccountInfo(ctx, assetType)
 	}
@@ -451,7 +459,7 @@ func (b *BTSE) withinLimits(pair currency.Pair, amount float64) bool {
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *BTSE) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (b *BTSE) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 

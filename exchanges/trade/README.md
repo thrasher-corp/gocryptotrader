@@ -60,6 +60,7 @@ _b in this context is an `IBotExchange` implemented struct_
 | Exchange | Recent Trades via REST | Live trade updates via Websocket | Trade history via REST |
 |----------|------|-----------|-----|
 | Alphapoint | No  | No        | No  |
+| Binance.US | Yes  | Yes        | NA  | 
 | Binance| Yes  | Yes        | Yes  |
 | Bitfinex | Yes  | Yes        | Yes  |
 | Bitflyer | Yes  | No      | No  |
@@ -69,6 +70,7 @@ _b in this context is an `IBotExchange` implemented struct_
 | Bittrex | Yes | Yes | No |
 | BTCMarkets | Yes | Yes       | No  |
 | BTSE | Yes | Yes | No |
+| Bybit | Yes | Yes | Yes |
 | CoinbasePro | Yes | Yes | No|
 | COINUT | Yes | Yes | No |
 | Exmo | Yes | NA | No |

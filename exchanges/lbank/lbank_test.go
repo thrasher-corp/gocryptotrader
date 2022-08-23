@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -310,7 +311,8 @@ func TestLoadPrivKey(t *testing.T) {
 		t.Error(err)
 	}
 
-	ctx := exchange.DeployCredentialsToContext(context.Background(), &exchange.Credentials{Secret: "errortest"})
+	ctx := account.DeployCredentialsToContext(context.Background(),
+		&account.Credentials{Secret: "errortest"})
 	err = l.loadPrivKey(ctx)
 	if err == nil {
 		t.Errorf("Expected error due to pemblock nil")
@@ -473,6 +475,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 }
 
 func Test_FormatExchangeKlineInterval(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name     string
 		interval kline.Interval
@@ -509,6 +512,7 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 		test := testCases[x]
 
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			ret := l.FormatExchangeKlineInterval(test.interval)
 
 			if ret != test.output {

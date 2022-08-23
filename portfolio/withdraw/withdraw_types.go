@@ -91,6 +91,9 @@ type Request struct {
 	Amount      float64       `json:"amount"`
 	Type        RequestType   `json:"type"`
 
+	// Used exclusively in Binance.US
+	ClientOrderID string `json:"clientID"`
+
 	TradePassword   string
 	OneTimePassword int64
 	PIN             int64

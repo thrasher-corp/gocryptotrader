@@ -19,6 +19,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Exchange | REST API | Streaming API | FIX API |
 |----------|------|-----------|-----|
 | Alphapoint | Yes  | Yes        | NA  |
+| Binance.US| Yes  | Yes        | NA  |
 | Binance| Yes  | Yes        | NA  |
 | Bitfinex | Yes  | Yes        | NA  |
 | Bitflyer | Yes  | No      | NA  |
@@ -28,6 +29,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Bittrex | Yes | Yes | NA |
 | BTCMarkets | Yes | Yes       | NA  |
 | BTSE | Yes | Yes | NA |
+| Bybit | Yes | Yes | NA |
 | CoinbasePro | Yes | Yes | No|
 | COINUT | Yes | Yes | NA |
 | Exmo | Yes | NA | NA |

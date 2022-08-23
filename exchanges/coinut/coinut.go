@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -236,8 +237,8 @@ func (c *COINUT) GetPositionHistory(ctx context.Context, secType string, start, 
 	return result, c.SendHTTPRequest(ctx, exchange.RestSpot, coinutPositionHistory, params, true, &result)
 }
 
-// GetOpenPositions returns all your current opened positions
-func (c *COINUT) GetOpenPositions(ctx context.Context, instrumentID int) ([]OpenPosition, error) {
+// GetOpenPositionsForInstrument returns all your current opened positions
+func (c *COINUT) GetOpenPositionsForInstrument(ctx context.Context, instrumentID int) ([]OpenPosition, error) {
 	type Response struct {
 		Positions []OpenPosition `json:"positions"`
 	}
@@ -275,7 +276,7 @@ func (c *COINUT) SendHTTPRequest(ctx context.Context, ep exchange.URL, apiReques
 
 		headers := make(map[string]string)
 		if authenticated {
-			var creds *exchange.Credentials
+			var creds *account.Credentials
 			creds, err = c.GetCredentials(ctx)
 			if err != nil {
 				return nil, err
@@ -496,5 +497,5 @@ func (i *instrumentMap) GetInstrumentIDs() []int64 {
 }
 
 func getNonce() int64 {
-	return rand.Int63n(coinutMaxNonce-1) + 1 // nolint:gosec // basic number generation required, no need for crypo/rand
+	return rand.Int63n(coinutMaxNonce-1) + 1 //nolint:gosec // basic number generation required, no need for crypo/rand
 }

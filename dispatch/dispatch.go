@@ -67,7 +67,7 @@ func IsRunning() bool {
 	return dispatcher.isRunning()
 }
 
-// start compares atomic running value, sets defaults, overides with
+// start compares atomic running value, sets defaults, overrides with
 // configuration, then spawns workers
 func (d *Dispatcher) start(workers, channelCapacity int) error {
 	if d == nil {

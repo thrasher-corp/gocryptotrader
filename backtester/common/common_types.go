@@ -20,8 +20,8 @@ const (
 	TradeStr = "trade"
 
 	// DataCandle is an int64 representation of a candle data type
-	DataCandle = iota
-	// DataTrade is a trade type
+	DataCandle int64 = iota
+	// DataTrade is an int64 representation of a trade data type
 	DataTrade
 )
 
