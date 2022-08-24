@@ -444,12 +444,18 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 	// Test individual asset type formatting logic
 	b.CurrencyPairs.UseGlobalFormat = false
 	// Store non-nil pair stores
-	b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		ConfigFormat: &currency.PairFormat{Delimiter: "~"},
 	})
-	b.CurrencyPairs.Store(asset.Futures, &currency.PairStore{
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.CurrencyPairs.Store(asset.Futures, &currency.PairStore{
 		ConfigFormat: &currency.PairFormat{Delimiter: ":)"},
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	b.SetCurrencyPairFormat()
 	spot, err = b.GetPairFormat(asset.Spot, false)
 	if err != nil {
@@ -690,10 +696,13 @@ func TestGetPairFormat(t *testing.T) {
 
 	// Test individual asset pair store formatting
 	b.CurrencyPairs.UseGlobalFormat = false
-	b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		ConfigFormat:  &pFmt,
 		RequestFormat: &currency.PairFormat{Delimiter: "/", Uppercase: true},
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	pFmt, err = b.GetPairFormat(asset.Spot, false)
 	if err != nil {
 		t.Fatal(err)
@@ -1148,10 +1157,12 @@ func TestSetupDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		Enabled: currency.Pairs{p},
-	},
-	)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	err = b.SetupDefaults(&cfg)
 	if err != nil {
 		t.Fatal(err)

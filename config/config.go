@@ -849,11 +849,14 @@ func (c *Config) CheckExchangeConfigValues() error {
 			}
 
 			c.Exchanges[i].CurrencyPairs.UseGlobalFormat = true
-			c.Exchanges[i].CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+			err := c.Exchanges[i].CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 				AssetEnabled: convert.BoolPtr(true),
 				Available:    availPairs,
 				Enabled:      enabledPairs,
 			})
+			if err != nil {
+				return err
+			}
 
 			// flush old values
 			c.Exchanges[i].PairsLastUpdated = nil
