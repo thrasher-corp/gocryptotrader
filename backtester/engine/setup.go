@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -165,6 +166,9 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 						return err
 					}
 					exchBase.CurrencyPairs.StorePairs(assets[x], pairs, true)
+				}
+				if cfg.DataSettings.LiveData != nil && cfg.DataSettings.LiveData.RealOrders {
+					exchBase.States = currencystate.NewCurrencyStates()
 				}
 				err = exch.Start(&wg)
 				if err != nil {
@@ -341,7 +345,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 
 	bt.Funding = funds
 	if cfg.DataSettings.LiveData != nil {
-		err = bt.SetupLiveDataHandler(cfg.DataSettings.LiveData.NewEventTimeout, cfg.DataSettings.LiveData.DataCheckTimer, verbose)
+		err = bt.SetupLiveDataHandler(cfg.DataSettings.LiveData.NewEventTimeout, cfg.DataSettings.LiveData.DataCheckTimer, cfg.DataSettings.LiveData.RealOrders, verbose)
 		if err != nil {
 			return err
 		}
@@ -427,30 +431,6 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 
 	cfg.PrintSetting()
 	if bt.LiveDataHandler != nil {
-		if cfg.DataSettings.LiveData.RealOrders {
-			// reset funding and use funds from account info
-			exchanges, err := bt.exchangeManager.GetExchanges()
-			if err != nil {
-				return err
-			}
-			for x := range exchanges {
-				assets := exchanges[x].GetAssetTypes(false)
-				for y := range assets {
-					acc, err := exchanges[x].FetchAccountInfo(context.TODO(), assets[y])
-					if err != nil {
-						return err
-					}
-					for z := range acc.Accounts {
-						for i := range acc.Accounts[z].Currencies {
-							err = bt.Funding.SetFunding(exchanges[x].GetName(), assets[y], acc.Accounts[z].Currencies[i].CurrencyName, decimal.NewFromFloat(acc.Accounts[z].Currencies[i].AvailableWithoutBorrow))
-							if err != nil {
-								return err
-							}
-						}
-					}
-				}
-			}
-		}
 		return bt.LiveDataHandler.Start()
 	}
 
@@ -775,6 +755,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		}
 	case cfg.DataSettings.LiveData != nil:
 		err = setExchangeCredentials(cfg, b)
+		bt.exchangeManager.Add(exch)
 		if err != nil {
 			return nil, err
 		}
@@ -876,11 +857,14 @@ func setExchangeCredentials(cfg *config.Config, base *gctexchange.Base) error {
 	if cfg.DataSettings.Interval <= 0 {
 		return errIntervalUnset
 	}
-
+	name := strings.ToLower(base.Name)
+	credentialsSet := false
 	for i := range cfg.DataSettings.LiveData.ExchangeCredentials {
-		if cfg.DataSettings.LiveData.ExchangeCredentials[i].Exchange != base.Name {
+		if cfg.DataSettings.LiveData.ExchangeCredentials[i].Exchange != name ||
+			cfg.DataSettings.LiveData.ExchangeCredentials[i].Credentials.IsEmpty() {
 			continue
 		}
+
 		base.SetCredentials(
 			cfg.DataSettings.LiveData.ExchangeCredentials[i].Credentials.Key,
 			cfg.DataSettings.LiveData.ExchangeCredentials[i].Credentials.Secret,
@@ -891,11 +875,14 @@ func setExchangeCredentials(cfg *config.Config, base *gctexchange.Base) error {
 		)
 		validated := base.AreCredentialsValid(context.TODO())
 		base.API.AuthenticatedSupport = validated
-		if !validated && cfg.DataSettings.LiveData.RealOrders {
-			log.Warn(common.Setup, "invalid API credentials set, real orders set to false")
-			cfg.DataSettings.LiveData.RealOrders = false
+		if !validated {
+			break
 		}
-
+		credentialsSet = true
+	}
+	if !credentialsSet && cfg.DataSettings.LiveData.RealOrders {
+		log.Warn(common.Setup, "invalid API credentials set, real orders set to false")
+		cfg.DataSettings.LiveData.RealOrders = false
 	}
 
 	return nil

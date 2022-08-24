@@ -1,6 +1,7 @@
 package funding
 
 import (
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -24,11 +25,13 @@ type IFundingManager interface {
 	USDTrackingDisabled() bool
 	Liquidate(common.Event)
 	GetAllFunding() []BasicItem
-	UpdateCollateral(common.Event) error
+	UpdateCollateralForEvent(common.Event, bool) error
+	UpdateAllCollateral(bool) error
+	UpdateFunding(bool) error
 	HasFutures() bool
 	HasExchangeBeenLiquidated(handler common.Event) bool
 	RealisePNL(receivingExchange string, receivingAsset asset.Item, receivingCurrency currency.Code, realisedPNL decimal.Decimal) error
-	SetFunding(string, asset.Item, currency.Code, decimal.Decimal) error
+	SetFunding(string, asset.Item, *account.Balance) error
 }
 
 // IFundingTransferer allows for funding amounts to be transferred

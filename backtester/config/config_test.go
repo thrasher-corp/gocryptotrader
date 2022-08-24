@@ -850,6 +850,7 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 				RealOrders:                true,
 				DataRequestRetryTolerance: 3,
 				DataRequestRetryWaitTime:  time.Millisecond * 500,
+				ClosePositionsOnExit:      true,
 				ExchangeCredentials: []Credentials{
 					{
 						Exchange: "ftx",
@@ -1371,9 +1372,19 @@ func TestGenerateConfigForLiveCashAndCarry(t *testing.T) {
 			LiveData: &LiveData{
 				NewEventTimeout:           time.Minute,
 				DataCheckTimer:            time.Second,
-				ClosePositionsOnExit:      true,
+				RealOrders:                true,
 				DataRequestRetryTolerance: 3,
 				DataRequestRetryWaitTime:  time.Millisecond * 500,
+				ExchangeCredentials: []Credentials{
+					{
+						Exchange: "ftx",
+						Credentials: account.Credentials{
+							Key:        "",
+							Secret:     "",
+							SubAccount: "",
+						},
+					},
+				},
 			},
 		},
 		StatisticSettings: StatisticSettings{

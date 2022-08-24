@@ -24,7 +24,7 @@ import (
 
 // SetupLiveDataHandler creates a live data handler to retrieve and append
 // live data as it comes in
-func (bt *BackTest) SetupLiveDataHandler(eventTimeout, dataCheckInterval time.Duration, verbose bool) error {
+func (bt *BackTest) SetupLiveDataHandler(eventTimeout, dataCheckInterval time.Duration, realOrders, verbose bool) error {
 	if bt == nil {
 		return fmt.Errorf("%w backtester", gctcommon.ErrNilPointer)
 	}
@@ -49,6 +49,7 @@ func (bt *BackTest) SetupLiveDataHandler(eventTimeout, dataCheckInterval time.Du
 		dataCheckInterval = defaultDataCheckInterval
 	}
 	bt.LiveDataHandler = &dataChecker{
+		realOrders:        realOrders,
 		verboseDataCheck:  verbose,
 		exchangeManager:   bt.exchangeManager,
 		eventTimeout:      eventTimeout,
@@ -70,6 +71,7 @@ func (l *dataChecker) Start() error {
 		return engine.ErrSubSystemAlreadyStarted
 	}
 	l.shutdown = make(chan struct{})
+
 	l.wg.Add(1)
 	go func() {
 		err := l.DataFetcher()
@@ -133,6 +135,21 @@ func (l *dataChecker) DataFetcher() error {
 			}
 			if !updated {
 				continue
+			}
+			if l.realOrders {
+				// TODO: design a more sophisticated way of keeping funds up to date
+				// with current data type retrieval, this still functions appropriately
+				err = l.funding.UpdateFunding(true)
+				if err != nil {
+					return err
+				}
+
+				if l.funding.HasFutures() {
+					err = l.funding.UpdateAllCollateral(true)
+					if err != nil {
+						return err
+					}
+				}
 			}
 			l.notice.Alert()
 			if !timeoutTimer.Stop() {
@@ -303,6 +320,7 @@ func (l *dataChecker) FetchLatestData() (bool, error) {
 			log.Errorf(common.LiveStrategy, "%v %v %v issue processing USD tracking data: %v", l.sourcesToCheck[i].exchangeName, l.sourcesToCheck[i].asset, l.sourcesToCheck[i].pair, err)
 		}
 	}
+
 	return true, nil
 }
 

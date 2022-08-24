@@ -70,17 +70,29 @@
  ],
  "data-settings": {
   "interval": 15000000000,
+  "verbose-exchange-requests": false,
   "data-type": "candle",
   "live-data": {
    "new-event-timeout": 60000000000,
    "data-check-timer": 1000000000,
-   "real-orders": false,
+   "real-orders": true,
    "verbose-data-check": false,
-   "verbose-exchange-requests": false,
-   "close-positions-on-exit": true,
+   "close-positions-on-exit": false,
    "data-request-retry-tolerance": 3,
    "data-request-retry-wait-time": 500000000,
-   "exchange-credentials": null
+   "exchange-credentials": [
+    {
+     "exchange": "ftx",
+     "credentials": {
+      "Key": "",
+      "Secret": "",
+      "ClientID": "",
+      "PEMKey": "",
+      "SubAccount": "",
+      "OneTimePassword": ""
+     }
+    }
+   ]
   }
  },
  "portfolio-settings": {

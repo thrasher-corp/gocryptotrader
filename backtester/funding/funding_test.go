@@ -763,7 +763,7 @@ func TestUpdateCollateral(t *testing.T) {
 	t.Parallel()
 	f := &FundManager{}
 	expectedError := common.ErrNilEvent
-	err := f.UpdateCollateral(nil)
+	err := f.UpdateCollateralForEvent(nil, false)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
 	}
@@ -791,7 +791,7 @@ func TestUpdateCollateral(t *testing.T) {
 	f.exchangeManager = em
 
 	expectedError = ErrFundsNotFound
-	err = f.UpdateCollateral(ev)
+	err = f.UpdateCollateralForEvent(ev, false)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
 	}
@@ -804,7 +804,7 @@ func TestUpdateCollateral(t *testing.T) {
 		available:    decimal.NewFromInt(1336),
 		isCollateral: true,
 	})
-	err = f.UpdateCollateral(ev)
+	err = f.UpdateCollateralForEvent(ev, false)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
 	}

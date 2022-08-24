@@ -53,6 +53,7 @@ type dataChecker struct {
 	wg                sync.WaitGroup
 	started           uint32
 	verboseDataCheck  bool
+	realOrders        bool
 	exchangeManager   *engine.ExchangeManager
 	sourcesToCheck    []*liveDataSourceDataHandler
 	eventTimeout      time.Duration

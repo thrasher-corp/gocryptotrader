@@ -18,7 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
 // Reset returns the exchange to initial settings
@@ -81,15 +80,6 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, om *engine.Ord
 			}
 			return f, nil
 		}
-		// get current orderbook
-		var ob *orderbook.Base
-		ob, err = cs.Exchange.FetchOrderbook(context.TODO(), f.CurrencyPair, f.AssetType)
-		if err != nil {
-			return f, err
-		}
-		// calculate an estimated slippage rate
-		price, amount = slippage.CalculateSlippageByOrderbook(ob, o.GetDirection(), allocatedFunds, f.ExchangeFee)
-		f.Slippage = price.Sub(f.ClosePrice).Div(f.ClosePrice).Mul(decimal.NewFromInt(100))
 	} else {
 		slippageRate := slippage.EstimateSlippagePercentage(cs.MinimumSlippageRate, cs.MaximumSlippageRate)
 		if cs.SkipCandleVolumeFitting || o.GetAssetType().IsFutures() || o.GetDirection() == gctorder.ClosePosition {
@@ -148,14 +138,14 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, om *engine.Ord
 		amount = adjustedAmount
 	}
 
-	if cs.CanUseExchangeLimits {
+	if cs.CanUseExchangeLimits || cs.UseRealOrders {
 		// Conforms the amount to the exchange order defined step amount
 		// reducing it when needed
 		adjustedAmount = cs.Limits.ConformToDecimalAmount(amount)
 		if !adjustedAmount.Equal(amount) {
 			f.AppendReasonf("Order size shrunk from %v to %v to remain within exchange step amount limits",
-				adjustedAmount,
-				amount)
+				amount,
+				adjustedAmount)
 			amount = adjustedAmount
 		}
 	}
@@ -165,6 +155,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, om *engine.Ord
 	}
 
 	fee = calculateExchangeFee(price, amount, cs.TakerFee)
+
 	orderID, err := e.placeOrder(context.TODO(), price, amount, fee, cs.UseRealOrders, cs.CanUseExchangeLimits, f, om)
 	if err != nil {
 		f.AppendReasonf("could not place order: %v", err)

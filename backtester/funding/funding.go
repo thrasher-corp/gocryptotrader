@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"sort"
 	"strings"
@@ -559,9 +560,115 @@ func (f *FundManager) GetAllFunding() []BasicItem {
 	return result
 }
 
-// UpdateCollateral will recalculate collateral for an exchange
+// UpdateFunding forcefully updates funding from a live source
+func (f *FundManager) UpdateFunding(isLive bool) error {
+	if !isLive {
+		// funding is already managed offline
+		return nil
+	}
+	exchanges, err := f.exchangeManager.GetExchanges()
+	if err != nil {
+		return err
+	}
+	for x := range exchanges {
+		var creds *account.Credentials
+		creds, err = exchanges[x].GetCredentials(context.TODO())
+		assets := exchanges[x].GetAssetTypes(false)
+		for y := range assets {
+			if assets[y].IsFutures() {
+				// we set all holdings as spot
+				// futures currency holdings are collateral in the collateral currency
+				continue
+			}
+			var acc account.Holdings
+			acc, err = exchanges[x].FetchAccountInfo(context.TODO(), assets[y])
+			if err != nil {
+				return err
+			}
+			for z := range acc.Accounts {
+				if !acc.Accounts[z].Credentials.Equal(creds) {
+					continue
+				}
+				for i := range acc.Accounts[z].Currencies {
+					err = f.SetFunding(exchanges[x].GetName(), assets[y], &acc.Accounts[z].Currencies[i])
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// UpdateAllCollateral will update the collateral values
+// of all stored exchanges
+func (f *FundManager) UpdateAllCollateral(isLive bool) error {
+	exchanges, err := f.exchangeManager.GetExchanges()
+	if err != nil {
+		return err
+	}
+
+	for x := range exchanges {
+		exchName := strings.ToLower(exchanges[x].GetName())
+		exchangeCollateralCalculator := &gctorder.TotalCollateralCalculator{
+			CalculateOffline: !isLive,
+		}
+		for y := range f.items {
+			if f.items[y].exchange != exchName {
+				continue
+			}
+			if f.items[y].asset.IsFutures() {
+				// futures positions aren't collateral, they utilise it
+				continue
+			}
+			var usd decimal.Decimal
+			if f.items[y].trackingCandles != nil {
+				latest := f.items[y].trackingCandles.Latest()
+				if latest != nil {
+					usd = latest.GetClosePrice()
+				}
+			}
+			if usd.IsZero() {
+				continue
+			}
+			var side = gctorder.Buy
+			if !f.items[y].available.GreaterThan(decimal.Zero) {
+				side = gctorder.Sell
+			}
+
+			exchangeCollateralCalculator.CollateralAssets = append(exchangeCollateralCalculator.CollateralAssets, gctorder.CollateralCalculator{
+				CalculateOffline:   !isLive,
+				CollateralCurrency: f.items[y].currency,
+				Asset:              f.items[y].asset,
+				Side:               side,
+				FreeCollateral:     f.items[y].available,
+				LockedCollateral:   f.items[y].reserved,
+				USDPrice:           usd,
+			})
+		}
+
+		var collateral *gctorder.TotalCollateralResponse
+		collateral, err = exchanges[x].CalculateTotalCollateral(context.TODO(), exchangeCollateralCalculator)
+		if err != nil {
+			return err
+		}
+		for y := range f.items {
+			if f.items[y].exchange == exchName &&
+				f.items[y].isCollateral {
+				log.Debugf(common.FundManager, "setting collateral %v %v %v to %v", f.items[y].exchange, f.items[y].asset, f.items[y].currency, collateral.AvailableCollateral)
+				f.items[y].available = collateral.AvailableCollateral
+				return nil
+			}
+		}
+	}
+
+	return nil
+}
+
+// UpdateCollateralForEvent will recalculate collateral for an exchange
 // based on the event passed in
-func (f *FundManager) UpdateCollateral(ev common.Event) error {
+func (f *FundManager) UpdateCollateralForEvent(ev common.Event, isLive bool) error {
 	if ev == nil {
 		return common.ErrNilEvent
 	}
@@ -569,12 +676,12 @@ func (f *FundManager) UpdateCollateral(ev common.Event) error {
 	var collateralAmount decimal.Decimal
 	var err error
 	calculator := gctorder.TotalCollateralCalculator{
-		CalculateOffline: true,
+		CalculateOffline: !isLive,
 	}
 
 	for i := range f.items {
 		if f.items[i].asset.IsFutures() {
-			// futures positions aren't collateral, they use it
+			// futures positions aren't collateral, they utilise it
 			continue
 		}
 		_, ok := exchMap[f.items[i].exchange]
@@ -602,7 +709,7 @@ func (f *FundManager) UpdateCollateral(ev common.Event) error {
 		}
 
 		calculator.CollateralAssets = append(calculator.CollateralAssets, gctorder.CollateralCalculator{
-			CalculateOffline:   true,
+			CalculateOffline:   !isLive,
 			CollateralCurrency: f.items[i].currency,
 			Asset:              f.items[i].asset,
 			Side:               side,
@@ -629,6 +736,7 @@ func (f *FundManager) UpdateCollateral(ev common.Event) error {
 		if f.items[i].exchange == ev.GetExchange() &&
 			f.items[i].asset == futureAsset &&
 			f.items[i].currency.Equal(futureCurrency) {
+			log.Debugf(common.FundManager, "setting collateral %v %v %v to %v", f.items[i].exchange, f.items[i].asset, f.items[i].currency, collat.AvailableCollateral)
 			f.items[i].available = collat.AvailableCollateral
 			return nil
 		}
@@ -672,27 +780,32 @@ func (f *FundManager) HasExchangeBeenLiquidated(ev common.Event) bool {
 // SetFunding overwrites a funding setting. This is for live trading
 // where external wallet amounts need to be synced
 // only the amount is to be overwritten
-func (f *FundManager) SetFunding(exchName string, item asset.Item, curr currency.Code, amount decimal.Decimal) error {
-	if exchName == "" || !item.IsValid() || curr.IsEmpty() || amount.LessThanOrEqual(decimal.Zero) {
+func (f *FundManager) SetFunding(exchName string, item asset.Item, balance *account.Balance) error {
+	if exchName == "" || !item.IsValid() || item.IsFutures() || balance == nil || balance.CurrencyName.IsEmpty() {
 		return errCannotTransferToSameFunds
 	}
+	exchName = strings.ToLower(exchName)
+	amount := decimal.NewFromFloat(balance.AvailableWithoutBorrow)
 	for i := range f.items {
-		if f.items[i].exchange != exchName ||
-			f.items[i].asset != item ||
-			!f.items[i].currency.Equal(curr) {
+		if f.items[i].asset.IsFutures() {
 			continue
 		}
-		log.Infof(common.FundManager, "%v %v %v set funding to %v", exchName, item, curr, amount)
+		if f.items[i].exchange != exchName ||
+			f.items[i].asset != item ||
+			!f.items[i].currency.Equal(balance.CurrencyName) {
+			continue
+		}
+		log.Debugf(common.FundManager, "attempting to set %v %v %v to %v", exchName, item, balance.CurrencyName, balance.AvailableWithoutBorrow)
 		f.items[i].available = amount
 		return nil
 	}
+	log.Debugf(common.FundManager, "appending %v %v %v to %v", exchName, item, balance.CurrencyName, balance.AvailableWithoutBorrow)
 	f.items = append(f.items, &Item{
 		exchange:     exchName,
 		asset:        item,
-		currency:     curr,
+		currency:     balance.CurrencyName,
 		initialFunds: amount,
 		available:    amount,
 	})
-	log.Infof(common.FundManager, "%v %v %v set funding to %v", exchName, item, curr, amount)
 	return nil
 }

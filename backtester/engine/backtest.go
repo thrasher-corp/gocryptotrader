@@ -131,16 +131,10 @@ func (bt *BackTest) handleEvent(ev common.Event) error {
 	if ev == nil {
 		return fmt.Errorf("cannot handle event %w", errNilData)
 	}
+
 	funds, err := bt.Funding.GetFundingForEvent(ev)
 	if err != nil {
 		return err
-	}
-
-	if bt.Funding.HasFutures() {
-		err = bt.Funding.UpdateCollateral(ev)
-		if err != nil {
-			return err
-		}
 	}
 
 	switch eType := ev.(type) {
@@ -325,44 +319,6 @@ func (bt *BackTest) updateStatsForDataEvent(ev data.Event, funds funding.IFundRe
 	return nil
 }
 
-func (bt *BackTest) triggerLiquidationsForExchange(ev data.Event, pnl *portfolio.PNLSummary) error {
-	if ev == nil {
-		return common.ErrNilEvent
-	}
-	if pnl == nil {
-		return fmt.Errorf("%w pnl summary", common.ErrNilArguments)
-	}
-	orders, err := bt.Portfolio.CreateLiquidationOrdersForExchange(ev, bt.Funding)
-	if err != nil {
-		return err
-	}
-	for i := range orders {
-		// these orders are raising events for event offsets
-		// which may not have been processed yet
-		// this will create and store stats for each order
-		// then liquidate it at the funding level
-		var datas data.Handler
-		datas, err = bt.DataHolder.GetDataForCurrency(orders[i])
-		if err != nil {
-			return err
-		}
-		latest := datas.Latest()
-		err = bt.Statistic.SetEventForOffset(latest)
-		if err != nil && !errors.Is(err, statistics.ErrAlreadyProcessed) {
-			return err
-		}
-		bt.EventQueue.AppendEvent(orders[i])
-		err = bt.Statistic.SetEventForOffset(orders[i])
-		if err != nil {
-			log.Errorf(common.Backtester, "SetEventForOffset %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
-		}
-		bt.Funding.Liquidate(orders[i])
-	}
-	pnl.Result.IsLiquidated = true
-	pnl.Result.Status = gctorder.Liquidated
-	return bt.Statistic.AddPNLForTime(pnl)
-}
-
 // processSignalEvent receives an event from the strategy for processing under the portfolio
 func (bt *BackTest) processSignalEvent(ev signal.Event, funds funding.IFundReserver) error {
 	if ev == nil {
@@ -470,6 +426,7 @@ func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser)
 	if ev.GetAssetType().IsFutures() {
 		return bt.processFuturesFillEvent(ev, funds)
 	}
+
 	return nil
 }
 
@@ -505,9 +462,9 @@ func (bt *BackTest) processFuturesFillEvent(ev fill.Event, funds funding.IFundRe
 			log.Errorf(common.Backtester, "AddHoldingsForTime %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 		}
 	}
-	err := bt.Funding.UpdateCollateral(ev)
+	err := bt.Funding.UpdateCollateralForEvent(ev, false)
 	if err != nil {
-		return fmt.Errorf("UpdateCollateral %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+		return fmt.Errorf("UpdateCollateralForEvent %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 	}
 	return nil
 }
@@ -515,6 +472,44 @@ func (bt *BackTest) processFuturesFillEvent(ev fill.Event, funds funding.IFundRe
 // Stop shuts down the live data loop
 func (bt *BackTest) Stop() {
 	close(bt.shutdown)
+}
+
+func (bt *BackTest) triggerLiquidationsForExchange(ev data.Event, pnl *portfolio.PNLSummary) error {
+	if ev == nil {
+		return common.ErrNilEvent
+	}
+	if pnl == nil {
+		return fmt.Errorf("%w pnl summary", common.ErrNilArguments)
+	}
+	orders, err := bt.Portfolio.CreateLiquidationOrdersForExchange(ev, bt.Funding)
+	if err != nil {
+		return err
+	}
+	for i := range orders {
+		// these orders are raising events for event offsets
+		// which may not have been processed yet
+		// this will create and store stats for each order
+		// then liquidate it at the funding level
+		var datas data.Handler
+		datas, err = bt.DataHolder.GetDataForCurrency(orders[i])
+		if err != nil {
+			return err
+		}
+		latest := datas.Latest()
+		err = bt.Statistic.SetEventForOffset(latest)
+		if err != nil && !errors.Is(err, statistics.ErrAlreadyProcessed) {
+			return err
+		}
+		bt.EventQueue.AppendEvent(orders[i])
+		err = bt.Statistic.SetEventForOffset(orders[i])
+		if err != nil {
+			log.Errorf(common.Backtester, "SetEventForOffset %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+		}
+		bt.Funding.Liquidate(orders[i])
+	}
+	pnl.Result.IsLiquidated = true
+	pnl.Result.Status = gctorder.Liquidated
+	return bt.Statistic.AddPNLForTime(pnl)
 }
 
 // CloseAllPositions will close sell any positions held on closure

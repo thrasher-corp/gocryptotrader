@@ -652,10 +652,10 @@ func (f *FTX) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitRe
 		return nil, err
 	}
 
-	if s.Side == order.Ask {
+	if s.Side == order.Ask || s.Side == order.Short {
 		s.Side = order.Sell
 	}
-	if s.Side == order.Bid {
+	if s.Side == order.Bid || s.Side == order.Long {
 		s.Side = order.Buy
 	}
 
