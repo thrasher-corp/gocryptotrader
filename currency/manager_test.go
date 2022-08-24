@@ -3,7 +3,6 @@ package currency
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
@@ -176,7 +175,6 @@ func TestGetPairs(t *testing.T) {
 	}
 
 	p = initTest(t)
-	fmt.Printf("%+v\n", p.Pairs[asset.Spot])
 	pairs, err = p.GetPairs(asset.Spot, true)
 	if err != nil {
 		t.Fatal(err)

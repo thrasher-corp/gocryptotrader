@@ -75,11 +75,8 @@ func (p *PairsManager) Store(a asset.Item, ps *PairStore) error {
 // Delete deletes a map entry based on the supplied asset type
 func (p *PairsManager) Delete(a asset.Item) {
 	p.m.Lock()
-	defer p.m.Unlock()
-	if p.Pairs == nil {
-		return
-	}
 	delete(p.Pairs, a)
+	p.m.Unlock()
 }
 
 // GetPairs gets a list of stored pairs based on the asset type and whether
@@ -139,7 +136,7 @@ func (p *PairsManager) DisablePair(a asset.Item, pair Pair) error {
 	p.m.Lock()
 	defer p.m.Unlock()
 
-	c, err := p.getPairStore(a)
+	c, err := p.getPairStoreRequiresLock(a)
 	if err != nil {
 		return err
 	}
@@ -161,20 +158,19 @@ func (p *PairsManager) EnablePair(a asset.Item, pair Pair) error {
 	p.m.Lock()
 	defer p.m.Unlock()
 
-	c, err := p.getPairStore(a)
+	c, err := p.getPairStoreRequiresLock(a)
 	if err != nil {
 		return err
-	}
-
-	if !c.Available.Contains(pair, true) {
-		return fmt.Errorf("%s %w in the list of available pairs",
-			pair, ErrPairNotFound)
 	}
 
 	if c.Enabled.Contains(pair, true) {
 		return fmt.Errorf("%s %w", pair, ErrPairAlreadyEnabled)
 	}
 
+	if !c.Available.Contains(pair, true) {
+		return fmt.Errorf("%s %w in the list of available pairs",
+			pair, ErrPairNotFound)
+	}
 	c.Enabled = c.Enabled.Add(pair)
 	return nil
 }
@@ -184,7 +180,7 @@ func (p *PairsManager) IsAssetEnabled(a asset.Item) error {
 	p.m.RLock()
 	defer p.m.RUnlock()
 
-	c, err := p.getPairStore(a)
+	c, err := p.getPairStoreRequiresLock(a)
 	if err != nil {
 		return err
 	}
@@ -204,7 +200,7 @@ func (p *PairsManager) SetAssetEnabled(a asset.Item, enabled bool) error {
 	p.m.Lock()
 	defer p.m.Unlock()
 
-	c, err := p.getPairStore(a)
+	c, err := p.getPairStoreRequiresLock(a)
 	if err != nil {
 		return err
 	}
@@ -224,7 +220,7 @@ func (p *PairsManager) SetAssetEnabled(a asset.Item, enabled bool) error {
 	return nil
 }
 
-func (p *PairsManager) getPairStore(a asset.Item) (*PairStore, error) {
+func (p *PairsManager) getPairStoreRequiresLock(a asset.Item) (*PairStore, error) {
 	if p.Pairs == nil {
 		return nil, errors.New("pair manager not initialised")
 	}
