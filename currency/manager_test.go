@@ -202,6 +202,32 @@ func TestGetPairs(t *testing.T) {
 	}
 }
 
+func TestStoreFormat(t *testing.T) {
+	t.Parallel()
+	p := initTest(t)
+
+	p.StoreFormat(asset.Spot, &PairFormat{Delimiter: "~"}, true)
+	ps, err := p.Get(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if ps.ConfigFormat.Delimiter != "~" {
+		t.Fatal("unexpected value")
+	}
+
+	p.StoreFormat(asset.Spot, &PairFormat{Delimiter: "/"}, false)
+
+	ps, err = p.Get(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if ps.RequestFormat.Delimiter != "/" {
+		t.Fatal("unexpected value")
+	}
+}
+
 func TestStorePairs(t *testing.T) {
 	t.Parallel()
 	p := initTest(t)

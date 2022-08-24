@@ -95,7 +95,12 @@ func (p *PairsManager) GetPairs(a asset.Item, enabled bool) (Pairs, error) {
 		return availPairs, nil
 	}
 
-	enabledPairs := make(Pairs, len(c.Enabled))
+	lenCheck := len(c.Enabled)
+	if lenCheck == 0 {
+		return nil, nil
+	}
+
+	enabledPairs := make(Pairs, lenCheck)
 	copy(enabledPairs, c.Enabled)
 
 	err := c.Available.ContainsAll(c.Enabled, true)
@@ -103,6 +108,34 @@ func (p *PairsManager) GetPairs(a asset.Item, enabled bool) (Pairs, error) {
 		return enabledPairs, fmt.Errorf("%w of asset type %s", err, a)
 	}
 	return enabledPairs, nil
+}
+
+// StoreFormat stores a new format for request or config format.
+func (p *PairsManager) StoreFormat(a asset.Item, pFmt *PairFormat, config bool) {
+	var newCopy *PairFormat
+	if pFmt != nil {
+		cpy := *pFmt
+		newCopy = &cpy
+	}
+
+	p.m.Lock()
+	defer p.m.Unlock()
+
+	if p.Pairs == nil {
+		p.Pairs = make(map[asset.Item]*PairStore)
+	}
+
+	c, ok := p.Pairs[a]
+	if !ok {
+		c = new(PairStore)
+		p.Pairs[a] = c
+	}
+
+	if config {
+		c.ConfigFormat = newCopy
+	} else {
+		c.RequestFormat = newCopy
+	}
 }
 
 // StorePairs stores a list of pairs based on the asset type and whether
@@ -283,21 +316,23 @@ func (ps *PairStore) copy() (*PairStore, error) {
 	avail := make(Pairs, len(ps.Available))
 	copy(avail, ps.Available)
 
-	var rFmt PairFormat
+	var rFmt *PairFormat
 	if ps.RequestFormat != nil {
-		rFmt = *ps.RequestFormat
+		cpy := *ps.RequestFormat
+		rFmt = &cpy
 	}
 
-	var cFmt PairFormat
+	var cFmt *PairFormat
 	if ps.ConfigFormat != nil {
-		cFmt = *ps.ConfigFormat
+		cpy := *ps.ConfigFormat
+		cFmt = &cpy
 	}
 
 	return &PairStore{
 		AssetEnabled:  assetEnabled,
 		Enabled:       enabled,
 		Available:     avail,
-		RequestFormat: &rFmt,
-		ConfigFormat:  &cFmt,
+		RequestFormat: rFmt,
+		ConfigFormat:  cFmt,
 	}, nil
 }

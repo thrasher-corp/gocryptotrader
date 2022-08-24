@@ -802,17 +802,19 @@ func TestCheckPairConsistency(t *testing.T) {
 		p1,
 	}
 
-	// LTC_USD is only found in the available pairs list and should therefor
+	// LTC_USD is only found in the available pairs list and should therefore
 	// be added to the enabled pairs list due to the atLestOneEnabled code
 	err = c.CheckPairConsistency(testFakeExchangeName)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for _, item := range c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled {
-		if !item.Equal(p1) {
-			t.Fatal("LTC_USD should be contained in the enabled pairs list")
-		}
+	if len(c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled) != 1 {
+		t.Fatal("there should be atleast one pair located in this list")
+	}
+
+	if !c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled[0].Equal(p1) {
+		t.Fatal("LTC_USD should be contained in the enabled pairs list")
 	}
 
 	p2, err := currency.NewPairDelimiter("BTC_USD", "_")
@@ -822,8 +824,7 @@ func TestCheckPairConsistency(t *testing.T) {
 
 	// Add the BTC_USD pair and see result
 	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Available = currency.Pairs{
-		p1,
-		p2,
+		p1, p2,
 	}
 
 	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
@@ -833,7 +834,7 @@ func TestCheckPairConsistency(t *testing.T) {
 	// Test that an empty enabled pair is populated with an available pair
 	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = nil
 	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
-		t.Error("unexpected result")
+		t.Error("unexpected result", err)
 	}
 
 	if len(c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled) != 1 {

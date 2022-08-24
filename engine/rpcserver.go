@@ -345,14 +345,21 @@ func (s *RPCServer) GetExchangeInfo(_ context.Context, r *gctrpc.GenericExchange
 	resp.SupportedAssets = make(map[string]*gctrpc.PairsSupported)
 	assets := exchCfg.CurrencyPairs.GetAssetTypes(false)
 	for i := range assets {
-		ps, err := exchCfg.CurrencyPairs.Get(assets[i])
+		var enabled currency.Pairs
+		enabled, err = exchCfg.CurrencyPairs.GetPairs(assets[i], true)
+		if err != nil {
+			return nil, err
+		}
+
+		var available currency.Pairs
+		available, err = exchCfg.CurrencyPairs.GetPairs(assets[i], false)
 		if err != nil {
 			return nil, err
 		}
 
 		resp.SupportedAssets[assets[i].String()] = &gctrpc.PairsSupported{
-			EnabledPairs:   ps.Enabled.Join(),
-			AvailablePairs: ps.Available.Join(),
+			EnabledPairs:   enabled.Join(),
+			AvailablePairs: available.Join(),
 		}
 	}
 	return resp, nil
@@ -1971,14 +1978,21 @@ func (s *RPCServer) GetExchangePairs(_ context.Context, r *gctrpc.GetExchangePai
 			continue
 		}
 
-		ps, err := exchCfg.CurrencyPairs.Get(assetTypes[x])
+		var enabled currency.Pairs
+		enabled, err = exchCfg.CurrencyPairs.GetPairs(assetTypes[x], true)
+		if err != nil {
+			return nil, err
+		}
+
+		var available currency.Pairs
+		available, err = exchCfg.CurrencyPairs.GetPairs(assetTypes[x], false)
 		if err != nil {
 			return nil, err
 		}
 
 		resp.SupportedAssets[assetTypes[x].String()] = &gctrpc.PairsSupported{
-			AvailablePairs: ps.Available.Join(),
-			EnabledPairs:   ps.Enabled.Join(),
+			AvailablePairs: available.Join(),
+			EnabledPairs:   enabled.Join(),
 		}
 	}
 	return &resp, nil

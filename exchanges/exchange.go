@@ -246,7 +246,7 @@ func (b *Base) SetCurrencyPairFormat() {
 			if err != nil {
 				continue
 			}
-			b.Config.CurrencyPairs.Store(assetTypes[x], *ps)
+			_ = b.Config.CurrencyPairs.Store(assetTypes[x], ps)
 		}
 	}
 }
@@ -291,8 +291,9 @@ func (b *Base) SetConfigPairs() error {
 		if err != nil {
 			return err
 		}
-		cfgPS.ConfigFormat = exchPS.ConfigFormat
-		cfgPS.RequestFormat = exchPS.RequestFormat
+
+		b.Config.CurrencyPairs.StoreFormat(assetTypes[x], exchPS.ConfigFormat, true)
+		b.Config.CurrencyPairs.StoreFormat(assetTypes[x], exchPS.RequestFormat, false)
 		b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Available, false)
 		b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Enabled, true)
 	}
