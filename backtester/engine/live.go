@@ -136,20 +136,9 @@ func (l *dataChecker) DataFetcher() error {
 			if !updated {
 				continue
 			}
-			if l.realOrders {
-				// TODO: design a more sophisticated way of keeping funds up to date
-				// with current data type retrieval, this still functions appropriately
-				err = l.funding.UpdateFunding(true)
-				if err != nil {
-					return err
-				}
-
-				if l.funding.HasFutures() {
-					err = l.funding.UpdateAllCollateral(true)
-					if err != nil {
-						return err
-					}
-				}
+			err = l.UpdateFunding()
+			if err != nil {
+				return err
 			}
 			l.notice.Alert()
 			if !timeoutTimer.Stop() {
@@ -161,6 +150,27 @@ func (l *dataChecker) DataFetcher() error {
 			return fmt.Errorf("%w of %v", ErrLiveDataTimeout, l.eventTimeout)
 		}
 	}
+}
+
+// UpdateFunding requests and updates funding levels
+func (l *dataChecker) UpdateFunding() error {
+	if !l.realOrders {
+		return nil
+	}
+	// TODO: design a more sophisticated way of keeping funds up to date
+	// with current data type retrieval, this still functions appropriately
+	err := l.funding.UpdateFunding(true)
+	if err != nil {
+		return err
+	}
+
+	if l.funding.HasFutures() {
+		err = l.funding.UpdateAllCollateral(true)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Updated gives other endpoints the ability to listen to

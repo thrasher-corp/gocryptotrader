@@ -518,6 +518,10 @@ func (bt *BackTest) CloseAllPositions() error {
 	if bt.LiveDataHandler == nil {
 		return errLiveOnly
 	}
+	err := bt.LiveDataHandler.UpdateFunding()
+	if err != nil {
+		return err
+	}
 	allData := bt.DataHolder.GetAllData()
 	var latestPrices []data.Event
 	for _, exchangeMap := range allData {
@@ -562,5 +566,10 @@ func (bt *BackTest) CloseAllPositions() error {
 	// fill.Event run
 	bt.Run()
 
+	err = bt.LiveDataHandler.UpdateFunding()
+	if err != nil {
+		return err
+	}
+	bt.Funding.CreateSnapshot(events[0].GetTime())
 	return nil
 }

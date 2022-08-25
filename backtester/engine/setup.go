@@ -170,6 +170,10 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 				if cfg.DataSettings.LiveData != nil && cfg.DataSettings.LiveData.RealOrders {
 					exchBase.States = currencystate.NewCurrencyStates()
 				}
+				err = exch.UpdateOrderExecutionLimits(context.TODO(), asset.Empty)
+				if err != nil && !errors.Is(err, gctcommon.ErrNotYetImplemented) {
+					return err
+				}
 				err = exch.Start(&wg)
 				if err != nil {
 					return err

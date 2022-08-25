@@ -335,7 +335,7 @@ type OrderData struct {
 	ClientID      string        `json:"clientId"`
 	CreatedAt     time.Time     `json:"createdAt"`
 	FilledSize    float64       `json:"filledSize"`
-	Future        currency.Pair `json:"future"`
+	Future        string        `json:"future"`
 	ID            int64         `json:"id"`
 	IOC           bool          `json:"ioc"`
 	Market        currency.Pair `json:"market"`

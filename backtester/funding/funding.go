@@ -581,7 +581,7 @@ func (f *FundManager) UpdateFunding(isLive bool) error {
 				continue
 			}
 			var acc account.Holdings
-			acc, err = exchanges[x].FetchAccountInfo(context.TODO(), assets[y])
+			acc, err = exchanges[x].UpdateAccountInfo(context.TODO(), assets[y])
 			if err != nil {
 				return err
 			}
@@ -785,7 +785,7 @@ func (f *FundManager) SetFunding(exchName string, item asset.Item, balance *acco
 		return errCannotTransferToSameFunds
 	}
 	exchName = strings.ToLower(exchName)
-	amount := decimal.NewFromFloat(balance.AvailableWithoutBorrow)
+	amount := decimal.NewFromFloat(balance.Total)
 	for i := range f.items {
 		if f.items[i].asset.IsFutures() {
 			continue
@@ -795,11 +795,11 @@ func (f *FundManager) SetFunding(exchName string, item asset.Item, balance *acco
 			!f.items[i].currency.Equal(balance.CurrencyName) {
 			continue
 		}
-		log.Debugf(common.FundManager, "attempting to set %v %v %v to %v", exchName, item, balance.CurrencyName, balance.AvailableWithoutBorrow)
+		log.Debugf(common.FundManager, "setting %v %v %v to %v", exchName, item, balance.CurrencyName, balance.Total)
 		f.items[i].available = amount
 		return nil
 	}
-	log.Debugf(common.FundManager, "appending %v %v %v to %v", exchName, item, balance.CurrencyName, balance.AvailableWithoutBorrow)
+	log.Debugf(common.FundManager, "appending %v %v %v to %v", exchName, item, balance.CurrencyName, balance.Total)
 	f.items = append(f.items, &Item{
 		exchange:     exchName,
 		asset:        item,

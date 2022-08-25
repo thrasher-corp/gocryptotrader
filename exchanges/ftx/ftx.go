@@ -758,7 +758,11 @@ func (f *FTX) Order(
 	req := make(map[string]interface{})
 	req["market"] = marketName
 	req["side"] = side
-	req["price"] = price
+	if orderType == "market" {
+		req["price"] = nil
+	} else {
+		req["price"] = price
+	}
 	req["type"] = orderType
 	req["size"] = size
 	if reduceOnly {

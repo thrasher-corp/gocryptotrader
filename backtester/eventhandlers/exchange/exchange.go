@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
-
 	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -18,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"strings"
 )
 
 // Reset returns the exchange to initial settings
@@ -142,7 +141,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, om *engine.Ord
 		// Conforms the amount to the exchange order defined step amount
 		// reducing it when needed
 		adjustedAmount = cs.Limits.ConformToDecimalAmount(amount)
-		if !adjustedAmount.Equal(amount) {
+		if !adjustedAmount.Equal(amount) && !adjustedAmount.IsZero() {
 			f.AppendReasonf("Order size shrunk from %v to %v to remain within exchange step amount limits",
 				amount,
 				adjustedAmount)
@@ -161,7 +160,6 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, om *engine.Ord
 		f.AppendReasonf("could not place order: %v", err)
 		return f, err
 	}
-
 	ords := om.GetOrdersSnapshot(gctorder.UnknownStatus)
 	for i := range ords {
 		if ords[i].OrderID != orderID {

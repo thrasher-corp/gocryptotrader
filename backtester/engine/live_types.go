@@ -44,6 +44,7 @@ type Handler interface {
 	Updated() <-chan bool
 	HasShutdown() <-chan bool
 	SetDataForClosingAllPositions(events ...signal.Event) error
+	UpdateFunding() error
 }
 
 // dataChecker is responsible for managing all data retrieval

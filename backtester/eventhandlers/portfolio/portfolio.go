@@ -41,7 +41,6 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 	if funds == nil {
 		return nil, funding.ErrFundsNotFound
 	}
-
 	o := &order.Order{
 		Base:               ev.GetBase(),
 		Direction:          ev.GetDirection(),
@@ -99,11 +98,11 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 				return nil, errNoHoldings
 			}
 			sizingFunds = positions[len(positions)-1].LatestSize
-			d := positions[len(positions)-1].OpeningDirection
+			d := positions[len(positions)-1].LatestDirection
 			switch d {
-			case gctorder.Short:
+			case gctorder.Short, gctorder.Sell, gctorder.Ask:
 				side = gctorder.Long
-			case gctorder.Long:
+			case gctorder.Long, gctorder.Buy, gctorder.Bid:
 				side = gctorder.Short
 			}
 		} else {
@@ -115,6 +114,7 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 		}
 	}
 	if sizingFunds.LessThanOrEqual(decimal.Zero) {
+		sizingFunds.LessThanOrEqual(decimal.Zero)
 		return cannotPurchase(ev, o)
 	}
 	sizedOrder, err := p.sizeOrder(ev, cs, o, sizingFunds, funds)
