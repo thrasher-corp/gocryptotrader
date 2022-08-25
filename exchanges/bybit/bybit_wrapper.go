@@ -2,6 +2,7 @@ package bybit
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -303,7 +304,13 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 			if allPairs[x].Status != "Trading" || allPairs[x].QuoteCurrency != "USD" {
 				continue
 			}
-			symbol := allPairs[x].BaseCurrency + currency.DashDelimiter + allPairs[x].QuoteCurrency
+
+			contractSplit := strings.Split(allPairs[x].Name, allPairs[x].BaseCurrency)
+			if len(contractSplit) != 2 {
+				return nil, errors.New("base currency cannot split contract name")
+			}
+
+			symbol := allPairs[x].BaseCurrency + currency.DashDelimiter + contractSplit[1]
 			pairs = append(pairs, symbol)
 		}
 		return pairs, nil
