@@ -415,7 +415,7 @@ func applySlippageToPrice(direction gctorder.Side, price, slippageRate decimal.D
 	case gctorder.Sell, gctorder.Ask, gctorder.Short:
 		adjustedPrice = price.Mul(slippageRate)
 	default:
-		return decimal.Decimal{}, fmt.Errorf("%v %w", direction, gctorder.ErrSideIsInvalid)
+		return decimal.Zero, fmt.Errorf("%v %w", direction, gctorder.ErrSideIsInvalid)
 	}
 	if adjustedPrice.IsZero() {
 		adjustedPrice = price

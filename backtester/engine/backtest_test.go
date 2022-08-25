@@ -1255,6 +1255,7 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	em.Add(exch)
 	f, err := funding.SetupFundingManager(em, false, true)
 	if !errors.Is(err, expectedError) {
@@ -1300,6 +1301,7 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 	}
 	bt.exchangeManager = em
 	bt.Funding = f
+
 	err = pt.SetupCurrencySettingsMap(&exchange.Settings{
 		Exchange: exch,
 		Pair:     cp,

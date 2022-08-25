@@ -1,15 +1,10 @@
 {
- "nickname": "TestGenerateRSICandleAPICustomSettingsStrat",
- "goal": "To demonstrate the RSI strategy using API candle data and custom settings",
+ "nickname": "ExamplePluginStrategy",
+ "goal": "To demonstrate that custom strategies can be used",
  "strategy-settings": {
-  "name": "rsi",
+  "name": "custom-strategy",
   "use-simultaneous-signal-processing": false,
-  "disable-usd-tracking": false,
-  "custom-settings": {
-   "rsi-high": 70,
-   "rsi-low": 30,
-   "rsi-period": 14
-  }
+  "disable-usd-tracking": false
  },
  "funding-settings": {
   "use-exchange-level-funding": false
@@ -21,7 +16,7 @@
    "base": "BTC",
    "quote": "USDT",
    "spot-details": {
-    "initial-quote-funds": "100000"
+    "initial-quote-funds": "1000000"
    },
    "buy-side": {
     "minimum-size": "0.005",
@@ -47,7 +42,7 @@
   "interval": 86400000000000,
   "data-type": "candle",
   "api-data": {
-   "start-date": "2021-05-01T00:00:00+10:00",
+   "start-date": "2021-08-01T00:00:00+10:00",
    "end-date": "2021-12-01T00:00:00+11:00",
    "inclusive-end-date": false
   }
