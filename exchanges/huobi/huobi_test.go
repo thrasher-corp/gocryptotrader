@@ -2752,7 +2752,9 @@ func TestFormatFuturesPair(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r != "BTC220708" {
+
+	// Upper case 'BTC' not 'btc' the rest is a changing contract code.
+	if !strings.Contains(r, "BTC") {
 		t.Errorf("expected %s, got %s", "BTC220708", r)
 	}
 }
