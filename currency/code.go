@@ -89,22 +89,24 @@ func (b *BaseCodes) GetFullCurrencyData() (File, error) {
 	var file File
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
-	for i := range b.Items {
-		switch b.Items[i].Role {
-		case Unset:
-			file.UnsetCurrency = append(file.UnsetCurrency, b.Items[i])
-		case Fiat:
-			file.FiatCurrency = append(file.FiatCurrency, b.Items[i])
-		case Cryptocurrency:
-			file.Cryptocurrency = append(file.Cryptocurrency, b.Items[i])
-		case Token:
-			file.Token = append(file.Token, b.Items[i])
-		case Contract:
-			file.Contracts = append(file.Contracts, b.Items[i])
-		case Stable:
-			file.Stable = append(file.Stable, b.Items[i])
-		default:
-			return file, errors.New("role undefined")
+	for _, stored := range b.Items {
+		for x := range stored {
+			switch stored[x].Role {
+			case Unset:
+				file.UnsetCurrency = append(file.UnsetCurrency, stored[x])
+			case Fiat:
+				file.FiatCurrency = append(file.FiatCurrency, stored[x])
+			case Cryptocurrency:
+				file.Cryptocurrency = append(file.Cryptocurrency, stored[x])
+			case Token:
+				file.Token = append(file.Token, stored[x])
+			case Contract:
+				file.Contracts = append(file.Contracts, stored[x])
+			case Stable:
+				file.Stable = append(file.Stable, stored[x])
+			default:
+				return file, errors.New("role undefined")
+			}
 		}
 	}
 	file.LastMainUpdate = b.LastMainUpdate.Unix()
@@ -116,8 +118,13 @@ func (b *BaseCodes) GetFullCurrencyData() (File, error) {
 func (b *BaseCodes) GetCurrencies() Currencies {
 	b.mtx.Lock()
 	currencies := make(Currencies, len(b.Items))
-	for i := range b.Items {
-		currencies[i] = Code{Item: b.Items[i]}
+	var target int
+	for _, stored := range b.Items {
+		if len(stored) == 0 {
+			continue
+		}
+		currencies[target] = Code{Item: stored[0]}
+		target++
 	}
 	b.mtx.Unlock()
 	return currencies
@@ -130,33 +137,39 @@ func (b *BaseCodes) UpdateCurrency(fullName, symbol, blockchain string, id int, 
 	}
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
-	for i := range b.Items {
-		if b.Items[i].Symbol != symbol || (b.Items[i].Role != Unset && b.Items[i].Role != r) {
-			continue
-		}
 
-		if fullName != "" {
-			b.Items[i].FullName = fullName
+	stored, ok := b.Items[symbol]
+	if ok {
+		for x := range stored {
+			if stored[x].Role != Unset && stored[x].Role != r {
+				continue
+			}
+
+			if fullName != "" {
+				stored[x].FullName = fullName
+			}
+			if r != Unset {
+				stored[x].Role = r
+			}
+			if blockchain != "" {
+				stored[x].AssocChain = blockchain
+			}
+			if id != 0 {
+				stored[x].ID = id
+			}
+			return nil
 		}
-		if r != Unset {
-			b.Items[i].Role = r
-		}
-		if blockchain != "" {
-			b.Items[i].AssocChain = blockchain
-		}
-		if id != 0 {
-			b.Items[i].ID = id
-		}
-		return nil
+		// If updating details fails, fall over and add a new item.
 	}
 
-	b.Items = append(b.Items, &Item{
+	b.Items[symbol] = append(b.Items[symbol], &Item{
 		Symbol:     symbol,
 		FullName:   fullName,
 		Role:       r,
 		AssocChain: blockchain,
 		ID:         id,
 	})
+
 	return nil
 }
 
@@ -181,26 +194,30 @@ func (b *BaseCodes) Register(c string, newRole Role) Code {
 
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
-	for i := range b.Items {
-		if b.Items[i].Symbol != c {
-			continue
-		}
 
-		if newRole != Unset {
-			if b.Items[i].Role == Unset {
-				b.Items[i].Role = newRole
-			} else if b.Items[i].Role != newRole {
-				// This will duplicate item with same name but different role.
-				// TODO: This will need a specific update to NewCode to add in
-				// a specific param to find the exact name and role.
-				continue
-			}
-		}
-
-		return Code{Item: b.Items[i], UpperCase: format}
+	if b.Items == nil {
+		b.Items = make(map[string][]*Item)
 	}
+
+	stored, ok := b.Items[c]
+	if ok {
+		for x := range stored {
+			if newRole != Unset {
+				if stored[x].Role == Unset {
+					stored[x].Role = newRole
+				} else if stored[x].Role != newRole {
+					// This will duplicate item with same name but different role.
+					// TODO: This will need a specific update to NewCode to add in
+					// a specific param to find the exact name and role.
+					continue
+				}
+			}
+			return Code{Item: stored[x], UpperCase: format}
+		}
+	}
+
 	newItem := &Item{Symbol: c, Lower: strings.ToLower(c), Role: newRole}
-	b.Items = append(b.Items, newItem)
+	b.Items[c] = append(b.Items[c], newItem)
 	return Code{Item: newItem, UpperCase: format}
 }
 
@@ -219,14 +236,21 @@ func (b *BaseCodes) LoadItem(item *Item) error {
 
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
-	for i := range b.Items {
-		if b.Items[i].Symbol != item.Symbol ||
-			(b.Items[i].Role != Unset && item.Role != Unset && b.Items[i].Role != item.Role) {
-			continue
+
+	stored, ok := b.Items[item.Symbol]
+	if ok {
+		for x := range stored {
+			if stored[x].Role == item.Role {
+				return nil
+			}
+
+			if stored[x].Role == Unset && item.Role != Unset {
+				stored[x].Role = item.Role
+				return nil
+			}
 		}
-		return nil
 	}
-	b.Items = append(b.Items, item)
+	b.Items[item.Symbol] = append(b.Items[item.Symbol], item)
 	return nil
 }
 

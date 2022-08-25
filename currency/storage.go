@@ -49,6 +49,7 @@ var (
 
 // SetDefaults sets storage defaults for basic package functionality
 func (s *Storage) SetDefaults() {
+	s.currencyCodes.Items = make(map[string][]*Item)
 	s.defaultBaseCurrency = USD
 	s.baseCurrency = s.defaultBaseCurrency
 	fiatCurrencies := make([]Code, 0, len(symbols))
