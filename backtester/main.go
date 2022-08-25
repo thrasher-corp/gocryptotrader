@@ -18,8 +18,10 @@ import (
 	_ "net/http/pprof"
 )
 
-var configPath, templatePath, reportOutput, strategyPluginPath string
-var printLogo, generateReport, darkReport, verbose, colourOutput, logSubHeader bool
+var (
+	configPath, templatePath, reportOutput, strategyPluginPath, pprofPath                   string
+	printLogo, generateReport, darkReport, verbose, colourOutput, logSubHeader, enablePProf bool
+)
 
 func main() {
 	wd, err := os.Getwd()
@@ -51,21 +53,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	if strategyPluginPath != "" {
-		err = strategies.LoadCustomStrategies(strategyPluginPath)
-		if err != nil {
-			fmt.Printf("Could not load custom strategies. Error: %v.\n", err)
-			os.Exit(1)
-		}
-	}
-
 	cfg, err = config.ReadConfigFromFile(configPath)
 	if err != nil {
 		fmt.Printf("Could not read config. Error: %v.\n", err)
 		os.Exit(1)
-	}
-	if printLogo {
-		fmt.Println(common.Logo())
 	}
 
 	err = cfg.Validate()
@@ -74,7 +65,30 @@ func main() {
 		os.Exit(1)
 	}
 
-	bt, err = backtest.NewFromConfig(cfg, templatePath, reportOutput, verbose)
+	if enablePProf {
+		go func() {
+			fmt.Println(http.ListenAndServe(pprofPath, nil))
+		}()
+	}
+
+	if printLogo {
+		fmt.Println(common.Logo())
+	}
+
+	if strategyPluginPath != "" {
+		err = strategies.LoadCustomStrategies(strategyPluginPath)
+		if err != nil {
+			fmt.Printf("Could not load custom strategies. Error: %v.\n", err)
+			os.Exit(1)
+		}
+	}
+
+	bt, err = backtest.NewBacktester()
+	if err != nil {
+		fmt.Printf("Could not create backtester. Error: %v.\n", err)
+		os.Exit(1)
+	}
+	err = bt.SetupFromConfig(cfg, templatePath, reportOutput, verbose)
 	if err != nil {
 		fmt.Printf("Could not setup backtester from config. Error: %v.\n", err)
 		os.Exit(1)
@@ -83,14 +97,20 @@ func main() {
 		go func() {
 			err = bt.RunLive()
 			if err != nil {
-				fmt.Printf("Could not complete live run. Error: %v.\n", err)
-				os.Exit(-1)
+				log.Error(common.Backtester, err)
 			}
 		}()
-		interrupt := signaler.WaitForInterrupt()
-		log.Infof(log.Global, "Captured %v, shutdown requested.\n", interrupt)
-		bt.Stop()
+		go waitForInterrupt(bt)
+		<-bt.LiveDataHandler.HasShutdown()
+		if cfg.DataSettings.LiveData.ClosePositionsOnExit {
+			log.Info(common.Backtester, "closing all positions on shutdown")
+			err := bt.CloseAllPositions()
+			if err != nil {
+				fmt.Printf("could not close all positions on exit: %v", err)
+			}
+		}
 	} else {
+		log.Info(common.Backtester, "running backtester against pre-defined data")
 		bt.Run()
 	}
 
@@ -107,6 +127,12 @@ func main() {
 			log.Error(log.Global, err)
 		}
 	}
+}
+
+func waitForInterrupt(bt *backtest.BackTest) {
+	interrupt := signaler.WaitForInterrupt()
+	log.Infof(common.Backtester, "Captured %v, shutdown requested.\n", interrupt)
+	bt.Stop()
 }
 
 func parseFlags(wd string) {
@@ -157,7 +183,7 @@ func parseFlags(wd string) {
 	flag.BoolVar(
 		&colourOutput,
 		"colouroutput",
-		false,
+		true,
 		"if enabled, will print in colours, if your terminal supports \033[38;5;99m[colours like this]\u001b[0m")
 	flag.BoolVar(
 		&logSubHeader,
@@ -169,95 +195,15 @@ func parseFlags(wd string) {
 		"strategypluginpath",
 		"",
 		"example path: "+filepath.Join(wd, "plugins", "strategies", "example", "example.so"))
+	flag.BoolVar(
+		&enablePProf,
+		"enablepprof",
+		false,
+		"if enabled, runs a pprof server for debugging")
+	flag.StringVar(
+		&pprofPath,
+		"pprofpath",
+		"http://localhost:6060",
+		"")
 	flag.Parse()
-	if !colourOutput {
-		common.PurgeColours()
-	}
-	var cfg *config.Config
-	log.GlobalLogConfig = log.GenDefaultSettings()
-	log.GlobalLogConfig.AdvancedSettings.ShowLogSystemName = convert.BoolPtr(logSubHeader)
-	log.GlobalLogConfig.AdvancedSettings.Headers.Info = common.ColourInfo + "[INFO]" + common.ColourDefault
-	log.GlobalLogConfig.AdvancedSettings.Headers.Warn = common.ColourWarn + "[WARN]" + common.ColourDefault
-	log.GlobalLogConfig.AdvancedSettings.Headers.Debug = common.ColourDebug + "[DEBUG]" + common.ColourDefault
-	log.GlobalLogConfig.AdvancedSettings.Headers.Error = common.ColourError + "[ERROR]" + common.ColourDefault
-	err = log.SetupGlobalLogger()
-	if err != nil {
-		fmt.Printf("Could not setup global logger. Error: %v.\n", err)
-		os.Exit(1)
-	}
-
-	go func() {
-		fmt.Println(http.ListenAndServe("localhost:6060", nil))
-	}()
-
-	err = common.RegisterBacktesterSubLoggers()
-	if err != nil {
-		fmt.Printf("Could not register subloggers. Error: %v.\n", err)
-		os.Exit(1)
-	}
-
-	cfg, err = config.ReadConfigFromFile(configPath)
-	if err != nil {
-		fmt.Printf("Could not read config. Error: %v.\n", err)
-		os.Exit(1)
-	}
-	if printLogo {
-		fmt.Println(common.Logo())
-	}
-
-	err = cfg.Validate()
-	if err != nil {
-		fmt.Printf("Could not read config. Error: %v.\n", err)
-		os.Exit(1)
-	}
-	bt, err := backtest.NewBacktester()
-	if err != nil {
-		fmt.Printf("Could not create backtester. Error: %v.\n", err)
-		os.Exit(1)
-	}
-	err = bt.SetupFromConfig(cfg, templatePath, reportOutput, verbose)
-	if err != nil {
-		fmt.Printf("Could not setup backtester from config. Error: %v.\n", err)
-		os.Exit(1)
-	}
-	if cfg.DataSettings.LiveData != nil {
-		go func() {
-			err = bt.RunLive()
-			if err != nil {
-				log.Error(common.Backtester, err)
-			}
-		}()
-		go waitForInterrupt(bt)
-		<-bt.LiveDataHandler.HasShutdown()
-		if cfg.DataSettings.LiveData.ClosePositionsOnExit {
-			log.Info(common.Backtester, "closing all positions on shutdown")
-			err := bt.CloseAllPositions()
-			if err != nil {
-				fmt.Printf("could not close all positions on exit: %v", err)
-			}
-		}
-	} else {
-		log.Info(common.Backtester, "running backtester against pre-defined data")
-		bt.Run()
-	}
-
-	err = bt.Statistic.CalculateAllResults()
-	if err != nil {
-		log.Error(log.Global, err)
-		os.Exit(1)
-	}
-
-	if generateReport {
-		bt.Reports.UseDarkMode(darkReport)
-		err = bt.Reports.GenerateReport()
-		if err != nil {
-			log.Error(log.Global, err)
-		}
-	}
-}
-
-func waitForInterrupt(bt *backtest.BackTest) {
-	interrupt := signaler.WaitForInterrupt()
-	log.Infof(common.Backtester, "Captured %v, shutdown requested.\n", interrupt)
-	bt.Stop()
 }
