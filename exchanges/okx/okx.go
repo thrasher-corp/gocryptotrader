@@ -235,7 +235,6 @@ var (
 	errUnderlyingsForSpecifiedInstTypeNofFound       = errors.New("underlyings for the specified instrument id is not found")
 	errInsuranceFundInformationNotFound              = errors.New("insurance fund information not found")
 	errMissingExpiryTimeParameter                    = errors.New("missing expiry date parameter")
-	errParsingResponseError                          = errors.New("error while parsing the response")
 	errInvalidTradeModeValue                         = errors.New("invalid trade mode value")
 	errMissingOrderSide                              = errors.New("missing order side")
 	errInvalidOrderType                              = errors.New("invalid order type")
@@ -3305,19 +3304,19 @@ func (ok *Okx) GetIndexTickers(ctx context.Context, quoteCurrency, instID string
 }
 
 // getInstrumentIDFromPair returns the instrument ID for the corresponding asset pairs and asset type( Instrument Type )
-func (ok *Okx) getInstrumentIDFromPair(pair currency.Pair, a asset.Item) (string, error) {
+func (ok *Okx) getInstrumentIDFromPair(ctx context.Context, pair currency.Pair, a asset.Item) (string, error) {
 	format, er := ok.GetPairFormat(a, false)
 	if er != nil {
 		return "", er
 	}
-	if pair.IsEmpty() || pair.Base.String() == "" || pair.Quote.String() == "" {
+	if pair.Base.String() == "" || pair.Quote.String() == "" {
 		return "", errors.New("incomplete currency pair")
 	}
 	switch a {
 	case asset.PerpetualSwap:
 		return pair.Base.String() + format.Delimiter + pair.Quote.String() + format.Delimiter + okxInstTypeSwap, nil
 	case asset.Option:
-		instruments, er := ok.GetInstruments(context.Background(), &InstrumentsFetchParams{
+		instruments, er := ok.GetInstruments(ctx, &InstrumentsFetchParams{
 			InstrumentType: okxInstTypeOption,
 			Underlying:     pair.Base.String() + format.Delimiter + pair.Quote.String(),
 		})
@@ -3334,7 +3333,7 @@ func (ok *Okx) getInstrumentIDFromPair(pair currency.Pair, a asset.Item) (string
 			}
 		}
 	case asset.Futures:
-		instruments, er := ok.GetInstruments(context.Background(), &InstrumentsFetchParams{
+		instruments, er := ok.GetInstruments(ctx, &InstrumentsFetchParams{
 			InstrumentType: okxInstTypeFutures,
 		})
 		if er != nil {

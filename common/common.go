@@ -484,7 +484,7 @@ func GenerateRandomString(length int, characters ...string) string {
 	b := make([]byte, length)
 	chars := strings.Join(characters, "")
 	for i := range b {
-		nBig, err := rand.Int(rand.Reader, big.NewInt(27))
+		nBig, err := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
 		if err != nil {
 			return ""
 		}

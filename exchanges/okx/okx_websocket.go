@@ -16,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -226,7 +225,7 @@ func (ok *Okx) WsConnect() error {
 		authDialer.ReadBufferSize = 8192
 		authDialer.WriteBufferSize = 8192
 		go func() {
-			er = ok.WsAuth(context.Background(), &authDialer)
+			er = ok.WsAuth(context.TODO(), &authDialer)
 			if er != nil {
 				ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
 				return
@@ -246,7 +245,6 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 	if !ok.Websocket.CanUseAuthenticatedEndpoints() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", ok.Name)
 	}
-	var creds *account.Credentials
 	err := ok.Websocket.AuthConn.Dial(dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v Websocket connection %v error. Error %v", ok.Name, okxAPIWebsocketPrivateURL, err)
@@ -256,7 +254,7 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 		MessageType:       websocket.PingMessage,
 		Delay:             time.Second * 5,
 	})
-	creds, err = ok.GetCredentials(ctx)
+	creds, err := ok.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
@@ -377,7 +375,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 				}
 			}
 			if instrumentID == "" {
-				instrumentID, er = ok.getInstrumentIDFromPair(subscriptions[i].Currency, subscriptions[i].Asset)
+				instrumentID, er = ok.getInstrumentIDFromPair(context.TODO(), subscriptions[i].Currency, subscriptions[i].Asset)
 				if er != nil {
 					instrumentID = ""
 				}
@@ -1540,7 +1538,7 @@ func (ok *Okx) WsChannelSubscription(operation, channel string, assetType asset.
 		}
 	}
 	if len(tooglers) > 1 && tooglers[1] {
-		instrumentID, er = ok.getInstrumentIDFromPair(pair, assetType)
+		instrumentID, er = ok.getInstrumentIDFromPair(context.TODO(), pair, assetType)
 		if er != nil {
 			instrumentID = ""
 		}
@@ -1559,7 +1557,8 @@ func (ok *Okx) WsChannelSubscription(operation, channel string, assetType asset.
 			},
 		},
 	}
-	respData, er := ok.Websocket.Conn.SendMessageReturnResponse(channel, input)
+	randomID := common.GenerateRandomString(32, common.SmallLetters, common.CapitalLetters, common.NumberCharacters)
+	respData, er := ok.Websocket.Conn.SendMessageReturnResponse(randomID, input)
 	if er != nil {
 		return nil, er
 	}
@@ -1605,7 +1604,7 @@ func (ok *Okx) WsAuthChannelSubscription(operation, channel string, assetType as
 		}
 	}
 	if len(tooglers) > 1 && tooglers[1] {
-		instrumentID, er = ok.getInstrumentIDFromPair(pair, assetType)
+		instrumentID, er = ok.getInstrumentIDFromPair(context.TODO(), pair, assetType)
 		if er != nil {
 			instrumentID = ""
 		}

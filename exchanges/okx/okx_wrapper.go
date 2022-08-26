@@ -359,13 +359,13 @@ func (ok *Okx) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) 
 	var mdata *TickerResponse
 	var er error
 	var instrumentID string
-	instrumentID, er = ok.getInstrumentIDFromPair(p, a)
+	instrumentID, er = ok.getInstrumentIDFromPair(ctx, p, a)
 	if er != nil {
 		return nil, er
 	}
 	switch a {
 	case asset.Spot, asset.Margin, asset.PerpetualSwap, asset.Futures, asset.Option:
-		mdata, er = ok.GetTicker(context.Background(), instrumentID)
+		mdata, er = ok.GetTicker(ctx, instrumentID)
 		if er != nil {
 			return nil, er
 		}
@@ -395,13 +395,7 @@ func (ok *Okx) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) 
 func (ok *Okx) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 	switch assetType {
 	case asset.Spot, asset.Margin, asset.Futures, asset.PerpetualSwap, asset.Option:
-		var instrumentType string
-		switch assetType {
-		case asset.PerpetualSwap:
-			instrumentType = "SWAP"
-		default:
-			instrumentType = assetType.String()
-		}
+		instrumentType := ok.GetInstrumentTypeFromAssetItem(assetType)
 		ticks, er := ok.GetTickers(ctx, strings.ToUpper(instrumentType), "", "")
 		if er != nil {
 			return er
@@ -481,7 +475,7 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 	switch assetType {
 	case asset.Spot, asset.Margin, asset.PerpetualSwap, asset.Option, asset.Futures:
 		var instrumentID string
-		instrumentID, er = ok.getInstrumentIDFromPair(pair, assetType)
+		instrumentID, er = ok.getInstrumentIDFromPair(ctx, pair, assetType)
 		if er != nil {
 			return book, er
 		}
@@ -524,7 +518,7 @@ func (ok *Okx) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 	info.Exchange = ok.Name
 	switch assetType {
 	case asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Option:
-		balances, er := ok.GetBalance(context.Background(), "")
+		balances, er := ok.GetBalance(ctx, "")
 		if er != nil {
 			return info, er
 		}
@@ -636,7 +630,7 @@ func (ok *Okx) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ ass
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	const limit = 1000
-	instrumentID, er := ok.getInstrumentIDFromPair(p, assetType)
+	instrumentID, er := ok.getInstrumentIDFromPair(ctx, p, assetType)
 	if er != nil {
 		return nil, er
 	}
@@ -669,7 +663,7 @@ func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (ok *Okx) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	const limit = 1000
-	instrumentID, er := ok.getInstrumentIDFromPair(p, assetType)
+	instrumentID, er := ok.getInstrumentIDFromPair(ctx, p, assetType)
 	if er != nil {
 		return nil, er
 	}
@@ -723,7 +717,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		}
 		orderType = ""
 	}
-	instrumentID, er := ok.getInstrumentIDFromPair(s.Pair, s.AssetType)
+	instrumentID, er := ok.getInstrumentIDFromPair(ctx, s.Pair, s.AssetType)
 	if er != nil {
 		return nil, er
 	}
@@ -780,7 +774,7 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 	if math.Mod(action.Amount, 1) != 0 {
 		return nil, errors.New("Okx contract amount can not be decimal")
 	}
-	instrumentID, er := ok.getInstrumentIDFromPair(action.Pair, action.AssetType)
+	instrumentID, er := ok.getInstrumentIDFromPair(ctx, action.Pair, action.AssetType)
 	if er != nil {
 		return nil, er
 	}
@@ -809,7 +803,7 @@ func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	}
 	switch ord.AssetType {
 	case asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Option:
-		instrumentID, er := ok.getInstrumentIDFromPair(ord.Pair, ord.AssetType)
+		instrumentID, er := ok.getInstrumentIDFromPair(ctx, ord.Pair, ord.AssetType)
 		if er != nil {
 			return er
 		}
@@ -838,7 +832,7 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (or
 		switch ord.AssetType {
 		case asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Option:
 			var instrumentID string
-			instrumentID, er = ok.getInstrumentIDFromPair(ord.Pair, ord.AssetType)
+			instrumentID, er = ok.getInstrumentIDFromPair(ctx, ord.Pair, ord.AssetType)
 			if er != nil {
 				return cancelBatchResponse, er
 			}
@@ -864,13 +858,13 @@ func (ok *Okx) CancelAllOrders(ctx context.Context, orderCancellation *order.Can
 // GetOrderInfo returns order information based on order ID
 func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var respData order.Detail
-	instrumentID, er := ok.getInstrumentIDFromPair(pair, assetType)
+	instrumentID, er := ok.getInstrumentIDFromPair(ctx, pair, assetType)
 	if er != nil {
 		return respData, er
 	}
 	switch assetType {
 	case asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Option:
-		orderDetail, er := ok.GetOrderDetail(context.Background(), &OrderDetailRequestParam{
+		orderDetail, er := ok.GetOrderDetail(ctx, &OrderDetailRequestParam{
 			InstrumentID: instrumentID,
 			OrderID:      orderID,
 		})
@@ -932,6 +926,13 @@ func (ok *Okx) GetDepositAddress(ctx context.Context, c currency.Code, accountID
 				Chain:   response[x].Chain,
 			}, nil
 		}
+	}
+	if len(response) > 0 {
+		return &deposit.Address{
+			Address: response[0].Address,
+			Tag:     response[0].Tag,
+			Chain:   response[0].Chain,
+		}, nil
 	}
 	return nil, errDepositAddressNotFound
 }
@@ -1183,7 +1184,7 @@ func (ok *Okx) GetHistoricCandles(ctx context.Context, pair currency.Pair, a ass
 	if kline.TotalCandlesPerInterval(start, end, interval) > float64(ok.Features.Enabled.Kline.ResultLimit) {
 		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
 	}
-	instrumentID, err := ok.getInstrumentIDFromPair(pair, a)
+	instrumentID, err := ok.getInstrumentIDFromPair(ctx, pair, a)
 	if err != nil {
 		return kline.Item{}, err
 	}

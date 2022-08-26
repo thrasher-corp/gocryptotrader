@@ -112,7 +112,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetOrderBookDepth(t *testing.T) {
 	t.Parallel()
-	instrumentID, er := ok.getInstrumentIDFromPair(currency.NewPair(currency.BTC, currency.USDT), asset.Spot)
+	instrumentID, er := ok.getInstrumentIDFromPair(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.Spot)
 	if er != nil {
 		t.Error("Okx GetInstrumentIDFromPair() error", er)
 	}
@@ -188,7 +188,7 @@ func TestGetIndexComponents(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	instID, er := ok.getInstrumentIDFromPair(currency.NewPair(currency.BTC, currency.USDT), asset.Spot)
+	instID, er := ok.getInstrumentIDFromPair(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.Spot)
 	if er != nil {
 		t.Error("Okx GetInstrumentIDFromPair() error", er)
 	}
@@ -2437,7 +2437,7 @@ func TestGetDepositAddress(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := ok.GetDepositAddress(context.Background(), currency.USDT, "", currency.BNB.String()); err != nil && !errors.Is(err, errDepositAddressNotFound) {
+	if _, err := ok.GetDepositAddress(context.Background(), currency.BTC, "", currency.USD.String()); err != nil && !errors.Is(err, errDepositAddressNotFound) {
 		t.Error("Okx GetDepositAddress() error", err)
 	}
 }

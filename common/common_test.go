@@ -721,3 +721,11 @@ func TestMatchesEmailPattern(t *testing.T) {
 		t.Error("MatchesEmailPattern() unexpected test validation result")
 	}
 }
+
+func TestGenerateRandomString(t *testing.T) {
+	sample := GenerateRandomString(5, NumberCharacters)
+	value, err := strconv.Atoi(sample)
+	if len(sample) != 5 || err != nil || value < 0 {
+		t.Error("GenerateRandomString() unexpected test validation result")
+	}
+}
