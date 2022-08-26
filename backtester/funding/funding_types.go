@@ -27,11 +27,11 @@ type IFundingManager interface {
 	GetAllFunding() []BasicItem
 	UpdateCollateralForEvent(common.Event, bool) error
 	UpdateAllCollateral(bool) error
-	UpdateFunding(bool) error
+	UpdateFundingFromLiveData(hasUpdatedFunding bool) error
 	HasFutures() bool
 	HasExchangeBeenLiquidated(handler common.Event) bool
 	RealisePNL(receivingExchange string, receivingAsset asset.Item, receivingCurrency currency.Code, realisedPNL decimal.Decimal) error
-	SetFunding(string, asset.Item, *account.Balance) error
+	SetFunding(string, asset.Item, *account.Balance, bool) error
 }
 
 // IFundingTransferer allows for funding amounts to be transferred

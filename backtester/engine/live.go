@@ -136,16 +136,19 @@ func (l *dataChecker) DataFetcher() error {
 			if !updated {
 				continue
 			}
-			err = l.UpdateFunding()
-			if err != nil {
-				return err
-			}
 			l.notice.Alert()
 			if !timeoutTimer.Stop() {
 				// drain to avoid closure
 				<-timeoutTimer.C
 			}
 			timeoutTimer.Reset(l.eventTimeout)
+			go func() {
+				err = l.UpdateFunding()
+				if err != nil {
+					log.Errorf(common.LiveStrategy, "could not update funding %v", err)
+				}
+			}()
+
 		case <-timeoutTimer.C:
 			return fmt.Errorf("%w of %v", ErrLiveDataTimeout, l.eventTimeout)
 		}
@@ -157,18 +160,31 @@ func (l *dataChecker) UpdateFunding() error {
 	if !l.realOrders {
 		return nil
 	}
+	if !atomic.CompareAndSwapUint32(&l.updatingFunding, 0, 1) {
+		// already processing funding and can't go any faster
+		return nil
+	}
+	defer atomic.StoreUint32(&l.updatingFunding, 0)
+
 	// TODO: design a more sophisticated way of keeping funds up to date
 	// with current data type retrieval, this still functions appropriately
-	err := l.funding.UpdateFunding(true)
+	ts := time.Now()
+	err := l.funding.UpdateFundingFromLiveData(l.hasUpdatedFunding)
 	if err != nil {
 		return err
 	}
+	if !l.hasUpdatedFunding {
+		l.hasUpdatedFunding = true
+	}
+	log.Debugf(common.LiveStrategy, "UpdateFundingFromLiveData: %v", time.Since(ts))
 
 	if l.funding.HasFutures() {
+		ts = time.Now()
 		err = l.funding.UpdateAllCollateral(true)
 		if err != nil {
 			return err
 		}
+		log.Debugf(common.LiveStrategy, "UpdateAllCollateral: %v", time.Since(ts))
 	}
 	return nil
 }
@@ -330,6 +346,14 @@ func (l *dataChecker) FetchLatestData() (bool, error) {
 			log.Errorf(common.LiveStrategy, "%v %v %v issue processing USD tracking data: %v", l.sourcesToCheck[i].exchangeName, l.sourcesToCheck[i].asset, l.sourcesToCheck[i].pair, err)
 		}
 	}
+	if !l.hasUpdatedFunding {
+		err = l.UpdateFunding()
+		if err != nil {
+			if err != nil {
+				log.Error(common.LiveStrategy, err)
+			}
+		}
+	}
 
 	return true, nil
 }
@@ -386,6 +410,11 @@ func (l *dataChecker) SetDataForClosingAllPositions(s ...signal.Event) error {
 	}
 
 	return nil
+}
+
+// IsRealOrders is a quick check for if the strategy is using real orders
+func (c *dataChecker) IsRealOrders() bool {
+	return c.realOrders
 }
 
 // loadCandleData fetches data from the exchange API and appends it

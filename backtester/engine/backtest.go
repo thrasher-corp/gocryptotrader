@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
@@ -566,9 +567,15 @@ func (bt *BackTest) CloseAllPositions() error {
 	// fill.Event run
 	bt.Run()
 
-	err = bt.LiveDataHandler.UpdateFunding()
-	if err != nil {
-		return err
+	if bt.LiveDataHandler.IsRealOrders() {
+		// positions are now closed. Sometimes it can take some time
+		// for values to be recalculated on the exchange's side,
+		// sleep for a second and then get the final data
+		time.Sleep(time.Second)
+		err = bt.LiveDataHandler.UpdateFunding()
+		if err != nil {
+			return err
+		}
 	}
 	bt.Funding.CreateSnapshot(events[0].GetTime())
 	return nil

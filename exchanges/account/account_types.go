@@ -50,7 +50,7 @@ type SubAccount struct {
 	Currencies  []Balance
 }
 
-// Balance is a sub type to store currency name and individual totals
+// Balance is a sub-type to store currency name and individual totals
 type Balance struct {
 	CurrencyName           currency.Code
 	Total                  float64

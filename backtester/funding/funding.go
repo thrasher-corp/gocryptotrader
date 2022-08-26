@@ -132,7 +132,6 @@ func (f *FundManager) CreateSnapshot(t time.Time) {
 			Available: f.items[i].available,
 			Time:      t,
 		}
-
 		if !f.disableUSDTracking {
 			var usdClosePrice decimal.Decimal
 			if f.items[i].trackingCandles == nil {
@@ -560,12 +559,8 @@ func (f *FundManager) GetAllFunding() []BasicItem {
 	return result
 }
 
-// UpdateFunding forcefully updates funding from a live source
-func (f *FundManager) UpdateFunding(isLive bool) error {
-	if !isLive {
-		// funding is already managed offline
-		return nil
-	}
+// UpdateFundingFromLiveData forcefully updates funding from a live source
+func (f *FundManager) UpdateFundingFromLiveData(hasUpdatedFunding bool) error {
 	exchanges, err := f.exchangeManager.GetExchanges()
 	if err != nil {
 		return err
@@ -590,7 +585,7 @@ func (f *FundManager) UpdateFunding(isLive bool) error {
 					continue
 				}
 				for i := range acc.Accounts[z].Currencies {
-					err = f.SetFunding(exchanges[x].GetName(), assets[y], &acc.Accounts[z].Currencies[i])
+					err = f.SetFunding(exchanges[x].GetName(), assets[y], &acc.Accounts[z].Currencies[i], hasUpdatedFunding)
 					if err != nil {
 						return err
 					}
@@ -629,7 +624,7 @@ func (f *FundManager) UpdateAllCollateral(isLive bool) error {
 					usd = latest.GetClosePrice()
 				}
 			}
-			if usd.IsZero() {
+			if usd.IsZero() && exchangeCollateralCalculator.CalculateOffline {
 				continue
 			}
 			var side = gctorder.Buy
@@ -780,7 +775,7 @@ func (f *FundManager) HasExchangeBeenLiquidated(ev common.Event) bool {
 // SetFunding overwrites a funding setting. This is for live trading
 // where external wallet amounts need to be synced
 // only the amount is to be overwritten
-func (f *FundManager) SetFunding(exchName string, item asset.Item, balance *account.Balance) error {
+func (f *FundManager) SetFunding(exchName string, item asset.Item, balance *account.Balance, hasUpdatedFunding bool) error {
 	if exchName == "" || !item.IsValid() || item.IsFutures() || balance == nil || balance.CurrencyName.IsEmpty() {
 		return errCannotTransferToSameFunds
 	}
@@ -796,6 +791,9 @@ func (f *FundManager) SetFunding(exchName string, item asset.Item, balance *acco
 			continue
 		}
 		log.Debugf(common.FundManager, "setting %v %v %v to %v", exchName, item, balance.CurrencyName, balance.Total)
+		if !hasUpdatedFunding {
+			f.items[i].initialFunds = amount
+		}
 		f.items[i].available = amount
 		return nil
 	}

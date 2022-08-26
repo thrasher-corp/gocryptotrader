@@ -251,12 +251,16 @@ func (c *Config) PrintSetting() {
 	if c.FundingSettings.UseExchangeLevelFunding && c.StrategySettings.SimultaneousSignalProcessing {
 		log.Info(common.Config, common.ColourH2+"------------------Funding Settings---------------------------"+common.ColourDefault)
 		log.Infof(common.Config, "Use Exchange Level Funding: %v", c.FundingSettings.UseExchangeLevelFunding)
-		for i := range c.FundingSettings.ExchangeLevelFunding {
-			log.Infof(common.Config, "Initial funds for %v %v %v: %v",
-				c.FundingSettings.ExchangeLevelFunding[i].ExchangeName,
-				c.FundingSettings.ExchangeLevelFunding[i].Asset,
-				c.FundingSettings.ExchangeLevelFunding[i].Currency,
-				c.FundingSettings.ExchangeLevelFunding[i].InitialFunds.Round(8))
+		if c.DataSettings.LiveData != nil && c.DataSettings.LiveData.RealOrders {
+			log.Infof(common.Config, "funding levels will be set by the exchange")
+		} else {
+			for i := range c.FundingSettings.ExchangeLevelFunding {
+				log.Infof(common.Config, "Initial funds for %v %v %v: %v",
+					c.FundingSettings.ExchangeLevelFunding[i].ExchangeName,
+					c.FundingSettings.ExchangeLevelFunding[i].Asset,
+					c.FundingSettings.ExchangeLevelFunding[i].Currency,
+					c.FundingSettings.ExchangeLevelFunding[i].InitialFunds.Round(8))
+			}
 		}
 	}
 
@@ -267,7 +271,10 @@ func (c *Config) PrintSetting() {
 			c.CurrencySettings[i].Quote)
 		log.Infof(common.Config, currStr[:61])
 		log.Infof(common.Config, "Exchange: %v", c.CurrencySettings[i].ExchangeName)
-		if !c.FundingSettings.UseExchangeLevelFunding && c.CurrencySettings[i].SpotDetails != nil {
+		switch {
+		case c.DataSettings.LiveData != nil && c.DataSettings.LiveData.RealOrders:
+			log.Infof(common.Config, "funding levels will be set by the exchange")
+		case !c.FundingSettings.UseExchangeLevelFunding && c.CurrencySettings[i].SpotDetails != nil:
 			if c.CurrencySettings[i].SpotDetails.InitialBaseFunds != nil {
 				log.Infof(common.Config, "Initial base funds: %v %v",
 					c.CurrencySettings[i].SpotDetails.InitialBaseFunds.Round(8),

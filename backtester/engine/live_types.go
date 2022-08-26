@@ -45,6 +45,7 @@ type Handler interface {
 	HasShutdown() <-chan bool
 	SetDataForClosingAllPositions(events ...signal.Event) error
 	UpdateFunding() error
+	IsRealOrders() bool
 }
 
 // dataChecker is responsible for managing all data retrieval
@@ -53,8 +54,10 @@ type dataChecker struct {
 	m                 sync.Mutex
 	wg                sync.WaitGroup
 	started           uint32
+	updatingFunding   uint32
 	verboseDataCheck  bool
 	realOrders        bool
+	hasUpdatedFunding bool
 	exchangeManager   *engine.ExchangeManager
 	sourcesToCheck    []*liveDataSourceDataHandler
 	eventTimeout      time.Duration

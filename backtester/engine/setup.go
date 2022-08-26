@@ -84,6 +84,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		}
 	}
 	bt.verbose = verbose
+	realOrderTrading := cfg.DataSettings.LiveData != nil && cfg.DataSettings.LiveData.RealOrders
 	bt.DataHolder.Setup()
 	reports := &report.Data{
 		Config:       cfg,
@@ -91,7 +92,6 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		OutputPath:   output,
 	}
 	bt.Reports = reports
-
 	buyRule := exchange.MinMax{
 		MinimumSize:  cfg.PortfolioSettings.BuySide.MinimumSize,
 		MaximumSize:  cfg.PortfolioSettings.BuySide.MaximumSize,
@@ -116,7 +116,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		return err
 	}
 
-	if cfg.FundingSettings.UseExchangeLevelFunding {
+	if cfg.FundingSettings.UseExchangeLevelFunding && !realOrderTrading {
 		for i := range cfg.FundingSettings.ExchangeLevelFunding {
 			a := cfg.FundingSettings.ExchangeLevelFunding[i].Asset
 			cq := cfg.FundingSettings.ExchangeLevelFunding[i].Currency
@@ -135,7 +135,6 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 			}
 		}
 	}
-	var wg sync.WaitGroup
 	for i := range cfg.CurrencySettings {
 		var exch gctexchange.IBotExchange
 		exch, err = bt.exchangeManager.GetExchangeByName(cfg.CurrencySettings[i].ExchangeName)
@@ -158,25 +157,14 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 				if err != nil {
 					return err
 				}
-				assets := exchBase.CurrencyPairs.GetAssetTypes(false)
-				for x := range assets {
-					var pairs currency.Pairs
-					pairs, err = exchBase.CurrencyPairs.GetPairs(assets[x], false)
-					if err != nil {
-						return err
-					}
-					exchBase.CurrencyPairs.StorePairs(assets[x], pairs, true)
-				}
 				if cfg.DataSettings.LiveData != nil && cfg.DataSettings.LiveData.RealOrders {
 					exchBase.States = currencystate.NewCurrencyStates()
 				}
-				err = exch.UpdateOrderExecutionLimits(context.TODO(), asset.Empty)
-				if err != nil && !errors.Is(err, gctcommon.ErrNotYetImplemented) {
-					return err
-				}
-				err = exch.Start(&wg)
-				if err != nil {
-					return err
+				if cfg.CurrencySettings[i].CanUseExchangeLimits || realOrderTrading {
+					err = exch.UpdateOrderExecutionLimits(context.TODO(), asset.Empty)
+					if err != nil && !errors.Is(err, gctcommon.ErrNotYetImplemented) {
+						return err
+					}
 				}
 				bt.exchangeManager.Add(exch)
 			} else {
@@ -184,7 +172,6 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 			}
 		}
 
-		wg.Wait()
 		exchBase := exch.GetBase()
 		exchangeAsset, ok := exchBase.CurrencyPairs.Pairs[cfg.CurrencySettings[i].Asset]
 		if !ok {
@@ -200,6 +187,14 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 
 	portfolioRisk := &risk.Risk{
 		CurrencySettings: make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*risk.CurrencySettings),
+	}
+
+	bt.Funding = funds
+	if cfg.DataSettings.LiveData != nil {
+		err = bt.SetupLiveDataHandler(cfg.DataSettings.LiveData.NewEventTimeout, cfg.DataSettings.LiveData.DataCheckTimer, cfg.DataSettings.LiveData.RealOrders, verbose)
+		if err != nil {
+			return err
+		}
 	}
 
 	for i := range cfg.CurrencySettings {
@@ -250,7 +245,15 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		}
 
 		var baseItem, quoteItem, futureItem *funding.Item
-		if cfg.FundingSettings.UseExchangeLevelFunding {
+		switch {
+		case cfg.FundingSettings.UseExchangeLevelFunding:
+			if realOrderTrading {
+				exchBase := exch.GetBase()
+				err = setExchangeCredentials(cfg, exchBase)
+				if err != nil {
+					return err
+				}
+			}
 			switch {
 			case a == asset.Spot:
 				// add any remaining currency items that have no funding data in the strategy config
@@ -307,7 +310,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 			default:
 				return fmt.Errorf("%w: %v", asset.ErrNotSupported, a)
 			}
-		} else {
+		default:
 			var bFunds, qFunds decimal.Decimal
 			if cfg.CurrencySettings[i].SpotDetails != nil {
 				if cfg.CurrencySettings[i].SpotDetails.InitialBaseFunds != nil {
@@ -344,14 +347,6 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 			if err != nil {
 				return err
 			}
-		}
-	}
-
-	bt.Funding = funds
-	if cfg.DataSettings.LiveData != nil {
-		err = bt.SetupLiveDataHandler(cfg.DataSettings.LiveData.NewEventTimeout, cfg.DataSettings.LiveData.DataCheckTimer, cfg.DataSettings.LiveData.RealOrders, verbose)
-		if err != nil {
-			return err
 		}
 	}
 
@@ -432,9 +427,12 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		}
 	}
 	bt.Portfolio = p
-
 	cfg.PrintSetting()
 	if bt.LiveDataHandler != nil {
+		err = bt.LiveDataHandler.UpdateFunding()
+		if err != nil {
+			return err
+		}
 		return bt.LiveDataHandler.Start()
 	}
 
@@ -758,7 +756,6 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			return resp, err
 		}
 	case cfg.DataSettings.LiveData != nil:
-		err = setExchangeCredentials(cfg, b)
 		bt.exchangeManager.Add(exch)
 		if err != nil {
 			return nil, err
@@ -857,6 +854,9 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 func setExchangeCredentials(cfg *config.Config, base *gctexchange.Base) error {
 	if cfg == nil || base == nil || cfg.DataSettings.LiveData == nil {
 		return common.ErrNilArguments
+	}
+	if !cfg.DataSettings.LiveData.RealOrders {
+		return nil
 	}
 	if cfg.DataSettings.Interval <= 0 {
 		return errIntervalUnset
