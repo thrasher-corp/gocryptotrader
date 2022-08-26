@@ -27,6 +27,8 @@ var (
 	errRoleUnset   = errors.New("role unset")
 )
 
+// String implements the stringer interface and returns a string representation
+// of the underlying role.
 func (r Role) String() string {
 	switch r {
 	case Fiat:
@@ -131,45 +133,47 @@ func (b *BaseCodes) GetCurrencies() Currencies {
 }
 
 // UpdateCurrency updates or registers a currency/contract
-func (b *BaseCodes) UpdateCurrency(fullName, symbol, blockchain string, id int, r Role) error {
-	if r == Unset {
-		return fmt.Errorf("cannot update currency %w for %s", errRoleUnset, symbol)
+func (b *BaseCodes) UpdateCurrency(update *Item) error {
+	if update == nil {
+		return errItemIsNil
 	}
+
+	if update.Symbol == "" {
+		return errSymbolEmpty
+	}
+
+	update.Symbol = strings.ToUpper(update.Symbol)
+	update.Lower = strings.ToLower(update.Symbol)
+
+	if update.Role == Unset {
+		return fmt.Errorf("cannot update currency %w for %s", errRoleUnset, update.Symbol)
+	}
+
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 
-	stored, ok := b.Items[symbol]
+	stored, ok := b.Items[update.Symbol]
 	if ok {
 		for x := range stored {
-			if stored[x].Role != Unset && stored[x].Role != r {
+			if stored[x].Role != Unset && stored[x].Role != update.Role {
 				continue
 			}
 
-			if fullName != "" {
-				stored[x].FullName = fullName
+			stored[x].Role = update.Role // NOTE: Update role is checked above.
+
+			if update.FullName != "" {
+				stored[x].FullName = update.FullName
 			}
-			if r != Unset {
-				stored[x].Role = r
+			if update.AssocChain != "" {
+				stored[x].AssocChain = update.AssocChain
 			}
-			if blockchain != "" {
-				stored[x].AssocChain = blockchain
-			}
-			if id != 0 {
-				stored[x].ID = id
+			if update.ID != 0 {
+				stored[x].ID = update.ID
 			}
 			return nil
 		}
-		// If updating details fails, fall over and add a new item.
 	}
-
-	b.Items[symbol] = append(b.Items[symbol], &Item{
-		Symbol:     symbol,
-		FullName:   fullName,
-		Role:       r,
-		AssocChain: blockchain,
-		ID:         id,
-	})
-
+	b.Items[update.Symbol] = append(b.Items[update.Symbol], update)
 	return nil
 }
 
@@ -203,14 +207,14 @@ func (b *BaseCodes) Register(c string, newRole Role) Code {
 	if ok {
 		for x := range stored {
 			if newRole != Unset {
-				if stored[x].Role == Unset {
-					stored[x].Role = newRole
-				} else if stored[x].Role != newRole {
-					// This will duplicate item with same name but different role.
-					// TODO: This will need a specific update to NewCode to add in
-					// a specific param to find the exact name and role.
+				if stored[x].Role != Unset && stored[x].Role != newRole {
+					// This will duplicate item with same name but different
+					// role if not matched in stored list.
+					// TODO: This will need a specific update to NewCode() or
+					// new function to find the exact name and role.
 					continue
 				}
+				stored[x].Role = newRole
 			}
 			return Code{Item: stored[x], UpperCase: format}
 		}

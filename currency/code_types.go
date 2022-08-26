@@ -63,6 +63,18 @@ func (*Item) Lock() {}
 // Unlock implements the sync.Locker interface and forces a govet check nocopy
 func (*Item) Unlock() {}
 
+// copy does a full copy of item
+func (i *Item) copy() *Item {
+	return &Item{
+		ID:         i.ID,
+		FullName:   i.FullName,
+		Symbol:     i.Symbol,
+		Lower:      i.Lower,
+		Role:       i.Role,
+		AssocChain: i.AssocChain,
+	}
+}
+
 // Const declarations for individual currencies/tokens/fiat
 // An ever growing list. Cares not for equivalence, just is
 var (

@@ -49,7 +49,6 @@ var (
 
 // SetDefaults sets storage defaults for basic package functionality
 func (s *Storage) SetDefaults() {
-	s.currencyCodes.Items = make(map[string][]*Item)
 	s.defaultBaseCurrency = USD
 	s.baseCurrency = s.defaultBaseCurrency
 	fiatCurrencies := make([]Code, 0, len(symbols))
@@ -229,7 +228,9 @@ func (s *Storage) SetupConversionRates() {
 // to the running list
 func (s *Storage) SetDefaultFiatCurrencies(c Currencies) error {
 	for i := range c {
-		err := s.currencyCodes.UpdateCurrency("", c[i].String(), "", 0, Fiat)
+		update := c[i].Item.copy()
+		update.Role = Fiat
+		err := s.currencyCodes.UpdateCurrency(update)
 		if err != nil {
 			return err
 		}
@@ -243,7 +244,9 @@ func (s *Storage) SetDefaultFiatCurrencies(c Currencies) error {
 // list
 func (s *Storage) SetStableCoins(c Currencies) error {
 	for i := range c {
-		err := s.currencyCodes.UpdateCurrency("", c[i].String(), "", 0, Stable)
+		update := c[i].Item.copy()
+		update.Role = Stable
+		err := s.currencyCodes.UpdateCurrency(update)
 		if err != nil {
 			return err
 		}
@@ -256,11 +259,9 @@ func (s *Storage) SetStableCoins(c Currencies) error {
 // it to the running list
 func (s *Storage) SetDefaultCryptocurrencies(c Currencies) error {
 	for i := range c {
-		err := s.currencyCodes.UpdateCurrency("",
-			c[i].String(),
-			"",
-			0,
-			Cryptocurrency)
+		update := c[i].Item.copy()
+		update.Role = Cryptocurrency
+		err := s.currencyCodes.UpdateCurrency(update)
 		if err != nil {
 			return err
 		}
@@ -465,33 +466,29 @@ func (s *Storage) LoadFileCurrencyData(f *File) error {
 
 // UpdateCurrencies updates currency role and information using coin market cap
 func (s *Storage) UpdateCurrencies() error {
-	m, err := s.currencyAnalysis.GetCryptocurrencyIDMap()
+	currencyUpdates, err := s.currencyAnalysis.GetCryptocurrencyIDMap()
 	if err != nil {
 		return err
 	}
 
-	for x := range m {
-		if m[x].IsActive != 1 {
+	for x := range currencyUpdates {
+		if currencyUpdates[x].IsActive != 1 {
 			continue
 		}
 
-		if m[x].Platform.Symbol != "" {
-			err = s.currencyCodes.UpdateCurrency(m[x].Name,
-				m[x].Symbol,
-				m[x].Platform.Symbol,
-				m[x].ID,
-				Token)
-			if err != nil {
-				return err
-			}
-			continue
+		update := &Item{
+			FullName:   currencyUpdates[x].Name,
+			Symbol:     currencyUpdates[x].Symbol,
+			AssocChain: currencyUpdates[x].Platform.Symbol,
+			ID:         currencyUpdates[x].ID,
+			Role:       Cryptocurrency,
 		}
 
-		err = s.currencyCodes.UpdateCurrency(m[x].Name,
-			m[x].Symbol,
-			"",
-			m[x].ID,
-			Cryptocurrency)
+		if currencyUpdates[x].Platform.Symbol != "" {
+			update.Role = Token
+		}
+
+		err = s.currencyCodes.UpdateCurrency(update)
 		if err != nil {
 			return err
 		}
