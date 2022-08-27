@@ -2,9 +2,11 @@ package common
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"net/http"
 	"net/url"
 	"os"
@@ -29,6 +31,13 @@ const (
 	// GctExt is the extension for GCT Tengo script files
 	GctExt         = ".gct"
 	defaultTimeout = time.Second * 15
+)
+
+// Strings representing the full lower, upper case English character alphabet and base-10 numbers for generating a random string.
+const (
+	SmallLetters     = "abcdefghijklmnopqrstuvwxyz"
+	CapitalLetters   = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	NumberCharacters = "0123456789"
 )
 
 var (
@@ -473,4 +482,19 @@ func StartEndTimeCheck(start, end time.Time) error {
 // occurs.
 func GetAssertError(required string, received interface{}) error {
 	return fmt.Errorf("%w from %T to %s", ErrTypeAssertFailure, received, required)
+}
+
+// GenerateRandomString generates a random string provided a length and list of Character types {  }.
+func GenerateRandomString(length int, characters ...string) string {
+	b := make([]byte, length)
+	chars := strings.Join(characters, "")
+	for i := range b {
+		nBig, err := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
+		if err != nil {
+			return ""
+		}
+		n := nBig.Int64()
+		b[i] = chars[n]
+	}
+	return string(b)
 }

@@ -7,6 +7,32 @@ import (
 	"time"
 )
 
+// func (a *ClosePositionRequestParam) UnmarshalJSON(data []byte) error {
+// 	type Alias ClosePositionRequestParam
+// 	chil := &struct {
+// 		*Alias
+// 	}{
+// 		Alias: (*Alias)(a),
+// 	}
+// 	return nil
+// }
+
+// UnmarshalJSON decerializes json, and timestamp information.
+func (a *SubAccountTransferResponse) UnmarshalJSON(data []byte) error {
+	type Alias SubAccountTransferResponse
+	chil := &struct {
+		*Alias
+		Timestamp float64 `json:"timest,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.Timestamp = time.Unix(int64(chil.Timestamp), 0)
+	return nil
+}
+
 // UnmarshalJSON decerializes json, and timestamp information.
 func (a *WithdrawalResponse) UnmarshalJSON(data []byte) error {
 	type Alias WithdrawalResponse
@@ -409,5 +435,27 @@ func (a *OptionSettlement) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	a.Time = time.Unix(int64(chil.Time), 10)
+	return nil
+}
+
+// UnmarshalJSON decerializes json, and timestamp information.
+func (a *SpotOrder) UnmarshalJSON(data []byte) error {
+	type Alias SpotOrder
+	chil := &struct {
+		*Alias
+		CreateTime   int64 `json:"create_time,string"`
+		UpdateTime   int64 `json:"update_time,string"`
+		CreateTimeMs int64 `json:"create_time_ms"`
+		UpdateTimeMs int64 `json:"update_time_ms"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.CreateTime = time.Unix(chil.CreateTime, 0)
+	a.UpdateTime = time.Unix(chil.UpdateTime, 0)
+	a.CreateTimeMs = time.UnixMilli(chil.CreateTimeMs)
+	a.UpdateTimeMs = time.UnixMilli(chil.UpdateTimeMs)
 	return nil
 }

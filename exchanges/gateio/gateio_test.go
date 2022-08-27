@@ -54,6 +54,7 @@ func TestMain(m *testing.M) {
 	gConf.API.Credentials.Key = apiKey
 	gConf.API.Credentials.Secret = apiSecret
 	g.Websocket = sharedtestvalues.NewTestWebsocket()
+	g.Verbose = true
 	err = g.Setup(gConf)
 	if err != nil {
 		log.Fatal("GateIO setup error", err)
@@ -965,6 +966,126 @@ func TestGetCandlesticks(t *testing.T) {
 		t.Errorf("%s GetCandlesticks() error %v", g.Name, er)
 	}
 }
+func TestGetTradingFeeRatio(t *testing.T) {
+	t.Parallel()
+	if _, er := g.GetTradingFeeRatio(context.Background(), currency.NewPair(currency.BTC, currency.USDT)); er != nil {
+		t.Errorf("%s GetTradingFeeRatio() error %v", g.Name, er)
+	}
+}
+
+func TestGetSpotAccounts(t *testing.T) {
+	t.Parallel()
+	if _, er := g.GetSpotAccounts(context.Background(), currency.BTC); er != nil {
+		t.Errorf("%s GetSpotAccounts() error %v", g.Name, er)
+	}
+}
+
+func TestCreateBatchOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	if _, er := g.CreateBatchOrders(context.Background(), []CreateOrderRequestData{
+		{
+			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
+			Side:         "sell",
+			Amount:       1,
+			Price:        1234567789,
+			Account:      asset.Spot,
+			Type:         "limit",
+		},
+		{
+			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
+			Side:         "buy",
+			Amount:       1,
+			Price:        1234567789,
+			Account:      asset.Spot,
+			Type:         "limit",
+		},
+	}); er != nil {
+		t.Errorf("%s CreateBatchOrders() error %v", g.Name, er)
+	}
+}
+
+func TestGetSpotOpenOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := g.GetSpotOpenOrders(context.Background(), 0, 0, asset.Spot); er != nil {
+		t.Errorf("%s GetSpotOpenOrders() error %v", g.Name, er)
+	}
+}
+
+func TestSpotClosePositionWhenCrossCurrencyDisabled(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	if _, er := g.SpotClosePositionWhenCrossCurrencyDisabled(context.Background(), ClosePositionRequestParam{
+		Amount:       0.1,
+		Price:        1234567384,
+		CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
+	}); er != nil {
+		t.Errorf("%s SpotClosePositionWhenCrossCurrencyDisabled() error %v", g.Name, er)
+	}
+}
+
+func TestCreateSpotOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	if _, er := g.CreateSpotOrder(context.Background(), CreateOrderRequestData{
+		CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
+		Side:         "buy",
+		Amount:       1,
+		Price:        1234567789,
+		Account:      asset.Spot,
+		Type:         "limit",
+	}); er != nil {
+		t.Errorf("%s CreateSpotOrder() error %v", g.Name, er)
+	}
+}
+
+func TestGetSpotOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := g.GetSpotOrders(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "open", 0, 0); er != nil {
+		t.Errorf("%s GetSpotOrders() error %v", g.Name, er)
+	}
+}
+
+func TestCancelAllOpenOrdersSpecifiedCurrencyPair(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := g.CancelAllOpenOrdersSpecifiedCurrencyPair(context.Background(), currency.NewPair(currency.BTC, currency.USDT), order.Sell, asset.Empty); er != nil {
+		t.Errorf("%s CancelAllOpenOrdersSpecifiedCurrencyPair() error %v", g.Name, er)
+	}
+}
+
+func TestCancelBatchOrdersWithIDList(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	if _, er := g.CancelBatchOrdersWithIDList(context.Background(), []CancelOrderByIDParam{
+		{
+			// CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
+			ID: "1234567",
+		},
+		{
+			CurrencyPair: currency.NewPair(currency.ETH, currency.USDT),
+			ID:           "something",
+		},
+	}); er != nil {
+		t.Errorf("%s CancelBatchOrderWithIDList() error %v", g.Name, er)
+	}
+}
 
 func TestListCurrencyChain(t *testing.T) {
 	t.Parallel()
@@ -1002,8 +1123,131 @@ func TestTransferCurrency(t *testing.T) {
 		To:           asset.Margin,
 		Amount:       1202.000,
 		CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
-	}); er != nil {
+	}); er != nil && !strings.Contains(er.Error(), "BALANCE_NOT_ENOUGH") {
 		t.Errorf("%s TransferCurrency() error %v", g.Name, er)
+	}
+}
+
+func TestSubAccountTransfer(t *testing.T) {
+	t.Parallel()
+	if er := g.SubAccountTransfer(context.Background(), SubAccountTransferParam{
+		Currency:   currency.BTC,
+		SubAccount: "12222",
+		Direction:  "to",
+		Amount:     1,
+	}); er != nil && !strings.Contains(er.Error(), "invalid account") {
+		t.Errorf("%s SubAccountTransfer() error %v", g.Name, er)
+	}
+}
+
+var subAccountTransferHistoryJSON = `{"uid": "10001","timest": "1592809000","source": "web","currency": "BTC","sub_account": "10002","direction": "to","amount": "1","sub_account_type": "spot"}`
+
+func TestGetSubAccountTransferHistory(t *testing.T) {
+	t.Parallel()
+	var response SubAccountTransferResponse
+	if er := json.Unmarshal([]byte(subAccountTransferHistoryJSON), &response); er != nil {
+		t.Errorf("%s deserializing to SubAccountTransferResponse error %v", g.Name, er)
+	}
+	if _, er := g.GetSubAccountTransferHistory(context.Background(), "", time.Time{}, time.Time{}, 0, 0); er != nil {
+		t.Errorf("%s GetSubAccountTransferHistory() error %v", g.Name, er)
+	}
+}
+
+var withdrawalStatusJSON = `{"currency": "GT","name": "GateToken","name_cn": "GateToken","deposit": "0","withdraw_percent": "0%","withdraw_fix": "0.01","withdraw_day_limit": "20000","withdraw_day_limit_remain": "20000","withdraw_amount_mini": "0.11","withdraw_eachtime_limit": "20000","withdraw_fix_on_chains": {  "BTC": "20",  "ETH": "15",  "TRX": "0",  "EOS": "2.5"}}`
+
+func TestGetWithdrawalStatus(t *testing.T) {
+	t.Parallel()
+	var response WithdrawalStatus
+	if er := json.Unmarshal([]byte(withdrawalStatusJSON), &response); er != nil {
+		t.Errorf("%s error while deserializing to WithdrawalStatus %v", g.Name, er)
+	}
+	if _, er := g.GetWithdrawalStatus(context.Background(), currency.NewCode("")); er != nil {
+		t.Errorf("%s GetWithdrawalStatus() error %v", g.Name, er)
+	}
+}
+
+var subAccountBalanceJSON = `{"uid": "10003","available": {  "BTC": "0.1",  "GT": "2000",  "USDT": "10"}}`
+
+func TestGetSubAccountBalances(t *testing.T) {
+	t.Parallel()
+	var response SubAccountBalance
+	if er := json.Unmarshal([]byte(subAccountBalanceJSON), &response); er != nil {
+		t.Errorf("%s deserializes to SubAccountBalance error %v", g.Name, er)
+	}
+	if _, er := g.GetSubAccountBalances(context.Background(), ""); er != nil {
+		t.Errorf("%s GetSubAccountBalances() error %v", g.Name, er)
+	}
+}
+
+var subAccountMarginBalance = `{"uid": "10000","available": [  {    "locked": false,    "currency_pair": "BTC_USDT",    "risk": "9999.99",    "base": {      "available": "0.1",      "borrowed": "0",      "interest": "0",      "currency": "BTC",      "locked": "0"    },    "quote": {      "available": "0",      "borrowed": "0",      "interest": "0",      "currency": "USDT",      "locked": "0"    }  }]}`
+
+func TestGetSubAccountMarginBalances(t *testing.T) {
+	t.Parallel()
+	var response SubAccountMarginBalance
+	if er := json.Unmarshal([]byte(subAccountMarginBalance), &response); er != nil {
+		t.Errorf("%s error while deserializing to SubAccountMarginBalance %v", g.Name, er)
+	}
+	if _, er := g.GetSubAccountMarginBalances(context.Background(), ""); er != nil {
+		t.Errorf("%s GetSubAccountMarginBalances() error %v", g.Name, er)
+	}
+}
+
+func TestGetSubAccountFuturesBalances(t *testing.T) {
+	t.Parallel()
+	if _, er := g.GetSubAccountFuturesBalances(context.Background(), "", ""); er != nil {
+		t.Errorf("%s GetSubAccountFuturesBalance() error %v", g.Name, er)
+	}
+}
+
+var subAccountCrossMarginInfo = `{"uid": "100000","available": {  "user_id": 100003,  "locked": false,  "total": "20.000000",  "borrowed": "0.000000",  "interest": "0",  "borrowed_net": "0",  "net": "20",  "leverage": "3",  "risk": "9999.99",  "total_initial_margin": "0.00",  "total_margin_balance": "20.00",  "total_maintenance_margin": "0.00",  "total_initial_margin_rate": "9999.9900",  "total_maintenance_margin_rate": "9999.9900",  "total_available_margin": "20.00",  "balances": {    "USDT": {      "available": "20.000000",      "freeze": "0.000000",      "borrowed": "0.000000",      "interest": "0.000000"    }  }}}`
+
+func TestGetSubAccountCrossMarginBalances(t *testing.T) {
+	t.Parallel()
+	var response SubAccountCrossMarginInfo
+	if er := json.Unmarshal([]byte(subAccountCrossMarginInfo), &response); er != nil {
+		t.Errorf("%s error while deserializing to SubAccountCrossMarginInfo %v", g.Name, er)
+	}
+	if _, er := g.GetSubAccountCrossMarginBalances(context.Background(), ""); er != nil {
+		t.Errorf("%s GetSubAccountCrossMarginBalances() error %v", g.Name, er)
+	}
+}
+
+var savedAddressJSON = `{"currency": "usdt","chain": "TRX","address": "TWYirLzw2RARB2jfeFcfRPmeuU3rC7rakT","name": "gate","tag": "","verified": "1"}`
+
+func TestGetSavedAddresses(t *testing.T) {
+	t.Parallel()
+	var response WalletSavedAddress
+	if er := json.Unmarshal([]byte(savedAddressJSON), &response); er != nil {
+		t.Errorf("%s error while deserializing to WalletSavedAddress %v", g.Name, er)
+	}
+	if _, er := g.GetSavedAddresses(context.Background(), currency.BTC, "", 0); er != nil {
+		t.Errorf("%s GetSavedAddresses() error %v", g.Name, er)
+	}
+}
+
+var personalTradingFeeJSON = `{"user_id": 10001,"taker_fee": "0.002","maker_fee": "0.002","futures_taker_fee": "-0.00025","futures_maker_fee": "0.00075","gt_discount": false,"gt_taker_fee": "0","gt_maker_fee": "0","loan_fee": "0.18","point_type": "1"}`
+
+func TestGetPersonalTradingFee(t *testing.T) {
+	t.Parallel()
+	var response PersonalTradingFee
+	if er := json.Unmarshal([]byte(personalTradingFeeJSON), &response); er != nil {
+		t.Errorf("%s GetPersonalTradingFee() error %v", g.Name, er)
+	}
+	if _, er := g.GetPersonalTradingFee(context.Background(), currency.NewPair(currency.BTC, currency.USDT)); er != nil {
+		t.Errorf("%s GetPersonalTradingFee() error %v", g.Name, er)
+	}
+}
+
+var usersTotalBalanceJSON = `{"details": {"cross_margin": {"amount": "0","currency": "USDT"},"spot": {"currency": "USDT","amount": "42264489969935775.5160259954878034182418"},"finance": {"amount": "662714381.70310327810191647181","currency": "USDT"},"margin": {"amount": "1259175.664137668554329559","currency": "USDT"},"quant": {"amount": "591702859674467879.6488202650892478553852","currency": "USDT"},"futures": {"amount": "2384175.5606114082065","currency": "USDT"},"delivery": {	"currency": "USDT",	"amount": "1519804.9756702"},"warrant": {"amount": "0","currency": "USDT"},"cbbc": {"currency": "USDT","amount": "0"}},"total": {"currency": "USDT","amount": "633967350312281193.068368815439797304437"}}`
+
+func TestGetUsersTotalBalance(t *testing.T) {
+	t.Parallel()
+	var response UsersAllAccountBalance
+	if er := json.Unmarshal([]byte(usersTotalBalanceJSON), &response); er != nil {
+		t.Errorf("%s error while deserializing to UsersAllAccountBalance %v", g.Name, er)
+	}
+	if _, er := g.GetUsersTotalBalance(context.Background(), currency.BTC); er != nil {
+		t.Errorf("%s GetUsersTotalBalance() error %v", g.Name, er)
 	}
 }
 

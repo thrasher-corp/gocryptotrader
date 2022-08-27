@@ -22,6 +22,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -33,18 +34,34 @@ const (
 	gateioAPIVersion                    = "api/v4"
 
 	// Spot
-	spotCurrencies    = "spot/currencies"
-	spotCurrencyPairs = "spot/currency_pairs"
-	spotTickers       = "spot/tickers"
-	spotMarketTrades  = "spot/trades"
-	spotCandlesticks  = "spot/candlesticks"
+	spotCurrencies                                 = "spot/currencies"
+	spotCurrencyPairs                              = "spot/currency_pairs"
+	spotTickers                                    = "spot/tickers"
+	spotMarketTrades                               = "spot/trades"
+	spotCandlesticks                               = "spot/candlesticks"
+	spotFeeRate                                    = "spot/fee"
+	spotAccounts                                   = "spot/accounts"
+	spotBatchOrders                                = "spot/batch_orders"
+	spotOpenOrders                                 = "spot/open_orders"
+	spotClosePositionWhenCrossCurrencyDisabledPath = "spot/cross_liquidate_orders"
+	spotOrders                                     = "spot/orders"
+	spotCancelBatchOrders                          = "spot/cancel_batch_orders"
 
 	// Wallets
-	walletCurrencyChain  = "wallet/currency_chains"
-	walletDepositAddress = "wallet/deposit_address"
-	walletWithdrawals    = "wallet/withdrawals"
-	walletDeposits       = "wallet/deposits"
-	walletTransfer       = "wallet/transfers"
+	walletCurrencyChain                 = "wallet/currency_chains"
+	walletDepositAddress                = "wallet/deposit_address"
+	walletWithdrawals                   = "wallet/withdrawals"
+	walletDeposits                      = "wallet/deposits"
+	walletTransfer                      = "wallet/transfers"
+	walletSubAccountTransfer            = "wallet/sub_account_transfers"
+	walletWithdrawStatus                = "wallet/withdraw_status"
+	walletSubAccountBalance             = "wallet/sub_account_balances"
+	walletSubAccountMarginBalance       = "wallet/sub_account_margin_balances"
+	walletSubAccountFuturesBalance      = "wallet/sub_account_futures_balances"
+	walletSubAccountCrossMarginBalances = "wallet/sub_account_cross_margin_balances"
+	walletSavedAddress                  = "wallet/saved_address"
+	walletTradingFee                    = "wallet/fee"
+	walletTotalBalance                  = "wallet/total_balance"
 
 	// Margin
 	marginCurrencyPairs = "margin/currency_pairs"
@@ -131,6 +148,12 @@ var (
 	errInvalidOrderID                      = errors.New("invalid order id")
 	errInvalidWithdrawalDestinationAddress = errors.New("invalid withdrawal destination addresss")
 	errInvalidAmount                       = errors.New("invalid amount")
+	errInvalidOrEmptySubaccount            = errors.New("invalid or empty subaccount")
+	errInvalidTransferDirection            = errors.New("invalid transfer direction")
+	errInvalidOrderSide                    = errors.New("invalid order side")
+	errDifferentAccount                    = errors.New("account type must be identical for all orders")
+	errInvalidPrice                        = errors.New("invalid price")
+	errNoValidParameterPassed              = errors.New("no valid parameter passed")
 )
 
 // Gateio is the overarching type across this package
@@ -850,8 +873,233 @@ func (g *Gateio) GetCandlesticks(ctx context.Context, currencyPair currency.Pair
 	return candlesticks, nil
 }
 
-// TradingFeeRatio retrives user trading fee rates
-// func (g *Gateio) TradingFeeRatio(ctx context.Context, currencyPair currency.Pair) ()
+// GetTradingFeeRatio retrives user trading fee rates
+func (g *Gateio) GetTradingFeeRatio(ctx context.Context, currencyPair currency.Pair) (*SpotTradingFeeRate, error) {
+	var response SpotTradingFeeRate
+	params := url.Values{}
+	if !(currencyPair.Quote.IsEmpty() || currencyPair.Base.IsEmpty()) {
+		// specify a currency pair to retrieve precise fee rate
+		currencyPair.Delimiter = UnderscoreDelimiter
+		params.Set("currency_pair", currencyPair.String())
+	}
+	return &response, g.SendAuthenticatedHTTPRequest(ctx,
+		exchange.RestSpot, http.MethodGet, spotFeeRate, params, nil, &response)
+}
+
+// GetSpotAccounts retrives spot account.
+func (g *Gateio) GetSpotAccounts(ctx context.Context, ccy currency.Code) ([]SpotAccount, error) {
+	var response []SpotAccount
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	return response, g.SendAuthenticatedHTTPRequest(ctx,
+		exchange.RestSpot, http.MethodGet, spotAccounts, params, nil, &response)
+}
+
+// CreateBatchOrders Create a batch of orders
+// Batch orders requirements:
+// custom order field text is required
+// At most 4 currency pairs, maximum 10 orders each, are allowed in one request
+// No mixture of spot orders and margin orders, i.e. account must be identical for all orders
+func (g *Gateio) CreateBatchOrders(ctx context.Context, args []CreateOrderRequestData) ([]SpotOrder, error) {
+	var response []SpotOrder
+	input := args
+	for x := range args {
+		if x == 10 {
+			break
+		} else if (x != 0) && args[x-1].Account != args[x].Account {
+			return nil, errDifferentAccount
+		}
+		if args[x].CurrencyPair.Base.IsEmpty() || args[x].CurrencyPair.Quote.IsEmpty() {
+			return nil, errInvalidOrEmptyCurrencyPair
+		}
+		args[x].CurrencyPair.Delimiter = UnderscoreDelimiter
+		if !(args[x].TimeInForce == "gtc" || args[x].TimeInForce == "ioc" || args[x].TimeInForce == "poc" || args[x].TimeInForce == "foc") {
+			args[x].TimeInForce = "gtc"
+		}
+		if args[x].Type != "limit" {
+			return nil, fmt.Errorf("only order type %s is allowed", "limit")
+		}
+		args[x].Side = strings.ToLower(args[x].Side)
+		if !(args[x].Side == "buy" || args[x].Side == "sell") {
+			return nil, errInvalidOrderSide
+		}
+		if !(args[x].Account == asset.Spot || args[x].Account == asset.CrossMargin || args[x].Account == asset.Margin) {
+			return nil, fmt.Errorf("only %v, %v, and %v area allowed", asset.Spot, asset.CrossMargin, asset.Margin)
+		}
+		if args[x].Text == "" {
+			args[x].Text = fmt.Sprintf("t-%s", common.GenerateRandomString(10, common.NumberCharacters))
+		}
+		if args[x].Amount <= 0 {
+			return nil, errInvalidAmount
+		}
+		if args[x].Price <= 0 {
+			return nil, errInvalidPrice
+		}
+	}
+	if len(args) > 10 {
+		input = input[:10]
+	}
+	val, _ := json.Marshal(input)
+	println(string(val))
+	if er := g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, spotBatchOrders, nil, &input, &response); er != nil {
+		return nil, er
+	}
+	if len(args) > 10 {
+		if newResponse, er := g.CreateBatchOrders(ctx, args[10:]); er == nil {
+			response = append(response, newResponse...)
+		}
+	}
+	return response, nil
+}
+
+// GetSpotOpenOrders retrives all open orders
+// List open orders in all currency pairs.
+// Note that pagination parameters affect record number in each currency pair's open order list. No pagination is applied to the number of currency pairs returned. All currency pairs with open orders will be returned.
+// Spot and margin orders are returned by default. To list cross margin orders, account must be set to cross_margin
+func (g *Gateio) GetSpotOpenOrders(ctx context.Context, page, limit int, account asset.Item) ([]SpotOrdersDetail, error) {
+	params := url.Values{}
+	if page > 0 {
+		params.Set("page", strconv.Itoa(page))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(limit))
+	}
+	if account == asset.Spot || account == asset.Margin || account == asset.CrossMargin {
+		params.Set("account", account.String())
+	}
+	var response []SpotOrdersDetail
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, spotOpenOrders, params, nil, &response)
+}
+
+// SpotClosePositionWhenCrossCurrencyDisabled set close position when cross-currency is disabled
+func (g *Gateio) SpotClosePositionWhenCrossCurrencyDisabled(ctx context.Context, arg ClosePositionRequestParam) (*SpotOrder, error) {
+	var response SpotOrder
+	if arg.CurrencyPair.Base.IsEmpty() || arg.CurrencyPair.Quote.IsEmpty() {
+		return nil, errInvalidOrEmptyCurrencyPair
+	}
+	arg.CurrencyPair.Delimiter = UnderscoreDelimiter
+	if arg.Amount <= 0 {
+		return nil, errInvalidAmount
+	}
+	if arg.Price <= 0 {
+		return nil, errInvalidPrice
+	}
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot,
+		http.MethodPost, spotClosePositionWhenCrossCurrencyDisabledPath, nil, &arg, &response)
+}
+
+// CreateSpotOrder creates a spot order
+// you can place orders with spot, margin or cross margin account through setting the accountfield.
+// It defaults to spot, which means spot account is used to place orders.
+func (g *Gateio) CreateSpotOrder(ctx context.Context, arg CreateOrderRequestData) (*SpotOrder, error) {
+	var response SpotOrder
+	if arg.CurrencyPair.Base.IsEmpty() || arg.CurrencyPair.Quote.IsEmpty() {
+		return nil, errInvalidOrEmptyCurrencyPair
+	}
+	arg.CurrencyPair.Delimiter = UnderscoreDelimiter
+	if !(arg.TimeInForce == "gtc" || arg.TimeInForce == "ioc" || arg.TimeInForce == "poc" || arg.TimeInForce == "foc") {
+		arg.TimeInForce = "gtc"
+	}
+	if arg.Type != "limit" {
+		return nil, fmt.Errorf("only order type %s is allowed", "limit")
+	}
+	arg.Side = strings.ToLower(arg.Side)
+	if !(arg.Side == "buy" || arg.Side == "sell") {
+		return nil, errInvalidOrderSide
+	}
+	if !(arg.Account == asset.Spot || arg.Account == asset.CrossMargin || arg.Account == asset.Margin) {
+		return nil, fmt.Errorf("only %v, %v, and %v area allowed", asset.Spot, asset.CrossMargin, asset.Margin)
+	}
+	if arg.Text == "" {
+		arg.Text = fmt.Sprintf("t-%s", common.GenerateRandomString(10, common.NumberCharacters))
+	}
+	if arg.Amount <= 0 {
+		return nil, errInvalidAmount
+	}
+	if arg.Price <= 0 {
+		return nil, errInvalidPrice
+	}
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, spotOrders, nil, &arg, &response)
+}
+
+// GetSpotOrders retrives spot orders.
+func (g *Gateio) GetSpotOrders(ctx context.Context, currencyPair currency.Pair, status string, page, limit int) ([]SpotOrder, error) {
+	var response []SpotOrder
+	if currencyPair.Base.IsEmpty() || currencyPair.Quote.IsEmpty() {
+		return nil, errInvalidOrEmptyCurrencyPair
+	}
+	currencyPair.Delimiter = UnderscoreDelimiter
+	params := url.Values{}
+	params.Set("currency_pair", currencyPair.String())
+	if status == "open" || status == "finished" {
+		params.Set("status", status)
+	}
+	if page > 0 {
+		params.Set("page", strconv.Itoa(page))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(limit))
+	}
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, spotOrders, params, nil, &response)
+}
+
+// CancelAllOpenOrdersSpecifiedCurrencyPair cancel all open orders in specified currency pair
+func (g *Gateio) CancelAllOpenOrdersSpecifiedCurrencyPair(ctx context.Context, currencyPair currency.Pair, side order.Side, account asset.Item) ([]SpotOrder, error) {
+	var response []SpotOrder
+	if currencyPair.Base.IsEmpty() || currencyPair.Quote.IsEmpty() {
+		return nil, errInvalidOrEmptyCurrencyPair
+	}
+	currencyPair.Delimiter = UnderscoreDelimiter
+	params := url.Values{}
+	params.Set("currency_pair", currencyPair.String())
+	if side == order.Buy || side == order.Sell {
+		params.Set("side", strings.ToLower(side.Title()))
+	}
+	if account == asset.Spot || account == asset.Margin || account == asset.CrossMargin {
+		params.Set("account", account.String())
+	}
+	return response, g.SendAuthenticatedHTTPRequest(ctx,
+		exchange.RestSpot, http.MethodDelete, spotOrders, params, nil, &response)
+}
+
+// CancelBatchOrdersWithIDList cancels batch orders specifiying the order ID and currency pair information
+// Multiple currency pairs can be specified, but maximum 20 orders are allowed per request
+func (g *Gateio) CancelBatchOrdersWithIDList(ctx context.Context, args []CancelOrderByIDParam) ([]CancelOrderByIDResponse, error) {
+	var response []CancelOrderByIDResponse
+	var inputs []CancelOrderByIDParam
+	for x := 0; x < len(args); x++ {
+		if (args[x].CurrencyPair.Base.IsEmpty() || args[x].CurrencyPair.Quote.IsEmpty()) || args[x].ID == "" {
+			if x == 0 {
+				args = args[1:]
+			} else if len(args) >= (x + 1) {
+				args = append(args[:x], args[x+1:]...)
+			} else {
+				args = args[:x]
+			}
+			x -= 1
+		} else {
+			args[x].CurrencyPair.Delimiter = UnderscoreDelimiter
+		}
+	}
+	if len(args) == 0 {
+		return nil, errNoValidParameterPassed
+	} else if len(args) > 20 {
+		inputs = args[:20]
+	}
+	er := g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, spotCancelBatchOrders, nil, &inputs, &response)
+	if er != nil {
+		return nil, er
+	}
+	if len(args) > 20 {
+		newResponse, er := g.CancelBatchOrdersWithIDList(ctx, args)
+		if er == nil {
+			response = append(response, newResponse...)
+		}
+	}
+	return response, nil
+}
 
 // GenerateSignature returns hash for authenticated requests
 func (g *Gateio) GenerateSignature(secret, method, path, query string, body interface{}, dtime time.Time) (string, error) {
@@ -947,6 +1195,9 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 			g.Name,
 			errCap.Label,
 			errCap.Message)
+	}
+	if result == nil {
+		return nil
 	}
 	return json.Unmarshal(intermidiary, result)
 }
@@ -1094,6 +1345,148 @@ func (g *Gateio) TransferCurrency(ctx context.Context, arg TransferCurrencyParam
 		return nil, errInvalidAmount
 	}
 	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, walletTransfer, nil, &arg, &response)
+}
+
+// SubAccountTransfer to transfer between main and sub accounts
+// Support transferring with sub user's spot or futures account. Note that only main user's spot account is used no matter which sub user's account is operated.
+func (g *Gateio) SubAccountTransfer(ctx context.Context, arg SubAccountTransferParam) error {
+	if arg.Currency.IsEmpty() {
+		return errInvalidCurrency
+	}
+	if arg.SubAccount == "" {
+		return errInvalidOrEmptySubaccount
+	}
+	arg.Direction = strings.ToLower(arg.Direction)
+	if !(arg.Direction == "to" || arg.Direction == "from") {
+		return errInvalidTransferDirection
+	}
+	if arg.Amount <= 0 {
+		return errInvalidAmount
+	}
+	if arg.SubAccountType != asset.Empty && !(arg.SubAccountType == asset.Spot || arg.SubAccountType == asset.Futures || arg.SubAccountType == asset.CrossMargin) {
+		return fmt.Errorf("%v; only %v,%v, and %v are allowed", errInvalidAssetType, asset.Spot, asset.Futures, asset.CrossMargin)
+	}
+	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, walletSubAccountTransfer, nil, &arg, nil)
+}
+
+// GetSubAccountTransferHistory retrieve transfer records between main and sub accounts.
+// retrieve transfer records between main and sub accounts. Record time range cannot exceed 30 days
+// Note: only records after 2020-04-10 can be retrieved
+func (g *Gateio) GetSubAccountTransferHistory(ctx context.Context, subAccountUserID string, from, to time.Time, offset, limit int) ([]SubAccountTransferResponse, error) {
+	var response []SubAccountTransferResponse
+	params := url.Values{}
+	if subAccountUserID != "" {
+		params.Set("sub_uid", subAccountUserID)
+	}
+	startingTime, er := time.Parse("2006-Jan-02", "2020-Apr-10")
+	if er != nil {
+		return nil, er
+	}
+	if !from.IsZero() && from.After(startingTime) {
+		params.Set("from", strconv.FormatInt(from.Unix(), 10))
+	}
+	if !to.IsZero() && to.After(from) && to.Before(from.Add(time.Hour*720)) {
+		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	}
+	if offset > 0 {
+		params.Set("offset", strconv.Itoa(offset))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(limit))
+	}
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot,
+		http.MethodGet, walletSubAccountTransfer, params, nil, &response)
+}
+
+// GetWithdrawalStatus retrives withdrawal status
+func (g *Gateio) GetWithdrawalStatus(ctx context.Context, ccy currency.Code) ([]WithdrawalStatus, error) {
+	var response []WithdrawalStatus
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, walletWithdrawStatus, params, nil, &response)
+}
+
+// GetSubAccountBalances retrieve sub account balances
+func (g *Gateio) GetSubAccountBalances(ctx context.Context, subAccountUserID string) ([]SubAccountBalance, error) {
+	var response []SubAccountBalance
+	params := url.Values{}
+	if subAccountUserID != "" {
+		params.Set("sub_uid", subAccountUserID)
+	}
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, walletSubAccountBalance, params, nil, &response)
+}
+
+// GetSubAccountMarginBalances query sub accounts' margin balances
+func (g *Gateio) GetSubAccountMarginBalances(ctx context.Context, subAccountUserID string) ([]SubAccountMarginBalance, error) {
+	var response []SubAccountMarginBalance
+	params := url.Values{}
+	if subAccountUserID != "" {
+		params.Set("sub_uid", subAccountUserID)
+	}
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, walletSubAccountMarginBalance, params, nil, &response)
+}
+
+// GetSubAccountFuturesBalances retrives sub accounts' futures account balances
+func (g *Gateio) GetSubAccountFuturesBalances(ctx context.Context, subAccountUserID, settle string) ([]SubAccountBalance, error) {
+	var response []SubAccountBalance
+	params := url.Values{}
+	if subAccountUserID != "" {
+		params.Set("sub_uid", subAccountUserID)
+	}
+	if settle != "" {
+		params.Set("settle", settle)
+	}
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, walletSubAccountFuturesBalance, params, nil, &response)
+}
+
+// GetSubAccountCrossMarginBalances query subaccount's cross_margin account info
+func (g *Gateio) GetSubAccountCrossMarginBalances(ctx context.Context, subAccountUserID string) ([]SubAccountCrossMarginInfo, error) {
+	var response []SubAccountCrossMarginInfo
+	params := url.Values{}
+	if subAccountUserID != "" {
+		params.Set("sub_uid", subAccountUserID)
+	}
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, walletSubAccountCrossMarginBalances, params, nil, &response)
+}
+
+// GetSavedAddresses retrives saved currency address info and related details.
+func (g *Gateio) GetSavedAddresses(ctx context.Context, currency currency.Code, chain string, limit int) ([]WalletSavedAddress, error) {
+	var response []WalletSavedAddress
+	params := url.Values{}
+	if !currency.IsEmpty() {
+		params.Set("currency", currency.String())
+	}
+	if chain != "" {
+		params.Set("chain", chain)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(limit))
+	}
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, walletSavedAddress, params, nil, &response)
+}
+
+// GetPersonalTradingFee retrives personal trading fee
+func (g *Gateio) GetPersonalTradingFee(ctx context.Context, currencyPair currency.Pair) (*PersonalTradingFee, error) {
+	var response PersonalTradingFee
+	params := url.Values{}
+	if !(currencyPair.Quote.IsEmpty() || currencyPair.Base.IsEmpty()) {
+		// specify a currency pair to retrieve precise fee rate
+		currencyPair.Delimiter = UnderscoreDelimiter
+		params.Set("currency_pair", currencyPair.String())
+	}
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, walletTradingFee, params, nil, &response)
+}
+
+// GetUsersTotalBalance retrieves user's total balances
+func (g *Gateio) GetUsersTotalBalance(ctx context.Context, ccy currency.Code) (*UsersAllAccountBalance, error) {
+	var response UsersAllAccountBalance
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, walletTotalBalance, params, nil, &response)
 }
 
 // *********************************Margin *******************************************
