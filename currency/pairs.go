@@ -240,7 +240,7 @@ func (p Pairs) FindDifferences(pairs Pairs) (newPairs, removedPairs Pairs) {
 // GetRandomPair returns a random pair from a list of pairs
 func (p Pairs) GetRandomPair() Pair {
 	if pairsLen := len(p); pairsLen != 0 {
-		return p[rand.Intn(pairsLen)] // nolint:gosec // basic number generation required, no need for crypo/rand
+		return p[rand.Intn(pairsLen)] //nolint:gosec // basic number generation required, no need for crypo/rand
 	}
 	return EMPTYPAIR
 }

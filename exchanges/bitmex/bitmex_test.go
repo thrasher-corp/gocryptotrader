@@ -783,7 +783,7 @@ func TestWithdraw(t *testing.T) {
 		Amount:          -1,
 		Currency:        currency.BTC,
 		Description:     "WITHDRAW IT ALL",
-		OneTimePassword: 000000, // nolint // gocritic false positive
+		OneTimePassword: 000000, //nolint // gocritic false positive
 	}
 
 	if areTestAPIKeysSet() && !canManipulateRealOrders {

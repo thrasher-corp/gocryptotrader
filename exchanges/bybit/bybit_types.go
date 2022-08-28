@@ -370,11 +370,13 @@ type orderbookResponse struct {
 	Error
 }
 
+// DepositWalletInfo stores wallet deposit info
 type DepositWalletInfo struct {
 	Coin   string      `json:"coin"`
 	Chains []ChainInfo `json:"chains"`
 }
 
+// ChainInfo stores a coins chain info
 type ChainInfo struct {
 	ChainType      string `json:"chain_type"`
 	DepositAddress string `json:"address_deposit"`

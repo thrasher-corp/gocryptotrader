@@ -23,9 +23,9 @@ var (
 
 	errNilCommunicationsManager = errors.New("cannot start with nil communications manager")
 	errNilOrder                 = errors.New("nil order received")
-	errFuturesTrackerNotSetup   = errors.New("futures position tracker not setup")
-
-	orderManagerDelay = time.Second * 10
+	errFuturesTrackingDisabled  = errors.New("tracking futures positions disabled. enable it via config under orderManager activelyTrackFuturesPositions")
+	orderManagerDelay           = time.Second * 10
+	defaultOrderSeekTime        = -time.Hour * 24 * 365
 )
 
 type orderManagerConfig struct {
@@ -38,6 +38,18 @@ type orderManagerConfig struct {
 	OrderSubmissionRetries int64
 }
 
+// OrderManager processes and stores orders across enabled exchanges
+type OrderManager struct {
+	started                       int32
+	processingOrders              int32
+	shutdown                      chan struct{}
+	orderStore                    store
+	cfg                           orderManagerConfig
+	verbose                       bool
+	activelyTrackFuturesPositions bool
+	futuresPositionSeekDuration   time.Duration
+}
+
 // store holds all orders by exchange
 type store struct {
 	m                         sync.RWMutex
@@ -45,18 +57,7 @@ type store struct {
 	commsManager              iCommsManager
 	exchangeManager           iExchangeManager
 	wg                        *sync.WaitGroup
-	futuresPositionController *order.PositionController
-	trackFuturesPositions     bool
-}
-
-// OrderManager processes and stores orders across enabled exchanges
-type OrderManager struct {
-	started          int32
-	processingOrders int32
-	shutdown         chan struct{}
-	orderStore       store
-	cfg              orderManagerConfig
-	verbose          bool
+	futuresPositionController order.PositionController
 }
 
 // OrderSubmitResponse contains the order response along with an internal order ID

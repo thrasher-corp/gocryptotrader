@@ -3,7 +3,6 @@ package config
 import (
 	"encoding/json"
 	"errors"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -458,7 +457,7 @@ func TestValidate(t *testing.T) {
 
 func TestReadConfigFromFile(t *testing.T) {
 	tempDir := t.TempDir()
-	passFile, err := ioutil.TempFile(tempDir, "*.start")
+	passFile, err := os.CreateTemp(tempDir, "*.start")
 	if err != nil {
 		t.Fatalf("Problem creating temp file at %v: %s\n", passFile, err)
 	}
@@ -531,6 +530,67 @@ func TestGenerateConfigForDCAAPICandles(t *testing.T) {
 			t.Fatal(err)
 		}
 		err = os.WriteFile(filepath.Join(p, "examples", "dca-api-candles.strat"), result, file.DefaultPermissionOctal)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+}
+
+func TestGenerateConfigForPluginStrategy(t *testing.T) {
+	if !saveConfig {
+		t.Skip()
+	}
+	cfg := Config{
+		Nickname: "ExamplePluginStrategy",
+		Goal:     "To demonstrate that custom strategies can be used",
+		StrategySettings: StrategySettings{
+			Name: "custom-strategy",
+		},
+		CurrencySettings: []CurrencySettings{
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot,
+				Base:         currency.BTC,
+				Quote:        currency.USDT,
+				SpotDetails: &SpotDetails{
+					InitialQuoteFunds: initialFunds1000000,
+				},
+				BuySide:  minMax,
+				SellSide: minMax,
+				MakerFee: &makerFee,
+				TakerFee: &takerFee,
+			},
+		},
+		DataSettings: DataSettings{
+			Interval: kline.OneDay,
+			DataType: common.CandleStr,
+			APIData: &APIData{
+				StartDate:        startDate,
+				EndDate:          endDate,
+				InclusiveEndDate: false,
+			},
+		},
+		PortfolioSettings: PortfolioSettings{
+			BuySide:  minMax,
+			SellSide: minMax,
+			Leverage: Leverage{
+				CanUseLeverage: false,
+			},
+		},
+		StatisticSettings: StatisticSettings{
+			RiskFreeRate: decimal.NewFromFloat(0.03),
+		},
+	}
+	if saveConfig {
+		result, err := json.MarshalIndent(cfg, "", " ")
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, err := os.Getwd()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = os.WriteFile(filepath.Join(p, "examples", "custom-plugin-strategy.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}
@@ -931,26 +991,12 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 				MakerFee: &makerFee,
 				TakerFee: &takerFee,
 			},
-			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot,
-				Base:         currency.ETH,
-				Quote:        currency.USDT,
-				SpotDetails: &SpotDetails{
-					InitialBaseFunds:  initialFunds10,
-					InitialQuoteFunds: initialFunds1000000,
-				},
-				BuySide:  minMax,
-				SellSide: minMax,
-				MakerFee: &makerFee,
-				TakerFee: &takerFee,
-			},
 		},
 		DataSettings: DataSettings{
 			Interval: kline.OneDay,
 			DataType: common.CandleStr,
 			APIData: &APIData{
-				StartDate:        startDate,
+				StartDate:        time.Date(2021, 5, 1, 0, 0, 0, 0, time.Local),
 				EndDate:          endDate,
 				InclusiveEndDate: false,
 			},

@@ -1,7 +1,7 @@
 on: [push, pull_request]
 name: CI
 env:
-  GO_VERSION: 1.18.x
+  GO_VERSION: 1.19.x
 jobs:
   backend-psql:
     name: GoCryptoTrader back-end with PSQL
@@ -115,6 +115,7 @@ jobs:
         PSQL_SSLMODE: disable
         GOARCH: 386
         CGO_ENABLED: 1
+        CGO_CFLAGS: -fno-stack-protector
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3

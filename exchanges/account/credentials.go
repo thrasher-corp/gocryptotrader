@@ -22,14 +22,17 @@ const (
 	// changed while the same keys can be used.
 	ContextSubAccountFlag contextCredential = "subaccountoverride"
 
+	apiKeyDisplaySize = 16
+)
+
+// Default credential values
+const (
 	Key             = "key"
 	Secret          = "secret"
 	SubAccountSTR   = "subaccount"
 	ClientID        = "clientid"
 	OneTimePassword = "otp"
 	PEMKey          = "pemkey"
-
-	apiKeyDisplaySize = 16
 )
 
 var (
@@ -187,7 +190,7 @@ func ParseCredentialsMetadata(ctx context.Context, md metadata.MD) (context.Cont
 	}
 	if ctxCreds.IsEmpty() && subAccountHere != "" {
 		// This will override default sub account details if needed.
-		return deploySubAccountOverrideToContext(ctx, subAccountHere), nil
+		return DeploySubAccountOverrideToContext(ctx, subAccountHere), nil
 	}
 	// merge sub account to main context credentials
 	ctxCreds.SubAccount = subAccountHere
@@ -201,9 +204,9 @@ func DeployCredentialsToContext(ctx context.Context, creds *Credentials) context
 	return context.WithValue(ctx, flag, store)
 }
 
-// deploySubAccountOverrideToContext sets subaccount as override to credentials
+// DeploySubAccountOverrideToContext sets subaccount as override to credentials
 // as a separate flag.
-func deploySubAccountOverrideToContext(ctx context.Context, subAccount string) context.Context {
+func DeploySubAccountOverrideToContext(ctx context.Context, subAccount string) context.Context {
 	return context.WithValue(ctx, ContextSubAccountFlag, subAccount)
 }
 

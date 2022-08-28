@@ -169,8 +169,9 @@ func (m *apiServerManager) StartRESTServer() error {
 	m.restRouter = m.newRouter(true)
 	if m.restHTTPServer == nil {
 		m.restHTTPServer = &http.Server{
-			Addr:    m.restListenAddress,
-			Handler: m.restRouter,
+			Addr:              m.restListenAddress,
+			Handler:           m.restRouter,
+			ReadHeaderTimeout: time.Minute,
 		}
 	}
 	m.wgRest.Add(1)
@@ -429,8 +430,9 @@ func (m *apiServerManager) StartWebsocketServer() error {
 	m.websocketRouter = m.newRouter(false)
 	if m.websocketHTTPServer == nil {
 		m.websocketHTTPServer = &http.Server{
-			Addr:    m.websocketListenAddress,
-			Handler: m.websocketRouter,
+			Addr:              m.websocketListenAddress,
+			Handler:           m.websocketRouter,
+			ReadHeaderTimeout: time.Minute,
 		}
 	}
 

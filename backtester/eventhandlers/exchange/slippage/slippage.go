@@ -22,7 +22,7 @@ func EstimateSlippagePercentage(maximumSlippageRate, minimumSlippageRate decimal
 	// eg 80 means for every dollar, keep 80%
 	randSeed := int(minimumSlippageRate.IntPart()) - int(maximumSlippageRate.IntPart())
 	if randSeed > 0 {
-		result := int64(rand.Intn(randSeed)) // nolint:gosec // basic number generation required, no need for crypto/rand
+		result := int64(rand.Intn(randSeed)) //nolint:gosec // basic number generation required, no need for crypto/rand
 
 		return maximumSlippageRate.Add(decimal.NewFromInt(result)).Div(decimal.NewFromInt(100))
 	}

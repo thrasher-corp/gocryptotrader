@@ -25,7 +25,7 @@ const (
 // Wrapper instance of GCT to use for modules
 var Wrapper GCTExchange
 
-// Exchange interface requirements
+// GCTExchange interface requirements
 type GCTExchange interface {
 	Exchanges(enabledOnly bool) []string
 	IsEnabled(exch string) bool

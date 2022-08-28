@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	warningBase64DecryptSecretKeyFailed = "exchange %s unable to base64 decode secret key.. Disabling Authenticated API support" // nolint // False positive (G101: Potential hardcoded credentials)
+	warningBase64DecryptSecretKeyFailed = "exchange %s unable to base64 decode secret key.. Disabling Authenticated API support" //nolint // False positive (G101: Potential hardcoded credentials)
 	// DefaultHTTPTimeout is the default HTTP/HTTPS Timeout for exchange requests
 	DefaultHTTPTimeout = time.Second * 15
 	// DefaultWebsocketResponseCheckTimeout is the default delay in checking for an expected websocket response
@@ -330,7 +330,7 @@ func (b *Base) GetPairFormat(assetType asset.Item, requestFormat bool) (currency
 func (b *Base) GetEnabledPairs(a asset.Item) (currency.Pairs, error) {
 	err := b.CurrencyPairs.IsAssetEnabled(a)
 	if err != nil {
-		return nil, nil // nolint:nilerr // non-fatal error
+		return nil, nil //nolint:nilerr // non-fatal error
 	}
 	format, err := b.GetPairFormat(a, false)
 	if err != nil {
@@ -1117,7 +1117,7 @@ func (e *Endpoints) SetRunning(key, val string) error {
 			key,
 			val,
 			e.Exchange)
-		return nil // nolint:nilerr // non-fatal error as we won't update the running URL
+		return nil //nolint:nilerr // non-fatal error as we won't update the running URL
 	}
 	e.defaults[key] = val
 	return nil
@@ -1298,11 +1298,6 @@ func (b *Base) CalculateTotalCollateral(ctx context.Context, calculator *order.T
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetFuturesPositions returns futures positions according to the provided parameters
-func (b *Base) GetFuturesPositions(context.Context, asset.Item, currency.Pair, time.Time, time.Time) ([]order.Detail, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
 // GetCollateralCurrencyForContract returns the collateral currency for an asset and contract pair
 func (b *Base) GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error) {
 	return currency.Code{}, asset.Empty, common.ErrNotYetImplemented
@@ -1322,11 +1317,37 @@ func (b *Base) HasAssetTypeAccountSegregation() bool {
 }
 
 // GetServerTime returns the current exchange server time.
-func (b *Base) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
+func (b *Base) GetServerTime(context.Context, asset.Item) (time.Time, error) {
 	return time.Time{}, common.ErrNotYetImplemented
 }
 
 // GetMarginRatesHistory returns the margin rate history for the supplied currency
 func (b *Base) GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
 	return nil, common.ErrNotYetImplemented
+}
+
+// GetPositionSummary returns stats for a future position
+func (b *Base) GetPositionSummary(context.Context, *order.PositionSummaryRequest) (*order.PositionSummary, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetFundingPaymentDetails returns funding payment details for a future for a specific time period
+func (b *Base) GetFundingPaymentDetails(context.Context, *order.FundingRatesRequest) (*order.FundingRates, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetFuturesPositions returns futures positions for all currencies
+func (b *Base) GetFuturesPositions(context.Context, *order.PositionsRequest) ([]order.PositionDetails, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetFundingRates returns funding rates based on request data
+func (b *Base) GetFundingRates(ctx context.Context, request *order.FundingRatesRequest) ([]order.FundingRates, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
+// differs by exchange
+func (b *Base) IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error) {
+	return false, common.ErrNotYetImplemented
 }

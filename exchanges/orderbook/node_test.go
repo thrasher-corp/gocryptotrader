@@ -62,7 +62,7 @@ func (s *stack) Display() {
 	fmt.Println("TOTAL COUNT:", s.getCount())
 }
 
-//  158	   9,521,717 ns/op	 9600104 B/op	  100001 allocs/op
+// 158	   9,521,717 ns/op	 9600104 B/op	  100001 allocs/op
 func BenchmarkWithoutStack(b *testing.B) {
 	var n *Node
 	b.ReportAllocs()
