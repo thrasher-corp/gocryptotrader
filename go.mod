@@ -26,7 +26,7 @@ require (
 	golang.org/x/net v0.0.0-20220624214902-1bab6f366d9e
 	golang.org/x/time v0.0.0-20220609170525-579cf78fd858
 	google.golang.org/genproto v0.0.0-20220805133916-01dd62135a58
-	google.golang.org/grpc v1.48.0
+	google.golang.org/grpc v1.49.0
 	google.golang.org/protobuf v1.28.1
 )
 
