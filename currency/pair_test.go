@@ -210,7 +210,7 @@ func TestDisplay(t *testing.T) {
 		)
 	}
 
-	actual = pair.Format(PairFormat{}).String()
+	actual = EMPTYFORMAT.Format(pair)
 	expected = "btcusd"
 	if actual != expected {
 		t.Errorf(
@@ -626,7 +626,6 @@ func TestFindPairDifferences(t *testing.T) {
 		t.Error("TestFindPairDifferences: Unexpected values")
 	}
 
-	// Test that we don't allow empty strings for new pairs
 	diff, err = pairList.FindDifferences(Pairs{}, EMPTYFORMAT)
 	if err != nil {
 		t.Fatal(err)
@@ -635,7 +634,6 @@ func TestFindPairDifferences(t *testing.T) {
 		t.Error("TestFindPairDifferences: Unexpected values")
 	}
 
-	// Test that we don't allow empty strings for new pairs
 	diff, err = Pairs{}.FindDifferences(pairList, EMPTYFORMAT)
 	if err != nil {
 		t.Fatal(err)

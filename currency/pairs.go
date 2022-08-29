@@ -149,8 +149,8 @@ func (p Pairs) ContainsAll(check Pairs, exact bool) error {
 list:
 	for x := range check {
 		for y := range comparative {
-			if exact && check[x].Equal(comparative[y]) ||
-				!exact && check[x].EqualIncludeReciprocal(comparative[y]) {
+			if (exact && check[x].Equal(comparative[y])) ||
+				(!exact && check[x].EqualIncludeReciprocal(comparative[y])) {
 				// Reduce list size to decrease array traversal speed on iteration.
 				comparative[y] = comparative[len(comparative)-1]
 				comparative = comparative[:len(comparative)-1]
@@ -220,9 +220,11 @@ func (p Pairs) GetPairsByCurrencies(currencies Currencies) Pairs {
 
 // Remove removes the specified pair from the list of pairs if it exists
 func (p Pairs) Remove(pair Pair) (Pairs, error) {
+	pairs := make(Pairs, len(p))
+	copy(pairs, p)
 	for x := range p {
 		if p[x].Equal(pair) {
-			return append(p[:x], p[x+1:]...), nil
+			return append(pairs[:x], pairs[x+1:]...), nil
 		}
 	}
 	return nil, fmt.Errorf("%s %w", pair, ErrPairNotFound)
@@ -262,7 +264,7 @@ func (p Pairs) FindDifferences(incoming Pairs, pairFmt PairFormat) (PairDifferen
 	newPairs := make(Pairs, 0, len(incoming))
 	for x := range incoming {
 		if incoming[x].IsEmpty() {
-			return PairDifference{}, fmt.Errorf("cannot find difference from new pairs %w", ErrCurrencyPairEmpty)
+			return PairDifference{}, fmt.Errorf("contained in the incoming pairs a %w", ErrCurrencyPairEmpty)
 		}
 
 		if !p.Contains(incoming[x], true) {
@@ -272,7 +274,7 @@ func (p Pairs) FindDifferences(incoming Pairs, pairFmt PairFormat) (PairDifferen
 	removedPairs := make(Pairs, 0, len(p))
 	for x := range p {
 		if p[x].IsEmpty() {
-			return PairDifference{}, fmt.Errorf("cannot find difference from removed pairs %w", ErrCurrencyPairEmpty)
+			return PairDifference{}, fmt.Errorf("contained in the existing pairs a %w", ErrCurrencyPairEmpty)
 		}
 		if !incoming.Contains(p[x], true) {
 			removedPairs = append(removedPairs, p[x])
@@ -284,6 +286,8 @@ func (p Pairs) FindDifferences(incoming Pairs, pairFmt PairFormat) (PairDifferen
 		FormatDifference: p.HasFormatDifference(pairFmt),
 	}, nil
 }
+
+// currency pair is empty
 
 // HasFormatDifference checks and validates full formatting across a pairs list
 func (p Pairs) HasFormatDifference(pairFmt PairFormat) bool {
@@ -422,18 +426,22 @@ func (p Pairs) GetStablesMatch(code Code) Pairs {
 // duplications can be found e.g. `LINKUSDTM21`,`LIN-KUSDTM21` or `LINK-USDTM21
 // are all the same instances but with different unintentional processes for
 // formatting.
-func (p Pairs) ValidateAndConform(pFmt PairFormat) error {
+func (p Pairs) ValidateAndConform(pFmt PairFormat) (Pairs, error) {
 	processedPairs := make(map[string]bool, len(p))
+	formatted := make(Pairs, len(p))
+	var target int
 	for x := range p {
 		if p[x].IsEmpty() {
-			return fmt.Errorf("cannot update pairs %w", ErrCurrencyPairEmpty)
+			return nil, fmt.Errorf("cannot update pairs %w", ErrCurrencyPairEmpty)
 		}
 		strippedPair := EMPTYFORMAT.Format(p[x])
 		if processedPairs[strippedPair] {
-			return fmt.Errorf("cannot update pairs %w with [%s]", ErrPairDuplication, p[x])
+			return nil, fmt.Errorf("cannot update pairs %w with [%s]", ErrPairDuplication, p[x])
 		}
-		p[x] = p[x].Format(pFmt) // Force application of supplied formatting
+		// Force application of supplied formatting
 		processedPairs[strippedPair] = true
+		formatted[target] = p[x].Format(pFmt)
+		target++
 	}
-	return nil
+	return formatted, nil
 }

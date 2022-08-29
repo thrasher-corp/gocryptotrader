@@ -79,9 +79,14 @@ func TestGet(t *testing.T) {
 		t.Error(err)
 	}
 
+	_, err = p.Get(asset.Empty)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' bu expected: '%v'", err, asset.ErrNotSupported)
+	}
+
 	_, err = p.Get(asset.CoinMarginedFutures)
-	if err == nil {
-		t.Error("CoinMarginedFutures should be nil")
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' bu expected: '%v'", err, asset.ErrNotSupported)
 	}
 }
 
@@ -123,6 +128,16 @@ func TestStore(t *testing.T) {
 
 	if f == nil {
 		t.Error("Futures assets shouldn't be nil")
+	}
+
+	err = p.Store(asset.Empty, nil)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' bu expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	err = p.Store(asset.Futures, nil)
+	if !errors.Is(err, errPairStoreIsNIl) {
+		t.Fatalf("received: '%v' bu expected: '%v'", err, errPairStoreIsNIl)
 	}
 }
 
@@ -184,8 +199,8 @@ func TestGetPairs(t *testing.T) {
 	}
 
 	pairs, err = p.GetPairs(asset.Empty, true)
-	if err != nil {
-		t.Fatal(err)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expetced: '%v'", err, asset.ErrNotSupported)
 	}
 
 	if pairs != nil {
@@ -204,9 +219,22 @@ func TestGetPairs(t *testing.T) {
 
 func TestStoreFormat(t *testing.T) {
 	t.Parallel()
-	p := initTest(t)
+	p := &PairsManager{}
 
-	p.StoreFormat(asset.Spot, &PairFormat{Delimiter: "~"}, true)
+	err := p.StoreFormat(0, &PairFormat{Delimiter: "~"}, true)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: %v but expected: %v", err, asset.ErrNotSupported)
+	}
+
+	err = p.StoreFormat(asset.Spot, nil, true)
+	if !errors.Is(err, errPairFormatIsNil) {
+		t.Fatalf("received: %v but expected: %v", err, errPairFormatIsNil)
+	}
+
+	err = p.StoreFormat(asset.Spot, &PairFormat{Delimiter: "~"}, true)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
 	ps, err := p.Get(asset.Spot)
 	if err != nil {
 		t.Fatal(err)
@@ -216,7 +244,10 @@ func TestStoreFormat(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 
-	p.StoreFormat(asset.Spot, &PairFormat{Delimiter: "/"}, false)
+	err = p.StoreFormat(asset.Spot, &PairFormat{Delimiter: "/"}, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
 
 	ps, err = p.Get(asset.Spot)
 	if err != nil {
@@ -232,6 +263,16 @@ func TestStorePairs(t *testing.T) {
 	t.Parallel()
 	p := initTest(t)
 
+	err := p.StorePairs(0, nil, false)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: %v but expected: %v", err, asset.ErrNotSupported)
+	}
+
+	err = p.StorePairs(asset.Spot, nil, false)
+	if !errors.Is(err, errPairsEmpty) {
+		t.Fatalf("received: %v but expected: %v", err, errPairsEmpty)
+	}
+
 	p.Pairs = nil
 
 	ethusdPairs, err := NewPairsFromStrings([]string{"ETH-USD"})
@@ -239,7 +280,11 @@ func TestStorePairs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	p.StorePairs(asset.Spot, ethusdPairs, false)
+	err = p.StorePairs(asset.Spot, ethusdPairs, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+
 	pairs, err := p.GetPairs(asset.Spot, false)
 	if err != nil {
 		t.Fatal(err)
@@ -254,8 +299,11 @@ func TestStorePairs(t *testing.T) {
 		t.Errorf("TestStorePairs failed, unexpected result")
 	}
 
-	initTest(t)
-	p.StorePairs(asset.Spot, ethusdPairs, false)
+	p = initTest(t)
+	err = p.StorePairs(asset.Spot, ethusdPairs, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
 	pairs, err = p.GetPairs(asset.Spot, false)
 	if err != nil {
 		t.Fatal(err)
@@ -274,8 +322,16 @@ func TestStorePairs(t *testing.T) {
 		t.Error(err)
 	}
 
-	p.StorePairs(asset.Futures, ethkrwPairs, true)
-	p.StorePairs(asset.Futures, ethkrwPairs, false)
+	err = p.StorePairs(asset.Futures, ethkrwPairs, true)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+
+	err = p.StorePairs(asset.Futures, ethkrwPairs, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+
 	pairs, err = p.GetPairs(asset.Futures, true)
 	if err != nil {
 		t.Fatal(err)
@@ -298,6 +354,14 @@ func TestStorePairs(t *testing.T) {
 func TestDisablePair(t *testing.T) {
 	t.Parallel()
 	p := initTest(t)
+
+	if err := p.DisablePair(asset.Empty, EMPTYPAIR); !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	if err := p.DisablePair(asset.Spot, EMPTYPAIR); !errors.Is(err, ErrCurrencyPairEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrCurrencyPairEmpty)
+	}
 
 	p.Pairs = nil
 	// Test disabling a pair when the pair manager is not initialised
@@ -332,6 +396,10 @@ func TestDisablePair(t *testing.T) {
 func TestEnablePair(t *testing.T) {
 	t.Parallel()
 	p := initTest(t)
+
+	if err := p.EnablePair(asset.Empty, NewPair(BTC, USD)); !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
 
 	p.Pairs = nil
 	// Test enabling a pair when the pair manager is not initialised
@@ -371,9 +439,14 @@ func TestEnablePair(t *testing.T) {
 func TestIsAssetEnabled_SetAssetEnabled(t *testing.T) {
 	t.Parallel()
 	p := initTest(t)
+
+	err := p.IsAssetEnabled(asset.Empty)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
 	p.Pairs = nil
 	// Test enabling a pair when the pair manager is not initialised
-	err := p.IsAssetEnabled(asset.Spot)
+	err = p.IsAssetEnabled(asset.Spot)
 	if err == nil {
 		t.Error("unexpected result")
 	}

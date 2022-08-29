@@ -1493,7 +1493,10 @@ func TestCheckVars(t *testing.T) {
 		{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.USDT},
 	}
 
-	e.GetBase().CurrencyPairs.StorePairs(asset.Spot, data, false)
+	err = e.GetBase().CurrencyPairs.StorePairs(asset.Spot, data, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
 	if !errors.Is(err, errCurrencyNotEnabled) {

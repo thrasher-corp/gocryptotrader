@@ -28,7 +28,8 @@ var (
 	// exchange for that asset type.
 	ErrPairNotContainedInAvailablePairs = errors.New("pair not contained in available pairs")
 
-	errPairStoreIsNIl = errors.New("pair store is nil")
+	errPairStoreIsNIl  = errors.New("pair store is nil")
+	errPairFormatIsNil = errors.New("pair format is nil")
 )
 
 // GetAssetTypes returns a list of stored asset types
@@ -47,6 +48,10 @@ func (p *PairsManager) GetAssetTypes(enabled bool) asset.Items {
 
 // Get gets the currency pair config based on the asset type
 func (p *PairsManager) Get(a asset.Item) (*PairStore, error) {
+	if !a.IsValid() {
+		return nil, fmt.Errorf("%s %w", a, asset.ErrNotSupported)
+	}
+
 	p.m.RLock()
 	defer p.m.RUnlock()
 	c, ok := p.Pairs[a]
@@ -59,6 +64,9 @@ func (p *PairsManager) Get(a asset.Item) (*PairStore, error) {
 
 // Store stores a new currency pair config based on its asset type
 func (p *PairsManager) Store(a asset.Item, ps *PairStore) error {
+	if !a.IsValid() {
+		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
+	}
 	cpy, err := ps.copy()
 	if err != nil {
 		return err
@@ -82,41 +90,48 @@ func (p *PairsManager) Delete(a asset.Item) {
 // GetPairs gets a list of stored pairs based on the asset type and whether
 // they're enabled or not
 func (p *PairsManager) GetPairs(a asset.Item, enabled bool) (Pairs, error) {
+	if !a.IsValid() {
+		return nil, fmt.Errorf("%s %w", a, asset.ErrNotSupported)
+	}
+
 	p.m.RLock()
 	defer p.m.RUnlock()
-	c, ok := p.Pairs[a]
+	pairStore, ok := p.Pairs[a]
 	if !ok {
 		return nil, nil
 	}
 
 	if !enabled {
-		availPairs := make(Pairs, len(c.Available))
-		copy(availPairs, c.Available)
+		availPairs := make(Pairs, len(pairStore.Available))
+		copy(availPairs, pairStore.Available)
 		return availPairs, nil
 	}
 
-	lenCheck := len(c.Enabled)
+	lenCheck := len(pairStore.Enabled)
 	if lenCheck == 0 {
 		return nil, nil
 	}
 
-	enabledPairs := make(Pairs, lenCheck)
-	copy(enabledPairs, c.Enabled)
-
-	err := c.Available.ContainsAll(c.Enabled, true)
+	err := pairStore.Available.ContainsAll(pairStore.Enabled, true)
 	if err != nil {
-		return enabledPairs, fmt.Errorf("%w of asset type %s", err, a)
+		return nil, fmt.Errorf("%w of asset type %s", err, a)
 	}
+
+	enabledPairs := make(Pairs, lenCheck)
+	copy(enabledPairs, pairStore.Enabled)
 	return enabledPairs, nil
 }
 
 // StoreFormat stores a new format for request or config format.
-func (p *PairsManager) StoreFormat(a asset.Item, pFmt *PairFormat, config bool) {
-	var newCopy *PairFormat
-	if pFmt != nil {
-		cpy := *pFmt
-		newCopy = &cpy
+func (p *PairsManager) StoreFormat(a asset.Item, pFmt *PairFormat, config bool) error {
+	if !a.IsValid() {
+		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
+	if pFmt == nil {
+		return errPairFormatIsNil
+	}
+
+	cpy := *pFmt
 
 	p.m.Lock()
 	defer p.m.Unlock()
@@ -125,22 +140,31 @@ func (p *PairsManager) StoreFormat(a asset.Item, pFmt *PairFormat, config bool) 
 		p.Pairs = make(map[asset.Item]*PairStore)
 	}
 
-	c, ok := p.Pairs[a]
+	pairStore, ok := p.Pairs[a]
 	if !ok {
-		c = new(PairStore)
-		p.Pairs[a] = c
+		pairStore = new(PairStore)
+		p.Pairs[a] = pairStore
 	}
 
 	if config {
-		c.ConfigFormat = newCopy
+		pairStore.ConfigFormat = &cpy
 	} else {
-		c.RequestFormat = newCopy
+		pairStore.RequestFormat = &cpy
 	}
+	return nil
 }
 
 // StorePairs stores a list of pairs based on the asset type and whether
 // they're enabled or not
-func (p *PairsManager) StorePairs(a asset.Item, pairs Pairs, enabled bool) {
+func (p *PairsManager) StorePairs(a asset.Item, pairs Pairs, enabled bool) error {
+	if !a.IsValid() {
+		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
+	}
+
+	if len(pairs) == 0 {
+		return errPairsEmpty
+	}
+
 	cpy := make(Pairs, len(pairs))
 	copy(cpy, pairs)
 
@@ -151,78 +175,97 @@ func (p *PairsManager) StorePairs(a asset.Item, pairs Pairs, enabled bool) {
 		p.Pairs = make(map[asset.Item]*PairStore)
 	}
 
-	c, ok := p.Pairs[a]
+	pairStore, ok := p.Pairs[a]
 	if !ok {
-		c = new(PairStore)
-		p.Pairs[a] = c
+		pairStore = new(PairStore)
+		p.Pairs[a] = pairStore
 	}
 
 	if enabled {
-		c.Enabled = cpy
+		pairStore.Enabled = cpy
 	} else {
-		c.Available = cpy
+		pairStore.Available = cpy
 	}
+
+	return nil
 }
 
 // DisablePair removes the pair from the enabled pairs list if found
 func (p *PairsManager) DisablePair(a asset.Item, pair Pair) error {
+	if !a.IsValid() {
+		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
+	}
+
+	if pair.IsEmpty() {
+		return ErrCurrencyPairEmpty
+	}
+
 	p.m.Lock()
 	defer p.m.Unlock()
 
-	c, err := p.getPairStoreRequiresLock(a)
+	pairStore, err := p.getPairStoreRequiresLock(a)
 	if err != nil {
 		return err
 	}
 
-	enabled, err := c.Enabled.Remove(pair)
+	enabled, err := pairStore.Enabled.Remove(pair)
 	if err != nil {
-		if errors.Is(err, ErrPairNotFound) {
-			return errors.New("specified pair is not enabled")
-		}
 		return err
 	}
-	c.Enabled = enabled
+	pairStore.Enabled = enabled
 	return nil
 }
 
 // EnablePair adds a pair to the list of enabled pairs if it exists in the list
 // of available pairs and isn't already added
 func (p *PairsManager) EnablePair(a asset.Item, pair Pair) error {
+	if !a.IsValid() {
+		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
+	}
+
+	if pair.IsEmpty() {
+		return ErrCurrencyPairEmpty
+	}
+
 	p.m.Lock()
 	defer p.m.Unlock()
 
-	c, err := p.getPairStoreRequiresLock(a)
+	pairStore, err := p.getPairStoreRequiresLock(a)
 	if err != nil {
 		return err
 	}
 
-	if c.Enabled.Contains(pair, true) {
+	if pairStore.Enabled.Contains(pair, true) {
 		return fmt.Errorf("%s %w", pair, ErrPairAlreadyEnabled)
 	}
 
-	if !c.Available.Contains(pair, true) {
+	if !pairStore.Available.Contains(pair, true) {
 		return fmt.Errorf("%s %w in the list of available pairs",
 			pair, ErrPairNotFound)
 	}
-	c.Enabled = c.Enabled.Add(pair)
+	pairStore.Enabled = pairStore.Enabled.Add(pair)
 	return nil
 }
 
 // IsAssetEnabled checks to see if an asset is enabled
 func (p *PairsManager) IsAssetEnabled(a asset.Item) error {
+	if !a.IsValid() {
+		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
+	}
+
 	p.m.RLock()
 	defer p.m.RUnlock()
 
-	c, err := p.getPairStoreRequiresLock(a)
+	pairStore, err := p.getPairStoreRequiresLock(a)
 	if err != nil {
 		return err
 	}
 
-	if c.AssetEnabled == nil {
+	if pairStore.AssetEnabled == nil {
 		return fmt.Errorf("%s %w", a, ErrAssetIsNil)
 	}
 
-	if !*c.AssetEnabled {
+	if !*pairStore.AssetEnabled {
 		return fmt.Errorf("%s %w", a, errAssetNotEnabled)
 	}
 	return nil
@@ -230,26 +273,30 @@ func (p *PairsManager) IsAssetEnabled(a asset.Item) error {
 
 // SetAssetEnabled sets if an asset is enabled or disabled for first run
 func (p *PairsManager) SetAssetEnabled(a asset.Item, enabled bool) error {
+	if !a.IsValid() {
+		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
+	}
+
 	p.m.Lock()
 	defer p.m.Unlock()
 
-	c, err := p.getPairStoreRequiresLock(a)
+	pairStore, err := p.getPairStoreRequiresLock(a)
 	if err != nil {
 		return err
 	}
 
-	if c.AssetEnabled == nil {
-		c.AssetEnabled = convert.BoolPtr(enabled)
+	if pairStore.AssetEnabled == nil {
+		pairStore.AssetEnabled = convert.BoolPtr(enabled)
 		return nil
 	}
 
-	if !*c.AssetEnabled && !enabled {
+	if !*pairStore.AssetEnabled && !enabled {
 		return errors.New("asset already disabled")
-	} else if *c.AssetEnabled && enabled {
+	} else if *pairStore.AssetEnabled && enabled {
 		return ErrAssetAlreadyEnabled
 	}
 
-	*c.AssetEnabled = enabled
+	*pairStore.AssetEnabled = enabled
 	return nil
 }
 
@@ -258,16 +305,16 @@ func (p *PairsManager) getPairStoreRequiresLock(a asset.Item) (*PairStore, error
 		return nil, errors.New("pair manager not initialised")
 	}
 
-	c, ok := p.Pairs[a]
+	pairStore, ok := p.Pairs[a]
 	if !ok {
 		return nil, errors.New("asset type not found")
 	}
 
-	if c == nil {
+	if pairStore == nil {
 		return nil, errors.New("currency store is nil")
 	}
 
-	return c, nil
+	return pairStore, nil
 }
 
 // UnmarshalJSON implements the unmarshal json interface so that the key can be

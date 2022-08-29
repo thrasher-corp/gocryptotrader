@@ -76,6 +76,8 @@ var (
 	errShutdownNotAllowed      = errors.New("shutting down this bot instance is not allowed via gRPC, please enable by command line flag --grpcshutdown or config.json field grpcAllowBotShutdown")
 	errGRPCShutdownSignalIsNil = errors.New("cannot shutdown, gRPC shutdown channel is nil")
 	errInvalidStrategy         = errors.New("invalid strategy")
+
+	errSpecificPairNotEnabled = errors.New("specified pair is not enabled")
 )
 
 // RPCServer struct
@@ -2041,12 +2043,12 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 		if r.Enable {
 			err = exchCfg.CurrencyPairs.EnablePair(a, p.Format(pairFmt))
 			if err != nil {
-				newErrors = append(newErrors, err)
+				newErrors = append(newErrors, fmt.Errorf("%s %w", r.Pairs[i], err))
 				continue
 			}
 			err = base.CurrencyPairs.EnablePair(a, p)
 			if err != nil {
-				newErrors = append(newErrors, err)
+				newErrors = append(newErrors, fmt.Errorf("%s %w", r.Pairs[i], err))
 				continue
 			}
 			pass = true
@@ -2055,13 +2057,20 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 
 		err = exchCfg.CurrencyPairs.DisablePair(a, p.Format(pairFmt))
 		if err != nil {
-			newErrors = append(newErrors, err)
-			continue
+			if errors.Is(err, currency.ErrPairNotFound) {
+				newErrors = append(newErrors, fmt.Errorf("%s %w", r.Pairs[i], errSpecificPairNotEnabled))
+				continue
+			}
+			return nil, err
 		}
+
 		err = base.CurrencyPairs.DisablePair(a, p)
 		if err != nil {
-			newErrors = append(newErrors, err)
-			continue
+			if errors.Is(err, currency.ErrPairNotFound) {
+				newErrors = append(newErrors, fmt.Errorf("%s %w", r.Pairs[i], errSpecificPairNotEnabled))
+				continue
+			}
+			return nil, err
 		}
 		pass = true
 	}
@@ -2926,13 +2935,25 @@ func (s *RPCServer) SetAllExchangePairs(_ context.Context, r *gctrpc.SetExchange
 			if err != nil {
 				return nil, err
 			}
-			exchCfg.CurrencyPairs.StorePairs(assets[i], pairs, true)
-			base.CurrencyPairs.StorePairs(assets[i], pairs, true)
+			err = exchCfg.CurrencyPairs.StorePairs(assets[i], pairs, true)
+			if err != nil {
+				return nil, err
+			}
+			err = base.CurrencyPairs.StorePairs(assets[i], pairs, true)
+			if err != nil {
+				return nil, err
+			}
 		}
 	} else {
 		for i := range assets {
-			exchCfg.CurrencyPairs.StorePairs(assets[i], nil, true)
-			base.CurrencyPairs.StorePairs(assets[i], nil, true)
+			err = exchCfg.CurrencyPairs.StorePairs(assets[i], nil, true)
+			if err != nil {
+				return nil, err
+			}
+			err = base.CurrencyPairs.StorePairs(assets[i], nil, true)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 

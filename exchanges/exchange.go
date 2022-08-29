@@ -196,7 +196,7 @@ func (b *Base) GetPairAndAssetTypeRequestFormatted(symbol string) (currency.Pair
 			return currency.Pair{}, asset.Empty, err
 		}
 		for j := range enabled {
-			if enabled[j].Format(pFmt).String() == symbol {
+			if pFmt.Format(enabled[j]) == symbol {
 				return enabled[j], assetTypes[i], nil
 			}
 		}
@@ -220,7 +220,7 @@ func (b *Base) GetExchangeBankAccounts(id, depositCurrency string) (*banking.Acc
 
 // SetCurrencyPairFormat checks the exchange request and config currency pair
 // formats and syncs it with the exchanges SetDefault settings
-func (b *Base) SetCurrencyPairFormat() {
+func (b *Base) SetCurrencyPairFormat() error {
 	if b.Config.CurrencyPairs == nil {
 		b.Config.CurrencyPairs = new(currency.PairsManager)
 	}
@@ -229,7 +229,7 @@ func (b *Base) SetCurrencyPairFormat() {
 	if b.Config.CurrencyPairs.UseGlobalFormat {
 		b.Config.CurrencyPairs.RequestFormat = b.CurrencyPairs.RequestFormat
 		b.Config.CurrencyPairs.ConfigFormat = b.CurrencyPairs.ConfigFormat
-		return
+		return nil
 	}
 
 	if b.Config.CurrencyPairs.ConfigFormat != nil {
@@ -244,11 +244,15 @@ func (b *Base) SetCurrencyPairFormat() {
 		if _, err := b.Config.CurrencyPairs.Get(assetTypes[x]); err != nil {
 			ps, err := b.CurrencyPairs.Get(assetTypes[x])
 			if err != nil {
-				continue
+				return err
 			}
-			_ = b.Config.CurrencyPairs.Store(assetTypes[x], ps)
+			err = b.Config.CurrencyPairs.Store(assetTypes[x], ps)
+			if err != nil {
+				return err
+			}
 		}
 	}
+	return nil
 }
 
 // SetConfigPairs sets the exchanges currency pairs to the pairs set in the config
@@ -283,8 +287,14 @@ func (b *Base) SetConfigPairs() error {
 		}
 
 		if b.Config.CurrencyPairs.UseGlobalFormat {
-			b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Available, false)
-			b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Enabled, true)
+			err = b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Available, false)
+			if err != nil {
+				return err
+			}
+			err = b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Enabled, true)
+			if err != nil {
+				return err
+			}
 			continue
 		}
 		exchPS, err := b.CurrencyPairs.Get(assetTypes[x])
@@ -292,10 +302,22 @@ func (b *Base) SetConfigPairs() error {
 			return err
 		}
 
-		b.Config.CurrencyPairs.StoreFormat(assetTypes[x], exchPS.ConfigFormat, true)
-		b.Config.CurrencyPairs.StoreFormat(assetTypes[x], exchPS.RequestFormat, false)
-		b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Available, false)
-		b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Enabled, true)
+		err = b.Config.CurrencyPairs.StoreFormat(assetTypes[x], exchPS.ConfigFormat, true)
+		if err != nil {
+			return err
+		}
+		err = b.Config.CurrencyPairs.StoreFormat(assetTypes[x], exchPS.RequestFormat, false)
+		if err != nil {
+			return err
+		}
+		err = b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Available, false)
+		if err != nil {
+			return err
+		}
+		err = b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Enabled, true)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -525,7 +547,11 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	b.SetCurrencyPairFormat()
+
+	err = b.SetCurrencyPairFormat()
+	if err != nil {
+		return err
+	}
 
 	err = b.SetConfigPairs()
 	if err != nil {
@@ -577,9 +603,11 @@ func (b *Base) SetPairs(pairs currency.Pairs, assetType asset.Item, enabled bool
 		pairs[x] = pairs[x].Format(pairFmt)
 	}
 
-	b.CurrencyPairs.StorePairs(assetType, pairs, enabled)
-	b.Config.CurrencyPairs.StorePairs(assetType, pairs, enabled)
-	return nil
+	err = b.CurrencyPairs.StorePairs(assetType, pairs, enabled)
+	if err != nil {
+		return err
+	}
+	return b.Config.CurrencyPairs.StorePairs(assetType, pairs, enabled)
 }
 
 // UpdatePairs updates the exchange currency pairs for either enabledPairs or
@@ -590,7 +618,7 @@ func (b *Base) UpdatePairs(incomingPairs currency.Pairs, assetType asset.Item, e
 		return err
 	}
 
-	err = incomingPairs.ValidateAndConform(pFmt)
+	incomingPairs, err = incomingPairs.ValidateAndConform(pFmt)
 	if err != nil {
 		return err
 	}
@@ -637,8 +665,14 @@ func (b *Base) UpdatePairs(incomingPairs currency.Pairs, assetType asset.Item, e
 					diff.Remove)
 			}
 		}
-		b.Config.CurrencyPairs.StorePairs(assetType, incomingPairs, enabled)
-		b.CurrencyPairs.StorePairs(assetType, incomingPairs, enabled)
+		err = b.Config.CurrencyPairs.StorePairs(assetType, incomingPairs, enabled)
+		if err != nil {
+			return err
+		}
+		err = b.CurrencyPairs.StorePairs(assetType, incomingPairs, enabled)
+		if err != nil {
+			return err
+		}
 	}
 
 	if enabled {
@@ -697,9 +731,11 @@ func (b *Base) UpdatePairs(incomingPairs currency.Pairs, assetType asset.Item, e
 			strings.ToUpper(assetType.String()),
 			diff.Remove)
 	}
-	b.Config.CurrencyPairs.StorePairs(assetType, enabledPairs, true)
-	b.CurrencyPairs.StorePairs(assetType, enabledPairs, true)
-	return nil
+	err = b.Config.CurrencyPairs.StorePairs(assetType, enabledPairs, true)
+	if err != nil {
+		return err
+	}
+	return b.CurrencyPairs.StorePairs(assetType, enabledPairs, true)
 }
 
 // SetAPIURL sets configuration API URL for an exchange

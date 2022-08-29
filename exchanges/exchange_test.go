@@ -577,11 +577,23 @@ func TestLoadConfigPairs(t *testing.T) {
 	}
 
 	// Test !UseGlobalFormat setting of pairs
-	b.CurrencyPairs.StoreFormat(asset.Spot, &currency.PairFormat{Delimiter: "~"}, false)
-	b.CurrencyPairs.StoreFormat(asset.Spot, &currency.PairFormat{Delimiter: "/"}, true)
+	err = b.CurrencyPairs.StoreFormat(asset.Spot, &currency.PairFormat{Delimiter: "~"}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.CurrencyPairs.StoreFormat(asset.Spot, &currency.PairFormat{Delimiter: "/"}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	pairs = append(pairs, currency.Pair{Base: currency.XRP, Quote: currency.USD})
-	b.Config.CurrencyPairs.StorePairs(asset.Spot, pairs, false)
-	b.Config.CurrencyPairs.StorePairs(asset.Spot, pairs, true)
+	err = b.Config.CurrencyPairs.StorePairs(asset.Spot, pairs, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.Config.CurrencyPairs.StorePairs(asset.Spot, pairs, true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	b.Config.CurrencyPairs.UseGlobalFormat = false
 	b.CurrencyPairs.UseGlobalFormat = false
 
@@ -731,8 +743,14 @@ func TestGetEnabledPairs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot, defaultPairs, true)
-	b.CurrencyPairs.StorePairs(asset.Spot, defaultPairs, false)
+	err = b.CurrencyPairs.StorePairs(asset.Spot, defaultPairs, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.CurrencyPairs.StorePairs(asset.Spot, defaultPairs, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	format := currency.PairFormat{
 		Delimiter: "-",
 		Index:     "",
@@ -782,8 +800,14 @@ func TestGetEnabledPairs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot, btcdoge, true)
-	b.CurrencyPairs.StorePairs(asset.Spot, btcdoge, false)
+	err = b.CurrencyPairs.StorePairs(asset.Spot, btcdoge, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.CurrencyPairs.StorePairs(asset.Spot, btcdoge, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	format.Index = currency.BTC.String()
 	b.CurrencyPairs.ConfigFormat = &format
 	c, err = b.GetEnabledPairs(asset.Spot)
@@ -799,8 +823,14 @@ func TestGetEnabledPairs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot, btcusdUnderscore, true)
-	b.CurrencyPairs.StorePairs(asset.Spot, btcusdUnderscore, false)
+	err = b.CurrencyPairs.StorePairs(asset.Spot, btcusdUnderscore, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.CurrencyPairs.StorePairs(asset.Spot, btcusdUnderscore, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	b.CurrencyPairs.RequestFormat.Delimiter = ""
 	b.CurrencyPairs.ConfigFormat.Delimiter = "_"
 	c, err = b.GetEnabledPairs(asset.Spot)
@@ -811,8 +841,14 @@ func TestGetEnabledPairs(t *testing.T) {
 		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot, btcdoge, true)
-	b.CurrencyPairs.StorePairs(asset.Spot, btcdoge, false)
+	err = b.CurrencyPairs.StorePairs(asset.Spot, btcdoge, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.CurrencyPairs.StorePairs(asset.Spot, btcdoge, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	b.CurrencyPairs.RequestFormat.Delimiter = ""
 	b.CurrencyPairs.ConfigFormat.Delimiter = ""
 	b.CurrencyPairs.ConfigFormat.Index = currency.BTC.String()
@@ -829,8 +865,14 @@ func TestGetEnabledPairs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot, btcusd, true)
-	b.CurrencyPairs.StorePairs(asset.Spot, btcusd, false)
+	err = b.CurrencyPairs.StorePairs(asset.Spot, btcusd, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.CurrencyPairs.StorePairs(asset.Spot, btcusd, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	b.CurrencyPairs.ConfigFormat.Index = ""
 	c, err = b.GetEnabledPairs(asset.Spot)
 	if err != nil {
@@ -853,7 +895,10 @@ func TestGetAvailablePairs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot, defaultPairs, false)
+	err = b.CurrencyPairs.StorePairs(asset.Spot, defaultPairs, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	format := currency.PairFormat{
 		Delimiter: "-",
 		Index:     "",
@@ -901,7 +946,11 @@ func TestGetAvailablePairs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot, dogePairs, false)
+	err = b.CurrencyPairs.StorePairs(asset.Spot, dogePairs, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	format.Index = currency.BTC.String()
 	b.CurrencyPairs.ConfigFormat = &format
 	c, err = b.GetAvailablePairs(assetType)
@@ -918,7 +967,11 @@ func TestGetAvailablePairs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot, btcusdUnderscore, false)
+	err = b.CurrencyPairs.StorePairs(asset.Spot, btcusdUnderscore, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	b.CurrencyPairs.RequestFormat.Delimiter = ""
 	b.CurrencyPairs.ConfigFormat.Delimiter = "_"
 	c, err = b.GetAvailablePairs(assetType)
@@ -930,7 +983,11 @@ func TestGetAvailablePairs(t *testing.T) {
 		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot, dogePairs, false)
+	err = b.CurrencyPairs.StorePairs(asset.Spot, dogePairs, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	b.CurrencyPairs.RequestFormat.Delimiter = ""
 	b.CurrencyPairs.ConfigFormat.Delimiter = "_"
 	b.CurrencyPairs.ConfigFormat.Index = currency.BTC.String()
@@ -948,7 +1005,11 @@ func TestGetAvailablePairs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot, btcusd, false)
+	err = b.CurrencyPairs.StorePairs(asset.Spot, btcusd, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	b.CurrencyPairs.ConfigFormat.Index = ""
 	c, err = b.GetAvailablePairs(assetType)
 	if err != nil {
@@ -980,14 +1041,20 @@ func TestSupportsPair(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot, pairs, false)
+	err = b.CurrencyPairs.StorePairs(asset.Spot, pairs, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	defaultpairs, err := currency.NewPairsFromStrings([]string{defaultTestCurrencyPair})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot, defaultpairs, true)
+	err = b.CurrencyPairs.StorePairs(asset.Spot, defaultpairs, true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	format := &currency.PairFormat{
 		Delimiter: "-",

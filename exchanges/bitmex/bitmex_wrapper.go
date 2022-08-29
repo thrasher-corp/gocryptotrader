@@ -264,32 +264,34 @@ func (b *Bitmex) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 		case asset.PerpetualContract:
 			if marketInfo[x].Typ == perpetualContractID {
 				var settleTrail string
-				if strings.Contains(marketInfo[x].Symbol, "_") {
+				if strings.Contains(marketInfo[x].Symbol, currency.UnderscoreDelimiter) {
 					// Example: ETHUSD_ETH quoted in USD, paid out in ETH.
-					settlement := strings.Split(marketInfo[x].Symbol, "_")
+					settlement := strings.Split(marketInfo[x].Symbol, currency.UnderscoreDelimiter)
 					if len(settlement) != 2 {
 						return nil, fmt.Errorf("settlement currency can not be handled")
 					}
-					settleTrail = "_" + settlement[1]
+					settleTrail = currency.UnderscoreDelimiter + settlement[1]
 				}
-				products = append(products, marketInfo[x].Underlying+"-"+marketInfo[x].QuoteCurrency+settleTrail)
+				products = append(products, marketInfo[x].Underlying+
+					currency.DashDelimiter+
+					marketInfo[x].QuoteCurrency+settleTrail)
 			}
 		case asset.Futures:
 			if marketInfo[x].Typ == futuresID {
-				isolate := strings.Split(marketInfo[x].Symbol, "_")
+				isolate := strings.Split(marketInfo[x].Symbol, currency.UnderscoreDelimiter)
 				var settleTrail string
 				if len(isolate) == 2 {
 					// Example: ETHUSDU22_ETH quoted in USD, paid out in ETH.
-					settleTrail = "_" + isolate[1]
+					settleTrail = currency.UnderscoreDelimiter + isolate[1]
 				}
 
 				root := isolate[0][:len(isolate[0])-3]
 				contract := isolate[0][len(isolate[0])-3:]
 
-				products = append(products, root+"-"+contract+settleTrail)
+				products = append(products, root+currency.DashDelimiter+contract+settleTrail)
 			}
 		case asset.Index:
-			// NOTE: This can be expanded into individual assets later.
+			// TODO: This can be expanded into individual assets later.
 			if marketInfo[x].Typ == bitMEXBasketIndexID ||
 				marketInfo[x].Typ == bitMEXPriceIndexID ||
 				marketInfo[x].Typ == bitMEXLendingPremiumIndexID ||

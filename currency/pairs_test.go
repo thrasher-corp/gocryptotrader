@@ -224,46 +224,65 @@ func TestGetPairsByFilter(t *testing.T) {
 
 func TestRemove(t *testing.T) {
 	t.Parallel()
-	var pairs = Pairs{
+	var oldPairs = Pairs{
 		NewPair(BTC, USD),
 		NewPair(LTC, USD),
 		NewPair(LTC, USDT),
 	}
 
+	compare := make(Pairs, len(oldPairs))
+	copy(compare, oldPairs)
+
 	p := NewPair(BTC, USD)
-	pairs, err := pairs.Remove(p)
+	newPairs, err := oldPairs.Remove(p)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
-	if pairs.Contains(p, true) || len(pairs) != 2 {
+
+	err = compare.ContainsAll(oldPairs, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if newPairs.Contains(p, true) || len(newPairs) != 2 {
 		t.Error("TestRemove unexpected result")
 	}
 
-	_, err = pairs.Remove(p)
+	_, err = newPairs.Remove(p)
 	if !errors.Is(err, ErrPairNotFound) {
 		t.Fatalf("received: '%v' but expected '%v'", err, ErrPairNotFound)
 	}
 
-	pairs, err = pairs.Remove(NewPair(LTC, USD))
+	newPairs, err = oldPairs.Remove(p)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
-	_, err = pairs.Remove(NewPair(LTC, USD))
+	newPairs, err = newPairs.Remove(NewPair(LTC, USD))
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected '%v'", err, nil)
+	}
+
+	err = compare.ContainsAll(oldPairs, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = newPairs.Remove(NewPair(LTC, USD))
 	if !errors.Is(err, ErrPairNotFound) {
 		t.Fatalf("received: '%v' but expected '%v'", err, ErrPairNotFound)
 	}
 
-	pairs, err = pairs.Remove(NewPair(LTC, USDT))
+	newPairs, err = newPairs.Remove(NewPair(LTC, USDT))
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
-	if len(pairs) != 0 {
+	if len(newPairs) != 0 {
 		t.Error("unexpected value")
 	}
 
-	_, err = pairs.Remove(NewPair(LTC, USDT))
+	_, err = newPairs.Remove(NewPair(LTC, USDT))
 	if !errors.Is(err, ErrPairNotFound) {
 		t.Fatalf("received: '%v' but expected '%v'", err, ErrPairNotFound)
 	}
@@ -692,7 +711,7 @@ func TestValidateAndConform(t *testing.T) {
 		NewPair(EMPTYCODE, EMPTYCODE),
 	}
 
-	err := conformMe.ValidateAndConform(EMPTYFORMAT)
+	_, err := conformMe.ValidateAndConform(EMPTYFORMAT)
 	if !errors.Is(err, ErrCurrencyPairEmpty) {
 		t.Fatalf("received: '%v' but expected '%v'", err, ErrCurrencyPairEmpty)
 	}
@@ -713,7 +732,7 @@ func TestValidateAndConform(t *testing.T) {
 		duplication,
 	}
 
-	err = conformMe.ValidateAndConform(EMPTYFORMAT)
+	_, err = conformMe.ValidateAndConform(EMPTYFORMAT)
 	if !errors.Is(err, ErrPairDuplication) {
 		t.Fatalf("received: '%v' but expected '%v'", err, ErrPairDuplication)
 	}
@@ -728,25 +747,25 @@ func TestValidateAndConform(t *testing.T) {
 		NewPair(USDT, XRP),
 	}
 
-	err = conformMe.ValidateAndConform(EMPTYFORMAT)
+	formatted, err := conformMe.ValidateAndConform(EMPTYFORMAT)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
 	expected := "btcusd,ltcusd,linkusdt,usdnzd,ltcusdt,ltcdai,usdtxrp"
 
-	if conformMe.Join() != expected {
-		t.Fatalf("received: '%v' but expected '%v'", conformMe.Join(), expected)
+	if formatted.Join() != expected {
+		t.Fatalf("received: '%v' but expected '%v'", formatted.Join(), expected)
 	}
 
-	err = conformMe.ValidateAndConform(PairFormat{Delimiter: DashDelimiter, Uppercase: true})
+	formatted, err = formatted.ValidateAndConform(PairFormat{Delimiter: DashDelimiter, Uppercase: true})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
 	expected = "BTC-USD,LTC-USD,LINK-USDT,USD-NZD,LTC-USDT,LTC-DAI,USDT-XRP"
 
-	if conformMe.Join() != expected {
-		t.Fatalf("received: '%v' but expected '%v'", conformMe.Join(), expected)
+	if formatted.Join() != expected {
+		t.Fatalf("received: '%v' but expected '%v'", formatted.Join(), expected)
 	}
 }

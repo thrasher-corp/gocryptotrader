@@ -389,8 +389,7 @@ func (c *Config) SetPairs(exchName string, assetType asset.Item, enabled bool, p
 		return err
 	}
 
-	exchCfg.CurrencyPairs.StorePairs(assetType, pairs, enabled)
-	return nil
+	return exchCfg.CurrencyPairs.StorePairs(assetType, pairs, enabled)
 }
 
 // GetCurrencyPairConfig returns currency pair config for the desired exchange and asset type
