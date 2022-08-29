@@ -28,7 +28,7 @@ var (
 	// exchange for that asset type.
 	ErrPairNotContainedInAvailablePairs = errors.New("pair not contained in available pairs")
 
-	errPairStoreIsNIl = errors.New("pair store is nil")
+	errPairStoreIsNil = errors.New("pair store is nil")
 )
 
 // GetAssetTypes returns a list of stored asset types
