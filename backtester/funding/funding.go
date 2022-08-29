@@ -127,16 +127,18 @@ func (f *FundManager) CreateSnapshot(t time.Time) {
 		if f.items[i].snapshot == nil {
 			f.items[i].snapshot = make(map[int64]ItemSnapshot)
 		}
-
-		iss := ItemSnapshot{
-			Available: f.items[i].available,
-			Time:      t,
+		iss, ok := f.items[i].snapshot[t.UnixNano()]
+		if !ok {
+			iss = ItemSnapshot{
+				Time: t,
+			}
 		}
+		iss.Available = f.items[i].available
 		if !f.disableUSDTracking {
-			var usdClosePrice decimal.Decimal
 			if f.items[i].trackingCandles == nil {
 				continue
 			}
+			var usdClosePrice decimal.Decimal
 			usdCandles := f.items[i].trackingCandles.GetStream()
 			for j := range usdCandles {
 				if usdCandles[j].GetTime().Equal(t) {
@@ -339,14 +341,15 @@ func (f *FundManager) GenerateReport() *Report {
 				continue
 			}
 			for y := range report.USDTotalsOverTime {
-				if report.USDTotalsOverTime[y].Time.Equal(snapshot.Time) {
-					report.USDTotalsOverTime[y].USDValue = report.USDTotalsOverTime[y].USDValue.Add(snapshot.USDValue)
-					report.USDTotalsOverTime[y].Breakdown = append(report.USDTotalsOverTime[y].Breakdown, CurrencyContribution{
-						Currency:        f.items[x].currency,
-						USDContribution: snapshot.USDValue,
-					})
-					continue snaps
+				if !report.USDTotalsOverTime[y].Time.Equal(snapshot.Time) {
+					continue
 				}
+				report.USDTotalsOverTime[y].USDValue = report.USDTotalsOverTime[y].USDValue.Add(snapshot.USDValue)
+				report.USDTotalsOverTime[y].Breakdown = append(report.USDTotalsOverTime[y].Breakdown, CurrencyContribution{
+					Currency:        f.items[x].currency,
+					USDContribution: snapshot.USDValue,
+				})
+				continue snaps
 			}
 			report.USDTotalsOverTime = append(report.USDTotalsOverTime, ItemSnapshot{
 				Time:     snapshot.Time,
@@ -383,6 +386,7 @@ func (f *FundManager) GenerateReport() *Report {
 			return report.USDTotalsOverTime[i].Time.Before(report.USDTotalsOverTime[j].Time)
 		})
 		report.FinalFunds = report.USDTotalsOverTime[len(report.USDTotalsOverTime)-1].USDValue
+		log.Debugf(common.FundManager, "%+v", report.USDTotalsOverTime)
 	}
 
 	report.Items = items

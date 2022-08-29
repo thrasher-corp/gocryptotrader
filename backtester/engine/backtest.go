@@ -303,15 +303,17 @@ func (bt *BackTest) updateStatsForDataEvent(ev data.Event, funds funding.IFundRe
 		if pnl.Result.IsLiquidated {
 			return nil
 		}
-		err = bt.Portfolio.CheckLiquidationStatus(ev, cr, pnl)
-		if err != nil {
-			if errors.Is(err, gctorder.ErrPositionLiquidated) {
-				liquidErr := bt.triggerLiquidationsForExchange(ev, pnl)
-				if liquidErr != nil {
-					return liquidErr
+		if bt.LiveDataHandler == nil || (bt.LiveDataHandler != nil && !bt.LiveDataHandler.IsRealOrders()) {
+			err = bt.Portfolio.CheckLiquidationStatus(ev, cr, pnl)
+			if err != nil {
+				if errors.Is(err, gctorder.ErrPositionLiquidated) {
+					liquidErr := bt.triggerLiquidationsForExchange(ev, pnl)
+					if liquidErr != nil {
+						return liquidErr
+					}
 				}
+				return err
 			}
-			return err
 		}
 
 		return bt.Statistic.AddPNLForTime(pnl)
@@ -560,13 +562,7 @@ func (bt *BackTest) CloseAllPositions() error {
 		}
 		bt.EventQueue.AppendEvent(events[i])
 	}
-	// signal.Event run
 	bt.Run()
-	// order.Event run
-	bt.Run()
-	// fill.Event run
-	bt.Run()
-
 	if bt.LiveDataHandler.IsRealOrders() {
 		// positions are now closed. Sometimes it can take some time
 		// for values to be recalculated on the exchange's side,
@@ -577,6 +573,7 @@ func (bt *BackTest) CloseAllPositions() error {
 			return err
 		}
 	}
+
 	bt.Funding.CreateSnapshot(events[0].GetTime())
 	return nil
 }

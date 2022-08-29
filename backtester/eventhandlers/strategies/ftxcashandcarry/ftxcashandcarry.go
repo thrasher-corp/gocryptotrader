@@ -111,7 +111,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 // unwind all positions in the event of a closure
 func (s *Strategy) CloseAllPositions(holdings []holdings.Holding, prices []data.Event) ([]signal.Event, error) {
 	var spotSignals, futureSignals []signal.Event
-
+	signalTime := time.Now().UTC()
 	for i := range holdings {
 		for j := range prices {
 			if prices[j].GetExchange() != holdings[i].Exchange ||
@@ -123,7 +123,7 @@ func (s *Strategy) CloseAllPositions(holdings []holdings.Holding, prices []data.
 				Base: &event.Base{
 					Offset:         holdings[i].Offset + 1,
 					Exchange:       holdings[i].Exchange,
-					Time:           time.Now().UTC(),
+					Time:           signalTime,
 					Interval:       prices[j].GetInterval(),
 					CurrencyPair:   holdings[i].Pair,
 					UnderlyingPair: prices[j].GetUnderlyingPair(),

@@ -63,21 +63,21 @@ func (bt *BackTest) SetupLiveDataHandler(eventTimeout, dataCheckInterval time.Du
 }
 
 // Start begins fetching and appending live data
-func (l *dataChecker) Start() error {
-	if l == nil {
+func (d *dataChecker) Start() error {
+	if d == nil {
 		return gctcommon.ErrNilPointer
 	}
-	if !atomic.CompareAndSwapUint32(&l.started, 0, 1) {
+	if !atomic.CompareAndSwapUint32(&d.started, 0, 1) {
 		return engine.ErrSubSystemAlreadyStarted
 	}
-	l.shutdown = make(chan struct{})
+	d.shutdown = make(chan struct{})
 
-	l.wg.Add(1)
+	d.wg.Add(1)
 	go func() {
-		err := l.DataFetcher()
+		err := d.DataFetcher()
 		if err != nil {
 			log.Error(common.LiveStrategy, err)
-			err2 := l.Stop()
+			err2 := d.Stop()
 			if err2 != nil {
 				log.Error(common.LiveStrategy, err2)
 			}
@@ -88,99 +88,110 @@ func (l *dataChecker) Start() error {
 }
 
 // IsRunning verifies whether the live data checker is running
-func (l *dataChecker) IsRunning() bool {
-	return l != nil && atomic.LoadUint32(&l.started) == 1
+func (d *dataChecker) IsRunning() bool {
+	return d != nil && atomic.LoadUint32(&d.started) == 1
 }
 
 // Stop ceases fetching and processing live data
-func (l *dataChecker) Stop() error {
-	if l == nil {
+func (d *dataChecker) Stop() error {
+	if d == nil {
 		return gctcommon.ErrNilPointer
 	}
-	if !atomic.CompareAndSwapUint32(&l.started, 1, 0) {
+	if !atomic.CompareAndSwapUint32(&d.started, 1, 0) {
 		return engine.ErrSubSystemNotStarted
 	}
-	l.m.Lock()
-	defer l.m.Unlock()
-	l.hasShutdown.Alert()
-	close(l.shutdown)
-	l.wg.Wait()
+	d.m.Lock()
+	defer d.m.Unlock()
+	d.hasShutdown.Alert()
+	close(d.shutdown)
+	d.wg.Wait()
 	return nil
 }
 
 // DataFetcher will fetch and append live data
-func (l *dataChecker) DataFetcher() error {
-	if l == nil {
+func (d *dataChecker) DataFetcher() error {
+	if d == nil {
 		return fmt.Errorf("%w dataChecker", gctcommon.ErrNilPointer)
 	}
 	defer func() {
-		l.wg.Done()
+		d.wg.Done()
 	}()
-	if atomic.LoadUint32(&l.started) == 0 {
+	if atomic.LoadUint32(&d.started) == 0 {
 		return engine.ErrSubSystemNotStarted
 	}
 	checkTimer := time.NewTimer(0)
-	timeoutTimer := time.NewTimer(l.eventTimeout)
-	var err error
+	timeoutTimer := time.NewTimer(d.eventTimeout)
 	for {
 		select {
-		case <-l.shutdown:
+		case <-d.shutdown:
 			return nil
 		case <-checkTimer.C:
-			checkTimer.Reset(l.dataCheckInterval)
-			var updated bool
-			updated, err = l.FetchLatestData()
+			err := d.checkData(checkTimer, timeoutTimer)
 			if err != nil {
 				return err
 			}
-			if !updated {
-				continue
-			}
-			l.notice.Alert()
-			if !timeoutTimer.Stop() {
-				// drain to avoid closure
-				<-timeoutTimer.C
-			}
-			timeoutTimer.Reset(l.eventTimeout)
-			go func() {
-				err = l.UpdateFunding()
-				if err != nil {
-					log.Errorf(common.LiveStrategy, "could not update funding %v", err)
-				}
-			}()
-
 		case <-timeoutTimer.C:
-			return fmt.Errorf("%w of %v", ErrLiveDataTimeout, l.eventTimeout)
+			return fmt.Errorf("%w of %v", ErrLiveDataTimeout, d.eventTimeout)
 		}
 	}
 }
 
-// UpdateFunding requests and updates funding levels
-func (l *dataChecker) UpdateFunding() error {
-	if !l.realOrders {
+func (d *dataChecker) checkData(checkTimer, timeoutTimer *time.Timer) error {
+	if checkTimer == nil || timeoutTimer == nil {
+		return fmt.Errorf("%w timer", common.ErrNilArguments)
+	}
+	defer func() {
+		checkTimer.Reset(d.dataCheckInterval)
+		if !timeoutTimer.Stop() {
+			// drain to avoid closure
+			<-timeoutTimer.C
+		}
+		timeoutTimer.Reset(d.eventTimeout)
+	}()
+	updated, err := d.FetchLatestData()
+	if err != nil {
+		return err
+	}
+	if !updated {
 		return nil
 	}
-	if !atomic.CompareAndSwapUint32(&l.updatingFunding, 0, 1) {
+	d.notice.Alert()
+
+	go func() {
+		err = d.UpdateFunding()
+		if err != nil {
+			log.Errorf(common.LiveStrategy, "could not update funding %v", err)
+		}
+	}()
+	return nil
+}
+
+// UpdateFunding requests and updates funding levels
+func (d *dataChecker) UpdateFunding() error {
+	if !d.realOrders {
+		return nil
+	}
+	if !atomic.CompareAndSwapUint32(&d.updatingFunding, 0, 1) {
 		// already processing funding and can't go any faster
 		return nil
 	}
-	defer atomic.StoreUint32(&l.updatingFunding, 0)
+	defer atomic.StoreUint32(&d.updatingFunding, 0)
 
 	// TODO: design a more sophisticated way of keeping funds up to date
 	// with current data type retrieval, this still functions appropriately
 	ts := time.Now()
-	err := l.funding.UpdateFundingFromLiveData(l.hasUpdatedFunding)
+	err := d.funding.UpdateFundingFromLiveData(d.hasUpdatedFunding)
 	if err != nil {
 		return err
 	}
-	if !l.hasUpdatedFunding {
-		l.hasUpdatedFunding = true
+	if !d.hasUpdatedFunding {
+		d.hasUpdatedFunding = true
 	}
 	log.Debugf(common.LiveStrategy, "UpdateFundingFromLiveData: %v", time.Since(ts))
 
-	if l.funding.HasFutures() {
+	if d.funding.HasFutures() {
 		ts = time.Now()
-		err = l.funding.UpdateAllCollateral(true)
+		err = d.funding.UpdateAllCollateral(true)
 		if err != nil {
 			return err
 		}
@@ -191,45 +202,45 @@ func (l *dataChecker) UpdateFunding() error {
 
 // Updated gives other endpoints the ability to listen to
 // when data is updated from live sources
-func (l *dataChecker) Updated() <-chan bool {
-	if l == nil {
+func (d *dataChecker) Updated() <-chan bool {
+	if d == nil {
 		immediateClosure := make(chan bool)
 		defer close(immediateClosure)
 		return immediateClosure
 	}
-	return l.notice.Wait(l.shutdown)
+	return d.notice.Wait(d.shutdown)
 }
 
 // HasShutdown indicates when the live data checker
 // has been shutdown
-func (l *dataChecker) HasShutdown() <-chan bool {
-	if l == nil {
+func (d *dataChecker) HasShutdown() <-chan bool {
+	if d == nil {
 		immediateClosure := make(chan bool)
 		defer close(immediateClosure)
 		return immediateClosure
 	}
-	return l.hasShutdown.Wait(nil)
+	return d.hasShutdown.Wait(nil)
 }
 
 // Reset clears all stored data
-func (l *dataChecker) Reset() {
-	if l == nil {
+func (d *dataChecker) Reset() {
+	if d == nil {
 		return
 	}
-	l.m.Lock()
-	defer l.m.Unlock()
-	l.dataCheckInterval = 0
-	l.eventTimeout = 0
-	l.exchangeManager = nil
-	l.sourcesToCheck = nil
-	l.exchangeManager = nil
-	l.verboseDataCheck = false
-	l.wg = sync.WaitGroup{}
+	d.m.Lock()
+	defer d.m.Unlock()
+	d.dataCheckInterval = 0
+	d.eventTimeout = 0
+	d.exchangeManager = nil
+	d.sourcesToCheck = nil
+	d.exchangeManager = nil
+	d.verboseDataCheck = false
+	d.wg = sync.WaitGroup{}
 }
 
 // AppendDataSource stores params to allow the datachecker to fetch and append live data
-func (l *dataChecker) AppendDataSource(dataSource *liveDataSourceSetup) error {
-	if l == nil {
+func (d *dataChecker) AppendDataSource(dataSource *liveDataSourceSetup) error {
+	if d == nil {
 		return fmt.Errorf("%w dataChecker", gctcommon.ErrNilPointer)
 	}
 	if dataSource == nil {
@@ -250,18 +261,18 @@ func (l *dataChecker) AppendDataSource(dataSource *liveDataSourceSetup) error {
 	if dataSource.interval.Duration() == 0 {
 		return gctkline.ErrUnsetInterval
 	}
-	l.m.Lock()
-	defer l.m.Unlock()
+	d.m.Lock()
+	defer d.m.Unlock()
 	exchName := strings.ToLower(dataSource.exchange.GetName())
-	for i := range l.sourcesToCheck {
-		if l.sourcesToCheck[i].exchangeName == exchName &&
-			l.sourcesToCheck[i].asset == dataSource.asset &&
-			l.sourcesToCheck[i].pair.Equal(dataSource.pair) {
+	for i := range d.sourcesToCheck {
+		if d.sourcesToCheck[i].exchangeName == exchName &&
+			d.sourcesToCheck[i].asset == dataSource.asset &&
+			d.sourcesToCheck[i].pair.Equal(dataSource.pair) {
 			return fmt.Errorf("%w %v %v %v", errDataSourceExists, exchName, dataSource.asset, dataSource.pair)
 		}
 	}
 
-	d := kline.DataFromKline{
+	k := kline.DataFromKline{
 		Item: gctkline.Item{
 			Exchange:       exchName,
 			Pair:           dataSource.pair,
@@ -270,20 +281,20 @@ func (l *dataChecker) AppendDataSource(dataSource *liveDataSourceSetup) error {
 			Interval:       dataSource.interval,
 		},
 	}
-	d.SetLive(true)
+	k.SetLive(true)
 	if dataSource.dataRequestRetryTolerance == 0 {
 		dataSource.dataRequestRetryTolerance = 1
 	}
 	if dataSource.dataRequestRetryWaitTime <= 0 {
 		dataSource.dataRequestRetryWaitTime = defaultDataRequestWaitTime
 	}
-	l.sourcesToCheck = append(l.sourcesToCheck, &liveDataSourceDataHandler{
+	d.sourcesToCheck = append(d.sourcesToCheck, &liveDataSourceDataHandler{
 		exchange:                  dataSource.exchange,
 		exchangeName:              exchName,
 		asset:                     dataSource.asset,
 		pair:                      dataSource.pair,
 		underlyingPair:            dataSource.underlyingPair,
-		pairCandles:               d,
+		pairCandles:               k,
 		dataType:                  dataSource.dataType,
 		processedData:             make(map[int64]struct{}),
 		dataRequestRetryTolerance: dataSource.dataRequestRetryTolerance,
@@ -295,27 +306,27 @@ func (l *dataChecker) AppendDataSource(dataSource *liveDataSourceSetup) error {
 }
 
 // FetchLatestData loads the latest data for all stored data sources
-func (l *dataChecker) FetchLatestData() (bool, error) {
-	if l == nil {
+func (d *dataChecker) FetchLatestData() (bool, error) {
+	if d == nil {
 		return false, fmt.Errorf("%w dataChecker", gctcommon.ErrNilPointer)
 	}
-	if atomic.LoadUint32(&l.started) == 0 {
+	if atomic.LoadUint32(&d.started) == 0 {
 		return false, engine.ErrSubSystemNotStarted
 	}
-	l.m.Lock()
-	defer l.m.Unlock()
+	d.m.Lock()
+	defer d.m.Unlock()
 	var err error
 
 	var results []bool
 	// timeToRetrieve ensures consistent data retrieval
 	// in the event of a candle rollover mid-loop
 	timeToRetrieve := time.Now()
-	for i := range l.sourcesToCheck {
-		if l.verboseDataCheck {
-			log.Infof(common.LiveStrategy, "%v %v %v checking for new data", l.sourcesToCheck[i].exchangeName, l.sourcesToCheck[i].asset, l.sourcesToCheck[i].pair)
+	for i := range d.sourcesToCheck {
+		if d.verboseDataCheck {
+			log.Infof(common.LiveStrategy, "%v %v %v checking for new data", d.sourcesToCheck[i].exchangeName, d.sourcesToCheck[i].asset, d.sourcesToCheck[i].pair)
 		}
 		var updated bool
-		updated, err = l.sourcesToCheck[i].loadCandleData(timeToRetrieve)
+		updated, err = d.sourcesToCheck[i].loadCandleData(timeToRetrieve)
 		if err != nil {
 			return false, err
 		}
@@ -330,24 +341,24 @@ func (l *dataChecker) FetchLatestData() (bool, error) {
 	if !allUpdated {
 		return false, nil
 	}
-	for i := range l.sourcesToCheck {
-		if l.verboseDataCheck {
-			log.Infof(common.LiveStrategy, "%v %v %v found new data", l.sourcesToCheck[i].exchangeName, l.sourcesToCheck[i].asset, l.sourcesToCheck[i].pair)
+	for i := range d.sourcesToCheck {
+		if d.verboseDataCheck {
+			log.Infof(common.LiveStrategy, "%v %v %v found new data", d.sourcesToCheck[i].exchangeName, d.sourcesToCheck[i].asset, d.sourcesToCheck[i].pair)
 		}
-		l.sourcesToCheck[i].pairCandles.AppendResults(l.sourcesToCheck[i].candlesToAppend)
-		l.sourcesToCheck[i].candlesToAppend.Candles = nil
-		l.dataHolder.SetDataForCurrency(l.sourcesToCheck[i].exchangeName, l.sourcesToCheck[i].asset, l.sourcesToCheck[i].pair, &l.sourcesToCheck[i].pairCandles)
-		err = l.report.SetKlineData(&l.sourcesToCheck[i].pairCandles.Item)
+		d.sourcesToCheck[i].pairCandles.AppendResults(d.sourcesToCheck[i].candlesToAppend)
+		d.sourcesToCheck[i].candlesToAppend.Candles = nil
+		d.dataHolder.SetDataForCurrency(d.sourcesToCheck[i].exchangeName, d.sourcesToCheck[i].asset, d.sourcesToCheck[i].pair, &d.sourcesToCheck[i].pairCandles)
+		err = d.report.SetKlineData(&d.sourcesToCheck[i].pairCandles.Item)
 		if err != nil {
-			log.Errorf(common.LiveStrategy, "%v %v %v issue processing kline data: %v", l.sourcesToCheck[i].exchangeName, l.sourcesToCheck[i].asset, l.sourcesToCheck[i].pair, err)
+			log.Errorf(common.LiveStrategy, "%v %v %v issue processing kline data: %v", d.sourcesToCheck[i].exchangeName, d.sourcesToCheck[i].asset, d.sourcesToCheck[i].pair, err)
 		}
-		err = l.funding.AddUSDTrackingData(&l.sourcesToCheck[i].pairCandles)
+		err = d.funding.AddUSDTrackingData(&d.sourcesToCheck[i].pairCandles)
 		if err != nil && !errors.Is(err, funding.ErrUSDTrackingDisabled) {
-			log.Errorf(common.LiveStrategy, "%v %v %v issue processing USD tracking data: %v", l.sourcesToCheck[i].exchangeName, l.sourcesToCheck[i].asset, l.sourcesToCheck[i].pair, err)
+			log.Errorf(common.LiveStrategy, "%v %v %v issue processing USD tracking data: %v", d.sourcesToCheck[i].exchangeName, d.sourcesToCheck[i].asset, d.sourcesToCheck[i].pair, err)
 		}
 	}
-	if !l.hasUpdatedFunding {
-		err = l.UpdateFunding()
+	if !d.hasUpdatedFunding {
+		err = d.UpdateFunding()
 		if err != nil {
 			if err != nil {
 				log.Error(common.LiveStrategy, err)
@@ -363,15 +374,15 @@ var errNoDataSetForClosingPositions = errors.New("no data was set for closing po
 // SetDataForClosingAllPositions is triggered on a live data run
 // when closing all positions on close is true.
 // it will ensure all data is set such as USD tracking data
-func (l *dataChecker) SetDataForClosingAllPositions(s ...signal.Event) error {
-	if l == nil {
+func (d *dataChecker) SetDataForClosingAllPositions(s ...signal.Event) error {
+	if d == nil {
 		return fmt.Errorf("%w dataChecker", gctcommon.ErrNilPointer)
 	}
 	if len(s) == 0 {
 		return fmt.Errorf("%w signal events", common.ErrNilArguments)
 	}
-	l.m.Lock()
-	defer l.m.Unlock()
+	d.m.Lock()
+	defer d.m.Unlock()
 	var err error
 
 	setData := false
@@ -379,13 +390,13 @@ func (l *dataChecker) SetDataForClosingAllPositions(s ...signal.Event) error {
 		if s[x] == nil {
 			return fmt.Errorf("%w signal events", errNilData)
 		}
-		for y := range l.sourcesToCheck {
-			if s[x].GetExchange() != l.sourcesToCheck[y].exchangeName ||
-				s[x].GetAssetType() != l.sourcesToCheck[y].asset ||
-				!s[x].Pair().Equal(l.sourcesToCheck[y].pair) {
+		for y := range d.sourcesToCheck {
+			if s[x].GetExchange() != d.sourcesToCheck[y].exchangeName ||
+				s[x].GetAssetType() != d.sourcesToCheck[y].asset ||
+				!s[x].Pair().Equal(d.sourcesToCheck[y].pair) {
 				continue
 			}
-			l.sourcesToCheck[y].pairCandles.Item.Candles = append(l.sourcesToCheck[y].pairCandles.Item.Candles, gctkline.Candle{
+			d.sourcesToCheck[y].pairCandles.Item.Candles = append(d.sourcesToCheck[y].pairCandles.Item.Candles, gctkline.Candle{
 				Time:   s[x].GetTime(),
 				Open:   s[x].GetOpenPrice().InexactFloat64(),
 				High:   s[x].GetHighPrice().InexactFloat64(),
@@ -393,14 +404,14 @@ func (l *dataChecker) SetDataForClosingAllPositions(s ...signal.Event) error {
 				Close:  s[x].GetClosePrice().InexactFloat64(),
 				Volume: s[x].GetVolume().InexactFloat64(),
 			})
-			l.dataHolder.SetDataForCurrency(l.sourcesToCheck[y].exchangeName, l.sourcesToCheck[y].asset, l.sourcesToCheck[y].pair, &l.sourcesToCheck[y].pairCandles)
-			err = l.report.SetKlineData(&l.sourcesToCheck[y].pairCandles.Item)
+			d.dataHolder.SetDataForCurrency(d.sourcesToCheck[y].exchangeName, d.sourcesToCheck[y].asset, d.sourcesToCheck[y].pair, &d.sourcesToCheck[y].pairCandles)
+			err = d.report.SetKlineData(&d.sourcesToCheck[y].pairCandles.Item)
 			if err != nil {
-				log.Errorf(common.LiveStrategy, "%v %v %v issue processing kline data: %v", l.sourcesToCheck[y].exchangeName, l.sourcesToCheck[y].asset, l.sourcesToCheck[y].pair, err)
+				log.Errorf(common.LiveStrategy, "%v %v %v issue processing kline data: %v", d.sourcesToCheck[y].exchangeName, d.sourcesToCheck[y].asset, d.sourcesToCheck[y].pair, err)
 			}
-			err = l.funding.AddUSDTrackingData(&l.sourcesToCheck[y].pairCandles)
+			err = d.funding.AddUSDTrackingData(&d.sourcesToCheck[y].pairCandles)
 			if err != nil && !errors.Is(err, funding.ErrUSDTrackingDisabled) {
-				log.Errorf(common.LiveStrategy, "%v %v %v issue processing USD tracking data: %v", l.sourcesToCheck[y].exchangeName, l.sourcesToCheck[y].asset, l.sourcesToCheck[y].pair, err)
+				log.Errorf(common.LiveStrategy, "%v %v %v issue processing USD tracking data: %v", d.sourcesToCheck[y].exchangeName, d.sourcesToCheck[y].asset, d.sourcesToCheck[y].pair, err)
 			}
 			setData = true
 		}
@@ -413,8 +424,8 @@ func (l *dataChecker) SetDataForClosingAllPositions(s ...signal.Event) error {
 }
 
 // IsRealOrders is a quick check for if the strategy is using real orders
-func (c *dataChecker) IsRealOrders() bool {
-	return c.realOrders
+func (d *dataChecker) IsRealOrders() bool {
+	return d.realOrders
 }
 
 // loadCandleData fetches data from the exchange API and appends it
