@@ -479,10 +479,14 @@ func StartEndTimeCheck(start, end time.Time) error {
 	return nil
 }
 
-// GenerateRandomString generates a random string provided a length and list of Character types {  }.
+// GenerateRandomString generates a random string provided a length and list of Character types { SmallLetters, CapitalLetters, NumberCharacters}.
+// if no characters are provided, the function uses a NumberCharacters(string of numeric characters).
 func GenerateRandomString(length int, characters ...string) string {
 	b := make([]byte, length)
 	chars := strings.Join(characters, "")
+	if len(chars) == 0 {
+		chars = NumberCharacters
+	}
 	for i := range b {
 		nBig, err := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
 		if err != nil {

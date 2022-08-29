@@ -297,6 +297,7 @@ var (
 	errNoOrderParameterPassed                        = errors.New("no order parameter was passed")
 	errEitherPriceVarianceOrPriceSpreadRequired      = errors.New("either \"price ratio\" or \"price variance\" is allowed to be passed")
 	errIncompleteCandlestickData                     = errors.New("incomplete candlestick data")
+	errMaxRFQOrdersToCancel                          = errors.New("no more than 100 RFQ cancel order parameter is allowed")
 )
 
 /************************************ MarketData Endpoints *************************************************/
@@ -1097,13 +1098,7 @@ func (ok *Okx) CancelMultipleRFQs(ctx context.Context, arg CancelRFQRequestsPara
 	if len(arg.RfqID) == 0 && len(arg.ClientSuppliedRFQID) == 0 {
 		return nil, errMissingRFQIDANDClientSuppliedRFQID
 	} else if len(arg.RfqID)+len(arg.ClientSuppliedRFQID) > 100 {
-		max := 100
-		if len(arg.RfqID) > max {
-			arg.RfqID = arg.RfqID[:max]
-			arg.ClientSuppliedRFQID = []string{}
-		} else if len(arg.ClientSuppliedRFQID) > (max - len(arg.RfqID)) {
-			arg.ClientSuppliedRFQID = arg.ClientSuppliedRFQID[:(max - len(arg.RfqID))]
-		}
+		return nil, errMaxRFQOrdersToCancel
 	}
 	type response struct {
 		Code string              `json:"code"`

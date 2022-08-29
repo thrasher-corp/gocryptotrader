@@ -728,4 +728,9 @@ func TestGenerateRandomString(t *testing.T) {
 	if len(sample) != 5 || err != nil || value < 0 {
 		t.Error("GenerateRandomString() unexpected test validation result")
 	}
+	sample = GenerateRandomString(1, "")
+	value, err = strconv.Atoi(sample)
+	if len(sample) != 1 || err != nil || value < 0 {
+		t.Error("GenerateRandomString() unexpected test validation result")
+	}
 }
