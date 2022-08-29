@@ -634,13 +634,12 @@ func TestItemString(t *testing.T) {
 	}
 }
 
-var testCode Code
-
 // 28848025	        40.84 ns/op	       8 B/op	       1 allocs/op // Current
 //
 //	546290	      2192 ns/op	       8 B/op	       1 allocs/op // Previous
 func BenchmarkNewCode(b *testing.B) {
+        b.ReportAllocs()
 	for x := 0; x < b.N; x++ {
-		testCode = NewCode("someCode")
+		_ = NewCode("someCode")
 	}
 }
