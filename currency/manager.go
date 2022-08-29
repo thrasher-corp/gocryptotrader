@@ -28,7 +28,7 @@ var (
 	// exchange for that asset type.
 	ErrPairNotContainedInAvailablePairs = errors.New("pair not contained in available pairs")
 
-	errPairStoreIsNIl  = errors.New("pair store is nil")
+	errPairStoreIsNil  = errors.New("pair store is nil")
 	errPairFormatIsNil = errors.New("pair format is nil")
 )
 
@@ -350,7 +350,7 @@ func (fs FullStore) MarshalJSON() ([]byte, error) {
 // copy copies and segregates pair store from internal and external calls.
 func (ps *PairStore) copy() (*PairStore, error) {
 	if ps == nil {
-		return nil, errPairStoreIsNIl
+		return nil, errPairStoreIsNil
 	}
 	var assetEnabled *bool
 	if ps.AssetEnabled != nil {
