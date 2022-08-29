@@ -142,12 +142,12 @@ func (b *BaseCodes) UpdateCurrency(update *Item) error {
 		return errSymbolEmpty
 	}
 
-	update.Symbol = strings.ToUpper(update.Symbol)
-	update.Lower = strings.ToLower(update.Symbol)
-
 	if update.Role == Unset {
 		return fmt.Errorf("cannot update currency %w for %s", errRoleUnset, update.Symbol)
 	}
+
+	update.Symbol = strings.ToUpper(update.Symbol)
+	update.Lower = strings.ToLower(update.Symbol)
 
 	b.mtx.Lock()
 	defer b.mtx.Unlock()

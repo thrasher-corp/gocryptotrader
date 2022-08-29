@@ -153,6 +153,9 @@ func (b *BaseCodes) assertRole(t *testing.T, c Code, r Role) {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 	stored, ok := b.Items[c.Item.Symbol]
+	if !ok {
+		t.Fatal("code pointer not found")
+	}
 	if ok {
 		for x := range stored {
 			if stored[x] != c.Item {
@@ -638,7 +641,7 @@ func TestItemString(t *testing.T) {
 //
 //	546290	      2192 ns/op	       8 B/op	       1 allocs/op // Previous
 func BenchmarkNewCode(b *testing.B) {
-        b.ReportAllocs()
+	b.ReportAllocs()
 	for x := 0; x < b.N; x++ {
 		_ = NewCode("someCode")
 	}

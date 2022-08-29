@@ -228,9 +228,14 @@ func (s *Storage) SetupConversionRates() {
 // to the running list
 func (s *Storage) SetDefaultFiatCurrencies(c Currencies) error {
 	for i := range c {
-		update := c[i].Item.copy()
-		update.Role = Fiat
-		err := s.currencyCodes.UpdateCurrency(update)
+		err := s.currencyCodes.UpdateCurrency(&Item{
+			ID:         c[i].Item.ID,
+			FullName:   c[i].Item.FullName,
+			Symbol:     c[i].Item.Symbol,
+			Lower:      c[i].Item.Lower,
+			Role:       Fiat,
+			AssocChain: c[i].Item.AssocChain,
+		})
 		if err != nil {
 			return err
 		}
@@ -244,9 +249,14 @@ func (s *Storage) SetDefaultFiatCurrencies(c Currencies) error {
 // list
 func (s *Storage) SetStableCoins(c Currencies) error {
 	for i := range c {
-		update := c[i].Item.copy()
-		update.Role = Stable
-		err := s.currencyCodes.UpdateCurrency(update)
+		err := s.currencyCodes.UpdateCurrency(&Item{
+			ID:         c[i].Item.ID,
+			FullName:   c[i].Item.FullName,
+			Symbol:     c[i].Item.Symbol,
+			Lower:      c[i].Item.Lower,
+			Role:       Stable,
+			AssocChain: c[i].Item.AssocChain,
+		})
 		if err != nil {
 			return err
 		}
@@ -259,9 +269,14 @@ func (s *Storage) SetStableCoins(c Currencies) error {
 // it to the running list
 func (s *Storage) SetDefaultCryptocurrencies(c Currencies) error {
 	for i := range c {
-		update := c[i].Item.copy()
-		update.Role = Cryptocurrency
-		err := s.currencyCodes.UpdateCurrency(update)
+		err := s.currencyCodes.UpdateCurrency(&Item{
+			ID:         c[i].Item.ID,
+			FullName:   c[i].Item.FullName,
+			Symbol:     c[i].Item.Symbol,
+			Lower:      c[i].Item.Lower,
+			Role:       Cryptocurrency,
+			AssocChain: c[i].Item.AssocChain,
+		})
 		if err != nil {
 			return err
 		}
