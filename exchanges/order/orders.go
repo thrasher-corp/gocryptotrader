@@ -974,7 +974,6 @@ func StringToOrderSide(side string) (Side, error) {
 	}
 }
 
-
 // StringToOrderType for converting case insensitive order type
 // and returning a real Type
 func StringToOrderType(oType string) (Type, error) {
@@ -1002,8 +1001,6 @@ func StringToOrderType(oType string) (Type, error) {
 		return AnyType, nil
 	case Trigger.String():
 		return Trigger, nil
-	case OptimalLimitIOC.String():
-		return OptimalLimitIOC, nil
 	default:
 		return UnknownType, fmt.Errorf("'%v' %w", oType, errUnrecognisedOrderType)
 	}
