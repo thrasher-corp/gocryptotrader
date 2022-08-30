@@ -489,6 +489,9 @@ func GetAssertError(required string, received interface{}) error {
 func GenerateRandomString(length int, characters ...string) string {
 	b := make([]byte, length)
 	chars := strings.Join(characters, "")
+	if len(chars) == 0 {
+		chars = NumberCharacters
+	}
 	for i := range b {
 		nBig, err := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
 		if err != nil {

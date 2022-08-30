@@ -1075,8 +1075,8 @@ func TestCancelBatchOrdersWithIDList(t *testing.T) {
 	}
 	if _, er := g.CancelBatchOrdersWithIDList(context.Background(), []CancelOrderByIDParam{
 		{
-			// CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
-			ID: "1234567",
+			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
+			ID:           "1234567",
 		},
 		{
 			CurrencyPair: currency.NewPair(currency.ETH, currency.USDT),
@@ -1084,6 +1084,106 @@ func TestCancelBatchOrdersWithIDList(t *testing.T) {
 		},
 	}); er != nil {
 		t.Errorf("%s CancelBatchOrderWithIDList() error %v", g.Name, er)
+	}
+}
+
+var spotOrderJSON = `{"id": "12332324","text": "t-123456","create_time": "1548000000","update_time": "1548000100","create_time_ms": 1548000000123,"update_time_ms": 1548000100123,"currency_pair": "ETH_BTC","status": "cancelled","type": "limit","account": "spot","side": "buy","iceberg": "0","amount": "1","price": "5.00032","time_in_force": "gtc","left": "0.5","filled_total": "2.50016","fee": "0.005","fee_currency": "ETH","point_fee": "0","gt_fee": "0","gt_discount": false,"rebated_fee": "0","rebated_fee_currency": "BTC"}`
+
+func TestGetSpotOrder(t *testing.T) {
+	t.Parallel()
+	var response SpotOrder
+	if er := json.Unmarshal([]byte(spotOrderJSON), &response); er != nil {
+		t.Errorf("%s error while deserializing to SpotOrder %v", g.Name, er)
+	}
+	if _, er := g.GetSpotOrder(context.Background(), "1234", currency.NewPair(currency.BTC, currency.USDT), asset.Spot); er != nil && !strings.Contains(er.Error(), "Order with ID 1234 not found") {
+		t.Errorf("%s GetSpotOrder() error %v", g.Name, er)
+	}
+}
+func TestCancelSingleSpotOrder(t *testing.T) {
+	t.Parallel()
+	if _, er := g.CancelSingleSpotOrder(context.Background(), "1234", currency.NewPair(currency.ETH, currency.USDT), asset.Empty); er != nil && !strings.Contains(er.Error(), "Order not found") {
+		t.Errorf("%s CancelSingleSpotOrder() error %v", g.Name, er)
+	}
+}
+
+var personalTradingHistoryJSON = `{"id": "1232893232","create_time": "1548000000","create_time_ms": "1548000000123.456","order_id": "4128442423","side": "buy","role": "maker","amount": "0.15","price": "0.03","fee": "0.0005","fee_currency": "ETH","point_fee": "0","gt_fee": "0"}`
+
+func TestGetPersonalTradingHistory(t *testing.T) {
+	t.Parallel()
+	var response SpotPersonalTradeHistory
+	if er := json.Unmarshal([]byte(personalTradingHistoryJSON), &response); er != nil {
+		t.Errorf("%s error while deserializing to PersonalTrading History %v", g.Name, er)
+	}
+	if _, er := g.GetPersonalTradingHistory(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "", 0, 0, asset.Spot, time.Time{}, time.Time{}); er != nil {
+		t.Errorf("%s GetPersonalTradingHistory() error %v", g.Name, er)
+	}
+}
+
+func TestGetServerTime(t *testing.T) {
+	t.Parallel()
+	if _, er := g.GetServerTime(context.Background()); er != nil {
+		t.Errorf("%s GetServerTime() error %v", g.Name, er)
+	}
+}
+
+func TestCountdownCancelorder(t *testing.T) {
+	t.Parallel()
+	if _, er := g.CountdownCancelorder(context.Background(), CountdownCancelOrderParam{
+		Timeout:      10,
+		CurrencyPair: currency.NewPair(currency.BTC, currency.ETH),
+	}); er != nil {
+		t.Errorf("%s CountdownCancelorder() error %v", g.Name, er)
+	}
+}
+
+func TestCreatePriceTriggeredOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	if _, er := g.CreatePriceTriggeredOrder(context.Background(), PriceTriggeredOrderParam{
+		Trigger: TriggerPriceInfo{
+			Price:      123,
+			Rule:       ">=",
+			Expiration: 3600,
+		},
+		Put: PutOrderData{
+			Type:        "limit",
+			Side:        "sell",
+			Price:       2312312,
+			Amount:      30,
+			TimeInForce: "gtc",
+		},
+		Market: currency.NewPair(currency.GT, currency.USDT),
+	}); er != nil {
+		t.Errorf("%s CreatePriceTriggeredOrder() erro %v", g.Name, er)
+	}
+}
+
+func TestGetPriceTriggeredOrderList(t *testing.T) {
+	t.Parallel()
+	if _, er := g.GetPriceTriggeredOrderList(context.Background(), "open", currency.EMPTYPAIR, asset.Empty, 0, 0); er != nil {
+		t.Errorf("%s GetPriceTriggeredOrderList() error %v", g.Name, er)
+	}
+}
+
+func TestCancelAllOpenOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	if _, er := g.CancelAllOpenOrders(context.Background(), currency.EMPTYPAIR, asset.CrossMargin); er != nil {
+		t.Errorf("%s CancelAllOpenOrders() error %v", g.Name, er)
+	}
+}
+
+func TestGetSinglePriceTriggeredOrder(t *testing.T) {
+	t.Parallel()
+	// if !areTestAPIKeysSet() || !canManipulateRealOrders {
+	// 	t.SkipNow()
+	// }
+	if _, er := g.GetSinglePriceTriggeredOrder(context.Background(), "1234"); er != nil {
+		t.Errorf("%s GetSinglePriceTriggeredOrder() error %v", g.Name, er)
 	}
 }
 

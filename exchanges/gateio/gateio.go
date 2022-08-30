@@ -46,6 +46,10 @@ const (
 	spotClosePositionWhenCrossCurrencyDisabledPath = "spot/cross_liquidate_orders"
 	spotOrders                                     = "spot/orders"
 	spotCancelBatchOrders                          = "spot/cancel_batch_orders"
+	spotMyTrades                                   = "spot/my_trades"
+	spotServerTime                                 = "spot/time"
+	spotAllCountdown                               = "spot/countdown_cancel_all"
+	spotPriceOrders                                = "spot/price_orders"
 
 	// Wallets
 	walletCurrencyChain                 = "wallet/currency_chains"
@@ -154,6 +158,8 @@ var (
 	errDifferentAccount                    = errors.New("account type must be identical for all orders")
 	errInvalidPrice                        = errors.New("invalid price")
 	errNoValidParameterPassed              = errors.New("no valid parameter passed")
+	errInvalidCountdown                    = errors.New("invalid countdown, Countdown time, in seconds At least 5 seconds, 0 means cancel the countdown")
+	errInvalidOrderStatus                  = errors.New("invalid order status")
 )
 
 // Gateio is the overarching type across this package
@@ -1099,6 +1105,195 @@ func (g *Gateio) CancelBatchOrdersWithIDList(ctx context.Context, args []CancelO
 		}
 	}
 	return response, nil
+}
+
+// GetSpotOrder retrives a single spot order using the order id and currency pair information.
+func (g *Gateio) GetSpotOrder(ctx context.Context, orderID string, currencyPair currency.Pair, account asset.Item) (*SpotOrder, error) {
+	var response SpotOrder
+	params := url.Values{}
+	if orderID == "" {
+		return nil, errInvalidOrderID
+	}
+	if currencyPair.Base.IsEmpty() || currencyPair.Quote.IsEmpty() {
+		return nil, errInvalidOrEmptyCurrencyPair
+	}
+	currencyPair.Delimiter = UnderscoreDelimiter
+	params.Set("currency_pair", currencyPair.String())
+	if account == asset.Margin || account == asset.Spot || account == asset.CrossMargin {
+		params.Set("account", account.String())
+	}
+	path := fmt.Sprintf("%s/%s", spotOrders, orderID)
+	return &response, g.SendAuthenticatedHTTPRequest(ctx,
+		exchange.RestSpot, http.MethodGet, path, params, nil, &response)
+}
+
+// CancelSingleSpotOrder cancels a single order
+// Spot and margin orders are cancelled by default.
+// If trying to cancel cross margin orders or portfolio margin account are used, account must be set to cross_margin
+func (g *Gateio) CancelSingleSpotOrder(ctx context.Context, orderID string, currencyPair currency.Pair, account asset.Item) (*SpotOrder, error) {
+	var response SpotOrder
+	params := url.Values{}
+	if orderID == "" {
+		return nil, errInvalidOrderID
+	}
+	if currencyPair.Base.IsEmpty() || currencyPair.Quote.IsEmpty() {
+		return nil, errInvalidOrEmptyCurrencyPair
+	}
+	currencyPair.Delimiter = UnderscoreDelimiter
+	params.Set("currency_pair", currencyPair.String())
+	if account == asset.Margin || account == asset.Spot || account == asset.CrossMargin {
+		params.Set("account", account.String())
+	}
+	path := fmt.Sprintf("%s/%s", spotOrders, orderID)
+	return &response, g.SendAuthenticatedHTTPRequest(ctx,
+		exchange.RestSpot, http.MethodDelete, path, params, nil, &response)
+}
+
+// GetPersonalTradingHistory retrives personal trading history
+func (g *Gateio) GetPersonalTradingHistory(ctx context.Context, currencyPair currency.Pair,
+	orderID string, limit, page int, account asset.Item, from, to time.Time) ([]SpotPersonalTradeHistory, error) {
+	var response []SpotPersonalTradeHistory
+	params := url.Values{}
+	if currencyPair.Base.IsEmpty() || currencyPair.Quote.IsEmpty() {
+		return nil, errInvalidOrEmptyCurrencyPair
+	}
+	currencyPair.Delimiter = UnderscoreDelimiter
+	params.Set("currency_pair", currencyPair.String())
+	if orderID != "" {
+		params.Set("order_id", orderID)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(limit))
+	}
+	if page > 0 {
+		params.Set("page", strconv.Itoa(page))
+	}
+	if account == asset.Spot || account == asset.Margin || account == asset.CrossMargin {
+		params.Set("account", account.String())
+	}
+	if !from.IsZero() {
+		params.Set("from", strconv.FormatInt(from.Unix(), 10))
+	}
+	if !to.IsZero() && to.After(from) {
+		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	}
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, spotMyTrades, params, nil, &response)
+}
+
+// GetCurrencyServerTime retrives current server time
+func (g *Gateio) GetServerTime(ctx context.Context) (time.Time, error) {
+	type response struct {
+		ServerTime int64 `json:"server_time"`
+	}
+	var resp response
+	er := g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, spotServerTime, nil, nil, &resp)
+	if er != nil {
+		return time.Time{}, er
+	}
+	return time.Unix(resp.ServerTime, 0), nil
+}
+
+// CountdownCancelorder Countdown cancel orders
+// When the timeout set by the user is reached, if there is no cancel or set a new countdown, the related pending orders will be automatically cancelled.
+// This endpoint can be called repeatedly to set a new countdown or cancel the countdown.
+func (g *Gateio) CountdownCancelorder(ctx context.Context, arg CountdownCancelOrderParam) (*TriggerTimeResponse, error) {
+	var response TriggerTimeResponse
+	if arg.Timeout < 0 || (arg.Timeout > 0 && arg.Timeout < 5) {
+		return nil, errInvalidCountdown
+	}
+	if !arg.CurrencyPair.IsEmpty() {
+		arg.CurrencyPair.Delimiter = UnderscoreDelimiter
+	}
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, spotAllCountdown, nil, &arg, &response)
+}
+
+// CreatePriceTriggeredOrder create a price-triggered order
+func (g *Gateio) CreatePriceTriggeredOrder(ctx context.Context, arg PriceTriggeredOrderParam) (*OrderID, error) {
+	var response OrderID
+	if arg.Trigger.Price < 0 {
+		return nil, fmt.Errorf("%v %s", errInvalidPrice, "invalid trigger price")
+	}
+	if !(arg.Trigger.Rule == "<=" || arg.Trigger.Rule == ">=") {
+		return nil, errors.New("invalid price trigger condition or rule")
+	}
+	if arg.Trigger.Expiration <= 0 {
+		return nil, errors.New("invalid expiration(seconds to wait for the condition to be triggered before cancelling the order)")
+	}
+	arg.Put.Side = strings.ToLower(arg.Put.Side)
+	arg.Put.Type = strings.ToLower(arg.Put.Type)
+	if arg.Put.Type != "limit" {
+		return nil, errors.New("invalid order type, only order type 'limit' is allowed")
+	}
+	if !(arg.Put.Side == "buy" || arg.Put.Side == "sell") {
+		return nil, errInvalidOrderSide
+	}
+	if arg.Put.Price < 0 {
+		return nil, fmt.Errorf("%v, %s", errInvalidPrice, "put price has to be greater than 0")
+	}
+	if arg.Put.Amount <= 0 {
+		return nil, errInvalidAmount
+	}
+	arg.Put.Account = strings.ToLower(arg.Put.Account)
+	if !(arg.Put.Account == "margin" || arg.Put.Account == "cross_margin") || arg.Put.Account == "spot" {
+		arg.Put.Account = "normal"
+	}
+	if !(arg.Put.TimeInForce == "gtc" || arg.Put.TimeInForce == "ioc") {
+		arg.Put.TimeInForce = ""
+	}
+	if arg.Market.IsEmpty() {
+		return nil, fmt.Errorf("%v, %s", errInvalidOrEmptyCurrencyPair, "field market is required")
+	}
+	arg.Market.Delimiter = UnderscoreDelimiter
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, spotPriceOrders, nil, &arg, &response)
+}
+
+// GetPriceTriggeredOrderList retrives price orders created with an order detail and trigger price information.
+func (g *Gateio) GetPriceTriggeredOrderList(ctx context.Context, status string, market currency.Pair, account asset.Item, offset, limit int) ([]SpotPriceTriggeredOrder, error) {
+	var response []SpotPriceTriggeredOrder
+	params := url.Values{}
+	if !(status == "open" || status == "finished") {
+		return nil, errInvalidOrderStatus
+	}
+	params.Set("status", status)
+	if !(market.Base.IsEmpty() || market.Quote.IsEmpty()) {
+		market.Delimiter = UnderscoreDelimiter
+		params.Set("market", market.String())
+	}
+	if account == asset.CrossMargin {
+		params.Set("account", account.String())
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(limit))
+	}
+	if offset > 0 {
+		params.Set("offset", strconv.Itoa(offset))
+	}
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, spotPriceOrders, params, nil, &response)
+}
+
+// CancelAllOpenOrders deletes price triggered orders.
+func (g *Gateio) CancelAllOpenOrders(ctx context.Context, currencyPair currency.Pair, account asset.Item) ([]SpotPriceTriggeredOrder, error) {
+	params := url.Values{}
+	if !(currencyPair.Base.IsEmpty() || currencyPair.Quote.IsEmpty()) {
+		params.Set("currency_pair", currencyPair.String())
+	}
+	if !(account == asset.Margin || account == asset.CrossMargin) || account == asset.Spot {
+		params.Set("account", "normal")
+	} else {
+		params.Set("account", account.String())
+	}
+	var response []SpotPriceTriggeredOrder
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, spotPriceOrders, params, nil, &response)
+}
+
+// GetSinglePriceTriggeredOrder get a single order
+func (g *Gateio) GetSinglePriceTriggeredOrder(ctx context.Context, orderID string) (*SpotPriceTriggeredOrder, error) {
+	var response SpotPriceTriggeredOrder
+	if orderID ==""{
+		return nil, errInvalidOrderID
+	}
+	path := fmt.Sprintf("%s/%s", spotPriceOrders, orderID)
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &response)
 }
 
 // GenerateSignature returns hash for authenticated requests

@@ -1402,3 +1402,73 @@ type CancelOrderByIDResponse struct {
 	Label        interface{} `json:"label"`
 	Message      interface{} `json:"message"`
 }
+
+// SpotPersonalTradeHistory represents personal trading history.
+type SpotPersonalTradeHistory struct {
+	ID           string    `json:"id"`
+	CreateTime   time.Time `json:"create_time"`
+	CreateTimeMs time.Time `json:"create_time_ms"`
+	OrderID      string    `json:"order_id"`
+	Side         string    `json:"side"`
+	Role         string    `json:"role"`
+	Amount       float64   `json:"amount,string"`
+	Price        float64   `json:"price,string"`
+	Fee          string    `json:"fee"`
+	FeeCurrency  string    `json:"fee_currency"`
+	PointFee     string    `json:"point_fee"`
+	GtFee        string    `json:"gt_fee"`
+}
+
+// CountdownCancelOrderParam represents countdown cancel order params
+type CountdownCancelOrderParam struct {
+	CurrencyPair currency.Pair `json:"currency_pair"`
+	Timeout      int64         `json:"timeout"` // timeout: Countdown time, in seconds At least 5 seconds, 0 means cancel the countdown
+}
+
+// TriggerTimeResponse represents trigger time as a response for countdown candle order response
+type TriggerTimeResponse struct {
+	TriggerTime time.Time `json:"trigger_time"`
+}
+
+// PriceTriggeredOrderParam represents price triggered order request.
+type PriceTriggeredOrderParam struct {
+	Trigger TriggerPriceInfo `json:"trigger"`
+	Put     PutOrderData     `json:"put"`
+	Market  currency.Pair    `json:"market"`
+}
+
+// TriggerPriceInfo represents a trigger price and related information for Price triggered order
+type TriggerPriceInfo struct {
+	Price      float64 `json:"price,string"`
+	Rule       string  `json:"rule"`
+	Expiration int     `json:"expiration,omitempty"`
+}
+
+// PutOrderData represents order detail for price triggered order request
+type PutOrderData struct {
+	Type        string  `json:"type"`
+	Side        string  `json:"side"`
+	Price       float64 `json:"price,string"`
+	Amount      float64 `json:"amount,string"`
+	Account     string  `json:"account"`
+	TimeInForce string  `json:"time_in_force,omitempty"`
+}
+
+// OrderID represents order creation ID response.
+type OrderID struct {
+	ID int64 `json:"id"`
+}
+
+// SpotPriceTriggeredOrder represents spot price triggered order response data.
+type SpotPriceTriggeredOrder struct {
+	Trigger      TriggerPriceInfo `json:"trigger"`
+	Put          PutOrderData     `json:"put"`
+	ID           int64            `json:"id"`
+	User         int64            `json:"user"`
+	CreationTime time.Time        `json:"ctime"`
+	FireTime     time.Time        `json:"ftime"`
+	FiredOrderID int64            `json:"fired_order_id"`
+	Status       string           `json:"status,omitempty"`
+	Reason       string           `json:"reason,omitempty"`
+	Market       string           `json:"market,omitempty"`
+}

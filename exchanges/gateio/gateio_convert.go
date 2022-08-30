@@ -7,15 +7,53 @@ import (
 	"time"
 )
 
-// func (a *ClosePositionRequestParam) UnmarshalJSON(data []byte) error {
-// 	type Alias ClosePositionRequestParam
-// 	chil := &struct {
-// 		*Alias
-// 	}{
-// 		Alias: (*Alias)(a),
-// 	}
-// 	return nil
-// }
+// UnmarshalJSON decerializes json, and timestamp information.
+func (a *TriggerTimeResponse) UnmarshalJSON(data []byte) error {
+	chil := &struct {
+		TriggerTime int64 `json:"trigger_time,string"`
+	}{}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.TriggerTime = time.Unix(chil.TriggerTime, 0)
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *SpotPriceTriggeredOrder) UnmarshalJSON(data []byte) error {
+	type Alias SpotPriceTriggeredOrder
+	chil := &struct {
+		*Alias
+		CreationTime int64 `json:"ctime"`
+		FireTime     int64 `json:"ftime"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.CreationTime = time.Unix(chil.CreationTime, 0)
+	a.FireTime = time.Unix(chil.FireTime, 0)
+	return nil
+}
+
+// UnmarshalJSON decerializes json, and timestamp information.
+func (a *SpotPersonalTradeHistory) UnmarshalJSON(data []byte) error {
+	type Alias SpotPersonalTradeHistory
+	chil := &struct {
+		*Alias
+		CreateTime   float64 `json:"create_time,string"`
+		CreateTimeMs float64 `json:"create_time_ms,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.CreateTime = time.Unix(int64(chil.CreateTime), 0)
+	a.CreateTimeMs = time.UnixMilli(int64(chil.CreateTime))
+	return nil
+}
 
 // UnmarshalJSON decerializes json, and timestamp information.
 func (a *SubAccountTransferResponse) UnmarshalJSON(data []byte) error {
