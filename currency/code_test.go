@@ -156,16 +156,14 @@ func (b *BaseCodes) assertRole(t *testing.T, c Code, r Role) {
 	if !ok {
 		t.Fatal("code pointer not found")
 	}
-	if ok {
-		for x := range stored {
-			if stored[x] != c.Item {
-				continue
-			}
-			if stored[x].Role != r {
-				t.Fatalf("unexpected role received: %v but expected: %v", stored[x].Role, r)
-			}
-			return
+	for x := range stored {
+		if stored[x] != c.Item {
+			continue
 		}
+		if stored[x].Role != r {
+			t.Fatalf("unexpected role received: %v but expected: %v", stored[x].Role, r)
+		}
+		return
 	}
 	t.Fatal("code pointer not found")
 }
