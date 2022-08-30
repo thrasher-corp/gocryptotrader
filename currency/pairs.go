@@ -59,23 +59,21 @@ func (p Pairs) Join() string {
 
 // Format formats the pair list to the exchange format configuration
 func (p Pairs) Format(pairFmt PairFormat) Pairs {
-	pairs := make(Pairs, 0, len(p))
+	pairs := make(Pairs, len(p))
+	copy(pairs, p)
+
 	var err error
-	for _, format := range p {
+	for x := range pairs {
 		if pairFmt.Index != "" {
-			format, err = NewPairFromIndex(format.String(), pairFmt.Index)
+			pairs[x], err = NewPairFromIndex(p[x].String(), pairFmt.Index)
 			if err != nil {
-				log.Errorf(log.Global,
-					"failed to create NewPairFromIndex. Err: %s\n", err)
-				continue
+				log.Errorf(log.Global, "failed to create NewPairFromIndex. Err: %s\n", err)
+				return nil
 			}
 		}
-		format.Delimiter = pairFmt.Delimiter
-		if pairFmt.Uppercase {
-			pairs = append(pairs, format.Upper())
-		} else {
-			pairs = append(pairs, format.Lower())
-		}
+		pairs[x].Base.UpperCase = pairFmt.Uppercase
+		pairs[x].Quote.UpperCase = pairFmt.Uppercase
+		pairs[x].Delimiter = pairFmt.Delimiter
 	}
 	return pairs
 }
@@ -124,14 +122,9 @@ func (p Pairs) Lower() Pairs {
 // array
 func (p Pairs) Contains(check Pair, exact bool) bool {
 	for i := range p {
-		if exact {
-			if p[i].Equal(check) {
-				return true
-			}
-		} else {
-			if p[i].EqualIncludeReciprocal(check) {
-				return true
-			}
+		if (exact && p[i].Equal(check)) ||
+			(!exact && p[i].EqualIncludeReciprocal(check)) {
+			return true
 		}
 	}
 	return false
@@ -286,8 +279,6 @@ func (p Pairs) FindDifferences(incoming Pairs, pairFmt PairFormat) (PairDifferen
 		FormatDifference: p.HasFormatDifference(pairFmt),
 	}, nil
 }
-
-// currency pair is empty
 
 // HasFormatDifference checks and validates full formatting across a pairs list
 func (p Pairs) HasFormatDifference(pairFmt PairFormat) bool {

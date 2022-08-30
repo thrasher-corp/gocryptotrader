@@ -302,14 +302,19 @@ func (b *Base) SetConfigPairs() error {
 			return err
 		}
 
-		err = b.Config.CurrencyPairs.StoreFormat(assetTypes[x], exchPS.ConfigFormat, true)
-		if err != nil {
-			return err
+		if exchPS.ConfigFormat != nil {
+			err = b.Config.CurrencyPairs.StoreFormat(assetTypes[x], exchPS.ConfigFormat, true)
+			if err != nil {
+				return err
+			}
 		}
-		err = b.Config.CurrencyPairs.StoreFormat(assetTypes[x], exchPS.RequestFormat, false)
-		if err != nil {
-			return err
+		if exchPS.RequestFormat != nil {
+			err = b.Config.CurrencyPairs.StoreFormat(assetTypes[x], exchPS.RequestFormat, false)
+			if err != nil {
+				return err
+			}
 		}
+
 		err = b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Available, false)
 		if err != nil {
 			return err

@@ -112,14 +112,16 @@ func (p *PairsManager) GetPairs(a asset.Item, enabled bool) (Pairs, error) {
 		return nil, nil
 	}
 
-	err := pairStore.Available.ContainsAll(pairStore.Enabled, true)
-	if err != nil {
-		return nil, fmt.Errorf("%w of asset type %s", err, a)
-	}
-
+	// NOTE: enabledPairs is declared before the next check for comparison
+	// reasons within exchange update pairs functionality.
 	enabledPairs := make(Pairs, lenCheck)
 	copy(enabledPairs, pairStore.Enabled)
-	return enabledPairs, nil
+
+	err := pairStore.Available.ContainsAll(pairStore.Enabled, true)
+	if err != nil {
+		err = fmt.Errorf("%w of asset type %s", err, a)
+	}
+	return enabledPairs, err
 }
 
 // StoreFormat stores a new format for request or config format.
@@ -161,10 +163,8 @@ func (p *PairsManager) StorePairs(a asset.Item, pairs Pairs, enabled bool) error
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 
-	if len(pairs) == 0 {
-		return errPairsEmpty
-	}
-
+	// NOTE: Length check not needed in this scenario as it has the ability to
+	// remove the entire stored list if needed.
 	cpy := make(Pairs, len(pairs))
 	copy(cpy, pairs)
 

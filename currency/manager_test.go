@@ -136,8 +136,8 @@ func TestStore(t *testing.T) {
 	}
 
 	err = p.Store(asset.Futures, nil)
-	if !errors.Is(err, errPairStoreIsNIl) {
-		t.Fatalf("received: '%v' bu expected: '%v'", err, errPairStoreIsNIl)
+	if !errors.Is(err, errPairStoreIsNil) {
+		t.Fatalf("received: '%v' bu expected: '%v'", err, errPairStoreIsNil)
 	}
 }
 
@@ -266,11 +266,6 @@ func TestStorePairs(t *testing.T) {
 	err := p.StorePairs(0, nil, false)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: %v but expected: %v", err, asset.ErrNotSupported)
-	}
-
-	err = p.StorePairs(asset.Spot, nil, false)
-	if !errors.Is(err, errPairsEmpty) {
-		t.Fatalf("received: %v but expected: %v", err, errPairsEmpty)
 	}
 
 	p.Pairs = nil

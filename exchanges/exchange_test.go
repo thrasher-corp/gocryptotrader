@@ -494,8 +494,8 @@ func TestLoadConfigPairs(t *testing.T) {
 			},
 			Pairs: map[asset.Item]*currency.PairStore{
 				asset.Spot: {
-					RequestFormat: &currency.PairFormat{}, // NOTE: These cannot be currency.EMPTYFORMAT, needs diff addr.
-					ConfigFormat:  &currency.PairFormat{},
+					RequestFormat: &currency.EMPTYFORMAT,
+					ConfigFormat:  &currency.EMPTYFORMAT,
 				},
 			},
 		},
@@ -1427,7 +1427,7 @@ func TestUpdatePairs(t *testing.T) {
 	}
 	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false, false)
 	if err != nil {
-		t.Errorf("Forced Exchange UpdatePairs() error: %s", err)
+		t.Errorf("Exchange UpdatePairs() error: %s", err)
 	}
 
 	// Test empty pair

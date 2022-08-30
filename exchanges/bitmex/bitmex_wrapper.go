@@ -268,7 +268,11 @@ func (b *Bitmex) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 					// Example: ETHUSD_ETH quoted in USD, paid out in ETH.
 					settlement := strings.Split(marketInfo[x].Symbol, currency.UnderscoreDelimiter)
 					if len(settlement) != 2 {
-						return nil, fmt.Errorf("settlement currency can not be handled")
+						log.Warnf(log.ExchangeSys, "%s currency %s %s cannot added to tradable pairs",
+							b.Name,
+							marketInfo[x].Symbol,
+							a)
+						break
 					}
 					settleTrail = currency.UnderscoreDelimiter + settlement[1]
 				}
