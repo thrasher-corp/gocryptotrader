@@ -617,23 +617,23 @@ func (b *Base) SetPairs(pairs currency.Pairs, assetType asset.Item, enabled bool
 
 // UpdatePairs updates the exchange currency pairs for either enabledPairs or
 // availablePairs
-func (b *Base) UpdatePairs(incomingPairs currency.Pairs, assetType asset.Item, enabled, force bool) error {
-	pFmt, err := b.GetPairFormat(assetType, false)
+func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force bool) error {
+	pFmt, err := b.GetPairFormat(a, false)
 	if err != nil {
 		return err
 	}
 
-	incomingPairs, err = incomingPairs.ValidateAndConform(pFmt)
+	incoming, err = incoming.ValidateAndConform(pFmt, b.BypassConfigFormatUpgrades)
 	if err != nil {
 		return err
 	}
 
-	oldPairs, err := b.CurrencyPairs.GetPairs(assetType, enabled)
+	oldPairs, err := b.CurrencyPairs.GetPairs(a, enabled)
 	if err != nil {
 		return err
 	}
 
-	diff, err := oldPairs.FindDifferences(incomingPairs, pFmt)
+	diff, err := oldPairs.FindDifferences(incoming, pFmt)
 	if err != nil {
 		return err
 	}
@@ -651,14 +651,14 @@ func (b *Base) UpdatePairs(incomingPairs currency.Pairs, assetType asset.Item, e
 				"%s forced update of %s [%v] pairs.",
 				b.Name,
 				updateType,
-				strings.ToUpper(assetType.String()))
+				strings.ToUpper(a.String()))
 		} else {
 			if len(diff.New) > 0 {
 				log.Debugf(log.ExchangeSys,
 					"%s Updating %s pairs [%v] - Added: %s.\n",
 					b.Name,
 					updateType,
-					strings.ToUpper(assetType.String()),
+					strings.ToUpper(a.String()),
 					diff.New)
 			}
 			if len(diff.Remove) > 0 {
@@ -666,15 +666,15 @@ func (b *Base) UpdatePairs(incomingPairs currency.Pairs, assetType asset.Item, e
 					"%s Updating %s pairs [%v] - Removed: %s.\n",
 					b.Name,
 					updateType,
-					strings.ToUpper(assetType.String()),
+					strings.ToUpper(a.String()),
 					diff.Remove)
 			}
 		}
-		err = b.Config.CurrencyPairs.StorePairs(assetType, incomingPairs, enabled)
+		err = b.Config.CurrencyPairs.StorePairs(a, incoming, enabled)
 		if err != nil {
 			return err
 		}
-		err = b.CurrencyPairs.StorePairs(assetType, incomingPairs, enabled)
+		err = b.CurrencyPairs.StorePairs(a, incoming, enabled)
 		if err != nil {
 			return err
 		}
@@ -695,7 +695,7 @@ func (b *Base) UpdatePairs(incomingPairs currency.Pairs, assetType asset.Item, e
 	// will require a shutdown and update of the config file to enable that
 	// asset.
 
-	enabledPairs, err := b.CurrencyPairs.GetPairs(assetType, true)
+	enabledPairs, err := b.CurrencyPairs.GetPairs(a, true)
 	if err != nil && !errors.Is(err, currency.ErrPairNotContainedInAvailablePairs) {
 		return err
 	}
@@ -704,7 +704,7 @@ func (b *Base) UpdatePairs(incomingPairs currency.Pairs, assetType asset.Item, e
 		return nil
 	}
 
-	diff, err = enabledPairs.FindDifferences(incomingPairs, pFmt)
+	diff, err = enabledPairs.FindDifferences(incoming, pFmt)
 	if err != nil {
 		return err
 	}
@@ -716,7 +716,7 @@ func (b *Base) UpdatePairs(incomingPairs currency.Pairs, assetType asset.Item, e
 		} else {
 			strippedPair := enabledPairs[x].Format(currency.EMPTYFORMAT).String()
 			var match currency.Pair
-			match, err = incomingPairs.DeriveFrom(strippedPair)
+			match, err = incoming.DeriveFrom(strippedPair)
 			if err != nil {
 				continue
 			}
@@ -733,14 +733,14 @@ func (b *Base) UpdatePairs(incomingPairs currency.Pairs, assetType asset.Item, e
 	if len(diff.Remove) > 0 {
 		log.Debugf(log.ExchangeSys, "%s Checked and updated enabled pairs [%v] - Removed: %s.\n",
 			b.Name,
-			strings.ToUpper(assetType.String()),
+			strings.ToUpper(a.String()),
 			diff.Remove)
 	}
-	err = b.Config.CurrencyPairs.StorePairs(assetType, enabledPairs, true)
+	err = b.Config.CurrencyPairs.StorePairs(a, enabledPairs, true)
 	if err != nil {
 		return err
 	}
-	return b.CurrencyPairs.StorePairs(assetType, enabledPairs, true)
+	return b.CurrencyPairs.StorePairs(a, enabledPairs, true)
 }
 
 // SetAPIURL sets configuration API URL for an exchange

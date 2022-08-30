@@ -711,7 +711,7 @@ func TestValidateAndConform(t *testing.T) {
 		NewPair(EMPTYCODE, EMPTYCODE),
 	}
 
-	_, err := conformMe.ValidateAndConform(EMPTYFORMAT)
+	_, err := conformMe.ValidateAndConform(EMPTYFORMAT, false)
 	if !errors.Is(err, ErrCurrencyPairEmpty) {
 		t.Fatalf("received: '%v' but expected '%v'", err, ErrCurrencyPairEmpty)
 	}
@@ -732,7 +732,7 @@ func TestValidateAndConform(t *testing.T) {
 		duplication,
 	}
 
-	_, err = conformMe.ValidateAndConform(EMPTYFORMAT)
+	_, err = conformMe.ValidateAndConform(EMPTYFORMAT, false)
 	if !errors.Is(err, ErrPairDuplication) {
 		t.Fatalf("received: '%v' but expected '%v'", err, ErrPairDuplication)
 	}
@@ -747,7 +747,7 @@ func TestValidateAndConform(t *testing.T) {
 		NewPair(USDT, XRP),
 	}
 
-	formatted, err := conformMe.ValidateAndConform(EMPTYFORMAT)
+	formatted, err := conformMe.ValidateAndConform(EMPTYFORMAT, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
@@ -758,7 +758,21 @@ func TestValidateAndConform(t *testing.T) {
 		t.Fatalf("received: '%v' but expected '%v'", formatted.Join(), expected)
 	}
 
-	formatted, err = formatted.ValidateAndConform(PairFormat{Delimiter: DashDelimiter, Uppercase: true})
+	formatted, err = formatted.ValidateAndConform(PairFormat{Delimiter: DashDelimiter, Uppercase: true}, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected '%v'", err, nil)
+	}
+
+	expected = "BTC-USD,LTC-USD,LINK-USDT,USD-NZD,LTC-USDT,LTC-DAI,USDT-XRP"
+
+	if formatted.Join() != expected {
+		t.Fatalf("received: '%v' but expected '%v'", formatted.Join(), expected)
+	}
+
+	formatted, err = formatted.ValidateAndConform(PairFormat{
+		Delimiter: UnderscoreDelimiter,
+		Uppercase: false},
+		true)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}

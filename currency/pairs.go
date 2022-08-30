@@ -412,12 +412,12 @@ func (p Pairs) GetStablesMatch(code Code) Pairs {
 }
 
 // ValidateAndConform checks for duplications and empty pairs then conforms the
-// entire pairs list to the supplied formatting. Map[string]bool type is used to
-// make sure delimiters are not included so different formatting entry
-// duplications can be found e.g. `LINKUSDTM21`,`LIN-KUSDTM21` or `LINK-USDTM21
-// are all the same instances but with different unintentional processes for
-// formatting.
-func (p Pairs) ValidateAndConform(pFmt PairFormat) (Pairs, error) {
+// entire pairs list to the supplied formatting (unless bypassed).
+// Map[string]bool type is used to make sure delimiters are not included so
+// different formatting entry duplications can be found e.g. `LINKUSDTM21`,
+// `LIN-KUSDTM21` or `LINK-USDTM21 are all the same instances but with different
+// unintentional processes for formatting.
+func (p Pairs) ValidateAndConform(pFmt PairFormat, bypassFormatting bool) (Pairs, error) {
 	processedPairs := make(map[string]bool, len(p))
 	formatted := make(Pairs, len(p))
 	var target int
@@ -431,7 +431,11 @@ func (p Pairs) ValidateAndConform(pFmt PairFormat) (Pairs, error) {
 		}
 		// Force application of supplied formatting
 		processedPairs[strippedPair] = true
-		formatted[target] = p[x].Format(pFmt)
+		if !bypassFormatting {
+			formatted[target] = p[x].Format(pFmt)
+		} else {
+			formatted[target] = p[x]
+		}
 		target++
 	}
 	return formatted, nil
