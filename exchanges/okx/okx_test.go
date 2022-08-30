@@ -696,11 +696,27 @@ func TestStopOrder(t *testing.T) {
 	}); er != nil && errors.Is(er, errMissingTakeProfitTriggerPrice) {
 		t.Errorf("Okx StopOrderParams() expecting %v, but found %v", errMissingTakeProfitTriggerPrice, er)
 	}
+	if _, er := ok.PlaceStopOrder(context.Background(), &AlgoOrderParams{
+		TakeProfitTriggerPriceType: "index",
+		InstrumentID:               "BTC-USDT",
+		OrderType:                  "conditional",
+		Side:                       order.Sell,
+		TradeMode:                  "isolated",
+		Size:                       12,
+
+		TakeProfitTriggerPrice: "12345",
+		TakeProfitOrderPrice:   "1234",
+	}); er != nil {
+		t.Errorf("Okx StopOrderParams() error %v", er)
+	}
 	if _, er := ok.PlaceTrailingStopOrder(context.Background(), &AlgoOrderParams{
 		CallbackRatio: 0.01,
 		InstrumentID:  "BTC-USDT",
 		OrderType:     "move_order_stop",
 		Side:          order.Buy,
+		TradeMode:     "isolated",
+		Size:          2,
+		ActivePrice:   "1234",
 	}); er != nil {
 		t.Error("Okx PlaceTrailingStopOrder error", er)
 	}
@@ -710,25 +726,45 @@ func TestStopOrder(t *testing.T) {
 		PriceSpread: "0.04",
 
 		InstrumentID: "BTC-USDT",
-		OrderType:    "move_order_stop",
+		OrderType:    "iceberg",
 		Side:         order.Buy,
+
+		TradeMode: "isolated",
+		Size:      6,
 	}); er != nil {
 		t.Error("Okx PlaceIceburgOrder() error", er)
 	}
 	if _, er := ok.PlaceTWAPOrder(context.Background(), &AlgoOrderParams{
 		PriceLimit:   100.22,
 		SizeLimit:    9999.9,
+		OrderType:    "twap",
 		PriceSpread:  "0.4",
 		TimeInterval: kline.ThreeDay,
+	}); er != nil && !errors.Is(errMissingInstrumentID, er) {
+		t.Error("Okx PlaceTWAPOrder() error", er)
+	}
+	if _, er := ok.PlaceTWAPOrder(context.Background(), &AlgoOrderParams{
+		InstrumentID: "BTC-USDT",
+		PriceLimit:   100.22,
+		SizeLimit:    9999.9,
+		OrderType:    "twap",
+		PriceSpread:  "0.4",
+		TimeInterval: kline.ThreeDay,
+		TradeMode:    "cross",
+		Side:         order.Sell,
+		Size:         6,
 	}); er != nil {
 		t.Error("Okx PlaceTWAPOrder() error", er)
 	}
 	if _, er := ok.TriggerAlgoOrder(context.Background(), &AlgoOrderParams{
 		TriggerPriceType: "mark",
+		TriggerPrice:     1234,
 
 		InstrumentID: "BTC-USDT",
-		OrderType:    "move_order_stop",
+		OrderType:    "trigger",
 		Side:         order.Buy,
+		TradeMode:    "cross",
+		Size:         5,
 	}); er != nil {
 		t.Error("Okx TriggerAlogOrder() error", er)
 	}
@@ -857,6 +893,16 @@ func TestMultipleCancelRFQ(t *testing.T) {
 	}
 }
 
+func TestCancelAllRFQs(t *testing.T) {
+	t.Parallel()
+	if ts, er := ok.CancelAllRFQs(context.Background()); er != nil &&
+		!strings.Contains(er.Error(), "No permission to use this API.") {
+		t.Errorf("%s CancelAllRFQs() error %v", ok.Name, er)
+	} else {
+		println(ts.String())
+	}
+}
+
 var executeQuoteJSON = `{"blockTdId":"180184","rfqId":"1419","clRfqId":"r0001","quoteId":"1046","clQuoteId":"q0001","tTraderCode":"Trader1","mTraderCode":"Trader2","cTime":"1649670009","legs":[{	"px":"0.1",	"sz":"25",	"instId":"BTC-USD-20220114-13250-C",	"side":"sell",	"fee":"-1.001",	"feeCcy":"BTC",	"tradeId":"10211"},{	"px":"0.2",	"sz":"25",	"instId":"BTC-USDT",	"side":"buy",	"fee":"-1.001",	"feeCcy":"BTC",	"tradeId":"10212"}]}`
 
 func TestExecuteQuote(t *testing.T) {
@@ -910,6 +956,26 @@ func TestCreateQuote(t *testing.T) {
 	}
 	if _, er := ok.CreateQuote(context.Background(), CreateQuoteParams{}); er != nil && !errors.Is(er, errMissingRfqID) {
 		t.Errorf("Okx CreateQuote() expecting %v, but found %v", errMissingRfqID, er)
+	}
+	if _, er := ok.CreateQuote(context.Background(), CreateQuoteParams{
+		RfqID:     "12345",
+		QuoteSide: order.Buy,
+		Legs: []QuoteLeg{
+			{
+				Price:          1234,
+				SizeOfQuoteLeg: 2,
+				InstrumentID:   "SOL-USD-220909",
+				Side:           order.Sell,
+			},
+			{
+				Price:          1234,
+				SizeOfQuoteLeg: 1,
+				InstrumentID:   "SOL-USD-220909",
+				Side:           order.Buy,
+			},
+		},
+	}); er != nil && !strings.Contains(er.Error(), "No permission to use this API.") {
+		t.Errorf("%s CreateQuote() error %v", ok.Name, er)
 	}
 }
 
@@ -2607,7 +2673,7 @@ func TestMarkPriceCandlestickPushData(t *testing.T) {
 	}
 }
 
-var priceLimitPushDataJSON = `{"arg": {"channel": "mark-price","instId": "BTC-USDT"},"data": [{"instType": "MARGIN","instId": "BTC-USDT","markPx": "42310.6","ts": "1630049139746"}]}`
+var priceLimitPushDataJSON = `{    "arg": {        "channel": "price-limit",        "instId": "LTC-USD-190628"    },    "data": [{        "instId": "LTC-USD-190628",        "buyLmt": "200",        "sellLmt": "300",        "ts": "1597026383085"    }]}`
 
 func TestPriceLimitPushData(t *testing.T) {
 	t.Parallel()
@@ -2732,7 +2798,7 @@ func TestBalanceAndPosition(t *testing.T) {
 	}
 }
 
-var orderPushDataJSON = `{"arg": {"channel": "balance_and_position","uid": "77982378738415879"},"data": [{"pTime": "1597026383075","eventType": "snapshot","balData": [{"ccy": "BTC","cashBal": "1","uTime": "1597026383085"}],"posData": [{"posId": "1111111111","tradeId": "2","instId": "BTC-USD-191018","instType": "FUTURES","mgnMode": "cross","posSide": "long","pos": "10","ccy": "BTC","posCcy": "","avgPx": "3320","uTime": "1597026383095"}]}]}`
+var orderPushDataJSON = `{"arg": {    "channel": "orders",    "instType": "SPOT",    "instId": "BTC-USDT",    "uid": "614488474791936"},"data": [    {        "accFillSz": "0.001",        "amendResult": "",        "avgPx": "31527.1",        "cTime": "1654084334977",        "category": "normal",        "ccy": "",        "clOrdId": "",        "code": "0",        "execType": "M",        "fee": "-0.02522168",        "feeCcy": "USDT",        "fillFee": "-0.02522168",        "fillFeeCcy": "USDT",        "fillNotionalUsd": "31.50818374",        "fillPx": "31527.1",        "fillSz": "0.001",        "fillTime": "1654084353263",        "instId": "BTC-USDT",        "instType": "SPOT",        "lever": "0",        "msg": "",        "notionalUsd": "31.50818374",        "ordId": "452197707845865472",        "ordType": "limit",        "pnl": "0",        "posSide": "",        "px": "31527.1",        "rebate": "0",        "rebateCcy": "BTC",        "reduceOnly": "false",        "reqId": "",        "side": "sell",        "slOrdPx": "",        "slTriggerPx": "",        "slTriggerPxType": "last",        "source": "",        "state": "filled",        "sz": "0.001",        "tag": "",        "tdMode": "cash",        "tgtCcy": "",        "tpOrdPx": "",        "tpTriggerPx": "",        "tpTriggerPxType": "last",        "tradeId": "242589207",        "uTime": "1654084353264"    }]}`
 
 func TestOrderPushData(t *testing.T) {
 	t.Parallel()
@@ -2783,6 +2849,15 @@ func TestRfqs(t *testing.T) {
 	t.Parallel()
 	if er := ok.WsHandleData([]byte(rfqsPushDataJSON)); er != nil {
 		t.Error("Okx RFQS Push Data error", er)
+	}
+}
+
+var accountsPushDataJSON = `{	"arg": {	  "channel": "account",	  "ccy": "BTC",	  "uid": "77982378738415879"	},	"data": [	  {		"uTime": "1597026383085",		"totalEq": "41624.32",		"isoEq": "3624.32",		"adjEq": "41624.32",		"ordFroz": "0",		"imr": "4162.33",		"mmr": "4",		"notionalUsd": "",		"mgnRatio": "41624.32",		"details": [		  {			"availBal": "",			"availEq": "1",			"ccy": "BTC",			"cashBal": "1",			"uTime": "1617279471503",			"disEq": "50559.01",			"eq": "1",			"eqUsd": "45078.3790756226851775",			"frozenBal": "0",			"interest": "0",			"isoEq": "0",			"liab": "0",			"maxLoan": "",			"mgnRatio": "",			"notionalLever": "0.0022195262185864",			"ordFrozen": "0",			"upl": "0",			"uplLiab": "0",			"crossLiab": "0",			"isoLiab": "0",			"coinUsdPrice": "60000",			"stgyEq":"0",			"spotInUseAmt":"",			"isoUpl":""		  }		]	  }	]}`
+
+func TestAccounts(t *testing.T) {
+	t.Parallel()
+	if er := ok.WsHandleData([]byte(accountsPushDataJSON)); er != nil {
+		t.Errorf("%s Accounts push data error %v", ok.Name, er)
 	}
 }
 
@@ -2837,5 +2912,12 @@ func TestGridSubOrdersPushData(t *testing.T) {
 	t.Parallel()
 	if er := ok.WsHandleData([]byte(gridSubOrdersPushDataJSON)); er != nil {
 		t.Error("Okx Grid Sub orders Push Data error", er)
+	}
+}
+
+func TestGetHistoricTrades(t *testing.T) {
+	t.Parallel()
+	if _, er := ok.GetHistoricTrades(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.Spot, time.Time{}, time.Time{}); er != nil {
+		t.Errorf("%s GetHistoricTrades() error %v", ok.Name, er)
 	}
 }

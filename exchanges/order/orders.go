@@ -974,6 +974,7 @@ func StringToOrderSide(side string) (Side, error) {
 	}
 }
 
+
 // StringToOrderType for converting case insensitive order type
 // and returning a real Type
 func StringToOrderType(oType string) (Type, error) {

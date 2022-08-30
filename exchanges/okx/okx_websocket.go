@@ -116,7 +116,7 @@ const (
 	okxChannelQuotes             = "quotes"
 	okxChannelStruckeBlockTrades = "struc-block-trades"
 	okxChannelSpotGridOrder      = "grid-orders-spot"
-	okxChannelGridOrdersConstuct = "grid-orders-contract"
+	okxChannelGridOrdersContract = "grid-orders-contract"
 	okxChannelGridPositions      = "grid-positions"
 	okcChannelGridSubOrders      = "grid-sub-orders"
 	okxChannelInstruments        = "instruments"
@@ -388,7 +388,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 			arg.Channel == okxChannelAlgoAdvance ||
 			arg.Channel == okxChannelLiquidationWarning ||
 			arg.Channel == okxChannelSpotGridOrder ||
-			arg.Channel == okxChannelGridOrdersConstuct ||
+			arg.Channel == okxChannelGridOrdersContract ||
 			arg.Channel == okxChannelEstimatedPrice {
 			instrumentType = ok.GetInstrumentTypeFromAssetItem(subscriptions[i].Asset)
 		}
@@ -590,7 +590,7 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		case okxChannelSpotGridOrder:
 			var response WsSpotGridAlgoOrder
 			return ok.wsProcessPushData(respRaw, &response)
-		case okxChannelGridOrdersConstuct:
+		case okxChannelGridOrdersContract:
 			var response WsContractGridAlgoOrder
 			return ok.wsProcessPushData(respRaw, &response)
 		case okxChannelGridPositions:
@@ -888,29 +888,6 @@ func (ok *Okx) CalculateOrderbookChecksum(orderbookData WsOrderBookData) (int32,
 	}
 	checksumStr := strings.TrimSuffix(checksum.String(), ColonDelimiter)
 	return int32(crc32.ChecksumIEEE([]byte(checksumStr))), nil
-}
-
-// CalculateUpdateOrderbookChecksum alternates over the first 25 bid and ask
-// entries of a merged orderbook. The checksum is made up of the price and the
-// quantity with a semicolon (:) deliminating them. This will also work when
-// there are less than 25 entries (for whatever reason)
-// eg Bid:Ask:Bid:Ask:Ask:Ask
-func (ok *Okx) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base) int32 {
-	var checksum strings.Builder
-	for i := 0; i < allowableIterations; i++ {
-		if len(orderbookData.Bids)-1 >= i {
-			price := strconv.FormatFloat(orderbookData.Bids[i].Price, 'f', 0, 64)
-			amount := strconv.FormatFloat(orderbookData.Bids[i].Amount, 'f', 0, 64)
-			checksum.WriteString(price + ColonDelimiter + amount + ColonDelimiter)
-		}
-		if len(orderbookData.Asks)-1 >= i {
-			price := strconv.FormatFloat(orderbookData.Asks[i].Price, 'f', 0, 64)
-			amount := strconv.FormatFloat(orderbookData.Asks[i].Amount, 'f', 0, 64)
-			checksum.WriteString(price + ColonDelimiter + amount + ColonDelimiter)
-		}
-	}
-	checksumStr := strings.TrimSuffix(checksum.String(), ColonDelimiter)
-	return int32(crc32.ChecksumIEEE([]byte(checksumStr)))
 }
 
 // wsHandleMarkPriceCandles processes candlestick mark price push data as a result of  subscription to "mark-price-candle*" channel.
@@ -1717,7 +1694,7 @@ func (ok *Okx) SpotGridAlgoOrdersSubscription(operation string, assetType asset.
 
 // ContractGridAlgoOrders to retrieve contract grid algo orders. Data will be pushed when first subscribed. Data will be pushed when triggered by events such as placing/canceling order.
 func (ok *Okx) ContractGridAlgoOrders(operation string, assetType asset.Item, pair currency.Pair, algoID string) (*SubscriptionOperationResponse, error) {
-	return ok.WsAuthChannelSubscription(operation, okxChannelGridOrdersConstuct, assetType, pair, "", algoID, true, true, true)
+	return ok.WsAuthChannelSubscription(operation, okxChannelGridOrdersContract, assetType, pair, "", algoID, true, true, true)
 }
 
 // GridPositionsSubscription to retrieve grid positions. Data will be pushed when first subscribed. Data will be pushed when triggered by events such as placing/canceling order.

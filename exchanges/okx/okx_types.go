@@ -207,7 +207,6 @@ const (
 
 // MarketDataResponse represents list of ticker market data.
 type MarketDataResponse struct {
-	Code string           `json:"code"`
 	Msg  string           `json:"msg"`
 	Data []TickerResponse `json:"data"`
 }
@@ -1033,41 +1032,41 @@ type TransactionDetail struct {
 type AlgoOrderParams struct {
 	InstrumentID string     `json:"instId"` // Required
 	TradeMode    string     `json:"tdMode"` // Required
-	Currency     string     `json:"ccy"`
+	Currency     string     `json:"ccy,omitempty"`
 	Side         order.Side `json:"side"` // Required
-	PositionSide string     `json:"posSide"`
-	OrderType    string     `json:"ordType"`   // Required
-	Size         float64    `json:"sz,string"` // Required
-	OrderTag     string     `json:"tag"`
-	ReduceOnly   bool       `json:"reduceOnly"`
-	QuantityType string     `json:"tgtCcy"`
+	PositionSide string     `json:"posSide,omitempty"`
+	OrderType    string     `json:"ordType"`      // Required
+	Size         float64    `json:"sz,omitempty"` // Required
+	OrderTag     string     `json:"tag,omitempty"`
+	ReduceOnly   bool       `json:"reduceOnly,omitempty"`
+	QuantityType string     `json:"tgtCcy,omitempty"`
 
 	// Place Stop Order params
-	TakeProfitTriggerPrice     string `json:"tpTriggerPx"`
-	TakeProfitTriggerPriceType string `json:"tpTriggerPxType"`
-	TakeProfitOrderPrice       string `json:"tpOrdPx"`
-	StopLossTriggerPrice       string `json:"slTriggerPx"`
-	StopLossTriggerPriceType   string `json:"slTriggerPxType"`
-	StopLossOrderPrice         string `json:"slOrdPx"`
+	TakeProfitTriggerPrice     string `json:"tpTriggerPx,omitempty"`
+	TakeProfitTriggerPriceType string `json:"tpTriggerPxType,omitempty"`
+	TakeProfitOrderPrice       string `json:"tpOrdPx,omitempty"`
+	StopLossTriggerPrice       string `json:"slTriggerPx,omitempty"`
+	StopLossTriggerPriceType   string `json:"slTriggerPxType,omitempty"`
+	StopLossOrderPrice         string `json:"slOrdPx,omitempty"`
 
 	// Trigger Price  Or TrailingStopOrderRequestParam
-	CallbackRatio          float64 `json:"callbackRatio,string"`
-	CallbackSpreadVariance string  `json:"callbackSpread"`
-	ActivePrice            string  `json:"activePx"`
+	CallbackRatio          float64 `json:"callbackRatio,omitempty,string"`
+	CallbackSpreadVariance string  `json:"callbackSpread,omitempty"`
+	ActivePrice            string  `json:"activePx,omitempty"`
 
 	// trigger algo orders params.
 	// notice: Trigger orders are not available in the net mode of futures and perpetual swaps
-	TriggerPrice     float64 `json:"triggerPx,string"`
-	TriggerPriceType string  `json:"triggerPxType"`  // last, index, and mark
-	OrderPrice       int     `json:"orderPx,string"` // if the price i -1, then the order will be executed on the market.
+	TriggerPrice     float64 `json:"triggerPx,string,omitempty"`
+	TriggerPriceType string  `json:"triggerPxType,omitempty"`  // last, index, and mark
+	OrderPrice       int     `json:"orderPx,string,omitempty"` // if the price i -1, then the order will be executed on the market.
 
-	PriceVariance string  `json:"pxVar"`          // Optional
-	PriceSpread   string  `json:"pxSpread"`       // Optional
-	SizeLimit     float64 `json:"szLimit,string"` // Required
-	PriceLimit    float64 `json:"pxLimit,string"` // Required
+	PriceVariance string  `json:"pxVar,omitempty"`          // Optional
+	PriceSpread   string  `json:"pxSpread,omitempty"`       // Optional
+	SizeLimit     float64 `json:"szLimit,string,omitempty"` // Required
+	PriceLimit    float64 `json:"pxLimit,string,omitempty"` // Required
 
 	// TWAPOrder
-	TimeInterval kline.Interval `json:"interval"` // Required
+	TimeInterval kline.Interval `json:"interval,omitempty"` // Required
 }
 
 // StopOrderParams holds stop order request payload.
@@ -1970,21 +1969,18 @@ type CreateQuoteParams struct {
 	RfqID                 string     `json:"rfqId"`
 	ClientSuppliedQuoteID string     `json:"clQuoteId"`
 	QuoteSide             order.Side `json:"quoteSide"`
-	Legs                  []struct {
-		Price          float64    `json:"px,string"`
-		SizeOfQuoteLeg float64    `json:"sz,string"`
-		InstrumentID   string     `json:"instId"`
-		Side           order.Side `json:"side"`
-	} `json:"legs"`
+	Legs                  []QuoteLeg `json:"legs"`
 }
 
 // QuoteLeg the legs of the Quote.
 type QuoteLeg struct {
-	Price        string `json:"px"`
-	Size         string `json:"sz"`
-	InstrumentID string `json:"instId"`
-	Side         string `json:"side"`
-	TgtCurrency  string `json:"tgtCcy"`
+	Price          float64    `json:"px,string"`
+	SizeOfQuoteLeg float64    `json:"sz,string"`
+	InstrumentID   string     `json:"instId"`
+	Side           order.Side `json:"side"`
+
+	// TargetCurrency represents target currency
+	TargetCurrency string `json:"tgtCcy,omitempty"`
 }
 
 // QuoteResponse holds create quote response variables.

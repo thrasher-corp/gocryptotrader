@@ -341,7 +341,6 @@ func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*Pl
 	}
 	type response struct {
 		Msg  string               `json:"msg"`
-		Code string               `json:"code"`
 		Data []PlaceOrderResponse `json:"data"`
 	}
 	var resp response
@@ -401,8 +400,6 @@ func (ok *Okx) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequest
 		}
 	}
 	type response struct {
-		Msg  string               `json:"msg"`
-		Code string               `json:"code"`
 		Data []PlaceOrderResponse `json:"data"`
 	}
 	var resp response
@@ -419,7 +416,6 @@ func (ok *Okx) CancelSingleOrder(ctx context.Context, arg CancelOrderRequestPara
 	}
 	type response struct {
 		Msg  string                `json:"msg"`
-		Code string                `json:"code"`
 		Data []CancelOrderResponse `json:"data"`
 	}
 	var resp response
@@ -449,8 +445,6 @@ func (ok *Okx) CancelMultipleOrders(ctx context.Context, args []CancelOrderReque
 		}
 	}
 	type response struct {
-		Msg  string                `json:"msg"`
-		Code string                `json:"code"`
 		Data []CancelOrderResponse `json:"data"`
 	}
 	var resp response
@@ -470,7 +464,6 @@ func (ok *Okx) AmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (*A
 		return nil, errMissingNewSizeOrPriceInformation
 	}
 	type response struct {
-		Code string               `json:"code"`
 		Msg  string               `json:"msg"`
 		Data []AmendOrderResponse `json:"data"`
 	}
@@ -502,8 +495,6 @@ func (ok *Okx) AmendMultipleOrders(ctx context.Context, args []AmendOrderRequest
 		}
 	}
 	type response struct {
-		Code string               `json:"code"`
-		Msg  string               `json:"msg"`
 		Data []AmendOrderResponse `json:"data"`
 	}
 	var resp response
@@ -520,7 +511,6 @@ func (ok *Okx) ClosePositions(ctx context.Context, arg *ClosePositionsRequestPar
 	}
 	type response struct {
 		Msg  string                  `json:"msg"`
-		Code string                  `json:"code"`
 		Data []ClosePositionResponse `json:"data"`
 	}
 	var resp response
@@ -556,7 +546,6 @@ func (ok *Okx) GetOrderDetail(ctx context.Context, arg *OrderDetailRequestParam)
 		params.Set("clOrdId", arg.ClientSupplierOrderID)
 	}
 	type response struct {
-		Code string        `json:"code"`
 		Msg  string        `json:"msg"`
 		Data []OrderDetail `json:"data"`
 	}
@@ -618,8 +607,6 @@ func (ok *Okx) GetOrderList(ctx context.Context, arg *OrderListRequestParams) ([
 	}
 	path := common.EncodeURLValues(pendingTradeOrders, params)
 	type response struct {
-		Code string             `json:"code"`
-		Msg  string             `json:"msg"`
 		Data []PendingOrderItem `json:"data"`
 	}
 	var resp response
@@ -683,8 +670,6 @@ func (ok *Okx) getOrderHistory(ctx context.Context, arg *OrderHistoryRequestPara
 	}
 	path := common.EncodeURLValues(route, params)
 	type response struct {
-		Code string             `json:"code"`
-		Msg  string             `json:"msg"`
 		Data []PendingOrderItem `json:"data"`
 	}
 	var resp response
@@ -748,8 +733,6 @@ func (ok *Okx) getTransactionDetails(ctx context.Context, arg *TransactionDetail
 	}
 	path := common.EncodeURLValues(route, params)
 	type response struct {
-		Code string              `json:"code"`
-		Msg  string              `json:"msg"`
 		Data []TransactionDetail `json:"data"`
 	}
 	var resp response
@@ -782,7 +765,6 @@ func (ok *Okx) PlaceAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoO
 		return nil, errMissingNewSize
 	}
 	type response struct {
-		Code string      `json:"code"`
 		Msg  string      `json:"msg"`
 		Data []AlgoOrder `json:"data"`
 	}
@@ -931,8 +913,6 @@ func (ok *Okx) cancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams
 		return nil, errors.New("no parameter")
 	}
 	type response struct {
-		Code string      `json:"code"`
-		Msg  string      `json:"msg"`
 		Data []AlgoOrder `json:"data"`
 	}
 	var resp response
@@ -953,8 +933,6 @@ func (ok *Okx) GetAlgoOrderList(ctx context.Context, orderType, algoOrderID, ins
 	}
 	params.Set("ordType", orderType)
 	type response struct {
-		Code string              `json:"code"`
-		Msg  string              `json:"msg"`
 		Data []AlgoOrderResponse `json:"data"`
 	}
 	var resp response
@@ -993,8 +971,6 @@ func (ok *Okx) GetAlgoOrderHistory(ctx context.Context, orderType, state, algoOr
 	}
 	params.Set("ordType", orderType)
 	type response struct {
-		Code string              `json:"code"`
-		Msg  string              `json:"msg"`
 		Data []AlgoOrderResponse `json:"data"`
 	}
 	var resp response
@@ -1034,8 +1010,6 @@ func (ok *Okx) GetAlgoOrderHistory(ctx context.Context, orderType, state, algoOr
 // GetCounterparties retrieves the list of counterparties that the user has permissions to trade with.
 func (ok *Okx) GetCounterparties(ctx context.Context) ([]CounterpartiesResponse, error) {
 	type response struct {
-		Code string                   `json:"code"`
-		Msg  string                   `json:"msg"`
 		Data []CounterpartiesResponse `json:"data"`
 	}
 	var resp response
@@ -1051,7 +1025,6 @@ func (ok *Okx) CreateRFQ(ctx context.Context, arg CreateRFQInput) (*RFQResponse,
 		return nil, errInvalidLegs
 	}
 	type response struct {
-		Code string        `json:"code"`
 		Msg  string        `json:"msg"`
 		Data []RFQResponse `json:"data"`
 	}
@@ -1075,7 +1048,6 @@ func (ok *Okx) CancelRFQ(ctx context.Context, arg CancelRFQRequestParam) (*Cance
 		return nil, errMissingRFQIDANDClientSuppliedRFQID
 	}
 	type response struct {
-		Code string              `json:"code"`
 		Msg  string              `json:"msg"`
 		Data []CancelRFQResponse `json:"data"`
 	}
@@ -1101,8 +1073,6 @@ func (ok *Okx) CancelMultipleRFQs(ctx context.Context, arg CancelRFQRequestsPara
 		return nil, errMaxRFQOrdersToCancel
 	}
 	type response struct {
-		Code string              `json:"code"`
-		Msg  string              `json:"msg"`
 		Data []CancelRFQResponse `json:"data"`
 	}
 	var resp response
@@ -1112,7 +1082,6 @@ func (ok *Okx) CancelMultipleRFQs(ctx context.Context, arg CancelRFQRequestsPara
 // CancelAllRFQs cancels all active RFQs.
 func (ok *Okx) CancelAllRFQs(ctx context.Context) (time.Time, error) {
 	type response struct {
-		Code string              `json:"code"`
 		Msg  string              `json:"msg"`
 		Data []TimestampResponse `json:"data"`
 	}
@@ -1136,7 +1105,6 @@ func (ok *Okx) ExecuteQuote(ctx context.Context, arg ExecuteQuoteParams) (*Execu
 		return nil, errMissingRfqIDOrQuoteID
 	}
 	type response struct {
-		Code string                 `json:"code"`
 		Msg  string                 `json:"msg"`
 		Data []ExecuteQuoteResponse `json:"data"`
 	}
@@ -1178,7 +1146,6 @@ func (ok *Okx) CreateQuote(ctx context.Context, arg CreateQuoteParams) (*QuoteRe
 		}
 	}
 	type response struct {
-		Code string          `json:"code"`
 		Msg  string          `json:"msg"`
 		Data []QuoteResponse `json:"data"`
 	}
@@ -1200,7 +1167,6 @@ func (ok *Okx) CreateQuote(ctx context.Context, arg CreateQuoteParams) (*QuoteRe
 // rfqCancelQuote = "rfq/cancel-quote"
 func (ok *Okx) CancelQuote(ctx context.Context, arg CancelQuoteRequestParams) (*CancelQuoteResponse, error) {
 	type response struct {
-		Code string                `json:"code"`
 		Msg  string                `json:"msg"`
 		Data []CancelQuoteResponse `json:"data"`
 	}
@@ -1227,8 +1193,6 @@ func (ok *Okx) CancelMultipleQuote(ctx context.Context, arg CancelQuotesRequestP
 		return nil, errMissingEitherQuoteIDAOrClientSuppliedQuoteIDs
 	}
 	type response struct {
-		Code string                `json:"code"`
-		Msg  string                `json:"msg"`
 		Data []CancelQuoteResponse `json:"data"`
 	}
 	var resp response
@@ -1238,7 +1202,6 @@ func (ok *Okx) CancelMultipleQuote(ctx context.Context, arg CancelQuotesRequestP
 // CancelAllQuotes cancels all active Quotes.
 func (ok *Okx) CancelAllQuotes(ctx context.Context) (time.Time, error) {
 	type response struct {
-		Code string              `json:"code"`
 		Msg  string              `json:"msg"`
 		Data []TimestampResponse `json:"data"`
 	}
@@ -1290,8 +1253,6 @@ func (ok *Okx) GetRfqs(ctx context.Context, arg *RfqRequestParams) ([]RFQRespons
 
 	path := common.EncodeURLValues(rfqRfqs, params)
 	type response struct {
-		Code string        `json:"code"`
-		Msg  string        `json:"msg"`
 		Data []RFQResponse `json:"data"`
 	}
 	var resp response
@@ -1335,8 +1296,6 @@ func (ok *Okx) GetQuotes(ctx context.Context, arg *QuoteRequestParams) ([]QuoteR
 		params.Set("limit", strconv.Itoa(arg.Limit))
 	}
 	type response struct {
-		Code string          `json:"code"`
-		Msg  string          `json:"msg"`
 		Data []QuoteResponse `json:"data"`
 	}
 	var resp response
@@ -1384,8 +1343,6 @@ func (ok *Okx) GetRFQTrades(ctx context.Context, arg *RFQTradesRequestParams) ([
 		params.Set("limit", strconv.Itoa(int(arg.Limit)))
 	}
 	type response struct {
-		Code string             `json:"code"`
-		Msg  string             `json:"msg"`
 		Data []RfqTradeResponse `json:"data"`
 	}
 	var resp response
@@ -1407,8 +1364,6 @@ func (ok *Okx) GetPublicTrades(ctx context.Context, beginID, endID string, limit
 	}
 	path := common.EncodeURLValues(rfqPublicTrades, params)
 	type response struct {
-		Code string                 `json:"code"`
-		Msg  string                 `json:"msg"`
 		Data []PublicTradesResponse `json:"data"`
 	}
 	var resp response
@@ -1420,8 +1375,6 @@ func (ok *Okx) GetPublicTrades(ctx context.Context, beginID, endID string, limit
 // GetCurrencies Retrieve a list of all currencies.
 func (ok *Okx) GetCurrencies(ctx context.Context) ([]CurrencyResponse, error) {
 	type response struct {
-		Code string             `json:"code"`
-		Msg  string             `json:"msg"`
 		Data []CurrencyResponse `json:"data"`
 	}
 	var resp response
@@ -1431,8 +1384,6 @@ func (ok *Okx) GetCurrencies(ctx context.Context) ([]CurrencyResponse, error) {
 // GetBalance retrieves the balances of all the assets and the amount that is available or on hold.
 func (ok *Okx) GetBalance(ctx context.Context, currency string) ([]AssetBalance, error) {
 	type response struct {
-		Code string         `json:"code"`
-		Msg  string         `json:"msg"`
 		Data []AssetBalance `json:"data"`
 	}
 	var resp response
@@ -1462,8 +1413,6 @@ func (ok *Okx) GetAccountAssetValuation(ctx context.Context, currency string) ([
 	}
 	path := common.EncodeURLValues(assetValuation, params)
 	type response struct {
-		Code string                  `json:"code"`
-		Msg  string                  `json:"msg"`
 		Data []AccountAssetValuation `json:"data"`
 	}
 	var resp response
@@ -1474,8 +1423,6 @@ func (ok *Okx) GetAccountAssetValuation(ctx context.Context, currency string) ([
 // and from the master account to sub-accounts.
 func (ok *Okx) FundingTransfer(ctx context.Context, arg *FundingTransferRequestInput) ([]FundingTransferResponse, error) {
 	type response struct {
-		Msg  string                    `json:"msg"`
-		Code string                    `json:"code"`
 		Data []FundingTransferResponse `json:"data"`
 	}
 	var resp response
@@ -1525,8 +1472,6 @@ func (ok *Okx) GetFundsTransferState(ctx context.Context, transferID, clientID s
 	}
 	path := common.EncodeURLValues(assetTransferState, params)
 	type response struct {
-		Code string                     `json:"code"`
-		Msg  string                     `json:"msg"`
 		Data []TransferFundRateResponse `json:"data"`
 	}
 	var resp response
@@ -1565,8 +1510,6 @@ func (ok *Okx) GetAssetBillsDetails(ctx context.Context, currency string, billTy
 	}
 	path := common.EncodeURLValues(assetBills, params)
 	type response struct {
-		Code string            `json:"code"`
-		Msg  string            `json:"msg"`
 		Data []AssetBillDetail `json:"data"`
 	}
 	var resp response
@@ -1591,7 +1534,6 @@ func (ok *Okx) GetLightningDeposits(ctx context.Context, currency string, amount
 	}
 	path := common.EncodeURLValues(lightningDeposit, params)
 	type response struct {
-		Code string                 `json:"code"`
 		Data []LightningDepositItem `json:"data"`
 	}
 	var resp response
@@ -1607,8 +1549,6 @@ func (ok *Okx) GetCurrencyDepositAddress(ctx context.Context, currency string) (
 	params.Set("ccy", currency)
 	path := common.EncodeURLValues(assetDeposits, params)
 	type response struct {
-		Code string                        `json:"code"`
-		Msg  string                        `json:"msg"`
 		Data []CurrencyDepositResponseItem `json:"data"`
 	}
 	var resp response
@@ -1643,8 +1583,6 @@ func (ok *Okx) GetCurrencyDepositHistory(ctx context.Context, currency, depositI
 	}
 	path := common.EncodeURLValues(pathToAssetDepositHistory, params)
 	type response struct {
-		Code string                       `json:"code"`
-		Msg  string                       `json:"msg"`
 		Data []DepositHistoryResponseItem `json:"data"`
 	}
 	var resp response
@@ -1657,7 +1595,6 @@ func (ok *Okx) Withdrawal(ctx context.Context, input *WithdrawalInput) (*Withdra
 		return nil, errNilArgument
 	}
 	type response struct {
-		Code string               `json:"code"`
 		Msg  string               `json:"msg"`
 		Data []WithdrawalResponse `json:"data"`
 	}
@@ -1697,7 +1634,6 @@ func (ok *Okx) LightningWithdrawal(ctx context.Context, arg LightningWithdrawalR
 		return nil, errors.New("missing invoice text")
 	}
 	type response struct {
-		Code string                        `json:"code"`
 		Msg  string                        `json:"msg"`
 		Data []LightningWithdrawalResponse `json:"data"`
 	}
@@ -1726,9 +1662,7 @@ func (ok *Okx) CancelWithdrawal(ctx context.Context, withdrawalID string) (strin
 		WithdrawalID: withdrawalID,
 	}
 	type response struct {
-		Status string `json:"status"`
-		Msg    string `json:"msg"`
-		Data   inout  `json:"data"`
+		Data inout `json:"data"`
 	}
 	var output response
 	return output.Data.WithdrawalID, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelWithdrawalEPL, http.MethodPost, cancelWithdrawal, input, &output, true)
@@ -1738,8 +1672,6 @@ func (ok *Okx) CancelWithdrawal(ctx context.Context, withdrawalID string) (strin
 // The 100 most recent records are returned by default.
 func (ok *Okx) GetWithdrawalHistory(ctx context.Context, currency, withdrawalID, clientID, transactionID string, state int, after, before time.Time, limit int) ([]WithdrawalHistoryResponse, error) {
 	type response struct {
-		Code string                      `json:"code"`
-		Msg  string                      `json:"msg"`
 		Data []WithdrawalHistoryResponse `json:"data"`
 	}
 	params := url.Values{}
@@ -1775,7 +1707,6 @@ func (ok *Okx) GetWithdrawalHistory(ctx context.Context, currency, withdrawalID,
 // SmallAssetsConvert Convert small assets in funding account to OKB. Only one convert is allowed within 24 hours.
 func (ok *Okx) SmallAssetsConvert(ctx context.Context, currency []string) (*SmallAssetConvertResponse, error) {
 	type response struct {
-		Code string                      `json:"code"`
 		Msg  string                      `json:"msg"`
 		Data []SmallAssetConvertResponse `json:"data"`
 	}
@@ -1797,8 +1728,6 @@ func (ok *Okx) SmallAssetsConvert(ctx context.Context, currency []string) (*Smal
 // GetSavingBalance returns saving balance, and only assets in the funding account can be used for saving.
 func (ok *Okx) GetSavingBalance(ctx context.Context, currency string) ([]SavingBalanceResponse, error) {
 	type response struct {
-		Code string                  `json:"code"`
-		Msg  string                  `json:"msg"`
 		Data []SavingBalanceResponse `json:"data"`
 	}
 	var resp response
@@ -1827,7 +1756,6 @@ func (ok *Okx) SavingsPurchaseOrRedemption(ctx context.Context, arg *SavingsPurc
 		return nil, errors.New("the rate value range is between 1% and 365%")
 	}
 	type response struct {
-		Code string                              `json:"code"`
 		Msg  string                              `json:"msg"`
 		Data []SavingsPurchaseRedemptionResponse `json:"data"`
 	}
@@ -1862,8 +1790,6 @@ func (ok *Okx) GetLendingHistory(ctx context.Context, currency string, before, a
 	}
 	path := common.EncodeURLValues(assetsLendingHistory, params)
 	type response struct {
-		Code string           `json:"code"`
-		Msg  string           `json:"msg"`
 		Data []LendingHistory `json:"data"`
 	}
 	var resp response
@@ -1878,7 +1804,6 @@ func (ok *Okx) SetLendingRate(ctx context.Context, arg LendingRate) (*LendingRat
 		return nil, errors.New("invalid lending rate value. the rate value range is between 1% and 365%")
 	}
 	type response struct {
-		Code string        `json:"code"`
 		Msg  string        `json:"msg"`
 		Data []LendingRate `json:"data"`
 	}
@@ -1904,8 +1829,6 @@ func (ok *Okx) GetPublicBorrowInfo(ctx context.Context, currency string) ([]Publ
 	}
 	path := common.EncodeURLValues(publicBorrowInfo, params)
 	type response struct {
-		Code string             `json:"code"`
-		Msg  string             `json:"msg"`
 		Data []PublicBorrowInfo `json:"data"`
 	}
 	var resp response
@@ -1917,8 +1840,6 @@ func (ok *Okx) GetPublicBorrowInfo(ctx context.Context, currency string) ([]Publ
 // GetConvertCurrencies retrieves the currency conversion information.
 func (ok *Okx) GetConvertCurrencies(ctx context.Context) ([]ConvertCurrency, error) {
 	type response struct {
-		Code string            `json:"code"`
-		Msg  string            `json:"msg"`
 		Data []ConvertCurrency `json:"data"`
 	}
 	var resp response
@@ -1937,7 +1858,6 @@ func (ok *Okx) GetConvertCurrencyPair(ctx context.Context, fromCurrency, toCurre
 	params.Set("fromCcy", fromCurrency)
 	params.Set("toCcy", toCurrency)
 	type response struct {
-		Code string                `json:"code"`
 		Msg  string                `json:"msg"`
 		Data []ConvertCurrencyPair `json:"data"`
 	}
@@ -1977,7 +1897,6 @@ func (ok *Okx) EstimateQuote(ctx context.Context, arg *EstimateQuoteRequestInput
 		return nil, errors.New("missing rfq currency")
 	}
 	type response struct {
-		Code string                  `json:"code"`
 		Msg  string                  `json:"msg"`
 		Data []EstimateQuoteResponse `json:"data"`
 	}
@@ -2021,7 +1940,6 @@ func (ok *Okx) ConvertTrade(ctx context.Context, arg *ConvertTradeInput) (*Conve
 		return nil, errors.New("missing quote id")
 	}
 	type response struct {
-		Code string                 `json:"code"`
 		Msg  string                 `json:"msg"`
 		Data []ConvertTradeResponse `json:"data"`
 	}
@@ -2056,8 +1974,6 @@ func (ok *Okx) GetConvertHistory(ctx context.Context, before, after time.Time, l
 	}
 	path := common.EncodeURLValues(assetConvertHistory, params)
 	type response struct {
-		Code string           `json:"code"`
-		Msg  string           `json:"msg"`
 		Data []ConvertHistory `json:"data"`
 	}
 	var resp response
@@ -2070,8 +1986,6 @@ func (ok *Okx) GetConvertHistory(ctx context.Context, before, after time.Time, l
 // Interest-free quota and discount rates are public data and not displayed on the account interface.
 func (ok *Okx) GetNonZeroBalances(ctx context.Context, currency string) ([]Account, error) {
 	type response struct {
-		Code string    `json:"code"`
-		Msg  string    `json:"msg"`
 		Data []Account `json:"data"`
 	}
 	var resp response
@@ -2097,8 +2011,6 @@ func (ok *Okx) GetPositions(ctx context.Context, instrumentType, instrumentID, p
 	}
 	path := common.EncodeURLValues(accountPosition, params)
 	type response struct {
-		Code string            `json:"code"`
-		Msg  string            `json:"msg"`
 		Data []AccountPosition `json:"data"`
 	}
 	var resp response
@@ -2135,8 +2047,6 @@ func (ok *Okx) GetPositionsHistory(ctx context.Context, instrumentType, instrume
 	}
 	path := common.EncodeURLValues(accountPositionHistory, params)
 	type response struct {
-		Code string                   `json:"code"`
-		Msg  string                   `json:"msg"`
 		Data []AccountPositionHistory `json:"data"`
 	}
 	var resp response
@@ -2151,8 +2061,6 @@ func (ok *Okx) GetAccountAndPositionRisk(ctx context.Context, instrumentType str
 	}
 	path := common.EncodeURLValues(accountAndPositionRisk, params)
 	type response struct {
-		Code string                   `json:"code"`
-		Msg  string                   `json:"msg"`
 		Data []AccountAndPositionRisk `json:"data"`
 	}
 	var resp response
@@ -2221,8 +2129,6 @@ func (ok *Okx) GetBillsDetail(ctx context.Context, arg *BillsDetailQueryParamete
 	}
 	path := common.EncodeURLValues(route, params)
 	type response struct {
-		Code string                `json:"code"`
-		Msg  string                `json:"msg"`
 		Data []BillsDetailResponse `json:"data"`
 	}
 	var resp response
@@ -2232,8 +2138,6 @@ func (ok *Okx) GetBillsDetail(ctx context.Context, arg *BillsDetailQueryParamete
 // GetAccountConfiguration retrieves current account configuration.
 func (ok *Okx) GetAccountConfiguration(ctx context.Context) ([]AccountConfigurationResponse, error) {
 	type response struct {
-		Code string                         `json:"code"`
-		Msg  string                         `json:"msg"`
 		Data []AccountConfigurationResponse `json:"data"`
 	}
 	var resp response
@@ -2249,7 +2153,6 @@ func (ok *Okx) SetPositionMode(ctx context.Context, positionMode string) (string
 		PositionMode: positionMode,
 	}
 	type response struct {
-		Code string         `json:"code"`
 		Msg  string         `json:"msg"`
 		Data []PositionMode `json:"data"`
 	}
@@ -2295,7 +2198,6 @@ func (ok *Okx) SetLeverage(ctx context.Context, arg SetLeverageInput) (*SetLever
 		arg.MarginMode = ""
 	}
 	type response struct {
-		Code string                `json:"code"`
 		Msg  string                `json:"msg"`
 		Data []SetLeverageResponse `json:"data"`
 	}
@@ -2334,8 +2236,6 @@ func (ok *Okx) GetMaximumBuySellAmountOROpenAmount(ctx context.Context, instrume
 		params.Set("leverage", leverage)
 	}
 	type response struct {
-		Code string              `json:"code"`
-		Msg  string              `json:"msg"`
 		Data []MaximumBuyAndSell `json:"data"`
 	}
 	var resp response
@@ -2363,8 +2263,6 @@ func (ok *Okx) GetMaximumAvailableTradableAmount(ctx context.Context, instrument
 	params.Set("px", strconv.FormatFloat(price, 'f', 0, 64))
 	path := common.EncodeURLValues(accountMaxAvailSize, params)
 	type response struct {
-		Code string                  `json:"code"`
-		Msg  string                  `json:"msg"`
 		Data []MaximumTradableAmount `json:"data"`
 	}
 	var resp response
@@ -2388,7 +2286,6 @@ func (ok *Okx) IncreaseDecreaseMargin(ctx context.Context, arg IncreaseDecreaseM
 		return nil, errors.New("missing valid amount")
 	}
 	type response struct {
-		Code string                   `json:"code"`
 		Msg  string                   `json:"msg"`
 		Data []IncreaseDecreaseMargin `json:"data"`
 	}
@@ -2420,8 +2317,6 @@ func (ok *Okx) GetLeverage(ctx context.Context, instrumentID, marginMode string)
 		return nil, errors.New("missing margin mode \"mgnMode\"")
 	}
 	type response struct {
-		Code string             `json:"code"`
-		Msg  string             `json:"msg"`
 		Data []LeverageResponse `json:"data"`
 	}
 	var resp response
@@ -2446,8 +2341,6 @@ func (ok *Okx) GetMaximumLoanOfInstrument(ctx context.Context, instrumentID, mar
 		params.Set("mgnCcy", mgnCurrency)
 	}
 	type response struct {
-		Code string                  `json:"code"`
-		Msg  string                  `json:"msg"`
 		Data []MaximumLoanInstrument `json:"data"`
 	}
 	path := common.EncodeURLValues(accountMaxLoan, params)
@@ -2516,8 +2409,6 @@ func (ok *Okx) GetTradeFee(ctx context.Context, instrumentType, instrumentID, un
 	}
 	path := common.EncodeURLValues(accountTradeFee, params)
 	type response struct {
-		Code string         `json:"code"`
-		Msg  string         `json:"msg"`
 		Data []TradeFeeRate `json:"data"`
 	}
 	var resp response
@@ -2551,8 +2442,6 @@ func (ok *Okx) GetInterestAccruedData(ctx context.Context, loanType int, currenc
 		params.Set("limit", strconv.Itoa(limit))
 	}
 	type response struct {
-		Code string                `json:"code"`
-		Msg  string                `json:"msg"`
 		Data []InterestAccruedData `json:"data"`
 	}
 	var resp response
@@ -2568,8 +2457,6 @@ func (ok *Okx) GetInterestRate(ctx context.Context, currency string) ([]Interest
 	}
 	path := common.EncodeURLValues(accountInterestRate, params)
 	type response struct {
-		Code string                 `json:"code"`
-		Msg  string                 `json:"msg"`
 		Data []InterestRateResponse `json:"data"`
 	}
 	var resp response
@@ -2586,7 +2473,6 @@ func (ok *Okx) SetGreeks(ctx context.Context, greeksType string) (*GreeksType, e
 		GreeksType: greeksType,
 	}
 	type response struct {
-		Code string       `json:"code"`
 		Msg  string       `json:"msg"`
 		Data []GreeksType `json:"data"`
 	}
@@ -2617,7 +2503,6 @@ func (ok *Okx) IsolatedMarginTradingSettings(ctx context.Context, arg IsolatedMo
 	}
 
 	type response struct {
-		Code string         `json:"code"`
 		Msg  string         `json:"msg"`
 		Data []IsolatedMode `json:"data"`
 	}
@@ -2643,8 +2528,6 @@ func (ok *Okx) GetMaximumWithdrawals(ctx context.Context, currency string) ([]Ma
 	}
 	path := common.EncodeURLValues(accountMaxWithdrawal, params)
 	type response struct {
-		Code string              `json:"code"`
-		Msg  string              `json:"msg"`
 		Data []MaximumWithdrawal `json:"data"`
 	}
 	var resp response
@@ -2655,8 +2538,6 @@ func (ok *Okx) GetMaximumWithdrawals(ctx context.Context, currency string) ([]Ma
 // only applicable to Portfolio margin account
 func (ok *Okx) GetAccountRiskState(ctx context.Context) ([]AccountRiskState, error) {
 	type response struct {
-		Code string             `json:"code"`
-		Msg  string             `json:"msg"`
 		Data []AccountRiskState `json:"data"`
 	}
 	var resp response
@@ -2666,7 +2547,6 @@ func (ok *Okx) GetAccountRiskState(ctx context.Context) ([]AccountRiskState, err
 // VIPLoansBorrowAndRepay creates VIP borrow or repay for a currency.
 func (ok *Okx) VIPLoansBorrowAndRepay(ctx context.Context, arg LoanBorrowAndReplayInput) (*LoanBorrowAndReplay, error) {
 	type response struct {
-		Code string                `json:"code"`
 		Msg  string                `json:"msg"`
 		Data []LoanBorrowAndReplay `json:"data"`
 	}
@@ -2710,8 +2590,6 @@ func (ok *Okx) GetBorrowAndRepayHistoryForVIPLoans(ctx context.Context, currency
 	}
 	path := common.EncodeURLValues(accountBorrowRepayHistory, params)
 	type response struct {
-		Code string               `json:"code"`
-		Msg  string               `json:"msg"`
 		Data []BorrowRepayHistory `json:"data"`
 	}
 	var resp response
@@ -2728,8 +2606,6 @@ func (ok *Okx) GetBorrowInterestAndLimit(ctx context.Context, loanType int, curr
 		params.Set("ccy", currency)
 	}
 	type response struct {
-		Code string                           `json:"code"`
-		Msg  string                           `json:"msg"`
 		Data []BorrowInterestAndLimitResponse `json:"data"`
 	}
 	var resp response
@@ -2744,8 +2620,6 @@ func (ok *Okx) PositionBuilder(ctx context.Context, arg PositionBuilderInput) ([
 		arg.InstrumentType = ""
 	}
 	type response struct {
-		Code string                    `json:"code"`
-		Msg  string                    `json:"msg"`
 		Data []PositionBuilderResponse `json:"data"`
 	}
 	var resp response
@@ -2760,8 +2634,6 @@ func (ok *Okx) GetGreeks(ctx context.Context, currency string) ([]GreeksItem, er
 	}
 	path := common.EncodeURLValues(accountGeeks, params)
 	type response struct {
-		Code string       `json:"code"`
-		Msg  string       `json:"msg"`
 		Data []GreeksItem `json:"data"`
 	}
 	var resp response
@@ -2787,8 +2659,6 @@ func (ok *Okx) ViewSubaccountList(ctx context.Context, enable bool, subaccountNa
 		params.Set("limit", strconv.Itoa(limit))
 	}
 	type response struct {
-		Code string           `json:"code"`
-		Msg  string           `json:"msg"`
 		Data []SubaccountInfo `json:"data"`
 	}
 	var resp response
@@ -2805,8 +2675,6 @@ func (ok *Okx) GetSubaccountTradingBalance(ctx context.Context, subaccountName s
 	params.Set("subAcct", subaccountName)
 	path := common.EncodeURLValues(accountSubaccountBalances, params)
 	type response struct {
-		Code string                      `json:"code"`
-		Msg  string                      `json:"msg"`
 		Data []SubaccountBalanceResponse `json:"data"`
 	}
 	var resp response
@@ -2824,8 +2692,6 @@ func (ok *Okx) GetSubaccountFundingBalance(ctx context.Context, subaccountName, 
 		params.Set("ccy", currency)
 	}
 	type response struct {
-		Code string           `json:"code"`
-		Msg  string           `json:"msg"`
 		Data []FundingBalance `json:"data"`
 	}
 	path := common.EncodeURLValues(assetSubaccountBalances, params)
@@ -2857,8 +2723,6 @@ func (ok *Okx) HistoryOfSubaccountTransfer(ctx context.Context, currency string,
 	}
 	path := common.EncodeURLValues(assetSubaccountBills, params)
 	type response struct {
-		Code string               `json:"code"`
-		Msg  string               `json:"msg"`
 		Data []SubaccountBillItem `json:"data"`
 	}
 	var resp response
@@ -2895,8 +2759,6 @@ func (ok *Okx) MasterAccountsManageTransfersBetweenSubaccounts(ctx context.Conte
 	params.Set("loanTrans", strconv.FormatBool(loanTransfer))
 	path := common.EncodeURLValues(assetSubaccountTransfer, params)
 	type response struct {
-		Code string           `json:"code"`
-		Msg  string           `json:"msg"`
 		Data []TransferIDInfo `json:"data"`
 	}
 	var resp response
@@ -2909,22 +2771,10 @@ func (ok *Okx) SetPermissionOfTransferOut(ctx context.Context, arg PermissingOfT
 		return nil, errMissingRequiredParameterSubaccountName
 	}
 	type response struct {
-		Code string                 `json:"code"`
-		Msg  string                 `json:"msg"`
 		Data []PermissingOfTransfer `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, setPermissingOfTransferOutEPL, http.MethodPost, userSubaccountSetTransferOut, &arg, &resp, true)
-	if er != nil {
-		return nil, er
-	}
-	if len(resp.Data) == 1 {
-		return resp.Data, nil
-	}
-	if resp.Msg != "" {
-		return nil, errors.New(resp.Msg)
-	}
-	return nil, errNoValidResponseFromServer
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, setPermissingOfTransferOutEPL, http.MethodPost, userSubaccountSetTransferOut, &arg, &resp, true)
 }
 
 // GetCustodyTradingSubaccountList the trading team uses this interface to view the list of sub-accounts currently under escrow
@@ -2935,8 +2785,6 @@ func (ok *Okx) GetCustodyTradingSubaccountList(ctx context.Context, subaccountNa
 		params.Set("setAcct", subaccountName)
 	}
 	type response struct {
-		Code string           `json:"code"`
-		Msg  string           `json:"msg"`
 		Data []SubaccountName `json:"data"`
 	}
 	path := common.EncodeURLValues(usersEntrustSubaccountList, params)
@@ -2984,7 +2832,6 @@ func (ok *Okx) PlaceGridAlgoOrder(ctx context.Context, arg *GridAlgoOrder) (*Gri
 		}
 	}
 	type response struct {
-		Code string                    `json:"code"`
 		Msg  string                    `json:"msg"`
 		Data []GridAlgoOrderIDResponse `json:"data"`
 	}
@@ -3011,7 +2858,6 @@ func (ok *Okx) AmendGridAlgoOrder(ctx context.Context, arg GridAlgoOrderAmend) (
 		return nil, errMissingInstrumentID
 	}
 	type response struct {
-		Code string                    `json:"code"`
 		Msg  string                    `json:"msg"`
 		Data []GridAlgoOrderIDResponse `json:"data"`
 	}
@@ -3047,8 +2893,6 @@ func (ok *Okx) StopGridAlgoOrder(ctx context.Context, arg []StopGridAlgoOrderReq
 		}
 	}
 	type response struct {
-		Code string                    `json:"code"`
-		Msg  string                    `json:"msg"`
 		Data []GridAlgoOrderIDResponse `json:"data"`
 	}
 	var resp response
@@ -3104,8 +2948,6 @@ func (ok *Okx) getGridAlgoOrders(ctx context.Context, algoOrderType, algoID,
 	}
 	path := common.EncodeURLValues(route, params)
 	type response struct {
-		Code string                  `json:"code"`
-		Msg  string                  `json:"msg"`
 		Data []GridAlgoOrderResponse `json:"data"`
 	}
 	var resp response
@@ -3125,7 +2967,6 @@ func (ok *Okx) GetGridAlgoOrderDetails(ctx context.Context, algoOrderType, algoI
 	params.Set("algoOrdType", algoOrderType)
 	params.Set("algoId", algoID)
 	type response struct {
-		Code string                  `json:"code"`
 		Msg  string                  `json:"msg"`
 		Data []GridAlgoOrderResponse `json:"data"`
 	}
@@ -3177,8 +3018,6 @@ func (ok *Okx) GetGridAlgoSubOrders(ctx context.Context, algoOrderType, algoID, 
 	}
 	path := common.EncodeURLValues(gridSuborders, params)
 	type response struct {
-		Code string                  `json:"code"`
-		Msg  string                  `json:"msg"`
 		Data []GridAlgoOrderResponse `json:"data"`
 	}
 	var resp response
@@ -3197,8 +3036,6 @@ func (ok *Okx) GetGridAlgoOrderPositions(ctx context.Context, algoOrderType, alg
 	params.Set("algoOrdType", algoOrderType)
 	params.Set("algoId", algoID)
 	type response struct {
-		Code string              `json:"code"`
-		Msg  string              `json:"msg"`
 		Data []AlgoOrderPosition `json:"data"`
 	}
 	var resp response
@@ -3217,7 +3054,6 @@ func (ok *Okx) SpotGridWithdrawProfit(ctx context.Context, algoID string) (*Algo
 		AlgoID: algoID,
 	}
 	type response struct {
-		Code string                      `json:"code"`
 		Msg  string                      `json:"msg"`
 		Data []AlgoOrderWithdrawalProfit `json:"data"`
 	}
@@ -3281,8 +3117,6 @@ func (ok *Okx) GetTicker(ctx context.Context, instrumentID string) (*TickerRespo
 // GetIndexTickers Retrieves index tickers.
 func (ok *Okx) GetIndexTickers(ctx context.Context, quoteCurrency, instID string) ([]IndexTicker, error) {
 	response := &struct {
-		Code string        `json:"code"`
-		Msg  string        `json:"msg"`
 		Data []IndexTicker `json:"data"`
 	}{}
 	if instID == "" && quoteCurrency == "" {
@@ -3386,7 +3220,6 @@ func (ok *Okx) GetOrderBookDepth(ctx context.Context, instrumentID string, depth
 		params.Set("sz", strconv.Itoa(int(depth)))
 	}
 	type response struct {
-		Code string              `json:"code"`
 		Msg  string              `json:"msg"`
 		Data []OrderBookResponse `json:"data"`
 	}
@@ -3479,8 +3312,6 @@ func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, inte
 	}
 	params.Set("instId", instrumentID)
 	type response struct {
-		Msg  string      `json:"msg"`
-		Code string      `json:"code"`
 		Data interface{} `json:"data"`
 	}
 	var resp response
@@ -3550,8 +3381,6 @@ func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, inte
 // GetTrades Retrieve the recent transactions of an instrument.
 func (ok *Okx) GetTrades(ctx context.Context, instrumentID string, limit uint) ([]TradeResponse, error) {
 	type response struct {
-		Msg  string          `json:"msg"`
-		Code string          `json:"code"`
 		Data []TradeResponse `json:"data"`
 	}
 	var resp response
@@ -3570,8 +3399,6 @@ func (ok *Okx) GetTrades(ctx context.Context, instrumentID string, limit uint) (
 // GetTradesHistory retrieves the recent transactions of an instrument from the last 3 months with pagination.
 func (ok *Okx) GetTradesHistory(ctx context.Context, instrumentID, before, after string, limit uint) ([]TradeResponse, error) {
 	type response struct {
-		Msg  string          `json:"msg"`
-		Code string          `json:"code"`
 		Data []TradeResponse `json:"data"`
 	}
 	var resp response
@@ -3597,7 +3424,6 @@ func (ok *Okx) GetTradesHistory(ctx context.Context, instrumentID, before, after
 func (ok *Okx) Get24HTotalVolume(ctx context.Context) (*TradingVolumdIn24HR, error) {
 	type response struct {
 		Msg  string                `json:"msg"`
-		Code string                `json:"code"`
 		Data []TradingVolumdIn24HR `json:"data"`
 	}
 	var resp response
@@ -3618,7 +3444,6 @@ func (ok *Okx) Get24HTotalVolume(ctx context.Context) (*TradingVolumdIn24HR, err
 func (ok *Okx) GetOracle(ctx context.Context) (*OracleSmartContractResponse, error) {
 	type response struct {
 		Msg  string                        `json:"msg"`
-		Code string                        `json:"code"`
 		Data []OracleSmartContractResponse `json:"data"`
 	}
 	var resp response
@@ -3640,7 +3465,6 @@ func (ok *Okx) GetOracle(ctx context.Context) (*OracleSmartContractResponse, err
 func (ok *Okx) GetExchangeRate(ctx context.Context) (*UsdCnyExchangeRate, error) {
 	type response struct {
 		Msg  string               `json:"msg"`
-		Code string               `json:"code"`
 		Data []UsdCnyExchangeRate `json:"data"`
 	}
 	var resp response
@@ -3660,8 +3484,6 @@ func (ok *Okx) GetExchangeRate(ctx context.Context) (*UsdCnyExchangeRate, error)
 // GetIndexComponents returns the index component information data on the market
 func (ok *Okx) GetIndexComponents(ctx context.Context, index string) (*IndexComponent, error) {
 	type response struct {
-		Msg  string          `json:"msg"`
-		Code string          `json:"code"`
 		Data *IndexComponent `json:"data"`
 	}
 	params := url.Values{}
@@ -3691,8 +3513,6 @@ func (ok *Okx) GetBlockTickers(ctx context.Context, instrumentType, underlying s
 		params.Set("uly", underlying)
 	}
 	type response struct {
-		Code string        `json:"code"`
-		Msg  string        `json:"msg"`
 		Data []BlockTicker `json:"data"`
 	}
 	var resp response
@@ -3709,7 +3529,6 @@ func (ok *Okx) GetBlockTicker(ctx context.Context, instrumentID string) (*BlockT
 	params.Set("instId", instrumentID)
 	path := common.EncodeURLValues(marketBlockTicker, params)
 	type response struct {
-		Code string        `json:"code"`
 		Msg  string        `json:"msg"`
 		Data []BlockTicker `json:"data"`
 	}
@@ -3736,8 +3555,6 @@ func (ok *Okx) GetBlockTrades(ctx context.Context, instrumentID string) ([]Block
 	params.Set("instId", instrumentID)
 	path := common.EncodeURLValues(marketBlockTrades, params)
 	type response struct {
-		Code string       `json:"code"`
-		Msg  string       `json:"msg"`
 		Data []BlockTrade `json:"data"`
 	}
 	var resp response
@@ -3761,8 +3578,6 @@ func (ok *Okx) GetInstruments(ctx context.Context, arg *InstrumentsFetchParams) 
 		params.Set("instId", arg.InstrumentID)
 	}
 	type response struct {
-		Code string       `json:"code"`
-		Msg  string       `json:"msg"`
 		Data []Instrument `json:"data"`
 	}
 	var resp response
@@ -3814,8 +3629,6 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, instType, uly, instID string
 		params.Set("instId", instID)
 	}
 	type response struct {
-		Code string         `json:"code"`
-		Msg  string         `json:"msg"`
 		Data []OpenInterest `json:"data"`
 	}
 	var resp response
@@ -3832,7 +3645,6 @@ func (ok *Okx) GetFundingRate(ctx context.Context, instrumentID string) (*Fundin
 	params.Set("instId", instrumentID)
 	path := common.EncodeURLValues(publicFundingRate, params)
 	type response struct {
-		Code string                `json:"code"`
 		Data []FundingRateResponse `json:"data"`
 		Msg  string                `json:"msg"`
 	}
@@ -3869,8 +3681,6 @@ func (ok *Okx) GetFundingRateHistory(ctx context.Context, instrumentID string, b
 		return nil, errLimitValueExceedsMaxof100
 	}
 	type response struct {
-		Code string                `json:"code"`
-		Msg  string                `json:"msg"`
 		Data []FundingRateResponse `json:"data"`
 	}
 	path := common.EncodeURLValues(publicFundingRateHistory, params)
@@ -3887,7 +3697,6 @@ func (ok *Okx) GetLimitPrice(ctx context.Context, instrumentID string) (*LimitPr
 	params.Set("instId", instrumentID)
 	path := common.EncodeURLValues(publicLimitPath, params)
 	type response struct {
-		Code string               `json:"code"`
 		Msg  string               `json:"msg"`
 		Data []LimitPriceResponse `json:"data"`
 	}
@@ -3916,8 +3725,6 @@ func (ok *Okx) GetOptionMarketData(ctx context.Context, underlying string, expTi
 	}
 	path := common.EncodeURLValues(publicOptionalData, params)
 	type response struct {
-		Code string                     `json:"code"`
-		Msg  string                     `json:"msg"`
 		Data []OptionMarketDataResponse `json:"data"`
 	}
 	var resp response
@@ -3971,7 +3778,6 @@ func (ok *Okx) GetDiscountRateAndInterestFreeQuota(ctx context.Context, currency
 // GetSystemTime Retrieve API server time.
 func (ok *Okx) GetSystemTime(ctx context.Context) (*time.Time, error) {
 	type response struct {
-		Code string       `json:"code"`
 		Msg  string       `json:"msg"`
 		Data []ServerTime `json:"data"`
 	}
@@ -4137,7 +3943,6 @@ func (ok *Okx) GetPublicUnderlyings(ctx context.Context, instrumentType string) 
 	params.Set("instType", strings.ToUpper(instrumentType))
 	path := common.EncodeURLValues(publicUnderlyings, params)
 	type response struct {
-		Code string     `json:"code"`
 		Msg  string     `json:"msg"`
 		Data [][]string `json:"data"`
 	}
@@ -4227,7 +4032,6 @@ func (ok *Okx) CurrencyUnitConvert(ctx context.Context, instrumentID string, qua
 	}
 	path := common.EncodeURLValues(publicCurrencyConvertContract, params)
 	type response struct {
-		Code string                `json:"code"`
 		Msg  string                `json:"msg"`
 		Data []UnitConvertResponse `json:"data"`
 	}
@@ -4551,8 +4355,6 @@ func (ok *Okx) GetOpenInterestAndVolumeExpiry(ctx context.Context, currency stri
 		params.Set("period", interval)
 	}
 	type response struct {
-		Code string      `json:"code"`
-		Msg  string      `json:"msg"`
 		Data [][6]string `json:"data"`
 	}
 	var resp response
@@ -4665,8 +4467,6 @@ func (ok *Okx) GetOpenInterestAndVolumeStrike(ctx context.Context, currency stri
 		return nil, errMissingExpiryTimeParameter
 	}
 	type response struct {
-		Code string      `json:"code"`
-		Msg  string      `json:"msg"`
 		Data [][6]string `json:"data"`
 	}
 	var resp response
@@ -4730,7 +4530,6 @@ func (ok *Okx) GetTakerFlow(ctx context.Context, currency string, period kline.I
 	}
 	type response struct {
 		Msg  string    `json:"msg"`
-		Code string    `json:"code"`
 		Data [7]string `json:"data"`
 	}
 	var resp response
@@ -4870,8 +4669,6 @@ func (ok *Okx) SystemStatusResponse(ctx context.Context, state string) ([]System
 		params.Set("state", state)
 	}
 	type response struct {
-		Code string                 `json:"code"`
-		Msg  string                 `json:"msg"`
 		Data []SystemStatusResponse `json:"data"`
 	}
 	path := common.EncodeURLValues(systemStatus, params)

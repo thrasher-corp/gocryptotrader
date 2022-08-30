@@ -1759,6 +1759,61 @@ func (a *SystemStatusResponse) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalJSON decerializes JSON, and timestamp information.
+func (a *QuoteLeg) UnmarshalJSON(data []byte) error {
+	type Alias QuoteLeg
+	chil := &struct {
+		*Alias
+		Side string `json:"side"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	chil.Side = strings.ToLower(chil.Side)
+	if chil.Side == "buy" {
+		a.Side = order.Buy
+	} else {
+		a.Side = order.Sell
+	}
+	return nil
+}
+
+// MarshalJSON serialized QuoteLeg instance into bytes
+func (a *QuoteLeg) MarshalJSON() ([]byte, error) {
+	type Alias QuoteLeg
+	chil := &struct {
+		*Alias
+		Side string `json:"side"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if a.Side == order.Buy {
+		chil.Side = "buy"
+	} else {
+		chil.Side = "sell"
+	}
+	return json.Marshal(chil)
+}
+
+// MarshalJSON serialized CreateQuoteParams instance into bytes
+func (a *CreateQuoteParams) MarshalJSON() ([]byte, error) {
+	type Alias CreateQuoteParams
+	chil := &struct {
+		*Alias
+		QuoteSide string `json:"quoteSide"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if a.QuoteSide == order.Buy {
+		chil.QuoteSide = "buy"
+	} else {
+		chil.QuoteSide = "sell"
+	}
+	return json.Marshal(chil)
+}
+
+// UnmarshalJSON decerializes JSON, and timestamp information.
 func (a *RFQResponse) UnmarshalJSON(data []byte) error {
 	type Alias RFQResponse
 	chil := &struct {
