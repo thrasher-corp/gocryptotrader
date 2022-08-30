@@ -76,8 +76,7 @@ var (
 	errShutdownNotAllowed      = errors.New("shutting down this bot instance is not allowed via gRPC, please enable by command line flag --grpcshutdown or config.json field grpcAllowBotShutdown")
 	errGRPCShutdownSignalIsNil = errors.New("cannot shutdown, gRPC shutdown channel is nil")
 	errInvalidStrategy         = errors.New("invalid strategy")
-
-	errSpecificPairNotEnabled = errors.New("specified pair is not enabled")
+	errSpecificPairNotEnabled  = errors.New("specified pair is not enabled")
 )
 
 // RPCServer struct

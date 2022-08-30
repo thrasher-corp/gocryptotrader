@@ -418,7 +418,10 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 	b := Base{
 		Config: &config.Exchange{},
 	}
-	b.SetCurrencyPairFormat()
+	err := b.SetCurrencyPairFormat()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if b.Config.CurrencyPairs == nil {
 		t.Error("currencyPairs shouldn't be nil")
 	}
@@ -431,7 +434,10 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 	}
 	b.CurrencyPairs.RequestFormat = pFmt
 	b.CurrencyPairs.ConfigFormat = pFmt
-	b.SetCurrencyPairFormat()
+	err = b.SetCurrencyPairFormat()
+	if err != nil {
+		t.Fatal(err)
+	}
 	spot, err := b.GetPairFormat(asset.Spot, true)
 	if err != nil {
 		t.Fatal(err)
@@ -456,7 +462,10 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	b.SetCurrencyPairFormat()
+	err = b.SetCurrencyPairFormat()
+	if err != nil {
+		t.Fatal(err)
+	}
 	spot, err = b.GetPairFormat(asset.Spot, false)
 	if err != nil {
 		t.Fatal(err)
@@ -531,7 +540,11 @@ func TestLoadConfigPairs(t *testing.T) {
 	}
 
 	// Test UseGlobalFormat setting of pairs
-	b.SetCurrencyPairFormat()
+	err = b.SetCurrencyPairFormat()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	err = b.SetConfigPairs()
 	if err != nil {
 		t.Fatal(err)
@@ -1759,7 +1772,10 @@ func TestGetFormattedPairAndAssetType(t *testing.T) {
 	b := Base{
 		Config: &config.Exchange{},
 	}
-	b.SetCurrencyPairFormat()
+	err := b.SetCurrencyPairFormat()
+	if err != nil {
+		t.Fatal(err)
+	}
 	b.Config.CurrencyPairs.UseGlobalFormat = true
 	b.CurrencyPairs.UseGlobalFormat = true
 	pFmt := &currency.PairFormat{
