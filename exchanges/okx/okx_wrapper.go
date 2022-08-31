@@ -48,7 +48,7 @@ func (ok *Okx) GetDefaultConfig() (*config.Exchange, error) {
 	}
 
 	if ok.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := ok.UpdateTradablePairs(context.TODO(), true)
+		err := ok.UpdateTradablePairs(context.TODO(), false)
 		if err != nil {
 			return nil, err
 		}

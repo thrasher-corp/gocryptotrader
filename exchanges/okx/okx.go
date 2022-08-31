@@ -344,9 +344,9 @@ func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*Pl
 		Data []PlaceOrderResponse `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, tradeOrder, &arg, &resp, true)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, tradeOrder, &arg, &resp, true)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -419,9 +419,9 @@ func (ok *Okx) CancelSingleOrder(ctx context.Context, arg CancelOrderRequestPara
 		Data []CancelOrderResponse `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelOrderEPL, http.MethodPost, cancelTradeOrder, &arg, &resp, true)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelOrderEPL, http.MethodPost, cancelTradeOrder, &arg, &resp, true)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -468,9 +468,9 @@ func (ok *Okx) AmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (*A
 		Data []AmendOrderResponse `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, amendOrderEPL, http.MethodPost, amendOrder, arg, &resp, true)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, amendOrderEPL, http.MethodPost, amendOrder, arg, &resp, true)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -514,9 +514,9 @@ func (ok *Okx) ClosePositions(ctx context.Context, arg *ClosePositionsRequestPar
 		Data []ClosePositionResponse `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, closePositionEPL, http.MethodPost, closePositionPath, arg, &resp, true)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, closePositionEPL, http.MethodPost, closePositionPath, arg, &resp, true)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -551,9 +551,9 @@ func (ok *Okx) GetOrderDetail(ctx context.Context, arg *OrderDetailRequestParam)
 	}
 	var resp response
 	path := common.EncodeURLValues(tradeOrder, params)
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, getOrderDetEPL, http.MethodGet, path, nil, &resp, true)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getOrderDetEPL, http.MethodGet, path, nil, &resp, true)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -769,9 +769,9 @@ func (ok *Okx) PlaceAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoO
 		Data []AlgoOrder `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, placeAlgoOrderEPL, http.MethodGet, algoTradeOrder, arg, &resp, true)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, placeAlgoOrderEPL, http.MethodGet, algoTradeOrder, arg, &resp, true)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -1029,9 +1029,9 @@ func (ok *Okx) CreateRFQ(ctx context.Context, arg CreateRFQInput) (*RFQResponse,
 		Data []RFQResponse `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, createRfqEPL, http.MethodPost, rfqCreateRFQ, &arg, &resp, true)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, createRfqEPL, http.MethodPost, rfqCreateRFQ, &arg, &resp, true)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -1052,9 +1052,9 @@ func (ok *Okx) CancelRFQ(ctx context.Context, arg CancelRFQRequestParam) (*Cance
 		Data []CancelRFQResponse `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelRfqEPL, http.MethodPost, rfqCancelRfq, &arg, &resp, true)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelRfqEPL, http.MethodPost, rfqCancelRfq, &arg, &resp, true)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -1086,9 +1086,9 @@ func (ok *Okx) CancelAllRFQs(ctx context.Context) (time.Time, error) {
 		Data []TimestampResponse `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllRfqsEPL, http.MethodPost, rfqCancelAllRfqs, nil, &resp, true)
-	if er != nil {
-		return time.Time{}, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllRfqsEPL, http.MethodPost, rfqCancelAllRfqs, nil, &resp, true)
+	if err != nil {
+		return time.Time{}, err
 	}
 	if len(resp.Data) == 1 {
 		return resp.Data[0].Timestamp, nil
@@ -1109,9 +1109,9 @@ func (ok *Okx) ExecuteQuote(ctx context.Context, arg ExecuteQuoteParams) (*Execu
 		Data []ExecuteQuoteResponse `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, executeQuoteEPL, http.MethodPost, rfqExecuteQuote, &arg, &resp, true)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, executeQuoteEPL, http.MethodPost, rfqExecuteQuote, &arg, &resp, true)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -1150,9 +1150,9 @@ func (ok *Okx) CreateQuote(ctx context.Context, arg CreateQuoteParams) (*QuoteRe
 		Data []QuoteResponse `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, createQuoteEPL, http.MethodPost, rfqCreateQuote, &arg, &resp, true)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, createQuoteEPL, http.MethodPost, rfqCreateQuote, &arg, &resp, true)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -1174,9 +1174,9 @@ func (ok *Okx) CancelQuote(ctx context.Context, arg CancelQuoteRequestParams) (*
 	if arg.ClientSuppliedQuoteID == "" && arg.QuoteID == "" {
 		return nil, errMissingQuoteIDOrClientSuppliedQuoteID
 	}
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelQuoteEPL, http.MethodPost, rfqCancelQuote, &arg, &resp, true)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelQuoteEPL, http.MethodPost, rfqCancelQuote, &arg, &resp, true)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -1206,9 +1206,9 @@ func (ok *Okx) CancelAllQuotes(ctx context.Context) (time.Time, error) {
 		Data []TimestampResponse `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllQuotesEPL, http.MethodPost, rfqCancelAllQuotes, nil, &resp, true)
-	if er != nil {
-		return time.Time{}, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllQuotesEPL, http.MethodPost, rfqCancelAllQuotes, nil, &resp, true)
+	if err != nil {
+		return time.Time{}, err
 	}
 	if len(resp.Data) == 1 {
 		return resp.Data[0].Timestamp, nil
@@ -1609,9 +1609,9 @@ func (ok *Okx) Withdrawal(ctx context.Context, input *WithdrawalInput) (*Withdra
 	case input.ToAddress == "":
 		return nil, errors.New("missing verified digital currency address \"toAddr\" information")
 	}
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, withdrawalEPL, http.MethodPost, assetWithdrawal, &input, &resp, true)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, withdrawalEPL, http.MethodPost, assetWithdrawal, &input, &resp, true)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -1638,9 +1638,9 @@ func (ok *Okx) LightningWithdrawal(ctx context.Context, arg LightningWithdrawalR
 		Data []LightningWithdrawalResponse `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, lightningWithdrawalsEPL, http.MethodPost, assetLightningWithdrawal, &arg, &resp, true)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, lightningWithdrawalsEPL, http.MethodPost, assetLightningWithdrawal, &arg, &resp, true)
+	if err != nil {
+		return nil, err
 	} else if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
 	}
@@ -1712,9 +1712,9 @@ func (ok *Okx) SmallAssetsConvert(ctx context.Context, currency []string) (*Smal
 	}
 	input := map[string][]string{"ccy": currency}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, smallAssetsConvertEPL, http.MethodPost, smallAssetsConvert, input, &resp, true)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, smallAssetsConvertEPL, http.MethodPost, smallAssetsConvert, input, &resp, true)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -1760,9 +1760,9 @@ func (ok *Okx) SavingsPurchaseOrRedemption(ctx context.Context, arg *SavingsPurc
 		Data []SavingsPurchaseRedemptionResponse `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, savingsPurchaseRedemptionEPL, http.MethodPost, assetSavingPurchaseOrRedemptionPath, &arg, &resp, true)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, savingsPurchaseRedemptionEPL, http.MethodPost, assetSavingPurchaseOrRedemptionPath, &arg, &resp, true)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -1808,9 +1808,9 @@ func (ok *Okx) SetLendingRate(ctx context.Context, arg LendingRate) (*LendingRat
 		Data []LendingRate `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, getLendinghistoryEPL, http.MethodPost, assetSetLendingRateRoute, &arg, &resp, true)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getLendinghistoryEPL, http.MethodPost, assetSetLendingRateRoute, &arg, &resp, true)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -1863,8 +1863,8 @@ func (ok *Okx) GetConvertCurrencyPair(ctx context.Context, fromCurrency, toCurre
 	}
 	var resp response
 	path := common.EncodeURLValues(convertCurrencyPairsPath, params)
-	if er := ok.SendHTTPRequest(ctx, exchange.RestSpot, getConvertCurrencyPairEPL, http.MethodGet, path, nil, &resp, true); er != nil {
-		return nil, er
+	if err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getConvertCurrencyPairEPL, http.MethodGet, path, nil, &resp, true); err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -1901,9 +1901,9 @@ func (ok *Okx) EstimateQuote(ctx context.Context, arg *EstimateQuoteRequestInput
 		Data []EstimateQuoteResponse `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, estimateQuoteEPL, http.MethodPost, assetEstimateQuote, &arg, &resp, true)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, estimateQuoteEPL, http.MethodPost, assetEstimateQuote, &arg, &resp, true)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -1944,9 +1944,9 @@ func (ok *Okx) ConvertTrade(ctx context.Context, arg *ConvertTradeInput) (*Conve
 		Data []ConvertTradeResponse `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, convertTradeEPL, http.MethodPost, assetConvertTrade, &arg, &resp, true)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, convertTradeEPL, http.MethodPost, assetConvertTrade, &arg, &resp, true)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -2157,9 +2157,9 @@ func (ok *Okx) SetPositionMode(ctx context.Context, positionMode string) (string
 		Data []PositionMode `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, setPositionModeEPL, http.MethodPost, accountSetPositionMode, input, &resp, true)
-	if er != nil {
-		return "", er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, setPositionModeEPL, http.MethodPost, accountSetPositionMode, input, &resp, true)
+	if err != nil {
+		return "", err
 	}
 	if len(resp.Data) == 1 {
 		return resp.Data[0].PositionMode, nil
@@ -2202,9 +2202,9 @@ func (ok *Okx) SetLeverage(ctx context.Context, arg SetLeverageInput) (*SetLever
 		Data []SetLeverageResponse `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, setLeverateEPL, http.MethodPost, accountSetLeverage, &arg, &resp, true)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, setLeverateEPL, http.MethodPost, accountSetLeverage, &arg, &resp, true)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -2290,9 +2290,9 @@ func (ok *Okx) IncreaseDecreaseMargin(ctx context.Context, arg IncreaseDecreaseM
 		Data []IncreaseDecreaseMargin `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, increaseOrDecreaseMarginEPL, http.MethodGet, accountPositionMarginBalance, &arg, &resp, true)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, increaseOrDecreaseMarginEPL, http.MethodGet, accountPositionMarginBalance, &arg, &resp, true)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -2355,28 +2355,28 @@ func (ok *Okx) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (flo
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
 		var responses []TradeFeeRate
-		uly, er := ok.GetUnderlying(feeBuilder.Pair, asset.Spot)
-		if er != nil {
-			return 0, er
+		uly, err := ok.GetUnderlying(feeBuilder.Pair, asset.Spot)
+		if err != nil {
+			return 0, err
 		}
-		responses, er = ok.GetTradeFee(ctx, okxInstTypeSpot, "", uly)
-		if er != nil {
-			return 0, er
+		responses, err = ok.GetTradeFee(ctx, okxInstTypeSpot, "", uly)
+		if err != nil {
+			return 0, err
 		} else if len(responses) == 0 {
 			return 0, errors.New("no trade fee response found")
 		}
 		if feeBuilder.IsMaker {
-			if fee, er = strconv.ParseFloat(responses[0].FeeRateMaker, 64); er != nil || fee == 0 {
-				fee, er = strconv.ParseFloat(responses[0].FeeRateMakerUSDT, 64)
-				if er != nil {
-					return fee, er
+			if fee, err = strconv.ParseFloat(responses[0].FeeRateMaker, 64); err != nil || fee == 0 {
+				fee, err = strconv.ParseFloat(responses[0].FeeRateMakerUSDT, 64)
+				if err != nil {
+					return fee, err
 				}
 			}
 		} else {
-			if fee, er = strconv.ParseFloat(responses[0].FeeRateTaker, 64); er != nil || fee == 0 {
-				fee, er = strconv.ParseFloat(responses[0].FeeRateTakerUSDT, 64)
-				if er != nil {
-					return fee, er
+			if fee, err = strconv.ParseFloat(responses[0].FeeRateTaker, 64); err != nil || fee == 0 {
+				fee, err = strconv.ParseFloat(responses[0].FeeRateTakerUSDT, 64)
+				if err != nil {
+					return fee, err
 				}
 			}
 		}
@@ -2477,9 +2477,9 @@ func (ok *Okx) SetGreeks(ctx context.Context, greeksType string) (*GreeksType, e
 		Data []GreeksType `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, setGeeksEPL, http.MethodPost, accountSetGeeks, input, &resp, true)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, setGeeksEPL, http.MethodPost, accountSetGeeks, input, &resp, true)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -2507,9 +2507,9 @@ func (ok *Okx) IsolatedMarginTradingSettings(ctx context.Context, arg IsolatedMo
 		Data []IsolatedMode `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, isolatedMarginTradingSettingsEPL, http.MethodPost, accountSetIsolatedMode, &arg, &resp, true)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, isolatedMarginTradingSettingsEPL, http.MethodPost, accountSetIsolatedMode, &arg, &resp, true)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -2560,9 +2560,9 @@ func (ok *Okx) VIPLoansBorrowAndRepay(ctx context.Context, arg LoanBorrowAndRepl
 		return nil, errors.New("amount must be greater than zero")
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, vipLoansBorrowAnsRepayEPL, http.MethodPost, accountBorrowReply, &arg, &resp, true)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, vipLoansBorrowAnsRepayEPL, http.MethodPost, accountBorrowReply, &arg, &resp, true)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -2836,9 +2836,9 @@ func (ok *Okx) PlaceGridAlgoOrder(ctx context.Context, arg *GridAlgoOrder) (*Gri
 		Data []GridAlgoOrderIDResponse `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, gridTradingEPL, http.MethodPost, gridOrderAlgo, &arg, &resp, true)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, gridTradingEPL, http.MethodPost, gridOrderAlgo, &arg, &resp, true)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -2862,9 +2862,9 @@ func (ok *Okx) AmendGridAlgoOrder(ctx context.Context, arg GridAlgoOrderAmend) (
 		Data []GridAlgoOrderIDResponse `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, amendGridAlgoOrderEPL, http.MethodPost, gridAmendOrderAlgo, &arg, &resp, true)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, amendGridAlgoOrderEPL, http.MethodPost, gridAmendOrderAlgo, &arg, &resp, true)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -2972,9 +2972,9 @@ func (ok *Okx) GetGridAlgoOrderDetails(ctx context.Context, algoOrderType, algoI
 	}
 	path := common.EncodeURLValues(gridOrdersAlgoDetails, params)
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, getGridAlgoOrderDetailsEPL, http.MethodGet, path, nil, &resp, true)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getGridAlgoOrderDetailsEPL, http.MethodGet, path, nil, &resp, true)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -3058,9 +3058,9 @@ func (ok *Okx) SpotGridWithdrawProfit(ctx context.Context, algoID string) (*Algo
 		Data []AlgoOrderWithdrawalProfit `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, spotGridWithdrawIncomeEPL, http.MethodPost, gridWithdrawalIncome, input, &resp, true)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, spotGridWithdrawIncomeEPL, http.MethodPost, gridWithdrawalIncome, input, &resp, true)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -3101,9 +3101,9 @@ func (ok *Okx) GetTicker(ctx context.Context, instrumentID string) (*TickerRespo
 	}
 	path := common.EncodeURLValues(marketTicker, params)
 	var response MarketDataResponse
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, getTickersEPL, http.MethodGet, path, nil, &response, false)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getTickersEPL, http.MethodGet, path, nil, &response, false)
+	if err != nil {
+		return nil, err
 	}
 	if len(response.Data) == 1 {
 		return &response.Data[0], nil
@@ -3134,9 +3134,9 @@ func (ok *Okx) GetIndexTickers(ctx context.Context, quoteCurrency, instID string
 
 // getInstrumentIDFromPair returns the instrument ID for the corresponding asset pairs and asset type( Instrument Type )
 func (ok *Okx) getInstrumentIDFromPair(ctx context.Context, pair currency.Pair, a asset.Item) (string, error) {
-	format, er := ok.GetPairFormat(a, false)
-	if er != nil {
-		return "", er
+	format, err := ok.GetPairFormat(a, false)
+	if err != nil {
+		return "", err
 	}
 	if pair.Base.String() == "" || pair.Quote.String() == "" {
 		return "", errors.New("incomplete currency pair")
@@ -3145,16 +3145,16 @@ func (ok *Okx) getInstrumentIDFromPair(ctx context.Context, pair currency.Pair, 
 	case asset.PerpetualSwap:
 		return pair.Base.String() + format.Delimiter + pair.Quote.String() + format.Delimiter + okxInstTypeSwap, nil
 	case asset.Option:
-		instruments, er := ok.GetInstruments(ctx, &InstrumentsFetchParams{
+		instruments, err := ok.GetInstruments(ctx, &InstrumentsFetchParams{
 			InstrumentType: okxInstTypeOption,
 			Underlying:     pair.Base.String() + format.Delimiter + pair.Quote.String(),
 		})
-		if er != nil {
-			return "", er
+		if err != nil {
+			return "", err
 		}
 		for x := range instruments {
-			p, er := currency.NewPairFromString(instruments[x].Underlying)
-			if er != nil {
+			p, err := currency.NewPairFromString(instruments[x].Underlying)
+			if err != nil {
 				continue
 			}
 			if p.Equal(pair) {
@@ -3162,15 +3162,15 @@ func (ok *Okx) getInstrumentIDFromPair(ctx context.Context, pair currency.Pair, 
 			}
 		}
 	case asset.Futures:
-		instruments, er := ok.GetInstruments(ctx, &InstrumentsFetchParams{
+		instruments, err := ok.GetInstruments(ctx, &InstrumentsFetchParams{
 			InstrumentType: okxInstTypeFutures,
 		})
-		if er != nil {
-			return "", er
+		if err != nil {
+			return "", err
 		}
 		for x := range instruments {
-			p, er := currency.NewPairFromString(instruments[x].Underlying)
-			if er != nil {
+			p, err := currency.NewPairFromString(instruments[x].Underlying)
+			if err != nil {
 				continue
 			}
 			if p.Equal(pair) {
@@ -3192,11 +3192,11 @@ func (ok *Okx) GetInstrumentTypeFromAssetItem(assetType asset.Item) string {
 
 // GetUnderlying returns the instrument ID for the corresponding asset pairs and asset type( Instrument Type )
 func (ok *Okx) GetUnderlying(pair currency.Pair, a asset.Item) (string, error) {
-	format, er := ok.GetPairFormat(a, false)
-	if er != nil {
-		return "", er
+	format, err := ok.GetPairFormat(a, false)
+	if err != nil {
+		return "", err
 	}
-	if pair.IsEmpty() || pair.Base.String() == "" || pair.Quote.String() == "" {
+	if pair.Base.String() == "" || pair.Quote.String() == "" {
 		return "", errors.New("incomplete currency pair")
 	}
 	return pair.Base.String() + format.Delimiter + pair.Quote.String(), nil
@@ -3208,8 +3208,8 @@ func (ok *Okx) GetPairFromInstrumentID(instrumentID string) (currency.Pair, erro
 	if len(codes) >= 2 {
 		instrumentID = codes[0] + "-" + codes[1]
 	}
-	pair, er := currency.NewPairFromString(instrumentID)
-	return pair, er
+	pair, err := currency.NewPairFromString(instrumentID)
+	return pair, err
 }
 
 // GetOrderBookDepth returns the recent order asks and bids before specified timestamp.
@@ -3349,29 +3349,29 @@ func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, inte
 			return nil, errUnexpectedKlineDataLength
 		}
 		var candle CandleStick
-		var er error
-		timestamp, er := strconv.Atoi(individualData[0].(string))
-		if er != nil {
-			return nil, er
+		var err error
+		timestamp, err := strconv.Atoi(individualData[0].(string))
+		if err != nil {
+			return nil, err
 		}
 		candle.OpenTime = time.UnixMilli(int64(timestamp))
-		if candle.OpenPrice, er = convert.FloatFromString(individualData[1]); er != nil {
-			return nil, er
+		if candle.OpenPrice, err = convert.FloatFromString(individualData[1]); err != nil {
+			return nil, err
 		}
-		if candle.HighestPrice, er = convert.FloatFromString(individualData[2]); er != nil {
-			return nil, er
+		if candle.HighestPrice, err = convert.FloatFromString(individualData[2]); err != nil {
+			return nil, err
 		}
-		if candle.LowestPrice, er = convert.FloatFromString(individualData[3]); er != nil {
-			return nil, er
+		if candle.LowestPrice, err = convert.FloatFromString(individualData[3]); err != nil {
+			return nil, err
 		}
-		if candle.ClosePrice, er = convert.FloatFromString(individualData[4]); er != nil {
-			return nil, er
+		if candle.ClosePrice, err = convert.FloatFromString(individualData[4]); err != nil {
+			return nil, err
 		}
-		if candle.Volume, er = convert.FloatFromString(individualData[5]); er != nil {
-			return nil, er
+		if candle.Volume, err = convert.FloatFromString(individualData[5]); err != nil {
+			return nil, err
 		}
-		if candle.QuoteAssetVolume, er = convert.FloatFromString(individualData[6]); er != nil {
-			return nil, er
+		if candle.QuoteAssetVolume, err = convert.FloatFromString(individualData[6]); err != nil {
+			return nil, err
 		}
 		klineData[x] = candle
 	}
@@ -3427,9 +3427,9 @@ func (ok *Okx) Get24HTotalVolume(ctx context.Context) (*TradingVolumdIn24HR, err
 		Data []TradingVolumdIn24HR `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, get24HTotalVolumeEPL, http.MethodGet, marketPlatformVolumeIn24Hour, nil, &resp, false)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, get24HTotalVolumeEPL, http.MethodGet, marketPlatformVolumeIn24Hour, nil, &resp, false)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -3447,9 +3447,9 @@ func (ok *Okx) GetOracle(ctx context.Context) (*OracleSmartContractResponse, err
 		Data []OracleSmartContractResponse `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, getOracleEPL, http.MethodGet, marketOpenOracles, nil, &resp, false)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getOracleEPL, http.MethodGet, marketOpenOracles, nil, &resp, false)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -3468,9 +3468,9 @@ func (ok *Okx) GetExchangeRate(ctx context.Context) (*UsdCnyExchangeRate, error)
 		Data []UsdCnyExchangeRate `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, getExchangeRateRequestEPL, http.MethodGet, marketExchangeRate, nil, &resp, false)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getExchangeRateRequestEPL, http.MethodGet, marketExchangeRate, nil, &resp, false)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -3490,9 +3490,9 @@ func (ok *Okx) GetIndexComponents(ctx context.Context, index string) (*IndexComp
 	params.Set("index", index)
 	var resp response
 	path := common.EncodeURLValues(marketIndexComponents, params)
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, getINdexComponentsEPL, http.MethodGet, path, nil, &resp, false)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getINdexComponentsEPL, http.MethodGet, path, nil, &resp, false)
+	if err != nil {
+		return nil, err
 	}
 	if resp.Data == nil {
 		return nil, errIndexComponentNotFound
@@ -3533,9 +3533,9 @@ func (ok *Okx) GetBlockTicker(ctx context.Context, instrumentID string) (*BlockT
 		Data []BlockTicker `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, getBlockTickersEPL, http.MethodGet, path, nil, &resp, false)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getBlockTickersEPL, http.MethodGet, path, nil, &resp, false)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -3649,9 +3649,9 @@ func (ok *Okx) GetFundingRate(ctx context.Context, instrumentID string) (*Fundin
 		Msg  string                `json:"msg"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, getFundingEPL, http.MethodGet, path, nil, &resp, false)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getFundingEPL, http.MethodGet, path, nil, &resp, false)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -3701,8 +3701,8 @@ func (ok *Okx) GetLimitPrice(ctx context.Context, instrumentID string) (*LimitPr
 		Data []LimitPriceResponse `json:"data"`
 	}
 	var resp response
-	if er := ok.SendHTTPRequest(ctx, exchange.RestSpot, getLimitPriceEPL, http.MethodGet, path, nil, &resp, false); er != nil {
-		return nil, er
+	if err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getLimitPriceEPL, http.MethodGet, path, nil, &resp, false); err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -3740,8 +3740,8 @@ func (ok *Okx) GetEstimatedDeliveryPrice(ctx context.Context, instrumentID strin
 	}
 	params.Set("instId", instrumentID)
 	path := common.EncodeURLValues(publicEstimatedPrice, params)
-	if er := ok.SendHTTPRequest(ctx, exchange.RestSpot, getEstimatedDeliveryPriceEPL, http.MethodGet, path, nil, &resp, false); er != nil {
-		return nil, er
+	if err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getEstimatedDeliveryPriceEPL, http.MethodGet, path, nil, &resp, false); err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -3763,8 +3763,8 @@ func (ok *Okx) GetDiscountRateAndInterestFreeQuota(ctx context.Context, currency
 		params.Set("discountLv", strconv.Itoa(int(discountLevel)))
 	}
 	path := common.EncodeURLValues(publicDiscountRate, params)
-	if er := ok.SendHTTPRequest(ctx, exchange.RestSpot, getDiscountRateAndInterestFreeQuotaEPL, http.MethodGet, path, nil, &response, false); er != nil {
-		return nil, er
+	if err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getDiscountRateAndInterestFreeQuotaEPL, http.MethodGet, path, nil, &response, false); err != nil {
+		return nil, err
 	}
 	if len(response.Data) == 1 {
 		return &response.Data[0], nil
@@ -3782,8 +3782,8 @@ func (ok *Okx) GetSystemTime(ctx context.Context) (*time.Time, error) {
 		Data []ServerTime `json:"data"`
 	}
 	var resp response
-	if er := ok.SendHTTPRequest(ctx, exchange.RestSpot, getSystemTimeEPL, http.MethodGet, publicTime, nil, &resp, false); er != nil {
-		return nil, er
+	if err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getSystemTimeEPL, http.MethodGet, publicTime, nil, &resp, false); err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &(resp.Data[0].Timestamp), nil
@@ -3834,9 +3834,9 @@ func (ok *Okx) GetLiquidationOrders(ctx context.Context, arg *LiquidationOrderRe
 	}
 	path := common.EncodeURLValues(publicLiquidationOrders, params)
 	var response LiquidationOrderResponse
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, getLiquidationOrdersEPL, http.MethodGet, path, nil, &response, false)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getLiquidationOrdersEPL, http.MethodGet, path, nil, &response, false)
+	if err != nil {
+		return nil, err
 	}
 	if len(response.Data) == 1 {
 		return &response.Data[0], nil
@@ -3947,8 +3947,8 @@ func (ok *Okx) GetPublicUnderlyings(ctx context.Context, instrumentType string) 
 		Data [][]string `json:"data"`
 	}
 	var resp response
-	if er := ok.SendHTTPRequest(ctx, exchange.RestSpot, getUnderlyingEPL, http.MethodGet, path, nil, &resp, false); er != nil {
-		return nil, er
+	if err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getUnderlyingEPL, http.MethodGet, path, nil, &resp, false); err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return resp.Data[0], nil
@@ -3998,8 +3998,8 @@ func (ok *Okx) GetInsuranceFundInformations(ctx context.Context, arg *InsuranceF
 	}
 	var response InsuranceFundInformationResponse
 	path := common.EncodeURLValues(publicInsuranceFunds, params)
-	if er := ok.SendHTTPRequest(ctx, exchange.RestSpot, getInsuranceFundEPL, http.MethodGet, path, nil, &response, false); er != nil {
-		return nil, er
+	if err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getInsuranceFundEPL, http.MethodGet, path, nil, &response, false); err != nil {
+		return nil, err
 	}
 	if len(response.Data) == 1 {
 		return &response.Data[0], nil
@@ -4036,9 +4036,9 @@ func (ok *Okx) CurrencyUnitConvert(ctx context.Context, instrumentID string, qua
 		Data []UnitConvertResponse `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, unitConvertEPL, http.MethodGet, path, nil, &resp, false)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, unitConvertEPL, http.MethodGet, path, nil, &resp, false)
+	if err != nil {
+		return nil, err
 	}
 	if len(resp.Data) == 1 {
 		return &resp.Data[0], nil
@@ -4086,25 +4086,25 @@ func (ok *Okx) GetTakerVolume(ctx context.Context, currency, instrumentType stri
 	}
 	path := common.EncodeURLValues(tradingTakerVolume, params)
 	var response TakerVolumeResponse
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, getTakerVolumeEPL, http.MethodGet, path, nil, &response, false)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getTakerVolumeEPL, http.MethodGet, path, nil, &response, false)
+	if err != nil {
+		return nil, err
 	}
 	takerVolumes := []TakerVolume{}
 	for x := range response.Data {
 		if len(response.Data[x]) != 3 {
 			continue
 		}
-		timestamp, er := strconv.Atoi(response.Data[x][0])
-		if er != nil {
+		timestamp, err := strconv.Atoi(response.Data[x][0])
+		if err != nil {
 			continue
 		}
-		sellVolume, er := strconv.ParseFloat(response.Data[x][1], 64)
-		if er != nil {
+		sellVolume, err := strconv.ParseFloat(response.Data[x][1], 64)
+		if err != nil {
 			continue
 		}
-		buyVolume, er := strconv.ParseFloat(response.Data[x][2], 64)
-		if er != nil {
+		buyVolume, err := strconv.ParseFloat(response.Data[x][2], 64)
+		if err != nil {
 			continue
 		}
 		takerVolume := TakerVolume{
@@ -4135,21 +4135,21 @@ func (ok *Okx) GetMarginLendingRatio(ctx context.Context, currency string, begin
 	}
 	var response MarginLendRatioResponse
 	path := common.EncodeURLValues(tradingMarginLoanRatio, params)
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, getMarginLendingRatioEPL, http.MethodGet, path, nil, &response, false)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getMarginLendingRatioEPL, http.MethodGet, path, nil, &response, false)
+	if err != nil {
+		return nil, err
 	}
 	lendingRatios := []MarginLendRatioItem{}
 	for x := range response.Data {
 		if len(response.Data[x]) != 2 {
 			continue
 		}
-		timestamp, er := strconv.Atoi(response.Data[x][0])
-		if er != nil || timestamp <= 0 {
+		timestamp, err := strconv.Atoi(response.Data[x][0])
+		if err != nil || timestamp <= 0 {
 			continue
 		}
-		ratio, er := strconv.ParseFloat(response.Data[x][0], 64)
-		if er != nil || ratio <= 0 {
+		ratio, err := strconv.ParseFloat(response.Data[x][0], 64)
+		if err != nil || ratio <= 0 {
 			continue
 		}
 		lendRatio := MarginLendRatioItem{
@@ -4179,21 +4179,21 @@ func (ok *Okx) GetLongShortRatio(ctx context.Context, currency string, begin, en
 	}
 	var response LongShortRatioResponse
 	path := common.EncodeURLValues(longShortAccountRatio, params)
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, getLongShortRatioEPL, http.MethodGet, path, nil, &response, false)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getLongShortRatioEPL, http.MethodGet, path, nil, &response, false)
+	if err != nil {
+		return nil, err
 	}
 	ratios := []LongShortRatio{}
 	for x := range response.Data {
 		if len(response.Data[x]) != 2 {
 			continue
 		}
-		timestamp, er := strconv.Atoi(response.Data[x][0])
-		if er != nil || timestamp <= 0 {
+		timestamp, err := strconv.Atoi(response.Data[x][0])
+		if err != nil || timestamp <= 0 {
 			continue
 		}
-		ratio, er := strconv.ParseFloat(response.Data[x][0], 64)
-		if er != nil || ratio <= 0 {
+		ratio, err := strconv.ParseFloat(response.Data[x][0], 64)
+		if err != nil || ratio <= 0 {
 			continue
 		}
 		dratio := LongShortRatio{
@@ -4226,20 +4226,20 @@ func (ok *Okx) GetContractsOpenInterestAndVolume(
 	openInterestVolumes := []OpenInterestVolume{}
 	var response OpenInterestVolumeResponse
 	path := common.EncodeURLValues(contractOpenInterestVolume, params)
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, getContractsOpeninterestAndVolumeEPL, http.MethodGet, path, nil, &response, false)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getContractsOpeninterestAndVolumeEPL, http.MethodGet, path, nil, &response, false)
+	if err != nil {
+		return nil, err
 	}
 	for x := range response.Data {
 		if len(response.Data[x]) != 3 {
 			continue
 		}
-		timestamp, er := strconv.Atoi(response.Data[x][0])
-		if er != nil || timestamp <= 0 {
+		timestamp, err := strconv.Atoi(response.Data[x][0])
+		if err != nil || timestamp <= 0 {
 			continue
 		}
-		openInterest, er := strconv.Atoi(response.Data[x][1])
-		if er != nil || openInterest <= 0 {
+		openInterest, err := strconv.Atoi(response.Data[x][1])
+		if err != nil || openInterest <= 0 {
 			continue
 		}
 		volumen, err := strconv.Atoi(response.Data[x][2])
@@ -4270,25 +4270,25 @@ func (ok *Okx) GetOptionsOpenInterestAndVolume(ctx context.Context, currency str
 	openInterestVolumes := []OpenInterestVolume{}
 	var response OpenInterestVolumeResponse
 	path := common.EncodeURLValues(optionOpenInterestVolume, params)
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, getOptionsOpenInterestAndVolumeEPL, http.MethodGet, path, nil, &response, false)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getOptionsOpenInterestAndVolumeEPL, http.MethodGet, path, nil, &response, false)
+	if err != nil {
+		return nil, err
 	}
 	for x := range response.Data {
 		if len(response.Data[x]) != 3 {
 			return nil, errors.New("invalid data length")
 		}
-		timestamp, er := strconv.Atoi(response.Data[x][0])
-		if er != nil || timestamp <= 0 {
+		timestamp, err := strconv.Atoi(response.Data[x][0])
+		if err != nil || timestamp <= 0 {
 			return nil, errors.New("invalid timestamp information")
 		}
-		openInterest, er := strconv.ParseFloat(response.Data[x][1], 64)
-		if er != nil || openInterest <= 0 {
-			return nil, er
+		openInterest, err := strconv.ParseFloat(response.Data[x][1], 64)
+		if err != nil || openInterest <= 0 {
+			return nil, err
 		}
-		volumen, er := strconv.ParseFloat(response.Data[x][2], 64)
-		if er != nil {
-			return nil, er
+		volumen, err := strconv.ParseFloat(response.Data[x][2], 64)
+		if err != nil {
+			return nil, err
 		}
 		openInterestVolume := OpenInterestVolume{
 			Timestamp:    time.UnixMilli(int64(timestamp)),
@@ -4314,20 +4314,20 @@ func (ok *Okx) GetPutCallRatio(ctx context.Context, currency string,
 	openInterestVolumeRatios := []OpenInterestVolumeRatio{}
 	var response OpenInterestVolumeResponse
 	path := common.EncodeURLValues(optionOpenInterestVolumeRatio, params)
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, getPutCallRatioEPL, http.MethodGet, path, nil, &response, false)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getPutCallRatioEPL, http.MethodGet, path, nil, &response, false)
+	if err != nil {
+		return nil, err
 	}
 	for x := range response.Data {
 		if len(response.Data[x]) != 3 {
 			continue
 		}
-		timestamp, er := strconv.Atoi(response.Data[x][0])
-		if er != nil || timestamp <= 0 {
+		timestamp, err := strconv.Atoi(response.Data[x][0])
+		if err != nil || timestamp <= 0 {
 			continue
 		}
-		openInterest, er := strconv.Atoi(response.Data[x][1])
-		if er != nil || openInterest <= 0 {
+		openInterest, err := strconv.Atoi(response.Data[x][1])
+		if err != nil || openInterest <= 0 {
 			continue
 		}
 		volumen, err := strconv.Atoi(response.Data[x][2])
@@ -4359,9 +4359,9 @@ func (ok *Okx) GetOpenInterestAndVolumeExpiry(ctx context.Context, currency stri
 	}
 	var resp response
 	path := common.EncodeURLValues(optionOpenInterestVolumeExpiry, params)
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, getOpenInterestAndVolumeEPL, http.MethodGet, path, nil, &resp, false)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getOpenInterestAndVolumeEPL, http.MethodGet, path, nil, &resp, false)
+	if err != nil {
+		return nil, err
 	}
 	volumes := []ExpiryOpenInterestAndVolume{}
 	for x := range resp.Data {
@@ -4370,8 +4370,8 @@ func (ok *Okx) GetOpenInterestAndVolumeExpiry(ctx context.Context, currency stri
 		if len(resp.Data[x]) != 6 {
 			continue
 		}
-		timestamp, er := strconv.Atoi(resp.Data[x][0])
-		if er != nil {
+		timestamp, err := strconv.Atoi(resp.Data[x][0])
+		if err != nil {
 			continue
 		}
 		var expiryTime time.Time
@@ -4380,11 +4380,11 @@ func (ok *Okx) GetOpenInterestAndVolumeExpiry(ctx context.Context, currency stri
 			var month int
 			var year int
 			var day int
-			year, er = strconv.Atoi(expTime[0:4])
-			if er != nil {
+			year, err = strconv.Atoi(expTime[0:4])
+			if err != nil {
 				continue
 			}
-			month, er = strconv.Atoi(expTime[4:6])
+			month, err = strconv.Atoi(expTime[4:6])
 			var months string
 			var days string
 			if month <= 9 {
@@ -4392,37 +4392,37 @@ func (ok *Okx) GetOpenInterestAndVolumeExpiry(ctx context.Context, currency stri
 			} else {
 				months = strconv.Itoa(month)
 			}
-			if er != nil {
+			if err != nil {
 				continue
 			}
-			day, er = strconv.Atoi(expTime[6:])
+			day, err = strconv.Atoi(expTime[6:])
 			if day <= 9 {
 				days = fmt.Sprintf("0%d", day)
 			} else {
 				days = strconv.Itoa(day)
 			}
-			if er != nil {
+			if err != nil {
 				continue
 			}
-			expiryTime, er = time.Parse("2006-01-02", fmt.Sprintf("%d-%s-%s", year, months, days))
-			if er != nil {
+			expiryTime, err = time.Parse("2006-01-02", fmt.Sprintf("%d-%s-%s", year, months, days))
+			if err != nil {
 				continue
 			}
 		}
-		calloi, er := strconv.ParseFloat(resp.Data[x][2], 64)
-		if er != nil {
+		calloi, err := strconv.ParseFloat(resp.Data[x][2], 64)
+		if err != nil {
 			continue
 		}
-		putoi, er := strconv.ParseFloat(resp.Data[x][3], 64)
-		if er != nil {
+		putoi, err := strconv.ParseFloat(resp.Data[x][3], 64)
+		if err != nil {
 			continue
 		}
-		callvol, er := strconv.ParseFloat(resp.Data[x][4], 64)
-		if er != nil {
+		callvol, err := strconv.ParseFloat(resp.Data[x][4], 64)
+		if err != nil {
 			continue
 		}
-		putvol, er := strconv.ParseFloat(resp.Data[x][5], 64)
-		if er != nil {
+		putvol, err := strconv.ParseFloat(resp.Data[x][5], 64)
+		if err != nil {
 			continue
 		}
 		volume := ExpiryOpenInterestAndVolume{
@@ -4471,37 +4471,37 @@ func (ok *Okx) GetOpenInterestAndVolumeStrike(ctx context.Context, currency stri
 	}
 	var resp response
 	path := common.EncodeURLValues(optionOpenInterestVolumeStrike, params)
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, getopenInterestAndVolumeEPL, http.MethodGet, path, nil, &resp, false)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getopenInterestAndVolumeEPL, http.MethodGet, path, nil, &resp, false)
+	if err != nil {
+		return nil, err
 	}
 	volumes := []StrikeOpenInterestAndVolume{}
 	for x := range resp.Data {
 		if len(resp.Data[x]) != 6 {
 			continue
 		}
-		timestamp, er := strconv.Atoi(resp.Data[x][0])
-		if er != nil {
+		timestamp, err := strconv.Atoi(resp.Data[x][0])
+		if err != nil {
 			continue
 		}
-		strike, er := strconv.ParseInt(resp.Data[x][1], 10, 64)
-		if er != nil {
+		strike, err := strconv.ParseInt(resp.Data[x][1], 10, 64)
+		if err != nil {
 			continue
 		}
-		calloi, er := strconv.ParseFloat(resp.Data[x][2], 64)
-		if er != nil {
+		calloi, err := strconv.ParseFloat(resp.Data[x][2], 64)
+		if err != nil {
 			continue
 		}
-		putoi, er := strconv.ParseFloat(resp.Data[x][3], 64)
-		if er != nil {
+		putoi, err := strconv.ParseFloat(resp.Data[x][3], 64)
+		if err != nil {
 			continue
 		}
-		callvol, er := strconv.ParseFloat(resp.Data[x][4], 64)
-		if er != nil {
+		callvol, err := strconv.ParseFloat(resp.Data[x][4], 64)
+		if err != nil {
 			continue
 		}
-		putvol, er := strconv.ParseFloat(resp.Data[x][5], 64)
-		if er != nil {
+		putvol, err := strconv.ParseFloat(resp.Data[x][5], 64)
+		if err != nil {
 			continue
 		}
 		volume := StrikeOpenInterestAndVolume{
@@ -4534,37 +4534,37 @@ func (ok *Okx) GetTakerFlow(ctx context.Context, currency string, period kline.I
 	}
 	var resp response
 	path := common.EncodeURLValues(takerBlockVolume, params)
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, getTakerFlowEPL, http.MethodGet, path, nil, &resp, false)
-	if er != nil {
-		return nil, er
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getTakerFlowEPL, http.MethodGet, path, nil, &resp, false)
+	if err != nil {
+		return nil, err
 	}
-	timestamp, er := strconv.ParseInt(resp.Data[0], 10, 64)
-	if er != nil {
-		return nil, er
+	timestamp, err := strconv.ParseInt(resp.Data[0], 10, 64)
+	if err != nil {
+		return nil, err
 	}
-	callbuyvol, er := strconv.ParseFloat(resp.Data[1], 64)
-	if er != nil {
-		return nil, er
+	callbuyvol, err := strconv.ParseFloat(resp.Data[1], 64)
+	if err != nil {
+		return nil, err
 	}
-	callselvol, er := strconv.ParseFloat(resp.Data[2], 64)
-	if er != nil {
-		return nil, er
+	callselvol, err := strconv.ParseFloat(resp.Data[2], 64)
+	if err != nil {
+		return nil, err
 	}
-	putbutvol, er := strconv.ParseFloat(resp.Data[3], 64)
-	if er != nil {
-		return nil, er
+	putbutvol, err := strconv.ParseFloat(resp.Data[3], 64)
+	if err != nil {
+		return nil, err
 	}
-	putsellvol, er := strconv.ParseFloat(resp.Data[4], 64)
-	if er != nil {
-		return nil, er
+	putsellvol, err := strconv.ParseFloat(resp.Data[4], 64)
+	if err != nil {
+		return nil, err
 	}
-	callblockvol, er := strconv.ParseFloat(resp.Data[5], 64)
-	if er != nil {
-		return nil, er
+	callblockvol, err := strconv.ParseFloat(resp.Data[5], 64)
+	if err != nil {
+		return nil, err
 	}
-	putblockvol, er := strconv.ParseFloat(resp.Data[6], 64)
-	if er != nil {
-		return nil, er
+	putblockvol, err := strconv.ParseFloat(resp.Data[6], 64)
+	if err != nil {
+		return nil, err
 	}
 	return &CurrencyTakerFlow{
 		Timestamp:       time.UnixMilli(timestamp),
@@ -4581,9 +4581,9 @@ func (ok *Okx) GetTakerFlow(ctx context.Context, currency string, period kline.I
 // path with a JSON payload (of present)
 // URL arguments must be in the request path and not as url.URL values
 func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, httpMethod, requestPath string, data, result interface{}, authenticated bool) (err error) {
-	endpoint, er := ok.API.Endpoints.GetURL(ep)
-	if er != nil {
-		return er
+	endpoint, err := ok.API.Endpoints.GetURL(ep)
+	if err != nil {
+		return err
 	}
 	var intermediary json.RawMessage
 	newRequest := func() (*request.Item, error) {
@@ -4592,8 +4592,8 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 
 		if data != nil {
 			payload, err = json.Marshal(data)
-			if er != nil {
-				return nil, er
+			if err != nil {
+				return nil, err
 			}
 		}
 		path := endpoint + requestPath
@@ -4601,17 +4601,17 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 		headers["Content-Type"] = "application/json"
 		if authenticated {
 			var creds *account.Credentials
-			creds, er = ok.GetCredentials(ctx)
-			if er != nil {
-				return nil, er
+			creds, err = ok.GetCredentials(ctx)
+			if err != nil {
+				return nil, err
 			}
 			signPath := fmt.Sprintf("/%v%v", okxAPIPath, requestPath)
 			var hmac []byte
-			hmac, er = crypto.GetHMAC(crypto.HashSHA256,
+			hmac, err = crypto.GetHMAC(crypto.HashSHA256,
 				[]byte(utcTime+httpMethod+signPath+string(payload)),
 				[]byte(creds.Secret))
-			if er != nil {
-				return nil, er
+			if err != nil {
+				return nil, err
 			}
 			headers["OK-ACCESS-KEY"] = creds.Key
 			headers["OK-ACCESS-SIGN"] = crypto.Base64Encode(hmac)
@@ -4630,13 +4630,13 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 			HTTPRecording: ok.HTTPRecording,
 		}, nil
 	}
-	er = ok.SendPayload(ctx, f, newRequest)
-	if er != nil {
-		return er
+	err = ok.SendPayload(ctx, f, newRequest)
+	if err != nil {
+		return err
 	}
-	er = json.Unmarshal(intermediary, result)
-	if er != nil {
-		return er
+	err = json.Unmarshal(intermediary, result)
+	if err != nil {
+		return err
 	}
 	type errCap struct {
 		Code string
@@ -4645,14 +4645,14 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 	}
 	if res, okay := result.(errCap); okay {
 		var code int64
-		code, er = strconv.ParseInt(res.Code, 10, 64)
-		if er == nil && code >= 50000 && code <= 59999 {
+		code, err = strconv.ParseInt(res.Code, 10, 64)
+		if err == nil && code >= 50000 && code <= 59999 {
 			if res.Msg != "" {
 				return fmt.Errorf(" error code:%d message: %s", code, res.Msg)
 			}
-			er, okay := ErrorCodes[strconv.FormatInt(code, 10)]
+			err, okay := ErrorCodes[strconv.FormatInt(code, 10)]
 			if okay {
-				return er
+				return err
 			}
 			return fmt.Errorf("error code: %d", code)
 		}
