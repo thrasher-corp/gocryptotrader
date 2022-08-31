@@ -946,13 +946,13 @@ func (ok *Okx) wsHandleMarkPriceCandles(data []byte) error {
 		if err != nil {
 			return err
 		}
-		candles = append(candles, CandlestickMarkPrice{
+		candles[x] = CandlestickMarkPrice{
 			Timestamp:    ts,
 			OpenPrice:    op,
 			HighestPrice: hp,
 			LowestPrice:  lp,
 			ClosePrice:   cp,
-		})
+		}
 	}
 	ok.Websocket.DataHandler <- candles
 	return nil
