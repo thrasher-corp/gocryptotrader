@@ -237,7 +237,7 @@ func (b *Bithumb) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]s
 	}
 
 	for x := range currencies {
-		currencies[x] += "-KRW"
+		currencies[x] += currency.DashDelimiter + "KRW"
 	}
 
 	return currencies, nil
