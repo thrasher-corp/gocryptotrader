@@ -214,14 +214,14 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 	c.StartingClosePrice.Time = first.Time
 	c.EndingClosePrice.Value = last.DataEvent.GetClosePrice()
 	c.EndingClosePrice.Time = last.Time
-	c.TotalOrders = c.BuyOrders + c.SellOrders + c.ShortOrders + c.LongOrders
+	c.TotalOrders = c.BuyOrders + c.SellOrders
 	last.Holdings.TotalValueLost = last.Holdings.TotalValueLostToSlippage.Add(last.Holdings.TotalValueLostToVolumeSizing)
 	sep := fmt.Sprintf("%v %v %v |\t", fSIL(e, limit12), fSIL(a.String(), limit10), fSIL(p.String(), limit14))
 	currStr := fmt.Sprintf(common.ColourH1+"------------------Stats for %v %v %v------------------------------------------------------"+common.ColourDefault, e, a, p)
 	log.Infof(common.CurrencyStatistics, currStr[:70])
 	if a.IsFutures() {
-		log.Infof(common.CurrencyStatistics, "%s Long orders: %s", sep, convert.IntToHumanFriendlyString(c.LongOrders, ","))
-		log.Infof(common.CurrencyStatistics, "%s Short orders: %s", sep, convert.IntToHumanFriendlyString(c.ShortOrders, ","))
+		log.Infof(common.CurrencyStatistics, "%s Long orders: %s", sep, convert.IntToHumanFriendlyString(c.BuyOrders, ","))
+		log.Infof(common.CurrencyStatistics, "%s Short orders: %s", sep, convert.IntToHumanFriendlyString(c.SellOrders, ","))
 		log.Infof(common.CurrencyStatistics, "%s Highest Unrealised PNL: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.HighestUnrealisedPNL.Value, 8, ".", ","), c.HighestUnrealisedPNL.Time)
 		log.Infof(common.CurrencyStatistics, "%s Lowest Unrealised PNL: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.LowestUnrealisedPNL.Value, 8, ".", ","), c.LowestUnrealisedPNL.Time)
 		log.Infof(common.CurrencyStatistics, "%s Highest Realised PNL: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.HighestRealisedPNL.Value, 8, ".", ","), c.HighestRealisedPNL.Time)
@@ -327,6 +327,9 @@ func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) error {
 	if len(spotResults) > 0 {
 		log.Info(common.FundingStatistics, common.ColourH2+"------------------Funding Spot Asset Results------------------"+common.ColourDefault)
 		for i := range spotResults {
+			if spotResults[i].ReportItem.WasAppended {
+				continue
+			}
 			sep := fmt.Sprintf("%v%v%v| ", fSIL(spotResults[i].ReportItem.Exchange, limit12), fSIL(spotResults[i].ReportItem.Asset.String(), limit10), fSIL(spotResults[i].ReportItem.Currency.String(), limit14))
 			if !spotResults[i].ReportItem.PairedWith.IsEmpty() {
 				log.Infof(common.FundingStatistics, "%s Paired with: %v", sep, spotResults[i].ReportItem.PairedWith)
@@ -354,6 +357,9 @@ func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) error {
 	if len(futuresResults) > 0 {
 		log.Info(common.FundingStatistics, common.ColourH2+"------------------Funding Futures Asset Results---------------"+common.ColourDefault)
 		for i := range futuresResults {
+			if futuresResults[i].ReportItem.WasAppended {
+				continue
+			}
 			sep := fmt.Sprintf("%v%v%v| ", fSIL(futuresResults[i].ReportItem.Exchange, limit12), fSIL(futuresResults[i].ReportItem.Asset.String(), limit10), fSIL(futuresResults[i].ReportItem.Currency.String(), limit14))
 			log.Infof(common.FundingStatistics, "%s Is Collateral: %v", sep, futuresResults[i].IsCollateral)
 			if futuresResults[i].IsCollateral {

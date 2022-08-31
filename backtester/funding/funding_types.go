@@ -140,6 +140,7 @@ type Item struct {
 	snapshot          map[int64]ItemSnapshot
 	isCollateral      bool
 	isLiquidated      bool
+	wasAppended       bool
 	collateralCandles map[currency.Code]kline.DataFromKline
 }
 
@@ -194,8 +195,9 @@ type ReportItem struct {
 	USDPairCandle        *kline.DataFromKline
 	Difference           decimal.Decimal
 	ShowInfinite         bool
-	PairedWith           currency.Code
 	IsCollateral         bool
+	WasAppended          bool
+	PairedWith           currency.Code
 }
 
 // ItemSnapshot holds USD values to allow for tracking

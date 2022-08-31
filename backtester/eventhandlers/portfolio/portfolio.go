@@ -770,6 +770,31 @@ func (p *Portfolio) GetLatestPNLs() []PNLSummary {
 	return result
 }
 
+func (p *Portfolio) SetHoldingsForEvent(fm funding.IFundReader, e common.Event) error {
+	settings, err := p.getSettings(e.GetExchange(), e.GetAssetType(), e.Pair())
+	if err != nil {
+		return err
+	}
+	h := settings.GetHoldingsForTime(e.GetTime())
+	if e.GetAssetType().IsFutures() {
+		c, err := fm.GetCollateralReader()
+		if err != nil {
+			return err
+		}
+		h.BaseSize = c.CurrentHoldings()
+		h.QuoteSize = c.AvailableFunds()
+	} else {
+		p, err := fm.GetPairReader()
+		if err != nil {
+			return err
+		}
+		h.BaseSize = p.BaseAvailable()
+		h.QuoteSize = p.QuoteAvailable()
+	}
+	h.UpdateValue(e)
+	return p.SetHoldingsForOffset(&h, true)
+}
+
 // GetUnrealisedPNL returns a basic struct containing unrealised PNL
 func (p *PNLSummary) GetUnrealisedPNL() BasicPNLResult {
 	return BasicPNLResult{

@@ -162,13 +162,13 @@ func CalculateIndividualFundingStatistics(disableUSDTracking bool, reportItem *f
 	if reportItem == nil {
 		return nil, fmt.Errorf("%w - nil report item", common.ErrNilArguments)
 	}
+
 	item := &FundingItemStatistics{
 		ReportItem: reportItem,
 	}
-	if disableUSDTracking {
+	if disableUSDTracking || reportItem.WasAppended {
 		return item, nil
 	}
-
 	closePrices := reportItem.Snapshots
 	if len(closePrices) == 0 {
 		return nil, errMissingSnapshots
@@ -182,7 +182,7 @@ func CalculateIndividualFundingStatistics(disableUSDTracking bool, reportItem *f
 		Value: closePrices[len(closePrices)-1].USDClosePrice,
 	}
 	for i := range closePrices {
-		if closePrices[i].USDClosePrice.LessThan(item.LowestClosePrice.Value) || !item.LowestClosePrice.Set {
+		if (closePrices[i].USDClosePrice.LessThan(item.LowestClosePrice.Value) || !item.LowestClosePrice.Set) && !closePrices[i].USDClosePrice.IsZero() {
 			item.LowestClosePrice.Value = closePrices[i].USDClosePrice
 			item.LowestClosePrice.Time = closePrices[i].Time
 			item.LowestClosePrice.Set = true

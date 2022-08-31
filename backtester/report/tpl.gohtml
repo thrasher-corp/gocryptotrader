@@ -1240,11 +1240,11 @@
 							{{ if $val.Asset.IsFutures }}
 								<tr>
 									<td><b>Long Orders</b></td>
-									<td>{{ $.Prettify.Int $val.LongOrders}}</td>
+									<td>{{ $.Prettify.Int $val.BuyOrders}}</td>
 								</tr>
 								<tr>
 									<td><b>Short Orders</b></td>
-									<td>{{ $.Prettify.Int $val.ShortOrders}}</td>
+									<td>{{ $.Prettify.Int $val.SellOrders}}</td>
 								</tr>
 								<tr>
 									<td><b>Lowest Unrealised PNL</b></td>

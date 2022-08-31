@@ -311,6 +311,7 @@ func (f *FundManager) GenerateReport() *Report {
 			TransferFee:  f.items[x].transferFee,
 			FinalFunds:   f.items[x].available,
 			IsCollateral: f.items[x].isCollateral,
+			WasAppended:  f.items[x].wasAppended,
 		}
 
 		if !f.disableUSDTracking &&
@@ -808,6 +809,7 @@ func (f *FundManager) SetFunding(exchName string, item asset.Item, balance *acco
 		currency:     balance.CurrencyName,
 		initialFunds: amount,
 		available:    amount,
+		wasAppended:  true,
 	})
 	return nil
 }

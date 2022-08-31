@@ -120,12 +120,11 @@ func (s *Signal) MatchOrderAmount() bool {
 // data event data must still be populated
 func (s *Signal) ToKline() kline.Event {
 	return &kline.Kline{
-		Base:             s.Base,
-		Open:             s.OpenPrice,
-		Close:            s.ClosePrice,
-		Low:              s.LowPrice,
-		High:             s.HighPrice,
-		Volume:           s.Volume,
-		ValidationIssues: "",
+		Base:   s.Base,
+		Open:   s.OpenPrice,
+		Close:  s.ClosePrice,
+		Low:    s.LowPrice,
+		High:   s.HighPrice,
+		Volume: s.Volume,
 	}
 }

@@ -66,6 +66,7 @@ type Handler interface {
 	CreateLiquidationOrdersForExchange(data.Event, funding.IFundingManager) ([]order.Event, error)
 	GetLatestHoldingsForAllCurrencies() []holdings.Holding
 	Reset()
+	SetHoldingsForEvent(funding.IFundReader, common.Event) error
 }
 
 // SizeHandler is the interface to help size orders

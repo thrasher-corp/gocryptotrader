@@ -213,10 +213,13 @@ func (s *Statistic) CalculateAllResults() error {
 						MarketMovement:   stats.MarketMovement,
 						StrategyMovement: stats.StrategyMovement,
 					})
-					s.TotalLongOrders += stats.LongOrders
-					s.TotalShortOrders += stats.ShortOrders
-					s.TotalBuyOrders += stats.BuyOrders
-					s.TotalSellOrders += stats.SellOrders
+					if assetItem.IsFutures() {
+						s.TotalLongOrders += stats.BuyOrders
+						s.TotalShortOrders += stats.SellOrders
+					} else {
+						s.TotalBuyOrders += stats.BuyOrders
+						s.TotalSellOrders += stats.SellOrders
+					}
 					s.TotalOrders += stats.TotalOrders
 					if stats.ShowMissingDataWarning {
 						s.WasAnyDataMissing = true

@@ -23,19 +23,15 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 	lastPrice := last.ClosePrice
 	for i := range last.Transactions.Orders {
 		switch last.Transactions.Orders[i].Order.Side {
-		case gctorder.Buy, gctorder.Bid:
+		case gctorder.Buy, gctorder.Bid, gctorder.Long:
 			c.BuyOrders++
-		case gctorder.Sell, gctorder.Ask:
+		case gctorder.Sell, gctorder.Ask, gctorder.Short:
 			c.SellOrders++
-		case gctorder.Long:
-			c.LongOrders++
-		case gctorder.Short:
-			c.ShortOrders++
 		}
 	}
 	for i := range c.Events {
 		price := c.Events[i].ClosePrice
-		if price.LessThan(c.LowestClosePrice.Value) || !c.LowestClosePrice.Set {
+		if (price.LessThan(c.LowestClosePrice.Value) || !c.LowestClosePrice.Set) && !price.IsZero() {
 			c.LowestClosePrice.Value = price
 			c.LowestClosePrice.Time = c.Events[i].Time
 			c.LowestClosePrice.Set = true
@@ -52,7 +48,7 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 		c.MarketMovement = lastPrice.Sub(firstPrice).Div(firstPrice).Mul(oneHundred)
 	}
 	if !first.Holdings.TotalValue.IsZero() {
-		c.StrategyMovement = last.Holdings.TotalValue.Sub(first.Holdings.TotalValue).Div(first.Holdings.TotalValue).Mul(oneHundred)
+		c.StrategyMovement = last.Holdings.TotalValue.Sub(first.Holdings.TotalInitialValue).Div(first.Holdings.TotalInitialValue).Mul(oneHundred)
 	}
 	c.analysePNLGrowth()
 	err = c.calculateHighestCommittedFunds()

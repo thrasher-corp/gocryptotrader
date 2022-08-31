@@ -146,8 +146,6 @@ type CurrencyPairStatistic struct {
 	DoesPerformanceBeatTheMarket bool `json:"does-performance-beat-the-market"`
 
 	BuyOrders   int64 `json:"buy-orders"`
-	LongOrders  int64 `json:"long-orders"`
-	ShortOrders int64 `json:"short-orders"`
 	SellOrders  int64 `json:"sell-orders"`
 	TotalOrders int64 `json:"total-orders"`
 
