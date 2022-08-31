@@ -20,7 +20,7 @@ import (
 // It runs by constantly checking for new live datas and running through the list of events
 // once new data is processed. It will run until application close event has been received
 func (bt *BackTest) RunLive() error {
-	log.Info(common.Backtester, "running backtester against live data")
+	log.Info(common.Backtester, "Running backtester against live data")
 	timeoutTimer := time.NewTimer(time.Minute * 5)
 	// a frequent timer so that when a new candle is released by an exchange
 	// that it can be processed quickly
@@ -99,7 +99,7 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Conf
 		case <-bt.shutdown:
 			return
 		case <-loadNewDataTimer.C:
-			log.Infof(common.Backtester, "fetching data for %v %v %v %v", exch.GetName(), a, fPair, cfg.DataSettings.Interval)
+			log.Infof(common.Backtester, "Fetching data for %v %v %v %v", exch.GetName(), a, fPair, cfg.DataSettings.Interval)
 			loadNewDataTimer.Reset(time.Second * 15)
 			err = bt.loadLiveData(resp, cfg, exch, fPair, a, dataType)
 			if err != nil {
@@ -134,6 +134,6 @@ func (bt *BackTest) loadLiveData(resp *kline.DataFromKline, cfg *config.Config, 
 	}
 	resp.AppendResults(candles)
 	bt.Reports.UpdateItem(&resp.Item)
-	log.Info(common.Backtester, "sleeping for 30 seconds before checking for new candle data")
+	log.Info(common.Backtester, "Sleeping for 30 seconds before checking for new candle data")
 	return nil
 }

@@ -17,8 +17,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/signaler"
 )
 
-var singleRunStrategyPath, configPath, templatePath, reportOutput, outputPath, btConfigDir, strategyPluginPath string
-var printLogo, generateReport, darkReport, verbose, colourOutput, logSubHeader bool
+var singleRunStrategyPath, templatePath, outputPath, btConfigDir, strategyPluginPath string
+var printLogo, generateReport, darkReport, colourOutput, logSubHeader bool
 
 func main() {
 	wd, err := os.Getwd()
@@ -31,7 +31,7 @@ func main() {
 	var btCfg *config.BacktesterConfig
 	if btConfigDir == "" {
 		btConfigDir = config.DefaultBTConfigDir
-		log.Infof(log.Global, "blank config received, using default path '%v'", btConfigDir)
+		log.Infof(log.Global, "Blank config received, using default path '%v'", btConfigDir)
 	}
 	fe := file.Exists(btConfigDir)
 	switch {
@@ -64,7 +64,7 @@ func main() {
 			os.Exit(1)
 		}
 	default:
-		log.Errorf(log.Global, "non-standard config '%v' does not exist. Exiting...", btConfigDir)
+		log.Errorf(log.Global, "Non-standard config '%v' does not exist. Exiting...", btConfigDir)
 		return
 	}
 
@@ -76,7 +76,7 @@ func main() {
 	flagSet.WithBool("colouroutput", &colourOutput, btCfg.UseCMDColours)
 
 	if singleRunStrategyPath != "" && !file.Exists(singleRunStrategyPath) {
-		fmt.Printf("strategy config path not found '%v'", singleRunStrategyPath)
+		fmt.Printf("Strategy config path not found '%v'", singleRunStrategyPath)
 		os.Exit(1)
 	}
 
@@ -92,7 +92,7 @@ func main() {
 		btCfg.Report.TemplatePath = templatePath
 	}
 	if !file.Exists(btCfg.Report.TemplatePath) {
-		fmt.Printf("report template path not found '%v'", btCfg.Report.TemplatePath)
+		fmt.Printf("Report template path not found '%v'", btCfg.Report.TemplatePath)
 		os.Exit(1)
 	}
 
@@ -100,7 +100,7 @@ func main() {
 		btCfg.Report.OutputPath = outputPath
 	}
 	if !file.Exists(btCfg.Report.OutputPath) {
-		fmt.Printf("report output path not found '%v'", btCfg.Report.OutputPath)
+		fmt.Printf("Report output path not found '%v'", btCfg.Report.OutputPath)
 		os.Exit(1)
 	}
 
@@ -141,7 +141,7 @@ func main() {
 			fmt.Printf("Could not load custom strategies. Error: %v.\n", err)
 			os.Exit(1)
 		}
-		log.Infof(common.Backtester, "loaded plugin %v\n", strategyPluginPath)
+		log.Infof(common.Backtester, "Loaded plugin %v\n", strategyPluginPath)
 	}
 
 	if singleRunStrategyPath != "" {
@@ -171,14 +171,14 @@ func main() {
 	btCfg.Report.GenerateReport = generateReport
 
 	go func(c *config.BacktesterConfig) {
-		log.Info(log.GRPCSys, "starting GRPC server")
+		log.Info(log.GRPCSys, "Starting GRPC server")
 		s := backtest.SetupRPCServer(c)
 		err = backtest.StartRPCServer(s)
 		if err != nil {
 			fmt.Printf("Could not read config. Error: %v.\n", err)
 			os.Exit(1)
 		}
-		log.Info(log.GRPCSys, "ready to receive commands")
+		log.Info(log.GRPCSys, "Ready to receive commands")
 	}(btCfg)
 	interrupt := signaler.WaitForInterrupt()
 	log.Infof(log.Global, "Captured %v, shutdown requested.\n", interrupt)

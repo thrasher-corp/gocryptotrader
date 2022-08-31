@@ -212,7 +212,7 @@ func TestLoadDataDatabase(t *testing.T) {
 					Enabled: true,
 					Driver:  "sqlite3",
 					ConnectionDetails: drivers.ConnectionDetails{
-						Database: "gocryptotrader.db",
+						Database: t.TempDir() + "gocryptotrader.db",
 					},
 				},
 				StartDate:        time.Now().Add(-time.Minute),

@@ -54,7 +54,7 @@ func StartRPCServer(server *GRPCServer) error {
 	if err := gctengine.CheckCerts(targetDir); err != nil {
 		return err
 	}
-	log.Debugf(log.GRPCSys, "backtester gRPC server enabled. Starting gRPC server on https://%v.\n", server.GRPC.ListenAddress)
+	log.Debugf(log.GRPCSys, "Backtester GRPC server enabled. Starting GRPC server on https://%v.\n", server.GRPC.ListenAddress)
 	lis, err := net.Listen("tcp", server.GRPC.ListenAddress)
 	if err != nil {
 		return err
@@ -79,7 +79,7 @@ func StartRPCServer(server *GRPCServer) error {
 		}
 	}()
 
-	log.Debugln(log.GRPCSys, "gRPC server started!")
+	log.Debugln(log.GRPCSys, "GRPC server started!")
 
 	if server.GRPC.GRPCProxyEnabled {
 		return server.StartRPCRESTProxy()
@@ -89,7 +89,7 @@ func StartRPCServer(server *GRPCServer) error {
 
 // StartRPCRESTProxy starts a gRPC proxy
 func (s *GRPCServer) StartRPCRESTProxy() error {
-	log.Debugf(log.GRPCSys, "gRPC proxy server support enabled. Starting gRPC proxy server on http://%v.\n", s.GRPC.GRPCProxyListenAddress)
+	log.Debugf(log.GRPCSys, "GRPC proxy server support enabled. Starting gRPC proxy server on http://%v.\n", s.GRPC.GRPCProxyListenAddress)
 	targetDir := utils.GetTLSDir(s.GRPC.TLSDir)
 	creds, err := credentials.NewClientTLSFromFile(filepath.Join(targetDir, "cert.pem"), "")
 	if err != nil {
@@ -111,11 +111,11 @@ func (s *GRPCServer) StartRPCRESTProxy() error {
 
 	go func() {
 		if err = http.ListenAndServe(s.GRPC.GRPCProxyListenAddress, mux); err != nil {
-			log.Errorf(log.GRPCSys, "gRPC proxy failed to server: %s\n", err)
+			log.Errorf(log.GRPCSys, "GRPC proxy failed to server: %s\n", err)
 		}
 	}()
 
-	log.Debug(log.GRPCSys, "gRPC proxy server started!")
+	log.Debug(log.GRPCSys, "GRPC proxy server started!")
 	return nil
 }
 
