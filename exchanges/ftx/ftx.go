@@ -920,7 +920,7 @@ func (f *FTX) DeleteTriggerOrder(ctx context.Context, orderID string) (string, e
 
 // GetFills gets order fills data and ensures that all
 // fills are retrieved from the supplied timeframe
-func (f *FTX) GetFills(ctx context.Context, market currency.Pair, item asset.Item, startTime, endTime time.Time) ([]FillsData, error) {
+func (f *FTX) GetFills(ctx context.Context, market currency.Pair, item asset.Item, startTime, endTime time.Time, orderID string) ([]FillsData, error) {
 	var resp []FillsData
 	var nextEnd = endTime
 	limit := 200
@@ -943,6 +943,9 @@ func (f *FTX) GetFills(ctx context.Context, market currency.Pair, item asset.Ite
 			}
 			params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 			params.Set("end_time", strconv.FormatInt(nextEnd.Unix(), 10))
+		}
+		if orderID != "" {
+			params.Set("orderId", orderID)
 		}
 		endpoint := common.EncodeURLValues(getFills, params)
 		err := f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, nil, &data)

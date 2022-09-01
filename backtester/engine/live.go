@@ -404,6 +404,8 @@ func (d *dataChecker) SetDataForClosingAllPositions(s ...signal.Event) error {
 				Close:  s[x].GetClosePrice().InexactFloat64(),
 				Volume: s[x].GetVolume().InexactFloat64(),
 			})
+			d.sourcesToCheck[y].pairCandles.AppendResults(&d.sourcesToCheck[y].pairCandles.Item)
+			d.sourcesToCheck[y].candlesToAppend.Candles = nil
 			d.dataHolder.SetDataForCurrency(d.sourcesToCheck[y].exchangeName, d.sourcesToCheck[y].asset, d.sourcesToCheck[y].pair, &d.sourcesToCheck[y].pairCandles)
 			err = d.report.SetKlineData(&d.sourcesToCheck[y].pairCandles.Item)
 			if err != nil {

@@ -72,10 +72,11 @@ func (d *DataFromKline) AppendResults(ki *gctkline.Item) {
 		return
 	}
 	var gctCandles []gctkline.Candle
+	streamerino := d.Base.GetStream()
 candleLoop:
 	for x := range ki.Candles {
-		for y := range d.Item.Candles {
-			if d.Item.Candles[y].Time.Equal(ki.Candles[x].Time) {
+		for y := range streamerino {
+			if streamerino[y].GetTime().Equal(ki.Candles[x].Time) {
 				continue candleLoop
 			}
 		}

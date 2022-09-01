@@ -223,7 +223,7 @@
 					</thead>
 					<tbody>
 					{{ range .Statistics.FundingStatistics.Report.Items}}
-						{{ if .IsCollateral}}
+						{{ if or .IsCollateral .WasAppended}}
 						{{else }}
 							<tr>
 								<td>{{.Exchange}}</td>
@@ -260,7 +260,7 @@
 						</thead>
 						<tbody>
 						{{ range .Statistics.FundingStatistics.Report.Items}}
-							{{ if .IsCollateral}}
+							{{ if .IsCollateral }}
 								<tr>
 									<td>{{.Exchange}}</td>
 									<td>{{.Asset}}</td>
@@ -471,6 +471,8 @@
 					</thead>
 					<tbody>
 					{{ range .Statistics.FundingStatistics.Report.Items}}
+						{{ if .WasAppended}}
+							{{else}}
 						<tr>
 							<td>{{.Exchange}}</td>
 							<td>{{.Asset}}</td>
@@ -481,6 +483,7 @@
 							<td>{{ $.Prettify.Decimal64 .TransferFee}}</td>
 							<td>{{ .IsCollateral }}</td>
 						</tr>
+							{{end}}
 					{{end}}
 					</tbody>
 				</table>
@@ -1470,6 +1473,8 @@
 			{{end}}
 		{{end}}
 		{{ range .Statistics.FundingStatistics.Items }}
+			{{ if .ReportItem.WasAppended}}
+				{{else}}
 			<div class="card card-cascade narrower">
 				<div class="view view-cascade bg-primary">
 					<h2  id="funding-statistics"  class="px-4 card-header-title text-light"> Funding Statistics for {{.ReportItem.Exchange}} {{.ReportItem.Asset}} {{.ReportItem.Currency}}</h2>
@@ -1548,6 +1553,7 @@
 					</table>
 				</div>
 			</div>
+				{{end}}
 		{{end}}
 		{{ if eq $.Config.StrategySettings.DisableUSDTracking false }}
 			<div class="card card-cascade narrower">
@@ -1606,7 +1612,7 @@
 							{{ if .Statistics.FundingStatistics.TotalUSDStatistics.CompoundAnnualGrowthRate.IsZero}}
 								<td>N/A</td>
 							{{else}}
-								<td>{{.Statistics.FundingStatistics.TotalUSDStatistics.CompoundAnnualGrowthRate}}%</td>
+								<td>{{$.Prettify.Decimal8 .Statistics.FundingStatistics.TotalUSDStatistics.CompoundAnnualGrowthRate}}%</td>
 							{{end}}
 						</tr>
 						</tbody>
@@ -1695,7 +1701,7 @@
 												<td>{{$.Prettify.Float8  .Order.Price }} {{$quote}}</td>
 												<td>{{$.Prettify.Float8  .Order.Amount }} {{$base}}</td>
 												<td>{{$.Prettify.Float8 .Order.Fee }} {{$quote}}</td>
-												<td>{{ $.Prettify.Decimal8 .CostBasis }} {{$quote}}</td>
+												<td>{{ $.Prettify.Decimal8 .CostBasis }} {{.Order.FeeAsset}}</td>
 												<td>{{ $.Prettify.Decimal8 .SlippageRate }}%</td>
 											</tr>
 										{{end}}

@@ -1,6 +1,7 @@
 package statistics
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 
@@ -132,7 +133,7 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 			decimal.NewFromFloat(interval.IntervalsPerYear()),
 			decimal.NewFromInt(int64(len(usdStats.HoldingValues))),
 		)
-		if err != nil {
+		if err != nil && !errors.Is(err, gctmath.ErrPowerDifferenceTooSmall) {
 			return nil, err
 		}
 		response.Items[i].CompoundAnnualGrowthRate = cagr
@@ -145,7 +146,7 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 			decimal.NewFromFloat(interval.IntervalsPerYear()),
 			decimal.NewFromInt(int64(len(usdStats.HoldingValues))),
 		)
-		if err != nil {
+		if err != nil && !errors.Is(err, gctmath.ErrPowerDifferenceTooSmall) {
 			return nil, err
 		}
 		usdStats.CompoundAnnualGrowthRate = cagr

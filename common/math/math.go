@@ -12,7 +12,11 @@ var (
 	// ErrNoNegativeResults is returned when no negative results are allowed
 	ErrNoNegativeResults = errors.New("cannot calculate with no negative values")
 	// ErrInexactConversion is returned when a decimal does not convert to float exactly
-	ErrInexactConversion       = errors.New("inexact conversion from decimal to float detected")
+	ErrInexactConversion = errors.New("inexact conversion from decimal to float detected")
+	// ErrPowerDifferenceTooSmall when values are too close when calculating the exponent value,
+	// it returns zero
+	ErrPowerDifferenceTooSmall = errors.New("calculated power is too small to use")
+
 	errZeroValue               = errors.New("cannot calculate average of no values")
 	errNegativeValueOutOfRange = errors.New("received negative number less than -1")
 	errGeometricNegative       = errors.New("cannot calculate a geometric mean with negative values")
@@ -260,6 +264,9 @@ func DecimalCompoundAnnualGrowthRate(openValue, closeValue, intervalsPerYear, nu
 	closeOverOpen := closeValue.Div(openValue)
 	exp := intervalsPerYear.Div(numberOfIntervals)
 	pow := DecimalPow(closeOverOpen, exp)
+	if pow.IsZero() {
+		return decimal.Zero, ErrPowerDifferenceTooSmall
+	}
 	k := pow.Sub(decimal.NewFromInt(1)).Mul(decimal.NewFromInt(100))
 	return k, nil
 }

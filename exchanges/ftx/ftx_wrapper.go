@@ -678,7 +678,41 @@ func (f *FTX) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitRe
 		return nil, err
 	}
 
-	return s.DeriveSubmitResponse(strconv.FormatInt(tempResp.ID, 10))
+	resp, err := s.DeriveSubmitResponse(strconv.FormatInt(tempResp.ID, 10))
+	if err != nil {
+		return nil, err
+	}
+	if !s.RetrieveFees {
+		return resp, nil
+	}
+
+	fills, err := f.GetFills(ctx, s.Pair, s.AssetType, time.Time{}, time.Time{}, strconv.FormatInt(tempResp.ID, 10))
+	if err != nil {
+		return nil, err
+	}
+	for i := range fills {
+		resp.Fee += fills[i].Fee
+		var side order.Side
+		side, err = order.StringToOrderSide(fills[i].Side)
+		if err != nil {
+			return nil, err
+		}
+		if resp.FeeAsset.IsEmpty() {
+			resp.FeeAsset = fills[i].FeeCurrency
+		}
+		resp.Trades = append(resp.Trades, order.TradeHistory{
+			Price:     fills[i].Price,
+			Amount:    fills[i].Size,
+			Fee:       fills[i].Fee,
+			Exchange:  f.Name,
+			TID:       strconv.FormatInt(fills[i].TradeID, 10),
+			Side:      side,
+			Timestamp: fills[i].Time,
+			IsMaker:   fills[i].Liquidity == "maker",
+			FeeAsset:  fills[i].FeeCurrency.String(),
+		})
+	}
+	return resp, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -1666,7 +1700,7 @@ func (f *FTX) GetFuturesPositions(ctx context.Context, request *order.PositionsR
 	allPositions:
 		for {
 			var fills []FillsData
-			fills, err = f.GetFills(ctx, request.Pairs[x], request.Asset, request.StartDate, endTime)
+			fills, err = f.GetFills(ctx, request.Pairs[x], request.Asset, request.StartDate, endTime, "")
 			if err != nil {
 				return nil, err
 			}

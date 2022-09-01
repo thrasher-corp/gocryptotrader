@@ -1,6 +1,7 @@
 package statistics
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/shopspring/decimal"
@@ -105,7 +106,7 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 			decimal.NewFromFloat(intervalsPerYear),
 			decimal.NewFromInt(int64(len(c.Events))),
 		)
-		if err != nil {
+		if err != nil && !errors.Is(err, gctmath.ErrPowerDifferenceTooSmall) {
 			errs = append(errs, err)
 		}
 		c.CompoundAnnualGrowthRate = cagr

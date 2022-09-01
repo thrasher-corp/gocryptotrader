@@ -177,16 +177,15 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, om *engine.Ord
 		f.Total = f.PurchasePrice.Mul(f.Amount).Add(f.ExchangeFee)
 	}
 	if !o.IsLiquidating() {
-		err = allocateFundsPostOrder(f, funds, err, o.GetAmount(), allocatedFunds, amount, adjustedPrice, fee)
+		err = allocateFundsPostOrder(f, funds, err, o.GetAmount(), allocatedFunds, amount, price, fee)
 		if err != nil {
 			return f, err
 		}
 	}
-
 	if f.Order == nil {
 		return nil, fmt.Errorf("placed order %v not found in order manager", orderID)
 	}
-
+	f.AppendReason(summarisePosition(f.GetDirection(), f.Amount, f.Amount.Mul(f.PurchasePrice), f.ExchangeFee, f.Order.Pair, f.UnderlyingPair))
 	return f, nil
 }
 
@@ -240,7 +239,6 @@ func allocateFundsPostOrder(f *fill.Fill, funds funding.IFundReleaser, orderErro
 		default:
 			return fmt.Errorf("%w asset type %v", common.ErrInvalidDataType, f.GetDirection())
 		}
-		f.AppendReason(summarisePosition(f.GetDirection(), f.Amount, f.Amount.Mul(f.PurchasePrice), f.ExchangeFee, f.Order.Pair, currency.EMPTYPAIR))
 	case asset.Futures:
 		cr, err := funds.CollateralReleaser()
 		if err != nil {
@@ -261,7 +259,6 @@ func allocateFundsPostOrder(f *fill.Fill, funds funding.IFundReleaser, orderErro
 			}
 			return orderError
 		}
-		f.AppendReason(summarisePosition(f.GetDirection(), f.Amount, f.Amount.Mul(f.PurchasePrice), f.ExchangeFee, f.Order.Pair, f.UnderlyingPair))
 	default:
 		return fmt.Errorf("%w asset type %v", common.ErrInvalidDataType, f.AssetType)
 	}
@@ -368,13 +365,14 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount, fee decimal.De
 	}
 
 	submit := &gctorder.Submit{
-		Price:     price.InexactFloat64(),
-		Amount:    amount.InexactFloat64(),
-		Exchange:  f.GetExchange(),
-		Side:      f.GetDirection(),
-		AssetType: f.GetAssetType(),
-		Pair:      f.Pair(),
-		Type:      gctorder.Market,
+		Price:        price.InexactFloat64(),
+		Amount:       amount.InexactFloat64(),
+		Exchange:     f.GetExchange(),
+		Side:         f.GetDirection(),
+		AssetType:    f.GetAssetType(),
+		Pair:         f.Pair(),
+		Type:         gctorder.Market,
+		RetrieveFees: true,
 	}
 
 	var resp *engine.OrderSubmitResponse
