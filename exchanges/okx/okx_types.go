@@ -3093,3 +3093,246 @@ type WsBlockTicker struct {
 	Argument SubscriptionInfo `json:"arg"`
 	Data     []BlockTicker    `json:"data"`
 }
+
+// PMLimitationResponse represents portfolio margin mode limitation for specific underlying
+type PMLimitationResponse struct {
+	MaximumSize  float64 `json:"maxSz,string"`
+	PositionType string  `json:"postType"`
+	Underlying   string  `json:"uly"`
+}
+
+// EasyConvertDetail represents easy convert currencies list and their detail.
+type EasyConvertDetail struct {
+	FromData   []EasyConvertFromData `json:"fromData"`
+	ToCurrency []string              `json:"toCcy"`
+}
+
+// EasyConvertFromData represents convert currency from detail
+type EasyConvertFromData struct {
+	FromAmount   float64 `json:"fromAmt,string"`
+	FromCurrency string  `json:"fromCcy"`
+}
+
+// PlaceEasyConvertParam represents easy convert request params
+type PlaceEasyConvertParam struct {
+	FromCurrency []string `json:"fromCcy"`
+	ToCurrency   string   `json:"toCcy"`
+}
+
+// EasyConvertItem represents easy convert place order response.
+type EasyConvertItem struct {
+	FilFromSize  float64   `json:"fillFromSz,string"`
+	FillToSize   float64   `json:"fillToSz,string"`
+	FromCurrency string    `json:"fromCcy"`
+	Status       string    `json:"status"`
+	ToCurrency   string    `json:"toCcy"`
+	UpdateTime   time.Time `json:"uTime"`
+}
+
+// OneClickRepayCurrencyItem represents debt currency data and repay currencies.
+type OneClickRepayCurrencyItem struct {
+	DebtData  []CurrencyDebtAmount  `json:"debtData"`
+	DebtType  string                `json:"debtType"`
+	RepayData []CurrencyRepayAmount `json:"repayData"`
+}
+
+// CurrencyDebtAmount represents debt currency data
+type CurrencyDebtAmount struct {
+	DebtAmount   string `json:"debtAmt"`
+	DebtCurrency string `json:"debtCcy"`
+}
+
+// CurrencyRepayAmount represents rebat currency amount.
+type CurrencyRepayAmount struct {
+	RepayAmount   string `json:"repayAmt"`
+	RepayCurrency string `json:"repayCcy"`
+}
+
+// TradeOneClickRepayParam represents click one repay param
+type TradeOneClickRepayParam struct {
+	DebtCurrency  []string `json:"debtCcy"`
+	RepayCurrency string   `json:"repayCcy"`
+}
+
+// CurrencyOneClickRepay represents one click repay currency
+type CurrencyOneClickRepay struct {
+	DebtCurrency  string    `json:"debtCcy"`
+	FillFromSize  float64   `json:"fillFromSz,string"`
+	FillRepaySize float64   `json:"fillRepaySz,string"`
+	FillToSize    string    `json:"fillToSz"`
+	RepayCurrency string    `json:"repayCcy"`
+	Status        string    `json:"status"`
+	UpdateTime    time.Time `json:"uTime"`
+}
+
+// SetQuoteProductParam represents set quote product request param
+type SetQuoteProductParam struct {
+	InstrumentType string                   `json:"instType"`
+	Data           []MakerInstrumentSetting `json:"data"`
+}
+
+// MakerInstrumentSetting represents set quote product setting info
+type MakerInstrumentSetting struct {
+	Underlying     string `json:"uly"`
+	InstrumentID   string `json:"instId"`
+	MaxBlockSize   string `json:"maxBlockSz"`
+	MakerPriceBand string `json:"makerPxBand"`
+}
+
+// SetQuoteProductsResult represents set quote products result
+type SetQuoteProductsResult struct {
+	Result bool `json:"result"`
+}
+
+// SubAccountAPIKeyParam represents Reset the APIKey of a sub-account request param
+type SubAccountAPIKeyParam struct {
+	SubAccountName   string `json:"subAcct"`         // Sub-account name
+	APIKey           string `json:"apiKey"`          // Sub-accountAPI public key
+	Label            string `json:"label,omitempty"` // Sub-account APIKey label
+	APIKeyPermission string `json:"perm,omitempty"`  // Sub-account APIKey permissions
+	IP               string `json:"ip,omitempty"`    // Sub-account APIKey linked IP addresses, separate with commas if more than
+}
+
+// SubAccountAPIKeyResponse represents sub-account api key reset response
+type SubAccountAPIKeyResponse struct {
+	SubAccountName   string    `json:"subAcct"`
+	APIKey           string    `json:"apiKey"`
+	Label            string    `json:"label"`
+	APIKeyPermission string    `json:"perm"`
+	IP               string    `json:"ip"`
+	Timestamp        time.Time `json:"ts"`
+}
+
+// MarginBalanceParam represents compute margin balance request param
+type MarginBalanceParam struct {
+	AlgoID     string  `json:"algoId"`
+	Type       string  `json:"type"`
+	Amount     float64 `json:"amt,string"`               // Adjust margin balance amount Either amt or percent is required.
+	Percentage float64 `json:"percent,string,omitempty"` // Adjust margin balance percentage, used In Adjusting margin balance
+}
+
+// ComputeMarginBalance represents compute marign amount request response
+type ComputeMarginBalance struct {
+	Leverage      float64 `json:"lever,string"`
+	MaximumAmount float64 `json:"maxAmt,string"`
+}
+
+// AdjustMarginBalanceResponse represents algo id for response for margin balance adjust request.
+type AdjustMarginBalanceResponse struct {
+	AlgoID string `json:"algoId"`
+}
+
+// GridAIParameterResponse represents gri AI parameter response.
+type GridAIParameterResponse struct {
+	AlgoOrderType        string  `json:"algoOrdType"`
+	AnnualizedRate       string  `json:"annualizedRate"`
+	Currency             string  `json:"ccy"`
+	Direction            string  `json:"direction"`
+	Duration             string  `json:"duration"`
+	GridNum              string  `json:"gridNum"`
+	InstrumentID         string  `json:"instId"`
+	Leverage             string  `json:"lever"`
+	MaximumPrice         string  `json:"maxPx"`
+	MinimumInvestment    float64 `json:"minInvestment,string"`
+	MinimumPrice         float64 `json:"minPx,string"`
+	PerMaximumProfitRate float64 `json:"perMaxProfitRate,string"`
+	PerMinimumProfitRate float64 `json:"perMinProfitRate,string"`
+	RunType              string  `json:"runType"`
+}
+
+// Offer represents an investment offer information for different 'staking' and 'defi' protocols
+type Offer struct {
+	Ccy          string   `json:"ccy"`
+	ProductID    string   `json:"productId"`
+	Protocol     string   `json:"protocol"`
+	ProtocolType string   `json:"protocolType"`
+	EarningCcy   []string `json:"earningCcy"`
+	Term         string   `json:"term"`
+	Apy          string   `json:"apy"`
+	EarlyRedeem  bool     `json:"earlyRedeem"`
+	InvestData   []struct {
+		Currency      string `json:"ccy"`
+		Balance       string `json:"bal"`
+		MinimumAmount string `json:"minAmt"`
+		MaximumAmount string `json:"maxAmt"`
+	} `json:"investData"`
+	EarningData []struct {
+		Currency    string `json:"ccy"`
+		EarningType string `json:"earningType"`
+	} `json:"earningData"`
+}
+
+// PurchaseRequestParam represents purchase request param specific product
+type PurchaseRequestParam struct {
+	ProductID  string                   `json:"productId"`
+	Term       int                      `json:"term,string,omitempty"`
+	InvestData []PurchaseInvestDataItem `json:"investData"`
+}
+
+// PurchaseInvestDataItem represents purchase invest data information having the currency and amount information
+type PurchaseInvestDataItem struct {
+	Currency string  `json:"ccy"`
+	Amount   float64 `json:"amt,string"`
+}
+
+// OrderIDResponse represents purchase order ID
+type OrderIDResponse struct {
+	OrderID string `json:"orderId"`
+}
+
+// RedeemRequestParam represents redeem request input param
+type RedeemRequestParam struct {
+	OrderID          string `json:"ordId"`
+	ProtocolType     string `json:"protocolType"`
+	AllowEarlyRedeem bool   `json:"allowEarlyRedeem"`
+}
+
+// CancelFundingParam cancel purchase or redemption request
+type CancelFundingParam struct {
+	OrderID      string `json:"ordId"`
+	ProtocolType string `json:"protocolType"`
+}
+
+// ActiveFundingOrder represents active purchase orders
+type ActiveFundingOrder struct {
+	OrderID      string `json:"ordId"`
+	State        string `json:"state"`
+	Currency     string `json:"ccy"`
+	Protocol     string `json:"protocol"`
+	ProtocolType string `json:"protocolType"`
+	Term         string `json:"term"`
+	Apy          string `json:"apy"`
+	InvestData   []struct {
+		Currency string `json:"ccy"`
+		Amount   string `json:"amt"`
+	} `json:"investData"`
+	EarningData []struct {
+		Ccy         string `json:"ccy"`
+		EarningType string `json:"earningType"`
+		Earnings    string `json:"earnings"`
+	} `json:"earningData"`
+	PurchasedTime time.Time `json:"purchasedTime"`
+}
+
+// FundingOrder represents orders of earning, purchase, and redeem
+type FundingOrder struct {
+	OrderID      string `json:"ordId"`
+	State        string `json:"state"`
+	Currency     string `json:"ccy"`
+	Protocol     string `json:"protocol"`
+	ProtocolType string `json:"protocolType"`
+	Term         string `json:"term"`
+	Apy          string `json:"apy"`
+	InvestData   []struct {
+		Currency string `json:"ccy"`
+		Amount   string `json:"amt"`
+	} `json:"investData"`
+	EarningData []struct {
+		Currency         string `json:"ccy"`
+		EarningType      string `json:"earningType"`
+		RealizedEarnings string `json:"realizedEarnings"`
+	} `json:"earningData"`
+	PurchasedTime time.Time `json:"purchasedTime"`
+	RedeemedTime  time.Time `json:"redeemedTime"`
+	EarningCcy    []string  `json:"earningCcy,omitempty"`
+}

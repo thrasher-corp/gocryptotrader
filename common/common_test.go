@@ -734,3 +734,21 @@ func TestGenerateRandomString(t *testing.T) {
 		t.Error("GenerateRandomString() unexpected test validation result")
 	}
 }
+
+func TestMatchesIPV4Address(t *testing.T) {
+	if okay := MatchesIPV4Address("0.0.0.0"); !okay {
+		t.Error("MatchesIPV4Address() unexpected test validataion result")
+	}
+	if okay := MatchesIPV4Address("0.266.0.0"); okay {
+		t.Error("MatchesIPV4Address() unexpected test validataion result")
+	}
+	if okay := MatchesIPV4Address("0.255.0"); okay {
+		t.Error("MatchesIPV4Address() unexpected test validataion result")
+	}
+	if okay := MatchesIPV4Address("123.456.789.0"); okay {
+		t.Error("MatchesIPV4Address() unexpected test validataion result")
+	}
+	if okay := MatchesIPV4Address("123.45.255.-1"); okay {
+		t.Error("MatchesIPV4Address() unexpected test validataion result")
+	}
+}

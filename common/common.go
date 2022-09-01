@@ -44,6 +44,8 @@ const (
 var (
 	// emailRX represents email address matching pattern
 	emailRX = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+	// ipV4AddressRX represents IP address matching pattern
+	ipV4AddressRX = regexp.MustCompile(`^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$`)
 )
 
 // Vars for common.go operations
@@ -83,6 +85,14 @@ var (
 	// ErrTypeAssertFailure defines an error when type assertion fails
 	ErrTypeAssertFailure = errors.New("type assert failure")
 )
+
+// MatchesIPV4Address ensures that the string is an IPV4 address by regexp check
+func MatchesIPV4Address(value string) bool {
+	if len(value) < 7 || len(value) > 15 {
+		return false
+	}
+	return ipV4AddressRX.MatchString(value)
+}
 
 // MatchesEmailPattern ensures that the string is an email address by regexp check
 func MatchesEmailPattern(value string) bool {
