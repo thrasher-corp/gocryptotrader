@@ -1042,3 +1042,87 @@ func TestGetHistoricalDepositList(t *testing.T) {
 		t.Error("GetHistoricalDepositList() error", err)
 	}
 }
+
+func TestGetWithdrawalList(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetWithdrawalList(context.Background(), "", "", time.Time{}, time.Time{})
+	if err != nil {
+		t.Error("GetWithdrawalList() error", err)
+	}
+}
+
+func TestGetHistoricalWithdrawalList(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetHistoricalWithdrawalList(context.Background(), "", "", time.Time{}, time.Time{}, 0, 0)
+	if err != nil {
+		t.Error("GetHistoricalWithdrawalList() error", err)
+	}
+}
+
+func TestGetWithdrawalQuotas(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetWithdrawalQuotas(context.Background(), "BTC", "")
+	if err != nil {
+		t.Error("GetWithdrawalQuotas() error", err)
+	}
+}
+
+func TestApplyWithdrawal(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	_, err := k.ApplyWithdrawal(context.Background(), "ETH", "0x597873884BC3a6C10cB6Eb7C69172028Fa85B25A", "", "", "", "", false, 1)
+	if err != nil {
+		t.Error("ApplyWithdrawal() error", err)
+	}
+}
+
+func TestCancelWithdrawal(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	err := k.CancelWithdrawal(context.Background(), "5bffb63303aa675e8bbe18f9")
+	if err != nil {
+		t.Error("CancelWithdrawal() error", err)
+	}
+}
+
+func TestGetBasicFee(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetBasicFee(context.Background(), "1")
+	if err != nil {
+		t.Error("GetBasicFee() error", err)
+	}
+}
+
+func TestGetTradingFee(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetTradingFee(context.Background(), "BTC-USDT")
+	if err != nil {
+		t.Error("GetTradingFee() error", err)
+	}
+}

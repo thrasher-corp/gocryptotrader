@@ -120,6 +120,9 @@ const (
 	kucoinGetHistoricalWithdrawalList = "/api/v1/hist-withdrawals"
 	kucoinGetWithdrawalQuotas         = "/api/v1/withdrawals/quotas"
 	kucoinCancelWithdrawal            = "/api/v1/withdrawals/%s"
+
+	kucoinBasicFee   = "/api/v1/base-fee"
+	kucoinTradingFee = "/api/v1/trade-fees"
 )
 
 // GetSymbols gets pairs details on the exchange
@@ -1754,14 +1757,14 @@ func (k *Kucoin) GetDepositList(ctx context.Context, currency, status string, st
 }
 
 // GetHistoricalDepositList get historical deposit list items
-func (k *Kucoin) GetHistoricalDepositList(ctx context.Context, currency, status string, startAt, endAt time.Time) ([]Deposit, error) {
+func (k *Kucoin) GetHistoricalDepositList(ctx context.Context, currency, status string, startAt, endAt time.Time) ([]HistoricalDepositWithdrawal, error) {
 	resp := struct {
 		Data struct {
-			CurrentPage int64     `json:"currentPage"`
-			PageSize    int64     `json:"pageSize"`
-			TotalNum    int64     `json:"totalNum"`
-			TotalPage   int64     `json:"totalPage"`
-			Items       []Deposit `json:"items"`
+			CurrentPage int64                         `json:"currentPage"`
+			PageSize    int64                         `json:"pageSize"`
+			TotalNum    int64                         `json:"totalNum"`
+			TotalPage   int64                         `json:"totalPage"`
+			Items       []HistoricalDepositWithdrawal `json:"items"`
 		} `json:"data"`
 		Error
 	}{}
@@ -1779,6 +1782,158 @@ func (k *Kucoin) GetHistoricalDepositList(ctx context.Context, currency, status 
 		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
 	}
 	return resp.Data.Items, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetHistoricalDepositList, params), nil, publicSpotRate, &resp)
+}
+
+// GetWithdrawalList get withdrawal list items
+func (k *Kucoin) GetWithdrawalList(ctx context.Context, currency, status string, startAt, endAt time.Time) ([]Withdrawal, error) {
+	resp := struct {
+		Data struct {
+			CurrentPage int64        `json:"currentPage"`
+			PageSize    int64        `json:"pageSize"`
+			TotalNum    int64        `json:"totalNum"`
+			TotalPage   int64        `json:"totalPage"`
+			Items       []Withdrawal `json:"items"`
+		} `json:"data"`
+		Error
+	}{}
+	params := url.Values{}
+	if currency != "" {
+		params.Set("currency", currency)
+	}
+	if status != "" {
+		params.Set("status", status)
+	}
+	if !startAt.IsZero() {
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	return resp.Data.Items, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinWithdrawal, params), nil, publicSpotRate, &resp)
+}
+
+// GetHistoricalWithdrawalList get historical withdrawal list items
+func (k *Kucoin) GetHistoricalWithdrawalList(ctx context.Context, currency, status string, startAt, endAt time.Time, currentPage, pageSize int64) ([]HistoricalDepositWithdrawal, error) {
+	resp := struct {
+		Data struct {
+			CurrentPage int64                         `json:"currentPage"`
+			PageSize    int64                         `json:"pageSize"`
+			TotalNum    int64                         `json:"totalNum"`
+			TotalPage   int64                         `json:"totalPage"`
+			Items       []HistoricalDepositWithdrawal `json:"items"`
+		} `json:"data"`
+		Error
+	}{}
+	params := url.Values{}
+	if currency != "" {
+		params.Set("currency", currency)
+	}
+	if status != "" {
+		params.Set("status", status)
+	}
+	if !startAt.IsZero() {
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	if currentPage != 0 {
+		params.Set("currentPage", strconv.FormatInt(currentPage, 10))
+	}
+	if pageSize != 0 {
+		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
+	}
+	return resp.Data.Items, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetHistoricalWithdrawalList, params), nil, publicSpotRate, &resp)
+}
+
+// GetWithdrawalQuotas get withdrawal quota details
+func (k *Kucoin) GetWithdrawalQuotas(ctx context.Context, currency, chain string) (WithdrawalQuota, error) {
+	resp := struct {
+		Data WithdrawalQuota `json:"data"`
+		Error
+	}{}
+	params := url.Values{}
+	if currency == "" {
+		return resp.Data, errors.New("currency can't be empty")
+	}
+	params.Set("currency", currency)
+	if chain != "" {
+		params.Set("chain", chain)
+	}
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetWithdrawalQuotas, params), nil, publicSpotRate, &resp)
+}
+
+// ApplyWithdrawal create a withdrawal request
+func (k *Kucoin) ApplyWithdrawal(ctx context.Context, currency, address, memo, remark, chain, feeDeductType string, isInner bool, amount float64) (string, error) {
+	resp := struct {
+		WithdrawalID string `json:"withdrawalId"`
+		Error
+	}{}
+
+	params := make(map[string]interface{})
+	if currency == "" {
+		return resp.WithdrawalID, errors.New("currency can't be empty")
+	}
+	params["currency"] = currency
+	if address == "" {
+		return resp.WithdrawalID, errors.New("address can't be empty")
+	}
+	params["address"] = address
+	if amount == 0 {
+		return resp.WithdrawalID, errors.New("amount can't be empty")
+	}
+	params["amount"] = amount
+	if memo != "" {
+		params["memo"] = memo
+	}
+	params["isInner"] = isInner
+	if remark != "" {
+		params["remark"] = remark
+	}
+	if chain != "" {
+		params["chain"] = chain
+	}
+	if feeDeductType != "" {
+		params["feeDeductType"] = feeDeductType
+	}
+	return resp.WithdrawalID, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinWithdrawal, params, publicSpotRate, &resp)
+}
+
+// CancelWithdrawal used to cancel a withdrawal request
+func (k *Kucoin) CancelWithdrawal(ctx context.Context, withdrawalID string) error {
+	resp := struct {
+		Error
+	}{}
+
+	return k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, fmt.Sprintf(kucoinCancelWithdrawal, withdrawalID), nil, publicSpotRate, &resp)
+}
+
+// GetBasicFee get basic fee rate of users
+func (k *Kucoin) GetBasicFee(ctx context.Context, currencyType string) (Fees, error) {
+	resp := struct {
+		Data Fees `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if currencyType != "" {
+		params.Set("currencyType", currencyType)
+	}
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinBasicFee, params), nil, publicSpotRate, &resp)
+}
+
+// GetTradingFee get fee rate of trading pairs
+func (k *Kucoin) GetTradingFee(ctx context.Context, symbols string) ([]Fees, error) {
+	resp := struct {
+		Data []Fees `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if symbols != "" {
+		params.Set("symbols", symbols)
+	}
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinTradingFee, params), nil, publicSpotRate, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request

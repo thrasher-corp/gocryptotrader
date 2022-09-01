@@ -621,7 +621,32 @@ type Deposit struct {
 	UpdatedAt kucoinTimeMilliSec
 }
 
-type HistoricalDeposit struct {
+type HistoricalDepositWithdrawal struct {
 	baseDeposit
 	CreatedAt kucoinTimeMilliSec `json:"createAt"`
+}
+
+type Withdrawal struct {
+	Deposit
+	ID string `json:"id"`
+}
+
+type WithdrawalQuota struct {
+	Currency            string  `json:"currency"`
+	LimitBTCAmount      float64 `json:"limitBTCAmount,string"`
+	UsedBTCAmount       float64 `json:"usedBTCAmount,string"`
+	RemainAmount        float64 `json:"remainAmount,string"`
+	AvailableAmount     float64 `json:"availableAmount,string"`
+	WithdrawMinFee      float64 `json:"withdrawMinFee,string"`
+	InnerWithdrawMinFee float64 `json:"innerWithdrawMinFee,string"`
+	WithdrawMinSize     float64 `json:"withdrawMinSize,string"`
+	IsWithdrawEnabled   bool    `json:"isWithdrawEnabled"`
+	Precision           int64   `json:"precision"`
+	Chain               string  `json:"chain"`
+}
+
+type Fees struct {
+	Symbol       string  `json:"symbol"`
+	TakerFeeRate float64 `json:"takerFeeRate,string"`
+	MakerFeeRate float64 `json:"makerFeeRate,string"`
 }
