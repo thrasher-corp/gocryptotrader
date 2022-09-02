@@ -547,20 +547,11 @@ func (bt *BackTest) CloseAllPositions() error {
 	if err != nil {
 		return err
 	}
-
 	for i := range events {
-		k := events[i].ToKline()
-		err = bt.Statistic.SetEventForOffset(k)
-		if err != nil {
-			log.Errorf(common.Backtester, "SetEventForOffset kline %v %v %v %v", events[i].GetExchange(), events[i].GetAssetType(), events[i].Pair(), err)
-		}
-		err = bt.Statistic.SetEventForOffset(events[i])
-		if err != nil {
-			log.Errorf(common.Backtester, "SetEventForOffset signal %v %v %v %v", events[i].GetExchange(), events[i].GetAssetType(), events[i].Pair(), err)
-		}
 		bt.EventQueue.AppendEvent(events[i])
 	}
 	bt.Run()
+
 	if bt.LiveDataHandler.IsRealOrders() {
 		err = bt.LiveDataHandler.UpdateFunding()
 		if err != nil {
@@ -570,11 +561,12 @@ func (bt *BackTest) CloseAllPositions() error {
 
 	bt.Funding.CreateSnapshot(events[0].GetTime())
 	for i := range events {
-		ff, err := bt.Funding.GetFundingForEvent(events[i])
+		var funds funding.IFundingPair
+		funds, err = bt.Funding.GetFundingForEvent(events[i])
 		if err != nil {
 			return err
 		}
-		err = bt.Portfolio.SetHoldingsForEvent(ff.FundReader(), events[i])
+		err = bt.Portfolio.SetHoldingsForEvent(funds.FundReader(), events[i])
 		if err != nil {
 			return err
 		}

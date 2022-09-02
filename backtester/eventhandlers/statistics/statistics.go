@@ -85,22 +85,22 @@ func applyEventAtOffset(ev common.Event, lookup *CurrencyPairStatistic, i int) e
 	case kline.Event:
 		// using kline.Event as signal.Event also matches data.Event
 		if lookup.Events[i].DataEvent != nil && lookup.Events[i].DataEvent != ev {
-			log.Warnf(common.Statistics, "overwriting %+v %+v \nwith %+v %+v", lookup.Events[i].DataEvent, lookup.Events[i].DataEvent.GetBase(), ev, ev.GetBase())
+			return fmt.Errorf("kline event %w", ErrAlreadyProcessed)
 		}
 		lookup.Events[i].DataEvent = t
 	case signal.Event:
-		if lookup.Events[i].SignalEvent != nil && lookup.Events[i].SignalEvent != ev {
-			log.Warnf(common.Statistics, "overwriting %+v %+v \nwith %+v %+v", lookup.Events[i].SignalEvent, lookup.Events[i].SignalEvent.GetBase(), ev, ev.GetBase())
+		if lookup.Events[i].SignalEvent != nil {
+			return fmt.Errorf("signal event %w", ErrAlreadyProcessed)
 		}
 		lookup.Events[i].SignalEvent = t
 	case order.Event:
-		if lookup.Events[i].OrderEvent != nil && lookup.Events[i].OrderEvent != ev {
-			log.Warnf(common.Statistics, "overwriting %+v %+v \nwith %+v %+v", lookup.Events[i].OrderEvent, lookup.Events[i].OrderEvent.GetBase(), ev, ev.GetBase())
+		if lookup.Events[i].OrderEvent != nil {
+			return fmt.Errorf("order event %w", ErrAlreadyProcessed)
 		}
 		lookup.Events[i].OrderEvent = t
 	case fill.Event:
-		if lookup.Events[i].FillEvent != nil && lookup.Events[i].FillEvent != ev {
-			log.Warnf(common.Statistics, "overwriting %+v %+v \nwith %+v %+v", lookup.Events[i].FillEvent, lookup.Events[i].FillEvent.GetBase(), ev, ev.GetBase())
+		if lookup.Events[i].FillEvent != nil {
+			return fmt.Errorf("fill event %w", ErrAlreadyProcessed)
 		}
 		lookup.Events[i].FillEvent = t
 	default:
