@@ -1289,7 +1289,7 @@ func (ok *Okx) SetQuoteProducts(ctx context.Context, args []SetQuoteProductParam
 	return nil, errNoValidResponseFromServer
 }
 
-// ReserMMPStatus reset the MMP status to be inactive.
+// ResetMMPStatus reset the MMP status to be inactive.
 func (ok *Okx) ResetMMPStatus(ctx context.Context) (time.Time, error) {
 	type response struct {
 		Msg  string              `json:"msg"`
@@ -4752,6 +4752,7 @@ func (ok *Okx) GetOpenInterestAndVolumeExpiry(ctx context.Context, currency stri
 	volumes := []ExpiryOpenInterestAndVolume{}
 	for x := range resp.Data {
 		var timestamp int
+
 		if len(resp.Data[x]) != 6 {
 			continue
 		}
@@ -4759,6 +4760,7 @@ func (ok *Okx) GetOpenInterestAndVolumeExpiry(ctx context.Context, currency stri
 		if err != nil {
 			continue
 		}
+		var expiryTime time.Time
 		expTime := resp.Data[x][1]
 		if expTime != "" && len(expTime) == 8 {
 			year, err := strconv.Atoi(expTime[0:4])
