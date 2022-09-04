@@ -282,7 +282,7 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, 
 			Underlying:     "ETH-USD",
 		})
 		if err != nil {
-			return pairs, nil
+			return pairs, err
 		}
 		instsc, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
 			InstrumentType: okxInstTypeOption,
@@ -514,16 +514,16 @@ func (ok *Okx) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 	if err != nil {
 		return info, err
 	}
-	var currencyBalance []account.Balance
+	currencyBalance := make([]account.Balance, len(balances))
 	for i := range balances {
 		free := balances[i].AvailBal
 		locked := balances[i].FrozenBalance
-		currencyBalance = append(currencyBalance, account.Balance{
+		currencyBalance[i] = account.Balance{
 			CurrencyName: currency.NewCode(balances[i].Currency),
 			Total:        balances[i].Balance,
 			Hold:         locked,
 			Free:         free,
-		})
+		}
 	}
 	acc.Currencies = currencyBalance
 
@@ -813,7 +813,7 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (or
 	var err error
 	for x := range orders {
 		ord := orders[x]
-		if err := ord.Validate(ord.StandardCancel()); err != nil {
+		if err = ord.Validate(ord.StandardCancel()); err != nil {
 			return cancelBatchResponse, err
 		}
 		if !ok.SupportsAsset(ord.AssetType) {
@@ -960,7 +960,6 @@ func (ok *Okx) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 	if len(req.Pairs) == 0 || len(req.Pairs) >= 40 {
 		req.Pairs = append(req.Pairs, currency.EMPTYPAIR)
 	}
-	var orders []order.Detail
 	if !ok.SupportsAsset(req.AssetType) {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, req.AssetType)
 	}
@@ -985,6 +984,7 @@ func (ok *Okx) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 	if err != nil {
 		return nil, err
 	}
+	orders := make([]order.Detail, len(response))
 	for x := range response {
 		orderSide := response[x].Side
 		pair, err := ok.GetPairFromInstrumentID(response[x].InstrumentID)
@@ -1020,7 +1020,7 @@ func (ok *Okx) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 		case OkxOrderOptimalLimitIOC:
 			oType = order.UnknownType
 		}
-		orders = append(orders, order.Detail{
+		orders[x] = order.Detail{
 			Amount:          response[x].Size,
 			Pair:            pair,
 			Price:           response[x].Price,
@@ -1036,7 +1036,7 @@ func (ok *Okx) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 			AssetType:       req.AssetType,
 			Date:            response[x].CreationTime,
 			LastUpdated:     response[x].UpdateTime,
-		})
+		}
 	}
 	order.FilterOrdersByPairs(&orders, req.Pairs)
 	order.FilterOrdersByType(&orders, req.Type)
@@ -1052,7 +1052,6 @@ func (ok *Okx) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 	if len(req.Pairs) == 0 {
 		return nil, errMissingAtLeast1CurrencyPair
 	}
-	var orders []order.Detail
 	if !ok.SupportsAsset(req.AssetType) {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, req.AssetType)
 	}
@@ -1071,6 +1070,7 @@ func (ok *Okx) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 	if err != nil {
 		return nil, err
 	}
+	orders := make([]order.Detail, len(response))
 	for i := range response {
 		orderSide := response[i].Side
 		var orderStatus order.Status
@@ -1116,7 +1116,7 @@ func (ok *Okx) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 		case OkxOrderOptimalLimitIOC:
 			oType = order.UnknownType
 		}
-		orders = append(orders, order.Detail{
+		orders[i] = order.Detail{
 			Amount:          response[i].Size,
 			Pair:            pair,
 			Price:           response[i].Price,
@@ -1132,7 +1132,7 @@ func (ok *Okx) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 			AssetType:       req.AssetType,
 			Date:            response[i].CreationTime,
 			LastUpdated:     response[i].UpdateTime,
-		})
+		}
 	}
 	return orders, nil
 }

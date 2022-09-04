@@ -1028,7 +1028,7 @@ func (ok *Okx) GetAlgoOrderHistory(ctx context.Context, orderType, state, algoOr
 	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, getAlgoOrderHistoryEPL, http.MethodGet, common.EncodeURLValues(algoOrderHistory, params), nil, &resp, true)
 }
 
-// GetEasyConvertCurrencyList retrive list of small convertibles and mainstream currencies. Only applicable to the crypto balance less than $10.
+// GetEasyConvertCurrencyList retrieve list of small convertibles and mainstream currencies. Only applicable to the crypto balance less than $10.
 func (ok *Okx) GetEasyConvertCurrencyList(ctx context.Context) (*EasyConvertDetail, error) {
 	type response struct {
 		Msg  string              `json:"msg"`
@@ -2835,7 +2835,10 @@ func (ok *Okx) ViewSubAccountList(ctx context.Context, enable bool, subaccountNa
 }
 
 // ResetSubAccountAPIKey applies to master accounts only and master accounts APIKey must be linked to IP addresses.
-func (ok *Okx) ResetSubAccountAPIKey(ctx context.Context, arg SubAccountAPIKeyParam) (*SubAccountAPIKeyResponse, error) {
+func (ok *Okx) ResetSubAccountAPIKey(ctx context.Context, arg *SubAccountAPIKeyParam) (*SubAccountAPIKeyResponse, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
 	if arg.SubAccountName == "" {
 		return nil, errInvalidSubAccountName
 	}
@@ -3330,9 +3333,8 @@ func (ok *Okx) GetGridAIParameter(ctx context.Context, algoOrderType, instrument
 	}
 	if algoOrderType == "contract_grid" && !(direction == "long" || direction == "short" || direction == "neutral") {
 		return nil, errors.New("parameter 'direction' is required for 'contract_grid' algo order type")
-	} else {
-		params.Set("direction", direction)
 	}
+	params.Set("direction", direction)
 	params.Set("algoOrdType", algoOrderType)
 	params.Set("instId", instrumentID)
 	if duration == "7D" || duration == "30D" || duration == "180D" {
@@ -4750,15 +4752,13 @@ func (ok *Okx) GetOpenInterestAndVolumeExpiry(ctx context.Context, currency stri
 	volumes := []ExpiryOpenInterestAndVolume{}
 	for x := range resp.Data {
 		var timestamp int
-
 		if len(resp.Data[x]) != 6 {
 			continue
 		}
-		timestamp, err := strconv.Atoi(resp.Data[x][0])
+		timestamp, err = strconv.Atoi(resp.Data[x][0])
 		if err != nil {
 			continue
 		}
-		var expiryTime time.Time
 		expTime := resp.Data[x][1]
 		if expTime != "" && len(expTime) == 8 {
 			year, err := strconv.Atoi(expTime[0:4])

@@ -2121,7 +2121,7 @@ func TestResetSubAccountAPIKey(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := ok.ResetSubAccountAPIKey(context.Background(), SubAccountAPIKeyParam{
+	if _, err := ok.ResetSubAccountAPIKey(context.Background(), &SubAccountAPIKeyParam{
 		SubAccountName: "samuael",
 		APIKey:         apiKey,
 	}); err != nil && !strings.Contains(err.Error(), "This endpoint requires that APIKey must be bound to IP") {
