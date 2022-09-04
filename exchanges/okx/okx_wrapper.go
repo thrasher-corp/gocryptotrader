@@ -813,7 +813,7 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (or
 	var err error
 	for x := range orders {
 		ord := orders[x]
-		if err = ord.Validate(ord.StandardCancel()); err != nil {
+		if err := ord.Validate(ord.StandardCancel()); err != nil {
 			return cancelBatchResponse, err
 		}
 		if !ok.SupportsAsset(ord.AssetType) {
