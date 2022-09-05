@@ -244,7 +244,7 @@ func TestGetBlockTrade(t *testing.T) {
 
 func TestGetInstrument(t *testing.T) {
 	t.Parallel()
-	_, err := ok.GetInstruments(context.Background(), &InstrumentsFetchParams{
+	instruments, err := ok.GetInstruments(context.Background(), &InstrumentsFetchParams{
 		InstrumentType: "MARGIN",
 	})
 	if err != nil {
@@ -254,16 +254,19 @@ func TestGetInstrument(t *testing.T) {
 		InstrumentType: "OPTION",
 		Underlying:     "SOL-USD",
 	})
+	for x := range instruments {
+		println(instruments[x].Underlying)
+	}
 	if err != nil {
 		t.Error("Okx GetInstruments() error", err)
 	}
 }
 
-var deliveryHistoryData = `{"code":"0","msg":"","data":[{"ts":"1597026383085","details":[{"type":"delivery","instId":"ZIL-BTC","px":"0.016"}]},{"ts":"1597026383085","details":[{"instId":"BTC-USD-200529-6000-C","type":"exercised","px":"0.016"},{"instId":"BTC-USD-200529-8000-C","type":"exercised","px":"0.016"}]}]}`
+var deliveryHistoryData = `[{"ts":"1597026383085","details":[{"type":"delivery","instId":"ZIL-BTC","px":"0.016"}]},{"ts":"1597026383085","details":[{"instId":"BTC-USD-200529-6000-C","type":"exercised","px":"0.016"},{"instId":"BTC-USD-200529-8000-C","type":"exercised","px":"0.016"}]}]`
 
 func TestGetDeliveryHistory(t *testing.T) {
 	t.Parallel()
-	var repo DeliveryHistoryResponse
+	var repo []DeliveryHistory
 	if err := json.Unmarshal([]byte(deliveryHistoryData), &repo); err != nil {
 		t.Error("Okx error", err)
 	}
@@ -308,11 +311,11 @@ func TestGetOptionMarketData(t *testing.T) {
 	}
 }
 
-var estimatedDeliveryResponseString = `{"code":"0","msg":"","data":[{"instType":"FUTURES","instId":"BTC-USDT-201227","settlePx":"200","ts":"1597026383085"}]}`
+var estimatedDeliveryResponseString = `[{"instType":"FUTURES","instId":"BTC-USDT-201227","settlePx":"200","ts":"1597026383085"}]`
 
 func TestGetEstimatedDeliveryPrice(t *testing.T) {
 	t.Parallel()
-	var result DeliveryEstimatedPriceResponse
+	var result []DeliveryEstimatedPrice
 	err := json.Unmarshal([]byte(estimatedDeliveryResponseString), (&result))
 	if err != nil {
 		t.Error("Okx GetEstimatedDeliveryPrice() error", err)
@@ -322,9 +325,15 @@ func TestGetEstimatedDeliveryPrice(t *testing.T) {
 	}
 }
 
+var discountRateJSON = `{"amt":"1","ccy":"BTC","discountInfo":[{"discountRate":"1","maxAmt":"5000000","minAmt":"0"},{"discountRate":"0.975","maxAmt":"10000000","minAmt":"5000000"},{"discountRate":"0.975","maxAmt":"20000000","minAmt":"10000000"},{"discountRate":"0.95","maxAmt":"40000000","minAmt":"20000000"},{"discountRate":"0.9","maxAmt":"100000000","minAmt":"40000000"},{"discountRate":"0","maxAmt":"","minAmt":"100000000"}],"discountLv":"1"}`
+
 func TestGetDiscountRateAndInterestFreeQuota(t *testing.T) {
 	t.Parallel()
-	_, err := ok.GetDiscountRateAndInterestFreeQuota(context.Background(), "BTC", 0)
+	var resp DiscountRate
+	if err := json.Unmarshal([]byte(discountRateJSON), &resp); err != nil {
+		t.Errorf("%s error while deserializing to DiscountRate %v", ok.Name, err)
+	}
+	_, err := ok.GetDiscountRateAndInterestFreeQuota(context.Background(), "", 0)
 	if err != nil {
 		t.Error("Okx GetDiscountRateAndInterestFreeQuota() error", err)
 	}
@@ -704,8 +713,8 @@ func TestStopOrder(t *testing.T) {
 		TradeMode:                  "isolated",
 		Size:                       12,
 
-		TakeProfitTriggerPrice: "12345",
-		TakeProfitOrderPrice:   "1234",
+		TakeProfitTriggerPrice: 12335,
+		TakeProfitOrderPrice:   1234,
 	}); err != nil {
 		t.Errorf("Okx StopOrderParams() error %v", err)
 	}
@@ -716,7 +725,7 @@ func TestStopOrder(t *testing.T) {
 		Side:          order.Buy,
 		TradeMode:     "isolated",
 		Size:          2,
-		ActivePrice:   "1234",
+		ActivePrice:   1234,
 	}); err != nil {
 		t.Error("Okx PlaceTrailingStopOrder error", err)
 	}
@@ -838,8 +847,14 @@ func TestGetEasyConvertCurrencyList(t *testing.T) {
 	}
 }
 
+var placeEasyConvertJSON = `[{"fillFromSz": "6.5807127",	"fillToSz": "0.17171580105126",	"fromCcy": "ADA","status": "running","toCcy": "OKB","uTime": "1661419684687"},{"fillFromSz": "2.997",		"fillToSz": "0.1683755161661844",		"fromCcy": "USDC",		"status": "running",		"toCcy": "OKB",		"uTime": "1661419684687"	}]`
+
 func TestPlaceEasyConvert(t *testing.T) {
 	t.Parallel()
+	var response []EasyConvertItem
+	if err := json.Unmarshal([]byte(placeEasyConvertJSON), &response); err != nil {
+		t.Errorf("%s EasyConvertItem() error %v", ok.Name, err)
+	}
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
@@ -1009,8 +1024,8 @@ func TestSetQuoteProducts(t *testing.T) {
 			Data: []MakerInstrumentSetting{
 				{
 					Underlying:     "BTC-USD",
-					MaxBlockSize:   "10000",
-					MakerPriceBand: "5",
+					MaxBlockSize:   10000,
+					MakerPriceBand: 5,
 				},
 				{
 					Underlying: "ETH-USDT",
@@ -2349,7 +2364,7 @@ func TestSpotGridWithdrawProfit(t *testing.T) {
 	}
 	if _, err := ok.SpotGridWithdrawProfit(context.Background(), "1234"); err != nil && strings.Contains(err.Error(), "Policy type is not grid policy") {
 		t.Skip("Policy type is not grid policy")
-	} else if err != nil {
+	} else if err != nil && !strings.Contains(err.Error(), "The strategy does not exist or has stopped") {
 		t.Error("Okx SpotGridWithdrawProfit() error", err)
 	}
 }
@@ -2787,7 +2802,7 @@ func TestGetActiveOrders(t *testing.T) {
 		t.Error(err)
 	}
 	var getOrdersRequest = order.GetOrdersRequest{
-		Type:      order.AnyType,
+		Type:      order.Limit,
 		Pairs:     currency.Pairs{pair},
 		AssetType: asset.Spot,
 	}

@@ -65,6 +65,72 @@ func (a *TradeResponse) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// UnmarshalJSON decerializes json incloding type conversion
+func (a *Offer) UnmarshalJSON(data []byte) error {
+	type Alias Offer
+	chil := &struct {
+		*Alias
+		Apy string `json:"apy"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	err := json.Unmarshal(data, chil)
+	if err != nil {
+		return err
+	}
+	if value, err := strconv.ParseFloat(chil.Apy, 64); err == nil {
+		a.Apy = value
+	}
+	return nil
+}
+
+// UnmarshalJSON decerializes json incloding type conversion
+func (a *DiscountRateInfoItem) UnmarshalJSON(data []byte) error {
+	type Alias DiscountRateInfoItem
+	chil := &struct {
+		*Alias
+		MaxAmount string `json:"maxAmt"`
+		MinAmount string `json:"minAmt"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	err := json.Unmarshal(data, chil)
+	if err != nil {
+		return err
+	}
+	if value, err := strconv.ParseFloat(chil.MaxAmount, 64); err == nil {
+		a.MaxAmount = value
+	}
+	if value, err := strconv.ParseFloat(chil.MinAmount, 64); err == nil {
+		a.MinAmount = value
+	}
+	return nil
+}
+
+// UnmarshalJSON deserializes json and type convert string to float
+func (a *OfferInvestData) UnmarshalJSON(data []byte) error {
+	type Alias OfferInvestData
+	chil := &struct {
+		*Alias
+		Balance       string `json:"bal"`
+		MinimumAmount string `json:"minAmt"`
+		MaximumAmount string `json:"maxAmt"`
+	}{}
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
+	}
+	if value, err := strconv.ParseFloat(chil.Balance, 64); err == nil {
+		a.Balance = value
+	}
+	if value, err := strconv.ParseFloat(chil.MinimumAmount, 64); err == nil {
+		a.MinimumAmount = value
+	}
+	if value, err := strconv.ParseFloat(chil.MaximumAmount, 64); err == nil {
+		a.MaximumAmount = value
+	}
+	return nil
+}
+
 // UnmarshalJSON decerializes JSON, and timestamp information.
 func (a *TradingVolumdIn24HR) UnmarshalJSON(data []byte) error {
 	type Alias TradingVolumdIn24HR
@@ -2158,12 +2224,20 @@ func (a *CurrencyOneClickRepay) UnmarshalJSON(data []byte) error {
 	type Alias CurrencyOneClickRepay
 	chil := &struct {
 		*Alias
-		UpdateTime int64 `json:"uTime,string"`
+		UpdateTime   int64  `json:"uTime,string"`
+		FillToSize   string `json:"fillToSz"`
+		FillFromSize string `json:"fillFromSz"`
 	}{
 		Alias: (*Alias)(a),
 	}
 	if err := json.Unmarshal(data, chil); err != nil {
 		return err
+	}
+	if value, err := strconv.ParseFloat(strings.ReplaceAll(chil.FillToSize, ",", ""), 64); err == nil {
+		a.FillToSize = value
+	}
+	if value, err := strconv.ParseFloat(chil.FillFromSize, 64); err == nil {
+		a.FillFromSize = value
 	}
 	a.UpdateTime = time.Unix(chil.UpdateTime, 0)
 	return nil

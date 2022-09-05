@@ -205,12 +205,6 @@ const (
 
 // Market Data Endoints
 
-// MarketDataResponse represents list of ticker market data.
-type MarketDataResponse struct {
-	Msg  string           `json:"msg"`
-	Data []TickerResponse `json:"data"`
-}
-
 // TickerResponse represents the market data endpoint ticker detail
 type TickerResponse struct {
 	InstrumentType asset.Item `json:"instType"`
@@ -460,13 +454,6 @@ type DeliveryHistory struct {
 	Details   []DeliveryHistoryDetail `json:"details"`
 }
 
-// DeliveryHistoryResponse represents the direct response of delivery history coming from the server.
-type DeliveryHistoryResponse struct {
-	Code string            `json:"code"`
-	Msg  string            `json:"msg"`
-	Data []DeliveryHistory `json:"data"`
-}
-
 // OpenInterest Retrieve the total open interest for contracts on OKX.
 type OpenInterest struct {
 	InstrumentType       asset.Item `json:"instType"`
@@ -525,30 +512,19 @@ type DeliveryEstimatedPrice struct {
 	Timestamp              time.Time  `json:"ts"`
 }
 
-// DeliveryEstimatedPriceResponse represents estimated delivery price which will only have a return value one hour before the delivery.
-type DeliveryEstimatedPriceResponse struct {
-	Code string                   `json:"code"`
-	Msg  string                   `json:"msg"`
-	Data []DeliveryEstimatedPrice `json:"data"`
-}
-
-// DiscountRateResponse represents list of discount rate, status code, and response message information
-type DiscountRateResponse struct {
-	Code string         `json:"code"`
-	Msg  string         `json:"msg"`
-	Data []DiscountRate `json:"data"`
-}
-
 // DiscountRate represents the discount rate amount, currency, and other discount related informations.
 type DiscountRate struct {
-	Amount       string `json:"amt"`
-	Currency     string `json:"ccy"`
-	DiscountInfo []struct {
-		DiscountRate string `json:"discountRate"`
-		MaxAmount    string `json:"maxAmt"`
-		MinAmount    string `json:"minAmt"`
-	} `json:"discountInfo"`
-	DiscountRateLevel string `json:"discountLv"`
+	Amount            string                 `json:"amt"`
+	Currency          string                 `json:"ccy"`
+	DiscountInfo      []DiscountRateInfoItem `json:"discountInfo"`
+	DiscountRateLevel string                 `json:"discountLv"`
+}
+
+// DiscountRateInfoItem represents discount info list item for discount rate response
+type DiscountRateInfoItem struct {
+	DiscountRate string  `json:"discountRate"`
+	MaxAmount    float64 `json:"maxAmt"`
+	MinAmount    float64 `json:"minAmt"`
 }
 
 // ServerTime returning  the server time instance.
@@ -579,13 +555,6 @@ type LiquidationOrder struct {
 	Underlying     string                       `json:"uly"`
 }
 
-// LiquidationOrderResponse represents list of liquidation order, status code, and status message
-type LiquidationOrderResponse struct {
-	Code string             `json:"code"`
-	Msg  string             `json:"msg"`
-	Data []LiquidationOrder `json:"data"`
-}
-
 // LiquidationOrderDetailItem represents the detail information of liquidation order
 type LiquidationOrderDetailItem struct {
 	BankruptcyLoss        string    `json:"bkLoss"`
@@ -597,26 +566,12 @@ type LiquidationOrderDetailItem struct {
 	Timestamp             time.Time `json:"ts"`
 }
 
-// MarkPriceResponse endpoint response data; this holds list of information for mark price.
-type MarkPriceResponse struct {
-	Code string      `json:"code"`
-	Msg  string      `json:"msg"`
-	Data []MarkPrice `json:"data"`
-}
-
 // MarkPrice represents a mark price information for a single instrument id
 type MarkPrice struct {
 	InstrumentType asset.Item `json:"instType"`
 	InstrumentID   string     `json:"instId"`
 	MarkPrice      string     `json:"markPx"`
 	Timestamp      time.Time  `json:"ts"`
-}
-
-// PositionTiersResponse represents list of position tier, status code, and status message information
-type PositionTiersResponse struct {
-	Code string          `json:"code"`
-	Msg  string          `json:"msg"`
-	Data []PositionTiers `json:"data"`
 }
 
 // PositionTiers represents position tier detailed information.
@@ -649,13 +604,6 @@ type InterestRateLoanQuotaItem struct {
 	Level                string  `json:"level"`
 }
 
-// InterestRateLoanQuotaResponse holds a response information for InterestRateLoadQuotaItem informations.
-type InterestRateLoanQuotaResponse struct {
-	Msg  string                                   `json:"msg"`
-	Code string                                   `json:"code"`
-	Data []map[string][]InterestRateLoanQuotaItem `json:"data"`
-}
-
 // VIPInterestRateAndLoanQuotaInformation holds interest rate and loan quoata information for VIP users.
 type VIPInterestRateAndLoanQuotaInformation struct {
 	InterestRateLoanQuotaBasic
@@ -663,13 +611,6 @@ type VIPInterestRateAndLoanQuotaInformation struct {
 		Level     string  `json:"level"`
 		LoanQuota float64 `json:"loanQuota,string"`
 	} `json:"levelList"`
-}
-
-// VIPInterestRateAndLoanQuotaInformationResponse holds the response information for VIPInterestRateAndLoanQuotaInformation messages.
-type VIPInterestRateAndLoanQuotaInformationResponse struct {
-	Code string                                   `json:"code"`
-	Msg  string                                   `json:"msg"`
-	Data []VIPInterestRateAndLoanQuotaInformation `json:"data"`
 }
 
 // InsuranceFundInformationRequestParams insurance fund balance information.
@@ -681,13 +622,6 @@ type InsuranceFundInformationRequestParams struct {
 	Before         time.Time `json:"before"`
 	After          time.Time `json:"after"`
 	Limit          uint      `json:"limit"`
-}
-
-// InsuranceFundInformationResponse holds the insurance fund information response data coming from the server.
-type InsuranceFundInformationResponse struct {
-	Code string                     `json:"code"`
-	Msg  string                     `json:"msg"`
-	Data []InsuranceFundInformation `json:"data"`
 }
 
 // InsuranceFundInformation holds insurance fund information data.
@@ -706,25 +640,11 @@ type InsuranceFundInformationDetail struct {
 	Type      string    `json:"type"`
 }
 
-// SupportedCoinsResponse Retrieve the currencies supported by the trading data endpoints.
-type SupportedCoinsResponse struct {
-	Code string              `json:"code"`
-	Msg  string              `json:"msg"`
-	Data *SupportedCoinsData `json:"data"`
-}
-
 // SupportedCoinsData holds information about currencies supported by the trading data endpoints.
 type SupportedCoinsData struct {
 	Contract                      []string `json:"contract"`
 	TradingOptions                []string `json:"option"`
 	CurrenciesSupportedBySpotSpot []string `json:"spot"`
-}
-
-// TakerVolumeResponse list of taker volume
-type TakerVolumeResponse struct {
-	Code string      `json:"code"`
-	Msg  string      `json:"msg"`
-	Data [][3]string `json:"data"`
 }
 
 // TakerVolume represents taker volume information with creation timestamp
@@ -740,24 +660,10 @@ type MarginLendRatioItem struct {
 	MarginLendRatio float64   `json:"ratio"`
 }
 
-// MarginLendRatioResponse represents detailed margin lend ratio data, status code, and status message information
-type MarginLendRatioResponse struct {
-	Code string      `json:"code"`
-	Msg  string      `json:"msg"`
-	Data [][2]string `json:"data"`
-}
-
 // LongShortRatio represents the ratio of users with net long vs net short positions for futures and perpetual swaps.
 type LongShortRatio struct {
 	Timestamp       time.Time `json:"ts"`
 	MarginLendRatio float64   `json:"ratio"`
-}
-
-// LongShortRatioResponse represents the ratio of users with net long vs net short positions for futures and perpetual swaps response.
-type LongShortRatioResponse struct {
-	Code string      `json:"code"`
-	Msg  string      `json:"msg"`
-	Data [][2]string `json:"data"`
 }
 
 // OpenInterestVolume represents open interest and trading volume item for currencies of futures and perpetual swaps.
@@ -765,13 +671,6 @@ type OpenInterestVolume struct {
 	Timestamp    time.Time `json:"ts"`
 	OpenInterest float64   `json:"oi"`
 	Volume       float64   `json:"vol"`
-}
-
-// OpenInterestVolumeResponse represents response list of data for open interest and trading volume for futures and perpetual swaps.
-type OpenInterestVolumeResponse struct {
-	Code string      `json:"code"`
-	Msg  string      `json:"msg"`
-	Data [][3]string `json:"data"`
 }
 
 // OpenInterestVolumeRatio represents open interest and trading volume ratio for currencies of futures and perpetual swaps.
@@ -1035,30 +934,30 @@ type AlgoOrderParams struct {
 	Currency     string     `json:"ccy,omitempty"`
 	Side         order.Side `json:"side"` // Required
 	PositionSide string     `json:"posSide,omitempty"`
-	OrderType    string     `json:"ordType"`      // Required
-	Size         float64    `json:"sz,omitempty"` // Required
-	OrderTag     string     `json:"tag,omitempty"`
+	OrderType    string     `json:"ordType"`   // Required
+	Size         float64    `json:"sz,string"` // Required
 	ReduceOnly   bool       `json:"reduceOnly,omitempty"`
+	OrderTag     string     `json:"tag,omitempty"`
 	QuantityType string     `json:"tgtCcy,omitempty"`
 
 	// Place Stop Order params
-	TakeProfitTriggerPrice     string `json:"tpTriggerPx,omitempty"`
-	TakeProfitTriggerPriceType string `json:"tpTriggerPxType,omitempty"`
-	TakeProfitOrderPrice       string `json:"tpOrdPx,omitempty"`
-	StopLossTriggerPrice       string `json:"slTriggerPx,omitempty"`
-	StopLossTriggerPriceType   string `json:"slTriggerPxType,omitempty"`
-	StopLossOrderPrice         string `json:"slOrdPx,omitempty"`
+	TakeProfitTriggerPrice     float64 `json:"tpTriggerPx,string,omitempty"`
+	TakeProfitOrderPrice       float64 `json:"tpOrdPx,string,omitempty"`
+	StopLossTriggerPrice       float64 `json:"slTriggerPx,string,omitempty"`
+	StopLossOrderPrice         float64 `json:"slOrdPx,string,omitempty"`
+	StopLossTriggerPriceType   string  `json:"slTriggerPxType,omitempty"`
+	TakeProfitTriggerPriceType string  `json:"tpTriggerPxType,omitempty"`
 
 	// Trigger Price  Or TrailingStopOrderRequestParam
 	CallbackRatio          float64 `json:"callbackRatio,omitempty,string"`
+	ActivePrice            float64 `json:"activePx,string,omitempty"`
 	CallbackSpreadVariance string  `json:"callbackSpread,omitempty"`
-	ActivePrice            string  `json:"activePx,omitempty"`
 
 	// trigger algo orders params.
 	// notice: Trigger orders are not available in the net mode of futures and perpetual swaps
 	TriggerPrice     float64 `json:"triggerPx,string,omitempty"`
+	OrderPrice       float64 `json:"orderPx,string,omitempty"` // if the price i -1, then the order will be executed on the market.
 	TriggerPriceType string  `json:"triggerPxType,omitempty"`  // last, index, and mark
-	OrderPrice       int     `json:"orderPx,string,omitempty"` // if the price i -1, then the order will be executed on the market.
 
 	PriceVariance string  `json:"pxVar,omitempty"`          // Optional
 	PriceSpread   string  `json:"pxSpread,omitempty"`       // Optional
@@ -3138,14 +3037,14 @@ type OneClickRepayCurrencyItem struct {
 
 // CurrencyDebtAmount represents debt currency data
 type CurrencyDebtAmount struct {
-	DebtAmount   string `json:"debtAmt"`
-	DebtCurrency string `json:"debtCcy"`
+	DebtAmount   float64 `json:"debtAmt,string"`
+	DebtCurrency string  `json:"debtCcy"`
 }
 
 // CurrencyRepayAmount represents rebat currency amount.
 type CurrencyRepayAmount struct {
-	RepayAmount   string `json:"repayAmt"`
-	RepayCurrency string `json:"repayCcy"`
+	RepayAmount   float64 `json:"repayAmt,string"`
+	RepayCurrency string  `json:"repayCcy"`
 }
 
 // TradeOneClickRepayParam represents click one repay param
@@ -3159,7 +3058,7 @@ type CurrencyOneClickRepay struct {
 	DebtCurrency  string    `json:"debtCcy"`
 	FillFromSize  float64   `json:"fillFromSz,string"`
 	FillRepaySize float64   `json:"fillRepaySz,string"`
-	FillToSize    string    `json:"fillToSz"`
+	FillToSize    float64   `json:"fillToSz,string"`
 	RepayCurrency string    `json:"repayCcy"`
 	Status        string    `json:"status"`
 	UpdateTime    time.Time `json:"uTime"`
@@ -3173,10 +3072,10 @@ type SetQuoteProductParam struct {
 
 // MakerInstrumentSetting represents set quote product setting info
 type MakerInstrumentSetting struct {
-	Underlying     string `json:"uly"`
-	InstrumentID   string `json:"instId"`
-	MaxBlockSize   string `json:"maxBlockSz"`
-	MakerPriceBand string `json:"makerPxBand"`
+	Underlying     string  `json:"uly"`
+	InstrumentID   string  `json:"instId"`
+	MaxBlockSize   float64 `json:"maxBlockSz,string"`
+	MakerPriceBand float64 `json:"makerPxBand,string"`
 }
 
 // SetQuoteProductsResult represents set quote products result
@@ -3231,8 +3130,8 @@ type GridAIParameterResponse struct {
 	Duration             string  `json:"duration"`
 	GridNum              string  `json:"gridNum"`
 	InstrumentID         string  `json:"instId"`
-	Leverage             string  `json:"lever"`
-	MaximumPrice         string  `json:"maxPx"`
+	Leverage             float64 `json:"lever,string"`
+	MaximumPrice         float64 `json:"maxPx,string"`
 	MinimumInvestment    float64 `json:"minInvestment,string"`
 	MinimumPrice         float64 `json:"minPx,string"`
 	PerMaximumProfitRate float64 `json:"perMaxProfitRate,string"`
@@ -3242,24 +3141,27 @@ type GridAIParameterResponse struct {
 
 // Offer represents an investment offer information for different 'staking' and 'defi' protocols
 type Offer struct {
-	Ccy          string   `json:"ccy"`
-	ProductID    string   `json:"productId"`
-	Protocol     string   `json:"protocol"`
-	ProtocolType string   `json:"protocolType"`
-	EarningCcy   []string `json:"earningCcy"`
-	Term         string   `json:"term"`
-	Apy          string   `json:"apy"`
-	EarlyRedeem  bool     `json:"earlyRedeem"`
-	InvestData   []struct {
-		Currency      string `json:"ccy"`
-		Balance       string `json:"bal"`
-		MinimumAmount string `json:"minAmt"`
-		MaximumAmount string `json:"maxAmt"`
-	} `json:"investData"`
-	EarningData []struct {
+	Currency     string            `json:"ccy"`
+	ProductID    string            `json:"productId"`
+	Protocol     string            `json:"protocol"`
+	ProtocolType string            `json:"protocolType"`
+	EarningCcy   []string          `json:"earningCcy"`
+	Term         string            `json:"term"`
+	Apy          float64           `json:"apy"`
+	EarlyRedeem  bool              `json:"earlyRedeem"`
+	InvestData   []OfferInvestData `json:"investData"`
+	EarningData  []struct {
 		Currency    string `json:"ccy"`
 		EarningType string `json:"earningType"`
 	} `json:"earningData"`
+}
+
+// OfferInvestData represents currencies invest data information for an offer
+type OfferInvestData struct {
+	Currency      string  `json:"ccy"`
+	Balance       float64 `json:"bal"`
+	MinimumAmount float64 `json:"minAmt"`
+	MaximumAmount float64 `json:"maxAmt"`
 }
 
 // PurchaseRequestParam represents purchase request param specific product
@@ -3303,34 +3205,34 @@ type ActiveFundingOrder struct {
 	Term         string `json:"term"`
 	Apy          string `json:"apy"`
 	InvestData   []struct {
-		Currency string `json:"ccy"`
-		Amount   string `json:"amt"`
+		Currency string  `json:"ccy"`
+		Amount   float64 `json:"amt,string"`
 	} `json:"investData"`
 	EarningData []struct {
-		Ccy         string `json:"ccy"`
-		EarningType string `json:"earningType"`
-		Earnings    string `json:"earnings"`
+		Ccy         string  `json:"ccy"`
+		EarningType string  `json:"earningType"`
+		Earnings    float64 `json:"earnings,string"`
 	} `json:"earningData"`
 	PurchasedTime time.Time `json:"purchasedTime"`
 }
 
 // FundingOrder represents orders of earning, purchase, and redeem
 type FundingOrder struct {
-	OrderID      string `json:"ordId"`
-	State        string `json:"state"`
-	Currency     string `json:"ccy"`
-	Protocol     string `json:"protocol"`
-	ProtocolType string `json:"protocolType"`
-	Term         string `json:"term"`
-	Apy          string `json:"apy"`
+	OrderID      string  `json:"ordId"`
+	State        string  `json:"state"`
+	Currency     string  `json:"ccy"`
+	Protocol     string  `json:"protocol"`
+	ProtocolType string  `json:"protocolType"`
+	Term         string  `json:"term"`
+	Apy          float64 `json:"apy,string"`
 	InvestData   []struct {
-		Currency string `json:"ccy"`
-		Amount   string `json:"amt"`
+		Currency string  `json:"ccy"`
+		Amount   float64 `json:"amt,string"`
 	} `json:"investData"`
 	EarningData []struct {
-		Currency         string `json:"ccy"`
-		EarningType      string `json:"earningType"`
-		RealizedEarnings string `json:"realizedEarnings"`
+		Currency         string  `json:"ccy"`
+		EarningType      string  `json:"earningType"`
+		RealizedEarnings float64 `json:"realizedEarnings,string"`
 	} `json:"earningData"`
 	PurchasedTime time.Time `json:"purchasedTime"`
 	RedeemedTime  time.Time `json:"redeemedTime"`

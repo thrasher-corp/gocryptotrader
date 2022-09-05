@@ -295,23 +295,26 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, 
 			InstrumentType: okxInstTypeMargin,
 		})
 	}
-	if err != nil || len(insts) == 0 {
+	if err != nil {
 		return pairs, err
+	}
+	if len(insts) == 0 {
+		return pairs, errNoInstrumentFound
 	}
 	for x := range insts {
 		var pair string
 		switch insts[x].InstrumentType {
-		case asset.Spot:
+		case asset.Spot, asset.Margin:
 			pair = insts[x].BaseCurrency + format.Delimiter + insts[x].QuoteCurrency
+			if pair == "-" {
+				continue
+			}
 		case asset.Futures, asset.PerpetualSwap, asset.Option:
 			currency, err := currency.NewPairFromString(insts[x].Underlying)
 			if err != nil {
-				continue
+				return pairs, err
 			}
 			pair = currency.Base.String() + format.Delimiter + currency.Quote.String()
-		}
-		if pair == "" {
-			continue
 		}
 		pairs = append(pairs, pair)
 	}
@@ -352,7 +355,6 @@ func (ok *Okx) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error 
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (ok *Okx) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	var mdata *TickerResponse
 	instrumentID, err := ok.getInstrumentIDFromPair(ctx, p, a)
 	if err != nil {
 		return nil, err
@@ -360,7 +362,7 @@ func (ok *Okx) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) 
 	if !ok.SupportsAsset(a) {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, a)
 	}
-	mdata, err = ok.GetTicker(ctx, instrumentID)
+	mdata, err := ok.GetTicker(ctx, instrumentID)
 	if err != nil {
 		return nil, err
 	}
@@ -380,30 +382,26 @@ func (ok *Okx) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) 
 	if err != nil {
 		return nil, err
 	}
-
 	return ticker.GetTicker(ok.Name, p, a)
 }
 
 // UpdateTickers updates all currency pairs of a given asset type
 func (ok *Okx) UpdateTickers(ctx context.Context, assetType asset.Item) error {
-	if !ok.SupportsAsset(assetType) {
-		return fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
+	pairs, err := ok.GetEnabledPairs(assetType)
+	if err != nil {
+		return err
 	}
 	instrumentType := ok.GetInstrumentTypeFromAssetItem(assetType)
 	ticks, err := ok.GetTickers(ctx, strings.ToUpper(instrumentType), "", "")
 	if err != nil {
 		return err
 	}
-	pairs, err := ok.GetEnabledPairs(assetType)
-	if err != nil {
-		return err
-	}
 	for i := range pairs {
+		pairFmt, err := ok.FormatExchangeCurrency(pairs[i], assetType)
+		if err != nil {
+			return err
+		}
 		for y := range ticks {
-			pairFmt, err := ok.FormatExchangeCurrency(pairs[i], assetType)
-			if err != nil {
-				return err
-			}
 			pair, err := ok.GetPairFromInstrumentID(ticks[y].InstrumentID)
 			if err != nil {
 				return err
@@ -688,23 +686,9 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
-	var orderType string
-	switch s.Type {
-	case order.Market:
-		orderType = OkxOrderMarket
-	case order.Limit:
-		orderType = OkxOrderLimit
-	case order.FillOrKill:
-		orderType = OkxOrderFOK
-	case order.PostOnly:
-		orderType = OkxOrderPostOnly
-	case order.ImmediateOrCancel:
-		orderType = OkxOrderIOC
-	default:
-		if !(s.AssetType == asset.PerpetualSwap || s.AssetType == asset.Futures) {
-			return nil, errInvalidOrderType
-		}
-		orderType = ""
+	orderType := ok.OrderTypeString(s.Type)
+	if orderType == "" && !(s.AssetType == asset.PerpetualSwap || s.AssetType == asset.Futures) {
+		return nil, errInvalidOrderType
 	}
 	instrumentID, err := ok.getInstrumentIDFromPair(ctx, s.Pair, s.AssetType)
 	if err != nil {
@@ -862,20 +846,9 @@ func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s %v", ok.Name, err)
 	}
-	var orderType order.Type
-	switch strings.ToUpper(orderDetail.OrderType) {
-	case OkxOrderMarket:
-		orderType = order.Market
-	case OkxOrderLimit:
-		orderType = order.Limit
-	case OkxOrderPostOnly:
-		orderType = order.PostOnly
-	case OkxOrderFOK:
-		orderType = order.FillOrKill
-	case OkxOrderIOC:
-		orderType = order.ImmediateOrCancel
-	case OkxOrderOptimalLimitIOC:
-		orderType = order.UnknownType
+	orderType, err := ok.OrderTypeFromString(orderDetail.OrderType)
+	if err != nil {
+		return respData, err
 	}
 	return order.Detail{
 		Amount:         orderDetail.Size,
@@ -964,21 +937,7 @@ func (ok *Okx) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 	if !ok.SupportsAsset(req.AssetType) {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, req.AssetType)
 	}
-	var orderType string
-	switch req.Type {
-	case order.Market:
-		orderType = OkxOrderMarket
-	case order.Limit:
-		orderType = OkxOrderLimit
-	case order.PostOnly:
-		orderType = OkxOrderPostOnly
-	case order.FillOrKill:
-		orderType = OkxOrderFOK
-	case order.IOS:
-		orderType = OkxOrderIOC
-	case order.OptimalLimitIOC:
-		orderType = OkxOrderOptimalLimitIOC
-	}
+	orderType := ok.OrderTypeString(req.Type)
 	response, err := ok.GetOrderList(ctx, &OrderListRequestParams{
 		OrderType: orderType,
 	})
@@ -1006,20 +965,9 @@ func (ok *Okx) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", ok.Name, err)
 		}
-		var oType order.Type
-		switch strings.ToUpper(response[x].OrderType) {
-		case OkxOrderMarket:
-			oType = order.Market
-		case OkxOrderLimit:
-			oType = order.Limit
-		case OkxOrderPostOnly:
-			oType = order.PostOnly
-		case OkxOrderFOK:
-			oType = order.FillOrKill
-		case OkxOrderIOC:
-			oType = order.IOS
-		case OkxOrderOptimalLimitIOC:
-			oType = order.UnknownType
+		oType, err := ok.OrderTypeFromString(response[x].OrderType)
+		if err != nil {
+			return nil, err
 		}
 		orders[x] = order.Detail{
 			Amount:          response[x].Size,
@@ -1102,20 +1050,9 @@ func (ok *Okx) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 		}
 		continue
 	createDetail:
-		var oType order.Type
-		switch strings.ToUpper(response[i].OrderType) {
-		case OkxOrderMarket:
-			oType = order.Market
-		case OkxOrderLimit:
-			oType = order.Limit
-		case OkxOrderPostOnly:
-			oType = order.PostOnly
-		case OkxOrderFOK:
-			oType = order.FillOrKill
-		case OkxOrderIOC:
-			oType = order.IOS
-		case OkxOrderOptimalLimitIOC:
-			oType = order.UnknownType
+		oType, err := ok.OrderTypeFromString(response[i].OrderType)
+		if err != nil {
+			return nil, err
 		}
 		orders[i] = order.Detail{
 			Amount:          response[i].Size,
