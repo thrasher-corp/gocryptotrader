@@ -382,7 +382,10 @@ func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser)
 	if err != nil {
 		return fmt.Errorf("OnFill %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 	}
-
+	err = bt.Funding.UpdateCollateralForEvent(ev, false)
+	if err != nil {
+		return fmt.Errorf("UpdateCollateralForEvent %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+	}
 	var holding *holdings.Holding
 	holding, err = bt.Portfolio.ViewHoldingAtTimePeriod(ev)
 	if err != nil {
@@ -432,40 +435,37 @@ func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser)
 }
 
 func (bt *BackTest) processFuturesFillEvent(ev fill.Event, funds funding.IFundReleaser) error {
-	if ev.GetOrder() != nil {
-		pnl, err := bt.Portfolio.TrackFuturesOrder(ev, funds)
-		if err != nil && !errors.Is(err, gctorder.ErrSubmissionIsNil) {
-			return fmt.Errorf("TrackFuturesOrder %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
-		}
+	if ev.GetOrder() == nil {
+		return nil
+	}
+	pnl, err := bt.Portfolio.TrackFuturesOrder(ev, funds)
+	if err != nil && !errors.Is(err, gctorder.ErrSubmissionIsNil) {
+		return fmt.Errorf("TrackFuturesOrder %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+	}
 
-		var exch gctexchange.IBotExchange
-		exch, err = bt.exchangeManager.GetExchangeByName(ev.GetExchange())
+	var exch gctexchange.IBotExchange
+	exch, err = bt.exchangeManager.GetExchangeByName(ev.GetExchange())
+	if err != nil {
+		return fmt.Errorf("GetExchangeByName %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+	}
+
+	rPNL := pnl.GetRealisedPNL()
+	if !rPNL.PNL.IsZero() {
+		var receivingCurrency currency.Code
+		var receivingAsset asset.Item
+		receivingCurrency, receivingAsset, err = exch.GetCurrencyForRealisedPNL(ev.GetAssetType(), ev.Pair())
 		if err != nil {
-			return fmt.Errorf("GetExchangeByName %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+			return fmt.Errorf("GetCurrencyForRealisedPNL %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 		}
-
-		rPNL := pnl.GetRealisedPNL()
-		if !rPNL.PNL.IsZero() {
-			var receivingCurrency currency.Code
-			var receivingAsset asset.Item
-			receivingCurrency, receivingAsset, err = exch.GetCurrencyForRealisedPNL(ev.GetAssetType(), ev.Pair())
-			if err != nil {
-				return fmt.Errorf("GetCurrencyForRealisedPNL %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
-			}
-			err = bt.Funding.RealisePNL(ev.GetExchange(), receivingAsset, receivingCurrency, rPNL.PNL)
-			if err != nil {
-				return fmt.Errorf("RealisePNL %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
-			}
-		}
-
-		err = bt.Statistic.AddPNLForTime(pnl)
+		err = bt.Funding.RealisePNL(ev.GetExchange(), receivingAsset, receivingCurrency, rPNL.PNL)
 		if err != nil {
-			log.Errorf(common.Backtester, "AddHoldingsForTime %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+			return fmt.Errorf("RealisePNL %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 		}
 	}
-	err := bt.Funding.UpdateCollateralForEvent(ev, false)
+
+	err = bt.Statistic.AddPNLForTime(pnl)
 	if err != nil {
-		return fmt.Errorf("UpdateCollateralForEvent %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+		log.Errorf(common.Backtester, "AddHoldingsForTime %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 	}
 	return nil
 }
@@ -519,7 +519,7 @@ func (bt *BackTest) CloseAllPositions() error {
 	if bt.LiveDataHandler == nil {
 		return errLiveOnly
 	}
-	err := bt.LiveDataHandler.UpdateFunding()
+	err := bt.LiveDataHandler.UpdateFunding(true)
 	if err != nil {
 		return err
 	}
@@ -552,11 +552,9 @@ func (bt *BackTest) CloseAllPositions() error {
 	}
 	bt.Run()
 
-	if bt.LiveDataHandler.IsRealOrders() {
-		err = bt.LiveDataHandler.UpdateFunding()
-		if err != nil {
-			return err
-		}
+	err = bt.LiveDataHandler.UpdateFunding(true)
+	if err != nil {
+		return err
 	}
 
 	bt.Funding.CreateSnapshot(events[0].GetTime())

@@ -318,13 +318,15 @@ func (f *FundManager) GenerateReport() *Report {
 			f.items[x].trackingCandles != nil {
 			usdStream := f.items[x].trackingCandles.GetStream()
 			if usdStream == nil {
-				log.Error(common.FundManager, "usd tracking data is nil, please ensure data is present")
-				return nil
+				log.Errorf(common.FundManager, "usd tracking data is nil for %v %v %v, please ensure data is present", f.items[x].exchange, f.items[x].asset, f.items[x].currency)
+				continue
 			}
 
-			item.USDInitialFunds = f.items[x].initialFunds.Mul(usdStream[0].GetClosePrice())
 			lastClosePrice := usdStream[len(usdStream)-1].GetClosePrice()
-			item.USDFinalFunds = f.items[x].available.Mul(lastClosePrice)
+			if !item.IsCollateral {
+				item.USDInitialFunds = f.items[x].initialFunds.Mul(usdStream[0].GetClosePrice())
+				item.USDFinalFunds = f.items[x].available.Mul(lastClosePrice)
+			}
 
 			item.USDInitialCostForOne = usdStream[0].GetClosePrice()
 			item.USDFinalCostForOne = lastClosePrice
@@ -603,7 +605,7 @@ func (f *FundManager) UpdateFundingFromLiveData(hasUpdatedFunding bool) error {
 
 // UpdateAllCollateral will update the collateral values
 // of all stored exchanges
-func (f *FundManager) UpdateAllCollateral(isLive bool) error {
+func (f *FundManager) UpdateAllCollateral(isLive, hasUpdatedFunding bool) error {
 	exchanges, err := f.exchangeManager.GetExchanges()
 	if err != nil {
 		return err
@@ -658,6 +660,9 @@ func (f *FundManager) UpdateAllCollateral(isLive bool) error {
 				f.items[y].isCollateral {
 				log.Debugf(common.FundManager, "setting collateral %v %v %v to %v", f.items[y].exchange, f.items[y].asset, f.items[y].currency, collateral.AvailableCollateral)
 				f.items[y].available = collateral.AvailableCollateral
+				if !hasUpdatedFunding {
+					f.items[y].initialFunds = collateral.AvailableCollateral
+				}
 				return nil
 			}
 		}
@@ -672,6 +677,11 @@ func (f *FundManager) UpdateCollateralForEvent(ev common.Event, isLive bool) err
 	if ev == nil {
 		return common.ErrNilEvent
 	}
+	if !f.HasFutures() {
+		// no collateral, no need to update
+		return nil
+	}
+
 	exchMap := make(map[string]exchange.IBotExchange)
 	var collateralAmount decimal.Decimal
 	var err error

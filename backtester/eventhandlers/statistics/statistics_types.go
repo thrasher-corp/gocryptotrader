@@ -252,7 +252,6 @@ type TotalFundingStatistics struct {
 	HighestHoldingValue      ValueAtTime
 	LowestHoldingValue       ValueAtTime
 	BenchmarkMarketMovement  decimal.Decimal
-	StrategyMovement         decimal.Decimal
 	RiskFreeRate             decimal.Decimal
 	CompoundAnnualGrowthRate decimal.Decimal
 	MaxDrawdown              Swing

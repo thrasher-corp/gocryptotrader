@@ -678,6 +678,7 @@ func TestSubmitOrder(t *testing.T) {
 		Amount:        1,
 		AssetType:     asset.Spot,
 		ClientOrderID: "order12345679$$$$$",
+		RetrieveFees:  true,
 	}
 	_, err = f.SubmitOrder(context.Background(), orderSubmission)
 	if err != nil {

@@ -688,7 +688,9 @@ func (f *FTX) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitRe
 
 	fills, err := f.GetFills(ctx, s.Pair, s.AssetType, time.Time{}, time.Time{}, strconv.FormatInt(tempResp.ID, 10))
 	if err != nil {
-		return nil, err
+		// choosing to return with no error so that a valid order is still returned to caller
+		log.Errorf(log.ExchangeSys, "could not retrieve fees for order %v: %v", tempResp.ID, err)
+		return resp, nil
 	}
 	for i := range fills {
 		resp.Fee += fills[i].Fee

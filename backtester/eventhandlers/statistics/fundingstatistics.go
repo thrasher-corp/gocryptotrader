@@ -85,12 +85,6 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 		return nil, fmt.Errorf("%w and holding values", errMissingSnapshots)
 	}
 
-	if !usdStats.HoldingValues[0].Value.IsZero() {
-		usdStats.StrategyMovement = usdStats.HoldingValues[len(usdStats.HoldingValues)-1].Value.Sub(
-			usdStats.HoldingValues[0].Value).Div(
-			usdStats.HoldingValues[0].Value).Mul(
-			decimal.NewFromInt(100))
-	}
 	usdStats.HoldingValueDifference = report.FinalFunds.Sub(report.InitialFunds).Div(report.InitialFunds).Mul(decimal.NewFromInt(100))
 
 	riskFreeRatePerCandle := usdStats.RiskFreeRate.Div(decimal.NewFromFloat(interval.IntervalsPerYear()))
@@ -151,8 +145,8 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 		}
 		usdStats.CompoundAnnualGrowthRate = cagr
 	}
-	usdStats.DidStrategyMakeProfit = usdStats.HoldingValues[len(usdStats.HoldingValues)-1].Value.GreaterThan(usdStats.HoldingValues[0].Value)
-	usdStats.DidStrategyBeatTheMarket = usdStats.StrategyMovement.GreaterThan(usdStats.BenchmarkMarketMovement)
+	usdStats.DidStrategyMakeProfit = report.FinalFunds.GreaterThan(report.InitialFunds)
+	usdStats.DidStrategyBeatTheMarket = usdStats.HoldingValueDifference.GreaterThan(usdStats.BenchmarkMarketMovement)
 	response.TotalUSDStatistics = usdStats
 
 	return response, nil

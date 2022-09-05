@@ -390,7 +390,7 @@ func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) error {
 	log.Infof(common.FundingStatistics, "%s Initial value: $%s", sep, convert.DecimalToHumanFriendlyString(f.Report.InitialFunds, 8, ".", ","))
 	log.Infof(common.FundingStatistics, "%s Final value: $%s", sep, convert.DecimalToHumanFriendlyString(f.Report.FinalFunds, 8, ".", ","))
 	log.Infof(common.FundingStatistics, "%s Benchmark Market Movement: %s%%", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.BenchmarkMarketMovement, 8, ".", ","))
-	log.Infof(common.FundingStatistics, "%s Strategy Movement: %s%%", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.StrategyMovement, 8, ".", ","))
+	log.Infof(common.FundingStatistics, "%s Strategy Movement: %s%%", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.HoldingValueDifference, 8, ".", ","))
 	log.Infof(common.FundingStatistics, "%s Did strategy make a profit: %v", sep, f.TotalUSDStatistics.DidStrategyMakeProfit)
 	log.Infof(common.FundingStatistics, "%s Did strategy beat the benchmark: %v", sep, f.TotalUSDStatistics.DidStrategyBeatTheMarket)
 	log.Infof(common.FundingStatistics, "%s Highest funds: $%s at %v", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.HighestHoldingValue.Value, 8, ".", ","), f.TotalUSDStatistics.HighestHoldingValue.Time)

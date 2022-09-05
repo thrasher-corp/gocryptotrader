@@ -156,47 +156,53 @@ func (d *dataChecker) checkData(checkTimer, timeoutTimer *time.Timer) error {
 		return nil
 	}
 	d.notice.Alert()
-
-	go func() {
-		err = d.UpdateFunding()
-		if err != nil {
-			log.Errorf(common.LiveStrategy, "could not update funding %v", err)
-		}
-	}()
+	if d.realOrders {
+		go func() {
+			err = d.UpdateFunding(false)
+			if err != nil {
+				log.Errorf(common.LiveStrategy, "could not update funding %v", err)
+			}
+		}()
+	}
 	return nil
 }
 
 // UpdateFunding requests and updates funding levels
-func (d *dataChecker) UpdateFunding() error {
-	if !d.realOrders {
-		return nil
-	}
-	if !atomic.CompareAndSwapUint32(&d.updatingFunding, 0, 1) {
+func (d *dataChecker) UpdateFunding(force bool) error {
+	if force {
+		atomic.StoreUint32(&d.updatingFunding, 1)
+	} else if !atomic.CompareAndSwapUint32(&d.updatingFunding, 0, 1) {
 		// already processing funding and can't go any faster
 		return nil
 	}
 	defer atomic.StoreUint32(&d.updatingFunding, 0)
-
-	// TODO: design a more sophisticated way of keeping funds up to date
-	// with current data type retrieval, this still functions appropriately
 	ts := time.Now()
-	err := d.funding.UpdateFundingFromLiveData(d.hasUpdatedFunding)
-	if err != nil {
-		return err
-	}
-	if !d.hasUpdatedFunding {
-		d.hasUpdatedFunding = true
-	}
-	log.Debugf(common.LiveStrategy, "UpdateFundingFromLiveData: %v", time.Since(ts))
-
+	var err error
 	if d.funding.HasFutures() {
-		ts = time.Now()
-		err = d.funding.UpdateAllCollateral(true)
+		err = d.funding.UpdateAllCollateral(d.realOrders, d.hasUpdatedFunding)
 		if err != nil {
 			return err
 		}
 		log.Debugf(common.LiveStrategy, "UpdateAllCollateral: %v", time.Since(ts))
 	}
+
+	if !d.hasUpdatedFunding {
+		d.hasUpdatedFunding = true
+	}
+	if !d.realOrders {
+		return nil
+	}
+
+	// TODO: design a more sophisticated way of keeping funds up to date
+	// with current data type retrieval, this still functions appropriately
+	ts = time.Now()
+	err = d.funding.UpdateFundingFromLiveData(d.hasUpdatedFunding)
+	if err != nil {
+		return err
+	}
+
+	log.Debugf(common.LiveStrategy, "UpdateFundingFromLiveData: %v", time.Since(ts))
+
 	return nil
 }
 
@@ -358,7 +364,7 @@ func (d *dataChecker) FetchLatestData() (bool, error) {
 		}
 	}
 	if !d.hasUpdatedFunding {
-		err = d.UpdateFunding()
+		err = d.UpdateFunding(false)
 		if err != nil {
 			if err != nil {
 				log.Error(common.LiveStrategy, err)

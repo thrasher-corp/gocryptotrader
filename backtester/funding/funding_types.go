@@ -26,7 +26,7 @@ type IFundingManager interface {
 	Liquidate(common.Event)
 	GetAllFunding() []BasicItem
 	UpdateCollateralForEvent(common.Event, bool) error
-	UpdateAllCollateral(bool) error
+	UpdateAllCollateral(isLive, hasUpdateFunding bool) error
 	UpdateFundingFromLiveData(hasUpdatedFunding bool) error
 	HasFutures() bool
 	HasExchangeBeenLiquidated(handler common.Event) bool

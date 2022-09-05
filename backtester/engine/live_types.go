@@ -44,7 +44,7 @@ type Handler interface {
 	Updated() <-chan bool
 	HasShutdown() <-chan bool
 	SetDataForClosingAllPositions(events ...signal.Event) error
-	UpdateFunding() error
+	UpdateFunding(force bool) error
 	IsRealOrders() bool
 }
 

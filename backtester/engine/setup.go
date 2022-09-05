@@ -429,9 +429,11 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 	bt.Portfolio = p
 	cfg.PrintSetting()
 	if bt.LiveDataHandler != nil {
-		err = bt.LiveDataHandler.UpdateFunding()
-		if err != nil {
-			return err
+		if bt.LiveDataHandler.IsRealOrders() {
+			err = bt.LiveDataHandler.UpdateFunding(false)
+			if err != nil {
+				return err
+			}
 		}
 		return bt.LiveDataHandler.Start()
 	}

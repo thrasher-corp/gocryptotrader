@@ -250,9 +250,9 @@ func allocateFundsPostOrder(f *fill.Fill, funds funding.IFundReleaser, orderErro
 				return err
 			}
 			switch f.GetDirection() {
-			case gctorder.Short:
+			case gctorder.Short, gctorder.Sell, gctorder.Ask:
 				f.SetDirection(gctorder.CouldNotShort)
-			case gctorder.Long:
+			case gctorder.Long, gctorder.Buy, gctorder.Bid:
 				f.SetDirection(gctorder.CouldNotLong)
 			default:
 				return fmt.Errorf("%w asset type %v", common.ErrInvalidDataType, f.GetDirection())
