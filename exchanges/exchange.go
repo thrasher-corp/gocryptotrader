@@ -728,7 +728,20 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 		}
 		target++
 	}
+
 	enabledPairs = enabledPairs[:target]
+	if len(enabledPairs) == 0 {
+		// NOTE: If enabled pairs are not populated for any reason.
+		randomPair, err := incoming.GetRandomPair()
+		if err != nil {
+			return err
+		}
+		log.Debugf(log.ExchangeSys, "%s Enabled pairs missing for %s. Added %s.\n",
+			b.Name,
+			strings.ToUpper(a.String()),
+			randomPair)
+		enabledPairs = currency.Pairs{randomPair}
+	}
 
 	if len(diff.Remove) > 0 {
 		log.Debugf(log.ExchangeSys, "%s Checked and updated enabled pairs [%v] - Removed: %s.\n",

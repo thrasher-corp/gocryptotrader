@@ -268,7 +268,7 @@ func (b *Bitmex) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 					// Example: ETHUSD_ETH quoted in USD, paid out in ETH.
 					settlement := strings.Split(marketInfo[x].Symbol, currency.UnderscoreDelimiter)
 					if len(settlement) != 2 {
-						log.Warnf(log.ExchangeSys, "%s currency %s %s cannot added to tradable pairs",
+						log.Warnf(log.ExchangeSys, "%s currency %s %s cannot be added to tradable pairs",
 							b.Name,
 							marketInfo[x].Symbol,
 							a)
@@ -283,6 +283,13 @@ func (b *Bitmex) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 		case asset.Futures:
 			if marketInfo[x].Typ == futuresID {
 				isolate := strings.Split(marketInfo[x].Symbol, currency.UnderscoreDelimiter)
+				if len(isolate[0]) < 3 {
+					log.Warnf(log.ExchangeSys, "%s currency %s %s be cannot added to tradable pairs",
+						b.Name,
+						marketInfo[x].Symbol,
+						a)
+					break
+				}
 				var settleTrail string
 				if len(isolate) == 2 {
 					// Example: ETHUSDU22_ETH quoted in USD, paid out in ETH.

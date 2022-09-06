@@ -244,34 +244,34 @@ func (p Pairs) GetMatch(pair Pair) (Pair, error) {
 	return EMPTYPAIR, ErrPairNotFound
 }
 
-// PairDifference defines the difference between a set of pairs including a
-// change in format.
-type PairDifference struct {
-	New              Pairs
-	Remove           Pairs
-	FormatDifference bool
-}
-
 // FindDifferences returns pairs which are new or have been removed
 func (p Pairs) FindDifferences(incoming Pairs, pairFmt PairFormat) (PairDifference, error) {
 	newPairs := make(Pairs, 0, len(incoming))
+	check := make(map[string]bool)
 	for x := range incoming {
 		if incoming[x].IsEmpty() {
 			return PairDifference{}, fmt.Errorf("contained in the incoming pairs a %w", ErrCurrencyPairEmpty)
 		}
-
+		format := EMPTYFORMAT.Format(incoming[x])
+		if check[format] {
+			return PairDifference{}, fmt.Errorf("contained in the incoming pairs %w", ErrPairDuplication)
+		}
+		check[format] = true
 		if !p.Contains(incoming[x], true) {
 			newPairs = append(newPairs, incoming[x])
 		}
 	}
 	removedPairs := make(Pairs, 0, len(p))
+	check = make(map[string]bool)
 	for x := range p {
 		if p[x].IsEmpty() {
 			return PairDifference{}, fmt.Errorf("contained in the existing pairs a %w", ErrCurrencyPairEmpty)
 		}
-		if !incoming.Contains(p[x], true) {
+		format := EMPTYFORMAT.Format(p[x])
+		if !incoming.Contains(p[x], true) || check[format] {
 			removedPairs = append(removedPairs, p[x])
 		}
+		check[format] = true
 	}
 	return PairDifference{
 		New:              newPairs,
@@ -293,11 +293,11 @@ func (p Pairs) HasFormatDifference(pairFmt PairFormat) bool {
 }
 
 // GetRandomPair returns a random pair from a list of pairs
-func (p Pairs) GetRandomPair() Pair {
-	if pairsLen := len(p); pairsLen != 0 {
-		return p[rand.Intn(pairsLen)] //nolint:gosec // basic number generation required, no need for crypo/rand
+func (p Pairs) GetRandomPair() (Pair, error) {
+	if len(p) == 0 {
+		return EMPTYPAIR, ErrCurrencyPairsEmpty
 	}
-	return EMPTYPAIR
+	return p[rand.Intn(len(p))], nil //nolint:gosec // basic number generation required, no need for crypo/rand
 }
 
 // DeriveFrom matches symbol string to the available pairs list when no

@@ -661,6 +661,32 @@ func TestFindPairDifferences(t *testing.T) {
 	if !errors.Is(err, ErrCurrencyPairEmpty) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrCurrencyPairEmpty)
 	}
+
+	// Test duplication
+	duplication, err := NewPairsFromStrings([]string{defaultPairWDelimiter, "ETH-USD", "LTC-USD", "ETH-USD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = pairList.FindDifferences(duplication, EMPTYFORMAT)
+	if !errors.Is(err, ErrPairDuplication) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrPairDuplication)
+	}
+
+	// This will allow for the removal of the duplicated item to be returned if
+	// contained in the original list.
+	diff, err = duplication.FindDifferences(pairList, EMPTYFORMAT)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(diff.Remove) == 0 {
+		t.Fatal("expected removal value in pair difference struct")
+	}
+
+	if !diff.Remove[0].Equal(pairList[1]) {
+		t.Fatal("unexpected value returned", diff.Remove[0], pairList[1])
+	}
 }
 
 func TestPairsToStringArray(t *testing.T) {
@@ -678,7 +704,10 @@ func TestPairsToStringArray(t *testing.T) {
 func TestRandomPairFromPairs(t *testing.T) {
 	// Test that an empty pairs array returns an empty currency pair
 	var emptyPairs Pairs
-	result := emptyPairs.GetRandomPair()
+	result, err := emptyPairs.GetRandomPair()
+	if !errors.Is(err, ErrCurrencyPairsEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrCurrencyPairsEmpty)
+	}
 	if !result.IsEmpty() {
 		t.Error("TestRandomPairFromPairs: Unexpected values")
 	}
@@ -686,7 +715,10 @@ func TestRandomPairFromPairs(t *testing.T) {
 	// Test that a populated pairs array returns a non-empty currency pair
 	var pairs Pairs
 	pairs = append(pairs, NewPair(BTC, USD))
-	result = pairs.GetRandomPair()
+	result, err = pairs.GetRandomPair()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 
 	if result.IsEmpty() {
 		t.Error("TestRandomPairFromPairs: Unexpected values")
@@ -697,16 +729,15 @@ func TestRandomPairFromPairs(t *testing.T) {
 	pairs = append(pairs, NewPair(ETH, USD))
 	expectedResults := make(map[string]bool)
 	for i := 0; i < 50; i++ {
-		p := pairs.GetRandomPair().String()
-		_, ok := expectedResults[p]
-		if !ok {
-			expectedResults[p] = true
+		result, err = pairs.GetRandomPair()
+		if !errors.Is(err, nil) {
+			t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 		}
+		expectedResults[result.String()] = true
 	}
 
 	for x := range pairs {
-		_, ok := expectedResults[pairs[x].String()]
-		if !ok {
+		if !expectedResults[pairs[x].String()] {
 			t.Error("TestRandomPairFromPairs: Unexpected values")
 		}
 	}

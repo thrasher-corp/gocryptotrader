@@ -506,10 +506,13 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 				return err
 			}
 
-			err = c.SetPairs(exchName,
-				assetTypes[x],
-				true,
-				currency.Pairs{availPairs.GetRandomPair()})
+			var rPair currency.Pair
+			rPair, err = availPairs.GetRandomPair()
+			if err != nil {
+				return err
+			}
+
+			err = c.SetPairs(exchName, assetTypes[x], true, currency.Pairs{rPair})
 			if err != nil {
 				return err
 			}
@@ -564,10 +567,13 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 			continue
 		}
 
-		err = c.SetPairs(exchName,
-			assetTypes[x],
-			true,
-			currency.Pairs{availPairs.GetRandomPair()})
+		var rPair currency.Pair
+		rPair, err = availPairs.GetRandomPair()
+		if err != nil {
+			return err
+		}
+
+		err = c.SetPairs(exchName, assetTypes[x], true, currency.Pairs{rPair})
 		if err != nil {
 			return err
 		}
@@ -582,8 +588,12 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 			return err
 		}
 
-		newPair := avail.GetRandomPair()
-		err = c.SetPairs(exchName, assetTypes[0], true, currency.Pairs{newPair})
+		rPair, err := avail.GetRandomPair()
+		if err != nil {
+			return err
+		}
+
+		err = c.SetPairs(exchName, assetTypes[0], true, currency.Pairs{rPair})
 		if err != nil {
 			return err
 		}
@@ -591,7 +601,7 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 			"Exchange %s: [%v] No enabled pairs found in available pairs list, randomly added %v pair.\n",
 			exchName,
 			assetTypes[0],
-			newPair)
+			rPair)
 	}
 	return nil
 }
