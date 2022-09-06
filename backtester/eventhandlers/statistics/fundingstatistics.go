@@ -3,10 +3,10 @@ package statistics
 import (
 	"errors"
 	"fmt"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"sort"
 
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -18,7 +18,7 @@ import (
 // along with individual funding item statistics
 func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*CurrencyPairStatistic, riskFreeRate decimal.Decimal, interval gctkline.Interval) (*FundingStatistics, error) {
 	if currStats == nil {
-		return nil, common.ErrNilArguments
+		return nil, gctcommon.ErrNilPointer
 	}
 	report := funds.GenerateReport()
 	if report == nil {
@@ -155,7 +155,7 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 // CalculateIndividualFundingStatistics calculates statistics for an individual report item
 func CalculateIndividualFundingStatistics(disableUSDTracking bool, reportItem *funding.ReportItem, relatedStats []relatedCurrencyPairStatistics) (*FundingItemStatistics, error) {
 	if reportItem == nil {
-		return nil, fmt.Errorf("%w - nil report item", common.ErrNilArguments)
+		return nil, fmt.Errorf("%w - nil report item", gctcommon.ErrNilPointer)
 	}
 
 	item := &FundingItemStatistics{
@@ -222,7 +222,7 @@ func CalculateIndividualFundingStatistics(disableUSDTracking bool, reportItem *f
 	if !reportItem.IsCollateral {
 		for i := range relatedStats {
 			if relatedStats[i].stat == nil {
-				return nil, fmt.Errorf("%w related stats", common.ErrNilArguments)
+				return nil, fmt.Errorf("%w related stats", gctcommon.ErrNilPointer)
 			}
 			if relatedStats[i].isBaseCurrency {
 				item.BuyOrders += relatedStats[i].stat.BuyOrders

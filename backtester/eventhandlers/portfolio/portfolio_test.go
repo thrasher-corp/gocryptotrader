@@ -2,6 +2,7 @@ package portfolio
 
 import (
 	"errors"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"strings"
 	"testing"
 	"time"
@@ -438,7 +439,7 @@ func TestOnSignal(t *testing.T) {
 	t.Parallel()
 	p := Portfolio{}
 	_, err := p.OnSignal(nil, nil, nil)
-	if !errors.Is(err, common.ErrNilArguments) {
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Error(err)
 	}
 	b := &event.Base{}
@@ -811,7 +812,7 @@ func TestTrackFuturesOrder(t *testing.T) {
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v", err, expectedError)
 	}
-	expectedError = common.ErrNilArguments
+	expectedError = gctcommon.ErrNilPointer
 	_, err = p.TrackFuturesOrder(&fill.Fill{}, nil)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v", err, expectedError)
@@ -1240,7 +1241,7 @@ func TestCannotPurchase(t *testing.T) {
 	s := &signal.Signal{
 		Base: &event.Base{},
 	}
-	expectedError = common.ErrNilArguments
+	expectedError = gctcommon.ErrNilPointer
 	_, err = cannotPurchase(s, nil)
 	if !errors.Is(err, expectedError) {
 		t.Fatalf("received '%v' expected '%v'", err, expectedError)
@@ -1315,7 +1316,7 @@ func TestCreateLiquidationOrdersForExchange(t *testing.T) {
 	ev := &kline.Kline{
 		Base: b,
 	}
-	expectedError = common.ErrNilArguments
+	expectedError = gctcommon.ErrNilPointer
 	_, err = p.CreateLiquidationOrdersForExchange(ev, nil)
 	if !errors.Is(err, expectedError) {
 		t.Fatalf("received '%v' expected '%v'", err, expectedError)
@@ -1419,7 +1420,7 @@ func TestCheckLiquidationStatus(t *testing.T) {
 	ev := &kline.Kline{
 		Base: &event.Base{},
 	}
-	expectedError = common.ErrNilArguments
+	expectedError = gctcommon.ErrNilPointer
 	err = p.CheckLiquidationStatus(ev, nil, nil)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v', expected '%v'", err, expectedError)
@@ -1441,7 +1442,7 @@ func TestCheckLiquidationStatus(t *testing.T) {
 		t.Errorf("received '%v' expected '%v", err, expectedError)
 	}
 
-	expectedError = common.ErrNilArguments
+	expectedError = gctcommon.ErrNilPointer
 	err = p.CheckLiquidationStatus(ev, collat, nil)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v', expected '%v'", err, expectedError)

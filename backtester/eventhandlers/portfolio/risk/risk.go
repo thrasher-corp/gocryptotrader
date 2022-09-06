@@ -2,6 +2,7 @@ package risk
 
 import (
 	"fmt"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -15,7 +16,7 @@ import (
 // we are in a position to follow through with an order
 func (r *Risk) EvaluateOrder(o order.Event, latestHoldings []holdings.Holding, s compliance.Snapshot) (*order.Order, error) {
 	if o == nil || latestHoldings == nil {
-		return nil, common.ErrNilArguments
+		return nil, gctcommon.ErrNilPointer
 	}
 	retOrder, ok := o.(*order.Order)
 	if !ok {

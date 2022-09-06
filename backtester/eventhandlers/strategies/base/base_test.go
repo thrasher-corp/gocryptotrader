@@ -21,8 +21,8 @@ func TestGetBase(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
 	_, err := s.GetBaseData(nil)
-	if !errors.Is(err, common.ErrNilArguments) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilArguments)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNilPointer)
 	}
 
 	_, err = s.GetBaseData(&datakline.DataFromKline{})

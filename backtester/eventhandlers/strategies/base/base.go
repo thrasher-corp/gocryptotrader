@@ -17,7 +17,7 @@ type Strategy struct {
 // GetBaseData returns the non-interface version of the Handler
 func (s *Strategy) GetBaseData(d data.Handler) (signal.Signal, error) {
 	if d == nil {
-		return signal.Signal{}, common.ErrNilArguments
+		return signal.Signal{}, gctcommon.ErrNilPointer
 	}
 	latest := d.Latest()
 	if latest == nil {

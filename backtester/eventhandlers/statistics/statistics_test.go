@@ -545,8 +545,8 @@ func TestCalculateTheResults(t *testing.T) {
 	t.Parallel()
 	s := Statistic{}
 	err := s.CalculateAllResults()
-	if !errors.Is(err, common.ErrNilArguments) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilArguments)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNilPointer)
 	}
 
 	tt := time.Now().Add(-gctkline.OneDay.Duration() * 7)
@@ -909,8 +909,8 @@ func TestAddPNLForTime(t *testing.T) {
 	t.Parallel()
 	s := &Statistic{}
 	err := s.AddPNLForTime(nil)
-	if !errors.Is(err, common.ErrNilArguments) {
-		t.Errorf("received %v expected %v", err, common.ErrNilArguments)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received %v expected %v", err, gctcommon.ErrNilPointer)
 	}
 
 	sum := &portfolio.PNLSummary{}

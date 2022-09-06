@@ -2,11 +2,11 @@ package report
 
 import (
 	"errors"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"testing"
 	"time"
 
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	evkline "github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
@@ -20,8 +20,8 @@ import (
 func TestCreateUSDTotalsChart(t *testing.T) {
 	t.Parallel()
 	_, err := createUSDTotalsChart(nil, nil)
-	if !errors.Is(err, common.ErrNilArguments) {
-		t.Errorf("received '%v' expected '%v'", err, common.ErrNilArguments)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 	tt := time.Now()
 	items := []statistics.ValueAtTime{
@@ -32,8 +32,8 @@ func TestCreateUSDTotalsChart(t *testing.T) {
 		},
 	}
 	_, err = createUSDTotalsChart(items, nil)
-	if !errors.Is(err, common.ErrNilArguments) {
-		t.Errorf("received '%v' expected '%v'", err, common.ErrNilArguments)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 	stats := []statistics.FundingItemStatistics{
 		{
@@ -65,8 +65,8 @@ func TestCreateUSDTotalsChart(t *testing.T) {
 func TestCreateHoldingsOverTimeChart(t *testing.T) {
 	t.Parallel()
 	_, err := createHoldingsOverTimeChart(nil)
-	if !errors.Is(err, common.ErrNilArguments) {
-		t.Errorf("received '%v' expected '%v'", err, common.ErrNilArguments)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 	tt := time.Now()
 	items := []statistics.FundingItemStatistics{
@@ -100,8 +100,8 @@ func TestCreateHoldingsOverTimeChart(t *testing.T) {
 func TestCreatePNLCharts(t *testing.T) {
 	t.Parallel()
 	_, err := createPNLCharts(nil)
-	if !errors.Is(err, common.ErrNilArguments) {
-		t.Errorf("received '%v' expected '%v'", err, common.ErrNilArguments)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 
 	tt := time.Now()
@@ -162,8 +162,8 @@ func TestCreatePNLCharts(t *testing.T) {
 func TestCreateFuturesSpotDiffChart(t *testing.T) {
 	t.Parallel()
 	_, err := createFuturesSpotDiffChart(nil)
-	if !errors.Is(err, common.ErrNilArguments) {
-		t.Errorf("received '%v' expected '%v'", err, common.ErrNilArguments)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 
 	tt := time.Now()

@@ -2,10 +2,10 @@ package risk
 
 import (
 	"errors"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"testing"
 
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
@@ -54,7 +54,7 @@ func TestEvaluateOrder(t *testing.T) {
 	t.Parallel()
 	r := Risk{}
 	_, err := r.EvaluateOrder(nil, nil, compliance.Snapshot{})
-	if !errors.Is(err, common.ErrNilArguments) {
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Error(err)
 	}
 	p := currency.NewPair(currency.BTC, currency.USDT)

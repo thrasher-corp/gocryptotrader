@@ -262,7 +262,7 @@ func (bt *BackTest) updateStatsForDataEvent(ev data.Event, funds funding.IFundRe
 		return common.ErrNilEvent
 	}
 	if funds == nil {
-		return fmt.Errorf("%v %v %v %w missing fund releaser", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), common.ErrNilArguments)
+		return fmt.Errorf("%v %v %v %w missing fund releaser", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), gctcommon.ErrNilPointer)
 	}
 	// update statistics with the latest price
 	err := bt.Statistic.SetEventForOffset(ev)
@@ -329,7 +329,7 @@ func (bt *BackTest) processSignalEvent(ev signal.Event, funds funding.IFundReser
 		return common.ErrNilEvent
 	}
 	if funds == nil {
-		return fmt.Errorf("%w funds", common.ErrNilArguments)
+		return fmt.Errorf("%w funds", gctcommon.ErrNilPointer)
 	}
 	cs, err := bt.Exchange.GetCurrencySettings(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	if err != nil {
@@ -356,7 +356,7 @@ func (bt *BackTest) processOrderEvent(ev order.Event, funds funding.IFundRelease
 		return common.ErrNilEvent
 	}
 	if funds == nil {
-		return fmt.Errorf("%w funds", common.ErrNilArguments)
+		return fmt.Errorf("%w funds", gctcommon.ErrNilPointer)
 	}
 	d, err := bt.DataHolder.GetDataForCurrency(ev)
 	if err != nil {
@@ -488,7 +488,7 @@ func (bt *BackTest) triggerLiquidationsForExchange(ev data.Event, pnl *portfolio
 		return common.ErrNilEvent
 	}
 	if pnl == nil {
-		return fmt.Errorf("%w pnl summary", common.ErrNilArguments)
+		return fmt.Errorf("%w pnl summary", gctcommon.ErrNilPointer)
 	}
 	orders, err := bt.Portfolio.CreateLiquidationOrdersForExchange(ev, bt.Funding)
 	if err != nil {

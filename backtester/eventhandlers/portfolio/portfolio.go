@@ -3,6 +3,7 @@ package portfolio
 import (
 	"errors"
 	"fmt"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"strings"
 	"time"
 
@@ -30,7 +31,7 @@ import (
 // the portfolio manager's recommendations
 func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds funding.IFundReserver) (*order.Order, error) {
 	if ev == nil || cs == nil {
-		return nil, common.ErrNilArguments
+		return nil, gctcommon.ErrNilPointer
 	}
 	if p.sizeManager == nil {
 		return nil, errSizeManagerUnset
@@ -135,7 +136,7 @@ func cannotPurchase(ev signal.Event, o *order.Order) (*order.Order, error) {
 		return nil, common.ErrNilEvent
 	}
 	if o == nil {
-		return nil, fmt.Errorf("%w received nil order for %v %v %v", common.ErrNilArguments, ev.GetExchange(), ev.GetAssetType(), ev.Pair())
+		return nil, fmt.Errorf("%w received nil order for %v %v %v", gctcommon.ErrNilPointer, ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	}
 	o.AppendReason(notEnoughFundsTo + " " + ev.GetDirection().Lower())
 	switch ev.GetDirection() {
@@ -502,7 +503,7 @@ func (p *Portfolio) TrackFuturesOrder(ev fill.Event, fund funding.IFundReleaser)
 		return nil, common.ErrNilEvent
 	}
 	if fund == nil {
-		return nil, fmt.Errorf("%w missing funding", common.ErrNilArguments)
+		return nil, fmt.Errorf("%w missing funding", gctcommon.ErrNilPointer)
 	}
 	detail := ev.GetOrder()
 	if detail == nil {
@@ -589,10 +590,10 @@ func (p *Portfolio) CheckLiquidationStatus(ev data.Event, collateralReader fundi
 		return common.ErrNilEvent
 	}
 	if collateralReader == nil {
-		return fmt.Errorf("%w collateral reader missing", common.ErrNilArguments)
+		return fmt.Errorf("%w collateral reader missing", gctcommon.ErrNilPointer)
 	}
 	if pnl == nil {
-		return fmt.Errorf("%w pnl summary missing", common.ErrNilArguments)
+		return fmt.Errorf("%w pnl summary missing", gctcommon.ErrNilPointer)
 	}
 	availableFunds := collateralReader.AvailableFunds()
 	position, err := p.GetLatestPosition(ev)
@@ -614,7 +615,7 @@ func (p *Portfolio) CreateLiquidationOrdersForExchange(ev data.Event, funds fund
 		return nil, common.ErrNilEvent
 	}
 	if funds == nil {
-		return nil, fmt.Errorf("%w, requires funding manager", common.ErrNilArguments)
+		return nil, fmt.Errorf("%w, requires funding manager", gctcommon.ErrNilPointer)
 	}
 	var closingOrders []order.Event
 	assetPairSettings, ok := p.exchangeAssetPairSettings[ev.GetExchange()]

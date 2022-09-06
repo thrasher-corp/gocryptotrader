@@ -2,9 +2,9 @@ package report
 
 import (
 	"fmt"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -14,10 +14,10 @@ import (
 // to show how much the overall assets are worth over time
 func createUSDTotalsChart(items []statistics.ValueAtTime, stats []statistics.FundingItemStatistics) (*Chart, error) {
 	if items == nil {
-		return nil, fmt.Errorf("%w missing values at time", common.ErrNilArguments)
+		return nil, fmt.Errorf("%w missing values at time", gctcommon.ErrNilPointer)
 	}
 	if stats == nil {
-		return nil, fmt.Errorf("%w missing funding item statistics", common.ErrNilArguments)
+		return nil, fmt.Errorf("%w missing funding item statistics", gctcommon.ErrNilPointer)
 	}
 	response := &Chart{
 		AxisType: "logarithmic",
@@ -61,7 +61,7 @@ func createUSDTotalsChart(items []statistics.ValueAtTime, stats []statistics.Fun
 // to show how many holdings of each type was held over the time of backtesting
 func createHoldingsOverTimeChart(stats []statistics.FundingItemStatistics) (*Chart, error) {
 	if stats == nil {
-		return nil, fmt.Errorf("%w missing funding item statistics", common.ErrNilArguments)
+		return nil, fmt.Errorf("%w missing funding item statistics", gctcommon.ErrNilPointer)
 	}
 	response := &Chart{
 		AxisType: "logarithmic",
@@ -93,7 +93,7 @@ func createHoldingsOverTimeChart(stats []statistics.FundingItemStatistics) (*Cha
 // over time
 func createPNLCharts(items map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*statistics.CurrencyPairStatistic) (*Chart, error) {
 	if items == nil {
-		return nil, fmt.Errorf("%w missing currency pair statistics", common.ErrNilArguments)
+		return nil, fmt.Errorf("%w missing currency pair statistics", gctcommon.ErrNilPointer)
 	}
 	response := &Chart{
 		AxisType: "linear",
@@ -139,7 +139,7 @@ func createPNLCharts(items map[string]map[asset.Item]map[*currency.Item]map[*cur
 // over time
 func createFuturesSpotDiffChart(items map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*statistics.CurrencyPairStatistic) (*Chart, error) {
 	if items == nil {
-		return nil, fmt.Errorf("%w missing currency pair statistics", common.ErrNilArguments)
+		return nil, fmt.Errorf("%w missing currency pair statistics", gctcommon.ErrNilPointer)
 	}
 	currs := make(map[currency.Pair]linkCurrencyDiff)
 	response := &Chart{

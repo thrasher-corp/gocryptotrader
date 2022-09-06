@@ -311,7 +311,7 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 // PrintResults outputs all calculated funding statistics to the command line
 func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) error {
 	if f.Report == nil {
-		return fmt.Errorf("%w requires report to be generated", common.ErrNilArguments)
+		return fmt.Errorf("%w requires report to be generated", gctcommon.ErrNilPointer)
 	}
 	var spotResults, futuresResults []FundingItemStatistics
 	for i := range f.Items {
@@ -401,7 +401,7 @@ func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) error {
 	log.Infof(common.FundingStatistics, "%s Risk free rate: %s%%", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.RiskFreeRate.Mul(decimal.NewFromInt(100)), 2, ".", ","))
 	log.Infof(common.FundingStatistics, "%s Compound Annual Growth Rate: %v%%", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.CompoundAnnualGrowthRate, 8, ".", ","))
 	if f.TotalUSDStatistics.ArithmeticRatios == nil || f.TotalUSDStatistics.GeometricRatios == nil {
-		return fmt.Errorf("%w missing ratio calculations", common.ErrNilArguments)
+		return fmt.Errorf("%w missing ratio calculations", gctcommon.ErrNilPointer)
 	}
 	log.Info(common.FundingStatistics, common.ColourH4+"------------------Arithmetic--------------------------------------------"+common.ColourDefault)
 	if wasAnyDataMissing {

@@ -2,6 +2,7 @@ package ftxcashandcarry
 
 import (
 	"errors"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"testing"
 	"time"
 
@@ -170,7 +171,7 @@ func TestSortSignals(t *testing.T) {
 func TestCreateSignals(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
-	var expectedError = common.ErrNilArguments
+	var expectedError = gctcommon.ErrNilPointer
 	_, err := s.createSignals(nil, nil, nil, decimal.Zero, false)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v", err, expectedError)
@@ -321,7 +322,7 @@ func TestOnSimultaneousSignals(t *testing.T) {
 		t.Errorf("received '%v' expected '%v", err, expectedError)
 	}
 
-	expectedError = common.ErrNilArguments
+	expectedError = gctcommon.ErrNilPointer
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	d := &datakline.DataFromKline{
 		Base: data.Base{},

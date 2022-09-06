@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"sort"
@@ -87,10 +88,10 @@ func CreateItem(exch string, a asset.Item, ci currency.Code, initialFunds, trans
 // for collateral purposes
 func (f *FundManager) LinkCollateralCurrency(item *Item, code currency.Code) error {
 	if item == nil {
-		return fmt.Errorf("%w missing item", common.ErrNilArguments)
+		return fmt.Errorf("%w missing item", gctcommon.ErrNilPointer)
 	}
 	if code.IsEmpty() {
-		return fmt.Errorf("%w unset currency", common.ErrNilArguments)
+		return fmt.Errorf("%w unset currency", gctcommon.ErrNilPointer)
 	}
 	if !item.asset.IsFutures() {
 		return errNotFutures
@@ -158,7 +159,7 @@ func (f *FundManager) CreateSnapshot(t time.Time) {
 // only in the event that it is not USD and there is data
 func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 	if f == nil || f.items == nil {
-		return common.ErrNilArguments
+		return gctcommon.ErrNilPointer
 	}
 	if f.disableUSDTracking {
 		return ErrUSDTrackingDisabled
@@ -248,10 +249,10 @@ func (f *FundManager) setUSDCandles(k *kline.DataFromKline, i int) error {
 // USDT level funding
 func CreatePair(base, quote *Item) (*SpotPair, error) {
 	if base == nil {
-		return nil, fmt.Errorf("base %w", common.ErrNilArguments)
+		return nil, fmt.Errorf("base %w", gctcommon.ErrNilPointer)
 	}
 	if quote == nil {
-		return nil, fmt.Errorf("quote %w", common.ErrNilArguments)
+		return nil, fmt.Errorf("quote %w", gctcommon.ErrNilPointer)
 	}
 	// copy to prevent the off chance of sending in the same base OR quote
 	// to create a new pair with a new base OR quote
@@ -268,10 +269,10 @@ func CreatePair(base, quote *Item) (*SpotPair, error) {
 // USDT level funding
 func CreateCollateral(contract, collateral *Item) (*CollateralPair, error) {
 	if contract == nil {
-		return nil, fmt.Errorf("base %w", common.ErrNilArguments)
+		return nil, fmt.Errorf("base %w", gctcommon.ErrNilPointer)
 	}
 	if collateral == nil {
-		return nil, fmt.Errorf("quote %w", common.ErrNilArguments)
+		return nil, fmt.Errorf("quote %w", gctcommon.ErrNilPointer)
 	}
 	// copy to prevent the off chance of sending in the same base OR quote
 	// to create a new pair with a new base OR quote
@@ -399,7 +400,7 @@ func (f *FundManager) GenerateReport() *Report {
 // Transfer allows transferring funds from one pretend exchange to another
 func (f *FundManager) Transfer(amount decimal.Decimal, sender, receiver *Item, inclusiveFee bool) error {
 	if sender == nil || receiver == nil {
-		return common.ErrNilArguments
+		return gctcommon.ErrNilPointer
 	}
 	if amount.LessThanOrEqual(decimal.Zero) {
 		return errZeroAmountReceived
@@ -659,7 +660,7 @@ func (f *FundManager) UpdateAllCollateral(isLive, hasUpdatedFunding bool) error 
 			if f.items[y].exchange == exchName &&
 				f.items[y].isCollateral {
 				log.Debugf(common.FundManager, "setting collateral %v %v %v to %v", f.items[y].exchange, f.items[y].asset, f.items[y].currency, collateral.AvailableCollateral)
-				log.Debugf(common.FundingStatistics, "collat breakdown %+v", collateral.BreakdownByCurrency[0], collateral.BreakdownByCurrency[1])
+				log.Debugf(common.FundingStatistics, "collat breakdown %+v %+v", collateral.BreakdownByCurrency[0], collateral.BreakdownByCurrency[1])
 				f.items[y].available = collateral.AvailableCollateral
 				if !hasUpdatedFunding {
 					f.items[y].initialFunds = collateral.AvailableCollateral

@@ -855,7 +855,7 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 
 func setExchangeCredentials(cfg *config.Config, base *gctexchange.Base) error {
 	if cfg == nil || base == nil || cfg.DataSettings.LiveData == nil {
-		return common.ErrNilArguments
+		return gctcommon.ErrNilPointer
 	}
 	if !cfg.DataSettings.LiveData.RealOrders {
 		return nil

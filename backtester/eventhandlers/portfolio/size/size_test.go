@@ -3,11 +3,11 @@ package size
 import (
 	"context"
 	"errors"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"testing"
 	"time"
 
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
@@ -188,7 +188,7 @@ func TestSizeOrder(t *testing.T) {
 	t.Parallel()
 	s := Size{}
 	_, _, err := s.SizeOrder(nil, decimal.Zero, nil)
-	if !errors.Is(err, common.ErrNilArguments) {
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Error(err)
 	}
 	o := &order.Order{

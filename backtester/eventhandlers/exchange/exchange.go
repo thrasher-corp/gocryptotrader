@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -194,7 +195,7 @@ func allocateFundsPostOrder(f *fill.Fill, funds funding.IFundReleaser, orderErro
 		return fmt.Errorf("%w: fill event", common.ErrNilEvent)
 	}
 	if funds == nil {
-		return fmt.Errorf("%w: funding", common.ErrNilArguments)
+		return fmt.Errorf("%w: funding", gctcommon.ErrNilPointer)
 	}
 
 	switch f.AssetType {

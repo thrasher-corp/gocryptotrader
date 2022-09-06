@@ -3,11 +3,11 @@ package ftxcashandcarry
 import (
 	"errors"
 	"fmt"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
@@ -56,10 +56,10 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 		return nil, errNoSignals
 	}
 	if f == nil {
-		return nil, fmt.Errorf("%w missing funding transferred", common.ErrNilArguments)
+		return nil, fmt.Errorf("%w missing funding transferred", gctcommon.ErrNilPointer)
 	}
 	if p == nil {
-		return nil, fmt.Errorf("%w missing portfolio handler", common.ErrNilArguments)
+		return nil, fmt.Errorf("%w missing portfolio handler", gctcommon.ErrNilPointer)
 	}
 	var response []signal.Event
 	sortedSignals, err := sortSignals(d)
@@ -154,10 +154,10 @@ func (s *Strategy) CloseAllPositions(holdings []holdings.Holding, prices []data.
 // futures and spot signals
 func (s *Strategy) createSignals(pos []order.Position, spotSignal, futuresSignal *signal.Signal, diffBetweenFuturesSpot decimal.Decimal, isLastEvent bool) ([]signal.Event, error) {
 	if spotSignal == nil {
-		return nil, fmt.Errorf("%w missing spot signal", common.ErrNilArguments)
+		return nil, fmt.Errorf("%w missing spot signal", gctcommon.ErrNilPointer)
 	}
 	if futuresSignal == nil {
-		return nil, fmt.Errorf("%w missing futures signal", common.ErrNilArguments)
+		return nil, fmt.Errorf("%w missing futures signal", gctcommon.ErrNilPointer)
 	}
 	var response []signal.Event
 	switch {

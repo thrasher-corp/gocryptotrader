@@ -396,7 +396,7 @@ func TestLoadDataLive(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
-	err = bt.SetupLiveDataHandler(0, 0, false)
+	err = bt.SetupLiveDataHandler(0, 0, false, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v, expected: %v", err, nil)
 	}
@@ -422,12 +422,12 @@ func TestLoadDataLive(t *testing.T) {
 func TestLoadLiveData(t *testing.T) {
 	t.Parallel()
 	err := setExchangeCredentials(nil, nil)
-	if !errors.Is(err, common.ErrNilArguments) {
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Error(err)
 	}
 	cfg := &config.Config{}
 	err = setExchangeCredentials(cfg, nil)
-	if !errors.Is(err, common.ErrNilArguments) {
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Error(err)
 	}
 	b := &gctexchange.Base{
@@ -453,7 +453,7 @@ func TestLoadLiveData(t *testing.T) {
 	}
 
 	err = setExchangeCredentials(cfg, b)
-	if !errors.Is(err, common.ErrNilArguments) {
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Error(err)
 	}
 	cfg.DataSettings.LiveData = &config.LiveData{
@@ -733,7 +733,7 @@ func TestTriggerLiquidationsForExchange(t *testing.T) {
 
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	a := asset.Futures
-	expectedError = common.ErrNilArguments
+	expectedError = gctcommon.ErrNilPointer
 	ev := &evkline.Kline{
 		Base: &event.Base{Exchange: testExchange,
 			AssetType:    a,
@@ -821,7 +821,7 @@ func TestUpdateStatsForDataEvent(t *testing.T) {
 			CurrencyPair: cp},
 	}
 
-	expectedError = common.ErrNilArguments
+	expectedError = gctcommon.ErrNilPointer
 	err = bt.updateStatsForDataEvent(ev, nil)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
@@ -1401,15 +1401,15 @@ func TestCloseAllPositions(t *testing.T) {
 	dc := &dataChecker{}
 	bt.LiveDataHandler = dc
 	err = bt.CloseAllPositions()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 
 	bt.shutdown = make(chan struct{})
 	bt.Strategy = &ftxcashandcarry.Strategy{}
 	err = bt.CloseAllPositions()
-	if !errors.Is(err, common.ErrNilArguments) {
-		t.Errorf("received '%v' expected '%v'", err, common.ErrNilArguments)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 
 	bt.shutdown = make(chan struct{})
@@ -1452,7 +1452,7 @@ func TestRunLive(t *testing.T) {
 	bt.Funding = &funding.FundManager{}
 	bt.Reports = &report.Data{}
 
-	err = bt.SetupLiveDataHandler(-1, -1, false)
+	err = bt.SetupLiveDataHandler(-1, -1, false, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received '%v' expected '%v'", err, nil)
 	}
@@ -1558,6 +1558,22 @@ func (f fakeDataHolder) Reset() {}
 
 type fakeFunding struct{}
 
+func (f fakeFunding) UpdateCollateralForEvent(c common.Event, b bool) error {
+	return nil
+}
+
+func (f fakeFunding) UpdateAllCollateral(isLive, hasUpdateFunding bool) error {
+	return nil
+}
+
+func (f fakeFunding) UpdateFundingFromLiveData(hasUpdatedFunding bool) error {
+	return nil
+}
+
+func (f fakeFunding) SetFunding(s string, item asset.Item, balance *account.Balance, b bool) error {
+	return nil
+}
+
 func (f fakeFunding) Reset() {
 }
 
@@ -1626,8 +1642,7 @@ func (f fakeStrat) OnSignal(handler data.Handler, transferer funding.IFundingTra
 }
 
 func (f fakeStrat) OnSimultaneousSignals(handlers []data.Handler, transferer funding.IFundingTransferer, handler portfolio.Handler) ([]signal.Event, error) {
-	//TODO implement me
-	panic("implement me")
+	return nil, nil
 }
 
 func (f fakeStrat) UsingSimultaneousProcessing() bool {
@@ -1673,6 +1688,14 @@ func (f fakeStrat) CloseAllPositions(i []holdings.Holding, events []data.Event) 
 
 type fakeFolio struct{}
 
+func (f fakeFolio) GetPositions(c common.Event) ([]gctorder.Position, error) {
+	return nil, nil
+}
+
+func (f fakeFolio) SetHoldingsForEvent(reader funding.IFundReader, c common.Event) error {
+	return nil
+}
+
 func (f fakeFolio) SetHoldingsForOffset(holding *holdings.Holding, b bool) error {
 	return nil
 }
@@ -1706,10 +1729,6 @@ func (f fakeFolio) UpdateHoldings(d data.Event, releaser funding.IFundReleaser) 
 }
 
 func (f fakeFolio) GetComplianceManager(s string, item asset.Item, pair currency.Pair) (*compliance.Manager, error) {
-	return nil, nil
-}
-
-func (f fakeFolio) GetPositions(c common.Event) ([]gctorder.PositionStats, error) {
 	return nil, nil
 }
 

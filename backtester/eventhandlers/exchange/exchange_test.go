@@ -3,6 +3,7 @@ package exchange
 import (
 	"context"
 	"errors"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"strings"
 	"testing"
@@ -271,7 +272,7 @@ func TestExecuteOrder(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	d.Next()
-	_, err = e.ExecuteOrder(o, d, bot.OrderManager, nil, &fakeFund{})
+	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
 	if !errors.Is(err, errNoCurrencySettingsFound) {
 		t.Error(err)
 	}
@@ -280,7 +281,7 @@ func TestExecuteOrder(t *testing.T) {
 	cs.CanUseExchangeLimits = true
 	o.Direction = gctorder.Sell
 	e.CurrencySettings = []Settings{cs}
-	_, err = e.ExecuteOrder(o, d, bot.OrderManager, nil, &fakeFund{})
+	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
 	if !errors.Is(err, exchange.ErrCredentialsAreEmpty) {
 		t.Errorf("received: %v but expected: %v", err, exchange.ErrCredentialsAreEmpty)
 	}
@@ -380,7 +381,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	d.Next()
-	_, err = e.ExecuteOrder(o, d, bot.OrderManager, nil, &fakeFund{})
+	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
 	if !errors.Is(err, errExceededPortfolioLimit) {
 		t.Errorf("received %v expected %v", err, errExceededPortfolioLimit)
 	}
@@ -393,7 +394,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	cs.BuySide.MaximumSize = decimal.Zero
 	cs.BuySide.MinimumSize = decimal.NewFromFloat(0.01)
 	e.CurrencySettings = []Settings{cs}
-	_, err = e.ExecuteOrder(o, d, bot.OrderManager, nil, &fakeFund{})
+	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
 	if err != nil && !strings.Contains(err.Error(), "exceed minimum size") {
 		t.Error(err)
 	}
@@ -409,7 +410,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	cs.SellSide.MaximumSize = decimal.Zero
 	cs.SellSide.MinimumSize = decimal.NewFromFloat(0.01)
 	e.CurrencySettings = []Settings{cs}
-	_, err = e.ExecuteOrder(o, d, bot.OrderManager, nil, &fakeFund{})
+	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
 	if err != nil && !strings.Contains(err.Error(), "exceed minimum size") {
 		t.Error(err)
 	}
@@ -426,7 +427,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	cs.SellSide.MaximumSize = decimal.Zero
 	cs.SellSide.MinimumSize = decimal.NewFromInt(1)
 	e.CurrencySettings = []Settings{cs}
-	_, err = e.ExecuteOrder(o, d, bot.OrderManager, nil, &fakeFund{})
+	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
 	if !errors.Is(err, errExceededPortfolioLimit) {
 		t.Errorf("received %v expected %v", err, errExceededPortfolioLimit)
 	}
@@ -446,7 +447,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	o.Direction = gctorder.Sell
 
 	e.CurrencySettings = []Settings{cs}
-	_, err = e.ExecuteOrder(o, d, bot.OrderManager, nil, &fakeFund{})
+	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
 	if !errors.Is(err, exchange.ErrCredentialsAreEmpty) {
 		t.Errorf("received: %v but expected: %v", err, exchange.ErrCredentialsAreEmpty)
 	}
@@ -569,7 +570,7 @@ func TestAllocateFundsPostOrder(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 
-	expectedError = common.ErrNilArguments
+	expectedError = gctcommon.ErrNilPointer
 	f := &fill.Fill{
 		Base: &event.Base{
 			AssetType: asset.Spot,

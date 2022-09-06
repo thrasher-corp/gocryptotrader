@@ -2,11 +2,11 @@ package statistics
 
 import (
 	"errors"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"testing"
 	"time"
 
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -18,8 +18,8 @@ import (
 func TestCalculateFundingStatistics(t *testing.T) {
 	t.Parallel()
 	_, err := CalculateFundingStatistics(nil, nil, decimal.Zero, gctkline.OneHour)
-	if !errors.Is(err, common.ErrNilArguments) {
-		t.Errorf("received %v expected %v", err, common.ErrNilArguments)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received %v expected %v", err, gctcommon.ErrNilPointer)
 	}
 	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, true, true)
 	if !errors.Is(err, nil) {
@@ -44,8 +44,8 @@ func TestCalculateFundingStatistics(t *testing.T) {
 	}
 
 	_, err = CalculateFundingStatistics(f, nil, decimal.Zero, gctkline.OneHour)
-	if !errors.Is(err, common.ErrNilArguments) {
-		t.Errorf("received %v expected %v", err, common.ErrNilArguments)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received %v expected %v", err, gctcommon.ErrNilPointer)
 	}
 
 	usdKline := gctkline.Item{
@@ -117,8 +117,8 @@ func TestCalculateFundingStatistics(t *testing.T) {
 
 func TestCalculateIndividualFundingStatistics(t *testing.T) {
 	_, err := CalculateIndividualFundingStatistics(true, nil, nil)
-	if !errors.Is(err, common.ErrNilArguments) {
-		t.Errorf("received %v expected %v", err, common.ErrNilArguments)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received %v expected %v", err, gctcommon.ErrNilPointer)
 	}
 
 	_, err = CalculateIndividualFundingStatistics(true, &funding.ReportItem{}, nil)
@@ -150,8 +150,8 @@ func TestCalculateIndividualFundingStatistics(t *testing.T) {
 		},
 	}
 	_, err = CalculateIndividualFundingStatistics(false, ri, rs)
-	if !errors.Is(err, common.ErrNilArguments) {
-		t.Errorf("received %v expected %v", err, common.ErrNilArguments)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received %v expected %v", err, gctcommon.ErrNilPointer)
 	}
 
 	rs[0].stat = &CurrencyPairStatistic{}
@@ -200,8 +200,8 @@ func TestCalculateIndividualFundingStatistics(t *testing.T) {
 func TestFundingStatisticsPrintResults(t *testing.T) {
 	f := FundingStatistics{}
 	err := f.PrintResults(false)
-	if !errors.Is(err, common.ErrNilArguments) {
-		t.Errorf("received %v expected %v", err, common.ErrNilArguments)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received %v expected %v", err, gctcommon.ErrNilPointer)
 	}
 
 	funds, err := funding.SetupFundingManager(&engine.ExchangeManager{}, true, true)
@@ -233,8 +233,8 @@ func TestFundingStatisticsPrintResults(t *testing.T) {
 	f.TotalUSDStatistics = &TotalFundingStatistics{}
 	f.Report.DisableUSDTracking = false
 	err = f.PrintResults(false)
-	if !errors.Is(err, common.ErrNilArguments) {
-		t.Errorf("received %v expected %v", err, common.ErrNilArguments)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received %v expected %v", err, gctcommon.ErrNilPointer)
 	}
 
 	f.TotalUSDStatistics = &TotalFundingStatistics{

@@ -138,7 +138,7 @@ func (d *dataChecker) DataFetcher() error {
 
 func (d *dataChecker) checkData(checkTimer, timeoutTimer *time.Timer) error {
 	if checkTimer == nil || timeoutTimer == nil {
-		return fmt.Errorf("%w timer", common.ErrNilArguments)
+		return fmt.Errorf("%w timer", gctcommon.ErrNilPointer)
 	}
 	defer func() {
 		checkTimer.Reset(d.dataCheckInterval)
@@ -169,6 +169,9 @@ func (d *dataChecker) checkData(checkTimer, timeoutTimer *time.Timer) error {
 
 // UpdateFunding requests and updates funding levels
 func (d *dataChecker) UpdateFunding(force bool) error {
+	if d == nil || d.funding == nil {
+		return gctcommon.ErrNilPointer
+	}
 	if force {
 		atomic.StoreUint32(&d.updatingFunding, 1)
 	} else if !atomic.CompareAndSwapUint32(&d.updatingFunding, 0, 1) {
@@ -384,7 +387,7 @@ func (d *dataChecker) SetDataForClosingAllPositions(s ...signal.Event) error {
 		return fmt.Errorf("%w dataChecker", gctcommon.ErrNilPointer)
 	}
 	if len(s) == 0 {
-		return fmt.Errorf("%w signal events", common.ErrNilArguments)
+		return fmt.Errorf("%w signal events", gctcommon.ErrNilPointer)
 	}
 	d.m.Lock()
 	defer d.m.Unlock()

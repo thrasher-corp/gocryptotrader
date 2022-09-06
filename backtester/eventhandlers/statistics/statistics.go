@@ -3,6 +3,7 @@ package statistics
 import (
 	"encoding/json"
 	"fmt"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -133,7 +134,7 @@ func (s *Statistic) AddHoldingsForTime(h *holdings.Holding) error {
 // AddPNLForTime stores PNL data for tracking purposes
 func (s *Statistic) AddPNLForTime(pnl *portfolio.PNLSummary) error {
 	if pnl == nil {
-		return fmt.Errorf("%w requires PNL", common.ErrNilArguments)
+		return fmt.Errorf("%w requires PNL", gctcommon.ErrNilPointer)
 	}
 	if s.ExchangeAssetPairStatistics == nil {
 		return errExchangeAssetPairStatsUnset

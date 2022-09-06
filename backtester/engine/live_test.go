@@ -26,31 +26,31 @@ func TestSetupLiveDataHandler(t *testing.T) {
 	t.Parallel()
 	bt := &BackTest{}
 	var err error
-	err = bt.SetupLiveDataHandler(-1, -1, false)
+	err = bt.SetupLiveDataHandler(-1, -1, false, false)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 
 	bt.exchangeManager = engine.SetupExchangeManager()
-	err = bt.SetupLiveDataHandler(-1, -1, false)
+	err = bt.SetupLiveDataHandler(-1, -1, false, false)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 
 	bt.DataHolder = &data.HandlerPerCurrency{}
-	err = bt.SetupLiveDataHandler(-1, -1, false)
+	err = bt.SetupLiveDataHandler(-1, -1, false, false)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 
 	bt.Reports = &report.Data{}
-	err = bt.SetupLiveDataHandler(-1, -1, false)
+	err = bt.SetupLiveDataHandler(-1, -1, false, false)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 
 	bt.Funding = &funding.FundManager{}
-	err = bt.SetupLiveDataHandler(-1, -1, false)
+	err = bt.SetupLiveDataHandler(-1, -1, false, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -67,7 +67,7 @@ func TestSetupLiveDataHandler(t *testing.T) {
 	}
 
 	bt = nil
-	err = bt.SetupLiveDataHandler(-1, -1, false)
+	err = bt.SetupLiveDataHandler(-1, -1, false, false)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
@@ -424,8 +424,8 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 	}
 
 	err = dataHandler.SetDataForClosingAllPositions()
-	if !errors.Is(err, common.ErrNilArguments) {
-		t.Errorf("received '%v' expected '%v'", err, common.ErrNilArguments)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 
 	err = dataHandler.SetDataForClosingAllPositions(nil)

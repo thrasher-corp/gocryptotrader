@@ -3,6 +3,7 @@ package size
 import (
 	"context"
 	"fmt"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -14,7 +15,7 @@ import (
 // SizeOrder is responsible for ensuring that the order size is within config limits
 func (s *Size) SizeOrder(o order.Event, amountAvailable decimal.Decimal, cs *exchange.Settings) (*order.Order, decimal.Decimal, error) {
 	if o == nil || cs == nil {
-		return nil, decimal.Zero, common.ErrNilArguments
+		return nil, decimal.Zero, gctcommon.ErrNilPointer
 	}
 	if amountAvailable.LessThanOrEqual(decimal.Zero) {
 		return nil, decimal.Zero, errNoFunds
