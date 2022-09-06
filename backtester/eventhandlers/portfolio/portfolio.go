@@ -785,7 +785,8 @@ func (p *Portfolio) SetHoldingsForEvent(fm funding.IFundReader, e common.Event) 
 		h.BaseSize = c.CurrentHoldings()
 		h.QuoteSize = c.AvailableFunds()
 	} else {
-		p, err := fm.GetPairReader()
+		var p 
+		p, err = fm.GetPairReader()
 		if err != nil {
 			return err
 		}

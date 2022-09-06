@@ -100,20 +100,31 @@ func TestHasDataAtTime(t *testing.T) {
 	if !has {
 		t.Error("expected true")
 	}
+	d.SetLive(true)
+	has = d.HasDataAtTime(time.Time{})
+	if has {
+		t.Error("expected false")
+	}
+	has = d.HasDataAtTime(dInsert)
+	if !has {
+		t.Error("expected true")
+	}
+
 }
 
 func TestAppend(t *testing.T) {
 	t.Parallel()
-	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := DataFromKline{
+		Item: gctkline.Item{
+			Exchange: testExchange,
+			Asset:    a,
+			Pair:     p,
+		},
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
 	item := gctkline.Item{
-		Exchange: exch,
-		Pair:     p,
-		Asset:    a,
 		Interval: gctkline.OneDay,
 		Candles: []gctkline.Candle{
 			{
@@ -127,6 +138,13 @@ func TestAppend(t *testing.T) {
 		},
 	}
 	d.AppendResults(&item)
+
+	item.Exchange = testExchange
+	item.Pair = p
+	item.Asset = a
+	d.AppendResults(&item)
+	d.AppendResults(&item)
+	d.AppendResults(nil)
 }
 
 func TestStreamOpen(t *testing.T) {
