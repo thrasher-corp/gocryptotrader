@@ -696,7 +696,9 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 	// asset.
 
 	enabledPairs, err := b.CurrencyPairs.GetPairs(a, true)
-	if err != nil && !errors.Is(err, currency.ErrPairNotContainedInAvailablePairs) {
+	if err != nil &&
+		!errors.Is(err, currency.ErrPairNotContainedInAvailablePairs) &&
+		!errors.Is(err, currency.ErrPairDuplication) {
 		return err
 	}
 
@@ -709,14 +711,21 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 		return err
 	}
 
+	check := make(map[string]bool)
 	var target int
 	for x := range enabledPairs {
+		pairNoFmt := currency.EMPTYFORMAT.Format(enabledPairs[x])
+		if check[pairNoFmt] {
+			diff.Remove = diff.Remove.Add(enabledPairs[x])
+			continue
+		}
+		check[pairNoFmt] = true
+
 		if !diff.Remove.Contains(enabledPairs[x], true) {
 			enabledPairs[target] = enabledPairs[x].Format(pFmt)
 		} else {
-			strippedPair := enabledPairs[x].Format(currency.EMPTYFORMAT).String()
 			var match currency.Pair
-			match, err = incoming.DeriveFrom(strippedPair)
+			match, err = incoming.DeriveFrom(pairNoFmt)
 			if err != nil {
 				continue
 			}
