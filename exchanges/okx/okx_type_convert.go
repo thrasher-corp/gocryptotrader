@@ -728,8 +728,21 @@ func (a *OrderDetail) UnmarshalJSON(data []byte) error {
 		CreationTime   int64  `json:"cTime,string"`
 		InstrumentType string `json:"instType"`
 
+		AccumulatedFillSize    string `json:"accFillSz"`
+		FillPrice              string `json:"fillPx"`
+		FillSize               string `json:"fillSz"`
+		TransactionFee         string `json:"fee"`
+		AveragePrice           string `json:"avgPx"`
+		Price                  string `json:"px"`
+		Size                   string `json:"sz"`
+		TakeProfitTriggerPrice string `json:"tpTriggerPx"`
+		TakeProfitOrderPrice   string `json:"tpOrdPx"`
+		StopLossTriggerPrice   string `json:"slTriggerPx"`
+		FeeCurrency            string `json:"feeCcy"`
+
 		Leverage     string `json:"lever"`
 		RebateAmount string `json:"rebate"`
+		FillTime     int64  `json:"fillTime,string"`
 	}{
 		Alias: (*Alias)(a),
 	}
@@ -740,13 +753,43 @@ func (a *OrderDetail) UnmarshalJSON(data []byte) error {
 	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
 	a.CreationTime = time.UnixMilli(chil.CreationTime)
 	a.Side, err = order.StringToOrderSide(chil.Side)
+	a.FillTime = time.UnixMilli(chil.FillTime)
 	if err != nil {
 		return err
 	}
 	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
-	val, err := strconv.ParseFloat(chil.Leverage, 64)
-	if err == nil {
+	if val, err := strconv.ParseFloat(chil.Leverage, 64); err == nil {
 		a.Leverage = val
+	}
+	if val, err := strconv.ParseFloat(chil.AccumulatedFillSize, 64); err == nil {
+		a.AccumulatedFillSize = val
+	}
+	if val, err := strconv.ParseFloat(chil.FillPrice, 64); err == nil {
+		a.FillPrice = val
+	}
+	if val, err := strconv.ParseFloat(chil.TransactionFee, 64); err == nil {
+		a.TransactionFee = val
+	}
+	if val, err := strconv.ParseFloat(chil.AveragePrice, 64); err == nil {
+		a.AveragePrice = val
+	}
+	if val, err := strconv.ParseFloat(chil.Price, 64); err == nil {
+		a.Price = val
+	}
+	if val, err := strconv.ParseFloat(chil.Size, 64); err == nil {
+		a.Size = val
+	}
+	if val, err := strconv.ParseFloat(chil.TakeProfitTriggerPrice, 64); err == nil {
+		a.TakeProfitTriggerPrice = val
+	}
+	if val, err := strconv.ParseFloat(chil.TakeProfitOrderPrice, 64); err == nil {
+		a.TakeProfitOrderPrice = val
+	}
+	if val, err := strconv.ParseFloat(chil.StopLossTriggerPrice, 64); err == nil {
+		a.StopLossTriggerPrice = val
+	}
+	if val, err := strconv.ParseFloat(chil.FeeCurrency, 64); err == nil {
+		a.FeeCurrency = val
 	}
 	if val, err := strconv.ParseFloat(chil.RebateAmount, 64); err == nil {
 		a.RebateAmount = val

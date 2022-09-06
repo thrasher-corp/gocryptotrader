@@ -244,7 +244,7 @@ func TestGetBlockTrade(t *testing.T) {
 
 func TestGetInstrument(t *testing.T) {
 	t.Parallel()
-	instruments, err := ok.GetInstruments(context.Background(), &InstrumentsFetchParams{
+	_, err := ok.GetInstruments(context.Background(), &InstrumentsFetchParams{
 		InstrumentType: "MARGIN",
 	})
 	if err != nil {
@@ -254,9 +254,6 @@ func TestGetInstrument(t *testing.T) {
 		InstrumentType: "OPTION",
 		Underlying:     "SOL-USD",
 	})
-	for x := range instruments {
-		println(instruments[x].Underlying)
-	}
 	if err != nil {
 		t.Error("Okx GetInstruments() error", err)
 	}
@@ -1303,14 +1300,7 @@ func TestGetLightningDeposits(t *testing.T) {
 	}
 }
 
-var depositAddressResponseItemString = `{
-	"chain": "BTC-OKC",
-	"ctAddr": "",
-	"ccy": "BTC",
-	"to": "6",
-	"addr": "0x66d0edc2e63b6b992381ee668fbcb01f20ae0428",
-	"selected": true
-}`
+var depositAddressResponseItemString = `{"chain": "BTC-OKC","ctAddr": "","ccy": "BTC","to": "6","addr": "0x66d0edc2e63b6b992381ee668fbcb01f20ae0428","selected": true}`
 
 func TestGetCurrencyDepositAddress(t *testing.T) {
 	t.Parallel()
@@ -1412,15 +1402,7 @@ func TestSmallAssetsConvert(t *testing.T) {
 	}
 }
 
-var savingBalanceResponse = `{
-	"earnings": "0.0010737388791526",
-	"redemptAmt": "0.0000000000000000",
-	"rate": "0.0100000000000000",
-	"ccy": "USDT",
-	"amt": "11.0010737453457821",
-	"loanAmt": "11.0010630707982819",
-	"pendingAmt": "0.0000106745475002"
-}`
+var savingBalanceResponse = `{"earnings": "0.0010737388791526","redemptAmt": "0.0000000000000000","rate": "0.0100000000000000","ccy": "USDT","amt": "11.0010737453457821","loanAmt": "11.0010630707982819","pendingAmt": "0.0000106745475002"}`
 
 func TestGetSavingBalance(t *testing.T) {
 	t.Parallel()
@@ -1437,11 +1419,7 @@ func TestGetSavingBalance(t *testing.T) {
 	}
 }
 
-var redemptionOrPurchaseSavingJSON = `{
-	"ccy":"BTC",
-	"amt":"1",
-	"side":"purchase",
-	"rate": "0.01"}`
+var redemptionOrPurchaseSavingJSON = `{ "ccy":"BTC","amt":"1","side":"purchase","rate": "0.01"}`
 
 func TestSavingsPurchase(t *testing.T) {
 	t.Parallel()

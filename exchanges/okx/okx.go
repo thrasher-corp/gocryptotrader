@@ -427,40 +427,39 @@ func (ok *Okx) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequest
 		return nil, errNoOrderParameterPassed
 	}
 	for x := range args {
-		arg := args[x]
-		if arg.InstrumentID == "" {
+		if args[x].InstrumentID == "" {
 			return nil, errMissingInstrumentID
 		}
-		if !(arg.TradeMode == TradeModeCross ||
-			arg.TradeMode == TradeModeIsolated ||
-			arg.TradeMode == TradeModeCash) {
+		if !(args[x].TradeMode == TradeModeCross ||
+			args[x].TradeMode == TradeModeIsolated ||
+			args[x].TradeMode == TradeModeCash) {
 			return nil, errInvalidTradeModeValue
 		}
-		arg.Side = strings.ToUpper(arg.Side)
-		if !(arg.Side == order.Buy.String() ||
-			arg.Side == order.Sell.String()) {
+		args[x].Side = strings.ToUpper(args[x].Side)
+		if !(args[x].Side == order.Buy.String() ||
+			args[x].Side == order.Sell.String()) {
 			return nil, errMissingOrderSide
 		}
-		arg.OrderType = strings.ToLower(arg.OrderType)
-		if !(arg.OrderType == "market" ||
-			arg.OrderType == "limit" ||
-			arg.OrderType == "post_only" ||
-			arg.OrderType == "fok" ||
-			arg.OrderType == "ioc" ||
-			arg.OrderType == "optimal_limit_ioc") {
+		args[x].OrderType = strings.ToLower(args[x].OrderType)
+		if !(args[x].OrderType == "market" ||
+			args[x].OrderType == "limit" ||
+			args[x].OrderType == "post_only" ||
+			args[x].OrderType == "fok" ||
+			args[x].OrderType == "ioc" ||
+			args[x].OrderType == "optimal_limit_ioc") {
 			return nil, errInvalidOrderType
 		}
-		if arg.QuantityToBuyOrSell <= 0 {
+		if args[x].QuantityToBuyOrSell <= 0 {
 			return nil, errInvalidQuantityToButOrSell
 		}
-		if arg.OrderPrice <= 0 && (arg.OrderType == OkxOrderLimit ||
-			arg.OrderType == OkxOrderPostOnly ||
-			arg.OrderType == OkxOrderFOK ||
-			arg.OrderType == OkxOrderIOC) {
-			return nil, fmt.Errorf("invalid order price for %s order types", arg.OrderType)
+		if args[x].OrderPrice <= 0 && (args[x].OrderType == OkxOrderLimit ||
+			args[x].OrderType == OkxOrderPostOnly ||
+			args[x].OrderType == OkxOrderFOK ||
+			args[x].OrderType == OkxOrderIOC) {
+			return nil, fmt.Errorf("invalid order price for %s order types", args[x].OrderType)
 		}
-		if !(arg.QuantityType == "base_ccy" || arg.QuantityType == "quote_ccy") {
-			arg.QuantityType = ""
+		if !(args[x].QuantityType == "base_ccy" || args[x].QuantityType == "quote_ccy") {
+			args[x].QuantityType = ""
 		}
 	}
 	var resp []PlaceOrderResponse
@@ -547,7 +546,9 @@ func (ok *Okx) ClosePositions(ctx context.Context, arg *ClosePositionsRequestPar
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
-	if !(arg.MarginMode != "" && (arg.MarginMode == TradeModeCross || arg.MarginMode == TradeModeIsolated)) {
+	if !(arg.MarginMode != "" &&
+		(arg.MarginMode == TradeModeCross ||
+			arg.MarginMode == TradeModeIsolated)) {
 		return nil, errMissingMarginMode
 	}
 	var resp []ClosePositionResponse
@@ -591,7 +592,7 @@ func (ok *Okx) GetOrderDetail(ctx context.Context, arg *OrderDetailRequestParam)
 }
 
 // GetOrderList retrieves all incomplete orders under the current account.
-func (ok *Okx) GetOrderList(ctx context.Context, arg *OrderListRequestParams) ([]PendingOrderItem, error) {
+func (ok *Okx) GetOrderList(ctx context.Context, arg *OrderListRequestParams) ([]OrderDetail, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -631,22 +632,22 @@ func (ok *Okx) GetOrderList(ctx context.Context, arg *OrderListRequestParams) ([
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.Itoa(arg.Limit))
 	}
-	var resp []PendingOrderItem
+	var resp []OrderDetail
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getOrderListEPL, http.MethodGet, common.EncodeURLValues(pendingTradeOrders, params), nil, &resp, true)
 }
 
 // Get7DayOrderHistory retrieves the completed order data for the last 7 days, and the incomplete orders that have been cancelled are only reserved for 2 hours.
-func (ok *Okx) Get7DayOrderHistory(ctx context.Context, arg *OrderHistoryRequestParams) ([]PendingOrderItem, error) {
+func (ok *Okx) Get7DayOrderHistory(ctx context.Context, arg *OrderHistoryRequestParams) ([]OrderDetail, error) {
 	return ok.getOrderHistory(ctx, arg, tradeHistory)
 }
 
 // Get3MonthOrderHistory retrieves the completed order data for the last 7 days, and the incomplete orders that have been cancelled are only reserved for 2 hours.
-func (ok *Okx) Get3MonthOrderHistory(ctx context.Context, arg *OrderHistoryRequestParams) ([]PendingOrderItem, error) {
+func (ok *Okx) Get3MonthOrderHistory(ctx context.Context, arg *OrderHistoryRequestParams) ([]OrderDetail, error) {
 	return ok.getOrderHistory(ctx, arg, orderHistoryArchive)
 }
 
 // getOrderHistory retrieves the order history of the past limited times
-func (ok *Okx) getOrderHistory(ctx context.Context, arg *OrderHistoryRequestParams, route string) ([]PendingOrderItem, error) {
+func (ok *Okx) getOrderHistory(ctx context.Context, arg *OrderHistoryRequestParams, route string) ([]OrderDetail, error) {
 	params := url.Values{}
 	if arg.InstrumentType == okxInstTypeSpot ||
 		arg.InstrumentType == okxInstTypeMargin ||
@@ -690,7 +691,7 @@ func (ok *Okx) getOrderHistory(ctx context.Context, arg *OrderHistoryRequestPara
 		arg.Category == "delivery" || arg.Category == "ddh" {
 		params.Set("category", strings.ToLower(arg.Category))
 	}
-	var resp []PendingOrderItem
+	var resp []OrderDetail
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getOrderHistoryEPL, http.MethodGet, common.EncodeURLValues(route, params), nil, &resp, true)
 }
 
@@ -722,14 +723,6 @@ func (ok *Okx) getTransactionDetails(ctx context.Context, arg *TransactionDetail
 	}
 	if arg.Underlying != "" {
 		params.Set("uly", arg.Underlying)
-	}
-	if arg.OrderType == OkxOrderMarket ||
-		arg.OrderType == OkxOrderLimit ||
-		arg.OrderType == OkxOrderPostOnly ||
-		arg.OrderType == OkxOrderFOK ||
-		arg.OrderType == OkxOrderIOC ||
-		arg.OrderType == OkxOrderOptimalLimitIOC {
-		params.Set("orderType", arg.OrderType)
 	}
 	if !arg.Begin.IsZero() {
 		params.Set("begin", strconv.FormatInt(arg.Begin.UnixMilli(), 10))
@@ -4427,7 +4420,7 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 		return err
 	}
 	code, err := strconv.ParseInt(errMessage.Code, 10, 64)
-	if err == nil && code >= 50000 && code <= 59999 {
+	if err == nil && code != 0 {
 		if errMessage.Msg != "" {
 			return fmt.Errorf(" error code:%d message: %s", code, errMessage.Msg)
 		}
