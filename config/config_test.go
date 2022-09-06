@@ -748,8 +748,9 @@ func TestCheckPairConsistency(t *testing.T) {
 	t.Parallel()
 
 	var c Config
-	if err := c.CheckPairConsistency("asdf"); err == nil {
-		t.Error("non-existent exchange should return an error")
+	err := c.CheckPairConsistency("asdf")
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Fatalf("received: '%v' buy expected: '%v'", err, ErrExchangeNotFound)
 	}
 
 	c.Exchanges = append(c.Exchanges,
@@ -759,8 +760,9 @@ func TestCheckPairConsistency(t *testing.T) {
 	)
 
 	// Test nil pair store
-	if err := c.CheckPairConsistency(testFakeExchangeName); err == nil {
-		t.Error("nil pair store should return an error")
+	err = c.CheckPairConsistency(testFakeExchangeName)
+	if !errors.Is(err, errPairsManagerIsNil) {
+		t.Fatalf("received: '%v' buy expected: '%v'", err, errPairsManagerIsNil)
 	}
 
 	enabled, err := currency.NewPairDelimiter("BTC_USD", "_")
@@ -788,8 +790,8 @@ func TestCheckPairConsistency(t *testing.T) {
 
 	// Test for nil avail pairs
 	err = c.CheckPairConsistency(testFakeExchangeName)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' buy expected: '%v'", err, nil)
 	}
 
 	p1, err := currency.NewPairDelimiter("LTC_USD", "_")

@@ -28,8 +28,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
 
-// errExchangeConfigIsNil defines an error when the config is nil
-var errExchangeConfigIsNil = errors.New("exchange config is nil")
+var (
+	// errExchangeConfigIsNil defines an error when the config is nil
+	errExchangeConfigIsNil = errors.New("exchange config is nil")
+	errPairsManagerIsNil   = errors.New("currency pairs manager is nil")
+)
 
 // GetCurrencyConfig returns currency configurations
 func (c *Config) GetCurrencyConfig() currency.Config {
@@ -346,7 +349,7 @@ func (c *Config) GetExchangeAssetTypes(exchName string) (asset.Items, error) {
 	}
 
 	if exchCfg.CurrencyPairs == nil {
-		return nil, fmt.Errorf("exchange %s currency pairs is nil", exchName)
+		return nil, fmt.Errorf("%s %w", exchName, errPairsManagerIsNil)
 	}
 
 	return exchCfg.CurrencyPairs.GetAssetTypes(false), nil
@@ -360,7 +363,7 @@ func (c *Config) SupportsExchangeAssetType(exchName string, assetType asset.Item
 	}
 
 	if exchCfg.CurrencyPairs == nil {
-		return fmt.Errorf("exchange %s currency pairs is nil", exchName)
+		return fmt.Errorf("%s %w", exchName, errPairsManagerIsNil)
 	}
 
 	if !assetType.IsValid() {
@@ -586,6 +589,10 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 		avail, err := c.GetAvailablePairs(exchName, assetTypes[0])
 		if err != nil {
 			return err
+		}
+
+		if len(avail) == 0 {
+			return nil
 		}
 
 		rPair, err := avail.GetRandomPair()
