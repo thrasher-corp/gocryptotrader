@@ -680,7 +680,7 @@ func TestFindPairDifferences(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	if len(diff.Remove) == 0 {
+	if len(diff.Remove) != 1 {
 		t.Fatal("expected removal value in pair difference struct")
 	}
 
