@@ -659,6 +659,7 @@ func (f *FundManager) UpdateAllCollateral(isLive, hasUpdatedFunding bool) error 
 			if f.items[y].exchange == exchName &&
 				f.items[y].isCollateral {
 				log.Debugf(common.FundManager, "setting collateral %v %v %v to %v", f.items[y].exchange, f.items[y].asset, f.items[y].currency, collateral.AvailableCollateral)
+				log.Debugf(common.FundingStatistics, "collat breakdown %+v", collateral.BreakdownByCurrency[0], collateral.BreakdownByCurrency[1])
 				f.items[y].available = collateral.AvailableCollateral
 				if !hasUpdatedFunding {
 					f.items[y].initialFunds = collateral.AvailableCollateral

@@ -388,6 +388,9 @@ func DecimalGeometricMean(values []decimal.Decimal) (decimal.Decimal, error) {
 // handle ^0.x and instead returns 1
 func DecimalPow(x, y decimal.Decimal) decimal.Decimal {
 	pow := math.Pow(x.InexactFloat64(), y.InexactFloat64())
+	if math.IsNaN(pow) || math.IsInf(pow, 0) {
+		return decimal.Zero
+	}
 	return decimal.NewFromFloat(pow)
 }
 

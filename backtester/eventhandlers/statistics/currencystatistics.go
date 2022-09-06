@@ -49,7 +49,7 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 		c.MarketMovement = lastPrice.Sub(firstPrice).Div(firstPrice).Mul(oneHundred)
 	}
 	if !first.Holdings.TotalValue.IsZero() {
-		c.StrategyMovement = last.Holdings.TotalValue.Sub(first.Holdings.TotalInitialValue).Div(first.Holdings.TotalInitialValue).Mul(oneHundred)
+		c.StrategyMovement = last.Holdings.TotalValue.Sub(first.Holdings.TotalValue).Div(first.Holdings.TotalValue).Mul(oneHundred)
 	}
 	c.analysePNLGrowth()
 	err = c.calculateHighestCommittedFunds()

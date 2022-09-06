@@ -28,6 +28,7 @@ var (
 type BackTest struct {
 	verbose                  bool
 	hasProcessedAnEvent      bool
+	hasShutdown              bool
 	shutdown                 chan struct{}
 	DataHolder               data.Holder
 	LiveDataHandler          Handler

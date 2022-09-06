@@ -75,6 +75,9 @@ func (bt *BackTest) Run() {
 dataLoadingIssue:
 	for ev := bt.EventQueue.NextEvent(); ; ev = bt.EventQueue.NextEvent() {
 		if ev == nil {
+			if bt.hasShutdown {
+				break
+			}
 			if doubleNil {
 				if bt.verbose {
 					log.Info(common.Backtester, "no new data on second check")
@@ -467,12 +470,17 @@ func (bt *BackTest) processFuturesFillEvent(ev fill.Event, funds funding.IFundRe
 	if err != nil {
 		log.Errorf(common.Backtester, "AddHoldingsForTime %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 	}
+	err = bt.Funding.UpdateCollateralForEvent(ev, false)
+	if err != nil {
+		return fmt.Errorf("UpdateCollateralForEvent %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+	}
 	return nil
 }
 
 // Stop shuts down the live data loop
 func (bt *BackTest) Stop() {
 	close(bt.shutdown)
+	bt.hasShutdown = true
 }
 
 func (bt *BackTest) triggerLiquidationsForExchange(ev data.Event, pnl *portfolio.PNLSummary) error {
@@ -543,11 +551,19 @@ func (bt *BackTest) CloseAllPositions() error {
 		}
 		return err
 	}
+	if len(events) == 0 {
+		return nil
+	}
 	err = bt.LiveDataHandler.SetDataForClosingAllPositions(events...)
 	if err != nil {
 		return err
 	}
 	for i := range events {
+		k := events[i].ToKline()
+		err = bt.Statistic.SetEventForOffset(k)
+		if err != nil {
+			return err
+		}
 		bt.EventQueue.AppendEvent(events[i])
 	}
 	bt.Run()
@@ -571,6 +587,7 @@ func (bt *BackTest) CloseAllPositions() error {
 	}
 	her := bt.Portfolio.GetLatestHoldingsForAllCurrencies()
 	for i := range her {
+		log.Debugf(common.Backtester, "%v %v %v %v", her[i].Pair, her[i].BaseSize, her[i].QuoteSize, her[i].TotalValue)
 		err = bt.Statistic.AddHoldingsForTime(&her[i])
 		if err != nil {
 			return err
