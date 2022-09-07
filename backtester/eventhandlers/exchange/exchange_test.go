@@ -155,8 +155,8 @@ func TestPlaceOrder(t *testing.T) {
 	em.Add(exch)
 	bot.ExchangeManager = em
 	bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &bot.ServicesWG, false, false, 0)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	err = bot.OrderManager.Start()
 	if !errors.Is(err, nil) {

@@ -484,3 +484,15 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 }
+
+func TestIsRealOrders(t *testing.T) {
+	t.Parallel()
+	d := &dataChecker{}
+	if d.IsRealOrders() {
+		t.Error("expected false")
+	}
+	d.realOrders = true
+	if !d.IsRealOrders() {
+		t.Error("expected true")
+	}
+}

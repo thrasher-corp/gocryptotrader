@@ -772,20 +772,27 @@ func (p *Portfolio) GetLatestPNLs() []PNLSummary {
 }
 
 func (p *Portfolio) SetHoldingsForEvent(fm funding.IFundReader, e common.Event) error {
+	if fm == nil {
+		return fmt.Errorf("%w funding manager", gctcommon.ErrNilPointer)
+	}
+	if e == nil {
+		return common.ErrNilEvent
+	}
 	settings, err := p.getSettings(e.GetExchange(), e.GetAssetType(), e.Pair())
 	if err != nil {
 		return err
 	}
 	h := settings.GetHoldingsForTime(e.GetTime())
 	if e.GetAssetType().IsFutures() {
-		c, err := fm.GetCollateralReader()
+		var c funding.ICollateralReader
+		c, err = fm.GetCollateralReader()
 		if err != nil {
 			return err
 		}
 		h.BaseSize = c.CurrentHoldings()
 		h.QuoteSize = c.AvailableFunds()
 	} else {
-		var p 
+		var p funding.IPairReader
 		p, err = fm.GetPairReader()
 		if err != nil {
 			return err

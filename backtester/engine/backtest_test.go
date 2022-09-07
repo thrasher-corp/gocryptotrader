@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"errors"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
@@ -417,72 +418,6 @@ func TestLoadDataLive(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	bt.Stop()
-}
-
-func TestLoadLiveData(t *testing.T) {
-	t.Parallel()
-	err := setExchangeCredentials(nil, nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Error(err)
-	}
-	cfg := &config.Config{}
-	err = setExchangeCredentials(cfg, nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Error(err)
-	}
-	b := &gctexchange.Base{
-		Name: testExchange,
-		API: gctexchange.API{
-			AuthenticatedSupport:          false,
-			AuthenticatedWebsocketSupport: false,
-			PEMKeySupport:                 false,
-			CredentialsValidator: struct {
-				RequiresPEM                bool
-				RequiresKey                bool
-				RequiresSecret             bool
-				RequiresClientID           bool
-				RequiresBase64DecodeSecret bool
-			}{
-				RequiresPEM:                true,
-				RequiresKey:                true,
-				RequiresSecret:             true,
-				RequiresClientID:           true,
-				RequiresBase64DecodeSecret: true,
-			},
-		},
-	}
-
-	err = setExchangeCredentials(cfg, b)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Error(err)
-	}
-	cfg.DataSettings.LiveData = &config.LiveData{
-		RealOrders: true,
-	}
-	cfg.DataSettings.Interval = gctkline.OneDay
-	cfg.DataSettings.DataType = common.CandleStr
-	err = setExchangeCredentials(cfg, b)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
-
-	cfg.DataSettings.LiveData.ExchangeCredentials = []config.Credentials{
-		{
-			Exchange: testExchange,
-			Credentials: account.Credentials{
-				Key:             "1234",
-				Secret:          "1234",
-				ClientID:        "1234",
-				PEMKey:          "1234",
-				SubAccount:      "1234",
-				OneTimePassword: "1234",
-			},
-		},
-	}
-	err = setExchangeCredentials(cfg, b)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
 }
 
 func TestReset(t *testing.T) {
@@ -1523,6 +1458,86 @@ func TestRunLive(t *testing.T) {
 	}()
 	close(bt.shutdown)
 	wg.Wait()
+}
+
+func TestSetExchangeCredentials(t *testing.T) {
+	t.Parallel()
+	err := setExchangeCredentials(nil, nil)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
+	}
+	cfg := &config.Config{}
+	f := &ftx.FTX{}
+	f.SetDefaults()
+	b := f.GetBase()
+	err = setExchangeCredentials(cfg, b)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
+	}
+
+	ld := &config.LiveData{}
+	cfg.DataSettings = config.DataSettings{
+		LiveData: ld,
+	}
+	err = setExchangeCredentials(cfg, b)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	ld.RealOrders = true
+	err = setExchangeCredentials(cfg, b)
+	if !errors.Is(err, errIntervalUnset) {
+		t.Errorf("received '%v' expected '%v'", err, errIntervalUnset)
+	}
+
+	cfg.DataSettings.Interval = gctkline.OneMin
+	err = setExchangeCredentials(cfg, b)
+	if !errors.Is(err, errNoCredsNoLive) {
+		t.Errorf("received '%v' expected '%v'", err, errNoCredsNoLive)
+	}
+
+	cfg.DataSettings.LiveData.ExchangeCredentials = []config.Credentials{{}}
+	err = setExchangeCredentials(cfg, b)
+	if !errors.Is(err, gctexchange.ErrCredentialsAreEmpty) {
+		t.Errorf("received '%v' expected '%v'", err, gctexchange.ErrCredentialsAreEmpty)
+	}
+
+	// requires valid credentials here to get complete coverage
+	// enter them here
+	cfg.DataSettings.LiveData.ExchangeCredentials = []config.Credentials{{
+		Exchange: "ftx",
+		Credentials: account.Credentials{
+			Key:    "test",
+			Secret: "test",
+		},
+	}}
+	err = setExchangeCredentials(cfg, b)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+}
+
+func TestGetFees(t *testing.T) {
+	t.Parallel()
+	_, _, err := getFees(context.Background(), nil, currency.EMPTYPAIR)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
+	}
+
+	f := &ftx.FTX{}
+	f.SetDefaults()
+	_, _, err = getFees(context.Background(), f, currency.EMPTYPAIR)
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Errorf("received '%v' expected '%v'", err, currency.ErrCurrencyPairEmpty)
+	}
+
+	maker, taker, err := getFees(context.Background(), f, currency.NewPair(currency.BTC, currency.USD))
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, currency.ErrCurrencyPairEmpty)
+	}
+	if maker.IsZero() || taker.IsZero() {
+		t.Error("expected maker and taker fees")
+	}
 }
 
 // Overriding functions

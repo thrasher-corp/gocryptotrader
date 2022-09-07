@@ -355,10 +355,10 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		var currData []account.Balance
 		for k := range resp.Result {
 			currData = append(currData, account.Balance{
-				CurrencyName: currency.NewCode(k),
-				Total:        resp.Result[k].Available + resp.Result[k].Freeze,
-				Hold:         resp.Result[k].Freeze,
-				Free:         resp.Result[k].Available,
+				Currency: currency.NewCode(k),
+				Total:    resp.Result[k].Available + resp.Result[k].Freeze,
+				Hold:     resp.Result[k].Freeze,
+				Free:     resp.Result[k].Available,
 			})
 		}
 		info.Accounts = append(info.Accounts, account.SubAccount{
@@ -381,8 +381,8 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 				}
 
 				balances = append(balances, account.Balance{
-					CurrencyName: currency.NewCode(x),
-					Hold:         lockedF,
+					Currency: currency.NewCode(x),
+					Hold:     lockedF,
 				})
 			}
 		default:
@@ -400,7 +400,7 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 
 				var updated bool
 				for i := range balances {
-					if !balances[i].CurrencyName.Equal(currency.NewCode(x)) {
+					if !balances[i].Currency.Equal(currency.NewCode(x)) {
 						continue
 					}
 					balances[i].Total = balances[i].Hold + availAmount
@@ -411,8 +411,8 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 				}
 				if !updated {
 					balances = append(balances, account.Balance{
-						CurrencyName: currency.NewCode(x),
-						Total:        availAmount,
+						Currency: currency.NewCode(x),
+						Total:    availAmount,
 					})
 				}
 			}

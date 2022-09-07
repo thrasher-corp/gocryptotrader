@@ -688,10 +688,10 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		currencyBalance := make([]account.Balance, len(balances))
 		for i := range balances {
 			currencyBalance[i] = account.Balance{
-				CurrencyName: currency.NewCode(balances[i].CoinName),
-				Total:        balances[i].Total,
-				Hold:         balances[i].Locked,
-				Free:         balances[i].Total - balances[i].Locked,
+				Currency: currency.NewCode(balances[i].CoinName),
+				Total:    balances[i].Total,
+				Hold:     balances[i].Locked,
+				Free:     balances[i].Total - balances[i].Locked,
 			}
 		}
 
@@ -707,10 +707,10 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		currencyBalance := make([]account.Balance, len(balances))
 		for coinName, data := range balances {
 			currencyBalance[i] = account.Balance{
-				CurrencyName: currency.NewCode(coinName),
-				Total:        data.WalletBalance,
-				Hold:         data.WalletBalance - data.AvailableBalance,
-				Free:         data.AvailableBalance,
+				Currency: currency.NewCode(coinName),
+				Total:    data.WalletBalance,
+				Hold:     data.WalletBalance - data.AvailableBalance,
+				Free:     data.AvailableBalance,
 			}
 			i++
 		}
@@ -725,10 +725,10 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 
 		acc.Currencies = []account.Balance{
 			{
-				CurrencyName: currency.USD,
-				Total:        balance.WalletBalance,
-				Hold:         balance.WalletBalance - balance.AvailableBalance,
-				Free:         balance.AvailableBalance,
+				Currency: currency.USD,
+				Total:    balance.WalletBalance,
+				Hold:     balance.WalletBalance - balance.AvailableBalance,
+				Free:     balance.AvailableBalance,
 			},
 		}
 

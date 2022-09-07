@@ -1489,3 +1489,70 @@ func TestCheckLiquidationStatus(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, expectedError)
 	}
 }
+
+func TestSetHoldingsForEvent(t *testing.T) {
+	t.Parallel()
+	p := &Portfolio{}
+	err := p.SetHoldingsForEvent(nil, nil)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v', expected '%v'", err, gctcommon.ErrNilPointer)
+	}
+
+	item, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.Zero, decimal.Zero)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	cp, err := funding.CreatePair(item, item)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	err = p.SetHoldingsForEvent(cp.FundReader(), nil)
+	if !errors.Is(err, common.ErrNilEvent) {
+		t.Errorf("received '%v', expected '%v'", err, common.ErrNilEvent)
+	}
+
+	err = p.SetHoldingsForEvent(cp.FundReader(), nil)
+	if !errors.Is(err, common.ErrNilEvent) {
+		t.Errorf("received '%v', expected '%v'", err, common.ErrNilEvent)
+	}
+
+	tt := time.Now()
+	ev := &signal.Signal{
+		Base: &event.Base{
+			Exchange:     testExchange,
+			CurrencyPair: currency.NewPair(currency.BTC, currency.BTC),
+			AssetType:    asset.Spot,
+			Time:         tt,
+		},
+	}
+	f := &ftx.FTX{}
+	f.SetDefaults()
+	err = p.SetupCurrencySettingsMap(&exchange.Settings{
+		Exchange: f,
+		Pair:     ev.Pair(),
+		Asset:    ev.AssetType,
+	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	err = p.SetHoldingsForEvent(cp.FundReader(), ev)
+	if !errors.Is(err, errNoPortfolioSettings) {
+		t.Errorf("received '%v', expected '%v'", err, errNoPortfolioSettings)
+	}
+
+	err = p.SetHoldingsForOffset(&holdings.Holding{
+		Offset:    0,
+		Item:      currency.BTC,
+		Pair:      ev.Pair(),
+		Asset:     ev.AssetType,
+		Exchange:  ev.Exchange,
+		Timestamp: tt,
+	}, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	err = p.SetHoldingsForEvent(cp.FundReader(), ev)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+}

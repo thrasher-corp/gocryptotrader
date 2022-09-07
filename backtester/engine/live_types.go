@@ -22,7 +22,9 @@ var (
 	// ErrLiveDataTimeout returns when an event has not been processed within the timeframe
 	ErrLiveDataTimeout = errors.New("no data processed within timeframe")
 
-	errDataSourceExists = errors.New("data source already exists")
+	errDataSourceExists   = errors.New("data source already exists")
+	errInvalidCredentials = errors.New("credentials are invalid, please check your config")
+	errNoCredsNoLive      = errors.New("cannot use real orders without credentials to fulfil those real orders")
 )
 
 var (

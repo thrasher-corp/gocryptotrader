@@ -244,12 +244,12 @@ func (f fExchange) FetchAccountInfo(_ context.Context, a asset.Item) (account.Ho
 				AssetType: a,
 				Currencies: []account.Balance{
 					{
-						CurrencyName: currency.USD,
-						Total:        1337,
+						Currency: currency.USD,
+						Total:    1337,
 					},
 					{
-						CurrencyName: currency.BTC,
-						Total:        13337,
+						Currency: currency.BTC,
+						Total:    13337,
 					},
 				},
 			},

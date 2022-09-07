@@ -321,10 +321,10 @@ func (g *Gemini) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	currencies := make([]account.Balance, len(accountBalance))
 	for i := range accountBalance {
 		currencies[i] = account.Balance{
-			CurrencyName: currency.NewCode(accountBalance[i].Currency),
-			Total:        accountBalance[i].Amount,
-			Hold:         accountBalance[i].Amount - accountBalance[i].Available,
-			Free:         accountBalance[i].Available,
+			Currency: currency.NewCode(accountBalance[i].Currency),
+			Total:    accountBalance[i].Amount,
+			Hold:     accountBalance[i].Amount - accountBalance[i].Available,
+			Free:     accountBalance[i].Available,
 		}
 	}
 

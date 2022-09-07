@@ -2,7 +2,11 @@ package funding
 
 import (
 	"errors"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ftx"
 	"testing"
 	"time"
 
@@ -839,10 +843,170 @@ func TestLinkCollateralCurrency(t *testing.T) {
 	}
 }
 
+func TestSetFunding(t *testing.T) {
+	t.Parallel()
+	f := &FundManager{}
+	err := f.SetFunding("", 0, nil, false)
+	if !errors.Is(err, engine.ErrExchangeNameIsEmpty) {
+		t.Errorf("received '%v', expected  '%v'", err, engine.ErrExchangeNameIsEmpty)
+	}
+
+	err = f.SetFunding("ftx", 0, nil, false)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("received '%v', expected  '%v'", err, asset.ErrNotSupported)
+	}
+
+	err = f.SetFunding("ftx", asset.Spot, nil, false)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v', expected  '%v'", err, gctcommon.ErrNilPointer)
+	}
+
+	bal := &account.Balance{}
+	err = f.SetFunding("ftx", asset.Spot, bal, false)
+	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
+		t.Errorf("received '%v', expected  '%v'", err, currency.ErrCurrencyCodeEmpty)
+	}
+
+	bal.Currency = currency.BTC
+	bal.Total = 1337
+	err = f.SetFunding("ftx", asset.Spot, bal, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected  '%v'", err, nil)
+	}
+	if len(f.items) != 1 {
+		t.Fatalf("received '%v' expected '%v'", len(f.items), 1)
+	}
+	if !f.items[0].available.Equal(leet) {
+		t.Errorf("received '%v' expected '%v'", f.items[0].available, bal.Total)
+	}
+	if !f.items[0].initialFunds.Equal(leet) {
+		t.Errorf("received '%v' expected '%v'", f.items[0].available, bal.Total)
+	}
+
+	bal.Total = 1338
+	err = f.SetFunding("ftx", asset.Spot, bal, true)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected  '%v'", err, nil)
+	}
+	if !f.items[0].available.Equal(decimal.NewFromFloat(bal.Total)) {
+		t.Errorf("received '%v' expected '%v'", f.items[0].available, bal.Total)
+	}
+	if !f.items[0].initialFunds.Equal(leet) {
+		t.Errorf("received '%v' expected '%v'", f.items[0].available, leet)
+	}
+}
+
+func TestUpdateFundingFromLiveData(t *testing.T) {
+	t.Parallel()
+	f := &FundManager{}
+	err := f.UpdateFundingFromLiveData(false)
+	if !errors.Is(err, engine.ErrNilSubsystem) {
+		t.Errorf("received '%v', expected  '%v'", err, engine.ErrNilSubsystem)
+	}
+
+	f.exchangeManager = engine.SetupExchangeManager()
+	err = f.UpdateFundingFromLiveData(false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected  '%v'", err, nil)
+	}
+
+	ff := &ftx.FTX{}
+	ff.SetDefaults()
+	f.exchangeManager.Add(ff)
+	err = f.UpdateFundingFromLiveData(false)
+	if !errors.Is(err, exchange.ErrCredentialsAreEmpty) {
+		t.Errorf("received '%v', expected  '%v'", err, exchange.ErrCredentialsAreEmpty)
+	}
+
+	apiKey := ""
+	apiSec := ""
+	subAccount := ""
+	if apiKey == "" || apiSec == "" {
+		// this test requires auth to get coverage
+		return
+	}
+	ff.SetCredentials(apiKey, apiSec, "", subAccount, "", "")
+	err = f.UpdateFundingFromLiveData(false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected  '%v'", err, nil)
+	}
+}
+
+func TestUpdateAllCollateral(t *testing.T) {
+	t.Parallel()
+	f := &FundManager{}
+	err := f.UpdateAllCollateral(false, false)
+	if !errors.Is(err, engine.ErrNilSubsystem) {
+		t.Errorf("received '%v', expected  '%v'", err, engine.ErrNilSubsystem)
+	}
+
+	f.exchangeManager = engine.SetupExchangeManager()
+	err = f.UpdateAllCollateral(false, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected  '%v'", err, nil)
+	}
+
+	ff := &ftx.FTX{}
+	ff.SetDefaults()
+	f.exchangeManager.Add(ff)
+	err = f.UpdateAllCollateral(false, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected  '%v'", err, nil)
+	}
+
+	f.items = []*Item{
+		{
+			exchange:     "ftx",
+			asset:        asset.Spot,
+			currency:     currency.BTC,
+			isCollateral: true,
+		},
+	}
+	err = f.UpdateAllCollateral(false, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected  '%v'", err, nil)
+	}
+
+	f.items[0].trackingCandles = &kline.DataFromKline{}
+	f.items[0].trackingCandles.SetStream([]data.Event{
+		&fakeEvent{},
+	})
+
+	err = f.UpdateAllCollateral(false, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected  '%v'", err, nil)
+	}
+
+	f.items[0].asset = asset.Futures
+	err = f.UpdateAllCollateral(false, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected  '%v'", err, nil)
+	}
+
+	apiKey := ""
+	apiSec := ""
+	subAccount := ""
+	if apiKey == "" || apiSec == "" {
+		// this test requires auth to get coverage
+		return
+	}
+	ff.SetCredentials(apiKey, apiSec, "", subAccount, "", "")
+	err = f.UpdateAllCollateral(true, true)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected  '%v'", err, nil)
+	}
+}
+
+var leet = decimal.NewFromInt(1337)
+
 // fakeEvent implements common.Event without
 // caring about the response, or dealing with import cycles
 type fakeEvent struct{}
 
+func (f *fakeEvent) GetHighPrice() decimal.Decimal            { return leet }
+func (f *fakeEvent) GetLowPrice() decimal.Decimal             { return leet }
+func (f *fakeEvent) GetOpenPrice() decimal.Decimal            { return leet }
+func (f *fakeEvent) GetVolume() decimal.Decimal               { return leet }
 func (f *fakeEvent) GetOffset() int64                         { return 0 }
 func (f *fakeEvent) SetOffset(int64)                          {}
 func (f *fakeEvent) IsEvent() bool                            { return true }

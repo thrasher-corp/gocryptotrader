@@ -855,9 +855,9 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 		account.SubAccount{
 			Currencies: []account.Balance{
 				{
-					CurrencyName: currency.BTC,
-					Total:        100,
-					Hold:         0,
+					Currency: currency.BTC,
+					Total:    100,
+					Hold:     0,
 				},
 			},
 		})
@@ -870,14 +870,14 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 		account.SubAccount{
 			Currencies: []account.Balance{
 				{
-					CurrencyName: currency.LTC,
-					Total:        100,
-					Hold:         0,
+					Currency: currency.LTC,
+					Total:    100,
+					Hold:     0,
 				},
 				{
-					CurrencyName: currency.BTC,
-					Total:        100,
-					Hold:         0,
+					Currency: currency.BTC,
+					Total:    100,
+					Hold:     0,
 				},
 			},
 		})

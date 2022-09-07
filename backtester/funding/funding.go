@@ -660,7 +660,6 @@ func (f *FundManager) UpdateAllCollateral(isLive, hasUpdatedFunding bool) error 
 			if f.items[y].exchange == exchName &&
 				f.items[y].isCollateral {
 				log.Debugf(common.FundManager, "setting collateral %v %v %v to %v", f.items[y].exchange, f.items[y].asset, f.items[y].currency, collateral.AvailableCollateral)
-				log.Debugf(common.FundingStatistics, "collat breakdown %+v %+v", collateral.BreakdownByCurrency[0], collateral.BreakdownByCurrency[1])
 				f.items[y].available = collateral.AvailableCollateral
 				if !hasUpdatedFunding {
 					f.items[y].initialFunds = collateral.AvailableCollateral
@@ -791,11 +790,23 @@ func (f *FundManager) HasExchangeBeenLiquidated(ev common.Event) bool {
 
 // SetFunding overwrites a funding setting. This is for live trading
 // where external wallet amounts need to be synced
-// only the amount is to be overwritten
+// As external sources may have additional currencies and balances
+// versus the strategy currencies, they must be appended to
+// help calculate collateral
 func (f *FundManager) SetFunding(exchName string, item asset.Item, balance *account.Balance, hasUpdatedFunding bool) error {
-	if exchName == "" || !item.IsValid() || item.IsFutures() || balance == nil || balance.CurrencyName.IsEmpty() {
-		return errCannotTransferToSameFunds
+	if exchName == "" {
+		return engine.ErrExchangeNameIsEmpty
 	}
+	if !item.IsValid() {
+		return asset.ErrNotSupported
+	}
+	if balance == nil {
+		return gctcommon.ErrNilPointer
+	}
+	if balance.Currency.IsEmpty() {
+		return currency.ErrCurrencyCodeEmpty
+	}
+
 	exchName = strings.ToLower(exchName)
 	amount := decimal.NewFromFloat(balance.Total)
 	for i := range f.items {
@@ -804,21 +815,21 @@ func (f *FundManager) SetFunding(exchName string, item asset.Item, balance *acco
 		}
 		if f.items[i].exchange != exchName ||
 			f.items[i].asset != item ||
-			!f.items[i].currency.Equal(balance.CurrencyName) {
+			!f.items[i].currency.Equal(balance.Currency) {
 			continue
 		}
-		log.Debugf(common.FundManager, "setting %v %v %v to %v", exchName, item, balance.CurrencyName, balance.Total)
+		log.Debugf(common.FundManager, "setting %v %v %v to %v", exchName, item, balance.Currency, balance.Total)
 		if !hasUpdatedFunding {
 			f.items[i].initialFunds = amount
 		}
 		f.items[i].available = amount
 		return nil
 	}
-	log.Debugf(common.FundManager, "appending %v %v %v to %v", exchName, item, balance.CurrencyName, balance.Total)
+	log.Debugf(common.FundManager, "appending %v %v %v to %v", exchName, item, balance.Currency, balance.Total)
 	f.items = append(f.items, &Item{
 		exchange:     exchName,
 		asset:        item,
-		currency:     balance.CurrencyName,
+		currency:     balance.Currency,
 		initialFunds: amount,
 		available:    amount,
 		wasAppended:  true,

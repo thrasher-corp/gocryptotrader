@@ -84,7 +84,6 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		}
 	}
 	bt.verbose = verbose
-	realOrderTrading := cfg.DataSettings.LiveData != nil && cfg.DataSettings.LiveData.RealOrders
 	bt.DataHolder.Setup()
 	reports := &report.Data{
 		Config:       cfg,
@@ -116,7 +115,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		return err
 	}
 
-	if cfg.FundingSettings.UseExchangeLevelFunding && !realOrderTrading {
+	if cfg.FundingSettings.UseExchangeLevelFunding && !(cfg.DataSettings.LiveData != nil && cfg.DataSettings.LiveData.RealOrders) {
 		for i := range cfg.FundingSettings.ExchangeLevelFunding {
 			a := cfg.FundingSettings.ExchangeLevelFunding[i].Asset
 			cq := cfg.FundingSettings.ExchangeLevelFunding[i].Currency
@@ -160,7 +159,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 				if cfg.DataSettings.LiveData != nil && cfg.DataSettings.LiveData.RealOrders {
 					exchBase.States = currencystate.NewCurrencyStates()
 				}
-				if cfg.CurrencySettings[i].CanUseExchangeLimits || realOrderTrading {
+				if cfg.CurrencySettings[i].CanUseExchangeLimits || (cfg.DataSettings.LiveData != nil && cfg.DataSettings.LiveData.RealOrders) {
 					err = exch.UpdateOrderExecutionLimits(context.TODO(), asset.Empty)
 					if err != nil && !errors.Is(err, gctcommon.ErrNotYetImplemented) {
 						return err
@@ -247,7 +246,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		var baseItem, quoteItem, futureItem *funding.Item
 		switch {
 		case cfg.FundingSettings.UseExchangeLevelFunding:
-			if realOrderTrading {
+			if cfg.DataSettings.LiveData != nil && cfg.DataSettings.LiveData.RealOrders {
 				exchBase := exch.GetBase()
 				err = setExchangeCredentials(cfg, exchBase)
 				if err != nil {
@@ -488,7 +487,10 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		}
 		if cfg.CurrencySettings[i].TakerFee == nil || cfg.CurrencySettings[i].MakerFee == nil {
 			var apiMakerFee, apiTakerFee decimal.Decimal
-			apiMakerFee, apiTakerFee = getFees(context.TODO(), exch, pair)
+			apiMakerFee, apiTakerFee, err = getFees(context.TODO(), exch, pair)
+			if err != nil {
+				log.Errorf(common.Setup, "Could not retrieve maker fee for %v. %v", exch.GetName(), err)
+			}
 			if cfg.CurrencySettings[i].MakerFee == nil {
 				makerFee = apiMakerFee
 				cfg.CurrencySettings[i].MakerFee = &makerFee
@@ -596,7 +598,13 @@ func (bt *BackTest) loadExchangePairAssetBase(exch string, base, quote currency.
 }
 
 // getFees will return an exchange's fee rate from GCT's wrapper function
-func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee, takerFee decimal.Decimal) {
+func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee, takerFee decimal.Decimal, err error) {
+	if exch == nil {
+		return decimal.Zero, decimal.Zero, fmt.Errorf("exchange %w", gctcommon.ErrNilPointer)
+	}
+	if fPair.IsEmpty() {
+		return decimal.Zero, decimal.Zero, currency.ErrCurrencyPairEmpty
+	}
 	fTakerFee, err := exch.GetFeeByType(ctx,
 		&gctexchange.FeeBuilder{FeeType: gctexchange.OfflineTradeFee,
 			Pair:          fPair,
@@ -605,7 +613,7 @@ func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.
 			Amount:        1,
 		})
 	if err != nil {
-		log.Errorf(common.Setup, "Could not retrieve taker fee for %v. %v", exch.GetName(), err)
+		return decimal.Zero, decimal.Zero, err
 	}
 
 	fMakerFee, err := exch.GetFeeByType(ctx,
@@ -617,10 +625,10 @@ func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.
 			Amount:        1,
 		})
 	if err != nil {
-		log.Errorf(common.Setup, "Could not retrieve maker fee for %v. %v", exch.GetName(), err)
+		return decimal.Zero, decimal.Zero, err
 	}
 
-	return decimal.NewFromFloat(fMakerFee), decimal.NewFromFloat(fTakerFee)
+	return decimal.NewFromFloat(fMakerFee), decimal.NewFromFloat(fTakerFee), nil
 }
 
 // loadData will create kline data from the sources defined in start config files. It can exist from databases, csv or API endpoints
@@ -863,12 +871,14 @@ func setExchangeCredentials(cfg *config.Config, base *gctexchange.Base) error {
 	if cfg.DataSettings.Interval <= 0 {
 		return errIntervalUnset
 	}
+	if len(cfg.DataSettings.LiveData.ExchangeCredentials) == 0 {
+		return errNoCredsNoLive
+	}
 	name := strings.ToLower(base.Name)
-	credentialsSet := false
 	for i := range cfg.DataSettings.LiveData.ExchangeCredentials {
-		if cfg.DataSettings.LiveData.ExchangeCredentials[i].Exchange != name ||
+		if !strings.EqualFold(cfg.DataSettings.LiveData.ExchangeCredentials[i].Exchange, name) ||
 			cfg.DataSettings.LiveData.ExchangeCredentials[i].Credentials.IsEmpty() {
-			continue
+			return fmt.Errorf("%v %w, please review your live, real order config", base.GetName(), gctexchange.ErrCredentialsAreEmpty)
 		}
 
 		base.SetCredentials(
@@ -882,13 +892,8 @@ func setExchangeCredentials(cfg *config.Config, base *gctexchange.Base) error {
 		validated := base.AreCredentialsValid(context.TODO())
 		base.API.AuthenticatedSupport = validated
 		if !validated {
-			break
+			return fmt.Errorf("%v %w", base.GetName(), errInvalidCredentials)
 		}
-		credentialsSet = true
-	}
-	if !credentialsSet && cfg.DataSettings.LiveData.RealOrders {
-		log.Warn(common.Setup, "invalid API credentials set, real orders set to false")
-		cfg.DataSettings.LiveData.RealOrders = false
 	}
 
 	return nil

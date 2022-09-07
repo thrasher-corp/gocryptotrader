@@ -417,8 +417,8 @@ func (p *Poloniex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 	currencies := make([]account.Balance, 0, len(accountBalance.Currency))
 	for x, y := range accountBalance.Currency {
 		currencies = append(currencies, account.Balance{
-			CurrencyName: currency.NewCode(x),
-			Total:        y,
+			Currency: currency.NewCode(x),
+			Total:    y,
 		})
 	}
 

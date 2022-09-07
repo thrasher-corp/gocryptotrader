@@ -494,7 +494,7 @@ func (f *FTX) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Hold
 			hold := balances[x].Total - balances[x].AvailableWithoutBorrow
 			acc.Currencies = append(acc.Currencies,
 				account.Balance{
-					CurrencyName:           balances[x].Coin,
+					Currency:               balances[x].Coin,
 					Total:                  balances[x].Total,
 					Hold:                   hold,
 					AvailableWithoutBorrow: balances[x].AvailableWithoutBorrow,

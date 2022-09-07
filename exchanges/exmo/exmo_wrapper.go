@@ -357,7 +357,7 @@ func (e *EXMO) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 	currencies := make([]account.Balance, 0, len(result.Balances))
 	for x, y := range result.Balances {
 		var exchangeCurrency account.Balance
-		exchangeCurrency.CurrencyName = currency.NewCode(x)
+		exchangeCurrency.Currency = currency.NewCode(x)
 		for z, w := range result.Reserved {
 			if z != x {
 				continue

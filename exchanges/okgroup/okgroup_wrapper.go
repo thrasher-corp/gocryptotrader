@@ -207,10 +207,10 @@ func (o *OKGroup) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		}
 		currencyAccount.Currencies = append(currencyAccount.Currencies,
 			account.Balance{
-				CurrencyName: currency.NewCode(currencies[i].Currency),
-				Total:        totalValue,
-				Hold:         hold,
-				Free:         totalValue - hold,
+				Currency: currency.NewCode(currencies[i].Currency),
+				Total:    totalValue,
+				Hold:     hold,
+				Free:     totalValue - hold,
 			})
 	}
 
