@@ -685,7 +685,7 @@ func (f *FTX) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitRe
 	if !s.RetrieveFees {
 		return resp, nil
 	}
-
+	time.Sleep(s.RetrieveFeeDelay)
 	fills, err := f.GetFills(ctx, s.Pair, s.AssetType, time.Time{}, time.Time{}, strconv.FormatInt(tempResp.ID, 10))
 	if err != nil {
 		// choosing to return with no error so that a valid order is still returned to caller

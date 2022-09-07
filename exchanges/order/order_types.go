@@ -66,6 +66,9 @@ type Submit struct {
 	// enabling this will perform additional request(s) to retrieve them
 	// and set it in the SubmitResponse
 	RetrieveFees bool
+	// RetrieveFeeDelay some exchanges take time to properly save order data
+	// and cannot retrieve fees data immediately
+	RetrieveFeeDelay time.Duration
 }
 
 // SubmitResponse is what is returned after submitting an order to an exchange
