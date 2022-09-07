@@ -497,3 +497,21 @@ func (a *SpotOrder) UnmarshalJSON(data []byte) error {
 	a.UpdateTimeMs = time.UnixMilli(chil.UpdateTimeMs)
 	return nil
 }
+
+// UnmarshalJSON decerializes json, and timestamp information
+func (a *MarginAccountBalanceChangeInfo) UnmarshalJSON(data []byte) error {
+	type Alias MarginAccountBalanceChangeInfo
+	chil := &struct {
+		*Alias
+		Time   int64 `json:"time,string"`
+		TimeMs int64 `json:"time_ms"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
+	}
+	a.Time = time.Unix(chil.Time, 0)
+	a.TimeMs = time.UnixMilli(chil.TimeMs)
+	return nil
+}

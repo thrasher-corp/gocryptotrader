@@ -68,8 +68,13 @@ const (
 	walletTotalBalance                  = "wallet/total_balance"
 
 	// Margin
-	marginCurrencyPairs = "margin/currency_pairs"
-	marginFundingBook   = "margin/funding_book"
+	marginCurrencyPairs   = "margin/currency_pairs"
+	marginFundingBook     = "margin/funding_book"
+	marginAccount         = "margin/accounts"
+	marginAccountBook     = "margin/account_book"
+	marginFundingAccounts = "margin/funding_accounts"
+	marginLoans           = "margin/loans"
+	marginMergedLoans     = "margin/merged_loans"
 
 	// Futures
 	futuresSettleContracts    = "futures/%s/contracts"
@@ -160,6 +165,7 @@ var (
 	errNoValidParameterPassed              = errors.New("no valid parameter passed")
 	errInvalidCountdown                    = errors.New("invalid countdown, Countdown time, in seconds At least 5 seconds, 0 means cancel the countdown")
 	errInvalidOrderStatus                  = errors.New("invalid order status")
+	errInvalidLoanSide                     = errors.New("invalid loan side, only 'lend' and 'borrow'")
 )
 
 // Gateio is the overarching type across this package
@@ -1289,7 +1295,17 @@ func (g *Gateio) CancelAllOpenOrders(ctx context.Context, currencyPair currency.
 // GetSinglePriceTriggeredOrder get a single order
 func (g *Gateio) GetSinglePriceTriggeredOrder(ctx context.Context, orderID string) (*SpotPriceTriggeredOrder, error) {
 	var response SpotPriceTriggeredOrder
-	if orderID ==""{
+	if orderID == "" {
+		return nil, errInvalidOrderID
+	}
+	path := fmt.Sprintf("%s/%s", spotPriceOrders, orderID)
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &response)
+}
+
+// CancelPriceTriggeredOrder cancel a price-triggered order
+func (g *Gateio) CancelPriceTriggeredOrder(ctx context.Context, orderID string) (*SpotPriceTriggeredOrder, error) {
+	var response SpotPriceTriggeredOrder
+	if orderID == "" {
 		return nil, errInvalidOrderID
 	}
 	path := fmt.Sprintf("%s/%s", spotPriceOrders, orderID)
@@ -1684,7 +1700,7 @@ func (g *Gateio) GetUsersTotalBalance(ctx context.Context, ccy currency.Code) (*
 	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, walletTotalBalance, params, nil, &response)
 }
 
-// *********************************Margin *******************************************
+// ********************************* Margin *******************************************
 
 // GetMarginSupportedCurrencyPair retrives margin supported currency pairs.
 func (g *Gateio) GetMarginSupportedCurrencyPairs(ctx context.Context) ([]MarginCurrencyPairInfo, error) {
@@ -1718,6 +1734,124 @@ func (g *Gateio) GetOrderbookOfLendingLoans(ctx context.Context, ccy currency.Co
 	}
 	path := fmt.Sprintf("%s?currency=%s", marginFundingBook, ccy.String())
 	return lendingLoans, g.SendHTTPRequest(ctx, exchange.RestSpot, path, &lendingLoans)
+}
+
+// GetMarginAccountList margin account list
+func (g *Gateio) GetMarginAccountList(ctx context.Context, currencyPair currency.Pair) ([]MarginAccountItem, error) {
+	var response []MarginAccountItem
+	params := url.Values{}
+	if !currencyPair.IsEmpty() {
+		currencyPair.Delimiter = "_"
+		params.Set("currency_pair", currencyPair.String())
+	}
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, marginAccount, params, nil, &response)
+}
+
+// ListMarginAccountBalanceChangeHistory retrives retrives margin account balance change history
+// Only transferals from and to margin account are provided for now. Time range allows 30 days at most
+func (g *Gateio) ListMarginAccountBalanceChangeHistory(ctx context.Context, ccy currency.Code, currencyPair currency.Pair, from, to time.Time, page, limit int) ([]MarginAccountBalanceChangeInfo, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	if !currencyPair.IsEmpty() {
+		currencyPair.Delimiter = UnderscoreDelimiter
+		params.Set("currency_pair", currencyPair.String())
+	}
+	if !from.IsZero() {
+		params.Set("from", strconv.FormatInt(from.Unix(), 10))
+	}
+	if !to.IsZero() && ((!from.IsZero() && to.After(from)) || from.IsZero()) {
+		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	}
+	if page > 0 {
+		params.Set("page", strconv.Itoa(page))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(limit))
+	}
+	var response []MarginAccountBalanceChangeInfo
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, marginAccountBook, params, nil, &response)
+}
+
+// GetMarginFundingAccountList retrives funding account list
+func (g *Gateio) GetMarginFundingAccountList(ctx context.Context, ccy currency.Code) ([]MarginFundingAccountItem, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	var response []MarginFundingAccountItem
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, marginFundingAccounts, params, nil, &response)
+}
+
+// MarginLoan represents lend or borrow request
+func (g *Gateio) MarginLoan(ctx context.Context, arg MarginLoanRequestParam) (*MarginLoanResponse, error) {
+	if !(arg.Side == "lend" || arg.Side == "borrow") {
+		return nil, errInvalidLoanSide
+	}
+	if arg.Side == "borrow" && arg.Rate == 0 {
+		return nil, errors.New("`rate` is required in borrowing")
+	}
+	if arg.Currency.IsEmpty() {
+		return nil, errInvalidCurrency
+	}
+	if arg.Amount <= 0 {
+		return nil, errInvalidAmount
+	}
+	if !(arg.Rate <= 0.002 && arg.Rate >= 0.0002) {
+		arg.Rate = 0
+	}
+	var response MarginLoanResponse
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, marginLoans, nil, &arg, &response)
+}
+
+// GetMarginAllLoans retrives all loans (borrow and lending) orders.
+func (g *Gateio) GetMarginAllLoans(ctx context.Context, status, side string, currency currency.Code, currencyPair currency.Pair, sortBy string, reverseSort bool, page, limit int) ([]MarginLoanResponse, error) {
+	params := url.Values{}
+	if side == "lend" || side == "borrow" {
+		params.Set("side", side)
+	}
+	if status == "open" || status == "loaned" || status == "finished" || status == "auto_repair" {
+		params.Set("status", status)
+	}else {
+		return nil, errors.New("loan status \"status\" is required")
+	}
+	if !currency.IsEmpty() {
+		params.Set("currency", currency.String())
+	}
+	if !currencyPair.IsEmpty() {
+		currencyPair.Delimiter = UnderscoreDelimiter
+		params.Set("currency_pair", currencyPair.String())
+	}
+	if sortBy == "create_time" || sortBy == "rate" {
+		params.Set("sort_by", sortBy)
+	}
+	if reverseSort {
+		params.Set("reverse_sort", strconv.FormatBool(reverseSort))
+	}
+	if page > 0 {
+		params.Set("page", strconv.Itoa(page))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(limit))
+	}
+	var response []MarginLoanResponse
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, marginLoans, params, nil, &response)
+}
+
+// MergeMultipleLendingLoans merge multiple lending loans
+func (g *Gateio) MergeMultipleLendingLoans(ctx context.Context, ccy currency.Code, IDs []string) (*MarginLoanResponse, error) {
+	params := url.Values{}
+	if ccy.IsEmpty() {
+		return nil, errInvalidCurrency
+	}
+	if len(IDs) < 2 || len(IDs) > 20 {
+		return nil, errors.New("number of loans to be merged must be between [2-20], inclusive")
+	}
+	params.Set("currency", ccy.String())
+	params.Set("ids", strings.Join(IDs, ","))
+	var response MarginLoanResponse
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, marginMergedLoans, params, nil, &response)
 }
 
 // *********************************Futures***************************************

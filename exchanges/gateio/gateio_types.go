@@ -1221,26 +1221,77 @@ type SubAccountBalance struct {
 
 // SubAccountMarginBalance represents sub account margin balance for specific sub account and several currencies
 type SubAccountMarginBalance struct {
-	UID       string `json:"uid"`
-	Available []struct {
-		Locked       bool   `json:"locked"`
-		CurrencyPair string `json:"currency_pair"`
-		Risk         string `json:"risk"`
-		Base         struct {
-			Available string `json:"available"`
-			Borrowed  string `json:"borrowed"`
-			Interest  string `json:"interest"`
-			Currency  string `json:"currency"`
-			Locked    string `json:"locked"`
-		} `json:"base"`
-		Quote struct {
-			Available string `json:"available"`
-			Borrowed  string `json:"borrowed"`
-			Interest  string `json:"interest"`
-			Currency  string `json:"currency"`
-			Locked    string `json:"locked"`
-		} `json:"quote"`
-	} `json:"available"`
+	UID       string              `json:"uid"`
+	Available []MarginAccountItem `json:"available"`
+}
+
+// MarginAccountItem margin account item
+type MarginAccountItem struct {
+	Locked       bool   `json:"locked"`
+	CurrencyPair string `json:"currency_pair"`
+	Risk         string `json:"risk"`
+	Base         struct {
+		Available string `json:"available"`
+		Borrowed  string `json:"borrowed"`
+		Interest  string `json:"interest"`
+		Currency  string `json:"currency"`
+		Locked    string `json:"locked"`
+	} `json:"base"`
+	Quote struct {
+		Available string `json:"available"`
+		Borrowed  string `json:"borrowed"`
+		Interest  string `json:"interest"`
+		Currency  string `json:"currency"`
+		Locked    string `json:"locked"`
+	} `json:"quote"`
+}
+
+// MarginAccountBalanceChangeInfo represents margin account balance
+type MarginAccountBalanceChangeInfo struct {
+	ID           string    `json:"id"`
+	Time         time.Time `json:"time"`
+	TimeMs       time.Time `json:"time_ms"`
+	Currency     string    `json:"currency"`
+	CurrencyPair string    `json:"currency_pair"`
+	Change       string    `json:"change"`
+	Balance      string    `json:"balance"`
+}
+
+// MarginFundingAccountItem represents funding account list item.
+type MarginFundingAccountItem struct {
+	Currency  string `json:"currency"`
+	Available string `json:"available"`
+	Locked    string `json:"locked"`
+	Lent      string `json:"lent"`
+	TotalLent string `json:"total_lent"`
+}
+
+// MarginLoanRequestParam represents margin lend or borrow request param
+type MarginLoanRequestParam struct {
+	Side         string        `json:"side"`
+	Currency     currency.Code `json:"currency"`
+	Rate         float64       `json:"rate,string,omitempty"`
+	Amount       float64       `json:"amount,string,omitempty"`
+	Days         int           `json:"days,omitempty"`
+	AutoRenew    bool          `json:"auto_renew,omitempty"`
+	CurrencyPair currency.Pair `json:"currency_pair,omitempty"`
+	FeeRate      float64       `json:"fee_rate,string,omitempty"`
+	OrigID       string        `json:"orig_id,omitempty"`
+	Text         string        `json:"text,omitempty"`
+}
+
+// MarginLoanResponse represents lending or borrow response.
+type MarginLoanResponse struct {
+	Side         string `json:"side"`
+	Currency     string `json:"currency"`
+	Amount       string `json:"amount"`
+	Rate         string `json:"rate,omitempty"`
+	Days         int    `json:"days,omitempty"`
+	AutoRenew    bool   `json:"auto_renew,omitempty"`
+	CurrencyPair string `json:"currency_pair,omitempty"`
+	FeeRate      string `json:"fee_rate,omitempty"`
+	OrigID       string `json:"orig_id,omitempty"`
+	Text         string `json:"text,omitempty"`
 }
 
 // SubAccountCrossMarginInfo represents subaccount's cross_margin account info

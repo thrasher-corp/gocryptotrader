@@ -1177,16 +1177,115 @@ func TestCancelAllOpenOrders(t *testing.T) {
 	}
 }
 
+var singlePriceTriggeredOrderJSON = `{"trigger": {"price": "100", "rule": ">=","expiration": 3600	},"put": {"type": "limit","side": "buy",	  "price": "2.15",	  "amount": "2.00000000",	  "account": "normal",	  "time_in_force": "gtc"	},	"id": 1283293,	"user": 1234,	"market": "GT_USDT",	"ctime": 1616397800,	"ftime": 1616397801,	"fired_order_id": 0,	"status": "",	"reason": ""}`
+
 func TestGetSinglePriceTriggeredOrder(t *testing.T) {
 	t.Parallel()
-	// if !areTestAPIKeysSet() || !canManipulateRealOrders {
-	// 	t.SkipNow()
-	// }
-	if _, er := g.GetSinglePriceTriggeredOrder(context.Background(), "1234"); er != nil {
-		t.Errorf("%s GetSinglePriceTriggeredOrder() error %v", g.Name, er)
+	var response SpotPriceTriggeredOrder
+	if err := json.Unmarshal([]byte(singlePriceTriggeredOrderJSON), &response); err != nil {
+		t.Errorf("%s error while deserializing to SpotPriceTriggeredOrder %v", g.Name, err)
+	}
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	if _, err := g.GetSinglePriceTriggeredOrder(context.Background(), "1234"); err != nil && !strings.Contains(err.Error(), "no order_id match") {
+		t.Errorf("%s GetSinglePriceTriggeredOrder() error %v", g.Name, err)
 	}
 }
 
+func TestCancelPriceTriggeredOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.CancelPriceTriggeredOrder(context.Background(), "1234"); err != nil &&
+		!strings.Contains(err.Error(), "no order_id match") {
+		t.Errorf("%s CancelPriceTriggeredOrder() error %v", g.Name, err)
+	}
+}
+
+var singleMarginAccountJSON = `{"currency_pair": "ETH_BTC",  "locked": false,  "risk": "1.1",  "base": {    "currency": "ETH",    "available": "30.1",    "locked": "0",    "borrowed": "10.1",    "interest": "0"  },  "quote": {    "currency": "BTC",    "available": "10",    "locked": "0",    "borrowed": "1.5",    "interest": "0"  }}`
+
+func TestGetMarginAccountList(t *testing.T) {
+	t.Parallel()
+	var response MarginAccountItem
+	if err := json.Unmarshal([]byte(singleMarginAccountJSON), &response); err != nil {
+		t.Errorf("%s deserializing to MarginAccountItem error %v", g.Name, err)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.GetMarginAccountList(context.Background(), currency.EMPTYPAIR); err != nil {
+		t.Errorf("%s GetMarginAccountList() error %v", g.Name, err)
+	}
+}
+
+var marginAccountBalanceChangeHistoryJSON = `{  "id": "123456",  "time": "1547633726",  "time_ms": 1547633726123,  "currency": "BTC",  "currency_pair": "BTC_USDT",  "change": "1.03",  "balance": "4.59316525194"}`
+
+func TestListMarginAccountBalanceChangeHistory(t *testing.T) {
+	t.Parallel()
+	var response MarginAccountBalanceChangeInfo
+	if err := json.Unmarshal([]byte(marginAccountBalanceChangeHistoryJSON), &response); err != nil {
+		t.Errorf("%s deserializes to MarginAccountBalanceChangeInfo error %v", g.Name, err)
+	}
+	if _, err := g.ListMarginAccountBalanceChangeHistory(context.Background(), currency.BTC, currency.NewPair(currency.BTC, currency.USDT), time.Time{}, time.Time{}, 0, 0); err != nil {
+		t.Errorf("%s ListMarginAccountBalanceChangeHistory() error %v", g.Name, err)
+	}
+}
+
+var getMarginFundingAccountListJSON = `{  "currency": "BTC",  "available": "1.238",  "locked": "0",  "lent": "3.32",  "total_lent": "3.32"}`
+
+func TestGetMarginFundingAccountList(t *testing.T) {
+	t.Parallel()
+	var response MarginFundingAccountItem
+	if err := json.Unmarshal([]byte(getMarginFundingAccountListJSON), &response); err != nil {
+		t.Errorf("%s error while deserializing to MarginFundingAccountItem %v", g.Name, err)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.GetMarginFundingAccountList(context.Background(), currency.BTC); err != nil {
+		t.Errorf("%s GetMarginFundingAccountList %v", g.Name, err)
+	}
+}
+
+var marginLoanJSON = `{"side":"borrow","currency":"BTC","rate":"0.002","amount":"1.5","days":10,"auto_renew": true,	"currency_pair": "ETH_BTC",	"fee_rate": "0.18",	"orig_id": "123424",	"text": "t-abc"}`
+
+func TestMarginLoan(t *testing.T) {
+	t.Parallel()
+	var response MarginLoanResponse
+	if err := json.Unmarshal([]byte(marginLoanJSON), &response); err != nil {
+		t.Errorf("%s error while deserializing to MarginLoanResponse %v", g.Name, err)
+	}
+	if _, err := g.MarginLoan(context.Background(), MarginLoanRequestParam{
+		Side:     "borrow",
+		Amount:   1,
+		Currency: currency.BTC,
+		Days:     10,
+	}); err != nil {
+		t.Errorf("%s MarginLoan() error %v", g.Name, err)
+	}
+}
+
+func TestGetMarginAllLoans(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.GetMarginAllLoans(context.Background(), "open", "", currency.USD, currency.NewPair(currency.BTC, currency.USDT), "", false, 0, 0); err != nil {
+		t.Errorf("%s GetMarginAllLoans() error %v", g.Name, err)
+	}
+}
+
+func TestMergeMultipleLendingLoans(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.MergeMultipleLendingLoans(context.Background(), currency.USDT, []string{"123", "23423"}); err != nil && !strings.Contains(err.Error(), "Orders which can be merged are not found") {
+		t.Errorf("%s MergeMultipleLendingLoans() error %v", g.Name, err)
+	}
+}
 func TestListCurrencyChain(t *testing.T) {
 	t.Parallel()
 	if _, er := g.ListCurrencyChain(context.Background(), currency.BTC); er != nil {
