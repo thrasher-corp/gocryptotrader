@@ -45,19 +45,22 @@ An event-driven backtesting tool to test and iterate trading strategies using hi
 - Fund transfer. At a strategy level, transfer funds between exchanges to allow for complex strategy design
 - Backtesting support for futures asset types
 - Example cash and carry spot futures strategy
+- Long-running application as a GRPC server
+- Custom strategy plugins
 
 ## Planned Features
 We welcome pull requests on any feature for the Backtester! We will be especially appreciative of any contribution towards the following planned features:
 
 | Feature | Description |
 |---------|-------------|
-| Long-running application | Transform the Backtester to run a GRPC server, where commands can be sent to run Backtesting operations. Allowing for many strategies to be run, analysed and tweaked in a more efficient manner |
-| Leverage support | Leverage is a good way to enhance profit and loss and is important to include in strategies |
+| Perpetual futures support | Accounting for hourly funding rates in user's overall positions allows for much greater strategic depth |
+| Margin borrowing support | Allowing strategies to utilise margin borrowing to have larger positions and handling borrow rate payments |
+| Leverage support | 20x long for 20x profits, up only |
+| Live ticker data | Live trading works off candle data which is only processed at intervals. Adding ticker data as a strategic source allows for faster intervals |
+| Live orderbook data | Processing orders based off the latest orderbook data allows for much better orders |
 | Enhance config-builder | Create an application that can create strategy configs in a more visual manner and execute them via GRPC to allow for faster customisation of strategies |
 | Save Backtester results to database | This will allow for easier comparison of results over time |
 | Backtester result comparison report | Providing an executive summary of Backtester database results |
-| Currency correlation | Compare multiple exchange, asset, currencies for a candle interval against indicators to highlight correlated pairs for use in pairs trading |
-| Improve live trading functionality | Live trading is currently only a proof Of concept. Adding live support for running multiple currencies and running off orderbook data will allow for esteemed traders to use their backtested strategies |
 
 
 ## How does it work?

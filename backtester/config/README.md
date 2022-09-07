@@ -126,12 +126,22 @@ See below for a set of tables and fields, expected values and what they can do
 | --- | ----------- | ------- |
 | RiskFreeRate | The risk free rate used in the calculation of sharpe and sortino ratios | `0.03` |
 
+### DataSettings
+| Key | Description | Example |
+| --- | ----------- | ------- |
+| Interval | The candle interval in `time.Duration` format eg set as`15000000000` for a value of `time.Second * 15` | `15000000000` |
+| DataType | Choose whether `candle` or `trade` data is used. If trades are used, they will be converted to candles | `trade` |
+| VerboseExchangeRequests | When retrieving candle data from an exchange, print verbose request/response details | `false` |
+| APIData | Holds API data settings. See table `APIData` |  |
+| DatabaseData | Holds database data settings. See table `DatabaseData` |  |
+| LiveData | Holds API data settings. See table `LiveData` |  |
+| CSVData | Holds CSV data settings. See table `CSVData` |  |
+
+
 #### APIData
 
 | Key | Description | Example |
 | --- | ----------- | ------- |
-| DataType | Choose whether `candle` or `trade` data is used. If trades are used, they will be converted to candles | `trade` |
-| Interval | The candle interval in `time.Duration` format eg set as`15000000000` for a value of `time.Second * 15` | `15000000000` |
 | StartDate | The start date to retrieve data | `2021-01-23T11:00:00+11:00` |
 | EndDate | The end date to retrieve data | `2021-01-24T11:00:00+11:00` |
 | InclusiveEndDate | When enabled, the end date's candle is included in the results. ie `2021-01-24T11:00:00+11:00` with a one hour candle, the final candle will be `2021-01-24T11:00:00+11:00` to `2021-01-24T12:00:00+11:00` | `false` |
@@ -180,14 +190,27 @@ See below for a set of tables and fields, expected values and what they can do
 
 | Key | Description | Example |
 | --- | ----------- | ------- |
-| DataType | Choose whether `candle` or `trade` data is used. If trades are used, they will be converted to candles | `candle` |
-| Interval | The candle interval in `time.Duration` format eg set as`15000000000` for a value of `time.Second * 15` | `15000000000` |
-| APIKeyOverride | Will set the GoCryptoTrader exchange to use the following API Key | `1234` |
-| APISecretOverride | Will set the GoCryptoTrader exchange to use the following API Secret | `5678` |
-| APIClientIDOverride | Will set the GoCryptoTrader exchange to use the following API Client ID | `9012` |
-| API2FAOverride | Will set the GoCryptoTrader exchange to use the following 2FA seed | `hello-moto` |
-| APISubaccountOverride | Will set the GoCryptoTrader exchange to use the following subaccount on supported exchanges | `subzero` |
-| RealOrders | Whether to place real orders. You really should never consider using this. Ever ever | `true` |
+| NewEventTimeout | | |
+| DataCheckTimer | | |
+| RealOrders | Whether to place real orders with real money. Its likely you should never want to set this to true | `false` |
+| ClosePositionsOnExit | As live trading doesn't stop until you tell it to, you can trigger a close of your position(s) when you close the application | `true` |
+| DataRequestRetryTolerance | Rather than immediately closing a strategy on failure to retreive candle data, having a retry tolerance allows multiple attempts to return data | `3` |
+| DataRequestRetryWaitTime | How long to wait in between request retries | `500000000` |
+| ExchangeCredentials | A list of exchange credentials. See table named `ExchangeCredentials` |  |
+
+##### ExchangeCredentials Settings
+
+| Exchange | The exchange to apply credentials to | `ftx` |
+| Credentials | The API credentials to use. See table named `Credentials` | |
+
+##### Credentials Settings
+
+| Key | Will set the GoCryptoTrader exchange to use the following API Key | `1234` |
+| Secret | Will set the GoCryptoTrader exchange to use the following API Secret | `5678` |
+| ClientID | Will set the GoCryptoTrader exchange to use the following API Client ID | `9012` |
+| PEMKey | Private key for certain API requests. If you don't know it, you probably don't need it | `hello-moto` |
+| SubAccount | Will set the GoCryptoTrader exchange to use the following subaccount on supported exchanges | `subzero` |
+| OneTimePassword | ll set the GoCryptoTrader exchange to use the following 2FA seed  | `subzero` |
 
 ##### Leverage Settings
 

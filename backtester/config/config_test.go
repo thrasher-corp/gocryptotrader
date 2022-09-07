@@ -1432,7 +1432,7 @@ func TestGenerateConfigForLiveCashAndCarry(t *testing.T) {
 			LiveData: &LiveData{
 				NewEventTimeout:           time.Minute,
 				DataCheckTimer:            time.Second,
-				RealOrders:                true,
+				RealOrders:                false,
 				DataRequestRetryTolerance: 3,
 				ClosePositionsOnExit:      true,
 				DataRequestRetryWaitTime:  time.Millisecond * 500,

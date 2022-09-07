@@ -47,8 +47,8 @@ type Config struct {
 // Only ONE can be populated per config
 type DataSettings struct {
 	Interval                kline.Interval `json:"interval"`
-	VerboseExchangeRequests bool           `json:"verbose-exchange-requests"`
 	DataType                string         `json:"data-type"`
+	VerboseExchangeRequests bool           `json:"verbose-exchange-requests"`
 	APIData                 *APIData       `json:"api-data,omitempty"`
 	DatabaseData            *DatabaseData  `json:"database-data,omitempty"`
 	LiveData                *LiveData      `json:"live-data,omitempty"`
@@ -196,7 +196,6 @@ type LiveData struct {
 	NewEventTimeout           time.Duration `json:"new-event-timeout"`
 	DataCheckTimer            time.Duration `json:"data-check-timer"`
 	RealOrders                bool          `json:"real-orders"`
-	VerboseDataCheck          bool          `json:"verbose-data-check"`
 	ClosePositionsOnExit      bool          `json:"close-positions-on-exit"`
 	DataRequestRetryTolerance int64         `json:"data-request-retry-tolerance"`
 	DataRequestRetryWaitTime  time.Duration `json:"data-request-retry-wait-time"`

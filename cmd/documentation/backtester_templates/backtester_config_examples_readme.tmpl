@@ -16,7 +16,8 @@
 | dca-database-candles.strat | The same DCA strategy, but uses a database to retrieve candle data |
 | rsi-api-candles.strat | Runs a strategy using rsi figures to make buy or sell orders based on market figures |
 | t2b2-api-candles-exchange-funding.strat | Runs a more complex strategy using simultaneous signal processing, exchange level funding and MFI values to make buy or sell signals based on the two strongest and weakest MFI values |
-| ftx-cash-carry.strat | Executes a cash and carry trade on FTX, buying BTC-USD while shorting the long dated futures contract BTC-20210924 |
+| ftx-cash-and-carry.strat | Executes a cash and carry trade on FTX, buying BTC-USD while shorting the long dated futures contract BTC-20210924 |
+| ftx-live-cash-and-carry.strat | Executes a cash and carry trade on FTX using realtime 15 second candles, buying BTC-USD while shorting the long dated futures contract BTC-1230 |
 
 ### Want to make your own configs?
 Use the provided config builder under `/backtester/config/configbuilder` or modify tests under `/backtester/config/config_test.go` to generates strategy files quickly
