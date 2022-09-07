@@ -4416,7 +4416,7 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 	}
 	var errMessage errCap
 	errMessage.Data = result
-	if err := json.Unmarshal(intermediary, &errMessage); err != nil {
+	if err = json.Unmarshal(intermediary, &errMessage); err != nil {
 		return err
 	}
 	code, err := strconv.ParseInt(errMessage.Code, 10, 64)
