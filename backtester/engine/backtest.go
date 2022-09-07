@@ -587,7 +587,6 @@ func (bt *BackTest) CloseAllPositions() error {
 	}
 	her := bt.Portfolio.GetLatestHoldingsForAllCurrencies()
 	for i := range her {
-		log.Debugf(common.Backtester, "%v %v %v %v", her[i].Pair, her[i].BaseSize, her[i].QuoteSize, her[i].TotalValue)
 		err = bt.Statistic.AddHoldingsForTime(&her[i])
 		if err != nil {
 			return err

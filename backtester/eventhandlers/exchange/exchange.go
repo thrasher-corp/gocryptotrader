@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"strings"
+	"time"
 )
 
 // Reset returns the exchange to initial settings
@@ -366,14 +367,15 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount, fee decimal.De
 	}
 
 	submit := &gctorder.Submit{
-		Price:        price.InexactFloat64(),
-		Amount:       amount.InexactFloat64(),
-		Exchange:     f.GetExchange(),
-		Side:         f.GetDirection(),
-		AssetType:    f.GetAssetType(),
-		Pair:         f.Pair(),
-		Type:         gctorder.Market,
-		RetrieveFees: true,
+		Price:            price.InexactFloat64(),
+		Amount:           amount.InexactFloat64(),
+		Exchange:         f.GetExchange(),
+		Side:             f.GetDirection(),
+		AssetType:        f.GetAssetType(),
+		Pair:             f.Pair(),
+		Type:             gctorder.Market,
+		RetrieveFees:     true,
+		RetrieveFeeDelay: time.Millisecond * 500,
 	}
 
 	var resp *engine.OrderSubmitResponse

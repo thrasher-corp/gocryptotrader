@@ -390,7 +390,6 @@ func (f *FundManager) GenerateReport() *Report {
 			return report.USDTotalsOverTime[i].Time.Before(report.USDTotalsOverTime[j].Time)
 		})
 		report.FinalFunds = report.USDTotalsOverTime[len(report.USDTotalsOverTime)-1].USDValue
-		log.Debugf(common.FundManager, "%+v", report.USDTotalsOverTime)
 	}
 
 	report.Items = items
