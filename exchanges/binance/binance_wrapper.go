@@ -934,6 +934,9 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			timeInForce = ""
 			requestParamsOrderType = BinanceRequestParamsOrderMarket
 		case order.Limit:
+			if s.ImmediateOrCancel {
+				timeInForce = BinanceRequestParamsTimeIOC
+			}
 			requestParamsOrderType = BinanceRequestParamsOrderLimit
 		default:
 			return nil, errors.New("unsupported order type")
