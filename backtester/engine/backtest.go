@@ -72,6 +72,7 @@ func (bt *BackTest) RunLive() error {
 // Run will iterate over loaded data events
 // save them and then handle the event based on its type
 func (bt *BackTest) Run() {
+	// doubleNil allows the run function to exit if no new data is detected on a live run
 	var doubleNil bool
 dataLoadingIssue:
 	for ev := bt.EventQueue.NextEvent(); ; ev = bt.EventQueue.NextEvent() {

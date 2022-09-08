@@ -141,7 +141,7 @@ func parseFlags(wd string) {
 			wd,
 			"config",
 			"examples",
-			"ftx-live-cash-and-carry.strat"),
+			"ftx-cash-and-carry.strat"),
 		"the config containing strategy params")
 	flag.StringVar(
 		&templatePath,

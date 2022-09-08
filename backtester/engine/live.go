@@ -372,8 +372,6 @@ func (d *dataChecker) FetchLatestData() (bool, error) {
 	return true, nil
 }
 
-var errNoDataSetForClosingPositions = errors.New("no data was set for closing positions")
-
 // SetDataForClosingAllPositions is triggered on a live data run
 // when closing all positions on close is true.
 // it will ensure all data is set such as USD tracking data

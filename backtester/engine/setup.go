@@ -411,6 +411,15 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 				Quote:           trackingPairs[i].Quote,
 				USDTrackingPair: true,
 			})
+			// ensure new tracking pairs are enabled
+			var exch gctexchange.IBotExchange
+			exch, err = bt.exchangeManager.GetExchangeByName(trackingPairs[i].Exchange)
+			if err != nil {
+				return err
+			}
+			exchBase := exch.GetBase()
+			exchangeAsset := exchBase.CurrencyPairs.Pairs[trackingPairs[i].Asset] // no ok as handled earlier
+			exchangeAsset.Enabled = exchangeAsset.Enabled.Add(currency.NewPair(trackingPairs[i].Base, trackingPairs[i].Quote))
 		}
 	}
 

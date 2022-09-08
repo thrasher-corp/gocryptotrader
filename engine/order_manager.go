@@ -465,8 +465,6 @@ func (m *OrderManager) Submit(ctx context.Context, newOrder *order.Submit) (*Ord
 	if err != nil {
 		return nil, err
 	}
-	b := exch.GetBase()
-
 	// Checks for exchange min max limits for order amounts before order
 	// execution can occur
 	err = exch.CheckOrderExecutionLimits(newOrder.AssetType,
@@ -494,7 +492,6 @@ func (m *OrderManager) Submit(ctx context.Context, newOrder *order.Submit) (*Ord
 	if err != nil {
 		return nil, err
 	}
-	b.Verbose = false
 
 	return m.processSubmittedOrder(result)
 }

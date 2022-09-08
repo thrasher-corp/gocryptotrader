@@ -43,9 +43,9 @@
   "data-type": "candle",
   "verbose-exchange-requests": false,
   "live-data": {
-   "new-event-timeout": 60000000000,
+   "new-event-timeout": 120000000000,
    "data-check-timer": 1000000000,
-   "real-orders": true,
+   "real-orders": false,
    "close-positions-on-exit": false,
    "data-request-retry-tolerance": 3,
    "data-request-retry-wait-time": 500000000,
