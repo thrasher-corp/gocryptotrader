@@ -1885,11 +1885,34 @@ func TestGetQuoteAmountFromNominalSlippage(t *testing.T) {
 			NominalSlippage: 0.33333333333334,
 			ReferencePrice:  10000,
 			ExpectedShift: Shift{
-				AmountRequired:        30033.333333333332, // 30100 exact target
-				ApproximatePercentage: 1.0833333333333395,
+				AmountRequired:        30100.000000000276, // <- expected rounding issue
+				ApproximatePercentage: 0.33333333333334,
+				StartPrice:            10000,
+				EndPrice:              10100,
+			},
+		},
+		{
+			Name:            "last tranche total agg meeting 1 percent nominally",
+			AskLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
+			NominalSlippage: 1,
+			ReferencePrice:  10000,
+			ExpectedShift: Shift{
+				AmountRequired:        111100,
+				ApproximatePercentage: 1,
 				StartPrice:            10000,
 				EndPrice:              10200,
-				FullBookSideConsumed:  true,
+			},
+		},
+		{
+			Name:            "take full second tranche",
+			AskLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
+			NominalSlippage: 0.7777777777777738,
+			ReferencePrice:  10000,
+			ExpectedShift: Shift{
+				AmountRequired:        90700,
+				ApproximatePercentage: 0.7777777777777738,
+				StartPrice:            10000,
+				EndPrice:              10100,
 			},
 		},
 		{
@@ -1932,13 +1955,13 @@ func TestGetQuoteAmountFromImpact(t *testing.T) {
 		ImpactSlippage float64
 		ReferencePrice float64
 		AskLiquidity   Items
-
-		ExpectedQuote float64
-		ExpectedError error
+		ExpectedShift  Shift
+		ExpectedError  error
 	}{
 		{
-			Name:          "invalid slippage",
-			ExpectedError: errInvalidSlippage,
+			Name:           "invalid slippage",
+			ImpactSlippage: -1,
+			ExpectedError:  errInvalidSlippage,
 		},
 		{
 			Name:           "no reference price",
@@ -1946,32 +1969,47 @@ func TestGetQuoteAmountFromImpact(t *testing.T) {
 			ExpectedError:  errInvalidReferencePrice,
 		},
 		{
-			Name:           "not enough liquidity to service quote amount",
+			Name:           "no liquidity",
 			ImpactSlippage: 1,
 			ReferencePrice: 1000,
-			ExpectedError:  errNotEnoughLiquidity,
+			ExpectedError:  errNoLiquidity,
 		},
 		{
 			Name:           "thrasher test",
 			AskLiquidity:   Items{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
 			ImpactSlippage: 1,
 			ReferencePrice: 10000,
-			ExpectedQuote:  20000,
+			ExpectedShift: Shift{
+				AmountRequired:        20000,
+				ApproximatePercentage: 1,
+				StartPrice:            10000,
+				EndPrice:              10100,
+			},
 		},
 		{
 			Name:           "consume first tranche and second tranche",
 			AskLiquidity:   Items{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
 			ImpactSlippage: 2,
 			ReferencePrice: 10000,
-			ExpectedQuote:  90700,
+			ExpectedShift: Shift{
+				AmountRequired:        90700,
+				ApproximatePercentage: 2,
+				StartPrice:            10000,
+				EndPrice:              10200,
+			},
 		},
 		{
 			Name:           "consume full liquidity",
 			AskLiquidity:   Items{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
 			ImpactSlippage: 10,
 			ReferencePrice: 10000,
-			ExpectedQuote:  0,
-			ExpectedError:  errNotEnoughLiquidity,
+			ExpectedShift: Shift{
+				AmountRequired:        121300,
+				ApproximatePercentage: 2,
+				StartPrice:            10000,
+				EndPrice:              10200,
+				FullBookSideConsumed:  true,
+			},
 		},
 	}
 
@@ -1985,9 +2023,9 @@ func TestGetQuoteAmountFromImpact(t *testing.T) {
 			if !errors.Is(err, tt.ExpectedError) {
 				t.Fatalf("received: '%v' but expected: '%v'", err, tt.ExpectedError)
 			}
-			if quote.AmountRequired != tt.ExpectedQuote {
-				t.Fatalf("quote received: '%v' but expected: '%v'",
-					quote, tt.ExpectedQuote)
+			if !quote.IsEqual(tt.ExpectedShift) {
+				t.Fatalf("%s quote received: '%+v' but expected: '%+v'",
+					tt.Name, quote, tt.ExpectedShift)
 			}
 		})
 	}

@@ -445,12 +445,12 @@ func (ll *bids) getMovementByBaseAmount(base, refPrice float64) (*Movement, erro
 
 // getBaseAmountFromNominalSlippage returns the base amount that can be deployed
 // to the bid liquidity that will result in a nominal slippage.
-func (ll *bids) getBaseAmountFromNominalSlippage(slippageLimit, refPrice float64) (Shift, error) {
-	if slippageLimit < 0 {
+func (ll *bids) getBaseAmountFromNominalSlippage(slippage, refPrice float64) (Shift, error) {
+	if slippage < 0 {
 		return Shift{}, errInvalidSlippage
 	}
 
-	if slippageLimit > 100 {
+	if slippage > 100 {
 		return Shift{}, fmt.Errorf("%w cannot exceed 100%%", errInvalidSlippage)
 	}
 
@@ -475,13 +475,13 @@ func (ll *bids) getBaseAmountFromNominalSlippage(slippageLimit, refPrice float64
 			percent *= -1
 		}
 
-		if slippageLimit < percent {
-			targetCost := (1 - slippageLimit/100) * refPrice
+		if slippage < percent {
+			targetCost := (1 - slippage/100) * refPrice
 			comparative := targetCost * cumulativeAmounts
 			comparativeDiff := comparative - cumulativeValue
 			trancheTargetPriceDiff := tip.Value.Price - targetCost
 			trancheAmountExpectation := comparativeDiff / trancheTargetPriceDiff
-			nominal.ApproximatePercentage = slippageLimit
+			nominal.ApproximatePercentage = slippage
 			nominal.AmountRequired = cumulativeAmounts + trancheAmountExpectation
 			nominal.EndPrice = tip.Value.Price
 			return nominal, nil
@@ -492,7 +492,7 @@ func (ll *bids) getBaseAmountFromNominalSlippage(slippageLimit, refPrice float64
 		nominal.AmountRequired += tip.Value.Amount
 		nominal.ApproximatePercentage = percent
 		cumulativeAmounts = currentTotalAmounts
-		if slippageLimit == percent {
+		if slippage == percent {
 			nominal.FullBookSideConsumed = tip.Next == nil
 			return nominal, nil
 		}
@@ -636,20 +636,6 @@ func (ll *asks) getQuoteAmountFromNominalSlippage(slippage, refPrice float64) (S
 		currentAmounts := cumulativeAmounts + tip.Value.Amount
 		aggTrancheCost := currentValue / currentAmounts
 		percent := math.CalculatePercentageGainOrLoss(aggTrancheCost, refPrice)
-		// if slippage < percent {
-		// 	targetCost := (1 + slippage/100) * refPrice
-		// 	remainingCost := targetCost - aggTrancheCost
-		// 	if remainingCost > 0 {
-		// 		amount := remainingCost / tip.Value.Price
-		// 		leftOverValue := tip.Value.Price * amount
-		// 		nominal.AmountRequired = leftOverValue
-		// 		cumulativeAmounts += amount
-		// 		value := nominal.AmountRequired / cumulativeAmounts
-		// 		nominal.ApproximatePercentage = math.CalculatePercentageGainOrLoss(value, refPrice)
-		// 	}
-		// 	return nominal, nil
-		// }
-
 		if slippage < percent {
 			targetCost := (1 + slippage/100) * refPrice
 			comparative := targetCost * cumulativeAmounts
@@ -657,7 +643,7 @@ func (ll *asks) getQuoteAmountFromNominalSlippage(slippage, refPrice float64) (S
 			trancheTargetPriceDiff := tip.Value.Price - targetCost
 			trancheAmountExpectation := comparativeDiff / trancheTargetPriceDiff
 			nominal.ApproximatePercentage = slippage
-			nominal.AmountRequired = trancheAmountExpectation * tip.Value.Price
+			nominal.AmountRequired += trancheAmountExpectation * tip.Value.Price
 			nominal.EndPrice = tip.Value.Price
 			return nominal, nil
 		}
@@ -665,46 +651,14 @@ func (ll *asks) getQuoteAmountFromNominalSlippage(slippage, refPrice float64) (S
 		nominal.EndPrice = tip.Value.Price
 		nominal.AmountRequired = currentValue
 		nominal.ApproximatePercentage = percent
+		if slippage == percent {
+			return nominal, nil
+		}
 		cumulativeAmounts = currentAmounts
 	}
 	nominal.FullBookSideConsumed = true
 	return nominal, nil
 }
-
-// var cumulativeValue, cumulativeAmounts float64
-// for tip := ll.head; tip != nil; tip = tip.Next {
-// 	totalTrancheValue := tip.Value.Price * tip.Value.Amount
-// 	currentFullValue := totalTrancheValue + cumulativeValue
-// 	currentTotalAmounts := cumulativeAmounts + tip.Value.Amount
-// 	nominalCost := currentFullValue / currentTotalAmounts
-
-// 	percent := math.CalculatePercentageGainOrLoss(nominalCost, refPrice)
-// 	if percent != 0 {
-// 		percent *= -1
-// 	}
-
-// 	if slippageLimit < percent {
-// 		targetCost := (1 - slippageLimit/100) * refPrice
-// 		comparative := targetCost * cumulativeAmounts
-// 		comparativeDiff := comparative - cumulativeValue
-// 		trancheTargetPriceDiff := tip.Value.Price - targetCost
-// 		trancheAmountExpectation := comparativeDiff / trancheTargetPriceDiff
-// 		nominal.ApproximatePercentage = slippageLimit
-// 		nominal.AmountRequired = cumulativeAmounts + trancheAmountExpectation
-// 		nominal.EndPrice = tip.Value.Price
-// 		return nominal, nil
-// 	}
-
-// 	nominal.EndPrice = tip.Value.Price
-// 	cumulativeValue = currentFullValue
-// 	nominal.AmountRequired += tip.Value.Amount
-// 	nominal.ApproximatePercentage = percent
-// 	cumulativeAmounts = currentTotalAmounts
-// 	if slippageLimit == percent {
-// 		nominal.FullBookSideConsumed = tip.Next == nil
-// 		return nominal, nil
-// 	}
-// }
 
 // getQuoteAmountFromImpact returns the quote amount that can be deployed to the
 // ask liquidity that will result in an impact slippage.
@@ -724,13 +678,14 @@ func (ll *asks) getQuoteAmountFromImpact(slippage, refPrice float64) (Shift, err
 	impact := Shift{StartPrice: refPrice, EndPrice: refPrice}
 	for tip := ll.head; tip != nil; tip = tip.Next {
 		percent := math.CalculatePercentageGainOrLoss(tip.Value.Price, refPrice)
-		if slippage < percent {
+		impact.ApproximatePercentage = percent
+		impact.EndPrice = tip.Value.Price
+		if slippage <= percent {
 			// Don't include this tranche price and amount as this exceeds
 			// reference percentage.
 			return impact, nil
 		}
-		impact.ApproximatePercentage = percent
-		impact.EndPrice = tip.Value.Price
+
 		impact.AmountRequired += tip.Value.Amount * tip.Value.Price
 	}
 	impact.FullBookSideConsumed = true
