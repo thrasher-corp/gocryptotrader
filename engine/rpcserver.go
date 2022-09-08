@@ -1323,12 +1323,17 @@ func (s *RPCServer) WhaleBomb(ctx context.Context, r *gctrpc.WhaleBombRequest) (
 		return nil, err
 	}
 
-	err = checkParams(r.Exchange, exch, asset.Spot, p)
+	a, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
 	}
 
-	o, err := exch.FetchOrderbook(ctx, p, asset.Spot)
+	err = checkParams(r.Exchange, exch, a, p)
+	if err != nil {
+		return nil, err
+	}
+
+	o, err := exch.FetchOrderbook(ctx, p, a)
 	if err != nil {
 		return nil, err
 	}

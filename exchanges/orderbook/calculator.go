@@ -7,9 +7,11 @@ import (
 	math "github.com/thrasher-corp/gocryptotrader/common/math"
 )
 
+const fullLiquidityUsageWarning = "[WARNING]: Full liquidity exhausted."
+
 var (
-	errPriceTargetInvalid     = errors.New("price target is invalid")
-	errUnableToHitPriceTarget = errors.New("unable to hit price target due to insufficient orderbook items")
+	errPriceTargetInvalid = errors.New("price target is invalid")
+	errCannotShiftPrice   = errors.New("cannot shift price")
 )
 
 // WhaleBombResult returns the whale bomb result
@@ -32,6 +34,11 @@ func (b *Base) WhaleBomb(priceTarget float64, buy bool) (*WhaleBombResult, error
 		return nil, err
 	}
 
+	var warning string
+	if action.FullLiquidityUsed {
+		warning = fullLiquidityUsageWarning
+	}
+
 	var status string
 	var percent, min, max, amount float64
 	if buy {
@@ -39,17 +46,17 @@ func (b *Base) WhaleBomb(priceTarget float64, buy bool) (*WhaleBombResult, error
 		max = action.TranchePositionPrice
 		amount = action.QuoteAmount
 		percent = math.CalculatePercentageGainOrLoss(action.TranchePositionPrice, action.ReferencePrice)
-		status = fmt.Sprintf("Buying %.2f %s worth of %s will send the price from %v to %v [%.2f%%] and take %v orders.",
+		status = fmt.Sprintf("Buying %.2f %s worth of %s will send the price from %v to %v [%.2f%%] and take %v orders. %s",
 			amount, b.Pair.Quote, b.Pair.Base, min, max,
-			percent, len(action.Orders))
+			percent, len(action.Orders), warning)
 	} else {
 		min = action.TranchePositionPrice
 		max = action.ReferencePrice
 		amount = action.BaseAmount
 		percent = math.CalculatePercentageGainOrLoss(action.TranchePositionPrice, action.ReferencePrice)
-		status = fmt.Sprintf("Selling %.2f %s worth of %s will send the price from %v to %v [%.2f%%] and take %v orders.",
+		status = fmt.Sprintf("Selling %.2f %s worth of %s will send the price from %v to %v [%.2f%%] and take %v orders. %s",
 			amount, b.Pair.Base, b.Pair.Quote, max, min,
-			percent, len(action.Orders))
+			percent, len(action.Orders), warning)
 	}
 
 	return &WhaleBombResult{
@@ -108,7 +115,8 @@ func (b *Base) findAmount(priceTarget float64, buy bool) (*DeploymentAction, err
 		}
 		action.ReferencePrice = b.Asks[0].Price
 		if action.ReferencePrice > priceTarget {
-			return nil, errUnableToHitPriceTarget
+			return nil, fmt.Errorf("%w to %f as it's below ascending ask prices starting at %f",
+				errCannotShiftPrice, priceTarget, action.ReferencePrice)
 		}
 		for x := range b.Asks {
 			if b.Asks[x].Price >= priceTarget {
@@ -119,7 +127,9 @@ func (b *Base) findAmount(priceTarget float64, buy bool) (*DeploymentAction, err
 			action.QuoteAmount += b.Asks[x].Price * b.Asks[x].Amount
 			action.BaseAmount += b.Asks[x].Amount
 		}
-		return nil, errNotEnoughLiquidity
+		action.TranchePositionPrice = b.Asks[len(b.Asks)-1].Price
+		action.FullLiquidityUsed = true
+		return &action, nil
 	}
 
 	if len(b.Bids) == 0 {
@@ -127,7 +137,8 @@ func (b *Base) findAmount(priceTarget float64, buy bool) (*DeploymentAction, err
 	}
 	action.ReferencePrice = b.Bids[0].Price
 	if action.ReferencePrice < priceTarget {
-		return nil, errUnableToHitPriceTarget
+		return nil, fmt.Errorf("%w to %f as it's above descending bid prices starting at %f",
+			errCannotShiftPrice, priceTarget, action.ReferencePrice)
 	}
 	for x := range b.Bids {
 		if b.Bids[x].Price <= priceTarget {
@@ -138,7 +149,9 @@ func (b *Base) findAmount(priceTarget float64, buy bool) (*DeploymentAction, err
 		action.QuoteAmount += b.Bids[x].Price * b.Bids[x].Amount
 		action.BaseAmount += b.Bids[x].Amount
 	}
-	return nil, errNotEnoughLiquidity
+	action.TranchePositionPrice = b.Bids[len(b.Bids)-1].Price
+	action.FullLiquidityUsed = true
+	return &action, nil
 }
 
 // DeploymentAction defines deployment information on a liquidity side.
@@ -148,6 +161,7 @@ type DeploymentAction struct {
 	BaseAmount           float64
 	QuoteAmount          float64
 	Orders               Items
+	FullLiquidityUsed    bool
 }
 
 func (b *Base) buy(quote float64) (*DeploymentAction, error) {

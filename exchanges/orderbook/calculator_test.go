@@ -2,7 +2,9 @@ package orderbook
 
 import (
 	"errors"
+	"fmt"
 	"math"
+	"strings"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -74,9 +76,13 @@ func TestWhaleBomb(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", result.PercentageGainOrLoss, 0.014285714285714287)
 	}
 
-	_, err = b.WhaleBomb(7002, true) // <- exceed available quotations
-	if !errors.Is(err, errNotEnoughLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNotEnoughLiquidity)
+	result, err = b.WhaleBomb(7002, true) // <- exceed available quotations
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if !strings.Contains(result.Status, fullLiquidityUsageWarning) {
+		t.Fatal("expected status to contain liquidity warning")
 	}
 
 	result, err = b.WhaleBomb(7000, true) // <- Book should not move
@@ -101,8 +107,8 @@ func TestWhaleBomb(t *testing.T) {
 	}
 
 	_, err = b.WhaleBomb(6000, true)
-	if !errors.Is(err, errUnableToHitPriceTarget) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errUnableToHitPriceTarget)
+	if !errors.Is(err, errCannotShiftPrice) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errCannotShiftPrice)
 	}
 
 	_, err = b.WhaleBomb(-1, false)
@@ -152,9 +158,15 @@ func TestWhaleBomb(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", result.PercentageGainOrLoss, -0.014287755393627661)
 	}
 
-	_, err = b.WhaleBomb(6997, false) // <- exceed available quotations
-	if !errors.Is(err, errNotEnoughLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNotEnoughLiquidity)
+	result, err = b.WhaleBomb(6997, false) // <- exceed available quotations
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	fmt.Println(result)
+
+	if !strings.Contains(result.Status, fullLiquidityUsageWarning) {
+		t.Fatal("expected status to contain liquidity warning")
 	}
 
 	result, err = b.WhaleBomb(6999, false) // <- Book should not move
@@ -179,8 +191,8 @@ func TestWhaleBomb(t *testing.T) {
 	}
 
 	_, err = b.WhaleBomb(7500, false)
-	if !errors.Is(err, errUnableToHitPriceTarget) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errUnableToHitPriceTarget)
+	if !errors.Is(err, errCannotShiftPrice) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errCannotShiftPrice)
 	}
 }
 

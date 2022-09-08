@@ -6793,6 +6793,9 @@
         },
         "side": {
           "type": "string"
+        },
+        "assetType": {
+          "type": "string"
         }
       }
     },

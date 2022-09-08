@@ -382,6 +382,7 @@ message WhaleBombRequest {
   CurrencyPair pair = 2;
   double price_target = 3;
   string side = 4;
+  string asset_type = 5;
 }
 
 message CancelOrderRequest {

@@ -633,7 +633,7 @@ func getExchangeOrderbookStream(c *cli.Context) error {
 var whaleBombCommand = &cli.Command{
 	Name:      "whalebomb",
 	Usage:     "whale bomb finds the amount required to reach a price target",
-	ArgsUsage: "<exchange> <pair> <side> <price>",
+	ArgsUsage: "<exchange> <pair> <side> <asset> <price>",
 	Action:    whaleBomb,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
@@ -647,6 +647,10 @@ var whaleBombCommand = &cli.Command{
 		&cli.StringFlag{
 			Name:  "side",
 			Usage: "the order side to use (BUY OR SELL)",
+		},
+		&cli.StringFlag{
+			Name:  "asset",
+			Usage: "the asset type of the currency pair to get the orderbook for",
 		},
 		&cli.Float64Flag{
 			Name:  "price",
@@ -691,9 +695,16 @@ func whaleBomb(c *cli.Context) error {
 		return errors.New("order side must be set")
 	}
 
+	var assetType string
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(3)
+	}
+
 	if c.IsSet("price") {
 		price = c.Float64("price")
-	} else if c.Args().Get(3) != "" {
+	} else if c.Args().Get(4) != "" {
 		var err error
 		price, err = strconv.ParseFloat(c.Args().Get(3), 64)
 		if err != nil {
@@ -722,6 +733,7 @@ func whaleBomb(c *cli.Context) error {
 		},
 		Side:        orderSide,
 		PriceTarget: price,
+		AssetType:   assetType,
 	})
 	if err != nil {
 		return err
