@@ -152,12 +152,16 @@ func (b *BaseCodes) assertRole(t *testing.T, c Code, r Role) {
 	t.Helper()
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
-	for x := range b.Items {
-		if b.Items[x] != c.Item {
+	stored, ok := b.Items[c.Item.Symbol]
+	if !ok {
+		t.Fatal("code pointer not found")
+	}
+	for x := range stored {
+		if stored[x] != c.Item {
 			continue
 		}
-		if b.Items[x].Role != r {
-			t.Fatal("unexpected role")
+		if stored[x].Role != r {
+			t.Fatalf("unexpected role received: %v but expected: %v", stored[x].Role, r)
 		}
 		return
 	}
@@ -231,29 +235,42 @@ func TestBaseCode(t *testing.T) {
 	}
 
 	main.Register("XBTUSD", Unset)
-
-	err := main.UpdateCurrency("Bitcoin Perpetual",
-		"XBTUSD",
-		"",
-		0,
-		Contract)
+	err := main.UpdateCurrency(&Item{
+		FullName: "Bitcoin Perpetual",
+		Symbol:   "XBTUSD",
+		Role:     Contract,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	main.Register("BTC", Unset)
-	err = main.UpdateCurrency("Bitcoin", "BTC", "", 1337, Unset)
+	err = main.UpdateCurrency(&Item{
+		FullName: "Bitcoin",
+		Symbol:   "BTC",
+		ID:       1337,
+	})
 	if !errors.Is(err, errRoleUnset) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errRoleUnset)
 	}
 
-	err = main.UpdateCurrency("Bitcoin", "BTC", "", 1337, Cryptocurrency)
+	err = main.UpdateCurrency(&Item{
+		FullName: "Bitcoin",
+		Symbol:   "BTC",
+		ID:       1337,
+		Role:     Cryptocurrency,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	aud := main.Register("AUD", Unset)
-	err = main.UpdateCurrency("Unreal Dollar", "AUD", "", 1111, Fiat)
+	err = main.UpdateCurrency(&Item{
+		FullName: "Unreal Dollar",
+		Symbol:   "AUD",
+		ID:       1111,
+		Role:     Fiat,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -262,13 +279,23 @@ func TestBaseCode(t *testing.T) {
 		t.Error("Expected fullname to update for AUD")
 	}
 
-	err = main.UpdateCurrency("Australian Dollar", "AUD", "", 1336, Fiat)
+	err = main.UpdateCurrency(&Item{
+		FullName: "Australian Dollar",
+		Symbol:   "AUD",
+		ID:       1336,
+		Role:     Fiat,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	aud.Item.Role = Unset
-	err = main.UpdateCurrency("Australian Dollar", "AUD", "", 1336, Fiat)
+	err = main.UpdateCurrency(&Item{
+		FullName: "Australian Dollar",
+		Symbol:   "AUD",
+		ID:       1336,
+		Role:     Fiat,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -277,7 +304,13 @@ func TestBaseCode(t *testing.T) {
 	}
 
 	main.Register("PPT", Unset)
-	err = main.UpdateCurrency("Populous", "PPT", "ETH", 1335, Token)
+	err = main.UpdateCurrency(&Item{
+		FullName:   "Populous",
+		Symbol:     "PPT",
+		AssocChain: "ETH",
+		ID:         1335,
+		Role:       Token,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -377,35 +410,48 @@ func TestBaseCode(t *testing.T) {
 		t.Error("Expected 'Role undefined'")
 	}
 
-	main.Items[0].FullName = "Hello"
-	err = main.UpdateCurrency("MEWOW", "CATS", "", 1338, Fiat)
+	main.Items["CATS"][0].FullName = "Hello"
+	err = main.UpdateCurrency(&Item{
+		FullName: "MEWOW",
+		Symbol:   "CATS",
+		ID:       1338,
+		Role:     Fiat,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if main.Items[0].FullName != "MEWOW" {
+	if main.Items["CATS"][0].FullName != "MEWOW" {
 		t.Error("Fullname not updated")
 	}
-	err = main.UpdateCurrency("MEWOW", "CATS", "", 1338, Fiat)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = main.UpdateCurrency("WOWCATS", "CATS", "", 3, Fiat)
+
+	err = main.UpdateCurrency(&Item{
+		FullName: "WOWCATS",
+		Symbol:   "CATS",
+		ID:       3,
+		Role:     Fiat,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Creates a new item under a different currency role
-	if main.Items[0].ID != 3 {
+	if main.Items["CATS"][0].ID != 3 {
 		t.Error("ID not updated")
 	}
 
-	main.Items[0].Role = Unset
-	err = main.UpdateCurrency("MEWOW", "CATS", "", 1338, Cryptocurrency)
+	main.Items["CATS"][0].Role = Unset
+
+	err = main.UpdateCurrency(&Item{
+		FullName: "MEWOW",
+		Symbol:   "CATS",
+		ID:       1338,
+		Role:     Cryptocurrency,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if main.Items[0].ID != 1338 {
+	if main.Items["CATS"][0].ID != 1338 {
 		t.Error("ID not updated")
 	}
 }
@@ -507,29 +553,22 @@ func TestCodeMarshalJSON(t *testing.T) {
 
 func TestIsFiatCurrency(t *testing.T) {
 	if EMPTYCODE.IsFiatCurrency() {
-		t.Errorf("TestIsFiatCurrency cannot match currency, %s.",
-			EMPTYCODE)
+		t.Errorf("TestIsFiatCurrency cannot match currency, %s.", EMPTYCODE)
 	}
 	if !USD.IsFiatCurrency() {
-		t.Errorf(
-			"TestIsFiatCurrency cannot match currency, %s.", USD)
+		t.Errorf("TestIsFiatCurrency cannot match currency, %s.", USD)
 	}
 	if !CNY.IsFiatCurrency() {
-		t.Errorf(
-			"TestIsFiatCurrency cannot match currency, %s.", CNY)
+		t.Errorf("TestIsFiatCurrency cannot match currency, %s.", CNY)
 	}
 	if LINO.IsFiatCurrency() {
-		t.Errorf(
-			"TestIsFiatCurrency cannot match currency, %s.", LINO,
-		)
+		t.Errorf("TestIsFiatCurrency cannot match currency, %s.", LINO)
 	}
 	if USDT.IsFiatCurrency() {
-		t.Errorf(
-			"TestIsFiatCurrency cannot match currency, %s.", USD)
+		t.Errorf("TestIsFiatCurrency cannot match currency, %s.", USDT)
 	}
 	if DAI.IsFiatCurrency() {
-		t.Errorf(
-			"TestIsFiatCurrency cannot match currency, %s.", USD)
+		t.Errorf("TestIsFiatCurrency cannot match currency, %s.", DAI)
 	}
 }
 
@@ -593,5 +632,15 @@ func TestItemString(t *testing.T) {
 		t.Errorf("Currency String() error expected '%s' but received '%s'",
 			expected,
 			&newItem)
+	}
+}
+
+// 28848025	        40.84 ns/op	       8 B/op	       1 allocs/op // Current
+//
+//	546290	      2192 ns/op	       8 B/op	       1 allocs/op // Previous
+func BenchmarkNewCode(b *testing.B) {
+	b.ReportAllocs()
+	for x := 0; x < b.N; x++ {
+		_ = NewCode("someCode")
 	}
 }

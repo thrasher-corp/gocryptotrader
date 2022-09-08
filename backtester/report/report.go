@@ -18,7 +18,7 @@ import (
 // GenerateReport sends final data from statistics to a template
 // to create a lovely final report for someone to view
 func (d *Data) GenerateReport() error {
-	log.Info(common.Report, "generating report")
+	log.Info(common.Report, "Generating report")
 	err := d.enhanceCandles()
 	if err != nil {
 		return err
@@ -100,7 +100,7 @@ func (d *Data) GenerateReport() error {
 	if err != nil {
 		return err
 	}
-	log.Infof(common.Report, "successfully saved report to %v", filepath.Join(d.OutputPath, fileName))
+	log.Infof(common.Report, "Successfully saved report to %v", filepath.Join(d.OutputPath, fileName))
 	return nil
 }
 

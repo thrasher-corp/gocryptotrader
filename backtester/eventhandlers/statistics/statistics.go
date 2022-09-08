@@ -182,7 +182,7 @@ func (s *Statistic) AddComplianceSnapshotForTime(c compliance.Snapshot, e fill.E
 // CalculateAllResults calculates the statistics of all exchange asset pair holdings,
 // orders, ratios and drawdowns
 func (s *Statistic) CalculateAllResults() error {
-	log.Info(common.Statistics, "calculating backtesting results")
+	log.Info(common.Statistics, "Calculating backtesting results")
 	s.PrintAllEventsChronologically()
 	currCount := 0
 	var finalResults []FinalResultsHolder
