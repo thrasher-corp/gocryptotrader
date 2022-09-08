@@ -35,7 +35,7 @@ func (e Error) GetError() error {
 	}
 
 	switch code {
-	case 200000:
+	case 200000, 200:
 		return nil
 	default:
 		return errors.New(e.Msg)

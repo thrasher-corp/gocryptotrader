@@ -1,5 +1,8 @@
 package kucoin
 
+import "time"
+
+// Contract store contract details
 type Contract struct {
 	Symbol             string  `json:"symbol"`
 	ContractType       string  `json:"type"`
@@ -27,19 +30,23 @@ type Contract struct {
 	Status             string  `json:"status"`
 }
 
+// RiskLimitInfo store contract risk limit details
 type RiskLimitInfo struct {
-	Symbol string `json:"symbol"`
-	Level  int64  `json:"symbol"`
-	Level  int64  `json:"symbol"`
-	Level  int64  `json:"symbol"`
+	Symbol                string  `json:"symbol"`
+	Level                 int64   `json:"level"`
+	MaxRiskLimit          int64   `json:"maxRiskLimit"`
+	MinRiskLimit          int64   `json:"minRiskLimit"`
+	MaxLeverage           float64 `json:"maxLeverage"`
+	InitialMarginRate     float64 `json:"initialMarginRate"`
+	MaintenanceMarginRate float64 `json:"maintenanceMarginRate"`
 }
 
-/*
-   "symbol": "ADAUSDTM",
-    "level": 1,
-    "maxRiskLimit": 500,
-    "minRiskLimit": 0,
-    "maxLeverage": 20,
-    "initialMarginRate": 0.05,
-    "maintenanceMarginRate": 0.025
-*/
+// FuturesKline stores kline data
+type FuturesKline struct {
+	StartTime time.Time
+	Open      float64
+	Close     float64
+	High      float64
+	Low       float64
+	Volume    float64
+}
