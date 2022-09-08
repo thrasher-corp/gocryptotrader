@@ -1126,3 +1126,67 @@ func TestGetTradingFee(t *testing.T) {
 		t.Error("GetTradingFee() error", err)
 	}
 }
+
+// futures
+func TestGetFuturesOpenContracts(t *testing.T) {
+	t.Parallel()
+
+	_, err := k.GetFuturesOpenContracts(context.Background())
+	if err != nil {
+		t.Error("GetFuturesOpenContracts() error", err)
+	}
+}
+
+func TestGetFuturesContract(t *testing.T) {
+	t.Parallel()
+
+	_, err := k.GetFuturesContract(context.Background(), "BTCUSDTM")
+	if err != nil {
+		t.Error("GetFuturesContract() error", err)
+	}
+}
+
+func TestGetFuturesRiskLimit(t *testing.T) {
+	t.Parallel()
+
+	_, err := k.GetFuturesRiskLimit(context.Background(), "BTCUSDTM")
+	if err != nil {
+		t.Error("GetFuturesRiskLimit() error", err)
+	}
+}
+
+func TestGetFuturesKline(t *testing.T) {
+	t.Parallel()
+
+	_, err := k.GetFuturesKline(context.Background(), "30", "BTCUSDTM", time.Time{}, time.Time{})
+	if err != nil {
+		t.Error("GetFuturesKline() error", err)
+	}
+}
+
+func TestGetFuturesFundingRate(t *testing.T) {
+	t.Parallel()
+
+	_, err := k.GetFuturesFundingRate(context.Background(), "BTCUSDTM", time.Time{}, time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error("GetFuturesFundingRate() error", err)
+	}
+}
+
+func TestGetFuturesCurrentFundingRate(t *testing.T) {
+	t.Parallel()
+
+	_, err := k.GetFuturesCurrentFundingRate(context.Background(), "BTCUSDTM")
+	if err != nil {
+		t.Error("GetFuturesCurrentFundingRate() error", err)
+	}
+}
+
+func TestGetFuturesContractMarkPrice(t *testing.T) {
+	t.Parallel()
+
+	_, err := k.GetFuturesContractMarkPrice(context.Background(), "BTCUSDTM")
+	if err != nil {
+		t.Error("GetFuturesContractMarkPrice() error", err)
+	}
+}

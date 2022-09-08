@@ -2,6 +2,12 @@ package kucoin
 
 import "time"
 
+var (
+	validGranularity = []string{
+		"1", "5", "15", "30", "60", "120", "240", "480", "720", "1440", "10080",
+	}
+)
+
 // Contract store contract details
 type Contract struct {
 	Symbol             string  `json:"symbol"`
@@ -49,4 +55,23 @@ type FuturesKline struct {
 	High      float64
 	Low       float64
 	Volume    float64
+}
+
+type baseStruct struct {
+	Symbol    string                `json:"symbol"`
+	TimePoint kucoinTimeMilliSecStr `json:"timePoint"`
+	Value     float64               `json:"value,string"`
+}
+
+// FuturesFundingRate stores funding rate data
+type FuturesFundingRate struct {
+	baseStruct
+	Granularity    string  `json:"granularity"`
+	PredictedValue float64 `json:"predictedValue,string"`
+}
+
+// FuturesMarkPrice stores mark price data
+type FuturesMarkPrice struct {
+	baseStruct
+	IndexPrice float64 `json:"indexPrice,string"`
 }
