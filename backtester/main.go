@@ -171,11 +171,11 @@ func main() {
 	btCfg.Report.GenerateReport = generateReport
 
 	go func(c *config.BacktesterConfig) {
-		log.Info(log.GRPCSys, "Starting GRPC server")
+		log.Info(log.GRPCSys, "Starting RPC server")
 		s := backtest.SetupRPCServer(c)
 		err = backtest.StartRPCServer(s)
 		if err != nil {
-			fmt.Printf("Could not read config. Error: %v.\n", err)
+			fmt.Printf("Could not start RPC server. Error: %v.\n", err)
 			os.Exit(1)
 		}
 		log.Info(log.GRPCSys, "Ready to receive commands")

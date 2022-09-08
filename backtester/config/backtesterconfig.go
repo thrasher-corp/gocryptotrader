@@ -46,7 +46,7 @@ func GenerateDefaultConfig() (*BacktesterConfig, error) {
 			Password: "helloImTheDefaultPassword",
 			GRPCConfig: gctconfig.GRPCConfig{
 				Enabled:       true,
-				ListenAddress: "localhost:42069",
+				ListenAddress: "localhost:9054",
 			},
 			TLSDir: DefaultBTDir,
 		},

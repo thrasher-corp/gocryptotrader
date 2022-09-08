@@ -74,7 +74,7 @@ func main() {
 	app.Flags = []cli.Flag{
 		&cli.StringFlag{
 			Name:        "rpchost",
-			Value:       "localhost:42069",
+			Value:       "localhost:9054",
 			Usage:       "the gRPC host to connect to",
 			Destination: &host,
 		},
