@@ -8,6 +8,7 @@ import (
 
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/binanceus"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitflyer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bithumb"
@@ -16,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bittrex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/btcmarkets"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/btse"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bybit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/coinbasepro"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/coinut"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/exmo"
@@ -145,6 +147,8 @@ func (m *ExchangeManager) NewExchangeByName(name string) (exchange.IBotExchange,
 	var exch exchange.IBotExchange
 
 	switch nameLower {
+	case "binanceus":
+		exch = new(binanceus.Binanceus)
 	case "binance":
 		exch = new(binance.Binance)
 	case "bitfinex":
@@ -163,6 +167,8 @@ func (m *ExchangeManager) NewExchangeByName(name string) (exchange.IBotExchange,
 		exch = new(btcmarkets.BTCMarkets)
 	case "btse":
 		exch = new(btse.BTSE)
+	case "bybit":
+		exch = new(bybit.Bybit)
 	case "coinut":
 		exch = new(coinut.COINUT)
 	case "exmo":
@@ -203,6 +209,5 @@ func (m *ExchangeManager) NewExchangeByName(name string) (exchange.IBotExchange,
 		}
 		return nil, fmt.Errorf("%s, %w", nameLower, ErrExchangeNotFound)
 	}
-
 	return exch, nil
 }

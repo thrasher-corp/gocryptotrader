@@ -121,6 +121,9 @@ type GoCryptoTraderServiceClient interface {
 	Shutdown(ctx context.Context, in *ShutdownRequest, opts ...grpc.CallOption) (*ShutdownResponse, error)
 	GetTechnicalAnalysis(ctx context.Context, in *GetTechnicalAnalysisRequest, opts ...grpc.CallOption) (*GetTechnicalAnalysisResponse, error)
 	GetMarginRatesHistory(ctx context.Context, in *GetMarginRatesHistoryRequest, opts ...grpc.CallOption) (*GetMarginRatesHistoryResponse, error)
+	GetManagedPosition(ctx context.Context, in *GetManagedPositionRequest, opts ...grpc.CallOption) (*GetManagedPositionsResponse, error)
+	GetAllManagedPositions(ctx context.Context, in *GetAllManagedPositionsRequest, opts ...grpc.CallOption) (*GetManagedPositionsResponse, error)
+	GetFundingRates(ctx context.Context, in *GetFundingRatesRequest, opts ...grpc.CallOption) (*GetFundingRatesResponse, error)
 	GetOrderbookMovement(ctx context.Context, in *GetOrderbookMovementRequest, opts ...grpc.CallOption) (*GetOrderbookMovementResponse, error)
 	GetOrderbookAmountByNominal(ctx context.Context, in *GetOrderbookAmountByNominalRequest, opts ...grpc.CallOption) (*GetOrderbookAmountByNominalResponse, error)
 	GetOrderbookAmountByImpact(ctx context.Context, in *GetOrderbookAmountByImpactRequest, opts ...grpc.CallOption) (*GetOrderbookAmountByImpactResponse, error)
@@ -1163,6 +1166,33 @@ func (c *goCryptoTraderServiceClient) GetMarginRatesHistory(ctx context.Context,
 	return out, nil
 }
 
+func (c *goCryptoTraderServiceClient) GetManagedPosition(ctx context.Context, in *GetManagedPositionRequest, opts ...grpc.CallOption) (*GetManagedPositionsResponse, error) {
+	out := new(GetManagedPositionsResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTraderService/GetManagedPosition", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *goCryptoTraderServiceClient) GetAllManagedPositions(ctx context.Context, in *GetAllManagedPositionsRequest, opts ...grpc.CallOption) (*GetManagedPositionsResponse, error) {
+	out := new(GetManagedPositionsResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTraderService/GetAllManagedPositions", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *goCryptoTraderServiceClient) GetFundingRates(ctx context.Context, in *GetFundingRatesRequest, opts ...grpc.CallOption) (*GetFundingRatesResponse, error) {
+	out := new(GetFundingRatesResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTraderService/GetFundingRates", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *goCryptoTraderServiceClient) GetOrderbookMovement(ctx context.Context, in *GetOrderbookMovementRequest, opts ...grpc.CallOption) (*GetOrderbookMovementResponse, error) {
 	out := new(GetOrderbookMovementResponse)
 	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTraderService/GetOrderbookMovement", in, out, opts...)
@@ -1293,6 +1323,9 @@ type GoCryptoTraderServiceServer interface {
 	Shutdown(context.Context, *ShutdownRequest) (*ShutdownResponse, error)
 	GetTechnicalAnalysis(context.Context, *GetTechnicalAnalysisRequest) (*GetTechnicalAnalysisResponse, error)
 	GetMarginRatesHistory(context.Context, *GetMarginRatesHistoryRequest) (*GetMarginRatesHistoryResponse, error)
+	GetManagedPosition(context.Context, *GetManagedPositionRequest) (*GetManagedPositionsResponse, error)
+	GetAllManagedPositions(context.Context, *GetAllManagedPositionsRequest) (*GetManagedPositionsResponse, error)
+	GetFundingRates(context.Context, *GetFundingRatesRequest) (*GetFundingRatesResponse, error)
 	GetOrderbookMovement(context.Context, *GetOrderbookMovementRequest) (*GetOrderbookMovementResponse, error)
 	GetOrderbookAmountByNominal(context.Context, *GetOrderbookAmountByNominalRequest) (*GetOrderbookAmountByNominalResponse, error)
 	GetOrderbookAmountByImpact(context.Context, *GetOrderbookAmountByImpactRequest) (*GetOrderbookAmountByImpactResponse, error)
@@ -1599,6 +1632,15 @@ func (UnimplementedGoCryptoTraderServiceServer) GetTechnicalAnalysis(context.Con
 }
 func (UnimplementedGoCryptoTraderServiceServer) GetMarginRatesHistory(context.Context, *GetMarginRatesHistoryRequest) (*GetMarginRatesHistoryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetMarginRatesHistory not implemented")
+}
+func (UnimplementedGoCryptoTraderServiceServer) GetManagedPosition(context.Context, *GetManagedPositionRequest) (*GetManagedPositionsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetManagedPosition not implemented")
+}
+func (UnimplementedGoCryptoTraderServiceServer) GetAllManagedPositions(context.Context, *GetAllManagedPositionsRequest) (*GetManagedPositionsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAllManagedPositions not implemented")
+}
+func (UnimplementedGoCryptoTraderServiceServer) GetFundingRates(context.Context, *GetFundingRatesRequest) (*GetFundingRatesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetFundingRates not implemented")
 }
 func (UnimplementedGoCryptoTraderServiceServer) GetOrderbookMovement(context.Context, *GetOrderbookMovementRequest) (*GetOrderbookMovementResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetOrderbookMovement not implemented")
@@ -3422,6 +3464,60 @@ func _GoCryptoTraderService_GetMarginRatesHistory_Handler(srv interface{}, ctx c
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GoCryptoTraderService_GetManagedPosition_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetManagedPositionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServiceServer).GetManagedPosition(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTraderService/GetManagedPosition",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServiceServer).GetManagedPosition(ctx, req.(*GetManagedPositionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GoCryptoTraderService_GetAllManagedPositions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAllManagedPositionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServiceServer).GetAllManagedPositions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTraderService/GetAllManagedPositions",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServiceServer).GetAllManagedPositions(ctx, req.(*GetAllManagedPositionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GoCryptoTraderService_GetFundingRates_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetFundingRatesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServiceServer).GetFundingRates(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTraderService/GetFundingRates",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServiceServer).GetFundingRates(ctx, req.(*GetFundingRatesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _GoCryptoTraderService_GetOrderbookMovement_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetOrderbookMovementRequest)
 	if err := dec(in); err != nil {
@@ -3854,6 +3950,18 @@ var GoCryptoTraderService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetMarginRatesHistory",
 			Handler:    _GoCryptoTraderService_GetMarginRatesHistory_Handler,
+		},
+		{
+			MethodName: "GetManagedPosition",
+			Handler:    _GoCryptoTraderService_GetManagedPosition_Handler,
+		},
+		{
+			MethodName: "GetAllManagedPositions",
+			Handler:    _GoCryptoTraderService_GetAllManagedPositions_Handler,
+		},
+		{
+			MethodName: "GetFundingRates",
+			Handler:    _GoCryptoTraderService_GetFundingRates_Handler,
 		},
 		{
 			MethodName: "GetOrderbookMovement",

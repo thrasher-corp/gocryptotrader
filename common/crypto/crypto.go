@@ -1,6 +1,6 @@
 package crypto
 
-// nolint:gosec // md5/sha1 hash functions used by some exchanges
+//nolint:gosec // md5/sha1 hash functions used by some exchanges
 import (
 	"crypto/hmac"
 	"crypto/md5"
@@ -63,7 +63,7 @@ func GetRandomSalt(input []byte, saltLen int) ([]byte, error) {
 
 // GetMD5 returns a MD5 hash of a byte array
 func GetMD5(input []byte) ([]byte, error) {
-	m := md5.New() // nolint:gosec // hash function used by some exchanges
+	m := md5.New() //nolint:gosec // hash function used by some exchanges
 	_, err := m.Write(input)
 	return m.Sum(nil), err
 }
@@ -108,7 +108,7 @@ func GetHMAC(hashType int, input, key []byte) ([]byte, error) {
 // Sha1ToHex takes a string, sha1 hashes it and return a hex string of the
 // result
 func Sha1ToHex(data string) (string, error) {
-	h := sha1.New() // nolint:gosec // hash function used by some exchanges
+	h := sha1.New() //nolint:gosec // hash function used by some exchanges
 	_, err := h.Write([]byte(data))
 	return hex.EncodeToString(h.Sum(nil)), err
 }

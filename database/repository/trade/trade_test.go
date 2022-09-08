@@ -2,7 +2,6 @@ package trade
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"testing"
@@ -41,11 +40,16 @@ func TestMain(m *testing.M) {
 	}
 	var err error
 	testhelpers.PostgresTestDatabase = testhelpers.GetConnectionDetails()
-	testhelpers.TempDir, err = ioutil.TempDir("", "gct-temp")
+	testhelpers.TempDir, err = os.MkdirTemp("", "gct-temp")
 	if err != nil {
 		log.Fatal(err)
 	}
-	os.Exit(m.Run())
+
+	exitCode := m.Run()
+	if err = os.RemoveAll(testhelpers.TempDir); err != nil {
+		fmt.Printf("failed to remove temp dir: %s", err)
+	}
+	os.Exit(exitCode)
 }
 
 func TestTrades(t *testing.T) {

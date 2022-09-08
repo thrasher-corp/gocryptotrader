@@ -50,7 +50,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 	var err error
 	bt := New()
 	bt.exchangeManager = engine.SetupExchangeManager()
-	bt.orderManager, err = engine.SetupOrderManager(bt.exchangeManager, &engine.CommunicationManager{}, &sync.WaitGroup{}, false, false)
+	bt.orderManager, err = engine.SetupOrderManager(bt.exchangeManager, &engine.CommunicationManager{}, &sync.WaitGroup{}, false, false, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -170,10 +170,10 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 			portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName] = make(map[asset.Item]map[currency.Pair]*risk.CurrencySettings)
 		}
 		a := cfg.CurrencySettings[i].Asset
-		if err != nil {
+		if !a.IsValid() {
 			return nil, fmt.Errorf(
 				"%w for %v %v %v-%v. Err %v",
-				errInvalidConfigAsset,
+				asset.ErrNotSupported,
 				cfg.CurrencySettings[i].ExchangeName,
 				cfg.CurrencySettings[i].Asset,
 				cfg.CurrencySettings[i].Base,
@@ -293,7 +293,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 					return nil, err
 				}
 			default:
-				return nil, fmt.Errorf("%w: %v unsupported", errInvalidConfigAsset, a)
+				return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, a)
 			}
 		} else {
 			var bFunds, qFunds decimal.Decimal

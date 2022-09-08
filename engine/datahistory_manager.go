@@ -710,7 +710,7 @@ func (m *DataHistoryManager) processCandleData(job *DataHistoryJob, exch exchang
 	if err != nil {
 		r.Result += "could not get candles: " + err.Error() + ". "
 		r.Status = dataHistoryStatusFailed
-		return r, nil // nolint:nilerr // error is returned in the job result
+		return r, nil //nolint:nilerr // error is returned in the job result
 	}
 	job.rangeHolder.SetHasDataFromCandles(candles.Candles)
 	for i := range job.rangeHolder.Ranges[intervalIndex].Intervals {
@@ -759,13 +759,13 @@ func (m *DataHistoryManager) processTradeData(job *DataHistoryJob, exch exchange
 	if err != nil {
 		r.Result += "could not get trades: " + err.Error() + ". "
 		r.Status = dataHistoryStatusFailed
-		return r, nil // nolint:nilerr // error is returned in the job result
+		return r, nil //nolint:nilerr // error is returned in the job result
 	}
 	candles, err := trade.ConvertTradesToCandles(job.Interval, trades...)
 	if err != nil {
 		r.Result += "could not convert candles to trades: " + err.Error() + ". "
 		r.Status = dataHistoryStatusFailed
-		return r, nil // nolint:nilerr // error is returned in the job result
+		return r, nil //nolint:nilerr // error is returned in the job result
 	}
 	job.rangeHolder.SetHasDataFromCandles(candles.Candles)
 	for i := range job.rangeHolder.Ranges[intervalIndex].Intervals {
@@ -826,13 +826,13 @@ func (m *DataHistoryManager) convertTradesToCandles(job *DataHistoryJob, startRa
 	if err != nil {
 		r.Result = "could not get trades in range: " + err.Error()
 		r.Status = dataHistoryStatusFailed
-		return r, nil // nolint:nilerr // error is returned in the job result
+		return r, nil //nolint:nilerr // error is returned in the job result
 	}
 	candles, err := trade.ConvertTradesToCandles(job.Interval, trades...)
 	if err != nil {
 		r.Result = "could not convert trades in range: " + err.Error()
 		r.Status = dataHistoryStatusFailed
-		return r, nil // nolint:nilerr // error is returned in the job result
+		return r, nil //nolint:nilerr // error is returned in the job result
 	}
 	candles.SourceJobID = job.ID
 	err = m.saveCandlesInBatches(job, &candles, r)
@@ -865,13 +865,13 @@ func (m *DataHistoryManager) convertCandleData(job *DataHistoryJob, startRange, 
 	if err != nil {
 		r.Result = "could not get candles in range: " + err.Error()
 		r.Status = dataHistoryStatusFailed
-		return r, nil // nolint:nilerr // error is returned in the job result
+		return r, nil //nolint:nilerr // error is returned in the job result
 	}
 	newCandles, err := kline.ConvertToNewInterval(&candles, job.ConversionInterval)
 	if err != nil {
 		r.Result = "could not convert candles in range: " + err.Error()
 		r.Status = dataHistoryStatusFailed
-		return r, nil // nolint:nilerr // error is returned in the job result
+		return r, nil //nolint:nilerr // error is returned in the job result
 	}
 	newCandles.SourceJobID = job.ID
 	err = m.saveCandlesInBatches(job, &candles, r)
@@ -913,14 +913,14 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 	if err != nil {
 		r.Result = "could not get API candles: " + err.Error()
 		r.Status = dataHistoryStatusFailed
-		return r, nil // nolint:nilerr // error is returned in the job result
+		return r, nil //nolint:nilerr // error is returned in the job result
 	}
 	apiCandles.ValidationJobID = job.ID
 	dbCandles, err := m.candleLoader(job.Exchange, job.Pair, job.Asset, job.Interval, startRange, endRange)
 	if err != nil {
 		r.Result = "could not get database candles: " + err.Error()
 		r.Status = dataHistoryStatusFailed
-		return r, nil // nolint:nilerr // error is returned in the job result
+		return r, nil //nolint:nilerr // error is returned in the job result
 	}
 	if len(dbCandles.Candles) == 0 {
 		r.Result = fmt.Sprintf("missing database candles for period %v-%v", startRange, endRange)

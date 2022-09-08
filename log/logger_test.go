@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -18,7 +17,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("cannot set up test loggers", err)
 	}
-	tempDir, err := ioutil.TempDir(os.TempDir(), "")
+	tempDir, err := os.MkdirTemp(os.TempDir(), "")
 	if err != nil {
 		log.Fatal("Cannot create temporary file", err)
 	}

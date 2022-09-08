@@ -838,7 +838,7 @@ func (h *HUOBI) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, 
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (h *HUOBI) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (h *HUOBI) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -1772,7 +1772,7 @@ func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 	if err := h.ValidateKline(pair, a, interval); err != nil {
 		return kline.Item{}, err
 	}
-	klineParams := KlinesRequestParams{
+	klineParams := &KlinesRequestParams{
 		Period: h.FormatExchangeKlineInterval(interval),
 		Symbol: pair,
 	}

@@ -2008,6 +2008,9 @@ func TestString(t *testing.T) {
 	if RestFutures.String() != "RestFuturesURL" {
 		t.Errorf("invalid string conversion")
 	}
+	if RestUSDCMargined.String() != "RestUSDCMarginedFuturesURL" {
+		t.Errorf("invalid string conversion")
+	}
 	if RestSandbox.String() != "RestSandboxURL" {
 		t.Errorf("invalid string conversion")
 	}
@@ -2202,6 +2205,7 @@ func TestGetGetURLTypeFromString(t *testing.T) {
 		{Endpoint: "RestUSDTMarginedFuturesURL", Expected: RestUSDTMargined},
 		{Endpoint: "RestCoinMarginedFuturesURL", Expected: RestCoinMargined},
 		{Endpoint: "RestFuturesURL", Expected: RestFutures},
+		{Endpoint: "RestUSDCMarginedFuturesURL", Expected: RestUSDCMargined},
 		{Endpoint: "RestSandboxURL", Expected: RestSandbox},
 		{Endpoint: "RestSwapURL", Expected: RestSwap},
 		{Endpoint: "WebsocketSpotURL", Expected: WebsocketSpot},
@@ -2257,14 +2261,6 @@ func TestCalculateTotalCollateral(t *testing.T) {
 	t.Parallel()
 	var b Base
 	if _, err := b.CalculateTotalCollateral(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
-	}
-}
-
-func TestGetFuturesPositions(t *testing.T) {
-	t.Parallel()
-	var b Base
-	if _, err := b.GetFuturesPositions(context.Background(), asset.Spot, currency.Pair{}, time.Time{}, time.Time{}); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }
@@ -2333,6 +2329,46 @@ func TestGetFundingRateHistory(t *testing.T) {
 	t.Parallel()
 	var b Base
 	if _, err := b.GetMarginRatesHistory(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
+	}
+}
+
+func TestGetPositionSummary(t *testing.T) {
+	t.Parallel()
+	var b Base
+	if _, err := b.GetPositionSummary(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
+	}
+}
+
+func TestGetFuturesPositions(t *testing.T) {
+	t.Parallel()
+	var b Base
+	if _, err := b.GetFuturesPositions(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
+	}
+}
+
+func TestGetFundingPaymentDetails(t *testing.T) {
+	t.Parallel()
+	var b Base
+	if _, err := b.GetFundingPaymentDetails(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
+	}
+}
+
+func TestGetFundingRates(t *testing.T) {
+	t.Parallel()
+	var b Base
+	if _, err := b.GetFundingRates(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
+	}
+}
+
+func TestIsPerpetualFutureCurrency(t *testing.T) {
+	t.Parallel()
+	var b Base
+	if _, err := b.IsPerpetualFutureCurrency(asset.Spot, currency.NewPair(currency.BTC, currency.USD)); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }
