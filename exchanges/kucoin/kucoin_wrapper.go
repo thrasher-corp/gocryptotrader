@@ -101,7 +101,8 @@ func (ku *Kucoin) SetDefaults() {
 	// NOTE: SET THE URLs HERE
 	ku.API.Endpoints = ku.NewEndpoints()
 	ku.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot: kucoinAPIURL,
+		exchange.RestSpot:    kucoinAPIURL,
+		exchange.RestFutures: kucoinFuturesAPIURL,
 		// exchange.WebsocketSpot: kucoinWSAPIURL,
 	})
 	ku.Websocket = stream.New()
