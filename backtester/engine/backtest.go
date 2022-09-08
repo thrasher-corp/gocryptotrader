@@ -49,7 +49,7 @@ func (bt *BackTest) Reset() {
 // Run will iterate over loaded data events
 // save them and then handle the event based on its type
 func (bt *BackTest) Run() {
-	log.Info(common.Backtester, "running backtester against pre-defined data")
+	log.Info(common.Backtester, "Running backtester against pre-defined data")
 dataLoadingIssue:
 	for ev := bt.EventQueue.NextEvent(); ; ev = bt.EventQueue.NextEvent() {
 		if ev == nil {

@@ -209,7 +209,7 @@ func TestLogo(t *testing.T) {
 
 func TestPurgeColours(t *testing.T) {
 	PurgeColours()
-	if ColourSuccess != "" {
+	if CMDColours.Success != "" {
 		t.Error("expected purged colour")
 	}
 }

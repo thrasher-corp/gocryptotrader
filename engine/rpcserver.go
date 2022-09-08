@@ -104,10 +104,9 @@ func (s *RPCServer) authenticateClient(ctx context.Context) (context.Context, er
 		return ctx, fmt.Errorf("unable to base64 decode authorization header")
 	}
 
-	credentials := strings.Split(string(decoded), ":")
-
-	username := credentials[0]
-	password := credentials[1]
+	cred := strings.Split(string(decoded), ":")
+	username := cred[0]
+	password := cred[1]
 
 	if username != s.Config.RemoteControl.Username ||
 		password != s.Config.RemoteControl.Password {
@@ -127,8 +126,8 @@ func (s *RPCServer) authenticateClient(ctx context.Context) (context.Context, er
 // StartRPCServer starts a gRPC server with TLS auth
 func StartRPCServer(engine *Engine) {
 	targetDir := utils.GetTLSDir(engine.Settings.DataDir)
-	if err := checkCerts(targetDir); err != nil {
-		log.Errorf(log.GRPCSys, "gRPC checkCerts failed. err: %s\n", err)
+	if err := CheckCerts(targetDir); err != nil {
+		log.Errorf(log.GRPCSys, "gRPC CheckCerts failed. err: %s\n", err)
 		return
 	}
 	log.Debugf(log.GRPCSys, "gRPC server support enabled. Starting gRPC server on https://%v.\n", engine.Config.RemoteControl.GRPC.ListenAddress)

@@ -126,7 +126,7 @@ func main() {
 			}
 			fn, err = common.GenerateFileName(fn, extension)
 			if err != nil {
-				log.Printf("could not write file, please try again. err: %v", err)
+				log.Printf("Could not write file, please try again. err: %v", err)
 				continue
 			}
 			fmt.Printf("Enter output file. If blank, will default to \"%v\"\n", fn)
@@ -134,14 +134,14 @@ func main() {
 			if parsedFileName != "" {
 				fn, err = common.GenerateFileName(parsedFileName, extension)
 				if err != nil {
-					log.Printf("could not write file, please try again. err: %v", err)
+					log.Printf("Could not write file, please try again. err: %v", err)
 					continue
 				}
 			}
 			fp = filepath.Join(wd, fn)
 			err = os.WriteFile(fp, resp, file.DefaultPermissionOctal)
 			if err != nil {
-				log.Printf("could not write file, please try again. err: %v", err)
+				log.Printf("Could not write file, please try again. err: %v", err)
 				continue
 			}
 			break
