@@ -480,9 +480,9 @@ func (d *Depth) GetMovementByBase(base, refPrice float64) (*Movement, error) {
 	return d.bids.getMovementByBaseAmount(base, refPrice)
 }
 
-// GetMovementByQuotationFromMid derives your slippage from the mid price
+// GetMovementByBaseFromMid derives your slippage from the mid price
 // between top bid ask quotations to the potential deployment average order
-// cost using the quote amount. This hits the bids when you are ask/sell side.
+// cost using the base amount. This hits the bids when you are ask/sell side.
 func (d *Depth) GetMovementByBaseFromMid(base float64) (*Movement, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
@@ -493,9 +493,9 @@ func (d *Depth) GetMovementByBaseFromMid(base float64) (*Movement, error) {
 	return d.bids.getMovementByBaseAmount(base, mid)
 }
 
-// GetMovementByQuotationFromBest derives your slippage from the best price ask
-// quotation to the potential deployment average order cost using the quote
-// amount. This hits the bids when you are ask/sell side.
+// GetMovementByBaseFromBest derives your slippage from the best bid price
+// to the potential deployment average order cost using the base amount. This
+// hits the bids when you are ask/sell side.
 func (d *Depth) GetMovementByBaseFromBest(base float64) (*Movement, error) {
 	d.m.Lock()
 	defer d.m.Unlock()

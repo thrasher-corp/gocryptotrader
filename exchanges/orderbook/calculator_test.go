@@ -2,7 +2,6 @@ package orderbook
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"testing"
 
@@ -54,8 +53,6 @@ func TestWhaleBomb(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", result.PercentageGainOrLoss, 0.014285714285714287)
 	}
 
-	fmt.Println(result.Status)
-
 	result, err = b.WhaleBomb(7000.5, true) // <- Slot between prices will lift to next ask tranche
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
@@ -76,8 +73,6 @@ func TestWhaleBomb(t *testing.T) {
 	if result.PercentageGainOrLoss != 0.014285714285714287 {
 		t.Fatalf("received: '%v' but expected: '%v'", result.PercentageGainOrLoss, 0.014285714285714287)
 	}
-
-	fmt.Println(result.Status)
 
 	_, err = b.WhaleBomb(7002, true) // <- exceed available quotations
 	if !errors.Is(err, errNotEnoughLiquidity) {
@@ -104,8 +99,6 @@ func TestWhaleBomb(t *testing.T) {
 	if result.PercentageGainOrLoss != 0 {
 		t.Fatalf("received: '%v' but expected: '%v'", result.PercentageGainOrLoss, 0)
 	}
-
-	fmt.Println(result.Status)
 
 	_, err = b.WhaleBomb(6000, true)
 	if !errors.Is(err, errUnableToHitPriceTarget) {
@@ -138,8 +131,6 @@ func TestWhaleBomb(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", result.PercentageGainOrLoss, -0.014287755393627661)
 	}
 
-	fmt.Println(result.Status)
-
 	result, err = b.WhaleBomb(6998.5, false) // <- Slot between prices will drop to next bid tranche
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
@@ -160,8 +151,6 @@ func TestWhaleBomb(t *testing.T) {
 	if result.PercentageGainOrLoss != -0.014287755393627661 {
 		t.Fatalf("received: '%v' but expected: '%v'", result.PercentageGainOrLoss, -0.014287755393627661)
 	}
-
-	fmt.Println(result.Status)
 
 	_, err = b.WhaleBomb(6997, false) // <- exceed available quotations
 	if !errors.Is(err, errNotEnoughLiquidity) {
@@ -188,8 +177,6 @@ func TestWhaleBomb(t *testing.T) {
 	if result.PercentageGainOrLoss != 0 {
 		t.Fatalf("received: '%v' but expected: '%v'", result.PercentageGainOrLoss, 0)
 	}
-
-	fmt.Println(result.Status)
 
 	_, err = b.WhaleBomb(7500, false)
 	if !errors.Is(err, errUnableToHitPriceTarget) {

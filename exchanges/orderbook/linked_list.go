@@ -11,7 +11,8 @@ var (
 	errIDCannotBeMatched               = errors.New("cannot match ID on linked list")
 	errCollisionDetected               = errors.New("cannot insert update collision detected")
 	errAmountCannotBeLessOrEqualToZero = errors.New("amount cannot be less or equal to zero")
-	errInvalidSlippage                 = errors.New("invalid slippage amount must be greater than or equal to zero and less than 100")
+	errInvalidSlippage                 = errors.New("invalid slippage amount must be equal or greater than zero")
+	errInvalidSlippageCannotExceed100  = errors.New("invalid slippage cannot exceed 100%")
 	errBaseAmountInvalid               = errors.New("invalid base amount")
 	errInvalidReferencePrice           = errors.New("invalid reference price")
 	errQuoteAmountInvalid              = errors.New("quote amount invalid")
@@ -451,7 +452,7 @@ func (ll *bids) getBaseAmountFromNominalSlippage(slippage, refPrice float64) (Sh
 	}
 
 	if slippage > 100 {
-		return Shift{}, fmt.Errorf("%w cannot exceed 100%%", errInvalidSlippage)
+		return Shift{}, errInvalidSlippageCannotExceed100
 	}
 
 	if refPrice <= 0 {
@@ -509,7 +510,7 @@ func (ll *bids) getBaseAmountFromImpact(slippage, refPrice float64) (Shift, erro
 	}
 
 	if slippage > 100 {
-		return Shift{}, fmt.Errorf("%w cannot exceed 100%%", errInvalidSlippage)
+		return Shift{}, errInvalidSlippageCannotExceed100
 	}
 
 	if refPrice <= 0 {
@@ -529,8 +530,8 @@ func (ll *bids) getBaseAmountFromImpact(slippage, refPrice float64) (Shift, erro
 		impact.EndPrice = tip.Value.Price
 		impact.ApproximatePercentage = percent
 		if slippage <= percent {
-			// Don't include this tranche amount as this drops the tranche book
-			// price.
+			// Don't include this tranche amount as this consumes the tranche
+			// book price, thus obtaining a higher percentage impact.
 			return impact, nil
 		}
 		impact.AmountRequired += tip.Value.Amount
@@ -647,7 +648,6 @@ func (ll *asks) getQuoteAmountFromNominalSlippage(slippage, refPrice float64) (S
 			nominal.EndPrice = tip.Value.Price
 			return nominal, nil
 		}
-
 		nominal.EndPrice = tip.Value.Price
 		nominal.AmountRequired = currentValue
 		nominal.ApproximatePercentage = percent
@@ -681,11 +681,10 @@ func (ll *asks) getQuoteAmountFromImpact(slippage, refPrice float64) (Shift, err
 		impact.ApproximatePercentage = percent
 		impact.EndPrice = tip.Value.Price
 		if slippage <= percent {
-			// Don't include this tranche price and amount as this exceeds
-			// reference percentage.
+			// Don't include this tranche amount as this consumes the tranche
+			// book price, thus obtaining a higher percentage impact.
 			return impact, nil
 		}
-
 		impact.AmountRequired += tip.Value.Amount * tip.Value.Price
 	}
 	impact.FullBookSideConsumed = true
@@ -831,13 +830,13 @@ func getMovement(leftover, amounts, totalValue, headPrice, refPrice, tranchePric
 		return nil, errAmountExceedsSideLiquidity
 	}
 	averageOrderPrice := totalValue / amounts
-	// Nominal pct deference is from the reference price twap/vwap, mid, best
-	// etc to stay within average order costing.
+	// Nominal percentage difference is from the reference price to average order
+	// cost.
 	nominalP := math.CalculatePercentageGainOrLoss(averageOrderPrice, refPrice)
-	// Impact orderbook pct is how much the book slips from the initial
-	// deployment head (best ask/bid) to left over tranche price.
+	// Impact orderbook pct is how much the book slips from the reference price
+	// to left over tranche price tranche price.
 	impactP := math.CalculatePercentageGainOrLoss(tranchePrice, headPrice)
-	// Slippage cost is the total imaginary best price ask/bid to the total
+	// Slippage cost is the total imaginary reference price to the total
 	// base deployment minus total value which is the aggregate total of all
 	// prices and amounts used.
 	slippageCost := totalValue - (amounts * headPrice)

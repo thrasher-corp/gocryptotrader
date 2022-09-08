@@ -5338,13 +5338,11 @@ func (s *RPCServer) GetOrderbookMovement(ctx context.Context, r *gctrpc.GetOrder
 	var bought, sold, side string
 	if r.Sell {
 		move, err = depth.GetMovementByBaseFromBest(r.Amount)
-		bought = pair.Base.Upper().String()
-		sold = pair.Quote.Upper().String()
+		bought = pair.Quote.Upper().String()
+		sold = pair.Base.Upper().String()
 		side = order.Bid.String()
 	} else {
-		fmt.Println("bruh", r.Amount)
 		move, err = depth.GetMovementByQuoteFromBest(r.Amount)
-		fmt.Println(move)
 		bought = pair.Base.Upper().String()
 		sold = pair.Quote.Upper().String()
 		side = order.Ask.String()

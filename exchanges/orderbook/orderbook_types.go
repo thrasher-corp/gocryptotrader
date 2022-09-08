@@ -149,8 +149,8 @@ type Update struct {
 	MaxDepth int
 }
 
-// Movement defines orderbook traversal details from either hitting the bid or
-// lifting the ask.
+// Movement defines orderbook traversal details from either hitting the bids or
+// lifting the asks.
 type Movement struct {
 	// NominalPercentage (real-world) defines how far in percentage terms is
 	// your average order price away from the reference price.

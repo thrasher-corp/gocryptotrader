@@ -1587,7 +1587,7 @@ func TestGetBaseAmountFromNominalSlippage(t *testing.T) {
 		{
 			Name:            "invalid slippage - larger than 100%",
 			NominalSlippage: 101,
-			ExpectedError:   errInvalidSlippage,
+			ExpectedError:   errInvalidSlippageCannotExceed100,
 		},
 		{
 			Name:            "no reference price",
@@ -1685,7 +1685,7 @@ func TestGetBaseAmountFromImpact(t *testing.T) {
 		{
 			Name:           "invalid slippage - exceed 100%",
 			ImpactSlippage: 101,
-			ExpectedError:  errInvalidSlippage,
+			ExpectedError:  errInvalidSlippageCannotExceed100,
 		},
 		{
 			Name:           "no reference price",
