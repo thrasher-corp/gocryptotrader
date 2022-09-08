@@ -1523,3 +1523,127 @@ type SpotPriceTriggeredOrder struct {
 	Reason       string           `json:"reason,omitempty"`
 	Market       string           `json:"market,omitempty"`
 }
+
+// ModifyLoanRequestParam represents request parameters for modify loan request
+type ModifyLoanRequestParam struct {
+	Currency     currency.Code `json:"currency"`
+	Side         string        `json:"side"`
+	CurrencyPair currency.Pair `json:"currency_pair"`
+	AutoRenew    bool          `json:"auto_renew"`
+	LoanID       string        `json:"loan_id,omitempty"`
+}
+
+// RepayLoanRequestParam represents loan repay request parameters
+type RepayLoanRequestParam struct {
+	CurrencyPair currency.Pair `json:"currency_pair"`
+	Currency     currency.Code `json:"currency"`
+	Mode         string        `json:"mode"`
+	Amount       float64       `json:"amount,string"`
+}
+
+// LoanRepaymentRecord represents loan repayment history record item.
+type LoanRepaymentRecord struct {
+	ID         string    `json:"id"`
+	CreateTime time.Time `json:"create_time"`
+	Principal  string    `json:"principal"`
+	Interest   string    `json:"interest"`
+}
+
+// LoanRecord represents loan repayment specific record
+type LoanRecord struct {
+	ID             string    `json:"id"`
+	LoanID         string    `json:"loan_id"`
+	CreateTime     time.Time `json:"create_time"`
+	ExpireTime     time.Time `json:"expire_time"`
+	Status         string    `json:"status"`
+	BorrowUserID   string    `json:"borrow_user_id"`
+	Currency       string    `json:"currency"`
+	Rate           float64   `json:"rate,string"`
+	Amount         float64   `json:"amount,string"`
+	Days           int       `json:"days"`
+	AutoRenew      bool      `json:"auto_renew"`
+	Repaid         float64   `json:"repaid,string"`
+	PaidInterest   string    `json:"paid_interest"`
+	UnpaidInterest string    `json:"unpaid_interest"`
+}
+
+// OnOffStatus represents on or off status response status
+type OnOffStatus struct {
+	Status string `json:"status"`
+}
+
+// MaxTransferAndLoanAmount represents the maximum amount to transfer, borrow, or lend for specific currency and currency pair
+type MaxTransferAndLoanAmount struct {
+	Currency     currency.Code `json:"currency"`
+	CurrencyPair currency.Pair `json:"currency_pair"`
+	Amount       float64       `json:"amount,string"`
+}
+
+// CrossMarginCurrencies represents a currency supported by cross margin
+type CrossMarginCurrencies struct {
+	Name                 string  `json:"name"`
+	Rate                 float64 `json:"rate,string"`
+	Precesion            float64 `json:"prec,string"`
+	Discount             string  `json:"discount"`
+	MinBorrowAmount      float64 `json:"min_borrow_amount,string"`
+	UserMaxBorrowAmount  float64 `json:"user_max_borrow_amount,string"`
+	TotalMaxBorrowAmount float64 `json:"total_max_borrow_amount,string"`
+	Price                float64 `json:"price,string"`
+	Status               int     `json:"status"`
+}
+
+// CrossMarginCurrencyBalance represents the currency detailed balance information for cross margin
+type CrossMarginCurrencyBalance struct {
+	Available string `json:"available"`
+	Freeze    string `json:"freeze"`
+	Borrowed  string `json:"borrowed"`
+	Interest  string `json:"interest"`
+}
+
+// CrossMarginAccount represents the account detail for cross margin account balance
+type CrossMarginAccount struct {
+	UserID                     int                                   `json:"user_id"`
+	Locked                     bool                                  `json:"locked"`
+	Balances                   map[string]CrossMarginCurrencyBalance `json:"balances"`
+	Total                      float64                               `json:"total,string"`
+	Borrowed                   float64                               `json:"borrowed,string"`
+	Interest                   float64                               `json:"interest,string"`
+	Risk                       float64                               `json:"risk,string"`
+	TotalInitialMargin         string                                `json:"total_initial_margin"`
+	TotalMarginBalance         string                                `json:"total_margin_balance"`
+	TotalMaintenanceMargin     string                                `json:"total_maintenance_margin"`
+	TotalInitialMarginRate     string                                `json:"total_initial_margin_rate"`
+	TotalMaintenanceMarginRate string                                `json:"total_maintenance_margin_rate"`
+	TotalAvailableMargin       string                                `json:"total_available_margin"`
+}
+
+// CrossMarginAccountHistoryItem represents a cross margin account change history item
+type CrossMarginAccountHistoryItem struct {
+	ID       string    `json:"id"`
+	Time     time.Time `json:"time"`
+	Currency string    `json:"currency"`
+	Change   string    `json:"change"`
+	Balance  float64   `json:"balance,string"`
+	Type     string    `json:"type"`
+}
+
+// CrossMarginBorrowLoanParams represents a cross margin borrow loan parameters
+type CrossMarginBorrowLoanParams struct {
+	Currency currency.Code `json:"currency"`
+	Amount   float64       `json:"amount"`
+	Text     string        `json:"text"`
+}
+
+// CrossMarginBorrowLoanResponse represents a cross margin borrow loan response
+type CrossMarginBorrowLoanResponse struct {
+	ID             string    `json:"id"`
+	CreateTime     time.Time `json:"create_time"`
+	UpdateTime     time.Time `json:"update_time"`
+	Currency       string    `json:"currency"`
+	Amount         float64   `json:"amount,string"`
+	Text           string    `json:"text"`
+	Status         int       `json:"status"`
+	Repaid         string    `json:"repaid"`
+	RepaidInterest float64   `json:"repaid_interest,string"`
+	UnpaidInterest float64   `json:"unpaid_interest,string"`
+}

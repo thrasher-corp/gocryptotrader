@@ -68,13 +68,21 @@ const (
 	walletTotalBalance                  = "wallet/total_balance"
 
 	// Margin
-	marginCurrencyPairs   = "margin/currency_pairs"
-	marginFundingBook     = "margin/funding_book"
-	marginAccount         = "margin/accounts"
-	marginAccountBook     = "margin/account_book"
-	marginFundingAccounts = "margin/funding_accounts"
-	marginLoans           = "margin/loans"
-	marginMergedLoans     = "margin/merged_loans"
+	marginCurrencyPairs    = "margin/currency_pairs"
+	marginFundingBook      = "margin/funding_book"
+	marginAccount          = "margin/accounts"
+	marginAccountBook      = "margin/account_book"
+	marginFundingAccounts  = "margin/funding_accounts"
+	marginLoans            = "margin/loans"
+	marginMergedLoans      = "margin/merged_loans"
+	marginLoanRecords      = "margin/loan_records"
+	marginAutoRepay        = "margin/auto_repay"
+	marginTransfer         = "margin/transferable"
+	marginBorrowable       = "margin/borrowable"
+	crossMarginCurrencies  = "margin/cross/currencies"
+	crossMarginAccounts    = "margin/cross/accounts"
+	crossMarginAccountBook = "margin/cross/account_book"
+	crossMarginLoans       = "margin/cross/loans"
 
 	// Futures
 	futuresSettleContracts    = "futures/%s/contracts"
@@ -166,6 +174,9 @@ var (
 	errInvalidCountdown                    = errors.New("invalid countdown, Countdown time, in seconds At least 5 seconds, 0 means cancel the countdown")
 	errInvalidOrderStatus                  = errors.New("invalid order status")
 	errInvalidLoanSide                     = errors.New("invalid loan side, only 'lend' and 'borrow'")
+	errInvalidLoanID                       = errors.New("missing loan ID")
+	errInvalidRepayMode                    = errors.New("invalid repay mode specified, must be 'all' or 'partial'")
+	errInvalidAutoRepaymentStatus          = errors.New("invalid auto repayment status response")
 )
 
 // Gateio is the overarching type across this package
@@ -1813,7 +1824,7 @@ func (g *Gateio) GetMarginAllLoans(ctx context.Context, status, side string, cur
 	}
 	if status == "open" || status == "loaned" || status == "finished" || status == "auto_repair" {
 		params.Set("status", status)
-	}else {
+	} else {
 		return nil, errors.New("loan status \"status\" is required")
 	}
 	if !currency.IsEmpty() {
@@ -1854,6 +1865,256 @@ func (g *Gateio) MergeMultipleLendingLoans(ctx context.Context, ccy currency.Cod
 	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, marginMergedLoans, params, nil, &response)
 }
 
+// RetriveOneSingleLoanDetail retrieve one single loan detail
+func (g *Gateio) RetriveOneSingleLoanDetail(ctx context.Context, side, loanID string) (*MarginLoanResponse, error) {
+	params := url.Values{}
+	if !(side == "borrow" || side == "lend") {
+		return nil, errInvalidLoanSide
+	}
+	if loanID == "" {
+		return nil, errInvalidLoanID
+	}
+	params.Set("side", side)
+	path := fmt.Sprintf("%s/%s/", marginLoans, loanID)
+	var response MarginLoanResponse
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, nil, &response)
+}
+
+// ModifyALoan Modify a loan
+// Only auto_renew modification is supported currently
+func (g *Gateio) ModifyALoan(ctx context.Context, loanID string, arg ModifyLoanRequestParam) (*MarginLoanResponse, error) {
+	if loanID == "" {
+		return nil, fmt.Errorf("%v, %v", errInvalidLoanID, " loan_id is required")
+	}
+	if arg.Currency.IsEmpty() {
+		return nil, errInvalidCurrency
+	}
+	if !(arg.Side == "borrow" || arg.Side == "lend") {
+		return nil, errInvalidLoanSide
+	}
+	if !arg.CurrencyPair.IsEmpty() {
+		arg.CurrencyPair.Delimiter = UnderscoreDelimiter
+	}
+	path := fmt.Sprintf("%s/%s", marginLoans, loanID)
+	var response MarginLoanResponse
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPatch, path, nil, &arg, &response)
+}
+
+// CancelLendingLoan cancels lending loans. only lent loans can be canceled.
+func (g *Gateio) CancelLendingLoan(ctx context.Context, currency currency.Code, loanID string) (*MarginLoanResponse, error) {
+	if loanID == "" {
+		return nil, fmt.Errorf("%v, %v", errInvalidLoanID, " loan_id is required")
+	}
+	if currency.IsEmpty() {
+		return nil, errInvalidCurrency
+	}
+	params := url.Values{}
+	params.Set("currency", currency.String())
+	path := fmt.Sprintf("%s/%s", marginLoans, loanID)
+	var response MarginLoanResponse
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, params, nil, &response)
+}
+
+// RepayALoan execute a loan repay.
+func (g *Gateio) RepayALoan(ctx context.Context, loanID string, arg RepayLoanRequestParam) (*MarginLoanResponse, error) {
+	if loanID == "" {
+		return nil, fmt.Errorf("%v, %v", errInvalidLoanID, " loan_id is required")
+	}
+	if arg.Currency.IsEmpty() {
+		return nil, errInvalidCurrency
+	}
+	if arg.CurrencyPair.IsEmpty() {
+		return nil, errInvalidOrEmptyCurrencyPair
+	}
+	arg.CurrencyPair.Delimiter = UnderscoreDelimiter
+	if !(arg.Mode == "all" || arg.Mode == "partial") {
+		return nil, errInvalidRepayMode
+	}
+	if arg.Mode == "partial" && arg.Amount <= 0 {
+		return nil, fmt.Errorf("%v, repay amount for partial repay mode must be greater than 0", errInvalidAmount)
+	}
+	var response MarginLoanResponse
+	path := fmt.Sprintf("%s/%s/repayment", marginLoans, loanID)
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, &arg, &response)
+}
+
+// ListLoanRepaymentRecords retrives loan repayment records for specified loan ID
+func (g *Gateio) ListLoanRepaymentRecords(ctx context.Context, loanID string) ([]LoanRepaymentRecord, error) {
+	if loanID == "" {
+		return nil, fmt.Errorf("%v, %v", errInvalidLoanID, " loan_id is required")
+	}
+	path := fmt.Sprintf("%s/%s/repayment", marginLoans, loanID)
+	var response []LoanRepaymentRecord
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &response)
+}
+
+// ListRepaymentRecordsOfSpecificLoan retrieves repayment records of specific loan
+func (g *Gateio) ListRepaymentRecordsOfSpecificLoan(ctx context.Context, loanID, status string, page, limit int) ([]LoanRecord, error) {
+	if loanID == "" {
+		return nil, fmt.Errorf("%v, %v", errInvalidLoanID, " loan_id is required")
+	}
+	params := url.Values{}
+	params.Set("loan_id", loanID)
+	if status == "loaned" || status == "finished" {
+		params.Set("status", status)
+	}
+	if page > 0 {
+		params.Set("page", strconv.Itoa(page))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(limit))
+	}
+	var response []LoanRecord
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, marginLoanRecords, params, nil, &response)
+}
+
+// GetOneSingleloanRecord get one single loan record
+func (g *Gateio) GetOneSingleloanRecord(ctx context.Context, loanID, loanRecordID string) (*LoanRecord, error) {
+	if loanID == "" {
+		return nil, fmt.Errorf("%v, %v", errInvalidLoanID, " loan_id is required")
+	}
+	if loanRecordID == "" {
+		return nil, fmt.Errorf("%v, %v", errInvalidLoanID, " loan_record_id is required")
+	}
+	path := fmt.Sprintf("%s/%s", marginLoanRecords, loanRecordID)
+	params := url.Values{}
+	params.Set("loan_id", loanID)
+	var response LoanRecord
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, nil, &response)
+}
+
+// ModifyALoanRecord modify a loan record
+// Only auto_renew modification is supported currently
+func (g *Gateio) ModifyALoanRecord(ctx context.Context, loanRecordID string, arg ModifyLoanRequestParam) (*LoanRecord, error) {
+	if loanRecordID == "" {
+		return nil, fmt.Errorf("%v, %v", errInvalidLoanID, " loan_record_id is required")
+	}
+	if arg.LoanID == "" {
+		return nil, fmt.Errorf("%v, %v", errInvalidLoanID, " loan_id is required")
+	}
+	if arg.Currency.IsEmpty() {
+		return nil, errInvalidCurrency
+	}
+	if !(arg.Side == "borrow" || arg.Side == "lend") {
+		return nil, errInvalidLoanSide
+	}
+	if !arg.CurrencyPair.IsEmpty() {
+		arg.CurrencyPair.Delimiter = UnderscoreDelimiter
+	}
+	path := fmt.Sprintf("%s/%s", marginLoanRecords, loanRecordID)
+	var response LoanRecord
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPatch, path, nil, &arg, &response)
+}
+
+// UpdateUsersAutoRepaymentSetting represents update user's auto repayment setting
+func (g *Gateio) UpdateUsersAutoRepaymentSetting(ctx context.Context, status string) (*OnOffStatus, error) {
+	if !(status == "on" || status == "off") {
+		return nil, errInvalidAutoRepaymentStatus
+	}
+	params := url.Values{}
+	params.Set("status", status)
+	var response OnOffStatus
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, marginAutoRepay, params, nil, &response)
+}
+
+// GetUserAutoRepaymentSetting retrieve user auto repayment setting
+func (g *Gateio) GetUserAutoRepaymentSetting(ctx context.Context) (*OnOffStatus, error) {
+	var response OnOffStatus
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, marginAutoRepay, nil, nil, &response)
+}
+
+// GetMaxTransferableAmountForSpecificMarginCurrency get the max transferable amount for a specific margin currency.
+func (g *Gateio) GetMaxTransferableAmountForSpecificMarginCurrency(ctx context.Context, ccy currency.Code, currencyPair currency.Pair) (*MaxTransferAndLoanAmount, error) {
+	if ccy.IsEmpty() {
+		return nil, errInvalidCurrency
+	}
+	params := url.Values{}
+	if !currencyPair.IsEmpty() {
+		currencyPair.Delimiter = UnderscoreDelimiter
+		params.Set("currency_pair", currencyPair.String())
+	}
+	params.Set("currency", ccy.String())
+	var response MaxTransferAndLoanAmount
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, marginTransfer, params, nil, &response)
+}
+
+// GetMaxBorrowableAmountForSpecificMarginCurrency retrives the max borrowble amount for specific currency
+func (g *Gateio) GetMaxBorrowableAmountForSpecificMarginCurrency(ctx context.Context, ccy currency.Code, currencyPair currency.Pair) (*MaxTransferAndLoanAmount, error) {
+	if ccy.IsEmpty() {
+		return nil, errInvalidCurrency
+	}
+	params := url.Values{}
+	if !currencyPair.IsEmpty() {
+		currencyPair.Delimiter = UnderscoreDelimiter
+		params.Set("currency_pair", currencyPair.String())
+	}
+	params.Set("currency", ccy.String())
+	var response MaxTransferAndLoanAmount
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, marginBorrowable, params, nil, &response)
+}
+
+// CurrencySupportedByCrossMargin currencies supported by cross margin.
+func (g *Gateio) CurrencySupportedByCrossMargin(ctx context.Context) ([]CrossMarginCurrencies, error) {
+	var response []CrossMarginCurrencies
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, crossMarginCurrencies, nil, nil, &response)
+}
+
+// GetCrossMarginSupportedCurrencyDetail retrieve detail of one single currency supported by cross margin
+func (g *Gateio) GetCrossMarginSupportedCurrencyDetail(ctx context.Context, currency currency.Code) (*CrossMarginCurrencies, error) {
+	if currency.IsEmpty() {
+		return nil, errInvalidCurrency
+	}
+	path := fmt.Sprintf("%s/%s", crossMarginCurrencies, currency.String())
+	var response CrossMarginCurrencies
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &response)
+}
+
+// GetCrossMarginAccounts retrieve cross margin account
+func (g *Gateio) GetCrossMarginAccounts(ctx context.Context) (*CrossMarginAccount, error) {
+	var response CrossMarginAccount
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, crossMarginAccounts, nil, nil, &response)
+}
+
+// GetCrossMarginAccountChangeHistory retrieve cross margin account change history
+// Record time range cannot exceed 30 days
+func (g *Gateio) GetCrossMarginAccountChangeHistory(ctx context.Context, currency currency.Code, from, to time.Time, page, limit int, accountChangeType string) ([]CrossMarginAccountHistoryItem, error) {
+	params := url.Values{}
+	if !currency.IsEmpty() {
+		params.Set("currency", currency.String())
+	}
+	if !from.IsZero() {
+		params.Set("from", strconv.FormatInt(from.Unix(), 10))
+	}
+	if !to.IsZero() {
+		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	}
+	if page > 0 {
+		params.Set("page", strconv.Itoa(page))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(limit))
+	}
+	if accountChangeType == "in" || accountChangeType == "out" || accountChangeType == "repay" || accountChangeType == "borrow" || accountChangeType == "new_order" || accountChangeType == "order_fill" || accountChangeType == "referral_fee" || accountChangeType == "order_fee" || accountChangeType == "unknown" {
+		params.Set("type", accountChangeType)
+	}
+	var response []CrossMarginAccountHistoryItem
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, crossMarginAccountBook, params, nil, &response)
+}
+
+// CreateCrossMarginBoBorrowLoan create a cross margin borrow loan
+// Borrow amount cannot be less than currency minimum borrow amount
+func (g *Gateio) CreateCrossMarginBorrowLoan(ctx context.Context, arg CrossMarginBorrowLoanParams) (*CrossMarginBorrowLoanResponse, error) {
+	if arg.Currency.IsEmpty() {
+		return nil, errInvalidCurrency
+	}
+	if arg.Amount <= 0 {
+		return nil, fmt.Errorf("%v, borrow amount must be greater than 0", errInvalidAmount)
+	}
+	var response CrossMarginBorrowLoanResponse
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, crossMarginLoans, nil, &arg, &response)
+}
+
+// GetCrossMarginBorrowHistory(ctx context.Context, )
 // *********************************Futures***************************************
 
 // GetAllFutureContracts  retrives list all futures contracts

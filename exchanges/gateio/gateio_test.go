@@ -1286,6 +1286,231 @@ func TestMergeMultipleLendingLoans(t *testing.T) {
 		t.Errorf("%s MergeMultipleLendingLoans() error %v", g.Name, err)
 	}
 }
+
+func TestRetriveOneSingleLoanDetail(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.RetriveOneSingleLoanDetail(context.Background(), "borrow", "123"); err != nil && !strings.Contains(err.Error(), "Loan not found") {
+		t.Errorf("%s RetriveOneSingleLoanDetail() error %v", g.Name, err)
+	}
+}
+
+func TestModifyALoan(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.ModifyALoan(context.Background(), "1234", ModifyLoanRequestParam{
+		Currency:  currency.BTC,
+		Side:      "borrow",
+		AutoRenew: false,
+	}); err != nil && !strings.Contains(err.Error(), "Loan not found") {
+		t.Errorf("%s ModifyALoan() error %v", g.Name, err)
+	}
+}
+
+func TestCancelLendingLoan(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.CancelLendingLoan(context.Background(), currency.BTC, "1234"); err != nil && !strings.Contains(err.Error(), "Loan not found") {
+		t.Errorf("%s CancelLendingLoan() error %v", g.Name, err)
+	}
+}
+
+func TestRepayALoan(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.RepayALoan(context.Background(), "1234", RepayLoanRequestParam{
+		CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
+		Currency:     currency.BTC,
+		Mode:         "all",
+	}); err != nil && !strings.Contains(err.Error(), "Loan not found") {
+		t.Errorf("%s RepayALoan() error %v", g.Name, err)
+	}
+}
+
+var listLoanRepaymentRecordsJSON = `{"id": "12342323","create_time": "1578000000","principal": "100","interest": "2"}`
+
+func TestListLoanRepaymentRecords(t *testing.T) {
+	t.Parallel()
+	var response LoanRepaymentRecord
+	if err := json.Unmarshal([]byte(listLoanRepaymentRecordsJSON), &response); err != nil {
+		t.Errorf("%s error while deserializing to LoanRepaymentRecord %v", g.Name, err)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.ListLoanRepaymentRecords(context.Background(), "1234"); err != nil &&
+		!strings.Contains(err.Error(), "Loan not found") {
+		t.Errorf("%s LoanRepaymentRecord() error %v", g.Name, err)
+	}
+}
+
+var loanRecordJSON = `{  "id": "122342323",  "loan_id": "12840282",  "create_time": "1548000000",  "expire_time": "1548100000",  "status": "loaned",  "borrow_user_id": "******12",  "currency": "BTC",  "rate": "0.002",  "amount": "1.5",  "days": 10,  "auto_renew": false,  "repaid": "0",  "paid_interest": "0",  "unpaid_interest": "0"}`
+
+func TestListRepaymentRecordsOfSpecificLoan(t *testing.T) {
+	t.Parallel()
+	var response LoanRecord
+	if err := json.Unmarshal([]byte(listLoanRepaymentRecordsJSON), &response); err != nil {
+		t.Errorf("%s error while deserializing to LoanRecord %v", g.Name, err)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.ListRepaymentRecordsOfSpecificLoan(context.Background(), "1234", "", 0, 0); err != nil {
+		t.Errorf("%s error while ListRepaymentRecordsOfSpecificLoan() %v", g.Name, err)
+	}
+}
+
+func TestGetOneSingleloanRecord(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.GetOneSingleloanRecord(context.Background(), "1234", "123"); err != nil && !strings.Contains(err.Error(), "Loan record not found") {
+		t.Errorf("%s error while GetOneSingleloanRecord() %v", g.Name, err)
+	}
+}
+
+func TestModifyALoanRecord(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.ModifyALoanRecord(context.Background(), "1234", ModifyLoanRequestParam{
+		Currency:     currency.USDT,
+		CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
+		Side:         "lend",
+		AutoRenew:    true,
+		LoanID:       "1234",
+	}); err != nil && !strings.Contains(err.Error(), "Loan record not found") {
+		t.Errorf("%s ModifyALoanRecord() error %v", g.Name, err)
+	}
+}
+
+func TestUpdateUsersAutoRepaymentSetting(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.UpdateUsersAutoRepaymentSetting(context.Background(), "on"); err != nil {
+		t.Errorf("%s UpdateUsersAutoRepaymentSetting() error %v", g.Name, err)
+	}
+}
+
+func TestGetUserAutoRepaymentSetting(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.GetUserAutoRepaymentSetting(context.Background()); err != nil {
+		t.Errorf("%s GetUserAutoRepaymentSetting() error %v", g.Name, err)
+	}
+}
+
+func TestGetMaxTransferableAmountForSpecificMarginCurrency(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.GetMaxTransferableAmountForSpecificMarginCurrency(context.Background(), currency.BTC, currency.EMPTYPAIR); err != nil {
+		t.Errorf("%s GetMaxTransferableAmountForSpecificMarginCurrency() error %v", g.Name, err)
+	}
+}
+
+func TestGetMaxBorrowableAmountForSpecificMarginCurrency(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.GetMaxBorrowableAmountForSpecificMarginCurrency(context.Background(), currency.BTC, currency.EMPTYPAIR); err != nil && !strings.Contains(err.Error(), "No margin account or margin balance is not enough") {
+		t.Errorf("%s GetMaxBorrowableAmountForSpecificMarginCurrency() error %v", g.Name, err)
+	}
+}
+
+var currencySupportedByCrossMarginJSON = `{	"name": "BTC",	"rate": "0.0002",	"prec": "0.000001",	"discount": "1",	"min_borrow_amount": "0.01",	"user_max_borrow_amount": "1000000",	"total_max_borrow_amount": "10000000",	"price": "63015.5214",	"status": 1}`
+
+func TestCurrencySupportedByCrossMargin(t *testing.T) {
+	t.Parallel()
+	var response CrossMarginCurrencies
+	if err := json.Unmarshal([]byte(currencySupportedByCrossMarginJSON), &response); err != nil {
+		t.Errorf("%s error while deserializing to CrossMarginCurrencies error %v", g.Name, err)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.CurrencySupportedByCrossMargin(context.Background()); err != nil {
+		t.Errorf("%s CurrencySupportedByCrossMargin() error %v", g.Name, err)
+	}
+}
+
+func TestGetCrossMarginSupportedCurrencyDetail(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.GetCrossMarginSupportedCurrencyDetail(context.Background(), currency.BTC); err != nil {
+		t.Errorf("%s GetCrossMarginSupportedCurrencyDetail() error %v", g.Name, err)
+	}
+}
+
+var crossMarginAccountsResponseJSON = `{	"user_id": 10001,	"locked": false,	"balances": {	  "ETH": {		"available": "0",		"freeze": "0",		"borrowed": "0.075393666654",		"interest": "0.0000106807603333"	  },	  "POINT": {		"available": "9999999999.017023138734",		"freeze": "0",		"borrowed": "0",		"interest": "0"	  },	  "USDT": {		"available": "0.00000062023",		"freeze": "0",		"borrowed": "0",		"interest": "0"	  }	},	"total": "230.94621713",	"borrowed": "161.66395521",	"interest": "0.02290237",	"risk": "1.4284",	"total_initial_margin": "1025.0524665088",	"total_margin_balance": "3382495.944473949183",	"total_maintenance_margin": "205.01049330176",	"total_initial_margin_rate": "3299.827135672679",	"total_maintenance_margin_rate": "16499.135678363399",	"total_available_margin": "3381470.892007440383"}`
+
+func TestGetCrossMarginAccounts(t *testing.T) {
+	t.Parallel()
+	var response CrossMarginAccount
+	if err := json.Unmarshal([]byte(crossMarginAccountsResponseJSON), &response); err != nil {
+		t.Errorf("%s error while deserializing to CrossMarginAccounts error %v", g.Name, err)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.GetCrossMarginAccounts(context.Background()); err != nil {
+		t.Errorf("%s GetCrossMarginAccounts() error %v", g.Name, err)
+	}
+}
+
+var crossMarginAccountChangeHistoryJSON = `{"id": "123456","time": 1547633726123,  "currency": "BTC",  "change": "1.03",  "balance": "4.59316525194",  "type": "in"}`
+
+func TestGetCrossMarginAccountChangeHistory(t *testing.T) {
+	t.Parallel()
+	var response CrossMarginAccountHistoryItem
+	if err := json.Unmarshal([]byte(crossMarginAccountChangeHistoryJSON), &response); err != nil {
+		t.Errorf("%s error while deserializing to CrossMarginAccountHistoryItem error %v", g.Name, err)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.GetCrossMarginAccountChangeHistory(context.Background(), currency.BTC, time.Time{}, time.Time{}, 0, 6, "in"); err != nil {
+		t.Errorf("%s GetCrossMarginAccountChangeHistory() error %v", g.Name, err)
+	}
+}
+
+var createCrossMarginBorrowLoanJSON = `{	"id": "17",	"create_time": 1620381696159,	"update_time": 1620381696159,	"currency": "EOS",	"amount": "110.553635",	"text": "web",	"status": 2,	"repaid": "110.506649705159",	"repaid_interest": "0.046985294841",	"unpaid_interest": "0.0000074393366667"}`
+
+func TestCreateCrossMarginBorrowLoan(t *testing.T) {
+	t.Parallel()
+	var response CrossMarginBorrowLoanResponse
+	if err := json.Unmarshal([]byte(createCrossMarginBorrowLoanJSON), &response); err != nil {
+		t.Errorf("%s error while deserializing to CrossMarginBorrowLoanResponse %v", g.Name, err)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.CreateCrossMarginBorrowLoan(context.Background(), CrossMarginBorrowLoanParams{
+		Currency: currency.BTC,
+		Amount:   3,
+	}); err != nil {
+		t.Errorf("%s CreateCrossMarginBorrowLoan() error %v", g.Name, err)
+	}
+}
+
 func TestListCurrencyChain(t *testing.T) {
 	t.Parallel()
 	if _, er := g.ListCurrencyChain(context.Background(), currency.BTC); er != nil {
