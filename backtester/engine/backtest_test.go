@@ -181,9 +181,9 @@ func TestLoadDataAPI(t *testing.T) {
 		},
 		DataSettings: config.DataSettings{
 			DataType: common.CandleStr,
-			Interval: gctkline.OneMin,
+			Interval: gctkline.OneHour,
 			APIData: &config.APIData{
-				StartDate: time.Now().Add(-time.Minute),
+				StartDate: time.Now().Add(-time.Hour * 2),
 				EndDate:   time.Now(),
 			}},
 		StrategySettings: config.StrategySettings{
