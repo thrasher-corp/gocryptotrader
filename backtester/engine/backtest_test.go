@@ -422,7 +422,7 @@ func TestLoadDataLive(t *testing.T) {
 
 func TestReset(t *testing.T) {
 	t.Parallel()
-	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, true, false)
+	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, true, false, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -469,7 +469,7 @@ func TestFullCycle(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true)
+	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -575,7 +575,7 @@ func TestFullCycleMulti(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true)
+	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -762,7 +762,7 @@ func TestUpdateStatsForDataEvent(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 	expectedError = nil
-	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true)
+	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true, false)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
@@ -850,7 +850,7 @@ func TestProcessSignalEvent(t *testing.T) {
 		Base: de.Base,
 	}
 
-	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true)
+	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true, false)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
@@ -924,7 +924,7 @@ func TestProcessOrderEvent(t *testing.T) {
 		Base: de.Base,
 	}
 
-	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true)
+	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true, false)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
@@ -1050,7 +1050,7 @@ func TestProcessFillEvent(t *testing.T) {
 	}
 	exch.SetDefaults()
 	em.Add(exch)
-	f, err := funding.SetupFundingManager(em, false, true)
+	f, err := funding.SetupFundingManager(em, false, true, false)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
@@ -1197,7 +1197,7 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 	}
 	exch.SetDefaults()
 	em.Add(exch)
-	f, err := funding.SetupFundingManager(em, false, true)
+	f, err := funding.SetupFundingManager(em, false, true, false)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}

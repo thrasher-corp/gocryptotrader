@@ -124,6 +124,7 @@ type FundManager struct {
 	disableUSDTracking        bool
 	items                     []*Item
 	exchangeManager           *engine.ExchangeManager
+	verbose                   bool
 }
 
 // Item holds funding data per currency item

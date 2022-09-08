@@ -34,7 +34,7 @@ var (
 
 func TestSetupFundingManager(t *testing.T) {
 	t.Parallel()
-	f, err := SetupFundingManager(&engine.ExchangeManager{}, true, false)
+	f, err := SetupFundingManager(&engine.ExchangeManager{}, true, false, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -44,7 +44,7 @@ func TestSetupFundingManager(t *testing.T) {
 	if f.disableUSDTracking {
 		t.Errorf("expected '%v received '%v'", false, true)
 	}
-	f, err = SetupFundingManager(&engine.ExchangeManager{}, false, true)
+	f, err = SetupFundingManager(&engine.ExchangeManager{}, false, true, true)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -54,11 +54,14 @@ func TestSetupFundingManager(t *testing.T) {
 	if !f.disableUSDTracking {
 		t.Errorf("expected '%v received '%v'", true, false)
 	}
+	if !f.verbose {
+		t.Errorf("expected '%v received '%v'", true, false)
+	}
 }
 
 func TestReset(t *testing.T) {
 	t.Parallel()
-	f, err := SetupFundingManager(&engine.ExchangeManager{}, true, false)
+	f, err := SetupFundingManager(&engine.ExchangeManager{}, true, false, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -81,7 +84,7 @@ func TestReset(t *testing.T) {
 
 func TestIsUsingExchangeLevelFunding(t *testing.T) {
 	t.Parallel()
-	f, err := SetupFundingManager(&engine.ExchangeManager{}, true, false)
+	f, err := SetupFundingManager(&engine.ExchangeManager{}, true, false, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}

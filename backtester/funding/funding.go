@@ -44,7 +44,7 @@ var (
 
 // SetupFundingManager creates the funding holder. It carries knowledge about levels of funding
 // across all execution handlers and enables fund transfers
-func SetupFundingManager(exchManager *engine.ExchangeManager, usingExchangeLevelFunding, disableUSDTracking bool) (*FundManager, error) {
+func SetupFundingManager(exchManager *engine.ExchangeManager, usingExchangeLevelFunding, disableUSDTracking, verbose bool) (*FundManager, error) {
 	if exchManager == nil {
 		return nil, errExchangeManagerRequired
 	}
@@ -52,6 +52,7 @@ func SetupFundingManager(exchManager *engine.ExchangeManager, usingExchangeLevel
 		usingExchangeLevelFunding: usingExchangeLevelFunding,
 		disableUSDTracking:        disableUSDTracking,
 		exchangeManager:           exchManager,
+		verbose:                   verbose,
 	}, nil
 }
 
@@ -661,7 +662,9 @@ func (f *FundManager) UpdateAllCollateral(isLive, hasUpdatedFunding bool) error 
 		for y := range f.items {
 			if f.items[y].exchange == exchName &&
 				f.items[y].isCollateral {
-				log.Debugf(common.FundManager, "setting collateral %v %v %v to %v", f.items[y].exchange, f.items[y].asset, f.items[y].currency, collateral.AvailableCollateral)
+				if f.verbose {
+					log.Infof(common.FundManager, "Setting collateral %v %v %v to %v", f.items[y].exchange, f.items[y].asset, f.items[y].currency, collateral.AvailableCollateral)
+				}
 				f.items[y].available = collateral.AvailableCollateral
 				if !hasUpdatedFunding {
 					f.items[y].initialFunds = collateral.AvailableCollateral
@@ -749,7 +752,9 @@ func (f *FundManager) UpdateCollateralForEvent(ev common.Event, isLive bool) err
 		if f.items[i].exchange == ev.GetExchange() &&
 			f.items[i].asset == futureAsset &&
 			f.items[i].currency.Equal(futureCurrency) {
-			log.Debugf(common.FundManager, "setting collateral %v %v %v to %v", f.items[i].exchange, f.items[i].asset, f.items[i].currency, collat.AvailableCollateral)
+			if f.verbose {
+				log.Infof(common.FundManager, "Setting collateral %v %v %v to %v", f.items[i].exchange, f.items[i].asset, f.items[i].currency, collat.AvailableCollateral)
+			}
 			f.items[i].available = collat.AvailableCollateral
 			return nil
 		}
@@ -820,14 +825,18 @@ func (f *FundManager) SetFunding(exchName string, item asset.Item, balance *acco
 			!f.items[i].currency.Equal(balance.Currency) {
 			continue
 		}
-		log.Debugf(common.FundManager, "setting %v %v %v to %v", exchName, item, balance.Currency, balance.Total)
+		if f.verbose {
+			log.Infof(common.FundManager, "Setting %v %v %v balance to %v", exchName, item, balance.Currency, balance.Total)
+		}
 		if !hasUpdatedFunding {
 			f.items[i].initialFunds = amount
 		}
 		f.items[i].available = amount
 		return nil
 	}
-	log.Debugf(common.FundManager, "appending %v %v %v to %v", exchName, item, balance.Currency, balance.Total)
+	if f.verbose {
+		log.Debugf(common.FundManager, "Appending balance %v %v %v to %v", exchName, item, balance.Currency, balance.Total)
+	}
 	f.items = append(f.items, &Item{
 		exchange:     exchName,
 		asset:        item,

@@ -180,26 +180,21 @@ func (d *dataChecker) UpdateFunding(force bool) error {
 	}
 	defer atomic.StoreUint32(&d.updatingFunding, 0)
 
-	ts := time.Now()
 	var err error
 	if d.funding.HasFutures() {
 		err = d.funding.UpdateAllCollateral(d.realOrders, d.hasUpdatedFunding)
 		if err != nil {
 			return err
 		}
-		log.Debugf(common.LiveStrategy, "UpdateAllCollateral: %v", time.Since(ts))
 	}
 
 	if d.realOrders {
 		// TODO: design a more sophisticated way of keeping funds up to date
 		// with current data type retrieval, this still functions appropriately
-		ts = time.Now()
 		err = d.funding.UpdateFundingFromLiveData(d.hasUpdatedFunding)
 		if err != nil {
 			return err
 		}
-
-		log.Debugf(common.LiveStrategy, "UpdateFundingFromLiveData: %v", time.Since(ts))
 	}
 	if !d.hasUpdatedFunding {
 		d.hasUpdatedFunding = true

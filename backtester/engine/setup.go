@@ -110,6 +110,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		bt.exchangeManager,
 		cfg.FundingSettings.UseExchangeLevelFunding,
 		cfg.StrategySettings.DisableUSDTracking,
+		bt.verbose,
 	)
 	if err != nil {
 		return err
