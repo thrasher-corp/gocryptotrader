@@ -16,7 +16,6 @@ var (
 	errBaseAmountInvalid               = errors.New("invalid base amount")
 	errInvalidReferencePrice           = errors.New("invalid reference price")
 	errQuoteAmountInvalid              = errors.New("quote amount invalid")
-	errAmountExceedsSideLiquidity      = errors.New("amount exceeds orderbook side liquidity")
 
 	// ErrFullLiquidityUsed defines an error for when the entire liquidity side
 	// is used up.
@@ -826,9 +825,6 @@ func shiftBookmark(tip *Node, bookmark, head **Node, updt Item) bool {
 
 // getMovement returns movement on tranche amounts
 func getMovement(leftover, amounts, totalValue, headPrice, refPrice, tranchePrice float64, noLiquidity bool) (*Movement, error) {
-	if leftover > 0 {
-		return nil, errAmountExceedsSideLiquidity
-	}
 	averageOrderPrice := totalValue / amounts
 	// Nominal percentage difference is from the reference price to average order
 	// cost.
@@ -851,9 +847,10 @@ func getMovement(leftover, amounts, totalValue, headPrice, refPrice, tranchePric
 	}
 
 	m := &Movement{
-		NominalPercentage: nominalP,
-		ImpactPercentage:  impactP,
-		SlippageCost:      slippageCost,
+		NominalPercentage:    nominalP,
+		ImpactPercentage:     impactP,
+		SlippageCost:         slippageCost,
+		FullBookSideConsumed: leftover > 0,
 	}
 	if noLiquidity {
 		// If there is no more liquidity alert caller, nominal percentage is

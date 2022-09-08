@@ -59,7 +59,7 @@ var nominal = &cli.Command{
 	Action:    getNominal,
 	Flags: append(orderbookCommonFlags, &cli.Float64Flag{
 		Name:  "percent",
-		Usage: "the max percentage slip you wish to occur",
+		Usage: "the max percentage slip you wish to occur e.g. 1 = 1% and 100 = 100%. Note: If selling base/hitting the bids you can only have a max value of 100%",
 	}),
 }
 
@@ -145,7 +145,7 @@ var impact = &cli.Command{
 	Action:    getImpact,
 	Flags: append(orderbookCommonFlags, &cli.Float64Flag{
 		Name:  "percent",
-		Usage: "the max percentage slip you wish to occur",
+		Usage: "the max percentage slip you wish to occur e.g. 1 = 1% and 100 = 100%. Note: If selling base/hitting the bids you can only have a max value of 100%",
 	}),
 }
 

@@ -5357,13 +5357,14 @@ func (s *RPCServer) GetOrderbookMovement(ctx context.Context, r *gctrpc.GetOrder
 	}
 
 	return &gctrpc.GetOrderbookMovementResponse{
-		NominalPercentage: move.NominalPercentage,
-		ImpactPercentage:  move.ImpactPercentage,
-		SlippageCost:      move.SlippageCost,
-		CurrencyBought:    bought,
-		CurrencySold:      sold,
-		SideAffected:      side,
-		UpdateProtocol:    updateProtocol,
+		NominalPercentage:         move.NominalPercentage,
+		ImpactPercentage:          move.ImpactPercentage,
+		SlippageCost:              move.SlippageCost,
+		CurrencyBought:            bought,
+		CurrencySold:              sold,
+		SideAffected:              side,
+		UpdateProtocol:            updateProtocol,
+		FullOrderbookSideConsumed: move.FullBookSideConsumed,
 	}, nil
 }
 

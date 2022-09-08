@@ -1081,12 +1081,16 @@ func TestGetMovementByBase(t *testing.T) {
 	t.Parallel()
 	depth := NewDepth(id)
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
-	_, err := depth.GetMovementByBase(20.1, 1336)
-	if !errors.Is(err, errAmountExceedsSideLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errAmountExceedsSideLiquidity)
+	mov, err := depth.GetMovementByBase(20.1, 1336)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	mov, err := depth.GetMovementByBase(1, 1336)
+	if !mov.FullBookSideConsumed {
+		t.Fatal("entire side should be consumed by this value")
+	}
+
+	mov, err = depth.GetMovementByBase(1, 1336)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -1141,12 +1145,16 @@ func TestGetMovementByBaseFromMid(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
-	_, err = depth.GetMovementByBaseFromMid(20.1)
-	if !errors.Is(err, errAmountExceedsSideLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errAmountExceedsSideLiquidity)
+	mov, err := depth.GetMovementByBaseFromMid(20.1)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	mov, err := depth.GetMovementByBaseFromMid(1)
+	if !mov.FullBookSideConsumed {
+		t.Fatal("entire side should be consumed by this value")
+	}
+
+	mov, err = depth.GetMovementByBaseFromMid(1)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -1201,12 +1209,16 @@ func TestGetMovementByBaseFromBest(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
-	_, err = depth.GetMovementByBaseFromBest(20.1)
-	if !errors.Is(err, errAmountExceedsSideLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errAmountExceedsSideLiquidity)
+	mov, err := depth.GetMovementByBaseFromBest(20.1)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	mov, err := depth.GetMovementByBaseFromBest(1)
+	if !mov.FullBookSideConsumed {
+		t.Fatal("entire side should be consumed by this value")
+	}
+
+	mov, err = depth.GetMovementByBaseFromBest(1)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -1257,12 +1269,16 @@ func TestGetMovementByQuote(t *testing.T) {
 	t.Parallel()
 	depth := NewDepth(id)
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
-	_, err := depth.GetMovementByQuote(26931, 1337)
-	if !errors.Is(err, errAmountExceedsSideLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errAmountExceedsSideLiquidity)
+	mov, err := depth.GetMovementByQuote(26931, 1337)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	mov, err := depth.GetMovementByQuote(1337, 1337)
+	if !mov.FullBookSideConsumed {
+		t.Fatal("entire side should be consumed by this value")
+	}
+
+	mov, err = depth.GetMovementByQuote(1337, 1337)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -1317,12 +1333,16 @@ func TestGetMovementByQuoteFromMid(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
-	_, err = depth.GetMovementByQuoteFromMid(26931)
-	if !errors.Is(err, errAmountExceedsSideLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errAmountExceedsSideLiquidity)
+	mov, err := depth.GetMovementByQuoteFromMid(26931)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	mov, err := depth.GetMovementByQuoteFromMid(1337)
+	if !mov.FullBookSideConsumed {
+		t.Fatal("entire side should be consumed by this value")
+	}
+
+	mov, err = depth.GetMovementByQuoteFromMid(1337)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -1377,12 +1397,16 @@ func TestGetMovementByQuoteFromBest(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
-	_, err = depth.GetMovementByQuoteFromBest(26931)
-	if !errors.Is(err, errAmountExceedsSideLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errAmountExceedsSideLiquidity)
+	mov, err := depth.GetMovementByQuoteFromBest(26931)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	mov, err := depth.GetMovementByQuoteFromBest(1337)
+	if !mov.FullBookSideConsumed {
+		t.Fatal("entire side should be consumed by this value")
+	}
+
+	mov, err = depth.GetMovementByQuoteFromBest(1337)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
