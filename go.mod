@@ -33,14 +33,11 @@ require (
 require (
 	cloud.google.com/go/compute v1.7.0 // indirect
 	github.com/boombuler/barcode v1.0.1 // indirect
-	github.com/chzyer/readline v1.5.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/friendsofgo/errors v0.9.2 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/google/pprof v0.0.0-20220816150559-e6338cec2015 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
-	github.com/ianlancetaylor/demangle v0.0.0-20220517205856-0058ec4f073c // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
