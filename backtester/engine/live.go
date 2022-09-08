@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -13,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/live"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -325,7 +325,7 @@ func (d *dataChecker) FetchLatestData() (bool, error) {
 	defer d.m.Unlock()
 	var err error
 
-	var results []bool
+	results := make([]bool, len(d.sourcesToCheck))
 	// timeToRetrieve ensures consistent data retrieval
 	// in the event of a candle rollover mid-loop
 	timeToRetrieve := time.Now()
@@ -338,7 +338,7 @@ func (d *dataChecker) FetchLatestData() (bool, error) {
 		if err != nil {
 			return false, err
 		}
-		results = append(results, updated)
+		results[i] = updated
 	}
 	allUpdated := true
 	for i := range results {

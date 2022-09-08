@@ -3,7 +3,6 @@ package statistics
 import (
 	"encoding/json"
 	"fmt"
-	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -14,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/log"

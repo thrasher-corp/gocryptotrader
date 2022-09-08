@@ -3,9 +3,6 @@ package engine
 import (
 	"context"
 	"errors"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/ftxcashandcarry"
 	"strings"
 	"sync"
 	"testing"
@@ -19,12 +16,15 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/size"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/dollarcostaverage"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/ftxcashandcarry"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	evkline "github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
@@ -1600,7 +1600,7 @@ func (f fakeFunding) GetFundingForEvent(c common.Event) (funding.IFundingPair, e
 	return &funding.SpotPair{}, nil
 }
 
-func (f fakeFunding) Transfer(d decimal.Decimal, item *funding.Item, item2 *funding.Item, b bool) error {
+func (f fakeFunding) Transfer(d decimal.Decimal, item, item2 *funding.Item, b bool) error {
 	return nil
 }
 
@@ -1652,11 +1652,11 @@ func (f fakeStrat) Description() string {
 	return "fake"
 }
 
-func (f fakeStrat) OnSignal(handler data.Handler, transferer funding.IFundingTransferer, handler2 portfolio.Handler) (signal.Event, error) {
+func (f fakeStrat) OnSignal(handler data.Handler, transferred funding.IFundingTransferer, handler2 portfolio.Handler) (signal.Event, error) {
 	return nil, nil
 }
 
-func (f fakeStrat) OnSimultaneousSignals(handlers []data.Handler, transferer funding.IFundingTransferer, handler portfolio.Handler) ([]signal.Event, error) {
+func (f fakeStrat) OnSimultaneousSignals(handlers []data.Handler, transferred funding.IFundingTransferer, handler portfolio.Handler) ([]signal.Event, error) {
 	return nil, nil
 }
 

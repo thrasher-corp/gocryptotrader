@@ -2,19 +2,19 @@ package engine
 
 import (
 	"errors"
-	datakline "github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
-	"github.com/thrasher-corp/gocryptotrader/backtester/report"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
+	datakline "github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
+	"github.com/thrasher-corp/gocryptotrader/backtester/report"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -188,10 +188,8 @@ func TestUpdated(t *testing.T) {
 	wg.Add(1)
 	waitChan := dataHandler.Updated()
 	go func() {
-		select {
-		case <-waitChan:
-			wg.Done()
-		}
+		<-waitChan
+		wg.Done()
 	}()
 	dataHandler.notice.Alert()
 	wg.Wait()
@@ -200,10 +198,8 @@ func TestUpdated(t *testing.T) {
 	wg.Add(1)
 	waitChan = dataHandler.Updated()
 	go func() {
-		select {
-		case <-waitChan:
-			wg.Done()
-		}
+		<-waitChan
+		wg.Done()
 	}()
 	wg.Wait()
 }

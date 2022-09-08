@@ -21,7 +21,6 @@ var p = currency.NewPair(currency.BTC, currency.USD)
 
 type fakeEvent struct {
 	*event.Base
-	time int
 }
 
 type fakeHandler struct{}
@@ -110,7 +109,7 @@ func TestBaseReset(t *testing.T) {
 	hello := &Base{offset: 1}
 	hello.Reset()
 	if hello.offset != 0 {
-		t.Errorf("recieved '%v' expected '%v'", hello.offset, 0)
+		t.Errorf("received '%v' expected '%v'", hello.offset, 0)
 	}
 	hello = nil
 	hello.Reset()
@@ -145,7 +144,7 @@ func TestGetStream(t *testing.T) {
 	hello := Base{}
 	resp := hello.GetStream()
 	if len(resp) != 0 {
-		t.Errorf("recieved '%v' expected '%v'", len(resp), 0)
+		t.Errorf("received '%v' expected '%v'", len(resp), 0)
 	}
 	hello.stream = []Event{
 		&fakeEvent{
@@ -163,7 +162,7 @@ func TestGetStream(t *testing.T) {
 	}
 	resp = hello.GetStream()
 	if len(resp) != 2 {
-		t.Errorf("recieved '%v' expected '%v'", len(resp), 2)
+		t.Errorf("received '%v' expected '%v'", len(resp), 2)
 	}
 }
 
@@ -172,12 +171,12 @@ func TestOffset(t *testing.T) {
 	hello := Base{}
 	o := hello.Offset()
 	if o != 0 {
-		t.Errorf("recieved '%v' expected '%v'", o, 0)
+		t.Errorf("received '%v' expected '%v'", o, 0)
 	}
 	hello.offset = 1337
 	o = hello.Offset()
 	if o != 1337 {
-		t.Errorf("recieved '%v' expected '%v'", o, 1337)
+		t.Errorf("received '%v' expected '%v'", o, 1337)
 	}
 }
 
@@ -186,7 +185,7 @@ func TestSetStream(t *testing.T) {
 	hello := Base{}
 	hello.SetStream(nil)
 	if len(hello.stream) != 0 {
-		t.Errorf("recieved '%v' expected '%v'", len(hello.stream), 0)
+		t.Errorf("received '%v' expected '%v'", len(hello.stream), 0)
 	}
 	hello.SetStream([]Event{
 		&fakeEvent{
@@ -203,10 +202,10 @@ func TestSetStream(t *testing.T) {
 		},
 	})
 	if len(hello.stream) != 2 {
-		t.Fatalf("recieved '%v' expected '%v'", len(hello.stream), 2)
+		t.Fatalf("received '%v' expected '%v'", len(hello.stream), 2)
 	}
 	if hello.stream[0].GetOffset() != 1 {
-		t.Errorf("recieved '%v' expected '%v'", hello.stream[0].GetOffset(), 1)
+		t.Errorf("received '%v' expected '%v'", hello.stream[0].GetOffset(), 1)
 	}
 }
 
@@ -228,17 +227,16 @@ func TestNext(t *testing.T) {
 	})
 	resp := hello.Next()
 	if resp != hello.stream[0] {
-		t.Errorf("recieved '%v' expected '%v'", resp, hello.stream[0])
+		t.Errorf("received '%v' expected '%v'", resp, hello.stream[0])
 	}
 	if hello.offset != 1 {
-		t.Errorf("recieved '%v' expected '%v'", hello.offset, 1)
+		t.Errorf("received '%v' expected '%v'", hello.offset, 1)
 	}
 	_ = hello.Next()
 	resp = hello.Next()
 	if resp != nil {
-		t.Errorf("recieved '%v' expected '%v'", resp, nil)
+		t.Errorf("received '%v' expected '%v'", resp, nil)
 	}
-
 }
 
 func TestHistory(t *testing.T) {
@@ -259,13 +257,13 @@ func TestHistory(t *testing.T) {
 	})
 	resp := hello.History()
 	if len(resp) != 0 {
-		t.Errorf("recieved '%v' expected '%v'", len(resp), 0)
+		t.Errorf("received '%v' expected '%v'", len(resp), 0)
 	}
 
 	_ = hello.Next()
 	resp = hello.History()
 	if len(resp) != 1 {
-		t.Errorf("recieved '%v' expected '%v'", len(resp), 1)
+		t.Errorf("received '%v' expected '%v'", len(resp), 1)
 	}
 }
 
@@ -287,18 +285,18 @@ func TestLatest(t *testing.T) {
 	})
 	resp := hello.Latest()
 	if resp != hello.stream[0] {
-		t.Errorf("recieved '%v' expected '%v'", resp, hello.stream[0])
+		t.Errorf("received '%v' expected '%v'", resp, hello.stream[0])
 	}
 	_ = hello.Next()
 	resp = hello.Latest()
 	if resp != hello.stream[0] {
-		t.Errorf("recieved '%v' expected '%v'", resp, hello.stream[0])
+		t.Errorf("received '%v' expected '%v'", resp, hello.stream[0])
 	}
 
 	_ = hello.Next()
 	resp = hello.Latest()
 	if resp != hello.stream[1] {
-		t.Errorf("recieved '%v' expected '%v'", resp, hello.stream[1])
+		t.Errorf("received '%v' expected '%v'", resp, hello.stream[1])
 	}
 }
 
@@ -320,7 +318,7 @@ func TestList(t *testing.T) {
 	})
 	list := hello.List()
 	if len(list) != 2 {
-		t.Errorf("recieved '%v' expected '%v'", len(list), 2)
+		t.Errorf("received '%v' expected '%v'", len(list), 2)
 	}
 }
 
@@ -338,12 +336,12 @@ func TestIsLastEvent(t *testing.T) {
 	hello.latest = hello.stream[0]
 	hello.offset = hello.stream[0].GetOffset()
 	if !hello.IsLastEvent() {
-		t.Errorf("recieved '%v' expected '%v'", false, true)
+		t.Errorf("received '%v' expected '%v'", false, true)
 	}
 
 	hello.isLiveData = true
 	if hello.IsLastEvent() {
-		t.Errorf("recieved '%v' expected '%v'", true, false)
+		t.Errorf("received '%v' expected '%v'", true, false)
 	}
 }
 
@@ -381,7 +379,7 @@ func TestAppendResults(t *testing.T) {
 	}
 	hello.AppendStream(validEvent)
 	if len(hello.stream) != 0 {
-		t.Errorf("recieved '%v' expected '%v'", len(hello.stream), 0)
+		t.Errorf("received '%v' expected '%v'", len(hello.stream), 0)
 	}
 	tt := time.Now()
 	validEvent.Exchange = "hello"
@@ -390,12 +388,12 @@ func TestAppendResults(t *testing.T) {
 	validEvent.Time = tt
 	hello.AppendStream(validEvent)
 	if len(hello.stream) != 1 {
-		t.Errorf("recieved '%v' expected '%v'", len(hello.stream), 1)
+		t.Errorf("received '%v' expected '%v'", len(hello.stream), 1)
 	}
 
 	hello.AppendStream(validEvent)
 	if len(hello.stream) != 1 {
-		t.Errorf("recieved '%v' expected '%v'", len(hello.stream), 1)
+		t.Errorf("received '%v' expected '%v'", len(hello.stream), 1)
 	}
 
 	misMatchEvent := &fakeEvent{
@@ -408,12 +406,12 @@ func TestAppendResults(t *testing.T) {
 	}
 	hello.AppendStream(misMatchEvent)
 	if len(hello.stream) != 1 {
-		t.Errorf("recieved '%v' expected '%v'", len(hello.stream), 1)
+		t.Errorf("received '%v' expected '%v'", len(hello.stream), 1)
 	}
 
 	hello.AppendStream(nil)
 	if len(hello.stream) != 1 {
-		t.Errorf("recieved '%v' expected '%v'", len(hello.stream), 1)
+		t.Errorf("received '%v' expected '%v'", len(hello.stream), 1)
 	}
 }
 
@@ -422,14 +420,14 @@ func TestEqualSource(t *testing.T) {
 	hello := Base{}
 
 	if hello.equalSource(nil) {
-		t.Errorf("recieved '%v' expected '%v'", false, true)
+		t.Errorf("received '%v' expected '%v'", false, true)
 	}
 
 	emptyEvent := &fakeEvent{
 		Base: &event.Base{},
 	}
 	if hello.equalSource(emptyEvent) {
-		t.Errorf("recieved '%v' expected '%v'", false, true)
+		t.Errorf("received '%v' expected '%v'", false, true)
 	}
 
 	validEvent := &fakeEvent{
@@ -440,12 +438,12 @@ func TestEqualSource(t *testing.T) {
 		},
 	}
 	if !hello.equalSource(validEvent) {
-		t.Errorf("recieved '%v' expected '%v'", true, false)
+		t.Errorf("received '%v' expected '%v'", true, false)
 	}
 
 	hello.stream = append(hello.stream, validEvent)
 	if !hello.equalSource(validEvent) {
-		t.Errorf("recieved '%v' expected '%v'", true, false)
+		t.Errorf("received '%v' expected '%v'", true, false)
 	}
 
 	misMatchEvent := &fakeEvent{
@@ -456,7 +454,7 @@ func TestEqualSource(t *testing.T) {
 		},
 	}
 	if hello.equalSource(misMatchEvent) {
-		t.Errorf("recieved '%v' expected '%v'", false, true)
+		t.Errorf("received '%v' expected '%v'", false, true)
 	}
 }
 
@@ -542,9 +540,7 @@ func (f fakeHandler) Load() error {
 	return nil
 }
 
-func (f fakeHandler) AppendStream(s ...Event) {
-	return
-}
+func (f fakeHandler) AppendStream(s ...Event) {}
 
 func (f fakeHandler) GetBase() Base {
 	return Base{}

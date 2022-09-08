@@ -2,10 +2,10 @@ package report
 
 import (
 	"fmt"
-	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )

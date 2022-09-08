@@ -2,7 +2,6 @@ package base
 
 import (
 	"errors"
-	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"testing"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	datakline "github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"

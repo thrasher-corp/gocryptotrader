@@ -1,7 +1,6 @@
 package funding
 
 import (
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -9,6 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )

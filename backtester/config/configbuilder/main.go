@@ -465,7 +465,6 @@ func parseLive(reader *bufio.Reader, cfg *config.Config) {
 		if input != yes && input != y {
 			return
 		}
-	exchanges:
 		for {
 			var creds config.Credentials
 			fmt.Printf("What is the exchange name? y/n\n")
@@ -485,7 +484,7 @@ func parseLive(reader *bufio.Reader, cfg *config.Config) {
 			cfg.DataSettings.LiveData.ExchangeCredentials = append(cfg.DataSettings.LiveData.ExchangeCredentials, creds)
 			fmt.Printf("Do you want to add another? y/n\n")
 			if input != yes && input != y {
-				break exchanges
+				break
 			}
 		}
 	}

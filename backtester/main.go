@@ -14,8 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/signaler"
-
-	_ "net/http/pprof"
 )
 
 var (
@@ -104,7 +102,7 @@ func main() {
 		<-bt.LiveDataHandler.HasShutdown()
 		if cfg.DataSettings.LiveData.ClosePositionsOnExit {
 			log.Info(common.Backtester, "closing all positions on shutdown")
-			err := bt.CloseAllPositions()
+			err = bt.CloseAllPositions()
 			if err != nil {
 				fmt.Printf("could not close all positions on exit: %v", err)
 			}

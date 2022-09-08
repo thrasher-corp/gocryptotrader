@@ -40,10 +40,10 @@
  ],
  "data-settings": {
   "interval": 60000000000,
-  "verbose-exchange-requests": false,
   "data-type": "trade",
+  "verbose-exchange-requests": false,
   "csv-data": {
-   "full-path": "../testdata/binance_BTCUSDT_24h-trades_2020_11_16.csv"
+   "full-path": "..\\testdata\\binance_BTCUSDT_24h-trades_2020_11_16.csv"
   }
  },
  "portfolio-settings": {

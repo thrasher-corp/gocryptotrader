@@ -2,22 +2,22 @@ package funding
 
 import (
 	"errors"
-	"github.com/thrasher-corp/gocryptotrader/backtester/data"
-	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ftx"
 	"testing"
 	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ftx"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
@@ -918,6 +918,7 @@ func TestUpdateFundingFromLiveData(t *testing.T) {
 		t.Errorf("received '%v', expected  '%v'", err, exchange.ErrCredentialsAreEmpty)
 	}
 
+	// enter api keys to gain coverage here
 	apiKey := ""
 	apiSec := ""
 	subAccount := ""

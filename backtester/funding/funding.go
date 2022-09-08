@@ -4,9 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
-	"github.com/thrasher-corp/gocryptotrader/log"
 	"sort"
 	"strings"
 	"time"
@@ -15,12 +12,15 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding/trackingcurrencies"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 var (
@@ -575,6 +575,9 @@ func (f *FundManager) UpdateFundingFromLiveData(hasUpdatedFunding bool) error {
 	for x := range exchanges {
 		var creds *account.Credentials
 		creds, err = exchanges[x].GetCredentials(context.TODO())
+		if err != nil {
+			return err
+		}
 		assets := exchanges[x].GetAssetTypes(false)
 		for y := range assets {
 			if assets[y].IsFutures() {

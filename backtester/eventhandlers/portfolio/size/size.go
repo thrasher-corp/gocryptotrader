@@ -3,12 +3,12 @@ package size
 import (
 	"context"
 	"fmt"
-	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 

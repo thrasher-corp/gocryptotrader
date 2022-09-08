@@ -109,7 +109,6 @@ func TestHasDataAtTime(t *testing.T) {
 	if !has {
 		t.Error("expected true")
 	}
-
 }
 
 func TestAppend(t *testing.T) {

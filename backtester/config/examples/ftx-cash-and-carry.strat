@@ -70,8 +70,8 @@
  ],
  "data-settings": {
   "interval": 86400000000000,
-  "verbose-exchange-requests": false,
   "data-type": "candle",
+  "verbose-exchange-requests": false,
   "api-data": {
    "start-date": "2021-01-14T00:00:00Z",
    "end-date": "2021-09-24T00:00:00Z",

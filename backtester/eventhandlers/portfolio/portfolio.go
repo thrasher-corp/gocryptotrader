@@ -3,7 +3,6 @@ package portfolio
 import (
 	"errors"
 	"fmt"
-	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"strings"
 	"time"
 
@@ -18,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -771,6 +771,8 @@ func (p *Portfolio) GetLatestPNLs() []PNLSummary {
 	return result
 }
 
+// SetHoldingsForEvent re-sets offset details at the events time,
+// based on current funding levels
 func (p *Portfolio) SetHoldingsForEvent(fm funding.IFundReader, e common.Event) error {
 	if fm == nil {
 		return fmt.Errorf("%w funding manager", gctcommon.ErrNilPointer)

@@ -2,9 +2,9 @@ package trackingcurrencies
 
 import (
 	"errors"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"testing"
 
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"

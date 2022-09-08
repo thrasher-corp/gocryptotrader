@@ -479,7 +479,6 @@ func (m *OrderManager) Submit(ctx context.Context, newOrder *order.Submit) (*Ord
 			newOrder.Exchange,
 			err)
 	}
-	b.Verbose = true
 	// Determines if current trading activity is turned off by the exchange for
 	// the currency pair
 	err = exch.CanTradePair(newOrder.Pair, newOrder.AssetType)
