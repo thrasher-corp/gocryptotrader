@@ -1146,6 +1146,51 @@ func TestGetFuturesContract(t *testing.T) {
 	}
 }
 
+func TestGetFuturesRealTimeTicker(t *testing.T) {
+	t.Parallel()
+
+	_, err := k.GetFuturesRealTimeTicker(context.Background(), "BTCUSDTM")
+	if err != nil {
+		t.Error("GetFuturesRealTimeTicker() error", err)
+	}
+}
+
+func TestGetFuturesOrderbook(t *testing.T) {
+	t.Parallel()
+
+	_, err := k.GetFuturesOrderbook(context.Background(), "BTCUSDTM")
+	if err != nil {
+		t.Error("GetFuturesOrderbook() error", err)
+	}
+}
+
+func TestGetFuturesPartOrderbook20(t *testing.T) {
+	t.Parallel()
+
+	_, err := k.GetFuturesPartOrderbook20(context.Background(), "BTCUSDTM")
+	if err != nil {
+		t.Error("GetFuturesPartOrderbook20() error", err)
+	}
+}
+
+func TestGetFuturesPartOrderbook100(t *testing.T) {
+	t.Parallel()
+
+	_, err := k.GetFuturesPartOrderbook100(context.Background(), "BTCUSDTM")
+	if err != nil {
+		t.Error("GetFuturesPartOrderbook100() error", err)
+	}
+}
+
+func TestGetFuturesTradeHistory(t *testing.T) {
+	t.Parallel()
+
+	_, err := k.GetFuturesTradeHistory(context.Background(), "BTCUSDTM")
+	if err != nil {
+		t.Error("GetFuturesTradeHistory() error", err)
+	}
+}
+
 func TestGetFuturesRiskLimit(t *testing.T) {
 	t.Parallel()
 

@@ -10,13 +10,20 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
 const (
 	kucoinFuturesAPIURL = "https://api-futures.kucoin.com"
 
-	kucoinFuturesOpenContracts         = "/api/v2/contracts/active"
-	kucoinFuturesContract              = "/api/v2/contracts/%s"
+	kucoinFuturesOpenContracts    = "/api/v1/contracts/active"
+	kucoinFuturesContract         = "/api/v1/contracts/%s"
+	kucoinFuturesRealTimeTicker   = "/api/v1/ticker"
+	kucoinFuturesFullOrderbook    = "/api/v1/level2/snapshot"
+	kucoinFuturesPartOrderbook20  = "/api/v1/level2/depth20"
+	kucoinFuturesPartOrderbook100 = "/api/v1/level2/depth100"
+	kucoinFuturesTradeHistory     = "/api/v1/trade/history"
+
 	kucoinFuturesRiskLimit             = "/api/v2/contracts/risk-limit/%s"
 	kucoinFuturesKline                 = "/api/v2/kline/query"
 	kucoinFuturesGetFundingRate        = "/api/v2/contract/%s/funding-rates"
@@ -45,6 +52,81 @@ func (k *Kucoin) GetFuturesContract(ctx context.Context, symbol string) (Contrac
 		return resp.Data, errors.New("symbol can't be empty")
 	}
 	return resp.Data, k.SendHTTPRequest(ctx, exchange.RestFutures, fmt.Sprintf(kucoinFuturesContract, symbol), publicSpotRate, &resp)
+}
+
+// GetFuturesRealTimeTicker get real time ticker
+func (k *Kucoin) GetFuturesRealTimeTicker(ctx context.Context, symbol string) (FuturesTicker, error) {
+	resp := struct {
+		Data FuturesTicker `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if symbol == "" {
+		return resp.Data, errors.New("symbol can't be empty")
+	}
+	params.Set("symbol", symbol)
+	return resp.Data, k.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues(kucoinFuturesGetFundingRate, params), publicSpotRate, &resp)
+}
+
+// GetFuturesOrderbook gets full orderbook for a specified symbol
+func (k *Kucoin) GetFuturesOrderbook(ctx context.Context, symbol string) (*Orderbook, error) {
+	var o futuresOrderbookResponse
+	params := url.Values{}
+	if symbol == "" {
+		return nil, errors.New("symbol can't be empty")
+	}
+	params.Set("symbol", symbol)
+	err := k.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues(kucoinFuturesFullOrderbook, params), publicSpotRate, &o)
+	if err != nil {
+		return nil, err
+	}
+	return constructFuturesOrderbook(&o)
+}
+
+// GetFuturesPartOrderbook20 gets orderbook for a specified symbol with depth 20
+func (k *Kucoin) GetFuturesPartOrderbook20(ctx context.Context, symbol string) (*Orderbook, error) {
+	var o futuresOrderbookResponse
+	params := url.Values{}
+	if symbol == "" {
+		return nil, errors.New("symbol can't be empty")
+	}
+	params.Set("symbol", symbol)
+	err := k.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues(kucoinFuturesPartOrderbook20, params), publicSpotRate, &o)
+	if err != nil {
+		return nil, err
+	}
+	return constructFuturesOrderbook(&o)
+}
+
+// GetFuturesPartOrderbook100 gets orderbook for a specified symbol with depth 100
+func (k *Kucoin) GetFuturesPartOrderbook100(ctx context.Context, symbol string) (*Orderbook, error) {
+	var o futuresOrderbookResponse
+	params := url.Values{}
+	if symbol == "" {
+		return nil, errors.New("symbol can't be empty")
+	}
+	params.Set("symbol", symbol)
+	err := k.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues(kucoinFuturesFullOrderbook, params), publicSpotRate, &o)
+	if err != nil {
+		return nil, err
+	}
+	return constructFuturesOrderbook(&o)
+}
+
+// GetFuturesTradeHistory get last 100 trades for symbol
+func (k *Kucoin) GetFuturesTradeHistory(ctx context.Context, symbol string) ([]FuturesTrade, error) {
+	resp := struct {
+		Data []FuturesTrade `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if symbol == "" {
+		return resp.Data, errors.New("symbol can't be empty")
+	}
+	params.Set("symbol", symbol)
+	return resp.Data, k.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues(kucoinFuturesTradeHistory, params), publicSpotRate, &resp)
 }
 
 // GetFuturesRiskLimit get contract risk limit list
@@ -190,4 +272,32 @@ func (k *Kucoin) GetFuturesContractMarkPrice(ctx context.Context, symbol string)
 		return resp.Data, errors.New("symbol can't be empty")
 	}
 	return resp.Data, k.SendHTTPRequest(ctx, exchange.RestFutures, fmt.Sprintf(kucoinFuturesGetContractMarkPrice, symbol), publicSpotRate, &resp)
+}
+
+func processFuturesOB(ob [][2]float64) ([]orderbook.Item, error) {
+	o := make([]orderbook.Item, len(ob))
+	for x := range ob {
+		o[x] = orderbook.Item{
+			Price:  ob[x][0],
+			Amount: ob[x][1],
+		}
+	}
+	return o, nil
+}
+
+func constructFuturesOrderbook(o *futuresOrderbookResponse) (*Orderbook, error) {
+	var (
+		s   Orderbook
+		err error
+	)
+	s.Bids, err = processFuturesOB(o.Data.Bids)
+	if err != nil {
+		return nil, err
+	}
+	s.Asks, err = processFuturesOB(o.Data.Asks)
+	if err != nil {
+		return nil, err
+	}
+	s.Time = o.Data.Time.Time()
+	return &s, err
 }

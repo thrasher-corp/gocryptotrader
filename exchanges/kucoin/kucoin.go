@@ -211,60 +211,64 @@ func processOB(ob [][2]string) ([]orderbook.Item, error) {
 	return o, nil
 }
 
-func constructOrderbook(o *orderbookResponse) (s Orderbook, err error) {
+func constructOrderbook(o *futuresOrderbookResponse) (*Orderbook, error) {
+	var (
+		s   Orderbook
+		err error
+	)
 	s.Bids, err = processOB(o.Data.Bids)
 	if err != nil {
-		return s, err
+		return nil, err
 	}
 	s.Asks, err = processOB(o.Data.Asks)
 	if err != nil {
-		return s, err
+		return nil, err
 	}
 	s.Time = o.Data.Time.Time()
-	return
+	return &s, err
 }
 
 // GetPartOrderbook20 gets orderbook for a specified pair with depth 20
-func (k *Kucoin) GetPartOrderbook20(ctx context.Context, pair string) (Orderbook, error) {
+func (k *Kucoin) GetPartOrderbook20(ctx context.Context, pair string) (*Orderbook, error) {
 	var o orderbookResponse
 	params := url.Values{}
 	if pair == "" {
-		return Orderbook{}, errors.New("pair can't be empty")
+		return nil, errors.New("pair can't be empty")
 	}
 	params.Set("symbol", pair)
 	err := k.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(kucoinGetPartOrderbook20, params), publicSpotRate, &o)
 	if err != nil {
-		return Orderbook{}, err
+		return nil, err
 	}
 	return constructOrderbook(&o)
 }
 
 // GetPartOrderbook100 gets orderbook for a specified pair with depth 100
-func (k *Kucoin) GetPartOrderbook100(ctx context.Context, pair string) (Orderbook, error) {
+func (k *Kucoin) GetPartOrderbook100(ctx context.Context, pair string) (*Orderbook, error) {
 	var o orderbookResponse
 	params := url.Values{}
 	if pair == "" {
-		return Orderbook{}, errors.New("pair can't be empty")
+		return nil, errors.New("pair can't be empty")
 	}
 	params.Set("symbol", pair)
 	err := k.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(kucoinGetPartOrderbook100, params), publicSpotRate, &o)
 	if err != nil {
-		return Orderbook{}, err
+		return nil, err
 	}
 	return constructOrderbook(&o)
 }
 
 // GetOrderbook gets full orderbook for a specified pair
-func (k *Kucoin) GetOrderbook(ctx context.Context, pair string) (Orderbook, error) {
+func (k *Kucoin) GetOrderbook(ctx context.Context, pair string) (*Orderbook, error) {
 	var o orderbookResponse
 	params := url.Values{}
 	if pair == "" {
-		return Orderbook{}, errors.New("pair can't be empty")
+		return nil, errors.New("pair can't be empty")
 	}
 	params.Set("symbol", pair)
 	err := k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetOrderbook, params), nil, publicSpotRate, &o)
 	if err != nil {
-		return Orderbook{}, err
+		return nil, err
 	}
 	return constructOrderbook(&o)
 }
