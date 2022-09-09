@@ -327,8 +327,9 @@ var (
 	errEmptyArgument                                 = errors.New("empty argument")
 	errInvalidCurrencyPair                           = errors.New("invalid currency pair")
 	errInvalidIPAddress                              = errors.New("invalid ip address")
-	errInvalidAPIKeyPermissing                       = errors.New("invalid API Key permission")
+	errInvalidAPIKeyPermission                       = errors.New("invalid API Key permission")
 	errNoInstrumentFound                             = errors.New("instruments not found")
+	errInvalidOrderbookUpdateChecksum                = errors.New("invalid orderbook update checksum")
 )
 
 /************************************ MarketData Endpoints *************************************************/
@@ -349,27 +350,27 @@ func (ok *Okx) OrderTypeFromString(orderType string) (order.Type, error) {
 	case OkxOrderOptimalLimitIOC:
 		return order.OptimalLimitIOC, nil
 	default:
-		return order.UnknownType, nil
+		return order.UnknownType, errInvalidOrderType
 	}
 }
 
 // OrderTypeString returns a string representation of order.Type instance
-func (ok *Okx) OrderTypeString(orderType order.Type) string {
+func (ok *Okx) OrderTypeString(orderType order.Type) (string, error) {
 	switch orderType {
 	case order.Market:
-		return OkxOrderMarket
+		return OkxOrderMarket, nil
 	case order.Limit:
-		return OkxOrderLimit
+		return OkxOrderLimit, nil
 	case order.PostOnly:
-		return OkxOrderPostOnly
+		return OkxOrderPostOnly, nil
 	case order.FillOrKill:
-		return OkxOrderFOK
+		return OkxOrderFOK, nil
 	case order.IOS:
-		return OkxOrderIOC
+		return OkxOrderIOC, nil
 	case order.OptimalLimitIOC:
-		return OkxOrderOptimalLimitIOC
+		return OkxOrderOptimalLimitIOC, nil
 	default:
-		return ""
+		return "", errInvalidOrderType
 	}
 }
 
@@ -917,7 +918,7 @@ func (ok *Okx) cancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams
 }
 
 // GetAlgoOrderList retrieves a list of untriggered Algo orders under the current account.
-func (ok *Okx) GetAlgoOrderList(ctx context.Context, orderType, algoOrderID, instrumentType, instrumentID string, after, before time.Time, limit uint) ([]AlgoOrderResponse, error) {
+func (ok *Okx) GetAlgoOrderList(ctx context.Context, orderType, algoOrderID, clientSuppliedOrderID, instrumentType, instrumentID string, after, before time.Time, limit uint) ([]AlgoOrderResponse, error) {
 	params := url.Values{}
 	orderType = strings.ToLower(orderType)
 	if !(orderType == "conditional" ||
@@ -932,6 +933,9 @@ func (ok *Okx) GetAlgoOrderList(ctx context.Context, orderType, algoOrderID, ins
 	var resp []AlgoOrderResponse
 	if algoOrderID != "" {
 		params.Set("algoId", algoOrderID)
+	}
+	if clientSuppliedOrderID != "" {
+		params.Set("clOrdId", clientSuppliedOrderID)
 	}
 	if instrumentType == okxInstTypeSpot ||
 		instrumentType == okxInstTypeSwap ||
@@ -1463,10 +1467,13 @@ func (ok *Okx) FundingTransfer(ctx context.Context, arg *FundingTransferRequestI
 		return nil, errors.New("invalid currency value")
 	}
 	if !(arg.From == "6" || arg.From == "18") {
-		return nil, errors.New("missing funding source field \"From\"")
+		return nil, errors.New("missing funding source field \"From\", only '6' and '18' are supported")
 	}
 	if arg.To == "" {
-		return nil, errors.New("missing funding destination field \"To\"")
+		return nil, errors.New("missing funding destination field \"To\", only '6' and '18' are supported")
+	}
+	if arg.From == arg.To {
+		return nil, errors.New("parameter 'from' can not equal to parameter 'to'")
 	}
 	if arg.Type >= 0 && arg.Type <= 4 {
 		if arg.Type == 1 || arg.Type == 2 {
@@ -1498,6 +1505,7 @@ func (ok *Okx) GetFundsTransferState(ctx context.Context, transferID, clientID s
 		params.Set("type", strconv.Itoa(transferType))
 	}
 	var resp []TransferFundRateResponse
+	println(common.EncodeURLValues(assetTransferState, params))
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getFundsTransferStateEPL, http.MethodGet, common.EncodeURLValues(assetTransferState, params), nil, &resp, true)
 }
 
@@ -2222,7 +2230,7 @@ func (ok *Okx) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (flo
 		if err != nil {
 			return 0, err
 		}
-		responses, err = ok.GetTradeFee(ctx, okxInstTypeSpot, "", uly)
+		responses, err = ok.GetTradeFee(ctx, okxInstTypeSpot, uly, "")
 		if err != nil {
 			return 0, err
 		} else if len(responses) == 0 {
@@ -2271,6 +2279,7 @@ func (ok *Okx) GetTradeFee(ctx context.Context, instrumentType, instrumentID, un
 		params.Set("uly", underlying)
 	}
 	var resp []TradeFeeRate
+	println(common.EncodeURLValues(accountTradeFee, params))
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getFeeRatesEPL, http.MethodGet, common.EncodeURLValues(accountTradeFee, params), nil, &resp, true)
 }
 
@@ -2500,7 +2509,7 @@ func (ok *Okx) ResetSubAccountAPIKey(ctx context.Context, arg *SubAccountAPIKeyP
 		return nil, errInvalidIPAddress
 	}
 	if !(arg.APIKeyPermission == "read" || arg.APIKeyPermission == "withdraw" || arg.APIKeyPermission == "trade" || arg.APIKeyPermission == "read_only") {
-		return nil, errInvalidAPIKeyPermissing
+		return nil, errInvalidAPIKeyPermission
 	}
 	if err := ok.SendHTTPRequest(ctx, exchange.RestSpot, resetSubAccountAPIKeyEPL, http.MethodPost, subAccountModifyAPIKey, &arg, &resp, true); err != nil {
 		return nil, err
@@ -3889,20 +3898,17 @@ func (ok *Okx) GetTakerVolume(ctx context.Context, currency, instrumentType stri
 	}
 	takerVolumes := []TakerVolume{}
 	for x := range response {
-		if len(response[x]) != 3 {
-			continue
-		}
 		timestamp, err := strconv.Atoi(response[x][0])
 		if err != nil {
-			continue
+			return nil, err
 		}
 		sellVolume, err := strconv.ParseFloat(response[x][1], 64)
 		if err != nil {
-			continue
+			return nil, err
 		}
 		buyVolume, err := strconv.ParseFloat(response[x][2], 64)
 		if err != nil {
-			continue
+			return nil, err
 		}
 		takerVolume := TakerVolume{
 			Timestamp:  time.UnixMilli(int64(timestamp)),
@@ -3938,15 +3944,15 @@ func (ok *Okx) GetMarginLendingRatio(ctx context.Context, currency string, begin
 	lendingRatios := []MarginLendRatioItem{}
 	for x := range response {
 		if len(response[x]) != 2 {
-			continue
+			return nil, errMalformedData
 		}
 		timestamp, err := strconv.Atoi(response[x][0])
-		if err != nil || timestamp <= 0 {
-			continue
+		if err != nil {
+			return nil, err
 		}
 		ratio, err := strconv.ParseFloat(response[x][0], 64)
 		if err != nil || ratio <= 0 {
-			continue
+			return nil, err
 		}
 		lendRatio := MarginLendRatioItem{
 			Timestamp:       time.UnixMilli(int64(timestamp)),
@@ -3981,15 +3987,15 @@ func (ok *Okx) GetLongShortRatio(ctx context.Context, currency string, begin, en
 	ratios := []LongShortRatio{}
 	for x := range response {
 		if len(response[x]) != 2 {
-			continue
+			return nil, fmt.Errorf("%v, expecting length 2 but found %d", errMalformedData, len(response[x]))
 		}
 		timestamp, err := strconv.Atoi(response[x][0])
 		if err != nil || timestamp <= 0 {
-			continue
+			return nil, err
 		}
 		ratio, err := strconv.ParseFloat(response[x][0], 64)
 		if err != nil || ratio <= 0 {
-			continue
+			return nil, err
 		}
 		dratio := LongShortRatio{
 			Timestamp:       time.UnixMilli(int64(timestamp)),
@@ -4112,24 +4118,24 @@ func (ok *Okx) GetPutCallRatio(ctx context.Context, currency string,
 	}
 	for x := range response {
 		if len(response[x]) != 3 {
-			continue
+			return nil, fmt.Errorf("%v, expecting row length 3 but found %d", errMalformedData, len(response[x]))
 		}
 		timestamp, err := strconv.Atoi(response[x][0])
-		if err != nil || timestamp <= 0 {
-			continue
-		}
-		openInterest, err := strconv.Atoi(response[x][1])
-		if err != nil || openInterest <= 0 {
-			continue
-		}
-		volumen, err := strconv.Atoi(response[x][2])
 		if err != nil {
-			continue
+			return nil, err
+		}
+		openInterest, err := strconv.ParseFloat(response[x][1], 64)
+		if err != nil {
+			return nil, err
+		}
+		volumen, err := strconv.ParseFloat(response[x][2], 64)
+		if err != nil {
+			return nil, err
 		}
 		openInterestVolume := OpenInterestVolumeRatio{
 			Timestamp:         time.UnixMilli(int64(timestamp)),
-			VolumeRatio:       float64(volumen),
-			OpenInterestRatio: float64(openInterest),
+			VolumeRatio:       volumen,
+			OpenInterestRatio: openInterest,
 		}
 		openInterestVolumeRatios = append(openInterestVolumeRatios, openInterestVolume)
 	}
@@ -4186,28 +4192,28 @@ func (ok *Okx) GetOpenInterestAndVolumeExpiry(ctx context.Context, currency stri
 				days = strconv.Itoa(day)
 			}
 			if err != nil {
-				continue
+				return nil, err
 			}
 			expiryTime, err = time.Parse("2006-01-02", fmt.Sprintf("%d-%s-%s", year, months, days))
 			if err != nil {
-				continue
+				return nil, err
 			}
 		}
 		calloi, err := strconv.ParseFloat(resp[x][2], 64)
 		if err != nil {
-			continue
+			return nil, err
 		}
 		putoi, err := strconv.ParseFloat(resp[x][3], 64)
 		if err != nil {
-			continue
+			return nil, err
 		}
 		callvol, err := strconv.ParseFloat(resp[x][4], 64)
 		if err != nil {
-			continue
+			return nil, err
 		}
 		putvol, err := strconv.ParseFloat(resp[x][5], 64)
 		if err != nil {
-			continue
+			return nil, err
 		}
 		volume := ExpiryOpenInterestAndVolume{
 			Timestamp:        time.UnixMilli(int64(timestamp)),
@@ -4258,31 +4264,31 @@ func (ok *Okx) GetOpenInterestAndVolumeStrike(ctx context.Context, currency stri
 	volumes := []StrikeOpenInterestAndVolume{}
 	for x := range resp {
 		if len(resp[x]) != 6 {
-			continue
+			return nil, fmt.Errorf("%v, expecting row length of 6 but found %d", errMalformedData, len(resp[x]))
 		}
 		timestamp, err := strconv.Atoi(resp[x][0])
 		if err != nil {
-			continue
+			return nil, err
 		}
 		strike, err := strconv.ParseInt(resp[x][1], 10, 64)
 		if err != nil {
-			continue
+			return nil, err
 		}
 		calloi, err := strconv.ParseFloat(resp[x][2], 64)
 		if err != nil {
-			continue
+			return nil, err
 		}
 		putoi, err := strconv.ParseFloat(resp[x][3], 64)
 		if err != nil {
-			continue
+			return nil, err
 		}
 		callvol, err := strconv.ParseFloat(resp[x][4], 64)
 		if err != nil {
-			continue
+			return nil, err
 		}
 		putvol, err := strconv.ParseFloat(resp[x][5], 64)
 		if err != nil {
-			continue
+			return nil, err
 		}
 		volume := StrikeOpenInterestAndVolume{
 			Timestamp:        time.UnixMilli(int64(timestamp)),

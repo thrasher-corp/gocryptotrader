@@ -747,7 +747,7 @@ type PendingOrderItem struct {
 	Tag                        string     `json:"tag"`
 	QuantityType               string     `json:"tgtCcy"`
 	TradeMode                  string     `json:"tdMode"`
-	Source                     string     `json:"source"` //
+	Source                     string     `json:"source"`
 	TakeProfitOrdPrice         string     `json:"tpOrdPx"`
 	TakeProfitTriggerPrice     string     `json:"tpTriggerPx"`
 	TakeProfitTriggerPriceType string     `json:"tpTriggerPxType"`

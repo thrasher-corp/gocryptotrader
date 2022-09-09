@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -189,6 +190,9 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		Unsubscriber:          ok.Unsubscribe,
 		GenerateSubscriptions: ok.GenerateDefaultSubscriptions,
 		Features:              &ok.Features.Supports.WebsocketCapabilities,
+		OrderbookBufferConfig: buffer.Config{
+			Checksum: ok.CalculateUpdateOrderbookChecksum,
+		},
 	})
 	if err != nil {
 		return err
@@ -275,14 +279,14 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, 
 			Underlying:     "BTC-USD",
 		})
 		if err != nil {
-			return pairs, err
+			return nil, err
 		}
 		instsb, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
 			InstrumentType: okxInstTypeOption,
 			Underlying:     "ETH-USD",
 		})
 		if err != nil {
-			return pairs, err
+			return nil, err
 		}
 		instsc, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
 			InstrumentType: okxInstTypeOption,
@@ -296,10 +300,10 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, 
 		})
 	}
 	if err != nil {
-		return pairs, err
+		return nil, err
 	}
 	if len(insts) == 0 {
-		return pairs, errNoInstrumentFound
+		return nil, errNoInstrumentFound
 	}
 	for x := range insts {
 		var pair string
@@ -307,18 +311,30 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, 
 		case asset.Spot, asset.Margin:
 			pair = insts[x].BaseCurrency + format.Delimiter + insts[x].QuoteCurrency
 			if pair == "-" {
-				continue
+				return nil, fmt.Errorf("%v, invalid currency pair data", errMalformedData)
 			}
 		case asset.Futures, asset.PerpetualSwap, asset.Option:
 			currency, err := currency.NewPairFromString(insts[x].Underlying)
 			if err != nil {
-				return pairs, err
+				return nil, err
 			}
 			pair = currency.Base.String() + format.Delimiter + currency.Quote.String()
 		}
 		pairs = append(pairs, pair)
 	}
-	return pairs, nil
+	selectedPairs := []string{}
+	pairsMap := map[string]int{}
+	for i := range pairs {
+		if pairs[i] == "" {
+			return nil, errInvalidCurrencyPair
+		}
+		count, ok := pairsMap[pairs[i]]
+		if !ok || count == 0 {
+			pairsMap[pairs[i]] = 1
+			selectedPairs = append(selectedPairs, pairs[i])
+		}
+	}
+	return selectedPairs, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores them in the exchanges config
@@ -329,19 +345,7 @@ func (ok *Okx) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error 
 		if err != nil {
 			return err
 		}
-		selectedPairs := []string{}
-		pairsMap := map[string]int{}
-		for i := range p {
-			if p[i] == "" {
-				return errInvalidCurrencyPair
-			}
-			count, ok := pairsMap[p[i]]
-			if !ok || count == 0 {
-				pairsMap[p[i]] = 1
-				selectedPairs = append(selectedPairs, p[i])
-			}
-		}
-		pairs, err := currency.NewPairsFromStrings(selectedPairs)
+		pairs, err := currency.NewPairsFromStrings(p)
 		if err != nil {
 			return err
 		}
@@ -396,8 +400,16 @@ func (ok *Okx) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 	if err != nil {
 		return err
 	}
+	format, err := ok.GetPairFormat(assetType, false)
+	if err != nil {
+		return err
+	}
 	for i := range pairs {
 		pairFmt, err := ok.FormatExchangeCurrency(pairs[i], assetType)
+		if err != nil {
+			return err
+		}
+		pairFmt, err = ok.GetPairFromInstrumentID(format.Format(pairFmt))
 		if err != nil {
 			return err
 		}
@@ -432,11 +444,11 @@ func (ok *Okx) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 
 // FetchTicker returns the ticker for a currency pair
 func (ok *Okx) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	formatedPair, err := ok.FormatExchangeCurrency(p, assetType)
+	formattedPair, err := ok.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
-	tickerNew, err := ticker.GetTicker(ok.Name, formatedPair, assetType)
+	tickerNew, err := ticker.GetTicker(ok.Name, formattedPair, assetType)
 	if err != nil {
 		return ok.UpdateTicker(ctx, p, assetType)
 	}
@@ -686,8 +698,8 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
-	orderType := ok.OrderTypeString(s.Type)
-	if orderType == "" && !(s.AssetType == asset.PerpetualSwap || s.AssetType == asset.Futures) {
+	orderType, err := ok.OrderTypeString(s.Type)
+	if err != nil && !(s.AssetType == asset.PerpetualSwap || s.AssetType == asset.Futures) {
 		return nil, errInvalidOrderType
 	}
 	instrumentID, err := ok.getInstrumentIDFromPair(ctx, s.Pair, s.AssetType)
@@ -937,54 +949,61 @@ func (ok *Okx) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 	if !ok.SupportsAsset(req.AssetType) {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, req.AssetType)
 	}
-	orderType := ok.OrderTypeString(req.Type)
-	response, err := ok.GetOrderList(ctx, &OrderListRequestParams{
+	orderType, err := ok.OrderTypeString(req.Type)
+	if err != nil {
+		return nil, err
+	}
+	requestParam := &OrderListRequestParams{
 		OrderType: orderType,
-	})
+		After:     req.StartTime,
+		Before:    req.EndTime,
+	}
+	response, err := ok.GetOrderList(ctx, requestParam)
 	if err != nil {
 		return nil, err
 	}
 	orders := make([]order.Detail, len(response))
 	for x := range response {
 		orderSide := response[x].Side
-		pair, err := ok.GetPairFromInstrumentID(response[x].InstrumentID)
+		var pair currency.Pair
+		pair, err = ok.GetPairFromInstrumentID(response[x].InstrumentID)
 		if err != nil {
 			return nil, err
 		}
 		for i := range req.Pairs {
-			if req.Pairs[i].Equal(pair) {
-				goto createDetail
+			if !req.Pairs[i].Equal(pair) {
+				continue
 			}
-		}
-		continue
-	createDetail:
-		if strings.EqualFold(response[x].State, "live") {
-			response[x].State = "new"
-		}
-		orderStatus, err := order.StringToOrderStatus(strings.ToUpper(response[x].State))
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s %v", ok.Name, err)
-		}
-		oType, err := ok.OrderTypeFromString(response[x].OrderType)
-		if err != nil {
-			return nil, err
-		}
-		orders[x] = order.Detail{
-			Amount:          response[x].Size,
-			Pair:            pair,
-			Price:           response[x].Price,
-			ExecutedAmount:  response[x].FillSize,
-			RemainingAmount: response[x].Size - response[x].FillSize,
-			Fee:             response[x].FeeCurrency,
-			Exchange:        ok.Name,
-			OrderID:         response[x].OrderID,
-			ClientOrderID:   response[x].ClientSupplierOrderID,
-			Type:            oType,
-			Side:            orderSide,
-			Status:          orderStatus,
-			AssetType:       req.AssetType,
-			Date:            response[x].CreationTime,
-			LastUpdated:     response[x].UpdateTime,
+			if strings.EqualFold(response[x].State, "live") {
+				response[x].State = "new"
+			}
+			var orderStatus order.Status
+			orderStatus, err = order.StringToOrderStatus(strings.ToUpper(response[x].State))
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", ok.Name, err)
+			}
+			var oType order.Type
+			oType, err = ok.OrderTypeFromString(response[x].OrderType)
+			if err != nil {
+				return nil, err
+			}
+			orders[x] = order.Detail{
+				Amount:          response[x].Size,
+				Pair:            pair,
+				Price:           response[x].Price,
+				ExecutedAmount:  response[x].FillSize,
+				RemainingAmount: response[x].Size - response[x].FillSize,
+				Fee:             response[x].FeeCurrency,
+				Exchange:        ok.Name,
+				OrderID:         response[x].OrderID,
+				ClientOrderID:   response[x].ClientSupplierOrderID,
+				Type:            oType,
+				Side:            orderSide,
+				Status:          orderStatus,
+				AssetType:       req.AssetType,
+				Date:            response[x].CreationTime,
+				LastUpdated:     response[x].UpdateTime,
+			}
 		}
 	}
 	order.FilterOrdersByPairs(&orders, req.Pairs)
@@ -1039,17 +1058,17 @@ func (ok *Okx) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 			log.Errorf(log.ExchangeSys, "%s %v", ok.Name, err)
 			continue
 		}
-		if len(req.Pairs) == 0 || len(req.Pairs) == 1 && req.Pairs[0].Equal(currency.EMPTYPAIR) {
-			goto createDetail
-		} else {
-			for x := range req.Pairs {
+		if !(len(req.Pairs) == 0 || len(req.Pairs) == 1 && req.Pairs[0].Equal(currency.EMPTYPAIR)) {
+			x := 0
+			for x = range req.Pairs {
 				if req.Pairs[x].Equal(pair) {
-					goto createDetail
+					break
 				}
 			}
+			if len(req.Pairs) == x {
+				continue
+			}
 		}
-		continue
-	createDetail:
 		oType, err := ok.OrderTypeFromString(response[i].OrderType)
 		if err != nil {
 			return nil, err
@@ -1130,5 +1149,44 @@ func (ok *Okx) GetHistoricCandles(ctx context.Context, pair currency.Pair, a ass
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (ok *Okx) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrNotYetImplemented
+	if err := ok.ValidateKline(pair, a, interval); err != nil {
+		return kline.Item{}, err
+	}
+	formattedPair, err := ok.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return kline.Item{}, err
+	}
+	instrumentID, err := ok.getInstrumentIDFromPair(ctx, formattedPair, a)
+	if err != nil {
+		return kline.Item{}, err
+	}
+	ret := kline.Item{
+		Exchange: ok.Name,
+		Pair:     pair,
+		Interval: interval,
+	}
+	dates, err := kline.CalculateCandleDateRanges(start, end, interval, 100)
+	if err != nil {
+		return kline.Item{}, err
+	}
+	for y := range dates.Ranges {
+		candles, err := ok.GetCandlesticksHistory(ctx, instrumentID, interval, dates.Ranges[y].Start.Time, dates.Ranges[y].End.Time, 100)
+		if err != nil {
+			return kline.Item{}, err
+		}
+		for x := range candles {
+			ret.Candles = append(ret.Candles, kline.Candle{
+				Time:   candles[x].OpenTime,
+				Open:   candles[x].OpenPrice,
+				High:   candles[x].HighestPrice,
+				Low:    candles[x].LowestPrice,
+				Close:  candles[x].ClosePrice,
+				Volume: candles[x].Volume,
+			})
+		}
+	}
+	ret.RemoveDuplicates()
+	ret.RemoveOutsideRange(start, end)
+	ret.SortCandlesByTimestamp(false)
+	return ret, nil
 }

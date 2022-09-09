@@ -621,7 +621,6 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		okxChannelOrderBooks50TBT,
 		okxChannelBBOTBT,
 		okxChannelOrderBooksTBT:
-		log.Debug(log.ExchangeSys, string(respRaw))
 		return ok.wsProcessOrderBooks(respRaw)
 	case okxChannelOptSummary:
 		var response WsOptionSummary
@@ -722,7 +721,6 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 	}
 	for i := range response.Data {
 		if response.Action == OkxOrderBookSnapshot ||
-			response.Argument.Channel == okxChannelOrderBooks5 ||
 			response.Argument.Channel == okxChannelBBOTBT {
 			err = ok.WsProcessSnapshotOrderBook(response.Data[i], pair, a)
 			if err != nil {
@@ -799,18 +797,6 @@ func (ok *Okx) WsProcessUpdateOrderbook(channel string, data WsOrderBookData, pa
 		Asset: a,
 		Pair:  pair,
 	}
-	switch channel {
-	case okxChannelOrderBooks,
-		okxChannelOrderBooksTBT:
-		update.MaxDepth = 400
-	case okxChannelOrderBooks5:
-		update.MaxDepth = 5
-	case okxChannelBBOTBT:
-		update.MaxDepth = 1
-		update.MaxDepth = 400
-	case okxChannelOrderBooks50TBT:
-		update.MaxDepth = 50
-	}
 	var err error
 	update.Asks, err = ok.AppendWsOrderbookItems(data.Asks)
 	if err != nil {
@@ -823,19 +809,6 @@ func (ok *Okx) WsProcessUpdateOrderbook(channel string, data WsOrderBookData, pa
 	err = ok.Websocket.Orderbook.Update(update)
 	if err != nil {
 		return err
-	}
-	updateOrderbook, err := ok.Websocket.Orderbook.GetOrderbook(pair, a)
-	if err != nil {
-		return err
-	}
-	if data.Checksum != 0 {
-		checksum := ok.CalculateUpdateOrderbookChecksum(updateOrderbook)
-		if checksum != data.Checksum {
-			log.Warnf(log.ExchangeSys, "%s checksum failure for pair %v",
-				ok.Name,
-				pair)
-			return errors.New("checksum failed")
-		}
 	}
 	return nil
 }
@@ -862,22 +835,25 @@ func (ok *Okx) AppendWsOrderbookItems(entries [][4]string) ([]orderbook.Item, er
 // quantity with a semicolon (:) deliminating them. This will also work when
 // there are less than 25 entries (for whatever reason)
 // eg Bid:Ask:Bid:Ask:Ask:Ask
-func (ok *Okx) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base) int32 {
+func (ok *Okx) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base, checksumVal uint32) error {
 	var checksum strings.Builder
 	for i := 0; i < allowableIterations; i++ {
 		if len(orderbookData.Bids)-1 >= i {
-			price := strconv.FormatFloat(orderbookData.Bids[i].Price, 'f', 0, 64)
-			amount := strconv.FormatFloat(orderbookData.Bids[i].Amount, 'f', 0, 64)
+			price := strconv.FormatFloat(orderbookData.Bids[i].Price, 'f', -1, 64)
+			amount := strconv.FormatFloat(orderbookData.Bids[i].Amount, 'f', -1, 64)
 			checksum.WriteString(price + ColonDelimiter + amount + ColonDelimiter)
 		}
 		if len(orderbookData.Asks)-1 >= i {
-			price := strconv.FormatFloat(orderbookData.Asks[i].Price, 'f', 0, 64)
-			amount := strconv.FormatFloat(orderbookData.Asks[i].Amount, 'f', 0, 64)
+			price := strconv.FormatFloat(orderbookData.Asks[i].Price, 'f', -1, 64)
+			amount := strconv.FormatFloat(orderbookData.Asks[i].Amount, 'f', -1, 64)
 			checksum.WriteString(price + ColonDelimiter + amount + ColonDelimiter)
 		}
 	}
 	checksumStr := strings.TrimSuffix(checksum.String(), ColonDelimiter)
-	return int32(crc32.ChecksumIEEE([]byte(checksumStr)))
+	if crc32.ChecksumIEEE([]byte(checksumStr)) != checksumVal {
+		return fmt.Errorf("%s order book update checksum failed for pair %v", ok.Name, orderbookData.Pair)
+	}
+	return nil
 }
 
 // CalculateOrderbookChecksum alternates over the first 25 bid and ask entries from websocket data.

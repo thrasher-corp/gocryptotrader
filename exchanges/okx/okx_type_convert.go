@@ -78,8 +78,11 @@ func (a *Offer) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	if value, err := strconv.ParseFloat(chil.Apy, 64); err == nil {
-		a.Apy = value
+	if chil.Apy != "" {
+		a.Apy, err = strconv.ParseFloat(chil.Apy, 64)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -98,11 +101,17 @@ func (a *DiscountRateInfoItem) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	if value, err := strconv.ParseFloat(chil.MaxAmount, 64); err == nil {
-		a.MaxAmount = value
+	if chil.MaxAmount != "" {
+		a.MaxAmount, err = strconv.ParseFloat(chil.MaxAmount, 64)
+		if err != nil {
+			return err
+		}
 	}
-	if value, err := strconv.ParseFloat(chil.MinAmount, 64); err == nil {
-		a.MinAmount = value
+	if chil.MinAmount != "" {
+		a.MinAmount, err = strconv.ParseFloat(chil.MinAmount, 64)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -116,17 +125,27 @@ func (a *OfferInvestData) UnmarshalJSON(data []byte) error {
 		MinimumAmount string `json:"minAmt"`
 		MaximumAmount string `json:"maxAmt"`
 	}{}
-	if err := json.Unmarshal(data, chil); err != nil {
+	err := json.Unmarshal(data, chil)
+	if err != nil {
 		return err
 	}
-	if value, err := strconv.ParseFloat(chil.Balance, 64); err == nil {
-		a.Balance = value
+	if chil.Balance != "" {
+		a.Balance, err = strconv.ParseFloat(chil.Balance, 64)
+		if err != nil {
+			return err
+		}
 	}
-	if value, err := strconv.ParseFloat(chil.MinimumAmount, 64); err == nil {
-		a.MinimumAmount = value
+	if chil.MaximumAmount != "" {
+		a.MaximumAmount, err = strconv.ParseFloat(chil.MaximumAmount, 64)
+		if err != nil {
+			return err
+		}
 	}
-	if value, err := strconv.ParseFloat(chil.MaximumAmount, 64); err == nil {
-		a.MaximumAmount = value
+	if chil.MinimumAmount != "" {
+		a.MinimumAmount, err = strconv.ParseFloat(chil.MinimumAmount, 64)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -212,18 +231,29 @@ func (a *Instrument) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	var val float64
-	if val, err = strconv.ParseFloat(chil.MaxLeverage, 64); err == nil {
-		a.MaxLeverage = val
+	if chil.MaxLeverage != "" {
+		a.MaxLeverage, err = strconv.ParseFloat(chil.MaxLeverage, 64)
+		if err != nil {
+			return err
+		}
 	}
-	if val, err = strconv.ParseFloat(chil.TickSize, 64); err == nil {
-		a.TickSize = val
+	if chil.TickSize != "" {
+		a.TickSize, err = strconv.ParseFloat(chil.TickSize, 64)
+		if err != nil {
+			return err
+		}
 	}
-	if val, err = strconv.ParseFloat(chil.LotSize, 64); err == nil {
-		a.LotSize = val
+	if chil.LotSize != "" {
+		a.LotSize, err = strconv.ParseFloat(chil.LotSize, 64)
+		if err != nil {
+			return err
+		}
 	}
-	if val, err = strconv.ParseFloat(chil.MinimumOrderSize, 64); err == nil {
-		a.MinimumOrderSize = val
+	if chil.MinimumOrderSize != "" {
+		a.MinimumOrderSize, err = strconv.ParseFloat(chil.MinimumOrderSize, 64)
+		if err != nil {
+			return err
+		}
 	}
 	if NumbersOnlyRegexp.MatchString(chil.ListTime) {
 		if val, err := strconv.Atoi(chil.ListTime); err == nil {
@@ -336,14 +366,21 @@ func (a *FundingRateResponse) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(a),
 	}
-	if val, err := strconv.ParseFloat(chil.FundingRate, 64); err == nil {
-		a.FundingRate = val
-	}
-	if val, err := strconv.ParseFloat(chil.NextFundingRate, 64); err == nil {
-		a.NextFundingRate = val
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
+	err := json.Unmarshal(data, chil)
+	if err != nil {
 		return err
+	}
+	if chil.FundingRate != "" {
+		a.FundingRate, err = strconv.ParseFloat(chil.FundingRate, 64)
+		if err != nil {
+			return err
+		}
+	}
+	if chil.NextFundingRate != "" {
+		a.NextFundingRate, err = strconv.ParseFloat(chil.NextFundingRate, 64)
+		if err != nil {
+			return err
+		}
 	}
 	if chil.FundingTime > 0 {
 		a.FundingTime = time.UnixMilli(chil.FundingTime)
@@ -433,72 +470,71 @@ func (a *TickerResponse) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, chil); err != nil {
 		return err
 	}
-	var val float64
 	var err error
 	if chil.LastTradePrice != "" {
-		val, err = strconv.ParseFloat(chil.LastTradePrice, 64)
-		if err == nil {
-			a.LastTradePrice = val
+		a.LastTradePrice, err = strconv.ParseFloat(chil.LastTradePrice, 64)
+		if err != nil {
+			return err
 		}
 	}
 	if chil.LastTradeSize != "" {
-		val, err = strconv.ParseFloat(chil.LastTradeSize, 64)
-		if err == nil {
-			a.LastTradeSize = val
+		a.LastTradeSize, err = strconv.ParseFloat(chil.LastTradeSize, 64)
+		if err != nil {
+			return err
 		}
 	}
 	if chil.BestAskPrice != "" {
-		val, err = strconv.ParseFloat(chil.BestAskPrice, 64)
-		if err == nil {
-			a.BestAskPrice = val
+		a.BestAskPrice, err = strconv.ParseFloat(chil.BestAskPrice, 64)
+		if err != nil {
+			return err
 		}
 	}
 	if chil.BestAskSize != "" {
-		val, err = strconv.ParseFloat(chil.BestAskSize, 64)
-		if err == nil {
-			a.BestAskSize = val
+		a.BestAskSize, err = strconv.ParseFloat(chil.BestAskSize, 64)
+		if err != nil {
+			return err
 		}
 	}
 	if chil.BidPrice != "" {
-		val, err = strconv.ParseFloat(chil.BidPrice, 64)
-		if err == nil {
-			a.BidPrice = val
+		a.BidPrice, err = strconv.ParseFloat(chil.BidPrice, 64)
+		if err != nil {
+			return err
 		}
 	}
 	if chil.BidSize != "" {
-		val, err = strconv.ParseFloat(chil.BidSize, 64)
-		if err == nil {
-			a.BidSize = val
+		a.BidSize, err = strconv.ParseFloat(chil.BidSize, 64)
+		if err != nil {
+			return err
 		}
 	}
 	if chil.Open24H != "" {
-		val, err = strconv.ParseFloat(chil.Open24H, 64)
-		if err == nil {
-			a.Open24H = val
+		a.Open24H, err = strconv.ParseFloat(chil.Open24H, 64)
+		if err != nil {
+			return err
 		}
 	}
 	if chil.High24H != "" {
-		val, err = strconv.ParseFloat(chil.High24H, 64)
-		if err == nil {
-			a.High24H = val
+		a.High24H, err = strconv.ParseFloat(chil.High24H, 64)
+		if err != nil {
+			return err
 		}
 	}
 	if chil.Low24H != "" {
-		val, err = strconv.ParseFloat(chil.Low24H, 64)
-		if err == nil {
-			a.Low24H = val
+		a.Low24H, err = strconv.ParseFloat(chil.Low24H, 64)
+		if err != nil {
+			return err
 		}
 	}
 	if chil.VolCcy24H != "" {
-		val, err = strconv.ParseFloat(chil.VolCcy24H, 64)
-		if err == nil {
-			a.VolCcy24H = val
+		a.VolCcy24H, err = strconv.ParseFloat(chil.VolCcy24H, 64)
+		if err != nil {
+			return err
 		}
 	}
 	if chil.Vol24H != "" {
-		val, err = strconv.ParseFloat(chil.Vol24H, 64)
-		if err == nil {
-			a.Vol24H = val
+		a.Vol24H, err = strconv.ParseFloat(chil.Vol24H, 64)
+		if err != nil {
+			return err
 		}
 	}
 	if chil.TickerDataGenerationTime > 0 {
@@ -758,41 +794,77 @@ func (a *OrderDetail) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
-	if val, err := strconv.ParseFloat(chil.Leverage, 64); err == nil {
-		a.Leverage = val
+	if chil.Leverage != "" {
+		a.Leverage, err = strconv.ParseFloat(chil.Leverage, 64)
+		if err != nil {
+			return err
+		}
 	}
-	if val, err := strconv.ParseFloat(chil.AccumulatedFillSize, 64); err == nil {
-		a.AccumulatedFillSize = val
+	if chil.AccumulatedFillSize != "" {
+		a.AccumulatedFillSize, err = strconv.ParseFloat(chil.AccumulatedFillSize, 64)
+		if err != nil {
+			return err
+		}
 	}
-	if val, err := strconv.ParseFloat(chil.FillPrice, 64); err == nil {
-		a.FillPrice = val
+	if chil.FillPrice != "" {
+		a.FillPrice, err = strconv.ParseFloat(chil.FillPrice, 64)
+		if err != nil {
+			return err
+		}
 	}
-	if val, err := strconv.ParseFloat(chil.TransactionFee, 64); err == nil {
-		a.TransactionFee = val
+	if chil.TransactionFee != "" {
+		a.TransactionFee, err = strconv.ParseFloat(chil.TransactionFee, 64)
+		if err != nil {
+			return err
+		}
 	}
-	if val, err := strconv.ParseFloat(chil.AveragePrice, 64); err == nil {
-		a.AveragePrice = val
+	if chil.AveragePrice != "" {
+		a.AveragePrice, err = strconv.ParseFloat(chil.AveragePrice, 64)
+		if err != nil {
+			return err
+		}
 	}
-	if val, err := strconv.ParseFloat(chil.Price, 64); err == nil {
-		a.Price = val
+	if chil.Price != "" {
+		a.Price, err = strconv.ParseFloat(chil.Price, 64)
+		if err != nil {
+			return err
+		}
 	}
-	if val, err := strconv.ParseFloat(chil.Size, 64); err == nil {
-		a.Size = val
+	if chil.Size != "" {
+		a.Size, err = strconv.ParseFloat(chil.Size, 64)
+		if err != nil {
+			return err
+		}
 	}
-	if val, err := strconv.ParseFloat(chil.TakeProfitTriggerPrice, 64); err == nil {
-		a.TakeProfitTriggerPrice = val
+	if chil.TakeProfitTriggerPrice != "" {
+		a.TakeProfitTriggerPrice, err = strconv.ParseFloat(chil.TakeProfitTriggerPrice, 64)
+		if err != nil {
+			return err
+		}
 	}
-	if val, err := strconv.ParseFloat(chil.TakeProfitOrderPrice, 64); err == nil {
-		a.TakeProfitOrderPrice = val
+	if chil.TakeProfitOrderPrice != "" {
+		a.TakeProfitOrderPrice, err = strconv.ParseFloat(chil.TakeProfitOrderPrice, 64)
+		if err != nil {
+			return err
+		}
 	}
-	if val, err := strconv.ParseFloat(chil.StopLossTriggerPrice, 64); err == nil {
-		a.StopLossTriggerPrice = val
+	if chil.StopLossTriggerPrice != "" {
+		a.StopLossTriggerPrice, err = strconv.ParseFloat(chil.StopLossTriggerPrice, 64)
+		if err != nil {
+			return err
+		}
 	}
-	if val, err := strconv.ParseFloat(chil.FeeCurrency, 64); err == nil {
-		a.FeeCurrency = val
+	if chil.FeeCurrency != "" {
+		a.FeeCurrency, err = strconv.ParseFloat(chil.FeeCurrency, 64)
+		if err != nil {
+			return err
+		}
 	}
-	if val, err := strconv.ParseFloat(chil.RebateAmount, 64); err == nil {
-		a.RebateAmount = val
+	if chil.RebateAmount != "" {
+		a.RebateAmount, err = strconv.ParseFloat(chil.RebateAmount, 64)
+		if err != nil {
+			return err
+		}
 	}
 	switch strings.ToUpper(chil.InstrumentType) {
 	case okxInstTypeSwap:
@@ -818,11 +890,10 @@ func (a *PendingOrderItem) UnmarshalJSON(data []byte) error {
 	type Alias PendingOrderItem
 	chil := &struct {
 		*Alias
-		Side           string `json:"side"`
-		UpdateTime     int64  `json:"uTime,string"`
-		CreationTime   int64  `json:"cTime,string"`
-		InstrumentType string `json:"instType"`
-		//
+		Side                string `json:"side"`
+		UpdateTime          string `json:"uTime"`
+		CreationTime        string `json:"cTime"`
+		InstrumentType      string `json:"instType"`
 		AccumulatedFillSize string `json:"accFillSz"`
 		AveragePrice        string `json:"avgPx"`
 		FeeCurrency         string `json:"feeCcy"`
@@ -831,31 +902,52 @@ func (a *PendingOrderItem) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(a),
 	}
-	if err := json.Unmarshal(data, chil); err != nil {
+	err := json.Unmarshal(data, chil)
+	if err != nil {
 		return err
 	}
-	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
-	a.CreationTime = time.UnixMilli(chil.CreationTime)
-	var err error
+	uTime, err := strconv.ParseInt(chil.UpdateTime, 10, 64)
+	if err == nil {
+		a.UpdateTime = time.UnixMilli(uTime)
+	}
+	cTime, err := strconv.ParseInt(chil.CreationTime, 10, 64)
+	if err == nil {
+		a.CreationTime = time.UnixMilli(cTime)
+	}
 	a.Side, err = order.StringToOrderSide(chil.Side)
 	if err != nil {
 		return err
 	}
 	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
-	if val, err := strconv.ParseFloat(chil.AccumulatedFillSize, 64); err == nil {
-		a.AccumulatedFillSize = val
+	if chil.AccumulatedFillSize != "" {
+		a.AccumulatedFillSize, err = strconv.ParseFloat(chil.AccumulatedFillSize, 64)
+		if err != nil {
+			return err
+		}
 	}
-	if val, err := strconv.ParseFloat(chil.AveragePrice, 64); err == nil {
-		a.AveragePrice = val
+	if chil.AveragePrice != "" {
+		a.AveragePrice, err = strconv.ParseFloat(chil.AveragePrice, 64)
+		if err != nil {
+			return err
+		}
 	}
-	if val, err := strconv.ParseFloat(chil.FeeCurrency, 64); err == nil {
-		a.FeeCurrency = val
+	if chil.FeeCurrency != "" {
+		a.FeeCurrency, err = strconv.ParseFloat(chil.FeeCurrency, 64)
+		if err != nil {
+			return err
+		}
 	}
-	if val, err := strconv.ParseFloat(chil.LastFilledSize, 64); err == nil {
-		a.LastFilledSize = val
+	if chil.LastFilledSize != "" {
+		a.LastFilledSize, err = strconv.ParseFloat(chil.LastFilledSize, 64)
+		if err != nil {
+			return err
+		}
 	}
-	if val, err := strconv.ParseFloat(chil.Leverage, 64); err == nil {
-		a.Leverage = val
+	if chil.Leverage != "" {
+		a.Leverage, err = strconv.ParseFloat(chil.Leverage, 64)
+		if err != nil {
+			return err
+		}
 	}
 	switch strings.ToUpper(chil.InstrumentType) {
 	case okxInstTypeSwap:
@@ -2273,14 +2365,21 @@ func (a *CurrencyOneClickRepay) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(a),
 	}
-	if err := json.Unmarshal(data, chil); err != nil {
+	err := json.Unmarshal(data, chil)
+	if err != nil {
 		return err
 	}
-	if value, err := strconv.ParseFloat(strings.ReplaceAll(chil.FillToSize, ",", ""), 64); err == nil {
-		a.FillToSize = value
+	if chil.FillFromSize != "" {
+		a.FillFromSize, err = strconv.ParseFloat(strings.ReplaceAll(chil.FillToSize, ",", ""), 64)
+		if err != nil {
+			return err
+		}
 	}
-	if value, err := strconv.ParseFloat(chil.FillFromSize, 64); err == nil {
-		a.FillFromSize = value
+	if chil.FillFromSize != "" {
+		a.FillFromSize, err = strconv.ParseFloat(chil.FillFromSize, 64)
+		if err != nil {
+			return err
+		}
 	}
 	a.UpdateTime = time.Unix(chil.UpdateTime, 0)
 	return nil

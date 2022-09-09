@@ -610,6 +610,8 @@ func (t Type) String() string {
 		return "LIQUIDATION"
 	case Trigger:
 		return "TRIGGER"
+	case OptimalLimitIOC:
+		return "OPTIMAL_LIMIT_IOC"
 	default:
 		return "UNKNOWN"
 	}

@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -127,6 +128,13 @@ func TestGetCandlesticks(t *testing.T) {
 	_, err := ok.GetCandlesticks(context.Background(), "BTC-USDT", kline.OneHour, time.Unix(time.Now().Unix()-3600, 0), time.Now(), 30)
 	if err != nil {
 		t.Error("Okx GetCandlesticks() error", err)
+	}
+}
+
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	t.Parallel()
+	if _, err := ok.GetHistoricCandlesExtended(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.Spot, time.Unix(time.Now().Unix()-36000, 0), time.Now(), kline.OneMin); err != nil {
+		t.Errorf("%s GetHistoricCandlesExtended() error: %v", ok.Name, err)
 	}
 }
 
@@ -815,7 +823,7 @@ func TestGetAlgoOrderList(t *testing.T) {
 	if err := json.Unmarshal([]byte(algoOrderResponse), &order); err != nil {
 		t.Error("Okx Unmarshaling AlgoOrder Response error", err)
 	}
-	if _, err := ok.GetAlgoOrderList(context.Background(), "conditional", "", "", "", time.Time{}, time.Time{}, 20); err != nil {
+	if _, err := ok.GetAlgoOrderList(context.Background(), "conditional", "", "", "", "", time.Time{}, time.Time{}, 20); err != nil {
 		t.Error("Okx GetAlgoOrderList() error", err)
 	}
 }
@@ -1239,9 +1247,9 @@ func TestFundingTransfer(t *testing.T) {
 	if _, err := ok.FundingTransfer(context.Background(), &FundingTransferRequestInput{
 		Amount:   12.000,
 		To:       "6",
-		From:     "6",
+		From:     "18",
 		Currency: "BTC",
-	}); err != nil {
+	}); err != nil && !strings.Contains(err.Error(), "Insufficient balance") {
 		t.Error("Okx FundingTransfer() error", err)
 	}
 }
@@ -1257,7 +1265,7 @@ func TestGetFundsTransferState(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := ok.GetFundsTransferState(context.Background(), "", "abcdefg", 2); err != nil {
+	if _, err := ok.GetFundsTransferState(context.Background(), "1", "", 1); err != nil {
 		t.Error("Okx GetFundsTransferState() error", err)
 	}
 }
@@ -2693,10 +2701,19 @@ func TestCancelBatchOrders(t *testing.T) {
 
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
 	_, err := ok.ModifyOrder(context.Background(),
-		&order.Modify{AssetType: asset.Spot})
-	if err == nil {
-		t.Error("Okx ModifyOrder() error cannot be nil")
+		&order.Modify{
+			AssetType: asset.Spot,
+			Pair:      currency.NewPair(currency.LTC, currency.BTC),
+			OrderID:   "1234",
+			Price:     123456.44,
+			Amount:    123,
+		})
+	if err != nil && !strings.Contains(err.Error(), "Operation failed.") {
+		t.Errorf("Okx ModifyOrder() error %v", err)
 	}
 }
 
@@ -2775,13 +2792,13 @@ func TestGetActiveOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	pair, err := currency.NewPairFromString("BTC_USDT")
+	pair, err := currency.NewPairFromString("BTC-USD")
 	if err != nil {
 		t.Error(err)
 	}
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.Limit,
-		Pairs:     currency.Pairs{pair},
+		Pairs:     currency.Pairs{pair, currency.NewPair(currency.USDT, currency.USD), currency.NewPair(currency.USD, currency.LTC)},
 		AssetType: asset.Spot,
 	}
 	if _, err = ok.GetActiveOrders(context.Background(), &getOrdersRequest); err != nil {
@@ -2809,6 +2826,34 @@ func TestGetOrderHistory(t *testing.T) {
 			currency.BTC)}
 	if _, err := ok.GetOrderHistory(context.Background(), &getOrdersRequest); err != nil {
 		t.Error("Okx GetOrderHistory() error", err)
+	}
+}
+func TestGetFeeByType(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := ok.GetFeeByType(context.Background(), &exchange.FeeBuilder{
+		Amount:  1,
+		FeeType: exchange.CryptocurrencyTradeFee,
+		Pair: currency.NewPairWithDelimiter(currency.BTC.String(),
+			currency.USDT.String(),
+			"-"),
+		PurchasePrice:       1,
+		FiatCurrency:        currency.USD,
+		BankTransactionType: exchange.WireTransfer,
+	}); err != nil {
+		t.Errorf("%s GetFeeByType() error %v", ok.Name, err)
+	}
+}
+
+func TestValidateCredentials(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if err := ok.ValidateCredentials(context.Background(), asset.Spot); err != nil {
+		t.Errorf("%s ValidateCredentials() error %v", ok.Name, err)
 	}
 }
 
