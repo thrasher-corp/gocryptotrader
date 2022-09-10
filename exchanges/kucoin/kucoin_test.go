@@ -1191,30 +1191,30 @@ func TestGetFuturesTradeHistory(t *testing.T) {
 	}
 }
 
-func TestGetFuturesRiskLimit(t *testing.T) {
+func TestGetFuturesInterestRate(t *testing.T) {
 	t.Parallel()
 
-	_, err := k.GetFuturesRiskLimit(context.Background(), "BTCUSDTM")
+	_, err := k.GetFuturesInterestRate(context.Background(), "BTCUSDTM", time.Time{}, time.Time{}, false, false, 0, 0)
 	if err != nil {
-		t.Error("GetFuturesRiskLimit() error", err)
+		t.Error("GetFuturesInterestRate() error", err)
 	}
 }
 
-func TestGetFuturesKline(t *testing.T) {
+func TestGetFuturesCurrentMarkPrice(t *testing.T) {
 	t.Parallel()
 
-	_, err := k.GetFuturesKline(context.Background(), "30", "BTCUSDTM", time.Time{}, time.Time{})
+	_, err := k.GetFuturesCurrentMarkPrice(context.Background(), "BTCUSDTM")
 	if err != nil {
-		t.Error("GetFuturesKline() error", err)
+		t.Error("GetFuturesCurrentMarkPrice() error", err)
 	}
 }
 
-func TestGetFuturesFundingRate(t *testing.T) {
+func TestGetFuturesPremiumIndex(t *testing.T) {
 	t.Parallel()
 
-	_, err := k.GetFuturesFundingRate(context.Background(), "BTCUSDTM", time.Time{}, time.Time{}, time.Time{}, 0)
+	_, err := k.GetFuturesPremiumIndex(context.Background(), "BTCUSDTM", time.Time{}, time.Time{}, false, false, 0, 0)
 	if err != nil {
-		t.Error("GetFuturesFundingRate() error", err)
+		t.Error("GetFuturesPremiumIndex() error", err)
 	}
 }
 
@@ -1227,11 +1227,29 @@ func TestGetFuturesCurrentFundingRate(t *testing.T) {
 	}
 }
 
-func TestGetFuturesContractMarkPrice(t *testing.T) {
+func TestGetFuturesServerTime(t *testing.T) {
 	t.Parallel()
 
-	_, err := k.GetFuturesContractMarkPrice(context.Background(), "BTCUSDTM")
+	_, err := k.GetFuturesServerTime(context.Background(), "BTCUSDTM")
 	if err != nil {
-		t.Error("GetFuturesContractMarkPrice() error", err)
+		t.Error("GetFuturesServerTime() error", err)
+	}
+}
+
+func TestGetFuturesServiceStatus(t *testing.T) {
+	t.Parallel()
+
+	_, _, err := k.GetFuturesServiceStatus(context.Background(), "BTCUSDTM")
+	if err != nil {
+		t.Error("GetFuturesServiceStatus() error", err)
+	}
+}
+
+func TestGetFuturesKline(t *testing.T) {
+	t.Parallel()
+
+	_, err := k.GetFuturesKline(context.Background(), "30", "BTCUSDTM", time.Time{}, time.Time{})
+	if err != nil {
+		t.Error("GetFuturesKline() error", err)
 	}
 }

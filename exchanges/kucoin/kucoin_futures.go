@@ -23,12 +23,14 @@ const (
 	kucoinFuturesPartOrderbook20  = "/api/v1/level2/depth20"
 	kucoinFuturesPartOrderbook100 = "/api/v1/level2/depth100"
 	kucoinFuturesTradeHistory     = "/api/v1/trade/history"
-
-	kucoinFuturesRiskLimit             = "/api/v2/contracts/risk-limit/%s"
-	kucoinFuturesKline                 = "/api/v2/kline/query"
-	kucoinFuturesGetFundingRate        = "/api/v2/contract/%s/funding-rates"
-	kucoinFuturesGetCurrentFundingRate = "/api/v2/funding-rate/%s/current"
-	kucoinFuturesGetContractMarkPrice  = "/api/v2/mark-price/%s/current"
+	kucoinFuturesInterestRate     = "/api/v1/interest/query"
+	kucoinFuturesIndex            = "/api/v1/index/query"
+	kucoinFuturesMarkPrice        = "/api/v1/mark-price/%s/current"
+	kucoinFuturesPremiumIndex     = "/api/v1/premium/query"
+	kucoinFuturesFundingRate      = "/api/v1/funding-rate/%s/current"
+	kucoinFuturesServerTime       = "/api/v1/timestamp"
+	kucoinFuturesServiceStatus    = "/api/v1/status"
+	kucoinFuturesKline            = "/api/v1/kline/query"
 )
 
 // GetFuturesOpenContracts gets all open futures contract with its details
@@ -66,7 +68,7 @@ func (k *Kucoin) GetFuturesRealTimeTicker(ctx context.Context, symbol string) (F
 		return resp.Data, errors.New("symbol can't be empty")
 	}
 	params.Set("symbol", symbol)
-	return resp.Data, k.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues(kucoinFuturesGetFundingRate, params), publicSpotRate, &resp)
+	return resp.Data, k.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues(kucoinFuturesRealTimeTicker, params), publicSpotRate, &resp)
 }
 
 // GetFuturesOrderbook gets full orderbook for a specified symbol
@@ -107,7 +109,7 @@ func (k *Kucoin) GetFuturesPartOrderbook100(ctx context.Context, symbol string) 
 		return nil, errors.New("symbol can't be empty")
 	}
 	params.Set("symbol", symbol)
-	err := k.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues(kucoinFuturesFullOrderbook, params), publicSpotRate, &o)
+	err := k.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues(kucoinFuturesPartOrderbook100, params), publicSpotRate, &o)
 	if err != nil {
 		return nil, err
 	}
@@ -129,23 +131,180 @@ func (k *Kucoin) GetFuturesTradeHistory(ctx context.Context, symbol string) ([]F
 	return resp.Data, k.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues(kucoinFuturesTradeHistory, params), publicSpotRate, &resp)
 }
 
-// GetFuturesRiskLimit get contract risk limit list
-func (k *Kucoin) GetFuturesRiskLimit(ctx context.Context, symbol string) ([]RiskLimitInfo, error) {
+// GetFuturesInterestRate get interest rate
+func (k *Kucoin) GetFuturesInterestRate(ctx context.Context, symbol string, startAt, endAt time.Time, reverse, forward bool, offset, maxCount int64) ([]FuturesInterestRate, error) {
 	resp := struct {
-		Data []RiskLimitInfo `json:"data"`
+		Data struct {
+			List    []FuturesInterestRate `json:"dataList"`
+			HasMore bool                  `json:"hasMore"`
+		} `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if symbol == "" {
+		return resp.Data.List, errors.New("symbol can't be empty")
+	}
+	params.Set("symbol", symbol)
+
+	if !startAt.IsZero() {
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	if reverse {
+		params.Set("reverse", "true")
+	} else {
+		params.Set("reverse", "false")
+	}
+	if forward {
+		params.Set("forward", "true")
+	} else {
+		params.Set("forward", "false")
+	}
+	if offset != 0 {
+		params.Set("offset", strconv.FormatInt(offset, 10))
+	}
+	if maxCount != 0 {
+		params.Set("maxCount", strconv.FormatInt(maxCount, 10))
+	}
+	return resp.Data.List, k.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues(kucoinFuturesInterestRate, params), publicSpotRate, &resp)
+}
+
+// GetFuturesInterestRate get interest rate
+func (k *Kucoin) GetFuturesIndexList(ctx context.Context, symbol string, startAt, endAt time.Time, reverse, forward bool, offset, maxCount int64) ([]FuturesIndex, error) {
+	resp := struct {
+		Data struct {
+			List    []FuturesIndex `json:"dataList"`
+			HasMore bool           `json:"hasMore"`
+		} `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if symbol == "" {
+		return resp.Data.List, errors.New("symbol can't be empty")
+	}
+	params.Set("symbol", symbol)
+
+	if !startAt.IsZero() {
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	if reverse {
+		params.Set("reverse", "true")
+	} else {
+		params.Set("reverse", "false")
+	}
+	if forward {
+		params.Set("forward", "true")
+	} else {
+		params.Set("forward", "false")
+	}
+	if offset != 0 {
+		params.Set("offset", strconv.FormatInt(offset, 10))
+	}
+	if maxCount != 0 {
+		params.Set("maxCount", strconv.FormatInt(maxCount, 10))
+	}
+	return resp.Data.List, k.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues(kucoinFuturesIndex, params), publicSpotRate, &resp)
+}
+
+// GetFuturesCurrentMarkPrice get current mark price
+func (k *Kucoin) GetFuturesCurrentMarkPrice(ctx context.Context, symbol string) (FuturesMarkPrice, error) {
+	resp := struct {
+		Data FuturesMarkPrice `json:"data"`
 		Error
 	}{}
 
 	if symbol == "" {
 		return resp.Data, errors.New("symbol can't be empty")
 	}
-	return resp.Data, k.SendHTTPRequest(ctx, exchange.RestFutures, fmt.Sprintf(kucoinFuturesRiskLimit, symbol), publicSpotRate, &resp)
+	return resp.Data, k.SendHTTPRequest(ctx, exchange.RestFutures, fmt.Sprintf(kucoinFuturesMarkPrice, symbol), publicSpotRate, &resp)
+}
+
+// GetFuturesPremiumIndex get premium index
+func (k *Kucoin) GetFuturesPremiumIndex(ctx context.Context, symbol string, startAt, endAt time.Time, reverse, forward bool, offset, maxCount int64) ([]FuturesInterestRate, error) {
+	resp := struct {
+		Data struct {
+			List    []FuturesInterestRate `json:"dataList"`
+			HasMore bool                  `json:"hasMore"`
+		} `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if symbol == "" {
+		return resp.Data.List, errors.New("symbol can't be empty")
+	}
+	params.Set("symbol", symbol)
+
+	if !startAt.IsZero() {
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	if reverse {
+		params.Set("reverse", "true")
+	} else {
+		params.Set("reverse", "false")
+	}
+	if forward {
+		params.Set("forward", "true")
+	} else {
+		params.Set("forward", "false")
+	}
+	if offset != 0 {
+		params.Set("offset", strconv.FormatInt(offset, 10))
+	}
+	if maxCount != 0 {
+		params.Set("maxCount", strconv.FormatInt(maxCount, 10))
+	}
+	return resp.Data.List, k.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues(kucoinFuturesPremiumIndex, params), publicSpotRate, &resp)
+}
+
+// GetFuturesCurrentFundingRate get current funding rate
+func (k *Kucoin) GetFuturesCurrentFundingRate(ctx context.Context, symbol string) (FuturesFundingRate, error) {
+	resp := struct {
+		Data FuturesFundingRate `json:"data"`
+		Error
+	}{}
+
+	if symbol == "" {
+		return resp.Data, errors.New("symbol can't be empty")
+	}
+	return resp.Data, k.SendHTTPRequest(ctx, exchange.RestFutures, fmt.Sprintf(kucoinFuturesFundingRate, symbol), publicSpotRate, &resp)
+}
+
+// GetFuturesServerTime get server time
+func (k *Kucoin) GetFuturesServerTime(ctx context.Context, symbol string) (time.Time, error) {
+	resp := struct {
+		Data kucoinTimeMilliSec `json:"data"`
+		Error
+	}{}
+	return resp.Data.Time(), k.SendHTTPRequest(ctx, exchange.RestFutures, kucoinFuturesServerTime, publicSpotRate, &resp)
+}
+
+// GetFuturesServiceStatus get service status
+func (k *Kucoin) GetFuturesServiceStatus(ctx context.Context, symbol string) (string, string, error) {
+	resp := struct {
+		Data struct {
+			Status  string `json:"status"`
+			Message string `json:"msg"`
+		} `json:"data"`
+		Error
+	}{}
+	return resp.Data.Status, resp.Data.Message, k.SendHTTPRequest(ctx, exchange.RestFutures, kucoinFuturesServiceStatus, publicSpotRate, &resp)
 }
 
 // GetFuturesKline get contract's kline data
 func (k *Kucoin) GetFuturesKline(ctx context.Context, granularity, symbol string, from, to time.Time) ([]FuturesKline, error) {
 	resp := struct {
-		Data [][]interface{} `json:"data"`
+		Data [][]float64 `json:"data"`
 		Error
 	}{}
 
@@ -175,103 +334,16 @@ func (k *Kucoin) GetFuturesKline(ctx context.Context, granularity, symbol string
 
 	kline := make([]FuturesKline, len(resp.Data))
 	for i := range resp.Data {
-		tStr, ok := resp.Data[i][0].(string)
-		if !ok {
-			return nil, common.GetAssertError("string", resp.Data[i][0])
+		kline[i] = FuturesKline{
+			StartTime: time.UnixMilli(int64(resp.Data[i][0])),
+			Open:      resp.Data[i][1],
+			High:      resp.Data[i][2],
+			Low:       resp.Data[i][3],
+			Close:     resp.Data[i][4],
+			Volume:    resp.Data[i][5],
 		}
-		tInMilliSec, err := strconv.ParseInt(tStr, 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		kline[i].StartTime = time.UnixMilli(tInMilliSec)
-
-		openPrice, ok := resp.Data[i][1].(float64)
-		if !ok {
-			return nil, common.GetAssertError("float64", resp.Data[i][1])
-		}
-		kline[i].Open = openPrice
-
-		maxPrice, ok := resp.Data[i][2].(float64)
-		if !ok {
-			return nil, common.GetAssertError("float64", resp.Data[i][2])
-		}
-		kline[i].High = maxPrice
-
-		minPrice, ok := resp.Data[i][3].(float64)
-		if !ok {
-			return nil, common.GetAssertError("float64", resp.Data[i][3])
-		}
-		kline[i].Low = minPrice
-
-		closePrice, ok := resp.Data[i][4].(float64)
-		if !ok {
-			return nil, common.GetAssertError("float64", resp.Data[i][4])
-		}
-		kline[i].Close = closePrice
-
-		volume, ok := resp.Data[i][5].(float64)
-		if !ok {
-			return nil, common.GetAssertError("float64", resp.Data[i][5])
-		}
-		kline[i].Volume = volume
 	}
 	return kline, nil
-}
-
-// GetFuturesFundingRate get funding rate list
-func (k *Kucoin) GetFuturesFundingRate(ctx context.Context, symbol string, startAt, endAt, offSet time.Time, limit int64) ([]FuturesFundingRate, error) {
-	resp := struct {
-		Data struct {
-			List    []FuturesFundingRate `json:"dataList"`
-			HasMore bool                 `json:"hasMore"`
-		} `json:"data"`
-		Error
-	}{}
-
-	params := url.Values{}
-	if symbol == "" {
-		return resp.Data.List, errors.New("symbol can't be empty")
-	}
-	params.Set("symbol", symbol)
-	if !startAt.IsZero() {
-		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
-	}
-	if !endAt.IsZero() {
-		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
-	}
-	if !offSet.IsZero() {
-		params.Set("offset", strconv.FormatInt(offSet.UnixMilli(), 10))
-	}
-	if limit != 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
-	}
-	return resp.Data.List, k.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues(fmt.Sprintf(kucoinFuturesGetFundingRate, symbol), params), publicSpotRate, &resp)
-}
-
-// GetFuturesCurrentFundingRate get current funding rate
-func (k *Kucoin) GetFuturesCurrentFundingRate(ctx context.Context, symbol string) (FuturesFundingRate, error) {
-	resp := struct {
-		Data FuturesFundingRate `json:"data"`
-		Error
-	}{}
-
-	if symbol == "" {
-		return resp.Data, errors.New("symbol can't be empty")
-	}
-	return resp.Data, k.SendHTTPRequest(ctx, exchange.RestFutures, fmt.Sprintf(kucoinFuturesGetCurrentFundingRate, symbol), publicSpotRate, &resp)
-}
-
-// GetFuturesCurrentFundingRate get current funding rate
-func (k *Kucoin) GetFuturesContractMarkPrice(ctx context.Context, symbol string) (FuturesMarkPrice, error) {
-	resp := struct {
-		Data FuturesMarkPrice `json:"data"`
-		Error
-	}{}
-
-	if symbol == "" {
-		return resp.Data, errors.New("symbol can't be empty")
-	}
-	return resp.Data, k.SendHTTPRequest(ctx, exchange.RestFutures, fmt.Sprintf(kucoinFuturesGetContractMarkPrice, symbol), publicSpotRate, &resp)
 }
 
 func processFuturesOB(ob [][2]float64) ([]orderbook.Item, error) {

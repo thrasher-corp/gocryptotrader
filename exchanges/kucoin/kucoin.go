@@ -211,7 +211,7 @@ func processOB(ob [][2]string) ([]orderbook.Item, error) {
 	return o, nil
 }
 
-func constructOrderbook(o *futuresOrderbookResponse) (*Orderbook, error) {
+func constructOrderbook(o *orderbookResponse) (*Orderbook, error) {
 	var (
 		s   Orderbook
 		err error

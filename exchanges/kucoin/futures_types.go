@@ -14,8 +14,8 @@ type Contract struct {
 	RootSymbol              string             `json:"rootSymbol"`
 	ContractType            string             `json:"type"`
 	FirstOpenDate           kucoinTimeMilliSec `json:"firstOpenDate"`
-	ExpireDate              string             `json:"expireDate"`
-	SettleDate              string             `json:"settleDate"`
+	ExpireDate              kucoinTimeMilliSec `json:"expireDate"`
+	SettleDate              kucoinTimeMilliSec `json:"settleDate"`
 	BaseCurrency            string             `json:"baseCurrency"`
 	QuoteCurrency           string             `json:"quoteCurrency"`
 	SettleCurrency          string             `json:"settleCurrency"`
@@ -34,7 +34,7 @@ type Contract struct {
 	TakerFeeRate            float64            `json:"takerFeeRate"`
 	TakerFixFee             float64            `json:"takerFixFee"`
 	MakerFixFee             float64            `json:"makerFixFee"`
-	SettlementFeeRate       float64            `json:"settlementFeeRate"`
+	SettlementFee           float64            `json:"settlementFee"`
 	IsDeleverage            bool               `json:"isDeleverage"`
 	IsQuanto                bool               `json:"isQuanto"`
 	IsInverse               bool               `json:"isInverse"`
@@ -105,15 +105,37 @@ type FuturesTrade struct {
 	FilledTime   kucoinTimeNanoSec `json:"ts"`
 }
 
-// RiskLimitInfo store contract risk limit details
-type RiskLimitInfo struct {
-	Symbol                string  `json:"symbol"`
-	Level                 int64   `json:"level"`
-	MaxRiskLimit          int64   `json:"maxRiskLimit"`
-	MinRiskLimit          int64   `json:"minRiskLimit"`
-	MaxLeverage           float64 `json:"maxLeverage"`
-	InitialMarginRate     float64 `json:"initialMarginRate"`
-	MaintenanceMarginRate float64 `json:"maintenanceMarginRate"`
+// FuturesInterestRate stores interest rate data
+type FuturesInterestRate struct {
+	Symbol      string             `json:"symbol"`
+	TimePoint   kucoinTimeMilliSec `json:"timePoint"`
+	Value       float64            `json:"value"`
+	Granularity int64              `json:"granularity"`
+}
+
+// Decomposion stores decomposion data
+type Decomposion struct {
+	Exchange string  `json:"exchange"`
+	Price    float64 `json:"price"`
+	Weight   float64 `json:"weight"`
+}
+
+// FuturesIndex stores index data
+type FuturesIndex struct {
+	FuturesInterestRate
+	DecomposionList []Decomposion `json:"decomposionList"`
+}
+
+// FuturesMarkPrice stores mark price data
+type FuturesMarkPrice struct {
+	FuturesInterestRate
+	IndexPrice float64 `json:"indexPrice"`
+}
+
+// FuturesFundingRate stores funding rate data
+type FuturesFundingRate struct {
+	FuturesInterestRate
+	PredictedValue float64 `json:"predictedValue"`
 }
 
 // FuturesKline stores kline data
@@ -124,23 +146,4 @@ type FuturesKline struct {
 	High      float64
 	Low       float64
 	Volume    float64
-}
-
-type baseStruct struct {
-	Symbol    string                `json:"symbol"`
-	TimePoint kucoinTimeMilliSecStr `json:"timePoint"`
-	Value     float64               `json:"value,string"`
-}
-
-// FuturesFundingRate stores funding rate data
-type FuturesFundingRate struct {
-	baseStruct
-	Granularity    string  `json:"granularity"`
-	PredictedValue float64 `json:"predictedValue,string"`
-}
-
-// FuturesMarkPrice stores mark price data
-type FuturesMarkPrice struct {
-	baseStruct
-	IndexPrice float64 `json:"indexPrice,string"`
 }
