@@ -1140,7 +1140,7 @@ func TestGetFuturesOpenContracts(t *testing.T) {
 func TestGetFuturesContract(t *testing.T) {
 	t.Parallel()
 
-	_, err := k.GetFuturesContract(context.Background(), "BTCUSDTM")
+	_, err := k.GetFuturesContract(context.Background(), "XBTUSDTM")
 	if err != nil {
 		t.Error("GetFuturesContract() error", err)
 	}
@@ -1149,7 +1149,7 @@ func TestGetFuturesContract(t *testing.T) {
 func TestGetFuturesRealTimeTicker(t *testing.T) {
 	t.Parallel()
 
-	_, err := k.GetFuturesRealTimeTicker(context.Background(), "BTCUSDTM")
+	_, err := k.GetFuturesRealTimeTicker(context.Background(), "XBTUSDTM")
 	if err != nil {
 		t.Error("GetFuturesRealTimeTicker() error", err)
 	}
@@ -1158,7 +1158,7 @@ func TestGetFuturesRealTimeTicker(t *testing.T) {
 func TestGetFuturesOrderbook(t *testing.T) {
 	t.Parallel()
 
-	_, err := k.GetFuturesOrderbook(context.Background(), "BTCUSDTM")
+	_, err := k.GetFuturesOrderbook(context.Background(), "XBTUSDTM")
 	if err != nil {
 		t.Error("GetFuturesOrderbook() error", err)
 	}
@@ -1167,7 +1167,7 @@ func TestGetFuturesOrderbook(t *testing.T) {
 func TestGetFuturesPartOrderbook20(t *testing.T) {
 	t.Parallel()
 
-	_, err := k.GetFuturesPartOrderbook20(context.Background(), "BTCUSDTM")
+	_, err := k.GetFuturesPartOrderbook20(context.Background(), "XBTUSDTM")
 	if err != nil {
 		t.Error("GetFuturesPartOrderbook20() error", err)
 	}
@@ -1176,7 +1176,7 @@ func TestGetFuturesPartOrderbook20(t *testing.T) {
 func TestGetFuturesPartOrderbook100(t *testing.T) {
 	t.Parallel()
 
-	_, err := k.GetFuturesPartOrderbook100(context.Background(), "BTCUSDTM")
+	_, err := k.GetFuturesPartOrderbook100(context.Background(), "XBTUSDTM")
 	if err != nil {
 		t.Error("GetFuturesPartOrderbook100() error", err)
 	}
@@ -1185,7 +1185,7 @@ func TestGetFuturesPartOrderbook100(t *testing.T) {
 func TestGetFuturesTradeHistory(t *testing.T) {
 	t.Parallel()
 
-	_, err := k.GetFuturesTradeHistory(context.Background(), "BTCUSDTM")
+	_, err := k.GetFuturesTradeHistory(context.Background(), "XBTUSDTM")
 	if err != nil {
 		t.Error("GetFuturesTradeHistory() error", err)
 	}
@@ -1194,7 +1194,7 @@ func TestGetFuturesTradeHistory(t *testing.T) {
 func TestGetFuturesInterestRate(t *testing.T) {
 	t.Parallel()
 
-	_, err := k.GetFuturesInterestRate(context.Background(), "BTCUSDTM", time.Time{}, time.Time{}, false, false, 0, 0)
+	_, err := k.GetFuturesInterestRate(context.Background(), "XBTUSDTM", time.Time{}, time.Time{}, false, false, 0, 0)
 	if err != nil {
 		t.Error("GetFuturesInterestRate() error", err)
 	}
@@ -1203,7 +1203,7 @@ func TestGetFuturesInterestRate(t *testing.T) {
 func TestGetFuturesCurrentMarkPrice(t *testing.T) {
 	t.Parallel()
 
-	_, err := k.GetFuturesCurrentMarkPrice(context.Background(), "BTCUSDTM")
+	_, err := k.GetFuturesCurrentMarkPrice(context.Background(), "XBTUSDTM")
 	if err != nil {
 		t.Error("GetFuturesCurrentMarkPrice() error", err)
 	}
@@ -1212,7 +1212,7 @@ func TestGetFuturesCurrentMarkPrice(t *testing.T) {
 func TestGetFuturesPremiumIndex(t *testing.T) {
 	t.Parallel()
 
-	_, err := k.GetFuturesPremiumIndex(context.Background(), "BTCUSDTM", time.Time{}, time.Time{}, false, false, 0, 0)
+	_, err := k.GetFuturesPremiumIndex(context.Background(), "XBTUSDTM", time.Time{}, time.Time{}, false, false, 0, 0)
 	if err != nil {
 		t.Error("GetFuturesPremiumIndex() error", err)
 	}
@@ -1221,7 +1221,7 @@ func TestGetFuturesPremiumIndex(t *testing.T) {
 func TestGetFuturesCurrentFundingRate(t *testing.T) {
 	t.Parallel()
 
-	_, err := k.GetFuturesCurrentFundingRate(context.Background(), "BTCUSDTM")
+	_, err := k.GetFuturesCurrentFundingRate(context.Background(), "XBTUSDTM")
 	if err != nil {
 		t.Error("GetFuturesCurrentFundingRate() error", err)
 	}
@@ -1230,7 +1230,7 @@ func TestGetFuturesCurrentFundingRate(t *testing.T) {
 func TestGetFuturesServerTime(t *testing.T) {
 	t.Parallel()
 
-	_, err := k.GetFuturesServerTime(context.Background(), "BTCUSDTM")
+	_, err := k.GetFuturesServerTime(context.Background(), "XBTUSDTM")
 	if err != nil {
 		t.Error("GetFuturesServerTime() error", err)
 	}
@@ -1239,7 +1239,7 @@ func TestGetFuturesServerTime(t *testing.T) {
 func TestGetFuturesServiceStatus(t *testing.T) {
 	t.Parallel()
 
-	_, _, err := k.GetFuturesServiceStatus(context.Background(), "BTCUSDTM")
+	_, _, err := k.GetFuturesServiceStatus(context.Background(), "XBTUSDTM")
 	if err != nil {
 		t.Error("GetFuturesServiceStatus() error", err)
 	}
@@ -1248,7 +1248,7 @@ func TestGetFuturesServiceStatus(t *testing.T) {
 func TestGetFuturesKline(t *testing.T) {
 	t.Parallel()
 
-	_, err := k.GetFuturesKline(context.Background(), "30", "BTCUSDTM", time.Time{}, time.Time{})
+	_, err := k.GetFuturesKline(context.Background(), "30", "XBTUSDTM", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error("GetFuturesKline() error", err)
 	}
