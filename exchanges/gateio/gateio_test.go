@@ -1496,7 +1496,7 @@ var createCrossMarginBorrowLoanJSON = `{	"id": "17",	"create_time": 162038169615
 
 func TestCreateCrossMarginBorrowLoan(t *testing.T) {
 	t.Parallel()
-	var response CrossMarginBorrowLoanResponse
+	var response CrossMarginLoanResponse
 	if err := json.Unmarshal([]byte(createCrossMarginBorrowLoanJSON), &response); err != nil {
 		t.Errorf("%s error while deserializing to CrossMarginBorrowLoanResponse %v", g.Name, err)
 	}
@@ -1508,6 +1508,81 @@ func TestCreateCrossMarginBorrowLoan(t *testing.T) {
 		Amount:   3,
 	}); err != nil {
 		t.Errorf("%s CreateCrossMarginBorrowLoan() error %v", g.Name, err)
+	}
+}
+
+func TestGetCrossMarginBorrowHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.GetCrossMarginBorrowHistory(context.Background(), 1, currency.BTC, 0, 0, false); err != nil {
+		t.Errorf("%s GetCrossMarginBorrowHistory() error %v", g.Name, err)
+	}
+}
+
+func TestGetSingleBorrowLoanDetail(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.GetSingleBorrowLoanDetail(context.Background(), "1234"); err != nil {
+		t.Errorf("%s GetSingleBorrowLoanDetail() error %v", g.Name, err)
+	}
+}
+
+var executeRepayment = `{"id": "17","create_time": 1620381696159,  "update_time": 1620381696159,  "currency": "EOS",  "amount": "110.553635",  "text": "web",  "status": 2,  "repaid": "110.506649705159",  "repaid_interest": "0.046985294841",  "unpaid_interest": "0.0000074393366667"}`
+
+func TestExecuteRepayment(t *testing.T) {
+	t.Parallel()
+	var response CrossMarginLoanResponse
+	if err := json.Unmarshal([]byte(executeRepayment), &response); err != nil {
+		t.Errorf("%s error while deserializing to CrossMarginLoanResponse error %v", g.Name, err)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.ExecuteRepayment(context.Background(), CurrencyAndAmount{
+		Currency: currency.USD,
+		Amount:   1234.55,
+	}); err != nil {
+		t.Errorf("%s ExecuteRepayment() error %v", g.Name, err)
+	}
+}
+
+var getCrossMarginRepaymentJSON = `{"id": "51","create_time": 1620696347990, "loan_id": "30",  "currency": "BTC",  "principal": "5.385542",  "interest": "0.000044879516"}`
+
+func TestGetCrossMarginRepayments(t *testing.T) {
+	t.Parallel()
+	var response RepaymentHistoryItem
+	if err := json.Unmarshal([]byte(getCrossMarginRepaymentJSON), &response); err != nil {
+		t.Errorf("%s error while deserializing to RepaymentHistoryItem error %v", g.Name, err)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.GetCrossMarginRepayments(context.Background(), currency.BTC, "123", 0, 0, false); err != nil {
+		t.Errorf("%s GetCrossMarginRepayments() error %v", g.Name, err)
+	}
+}
+
+func TestGetMaxTransferableAmountForSpecificCrossMarginCurrency(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.GetMaxTransferableAmountForSpecificCrossMarginCurrency(context.Background(), currency.BTC); err != nil {
+		t.Errorf("%s GetMaxTransferableAmountForSpecificCrossMarginCurrency() error %v", g.Name, err)
+	}
+}
+
+func TestGetMaxBorrowableAmountForSpecificCrossMarginCurrency(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.GetMaxBorrowableAmountForSpecificCrossMarginCurrency(context.Background(), currency.BTC); err != nil {
+		t.Errorf("%s GetMaxBorrowableAmountForSpecificCrossMarginCurrency() error %v", g.Name, err)
 	}
 }
 
@@ -1869,6 +1944,38 @@ func TestGetSupportedFlashSwapCurrencies(t *testing.T) {
 	t.Parallel()
 	if _, er := g.GetSupportedFlashSwapCurrencies(context.Background()); er != nil {
 		t.Errorf("%s GetSupportedFlashSwapCurrencies() error %v", g.Name, er)
+	}
+}
+
+var flashSwapOrderResponseJSON = `{"id": 54646,  "create_time": 1651116876378,  "update_time": 1651116876378,  "user_id": 11135567,  "sell_currency": "BTC",  "sell_amount": "0.01",  "buy_currency": "USDT",  "buy_amount": "10",  "price": "100",  "status": 1}`
+
+func TestCreateFlashSwapOrder(t *testing.T) {
+	t.Parallel()
+	var response FlashSwapOrderResponse
+	if err := json.Unmarshal([]byte(flashSwapOrderResponseJSON), &response); err != nil {
+		t.Errorf("%s error while deserializing to FlashSwapOrderResponse %v", g.Name, err)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.CreateFlashSwapOrder(context.Background(), FlashSwapOrderParams{
+		PreviewID:    "1234",
+		SellCurrency: currency.USDT,
+		BuyCurrency:  currency.BTC,
+		BuyAmount:    34234,
+		SellAmount:   34234,
+	}); err != nil && !strings.Contains(err.Error(), "The result of preview is expired") {
+		t.Errorf("%s CreateFlashSwapOrder() error %v", g.Name, err)
+	}
+}
+
+func TestGetAllFlashSwapOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.GetAllFlashSwapOrders(context.Background(), 1, currency.EMPTYCODE, currency.EMPTYCODE, true, 0, 0); err != nil {
+		t.Errorf("%s GetAllFlashSwapOrders() error %v", g.Name, err)
 	}
 }
 

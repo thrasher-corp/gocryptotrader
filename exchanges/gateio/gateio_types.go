@@ -1634,8 +1634,8 @@ type CrossMarginBorrowLoanParams struct {
 	Text     string        `json:"text"`
 }
 
-// CrossMarginBorrowLoanResponse represents a cross margin borrow loan response
-type CrossMarginBorrowLoanResponse struct {
+// CrossMarginLoanResponse represents a cross margin borrow loan response
+type CrossMarginLoanResponse struct {
 	ID             string    `json:"id"`
 	CreateTime     time.Time `json:"create_time"`
 	UpdateTime     time.Time `json:"update_time"`
@@ -1646,4 +1646,43 @@ type CrossMarginBorrowLoanResponse struct {
 	Repaid         string    `json:"repaid"`
 	RepaidInterest float64   `json:"repaid_interest,string"`
 	UnpaidInterest float64   `json:"unpaid_interest,string"`
+}
+
+// CurrencyAndAmount represents request parameters for repayment
+type CurrencyAndAmount struct {
+	Currency currency.Code `json:"currency"`
+	Amount   float64       `json:"amount,string"`
+}
+
+// RepaymentHistoryItem represents an item in a repayment history.
+type RepaymentHistoryItem struct {
+	ID         string    `json:"id"`
+	CreateTime time.Time `json:"create_time"`
+	LoanID     string    `json:"loan_id"`
+	Currency   string    `json:"currency"`
+	Principal  float32   `json:"principal,string"`
+	Interest   float32   `json:"interest,string"`
+}
+
+// FlashSwapOrderParams represents create flash swap order request parameters.
+type FlashSwapOrderParams struct {
+	PreviewID    string        `json:"preview_id"`
+	SellCurrency currency.Code `json:"sell_currency"`
+	SellAmount   float64       `json:"sell_amount,string,omitempty"`
+	BuyCurrency  currency.Code `json:"buy_currency"`
+	BuyAmount    float64       `json:"buy_amount,string,omitempty"`
+}
+
+// FlashSwapOrderResponse represents create flash swap order response
+type FlashSwapOrderResponse struct {
+	ID           int       `json:"id"`
+	CreateTime   time.Time `json:"create_time"`
+	UpdateTime   time.Time `json:"update_time"`
+	UserID       int       `json:"user_id"`
+	SellCurrency string    `json:"sell_currency"`
+	SellAmount   float64   `json:"sell_amount,string"`
+	BuyCurrency  string    `json:"buy_currency"`
+	BuyAmount    float64   `json:"buy_amount,string"`
+	Price        float64   `json:"price,string"`
+	Status       int       `json:"status"`
 }

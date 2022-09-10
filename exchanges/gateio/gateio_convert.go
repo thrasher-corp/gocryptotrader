@@ -8,10 +8,48 @@ import (
 )
 
 // UnmarshalJSON decerializes json, and timestamp information.
-func (a *TriggerTimeResponse) UnmarshalJSON(data []byte) error {
+func (a *FlashSwapOrderResponse) UnmarshalJSON(data []byte) error {
+	type Alias FlashSwapOrderResponse
 	chil := &struct {
+		*Alias
+		CreateTime int64 `json:"create_time"`
+		UpdateTime int64 `json:"update_time"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
+	}
+	a.CreateTime = time.UnixMilli(chil.CreateTime)
+	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
+	return nil
+}
+
+// UnmarshalJSON decerializes json, and timestamp information.
+func (a *RepaymentHistoryItem) UnmarshalJSON(data []byte) error {
+	type Alias RepaymentHistoryItem
+	chil := &struct {
+		*Alias
+		CreateTime int64 `json:"create_time"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.CreateTime = time.Unix(chil.CreateTime, 0)
+	return nil
+}
+
+// UnmarshalJSON decerializes json, and timestamp information.
+func (a *TriggerTimeResponse) UnmarshalJSON(data []byte) error {
+	type Alias TriggerTimeResponse
+	chil := &struct {
+		*Alias
 		TriggerTime int64 `json:"trigger_time,string"`
-	}{}
+	}{
+		Alias: (*Alias)(a),
+	}
 	if er := json.Unmarshal(data, chil); er != nil {
 		return er
 	}
@@ -36,8 +74,8 @@ func (a *LoanRepaymentRecord) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalJSON decerializes json, and timestamp information.
-func (a *CrossMarginBorrowLoanResponse) UnmarshalJSON(data []byte) error {
-	type Alias CrossMarginBorrowLoanResponse
+func (a *CrossMarginLoanResponse) UnmarshalJSON(data []byte) error {
+	type Alias CrossMarginLoanResponse
 	chil := &struct {
 		*Alias
 		CreateTime int64 `json:"create_time"`

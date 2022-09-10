@@ -68,21 +68,24 @@ const (
 	walletTotalBalance                  = "wallet/total_balance"
 
 	// Margin
-	marginCurrencyPairs    = "margin/currency_pairs"
-	marginFundingBook      = "margin/funding_book"
-	marginAccount          = "margin/accounts"
-	marginAccountBook      = "margin/account_book"
-	marginFundingAccounts  = "margin/funding_accounts"
-	marginLoans            = "margin/loans"
-	marginMergedLoans      = "margin/merged_loans"
-	marginLoanRecords      = "margin/loan_records"
-	marginAutoRepay        = "margin/auto_repay"
-	marginTransfer         = "margin/transferable"
-	marginBorrowable       = "margin/borrowable"
-	crossMarginCurrencies  = "margin/cross/currencies"
-	crossMarginAccounts    = "margin/cross/accounts"
-	crossMarginAccountBook = "margin/cross/account_book"
-	crossMarginLoans       = "margin/cross/loans"
+	marginCurrencyPairs     = "margin/currency_pairs"
+	marginFundingBook       = "margin/funding_book"
+	marginAccount           = "margin/accounts"
+	marginAccountBook       = "margin/account_book"
+	marginFundingAccounts   = "margin/funding_accounts"
+	marginLoans             = "margin/loans"
+	marginMergedLoans       = "margin/merged_loans"
+	marginLoanRecords       = "margin/loan_records"
+	marginAutoRepay         = "margin/auto_repay"
+	marginTransfer          = "margin/transferable"
+	marginBorrowable        = "margin/borrowable"
+	crossMarginCurrencies   = "margin/cross/currencies"
+	crossMarginAccounts     = "margin/cross/accounts"
+	crossMarginAccountBook  = "margin/cross/account_book"
+	crossMarginLoans        = "margin/cross/loans"
+	crossMarginRepayments   = "margin/cross/repayments"
+	crossMarginTransferable = "margin/cross/transferable"
+	crossMarginBorrowable   = "margin/cross/borrowable"
 
 	// Futures
 	futuresSettleContracts    = "futures/%s/contracts"
@@ -125,6 +128,7 @@ const (
 
 	// Flash Swap
 	flashSwapCurrencies = "flash_swap/currencies"
+	flashSwapOrders     = "flash_swap/orders"
 
 	// Withdrawals
 	withdrawal                     = "withdrawals"
@@ -177,6 +181,7 @@ var (
 	errInvalidLoanID                       = errors.New("missing loan ID")
 	errInvalidRepayMode                    = errors.New("invalid repay mode specified, must be 'all' or 'partial'")
 	errInvalidAutoRepaymentStatus          = errors.New("invalid auto repayment status response")
+	errMissingPreviewID                    = errors.New("Missing required parameter: preview_id")
 )
 
 // Gateio is the overarching type across this package
@@ -2103,18 +2108,109 @@ func (g *Gateio) GetCrossMarginAccountChangeHistory(ctx context.Context, currenc
 
 // CreateCrossMarginBoBorrowLoan create a cross margin borrow loan
 // Borrow amount cannot be less than currency minimum borrow amount
-func (g *Gateio) CreateCrossMarginBorrowLoan(ctx context.Context, arg CrossMarginBorrowLoanParams) (*CrossMarginBorrowLoanResponse, error) {
+func (g *Gateio) CreateCrossMarginBorrowLoan(ctx context.Context, arg CrossMarginBorrowLoanParams) (*CrossMarginLoanResponse, error) {
 	if arg.Currency.IsEmpty() {
 		return nil, errInvalidCurrency
 	}
 	if arg.Amount <= 0 {
 		return nil, fmt.Errorf("%v, borrow amount must be greater than 0", errInvalidAmount)
 	}
-	var response CrossMarginBorrowLoanResponse
+	var response CrossMarginLoanResponse
 	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, crossMarginLoans, nil, &arg, &response)
 }
 
-// GetCrossMarginBorrowHistory(ctx context.Context, )
+// ExecuteRepayment when the liquidity of the currency is insufficient and the transaction risk is high, the currency will be disabled,
+// and funds cannot be transferred.When the available balance of cross-margin is insufficient, the balance of the spot account can be used for repayment.
+// Please ensure that the balance of the spot account is sufficient, and system uses cross-margin account for repayment first
+func (g *Gateio) ExecuteRepayment(ctx context.Context, arg CurrencyAndAmount) ([]CrossMarginLoanResponse, error) {
+	if arg.Currency.IsEmpty() {
+		return nil, errInvalidCurrency
+	}
+	if arg.Amount <= 0 {
+		return nil, fmt.Errorf("%v, repay amount must be greater than 0", errInvalidAmount)
+	}
+	var response []CrossMarginLoanResponse
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, crossMarginRepayments, nil, &arg, &response)
+}
+
+// GetCrossMarginRepayments retrives list of cross margin repayments
+func (g *Gateio) GetCrossMarginRepayments(ctx context.Context, ccy currency.Code, loanID string, limit, offset int, reverse bool) ([]CrossMarginLoanResponse, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	if loanID != "" {
+		params.Set("loanId", loanID)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(limit))
+	}
+	if offset > 0 {
+		params.Set("offset", strconv.Itoa(offset))
+	}
+	if reverse {
+		params.Set("reverse", "true")
+	}
+	var response []CrossMarginLoanResponse
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, crossMarginRepayments, params, nil, &response)
+}
+
+// GetMaxTransferableAmountForSpecificCrossMarginCurrency get the max transferable amount for a specific cross margin currency
+func (g *Gateio) GetMaxTransferableAmountForSpecificCrossMarginCurrency(ctx context.Context, ccy currency.Code) (*CurrencyAndAmount, error) {
+	if ccy.IsEmpty() {
+		return nil, errInvalidCurrency
+	}
+	var response CurrencyAndAmount
+	params := url.Values{}
+	params.Set("currency", ccy.String())
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, crossMarginTransferable, params, nil, &response)
+}
+
+// GetMaxBorrowableAmountForSpecificCrossMarginCurrency returns the max borrowable amount for a specific cross margin currency
+func (g *Gateio) GetMaxBorrowableAmountForSpecificCrossMarginCurrency(ctx context.Context, ccy currency.Code) (*CurrencyAndAmount, error) {
+	if ccy.IsEmpty() {
+		return nil, errInvalidCurrency
+	}
+	var response CurrencyAndAmount
+	params := url.Values{}
+	params.Set("currency", ccy.String())
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, crossMarginBorrowable, params, nil, &response)
+}
+
+// GetCrossMarginBorrowHistory retrives cross margin borrow history sorted by creation time in descending order by default.
+// Set reverse=false to return ascending results.
+func (g *Gateio) GetCrossMarginBorrowHistory(ctx context.Context, status uint, currency currency.Code, limit, offset int, reverse bool) ([]CrossMarginLoanResponse, error) {
+	params := url.Values{}
+	if !(status >= 1 && status <= 3) {
+		return nil, fmt.Errorf("%s %v, only allowed status values are 1:failed, 2:borrowed, and 3:repayment", g.Name, errInvalidOrderStatus)
+	}
+	params.Set("status", strconv.Itoa(int(status)))
+	if !currency.IsEmpty() {
+		params.Set("currency", currency.String())
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(limit))
+	}
+	if offset > 0 {
+		params.Set("offset", strconv.Itoa(offset))
+	}
+	if reverse {
+		params.Set("reverse", strconv.FormatBool(reverse))
+	}
+	var response []CrossMarginLoanResponse
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, crossMarginLoans, params, nil, &response)
+}
+
+// GetSingleBorrowLoanDetail retrieve single borrow loan detail
+func (g *Gateio) GetSingleBorrowLoanDetail(ctx context.Context, loanID string) (*CrossMarginLoanResponse, error) {
+	if loanID == "" {
+		return nil, errInvalidLoanID
+	}
+	var response CrossMarginLoanResponse
+	path := fmt.Sprintf("%s/%s", crossMarginLoans, loanID)
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &response)
+}
+
 // *********************************Futures***************************************
 
 // GetAllFutureContracts  retrives list all futures contracts
@@ -2954,4 +3050,49 @@ func (g *Gateio) GetOptionsTradeHistory(ctx context.Context, contract /*C is cal
 func (g *Gateio) GetSupportedFlashSwapCurrencies(ctx context.Context) ([]SwapCurrencies, error) {
 	var currencies []SwapCurrencies
 	return currencies, g.SendHTTPRequest(ctx, exchange.RestSpot, flashSwapCurrencies, &currencies)
+}
+
+// CreateFlashSwapOrder creates a new flash swap order
+// initiate a flash swap preview in advance because order creation requires a preview result
+func (g *Gateio) CreateFlashSwapOrder(ctx context.Context, arg FlashSwapOrderParams) (*FlashSwapOrderResponse, error) {
+	if arg.PreviewID == "" {
+		return nil, errMissingPreviewID
+	}
+	if arg.BuyCurrency.IsEmpty() {
+		return nil, fmt.Errorf("%v, buy currency can not empty", errInvalidCurrency)
+	}
+	if arg.SellCurrency.IsEmpty() {
+		return nil, fmt.Errorf("%v, sell currency can not empty", errInvalidCurrency)
+	}
+	if arg.SellAmount <= 0 {
+		return nil, fmt.Errorf("%v, sell_amount can not be less than or equal to 0", errInvalidAmount)
+	}
+	if arg.BuyAmount <= 0 {
+		return nil, fmt.Errorf("%v, buy_amount amount can not be less than or equal to 0", errInvalidAmount)
+	}
+	var response FlashSwapOrderResponse
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, flashSwapOrders, nil, &arg, &response)
+}
+
+// GetAllFlashSwapOrders retrives list of flash swap orders filtered by the params
+func (g *Gateio) GetAllFlashSwapOrders(ctx context.Context, status int, sellCurrency, buyCurrency currency.Code, reverse bool, limit, page int) ([]FlashSwapOrderResponse, error) {
+	params := url.Values{}
+	if status == 1 || status == 2 {
+		params.Set("status", strconv.Itoa(status))
+	}
+	if !sellCurrency.IsEmpty() {
+		params.Set("sell_currency", sellCurrency.String())
+	}
+	if !buyCurrency.IsEmpty() {
+		params.Set("buy_currency", buyCurrency.String())
+	}
+	params.Set("reverse", strconv.FormatBool(reverse))
+	if page > 0 {
+		params.Set("page", strconv.Itoa(page))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(limit))
+	}
+	var response []FlashSwapOrderResponse
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, flashSwapOrders, params, nil, &response)
 }
