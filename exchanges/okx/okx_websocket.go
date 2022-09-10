@@ -1051,7 +1051,6 @@ func (ok *Okx) wsProcessCandles(intermediate *WebsocketDataResponse) error {
 		a = ok.GuessAssetTypeFromInstrumentID(intermediate.Argument.InstrumentID)
 	}
 	candleInterval := strings.TrimPrefix(intermediate.Argument.Channel, candle)
-	candlesticks := make([]stream.KlineData, len(response.Data))
 	for i := range response.Data {
 		candles, okay := (intermediate.Data[i]).([7]string)
 		if !okay {
@@ -1061,7 +1060,7 @@ func (ok *Okx) wsProcessCandles(intermediate *WebsocketDataResponse) error {
 		if err != nil {
 			return err
 		}
-		candle := stream.KlineData{
+		candle := &stream.KlineData{
 			Pair:      pair,
 			Exchange:  ok.Name,
 			Timestamp: time.UnixMilli(int64(timestamp)),
@@ -1088,9 +1087,8 @@ func (ok *Okx) wsProcessCandles(intermediate *WebsocketDataResponse) error {
 		if err != nil {
 			return err
 		}
-		candlesticks[i] = candle
+		ok.Websocket.DataHandler <- candle
 	}
-	ok.Websocket.DataHandler <- candlesticks
 	return nil
 }
 
@@ -1100,7 +1098,6 @@ func (ok *Okx) wsProcessTickers(data []byte) error {
 	if err := json.Unmarshal(data, &response); err != nil {
 		return err
 	}
-	tickerPrices := make([]ticker.Price, len(response.Data))
 	for i := range response.Data {
 		a := response.Data[i].InstrumentType
 		if a == asset.Empty {
@@ -1124,7 +1121,7 @@ func (ok *Okx) wsProcessTickers(data []byte) error {
 			baseVolume = response.Data[i].VolCcy24H
 			quoteVolume = response.Data[i].Vol24H
 		}
-		tickerPrices[i] = ticker.Price{
+		ok.Websocket.DataHandler <- &ticker.Price{
 			ExchangeName: ok.Name,
 			Open:         response.Data[i].Open24H,
 			Volume:       baseVolume,
@@ -1141,7 +1138,6 @@ func (ok *Okx) wsProcessTickers(data []byte) error {
 			LastUpdated:  response.Data[i].TickerDataGenerationTime,
 		}
 	}
-	ok.Websocket.DataHandler <- tickerPrices
 	return nil
 }
 
