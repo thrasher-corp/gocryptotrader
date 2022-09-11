@@ -147,3 +147,42 @@ type FuturesKline struct {
 	Low       float64
 	Volume    float64
 }
+
+type FuturesOrder struct {
+	ID             string             `json:"id"`
+	Symbol         string             `json:"symbol"`
+	OrderType      string             `json:"type"`
+	Side           string             `json:"side"`
+	Price          string             `json:"price"`
+	Size           float64            `json:"size"`
+	Value          float64            `json:"value,string"`
+	DealValue      float64            `json:"dealValue,string"`
+	DealSize       float64            `json:"dealSize"`
+	Stp            string             `json:"stp"`
+	Stop           string             `json:"stop"`
+	StopPriceType  string             `json:"stopPriceType"`
+	StopTriggered  bool               `json:"stopTriggered"`
+	StopPrice      float64            `json:"stopPrice"`
+	TimeInForce    string             `json:"timeInForce"`
+	PostOnly       bool               `json:"postOnly"`
+	Hidden         bool               `json:"hidden"`
+	Iceberg        bool               `json:"iceberg"`
+	Leverage       float64            `json:"leverage,string"`
+	ForceHold      bool               `json:"forceHold"`
+	CloseOrder     bool               `json:"closeOrder"`
+	VisibleSize    float64            `json:"visibleSize"`
+	ClientOid      string             `json:"clientOid"`
+	Remark         string             `json:"remark"`
+	Tags           string             `json:"tags"`
+	IsActive       bool               `json:"isActive"`
+	CancelExist    bool               `json:"cancelExist"`
+	CreatedAt      kucoinTimeMilliSec `json:"createdAt"`
+	UpdatedAt      kucoinTimeMilliSec `json:"updatedAt"`
+	EndAt          kucoinTimeMilliSec `json:"endAt"`
+	OrderTime      kucoinTimeNanoSec  `json:"orderTime"`
+	SettleCurrency string             `json:"settleCurrency"`
+	Status         string             `json:"status"`
+	FilledValue    float64            `json:"filledValue,string"`
+	FilledSize     float64            `json:"filledSize"`
+	ReduceOnly     bool               `json:"reduceOnly"`
+}

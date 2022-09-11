@@ -1253,3 +1253,63 @@ func TestGetFuturesKline(t *testing.T) {
 		t.Error("GetFuturesKline() error", err)
 	}
 }
+
+func TestPostFuturesOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	_, err := k.PostFuturesOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "XBTUSDM", "", "10", "", "", "", "", "5000", "", 1, 0, false, false, false, false, false, false)
+	if err != nil {
+		t.Error("PostFuturesOrder() error", err)
+	}
+}
+
+func TestCancelFuturesOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	_, err := k.CancelFuturesOrder(context.Background(), "5bd6e9286d99522a52e458de")
+	if err != nil {
+		t.Error("CancelFuturesOrder() error", err)
+	}
+}
+
+func TestCancelAllFuturesOpenOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	_, err := k.CancelAllFuturesOpenOrders(context.Background(), "XBTUSDM")
+	if err != nil {
+		t.Error("CancelAllFuturesOpenOrders() error", err)
+	}
+}
+
+func TestCancelAllFuturesStopOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	_, err := k.CancelAllFuturesStopOrders(context.Background(), "XBTUSDM")
+	if err != nil {
+		t.Error("CancelAllFuturesStopOrders() error", err)
+	}
+}
+
+func TestGetFuturesOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	_, err := k.GetFuturesOrders(context.Background(), "", "", "", "", time.Time{}, time.Time{})
+	if err != nil {
+		t.Error("GetFuturesOrders() error", err)
+	}
+}

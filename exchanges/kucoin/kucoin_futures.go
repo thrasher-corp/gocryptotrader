@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -16,6 +17,7 @@ import (
 const (
 	kucoinFuturesAPIURL = "https://api-futures.kucoin.com"
 
+	// Public market endpoints
 	kucoinFuturesOpenContracts    = "/api/v1/contracts/active"
 	kucoinFuturesContract         = "/api/v1/contracts/%s"
 	kucoinFuturesRealTimeTicker   = "/api/v1/ticker"
@@ -31,6 +33,11 @@ const (
 	kucoinFuturesServerTime       = "/api/v1/timestamp"
 	kucoinFuturesServiceStatus    = "/api/v1/status"
 	kucoinFuturesKline            = "/api/v1/kline/query"
+
+	// Authenticated endpoints
+	kucoinFuturesOrder                  = "/api/v1/orders"
+	kucoinFuturesCancelOrder            = "/api/v1/orders/%s"
+	kucoinFuturesCancelAllOpenStopOrder = "/api/v1/stopOrders"
 )
 
 // GetFuturesOpenContracts gets all open futures contract with its details
@@ -344,6 +351,163 @@ func (k *Kucoin) GetFuturesKline(ctx context.Context, granularity, symbol string
 		}
 	}
 	return kline, nil
+}
+
+// PostOrder used to place two types of futures orders: limit and market
+func (k *Kucoin) PostFuturesOrder(ctx context.Context, clientOID, side, symbol, orderType, leverage, remark, stop, stopPriceType, stopPrice, price, timeInForce string, size, visibleSize float64, reduceOnly, closeOrder, forceHold, postOnly, hidden, iceberg bool) (string, error) {
+	resp := struct {
+		Data struct {
+			OrderID string `json:"orderId"`
+		} `json:"data"`
+		Error
+	}{}
+
+	params := make(map[string]interface{})
+	if clientOID == "" {
+		return resp.Data.OrderID, errors.New("clientOid can't be empty")
+	}
+	params["clientOid"] = clientOID
+	if side == "" {
+		return resp.Data.OrderID, errors.New("side can't be empty")
+	}
+	params["side"] = side
+	if symbol == "" {
+		return resp.Data.OrderID, errors.New("symbol can't be empty")
+	}
+	params["symbol"] = symbol
+	if leverage == "" {
+		return resp.Data.OrderID, errors.New("leverage can't be empty")
+	}
+	params["leverage"] = leverage
+	if remark != "" {
+		params["remark"] = remark
+	}
+	if stop != "" {
+		params["stp"] = stop
+		if stopPriceType == "" {
+			return resp.Data.OrderID, errors.New("stopPriceType can't be empty")
+		}
+		params["stopPriceType"] = stopPriceType
+		if stopPrice == "" {
+			return resp.Data.OrderID, errors.New("stopPrice can't be empty")
+		}
+		params["stopPrice"] = stopPrice
+	}
+	if orderType == "limit" || orderType == "" {
+		if price == "" {
+			return resp.Data.OrderID, errors.New("price can't be empty")
+		}
+		params["price"] = price
+		if size <= 0 {
+			return resp.Data.OrderID, errors.New("size can't be zero or negative")
+		}
+		params["size"] = strconv.FormatFloat(size, 'f', -1, 64)
+		if timeInForce != "" {
+			params["timeInForce"] = timeInForce
+		}
+		params["postOnly"] = postOnly
+		params["hidden"] = hidden
+		params["iceberg"] = iceberg
+		if visibleSize > 0 {
+			params["visibleSize"] = strconv.FormatFloat(visibleSize, 'f', -1, 64)
+		}
+	} else if orderType == "market" {
+		if size > 0 {
+			params["size"] = strconv.FormatFloat(size, 'f', -1, 64)
+		}
+	} else {
+		return resp.Data.OrderID, errors.New("invalid orderType")
+	}
+
+	if orderType != "" {
+		params["type"] = orderType
+	}
+	params["reduceOnly"] = reduceOnly
+	params["closeOrder"] = closeOrder
+	params["forceHold"] = forceHold
+	return resp.Data.OrderID, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, kucoinFuturesOrder, params, publicSpotRate, &resp)
+}
+
+// CancelFuturesOrder used to cancel single order previously placed including a stop order
+func (k *Kucoin) CancelFuturesOrder(ctx context.Context, orderID string) ([]string, error) {
+	resp := struct {
+		Data struct {
+			CancelledOrderIDs []string `json:"cancelledOrderIds"`
+		} `json:"data"`
+		Error
+	}{}
+
+	if orderID == "" {
+		return resp.Data.CancelledOrderIDs, errors.New("orderID can't be empty")
+	}
+	return resp.Data.CancelledOrderIDs, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodDelete, fmt.Sprintf(kucoinFuturesCancelOrder, orderID), nil, publicSpotRate, &resp)
+}
+
+// CancelAllFuturesOpenOrders used to cancel all futures order excluding stop orders
+func (k *Kucoin) CancelAllFuturesOpenOrders(ctx context.Context, symbol string) ([]string, error) {
+	resp := struct {
+		Data struct {
+			CancelledOrderIDs []string `json:"cancelledOrderIds"`
+		} `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	return resp.Data.CancelledOrderIDs, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodDelete, common.EncodeURLValues(kucoinFuturesOrder, params), nil, publicSpotRate, &resp)
+}
+
+// CancelAllFuturesStopOrders used to cancel all untriggered stop orders
+func (k *Kucoin) CancelAllFuturesStopOrders(ctx context.Context, symbol string) ([]string, error) {
+	resp := struct {
+		Data struct {
+			CancelledOrderIDs []string `json:"cancelledOrderIds"`
+		} `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	return resp.Data.CancelledOrderIDs, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodDelete, common.EncodeURLValues(kucoinFuturesCancelAllOpenStopOrder, params), nil, publicSpotRate, &resp)
+}
+
+// GetFuturesOrders gets the user current futures order list
+func (k *Kucoin) GetFuturesOrders(ctx context.Context, status, symbol, side, orderType string, startAt, endAt time.Time) ([]FuturesOrder, error) {
+	resp := struct {
+		Data struct {
+			CurrentPage int64          `json:"currentPage"`
+			PageSize    int64          `json:"pageSize"`
+			TotalNum    int64          `json:"totalNum"`
+			TotalPage   int64          `json:"totalPage"`
+			Items       []FuturesOrder `json:"items"`
+		} `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if status != "" {
+		params.Set("status", status)
+	}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if side != "" {
+		params.Set("side", side)
+	}
+	if orderType != "" {
+		params.Set("type", orderType)
+	}
+	if !startAt.IsZero() {
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("startAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	return resp.Data.Items, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(kucoinFuturesOrder, params), nil, publicSpotRate, &resp)
 }
 
 func processFuturesOB(ob [][2]float64) ([]orderbook.Item, error) {
