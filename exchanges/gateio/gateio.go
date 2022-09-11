@@ -88,16 +88,29 @@ const (
 	crossMarginBorrowable   = "margin/cross/borrowable"
 
 	// Futures
-	futuresSettleContracts    = "futures/%s/contracts"
-	futuresOrderbook          = "futures/%s/order_book"
-	futuresTrades             = "futures/%s/trades"
-	futuresCandlesticks       = "futures/%s/candlesticks"
-	futuresTicker             = "futures/%s/tickers"
-	futuresFundingRate        = "futures/%s/funding_rate"
-	futuresInsuranceBalance   = "futures/%s/insurance"
-	futuresContractStats      = "futures/%s/contract_stats"
-	futuresIndexConstituent   = "futures/%s/index_constituents/%s"
-	futuresLiquidationHistory = "futures/%s/liq_orders"
+	futuresSettleContracts            = "futures/%s/contracts"
+	futuresOrderbook                  = "futures/%s/order_book"
+	futuresTrades                     = "futures/%s/trades"
+	futuresCandlesticks               = "futures/%s/candlesticks"
+	futuresTicker                     = "futures/%s/tickers"
+	futuresFundingRate                = "futures/%s/funding_rate"
+	futuresInsuranceBalance           = "futures/%s/insurance"
+	futuresContractStats              = "futures/%s/contract_stats"
+	futuresIndexConstituent           = "futures/%s/index_constituents/%s"
+	futuresLiquidationHistory         = "futures/%s/liq_orders"
+	futuresAccounts                   = "futures/%s/accounts"
+	futuresAccountBook                = "futures/%s/account_book"
+	futuresPositions                  = "futures/%s/positions"
+	futuresSinglePosition             = "futures/%s/positions/%s"        // {settle} and {contract} respectively
+	futuresUpdatePositionMargin       = "futures/%s/positions/%s/margin" // {settle} and {contract} respectively
+	futuresPositionsLeverage          = "futures/%s/positions/%s/leverage"
+	futuresPositionRiskLimit          = "futures/%s/positions/%s/risk_limit"
+	futuresDualMode                   = "futures/%s/dual_mode"
+	futuresDualModePositions          = "futures/%s/dual_comp/positions/%s" // {settle} and {contract}
+	futuresDualModePositionMargin     = "futures/%s/dual_comp/positions/%s/margin"
+	futuresDualModePositionLeverage   = "futures/%s/dual_comp/positions/%s/leverage" // {settle} and {contract} and respectively
+	futuresDualModePositionsRiskLimit = "futures/%s/dual_comp/positions/%s/risk_limit"
+	futuresOrders                     = "futures/%s/orders"
 
 	// Delivery
 	deliveryContracts        = "delivery/%s/contracts"
@@ -127,8 +140,9 @@ const (
 	optionsMyTrades              = "options/my_trades"
 
 	// Flash Swap
-	flashSwapCurrencies = "flash_swap/currencies"
-	flashSwapOrders     = "flash_swap/orders"
+	flashSwapCurrencies    = "flash_swap/currencies"
+	flashSwapOrders        = "flash_swap/orders"
+	flashSwapOrdersPreview = "flash_swap/orders/preview"
 
 	// Withdrawals
 	withdrawal                     = "withdrawals"
@@ -182,6 +196,9 @@ var (
 	errInvalidRepayMode                    = errors.New("invalid repay mode specified, must be 'all' or 'partial'")
 	errInvalidAutoRepaymentStatus          = errors.New("invalid auto repayment status response")
 	errMissingPreviewID                    = errors.New("Missing required parameter: preview_id")
+	errChangehasToBePositive               = errors.New("change has to be positive")
+	errInvalidLeverageValue                = errors.New("invalid leverage value")
+	errInvalidRiskLimit                    = errors.New("new position risk limit")
 )
 
 // Gateio is the overarching type across this package
@@ -2502,6 +2519,268 @@ func (g *Gateio) GetLiquidationHistory(ctx context.Context, settle string, contr
 	return histories, g.SendHTTPRequest(ctx, exchange.RestSpot, path, &histories)
 }
 
+// QueryFuturesAccount retrives futures account
+func (g *Gateio) QueryFuturesAccount(ctx context.Context, settle string) (*FuturesAccount, error) {
+	if !(settle == "btc" || settle == "usd" || settle == "usdt") {
+		return nil, errMissingSettleCurrency
+	}
+	path := fmt.Sprintf(futuresAccounts, settle)
+	var response FuturesAccount
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &response)
+}
+
+// GetFuturesAccountBooks retrives account books
+func (g *Gateio) GetFuturesAccountBooks(ctx context.Context, settle string, limit int, from, to time.Time, changingType string) ([]FuturesAccountBookItem, error) {
+	params := url.Values{}
+	if !(settle == "btc" || settle == "usd" || settle == "usdt") {
+		return nil, errMissingSettleCurrency
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(limit))
+	}
+	if !from.IsZero() {
+		params.Set("from", strconv.FormatInt(from.Unix(), 10))
+	}
+	if !to.IsZero() {
+		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	}
+	if changingType == "dnw" ||
+		changingType == "pnl" ||
+		changingType == "fee" ||
+		changingType == "refr" ||
+		changingType == "fund" ||
+		changingType == "point_dnw" ||
+		changingType == "point_fee" ||
+		changingType == "point_refr" {
+		params.Set("type", changingType)
+	}
+	path := fmt.Sprintf(futuresAccountBook, settle)
+	var response []FuturesAccountBookItem
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, nil, &response)
+}
+
+// GetAllPositionsOfUsers list all positions of users.
+func (g *Gateio) GetAllPositionsOfUsers(ctx context.Context, settle string) (*FuturesPosition, error) {
+	if !(settle == "btc" || settle == "usd" || settle == "usdt") {
+		return nil, errMissingSettleCurrency
+	}
+	path := fmt.Sprintf(futuresPositions, settle)
+	var response FuturesPosition
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &response)
+}
+
+// GetSinglePosition returns a single position
+func (g *Gateio) GetSinglePosition(ctx context.Context, settle string, contract currency.Pair) (*FuturesPosition, error) {
+	settle = strings.ToLower(settle)
+	if !(settle == "btc" || settle == "usd" || settle == "usdt") {
+		return nil, errMissingSettleCurrency
+	}
+	if contract.Base.IsEmpty() || contract.Quote.IsEmpty() {
+		return nil, fmt.Errorf("%v, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
+	}
+	contract.Delimiter = UnderscoreDelimiter
+	path := fmt.Sprintf(futuresSinglePosition, settle, contract.String())
+	var response FuturesPosition
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &response)
+}
+
+// UpdatePositionMargin represents account position margin for a futures contract.
+func (g *Gateio) UpdatePositionMargin(ctx context.Context, settle string, change float64, contract currency.Pair) (*FuturesPosition, error) {
+	if !(settle == "btc" || settle == "usd" || settle == "usdt") {
+		return nil, errMissingSettleCurrency
+	}
+	if contract.Base.IsEmpty() || contract.Quote.IsEmpty() {
+		return nil, fmt.Errorf("%v, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
+	}
+	if change <= 0 {
+		return nil, fmt.Errorf("%v, futures margin change must be positive", errChangehasToBePositive)
+	}
+	params := url.Values{}
+	params.Set("change", strconv.FormatFloat(change, 'f', -1, 64))
+	contract.Delimiter = UnderscoreDelimiter
+	path := fmt.Sprintf(futuresUpdatePositionMargin, settle, contract.String())
+	var response FuturesPosition
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, nil, &response)
+}
+
+// UpdatePositionLeverage update position leverage
+func (g *Gateio) UpdatePositionLeverage(ctx context.Context, settle string, contract currency.Pair, leverage, crossLeverageLimit float64) (*FuturesPosition, error) {
+	if !(settle == "btc" || settle == "usd" || settle == "usdt") {
+		return nil, errMissingSettleCurrency
+	}
+	if contract.Base.IsEmpty() || contract.Quote.IsEmpty() {
+		return nil, fmt.Errorf("%v, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
+	}
+	contract.Delimiter = UnderscoreDelimiter
+	params := url.Values{}
+	if leverage < 0 {
+		return nil, errInvalidLeverageValue
+	}
+	params.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
+	if leverage == 0 && crossLeverageLimit > 0 {
+		params.Set("cross_leverage_limit", strconv.FormatFloat(crossLeverageLimit, 'f', -1, 64))
+	}
+	path := fmt.Sprintf(futuresPositionsLeverage, settle, contract.String())
+	var response FuturesPosition
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, nil, &response)
+}
+
+// UpdatePositionRiskLimit updates the position risk limit
+func (g *Gateio) UpdatePositionRiskLimit(ctx context.Context, settle string, contract currency.Pair, riskLimit int) (*FuturesPosition, error) {
+	if !(settle == "btc" || settle == "usd" || settle == "usdt") {
+		return nil, errMissingSettleCurrency
+	}
+	if contract.Base.IsEmpty() || contract.Quote.IsEmpty() {
+		return nil, fmt.Errorf("%v, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
+	}
+	contract.Delimiter = UnderscoreDelimiter
+	params := url.Values{}
+	if riskLimit < 0 {
+		return nil, errInvalidRiskLimit
+	}
+	params.Set("risk_limit", strconv.Itoa(riskLimit))
+	path := fmt.Sprintf(futuresPositionRiskLimit, settle, contract.String())
+	var response FuturesPosition
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, nil, &response)
+}
+
+// EnableOrDisableDualMode enable or disable dual mode
+// Before setting dual mode, make sure all positions are closed and no orders are open
+func (g *Gateio) EnableOrDisableDualMode(ctx context.Context, settle string, dualMode bool) (*DualModeResponse, error) {
+	if !(settle == "btc" || settle == "usd" || settle == "usdt") {
+		return nil, errMissingSettleCurrency
+	}
+	path := fmt.Sprintf(futuresDualMode, settle)
+	params := url.Values{}
+	params.Set("dual_mode", strconv.FormatBool(dualMode))
+	var response DualModeResponse
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, nil, &response)
+}
+
+// RetrivePositionDetailInDualMode retrieve position detail in dual mode
+func (g *Gateio) RetrivePositionDetailInDualMode(ctx context.Context, settle string, contract currency.Pair) ([]FuturesPosition, error) {
+	if !(settle == "btc" || settle == "usd" || settle == "usdt") {
+		return nil, errMissingSettleCurrency
+	}
+	if contract.Base.IsEmpty() || contract.Quote.IsEmpty() {
+		return nil, fmt.Errorf("%v, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
+	}
+	contract.Delimiter = UnderscoreDelimiter
+	path := fmt.Sprintf(futuresDualModePositions, settle, contract.String())
+	var response []FuturesPosition
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &response)
+}
+
+// UpdatePositionMarginInDualMode update position margin in dual mode
+func (g *Gateio) UpdatePositionMarginInDualMode(ctx context.Context, settle string, contract currency.Pair, change float64, dualSide string) ([]FuturesPosition, error) {
+	if !(settle == "btc" || settle == "usd" || settle == "usdt") {
+		return nil, errMissingSettleCurrency
+	}
+	if contract.Base.IsEmpty() || contract.Quote.IsEmpty() {
+		return nil, fmt.Errorf("%v, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
+	}
+	contract.Delimiter = UnderscoreDelimiter
+	params := url.Values{}
+	params.Set("change", strconv.FormatFloat(change, 'f', -1, 64))
+	if !(dualSide == "dual_long" || dualSide == "dual_short") {
+		return nil, fmt.Errorf("invalid 'dual_side' should be 'dual_short' or 'dual_long'")
+	}
+	params.Set("dual_side", dualSide)
+	path := fmt.Sprintf(futuresDualModePositionMargin, settle, contract.String())
+	var response []FuturesPosition
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, nil, &response)
+}
+
+// UpdatePositionLeverageInDualMode update position leverage in dual mode
+func (g *Gateio) UpdatePositionLeverageInDualMode(ctx context.Context, settle string, contract currency.Pair, leverage, crossLeverageLimit float64) (*FuturesPosition, error) {
+	if !(settle == "btc" || settle == "usd" || settle == "usdt") {
+		return nil, errMissingSettleCurrency
+	}
+	if contract.Base.IsEmpty() || contract.Quote.IsEmpty() {
+		return nil, fmt.Errorf("%v, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
+	}
+	contract.Delimiter = UnderscoreDelimiter
+	params := url.Values{}
+	if leverage < 0 {
+		return nil, errInvalidLeverageValue
+	}
+	params.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
+	if leverage == 0 && crossLeverageLimit > 0 {
+		params.Set("cross_leverage_limit", strconv.FormatFloat(crossLeverageLimit, 'f', -1, 64))
+	}
+	path := fmt.Sprintf(futuresDualModePositionLeverage, settle, contract.String())
+	var response FuturesPosition
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, nil, &response)
+}
+
+// UpdatePositionRiskLimitinDualMode update position risk limit in dual mode
+func (g *Gateio) UpdatePositionRiskLimitinDualMode(ctx context.Context, settle string, contract currency.Pair, riskLimit float64) ([]FuturesPosition, error) {
+	if !(settle == "btc" || settle == "usd" || settle == "usdt") {
+		return nil, errMissingSettleCurrency
+	}
+	if contract.Base.IsEmpty() || contract.Quote.IsEmpty() {
+		return nil, fmt.Errorf("%v, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
+	}
+	params := url.Values{}
+	contract.Delimiter = UnderscoreDelimiter
+	if riskLimit < 0 {
+		return nil, errInvalidRiskLimit
+	}
+	params.Set("risk_limit", strconv.FormatFloat(riskLimit, 'f', -1, 64))
+	path := fmt.Sprintf(futuresDualModePositionsRiskLimit, settle, contract.String())
+	var response []FuturesPosition
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, nil, &response)
+}
+
+// CreateFuturesOrder creates futures order
+// Create a futures order
+// Creating futures orders requires size, which is number of contracts instead of currency amount. You can use quanto_multiplier in contract detail response to know how much currency 1 size contract represents
+// Zero-filled order cannot be retrieved 10 minutes after order cancellation. You will get a 404 not found for such orders
+// Set reduce_only to true can keep the position from changing side when reducing position size
+// In single position mode, to close a position, you need to set size to 0 and close to true
+// In dual position mode, to close one side position, you need to set auto_size side, reduce_only to true and size to 0
+func (g *Gateio) CreateFuturesOrder(ctx context.Context, arg FuturesOrderCreateParams) (*FutureOrder, error) {
+	if arg.Contract.Base.IsEmpty() || arg.Contract.Quote.IsEmpty() {
+		return nil, fmt.Errorf("%v, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
+	}
+	if arg.Size == 0 {
+		return nil, fmt.Errorf("%v, specify positive number to make a bid, and negative number to ask", errInvalidOrderSide)
+	}
+	params := url.Values{}
+	params.Set("contract", arg.Contract.String())
+	params.Set("size", strconv.FormatFloat(arg.Size, 'f', -1, 64))
+	if arg.TimeInForce == "gtc" || arg.TimeInForce == "ioc" || arg.TimeInForce == "poc" || arg.TimeInForce == "fok" {
+		params.Set("tif", arg.TimeInForce)
+	}
+	if arg.Price > 0 && arg.TimeInForce == "ioc" {
+		arg.Price = 0
+	}
+	if arg.Price > 0 {
+		params.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
+	}
+	if arg.ClosePosition {
+		params.Set("close", strconv.FormatBool(arg.ClosePosition))
+	}
+	if arg.ReduceOnly {
+		params.Set("reduce_only", strconv.FormatBool(arg.ReduceOnly))
+	}
+	if arg.Text != "" {
+		if !strings.HasPrefix(arg.Text, "t-") {
+			arg.Text = "t-" + arg.Text
+		}
+		params.Set("text", arg.Text)
+	}
+	if arg.AutoSize == "close_long" || arg.AutoSize == "close_short" {
+		params.Set("auto_size", arg.AutoSize)
+	}
+	if !(arg.Settle == "btc" || arg.Settle == "usd" || arg.Settle == "usdt") {
+		return nil, errMissingSettleCurrency
+	}
+	path := fmt.Sprintf(futuresOrders, arg.Settle)
+	var response FutureOrder
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, params, nil, &response)
+}
+
 // ***************************************Delivery ***************************************
 
 // GetAllDeliveryContracts retrives all futures contracts
@@ -3095,4 +3374,35 @@ func (g *Gateio) GetAllFlashSwapOrders(ctx context.Context, status int, sellCurr
 	}
 	var response []FlashSwapOrderResponse
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, flashSwapOrders, params, nil, &response)
+}
+
+// GetSingleFlashSwapOrder get a single flash swap order's detail
+func (g *Gateio) GetSingleFlashSwapOrder(ctx context.Context, orderID string) (*FlashSwapOrderResponse, error) {
+	if orderID == "" {
+		return nil, fmt.Errorf("%v, flash order order_id must not be empty", errInvalidOrderID)
+	}
+	path := fmt.Sprintf("%s/%s", flashSwapOrders, orderID)
+	var response FlashSwapOrderResponse
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &response)
+}
+
+// InitiateFlashSwapOrderReview initiate a flash swap order preview
+func (g *Gateio) InitiateFlashSwapOrderReview(ctx context.Context, arg FlashSwapOrderParams) (*InitFlashSwapOrderPreviewResponse, error) {
+	if arg.PreviewID == "" {
+		return nil, errMissingPreviewID
+	}
+	if arg.BuyCurrency.IsEmpty() {
+		return nil, fmt.Errorf("%v, buy currency can not empty", errInvalidCurrency)
+	}
+	if arg.SellCurrency.IsEmpty() {
+		return nil, fmt.Errorf("%v, sell currency can not empty", errInvalidCurrency)
+	}
+	if !((arg.SellAmount >= 1 && arg.SellAmount <= 10000) || arg.SellAmount == 0) {
+		return nil, fmt.Errorf("%v, sell_amount must greater than 1 less than 10000", errInvalidAmount)
+	}
+	if !((arg.BuyAmount >= 0.0001 && arg.BuyAmount <= 0.1) || arg.BuyAmount == 0) {
+		return nil, fmt.Errorf("%v, buy_amount must greater than 0.0001 less than 0.1", errInvalidAmount)
+	}
+	var response InitFlashSwapOrderPreviewResponse
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, flashSwapOrdersPreview, nil, &arg, &response)
 }

@@ -1686,3 +1686,143 @@ type FlashSwapOrderResponse struct {
 	Price        float64   `json:"price,string"`
 	Status       int       `json:"status"`
 }
+
+// InitFlashSwapOrderPreviewResponse represents the order preview for flash order
+type InitFlashSwapOrderPreviewResponse struct {
+	PreviewID    string  `json:"preview_id"`
+	SellCurrency string  `json:"sell_currency"`
+	SellAmount   float64 `json:"sell_amount,string"`
+	BuyCurrency  string  `json:"buy_currency"`
+	BuyAmount    float64 `json:"buy_amount,string"`
+	Price        float64 `json:"price,string"`
+}
+
+// FuturesAccount represents futures account detail
+type FuturesAccount struct {
+	User           int    `json:"user"`
+	Currency       string `json:"currency"`
+	Total          string `json:"total"` // total = position_margin + order_margin + available
+	UnrealisedPnl  string `json:"unrealised_pnl"`
+	PositionMargin string `json:"position_margin"`
+	OrderMargin    string `json:"order_margin"` // Order margin of unfinished orders
+	Available      string `json:"available"`    // The available balance for transferring or trading
+	Point          string `json:"point"`
+	Bonus          string `json:"bonus"`
+	InDualMode     bool   `json:"in_dual_mode"` // Whether dual mode is enabled
+	History        struct {
+		DepositAndWithdrawal string `json:"dnw"`  // total amount of deposit and withdraw
+		ProfitAndLoss        string `json:"pnl"`  // total amount of trading profit and loss
+		Fee                  string `json:"fee"`  // total amount of fee
+		Refr                 string `json:"refr"` // total amount of referrer rebates
+		Fund                 string `json:"fund"`
+		PointDnw             string `json:"point_dnw"` // total amount of point deposit and withdraw
+		PointFee             string `json:"point_fee"` // total amount of point fee
+		PointRefr            string `json:"point_refr"`
+		BonusDnw             string `json:"bonus_dnw"`    // total amount of perpetual contract bonus transfer
+		BonusOffset          string `json:"bonus_offset"` // total amount of perpetual contract bonus deduction
+	} `json:"history"`
+}
+
+// FuturesAccountBookItem represents account book item
+type FuturesAccountBookItem struct {
+	Time    time.Time `json:"time"`
+	Change  float64   `json:"change,string"`
+	Balance float64   `json:"balance,string"`
+	Text    string    `json:"text"`
+	Type    string    `json:"type"`
+}
+
+// FuturesPosition represents futures position
+type FuturesPosition struct {
+	User            int     `json:"user"`
+	Contract        string  `json:"contract"`
+	Size            int     `json:"size"`
+	Leverage        float64 `json:"leverage,string"`
+	RiskLimit       float64 `json:"risk_limit,string"`
+	LeverageMax     string  `json:"leverage_max"`
+	MaintenanceRate float64 `json:"maintenance_rate,string"`
+	Value           float64 `json:"value,string"`
+	Margin          float64 `json:"margin,string"`
+	EntryPrice      string  `json:"entry_price"`
+	LiqPrice        float64 `json:"liq_price,string"`
+	MarkPrice       float64 `json:"mark_price,string"`
+	UnrealisedPnl   string  `json:"unrealised_pnl"`
+	RealisedPnl     string  `json:"realised_pnl"`
+	HistoryPnl      string  `json:"history_pnl"`
+	LastClosePnl    string  `json:"last_close_pnl"`
+	RealisedPoint   string  `json:"realised_point"`
+	HistoryPoint    string  `json:"history_point"`
+	AdlRanking      int     `json:"adl_ranking"`
+	PendingOrders   int     `json:"pending_orders"`
+	CloseOrder      struct {
+		ID    int     `json:"id"`
+		Price float64 `json:"price,string"`
+		IsLiq bool    `json:"is_liq"`
+	} `json:"close_order"`
+	Mode               string `json:"mode"`
+	CrossLeverageLimit string `json:"cross_leverage_limit"`
+}
+
+// DualModeResponse represents  dual mode enable or diable
+type DualModeResponse struct {
+	User           int     `json:"user"`
+	Currency       string  `json:"currency"`
+	Total          string  `json:"total"`
+	UnrealisedPnl  float64 `json:"unrealised_pnl,string"`
+	PositionMargin float64 `json:"position_margin,string"`
+	OrderMargin    string  `json:"order_margin"`
+	Available      string  `json:"available"`
+	Point          string  `json:"point"`
+	Bonus          string  `json:"bonus"`
+	InDualMode     bool    `json:"in_dual_mode"`
+	History        struct {
+		DepositAndWithdrawal float64 `json:"dnw,string"` // total amount of deposit and withdraw
+		ProfitAndLoss        float64 `json:"pnl,string"` // total amount of trading profit and loss
+		Fee                  float64 `json:"fee,string"`
+		Refr                 float64 `json:"refr,string"`
+		Fund                 float64 `json:"fund,string"`
+		PointDnw             float64 `json:"point_dnw,string"`
+		PointFee             float64 `json:"point_fee,string"`
+		PointRefr            float64 `json:"point_refr,string"`
+		BonusDnw             float64 `json:"bonus_dnw,string"`
+		BonusOffset          float64 `json:"bonus_offset,string"`
+	} `json:"history"`
+}
+
+// FuturesOrderCreateParams represents future order creation parameters
+type FuturesOrderCreateParams struct {
+	Contract      currency.Pair `json:"contract"`
+	Size          float64       `json:"size"`
+	Iceberg       int           `json:"iceberg"`
+	Price         float64       `json:"price,string"`
+	TimeInForce   string        `json:"tif"`
+	Text          string        `json:"text"`
+	ClosePosition bool          `json:"close,omitempty"`
+	ReduceOnly    bool          `json:"reduce_only,omitempty"`
+	AutoSize      string        `json:"auto_size,omitempty"`
+	Settle        string        `json:"-"`
+}
+
+// FutureOrder represents future order response
+type FutureOrder struct {
+	ID           int       `json:"id"`
+	User         int       `json:"user"`
+	Contract     string    `json:"contract"`
+	CreateTime   time.Time `json:"create_time"`
+	Size         int       `json:"size"`
+	Iceberg      int       `json:"iceberg"`
+	Left         int       `json:"left"`
+	Price        float64   `json:"price,string"`
+	FillPrice    float64   `json:"fill_price,string"`
+	Mkfr         string    `json:"mkfr"`
+	Tkfr         string    `json:"tkfr"`
+	TimeInForce  string    `json:"tif"`
+	Refu         int       `json:"refu"`
+	IsReduceOnly bool      `json:"is_reduce_only"`
+	IsClose      bool      `json:"is_close"`
+	IsLiq        bool      `json:"is_liq"`
+	Text         string    `json:"text"`
+	Status       string    `json:"status"`
+	FinishTime   time.Time `json:"finish_time,string"`
+	FinishAs     string    `json:"finish_as"`
+}

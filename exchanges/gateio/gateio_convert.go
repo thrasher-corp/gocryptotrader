@@ -605,3 +605,37 @@ func (a *MarginAccountBalanceChangeInfo) UnmarshalJSON(data []byte) error {
 	a.TimeMs = time.UnixMilli(chil.TimeMs)
 	return nil
 }
+
+// UnmarshalJSON decerializes json, and timestamp information
+func (a *FuturesAccountBookItem) UnmarshalJSON(data []byte) error {
+	type Alias FuturesAccountBookItem
+	chil := &struct {
+		*Alias
+		Time int64 `json:"time"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
+	}
+	a.Time = time.Unix(chil.Time, 0)
+	return nil
+}
+
+// UnmarshalJSON decerializes json, and timestamp information
+func (a *FutureOrder) UnmarshalJSON(data []byte) error {
+	type Alias FutureOrder
+	chil := &struct {
+		*Alias
+		FinishTime int64 `json:"finish_time"`
+		CreateTime int64 `json:"create_time"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
+	}
+	a.FinishTime = time.Unix(chil.FinishTime, 0)
+	a.CreateTime = time.Unix(chil.CreateTime, 0)
+	return nil
+}

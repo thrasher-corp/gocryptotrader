@@ -1845,6 +1845,157 @@ func TestGetLiquidationHistory(t *testing.T) {
 		t.Errorf("%s GetLiquidationHistory() error %v", g.Name, er)
 	}
 }
+func TestQueryFuturesAccount(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.QueryFuturesAccount(context.Background(), "usdt"); err != nil {
+		t.Errorf("%s QueryFuturesAccount() error %v", g.Name, err)
+	}
+}
+
+var getFuturesAccountBooksJSON = `{"time": 1547633726,  "change": "0.000010152188",  "balance": "4.59316525194",  "text": "ETH_USD:6086261",  "type": "fee"}`
+
+func TestGetFuturesAccountBooks(t *testing.T) {
+	t.Parallel()
+	var response FuturesAccountBookItem
+	if err := json.Unmarshal([]byte(getFuturesAccountBooksJSON), &response); err != nil {
+		t.Errorf("%s error while deserializing FuturesAccountBookItem: %v", g.Name, err)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.GetFuturesAccountBooks(context.Background(), "usdt", 0, time.Time{}, time.Time{}, "dnw"); err != nil {
+		t.Errorf("%s GetFuturesAccountBooks() error %v", g.Name, err)
+	}
+}
+
+var futuresPositionJSON = `{"user": 10000,"contract": "BTC_USDT","size": -9440,"leverage": "0","risk_limit": "100","leverage_max": "100","maintenance_rate": "0.005","value": "2.497143098997","margin": "4.431548146258","entry_price": "3779.55","liq_price": "99999999","mark_price": "3780.32","unrealised_pnl": "-0.000507486844","realised_pnl": "0.045543982432","history_pnl": "0","last_close_pnl": "0","realised_point": "0","history_point": "0","adl_ranking": 5,"pending_orders": 16,"close_order": {  "id": 232323,  "price": "3779",  "is_liq": false},"mode": "single","cross_leverage_limit": "0"}`
+
+func TestGetAllPositionsOfUsers(t *testing.T) {
+	t.Parallel()
+	var response FuturesPosition
+	if err := json.Unmarshal([]byte(futuresPositionJSON), &response); err != nil {
+		t.Errorf("%s error while deserializing FuturesPosition: %v", g.Name, err)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.GetAllPositionsOfUsers(context.Background(), "usdt"); err != nil {
+		t.Errorf("%s GetAllPositionsOfUsers() error %v", g.Name, err)
+	}
+}
+
+func TestGetSinglePosition(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.GetSinglePosition(context.Background(), "usdt", currency.Pair{Quote: currency.BTC, Base: currency.USDT}); err != nil {
+		t.Errorf("%s GetSinglePosition() error %v", g.Name, err)
+	}
+}
+
+func TestUpdatePositionMargin(t *testing.T) {
+	t.Parallel()
+	var response FuturesPosition
+	if err := json.Unmarshal([]byte(""), &response); err != nil {
+		t.Errorf("%s error while deserializing FuturesPosition: %v", g.Name, err)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.UpdatePositionMargin(context.Background(), "usdt", 0.01, currency.NewPair(currency.ETH, currency.USD)); err != nil {
+		t.Errorf("%s UpdatePositionMargin() error %v", g.Name, err)
+	}
+}
+
+func TestUpdatePositionLeverage(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.UpdatePositionLeverage(context.Background(), "usdt", currency.Pair{Base: currency.BTC, Quote: currency.USDT}, 1, 0); err != nil {
+		t.Errorf("%s UpdatePositionLeverage() error %v", g.Name, err)
+	}
+}
+
+func TestUpdatePositionRiskLimit(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.UpdatePositionRiskLimit(context.Background(), "usdt", currency.Pair{Base: currency.BTC, Quote: currency.USDT}, 10); err != nil {
+		t.Errorf("%s UpdatePositionRiskLimit() error %v", g.Name, err)
+	}
+}
+func TestEnableOrDisableDualMode(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.EnableOrDisableDualMode(context.Background(), "btc", true); err != nil {
+		t.Errorf("%s EnableOrDisableDualMode() error %v", g.Name, err)
+	}
+}
+
+func TestRetrivePositionDetailInDualMode(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.RetrivePositionDetailInDualMode(context.Background(), "btc", currency.NewPair(currency.USDT, currency.BTC)); err != nil {
+		t.Errorf("%s RetrivePositionDetailInDualMode() error %v", g.Name, err)
+	}
+}
+
+func TestUpdatePositionMarginInDualMode(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.UpdatePositionMarginInDualMode(context.Background(), "btc", currency.NewPair(currency.USD, currency.USD), 0.001, "dual_long"); err != nil {
+		t.Errorf("%s UpdatePositionMarginInDualMode() error %v", g.Name, err)
+	}
+}
+func TestUpdatePositionLeverageInDualMode(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.UpdatePositionLeverageInDualMode(context.Background(), "usdt", currency.NewPair(currency.BTC, currency.USDT), 0.001, 0.001); err != nil {
+		t.Errorf("%s UpdatePositionLeverageInDualMode() error %v", g.Name, err)
+	}
+}
+
+func TestUpdatePositionRiskLimitinDualMode(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.UpdatePositionRiskLimitinDualMode(context.Background(), "usdt", currency.NewPair(currency.BTC, currency.USDT), 0.1); err != nil {
+		t.Errorf("%s UpdatePositionRiskLimitinDualMode() error %v", g.Name, err)
+	}
+}
+
+func TestCreateFuturesOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.CreateFuturesOrder(context.Background(), FuturesOrderCreateParams{
+		Contract:    currency.NewPair(currency.BTC, currency.USDT),
+		Size:        6024,
+		Iceberg:     0,
+		Price:       3765,
+		TimeInForce: "gtc",
+		Text:        "t-my-custom-id",
+		Settle:      "btc",
+	}); err != nil {
+		t.Errorf("%s CreateFuturesOrder() error %v", g.Name, err)
+	}
+}
 
 func TestGetAllDeliveryContracts(t *testing.T) {
 	t.Parallel()
@@ -1976,6 +2127,31 @@ func TestGetAllFlashSwapOrders(t *testing.T) {
 	}
 	if _, err := g.GetAllFlashSwapOrders(context.Background(), 1, currency.EMPTYCODE, currency.EMPTYCODE, true, 0, 0); err != nil {
 		t.Errorf("%s GetAllFlashSwapOrders() error %v", g.Name, err)
+	}
+}
+
+func TestGetSingleFlashSwapOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.GetSingleFlashSwapOrder(context.Background(), "1234"); err != nil {
+		t.Errorf("%s GetSingleFlashSwapOrder() error %v", g.Name, err)
+	}
+}
+
+func TestInitiateFlashSwapOrderReview(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.InitiateFlashSwapOrderReview(context.Background(), FlashSwapOrderParams{
+		PreviewID:    "1234",
+		SellCurrency: currency.USDT,
+		BuyCurrency:  currency.BTC,
+		SellAmount:   100,
+	}); err != nil && !strings.Contains(err.Error(), "The result of preview is expired") {
+		t.Errorf("%s InitiateFlashSwapOrderReview() error %v", g.Name, err)
 	}
 }
 
