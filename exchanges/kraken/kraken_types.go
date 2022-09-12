@@ -711,7 +711,6 @@ type OrderVars struct {
 	Fee       float64
 }
 
-
 // RequestParamsTimeForceType Time in force
 type RequestParamsTimeForceType string
 
