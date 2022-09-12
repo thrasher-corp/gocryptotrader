@@ -1505,7 +1505,6 @@ func (ok *Okx) GetFundsTransferState(ctx context.Context, transferID, clientID s
 		params.Set("type", strconv.Itoa(transferType))
 	}
 	var resp []TransferFundRateResponse
-	println(common.EncodeURLValues(assetTransferState, params))
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getFundsTransferStateEPL, http.MethodGet, common.EncodeURLValues(assetTransferState, params), nil, &resp, true)
 }
 
@@ -2279,7 +2278,6 @@ func (ok *Okx) GetTradeFee(ctx context.Context, instrumentType, instrumentID, un
 		params.Set("uly", underlying)
 	}
 	var resp []TradeFeeRate
-	println(common.EncodeURLValues(accountTradeFee, params))
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getFeeRatesEPL, http.MethodGet, common.EncodeURLValues(accountTradeFee, params), nil, &resp, true)
 }
 
@@ -4085,13 +4083,13 @@ func (ok *Okx) GetOptionsOpenInterestAndVolume(ctx context.Context, currency str
 		if err != nil || openInterest <= 0 {
 			return nil, err
 		}
-		volumen, err := strconv.ParseFloat(response[x][2], 64)
+		volume, err := strconv.ParseFloat(response[x][2], 64)
 		if err != nil {
 			return nil, err
 		}
 		openInterestVolume := OpenInterestVolume{
 			Timestamp:    time.UnixMilli(int64(timestamp)),
-			Volume:       volumen,
+			Volume:       volume,
 			OpenInterest: openInterest,
 		}
 		openInterestVolumes = append(openInterestVolumes, openInterestVolume)
@@ -4128,13 +4126,13 @@ func (ok *Okx) GetPutCallRatio(ctx context.Context, currency string,
 		if err != nil {
 			return nil, err
 		}
-		volumen, err := strconv.ParseFloat(response[x][2], 64)
+		volume, err := strconv.ParseFloat(response[x][2], 64)
 		if err != nil {
 			return nil, err
 		}
 		openInterestVolume := OpenInterestVolumeRatio{
 			Timestamp:         time.UnixMilli(int64(timestamp)),
-			VolumeRatio:       volumen,
+			VolumeRatio:       volume,
 			OpenInterestRatio: openInterest,
 		}
 		openInterestVolumeRatios = append(openInterestVolumeRatios, openInterestVolume)
@@ -4186,13 +4184,13 @@ func (ok *Okx) GetOpenInterestAndVolumeExpiry(ctx context.Context, currency stri
 				continue
 			}
 			day, err := strconv.Atoi(expTime[6:])
+			if err != nil {
+				return nil, err
+			}
 			if day <= 9 {
 				days = fmt.Sprintf("0%d", day)
 			} else {
 				days = strconv.Itoa(day)
-			}
-			if err != nil {
-				return nil, err
 			}
 			expiryTime, err = time.Parse("2006-01-02", fmt.Sprintf("%d-%s-%s", year, months, days))
 			if err != nil {

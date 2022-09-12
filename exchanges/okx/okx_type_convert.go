@@ -907,12 +907,12 @@ func (a *PendingOrderItem) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	uTime, err := strconv.ParseInt(chil.UpdateTime, 10, 64)
-	if err == nil {
-		a.UpdateTime = time.UnixMilli(uTime)
+	if err != nil {
+		return err
 	}
 	cTime, err := strconv.ParseInt(chil.CreationTime, 10, 64)
-	if err == nil {
-		a.CreationTime = time.UnixMilli(cTime)
+	if err != nil {
+		return err
 	}
 	a.Side, err = order.StringToOrderSide(chil.Side)
 	if err != nil {
@@ -965,6 +965,8 @@ func (a *PendingOrderItem) UnmarshalJSON(data []byte) error {
 	case okxInstTypeANY:
 		a.InstrumentType = asset.Empty
 	}
+	a.CreationTime = time.UnixMilli(cTime)
+	a.UpdateTime = time.UnixMilli(uTime)
 	return nil
 }
 
