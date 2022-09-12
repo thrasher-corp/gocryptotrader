@@ -166,7 +166,7 @@ type Movement struct {
 // SideAmounts define the amounts total for the tranches, total value in
 // quotation and the cumulative base amounts.
 type SideAmounts struct {
-	Tranches   int
+	Tranches   int64
 	QuoteValue float64
 	BaseAmount float64
 }

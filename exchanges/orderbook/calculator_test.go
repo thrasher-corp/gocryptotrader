@@ -199,8 +199,48 @@ func TestWhaleBomb(t *testing.T) {
 func TestSimulateOrder(t *testing.T) {
 	t.Parallel()
 	b := testSetup()
-	b.SimulateOrder(8000, true)
-	b.SimulateOrder(1.5, false)
+
+	_, err := b.SimulateOrder(-8000, true)
+	if !errors.Is(err, errQuoteAmountInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errQuoteAmountInvalid)
+	}
+
+	result, err := b.SimulateOrder(21002, true)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	fmt.Printf("%+v\n", result)
+
+	// _, err = b.SimulateOrder(21003, true)
+	// if !errors.Is(err, errNotEnoughLiquidity) {
+	// 	t.Fatalf("received: '%v' but expected: '%v'", err, errNotEnoughLiquidity)
+	// }
+
+	// fmt.Printf("%+v\n", b.Asks)
+
+	// result, err := b.SimulateOrder(8000, true)
+	// if !errors.Is(err, nil) {
+	// 	t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	// }
+
+	// fmt.Printf("%+v\n", result)
+
+	// _, err = b.SimulateOrder(-1.5, false)
+	// if !errors.Is(err, errBaseAmountInvalid) {
+	// 	t.Fatalf("received: '%v' but expected: '%v'", err, errQuoteAmountInvalid)
+	// }
+
+	// _, err = b.SimulateOrder(1.5, false)
+	// if !errors.Is(err, errNotEnoughLiquidity) {
+	// 	t.Fatalf("received: '%v' but expected: '%v'", err, errNotEnoughLiquidity)
+	// }
+
+	// result, err = b.SimulateOrder(1.5, false)
+	// if !errors.Is(err, nil) {
+	// 	t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	// }
+	// fmt.Printf("%+v\n", result)
 }
 
 func TestGetAveragePrice(t *testing.T) {
