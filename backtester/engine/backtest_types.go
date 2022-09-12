@@ -2,7 +2,6 @@ package engine
 
 import (
 	"errors"
-
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
@@ -12,6 +11,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+	"sync"
+	"time"
 )
 
 var (
@@ -28,6 +29,8 @@ var (
 
 // BackTest is the main holder of all backtesting functionality
 type BackTest struct {
+	RunMetaData RunMetaData
+
 	hasHandledEvent bool
 	shutdown        chan struct{}
 	Datas           data.Holder
@@ -41,4 +44,26 @@ type BackTest struct {
 	exchangeManager *engine.ExchangeManager
 	orderManager    *engine.OrderManager
 	databaseManager *engine.DatabaseConnectionManager
+}
+
+// RunSummary holds details of a BackTest
+// rather than passing entire contents around
+type RunSummary struct {
+	Identifier RunMetaData
+}
+
+type RunMetaData struct {
+	ID          string
+	Strategy    string
+	DateStarted time.Time
+	DateEnded   time.Time
+	Closed      bool
+	LiveTesting bool
+	RealOrders  bool
+}
+
+// RunManager contains all backtesting/live strategy runs
+type RunManager struct {
+	m    sync.Mutex
+	Runs []*BackTest
 }

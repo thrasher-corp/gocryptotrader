@@ -171,6 +171,16 @@ message Config {
   StatisticSettings statistic_settings = 8;
 }
 
+message RunSummary {
+  string id = 1;
+  string strategy_name = 2;
+  string date_started = 3;
+  string date_ended = 4;
+  bool closed = 5;
+  bool live_testing = 6;
+  bool real_orders = 7;
+}
+
 // Requests and responses
 message ExecuteStrategyFromFileRequest {
   string strategy_file_path = 1;
@@ -185,6 +195,12 @@ message ExecuteStrategyFromConfigRequest {
   btrpc.Config config = 1;
 }
 
+message ListAllRunsRequest {}
+
+message ListAllRunsResponse {
+  repeated RunSummary runs = 1;
+}
+
 service BacktesterService {
   rpc ExecuteStrategyFromFile(ExecuteStrategyFromFileRequest) returns (ExecuteStrategyResponse) {
     option (google.api.http) = {
@@ -194,6 +210,11 @@ service BacktesterService {
   rpc ExecuteStrategyFromConfig(ExecuteStrategyFromConfigRequest) returns (ExecuteStrategyResponse) {
     option (google.api.http) = {
       get: "/v1/executestrategyfromconfig"
+    };
+  }
+  rpc ListAllRuns(ListAllRunsRequest) returns (ListAllRunsResponse) {
+    option (google.api.http) = {
+      get: "/v1/listallruns"
     };
   }
 }

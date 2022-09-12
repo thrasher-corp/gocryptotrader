@@ -40,7 +40,6 @@ import (
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
-	"github.com/thrasher-corp/gocryptotrader/signaler"
 )
 
 // NewFromConfig takes a strategy config and configures a backtester variable to run
@@ -893,32 +892,6 @@ func ExecuteStrategy(strategyCfg *config.Config, backtesterCfg *config.Backteste
 	if err != nil {
 		return err
 	}
-	if strategyCfg.DataSettings.LiveData != nil {
-		go func() {
-			err = bt.RunLive()
-			if err != nil {
-				log.Error(log.Global, err)
-				return
-			}
-		}()
-		interrupt := signaler.WaitForInterrupt()
-		log.Infof(log.Global, "Captured %v, shutdown requested.\n", interrupt)
-		bt.Stop()
-	} else {
-		bt.Run()
-	}
 
-	err = bt.Statistic.CalculateAllResults()
-	if err != nil {
-		return err
-	}
-	if backtesterCfg.Report.GenerateReport {
-		bt.Reports.UseDarkMode(backtesterCfg.Report.DarkMode)
-		err = bt.Reports.GenerateReport()
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return bt.ExecuteStrategy()
 }

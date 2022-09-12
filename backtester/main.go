@@ -167,12 +167,16 @@ func main() {
 		return
 	}
 
+	// grpc server mode
 	btCfg.Report.DarkMode = darkReport
 	btCfg.Report.GenerateReport = generateReport
 
+	runManager := backtest.SetupRunManager()
+
 	go func(c *config.BacktesterConfig) {
 		log.Info(log.GRPCSys, "Starting RPC server")
-		s := backtest.SetupRPCServer(c)
+		var s *backtest.GRPCServer
+		s, err = backtest.SetupRPCServer(c, runManager)
 		err = backtest.StartRPCServer(s)
 		if err != nil {
 			fmt.Printf("Could not start RPC server. Error: %v.\n", err)

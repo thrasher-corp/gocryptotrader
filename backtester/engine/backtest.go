@@ -3,7 +3,6 @@ package engine
 import (
 	"errors"
 	"fmt"
-
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
@@ -22,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"time"
 )
 
 // New returns a new BackTest instance
@@ -44,6 +44,37 @@ func (bt *BackTest) Reset() {
 	bt.exchangeManager = nil
 	bt.orderManager = nil
 	bt.databaseManager = nil
+}
+
+// ExecuteStrategy executes the strategy using the provided configs
+func (bt *BackTest) ExecuteStrategy() error {
+	if bt.RunMetaData.Closed {
+		return fmt.Errorf("%w %v %v", errAlreadyRan, bt.RunMetaData.ID, bt.RunMetaData.Strategy)
+	}
+	bt.RunMetaData.DateStarted = time.Now()
+	if bt.RunMetaData.LiveTesting {
+		go func() {
+			err := bt.RunLive()
+			if err != nil {
+				log.Error(log.Global, err)
+				return
+			}
+		}()
+	} else {
+		bt.Run()
+		err := bt.Statistic.CalculateAllResults()
+		if err != nil {
+			return err
+		}
+		err = bt.Reports.GenerateReport()
+		if err != nil {
+			return err
+		}
+		bt.RunMetaData.DateEnded = time.Now()
+		bt.RunMetaData.Closed = true
+	}
+
+	return nil
 }
 
 // Run will iterate over loaded data events
@@ -469,5 +500,13 @@ func (bt *BackTest) processFuturesFillEvent(ev fill.Event, funds funding.IFundRe
 
 // Stop shuts down the live data loop
 func (bt *BackTest) Stop() {
+	if bt == nil {
+		return
+	}
+	if bt.RunMetaData.Closed {
+		return
+	}
 	close(bt.shutdown)
+	bt.RunMetaData.Closed = true
+	bt.RunMetaData.DateEnded = time.Now()
 }

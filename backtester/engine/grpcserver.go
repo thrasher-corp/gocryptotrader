@@ -39,13 +39,21 @@ var (
 type GRPCServer struct {
 	btrpc.BacktesterServiceServer
 	*config.BacktesterConfig
+	manager *RunManager
 }
 
 // SetupRPCServer sets up the gRPC server
-func SetupRPCServer(cfg *config.BacktesterConfig) *GRPCServer {
+func SetupRPCServer(cfg *config.BacktesterConfig, manager *RunManager) (*GRPCServer, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("%w backtester config", common.ErrNilArguments)
+	}
+	if manager == nil {
+		return nil, fmt.Errorf("%w run manager", common.ErrNilArguments)
+	}
 	return &GRPCServer{
 		BacktesterConfig: cfg,
-	}
+		manager:          manager,
+	}, nil
 }
 
 // StartRPCServer starts a gRPC server with TLS auth
@@ -160,11 +168,68 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 	if err != nil {
 		return nil, err
 	}
-	err = ExecuteStrategy(cfg, s.BacktesterConfig)
+
+	if err = cfg.Validate(); err != nil {
+		return nil, err
+	}
+	if cfg == nil {
+		err := fmt.Errorf("%w backtester config", common.ErrNilArguments)
+		return nil, err
+	}
+	if cfg.DoNotRunOnLoad {
+		return nil, errNotAllowed
+	}
+	bt, err := NewFromConfig(cfg, s.BacktesterConfig.Report.TemplatePath, s.BacktesterConfig.Report.OutputPath, s.BacktesterConfig.Verbose)
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.manager.AddRun(bt)
+	if err != nil {
+		return nil, err
+	}
+
+	err = bt.ExecuteStrategy()
 	if err != nil {
 		return nil, err
 	}
 	return &btrpc.ExecuteStrategyResponse{
+		Success: true,
+	}, nil
+}
+
+func (s *GRPCServer) ListAllRuns(_ context.Context, _ btrpc.ListAllRunsRequest) (*btrpc.ListAllRunsResponse, error) {
+	list, err := s.manager.List()
+	if err != nil {
+		return nil, err
+	}
+	var response []btrpc.Run
+	for i := range list {
+		response = append(response, nil)
+	}
+	return &btrpc.ListAllRunsResponse{
+		list: response,
+	}, nil
+}
+
+// StopRunByID stops a backtest/livestrategy run in its tracks
+func (s *GRPCServer) StopRunByID(_ context.Context, req btrpc.StopRunByIDRequest) (*btrpc.StopRunByIDResponse, error) {
+	err := s.manager.StopRun(req.ID)
+	if err != nil {
+		return nil, err
+	}
+	return &btrpc.StopRunByIDResponse{
+		Success: true,
+	}, nil
+}
+
+// StartRunByID starts a backtest/livestrategy that was set to not start automatically
+func (s *GRPCServer) StartRunByID(_ context.Context, req btrpc.StartRunByIDRequest) (*btrpc.StartRunByIDResponse, error) {
+	err := s.manager.StartRun(req.ID)
+	if err != nil {
+		return nil, err
+	}
+	return &btrpc.StartRunByIDResponse{
 		Success: true,
 	}, nil
 }
