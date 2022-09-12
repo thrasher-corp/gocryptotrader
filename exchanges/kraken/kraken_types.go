@@ -409,6 +409,7 @@ type AddOrderOptions struct {
 	ClosePrice     float64
 	ClosePrice2    float64
 	Validate       bool
+	TimeInForce    string
 }
 
 // CancelOrderResponse type
@@ -672,6 +673,7 @@ type WsAddOrderRequest struct {
 	CloseOrderType  string  `json:"close[ordertype],omitempty"` // optional
 	ClosePrice      float64 `json:"close[price],omitempty"`     // optional
 	ClosePrice2     float64 `json:"close[price2],omitempty"`    // optional
+	TimeInForce     string  `json:"timeinforce,omitempty"`      // optional
 }
 
 // WsAddOrderResponse response data for ws order
@@ -708,3 +710,12 @@ type OrderVars struct {
 	OrderType order.Type
 	Fee       float64
 }
+
+
+// RequestParamsTimeForceType Time in force
+type RequestParamsTimeForceType string
+
+var (
+	// KrakenRequestParamsTimeIOC IOC
+	KrakenRequestParamsTimeIOC = RequestParamsTimeForceType("IOC")
+)

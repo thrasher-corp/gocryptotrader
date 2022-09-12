@@ -726,14 +726,19 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	status := order.New
 	switch s.AssetType {
 	case asset.Spot:
+		timeInForce := ""
+		if s.ImmediateOrCancel {
+			timeInForce = string(KrakenRequestParamsTimeIOC)
+		}
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			s.Pair.Delimiter = "/" // required pair format: ISO 4217-A3
 			orderID, err = k.wsAddOrder(&WsAddOrderRequest{
-				OrderType: s.Type.Lower(),
-				OrderSide: s.Side.Lower(),
-				Pair:      s.Pair.String(),
-				Price:     s.Price,
-				Volume:    s.Amount,
+				OrderType:   s.Type.Lower(),
+				OrderSide:   s.Side.Lower(),
+				Pair:        s.Pair.String(),
+				Price:       s.Price,
+				Volume:      s.Amount,
+				TimeInForce: timeInForce,
 			})
 			if err != nil {
 				return nil, err
@@ -748,7 +753,9 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 				s.Price,
 				0,
 				0,
-				&AddOrderOptions{})
+				&AddOrderOptions{
+					TimeInForce: timeInForce,
+				})
 			if err != nil {
 				return nil, err
 			}

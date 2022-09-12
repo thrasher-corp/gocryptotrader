@@ -477,3 +477,11 @@ type wsStatus struct {
 	} `json:"products"`
 	Type string `json:"type"`
 }
+
+// RequestParamsTimeForceType Time in force
+type RequestParamsTimeForceType string
+
+var (
+	// CoinbaseRequestParamsTimeIOC IOC
+	CoinbaseRequestParamsTimeIOC = RequestParamsTimeForceType("IOC")
+)
