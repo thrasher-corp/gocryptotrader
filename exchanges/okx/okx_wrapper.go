@@ -943,20 +943,16 @@ func (ok *Okx) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
-	if len(req.Pairs) == 0 || len(req.Pairs) >= 40 {
-		req.Pairs = append(req.Pairs, currency.EMPTYPAIR)
-	}
 	if !ok.SupportsAsset(req.AssetType) {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, req.AssetType)
 	}
-	orderType, err := ok.OrderTypeString(req.Type)
-	if err != nil {
-		return nil, err
-	}
+	instrumentType := ok.GetInstrumentTypeFromAssetItem(req.AssetType)
+	orderType, _ := ok.OrderTypeString(req.Type)
 	requestParam := &OrderListRequestParams{
-		OrderType: orderType,
-		After:     req.StartTime,
-		Before:    req.EndTime,
+		OrderType:      orderType,
+		After:          req.StartTime,
+		Before:         req.EndTime,
+		InstrumentType: instrumentType,
 	}
 	response, err := ok.GetOrderList(ctx, requestParam)
 	if err != nil {

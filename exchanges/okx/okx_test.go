@@ -2801,7 +2801,7 @@ func TestGetActiveOrders(t *testing.T) {
 		Pairs:     currency.Pairs{pair, currency.NewPair(currency.USDT, currency.USD), currency.NewPair(currency.USD, currency.LTC)},
 		AssetType: asset.Spot,
 	}
-	if _, err = ok.GetActiveOrders(context.Background(), &getOrdersRequest); err != nil {
+	if _, err := ok.GetActiveOrders(context.Background(), &getOrdersRequest); err != nil {
 		t.Error("Okx GetActiveOrders() error", err)
 	}
 }

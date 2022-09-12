@@ -598,6 +598,7 @@ func (ok *Okx) GetOrderList(ctx context.Context, arg *OrderListRequestParams) ([
 		return nil, errNilArgument
 	}
 	params := url.Values{}
+	arg.InstrumentType = strings.ToUpper(arg.InstrumentType)
 	if arg.InstrumentType == okxInstTypeSpot ||
 		arg.InstrumentType == okxInstTypeMargin ||
 		arg.InstrumentType == okxInstTypeSwap ||
@@ -617,7 +618,7 @@ func (ok *Okx) GetOrderList(ctx context.Context, arg *OrderListRequestParams) ([
 		arg.OrderType == OkxOrderFOK ||
 		arg.OrderType == OkxOrderIOC ||
 		arg.OrderType == OkxOrderOptimalLimitIOC {
-		params.Set("orderType", arg.OrderType)
+		params.Set("orderType", strings.ToLower(arg.OrderType))
 	}
 	arg.State = strings.ToUpper(arg.State)
 	if arg.State == order.Cancelled.String() ||

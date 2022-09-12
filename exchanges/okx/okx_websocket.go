@@ -280,15 +280,10 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 			},
 		},
 	}
-	go func() {
-		var response []byte
-		response, err = ok.Websocket.AuthConn.SendMessageReturnResponse("login", request)
-		var resp WSLoginResponse
-		err = json.Unmarshal(response, &resp)
-		if err == nil && (strings.EqualFold(resp.Event, "login") && resp.Code == "0") {
-			ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
-		}
-	}()
+	err = ok.Websocket.AuthConn.SendJSONMessage(request)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -413,7 +408,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 			authChunk, err = json.Marshal(authRequests)
 			if err != nil {
 				return err
-			}Cal
+			}
 			if len(authChunk) > maxConnByteLen {
 				authRequests.Arguments = authRequests.Arguments[:len(authRequests.Arguments)-1]
 				i--
@@ -721,6 +716,7 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 	}
 	for i := range response.Data {
 		if response.Action == OkxOrderBookSnapshot ||
+			response.Argument.Channel == okxChannelOrderBooks5 ||
 			response.Argument.Channel == okxChannelBBOTBT {
 			err = ok.WsProcessSnapshotOrderBook(response.Data[i], pair, a)
 			if err != nil {
@@ -797,6 +793,18 @@ func (ok *Okx) WsProcessUpdateOrderbook(channel string, data WsOrderBookData, pa
 		Asset: a,
 		Pair:  pair,
 	}
+	switch channel {
+	case okxChannelOrderBooks,
+		okxChannelOrderBooksTBT:
+		update.MaxDepth = 400
+	case okxChannelOrderBooks5:
+		update.MaxDepth = 5
+	case okxChannelBBOTBT:
+		update.MaxDepth = 1
+		update.MaxDepth = 400
+	case okxChannelOrderBooks50TBT:
+		update.MaxDepth = 50
+	}
 	var err error
 	update.Asks, err = ok.AppendWsOrderbookItems(data.Asks)
 	if err != nil {
@@ -850,7 +858,7 @@ func (ok *Okx) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base, c
 		}
 	}
 	checksumStr := strings.TrimSuffix(checksum.String(), ColonDelimiter)
-	if crc32.ChecksumIEEE([]byte(checksumStr)) != checksumVal {
+	if checksumVal != 0 && crc32.ChecksumIEEE([]byte(checksumStr)) != checksumVal {
 		return fmt.Errorf("%s order book update checksum failed for pair %v", ok.Name, orderbookData.Pair)
 	}
 	return nil
