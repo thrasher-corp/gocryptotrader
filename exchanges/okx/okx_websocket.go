@@ -413,7 +413,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 			authChunk, err = json.Marshal(authRequests)
 			if err != nil {
 				return err
-			}
+			}Cal
 			if len(authChunk) > maxConnByteLen {
 				authRequests.Arguments = authRequests.Arguments[:len(authRequests.Arguments)-1]
 				i--
