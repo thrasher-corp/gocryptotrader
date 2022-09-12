@@ -706,7 +706,7 @@ func whaleBomb(c *cli.Context) error {
 		price = c.Float64("price")
 	} else if c.Args().Get(4) != "" {
 		var err error
-		price, err = strconv.ParseFloat(c.Args().Get(3), 64)
+		price, err = strconv.ParseFloat(c.Args().Get(4), 64)
 		if err != nil {
 			return err
 		}
