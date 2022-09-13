@@ -36,8 +36,6 @@ var responseStream = make(chan stream.Response)
 var defaultSubscribedChannels = []string{
 	okxChannelTrades,
 	okxChannelOrderBooks,
-	okxChannelOrderBooks50TBT,
-	okxChannelOrderBooksTBT,
 	okxChannelCandle5m,
 	okxChannelTickers,
 }
@@ -751,17 +749,15 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 // WsProcessSnapshotOrderBook processes snapshot order books
 func (ok *Okx) WsProcessSnapshotOrderBook(data WsOrderBookData, pair currency.Pair, a asset.Item) error {
 	var err error
-	if data.Checksum != 0 {
-		var signedChecksum int32
-		signedChecksum, err = ok.CalculateOrderbookChecksum(data)
-		if err != nil {
-			return fmt.Errorf("%s channel: Orderbook unable to calculate orderbook checksum: %s", ok.Name, err)
-		}
-		if signedChecksum != data.Checksum {
-			return fmt.Errorf("%s channel: Orderbook for %v checksum invalid",
-				ok.Name,
-				pair)
-		}
+	var signedChecksum int32
+	signedChecksum, err = ok.CalculateOrderbookChecksum(data)
+	if err != nil {
+		return fmt.Errorf("%s channel: Orderbook unable to calculate orderbook checksum: %s", ok.Name, err)
+	}
+	if signedChecksum != data.Checksum {
+		return fmt.Errorf("%s channel: Orderbook for %v checksum invalid",
+			ok.Name,
+			pair)
 	}
 
 	asks, err := ok.AppendWsOrderbookItems(data.Asks)
@@ -812,6 +808,7 @@ func (ok *Okx) WsProcessUpdateOrderbook(channel string, data WsOrderBookData, pa
 	if err != nil {
 		return err
 	}
+	update.Checksum = uint32(data.Checksum)
 	err = ok.Websocket.Orderbook.Update(update)
 	if err != nil {
 		return err
@@ -856,7 +853,7 @@ func (ok *Okx) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base, c
 		}
 	}
 	checksumStr := strings.TrimSuffix(checksum.String(), ColonDelimiter)
-	if checksumVal != 0 && crc32.ChecksumIEEE([]byte(checksumStr)) != checksumVal {
+	if crc32.ChecksumIEEE([]byte(checksumStr)) != checksumVal {
 		return fmt.Errorf("%s order book update checksum failed for pair %v", ok.Name, orderbookData.Pair)
 	}
 	return nil
