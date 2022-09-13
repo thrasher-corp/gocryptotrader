@@ -1299,7 +1299,7 @@ message GetOrderbookMovementResponse {
   string update_protocol = 7;
   bool full_orderbook_side_consumed = 8;
   double start_price = 9;
-  double end_price = 10; 
+  double end_price = 10;
   bool no_slippage_occurred = 11;
 }
 
@@ -1320,7 +1320,7 @@ message GetOrderbookAmountByNominalResponse {
   string update_protocol = 5;
   bool full_orderbook_side_consumed = 6;
   double start_price = 7;
-  double end_price = 8; 
+  double end_price = 8;
 }
 
 message GetOrderbookAmountByImpactRequest {
@@ -1338,7 +1338,7 @@ message GetOrderbookAmountByImpactResponse {
   string side_affected = 3;
   double approximate_impact_slippage_percentage = 4;
   string update_protocol = 5;
-  bool full_orderbook_side_consumed = 6; 
+  bool full_orderbook_side_consumed = 6;
   double start_price = 7;
   double end_price = 8;
 }
