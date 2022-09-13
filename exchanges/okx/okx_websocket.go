@@ -36,7 +36,6 @@ var responseStream = make(chan stream.Response)
 var defaultSubscribedChannels = []string{
 	okxChannelTrades,
 	okxChannelOrderBooks,
-	okxChannelOrderBooks5,
 	okxChannelOrderBooks50TBT,
 	okxChannelOrderBooksTBT,
 	okxChannelCandle5m,
@@ -800,7 +799,6 @@ func (ok *Okx) WsProcessUpdateOrderbook(channel string, data WsOrderBookData, pa
 	case okxChannelOrderBooks5:
 		update.MaxDepth = 5
 	case okxChannelBBOTBT:
-		update.MaxDepth = 1
 		update.MaxDepth = 400
 	case okxChannelOrderBooks50TBT:
 		update.MaxDepth = 50
