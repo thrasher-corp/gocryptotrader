@@ -1287,7 +1287,11 @@ func (s *RPCServer) SimulateOrder(ctx context.Context, r *gctrpc.SimulateOrderRe
 		buy = false
 	}
 
-	result := o.SimulateOrder(r.Amount, buy)
+	result, err := o.SimulateOrder(r.Amount, buy)
+	if err != nil {
+		return nil, err
+	}
+
 	var resp gctrpc.SimulateOrderResponse
 	for x := range result.Orders {
 		resp.Orders = append(resp.Orders, &gctrpc.OrderbookItem{
@@ -5364,6 +5368,9 @@ func (s *RPCServer) GetOrderbookMovement(ctx context.Context, r *gctrpc.GetOrder
 		SideAffected:              side,
 		UpdateProtocol:            updateProtocol,
 		FullOrderbookSideConsumed: move.FullBookSideConsumed,
+		NoSlippageOccurred:        move.ImpactPercentage == 0,
+		StartPrice:                move.StartPrice,
+		EndPrice:                  move.EndPrice,
 	}, nil
 }
 

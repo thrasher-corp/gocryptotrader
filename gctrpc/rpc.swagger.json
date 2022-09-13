@@ -5849,6 +5849,9 @@
         "endPrice": {
           "type": "number",
           "format": "double"
+        },
+        "noSlippageOccurred": {
+          "type": "boolean"
         }
       }
     },

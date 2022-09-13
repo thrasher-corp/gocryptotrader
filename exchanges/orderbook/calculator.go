@@ -46,7 +46,7 @@ func (b *Base) WhaleBomb(priceTarget float64, buy bool) (*WhaleBombResult, error
 		max = action.TranchePositionPrice
 		amount = action.QuoteAmount
 		percent = math.CalculatePercentageGainOrLoss(action.TranchePositionPrice, action.ReferencePrice)
-		status = fmt.Sprintf("Buying using %.2f %s worth of %s will send the price from %v to %v [%.2f%%] and impact %d price tranches. %s",
+		status = fmt.Sprintf("Buying using %.2f %s worth of %s will send the price from %v to %v [%.2f%%] and impact %d price tranche(s). %s",
 			amount, b.Pair.Quote, b.Pair.Base, min, max,
 			percent, len(action.Tranches), warning)
 	} else {
@@ -54,7 +54,7 @@ func (b *Base) WhaleBomb(priceTarget float64, buy bool) (*WhaleBombResult, error
 		max = action.ReferencePrice
 		amount = action.BaseAmount
 		percent = math.CalculatePercentageGainOrLoss(action.TranchePositionPrice, action.ReferencePrice)
-		status = fmt.Sprintf("Selling using %.2f %s worth of %s will send the price from %v to %v [%.2f%%] and impact %d price tranches. %s",
+		status = fmt.Sprintf("Selling using %.2f %s worth of %s will send the price from %v to %v [%.2f%%] and impact %d price tranche(s). %s",
 			amount, b.Pair.Base, b.Pair.Quote, max, min,
 			percent, len(action.Tranches), warning)
 	}
@@ -71,15 +71,21 @@ func (b *Base) WhaleBomb(priceTarget float64, buy bool) (*WhaleBombResult, error
 
 // SimulateOrder simulates an order
 func (b *Base) SimulateOrder(amount float64, buy bool) (*WhaleBombResult, error) {
+	var warning string
 	if buy {
 		action, err := b.buy(amount)
 		if err != nil {
 			return nil, err
 		}
+
+		if action.FullLiquidityUsed {
+			warning = fullLiquidityUsageWarning
+		}
+
 		pct := math.CalculatePercentageGainOrLoss(action.TranchePositionPrice, action.ReferencePrice)
-		status := fmt.Sprintf("Buying using %.2f %v worth of %v will send the price from %v to %v [%.2f%%] and impact %d price tranches.",
+		status := fmt.Sprintf("Buying using %.2f %v worth of %v will send the price from %v to %v [%.2f%%] and impact %d price tranche(s). %s",
 			action.QuoteAmount, b.Pair.Quote.String(), b.Pair.Base.String(), action.ReferencePrice, action.TranchePositionPrice,
-			pct, len(action.Tranches))
+			pct, len(action.Tranches), warning)
 		return &WhaleBombResult{
 			Orders:               action.Tranches,
 			Amount:               action.BaseAmount,
@@ -93,10 +99,15 @@ func (b *Base) SimulateOrder(amount float64, buy bool) (*WhaleBombResult, error)
 	if err != nil {
 		return nil, err
 	}
+
+	if action.FullLiquidityUsed {
+		warning = fullLiquidityUsageWarning
+	}
+
 	pct := math.CalculatePercentageGainOrLoss(action.TranchePositionPrice, action.ReferencePrice)
-	status := fmt.Sprintf("Selling using %f %v worth of %v will send the price from %v to %v [%.2f%%] and impact %v price tranches.",
+	status := fmt.Sprintf("Selling using %f %v worth of %v will send the price from %v to %v [%.2f%%] and impact %v price tranche(s). %s",
 		action.BaseAmount, b.Pair.Base.String(), b.Pair.Quote.String(), action.ReferencePrice, action.TranchePositionPrice,
-		pct, len(action.Tranches))
+		pct, len(action.Tranches), warning)
 	return &WhaleBombResult{
 		Orders:               action.Tranches,
 		Amount:               action.QuoteAmount,
@@ -176,13 +187,17 @@ func (b *Base) buy(quote float64) (*DeploymentAction, error) {
 		action.TranchePositionPrice = b.Asks[x].Price
 		trancheValue := b.Asks[x].Price * b.Asks[x].Amount
 		action.QuoteAmount += trancheValue
-		fmt.Println("trancheValue", trancheValue)
-		fmt.Println("quote", quote)
-		left := quote - trancheValue
-		fmt.Println("leftOver", left)
-		if left <= 0 {
+		remaining := quote - trancheValue
+		if remaining <= 0 {
+			if remaining == 0 {
+				if len(b.Asks)-1 > x {
+					action.TranchePositionPrice = b.Asks[x+1].Price
+				} else {
+					action.FullLiquidityUsed = true
+					action.TranchePositionPrice = 0
+				}
+			}
 			subAmount := quote / b.Asks[x].Price
-			fmt.Println("subAmount", subAmount)
 			action.Tranches = append(action.Tranches, Item{
 				Price:  b.Asks[x].Price,
 				Amount: subAmount,
@@ -190,11 +205,15 @@ func (b *Base) buy(quote float64) (*DeploymentAction, error) {
 			action.BaseAmount += subAmount
 			return action, nil
 		}
-		quote = left
+		if len(b.Asks)-1 <= x {
+			action.FullLiquidityUsed = true
+			action.TranchePositionPrice = 0
+		}
+		quote = remaining
 		action.BaseAmount += b.Asks[x].Amount
 		action.Tranches = append(action.Tranches, b.Asks[x])
 	}
-	action.FullLiquidityUsed = true
+
 	return action, nil
 }
 
@@ -205,24 +224,37 @@ func (b *Base) sell(base float64) (*DeploymentAction, error) {
 	if len(b.Bids) == 0 {
 		return nil, errNoLiquidity
 	}
-	action := DeploymentAction{ReferencePrice: b.Bids[0].Price}
+	action := &DeploymentAction{ReferencePrice: b.Bids[0].Price}
 	for x := range b.Bids {
-		if action.BaseAmount+b.Bids[x].Amount >= base {
-			diff := base - action.BaseAmount
-			action.Tranches = append(action.Tranches,
-				Item{Price: b.Bids[x].Price, Amount: diff})
-			action.QuoteAmount += diff * b.Bids[x].Price
-			if len(b.Bids) == x+1 {
-				return nil, errNotEnoughLiquidity
+		action.TranchePositionPrice = b.Bids[x].Price
+		remaining := base - b.Bids[x].Amount
+		if remaining <= 0 {
+			if remaining == 0 {
+				if len(b.Bids)-1 > x {
+					action.TranchePositionPrice = b.Bids[x+1].Price
+				} else {
+					action.FullLiquidityUsed = true
+					action.TranchePositionPrice = 0
+				}
 			}
-			action.TranchePositionPrice = b.Bids[x+1].Price
-			break
+			action.Tranches = append(action.Tranches, Item{
+				Price:  b.Bids[x].Price,
+				Amount: base,
+			})
+			action.BaseAmount += base
+			action.QuoteAmount += base * b.Bids[x].Price
+			return action, nil
 		}
+		if len(b.Bids)-1 <= x {
+			action.FullLiquidityUsed = true
+			action.TranchePositionPrice = 0
+		}
+		base = remaining
 		action.BaseAmount += b.Bids[x].Amount
 		action.QuoteAmount += b.Bids[x].Amount * b.Bids[x].Price
 		action.Tranches = append(action.Tranches, b.Bids[x])
 	}
-	return &action, nil
+	return action, nil
 }
 
 // GetAveragePrice finds the average buy or sell price of a specified amount.

@@ -200,47 +200,306 @@ func TestSimulateOrder(t *testing.T) {
 	t.Parallel()
 	b := testSetup()
 
+	// Invalid
 	_, err := b.SimulateOrder(-8000, true)
 	if !errors.Is(err, errQuoteAmountInvalid) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errQuoteAmountInvalid)
 	}
 
+	_, err = (&Base{}).SimulateOrder(1337, true)
+	if !errors.Is(err, errNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	}
+
+	// Full liquidity used
 	result, err := b.SimulateOrder(21002, true)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	fmt.Printf("%+v\n", result)
+	if result.Amount != 3 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.Amount, 3)
+	}
 
-	// _, err = b.SimulateOrder(21003, true)
-	// if !errors.Is(err, errNotEnoughLiquidity) {
-	// 	t.Fatalf("received: '%v' but expected: '%v'", err, errNotEnoughLiquidity)
-	// }
+	if result.MinimumPrice != 7000 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.MinimumPrice, 7000)
+	}
 
-	// fmt.Printf("%+v\n", b.Asks)
+	if result.MaximumPrice != 0 { // No tranches left on book to support price.
+		t.Fatalf("received: '%v' but expected: '%v'", result.MaximumPrice, 0)
+	}
 
-	// result, err := b.SimulateOrder(8000, true)
-	// if !errors.Is(err, nil) {
-	// 	t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	// }
+	if !strings.Contains(result.Status, fullLiquidityUsageWarning) {
+		t.Fatalf("received: '%v' but expected string to contain: '%v'", result.Status, fullLiquidityUsageWarning)
+	}
 
-	// fmt.Printf("%+v\n", result)
+	if len(result.Orders) != 2 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(result.Orders), 2)
+	}
 
-	// _, err = b.SimulateOrder(-1.5, false)
-	// if !errors.Is(err, errBaseAmountInvalid) {
-	// 	t.Fatalf("received: '%v' but expected: '%v'", err, errQuoteAmountInvalid)
-	// }
+	// Exceed full liquidity used
+	result, err = b.SimulateOrder(21003, true)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 
-	// _, err = b.SimulateOrder(1.5, false)
-	// if !errors.Is(err, errNotEnoughLiquidity) {
-	// 	t.Fatalf("received: '%v' but expected: '%v'", err, errNotEnoughLiquidity)
-	// }
+	if result.Amount != 3 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.Amount, 3)
+	}
 
-	// result, err = b.SimulateOrder(1.5, false)
-	// if !errors.Is(err, nil) {
-	// 	t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	// }
-	// fmt.Printf("%+v\n", result)
+	if result.MinimumPrice != 7000 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.MinimumPrice, 7000)
+	}
+
+	if result.MaximumPrice != 0 { // No tranches left on book to support price.
+		t.Fatalf("received: '%v' but expected: '%v'", result.MaximumPrice, 0)
+	}
+
+	if !strings.Contains(result.Status, fullLiquidityUsageWarning) {
+		t.Fatalf("received: '%v' but expected string to contain: '%v'", result.Status, fullLiquidityUsageWarning)
+	}
+
+	if len(result.Orders) != 2 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(result.Orders), 2)
+	}
+
+	// First tranche
+	result, err = b.SimulateOrder(7000, true)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if result.Amount != 1 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.Amount, 1)
+	}
+
+	if result.MinimumPrice != 7000 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.MinimumPrice, 7000)
+	}
+
+	if result.MaximumPrice != 7001 { // A full tranche is wiped out and this one should be preserved.
+		t.Fatalf("received: '%v' but expected: '%v'", result.MaximumPrice, 7001)
+	}
+
+	if strings.Contains(result.Status, fullLiquidityUsageWarning) {
+		t.Fatalf("received: '%v' but expected string to contain: '%v'", result.Status, "NO WARNING")
+	}
+
+	if len(result.Orders) != 1 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(result.Orders), 1)
+	}
+
+	// Half of first tranch
+	result, err = b.SimulateOrder(3500, true)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if result.Amount != .5 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.Amount, .5)
+	}
+
+	if result.MinimumPrice != 7000 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.MinimumPrice, 7000)
+	}
+
+	if result.MaximumPrice != 7000 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.MaximumPrice, 7000)
+	}
+
+	if strings.Contains(result.Status, fullLiquidityUsageWarning) {
+		t.Fatalf("received: '%v' but expected string to contain: '%v'", result.Status, "NO WARNING")
+	}
+
+	if len(result.Orders) != 1 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(result.Orders), 1)
+	}
+
+	if result.Orders[0].Amount != 0.5 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.Orders[0].Amount, 0.5)
+	}
+
+	// Half of second tranche
+	result, err = b.SimulateOrder(14001, true)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if result.Amount != 2 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.Amount, 2)
+	}
+
+	if result.MinimumPrice != 7000 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.MinimumPrice, 7000)
+	}
+
+	if result.MaximumPrice != 7001 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.MaximumPrice, 7001)
+	}
+
+	if strings.Contains(result.Status, fullLiquidityUsageWarning) {
+		t.Fatalf("received: '%v' but expected string to contain: '%v'", result.Status, "NO WARNING")
+	}
+
+	if len(result.Orders) != 2 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(result.Orders), 1)
+	}
+
+	if result.Orders[1].Amount != 1 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.Orders[1].Amount, 1)
+	}
+
+	// Hitting bids
+
+	// Invalid
+
+	_, err = (&Base{}).SimulateOrder(-1, false)
+	if !errors.Is(err, errBaseAmountInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errBaseAmountInvalid)
+	}
+
+	_, err = (&Base{}).SimulateOrder(2, false)
+	if !errors.Is(err, errNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	}
+
+	// Full liquidity used
+	result, err = b.SimulateOrder(3, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if result.Amount != 20995 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.Amount, 20995)
+	}
+
+	if result.MaximumPrice != 6999 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.MaximumPrice, 6999)
+	}
+
+	if result.MinimumPrice != 0 { // No tranches left on book to support price.
+		t.Fatalf("received: '%v' but expected: '%v'", result.MinimumPrice, 0)
+	}
+
+	if !strings.Contains(result.Status, fullLiquidityUsageWarning) {
+		t.Fatalf("received: '%v' but expected string to contain: '%v'", result.Status, fullLiquidityUsageWarning)
+	}
+
+	if len(result.Orders) != 2 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(result.Orders), 2)
+	}
+
+	// Exceed full liquidity used
+	result, err = b.SimulateOrder(3.1, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if result.Amount != 20995 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.Amount, 20995)
+	}
+
+	if result.MaximumPrice != 6999 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.MaximumPrice, 6999)
+	}
+
+	if result.MinimumPrice != 0 { // No tranches left on book to support price.
+		t.Fatalf("received: '%v' but expected: '%v'", result.MinimumPrice, 0)
+	}
+
+	if !strings.Contains(result.Status, fullLiquidityUsageWarning) {
+		t.Fatalf("received: '%v' but expected string to contain: '%v'", result.Status, fullLiquidityUsageWarning)
+	}
+
+	if len(result.Orders) != 2 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(result.Orders), 2)
+	}
+
+	// First tranche
+	result, err = b.SimulateOrder(1, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if result.Amount != 6999 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.Amount, 6999)
+	}
+
+	if result.MaximumPrice != 6999 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.MaximumPrice, 6999)
+	}
+
+	if result.MinimumPrice != 6998 { // A full tranche is wiped out and this one should be preserved.
+		t.Fatalf("received: '%v' but expected: '%v'", result.MinimumPrice, 6998)
+	}
+
+	if strings.Contains(result.Status, fullLiquidityUsageWarning) {
+		t.Fatalf("received: '%v' but expected string to contain: '%v'", result.Status, "NO WARNING")
+	}
+
+	if len(result.Orders) != 1 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(result.Orders), 1)
+	}
+
+	// Half of first tranch
+	result, err = b.SimulateOrder(.5, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if result.Amount != 3499.5 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.Amount, 3499.5)
+	}
+
+	if result.MinimumPrice != 6999 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.MinimumPrice, 6999)
+	}
+
+	if result.MaximumPrice != 6999 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.MaximumPrice, 6999)
+	}
+
+	if strings.Contains(result.Status, fullLiquidityUsageWarning) {
+		t.Fatalf("received: '%v' but expected string to contain: '%v'", result.Status, "NO WARNING")
+	}
+
+	if len(result.Orders) != 1 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(result.Orders), 1)
+	}
+
+	if result.Orders[0].Amount != 0.5 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.Orders[0].Amount, 0.5)
+	}
+
+	// Half of second tranche
+	result, err = b.SimulateOrder(2, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if result.Amount != 13997 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.Amount, 13997)
+	}
+
+	if result.MaximumPrice != 6999 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.MaximumPrice, 6999)
+	}
+
+	if result.MinimumPrice != 6998 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.MinimumPrice, 6998)
+	}
+
+	if strings.Contains(result.Status, fullLiquidityUsageWarning) {
+		t.Fatalf("received: '%v' but expected string to contain: '%v'", result.Status, "NO WARNING")
+	}
+
+	if len(result.Orders) != 2 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(result.Orders), 2)
+	}
+
+	if result.Orders[1].Amount != 1 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.Orders[1].Amount, 1)
+	}
 }
 
 func TestGetAveragePrice(t *testing.T) {

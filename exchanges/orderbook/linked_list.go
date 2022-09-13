@@ -851,6 +851,8 @@ func getMovement(leftover, amounts, totalValue, headPrice, refPrice, tranchePric
 		ImpactPercentage:     impactP,
 		SlippageCost:         slippageCost,
 		FullBookSideConsumed: leftover > 0,
+		StartPrice:           refPrice,
+		EndPrice:             tranchePrice,
 	}
 	if noLiquidity {
 		// If there is no more liquidity alert caller, nominal percentage is
