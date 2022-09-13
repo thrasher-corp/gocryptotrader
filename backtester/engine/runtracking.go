@@ -3,7 +3,9 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"github.com/gofrs/uuid"
 	"strings"
+	"time"
 )
 
 var (
@@ -15,11 +17,12 @@ var (
 // GenerateSummary creates a summary of a backtesting/live strategy run
 // this summary contains many details of a run
 func (bt *BackTest) GenerateSummary() (*RunSummary, error) {
-	return nil, nil
+	return &RunSummary{
+		Identifier: bt.RunMetaData,
+	}, nil
 }
 
-// SetupRunManager creates a run manager to allow
-// the backtester to manage multiple strategies
+// SetupRunManager creates a run manager to allow the backtester to manage multiple strategies
 func SetupRunManager() *RunManager {
 	return &RunManager{}
 }
@@ -28,7 +31,18 @@ func SetupRunManager() *RunManager {
 func (r *RunManager) AddRun(b *BackTest) error {
 	r.m.Lock()
 	defer r.m.Unlock()
-	b.RunMetaData.ID = strings.ToLower(b.RunMetaData.ID)
+	if b.RunMetaData.ID == "" {
+		id, err := uuid.NewV4()
+		if err != nil {
+			return err
+		}
+		b.RunMetaData = RunMetaData{
+			ID:         id.String(),
+			Strategy:   b.Strategy.Name(),
+			DateLoaded: time.Now(),
+			// TODO set livetest & realorder after merge
+		}
+	}
 	for i := range r.Runs {
 		if r.Runs[i].RunMetaData.ID == b.RunMetaData.ID {
 			return fmt.Errorf("%w %s %s", errRunAlreadyMonitored, b.RunMetaData.ID, b.RunMetaData.Strategy)
@@ -66,8 +80,7 @@ func (r *RunManager) GetSummary(id string) (*RunSummary, error) {
 	return nil, fmt.Errorf("%s %w", id, errRunNotFound)
 }
 
-// StopRun stops a backtesting/live strategy run
-// if enabled, this will run CloseAllPositions
+// StopRun stops a backtesting/live strategy run if enabled, this will run CloseAllPositions
 func (r *RunManager) StopRun(id string) error {
 	r.m.Lock()
 	defer r.m.Unlock()
@@ -81,7 +94,7 @@ func (r *RunManager) StopRun(id string) error {
 	return fmt.Errorf("%s %w", id, errRunNotFound)
 }
 
-// StartRun
+// StartRun executes a strategy if found
 func (r *RunManager) StartRun(id string) error {
 	r.m.Lock()
 	defer r.m.Unlock()

@@ -55,6 +55,7 @@ type RunSummary struct {
 type RunMetaData struct {
 	ID          string
 	Strategy    string
+	DateLoaded  time.Time
 	DateStarted time.Time
 	DateEnded   time.Time
 	Closed      bool

@@ -35,6 +35,12 @@
         },
         "parameters": [
           {
+            "name": "doNotRunImmediately",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
             "name": "config.nickname",
             "in": "query",
             "required": false,
@@ -318,6 +324,116 @@
         "parameters": [
           {
             "name": "strategyFilePath",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "doNotRunImmediately",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "BacktesterService"
+        ]
+      }
+    },
+    "/v1/listallruns": {
+      "get": {
+        "operationId": "BacktesterService_ListAllRuns",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/btrpcListAllRunsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "BacktesterService"
+        ]
+      }
+    },
+    "/v1/startrunbyid": {
+      "get": {
+        "operationId": "BacktesterService_StartRunByID",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/btrpcExecuteStrategyResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "BacktesterService"
+        ]
+      }
+    },
+    "/v1/stopallruns": {
+      "get": {
+        "operationId": "BacktesterService_StopAllRuns",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/btrpcStopAllRunsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "BacktesterService"
+        ]
+      }
+    },
+    "/v1/stoprunbyid": {
+      "get": {
+        "operationId": "BacktesterService_StopRunByID",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/btrpcStopRunByIDResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
             "in": "query",
             "required": false,
             "type": "string"
@@ -607,6 +723,17 @@
         }
       }
     },
+    "btrpcListAllRunsResponse": {
+      "type": "object",
+      "properties": {
+        "runs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/btrpcRunSummary"
+          }
+        }
+      }
+    },
     "btrpcLiveData": {
       "type": "object",
       "properties": {
@@ -658,6 +785,35 @@
         }
       }
     },
+    "btrpcRunSummary": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "strategyName": {
+          "type": "string"
+        },
+        "dateLoaded": {
+          "type": "string"
+        },
+        "dateStarted": {
+          "type": "string"
+        },
+        "dateEnded": {
+          "type": "string"
+        },
+        "closed": {
+          "type": "boolean"
+        },
+        "liveTesting": {
+          "type": "boolean"
+        },
+        "realOrders": {
+          "type": "boolean"
+        }
+      }
+    },
     "btrpcSpotDetails": {
       "type": "object",
       "properties": {
@@ -674,6 +830,25 @@
       "properties": {
         "riskFreeRate": {
           "type": "string"
+        }
+      }
+    },
+    "btrpcStopAllRunsResponse": {
+      "type": "object",
+      "properties": {
+        "runs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/btrpcRunSummary"
+          }
+        }
+      }
+    },
+    "btrpcStopRunByIDResponse": {
+      "type": "object",
+      "properties": {
+        "run": {
+          "$ref": "#/definitions/btrpcRunSummary"
         }
       }
     },

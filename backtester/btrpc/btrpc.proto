@@ -174,16 +174,18 @@ message Config {
 message RunSummary {
   string id = 1;
   string strategy_name = 2;
-  string date_started = 3;
-  string date_ended = 4;
-  bool closed = 5;
-  bool live_testing = 6;
-  bool real_orders = 7;
+  string date_loaded = 3;
+  string date_started = 4;
+  string date_ended = 5;
+  bool closed = 6;
+  bool live_testing = 7;
+  bool real_orders = 8;
 }
 
 // Requests and responses
 message ExecuteStrategyFromFileRequest {
   string strategy_file_path = 1;
+  bool do_not_run_immediately = 2;
 }
 
 message ExecuteStrategyResponse {
@@ -192,12 +194,31 @@ message ExecuteStrategyResponse {
 }
 
 message ExecuteStrategyFromConfigRequest {
-  btrpc.Config config = 1;
+  bool do_not_run_immediately = 1;
+  btrpc.Config config = 2;
 }
 
 message ListAllRunsRequest {}
 
 message ListAllRunsResponse {
+  repeated RunSummary runs = 1;
+}
+
+message StopRunByIDRequest {
+  string id = 1;
+}
+
+message StopRunByIDResponse {
+  RunSummary run = 1;
+}
+
+message StartRunByIDRequest {
+  string id = 1;
+}
+
+message StopAllRunsRequest {}
+
+message StopAllRunsResponse {
   repeated RunSummary runs = 1;
 }
 
@@ -215,6 +236,21 @@ service BacktesterService {
   rpc ListAllRuns(ListAllRunsRequest) returns (ListAllRunsResponse) {
     option (google.api.http) = {
       get: "/v1/listallruns"
+    };
+  }
+  rpc StartRunByID(StartRunByIDRequest) returns (ExecuteStrategyResponse) {
+    option (google.api.http) = {
+      get: "/v1/startrunbyid"
+    };
+  }
+  rpc StopRunByID(StopRunByIDRequest) returns (StopRunByIDResponse) {
+    option (google.api.http) = {
+      get: "/v1/stoprunbyid"
+    };
+  }
+  rpc StopAllRuns(StopAllRunsRequest) returns (StopAllRunsResponse) {
+    option (google.api.http) = {
+      get: "/v1/stopallruns"
     };
   }
 }

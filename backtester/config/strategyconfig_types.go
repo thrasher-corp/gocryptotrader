@@ -31,7 +31,6 @@ var (
 type Config struct {
 	Nickname          string             `json:"nickname"`
 	Goal              string             `json:"goal"`
-	DoNotRunOnLoad    bool               `json:"do-not-run-on-load"`
 	StrategySettings  StrategySettings   `json:"strategy-settings"`
 	FundingSettings   FundingSettings    `json:"funding-settings"`
 	CurrencySettings  []CurrencySettings `json:"currency-settings"`

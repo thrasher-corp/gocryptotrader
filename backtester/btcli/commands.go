@@ -10,6 +10,12 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+var doNotRunFlag = &cli.BoolFlag{
+	Name:    "donotrunimmediately",
+	Aliases: []string{"dnr"},
+	Usage:   "if true, will load the strategy, but will not execute until another command is sent",
+}
+
 var executeStrategyFromFileCommand = &cli.Command{
 	Name:      "executestrategyfromfile",
 	Usage:     "runs the strategy from a config file",
@@ -21,6 +27,7 @@ var executeStrategyFromFileCommand = &cli.Command{
 			Aliases: []string{"p"},
 			Usage:   "the filepath to a strategy to execute",
 		},
+		doNotRunFlag,
 	},
 }
 
@@ -42,11 +49,138 @@ func executeStrategyFromFile(c *cli.Context) error {
 		path = c.Args().First()
 	}
 
+	var dnr bool
+	if c.IsSet("donotrunimmediately") {
+		dnr = c.Bool("donotrunimmediately")
+	}
+
 	client := btrpc.NewBacktesterServiceClient(conn)
 	result, err := client.ExecuteStrategyFromFile(
 		c.Context,
 		&btrpc.ExecuteStrategyFromFileRequest{
-			StrategyFilePath: path,
+			StrategyFilePath:    path,
+			DoNotRunImmediately: dnr,
+		},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+var listAllRunsCommand = &cli.Command{
+	Name:   "listallruns",
+	Usage:  "returns a list of all loaded backtest/livestrategy runs",
+	Action: listAllRuns,
+}
+
+func listAllRuns(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	client := btrpc.NewBacktesterServiceClient(conn)
+	result, err := client.ListAllRuns(
+		c.Context,
+		&btrpc.ListAllRunsRequest{},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+var startRunByIDCommand = &cli.Command{
+	Name:      "startrunbyid",
+	Usage:     "executes a strategy loaded into the server",
+	ArgsUsage: "<id>",
+	Action:    startRunByID,
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  "id",
+			Usage: "the id of the backtest/livestrategy run",
+		},
+	},
+}
+
+func startRunByID(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, "executestrategyfromfile")
+	}
+
+	var id string
+	if c.IsSet("id") {
+		id = c.String("id")
+	} else {
+		id = c.Args().First()
+	}
+
+	client := btrpc.NewBacktesterServiceClient(conn)
+	result, err := client.StartRunByID(
+		c.Context,
+		&btrpc.StartRunByIDRequest{
+			Id: id,
+		},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+var stopRunByIDCommand = &cli.Command{
+	Name:      "stoprunbyid",
+	Usage:     "stops a strategy loaded into the server",
+	ArgsUsage: "<id>",
+	Action:    stopRunByID,
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  "id",
+			Usage: "the id of the backtest/livestrategy run",
+		},
+	},
+}
+
+func stopRunByID(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, "executestrategyfromfile")
+	}
+
+	var id string
+	if c.IsSet("id") {
+		id = c.String("id")
+	} else {
+		id = c.Args().First()
+	}
+
+	client := btrpc.NewBacktesterServiceClient(conn)
+	result, err := client.StopRunByID(
+		c.Context,
+		&btrpc.StopRunByIDRequest{
+			Id: id,
 		},
 	)
 
@@ -63,6 +197,9 @@ var executeStrategyFromConfigCommand = &cli.Command{
 	Usage:       "runs the default strategy config but via passing in as a struct instead of a filepath - this is a proof-of-concept implementation",
 	Description: "the cli is not a good place to manage this type of command with n variables to pass in from a command line",
 	Action:      executeStrategyFromConfig,
+	Flags: []cli.Flag{
+		doNotRunFlag,
+	},
 }
 
 // executeStrategyFromConfig this is a proof of concept command
@@ -235,11 +372,17 @@ func executeStrategyFromConfig(c *cli.Context) error {
 		},
 	}
 
+	var dnr bool
+	if c.IsSet("donotrunimmediately") {
+		dnr = c.Bool("donotrunimmediately")
+	}
+
 	client := btrpc.NewBacktesterServiceClient(conn)
 	result, err := client.ExecuteStrategyFromConfig(
 		c.Context,
 		&btrpc.ExecuteStrategyFromConfigRequest{
-			Config: cfg,
+			Config:              cfg,
+			DoNotRunImmediately: dnr,
 		},
 	)
 

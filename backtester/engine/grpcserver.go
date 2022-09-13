@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"math"
 	"net"
 	"net/http"
@@ -176,9 +177,6 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 		err := fmt.Errorf("%w backtester config", common.ErrNilArguments)
 		return nil, err
 	}
-	if cfg.DoNotRunOnLoad {
-		return nil, errNotAllowed
-	}
 	bt, err := NewFromConfig(cfg, s.BacktesterConfig.Report.TemplatePath, s.BacktesterConfig.Report.OutputPath, s.BacktesterConfig.Verbose)
 	if err != nil {
 		return nil, err
@@ -189,7 +187,57 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 		return nil, err
 	}
 
-	err = bt.ExecuteStrategy()
+	if !request.DoNotRunImmediately {
+		err = bt.ExecuteStrategy()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &btrpc.ExecuteStrategyResponse{
+		Success: true,
+	}, nil
+}
+
+func (s *GRPCServer) ListAllRuns(_ context.Context, _ *btrpc.ListAllRunsRequest) (*btrpc.ListAllRunsResponse, error) {
+	list, err := s.manager.List()
+	if err != nil {
+		return nil, err
+	}
+	var response []*btrpc.RunSummary
+	for i := range list {
+		r := &btrpc.RunSummary{
+			Id:           list[i].Identifier.ID,
+			StrategyName: list[i].Identifier.Strategy,
+			Closed:       list[i].Identifier.Closed,
+			LiveTesting:  list[i].Identifier.LiveTesting,
+			RealOrders:   list[i].Identifier.RealOrders,
+			DateLoaded:   list[i].Identifier.DateLoaded.Format(gctcommon.SimpleTimeFormatWithTimezone),
+		}
+		if !list[i].Identifier.DateStarted.IsZero() {
+			r.DateStarted = list[i].Identifier.DateStarted.Format(gctcommon.SimpleTimeFormatWithTimezone)
+		}
+		if !list[i].Identifier.DateEnded.IsZero() {
+			r.DateEnded = list[i].Identifier.DateEnded.Format(gctcommon.SimpleTimeFormatWithTimezone)
+		}
+		response = append(response, r)
+	}
+	return &btrpc.ListAllRunsResponse{
+		Runs: response,
+	}, nil
+}
+
+// StopRunByID stops a backtest/livestrategy run in its tracks
+func (s *GRPCServer) StopRunByID(_ context.Context, req *btrpc.StopRunByIDRequest) (*btrpc.StopRunByIDResponse, error) {
+	err := s.manager.StopRun(req.Id)
+	if err != nil {
+		return nil, err
+	}
+	return &btrpc.StopRunByIDResponse{}, nil
+}
+
+// StartRunByID starts a backtest/livestrategy that was set to not start automatically
+func (s *GRPCServer) StartRunByID(_ context.Context, req *btrpc.StartRunByIDRequest) (*btrpc.ExecuteStrategyResponse, error) {
+	err := s.manager.StartRun(req.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -198,39 +246,32 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 	}, nil
 }
 
-func (s *GRPCServer) ListAllRuns(_ context.Context, _ btrpc.ListAllRunsRequest) (*btrpc.ListAllRunsResponse, error) {
-	list, err := s.manager.List()
+// StopAllRuns stops all backtest/livestrategy runs in its tracks
+func (s *GRPCServer) StopAllRuns(_ context.Context, _ *btrpc.StopAllRunsRequest) (*btrpc.StopAllRunsResponse, error) {
+	runs, err := s.manager.List()
 	if err != nil {
 		return nil, err
 	}
-	var response []btrpc.Run
-	for i := range list {
-		response = append(response, nil)
+	var stoppedRuns []*btrpc.RunSummary
+	for i := range runs {
+		if !runs[i].Identifier.DateStarted.IsZero() && !runs[i].Identifier.Closed {
+			err = s.manager.StopRun(runs[i].Identifier.ID)
+			if err != nil {
+				return nil, err
+			}
+			stoppedRuns = append(stoppedRuns, &btrpc.RunSummary{
+				Id:           runs[i].Identifier.ID,
+				StrategyName: runs[i].Identifier.Strategy,
+				DateStarted:  runs[i].Identifier.DateStarted.Format(gctcommon.SimpleTimeFormatWithTimezone),
+				DateEnded:    runs[i].Identifier.DateStarted.Format(gctcommon.SimpleTimeFormatWithTimezone),
+				Closed:       runs[i].Identifier.Closed,
+				LiveTesting:  runs[i].Identifier.LiveTesting,
+				RealOrders:   runs[i].Identifier.RealOrders,
+			})
+		}
 	}
-	return &btrpc.ListAllRunsResponse{
-		list: response,
-	}, nil
-}
-
-// StopRunByID stops a backtest/livestrategy run in its tracks
-func (s *GRPCServer) StopRunByID(_ context.Context, req btrpc.StopRunByIDRequest) (*btrpc.StopRunByIDResponse, error) {
-	err := s.manager.StopRun(req.ID)
-	if err != nil {
-		return nil, err
-	}
-	return &btrpc.StopRunByIDResponse{
-		Success: true,
-	}, nil
-}
-
-// StartRunByID starts a backtest/livestrategy that was set to not start automatically
-func (s *GRPCServer) StartRunByID(_ context.Context, req btrpc.StartRunByIDRequest) (*btrpc.StartRunByIDResponse, error) {
-	err := s.manager.StartRun(req.ID)
-	if err != nil {
-		return nil, err
-	}
-	return &btrpc.StartRunByIDResponse{
-		Success: true,
+	return &btrpc.StopAllRunsResponse{
+		Runs: stoppedRuns,
 	}, nil
 }
 
@@ -560,9 +601,21 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		},
 	}
 
-	err = ExecuteStrategy(cfg, s.BacktesterConfig)
+	bt, err := NewFromConfig(cfg, s.BacktesterConfig.Report.TemplatePath, s.BacktesterConfig.Report.OutputPath, s.Verbose)
 	if err != nil {
 		return nil, err
+	}
+
+	err = s.manager.AddRun(bt)
+	if err != nil {
+		return nil, err
+	}
+
+	if !request.DoNotRunImmediately {
+		err = bt.ExecuteStrategy()
+		if err != nil {
+			return nil, err
+		}
 	}
 	return &btrpc.ExecuteStrategyResponse{
 		Success: true,

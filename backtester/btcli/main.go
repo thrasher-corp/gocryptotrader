@@ -112,6 +112,9 @@ func main() {
 	app.Commands = []*cli.Command{
 		executeStrategyFromFileCommand,
 		executeStrategyFromConfigCommand,
+		listAllRunsCommand,
+		startRunByIDCommand,
+		stopRunByIDCommand,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
