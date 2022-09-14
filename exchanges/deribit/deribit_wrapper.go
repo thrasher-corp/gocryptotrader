@@ -27,10 +27,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-var (
-	ErrNoWebsocketAuthenticatedEndpoints = errors.New("cannot use websocket authenticated endpoints")
-)
-
 // GetDefaultConfig returns a default exchange config
 func (d *Deribit) GetDefaultConfig() (*config.Exchange, error) {
 	d.SetDefaults()
@@ -568,10 +564,6 @@ func (d *Deribit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 	status := order.New
 	switch s.AssetType {
 	case asset.Futures:
-		if s.UseWebsocket && !d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			return nil, ErrNoWebsocketAuthenticatedEndpoints
-		}
-
 		fmtPair, err := d.FormatExchangeCurrency(s.Pair, asset.Futures)
 		if err != nil {
 			return nil, err
@@ -583,7 +575,7 @@ func (d *Deribit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 
 		switch s.Side {
 		case order.Bid, order.Buy:
-			if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() && s.UseWebsocket {
+			if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 				data, err := d.wsPlaceOrder(fmtPair.String(),
 					strings.ToLower(s.Type.String()),
 					s.ClientOrderID,
