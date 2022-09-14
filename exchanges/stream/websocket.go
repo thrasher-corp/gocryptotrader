@@ -46,6 +46,14 @@ var (
 	errClosedConnection                     = errors.New("use of closed network connection")
 )
 
+var globalReporter Reporter
+
+// SetupGlobalReporter sets a reporter interface to be used
+// for all exchange requests
+func SetupGlobalReporter(r Reporter) {
+	globalReporter = r
+}
+
 // New initialises the websocket struct
 func New() *Websocket {
 	return &Websocket{
@@ -195,7 +203,11 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 		Wg:                w.Wg,
 		Match:             w.Match,
 		RateLimit:         c.RateLimit,
-		Reporter:          w.Reporter,
+		Reporter:          globalReporter,
+	}
+	
+	if w.Reporter != nil {
+		newConn.Reporter = w.Reporter
 	}
 
 	if c.Authenticated {
