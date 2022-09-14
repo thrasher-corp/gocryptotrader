@@ -97,3 +97,9 @@ type WebsocketPositionUpdated struct {
 type UnhandledMessageWarning struct {
 	Message string
 }
+
+// Reporter interface groups observability functionality over
+// Websocket request latency.
+type Reporter interface {
+	Latency(name string, message []byte, t time.Duration)
+}

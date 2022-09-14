@@ -195,6 +195,7 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 		Wg:                w.Wg,
 		Match:             w.Match,
 		RateLimit:         c.RateLimit,
+		Reporter:          w.Reporter,
 	}
 
 	if c.Authenticated {
