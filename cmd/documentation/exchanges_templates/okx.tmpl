@@ -9,6 +9,7 @@
 
 ### How to enable
 
+ [Enable via configuration](https://github.com/thrasher-corp/gocryptotrader/tree/master/config#enable-exchange-via-config-example)
 
 + Individual package example below:
 
@@ -27,7 +28,7 @@ below:
 
 main.go
 ```go
-var o exchange.IBotExchange
+var ok exchange.IBotExchange
 
 for i := range bot.Exchanges {
 	if bot.Exchanges[i].GetName() == "Okx" {
@@ -53,7 +54,7 @@ if err != nil {
 // set and AuthenticatedAPISupport is set to true
 
 // Fetches current account information
-accountInfo, err := o.GetAccountInfo()
+accountInfo, err := ok.GetAccountInfo()
 if err != nil {
 	// Handle error
 }
@@ -65,13 +66,13 @@ if err != nil {
 // Public calls
 
 // Fetches current ticker information
-ticker, err := o.GetTicker()
+ticker, err := ok.GetTicker()
 if err != nil {
 	// Handle error
 }
 
 // Fetches current orderbook information
-ob, err := o.GetOrderBook()
+ob, err := ok.GetOrderBook()
 if err != nil {
 	// Handle error
 }
@@ -80,13 +81,13 @@ if err != nil {
 // AuthenticatedAPISupport is set to true
 
 // GetUserInfo returns account info
-accountInfo, err := o.GetUserInfo(...)
+accountInfo, err := ok.GetUserInfo(...)
 if err != nil {
 	// Handle error
 }
 
 // Submits an order and the exchange and returns its tradeID
-tradeID, err := o.Trade(...)
+tradeID, err := ok.Trade(...)
 if err != nil {
 	// Handle error
 }

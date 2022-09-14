@@ -277,11 +277,7 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 			},
 		},
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(request)
-	if err != nil {
-		return err
-	}
-	return nil
+	return ok.Websocket.AuthConn.SendJSONMessage(request)
 }
 
 // wsFunnelConnectionData receives data from multiple connection and pass the data
@@ -712,13 +708,16 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 		pair.Delimiter = currency.DashDelimiter
 	}
 	for i := range response.Data {
-		if response.Action == OkxOrderBookSnapshot ||
-			response.Argument.Channel == okxChannelOrderBooks5 ||
-			response.Argument.Channel == okxChannelBBOTBT {
+		if response.Action == OkxOrderBookSnapshot {
 			err = ok.WsProcessSnapshotOrderBook(response.Data[i], pair, a)
 			if err != nil {
-				_, err2 := ok.OrderBooksSubscription("subscribe", response.Argument.Channel, a, pair)
-				if err2 != nil {
+				if err2 := ok.Subscribe([]stream.ChannelSubscription{
+					{
+						Channel:  response.Argument.Channel,
+						Asset:    a,
+						Currency: pair,
+					},
+				}); err2 != nil {
 					ok.Websocket.DataHandler <- err2
 				}
 				return err
@@ -735,8 +734,13 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 			}
 			err := ok.WsProcessUpdateOrderbook(response.Argument.Channel, response.Data[i], pair, a)
 			if err != nil {
-				_, err2 := ok.OrderBooksSubscription("subscribe", response.Argument.Channel, a, pair)
-				if err2 != nil {
+				if err2 := ok.Subscribe([]stream.ChannelSubscription{
+					{
+						Channel:  response.Argument.Channel,
+						Asset:    a,
+						Currency: pair,
+					},
+				}); err2 != nil {
 					ok.Websocket.DataHandler <- err2
 				}
 				return err
@@ -749,17 +753,6 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 // WsProcessSnapshotOrderBook processes snapshot order books
 func (ok *Okx) WsProcessSnapshotOrderBook(data WsOrderBookData, pair currency.Pair, a asset.Item) error {
 	var err error
-	var signedChecksum int32
-	signedChecksum, err = ok.CalculateOrderbookChecksum(data)
-	if err != nil {
-		return fmt.Errorf("%s channel: Orderbook unable to calculate orderbook checksum: %s", ok.Name, err)
-	}
-	if signedChecksum != data.Checksum {
-		return fmt.Errorf("%s channel: Orderbook for %v checksum invalid",
-			ok.Name,
-			pair)
-	}
-
 	asks, err := ok.AppendWsOrderbookItems(data.Asks)
 	if err != nil {
 		return err
@@ -777,7 +770,21 @@ func (ok *Okx) WsProcessSnapshotOrderBook(data WsOrderBookData, pair currency.Pa
 		Exchange:        ok.Name,
 		VerifyOrderbook: ok.CanVerifyOrderbook,
 	}
-	return ok.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+	err = ok.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+	if err != nil {
+		return err
+	}
+	var signedChecksum int32
+	signedChecksum, err = ok.CalculateOrderbookChecksum(data)
+	if err != nil {
+		return fmt.Errorf("%s channel: Orderbook unable to calculate orderbook checksum: %s", ok.Name, err)
+	}
+	if signedChecksum != data.Checksum {
+		return fmt.Errorf("%s channel: Orderbook for %v checksum invalid",
+			ok.Name,
+			pair)
+	}
+	return nil
 }
 
 // WsProcessUpdateOrderbook updates an existing orderbook using websocket data
@@ -787,17 +794,6 @@ func (ok *Okx) WsProcessUpdateOrderbook(channel string, data WsOrderBookData, pa
 	update := &orderbook.Update{
 		Asset: a,
 		Pair:  pair,
-	}
-	switch channel {
-	case okxChannelOrderBooks,
-		okxChannelOrderBooksTBT:
-		update.MaxDepth = 400
-	case okxChannelOrderBooks5:
-		update.MaxDepth = 5
-	case okxChannelBBOTBT:
-		update.MaxDepth = 400
-	case okxChannelOrderBooks50TBT:
-		update.MaxDepth = 50
 	}
 	var err error
 	update.Asks, err = ok.AppendWsOrderbookItems(data.Asks)
@@ -809,11 +805,7 @@ func (ok *Okx) WsProcessUpdateOrderbook(channel string, data WsOrderBookData, pa
 		return err
 	}
 	update.Checksum = uint32(data.Checksum)
-	err = ok.Websocket.Orderbook.Update(update)
-	if err != nil {
-		return err
-	}
-	return nil
+	return ok.Websocket.Orderbook.Update(update)
 }
 
 // AppendWsOrderbookItems adds websocket orderbook data bid/asks into an orderbook item array
@@ -1224,7 +1216,10 @@ func (ok *Okx) WSPlaceOrder(arg *PlaceOrderRequestParam) (*PlaceOrderResponse, e
 	if !(strings.EqualFold(arg.QuantityType, "base_ccy") || strings.EqualFold(arg.QuantityType, "quote_ccy")) {
 		arg.QuantityType = ""
 	}
-	randomID := common.GenerateRandomString(32, common.SmallLetters, common.CapitalLetters, common.NumberCharacters)
+	randomID, err := common.GenerateRandomString(32, common.SmallLetters, common.CapitalLetters, common.NumberCharacters)
+	if err != nil {
+		return nil, err
+	}
 	input := WsPlaceOrderInput{
 		ID:        randomID,
 		Arguments: []PlaceOrderRequestParam{*arg},
@@ -1284,7 +1279,10 @@ func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]PlaceOrder
 			arg.QuantityType = ""
 		}
 	}
-	randomID := common.GenerateRandomString(4, common.NumberCharacters)
+	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
+	if err != nil {
+		return nil, err
+	}
 	input := WsPlaceOrderInput{
 		ID:        randomID,
 		Arguments: args,
@@ -1317,7 +1315,10 @@ func (ok *Okx) WsCancelOrder(arg CancelOrderRequestParam) (*PlaceOrderResponse, 
 	if arg.OrderID == "" && arg.ClientSupplierOrderID == "" {
 		return nil, fmt.Errorf("either order id or client supplier id is required")
 	}
-	randomID := common.GenerateRandomString(4, common.NumberCharacters)
+	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
+	if err != nil {
+		return nil, err
+	}
 	input := WsCancelOrderInput{
 		ID:        randomID,
 		Arguments: []CancelOrderRequestParam{arg},
@@ -1357,7 +1358,10 @@ func (ok *Okx) WsCancleMultipleOrder(args []CancelOrderRequestParam) ([]PlaceOrd
 			return nil, fmt.Errorf("either order id or client supplier id is required")
 		}
 	}
-	randomID := common.GenerateRandomString(4, common.NumberCharacters)
+	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
+	if err != nil {
+		return nil, err
+	}
 	input := WsCancelOrderInput{
 		ID:        randomID,
 		Arguments: args,
@@ -1396,7 +1400,10 @@ func (ok *Okx) WsAmendOrder(arg *AmendOrderRequestParams) (*AmendOrderResponse, 
 	if arg.NewQuantity <= 0 && arg.NewPrice <= 0 {
 		return nil, errMissingNewSizeOrPriceInformation
 	}
-	randomID := common.GenerateRandomString(4, common.NumberCharacters)
+	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
+	if err != nil {
+		return nil, err
+	}
 	input := WsAmendOrderInput{
 		ID:        randomID,
 		Operation: "amend-order",
@@ -1439,7 +1446,10 @@ func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]AmendOrd
 			return nil, errMissingNewSizeOrPriceInformation
 		}
 	}
-	randomID := common.GenerateRandomString(4, common.NumberCharacters)
+	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
+	if err != nil {
+		return nil, err
+	}
 	input := &WsAmendOrderInput{
 		ID:        randomID,
 		Operation: "batch-amend-orders",
@@ -1515,7 +1525,10 @@ func (ok *Okx) WsChannelSubscription(operation, channel string, assetType asset.
 			},
 		},
 	}
-	randomID := common.GenerateRandomString(32, common.SmallLetters, common.CapitalLetters, common.NumberCharacters)
+	randomID, err := common.GenerateRandomString(32, common.SmallLetters, common.CapitalLetters, common.NumberCharacters)
+	if err != nil {
+		return nil, err
+	}
 	respData, err := ok.Websocket.Conn.SendMessageReturnResponse(randomID, input)
 	if err != nil {
 		return nil, err

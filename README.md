@@ -43,6 +43,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Lbank | Yes | No | NA |
 | LocalBitcoins | Yes | NA | NA |
 | OKCoin International | Yes | Yes | No |
+| Okx | Yes | Yes | No |
 | Poloniex | Yes | Yes | NA |
 | Yobit | Yes | NA | NA |
 | ZB.COM | Yes | Yes | NA |
