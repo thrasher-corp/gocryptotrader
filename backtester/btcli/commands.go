@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"path/filepath"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/btrpc"
@@ -39,7 +40,7 @@ func executeStrategyFromFile(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "executestrategyfromfile")
+		return cli.ShowCommandHelp(c, c.Command.Name)
 	}
 
 	var path string
@@ -98,11 +99,11 @@ func listAllRuns(c *cli.Context) error {
 	return nil
 }
 
-var startRunByIDCommand = &cli.Command{
-	Name:      "startrunbyid",
+var startRunCommand = &cli.Command{
+	Name:      "startrun",
 	Usage:     "executes a strategy loaded into the server",
 	ArgsUsage: "<id>",
-	Action:    startRunByID,
+	Action:    startRun,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  "id",
@@ -111,7 +112,7 @@ var startRunByIDCommand = &cli.Command{
 	},
 }
 
-func startRunByID(c *cli.Context) error {
+func startRun(c *cli.Context) error {
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -119,7 +120,7 @@ func startRunByID(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "executestrategyfromfile")
+		return cli.ShowCommandHelp(c, c.Command.Name)
 	}
 
 	var id string
@@ -130,9 +131,9 @@ func startRunByID(c *cli.Context) error {
 	}
 
 	client := btrpc.NewBacktesterServiceClient(conn)
-	result, err := client.StartRunByID(
+	result, err := client.StartRun(
 		c.Context,
-		&btrpc.StartRunByIDRequest{
+		&btrpc.StartRunRequest{
 			Id: id,
 		},
 	)
@@ -145,11 +146,38 @@ func startRunByID(c *cli.Context) error {
 	return nil
 }
 
-var stopRunByIDCommand = &cli.Command{
-	Name:      "stoprunbyid",
+var startAllRunsCommand = &cli.Command{
+	Name:   "startallruns",
+	Usage:  "executes all strategies loaded into the server that have not been run",
+	Action: startAllRuns,
+}
+
+func startAllRuns(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	client := btrpc.NewBacktesterServiceClient(conn)
+	result, err := client.StartAllRuns(
+		c.Context,
+		&btrpc.StartAllRunsRequest{},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+var stopRunCommand = &cli.Command{
+	Name:      "stoprun",
 	Usage:     "stops a strategy loaded into the server",
 	ArgsUsage: "<id>",
-	Action:    stopRunByID,
+	Action:    stopRun,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  "id",
@@ -158,7 +186,7 @@ var stopRunByIDCommand = &cli.Command{
 	},
 }
 
-func stopRunByID(c *cli.Context) error {
+func stopRun(c *cli.Context) error {
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -166,7 +194,7 @@ func stopRunByID(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "executestrategyfromfile")
+		return cli.ShowCommandHelp(c, c.Command.Name)
 	}
 
 	var id string
@@ -177,9 +205,9 @@ func stopRunByID(c *cli.Context) error {
 	}
 
 	client := btrpc.NewBacktesterServiceClient(conn)
-	result, err := client.StopRunByID(
+	result, err := client.StopRun(
 		c.Context,
-		&btrpc.StopRunByIDRequest{
+		&btrpc.StopRunRequest{
 			Id: id,
 		},
 	)
@@ -189,6 +217,154 @@ func stopRunByID(c *cli.Context) error {
 	}
 
 	jsonOutput(result)
+	return nil
+}
+
+var stopAllRunsCommand = &cli.Command{
+	Name:   "stopallruns",
+	Usage:  "stops all strategies loaded into the server",
+	Action: stopAllRuns,
+}
+
+func stopAllRuns(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	client := btrpc.NewBacktesterServiceClient(conn)
+	result, err := client.StopAllRuns(
+		c.Context,
+		&btrpc.StopAllRunsRequest{},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+var clearRunCommand = &cli.Command{
+	Name:      "clearrun",
+	Usage:     "clears/deletes a strategy loaded into the server",
+	ArgsUsage: "<id>",
+	Action:    clearRun,
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  "id",
+			Usage: "the id of the backtest/livestrategy run",
+		},
+	},
+}
+
+func clearRun(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, c.Command.Name)
+	}
+
+	var id string
+	if c.IsSet("id") {
+		id = c.String("id")
+	} else {
+		id = c.Args().First()
+	}
+
+	client := btrpc.NewBacktesterServiceClient(conn)
+	result, err := client.ClearRun(
+		c.Context,
+		&btrpc.ClearRunRequest{
+			Id: id,
+		},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+var clearAllRunsCommand = &cli.Command{
+	Name:   "clearallruns",
+	Usage:  "clears all strategies loaded into the server. If any are currently running, will return error",
+	Action: clearAllRuns,
+}
+
+func clearAllRuns(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	client := btrpc.NewBacktesterServiceClient(conn)
+	result, err := client.ClearAllRuns(
+		c.Context,
+		&btrpc.ClearAllRunsRequest{},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+var reportLogsCommand = &cli.Command{
+	Name:      "reportlogs",
+	Usage:     "returns all logs that occurred during a run",
+	ArgsUsage: "<id>",
+	Action:    reportLogs,
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  "id",
+			Usage: "the id of the backtest/livestrategy run",
+		},
+	},
+}
+
+func reportLogs(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, c.Command.Name)
+	}
+
+	var id string
+	if c.IsSet("id") {
+		id = c.String("id")
+	} else {
+		id = c.Args().First()
+	}
+
+	client := btrpc.NewBacktesterServiceClient(conn)
+	result, err := client.ReportLogs(
+		c.Context,
+		&btrpc.ReportLogsRequest{
+			Id: id,
+		},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	log.Print(result.Logs)
 	return nil
 }
 

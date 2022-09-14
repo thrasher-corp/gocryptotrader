@@ -55,6 +55,13 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 	if err != nil {
 		return nil, err
 	}
+
+	bt.logHolder = &strings.Builder{}
+	err = log.AddWriter(bt.logHolder)
+	if err != nil {
+		return nil, err
+	}
+
 	err = bt.orderManager.Start()
 	if err != nil {
 		return nil, err

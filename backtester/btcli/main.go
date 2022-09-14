@@ -113,8 +113,13 @@ func main() {
 		executeStrategyFromFileCommand,
 		executeStrategyFromConfigCommand,
 		listAllRunsCommand,
-		startRunByIDCommand,
-		stopRunByIDCommand,
+		startRunCommand,
+		startAllRunsCommand,
+		stopRunCommand,
+		stopAllRunsCommand,
+		clearRunCommand,
+		clearAllRunsCommand,
+		reportLogsCommand,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

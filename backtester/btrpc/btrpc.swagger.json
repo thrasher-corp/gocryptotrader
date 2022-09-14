@@ -16,8 +16,60 @@
     "application/json"
   ],
   "paths": {
+    "/v1/clearallruns": {
+      "delete": {
+        "operationId": "BacktesterService_ClearAllRuns",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/btrpcClearAllRunsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "BacktesterService"
+        ]
+      }
+    },
+    "/v1/clearrun": {
+      "delete": {
+        "operationId": "BacktesterService_ClearRun",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/btrpcClearRunResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "BacktesterService"
+        ]
+      }
+    },
     "/v1/executestrategyfromconfig": {
-      "get": {
+      "post": {
         "operationId": "BacktesterService_ExecuteStrategyFromConfig",
         "responses": {
           "200": {
@@ -305,7 +357,7 @@
       }
     },
     "/v1/executestrategyfromfile": {
-      "get": {
+      "post": {
         "operationId": "BacktesterService_ExecuteStrategyFromFile",
         "responses": {
           "200": {
@@ -362,14 +414,66 @@
         ]
       }
     },
-    "/v1/startrunbyid": {
+    "/v1/reportlogs": {
       "get": {
-        "operationId": "BacktesterService_StartRunByID",
+        "operationId": "BacktesterService_ReportLogs",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/btrpcExecuteStrategyResponse"
+              "$ref": "#/definitions/btrpcReportLogsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "BacktesterService"
+        ]
+      }
+    },
+    "/v1/startallruns": {
+      "post": {
+        "operationId": "BacktesterService_StartAllRuns",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/btrpcStartAllRunsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "BacktesterService"
+        ]
+      }
+    },
+    "/v1/startrun": {
+      "post": {
+        "operationId": "BacktesterService_StartRun",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/btrpcStartRunResponse"
             }
           },
           "default": {
@@ -393,7 +497,7 @@
       }
     },
     "/v1/stopallruns": {
-      "get": {
+      "post": {
         "operationId": "BacktesterService_StopAllRuns",
         "responses": {
           "200": {
@@ -414,14 +518,14 @@
         ]
       }
     },
-    "/v1/stoprunbyid": {
-      "get": {
-        "operationId": "BacktesterService_StopRunByID",
+    "/v1/stoprun": {
+      "post": {
+        "operationId": "BacktesterService_StopRun",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/btrpcStopRunByIDResponse"
+              "$ref": "#/definitions/btrpcStopRunResponse"
             }
           },
           "default": {
@@ -467,6 +571,31 @@
       "properties": {
         "path": {
           "type": "string"
+        }
+      }
+    },
+    "btrpcClearAllRunsResponse": {
+      "type": "object",
+      "properties": {
+        "clearedRuns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/btrpcRunSummary"
+          }
+        },
+        "remainingRuns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/btrpcRunSummary"
+          }
+        }
+      }
+    },
+    "btrpcClearRunResponse": {
+      "type": "object",
+      "properties": {
+        "clearedRun": {
+          "$ref": "#/definitions/btrpcRunSummary"
         }
       }
     },
@@ -676,11 +805,8 @@
     "btrpcExecuteStrategyResponse": {
       "type": "object",
       "properties": {
-        "success": {
-          "type": "boolean"
-        },
-        "message": {
-          "type": "string"
+        "run": {
+          "$ref": "#/definitions/btrpcRunSummary"
         }
       }
     },
@@ -785,6 +911,14 @@
         }
       }
     },
+    "btrpcReportLogsResponse": {
+      "type": "object",
+      "properties": {
+        "logs": {
+          "type": "string"
+        }
+      }
+    },
     "btrpcRunSummary": {
       "type": "object",
       "properties": {
@@ -825,6 +959,25 @@
         }
       }
     },
+    "btrpcStartAllRunsResponse": {
+      "type": "object",
+      "properties": {
+        "runsStarted": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/btrpcRunSummary"
+          }
+        }
+      }
+    },
+    "btrpcStartRunResponse": {
+      "type": "object",
+      "properties": {
+        "started": {
+          "type": "boolean"
+        }
+      }
+    },
     "btrpcStatisticSettings": {
       "type": "object",
       "properties": {
@@ -836,7 +989,7 @@
     "btrpcStopAllRunsResponse": {
       "type": "object",
       "properties": {
-        "runs": {
+        "runsStopped": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/btrpcRunSummary"
@@ -844,10 +997,10 @@
         }
       }
     },
-    "btrpcStopRunByIDResponse": {
+    "btrpcStopRunResponse": {
       "type": "object",
       "properties": {
-        "run": {
+        "stoppedRun": {
           "$ref": "#/definitions/btrpcRunSummary"
         }
       }

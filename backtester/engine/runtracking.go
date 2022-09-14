@@ -12,6 +12,7 @@ var (
 	errRunNotFound         = errors.New("run not found")
 	errRunAlreadyMonitored = errors.New("run already monitored")
 	errAlreadyRan          = errors.New("run already ran")
+	errCannotClear         = errors.New("cannot clear run")
 )
 
 // GenerateSummary creates a summary of a backtesting/live strategy run
@@ -87,11 +88,33 @@ func (r *RunManager) StopRun(id string) error {
 	id = strings.ToLower(id)
 	for i := range r.Runs {
 		if r.Runs[i].RunMetaData.ID == id {
-			r.Runs[i].Stop()
-			return nil
+			if !r.Runs[i].RunMetaData.Closed && !r.Runs[i].RunMetaData.DateStarted.IsZero() {
+				r.Runs[i].Stop()
+				return nil
+			} else {
+				return fmt.Errorf("%w %v", errAlreadyRan, id)
+			}
 		}
 	}
 	return fmt.Errorf("%s %w", id, errRunNotFound)
+}
+
+// StopAllRuns stops all running strategies
+func (r *RunManager) StopAllRuns() ([]*RunSummary, error) {
+	r.m.Lock()
+	defer r.m.Unlock()
+	var resp []*RunSummary
+	for i := range r.Runs {
+		if !r.Runs[i].RunMetaData.Closed && !r.Runs[i].RunMetaData.DateStarted.IsZero() {
+			r.Runs[i].Stop()
+			sum, err := r.Runs[i].GenerateSummary()
+			if err != nil {
+				return nil, err
+			}
+			resp = append(resp, sum)
+		}
+	}
+	return resp, nil
 }
 
 // StartRun executes a strategy if found
@@ -101,8 +124,85 @@ func (r *RunManager) StartRun(id string) error {
 	id = strings.ToLower(id)
 	for i := range r.Runs {
 		if r.Runs[i].RunMetaData.ID == id {
-			return r.Runs[i].ExecuteStrategy()
+			switch {
+			case !r.Runs[i].RunMetaData.Closed && r.Runs[i].RunMetaData.DateStarted.IsZero():
+				return r.Runs[i].ExecuteStrategy()
+			case r.Runs[i].RunMetaData.Closed && !r.Runs[i].RunMetaData.DateStarted.IsZero():
+				return fmt.Errorf("%w %v", errAlreadyRan, id)
+			}
 		}
 	}
 	return fmt.Errorf("%s %w", id, errRunNotFound)
+}
+
+// StartAllRuns executes all strategies
+func (r *RunManager) StartAllRuns() ([]*RunSummary, error) {
+	r.m.Lock()
+	defer r.m.Unlock()
+	var resp []*RunSummary
+	for i := range r.Runs {
+		if !r.Runs[i].RunMetaData.Closed && r.Runs[i].RunMetaData.DateStarted.IsZero() {
+			err := r.Runs[i].ExecuteStrategy()
+			if err != nil {
+				return nil, err
+			}
+			sum, err := r.Runs[i].GenerateSummary()
+			if err != nil {
+				return nil, err
+			}
+			resp = append(resp, sum)
+		}
+	}
+
+	return resp, nil
+}
+
+// ClearRun removes a run from memory
+func (r *RunManager) ClearRun(id string) error {
+	r.m.Lock()
+	defer r.m.Unlock()
+	id = strings.ToLower(id)
+	for i := range r.Runs {
+		if r.Runs[i].RunMetaData.ID == id {
+			if !r.Runs[i].RunMetaData.Closed && !r.Runs[i].RunMetaData.DateStarted.IsZero() {
+				return fmt.Errorf("%w %v, currently running. Stop it first", errCannotClear, r.Runs[i].RunMetaData.ID)
+			}
+			r.Runs = append(r.Runs[:i], r.Runs[i+1:]...)
+			return nil
+		}
+	}
+	return fmt.Errorf("%s %w", id, errRunNotFound)
+}
+
+// ClearAllRuns removes all runs from memory
+func (r *RunManager) ClearAllRuns() (clearedRuns, remainingRuns []*RunSummary, err error) {
+	r.m.Lock()
+	defer r.m.Unlock()
+	for i := range r.Runs {
+		var run *RunSummary
+		run, err = r.Runs[i].GenerateSummary()
+		if err != nil {
+			return nil, nil, err
+		}
+		if !r.Runs[i].RunMetaData.Closed && !r.Runs[i].RunMetaData.DateStarted.IsZero() {
+			remainingRuns = append(remainingRuns, run)
+		} else {
+			clearedRuns = append(clearedRuns, run)
+		}
+	}
+	r.Runs = []*BackTest{}
+	return clearedRuns, remainingRuns, nil
+}
+
+// ReportLogs returns the full logs from a run
+func (r *RunManager) ReportLogs(id string) (string, error) {
+	r.m.Lock()
+	defer r.m.Unlock()
+	id = strings.ToLower(id)
+	for i := range r.Runs {
+		if r.Runs[i].RunMetaData.ID == id {
+			return r.Runs[i].logHolder.String(), nil
+		}
+	}
+	return "", fmt.Errorf("%s %w", id, errRunNotFound)
 }

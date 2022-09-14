@@ -189,8 +189,7 @@ message ExecuteStrategyFromFileRequest {
 }
 
 message ExecuteStrategyResponse {
-  bool success = 1;
-  string message = 2;
+  RunSummary run = 1;
 }
 
 message ExecuteStrategyFromConfigRequest {
@@ -204,33 +203,66 @@ message ListAllRunsResponse {
   repeated RunSummary runs = 1;
 }
 
-message StopRunByIDRequest {
+message StopRunRequest {
   string id = 1;
 }
 
-message StopRunByIDResponse {
-  RunSummary run = 1;
+message StopRunResponse {
+  RunSummary stopped_run = 1;
 }
 
-message StartRunByIDRequest {
+message StartRunRequest {
   string id = 1;
+}
+
+message StartRunResponse {
+  bool started = 1;
+}
+
+message StartAllRunsRequest {}
+
+message StartAllRunsResponse {
+  repeated RunSummary runs_started = 1;
 }
 
 message StopAllRunsRequest {}
 
 message StopAllRunsResponse {
-  repeated RunSummary runs = 1;
+  repeated RunSummary runs_stopped = 1;
+}
+
+message ClearRunRequest {
+  string id = 1;
+}
+
+message ClearRunResponse {
+  RunSummary cleared_run = 1;
+}
+
+message ClearAllRunsRequest {}
+
+message ClearAllRunsResponse {
+  repeated RunSummary cleared_runs = 1;
+  repeated RunSummary remaining_runs = 2;
+}
+
+message ReportLogsRequest {
+  string id = 1;
+}
+
+message ReportLogsResponse {
+  string logs = 1;
 }
 
 service BacktesterService {
   rpc ExecuteStrategyFromFile(ExecuteStrategyFromFileRequest) returns (ExecuteStrategyResponse) {
     option (google.api.http) = {
-      get: "/v1/executestrategyfromfile"
+      post: "/v1/executestrategyfromfile"
     };
   }
   rpc ExecuteStrategyFromConfig(ExecuteStrategyFromConfigRequest) returns (ExecuteStrategyResponse) {
     option (google.api.http) = {
-      get: "/v1/executestrategyfromconfig"
+      post: "/v1/executestrategyfromconfig"
     };
   }
   rpc ListAllRuns(ListAllRunsRequest) returns (ListAllRunsResponse) {
@@ -238,19 +270,39 @@ service BacktesterService {
       get: "/v1/listallruns"
     };
   }
-  rpc StartRunByID(StartRunByIDRequest) returns (ExecuteStrategyResponse) {
+  rpc StartRun(StartRunRequest) returns (StartRunResponse) {
     option (google.api.http) = {
-      get: "/v1/startrunbyid"
+      post: "/v1/startrun"
     };
   }
-  rpc StopRunByID(StopRunByIDRequest) returns (StopRunByIDResponse) {
+  rpc StartAllRuns(StartAllRunsRequest) returns (StartAllRunsResponse) {
     option (google.api.http) = {
-      get: "/v1/stoprunbyid"
+      post: "/v1/startallruns"
+    };
+  }
+  rpc StopRun(StopRunRequest) returns (StopRunResponse) {
+    option (google.api.http) = {
+      post: "/v1/stoprun"
     };
   }
   rpc StopAllRuns(StopAllRunsRequest) returns (StopAllRunsResponse) {
     option (google.api.http) = {
-      get: "/v1/stopallruns"
+      post: "/v1/stopallruns"
+    };
+  }
+  rpc ClearRun(ClearRunRequest) returns (ClearRunResponse) {
+    option (google.api.http) = {
+      delete: "/v1/clearrun"
+    };
+  }
+  rpc ClearAllRuns(ClearAllRunsRequest) returns (ClearAllRunsResponse) {
+    option (google.api.http) = {
+      delete: "/v1/clearallruns"
+    };
+  }
+  rpc ReportLogs(ReportLogsRequest) returns (ReportLogsResponse) {
+    option (google.api.http) = {
+      get: "/v1/reportlogs"
     };
   }
 }

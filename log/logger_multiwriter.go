@@ -11,6 +11,48 @@ var (
 	errWriterNotFound      = errors.New("io.Writer not found")
 )
 
+// AddWriter appends an additional writer to all subloggers
+func AddWriter(w io.Writer) error {
+	RWM.Lock()
+	defer RWM.Unlock()
+	var err error
+	for _, v := range SubLoggers {
+		var mwh *multiWriterHolder
+		switch v.output.(type) {
+		case *multiWriterHolder:
+			mwh = v.output.(*multiWriterHolder)
+		default:
+			mwh, err = multiWriter(v.output)
+			if err != nil {
+				return err
+			}
+		}
+		err = mwh.Add(w)
+		if err != nil {
+			return err
+		}
+		v.output = mwh
+	}
+	return nil
+}
+
+// RemoveWriter removes a writer from all subloggers
+func RemoveWriter(w io.Writer) error {
+	RWM.Lock()
+	defer RWM.Unlock()
+	for _, v := range SubLoggers {
+		hello, ok := v.output.(*multiWriterHolder)
+		if !ok {
+			continue
+		}
+		err := hello.Remove(w)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Add appends a new writer to the multiwriter slice
 func (mw *multiWriterHolder) Add(writer io.Writer) error {
 	mw.mu.Lock()
