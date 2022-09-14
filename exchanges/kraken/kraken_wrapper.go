@@ -726,9 +726,9 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	status := order.New
 	switch s.AssetType {
 	case asset.Spot:
-		timeInForce := ""
+		timeInForce := KrakenRequestParamsTimeGTC
 		if s.ImmediateOrCancel {
-			timeInForce = string(KrakenRequestParamsTimeIOC)
+			timeInForce = KrakenRequestParamsTimeIOC
 		}
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			s.Pair.Delimiter = "/" // required pair format: ISO 4217-A3

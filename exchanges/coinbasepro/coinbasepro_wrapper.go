@@ -554,9 +554,9 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 			fpair.String(),
 			"")
 	case order.Limit:
-		timeInForce := ""
+		timeInForce := CoinbaseRequestParamsTimeGTC
 		if s.ImmediateOrCancel {
-			timeInForce = string(CoinbaseRequestParamsTimeIOC)
+			timeInForce = CoinbaseRequestParamsTimeIOC
 		}
 		orderID, err = c.PlaceLimitOrder(ctx,
 			"",

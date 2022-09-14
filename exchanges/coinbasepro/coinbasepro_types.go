@@ -482,6 +482,9 @@ type wsStatus struct {
 type RequestParamsTimeForceType string
 
 var (
+	// CoinbaseRequestParamsTimeGTC GTC
+	CoinbaseRequestParamsTimeGTC = RequestParamsTimeForceType("GTC")
+
 	// CoinbaseRequestParamsTimeIOC IOC
 	CoinbaseRequestParamsTimeIOC = RequestParamsTimeForceType("IOC")
 )
