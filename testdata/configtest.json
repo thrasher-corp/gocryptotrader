@@ -2513,7 +2513,42 @@
     }
    },
    "features": null
-  }
+  },
+  {
+    "name": "Deribit",
+    "enabled": true,
+    "verbose": false,
+    "httpTimeout": 0,
+    "websocketResponseCheckTimeout": 0,
+    "websocketResponseMaxLimit": 0,
+    "websocketTrafficTimeout": 0,
+    "baseCurrencies": "",
+    "currencyPairs": {
+     "requestFormat": {
+      "uppercase": true
+     },
+     "configFormat": {
+      "uppercase": true
+     },
+     "useGlobalFormat": true,
+     "pairs": null
+    },
+    "api": {
+     "authenticatedSupport": false,
+     "authenticatedWebsocketApiSupport": false,
+     "credentials": {
+      "key": "Key",
+      "secret": "Secret"
+     },
+     "urlEndpoints": null
+    },
+    "features": null,
+    "orderbook": {
+     "verificationBypass": false,
+     "websocketBufferLimit": 0,
+     "websocketBufferEnabled": false
+    }
+   } 
  ],
  "bankAccounts": [
   {
