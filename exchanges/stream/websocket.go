@@ -205,7 +205,7 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 		RateLimit:         c.RateLimit,
 		Reporter:          globalReporter,
 	}
-	
+
 	if w.Reporter != nil {
 		newConn.Reporter = w.Reporter
 	}
