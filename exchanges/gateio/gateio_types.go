@@ -781,6 +781,11 @@ type TradingHistoryItem struct {
 	Contract   string    `json:"contract"`
 	Size       float64   `json:"size"`
 	Price      float64   `json:"price,string"`
+	// Added for Derived market trade history datas.
+	Text     string `json:"text"`
+	Fee      string `json:"fee"`
+	PointFee string `json:"point_fee"`
+	Role     string `json:"role"`
 }
 
 // FuturesCandlestick represents futures candlestick data
@@ -1791,16 +1796,18 @@ type DualModeResponse struct {
 
 // FuturesOrderCreateParams represents future order creation parameters
 type FuturesOrderCreateParams struct {
-	Contract      currency.Pair `json:"contract"`
-	Size          float64       `json:"size"`
-	Iceberg       int           `json:"iceberg"`
-	Price         float64       `json:"price,string"`
-	TimeInForce   string        `json:"tif"`
-	Text          string        `json:"text"`
-	ClosePosition bool          `json:"close,omitempty"`
-	ReduceOnly    bool          `json:"reduce_only,omitempty"`
-	AutoSize      string        `json:"auto_size,omitempty"`
-	Settle        string        `json:"-"`
+	Contract    currency.Pair `json:"contract"`
+	Size        float64       `json:"size"`
+	Iceberg     int           `json:"iceberg"`
+	Price       float64       `json:"price,string"`
+	TimeInForce string        `json:"tif"`
+	Text        string        `json:"text"`
+
+	// Optional Parameters
+	ClosePosition bool   `json:"close,omitempty"`
+	ReduceOnly    bool   `json:"reduce_only,omitempty"`
+	AutoSize      string `json:"auto_size,omitempty"`
+	Settle        string `json:"-"`
 }
 
 // FutureOrder represents future order response
@@ -1825,4 +1832,95 @@ type FutureOrder struct {
 	Status       string    `json:"status"`
 	FinishTime   time.Time `json:"finish_time,string"`
 	FinishAs     string    `json:"finish_as"`
+}
+
+// AmendFuturesOrderParam represents amend futures order parameter
+type AmendFuturesOrderParam struct {
+	Size  float64 `json:"size,string"`
+	Price float64 `json:"price,string"`
+}
+
+// PositionCloseHistoryResponse represents a close position history detail
+type PositionCloseHistoryResponse struct {
+	Time          time.Time `json:"time"`
+	ProfitAndLoss string    `json:"pnl"`
+	Side          string    `json:"side"`
+	Contract      string    `json:"contract"`
+	Text          string    `json:"text"`
+}
+
+// FuturesLiquidationHistoryItem liquidation history item
+type FuturesLiquidationHistoryItem struct {
+	Time       time.Time `json:"time"`
+	Contract   string    `json:"contract"`
+	Size       int       `json:"size"`
+	Leverage   float64   `json:"leverage,string"`
+	Margin     string    `json:"margin"`
+	EntryPrice float64   `json:"entry_price,string"`
+	MarkPrice  float64   `json:"mark_price,string"`
+	OrderPrice float64   `json:"order_price,string"`
+	FillPrice  float64   `json:"fill_price,string"`
+	LiqPrice   float64   `json:"liq_price,string"`
+	OrderID    int       `json:"order_id"`
+	Left       int       `json:"left"`
+}
+
+// CountdownParams represents query paramters for countdown cancel order
+type CountdownParams struct {
+	Timeout  int           `json:"timeout"` // In Seconds
+	Contract currency.Pair `json:"contract"`
+}
+
+// FuturesPriceTriggeredOrderParam represents a creates a price triggered order
+type FuturesPriceTriggeredOrderParam struct {
+	Initial   FuturesInitial `json:"initial"`
+	Trigger   FuturesTrigger `json:"trigger"`
+	OrderType string         `json:"order_type,omitempty"`
+}
+
+// FuturesInitial represents a price triggered order initial parameters
+type FuturesInitial struct {
+	Contract    currency.Pair `json:"contract"`
+	Size        int           `json:"size"`         // Order size. Positive size means to buy, while negative one means to sell. Set to 0 to close the position
+	Price       float64       `json:"price,string"` // Order price. Set to 0 to use market price
+	Close       bool          `json:"close,omitempty"`
+	TimeInForce string        `json:"tif,omitempty"`
+	Text        string        `json:"text,omitempty"`
+	ReduceOnly  bool          `json:"reduce_only,omitempty"`
+	AutoSize    string        `json:"auto_size,omitempty"`
+}
+
+// FuturesTrigger represents a price triggered order trigger parameter
+type FuturesTrigger struct {
+	StrategyType int     `json:"strategy_type,omitempty"` // How the order will be triggered 0: by price, which means the order will be triggered if price condition is satisfied 1: by price gap, which means the order will be triggered if gap of recent two prices of specified price_type are satisfied. Only 0 is supported currently
+	PriceType    int     `json:"price_type,omitempty"`
+	Price        float64 `json:"price,omitempty,string"`
+	Rule         int     `json:"rule,omitempty"`
+	Expiration   int     `json:"expiration,omitempty"`
+	OrderType    string  `json:"order_type,omitempty"`
+}
+
+// FutureTriggeredPriceOrderResponse represents a future triggered price order response
+type FutureTriggeredPriceOrderResponse struct {
+	Initial struct {
+		Contract string  `json:"contract"`
+		Size     float64 `json:"size"`
+		Price    float64 `json:"price,string"`
+	} `json:"initial"`
+	Trigger struct {
+		StrategyType int     `json:"strategy_type"`
+		PriceType    int     `json:"price_type"`
+		Price        float64 `json:"price,string"`
+		Rule         int     `json:"rule"`
+		Expiration   int     `json:"expiration"`
+	} `json:"trigger"`
+	ID         int       `json:"id"`
+	User       int       `json:"user"`
+	CreateTime time.Time `json:"create_time"`
+	FinishTime time.Time `json:"finish_time"`
+	TradeID    int       `json:"trade_id"`
+	Status     string    `json:"status"`
+	FinishAs   string    `json:"finish_as"`
+	Reason     string    `json:"reason"`
+	OrderType  string    `json:"order_type"`
 }

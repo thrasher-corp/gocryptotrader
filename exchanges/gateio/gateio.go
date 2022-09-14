@@ -111,6 +111,12 @@ const (
 	futuresDualModePositionLeverage   = "futures/%s/dual_comp/positions/%s/leverage" // {settle} and {contract} and respectively
 	futuresDualModePositionsRiskLimit = "futures/%s/dual_comp/positions/%s/risk_limit"
 	futuresOrders                     = "futures/%s/orders"
+	futuresBatchOrders                = "futures/%s/batch_orders"
+	futuresPersonalTradingHistory     = "futures/%s/my_trades"
+	futuresPositionClose              = "futures/%s/position_close"
+	futuresLiquidations               = "futures/%s/liquidates"
+	futuresCountdownCancelAll         = "futures/%s/countdown_cancel_all"
+	futuresPriceOrders                = "futures/%s/price_orders"
 
 	// Delivery
 	deliveryContracts        = "delivery/%s/contracts"
@@ -199,6 +205,11 @@ var (
 	errChangehasToBePositive               = errors.New("change has to be positive")
 	errInvalidLeverageValue                = errors.New("invalid leverage value")
 	errInvalidRiskLimit                    = errors.New("new position risk limit")
+	errInvalidCountTotalValue              = errors.New("invalid \"count_total\" value, supported \"count_total\" values are 0 and 1")
+	errInvalidTimeInForce                  = errors.New("invalid time in force value")
+	errInvalidAutoSizeValue                = errors.New("invalid \"auto_size\" value, only \"close_long\" and \"close_short\" are supported")
+	errTooManyOrderRequest                 = errors.New("too many order creation request")
+	errInvalidTimeout                      = errors.New("invalid timeout, should be in seconds At least 5 seconds, 0 means cancel the countdown")
 )
 
 // Gateio is the overarching type across this package
@@ -2746,40 +2757,343 @@ func (g *Gateio) CreateFuturesOrder(ctx context.Context, arg FuturesOrderCreateP
 	if arg.Size == 0 {
 		return nil, fmt.Errorf("%v, specify positive number to make a bid, and negative number to ask", errInvalidOrderSide)
 	}
-	params := url.Values{}
-	params.Set("contract", arg.Contract.String())
-	params.Set("size", strconv.FormatFloat(arg.Size, 'f', -1, 64))
-	if arg.TimeInForce == "gtc" || arg.TimeInForce == "ioc" || arg.TimeInForce == "poc" || arg.TimeInForce == "fok" {
-		params.Set("tif", arg.TimeInForce)
+	if !(arg.TimeInForce == "gtc" || arg.TimeInForce == "ioc" || arg.TimeInForce == "poc" || arg.TimeInForce == "fok") {
+		return nil, errInvalidTimeInForce
 	}
 	if arg.Price > 0 && arg.TimeInForce == "ioc" {
 		arg.Price = 0
 	}
-	if arg.Price > 0 {
-		params.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
+	if arg.Price < 0 {
+		return nil, errInvalidPrice
 	}
-	if arg.ClosePosition {
-		params.Set("close", strconv.FormatBool(arg.ClosePosition))
+	if arg.Text != "" && !strings.HasPrefix(arg.Text, "t-") {
+		arg.Text = "t-" + arg.Text
 	}
-	if arg.ReduceOnly {
-		params.Set("reduce_only", strconv.FormatBool(arg.ReduceOnly))
-	}
-	if arg.Text != "" {
-		if !strings.HasPrefix(arg.Text, "t-") {
-			arg.Text = "t-" + arg.Text
-		}
-		params.Set("text", arg.Text)
-	}
-	if arg.AutoSize == "close_long" || arg.AutoSize == "close_short" {
-		params.Set("auto_size", arg.AutoSize)
+	if arg.AutoSize != "" && (arg.AutoSize == "close_long" || arg.AutoSize == "close_short") {
+		return nil, errInvalidAutoSizeValue
 	}
 	if !(arg.Settle == "btc" || arg.Settle == "usd" || arg.Settle == "usdt") {
 		return nil, errMissingSettleCurrency
 	}
+
 	path := fmt.Sprintf(futuresOrders, arg.Settle)
 	var response FutureOrder
-	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, params, nil, &response)
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, &arg, &response)
 }
+
+// GetFuturesOrders retrives list of futures orders
+// Zero-filled order cannot be retrieved 10 minutes after order cancellation
+func (g *Gateio) GetFuturesOrders(ctx context.Context, contract currency.Pair, status string, limit, offset int, lastID string, countTotal int, settle string) ([]FutureOrder, error) {
+	if !(settle == "btc" || settle == "usd" || settle == "usdt") {
+		return nil, errMissingSettleCurrency
+	}
+	if contract.Base.IsEmpty() || contract.Quote.IsEmpty() {
+		return nil, fmt.Errorf("%v, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
+	}
+	params := url.Values{}
+	contract.Delimiter = UnderscoreDelimiter
+	params.Set("contract", contract.String())
+	if !(status == "open" || status == "finished") {
+		return nil, fmt.Errorf("%v, only 'open' and 'finished' status are supported", errInvalidOrderStatus)
+	}
+	params.Set("status", status)
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(limit))
+	}
+	if offset > 0 {
+		params.Set("offset", strconv.Itoa(offset))
+	}
+	if lastID != "" {
+		params.Set("last_id", lastID)
+	}
+	if countTotal == 1 && status != "open" {
+		params.Set("count_total", strconv.Itoa(countTotal))
+	} else if countTotal != 0 && countTotal != 1 {
+		return nil, errInvalidCountTotalValue
+	}
+	path := fmt.Sprintf(futuresOrders, settle)
+	var response []FutureOrder
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, nil, &response)
+}
+
+// CancelAllFuturesOpenOrdersMatched ancel all open orders
+// Zero-filled order cannot be retrieved 10 minutes after order cancellation
+func (g *Gateio) CancelAllFuturesOpenOrdersMatched(ctx context.Context, contract currency.Pair, side, settle string) ([]FutureOrder, error) {
+	if !(settle == "btc" || settle == "usd" || settle == "usdt") {
+		return nil, errMissingSettleCurrency
+	}
+	if contract.Base.IsEmpty() || contract.Quote.IsEmpty() {
+		return nil, fmt.Errorf("%v, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
+	}
+	params := url.Values{}
+	contract.Delimiter = UnderscoreDelimiter
+	if side == "ask" || side == "bid" {
+		params.Set("side", side)
+	}
+	params.Set("contract", contract.String())
+	path := fmt.Sprintf(futuresOrders, settle)
+	var response []FutureOrder
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, params, nil, &response)
+}
+
+// CreateBatchFuturesOrders creates a list of futures orders
+// Up to 10 orders per request
+// If any of the order's parameters are missing or in the wrong format, all of them will not be executed, and a http status 400 error will be returned directly
+// If the parameters are checked and passed, all are executed. Even if there is a business logic error in the middle (such as insufficient funds), it will not affect other execution orders
+// The returned result is in array format, and the order corresponds to the orders in the request body
+// In the returned result, the succeeded field of type bool indicates whether the execution was successful or not
+// If the execution is successful, the normal order content is included; if the execution fails, the label field is included to indicate the cause of the error
+// In the rate limiting, each order is counted individually
+func (g *Gateio) CreateBatchFuturesOrders(ctx context.Context, settle string, args []FuturesOrderCreateParams) ([]FutureOrder, error) {
+	if !(settle == "btc" || settle == "usd" || settle == "usdt") {
+		return nil, errMissingSettleCurrency
+	}
+	if len(args) > 10 {
+		return nil, errTooManyOrderRequest
+	}
+	for x := range args {
+		if args[x].Size == 0 {
+			return nil, fmt.Errorf("%v, specify positive number to make a bid, and negative number to ask", errInvalidOrderSide)
+		}
+		if !(args[x].TimeInForce == "gtc" || args[x].TimeInForce == "ioc" || args[x].TimeInForce == "poc" || args[x].TimeInForce == "fok") {
+			return nil, errInvalidTimeInForce
+		}
+		if args[x].Price > 0 && args[x].TimeInForce == "ioc" {
+			args[x].Price = 0
+		}
+		if args[x].Price < 0 {
+			return nil, errInvalidPrice
+		}
+		if args[x].Text != "" && !strings.HasPrefix(args[x].Text, "t-") {
+			args[x].Text = "t-" + args[x].Text
+		}
+		if args[x].AutoSize != "" && (args[x].AutoSize == "close_long" || args[x].AutoSize == "close_short") {
+			return nil, errInvalidAutoSizeValue
+		}
+		if !(args[x].Settle == "btc" || args[x].Settle == "usd" || args[x].Settle == "usdt") {
+			return nil, errMissingSettleCurrency
+		}
+	}
+	path := fmt.Sprintf(futuresBatchOrders, settle)
+	var response []FutureOrder
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, &args, &response)
+}
+
+// GetSingleOrder retrives a single order by its identifier
+func (g *Gateio) GetSingleFuturesOrder(ctx context.Context, settle, orderID string) (*FutureOrder, error) {
+	if !(settle == "btc" || settle == "usd" || settle == "usdt") {
+		return nil, errMissingSettleCurrency
+	}
+	if orderID == "" {
+		return nil, fmt.Errorf("%v, 'order_id' cannot be empty", errInvalidOrderID)
+	}
+	path := fmt.Sprintf(futuresOrders+"/%s", settle, orderID)
+	var response FutureOrder
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &response)
+}
+
+// CancelSingleFuturesOrder cancel a single order
+func (g *Gateio) CancelSingleFuturesOrder(ctx context.Context, settle, orderID string) (*FutureOrder, error) {
+	if !(settle == "btc" || settle == "usd" || settle == "usdt") {
+		return nil, errMissingSettleCurrency
+	}
+	if orderID == "" {
+		return nil, fmt.Errorf("%v, 'order_id' cannot be empty", errInvalidOrderID)
+	}
+	path := fmt.Sprintf(futuresOrders+"/%s", settle, orderID)
+	var response FutureOrder
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, nil, nil, &response)
+}
+
+// AmendFuturesOrder amends an existing futures order
+func (g *Gateio) AmendFuturesOrder(ctx context.Context, settle, orderID string, arg AmendFuturesOrderParam) (*FutureOrder, error) {
+	if !(settle == "btc" || settle == "usd" || settle == "usdt") {
+		return nil, errMissingSettleCurrency
+	}
+	if orderID == "" {
+		return nil, fmt.Errorf("%v, 'order_id' cannot be empty", errInvalidOrderID)
+	}
+	if arg.Size <= 0 && arg.Price <= 0 {
+		return nil, errors.New("missing update 'size' or 'price', please specify 'size' or 'price' or both information")
+	}
+	path := fmt.Sprintf(futuresOrders+"/%s", settle, orderID)
+	var response FutureOrder
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPut, path, nil, &arg, &response)
+}
+
+// GetMyPersonalTradingHistory retrives my personal trading history
+func (g *Gateio) GetMyPersonalTradingHistory(ctx context.Context, settle string, contract currency.Pair, orderID string, limit, offset, countTotal int, lastID string) ([]TradingHistoryItem, error) {
+	if !(settle == "btc" || settle == "usd" || settle == "usdt") {
+		return nil, errMissingSettleCurrency
+	}
+	params := url.Values{}
+	if !(contract.Base.IsEmpty() || contract.Quote.IsEmpty()) {
+		contract.Delimiter = UnderscoreDelimiter
+		params.Set("contract", contract.String())
+	}
+	if orderID != "" {
+		params.Set("order", orderID)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(limit))
+	}
+	if offset > 0 {
+		params.Set("offset", strconv.Itoa(offset))
+	}
+	if lastID != "" {
+		params.Set("last_id", lastID)
+	}
+	if countTotal == 1 {
+		params.Set("count_total", strconv.Itoa(countTotal))
+	}
+	path := fmt.Sprintf(futuresPersonalTradingHistory, settle)
+	var response []TradingHistoryItem
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, nil, &response)
+}
+
+// GetPositionCloseHistory lists position close history
+func (g *Gateio) GetPositionCloseHistory(ctx context.Context, settle string, contract currency.Pair, limit, offset int, from, to time.Time) ([]PositionCloseHistoryResponse, error) {
+	if !(settle == "btc" || settle == "usd" || settle == "usdt") {
+		return nil, errMissingSettleCurrency
+	}
+	params := url.Values{}
+	if !(contract.Base.IsEmpty() || contract.Quote.IsEmpty()) {
+		contract.Delimiter = UnderscoreDelimiter
+		params.Set("contract", contract.String())
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(limit))
+	}
+	if offset > 0 {
+		params.Set("offset", strconv.Itoa(offset))
+	}
+	if !from.IsZero() {
+		params.Set("from", strconv.FormatInt(from.Unix(), 10))
+	}
+	if !to.IsZero() {
+		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	}
+	path := fmt.Sprintf(futuresPositionClose, settle)
+	var response []PositionCloseHistoryResponse
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, nil, &response)
+}
+
+// GetFuturesLiquidationHistory list liquidation history
+func (g *Gateio) GetFuturesLiquidationHistory(ctx context.Context, settle string, contract currency.Pair, limit int, at time.Time) ([]FuturesLiquidationHistoryItem, error) {
+	if !(settle == "btc" || settle == "usd" || settle == "usdt") {
+		return nil, errMissingSettleCurrency
+	}
+	params := url.Values{}
+	if !(contract.Base.IsEmpty() || contract.Quote.IsEmpty()) {
+		contract.Delimiter = UnderscoreDelimiter
+		params.Set("contract", contract.String())
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(limit))
+	}
+	if !at.IsZero() {
+		params.Set("at", strconv.FormatInt(at.Unix(), 10))
+	}
+	path := fmt.Sprintf(futuresLiquidations, settle)
+	var response []FuturesLiquidationHistoryItem
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, nil, &response)
+}
+
+// CountdownCancelOrders represents a trigger time response
+func (g *Gateio) CountdownCancelOrders(ctx context.Context, settle string, arg CountdownParams) (*TriggerTimeResponse, error) {
+	if !(settle == "btc" || settle == "usd" || settle == "usdt") {
+		return nil, errMissingSettleCurrency
+	}
+	if arg.Timeout < 0 {
+		return nil, errInvalidTimeout
+	}
+	if !(arg.Contract.Base.IsEmpty() || arg.Contract.Quote.IsEmpty()) {
+		arg.Contract.Delimiter = UnderscoreDelimiter
+	}
+	path := fmt.Sprintf(futuresCountdownCancelAll, settle)
+	var response TriggerTimeResponse
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, &arg, &response)
+}
+
+// CreatePriceTriggeredFuturesOrder create a price-triggered order
+func (g *Gateio) CreatePriceTriggeredFuturesOrder(ctx context.Context, settle string, arg FuturesPriceTriggeredOrderParam) (*OrderID, error) {
+	if !(settle == "btc" || settle == "usd" || settle == "usdt") {
+		return nil, errMissingSettleCurrency
+	}
+	if arg.Initial.Contract.Base.IsEmpty() || arg.Initial.Contract.Quote.IsEmpty() {
+		return nil, fmt.Errorf("%v, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
+	}
+	arg.Initial.Contract.Delimiter = UnderscoreDelimiter
+	if arg.Initial.Price < 0 {
+		return nil, fmt.Errorf("%v, price must be greater than 0", errInvalidPrice)
+	}
+	if arg.Initial.TimeInForce != "" && !(arg.Initial.TimeInForce == "gtc" || arg.Initial.TimeInForce == "ioc") {
+		return nil, fmt.Errorf("%v, only time in force value 'gtc' and 'ioc' are supported", errInvalidTimeInForce)
+	}
+	if !(arg.Trigger.StrategyType == 0 || arg.Trigger.StrategyType == 1) {
+		return nil, fmt.Errorf("strategy type must be 0 or 1, 0: by price, and 1: by price gap")
+	}
+	if !(arg.Trigger.Rule == 1 || arg.Trigger.Rule == 2) {
+		return nil, fmt.Errorf("invalid trigger condition('rule') value, rule must be 1 or 2")
+	}
+	if !(arg.Trigger.PriceType == 0 || arg.Trigger.PriceType == 1 || arg.Trigger.PriceType == 2) {
+		return nil, fmt.Errorf("price type must be 0 or 1 or 2")
+	}
+	if arg.Trigger.OrderType != "" && !(arg.Trigger.OrderType == "close-long-order" ||
+		arg.Trigger.OrderType == "close-short-order" ||
+		arg.Trigger.OrderType == "close-long-position" ||
+		arg.Trigger.OrderType == "close-short-position" ||
+		arg.Trigger.OrderType == "plan-close-long-position" ||
+		arg.Trigger.OrderType == "plan-close-short-position") {
+		return nil, errors.New("invalid order type, only 'close-long-order', 'close-short-order', 'close-long-position', 'close-short-position', 'plan-close-long-position', and 'plan-close-short-position'")
+	}
+	var response OrderID
+	path := fmt.Sprintf(futuresPriceOrders, settle)
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, &arg, &response)
+}
+
+// ListAllFuturesAutoOrders lists all open orders
+func (g *Gateio) ListAllFuturesAutoOrders(ctx context.Context, status, settle string, contract currency.Pair, limit, offset int) ([]FutureTriggeredPriceOrderResponse, error) {
+	if !(status == "open" || status == "finished") {
+		return nil, errInvalidOrderStatus
+	}
+	if !(settle == "btc" || settle == "usd" || settle == "usdt") {
+		return nil, errMissingSettleCurrency
+	}
+	path := fmt.Sprintf(futuresPriceOrders, settle)
+	params := url.Values{}
+	params.Set("status", status)
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(limit))
+	}
+	if offset > 0 {
+		params.Set("offset", strconv.Itoa(offset))
+	}
+	if !(contract.Base.IsEmpty() || contract.Quote.IsEmpty()) {
+		contract.Delimiter = UnderscoreDelimiter
+		params.Set("contract", contract.String())
+	}
+	var response []FutureTriggeredPriceOrderResponse
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, nil, &response)
+}
+
+// CancelAllFuturesOpenOrders cancels all futures open orders
+func (g *Gateio) CancelAllFuturesOpenOrders(ctx context.Context, settle string, contract currency.Pair) ([]FutureTriggeredPriceOrderResponse, error) {
+	if !(settle == "btc" || settle == "usd" || settle == "usdt") {
+		return nil, errMissingSettleCurrency
+	}
+	if contract.Base.IsEmpty() || contract.Quote.IsEmpty() {
+		return nil, fmt.Errorf("%v, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
+	}
+	params := url.Values{}
+	contract.Delimiter = UnderscoreDelimiter
+	path := fmt.Sprintf(futuresPriceOrders, settle)
+	params.Set("contract", contract.String())
+	var response []FutureTriggeredPriceOrderResponse
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, params, nil, &response)
+}
+
+// func (g *Gateio)
 
 // ***************************************Delivery ***************************************
 
@@ -3319,11 +3633,10 @@ func (g *Gateio) GetOptionsTradeHistory(ctx context.Context, contract /*C is cal
 	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
-	path := common.EncodeURLValues(optionsTrades, params)
-	return trades, g.SendHTTPRequest(ctx, exchange.RestSpot, path, &trades)
+	return trades, g.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(optionsTrades, params), &trades)
 }
 
-// **********************************Flash_SWAP*************************
+// ********************************** Flash_SWAP *************************
 
 // GetSupportedFlashSwapCurrencies retrives all supported currencies in flash swap
 func (g *Gateio) GetSupportedFlashSwapCurrencies(ctx context.Context) ([]SwapCurrencies, error) {

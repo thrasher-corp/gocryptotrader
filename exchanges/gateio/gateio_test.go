@@ -1979,8 +1979,14 @@ func TestUpdatePositionRiskLimitinDualMode(t *testing.T) {
 	}
 }
 
+var futuresOrderJSON = `{"id": 15675394,	"user": 100000,	"contract": "BTC_USDT",	"create_time": 1546569968,	"size": 6024,	"iceberg": 0,	"left": 6024,	"price": "3765",	"fill_price": "0",	"mkfr": "-0.00025",	"tkfr": "0.00075",	"tif": "gtc",	"refu": 0,	"is_reduce_only": false,	"is_close": false,	"is_liq": false,	"text": "t-my-custom-id",	"status": "finished",	"finish_time": 1514764900,	"finish_as": "cancelled"}`
+
 func TestCreateFuturesOrder(t *testing.T) {
 	t.Parallel()
+	var response FutureOrder
+	if err := json.Unmarshal([]byte(futuresOrderJSON), &response); err != nil {
+		t.Errorf("%s error while deserializing to Futureorder: %v", g.Name, err)
+	}
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
@@ -1994,6 +2000,201 @@ func TestCreateFuturesOrder(t *testing.T) {
 		Settle:      "btc",
 	}); err != nil {
 		t.Errorf("%s CreateFuturesOrder() error %v", g.Name, err)
+	}
+}
+
+func TestGetFuturesOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.GetFuturesOrders(context.Background(), currency.NewPair(currency.BTC, currency.USD), "open", 0, 0, "", 1, "btc"); err != nil {
+		t.Errorf("%s GetFuturesOrders() error %v", g.Name, err)
+	}
+}
+
+func TestCancelAllFuturesOpenOrdersMatched(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.CancelAllFuturesOpenOrdersMatched(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "ask", "usdt"); err != nil {
+		t.Errorf("%s CancelAllOpenOrdersMatched() error %v", g.Name, err)
+	}
+}
+
+func TestCreateBatchFuturesOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.CreateBatchFuturesOrders(context.Background(), "btc", []FuturesOrderCreateParams{
+		{
+			Contract:    currency.NewPair(currency.BTC, currency.USDT),
+			Size:        6024,
+			Iceberg:     0,
+			Price:       3765,
+			TimeInForce: "gtc",
+			Text:        "t-my-custom-id",
+			Settle:      "btc",
+		},
+		{
+			Contract:    currency.NewPair(currency.BTC, currency.USDT),
+			Size:        232,
+			Iceberg:     0,
+			Price:       376225,
+			TimeInForce: "gtc",
+			Text:        "t-my-custom-id",
+			Settle:      "btc",
+		},
+	}); err != nil {
+		t.Errorf("%s CreateBatchFuturesOrders() error %v", g.Name, err)
+	}
+}
+
+func TestGetSingleFuturesOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.GetSingleFuturesOrder(context.Background(), "btc", "12345"); err != nil && !strings.Contains(err.Error(), "ORDER_NOT_FOUND") {
+		t.Errorf("%s GetSingleFuturesOrder() error %v", g.Name, err)
+	}
+}
+func TestCancelSingleFuturesOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.CancelSingleFuturesOrder(context.Background(), "btc", "12345"); err != nil && !strings.Contains(err.Error(), "ORDER_NOT_FOUND") {
+		t.Errorf("%s CancelSingleFuturesOrder() error %v", g.Name, err)
+	}
+}
+func TestAmendFuturesOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.AmendFuturesOrder(context.Background(), "btc", "1234", AmendFuturesOrderParam{
+		Price: 12345.990,
+	}); err != nil {
+		t.Errorf("%s AmendFuturesOrder() error %v", g.Name, err)
+	}
+}
+
+var myPersonalTradinghistoryJSON = `{"id": 121234231,  "create_time": 1514764800.123,  "contract": "BTC_USDT",  "order_id": "21893289839",  "size": 100,  "price": "100.123",  "text": "t-123456",  "fee": "0.01",  "point_fee": "0",  "role": "taker"}`
+
+func TestGetMyPersonalTradingHistory(t *testing.T) {
+	t.Parallel()
+	var response TradingHistoryItem
+	if err := json.Unmarshal([]byte(myPersonalTradinghistoryJSON), &response); err != nil {
+		t.Errorf("%s GetMyPersonalTradingHistory() error %v", g.Name, err)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.GetMyPersonalTradingHistory(context.Background(), "btc", currency.NewPair(currency.ETH, currency.BTC), "", 0, 0, 0, ""); err != nil {
+		t.Errorf("%s GetMyPersonalTradingHistory() error %v", g.Name, err)
+	}
+}
+
+var getPositionCloseHistoryJSON = `{  "time": 1546487347,  "pnl": "0.00013",  "side": "long",  "contract": "BTC_USDT",  "text": "web"}`
+
+func TestGetPositionCloseHistory(t *testing.T) {
+	t.Parallel()
+	var response PositionCloseHistoryResponse
+	if err := json.Unmarshal([]byte(getPositionCloseHistoryJSON), &response); err != nil {
+		t.Errorf("%s error while deserializing to PositionClosehistoryResponse: error %v", g.Name, err)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.GetPositionCloseHistory(context.Background(), "btc", currency.NewPair(currency.BTC, currency.USDT), 0, 0, time.Time{}, time.Time{}); err != nil {
+		t.Errorf("%s GetPositionCloseHistory() error %v", g.Name, err)
+	}
+}
+
+var getFuturesLiquidationHistoryJSON = `{"time": 1548654951,"contract": "BTC_USDT","size": 600,  "leverage": "25",  "margin": "0.006705256878",  "entry_price": "3536.123",  "liq_price": "3421.54",  "mark_price": "3420.27",  "order_id": 317393847,  "order_price": "3405",  "fill_price": "3424",  "left": 0}`
+
+func TestGetFuturesLiquidationHistory(t *testing.T) {
+	t.Parallel()
+	var response FuturesLiquidationHistoryItem
+	if err := json.Unmarshal([]byte(getFuturesLiquidationHistoryJSON), &response); err != nil {
+		t.Errorf("%s error while deserializing to FuturesLiquidationHistoryItem: error %v", g.Name, err)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.GetFuturesLiquidationHistory(context.Background(), "btc", currency.NewPair(currency.BTC, currency.USDT), 0, time.Time{}); err != nil {
+		t.Errorf("%s GetFuturesLiquidationHistory() error %v", g.Name, err)
+	}
+}
+
+func TestCountdownCancelOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.CountdownCancelOrders(context.Background(), "btc", CountdownParams{
+		Timeout: 8,
+	}); err != nil {
+		t.Errorf("%s CountdownCancelOrders() error %v", g.Name, err)
+	}
+}
+
+func TestCreatePriceTriggeredFuturesOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.CreatePriceTriggeredFuturesOrder(context.Background(), "btc", FuturesPriceTriggeredOrderParam{
+		Initial: FuturesInitial{
+			Price:    1234.,
+			Contract: currency.NewPair(currency.OKB, currency.USDT),
+		},
+		Trigger: FuturesTrigger{
+			Rule:      1,
+			OrderType: "close-short-position",
+		},
+	}); err != nil && !strings.Contains(err.Error(), "contract not found ") {
+		t.Errorf("%s CreatePriceTriggeredFuturesOrder() error %v", g.Name, err)
+	}
+	if _, err := g.CreatePriceTriggeredFuturesOrder(context.Background(), "btc", FuturesPriceTriggeredOrderParam{
+		Initial: FuturesInitial{
+			Price:    1234.,
+			Contract: currency.NewPair(currency.OKB, currency.USDT),
+		},
+		Trigger: FuturesTrigger{
+			Rule: 1,
+		},
+	}); err != nil && !strings.Contains(err.Error(), "contract not found ") {
+		t.Errorf("%s CreatePriceTriggeredFuturesOrder() error %v", g.Name, err)
+	}
+}
+
+var priceTriggeredOrderResponseJSON = `{"initial": { "contract": "BTC_USDT", "size": 100, "price": "5.03"  }, "trigger": { "strategy_type": 0,    "price_type": 0,    "price": "3000",    "rule": 1,    "expiration": 86400  },  "id": 1283293,  "user": 1234,  "create_time": 1514764800,  "finish_time": 1514764900,  "trade_id": 13566,  "status": "finished",  "finish_as": "cancelled",  "reason": "",  "order_type": "close-long-order"}`
+
+func TestListAllFuturesAutoOrders(t *testing.T) {
+	t.Parallel()
+	var response FutureTriggeredPriceOrderResponse
+	if err := json.Unmarshal([]byte(priceTriggeredOrderResponseJSON), &response); err != nil {
+		t.Errorf("%s error while deserializing to FutureTriggeredPriceOrderResponse: error %v", g.Name, err)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.ListAllFuturesAutoOrders(context.Background(), "open", "btc", currency.EMPTYPAIR, 0, 0); err != nil {
+		t.Errorf("%s ListAllFuturesAutoOrders() error %v", g.Name, err)
+	}
+}
+
+func TestCancelAllFuturesOpenOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := g.CancelAllFuturesOpenOrders(context.Background(), "btc", currency.NewPair(currency.OKB, currency.USDT)); err != nil {
+		t.Errorf("%s CancelAllFuturesOpenOrders() error %v", g.Name, err)
 	}
 }
 
@@ -2339,9 +2540,18 @@ func TestGetOptionFuturesMarkPriceCandlesticks(t *testing.T) {
 	}
 }
 
+var optionTradingHistoryJSON = `{"id": 121234231,  "create_time": 1514764800,  "contract": "BTC_USDT",  "size": -100,  "price": "100.123"}`
+
 func TestGetOptionsTradeHistory(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetOptionsTradeHistory(context.Background(), "BTC_USDT-20220826-32000-C", "C", 0, 0, time.Time{}, time.Time{}); er != nil {
+	var response TradingHistoryItem
+	if err := json.Unmarshal([]byte(optionTradingHistoryJSON), &response); err != nil {
+		t.Errorf("%s error while decerializing to TradingHistoryItem %v", g.Name, err)
+	}
+	if response, er := g.GetOptionsTradeHistory(context.Background(), "BTC_USDT-20220826-32000-C", "C", 0, 0, time.Time{}, time.Time{}); er != nil {
 		t.Errorf("%s GetOptionsTradeHistory() error %v", g.Name, er)
+	} else {
+		val, _ := json.Marshal(response)
+		println(string(val))
 	}
 }
