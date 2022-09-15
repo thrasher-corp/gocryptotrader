@@ -1728,8 +1728,8 @@ type FuturesAccount struct {
 	} `json:"history"`
 }
 
-// FuturesAccountBookItem represents account book item
-type FuturesAccountBookItem struct {
+// AccountBookItem represents account book item
+type AccountBookItem struct {
 	Time    time.Time `json:"time"`
 	Change  float64   `json:"change,string"`
 	Balance float64   `json:"balance,string"`
@@ -1737,8 +1737,8 @@ type FuturesAccountBookItem struct {
 	Type    string    `json:"type"`
 }
 
-// FuturesPosition represents futures position
-type FuturesPosition struct {
+// Position represents futures position
+type Position struct {
 	User            int     `json:"user"`
 	Contract        string  `json:"contract"`
 	Size            int     `json:"size"`
@@ -1794,8 +1794,8 @@ type DualModeResponse struct {
 	} `json:"history"`
 }
 
-// FuturesOrderCreateParams represents future order creation parameters
-type FuturesOrderCreateParams struct {
+// OrderCreateParams represents future order creation parameters
+type OrderCreateParams struct {
 	Contract    currency.Pair `json:"contract"`
 	Size        float64       `json:"size"`
 	Iceberg     int           `json:"iceberg"`
@@ -1810,8 +1810,8 @@ type FuturesOrderCreateParams struct {
 	Settle        string `json:"-"`
 }
 
-// FutureOrder represents future order response
-type FutureOrder struct {
+// Order represents future order response
+type Order struct {
 	ID           int       `json:"id"`
 	User         int       `json:"user"`
 	Contract     string    `json:"contract"`
@@ -1849,8 +1849,8 @@ type PositionCloseHistoryResponse struct {
 	Text          string    `json:"text"`
 }
 
-// FuturesLiquidationHistoryItem liquidation history item
-type FuturesLiquidationHistoryItem struct {
+// LiquidationHistoryItem liquidation history item
+type LiquidationHistoryItem struct {
 	Time       time.Time `json:"time"`
 	Contract   string    `json:"contract"`
 	Size       int       `json:"size"`
@@ -1896,12 +1896,12 @@ type FuturesTrigger struct {
 	PriceType    int     `json:"price_type,omitempty"`
 	Price        float64 `json:"price,omitempty,string"`
 	Rule         int     `json:"rule,omitempty"`
-	Expiration   int     `json:"expiration,omitempty"`
+	Expiration   int     `json:"expiration,omitempty"` // how long(in seconds) to wait for the condition to be triggered before cancelling the order
 	OrderType    string  `json:"order_type,omitempty"`
 }
 
-// FutureTriggeredPriceOrderResponse represents a future triggered price order response
-type FutureTriggeredPriceOrderResponse struct {
+// PriceTriggeredOrder represents a future triggered price order response
+type PriceTriggeredOrder struct {
 	Initial struct {
 		Contract string  `json:"contract"`
 		Size     float64 `json:"size"`
@@ -1923,4 +1923,32 @@ type FutureTriggeredPriceOrderResponse struct {
 	FinishAs   string    `json:"finish_as"`
 	Reason     string    `json:"reason"`
 	OrderType  string    `json:"order_type"`
+}
+
+// SettlementHistoryItem represents a settlement history item
+type SettlementHistoryItem struct {
+	Time        time.Time `json:"time"`
+	Contract    string    `json:"contract"`
+	Size        int       `json:"size"`
+	Leverage    string    `json:"leverage"`
+	Margin      string    `json:"margin"`
+	EntryPrice  float64   `json:"entry_price,string"`
+	SettlePrice float64   `json:"settle_price,string"`
+	Profit      float64   `json:"profit,string"`
+	Fee         float64   `json:"fee,string"`
+}
+
+// SubAccountParams represents subaccount creation parameters
+type SubAccountParams struct {
+	Remark    string `json:"remark"`
+	LoginName string `json:"login_name"`
+}
+
+// SubAccount represents a subaccount response
+type SubAccount struct {
+	Remark     string    `json:"remark"`
+	LoginName  string    `json:"login_name"`
+	UserID     int       `json:"user_id"`
+	State      int       `json:"state"`
+	CreateTime time.Time `json:"create_time"`
 }

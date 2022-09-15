@@ -194,6 +194,22 @@ func (a *OptionTradingHistory) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalJSON decerializes json, and timestamp information.
+func (a *SettlementHistoryItem) UnmarshalJSON(data []byte) error {
+	type Alias SettlementHistoryItem
+	chil := &struct {
+		*Alias
+		Time float64 `json:"time"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.Time = time.Unix(int64(chil.Time), 0)
+	return nil
+}
+
+// UnmarshalJSON decerializes json, and timestamp information.
 func (a *OptionOrderResponse) UnmarshalJSON(data []byte) error {
 	type Alias OptionOrderResponse
 	chil := &struct {
@@ -583,8 +599,8 @@ func (a *PositionCloseHistoryResponse) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalJSON deserialises the JSON info, including the timestamp
-func (a *FuturesLiquidationHistoryItem) UnmarshalJSON(data []byte) error {
-	type Alias FuturesLiquidationHistoryItem
+func (a *LiquidationHistoryItem) UnmarshalJSON(data []byte) error {
+	type Alias LiquidationHistoryItem
 	chil := &struct {
 		*Alias
 		Time int64 `json:"time"`
@@ -639,8 +655,8 @@ func (a *MarginAccountBalanceChangeInfo) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalJSON decerializes json, and timestamp information
-func (a *FuturesAccountBookItem) UnmarshalJSON(data []byte) error {
-	type Alias FuturesAccountBookItem
+func (a *AccountBookItem) UnmarshalJSON(data []byte) error {
+	type Alias AccountBookItem
 	chil := &struct {
 		*Alias
 		Time int64 `json:"time"`
@@ -655,8 +671,8 @@ func (a *FuturesAccountBookItem) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalJSON decerializes json, and timestamp information
-func (a *FutureOrder) UnmarshalJSON(data []byte) error {
-	type Alias FutureOrder
+func (a *Order) UnmarshalJSON(data []byte) error {
+	type Alias Order
 	chil := &struct {
 		*Alias
 		FinishTime int64 `json:"finish_time"`
@@ -673,8 +689,8 @@ func (a *FutureOrder) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalJSON decerializes json, and timestamp information
-func (a *FutureTriggeredPriceOrderResponse) UnmarshalJSON(data []byte) error {
-	type Alias FutureTriggeredPriceOrderResponse
+func (a *PriceTriggeredOrder) UnmarshalJSON(data []byte) error {
+	type Alias PriceTriggeredOrder
 	chil := &struct {
 		*Alias
 		CreateTime int64 `json:"create_time"`
@@ -687,5 +703,21 @@ func (a *FutureTriggeredPriceOrderResponse) UnmarshalJSON(data []byte) error {
 	}
 	a.CreateTime = time.Unix(chil.CreateTime, 0)
 	a.FinishTime = time.Unix(chil.FinishTime, 0)
+	return nil
+}
+
+// UnmarshalJSON decerializes json, and timestamp information
+func (a *SubAccount) UnmarshalJSON(data []byte) error {
+	type Alias SubAccount
+	chil := &struct {
+		*Alias
+		CreateTime int64 `json:"create_time"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
+	}
+	a.CreateTime = time.Unix(chil.CreateTime, 0)
 	return nil
 }
