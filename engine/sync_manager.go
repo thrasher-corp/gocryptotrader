@@ -39,6 +39,8 @@ var (
 	errNoSyncItemsEnabled         = errors.New("no sync items enabled")
 	errUnknownSyncItem            = errors.New("unknown sync item")
 	errSyncPairNotFound           = errors.New("exchange currency pair syncer not found")
+	errSyncAssetNotFound          = errors.New("exchange asset syncer not found")
+	errSyncItemAlreadyAdded       = errors.New("currency sync item already added")
 )
 
 // setupSyncManager starts a new CurrencyPairSyncer
@@ -249,33 +251,42 @@ func (m *syncManager) Stop() error {
 	return nil
 }
 
-func (m *syncManager) get(exchangeName string, p currency.Pair, a asset.Item) (*currencyPairSyncAgent, error) {
+func (m *syncManager) getWithLock(exchangeName string, p currency.Pair, a asset.Item) (*currencyPairSyncAgent, error) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
+	return m.getNoLock(exchangeName, p, a)
+}
 
-	for x := range m.currencyPairs {
-		if m.currencyPairs[x].Exchange == exchangeName &&
-			m.currencyPairs[x].Pair.Equal(p) &&
-			m.currencyPairs[x].AssetType == a {
-			return &m.currencyPairs[x], nil
-		}
+func (m *syncManager) getNoLock(exchangeName string, p currency.Pair, a asset.Item) (*currencyPairSyncAgent, error) {
+	m1, ok := m.currencyPairs[exchangeName]
+	if !ok {
+		return nil, fmt.Errorf("exchange CurrencyPairSyncer cannot sync item exchange:[%s] %w",
+			exchangeName, ErrExchangeNotFound)
 	}
 
-	return nil, fmt.Errorf("%v %v %v %w", exchangeName, a, p, errSyncPairNotFound)
+	m2, ok := m1[p.Base.Item]
+	if !ok {
+		return nil, fmt.Errorf("exchange CurrencyPairSyncer cannot sync item base pair:[%s] %w",
+			p, errSyncPairNotFound)
+	}
+
+	m3, ok := m2[p.Quote.Item]
+	if !ok {
+		return nil, fmt.Errorf("exchange CurrencyPairSyncer cannot sync item quote pair:[%s] %w",
+			p, errSyncPairNotFound)
+	}
+
+	syncAgent, ok := m3[a]
+	if !ok {
+		return nil, fmt.Errorf("exchange CurrencyPairSyncer cannot sync item asset:[%s] %w",
+			a, errSyncAssetNotFound)
+	}
+	return syncAgent, nil
 }
 
 func (m *syncManager) exists(exchangeName string, p currency.Pair, a asset.Item) bool {
-	m.mux.Lock()
-	defer m.mux.Unlock()
-
-	for x := range m.currencyPairs {
-		if m.currencyPairs[x].Exchange == exchangeName &&
-			m.currencyPairs[x].Pair.Equal(p) &&
-			m.currencyPairs[x].AssetType == a {
-			return true
-		}
-	}
-	return false
+	_, err := m.getWithLock(exchangeName, p, a)
+	return err == nil
 }
 
 func (m *syncManager) add(c *currencyPairSyncAgent) {
@@ -321,27 +332,55 @@ func (m *syncManager) add(c *currencyPairSyncAgent) {
 		}
 	}
 
-	c.Created = time.Now()
-	m.currencyPairs = append(m.currencyPairs, *c)
+	if m.currencyPairs == nil {
+		m.currencyPairs = make(map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]*currencyPairSyncAgent)
+	}
+
+	m1, ok := m.currencyPairs[c.Exchange]
+	if !ok {
+		m1 = make(map[*currency.Item]map[*currency.Item]map[asset.Item]*currencyPairSyncAgent)
+		m.currencyPairs[c.Exchange] = m1
+	}
+
+	m2, ok := m1[c.Pair.Base.Item]
+	if !ok {
+		m2 = make(map[*currency.Item]map[asset.Item]*currencyPairSyncAgent)
+		m1[c.Pair.Base.Item] = m2
+	}
+
+	m3, ok := m2[c.Pair.Quote.Item]
+	if !ok {
+		m3 = make(map[asset.Item]*currencyPairSyncAgent)
+		m2[c.Pair.Quote.Item] = m3
+	}
+
+	_, ok = m3[c.AssetType]
+	if ok {
+		log.Errorf(log.SyncMgr, "%s %s %s %v", c.Exchange, c.Pair, c.AssetType, errSyncItemAlreadyAdded)
+		return
+	}
+
+	cpy := *c
+	cpy.Created = time.Now()
+	m3[c.AssetType] = &cpy
 }
 
 func (m *syncManager) isProcessing(exchangeName string, p currency.Pair, a asset.Item, syncType int) bool {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
-	for x := range m.currencyPairs {
-		if m.currencyPairs[x].Exchange == exchangeName &&
-			m.currencyPairs[x].Pair.Equal(p) &&
-			m.currencyPairs[x].AssetType == a {
-			switch syncType {
-			case SyncItemTicker:
-				return m.currencyPairs[x].Ticker.IsProcessing
-			case SyncItemOrderbook:
-				return m.currencyPairs[x].Orderbook.IsProcessing
-			case SyncItemTrade:
-				return m.currencyPairs[x].Trade.IsProcessing
-			}
-		}
+	agent, err := m.getNoLock(exchangeName, p, a)
+	if err != nil {
+		return false
+	}
+
+	switch syncType {
+	case SyncItemTicker:
+		return agent.Ticker.IsProcessing
+	case SyncItemOrderbook:
+		return agent.Orderbook.IsProcessing
+	case SyncItemTrade:
+		return agent.Trade.IsProcessing
 	}
 
 	return false
@@ -351,24 +390,22 @@ func (m *syncManager) setProcessing(exchangeName string, p currency.Pair, a asse
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
-	for x := range m.currencyPairs {
-		if m.currencyPairs[x].Exchange == exchangeName &&
-			m.currencyPairs[x].Pair.Equal(p) &&
-			m.currencyPairs[x].AssetType == a {
-			switch syncType {
-			case SyncItemTicker:
-				m.currencyPairs[x].Ticker.IsProcessing = processing
-			case SyncItemOrderbook:
-				m.currencyPairs[x].Orderbook.IsProcessing = processing
-			case SyncItemTrade:
-				m.currencyPairs[x].Trade.IsProcessing = processing
-			}
-		}
+	agent, err := m.getNoLock(exchangeName, p, a)
+	if err != nil {
+		return
+	}
+	switch syncType {
+	case SyncItemTicker:
+		agent.Ticker.IsProcessing = processing
+	case SyncItemOrderbook:
+		agent.Orderbook.IsProcessing = processing
+	case SyncItemTrade:
+		agent.Trade.IsProcessing = processing
 	}
 }
 
 // Update notifies the syncManager to change the last updated time for a exchange asset pair
-func (m *syncManager) Update(exchangeName string, p currency.Pair, a asset.Item, syncType int, err error) error {
+func (m *syncManager) Update(exchangeName string, p currency.Pair, a asset.Item, syncType int, incoming error) error {
 	if m == nil {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", ErrNilSubsystem)
 	}
@@ -400,65 +437,62 @@ func (m *syncManager) Update(exchangeName string, p currency.Pair, a asset.Item,
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
-	for x := range m.currencyPairs {
-		if m.currencyPairs[x].Exchange == exchangeName &&
-			m.currencyPairs[x].Pair.Equal(p) &&
-			m.currencyPairs[x].AssetType == a {
-			switch syncType {
-			case SyncItemTicker:
-				origHadData := m.currencyPairs[x].Ticker.HaveData
-				m.currencyPairs[x].Ticker.LastUpdated = time.Now()
-				if err != nil {
-					m.currencyPairs[x].Ticker.NumErrors++
-				}
-				m.currencyPairs[x].Ticker.HaveData = true
-				m.currencyPairs[x].Ticker.IsProcessing = false
-				if atomic.LoadInt32(&m.initSyncCompleted) != 1 && !origHadData {
-					removedCounter++
-					log.Debugf(log.SyncMgr, "%s ticker sync complete %v [%d/%d].",
-						exchangeName,
-						m.FormatCurrency(p).String(),
-						removedCounter,
-						createdCounter)
-					m.initSyncWG.Done()
-				}
+	agent, err := m.getNoLock(exchangeName, p, a)
+	if err != nil {
+		return err
+	}
 
-			case SyncItemOrderbook:
-				origHadData := m.currencyPairs[x].Orderbook.HaveData
-				m.currencyPairs[x].Orderbook.LastUpdated = time.Now()
-				if err != nil {
-					m.currencyPairs[x].Orderbook.NumErrors++
-				}
-				m.currencyPairs[x].Orderbook.HaveData = true
-				m.currencyPairs[x].Orderbook.IsProcessing = false
-				if atomic.LoadInt32(&m.initSyncCompleted) != 1 && !origHadData {
-					removedCounter++
-					log.Debugf(log.SyncMgr, "%s orderbook sync complete %v [%d/%d].",
-						exchangeName,
-						m.FormatCurrency(p).String(),
-						removedCounter,
-						createdCounter)
-					m.initSyncWG.Done()
-				}
-
-			case SyncItemTrade:
-				origHadData := m.currencyPairs[x].Trade.HaveData
-				m.currencyPairs[x].Trade.LastUpdated = time.Now()
-				if err != nil {
-					m.currencyPairs[x].Trade.NumErrors++
-				}
-				m.currencyPairs[x].Trade.HaveData = true
-				m.currencyPairs[x].Trade.IsProcessing = false
-				if atomic.LoadInt32(&m.initSyncCompleted) != 1 && !origHadData {
-					removedCounter++
-					log.Debugf(log.SyncMgr, "%s trade sync complete %v [%d/%d].",
-						exchangeName,
-						m.FormatCurrency(p).String(),
-						removedCounter,
-						createdCounter)
-					m.initSyncWG.Done()
-				}
-			}
+	switch syncType {
+	case SyncItemTicker:
+		origHadData := agent.Ticker.HaveData
+		agent.Ticker.LastUpdated = time.Now()
+		if incoming != nil {
+			agent.Ticker.NumErrors++
+		}
+		agent.Ticker.HaveData = true
+		agent.Ticker.IsProcessing = false
+		if atomic.LoadInt32(&m.initSyncCompleted) != 1 && !origHadData {
+			removedCounter++
+			log.Debugf(log.SyncMgr, "%s ticker sync complete %v [%d/%d].",
+				exchangeName,
+				m.FormatCurrency(p).String(),
+				removedCounter,
+				createdCounter)
+			m.initSyncWG.Done()
+		}
+	case SyncItemOrderbook:
+		origHadData := agent.Orderbook.HaveData
+		agent.Orderbook.LastUpdated = time.Now()
+		if incoming != nil {
+			agent.Orderbook.NumErrors++
+		}
+		agent.Orderbook.HaveData = true
+		agent.Orderbook.IsProcessing = false
+		if atomic.LoadInt32(&m.initSyncCompleted) != 1 && !origHadData {
+			removedCounter++
+			log.Debugf(log.SyncMgr, "%s orderbook sync complete %v [%d/%d].",
+				exchangeName,
+				m.FormatCurrency(p).String(),
+				removedCounter,
+				createdCounter)
+			m.initSyncWG.Done()
+		}
+	case SyncItemTrade:
+		origHadData := agent.Trade.HaveData
+		agent.Trade.LastUpdated = time.Now()
+		if incoming != nil {
+			agent.Trade.NumErrors++
+		}
+		agent.Trade.HaveData = true
+		agent.Trade.IsProcessing = false
+		if atomic.LoadInt32(&m.initSyncCompleted) != 1 && !origHadData {
+			removedCounter++
+			log.Debugf(log.SyncMgr, "%s trade sync complete %v [%d/%d].",
+				exchangeName,
+				m.FormatCurrency(p).String(),
+				removedCounter,
+				createdCounter)
+			m.initSyncWG.Done()
 		}
 	}
 	return nil
@@ -471,6 +505,8 @@ func (m *syncManager) worker() {
 	}
 	defer cleanup()
 
+	// TODO: Add in routine for checking sync agents and push to job channel.
+	// This is adding slight overhead.
 	for atomic.LoadInt32(&m.started) != 0 {
 		exchanges, err := m.exchangeManager.GetExchanges()
 		if err != nil {
@@ -518,7 +554,8 @@ func (m *syncManager) worker() {
 						return
 					}
 
-					c, err := m.get(exchangeName, enabledPairs[i], assetTypes[y])
+					// TODO: Fix race issue to agent pointer.
+					c, err := m.getWithLock(exchangeName, enabledPairs[i], assetTypes[y])
 					if err != nil {
 						if err == errSyncPairNotFound {
 							c = &currencyPairSyncAgent{
@@ -685,6 +722,7 @@ func (m *syncManager) worker() {
 							if !m.isProcessing(exchangeName, c.Pair, c.AssetType, SyncItemTrade) {
 								if c.Trade.LastUpdated.IsZero() || time.Since(c.Trade.LastUpdated) > m.config.TimeoutREST {
 									m.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemTrade, true)
+									// TODO: Actually add in trade processing.
 									err := m.Update(c.Exchange, c.Pair, c.AssetType, SyncItemTrade, nil)
 									if err != nil {
 										log.Error(log.SyncMgr, err)
