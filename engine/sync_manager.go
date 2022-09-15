@@ -722,7 +722,7 @@ func (m *syncManager) worker() {
 							if !m.isProcessing(exchangeName, c.Pair, c.AssetType, SyncItemTrade) {
 								if c.Trade.LastUpdated.IsZero() || time.Since(c.Trade.LastUpdated) > m.config.TimeoutREST {
 									m.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemTrade, true)
-									// TODO: Actually add in trade processing.
+									// TODO: add in trade processing.
 									err := m.Update(c.Exchange, c.Pair, c.AssetType, SyncItemTrade, nil)
 									if err != nil {
 										log.Error(log.SyncMgr, err)
