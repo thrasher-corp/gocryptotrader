@@ -39,7 +39,7 @@ var (
 // GRPCServer struct
 type GRPCServer struct {
 	btrpc.BacktesterServiceServer
-	*config.BacktesterConfig
+	config  *config.BacktesterConfig
 	manager *RunManager
 }
 
@@ -52,19 +52,19 @@ func SetupRPCServer(cfg *config.BacktesterConfig, manager *RunManager) (*GRPCSer
 		return nil, fmt.Errorf("%w run manager", common.ErrNilArguments)
 	}
 	return &GRPCServer{
-		BacktesterConfig: cfg,
-		manager:          manager,
+		config:  cfg,
+		manager: manager,
 	}, nil
 }
 
 // StartRPCServer starts a gRPC server with TLS auth
 func StartRPCServer(server *GRPCServer) error {
-	targetDir := utils.GetTLSDir(server.GRPC.TLSDir)
+	targetDir := utils.GetTLSDir(server.config.GRPC.TLSDir)
 	if err := gctengine.CheckCerts(targetDir); err != nil {
 		return err
 	}
-	log.Debugf(log.GRPCSys, "Backtester GRPC server enabled. Starting GRPC server on https://%v.\n", server.GRPC.ListenAddress)
-	lis, err := net.Listen("tcp", server.GRPC.ListenAddress)
+	log.Debugf(log.GRPCSys, "Backtester GRPC server enabled. Starting GRPC server on https://%v.\n", server.config.GRPC.ListenAddress)
+	lis, err := net.Listen("tcp", server.config.GRPC.ListenAddress)
 	if err != nil {
 		return err
 	}
@@ -90,7 +90,7 @@ func StartRPCServer(server *GRPCServer) error {
 
 	log.Debugln(log.GRPCSys, "GRPC server started!")
 
-	if server.GRPC.GRPCProxyEnabled {
+	if server.config.GRPC.GRPCProxyEnabled {
 		return server.StartRPCRESTProxy()
 	}
 	return nil
@@ -98,8 +98,8 @@ func StartRPCServer(server *GRPCServer) error {
 
 // StartRPCRESTProxy starts a gRPC proxy
 func (s *GRPCServer) StartRPCRESTProxy() error {
-	log.Debugf(log.GRPCSys, "GRPC proxy server support enabled. Starting gRPC proxy server on http://%v.\n", s.GRPC.GRPCProxyListenAddress)
-	targetDir := utils.GetTLSDir(s.GRPC.TLSDir)
+	log.Debugf(log.GRPCSys, "GRPC proxy server support enabled. Starting gRPC proxy server on http://%v.\n", s.config.GRPC.GRPCProxyListenAddress)
+	targetDir := utils.GetTLSDir(s.config.GRPC.TLSDir)
 	creds, err := credentials.NewClientTLSFromFile(filepath.Join(targetDir, "cert.pem"), "")
 	if err != nil {
 		return fmt.Errorf("unabled to start gRPC proxy. Err: %w", err)
@@ -108,18 +108,18 @@ func (s *GRPCServer) StartRPCRESTProxy() error {
 	mux := runtime.NewServeMux()
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(creds),
 		grpc.WithPerRPCCredentials(auth.BasicAuth{
-			Username: s.GRPC.Username,
-			Password: s.GRPC.Password,
+			Username: s.config.GRPC.Username,
+			Password: s.config.GRPC.Password,
 		}),
 	}
 	err = btrpc.RegisterBacktesterServiceHandlerFromEndpoint(context.Background(),
-		mux, s.GRPC.ListenAddress, opts)
+		mux, s.config.GRPC.ListenAddress, opts)
 	if err != nil {
 		return fmt.Errorf("failed to register gRPC proxy. Err: %w", err)
 	}
 
 	go func() {
-		if err = http.ListenAndServe(s.GRPC.GRPCProxyListenAddress, mux); err != nil {
+		if err = http.ListenAndServe(s.config.GRPC.GRPCProxyListenAddress, mux); err != nil {
 			log.Errorf(log.GRPCSys, "GRPC proxy failed to server: %s\n", err)
 		}
 	}()
@@ -152,34 +152,42 @@ func (s *GRPCServer) authenticateClient(ctx context.Context) (context.Context, e
 	username := creds[0]
 	password := creds[1]
 
-	if username != s.GRPC.Username ||
-		password != s.GRPC.Password {
+	if username != s.config.GRPC.Username ||
+		password != s.config.GRPC.Password {
 		return ctx, fmt.Errorf("username/password mismatch")
 	}
 	return ctx, nil
 }
 
-// generateRunSummary converts a run summary into a RPC format
-func generateRunSummary(run *RunSummary) *btrpc.RunSummary {
+// convertSummary converts a run summary into a RPC format
+func convertSummary(run *RunSummary) *btrpc.RunSummary {
 	runSummary := &btrpc.RunSummary{
-		Id:           run.Identifier.ID,
-		StrategyName: run.Identifier.Strategy,
-		DateLoaded:   run.Identifier.DateLoaded.Format(gctcommon.SimpleTimeFormatWithTimezone),
-		Closed:       run.Identifier.Closed,
-		LiveTesting:  run.Identifier.LiveTesting,
-		RealOrders:   run.Identifier.RealOrders,
+		Id:           run.MetaData.ID,
+		StrategyName: run.MetaData.Strategy,
+		Closed:       run.MetaData.Closed,
+		LiveTesting:  run.MetaData.LiveTesting,
+		RealOrders:   run.MetaData.RealOrders,
 	}
-	if !run.Identifier.DateStarted.IsZero() {
-		runSummary.DateStarted = run.Identifier.DateStarted.Format(gctcommon.SimpleTimeFormatWithTimezone)
+	if !run.MetaData.DateStarted.IsZero() {
+		runSummary.DateStarted = run.MetaData.DateStarted.Format(gctcommon.SimpleTimeFormatWithTimezone)
 	}
-	if !run.Identifier.DateEnded.IsZero() {
-		runSummary.DateEnded = run.Identifier.DateEnded.Format(gctcommon.SimpleTimeFormatWithTimezone)
+	if !run.MetaData.DateLoaded.IsZero() {
+		runSummary.DateLoaded = run.MetaData.DateLoaded.Format(gctcommon.SimpleTimeFormatWithTimezone)
+	}
+	if !run.MetaData.DateEnded.IsZero() {
+		runSummary.DateEnded = run.MetaData.DateEnded.Format(gctcommon.SimpleTimeFormatWithTimezone)
 	}
 	return runSummary
 }
 
 // ExecuteStrategyFromFile will backtest a strategy from the filepath provided
 func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.ExecuteStrategyFromFileRequest) (*btrpc.ExecuteStrategyResponse, error) {
+	if s.config == nil {
+		return nil, fmt.Errorf("%w server config", gctcommon.ErrNilPointer)
+	}
+	if s.manager == nil {
+		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
+	}
 	if request == nil {
 		return nil, fmt.Errorf("%w nil request", common.ErrNilArguments)
 	}
@@ -193,17 +201,25 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 		return nil, err
 	}
 	if cfg == nil {
-		err := fmt.Errorf("%w backtester config", common.ErrNilArguments)
+		err = fmt.Errorf("%w backtester config", common.ErrNilArguments)
 		return nil, err
 	}
-	bt, err := NewFromConfig(cfg, s.BacktesterConfig.Report.TemplatePath, s.BacktesterConfig.Report.OutputPath, s.BacktesterConfig.Verbose)
+
+	if !s.config.Report.GenerateReport {
+		s.config.Report.OutputPath = ""
+		s.config.Report.TemplatePath = ""
+	}
+
+	bt, err := NewFromConfig(cfg, s.config.Report.TemplatePath, s.config.Report.OutputPath, s.config.Verbose)
 	if err != nil {
 		return nil, err
 	}
 
-	err = s.manager.AddRun(bt)
-	if err != nil {
-		return nil, err
+	if !request.DoNotStore {
+		err = s.manager.AddRun(bt)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if !request.DoNotRunImmediately {
@@ -212,12 +228,9 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 			return nil, err
 		}
 	}
-	btSum, err := bt.GenerateSummary()
-	if err != nil {
-		return nil, err
-	}
+	btSum := bt.GenerateSummary()
 	return &btrpc.ExecuteStrategyResponse{
-		Run: generateRunSummary(btSum),
+		Run: convertSummary(btSum),
 	}, nil
 }
 
@@ -225,6 +238,12 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 // this should be a preferred method of interacting with backtester, as it allows for very quick
 // minor tweaks to strategy to determine the best result - SO LONG AS YOU DONT OVERFIT
 func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc.ExecuteStrategyFromConfigRequest) (*btrpc.ExecuteStrategyResponse, error) {
+	if s.config == nil {
+		return nil, fmt.Errorf("%w server config", gctcommon.ErrNilPointer)
+	}
+	if s.manager == nil {
+		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
+	}
 	if request == nil || request.Config == nil {
 		return nil, fmt.Errorf("%w nil request", common.ErrNilArguments)
 	}
@@ -547,14 +566,21 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		},
 	}
 
-	bt, err := NewFromConfig(cfg, s.BacktesterConfig.Report.TemplatePath, s.BacktesterConfig.Report.OutputPath, s.Verbose)
+	if !s.config.Report.GenerateReport {
+		s.config.Report.OutputPath = ""
+		s.config.Report.TemplatePath = ""
+	}
+
+	bt, err := NewFromConfig(cfg, s.config.Report.TemplatePath, s.config.Report.OutputPath, s.config.Verbose)
 	if err != nil {
 		return nil, err
 	}
 
-	err = s.manager.AddRun(bt)
-	if err != nil {
-		return nil, err
+	if !request.DoNotStore {
+		err = s.manager.AddRun(bt)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if !request.DoNotRunImmediately {
@@ -563,23 +589,20 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 			return nil, err
 		}
 	}
-	btSum, err := bt.GenerateSummary()
-	if err != nil {
-		return nil, err
-	}
+	btSum := bt.GenerateSummary()
 	return &btrpc.ExecuteStrategyResponse{
-		Run: generateRunSummary(btSum),
+		Run: convertSummary(btSum),
 	}, nil
 }
 
 func (s *GRPCServer) ListAllRuns(_ context.Context, _ *btrpc.ListAllRunsRequest) (*btrpc.ListAllRunsResponse, error) {
-	list, err := s.manager.List()
-	if err != nil {
-		return nil, err
+	if s.manager == nil {
+		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
 	}
+	list := s.manager.List()
 	var response []*btrpc.RunSummary
 	for i := range list {
-		response = append(response, generateRunSummary(&list[i]))
+		response = append(response, convertSummary(&list[i]))
 	}
 	return &btrpc.ListAllRunsResponse{
 		Runs: response,
@@ -588,6 +611,9 @@ func (s *GRPCServer) ListAllRuns(_ context.Context, _ *btrpc.ListAllRunsRequest)
 
 // StopRun stops a backtest/livestrategy run in its tracks
 func (s *GRPCServer) StopRun(_ context.Context, req *btrpc.StopRunRequest) (*btrpc.StopRunResponse, error) {
+	if s.manager == nil {
+		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
+	}
 	run, err := s.manager.GetSummary(req.Id)
 	if err != nil {
 		return nil, err
@@ -597,12 +623,15 @@ func (s *GRPCServer) StopRun(_ context.Context, req *btrpc.StopRunRequest) (*btr
 		return nil, err
 	}
 	return &btrpc.StopRunResponse{
-		StoppedRun: generateRunSummary(run),
+		StoppedRun: convertSummary(run),
 	}, nil
 }
 
 // StartRun starts a backtest/livestrategy that was set to not start automatically
 func (s *GRPCServer) StartRun(_ context.Context, req *btrpc.StartRunRequest) (*btrpc.StartRunResponse, error) {
+	if s.manager == nil {
+		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
+	}
 	err := s.manager.StartRun(req.Id)
 	if err != nil {
 		return nil, err
@@ -614,14 +643,14 @@ func (s *GRPCServer) StartRun(_ context.Context, req *btrpc.StartRunRequest) (*b
 
 // StartAllRuns starts all backtest/livestrategy runs
 func (s *GRPCServer) StartAllRuns(_ context.Context, _ *btrpc.StartAllRunsRequest) (*btrpc.StartAllRunsResponse, error) {
-	var startedRuns []*btrpc.RunSummary
-	started, err := s.manager.StartAllRuns()
-	if err != nil {
-		return nil, err
+	if s.manager == nil {
+		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
 	}
+	var startedRuns []*btrpc.RunSummary
+	started := s.manager.StartAllRuns()
 
 	for i := range started {
-		startedRuns = append(startedRuns, generateRunSummary(started[i]))
+		startedRuns = append(startedRuns, convertSummary(started[i]))
 	}
 	return &btrpc.StartAllRunsResponse{
 		RunsStarted: startedRuns,
@@ -630,6 +659,9 @@ func (s *GRPCServer) StartAllRuns(_ context.Context, _ *btrpc.StartAllRunsReques
 
 // StopAllRuns stops all backtest/livestrategy runs in its tracks
 func (s *GRPCServer) StopAllRuns(_ context.Context, _ *btrpc.StopAllRunsRequest) (*btrpc.StopAllRunsResponse, error) {
+	if s.manager == nil {
+		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
+	}
 	var stoppedRuns []*btrpc.RunSummary
 	started, err := s.manager.StopAllRuns()
 	if err != nil {
@@ -637,7 +669,7 @@ func (s *GRPCServer) StopAllRuns(_ context.Context, _ *btrpc.StopAllRunsRequest)
 	}
 
 	for i := range started {
-		stoppedRuns = append(stoppedRuns, generateRunSummary(started[i]))
+		stoppedRuns = append(stoppedRuns, convertSummary(started[i]))
 	}
 	return &btrpc.StopAllRunsResponse{
 		RunsStopped: stoppedRuns,
@@ -646,6 +678,9 @@ func (s *GRPCServer) StopAllRuns(_ context.Context, _ *btrpc.StopAllRunsRequest)
 
 // ClearRun removes a run from memory, but only if it is not running
 func (s *GRPCServer) ClearRun(_ context.Context, req *btrpc.ClearRunRequest) (*btrpc.ClearRunResponse, error) {
+	if s.manager == nil {
+		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
+	}
 	run, err := s.manager.GetSummary(req.Id)
 	if err != nil {
 		return nil, err
@@ -655,12 +690,15 @@ func (s *GRPCServer) ClearRun(_ context.Context, req *btrpc.ClearRunRequest) (*b
 		return nil, err
 	}
 	return &btrpc.ClearRunResponse{
-		ClearedRun: generateRunSummary(run),
+		ClearedRun: convertSummary(run),
 	}, nil
 }
 
 // ClearAllRuns removes all runs from memory, but only if they are not running
 func (s *GRPCServer) ClearAllRuns(_ context.Context, _ *btrpc.ClearAllRunsRequest) (*btrpc.ClearAllRunsResponse, error) {
+	if s.manager == nil {
+		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
+	}
 	clearedRuns, remainingRuns, err := s.manager.ClearAllRuns()
 	if err != nil {
 		return nil, err
@@ -668,10 +706,10 @@ func (s *GRPCServer) ClearAllRuns(_ context.Context, _ *btrpc.ClearAllRunsReques
 
 	var clearedResponse, remainingResponse []*btrpc.RunSummary
 	for i := range clearedRuns {
-		clearedResponse = append(clearedResponse, generateRunSummary(clearedRuns[i]))
+		clearedResponse = append(clearedResponse, convertSummary(clearedRuns[i]))
 	}
 	for i := range remainingRuns {
-		remainingResponse = append(remainingResponse, generateRunSummary(remainingRuns[i]))
+		remainingResponse = append(remainingResponse, convertSummary(remainingRuns[i]))
 	}
 	return &btrpc.ClearAllRunsResponse{
 		ClearedRuns:   clearedResponse,
@@ -681,6 +719,9 @@ func (s *GRPCServer) ClearAllRuns(_ context.Context, _ *btrpc.ClearAllRunsReques
 
 // ReportLogs returns all logs from a run
 func (s *GRPCServer) ReportLogs(_ context.Context, req *btrpc.ReportLogsRequest) (*btrpc.ReportLogsResponse, error) {
+	if s.manager == nil {
+		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
+	}
 	logs, err := s.manager.ReportLogs(req.Id)
 	if err != nil {
 		return nil, err

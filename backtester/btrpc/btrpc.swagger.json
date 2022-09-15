@@ -93,6 +93,12 @@
             "type": "boolean"
           },
           {
+            "name": "doNotStore",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
             "name": "config.nickname",
             "in": "query",
             "required": false,
@@ -382,6 +388,12 @@
           },
           {
             "name": "doNotRunImmediately",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "doNotStore",
             "in": "query",
             "required": false,
             "type": "boolean"

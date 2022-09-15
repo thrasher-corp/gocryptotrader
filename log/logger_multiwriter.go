@@ -41,11 +41,11 @@ func RemoveWriter(w io.Writer) error {
 	RWM.Lock()
 	defer RWM.Unlock()
 	for _, v := range SubLoggers {
-		hello, ok := v.output.(*multiWriterHolder)
+		mr, ok := v.output.(*multiWriterHolder)
 		if !ok {
 			continue
 		}
-		err := hello.Remove(w)
+		err := mr.Remove(w)
 		if err != nil {
 			return err
 		}

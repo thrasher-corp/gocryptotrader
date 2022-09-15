@@ -186,6 +186,7 @@ message RunSummary {
 message ExecuteStrategyFromFileRequest {
   string strategy_file_path = 1;
   bool do_not_run_immediately = 2;
+  bool do_not_store = 3;
 }
 
 message ExecuteStrategyResponse {
@@ -194,7 +195,8 @@ message ExecuteStrategyResponse {
 
 message ExecuteStrategyFromConfigRequest {
   bool do_not_run_immediately = 1;
-  btrpc.Config config = 2;
+  bool do_not_store = 2;
+  btrpc.Config config = 3;
 }
 
 message ListAllRunsRequest {}

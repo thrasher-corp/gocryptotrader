@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"path/filepath"
 	"testing"
 	"time"
@@ -20,6 +21,22 @@ func TestExecuteStrategyFromFile(t *testing.T) {
 	t.Parallel()
 	s := &GRPCServer{}
 	_, err := s.ExecuteStrategyFromFile(context.Background(), nil)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
+	}
+
+	s.config, err = config.GenerateDefaultConfig()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expecting '%v'", err, nil)
+	}
+	s.config.Report.GenerateReport = false
+	_, err = s.ExecuteStrategyFromFile(context.Background(), nil)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
+	}
+
+	s.manager = SetupRunManager()
+	_, err = s.ExecuteStrategyFromFile(context.Background(), nil)
 	if !errors.Is(err, common.ErrNilArguments) {
 		t.Errorf("received '%v' expecting '%v'", err, common.ErrNilArguments)
 	}
@@ -32,14 +49,6 @@ func TestExecuteStrategyFromFile(t *testing.T) {
 	_, err = s.ExecuteStrategyFromFile(context.Background(), &btrpc.ExecuteStrategyFromFileRequest{
 		StrategyFilePath: dcaConfigPath,
 	})
-	if !errors.Is(err, common.ErrNilArguments) {
-		t.Errorf("received '%v' expecting '%v'", err, common.ErrNilArguments)
-	}
-
-	s.BacktesterConfig = &config.BacktesterConfig{}
-	_, err = s.ExecuteStrategyFromFile(context.Background(), &btrpc.ExecuteStrategyFromFileRequest{
-		StrategyFilePath: dcaConfigPath,
-	})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expecting '%v'", err, nil)
 	}
@@ -49,12 +58,19 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 	t.Parallel()
 	s := &GRPCServer{}
 	_, err := s.ExecuteStrategyFromConfig(context.Background(), nil)
-	if !errors.Is(err, common.ErrNilArguments) {
-		t.Errorf("received '%v' expecting '%v'", err, common.ErrNilArguments)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
 	}
 
-	s.BacktesterConfig = &config.BacktesterConfig{}
-	_, err = s.ExecuteStrategyFromConfig(context.Background(), &btrpc.ExecuteStrategyFromConfigRequest{})
+	s.config, err = config.GenerateDefaultConfig()
+	_, err = s.ExecuteStrategyFromConfig(context.Background(), nil)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
+	}
+
+	s.config.Report.GenerateReport = false
+	s.manager = SetupRunManager()
+	_, err = s.ExecuteStrategyFromConfig(context.Background(), nil)
 	if !errors.Is(err, common.ErrNilArguments) {
 		t.Errorf("received '%v' expecting '%v'", err, common.ErrNilArguments)
 	}

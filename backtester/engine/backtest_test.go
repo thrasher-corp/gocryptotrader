@@ -180,7 +180,16 @@ func TestFullCycle(t *testing.T) {
 
 func TestStop(t *testing.T) {
 	t.Parallel()
-	bt := BackTest{shutdown: make(chan struct{})}
+	bt := &BackTest{shutdown: make(chan struct{})}
+	bt.Stop()
+	tt := bt.MetaData.DateEnded
+
+	bt.Stop()
+	if !tt.Equal(bt.MetaData.DateEnded) {
+		t.Errorf("received '%v' expected '%v'", bt.MetaData.DateEnded, tt)
+	}
+
+	bt = nil
 	bt.Stop()
 }
 
@@ -963,5 +972,19 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 	err = bt.processFuturesFillEvent(ev, pair)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+}
+
+func TestGenerateSummary(t *testing.T) {
+	t.Parallel()
+	bt := &BackTest{}
+	sum := bt.GenerateSummary()
+	if sum.MetaData.ID != "" {
+		t.Errorf("received '%v' expected '%v'", sum.MetaData.ID, "")
+	}
+	bt.MetaData.ID = "1337"
+	sum = bt.GenerateSummary()
+	if sum.MetaData.ID != "1337" {
+		t.Errorf("received '%v' expected '%v'", sum.MetaData.ID, "1337")
 	}
 }

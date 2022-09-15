@@ -30,7 +30,7 @@ var (
 
 // BackTest is the main holder of all backtesting functionality
 type BackTest struct {
-	RunMetaData     RunMetaData
+	MetaData        RunMetaData
 	hasHandledEvent bool
 	logHolder       *strings.Builder
 	shutdown        chan struct{}
@@ -50,7 +50,7 @@ type BackTest struct {
 // RunSummary holds details of a BackTest
 // rather than passing entire contents around
 type RunSummary struct {
-	Identifier RunMetaData
+	MetaData RunMetaData
 }
 
 type RunMetaData struct {
@@ -67,5 +67,5 @@ type RunMetaData struct {
 // RunManager contains all backtesting/live strategy runs
 type RunManager struct {
 	m    sync.Mutex
-	Runs []*BackTest
+	runs []*BackTest
 }

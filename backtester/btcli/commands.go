@@ -11,11 +11,18 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-var doNotRunFlag = &cli.BoolFlag{
-	Name:    "donotrunimmediately",
-	Aliases: []string{"dnr"},
-	Usage:   "if true, will load the strategy, but will not execute until another command is sent",
-}
+var (
+	doNotRunFlag = &cli.BoolFlag{
+		Name:    "donotrunimmediately",
+		Aliases: []string{"dnr"},
+		Usage:   "if true, will load the strategy, but will not execute until another command is sent",
+	}
+	doNotStoreFlag = &cli.BoolFlag{
+		Name:    "donotstore",
+		Aliases: []string{"dns"},
+		Usage:   "if true, will not store the run internally - cannot be run in conjunction with dnr",
+	}
+)
 
 var executeStrategyFromFileCommand = &cli.Command{
 	Name:      "executestrategyfromfile",
@@ -54,6 +61,10 @@ func executeStrategyFromFile(c *cli.Context) error {
 	if c.IsSet("donotrunimmediately") {
 		dnr = c.Bool("donotrunimmediately")
 	}
+	var dns bool
+	if c.IsSet("donotstore") {
+		dnr = c.Bool("donotstore")
+	}
 
 	client := btrpc.NewBacktesterServiceClient(conn)
 	result, err := client.ExecuteStrategyFromFile(
@@ -61,6 +72,7 @@ func executeStrategyFromFile(c *cli.Context) error {
 		&btrpc.ExecuteStrategyFromFileRequest{
 			StrategyFilePath:    path,
 			DoNotRunImmediately: dnr,
+			DoNotStore:          dns,
 		},
 	)
 
@@ -375,6 +387,7 @@ var executeStrategyFromConfigCommand = &cli.Command{
 	Action:      executeStrategyFromConfig,
 	Flags: []cli.Flag{
 		doNotRunFlag,
+		doNotStoreFlag,
 	},
 }
 
@@ -552,6 +565,10 @@ func executeStrategyFromConfig(c *cli.Context) error {
 	if c.IsSet("donotrunimmediately") {
 		dnr = c.Bool("donotrunimmediately")
 	}
+	var dns bool
+	if c.IsSet("donotstore") {
+		dnr = c.Bool("donotstore")
+	}
 
 	client := btrpc.NewBacktesterServiceClient(conn)
 	result, err := client.ExecuteStrategyFromConfig(
@@ -559,6 +576,7 @@ func executeStrategyFromConfig(c *cli.Context) error {
 		&btrpc.ExecuteStrategyFromConfigRequest{
 			Config:              cfg,
 			DoNotRunImmediately: dnr,
+			DoNotStore:          dns,
 		},
 	)
 

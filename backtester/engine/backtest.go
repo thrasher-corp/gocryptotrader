@@ -48,11 +48,11 @@ func (bt *BackTest) Reset() {
 
 // ExecuteStrategy executes the strategy using the provided configs
 func (bt *BackTest) ExecuteStrategy() error {
-	if bt.RunMetaData.Closed {
-		return fmt.Errorf("%w %v %v", errAlreadyRan, bt.RunMetaData.ID, bt.RunMetaData.Strategy)
+	if bt.MetaData.Closed {
+		return fmt.Errorf("%w %v %v", errAlreadyRan, bt.MetaData.ID, bt.MetaData.Strategy)
 	}
-	bt.RunMetaData.DateStarted = time.Now()
-	if bt.RunMetaData.LiveTesting {
+	bt.MetaData.DateStarted = time.Now()
+	if bt.MetaData.LiveTesting {
 		go func() {
 			err := bt.RunLive()
 			if err != nil {
@@ -70,8 +70,8 @@ func (bt *BackTest) ExecuteStrategy() error {
 		if err != nil {
 			return err
 		}
-		bt.RunMetaData.DateEnded = time.Now()
-		bt.RunMetaData.Closed = true
+		bt.MetaData.DateEnded = time.Now()
+		bt.MetaData.Closed = true
 	}
 
 	return nil
@@ -503,10 +503,18 @@ func (bt *BackTest) Stop() {
 	if bt == nil {
 		return
 	}
-	if bt.RunMetaData.Closed {
+	if bt.MetaData.Closed {
 		return
 	}
 	close(bt.shutdown)
-	bt.RunMetaData.Closed = true
-	bt.RunMetaData.DateEnded = time.Now()
+	bt.MetaData.Closed = true
+	bt.MetaData.DateEnded = time.Now()
+}
+
+// GenerateSummary creates a summary of a backtesting/live strategy run
+// this summary contains many details of a run
+func (bt *BackTest) GenerateSummary() *RunSummary {
+	return &RunSummary{
+		MetaData: bt.MetaData,
+	}
 }
