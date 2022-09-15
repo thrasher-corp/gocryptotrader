@@ -59,7 +59,7 @@ func (i *ItBit) SetDefaults() {
 	i.API.CredentialsValidator.RequiresSecret = true
 
 	requestFmt := &currency.PairFormat{Uppercase: true}
-	configFmt := &currency.PairFormat{Uppercase: true}
+	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
 	err := i.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -67,8 +67,7 @@ func (i *ItBit) SetDefaults() {
 
 	i.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
-			REST:      true,
-			Websocket: false,
+			REST: true,
 			RESTCapabilities: protocol.Features{
 				TickerFetching:    true,
 				TradeFetching:     true,
@@ -87,9 +86,6 @@ func (i *ItBit) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.WithdrawCryptoViaWebsiteOnly |
 				exchange.WithdrawFiatViaWebsiteOnly,
-		},
-		Enabled: exchange.FeaturesEnabled{
-			AutoPairUpdates: false,
 		},
 	}
 
