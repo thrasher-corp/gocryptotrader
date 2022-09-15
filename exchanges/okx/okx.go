@@ -329,7 +329,6 @@ var (
 	errInvalidIPAddress                              = errors.New("invalid ip address")
 	errInvalidAPIKeyPermission                       = errors.New("invalid API Key permission")
 	errNoInstrumentFound                             = errors.New("instruments not found")
-	errInvalidOrderbookUpdateChecksum                = errors.New("invalid orderbook update checksum")
 )
 
 /************************************ MarketData Endpoints *************************************************/
@@ -375,19 +374,30 @@ func (ok *Okx) OrderTypeString(orderType order.Type) (string, error) {
 }
 
 // PlaceOrder place an order only if you have sufficient funds.
-func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*PlaceOrderResponse, error) {
+func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam, a asset.Item) (*PlaceOrderResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
-	if !(arg.TradeMode == TradeModeCross || arg.TradeMode == TradeModeIsolated || arg.TradeMode == TradeModeCash) {
-		return nil, errInvalidTradeModeValue
+	ast := strings.ToUpper(a.String())
+	if !(((arg.TradeMode == TradeModeCross || arg.TradeMode == TradeModeIsolated) && ast == okxInstTypeMargin) || (arg.TradeMode == TradeModeCash && ast != okxInstTypeMargin)) {
+		return nil, fmt.Errorf("%v, Trade mode Margin mode \"cross\" \"isolated\" Non-Margin mode \"cash\"", errInvalidTradeModeValue)
 	}
 	arg.Side = strings.ToUpper(arg.Side)
 	if !(arg.Side == order.Buy.String() || arg.Side == order.Sell.String()) {
 		return nil, errMissingOrderSide
+	}
+	if arg.PositionSide != "" {
+		if ((a == asset.Futures || a == asset.PerpetualSwap) && (arg.PositionSide == positionSideLong || arg.PositionSide == positionSideShort)) ||
+			arg.PositionSide == "net" {
+			return nil, errors.New("invalid position mode, 'long' or 'short' for Futures/SWAP, otherwise 'net'(default)  are allowed")
+		}
+	}
+	if strings.ToUpper(arg.OrderType) == order.OptimalLimitIOC.String() &&
+		(a == asset.Futures || a == asset.PerpetualSwap) {
+		return nil, errors.New("\"optimal_limit_ioc\": market order with immediate-or-cancel order (applicable only to Futures and Perpetual swap)")
 	}
 	arg.OrderType = strings.ToUpper(arg.OrderType)
 	if !(arg.OrderType == OkxOrderMarket ||
@@ -2091,8 +2101,8 @@ func (ok *Okx) SetLeverage(ctx context.Context, arg SetLeverageInput) (*SetLever
 		return nil, errors.New("only applicable to \"isolated\" margin mode of FUTURES/SWAP")
 	}
 	arg.PositionSide = strings.ToLower(arg.PositionSide)
-	if !(arg.PositionSide == "long" ||
-		arg.PositionSide == "short") &&
+	if !(arg.PositionSide == positionSideLong ||
+		arg.PositionSide == positionSideShort) &&
 		arg.MarginMode == "isolated" {
 		return nil, errors.New("\"long\" \"short\" Only applicable to isolated margin mode of FUTURES/SWAP")
 	} else if arg.MarginMode != "isolated" {
@@ -2160,9 +2170,9 @@ func (ok *Okx) IncreaseDecreaseMargin(ctx context.Context, arg IncreaseDecreaseM
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
-	if !(arg.PositionSide == "long" ||
-		arg.PositionSide == "short" ||
-		arg.PositionSide == "net") {
+	if !(arg.PositionSide == positionSideLong ||
+		arg.PositionSide == positionSideShort ||
+		arg.PositionSide == positionSideNet) {
 		return nil, errors.New("missing valid position side")
 	}
 	if !(arg.Type == "add" || arg.Type == "reduce") {
@@ -2654,7 +2664,7 @@ func (ok *Okx) PlaceGridAlgoOrder(ctx context.Context, arg *GridAlgoOrder) (*Gri
 			return nil, errMissingSize
 		}
 		arg.Direction = strings.ToLower(arg.Direction)
-		if !(arg.Direction == "long" || arg.Direction == "short" || arg.Direction == "neutral") {
+		if !(arg.Direction == positionSideLong || arg.Direction == positionSideShort || arg.Direction == "neutral") {
 			return nil, errMissingRequiredArgumentDirection
 		}
 		if arg.Lever == "" {
@@ -2909,7 +2919,7 @@ func (ok *Okx) GetGridAIParameter(ctx context.Context, algoOrderType, instrument
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
-	if algoOrderType == "contract_grid" && !(direction == "long" || direction == "short" || direction == "neutral") {
+	if algoOrderType == "contract_grid" && !(direction == positionSideLong || direction == positionSideShort || direction == "neutral") {
 		return nil, errors.New("parameter 'direction' is required for 'contract_grid' algo order type")
 	}
 	params.Set("direction", direction)

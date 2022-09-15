@@ -497,7 +497,7 @@ func GenerateRandomString(length uint, characters ...string) (string, error) {
 	}
 	b := make([]byte, length)
 	chars := strings.Join(characters, "")
-	if len(chars) == 0 {
+	if chars == "" {
 		chars = NumberCharacters
 	}
 	for i := range b {

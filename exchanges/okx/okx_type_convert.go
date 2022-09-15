@@ -854,12 +854,6 @@ func (a *OrderDetail) UnmarshalJSON(data []byte) error {
 			return err
 		}
 	}
-	if chil.FeeCurrency != "" {
-		a.FeeCurrency, err = strconv.ParseFloat(chil.FeeCurrency, 64)
-		if err != nil {
-			return err
-		}
-	}
 	if chil.RebateAmount != "" {
 		a.RebateAmount, err = strconv.ParseFloat(chil.RebateAmount, 64)
 		if err != nil {

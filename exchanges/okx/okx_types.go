@@ -34,6 +34,11 @@ const (
 	AlgoOrdTypeGrid = "grid"
 	// AlgoOrdTypeContractGrid algo order type, contract_grid
 	AlgoOrdTypeContractGrid = "contract_grid"
+
+	// Position Side for placing order
+	positionSideLong  = "long"
+	positionSideShort = "short"
+	positionSideNet   = "net"
 )
 
 const (
@@ -684,7 +689,7 @@ type OrderDetail struct {
 	FillPrice                  float64    `json:"fillPx,string"`
 	FillSize                   float64    `json:"fillSz,string"`
 	RebateAmount               float64    `json:"rebate"`
-	FeeCurrency                float64    `json:"feeCcy,string"`
+	FeeCurrency                string     `json:"feeCcy"`
 	TransactionFee             float64    `json:"fee,string"`
 	AveragePrice               float64    `json:"avgPx,string"`
 	Leverage                   float64    `json:"lever,string"`

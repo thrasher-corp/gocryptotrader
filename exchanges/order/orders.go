@@ -1017,7 +1017,7 @@ func StringToOrderStatus(status string) (Status, error) {
 		return AnyStatus, nil
 	case New.String(), "PLACED", "ACCEPTED":
 		return New, nil
-	case Active.String(), "STATUS_ACTIVE":
+	case Active.String(), "STATUS_ACTIVE", "LIVE":
 		return Active, nil
 	case PartiallyFilled.String(), "PARTIALLY MATCHED", "PARTIALLY FILLED":
 		return PartiallyFilled, nil
