@@ -39,8 +39,8 @@ var (
 	errNoSyncItemsEnabled         = errors.New("no sync items enabled")
 	errUnknownSyncItem            = errors.New("unknown sync item")
 	errSyncPairNotFound           = errors.New("exchange currency pair syncer not found")
-	errSyncAssetNotFound          = errors.New("exchange asset syncer not found")
 	errSyncItemAlreadyAdded       = errors.New("currency sync item already added")
+	errSyncerNotFound             = errors.New("sync agent not found")
 )
 
 // setupSyncManager starts a new CurrencyPairSyncer
@@ -251,41 +251,18 @@ func (m *syncManager) Stop() error {
 	return nil
 }
 
-func (m *syncManager) getWithLock(exchangeName string, p currency.Pair, a asset.Item) (*currencyPairSyncAgent, error) {
+func (m *syncManager) get(exchangeName string, p currency.Pair, a asset.Item) (*currencyPairSyncAgent, error) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
-	return m.getNoLock(exchangeName, p, a)
-}
-
-func (m *syncManager) getNoLock(exchangeName string, p currency.Pair, a asset.Item) (*currencyPairSyncAgent, error) {
-	m1, ok := m.currencyPairs[exchangeName]
+	agent, ok := m.currencyPairs[exchangeName][p.Base.Item][p.Quote.Item][a]
 	if !ok {
-		return nil, fmt.Errorf("exchange CurrencyPairSyncer cannot sync item exchange:[%s] %w",
-			exchangeName, ErrExchangeNotFound)
+		return nil, fmt.Errorf("%v %v %v %w", exchangeName, a, p, errSyncerNotFound)
 	}
-
-	m2, ok := m1[p.Base.Item]
-	if !ok {
-		return nil, fmt.Errorf("exchange CurrencyPairSyncer cannot sync item base pair:[%s] %w",
-			p, errSyncPairNotFound)
-	}
-
-	m3, ok := m2[p.Quote.Item]
-	if !ok {
-		return nil, fmt.Errorf("exchange CurrencyPairSyncer cannot sync item quote pair:[%s] %w",
-			p, errSyncPairNotFound)
-	}
-
-	syncAgent, ok := m3[a]
-	if !ok {
-		return nil, fmt.Errorf("exchange CurrencyPairSyncer cannot sync item asset:[%s] %w",
-			a, errSyncAssetNotFound)
-	}
-	return syncAgent, nil
+	return agent, nil
 }
 
 func (m *syncManager) exists(exchangeName string, p currency.Pair, a asset.Item) bool {
-	_, err := m.getWithLock(exchangeName, p, a)
+	_, err := m.get(exchangeName, p, a)
 	return err == nil
 }
 
@@ -369,8 +346,8 @@ func (m *syncManager) isProcessing(exchangeName string, p currency.Pair, a asset
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
-	agent, err := m.getNoLock(exchangeName, p, a)
-	if err != nil {
+	agent, ok := m.currencyPairs[exchangeName][p.Base.Item][p.Quote.Item][a]
+	if !ok {
 		return false
 	}
 
@@ -390,8 +367,8 @@ func (m *syncManager) setProcessing(exchangeName string, p currency.Pair, a asse
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
-	agent, err := m.getNoLock(exchangeName, p, a)
-	if err != nil {
+	agent, ok := m.currencyPairs[exchangeName][p.Base.Item][p.Quote.Item][a]
+	if !ok {
 		return
 	}
 	switch syncType {
@@ -405,7 +382,7 @@ func (m *syncManager) setProcessing(exchangeName string, p currency.Pair, a asse
 }
 
 // Update notifies the syncManager to change the last updated time for a exchange asset pair
-func (m *syncManager) Update(exchangeName string, p currency.Pair, a asset.Item, syncType int, incoming error) error {
+func (m *syncManager) Update(exchangeName string, p currency.Pair, a asset.Item, syncType int, incomingErr error) error {
 	if m == nil {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", ErrNilSubsystem)
 	}
@@ -437,16 +414,16 @@ func (m *syncManager) Update(exchangeName string, p currency.Pair, a asset.Item,
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
-	agent, err := m.getNoLock(exchangeName, p, a)
-	if err != nil {
-		return err
+	agent, ok := m.currencyPairs[exchangeName][p.Base.Item][p.Quote.Item][a]
+	if !ok {
+		return fmt.Errorf("%v %v %v %w", exchangeName, a, p, errSyncerNotFound)
 	}
 
 	switch syncType {
 	case SyncItemTicker:
 		origHadData := agent.Ticker.HaveData
 		agent.Ticker.LastUpdated = time.Now()
-		if incoming != nil {
+		if incomingErr != nil {
 			agent.Ticker.NumErrors++
 		}
 		agent.Ticker.HaveData = true
@@ -463,7 +440,7 @@ func (m *syncManager) Update(exchangeName string, p currency.Pair, a asset.Item,
 	case SyncItemOrderbook:
 		origHadData := agent.Orderbook.HaveData
 		agent.Orderbook.LastUpdated = time.Now()
-		if incoming != nil {
+		if incomingErr != nil {
 			agent.Orderbook.NumErrors++
 		}
 		agent.Orderbook.HaveData = true
@@ -480,7 +457,7 @@ func (m *syncManager) Update(exchangeName string, p currency.Pair, a asset.Item,
 	case SyncItemTrade:
 		origHadData := agent.Trade.HaveData
 		agent.Trade.LastUpdated = time.Now()
-		if incoming != nil {
+		if incomingErr != nil {
 			agent.Trade.NumErrors++
 		}
 		agent.Trade.HaveData = true
@@ -555,7 +532,7 @@ func (m *syncManager) worker() {
 					}
 
 					// TODO: Fix race issue to agent pointer.
-					c, err := m.getWithLock(exchangeName, enabledPairs[i], assetTypes[y])
+					c, err := m.get(exchangeName, enabledPairs[i], assetTypes[y])
 					if err != nil {
 						if err == errSyncPairNotFound {
 							c = &currencyPairSyncAgent{
