@@ -212,9 +212,8 @@ func (m *syncManager) Start() error {
 		m.initSyncWG.Wait()
 		if atomic.CompareAndSwapInt32(&m.initSyncCompleted, 0, 1) {
 			log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync is complete.")
-			completedTime := time.Now()
 			log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync took %v [%v sync items].",
-				completedTime.Sub(m.initSyncStartTime), createdCounter)
+				time.Since(m.initSyncStartTime), createdCounter)
 
 			if !m.config.SynchronizeContinuously {
 				log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer stopping.")
