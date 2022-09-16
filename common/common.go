@@ -496,8 +496,10 @@ func GenerateRandomString(length uint, characters ...string) (string, error) {
 		return "", errors.New("invalid length, length must be non-zero positive integer")
 	}
 	b := make([]byte, length)
-	chars := strings.Join(characters, "")
-	if chars == "" {
+	chars := strings.Replace(strings.Join(characters, ""), " ", "", -1)
+	if chars == "" && len(characters) != 0 {
+		return "", errors.New("invalid characters, character must not be empty")
+	} else if chars == "" {
 		chars = NumberCharacters
 	}
 	for i := range b {

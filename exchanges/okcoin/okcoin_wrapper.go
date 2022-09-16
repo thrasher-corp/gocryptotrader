@@ -169,7 +169,7 @@ func (o *OKCoin) Start(wg *sync.WaitGroup) error {
 	return nil
 }
 
-// Run implements the OKEX wrapper
+// Run implements the OKCoin wrapper
 func (o *OKCoin) Run() {
 	if o.Verbose {
 		log.Debugf(log.ExchangeSys,

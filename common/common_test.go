@@ -731,13 +731,17 @@ func TestGenerateRandomString(t *testing.T) {
 	if len(sample) != 5 || err != nil || value < 0 {
 		t.Error("GenerateRandomString() unexpected test validation result")
 	}
-	sample, err = GenerateRandomString(1, "")
+	sample, err = GenerateRandomString(5)
 	if err != nil {
 		t.Errorf("GenerateRandomString()  %v", err)
 	}
-	value, err = strconv.Atoi(sample)
-	if len(sample) != 1 || err != nil || value < 0 {
+	values, err := strconv.ParseInt(sample, 10, 64)
+	if len(sample) != 5 || err != nil || values < 0 {
 		t.Error("GenerateRandomString() unexpected test validation result")
+	}
+	sample, err = GenerateRandomString(1, "")
+	if err == nil {
+		t.Errorf("GenerateRandomString() expecting %s, but found %v", "invalid characters, character must not be empty", err)
 	}
 	sample, err = GenerateRandomString(0, "")
 	if err != nil && !strings.Contains(err.Error(), "invalid length") {

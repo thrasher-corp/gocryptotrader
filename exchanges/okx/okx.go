@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -226,10 +227,10 @@ const (
 )
 
 var (
-	// Letters a regular expression for both uppercase and lowercase english characters.
-	Letters = regexp.MustCompile(`^[a-zA-Z]+$`)
-	// Numbers a regular expression for numbers.
-	Numbers = regexp.MustCompile(`^\d+$`)
+	// letters a regular expression for both uppercase and lowercase english characters.
+	letters = regexp.MustCompile(`^[a-zA-Z]+$`)
+	// numbers a regular expression for numbers.
+	numbers = regexp.MustCompile(`^\d+$`)
 
 	errUnableToTypeAssertResponseData                = errors.New("unable to type assert responseData")
 	errUnableToTypeAssertKlineData                   = errors.New("unable to type assert kline data")
@@ -329,6 +330,7 @@ var (
 	errInvalidIPAddress                              = errors.New("invalid ip address")
 	errInvalidAPIKeyPermission                       = errors.New("invalid API Key permission")
 	errNoInstrumentFound                             = errors.New("instruments not found")
+	errInvalidResponseParam                          = errors.New("invalid response paramter, response must be non-nil pointer")
 )
 
 /************************************ MarketData Endpoints *************************************************/
@@ -1507,7 +1509,7 @@ func (ok *Okx) GetFundsTransferState(ctx context.Context, transferID, clientID s
 	case transferID != "":
 		params.Set("transId", transferID)
 	case clientID != "":
-		if !(Letters.MatchString(clientID) || Numbers.MatchString(clientID)) {
+		if !(letters.MatchString(clientID) || numbers.MatchString(clientID)) {
 			return nil, errors.New("invalid client id")
 		}
 		params.Set("clientId", clientID)
@@ -4430,6 +4432,10 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 		Data interface{} `json:"data"`
 	}
 	var errMessage errCap
+	rv := reflect.ValueOf(result)
+	if rv.Kind() != reflect.Pointer || rv.IsNil() {
+		return errInvalidResponseParam
+	}
 	errMessage.Data = result
 	err = json.Unmarshal(intermediary, &errMessage)
 	if err != nil {

@@ -191,7 +191,7 @@ func (z *ZB) Setup(exch *config.Exchange) error {
 	})
 }
 
-// Start starts the OKEX go routine
+// Start starts the OKCoin go routine
 func (z *ZB) Start(wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
@@ -204,7 +204,7 @@ func (z *ZB) Start(wg *sync.WaitGroup) error {
 	return nil
 }
 
-// Run implements the OKEX wrapper
+// Run implements the OKCoin wrapper
 func (z *ZB) Run() {
 	if z.Verbose {
 		z.PrintEnabledPairs()
