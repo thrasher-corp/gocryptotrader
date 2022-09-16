@@ -347,7 +347,7 @@ func (c *CoinbasePro) PlaceLimitOrder(ctx context.Context, clientRef string, pri
 		req["cancel_after"] = cancelAfter
 	}
 	if timeInforce != "" {
-		req["time_in_foce"] = timeInforce
+		req["time_in_force"] = timeInforce
 	}
 	if clientRef != "" {
 		req["client_oid"] = clientRef
