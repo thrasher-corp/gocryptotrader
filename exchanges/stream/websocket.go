@@ -191,6 +191,14 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 		connectionURL = c.URL
 	}
 
+	if c.ConnectionLevelReporter == nil {
+		c.ConnectionLevelReporter = w.ExchangeLevelReporter
+	}
+
+	if c.ConnectionLevelReporter == nil {
+		c.ConnectionLevelReporter = globalReporter
+	}
+
 	newConn := &WebsocketConnection{
 		ExchangeName:      w.exchangeName,
 		URL:               connectionURL,
@@ -204,14 +212,6 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 		Match:             w.Match,
 		RateLimit:         c.RateLimit,
 		Reporter:          c.ConnectionLevelReporter,
-	}
-
-	if c.ConnectionLevelReporter == nil {
-		c.ConnectionLevelReporter = w.ExchangeLevelReporter
-	}
-
-	if c.ConnectionLevelReporter == nil {
-		c.ConnectionLevelReporter = globalReporter
 	}
 
 	if c.Authenticated {
