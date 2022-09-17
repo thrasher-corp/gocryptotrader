@@ -41,11 +41,12 @@ type ChannelSubscription struct {
 
 // ConnectionSetup defines variables for an individual stream connection
 type ConnectionSetup struct {
-	ResponseCheckTimeout time.Duration
-	ResponseMaxLimit     time.Duration
-	RateLimit            int64
-	URL                  string
-	Authenticated        bool
+	ResponseCheckTimeout    time.Duration
+	ResponseMaxLimit        time.Duration
+	RateLimit               int64
+	URL                     string
+	Authenticated           bool
+	ConnectionLevelReporter Reporter
 }
 
 // PingHandler container for ping handler settings

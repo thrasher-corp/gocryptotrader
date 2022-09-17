@@ -94,7 +94,7 @@ type Websocket struct {
 	AuthConn Connection
 
 	// Latency reporter
-	Reporter Reporter
+	ExchangeLevelReporter Reporter
 }
 
 // WebsocketSetup defines variables for setting up a websocket connection

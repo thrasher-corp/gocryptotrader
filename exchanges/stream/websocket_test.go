@@ -778,6 +778,18 @@ func TestSendMessageWithResponse(t *testing.T) {
 	}
 }
 
+type reporter struct {
+	name string
+	msg  []byte
+	t    time.Duration
+}
+
+func (r *reporter) Latency(name string, message []byte, t time.Duration) {
+	r.name = name
+	r.msg = message
+	r.t = t
+}
+
 // readMessages helper func
 func readMessages(t *testing.T, wc *WebsocketConnection) {
 	t.Helper()
@@ -1322,5 +1334,52 @@ func TestWebsocketConnectionShutdown(t *testing.T) {
 	err = wc.Shutdown()
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestLatency logic test
+func TestLatency(t *testing.T) {
+	t.Parallel()
+	r := &reporter{}
+	exch := "Kraken"
+	wc := &WebsocketConnection{
+		ExchangeName:     exch,
+		Verbose:          true,
+		URL:              "wss://ws.kraken.com",
+		ResponseMaxLimit: time.Second * 5,
+		Match:            NewMatch(),
+		Reporter:         r,
+	}
+	if wc.ProxyURL != "" && !useProxyTests {
+		t.Skip("Proxy testing not enabled, skipping")
+	}
+
+	err := wc.Dial(&dialer, http.Header{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	go readMessages(t, wc)
+
+	request := testRequest{
+		Event: "subscribe",
+		Pairs: []string{currency.NewPairWithDelimiter("XBT", "USD", "/").String()},
+		Subscription: testRequestData{
+			Name: "ticker",
+		},
+		RequestID: wc.GenerateMessageID(false),
+	}
+
+	_, err = wc.SendMessageReturnResponse(request.RequestID, request)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if r.t == 0 {
+		t.Error("expected a nonzero duration, got zero")
+	}
+
+	if r.name != exch {
+		t.Errorf("expected %v, got %v", exch, r.name)
 	}
 }

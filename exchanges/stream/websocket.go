@@ -203,11 +203,15 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 		Wg:                w.Wg,
 		Match:             w.Match,
 		RateLimit:         c.RateLimit,
-		Reporter:          globalReporter,
+		Reporter:          c.ConnectionLevelReporter,
 	}
 
-	if w.Reporter != nil {
-		newConn.Reporter = w.Reporter
+	if c.ConnectionLevelReporter == nil {
+		c.ConnectionLevelReporter = w.ExchangeLevelReporter
+	}
+
+	if c.ConnectionLevelReporter == nil {
+		c.ConnectionLevelReporter = globalReporter
 	}
 
 	if c.Authenticated {
