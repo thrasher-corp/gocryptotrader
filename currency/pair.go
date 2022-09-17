@@ -91,7 +91,7 @@ func NewPairFromString(currencyPair string) (Pair, error) {
 	}
 	if len(currencyPair) < 3 {
 		return EMPTYPAIR,
-			fmt.Errorf("%w from %s string too short to be a current pair",
+			fmt.Errorf("%w from %s string too short to be a currency pair",
 				errCannotCreatePair,
 				currencyPair)
 	}

@@ -14,8 +14,6 @@ import (
 type TimeInterval int
 
 const (
-	UnderscoreDelimiter = "_"
-
 	// Order book depth intervals
 
 	OrderbookIntervalZero        = "0" //  means no aggregation is applied. default to 0
@@ -571,7 +569,7 @@ type CurrencyPairDetail struct {
 // Ticker holds detail ticker information for a currency pair
 type Ticker struct {
 	CurrencyPair     string    `json:"currency_pair"`
-	Last             string    `json:"last"`
+	Last             float64   `json:"last"`
 	LowestAsk        float64   `json:"lowest_ask"`
 	HighestBid       float64   `json:"highest_bid"`
 	ChangePercentage string    `json:"change_percentage"`
@@ -594,15 +592,6 @@ type OrderbookData struct {
 	Update  time.Time   `json:"update"`  // The timestamp of when the orderbook last changed (in milliseconds)
 	Asks    [][2]string `json:"asks"`
 	Bids    [][2]string `json:"bids"`
-}
-
-// FuturesOrderbookData holds orderbook ask and bid datas for futures.
-type FuturesOrderbookData struct {
-	ID      int                 `json:"id"`
-	Current time.Time           `json:"current"` // The timestamp of the response data being generated (in milliseconds)
-	Update  time.Time           `json:"update"`  // The timestamp of when the orderbook last changed (in milliseconds)
-	Asks    []map[string]string `json:"asks"`
-	Bids    []map[string]string `json:"bids"`
 }
 
 // MakeOrderbook parse Orderbook asks/bids Price and Amount and create an Orderbook Instance with asks and bids data in []OrderbookItem.
@@ -649,8 +638,8 @@ func (o *OrderbookData) MakeOrderbook() (*Orderbook, error) {
 
 // OrderbookItem stores an orderbook item
 type OrderbookItem struct {
-	Price  float64
-	Amount float64
+	Price  float64 `json:"p"`
+	Amount float64 `json:"s"`
 }
 
 // Orderbook stores the orderbook data
@@ -801,7 +790,7 @@ type FuturesCandlestick struct {
 // FuturesTicker represents futures ticker data.
 type FuturesTicker struct {
 	Contract              string  `json:"contract"`
-	Last                  string  `json:"last"`
+	Last                  float64 `json:"last,string"`
 	Low24H                float64 `json:"low_24h,string"`
 	High24H               float64 `json:"high_24h,string"`
 	ChangePercentage      string  `json:"change_percentage"`
@@ -993,23 +982,23 @@ type MyOptionSettlement struct {
 
 // OptionsTicker represents  tickers of options contracts
 type OptionsTicker struct {
-	Name                  string `json:"name"`
-	LastPrice             string `json:"last_price"`
-	MarkPrice             string `json:"mark_price"`
-	PositionSize          int    `json:"position_size"`
-	Ask1Size              int    `json:"ask1_size"`
-	Ask1Price             string `json:"ask1_price"`
-	Bid1Size              int    `json:"bid1_size"`
-	Bid1Price             string `json:"bid1_price"`
-	Vega                  string `json:"vega"`
-	Theta                 string `json:"theta"`
-	Rho                   string `json:"rho"`
-	Gamma                 string `json:"gamma"`
-	Delta                 string `json:"delta"`
-	MarkImpliedVolatility string `json:"mark_iv"`
-	BidImpliedVolatility  string `json:"bid_iv"`
-	AskImpliedVolatility  string `json:"ask_iv"`
-	Leverage              string `json:"leverage"`
+	Name                  string  `json:"name"`
+	LastPrice             float64 `json:"last_price"`
+	MarkPrice             float64 `json:"mark_price"`
+	PositionSize          float64 `json:"position_size"`
+	Ask1Size              float64 `json:"ask1_size"`
+	Ask1Price             float64 `json:"ask1_price,string"`
+	Bid1Size              float64 `json:"bid1_size"`
+	Bid1Price             float64 `json:"bid1_price,string"`
+	Vega                  string  `json:"vega"`
+	Theta                 string  `json:"theta"`
+	Rho                   string  `json:"rho"`
+	Gamma                 string  `json:"gamma"`
+	Delta                 string  `json:"delta"`
+	MarkImpliedVolatility string  `json:"mark_iv"`
+	BidImpliedVolatility  string  `json:"bid_iv"`
+	AskImpliedVolatility  string  `json:"ask_iv"`
+	Leverage              float64 `json:"leverage,string"`
 }
 
 // OptionsUnderlyingTicker represents underlying ticker

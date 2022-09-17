@@ -51,7 +51,7 @@ const (
 	perpetualContract      = "perpetualcontract"
 	perpetualSwap          = "perpetualswap"
 	futures                = "futures"
-	delivery               = "delivery"
+	deliveryFutures        = "delivery"
 	upsideProfitContract   = "upsideprofitcontract"
 	downsideProfitContract = "downsideprofitcontract"
 	coinMarginedFutures    = "coinmarginedfutures"
@@ -92,7 +92,7 @@ func (a Item) String() string {
 	case Futures:
 		return futures
 	case DeliveryFutures:
-		return delivery
+		return deliveryFutures
 	case UpsideProfitContract:
 		return upsideProfitContract
 	case DownsideProfitContract:
@@ -178,6 +178,12 @@ func New(input string) (Item, error) {
 		return Margin, nil
 	case marginFunding:
 		return MarginFunding, nil
+	case crossMargin:
+		return CrossMargin, nil
+	case option:
+		return Options, nil
+	case deliveryFutures:
+		return DeliveryFutures, nil
 	case index:
 		return Index, nil
 	case binary:

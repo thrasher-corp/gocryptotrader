@@ -292,6 +292,7 @@ func (a *Ticker) UnmarshalJSON(data []byte) error {
 		QuoteVolume string `json:"quote_volume"`
 		High24H     string `json:"high_24h"`
 		Low24H      string `json:"low_24h"`
+		Last        string `json:"last"`
 
 		LowestAsk       string `json:"lowest_ask"`
 		HighestBid      string `json:"highest_bid"`
@@ -326,6 +327,9 @@ func (a *Ticker) UnmarshalJSON(data []byte) error {
 	if val, er = strconv.ParseFloat(child.EtfLeverage, 64); er == nil {
 		a.EtfLeverage = val
 	}
+	if val, er = strconv.ParseFloat(child.Last, 64); er == nil {
+		a.Last = val
+	}
 	a.EtfPreTimestamp = time.Unix(child.EtfPreTimestamp, 0)
 	return nil
 }
@@ -345,6 +349,37 @@ func (a *OrderbookData) UnmarshalJSON(data []byte) error {
 	}
 	a.Current = time.Unix(int64(math.Round(chil.Current)), 0)
 	a.Update = time.Unix(int64(math.Round(chil.Update)), 0)
+	return nil
+}
+
+// UnmarshalJSON to decerialize timestamp information and create OrderbookItem instance from the list of asks and bids data.
+func (a *OptionsTicker) UnmarshalJSON(data []byte) error {
+	type Alias OptionsTicker
+	chil := &struct {
+		*Alias
+		LastPrice string `json:"last_price"`
+		MarkPrice string `json:"mark_price"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	err := json.Unmarshal(data, chil)
+	if err != nil {
+		return err
+	}
+	if chil.LastPrice != "" {
+		val, err := strconv.ParseFloat(chil.LastPrice, 64)
+		if err != nil {
+			return err
+		}
+		a.LastPrice = val
+	}
+	if chil.MarkPrice != "" {
+		val, err := strconv.ParseFloat(chil.MarkPrice, 64)
+		if err != nil {
+			return err
+		}
+		a.MarkPrice = val
+	}
 	return nil
 }
 
@@ -376,7 +411,7 @@ func (a *Orderbook) UnmarshalJSON(data []byte) error {
 		}
 		asks[x] = OrderbookItem{
 			Price:  val,
-			Amount: float64(chil.Asks[x].Size),
+			Amount: chil.Asks[x].Size,
 		}
 	}
 	for x := range chil.Bids {
@@ -386,7 +421,7 @@ func (a *Orderbook) UnmarshalJSON(data []byte) error {
 		}
 		bids[x] = OrderbookItem{
 			Price:  val,
-			Amount: float64(chil.Bids[x].Size),
+			Amount: chil.Bids[x].Size,
 		}
 	}
 	a.Asks = asks
