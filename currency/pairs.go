@@ -14,6 +14,10 @@ var (
 	errSymbolEmpty = errors.New("symbol is empty")
 	errPairsEmpty  = errors.New("pairs are empty")
 	errNoDelimiter = errors.New("no delimiter was supplied")
+
+	// ErrPairDuplication defines an error when there is multiple of the same
+	// currency pairs found.
+	ErrPairDuplication = errors.New("currency pair duplication")
 )
 
 // NewPairsFromStrings takes in currency pair strings and returns a currency
@@ -54,24 +58,22 @@ func (p Pairs) Join() string {
 }
 
 // Format formats the pair list to the exchange format configuration
-func (p Pairs) Format(delimiter, index string, uppercase bool) Pairs {
-	pairs := make(Pairs, 0, len(p))
+func (p Pairs) Format(pairFmt PairFormat) Pairs {
+	pairs := make(Pairs, len(p))
+	copy(pairs, p)
+
 	var err error
-	for _, format := range p {
-		if index != "" {
-			format, err = NewPairFromIndex(format.String(), index)
+	for x := range pairs {
+		if pairFmt.Index != "" {
+			pairs[x], err = NewPairFromIndex(p[x].String(), pairFmt.Index)
 			if err != nil {
-				log.Errorf(log.Global,
-					"failed to create NewPairFromIndex. Err: %s\n", err)
-				continue
+				log.Errorf(log.Global, "failed to create NewPairFromIndex. Err: %s\n", err)
+				return nil
 			}
 		}
-		format.Delimiter = delimiter
-		if uppercase {
-			pairs = append(pairs, format.Upper())
-		} else {
-			pairs = append(pairs, format.Lower())
-		}
+		pairs[x].Base.UpperCase = pairFmt.Uppercase
+		pairs[x].Quote.UpperCase = pairFmt.Uppercase
+		pairs[x].Delimiter = pairFmt.Delimiter
 	}
 	return pairs
 }
@@ -120,17 +122,43 @@ func (p Pairs) Lower() Pairs {
 // array
 func (p Pairs) Contains(check Pair, exact bool) bool {
 	for i := range p {
-		if exact {
-			if p[i].Equal(check) {
-				return true
-			}
-		} else {
-			if p[i].EqualIncludeReciprocal(check) {
-				return true
-			}
+		if (exact && p[i].Equal(check)) ||
+			(!exact && p[i].EqualIncludeReciprocal(check)) {
+			return true
 		}
 	}
 	return false
+}
+
+// ContainsAll checks to see if all pairs supplied are contained within the
+// original pairs list.
+func (p Pairs) ContainsAll(check Pairs, exact bool) error {
+	if len(check) == 0 {
+		return errPairsEmpty
+	}
+
+	comparative := make(Pairs, len(p))
+	copy(comparative, p)
+list:
+	for x := range check {
+		for y := range comparative {
+			if (exact && check[x].Equal(comparative[y])) ||
+				(!exact && check[x].EqualIncludeReciprocal(comparative[y])) {
+				// Reduce list size to decrease array traversal speed on iteration.
+				comparative[y] = comparative[len(comparative)-1]
+				comparative = comparative[:len(comparative)-1]
+				continue list
+			}
+		}
+
+		// Opted for in error original check for duplication.
+		if p.Contains(check[x], exact) {
+			return fmt.Errorf("%s %w", check[x], ErrPairDuplication)
+		}
+
+		return fmt.Errorf("%s %w", check[x], ErrPairNotContainedInAvailablePairs)
+	}
+	return nil
 }
 
 // ContainsCurrency checks to see if a specified currency code exists inside a
@@ -184,15 +212,15 @@ func (p Pairs) GetPairsByCurrencies(currencies Currencies) Pairs {
 }
 
 // Remove removes the specified pair from the list of pairs if it exists
-func (p Pairs) Remove(pair Pair) Pairs {
-	pairs := make(Pairs, 0, len(p))
+func (p Pairs) Remove(pair Pair) (Pairs, error) {
+	pairs := make(Pairs, len(p))
+	copy(pairs, p)
 	for x := range p {
 		if p[x].Equal(pair) {
-			continue
+			return append(pairs[:x], pairs[x+1:]...), nil
 		}
-		pairs = append(pairs, p[x])
 	}
-	return pairs
+	return nil, fmt.Errorf("%s %w", pair, ErrPairNotFound)
 }
 
 // Add adds a specified pair to the list of pairs if it doesn't exist
@@ -217,32 +245,59 @@ func (p Pairs) GetMatch(pair Pair) (Pair, error) {
 }
 
 // FindDifferences returns pairs which are new or have been removed
-func (p Pairs) FindDifferences(pairs Pairs) (newPairs, removedPairs Pairs) {
-	for x := range pairs {
-		if pairs[x].String() == "" {
-			continue
+func (p Pairs) FindDifferences(incoming Pairs, pairFmt PairFormat) (PairDifference, error) {
+	newPairs := make(Pairs, 0, len(incoming))
+	check := make(map[string]bool)
+	for x := range incoming {
+		if incoming[x].IsEmpty() {
+			return PairDifference{}, fmt.Errorf("contained in the incoming pairs a %w", ErrCurrencyPairEmpty)
 		}
-		if !p.Contains(pairs[x], true) {
-			newPairs = append(newPairs, pairs[x])
+		format := EMPTYFORMAT.Format(incoming[x])
+		if check[format] {
+			return PairDifference{}, fmt.Errorf("contained in the incoming pairs %w", ErrPairDuplication)
+		}
+		check[format] = true
+		if !p.Contains(incoming[x], true) {
+			newPairs = append(newPairs, incoming[x])
 		}
 	}
+	removedPairs := make(Pairs, 0, len(p))
+	check = make(map[string]bool)
 	for x := range p {
-		if p[x].String() == "" {
-			continue
+		if p[x].IsEmpty() {
+			return PairDifference{}, fmt.Errorf("contained in the existing pairs a %w", ErrCurrencyPairEmpty)
 		}
-		if !pairs.Contains(p[x], true) {
+		format := EMPTYFORMAT.Format(p[x])
+		if !incoming.Contains(p[x], true) || check[format] {
 			removedPairs = append(removedPairs, p[x])
 		}
+		check[format] = true
 	}
-	return
+	return PairDifference{
+		New:              newPairs,
+		Remove:           removedPairs,
+		FormatDifference: p.HasFormatDifference(pairFmt),
+	}, nil
+}
+
+// HasFormatDifference checks and validates full formatting across a pairs list
+func (p Pairs) HasFormatDifference(pairFmt PairFormat) bool {
+	for x := range p {
+		if p[x].Delimiter != pairFmt.Delimiter ||
+			(!p[x].Base.IsEmpty() && p[x].Base.UpperCase != pairFmt.Uppercase) ||
+			(!p[x].Quote.IsEmpty() && p[x].Quote.UpperCase != pairFmt.Uppercase) {
+			return true
+		}
+	}
+	return false
 }
 
 // GetRandomPair returns a random pair from a list of pairs
-func (p Pairs) GetRandomPair() Pair {
-	if pairsLen := len(p); pairsLen != 0 {
-		return p[rand.Intn(pairsLen)] //nolint:gosec // basic number generation required, no need for crypo/rand
+func (p Pairs) GetRandomPair() (Pair, error) {
+	if len(p) == 0 {
+		return EMPTYPAIR, ErrCurrencyPairsEmpty
 	}
-	return EMPTYPAIR
+	return p[rand.Intn(len(p))], nil //nolint:gosec // basic number generation required, no need for crypo/rand
 }
 
 // DeriveFrom matches symbol string to the available pairs list when no
@@ -354,4 +409,34 @@ func (p Pairs) GetStablesMatch(code Code) Pairs {
 		}
 	}
 	return stablePairs
+}
+
+// ValidateAndConform checks for duplications and empty pairs then conforms the
+// entire pairs list to the supplied formatting (unless bypassed).
+// Map[string]bool type is used to make sure delimiters are not included so
+// different formatting entry duplications can be found e.g. `LINKUSDTM21`,
+// `LIN-KUSDTM21` or `LINK-USDTM21 are all the same instances but with different
+// unintentional processes for formatting.
+func (p Pairs) ValidateAndConform(pFmt PairFormat, bypassFormatting bool) (Pairs, error) {
+	processedPairs := make(map[string]bool, len(p))
+	formatted := make(Pairs, len(p))
+	var target int
+	for x := range p {
+		if p[x].IsEmpty() {
+			return nil, fmt.Errorf("cannot update pairs %w", ErrCurrencyPairEmpty)
+		}
+		strippedPair := EMPTYFORMAT.Format(p[x])
+		if processedPairs[strippedPair] {
+			return nil, fmt.Errorf("cannot update pairs %w with [%s]", ErrPairDuplication, p[x])
+		}
+		// Force application of supplied formatting
+		processedPairs[strippedPair] = true
+		if !bypassFormatting {
+			formatted[target] = p[x].Format(pFmt)
+		} else {
+			formatted[target] = p[x]
+		}
+		target++
+	}
+	return formatted, nil
 }

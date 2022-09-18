@@ -21,12 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-const (
-	wsUSDTMarginedPathPublic  = "realtime_public"
-	wsUSDTMarginedPathPrivate = "realtime_private"
-
-	wsUSDTKline = "candle"
-)
+const wsUSDTKline = "candle"
 
 // WsUSDTConnect connects to a USDT websocket feed
 func (by *Bybit) WsUSDTConnect() error {

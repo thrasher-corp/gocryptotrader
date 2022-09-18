@@ -1348,8 +1348,12 @@ func TestGetHistoricTrades(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		rPair, err := enabledPairs.GetRandomPair()
+		if !errors.Is(err, nil) {
+			t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+		}
 		_, err = f.GetHistoricTrades(context.Background(),
-			enabledPairs.GetRandomPair(),
+			rPair,
 			assets[i],
 			time.Now().Add(-time.Minute*15),
 			time.Now())
@@ -1367,8 +1371,12 @@ func TestGetRecentTrades(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		rPair, err := enabledPairs.GetRandomPair()
+		if !errors.Is(err, nil) {
+			t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+		}
 		_, err = f.GetRecentTrades(context.Background(),
-			enabledPairs.GetRandomPair(), assets[i])
+			rPair, assets[i])
 		if err != nil {
 			t.Error(err)
 		}

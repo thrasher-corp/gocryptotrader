@@ -82,6 +82,7 @@ func (b *BTSE) SetDefaults() {
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
+			Delimiter: currency.DashDelimiter,
 		},
 	}
 	err = b.StoreAssetPairFormat(asset.Futures, fmt2)
@@ -379,7 +380,7 @@ func (b *BTSE) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 			Amount: a.SellQuote[x].Size,
 		})
 	}
-	book.Asks.SortAsks() // Sort asks for correct alignment
+	book.Asks.SortAsks()
 	book.Pair = p
 	book.Exchange = b.Name
 	book.Asset = assetType
