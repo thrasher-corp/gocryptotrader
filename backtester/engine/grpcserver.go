@@ -728,19 +728,19 @@ func (s *GRPCServer) ClearAllRuns(_ context.Context, _ *btrpc.ClearAllRunsReques
 	}, nil
 }
 
-// ReportLogs returns all logs from a run
-func (s *GRPCServer) ReportLogs(_ context.Context, req *btrpc.ReportLogsRequest) (*btrpc.ReportLogsResponse, error) {
+// ReportStats returns run statistics
+func (s *GRPCServer) ReportStats(_ context.Context, req *btrpc.ReportStatsRequest) (*btrpc.ReportStatsResponse, error) {
 	if s.manager == nil {
 		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
 	}
 	if req == nil {
 		return nil, fmt.Errorf("%w ReportLogsRequest", gctcommon.ErrNilPointer)
 	}
-	logs, err := s.manager.ReportLogs(req.Id)
+	stats, err := s.manager.ReportStats(req.Id)
 	if err != nil {
 		return nil, err
 	}
-	return &btrpc.ReportLogsResponse{
-		Logs: logs,
+	return &btrpc.ReportStatsResponse{
+		Stats: stats,
 	}, nil
 }

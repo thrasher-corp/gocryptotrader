@@ -8,7 +8,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/ftxcashandcarry"
-	"github.com/thrasher-corp/gocryptotrader/backtester/writer"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"path/filepath"
 	"testing"
@@ -569,16 +568,16 @@ func TestGRPCClearAllRuns(t *testing.T) {
 	}
 }
 
-func TestGRPCReportLogs(t *testing.T) {
+func TestGRPCReportStats(t *testing.T) {
 	t.Parallel()
 	s := &GRPCServer{}
-	_, err := s.ReportLogs(context.Background(), nil)
+	_, err := s.ReportStats(context.Background(), nil)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
 	}
 
 	s.manager = SetupRunManager()
-	_, err = s.ReportLogs(context.Background(), nil)
+	_, err = s.ReportStats(context.Background(), nil)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
 	}
@@ -588,24 +587,16 @@ func TestGRPCReportLogs(t *testing.T) {
 		EventQueue: &eventholder.Holder{},
 		Datas:      &data.HandlerPerCurrency{},
 		shutdown:   make(chan struct{}),
-		logHolder:  &writer.Writer{},
 		Portfolio:  &portfolio.Portfolio{},
 	}
 	err = s.manager.AddRun(bt)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	resp, err := s.ReportLogs(context.Background(), &btrpc.ReportLogsRequest{
+	_, err = s.ReportStats(context.Background(), &btrpc.ReportStatsRequest{
 		Id: bt.MetaData.ID,
 	})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received '%v' expecting '%v'", err, nil)
-	}
-	_, err = bt.logHolder.Write([]byte("test"))
-	if !errors.Is(err, nil) {
-		t.Fatalf("received '%v' expecting '%v'", err, nil)
-	}
-	if resp.Logs == "test" {
-		t.Errorf("received '%v' expecting '%v'", resp.Logs, "test")
 	}
 }

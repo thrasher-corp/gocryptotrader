@@ -297,6 +297,15 @@ func (s *Statistic) SetStrategyName(name string) {
 
 // Serialise outputs the Statistic struct in json
 func (s *Statistic) Serialise() (string, error) {
+	s.CurrencyStatistics = nil
+	for _, exchangeMap := range s.ExchangeAssetPairStatistics {
+		for _, assetMap := range exchangeMap {
+			for _, stats := range assetMap {
+				s.CurrencyStatistics = append(s.CurrencyStatistics, stats)
+			}
+		}
+	}
+
 	resp, err := json.MarshalIndent(s, "", " ")
 	if err != nil {
 		return "", err

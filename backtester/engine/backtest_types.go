@@ -10,7 +10,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
-	"github.com/thrasher-corp/gocryptotrader/backtester/writer"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"sync"
 	"time"
@@ -30,10 +29,9 @@ var (
 
 // BackTest is the main holder of all backtesting functionality
 type BackTest struct {
-	MetaData  RunMetaData
-	logHolder *writer.Writer
-
+	m               sync.Mutex
 	hasHandledEvent bool
+	MetaData        RunMetaData
 	shutdown        chan struct{}
 	Datas           data.Holder
 	Strategy        strategies.Handler

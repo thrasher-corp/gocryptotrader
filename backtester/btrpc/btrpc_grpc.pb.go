@@ -31,7 +31,7 @@ type BacktesterServiceClient interface {
 	StopAllRuns(ctx context.Context, in *StopAllRunsRequest, opts ...grpc.CallOption) (*StopAllRunsResponse, error)
 	ClearRun(ctx context.Context, in *ClearRunRequest, opts ...grpc.CallOption) (*ClearRunResponse, error)
 	ClearAllRuns(ctx context.Context, in *ClearAllRunsRequest, opts ...grpc.CallOption) (*ClearAllRunsResponse, error)
-	ReportLogs(ctx context.Context, in *ReportLogsRequest, opts ...grpc.CallOption) (*ReportLogsResponse, error)
+	ReportStats(ctx context.Context, in *ReportStatsRequest, opts ...grpc.CallOption) (*ReportStatsResponse, error)
 }
 
 type backtesterServiceClient struct {
@@ -123,9 +123,9 @@ func (c *backtesterServiceClient) ClearAllRuns(ctx context.Context, in *ClearAll
 	return out, nil
 }
 
-func (c *backtesterServiceClient) ReportLogs(ctx context.Context, in *ReportLogsRequest, opts ...grpc.CallOption) (*ReportLogsResponse, error) {
-	out := new(ReportLogsResponse)
-	err := c.cc.Invoke(ctx, "/btrpc.BacktesterService/ReportLogs", in, out, opts...)
+func (c *backtesterServiceClient) ReportStats(ctx context.Context, in *ReportStatsRequest, opts ...grpc.CallOption) (*ReportStatsResponse, error) {
+	out := new(ReportStatsResponse)
+	err := c.cc.Invoke(ctx, "/btrpc.BacktesterService/ReportStats", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +145,7 @@ type BacktesterServiceServer interface {
 	StopAllRuns(context.Context, *StopAllRunsRequest) (*StopAllRunsResponse, error)
 	ClearRun(context.Context, *ClearRunRequest) (*ClearRunResponse, error)
 	ClearAllRuns(context.Context, *ClearAllRunsRequest) (*ClearAllRunsResponse, error)
-	ReportLogs(context.Context, *ReportLogsRequest) (*ReportLogsResponse, error)
+	ReportStats(context.Context, *ReportStatsRequest) (*ReportStatsResponse, error)
 	mustEmbedUnimplementedBacktesterServiceServer()
 }
 
@@ -180,8 +180,8 @@ func (UnimplementedBacktesterServiceServer) ClearRun(context.Context, *ClearRunR
 func (UnimplementedBacktesterServiceServer) ClearAllRuns(context.Context, *ClearAllRunsRequest) (*ClearAllRunsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ClearAllRuns not implemented")
 }
-func (UnimplementedBacktesterServiceServer) ReportLogs(context.Context, *ReportLogsRequest) (*ReportLogsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ReportLogs not implemented")
+func (UnimplementedBacktesterServiceServer) ReportStats(context.Context, *ReportStatsRequest) (*ReportStatsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReportStats not implemented")
 }
 func (UnimplementedBacktesterServiceServer) mustEmbedUnimplementedBacktesterServiceServer() {}
 
@@ -358,20 +358,20 @@ func _BacktesterService_ClearAllRuns_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
-func _BacktesterService_ReportLogs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ReportLogsRequest)
+func _BacktesterService_ReportStats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReportStatsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(BacktesterServiceServer).ReportLogs(ctx, in)
+		return srv.(BacktesterServiceServer).ReportStats(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/btrpc.BacktesterService/ReportLogs",
+		FullMethod: "/btrpc.BacktesterService/ReportStats",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BacktesterServiceServer).ReportLogs(ctx, req.(*ReportLogsRequest))
+		return srv.(BacktesterServiceServer).ReportStats(ctx, req.(*ReportStatsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -420,8 +420,8 @@ var BacktesterService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _BacktesterService_ClearAllRuns_Handler,
 		},
 		{
-			MethodName: "ReportLogs",
-			Handler:    _BacktesterService_ReportLogs_Handler,
+			MethodName: "ReportStats",
+			Handler:    _BacktesterService_ReportStats_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

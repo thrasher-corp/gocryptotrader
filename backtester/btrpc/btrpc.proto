@@ -248,12 +248,12 @@ message ClearAllRunsResponse {
   repeated RunSummary remaining_runs = 2;
 }
 
-message ReportLogsRequest {
+message ReportStatsRequest {
   string id = 1;
 }
 
-message ReportLogsResponse {
-  string logs = 1;
+message ReportStatsResponse {
+  string stats = 1;
 }
 
 service BacktesterService {
@@ -302,9 +302,9 @@ service BacktesterService {
       delete: "/v1/clearallruns"
     };
   }
-  rpc ReportLogs(ReportLogsRequest) returns (ReportLogsResponse) {
+  rpc ReportStats(ReportStatsRequest) returns (ReportStatsResponse) {
     option (google.api.http) = {
-      get: "/v1/reportlogs"
+      get: "/v1/reportstats"
     };
   }
 }

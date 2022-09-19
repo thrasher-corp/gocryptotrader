@@ -426,14 +426,14 @@
         ]
       }
     },
-    "/v1/reportlogs": {
+    "/v1/reportstats": {
       "get": {
-        "operationId": "BacktesterService_ReportLogs",
+        "operationId": "BacktesterService_ReportStats",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/btrpcReportLogsResponse"
+              "$ref": "#/definitions/btrpcReportStatsResponse"
             }
           },
           "default": {
@@ -923,10 +923,10 @@
         }
       }
     },
-    "btrpcReportLogsResponse": {
+    "btrpcReportStatsResponse": {
       "type": "object",
       "properties": {
-        "logs": {
+        "stats": {
           "type": "string"
         }
       }

@@ -334,10 +334,10 @@ func clearAllRuns(c *cli.Context) error {
 }
 
 var reportLogsCommand = &cli.Command{
-	Name:      "reportlogs",
-	Usage:     "returns all logs that occurred during a run",
+	Name:      "reportstats",
+	Usage:     "returns generated statistics from a run",
 	ArgsUsage: "<id>",
-	Action:    reportLogs,
+	Action:    reportStats,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  "id",
@@ -346,7 +346,7 @@ var reportLogsCommand = &cli.Command{
 	},
 }
 
-func reportLogs(c *cli.Context) error {
+func reportStats(c *cli.Context) error {
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -365,9 +365,9 @@ func reportLogs(c *cli.Context) error {
 	}
 
 	client := btrpc.NewBacktesterServiceClient(conn)
-	result, err := client.ReportLogs(
+	result, err := client.ReportStats(
 		c.Context,
-		&btrpc.ReportLogsRequest{
+		&btrpc.ReportStatsRequest{
 			Id: id,
 		},
 	)
@@ -376,7 +376,7 @@ func reportLogs(c *cli.Context) error {
 		return err
 	}
 
-	log.Print(result.Logs)
+	log.Print(result.Stats)
 	return nil
 }
 

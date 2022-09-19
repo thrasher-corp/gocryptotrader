@@ -5,7 +5,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/ftxcashandcarry"
-	"github.com/thrasher-corp/gocryptotrader/backtester/writer"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"testing"
 	"time"
@@ -340,13 +339,12 @@ func TestReportLogs(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
-	bt.logHolder = &writer.Writer{}
-	_, err = rm.ReportLogs(bt.MetaData.ID)
+	_, err = rm.ReportStats(bt.MetaData.ID)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
-	_, err = rm.ReportLogs("")
+	_, err = rm.ReportStats("")
 	if !errors.Is(err, errRunNotFound) {
 		t.Errorf("received '%v' expected '%v'", err, errRunNotFound)
 	}
