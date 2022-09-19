@@ -2,7 +2,6 @@ package deribit
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
