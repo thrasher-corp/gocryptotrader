@@ -28,8 +28,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
 
-// errExchangeConfigIsNil defines an error when the config is nil
-var errExchangeConfigIsNil = errors.New("exchange config is nil")
+var (
+	// errExchangeConfigIsNil defines an error when the config is nil
+	errExchangeConfigIsNil = errors.New("exchange config is nil")
+	errPairsManagerIsNil   = errors.New("currency pairs manager is nil")
+)
 
 // GetCurrencyConfig returns currency configurations
 func (c *Config) GetCurrencyConfig() currency.Config {
@@ -346,7 +349,7 @@ func (c *Config) GetExchangeAssetTypes(exchName string) (asset.Items, error) {
 	}
 
 	if exchCfg.CurrencyPairs == nil {
-		return nil, fmt.Errorf("exchange %s currency pairs is nil", exchName)
+		return nil, fmt.Errorf("%s %w", exchName, errPairsManagerIsNil)
 	}
 
 	return exchCfg.CurrencyPairs.GetAssetTypes(false), nil
@@ -360,7 +363,7 @@ func (c *Config) SupportsExchangeAssetType(exchName string, assetType asset.Item
 	}
 
 	if exchCfg.CurrencyPairs == nil {
-		return fmt.Errorf("exchange %s currency pairs is nil", exchName)
+		return fmt.Errorf("%s %w", exchName, errPairsManagerIsNil)
 	}
 
 	if !assetType.IsValid() {
@@ -389,8 +392,7 @@ func (c *Config) SetPairs(exchName string, assetType asset.Item, enabled bool, p
 		return err
 	}
 
-	exchCfg.CurrencyPairs.StorePairs(assetType, pairs, enabled)
-	return nil
+	return exchCfg.CurrencyPairs.StorePairs(assetType, pairs, enabled)
 }
 
 // GetCurrencyPairConfig returns currency pair config for the desired exchange and asset type
@@ -507,10 +509,13 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 				return err
 			}
 
-			err = c.SetPairs(exchName,
-				assetTypes[x],
-				true,
-				currency.Pairs{availPairs.GetRandomPair()})
+			var rPair currency.Pair
+			rPair, err = availPairs.GetRandomPair()
+			if err != nil {
+				return err
+			}
+
+			err = c.SetPairs(exchName, assetTypes[x], true, currency.Pairs{rPair})
 			if err != nil {
 				return err
 			}
@@ -565,10 +570,13 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 			continue
 		}
 
-		err = c.SetPairs(exchName,
-			assetTypes[x],
-			true,
-			currency.Pairs{availPairs.GetRandomPair()})
+		var rPair currency.Pair
+		rPair, err = availPairs.GetRandomPair()
+		if err != nil {
+			return err
+		}
+
+		err = c.SetPairs(exchName, assetTypes[x], true, currency.Pairs{rPair})
 		if err != nil {
 			return err
 		}
@@ -583,8 +591,16 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 			return err
 		}
 
-		newPair := avail.GetRandomPair()
-		err = c.SetPairs(exchName, assetTypes[0], true, currency.Pairs{newPair})
+		if len(avail) == 0 {
+			return nil
+		}
+
+		rPair, err := avail.GetRandomPair()
+		if err != nil {
+			return err
+		}
+
+		err = c.SetPairs(exchName, assetTypes[0], true, currency.Pairs{rPair})
 		if err != nil {
 			return err
 		}
@@ -592,7 +608,7 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 			"Exchange %s: [%v] No enabled pairs found in available pairs list, randomly added %v pair.\n",
 			exchName,
 			assetTypes[0],
-			newPair)
+			rPair)
 	}
 	return nil
 }
@@ -611,12 +627,12 @@ func (c *Config) SupportsPair(exchName string, p currency.Pair, assetType asset.
 func (c *Config) GetPairFormat(exchName string, assetType asset.Item) (currency.PairFormat, error) {
 	exchCfg, err := c.GetExchangeConfig(exchName)
 	if err != nil {
-		return currency.PairFormat{}, err
+		return currency.EMPTYFORMAT, err
 	}
 
 	err = c.SupportsExchangeAssetType(exchName, assetType)
 	if err != nil {
-		return currency.PairFormat{}, err
+		return currency.EMPTYFORMAT, err
 	}
 
 	if exchCfg.CurrencyPairs.UseGlobalFormat {
@@ -625,18 +641,18 @@ func (c *Config) GetPairFormat(exchName string, assetType asset.Item) (currency.
 
 	p, err := exchCfg.CurrencyPairs.Get(assetType)
 	if err != nil {
-		return currency.PairFormat{}, err
+		return currency.EMPTYFORMAT, err
 	}
 
 	if p == nil {
-		return currency.PairFormat{},
+		return currency.EMPTYFORMAT,
 			fmt.Errorf("exchange %s pair store for asset type %s is nil",
 				exchName,
 				assetType)
 	}
 
 	if p.ConfigFormat == nil {
-		return currency.PairFormat{},
+		return currency.EMPTYFORMAT,
 			fmt.Errorf("exchange %s pair config format for asset type %s is nil",
 				exchName,
 				assetType)
@@ -666,8 +682,7 @@ func (c *Config) GetAvailablePairs(exchName string, assetType asset.Item) (curre
 		return nil, nil
 	}
 
-	return pairs.Format(pairFormat.Delimiter, pairFormat.Index,
-		pairFormat.Uppercase), nil
+	return pairs.Format(pairFormat), nil
 }
 
 // GetEnabledPairs returns a list of currency pairs for a specifc exchange
@@ -691,10 +706,7 @@ func (c *Config) GetEnabledPairs(exchName string, assetType asset.Item) (currenc
 		return nil, nil
 	}
 
-	return pairs.Format(pairFormat.Delimiter,
-			pairFormat.Index,
-			pairFormat.Uppercase),
-		nil
+	return pairs.Format(pairFormat), nil
 }
 
 // GetEnabledExchanges returns a list of enabled exchanges
@@ -853,13 +865,14 @@ func (c *Config) CheckExchangeConfigValues() error {
 			}
 
 			c.Exchanges[i].CurrencyPairs.UseGlobalFormat = true
-			c.Exchanges[i].CurrencyPairs.Store(asset.Spot,
-				currency.PairStore{
-					AssetEnabled: convert.BoolPtr(true),
-					Available:    availPairs,
-					Enabled:      enabledPairs,
-				},
-			)
+			err := c.Exchanges[i].CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+				AssetEnabled: convert.BoolPtr(true),
+				Available:    availPairs,
+				Enabled:      enabledPairs,
+			})
+			if err != nil {
+				return err
+			}
 
 			// flush old values
 			c.Exchanges[i].PairsLastUpdated = nil
@@ -1336,6 +1349,21 @@ func (c *Config) CheckCurrencyStateManager() {
 	}
 }
 
+// CheckOrderManagerConfig ensures the order manager is setup correctly
+func (c *Config) CheckOrderManagerConfig() {
+	m.Lock()
+	defer m.Unlock()
+	if c.OrderManager.Enabled == nil {
+		c.OrderManager.Enabled = convert.BoolPtr(true)
+		c.OrderManager.ActivelyTrackFuturesPositions = true
+	}
+	if c.OrderManager.ActivelyTrackFuturesPositions && c.OrderManager.FuturesTrackingSeekDuration >= 0 {
+		// one isn't likely to have a perpetual futures order open
+		// for longer than a year
+		c.OrderManager.FuturesTrackingSeekDuration = -time.Hour * 24 * 365
+	}
+}
+
 // CheckConnectionMonitorConfig checks and if zero value assigns default values
 func (c *Config) CheckConnectionMonitorConfig() {
 	m.Lock()
@@ -1684,6 +1712,7 @@ func (c *Config) CheckConfig() error {
 	c.CheckConnectionMonitorConfig()
 	c.CheckDataHistoryMonitorConfig()
 	c.CheckCurrencyStateManager()
+	c.CheckOrderManagerConfig()
 	c.CheckCommunicationsConfig()
 	c.CheckClientBankAccounts()
 	c.CheckBankAccountConfig()

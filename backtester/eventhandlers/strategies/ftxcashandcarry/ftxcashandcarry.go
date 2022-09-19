@@ -104,7 +104,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 
 // createSignals creates signals based on the relationships between
 // futures and spot signals
-func (s *Strategy) createSignals(pos []order.PositionStats, spotSignal, futuresSignal *signal.Signal, diffBetweenFuturesSpot decimal.Decimal, isLastEvent bool) ([]signal.Event, error) {
+func (s *Strategy) createSignals(pos []order.Position, spotSignal, futuresSignal *signal.Signal, diffBetweenFuturesSpot decimal.Decimal, isLastEvent bool) ([]signal.Event, error) {
 	if spotSignal == nil {
 		return nil, fmt.Errorf("%w missing spot signal", common.ErrNilArguments)
 	}
@@ -136,20 +136,20 @@ func (s *Strategy) createSignals(pos []order.PositionStats, spotSignal, futuresS
 		// only appending spotSignal as futuresSignal will be raised later
 		response = append(response, spotSignal)
 	case pos[len(pos)-1].Status == order.Open &&
-		isLastEvent:
-		// closing positions on last event
-		spotSignal.SetDirection(order.ClosePosition)
-		spotSignal.AppendReason("Selling asset on last event")
-		futuresSignal.SetDirection(order.ClosePosition)
-		futuresSignal.AppendReason("Closing position on last event")
-		response = append(response, futuresSignal, spotSignal)
-	case pos[len(pos)-1].Status == order.Open &&
 		diffBetweenFuturesSpot.LessThanOrEqual(s.closeShortDistancePercentage):
 		// closing positions when custom threshold met
 		spotSignal.SetDirection(order.ClosePosition)
 		spotSignal.AppendReasonf("Closing position. Met threshold of %v", s.closeShortDistancePercentage)
 		futuresSignal.SetDirection(order.ClosePosition)
 		futuresSignal.AppendReasonf("Closing position. Met threshold %v", s.closeShortDistancePercentage)
+		response = append(response, futuresSignal, spotSignal)
+	case pos[len(pos)-1].Status == order.Open &&
+		isLastEvent:
+		// closing positions on last event
+		spotSignal.SetDirection(order.ClosePosition)
+		spotSignal.AppendReason("Selling asset on last event")
+		futuresSignal.SetDirection(order.ClosePosition)
+		futuresSignal.AppendReason("Closing position on last event")
 		response = append(response, futuresSignal, spotSignal)
 	default:
 		response = append(response, spotSignal, futuresSignal)
@@ -172,14 +172,14 @@ func sortSignals(d []data.Handler) (map[currency.Pair]cashCarrySignals, error) {
 		a := l.GetAssetType()
 		switch {
 		case a == asset.Spot:
-			entry := response[l.Pair().Format("", false)]
+			entry := response[l.Pair().Format(currency.EMPTYFORMAT)]
 			entry.spotSignal = d[i]
-			response[l.Pair().Format("", false)] = entry
+			response[l.Pair().Format(currency.EMPTYFORMAT)] = entry
 		case a.IsFutures():
 			u := l.GetUnderlyingPair()
-			entry := response[u.Format("", false)]
+			entry := response[u.Format(currency.EMPTYFORMAT)]
 			entry.futureSignal = d[i]
-			response[u.Format("", false)] = entry
+			response[u.Format(currency.EMPTYFORMAT)] = entry
 		default:
 			return nil, errFuturesOnly
 		}

@@ -304,7 +304,7 @@ func (ok *Okx) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) e
 }
 
 // handleSubscription sends a subscription and unsubscription information thought the websocket endpoint.
-// as of the okex, exchange this endpoint sends subscription and unsubscription messages but with a list of json objects.
+// as of the okx, exchange this endpoint sends subscription and unsubscription messages but with a list of json objects.
 func (ok *Okx) handleSubscription(operation string, subscriptions []stream.ChannelSubscription) error {
 	request := WSSubscriptionInformations{
 		Operation: operation,

@@ -1587,7 +1587,7 @@ func TestGetSpotKline(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = h.GetSpotKline(context.Background(),
-		KlinesRequestParams{
+		&KlinesRequestParams{
 			Symbol: cp,
 			Period: "1min",
 			Size:   0,
@@ -2752,7 +2752,10 @@ func TestFormatFuturesPair(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r != availInstruments[0] {
-		t.Errorf("expected %s, got %s", availInstruments[0], r)
+
+	// Test for upper case 'BTC' not lower case 'btc', disregarded numerals
+	// as they not deterministic from this endpoint.
+	if !strings.Contains(r, "BTC") {
+		t.Errorf("expected %s, got %s", "BTC220708", r)
 	}
 }

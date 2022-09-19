@@ -187,26 +187,26 @@ type IndexWeights struct {
 
 // PositionData stores data of an open position
 type PositionData struct {
-	CollateralUsed               float64       `json:"collateralUsed"`
+	Future                       currency.Pair `json:"future"`
+	Size                         float64       `json:"size"`
+	Side                         string        `json:"side"`
+	NetSize                      float64       `json:"netSize"`
+	LongOrderSize                float64       `json:"longOrderSize"`
+	ShortOrderSize               float64       `json:"shortOrderSize"`
 	Cost                         float64       `json:"cost"`
+	EntryPrice                   float64       `json:"entryPrice"`
+	UnrealizedPNL                float64       `json:"unrealizedPnl"`
+	RealizedPNL                  float64       `json:"realizedPnl"`
+	InitialMarginRequirement     float64       `json:"initialMarginRequirement"`
+	MaintenanceMarginRequirement float64       `json:"maintenanceMarginRequirement"`
+	OpenSize                     float64       `json:"openSize"`
+	CollateralUsed               float64       `json:"collateralUsed"`
+	EstimatedLiquidationPrice    float64       `json:"estimatedLiquidationPrice"`
+	RecentAverageOpenPrice       float64       `json:"recentAverageOpenPrice"`
+	RecentPNL                    float64       `json:"recentPnl"`
+	RecentBreakEvenPrice         float64       `json:"recentBreakEvenPrice"`
 	CumulativeBuySize            float64       `json:"cumulativeBuySize"`
 	CumulativeSellSize           float64       `json:"cumulativeSellSize"`
-	EntryPrice                   float64       `json:"entryPrice"`
-	EstimatedLiquidationPrice    float64       `json:"estimatedLiquidationPrice"`
-	Future                       currency.Pair `json:"future"`
-	InitialMarginRequirement     float64       `json:"initialMarginRequirement"`
-	LongOrderSize                float64       `json:"longOrderSize"`
-	MaintenanceMarginRequirement float64       `json:"maintenanceMarginRequirement"`
-	NetSize                      float64       `json:"netSize"`
-	OpenSize                     float64       `json:"openSize"`
-	RealizedPNL                  float64       `json:"realizedPnl"`
-	RecentAverageOpenPrice       float64       `json:"recentAverageOpenPrice"`
-	RecentBreakEvenPrice         float64       `json:"recentBreakEvenPrice"`
-	RecentPnl                    float64       `json:"recentPnl"`
-	ShortOrderSize               float64       `json:"shortOrderSize"`
-	Side                         string        `json:"side"`
-	Size                         float64       `json:"size"`
-	UnrealizedPNL                float64       `json:"unrealizedPnl"`
 }
 
 // AccountInfoData stores account data
@@ -331,22 +331,22 @@ type WithdrawItem struct {
 
 // OrderData stores open order data
 type OrderData struct {
-	CreatedAt     time.Time `json:"createdAt"`
-	FilledSize    float64   `json:"filledSize"`
-	Future        string    `json:"future"`
-	ID            int64     `json:"id"`
-	Market        string    `json:"market"`
-	Price         float64   `json:"price"`
-	AvgFillPrice  float64   `json:"avgFillPrice"`
-	RemainingSize float64   `json:"remainingSize"`
-	Side          string    `json:"side"`
-	Size          float64   `json:"size"`
-	Status        string    `json:"status"`
-	OrderType     string    `json:"type"`
-	ReduceOnly    bool      `json:"reduceOnly"`
-	IOC           bool      `json:"ioc"`
-	PostOnly      bool      `json:"postOnly"`
-	ClientID      string    `json:"clientId"`
+	AvgFillPrice  float64       `json:"avgFillPrice"`
+	ClientID      string        `json:"clientId"`
+	CreatedAt     time.Time     `json:"createdAt"`
+	FilledSize    float64       `json:"filledSize"`
+	Future        currency.Pair `json:"future"`
+	ID            int64         `json:"id"`
+	IOC           bool          `json:"ioc"`
+	Market        currency.Pair `json:"market"`
+	PostOnly      bool          `json:"postOnly"`
+	Price         float64       `json:"price"`
+	ReduceOnly    bool          `json:"reduceOnly"`
+	RemainingSize float64       `json:"remainingSize"`
+	Side          string        `json:"side"`
+	Size          float64       `json:"size"`
+	Status        string        `json:"status"`
+	Type          string        `json:"type"`
 }
 
 // TriggerOrderData stores trigger order data
@@ -384,22 +384,22 @@ type TriggerData struct {
 
 // FillsData stores fills' data
 type FillsData struct {
-	Fee           float64   `json:"fee"`
-	FeeCurrency   string    `json:"feeCurrency"`
-	FeeRate       float64   `json:"feeRate"`
-	Future        string    `json:"future"`
-	ID            int64     `json:"id"`
-	Liquidity     string    `json:"liquidity"`
-	Market        string    `json:"market"`
-	BaseCurrency  string    `json:"baseCurrency"`
-	QuoteCurrency string    `json:"quoteCurrency"`
-	OrderID       int64     `json:"orderId"`
-	TradeID       int64     `json:"tradeId"`
-	Price         float64   `json:"price"`
-	Side          string    `json:"side"`
-	Size          float64   `json:"size"`
-	Time          time.Time `json:"time"`
-	OrderType     string    `json:"type"`
+	Fee           float64       `json:"fee"`
+	FeeCurrency   currency.Code `json:"feeCurrency"`
+	FeeRate       float64       `json:"feeRate"`
+	Future        string        `json:"future"`
+	ID            int64         `json:"id"`
+	Liquidity     string        `json:"liquidity"`
+	Market        string        `json:"market"`
+	BaseCurrency  string        `json:"baseCurrency"`
+	QuoteCurrency string        `json:"quoteCurrency"`
+	OrderID       int64         `json:"orderId"`
+	TradeID       int64         `json:"tradeId"`
+	Price         float64       `json:"price"`
+	Side          string        `json:"side"`
+	Size          float64       `json:"size"`
+	Time          time.Time     `json:"time"`
+	OrderType     string        `json:"type"`
 }
 
 // FundingPaymentsData stores funding payments' data

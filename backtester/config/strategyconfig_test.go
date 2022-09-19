@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/top2bottom2"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -53,14 +54,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestLoadConfig(t *testing.T) {
-	t.Parallel()
-	_, err := LoadConfig([]byte(`{}`))
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestValidateDate(t *testing.T) {
 	t.Parallel()
 	c := Config{}
@@ -72,14 +65,14 @@ func TestValidateDate(t *testing.T) {
 		DatabaseData: &DatabaseData{},
 	}
 	err = c.validateDate()
-	if !errors.Is(err, errStartEndUnset) {
-		t.Errorf("received: %v, expected: %v", err, errStartEndUnset)
+	if !errors.Is(err, gctcommon.ErrDateUnset) {
+		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrDateUnset)
 	}
 	c.DataSettings.DatabaseData.StartDate = time.Now()
 	c.DataSettings.DatabaseData.EndDate = c.DataSettings.DatabaseData.StartDate
 	err = c.validateDate()
-	if !errors.Is(err, errBadDate) {
-		t.Errorf("received: %v, expected: %v", err, errBadDate)
+	if !errors.Is(err, gctcommon.ErrStartEqualsEnd) {
+		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrStartEqualsEnd)
 	}
 	c.DataSettings.DatabaseData.EndDate = c.DataSettings.DatabaseData.StartDate.Add(time.Minute)
 	err = c.validateDate()
@@ -88,14 +81,14 @@ func TestValidateDate(t *testing.T) {
 	}
 	c.DataSettings.APIData = &APIData{}
 	err = c.validateDate()
-	if !errors.Is(err, errStartEndUnset) {
-		t.Errorf("received: %v, expected: %v", err, errStartEndUnset)
+	if !errors.Is(err, gctcommon.ErrDateUnset) {
+		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrDateUnset)
 	}
 	c.DataSettings.APIData.StartDate = time.Now()
 	c.DataSettings.APIData.EndDate = c.DataSettings.APIData.StartDate
 	err = c.validateDate()
-	if !errors.Is(err, errBadDate) {
-		t.Errorf("received: %v, expected: %v", err, errBadDate)
+	if !errors.Is(err, gctcommon.ErrStartEqualsEnd) {
+		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrStartEqualsEnd)
 	}
 	c.DataSettings.APIData.EndDate = c.DataSettings.APIData.StartDate.Add(time.Minute)
 	err = c.validateDate()
@@ -137,85 +130,6 @@ func TestValidateCurrencySettings(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	c.CurrencySettings[0].Asset = asset.PerpetualSwap
-	err = c.validateCurrencySettings()
-	if !errors.Is(err, errPerpetualsUnsupported) {
-		t.Errorf("received: %v, expected: %v", err, errPerpetualsUnsupported)
-	}
-
-	c.CurrencySettings[0].Asset = asset.Futures
-	c.CurrencySettings[0].Quote = currency.NewCode("PERP")
-	err = c.validateCurrencySettings()
-	if !errors.Is(err, errPerpetualsUnsupported) {
-		t.Errorf("received: %v, expected: %v", err, errPerpetualsUnsupported)
-	}
-
-	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(2)
-	c.CurrencySettings[0].MaximumSlippagePercent = decimal.NewFromInt(3)
-	c.CurrencySettings[0].Quote = currency.NewCode("USD")
-	err = c.validateCurrencySettings()
-	if !errors.Is(err, errFeatureIncompatible) {
-		t.Errorf("received: %v, expected: %v", err, errFeatureIncompatible)
-	}
-
-	c.CurrencySettings[0].Asset = asset.Spot
-	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(-1)
-	err = c.validateCurrencySettings()
-	if !errors.Is(err, errBadSlippageRates) {
-		t.Errorf("received: %v, expected: %v", err, errBadSlippageRates)
-	}
-	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(2)
-	c.CurrencySettings[0].MaximumSlippagePercent = decimal.NewFromInt(-1)
-	err = c.validateCurrencySettings()
-	if !errors.Is(err, errBadSlippageRates) {
-		t.Errorf("received: %v, expected: %v", err, errBadSlippageRates)
-	}
-	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(2)
-	c.CurrencySettings[0].MaximumSlippagePercent = decimal.NewFromInt(1)
-	err = c.validateCurrencySettings()
-	if !errors.Is(err, errBadSlippageRates) {
-		t.Errorf("received: %v, expected: %v", err, errBadSlippageRates)
-	}
-
-	c.CurrencySettings[0].SpotDetails = &SpotDetails{}
-	err = c.validateCurrencySettings()
-	if !errors.Is(err, errBadInitialFunds) {
-		t.Errorf("received: %v, expected: %v", err, errBadInitialFunds)
-	}
-
-	z := decimal.Zero
-	c.CurrencySettings[0].SpotDetails.InitialQuoteFunds = &z
-	c.CurrencySettings[0].SpotDetails.InitialBaseFunds = &z
-	err = c.validateCurrencySettings()
-	if !errors.Is(err, errBadInitialFunds) {
-		t.Errorf("received: %v, expected: %v", err, errBadInitialFunds)
-	}
-
-	c.CurrencySettings[0].SpotDetails.InitialQuoteFunds = &leet
-	c.FundingSettings.UseExchangeLevelFunding = true
-	err = c.validateCurrencySettings()
-	if !errors.Is(err, errBadInitialFunds) {
-		t.Errorf("received: %v, expected: %v", err, errBadInitialFunds)
-	}
-
-	c.CurrencySettings[0].SpotDetails.InitialQuoteFunds = &z
-	c.CurrencySettings[0].SpotDetails.InitialBaseFunds = &leet
-	c.FundingSettings.UseExchangeLevelFunding = true
-	err = c.validateCurrencySettings()
-	if !errors.Is(err, errBadInitialFunds) {
-		t.Errorf("received: %v, expected: %v", err, errBadInitialFunds)
-	}
-}
-
-func TestValidateMinMaxes(t *testing.T) {
-	t.Parallel()
-	c := &Config{}
-	err := c.validateMinMaxes()
-	if err != nil {
-		t.Error(err)
-	}
-
 	c.CurrencySettings = []CurrencySettings{
 		{
 			SellSide: MinMax{
@@ -450,12 +364,19 @@ func TestValidate(t *testing.T) {
 			},
 		},
 	}
-	if err := c.Validate(); !errors.Is(err, nil) {
+	err := c.Validate()
+	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
+	}
+
+	c = nil
+	err = c.Validate()
+	if !errors.Is(err, common.ErrNilArguments) {
+		t.Errorf("received %v expected %v", err, common.ErrNilArguments)
 	}
 }
 
-func TestReadConfigFromFile(t *testing.T) {
+func TestReadStrategyConfigFromFile(t *testing.T) {
 	tempDir := t.TempDir()
 	passFile, err := os.CreateTemp(tempDir, "*.start")
 	if err != nil {
@@ -469,9 +390,14 @@ func TestReadConfigFromFile(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = ReadConfigFromFile(passFile.Name())
+	_, err = ReadStrategyConfigFromFile(passFile.Name())
 	if err != nil {
 		t.Error(err)
+	}
+
+	_, err = ReadStrategyConfigFromFile("test")
+	if !errors.Is(err, common.ErrFileNotFound) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrFileNotFound)
 	}
 }
 
@@ -530,6 +456,67 @@ func TestGenerateConfigForDCAAPICandles(t *testing.T) {
 			t.Fatal(err)
 		}
 		err = os.WriteFile(filepath.Join(p, "examples", "dca-api-candles.strat"), result, file.DefaultPermissionOctal)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+}
+
+func TestGenerateConfigForPluginStrategy(t *testing.T) {
+	if !saveConfig {
+		t.Skip()
+	}
+	cfg := Config{
+		Nickname: "ExamplePluginStrategy",
+		Goal:     "To demonstrate that custom strategies can be used",
+		StrategySettings: StrategySettings{
+			Name: "custom-strategy",
+		},
+		CurrencySettings: []CurrencySettings{
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot,
+				Base:         currency.BTC,
+				Quote:        currency.USDT,
+				SpotDetails: &SpotDetails{
+					InitialQuoteFunds: initialFunds1000000,
+				},
+				BuySide:  minMax,
+				SellSide: minMax,
+				MakerFee: &makerFee,
+				TakerFee: &takerFee,
+			},
+		},
+		DataSettings: DataSettings{
+			Interval: kline.OneDay,
+			DataType: common.CandleStr,
+			APIData: &APIData{
+				StartDate:        startDate,
+				EndDate:          endDate,
+				InclusiveEndDate: false,
+			},
+		},
+		PortfolioSettings: PortfolioSettings{
+			BuySide:  minMax,
+			SellSide: minMax,
+			Leverage: Leverage{
+				CanUseLeverage: false,
+			},
+		},
+		StatisticSettings: StatisticSettings{
+			RiskFreeRate: decimal.NewFromFloat(0.03),
+		},
+	}
+	if saveConfig {
+		result, err := json.MarshalIndent(cfg, "", " ")
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, err := os.Getwd()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = os.WriteFile(filepath.Join(p, "examples", "custom-plugin-strategy.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}
@@ -930,26 +917,12 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 				MakerFee: &makerFee,
 				TakerFee: &takerFee,
 			},
-			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot,
-				Base:         currency.ETH,
-				Quote:        currency.USDT,
-				SpotDetails: &SpotDetails{
-					InitialBaseFunds:  initialFunds10,
-					InitialQuoteFunds: initialFunds1000000,
-				},
-				BuySide:  minMax,
-				SellSide: minMax,
-				MakerFee: &makerFee,
-				TakerFee: &takerFee,
-			},
 		},
 		DataSettings: DataSettings{
 			Interval: kline.OneDay,
 			DataType: common.CandleStr,
 			APIData: &APIData{
-				StartDate:        startDate,
+				StartDate:        time.Date(2021, 5, 1, 0, 0, 0, 0, time.Local),
 				EndDate:          endDate,
 				InclusiveEndDate: false,
 			},

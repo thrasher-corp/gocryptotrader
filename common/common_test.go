@@ -739,7 +739,7 @@ func TestGenerateRandomString(t *testing.T) {
 	if len(sample) != 5 || err != nil || values < 0 {
 		t.Error("GenerateRandomString() unexpected test validation result")
 	}
-	sample, err = GenerateRandomString(1, "")
+	_, err = GenerateRandomString(1, "")
 	if err == nil {
 		t.Errorf("GenerateRandomString() expecting %s, but found %v", "invalid characters, character must not be empty", err)
 	}

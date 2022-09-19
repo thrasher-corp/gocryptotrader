@@ -74,6 +74,7 @@ func (h *HUOBI) SetDefaults() {
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
+			Delimiter: currency.DashDelimiter,
 		},
 	}
 	futures := currency.PairStore{
@@ -82,6 +83,7 @@ func (h *HUOBI) SetDefaults() {
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
+			Delimiter: currency.DashDelimiter,
 		},
 	}
 	err := h.StoreAssetPairFormat(asset.Spot, fmt1)
@@ -1772,7 +1774,7 @@ func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 	if err := h.ValidateKline(pair, a, interval); err != nil {
 		return kline.Item{}, err
 	}
-	klineParams := KlinesRequestParams{
+	klineParams := &KlinesRequestParams{
 		Period: h.FormatExchangeKlineInterval(interval),
 		Symbol: pair,
 	}

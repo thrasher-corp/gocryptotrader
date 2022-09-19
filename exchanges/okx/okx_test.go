@@ -39,7 +39,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	exchCfg, err := cfg.GetExchangeConfig("okx")
+	exchCfg, err := cfg.GetExchangeConfig("Okx")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -55,6 +55,7 @@ func TestMain(m *testing.M) {
 	}
 
 	ok.Websocket = sharedtestvalues.NewTestWebsocket()
+	ok.Base.Config = exchCfg
 	err = ok.Setup(exchCfg)
 	if err != nil {
 		log.Fatal(err)
@@ -66,6 +67,7 @@ func TestMain(m *testing.M) {
 
 func TestStart(t *testing.T) {
 	t.Parallel()
+	ok.Verbose = false
 	err := ok.Start(nil)
 	if !errors.Is(err, common.ErrNilPointer) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
@@ -2559,9 +2561,6 @@ func TestFetchTicker(t *testing.T) {
 
 func TestFetchOrderbook(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.SkipNow()
-	}
 	if _, err := ok.FetchOrderbook(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.Spot); err != nil {
 		t.Error("Okx FetchOrderbook() error", err)
 	}
@@ -2569,9 +2568,6 @@ func TestFetchOrderbook(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.SkipNow()
-	}
 	if _, err := ok.UpdateOrderbook(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.Spot); err != nil {
 		t.Error("Okx UpdateOrderbook() error", err)
 	}

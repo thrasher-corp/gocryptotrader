@@ -330,7 +330,7 @@ var (
 	errInvalidIPAddress                              = errors.New("invalid ip address")
 	errInvalidAPIKeyPermission                       = errors.New("invalid API Key permission")
 	errNoInstrumentFound                             = errors.New("instruments not found")
-	errInvalidResponseParam                          = errors.New("invalid response paramter, response must be non-nil pointer")
+	errInvalidResponseParam                          = errors.New("invalid response parameter, response must be non-nil pointer")
 )
 
 /************************************ MarketData Endpoints *************************************************/
@@ -2931,7 +2931,7 @@ func (ok *Okx) GetGridAIParameter(ctx context.Context, algoOrderType, instrument
 		params.Set("duration", duration)
 	}
 	var resp []GridAIParameterResponse
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getGridAIParameterEPL, http.MethodGet, common.EncodeURLValues(gridAIParams, params), nil, &resp, true)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getGridAIParameterEPL, http.MethodGet, common.EncodeURLValues(gridAIParams, params), nil, &resp, false)
 }
 
 // ****************************************** Earn **************************************************
@@ -3106,7 +3106,7 @@ func (ok *Okx) GetIndexTickers(ctx context.Context, quoteCurrency, instID string
 	} else if instID != "" {
 		params.Set("instId", instID)
 	}
-	return response, ok.SendHTTPRequest(ctx, exchange.RestSpot, getIndexTickersEPL, http.MethodGet, common.EncodeURLValues(indexTickers, params), nil, response, false)
+	return response, ok.SendHTTPRequest(ctx, exchange.RestSpot, getIndexTickersEPL, http.MethodGet, common.EncodeURLValues(indexTickers, params), nil, &response, false)
 }
 
 // getInstrumentIDFromPair returns the instrument ID for the corresponding asset pairs and asset type( Instrument Type )

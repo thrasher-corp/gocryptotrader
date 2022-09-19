@@ -370,7 +370,7 @@ func TestPlaceMultipleSpotOrdersOverPairLimits(t *testing.T) {
 	}
 
 	for x := range pairs {
-		ord.InstrumentID = pairs[x].Format("-", false).String()
+		ord.InstrumentID = pairs[x].Format(currency.PairFormat{Delimiter: "-"}).String()
 		request = append(request, ord)
 	}
 
@@ -674,7 +674,7 @@ func TestPlaceMultipleMarginOrdersOverPairLimits(t *testing.T) {
 	}
 
 	for x := range pairs {
-		ord.InstrumentID = pairs[x].Format("-", false).String()
+		ord.InstrumentID = pairs[x].Format(currency.PairFormat{Delimiter: "-"}).String()
 		request = append(request, ord)
 	}
 

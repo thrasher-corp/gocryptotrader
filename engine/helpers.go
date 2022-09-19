@@ -137,8 +137,9 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 					bot.ExchangeManager,
 					bot.CommunicationsManager,
 					&bot.ServicesWG,
-					bot.Settings.EnableFuturesTracking,
-					bot.Settings.Verbose)
+					bot.Config.OrderManager.Verbose,
+					bot.Config.OrderManager.ActivelyTrackFuturesPositions,
+					bot.Config.OrderManager.FuturesTrackingSeekDuration)
 				if err != nil {
 					return err
 				}
@@ -853,7 +854,8 @@ func verifyCert(pemData []byte) error {
 	return nil
 }
 
-func checkCerts(certDir string) error {
+// CheckCerts checks and verifies RPC server certificates
+func CheckCerts(certDir string) error {
 	certFile := filepath.Join(certDir, "cert.pem")
 	keyFile := filepath.Join(certDir, "key.pem")
 

@@ -258,6 +258,13 @@
             "delimiter": "-"
         },
         "useGlobalFormat": true,
+        "assetTypes": [
+            "futures",
+            "margin",
+            "option",
+            "perpetualswap",
+            "spot"
+        ],
         "pairs": {
             "futures": {
                 "assetEnabled": true,

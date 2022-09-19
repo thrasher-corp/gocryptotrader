@@ -890,7 +890,6 @@ func (a *PendingOrderItem) UnmarshalJSON(data []byte) error {
 		InstrumentType      string `json:"instType"`
 		AccumulatedFillSize string `json:"accFillSz"`
 		AveragePrice        string `json:"avgPx"`
-		FeeCurrency         string `json:"feeCcy"`
 		LastFilledSize      string `json:"fillSz"`
 		Leverage            string `json:"lever"`
 	}{
@@ -921,12 +920,6 @@ func (a *PendingOrderItem) UnmarshalJSON(data []byte) error {
 	}
 	if chil.AveragePrice != "" {
 		a.AveragePrice, err = strconv.ParseFloat(chil.AveragePrice, 64)
-		if err != nil {
-			return err
-		}
-	}
-	if chil.FeeCurrency != "" {
-		a.FeeCurrency, err = strconv.ParseFloat(chil.FeeCurrency, 64)
 		if err != nil {
 			return err
 		}

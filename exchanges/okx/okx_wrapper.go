@@ -43,7 +43,7 @@ func (ok *Okx) GetDefaultConfig() (*config.Exchange, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = ok.BaseCurrencies
 
-	err := ok.SetupDefaults(exchCfg)
+	err := ok.Setup(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -51,6 +51,7 @@ func (ok *Okx) GetDefaultConfig() (*config.Exchange, error) {
 	if ok.Features.Supports.RESTCapabilities.AutoPairUpdates {
 		err := ok.UpdateTradablePairs(context.TODO(), false)
 		if err != nil {
+			println("ERROR: while getting tradable pairs " + err.Error())
 			return nil, err
 		}
 	}
@@ -176,6 +177,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
+	ok.Base.Config = exch
 
 	wsRunningEndpoint, err := ok.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
@@ -235,6 +237,7 @@ func (ok *Okx) Run() {
 			common.IsEnabled(ok.Websocket.IsEnabled()))
 		ok.PrintEnabledPairs()
 	}
+
 	if !ok.GetEnabledFeatures().AutoPairUpdates {
 		return
 	}
@@ -1138,6 +1141,7 @@ func (ok *Okx) GetHistoricCandles(ctx context.Context, pair currency.Pair, a ass
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (ok *Okx) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	println(a.String())
 	if err := ok.ValidateKline(pair, a, interval); err != nil {
 		return kline.Item{}, err
 	}

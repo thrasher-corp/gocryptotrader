@@ -21,10 +21,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-const (
-	wsFuturesPath = "realtime"
-)
-
 // WsFuturesConnect connects to a Futures websocket feed
 func (by *Bybit) WsFuturesConnect() error {
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() {

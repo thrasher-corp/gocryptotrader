@@ -729,7 +729,7 @@ type PendingOrderItem struct {
 	Currency                   string     `json:"ccy"`
 	ClientSupplierOrderID      string     `json:"clOrdId"`
 	TransactionFee             string     `json:"fee"`
-	FeeCurrency                float64    `json:"feeCcy"`
+	FeeCurrency                string     `json:"feeCcy"`
 	LastFilledPrice            string     `json:"fillPx"`
 	LastFilledSize             float64    `json:"fillSz"`
 	FillTime                   string     `json:"fillTime"`

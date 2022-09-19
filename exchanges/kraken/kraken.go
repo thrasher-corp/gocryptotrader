@@ -952,6 +952,10 @@ func (k *Kraken) AddOrder(ctx context.Context, symbol currency.Pair, side, order
 		params.Set("validate", "true")
 	}
 
+	if args.TimeInForce != "" {
+		params.Set("timeinforce", string(args.TimeInForce))
+	}
+
 	if err := k.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenOrderPlace, params, &response); err != nil {
 		return response.Result, err
 	}
