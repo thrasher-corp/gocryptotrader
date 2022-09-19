@@ -1008,11 +1008,11 @@ func (b *Binance) DepositHistory(ctx context.Context, c currency.Code, status st
 	}
 
 	if !startTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(startTime.UTC().Unix(), 10))
+		params.Set("startTime", strconv.FormatInt(startTime.UTC().UnixMilli(), 10))
 	}
 
 	if !endTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(endTime.UTC().Unix(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UTC().UnixMilli(), 10))
 	}
 
 	if offset != 0 {
