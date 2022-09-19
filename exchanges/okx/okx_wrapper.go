@@ -45,6 +45,7 @@ func (ok *Okx) GetDefaultConfig() (*config.Exchange, error) {
 
 	err := ok.Setup(exchCfg)
 	if err != nil {
+		println("ERROR:- ", err.Error())
 		return nil, err
 	}
 
@@ -196,6 +197,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 			Checksum: ok.CalculateUpdateOrderbookChecksum,
 		},
 	})
+
 	if err != nil {
 		return err
 	}

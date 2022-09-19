@@ -705,8 +705,12 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 	}
 	pair, err = ok.GetPairFromInstrumentID(response.Argument.InstrumentID)
 	if err != nil {
-		pair.Delimiter = currency.DashDelimiter
+		return err
 	}
+	if pair.Base.IsEmpty() || pair.Quote.IsEmpty() {
+		return errors.New("invalid currency pair information")
+	}
+	pair.Delimiter = currency.DashDelimiter
 	for i := range response.Data {
 		if response.Action == OkxOrderBookSnapshot {
 			err = ok.WsProcessSnapshotOrderBook(response.Data[i], pair, a)
@@ -1225,7 +1229,7 @@ func (ok *Okx) WSPlaceOrder(arg *PlaceOrderRequestParam) (*PlaceOrderResponse, e
 		Arguments: []PlaceOrderRequestParam{*arg},
 		Operation: "batch-orders",
 	}
-	respData, err := ok.Websocket.Conn.SendMessageReturnResponse(input.ID, input)
+	respData, err := ok.Websocket.Conn.SendMessageReturnResponse(randomID, input)
 	if err != nil {
 		return nil, err
 	}
@@ -1324,7 +1328,7 @@ func (ok *Okx) WsCancelOrder(arg CancelOrderRequestParam) (*PlaceOrderResponse, 
 		Arguments: []CancelOrderRequestParam{arg},
 		Operation: "cancel-order",
 	}
-	respData, err := ok.Websocket.Conn.SendMessageReturnResponse("cancel-orders", input)
+	respData, err := ok.Websocket.Conn.SendMessageReturnResponse(randomID, input)
 	if err != nil {
 		return nil, err
 	}
@@ -1409,7 +1413,7 @@ func (ok *Okx) WsAmendOrder(arg *AmendOrderRequestParams) (*AmendOrderResponse, 
 		Operation: "amend-order",
 		Arguments: []AmendOrderRequestParams{*arg},
 	}
-	respData, err := ok.Websocket.Conn.SendMessageReturnResponse("amend-order", input)
+	respData, err := ok.Websocket.Conn.SendMessageReturnResponse(randomID, input)
 	if err != nil {
 		return nil, err
 	}
@@ -1455,7 +1459,7 @@ func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]AmendOrd
 		Operation: "batch-amend-orders",
 		Arguments: args,
 	}
-	respData, err := ok.Websocket.Conn.SendMessageReturnResponse("amend-orders", input)
+	respData, err := ok.Websocket.Conn.SendMessageReturnResponse(randomID, input)
 	if err != nil {
 		return nil, err
 	}
@@ -1605,7 +1609,11 @@ func (ok *Okx) WsAuthChannelSubscription(operation, channel string, assetType as
 			},
 		},
 	}
-	respData, err := ok.Websocket.AuthConn.SendMessageReturnResponse(channel, input)
+	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
+	if err != nil {
+		return nil, err
+	}
+	respData, err := ok.Websocket.AuthConn.SendMessageReturnResponse(randomID, input)
 	if err != nil {
 		return nil, err
 	}
