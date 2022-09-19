@@ -595,6 +595,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 	}, nil
 }
 
+// ListAllRuns returns all backtesting/livestrategy runs managed by the server
 func (s *GRPCServer) ListAllRuns(_ context.Context, _ *btrpc.ListAllRunsRequest) (*btrpc.ListAllRunsResponse, error) {
 	if s.manager == nil {
 		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
@@ -614,6 +615,10 @@ func (s *GRPCServer) StopRun(_ context.Context, req *btrpc.StopRunRequest) (*btr
 	if s.manager == nil {
 		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
 	}
+	if req == nil {
+		return nil, fmt.Errorf("%w StopRunRequest", gctcommon.ErrNilPointer)
+	}
+
 	run, err := s.manager.GetSummary(req.Id)
 	if err != nil {
 		return nil, err
@@ -627,10 +632,32 @@ func (s *GRPCServer) StopRun(_ context.Context, req *btrpc.StopRunRequest) (*btr
 	}, nil
 }
 
+// StopAllRuns stops all backtest/livestrategy runs in its tracks
+func (s *GRPCServer) StopAllRuns(_ context.Context, _ *btrpc.StopAllRunsRequest) (*btrpc.StopAllRunsResponse, error) {
+	if s.manager == nil {
+		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
+	}
+	var stoppedRuns []*btrpc.RunSummary
+	started, err := s.manager.StopAllRuns()
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range started {
+		stoppedRuns = append(stoppedRuns, convertSummary(started[i]))
+	}
+	return &btrpc.StopAllRunsResponse{
+		RunsStopped: stoppedRuns,
+	}, nil
+}
+
 // StartRun starts a backtest/livestrategy that was set to not start automatically
 func (s *GRPCServer) StartRun(_ context.Context, req *btrpc.StartRunRequest) (*btrpc.StartRunResponse, error) {
 	if s.manager == nil {
 		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
+	}
+	if req == nil {
+		return nil, fmt.Errorf("%w StartRunRequest", gctcommon.ErrNilPointer)
 	}
 	err := s.manager.StartRun(req.Id)
 	if err != nil {
@@ -657,29 +684,13 @@ func (s *GRPCServer) StartAllRuns(_ context.Context, _ *btrpc.StartAllRunsReques
 	}, nil
 }
 
-// StopAllRuns stops all backtest/livestrategy runs in its tracks
-func (s *GRPCServer) StopAllRuns(_ context.Context, _ *btrpc.StopAllRunsRequest) (*btrpc.StopAllRunsResponse, error) {
-	if s.manager == nil {
-		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
-	}
-	var stoppedRuns []*btrpc.RunSummary
-	started, err := s.manager.StopAllRuns()
-	if err != nil {
-		return nil, err
-	}
-
-	for i := range started {
-		stoppedRuns = append(stoppedRuns, convertSummary(started[i]))
-	}
-	return &btrpc.StopAllRunsResponse{
-		RunsStopped: stoppedRuns,
-	}, nil
-}
-
 // ClearRun removes a run from memory, but only if it is not running
 func (s *GRPCServer) ClearRun(_ context.Context, req *btrpc.ClearRunRequest) (*btrpc.ClearRunResponse, error) {
 	if s.manager == nil {
 		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
+	}
+	if req == nil {
+		return nil, fmt.Errorf("%w ClearRunRequest", gctcommon.ErrNilPointer)
 	}
 	run, err := s.manager.GetSummary(req.Id)
 	if err != nil {
@@ -721,6 +732,9 @@ func (s *GRPCServer) ClearAllRuns(_ context.Context, _ *btrpc.ClearAllRunsReques
 func (s *GRPCServer) ReportLogs(_ context.Context, req *btrpc.ReportLogsRequest) (*btrpc.ReportLogsResponse, error) {
 	if s.manager == nil {
 		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
+	}
+	if req == nil {
+		return nil, fmt.Errorf("%w ReportLogsRequest", gctcommon.ErrNilPointer)
 	}
 	logs, err := s.manager.ReportLogs(req.Id)
 	if err != nil {

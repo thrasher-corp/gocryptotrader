@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/writer"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"strings"
@@ -53,6 +54,15 @@ func (r *RunManager) AddRun(b *BackTest) error {
 		if r.runs[i].MetaData.ID == b.MetaData.ID {
 			return fmt.Errorf("%w %s %s", errRunAlreadyMonitored, b.MetaData.ID, b.MetaData.Strategy)
 		}
+	}
+	var err error
+	b.logHolder, err = writer.SetupWriter(b.MetaData.ID)
+	if err != nil {
+		return err
+	}
+	err = log.AddWriter(b.logHolder)
+	if err != nil {
+		return err
 	}
 	r.runs = append(r.runs, b)
 	return nil
@@ -184,7 +194,7 @@ func (r *RunManager) ClearRun(id string) error {
 				return fmt.Errorf("%w %v, currently running. Stop it first", errCannotClear, r.runs[i].MetaData.ID)
 			}
 			err := log.RemoveWriter(r.runs[i].logHolder)
-			if err != nil {
+			if err != nil && errors.Is(err, log.ErrWriterNotFound) {
 				return err
 			}
 			r.runs = append(r.runs[:i], r.runs[i+1:]...)
@@ -208,7 +218,7 @@ func (r *RunManager) ClearAllRuns() (clearedRuns, remainingRuns []*RunSummary, e
 		} else {
 			clearedRuns = append(clearedRuns, run)
 			err = log.RemoveWriter(r.runs[i].logHolder)
-			if err != nil {
+			if err != nil && errors.Is(err, log.ErrWriterNotFound) {
 				return nil, nil, err
 			}
 			r.runs = append(r.runs[:i], r.runs[i+1:]...)

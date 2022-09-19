@@ -59,6 +59,7 @@ func (bt *BackTest) ExecuteStrategy() error {
 				log.Error(log.Global, err)
 				return
 			}
+			// TODO handle log removal for live after merge
 		}()
 	} else {
 		bt.Run()
@@ -72,6 +73,13 @@ func (bt *BackTest) ExecuteStrategy() error {
 		}
 		bt.MetaData.DateEnded = time.Now()
 		bt.MetaData.Closed = true
+		if bt.logHolder != nil {
+			bt.logHolder.DeActivate()
+			err = log.RemoveWriter(bt.logHolder)
+			if err != nil && !errors.Is(err, log.ErrWriterNotFound) {
+				return err
+			}
+		}
 	}
 
 	return nil

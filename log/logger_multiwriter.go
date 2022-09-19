@@ -7,8 +7,10 @@ import (
 )
 
 var (
+	// ErrWriterNotFound is returned when a writer is not found
+	ErrWriterNotFound = errors.New("io.Writer not found")
+
 	errWriterAlreadyLoaded = errors.New("io.Writer already loaded")
-	errWriterNotFound      = errors.New("io.Writer not found")
 )
 
 // AddWriter appends an additional writer to all subloggers
@@ -79,7 +81,7 @@ func (mw *multiWriterHolder) Remove(writer io.Writer) error {
 		mw.writers = mw.writers[:len(mw.writers)-1]
 		return nil
 	}
-	return errWriterNotFound
+	return ErrWriterNotFound
 }
 
 // Write concurrent safe Write for each writer

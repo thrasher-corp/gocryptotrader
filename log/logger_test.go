@@ -143,8 +143,8 @@ func TestRemoveWriter(t *testing.T) {
 		t.Fatal(err)
 	}
 	err = mw.Remove(&bytes.Buffer{})
-	if !errors.Is(err, errWriterNotFound) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errWriterNotFound)
+	if !errors.Is(err, ErrWriterNotFound) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrWriterNotFound)
 	}
 
 	if len(mw.writers) != total-2 {
