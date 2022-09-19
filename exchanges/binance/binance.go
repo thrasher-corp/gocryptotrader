@@ -813,7 +813,7 @@ func (b *Binance) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, m
 	interim := json.RawMessage{}
 	err = b.SendPayload(ctx, f, func() (*request.Item, error) {
 		fullPath := endpointPath + path
-		params.Set("timestamp", strconv.FormatInt(time.Now().Unix()*1000, 10))
+		params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 		signature := params.Encode()
 		var hmacSigned []byte
 		hmacSigned, err = crypto.GetHMAC(crypto.HashSHA256,
@@ -1060,11 +1060,11 @@ func (b *Binance) WithdrawHistory(ctx context.Context, c currency.Code, status s
 	}
 
 	if !startTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(startTime.UTC().Unix(), 10))
+		params.Set("startTime", strconv.FormatInt(startTime.UTC().UnixMilli(), 10))
 	}
 
 	if !endTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(endTime.UTC().Unix(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UTC().UnixMilli(), 10))
 	}
 
 	if offset != 0 {
