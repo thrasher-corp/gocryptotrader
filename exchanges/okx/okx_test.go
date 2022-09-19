@@ -53,7 +53,10 @@ func TestMain(m *testing.M) {
 		exchCfg.API.AuthenticatedSupport = true
 		exchCfg.API.AuthenticatedWebsocketSupport = true
 	}
-	ok.GetDefaultConfig()
+	err = ok.Setup(exchCfg)
+	if err != nil {
+		log.Fatal(err)
+	}
 	ok.Websocket = sharedtestvalues.NewTestWebsocket()
 	ok.Base.Config = exchCfg
 	err = ok.Setup(exchCfg)

@@ -45,14 +45,12 @@ func (ok *Okx) GetDefaultConfig() (*config.Exchange, error) {
 
 	err := ok.Setup(exchCfg)
 	if err != nil {
-		println("ERROR:- ", err.Error())
 		return nil, err
 	}
 
 	if ok.Features.Supports.RESTCapabilities.AutoPairUpdates {
 		err := ok.UpdateTradablePairs(context.TODO(), false)
 		if err != nil {
-			println("ERROR: while getting tradable pairs " + err.Error())
 			return nil, err
 		}
 	}
@@ -1143,7 +1141,6 @@ func (ok *Okx) GetHistoricCandles(ctx context.Context, pair currency.Pair, a ass
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (ok *Okx) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	println(a.String())
 	if err := ok.ValidateKline(pair, a, interval); err != nil {
 		return kline.Item{}, err
 	}
