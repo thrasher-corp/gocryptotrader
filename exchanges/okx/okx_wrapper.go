@@ -1108,14 +1108,14 @@ func (ok *Okx) GetHistoricCandles(ctx context.Context, pair currency.Pair, a ass
 	if err := ok.ValidateKline(pair, a, interval); err != nil {
 		return kline.Item{}, err
 	}
-	if kline.TotalCandlesPerInterval(start, end, interval) > float64(ok.Features.Enabled.Kline.ResultLimit) {
+	if kline.TotalCandlesPerInterval(start, end, interval) > 100 {
 		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
 	}
 	instrumentID, err := ok.getInstrumentIDFromPair(ctx, pair, a)
 	if err != nil {
 		return kline.Item{}, err
 	}
-	candles, err := ok.GetCandlesticksHistory(ctx, instrumentID, interval, start, end, uint64(ok.Features.Enabled.Kline.ResultLimit))
+	candles, err := ok.GetCandlesticksHistory(ctx, instrumentID, interval, start, end, 100)
 	if err != nil {
 		return kline.Item{}, err
 	}
