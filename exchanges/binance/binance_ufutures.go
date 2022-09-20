@@ -33,7 +33,6 @@ const (
 	ufuturesTickerPriceStats   = "/fapi/v1/ticker/24hr?"
 	ufuturesSymbolPriceTicker  = "/fapi/v1/ticker/price?"
 	ufuturesSymbolOrderbook    = "/fapi/v1/ticker/bookTicker?"
-	ufuturesLiquidationOrders  = "/fapi/v1/allForceOrders?"
 	ufuturesOpenInterest       = "/fapi/v1/openInterest?"
 	ufuturesOpenInterestStats  = "/futures/data/openInterestHist?"
 	ufuturesTopAccountsRatio   = "/futures/data/topLongShortAccountRatio?"
@@ -212,8 +211,8 @@ func (b *Binance) UCompressedTrades(ctx context.Context, symbol currency.Pair, f
 		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be after endTime")
 		}
-		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
-		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesCompressedTrades+params.Encode(), uFuturesHistoricalTradesRate, &resp)
 }
@@ -396,8 +395,8 @@ func (b *Binance) UGetFundingHistory(ctx context.Context, symbol currency.Pair, 
 		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be after endTime")
 		}
-		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
-		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesFundingRateHistory+params.Encode(), uFuturesDefaultRate, &resp)
 }
@@ -465,32 +464,6 @@ func (b *Binance) USymbolOrderbookTicker(ctx context.Context, symbol currency.Pa
 	return resp, err
 }
 
-// ULiquidationOrders gets public liquidation orders
-func (b *Binance) ULiquidationOrders(ctx context.Context, symbol currency.Pair, limit int64, startTime, endTime time.Time) ([]ULiquidationOrdersData, error) {
-	var resp []ULiquidationOrdersData
-	params := url.Values{}
-	rateLimit := uFuturesAllForceOrdersRate
-	if !symbol.IsEmpty() {
-		rateLimit = uFuturesCurrencyForceOrdersRate
-		symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
-		if err != nil {
-			return resp, err
-		}
-		params.Set("symbol", symbolValue)
-	}
-	if limit > 0 && limit < 1000 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if startTime.After(endTime) {
-			return resp, errors.New("startTime cannot be after endTime")
-		}
-		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
-		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
-	}
-	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesLiquidationOrders+params.Encode(), rateLimit, &resp)
-}
-
 // UOpenInterest gets open interest data for USDTMarginedFutures
 func (b *Binance) UOpenInterest(ctx context.Context, symbol currency.Pair) (UOpenInterestData, error) {
 	var resp UOpenInterestData
@@ -523,8 +496,8 @@ func (b *Binance) UOpenInterestStats(ctx context.Context, symbol currency.Pair, 
 		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be after endTime")
 		}
-		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
-		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesOpenInterestStats+params.Encode(), uFuturesDefaultRate, &resp)
 }
@@ -549,8 +522,8 @@ func (b *Binance) UTopAcccountsLongShortRatio(ctx context.Context, symbol curren
 		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be after endTime")
 		}
-		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
-		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesTopAccountsRatio+params.Encode(), uFuturesDefaultRate, &resp)
 }
@@ -575,8 +548,8 @@ func (b *Binance) UTopPostionsLongShortRatio(ctx context.Context, symbol currenc
 		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be after endTime")
 		}
-		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
-		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesTopPositionsRatio+params.Encode(), uFuturesDefaultRate, &resp)
 }
@@ -601,8 +574,8 @@ func (b *Binance) UGlobalLongShortRatio(ctx context.Context, symbol currency.Pai
 		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be after endTime")
 		}
-		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
-		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesLongShortRatio+params.Encode(), uFuturesDefaultRate, &resp)
 }
@@ -627,8 +600,8 @@ func (b *Binance) UTakerBuySellVol(ctx context.Context, symbol currency.Pair, pe
 		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be after endTime")
 		}
-		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
-		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesBuySellVolume+params.Encode(), uFuturesDefaultRate, &resp)
 }
@@ -895,8 +868,8 @@ func (b *Binance) UAllAccountOrders(ctx context.Context, symbol currency.Pair, o
 		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be after endTime")
 		}
-		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
-		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesAllOrders, params, uFuturesGetAllOrdersRate, &resp)
 }
@@ -988,8 +961,8 @@ func (b *Binance) UPositionMarginChangeHistory(ctx context.Context, symbol curre
 		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be after endTime")
 		}
-		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
-		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesMarginChangeHistory, params, uFuturesDefaultRate, &resp)
 }
@@ -1027,8 +1000,8 @@ func (b *Binance) UAccountTradesHistory(ctx context.Context, symbol currency.Pai
 		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be after endTime")
 		}
-		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
-		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesAccountTradeList, params, uFuturesAccountInformationRate, &resp)
 }
@@ -1055,8 +1028,8 @@ func (b *Binance) UAccountIncomeHistory(ctx context.Context, symbol currency.Pai
 		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be after endTime")
 		}
-		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
-		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesIncomeHistory, params, uFuturesIncomeHistoryRate, &resp)
 }
@@ -1115,8 +1088,8 @@ func (b *Binance) UAccountForcedOrders(ctx context.Context, symbol currency.Pair
 		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be after endTime")
 		}
-		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
-		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesUsersForceOrders, params, rateLimit, &resp)
 }
@@ -1140,10 +1113,10 @@ func (b *Binance) FundingRates(ctx context.Context, symbol currency.Pair, limit 
 		params.Set("limit", limit)
 	}
 	if !startTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(startTime.UnixNano(), 10))
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
 	if !endTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(endTime.UnixNano(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, fundingRate+params.Encode(), uFuturesDefaultRate, &resp)
 }
