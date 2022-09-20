@@ -36,7 +36,6 @@ const (
 	cfuturesTickerPriceStats   = "/dapi/v1/ticker/24hr?"
 	cfuturesSymbolPriceTicker  = "/dapi/v1/ticker/price?"
 	cfuturesSymbolOrderbook    = "/dapi/v1/ticker/bookTicker?"
-	cfuturesLiquidationOrders  = "/dapi/v1/allForceOrders?"
 	cfuturesOpenInterest       = "/dapi/v1/openInterest?"
 	cfuturesOpenInterestStats  = "/futures/data/openInterestHist?"
 	cfuturesTopAccountsRatio   = "/futures/data/topLongShortAccountRatio?"
@@ -805,35 +804,6 @@ func (b *Binance) GetFuturesOrderbookTicker(ctx context.Context, symbol currency
 		params.Set("pair", pair)
 	}
 	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, cfuturesSymbolOrderbook+params.Encode(), rateLimit, &resp)
-}
-
-// GetFuturesLiquidationOrders gets forced liquidation orders
-func (b *Binance) GetFuturesLiquidationOrders(ctx context.Context, symbol currency.Pair, pair string, limit int64, startTime, endTime time.Time) ([]AllLiquidationOrders, error) {
-	var resp []AllLiquidationOrders
-	params := url.Values{}
-	rateLimit := cFuturesAllForceOrdersRate
-	if !symbol.IsEmpty() {
-		rateLimit = cFuturesCurrencyForceOrdersRate
-		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
-		if err != nil {
-			return resp, err
-		}
-		params.Set("symbol", symbolValue)
-	}
-	if pair != "" {
-		params.Set("pair", pair)
-	}
-	if limit > 0 && limit <= 1000 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if startTime.After(endTime) {
-			return resp, errors.New("startTime cannot be after endTime")
-		}
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
-	}
-	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, cfuturesLiquidationOrders+params.Encode(), rateLimit, &resp)
 }
 
 // GetOpenInterest gets open interest data for a symbol

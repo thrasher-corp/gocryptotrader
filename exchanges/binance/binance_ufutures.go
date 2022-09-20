@@ -33,7 +33,6 @@ const (
 	ufuturesTickerPriceStats   = "/fapi/v1/ticker/24hr?"
 	ufuturesSymbolPriceTicker  = "/fapi/v1/ticker/price?"
 	ufuturesSymbolOrderbook    = "/fapi/v1/ticker/bookTicker?"
-	ufuturesLiquidationOrders  = "/fapi/v1/allForceOrders?"
 	ufuturesOpenInterest       = "/fapi/v1/openInterest?"
 	ufuturesOpenInterestStats  = "/futures/data/openInterestHist?"
 	ufuturesTopAccountsRatio   = "/futures/data/topLongShortAccountRatio?"
@@ -463,32 +462,6 @@ func (b *Binance) USymbolOrderbookTicker(ctx context.Context, symbol currency.Pa
 	var resp []USymbolOrderbookTicker
 	err := b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesTickerPriceStats+params.Encode(), uFuturesOrderbookTickerAllRate, &resp)
 	return resp, err
-}
-
-// ULiquidationOrders gets public liquidation orders
-func (b *Binance) ULiquidationOrders(ctx context.Context, symbol currency.Pair, limit int64, startTime, endTime time.Time) ([]ULiquidationOrdersData, error) {
-	var resp []ULiquidationOrdersData
-	params := url.Values{}
-	rateLimit := uFuturesAllForceOrdersRate
-	if !symbol.IsEmpty() {
-		rateLimit = uFuturesCurrencyForceOrdersRate
-		symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
-		if err != nil {
-			return resp, err
-		}
-		params.Set("symbol", symbolValue)
-	}
-	if limit > 0 && limit < 1000 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if startTime.After(endTime) {
-			return resp, errors.New("startTime cannot be after endTime")
-		}
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
-	}
-	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesLiquidationOrders+params.Encode(), rateLimit, &resp)
 }
 
 // UOpenInterest gets open interest data for USDTMarginedFutures
