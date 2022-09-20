@@ -161,14 +161,388 @@ type TradesResponse struct {
 // WithdrawalFees the large list of predefined withdrawal fees
 // Prone to change
 var WithdrawalFees = map[currency.Code]float64{
-	currency.USDT:     10,
+	currency.BTC:   0.001,
+	currency.ETH:   0.003,
+	currency.USDT:  40,
+	currency.USDC:  2,
+	currency.BUSD:  5,
+	currency.ADA:   3.8,
+	currency.SOL:   0.11,
+	currency.DOT:   .25,
+	currency.DOGE:  29,
+	currency.MATIC: 2.2,
+	currency.STETH: 0.023,
+	currency.DAI:   24,
+	currency.SHIB:  420000,
+	currency.AVAX:  0.083,
+	currency.TRX:   1,
+	currency.WBTC:  0.0011,
+	currency.ETC:   0.051,
+	currency.OKB:   1.6,
+	currency.LTC:   0.002,
+	currency.UNI:   3.2,
+	currency.LINK:  3.2,
+	currency.ATOM:  0.19,
+	currency.XLM:   0.01,
+	currency.XMR:   0.013,
+	currency.BCH:   0.014,
+	currency.ALGO:  6,
+	currency.ICP:   0.25,
+	// currency.APE:     0.75,
+	currency.FLOW: 2.6,
+	currency.VET:  100,
+	// currency.XCN:     290,
+	currency.MANA:  26,
+	currency.SAND:  19,
+	currency.AXS:   1.3,
+	currency.HBAR:  1,
+	currency.XTZ:   1.1,
+	currency.FRAX:  25,
+	currency.QNT:   0.24,
+	currency.THETA: 1.5,
+	currency.AAVE:  1,
+	currency.EOS:   1.5,
+	currency.EGLD:  0.052,
+	currency.BSV:   0.032,
+	currency.TUSD:  2,
+	currency.HNT:   0.21,
+	currency.MKR:   0.0045,
+	currency.GRT:   190,
+	currency.KLAY:  6.4,
+	currency.BTT:   1,
+	currency.MIOTA: 0.1,
+	currency.XEC:   10000,
+	currency.FTM:   6,
+	currency.FTM:   6,
+	currency.SNX:   13,
+	currency.ZEC:   0.031,
+	currency.NEO:   0,
+	currency.BIT:   45,
+	currency.AR:    0.5,
+	currency.HT:    1.1,
+	currency.AMP:   7000,
+	currency.CHZ:   16,
+	currency.GT:    0.22,
+	// currency.XRD:     31,
+	currency.TENSET: 0.22,
+	currency.ZIL:    48,
+	currency.BAT:    12,
+	currency.BTG:    0.061,
+	currency.GMT:    5.1,
+	currency.ENJ:    42,
+	currency.STX:    5,
+	currency.CAKE:   0.77,
+	currency.KSM:    0.032,
+	currency.WAVES:  0.36,
+	currency.DASH:   0.04,
+	currency.LRC:    59,
+	currency.CRV:    18,
+	currency.FXS:    7.8,
+	currency.CVX:    3.8,
+	currency.CVX:    3.3,
+	// currency.OMI:     16000,
+	currency.RVN:     1,
+	currency.CELO:    1.9,
+	currency.CEL:     25,
+	currency.QTUM:    0.47,
+	currency.KAVA:    1.1,
+	currency.XEM:     25,
+	currency.ONEINCH: 6.6,
+	currency.XAUT:    0.0028,
+	currency.ROSE:    0.1,
+	currency.GNO:     0.16,
+	currency.GALA:    440,
+	// currency.XDC:     68,
+	currency.NEXO: 34,
+	currency.COMP: 0.47,
+	currency.HOT:  2200,
+	currency.DCR:  0.073,
+	currency.OP:   1.1,
+	currency.ENS:  1.9,
+	currency.SRM:  24,
+	currency.YFI:  0.0022,
+	// currency.OHM:     0.42,
+	// currency.USTC:    57,
+	currency.TFUEL: 34,
+	currency.IOST:  140,
+	currency.TWT:   2.1,
+	// currency.MSOL:0.11,
+	// currency.KDA:1.1,
+	currency.IOTX:  60,
+	currency.LPT:   2.2,
+	currency.ZRX:   72,
+	currency.SYN:   17,
+	currency.ONE:   85,
+	currency.SUSHI: 16,
+	// currency.DAG:18,
+	currency.SAFEMOON: 28000000,
+	currency.IMX:      22,
+	// currency.GLMR:2.5,
+	currency.JST:   170,
+	currency.DYDX:  40,
+	currency.GLM:   94,
+	currency.LUNA:  2.7,
+	currency.AUDIO: 85,
+	currency.ICX:   6.5,
+	currency.ANKR:  840,
+	currency.ONT:   1,
+	currency.NU:    43,
+	// currency.MC:31,
+	// currency.KUB:0.75,
+	currency.WAXP: 19,
+	currency.SC:   450,
+	currency.BAL:  4.3,
+	currency.ZEN:  0.15,
+	currency.SGB:  77,
+	// currency.LOOKS:64,
+	currency.SKL:  830,
+	currency.EURT: 29,
+	// currency.BABYDODGE:2400000000,
+	currency.UMA:  15,
+	currency.XCH:  0.046,
+	currency.FEI:  28,
+	currency.HIVE: 3.8,
+	currency.SCRT: 1.8,
+	currency.ELON: 70000000,
+	// currency.CEEK:20,
+	currency.CSPR:  62,
+	currency.SLP:   5700,
+	currency.MXC:   310,
+	currency.NFT:   8100000,
+	currency.BTCST: 0.22,
+	currency.ASTR:  44,
+	// currency.PEOPLE:700,
+	currency.PLA: 68,
+	currency.LSK: 0.11,
+	// currency.RNDR:49,
+	currency.FX:    16,
+	currency.YGG:   5.9,
+	currency.METIS: 0.1,
+	currency.CKB:   450,
+	// currency.DOME:430,
+	currency.REN: 180,
+	// currency.DAO:16,
+	currency.RLY:  570,
+	currency.FLUX: 10,
+	currency.PROM: 3.3,
+	currency.RACA: 7400,
+	currency.XYO:  2500,
+	currency.ACA:  7.3,
+	currency.SUSD: 54,
+	// currency.GAL:7,
+	currency.RSR:  3900,
+	currency.NEST: 1000,
+	currency.ORBS: 580,
+	currency.WIN:  38000,
+	currency.ERG:  0.93,
+	currency.SNT:  1700,
+	currency.WRX:  7.4,
+	// currency.STSOL:0.11,
+	currency.CHR:    120,
+	currency.MED:    100,
+	currency.BNT:    46,
+	currency.CVC:    160,
+	currency.SYS:    11,
+	currency.CELR:   1300,
+	currency.FLOKI:  3100000,
+	currency.COTI:   240,
+	currency.CFX:    0.01,
+	currency.API3:   13,
+	currency.PUNDIX: 68,
+	// currency.ARRR:0.5,
+	// currency.JOE:5.5,
+	currency.OGN: 130,
+	// currency.EWT:0.81,
+	currency.RAY: 5.9,
+	// currency.SPELL:4600,
+	// currency.LYXE:5.3,
+	currency.NMR:  0.29,
+	currency.POWR: 100,
+	currency.DENT: 24000,
+	currency.VTHO: 1000,
+	// currency.BSW:8.8,
+	currency.MBOX: 4.4,
+	currency.DKA:  930,
+	// currency.PYR:1.2,
+	currency.VGX:  70,
+	currency.REQ:  38,
+	currency.CTSI: 150,
+	// currency.MPL:1.8,
+	// currency.AURORA:15,
+	currency.KEEP:  39,
+	currency.STRAX: 5,
+	currency.STEEM: 8,
+	currency.RAD:   11,
+	currency.STORJ: 7.4,
+	currency.MLK:   0.5,
+	// currency.XPRT:2.4,
+	currency.VLX:  48,
+	currency.BOBA: 49,
+	currency.C98:  9.8,
+	// currency.BICO:51,
+	// currency.POKT:26,
+	currency.INJ:    1.4,
+	currency.XVS:    0.46,
+	currency.MTL:    18,
+	currency.FUN:    4000,
+	currency.BFC:    320,
+	currency.OCEAN:  190,
+	currency.UOS:    15,
+	currency.RENBTC: 0.0012,
+	currency.MULTI:  5.5,
+	// currency.CTC:84,
+	currency.RBN: 97,
+	currency.ILV: 0.043,
+	// currency.DESO:2,
+	currency.ILM:  170,
+	currency.FLM:  9,
+	currency.HUSD: 27,
+	currency.EFI:  27,
+	currency.MDX:  56,
+	currency.YFII: 0.011,
+	currency.ELF:  12,
+	// currency.NRV:400,
+	currency.MASK:  15,
+	currency.SFUND: 1.4,
+	currency.ACH:   320,
+	currency.QKC:   180,
+	currency.STMX:  3200,
+	currency.ANT:   12,
+	currency.TRIBE: 170,
+	currency.BAND:  1.1,
+	currency.MOVR:  0.14,
+	currency.DODO:  150,
+	currency.RLC:   28,
+	currency.DOCK:  74,
+	// currency.ITAMCUBE:31,
+	// currency.CULT:3700000,
+	currency.NKN: 19,
+	currency.OXT: 210,
+	// currency.PCX:2.5,
+	currency.IQ:      20,
+	currency.UFO:     9600000,
+	currency.TRB:     0.18,
+	currency.REP:     4,
+	currency.HERO:    1500,
+	currency.AKT:     5.2,
+	currency.GHST:    47,
+	currency.UTK:     180,
+	currency.KP3R:    0.16,
+	currency.BAKE:    9.3,
+	currency.BETA:    180,
+	currency.AUCTION: 3.1,
+	currency.PERP:    28,
+	// currency.STG:11,
+	currency.BOND: 2.9,
+	currency.RIDE: 10,
+	currency.XVG:  550,
+	// currency.WWY:140,
+	currency.FET:  23,
+	currency.DUSK: 34,
+	// currency.DEP:410,
+	currency.SSV: 2.9,
+	currency.BCN: 2100,
+	// currency.AMPL:2.9,
+	currency.POLS:  42,
+	currency.TALK:  59,
+	currency.VRA:   6000,
+	currency.POND:  1900,
+	currency.RGT:   2.1,
+	currency.ATA:   120,
+	currency.ALCX:  0.71,
+	currency.AERGO: 210,
+	currency.MNGO:  100,
+	// currency.LEASH:0.053,
+	// currency.TLOS:10,
+	// currency.CRTS:35000,
+	currency.OUSD:  32,
+	currency.TOMO:  3.4,
+	currency.COCOS: 2.6,
+	currency.IDEX:  65,
+	currency.VEGA:  12,
+	currency.CUSD:  2,
+	currency.TT:    1,
+	currency.WNXM:  1.4,
+	// currency.LOKA:34,
+	currency.NSBT:  0.3,
+	currency.CQT:   200,
+	currency.WOZX:  280,
+	currency.BEL:   32,
+	currency.FORTH: 4.6,
+	currency.ALICE: 8.9,
+	currency.KISHU: 2000000000,
+	currency.ALEPH: 96,
+	currency.UNFI:  3.9,
+	currency.ORN:   18,
+	currency.SUPER: 170,
+	// currency.KILT:4.5,
+	currency.STARL:  5300000,
+	currency.BADGER: 13,
+	currency.JASMY:  520,
+	// currency.AIOZ:71,
+	currency.DG:   320,
+	currency.RARE: 98,
+	currency.XPR:  530,
+	currency.PHA:  200,
+	currency.MFT:  5700,
+	currency.SAMO: 410,
+	// currency.ZIG:2100,
+	currency.SFP: 7.7,
+	// currency.MV:63,
+	// currency.REI:47,
+	currency.ALPACA: 11,
+	currency.GAS:    0.69,
+	currency.TORN:   0.95,
+	currency.DNT:    920,
+	currency.ANC:    44,
+	// currency.LEVER:10000,
+	currency.MLN: 0.18,
+	// currency.ONIT:530,
+	currency.KAR:  3.4,
+	currency.FARM: 0.41,
+	// currency.FITFI:21,
+	currency.LTO:   290,
+	currency.HYDRA: 0.67,
+	currency.QASH:  540,
+	// currency.KAI:220,
+	currency.AE:   21,
+	currency.LINA: 3700,
+	currency.ARPA: 680,
+	// currency.QUACK:34000000000,
+	// currency.WILD:74,
+	currency.AQT:  20,
+	currency.XCAD: 3.3,
+	currency.DIA:  55,
+	currency.LIT:  26,
+	// currency.HTR:13,
+	// currency.FOX:300,
+	currency.AVA:  2.9,
+	currency.BZZ:  41,
+	currency.AGLD: 51,
+	// currency.UMEE:110,
+	// currency.QANX:290,
+	currency.BLZ: 250,
+	// currency.ROUTE:6.2,
+	currency.BCD:  11,
+	currency.CEUR: 2,
+	currency.NOIA: 390,
+	currency.FINE: 110,
+	currency.ERN:  12,
+	currency.RMRK: 0.57,
+	currency.MIR:  120,
+	currency.BTS:  170,
+	// currency.ATOLO:110,
+	currency.CHESS: 7.3,
+	currency.HNS:   32,
+	currency.FIO:   38,
+	currency.IRIS:  83,
+	// currency.ZMT:86,
+	//
+
 	currency.USDT_ETH: 10,
-	currency.BTC:      0.001,
 	currency.BCH:      0.0006,
 	currency.BTG:      0.002,
-	currency.LTC:      0.002,
 	currency.ZEC:      0.001,
-	currency.ETH:      0.003,
 	currency.ETC:      0.01,
 	currency.DASH:     0.02,
 	currency.QTUM:     0.1,
@@ -653,7 +1027,7 @@ type Orderbook struct {
 
 // Trade represents market trade.
 type Trade struct {
-	ID           string    `json:"id"`
+	ID           int64     `json:"id,string"`
 	TradingTime  time.Time `json:"create_time"`
 	CreateTimeMs time.Time `json:"create_time_ms"`
 	OrderID      string    `json:"order_id"`
@@ -765,7 +1139,7 @@ type FuturesContract struct {
 
 // TradingHistoryItem represents futures trading history item.
 type TradingHistoryItem struct {
-	ID         int       `json:"id"`
+	ID         int64     `json:"id"`
 	CreateTime time.Time `json:"create_time"`
 	Contract   string    `json:"contract"`
 	Size       float64   `json:"size"`
@@ -780,7 +1154,7 @@ type TradingHistoryItem struct {
 // FuturesCandlestick represents futures candlestick data
 type FuturesCandlestick struct {
 	Timestamp    time.Time `json:"t"`
-	Volume       int64     `json:"v"`
+	Volume       float64   `json:"v"`
 	ClosePrice   float64   `json:"c,string"`
 	HighestPrice float64   `json:"h,string"`
 	LowestPrice  float64   `json:"l,string"`
@@ -1010,16 +1384,16 @@ type OptionsUnderlyingTicker struct {
 
 // OptionAccount represents option account.
 type OptionAccount struct {
-	User          int64  `json:"user"`
-	Currency      string `json:"currency"`
-	ShortEnabled  bool   `json:"short_enabled"`
-	Total         string `json:"total"`
-	UnrealisedPnl string `json:"unrealised_pnl"`
-	InitMargin    string `json:"init_margin"`
-	MaintMargin   string `json:"maint_margin"`
-	OrderMargin   string `json:"order_margin"`
-	Available     string `json:"available"`
-	Point         string `json:"point"`
+	User          int64   `json:"user"`
+	Currency      string  `json:"currency"`
+	ShortEnabled  bool    `json:"short_enabled"`
+	Total         float64 `json:"total,string"`
+	UnrealisedPnl string  `json:"unrealised_pnl"`
+	InitMargin    string  `json:"init_margin"`
+	MaintMargin   string  `json:"maint_margin"`
+	OrderMargin   string  `json:"order_margin"`
+	Available     float64 `json:"available,string"`
+	Point         string  `json:"point"`
 }
 
 // AccountBook represents account changing history item
@@ -1074,16 +1448,16 @@ type OptionOrderParam struct {
 // OptionOrderResponse represents option order response detail
 type OptionOrderResponse struct {
 	Status               string    `json:"status"`
-	Size                 int       `json:"size"`
-	OptionOrderID        int       `json:"id"`
-	Iceberg              int       `json:"iceberg"`
+	Size                 float64   `json:"size"`
+	OptionOrderID        int64     `json:"id"`
+	Iceberg              int64     `json:"iceberg"`
 	IsOrderLiquidation   bool      `json:"is_liq"`
 	IsOrderPositionClose bool      `json:"is_close"`
 	Contract             string    `json:"contract"`
 	Text                 string    `json:"text"`
 	FillPrice            string    `json:"fill_price"`
 	FinishAs             string    `json:"finish_as"` //  finish_as 	filled, cancelled, liquidated, ioc, auto_deleveraged, reduce_only, position_closed, reduce_out
-	Left                 int       `json:"left"`
+	Left                 float64   `json:"left"`
 	TimeInForce          string    `json:"tif"`
 	IsReduceOnly         bool      `json:"is_reduce_only"`
 	CreateTime           time.Time `json:"create_time"`
@@ -1097,14 +1471,14 @@ type OptionOrderResponse struct {
 
 // OptionTradingHistory list personal trading history
 type OptionTradingHistory struct {
+	ID              int64     `json:"id"`
 	UnderlyingPrice string    `json:"underlying_price"`
-	Size            int       `json:"size"`
+	Size            float64   `json:"size"`
 	Contract        string    `json:"contract"`
-	ID              int       `json:"id"`
 	TradeRole       string    `json:"role"`
 	CreateTime      time.Time `json:"create_time"`
-	OrderID         int       `json:"order_id"`
-	Price           string    `json:"price"`
+	OrderID         int64     `json:"order_id"`
+	Price           float64   `json:"price,string"`
 }
 
 // WithdrawalResponse represents withdrawal response
@@ -1113,8 +1487,8 @@ type WithdrawalResponse struct {
 	Timestamp     time.Time `json:"timestamp"`
 	Currency      string    `json:"currency"`
 	Address       string    `json:"address"`
-	Transactionid string    `json:"txid"`
-	Amount        string    `json:"amount"`
+	TransactionID string    `json:"txid"`
+	Amount        float64   `json:"amount,string"`
 	Memo          string    `json:"memo"`
 	Status        string    `json:"status"`
 	Chain         string    `json:"chain"`
@@ -1225,18 +1599,18 @@ type MarginAccountItem struct {
 	CurrencyPair string `json:"currency_pair"`
 	Risk         string `json:"risk"`
 	Base         struct {
-		Available string `json:"available"`
-		Borrowed  string `json:"borrowed"`
-		Interest  string `json:"interest"`
-		Currency  string `json:"currency"`
-		Locked    string `json:"locked"`
+		Available float64 `json:"available,string"`
+		Borrowed  string  `json:"borrowed"`
+		Interest  string  `json:"interest"`
+		Currency  string  `json:"currency"`
+		Locked    float64 `json:"locked,string"`
 	} `json:"base"`
 	Quote struct {
-		Available string `json:"available"`
-		Borrowed  string `json:"borrowed"`
-		Interest  string `json:"interest"`
-		Currency  string `json:"currency"`
-		Locked    string `json:"locked"`
+		Available float64 `json:"available,string"`
+		Borrowed  string  `json:"borrowed"`
+		Interest  string  `json:"interest"`
+		Currency  string  `json:"currency"`
+		Locked    float64 `json:"locked,string"`
 	} `json:"quote"`
 }
 
@@ -1328,16 +1702,16 @@ type WalletSavedAddress struct {
 
 // PersonalTradingFee represents personal trading fee for specific currency pair
 type PersonalTradingFee struct {
-	UserID          int    `json:"user_id"`
-	TakerFee        string `json:"taker_fee"`
-	MakerFee        string `json:"maker_fee"`
-	FuturesTakerFee string `json:"futures_taker_fee"`
-	FuturesMakerFee string `json:"futures_maker_fee"`
-	GtDiscount      bool   `json:"gt_discount"`
-	GtTakerFee      string `json:"gt_taker_fee"`
-	GtMakerFee      string `json:"gt_maker_fee"`
-	LoanFee         string `json:"loan_fee"`
-	PointType       string `json:"point_type"`
+	UserID          int     `json:"user_id"`
+	TakerFee        float64 `json:"taker_fee,string"`
+	MakerFee        float64 `json:"maker_fee,string"`
+	FuturesTakerFee float64 `json:"futures_taker_fee,string"`
+	FuturesMakerFee float64 `json:"futures_maker_fee,string"`
+	GtDiscount      bool    `json:"gt_discount"`
+	GtTakerFee      string  `json:"gt_taker_fee"`
+	GtMakerFee      string  `json:"gt_maker_fee"`
+	LoanFee         string  `json:"loan_fee"`
+	PointType       string  `json:"point_type"`
 }
 
 // UsersAllAccountBalance represents user all account balances.
@@ -1368,9 +1742,9 @@ type SpotTradingFeeRate struct {
 
 // SpotAccount represents spot account
 type SpotAccount struct {
-	Currency  string `json:"currency"`
-	Available string `json:"available"`
-	Locked    string `json:"locked"`
+	Currency  string  `json:"currency"`
+	Available float64 `json:"available,string"`
+	Locked    float64 `json:"locked,string"`
 }
 
 // CreateOrderRequestData represents a single order creation param.
@@ -1403,13 +1777,13 @@ type SpotOrder struct {
 	Type               string    `json:"type,omitempty"`
 	Account            string    `json:"account,omitempty"`
 	Side               string    `json:"side,omitempty"`
-	Amount             string    `json:"amount,omitempty"`
-	Price              string    `json:"price,omitempty"`
+	Amount             float64   `json:"amount,omitempty,string"`
+	Price              float64   `json:"price,omitempty,string"`
 	TimeInForce        string    `json:"time_in_force,omitempty"`
 	Iceberg            string    `json:"iceberg,omitempty"`
-	Left               string    `json:"left,omitempty"`
-	FilledTotal        string    `json:"filled_total,omitempty"`
-	Fee                string    `json:"fee,omitempty"`
+	Left               float64   `json:"left,omitempty"`
+	FilledTotal        float64   `json:"filled_total,omitempty,string"`
+	Fee                float64   `json:"fee,omitempty,string"`
 	FeeCurrency        string    `json:"fee_currency,omitempty"`
 	PointFee           string    `json:"point_fee,omitempty"`
 	GtFee              string    `json:"gt_fee,omitempty"`
@@ -1421,7 +1795,7 @@ type SpotOrder struct {
 // SpotOrdersDetail represents list of orders for specific currency pair
 type SpotOrdersDetail struct {
 	CurrencyPair string      `json:"currency_pair"`
-	Total        int         `json:"total"`
+	Total        float64     `json:"total"`
 	Orders       []SpotOrder `json:"orders"`
 }
 
@@ -1693,16 +2067,16 @@ type InitFlashSwapOrderPreviewResponse struct {
 
 // FuturesAccount represents futures account detail
 type FuturesAccount struct {
-	User           int    `json:"user"`
-	Currency       string `json:"currency"`
-	Total          string `json:"total"` // total = position_margin + order_margin + available
-	UnrealisedPnl  string `json:"unrealised_pnl"`
-	PositionMargin string `json:"position_margin"`
-	OrderMargin    string `json:"order_margin"` // Order margin of unfinished orders
-	Available      string `json:"available"`    // The available balance for transferring or trading
-	Point          string `json:"point"`
-	Bonus          string `json:"bonus"`
-	InDualMode     bool   `json:"in_dual_mode"` // Whether dual mode is enabled
+	User           int     `json:"user"`
+	Currency       string  `json:"currency"`
+	Total          float64 `json:"total,string"` // total = position_margin + order_margin + available
+	UnrealisedPnl  string  `json:"unrealised_pnl"`
+	PositionMargin string  `json:"position_margin"`
+	OrderMargin    string  `json:"order_margin"`     // Order margin of unfinished orders
+	Available      float64 `json:"available,string"` // The available balance for transferring or trading
+	Point          string  `json:"point"`
+	Bonus          string  `json:"bonus"`
+	InDualMode     bool    `json:"in_dual_mode"` // Whether dual mode is enabled
 	History        struct {
 		DepositAndWithdrawal string `json:"dnw"`  // total amount of deposit and withdraw
 		ProfitAndLoss        string `json:"pnl"`  // total amount of trading profit and loss
@@ -1801,26 +2175,26 @@ type OrderCreateParams struct {
 
 // Order represents future order response
 type Order struct {
-	ID           int       `json:"id"`
-	User         int       `json:"user"`
-	Contract     string    `json:"contract"`
-	CreateTime   time.Time `json:"create_time"`
-	Size         int       `json:"size"`
-	Iceberg      int       `json:"iceberg"`
-	Left         int       `json:"left"`
-	Price        float64   `json:"price,string"`
-	FillPrice    float64   `json:"fill_price,string"`
-	Mkfr         string    `json:"mkfr"`
-	Tkfr         string    `json:"tkfr"`
-	TimeInForce  string    `json:"tif"`
-	Refu         int       `json:"refu"`
-	IsReduceOnly bool      `json:"is_reduce_only"`
-	IsClose      bool      `json:"is_close"`
-	IsLiq        bool      `json:"is_liq"`
-	Text         string    `json:"text"`
-	Status       string    `json:"status"`
-	FinishTime   time.Time `json:"finish_time,string"`
-	FinishAs     string    `json:"finish_as"`
+	ID              int64     `json:"id"`
+	User            int64     `json:"user"`
+	Contract        string    `json:"contract"`
+	CreateTime      time.Time `json:"create_time"`
+	Size            float64   `json:"size"`
+	Iceberg         int       `json:"iceberg"`
+	Left            float64   `json:"left"`
+	Price           float64   `json:"price,string"`
+	FillPrice       float64   `json:"fill_price,string"`
+	MakerFee        string    `json:"mkfr"`
+	TakerFee        string    `json:"tkfr"`
+	TimeInForce     string    `json:"tif"`
+	ReferenceUserID int64     `json:"refu"`
+	IsReduceOnly    bool      `json:"is_reduce_only"`
+	IsClose         bool      `json:"is_close"`
+	IsLiq           bool      `json:"is_liq"`
+	Text            string    `json:"text"`
+	Status          string    `json:"status"`
+	FinishTime      time.Time `json:"finish_time,string"`
+	FinishAs        string    `json:"finish_as"`
 }
 
 // AmendFuturesOrderParam represents amend futures order parameter

@@ -8,6 +8,22 @@ import (
 )
 
 // UnmarshalJSON decerializes json, and timestamp information.
+func (a *DeliveryTradingHistory) UnmarshalJSON(data []byte) error {
+	type Alias DeliveryTradingHistory
+	chil := &struct {
+		*Alias
+		CreateTime float64 `json:"create_time"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
+	}
+	a.CreateTime = time.Unix(int64(math.Round(chil.CreateTime)), 0)
+	return nil
+}
+
+// UnmarshalJSON decerializes json, and timestamp information.
 func (a *FlashSwapOrderResponse) UnmarshalJSON(data []byte) error {
 	type Alias FlashSwapOrderResponse
 	chil := &struct {
@@ -654,15 +670,22 @@ func (a *SpotOrder) UnmarshalJSON(data []byte) error {
 	type Alias SpotOrder
 	chil := &struct {
 		*Alias
-		CreateTime   int64 `json:"create_time,string"`
-		UpdateTime   int64 `json:"update_time,string"`
-		CreateTimeMs int64 `json:"create_time_ms"`
-		UpdateTimeMs int64 `json:"update_time_ms"`
+		CreateTime   int64  `json:"create_time,string"`
+		UpdateTime   int64  `json:"update_time,string"`
+		CreateTimeMs int64  `json:"create_time_ms"`
+		UpdateTimeMs int64  `json:"update_time_ms"`
+		Left         string `json:"left"`
 	}{
 		Alias: (*Alias)(a),
 	}
-	if er := json.Unmarshal(data, chil); er != nil {
-		return er
+	err := json.Unmarshal(data, chil)
+	if err != nil {
+		return err
+	}
+	if chil.Left != "" {
+		if a.Left, err = strconv.ParseFloat(chil.Left, 64); err != nil {
+			return err
+		}
 	}
 	a.CreateTime = time.Unix(chil.CreateTime, 0)
 	a.UpdateTime = time.Unix(chil.UpdateTime, 0)
