@@ -627,60 +627,58 @@ func (b *Binance) UCompositeIndexInfo(ctx context.Context, symbol currency.Pair)
 }
 
 // UFuturesNewOrder sends a new order for USDTMarginedFutures
-func (b *Binance) UFuturesNewOrder(ctx context.Context, symbol currency.Pair, side, positionSide, orderType, timeInForce,
-	newClientOrderID, closePosition, workingType, newOrderRespType string,
-	quantity, price, stopPrice, activationPrice, callbackRate float64, reduceOnly bool) (UOrderData, error) {
+func (b *Binance) UFuturesNewOrder(ctx context.Context, data *UFuturesNewOrderRequest) (UOrderData, error) {
 	var resp UOrderData
 	params := url.Values{}
-	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
+	symbolValue, err := b.FormatSymbol(data.Symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	params.Set("side", side)
-	if positionSide != "" {
-		if !common.StringDataCompare(validPositionSide, positionSide) {
+	params.Set("side", data.Side)
+	if data.PositionSide != "" {
+		if !common.StringDataCompare(validPositionSide, data.PositionSide) {
 			return resp, errors.New("invalid positionSide")
 		}
-		params.Set("positionSide", positionSide)
+		params.Set("positionSide", data.PositionSide)
 	}
-	params.Set("type", orderType)
-	params.Set("timeInForce", timeInForce)
-	if reduceOnly {
+	params.Set("type", data.OrderType)
+	params.Set("timeInForce", data.TimeInForce)
+	if data.ReduceOnly {
 		params.Set("reduceOnly", "true")
 	}
-	if newClientOrderID != "" {
-		params.Set("newClientOrderID", newClientOrderID)
+	if data.NewClientOrderID != "" {
+		params.Set("newClientOrderID", data.NewClientOrderID)
 	}
-	if closePosition != "" {
-		params.Set("closePosition", closePosition)
+	if data.ClosePosition != "" {
+		params.Set("closePosition", data.ClosePosition)
 	}
-	if workingType != "" {
-		if !common.StringDataCompare(validWorkingType, workingType) {
+	if data.WorkingType != "" {
+		if !common.StringDataCompare(validWorkingType, data.WorkingType) {
 			return resp, errors.New("invalid workingType")
 		}
-		params.Set("workingType", workingType)
+		params.Set("workingType", data.WorkingType)
 	}
-	if newOrderRespType != "" {
-		if !common.StringDataCompare(validNewOrderRespType, newOrderRespType) {
+	if data.NewOrderRespType != "" {
+		if !common.StringDataCompare(validNewOrderRespType, data.NewOrderRespType) {
 			return resp, errors.New("invalid newOrderRespType")
 		}
-		params.Set("newOrderRespType", newOrderRespType)
+		params.Set("newOrderRespType", data.NewOrderRespType)
 	}
-	if quantity != 0 {
-		params.Set("quantity", strconv.FormatFloat(quantity, 'f', -1, 64))
+	if data.Quantity != 0 {
+		params.Set("quantity", strconv.FormatFloat(data.Quantity, 'f', -1, 64))
 	}
-	if price != 0 {
-		params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
+	if data.Price != 0 {
+		params.Set("price", strconv.FormatFloat(data.Price, 'f', -1, 64))
 	}
-	if stopPrice != 0 {
-		params.Set("stopPrice", strconv.FormatFloat(stopPrice, 'f', -1, 64))
+	if data.StopPrice != 0 {
+		params.Set("stopPrice", strconv.FormatFloat(data.StopPrice, 'f', -1, 64))
 	}
-	if activationPrice != 0 {
-		params.Set("activationPrice", strconv.FormatFloat(activationPrice, 'f', -1, 64))
+	if data.ActivationPrice != 0 {
+		params.Set("activationPrice", strconv.FormatFloat(data.ActivationPrice, 'f', -1, 64))
 	}
-	if callbackRate != 0 {
-		params.Set("callbackRate", strconv.FormatFloat(callbackRate, 'f', -1, 64))
+	if data.CallbackRate != 0 {
+		params.Set("callbackRate", strconv.FormatFloat(data.CallbackRate, 'f', -1, 64))
 	}
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesOrder, params, uFuturesOrdersDefaultRate, &resp)
 }

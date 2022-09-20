@@ -1,6 +1,9 @@
 package binance
 
-import "time"
+import (
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"time"
+)
 
 var (
 	validFuturesIntervals = []string{
@@ -406,4 +409,23 @@ type UForceOrdersData struct {
 	OrigType      string  `json:"origType"`
 	Time          int64   `json:"time"`
 	UpdateTime    int64   `json:"updateTime"`
+}
+
+// UFuturesNewOrderRequest stores order data for placing
+type UFuturesNewOrderRequest struct {
+	Symbol           currency.Pair `json:"symbol"`
+	Side             string        `json:"side"`
+	PositionSide     string        `json:"position_side"`
+	OrderType        string        `json:"order_type"`
+	TimeInForce      string        `json:"time_in_force"`
+	NewClientOrderID string        `json:"new_client_order_id"`
+	ClosePosition    string        `json:"close_position"`
+	WorkingType      string        `json:"working_type"`
+	NewOrderRespType string        `json:"new_order_resp_type"`
+	Quantity         float64       `json:"quantity"`
+	Price            float64       `json:"price"`
+	StopPrice        float64       `json:"stop_price"`
+	ActivationPrice  float64       `json:"activation_price"`
+	CallbackRate     float64       `json:"callback_rate"`
+	ReduceOnly       bool          `json:"reduce_only"`
 }
