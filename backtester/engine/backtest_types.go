@@ -2,6 +2,7 @@ package engine
 
 import (
 	"errors"
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
@@ -53,7 +54,7 @@ type RunSummary struct {
 }
 
 type RunMetaData struct {
-	ID          string
+	ID          uuid.UUID
 	Strategy    string
 	DateLoaded  time.Time
 	DateStarted time.Time
@@ -63,7 +64,7 @@ type RunMetaData struct {
 	RealOrders  bool
 }
 
-// RunManager contains all backtesting/live strategy runs
+// RunManager contains all backtesting/livestrategy runs
 type RunManager struct {
 	m    sync.Mutex
 	runs []*BackTest

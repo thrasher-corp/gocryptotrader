@@ -2,6 +2,8 @@ package engine
 
 import (
 	"errors"
+	"github.com/gofrs/uuid"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"testing"
 	"time"
 
@@ -978,13 +980,168 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 func TestGenerateSummary(t *testing.T) {
 	t.Parallel()
 	bt := &BackTest{}
-	sum := bt.GenerateSummary()
-	if sum.MetaData.ID != "" {
+	sum, err := bt.GenerateSummary()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if !sum.MetaData.ID.IsNil() {
 		t.Errorf("received '%v' expected '%v'", sum.MetaData.ID, "")
 	}
-	bt.MetaData.ID = "1337"
-	sum = bt.GenerateSummary()
-	if sum.MetaData.ID != "1337" {
-		t.Errorf("received '%v' expected '%v'", sum.MetaData.ID, "1337")
+	id, err := uuid.NewV4()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	bt.MetaData.ID = id
+	sum, err = bt.GenerateSummary()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if sum.MetaData.ID != id {
+		t.Errorf("received '%v' expected '%v'", sum.MetaData.ID, id)
+	}
+
+	bt = nil
+	_, err = bt.GenerateSummary()
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
+	}
+}
+
+func TestSetupMetaData(t *testing.T) {
+	t.Parallel()
+	bt := &BackTest{}
+	err := bt.SetupMetaData()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if bt.MetaData.ID.IsNil() {
+		t.Errorf("received '%v' expected '%v'", bt.MetaData.ID, "an ID")
+	}
+	firstID := bt.MetaData.ID
+	err = bt.SetupMetaData()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if bt.MetaData.ID != firstID {
+		t.Errorf("received '%v' expected '%v'", bt.MetaData.ID, firstID)
+	}
+
+	bt = nil
+	err = bt.SetupMetaData()
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
+	}
+}
+
+func TestIsRunning(t *testing.T) {
+	t.Parallel()
+	bt := &BackTest{}
+	if bt.IsRunning() {
+		t.Errorf("received '%v' expected '%v'", true, false)
+	}
+
+	bt.MetaData.DateStarted = time.Now()
+	if !bt.IsRunning() {
+		t.Errorf("received '%v' expected '%v'", false, true)
+	}
+
+	bt.MetaData.Closed = true
+	if bt.IsRunning() {
+		t.Errorf("received '%v' expected '%v'", true, false)
+	}
+
+	bt = nil
+	if bt.IsRunning() {
+		t.Errorf("received '%v' expected '%v'", true, false)
+	}
+}
+
+func TestHasRan(t *testing.T) {
+	t.Parallel()
+	bt := &BackTest{}
+	if bt.HasRan() {
+		t.Errorf("received '%v' expected '%v'", true, false)
+	}
+
+	bt.MetaData.DateStarted = time.Now()
+	if bt.HasRan() {
+		t.Errorf("received '%v' expected '%v'", false, true)
+	}
+
+	bt.MetaData.Closed = true
+	if !bt.HasRan() {
+		t.Errorf("received '%v' expected '%v'", true, false)
+	}
+
+	bt = nil
+	if bt.HasRan() {
+		t.Errorf("received '%v' expected '%v'", true, false)
+	}
+}
+
+func TestEqual(t *testing.T) {
+	t.Parallel()
+	bt := &BackTest{}
+	if !bt.Equal(bt) {
+		t.Errorf("received '%v' expected '%v'", false, true)
+	}
+
+	err := bt.SetupMetaData()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	if !bt.Equal(bt) {
+		t.Errorf("received '%v' expected '%v'", false, true)
+	}
+
+	if bt.Equal(nil) {
+		t.Errorf("received '%v' expected '%v'", true, false)
+	}
+
+	bt2 := &BackTest{}
+	err = bt2.SetupMetaData()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if bt.Equal(bt2) {
+		t.Errorf("received '%v' expected '%v'", true, false)
+	}
+
+	bt = nil
+	if bt.Equal(bt) {
+		t.Errorf("received '%v' expected '%v'", true, false)
+	}
+}
+
+func TestMatchesID(t *testing.T) {
+	t.Parallel()
+	bt := &BackTest{}
+	if bt.MatchesID(uuid.Nil) {
+		t.Errorf("received '%v' expected '%v'", true, false)
+	}
+
+	err := bt.SetupMetaData()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	if bt.MatchesID(uuid.Nil) {
+		t.Errorf("received '%v' expected '%v'", true, false)
+	}
+
+	if !bt.MatchesID(bt.MetaData.ID) {
+		t.Errorf("received '%v' expected '%v'", false, true)
+	}
+
+	id := bt.MetaData.ID
+	bt.MetaData.ID = uuid.Nil
+	if bt.MatchesID(id) {
+		t.Errorf("received '%v' expected '%v'", true, false)
+	}
+
+	bt = nil
+	if bt.MatchesID(id) {
+		t.Errorf("received '%v' expected '%v'", true, false)
 	}
 }

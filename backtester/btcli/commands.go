@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"path/filepath"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/btrpc"
@@ -36,6 +35,7 @@ var executeStrategyFromFileCommand = &cli.Command{
 			Usage:   "the filepath to a strategy to execute",
 		},
 		doNotRunFlag,
+		doNotStoreFlag,
 	},
 }
 
@@ -63,7 +63,7 @@ func executeStrategyFromFile(c *cli.Context) error {
 	}
 	var dns bool
 	if c.IsSet("donotstore") {
-		dnr = c.Bool("donotstore")
+		dns = c.Bool("donotstore")
 	}
 
 	client := btrpc.NewBacktesterServiceClient(conn)
@@ -261,7 +261,7 @@ func stopAllRuns(c *cli.Context) error {
 
 var clearRunCommand = &cli.Command{
 	Name:      "clearrun",
-	Usage:     "clears/deletes a strategy loaded into the server",
+	Usage:     "clears/deletes a strategy loaded into the server - if it is not running",
 	ArgsUsage: "<id>",
 	Action:    clearRun,
 	Flags: []cli.Flag{
@@ -308,7 +308,7 @@ func clearRun(c *cli.Context) error {
 
 var clearAllRunsCommand = &cli.Command{
 	Name:   "clearallruns",
-	Usage:  "clears all strategies loaded into the server. If any are currently running, will return error",
+	Usage:  "clears all strategies loaded into the server. Only runs not actively running will be cleared",
 	Action: clearAllRuns,
 }
 
@@ -330,53 +330,6 @@ func clearAllRuns(c *cli.Context) error {
 	}
 
 	jsonOutput(result)
-	return nil
-}
-
-var reportLogsCommand = &cli.Command{
-	Name:      "reportstats",
-	Usage:     "returns generated statistics from a run",
-	ArgsUsage: "<id>",
-	Action:    reportStats,
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "id",
-			Usage: "the id of the backtest/livestrategy run",
-		},
-	},
-}
-
-func reportStats(c *cli.Context) error {
-	conn, cancel, err := setupClient(c)
-	if err != nil {
-		return err
-	}
-	defer closeConn(conn, cancel)
-
-	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, c.Command.Name)
-	}
-
-	var id string
-	if c.IsSet("id") {
-		id = c.String("id")
-	} else {
-		id = c.Args().First()
-	}
-
-	client := btrpc.NewBacktesterServiceClient(conn)
-	result, err := client.ReportStats(
-		c.Context,
-		&btrpc.ReportStatsRequest{
-			Id: id,
-		},
-	)
-
-	if err != nil {
-		return err
-	}
-
-	log.Print(result.Stats)
 	return nil
 }
 
@@ -567,7 +520,7 @@ func executeStrategyFromConfig(c *cli.Context) error {
 	}
 	var dns bool
 	if c.IsSet("donotstore") {
-		dnr = c.Bool("donotstore")
+		dns = c.Bool("donotstore")
 	}
 
 	client := btrpc.NewBacktesterServiceClient(conn)

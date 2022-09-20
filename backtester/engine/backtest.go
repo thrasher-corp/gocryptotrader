@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
@@ -16,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -25,12 +27,17 @@ import (
 )
 
 // New returns a new BackTest instance
-func New() *BackTest {
-	return &BackTest{
+func New() (*BackTest, error) {
+	bt := &BackTest{
 		shutdown:   make(chan struct{}),
 		Datas:      &data.HandlerPerCurrency{},
 		EventQueue: &eventholder.Holder{},
 	}
+	err := bt.SetupMetaData()
+	if err != nil {
+		return nil, err
+	}
+	return bt, nil
 }
 
 // Reset BackTest values to default
@@ -48,33 +55,39 @@ func (bt *BackTest) Reset() {
 
 // ExecuteStrategy executes the strategy using the provided configs
 func (bt *BackTest) ExecuteStrategy() error {
+	if bt == nil {
+		return gctcommon.ErrNilPointer
+	}
+	bt.m.Lock()
+	defer bt.m.Unlock()
 	if bt.MetaData.Closed {
 		return fmt.Errorf("%w %v %v", errAlreadyRan, bt.MetaData.ID, bt.MetaData.Strategy)
 	}
+	if !bt.MetaData.Closed && !bt.MetaData.DateStarted.IsZero() {
+		return fmt.Errorf("%w %v %v", errRunIsRunning, bt.MetaData.ID, bt.MetaData.Strategy)
+	}
 	bt.MetaData.DateStarted = time.Now()
-	if bt.MetaData.LiveTesting {
-		go func() {
+	go func() {
+		if bt.MetaData.LiveTesting {
 			err := bt.RunLive()
+			if err != nil {
+				log.Error(log.Global, err)
+			}
+		} else {
+			bt.Run()
+			bt.MetaData.DateEnded = time.Now()
+			bt.MetaData.Closed = true
+			err := bt.Statistic.CalculateAllResults()
 			if err != nil {
 				log.Error(log.Global, err)
 				return
 			}
-			// TODO handle log removal for live after merge
-		}()
-	} else {
-		bt.Run()
-		err := bt.Statistic.CalculateAllResults()
-		if err != nil {
-			return err
+			err = bt.Reports.GenerateReport()
+			if err != nil {
+				log.Error(log.Global, err)
+			}
 		}
-		err = bt.Reports.GenerateReport()
-		if err != nil {
-			return err
-		}
-		bt.MetaData.DateEnded = time.Now()
-		bt.MetaData.Closed = true
-	}
-
+	}()
 	return nil
 }
 
@@ -504,18 +517,109 @@ func (bt *BackTest) Stop() {
 	if bt == nil {
 		return
 	}
+	bt.m.Lock()
+	defer bt.m.Unlock()
 	if bt.MetaData.Closed {
 		return
 	}
 	close(bt.shutdown)
 	bt.MetaData.Closed = true
 	bt.MetaData.DateEnded = time.Now()
+	if !bt.MetaData.LiveTesting {
+		return
+	}
+	err := bt.Statistic.CalculateAllResults()
+	if err != nil {
+		log.Error(log.Global, err)
+		return
+	}
+	err = bt.Reports.GenerateReport()
+	if err != nil {
+		log.Error(log.Global, err)
+	}
 }
 
-// GenerateSummary creates a summary of a backtesting/live strategy run
+// GenerateSummary creates a summary of a backtesting/livestrategy run
 // this summary contains many details of a run
-func (bt *BackTest) GenerateSummary() *RunSummary {
+func (bt *BackTest) GenerateSummary() (*RunSummary, error) {
+	if bt == nil {
+		return nil, gctcommon.ErrNilPointer
+	}
+	bt.m.Lock()
+	defer bt.m.Unlock()
 	return &RunSummary{
 		MetaData: bt.MetaData,
+	}, nil
+}
+
+// SetupMetaData will populate metadata fields
+func (bt *BackTest) SetupMetaData() error {
+	if bt == nil {
+		return gctcommon.ErrNilPointer
 	}
+	bt.m.Lock()
+	defer bt.m.Unlock()
+	if !bt.MetaData.ID.IsNil() && !bt.MetaData.DateLoaded.IsZero() {
+		// already setup
+		return nil
+	}
+	id, err := uuid.NewV4()
+	if err != nil {
+		return err
+	}
+	bt.MetaData.ID = id
+	bt.MetaData.DateLoaded = time.Now()
+	return nil
+}
+
+// IsRunning checks if the run is running
+func (bt *BackTest) IsRunning() bool {
+	if bt == nil {
+		return false
+	}
+	bt.m.Lock()
+	defer bt.m.Unlock()
+	return !bt.MetaData.DateStarted.IsZero() && !bt.MetaData.Closed
+}
+
+// HasRan checks if the run has been ran
+func (bt *BackTest) HasRan() bool {
+	if bt == nil {
+		return false
+	}
+	bt.m.Lock()
+	defer bt.m.Unlock()
+	return bt.MetaData.Closed
+}
+
+// Equal checks if the incoming run matches
+func (bt *BackTest) Equal(bt2 *BackTest) bool {
+	if bt == nil || bt2 == nil {
+		return false
+	}
+	bt.m.Lock()
+	btM := bt.MetaData
+	bt.m.Unlock()
+	// if they are actually the same pointer
+	// locks must be handled separately
+	bt2.m.Lock()
+	btM2 := bt2.MetaData
+	bt2.m.Unlock()
+	return btM == btM2
+}
+
+// MatchesID checks if the backtesting run's ID matches the supplied
+func (bt *BackTest) MatchesID(id uuid.UUID) bool {
+	if bt == nil {
+		return false
+	}
+	if id.IsNil() {
+		return false
+	}
+	bt.m.Lock()
+	defer bt.m.Unlock()
+	if bt.MetaData.ID.IsNil() {
+		return false
+	}
+	return bt.MetaData.ID == id
 }

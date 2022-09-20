@@ -119,7 +119,6 @@ func main() {
 		stopAllRunsCommand,
 		clearRunCommand,
 		clearAllRunsCommand,
-		reportLogsCommand,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

@@ -426,36 +426,6 @@
         ]
       }
     },
-    "/v1/reportstats": {
-      "get": {
-        "operationId": "BacktesterService_ReportStats",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/btrpcReportStatsResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          }
-        ],
-        "tags": [
-          "BacktesterService"
-        ]
-      }
-    },
     "/v1/startallruns": {
       "post": {
         "operationId": "BacktesterService_StartAllRuns",
@@ -923,14 +893,6 @@
         }
       }
     },
-    "btrpcReportStatsResponse": {
-      "type": "object",
-      "properties": {
-        "stats": {
-          "type": "string"
-        }
-      }
-    },
     "btrpcRunSummary": {
       "type": "object",
       "properties": {
@@ -977,7 +939,7 @@
         "runsStarted": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/btrpcRunSummary"
+            "type": "string"
           }
         }
       }

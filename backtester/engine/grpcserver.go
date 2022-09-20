@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/gofrs/uuid"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"math"
 	"net"
@@ -33,7 +34,8 @@ import (
 )
 
 var (
-	errBadPort = errors.New("received bad port")
+	errBadPort             = errors.New("received bad port")
+	errCannotHandleRequest = errors.New("cannot handle request")
 )
 
 // GRPCServer struct
@@ -162,7 +164,7 @@ func (s *GRPCServer) authenticateClient(ctx context.Context) (context.Context, e
 // convertSummary converts a run summary into a RPC format
 func convertSummary(run *RunSummary) *btrpc.RunSummary {
 	runSummary := &btrpc.RunSummary{
-		Id:           run.MetaData.ID,
+		Id:           run.MetaData.ID.String(),
 		StrategyName: run.MetaData.Strategy,
 		Closed:       run.MetaData.Closed,
 		LiveTesting:  run.MetaData.LiveTesting,
@@ -191,6 +193,10 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 	if request == nil {
 		return nil, fmt.Errorf("%w nil request", common.ErrNilArguments)
 	}
+	if request.DoNotRunImmediately && request.DoNotStore {
+		return nil, fmt.Errorf("%w cannot manage a run with both dnr and dns", errCannotHandleRequest)
+	}
+
 	dir := request.StrategyFilePath
 	cfg, err := config.ReadStrategyConfigFromFile(dir)
 	if err != nil {
@@ -228,7 +234,10 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 			return nil, err
 		}
 	}
-	btSum := bt.GenerateSummary()
+	btSum, err := bt.GenerateSummary()
+	if err != nil {
+		return nil, err
+	}
 	return &btrpc.ExecuteStrategyResponse{
 		Run: convertSummary(btSum),
 	}, nil
@@ -246,6 +255,9 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 	}
 	if request == nil || request.Config == nil {
 		return nil, fmt.Errorf("%w nil request", common.ErrNilArguments)
+	}
+	if request.DoNotRunImmediately && request.DoNotStore {
+		return nil, fmt.Errorf("%w cannot manage a run with both dnr and dns", errCannotHandleRequest)
 	}
 
 	rfr, err := decimal.NewFromString(request.Config.StatisticSettings.RiskFreeRate)
@@ -589,7 +601,10 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 			return nil, err
 		}
 	}
-	btSum := bt.GenerateSummary()
+	btSum, err := bt.GenerateSummary()
+	if err != nil {
+		return nil, err
+	}
 	return &btrpc.ExecuteStrategyResponse{
 		Run: convertSummary(btSum),
 	}, nil
@@ -600,7 +615,10 @@ func (s *GRPCServer) ListAllRuns(_ context.Context, _ *btrpc.ListAllRunsRequest)
 	if s.manager == nil {
 		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
 	}
-	list := s.manager.List()
+	list, err := s.manager.List()
+	if err != nil {
+		return nil, err
+	}
 	var response []*btrpc.RunSummary
 	for i := range list {
 		response = append(response, convertSummary(&list[i]))
@@ -618,12 +636,15 @@ func (s *GRPCServer) StopRun(_ context.Context, req *btrpc.StopRunRequest) (*btr
 	if req == nil {
 		return nil, fmt.Errorf("%w StopRunRequest", gctcommon.ErrNilPointer)
 	}
-
-	run, err := s.manager.GetSummary(req.Id)
+	id, err := uuid.FromString(req.Id)
 	if err != nil {
 		return nil, err
 	}
-	err = s.manager.StopRun(req.Id)
+	run, err := s.manager.GetSummary(id)
+	if err != nil {
+		return nil, err
+	}
+	err = s.manager.StopRun(id)
 	if err != nil {
 		return nil, err
 	}
@@ -638,13 +659,13 @@ func (s *GRPCServer) StopAllRuns(_ context.Context, _ *btrpc.StopAllRunsRequest)
 		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
 	}
 	var stoppedRuns []*btrpc.RunSummary
-	started, err := s.manager.StopAllRuns()
+	stopped, err := s.manager.StopAllRuns()
 	if err != nil {
 		return nil, err
 	}
 
-	for i := range started {
-		stoppedRuns = append(stoppedRuns, convertSummary(started[i]))
+	for i := range stopped {
+		stoppedRuns = append(stoppedRuns, convertSummary(stopped[i]))
 	}
 	return &btrpc.StopAllRunsResponse{
 		RunsStopped: stoppedRuns,
@@ -659,7 +680,11 @@ func (s *GRPCServer) StartRun(_ context.Context, req *btrpc.StartRunRequest) (*b
 	if req == nil {
 		return nil, fmt.Errorf("%w StartRunRequest", gctcommon.ErrNilPointer)
 	}
-	err := s.manager.StartRun(req.Id)
+	id, err := uuid.FromString(req.Id)
+	if err != nil {
+		return nil, err
+	}
+	err = s.manager.StartRun(id)
 	if err != nil {
 		return nil, err
 	}
@@ -673,11 +698,13 @@ func (s *GRPCServer) StartAllRuns(_ context.Context, _ *btrpc.StartAllRunsReques
 	if s.manager == nil {
 		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
 	}
-	var startedRuns []*btrpc.RunSummary
-	started := s.manager.StartAllRuns()
-
+	var startedRuns []string
+	started, err := s.manager.StartAllRuns()
+	if err != nil {
+		return nil, err
+	}
 	for i := range started {
-		startedRuns = append(startedRuns, convertSummary(started[i]))
+		startedRuns = append(startedRuns, started[i].String())
 	}
 	return &btrpc.StartAllRunsResponse{
 		RunsStarted: startedRuns,
@@ -692,11 +719,15 @@ func (s *GRPCServer) ClearRun(_ context.Context, req *btrpc.ClearRunRequest) (*b
 	if req == nil {
 		return nil, fmt.Errorf("%w ClearRunRequest", gctcommon.ErrNilPointer)
 	}
-	run, err := s.manager.GetSummary(req.Id)
+	id, err := uuid.FromString(req.Id)
 	if err != nil {
 		return nil, err
 	}
-	err = s.manager.ClearRun(req.Id)
+	run, err := s.manager.GetSummary(id)
+	if err != nil {
+		return nil, err
+	}
+	err = s.manager.ClearRun(id)
 	if err != nil {
 		return nil, err
 	}
@@ -725,22 +756,5 @@ func (s *GRPCServer) ClearAllRuns(_ context.Context, _ *btrpc.ClearAllRunsReques
 	return &btrpc.ClearAllRunsResponse{
 		ClearedRuns:   clearedResponse,
 		RemainingRuns: remainingResponse,
-	}, nil
-}
-
-// ReportStats returns run statistics
-func (s *GRPCServer) ReportStats(_ context.Context, req *btrpc.ReportStatsRequest) (*btrpc.ReportStatsResponse, error) {
-	if s.manager == nil {
-		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
-	}
-	if req == nil {
-		return nil, fmt.Errorf("%w ReportLogsRequest", gctcommon.ErrNilPointer)
-	}
-	stats, err := s.manager.ReportStats(req.Id)
-	if err != nil {
-		return nil, err
-	}
-	return &btrpc.ReportStatsResponse{
-		Stats: stats,
 	}, nil
 }

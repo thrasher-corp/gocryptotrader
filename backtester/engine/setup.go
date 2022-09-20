@@ -49,7 +49,10 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 		return nil, errNilConfig
 	}
 	var err error
-	bt := New()
+	bt, err := New()
+	if err != nil {
+		return nil, err
+	}
 	bt.exchangeManager = engine.SetupExchangeManager()
 	bt.orderManager, err = engine.SetupOrderManager(bt.exchangeManager, &engine.CommunicationManager{}, &sync.WaitGroup{}, false, false, 0)
 	if err != nil {
@@ -348,7 +351,9 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 	if err != nil {
 		return nil, err
 	}
+	bt.MetaData.Strategy = bt.Strategy.Name()
 	bt.Strategy.SetDefaults()
+
 	if cfg.StrategySettings.CustomSettings != nil {
 		err = bt.Strategy.SetCustomSettings(cfg.StrategySettings.CustomSettings)
 		if err != nil && !errors.Is(err, base.ErrCustomSettingsUnsupported) {
@@ -514,6 +519,8 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		realOrders := false
 		if cfg.DataSettings.LiveData != nil {
 			realOrders = cfg.DataSettings.LiveData.RealOrders
+			bt.MetaData.LiveTesting = true
+			bt.MetaData.RealOrders = realOrders
 		}
 
 		buyRule := exchange.MinMax{

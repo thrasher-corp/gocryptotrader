@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/ftxcashandcarry"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"path/filepath"
@@ -55,6 +54,15 @@ func TestExecuteStrategyFromFile(t *testing.T) {
 	})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expecting '%v'", err, nil)
+	}
+
+	_, err = s.ExecuteStrategyFromFile(context.Background(), &btrpc.ExecuteStrategyFromFileRequest{
+		StrategyFilePath:    dcaConfigPath,
+		DoNotRunImmediately: true,
+		DoNotStore:          true,
+	})
+	if !errors.Is(err, errCannotHandleRequest) {
+		t.Errorf("received '%v' expecting '%v'", err, errCannotHandleRequest)
 	}
 }
 
@@ -259,6 +267,15 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 		t.Errorf("received '%v' expecting '%v'", err, nil)
 	}
 
+	_, err = s.ExecuteStrategyFromConfig(context.Background(), &btrpc.ExecuteStrategyFromConfigRequest{
+		DoNotRunImmediately: true,
+		DoNotStore:          true,
+		Config:              cfg,
+	})
+	if !errors.Is(err, errCannotHandleRequest) {
+		t.Errorf("received '%v' expecting '%v'", err, errCannotHandleRequest)
+	}
+
 	// coverage test to ensure the rest of the config can successfully be converted
 	// this will not have a successful response
 	cfg.FundingSettings.UseExchangeLevelFunding = true
@@ -363,7 +380,7 @@ func TestGRPCStopRun(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	_, err = s.StopRun(context.Background(), &btrpc.StopRunRequest{
-		Id: bt.MetaData.ID,
+		Id: bt.MetaData.ID.String(),
 	})
 	if !errors.Is(err, errRunHasNotRan) {
 		t.Errorf("received '%v' expecting '%v'", err, errRunHasNotRan)
@@ -374,7 +391,7 @@ func TestGRPCStopRun(t *testing.T) {
 
 	s.manager.runs[0].MetaData.DateStarted = time.Now()
 	_, err = s.StopRun(context.Background(), &btrpc.StopRunRequest{
-		Id: bt.MetaData.ID,
+		Id: bt.MetaData.ID.String(),
 	})
 	if s.manager.runs[0].MetaData.DateEnded.IsZero() {
 		t.Errorf("received '%v' expecting '%v'", s.manager.runs[0].MetaData.DateEnded, "a date")
@@ -451,7 +468,7 @@ func TestGRPCStartRun(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	_, err = s.StartRun(context.Background(), &btrpc.StartRunRequest{
-		Id: bt.MetaData.ID,
+		Id: bt.MetaData.ID.String(),
 	})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expecting '%v'", err, nil)
@@ -525,7 +542,7 @@ func TestGRPCClearRun(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	_, err = s.ClearRun(context.Background(), &btrpc.ClearRunRequest{
-		Id: bt.MetaData.ID,
+		Id: bt.MetaData.ID.String(),
 	})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expecting '%v'", err, nil)
@@ -565,38 +582,5 @@ func TestGRPCClearAllRuns(t *testing.T) {
 	}
 	if len(s.manager.runs) != 0 {
 		t.Fatalf("received '%v' expecting '%v'", len(s.manager.runs), 0)
-	}
-}
-
-func TestGRPCReportStats(t *testing.T) {
-	t.Parallel()
-	s := &GRPCServer{}
-	_, err := s.ReportStats(context.Background(), nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
-	}
-
-	s.manager = SetupRunManager()
-	_, err = s.ReportStats(context.Background(), nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
-	}
-
-	bt := &BackTest{
-		Strategy:   &ftxcashandcarry.Strategy{},
-		EventQueue: &eventholder.Holder{},
-		Datas:      &data.HandlerPerCurrency{},
-		shutdown:   make(chan struct{}),
-		Portfolio:  &portfolio.Portfolio{},
-	}
-	err = s.manager.AddRun(bt)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	_, err = s.ReportStats(context.Background(), &btrpc.ReportStatsRequest{
-		Id: bt.MetaData.ID,
-	})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received '%v' expecting '%v'", err, nil)
 	}
 }

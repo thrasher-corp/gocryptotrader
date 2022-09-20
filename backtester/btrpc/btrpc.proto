@@ -224,7 +224,7 @@ message StartRunResponse {
 message StartAllRunsRequest {}
 
 message StartAllRunsResponse {
-  repeated RunSummary runs_started = 1;
+  repeated string runs_started = 1;
 }
 
 message StopAllRunsRequest {}
@@ -246,14 +246,6 @@ message ClearAllRunsRequest {}
 message ClearAllRunsResponse {
   repeated RunSummary cleared_runs = 1;
   repeated RunSummary remaining_runs = 2;
-}
-
-message ReportStatsRequest {
-  string id = 1;
-}
-
-message ReportStatsResponse {
-  string stats = 1;
 }
 
 service BacktesterService {
@@ -300,11 +292,6 @@ service BacktesterService {
   rpc ClearAllRuns(ClearAllRunsRequest) returns (ClearAllRunsResponse) {
     option (google.api.http) = {
       delete: "/v1/clearallruns"
-    };
-  }
-  rpc ReportStats(ReportStatsRequest) returns (ReportStatsResponse) {
-    option (google.api.http) = {
-      get: "/v1/reportstats"
     };
   }
 }
