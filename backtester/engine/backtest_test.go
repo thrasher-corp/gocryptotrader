@@ -2,12 +2,14 @@ package engine
 
 import (
 	"errors"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
@@ -182,7 +184,10 @@ func TestFullCycle(t *testing.T) {
 
 func TestStop(t *testing.T) {
 	t.Parallel()
-	bt := &BackTest{shutdown: make(chan struct{})}
+	bt := &BackTest{
+		shutdown:  make(chan struct{}),
+		Statistic: &statistics.Statistic{},
+	}
 	bt.Stop()
 	tt := bt.MetaData.DateEnded
 
@@ -1144,5 +1149,64 @@ func TestMatchesID(t *testing.T) {
 	bt = nil
 	if bt.MatchesID(id) {
 		t.Errorf("received '%v' expected '%v'", true, false)
+	}
+}
+
+func TestExecuteStrategy(t *testing.T) {
+	t.Parallel()
+	bt := &BackTest{}
+	err := bt.ExecuteStrategy(false)
+	if !errors.Is(err, errNotSetup) {
+		t.Errorf("received '%v' expected '%v'", err, errNotSetup)
+	}
+	bt.MetaData.DateLoaded = time.Now()
+	bt.MetaData.DateStarted = time.Now()
+	err = bt.ExecuteStrategy(false)
+	if !errors.Is(err, errRunIsRunning) {
+		t.Errorf("received '%v' expected '%v'", err, errRunIsRunning)
+	}
+
+	strat1 := filepath.Join("..", "config", "strategyexamples", "dca-api-candles.strat")
+	cfg, err := config.ReadStrategyConfigFromFile(strat1)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	bt, err = NewFromConfig(cfg, "", "", false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	bt.Stop()
+
+	err = bt.ExecuteStrategy(true)
+	if !errors.Is(err, errAlreadyRan) {
+		t.Errorf("received '%v' expected '%v'", err, errAlreadyRan)
+	}
+
+	strat2 := filepath.Join("..", "config", "strategyexamples", "dca-candles-live.strat")
+	cfg, err = config.ReadStrategyConfigFromFile(strat2)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	bt, err = NewFromConfig(cfg, "", "", false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	err = bt.ExecuteStrategy(true)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	bt.MetaData.DateStarted = time.Time{}
+	err = bt.ExecuteStrategy(false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	bt.Stop()
+
+	bt = nil
+	err = bt.ExecuteStrategy(false)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 }

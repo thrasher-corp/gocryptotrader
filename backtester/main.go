@@ -152,7 +152,8 @@ func main() {
 			fmt.Printf("Could not read strategy config. Error: %v.\n", err)
 			os.Exit(1)
 		}
-		err = backtest.ExecuteStrategy(cfg, &config.BacktesterConfig{
+		var bt *backtest.BackTest
+		bt, err = backtest.NewBacktesterFromConfigs(cfg, &config.BacktesterConfig{
 			Report: config.Report{
 				GenerateReport: generateReport,
 				TemplatePath:   btCfg.Report.TemplatePath,
@@ -163,6 +164,23 @@ func main() {
 		if err != nil {
 			fmt.Printf("Could not execute strategy. Error: %v.\n", err)
 			os.Exit(1)
+		}
+		if bt.MetaData.LiveTesting {
+			err = bt.ExecuteStrategy(false)
+			if err != nil {
+				fmt.Printf("Could execute strategy. Error: %v.\n", err)
+				os.Exit(1)
+			}
+			interrupt := signaler.WaitForInterrupt()
+			log.Infof(log.Global, "Captured %v, shutdown requested.\n", interrupt)
+			log.Infoln(log.Global, "Exiting.")
+			bt.Stop()
+		} else {
+			err = bt.ExecuteStrategy(true)
+			if err != nil {
+				fmt.Printf("Could execute strategy. Error: %v.\n", err)
+				os.Exit(1)
+			}
 		}
 		return
 	}

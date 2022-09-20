@@ -142,7 +142,7 @@ func (r *RunManager) StartRun(id uuid.UUID) error {
 		case r.runs[i].HasRan():
 			return fmt.Errorf("%w %v", errAlreadyRan, id)
 		default:
-			return r.runs[i].ExecuteStrategy()
+			return r.runs[i].ExecuteStrategy(false)
 		}
 	}
 	return fmt.Errorf("%s %w", id, errRunNotFound)
@@ -161,7 +161,7 @@ func (r *RunManager) StartAllRuns() ([]uuid.UUID, error) {
 			continue
 		}
 		executedRuns = append(executedRuns, r.runs[i].MetaData.ID)
-		err := r.runs[i].ExecuteStrategy()
+		err := r.runs[i].ExecuteStrategy(false)
 		if err != nil {
 			return nil, err
 		}
@@ -197,7 +197,7 @@ func (r *RunManager) ClearAllRuns() (clearedRuns, remainingRuns []*RunSummary, e
 	}
 	r.m.Lock()
 	defer r.m.Unlock()
-	for i := range r.runs {
+	for i := 0; i < len(r.runs); i++ {
 		var run *RunSummary
 		run, err = r.runs[i].GenerateSummary()
 		if err != nil {
@@ -208,6 +208,7 @@ func (r *RunManager) ClearAllRuns() (clearedRuns, remainingRuns []*RunSummary, e
 		} else {
 			clearedRuns = append(clearedRuns, run)
 			r.runs = append(r.runs[:i], r.runs[i+1:]...)
+			i--
 		}
 	}
 	return clearedRuns, remainingRuns, nil

@@ -230,7 +230,7 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 	}
 
 	if !request.DoNotRunImmediately {
-		err = bt.ExecuteStrategy()
+		err = bt.ExecuteStrategy(false)
 		if err != nil {
 			return nil, err
 		}
@@ -597,7 +597,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 	}
 
 	if !request.DoNotRunImmediately {
-		err = bt.ExecuteStrategy()
+		err = bt.ExecuteStrategy(false)
 		if err != nil {
 			return nil, err
 		}

@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/ftxcashandcarry"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -342,6 +343,7 @@ func TestListAllRuns(t *testing.T) {
 		Strategy:   &ftxcashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
 		Datas:      &data.HandlerPerCurrency{},
+		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
 	err = s.manager.AddRun(bt)
@@ -375,6 +377,7 @@ func TestGRPCStopRun(t *testing.T) {
 		Strategy:   &ftxcashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
 		Datas:      &data.HandlerPerCurrency{},
+		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
 	err = s.manager.AddRun(bt)
@@ -421,6 +424,7 @@ func TestGRPCStopAllRuns(t *testing.T) {
 		Strategy:   &ftxcashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
 		Datas:      &data.HandlerPerCurrency{},
+		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
 	err = s.manager.AddRun(bt)
@@ -469,6 +473,7 @@ func TestGRPCStartRun(t *testing.T) {
 		Strategy:   &ftxcashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
 		Datas:      &data.HandlerPerCurrency{},
+		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
 	err = s.manager.AddRun(bt)
@@ -507,6 +512,7 @@ func TestGRPCStartAllRuns(t *testing.T) {
 		Strategy:   &ftxcashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
 		Datas:      &data.HandlerPerCurrency{},
+		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
 	err = s.manager.AddRun(bt)
@@ -543,6 +549,7 @@ func TestGRPCClearRun(t *testing.T) {
 		Strategy:   &ftxcashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
 		Datas:      &data.HandlerPerCurrency{},
+		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
 	err = s.manager.AddRun(bt)
@@ -578,6 +585,7 @@ func TestGRPCClearAllRuns(t *testing.T) {
 		Strategy:   &ftxcashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
 		Datas:      &data.HandlerPerCurrency{},
+		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
 	err = s.manager.AddRun(bt)

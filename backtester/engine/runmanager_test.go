@@ -8,6 +8,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/ftxcashandcarry"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 )
@@ -68,7 +69,8 @@ func TestGetSummary(t *testing.T) {
 	}
 
 	bt := &BackTest{
-		Strategy: &ftxcashandcarry.Strategy{},
+		Strategy:  &ftxcashandcarry.Strategy{},
+		Statistic: &statistics.Statistic{},
 	}
 	err = rm.AddRun(bt)
 	if !errors.Is(err, nil) {
@@ -102,7 +104,8 @@ func TestList(t *testing.T) {
 	}
 
 	bt := &BackTest{
-		Strategy: &ftxcashandcarry.Strategy{},
+		Strategy:  &ftxcashandcarry.Strategy{},
+		Statistic: &statistics.Statistic{},
 	}
 	err = rm.AddRun(bt)
 	if !errors.Is(err, nil) {
@@ -145,8 +148,9 @@ func TestStopRun(t *testing.T) {
 	}
 
 	bt := &BackTest{
-		Strategy: &ftxcashandcarry.Strategy{},
-		shutdown: make(chan struct{}),
+		Strategy:  &ftxcashandcarry.Strategy{},
+		Statistic: &statistics.Statistic{},
+		shutdown:  make(chan struct{}),
 	}
 	err = rm.AddRun(bt)
 	if !errors.Is(err, nil) {
@@ -187,8 +191,9 @@ func TestStopAllRuns(t *testing.T) {
 	}
 
 	bt := &BackTest{
-		Strategy: &ftxcashandcarry.Strategy{},
-		shutdown: make(chan struct{}),
+		Strategy:  &ftxcashandcarry.Strategy{},
+		Statistic: &statistics.Statistic{},
+		shutdown:  make(chan struct{}),
 	}
 	err = rm.AddRun(bt)
 	if !errors.Is(err, nil) {
@@ -234,6 +239,7 @@ func TestStartRun(t *testing.T) {
 		Strategy:   &ftxcashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
 		Datas:      &data.HandlerPerCurrency{},
+		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
 	err = rm.AddRun(bt)
@@ -280,6 +286,7 @@ func TestStartAllRuns(t *testing.T) {
 		Strategy:   &ftxcashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
 		Datas:      &data.HandlerPerCurrency{},
+		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
 	err = rm.AddRun(bt)
@@ -318,6 +325,7 @@ func TestClearRun(t *testing.T) {
 		Strategy:   &ftxcashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
 		Datas:      &data.HandlerPerCurrency{},
+		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
 	err = rm.AddRun(bt)
@@ -370,6 +378,7 @@ func TestClearAllRuns(t *testing.T) {
 		Strategy:   &ftxcashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
 		Datas:      &data.HandlerPerCurrency{},
+		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
 	err = rm.AddRun(bt)

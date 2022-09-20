@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -55,29 +56,45 @@ func (bt *BackTest) Reset() {
 }
 
 // ExecuteStrategy executes the strategy using the provided configs
-func (bt *BackTest) ExecuteStrategy() error {
+func (bt *BackTest) ExecuteStrategy(waitForOfflineCompletion bool) error {
 	if bt == nil {
 		return gctcommon.ErrNilPointer
 	}
 	bt.m.Lock()
 	defer bt.m.Unlock()
-	if bt.MetaData.Closed {
-		return fmt.Errorf("%w %v %v", errAlreadyRan, bt.MetaData.ID, bt.MetaData.Strategy)
+	if bt.MetaData.DateLoaded.IsZero() {
+		return errNotSetup
 	}
 	if !bt.MetaData.Closed && !bt.MetaData.DateStarted.IsZero() {
 		return fmt.Errorf("%w %v %v", errRunIsRunning, bt.MetaData.ID, bt.MetaData.Strategy)
 	}
+	if bt.MetaData.Closed {
+		return fmt.Errorf("%w %v %v", errAlreadyRan, bt.MetaData.ID, bt.MetaData.Strategy)
+	}
+
 	bt.MetaData.DateStarted = time.Now()
+	var wg sync.WaitGroup
+	if waitForOfflineCompletion {
+		wg.Add(1)
+	}
 	go func() {
+		if waitForOfflineCompletion {
+			defer wg.Done()
+		}
 		if bt.MetaData.LiveTesting {
+			if waitForOfflineCompletion {
+				log.Errorf(common.Backtester, "%v cannot wait for completion of a live test", errCannotHandleRequest)
+				return
+			}
 			err := bt.RunLive()
 			if err != nil {
 				log.Error(log.Global, err)
 			}
 		} else {
 			bt.Run()
-			bt.MetaData.DateEnded = time.Now()
+			close(bt.shutdown)
 			bt.MetaData.Closed = true
+			bt.MetaData.DateEnded = time.Now()
 			err := bt.Statistic.CalculateAllResults()
 			if err != nil {
 				log.Error(log.Global, err)
@@ -89,12 +106,16 @@ func (bt *BackTest) ExecuteStrategy() error {
 			}
 		}
 	}()
+	wg.Wait()
 	return nil
 }
 
 // Run will iterate over loaded data events
 // save them and then handle the event based on its type
 func (bt *BackTest) Run() {
+	if bt.MetaData.DateLoaded.IsZero() {
+		return
+	}
 	log.Info(common.Backtester, "Running backtester against pre-defined data")
 dataLoadingIssue:
 	for ev := bt.EventQueue.NextEvent(); ; ev = bt.EventQueue.NextEvent() {
@@ -526,9 +547,6 @@ func (bt *BackTest) Stop() {
 	close(bt.shutdown)
 	bt.MetaData.Closed = true
 	bt.MetaData.DateEnded = time.Now()
-	if !bt.MetaData.LiveTesting {
-		return
-	}
 	err := bt.Statistic.CalculateAllResults()
 	if err != nil {
 		log.Error(log.Global, err)

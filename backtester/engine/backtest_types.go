@@ -27,6 +27,7 @@ var (
 	errNilData                     = errors.New("nil data received")
 	errNilExchange                 = errors.New("nil exchange received")
 	errLiveUSDTrackingNotSupported = errors.New("USD tracking not supported for live data")
+	errNotSetup                    = errors.New("backtesting run not setup")
 )
 
 // BackTest is the main holder of all backtesting functionality

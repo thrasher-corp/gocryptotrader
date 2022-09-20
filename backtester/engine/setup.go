@@ -887,19 +887,24 @@ func loadLiveData(cfg *config.Config, base *gctexchange.Base) error {
 	return nil
 }
 
-// ExecuteStrategy executes the strategy using the provided configs
-func ExecuteStrategy(strategyCfg *config.Config, backtesterCfg *config.BacktesterConfig) error {
-	if err := strategyCfg.Validate(); err != nil {
-		return err
+// NewBacktesterFromConfigs creates a new backtester based on config settings
+func NewBacktesterFromConfigs(strategyCfg *config.Config, backtesterCfg *config.BacktesterConfig) (*BackTest, error) {
+	if strategyCfg == nil {
+		return nil, fmt.Errorf("%w strategy config", gctcommon.ErrNilPointer)
 	}
 	if backtesterCfg == nil {
-		err := fmt.Errorf("%w backtester config", common.ErrNilArguments)
-		return err
+		return nil, fmt.Errorf("%w backtester config", gctcommon.ErrNilPointer)
+	}
+	if err := strategyCfg.Validate(); err != nil {
+		return nil, err
 	}
 	bt, err := NewFromConfig(strategyCfg, backtesterCfg.Report.TemplatePath, backtesterCfg.Report.OutputPath, backtesterCfg.Verbose)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	return bt.ExecuteStrategy()
+	err = bt.SetupMetaData()
+	if err != nil {
+		return nil, err
+	}
+	return bt, nil
 }
