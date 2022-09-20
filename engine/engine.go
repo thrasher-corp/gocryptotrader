@@ -846,6 +846,9 @@ func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
 		}
 	}
 
+	// NOTE: This will standardize name to default and apply it to the config.
+	exchCfg.Name = exch.GetName()
+
 	exchCfg.Enabled = true
 	err = exch.Setup(exchCfg)
 	if err != nil {
