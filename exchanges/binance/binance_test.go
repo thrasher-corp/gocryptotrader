@@ -425,7 +425,25 @@ func TestUFuturesNewOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-	_, err := b.UFuturesNewOrder(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "BUY", "", "LIMIT", "GTC", "", "", "", "", 1, 1, 0, 0, 0, false)
+	_, err := b.UFuturesNewOrder(context.Background(),
+		&UFuturesNewOrderRequest{
+			Symbol:           currency.NewPair(currency.BTC, currency.USDT),
+			Side:             "BUY",
+			PositionSide:     "",
+			OrderType:        "LIMIT",
+			TimeInForce:      "GTC",
+			NewClientOrderID: "",
+			ClosePosition:    "",
+			WorkingType:      "",
+			NewOrderRespType: "",
+			Quantity:         1,
+			Price:            1,
+			StopPrice:        0,
+			ActivationPrice:  0,
+			CallbackRate:     0,
+			ReduceOnly:       false,
+		},
+	)
 	if err != nil {
 		t.Error(err)
 	}
