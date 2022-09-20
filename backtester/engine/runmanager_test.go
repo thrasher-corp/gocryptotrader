@@ -2,13 +2,14 @@ package engine
 
 import (
 	"errors"
+	"testing"
+	"time"
+
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/ftxcashandcarry"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
-	"testing"
-	"time"
 )
 
 func TestSetupRunManager(t *testing.T) {

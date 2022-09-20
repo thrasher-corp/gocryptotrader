@@ -4,10 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/thrasher-corp/gocryptotrader/backtester/data"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/ftxcashandcarry"
-	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"path/filepath"
 	"testing"
 	"time"
@@ -15,6 +11,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/btrpc"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/ftxcashandcarry"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -75,6 +75,9 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 	}
 
 	s.config, err = config.GenerateDefaultConfig()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expecting '%v'", err, nil)
+	}
 	_, err = s.ExecuteStrategyFromConfig(context.Background(), nil)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
@@ -352,7 +355,6 @@ func TestListAllRuns(t *testing.T) {
 	if len(resp.Runs) != 1 {
 		t.Errorf("received '%v' expecting '%v'", len(resp.Runs), 1)
 	}
-
 }
 
 func TestGRPCStopRun(t *testing.T) {
@@ -393,6 +395,9 @@ func TestGRPCStopRun(t *testing.T) {
 	_, err = s.StopRun(context.Background(), &btrpc.StopRunRequest{
 		Id: bt.MetaData.ID.String(),
 	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expecting '%v'", err, nil)
+	}
 	if s.manager.runs[0].MetaData.DateEnded.IsZero() {
 		t.Errorf("received '%v' expecting '%v'", s.manager.runs[0].MetaData.DateEnded, "a date")
 	}
@@ -435,6 +440,9 @@ func TestGRPCStopAllRuns(t *testing.T) {
 
 	s.manager.runs[0].MetaData.DateStarted = time.Now()
 	resp, err = s.StopAllRuns(context.Background(), &btrpc.StopAllRunsRequest{})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expecting '%v'", err, nil)
+	}
 	if s.manager.runs[0].MetaData.DateEnded.IsZero() {
 		t.Errorf("received '%v' expecting '%v'", s.manager.runs[0].MetaData.DateEnded, "a date")
 	}

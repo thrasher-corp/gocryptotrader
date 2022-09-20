@@ -3,6 +3,8 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
@@ -23,7 +25,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
-	"time"
 )
 
 // New returns a new BackTest instance

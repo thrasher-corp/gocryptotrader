@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"fmt"
+
 	"github.com/gofrs/uuid"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 )
@@ -46,19 +47,19 @@ func (r *RunManager) AddRun(b *BackTest) error {
 }
 
 // List details all backtesting/livestrategy runs
-func (r *RunManager) List() ([]RunSummary, error) {
+func (r *RunManager) List() ([]*RunSummary, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w RunManager", gctcommon.ErrNilPointer)
 	}
 	r.m.Lock()
 	defer r.m.Unlock()
-	var resp []RunSummary
+	resp := make([]*RunSummary, len(r.runs))
 	for i := range r.runs {
 		sum, err := r.runs[i].GenerateSummary()
 		if err != nil {
 			return nil, err
 		}
-		resp = append(resp, *sum)
+		resp[i] = sum
 	}
 	return resp, nil
 }
@@ -154,7 +155,7 @@ func (r *RunManager) StartAllRuns() ([]uuid.UUID, error) {
 	}
 	r.m.Lock()
 	defer r.m.Unlock()
-	var executedRuns []uuid.UUID
+	executedRuns := make([]uuid.UUID, 0, len(r.runs))
 	for i := range r.runs {
 		if r.runs[i].HasRan() {
 			continue

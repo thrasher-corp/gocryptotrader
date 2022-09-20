@@ -228,7 +228,7 @@ type FundingItemStatistics struct {
 	MarketMovement           decimal.Decimal `json:"market-movement"`
 	StrategyMovement         decimal.Decimal `json:"strategy-movement"`
 	DidStrategyBeatTheMarket bool            `json:"did-strategy-beat-the-market"`
-	RiskFreeRate             decimal.Decimal `json:"risk-free-rate""`
+	RiskFreeRate             decimal.Decimal `json:"risk-free-rate"`
 	CompoundAnnualGrowthRate decimal.Decimal `json:"compound-annual-growth-rate"`
 	BuyOrders                int64           `json:"buy-orders"`
 	SellOrders               int64           `json:"sell-orders"`

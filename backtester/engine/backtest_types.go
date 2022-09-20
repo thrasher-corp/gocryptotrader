@@ -2,6 +2,9 @@ package engine
 
 import (
 	"errors"
+	"sync"
+	"time"
+
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
@@ -12,8 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
 	"github.com/thrasher-corp/gocryptotrader/engine"
-	"sync"
-	"time"
 )
 
 var (
@@ -53,6 +54,7 @@ type RunSummary struct {
 	MetaData RunMetaData
 }
 
+// RunMetaData contains details about a run such as when it was loaded
 type RunMetaData struct {
 	ID          uuid.UUID
 	Strategy    string

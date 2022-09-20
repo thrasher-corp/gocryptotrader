@@ -2,11 +2,10 @@ package engine
 
 import (
 	"errors"
-	"github.com/gofrs/uuid"
-	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"testing"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
@@ -26,6 +25,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -1082,7 +1082,9 @@ func TestHasRan(t *testing.T) {
 func TestEqual(t *testing.T) {
 	t.Parallel()
 	bt := &BackTest{}
-	if !bt.Equal(bt) {
+	bt2 := &BackTest{}
+	bt3 := &BackTest{}
+	if !bt.Equal(bt2) {
 		t.Errorf("received '%v' expected '%v'", false, true)
 	}
 
@@ -1090,8 +1092,8 @@ func TestEqual(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-
-	if !bt.Equal(bt) {
+	bt2.MetaData = bt.MetaData
+	if !bt.Equal(bt2) {
 		t.Errorf("received '%v' expected '%v'", false, true)
 	}
 
@@ -1099,17 +1101,16 @@ func TestEqual(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", true, false)
 	}
 
-	bt2 := &BackTest{}
-	err = bt2.SetupMetaData()
+	err = bt3.SetupMetaData()
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	if bt.Equal(bt2) {
+	if bt.Equal(bt3) {
 		t.Errorf("received '%v' expected '%v'", true, false)
 	}
 
 	bt = nil
-	if bt.Equal(bt) {
+	if bt.Equal(bt2) {
 		t.Errorf("received '%v' expected '%v'", true, false)
 	}
 }

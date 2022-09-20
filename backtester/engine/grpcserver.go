@@ -4,20 +4,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/gofrs/uuid"
-	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"math"
 	"net"
 	"net/http"
 	"path/filepath"
 	"strings"
 
+	"github.com/gofrs/uuid"
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/btrpc"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -203,7 +203,8 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 		return nil, err
 	}
 
-	if err = cfg.Validate(); err != nil {
+	err = cfg.Validate()
+	if err != nil {
 		return nil, err
 	}
 	if cfg == nil {
@@ -619,9 +620,9 @@ func (s *GRPCServer) ListAllRuns(_ context.Context, _ *btrpc.ListAllRunsRequest)
 	if err != nil {
 		return nil, err
 	}
-	var response []*btrpc.RunSummary
+	response := make([]*btrpc.RunSummary, len(list))
 	for i := range list {
-		response = append(response, convertSummary(&list[i]))
+		response[i] = convertSummary(list[i])
 	}
 	return &btrpc.ListAllRunsResponse{
 		Runs: response,
@@ -658,14 +659,14 @@ func (s *GRPCServer) StopAllRuns(_ context.Context, _ *btrpc.StopAllRunsRequest)
 	if s.manager == nil {
 		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
 	}
-	var stoppedRuns []*btrpc.RunSummary
 	stopped, err := s.manager.StopAllRuns()
 	if err != nil {
 		return nil, err
 	}
 
+	stoppedRuns := make([]*btrpc.RunSummary, len(stopped))
 	for i := range stopped {
-		stoppedRuns = append(stoppedRuns, convertSummary(stopped[i]))
+		stoppedRuns[i] = convertSummary(stopped[i])
 	}
 	return &btrpc.StopAllRunsResponse{
 		RunsStopped: stoppedRuns,
@@ -698,13 +699,14 @@ func (s *GRPCServer) StartAllRuns(_ context.Context, _ *btrpc.StartAllRunsReques
 	if s.manager == nil {
 		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
 	}
-	var startedRuns []string
 	started, err := s.manager.StartAllRuns()
 	if err != nil {
 		return nil, err
 	}
+
+	startedRuns := make([]string, len(started))
 	for i := range started {
-		startedRuns = append(startedRuns, started[i].String())
+		startedRuns[i] = started[i].String()
 	}
 	return &btrpc.StartAllRunsResponse{
 		RunsStarted: startedRuns,
@@ -746,12 +748,13 @@ func (s *GRPCServer) ClearAllRuns(_ context.Context, _ *btrpc.ClearAllRunsReques
 		return nil, err
 	}
 
-	var clearedResponse, remainingResponse []*btrpc.RunSummary
+	clearedResponse := make([]*btrpc.RunSummary, len(clearedRuns))
 	for i := range clearedRuns {
-		clearedResponse = append(clearedResponse, convertSummary(clearedRuns[i]))
+		clearedResponse[i] = convertSummary(clearedRuns[i])
 	}
+	remainingResponse := make([]*btrpc.RunSummary, len(remainingRuns))
 	for i := range remainingRuns {
-		remainingResponse = append(remainingResponse, convertSummary(remainingRuns[i]))
+		remainingResponse[i] = convertSummary(remainingRuns[i])
 	}
 	return &btrpc.ClearAllRunsResponse{
 		ClearedRuns:   clearedResponse,
