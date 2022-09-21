@@ -427,12 +427,12 @@ func TestUFuturesNewOrder(t *testing.T) {
 	}
 	_, err := b.UFuturesNewOrder(context.Background(),
 		&UFuturesNewOrderRequest{
-			Symbol:           currency.NewPair(currency.BTC, currency.USDT),
-			Side:             "BUY",
-			OrderType:        "LIMIT",
-			TimeInForce:      "GTC",
-			Quantity:         1,
-			Price:            1,
+			Symbol:      currency.NewPair(currency.BTC, currency.USDT),
+			Side:        "BUY",
+			OrderType:   "LIMIT",
+			TimeInForce: "GTC",
+			Quantity:    1,
+			Price:       1,
 		},
 	)
 	if err != nil {
