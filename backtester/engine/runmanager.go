@@ -32,16 +32,16 @@ func (r *RunManager) AddRun(b *BackTest) error {
 	}
 	r.m.Lock()
 	defer r.m.Unlock()
-	err := b.SetupMetaData()
-	if err != nil {
-		return err
-	}
 	for i := range r.runs {
 		if r.runs[i].Equal(b) {
 			return fmt.Errorf("%w %s %s", errRunAlreadyMonitored, b.MetaData.ID, b.MetaData.Strategy)
 		}
 	}
 
+	err := b.SetupMetaData()
+	if err != nil {
+		return err
+	}
 	r.runs = append(r.runs, b)
 	return nil
 }
@@ -88,10 +88,9 @@ func (r *RunManager) StopRun(id uuid.UUID) error {
 	r.m.Lock()
 	defer r.m.Unlock()
 	for i := range r.runs {
-		if !r.runs[i].MatchesID(id) {
-			continue
-		}
 		switch {
+		case !r.runs[i].MatchesID(id):
+			continue
 		case r.runs[i].IsRunning():
 			r.runs[i].Stop()
 			return nil
@@ -111,16 +110,17 @@ func (r *RunManager) StopAllRuns() ([]*RunSummary, error) {
 	}
 	r.m.Lock()
 	defer r.m.Unlock()
-	var resp []*RunSummary
+	resp := make([]*RunSummary, 0, len(r.runs))
 	for i := range r.runs {
-		if r.runs[i].IsRunning() {
-			r.runs[i].Stop()
-			sum, err := r.runs[i].GenerateSummary()
-			if err != nil {
-				return nil, err
-			}
-			resp = append(resp, sum)
+		if !r.runs[i].IsRunning() {
+			continue
 		}
+		r.runs[i].Stop()
+		sum, err := r.runs[i].GenerateSummary()
+		if err != nil {
+			return nil, err
+		}
+		resp = append(resp, sum)
 	}
 	return resp, nil
 }
@@ -133,10 +133,9 @@ func (r *RunManager) StartRun(id uuid.UUID) error {
 	r.m.Lock()
 	defer r.m.Unlock()
 	for i := range r.runs {
-		if !r.runs[i].MatchesID(id) {
-			continue
-		}
 		switch {
+		case !r.runs[i].MatchesID(id):
+			continue
 		case r.runs[i].IsRunning():
 			return fmt.Errorf("%w %v", errRunIsRunning, id)
 		case r.runs[i].HasRan():

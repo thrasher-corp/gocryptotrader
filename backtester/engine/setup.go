@@ -48,7 +48,6 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 	if cfg == nil {
 		return nil, errNilConfig
 	}
-	var err error
 	bt, err := New()
 	if err != nil {
 		return nil, err
