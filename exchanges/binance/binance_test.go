@@ -429,19 +429,10 @@ func TestUFuturesNewOrder(t *testing.T) {
 		&UFuturesNewOrderRequest{
 			Symbol:           currency.NewPair(currency.BTC, currency.USDT),
 			Side:             "BUY",
-			PositionSide:     "",
 			OrderType:        "LIMIT",
 			TimeInForce:      "GTC",
-			NewClientOrderID: "",
-			ClosePosition:    "",
-			WorkingType:      "",
-			NewOrderRespType: "",
 			Quantity:         1,
 			Price:            1,
-			StopPrice:        0,
-			ActivationPrice:  0,
-			CallbackRate:     0,
-			ReduceOnly:       false,
 		},
 	)
 	if err != nil {
