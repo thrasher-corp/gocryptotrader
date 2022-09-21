@@ -18,14 +18,12 @@ func TestSimulate(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	r, err := o.SimulateOrder(10000000, true)
+	_, err = o.SimulateOrder(10000000, true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(r.Status)
-	r, err = o.SimulateOrder(2171, false)
+	_, err = o.SimulateOrder(2171, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(r.Status)
 }
