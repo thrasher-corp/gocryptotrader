@@ -293,7 +293,11 @@ func TestFetchLatestData(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	cp := currency.NewPair(currency.BTC, currency.USD).Format("/", true)
+	cp := currency.NewPair(currency.BTC, currency.USD).Format(
+		currency.PairFormat{
+			Uppercase: true,
+			Delimiter: "/",
+		})
 	f := &ftx.FTX{}
 	f.SetDefaults()
 	fb := f.GetBase()
@@ -346,7 +350,11 @@ func TestLoadCandleData(t *testing.T) {
 
 	exch := &ftx.FTX{}
 	exch.SetDefaults()
-	cp := currency.NewPair(currency.BTC, currency.USD).Format("/", true)
+	cp := currency.NewPair(currency.BTC, currency.USD).Format(
+		currency.PairFormat{
+			Uppercase: true,
+			Delimiter: "/",
+		})
 	eba := exch.CurrencyPairs.Pairs[asset.Spot]
 	eba.Available = eba.Available.Add(cp)
 	eba.Enabled = eba.Enabled.Add(cp)
@@ -387,7 +395,11 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 	}
 
 	dataHandler.started = 1
-	cp := currency.NewPair(currency.BTC, currency.USD).Format("/", true)
+	cp := currency.NewPair(currency.BTC, currency.USD).Format(
+		currency.PairFormat{
+			Uppercase: true,
+			Delimiter: "/",
+		})
 	f := &ftx.FTX{}
 	f.SetDefaults()
 	fb := f.GetBase()

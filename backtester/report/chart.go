@@ -146,14 +146,13 @@ func createFuturesSpotDiffChart(items map[string]map[asset.Item]map[*currency.It
 		AxisType: "linear",
 	}
 
-	upperFormat := currency.PairFormat{Uppercase: true}
 	for _, assetMap := range items {
 		for item, baseMap := range assetMap {
 			for b, quoteMap := range baseMap {
 				for q, result := range quoteMap {
 					cp := currency.NewPair(b.Currency(), q.Currency())
 					if item.IsFutures() {
-						p := result.UnderlyingPair.Format("", true)
+						p := result.UnderlyingPair.Format(currency.EMPTYFORMAT)
 						diff, ok := currs[p]
 						if !ok {
 							diff = linkCurrencyDiff{}
@@ -163,7 +162,7 @@ func createFuturesSpotDiffChart(items map[string]map[asset.Item]map[*currency.It
 						diff.FuturesEvents = result.Events
 						currs[p] = diff
 					} else {
-						p := cp.Format("", true)
+						p := cp.Format(currency.EMPTYFORMAT)
 						diff, ok := currs[p]
 						if !ok {
 							diff = linkCurrencyDiff{}

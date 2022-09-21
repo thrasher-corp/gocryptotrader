@@ -14,8 +14,8 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/btrpc"
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -153,7 +153,7 @@ func (s *GRPCServer) authenticateClient(ctx context.Context) (context.Context, e
 // ExecuteStrategyFromFile will backtest a strategy from the filepath provided
 func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.ExecuteStrategyFromFileRequest) (*btrpc.ExecuteStrategyResponse, error) {
 	if request == nil {
-		return nil, fmt.Errorf("%w nil request", common.ErrNilArguments)
+		return nil, fmt.Errorf("%w nil request", gctcommon.ErrNilPointer)
 	}
 	dir := request.StrategyFilePath
 	cfg, err := config.ReadStrategyConfigFromFile(dir)
@@ -174,7 +174,7 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 // minor tweaks to strategy to determine the best result - SO LONG AS YOU DONT OVERFIT
 func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc.ExecuteStrategyFromConfigRequest) (*btrpc.ExecuteStrategyResponse, error) {
 	if request == nil || request.Config == nil {
-		return nil, fmt.Errorf("%w nil request", common.ErrNilArguments)
+		return nil, fmt.Errorf("%w nil request", gctcommon.ErrNilPointer)
 	}
 
 	rfr, err := decimal.NewFromString(request.Config.StatisticSettings.RiskFreeRate)
@@ -435,12 +435,14 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 	var liveData *config.LiveData
 	if request.Config.DataSettings.LiveData != nil {
 		liveData = &config.LiveData{
-			APIKeyOverride:        request.Config.DataSettings.LiveData.ApiKeyOverride,
-			APISecretOverride:     request.Config.DataSettings.LiveData.ApiSecretOverride,
-			APIClientIDOverride:   request.Config.DataSettings.LiveData.ApiClientIdOverride,
-			API2FAOverride:        request.Config.DataSettings.LiveData.Api_2FaOverride,
-			APISubAccountOverride: request.Config.DataSettings.LiveData.ApiSubAccountOverride,
-			RealOrders:            request.Config.DataSettings.LiveData.UseRealOrders,
+			// TODO FIXXXX
+			NewEventTimeout:           0,
+			DataCheckTimer:            0,
+			RealOrders:                request.Config.DataSettings.LiveData.UseRealOrders,
+			ClosePositionsOnExit:      false,
+			DataRequestRetryTolerance: 0,
+			DataRequestRetryWaitTime:  0,
+			ExchangeCredentials:       nil,
 		}
 	}
 	var csvData *config.CSVData

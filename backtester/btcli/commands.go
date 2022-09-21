@@ -80,7 +80,7 @@ func executeStrategyFromConfig(c *cli.Context) error {
 		"..",
 		"config",
 		"strategyexamples",
-		"ftx-cash-carry.strat")
+		"ftx-cash-and-carry.strat")
 	defaultConfig, err := config.ReadStrategyConfigFromFile(defaultPath)
 	if err != nil {
 		return err
@@ -163,12 +163,13 @@ func executeStrategyFromConfig(c *cli.Context) error {
 	}
 	if defaultConfig.DataSettings.LiveData != nil {
 		dataSettings.LiveData = &btrpc.LiveData{
-			ApiKeyOverride:        defaultConfig.DataSettings.LiveData.APIKeyOverride,
-			ApiSecretOverride:     defaultConfig.DataSettings.LiveData.APISecretOverride,
-			ApiClientIdOverride:   defaultConfig.DataSettings.LiveData.APIClientIDOverride,
-			Api_2FaOverride:       defaultConfig.DataSettings.LiveData.API2FAOverride,
-			ApiSubAccountOverride: defaultConfig.DataSettings.LiveData.APISubAccountOverride,
-			UseRealOrders:         defaultConfig.DataSettings.LiveData.RealOrders,
+			// TODO FIXXXX
+			//ApiKeyOverride:        defaultConfig.DataSettings.LiveData.,
+			//ApiSecretOverride:     defaultConfig.DataSettings.LiveData.APISecretOverride,
+			//ApiClientIdOverride:   defaultConfig.DataSettings.LiveData.APIClientIDOverride,
+			//Api_2FaOverride:       defaultConfig.DataSettings.LiveData.API2FAOverride,
+			//ApiSubAccountOverride: defaultConfig.DataSettings.LiveData.APISubAccountOverride,
+			//UseRealOrders:         defaultConfig.DataSettings.LiveData.RealOrders,
 		}
 	}
 	if defaultConfig.DataSettings.CSVData != nil {

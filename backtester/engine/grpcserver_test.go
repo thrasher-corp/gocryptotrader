@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/btrpc"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -20,8 +21,8 @@ func TestExecuteStrategyFromFile(t *testing.T) {
 	t.Parallel()
 	s := &GRPCServer{}
 	_, err := s.ExecuteStrategyFromFile(context.Background(), nil)
-	if !errors.Is(err, common.ErrNilArguments) {
-		t.Errorf("received '%v' expecting '%v'", err, common.ErrNilArguments)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
 	}
 
 	_, err = s.ExecuteStrategyFromFile(context.Background(), &btrpc.ExecuteStrategyFromFileRequest{})
@@ -32,8 +33,8 @@ func TestExecuteStrategyFromFile(t *testing.T) {
 	_, err = s.ExecuteStrategyFromFile(context.Background(), &btrpc.ExecuteStrategyFromFileRequest{
 		StrategyFilePath: dcaConfigPath,
 	})
-	if !errors.Is(err, common.ErrNilArguments) {
-		t.Errorf("received '%v' expecting '%v'", err, common.ErrNilArguments)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
 	}
 
 	s.BacktesterConfig = &config.BacktesterConfig{}
@@ -49,14 +50,14 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 	t.Parallel()
 	s := &GRPCServer{}
 	_, err := s.ExecuteStrategyFromConfig(context.Background(), nil)
-	if !errors.Is(err, common.ErrNilArguments) {
-		t.Errorf("received '%v' expecting '%v'", err, common.ErrNilArguments)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
 	}
 
 	s.BacktesterConfig = &config.BacktesterConfig{}
 	_, err = s.ExecuteStrategyFromConfig(context.Background(), &btrpc.ExecuteStrategyFromConfigRequest{})
-	if !errors.Is(err, common.ErrNilArguments) {
-		t.Errorf("received '%v' expecting '%v'", err, common.ErrNilArguments)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
 	}
 
 	defaultConfig, err := config.ReadStrategyConfigFromFile(dcaConfigPath)
@@ -157,12 +158,9 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 	}
 	if defaultConfig.DataSettings.LiveData != nil {
 		dataSettings.LiveData = &btrpc.LiveData{
-			ApiKeyOverride:        defaultConfig.DataSettings.LiveData.APIKeyOverride,
-			ApiSecretOverride:     defaultConfig.DataSettings.LiveData.APISecretOverride,
-			ApiClientIdOverride:   defaultConfig.DataSettings.LiveData.APIClientIDOverride,
-			Api_2FaOverride:       defaultConfig.DataSettings.LiveData.API2FAOverride,
-			ApiSubAccountOverride: defaultConfig.DataSettings.LiveData.APISubAccountOverride,
-			UseRealOrders:         defaultConfig.DataSettings.LiveData.RealOrders,
+			// TODO FIIIIIX
+
+			UseRealOrders: defaultConfig.DataSettings.LiveData.RealOrders,
 		}
 	}
 	if defaultConfig.DataSettings.CSVData != nil {

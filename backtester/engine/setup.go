@@ -180,7 +180,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 			return fmt.Errorf("%v %v %w", cfg.CurrencySettings[i].ExchangeName, cfg.CurrencySettings[i].Asset, asset.ErrNotSupported)
 		}
 		exchangeAsset.AssetEnabled = convert.BoolPtr(true)
-		cp := currency.NewPair(cfg.CurrencySettings[i].Base, cfg.CurrencySettings[i].Quote).Format(exchangeAsset.RequestFormat.Delimiter, exchangeAsset.RequestFormat.Uppercase)
+		cp := currency.NewPair(cfg.CurrencySettings[i].Base, cfg.CurrencySettings[i].Quote).Format(*exchangeAsset.RequestFormat)
 		exchangeAsset.Available = exchangeAsset.Available.Add(cp)
 		exchangeAsset.Enabled = exchangeAsset.Enabled.Add(cp)
 		exchBase.Verbose = verbose
@@ -224,7 +224,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		var b, q currency.Code
 		b = cfg.CurrencySettings[i].Base
 		q = cfg.CurrencySettings[i].Quote
-		curr = currency.NewPair(b, q).Format("", false)
+		curr = currency.NewPair(b, q).Format(currency.EMPTYFORMAT)
 		var exch gctexchange.IBotExchange
 		exch, err = bt.exchangeManager.GetExchangeByName(cfg.CurrencySettings[i].ExchangeName)
 		if err != nil {
@@ -447,7 +447,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		}
 	}
 	if !hasFunding {
-		return nil, holdings.ErrInitialFundsZero
+		return holdings.ErrInitialFundsZero
 	}
 
 	cfg.PrintSetting()
@@ -925,14 +925,19 @@ func setExchangeCredentials(cfg *config.Config, base *gctexchange.Base) error {
 
 // ExecuteStrategy executes the strategy using the provided configs
 func ExecuteStrategy(strategyCfg *config.Config, backtesterCfg *config.BacktesterConfig) error {
-	if err := strategyCfg.Validate(); err != nil {
+	err := strategyCfg.Validate()
+	if err != nil {
 		return err
 	}
 	if backtesterCfg == nil {
-		err := fmt.Errorf("%w backtester config", common.ErrNilArguments)
+		err = fmt.Errorf("%w backtester config", gctcommon.ErrNilPointer)
 		return err
 	}
-	bt, err := NewFromConfig(strategyCfg, backtesterCfg.Report.TemplatePath, backtesterCfg.Report.OutputPath, backtesterCfg.Verbose)
+	bt, err := NewBacktester()
+	if err != nil {
+		return err
+	}
+	err = bt.SetupFromConfig(strategyCfg, backtesterCfg.Report.TemplatePath, backtesterCfg.Report.OutputPath, backtesterCfg.Verbose)
 	if err != nil {
 		return err
 	}

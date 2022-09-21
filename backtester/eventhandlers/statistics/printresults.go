@@ -134,7 +134,7 @@ func (s *Statistic) PrintAllEventsChronologically() {
 func (s *Statistic) CreateLog(data common.Event) (string, error) {
 	var (
 		result string
-		colour = common.ColourDefault
+		colour = common.CMDColours.Default
 	)
 	switch ev := data.(type) {
 	case fill.Event:
@@ -146,7 +146,7 @@ func (s *Statistic) CreateLog(data common.Event) (string, error) {
 			direction == order.TransferredFunds ||
 			direction == order.UnknownSide {
 			if direction == order.DoNothing {
-				colour = common.ColourDarkGrey
+				colour = common.CMDColours.DarkGrey
 			}
 			result = fmt.Sprintf(colour+
 				"%v %v%v%v| Price: %v\tDirection: %v",
@@ -157,12 +157,12 @@ func (s *Statistic) CreateLog(data common.Event) (string, error) {
 				ev.GetClosePrice().Round(8),
 				ev.GetDirection())
 			result = addReason(ev.GetConcatReasons(), result)
-			result += common.ColourDefault
+			result += common.CMDColours.Default
 		} else {
 			// successful order!
-			colour = common.ColourSuccess
+			colour = common.CMDColours.Success
 			if ev.IsLiquidated() {
-				colour = common.ColourError
+				colour = common.CMDColours.Error
 			}
 			result = fmt.Sprintf(colour+
 				"%v %v%v%v| Price: %v\tDirection %v\tOrder placed: Amount: %v\tFee: %v\tTotal: %v",
@@ -176,7 +176,7 @@ func (s *Statistic) CreateLog(data common.Event) (string, error) {
 				ev.GetExchangeFee(),
 				ev.GetTotal().Round(8))
 			result = addReason(ev.GetConcatReasons(), result)
-			result += common.ColourDefault
+			result += common.CMDColours.Default
 		}
 	case signal.Event:
 		result = fmt.Sprintf("%v %v%v%v| Price: $%v",
@@ -186,7 +186,7 @@ func (s *Statistic) CreateLog(data common.Event) (string, error) {
 			fSIL(ev.Pair().String(), limit14),
 			ev.GetClosePrice().Round(8))
 		result = addReason(ev.GetConcatReasons(), result)
-		result += common.ColourDefault
+		result += common.CMDColours.Default
 	case data2.Event:
 		result = fmt.Sprintf("%v %v%v%v| Price: $%v",
 			ev.GetTime().Format(gctcommon.SimpleTimeFormat),
@@ -195,9 +195,9 @@ func (s *Statistic) CreateLog(data common.Event) (string, error) {
 			fSIL(ev.Pair().String(), limit14),
 			ev.GetClosePrice().Round(8))
 		result = addReason(ev.GetConcatReasons(), result)
-		result += common.ColourDefault
+		result += common.CMDColours.Default
 	default:
-		return "", fmt.Errorf(common.ColourError+"unexpected data received %T %+v"+common.ColourDefault, data, data)
+		return "", fmt.Errorf(common.CMDColours.Error+"unexpected data received %T %+v"+common.CMDColours.Default, data, data)
 	}
 	return result, nil
 }

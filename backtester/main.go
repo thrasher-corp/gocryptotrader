@@ -18,10 +18,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/signaler"
 )
 
-var (
-	configPath, templatePath, reportOutput, strategyPluginPath, pprofPath                   string
-	printLogo, generateReport, darkReport, verbose, colourOutput, logSubHeader, enablePProf bool
-)
+var singleRunStrategyPath, templatePath, outputPath, btConfigDir, strategyPluginPath, pprofURL string
+var printLogo, generateReport, darkReport, colourOutput, logSubHeader, enablePProf bool
 
 func main() {
 	wd, err := os.Getwd()
@@ -36,6 +34,13 @@ func main() {
 		btConfigDir = config.DefaultBTConfigDir
 		log.Infof(log.Global, "Blank config received, using default path '%v'", btConfigDir)
 	}
+
+	if enablePProf {
+		go func() {
+			fmt.Println(http.ListenAndServe(pprofURL, nil))
+		}()
+	}
+
 	fe := file.Exists(btConfigDir)
 	switch {
 	case fe:
@@ -258,8 +263,8 @@ func parseFlags(wd string) map[string]bool {
 		false,
 		"if enabled, runs a pprof server for debugging")
 	flag.StringVar(
-		&pprofPath,
-		"pprofpath",
+		&pprofURL,
+		"pprofurl",
 		"http://localhost:6060",
 		"")
 	flag.Parse()

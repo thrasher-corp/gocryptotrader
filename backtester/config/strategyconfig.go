@@ -35,7 +35,7 @@ func ReadStrategyConfigFromFile(path string) (*Config, error) {
 // Validate checks all config settings
 func (c *Config) Validate() error {
 	if c == nil {
-		return fmt.Errorf("%w nil config", common.ErrNilArguments)
+		return fmt.Errorf("%w nil config", gctcommon.ErrNilPointer)
 	}
 	err := c.validateDate()
 	if err != nil {

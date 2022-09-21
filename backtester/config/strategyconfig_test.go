@@ -439,8 +439,8 @@ func TestValidate(t *testing.T) {
 
 	c = nil
 	err = c.Validate()
-	if !errors.Is(err, common.ErrNilArguments) {
-		t.Errorf("received %v expected %v", err, common.ErrNilArguments)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received %v expected %v", err, gctcommon.ErrNilPointer)
 	}
 }
 
