@@ -146,6 +146,7 @@ func createFuturesSpotDiffChart(items map[string]map[asset.Item]map[*currency.It
 		AxisType: "linear",
 	}
 
+	upperFormat := currency.PairFormat{Uppercase: true}
 	for _, assetMap := range items {
 		for item, baseMap := range assetMap {
 			for b, quoteMap := range baseMap {

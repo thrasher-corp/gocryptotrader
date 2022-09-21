@@ -1065,7 +1065,7 @@ func createDepositEngine(opts *fakeDepositExchangeOpts) *Engine {
 					Enabled: true,
 					CurrencyPairs: &currency.PairsManager{
 						UseGlobalFormat: true,
-						ConfigFormat:    &currency.PairFormat{},
+						ConfigFormat:    &currency.EMPTYFORMAT,
 						Pairs: map[asset.Item]*currency.PairStore{
 							asset.Spot: &ps,
 						},
@@ -1318,7 +1318,7 @@ func TestCheckAndGenCerts(t *testing.T) {
 	}
 
 	defer cleanup()
-	if err := checkCerts(tempDir); err != nil {
+	if err := CheckCerts(tempDir); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1327,11 +1327,11 @@ func TestCheckAndGenCerts(t *testing.T) {
 	if err := os.Remove(certFile); err != nil {
 		t.Fatal(err)
 	}
-	if err := checkCerts(tempDir); err != nil {
+	if err := CheckCerts(tempDir); err != nil {
 		t.Fatal(err)
 	}
 
-	// Now call checkCerts to test an expired cert
+	// Now call CheckCerts to test an expired cert
 	certData, err := mockCert("", time.Now().Add(-time.Hour))
 	if err != nil {
 		t.Fatal(err)
@@ -1340,7 +1340,7 @@ func TestCheckAndGenCerts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = checkCerts(tempDir); err != nil {
+	if err = CheckCerts(tempDir); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -126,7 +126,7 @@ func (d *DataFromKline) StreamOpen() []decimal.Decimal {
 		if val, ok := s[x].(*kline.Kline); ok {
 			ret[x] = val.Open
 		} else {
-			log.Errorf(common.Data, "incorrect data loaded into stream")
+			log.Errorf(common.Data, "Incorrect data loaded into stream")
 		}
 	}
 	return ret
@@ -142,7 +142,7 @@ func (d *DataFromKline) StreamHigh() []decimal.Decimal {
 		if val, ok := s[x].(*kline.Kline); ok {
 			ret[x] = val.High
 		} else {
-			log.Errorf(common.Data, "incorrect data loaded into stream")
+			log.Errorf(common.Data, "Incorrect data loaded into stream")
 		}
 	}
 	return ret
@@ -158,7 +158,7 @@ func (d *DataFromKline) StreamLow() []decimal.Decimal {
 		if val, ok := s[x].(*kline.Kline); ok {
 			ret[x] = val.Low
 		} else {
-			log.Errorf(common.Data, "incorrect data loaded into stream")
+			log.Errorf(common.Data, "Incorrect data loaded into stream")
 		}
 	}
 	return ret
@@ -174,7 +174,7 @@ func (d *DataFromKline) StreamClose() []decimal.Decimal {
 		if val, ok := s[x].(*kline.Kline); ok {
 			ret[x] = val.Close
 		} else {
-			log.Errorf(common.Data, "incorrect data loaded into stream")
+			log.Errorf(common.Data, "Incorrect data loaded into stream")
 		}
 	}
 	return ret
@@ -190,7 +190,7 @@ func (d *DataFromKline) StreamVol() []decimal.Decimal {
 		if val, ok := s[x].(*kline.Kline); ok {
 			ret[x] = val.Volume
 		} else {
-			log.Errorf(common.Data, "incorrect data loaded into stream")
+			log.Errorf(common.Data, "Incorrect data loaded into stream")
 		}
 	}
 	return ret

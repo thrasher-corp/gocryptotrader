@@ -792,7 +792,10 @@ func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
 			if err != nil {
 				return err
 			}
-			exchCfg.CurrencyPairs.StorePairs(assets[x], pairs, true)
+			err = exchCfg.CurrencyPairs.StorePairs(assets[x], pairs, true)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

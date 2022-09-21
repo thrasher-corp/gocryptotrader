@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/top2bottom2"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -54,14 +55,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestLoadConfig(t *testing.T) {
-	t.Parallel()
-	_, err := LoadConfig([]byte(`{}`))
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
-}
-
 func TestValidateDate(t *testing.T) {
 	t.Parallel()
 	c := Config{}
@@ -73,14 +66,14 @@ func TestValidateDate(t *testing.T) {
 		DatabaseData: &DatabaseData{},
 	}
 	err = c.validateDate()
-	if !errors.Is(err, errStartEndUnset) {
-		t.Errorf("received: %v, expected: %v", err, errStartEndUnset)
+	if !errors.Is(err, gctcommon.ErrDateUnset) {
+		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrDateUnset)
 	}
 	c.DataSettings.DatabaseData.StartDate = time.Now()
 	c.DataSettings.DatabaseData.EndDate = c.DataSettings.DatabaseData.StartDate
 	err = c.validateDate()
-	if !errors.Is(err, errBadDate) {
-		t.Errorf("received: %v, expected: %v", err, errBadDate)
+	if !errors.Is(err, gctcommon.ErrStartEqualsEnd) {
+		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrStartEqualsEnd)
 	}
 	c.DataSettings.DatabaseData.EndDate = c.DataSettings.DatabaseData.StartDate.Add(time.Minute)
 	err = c.validateDate()
@@ -89,14 +82,14 @@ func TestValidateDate(t *testing.T) {
 	}
 	c.DataSettings.APIData = &APIData{}
 	err = c.validateDate()
-	if !errors.Is(err, errStartEndUnset) {
-		t.Errorf("received: %v, expected: %v", err, errStartEndUnset)
+	if !errors.Is(err, gctcommon.ErrDateUnset) {
+		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrDateUnset)
 	}
 	c.DataSettings.APIData.StartDate = time.Now()
 	c.DataSettings.APIData.EndDate = c.DataSettings.APIData.StartDate
 	err = c.validateDate()
-	if !errors.Is(err, errBadDate) {
-		t.Errorf("received: %v, expected: %v", err, errBadDate)
+	if !errors.Is(err, gctcommon.ErrStartEqualsEnd) {
+		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrStartEqualsEnd)
 	}
 	c.DataSettings.APIData.EndDate = c.DataSettings.APIData.StartDate.Add(time.Minute)
 	err = c.validateDate()
@@ -439,12 +432,19 @@ func TestValidate(t *testing.T) {
 			},
 		},
 	}
-	if err := c.Validate(); !errors.Is(err, nil) {
+	err := c.Validate()
+	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
+	}
+
+	c = nil
+	err = c.Validate()
+	if !errors.Is(err, common.ErrNilArguments) {
+		t.Errorf("received %v expected %v", err, common.ErrNilArguments)
 	}
 }
 
-func TestReadConfigFromFile(t *testing.T) {
+func TestReadStrategyConfigFromFile(t *testing.T) {
 	tempDir := t.TempDir()
 	passFile, err := os.CreateTemp(tempDir, "*.start")
 	if err != nil {
@@ -458,9 +458,14 @@ func TestReadConfigFromFile(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	_, err = ReadConfigFromFile(passFile.Name())
+	_, err = ReadStrategyConfigFromFile(passFile.Name())
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+
+	_, err = ReadStrategyConfigFromFile("test")
+	if !errors.Is(err, common.ErrFileNotFound) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrFileNotFound)
 	}
 }
 

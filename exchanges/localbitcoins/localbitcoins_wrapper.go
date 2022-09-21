@@ -61,7 +61,9 @@ func (l *LocalBitcoins) SetDefaults() {
 	l.API.CredentialsValidator.RequiresSecret = true
 
 	requestFmt := &currency.PairFormat{Uppercase: true}
-	configFmt := &currency.PairFormat{Uppercase: true}
+	configFmt := &currency.PairFormat{
+		Uppercase: true,
+		Delimiter: currency.DashDelimiter}
 	err := l.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)

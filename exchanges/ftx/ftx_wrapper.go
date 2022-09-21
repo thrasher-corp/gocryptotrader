@@ -2102,7 +2102,7 @@ func (f *FTX) GetFundingRates(ctx context.Context, request *order.FundingRatesRe
 	if err != nil {
 		return nil, err
 	}
-	request.Pairs = request.Pairs.Format(pairFmt.Delimiter, pairFmt.Index, pairFmt.Uppercase)
+	request.Pairs = request.Pairs.Format(pairFmt)
 	response := make([]order.FundingRates, 0, len(request.Pairs))
 	for x := range request.Pairs {
 		var isPerp bool

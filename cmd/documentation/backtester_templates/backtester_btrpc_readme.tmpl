@@ -1,0 +1,61 @@
+{{define "backtester btrpc" -}}
+{{template "backtester-header" .}}
+## {{.CapitalName}} overview
+
+
+The GoCryptoTrader Backtester utilises gRPC for client/server interaction. Authentication is done
+by a self signed TLS cert, which only supports connections from localhost and also
+through basic authorisation specified by the users config file.
+
+The GoCryptoTrader Backtester also supports a gRPC JSON proxy service for applications which can
+be toggled on or off depending on the users preference. This can be found in your config file
+under `grpcProxyEnabled` `grpcProxyListenAddress`. See `btrpc.swagger.json` for endpoint definitions
+
+## Installation
+
+The GoCryptoTrader Backtester requires a local installation of the Google protocol buffers
+compiler `protoc` v3.0.0 or above. Please install this via your local package
+manager or by downloading one of the releases from the official repository:
+
+[protoc releases](https://github.com/protocolbuffers/protobuf/releases)
+
+Then use `go install` to download the following packages:
+
+```bash
+go install \
+    github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway \
+    github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2 \
+    google.golang.org/protobuf/cmd/protoc-gen-go \
+    google.golang.org/grpc/cmd/protoc-gen-go-grpc
+```
+
+This will place the following binaries in your `$GOBIN`;
+
+* `protoc-gen-grpc-gateway`
+* `protoc-gen-openapiv2`
+* `protoc-gen-go`
+* `protoc-gen-go-grpc`
+
+Make sure that your `$GOBIN` is in your `$PATH`.
+
+### Linux / macOS / Windows
+
+The GoCryptoTrader Backtester requires a local installation of the `buf` cli tool that tries to make Protobuf handling more easier and reliable,
+after [installation](https://docs.buf.build/installation) you'll need to run:
+
+```shell
+buf mod update
+```
+
+After previous command, make necessary changes to the `rpc.proto` spec file and run the generation command:
+
+```shell
+buf generate
+```
+
+If any changes were made, ensure that the `rpc.proto` file is formatted correctly by using `buf format -w`
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations" .}}
+{{end}}

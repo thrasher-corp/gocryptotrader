@@ -23,7 +23,7 @@ jobs:
          go install google.golang.org/protobuf/cmd/protoc-gen-go
          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc
 
-      - uses: bufbuild/buf-setup-action@v1.7.0
+      - uses: bufbuild/buf-setup-action@v1.8.0
 
       - name: buf generate
         working-directory: ./gctrpc
@@ -34,4 +34,15 @@ jobs:
           input: gctrpc
           
       - name: buf format
+        run: buf format --diff --exit-code
+
+      - name: buf generate backtester
+        working-directory: ./backtester/btrpc
+        run: buf generate
+
+      - uses: bufbuild/buf-lint-action@v1
+        with:
+          input: ./backtester/btrpc
+
+      - name: buf format backtester
         run: buf format --diff --exit-code

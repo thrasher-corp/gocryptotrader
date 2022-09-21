@@ -5,6 +5,7 @@ import (
 	"compress/flate"
 	"compress/gzip"
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math/big"
@@ -27,7 +28,13 @@ func (w *WebsocketConnection) SendMessageReturnResponse(signature, request inter
 	}
 	defer m.Cleanup()
 
-	err = w.SendJSONMessage(request)
+	b, err := json.Marshal(request)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling json for %s: %w", signature, err)
+	}
+
+	start := time.Now()
+	err = w.SendRawMessage(websocket.TextMessage, b)
 	if err != nil {
 		return nil, err
 	}
@@ -36,6 +43,10 @@ func (w *WebsocketConnection) SendMessageReturnResponse(signature, request inter
 
 	select {
 	case payload := <-m.C:
+		if w.Reporter != nil {
+			w.Reporter.Latency(w.ExchangeName, b, time.Since(start))
+		}
+
 		return payload, nil
 	case <-timer.C:
 		timer.Stop()
