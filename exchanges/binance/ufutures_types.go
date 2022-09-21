@@ -1,8 +1,9 @@
 package binance
 
 import (
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
 var (
