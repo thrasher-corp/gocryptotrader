@@ -49,8 +49,7 @@ type syncManager struct {
 	initSyncCompleted              int32
 	initSyncStarted                int32
 	started                        int32
-	delimiter                      string
-	uppercase                      bool
+	format                         currency.PairFormat
 	initSyncStartTime              time.Time
 	fiatDisplayCurrency            currency.Code
 	websocketRoutineManagerEnabled bool

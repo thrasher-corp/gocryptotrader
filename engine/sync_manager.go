@@ -89,8 +89,7 @@ func setupSyncManager(c *SyncManagerConfig, exchangeManager iExchangeManager, re
 		exchangeManager:                exchangeManager,
 		websocketRoutineManagerEnabled: websocketRoutineManagerEnabled,
 		fiatDisplayCurrency:            c.FiatDisplayCurrency,
-		delimiter:                      c.PairFormatDisplay.Delimiter,
-		uppercase:                      c.PairFormatDisplay.Uppercase,
+		format:                         *c.PairFormatDisplay,
 		tickerBatchLastRequested:       make(map[string]time.Time),
 	}
 
@@ -827,7 +826,7 @@ func (m *syncManager) FormatCurrency(p currency.Pair) currency.Pair {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return p
 	}
-	return p.Format(m.delimiter, m.uppercase)
+	return p.Format(m.format)
 }
 
 const (

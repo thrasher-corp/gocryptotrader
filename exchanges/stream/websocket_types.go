@@ -92,6 +92,9 @@ type Websocket struct {
 	Conn Connection
 	// Authenticated stream connection
 	AuthConn Connection
+
+	// Latency reporter
+	ExchangeLevelReporter Reporter
 }
 
 // WebsocketSetup defines variables for setting up a websocket connection
@@ -138,4 +141,6 @@ type WebsocketConnection struct {
 	ResponseMaxLimit  time.Duration
 	Traffic           chan struct{}
 	readMessageErrors chan error
+
+	Reporter Reporter
 }

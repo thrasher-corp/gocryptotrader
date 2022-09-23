@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
@@ -49,7 +50,7 @@ func TestSetupSyncManager(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, common.ErrNilPointer)
 	}
 
-	m, err := setupSyncManager(&SyncManagerConfig{SynchronizeTrades: true, FiatDisplayCurrency: currency.USD, PairFormatDisplay: &currency.PairFormat{}}, &ExchangeManager{}, &config.RemoteControlConfig{}, true)
+	m, err := setupSyncManager(&SyncManagerConfig{SynchronizeTrades: true, FiatDisplayCurrency: currency.USD, PairFormatDisplay: &currency.EMPTYFORMAT}, &ExchangeManager{}, &config.RemoteControlConfig{}, true)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -60,7 +61,7 @@ func TestSetupSyncManager(t *testing.T) {
 
 func TestSyncManagerStart(t *testing.T) {
 	t.Parallel()
-	m, err := setupSyncManager(&SyncManagerConfig{SynchronizeTrades: true, FiatDisplayCurrency: currency.USD, PairFormatDisplay: &currency.PairFormat{}}, &ExchangeManager{}, &config.RemoteControlConfig{}, true)
+	m, err := setupSyncManager(&SyncManagerConfig{SynchronizeTrades: true, FiatDisplayCurrency: currency.USD, PairFormatDisplay: &currency.EMPTYFORMAT}, &ExchangeManager{}, &config.RemoteControlConfig{}, true)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -105,7 +106,7 @@ func TestSyncManagerStop(t *testing.T) {
 	}
 	exch.SetDefaults()
 	em.Add(exch)
-	m, err = setupSyncManager(&SyncManagerConfig{SynchronizeTrades: true, SynchronizeContinuously: true, FiatDisplayCurrency: currency.USD, PairFormatDisplay: &currency.PairFormat{}}, em, &config.RemoteControlConfig{}, false)
+	m, err = setupSyncManager(&SyncManagerConfig{SynchronizeTrades: true, SynchronizeContinuously: true, FiatDisplayCurrency: currency.USD, PairFormatDisplay: &currency.EMPTYFORMAT}, em, &config.RemoteControlConfig{}, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -153,7 +154,7 @@ func TestPrintTickerSummary(t *testing.T) {
 	}
 	exch.SetDefaults()
 	em.Add(exch)
-	m, err = setupSyncManager(&SyncManagerConfig{SynchronizeTrades: true, SynchronizeContinuously: true, FiatDisplayCurrency: currency.USD, PairFormatDisplay: &currency.PairFormat{}}, em, &config.RemoteControlConfig{}, false)
+	m, err = setupSyncManager(&SyncManagerConfig{SynchronizeTrades: true, SynchronizeContinuously: true, FiatDisplayCurrency: currency.USD, PairFormatDisplay: &currency.EMPTYFORMAT}, em, &config.RemoteControlConfig{}, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -192,7 +193,7 @@ func TestPrintOrderbookSummary(t *testing.T) {
 	}
 	exch.SetDefaults()
 	em.Add(exch)
-	m, err = setupSyncManager(&SyncManagerConfig{SynchronizeTrades: true, SynchronizeContinuously: true, FiatDisplayCurrency: currency.USD, PairFormatDisplay: &currency.PairFormat{}}, em, &config.RemoteControlConfig{}, false)
+	m, err = setupSyncManager(&SyncManagerConfig{SynchronizeTrades: true, SynchronizeContinuously: true, FiatDisplayCurrency: currency.USD, PairFormatDisplay: &currency.EMPTYFORMAT}, em, &config.RemoteControlConfig{}, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -243,6 +244,85 @@ func TestWaitForInitialSync(t *testing.T) {
 
 	m.started = 1
 	err = m.WaitForInitialSync()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, but expected: %v", err, nil)
+	}
+}
+
+func TestSyncManagerUpdate(t *testing.T) {
+	t.Parallel()
+	var m *syncManager
+	err := m.Update("", currency.EMPTYPAIR, 1, 47, nil)
+	if !errors.Is(err, ErrNilSubsystem) {
+		t.Fatalf("received %v, but expected: %v", err, ErrNilSubsystem)
+	}
+
+	m = &syncManager{}
+	err = m.Update("", currency.EMPTYPAIR, 1, 47, nil)
+	if !errors.Is(err, ErrSubSystemNotStarted) {
+		t.Fatalf("received %v, but expected: %v", err, ErrSubSystemNotStarted)
+	}
+
+	m.started = 1
+	// not started initial sync
+	err = m.Update("", currency.EMPTYPAIR, 1, 47, nil)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, but expected: %v", err, nil)
+	}
+
+	m.initSyncStarted = 1
+	// orderbook not enabled
+	err = m.Update("", currency.EMPTYPAIR, 1, 1, nil)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, but expected: %v", err, nil)
+	}
+
+	m.config.SynchronizeOrderbook = true
+	// ticker not enabled
+	err = m.Update("", currency.EMPTYPAIR, 1, 0, nil)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, but expected: %v", err, nil)
+	}
+
+	m.config.SynchronizeTicker = true
+	// trades not enabled
+	err = m.Update("", currency.EMPTYPAIR, 1, 2, nil)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, but expected: %v", err, nil)
+	}
+
+	m.config.SynchronizeTrades = true
+	err = m.Update("", currency.EMPTYPAIR, 1, 1336, nil)
+	if !errors.Is(err, errUnknownSyncItem) {
+		t.Fatalf("received %v, but expected: %v", err, errUnknownSyncItem)
+	}
+
+	err = m.Update("", currency.EMPTYPAIR, 1, 1, nil)
+	if !errors.Is(err, errSyncerNotFound) {
+		t.Fatalf("received %v, but expected: %v", err, errSyncerNotFound)
+	}
+
+	m.currencyPairs = make(map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]*currencyPairSyncAgent)
+	m.currencyPairs[""] = make(map[*currency.Item]map[*currency.Item]map[asset.Item]*currencyPairSyncAgent)
+	m.currencyPairs[""][nil] = make(map[*currency.Item]map[asset.Item]*currencyPairSyncAgent)
+	m.currencyPairs[""][nil][nil] = make(map[asset.Item]*currencyPairSyncAgent)
+	m.currencyPairs[""][nil][nil][1] = &currencyPairSyncAgent{AssetType: 1}
+
+	m.initSyncWG.Add(3)
+	// orderbook match
+	err = m.Update("", currency.EMPTYPAIR, 1, 1, errors.New("test"))
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, but expected: %v", err, nil)
+	}
+
+	// ticker match
+	err = m.Update("", currency.EMPTYPAIR, 1, 0, errors.New("test"))
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, but expected: %v", err, nil)
+	}
+
+	// trades match
+	err = m.Update("", currency.EMPTYPAIR, 1, 2, errors.New("test"))
 	if !errors.Is(err, nil) {
 		t.Fatalf("received %v, but expected: %v", err, nil)
 	}
