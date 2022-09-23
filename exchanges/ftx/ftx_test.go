@@ -2746,3 +2746,51 @@ func TestGetFundingPayments(t *testing.T) {
 		t.Errorf("should have thrown errStartTimeCannotBeAfterEndTime, got %v", err)
 	}
 }
+
+func TestGetCustomReferralCodes(t *testing.T) {
+	t.Parallel()
+
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+
+	if _, err := f.GetCustomReferralCodes(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetReferralRebates(t *testing.T) {
+	t.Parallel()
+
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+
+	if _, err := f.GetReferralRebates(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetReferralRebateHistory(t *testing.T) {
+	t.Parallel()
+
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+
+	if _, err := f.GetReferralRebateHistory(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetReferralRebateRate(t *testing.T) {
+	t.Parallel()
+
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+
+	if _, err := f.GetReferralRebateRate(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
