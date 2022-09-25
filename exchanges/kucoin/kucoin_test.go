@@ -1304,12 +1304,60 @@ func TestCancelAllFuturesStopOrders(t *testing.T) {
 
 func TestGetFuturesOrders(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
 	}
 
 	_, err := k.GetFuturesOrders(context.Background(), "", "", "", "", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error("GetFuturesOrders() error", err)
+	}
+}
+
+func TestGetUntriggeredFuturesStopOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetUntriggeredFuturesStopOrders(context.Background(), "", "", "", time.Time{}, time.Time{})
+	if err != nil {
+		t.Error("GetUntriggeredFuturesStopOrders() error", err)
+	}
+}
+
+func TestGetFuturesRecentCompletedOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetFuturesRecentCompletedOrders(context.Background())
+	if err != nil {
+		t.Error("GetFuturesRecentCompletedOrders() error", err)
+	}
+}
+
+func TestGetFuturesOrderDetails(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetFuturesOrderDetails(context.Background(), "5cdfc138b21023a909e5ad55")
+	if err != nil {
+		t.Error("GetFuturesOrderDetails() error", err)
+	}
+}
+
+func GetFuturesOrderDetailsByClientID(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetFuturesOrderDetailsByClientID(context.Background(), "eresc138b21023a909e5ad59")
+	if err != nil {
+		t.Error("GetFuturesOrderDetailsByClientID() error", err)
 	}
 }

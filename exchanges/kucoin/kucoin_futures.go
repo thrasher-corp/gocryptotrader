@@ -35,9 +35,12 @@ const (
 	kucoinFuturesKline            = "/api/v1/kline/query"
 
 	// Authenticated endpoints
-	kucoinFuturesOrder                  = "/api/v1/orders"
-	kucoinFuturesCancelOrder            = "/api/v1/orders/%s"
-	kucoinFuturesCancelAllOpenStopOrder = "/api/v1/stopOrders"
+	kucoinFuturesOrder                     = "/api/v1/orders"
+	kucoinFuturesCancelOrder               = "/api/v1/orders/%s"
+	kucoinFuturesStopOrder                 = "/api/v1/stopOrders"
+	kucoinFuturesRecentCompletedOrder      = "/api/v1/recentDoneOrders"
+	kucoinFuturesGetOrderDetails           = "/api/v1/orders/%s"
+	kucoinFuturesGetOrderDetailsByClientID = "/api/v1/orders/byClientOid"
 )
 
 // GetFuturesOpenContracts gets all open futures contract with its details
@@ -472,7 +475,7 @@ func (k *Kucoin) CancelAllFuturesStopOrders(ctx context.Context, symbol string) 
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	return resp.Data.CancelledOrderIDs, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodDelete, common.EncodeURLValues(kucoinFuturesCancelAllOpenStopOrder, params), nil, publicSpotRate, &resp)
+	return resp.Data.CancelledOrderIDs, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodDelete, common.EncodeURLValues(kucoinFuturesStopOrder, params), nil, publicSpotRate, &resp)
 }
 
 // GetFuturesOrders gets the user current futures order list
@@ -505,9 +508,76 @@ func (k *Kucoin) GetFuturesOrders(ctx context.Context, status, symbol, side, ord
 		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
 	}
 	if !endAt.IsZero() {
-		params.Set("startAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
 	}
 	return resp.Data.Items, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(kucoinFuturesOrder, params), nil, publicSpotRate, &resp)
+}
+
+// GetUntriggeredFuturesStopOrders gets the untriggered stop orders list
+func (k *Kucoin) GetUntriggeredFuturesStopOrders(ctx context.Context, symbol, side, orderType string, startAt, endAt time.Time) ([]FuturesOrder, error) {
+	resp := struct {
+		Data struct {
+			CurrentPage int64          `json:"currentPage"`
+			PageSize    int64          `json:"pageSize"`
+			TotalNum    int64          `json:"totalNum"`
+			TotalPage   int64          `json:"totalPage"`
+			Items       []FuturesOrder `json:"items"`
+		} `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if side != "" {
+		params.Set("side", side)
+	}
+	if orderType != "" {
+		params.Set("type", orderType)
+	}
+	if !startAt.IsZero() {
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	return resp.Data.Items, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(kucoinFuturesStopOrder, params), nil, publicSpotRate, &resp)
+}
+
+// GetFuturesRecentCompletedOrders gets list of recent 1000 orders in the last 24 hours
+func (k *Kucoin) GetFuturesRecentCompletedOrders(ctx context.Context) ([]FuturesOrder, error) {
+	resp := struct {
+		Data []FuturesOrder `json:"data"`
+		Error
+	}{}
+
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, kucoinFuturesRecentCompletedOrder, nil, publicSpotRate, &resp)
+}
+
+// GetFuturesOrderDetails gets single order details by order ID
+func (k *Kucoin) GetFuturesOrderDetails(ctx context.Context, orderID string) (FuturesOrder, error) {
+	resp := struct {
+		Data FuturesOrder `json:"data"`
+		Error
+	}{}
+
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, fmt.Sprintf(kucoinFuturesGetOrderDetails, orderID), nil, publicSpotRate, &resp)
+}
+
+// GetFuturesOrderDetailsByClientID gets single order details by client ID
+func (k *Kucoin) GetFuturesOrderDetailsByClientID(ctx context.Context, clientID string) (FuturesOrder, error) {
+	resp := struct {
+		Data FuturesOrder `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if clientID == "" {
+		return resp.Data, errors.New("clientID can't be empty")
+	}
+	params.Set("clientOid", clientID)
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(kucoinFuturesGetOrderDetailsByClientID, params), nil, publicSpotRate, &resp)
 }
 
 func processFuturesOB(ob [][2]float64) ([]orderbook.Item, error) {

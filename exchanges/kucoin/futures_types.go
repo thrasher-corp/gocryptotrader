@@ -162,7 +162,7 @@ type FuturesOrder struct {
 	Stop           string             `json:"stop"`
 	StopPriceType  string             `json:"stopPriceType"`
 	StopTriggered  bool               `json:"stopTriggered"`
-	StopPrice      float64            `json:"stopPrice"`
+	StopPrice      float64            `json:"stopPrice,string"`
 	TimeInForce    string             `json:"timeInForce"`
 	PostOnly       bool               `json:"postOnly"`
 	Hidden         bool               `json:"hidden"`
