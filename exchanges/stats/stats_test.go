@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	testExchange = "Ok"
+	testExchange = "Okx"
 )
 
 func TestLenByPrice(t *testing.T) {

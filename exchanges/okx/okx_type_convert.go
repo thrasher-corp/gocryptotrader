@@ -151,11 +151,13 @@ func (a *OfferInvestData) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalJSON decerializes JSON, and timestamp information.
-func (a *TradingVolumdIn24HR) UnmarshalJSON(data []byte) error {
-	type Alias TradingVolumdIn24HR
+func (a *TradingVolumeIn24HR) UnmarshalJSON(data []byte) error {
+	type Alias TradingVolumeIn24HR
 	chil := &struct {
 		*Alias
-		Timestamp int64 `json:"ts,string"`
+		Timestamp        int64  `json:"ts,string"`
+		BlockVolumeInCNY string `json:"blockVolCny"`
+		BlockVolumeInUSD string `json:"blockVolUsd"`
 	}{
 		Alias: (*Alias)(a),
 	}
@@ -165,6 +167,16 @@ func (a *TradingVolumdIn24HR) UnmarshalJSON(data []byte) error {
 	}
 	if chil.Timestamp > 0 {
 		a.Timestamp = time.UnixMilli(chil.Timestamp)
+	}
+	if chil.BlockVolumeInCNY != "" {
+		if a.BlockVolumeInCNY, err = strconv.ParseFloat(chil.BlockVolumeInCNY, 64); err != nil {
+			return err
+		}
+	}
+	if chil.BlockVolumeInUSD != "" {
+		if a.BlockVolumeInUSD, err = strconv.ParseFloat(chil.BlockVolumeInUSD, 64); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -183,7 +195,7 @@ func (a *OracleSmartContractResponse) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if chil.Timestamp > 0 {
-		a.Timestamp = time.UnixMilli(chil.Timestamp)
+		a.Timestamp = time.Unix(chil.Timestamp, 0)
 	}
 	return nil
 }

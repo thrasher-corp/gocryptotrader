@@ -147,8 +147,6 @@ func (m *ExchangeManager) NewExchangeByName(name string) (exchange.IBotExchange,
 	var exch exchange.IBotExchange
 
 	switch nameLower {
-	case "okx":
-		exch = new(okx.Okx)
 	case "binanceus":
 		exch = new(binanceus.Binanceus)
 	case "binance":
@@ -197,6 +195,8 @@ func (m *ExchangeManager) NewExchangeByName(name string) (exchange.IBotExchange,
 		exch = new(localbitcoins.LocalBitcoins)
 	case "okcoin international":
 		exch = new(okcoin.OKCoin)
+	case "okx":
+		exch = new(okx.Okx)
 	case "poloniex":
 		exch = new(poloniex.Poloniex)
 	case "yobit":

@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -29,6 +30,10 @@ import (
 // Okx is the overarching type across this package
 type Okx struct {
 	exchange.Base
+
+	// To Synchronize incoming messages coming through the websocket channel
+	wsResponse chan wsIncomingData
+	wsMutext   sync.Mutex
 }
 
 const (
@@ -376,7 +381,7 @@ func (ok *Okx) OrderTypeString(orderType order.Type) (string, error) {
 }
 
 // PlaceOrder place an order only if you have sufficient funds.
-func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam, a asset.Item) (*PlaceOrderResponse, error) {
+func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam, a asset.Item) (*WsOrderData, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -413,7 +418,7 @@ func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam, a as
 	if arg.QuantityToBuyOrSell <= 0 {
 		return nil, errInvalidQuantityToButOrSell
 	}
-	if arg.OrderPrice <= 0 && (arg.OrderType == OkxOrderLimit ||
+	if arg.Price <= 0 && (arg.OrderType == OkxOrderLimit ||
 		arg.OrderType == OkxOrderPostOnly ||
 		arg.OrderType == OkxOrderFOK ||
 		arg.OrderType == OkxOrderIOC) {
@@ -423,7 +428,7 @@ func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam, a as
 		arg.QuantityType == "quote_ccy") {
 		arg.QuantityType = ""
 	}
-	var resp []PlaceOrderResponse
+	var resp []WsOrderData
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, tradeOrder, &arg, &resp, true)
 	if err != nil {
 		return nil, err
@@ -435,7 +440,7 @@ func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam, a as
 }
 
 // PlaceMultipleOrders  to place orders in batches. Maximum 20 orders can be placed at a time. Request parameters should be passed in the form of an array.
-func (ok *Okx) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequestParam) ([]PlaceOrderResponse, error) {
+func (ok *Okx) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequestParam) ([]WsOrderData, error) {
 	if len(args) == 0 {
 		return nil, errNoOrderParameterPassed
 	}
@@ -465,7 +470,7 @@ func (ok *Okx) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequest
 		if args[x].QuantityToBuyOrSell <= 0 {
 			return nil, errInvalidQuantityToButOrSell
 		}
-		if args[x].OrderPrice <= 0 && (args[x].OrderType == OkxOrderLimit ||
+		if args[x].Price <= 0 && (args[x].OrderType == OkxOrderLimit ||
 			args[x].OrderType == OkxOrderPostOnly ||
 			args[x].OrderType == OkxOrderFOK ||
 			args[x].OrderType == OkxOrderIOC) {
@@ -475,19 +480,19 @@ func (ok *Okx) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequest
 			args[x].QuantityType = ""
 		}
 	}
-	var resp []PlaceOrderResponse
+	var resp []WsOrderData
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeMultipleOrdersEPL, http.MethodPost, placeMultipleOrderURL, &args, &resp, true)
 }
 
 // CancelSingleOrder cancel an incomplete order.
-func (ok *Okx) CancelSingleOrder(ctx context.Context, arg CancelOrderRequestParam) (*CancelOrderResponse, error) {
+func (ok *Okx) CancelSingleOrder(ctx context.Context, arg CancelOrderRequestParam) (*WsOrderData, error) {
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
 	if arg.OrderID == "" && arg.ClientSupplierOrderID == "" {
 		return nil, fmt.Errorf("either order id or client supplier id is required")
 	}
-	var resp []CancelOrderResponse
+	var resp []WsOrderData
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelOrderEPL, http.MethodPost, cancelTradeOrder, &arg, &resp, true)
 	if err != nil {
 		return nil, err
@@ -500,7 +505,7 @@ func (ok *Okx) CancelSingleOrder(ctx context.Context, arg CancelOrderRequestPara
 
 // CancelMultipleOrders cancel incomplete orders in batches. Maximum 20 orders can be canceled at a time.
 // Request parameters should be passed in the form of an array.
-func (ok *Okx) CancelMultipleOrders(ctx context.Context, args []CancelOrderRequestParam) ([]CancelOrderResponse, error) {
+func (ok *Okx) CancelMultipleOrders(ctx context.Context, args []CancelOrderRequestParam) ([]WsOrderData, error) {
 	for x := range args {
 		arg := args[x]
 		if arg.InstrumentID == "" {
@@ -510,13 +515,13 @@ func (ok *Okx) CancelMultipleOrders(ctx context.Context, args []CancelOrderReque
 			return nil, fmt.Errorf("either order id or client supplier id is required")
 		}
 	}
-	var resp []CancelOrderResponse
+	var resp []WsOrderData
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleOrdersEPL,
 		http.MethodPost, cancelBatchTradeOrders, args, &resp, true)
 }
 
 // AmendOrder an incomplete order.
-func (ok *Okx) AmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (*AmendOrderResponse, error) {
+func (ok *Okx) AmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (*WsOrderData, error) {
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
@@ -526,7 +531,7 @@ func (ok *Okx) AmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (*A
 	if arg.NewQuantity <= 0 && arg.NewPrice <= 0 {
 		return nil, errMissingNewSizeOrPriceInformation
 	}
-	var resp []AmendOrderResponse
+	var resp []WsOrderData
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, amendOrderEPL, http.MethodPost, amendOrder, arg, &resp, true)
 	if err != nil {
 		return nil, err
@@ -538,7 +543,7 @@ func (ok *Okx) AmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (*A
 }
 
 // AmendMultipleOrders amend incomplete orders in batches. Maximum 20 orders can be amended at a time. Request parameters should be passed in the form of an array.
-func (ok *Okx) AmendMultipleOrders(ctx context.Context, args []AmendOrderRequestParams) ([]AmendOrderResponse, error) {
+func (ok *Okx) AmendMultipleOrders(ctx context.Context, args []AmendOrderRequestParams) ([]WsOrderData, error) {
 	for x := range args {
 		if args[x].InstrumentID == "" {
 			return nil, errMissingInstrumentID
@@ -550,7 +555,7 @@ func (ok *Okx) AmendMultipleOrders(ctx context.Context, args []AmendOrderRequest
 			return nil, errMissingNewSizeOrPriceInformation
 		}
 	}
-	var resp []AmendOrderResponse
+	var resp []WsOrderData
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, amendMultipleOrdersEPL, http.MethodPost, amendBatchOrders, &args, &resp, true)
 }
 
@@ -3378,8 +3383,8 @@ func (ok *Okx) GetTradesHistory(ctx context.Context, instrumentID, before, after
 }
 
 // Get24HTotalVolume The 24-hour trading volume is calculated on a rolling basis, using USD as the pricing unit.
-func (ok *Okx) Get24HTotalVolume(ctx context.Context) (*TradingVolumdIn24HR, error) {
-	var resp []TradingVolumdIn24HR
+func (ok *Okx) Get24HTotalVolume(ctx context.Context) (*TradingVolumeIn24HR, error) {
+	var resp []TradingVolumeIn24HR
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, get24HTotalVolumeEPL, http.MethodGet, marketPlatformVolumeIn24Hour, nil, &resp, false)
 	if err != nil {
 		return nil, err
@@ -3961,9 +3966,11 @@ func (ok *Okx) GetMarginLendingRatio(ctx context.Context, currency string, begin
 		if err != nil {
 			return nil, err
 		}
-		ratio, err := strconv.ParseFloat(response[x][0], 64)
-		if err != nil || ratio <= 0 {
+		ratio, err := strconv.ParseFloat(response[x][1], 64)
+		if err != nil {
 			return nil, err
+		} else if ratio <= 0 {
+			return nil, fmt.Errorf("%v, ratio value must be positive", errMalformedData)
 		}
 		lendRatio := MarginLendRatioItem{
 			Timestamp:       time.UnixMilli(int64(timestamp)),
@@ -4001,12 +4008,16 @@ func (ok *Okx) GetLongShortRatio(ctx context.Context, currency string, begin, en
 			return nil, fmt.Errorf("%v, expecting length 2 but found %d", errMalformedData, len(response[x]))
 		}
 		timestamp, err := strconv.Atoi(response[x][0])
-		if err != nil || timestamp <= 0 {
+		if err != nil {
 			return nil, err
+		} else if timestamp <= 0 {
+			return nil, fmt.Errorf("%v, expecting non zero timestamp, but found %d", errMalformedData, timestamp)
 		}
-		ratio, err := strconv.ParseFloat(response[x][0], 64)
-		if err != nil || ratio <= 0 {
+		ratio, err := strconv.ParseFloat(response[x][1], 64)
+		if err != nil {
 			return nil, err
+		} else if ratio <= 0 {
+			return nil, fmt.Errorf("%v, expecting non zero positive ratio, but found %f", errMalformedData, ratio)
 		}
 		dratio := LongShortRatio{
 			Timestamp:       time.UnixMilli(int64(timestamp)),
@@ -4046,12 +4057,16 @@ func (ok *Okx) GetContractsOpenInterestAndVolume(
 			return nil, errMalformedData
 		}
 		timestamp, err := strconv.ParseFloat(response[x][0], 64)
-		if err != nil || timestamp <= 0 {
+		if err != nil {
 			return nil, err
+		} else if timestamp <= 0 {
+			return nil, fmt.Errorf("%v, invalid Timestamp value %f", errMalformedData, timestamp)
 		}
 		openInterest, err := strconv.ParseFloat(response[x][1], 64)
-		if err != nil || openInterest <= 0 {
+		if err != nil {
 			return nil, err
+		} else if openInterest <= 0 {
+			return nil, fmt.Errorf("%v, OpendInterest has to be non-zero positive value, but found %f", errMalformedData, openInterest)
 		}
 		volume, err := strconv.ParseFloat(response[x][2], 64)
 		if err != nil {
@@ -4089,12 +4104,16 @@ func (ok *Okx) GetOptionsOpenInterestAndVolume(ctx context.Context, currency str
 			return nil, errors.New("invalid data length")
 		}
 		timestamp, err := strconv.Atoi(response[x][0])
-		if err != nil || timestamp <= 0 {
+		if err != nil {
 			return nil, errors.New("invalid timestamp information")
+		} else if timestamp <= 0 {
+			return nil, fmt.Errorf("%v, expecting non zero timestamp, but found %d", errMalformedData, timestamp)
 		}
 		openInterest, err := strconv.ParseFloat(response[x][1], 64)
-		if err != nil || openInterest <= 0 {
+		if err != nil {
 			return nil, err
+		} else if openInterest <= 0 {
+			return nil, fmt.Errorf("%v, OpendInterest has to be non-zero positive value, but found %f", errMalformedData, openInterest)
 		}
 		volume, err := strconv.ParseFloat(response[x][2], 64)
 		if err != nil {
@@ -4183,18 +4202,18 @@ func (ok *Okx) GetOpenInterestAndVolumeExpiry(ctx context.Context, currency stri
 		if expTime != "" && len(expTime) == 8 {
 			year, err := strconv.Atoi(expTime[0:4])
 			if err != nil {
-				continue
+				return nil, err
 			}
 			month, err := strconv.Atoi(expTime[4:6])
+			if err != nil {
+				return nil, err
+			}
 			var months string
 			var days string
 			if month <= 9 {
 				months = fmt.Sprintf("0%d", month)
 			} else {
 				months = strconv.Itoa(month)
-			}
-			if err != nil {
-				continue
 			}
 			day, err := strconv.Atoi(expTime[6:])
 			if err != nil {
@@ -4444,7 +4463,7 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 	code, err := strconv.ParseInt(errMessage.Code, 10, 64)
 	if err == nil && code != 0 {
 		if errMessage.Msg != "" {
-			return fmt.Errorf(" error code:%d message: %s", code, errMessage.Msg)
+			return fmt.Errorf(" error code: %d message: %s", code, errMessage.Msg)
 		}
 		err, okay := ErrorCodes[strconv.FormatInt(code, 10)]
 		if okay {

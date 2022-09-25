@@ -1,6 +1,8 @@
 package okx
 
 import (
+	"encoding/json"
+	"errors"
 	"strconv"
 	"time"
 
@@ -229,11 +231,13 @@ type TradeResponse struct {
 	Timestamp    time.Time `json:"ts"`
 }
 
-// TradingVolumdIn24HR response model.
-type TradingVolumdIn24HR struct {
-	TradingVolumnInUSD         string    `json:"volUsd"`
-	TradingVolumeInThePlatform string    `json:"volCny"`
-	Timestamp                  time.Time `json:"ts"`
+// TradingVolumeIn24HR response model.
+type TradingVolumeIn24HR struct {
+	BlockVolumeInCNY   float64   `json:"blockVolCny"`
+	BlockVolumeInUSD   float64   `json:"blockVolUsd"`
+	TradingVolumeInUSD float64   `json:"volUsd,string"`
+	TradingVolumeInCny float64   `json:"volCny,string"`
+	Timestamp          time.Time `json:"ts"`
 }
 
 // OracleSmartContractResponse returns the crypto price of signing using Open Oracle smart contract.
@@ -307,7 +311,7 @@ type Instrument struct {
 // DeliveryHistoryDetail holds instrument id and delivery price information detail
 type DeliveryHistoryDetail struct {
 	Type          string  `json:"type"`
-	InstrumentID  string  `json:"instId"`
+	InstrumentID  string  `json:"insId"`
 	DeliveryPrice float64 `json:"px,string"`
 }
 
@@ -505,9 +509,9 @@ type InsuranceFundInformationDetail struct {
 
 // SupportedCoinsData holds information about currencies supported by the trading data endpoints.
 type SupportedCoinsData struct {
-	Contract                      []string `json:"contract"`
-	TradingOptions                []string `json:"option"`
-	CurrenciesSupportedBySpotSpot []string `json:"spot"`
+	Contract       []string `json:"contract"`
+	TradingOptions []string `json:"option"`
+	Spot           []string `json:"spot"`
 }
 
 // TakerVolume represents taker volume information with creation timestamp
@@ -585,7 +589,7 @@ type PlaceOrderRequestParam struct {
 	PositionSide          string  `json:"posSide"`
 	OrderType             string  `json:"ordType"`
 	QuantityToBuyOrSell   float64 `json:"sz,string"`
-	OrderPrice            float64 `json:"px,string"`
+	Price                 float64 `json:"px,string"`
 	ReduceOnly            bool    `json:"reduceOnly,string,omitempty"`
 	QuantityType          string  `json:"tgtCcy,omitempty"` // values base_ccy and quote_ccy
 
@@ -594,13 +598,14 @@ type PlaceOrderRequestParam struct {
 	ExpiryTime time.Time `json:"expTime"`
 }
 
-// PlaceOrderResponse respnse message for placing an order.
-type PlaceOrderResponse struct {
-	OrderID               string `json:"ordId"`
-	ClientSupplierOrderID string `json:"clOrdId"`
-	Tag                   string `json:"tag"`
-	StatusCode            int    `json:"sCode,string"`
-	StatusMessage         string `json:"sMsg"`
+// WsOrderData response message for place, cancel, and amend an order requests.
+type WsOrderData struct {
+	OrderID               string `json:"ordId,omitempty"`
+	RequestID             string `json:"reqId,omitempty"`
+	ClientSupplierOrderID string `json:"clOrdId,omitempty"`
+	Tag                   string `json:"tag,omitempty"`
+	SCode                 string `json:"sCode,omitempty"`
+	SMessage              string `json:"sMsg,omitempty"`
 }
 
 // CancelOrderRequestParam represents order parameters to cancel an order.
@@ -608,14 +613,6 @@ type CancelOrderRequestParam struct {
 	InstrumentID          string `json:"instId"`
 	OrderID               string `json:"ordId"`
 	ClientSupplierOrderID string `json:"clOrdId,omitempty"`
-}
-
-// CancelOrderResponse represents cancel order operation response.
-type CancelOrderResponse struct {
-	OrderID       string `json:"ordId"`
-	ClientOrderID string `json:"clOrdId"`
-	StatusCode    int    `json:"sCode,string"`
-	Msg           string `json:"sMsg"`
 }
 
 // AmendOrderRequestParams represents amend order requesting parameters.
@@ -627,15 +624,6 @@ type AmendOrderRequestParams struct {
 	ClientSuppliedRequestID string  `json:"reqId"`
 	NewQuantity             float64 `json:"newSz,string"`
 	NewPrice                float64 `json:"newPx,string"`
-}
-
-// AmendOrderResponse represents amend order response
-type AmendOrderResponse struct {
-	OrderID                 string  `json:"ordId"`
-	ClientSuppliedOrderID   string  `json:"clOrdId"`
-	ClientSuppliedRequestID string  `json:"reqId"`
-	StatusCode              float64 `json:"sCode,string"`
-	StatusMsg               string  `json:"sMsg"`
 }
 
 // ClosePositionsRequestParams input parameters for close position endpoints
@@ -2143,11 +2131,11 @@ type SystemStatusResponse struct {
 
 // BlockTicker holds block trading information.
 type BlockTicker struct {
-	InstrumentType                         asset.Item `json:"instType"`
-	InstrumentID                           string     `json:"instId"`
-	TradingVolumeWithAUnitOfCurrencyPer24H string     `json:"volCcy24h"`
-	TradingVolume24Hour                    string     `json:"vol24h"`
-	Timestamp                              time.Time  `json:"ts"`
+	InstrumentType           asset.Item `json:"instType"`
+	InstrumentID             string     `json:"instId"`
+	TradingVolumeInCCY24Hour float64    `json:"volCcy24h,string"`
+	TradingVolumeInUSD24Hour float64    `json:"vol24h,string"`
+	Timestamp                time.Time  `json:"ts"`
 }
 
 // BlockTrade represents a block trade.
@@ -2262,13 +2250,13 @@ type WSPlaceOrder struct {
 	Arguments []WSPlaceOrderData `json:"args"`
 }
 
-// WSPlaceOrderResponse place order response thought the websocket connection.
-type WSPlaceOrderResponse struct {
-	ID        string               `json:"id"`
-	Operation string               `json:"op"`
-	Data      []PlaceOrderResponse `json:"data"`
-	Code      string               `json:"code,omitempty"`
-	Msg       string               `json:"msg,omitempty"`
+// WSOrderResponse place order response thought the websocket connection.
+type WSOrderResponse struct {
+	ID        string        `json:"id"`
+	Operation string        `json:"op"`
+	Data      []WsOrderData `json:"data"`
+	Code      string        `json:"code,omitempty"`
+	Msg       string        `json:"msg,omitempty"`
 }
 
 // WebsocketDataResponse represents all pushed websocket data coming thought the websocket connection
@@ -2276,6 +2264,49 @@ type WebsocketDataResponse struct {
 	Argument SubscriptionInfo `json:"arg"`
 	Action   string           `json:"action"`
 	Data     []interface{}    `json:"data"`
+}
+
+type wsIncomingData struct {
+	Event    string            `json:"event,omitempty"`
+	Argument *SubscriptionInfo `json:"arg,omitempty"`
+	Code     string            `json:"code,omitempty"`
+	Msg      string            `json:"msg,omitempty"`
+
+	// For Websocket Trading Endpoints websocket responses
+	ID        string        `json:"id,omitempty"`
+	Operation string        `json:"op,omitempty"`
+	Data      []interface{} `json:"data,omitempty"`
+}
+
+// copyToSubscriptionResponse returns a *SubscriptionOperationResponse instance.
+func (w *wsIncomingData) copyToSubscriptionResponse() *SubscriptionOperationResponse {
+	return &SubscriptionOperationResponse{
+		Event:    w.Event,
+		Argument: w.Argument,
+		Code:     w.Code,
+		Msg:      w.Msg,
+	}
+}
+
+// copyToPlaceOrderResponse returns WSPlaceOrderResponse struct instance
+func (w *wsIncomingData) copyToPlaceOrderResponse() (*WSOrderResponse, error) {
+	if w.Data == nil || len(w.Data) == 0 {
+		return nil, errors.New("empty place order data")
+	}
+	var placeOrds []WsOrderData
+	value, err := json.Marshal(w.Data)
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(value, &placeOrds)
+	if err != nil {
+		return nil, err
+	}
+	return &WSOrderResponse{
+		Operation: w.Operation,
+		ID:        w.ID,
+		Data:      placeOrds,
+	}, nil
 }
 
 // WSInstrumentResponse represents websocket instruments push message.
@@ -2362,11 +2393,11 @@ type WsAmendOrderInput struct {
 
 // WsAmendOrderResponse holds websocket response Amendment request
 type WsAmendOrderResponse struct {
-	ID        string               `json:"id"`
-	Operation string               `json:"op"`
-	Data      []AmendOrderResponse `json:"data"`
-	Code      string               `json:"code"`
-	Msg       string               `json:"msg"`
+	ID        string        `json:"id"`
+	Operation string        `json:"op"`
+	Data      []WsOrderData `json:"data"`
+	Code      string        `json:"code"`
+	Msg       string        `json:"msg"`
 }
 
 // SubscriptionOperationInput represents the account channel input datas

@@ -192,6 +192,14 @@ const (
 	okxChannelMarkPriceCandle5Dutc  = markPrice + okxChannelCandle5Dutc
 	okxChannelMarkPriceCandle12Hutc = markPrice + okxChannelCandle12Hutc
 	okxChannelMarkPriceCandle6Hutc  = markPrice + okxChannelCandle6Hutc
+
+	// Websocket trade endpoint operations
+	okxOpOrder             = "order"
+	okxOpBatchOrders       = "batch-orders"
+	okxOpCancelOrder       = "cancel-order"
+	okxOpBatchCancelOrders = "batch-cancel-orders"
+	okxOpAmendOrder        = "amend-order"
+	okxOpBatchAmendOrders  = "batch-amend-orders"
 )
 
 // WsConnect initiates a websocket connection
@@ -207,6 +215,9 @@ func (ok *Okx) WsConnect() error {
 	if err != nil {
 		return err
 	}
+	ok.Websocket.Wg.Add(2)
+	go ok.wsFunnelConnectionData(ok.Websocket.Conn)
+	go ok.WsReadData()
 	if ok.Verbose {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
 			ok.Websocket.GetWebsocketURL())
@@ -221,19 +232,12 @@ func (ok *Okx) WsConnect() error {
 		var authDialer websocket.Dialer
 		authDialer.ReadBufferSize = 8192
 		authDialer.WriteBufferSize = 8192
-		go func() {
-			err = ok.WsAuth(context.TODO(), &authDialer)
-			if err != nil {
-				ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
-				return
-			}
-			ok.Websocket.Wg.Add(1)
-			go ok.wsFunnelConnectionData(ok.Websocket.AuthConn)
-		}()
+		err = ok.WsAuth(context.TODO(), &authDialer)
+		if err != nil {
+			ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		}
 	}
-	ok.Websocket.Wg.Add(2)
-	go ok.wsFunnelConnectionData(ok.Websocket.Conn)
-	go ok.WsReadData()
+
 	return nil
 }
 
@@ -246,6 +250,8 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 	if err != nil {
 		return fmt.Errorf("%v Websocket connection %v error. Error %v", ok.Name, okxAPIWebsocketPrivateURL, err)
 	}
+	ok.Websocket.Wg.Add(1)
+	go ok.wsFunnelConnectionData(ok.Websocket.AuthConn)
 	ok.Websocket.AuthConn.SetupPingHandler(stream.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       websocket.PingMessage,
@@ -277,7 +283,34 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 			},
 		},
 	}
-	return ok.Websocket.AuthConn.SendJSONMessage(request)
+
+	err = ok.Websocket.AuthConn.SendJSONMessage(request)
+	if err != nil {
+		return err
+	}
+	timer := time.NewTimer(ok.WebsocketResponseCheckTimeout)
+	ok.wsMutext.Lock()
+	defer ok.wsMutext.Unlock()
+	for {
+		select {
+		case data := <-ok.wsResponse:
+			if strings.EqualFold(data.Event, "login") && data.Code == "0" {
+				ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
+				return nil
+			} else if strings.EqualFold(data.Event, "error") ||
+				data.Code == "60006" || data.Code == "60007" ||
+				data.Code == "60009" || data.Code == "60026" {
+				ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
+				return fmt.Errorf("authentication failed with error: %v", ErrorCodes[data.Code])
+			}
+			continue
+		case <-timer.C:
+			timer.Stop()
+			return fmt.Errorf("%s websocket connection: timeout waiting for response with and operation: %v",
+				ok.Name,
+				request.Operation)
+		}
+	}
 }
 
 // wsFunnelConnectionData receives data from multiple connection and pass the data
@@ -448,6 +481,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 			return err
 		}
 	}
+
 	if len(authRequests.Arguments) > 0 && ok.Websocket.CanUseAuthenticatedEndpoints() {
 		err = ok.Websocket.AuthConn.SendJSONMessage(authRequests)
 		if err != nil {
@@ -498,18 +532,16 @@ func (ok *Okx) WsReadData() {
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
 func (ok *Okx) WsHandleData(respRaw []byte) error {
+	var resp wsIncomingData
+	err := json.Unmarshal(respRaw, &resp)
+	if err == nil && (resp.Event != "" || resp.Operation != "") && (resp.Event == "login" || resp.Event == "error" || resp.Event == "subscribe" || resp.Event == "unsubscribe" || resp.Operation == "subscribe" || resp.Operation == "unsubscribe" ||
+		resp.Operation == okxOpOrder || resp.Operation == okxOpBatchOrders || resp.Operation == okxOpCancelOrder || resp.Operation == okxOpBatchCancelOrders || resp.Operation == okxOpAmendOrder || resp.Operation == okxOpBatchAmendOrders) {
+		ok.wsResponse <- resp
+		return nil
+	}
 	var dataResponse WebsocketDataResponse
-	err := json.Unmarshal(respRaw, &dataResponse)
+	err = json.Unmarshal(respRaw, &dataResponse)
 	if err != nil {
-		var resp WSLoginResponse
-		err = json.Unmarshal(respRaw, &resp)
-		if err == nil && (strings.EqualFold(resp.Event, "login") && resp.Code == "0") {
-			ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
-		} else if err == nil && (strings.EqualFold(resp.Event, "error") ||
-			resp.Code == "60006" || resp.Code == "60007" ||
-			resp.Code == "60009" || resp.Code == "60026") {
-			ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		}
 		return err
 	}
 	if len(dataResponse.Data) == 0 {
@@ -736,7 +768,7 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 			if len(response.Data[i].Asks) == 0 && len(response.Data[i].Bids) == 0 {
 				return nil
 			}
-			err := ok.WsProcessUpdateOrderbook(response.Argument.Channel, response.Data[i], pair, a)
+			err := ok.WsProcessUpdateOrderbook(response.Data[i], pair, a)
 			if err != nil {
 				if err2 := ok.Subscribe([]stream.ChannelSubscription{
 					{
@@ -794,7 +826,7 @@ func (ok *Okx) WsProcessSnapshotOrderBook(data WsOrderBookData, pair currency.Pa
 // WsProcessUpdateOrderbook updates an existing orderbook using websocket data
 // After merging WS data, it will sort, validate and finally update the existing
 // orderbook
-func (ok *Okx) WsProcessUpdateOrderbook(channel string, data WsOrderBookData, pair currency.Pair, a asset.Item) error {
+func (ok *Okx) WsProcessUpdateOrderbook(data WsOrderBookData, pair currency.Pair, a asset.Item) error {
 	update := &orderbook.Update{
 		Asset: a,
 		Pair:  pair,
@@ -1192,8 +1224,8 @@ func (ok *Okx) wsProcessPushData(data []byte, resp interface{}) error {
 
 // Websocket Trade methods
 
-// WSPlaceOrder places an order thought the websocket connection stream, and returns a SubmitResponse and error message.
-func (ok *Okx) WSPlaceOrder(arg *PlaceOrderRequestParam) (*PlaceOrderResponse, error) {
+// WsPlaceOrder places an order thought the websocket connection stream, and returns a SubmitResponse and error message.
+func (ok *Okx) WsPlaceOrder(arg *PlaceOrderRequestParam) (*WsOrderData, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -1213,7 +1245,7 @@ func (ok *Okx) WSPlaceOrder(arg *PlaceOrderRequestParam) (*PlaceOrderResponse, e
 	if arg.QuantityToBuyOrSell <= 0 {
 		return nil, errInvalidQuantityToButOrSell
 	}
-	if arg.OrderPrice <= 0 && (strings.EqualFold(arg.OrderType, "limit") || strings.EqualFold(arg.OrderType, "post_only") ||
+	if arg.Price <= 0 && (strings.EqualFold(arg.OrderType, "limit") || strings.EqualFold(arg.OrderType, "post_only") ||
 		strings.EqualFold(arg.OrderType, "fok") || strings.EqualFold(arg.OrderType, "ioc")) {
 		return nil, fmt.Errorf("invalid order price for %s order types", arg.OrderType)
 	}
@@ -1227,34 +1259,46 @@ func (ok *Okx) WSPlaceOrder(arg *PlaceOrderRequestParam) (*PlaceOrderResponse, e
 	input := WsPlaceOrderInput{
 		ID:        randomID,
 		Arguments: []PlaceOrderRequestParam{*arg},
-		Operation: "batch-orders",
+		Operation: okxOpOrder,
 	}
-	respData, err := ok.Websocket.Conn.SendMessageReturnResponse(randomID, input)
+	err = ok.Websocket.AuthConn.SendJSONMessage(input)
 	if err != nil {
 		return nil, err
 	}
-	var placeOrderResponse WSPlaceOrderResponse
-	err = json.Unmarshal(respData, &placeOrderResponse)
-	if err != nil {
-		return nil, err
-	}
-	if !(placeOrderResponse.Code == "0" ||
-		placeOrderResponse.Code == "2") {
-		if placeOrderResponse.Msg == "" {
-			return nil, errNoValidResponseFromServer
+	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
+	ok.wsMutext.Lock()
+	defer ok.wsMutext.Unlock()
+	for {
+		select {
+		case data := <-ok.wsResponse:
+			if data.Operation == okxOpOrder && data.ID == input.ID {
+				if data.Code == "0" || data.Code == "1" {
+					resp, err := data.copyToPlaceOrderResponse()
+					if err != nil {
+						return nil, err
+					}
+					if len(resp.Data) != 1 {
+						return nil, errNoValidResponseFromServer
+					}
+					if data.Code == "1" {
+						return nil, fmt.Errorf("error code:%s message: %s", resp.Data[0].SCode, resp.Data[0].SMessage)
+					}
+					return &resp.Data[0], nil
+				}
+				return nil, fmt.Errorf("error code:%s message: %v", data.Code, ErrorCodes[data.Code])
+			}
+			continue
+		case <-timer.C:
+			timer.Stop()
+			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with and operation: %v",
+				ok.Name,
+				input.Operation)
 		}
-		return nil, errors.New(placeOrderResponse.Msg)
-	} else if len(placeOrderResponse.Data) == 0 {
-		if placeOrderResponse.Msg == "" {
-			return nil, errNoValidResponseFromServer
-		}
-		return nil, errors.New(placeOrderResponse.Msg)
 	}
-	return &(placeOrderResponse.Data[0]), nil
 }
 
 // WsPlaceMultipleOrder creates an order through the websocket stream.
-func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]PlaceOrderResponse, error) {
+func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]WsOrderData, error) {
 	for x := range args {
 		arg := args[x]
 		if arg.InstrumentID == "" {
@@ -1275,7 +1319,7 @@ func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]PlaceOrder
 		if arg.QuantityToBuyOrSell <= 0 {
 			return nil, errInvalidQuantityToButOrSell
 		}
-		if arg.OrderPrice <= 0 && (strings.EqualFold(arg.OrderType, "limit") || strings.EqualFold(arg.OrderType, "post_only") ||
+		if arg.Price <= 0 && (strings.EqualFold(arg.OrderType, "limit") || strings.EqualFold(arg.OrderType, "post_only") ||
 			strings.EqualFold(arg.OrderType, "fok") || strings.EqualFold(arg.OrderType, "ioc")) {
 			return nil, fmt.Errorf("invalid order price for %s order types", arg.OrderType)
 		}
@@ -1290,29 +1334,40 @@ func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]PlaceOrder
 	input := WsPlaceOrderInput{
 		ID:        randomID,
 		Arguments: args,
-		Operation: "batch-orders",
+		Operation: okxOpBatchOrders,
 	}
-	respData, err := ok.Websocket.Conn.SendMessageReturnResponse(randomID, input)
+	err = ok.Websocket.AuthConn.SendJSONMessage(input)
 	if err != nil {
 		return nil, err
 	}
-	var placeOrderResponse WSPlaceOrderResponse
-	err = json.Unmarshal(respData, &placeOrderResponse)
-	if err != nil {
-		return nil, err
-	}
-	if !(placeOrderResponse.Code == "0" ||
-		placeOrderResponse.Code == "2") {
-		if placeOrderResponse.Msg == "" {
-			return nil, errNoValidResponseFromServer
+	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
+	ok.wsMutext.Lock()
+	defer ok.wsMutext.Unlock()
+	for {
+		select {
+		case data := <-ok.wsResponse:
+			if data.Operation == okxOpBatchOrders && data.ID == input.ID {
+				if data.Code == "0" || data.Code == "2" {
+					resp, err := data.copyToPlaceOrderResponse()
+					if err != nil {
+						return nil, err
+					}
+					return resp.Data, nil
+				}
+				return nil, fmt.Errorf("error code:%s message: %v", data.Code, ErrorCodes[data.Code])
+			}
+			continue
+		case <-timer.C:
+			timer.Stop()
+			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with and operation: %v",
+				ok.Name,
+				input.Operation)
 		}
-		return nil, errors.New(placeOrderResponse.Msg)
 	}
-	return placeOrderResponse.Data, nil
 }
 
 // WsCancelOrder websocket function to cancel a trade order
-func (ok *Okx) WsCancelOrder(arg CancelOrderRequestParam) (*PlaceOrderResponse, error) {
+func (ok *Okx) WsCancelOrder(arg CancelOrderRequestParam) (*WsOrderData, error) {
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
@@ -1326,33 +1381,46 @@ func (ok *Okx) WsCancelOrder(arg CancelOrderRequestParam) (*PlaceOrderResponse, 
 	input := WsCancelOrderInput{
 		ID:        randomID,
 		Arguments: []CancelOrderRequestParam{arg},
-		Operation: "cancel-order",
+		Operation: okxOpCancelOrder,
 	}
-	respData, err := ok.Websocket.Conn.SendMessageReturnResponse(randomID, input)
+	err = ok.Websocket.AuthConn.SendJSONMessage(input)
 	if err != nil {
 		return nil, err
 	}
-	var cancelOrderResponse WSPlaceOrderResponse
-	err = json.Unmarshal(respData, &cancelOrderResponse)
-	if err != nil {
-		return nil, err
-	}
-	if cancelOrderResponse.Code != "1" || strings.EqualFold(cancelOrderResponse.Code, "60013") {
-		if cancelOrderResponse.Msg == "" {
-			return nil, errNoValidResponseFromServer
+	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
+	ok.wsMutext.Lock()
+	defer ok.wsMutext.Unlock()
+	for {
+		select {
+		case data := <-ok.wsResponse:
+			if data.Operation == okxOpCancelOrder && data.ID == input.ID {
+				if data.Code == "0" || data.Code == "1" {
+					resp, err := data.copyToPlaceOrderResponse()
+					if err != nil {
+						return nil, err
+					}
+					if len(resp.Data) != 1 {
+						return nil, errNoValidResponseFromServer
+					}
+					if data.Code == "1" {
+						return nil, fmt.Errorf("error code: %s message: %s", resp.Data[0].SCode, resp.Data[0].SMessage)
+					}
+					return &resp.Data[0], nil
+				}
+				return nil, fmt.Errorf("error code: %s message: %v", data.Code, ErrorCodes[data.Code])
+			}
+			continue
+		case <-timer.C:
+			timer.Stop()
+			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with and operation: %v",
+				ok.Name,
+				input.Operation)
 		}
-		return nil, errors.New(cancelOrderResponse.Msg)
-	} else if len(cancelOrderResponse.Data) == 0 {
-		if cancelOrderResponse.Msg == "" {
-			return nil, errNoValidResponseFromServer
-		}
-		return nil, errors.New(cancelOrderResponse.Msg)
 	}
-	return &(cancelOrderResponse.Data[0]), nil
 }
 
-// WsCancleMultipleOrder cancel multiple order through the websocket channel.
-func (ok *Okx) WsCancleMultipleOrder(args []CancelOrderRequestParam) ([]PlaceOrderResponse, error) {
+// WsCancelMultipleOrder cancel multiple order through the websocket channel.
+func (ok *Okx) WsCancelMultipleOrder(args []CancelOrderRequestParam) ([]WsOrderData, error) {
 	for x := range args {
 		arg := args[x]
 		if arg.InstrumentID == "" {
@@ -1369,29 +1437,40 @@ func (ok *Okx) WsCancleMultipleOrder(args []CancelOrderRequestParam) ([]PlaceOrd
 	input := WsCancelOrderInput{
 		ID:        randomID,
 		Arguments: args,
-		Operation: "batch-cancel-orders",
+		Operation: okxOpBatchCancelOrders,
 	}
-	respData, err := ok.Websocket.Conn.SendMessageReturnResponse(randomID, input)
+	err = ok.Websocket.AuthConn.SendJSONMessage(input)
 	if err != nil {
 		return nil, err
 	}
-	var cancelOrderResponse WSPlaceOrderResponse
-	err = json.Unmarshal(respData, &cancelOrderResponse)
-	if err != nil {
-		return nil, err
-	}
-	if cancelOrderResponse.Code != "1" ||
-		strings.EqualFold(cancelOrderResponse.Code, "60013") {
-		if cancelOrderResponse.Msg == "" {
-			return nil, errNoValidResponseFromServer
+	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
+	ok.wsMutext.Lock()
+	defer ok.wsMutext.Unlock()
+	for {
+		select {
+		case data := <-ok.wsResponse:
+			if data.Operation == okxOpBatchCancelOrders && data.ID == input.ID {
+				if data.Code == "0" || data.Code == "2" {
+					resp, err := data.copyToPlaceOrderResponse()
+					if err != nil {
+						return nil, err
+					}
+					return resp.Data, nil
+				}
+				return nil, fmt.Errorf("error code:%s message: %v", data.Code, ErrorCodes[data.Code])
+			}
+			continue
+		case <-timer.C:
+			timer.Stop()
+			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with and operation: %v",
+				ok.Name,
+				input.Operation)
 		}
-		return nil, errors.New(cancelOrderResponse.Msg)
 	}
-	return cancelOrderResponse.Data, nil
 }
 
 // WsAmendOrder method to amend trade order using a request thought the websocket channel.
-func (ok *Okx) WsAmendOrder(arg *AmendOrderRequestParams) (*AmendOrderResponse, error) {
+func (ok *Okx) WsAmendOrder(arg *AmendOrderRequestParams) (*WsOrderData, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -1410,35 +1489,47 @@ func (ok *Okx) WsAmendOrder(arg *AmendOrderRequestParams) (*AmendOrderResponse, 
 	}
 	input := WsAmendOrderInput{
 		ID:        randomID,
-		Operation: "amend-order",
+		Operation: okxOpAmendOrder,
 		Arguments: []AmendOrderRequestParams{*arg},
 	}
-	respData, err := ok.Websocket.Conn.SendMessageReturnResponse(randomID, input)
+	err = ok.Websocket.AuthConn.SendJSONMessage(input)
 	if err != nil {
 		return nil, err
 	}
-	var amendOrderResponse WsAmendOrderResponse
-	err = json.Unmarshal(respData, &amendOrderResponse)
-	if err != nil {
-		return nil, err
-	}
-
-	if amendOrderResponse.Code != "0" {
-		if amendOrderResponse.Msg == "" {
-			return nil, errNoValidResponseFromServer
+	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
+	ok.wsMutext.Lock()
+	defer ok.wsMutext.Unlock()
+	for {
+		select {
+		case data := <-ok.wsResponse:
+			if data.Operation == okxOpAmendOrder && data.ID == input.ID {
+				if data.Code == "0" || data.Code == "1" {
+					resp, err := data.copyToPlaceOrderResponse()
+					if err != nil {
+						return nil, err
+					}
+					if len(resp.Data) != 1 {
+						return nil, errNoValidResponseFromServer
+					}
+					if data.Code == "1" {
+						return nil, fmt.Errorf("error code: %s message: %s", resp.Data[0].SCode, resp.Data[0].SMessage)
+					}
+					return &resp.Data[0], nil
+				}
+				return nil, fmt.Errorf("error code: %s message: %v", data.Code, ErrorCodes[data.Code])
+			}
+			continue
+		case <-timer.C:
+			timer.Stop()
+			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with and operation: %v",
+				ok.Name,
+				input.Operation)
 		}
-		return nil, errors.New(amendOrderResponse.Msg)
-	} else if len(amendOrderResponse.Data) == 0 {
-		if amendOrderResponse.Msg == "" {
-			return nil, errNoValidResponseFromServer
-		}
-		return nil, errors.New(amendOrderResponse.Msg)
 	}
-	return &amendOrderResponse.Data[0], nil
 }
 
 // WsAmendMultipleOrders a request through the websocket connection to amend multiple trade orders.
-func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]AmendOrderResponse, error) {
+func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]WsOrderData, error) {
 	for x := range args {
 		if args[x].InstrumentID == "" {
 			return nil, errMissingInstrumentID
@@ -1456,33 +1547,37 @@ func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]AmendOrd
 	}
 	input := &WsAmendOrderInput{
 		ID:        randomID,
-		Operation: "batch-amend-orders",
+		Operation: okxOpBatchAmendOrders,
 		Arguments: args,
 	}
-	respData, err := ok.Websocket.Conn.SendMessageReturnResponse(randomID, input)
+	err = ok.Websocket.AuthConn.SendJSONMessage(input)
 	if err != nil {
 		return nil, err
 	}
-	var amendOrderResponse WsAmendOrderResponse
-	err = json.Unmarshal(respData, &amendOrderResponse)
-	if err != nil {
-		return nil, err
-	}
-	if !(amendOrderResponse.Code == "0" ||
-		amendOrderResponse.Code == "2") &&
-		amendOrderResponse.Code == "1" ||
-		amendOrderResponse.Code == "60013" {
-		if amendOrderResponse.Msg == "" {
-			return nil, errNoValidResponseFromServer
+	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
+	ok.wsMutext.Lock()
+	defer ok.wsMutext.Unlock()
+	for {
+		select {
+		case data := <-ok.wsResponse:
+			if data.Operation == okxOpBatchAmendOrders && data.ID == input.ID {
+				if data.Code == "0" || data.Code == "2" {
+					resp, err := data.copyToPlaceOrderResponse()
+					if err != nil {
+						return nil, err
+					}
+					return resp.Data, nil
+				}
+				return nil, fmt.Errorf("error code:%s message: %v", data.Code, ErrorCodes[data.Code])
+			}
+			continue
+		case <-timer.C:
+			timer.Stop()
+			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with and operation: %v",
+				ok.Name,
+				input.Operation)
 		}
-		return nil, errors.New(amendOrderResponse.Msg)
-	} else if len(amendOrderResponse.Data) == 0 {
-		if amendOrderResponse.Msg == "" {
-			return nil, errNoValidResponseFromServer
-		}
-		return nil, errors.New(amendOrderResponse.Msg)
 	}
-	return amendOrderResponse.Data, nil
 }
 
 // WsChannelSubscription send a subscription or unsubscription request for different channels through the websocket stream.
@@ -1529,26 +1624,32 @@ func (ok *Okx) WsChannelSubscription(operation, channel string, assetType asset.
 			},
 		},
 	}
-	randomID, err := common.GenerateRandomString(32, common.SmallLetters, common.CapitalLetters, common.NumberCharacters)
+	err = ok.Websocket.Conn.SendJSONMessage(input)
 	if err != nil {
 		return nil, err
 	}
-	respData, err := ok.Websocket.Conn.SendMessageReturnResponse(randomID, input)
-	if err != nil {
-		return nil, err
-	}
-	var resp SubscriptionOperationResponse
-	err = json.Unmarshal(respData, &resp)
-	if err != nil {
-		return nil, err
-	}
-	if strings.EqualFold(resp.Event, "error") || strings.EqualFold(resp.Code, "60012") {
-		if resp.Msg == "" {
-			return nil, fmt.Errorf("%s %s error %s", channel, operation, string(respData))
+	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
+	ok.wsMutext.Lock()
+	defer ok.wsMutext.Unlock()
+	for {
+		select {
+		case data := <-ok.wsResponse:
+			if strings.EqualFold(data.Event, operation) && data.Argument.Channel == input.Arguments[0].Channel && data.Argument.InstrumentType == input.Arguments[0].InstrumentType && data.Argument.InstrumentID == input.Arguments[0].InstrumentID {
+				return data.copyToSubscriptionResponse(), nil
+			} else if strings.EqualFold(data.Event, "error") || strings.EqualFold(data.Code, "60012") {
+				if data.Msg == "" {
+					return nil, fmt.Errorf("%s %s error %v", channel, operation, data)
+				}
+				return nil, errors.New(data.Msg)
+			}
+			continue
+		case <-timer.C:
+			timer.Stop()
+			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with and operation: %v",
+				ok.Name,
+				input.Operation)
 		}
-		return nil, errors.New(resp.Msg)
 	}
-	return &resp, nil
 }
 
 // Private Channel Websocket methods
@@ -1564,9 +1665,8 @@ func (ok *Okx) WsAuthChannelSubscription(operation, channel string, assetType as
 	var ccy string
 	var err error
 	if len(tooglers) > 0 && tooglers[0] {
-		instrumentType = ok.GetInstrumentTypeFromAssetItem(assetType)
-		if !(instrumentType == okxInstTypeSpot ||
-			instrumentType == okxInstTypeMargin ||
+		instrumentType = strings.ToUpper(ok.GetInstrumentTypeFromAssetItem(assetType))
+		if !(instrumentType == okxInstTypeMargin ||
 			instrumentType == okxInstTypeSwap ||
 			instrumentType == okxInstTypeFutures ||
 			instrumentType == okxInstTypeOption) {
@@ -1609,26 +1709,32 @@ func (ok *Okx) WsAuthChannelSubscription(operation, channel string, assetType as
 			},
 		},
 	}
-	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
+	err = ok.Websocket.AuthConn.SendJSONMessage(input)
 	if err != nil {
 		return nil, err
 	}
-	respData, err := ok.Websocket.AuthConn.SendMessageReturnResponse(randomID, input)
-	if err != nil {
-		return nil, err
-	}
-	var resp SubscriptionOperationResponse
-	err = json.Unmarshal(respData, &resp)
-	if err != nil {
-		return nil, err
-	}
-	if strings.EqualFold(resp.Event, "error") || strings.EqualFold(resp.Code, "60012") {
-		if resp.Msg == "" {
-			return nil, fmt.Errorf("%s %s error %s", channel, operation, string(respData))
+	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
+	ok.wsMutext.Lock()
+	defer ok.wsMutext.Unlock()
+	for {
+		select {
+		case data := <-ok.wsResponse:
+			if strings.EqualFold(data.Event, operation) && data.Argument.Channel == input.Arguments[0].Channel && data.Argument.InstrumentType == input.Arguments[0].InstrumentType && data.Argument.InstrumentID == input.Arguments[0].InstrumentID {
+				return data.copyToSubscriptionResponse(), nil
+			} else if strings.EqualFold(data.Event, "error") || strings.EqualFold(data.Code, "60012") {
+				if data.Msg == "" {
+					return nil, fmt.Errorf("%s %s error %v", channel, operation, data)
+				}
+				return nil, fmt.Errorf("error code:%s message: %s", data.Code, data.Msg)
+			}
+			continue
+		case <-timer.C:
+			timer.Stop()
+			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with and operation: %v",
+				ok.Name,
+				input.Operation)
 		}
-		return nil, errors.New(resp.Msg)
 	}
-	return &resp, nil
 }
 
 // WsAccountSubscription retrieve account information. Data will be pushed when triggered by
@@ -1645,7 +1751,7 @@ func (ok *Okx) WsPositionChannel(operation string, assetType asset.Item, pair cu
 
 // BalanceAndPositionSubscription retrieve account balance and position information. Data will be pushed when triggered by events such as filled order, funding transfer.
 func (ok *Okx) BalanceAndPositionSubscription(operation, uid string) (*SubscriptionOperationResponse, error) {
-	return ok.WsAuthChannelSubscription(operation, okxChannelBalanceAndPosition, asset.Empty, currency.EMPTYPAIR, "", "")
+	return ok.WsAuthChannelSubscription(operation, okxChannelBalanceAndPosition, asset.Empty, currency.EMPTYPAIR, uid, "")
 }
 
 // WsOrderChannel for subscribing for orders.
@@ -1774,22 +1880,32 @@ func (ok *Okx) PriceLimitSubscription(operation, instrumentID string) (*Subscrip
 			},
 		},
 	}
-	respData, err := ok.Websocket.Conn.SendMessageReturnResponse(okxChannelPriceLimit, input)
+	err = ok.Websocket.Conn.SendJSONMessage(input)
 	if err != nil {
 		return nil, err
 	}
-	var resp SubscriptionOperationResponse
-	err = json.Unmarshal(respData, &resp)
-	if err != nil {
-		return nil, err
-	}
-	if strings.EqualFold(resp.Event, "error") || strings.EqualFold(resp.Code, "60012") {
-		if resp.Msg == "" {
-			return nil, fmt.Errorf("%s %s error %s", okxChannelPriceLimit, operation, string(respData))
+	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
+	ok.wsMutext.Lock()
+	defer ok.wsMutext.Unlock()
+	for {
+		select {
+		case data := <-ok.wsResponse:
+			if strings.EqualFold(data.Event, operation) && data.Argument.Channel == input.Arguments[0].Channel && data.Argument.InstrumentType == input.Arguments[0].InstrumentType && data.Argument.InstrumentID == input.Arguments[0].InstrumentID {
+				return data.copyToSubscriptionResponse(), nil
+			} else if strings.EqualFold(data.Event, "error") || strings.EqualFold(data.Code, "60012") {
+				if data.Msg == "" {
+					return nil, fmt.Errorf("%s %s error %v", okxChannelPriceLimit, operation, data)
+				}
+				return nil, errors.New(data.Msg)
+			}
+			continue
+		case <-timer.C:
+			timer.Stop()
+			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with and operation: %v",
+				ok.Name,
+				input.Operation)
 		}
-		return nil, errors.New(resp.Msg)
 	}
-	return &resp, nil
 }
 
 // OrderBooksSubscription subscribe or unsubscribe to "books*" channel to retrieve order book data.
@@ -1802,8 +1918,8 @@ func (ok *Okx) OrderBooksSubscription(operation, channel string, assetType asset
 
 // OptionSummarySubscription a method to subscribe or unsubscribe to "opt-summary" channel
 // to retrieve detailed pricing information of all OPTION contracts. Data will be pushed at once.
-func (ok *Okx) OptionSummarySubscription(operation string, assetType asset.Item, pair currency.Pair) (*SubscriptionOperationResponse, error) {
-	return ok.WsChannelSubscription(operation, okxChannelOptSummary, assetType, pair, false, false, true)
+func (ok *Okx) OptionSummarySubscription(operation string, pair currency.Pair) (*SubscriptionOperationResponse, error) {
+	return ok.WsChannelSubscription(operation, okxChannelOptSummary, asset.Option, pair, false, false, true)
 }
 
 // FundingRateSubscription a methos to subscribe and unsubscribe to "funding-rate" channel.

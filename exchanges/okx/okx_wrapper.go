@@ -63,6 +63,7 @@ func (ok *Okx) SetDefaults() {
 	ok.Enabled = true
 	ok.Verbose = true
 
+	ok.wsResponse = make(chan wsIncomingData)
 	ok.API.CredentialsValidator.RequiresKey = true
 	ok.API.CredentialsValidator.RequiresSecret = true
 	ok.API.CredentialsValidator.RequiresClientID = true
@@ -701,7 +702,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
-	if ok.SupportsAsset(s.AssetType) {
+	if !ok.SupportsAsset(s.AssetType) {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, s.AssetType)
 	}
 	orderType, err := ok.OrderTypeString(s.Type)
@@ -736,19 +737,27 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 	}
 	switch orderType {
 	case OkxOrderLimit, OkxOrderPostOnly, OkxOrderFOK, OkxOrderIOC:
-		orderRequest.OrderPrice = s.Price
+		orderRequest.Price = s.Price
 	}
-	var placeOrderResponse *PlaceOrderResponse
+	var placeOrderResponse *WsOrderData
 	switch s.AssetType {
 	case asset.Spot, asset.Option, asset.Margin:
-		placeOrderResponse, err = ok.PlaceOrder(ctx, orderRequest, s.AssetType)
+		if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			placeOrderResponse, err = ok.WsPlaceOrder(orderRequest)
+		} else {
+			placeOrderResponse, err = ok.PlaceOrder(ctx, orderRequest, s.AssetType)
+		}
 	case asset.PerpetualSwap, asset.Futures:
 		if orderType == "" {
 			orderType = OkxOrderOptimalLimitIOC // only applicable for Futures and Perpetual Swap Types.
 		}
 		orderRequest.PositionSide = positionSideLong
 		orderRequest.OrderType = orderType
-		placeOrderResponse, err = ok.PlaceOrder(ctx, orderRequest, s.AssetType)
+		if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			placeOrderResponse, err = ok.WsPlaceOrder(orderRequest)
+		} else {
+			placeOrderResponse, err = ok.PlaceOrder(ctx, orderRequest, s.AssetType)
+		}
 	default:
 		return nil, errInvalidInstrumentType
 	}
@@ -779,7 +788,12 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 	amendRequest.NewQuantity = action.Amount
 	amendRequest.OrderID = action.OrderID
 	amendRequest.ClientSuppliedOrderID = action.ClientOrderID
-	response, err := ok.AmendOrder(ctx, &amendRequest)
+	var response *WsOrderData
+	if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		response, err = ok.WsAmendOrder(&amendRequest)
+	} else {
+		response, err = ok.AmendOrder(ctx, &amendRequest)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -810,7 +824,11 @@ func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		OrderID:               ord.OrderID,
 		ClientSupplierOrderID: ord.ClientOrderID,
 	}
-	_, err = ok.CancelSingleOrder(ctx, req)
+	if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		_, err = ok.WsCancelOrder(req)
+	} else {
+		_, err = ok.CancelSingleOrder(ctx, req)
+	}
 	return err
 }
 
@@ -840,13 +858,74 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (or
 		}
 		cancelOrderParams = append(cancelOrderParams, req)
 	}
-	_, err = ok.CancelMultipleOrders(ctx, cancelOrderParams)
-	return cancelBatchResponse, err
+	var canceledOrders []WsOrderData
+	if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		canceledOrders, err = ok.WsCancelMultipleOrder(cancelOrderParams)
+	} else {
+		canceledOrders, err = ok.CancelMultipleOrders(ctx, cancelOrderParams)
+	}
+	if err != nil {
+		return cancelBatchResponse, err
+	}
+	for x := range canceledOrders {
+		cancelBatchResponse.Status[canceledOrders[x].OrderID] = func() string {
+			if !(canceledOrders[x].SCode == "0" || canceledOrders[x].SCode == "2") {
+				return ""
+			}
+			return order.Cancelled.String()
+		}()
+	}
+	return cancelBatchResponse, nil
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (ok *Okx) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
-	return order.CancelAllResponse{}, common.ErrNotYetImplemented
+	cancelAllResponse := order.CancelAllResponse{
+		Status: map[string]string{},
+	}
+	myOrders, err := ok.GetOrderList(ctx, &OrderListRequestParams{})
+	if err != nil {
+		return cancelAllResponse, err
+	}
+	cancelAllOrdersRequestParams := make([]CancelOrderRequestParam, len(myOrders))
+	for x := range myOrders {
+		cancelAllOrdersRequestParams[x] = CancelOrderRequestParam{
+			OrderID:               myOrders[x].OrderID,
+			ClientSupplierOrderID: myOrders[x].ClientSupplierOrderID,
+		}
+	}
+	remaining := cancelAllOrdersRequestParams
+	loop := int(math.Ceil(float64(len(remaining)) / 20.0))
+	for b := 0; b < loop; b++ {
+		var response []WsOrderData
+		if len(remaining) > 20 {
+			if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+				response, err = ok.WsCancelMultipleOrder(remaining[:20])
+			} else {
+				response, err = ok.CancelMultipleOrders(ctx, remaining[:20])
+			}
+			remaining = remaining[20:]
+		} else {
+			if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+				response, err = ok.WsCancelMultipleOrder(remaining)
+			} else {
+				response, err = ok.CancelMultipleOrders(ctx, remaining)
+			}
+		}
+		if err != nil {
+			if len(cancelAllResponse.Status) == 0 {
+				return cancelAllResponse, err
+			}
+		}
+		for y := range response {
+			if response[y].SCode == "0" {
+				cancelAllResponse.Status[response[y].OrderID] = order.Cancelled.String()
+			} else {
+				cancelAllResponse.Status[response[y].OrderID] = response[y].SMessage
+			}
+		}
+	}
+	return cancelAllResponse, nil
 }
 
 // GetOrderInfo returns order information based on order ID
@@ -942,12 +1021,12 @@ func (ok *Okx) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (ok *Okx) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is submitted
 func (ok *Okx) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetActiveOrders retrieves any orders that are active/open

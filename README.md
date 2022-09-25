@@ -43,7 +43,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Lbank | Yes | No | NA |
 | LocalBitcoins | Yes | NA | NA |
 | OKCoin International | Yes | Yes | No |
-| Okx | Yes | Yes | No |
+| Okx | Yes | Yes | NA |
 | Poloniex | Yes | Yes | NA |
 | Yobit | Yes | NA | NA |
 | ZB.COM | Yes | Yes | NA |
@@ -146,9 +146,9 @@ Binaries will be published once the codebase reaches a stable condition.
 |User|Contribution Amount|
 |--|--|
 | [thrasher-](https://github.com/thrasher-) | 667 |
-| [shazbert](https://github.com/shazbert) | 260 |
-| [gloriousCode](https://github.com/gloriousCode) | 199 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 99 |
+| [shazbert](https://github.com/shazbert) | 264 |
+| [gloriousCode](https://github.com/gloriousCode) | 201 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 109 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
 | [lrascao](https://github.com/lrascao) | 27 |
@@ -163,6 +163,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [dackroyd](https://github.com/dackroyd) | 5 |
 | [cranktakular](https://github.com/cranktakular) | 5 |
 | [khcchiu](https://github.com/khcchiu) | 5 |
+| [geseq](https://github.com/geseq) | 3 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
 | [yangrq1018](https://github.com/yangrq1018) | 3 |
 | [TaltaM](https://github.com/TaltaM) | 3 |
@@ -174,7 +175,6 @@ Binaries will be published once the codebase reaches a stable condition.
 | [MarkDzulko](https://github.com/MarkDzulko) | 2 |
 | [gam-phon](https://github.com/gam-phon) | 2 |
 | [cornelk](https://github.com/cornelk) | 2 |
-| [if1live](https://github.com/if1live) | 2 |
 | [herenow](https://github.com/herenow) | 2 |
 | [mshogin](https://github.com/mshogin) | 2 |
 | [soxipy](https://github.com/soxipy) | 2 |

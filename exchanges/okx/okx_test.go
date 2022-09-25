@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"net/http"
 	"os"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
@@ -19,7 +21,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -28,10 +32,11 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	passphrase              = ""
-	canManipulateRealOrders = false
+	canManipulateRealOrders = true
 )
 
 var ok Okx
+var wsSetupRan bool
 
 func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
@@ -47,6 +52,7 @@ func TestMain(m *testing.M) {
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
 	exchCfg.API.Credentials.ClientID = passphrase
+	ok.wsResponse = make(chan wsIncomingData)
 	ok.SetDefaults()
 
 	if apiKey != "" && apiSecret != "" {
@@ -197,9 +203,6 @@ func TestGetExchangeRate(t *testing.T) {
 
 func TestGetIndexComponents(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.SkipNow()
-	}
 	instID, err := ok.getInstrumentIDFromPair(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.Spot)
 	if err != nil {
 		t.Error("Okx GetInstrumentIDFromPair() error", err)
@@ -218,9 +221,6 @@ func TestGetBlockTickers(t *testing.T) {
 	if err := json.Unmarshal([]byte(blockTickerItemJSON), &resp); err != nil {
 		t.Error("Okx Decerializing to BlockTickerItem error", err)
 	}
-	if !areTestAPIKeysSet() {
-		t.SkipNow()
-	}
 	if _, err := ok.GetBlockTickers(context.Background(), "SWAP", ""); err != nil {
 		t.Error("Okx GetBlockTickers() error", err)
 	}
@@ -228,11 +228,6 @@ func TestGetBlockTickers(t *testing.T) {
 
 func TestGetBlockTicker(t *testing.T) {
 	t.Parallel()
-
-	if !areTestAPIKeysSet() {
-		t.SkipNow()
-	}
-
 	if _, err := ok.GetBlockTicker(context.Background(), "BTC-USDT"); err != nil {
 		t.Error("Okx GetBlockTicker() error", err)
 	}
@@ -245,9 +240,6 @@ func TestGetBlockTrade(t *testing.T) {
 	var resp BlockTrade
 	if err := json.Unmarshal([]byte(blockTradeItemJSON), &resp); err != nil {
 		t.Error("Okx Decerializing to BlockTrade error", err)
-	}
-	if !areTestAPIKeysSet() {
-		t.SkipNow()
 	}
 	if _, err := ok.GetBlockTrades(context.Background(), "BTC-USDT"); err != nil {
 		t.Error("Okx GetBlockTrades() error", err)
@@ -271,7 +263,7 @@ func TestGetInstrument(t *testing.T) {
 	}
 }
 
-var deliveryHistoryData = `[{"ts":"1597026383085","details":[{"type":"delivery","instId":"ZIL-BTC","px":"0.016"}]},{"ts":"1597026383085","details":[{"instId":"BTC-USD-200529-6000-C","type":"exercised","px":"0.016"},{"instId":"BTC-USD-200529-8000-C","type":"exercised","px":"0.016"}]}]`
+var deliveryHistoryData = `[{"ts":"1597026383085","details":[{"type":"delivery","insId":"ZIL-BTC","px":"0.016"}]},{"ts":"1597026383085","details":[{"insId":"BTC-USD-200529-6000-C","type":"exercised","px":"0.016"},{"insId":"BTC-USD-200529-8000-C","type":"exercised","px":"0.016"}]}]`
 
 func TestGetDeliveryHistory(t *testing.T) {
 	t.Parallel()
@@ -507,18 +499,25 @@ func TestGetTakerFlow(t *testing.T) {
 	}
 }
 
+var placeOrderRequestParamsJSON = `{"instId":"BTC-USDT",    "tdMode":"cash",    "clOrdId":"b15",    "side":"buy",    "ordType":"limit",    "px":"2.15",    "sz":"2"}`
+
 func TestPlaceOrder(t *testing.T) {
 	t.Parallel()
+	var resp PlaceOrderRequestParam
+	if err := json.Unmarshal([]byte(placeOrderRequestParamsJSON), &resp); err != nil {
+		t.Errorf("%s error while deserializing to PlaceOrderRequestParam: %v", ok.Name, err)
+	}
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	if _, err := ok.PlaceOrder(context.Background(), &PlaceOrderRequestParam{
-		InstrumentID:        "MATIC-USDC",
-		TradeMode:           "cross",
-		Side:                "sell",
-		OrderType:           "optimal_limit_ioc",
-		QuantityToBuyOrSell: 1,
-		OrderPrice:          1,
+		ClientSupplierOrderID: "my-new-id",
+		InstrumentID:          "BTC-USDC",
+		TradeMode:             "cross",
+		Side:                  "buy",
+		OrderType:             "limit",
+		QuantityToBuyOrSell:   2.6,
+		Price:                 2.1,
 	}, asset.Margin); err != nil {
 		t.Error("Okx PlaceOrder() error", err)
 	}
@@ -537,7 +536,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 				Side:                "sell",
 				OrderType:           "limit",
 				QuantityToBuyOrSell: 1,
-				OrderPrice:          1,
+				Price:               1,
 			},
 		}); err != nil {
 		t.Error("Okx PlaceOrderRequestParam() error", err)
@@ -2628,6 +2627,7 @@ func TestSubmitOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
+	setupWsAuth(t)
 	var orderSubmission = &order.Submit{
 		Pair: currency.Pair{
 			Base:  currency.LTC,
@@ -2652,6 +2652,7 @@ func TestCancelOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
+	setupWsAuth(t)
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
@@ -2694,6 +2695,17 @@ func TestCancelBatchOrders(t *testing.T) {
 	_, err := ok.CancelBatchOrders(context.Background(), orderCancellationParams)
 	if err != nil {
 		t.Error("Okx CancelBatchOrders() error", err)
+	}
+}
+
+func TestCancelAllOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	setupWsAuth(t)
+	if _, err := ok.CancelAllOrders(context.Background(), &order.Cancel{}); err != nil {
+		t.Errorf("%s CancelAllOrders() error: %v", ok.Name, err)
 	}
 }
 
@@ -2957,15 +2969,35 @@ var updateOrderBookPushDataJSON = `{"arg":{"channel":"books","instId":"BTC-USDT"
 
 func TestSnapshotAndUpdateOrderBookPushData(t *testing.T) {
 	t.Parallel()
+	ok.Verbose = true
 	if err := ok.WsHandleData([]byte(snapshotOrderBookPushData)); err != nil {
 		t.Error("Okx Snapshot order book push data error", err)
 	}
 	if err := ok.WsHandleData([]byte(testSnapshotOrderbookPushData)); err != nil {
 		t.Error("Okx Snapshot order book push data error", err)
 	}
-	t.SkipNow()
 	if err := ok.WsHandleData([]byte(updateOrderBookPushDataJSON)); err != nil {
 		t.Error("Okx Update Order Book Push Data error", err)
+	}
+}
+
+var calculateOrderbookChecksumUpdateorderbookJSON = `{"Bids":[{"Amount":56,"Price":0.07014,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":608,"Price":0.07011,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":110,"Price":0.07009,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1264,"Price":0.07006,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":2347,"Price":0.07004,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":279,"Price":0.07003,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":52,"Price":0.07001,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":91,"Price":0.06997,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":4242,"Price":0.06996,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":486,"Price":0.06995,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":161,"Price":0.06992,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":63,"Price":0.06991,"ID":0,"Period":0,"LiquidationOrders":0,
+"OrderCount":0},{"Amount":7518,"Price":0.06988,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":186,"Price":0.06976,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":71,"Price":0.06975,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1086,"Price":0.06973,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":513,"Price":0.06961,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":4603,"Price":0.06959,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":186,"Price":0.0695,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":3043,"Price":0.06946,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":103,"Price":0.06939,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5053,"Price":0.0693,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5039,"Price":0.06909,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5037,"Price":0.06888,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1526,"Price":0.06886,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5008,"Price":0.06867,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5065,"Price":0.06846,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1572,"Price":0.06826,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1565,"Price":0.06801,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":67,"Price":0.06748,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":111,"Price":0.0674,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":10038,"Price":0.0672,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.06652,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1526,"Price":0.06625,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":10924,"Price":0.06619,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.05986,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.05387,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.04848,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.04363,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0}],"Asks":[{"Amount":5,"Price":0.07026,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":765,"Price":0.07027,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":110,"Price":0.07028,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1264,"Price":0.0703,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":280,"Price":0.07034,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":2255,"Price":0.07035,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":28,"Price":0.07036,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":63,"Price":0.07037,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":137,"Price":0.07039,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":48,"Price":0.0704,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":32,"Price":0.07041,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":3985,"Price":0.07043,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":257,"Price":0.07057,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":7870,"Price":0.07058,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":161,"Price":0.07059,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":4539,"Price":0.07061,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1438,"Price":0.07068,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":3162,"Price":0.07088,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":99,"Price":0.07104,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5018,"Price":0.07108,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1540,"Price":0.07115,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5080,"Price":0.07129,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1512,"Price":0.07145,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5016,"Price":0.0715,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5026,"Price":0.07171,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5062,"Price":0.07192,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1517,"Price":0.07197,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1511,"Price":0.0726,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":10376,"Price":0.07314,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.07354,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":10277,"Price":0.07466,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":269,"Price":0.07626,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":269,"Price":0.07636,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.0809,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.08899,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.09789,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.10768,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0}],"Exchange":"Okx","Pair":"BTC-USDT","Asset":"spot","LastUpdated":"0001-01-01T00:00:00Z","LastUpdateID":0,"PriceDuplication":false,"IsFundingRate":false,"RestSnapshot":false,"IDAlignment":false}`
+
+func TestCalculateUpdateOrderbookChecksum(t *testing.T) {
+	t.Parallel()
+	ok.Verbose = true
+	err := ok.WsHandleData([]byte(snapshotOrderBookPushData))
+	if err != nil {
+		t.Error("Okx Snapshot order book push data error", err)
+	}
+	var orderbookBase orderbook.Base
+	err = json.Unmarshal([]byte(calculateOrderbookChecksumUpdateorderbookJSON), &orderbookBase)
+	if err != nil {
+		t.Errorf("%s error while deserializing to orderbook.Base %v", ok.Name, err)
+	}
+	if err := ok.CalculateUpdateOrderbookChecksum(&orderbookBase, 2832680552); err != nil {
+		t.Errorf("%s CalculateUpdateOrderbookChecksum() error: %v", ok.Name, err)
 	}
 }
 
@@ -3184,5 +3216,472 @@ func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
 	if _, err := ok.GetHistoricTrades(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.Spot, time.Time{}, time.Time{}); err != nil {
 		t.Errorf("%s GetHistoricTrades() error %v", ok.Name, err)
+	}
+}
+
+func setupWsAuth(t *testing.T) {
+	t.Helper()
+	if wsSetupRan {
+		return
+	}
+	var err error
+	if !ok.Websocket.IsEnabled() &&
+		// !ok.API.AuthenticatedWebsocketSupport ||
+		// !areTestAPIKeysSet() ||
+		!canManipulateRealOrders {
+		t.Skip(stream.WebsocketNotEnabled)
+	}
+	var dialer websocket.Dialer
+	err = ok.Websocket.Conn.Dial(&dialer, http.Header{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ok.Websocket.Wg.Add(1)
+	go ok.wsFunnelConnectionData(ok.Websocket.Conn)
+	go ok.WsReadData()
+	wsSetupRan = true
+	if ok.IsWebsocketAuthenticationSupported() {
+		var authDialer websocket.Dialer
+		authDialer.ReadBufferSize = 8192
+		authDialer.WriteBufferSize = 8192
+		err = ok.WsAuth(context.TODO(), &authDialer)
+		if err != nil {
+			ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		}
+	}
+}
+
+// ************************** Public Channel Subscriptions *****************************
+
+func TestInstrumentsSubscription(t *testing.T) {
+	setupWsAuth(t)
+	if _, err := ok.InstrumentsSubscription("subscribe", asset.Spot, currency.NewPair(currency.BTC, currency.USDT)); err != nil {
+		t.Errorf("%s InstrumentsSubscription() error: %v", ok.Name, err)
+	}
+}
+
+func TestTickersSubscription(t *testing.T) {
+	setupWsAuth(t)
+	if _, err := ok.TickersSubscription("subscribe", asset.Spot, currency.NewPair(currency.BTC, currency.USDT)); err != nil {
+		t.Errorf("%s TickersSubscription() error: %v", ok.Name, err)
+	}
+	if _, err := ok.TickersSubscription("unsubscribe", asset.Spot, currency.NewPair(currency.BTC, currency.USDT)); err != nil {
+		t.Errorf("%s TickersSubscription() error: %v", ok.Name, err)
+	}
+}
+func TestOpenInterestSubscription(t *testing.T) {
+	setupWsAuth(t)
+	if _, err := ok.OpenInterestSubscription("subscribe", asset.Futures, currency.NewPair(currency.LTC, currency.USD)); err != nil {
+		t.Errorf("%s OpenInterestSubscription() error: %v", ok.Name, err)
+	}
+}
+func TestCandlesticksSubscription(t *testing.T) {
+	setupWsAuth(t)
+	if _, err := ok.CandlesticksSubscription("subscribe", okxChannelCandle1m, asset.Futures, currency.NewPair(currency.LTC, currency.USD)); err != nil {
+		t.Errorf("%s CandlesticksSubscription() error: %v", ok.Name, err)
+	}
+}
+
+func TestTradesSubscription(t *testing.T) {
+	setupWsAuth(t)
+	if _, err := ok.TradesSubscription("subscribe", asset.Spot, currency.NewPair(currency.BTC, currency.USDT)); err != nil {
+		t.Errorf("%s TradesSubscription() error: %v", ok.Name, err)
+	}
+}
+
+func TestEstimatedDeliveryExercisePriceSubscription(t *testing.T) {
+	setupWsAuth(t)
+	if _, err := ok.EstimatedDeliveryExercisePriceSubscription("subscribe", asset.Futures, currency.NewPair(currency.LTC, currency.USD)); err != nil {
+		t.Errorf("%s EstimatedDeliveryExercisePriceSubscription() error: %v", ok.Name, err)
+	}
+}
+
+func TestMarkPriceSubscription(t *testing.T) {
+	setupWsAuth(t)
+	if _, err := ok.MarkPriceSubscription("subscribe", asset.Futures, currency.NewPair(currency.LTC, currency.USD)); err != nil {
+		t.Errorf("%s MarkPriceSubscription() error: %v", ok.Name, err)
+	}
+}
+
+func TestMarkPriceCandlesticksSubscription(t *testing.T) {
+	setupWsAuth(t)
+	if _, err := ok.MarkPriceSubscription("subscribe", asset.Futures, currency.NewPair(currency.LTC, currency.USD)); err != nil {
+		t.Errorf("%s MarkPriceSubscription() error: %v", ok.Name, err)
+	}
+}
+
+func TestPriceLimitSubscription(t *testing.T) {
+	setupWsAuth(t)
+	instID, err := ok.getInstrumentIDFromPair(context.Background(), currency.NewPair(currency.LTC, currency.USD), asset.Futures)
+	if err != nil {
+		t.SkipNow()
+	}
+	if _, err := ok.PriceLimitSubscription("subscribe", instID); err != nil {
+		t.Errorf("%s PriceLimitSubscription() error: %v", ok.Name, err)
+	}
+}
+
+func TestOrderBooksSubscription(t *testing.T) {
+	setupWsAuth(t)
+	if _, err := ok.OrderBooksSubscription("subscribe", okxChannelOrderBooks, asset.Futures, currency.NewPair(currency.LTC, currency.USD)); err != nil {
+		t.Errorf("%s OrderBooksSubscription() error: %v", ok.Name, err)
+	}
+	if _, err := ok.OrderBooksSubscription("unsubscribe", okxChannelOrderBooks, asset.Futures, currency.NewPair(currency.LTC, currency.USD)); err != nil {
+		t.Errorf("%s OrderBooksSubscription() error: %v", ok.Name, err)
+	}
+}
+
+func TestOptionSummarySubscription(t *testing.T) {
+	setupWsAuth(t)
+	if _, err := ok.OptionSummarySubscription("subscribe", currency.NewPair(currency.SOL, currency.USD)); err != nil {
+		t.Errorf("%s OptionSummarySubscription() error: %v", ok.Name, err)
+	}
+	if _, err := ok.OptionSummarySubscription("unsubscribe", currency.NewPair(currency.SOL, currency.USD)); err != nil {
+		t.Errorf("%s OptionSummarySubscription() error: %v", ok.Name, err)
+	}
+}
+
+func TestFundingRateSubscription(t *testing.T) {
+	setupWsAuth(t)
+	if _, err := ok.FundingRateSubscription("subscribe", asset.PerpetualSwap, currency.NewPair(currency.SOL, currency.USD)); err != nil {
+		t.Errorf("%s FundingRateSubscription() error: %v", ok.Name, err)
+	}
+	if _, err := ok.FundingRateSubscription("unsubscribe", asset.PerpetualSwap, currency.NewPair(currency.SOL, currency.USD)); err != nil {
+		t.Errorf("%s FundingRateSubscription() error: %v", ok.Name, err)
+	}
+}
+
+func TestIndexCandlesticksSubscription(t *testing.T) {
+	setupWsAuth(t)
+	if _, err := ok.IndexCandlesticksSubscription("subscribe", okxChannelIndexCandle6M, asset.Spot, currency.NewPair(currency.SOL, currency.USD)); err != nil {
+		t.Errorf("%s IndexCandlesticksSubscription() error: %v", ok.Name, err)
+	}
+	if _, err := ok.IndexCandlesticksSubscription("unsubscribe", okxChannelIndexCandle6M, asset.Spot, currency.NewPair(currency.SOL, currency.USD)); err != nil {
+		t.Errorf("%s IndexCandlesticksSubscription() error: %v", ok.Name, err)
+	}
+}
+func TestIndexTickerChannelIndexTickerChannel(t *testing.T) {
+	setupWsAuth(t)
+	if _, err := ok.IndexTickerChannel("subscribe", asset.Spot, currency.NewPair(currency.SOL, currency.USD)); err != nil {
+		t.Errorf("%s IndexTickerChannel() error: %v", ok.Name, err)
+	}
+	if _, err := ok.IndexTickerChannel("unsubscribe", asset.Spot, currency.NewPair(currency.SOL, currency.USD)); err != nil {
+		t.Errorf("%s IndexTickerChannel() error: %v", ok.Name, err)
+	}
+}
+
+func TestStatusSubscription(t *testing.T) {
+	setupWsAuth(t)
+	if _, err := ok.StatusSubscription("subscribe", asset.Spot, currency.NewPair(currency.SOL, currency.USD)); err != nil {
+		t.Errorf("%s StatusSubscription() error: %v", ok.Name, err)
+	}
+	if _, err := ok.StatusSubscription("unsubscribe", asset.Spot, currency.NewPair(currency.SOL, currency.USD)); err != nil {
+		t.Errorf("%s StatusSubscription() error: %v", ok.Name, err)
+	}
+}
+
+func TestPublicStructureBlockTradesSubscription(t *testing.T) {
+	setupWsAuth(t)
+	if _, err := ok.PublicStructureBlockTradesSubscription("subscribe", asset.Spot, currency.NewPair(currency.SOL, currency.USD)); err != nil {
+		t.Errorf("%s PublicStructureBlockTradesSubscription() error: %v", ok.Name, err)
+	}
+	if _, err := ok.PublicStructureBlockTradesSubscription("unsubscribe", asset.Spot, currency.NewPair(currency.SOL, currency.USD)); err != nil {
+		t.Errorf("%s PublicStructureBlockTradesSubscription() error: %v", ok.Name, err)
+	}
+}
+func TestBlockTickerSubscription(t *testing.T) {
+	setupWsAuth(t)
+	if _, err := ok.BlockTickerSubscription("subscribe", asset.Option, currency.NewPair(currency.SOL, currency.USD)); err != nil {
+		t.Errorf("%s BlockTickerSubscription() error: %v", ok.Name, err)
+	}
+	if _, err := ok.BlockTickerSubscription("unsubscribe", asset.Option, currency.NewPair(currency.SOL, currency.USD)); err != nil {
+		t.Errorf("%s BlockTickerSubscription() error: %v", ok.Name, err)
+	}
+}
+
+// ************ Authenticated Websocket endpoints Test **********************************************
+
+func TestWsAccountSubscription(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	setupWsAuth(t)
+	if _, err := ok.WsAccountSubscription("subscribe", asset.Spot, currency.NewPair(currency.BTC, currency.USDT)); err != nil {
+		t.Errorf("%s WsAccountSubscription() error: %v", ok.Name, err)
+	}
+}
+
+func TestWsPlaceOrder(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	setupWsAuth(t)
+	if _, err := ok.WsPlaceOrder(&PlaceOrderRequestParam{
+		ClientSupplierOrderID: "my-new-id",
+		InstrumentID:          "BTC-USDC",
+		TradeMode:             "cross",
+		Side:                  "buy",
+		OrderType:             "limit",
+		QuantityToBuyOrSell:   2.6,
+		Price:                 2.1,
+	}); err != nil {
+		t.Errorf("%s WsPlaceOrder() error: %v", ok.Name, err)
+	}
+}
+
+func TestWsPlaceMultipleOrder(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	setupWsAuth(t)
+	if _, err := ok.WsPlaceMultipleOrder([]PlaceOrderRequestParam{
+		{
+			InstrumentID:        "GNX-BTC",
+			TradeMode:           "cross",
+			Side:                "sell",
+			OrderType:           "limit",
+			QuantityToBuyOrSell: 1,
+			Price:               1,
+		},
+	}); err != nil {
+		t.Error("Okx WsPlaceMultipleOrder() error", err)
+	}
+}
+
+func TestWsCancelOrder(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	setupWsAuth(t)
+	if _, err := ok.WsCancelOrder(CancelOrderRequestParam{
+		InstrumentID: "BTC-USD-190927",
+		OrderID:      "2510789768709120",
+	}); err != nil && !strings.Contains(err.Error(), "order does not exist.") {
+		t.Error("Okx WsCancelOrder() error", err)
+	}
+}
+
+func TestWsCancleMultipleOrder(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	setupWsAuth(t)
+	if _, err := ok.WsCancelMultipleOrder([]CancelOrderRequestParam{{
+		InstrumentID: "DCR-BTC",
+		OrderID:      "2510789768709120",
+	}}); err != nil {
+		t.Error("Okx WsCancleMultipleOrder() error", err)
+	}
+}
+
+func TestWsAmendOrder(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	setupWsAuth(t)
+	if _, err := ok.WsAmendOrder(&AmendOrderRequestParams{
+		InstrumentID: "DCR-BTC",
+		OrderID:      "2510789768709120",
+		NewPrice:     1233324.332,
+		NewQuantity:  1234,
+	}); err != nil && !strings.Contains(err.Error(), "order does not exist.") {
+		t.Errorf("%s WsAmendOrder() error %v", ok.Name, err)
+	}
+}
+
+func TestWsAmendMultipleOrders(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	setupWsAuth(t)
+	if _, err := ok.WsAmendMultipleOrders([]AmendOrderRequestParams{
+		{
+			InstrumentID: "DCR-BTC",
+			OrderID:      "2510789768709120",
+			NewPrice:     1233324.332,
+			NewQuantity:  1234,
+		},
+	}); err != nil && !strings.Contains(err.Error(), "order does not exist.") {
+		t.Errorf("%s WsAmendMultipleOrders() %v", ok.Name, err)
+	}
+}
+
+func TestWsPositionChannel(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	setupWsAuth(t)
+	if _, err := ok.WsPositionChannel("subscribe", asset.Option, currency.NewPair(currency.USD, currency.BTC)); err != nil {
+		t.Errorf("%s WsPositionChannel() error : %v", ok.Name, err)
+	}
+}
+
+func TestBalanceAndPositionSubscription(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	setupWsAuth(t)
+	if _, err := ok.BalanceAndPositionSubscription("subscribe", "1234"); err != nil {
+		t.Errorf("%s BalanceAndPositionSubscription() error %v", ok.Name, err)
+	}
+	if _, err := ok.BalanceAndPositionSubscription("unsubscribe", "1234"); err != nil {
+		t.Errorf("%s BalanceAndPositionSubscription() error %v", ok.Name, err)
+	}
+}
+
+func TestWsOrderChannel(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	setupWsAuth(t)
+	if _, err := ok.WsOrderChannel("subscribe", asset.Option, currency.NewPair(currency.SOL, currency.USD), ""); err != nil {
+		t.Errorf("%s WsOrderChannel() error: %v", ok.Name, err)
+	}
+	if _, err := ok.WsOrderChannel("unsubscribe", asset.Option, currency.NewPair(currency.SOL, currency.USD), ""); err != nil {
+		t.Errorf("%s WsOrderChannel() error: %v", ok.Name, err)
+	}
+}
+
+func TestAlgoOrdersSubscription(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	setupWsAuth(t)
+	if _, err := ok.AlgoOrdersSubscription("subscribe", asset.PerpetualSwap, currency.NewPair(currency.SOL, currency.USD)); err != nil {
+		t.Errorf("%s AlgoOrdersSubscription() error: %v", ok.Name, err)
+	}
+	if _, err := ok.AlgoOrdersSubscription("unsubscribe", asset.PerpetualSwap, currency.NewPair(currency.SOL, currency.USD)); err != nil {
+		t.Errorf("%s AlgoOrdersSubscription() error: %v", ok.Name, err)
+	}
+}
+
+func TestAdvanceAlgoOrdersSubscription(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	setupWsAuth(t)
+	if _, err := ok.AdvanceAlgoOrdersSubscription("subscribe", asset.PerpetualSwap, currency.NewPair(currency.SOL, currency.USD), ""); err != nil {
+		t.Errorf("%s AdvanceAlgoOrdersSubscription() error: %v", ok.Name, err)
+	}
+	if _, err := ok.AdvanceAlgoOrdersSubscription("unsubscribe", asset.PerpetualSwap, currency.NewPair(currency.SOL, currency.USD), ""); err != nil {
+		t.Errorf("%s AdvanceAlgoOrdersSubscription() error: %v", ok.Name, err)
+	}
+}
+
+func TestPositionRiskWarningSubscription(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	setupWsAuth(t)
+	if _, err := ok.PositionRiskWarningSubscription("subscribe", asset.PerpetualSwap, currency.NewPair(currency.SOL, currency.USD)); err != nil {
+		t.Errorf("%s PositionRiskWarningSubscription() error: %v", ok.Name, err)
+	}
+	if _, err := ok.PositionRiskWarningSubscription("unsubscribe", asset.PerpetualSwap, currency.NewPair(currency.SOL, currency.USD)); err != nil {
+		t.Errorf("%s PositionRiskWarningSubscription() error: %v", ok.Name, err)
+	}
+}
+
+func TestAccountGreeksSubscription(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	setupWsAuth(t)
+	if _, err := ok.AccountGreeksSubscription("subscribe", currency.NewPair(currency.SOL, currency.USD)); err != nil {
+		t.Errorf("%s AccountGreeksSubscription() error: %v", ok.Name, err)
+	}
+	if _, err := ok.AccountGreeksSubscription("unsubscribe", currency.NewPair(currency.SOL, currency.USD)); err != nil {
+		t.Errorf("%s AccountGreeksSubscription() error: %v", ok.Name, err)
+	}
+}
+
+func TestRfqSubscription(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	setupWsAuth(t)
+	if _, err := ok.RfqSubscription("subscribe", ""); err != nil {
+		t.Errorf("%s RfqSubscription() error: %v", ok.Name, err)
+	}
+	if _, err := ok.RfqSubscription("unsubscribe", ""); err != nil {
+		t.Errorf("%s RfqSubscription() error: %v", ok.Name, err)
+	}
+}
+
+func TestQuotesSubscription(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	setupWsAuth(t)
+	if _, err := ok.QuotesSubscription("subscribe"); err != nil {
+		t.Errorf("%s QuotesSubscription() error: %v", ok.Name, err)
+	}
+	if _, err := ok.QuotesSubscription("unsubscribe"); err != nil {
+		t.Errorf("%s QuotesSubscription() error: %v", ok.Name, err)
+	}
+}
+
+func TestStructureBlockTradesSubscription(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	setupWsAuth(t)
+	if _, err := ok.StructureBlockTradesSubscription("subscribe"); err != nil {
+		t.Errorf("%s StructureBlockTradesSubscription() error: %v", ok.Name, err)
+	}
+	if _, err := ok.StructureBlockTradesSubscription("unsubscribe"); err != nil {
+		t.Errorf("%s StructureBlockTradesSubscription() error: %v", ok.Name, err)
+	}
+}
+
+func TestSpotGridAlgoOrdersSubscription(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	setupWsAuth(t)
+	if _, err := ok.SpotGridAlgoOrdersSubscription("subscribe", asset.Empty, currency.EMPTYPAIR, ""); err != nil {
+		t.Errorf("%s SpotGridAlgoOrdersSubscription() error: %v", ok.Name, err)
+	}
+	if _, err := ok.SpotGridAlgoOrdersSubscription("unsubscribe", asset.Empty, currency.EMPTYPAIR, ""); err != nil {
+		t.Errorf("%s SpotGridAlgoOrdersSubscription() error: %v", ok.Name, err)
+	}
+}
+
+func TestContractGridAlgoOrders(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	setupWsAuth(t)
+	if _, err := ok.ContractGridAlgoOrders("subscribe", asset.Empty, currency.EMPTYPAIR, ""); err != nil {
+		t.Errorf("%s ContractGridAlgoOrders() error: %v", ok.Name, err)
+	}
+	if _, err := ok.ContractGridAlgoOrders("unsubscribe", asset.Empty, currency.EMPTYPAIR, ""); err != nil {
+		t.Errorf("%s ContractGridAlgoOrders() error: %v", ok.Name, err)
+	}
+}
+
+func TestGridPositionsSubscription(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	setupWsAuth(t)
+	if _, err := ok.GridPositionsSubscription("subscribe", "1234"); err != nil {
+		t.Errorf("%s GridPositionsSubscription() error: %v", ok.Name, err)
+	}
+	if _, err := ok.GridPositionsSubscription("unsubscribe", "1234"); err != nil {
+		t.Errorf("%s GridPositionsSubscription() error: %v", ok.Name, err)
+	}
+}
+
+func TestGridSubOrders(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	setupWsAuth(t)
+	if _, err := ok.GridSubOrders("subscribe", ""); err != nil {
+		t.Errorf("%s GridSubOrders() error: %v", ok.Name, err)
+	}
+	if _, err := ok.GridSubOrders("unsubscribe", ""); err != nil {
+		t.Errorf("%s GridSubOrders() error: %v", ok.Name, err)
 	}
 }
