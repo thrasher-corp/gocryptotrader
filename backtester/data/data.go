@@ -137,7 +137,6 @@ func (b *Base) Next() Event {
 		return nil
 	}
 	ret := b.stream[b.offset]
-	ret.SetOffset(b.offset)
 	b.offset++
 	b.latest = ret
 	return ret
