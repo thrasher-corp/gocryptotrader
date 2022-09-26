@@ -568,7 +568,7 @@ func (f *FundManager) GetAllFunding() []BasicItem {
 }
 
 // UpdateFundingFromLiveData forcefully updates funding from a live source
-func (f *FundManager) UpdateFundingFromLiveData(hasUpdatedFunding bool) error {
+func (f *FundManager) UpdateFundingFromLiveData(initialFundsSet bool) error {
 	exchanges, err := f.exchangeManager.GetExchanges()
 	if err != nil {
 		return err
@@ -596,7 +596,7 @@ func (f *FundManager) UpdateFundingFromLiveData(hasUpdatedFunding bool) error {
 					continue
 				}
 				for i := range acc.Accounts[z].Currencies {
-					err = f.SetFunding(exchanges[x].GetName(), assets[y], &acc.Accounts[z].Currencies[i], hasUpdatedFunding)
+					err = f.SetFunding(exchanges[x].GetName(), assets[y], &acc.Accounts[z].Currencies[i], initialFundsSet)
 					if err != nil {
 						return err
 					}
@@ -609,7 +609,7 @@ func (f *FundManager) UpdateFundingFromLiveData(hasUpdatedFunding bool) error {
 
 // UpdateAllCollateral will update the collateral values
 // of all stored exchanges
-func (f *FundManager) UpdateAllCollateral(isLive, hasUpdatedFunding bool) error {
+func (f *FundManager) UpdateAllCollateral(isLive, initialFundsSet bool) error {
 	exchanges, err := f.exchangeManager.GetExchanges()
 	if err != nil {
 		return err
@@ -666,7 +666,7 @@ func (f *FundManager) UpdateAllCollateral(isLive, hasUpdatedFunding bool) error 
 					log.Infof(common.FundManager, "Setting collateral %v %v %v to %v", f.items[y].exchange, f.items[y].asset, f.items[y].currency, collateral.AvailableCollateral)
 				}
 				f.items[y].available = collateral.AvailableCollateral
-				if !hasUpdatedFunding {
+				if !initialFundsSet {
 					f.items[y].initialFunds = collateral.AvailableCollateral
 				}
 				return nil
@@ -800,7 +800,7 @@ func (f *FundManager) HasExchangeBeenLiquidated(ev common.Event) bool {
 // As external sources may have additional currencies and balances
 // versus the strategy currencies, they must be appended to
 // help calculate collateral
-func (f *FundManager) SetFunding(exchName string, item asset.Item, balance *account.Balance, hasUpdatedFunding bool) error {
+func (f *FundManager) SetFunding(exchName string, item asset.Item, balance *account.Balance, initialFundsSet bool) error {
 	if exchName == "" {
 		return engine.ErrExchangeNameIsEmpty
 	}
@@ -828,7 +828,7 @@ func (f *FundManager) SetFunding(exchName string, item asset.Item, balance *acco
 		if f.verbose {
 			log.Infof(common.FundManager, "Setting %v %v %v balance to %v", exchName, item, balance.Currency, balance.Total)
 		}
-		if !hasUpdatedFunding {
+		if !initialFundsSet {
 			f.items[i].initialFunds = amount
 		}
 		f.items[i].available = amount

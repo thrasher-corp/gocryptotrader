@@ -1387,15 +1387,17 @@ func TestRunLive(t *testing.T) {
 	bt.Funding = &funding.FundManager{}
 	bt.Reports = &report.Data{}
 
-	err = bt.SetupLiveDataHandler(-1, -1, false, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received '%v' expected '%v'", err, nil)
+	dc := &dataChecker{
+		exchangeManager:   bt.exchangeManager,
+		eventTimeout:      defaultEventTimeout,
+		dataCheckInterval: defaultDataCheckInterval,
+		dataHolder:        bt.DataHolder,
+		shutdown:          make(chan struct{}),
+		report:            bt.Reports,
+		funding:           bt.Funding,
+		started:           1,
 	}
-
-	err = bt.LiveDataHandler.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	bt.LiveDataHandler = dc
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
@@ -1408,12 +1410,17 @@ func TestRunLive(t *testing.T) {
 	close(bt.shutdown)
 	wg.Wait()
 
-	bt.shutdown = make(chan struct{})
-	err = bt.LiveDataHandler.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
+	dc = &dataChecker{
+		exchangeManager:   bt.exchangeManager,
+		eventTimeout:      defaultEventTimeout,
+		dataCheckInterval: defaultDataCheckInterval,
+		dataHolder:        bt.DataHolder,
+		shutdown:          make(chan struct{}),
+		report:            bt.Reports,
+		funding:           bt.Funding,
+		started:           1,
 	}
-
+	bt.LiveDataHandler = dc
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	i := &gctkline.Item{
 		Exchange:       testExchange,
@@ -1441,13 +1448,12 @@ func TestRunLive(t *testing.T) {
 		underlyingPair: i.UnderlyingPair,
 		dataType:       common.DataCandle,
 	}
-	err = bt.LiveDataHandler.AppendDataSource(setup)
+	err = dc.AppendDataSource(setup)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	bt.Reports = &report.Data{}
 	bt.Funding = &fakeFunding{}
-
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -1456,7 +1462,6 @@ func TestRunLive(t *testing.T) {
 			t.Errorf("received '%v' expected '%v'", err, nil)
 		}
 	}()
-	close(bt.shutdown)
 	wg.Wait()
 }
 

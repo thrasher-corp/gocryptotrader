@@ -25,14 +25,14 @@
    "base": "BTC",
    "quote": "1230",
    "buy-side": {
-    "minimum-size": "0",
-    "maximum-size": "0",
-    "maximum-total": "0"
+    "minimum-size": "0.001",
+    "maximum-size": "0.05",
+    "maximum-total": "100"
    },
    "sell-side": {
-    "minimum-size": "0",
-    "maximum-size": "0",
-    "maximum-total": "0"
+    "minimum-size": "0.001",
+    "maximum-size": "0.05",
+    "maximum-total": "100"
    },
    "min-slippage-percent": "0",
    "max-slippage-percent": "0",
@@ -49,14 +49,14 @@
    "base": "BTC",
    "quote": "USD",
    "buy-side": {
-    "minimum-size": "0",
-    "maximum-size": "0",
-    "maximum-total": "0"
+    "minimum-size": "0.001",
+    "maximum-size": "0.05",
+    "maximum-total": "100"
    },
    "sell-side": {
-    "minimum-size": "0",
-    "maximum-size": "0",
-    "maximum-total": "0"
+    "minimum-size": "0.001",
+    "maximum-size": "0.05",
+    "maximum-total": "100"
    },
    "min-slippage-percent": "0",
    "max-slippage-percent": "0",

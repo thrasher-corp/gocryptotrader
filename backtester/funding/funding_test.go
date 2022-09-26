@@ -930,6 +930,12 @@ func TestUpdateFundingFromLiveData(t *testing.T) {
 		return
 	}
 	ff.SetCredentials(apiKey, apiSec, "", subAccount, "", "")
+
+	err = f.UpdateFundingFromLiveData(true)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected  '%v'", err, nil)
+	}
+
 	err = f.UpdateFundingFromLiveData(false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected  '%v'", err, nil)

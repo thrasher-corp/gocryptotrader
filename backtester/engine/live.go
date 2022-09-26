@@ -77,9 +77,9 @@ func (d *dataChecker) Start() error {
 		err := d.DataFetcher()
 		if err != nil {
 			log.Error(common.LiveStrategy, err)
-			err2 := d.Stop()
-			if err2 != nil {
-				log.Error(common.LiveStrategy, err2)
+			stopErr := d.Stop()
+			if stopErr != nil {
+				log.Error(common.LiveStrategy, stopErr)
 			}
 		}
 	}()

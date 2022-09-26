@@ -40,6 +40,12 @@ var (
 		MaximumSize:  decimal.NewFromInt(2),
 		MaximumTotal: decimal.NewFromInt(40000),
 	}
+	// strictMinMax used for live order restrictions
+	strictMinMax = MinMax{
+		MinimumSize:  decimal.NewFromFloat(0.001),
+		MaximumSize:  decimal.NewFromFloat(0.05),
+		MaximumTotal: decimal.NewFromInt(100),
+	}
 	initialFunds1000000 *decimal.Decimal
 	initialFunds100000  *decimal.Decimal
 	initialFunds10      *decimal.Decimal
@@ -520,7 +526,7 @@ func TestGenerateConfigForDCAAPICandles(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(filepath.Join(p, "examples", "dca-api-candles.strat"), result, file.DefaultPermissionOctal)
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "dca-api-candles.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}
@@ -581,7 +587,7 @@ func TestGenerateConfigForPluginStrategy(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(filepath.Join(p, "examples", "custom-plugin-strategy.strat"), result, file.DefaultPermissionOctal)
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "custom-plugin-strategy.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}
@@ -659,7 +665,7 @@ func TestGenerateConfigForDCAAPICandlesExchangeLevelFunding(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(filepath.Join(p, "examples", "dca-api-candles-exchange-level-funding.strat"), result, file.DefaultPermissionOctal)
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "dca-api-candles-exchange-level-funding.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}
@@ -726,7 +732,7 @@ func TestGenerateConfigForDCAAPITrades(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(filepath.Join(p, "examples", "dca-api-trades.strat"), result, file.DefaultPermissionOctal)
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "dca-api-trades.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}
@@ -797,7 +803,7 @@ func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(filepath.Join(p, "examples", "dca-api-candles-multiple-currencies.strat"), result, file.DefaultPermissionOctal)
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "dca-api-candles-multiple-currencies.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}
@@ -869,7 +875,7 @@ func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(filepath.Join(p, "examples", "dca-api-candles-simultaneous-processing.strat"), result, file.DefaultPermissionOctal)
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "dca-api-candles-simultaneous-processing.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}
@@ -879,11 +885,6 @@ func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 	if !saveConfig {
 		t.Skip()
-	}
-	vMinMax := MinMax{
-		MinimumSize:  decimal.NewFromFloat(0.001),
-		MaximumSize:  decimal.NewFromFloat(0.05),
-		MaximumTotal: decimal.NewFromInt(100),
 	}
 	cfg := Config{
 		Nickname: "ExampleStrategyDCALiveCandles",
@@ -901,8 +902,8 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 				SpotDetails: &SpotDetails{
 					InitialQuoteFunds: initialFunds100000,
 				},
-				BuySide:  vMinMax,
-				SellSide: vMinMax,
+				BuySide:  strictMinMax,
+				SellSide: strictMinMax,
 				MakerFee: &makerFee,
 				TakerFee: &takerFee,
 			},
@@ -928,8 +929,8 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 			},
 		},
 		PortfolioSettings: PortfolioSettings{
-			BuySide:  vMinMax,
-			SellSide: vMinMax,
+			BuySide:  strictMinMax,
+			SellSide: strictMinMax,
 		},
 		StatisticSettings: StatisticSettings{
 			RiskFreeRate: decimal.NewFromFloat(0.03),
@@ -944,7 +945,7 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(filepath.Join(p, "examples", "dca-candles-live.strat"), result, file.DefaultPermissionOctal)
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "dca-candles-live.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}
@@ -1007,7 +1008,7 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(filepath.Join(p, "examples", "rsi-api-candles.strat"), result, file.DefaultPermissionOctal)
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "rsi-api-candles.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}
@@ -1065,7 +1066,7 @@ func TestGenerateConfigForDCACSVCandles(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(filepath.Join(p, "examples", "dca-csv-candles.strat"), result, file.DefaultPermissionOctal)
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "dca-csv-candles.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}
@@ -1118,7 +1119,7 @@ func TestGenerateConfigForDCACSVTrades(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(filepath.Join(p, "examples", "dca-csv-trades.strat"), result, file.DefaultPermissionOctal)
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "dca-csv-trades.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}
@@ -1185,7 +1186,7 @@ func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(filepath.Join(p, "examples", "dca-database-candles.strat"), result, file.DefaultPermissionOctal)
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "dca-database-candles.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}
@@ -1313,7 +1314,7 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(filepath.Join(p, "examples", "t2b2-api-candles-exchange-funding.strat"), result, file.DefaultPermissionOctal)
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "t2b2-api-candles-exchange-funding.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}
@@ -1350,6 +1351,8 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 				Quote:        currency.NewCode("20210924"),
 				MakerFee:     &makerFee,
 				TakerFee:     &takerFee,
+				BuySide:      minMax,
+				SellSide:     minMax,
 			},
 			{
 				ExchangeName: "ftx",
@@ -1358,6 +1361,8 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 				Quote:        currency.USD,
 				MakerFee:     &makerFee,
 				TakerFee:     &takerFee,
+				BuySide:      minMax,
+				SellSide:     minMax,
 			},
 		},
 		DataSettings: DataSettings{
@@ -1382,7 +1387,7 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(filepath.Join(p, "examples", "ftx-cash-and-carry.strat"), result, file.DefaultPermissionOctal)
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "ftx-cash-and-carry.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}
@@ -1420,6 +1425,8 @@ func TestGenerateConfigForLiveCashAndCarry(t *testing.T) {
 				MakerFee:                &makerFee,
 				TakerFee:                &takerFee,
 				SkipCandleVolumeFitting: true,
+				BuySide:                 strictMinMax,
+				SellSide:                strictMinMax,
 			},
 			{
 				ExchangeName:            "ftx",
@@ -1429,6 +1436,8 @@ func TestGenerateConfigForLiveCashAndCarry(t *testing.T) {
 				MakerFee:                &makerFee,
 				TakerFee:                &takerFee,
 				SkipCandleVolumeFitting: true,
+				BuySide:                 strictMinMax,
+				SellSide:                strictMinMax,
 			},
 		},
 		DataSettings: DataSettings{
@@ -1466,7 +1475,7 @@ func TestGenerateConfigForLiveCashAndCarry(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(filepath.Join(p, "examples", "ftx-live-cash-and-carry.strat"), result, file.DefaultPermissionOctal)
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "ftx-live-cash-and-carry.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}

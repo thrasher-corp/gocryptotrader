@@ -3,7 +3,6 @@ package size
 import (
 	"context"
 	"fmt"
-
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
@@ -38,9 +37,16 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable decimal.Decimal, cs *exc
 		if err != nil {
 			return nil, decimal.Zero, err
 		}
+
+		sizedPrice := o.GetClosePrice()
+		if fde.GetClosePrice().GreaterThan(o.GetClosePrice()) {
+			// ensure limits are respected by using the largest price
+			sizedPrice = fde.GetClosePrice()
+		}
+
 		initialAmount := amountAvailable.Mul(scalingInfo.Weighting).Div(fde.GetClosePrice())
-		oNotionalPosition := initialAmount.Mul(o.GetClosePrice())
-		sizedAmount, estFee, err := s.calculateAmount(o.GetDirection(), o.GetClosePrice(), oNotionalPosition, cs, o)
+		oNotionalPosition := initialAmount.Mul(sizedPrice)
+		sizedAmount, estFee, err := s.calculateAmount(o.GetDirection(), sizedPrice, oNotionalPosition, cs, o)
 		if err != nil {
 			return nil, decimal.Zero, err
 		}
@@ -110,13 +116,15 @@ func (s *Size) calculateAmount(direction gctorder.Side, price, amountAvailable d
 		return decimal.Zero, decimal.Zero, fmt.Errorf("%w at %v for %v %v %v, no amount sized", errCannotAllocate, o.GetTime(), o.GetExchange(), o.GetAssetType(), o.Pair())
 	}
 
-	if o.GetAmount().IsPositive() && o.GetAmount().LessThanOrEqual(amount) {
-		// when an order amount is already set
+	if o.GetAmount().IsPositive() {
+		// when an order amount is already set and still affordable
 		// use the pre-set amount and calculate the fee
-		amount = o.GetAmount()
-		fee = o.GetAmount().Mul(price).Mul(cs.TakerFee)
+		if o.GetAmount().Mul(price).Add(o.GetAmount().Mul(price).Mul(cs.TakerFee)).LessThanOrEqual(amountAvailable) {
+			// TODO: introduce option to fail + cancel original order if this fails
+			amount = o.GetAmount()
+			fee = o.GetAmount().Mul(price).Mul(cs.TakerFee)
+		}
 	}
-
 	return amount, fee, nil
 }
 
