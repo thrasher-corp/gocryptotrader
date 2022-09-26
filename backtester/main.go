@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
@@ -37,7 +38,12 @@ func main() {
 
 	if enablePProf {
 		go func() {
-			fmt.Println(http.ListenAndServe(pprofURL, nil))
+			server := &http.Server{
+				Addr:        pprofURL,
+				ReadTimeout: time.Minute,
+			}
+
+			fmt.Println(server.ListenAndServe())
 		}()
 	}
 

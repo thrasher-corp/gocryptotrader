@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"time"
 
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -110,7 +111,12 @@ func (s *GRPCServer) StartRPCRESTProxy() error {
 	}
 
 	go func() {
-		if err = http.ListenAndServe(s.GRPC.GRPCProxyListenAddress, mux); err != nil {
+		server := &http.Server{
+			Addr:        s.GRPC.GRPCProxyListenAddress,
+			ReadTimeout: time.Minute,
+		}
+
+		if err = server.ListenAndServe(); err != nil {
 			log.Errorf(log.GRPCSys, "GRPC proxy failed to server: %s\n", err)
 		}
 	}()
