@@ -1625,6 +1625,7 @@ func (ok *Okx) WsChannelSubscription(operation, channel string, assetType asset.
 	var underlying string
 	var instrumentID string
 	var instrumentType string
+	var format currency.PairFormat
 	var err error
 	if len(tooglers) > 0 && tooglers[0] {
 		instrumentType = strings.ToUpper(ok.GetInstrumentTypeFromAssetItem(assetType))
@@ -1642,7 +1643,7 @@ func (ok *Okx) WsChannelSubscription(operation, channel string, assetType asset.
 		}
 	}
 	if len(tooglers) > 1 && tooglers[1] {
-		format, err := ok.GetPairFormat(assetType, false)
+		format, err = ok.GetPairFormat(assetType, false)
 		if err != nil {
 			return nil, err
 		}
@@ -1716,6 +1717,7 @@ func (ok *Okx) WsAuthChannelSubscription(operation, channel string, assetType as
 	var instrumentType string
 	var ccy string
 	var err error
+	var format currency.PairFormat
 	if len(tooglers) > 0 && tooglers[0] {
 		instrumentType = strings.ToUpper(ok.GetInstrumentTypeFromAssetItem(assetType))
 		if !(instrumentType == okxInstTypeMargin ||
@@ -1731,7 +1733,7 @@ func (ok *Okx) WsAuthChannelSubscription(operation, channel string, assetType as
 		}
 	}
 	if len(tooglers) > 1 && tooglers[1] {
-		format, err := ok.GetPairFormat(assetType, false)
+		format, err = ok.GetPairFormat(assetType, false)
 		if err != nil {
 			return nil, err
 		}

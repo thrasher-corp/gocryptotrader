@@ -2300,7 +2300,8 @@ func (w *wsIncomingData) copyToPlaceOrderResponse() (*WSOrderResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err = json.Unmarshal(value, &placeOrds); err != nil {
+	err = json.Unmarshal(value, &placeOrds)
+	if err != nil {
 		return nil, err
 	}
 	return &WSOrderResponse{

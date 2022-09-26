@@ -1282,7 +1282,8 @@ func (ok *Okx) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pai
 	if err != nil {
 		return kline.Item{}, err
 	}
-	if err := ok.ValidateKline(pair, a, interval); err != nil {
+	err = ok.ValidateKline(pair, a, interval)
+	if err != nil {
 		return kline.Item{}, err
 	}
 	instrumentID := format.Format(pair)
