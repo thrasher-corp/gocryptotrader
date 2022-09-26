@@ -237,7 +237,7 @@ func (ok *Okx) WsConnect() error {
 			ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-
+	go ok.WsResponseMultiplexer.Run()
 	return nil
 }
 
@@ -289,11 +289,19 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 		return err
 	}
 	timer := time.NewTimer(ok.WebsocketResponseCheckTimeout)
-	ok.wsMutext.Lock()
-	defer ok.wsMutext.Unlock()
+	randomID, err := common.GenerateRandomString(16)
+	if err != nil {
+		return fmt.Errorf("%w, generating random string for incoming websocket response failed", err)
+	}
+	wsResponse := make(chan *wsIncomingData)
+	ok.WsResponseMultiplexer.Register <- wsIncomingChannelWithID{
+		ID:   randomID,
+		Chan: wsResponse,
+	}
+	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
 	for {
 		select {
-		case data := <-ok.wsResponse:
+		case data := <-wsResponse:
 			if strings.EqualFold(data.Event, "login") && data.Code == "0" {
 				ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
 				return nil
@@ -352,6 +360,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 	var channels []stream.ChannelSubscription
 	var authChannels []stream.ChannelSubscription
 	var err error
+	var format currency.PairFormat
 	for i := 0; i < len(subscriptions); i++ {
 		arg := SubscriptionInfo{
 			Channel: subscriptions[i].Channel,
@@ -396,10 +405,14 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 				}
 			}
 			if instrumentID == "" {
-				instrumentID, err = ok.getInstrumentIDFromPair(context.TODO(), subscriptions[i].Currency, subscriptions[i].Asset)
+				format, err = ok.GetPairFormat(subscriptions[i].Asset, false)
 				if err != nil {
-					instrumentID = ""
+					return err
 				}
+				if subscriptions[i].Currency.Base.String() == "" || subscriptions[i].Currency.Quote.String() == "" {
+					return errIncompleteCurrencyPair
+				}
+				instrumentID = format.Format(subscriptions[i].Currency)
 			}
 		}
 		if arg.Channel == okxChannelInstruments ||
@@ -536,7 +549,7 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 	err := json.Unmarshal(respRaw, &resp)
 	if err == nil && (resp.Event != "" || resp.Operation != "") && (resp.Event == "login" || resp.Event == "error" || resp.Event == "subscribe" || resp.Event == "unsubscribe" || resp.Operation == "subscribe" || resp.Operation == "unsubscribe" ||
 		resp.Operation == okxOpOrder || resp.Operation == okxOpBatchOrders || resp.Operation == okxOpCancelOrder || resp.Operation == okxOpBatchCancelOrders || resp.Operation == okxOpAmendOrder || resp.Operation == okxOpBatchAmendOrders) {
-		ok.wsResponse <- resp
+		ok.WsResponseMultiplexer.Message <- &resp
 		return nil
 	}
 	var dataResponse WebsocketDataResponse
@@ -1225,7 +1238,7 @@ func (ok *Okx) wsProcessPushData(data []byte, resp interface{}) error {
 // Websocket Trade methods
 
 // WsPlaceOrder places an order thought the websocket connection stream, and returns a SubmitResponse and error message.
-func (ok *Okx) WsPlaceOrder(arg *PlaceOrderRequestParam) (*WsOrderData, error) {
+func (ok *Okx) WsPlaceOrder(arg *PlaceOrderRequestParam) (*OrderData, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -1266,11 +1279,15 @@ func (ok *Okx) WsPlaceOrder(arg *PlaceOrderRequestParam) (*WsOrderData, error) {
 		return nil, err
 	}
 	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
-	ok.wsMutext.Lock()
-	defer ok.wsMutext.Unlock()
+	wsResponse := make(chan *wsIncomingData)
+	ok.WsResponseMultiplexer.Register <- wsIncomingChannelWithID{
+		ID:   randomID,
+		Chan: wsResponse,
+	}
+	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
 	for {
 		select {
-		case data := <-ok.wsResponse:
+		case data := <-wsResponse:
 			if data.Operation == okxOpOrder && data.ID == input.ID {
 				if data.Code == "0" || data.Code == "1" {
 					resp, err := data.copyToPlaceOrderResponse()
@@ -1298,7 +1315,7 @@ func (ok *Okx) WsPlaceOrder(arg *PlaceOrderRequestParam) (*WsOrderData, error) {
 }
 
 // WsPlaceMultipleOrder creates an order through the websocket stream.
-func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]WsOrderData, error) {
+func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]OrderData, error) {
 	for x := range args {
 		arg := args[x]
 		if arg.InstrumentID == "" {
@@ -1341,11 +1358,15 @@ func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]WsOrderDat
 		return nil, err
 	}
 	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
-	ok.wsMutext.Lock()
-	defer ok.wsMutext.Unlock()
+	wsResponse := make(chan *wsIncomingData)
+	ok.WsResponseMultiplexer.Register <- wsIncomingChannelWithID{
+		ID:   randomID,
+		Chan: wsResponse,
+	}
+	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
 	for {
 		select {
-		case data := <-ok.wsResponse:
+		case data := <-wsResponse:
 			if data.Operation == okxOpBatchOrders && data.ID == input.ID {
 				if data.Code == "0" || data.Code == "2" {
 					resp, err := data.copyToPlaceOrderResponse()
@@ -1367,7 +1388,7 @@ func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]WsOrderDat
 }
 
 // WsCancelOrder websocket function to cancel a trade order
-func (ok *Okx) WsCancelOrder(arg CancelOrderRequestParam) (*WsOrderData, error) {
+func (ok *Okx) WsCancelOrder(arg CancelOrderRequestParam) (*OrderData, error) {
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
@@ -1388,11 +1409,15 @@ func (ok *Okx) WsCancelOrder(arg CancelOrderRequestParam) (*WsOrderData, error) 
 		return nil, err
 	}
 	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
-	ok.wsMutext.Lock()
-	defer ok.wsMutext.Unlock()
+	wsResponse := make(chan *wsIncomingData)
+	ok.WsResponseMultiplexer.Register <- wsIncomingChannelWithID{
+		ID:   randomID,
+		Chan: wsResponse,
+	}
+	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
 	for {
 		select {
-		case data := <-ok.wsResponse:
+		case data := <-wsResponse:
 			if data.Operation == okxOpCancelOrder && data.ID == input.ID {
 				if data.Code == "0" || data.Code == "1" {
 					resp, err := data.copyToPlaceOrderResponse()
@@ -1420,7 +1445,7 @@ func (ok *Okx) WsCancelOrder(arg CancelOrderRequestParam) (*WsOrderData, error) 
 }
 
 // WsCancelMultipleOrder cancel multiple order through the websocket channel.
-func (ok *Okx) WsCancelMultipleOrder(args []CancelOrderRequestParam) ([]WsOrderData, error) {
+func (ok *Okx) WsCancelMultipleOrder(args []CancelOrderRequestParam) ([]OrderData, error) {
 	for x := range args {
 		arg := args[x]
 		if arg.InstrumentID == "" {
@@ -1444,11 +1469,15 @@ func (ok *Okx) WsCancelMultipleOrder(args []CancelOrderRequestParam) ([]WsOrderD
 		return nil, err
 	}
 	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
-	ok.wsMutext.Lock()
-	defer ok.wsMutext.Unlock()
+	wsResponse := make(chan *wsIncomingData)
+	ok.WsResponseMultiplexer.Register <- wsIncomingChannelWithID{
+		ID:   randomID,
+		Chan: wsResponse,
+	}
+	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
 	for {
 		select {
-		case data := <-ok.wsResponse:
+		case data := <-wsResponse:
 			if data.Operation == okxOpBatchCancelOrders && data.ID == input.ID {
 				if data.Code == "0" || data.Code == "2" {
 					resp, err := data.copyToPlaceOrderResponse()
@@ -1470,7 +1499,7 @@ func (ok *Okx) WsCancelMultipleOrder(args []CancelOrderRequestParam) ([]WsOrderD
 }
 
 // WsAmendOrder method to amend trade order using a request thought the websocket channel.
-func (ok *Okx) WsAmendOrder(arg *AmendOrderRequestParams) (*WsOrderData, error) {
+func (ok *Okx) WsAmendOrder(arg *AmendOrderRequestParams) (*OrderData, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -1497,11 +1526,15 @@ func (ok *Okx) WsAmendOrder(arg *AmendOrderRequestParams) (*WsOrderData, error) 
 		return nil, err
 	}
 	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
-	ok.wsMutext.Lock()
-	defer ok.wsMutext.Unlock()
+	wsResponse := make(chan *wsIncomingData)
+	ok.WsResponseMultiplexer.Register <- wsIncomingChannelWithID{
+		ID:   randomID,
+		Chan: wsResponse,
+	}
+	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
 	for {
 		select {
-		case data := <-ok.wsResponse:
+		case data := <-wsResponse:
 			if data.Operation == okxOpAmendOrder && data.ID == input.ID {
 				if data.Code == "0" || data.Code == "1" {
 					resp, err := data.copyToPlaceOrderResponse()
@@ -1529,7 +1562,7 @@ func (ok *Okx) WsAmendOrder(arg *AmendOrderRequestParams) (*WsOrderData, error) 
 }
 
 // WsAmendMultipleOrders a request through the websocket connection to amend multiple trade orders.
-func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]WsOrderData, error) {
+func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]OrderData, error) {
 	for x := range args {
 		if args[x].InstrumentID == "" {
 			return nil, errMissingInstrumentID
@@ -1555,11 +1588,15 @@ func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]WsOrderD
 		return nil, err
 	}
 	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
-	ok.wsMutext.Lock()
-	defer ok.wsMutext.Unlock()
+	wsResponse := make(chan *wsIncomingData)
+	ok.WsResponseMultiplexer.Register <- wsIncomingChannelWithID{
+		ID:   randomID,
+		Chan: wsResponse,
+	}
+	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
 	for {
 		select {
-		case data := <-ok.wsResponse:
+		case data := <-wsResponse:
 			if data.Operation == okxOpBatchAmendOrders && data.ID == input.ID {
 				if data.Code == "0" || data.Code == "2" {
 					resp, err := data.copyToPlaceOrderResponse()
@@ -1605,7 +1642,14 @@ func (ok *Okx) WsChannelSubscription(operation, channel string, assetType asset.
 		}
 	}
 	if len(tooglers) > 1 && tooglers[1] {
-		instrumentID, err = ok.getInstrumentIDFromPair(context.TODO(), pair, assetType)
+		format, err := ok.GetPairFormat(assetType, false)
+		if err != nil {
+			return nil, err
+		}
+		if pair.Base.String() == "" || pair.Quote.String() == "" {
+			return nil, errIncompleteCurrencyPair
+		}
+		instrumentID = format.Format(pair)
 		if err != nil {
 			instrumentID = ""
 		}
@@ -1629,11 +1673,19 @@ func (ok *Okx) WsChannelSubscription(operation, channel string, assetType asset.
 		return nil, err
 	}
 	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
-	ok.wsMutext.Lock()
-	defer ok.wsMutext.Unlock()
+	wsResponse := make(chan *wsIncomingData)
+	randomID, err := common.GenerateRandomString(16)
+	if err != nil {
+		return nil, fmt.Errorf("%w, generating random string for incoming websocket response failed", err)
+	}
+	ok.WsResponseMultiplexer.Register <- wsIncomingChannelWithID{
+		ID:   randomID,
+		Chan: wsResponse,
+	}
+	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
 	for {
 		select {
-		case data := <-ok.wsResponse:
+		case data := <-wsResponse:
 			if strings.EqualFold(data.Event, operation) && data.Argument.Channel == input.Arguments[0].Channel && data.Argument.InstrumentType == input.Arguments[0].InstrumentType && data.Argument.InstrumentID == input.Arguments[0].InstrumentID {
 				return data.copyToSubscriptionResponse(), nil
 			} else if strings.EqualFold(data.Event, "error") || strings.EqualFold(data.Code, "60012") {
@@ -1679,7 +1731,14 @@ func (ok *Okx) WsAuthChannelSubscription(operation, channel string, assetType as
 		}
 	}
 	if len(tooglers) > 1 && tooglers[1] {
-		instrumentID, err = ok.getInstrumentIDFromPair(context.TODO(), pair, assetType)
+		format, err := ok.GetPairFormat(assetType, false)
+		if err != nil {
+			return nil, err
+		}
+		if pair.Base.String() == "" || pair.Quote.String() == "" {
+			return nil, errIncompleteCurrencyPair
+		}
+		instrumentID = format.Format(pair)
 		if err != nil {
 			instrumentID = ""
 		}
@@ -1714,11 +1773,19 @@ func (ok *Okx) WsAuthChannelSubscription(operation, channel string, assetType as
 		return nil, err
 	}
 	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
-	ok.wsMutext.Lock()
-	defer ok.wsMutext.Unlock()
+	wsResponse := make(chan *wsIncomingData)
+	randomID, err := common.GenerateRandomString(16)
+	if err != nil {
+		return nil, fmt.Errorf("%w, generating random string for incoming websocket response failed", err)
+	}
+	ok.WsResponseMultiplexer.Register <- wsIncomingChannelWithID{
+		ID:   randomID,
+		Chan: wsResponse,
+	}
+	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
 	for {
 		select {
-		case data := <-ok.wsResponse:
+		case data := <-wsResponse:
 			if strings.EqualFold(data.Event, operation) && data.Argument.Channel == input.Arguments[0].Channel && data.Argument.InstrumentType == input.Arguments[0].InstrumentType && data.Argument.InstrumentID == input.Arguments[0].InstrumentID {
 				return data.copyToSubscriptionResponse(), nil
 			} else if strings.EqualFold(data.Event, "error") || strings.EqualFold(data.Code, "60012") {
@@ -1831,6 +1898,9 @@ func (ok *Okx) TickersSubscription(operation string, assetType asset.Item, pair 
 
 // OpenInterestSubscription to subscribe or unsubscribe to "open-interest" channel to retrieve the open interest. Data will by pushed every 3 seconds.
 func (ok *Okx) OpenInterestSubscription(operation string, assetType asset.Item, pair currency.Pair) (*SubscriptionOperationResponse, error) {
+	if !(assetType == asset.Futures || assetType == asset.Option || assetType == asset.PerpetualSwap) {
+		return nil, fmt.Errorf("%w, only FUTURES, SWAP and OPTION asset types are supported", errInvalidInstrumentType)
+	}
 	return ok.WsChannelSubscription(operation, okxChannelOpenInterest, assetType, pair, false, true)
 }
 
@@ -1849,7 +1919,10 @@ func (ok *Okx) TradesSubscription(operation string, assetType asset.Item, pair c
 
 // EstimatedDeliveryExercisePriceSubscription to subscribe or unsubscribe to "estimated-price" channel to retrieve the estimated delivery/exercise price of FUTURES contracts and OPTION.
 func (ok *Okx) EstimatedDeliveryExercisePriceSubscription(operation string, assetType asset.Item, pair currency.Pair) (*SubscriptionOperationResponse, error) {
-	return ok.WsChannelSubscription(operation, okxChannelEstimatedPrice, assetType, pair, true, false, true)
+	if !(assetType == asset.Futures || assetType == asset.Option) {
+		return nil, fmt.Errorf("%w, only FUTURES and OPTION asset types are supported", errInvalidInstrumentType)
+	}
+	return ok.WsChannelSubscription(operation, okxChannelEstimatedPrice, assetType, pair, true, true, false)
 }
 
 // MarkPriceSubscription to subscribe or unsubscribe to to "mark-price" to retrieve the mark price. Data will be pushed every 200 ms when the mark price changes, and will be pushed every 10 seconds when the mark price does not change.
@@ -1885,11 +1958,19 @@ func (ok *Okx) PriceLimitSubscription(operation, instrumentID string) (*Subscrip
 		return nil, err
 	}
 	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
-	ok.wsMutext.Lock()
-	defer ok.wsMutext.Unlock()
+	wsResponse := make(chan *wsIncomingData)
+	randomID, err := common.GenerateRandomString(16)
+	if err != nil {
+		return nil, fmt.Errorf("%w, generating random string for incoming websocket response failed", err)
+	}
+	ok.WsResponseMultiplexer.Register <- wsIncomingChannelWithID{
+		ID:   randomID,
+		Chan: wsResponse,
+	}
+	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
 	for {
 		select {
-		case data := <-ok.wsResponse:
+		case data := <-wsResponse:
 			if strings.EqualFold(data.Event, operation) && data.Argument.Channel == input.Arguments[0].Channel && data.Argument.InstrumentType == input.Arguments[0].InstrumentType && data.Argument.InstrumentID == input.Arguments[0].InstrumentID {
 				return data.copyToSubscriptionResponse(), nil
 			} else if strings.EqualFold(data.Event, "error") || strings.EqualFold(data.Code, "60012") {

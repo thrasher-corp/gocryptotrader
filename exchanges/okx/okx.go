@@ -12,7 +12,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -30,10 +29,7 @@ import (
 // Okx is the overarching type across this package
 type Okx struct {
 	exchange.Base
-
-	// To Synchronize incoming messages coming through the websocket channel
-	wsResponse chan wsIncomingData
-	wsMutext   sync.Mutex
+	WsResponseMultiplexer wsRequestDataChannelsMultiplexer
 }
 
 const (
@@ -336,6 +332,9 @@ var (
 	errInvalidAPIKeyPermission                       = errors.New("invalid API Key permission")
 	errNoInstrumentFound                             = errors.New("instruments not found")
 	errInvalidResponseParam                          = errors.New("invalid response parameter, response must be non-nil pointer")
+	errEmptyPlaceOrderResponse                       = errors.New("empty place order response")
+	errTooManyArgument                               = errors.New("too many cancel request params")
+	errIncompleteCurrencyPair                        = errors.New("incomplete currency pair")
 )
 
 /************************************ MarketData Endpoints *************************************************/
@@ -381,7 +380,7 @@ func (ok *Okx) OrderTypeString(orderType order.Type) (string, error) {
 }
 
 // PlaceOrder place an order only if you have sufficient funds.
-func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam, a asset.Item) (*WsOrderData, error) {
+func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam, a asset.Item) (*OrderData, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -390,7 +389,7 @@ func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam, a as
 	}
 	ast := strings.ToUpper(a.String())
 	if !(((arg.TradeMode == TradeModeCross || arg.TradeMode == TradeModeIsolated) && ast == okxInstTypeMargin) || (arg.TradeMode == TradeModeCash && ast != okxInstTypeMargin)) {
-		return nil, fmt.Errorf("%v, Trade mode Margin mode \"cross\" \"isolated\" Non-Margin mode \"cash\"", errInvalidTradeModeValue)
+		return nil, fmt.Errorf("%w, Trade mode Margin mode \"cross\" \"isolated\" Non-Margin mode \"cash\"", errInvalidTradeModeValue)
 	}
 	arg.Side = strings.ToUpper(arg.Side)
 	if !(arg.Side == order.Buy.String() || arg.Side == order.Sell.String()) {
@@ -428,7 +427,7 @@ func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam, a as
 		arg.QuantityType == "quote_ccy") {
 		arg.QuantityType = ""
 	}
-	var resp []WsOrderData
+	var resp []OrderData
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, tradeOrder, &arg, &resp, true)
 	if err != nil {
 		return nil, err
@@ -440,7 +439,7 @@ func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam, a as
 }
 
 // PlaceMultipleOrders  to place orders in batches. Maximum 20 orders can be placed at a time. Request parameters should be passed in the form of an array.
-func (ok *Okx) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequestParam) ([]WsOrderData, error) {
+func (ok *Okx) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequestParam) ([]OrderData, error) {
 	if len(args) == 0 {
 		return nil, errNoOrderParameterPassed
 	}
@@ -480,19 +479,19 @@ func (ok *Okx) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequest
 			args[x].QuantityType = ""
 		}
 	}
-	var resp []WsOrderData
+	var resp []OrderData
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeMultipleOrdersEPL, http.MethodPost, placeMultipleOrderURL, &args, &resp, true)
 }
 
 // CancelSingleOrder cancel an incomplete order.
-func (ok *Okx) CancelSingleOrder(ctx context.Context, arg CancelOrderRequestParam) (*WsOrderData, error) {
+func (ok *Okx) CancelSingleOrder(ctx context.Context, arg CancelOrderRequestParam) (*OrderData, error) {
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
 	if arg.OrderID == "" && arg.ClientSupplierOrderID == "" {
 		return nil, fmt.Errorf("either order id or client supplier id is required")
 	}
-	var resp []WsOrderData
+	var resp []OrderData
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelOrderEPL, http.MethodPost, cancelTradeOrder, &arg, &resp, true)
 	if err != nil {
 		return nil, err
@@ -505,7 +504,7 @@ func (ok *Okx) CancelSingleOrder(ctx context.Context, arg CancelOrderRequestPara
 
 // CancelMultipleOrders cancel incomplete orders in batches. Maximum 20 orders can be canceled at a time.
 // Request parameters should be passed in the form of an array.
-func (ok *Okx) CancelMultipleOrders(ctx context.Context, args []CancelOrderRequestParam) ([]WsOrderData, error) {
+func (ok *Okx) CancelMultipleOrders(ctx context.Context, args []CancelOrderRequestParam) ([]OrderData, error) {
 	for x := range args {
 		arg := args[x]
 		if arg.InstrumentID == "" {
@@ -515,13 +514,13 @@ func (ok *Okx) CancelMultipleOrders(ctx context.Context, args []CancelOrderReque
 			return nil, fmt.Errorf("either order id or client supplier id is required")
 		}
 	}
-	var resp []WsOrderData
+	var resp []OrderData
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleOrdersEPL,
 		http.MethodPost, cancelBatchTradeOrders, args, &resp, true)
 }
 
 // AmendOrder an incomplete order.
-func (ok *Okx) AmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (*WsOrderData, error) {
+func (ok *Okx) AmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (*OrderData, error) {
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
@@ -531,7 +530,7 @@ func (ok *Okx) AmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (*W
 	if arg.NewQuantity <= 0 && arg.NewPrice <= 0 {
 		return nil, errMissingNewSizeOrPriceInformation
 	}
-	var resp []WsOrderData
+	var resp []OrderData
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, amendOrderEPL, http.MethodPost, amendOrder, arg, &resp, true)
 	if err != nil {
 		return nil, err
@@ -543,7 +542,7 @@ func (ok *Okx) AmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (*W
 }
 
 // AmendMultipleOrders amend incomplete orders in batches. Maximum 20 orders can be amended at a time. Request parameters should be passed in the form of an array.
-func (ok *Okx) AmendMultipleOrders(ctx context.Context, args []AmendOrderRequestParams) ([]WsOrderData, error) {
+func (ok *Okx) AmendMultipleOrders(ctx context.Context, args []AmendOrderRequestParams) ([]OrderData, error) {
 	for x := range args {
 		if args[x].InstrumentID == "" {
 			return nil, errMissingInstrumentID
@@ -555,7 +554,7 @@ func (ok *Okx) AmendMultipleOrders(ctx context.Context, args []AmendOrderRequest
 			return nil, errMissingNewSizeOrPriceInformation
 		}
 	}
-	var resp []WsOrderData
+	var resp []OrderData
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, amendMultipleOrdersEPL, http.MethodPost, amendBatchOrders, &args, &resp, true)
 }
 
@@ -1032,10 +1031,10 @@ func (ok *Okx) GetEasyConvertCurrencyList(ctx context.Context) (*EasyConvertDeta
 // PlaceEasyConvert onvert small currencies to mainstream currencies. Only applicable to the crypto balance less than $10.
 func (ok *Okx) PlaceEasyConvert(ctx context.Context, arg PlaceEasyConvertParam) ([]EasyConvertItem, error) {
 	if len(arg.FromCurrency) == 0 {
-		return nil, fmt.Errorf("%v, missing 'fromCcy'", errMissingRequiredParameter)
+		return nil, fmt.Errorf("%w, missing 'fromCcy'", errMissingRequiredParameter)
 	}
 	if arg.ToCurrency == "" {
-		return nil, fmt.Errorf("%v, missing t'toCcy'", errMissingRequiredParameter)
+		return nil, fmt.Errorf("%w, missing t'toCcy'", errMissingRequiredParameter)
 	}
 	var resp []EasyConvertItem
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeEasyConvertEPL, http.MethodPost, easyConvert, &arg, &resp, true)
@@ -1070,10 +1069,10 @@ func (ok *Okx) GetOneClickRepayCurrencyList(ctx context.Context, debtType string
 // TradeOneClickRepay trade one-click repay to repay cross debts. Isolated debts are not applicable. The maximum repayment amount is based on the remaining available balance of funding and trading accounts.
 func (ok *Okx) TradeOneClickRepay(ctx context.Context, arg TradeOneClickRepayParam) ([]CurrencyOneClickRepay, error) {
 	if len(arg.DebtCurrency) == 0 {
-		return nil, fmt.Errorf("%v, missing 'debtCcy'", errMissingRequiredParameter)
+		return nil, fmt.Errorf("%w, missing 'debtCcy'", errMissingRequiredParameter)
 	}
 	if arg.RepayCurrency == "" {
-		return nil, fmt.Errorf("%v, missing 'repayCcy'", errMissingRequiredParameter)
+		return nil, fmt.Errorf("%w, missing 'repayCcy'", errMissingRequiredParameter)
 	}
 	var resp []CurrencyOneClickRepay
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, tradeOneClickRepayEPL, http.MethodPost, oneClickRepay, &arg, &resp, true)
@@ -1197,10 +1196,10 @@ func (ok *Okx) SetQuoteProducts(ctx context.Context, args []SetQuoteProductParam
 			if (args[x].InstrumentType == okxInstTypeSwap ||
 				args[x].InstrumentType == okxInstTypeFutures ||
 				args[x].InstrumentType == okxInstTypeOption) && args[x].Data[y].Underlying == "" {
-				return nil, fmt.Errorf("%v, for instrument type %s and %s", errInvalidUnderlying, args[x].InstrumentType, args[x].Data[x].Underlying)
+				return nil, fmt.Errorf("%w, for instrument type %s and %s", errInvalidUnderlying, args[x].InstrumentType, args[x].Data[x].Underlying)
 			}
 			if (args[x].InstrumentType == okxInstTypeSpot) && args[x].Data[x].InstrumentID == "" {
-				return nil, fmt.Errorf("%v, for instrument type %s and %s", errMissingInstrumentID, args[x].InstrumentType, args[x].Data[x].InstrumentID)
+				return nil, fmt.Errorf("%w, for instrument type %s and %s", errMissingInstrumentID, args[x].InstrumentType, args[x].Data[x].InstrumentID)
 			}
 		}
 	}
@@ -1435,8 +1434,8 @@ func (ok *Okx) GetPublicTrades(ctx context.Context, beginID, endID string, limit
 
 /*************************************** Funding Tradings ********************************/
 
-// GetCurrencies Retrieve a list of all currencies.
-func (ok *Okx) GetCurrencies(ctx context.Context) ([]CurrencyResponse, error) {
+// GetFundingCurrencies Retrieve a list of all currencies.
+func (ok *Okx) GetFundingCurrencies(ctx context.Context) ([]CurrencyResponse, error) {
 	var resp []CurrencyResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getCurrenciesEPL, http.MethodGet, assetCurrencies, nil, &resp, true)
 }
@@ -2597,7 +2596,7 @@ func (ok *Okx) MasterAccountsManageTransfersBetweenSubaccounts(ctx context.Conte
 	if amount <= 0 {
 		return nil, errInvalidTransferAmount
 	}
-	params.Set("amt", strconv.FormatFloat(amount, 'f', 2, 64))
+	params.Set("amt", strconv.FormatFloat(amount, 'f', -1, 64))
 	if !(from == 6 || from == 18) {
 		return nil, errInvalidInvalidSubaccount
 	}
@@ -2613,7 +2612,7 @@ func (ok *Okx) MasterAccountsManageTransfersBetweenSubaccounts(ctx context.Conte
 	if toSubaccount == "" {
 		return nil, errMissingDestinationSubaccountName
 	}
-	params.Set("toSubAccount", fromSubaccount)
+	params.Set("toSubAccount", toSubaccount)
 	params.Set("loanTrans", strconv.FormatBool(loanTransfer))
 	var resp []TransferIDInfo
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, masterAccountsManageTransfersBetweenSubaccountEPL, http.MethodGet, common.EncodeURLValues(assetSubaccountTransfer, params), nil, &resp, true)
@@ -2710,6 +2709,11 @@ func (ok *Okx) AmendGridAlgoOrder(ctx context.Context, arg GridAlgoOrderAmend) (
 
 // StopGridAlgoOrder stop a batch of grid algo orders.
 func (ok *Okx) StopGridAlgoOrder(ctx context.Context, arg []StopGridAlgoOrderRequest) ([]GridAlgoOrderIDResponse, error) {
+	if len(arg) == 0 {
+		return nil, errEmptyArgument
+	} else if len(arg) > 10 {
+		return nil, fmt.Errorf("%w, a maximum of 10 orders can be canceled per request", errTooManyArgument)
+	}
 	for x := range arg {
 		if arg[x].AlgoID == "" {
 			return nil, errMissingAlgoOrderID
@@ -2960,11 +2964,11 @@ func (ok *Okx) GetOffers(ctx context.Context, productID, protocolType, currency 
 // Purchase invest on specific product
 func (ok *Okx) Purchase(ctx context.Context, arg PurchaseRequestParam) (*OrderIDResponse, error) {
 	if arg.ProductID == "" {
-		return nil, fmt.Errorf("%v, missing product id", errMissingRequiredParameter)
+		return nil, fmt.Errorf("%w, missing product id", errMissingRequiredParameter)
 	}
 	for x := range arg.InvestData {
 		if arg.InvestData[x].Currency == "" {
-			return nil, fmt.Errorf("%v, currency information for investment is required", errMissingRequiredParameter)
+			return nil, fmt.Errorf("%w, currency information for investment is required", errMissingRequiredParameter)
 		}
 		if arg.InvestData[x].Amount <= 0 {
 			return nil, errUnacceptableAmount
@@ -2983,10 +2987,10 @@ func (ok *Okx) Purchase(ctx context.Context, arg PurchaseRequestParam) (*OrderID
 // Redeem redemption of investment
 func (ok *Okx) Redeem(ctx context.Context, arg RedeemRequestParam) (*OrderIDResponse, error) {
 	if arg.OrderID == "" {
-		return nil, fmt.Errorf("%v, missing 'orderId'", errMissingRequiredParameter)
+		return nil, fmt.Errorf("%w, missing 'orderId'", errMissingRequiredParameter)
 	}
 	if !(arg.ProtocolType == "staking" || arg.ProtocolType == "defi") {
-		return nil, fmt.Errorf("%v, invalid protocol type, only %s and %s allowed", errMissingRequiredParameter, "staking", "defi")
+		return nil, fmt.Errorf("%w, invalid protocol type, only %s and %s allowed", errMissingRequiredParameter, "staking", "defi")
 	}
 	var resp []OrderIDResponse
 	if err := ok.SendHTTPRequest(ctx, exchange.RestSpot, redeemEPL, http.MethodPost, financeRedeem, &arg, &resp, true); err != nil {
@@ -3002,10 +3006,10 @@ func (ok *Okx) Redeem(ctx context.Context, arg RedeemRequestParam) (*OrderIDResp
 // after cancelling, returning funds will go to the funding account.
 func (ok *Okx) CancelPurchaseOrRedemption(ctx context.Context, arg CancelFundingParam) (*OrderIDResponse, error) {
 	if arg.OrderID == "" {
-		return nil, fmt.Errorf("%v, missing 'orderId'", errMissingRequiredParameter)
+		return nil, fmt.Errorf("%w, missing 'orderId'", errMissingRequiredParameter)
 	}
 	if !(arg.ProtocolType == "staking" || arg.ProtocolType == "defi") {
-		return nil, fmt.Errorf("%v, invalid protocol type, only %s and %s allowed", errMissingRequiredParameter, "staking", "defi")
+		return nil, fmt.Errorf("%w, invalid protocol type, only %s and %s allowed", errMissingRequiredParameter, "staking", "defi")
 	}
 	var resp []OrderIDResponse
 	if err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelPurchaseOrRedemptionEPL, http.MethodPost, financeCacelPurchase, &arg, &resp, true); err != nil {
@@ -3114,56 +3118,6 @@ func (ok *Okx) GetIndexTickers(ctx context.Context, quoteCurrency, instID string
 	return response, ok.SendHTTPRequest(ctx, exchange.RestSpot, getIndexTickersEPL, http.MethodGet, common.EncodeURLValues(indexTickers, params), nil, &response, false)
 }
 
-// getInstrumentIDFromPair returns the instrument ID for the corresponding asset pairs and asset type( Instrument Type )
-func (ok *Okx) getInstrumentIDFromPair(ctx context.Context, pair currency.Pair, a asset.Item) (string, error) {
-	format, err := ok.GetPairFormat(a, false)
-	if err != nil {
-		return "", err
-	}
-	if pair.Base.String() == "" || pair.Quote.String() == "" {
-		return "", errors.New("incomplete currency pair")
-	}
-	switch a {
-	case asset.PerpetualSwap:
-		return pair.Base.String() + format.Delimiter + pair.Quote.String() + format.Delimiter + okxInstTypeSwap, nil
-	case asset.Option:
-		instruments, err := ok.GetInstruments(ctx, &InstrumentsFetchParams{
-			InstrumentType: okxInstTypeOption,
-			Underlying:     pair.Base.String() + format.Delimiter + pair.Quote.String(),
-		})
-		if err != nil {
-			return "", err
-		}
-		for x := range instruments {
-			p, err := currency.NewPairFromString(instruments[x].Underlying)
-			if err != nil {
-				continue
-			}
-			if p.Equal(pair) {
-				return instruments[x].InstrumentID, nil
-			}
-		}
-	case asset.Futures:
-		instruments, err := ok.GetInstruments(ctx, &InstrumentsFetchParams{
-			InstrumentType: okxInstTypeFutures,
-		})
-		if err != nil {
-			return "", err
-		}
-		for x := range instruments {
-			p, err := currency.NewPairFromString(instruments[x].Underlying)
-			if err != nil {
-				continue
-			}
-			if p.Equal(pair) {
-				return instruments[x].InstrumentID, nil
-			}
-		}
-		return "", errors.New("instrument id with this asset pairs not found")
-	}
-	return pair.Base.String() + format.Delimiter + pair.Quote.String(), nil
-}
-
 // GetInstrumentTypeFromAssetItem returns a string representation of asset.Item; which is an equivalent term for InstrumentType in Okx exchange.
 func (ok *Okx) GetInstrumentTypeFromAssetItem(assetType asset.Item) string {
 	if assetType == asset.PerpetualSwap {
@@ -3179,7 +3133,7 @@ func (ok *Okx) GetUnderlying(pair currency.Pair, a asset.Item) (string, error) {
 		return "", err
 	}
 	if pair.Base.String() == "" || pair.Quote.String() == "" {
-		return "", errors.New("incomplete currency pair")
+		return "", errIncompleteCurrencyPair
 	}
 	return pair.Base.String() + format.Delimiter + pair.Quote.String(), nil
 }
@@ -3969,8 +3923,6 @@ func (ok *Okx) GetMarginLendingRatio(ctx context.Context, currency string, begin
 		ratio, err := strconv.ParseFloat(response[x][1], 64)
 		if err != nil {
 			return nil, err
-		} else if ratio <= 0 {
-			return nil, fmt.Errorf("%v, ratio value must be positive", errMalformedData)
 		}
 		lendRatio := MarginLendRatioItem{
 			Timestamp:       time.UnixMilli(int64(timestamp)),
@@ -4005,19 +3957,17 @@ func (ok *Okx) GetLongShortRatio(ctx context.Context, currency string, begin, en
 	ratios := []LongShortRatio{}
 	for x := range response {
 		if len(response[x]) != 2 {
-			return nil, fmt.Errorf("%v, expecting length 2 but found %d", errMalformedData, len(response[x]))
+			return nil, fmt.Errorf("%w, expecting length 2 but found %d", errMalformedData, len(response[x]))
 		}
 		timestamp, err := strconv.Atoi(response[x][0])
 		if err != nil {
 			return nil, err
 		} else if timestamp <= 0 {
-			return nil, fmt.Errorf("%v, expecting non zero timestamp, but found %d", errMalformedData, timestamp)
+			return nil, fmt.Errorf("%w, expecting non zero timestamp, but found %d", errMalformedData, timestamp)
 		}
 		ratio, err := strconv.ParseFloat(response[x][1], 64)
 		if err != nil {
 			return nil, err
-		} else if ratio <= 0 {
-			return nil, fmt.Errorf("%v, expecting non zero positive ratio, but found %f", errMalformedData, ratio)
 		}
 		dratio := LongShortRatio{
 			Timestamp:       time.UnixMilli(int64(timestamp)),
@@ -4060,13 +4010,13 @@ func (ok *Okx) GetContractsOpenInterestAndVolume(
 		if err != nil {
 			return nil, err
 		} else if timestamp <= 0 {
-			return nil, fmt.Errorf("%v, invalid Timestamp value %f", errMalformedData, timestamp)
+			return nil, fmt.Errorf("%w, invalid Timestamp value %f", errMalformedData, timestamp)
 		}
 		openInterest, err := strconv.ParseFloat(response[x][1], 64)
 		if err != nil {
 			return nil, err
 		} else if openInterest <= 0 {
-			return nil, fmt.Errorf("%v, OpendInterest has to be non-zero positive value, but found %f", errMalformedData, openInterest)
+			return nil, fmt.Errorf("%w, OpendInterest has to be non-zero positive value, but found %f", errMalformedData, openInterest)
 		}
 		volume, err := strconv.ParseFloat(response[x][2], 64)
 		if err != nil {
@@ -4107,13 +4057,13 @@ func (ok *Okx) GetOptionsOpenInterestAndVolume(ctx context.Context, currency str
 		if err != nil {
 			return nil, errors.New("invalid timestamp information")
 		} else if timestamp <= 0 {
-			return nil, fmt.Errorf("%v, expecting non zero timestamp, but found %d", errMalformedData, timestamp)
+			return nil, fmt.Errorf("%w, expecting non zero timestamp, but found %d", errMalformedData, timestamp)
 		}
 		openInterest, err := strconv.ParseFloat(response[x][1], 64)
 		if err != nil {
 			return nil, err
 		} else if openInterest <= 0 {
-			return nil, fmt.Errorf("%v, OpendInterest has to be non-zero positive value, but found %f", errMalformedData, openInterest)
+			return nil, fmt.Errorf("%w, OpendInterest has to be non-zero positive value, but found %f", errMalformedData, openInterest)
 		}
 		volume, err := strconv.ParseFloat(response[x][2], 64)
 		if err != nil {
@@ -4148,7 +4098,7 @@ func (ok *Okx) GetPutCallRatio(ctx context.Context, currency string,
 	}
 	for x := range response {
 		if len(response[x]) != 3 {
-			return nil, fmt.Errorf("%v, expecting row length 3 but found %d", errMalformedData, len(response[x]))
+			return nil, fmt.Errorf("%w, expecting row length 3 but found %d", errMalformedData, len(response[x]))
 		}
 		timestamp, err := strconv.Atoi(response[x][0])
 		if err != nil {
@@ -4294,7 +4244,7 @@ func (ok *Okx) GetOpenInterestAndVolumeStrike(ctx context.Context, currency stri
 	volumes := []StrikeOpenInterestAndVolume{}
 	for x := range resp {
 		if len(resp[x]) != 6 {
-			return nil, fmt.Errorf("%v, expecting row length of 6 but found %d", errMalformedData, len(resp[x]))
+			return nil, fmt.Errorf("%w, expecting row length of 6 but found %d", errMalformedData, len(resp[x]))
 		}
 		timestamp, err := strconv.Atoi(resp[x][0])
 		if err != nil {
@@ -4416,7 +4366,7 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 			if err != nil {
 				return nil, err
 			}
-			signPath := fmt.Sprintf("/%v%v", okxAPIPath, requestPath)
+			signPath := fmt.Sprintf("/%s%s", okxAPIPath, requestPath)
 			var hmac []byte
 			hmac, err = crypto.GetHMAC(crypto.HashSHA256,
 				[]byte(utcTime+httpMethod+signPath+string(payload)),
@@ -4483,7 +4433,7 @@ func (ok *Okx) SystemStatusResponse(ctx context.Context, state string) ([]System
 		params.Set("state", state)
 	}
 	var resp []SystemStatusResponse
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getEventStatusEPL, http.MethodGet, common.EncodeURLValues(systemStatus, params), nil, &resp, true)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getEventStatusEPL, http.MethodGet, common.EncodeURLValues(systemStatus, params), nil, &resp, false)
 }
 
 // GetAssetTypeFromInstrumentType returns an asset Item instance given and Instrument Type string.

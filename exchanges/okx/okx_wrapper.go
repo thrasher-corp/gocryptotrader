@@ -63,7 +63,12 @@ func (ok *Okx) SetDefaults() {
 	ok.Enabled = true
 	ok.Verbose = true
 
-	ok.wsResponse = make(chan wsIncomingData)
+	ok.WsResponseMultiplexer = wsRequestDataChannelsMultiplexer{
+		WsResponseChannelsMap: make(map[string]chan *wsIncomingData),
+		Register:              make(chan wsIncomingChannelWithID),
+		Unregister:            make(chan string),
+		Message:               make(chan *wsIncomingData),
+	}
 	ok.API.CredentialsValidator.RequiresKey = true
 	ok.API.CredentialsValidator.RequiresSecret = true
 	ok.API.CredentialsValidator.RequiresClientID = true
@@ -318,7 +323,7 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, 
 				return nil, fmt.Errorf("%v, invalid currency pair data", errMalformedData)
 			}
 		case asset.Futures, asset.PerpetualSwap, asset.Option:
-			c, err := currency.NewPairFromString(insts[x].Underlying)
+			c, err := currency.NewPairFromString(insts[x].InstrumentID)
 			if err != nil {
 				return nil, err
 			}
@@ -363,10 +368,14 @@ func (ok *Okx) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error 
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (ok *Okx) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	instrumentID, err := ok.getInstrumentIDFromPair(ctx, p, a)
+	format, err := ok.GetPairFormat(a, false)
 	if err != nil {
 		return nil, err
 	}
+	if p.Base.String() == "" || p.Quote.String() == "" {
+		return nil, errIncompleteCurrencyPair
+	}
+	instrumentID := format.Format(p)
 	if !ok.SupportsAsset(a) {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, a)
 	}
@@ -482,10 +491,14 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
 	}
 	var instrumentID string
-	instrumentID, err = ok.getInstrumentIDFromPair(ctx, pair, assetType)
+	format, err := ok.GetPairFormat(assetType, false)
 	if err != nil {
-		return book, err
+		return nil, err
 	}
+	if pair.Base.String() == "" || pair.Quote.String() == "" {
+		return nil, errIncompleteCurrencyPair
+	}
+	instrumentID = format.Format(pair)
 	orderbookNew, err = ok.GetOrderBookDepth(ctx, instrumentID, 0)
 	if err != nil {
 		return book, err
@@ -633,21 +646,31 @@ func (ok *Okx) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ ass
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	instrumentID, err := ok.getInstrumentIDFromPair(ctx, p, assetType)
+	format, err := ok.GetPairFormat(assetType, false)
 	if err != nil {
 		return nil, err
 	}
+	if p.Base.String() == "" || p.Quote.String() == "" {
+		return nil, errIncompleteCurrencyPair
+	}
+	instrumentID := format.Format(p)
 	tradeData, err := ok.GetTrades(ctx, instrumentID, 1000)
 	if err != nil {
 		return nil, err
 	}
+
 	resp := make([]trade.Data, len(tradeData))
 	for x := range tradeData {
+		side, err := order.StringToOrderSide(tradeData[x].Side)
+		if err != nil {
+			return nil, err
+		}
 		resp[x] = trade.Data{
 			TID:          tradeData[x].TradeID,
 			Exchange:     ok.Name,
 			CurrencyPair: p,
 			AssetType:    assetType,
+			Side:         side,
 			Price:        tradeData[x].Price,
 			Amount:       tradeData[x].Quantity,
 			Timestamp:    tradeData[x].Timestamp,
@@ -666,10 +689,14 @@ func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (ok *Okx) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	const limit = 1000
-	instrumentID, err := ok.getInstrumentIDFromPair(ctx, p, assetType)
+	format, err := ok.GetPairFormat(assetType, false)
 	if err != nil {
 		return nil, err
 	}
+	if p.Base.String() == "" || p.Quote.String() == "" {
+		return nil, errIncompleteCurrencyPair
+	}
+	instrumentID := format.Format(p)
 	tradeData, err := ok.GetTradesHistory(ctx, instrumentID, "", "", limit)
 	if err != nil {
 		return nil, err
@@ -712,10 +739,14 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 	if s.Amount <= 0 {
 		return nil, fmt.Errorf("amount, or size (sz) of quantity to buy or sell hast to be greater than zero ")
 	}
-	instrumentID, err := ok.getInstrumentIDFromPair(ctx, s.Pair, s.AssetType)
+	format, err := ok.GetPairFormat(s.AssetType, false)
 	if err != nil {
 		return nil, err
 	}
+	if s.Pair.Base.String() == "" || s.Pair.Quote.String() == "" {
+		return nil, errIncompleteCurrencyPair
+	}
+	instrumentID := format.Format(s.Pair)
 	var tradeMode string
 	if s.AssetType != asset.Margin {
 		tradeMode = "cash"
@@ -739,7 +770,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 	case OkxOrderLimit, OkxOrderPostOnly, OkxOrderFOK, OkxOrderIOC:
 		orderRequest.Price = s.Price
 	}
-	var placeOrderResponse *WsOrderData
+	var placeOrderResponse *OrderData
 	switch s.AssetType {
 	case asset.Spot, asset.Option, asset.Margin:
 		if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
@@ -780,7 +811,14 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 	if math.Mod(action.Amount, 1) != 0 {
 		return nil, errors.New("Okx contract amount can not be decimal")
 	}
-	instrumentID, err := ok.getInstrumentIDFromPair(ctx, action.Pair, action.AssetType)
+	format, err := ok.GetPairFormat(action.AssetType, false)
+	if err != nil {
+		return nil, err
+	}
+	if action.Pair.Base.String() == "" || action.Pair.Quote.String() == "" {
+		return nil, errIncompleteCurrencyPair
+	}
+	instrumentID := format.Format(action.Pair)
 	if err != nil {
 		return nil, err
 	}
@@ -788,7 +826,7 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 	amendRequest.NewQuantity = action.Amount
 	amendRequest.OrderID = action.OrderID
 	amendRequest.ClientSuppliedOrderID = action.ClientOrderID
-	var response *WsOrderData
+	var response *OrderData
 	if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		response, err = ok.WsAmendOrder(&amendRequest)
 	} else {
@@ -815,10 +853,14 @@ func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	if !ok.SupportsAsset(ord.AssetType) {
 		return fmt.Errorf("%w: %v", asset.ErrNotSupported, ord.AssetType)
 	}
-	instrumentID, err := ok.getInstrumentIDFromPair(ctx, ord.Pair, ord.AssetType)
+	format, err := ok.GetPairFormat(ord.AssetType, false)
 	if err != nil {
 		return err
 	}
+	if ord.Pair.Base.String() == "" || ord.Pair.Quote.String() == "" {
+		return errIncompleteCurrencyPair
+	}
+	instrumentID := format.Format(ord.Pair)
 	req := CancelOrderRequestParam{
 		InstrumentID:          instrumentID,
 		OrderID:               ord.OrderID,
@@ -847,7 +889,15 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (or
 			return cancelBatchResponse, fmt.Errorf("%w: %v", asset.ErrNotSupported, ord.AssetType)
 		}
 		var instrumentID string
-		instrumentID, err = ok.getInstrumentIDFromPair(ctx, ord.Pair, ord.AssetType)
+		var format currency.PairFormat
+		format, err = ok.GetPairFormat(ord.AssetType, false)
+		if err != nil {
+			return cancelBatchResponse, err
+		}
+		if ord.Pair.Base.String() == "" || ord.Pair.Quote.String() == "" {
+			return cancelBatchResponse, errIncompleteCurrencyPair
+		}
+		instrumentID = format.Format(ord.Pair)
 		if err != nil {
 			return cancelBatchResponse, err
 		}
@@ -858,7 +908,7 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (or
 		}
 		cancelOrderParams = append(cancelOrderParams, req)
 	}
-	var canceledOrders []WsOrderData
+	var canceledOrders []OrderData
 	if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		canceledOrders, err = ok.WsCancelMultipleOrder(cancelOrderParams)
 	} else {
@@ -897,7 +947,7 @@ func (ok *Okx) CancelAllOrders(ctx context.Context, orderCancellation *order.Can
 	remaining := cancelAllOrdersRequestParams
 	loop := int(math.Ceil(float64(len(remaining)) / 20.0))
 	for b := 0; b < loop; b++ {
-		var response []WsOrderData
+		var response []OrderData
 		if len(remaining) > 20 {
 			if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 				response, err = ok.WsCancelMultipleOrder(remaining[:20])
@@ -931,10 +981,14 @@ func (ok *Okx) CancelAllOrders(ctx context.Context, orderCancellation *order.Can
 // GetOrderInfo returns order information based on order ID
 func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var respData order.Detail
-	instrumentID, err := ok.getInstrumentIDFromPair(ctx, pair, assetType)
+	format, err := ok.GetPairFormat(assetType, false)
 	if err != nil {
 		return respData, err
 	}
+	if pair.Base.String() == "" || pair.Quote.String() == "" {
+		return respData, errIncompleteCurrencyPair
+	}
+	instrumentID := format.Format(pair)
 	if !ok.SupportsAsset(assetType) {
 		return respData, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
 	}
@@ -1190,10 +1244,14 @@ func (ok *Okx) GetHistoricCandles(ctx context.Context, pair currency.Pair, a ass
 	if kline.TotalCandlesPerInterval(start, end, interval) > 100 {
 		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
 	}
-	instrumentID, err := ok.getInstrumentIDFromPair(ctx, pair, a)
+	format, err := ok.GetPairFormat(a, false)
 	if err != nil {
 		return kline.Item{}, err
 	}
+	if pair.Base.String() == "" || pair.Quote.String() == "" {
+		return kline.Item{}, errIncompleteCurrencyPair
+	}
+	instrumentID := format.Format(pair)
 	candles, err := ok.GetCandlesticksHistory(ctx, instrumentID, interval, start, end, 100)
 	if err != nil {
 		return kline.Item{}, err
@@ -1220,14 +1278,14 @@ func (ok *Okx) GetHistoricCandles(ctx context.Context, pair currency.Pair, a ass
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (ok *Okx) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := ok.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
-	}
-	formattedPair, err := ok.FormatExchangeCurrency(pair, a)
+	format, err := ok.GetPairFormat(a, false)
 	if err != nil {
 		return kline.Item{}, err
 	}
-	instrumentID, err := ok.getInstrumentIDFromPair(ctx, formattedPair, a)
+	if err := ok.ValidateKline(pair, a, interval); err != nil {
+		return kline.Item{}, err
+	}
+	instrumentID := format.Format(pair)
 	if err != nil {
 		return kline.Item{}, err
 	}

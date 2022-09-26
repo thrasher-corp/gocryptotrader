@@ -2435,3 +2435,19 @@ func (a *ActiveFundingOrder) UnmarshalJSON(data []byte) error {
 	a.PurchasedTime = time.UnixMilli(chil.PurchasedTime)
 	return nil
 }
+
+// UnmarshalJSON decerializes JSON, and timestamp information.
+func (a *PublicBorrowInfo) UnmarshalJSON(data []byte) error {
+	type Alias PublicBorrowInfo
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"ts,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}

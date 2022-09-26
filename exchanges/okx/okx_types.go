@@ -2,7 +2,6 @@ package okx
 
 import (
 	"encoding/json"
-	"errors"
 	"strconv"
 	"time"
 
@@ -598,8 +597,8 @@ type PlaceOrderRequestParam struct {
 	ExpiryTime time.Time `json:"expTime"`
 }
 
-// WsOrderData response message for place, cancel, and amend an order requests.
-type WsOrderData struct {
+// OrderData response message for place, cancel, and amend an order requests.
+type OrderData struct {
 	OrderID               string `json:"ordId,omitempty"`
 	RequestID             string `json:"reqId,omitempty"`
 	ClientSupplierOrderID string `json:"clOrdId,omitempty"`
@@ -1110,12 +1109,10 @@ type LendingHistory struct {
 
 // PublicBorrowInfo holds borrow info.
 type PublicBorrowInfo struct {
-	Ccy       string  `json:"ccy"`
-	AvgAmt    float64 `json:"avgAmt,string"`
-	AvgAmtUsd float64 `json:"avgAmtUsd,string"`
-	AvgRate   float64 `json:"avgRate,string"`
-	PreRate   float64 `json:"preRate,string"`
-	EstRate   float64 `json:"estRate,string"`
+	Amount    float64   `json:"amt,string"`
+	Currency  string    `json:"ccy"`
+	Rate      float64   `json:"rate,string"`
+	Timestamp time.Time `json:"ts"`
 }
 
 // ConvertCurrency represents currency conversion detailed data.
@@ -1598,13 +1595,13 @@ type PositionBuilderInput struct {
 type PositionBuilderResponse struct {
 	InitialMarginRequirement     string                `json:"imr"` // Initial margin requirement of riskUnit dimension
 	MaintenanceMarginRequirement string                `json:"mmr"` // Maintenance margin requirement of riskUnit dimension
-	Mr1                          string                `json:"mr1"`
-	Mr2                          string                `json:"mr2"`
-	Mr3                          string                `json:"mr3"`
-	Mr4                          string                `json:"mr4"`
-	Mr5                          string                `json:"mr5"`
-	Mr6                          string                `json:"mr6"`
-	Mr7                          string                `json:"mr7"`
+	SpotAndVolumeMovement        string                `json:"mr1"`
+	ThetaDecay                   string                `json:"mr2"`
+	VegaTermStructure            string                `json:"mr3"`
+	BasicRisk                    string                `json:"mr4"`
+	InterestRateRisk             string                `json:"mr5"`
+	ExtreamMarketMove            string                `json:"mr6"`
+	TransactionCostAndSlippage   string                `json:"mr7"`
 	PositionData                 []PositionBuilderData `json:"posData"` // List of positions
 	RiskUnit                     string                `json:"riskUnit"`
 	Timestamp                    time.Time             `json:"ts"`
@@ -2252,11 +2249,11 @@ type WSPlaceOrder struct {
 
 // WSOrderResponse place order response thought the websocket connection.
 type WSOrderResponse struct {
-	ID        string        `json:"id"`
-	Operation string        `json:"op"`
-	Data      []WsOrderData `json:"data"`
-	Code      string        `json:"code,omitempty"`
-	Msg       string        `json:"msg,omitempty"`
+	ID        string      `json:"id"`
+	Operation string      `json:"op"`
+	Data      []OrderData `json:"data"`
+	Code      string      `json:"code,omitempty"`
+	Msg       string      `json:"msg,omitempty"`
 }
 
 // WebsocketDataResponse represents all pushed websocket data coming thought the websocket connection
@@ -2264,6 +2261,11 @@ type WebsocketDataResponse struct {
 	Argument SubscriptionInfo `json:"arg"`
 	Action   string           `json:"action"`
 	Data     []interface{}    `json:"data"`
+}
+
+type wsIncomingChannelWithID struct {
+	ID   string
+	Chan chan *wsIncomingData
 }
 
 type wsIncomingData struct {
@@ -2290,16 +2292,15 @@ func (w *wsIncomingData) copyToSubscriptionResponse() *SubscriptionOperationResp
 
 // copyToPlaceOrderResponse returns WSPlaceOrderResponse struct instance
 func (w *wsIncomingData) copyToPlaceOrderResponse() (*WSOrderResponse, error) {
-	if w.Data == nil || len(w.Data) == 0 {
-		return nil, errors.New("empty place order data")
+	if len(w.Data) == 0 {
+		return nil, errEmptyPlaceOrderResponse
 	}
-	var placeOrds []WsOrderData
+	var placeOrds []OrderData
 	value, err := json.Marshal(w.Data)
 	if err != nil {
 		return nil, err
 	}
-	err = json.Unmarshal(value, &placeOrds)
-	if err != nil {
+	if err = json.Unmarshal(value, &placeOrds); err != nil {
 		return nil, err
 	}
 	return &WSOrderResponse{
@@ -2393,11 +2394,11 @@ type WsAmendOrderInput struct {
 
 // WsAmendOrderResponse holds websocket response Amendment request
 type WsAmendOrderResponse struct {
-	ID        string        `json:"id"`
-	Operation string        `json:"op"`
-	Data      []WsOrderData `json:"data"`
-	Code      string        `json:"code"`
-	Msg       string        `json:"msg"`
+	ID        string      `json:"id"`
+	Operation string      `json:"op"`
+	Data      []OrderData `json:"data"`
+	Code      string      `json:"code"`
+	Msg       string      `json:"msg"`
 }
 
 // SubscriptionOperationInput represents the account channel input datas
@@ -3134,4 +3135,40 @@ type FundingOrder struct {
 	PurchasedTime time.Time `json:"purchasedTime"`
 	RedeemedTime  time.Time `json:"redeemedTime"`
 	EarningCcy    []string  `json:"earningCcy,omitempty"`
+}
+
+// wsRequestDataChannelsMultiplexer a single multiplexer instance to multiplex websocket messages multiplexer channels
+type wsRequestDataChannelsMultiplexer struct {
+	// To Synchronize incoming messages coming through the websocket channel
+	WsResponseChannelsMap map[string]chan *wsIncomingData
+	Register              chan wsIncomingChannelWithID
+	Unregister            chan string
+	Message               chan *wsIncomingData
+}
+
+// Run this functions distributes websocket request responses to
+func (m *wsRequestDataChannelsMultiplexer) Run() {
+	ticker := time.NewTicker(time.Second)
+	for {
+		select {
+		case <-ticker.C:
+			for x := range m.WsResponseChannelsMap {
+				if m.WsResponseChannelsMap[x] == nil {
+					delete(m.WsResponseChannelsMap, x)
+				}
+			}
+		case id := <-m.Unregister:
+			delete(m.WsResponseChannelsMap, id)
+		case reg := <-m.Register:
+			m.WsResponseChannelsMap[reg.ID] = reg.Chan
+		case msg := <-m.Message:
+			if msg.ID != "" && m.WsResponseChannelsMap[msg.ID] != nil {
+				m.WsResponseChannelsMap[msg.ID] <- msg
+				continue
+			}
+			for x := range m.WsResponseChannelsMap {
+				m.WsResponseChannelsMap[x] <- msg
+			}
+		}
+	}
 }
