@@ -477,6 +477,10 @@ func (ll *bids) getBaseAmountFromNominalSlippage(slippage, refPrice float64) (Sh
 
 		if slippage < percent {
 			targetCost := (1 - slippage/100) * refPrice
+			if targetCost == refPrice {
+				// Rounding issue on requested nominal percentage
+				return nominal, nil
+			}
 			comparative := targetCost * cumulativeAmounts
 			comparativeDiff := comparative - cumulativeValue
 			trancheTargetPriceDiff := tip.Value.Price - targetCost
@@ -638,6 +642,10 @@ func (ll *asks) getQuoteAmountFromNominalSlippage(slippage, refPrice float64) (S
 		percent := math.CalculatePercentageGainOrLoss(aggTrancheCost, refPrice)
 		if slippage < percent {
 			targetCost := (1 + slippage/100) * refPrice
+			if targetCost == refPrice {
+				// Rounding issue on requested nominal percentage
+				return nominal, nil
+			}
 			comparative := targetCost * cumulativeAmounts
 			comparativeDiff := comparative - nominal.AmountRequired
 			trancheTargetPriceDiff := tip.Value.Price - targetCost
@@ -830,7 +838,7 @@ func getMovement(leftover, amounts, totalValue, headPrice, refPrice, tranchePric
 	// cost.
 	nominalP := math.CalculatePercentageGainOrLoss(averageOrderPrice, refPrice)
 	// Impact orderbook pct is how much the book slips from the reference price
-	// to left over tranche price tranche price.
+	// to left over tranche price.
 	impactP := math.CalculatePercentageGainOrLoss(tranchePrice, headPrice)
 	// Slippage cost is the total imaginary reference price to the total
 	// base deployment minus total value which is the aggregate total of all

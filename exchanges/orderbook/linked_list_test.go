@@ -1625,6 +1625,18 @@ func TestGetBaseAmountFromNominalSlippage(t *testing.T) {
 			},
 		},
 		{
+			Name:            "consume first tranche - take one amount out of second",
+			BidLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 9900, Amount: 7}, {Price: 9800, Amount: 3}},
+			NominalSlippage: 0.33333333333334,
+			ReferencePrice:  10000,
+			ExpectedShift: Shift{
+				AmountRequired:        3.0000000000000275, // <- expected rounding issue
+				ApproximatePercentage: 0.33333333333334,
+				StartPrice:            10000,
+				EndPrice:              9900,
+			},
+		},
+		{
 			Name:            "consume full liquidity",
 			BidLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 9900, Amount: 7}, {Price: 9800, Amount: 3}},
 			NominalSlippage: 10,
@@ -1635,6 +1647,19 @@ func TestGetBaseAmountFromNominalSlippage(t *testing.T) {
 				StartPrice:            10000,
 				EndPrice:              9800,
 				FullBookSideConsumed:  true,
+			},
+			ExpectedError: nil,
+		},
+		{
+			Name:            "scotts lovely slippery slippage requirements",
+			BidLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 9900, Amount: 7}, {Price: 9800, Amount: 3}},
+			NominalSlippage: 0.00000000000000000000000000000000000000000000000000000000000000000000000000000000001,
+			ReferencePrice:  10000,
+			ExpectedShift: Shift{
+				AmountRequired:        2,
+				ApproximatePercentage: 0,
+				StartPrice:            10000,
+				EndPrice:              10000,
 			},
 			ExpectedError: nil,
 		},
@@ -1927,6 +1952,19 @@ func TestGetQuoteAmountFromNominalSlippage(t *testing.T) {
 				EndPrice:              10200,
 				FullBookSideConsumed:  true,
 			},
+		},
+		{
+			Name:            "scotts lovely slippery slippage requirements",
+			AskLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
+			NominalSlippage: 0.00000000000000000000000000000000000000000000000000000000000000000000000000000000001,
+			ReferencePrice:  10000,
+			ExpectedShift: Shift{
+				AmountRequired:        20000,
+				ApproximatePercentage: 0,
+				StartPrice:            10000,
+				EndPrice:              10000,
+			},
+			ExpectedError: nil,
 		},
 	}
 

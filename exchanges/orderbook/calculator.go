@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	math "github.com/thrasher-corp/gocryptotrader/common/math"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
 const fullLiquidityUsageWarning = "[WARNING]: Full liquidity exhausted."
@@ -71,48 +72,51 @@ func (b *Base) WhaleBomb(priceTarget float64, buy bool) (*WhaleBombResult, error
 
 // SimulateOrder simulates an order
 func (b *Base) SimulateOrder(amount float64, buy bool) (*WhaleBombResult, error) {
-	var warning string
+	var direction string
+	var action *DeploymentAction
+	var soldAmount, boughtAmount, minimumPrice, maximumPrice float64
+	var sold, bought currency.Code
+	var err error
 	if buy {
-		action, err := b.buy(amount)
+		direction = "Buying"
+		action, err = b.buy(amount)
 		if err != nil {
 			return nil, err
 		}
-
-		if action.FullLiquidityUsed {
-			warning = fullLiquidityUsageWarning
+		soldAmount = action.QuoteAmount
+		boughtAmount = action.BaseAmount
+		maximumPrice = action.TranchePositionPrice
+		minimumPrice = action.ReferencePrice
+		sold = b.Pair.Quote
+		bought = b.Pair.Base
+	} else {
+		direction = "Selling"
+		action, err = b.sell(amount)
+		if err != nil {
+			return nil, err
 		}
-
-		pct := math.CalculatePercentageGainOrLoss(action.TranchePositionPrice, action.ReferencePrice)
-		status := fmt.Sprintf("Buying using %.2f %v worth of %v will send the price from %v to %v [%.2f%%] and impact %d price tranche(s). %s",
-			action.QuoteAmount, b.Pair.Quote.String(), b.Pair.Base.String(), action.ReferencePrice, action.TranchePositionPrice,
-			pct, len(action.Tranches), warning)
-		return &WhaleBombResult{
-			Orders:               action.Tranches,
-			Amount:               action.BaseAmount,
-			MinimumPrice:         action.ReferencePrice,
-			MaximumPrice:         action.TranchePositionPrice,
-			PercentageGainOrLoss: pct,
-			Status:               status,
-		}, nil
-	}
-	action, err := b.sell(amount)
-	if err != nil {
-		return nil, err
+		soldAmount = action.BaseAmount
+		boughtAmount = action.QuoteAmount
+		minimumPrice = action.TranchePositionPrice
+		maximumPrice = action.ReferencePrice
+		sold = b.Pair.Base
+		bought = b.Pair.Quote
 	}
 
+	var warning string
 	if action.FullLiquidityUsed {
 		warning = fullLiquidityUsageWarning
 	}
 
 	pct := math.CalculatePercentageGainOrLoss(action.TranchePositionPrice, action.ReferencePrice)
-	status := fmt.Sprintf("Selling using %f %v worth of %v will send the price from %v to %v [%.2f%%] and impact %v price tranche(s). %s",
-		action.BaseAmount, b.Pair.Base.String(), b.Pair.Quote.String(), action.ReferencePrice, action.TranchePositionPrice,
-		pct, len(action.Tranches), warning)
+	status := fmt.Sprintf("%s using %f %v worth of %v will send the price from %v to %v [%.2f%%] and impact %v price tranche(s). %s",
+		direction, soldAmount, sold, bought, action.ReferencePrice,
+		action.TranchePositionPrice, pct, len(action.Tranches), warning)
 	return &WhaleBombResult{
 		Orders:               action.Tranches,
-		Amount:               action.QuoteAmount,
-		MinimumPrice:         action.TranchePositionPrice,
-		MaximumPrice:         action.ReferencePrice,
+		Amount:               boughtAmount,
+		MinimumPrice:         minimumPrice,
+		MaximumPrice:         maximumPrice,
 		PercentageGainOrLoss: pct,
 		Status:               status,
 	}, nil
