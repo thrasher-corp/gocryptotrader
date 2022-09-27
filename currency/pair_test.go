@@ -70,6 +70,19 @@ func TestPairUnmarshalJSON(t *testing.T) {
 		t.Errorf("Pairs UnmarshalJSON() error expected %s but received %s",
 			configPair, unmarshalHere)
 	}
+
+	encoded, err = json.Marshal(EMPTYPAIR)
+	err = json.Unmarshal(encoded, &unmarshalHere)
+	if err != nil {
+		t.Fatal("Pair UnmarshalJSON() error", err)
+	}
+	err = json.Unmarshal([]byte("null"), &unmarshalHere)
+	if err != nil {
+		t.Fatal("Pair UnmarshalJSON() error", err)
+	}
+	if unmarshalHere != EMPTYPAIR {
+		t.Fatalf("Expected EMPTPAIR got: %s", unmarshalHere)
+	}
 }
 
 func TestPairMarshalJSON(t *testing.T) {
