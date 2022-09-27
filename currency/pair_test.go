@@ -72,6 +72,9 @@ func TestPairUnmarshalJSON(t *testing.T) {
 	}
 
 	encoded, err = json.Marshal(EMPTYPAIR)
+	if err != nil {
+		t.Fatal(err)
+	}
 	err = json.Unmarshal(encoded, &unmarshalHere)
 	if err != nil {
 		t.Fatal("Pair UnmarshalJSON() error", err)
