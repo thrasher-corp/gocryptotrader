@@ -61,18 +61,22 @@ func (bt *BackTest) ExecuteStrategy(waitForOfflineCompletion bool) error {
 		return gctcommon.ErrNilPointer
 	}
 	bt.m.Lock()
-	defer bt.m.Unlock()
 	if bt.MetaData.DateLoaded.IsZero() {
+		bt.m.Unlock()
 		return errNotSetup
 	}
 	if !bt.MetaData.Closed && !bt.MetaData.DateStarted.IsZero() {
+		bt.m.Unlock()
 		return fmt.Errorf("%w %v %v", errRunIsRunning, bt.MetaData.ID, bt.MetaData.Strategy)
 	}
 	if bt.MetaData.Closed {
+		bt.m.Unlock()
 		return fmt.Errorf("%w %v %v", errAlreadyRan, bt.MetaData.ID, bt.MetaData.Strategy)
 	}
 
 	bt.MetaData.DateStarted = time.Now()
+	liveTesting := bt.MetaData.LiveTesting
+	bt.m.Unlock()
 	var wg sync.WaitGroup
 	if waitForOfflineCompletion {
 		wg.Add(1)
@@ -81,7 +85,7 @@ func (bt *BackTest) ExecuteStrategy(waitForOfflineCompletion bool) error {
 		if waitForOfflineCompletion {
 			defer wg.Done()
 		}
-		if bt.MetaData.LiveTesting {
+		if liveTesting {
 			if waitForOfflineCompletion {
 				log.Errorf(common.Backtester, "%v cannot wait for completion of a live test", errCannotHandleRequest)
 				return
@@ -93,8 +97,10 @@ func (bt *BackTest) ExecuteStrategy(waitForOfflineCompletion bool) error {
 		} else {
 			bt.Run()
 			close(bt.shutdown)
+			bt.m.Lock()
 			bt.MetaData.Closed = true
 			bt.MetaData.DateEnded = time.Now()
+			bt.m.Unlock()
 			err := bt.Statistic.CalculateAllResults()
 			if err != nil {
 				log.Error(log.Global, err)

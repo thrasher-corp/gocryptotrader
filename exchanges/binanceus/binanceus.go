@@ -288,7 +288,7 @@ func (bi *Binanceus) batchAggregateTrades(ctx context.Context, arg *AggregatedTr
 		increment := time.Second * 10
 		for len(resp) == 0 {
 			startTime = startTime.Add(increment)
-			if !endTime.IsZero() && !startTime.Before(endTime) {
+			if !endTime.IsZero() && startTime.After(endTime) {
 				// All requests returned empty
 				return nil, nil
 			}
@@ -915,10 +915,10 @@ func (bi *Binanceus) GetSubaccountTransferHistory(ctx context.Context,
 
 	hundredDayBefore := time.Now()
 	hundredDayBefore.Sub(time.UnixMilli(int64((time.Hour * 24 * 10) / time.Millisecond)))
-	if !(startTimeT.Before(hundredDayBefore)) || !startTimeT.After(time.Now()) {
+	if !(startTimeT.Before(hundredDayBefore)) || startTimeT.Before(time.Now()) {
 		params.Set("startTime", strconv.Itoa(int(startTime)))
 	}
-	if !(endTimeT.Before(hundredDayBefore)) || !endTimeT.After(time.Now()) {
+	if !(endTimeT.Before(hundredDayBefore)) || endTimeT.Before(time.Now()) {
 		params.Set("startTime", strconv.Itoa(int(endTime)))
 	}
 	return resp.Transfers, bi.SendAuthHTTPRequest(ctx,
