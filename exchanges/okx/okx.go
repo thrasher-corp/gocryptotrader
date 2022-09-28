@@ -3132,7 +3132,7 @@ func (ok *Okx) GetUnderlying(pair currency.Pair, a asset.Item) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if pair.Base.String() == "" || pair.Quote.String() == "" {
+	if !pair.IsComplete() {
 		return "", errIncompleteCurrencyPair
 	}
 	return pair.Base.String() + format.Delimiter + pair.Quote.String(), nil
@@ -3140,9 +3140,9 @@ func (ok *Okx) GetUnderlying(pair currency.Pair, a asset.Item) (string, error) {
 
 // GetPairFromInstrumentID returns a currency pair give an instrument ID and asset Item, which represents the instrument type.
 func (ok *Okx) GetPairFromInstrumentID(instrumentID string) (currency.Pair, error) {
-	codes := strings.Split(instrumentID, "-")
+	codes := strings.Split(instrumentID, currency.DashDelimiter)
 	if len(codes) >= 2 {
-		instrumentID = codes[0] + "-" + codes[1]
+		instrumentID = codes[0] + currency.DashDelimiter + strings.Join(codes[1:], currency.DashDelimiter)
 	}
 	pair, err := currency.NewPairFromString(instrumentID)
 	return pair, err
@@ -4366,7 +4366,7 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 			if err != nil {
 				return nil, err
 			}
-			signPath := fmt.Sprintf("/%s%s", okxAPIPath, requestPath)
+			signPath := "/" + okxAPIPath + requestPath
 			var hmac []byte
 			hmac, err = crypto.GetHMAC(crypto.HashSHA256,
 				[]byte(utcTime+httpMethod+signPath+string(payload)),
@@ -4455,7 +4455,7 @@ func (ok *Okx) GuessAssetTypeFromInstrumentID(instrumentID string) asset.Item {
 	if strings.HasSuffix(instrumentID, okxInstTypeSwap) {
 		return asset.PerpetualSwap
 	}
-	filter := strings.Split(instrumentID, "-")
+	filter := strings.Split(instrumentID, currency.DashDelimiter)
 	if len(filter) >= 4 {
 		return asset.Option
 	} else if len(filter) == 3 {

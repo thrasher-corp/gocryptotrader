@@ -182,7 +182,6 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	ok.Base.Config = exch
 
 	wsRunningEndpoint, err := ok.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
@@ -372,7 +371,7 @@ func (ok *Okx) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) 
 	if err != nil {
 		return nil, err
 	}
-	if p.Base.String() == "" || p.Quote.String() == "" {
+	if !p.IsComplete() {
 		return nil, errIncompleteCurrencyPair
 	}
 	instrumentID := format.Format(p)
@@ -383,14 +382,26 @@ func (ok *Okx) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) 
 	if err != nil {
 		return nil, err
 	}
+	var baseVolume float64
+	var quoteVolume float64
+	switch a {
+	case asset.Spot, asset.Margin:
+		baseVolume = mdata.Vol24H
+		quoteVolume = mdata.VolCcy24H
+	case asset.PerpetualSwap, asset.Futures, asset.Option:
+		baseVolume = mdata.VolCcy24H
+		quoteVolume = mdata.Vol24H
+	default:
+		return nil, fmt.Errorf("%w, asset type %s is not supported", errInvalidInstrumentType, a.String())
+	}
 	err = ticker.ProcessTicker(&ticker.Price{
 		Last:         mdata.LastTradePrice,
 		High:         mdata.High24H,
 		Low:          mdata.Low24H,
 		Bid:          mdata.BidPrice,
 		Ask:          mdata.BestAskPrice,
-		Volume:       mdata.Vol24H,
-		QuoteVolume:  mdata.VolCcy24H,
+		Volume:       baseVolume,
+		QuoteVolume:  quoteVolume,
 		Open:         mdata.Open24H,
 		Pair:         p,
 		ExchangeName: ok.Name,
@@ -495,7 +506,7 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 	if err != nil {
 		return nil, err
 	}
-	if pair.Base.String() == "" || pair.Quote.String() == "" {
+	if !pair.IsComplete() {
 		return nil, errIncompleteCurrencyPair
 	}
 	instrumentID = format.Format(pair)
@@ -650,7 +661,7 @@ func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 	if err != nil {
 		return nil, err
 	}
-	if p.Base.String() == "" || p.Quote.String() == "" {
+	if !p.IsComplete() {
 		return nil, errIncompleteCurrencyPair
 	}
 	instrumentID := format.Format(p)
@@ -693,7 +704,7 @@ func (ok *Okx) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType
 	if err != nil {
 		return nil, err
 	}
-	if p.Base.String() == "" || p.Quote.String() == "" {
+	if !p.IsComplete() {
 		return nil, errIncompleteCurrencyPair
 	}
 	instrumentID := format.Format(p)
@@ -743,7 +754,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 	if err != nil {
 		return nil, err
 	}
-	if s.Pair.Base.String() == "" || s.Pair.Quote.String() == "" {
+	if !s.Pair.IsComplete() {
 		return nil, errIncompleteCurrencyPair
 	}
 	instrumentID := format.Format(s.Pair)
@@ -815,7 +826,7 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 	if err != nil {
 		return nil, err
 	}
-	if action.Pair.Base.String() == "" || action.Pair.Quote.String() == "" {
+	if !action.Pair.IsComplete() {
 		return nil, errIncompleteCurrencyPair
 	}
 	instrumentID := format.Format(action.Pair)
@@ -857,7 +868,7 @@ func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	if err != nil {
 		return err
 	}
-	if ord.Pair.Base.String() == "" || ord.Pair.Quote.String() == "" {
+	if !ord.Pair.IsComplete() {
 		return errIncompleteCurrencyPair
 	}
 	instrumentID := format.Format(ord.Pair)
@@ -894,7 +905,7 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (or
 		if err != nil {
 			return cancelBatchResponse, err
 		}
-		if ord.Pair.Base.String() == "" || ord.Pair.Quote.String() == "" {
+		if !ord.Pair.IsComplete() {
 			return cancelBatchResponse, errIncompleteCurrencyPair
 		}
 		instrumentID = format.Format(ord.Pair)
@@ -985,7 +996,7 @@ func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 	if err != nil {
 		return respData, err
 	}
-	if pair.Base.String() == "" || pair.Quote.String() == "" {
+	if !pair.IsComplete() {
 		return respData, errIncompleteCurrencyPair
 	}
 	instrumentID := format.Format(pair)
@@ -1248,7 +1259,7 @@ func (ok *Okx) GetHistoricCandles(ctx context.Context, pair currency.Pair, a ass
 	if err != nil {
 		return kline.Item{}, err
 	}
-	if pair.Base.String() == "" || pair.Quote.String() == "" {
+	if !pair.IsComplete() {
 		return kline.Item{}, errIncompleteCurrencyPair
 	}
 	instrumentID := format.Format(pair)

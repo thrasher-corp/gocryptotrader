@@ -752,8 +752,8 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 	if err != nil {
 		return err
 	}
-	if pair.Base.IsEmpty() || pair.Quote.IsEmpty() {
-		return errors.New("invalid currency pair information")
+	if !pair.IsComplete() {
+		return errIncompleteCurrencyPair
 	}
 	pair.Delimiter = currency.DashDelimiter
 	for i := range response.Data {
@@ -1142,6 +1142,7 @@ func (ok *Okx) wsProcessTickers(data []byte) error {
 	if err := json.Unmarshal(data, &response); err != nil {
 		return err
 	}
+
 	for i := range response.Data {
 		a := response.Data[i].InstrumentType
 		if a == asset.Empty {
@@ -1158,12 +1159,15 @@ func (ok *Okx) wsProcessTickers(data []byte) error {
 		}
 		var baseVolume float64
 		var quoteVolume float64
-		if a == asset.Spot || a == asset.Margin {
+		switch a {
+		case asset.Spot, asset.Margin:
 			baseVolume = response.Data[i].Vol24H
 			quoteVolume = response.Data[i].VolCcy24H
-		} else {
+		case asset.PerpetualSwap, asset.Futures, asset.Option:
 			baseVolume = response.Data[i].VolCcy24H
 			quoteVolume = response.Data[i].Vol24H
+		default:
+			return fmt.Errorf("%w, asset type %s is not supported", errInvalidInstrumentType, a.String())
 		}
 		ok.Websocket.DataHandler <- &ticker.Price{
 			ExchangeName: ok.Name,

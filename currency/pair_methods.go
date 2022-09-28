@@ -134,3 +134,11 @@ func (p Pair) Other(c Code) (Code, error) {
 	}
 	return EMPTYCODE, ErrCurrencyCodeEmpty
 }
+
+// IsComplete returns true if the currency pair have both non-empty values for base and quote.
+func (p Pair) IsComplete() bool {
+	if !p.Base.IsEmpty() && !p.Quote.IsEmpty() {
+		return true
+	}
+	return false
+}

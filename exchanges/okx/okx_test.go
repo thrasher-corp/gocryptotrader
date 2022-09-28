@@ -2530,7 +2530,7 @@ func TestUpdateTradablePairs(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	if _, err := ok.UpdateTicker(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.Futures); err != nil {
+	if _, err := ok.UpdateTicker(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.Option); err != nil {
 		t.Error("Okx UpdateTicker() error", err)
 	}
 }
@@ -2957,6 +2957,7 @@ var updateOrderBookPushDataJSON = `{"arg":{"channel":"books","instId":"BTC-USDT"
 
 func TestSnapshotAndUpdateOrderBookPushData(t *testing.T) {
 	t.Parallel()
+	ok.Verbose = true
 	if err := ok.WsHandleData([]byte(snapshotOrderBookPushData)); err != nil {
 		t.Error("Okx Snapshot order book push data error", err)
 	}

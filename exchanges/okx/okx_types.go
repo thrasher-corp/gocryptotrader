@@ -3153,8 +3153,8 @@ func (m *wsRequestDataChannelsMultiplexer) Run() {
 	for {
 		select {
 		case <-ticker.C:
-			for x := range m.WsResponseChannelsMap {
-				if m.WsResponseChannelsMap[x] == nil {
+			for x, myChan := range m.WsResponseChannelsMap {
+				if myChan == nil {
 					delete(m.WsResponseChannelsMap, x)
 				}
 			}
@@ -3167,8 +3167,8 @@ func (m *wsRequestDataChannelsMultiplexer) Run() {
 				m.WsResponseChannelsMap[msg.ID] <- msg
 				continue
 			}
-			for x := range m.WsResponseChannelsMap {
-				m.WsResponseChannelsMap[x] <- msg
+			for _, myChan := range m.WsResponseChannelsMap {
+				myChan <- msg
 			}
 		}
 	}

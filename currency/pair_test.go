@@ -911,3 +911,18 @@ func TestOther(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 }
+
+func TestIsComplete(t *testing.T) {
+	if receiver := NewPair(BTC, USDT).IsComplete(); !receiver {
+		t.Fatal("unexpected value")
+	}
+	if receiver := NewPair(BTC, NewCode("USD-1245")).IsComplete(); !receiver {
+		t.Fatal("unexpected value")
+	}
+	if receiver := NewPair(BTC, EMPTYCODE).IsComplete(); receiver {
+		t.Fatal("unexpected value")
+	}
+	if receiver := NewPair(EMPTYCODE, EMPTYCODE).IsComplete(); receiver {
+		t.Fatal("unexpected value")
+	}
+}
