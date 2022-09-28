@@ -84,7 +84,7 @@ func TestPairUnmarshalJSON(t *testing.T) {
 		t.Fatal("Pair UnmarshalJSON() error", err)
 	}
 	if unmarshalHere != EMPTYPAIR {
-		t.Fatalf("Expected EMPTPAIR got: %s", unmarshalHere)
+		t.Fatalf("Expected EMPTYPAIR got: %s", unmarshalHere)
 	}
 }
 
