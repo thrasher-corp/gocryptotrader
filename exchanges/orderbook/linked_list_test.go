@@ -2098,39 +2098,3 @@ func TestGetHeadPrice(t *testing.T) {
 		t.Fatal("unexpected value", val)
 	}
 }
-
-func TestGetSideAmounts(t *testing.T) {
-	t.Parallel()
-	depth := NewDepth(id)
-	amt := depth.asks.getSideAmounts()
-	if amt != (SideAmounts{}) {
-		t.Fatal("should be empty")
-	}
-	amt = depth.bids.getSideAmounts()
-	if amt != (SideAmounts{}) {
-		t.Fatal("should be empty")
-	}
-
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
-	amt = depth.asks.getSideAmounts()
-	if amt.Tranches != 20 {
-		t.Fatal("unexpected value")
-	}
-	if amt.BaseAmount != 20 {
-		t.Fatal("unexpected value")
-	}
-	if amt.QuoteValue != 26930 {
-		t.Fatal("unexpected value", amt.QuoteValue)
-	}
-
-	amt = depth.bids.getSideAmounts()
-	if amt.Tranches != 20 {
-		t.Fatal("unexpected value")
-	}
-	if amt.BaseAmount != 20 {
-		t.Fatal("unexpected value")
-	}
-	if amt.QuoteValue != 26530 {
-		t.Fatal("unexpected value", amt.QuoteValue)
-	}
-}

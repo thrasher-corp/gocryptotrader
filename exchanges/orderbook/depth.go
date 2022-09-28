@@ -471,39 +471,54 @@ func (d *Depth) GetQuoteFromImpactSlippageFromBest(maxSlippage float64) (Shift, 
 	return d.asks.getQuoteAmountFromImpact(maxSlippage, head)
 }
 
-// GetMovementByBase derives your slippage from the reference price to the
-// potential deployment average order cost using the quote amount. This hits the
-// bids when you are ask/sell side.
-func (d *Depth) GetMovementByBase(base, refPrice float64) (*Movement, error) {
+// GetMovementHitBids derives full orderbook slippage information from reference
+// price. This hits the bids when you are ask/sell side. Purchase boolean
+// relates to the amount you wish to sell or purchase. e.g. If purchase == false
+// base amount is deployed else purchase == true is the required quote amount to
+// be purchased.
+func (d *Depth) GetMovementHitBids(amount, refPrice float64, purchase bool) (*Movement, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
-	return d.bids.getMovementByBaseAmount(base, refPrice)
+	if purchase {
+		return d.bids.getMovementByRequiredQuoteAmount(amount, refPrice)
+	}
+	return d.bids.getMovementByBaseAmount(amount, refPrice)
 }
 
-// GetMovementByBaseFromMid derives your slippage from the mid price
-// between top bid ask quotations to the potential deployment average order
-// cost using the base amount. This hits the bids when you are ask/sell side.
-func (d *Depth) GetMovementByBaseFromMid(base float64) (*Movement, error) {
+// GetMovementHitBidsFromMid derives full orderbook slippage information from
+// mid price. This hits the bids when you are ask/sell side. Purchase boolean
+// relates to the amount you wish to sell or purchase. e.g. If purchase == false
+// base amount is deployed else purchase == true is the required quote amount to
+// be purchased.
+func (d *Depth) GetMovementHitBidsFromMid(amount float64, purchase bool) (*Movement, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
 	mid, err := d.getMidPriceNoLock()
 	if err != nil {
 		return nil, err
 	}
-	return d.bids.getMovementByBaseAmount(base, mid)
+	if purchase {
+		return d.bids.getMovementByRequiredQuoteAmount(amount, mid)
+	}
+	return d.bids.getMovementByBaseAmount(amount, mid)
 }
 
-// GetMovementByBaseFromBest derives your slippage from the best bid price
-// to the potential deployment average order cost using the base amount. This
-// hits the bids when you are ask/sell side.
-func (d *Depth) GetMovementByBaseFromBest(base float64) (*Movement, error) {
+// GetMovementHitBidsFromBest derives full orderbook slippage information from
+// best price. This hits the bids when you are ask/sell side. Purchase boolean
+// relates to the amount you wish to sell or purchase. e.g. If purchase == false
+// base amount is deployed else purchase == true is the required quote amount to
+// be purchased.
+func (d *Depth) GetMovementHitBidsFromBest(amount float64, purchase bool) (*Movement, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
 	head, err := d.bids.getHeadPriceNoLock()
 	if err != nil {
 		return nil, err
 	}
-	return d.bids.getMovementByBaseAmount(base, head)
+	if purchase {
+		return d.bids.getMovementByRequiredQuoteAmount(amount, head)
+	}
+	return d.bids.getMovementByBaseAmount(amount, head)
 }
 
 // GetMovementByQuote derives your slippage from the reference price to the

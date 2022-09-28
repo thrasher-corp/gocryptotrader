@@ -7,6 +7,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/math"
 )
 
+// FullLiquidityExhuastedPercentage defines when a book has been completely
+// wiped out of potential liquidity.
+const FullLiquidityExhuastedPercentage = -100
+
 var (
 	errIDCannotBeMatched               = errors.New("cannot match ID on linked list")
 	errCollisionDetected               = errors.New("cannot insert update collision detected")
@@ -16,6 +20,8 @@ var (
 	errBaseAmountInvalid               = errors.New("invalid base amount")
 	errInvalidReferencePrice           = errors.New("invalid reference price")
 	errQuoteAmountInvalid              = errors.New("quote amount invalid")
+	errInvalidCost                     = errors.New("invalid cost amount")
+	errInvalidAmount                   = errors.New("invalid amount")
 
 	// ErrFullLiquidityUsed defines an error for when the entire liquidity side
 	// is used up.
@@ -353,16 +359,6 @@ func (ll *linkedList) insertUpdates(updts Items, stack *stack, comp comparison) 
 	return nil
 }
 
-// getSideAmounts returns the amounts pertaining to the liquidity side
-func (ll *linkedList) getSideAmounts() (val SideAmounts) {
-	for tip := ll.head; tip != nil; tip = tip.Next {
-		val.Tranches++
-		val.QuoteValue += tip.Value.Price * tip.Value.Amount
-		val.BaseAmount += tip.Value.Amount
-	}
-	return
-}
-
 // getHeadPrice gets best/head price
 func (ll *linkedList) getHeadPriceNoLock() (float64, error) {
 	if ll.head == nil {
@@ -408,39 +404,135 @@ func (ll *bids) getMovementByBaseAmount(base, refPrice float64) (*Movement, erro
 		return nil, errInvalidReferencePrice
 	}
 
-	head, err := ll.getHeadPriceNoLock()
-	if err != nil {
-		return nil, err
-	}
-
-	var totalValue, amounts, tranchePrice float64
-	var noLiquidity bool
+	m := Movement{StartPrice: refPrice}
 	for tip := ll.head; tip != nil; tip = tip.Next {
 		leftover := base - tip.Value.Amount
 		if leftover < 0 {
-			totalValue += tip.Value.Price * base
-			amounts += base
+			m.Purchased += tip.Value.Price * base
+			m.Sold += base
 			// This tranche is not consumed so the book shifts to this price.
-			tranchePrice = tip.Value.Price
+			m.EndPrice = tip.Value.Price
 			base = 0
 			break
 		}
 		// Full tranche consumed
-		totalValue += tip.Value.Price * tip.Value.Amount
-		amounts += tip.Value.Amount
+		m.Purchased += tip.Value.Price * tip.Value.Amount
+		m.Sold += tip.Value.Amount
 		base = leftover
 		if leftover == 0 {
 			// Price no longer exists on the book so use next full price tranche
 			// to calculate book impact.
-			node := tip.Next
-			if node != nil {
-				tranchePrice = node.Value.Price
+			if tip.Next != nil {
+				m.EndPrice = tip.Next.Value.Price
 			} else {
-				noLiquidity = true
+				m.FullBookSideConsumed = true
 			}
 		}
 	}
-	return getMovement(base, amounts, totalValue, head, refPrice, tranchePrice, noLiquidity)
+	return m.mutateFields(m.Purchased, m.Sold, refPrice, base)
+}
+
+// getMovementByRequiredQuoteAmount hits the bid liquidity in relation to the
+// quote amount required to be purchased and returns movement details. This is
+// market selling. (ASK/SELL side).
+func (ll *bids) getMovementByRequiredQuoteAmount(quote, refPrice float64) (*Movement, error) {
+	if quote <= 0 {
+		return nil, errQuoteAmountInvalid
+	}
+	if refPrice <= 0 {
+		return nil, errInvalidReferencePrice
+	}
+
+	m := Movement{StartPrice: refPrice}
+	for tip := ll.head; tip != nil; tip = tip.Next {
+		trancheValue := tip.Value.Amount * tip.Value.Price
+		leftover := quote - trancheValue
+		if leftover < 0 {
+			m.Purchased += quote
+			m.Sold += quote / trancheValue * tip.Value.Amount
+			// This tranche is not consumed so the book shifts to this price.
+			m.EndPrice = tip.Value.Price
+			quote = 0
+			break
+		}
+		// Full tranche consumed
+		m.Purchased += tip.Value.Price * tip.Value.Amount
+		m.Sold += tip.Value.Amount
+		quote = leftover
+		if leftover == 0 {
+			// Price no longer exists on the book so use next full price tranche
+			// to calculate book impact. If available.
+			if tip.Next != nil {
+				m.EndPrice = tip.Next.Value.Price
+			} else {
+				m.FullBookSideConsumed = true
+			}
+		}
+	}
+	return m.mutateFields(m.Purchased, m.Sold, refPrice, quote)
+}
+
+// mutateFields sets average order costing, percentages, slippage cost and
+// preserves existing fields.
+func (m *Movement) mutateFields(cost, amount, refPrice, leftover float64) (*Movement, error) {
+	fmt.Println()
+	if cost <= 0 {
+		return nil, errInvalidCost
+	}
+
+	fmt.Println("COST", cost)
+
+	if amount <= 0 {
+		return nil, errInvalidAmount
+	}
+
+	fmt.Println("amount", amount)
+
+	if refPrice <= 0 {
+		return nil, errInvalidReferencePrice
+	}
+
+	if m.StartPrice != m.EndPrice {
+		// Average order cost defines the actual cost price as capital is
+		// deployed through the orderbook liquidity.
+		m.AverageOrderCost = cost / amount
+	} else {
+		// Edge case rounding issue for float64 with small numbers.
+		m.AverageOrderCost = m.StartPrice
+	}
+
+	fmt.Println("m.AverageOrderCost", m.AverageOrderCost)
+
+	fmt.Println("REF PRICE", refPrice)
+
+	// Nominal percentage is the difference from the reference price to average
+	// order cost.
+	m.NominalPercentage = math.CalculatePercentageGainOrLoss(m.AverageOrderCost, refPrice)
+	if m.NominalPercentage < 0 {
+		m.NominalPercentage *= -1
+	}
+
+	if !m.FullBookSideConsumed && leftover == 0 {
+		// Impact percentage is how much the orderbook slips from the reference
+		// price to the remaining tranche price.
+		m.ImpactPercentage = math.CalculatePercentageGainOrLoss(m.EndPrice, refPrice)
+		if m.ImpactPercentage < 0 {
+			m.ImpactPercentage *= -1
+		}
+	} else {
+		// Full liquidity exhausted by request amount
+		m.ImpactPercentage = FullLiquidityExhuastedPercentage
+		m.FullBookSideConsumed = true
+	}
+
+	// Slippage cost is the difference in quotation terms from the average order
+	// cost to the startPrice.
+	m.SlippageCost = cost - (m.StartPrice * amount)
+	if m.SlippageCost < 0 {
+		m.SlippageCost *= -1
+	}
+
+	return m, nil
 }
 
 // getBaseAmountFromNominalSlippage returns the base amount that can be deployed

@@ -2,6 +2,7 @@ package orderbook
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -1077,11 +1078,11 @@ func TestGetQuoteFromImpactSlippageFromBest(t *testing.T) {
 	}
 }
 
-func TestGetMovementByBase(t *testing.T) {
+func TestGetMovementHitBids(t *testing.T) {
 	t.Parallel()
 	depth := NewDepth(id)
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
-	mov, err := depth.GetMovementByBase(20.1, 1336)
+	mov, err := depth.GetMovementHitBids(20.1, 1336, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -1090,10 +1091,14 @@ func TestGetMovementByBase(t *testing.T) {
 		t.Fatal("entire side should be consumed by this value")
 	}
 
-	mov, err = depth.GetMovementByBase(1, 1336)
+	fmt.Printf("%+v\n", mov)
+
+	mov, err = depth.GetMovementHitBids(1, 1336, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
+
+	fmt.Printf("%+v\n", mov)
 
 	if mov.NominalPercentage != 0 {
 		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0)
@@ -1105,7 +1110,7 @@ func TestGetMovementByBase(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 0)
 	}
 
-	mov, err = depth.GetMovementByBase(19.5, 1336)
+	mov, err = depth.GetMovementHitBids(19.5, 1336, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -1116,14 +1121,16 @@ func TestGetMovementByBase(t *testing.T) {
 	if mov.ImpactPercentage != 1.4221556886227544 {
 		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 1.4221556886227544)
 	}
+
+	fmt.Printf("%+v\n", mov)
 	if mov.SlippageCost != 180.5 {
 		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 180.5)
 	}
 
 	// All the way up to the last price from best bid price
-	mov, err = depth.GetMovementByBase(20, 1336)
-	if !errors.Is(err, ErrFullLiquidityUsed) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrFullLiquidityUsed)
+	mov, err = depth.GetMovementHitBids(20, 1336, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
 	if mov.NominalPercentage != 0.7110778443113772 {
@@ -1137,15 +1144,15 @@ func TestGetMovementByBase(t *testing.T) {
 	}
 }
 
-func TestGetMovementByBaseFromMid(t *testing.T) {
+func TestGetMovementHitBidsFromMid(t *testing.T) {
 	t.Parallel()
 	depth := NewDepth(id)
-	_, err := depth.GetMovementByBaseFromMid(10)
+	_, err := depth.GetMovementHitBidsFromMid(10, false)
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
-	mov, err := depth.GetMovementByBaseFromMid(20.1)
+	mov, err := depth.GetMovementHitBidsFromMid(20.1, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -1154,7 +1161,7 @@ func TestGetMovementByBaseFromMid(t *testing.T) {
 		t.Fatal("entire side should be consumed by this value")
 	}
 
-	mov, err = depth.GetMovementByBaseFromMid(1)
+	mov, err = depth.GetMovementHitBidsFromMid(1, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -1169,7 +1176,7 @@ func TestGetMovementByBaseFromMid(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 0)
 	}
 
-	mov, err = depth.GetMovementByBaseFromMid(19.5)
+	mov, err = depth.GetMovementHitBidsFromMid(19.5, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -1185,7 +1192,7 @@ func TestGetMovementByBaseFromMid(t *testing.T) {
 	}
 
 	// All the way up to the last price from best bid price
-	mov, err = depth.GetMovementByBaseFromMid(20)
+	mov, err = depth.GetMovementHitBidsFromMid(20, false)
 	if !errors.Is(err, ErrFullLiquidityUsed) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrFullLiquidityUsed)
 	}
@@ -1201,15 +1208,15 @@ func TestGetMovementByBaseFromMid(t *testing.T) {
 	}
 }
 
-func TestGetMovementByBaseFromBest(t *testing.T) {
+func TestGetMovementHitBidsFromBest(t *testing.T) {
 	t.Parallel()
 	depth := NewDepth(id)
-	_, err := depth.GetMovementByBaseFromBest(10)
+	_, err := depth.GetMovementHitBidsFromBest(10, false)
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
-	mov, err := depth.GetMovementByBaseFromBest(20.1)
+	mov, err := depth.GetMovementHitBidsFromBest(20.1, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -1218,7 +1225,7 @@ func TestGetMovementByBaseFromBest(t *testing.T) {
 		t.Fatal("entire side should be consumed by this value")
 	}
 
-	mov, err = depth.GetMovementByBaseFromBest(1)
+	mov, err = depth.GetMovementHitBidsFromBest(1, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -1233,7 +1240,7 @@ func TestGetMovementByBaseFromBest(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 0)
 	}
 
-	mov, err = depth.GetMovementByBaseFromBest(19.5)
+	mov, err = depth.GetMovementHitBidsFromBest(19.5, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -1249,7 +1256,7 @@ func TestGetMovementByBaseFromBest(t *testing.T) {
 	}
 
 	// All the way up to the last price from best bid price
-	mov, err = depth.GetMovementByBaseFromBest(20)
+	mov, err = depth.GetMovementHitBidsFromBest(20, false)
 	if !errors.Is(err, ErrFullLiquidityUsed) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrFullLiquidityUsed)
 	}

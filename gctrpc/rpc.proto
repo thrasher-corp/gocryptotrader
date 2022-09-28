@@ -1287,6 +1287,7 @@ message GetOrderbookMovementRequest {
   double amount = 6;
   bool sell = 7;
   bool requires_rest_orderbook = 8;
+  bool purchase = 9;
 }
 
 message GetOrderbookMovementResponse {

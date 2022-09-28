@@ -2768,6 +2768,12 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "purchase",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [

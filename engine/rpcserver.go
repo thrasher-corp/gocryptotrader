@@ -5312,6 +5312,7 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 // GetOrderbookMovement using the requested amount simulates a buy or sell and
 // returns the nominal/impact percentages and costings.
 func (s *RPCServer) GetOrderbookMovement(ctx context.Context, r *gctrpc.GetOrderbookMovementRequest) (*gctrpc.GetOrderbookMovementResponse, error) {
+	fmt.Printf("%+v\n", r)
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
@@ -5345,7 +5346,8 @@ func (s *RPCServer) GetOrderbookMovement(ctx context.Context, r *gctrpc.GetOrder
 	var move *orderbook.Movement
 	var bought, sold, side string
 	if r.Sell {
-		move, err = depth.GetMovementByBaseFromBest(r.Amount)
+		move, err = depth.GetMovementHitBidsFromBest(r.Amount, r.Purchase)
+		fmt.Printf("%+v\n", move)
 		bought = pair.Quote.Upper().String()
 		sold = pair.Base.Upper().String()
 		side = order.Bid.String()

@@ -159,10 +159,15 @@ type Movement struct {
 	// from the reference price.
 	ImpactPercentage float64
 	// SlippageCost is the cost of the slippage. This is priced in quotation.
-	SlippageCost         float64
+	SlippageCost float64
+	StartPrice   float64
+	EndPrice     float64
+	Sold         float64
+	Purchased    float64
+
+	AverageOrderCost float64
+
 	FullBookSideConsumed bool
-	StartPrice           float64
-	EndPrice             float64
 }
 
 // SideAmounts define the amounts total for the tranches, total value in

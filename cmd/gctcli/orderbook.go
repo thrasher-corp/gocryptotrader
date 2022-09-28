@@ -35,14 +35,14 @@ var orderbookCommand = &cli.Command{
 			Name:        "sell",
 			Usage:       "simulates sell to derive orderbook liquidity impact information",
 			ArgsUsage:   "<command> <args>",
-			Subcommands: []*cli.Command{nominal, impact, base},
+			Subcommands: []*cli.Command{nominal, impact, base, quoteRequired},
 			Flags:       []cli.Flag{&cli.BoolFlag{Name: "sell", Hidden: true, Value: true}},
 		},
 		{
 			Name:        "buy",
 			Usage:       "simulates buy to derive orderbook liquidity impact information",
 			ArgsUsage:   "<command> <args>",
-			Subcommands: []*cli.Command{nominal, impact, quote},
+			Subcommands: []*cli.Command{nominal, impact, quote, baseRequired},
 		},
 		getOrderbookCommand,
 		getOrderbooksCommand,
@@ -224,6 +224,12 @@ func getImpact(c *cli.Context) error {
 	return nil
 }
 
+var purchase = &cli.BoolFlag{
+	Name:   "purchase",
+	Hidden: true,
+	Value:  true,
+}
+
 var quote = &cli.Command{
 	Name:      "quote",
 	Usage:     "simulates a buy using quotation amount",
@@ -233,6 +239,17 @@ var quote = &cli.Command{
 		Name:  "amount",
 		Usage: "the amount of quotation currency lifting the asks",
 	}),
+}
+
+var baseRequired = &cli.Command{
+	Name:      "base",
+	Usage:     "simulates a buy with a required base amount to be purchased",
+	ArgsUsage: "<exchange> <pair> <asset> <amount>",
+	Action:    getMovement,
+	Flags: append(orderbookCommonFlags, &cli.Float64Flag{
+		Name:  "amount",
+		Usage: "the amount of base currency required to be purchased when lifting the asks",
+	}, purchase),
 }
 
 var base = &cli.Command{
@@ -246,13 +263,20 @@ var base = &cli.Command{
 	}),
 }
 
+var quoteRequired = &cli.Command{
+	Name:      "quoterequired",
+	Usage:     "simulates a sell with a required quote amount to be purchased",
+	ArgsUsage: "<exchange> <pair> <asset> <amount>",
+	Action:    getMovement,
+	Flags: append(orderbookCommonFlags, &cli.Float64Flag{
+		Name:  "amount",
+		Usage: "the amount of quotation currency required to be purchased when hitting the bids",
+	}, purchase),
+}
+
 func getMovement(c *cli.Context) error {
-	isSelling := c.Bool("sell")
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		if isSelling {
-			return cli.ShowCommandHelp(c, "base")
-		}
-		return cli.ShowCommandHelp(c, "quote")
+		return cli.ShowCommandHelp(c, c.Command.Name)
 	}
 
 	var exchangeName string
@@ -304,17 +328,17 @@ func getMovement(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetOrderbookMovement(c.Context,
-		&gctrpc.GetOrderbookMovementRequest{
-			Exchange: exchangeName,
-			Pair: &gctrpc.CurrencyPair{
-				Base:  p.Base.String(),
-				Quote: p.Quote.String(),
-			},
-			Asset:  assetType,
-			Sell:   isSelling,
-			Amount: amount,
-		})
+	result, err := client.GetOrderbookMovement(c.Context, &gctrpc.GetOrderbookMovementRequest{
+		Exchange: exchangeName,
+		Pair: &gctrpc.CurrencyPair{
+			Base:  p.Base.String(),
+			Quote: p.Quote.String(),
+		},
+		Asset:    assetType,
+		Sell:     c.Bool("sell"),
+		Amount:   amount,
+		Purchase: c.Bool("purchase"),
+	})
 
 	if err != nil {
 		return err
