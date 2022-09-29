@@ -1531,9 +1531,8 @@ func TestGetMovementByBaseAmount(t *testing.T) {
 			BaseAmount:      12,
 			ReferencePrice:  10000,
 			ExpectedNominal: 1.0833333333333395,
-			ExpectedImpact:  100,
+			ExpectedImpact:  FullLiquidityExhaustedPercentage,
 			ExpectedCost:    1300,
-			ExpectedError:   ErrFullLiquidityUsed,
 		},
 	}
 
@@ -1543,7 +1542,7 @@ func TestGetMovementByBaseAmount(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
 			depth.LoadSnapshot(tt.BidLiquidity, nil, 0, time.Time{}, true)
-			movement, err := depth.bids.getMovementByBaseAmount(tt.BaseAmount, tt.ReferencePrice)
+			movement, err := depth.bids.getMovementByBase(tt.BaseAmount, tt.ReferencePrice, false)
 			if !errors.Is(err, tt.ExpectedError) {
 				t.Fatalf("received: '%v' but expected: '%v'", err, tt.ExpectedError)
 			}
@@ -1576,7 +1575,7 @@ func TestGetBaseAmountFromNominalSlippage(t *testing.T) {
 		NominalSlippage float64
 		ReferencePrice  float64
 		BidLiquidity    Items
-		ExpectedShift   Shift
+		ExpectedShift   *Movement
 		ExpectedError   error
 	}{
 		{
@@ -1605,11 +1604,13 @@ func TestGetBaseAmountFromNominalSlippage(t *testing.T) {
 			BidLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 9900, Amount: 7}, {Price: 9800, Amount: 3}},
 			NominalSlippage: 1,
 			ReferencePrice:  10000,
-			ExpectedShift: Shift{
-				AmountRequired:        11,
-				ApproximatePercentage: 1,
-				StartPrice:            10000,
-				EndPrice:              9800,
+			ExpectedShift: &Movement{
+				Sold:              11,
+				Purchased:         108900,
+				AverageOrderCost:  9900,
+				NominalPercentage: 1,
+				StartPrice:        10000,
+				EndPrice:          9800,
 			},
 		},
 		{
@@ -1617,23 +1618,13 @@ func TestGetBaseAmountFromNominalSlippage(t *testing.T) {
 			BidLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 9900, Amount: 7}, {Price: 9800, Amount: 3}},
 			NominalSlippage: 0.33333333333334,
 			ReferencePrice:  10000,
-			ExpectedShift: Shift{
-				AmountRequired:        3.0000000000000275, // <- expected rounding issue
-				ApproximatePercentage: 0.33333333333334,
-				StartPrice:            10000,
-				EndPrice:              9900,
-			},
-		},
-		{
-			Name:            "consume first tranche - take one amount out of second",
-			BidLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 9900, Amount: 7}, {Price: 9800, Amount: 3}},
-			NominalSlippage: 0.33333333333334,
-			ReferencePrice:  10000,
-			ExpectedShift: Shift{
-				AmountRequired:        3.0000000000000275, // <- expected rounding issue
-				ApproximatePercentage: 0.33333333333334,
-				StartPrice:            10000,
-				EndPrice:              9900,
+			ExpectedShift: &Movement{
+				Sold:              3.0000000000000275, // <- expected rounding issue
+				Purchased:         29900.00000000027,
+				AverageOrderCost:  9966.666666666664,
+				NominalPercentage: 0.33333333333334,
+				StartPrice:        10000,
+				EndPrice:          9900,
 			},
 		},
 		{
@@ -1641,27 +1632,28 @@ func TestGetBaseAmountFromNominalSlippage(t *testing.T) {
 			BidLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 9900, Amount: 7}, {Price: 9800, Amount: 3}},
 			NominalSlippage: 10,
 			ReferencePrice:  10000,
-			ExpectedShift: Shift{
-				AmountRequired:        12,
-				ApproximatePercentage: 1.0833333333333395,
-				StartPrice:            10000,
-				EndPrice:              9800,
-				FullBookSideConsumed:  true,
+			ExpectedShift: &Movement{
+				Sold:                 12,
+				Purchased:            118700,
+				AverageOrderCost:     9891.666666666666,
+				NominalPercentage:    1.0833333333333395,
+				StartPrice:           10000,
+				EndPrice:             9800,
+				FullBookSideConsumed: true,
 			},
-			ExpectedError: nil,
 		},
 		{
 			Name:            "scotts lovely slippery slippage requirements",
 			BidLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 9900, Amount: 7}, {Price: 9800, Amount: 3}},
 			NominalSlippage: 0.00000000000000000000000000000000000000000000000000000000000000000000000000000000001,
 			ReferencePrice:  10000,
-			ExpectedShift: Shift{
-				AmountRequired:        2,
-				ApproximatePercentage: 0,
-				StartPrice:            10000,
-				EndPrice:              10000,
+			ExpectedShift: &Movement{
+				Sold:             2,
+				Purchased:        20000,
+				AverageOrderCost: 10000,
+				StartPrice:       10000,
+				EndPrice:         10000,
 			},
-			ExpectedError: nil,
 		},
 	}
 
@@ -1671,7 +1663,7 @@ func TestGetBaseAmountFromNominalSlippage(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
 			depth.LoadSnapshot(tt.BidLiquidity, nil, 0, time.Time{}, true)
-			base, err := depth.bids.getBaseAmountFromNominalSlippage(tt.NominalSlippage, tt.ReferencePrice)
+			base, err := depth.bids.hitBidsByNominalSlippage(tt.NominalSlippage, tt.ReferencePrice)
 			if !errors.Is(err, tt.ExpectedError) {
 				t.Fatalf("%s received: '%v' but expected: '%v'",
 					tt.Name, err, tt.ExpectedError)
@@ -1685,12 +1677,18 @@ func TestGetBaseAmountFromNominalSlippage(t *testing.T) {
 }
 
 // IsEqual is a tester function for comparison.
-func (s Shift) IsEqual(that Shift) bool {
+func (s *Movement) IsEqual(that *Movement) bool {
+	if s == nil || that == nil {
+		return s == nil && that == nil
+	}
 	return s.FullBookSideConsumed == that.FullBookSideConsumed &&
-		s.AmountRequired == that.AmountRequired &&
-		s.ApproximatePercentage == that.ApproximatePercentage &&
+		s.Sold == that.Sold &&
+		s.Purchased == that.Purchased &&
+		s.NominalPercentage == that.NominalPercentage &&
+		s.ImpactPercentage == that.ImpactPercentage &&
 		s.EndPrice == that.EndPrice &&
-		s.StartPrice == that.StartPrice
+		s.StartPrice == that.StartPrice &&
+		s.AverageOrderCost == that.AverageOrderCost
 }
 
 func TestGetBaseAmountFromImpact(t *testing.T) {
@@ -1700,7 +1698,7 @@ func TestGetBaseAmountFromImpact(t *testing.T) {
 		ImpactSlippage float64
 		ReferencePrice float64
 		BidLiquidity   Items
-		ExpectedShift  Shift
+		ExpectedShift  *Movement
 		ExpectedError  error
 	}{
 		{
@@ -1728,11 +1726,13 @@ func TestGetBaseAmountFromImpact(t *testing.T) {
 			BidLiquidity:   Items{{Price: 10000, Amount: 2}, {Price: 9900, Amount: 7}, {Price: 9800, Amount: 3}},
 			ImpactSlippage: 1,
 			ReferencePrice: 10000,
-			ExpectedShift: Shift{
-				AmountRequired:        2,
-				ApproximatePercentage: 1,
-				StartPrice:            10000,
-				EndPrice:              9900,
+			ExpectedShift: &Movement{
+				Sold:             2,
+				Purchased:        20000,
+				ImpactPercentage: 1,
+				AverageOrderCost: 10000,
+				StartPrice:       10000,
+				EndPrice:         9900,
 			},
 		},
 		{
@@ -1740,11 +1740,13 @@ func TestGetBaseAmountFromImpact(t *testing.T) {
 			BidLiquidity:   Items{{Price: 10000, Amount: 2}, {Price: 9900, Amount: 7}, {Price: 9800, Amount: 3}},
 			ImpactSlippage: 2,
 			ReferencePrice: 10000,
-			ExpectedShift: Shift{
-				AmountRequired:        9,
-				ApproximatePercentage: 2,
-				StartPrice:            10000,
-				EndPrice:              9800,
+			ExpectedShift: &Movement{
+				Sold:             9,
+				Purchased:        89300,
+				AverageOrderCost: 9922.222222222223,
+				ImpactPercentage: 2,
+				StartPrice:       10000,
+				EndPrice:         9800,
 			},
 		},
 		{
@@ -1752,12 +1754,14 @@ func TestGetBaseAmountFromImpact(t *testing.T) {
 			BidLiquidity:   Items{{Price: 10000, Amount: 2}, {Price: 9900, Amount: 7}, {Price: 9800, Amount: 3}},
 			ImpactSlippage: 10,
 			ReferencePrice: 10000,
-			ExpectedShift: Shift{
-				AmountRequired:        12,
-				ApproximatePercentage: 2,
-				StartPrice:            10000,
-				EndPrice:              9800,
-				FullBookSideConsumed:  true,
+			ExpectedShift: &Movement{
+				Sold:                 12,
+				Purchased:            118700,
+				ImpactPercentage:     FullLiquidityExhaustedPercentage,
+				AverageOrderCost:     9891.666666666666,
+				StartPrice:           10000,
+				EndPrice:             9800,
+				FullBookSideConsumed: true,
 			},
 		},
 	}
@@ -1768,7 +1772,7 @@ func TestGetBaseAmountFromImpact(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
 			depth.LoadSnapshot(tt.BidLiquidity, nil, 0, time.Time{}, true)
-			base, err := depth.bids.getBaseAmountFromImpact(tt.ImpactSlippage, tt.ReferencePrice)
+			base, err := depth.bids.hitBidsByImpactSlippage(tt.ImpactSlippage, tt.ReferencePrice)
 			if !errors.Is(err, tt.ExpectedError) {
 				t.Fatalf("%s received: '%v' but expected: '%v'", tt.Name, err, tt.ExpectedError)
 			}
@@ -1840,9 +1844,8 @@ func TestGetMovementByQuoteAmount(t *testing.T) {
 			QuoteAmount:     121300,
 			ReferencePrice:  10000,
 			ExpectedNominal: 1.0833333333333395,
-			ExpectedImpact:  100,
+			ExpectedImpact:  FullLiquidityExhaustedPercentage,
 			ExpectedCost:    1300,
-			ExpectedError:   ErrFullLiquidityUsed,
 		},
 	}
 
@@ -1852,7 +1855,7 @@ func TestGetMovementByQuoteAmount(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
 			depth.LoadSnapshot(nil, tt.AskLiquidity, 0, time.Time{}, true)
-			movement, err := depth.asks.getMovementByQuoteAmount(tt.QuoteAmount, tt.ReferencePrice)
+			movement, err := depth.asks.getMovementByQuotation(tt.QuoteAmount, tt.ReferencePrice, false)
 			if !errors.Is(err, tt.ExpectedError) {
 				t.Fatalf("received: '%v' but expected: '%v'", err, tt.ExpectedError)
 			}
@@ -1885,7 +1888,7 @@ func TestGetQuoteAmountFromNominalSlippage(t *testing.T) {
 		NominalSlippage float64
 		ReferencePrice  float64
 		AskLiquidity    Items
-		ExpectedShift   Shift
+		ExpectedShift   *Movement
 		ExpectedError   error
 	}{
 		{
@@ -1909,11 +1912,13 @@ func TestGetQuoteAmountFromNominalSlippage(t *testing.T) {
 			AskLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
 			NominalSlippage: 0.33333333333334,
 			ReferencePrice:  10000,
-			ExpectedShift: Shift{
-				AmountRequired:        30100.000000000276, // <- expected rounding issue
-				ApproximatePercentage: 0.33333333333334,
-				StartPrice:            10000,
-				EndPrice:              10100,
+			ExpectedShift: &Movement{
+				Sold:              30100.000000000276, // <- expected rounding issue
+				Purchased:         3.0000000000000275,
+				AverageOrderCost:  10033.333333333333333333333333333,
+				NominalPercentage: 0.33333333333334,
+				StartPrice:        10000,
+				EndPrice:          10100,
 			},
 		},
 		{
@@ -1921,11 +1926,13 @@ func TestGetQuoteAmountFromNominalSlippage(t *testing.T) {
 			AskLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
 			NominalSlippage: 1,
 			ReferencePrice:  10000,
-			ExpectedShift: Shift{
-				AmountRequired:        111100,
-				ApproximatePercentage: 1,
-				StartPrice:            10000,
-				EndPrice:              10200,
+			ExpectedShift: &Movement{
+				Sold:              111100,
+				Purchased:         11,
+				AverageOrderCost:  10100,
+				NominalPercentage: 1,
+				StartPrice:        10000,
+				EndPrice:          10200,
 			},
 		},
 		{
@@ -1933,11 +1940,13 @@ func TestGetQuoteAmountFromNominalSlippage(t *testing.T) {
 			AskLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
 			NominalSlippage: 0.7777777777777738,
 			ReferencePrice:  10000,
-			ExpectedShift: Shift{
-				AmountRequired:        90700,
-				ApproximatePercentage: 0.7777777777777738,
-				StartPrice:            10000,
-				EndPrice:              10100,
+			ExpectedShift: &Movement{
+				Sold:              90700,
+				Purchased:         9,
+				AverageOrderCost:  10077.777777777777,
+				NominalPercentage: 0.7777777777777738,
+				StartPrice:        10000,
+				EndPrice:          10100,
 			},
 		},
 		{
@@ -1945,12 +1954,14 @@ func TestGetQuoteAmountFromNominalSlippage(t *testing.T) {
 			AskLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
 			NominalSlippage: 10,
 			ReferencePrice:  10000,
-			ExpectedShift: Shift{
-				AmountRequired:        121300,
-				ApproximatePercentage: 1.0833333333333395,
-				StartPrice:            10000,
-				EndPrice:              10200,
-				FullBookSideConsumed:  true,
+			ExpectedShift: &Movement{
+				Sold:                 121300,
+				Purchased:            12,
+				AverageOrderCost:     10108.333333333334,
+				NominalPercentage:    1.0833333333333395,
+				StartPrice:           10000,
+				EndPrice:             10200,
+				FullBookSideConsumed: true,
 			},
 		},
 		{
@@ -1958,13 +1969,13 @@ func TestGetQuoteAmountFromNominalSlippage(t *testing.T) {
 			AskLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
 			NominalSlippage: 0.00000000000000000000000000000000000000000000000000000000000000000000000000000000001,
 			ReferencePrice:  10000,
-			ExpectedShift: Shift{
-				AmountRequired:        20000,
-				ApproximatePercentage: 0,
-				StartPrice:            10000,
-				EndPrice:              10000,
+			ExpectedShift: &Movement{
+				Sold:             20000,
+				Purchased:        2,
+				AverageOrderCost: 10000,
+				StartPrice:       10000,
+				EndPrice:         10000,
 			},
-			ExpectedError: nil,
 		},
 	}
 
@@ -1974,7 +1985,7 @@ func TestGetQuoteAmountFromNominalSlippage(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
 			depth.LoadSnapshot(nil, tt.AskLiquidity, 0, time.Time{}, true)
-			quote, err := depth.asks.getQuoteAmountFromNominalSlippage(tt.NominalSlippage, tt.ReferencePrice)
+			quote, err := depth.asks.liftAsksByNominalSlippage(tt.NominalSlippage, tt.ReferencePrice)
 			if !errors.Is(err, tt.ExpectedError) {
 				t.Fatalf("%s received: '%v' but expected: '%v'", tt.Name, err, tt.ExpectedError)
 			}
@@ -1993,7 +2004,7 @@ func TestGetQuoteAmountFromImpact(t *testing.T) {
 		ImpactSlippage float64
 		ReferencePrice float64
 		AskLiquidity   Items
-		ExpectedShift  Shift
+		ExpectedShift  *Movement
 		ExpectedError  error
 	}{
 		{
@@ -2017,11 +2028,13 @@ func TestGetQuoteAmountFromImpact(t *testing.T) {
 			AskLiquidity:   Items{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
 			ImpactSlippage: 1,
 			ReferencePrice: 10000,
-			ExpectedShift: Shift{
-				AmountRequired:        20000,
-				ApproximatePercentage: 1,
-				StartPrice:            10000,
-				EndPrice:              10100,
+			ExpectedShift: &Movement{
+				Sold:             20000,
+				Purchased:        2,
+				AverageOrderCost: 10000,
+				ImpactPercentage: 1,
+				StartPrice:       10000,
+				EndPrice:         10100,
 			},
 		},
 		{
@@ -2029,11 +2042,13 @@ func TestGetQuoteAmountFromImpact(t *testing.T) {
 			AskLiquidity:   Items{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
 			ImpactSlippage: 2,
 			ReferencePrice: 10000,
-			ExpectedShift: Shift{
-				AmountRequired:        90700,
-				ApproximatePercentage: 2,
-				StartPrice:            10000,
-				EndPrice:              10200,
+			ExpectedShift: &Movement{
+				Sold:             90700,
+				Purchased:        9,
+				AverageOrderCost: 10077.777777777777777777777777778,
+				ImpactPercentage: 2,
+				StartPrice:       10000,
+				EndPrice:         10200,
 			},
 		},
 		{
@@ -2041,12 +2056,14 @@ func TestGetQuoteAmountFromImpact(t *testing.T) {
 			AskLiquidity:   Items{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
 			ImpactSlippage: 10,
 			ReferencePrice: 10000,
-			ExpectedShift: Shift{
-				AmountRequired:        121300,
-				ApproximatePercentage: 2,
-				StartPrice:            10000,
-				EndPrice:              10200,
-				FullBookSideConsumed:  true,
+			ExpectedShift: &Movement{
+				Sold:                 121300,
+				Purchased:            12,
+				AverageOrderCost:     10108.333333333333333333333333333,
+				ImpactPercentage:     FullLiquidityExhaustedPercentage,
+				StartPrice:           10000,
+				EndPrice:             10200,
+				FullBookSideConsumed: true,
 			},
 		},
 	}
@@ -2057,7 +2074,7 @@ func TestGetQuoteAmountFromImpact(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
 			depth.LoadSnapshot(nil, tt.AskLiquidity, 0, time.Time{}, true)
-			quote, err := depth.asks.getQuoteAmountFromImpact(tt.ImpactSlippage, tt.ReferencePrice)
+			quote, err := depth.asks.liftAsksByImpactSlippage(tt.ImpactSlippage, tt.ReferencePrice)
 			if !errors.Is(err, tt.ExpectedError) {
 				t.Fatalf("received: '%v' but expected: '%v'", err, tt.ExpectedError)
 			}

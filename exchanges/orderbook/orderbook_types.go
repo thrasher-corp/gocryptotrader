@@ -160,13 +160,21 @@ type Movement struct {
 	ImpactPercentage float64
 	// SlippageCost is the cost of the slippage. This is priced in quotation.
 	SlippageCost float64
-	StartPrice   float64
-	EndPrice     float64
-	Sold         float64
-	Purchased    float64
-
+	// StartPrice defines the reference price or the head of the orderbook side.
+	StartPrice float64
+	// EndPrice defines where the price has ended on the orderbook side.
+	EndPrice float64
+	// Sold defines the amount of currency sold.
+	Sold float64
+	// Purchases defines the amount of currency purchased.
+	Purchased float64
+	// AverageOrderCost defines the average order cost of position as it slips
+	// through the orderbook tranches.
 	AverageOrderCost float64
-
+	// FullBookSideConsumed defines if the orderbook liquidty has been consumed
+	// by the requested amount. This might not represent the actual book on the
+	// exchange as they might restrict the amount of information being passed
+	// back from either a REST request or websocket stream.
 	FullBookSideConsumed bool
 }
 
@@ -176,14 +184,4 @@ type SideAmounts struct {
 	Tranches   int64
 	QuoteValue float64
 	BaseAmount float64
-}
-
-// Shift defines the required details to shift the book price by the supplied
-// percentage.
-type Shift struct {
-	AmountRequired        float64
-	ApproximatePercentage float64
-	StartPrice            float64
-	EndPrice              float64
-	FullBookSideConsumed  bool
 }

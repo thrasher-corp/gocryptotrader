@@ -5312,7 +5312,6 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 // GetOrderbookMovement using the requested amount simulates a buy or sell and
 // returns the nominal/impact percentages and costings.
 func (s *RPCServer) GetOrderbookMovement(ctx context.Context, r *gctrpc.GetOrderbookMovementRequest) (*gctrpc.GetOrderbookMovementResponse, error) {
-	fmt.Printf("%+v\n", r)
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
@@ -5346,13 +5345,12 @@ func (s *RPCServer) GetOrderbookMovement(ctx context.Context, r *gctrpc.GetOrder
 	var move *orderbook.Movement
 	var bought, sold, side string
 	if r.Sell {
-		move, err = depth.GetMovementHitBidsFromBest(r.Amount, r.Purchase)
-		fmt.Printf("%+v\n", move)
+		move, err = depth.HitTheBidsFromBest(r.Amount, r.Purchase)
 		bought = pair.Quote.Upper().String()
 		sold = pair.Base.Upper().String()
 		side = order.Bid.String()
 	} else {
-		move, err = depth.GetMovementByQuoteFromBest(r.Amount)
+		move, err = depth.LiftTheAsksFromBest(r.Amount, r.Purchase)
 		bought = pair.Base.Upper().String()
 		sold = pair.Quote.Upper().String()
 		side = order.Ask.String()
@@ -5409,25 +5407,29 @@ func (s *RPCServer) GetOrderbookAmountByNominal(ctx context.Context, r *gctrpc.G
 		updateProtocol = "REST"
 	}
 
-	var nominal orderbook.Shift
-	var used, side string
+	var nominal *orderbook.Movement
+	var selling, buying, side string
 	if r.Sell {
-		nominal, err = depth.GetBaseFromNominalSlippageFromBest(r.NominalPercentage)
-		used = pair.Upper().Base.String()
+		nominal, err = depth.HitTheBidsByNominalSlippageFromBest(r.NominalPercentage)
+		selling = pair.Upper().Base.String()
+		buying = pair.Upper().Quote.String()
 		side = order.Bid.String()
 	} else {
-		nominal, err = depth.GetQuoteFromNominalSlippageFromBest(r.NominalPercentage)
-		used = pair.Upper().Quote.String()
+		nominal, err = depth.LiftTheAsksByNominalSlippageFromBest(r.NominalPercentage)
+		buying = pair.Upper().Base.String()
+		selling = pair.Upper().Quote.String()
 		side = order.Ask.String()
 	}
 	if err != nil {
 		return nil, err
 	}
 	return &gctrpc.GetOrderbookAmountByNominalResponse{
-		AmountRequired:                       nominal.AmountRequired,
-		Currency:                             used,
+		AmountRequired:                       nominal.Sold,
+		CurrencySelling:                      selling,
+		AmountReceived:                       nominal.Purchased,
+		CurrencyBuying:                       buying,
 		SideAffected:                         side,
-		ApproximateNominalSlippagePercentage: nominal.ApproximatePercentage,
+		ApproximateNominalSlippagePercentage: nominal.NominalPercentage,
 		UpdateProtocol:                       updateProtocol,
 		FullOrderbookSideConsumed:            nominal.FullBookSideConsumed,
 		StartPrice:                           nominal.StartPrice,
@@ -5468,25 +5470,29 @@ func (s *RPCServer) GetOrderbookAmountByImpact(ctx context.Context, r *gctrpc.Ge
 		updateProtocol = "REST"
 	}
 
-	var impact orderbook.Shift
-	var used, side string
+	var impact *orderbook.Movement
+	var selling, buying, side string
 	if r.Sell {
-		impact, err = depth.GetBaseFromImpactSlippageFromBest(r.ImpactPercentage)
-		used = pair.Base.Upper().String()
+		impact, err = depth.HitTheBidsByImpactSlippageFromBest(r.ImpactPercentage)
+		selling = pair.Upper().Base.String()
+		buying = pair.Upper().Quote.String()
 		side = order.Bid.String()
 	} else {
-		impact, err = depth.GetQuoteFromImpactSlippageFromBest(r.ImpactPercentage)
-		used = pair.Quote.Upper().String()
+		impact, err = depth.LiftTheAsksByImpactSlippageFromBest(r.ImpactPercentage)
+		buying = pair.Upper().Base.String()
+		selling = pair.Upper().Quote.String()
 		side = order.Ask.String()
 	}
 	if err != nil {
 		return nil, err
 	}
 	return &gctrpc.GetOrderbookAmountByImpactResponse{
-		AmountRequired:                      impact.AmountRequired,
-		Currency:                            used,
+		AmountRequired:                      impact.Sold,
+		CurrencySelling:                     selling,
+		AmountReceived:                      impact.Purchased,
+		CurrencyBuying:                      buying,
 		SideAffected:                        side,
-		ApproximateImpactSlippagePercentage: impact.ApproximatePercentage,
+		ApproximateImpactSlippagePercentage: impact.ImpactPercentage,
 		UpdateProtocol:                      updateProtocol,
 		FullOrderbookSideConsumed:           impact.FullBookSideConsumed,
 		StartPrice:                          impact.StartPrice,

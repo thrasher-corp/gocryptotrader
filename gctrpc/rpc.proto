@@ -1315,13 +1315,16 @@ message GetOrderbookAmountByNominalRequest {
 
 message GetOrderbookAmountByNominalResponse {
   double amount_required = 1;
-  string currency = 2;
-  string side_affected = 3;
-  double approximate_nominal_slippage_percentage = 4;
-  string update_protocol = 5;
-  bool full_orderbook_side_consumed = 6;
-  double start_price = 7;
-  double end_price = 8;
+  string currency_selling = 2;
+  double amount_received = 3;
+  string currency_buying = 4;
+  double start_price = 5;
+  double end_price = 6;
+  double average_order_cost = 7;
+  string side_affected = 8;
+  double approximate_nominal_slippage_percentage = 9;
+  string update_protocol = 10;
+  bool full_orderbook_side_consumed = 11;
 }
 
 message GetOrderbookAmountByImpactRequest {
@@ -1335,13 +1338,16 @@ message GetOrderbookAmountByImpactRequest {
 
 message GetOrderbookAmountByImpactResponse {
   double amount_required = 1;
-  string currency = 2;
-  string side_affected = 3;
-  double approximate_impact_slippage_percentage = 4;
-  string update_protocol = 5;
-  bool full_orderbook_side_consumed = 6;
-  double start_price = 7;
-  double end_price = 8;
+  string currency_selling = 2;
+  double amount_received = 3;
+  string currency_buying = 4;
+  double start_price = 5;
+  double end_price = 6;
+  double average_order_cost = 7;
+  string side_affected = 8;
+  double approximate_impact_slippage_percentage = 9;
+  string update_protocol = 10;
+  bool full_orderbook_side_consumed = 11;
 }
 
 service GoCryptoTraderService {

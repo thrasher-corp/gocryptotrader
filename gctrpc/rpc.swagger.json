@@ -5759,8 +5759,27 @@
           "type": "number",
           "format": "double"
         },
-        "currency": {
+        "currencySelling": {
           "type": "string"
+        },
+        "amountReceived": {
+          "type": "number",
+          "format": "double"
+        },
+        "currencyBuying": {
+          "type": "string"
+        },
+        "startPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "endPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "averageOrderCost": {
+          "type": "number",
+          "format": "double"
         },
         "sideAffected": {
           "type": "string"
@@ -5774,14 +5793,6 @@
         },
         "fullOrderbookSideConsumed": {
           "type": "boolean"
-        },
-        "startPrice": {
-          "type": "number",
-          "format": "double"
-        },
-        "endPrice": {
-          "type": "number",
-          "format": "double"
         }
       }
     },
@@ -5792,8 +5803,27 @@
           "type": "number",
           "format": "double"
         },
-        "currency": {
+        "currencySelling": {
           "type": "string"
+        },
+        "amountReceived": {
+          "type": "number",
+          "format": "double"
+        },
+        "currencyBuying": {
+          "type": "string"
+        },
+        "startPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "endPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "averageOrderCost": {
+          "type": "number",
+          "format": "double"
         },
         "sideAffected": {
           "type": "string"
@@ -5807,14 +5837,6 @@
         },
         "fullOrderbookSideConsumed": {
           "type": "boolean"
-        },
-        "startPrice": {
-          "type": "number",
-          "format": "double"
-        },
-        "endPrice": {
-          "type": "number",
-          "format": "double"
         }
       }
     },
