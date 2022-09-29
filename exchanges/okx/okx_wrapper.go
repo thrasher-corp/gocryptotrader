@@ -371,7 +371,7 @@ func (ok *Okx) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) 
 	if err != nil {
 		return nil, err
 	}
-	if !p.IsComplete() {
+	if !p.IsPopulated() {
 		return nil, errIncompleteCurrencyPair
 	}
 	instrumentID := format.Format(p)
@@ -506,7 +506,7 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 	if err != nil {
 		return nil, err
 	}
-	if !pair.IsComplete() {
+	if !pair.IsPopulated() {
 		return nil, errIncompleteCurrencyPair
 	}
 	instrumentID = format.Format(pair)
@@ -592,11 +592,11 @@ func (ok *Okx) FetchAccountInfo(ctx context.Context, assetType asset.Item) (acco
 
 // GetFundingHistory returns funding history, deposits and withdrawals
 func (ok *Okx) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
-	depositHistories, err := ok.GetCurrencyDepositHistory(ctx, "", "", "", -1, time.Time{}, time.Time{}, 0)
+	depositHistories, err := ok.GetCurrencyDepositHistory(ctx, "", "", "", time.Time{}, time.Time{}, -1, 0)
 	if err != nil {
 		return nil, err
 	}
-	withdrawalHistories, err := ok.GetWithdrawalHistory(ctx, "", "", "", "", -5, time.Time{}, time.Time{}, 0)
+	withdrawalHistories, err := ok.GetWithdrawalHistory(ctx, "", "", "", "", time.Time{}, time.Time{}, -5, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -633,7 +633,7 @@ func (ok *Okx) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, e
 
 // GetWithdrawalsHistory returns previous withdrawals data
 func (ok *Okx) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
-	withdrawals, err := ok.GetWithdrawalHistory(ctx, c.String(), "", "", "", -5, time.Time{}, time.Time{}, 0)
+	withdrawals, err := ok.GetWithdrawalHistory(ctx, c.String(), "", "", "", time.Time{}, time.Time{}, -5, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -661,7 +661,7 @@ func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 	if err != nil {
 		return nil, err
 	}
-	if !p.IsComplete() {
+	if !p.IsPopulated() {
 		return nil, errIncompleteCurrencyPair
 	}
 	instrumentID := format.Format(p)
@@ -704,7 +704,7 @@ func (ok *Okx) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType
 	if err != nil {
 		return nil, err
 	}
-	if !p.IsComplete() {
+	if !p.IsPopulated() {
 		return nil, errIncompleteCurrencyPair
 	}
 	instrumentID := format.Format(p)
@@ -754,7 +754,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 	if err != nil {
 		return nil, err
 	}
-	if !s.Pair.IsComplete() {
+	if !s.Pair.IsPopulated() {
 		return nil, errIncompleteCurrencyPair
 	}
 	instrumentID := format.Format(s.Pair)
@@ -826,7 +826,7 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 	if err != nil {
 		return nil, err
 	}
-	if !action.Pair.IsComplete() {
+	if !action.Pair.IsPopulated() {
 		return nil, errIncompleteCurrencyPair
 	}
 	instrumentID := format.Format(action.Pair)
@@ -868,7 +868,7 @@ func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	if err != nil {
 		return err
 	}
-	if !ord.Pair.IsComplete() {
+	if !ord.Pair.IsPopulated() {
 		return errIncompleteCurrencyPair
 	}
 	instrumentID := format.Format(ord.Pair)
@@ -905,7 +905,7 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (or
 		if err != nil {
 			return cancelBatchResponse, err
 		}
-		if !ord.Pair.IsComplete() {
+		if !ord.Pair.IsPopulated() {
 			return cancelBatchResponse, errIncompleteCurrencyPair
 		}
 		instrumentID = format.Format(ord.Pair)
@@ -996,7 +996,7 @@ func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 	if err != nil {
 		return respData, err
 	}
-	if !pair.IsComplete() {
+	if !pair.IsPopulated() {
 		return respData, errIncompleteCurrencyPair
 	}
 	instrumentID := format.Format(pair)
@@ -1259,7 +1259,7 @@ func (ok *Okx) GetHistoricCandles(ctx context.Context, pair currency.Pair, a ass
 	if err != nil {
 		return kline.Item{}, err
 	}
-	if !pair.IsComplete() {
+	if !pair.IsPopulated() {
 		return kline.Item{}, errIncompleteCurrencyPair
 	}
 	instrumentID := format.Format(pair)

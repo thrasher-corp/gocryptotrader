@@ -752,7 +752,7 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 	if err != nil {
 		return err
 	}
-	if !pair.IsComplete() {
+	if !pair.IsPopulated() {
 		return errIncompleteCurrencyPair
 	}
 	pair.Delimiter = currency.DashDelimiter

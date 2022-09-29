@@ -723,6 +723,7 @@ func TestMatchesEmailPattern(t *testing.T) {
 }
 
 func TestGenerateRandomString(t *testing.T) {
+	t.Parallel()
 	sample, err := GenerateRandomString(5, NumberCharacters)
 	if err != nil {
 		t.Errorf("GenerateRandomString()  %v", err)
@@ -753,6 +754,7 @@ func TestGenerateRandomString(t *testing.T) {
 }
 
 func TestMatchesIPV4Address(t *testing.T) {
+	t.Parallel()
 	if okay := MatchesIPV4Address("0.0.0.0"); !okay {
 		t.Error("MatchesIPV4Address() unexpected test validataion result")
 	}
@@ -766,6 +768,21 @@ func TestMatchesIPV4Address(t *testing.T) {
 		t.Error("MatchesIPV4Address() unexpected test validataion result")
 	}
 	if okay := MatchesIPV4Address("123.45.255.-1"); okay {
+		t.Error("MatchesIPV4Address() unexpected test validataion result")
+	}
+	if okay := MatchesIPV4Address("y.y.y.y"); okay {
+		t.Error("MatchesIPV4Address() unexpected test validataion result")
+	}
+	if okay := MatchesIPV4Address("255.0.0.y"); okay {
+		t.Error("MatchesIPV4Address() unexpected test validataion result")
+	}
+	if okay := MatchesIPV4Address("666.10.10.20"); okay {
+		t.Error("MatchesIPV4Address() unexpected test validataion result")
+	}
+	if okay := MatchesIPV4Address("4444.11.11.11"); okay {
+		t.Error("MatchesIPV4Address() unexpected test validataion result")
+	}
+	if okay := MatchesIPV4Address("210.110"); okay {
 		t.Error("MatchesIPV4Address() unexpected test validataion result")
 	}
 }

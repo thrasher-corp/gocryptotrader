@@ -1003,6 +1003,8 @@ func StringToOrderType(oType string) (Type, error) {
 		return AnyType, nil
 	case Trigger.String():
 		return Trigger, nil
+	case OptimalLimitIOC.String():
+		return OptimalLimitIOC, nil
 	default:
 		return UnknownType, fmt.Errorf("'%v' %w", oType, errUnrecognisedOrderType)
 	}

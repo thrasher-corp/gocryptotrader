@@ -487,7 +487,7 @@ type InsuranceFundInformationRequestParams struct {
 	Currency       string    `json:"ccy"`
 	Before         time.Time `json:"before"`
 	After          time.Time `json:"after"`
-	Limit          uint      `json:"limit"`
+	Limit          int64     `json:"limit"`
 }
 
 // InsuranceFundInformation holds insurance fund information data.
@@ -698,7 +698,7 @@ type OrderListRequestParams struct {
 	State          string    `json:"state"` // live, partially_filled
 	After          time.Time `json:"after"`
 	Before         time.Time `json:"before"`
-	Limit          int       `json:"limit"`
+	Limit          int64     `json:"limit"`
 }
 
 // OrderHistoryRequestParams holds parameters to request order data history of last 7 days.
@@ -1351,12 +1351,12 @@ type BillsDetailQueryParameter struct {
 	MarginMode     string // Margin mode "isolated" "cross"
 	ContractType   string // Contract type "linear" & "inverse" Only applicable to FUTURES/SWAP
 	BillType       uint   // Bill type 1: Transfer 2: Trade 3: Delivery 4: Auto token conversion 5: Liquidation 6: Margin transfer 7: Interest deduction 8: Funding fee 9: ADL 10: Clawback 11: System token conversion 12: Strategy transfer 13: ddh
-	BillSubType    uint   // allowed bill substype values are [ 1,2,3,4,5,6,9,11,12,14,160,161,162,110,111,118,119,100,101,102,103,104,105,106,110,125,126,127,128,131,132,170,171,172,112,113,117,173,174,200,201,202,203 ], link: https://www.okx.com/docs-v5/en/#rest-api-account-get-bills-details-last-7-days
+	BillSubType    int    // allowed bill substype values are [ 1,2,3,4,5,6,9,11,12,14,160,161,162,110,111,118,119,100,101,102,103,104,105,106,110,125,126,127,128,131,132,170,171,172,112,113,117,173,174,200,201,202,203 ], link: https://www.okx.com/docs-v5/en/#rest-api-account-get-bills-details-last-7-days
 	After          string
 	Before         string
 	BeginTime      time.Time
 	EndTime        time.Time
-	Limit          uint
+	Limit          int64
 }
 
 // BillsDetailResponse represents account bills informaiton.
@@ -1775,7 +1775,7 @@ type RfqRequestParams struct {
 	State               string
 	BeginingID          string
 	EndID               string
-	Limit               uint
+	Limit               int64
 }
 
 // RFQResponse RFQ response detail.
@@ -1818,7 +1818,7 @@ type RFQTradesRequestParams struct {
 	State                 string
 	BeginID               string
 	EndID                 string
-	Limit                 uint
+	Limit                 int64
 }
 
 // RfqTradeResponse RFQ trade response
