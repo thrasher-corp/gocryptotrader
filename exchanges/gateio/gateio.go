@@ -211,11 +211,14 @@ var (
 	errNoTickerData                        = errors.New("no ticker data available")
 	errUnsupportedSettleValue              = errors.New("only 'usd','usdt', and 'btc' quote of currency pairs are supported")
 	errOnlyLimitOrderType                  = errors.New("only order type 'limit' is allowed")
+	errCantDetermineAccount                = errors.New("can't determine account")
+	errNoAccountIsAvailable                = errors.New("no account is available")
 )
 
 // Gateio is the overarching type across this package
 type Gateio struct {
 	exchange.Base
+	WsChannelsMultiplexer *WsMultiplexer
 }
 
 // ***************************************** SubAccounts ********************************
@@ -340,12 +343,48 @@ func (g *Gateio) GetIntervalString(interval kline.Interval) string {
 		return "12h"
 	case kline.OneDay:
 		return "1d"
-	case kline.OneWeek:
-		return "1w"
+	case kline.SevenDay:
+		return "7d"
 	case kline.ThirtyDay:
 		return "30d"
 	default:
 		return ""
+	}
+}
+
+// GetIntervalFromString returns a kline.Interval representation of the interval string
+func (g *Gateio) GetIntervalFromString(interval string) (kline.Interval, error) {
+	switch interval {
+	case "10s":
+		return kline.TenSecond, nil
+	case "30s":
+		return kline.ThirtySecond, nil
+	case "1m":
+		return kline.OneMin, nil
+	case "5m":
+		return kline.FiveMin, nil
+	case "15m":
+		return kline.FifteenMin, nil
+	case "30m":
+		return kline.ThirtyMin, nil
+	case "1h":
+		return kline.OneHour, nil
+	case "2h":
+		return kline.TwoHour, nil
+	case "4h":
+		return kline.FourHour, nil
+	case "8h":
+		return kline.EightHour, nil
+	case "12h":
+		return kline.TwelveHour, nil
+	case "1d":
+		return kline.OneDay, nil
+	case "7d":
+		return kline.SevenDay, nil
+	case "30d":
+		return kline.ThirtyDay, nil
+	default:
+		return kline.Interval(0), kline.ErrUnsetInterval
 	}
 }
 
@@ -364,7 +403,6 @@ func (g *Gateio) GetOrderbook(ctx context.Context, currencyPair currency.Pair, i
 		}
 	}
 	pairString := strings.ToUpper(fPair.Format(currencyPair))
-	println(pairString)
 	params.Set("currency_pair", pairString)
 	if interval == OrderbookIntervalZero || interval == OrderbookIntervalZeroPt1 || interval == OrderbookIntervalZeroPtZero1 {
 		params.Set("interval", interval)
@@ -799,7 +837,7 @@ func (g *Gateio) GetPersonalTradingHistory(ctx context.Context, currencyPair cur
 }
 
 // GetCurrencyServerTime retrives current server time
-func (g *Gateio) GetServerTime(ctx context.Context) (time.Time, error) {
+func (g *Gateio) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
 	type response struct {
 		ServerTime int64 `json:"server_time"`
 	}
@@ -1882,11 +1920,7 @@ func (g *Gateio) GetFuturesTradingHistory(ctx context.Context, settle string, co
 	if contract.IsEmpty() {
 		return nil, errInvalidOrEmptyCurrencyPair
 	}
-	pairString, err := g.GetContractFromCurrencyPair(ctx, contract, asset.Futures)
-	if err != nil {
-		return nil, err
-	}
-	params.Set("contract", pairString)
+	params.Set("contract", contract.Upper().String())
 	if limit > 0 {
 		params.Set("limit", fmt.Sprintf("%v", limit))
 	}
@@ -2713,6 +2747,7 @@ func (g *Gateio) GetSingleDeliveryContracts(ctx context.Context, settle, contrac
 // GetDeliveryOrderbook delivery orderbook
 func (g *Gateio) GetDeliveryOrderbook(ctx context.Context, settle, contract, interval string, limit uint, withOrderbookID bool) (*Orderbook, error) {
 	var orderbook Orderbook
+	settle = strings.ToLower(settle)
 	if !(settle == "btc" || settle == "usd" || settle == "usdt") {
 		return nil, errMissingSettleCurrency
 	}
@@ -2799,11 +2834,7 @@ func (g *Gateio) GetDeliveryFutureTickers(ctx context.Context, settle string, co
 	}
 	if !(contract.Base.IsEmpty() || contract.Quote.IsEmpty()) {
 		contract.Delimiter = currency.UnderscoreDelimiter
-		con, err := g.GetContractFromCurrencyPair(context.Background(), contract, asset.DeliveryFutures)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("contract", con)
+		params.Set("contract", contract.String())
 	}
 	return tickers, g.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(fmt.Sprintf(deliveryTicker, settle), params), &tickers)
 }
@@ -3785,44 +3816,6 @@ func (g *Gateio) IsValidPairString(currencyPair string) bool {
 	return false
 }
 
-// GetContractFromCurrencyPair returns a contract string given a currency pair
-func (g *Gateio) GetContractFromCurrencyPair(ctx context.Context, pair currency.Pair, a asset.Item) (string, error) {
-	if pair.IsEmpty() {
-		return "", errors.New("currency pair not supported")
-	}
-	pair.Delimiter = currency.UnderscoreDelimiter
-	if a == asset.DeliveryFutures {
-		if !(strings.EqualFold(pair.Quote.String(), currency.USD.String()) || strings.EqualFold(pair.Quote.String(), currency.USDT.String()) || strings.EqualFold(pair.Quote.String(), currency.BTC.String())) {
-			return "", errUnsupportedSettleValue
-		}
-		contracts, err := g.GetAllDeliveryContracts(ctx, pair.Quote.String())
-		if err != nil && !strings.Contains(err.Error(), "404 Not Found") {
-			return "", err
-		}
-		for x := range contracts {
-			if strings.HasPrefix(contracts[x].Name, strings.ToUpper(pair.String())) {
-				return contracts[x].Name, nil
-			}
-		}
-		return "", errors.New("no contract found")
-	} else if a == asset.Futures {
-		if !(strings.EqualFold(pair.Quote.String(), currency.USD.String()) || strings.EqualFold(pair.Quote.String(), currency.USDT.String()) || strings.EqualFold(pair.Quote.String(), currency.BTC.String())) {
-			return "", errUnsupportedSettleValue
-		}
-		contracts, err := g.GetAllFutureContracts(ctx, pair.Quote.String())
-		if err != nil && !strings.Contains(err.Error(), "404 Not Found") {
-			return "", err
-		}
-		for x := range contracts {
-			if strings.HasPrefix(contracts[x].Name, strings.ToUpper(pair.String())) {
-				return contracts[x].Name, nil
-			}
-		}
-		return "", errors.New("no contract found")
-	}
-	return pair.String(), nil
-}
-
 // ********************************* Trading Fee calculation ********************************
 
 // GetFee returns an estimate of fee based on type of transaction
@@ -3866,4 +3859,57 @@ func calculateTradingFee(feeForPair, purchasePrice, amount float64) float64 {
 
 func getCryptocurrencyWithdrawalFee(c currency.Code) float64 {
 	return WithdrawalFees[c]
+}
+
+// determineAccount determine which account is enabled by sending get order requests and return empty asset item with error message
+// to help determine the account type enabled by the credential.
+func (g *Gateio) determineAccount(ctx context.Context) (asset.Item, error) {
+	_, err := g.GetCredentials(ctx)
+	if err != nil {
+		return asset.Empty, err
+	}
+	assets := g.GetAssetTypes(false)
+	for x := range assets {
+		switch assets[x] {
+		case asset.Spot, asset.Margin, asset.CrossMargin:
+			_, err = g.GetSpotOpenOrders(ctx, 0, 0, asset.Spot)
+		case asset.Futures:
+			_, err = g.GetFuturesOrders(context.Background(), currency.NewPair(currency.BTC, currency.USD), "open", 0, 0, "", 1, "btc")
+		case asset.DeliveryFutures:
+			_, err = g.GetDeliveryOrders(context.Background(), currency.NewPair(currency.BTC, currency.USD), "open", 0, 0, "", 1, "btc")
+		case asset.Options:
+			_, err = g.GetOptionFuturesOrders(context.Background(), "", "", "", 0, 0, time.Time{}, time.Time{})
+		default:
+			return asset.Empty, errAssetTypeNotSupported
+		}
+		if err != nil && (strings.Contains(err.Error(), "USER_NOT_FOUND") ||
+			strings.Contains(err.Error(), "INVALID_CREDENTIALS") ||
+			strings.Contains(err.Error(), "ACCOUNT_LOCKED") ||
+			strings.Contains(err.Error(), "INVALID_KEY")) {
+			continue
+		} else if err != nil {
+			return asset.Empty, errCantDetermineAccount
+		}
+		return assets[x], nil
+	}
+	return asset.Empty, errNoAccountIsAvailable
+}
+
+// GetUnderlyingFromCurrencyPair returns an underlying string from a currency pair
+func (g *Gateio) GetUnderlyingFromCurrencyPair(p currency.Pair) (string, error) {
+	pairString := strings.Replace(p.Format(currency.UnderscoreDelimiter, true).String(), currency.DashDelimiter, currency.UnderscoreDelimiter, -1)
+	ccies := strings.Split(pairString, currency.UnderscoreDelimiter)
+	if len(ccies) < 2 {
+		return "", errors.New("invalid currency pair")
+	}
+	return ccies[0] + currency.UnderscoreDelimiter + ccies[1], nil
+}
+
+// GetSettleCurrencyFromContract returns a settlement string 'btc','usdt', or 'usd' from the currency code.
+func (g *Gateio) GetSettleCurrencyFromContract(ccy currency.Code) (string, error) {
+	codes := strings.Split(ccy.Lower().String(), currency.UnderscoreDelimiter)
+	if len(codes) == 0 || !(codes[0] == "btc" || codes[0] == "usdt" || codes[0] == "usd") {
+		return "", fmt.Errorf("no valid settlement string in the currency code %s", ccy)
+	}
+	return codes[0], nil
 }

@@ -865,3 +865,15 @@ func TestOther(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 }
+
+func TestTrimEmptyString(t *testing.T) {
+	t.Parallel()
+	pair := NewPair(BTC, NewCode("   "))
+	pair = pair.TrimEmptyString()
+	if !pair.Quote.IsEmpty() {
+		t.Error("unexpected value")
+	}
+	if pair.Base.IsEmpty() {
+		t.Error("unexpected value")
+	}
+}

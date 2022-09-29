@@ -152,6 +152,12 @@ func (g *Gateio) SetDefaults() {
 	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	g.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
+	g.WsChannelsMultiplexer = &WsMultiplexer{
+		Channels:   map[string]chan *WsEventResponse{},
+		Register:   make(chan *wsChanReg),
+		Unregister: make(chan string),
+		Message:    make(chan *WsEventResponse),
+	}
 }
 
 // Setup sets user configuration
@@ -188,6 +194,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 	}
 
 	return g.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		URL:                  gateioWebsocketEndpoint,
 		RateLimit:            gateioWebsocketRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -228,12 +235,14 @@ func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 		return nil, fmt.Errorf("%s does not support %s", g.Name, a.String())
 	}
 	fPair, err := g.FormatExchangeCurrency(p, a)
+	fPair.Delimiter = currency.UnderscoreDelimiter
 	if err != nil {
 		return nil, err
 	}
 	if fPair.IsEmpty() || fPair.Quote.IsEmpty() {
 		return nil, errInvalidOrEmptyCurrencyPair
 	}
+	fPair = fPair.TrimEmptyString().Upper()
 	var tickerData *ticker.Price
 	switch a {
 	case asset.Margin, asset.Spot, asset.CrossMargin:
@@ -252,7 +261,7 @@ func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 			AssetType:    a,
 		}
 	case asset.Futures:
-		if !(strings.EqualFold(fPair.Quote.String(), currency.USD.String()) || strings.EqualFold(fPair.Quote.String(), currency.USDT.String()) || strings.EqualFold(fPair.Quote.String(), currency.BTC.String())) {
+		if !(strings.HasPrefix(fPair.Quote.String(), currency.USD.Upper().String()) || strings.HasPrefix(fPair.Quote.String(), currency.USDT.Upper().String()) || strings.HasPrefix(fPair.Quote.String(), currency.BTC.Upper().String())) {
 			return nil, errUnsupportedSettleValue
 		}
 		tickers, err := g.GetFuturesTickers(ctx, fPair.Quote.String(), fPair)
@@ -263,6 +272,7 @@ func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 		for x := range tickers {
 			if tickers[x].Contract == strings.ToUpper(fPair.String()) {
 				tick = &tickers[x]
+				break
 			}
 		}
 		if tick == nil {
@@ -279,9 +289,12 @@ func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 			AssetType:    a,
 		}
 	case asset.Options:
-		tickers, err := g.GetOptionsTickers(ctx, fPair.String())
+		underlying, err := g.GetUnderlyingFromCurrencyPair(fPair)
 		if err != nil {
-			println("ERROR:", err)
+			return nil, err
+		}
+		tickers, err := g.GetOptionsTickers(ctx, underlying)
+		if err != nil {
 			return nil, err
 		}
 		var tick *OptionsTicker
@@ -346,6 +359,7 @@ func (g *Gateio) FetchTicker(ctx context.Context, p currency.Pair, assetType ass
 	}
 	tickerNew, err := ticker.GetTicker(g.Name, fPair, assetType)
 	if err != nil {
+		println("Ticker Messageees : ", err.Error())
 		return g.UpdateTicker(ctx, fPair, assetType)
 	}
 	return tickerNew, nil
@@ -440,11 +454,16 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 		}
 		pairs := []string{}
 		for x := range underlyings {
-			p := underlyings[x].Name
-			if !g.IsValidPairString(p) {
-				continue
+			contracts, err := g.GetAllContractOfUnderlyingWithinExpiryDate(ctx, underlyings[x].Name, time.Time{})
+			if err != nil {
+				return nil, err
 			}
-			pairs = append(pairs, p)
+			for c := range contracts {
+				if !g.IsValidPairString(contracts[c].Name) {
+					continue
+				}
+				pairs = append(pairs, contracts[c].Name)
+			}
 		}
 		return pairs, nil
 	default:
@@ -478,6 +497,7 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if !g.SupportsAsset(a) {
 		return fmt.Errorf("%s does not support %s", g.Name, a)
 	}
+	var err error
 	switch a {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
 		tickers, err := g.GetTickers(ctx, currency.EMPTYPAIR, "")
@@ -505,21 +525,20 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 				return err
 			}
 		}
-	case asset.Futures:
-		tickers, err := g.GetFuturesTickers(ctx, "btc", currency.EMPTYPAIR)
-		if err != nil {
-			return err
+	case asset.Futures, asset.DeliveryFutures:
+		var tickers []FuturesTicker
+		var ticks []FuturesTicker
+		for _, settle := range []string{"btc", "usdt", "usd"} {
+			if a == asset.Futures {
+				ticks, err = g.GetFuturesTickers(ctx, settle, currency.EMPTYPAIR)
+			} else {
+				ticks, err = g.GetDeliveryFutureTickers(ctx, settle, currency.EMPTYPAIR)
+			}
+			if err != nil && !strings.Contains(err.Error(), "404 Not Found") {
+				return err
+			}
+			tickers = append(tickers, ticks...)
 		}
-		tickerUSD, err := g.GetFuturesTickers(ctx, "usd", currency.EMPTYPAIR)
-		if err != nil {
-			return err
-		}
-		tickerUSDT, err := g.GetFuturesTickers(ctx, "usd", currency.EMPTYPAIR)
-		if err != nil {
-			return err
-		}
-		tickers = append(tickers, tickerUSD...)
-		tickers = append(tickers, tickerUSDT...)
 		for x := range tickers {
 			currencyPair, err := currency.NewPairFromString(tickers[x].Contract)
 			if err != nil {
@@ -533,40 +552,6 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 				QuoteVolume:  tickers[x].Volume24HQuote,
 				ExchangeName: g.Name,
 				Pair:         currencyPair,
-				AssetType:    a,
-			})
-			if err != nil {
-				return err
-			}
-		}
-	case asset.DeliveryFutures:
-		tickers, err := g.GetDeliveryFutureTickers(ctx, "btc", currency.EMPTYPAIR)
-		if err != nil && !strings.Contains(err.Error(), "404 Not Found") {
-			return err
-		}
-		tickerUSD, err := g.GetDeliveryFutureTickers(ctx, "usd", currency.EMPTYPAIR)
-		if err != nil && !strings.Contains(err.Error(), "404 Not Found") {
-			return err
-		}
-		tickerUSDT, err := g.GetDeliveryFutureTickers(ctx, "usdt", currency.EMPTYPAIR)
-		if err != nil && !strings.Contains(err.Error(), "404 Not Found") {
-			return err
-		}
-		tickers = append(tickers, tickerUSD...)
-		tickers = append(tickers, tickerUSDT...)
-		for x := range tickers {
-			currencyPair, err := currency.NewPairFromString(tickers[x].Contract)
-			if err != nil {
-				return err
-			}
-			err = ticker.ProcessTicker(&ticker.Price{
-				Last:         tickers[x].Last,
-				High:         tickers[x].High24H,
-				Low:          tickers[x].Low24H,
-				Volume:       tickers[x].Volume24H,
-				QuoteVolume:  tickers[x].Volume24HQuote,
-				Pair:         currencyPair,
-				ExchangeName: g.Name,
 				AssetType:    a,
 			})
 			if err != nil {
@@ -579,6 +564,11 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 			return err
 		}
 		for i := range pairs {
+			println(pairs[i].Upper().String(), "-,-")
+			pairs[i] = pairs[i].TrimEmptyString()
+			if pairs[i].IsEmpty() || pairs[i].IsEmpty() {
+				continue
+			}
 			tickers, err := g.GetOptionsTickers(ctx, pairs[i].String())
 			if err != nil {
 				return err
@@ -627,27 +617,27 @@ func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 	if err != nil {
 		return book, err
 	}
-	book.Pair = fPair
+	book.Pair = fPair.Upper().TrimEmptyString()
+	fPair = fPair.Upper().TrimEmptyString()
 	var orderbookNew *Orderbook
 	switch a {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
 		orderbookNew, err = g.GetOrderbook(ctx, fPair, "", 0, true)
 	case asset.Futures:
-		if !(strings.EqualFold(fPair.Quote.String(), currency.USD.String()) || strings.EqualFold(fPair.Quote.String(), currency.USDT.String()) || strings.EqualFold(fPair.Quote.String(), currency.BTC.String())) {
+		if !(strings.HasPrefix(fPair.Quote.String(), currency.USD.Upper().String()) || strings.HasPrefix(fPair.Quote.String(), currency.USDT.Upper().String()) || strings.HasPrefix(fPair.Quote.String(), currency.BTC.Upper().String())) {
+			println("A", fPair.String())
 			return nil, errUnsupportedSettleValue
 		}
 		orderbookNew, err = g.GetFuturesOrderbook(ctx, fPair.Quote.String(), fPair, "", 0, true)
 	case asset.DeliveryFutures:
-		if !(strings.EqualFold(fPair.Quote.String(), currency.USD.String()) || strings.EqualFold(fPair.Quote.String(), currency.USDT.String()) || strings.EqualFold(fPair.Quote.String(), currency.BTC.String())) {
+		if !(strings.HasPrefix(fPair.Quote.String(), currency.USD.Upper().String()) || strings.HasPrefix(fPair.Quote.String(), currency.USDT.Upper().String()) || strings.HasPrefix(fPair.Quote.String(), currency.BTC.Upper().String())) {
+			println("B", fPair.String())
 			return nil, errUnsupportedSettleValue
 		}
-		contract, err := g.GetContractFromCurrencyPair(ctx, fPair, a)
-		if err != nil {
-			return nil, err
-		}
-		orderbookNew, err = g.GetDeliveryOrderbook(ctx, fPair.Quote.String(), contract, "", 0, true)
+		orderbookNew, err = g.GetDeliveryOrderbook(ctx, fPair.Quote.String(), fPair.Upper().String(), "", 0, true)
 	case asset.Options:
-		if !(strings.EqualFold(fPair.Quote.String(), currency.USD.String()) || strings.EqualFold(fPair.Quote.String(), currency.USDT.String()) || strings.EqualFold(fPair.Quote.String(), currency.BTC.String())) {
+		if !(strings.HasPrefix(fPair.Quote.String(), currency.USD.Upper().String()) || strings.HasPrefix(fPair.Quote.String(), currency.USDT.Upper().String()) || strings.HasPrefix(fPair.Quote.String(), currency.BTC.Upper().String())) {
+			println("C", fPair.String())
 			return nil, errUnsupportedSettleValue
 		}
 		orderbookNew, err = g.GetOptionsOrderbook(ctx, fPair, "", 0, true)
@@ -658,17 +648,31 @@ func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 	leng := len(orderbookNew.Bids)
 	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Item{
-			Amount: orderbookNew.Bids[leng-1-x].Amount,
-			Price:  orderbookNew.Bids[leng-1-x].Price,
+		if a == asset.Spot || a == asset.Margin || a == asset.CrossMargin {
+			book.Bids[x] = orderbook.Item{
+				Amount: orderbookNew.Bids[x].Amount,
+				Price:  orderbookNew.Bids[x].Price,
+			}
+		} else {
+			book.Bids[x] = orderbook.Item{
+				Amount: orderbookNew.Bids[leng-x-1].Amount,
+				Price:  orderbookNew.Bids[leng-x-1].Price,
+			}
 		}
 	}
 	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 	leng = len(orderbookNew.Asks)
 	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Item{
-			Amount: orderbookNew.Asks[leng-1-x].Amount,
-			Price:  orderbookNew.Asks[leng-1-x].Price,
+		if a == asset.Spot || a == asset.Margin || a == asset.CrossMargin {
+			book.Asks[x] = orderbook.Item{
+				Amount: orderbookNew.Asks[x].Amount,
+				Price:  orderbookNew.Asks[x].Price,
+			}
+		} else {
+			book.Asks[x] = orderbook.Item{
+				Amount: orderbookNew.Asks[leng-x-1].Amount,
+				Price:  orderbookNew.Asks[leng-x-1].Price,
+			}
 		}
 	}
 	if err = book.Process(); err != nil {
@@ -871,14 +875,10 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.I
 			})
 		}
 	case asset.DeliveryFutures:
-		contract, err := g.GetContractFromCurrencyPair(ctx, p, a)
-		if err != nil {
-			return nil, err
-		}
 		if !(strings.EqualFold(p.Quote.String(), currency.USD.String()) || strings.EqualFold(p.Quote.String(), currency.USDT.String()) || strings.EqualFold(p.Quote.String(), currency.BTC.String())) {
 			return nil, errUnsupportedSettleValue
 		}
-		deliveryTrades, err := g.GetDeliveryTradingHistory(ctx, p.Quote.String(), contract, 0, "", time.Time{}, time.Time{})
+		deliveryTrades, err := g.GetDeliveryTradingHistory(ctx, p.Quote.String(), p.Upper().String(), 0, "", time.Time{}, time.Time{})
 		if err != nil {
 			return nil, err
 		}
@@ -894,11 +894,7 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.I
 			})
 		}
 	case asset.Options:
-		contract, err := g.GetContractFromCurrencyPair(ctx, p, a)
-		if err != nil {
-			return nil, err
-		}
-		trades, err := g.GetOptionsTradeHistory(ctx, contract, "", 0, 0, time.Time{}, time.Time{})
+		trades, err := g.GetOptionsTradeHistory(ctx, p.Upper().String(), "", 0, 0, time.Time{}, time.Time{})
 		if err != nil {
 			return nil, err
 		}
@@ -925,7 +921,7 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.I
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (g *Gateio) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+func (g *Gateio) GetHistoricTrades(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time) ([]trade.Data, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -1659,11 +1655,7 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		}
 	case asset.Options:
 		for x := range req.Pairs {
-			contract, err := g.GetContractFromCurrencyPair(ctx, req.Pairs[x], req.AssetType)
-			if err != nil {
-				return nil, err
-			}
-			optionOrders, err := g.GetOptionsPersonalTradingHistory(ctx, format.Format(req.Pairs[x]), contract, 0, 0, req.StartTime, req.EndTime)
+			optionOrders, err := g.GetOptionsPersonalTradingHistory(ctx, format.Format(req.Pairs[x]), req.Pairs[x].Upper().String(), 0, 0, req.StartTime, req.EndTime)
 			if err != nil {
 				return nil, err
 			}
@@ -1736,11 +1728,7 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		if a == asset.Futures {
 			candles, err = g.GetFuturesCandlesticks(ctx, formattedPair.Quote.Lower().String(), pair, start, end, 0, interval)
 		} else {
-			contract, err := g.GetContractFromCurrencyPair(ctx, formattedPair, a)
-			if err != nil {
-				return klineData, err
-			}
-			candles, err = g.GetDeliveryFuturesCandlesticks(ctx, formattedPair.Quote.Lower().String(), contract, start, end, 0, interval)
+			candles, err = g.GetDeliveryFuturesCandlesticks(ctx, formattedPair.Quote.Lower().String(), formattedPair.Upper().String(), start, end, 0, interval)
 		}
 		if err != nil {
 			return klineData, nil
@@ -1758,11 +1746,7 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		}
 		return klineData, nil
 	case asset.Options:
-		contract, err := g.GetContractFromCurrencyPair(ctx, formattedPair, a)
-		if err != nil {
-			return klineData, err
-		}
-		candles, err := g.GetOptionFuturesCandlesticks(ctx, contract, 0, start, end, interval)
+		candles, err := g.GetOptionFuturesCandlesticks(ctx, formattedPair.Upper().String(), 0, start, end, interval)
 		if err != nil {
 			return klineData, nil
 		}
@@ -1833,11 +1817,7 @@ func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 			if a == asset.Futures {
 				candles, err = g.GetFuturesCandlesticks(ctx, formattedPair.Quote.Lower().String(), pair, dates.Ranges[b].Start.Time, dates.Ranges[b].End.Time, uint(g.Features.Enabled.Kline.ResultLimit), interval)
 			} else {
-				contract, err := g.GetContractFromCurrencyPair(ctx, formattedPair, a)
-				if err != nil {
-					return klineData, err
-				}
-				candles, err = g.GetDeliveryFuturesCandlesticks(ctx, formattedPair.Quote.Lower().String(), contract, dates.Ranges[b].Start.Time, dates.Ranges[b].End.Time, uint(g.Features.Enabled.Kline.ResultLimit), interval)
+				candles, err = g.GetDeliveryFuturesCandlesticks(ctx, formattedPair.Quote.Lower().String(), formattedPair.Upper().String(), dates.Ranges[b].Start.Time, dates.Ranges[b].End.Time, uint(g.Features.Enabled.Kline.ResultLimit), interval)
 			}
 			if err != nil {
 				return klineData, nil
@@ -1854,11 +1834,7 @@ func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 			}
 			return klineData, nil
 		case asset.Options:
-			contract, err := g.GetContractFromCurrencyPair(ctx, formattedPair, a)
-			if err != nil {
-				return klineData, err
-			}
-			candles, err := g.GetOptionFuturesCandlesticks(ctx, contract, int(g.Features.Enabled.Kline.ResultLimit), start, end, interval)
+			candles, err := g.GetOptionFuturesCandlesticks(ctx, formattedPair.Upper().String(), int(g.Features.Enabled.Kline.ResultLimit), start, end, interval)
 			if err != nil {
 				return klineData, nil
 			}
@@ -1902,14 +1878,14 @@ func (g *Gateio) GetAvailableTransferChains(ctx context.Context, cryptocurrency 
 	return availableChains, nil
 }
 
-// // AuthenticateWebsocket sends an authentication message to the websocket
-// func (g *Gateio) AuthenticateWebsocket(ctx context.Context) error {
-// 	return g.wsServerSignIn(ctx)
-// }
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (g *Gateio) AuthenticateWebsocket(ctx context.Context) error {
+	return g.wsServerSignIn(ctx)
+}
 
-// // ValidateCredentials validates current credentials used for wrapper
-// // functionality
-// func (g *Gateio) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
-// 	_, err := g.UpdateAccountInfo(ctx, assetType)
-// 	return g.CheckTransientError(err)
-// }
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (g *Gateio) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+	_, err := g.UpdateAccountInfo(ctx, assetType)
+	return g.CheckTransientError(err)
+}

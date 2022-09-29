@@ -398,7 +398,7 @@ func TestGetPersonalTradingHistory(t *testing.T) {
 
 func TestGetServerTime(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetServerTime(context.Background()); er != nil {
+	if _, er := g.GetServerTime(context.Background(), asset.Empty); er != nil {
 		t.Errorf("%s GetServerTime() error %v", g.Name, er)
 	}
 }
@@ -1672,52 +1672,29 @@ func TestGetAllDeliveryContracts(t *testing.T) {
 	}
 }
 
-func TestGetContractFromCurrencyPair(t *testing.T) {
-	t.Parallel()
-	if _, err := g.GetContractFromCurrencyPair(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.DeliveryFutures); err != nil {
-		t.Error("Invalid delivery contract:", err)
-	}
-}
-
 func TestGetSingleDeliveryContracts(t *testing.T) {
 	t.Parallel()
-	con, err := g.GetContractFromCurrencyPair(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.DeliveryFutures)
-	if err != nil {
-		t.Skip(err.Error())
-	}
-	if _, err = g.GetSingleDeliveryContracts(context.Background(), "usdt", con); err != nil {
+	if _, err := g.GetSingleDeliveryContracts(context.Background(), "usdt", "BTC_USD_20220930"); err != nil {
 		t.Errorf("%s GetSingleDeliveryContracts() error %v", g.Name, err)
 	}
 }
 
 func TestGetDeliveryOrderbook(t *testing.T) {
 	t.Parallel()
-	con, err := g.GetContractFromCurrencyPair(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.DeliveryFutures)
-	if err != nil {
-		t.Skip(err.Error())
-	}
-	if _, err = g.GetDeliveryOrderbook(context.Background(), "usdt", con, "0", 0, false); err != nil {
+	if _, err := g.GetDeliveryOrderbook(context.Background(), "usdt", "BTC_USD_20220930", "0", 0, false); err != nil {
 		t.Errorf("%s GetDeliveryOrderbook() error %v", g.Name, err)
 	}
 }
 
 func TestGetDeliveryTradingHistory(t *testing.T) {
 	t.Parallel()
-	con, err := g.GetContractFromCurrencyPair(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.DeliveryFutures)
-	if err != nil {
-		t.Skip(err.Error())
-	}
-	if _, err = g.GetDeliveryTradingHistory(context.Background(), "usdt", con, 0, "", time.Time{}, time.Time{}); err != nil {
+	if _, err := g.GetDeliveryTradingHistory(context.Background(), "usdt", "BTC_USD_20220930", 0, "", time.Time{}, time.Time{}); err != nil {
 		t.Errorf("%s GetDeliveryTradingHistory() error %v", g.Name, err)
 	}
 }
 func TestGetDeliveryFuturesCandlesticks(t *testing.T) {
 	t.Parallel()
-	con, err := g.GetContractFromCurrencyPair(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.DeliveryFutures)
-	if err != nil {
-		t.Skip(err.Error())
-	}
-	if _, err = g.GetDeliveryFuturesCandlesticks(context.Background(), "usdt", con, time.Time{}, time.Time{}, 0, kline.OneWeek); err != nil {
+	if _, err := g.GetDeliveryFuturesCandlesticks(context.Background(), "usdt", "BTC_USD_20220930", time.Time{}, time.Time{}, 0, kline.OneWeek); err != nil {
 		t.Errorf("%s GetFuturesCandlesticks() error %v", g.Name, err)
 	}
 }
@@ -2192,7 +2169,7 @@ func TestGetSingleSubAccount(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	if _, err := g.FetchTradablePairs(context.Background(), asset.Spot); err != nil {
+	if _, err := g.FetchTradablePairs(context.Background(), asset.DeliveryFutures); err != nil {
 		t.Errorf("%s FetchTradablePairs() error %v", g.Name, err)
 	}
 }
@@ -2381,5 +2358,173 @@ func TestGetAvailableTransferTrains(t *testing.T) {
 	_, err := g.GetAvailableTransferChains(context.Background(), currency.USDT)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestDetermineAccount(t *testing.T) {
+	t.Parallel()
+	if _, err := g.determineAccount(context.Background()); err != nil {
+		t.Errorf("%s determineAccount() error %v", g.Name, err)
+	}
+}
+
+func TestGetUnderlyingFromCurrencyPair(t *testing.T) {
+	t.Parallel()
+	if _, err := g.GetUnderlyingFromCurrencyPair(currency.NewPair(currency.BTC, currency.NewCode("USDT_LLK"))); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGenerateDefaultSubscriptions(t *testing.T) {
+	t.Parallel()
+	if response, err := g.GenerateDefaultSubscriptions(); err != nil {
+		t.Error(err)
+	} else {
+		value, _ := json.Marshal(response)
+		println(string(value))
+	}
+}
+
+func TestConnect(t *testing.T) {
+	t.Parallel()
+	g.Verbose = true
+	if err := setupWsAuth(); err != nil {
+		t.Error(err)
+	}
+}
+
+func setupWsAuth( /*t *testing.T*/ ) error {
+	// t.Helper()
+	if wsSetupRan {
+		return nil
+	}
+	// g.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	if !g.Websocket.IsEnabled() { /* &&
+		!g.API.AuthenticatedWebsocketSupport ||
+		!areTestAPIKeysSet() ||
+		!canManipulateRealOrders*/
+		// t.Skip(stream.WebsocketNotEnabled)
+		return errors.New("websocket is not enabled")
+	}
+	// var dialer websocket.Dialer
+	g.WsChannelsMultiplexer = &WsMultiplexer{
+		Channels:   map[string]chan *WsEventResponse{},
+		Register:   make(chan *wsChanReg),
+		Unregister: make(chan string),
+		Message:    make(chan *WsEventResponse),
+	}
+	g.Websocket.Wg.Add(1)
+	err := g.WsConnect()
+	if err != nil {
+		// t.Fatal(err)
+		return err
+	}
+	go g.wsReadData()
+	wsSetupRan = true
+	time.Sleep(time.Second * 20)
+	return nil
+}
+
+var wsTickerPushDataJSON = `{	"time": 1606291803,	"channel": "spot.tickers",	"event": "update",	"result": {	  "currency_pair": "BTC_USDT",	  "last": "19106.55",	  "lowest_ask": "19108.71",	  "highest_bid": "19106.55",	  "change_percentage": "3.66",	  "base_volume": "2811.3042155865",	  "quote_volume": "53441606.52411221454674732293",	  "high_24h": "19417.74",	  "low_24h": "18434.21"	}}`
+
+func TestWsTickerPushData(t *testing.T) {
+	t.Parallel()
+	if err := g.wsHandleData([]byte(wsTickerPushDataJSON)); err != nil {
+		t.Errorf("%s websocket ticker push data error: %v", g.Name, err)
+	}
+}
+
+var wsTradePushDataJSON = `{	"time": 1606292218,	"channel": "spot.trades",	"event": "update",	"result": {	  "id": 309143071,	  "create_time": 1606292218,	  "create_time_ms": "1606292218213.4578",	  "side": "sell",	  "currency_pair": "GT_USDT",	  "amount": "16.4700000000",	  "price": "0.4705000000"}}`
+
+func TestWsTradePushData(t *testing.T) {
+	t.Parallel()
+	if err := g.wsHandleData([]byte(wsTradePushDataJSON)); err != nil {
+		t.Errorf("%s websocket trade push data error: %v", g.Name, err)
+	}
+}
+
+var wsCandlestickPushDataJSON = `{	"time": 1606292600,	"channel": "spot.candlesticks",	"event": "update",	"result": {	  "t": "1606292580",	  "v": "2362.32035",	  "c": "19128.1",	  "h": "19128.1",	  "l": "19128.1",	  "o": "19128.1","n": "1m_BTC_USDT"}}`
+
+func TestWsCandlestickPushData(t *testing.T) {
+	t.Parallel()
+	if err := g.wsHandleData([]byte(wsCandlestickPushDataJSON)); err != nil {
+		t.Errorf("%s websocket candlestick push data error: %v", g.Name, err)
+	}
+}
+
+var wsOrderbookTickerJSON = `{	"time": 1606293275,	"channel": "spot.book_ticker",	"event": "update",	"result": {	  "t": 1606293275123,	  "u": 48733182,	  "s": "BTC_USDT",	  "b": "19177.79",	  "B": "0.0003341504",	  "a": "19179.38",	  "A": "0.09"	}}`
+
+func TestWsOrderbookTickerPushData(t *testing.T) {
+	t.Parallel()
+	if err := g.wsHandleData([]byte(wsOrderbookTickerJSON)); err != nil {
+		t.Errorf("%s websocket orderbook push data error: %v", g.Name, err)
+	}
+}
+
+var wsOrderbookUpdatePushDataJSON = `{	"time": 1606294781,	"channel": "spot.order_book_update",	"event": "update",	"result": {	  "t": 1606294781123,	  "e": "depthUpdate",	  "E": 1606294781,"s": "BTC_USDT","U": 48776301,"u": 48776306,"b": [["19137.74","0.0001"],["19088.37","0"]],"a": [["19137.75","0.6135"]]	}}`
+var wsOrderbookSnapshotPushDataJSON = `{"time":1606295412,"channel": "spot.order_book",	"event": "update",	"result": {	  "t": 1606295412123,	  "lastUpdateId": 48791820,	  "s": "BTC_USDT",	  "bids": [		[		  "19079.55",		  "0.0195"		],		[		  "19079.07",		  "0.7341"],["19076.23",		  "0.00011808"		],		[		  "19073.9",		  "0.105"		],		[		  "19068.83",		  "0.1009"		]	  ],	  "asks": [		[		  "19080.24",		  "0.1638"		],		[		  "19080.91","0.1366"],["19080.92","0.01"],["19081.29","0.01"],["19083.8","0.097"]]}}`
+
+func TestWsOrderbookSnapshotPushData(t *testing.T) {
+	t.Parallel()
+	err := g.wsHandleData([]byte(wsOrderbookSnapshotPushDataJSON))
+	if err != nil {
+		t.Errorf("%s websocket orderbook snapshot push data error: %v", g.Name, err)
+	}
+	if err = g.wsHandleData([]byte(wsOrderbookUpdatePushDataJSON)); err != nil {
+		t.Errorf("%s websocket orderbook update push data error: %v", g.Name, err)
+	}
+}
+
+var wsSpotOrderPushDataJSON = `{	"time": 1605175506,	"channel": "spot.orders",	"event": "update",	"result": [	  {		"id": "30784435",		"user": 123456,		"text": "t-abc",		"create_time": "1605175506",		"create_time_ms": "1605175506123",		"update_time": "1605175506",		"update_time_ms": "1605175506123",		"event": "put",		"currency_pair": "BTC_USDT",		"type": "limit",		"account": "spot",		"side": "sell",		"amount": "1",		"price": "10001",		"time_in_force": "gtc",		"left": "1",		"filled_total": "0",		"fee": "0",		"fee_currency": "USDT",		"point_fee": "0",		"gt_fee": "0",		"gt_discount": true,		"rebated_fee": "0",		"rebated_fee_currency": "USDT"}	]}`
+
+func TestWsPushOrders(t *testing.T) {
+	t.Parallel()
+	if err := g.wsHandleData([]byte(wsSpotOrderPushDataJSON)); err != nil {
+		t.Errorf("%s websocket orders push data error: %v", g.Name, err)
+	}
+}
+
+var wsUserTradePushDataJSON = `{"time": 1605176741,	"channel": "spot.usertrades",	"event": "update",	"result": [	  {		"id": 5736713,		"user_id": 1000001,		"order_id": "30784428",		"currency_pair": "BTC_USDT",		"create_time": 1605176741,		"create_time_ms": "1605176741123.456",		"side": "sell",		"amount": "1.00000000",		"role": "taker",		"price": "10000.00000000",		"fee": "0.00200000000000",		"point_fee": "0",		"gt_fee": "0",		"text": "apiv4"	  }	]}`
+
+func TestWsUserTradesPushDataJSON(t *testing.T) {
+	t.Parallel()
+	if err := g.wsHandleData([]byte(wsUserTradePushDataJSON)); err != nil {
+		t.Errorf("%s websocket users trade push data error: %v", g.Name, err)
+	}
+}
+
+var wsBalancesPushDataJSON = `{	"time": 1605248616,	"channel": "spot.balances",	"event": "update",	"result": [	  {		"timestamp": "1605248616",		"timestamp_ms": "1605248616123",		"user": "1000001",		"currency": "USDT",		"change": "100",		"total": "1032951.325075926",		"available": "1022943.325075926"}	]}`
+
+func TestBalancesPushData(t *testing.T) {
+	t.Parallel()
+	if err := g.wsHandleData([]byte(wsBalancesPushDataJSON)); err != nil {
+		t.Errorf("%s websocket balances push data error: %v", g.Name, err)
+	}
+}
+
+var wsMarginBalancePushDataJSON = `{	"time": 1605248616,	"channel": "spot.funding_balances",	"event": "update",	"result": [	  {"timestamp": "1605248616","timestamp_ms": "1605248616123","user": "1000001","currency": "USDT","change": "100","freeze": "100","lent": "0"}	]}`
+
+func TestMarginBalancePushData(t *testing.T) {
+	t.Parallel()
+	if err := g.wsHandleData([]byte(wsMarginBalancePushDataJSON)); err != nil {
+		t.Errorf("%s websocket margin balance push data error: %v", g.Name, err)
+	}
+}
+
+var wsCrossMarginBalancePushDataJSON = `{	"time": 1605248616,	"channel": "spot.cross_balances",	"event": "update",	"result": [	  {		"timestamp": "1605248616",		"timestamp_ms": "1605248616123","user": "1000001",		"currency": "USDT",	"change": "100","total": "1032951.325075926","available": "1022943.325075926"}	]}`
+
+func TestCrossMarginBalancePushData(t *testing.T) {
+	t.Parallel()
+	if err := g.wsHandleData([]byte(wsCrossMarginBalancePushDataJSON)); err != nil {
+		t.Errorf("%s websocket cross margin balance push data error: %v", g.Name, err)
+	}
+}
+
+var wsCrossMarginBalanceLoan = `{	"time":1658289372,	"channel":"spot.cross_loan",	"event":"update",	"result":{	  "timestamp":1658289372338,	  "user":"1000001",	  "currency":"BTC",	  "change":"0.01",	  "total":"4.992341029566",	  "available":"0.078054772536",	  "borrowed":"0.01",	  "interest":"0.00001375"	}}`
+
+func TestCrossMarginBalanceLoan(t *testing.T) {
+	t.Parallel()
+	if err := g.wsHandleData([]byte(wsCrossMarginBalanceLoan)); err != nil {
+		t.Errorf("%s websocket cross margin loan push data error: %v", g.Name, err)
 	}
 }

@@ -694,6 +694,35 @@ func (a *SpotOrder) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// UnmarshalJSON decerializes json, and timestamp information.
+func (a *WsSpotOrder) UnmarshalJSON(data []byte) error {
+	type Alias WsSpotOrder
+	chil := &struct {
+		*Alias
+		CreateTime   int64   `json:"create_time,string"`
+		UpdateTime   int64   `json:"update_time,string"`
+		CreateTimeMs float64 `json:"create_time_ms,string"`
+		UpdateTimeMs float64 `json:"update_time_ms,string"`
+		Left         string  `json:"left"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	err := json.Unmarshal(data, chil)
+	if err != nil {
+		return err
+	}
+	if chil.Left != "" {
+		if a.Left, err = strconv.ParseFloat(chil.Left, 64); err != nil {
+			return err
+		}
+	}
+	a.CreateTime = time.Unix(chil.CreateTime, 0)
+	a.UpdateTime = time.Unix(chil.UpdateTime, 0)
+	a.CreateTimeMs = time.UnixMilli(int64(chil.CreateTimeMs))
+	a.UpdateTimeMs = time.UnixMilli(int64(chil.UpdateTimeMs))
+	return nil
+}
+
 // UnmarshalJSON decerializes json, and timestamp information
 func (a *MarginAccountBalanceChangeInfo) UnmarshalJSON(data []byte) error {
 	type Alias MarginAccountBalanceChangeInfo
