@@ -5858,8 +5858,16 @@
         "currencyBought": {
           "type": "string"
         },
+        "bought": {
+          "type": "number",
+          "format": "double"
+        },
         "currencySold": {
           "type": "string"
+        },
+        "sold": {
+          "type": "number",
+          "format": "double"
         },
         "sideAffected": {
           "type": "string"
@@ -5880,6 +5888,10 @@
         },
         "noSlippageOccurred": {
           "type": "boolean"
+        },
+        "averageOrderCost": {
+          "type": "number",
+          "format": "double"
         }
       }
     },

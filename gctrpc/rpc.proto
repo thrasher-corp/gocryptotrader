@@ -1295,13 +1295,16 @@ message GetOrderbookMovementResponse {
   double impact_percentage = 2;
   double slippage_cost = 3;
   string currency_bought = 4;
-  string currency_sold = 5;
-  string side_affected = 6;
-  string update_protocol = 7;
-  bool full_orderbook_side_consumed = 8;
-  double start_price = 9;
-  double end_price = 10;
-  bool no_slippage_occurred = 11;
+  double bought = 5;
+  string currency_sold = 6;
+  double sold = 7;
+  string side_affected = 8;
+  string update_protocol = 9;
+  bool full_orderbook_side_consumed = 10;
+  double start_price = 11;
+  double end_price = 12;
+  bool no_slippage_occurred = 13;
+  double average_order_cost = 14;
 }
 
 message GetOrderbookAmountByNominalRequest {

@@ -242,7 +242,7 @@ var quote = &cli.Command{
 }
 
 var baseRequired = &cli.Command{
-	Name:      "base",
+	Name:      "baserequired",
 	Usage:     "simulates a buy with a required base amount to be purchased",
 	ArgsUsage: "<exchange> <pair> <asset> <amount>",
 	Action:    getMovement,

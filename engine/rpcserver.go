@@ -5364,13 +5364,16 @@ func (s *RPCServer) GetOrderbookMovement(ctx context.Context, r *gctrpc.GetOrder
 		ImpactPercentage:          move.ImpactPercentage,
 		SlippageCost:              move.SlippageCost,
 		CurrencyBought:            bought,
+		Bought:                    move.Purchased,
 		CurrencySold:              sold,
+		Sold:                      move.Sold,
 		SideAffected:              side,
 		UpdateProtocol:            updateProtocol,
 		FullOrderbookSideConsumed: move.FullBookSideConsumed,
 		NoSlippageOccurred:        move.ImpactPercentage == 0,
 		StartPrice:                move.StartPrice,
 		EndPrice:                  move.EndPrice,
+		AverageOrderCost:          move.AverageOrderCost,
 	}, nil
 }
 
@@ -5434,6 +5437,7 @@ func (s *RPCServer) GetOrderbookAmountByNominal(ctx context.Context, r *gctrpc.G
 		FullOrderbookSideConsumed:            nominal.FullBookSideConsumed,
 		StartPrice:                           nominal.StartPrice,
 		EndPrice:                             nominal.EndPrice,
+		AverageOrderCost:                     nominal.AverageOrderCost,
 	}, nil
 }
 
@@ -5497,5 +5501,6 @@ func (s *RPCServer) GetOrderbookAmountByImpact(ctx context.Context, r *gctrpc.Ge
 		FullOrderbookSideConsumed:           impact.FullBookSideConsumed,
 		StartPrice:                          impact.StartPrice,
 		EndPrice:                            impact.EndPrice,
+		AverageOrderCost:                    impact.AverageOrderCost,
 	}, nil
 }
