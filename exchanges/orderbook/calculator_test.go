@@ -2,7 +2,6 @@ package orderbook
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"strings"
 	"testing"
@@ -162,8 +161,6 @@ func TestWhaleBomb(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
-
-	fmt.Println(result)
 
 	if !strings.Contains(result.Status, fullLiquidityUsageWarning) {
 		t.Fatal("expected status to contain liquidity warning")

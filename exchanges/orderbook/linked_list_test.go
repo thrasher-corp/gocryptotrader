@@ -2115,3 +2115,29 @@ func TestGetHeadPrice(t *testing.T) {
 		t.Fatal("unexpected value", val)
 	}
 }
+
+func TestMutateFields(t *testing.T) {
+	m := &Movement{}
+	_, err := m.mutateFields(0, 0, 0, 0, false)
+	if !errors.Is(err, errInvalidCost) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidCost)
+	}
+	_, err = m.mutateFields(1, 0, 0, 0, false)
+	if !errors.Is(err, errInvalidAmount) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidAmount)
+	}
+	_, err = m.mutateFields(1, 1, 0, 0, false)
+	if !errors.Is(err, errInvalidHeadPrice) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidHeadPrice)
+	}
+
+	// Test slippage as per https://en.wikipedia.org/wiki/Slippage_(finance)
+	mov, err := m.mutateFields(20000*151.11585, 20000, 151.08, 0, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if mov.SlippageCost != 716.9999999995343 {
+		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 716.9999999995343)
+	}
+}

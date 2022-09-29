@@ -369,7 +369,9 @@ func (ll *linkedList) getHeadPriceNoLock() (float64, error) {
 }
 
 // getMovementByQuotation traverses through orderbook liquidity using quotation
-// currency as a limiter and returns orderbook movement details.
+// currency as a limiter and returns orderbook movement details. Swap boolean
+// allows the swap of sold and purchased to reduce code so it doesn't need to be
+// specific to bid or ask.
 func (ll *linkedList) getMovementByQuotation(quote, refPrice float64, swap bool) (*Movement, error) {
 	if quote <= 0 {
 		return nil, errQuoteAmountInvalid
@@ -414,7 +416,9 @@ func (ll *linkedList) getMovementByQuotation(quote, refPrice float64, swap bool)
 }
 
 // getMovementByBase traverses through orderbook liquidity using base currency
-// as a limiter and returns orderbook movement details.
+// as a limiter and returns orderbook movement details. Swap boolean allows the
+// swap of sold and purchased to reduce code so it doesn't need to be specific
+// to bid or ask.
 func (ll *linkedList) getMovementByBase(base, refPrice float64, swap bool) (*Movement, error) {
 	if base <= 0 {
 		return nil, errBaseAmountInvalid
@@ -620,7 +624,7 @@ func (ll *asks) insertUpdates(updts Items, stack *stack) error {
 	return ll.linkedList.insertUpdates(updts, stack, askCompare)
 }
 
-// liftAsksByNominalSlippage lifts the asks by the required impact slippage
+// liftAsksByNominalSlippage lifts the asks by the required nominal slippage
 // percentage, calculated from the reference price and returns orderbook
 // movement details.
 func (ll *asks) liftAsksByNominalSlippage(slippage, refPrice float64) (*Movement, error) {
@@ -653,7 +657,7 @@ func (ll *asks) liftAsksByNominalSlippage(slippage, refPrice float64) (*Movement
 				// Rounding issue on requested nominal percentage
 				return nominal, nil
 			}
-			fmt.Println(targetCost)
+
 			comparative := targetCost * cumulativeAmounts
 			comparativeDiff := comparative - nominal.Sold
 			trancheTargetPriceDiff := tip.Value.Price - targetCost
@@ -679,7 +683,9 @@ func (ll *asks) liftAsksByNominalSlippage(slippage, refPrice float64) (*Movement
 	return nominal, nil
 }
 
-// liftAsksByImpactSlippage
+// liftAsksByImpactSlippage lifts the asks by the required impact slippage
+// percentage, calculated from the reference price and returns orderbook
+// movement details.
 func (ll *asks) liftAsksByImpactSlippage(slippage, refPrice float64) (*Movement, error) {
 	if slippage < 0 {
 		return nil, errInvalidSlippage
@@ -852,13 +858,9 @@ func (m *Movement) mutateFields(cost, amount, headPrice, leftover float64, swap 
 		return nil, errInvalidCost
 	}
 
-	// fmt.Println("COST", cost)
-
 	if amount <= 0 {
 		return nil, errInvalidAmount
 	}
-
-	// fmt.Println("amount", amount)
 
 	if headPrice <= 0 {
 		return nil, errInvalidHeadPrice
@@ -872,10 +874,6 @@ func (m *Movement) mutateFields(cost, amount, headPrice, leftover float64, swap 
 		// Edge case rounding issue for float64 with small numbers.
 		m.AverageOrderCost = m.StartPrice
 	}
-
-	// fmt.Println("m.AverageOrderCost", m.AverageOrderCost)
-
-	// fmt.Println("REF PRICE", m.StartPrice)
 
 	// Nominal percentage is the difference from the reference price to average
 	// order cost.
@@ -909,6 +907,7 @@ func (m *Movement) mutateFields(cost, amount, headPrice, leftover float64, swap 
 		m.SlippageCost *= -1
 	}
 
+	// Swap saves on code duplication for difference in ask or bid amounts.
 	if swap {
 		m.Sold, m.Purchased = m.Purchased, m.Sold
 	}

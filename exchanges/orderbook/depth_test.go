@@ -2,7 +2,6 @@ package orderbook
 
 import (
 	"errors"
-	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -1318,8 +1317,6 @@ func TestHitTheBidsFromMid_QuotationRequired(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
-
-	fmt.Printf("%+v\n", mov)
 
 	if mov.NominalPercentage != 0.7482229704451926 {
 		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7482229704451926)
