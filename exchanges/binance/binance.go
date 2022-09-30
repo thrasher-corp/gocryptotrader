@@ -286,7 +286,7 @@ func (b *Binance) batchAggregateTrades(ctx context.Context, arg *AggregatedTrade
 		// cutting off trades for high activity pairs
 		increment := time.Second * 10
 		for start := arg.StartTime; len(resp) == 0; start = start.Add(increment) {
-			if !arg.EndTime.IsZero() && !start.Before(arg.EndTime) {
+			if !arg.EndTime.IsZero() && start.After(arg.EndTime) {
 				// All requests returned empty
 				return nil, nil
 			}

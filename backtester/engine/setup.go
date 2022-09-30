@@ -40,7 +40,6 @@ import (
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
-	"github.com/thrasher-corp/gocryptotrader/signaler"
 )
 
 // NewFromConfig takes a strategy config and configures a backtester variable to run
@@ -49,13 +48,16 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 	if cfg == nil {
 		return nil, errNilConfig
 	}
-	var err error
-	bt := New()
+	bt, err := New()
+	if err != nil {
+		return nil, err
+	}
 	bt.exchangeManager = engine.SetupExchangeManager()
 	bt.orderManager, err = engine.SetupOrderManager(bt.exchangeManager, &engine.CommunicationManager{}, &sync.WaitGroup{}, false, false, 0)
 	if err != nil {
 		return nil, err
 	}
+
 	err = bt.orderManager.Start()
 	if err != nil {
 		return nil, err
@@ -348,7 +350,9 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 	if err != nil {
 		return nil, err
 	}
+	bt.MetaData.Strategy = bt.Strategy.Name()
 	bt.Strategy.SetDefaults()
+
 	if cfg.StrategySettings.CustomSettings != nil {
 		err = bt.Strategy.SetCustomSettings(cfg.StrategySettings.CustomSettings)
 		if err != nil && !errors.Is(err, base.ErrCustomSettingsUnsupported) {
@@ -514,6 +518,8 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		realOrders := false
 		if cfg.DataSettings.LiveData != nil {
 			realOrders = cfg.DataSettings.LiveData.RealOrders
+			bt.MetaData.LiveTesting = true
+			bt.MetaData.RealOrders = realOrders
 		}
 
 		buyRule := exchange.MinMax{
@@ -880,45 +886,24 @@ func loadLiveData(cfg *config.Config, base *gctexchange.Base) error {
 	return nil
 }
 
-// ExecuteStrategy executes the strategy using the provided configs
-func ExecuteStrategy(strategyCfg *config.Config, backtesterCfg *config.BacktesterConfig) error {
-	if err := strategyCfg.Validate(); err != nil {
-		return err
+// NewBacktesterFromConfigs creates a new backtester based on config settings
+func NewBacktesterFromConfigs(strategyCfg *config.Config, backtesterCfg *config.BacktesterConfig) (*BackTest, error) {
+	if strategyCfg == nil {
+		return nil, fmt.Errorf("%w strategy config", gctcommon.ErrNilPointer)
 	}
 	if backtesterCfg == nil {
-		err := fmt.Errorf("%w backtester config", common.ErrNilArguments)
-		return err
+		return nil, fmt.Errorf("%w backtester config", gctcommon.ErrNilPointer)
+	}
+	if err := strategyCfg.Validate(); err != nil {
+		return nil, err
 	}
 	bt, err := NewFromConfig(strategyCfg, backtesterCfg.Report.TemplatePath, backtesterCfg.Report.OutputPath, backtesterCfg.Verbose)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if strategyCfg.DataSettings.LiveData != nil {
-		go func() {
-			err = bt.RunLive()
-			if err != nil {
-				log.Error(log.Global, err)
-				return
-			}
-		}()
-		interrupt := signaler.WaitForInterrupt()
-		log.Infof(log.Global, "Captured %v, shutdown requested.\n", interrupt)
-		bt.Stop()
-	} else {
-		bt.Run()
-	}
-
-	err = bt.Statistic.CalculateAllResults()
+	err = bt.SetupMetaData()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if backtesterCfg.Report.GenerateReport {
-		bt.Reports.UseDarkMode(backtesterCfg.Report.DarkMode)
-		err = bt.Reports.GenerateReport()
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return bt, nil
 }

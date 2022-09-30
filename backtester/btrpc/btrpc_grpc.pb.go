@@ -24,6 +24,13 @@ const _ = grpc.SupportPackageIsVersion7
 type BacktesterServiceClient interface {
 	ExecuteStrategyFromFile(ctx context.Context, in *ExecuteStrategyFromFileRequest, opts ...grpc.CallOption) (*ExecuteStrategyResponse, error)
 	ExecuteStrategyFromConfig(ctx context.Context, in *ExecuteStrategyFromConfigRequest, opts ...grpc.CallOption) (*ExecuteStrategyResponse, error)
+	ListAllRuns(ctx context.Context, in *ListAllRunsRequest, opts ...grpc.CallOption) (*ListAllRunsResponse, error)
+	StartRun(ctx context.Context, in *StartRunRequest, opts ...grpc.CallOption) (*StartRunResponse, error)
+	StartAllRuns(ctx context.Context, in *StartAllRunsRequest, opts ...grpc.CallOption) (*StartAllRunsResponse, error)
+	StopRun(ctx context.Context, in *StopRunRequest, opts ...grpc.CallOption) (*StopRunResponse, error)
+	StopAllRuns(ctx context.Context, in *StopAllRunsRequest, opts ...grpc.CallOption) (*StopAllRunsResponse, error)
+	ClearRun(ctx context.Context, in *ClearRunRequest, opts ...grpc.CallOption) (*ClearRunResponse, error)
+	ClearAllRuns(ctx context.Context, in *ClearAllRunsRequest, opts ...grpc.CallOption) (*ClearAllRunsResponse, error)
 }
 
 type backtesterServiceClient struct {
@@ -52,12 +59,82 @@ func (c *backtesterServiceClient) ExecuteStrategyFromConfig(ctx context.Context,
 	return out, nil
 }
 
+func (c *backtesterServiceClient) ListAllRuns(ctx context.Context, in *ListAllRunsRequest, opts ...grpc.CallOption) (*ListAllRunsResponse, error) {
+	out := new(ListAllRunsResponse)
+	err := c.cc.Invoke(ctx, "/btrpc.BacktesterService/ListAllRuns", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *backtesterServiceClient) StartRun(ctx context.Context, in *StartRunRequest, opts ...grpc.CallOption) (*StartRunResponse, error) {
+	out := new(StartRunResponse)
+	err := c.cc.Invoke(ctx, "/btrpc.BacktesterService/StartRun", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *backtesterServiceClient) StartAllRuns(ctx context.Context, in *StartAllRunsRequest, opts ...grpc.CallOption) (*StartAllRunsResponse, error) {
+	out := new(StartAllRunsResponse)
+	err := c.cc.Invoke(ctx, "/btrpc.BacktesterService/StartAllRuns", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *backtesterServiceClient) StopRun(ctx context.Context, in *StopRunRequest, opts ...grpc.CallOption) (*StopRunResponse, error) {
+	out := new(StopRunResponse)
+	err := c.cc.Invoke(ctx, "/btrpc.BacktesterService/StopRun", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *backtesterServiceClient) StopAllRuns(ctx context.Context, in *StopAllRunsRequest, opts ...grpc.CallOption) (*StopAllRunsResponse, error) {
+	out := new(StopAllRunsResponse)
+	err := c.cc.Invoke(ctx, "/btrpc.BacktesterService/StopAllRuns", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *backtesterServiceClient) ClearRun(ctx context.Context, in *ClearRunRequest, opts ...grpc.CallOption) (*ClearRunResponse, error) {
+	out := new(ClearRunResponse)
+	err := c.cc.Invoke(ctx, "/btrpc.BacktesterService/ClearRun", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *backtesterServiceClient) ClearAllRuns(ctx context.Context, in *ClearAllRunsRequest, opts ...grpc.CallOption) (*ClearAllRunsResponse, error) {
+	out := new(ClearAllRunsResponse)
+	err := c.cc.Invoke(ctx, "/btrpc.BacktesterService/ClearAllRuns", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BacktesterServiceServer is the server API for BacktesterService service.
 // All implementations must embed UnimplementedBacktesterServiceServer
 // for forward compatibility
 type BacktesterServiceServer interface {
 	ExecuteStrategyFromFile(context.Context, *ExecuteStrategyFromFileRequest) (*ExecuteStrategyResponse, error)
 	ExecuteStrategyFromConfig(context.Context, *ExecuteStrategyFromConfigRequest) (*ExecuteStrategyResponse, error)
+	ListAllRuns(context.Context, *ListAllRunsRequest) (*ListAllRunsResponse, error)
+	StartRun(context.Context, *StartRunRequest) (*StartRunResponse, error)
+	StartAllRuns(context.Context, *StartAllRunsRequest) (*StartAllRunsResponse, error)
+	StopRun(context.Context, *StopRunRequest) (*StopRunResponse, error)
+	StopAllRuns(context.Context, *StopAllRunsRequest) (*StopAllRunsResponse, error)
+	ClearRun(context.Context, *ClearRunRequest) (*ClearRunResponse, error)
+	ClearAllRuns(context.Context, *ClearAllRunsRequest) (*ClearAllRunsResponse, error)
 	mustEmbedUnimplementedBacktesterServiceServer()
 }
 
@@ -70,6 +147,27 @@ func (UnimplementedBacktesterServiceServer) ExecuteStrategyFromFile(context.Cont
 }
 func (UnimplementedBacktesterServiceServer) ExecuteStrategyFromConfig(context.Context, *ExecuteStrategyFromConfigRequest) (*ExecuteStrategyResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ExecuteStrategyFromConfig not implemented")
+}
+func (UnimplementedBacktesterServiceServer) ListAllRuns(context.Context, *ListAllRunsRequest) (*ListAllRunsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListAllRuns not implemented")
+}
+func (UnimplementedBacktesterServiceServer) StartRun(context.Context, *StartRunRequest) (*StartRunResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StartRun not implemented")
+}
+func (UnimplementedBacktesterServiceServer) StartAllRuns(context.Context, *StartAllRunsRequest) (*StartAllRunsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StartAllRuns not implemented")
+}
+func (UnimplementedBacktesterServiceServer) StopRun(context.Context, *StopRunRequest) (*StopRunResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StopRun not implemented")
+}
+func (UnimplementedBacktesterServiceServer) StopAllRuns(context.Context, *StopAllRunsRequest) (*StopAllRunsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StopAllRuns not implemented")
+}
+func (UnimplementedBacktesterServiceServer) ClearRun(context.Context, *ClearRunRequest) (*ClearRunResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ClearRun not implemented")
+}
+func (UnimplementedBacktesterServiceServer) ClearAllRuns(context.Context, *ClearAllRunsRequest) (*ClearAllRunsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ClearAllRuns not implemented")
 }
 func (UnimplementedBacktesterServiceServer) mustEmbedUnimplementedBacktesterServiceServer() {}
 
@@ -120,6 +218,132 @@ func _BacktesterService_ExecuteStrategyFromConfig_Handler(srv interface{}, ctx c
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BacktesterService_ListAllRuns_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAllRunsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BacktesterServiceServer).ListAllRuns(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/btrpc.BacktesterService/ListAllRuns",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BacktesterServiceServer).ListAllRuns(ctx, req.(*ListAllRunsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BacktesterService_StartRun_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StartRunRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BacktesterServiceServer).StartRun(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/btrpc.BacktesterService/StartRun",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BacktesterServiceServer).StartRun(ctx, req.(*StartRunRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BacktesterService_StartAllRuns_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StartAllRunsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BacktesterServiceServer).StartAllRuns(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/btrpc.BacktesterService/StartAllRuns",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BacktesterServiceServer).StartAllRuns(ctx, req.(*StartAllRunsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BacktesterService_StopRun_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StopRunRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BacktesterServiceServer).StopRun(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/btrpc.BacktesterService/StopRun",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BacktesterServiceServer).StopRun(ctx, req.(*StopRunRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BacktesterService_StopAllRuns_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StopAllRunsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BacktesterServiceServer).StopAllRuns(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/btrpc.BacktesterService/StopAllRuns",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BacktesterServiceServer).StopAllRuns(ctx, req.(*StopAllRunsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BacktesterService_ClearRun_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ClearRunRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BacktesterServiceServer).ClearRun(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/btrpc.BacktesterService/ClearRun",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BacktesterServiceServer).ClearRun(ctx, req.(*ClearRunRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BacktesterService_ClearAllRuns_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ClearAllRunsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BacktesterServiceServer).ClearAllRuns(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/btrpc.BacktesterService/ClearAllRuns",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BacktesterServiceServer).ClearAllRuns(ctx, req.(*ClearAllRunsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BacktesterService_ServiceDesc is the grpc.ServiceDesc for BacktesterService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -134,6 +358,34 @@ var BacktesterService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ExecuteStrategyFromConfig",
 			Handler:    _BacktesterService_ExecuteStrategyFromConfig_Handler,
+		},
+		{
+			MethodName: "ListAllRuns",
+			Handler:    _BacktesterService_ListAllRuns_Handler,
+		},
+		{
+			MethodName: "StartRun",
+			Handler:    _BacktesterService_StartRun_Handler,
+		},
+		{
+			MethodName: "StartAllRuns",
+			Handler:    _BacktesterService_StartAllRuns_Handler,
+		},
+		{
+			MethodName: "StopRun",
+			Handler:    _BacktesterService_StopRun_Handler,
+		},
+		{
+			MethodName: "StopAllRuns",
+			Handler:    _BacktesterService_StopAllRuns_Handler,
+		},
+		{
+			MethodName: "ClearRun",
+			Handler:    _BacktesterService_ClearRun_Handler,
+		},
+		{
+			MethodName: "ClearAllRuns",
+			Handler:    _BacktesterService_ClearAllRuns_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
