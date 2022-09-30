@@ -1677,18 +1677,18 @@ func TestGetBaseAmountFromNominalSlippage(t *testing.T) {
 }
 
 // IsEqual is a tester function for comparison.
-func (s *Movement) IsEqual(that *Movement) bool {
-	if s == nil || that == nil {
-		return s == nil && that == nil
+func (m *Movement) IsEqual(that *Movement) bool {
+	if m == nil || that == nil {
+		return m == nil && that == nil
 	}
-	return s.FullBookSideConsumed == that.FullBookSideConsumed &&
-		s.Sold == that.Sold &&
-		s.Purchased == that.Purchased &&
-		s.NominalPercentage == that.NominalPercentage &&
-		s.ImpactPercentage == that.ImpactPercentage &&
-		s.EndPrice == that.EndPrice &&
-		s.StartPrice == that.StartPrice &&
-		s.AverageOrderCost == that.AverageOrderCost
+	return m.FullBookSideConsumed == that.FullBookSideConsumed &&
+		m.Sold == that.Sold &&
+		m.Purchased == that.Purchased &&
+		m.NominalPercentage == that.NominalPercentage &&
+		m.ImpactPercentage == that.ImpactPercentage &&
+		m.EndPrice == that.EndPrice &&
+		m.StartPrice == that.StartPrice &&
+		m.AverageOrderCost == that.AverageOrderCost
 }
 
 func TestGetBaseAmountFromImpact(t *testing.T) {
