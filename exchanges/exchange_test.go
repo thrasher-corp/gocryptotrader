@@ -2630,3 +2630,71 @@ func TestGetPairAndAssetTypeRequestFormatted(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", p, expected)
 	}
 }
+
+func TestGetKlineBuilder(t *testing.T) {
+	t.Parallel()
+	b := Base{}
+	_, err := b.GetKlineBuilder(0)
+	if !errors.Is(err, kline.ErrUnsetInterval) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrUnsetInterval)
+	}
+
+	_, err = b.GetKlineBuilder(kline.OneMin)
+	if !errors.Is(err, kline.ErrUnsupportedInterval) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrUnsupportedInterval)
+	}
+
+	b.Features.Enabled.Kline.Intervals = map[string]bool{
+		kline.OneMin.Word():   true,
+		kline.FiveMin.Word():  true,
+		kline.OneHour.Word():  true,
+		kline.OneDay.Word():   true,
+		kline.OneWeek.Word():  true,
+		kline.OneMonth.Word(): true,
+	}
+
+	builder, err := b.GetKlineBuilder(kline.OneMin)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if builder.Request() != kline.OneMin || builder.Required() != kline.OneMin {
+		t.Fatal("unexpected return")
+	}
+
+	builder, err = b.GetKlineBuilder(kline.FifteenMin)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if builder.Request() != kline.FiveMin || builder.Required() != kline.FifteenMin {
+		t.Fatal("unexpected return")
+	}
+
+	builder, err = b.GetKlineBuilder(kline.ThreeDay)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if builder.Request() != kline.OneDay || builder.Required() != kline.ThreeDay {
+		t.Fatal("unexpected return")
+	}
+
+	builder, err = b.GetKlineBuilder(kline.TwoWeek)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if builder.Request() != kline.OneWeek || builder.Required() != kline.TwoWeek {
+		t.Fatal("unexpected return")
+	}
+
+	builder, err = b.GetKlineBuilder(kline.OneMonth)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if builder.Request() != kline.OneMonth || builder.Required() != kline.OneMonth {
+		t.Fatal("unexpected return")
+	}
+}

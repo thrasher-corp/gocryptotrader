@@ -1485,3 +1485,39 @@ func (b *Base) GetFundingRates(ctx context.Context, request *order.FundingRatesR
 func (b *Base) IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error) {
 	return false, common.ErrNotYetImplemented
 }
+
+// GetKlineBuilder
+func (b *Base) GetKlineBuilder(interval kline.Interval) (*kline.Builder, error) {
+	word := interval.Word()
+	if word == "notfound" {
+		return nil, kline.ErrUnsetInterval
+	}
+	_, ok := b.Features.Enabled.Kline.Intervals[interval.Word()]
+	if ok {
+		return kline.GetBuilder(interval, interval)
+	}
+
+	for x := range kline.SupportedIntervals {
+		if interval > kline.SupportedIntervals[x] {
+			continue
+		}
+
+		for y := x - 1; y > -1; y-- {
+			_, ok = b.Features.Enabled.Kline.Intervals[kline.SupportedIntervals[y].Word()]
+			if !ok {
+				// Not supported on exchange
+				continue
+			}
+
+			if interval%kline.SupportedIntervals[y] != 0 {
+				// Cannot fit inside this bro
+				continue
+			}
+
+			return kline.GetBuilder(kline.SupportedIntervals[y], interval)
+		}
+		break
+	}
+
+	return nil, kline.ErrUnsupportedInterval
+}

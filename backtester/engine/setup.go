@@ -783,12 +783,12 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		resp.Item.UnderlyingPair = currency.NewPair(fPair.Base, curr)
 	}
 
-	err = b.ValidateKline(fPair, a, resp.Item.Interval)
-	if err != nil {
-		if dataType != common.DataTrade || !strings.EqualFold(err.Error(), "interval not supported") {
-			return nil, err
-		}
-	}
+	// err = b.ValidateKline(fPair, a, resp.Item.Interval)
+	// if err != nil {
+	// 	if dataType != common.DataTrade || !strings.EqualFold(err.Error(), "interval not supported") {
+	// 		return nil, err
+	// 	}
+	// }
 
 	err = resp.Load()
 	if err != nil {
