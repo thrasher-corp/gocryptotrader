@@ -592,3 +592,48 @@ func (d *Depth) GetBestAsk() (float64, error) {
 	defer d.m.Unlock()
 	return d.asks.getHeadPriceNoLock()
 }
+
+// GetSpreadAmount returns the spread as a quotation amount
+func (d *Depth) GetSpreadAmount() (float64, error) {
+	d.m.Lock()
+	defer d.m.Unlock()
+	askHead, err := d.asks.getHeadPriceNoLock()
+	if err != nil {
+		return 0, err
+	}
+	bidHead, err := d.bids.getHeadPriceNoLock()
+	if err != nil {
+		return 0, err
+	}
+	return askHead - bidHead, nil
+}
+
+// GetSpreadPercentage returns the spread as a percentage
+func (d *Depth) GetSpreadPercentage() (float64, error) {
+	d.m.Lock()
+	defer d.m.Unlock()
+	askHead, err := d.asks.getHeadPriceNoLock()
+	if err != nil {
+		return 0, err
+	}
+	bidHead, err := d.bids.getHeadPriceNoLock()
+	if err != nil {
+		return 0, err
+	}
+	return (askHead - bidHead) / askHead * 100, nil
+}
+
+// GetImbalance returns top orderbook imbalance
+func (d *Depth) GetImbalance() (float64, error) {
+	d.m.Lock()
+	defer d.m.Unlock()
+	askVolume, err := d.asks.getHeadVolumeNoLock()
+	if err != nil {
+		return 0, err
+	}
+	bidVolume, err := d.bids.getHeadVolumeNoLock()
+	if err != nil {
+		return 0, err
+	}
+	return (bidVolume - askVolume) / (bidVolume + askVolume), nil
+}

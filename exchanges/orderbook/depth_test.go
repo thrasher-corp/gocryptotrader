@@ -1900,3 +1900,84 @@ func TestGetBestBidASk_Depth(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", mid, 1337)
 	}
 }
+
+func TestGetSpreadAmount(t *testing.T) {
+	depth := NewDepth(id)
+
+	_, err := depth.GetSpreadAmount()
+	if !errors.Is(err, errNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	}
+
+	depth.LoadSnapshot(nil, ask, 0, time.Time{}, true)
+
+	_, err = depth.GetSpreadAmount()
+	if !errors.Is(err, errNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	}
+
+	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+
+	spread, err := depth.GetSpreadAmount()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if spread != 1 {
+		t.Fatalf("received: '%v' but expected: '%v'", spread, 1)
+	}
+}
+
+func TestGetSpreadPercentage(t *testing.T) {
+	depth := NewDepth(id)
+
+	_, err := depth.GetSpreadPercentage()
+	if !errors.Is(err, errNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	}
+
+	depth.LoadSnapshot(nil, ask, 0, time.Time{}, true)
+
+	_, err = depth.GetSpreadPercentage()
+	if !errors.Is(err, errNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	}
+
+	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+
+	spread, err := depth.GetSpreadPercentage()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if spread != 0.07479431563201197 {
+		t.Fatalf("received: '%v' but expected: '%v'", spread, 0.07479431563201197)
+	}
+}
+
+func TestGetImbalance_Depth(t *testing.T) {
+	depth := NewDepth(id)
+
+	_, err := depth.GetImbalance()
+	if !errors.Is(err, errNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	}
+
+	depth.LoadSnapshot(nil, ask, 0, time.Time{}, true)
+
+	_, err = depth.GetImbalance()
+	if !errors.Is(err, errNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	}
+
+	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+
+	imbalance, err := depth.GetImbalance()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if imbalance != 0 {
+		t.Fatalf("received: '%v' but expected: '%v'", imbalance, 0)
+	}
+}

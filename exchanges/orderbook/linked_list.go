@@ -360,12 +360,20 @@ func (ll *linkedList) insertUpdates(updts Items, stack *stack, comp comparison) 
 	return nil
 }
 
-// getHeadPrice gets best/head price
+// getHeadPriceNoLock gets best/head price
 func (ll *linkedList) getHeadPriceNoLock() (float64, error) {
 	if ll.head == nil {
 		return 0, errNoLiquidity
 	}
 	return ll.head.Value.Price, nil
+}
+
+// getHeadVolumeNoLock gets best/head volume
+func (ll *linkedList) getHeadVolumeNoLock() (float64, error) {
+	if ll.head == nil {
+		return 0, errNoLiquidity
+	}
+	return ll.head.Value.Amount, nil
 }
 
 // getMovementByQuotation traverses through orderbook liquidity using quotation
