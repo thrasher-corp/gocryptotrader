@@ -53,6 +53,7 @@ var defaultSubscriptions = []string{
 	spotCandlesticksChannel,
 	spotTradesChannel,
 	spotOrderbookChannel,
+	spotOrderbookUpdateChannel,
 }
 
 // WsConnect initiates a websocket connection
@@ -77,26 +78,11 @@ func (g *Gateio) WsConnect() error {
 	}
 	g.Websocket.Conn.SetupPingHandler(stream.PingHandler{
 		Websocket: true,
-		Delay:     time.Second * 5,
+		Delay:     time.Second * 15,
 		Message:   pingMessage,
 	})
 	g.Websocket.Wg.Add(1)
 	go g.wsReadData()
-	if g.IsWebsocketAuthenticationSupported() {
-		if err != nil {
-			g.Websocket.DataHandler <- err
-			g.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		} else {
-			subscriptions, err := g.GenerateDefaultSubscriptions()
-			if err != nil {
-				println(err.Error())
-				return err
-			}
-			go g.Subscribe(
-				subscriptions,
-			)
-		}
-	}
 	go g.WsChannelsMultiplexer.Run()
 	return nil
 }
@@ -116,14 +102,14 @@ func (g *Gateio) wsServerSignIn(ctx context.Context) error {
 		return err
 	}
 	timestamp := time.Now()
-	sigTemp, err := g.generateSpotWsSignature(creds.Secret, "subscribe", "spot.balances", timestamp)
+	sigTemp, err := g.generateSpotWsSignature(creds.Secret, "subscribe", futuresOrdersChannel, timestamp)
 	if err != nil {
 		return err
 	}
 	signinWsRequest := WsInput{
 		Time:    timestamp.Unix(),
 		ID:      g.Websocket.Conn.GenerateMessageID(false),
-		Channel: "spot.balances",
+		Channel: futuresOrdersChannel,
 		Event:   "subscribe",
 		Auth: &WsAuthInput{
 			Method: "api_key",
@@ -197,6 +183,36 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 		return g.processCrossMarginBalance(respRaw)
 	case crossMarginLoanChannel:
 		return g.processCrossMarginLoans(respRaw)
+	case futuresTickersChannel:
+		return g.processFuturesTickers(respRaw)
+	case futuresTradesChannel:
+		return g.processFuturesTrades(respRaw)
+	case futuresOrderbookChannel:
+		return g.processFuturesOrderbookSnapshot(respRaw)
+	case futuresOrderbookTickerChannel:
+		return g.processFuturesOrderbookTicker(respRaw)
+	case futuresOrderbookUpdateChannel:
+		return g.procesFuturesOrderbookUpdate(respRaw)
+	case futuresCandlesticksChannel:
+		return g.processFuturesCandlesticks(respRaw)
+	case futuresOrdersChannel:
+		fallthrough
+	case futuresUserTradesChannel:
+		fallthrough
+	case futuresLiquidatesChannel:
+		fallthrough
+	case futuresAutoDeleveragesChannel:
+		fallthrough
+	case futuresAutoPositionCloseChannel:
+		fallthrough
+	case futuresBalancesChannel:
+		fallthrough
+	case futuresReduceRiskLimitsChannel:
+		fallthrough
+	case futuresPositionsChannel:
+		fallthrough
+	case futuresAutoOrdersChannel:
+		fallthrough
 	default:
 		g.Websocket.DataHandler <- stream.UnhandledMessageWarning{
 			Message: g.Name + stream.UnhandledMessage + string(respRaw),
@@ -360,6 +376,7 @@ func (g *Gateio) processOrderbookUpdate(data []byte) error {
 }
 
 func (g *Gateio) processOrderbookSnapshot(data []byte) error {
+	println(string(data))
 	var response WsResponse
 	snapshot := &WsOrderbookSnapshot{}
 	response.Result = snapshot
@@ -624,23 +641,16 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 		for j := range pairs {
 			params := make(map[string]interface{})
 			if strings.EqualFold(defaultSubscriptions[i], spotOrderbookChannel) {
-				params["level"] = 5
-				params["interval"] = kline.OneMin
+				params["level"] = 100
+				params["interval"] = kline.HundredMilliseconds
 			} else if strings.EqualFold(defaultSubscriptions[i], spotCandlesticksChannel) {
 				params["interval"] = kline.FiveMin
+			} else if strings.EqualFold(defaultSubscriptions[i], spotOrderbookUpdateChannel) {
+				params["interval"] = kline.ThousandMilliseconds
 			}
 			fpair, err := g.FormatExchangeCurrency(pairs[j], asset.Spot)
 			if err != nil {
 				return nil, err
-			}
-			sub := stream.ChannelSubscription{
-				Channel:  defaultSubscriptions[i],
-				Currency: fpair.Upper(),
-				Params:   params,
-			}
-			if defaultSubscriptions[i] == spotCandlesticksChannel {
-				value, _ := json.Marshal(sub)
-				println(string(value))
 			}
 
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
@@ -655,13 +665,14 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 
 // Subscribe sends a websocket message to receive data from the channel
 func (g *Gateio) handleSubscription(event string, channelsToSubscribe []stream.ChannelSubscription) error {
-	payloads, err := g.generatePayload(channelsToSubscribe)
+	payloads, err := g.generatePayload(event, channelsToSubscribe)
 	if err != nil {
 		return err
 	}
 	var errs common.Errors
 	for k := range payloads {
-		payloads[k].Event = event
+		values, err := json.Marshal(payloads[k])
+		println(string(values))
 		err = g.Websocket.Conn.SendJSONMessage(payloads[k])
 		if err != nil {
 			errs = append(errs, err)
@@ -677,10 +688,11 @@ func (g *Gateio) handleSubscription(event string, channelsToSubscribe []stream.C
 		for {
 			select {
 			case resp := <-channel:
-				if resp.Result.Status != "success" {
-					errs = append(errs, fmt.Errorf("%s websocket connection: timeout waiting for response with and subscription: %v",
-						g.Name,
-						payloads[k].Channel))
+				if resp.Result != nil && resp.Result.Status != "success" {
+					errs = append(errs, fmt.Errorf("%s websocket connection: timeout waiting for response with and subscription: %v", g.Name, payloads[k].Channel))
+					break receive
+				} else if resp.Error != nil && resp.Error.Code != 0 {
+					errs = append(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[k].Event, payloads[k].Channel, resp.Error.Code, resp.Error.Message))
 					break receive
 				}
 				g.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[k])
@@ -700,25 +712,78 @@ func (g *Gateio) handleSubscription(event string, channelsToSubscribe []stream.C
 	return nil
 }
 
-func (g *Gateio) generatePayload(channelsToSubscribe []stream.ChannelSubscription) ([]WsInput, error) {
+func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.ChannelSubscription) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
+	var creds *account.Credentials
+	var err error
+	if g.Websocket.CanUseAuthenticatedEndpoints() {
+		creds, err = g.GetCredentials(context.TODO())
+		if err != nil {
+			return nil, err
+		}
+	}
 	payloads := make([]WsInput, len(channelsToSubscribe))
 	for i := range channelsToSubscribe {
+		var auth *WsAuthInput
+		timestamp := time.Now()
 		params := []string{channelsToSubscribe[i].Currency.String()}
 		if strings.EqualFold(channelsToSubscribe[i].Channel, spotOrderbookChannel) {
 			params = append(params,
 				strconv.Itoa(channelsToSubscribe[i].Params["level"].(int)),
 				g.GetIntervalString(channelsToSubscribe[i].Params["interval"].(kline.Interval)))
+		} else if strings.EqualFold(channelsToSubscribe[i].Channel, futuresOrderbookChannel) {
+			params = append(params,
+				strconv.Itoa(channelsToSubscribe[i].Params["limit"].(int)), channelsToSubscribe[i].Params["interval"].(string))
+		} else if strings.EqualFold(channelsToSubscribe[i].Channel, futuresOrderbookUpdateChannel) {
+			params = append(params,
+				g.GetIntervalString(channelsToSubscribe[i].Params["frequency"].(kline.Interval)))
+			if value, ok := channelsToSubscribe[i].Params["level"].(string); ok {
+				params = append(params, value)
+			}
+		} else if strings.EqualFold(channelsToSubscribe[i].Channel, futuresCandlesticksChannel) {
+			params = append(
+				[]string{g.GetIntervalString(channelsToSubscribe[i].Params["interval"].(kline.Interval))},
+				params...)
 		} else if strings.EqualFold(channelsToSubscribe[i].Channel, spotCandlesticksChannel) {
-			params = append([]string{g.GetIntervalString(channelsToSubscribe[i].Params["interval"].(kline.Interval))}, params...)
+			params = append(
+				[]string{g.GetIntervalString(channelsToSubscribe[i].Params["interval"].(kline.Interval))},
+				params...)
+		} else if strings.EqualFold(channelsToSubscribe[i].Channel, futuresOrdersChannel) {
+			if value, ok := channelsToSubscribe[i].Params["user"].(string); ok {
+				params = append(
+					[]string{value},
+					params...)
+			}
+		} else if g.Websocket.CanUseAuthenticatedEndpoints() && (channelsToSubscribe[i].Channel == spotUserTradesChannel ||
+			channelsToSubscribe[i].Channel == spotBalancesChannel ||
+			channelsToSubscribe[i].Channel == marginBalancesChannel ||
+			channelsToSubscribe[i].Channel == spotFundingBalanceChannel ||
+			channelsToSubscribe[i].Channel == crossMarginBalanceChannel ||
+			channelsToSubscribe[i].Channel == crossMarginLoanChannel) {
+			sigTemp, err := g.generateSpotWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp)
+			if err != nil {
+				return nil, err
+			}
+			auth = &WsAuthInput{
+				Method: "api_key",
+				Key:    creds.Key,
+				Sign:   sigTemp,
+			}
+		} else if channelsToSubscribe[i].Channel == spotOrderbookUpdateChannel {
+			params = append(params, g.GetIntervalString(channelsToSubscribe[i].Params["interval"].(kline.Interval)))
+			println(strings.Join(params, " - "))
 		}
 		payloads[i] = WsInput{
 			ID:      g.Websocket.Conn.GenerateMessageID(false),
+			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,
 			Payload: params,
+			Auth:    auth,
+			Time:    timestamp.Unix(),
 		}
+
 	}
 	return payloads, nil
 }

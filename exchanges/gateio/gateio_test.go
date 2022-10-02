@@ -2169,8 +2169,12 @@ func TestGetSingleSubAccount(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	if _, err := g.FetchTradablePairs(context.Background(), asset.DeliveryFutures); err != nil {
+	if results, err := g.FetchTradablePairs(context.Background(), asset.Futures); err != nil {
 		t.Errorf("%s FetchTradablePairs() error %v", g.Name, err)
+	} else {
+		for _, res := range results {
+			println(res + ",")
+		}
 	}
 }
 
@@ -2511,7 +2515,7 @@ func TestMarginBalancePushData(t *testing.T) {
 	}
 }
 
-var wsCrossMarginBalancePushDataJSON = `{	"time": 1605248616,	"channel": "spot.cross_balances",	"event": "update",	"result": [	  {		"timestamp": "1605248616",		"timestamp_ms": "1605248616123","user": "1000001",		"currency": "USDT",	"change": "100","total": "1032951.325075926","available": "1022943.325075926"}	]}`
+var wsCrossMarginBalancePushDataJSON = `{"time": 1605248616,"channel": "spot.cross_balances","event": "update",	"result": [{"timestamp": "1605248616","timestamp_ms": "1605248616123","user": "1000001","currency": "USDT",	"change": "100","total": "1032951.325075926","available": "1022943.325075926"}]}`
 
 func TestCrossMarginBalancePushData(t *testing.T) {
 	t.Parallel()
@@ -2526,5 +2530,54 @@ func TestCrossMarginBalanceLoan(t *testing.T) {
 	t.Parallel()
 	if err := g.wsHandleData([]byte(wsCrossMarginBalanceLoan)); err != nil {
 		t.Errorf("%s websocket cross margin loan push data error: %v", g.Name, err)
+	}
+}
+
+var wsFuturesTickerPushDataJSON = `{"time": 1541659086,	"channel": "futures.tickers","event": "update",	"error": null,	"result": [	  {		"contract": "BTC_USD","last": "118.4","change_percentage": "0.77","funding_rate": "-0.000114","funding_rate_indicative": "0.01875","mark_price": "118.35","index_price": "118.36","total_size": "73648","volume_24h": "745487577","volume_24h_btc": "117",		"volume_24h_usd": "419950",		"quanto_base_rate": "",		"volume_24h_quote": "1665006","volume_24h_settle": "178","volume_24h_base": "5526","low_24h": "99.2","high_24h": "132.5"}	]}`
+
+func TestFuturesTicker(t *testing.T) {
+	t.Parallel()
+	if err := g.wsHandleData([]byte(wsFuturesTickerPushDataJSON)); err != nil {
+		t.Errorf("%s websocket push data error: %v", g.Name, err)
+	}
+}
+
+var wsFuturesTradesPushDataJSON = `{"channel": "futures.trades","event": "update",	"time": 1541503698,	"result": [{"size": -108,"id": 27753479,"create_time": 1545136464,"create_time_ms": 1545136464123,"price": "96.4","contract": "BTC_USD"}]}`
+
+func TestFuturesTrades(t *testing.T) {
+	t.Parallel()
+	if err := g.wsHandleData([]byte(wsFuturesTradesPushDataJSON)); err != nil {
+		t.Errorf("%s websocket push data error: %v", g.Name, err)
+	}
+}
+
+var wsFuturesCandlesticksPushDataJSON = `{	"time": 1606292600,	"channel": "spot.candlesticks",	"event": "update",	"result": {	  "t": "1606292580",	  "v": "2362.32035",	  "c": "19128.1",	  "h": "19128.1",	  "l": "19128.1","o": "19128.1","n": "1m_BTC_USDT"}}`
+
+func TestFuturesCandlestickPushData(t *testing.T) {
+	t.Parallel()
+	if err := g.wsHandleData([]byte(wsFuturesTradesPushDataJSON)); err != nil {
+		t.Errorf("%s websocket candlesticks push data error: %v", g.Name, err)
+	}
+}
+
+var wsFuturesOrderbookSnapshotJSON = `{    "time": 1664737901,    "channel": "futures.order_book",    "event": "all",    "result": {        "t": 1664737900964,        "id": 3821654062,        "contract": "BTC_USD",        "asks": [            {                "p": "19298.5",                "s": 3000            },            {                "p": "19298.6",                "s": 3350            },            {                "p": "19299.5",                "s": 1457            },            {                "p": "19299.6",                "s": 9554            },            {                "p": "19301.5",                "s": 24100            },            {                "p": "19301.6",                "s": 603            },            {                "p": "19306.1",                "s": 4383            },            {                "p": "19306.7",                "s": 3263            },            {                "p": "19308.8",                "s": 4177            },            {                "p": "19309.1",                "s": 9600            },            {                "p": "19310.3",                "s": 125126            },            {                "p": "19311.7",                "s": 20000            },            {                "p": "19312.7",                "s": 2854            },            {                "p": "19320.3",                "s": 8335            },            {                "p": "19322.9",                "s": 219892            },            {                "p": "19325",                "s": 6204            },            {                "p": "19329.5",                "s": 83333            },            {                "p": "19330.4",                "s": 12171            },            {                "p": "19334.8",                "s": 60000            },            {                "p": "19337.3",                "s": 295085            }        ],        "bids": [            {                "p": "19291.1",                "s": 602            },            {                "p": "19291",                "s": 3350            },            {                "p": "19290",                "s": 3100            },            {                "p": "19289.9",                "s": 1507            },            {                "p": "19289.7",                "s": 27450            },            {                "p": "19284.6",                "s": 8112            },            {                "p": "19280.5",                "s": 3685            },            {                "p": "19277.4",                "s": 9600            },            {                "p": "19276.3",                "s": 826            },            {                "p": "19274.9",                "s": 5371            },            {                "p": "19272",                "s": 4177            },            {                "p": "19270.5",                "s": 54849            },            {                "p": "19267.1",                "s": 20000            },            {                "p": "19264.8",                "s": 1            },            {                "p": "19264.2",                "s": 5371            },            {                "p": "19262",                "s": 83333            },            {                "p": "19260.9",                "s": 138875            },            {                "p": "19258.5",                "s": 8335            },            {                "p": "19255.8",                "s": 2638            },            {                "p": "19253.8",                "s": 12171            }        ]    }}`
+var wsFuturesOrderbookSnapshotShortJSON = `{"channel": "futures.order_book","event": "update",	"time": 1541500167,	"result": [{"p": "97.5","s": 6541,"c": "BTC_USD","id": 93973512}	}`
+var wsFuturesOrderbookUpdateJSON = `{	"time": 1615366381,	"channel": "futures.order_book_update",	"event": "update",	"error": null,	"result": {	  "t": 1615366381417,	  "s": "BTC_USD",	  "U": 2517661101,	  "u": 2517661113,	  "b": [		{		  "p": "54672.1",		  "s": 0		},		{		  "p": "54664.5",		  "s": 58794		}	  ],	  "a": [		{		  "p": "54743.6",		  "s": 0		},		{		  "p": "54742",		  "s": 95		}	  ]	}}`
+var wsFuturesOrderbookTickerJSON = `{	"time": 1615366379,	"channel": "futures.book_ticker",	"event": "update",	"error": null,	"result": {	  "t": 1615366379123,	  "u": 2517661076,	  "s": "BTC_USD",	  "b": "54696.6",	  "B": 37000,	  "a": "54696.7",	  "A": 47061	}}`
+
+func TestOrderbookData(t *testing.T) {
+	t.Parallel()
+	err := g.wsHandleData([]byte(wsFuturesOrderbookSnapshotJSON))
+	if err != nil {
+		t.Errorf("%s websocket orderbook snapshot push data error: %v", g.Name, err)
+	}
+	// if err := g.wsHandleData([]byte(wsFuturesOrderbookSnapshotShortJSON)); err != nil {
+	// 	t.Errorf("%s websocket orderbook snapshot push data error: %v", g.Name, err)
+	// }
+	if err = g.wsHandleData([]byte(wsFuturesOrderbookUpdateJSON)); err != nil {
+		t.Errorf("%s websocket orderbook update push data error: %v", g.Name, err)
+	}
+	if err = g.wsHandleData([]byte(wsOrderbookTickerJSON)); err != nil {
+		t.Errorf("%s websocket orderbook ticker push data error: %v", g.Name, err)
 	}
 }

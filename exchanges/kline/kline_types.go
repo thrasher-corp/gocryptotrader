@@ -11,6 +11,9 @@ import (
 
 // Consts here define basic time intervals
 const (
+	HundredMilliseconds  = Interval(100 * time.Millisecond)
+	ThousandMilliseconds = 10 * HundredMilliseconds
+
 	TenSecond     = Interval(10 * time.Second)
 	FifteenSecond = Interval(15 * time.Second)
 	ThirtySecond  = FifteenSecond * 2

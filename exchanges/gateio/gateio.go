@@ -319,6 +319,10 @@ func (g *Gateio) GetTicker(ctx context.Context, currencyPair currency.Pair, time
 // GetIntervalString returns a string representation of the interval according to the Gateio exchange representation.
 func (g *Gateio) GetIntervalString(interval kline.Interval) string {
 	switch interval {
+	case kline.HundredMilliseconds:
+		return "100ms"
+	case kline.ThousandMilliseconds:
+		return "1000ms"
 	case kline.TenSecond:
 		return "10s"
 	case kline.ThirtySecond:

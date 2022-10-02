@@ -184,9 +184,9 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		ExchangeConfig:        exch,
 		DefaultURL:            gateioWebsocketEndpoint,
 		RunningURL:            wsRunningURL,
-		Connector:             g.WsConnect,
+		Connector:             g.WsFuturesConnect,
 		Subscriber:            g.Subscribe,
-		GenerateSubscriptions: g.GenerateDefaultSubscriptions,
+		GenerateSubscriptions: g.GenerateDefaultFuturesSubscriptions,
 		Features:              &g.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
@@ -1876,11 +1876,6 @@ func (g *Gateio) GetAvailableTransferChains(ctx context.Context, cryptocurrency 
 		}
 	}
 	return availableChains, nil
-}
-
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (g *Gateio) AuthenticateWebsocket(ctx context.Context) error {
-	return g.wsServerSignIn(ctx)
 }
 
 // ValidateCredentials validates current credentials used for wrapper

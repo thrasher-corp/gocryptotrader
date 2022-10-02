@@ -1157,6 +1157,9 @@ type FuturesCandlestick struct {
 	HighestPrice float64   `json:"h,string"`
 	LowestPrice  float64   `json:"l,string"`
 	OpenPrice    float64   `json:"o,string"`
+
+	// Added for websocket push data
+	Name string `json:"n,omitempty"`
 }
 
 // FuturesTicker represents futures ticker data.
@@ -2564,4 +2567,77 @@ type WsCrossMarginLoan struct {
 	Available float64 `json:"available,string"`
 	Borrowed  string  `json:"borrowed"`
 	Interest  string  `json:"interest"`
+}
+
+// WsFutureTicker represents a futures push data.
+type WsFutureTicker struct {
+	Contract              string  `json:"contract"`
+	Last                  float64 `json:"last,string"`
+	ChangePercentage      string  `json:"change_percentage"`
+	FundingRate           string  `json:"funding_rate"`
+	FundingRateIndicative string  `json:"funding_rate_indicative"`
+	MarkPrice             float64 `json:"mark_price,string"`
+	IndexPrice            float64 `json:"index_price,string"`
+	TotalSize             float64 `json:"total_size,string"`
+	Volume24H             float64 `json:"volume_24h,string"`
+	Volume24HBtc          float64 `json:"volume_24h_btc,string"`
+	Volume24HUsd          float64 `json:"volume_24h_usd,string"`
+	QuantoBaseRate        string  `json:"quanto_base_rate"`
+	Volume24HQuote        float64 `json:"volume_24h_quote,string"`
+	Volume24HSettle       string  `json:"volume_24h_settle"`
+	Volume24HBase         float64 `json:"volume_24h_base,string"`
+	Low24H                float64 `json:"low_24h,string"`
+	High24H               float64 `json:"high_24h,string"`
+}
+
+// WsFuturesTrades represents  a list of trades push data
+type WsFuturesTrades struct {
+	Size         float64 `json:"size"`
+	ID           int64   `json:"id"`
+	CreateTime   int64   `json:"create_time"`
+	CreateTimeMs float64 `json:"create_time_ms"`
+	Price        float64 `json:"price,string"`
+	Contract     string  `json:"contract"`
+}
+
+// WsFuturesOrderbookTicker represents the orderbook ticker push data
+type WsFuturesOrderbookTicker struct {
+	TimestampMs   int64   `json:"t"`
+	UpdateID      int64   `json:"u"`
+	CurrencyPair  string  `json:"s"`
+	BestBidPrice  float64 `json:"b,string"`
+	BestBidAmount float64 `json:"B,string"`
+	BestAskPrice  float64 `json:"a,string"`
+	BestAskAmount float64 `json:"A,string"`
+}
+
+// WsFuturesOrderbookUpdate represents futures orderbook update push data
+type WsFuturesOrderbookUpdate struct {
+	TimestampInMs  int64  `json:"t"`
+	ContractName   string `json:"s"`
+	FirstUpdatedID int64  `json:"U"`
+	LastUpdatedID  int64  `json:"u"`
+	Bids           []struct {
+		Price float64 `json:"p,string"`
+		Size  float64 `json:"s"`
+	} `json:"b"`
+	Asks []struct {
+		Price float64 `json:"p,string"`
+		Size  float64 `json:"s"`
+	} `json:"a"`
+}
+
+// WsFuturesOrderbookSnapshot represents a futures orderbook snapshot push data
+type WsFuturesOrderbookSnapshot struct {
+	TimestampInMs int64  `json:"t"`
+	Contract      string `json:"contract"`
+	OrderbookID   int64  `json:"id"`
+	Asks          []struct {
+		Price float64 `json:"p,string"`
+		Size  float64 `json:"s"`
+	} `json:"asks"`
+	Bids []struct {
+		Price float64 `json:"p,string"`
+		Size  float64 `json:"s"`
+	} `json:"bids"`
 }
