@@ -186,3 +186,25 @@ type FuturesOrder struct {
 	FilledSize     float64            `json:"filledSize"`
 	ReduceOnly     bool               `json:"reduceOnly"`
 }
+
+type FuturesFill struct {
+	Symbol         string             `json:"symbol"`
+	TradeID        string             `json:"tradeId"`
+	OrderID        string             `json:"orderId"`
+	Side           string             `json:"side"`
+	Liquidity      string             `json:"liquidity"`
+	ForceTaker     bool               `json:"forceTaker"`
+	Price          float64            `json:"price,string"`
+	Size           float64            `json:"size,string"`
+	Value          float64            `json:"value,string"`
+	FeeRate        float64            `json:"feeRate,string"`
+	FixFee         float64            `json:"fixFee,string"`
+	FeeCurrency    string             `json:"feeCurrency"`
+	Stop           string             `json:"stop"`
+	Fee            float64            `json:"fee,string"`
+	OrderType      string             `json:"orderType"`
+	TradeType      string             `json:"tradeType"`
+	CreatedAt      kucoinTimeMilliSec `json:"createdAt"`
+	SettleCurrency string             `json:"settleCurrency"`
+	TradeTime      kucoinTimeNanoSec  `json:"tradeTime"`
+}

@@ -41,6 +41,8 @@ const (
 	kucoinFuturesRecentCompletedOrder      = "/api/v1/recentDoneOrders"
 	kucoinFuturesGetOrderDetails           = "/api/v1/orders/%s"
 	kucoinFuturesGetOrderDetailsByClientID = "/api/v1/orders/byClientOid"
+
+	kucoinFuturesFills = "/api/v1/fills"
 )
 
 // GetFuturesOpenContracts gets all open futures contract with its details
@@ -578,6 +580,41 @@ func (k *Kucoin) GetFuturesOrderDetailsByClientID(ctx context.Context, clientID 
 	}
 	params.Set("clientOid", clientID)
 	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(kucoinFuturesGetOrderDetailsByClientID, params), nil, publicSpotRate, &resp)
+}
+
+// GetFuturesFills gets list of recent fills
+func (k *Kucoin) GetFuturesFills(ctx context.Context, orderID, symbol, side, orderType string, startAt, endAt time.Time) ([]FuturesFill, error) {
+	resp := struct {
+		Data struct {
+			CurrentPage int64         `json:"currentPage"`
+			PageSize    int64         `json:"pageSize"`
+			TotalNum    int64         `json:"totalNum"`
+			TotalPage   int64         `json:"totalPage"`
+			Items       []FuturesFill `json:"items"`
+		} `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if side != "" {
+		params.Set("side", side)
+	}
+	if orderType != "" {
+		params.Set("type", orderType)
+	}
+	if !startAt.IsZero() {
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	return resp.Data.Items, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(kucoinFuturesFills, params), nil, publicSpotRate, &resp)
 }
 
 func processFuturesOB(ob [][2]float64) ([]orderbook.Item, error) {

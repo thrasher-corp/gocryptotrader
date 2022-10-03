@@ -1345,7 +1345,7 @@ func TestGetFuturesOrderDetails(t *testing.T) {
 	}
 
 	_, err := k.GetFuturesOrderDetails(context.Background(), "5cdfc138b21023a909e5ad55")
-	if err != nil {
+	if err != nil && err.Error() != "error.getOrder.orderNotExist" {
 		t.Error("GetFuturesOrderDetails() error", err)
 	}
 }
