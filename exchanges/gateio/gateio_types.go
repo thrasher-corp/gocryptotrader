@@ -2069,7 +2069,7 @@ type InitFlashSwapOrderPreviewResponse struct {
 
 // FuturesAccount represents futures account detail
 type FuturesAccount struct {
-	User           int     `json:"user"`
+	User           int64   `json:"user"`
 	Currency       string  `json:"currency"`
 	Total          float64 `json:"total,string"` // total = position_margin + order_margin + available
 	UnrealisedPnl  string  `json:"unrealised_pnl"`
@@ -2640,4 +2640,176 @@ type WsFuturesOrderbookSnapshot struct {
 		Price float64 `json:"p,string"`
 		Size  float64 `json:"s"`
 	} `json:"bids"`
+}
+
+// WsFuturesOrderbookUpdateEvent represents futures orderbook push data with the event 'update'
+type WsFuturesOrderbookUpdateEvent struct {
+	Price        float64 `json:"p,string"`
+	Amount       float64 `json:"s"`
+	CurrencyPair string  `json:"c"`
+	ID           int64   `json:"id"`
+}
+
+// WsFuturesOrder represents futures order
+type WsFuturesOrder struct {
+	Contract     string  `json:"contract"`
+	CreateTime   int64   `json:"create_time"`
+	CreateTimeMs int64   `json:"create_time_ms"`
+	FillPrice    float64 `json:"fill_price"`
+	FinishAs     string  `json:"finish_as"`
+	FinishTime   int64   `json:"finish_time"`
+	FinishTimeMs int64   `json:"finish_time_ms"`
+	Iceberg      int64   `json:"iceberg"`
+	ID           int64   `json:"id"`
+	IsClose      bool    `json:"is_close"`
+	IsLiq        bool    `json:"is_liq"`
+	IsReduceOnly bool    `json:"is_reduce_only"`
+	Left         float64 `json:"left"`
+	Mkfr         float64 `json:"mkfr"`
+	Price        float64 `json:"price"`
+	Refr         int64   `json:"refr"`
+	Refu         int64   `json:"refu"`
+	Size         float64 `json:"size"`
+	Status       string  `json:"status"`
+	Text         string  `json:"text"`
+	TimeInForce  string  `json:"tif"`
+	Tkfr         float64 `json:"tkfr"`
+	User         string  `json:"user"`
+}
+
+// WsFuturesUserTrade represents a futures account user trade push data
+type WsFuturesUserTrade struct {
+	ID           string  `json:"id"`
+	CreateTime   int64   `json:"create_time"`
+	CreateTimeMs int64   `json:"create_time_ms"`
+	Contract     string  `json:"contract"`
+	OrderID      string  `json:"order_id"`
+	Size         float64 `json:"size"`
+	Price        float64 `json:"price,string"`
+	Role         string  `json:"role"`
+	Text         string  `json:"text"`
+	Fee          float64 `json:"fee"`
+	PointFee     int64   `json:"point_fee"`
+}
+
+// WsFuturesLiquidiationNotification represents a liquidation notification push data
+type WsFuturesLiquidiationNotification struct {
+	EntryPrice int     `json:"entry_price"`
+	FillPrice  float64 `json:"fill_price"`
+	Left       float64 `json:"left"`
+	Leverage   float64 `json:"leverage"`
+	LiqPrice   int     `json:"liq_price"`
+	Margin     float64 `json:"margin"`
+	MarkPrice  int64   `json:"mark_price"`
+	OrderID    int64   `json:"order_id"`
+	OrderPrice float64 `json:"order_price"`
+	Size       float64 `json:"size"`
+	Time       int64   `json:"time"`
+	TimeMs     int64   `json:"time_ms"`
+	Contract   string  `json:"contract"`
+	User       string  `json:"user"`
+}
+
+// WsFuturesAutoDeleveragesNotification represents futures auto deleverages push data
+type WsFuturesAutoDeleveragesNotification struct {
+	EntryPrice   float64 `json:"entry_price"`
+	FillPrice    float64 `json:"fill_price"`
+	PositionSize int64   `json:"position_size"`
+	TradeSize    int64   `json:"trade_size"`
+	Time         int64   `json:"time"`
+	TimeMs       int64   `json:"time_ms"`
+	Contract     string  `json:"contract"`
+	User         string  `json:"user"`
+}
+
+// WsFuturesPositionClose represents a close position futures push data
+type WsFuturesPositionClose struct {
+	Contract string  `json:"contract"`
+	Pnl      float64 `json:"pnl"`
+	Side     string  `json:"side"`
+	Text     string  `json:"text"`
+	Time     int64   `json:"time"`
+	TimeMs   int64   `json:"time_ms"`
+	User     string  `json:"user"`
+}
+
+// WsFuturesBalance represents a futures balance push data
+type WsFuturesBalance struct {
+	Balance float64 `json:"balance"`
+	Change  float64 `json:"change"`
+	Text    string  `json:"text"`
+	Time    int64   `json:"time"`
+	TimeMs  float64 `json:"time_ms"`
+	Type    string  `json:"type"`
+	User    string  `json:"user"`
+}
+
+// WsFuturesReduceRiskLimitNotification represents a futures reduced risk limit push data
+type WsFuturesReduceRiskLimitNotification struct {
+	CancelOrders    int64   `json:"cancel_orders"`
+	Contract        string  `json:"contract"`
+	LeverageMax     int64   `json:"leverage_max"`
+	LiqPrice        float64 `json:"liq_price"`
+	MaintenanceRate float64 `json:"maintenance_rate"`
+	RiskLimit       int64   `json:"risk_limit"`
+	Time            int64   `json:"time"`
+	TimeMs          int64   `json:"time_ms"`
+	User            string  `json:"user"`
+}
+
+// WsFuturesPosition represents futures notify positions update.
+type WsFuturesPosition struct {
+	Contract           string  `json:"contract"`
+	CrossLeverageLimit float64 `json:"cross_leverage_limit"`
+	EntryPrice         float64 `json:"entry_price"`
+	HistoryPnl         float64 `json:"history_pnl"`
+	HistoryPoint       int64   `json:"history_point"`
+	LastClosePnl       float64 `json:"last_close_pnl"`
+	Leverage           float64 `json:"leverage"`
+	LeverageMax        float64 `json:"leverage_max"`
+	LiqPrice           float64 `json:"liq_price"`
+	MaintenanceRate    float64 `json:"maintenance_rate"`
+	Margin             float64 `json:"margin"`
+	Mode               string  `json:"mode"`
+	RealisedPnl        float64 `json:"realised_pnl"`
+	RealisedPoint      float64 `json:"realised_point"`
+	RiskLimit          float64 `json:"risk_limit"`
+	Size               float64 `json:"size"`
+	Time               int64   `json:"time"`
+	TimeMs             int64   `json:"time_ms"`
+	User               string  `json:"user"`
+}
+
+// WsFuturesAutoOrder represents an auto order push data.
+type WsFuturesAutoOrder struct {
+	User    int `json:"user"`
+	Trigger struct {
+		StrategyType int64   `json:"strategy_type"`
+		PriceType    int64   `json:"price_type"`
+		Price        float64 `json:"price,string"`
+		Rule         int64   `json:"rule"`
+		Expiration   int64   `json:"expiration"`
+	} `json:"trigger"`
+	Initial struct {
+		Contract     string  `json:"contract"`
+		Size         int     `json:"size"`
+		Price        float64 `json:"price,string"`
+		TimeInForce  string  `json:"tif"`
+		Text         string  `json:"text"`
+		Iceberg      int     `json:"iceberg"`
+		IsClose      bool    `json:"is_close"`
+		IsReduceOnly bool    `json:"is_reduce_only"`
+	} `json:"initial"`
+	ID          int64  `json:"id"`
+	TradeID     int64  `json:"trade_id"`
+	Status      string `json:"status"`
+	Reason      string `json:"reason"`
+	CreateTime  int64  `json:"create_time"`
+	Name        string `json:"name"`
+	IsStopOrder bool   `json:"is_stop_order"`
+	StopTrigger struct {
+		Rule         int    `json:"rule"`
+		TriggerPrice string `json:"trigger_price"`
+		OrderPrice   string `json:"order_price"`
+	} `json:"stop_trigger"`
 }

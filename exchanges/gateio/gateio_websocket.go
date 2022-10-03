@@ -106,11 +106,16 @@ func (g *Gateio) wsServerSignIn(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	account, err := g.QueryFuturesAccount(context.Background(), "btc")
+	if err != nil {
+		return err
+	}
 	signinWsRequest := WsInput{
 		Time:    timestamp.Unix(),
 		ID:      g.Websocket.Conn.GenerateMessageID(false),
 		Channel: futuresOrdersChannel,
 		Event:   "subscribe",
+		Payload: []string{strconv.FormatInt(account.User, 10), "BTC_USDT"},
 		Auth: &WsAuthInput{
 			Method: "api_key",
 			Key:    creds.Key,
@@ -128,7 +133,6 @@ func (g *Gateio) wsServerSignIn(ctx context.Context) error {
 // wsReadData receives and passes on websocket messages for processing
 func (g *Gateio) wsReadData() {
 	defer g.Websocket.Wg.Done()
-
 	for {
 		resp := g.Websocket.Conn.ReadMessage()
 		if resp.Raw == nil {
@@ -142,6 +146,7 @@ func (g *Gateio) wsReadData() {
 }
 
 func (g *Gateio) wsHandleData(respRaw []byte) error {
+	println(string(respRaw))
 	var result WsResponse
 	var eventResponse WsEventResponse
 	err := json.Unmarshal(respRaw, &eventResponse)
@@ -188,7 +193,7 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 	case futuresTradesChannel:
 		return g.processFuturesTrades(respRaw)
 	case futuresOrderbookChannel:
-		return g.processFuturesOrderbookSnapshot(respRaw)
+		return g.processFuturesOrderbookSnapshot(result.Event, respRaw)
 	case futuresOrderbookTickerChannel:
 		return g.processFuturesOrderbookTicker(respRaw)
 	case futuresOrderbookUpdateChannel:
@@ -196,23 +201,23 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 	case futuresCandlesticksChannel:
 		return g.processFuturesCandlesticks(respRaw)
 	case futuresOrdersChannel:
-		fallthrough
+		return g.processFuturesOrdersPushData(respRaw)
 	case futuresUserTradesChannel:
-		fallthrough
+		return g.procesFuturesUserTrades(respRaw)
 	case futuresLiquidatesChannel:
-		fallthrough
+		return g.processFuturesLiquidatesNotification(respRaw)
 	case futuresAutoDeleveragesChannel:
-		fallthrough
+		return g.processFuturesAutoDeleveragesNotification(respRaw)
 	case futuresAutoPositionCloseChannel:
-		fallthrough
+		return g.processFuturesPositionCloseData(respRaw)
 	case futuresBalancesChannel:
-		fallthrough
+		return g.processFuturesBalance(respRaw)
 	case futuresReduceRiskLimitsChannel:
-		fallthrough
+		return g.processFuturesReduceRiskLimitNotification(respRaw)
 	case futuresPositionsChannel:
-		fallthrough
+		return g.processFuturesPositionsNotification(respRaw)
 	case futuresAutoOrdersChannel:
-		fallthrough
+		return g.processFuturesAutoOrderPushData(respRaw)
 	default:
 		g.Websocket.DataHandler <- stream.UnhandledMessageWarning{
 			Message: g.Name + stream.UnhandledMessage + string(respRaw),
@@ -751,11 +756,13 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 				[]string{g.GetIntervalString(channelsToSubscribe[i].Params["interval"].(kline.Interval))},
 				params...)
 		} else if strings.EqualFold(channelsToSubscribe[i].Channel, futuresOrdersChannel) {
-			if value, ok := channelsToSubscribe[i].Params["user"].(string); ok {
+			value, ok := channelsToSubscribe[i].Params["user"].(string)
+			if ok {
 				params = append(
 					[]string{value},
 					params...)
 			}
+
 		} else if g.Websocket.CanUseAuthenticatedEndpoints() && (channelsToSubscribe[i].Channel == spotUserTradesChannel ||
 			channelsToSubscribe[i].Channel == spotBalancesChannel ||
 			channelsToSubscribe[i].Channel == marginBalancesChannel ||
