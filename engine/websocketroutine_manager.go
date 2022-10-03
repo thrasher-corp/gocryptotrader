@@ -273,9 +273,28 @@ func (m *websocketRoutineManager) websocketDataHandler(exchName string, data int
 			m.printAccountHoldingsChangeSummary(d)
 		}
 	case []trade.Data:
-		if m.verbose {
-			log.Infof(log.Trade, "%+v", d)
+		// if m.verbose {
+		// 	log.Infof(log.Trade, "%+v", d)
+		// }
+		// case *ticker.Price:
+		if m.syncer.IsRunning() {
+			for _, d_i := range d {
+				err := m.syncer.Update(exchName,
+					d_i.CurrencyPair,
+					d_i.AssetType,
+					SyncItemTrade,
+					nil)
+				if err != nil {
+					return err
+				}
+			}
 		}
+		// err := ticker.ProcessTrade(d)
+		// if err != nil {
+		// 	return err
+		// }
+		// m.syncer.PrintTickerSummary(d, "websocket", err)
+		m.syncer.PrintTradeSummary(d, "websocket", nil)
 	case []fill.Data:
 		if m.verbose {
 			log.Infof(log.Fill, "%+v", d)

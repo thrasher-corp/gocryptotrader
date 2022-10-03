@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -806,6 +807,87 @@ func (m *syncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 				result.Volume)
 		}
 	}
+}
+
+// PrintTickerSummary outputs the ticker results
+func (m *syncManager) PrintTradeSummary(result []trade.Data, protocol string, err error) {
+	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+		return
+	}
+	if err != nil {
+		if err == common.ErrNotYetImplemented {
+			log.Warnf(log.SyncMgr, "Failed to get %s trade. Error: %s",
+				protocol,
+				err)
+			return
+		}
+		log.Errorf(log.SyncMgr, "Failed to get %s trade. Error: %s",
+			protocol,
+			err)
+		return
+	}
+
+	// log.Infof(log.SyncMgr, "%+v", result)
+	for _, r := range result {
+		log.Infof(log.SyncMgr, "%s %s %s %s TRADE: TID %s Price %.8f Amount %.8f Side %s Timestamp %s",
+			r.Exchange,
+			protocol,
+			m.FormatCurrency(r.CurrencyPair),
+			strings.ToUpper(r.AssetType.String()),
+			r.TID,
+			r.Price,
+			r.Amount,
+			r.Side,
+			r.Timestamp)
+	}
+	/*
+		// ignoring error as not all tickers have volume populated and error is not actionable
+		_ = stats.Add(result.ExchangeName, result.Pair, result.AssetType, result.Last, result.Volume)
+
+		if result.Pair.Quote.IsFiatCurrency() &&
+			!result.Pair.Quote.Equal(m.fiatDisplayCurrency) &&
+			!m.fiatDisplayCurrency.IsEmpty() {
+			origCurrency := result.Pair.Quote.Upper()
+			log.Infof(log.SyncMgr, "%s %s %s %s TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f",
+				result.ExchangeName,
+				protocol,
+				m.FormatCurrency(result.Pair),
+				strings.ToUpper(result.AssetType.String()),
+				printConvertCurrencyFormat(result.Last, origCurrency, m.fiatDisplayCurrency),
+				printConvertCurrencyFormat(result.Ask, origCurrency, m.fiatDisplayCurrency),
+				printConvertCurrencyFormat(result.Bid, origCurrency, m.fiatDisplayCurrency),
+				printConvertCurrencyFormat(result.High, origCurrency, m.fiatDisplayCurrency),
+				printConvertCurrencyFormat(result.Low, origCurrency, m.fiatDisplayCurrency),
+				result.Volume)
+		} else {
+			if result.Pair.Quote.IsFiatCurrency() &&
+				result.Pair.Quote.Equal(m.fiatDisplayCurrency) &&
+				!m.fiatDisplayCurrency.IsEmpty() {
+				log.Infof(log.SyncMgr, "%s %s %s %s TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f",
+					result.ExchangeName,
+					protocol,
+					m.FormatCurrency(result.Pair),
+					strings.ToUpper(result.AssetType.String()),
+					printCurrencyFormat(result.Last, m.fiatDisplayCurrency),
+					printCurrencyFormat(result.Ask, m.fiatDisplayCurrency),
+					printCurrencyFormat(result.Bid, m.fiatDisplayCurrency),
+					printCurrencyFormat(result.High, m.fiatDisplayCurrency),
+					printCurrencyFormat(result.Low, m.fiatDisplayCurrency),
+					result.Volume)
+			} else {
+				log.Infof(log.SyncMgr, "%s %s %s %s TICKER: Last %.8f Ask %.8f Bid %.8f High %.8f Low %.8f Volume %.8f",
+					result.ExchangeName,
+					protocol,
+					m.FormatCurrency(result.Pair),
+					strings.ToUpper(result.AssetType.String()),
+					result.Last,
+					result.Ask,
+					result.Bid,
+					result.High,
+					result.Low,
+					result.Volume)
+			}
+		}*/
 }
 
 // FormatCurrency is a method that formats and returns a currency pair
