@@ -47,12 +47,11 @@ const (
 )
 
 var defaultFuturesSubscriptions = []string{
-	// futuresTickersChannel,
-	// futuresTradesChannel,
-	// futuresOrderbookChannel,
-	// futuresOrderbookUpdateChannel,
-	// futuresCandlesticksChannel,
-	futuresOrdersChannel,
+	futuresTickersChannel,
+	futuresTradesChannel,
+	futuresOrderbookChannel,
+	futuresOrderbookUpdateChannel,
+	futuresCandlesticksChannel,
 }
 
 // WsFuturesConnect initiates a websocket connection
@@ -101,8 +100,10 @@ func (g *Gateio) WsFuturesConnect() error {
 func (g *Gateio) GenerateDefaultFuturesSubscriptions() ([]stream.ChannelSubscription, error) {
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
 		defaultSubscriptions = append(defaultFuturesSubscriptions,
+			futuresOrdersChannel,
 			futuresUserTradesChannel,
-			futuresBalancesChannel)
+			futuresBalancesChannel,
+		)
 	}
 	var subscriptions []stream.ChannelSubscription
 	var pairs []currency.Pair
@@ -213,6 +214,7 @@ func (g *Gateio) processFuturesCandlesticks(data []byte) error {
 		return err
 	}
 	for x := range resp.Result {
+		// Interval_Currency-Pair
 		icp := strings.Split(resp.Result[x].Name, currency.UnderscoreDelimiter)
 		if len(icp) < 3 {
 			return errors.New("malformed futures candlestick websocket push data")
@@ -249,9 +251,9 @@ func (g *Gateio) processFuturesOrderbookTicker(data []byte) error {
 	return nil
 }
 
-func (g *Gateio) procesFuturesOrderbookUpdate(data []byte) error {
+func (g *Gateio) procesFuturesAndOptionsOrderbookUpdate(data []byte) error {
 	var response WsResponse
-	update := &WsFuturesOrderbookUpdate{}
+	update := &WsFuturesAndOptionsOrderbookUpdate{}
 	response.Result = update
 	err := json.Unmarshal(data, &response)
 	if err != nil {
@@ -276,14 +278,20 @@ func (g *Gateio) procesFuturesOrderbookUpdate(data []byte) error {
 		}
 	}
 	if len(asks) == 0 && len(bids) == 0 {
-		return nil
+		return errors.New("malformed orderbook data")
+	}
+	var assetType asset.Item
+	if response.Channel == optionsOrderbookUpdateChannel {
+		assetType = asset.Options
+	} else {
+		assetType = asset.Futures
 	}
 	return g.Websocket.Orderbook.Update(&orderbook.Update{
 		UpdateTime: time.UnixMilli(update.TimestampInMs),
 		Asks:       asks,
 		Bids:       bids,
 		Pair:       pair,
-		Asset:      asset.Futures,
+		Asset:      assetType,
 		MaxDepth:   int(update.LastUpdatedID - update.FirstUpdatedID),
 	})
 }
@@ -488,12 +496,12 @@ func (g *Gateio) processFuturesAutoDeleveragesNotification(data []byte) error {
 	return nil
 }
 
-func (g *Gateio) processFuturesPositionCloseData(data []byte) error {
+func (g *Gateio) processPositionCloseData(data []byte) error {
 	type response struct {
-		Time    int64                    `json:"time"`
-		Channel string                   `json:"channel"`
-		Event   string                   `json:"event"`
-		Result  []WsFuturesPositionClose `json:"result"`
+		Time    int64             `json:"time"`
+		Channel string            `json:"channel"`
+		Event   string            `json:"event"`
+		Result  []WsPositionClose `json:"result"`
 	}
 	var resp response
 	err := json.Unmarshal(data, &resp)
@@ -504,12 +512,12 @@ func (g *Gateio) processFuturesPositionCloseData(data []byte) error {
 	return nil
 }
 
-func (g *Gateio) processFuturesBalance(data []byte) error {
+func (g *Gateio) processBalancePushData(data []byte) error {
 	type response struct {
-		Time    int64              `json:"time"`
-		Channel string             `json:"channel"`
-		Event   string             `json:"event"`
-		Result  []WsFuturesBalance `json:"result"`
+		Time    int64       `json:"time"`
+		Channel string      `json:"channel"`
+		Event   string      `json:"event"`
+		Result  []WsBalance `json:"result"`
 	}
 	var resp response
 	err := json.Unmarshal(data, &resp)

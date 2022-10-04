@@ -97,34 +97,36 @@ func (g *Gateio) generateSpotWsSignature(secret, event, channel string, dtime ti
 }
 
 func (g *Gateio) wsServerSignIn(ctx context.Context) error {
-	creds, err := g.GetCredentials(ctx)
-	if err != nil {
-		return err
-	}
+	// creds, err := g.GetCredentials(ctx)
+	// if err != nil {
+	// 	return err
+	// }
 	timestamp := time.Now()
-	sigTemp, err := g.generateSpotWsSignature(creds.Secret, "subscribe", futuresOrdersChannel, timestamp)
-	if err != nil {
-		return err
-	}
-	account, err := g.QueryFuturesAccount(context.Background(), "btc")
-	if err != nil {
-		return err
-	}
+	// sigTemp, err := g.generateSpotWsSignature(creds.Secret, "subscribe", futuresOrdersChannel, timestamp)
+	// if err != nil {
+	// 	return err
+	// }
+	// account, err := g.QueryFuturesAccount(context.Background(), "btc")
+	// if err != nil {
+	// 	return err
+	// }
 	signinWsRequest := WsInput{
 		Time:    timestamp.Unix(),
 		ID:      g.Websocket.Conn.GenerateMessageID(false),
-		Channel: futuresOrdersChannel,
+		Channel: optionsTradesChannel,
 		Event:   "subscribe",
-		Payload: []string{strconv.FormatInt(account.User, 10), "BTC_USDT"},
-		Auth: &WsAuthInput{
-			Method: "api_key",
-			Key:    creds.Key,
-			Sign:   sigTemp,
-		},
+		Payload: []string{ /*strconv.FormatInt(account.User, 10),*/ "BTC_USDT-20221028-26000-C"},
+		// Auth: &WsAuthInput{
+		// 	Method: "api_key",
+		// 	Key:    creds.Key,
+		// 	Sign:   sigTemp,
+		// },
 	}
-	err = g.Websocket.Conn.SendJSONMessage( /*signinWsRequest.ID, */ signinWsRequest)
+	println("Sending trade subscription message ...")
+	err := g.Websocket.Conn.SendJSONMessage( /*signinWsRequest.ID, */ signinWsRequest)
 	if err != nil {
-		g.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		println(err.Error())
+		// g.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
 	}
 	return nil
@@ -197,7 +199,7 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 	case futuresOrderbookTickerChannel:
 		return g.processFuturesOrderbookTicker(respRaw)
 	case futuresOrderbookUpdateChannel:
-		return g.procesFuturesOrderbookUpdate(respRaw)
+		return g.procesFuturesAndOptionsOrderbookUpdate(respRaw)
 	case futuresCandlesticksChannel:
 		return g.processFuturesCandlesticks(respRaw)
 	case futuresOrdersChannel:
@@ -209,15 +211,55 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 	case futuresAutoDeleveragesChannel:
 		return g.processFuturesAutoDeleveragesNotification(respRaw)
 	case futuresAutoPositionCloseChannel:
-		return g.processFuturesPositionCloseData(respRaw)
+		return g.processPositionCloseData(respRaw)
 	case futuresBalancesChannel:
-		return g.processFuturesBalance(respRaw)
+		return g.processBalancePushData(respRaw)
 	case futuresReduceRiskLimitsChannel:
 		return g.processFuturesReduceRiskLimitNotification(respRaw)
 	case futuresPositionsChannel:
 		return g.processFuturesPositionsNotification(respRaw)
 	case futuresAutoOrdersChannel:
 		return g.processFuturesAutoOrderPushData(respRaw)
+
+		//  Options push data handlers
+	case optionsContractTickersChannel:
+		return g.processOptionsContractTickers(respRaw)
+	case optionsUnderlyingTickersChannel:
+		return g.processOptionsUnderlyingTicker(respRaw)
+	case optionsTradesChannel,
+		optionsUnderlyingTradesChannel:
+		return g.processOptionsTradesPushData(respRaw)
+	case optionsUnderlyingPriceChannel:
+		return g.processOptionsUnderlyingPricePushData(respRaw)
+	case optionsMarkPriceChannel:
+		return g.processOptionsMarkPrice(respRaw)
+	case optionsSettlementChannel:
+		return g.processOptionsSettlementPushData(respRaw)
+	case optionsContractsChannel:
+		return g.processOptionsContractPushData(respRaw)
+	case optionsContractCandlesticksChannel,
+		optionsUnderlyingCandlesticksChannel:
+		return g.processOptionsCandlestickPushData(respRaw)
+	case optionsOrderbookChannel:
+		return g.processOptionsOrderbookSnapshotPushData(result.Event, respRaw)
+	case optionsOrderbookTickerChannel:
+		return g.processOrderbookTickerPushData(respRaw)
+	case optionsOrderbookUpdateChannel:
+		return g.procesFuturesAndOptionsOrderbookUpdate(respRaw)
+	case optionsOrdersChannel:
+		return g.processOptionsOrderPushData(respRaw)
+	case optionsUserTradesChannel:
+		return g.procesOptionsUserTradesPushData(respRaw)
+	case optionsLiquidatesChannel:
+		return g.processOptionsLiquidatesPushData(respRaw)
+	case optionsUserSettlementChannel:
+		return g.processOptionsUsersPersonalSettlementsPushData(respRaw)
+	case optionsPositionCloseChannel:
+		return g.processPositionCloseData(respRaw)
+	case optionsBalancesChannel:
+		return g.processBalancePushData(respRaw)
+	case optionsPositionsChannel:
+		return g.processOptionsPositionPushData(respRaw)
 	default:
 		g.Websocket.DataHandler <- stream.UnhandledMessageWarning{
 			Message: g.Name + stream.UnhandledMessage + string(respRaw),
@@ -670,10 +712,15 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 
 // Subscribe sends a websocket message to receive data from the channel
 func (g *Gateio) handleSubscription(event string, channelsToSubscribe []stream.ChannelSubscription) error {
+	println("Generating Payloads")
+
 	payloads, err := g.generatePayload(event, channelsToSubscribe)
 	if err != nil {
+		println(err.Error())
 		return err
 	}
+
+	println(" Payloads length: ", strconv.Itoa(len(payloads)))
 	var errs common.Errors
 	for k := range payloads {
 		values, err := json.Marshal(payloads[k])
@@ -726,14 +773,30 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
 		creds, err = g.GetCredentials(context.TODO())
 		if err != nil {
-			return nil, err
+			g.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
 	payloads := make([]WsInput, len(channelsToSubscribe))
 	for i := range channelsToSubscribe {
 		var auth *WsAuthInput
 		timestamp := time.Now()
-		params := []string{channelsToSubscribe[i].Currency.String()}
+		var params []string
+		switch channelsToSubscribe[i].Channel {
+		case optionsUnderlyingTickersChannel,
+			optionsUnderlyingTradesChannel,
+			optionsUnderlyingPriceChannel,
+			optionsUnderlyingCandlesticksChannel:
+			uly, err := g.GetUnderlyingFromCurrencyPair(channelsToSubscribe[i].Currency)
+			if err != nil {
+				return nil, err
+			}
+			params = append(params, uly)
+		case optionsBalancesChannel: // options.balance channel does not require neither underlying not contract
+		default:
+			// contract := strings.ReplaceAll(channelsToSubscribe[i].Currency.String(), currency.DashDelimiter, currency.UnderscoreDelimiter)
+			params = append(params, channelsToSubscribe[i].Currency.String())
+		}
+
 		if strings.EqualFold(channelsToSubscribe[i].Channel, spotOrderbookChannel) {
 			params = append(params,
 				strconv.Itoa(channelsToSubscribe[i].Params["level"].(int)),
@@ -741,13 +804,30 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 		} else if strings.EqualFold(channelsToSubscribe[i].Channel, futuresOrderbookChannel) {
 			params = append(params,
 				strconv.Itoa(channelsToSubscribe[i].Params["limit"].(int)), channelsToSubscribe[i].Params["interval"].(string))
+		} else if strings.EqualFold(channelsToSubscribe[i].Channel, optionsOrderbookChannel) {
+			params = append(
+				params,
+				channelsToSubscribe[i].Params["accuracy"].(string),
+				channelsToSubscribe[i].Params["level"].(string),
+			)
 		} else if strings.EqualFold(channelsToSubscribe[i].Channel, futuresOrderbookUpdateChannel) {
 			params = append(params,
 				g.GetIntervalString(channelsToSubscribe[i].Params["frequency"].(kline.Interval)))
 			if value, ok := channelsToSubscribe[i].Params["level"].(string); ok {
 				params = append(params, value)
 			}
+		} else if strings.EqualFold(channelsToSubscribe[i].Channel, optionsOrderbookUpdateChannel) {
+			params = append(params,
+				g.GetIntervalString(channelsToSubscribe[i].Params["interval"].(kline.Interval)))
+			if value, ok := channelsToSubscribe[i].Params["level"].(int); ok {
+				params = append(params, strconv.Itoa(value))
+			}
 		} else if strings.EqualFold(channelsToSubscribe[i].Channel, futuresCandlesticksChannel) {
+			params = append(
+				[]string{g.GetIntervalString(channelsToSubscribe[i].Params["interval"].(kline.Interval))},
+				params...)
+		} else if strings.EqualFold(channelsToSubscribe[i].Channel, optionsContractCandlesticksChannel) ||
+			strings.EqualFold(channelsToSubscribe[i].Channel, optionsUnderlyingCandlesticksChannel) {
 			params = append(
 				[]string{g.GetIntervalString(channelsToSubscribe[i].Params["interval"].(kline.Interval))},
 				params...)
@@ -755,20 +835,36 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 			params = append(
 				[]string{g.GetIntervalString(channelsToSubscribe[i].Params["interval"].(kline.Interval))},
 				params...)
-		} else if strings.EqualFold(channelsToSubscribe[i].Channel, futuresOrdersChannel) {
+		} else if g.Websocket.CanUseAuthenticatedEndpoints() && (channelsToSubscribe[i].Channel == spotUserTradesChannel ||
+			channelsToSubscribe[i].Channel == spotBalancesChannel ||
+			channelsToSubscribe[i].Channel == marginBalancesChannel ||
+			channelsToSubscribe[i].Channel == spotFundingBalanceChannel ||
+			channelsToSubscribe[i].Channel == crossMarginBalanceChannel ||
+			channelsToSubscribe[i].Channel == crossMarginLoanChannel ||
+
+			channelsToSubscribe[i].Channel == futuresOrdersChannel ||
+			channelsToSubscribe[i].Channel == futuresUserTradesChannel ||
+			channelsToSubscribe[i].Channel == futuresLiquidatesChannel ||
+			channelsToSubscribe[i].Channel == futuresAutoDeleveragesChannel ||
+			channelsToSubscribe[i].Channel == futuresAutoPositionCloseChannel ||
+			channelsToSubscribe[i].Channel == futuresBalancesChannel ||
+			channelsToSubscribe[i].Channel == futuresReduceRiskLimitsChannel ||
+			channelsToSubscribe[i].Channel == futuresPositionsChannel ||
+			channelsToSubscribe[i].Channel == futuresAutoOrdersChannel ||
+
+			channelsToSubscribe[i].Channel == optionsOrdersChannel ||
+			channelsToSubscribe[i].Channel == optionsUserTradesChannel ||
+			channelsToSubscribe[i].Channel == optionsLiquidatesChannel ||
+			channelsToSubscribe[i].Channel == optionsUserSettlementChannel ||
+			channelsToSubscribe[i].Channel == optionsPositionCloseChannel ||
+			channelsToSubscribe[i].Channel == optionsBalancesChannel ||
+			channelsToSubscribe[i].Channel == optionsPositionsChannel) {
 			value, ok := channelsToSubscribe[i].Params["user"].(string)
 			if ok {
 				params = append(
 					[]string{value},
 					params...)
 			}
-
-		} else if g.Websocket.CanUseAuthenticatedEndpoints() && (channelsToSubscribe[i].Channel == spotUserTradesChannel ||
-			channelsToSubscribe[i].Channel == spotBalancesChannel ||
-			channelsToSubscribe[i].Channel == marginBalancesChannel ||
-			channelsToSubscribe[i].Channel == spotFundingBalanceChannel ||
-			channelsToSubscribe[i].Channel == crossMarginBalanceChannel ||
-			channelsToSubscribe[i].Channel == crossMarginLoanChannel) {
 			sigTemp, err := g.generateSpotWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp)
 			if err != nil {
 				return nil, err

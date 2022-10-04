@@ -808,3 +808,25 @@ func (a *SubAccount) UnmarshalJSON(data []byte) error {
 	a.CreateTime = time.Unix(chil.CreateTime, 0)
 	return nil
 }
+
+// UnmarshalJSON decerializes json, and timestamp information
+func (a *WsOptionsTrades) UnmarshalJSON(data []byte) error {
+	type Alias WsOptionsTrades
+	chil := &struct {
+		*Alias
+		CreateTime   int64 `json:"create_time"`
+		CreateTimeMs int64 `json:"create_time_ms"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
+	}
+	a.CreateTime = time.UnixMilli(func() int64 {
+		if chil.CreateTimeMs != 0 {
+			return chil.CreateTimeMs
+		}
+		return chil.CreateTime
+	}())
+	return nil
+}

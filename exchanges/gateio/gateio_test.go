@@ -2169,11 +2169,11 @@ func TestGetSingleSubAccount(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	if results, err := g.FetchTradablePairs(context.Background(), asset.Futures); err != nil {
+	if results, err := g.FetchTradablePairs(context.Background(), asset.Options); err != nil {
 		t.Errorf("%s FetchTradablePairs() error %v", g.Name, err)
 	} else {
 		for _, res := range results {
-			println(res + ",")
+			print(res + ",")
 		}
 	}
 }
@@ -2418,14 +2418,14 @@ func setupWsAuth( /*t *testing.T*/ ) error {
 		Message:    make(chan *WsEventResponse),
 	}
 	g.Websocket.Wg.Add(1)
-	err := g.WsFuturesConnect()
+	err := g.WsOptionsConnect()
 	if err != nil {
 		// t.Fatal(err)
 		return err
 	}
-	go g.wsReadData()
+	// go g.wsReadData()
 	wsSetupRan = true
-	time.Sleep(time.Second * 30)
+	time.Sleep(time.Second * 15)
 	return nil
 }
 
@@ -2661,5 +2661,185 @@ func TestFuturesAutoOrdrPushData(t *testing.T) {
 	t.Parallel()
 	if err := g.wsHandleData([]byte(wsFuturesAutoOrdersPushDataJSON)); err != nil {
 		t.Errorf("%s websocket futures auto orders push data error: %v", g.Name, err)
+	}
+}
+
+// ******************************************** Options web-socket unit test funcs ********************
+
+var optionsContractTickerPushDataJSON = `{	"time": 1630576352,	"channel": "options.contract_tickers",	"event": "update",	"result": {    "name": "BTC_USDT-20211231-59800-P",    "last_price": "11349.5",    "mark_price": "11170.19",    "index_price": "",    "position_size": 993,    "bid1_price": "10611.7",    "bid1_size": 100,    "ask1_price": "11728.7",    "ask1_size": 100,    "vega": "34.8731",    "theta": "-72.80588",    "rho": "-28.53331",    "gamma": "0.00003",    "delta": "-0.78311",    "mark_iv": "0.86695",    "bid_iv": "0.65481",    "ask_iv": "0.88145",    "leverage": "3.5541112718136"	}}`
+
+func TestOptionsContractTickerPushData(t *testing.T) {
+	t.Parallel()
+	if err := g.wsHandleData([]byte(optionsContractTickerPushDataJSON)); err != nil {
+		t.Errorf("%s websocket options contract ticker push data failed with error %v", g.Name, err)
+	}
+}
+
+var optionsUnderlyingTickerPushDataJSON = `{	"time": 1630576352,	"channel": "options.ul_tickers",	"event": "update",	"result": {	   "trade_put": 800,	   "trade_call": 41700,	   "index_price": "50695.43",	   "name": "BTC_USDT"	}}`
+
+func TestOptionsUnderlyingTickerPushData(t *testing.T) {
+	t.Parallel()
+	if err := g.wsHandleData([]byte(optionsUnderlyingTickerPushDataJSON)); err != nil {
+		t.Errorf("%s websocket options underlying ticker push data error: %v", g.Name, err)
+	}
+}
+
+var optionsContractTradesPushDataJSON = `{	"time": 1630576356,	"channel": "options.trades",	"event": "update",	"result": [    {        "contract": "BTC_USDT-20211231-59800-C",        "create_time": 1639144526,        "id": 12279,        "price": 997.8,        "size": -100,        "create_time_ms": 1639144526597,        "underlying": "BTC_USDT"    }	]}`
+
+func TestOptionsContractTradesPushData(t *testing.T) {
+	t.Parallel()
+	if err := g.wsHandleData([]byte(optionsContractTradesPushDataJSON)); err != nil {
+		t.Errorf("%s websocket contract trades push data error: %v", g.Name, err)
+	}
+}
+
+var optionsUnderlyingTradesPushDataJSON = `{"time": 1630576356,	"channel": "options.ul_trades",	"event": "update",	"result": [{"contract": "BTC_USDT-20211231-59800-C","create_time": 1639144526,"id": 12279,"price": 997.8,"size": -100,"create_time_ms": 1639144526597,"underlying": "BTC_USDT","is_call": true}	]}`
+
+func TestOptionsUnderlyingTradesPushData(t *testing.T) {
+	t.Parallel()
+	if err := g.wsHandleData([]byte(optionsUnderlyingTradesPushDataJSON)); err != nil {
+		t.Errorf("%s websocket underlying trades push data error: %v", g.Name, err)
+	}
+}
+
+var optionsUnderlyingPricePushDataJSON = `{	"time": 1630576356,	"channel": "options.ul_price",	"event": "update",	"result": {	   "underlying": "BTC_USDT",	   "price": 49653.24,"time": 1639143988,"time_ms": 1639143988931	}}`
+
+func TestOptionsUnderlyingPricePushData(t *testing.T) {
+	t.Parallel()
+	if err := g.wsHandleData([]byte(optionsUnderlyingPricePushDataJSON)); err != nil {
+		t.Errorf("%s websocket underlying price push data error: %v", g.Name, err)
+	}
+}
+
+var optionsMarkPricePushDataJSON = `{	"time": 1630576356,	"channel": "options.mark_price",	"event": "update",	"result": {    "contract": "BTC_USDT-20211231-59800-P",    "price": 11021.27,    "time": 1639143401,    "time_ms": 1639143401676	}}`
+
+func TestOptionsMarkPricePushData(t *testing.T) {
+	t.Parallel()
+	if err := g.wsHandleData([]byte(optionsMarkPricePushDataJSON)); err != nil {
+		t.Errorf("%s websocket mark price push data error: %v", g.Name, err)
+	}
+}
+
+var optionsSettlementsPushDataJSON = `{	"time": 1630576356,	"channel": "options.settlements",	"event": "update",	"result": {	   "contract": "BTC_USDT-20211130-55000-P",	   "orderbook_id": 2,	   "position_size": 1,	   "profit": 0.5,	   "settle_price": 70000,	   "strike_price": 65000,	   "tag": "WEEK",	   "trade_id": 1,	   "trade_size": 1,	   "underlying": "BTC_USDT",	   "time": 1639051907,	   "time_ms": 1639051907000	}}`
+
+func TestSettlementsPushData(t *testing.T) {
+	t.Parallel()
+	if err := g.wsHandleData([]byte(optionsSettlementsPushDataJSON)); err != nil {
+		t.Errorf("%s websocket options settlements push data error: %v", g.Name, err)
+	}
+}
+
+var optionsContractPushDataJSON = `{"time": 1630576356,	"channel": "options.contracts",	"event": "update",	"result": {	   "contract": "BTC_USDT-20211130-50000-P",	   "create_time": 1637917026,	   "expiration_time": 1638230400,	   "init_margin_high": 0.15,	   "init_margin_low": 0.1,	   "is_call": false,	   "maint_margin_base": 0.075,	   "maker_fee_rate": 0.0004,	   "mark_price_round": 0.1,	   "min_balance_short": 0.5,	   "min_order_margin": 0.1,	   "multiplier": 0.0001,	   "order_price_deviate": 0,	   "order_price_round": 0.1,	   "order_size_max": 1,	   "order_size_min": 10,	   "orders_limit": 100000,	   "ref_discount_rate": 0.1,	   "ref_rebate_rate": 0,	   "strike_price": 50000,	   "tag": "WEEK",	   "taker_fee_rate": 0.0004,	   "underlying": "BTC_USDT",	   "time": 1639051907,	   "time_ms": 1639051907000	}}`
+
+func TestOptionsContractPushData(t *testing.T) {
+	t.Parallel()
+	if err := g.wsHandleData([]byte(optionsContractPushDataJSON)); err != nil {
+		t.Errorf("%s websocket options contracts push data error: %v", g.Name, err)
+	}
+}
+
+var optionsContractCandlesticksPushDataJSON = `{	"time": 1630650451,	"channel": "options.contract_candlesticks",	"event": "update",	"result": [   {       "t": 1639039260,       "v": 100,       "c": "1041.4",       "h": "1041.4",       "l": "1041.4",       "o": "1041.4",       "a": "0",       "n": "10s_BTC_USDT-20211231-59800-C"   }	]}`
+var optionsUnderlyingCandlesticksPushDataJSON = `{	"time": 1630650451,	"channel": "options.ul_candlesticks",	"event": "update",	"result": [    {        "t": 1639039260,        "v": 100,        "c": "1041.4",        "h": "1041.4",        "l": "1041.4",        "o": "1041.4",        "a": "0",        "n": "10s_BTC_USDT"    }	]}`
+
+func TestOptionsCandlesticksPushData(t *testing.T) {
+	t.Parallel()
+	if err := g.wsHandleData([]byte(optionsContractCandlesticksPushDataJSON)); err != nil {
+		t.Errorf("%s websocket options contracts candlestick push data error: %v", g.Name, err)
+	}
+	if err := g.wsHandleData([]byte(optionsUnderlyingCandlesticksPushDataJSON)); err != nil {
+		t.Errorf("%s websocket options underlying candlestick push data error: %v", g.Name, err)
+	}
+}
+
+var optionsOrderbookTickerPushDataJSON = `{	"time": 1630650452,	"channel": "options.book_ticker",	"event": "update",	"result": {    "t": 1615366379123,    "u": 2517661076,    "s": "BTC_USDT-20211130-50000-C",    "b": "54696.6",    "B": 37000,    "a": "54696.7",    "A": 47061	}}`
+var optionsOrderbookUpdatePushDataJSON = `{	"time": 1630650445,	"channel": "options.order_book_update",	"event": "update",	"result": {    "t": 1615366381417,    "s": "BTC_USDT-20211130-50000-C",    "U": 2517661101,    "u": 2517661113,    "b": [        {            "p": "54672.1",            "s": 95        },        {            "p": "54664.5",            "s": 58794        }    ],    "a": [        {            "p": "54743.6",            "s": 95        },        {            "p": "54742",            "s": 95        }    ]	}}`
+var optionsOrderbookSnapshotPushDataJSON = `{	"time": 1630650445,	"channel": "options.order_book",	"event": "all",	"result": {    "t": 1541500161123,    "contract": "BTC_USDT-20211130-50000-C",    "id": 93973511,    "asks": [        {            "p": "97.1",            "s": 2245        },		{            "p": "97.2",            "s": 2245        }    ],    "bids": [		{            "p": "97.2",            "s": 2245        },        {            "p": "97.1",            "s": 2245        }    ]	}}`
+var optionsOrderbookSnapshotUpdateEventPushDataJSON = `{"channel": "options.order_book",	"event": "update",	"time": 1630650445,	"result": [	  {		"p": "49525.6",		"s": 7726,		"c": "BTC_USDT-20211130-50000-C",		"id": 93973511	  }	]}`
+
+func TestOptionsOrderbookPushData(t *testing.T) {
+	t.Parallel()
+	err := g.wsHandleData([]byte(optionsOrderbookTickerPushDataJSON))
+	if err != nil {
+		t.Errorf("%s websocket options orderbook ticker push data error: %v", g.Name, err)
+	}
+	if err = g.wsHandleData([]byte(optionsOrderbookSnapshotPushDataJSON)); err != nil {
+		t.Errorf("%s websocket options orderbook snapshot push data error: %v", g.Name, err)
+	}
+	if err = g.wsHandleData([]byte(optionsOrderbookUpdatePushDataJSON)); err != nil {
+		t.Errorf("%s websocket options orderbook update push data error: %v", g.Name, err)
+	}
+	if err = g.wsHandleData([]byte(optionsOrderbookSnapshotUpdateEventPushDataJSON)); err != nil {
+		t.Errorf("%s websocket options orderbook snapshot update event push data error: %v", g.Name, err)
+	}
+}
+
+/*
+BTC_USDT-20221028-26000-C,BTC_USDT-20221028-34000-P,BTC_USDT-20221028-40000-C,BTC_USDT-20221028-28000-P,BTC_USDT-20221028-34000-C,BTC_USDT-20221028-28000-C,BTC_USDT-20221028-36000-P,BTC_USDT-20221028-50000-P,BTC_USDT-20221028-36000-C,BTC_USDT-20221028-50000-C,BTC_USDT-20221028-21000-P,BTC_USDT-20221028-38000-P,BTC_USDT-20221028-21000-C,BTC_USDT-20221028-38000-C,BTC_USDT-20221028-23000-P,BTC_USDT-20221028-17000-P,BTC_USDT-20221028-23000-C,BTC_USDT-20221028-17000-C,BTC_USDT-20221028-25000-P,BTC_USDT-20221028-19000-P,BTC_USDT-20221028-25000-C,BTC_USDT-20221028-10000-P,BTC_USDT-20221028-19000-C,BTC_USDT-20221028-27000-P,BTC_USDT-20221028-10000-C,BTC_USDT-20221028-27000-C,BTC_USDT-20221028-12000-P,BTC_USDT-20221028-12000-C,BTC_USDT-20221028-20000-P,BTC_USDT-20221028-5000-P,BTC_USDT-20221028-14000-P,BTC_USDT-20221028-20000-C,BTC_USDT-20221028-45000-P,BTC_USDT-20221028-5000-C,BTC_USDT-20221028-14000-C,BTC_USDT-20221028-22000-P,BTC_USDT-20221028-45000-C,BTC_USDT-20221028-16000-P,BTC_USDT-20221028-22000-C,BTC_USDT-202
+21028-30000-P,BTC_USDT-20221028-16000-C,BTC_USDT-20221028-24000-P,BTC_USDT-20221028-30000-C,BTC_USDT-20221028-18000-P,BTC_USDT-20221028-24000-C,BTC_USDT-20221028-32000-P
+*/
+func TestMe(t *testing.T) {
+	println(time.Now().Unix())
+}
+
+var optionsOrderPushDataJSON = `{"time": 1630654851,	"channel": "options.orders",	"event": "update",	"result": [	   {		  "contract": "BTC_USDT-20211130-65000-C",		  "create_time": 1637897000,		  "fill_price": 0,		  "finish_as": "cancelled",		  "iceberg": 0,		  "id": 106,		  "is_close": false,		  "is_liq": false,		  "is_reduce_only": false,		  "left": -10,		  "mkfr": 0.0004,		  "price": 15000,		  "refr": 0,		  "refu": 0,		  "size": -10,		  "status": "finished",		  "text": "web",		  "tif": "gtc",		  "tkfr": 0.0004,		  "underlying": "BTC_USDT",		  "user": "9xxx",		  "time": 1639051907,"time_ms": 1639051907000}]}`
+
+func TestOptionsOrderPushData(t *testing.T) {
+	t.Parallel()
+	if err := g.wsHandleData([]byte(optionsOrderPushDataJSON)); err != nil {
+		t.Errorf("%s websocket options orders push data error: %v", g.Name, err)
+	}
+}
+
+var optionsUsersTradesPushDataJSON = `{	"time": 1639144214,	"channel": "options.usertrades",	"event": "update",	"result": [{"id": "1","underlying": "BTC_USDT","order": "557940","contract": "BTC_USDT-20211216-44800-C","create_time": 1639144214,"create_time_ms": 1639144214583,"price": "4999","role": "taker","size": -1}]}`
+
+func TestOptionUserTradesPushData(t *testing.T) {
+	t.Parallel()
+	if err := g.wsHandleData([]byte(optionsOrderPushDataJSON)); err != nil {
+		t.Errorf("%s websocket options orders push data error: %v", g.Name, err)
+	}
+}
+
+var optionsLiquidatesPushDataJSON = `{	"channel": "options.liquidates",	"event": "update",	"time": 1630654851,	"result": [	   {		  "user": "1xxxx",		  "init_margin": 1190,		  "maint_margin": 1042.5,		  "order_margin": 0,		  "time": 1639051907,		  "time_ms": 1639051907000	   }	]}`
+
+func TestOptionsLiquidatesPushData(t *testing.T) {
+	t.Parallel()
+	if err := g.wsHandleData([]byte(optionsLiquidatesPushDataJSON)); err != nil {
+		t.Errorf("%s websocket options liquidates push data error: %v", g.Name, err)
+	}
+}
+
+var optionsSettlementPushDataJSON = `{	"channel": "options.user_settlements",	"event": "update",	"time": 1639051907,	"result": [{"contract": "BTC_USDT-20211130-65000-C","realised_pnl": -13.028,"settle_price": 70000,"settle_profit": 5,"size": 10,"strike_price": 65000,"underlying": "BTC_USDT","user": "9xxx","time": 1639051907,"time_ms": 1639051907000}]}`
+
+func TestOptionsSettlementPushData(t *testing.T) {
+	t.Parallel()
+	if err := g.wsHandleData([]byte(optionsSettlementPushDataJSON)); err != nil {
+		t.Errorf("%s websocket options settlement push data error: %v", g.Name, err)
+	}
+}
+
+var optionsPositionClosePushDataJSON = `{	"channel": "options.position_closes",	"event": "update",	"time": 1630654851,	"result": [{"contract": "BTC_USDT-20211130-50000-C","pnl": -0.0056,"settle_size": 0,"side": "long","text": "web","underlying": "BTC_USDT","user": "11xxxxx","time": 1639051907,"time_ms": 1639051907000}]}`
+
+func TestOptionsPositionClosePushData(t *testing.T) {
+	t.Parallel()
+	if err := g.wsHandleData([]byte(optionsPositionClosePushDataJSON)); err != nil {
+		t.Errorf("%s websocket options position close push data error: %v", g.Name, err)
+	}
+}
+
+var optionsBalancePushDataJSON = `{	"channel": "options.balances",	"event": "update",	"time": 1630654851,	"result": [	   {		  "balance": 60.79009,"change": -0.5,"text": "BTC_USDT-20211130-55000-P","type": "set","user": "11xxxx","time": 1639051907,"time_ms": 1639051907000}]}`
+
+func TestOptionsBalancePushData(t *testing.T) {
+	t.Parallel()
+	if err := g.wsHandleData([]byte(optionsBalancePushDataJSON)); err != nil {
+		t.Errorf("%s websocket options balance push data error: %v", g.Name, err)
+	}
+}
+
+var optionsPositionPushDataJSON = `{	"time": 1630654851,	"channel": "options.positions",	"event": "update",	"error": null,	"result": [	   {		  "entry_price": 0,		  "realised_pnl": -13.028,		  "size": 0,		  "contract": "BTC_USDT-20211130-65000-C",		  "user": "9010",		  "time": 1639051907,		  "time_ms": 1639051907000	   }	]}`
+
+func TestOptionsPositionPushData(t *testing.T) {
+	t.Parallel()
+	if err := g.wsHandleData([]byte(optionsPositionPushDataJSON)); err != nil {
+		t.Errorf("%s websocket options position push data error: %v", g.Name, err)
 	}
 }

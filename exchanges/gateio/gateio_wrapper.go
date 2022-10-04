@@ -184,9 +184,10 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		ExchangeConfig:        exch,
 		DefaultURL:            gateioWebsocketEndpoint,
 		RunningURL:            wsRunningURL,
-		Connector:             g.WsFuturesConnect,
+		Connector:             g.WsOptionsConnect,
 		Subscriber:            g.Subscribe,
-		GenerateSubscriptions: g.GenerateDefaultFuturesSubscriptions,
+		Unsubscriber:          g.Unsubscribe,
+		GenerateSubscriptions: g.GenerateOptionsDefaultSubscriptions,
 		Features:              &g.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
@@ -359,7 +360,6 @@ func (g *Gateio) FetchTicker(ctx context.Context, p currency.Pair, assetType ass
 	}
 	tickerNew, err := ticker.GetTicker(g.Name, fPair, assetType)
 	if err != nil {
-		println("Ticker Messageees : ", err.Error())
 		return g.UpdateTicker(ctx, fPair, assetType)
 	}
 	return tickerNew, nil
