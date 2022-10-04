@@ -120,6 +120,16 @@ message TickerResponse {
   double price_ath = 10;
 }
 
+message TradeResponse {
+  CurrencyPair pair = 1;
+  string TID = 2;
+  string currency_pair = 3;
+  double price = 4;
+  double amount = 5;
+  string side = 6;
+  int64 timestamp = 7;
+}
+
 message GetTickersRequest {}
 
 message Tickers {
@@ -129,6 +139,10 @@ message Tickers {
 
 message GetTickersResponse {
   repeated Tickers tickers = 1;
+}
+
+message GetTradesResponse {
+  repeated Trades trades = 1;
 }
 
 message GetOrderbookRequest {
@@ -631,6 +645,12 @@ message GetExchangeOrderbookStreamRequest {
 }
 
 message GetTickerStreamRequest {
+  string exchange = 1;
+  CurrencyPair pair = 2;
+  string asset_type = 3;
+}
+
+message GetTradeStreamRequest {
   string exchange = 1;
   CurrencyPair pair = 2;
   string asset_type = 3;
@@ -1616,6 +1636,12 @@ service GoCryptoTraderService {
   rpc GetTickerStream(GetTickerStreamRequest) returns (stream TickerResponse) {
     option (google.api.http) = {
       get: "/v1/gettickerstream"
+    };
+  }
+
+  rpc GetTradeStream(GetTradeStreamRequest) returns (stream TradeResponse) {
+    option (google.api.http) = {
+      get: "/v1/gettradestream"
     };
   }
 

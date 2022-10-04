@@ -276,7 +276,6 @@ func (m *websocketRoutineManager) websocketDataHandler(exchName string, data int
 		// if m.verbose {
 		// 	log.Infof(log.Trade, "%+v", d)
 		// }
-		// case *ticker.Price:
 		if m.syncer.IsRunning() {
 			for _, d_i := range d {
 				err := m.syncer.Update(exchName,
@@ -289,11 +288,10 @@ func (m *websocketRoutineManager) websocketDataHandler(exchName string, data int
 				}
 			}
 		}
-		// err := ticker.ProcessTrade(d)
-		// if err != nil {
-		// 	return err
-		// }
-		// m.syncer.PrintTickerSummary(d, "websocket", err)
+		err := trade.ProcessTrade(d)
+		if err != nil {
+			return err
+		}
 		m.syncer.PrintTradeSummary(d, "websocket", nil)
 	case []fill.Data:
 		if m.verbose {

@@ -2287,6 +2287,85 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 	}
 }
 
+// GetTradeStream streams the requested updated trade
+func (s *RPCServer) GetTradeStream(r *gctrpc.GetTradeStreamRequest, stream gctrpc.GoCryptoTraderService_GetTradeStreamServer) error {
+	if r.Exchange == "" {
+		return errExchangeNameUnset
+	}
+
+	if _, err := s.GetExchangeByName(r.Exchange); err != nil {
+		return err
+	}
+
+	a, err := asset.New(r.AssetType)
+	if err != nil {
+		return err
+	}
+
+	if r.Pair.String() == "" {
+		return errCurrencyPairUnset
+	}
+
+	if r.AssetType == "" {
+		return errAssetTypeUnset
+	}
+
+	p, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return err
+	}
+
+	pipe, err := trade.SubscribeTrade(r.Exchange, p, a)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		pipeErr := pipe.Release()
+		if pipeErr != nil {
+			log.Error(log.DispatchMgr, pipeErr)
+		}
+	}()
+
+	for {
+		data, ok := <-pipe.C
+		if !ok {
+			return errDispatchSystem
+		}
+
+		// fmt.Printf("%+v\n", data)
+
+		t, ok := data.(trade.Data)
+		if !ok {
+			return common.GetAssertError("trade.Data", data)
+		}
+
+		// fmt.Printf("%+v\n", t)
+
+		// err := stream.Send(&gctrpc.TradeResponse{
+		// 	Trade: t,
+		// })
+		// if err != nil {
+		// 	return err
+		// }
+		err := stream.Send(&gctrpc.TradeResponse{
+			Pair: &gctrpc.CurrencyPair{
+				Base:      t.CurrencyPair.Base.String(),
+				Quote:     t.CurrencyPair.Quote.String(),
+				Delimiter: t.CurrencyPair.Delimiter},
+			TID:       t.TID,
+			Price:     t.Price,
+			Amount:    t.Amount,
+			Side:      t.Side.String(),
+			Timestamp: s.unixTimestamp(t.Timestamp),
+		})
+		if err != nil {
+			return err
+		}
+
+	}
+}
+
 // GetExchangeTickerStream streams all tickers associated with an exchange
 func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamRequest, stream gctrpc.GoCryptoTraderService_GetExchangeTickerStreamServer) error {
 	if r.Exchange == "" {

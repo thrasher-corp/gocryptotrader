@@ -199,6 +199,7 @@ func main() {
 		getOrderbookStreamCommand,
 		getExchangeOrderbookStreamCommand,
 		getTickerStreamCommand,
+		getTradeStreamCommand,
 		getExchangeTickerStreamCommand,
 		getAuditEventCommand,
 		getHistoricCandlesCommand,

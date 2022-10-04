@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -13,11 +14,42 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	tradesql "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
+
+var (
+	errInvalidTicker       = errors.New("invalid ticker")
+	errTickerNotFound      = errors.New("ticker not found")
+	errExchangeNameIsEmpty = errors.New("exchange name is empty")
+)
+
+func init() {
+	service = new(Service)
+	service.Trades = make(map[string]*Trade)
+	service.Exchange = make(map[string]uuid.UUID)
+	service.mux = dispatch.GetNewMux(nil)
+}
+
+// SubscribeTrade subscribes to a trade and returns a communication channel to
+// stream new trade updates
+func SubscribeTrade(exchange string, p currency.Pair, a asset.Item) (dispatch.Pipe, error) {
+	exchange = strings.ToLower(exchange)
+	service.mu.Lock()
+	defer service.mu.Unlock()
+
+	trade, ok := service.Trades[exchange]
+	if !ok {
+		return dispatch.Pipe{}, fmt.Errorf("trade item not found for %s %s %s",
+			exchange,
+			p,
+			a)
+	}
+	return service.mux.Subscribe(trade.Main)
+}
 
 // Setup creates the trade processor if trading is supported
 func (p *Processor) setup(wg *sync.WaitGroup) {
@@ -304,4 +336,69 @@ func FilterTradesByTime(trades []Data, startTime, endTime time.Time) []Data {
 	}
 
 	return filteredTrades
+}
+
+func ProcessTrade(d []Data) error {
+	return service.update(d)
+}
+
+// update updates ticker price
+func (s *Service) update(d []Data) error {
+	p := d[0]
+	name := strings.ToLower(p.Exchange)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	t, ok := service.Trades[name]
+	if !ok || t == nil {
+		newTrade := &Trade{}
+		err := s.setItemID(newTrade, d, name)
+		if err != nil {
+
+			return err
+		}
+		service.Trades[name] = newTrade
+		return nil
+	}
+
+	t.dataHandler <- d
+	//nolint: gocritic
+	ids := append(t.Assoc, t.Main)
+	return s.mux.Publish(d, ids...)
+}
+
+// setItemID retrieves and sets dispatch mux publish IDs
+func (s *Service) setItemID(t *Trade, d []Data, exch string) error {
+	ids, err := s.getAssociations(exch)
+	if err != nil {
+		return err
+	}
+	singleID, err := s.mux.GetID()
+	if err != nil {
+		return err
+	}
+
+	t.dataHandler <- d
+	t.Main = singleID
+	t.Assoc = ids
+	return nil
+}
+
+// getAssociations links a singular book with it's dispatch associations
+func (s *Service) getAssociations(exch string) ([]uuid.UUID, error) {
+	if exch == "" {
+		return nil, errExchangeNameIsEmpty
+	}
+	var ids []uuid.UUID
+	exchangeID, ok := s.Exchange[exch]
+	if !ok {
+		var err error
+		exchangeID, err = s.mux.GetID()
+		if err != nil {
+			return nil, err
+		}
+		s.Exchange[exch] = exchangeID
+	}
+	ids = append(ids, exchangeID)
+	return ids, nil
 }

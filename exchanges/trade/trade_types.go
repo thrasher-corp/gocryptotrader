@@ -7,9 +7,31 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
+
+// const values for the trade package
+const (
+	ErrExchangeNameUnset = "trade exchange name not set"
+	errPairNotSet        = "trade currency pair not set"
+	errAssetTypeNotSet   = "trade asset type not set"
+	errTradePriceIsNil   = "trade price is nil"
+)
+
+// Vars for the ticker package
+var (
+	service *Service
+)
+
+// Service holds ticker information for each individual exchange
+type Service struct {
+	Trades   map[string]*Trade
+	Exchange map[string]uuid.UUID
+	mux      *dispatch.Mux
+	mu       sync.Mutex
+}
 
 // DefaultProcessorIntervalTime is the default timer
 // to process queued trades and save them to the database
@@ -30,6 +52,8 @@ type Trade struct {
 	exchangeName     string
 	dataHandler      chan interface{}
 	tradeFeedEnabled bool
+	Main             uuid.UUID
+	Assoc            []uuid.UUID
 }
 
 // Data defines trade data
