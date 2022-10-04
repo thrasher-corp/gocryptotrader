@@ -193,8 +193,9 @@ func (s *RPCServer) StartRPCRESTProxy() {
 
 	go func() {
 		server := &http.Server{
-			Addr:        s.Config.RemoteControl.GRPC.GRPCProxyListenAddress,
-			ReadTimeout: time.Minute,
+			Addr:              s.Config.RemoteControl.GRPC.GRPCProxyListenAddress,
+			ReadHeaderTimeout: time.Minute,
+			ReadTimeout:       time.Minute,
 		}
 
 		if err = server.ListenAndServe(); err != nil {

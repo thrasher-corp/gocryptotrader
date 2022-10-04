@@ -39,8 +39,9 @@ func main() {
 	if enablePProf {
 		go func() {
 			server := &http.Server{
-				Addr:        pprofURL,
-				ReadTimeout: time.Minute,
+				Addr:              pprofURL,
+				ReadHeaderTimeout: time.Minute,
+				ReadTimeout:       time.Minute,
 			}
 
 			fmt.Println(server.ListenAndServe())

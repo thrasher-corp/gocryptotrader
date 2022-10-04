@@ -122,8 +122,9 @@ func (s *GRPCServer) StartRPCRESTProxy() error {
 
 	go func() {
 		server := &http.Server{
-			Addr:        s.config.GRPC.GRPCProxyListenAddress,
-			ReadTimeout: time.Minute,
+			Addr:              s.config.GRPC.GRPCProxyListenAddress,
+			ReadHeaderTimeout: time.Minute,
+			ReadTimeout:       time.Minute,
 		}
 
 		if err = server.ListenAndServe(); err != nil {
