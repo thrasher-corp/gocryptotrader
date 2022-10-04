@@ -1350,7 +1350,7 @@ func TestGetFuturesOrderDetails(t *testing.T) {
 	}
 }
 
-func GetFuturesOrderDetailsByClientID(t *testing.T) {
+func TestGetFuturesOrderDetailsByClientID(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
@@ -1359,5 +1359,65 @@ func GetFuturesOrderDetailsByClientID(t *testing.T) {
 	_, err := k.GetFuturesOrderDetailsByClientID(context.Background(), "eresc138b21023a909e5ad59")
 	if err != nil {
 		t.Error("GetFuturesOrderDetailsByClientID() error", err)
+	}
+}
+
+func TestGetFuturesFills(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetFuturesFills(context.Background(), "", "", "", "", time.Time{}, time.Time{})
+	if err != nil {
+		t.Error("GetFuturesFills() error", err)
+	}
+}
+
+func TestGetFuturesRecentFills(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetFuturesRecentFills(context.Background())
+	if err != nil {
+		t.Error("GetFuturesRecentFills() error", err)
+	}
+}
+
+func TestGetFuturesOpenOrderStats(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetFuturesOpenOrderStats(context.Background(), "XBTUSDM")
+	if err != nil {
+		t.Error("GetFuturesOpenOrderStats() error", err)
+	}
+}
+
+func TestGetFuturesPosition(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetFuturesPosition(context.Background(), "XBTUSDM")
+	if err != nil {
+		t.Error("GetFuturesPosition() error", err)
+	}
+}
+
+func TestGetFuturesPositionList(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetFuturesPositionList(context.Background())
+	if err != nil {
+		t.Error("GetFuturesPositionList() error", err)
 	}
 }

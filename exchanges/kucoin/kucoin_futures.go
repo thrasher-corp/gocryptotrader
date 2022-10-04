@@ -42,7 +42,12 @@ const (
 	kucoinFuturesGetOrderDetails           = "/api/v1/orders/%s"
 	kucoinFuturesGetOrderDetailsByClientID = "/api/v1/orders/byClientOid"
 
-	kucoinFuturesFills = "/api/v1/fills"
+	kucoinFuturesFills          = "/api/v1/fills"
+	kucoinFuturesRecentFills    = "/api/v1/recentFills"
+	kucoinFuturesOpenOrderStats = "/api/v1/openOrderStatistics"
+
+	kucoinFuturesPosition     = "/api/v1/position"
+	kucoinFuturesPositionList = "/api/v1/positions"
 )
 
 // GetFuturesOpenContracts gets all open futures contract with its details
@@ -615,6 +620,56 @@ func (k *Kucoin) GetFuturesFills(ctx context.Context, orderID, symbol, side, ord
 		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
 	}
 	return resp.Data.Items, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(kucoinFuturesFills, params), nil, publicSpotRate, &resp)
+}
+
+// GetFuturesRecentFills gets list of 1000 recent fills in the last 24 hrs
+func (k *Kucoin) GetFuturesRecentFills(ctx context.Context) ([]FuturesFill, error) {
+	resp := struct {
+		Data []FuturesFill `json:"data"`
+		Error
+	}{}
+
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, kucoinFuturesRecentFills, nil, publicSpotRate, &resp)
+}
+
+// GetFuturesOpenOrderStats gets the total number and value of the all your active orders
+func (k *Kucoin) GetFuturesOpenOrderStats(ctx context.Context, symbol string) (OpenOrderStats, error) {
+	resp := struct {
+		Data OpenOrderStats `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if symbol == "" {
+		return resp.Data, errors.New("symbol can't be empty")
+	}
+	params.Set("symbol", symbol)
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(kucoinFuturesOpenOrderStats, params), nil, publicSpotRate, &resp)
+}
+
+// GetFuturesPosition gets the position details of a specified position
+func (k *Kucoin) GetFuturesPosition(ctx context.Context, symbol string) (Position, error) {
+	resp := struct {
+		Data Position `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if symbol == "" {
+		return resp.Data, errors.New("symbol can't be empty")
+	}
+	params.Set("symbol", symbol)
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(kucoinFuturesPosition, params), nil, publicSpotRate, &resp)
+}
+
+// GetFuturesPositionList gets the list of position with details
+func (k *Kucoin) GetFuturesPositionList(ctx context.Context) ([]Position, error) {
+	resp := struct {
+		Data []Position `json:"data"`
+		Error
+	}{}
+
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, kucoinFuturesPositionList, nil, publicSpotRate, &resp)
 }
 
 func processFuturesOB(ob [][2]float64) ([]orderbook.Item, error) {

@@ -208,3 +208,52 @@ type FuturesFill struct {
 	SettleCurrency string             `json:"settleCurrency"`
 	TradeTime      kucoinTimeNanoSec  `json:"tradeTime"`
 }
+
+type OpenOrderStats struct {
+	OpenOrderBuySize  int64   `json:"openOrderBuySize"`
+	OpenOrderSellSize int64   `json:"openOrderSellSize"`
+	OpenOrderBuyCost  float64 `json:"openOrderBuyCost,string"`
+	OpenOrderSellCost float64 `json:"openOrderSellCost,string"`
+	SettleCurrency    string  `json:"settleCurrency"`
+}
+
+type Position struct {
+	ID                   string             `json:"id"`
+	Symbol               string             `json:"symbol"`
+	AutoDeposit          bool               `json:"autoDeposit"`
+	MaintMarginReq       float64            `json:"maintMarginReq"`
+	RiskLimit            int64              `json:"riskLimit"`
+	RealLeverage         float64            `json:"realLeverage"`
+	CrossMode            bool               `json:"crossMode"`
+	ADLRankingPercentile float64            `json:"delevPercentage"`
+	OpeningTimestamp     kucoinTimeMilliSec `json:"openingTimestamp"`
+	CurrentTimestamp     kucoinTimeMilliSec `json:"currentTimestamp"`
+	CurrentQty           int64              `json:"currentQty"`
+	CurrentCost          float64            `json:"currentCost"` //Current postion value
+	CurrentComm          float64            `json:"currentComm"` //Current commission
+	UnrealisedCost       float64            `json:"unrealisedCost"`
+	RealisedGrossCost    float64            `json:"realisedGrossCost"`
+	RealisedCost         float64            `json:"realisedCost"`
+	IsOpen               bool               `json:"isOpen"`
+	MarkPrice            float64            `json:"markPrice"`
+	MarkValue            float64            `json:"markValue"`
+	PosCost              float64            `json:"posCost"`   //Position value
+	PosCross             float64            `json:"posCross"`  //Added margin
+	PosInit              float64            `json:"posInit"`   //Leverage margin
+	PosComm              float64            `json:"posComm"`   //Bankruptcy cost
+	PosLoss              float64            `json:"posLoss"`   //Funding fees paid out
+	PosMargin            float64            `json:"posMargin"` //Position margin
+	PosMaint             float64            `json:"posMaint"`  //Maintenance margin
+	MaintMargin          float64            `json:"maintMargin"`
+	RealisedGrossPnl     float64            `json:"realisedGrossPnl"`
+	RealisedPnl          float64            `json:"realisedPnl"`
+	UnrealisedPnl        float64            `json:"unrealisedPnl"`
+	UnrealisedPnlPcnt    float64            `json:"unrealisedPnlPcnt"`
+	UnrealisedRoePcnt    float64            `json:"unrealisedRoePcnt"`
+	AvgEntryPrice        float64            `json:"avgEntryPrice"`
+	LiquidationPrice     float64            `json:"liquidationPrice"`
+	BankruptPrice        float64            `json:"bankruptPrice"`
+	SettleCurrency       string             `json:"settleCurrency"`
+	MaintainMargin       float64            `json:"maintainMargin"`
+	RiskLimitLevel       int64              `json:"riskLimitLevel"`
+}
