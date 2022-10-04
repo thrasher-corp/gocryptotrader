@@ -52,7 +52,7 @@ func NewBacktester() (*BackTest, error) {
 		EventQueue:               &eventholder.Holder{},
 		hasProcessedDataAtOffset: make(map[int64]bool),
 	}
-	bt, err := New()
+	err := bt.SetupMetaData()
 	if err != nil {
 		return nil, err
 	}
@@ -472,11 +472,6 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange, error) {
 	log.Infoln(common.Setup, "Setting exchange settings...")
 	resp := exchange.Exchange{}
-
-	realOrders := false
-	if cfg.DataSettings.LiveData != nil {
-		realOrders = cfg.DataSettings.LiveData.RealOrders
-	}
 
 	for i := range cfg.CurrencySettings {
 		exch, pair, a, err := bt.loadExchangePairAssetBase(

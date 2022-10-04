@@ -304,8 +304,10 @@ func (s *Statistic) Serialise() (string, error) {
 	s.CurrencyStatistics = nil
 	for _, exchangeMap := range s.ExchangeAssetPairStatistics {
 		for _, assetMap := range exchangeMap {
-			for _, stats := range assetMap {
-				s.CurrencyStatistics = append(s.CurrencyStatistics, stats)
+			for _, baseMap := range assetMap {
+				for _, stats := range baseMap {
+					s.CurrencyStatistics = append(s.CurrencyStatistics, stats)
+				}
 			}
 		}
 	}

@@ -42,7 +42,7 @@ func TestExecuteStrategyFromFile(t *testing.T) {
 	s.manager = SetupRunManager()
 	_, err = s.ExecuteStrategyFromFile(context.Background(), nil)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expecting '%v'", err, common.ErrNilArguments)
+		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
 	}
 
 	_, err = s.ExecuteStrategyFromFile(context.Background(), &btrpc.ExecuteStrategyFromFileRequest{})

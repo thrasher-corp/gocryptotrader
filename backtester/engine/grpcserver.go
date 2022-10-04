@@ -48,10 +48,10 @@ type GRPCServer struct {
 // SetupRPCServer sets up the gRPC server
 func SetupRPCServer(cfg *config.BacktesterConfig, manager *RunManager) (*GRPCServer, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("%w backtester config", common.ErrNilArguments)
+		return nil, fmt.Errorf("%w backtester config", gctcommon.ErrNilPointer)
 	}
 	if manager == nil {
-		return nil, fmt.Errorf("%w run manager", common.ErrNilArguments)
+		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
 	}
 	return &GRPCServer{
 		config:  cfg,
@@ -213,7 +213,7 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 		return nil, err
 	}
 	if cfg == nil {
-		err = fmt.Errorf("%w backtester config", common.ErrNilArguments)
+		err = fmt.Errorf("%w backtester config", gctcommon.ErrNilPointer)
 		return nil, err
 	}
 
@@ -222,7 +222,7 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 		s.config.Report.TemplatePath = ""
 	}
 
-	bt, err := NewFromConfig(cfg, s.config.Report.TemplatePath, s.config.Report.OutputPath, s.config.Verbose)
+	bt, err := NewBacktesterFromConfigs(cfg, s.config)
 	if err != nil {
 		return nil, err
 	}
@@ -591,7 +591,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		s.config.Report.TemplatePath = ""
 	}
 
-	bt, err := NewFromConfig(cfg, s.config.Report.TemplatePath, s.config.Report.OutputPath, s.config.Verbose)
+	bt, err := NewBacktesterFromConfigs(cfg, s.config)
 	if err != nil {
 		return nil, err
 	}

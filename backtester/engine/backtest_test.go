@@ -3,9 +3,9 @@ package engine
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"strings"
 	"sync"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -1986,7 +1986,7 @@ func TestExecuteStrategy(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
-	bt, err = NewFromConfig(cfg, "", "", false)
+	bt, err = NewBacktesterFromConfigs(cfg, "", "", false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -2002,7 +2002,7 @@ func TestExecuteStrategy(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	bt, err = NewFromConfig(cfg, "", "", false)
+	bt, err = NewBacktesterFromConfigs(cfg, "", "", false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -2022,5 +2022,41 @@ func TestExecuteStrategy(t *testing.T) {
 	err = bt.ExecuteStrategy(false)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
+	}
+}
+
+func TestNewBacktesterFromConfigs(t *testing.T) {
+	t.Parallel()
+	_, err := NewBacktesterFromConfigs(nil, nil)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
+	}
+
+	strat1 := filepath.Join("..", "config", "strategyexamples", "dca-api-candles.strat")
+	cfg, err := config.ReadStrategyConfigFromFile(strat1)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	dc, err := config.GenerateDefaultConfig()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	_, err = NewBacktesterFromConfigs(cfg, nil)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
+	}
+
+	_, err = NewBacktesterFromConfigs(nil, dc)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
+	}
+
+	bt, err := NewBacktesterFromConfigs(cfg, dc)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if bt.MetaData.DateLoaded.IsZero() {
+		t.Errorf("received '%v' expected '%v'", bt.MetaData.DateLoaded, "a date")
 	}
 }

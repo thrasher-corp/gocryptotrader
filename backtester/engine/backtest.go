@@ -28,20 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// New returns a new BackTest instance
-func New() (*BackTest, error) {
-	bt := &BackTest{
-		shutdown:   make(chan struct{}),
-		Datas:      &data.HandlerPerCurrency{},
-		EventQueue: &eventholder.Holder{},
-	}
-	err := bt.SetupMetaData()
-	if err != nil {
-		return nil, err
-	}
-	return bt, nil
-}
-
 // Reset BackTest values to default
 func (bt *BackTest) Reset() {
 	if bt == nil {
@@ -220,13 +206,6 @@ func (bt *BackTest) handleEvent(ev common.Event) error {
 	funds, err := bt.Funding.GetFundingForEvent(ev)
 	if err != nil {
 		return err
-	}
-
-	if bt.Funding.HasFutures() {
-		err = bt.Funding.UpdateCollateral(ev)
-		if err != nil {
-			return err
-		}
 	}
 
 	switch eType := ev.(type) {
