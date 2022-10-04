@@ -1053,10 +1053,17 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			return nil, errors.New("invalid type, check api docs for updates")
 		}
 		order, err := b.UFuturesNewOrder(ctx,
-			s.Pair, reqSide,
-			"", oType, "GTC", "",
-			s.ClientOrderID, "", "",
-			s.Amount, s.Price, 0, 0, 0, s.ReduceOnly)
+			&UFuturesNewOrderRequest{
+				Symbol:           s.Pair,
+				Side:             reqSide,
+				OrderType:        oType,
+				TimeInForce:      "GTC",
+				NewClientOrderID: s.ClientOrderID,
+				Quantity:         s.Amount,
+				Price:            s.Price,
+				ReduceOnly:       s.ReduceOnly,
+			},
+		)
 		if err != nil {
 			return nil, err
 		}

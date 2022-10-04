@@ -3,7 +3,10 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"sync"
+	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
@@ -24,6 +27,20 @@ import (
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
+
+// New returns a new BackTest instance
+func New() (*BackTest, error) {
+	bt := &BackTest{
+		shutdown:   make(chan struct{}),
+		Datas:      &data.HandlerPerCurrency{},
+		EventQueue: &eventholder.Holder{},
+	}
+	err := bt.SetupMetaData()
+	if err != nil {
+		return nil, err
+	}
+	return bt, nil
+}
 
 // Reset BackTest values to default
 func (bt *BackTest) Reset() {
@@ -69,11 +86,75 @@ func (bt *BackTest) RunLive() error {
 	}
 }
 
+// ExecuteStrategy executes the strategy using the provided configs
+func (bt *BackTest) ExecuteStrategy(waitForOfflineCompletion bool) error {
+	if bt == nil {
+		return gctcommon.ErrNilPointer
+	}
+	bt.m.Lock()
+	if bt.MetaData.DateLoaded.IsZero() {
+		bt.m.Unlock()
+		return errNotSetup
+	}
+	if !bt.MetaData.Closed && !bt.MetaData.DateStarted.IsZero() {
+		bt.m.Unlock()
+		return fmt.Errorf("%w %v %v", errRunIsRunning, bt.MetaData.ID, bt.MetaData.Strategy)
+	}
+	if bt.MetaData.Closed {
+		bt.m.Unlock()
+		return fmt.Errorf("%w %v %v", errAlreadyRan, bt.MetaData.ID, bt.MetaData.Strategy)
+	}
+
+	bt.MetaData.DateStarted = time.Now()
+	liveTesting := bt.MetaData.LiveTesting
+	bt.m.Unlock()
+	var wg sync.WaitGroup
+	if waitForOfflineCompletion {
+		wg.Add(1)
+	}
+	go func() {
+		if waitForOfflineCompletion {
+			defer wg.Done()
+		}
+		if liveTesting {
+			if waitForOfflineCompletion {
+				log.Errorf(common.Backtester, "%v cannot wait for completion of a live test", errCannotHandleRequest)
+				return
+			}
+			err := bt.RunLive()
+			if err != nil {
+				log.Error(log.Global, err)
+			}
+		} else {
+			bt.Run()
+			close(bt.shutdown)
+			bt.m.Lock()
+			bt.MetaData.Closed = true
+			bt.MetaData.DateEnded = time.Now()
+			bt.m.Unlock()
+			err := bt.Statistic.CalculateAllResults()
+			if err != nil {
+				log.Error(log.Global, err)
+				return
+			}
+			err = bt.Reports.GenerateReport()
+			if err != nil {
+				log.Error(log.Global, err)
+			}
+		}
+	}()
+	wg.Wait()
+	return nil
+}
+
 // Run will iterate over loaded data events
 // save them and then handle the event based on its type
 func (bt *BackTest) Run() {
 	// doubleNil allows the run function to exit if no new data is detected on a live run
 	var doubleNil bool
+	if bt.MetaData.DateLoaded.IsZero() {
+		return
+	}
 dataLoadingIssue:
 	for ev := bt.EventQueue.NextEvent(); ; ev = bt.EventQueue.NextEvent() {
 		if ev == nil {
@@ -139,6 +220,13 @@ func (bt *BackTest) handleEvent(ev common.Event) error {
 	funds, err := bt.Funding.GetFundingForEvent(ev)
 	if err != nil {
 		return err
+	}
+
+	if bt.Funding.HasFutures() {
+		err = bt.Funding.UpdateCollateral(ev)
+		if err != nil {
+			return err
+		}
 	}
 
 	switch eType := ev.(type) {
@@ -481,8 +569,26 @@ func (bt *BackTest) processFuturesFillEvent(ev fill.Event, funds funding.IFundRe
 
 // Stop shuts down the live data loop
 func (bt *BackTest) Stop() {
+	if bt == nil {
+		return
+	}
+	bt.m.Lock()
+	defer bt.m.Unlock()
+	if bt.MetaData.Closed {
+		return
+	}
 	close(bt.shutdown)
-	bt.hasShutdown = true
+	bt.MetaData.Closed = true
+	bt.MetaData.DateEnded = time.Now()
+	err := bt.Statistic.CalculateAllResults()
+	if err != nil {
+		log.Error(log.Global, err)
+		return
+	}
+	err = bt.Reports.GenerateReport()
+	if err != nil {
+		log.Error(log.Global, err)
+	}
 }
 
 func (bt *BackTest) triggerLiquidationsForExchange(ev data.Event, pnl *portfolio.PNLSummary) error {
@@ -595,4 +701,89 @@ func (bt *BackTest) CloseAllPositions() error {
 		}
 	}
 	return nil
+}
+
+// GenerateSummary creates a summary of a backtesting/livestrategy run
+// this summary contains many details of a run
+func (bt *BackTest) GenerateSummary() (*RunSummary, error) {
+	if bt == nil {
+		return nil, gctcommon.ErrNilPointer
+	}
+	bt.m.Lock()
+	defer bt.m.Unlock()
+	return &RunSummary{
+		MetaData: bt.MetaData,
+	}, nil
+}
+
+// SetupMetaData will populate metadata fields
+func (bt *BackTest) SetupMetaData() error {
+	if bt == nil {
+		return gctcommon.ErrNilPointer
+	}
+	bt.m.Lock()
+	defer bt.m.Unlock()
+	if !bt.MetaData.ID.IsNil() && !bt.MetaData.DateLoaded.IsZero() {
+		// already setup
+		return nil
+	}
+	id, err := uuid.NewV4()
+	if err != nil {
+		return err
+	}
+	bt.MetaData.ID = id
+	bt.MetaData.DateLoaded = time.Now()
+	return nil
+}
+
+// IsRunning checks if the run is running
+func (bt *BackTest) IsRunning() bool {
+	if bt == nil {
+		return false
+	}
+	bt.m.Lock()
+	defer bt.m.Unlock()
+	return !bt.MetaData.DateStarted.IsZero() && !bt.MetaData.Closed
+}
+
+// HasRan checks if the run has been ran
+func (bt *BackTest) HasRan() bool {
+	if bt == nil {
+		return false
+	}
+	bt.m.Lock()
+	defer bt.m.Unlock()
+	return bt.MetaData.Closed
+}
+
+// Equal checks if the incoming run matches
+func (bt *BackTest) Equal(bt2 *BackTest) bool {
+	if bt == nil || bt2 == nil {
+		return false
+	}
+	bt.m.Lock()
+	btM := bt.MetaData
+	bt.m.Unlock()
+	// if they are actually the same pointer
+	// locks must be handled separately
+	bt2.m.Lock()
+	btM2 := bt2.MetaData
+	bt2.m.Unlock()
+	return btM == btM2
+}
+
+// MatchesID checks if the backtesting run's ID matches the supplied
+func (bt *BackTest) MatchesID(id uuid.UUID) bool {
+	if bt == nil {
+		return false
+	}
+	if id.IsNil() {
+		return false
+	}
+	bt.m.Lock()
+	defer bt.m.Unlock()
+	if bt.MetaData.ID.IsNil() {
+		return false
+	}
+	return bt.MetaData.ID == id
 }

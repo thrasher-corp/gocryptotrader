@@ -10,6 +10,19 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+var (
+	doNotRunFlag = &cli.BoolFlag{
+		Name:    "donotrunimmediately",
+		Aliases: []string{"dnr"},
+		Usage:   "if true, will load the strategy, but will not execute until another command is sent",
+	}
+	doNotStoreFlag = &cli.BoolFlag{
+		Name:    "donotstore",
+		Aliases: []string{"dns"},
+		Usage:   "if true, will not store the run internally - cannot be run in conjunction with dnr",
+	}
+)
+
 var executeStrategyFromFileCommand = &cli.Command{
 	Name:      "executestrategyfromfile",
 	Usage:     "runs the strategy from a config file",
@@ -21,6 +34,8 @@ var executeStrategyFromFileCommand = &cli.Command{
 			Aliases: []string{"p"},
 			Usage:   "the filepath to a strategy to execute",
 		},
+		doNotRunFlag,
+		doNotStoreFlag,
 	},
 }
 
@@ -32,7 +47,7 @@ func executeStrategyFromFile(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "executestrategyfromfile")
+		return cli.ShowCommandHelp(c, c.Command.Name)
 	}
 
 	var path string
@@ -42,12 +57,272 @@ func executeStrategyFromFile(c *cli.Context) error {
 		path = c.Args().First()
 	}
 
+	var dnr bool
+	if c.IsSet("donotrunimmediately") {
+		dnr = c.Bool("donotrunimmediately")
+	}
+	var dns bool
+	if c.IsSet("donotstore") {
+		dns = c.Bool("donotstore")
+	}
+
 	client := btrpc.NewBacktesterServiceClient(conn)
 	result, err := client.ExecuteStrategyFromFile(
 		c.Context,
 		&btrpc.ExecuteStrategyFromFileRequest{
-			StrategyFilePath: path,
+			StrategyFilePath:    path,
+			DoNotRunImmediately: dnr,
+			DoNotStore:          dns,
 		},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+var listAllRunsCommand = &cli.Command{
+	Name:   "listallruns",
+	Usage:  "returns a list of all loaded backtest/livestrategy runs",
+	Action: listAllRuns,
+}
+
+func listAllRuns(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	client := btrpc.NewBacktesterServiceClient(conn)
+	result, err := client.ListAllRuns(
+		c.Context,
+		&btrpc.ListAllRunsRequest{},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+var startRunCommand = &cli.Command{
+	Name:      "startrun",
+	Usage:     "executes a strategy loaded into the server",
+	ArgsUsage: "<id>",
+	Action:    startRun,
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  "id",
+			Usage: "the id of the backtest/livestrategy run",
+		},
+	},
+}
+
+func startRun(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, c.Command.Name)
+	}
+
+	var id string
+	if c.IsSet("id") {
+		id = c.String("id")
+	} else {
+		id = c.Args().First()
+	}
+
+	client := btrpc.NewBacktesterServiceClient(conn)
+	result, err := client.StartRun(
+		c.Context,
+		&btrpc.StartRunRequest{
+			Id: id,
+		},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+var startAllRunsCommand = &cli.Command{
+	Name:   "startallruns",
+	Usage:  "executes all strategies loaded into the server that have not been run",
+	Action: startAllRuns,
+}
+
+func startAllRuns(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	client := btrpc.NewBacktesterServiceClient(conn)
+	result, err := client.StartAllRuns(
+		c.Context,
+		&btrpc.StartAllRunsRequest{},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+var stopRunCommand = &cli.Command{
+	Name:      "stoprun",
+	Usage:     "stops a strategy loaded into the server",
+	ArgsUsage: "<id>",
+	Action:    stopRun,
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  "id",
+			Usage: "the id of the backtest/livestrategy run",
+		},
+	},
+}
+
+func stopRun(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, c.Command.Name)
+	}
+
+	var id string
+	if c.IsSet("id") {
+		id = c.String("id")
+	} else {
+		id = c.Args().First()
+	}
+
+	client := btrpc.NewBacktesterServiceClient(conn)
+	result, err := client.StopRun(
+		c.Context,
+		&btrpc.StopRunRequest{
+			Id: id,
+		},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+var stopAllRunsCommand = &cli.Command{
+	Name:   "stopallruns",
+	Usage:  "stops all strategies loaded into the server",
+	Action: stopAllRuns,
+}
+
+func stopAllRuns(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	client := btrpc.NewBacktesterServiceClient(conn)
+	result, err := client.StopAllRuns(
+		c.Context,
+		&btrpc.StopAllRunsRequest{},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+var clearRunCommand = &cli.Command{
+	Name:      "clearrun",
+	Usage:     "clears/deletes a strategy loaded into the server - if it is not running",
+	ArgsUsage: "<id>",
+	Action:    clearRun,
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  "id",
+			Usage: "the id of the backtest/livestrategy run",
+		},
+	},
+}
+
+func clearRun(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, c.Command.Name)
+	}
+
+	var id string
+	if c.IsSet("id") {
+		id = c.String("id")
+	} else {
+		id = c.Args().First()
+	}
+
+	client := btrpc.NewBacktesterServiceClient(conn)
+	result, err := client.ClearRun(
+		c.Context,
+		&btrpc.ClearRunRequest{
+			Id: id,
+		},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+var clearAllRunsCommand = &cli.Command{
+	Name:   "clearallruns",
+	Usage:  "clears all strategies loaded into the server. Only runs not actively running will be cleared",
+	Action: clearAllRuns,
+}
+
+func clearAllRuns(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	client := btrpc.NewBacktesterServiceClient(conn)
+	result, err := client.ClearAllRuns(
+		c.Context,
+		&btrpc.ClearAllRunsRequest{},
 	)
 
 	if err != nil {
@@ -63,6 +338,10 @@ var executeStrategyFromConfigCommand = &cli.Command{
 	Usage:       "runs the default strategy config but via passing in as a struct instead of a filepath - this is a proof-of-concept implementation",
 	Description: "the cli is not a good place to manage this type of command with n variables to pass in from a command line",
 	Action:      executeStrategyFromConfig,
+	Flags: []cli.Flag{
+		doNotRunFlag,
+		doNotStoreFlag,
+	},
 }
 
 // executeStrategyFromConfig this is a proof of concept command
@@ -236,11 +515,22 @@ func executeStrategyFromConfig(c *cli.Context) error {
 		},
 	}
 
+	var dnr bool
+	if c.IsSet("donotrunimmediately") {
+		dnr = c.Bool("donotrunimmediately")
+	}
+	var dns bool
+	if c.IsSet("donotstore") {
+		dns = c.Bool("donotstore")
+	}
+
 	client := btrpc.NewBacktesterServiceClient(conn)
 	result, err := client.ExecuteStrategyFromConfig(
 		c.Context,
 		&btrpc.ExecuteStrategyFromConfigRequest{
-			Config: cfg,
+			Config:              cfg,
+			DoNotRunImmediately: dnr,
+			DoNotStore:          dns,
 		},
 	)
 

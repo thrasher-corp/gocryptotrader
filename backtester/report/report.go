@@ -18,6 +18,9 @@ import (
 // GenerateReport sends final data from statistics to a template
 // to create a lovely final report for someone to view
 func (d *Data) GenerateReport() error {
+	if d.TemplatePath == "" || d.OutputPath == "" {
+		return nil
+	}
 	log.Info(common.Report, "Generating report")
 	err := d.enhanceCandles()
 	if err != nil {

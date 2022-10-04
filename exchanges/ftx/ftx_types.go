@@ -937,3 +937,22 @@ type CollateralPosition struct {
 	RequiredMargin decimal.Decimal `json:"requiredMargin"`
 	CollateralUsed decimal.Decimal `json:"totalCollateralUsed"`
 }
+
+// CustomReferralCode stores custom referral code info
+type CustomReferralCode struct {
+	Code string `json:"code"`
+	ID   int64  `json:"id"`
+}
+
+// ReferralRebate stores the referral rebate info by account ID
+type ReferralRebate struct {
+	RefereeAccountID int64   `json:"refereeAccountId"`
+	TotalSize        float64 `json:"totalSize"`
+}
+
+// ReferralRebateHistory stores the daily referral rebate history info
+type ReferralRebateHistory struct {
+	Subaccount string    `json:"subaccount"`
+	Size       float64   `json:"size"`
+	Day        time.Time `json:"day"`
+}

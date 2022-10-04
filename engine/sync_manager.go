@@ -39,6 +39,7 @@ var (
 	errNoSyncItemsEnabled         = errors.New("no sync items enabled")
 	errUnknownSyncItem            = errors.New("unknown sync item")
 	errSyncPairNotFound           = errors.New("exchange currency pair syncer not found")
+	errCouldNotSyncNewData        = errors.New("could not sync new data")
 )
 
 // setupSyncManager starts a new CurrencyPairSyncer
@@ -421,7 +422,7 @@ func (m *syncManager) Update(exchangeName string, p currency.Pair, a asset.Item,
 						createdCounter)
 					m.initSyncWG.Done()
 				}
-
+				return nil
 			case SyncItemOrderbook:
 				origHadData := m.currencyPairs[x].Orderbook.HaveData
 				m.currencyPairs[x].Orderbook.LastUpdated = time.Now()
@@ -439,7 +440,7 @@ func (m *syncManager) Update(exchangeName string, p currency.Pair, a asset.Item,
 						createdCounter)
 					m.initSyncWG.Done()
 				}
-
+				return nil
 			case SyncItemTrade:
 				origHadData := m.currencyPairs[x].Trade.HaveData
 				m.currencyPairs[x].Trade.LastUpdated = time.Now()
@@ -457,10 +458,11 @@ func (m *syncManager) Update(exchangeName string, p currency.Pair, a asset.Item,
 						createdCounter)
 					m.initSyncWG.Done()
 				}
+				return nil
 			}
 		}
 	}
-	return nil
+	return fmt.Errorf("%w for %s %s %s", errCouldNotSyncNewData, exchangeName, p, a)
 }
 
 func (m *syncManager) worker() {
