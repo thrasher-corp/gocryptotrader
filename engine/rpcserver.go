@@ -192,9 +192,13 @@ func (s *RPCServer) StartRPCRESTProxy() {
 	}
 
 	go func() {
-		if err := http.ListenAndServe(s.Config.RemoteControl.GRPC.GRPCProxyListenAddress, mux); err != nil {
-			log.Errorf(log.GRPCSys, "gRPC proxy failed to server: %s\n", err)
-			return
+		server := &http.Server{
+			Addr:        s.Config.RemoteControl.GRPC.GRPCProxyListenAddress,
+			ReadTimeout: time.Minute,
+		}
+
+		if err = server.ListenAndServe(); err != nil {
+			log.Errorf(log.GRPCSys, "GRPC proxy failed to server: %s\n", err)
 		}
 	}()
 

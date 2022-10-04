@@ -25,17 +25,17 @@ var (
 	errUnhandledDatatype   = errors.New("unhandled datatype")
 	errNilData             = errors.New("nil data received")
 	errLiveOnly            = errors.New("close all positions is only supported by live data type")
-	errNotSetup                    = errors.New("backtesting run not setup")
+	errNotSetup            = errors.New("backtesting run not setup")
 )
 
 // BackTest is the main holder of all backtesting functionality
 type BackTest struct {
-	m               		 sync.Mutex
+	m                        sync.Mutex
 	verbose                  bool
 	hasProcessedAnEvent      bool
 	hasShutdown              bool
 	shutdown                 chan struct{}
-	MetaData        		 RunMetaData
+	MetaData                 RunMetaData
 	DataHolder               data.Holder
 	LiveDataHandler          Handler
 	Strategy                 strategies.Handler
