@@ -339,7 +339,7 @@ func TestListAllRuns(t *testing.T) {
 	bt := &BackTest{
 		Strategy:   &ftxcashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
-		Datas:      &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerPerCurrency{},
 		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
@@ -373,7 +373,7 @@ func TestGRPCStopRun(t *testing.T) {
 	bt := &BackTest{
 		Strategy:   &ftxcashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
-		Datas:      &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerPerCurrency{},
 		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
@@ -420,7 +420,7 @@ func TestGRPCStopAllRuns(t *testing.T) {
 	bt := &BackTest{
 		Strategy:   &ftxcashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
-		Datas:      &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerPerCurrency{},
 		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
@@ -469,7 +469,7 @@ func TestGRPCStartRun(t *testing.T) {
 	bt := &BackTest{
 		Strategy:   &ftxcashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
-		Datas:      &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerPerCurrency{},
 		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
@@ -508,7 +508,7 @@ func TestGRPCStartAllRuns(t *testing.T) {
 	bt := &BackTest{
 		Strategy:   &ftxcashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
-		Datas:      &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerPerCurrency{},
 		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
@@ -545,7 +545,7 @@ func TestGRPCClearRun(t *testing.T) {
 	bt := &BackTest{
 		Strategy:   &ftxcashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
-		Datas:      &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerPerCurrency{},
 		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
@@ -581,7 +581,7 @@ func TestGRPCClearAllRuns(t *testing.T) {
 	bt := &BackTest{
 		Strategy:   &ftxcashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
-		Datas:      &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerPerCurrency{},
 		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}

@@ -96,7 +96,7 @@ func TestStart(t *testing.T) {
 	}
 }
 
-func TestIsRunning(t *testing.T) {
+func TestDataCheckerIsRunning(t *testing.T) {
 	t.Parallel()
 	dataHandler := &dataChecker{}
 	if dataHandler.IsRunning() {

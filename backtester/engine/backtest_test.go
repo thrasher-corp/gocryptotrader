@@ -347,6 +347,7 @@ func TestLoadDataLive(t *testing.T) {
 		Reports:         &report.Data{},
 		Funding:         &funding.FundManager{},
 		DataHolder:      &data.HandlerPerCurrency{},
+		Statistic:       &statistics.Statistic{},
 		exchangeManager: engine.SetupExchangeManager(),
 		shutdown:        make(chan struct{}),
 	}
@@ -1986,7 +1987,11 @@ func TestExecuteStrategy(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
-	bt, err = NewBacktesterFromConfigs(cfg, "", "", false)
+	dc, err := config.GenerateDefaultConfig()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	bt, err = NewBacktesterFromConfigs(cfg, dc)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -2002,7 +2007,7 @@ func TestExecuteStrategy(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	bt, err = NewBacktesterFromConfigs(cfg, "", "", false)
+	bt, err = NewBacktesterFromConfigs(cfg, dc)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}

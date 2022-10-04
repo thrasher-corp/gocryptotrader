@@ -238,7 +238,7 @@ func TestStartRun(t *testing.T) {
 	bt := &BackTest{
 		Strategy:   &ftxcashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
-		Datas:      &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerPerCurrency{},
 		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
@@ -285,7 +285,7 @@ func TestStartAllRuns(t *testing.T) {
 	bt := &BackTest{
 		Strategy:   &ftxcashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
-		Datas:      &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerPerCurrency{},
 		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
@@ -324,7 +324,7 @@ func TestClearRun(t *testing.T) {
 	bt := &BackTest{
 		Strategy:   &ftxcashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
-		Datas:      &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerPerCurrency{},
 		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
@@ -377,7 +377,7 @@ func TestClearAllRuns(t *testing.T) {
 	bt := &BackTest{
 		Strategy:   &ftxcashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
-		Datas:      &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerPerCurrency{},
 		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
