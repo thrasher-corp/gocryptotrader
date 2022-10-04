@@ -69,6 +69,7 @@ func (ok *Okx) SetDefaults() {
 		Unregister:            make(chan string),
 		Message:               make(chan *wsIncomingData),
 	}
+	ok.RequestSemaphore = make(chan int, 5)
 	ok.API.CredentialsValidator.RequiresKey = true
 	ok.API.CredentialsValidator.RequiresSecret = true
 	ok.API.CredentialsValidator.RequiresClientID = true

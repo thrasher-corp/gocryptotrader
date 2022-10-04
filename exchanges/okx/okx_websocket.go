@@ -1673,6 +1673,10 @@ func (ok *Okx) WsChannelSubscription(operation, channel string, assetType asset.
 			},
 		},
 	}
+	ok.RequestSemaphore <- 1
+	defer func() {
+		<-ok.RequestSemaphore
+	}()
 	err = ok.Websocket.Conn.SendJSONMessage(input)
 	if err != nil {
 		return nil, err
@@ -1774,6 +1778,10 @@ func (ok *Okx) WsAuthChannelSubscription(operation, channel string, assetType as
 			},
 		},
 	}
+	ok.RequestSemaphore <- 1
+	defer func() {
+		<-ok.RequestSemaphore
+	}()
 	err = ok.Websocket.AuthConn.SendJSONMessage(input)
 	if err != nil {
 		return nil, err

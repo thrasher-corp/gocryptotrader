@@ -59,6 +59,7 @@ func TestMain(m *testing.M) {
 		Unregister:            make(chan string),
 		Message:               make(chan *wsIncomingData),
 	}
+	// ok.WsRequestMultiplexer =
 	ok.SetDefaults()
 
 	if apiKey != "" && apiSecret != "" {
@@ -145,7 +146,7 @@ func TestGetCandlesticks(t *testing.T) {
 }
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	if _, err := ok.GetHistoricCandlesExtended(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.NewCode("USD-220930"), Delimiter: currency.DashDelimiter}, asset.Futures, time.Now().Add(-time.Hour*24), time.Now(), kline.OneMin); err != nil {
+	if _, err := ok.GetHistoricCandlesExtended(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.NewCode("USD-221007"), Delimiter: currency.DashDelimiter}, asset.Futures, time.Now().Add(-time.Hour*24), time.Now(), kline.OneMin); err != nil {
 		t.Errorf("%s GetHistoricCandlesExtended() error: %v", ok.Name, err)
 	}
 }
@@ -2516,7 +2517,7 @@ func TestSystemStatusResponse(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	if _, err := ok.FetchTradablePairs(context.Background(), asset.Spot); err != nil {
+	if _, err := ok.FetchTradablePairs(context.Background(), asset.Futures); err != nil {
 		t.Error("Okx FetchTradablePairs() error", err)
 	}
 }
@@ -3294,7 +3295,7 @@ func TestEstimatedDeliveryExercisePriceSubscription(t *testing.T) {
 func TestMarkPriceSubscription(t *testing.T) {
 	t.Parallel()
 	setupWsAuth(t)
-	if _, err := ok.MarkPriceSubscription("subscribe", asset.Futures, currency.NewPair(currency.BTC, currency.NewCode("USD-220930"))); err != nil {
+	if _, err := ok.MarkPriceSubscription("subscribe", asset.Futures, currency.NewPair(currency.BTC, currency.NewCode("USD-221007"))); err != nil {
 		t.Errorf("%s MarkPriceSubscription() error: %v", ok.Name, err)
 	}
 }
@@ -3302,7 +3303,7 @@ func TestMarkPriceSubscription(t *testing.T) {
 func TestMarkPriceCandlesticksSubscription(t *testing.T) {
 	t.Parallel()
 	setupWsAuth(t)
-	if _, err := ok.MarkPriceSubscription("subscribe", asset.Futures, currency.NewPair(currency.BTC, currency.NewCode("USD-220930"))); err != nil {
+	if _, err := ok.MarkPriceSubscription("subscribe", asset.Futures, currency.NewPair(currency.BTC, currency.NewCode("USD-221007"))); err != nil {
 		t.Errorf("%s MarkPriceSubscription() error: %v", ok.Name, err)
 	}
 }
@@ -3318,10 +3319,10 @@ func TestPriceLimitSubscription(t *testing.T) {
 func TestOrderBooksSubscription(t *testing.T) {
 	t.Parallel()
 	setupWsAuth(t)
-	if _, err := ok.OrderBooksSubscription("subscribe", okxChannelOrderBooks, asset.Futures, currency.NewPair(currency.BTC, currency.NewCode("USD-220930"))); err != nil {
+	if _, err := ok.OrderBooksSubscription("subscribe", okxChannelOrderBooks, asset.Futures, currency.NewPair(currency.BTC, currency.NewCode("USD-221007"))); err != nil {
 		t.Errorf("%s OrderBooksSubscription() error: %v", ok.Name, err)
 	}
-	if _, err := ok.OrderBooksSubscription("unsubscribe", okxChannelOrderBooks, asset.Futures, currency.NewPair(currency.BTC, currency.NewCode("USD-220930"))); err != nil {
+	if _, err := ok.OrderBooksSubscription("unsubscribe", okxChannelOrderBooks, asset.Futures, currency.NewPair(currency.BTC, currency.NewCode("USD-221007"))); err != nil {
 		t.Errorf("%s OrderBooksSubscription() error: %v", ok.Name, err)
 	}
 }
