@@ -19,7 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/signaler"
 )
 
-var singleRunStrategyPath, templatePath, outputPath, btConfigDir, strategyPluginPath, pprofURL string
+var singleTaskStrategyPath, templatePath, outputPath, btConfigDir, strategyPluginPath, pprofURL string
 var printLogo, generateReport, darkReport, colourOutput, logSubHeader, enablePProf bool
 
 func main() {
@@ -90,8 +90,8 @@ func main() {
 	flagSet.WithBool("logsubheaders", &logSubHeader, btCfg.LogSubheaders)
 	flagSet.WithBool("colouroutput", &colourOutput, btCfg.UseCMDColours)
 
-	if singleRunStrategyPath != "" && !file.Exists(singleRunStrategyPath) {
-		fmt.Printf("Strategy config path not found '%v'", singleRunStrategyPath)
+	if singleTaskStrategyPath != "" && !file.Exists(singleTaskStrategyPath) {
+		fmt.Printf("Strategy config path not found '%v'", singleTaskStrategyPath)
 		os.Exit(1)
 	}
 
@@ -159,8 +159,8 @@ func main() {
 		log.Infof(common.Backtester, "Loaded plugin %v\n", strategyPluginPath)
 	}
 
-	if singleRunStrategyPath != "" {
-		dir := singleRunStrategyPath
+	if singleTaskStrategyPath != "" {
+		dir := singleTaskStrategyPath
 		var cfg *config.Config
 		cfg, err = config.ReadStrategyConfigFromFile(dir)
 		if err != nil {
@@ -204,7 +204,7 @@ func main() {
 	btCfg.Report.DarkMode = darkReport
 	btCfg.Report.GenerateReport = generateReport
 
-	runManager := backtest.SetupRunManager()
+	runManager := backtest.SetupTaskManager()
 
 	go func(c *config.BacktesterConfig) {
 		log.Info(log.GRPCSys, "Starting RPC server")
@@ -218,6 +218,12 @@ func main() {
 		log.Info(log.GRPCSys, "Ready to receive commands")
 	}(btCfg)
 	interrupt := signaler.WaitForInterrupt()
+	if btCfg.StopAllJobsOnClose {
+		_, err = runManager.StopAllTasks()
+		if err != nil {
+			log.Error(common.Backtester, err)
+		}
+	}
 	log.Infof(log.Global, "Captured %v, shutdown requested.\n", interrupt)
 	log.Infoln(log.Global, "Exiting.")
 }
@@ -237,7 +243,7 @@ func parseFlags(wd string) map[string]bool {
 		wd,
 		"results")
 	flag.StringVar(
-		&singleRunStrategyPath,
+		&singleTaskStrategyPath,
 		"singlerunstrategypath",
 		"",
 		fmt.Sprintf("path to a strategy file. Will execute strategy and exit, instead of creating a GRPC server. Example %v", defaultStrategy))

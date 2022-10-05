@@ -451,7 +451,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 			break
 		}
 	}
-	if !hasFunding {
+	if !hasFunding && !(cfg.DataSettings.LiveData != nil && cfg.DataSettings.LiveData.RealOrders) {
 		return holdings.ErrInitialFundsZero
 	}
 
@@ -554,6 +554,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			realOrders = cfg.DataSettings.LiveData.RealOrders
 			bt.MetaData.LiveTesting = true
 			bt.MetaData.RealOrders = realOrders
+			bt.MetaData.ClosePositionsOnStop = cfg.DataSettings.LiveData.ClosePositionsOnStop
 		}
 
 		buyRule := exchange.MinMax{
@@ -908,17 +909,17 @@ func setExchangeCredentials(cfg *config.Config, base *gctexchange.Base) error {
 	name := strings.ToLower(base.Name)
 	for i := range cfg.DataSettings.LiveData.ExchangeCredentials {
 		if !strings.EqualFold(cfg.DataSettings.LiveData.ExchangeCredentials[i].Exchange, name) ||
-			cfg.DataSettings.LiveData.ExchangeCredentials[i].Credentials.IsEmpty() {
+			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.IsEmpty() {
 			return fmt.Errorf("%v %w, please review your live, real order config", base.GetName(), gctexchange.ErrCredentialsAreEmpty)
 		}
 
 		base.SetCredentials(
-			cfg.DataSettings.LiveData.ExchangeCredentials[i].Credentials.Key,
-			cfg.DataSettings.LiveData.ExchangeCredentials[i].Credentials.Secret,
-			cfg.DataSettings.LiveData.ExchangeCredentials[i].Credentials.ClientID,
-			cfg.DataSettings.LiveData.ExchangeCredentials[i].Credentials.SubAccount,
-			cfg.DataSettings.LiveData.ExchangeCredentials[i].Credentials.PEMKey,
-			cfg.DataSettings.LiveData.ExchangeCredentials[i].Credentials.OneTimePassword,
+			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.Key,
+			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.Secret,
+			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.ClientID,
+			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.SubAccount,
+			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.PEMKey,
+			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.OneTimePassword,
 		)
 		validated := base.AreCredentialsValid(context.TODO())
 		base.API.AuthenticatedSupport = validated

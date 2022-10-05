@@ -25,7 +25,7 @@ var (
 	errUnhandledDatatype   = errors.New("unhandled datatype")
 	errNilData             = errors.New("nil data received")
 	errLiveOnly            = errors.New("close all positions is only supported by live data type")
-	errNotSetup            = errors.New("backtesting run not setup")
+	errNotSetup            = errors.New("backtesting task not setup")
 )
 
 // BackTest is the main holder of all backtesting functionality
@@ -35,7 +35,7 @@ type BackTest struct {
 	hasProcessedAnEvent      bool
 	hasShutdown              bool
 	shutdown                 chan struct{}
-	MetaData                 RunMetaData
+	MetaData                 TaskMetaData
 	DataHolder               data.Holder
 	LiveDataHandler          Handler
 	Strategy                 strategies.Handler
@@ -51,26 +51,27 @@ type BackTest struct {
 	hasProcessedDataAtOffset map[int64]bool
 }
 
-// RunSummary holds details of a BackTest
+// TaskSummary holds details of a BackTest
 // rather than passing entire contents around
-type RunSummary struct {
-	MetaData RunMetaData
+type TaskSummary struct {
+	MetaData TaskMetaData
 }
 
-// RunMetaData contains details about a run such as when it was loaded
-type RunMetaData struct {
-	ID          uuid.UUID
-	Strategy    string
-	DateLoaded  time.Time
-	DateStarted time.Time
-	DateEnded   time.Time
-	Closed      bool
-	LiveTesting bool
-	RealOrders  bool
+// TaskMetaData contains details about a run such as when it was loaded
+type TaskMetaData struct {
+	ID                   uuid.UUID
+	Strategy             string
+	DateLoaded           time.Time
+	DateStarted          time.Time
+	DateEnded            time.Time
+	Closed               bool
+	ClosePositionsOnStop bool
+	LiveTesting          bool
+	RealOrders           bool
 }
 
-// RunManager contains all backtesting/livestrategy runs
-type RunManager struct {
-	m    sync.Mutex
-	runs []*BackTest
+// TaskManager contains all strategy tasks
+type TaskManager struct {
+	m     sync.Mutex
+	tasks []*BackTest
 }

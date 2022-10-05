@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	gctengine "github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc/auth"
@@ -42,16 +43,16 @@ var (
 type GRPCServer struct {
 	btrpc.BacktesterServiceServer
 	config  *config.BacktesterConfig
-	manager *RunManager
+	manager *TaskManager
 }
 
 // SetupRPCServer sets up the gRPC server
-func SetupRPCServer(cfg *config.BacktesterConfig, manager *RunManager) (*GRPCServer, error) {
+func SetupRPCServer(cfg *config.BacktesterConfig, manager *TaskManager) (*GRPCServer, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("%w backtester config", gctcommon.ErrNilPointer)
 	}
 	if manager == nil {
-		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
+		return nil, fmt.Errorf("%w task manager", gctcommon.ErrNilPointer)
 	}
 	return &GRPCServer{
 		config:  cfg,
@@ -167,25 +168,25 @@ func (s *GRPCServer) authenticateClient(ctx context.Context) (context.Context, e
 	return ctx, nil
 }
 
-// convertSummary converts a run summary into a RPC format
-func convertSummary(run *RunSummary) *btrpc.RunSummary {
-	runSummary := &btrpc.RunSummary{
-		Id:           run.MetaData.ID.String(),
-		StrategyName: run.MetaData.Strategy,
-		Closed:       run.MetaData.Closed,
-		LiveTesting:  run.MetaData.LiveTesting,
-		RealOrders:   run.MetaData.RealOrders,
+// convertSummary converts a task summary into a RPC format
+func convertSummary(task *TaskSummary) *btrpc.TaskSummary {
+	taskSummary := &btrpc.TaskSummary{
+		Id:           task.MetaData.ID.String(),
+		StrategyName: task.MetaData.Strategy,
+		Closed:       task.MetaData.Closed,
+		LiveTesting:  task.MetaData.LiveTesting,
+		RealOrders:   task.MetaData.RealOrders,
 	}
-	if !run.MetaData.DateStarted.IsZero() {
-		runSummary.DateStarted = run.MetaData.DateStarted.Format(gctcommon.SimpleTimeFormatWithTimezone)
+	if !task.MetaData.DateStarted.IsZero() {
+		taskSummary.DateStarted = task.MetaData.DateStarted.Format(gctcommon.SimpleTimeFormatWithTimezone)
 	}
-	if !run.MetaData.DateLoaded.IsZero() {
-		runSummary.DateLoaded = run.MetaData.DateLoaded.Format(gctcommon.SimpleTimeFormatWithTimezone)
+	if !task.MetaData.DateLoaded.IsZero() {
+		taskSummary.DateLoaded = task.MetaData.DateLoaded.Format(gctcommon.SimpleTimeFormatWithTimezone)
 	}
-	if !run.MetaData.DateEnded.IsZero() {
-		runSummary.DateEnded = run.MetaData.DateEnded.Format(gctcommon.SimpleTimeFormatWithTimezone)
+	if !task.MetaData.DateEnded.IsZero() {
+		taskSummary.DateEnded = task.MetaData.DateEnded.Format(gctcommon.SimpleTimeFormatWithTimezone)
 	}
-	return runSummary
+	return taskSummary
 }
 
 // ExecuteStrategyFromFile will backtest a strategy from the filepath provided
@@ -194,13 +195,13 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 		return nil, fmt.Errorf("%w server config", gctcommon.ErrNilPointer)
 	}
 	if s.manager == nil {
-		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
+		return nil, fmt.Errorf("%w task manager", gctcommon.ErrNilPointer)
 	}
 	if request == nil {
 		return nil, fmt.Errorf("%w nil request", gctcommon.ErrNilPointer)
 	}
 	if request.DoNotRunImmediately && request.DoNotStore {
-		return nil, fmt.Errorf("%w cannot manage a run with both dnr and dns", errCannotHandleRequest)
+		return nil, fmt.Errorf("%w cannot manage a task with both dnr and dns", errCannotHandleRequest)
 	}
 
 	dir := request.StrategyFilePath
@@ -229,7 +230,7 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 	}
 
 	if !request.DoNotStore {
-		err = s.manager.AddRun(bt)
+		err = s.manager.AddTask(bt)
 		if err != nil {
 			return nil, err
 		}
@@ -246,7 +247,7 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 		return nil, err
 	}
 	return &btrpc.ExecuteStrategyResponse{
-		Run: convertSummary(btSum),
+		Task: convertSummary(btSum),
 	}, nil
 }
 
@@ -258,13 +259,13 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		return nil, fmt.Errorf("%w server config", gctcommon.ErrNilPointer)
 	}
 	if s.manager == nil {
-		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
+		return nil, fmt.Errorf("%w task manager", gctcommon.ErrNilPointer)
 	}
 	if request == nil || request.Config == nil {
 		return nil, fmt.Errorf("%w nil request", gctcommon.ErrNilPointer)
 	}
 	if request.DoNotRunImmediately && request.DoNotStore {
-		return nil, fmt.Errorf("%w cannot manage a run with both dnr and dns", errCannotHandleRequest)
+		return nil, fmt.Errorf("%w cannot manage a task with both dnr and dns", errCannotHandleRequest)
 	}
 
 	rfr, err := decimal.NewFromString(request.Config.StatisticSettings.RiskFreeRate)
@@ -524,15 +525,28 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 	}
 	var liveData *config.LiveData
 	if request.Config.DataSettings.LiveData != nil {
+		creds := make([]config.Credentials, len(request.Config.DataSettings.LiveData.Credentials))
+		for i := range request.Config.DataSettings.LiveData.Credentials {
+			creds[i] = config.Credentials{
+				Exchange: request.Config.DataSettings.LiveData.Credentials[i].Exchange,
+				Keys: account.Credentials{
+					Key:             request.Config.DataSettings.LiveData.Credentials[i].Keys.Key,
+					Secret:          request.Config.DataSettings.LiveData.Credentials[i].Keys.Secret,
+					ClientID:        request.Config.DataSettings.LiveData.Credentials[i].Keys.ClientID,
+					PEMKey:          request.Config.DataSettings.LiveData.Credentials[i].Keys.PEMKey,
+					SubAccount:      request.Config.DataSettings.LiveData.Credentials[i].Keys.SubAccount,
+					OneTimePassword: request.Config.DataSettings.LiveData.Credentials[i].Keys.OneTimePassword,
+				},
+			}
+		}
 		liveData = &config.LiveData{
-			// TODO FIXXXX
-			NewEventTimeout:           0,
-			DataCheckTimer:            0,
-			RealOrders:                request.Config.DataSettings.LiveData.UseRealOrders,
-			ClosePositionsOnExit:      false,
-			DataRequestRetryTolerance: 0,
-			DataRequestRetryWaitTime:  0,
-			ExchangeCredentials:       nil,
+			NewEventTimeout:           time.Duration(request.Config.DataSettings.LiveData.NewEventTimeout),
+			DataCheckTimer:            time.Duration(request.Config.DataSettings.LiveData.DataCheckTimer),
+			RealOrders:                request.Config.DataSettings.LiveData.RealOrders,
+			ClosePositionsOnStop:      request.Config.DataSettings.LiveData.ClosePositionsOnStop,
+			DataRequestRetryTolerance: request.Config.DataSettings.LiveData.DataRequestRetryTolerance,
+			DataRequestRetryWaitTime:  time.Duration(request.Config.DataSettings.LiveData.DataRequestRetryWaitTime),
+			ExchangeCredentials:       creds,
 		}
 	}
 	var csvData *config.CSVData
@@ -598,7 +612,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 	}
 
 	if !request.DoNotStore {
-		err = s.manager.AddRun(bt)
+		err = s.manager.AddTask(bt)
 		if err != nil {
 			return nil, err
 		}
@@ -615,157 +629,157 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		return nil, err
 	}
 	return &btrpc.ExecuteStrategyResponse{
-		Run: convertSummary(btSum),
+		Task: convertSummary(btSum),
 	}, nil
 }
 
-// ListAllRuns returns all backtesting/livestrategy runs managed by the server
-func (s *GRPCServer) ListAllRuns(_ context.Context, _ *btrpc.ListAllRunsRequest) (*btrpc.ListAllRunsResponse, error) {
+// ListAllTasks returns all strategy tasks managed by the server
+func (s *GRPCServer) ListAllTasks(_ context.Context, _ *btrpc.ListAllTasksRequest) (*btrpc.ListAllTasksResponse, error) {
 	if s.manager == nil {
-		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
+		return nil, fmt.Errorf("%w task manager", gctcommon.ErrNilPointer)
 	}
 	list, err := s.manager.List()
 	if err != nil {
 		return nil, err
 	}
-	response := make([]*btrpc.RunSummary, len(list))
+	response := make([]*btrpc.TaskSummary, len(list))
 	for i := range list {
 		response[i] = convertSummary(list[i])
 	}
-	return &btrpc.ListAllRunsResponse{
-		Runs: response,
+	return &btrpc.ListAllTasksResponse{
+		Tasks: response,
 	}, nil
 }
 
-// StopRun stops a backtest/livestrategy run in its tracks
-func (s *GRPCServer) StopRun(_ context.Context, req *btrpc.StopRunRequest) (*btrpc.StopRunResponse, error) {
+// StopTask stops a strategy task in its tracks
+func (s *GRPCServer) StopTask(_ context.Context, req *btrpc.StopTaskRequest) (*btrpc.StopTaskResponse, error) {
 	if s.manager == nil {
-		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
+		return nil, fmt.Errorf("%w task manager", gctcommon.ErrNilPointer)
 	}
 	if req == nil {
-		return nil, fmt.Errorf("%w StopRunRequest", gctcommon.ErrNilPointer)
+		return nil, fmt.Errorf("%w StopTaskRequest", gctcommon.ErrNilPointer)
 	}
 	id, err := uuid.FromString(req.Id)
 	if err != nil {
 		return nil, err
 	}
-	run, err := s.manager.GetSummary(id)
+	task, err := s.manager.GetSummary(id)
 	if err != nil {
 		return nil, err
 	}
-	err = s.manager.StopRun(id)
+	err = s.manager.StopTask(id)
 	if err != nil {
 		return nil, err
 	}
-	return &btrpc.StopRunResponse{
-		StoppedRun: convertSummary(run),
+	return &btrpc.StopTaskResponse{
+		StoppedTask: convertSummary(task),
 	}, nil
 }
 
-// StopAllRuns stops all backtest/livestrategy runs in its tracks
-func (s *GRPCServer) StopAllRuns(_ context.Context, _ *btrpc.StopAllRunsRequest) (*btrpc.StopAllRunsResponse, error) {
+// StopAllTasks stops all strategy tasks in its tracks
+func (s *GRPCServer) StopAllTasks(_ context.Context, _ *btrpc.StopAllTasksRequest) (*btrpc.StopAllTasksResponse, error) {
 	if s.manager == nil {
-		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
+		return nil, fmt.Errorf("%w task manager", gctcommon.ErrNilPointer)
 	}
-	stopped, err := s.manager.StopAllRuns()
+	stopped, err := s.manager.StopAllTasks()
 	if err != nil {
 		return nil, err
 	}
 
-	stoppedRuns := make([]*btrpc.RunSummary, len(stopped))
+	stoppedTasks := make([]*btrpc.TaskSummary, len(stopped))
 	for i := range stopped {
-		stoppedRuns[i] = convertSummary(stopped[i])
+		stoppedTasks[i] = convertSummary(stopped[i])
 	}
-	return &btrpc.StopAllRunsResponse{
-		RunsStopped: stoppedRuns,
+	return &btrpc.StopAllTasksResponse{
+		TasksStopped: stoppedTasks,
 	}, nil
 }
 
-// StartRun starts a backtest/livestrategy that was set to not start automatically
-func (s *GRPCServer) StartRun(_ context.Context, req *btrpc.StartRunRequest) (*btrpc.StartRunResponse, error) {
+// StartTask starts a strategy that was set to not start automatically
+func (s *GRPCServer) StartTask(_ context.Context, req *btrpc.StartTaskRequest) (*btrpc.StartTaskResponse, error) {
 	if s.manager == nil {
-		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
+		return nil, fmt.Errorf("%w task manager", gctcommon.ErrNilPointer)
 	}
 	if req == nil {
-		return nil, fmt.Errorf("%w StartRunRequest", gctcommon.ErrNilPointer)
+		return nil, fmt.Errorf("%w StartTaskRequest", gctcommon.ErrNilPointer)
 	}
 	id, err := uuid.FromString(req.Id)
 	if err != nil {
 		return nil, err
 	}
-	err = s.manager.StartRun(id)
+	err = s.manager.StartTask(id)
 	if err != nil {
 		return nil, err
 	}
-	return &btrpc.StartRunResponse{
+	return &btrpc.StartTaskResponse{
 		Started: true,
 	}, nil
 }
 
-// StartAllRuns starts all backtest/livestrategy runs
-func (s *GRPCServer) StartAllRuns(_ context.Context, _ *btrpc.StartAllRunsRequest) (*btrpc.StartAllRunsResponse, error) {
+// StartAllTasks starts all strategy tasks
+func (s *GRPCServer) StartAllTasks(_ context.Context, _ *btrpc.StartAllTasksRequest) (*btrpc.StartAllTasksResponse, error) {
 	if s.manager == nil {
-		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
+		return nil, fmt.Errorf("%w task manager", gctcommon.ErrNilPointer)
 	}
-	started, err := s.manager.StartAllRuns()
+	started, err := s.manager.StartAllTasks()
 	if err != nil {
 		return nil, err
 	}
 
-	startedRuns := make([]string, len(started))
+	startedTasks := make([]string, len(started))
 	for i := range started {
-		startedRuns[i] = started[i].String()
+		startedTasks[i] = started[i].String()
 	}
-	return &btrpc.StartAllRunsResponse{
-		RunsStarted: startedRuns,
+	return &btrpc.StartAllTasksResponse{
+		TasksStarted: startedTasks,
 	}, nil
 }
 
-// ClearRun removes a run from memory, but only if it is not running
-func (s *GRPCServer) ClearRun(_ context.Context, req *btrpc.ClearRunRequest) (*btrpc.ClearRunResponse, error) {
+// ClearTask removes a task from memory, but only if it is not taskning
+func (s *GRPCServer) ClearTask(_ context.Context, req *btrpc.ClearTaskRequest) (*btrpc.ClearTaskResponse, error) {
 	if s.manager == nil {
-		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
+		return nil, fmt.Errorf("%w task manager", gctcommon.ErrNilPointer)
 	}
 	if req == nil {
-		return nil, fmt.Errorf("%w ClearRunRequest", gctcommon.ErrNilPointer)
+		return nil, fmt.Errorf("%w ClearTaskRequest", gctcommon.ErrNilPointer)
 	}
 	id, err := uuid.FromString(req.Id)
 	if err != nil {
 		return nil, err
 	}
-	run, err := s.manager.GetSummary(id)
+	task, err := s.manager.GetSummary(id)
 	if err != nil {
 		return nil, err
 	}
-	err = s.manager.ClearRun(id)
+	err = s.manager.ClearTask(id)
 	if err != nil {
 		return nil, err
 	}
-	return &btrpc.ClearRunResponse{
-		ClearedRun: convertSummary(run),
+	return &btrpc.ClearTaskResponse{
+		ClearedTask: convertSummary(task),
 	}, nil
 }
 
-// ClearAllRuns removes all runs from memory, but only if they are not running
-func (s *GRPCServer) ClearAllRuns(_ context.Context, _ *btrpc.ClearAllRunsRequest) (*btrpc.ClearAllRunsResponse, error) {
+// ClearAllTasks removes all tasks from memory, but only if they are not taskning
+func (s *GRPCServer) ClearAllTasks(_ context.Context, _ *btrpc.ClearAllTasksRequest) (*btrpc.ClearAllTasksResponse, error) {
 	if s.manager == nil {
-		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
+		return nil, fmt.Errorf("%w task manager", gctcommon.ErrNilPointer)
 	}
-	clearedRuns, remainingRuns, err := s.manager.ClearAllRuns()
+	clearedTasks, remainingTasks, err := s.manager.ClearAllTasks()
 	if err != nil {
 		return nil, err
 	}
 
-	clearedResponse := make([]*btrpc.RunSummary, len(clearedRuns))
-	for i := range clearedRuns {
-		clearedResponse[i] = convertSummary(clearedRuns[i])
+	clearedResponse := make([]*btrpc.TaskSummary, len(clearedTasks))
+	for i := range clearedTasks {
+		clearedResponse[i] = convertSummary(clearedTasks[i])
 	}
-	remainingResponse := make([]*btrpc.RunSummary, len(remainingRuns))
-	for i := range remainingRuns {
-		remainingResponse[i] = convertSummary(remainingRuns[i])
+	remainingResponse := make([]*btrpc.TaskSummary, len(remainingTasks))
+	for i := range remainingTasks {
+		remainingResponse[i] = convertSummary(remainingTasks[i])
 	}
-	return &btrpc.ClearAllRunsResponse{
-		ClearedRuns:   clearedResponse,
-		RemainingRuns: remainingResponse,
+	return &btrpc.ClearAllTasksResponse{
+		ClearedTasks:   clearedResponse,
+		RemainingTasks: remainingResponse,
 	}, nil
 }

@@ -32,7 +32,7 @@ var executeStrategyFromFileCommand = &cli.Command{
 		&cli.StringFlag{
 			Name:    "path",
 			Aliases: []string{"p"},
-			Usage:   "the filepath to a strategy to execute",
+			Usage:   fmt.Sprintf("the filepath to a strategy to execute eg: %v", filepath.Join("..", "config", "strategyexamples", "dca-api-candles.strat")),
 		},
 		doNotRunFlag,
 		doNotStoreFlag,
@@ -84,13 +84,13 @@ func executeStrategyFromFile(c *cli.Context) error {
 	return nil
 }
 
-var listAllRunsCommand = &cli.Command{
-	Name:   "listallruns",
-	Usage:  "returns a list of all loaded backtest/livestrategy runs",
-	Action: listAllRuns,
+var listAllTasksCommand = &cli.Command{
+	Name:   "listalltasks",
+	Usage:  "returns a list of all loaded strategy tasks",
+	Action: listAllTasks,
 }
 
-func listAllRuns(c *cli.Context) error {
+func listAllTasks(c *cli.Context) error {
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -98,9 +98,9 @@ func listAllRuns(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := btrpc.NewBacktesterServiceClient(conn)
-	result, err := client.ListAllRuns(
+	result, err := client.ListAllTasks(
 		c.Context,
-		&btrpc.ListAllRunsRequest{},
+		&btrpc.ListAllTasksRequest{},
 	)
 
 	if err != nil {
@@ -111,20 +111,20 @@ func listAllRuns(c *cli.Context) error {
 	return nil
 }
 
-var startRunCommand = &cli.Command{
-	Name:      "startrun",
-	Usage:     "executes a strategy loaded into the server",
+var startTaskCommand = &cli.Command{
+	Name:      "starttask",
+	Usage:     "executes a strategy task loaded into the server",
 	ArgsUsage: "<id>",
-	Action:    startRun,
+	Action:    startTask,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  "id",
-			Usage: "the id of the backtest/livestrategy run",
+			Usage: "the id of the strategy task",
 		},
 	},
 }
 
-func startRun(c *cli.Context) error {
+func startTask(c *cli.Context) error {
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -143,9 +143,9 @@ func startRun(c *cli.Context) error {
 	}
 
 	client := btrpc.NewBacktesterServiceClient(conn)
-	result, err := client.StartRun(
+	result, err := client.StartTask(
 		c.Context,
-		&btrpc.StartRunRequest{
+		&btrpc.StartTaskRequest{
 			Id: id,
 		},
 	)
@@ -158,13 +158,13 @@ func startRun(c *cli.Context) error {
 	return nil
 }
 
-var startAllRunsCommand = &cli.Command{
-	Name:   "startallruns",
-	Usage:  "executes all strategies loaded into the server that have not been run",
-	Action: startAllRuns,
+var startAllTasksCommand = &cli.Command{
+	Name:   "startalltasks",
+	Usage:  "executes all strategies loaded into the server that have not been task",
+	Action: startAllTasks,
 }
 
-func startAllRuns(c *cli.Context) error {
+func startAllTasks(c *cli.Context) error {
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -172,9 +172,9 @@ func startAllRuns(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := btrpc.NewBacktesterServiceClient(conn)
-	result, err := client.StartAllRuns(
+	result, err := client.StartAllTasks(
 		c.Context,
-		&btrpc.StartAllRunsRequest{},
+		&btrpc.StartAllTasksRequest{},
 	)
 
 	if err != nil {
@@ -185,20 +185,20 @@ func startAllRuns(c *cli.Context) error {
 	return nil
 }
 
-var stopRunCommand = &cli.Command{
-	Name:      "stoprun",
+var stopTaskCommand = &cli.Command{
+	Name:      "stoptask",
 	Usage:     "stops a strategy loaded into the server",
 	ArgsUsage: "<id>",
-	Action:    stopRun,
+	Action:    stopTask,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  "id",
-			Usage: "the id of the backtest/livestrategy run",
+			Usage: "the id of the strategy task",
 		},
 	},
 }
 
-func stopRun(c *cli.Context) error {
+func stopTask(c *cli.Context) error {
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -217,9 +217,9 @@ func stopRun(c *cli.Context) error {
 	}
 
 	client := btrpc.NewBacktesterServiceClient(conn)
-	result, err := client.StopRun(
+	result, err := client.StopTask(
 		c.Context,
-		&btrpc.StopRunRequest{
+		&btrpc.StopTaskRequest{
 			Id: id,
 		},
 	)
@@ -232,13 +232,13 @@ func stopRun(c *cli.Context) error {
 	return nil
 }
 
-var stopAllRunsCommand = &cli.Command{
-	Name:   "stopallruns",
+var stopAllTasksCommand = &cli.Command{
+	Name:   "stopalltasks",
 	Usage:  "stops all strategies loaded into the server",
-	Action: stopAllRuns,
+	Action: stopAllTasks,
 }
 
-func stopAllRuns(c *cli.Context) error {
+func stopAllTasks(c *cli.Context) error {
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -246,9 +246,9 @@ func stopAllRuns(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := btrpc.NewBacktesterServiceClient(conn)
-	result, err := client.StopAllRuns(
+	result, err := client.StopAllTasks(
 		c.Context,
-		&btrpc.StopAllRunsRequest{},
+		&btrpc.StopAllTasksRequest{},
 	)
 
 	if err != nil {
@@ -259,20 +259,20 @@ func stopAllRuns(c *cli.Context) error {
 	return nil
 }
 
-var clearRunCommand = &cli.Command{
-	Name:      "clearrun",
-	Usage:     "clears/deletes a strategy loaded into the server - if it is not running",
+var clearTaskCommand = &cli.Command{
+	Name:      "cleartask",
+	Usage:     "clears/deletes a strategy loaded into the server - if it is not taskning",
 	ArgsUsage: "<id>",
-	Action:    clearRun,
+	Action:    clearTask,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  "id",
-			Usage: "the id of the backtest/livestrategy run",
+			Usage: "the id of the strategy task",
 		},
 	},
 }
 
-func clearRun(c *cli.Context) error {
+func clearTask(c *cli.Context) error {
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -291,9 +291,9 @@ func clearRun(c *cli.Context) error {
 	}
 
 	client := btrpc.NewBacktesterServiceClient(conn)
-	result, err := client.ClearRun(
+	result, err := client.ClearTask(
 		c.Context,
-		&btrpc.ClearRunRequest{
+		&btrpc.ClearTaskRequest{
 			Id: id,
 		},
 	)
@@ -306,13 +306,13 @@ func clearRun(c *cli.Context) error {
 	return nil
 }
 
-var clearAllRunsCommand = &cli.Command{
-	Name:   "clearallruns",
-	Usage:  "clears all strategies loaded into the server. Only runs not actively running will be cleared",
-	Action: clearAllRuns,
+var clearAllTasksCommand = &cli.Command{
+	Name:   "clearalltasks",
+	Usage:  "clears all strategies loaded into the server. Only tasks not actively taskning will be cleared",
+	Action: clearAllTasks,
 }
 
-func clearAllRuns(c *cli.Context) error {
+func clearAllTasks(c *cli.Context) error {
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -320,9 +320,9 @@ func clearAllRuns(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := btrpc.NewBacktesterServiceClient(conn)
-	result, err := client.ClearAllRuns(
+	result, err := client.ClearAllTasks(
 		c.Context,
-		&btrpc.ClearAllRunsRequest{},
+		&btrpc.ClearAllTasksRequest{},
 	)
 
 	if err != nil {
@@ -335,7 +335,7 @@ func clearAllRuns(c *cli.Context) error {
 
 var executeStrategyFromConfigCommand = &cli.Command{
 	Name:        "executestrategyfromconfig",
-	Usage:       "runs the default strategy config but via passing in as a struct instead of a filepath - this is a proof-of-concept implementation",
+	Usage:       fmt.Sprintf("runs the default strategy config but via passing in as a struct instead of a filepath - this is a proof-of-concept implementation using %v", filepath.Join("..", "config", "strategyexamples", "dca-api-candles.strat")),
 	Description: "the cli is not a good place to manage this type of command with n variables to pass in from a command line",
 	Action:      executeStrategyFromConfig,
 	Flags: []cli.Flag{
@@ -441,14 +441,28 @@ func executeStrategyFromConfig(c *cli.Context) error {
 		}
 	}
 	if defaultConfig.DataSettings.LiveData != nil {
+		creds := make([]*btrpc.ExchangeCredentials, len(defaultConfig.DataSettings.LiveData.ExchangeCredentials))
+		for i := range defaultConfig.DataSettings.LiveData.ExchangeCredentials {
+			creds[i] = &btrpc.ExchangeCredentials{
+				Exchange: defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Exchange,
+				Keys: &btrpc.ExchangeKeys{
+					Key:             defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.Key,
+					Secret:          defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.Secret,
+					ClientID:        defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.ClientID,
+					PEMKey:          defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.PEMKey,
+					SubAccount:      defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.SubAccount,
+					OneTimePassword: defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.OneTimePassword,
+				},
+			}
+		}
 		dataSettings.LiveData = &btrpc.LiveData{
-			// TODO FIXXXX
-			//ApiKeyOverride:        defaultConfig.DataSettings.LiveData.,
-			//ApiSecretOverride:     defaultConfig.DataSettings.LiveData.APISecretOverride,
-			//ApiClientIdOverride:   defaultConfig.DataSettings.LiveData.APIClientIDOverride,
-			//Api_2FaOverride:       defaultConfig.DataSettings.LiveData.API2FAOverride,
-			//ApiSubAccountOverride: defaultConfig.DataSettings.LiveData.APISubAccountOverride,
-			//UseRealOrders:         defaultConfig.DataSettings.LiveData.RealOrders,
+			NewEventTimeout:           defaultConfig.DataSettings.LiveData.NewEventTimeout.Nanoseconds(),
+			DataCheckTimer:            defaultConfig.DataSettings.LiveData.DataCheckTimer.Nanoseconds(),
+			RealOrders:                defaultConfig.DataSettings.LiveData.RealOrders,
+			ClosePositionsOnStop:      defaultConfig.DataSettings.LiveData.ClosePositionsOnStop,
+			DataRequestRetryTolerance: defaultConfig.DataSettings.LiveData.DataRequestRetryTolerance,
+			DataRequestRetryWaitTime:  defaultConfig.DataSettings.LiveData.DataRequestRetryWaitTime.Nanoseconds(),
+			Credentials:               creds,
 		}
 	}
 	if defaultConfig.DataSettings.CSVData != nil {

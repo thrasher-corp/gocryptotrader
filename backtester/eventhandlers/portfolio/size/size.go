@@ -121,7 +121,7 @@ func (s *Size) calculateAmount(direction gctorder.Side, price, amountAvailable d
 		// when an order amount is already set and still affordable
 		// use the pre-set amount and calculate the fee
 		if o.GetAmount().Mul(price).Add(o.GetAmount().Mul(price).Mul(cs.TakerFee)).LessThanOrEqual(amountAvailable) {
-			// TODO: introduce option to fail + cancel original order if this fails
+			// TODO: introduce option to fail + cancel original order if this order pricing fails
 			amount = o.GetAmount()
 			fee = o.GetAmount().Mul(price).Mul(cs.TakerFee)
 		}

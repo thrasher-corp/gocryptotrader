@@ -53,7 +53,7 @@ func (bt *BackTest) Reset() {
 }
 
 // RunLive is a proof of concept function that does not yet support multi currency usage
-// It runs by constantly checking for new live datas and running through the list of events
+// It tasks by constantly checking for new live datas and running through the list of events
 // once new data is processed. It will run until application close event has been received
 func (bt *BackTest) RunLive() error {
 	if bt.LiveDataHandler == nil {
@@ -84,7 +84,7 @@ func (bt *BackTest) ExecuteStrategy(waitForOfflineCompletion bool) error {
 	}
 	if !bt.MetaData.Closed && !bt.MetaData.DateStarted.IsZero() {
 		bt.m.Unlock()
-		return fmt.Errorf("%w %v %v", errRunIsRunning, bt.MetaData.ID, bt.MetaData.Strategy)
+		return fmt.Errorf("%w %v %v", errTaskIsRunning, bt.MetaData.ID, bt.MetaData.Strategy)
 	}
 	if bt.MetaData.Closed {
 		bt.m.Unlock()
@@ -559,6 +559,12 @@ func (bt *BackTest) Stop() {
 	close(bt.shutdown)
 	bt.MetaData.Closed = true
 	bt.MetaData.DateEnded = time.Now()
+	if bt.MetaData.ClosePositionsOnStop {
+		err := bt.CloseAllPositions()
+		if err != nil {
+			log.Errorf(common.Backtester, "could not close all positions on stop: %s", err)
+		}
+	}
 	err := bt.Statistic.CalculateAllResults()
 	if err != nil {
 		log.Error(log.Global, err)
@@ -682,15 +688,15 @@ func (bt *BackTest) CloseAllPositions() error {
 	return nil
 }
 
-// GenerateSummary creates a summary of a backtesting/livestrategy run
-// this summary contains many details of a run
-func (bt *BackTest) GenerateSummary() (*RunSummary, error) {
+// GenerateSummary creates a summary of a strategy task
+// this summary contains many details of a task
+func (bt *BackTest) GenerateSummary() (*TaskSummary, error) {
 	if bt == nil {
 		return nil, gctcommon.ErrNilPointer
 	}
 	bt.m.Lock()
 	defer bt.m.Unlock()
-	return &RunSummary{
+	return &TaskSummary{
 		MetaData: bt.MetaData,
 	}, nil
 }
@@ -715,7 +721,7 @@ func (bt *BackTest) SetupMetaData() error {
 	return nil
 }
 
-// IsRunning checks if the run is running
+// IsRunning checks if the task is running
 func (bt *BackTest) IsRunning() bool {
 	if bt == nil {
 		return false
@@ -725,7 +731,7 @@ func (bt *BackTest) IsRunning() bool {
 	return !bt.MetaData.DateStarted.IsZero() && !bt.MetaData.Closed
 }
 
-// HasRan checks if the run has been ran
+// HasRan checks if the task has been executed
 func (bt *BackTest) HasRan() bool {
 	if bt == nil {
 		return false
@@ -735,7 +741,7 @@ func (bt *BackTest) HasRan() bool {
 	return bt.MetaData.Closed
 }
 
-// Equal checks if the incoming run matches
+// Equal checks if the incoming task matches
 func (bt *BackTest) Equal(bt2 *BackTest) bool {
 	if bt == nil || bt2 == nil {
 		return false

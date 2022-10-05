@@ -376,7 +376,7 @@ func TestLoadDataLive(t *testing.T) {
 				ExchangeCredentials: []config.Credentials{
 					{
 						Exchange: testExchange,
-						Credentials: account.Credentials{
+						Keys: account.Credentials{
 							Key:             "test",
 							Secret:          "test",
 							ClientID:        "test",
@@ -1526,7 +1526,7 @@ func TestSetExchangeCredentials(t *testing.T) {
 	// enter them here
 	cfg.DataSettings.LiveData.ExchangeCredentials = []config.Credentials{{
 		Exchange: "ftx",
-		Credentials: account.Credentials{
+		Keys: account.Credentials{
 			Key:    "test",
 			Secret: "test",
 		},
@@ -1977,8 +1977,8 @@ func TestExecuteStrategy(t *testing.T) {
 	bt.MetaData.DateLoaded = time.Now()
 	bt.MetaData.DateStarted = time.Now()
 	err = bt.ExecuteStrategy(false)
-	if !errors.Is(err, errRunIsRunning) {
-		t.Errorf("received '%v' expected '%v'", err, errRunIsRunning)
+	if !errors.Is(err, errTaskIsRunning) {
+		t.Errorf("received '%v' expected '%v'", err, errTaskIsRunning)
 	}
 
 	strat1 := filepath.Join("..", "config", "strategyexamples", "dca-api-candles.strat")

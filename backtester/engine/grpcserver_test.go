@@ -39,7 +39,7 @@ func TestExecuteStrategyFromFile(t *testing.T) {
 		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
 	}
 
-	s.manager = SetupRunManager()
+	s.manager = SetupTaskManager()
 	_, err = s.ExecuteStrategyFromFile(context.Background(), nil)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
@@ -85,7 +85,7 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 	}
 
 	s.config.Report.GenerateReport = false
-	s.manager = SetupRunManager()
+	s.manager = SetupTaskManager()
 	_, err = s.ExecuteStrategyFromConfig(context.Background(), nil)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
@@ -188,10 +188,23 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 		}
 	}
 	if defaultConfig.DataSettings.LiveData != nil {
+		creds := make([]*btrpc.ExchangeCredentials, len(defaultConfig.DataSettings.LiveData.ExchangeCredentials))
+		for i := range defaultConfig.DataSettings.LiveData.ExchangeCredentials {
+			creds[i] = &btrpc.ExchangeCredentials{
+				Exchange: defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Exchange,
+				Keys: &btrpc.ExchangeKeys{
+					Key:             defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.Key,
+					Secret:          defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.Secret,
+					ClientID:        defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.ClientID,
+					PEMKey:          defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.PEMKey,
+					SubAccount:      defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.SubAccount,
+					OneTimePassword: defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.OneTimePassword,
+				},
+			}
+		}
 		dataSettings.LiveData = &btrpc.LiveData{
-			// TODO FIIIIIX
-
-			UseRealOrders: defaultConfig.DataSettings.LiveData.RealOrders,
+			RealOrders:  defaultConfig.DataSettings.LiveData.RealOrders,
+			Credentials: creds,
 		}
 	}
 	if defaultConfig.DataSettings.CSVData != nil {
@@ -322,16 +335,16 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 	}
 }
 
-func TestListAllRuns(t *testing.T) {
+func TestListAllTasks(t *testing.T) {
 	t.Parallel()
 	s := &GRPCServer{}
-	_, err := s.ListAllRuns(context.Background(), nil)
+	_, err := s.ListAllTasks(context.Background(), nil)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
 	}
 
-	s.manager = SetupRunManager()
-	_, err = s.ListAllRuns(context.Background(), nil)
+	s.manager = SetupTaskManager()
+	_, err = s.ListAllTasks(context.Background(), nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expecting '%v'", err, nil)
 	}
@@ -343,29 +356,29 @@ func TestListAllRuns(t *testing.T) {
 		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
-	err = s.manager.AddRun(bt)
+	err = s.manager.AddTask(bt)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	resp, err := s.ListAllRuns(context.Background(), &btrpc.ListAllRunsRequest{})
+	resp, err := s.ListAllTasks(context.Background(), &btrpc.ListAllTasksRequest{})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expecting '%v'", err, nil)
 	}
-	if len(resp.Runs) != 1 {
-		t.Errorf("received '%v' expecting '%v'", len(resp.Runs), 1)
+	if len(resp.Tasks) != 1 {
+		t.Errorf("received '%v' expecting '%v'", len(resp.Tasks), 1)
 	}
 }
 
-func TestGRPCStopRun(t *testing.T) {
+func TestGRPCStopTask(t *testing.T) {
 	t.Parallel()
 	s := &GRPCServer{}
-	_, err := s.StopRun(context.Background(), nil)
+	_, err := s.StopTask(context.Background(), nil)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
 	}
 
-	s.manager = SetupRunManager()
-	_, err = s.StopRun(context.Background(), nil)
+	s.manager = SetupTaskManager()
+	_, err = s.StopTask(context.Background(), nil)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
 	}
@@ -377,130 +390,42 @@ func TestGRPCStopRun(t *testing.T) {
 		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
-	err = s.manager.AddRun(bt)
+	err = s.manager.AddTask(bt)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	_, err = s.StopRun(context.Background(), &btrpc.StopRunRequest{
+	_, err = s.StopTask(context.Background(), &btrpc.StopTaskRequest{
 		Id: bt.MetaData.ID.String(),
 	})
-	if !errors.Is(err, errRunHasNotRan) {
-		t.Errorf("received '%v' expecting '%v'", err, errRunHasNotRan)
+	if !errors.Is(err, errTaskHasNotRan) {
+		t.Errorf("received '%v' expecting '%v'", err, errTaskHasNotRan)
 	}
-	if len(s.manager.runs) != 1 {
-		t.Fatalf("received '%v' expecting '%v'", len(s.manager.runs), 1)
-	}
-
-	s.manager.runs[0].MetaData.DateStarted = time.Now()
-	_, err = s.StopRun(context.Background(), &btrpc.StopRunRequest{
-		Id: bt.MetaData.ID.String(),
-	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expecting '%v'", err, nil)
-	}
-	if s.manager.runs[0].MetaData.DateEnded.IsZero() {
-		t.Errorf("received '%v' expecting '%v'", s.manager.runs[0].MetaData.DateEnded, "a date")
-	}
-}
-
-func TestGRPCStopAllRuns(t *testing.T) {
-	t.Parallel()
-	s := &GRPCServer{}
-	_, err := s.StopAllRuns(context.Background(), nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
+	if len(s.manager.tasks) != 1 {
+		t.Fatalf("received '%v' expecting '%v'", len(s.manager.tasks), 1)
 	}
 
-	s.manager = SetupRunManager()
-	_, err = s.StopAllRuns(context.Background(), nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expecting '%v'", err, nil)
-	}
-
-	bt := &BackTest{
-		Strategy:   &ftxcashandcarry.Strategy{},
-		EventQueue: &eventholder.Holder{},
-		DataHolder: &data.HandlerPerCurrency{},
-		Statistic:  &statistics.Statistic{},
-		shutdown:   make(chan struct{}),
-	}
-	err = s.manager.AddRun(bt)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	resp, err := s.StopAllRuns(context.Background(), &btrpc.StopAllRunsRequest{})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expecting '%v'", err, nil)
-	}
-	if len(s.manager.runs) != 1 {
-		t.Fatalf("received '%v' expecting '%v'", len(s.manager.runs), 1)
-	}
-	if len(resp.RunsStopped) != 0 {
-		t.Errorf("received '%v' expecting '%v'", len(resp.RunsStopped), 0)
-	}
-
-	s.manager.runs[0].MetaData.DateStarted = time.Now()
-	resp, err = s.StopAllRuns(context.Background(), &btrpc.StopAllRunsRequest{})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expecting '%v'", err, nil)
-	}
-	if s.manager.runs[0].MetaData.DateEnded.IsZero() {
-		t.Errorf("received '%v' expecting '%v'", s.manager.runs[0].MetaData.DateEnded, "a date")
-	}
-	if len(resp.RunsStopped) != 1 {
-		t.Errorf("received '%v' expecting '%v'", len(resp.RunsStopped), 1)
-	}
-}
-
-func TestGRPCStartRun(t *testing.T) {
-	t.Parallel()
-	s := &GRPCServer{}
-	_, err := s.StartRun(context.Background(), nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
-	}
-
-	s.manager = SetupRunManager()
-	_, err = s.StartRun(context.Background(), nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
-	}
-
-	bt := &BackTest{
-		Strategy:   &ftxcashandcarry.Strategy{},
-		EventQueue: &eventholder.Holder{},
-		DataHolder: &data.HandlerPerCurrency{},
-		Statistic:  &statistics.Statistic{},
-		shutdown:   make(chan struct{}),
-	}
-	err = s.manager.AddRun(bt)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	_, err = s.StartRun(context.Background(), &btrpc.StartRunRequest{
+	s.manager.tasks[0].MetaData.DateStarted = time.Now()
+	_, err = s.StopTask(context.Background(), &btrpc.StopTaskRequest{
 		Id: bt.MetaData.ID.String(),
 	})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expecting '%v'", err, nil)
 	}
-	if len(s.manager.runs) != 1 {
-		t.Fatalf("received '%v' expecting '%v'", len(s.manager.runs), 1)
-	}
-	if s.manager.runs[0].MetaData.DateStarted.IsZero() {
-		t.Errorf("received '%v' expecting '%v'", s.manager.runs[0].MetaData.DateStarted, "a date")
+	if s.manager.tasks[0].MetaData.DateEnded.IsZero() {
+		t.Errorf("received '%v' expecting '%v'", s.manager.tasks[0].MetaData.DateEnded, "a date")
 	}
 }
 
-func TestGRPCStartAllRuns(t *testing.T) {
+func TestGRPCStopAllTasks(t *testing.T) {
 	t.Parallel()
 	s := &GRPCServer{}
-	_, err := s.StartAllRuns(context.Background(), nil)
+	_, err := s.StopAllTasks(context.Background(), nil)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
 	}
 
-	s.manager = SetupRunManager()
-	_, err = s.StartAllRuns(context.Background(), nil)
+	s.manager = SetupTaskManager()
+	_, err = s.StopAllTasks(context.Background(), nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expecting '%v'", err, nil)
 	}
@@ -512,32 +437,44 @@ func TestGRPCStartAllRuns(t *testing.T) {
 		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
-	err = s.manager.AddRun(bt)
+	err = s.manager.AddTask(bt)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	_, err = s.StartAllRuns(context.Background(), &btrpc.StartAllRunsRequest{})
+	resp, err := s.StopAllTasks(context.Background(), &btrpc.StopAllTasksRequest{})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expecting '%v'", err, nil)
 	}
-	if len(s.manager.runs) != 1 {
-		t.Fatalf("received '%v' expecting '%v'", len(s.manager.runs), 1)
+	if len(s.manager.tasks) != 1 {
+		t.Fatalf("received '%v' expecting '%v'", len(s.manager.tasks), 1)
 	}
-	if s.manager.runs[0].MetaData.DateStarted.IsZero() {
-		t.Errorf("received '%v' expecting '%v'", s.manager.runs[0].MetaData.DateStarted, "a date")
+	if len(resp.TasksStopped) != 0 {
+		t.Errorf("received '%v' expecting '%v'", len(resp.TasksStopped), 0)
+	}
+
+	s.manager.tasks[0].MetaData.DateStarted = time.Now()
+	resp, err = s.StopAllTasks(context.Background(), &btrpc.StopAllTasksRequest{})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expecting '%v'", err, nil)
+	}
+	if s.manager.tasks[0].MetaData.DateEnded.IsZero() {
+		t.Errorf("received '%v' expecting '%v'", s.manager.tasks[0].MetaData.DateEnded, "a date")
+	}
+	if len(resp.TasksStopped) != 1 {
+		t.Errorf("received '%v' expecting '%v'", len(resp.TasksStopped), 1)
 	}
 }
 
-func TestGRPCClearRun(t *testing.T) {
+func TestGRPCStartTask(t *testing.T) {
 	t.Parallel()
 	s := &GRPCServer{}
-	_, err := s.ClearRun(context.Background(), nil)
+	_, err := s.StartTask(context.Background(), nil)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
 	}
 
-	s.manager = SetupRunManager()
-	_, err = s.ClearRun(context.Background(), nil)
+	s.manager = SetupTaskManager()
+	_, err = s.StartTask(context.Background(), nil)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
 	}
@@ -549,31 +486,34 @@ func TestGRPCClearRun(t *testing.T) {
 		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
-	err = s.manager.AddRun(bt)
+	err = s.manager.AddTask(bt)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	_, err = s.ClearRun(context.Background(), &btrpc.ClearRunRequest{
+	_, err = s.StartTask(context.Background(), &btrpc.StartTaskRequest{
 		Id: bt.MetaData.ID.String(),
 	})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expecting '%v'", err, nil)
 	}
-	if len(s.manager.runs) != 0 {
-		t.Fatalf("received '%v' expecting '%v'", len(s.manager.runs), 0)
+	if len(s.manager.tasks) != 1 {
+		t.Fatalf("received '%v' expecting '%v'", len(s.manager.tasks), 1)
+	}
+	if s.manager.tasks[0].MetaData.DateStarted.IsZero() {
+		t.Errorf("received '%v' expecting '%v'", s.manager.tasks[0].MetaData.DateStarted, "a date")
 	}
 }
 
-func TestGRPCClearAllRuns(t *testing.T) {
+func TestGRPCStartAllTasks(t *testing.T) {
 	t.Parallel()
 	s := &GRPCServer{}
-	_, err := s.ClearAllRuns(context.Background(), nil)
+	_, err := s.StartAllTasks(context.Background(), nil)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
 	}
 
-	s.manager = SetupRunManager()
-	_, err = s.ClearAllRuns(context.Background(), nil)
+	s.manager = SetupTaskManager()
+	_, err = s.StartAllTasks(context.Background(), nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expecting '%v'", err, nil)
 	}
@@ -585,15 +525,88 @@ func TestGRPCClearAllRuns(t *testing.T) {
 		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
-	err = s.manager.AddRun(bt)
+	err = s.manager.AddTask(bt)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	_, err = s.ClearAllRuns(context.Background(), &btrpc.ClearAllRunsRequest{})
+	_, err = s.StartAllTasks(context.Background(), &btrpc.StartAllTasksRequest{})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expecting '%v'", err, nil)
 	}
-	if len(s.manager.runs) != 0 {
-		t.Fatalf("received '%v' expecting '%v'", len(s.manager.runs), 0)
+	if len(s.manager.tasks) != 1 {
+		t.Fatalf("received '%v' expecting '%v'", len(s.manager.tasks), 1)
+	}
+	if s.manager.tasks[0].MetaData.DateStarted.IsZero() {
+		t.Errorf("received '%v' expecting '%v'", s.manager.tasks[0].MetaData.DateStarted, "a date")
+	}
+}
+
+func TestGRPCClearTask(t *testing.T) {
+	t.Parallel()
+	s := &GRPCServer{}
+	_, err := s.ClearTask(context.Background(), nil)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
+	}
+
+	s.manager = SetupTaskManager()
+	_, err = s.ClearTask(context.Background(), nil)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
+	}
+
+	bt := &BackTest{
+		Strategy:   &ftxcashandcarry.Strategy{},
+		EventQueue: &eventholder.Holder{},
+		DataHolder: &data.HandlerPerCurrency{},
+		Statistic:  &statistics.Statistic{},
+		shutdown:   make(chan struct{}),
+	}
+	err = s.manager.AddTask(bt)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	_, err = s.ClearTask(context.Background(), &btrpc.ClearTaskRequest{
+		Id: bt.MetaData.ID.String(),
+	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expecting '%v'", err, nil)
+	}
+	if len(s.manager.tasks) != 0 {
+		t.Fatalf("received '%v' expecting '%v'", len(s.manager.tasks), 0)
+	}
+}
+
+func TestGRPCClearAllTasks(t *testing.T) {
+	t.Parallel()
+	s := &GRPCServer{}
+	_, err := s.ClearAllTasks(context.Background(), nil)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
+	}
+
+	s.manager = SetupTaskManager()
+	_, err = s.ClearAllTasks(context.Background(), nil)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expecting '%v'", err, nil)
+	}
+
+	bt := &BackTest{
+		Strategy:   &ftxcashandcarry.Strategy{},
+		EventQueue: &eventholder.Holder{},
+		DataHolder: &data.HandlerPerCurrency{},
+		Statistic:  &statistics.Statistic{},
+		shutdown:   make(chan struct{}),
+	}
+	err = s.manager.AddTask(bt)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	_, err = s.ClearAllTasks(context.Background(), &btrpc.ClearAllTasksRequest{})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expecting '%v'", err, nil)
+	}
+	if len(s.manager.tasks) != 0 {
+		t.Fatalf("received '%v' expecting '%v'", len(s.manager.tasks), 0)
 	}
 }

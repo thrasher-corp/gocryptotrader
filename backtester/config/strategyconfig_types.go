@@ -193,7 +193,7 @@ type LiveData struct {
 	NewEventTimeout           time.Duration `json:"new-event-timeout"`
 	DataCheckTimer            time.Duration `json:"data-check-timer"`
 	RealOrders                bool          `json:"real-orders"`
-	ClosePositionsOnExit      bool          `json:"close-positions-on-exit"`
+	ClosePositionsOnStop      bool          `json:"close-positions-on-stop"`
 	DataRequestRetryTolerance int64         `json:"data-request-retry-tolerance"`
 	DataRequestRetryWaitTime  time.Duration `json:"data-request-retry-wait-time"`
 	ExchangeCredentials       []Credentials `json:"exchange-credentials"`
@@ -201,6 +201,6 @@ type LiveData struct {
 
 // Credentials holds each exchanges credentials
 type Credentials struct {
-	Exchange    string              `json:"exchange"`
-	Credentials account.Credentials `json:"credentials"`
+	Exchange string              `json:"exchange"`
+	Keys     account.Credentials `json:"credentials"`
 }

@@ -16,14 +16,14 @@
     "application/json"
   ],
   "paths": {
-    "/v1/clearallruns": {
+    "/v1/clearalltasks": {
       "delete": {
-        "operationId": "BacktesterService_ClearAllRuns",
+        "operationId": "BacktesterService_ClearAllTasks",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/btrpcClearAllRunsResponse"
+              "$ref": "#/definitions/btrpcClearAllTasksResponse"
             }
           },
           "default": {
@@ -38,14 +38,14 @@
         ]
       }
     },
-    "/v1/clearrun": {
+    "/v1/cleartask": {
       "delete": {
-        "operationId": "BacktesterService_ClearRun",
+        "operationId": "BacktesterService_ClearTask",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/btrpcClearRunResponse"
+              "$ref": "#/definitions/btrpcClearTaskResponse"
             }
           },
           "default": {
@@ -255,40 +255,44 @@
             "type": "string"
           },
           {
-            "name": "config.dataSettings.liveData.apiKeyOverride",
+            "name": "config.dataSettings.liveData.newEventTimeout",
             "in": "query",
             "required": false,
-            "type": "string"
+            "type": "string",
+            "format": "int64"
           },
           {
-            "name": "config.dataSettings.liveData.apiSecretOverride",
+            "name": "config.dataSettings.liveData.dataCheckTimer",
             "in": "query",
             "required": false,
-            "type": "string"
+            "type": "string",
+            "format": "int64"
           },
           {
-            "name": "config.dataSettings.liveData.apiClientIdOverride",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "config.dataSettings.liveData.api2faOverride",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "config.dataSettings.liveData.apiSubAccountOverride",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "config.dataSettings.liveData.useRealOrders",
+            "name": "config.dataSettings.liveData.realOrders",
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "config.dataSettings.liveData.closePositionsOnStop",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "config.dataSettings.liveData.dataRequestRetryTolerance",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "config.dataSettings.liveData.dataRequestRetryWaitTime",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
           },
           {
             "name": "config.portfolioSettings.leverage.canUseLeverage",
@@ -404,14 +408,14 @@
         ]
       }
     },
-    "/v1/listallruns": {
+    "/v1/listalltasks": {
       "get": {
-        "operationId": "BacktesterService_ListAllRuns",
+        "operationId": "BacktesterService_ListAllTasks",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/btrpcListAllRunsResponse"
+              "$ref": "#/definitions/btrpcListAllTasksResponse"
             }
           },
           "default": {
@@ -426,14 +430,14 @@
         ]
       }
     },
-    "/v1/startallruns": {
+    "/v1/startall": {
       "post": {
-        "operationId": "BacktesterService_StartAllRuns",
+        "operationId": "BacktesterService_StartAllTasks",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/btrpcStartAllRunsResponse"
+              "$ref": "#/definitions/btrpcStartAllTasksResponse"
             }
           },
           "default": {
@@ -448,14 +452,14 @@
         ]
       }
     },
-    "/v1/startrun": {
+    "/v1/starttask": {
       "post": {
-        "operationId": "BacktesterService_StartRun",
+        "operationId": "BacktesterService_StartTask",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/btrpcStartRunResponse"
+              "$ref": "#/definitions/btrpcStartTaskResponse"
             }
           },
           "default": {
@@ -478,14 +482,14 @@
         ]
       }
     },
-    "/v1/stopallruns": {
+    "/v1/stopalltasks": {
       "post": {
-        "operationId": "BacktesterService_StopAllRuns",
+        "operationId": "BacktesterService_StopAllTasks",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/btrpcStopAllRunsResponse"
+              "$ref": "#/definitions/btrpcStopAllTasksResponse"
             }
           },
           "default": {
@@ -500,14 +504,14 @@
         ]
       }
     },
-    "/v1/stoprun": {
+    "/v1/stoptask": {
       "post": {
-        "operationId": "BacktesterService_StopRun",
+        "operationId": "BacktesterService_StopTask",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/btrpcStopRunResponse"
+              "$ref": "#/definitions/btrpcStopTaskResponse"
             }
           },
           "default": {
@@ -556,28 +560,28 @@
         }
       }
     },
-    "btrpcClearAllRunsResponse": {
+    "btrpcClearAllTasksResponse": {
       "type": "object",
       "properties": {
-        "clearedRuns": {
+        "clearedTasks": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/btrpcRunSummary"
+            "$ref": "#/definitions/btrpcTaskSummary"
           }
         },
-        "remainingRuns": {
+        "remainingTasks": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/btrpcRunSummary"
+            "$ref": "#/definitions/btrpcTaskSummary"
           }
         }
       }
     },
-    "btrpcClearRunResponse": {
+    "btrpcClearTaskResponse": {
       "type": "object",
       "properties": {
-        "clearedRun": {
-          "$ref": "#/definitions/btrpcRunSummary"
+        "clearedTask": {
+          "$ref": "#/definitions/btrpcTaskSummary"
         }
       }
     },
@@ -764,6 +768,40 @@
         }
       }
     },
+    "btrpcExchangeCredentials": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "keys": {
+          "$ref": "#/definitions/btrpcExchangeKeys"
+        }
+      }
+    },
+    "btrpcExchangeKeys": {
+      "type": "object",
+      "properties": {
+        "Key": {
+          "type": "string"
+        },
+        "Secret": {
+          "type": "string"
+        },
+        "ClientID": {
+          "type": "string"
+        },
+        "PEMKey": {
+          "type": "string"
+        },
+        "SubAccount": {
+          "type": "string"
+        },
+        "OneTimePassword": {
+          "type": "string"
+        }
+      }
+    },
     "btrpcExchangeLevelFunding": {
       "type": "object",
       "properties": {
@@ -787,8 +825,8 @@
     "btrpcExecuteStrategyResponse": {
       "type": "object",
       "properties": {
-        "run": {
-          "$ref": "#/definitions/btrpcRunSummary"
+        "task": {
+          "$ref": "#/definitions/btrpcTaskSummary"
         }
       }
     },
@@ -831,13 +869,13 @@
         }
       }
     },
-    "btrpcListAllRunsResponse": {
+    "btrpcListAllTasksResponse": {
       "type": "object",
       "properties": {
-        "runs": {
+        "tasks": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/btrpcRunSummary"
+            "$ref": "#/definitions/btrpcTaskSummary"
           }
         }
       }
@@ -845,23 +883,33 @@
     "btrpcLiveData": {
       "type": "object",
       "properties": {
-        "apiKeyOverride": {
-          "type": "string"
+        "newEventTimeout": {
+          "type": "string",
+          "format": "int64"
         },
-        "apiSecretOverride": {
-          "type": "string"
+        "dataCheckTimer": {
+          "type": "string",
+          "format": "int64"
         },
-        "apiClientIdOverride": {
-          "type": "string"
-        },
-        "api2faOverride": {
-          "type": "string"
-        },
-        "apiSubAccountOverride": {
-          "type": "string"
-        },
-        "useRealOrders": {
+        "realOrders": {
           "type": "boolean"
+        },
+        "closePositionsOnStop": {
+          "type": "boolean"
+        },
+        "dataRequestRetryTolerance": {
+          "type": "string",
+          "format": "int64"
+        },
+        "dataRequestRetryWaitTime": {
+          "type": "string",
+          "format": "int64"
+        },
+        "credentials": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/btrpcExchangeCredentials"
+          }
         }
       }
     },
@@ -893,7 +941,85 @@
         }
       }
     },
-    "btrpcRunSummary": {
+    "btrpcSpotDetails": {
+      "type": "object",
+      "properties": {
+        "initialBaseFunds": {
+          "type": "string"
+        },
+        "initialQuoteFunds": {
+          "type": "string"
+        }
+      }
+    },
+    "btrpcStartAllTasksResponse": {
+      "type": "object",
+      "properties": {
+        "tasksStarted": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "btrpcStartTaskResponse": {
+      "type": "object",
+      "properties": {
+        "started": {
+          "type": "boolean"
+        }
+      }
+    },
+    "btrpcStatisticSettings": {
+      "type": "object",
+      "properties": {
+        "riskFreeRate": {
+          "type": "string"
+        }
+      }
+    },
+    "btrpcStopAllTasksResponse": {
+      "type": "object",
+      "properties": {
+        "tasksStopped": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/btrpcTaskSummary"
+          }
+        }
+      }
+    },
+    "btrpcStopTaskResponse": {
+      "type": "object",
+      "properties": {
+        "stoppedTask": {
+          "$ref": "#/definitions/btrpcTaskSummary"
+        }
+      }
+    },
+    "btrpcStrategySettings": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "useSimultaneousSignalProcessing": {
+          "type": "boolean"
+        },
+        "disableUsdTracking": {
+          "type": "boolean"
+        },
+        "customSettings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/btrpcCustomSettings"
+          }
+        }
+      },
+      "title": "struct definitions"
+    },
+    "btrpcTaskSummary": {
       "type": "object",
       "properties": {
         "id": {
@@ -921,84 +1047,6 @@
           "type": "boolean"
         }
       }
-    },
-    "btrpcSpotDetails": {
-      "type": "object",
-      "properties": {
-        "initialBaseFunds": {
-          "type": "string"
-        },
-        "initialQuoteFunds": {
-          "type": "string"
-        }
-      }
-    },
-    "btrpcStartAllRunsResponse": {
-      "type": "object",
-      "properties": {
-        "runsStarted": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      }
-    },
-    "btrpcStartRunResponse": {
-      "type": "object",
-      "properties": {
-        "started": {
-          "type": "boolean"
-        }
-      }
-    },
-    "btrpcStatisticSettings": {
-      "type": "object",
-      "properties": {
-        "riskFreeRate": {
-          "type": "string"
-        }
-      }
-    },
-    "btrpcStopAllRunsResponse": {
-      "type": "object",
-      "properties": {
-        "runsStopped": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/btrpcRunSummary"
-          }
-        }
-      }
-    },
-    "btrpcStopRunResponse": {
-      "type": "object",
-      "properties": {
-        "stoppedRun": {
-          "$ref": "#/definitions/btrpcRunSummary"
-        }
-      }
-    },
-    "btrpcStrategySettings": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "useSimultaneousSignalProcessing": {
-          "type": "boolean"
-        },
-        "disableUsdTracking": {
-          "type": "boolean"
-        },
-        "customSettings": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/btrpcCustomSettings"
-          }
-        }
-      },
-      "title": "struct definitions"
     },
     "protobufAny": {
       "type": "object",
