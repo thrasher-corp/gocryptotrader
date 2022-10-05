@@ -218,6 +218,7 @@ func (ok *Okx) WsConnect() error {
 	ok.Websocket.Wg.Add(2)
 	go ok.wsFunnelConnectionData(ok.Websocket.Conn)
 	go ok.WsReadData()
+	go ok.WsResponseMultiplexer.Run()
 	if ok.Verbose {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
 			ok.Websocket.GetWebsocketURL())
@@ -227,7 +228,6 @@ func (ok *Okx) WsConnect() error {
 		MessageType:       websocket.PingMessage,
 		Delay:             time.Second * 5,
 	})
-
 	if ok.IsWebsocketAuthenticationSupported() {
 		var authDialer websocket.Dialer
 		authDialer.ReadBufferSize = 8192
@@ -237,7 +237,6 @@ func (ok *Okx) WsConnect() error {
 			ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-	go ok.WsResponseMultiplexer.Run()
 	return nil
 }
 
@@ -283,7 +282,6 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 			},
 		},
 	}
-
 	err = ok.Websocket.AuthConn.SendJSONMessage(request)
 	if err != nil {
 		return err
@@ -299,6 +297,10 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 		Chan:  wsResponse,
 		Event: "login",
 	}
+	ok.WsRequestSemaphore <- 1
+	defer func() {
+		<-ok.WsRequestSemaphore
+	}()
 	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
 	for {
 		select {
@@ -327,7 +329,6 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 func (ok *Okx) wsFunnelConnectionData(ws stream.Connection) {
 	defer ok.Websocket.Wg.Done()
 	for {
-		time.Sleep(time.Millisecond)
 		resp := ws.ReadMessage()
 		if resp.Raw == nil {
 			return
@@ -1753,7 +1754,7 @@ func (ok *Okx) WsAuthChannelSubscription(operation, channel string, assetType as
 		if err != nil {
 			return nil, err
 		}
-		if pair.Base.String() == "" || pair.Quote.String() == "" {
+		if !pair.IsPopulated() {
 			return nil, errIncompleteCurrencyPair
 		}
 		instrumentID = format.Format(pair)
@@ -1891,12 +1892,12 @@ func (ok *Okx) StructureBlockTradesSubscription(operation string) (*Subscription
 
 // SpotGridAlgoOrdersSubscription to retrieve spot grid algo orders. Data will be pushed when first subscribed. Data will be pushed when triggered by events such as placing/canceling order.
 func (ok *Okx) SpotGridAlgoOrdersSubscription(operation string, assetType asset.Item, pair currency.Pair, algoID string) (*SubscriptionOperationResponse, error) {
-	return ok.WsAuthChannelSubscription(operation, okxChannelSpotGridOrder, assetType, pair, "", algoID, true, true, true)
+	return ok.WsAuthChannelSubscription(operation, okxChannelSpotGridOrder, assetType, pair, "", algoID, true, false, true)
 }
 
 // ContractGridAlgoOrders to retrieve contract grid algo orders. Data will be pushed when first subscribed. Data will be pushed when triggered by events such as placing/canceling order.
 func (ok *Okx) ContractGridAlgoOrders(operation string, assetType asset.Item, pair currency.Pair, algoID string) (*SubscriptionOperationResponse, error) {
-	return ok.WsAuthChannelSubscription(operation, okxChannelGridOrdersContract, assetType, pair, "", algoID, true, true, true)
+	return ok.WsAuthChannelSubscription(operation, okxChannelGridOrdersContract, assetType, pair, "", algoID, true, false, true)
 }
 
 // GridPositionsSubscription to retrieve grid positions. Data will be pushed when first subscribed. Data will be pushed when triggered by events such as placing/canceling order.

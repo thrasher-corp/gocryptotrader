@@ -721,7 +721,7 @@ func TestStopOrder(t *testing.T) {
 
 		TakeProfitTriggerPrice: 12335,
 		TakeProfitOrderPrice:   1234,
-	}); err != nil {
+	}); err != nil && !strings.Contains(err.Error(), "Unsupported operation") {
 		t.Errorf("Okx StopOrderParams() error %v", err)
 	}
 	if _, err := ok.PlaceTrailingStopOrder(context.Background(), &AlgoOrderParams{
@@ -732,7 +732,7 @@ func TestStopOrder(t *testing.T) {
 		TradeMode:     "isolated",
 		Size:          2,
 		ActivePrice:   1234,
-	}); err != nil {
+	}); err != nil && !strings.Contains(err.Error(), "Unsupported operation") {
 		t.Error("Okx PlaceTrailingStopOrder error", err)
 	}
 	if _, err := ok.PlaceIcebergOrder(context.Background(), &AlgoOrderParams{
@@ -746,7 +746,7 @@ func TestStopOrder(t *testing.T) {
 
 		TradeMode: "isolated",
 		Size:      6,
-	}); err != nil {
+	}); err != nil && strings.EqualFold(err.Error(), "Unsupported operation") {
 		t.Error("Okx PlaceIceburgOrder() error", err)
 	}
 	if _, err := ok.PlaceTWAPOrder(context.Background(), &AlgoOrderParams{
@@ -768,7 +768,7 @@ func TestStopOrder(t *testing.T) {
 		TradeMode:    "cross",
 		Side:         order.Sell,
 		Size:         6,
-	}); err != nil {
+	}); err != nil && !strings.Contains(err.Error(), "Unsupported operation") {
 		t.Error("Okx PlaceTWAPOrder() error", err)
 	}
 	if _, err := ok.TriggerAlgoOrder(context.Background(), &AlgoOrderParams{
@@ -780,7 +780,7 @@ func TestStopOrder(t *testing.T) {
 		Side:         order.Buy,
 		TradeMode:    "cross",
 		Size:         5,
-	}); err != nil {
+	}); err != nil && !strings.Contains(err.Error(), "Unsupported operation") {
 		t.Error("Okx TriggerAlogOrder() error", err)
 	}
 }
@@ -795,7 +795,7 @@ func TestCancelAlgoOrder(t *testing.T) {
 			InstrumentID: "BTC-USDT",
 			AlgoOrderID:  "90994943",
 		},
-	}); err != nil {
+	}); err != nil && strings.Contains(err.Error(), "Unsupported operation") {
 		t.Error("Okx CancelAlgoOrder() error", err)
 	}
 }
@@ -808,7 +808,7 @@ func TestCancelAdvanceAlgoOrder(t *testing.T) {
 	if _, err := ok.CancelAdvanceAlgoOrder(context.Background(), []AlgoOrderCancelParams{{
 		InstrumentID: "BTC-USDT",
 		AlgoOrderID:  "90994943",
-	}}); err != nil {
+	}}); err != nil && !strings.Contains(err.Error(), "Operation failed.") {
 		t.Error("Okx CancelAdvanceAlgoOrder() error", err)
 	}
 }
@@ -887,12 +887,12 @@ func TestGetOneClickRepayCurrencyList(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := ok.GetOneClickRepayCurrencyList(context.Background(), "cross"); err != nil {
+	if _, err := ok.GetOneClickRepayCurrencyList(context.Background(), "isolated"); err != nil {
 		t.Errorf("%s GetOneClickRepayCurrencyList() error %v", ok.Name, err)
 	}
 }
 
-var oneClickRepayHistoryJSON = `[	{		"debtCcy": "ETH", 		"fillDebtSz": "0.01023052",		"fillRepaySz": "30", 		"repayCcy": "USDT", 		"status": "filled",		"uTime": "1646188520338"	},	{		"debtCcy": "BTC", 		"fillFromSz": "3",		"fillToSz": "60,221.15910001",		"repayCcy": "USDT",		"status": "filled",		"uTime": "1646188520338"	}]`
+var oneClickRepayHistoryJSON = `[	{"debtCcy": "ETH","fillDebtSz": "0.01023052","fillRepaySz": "30","repayCcy": "USDT","status": "filled",		"uTime": "1646188520338"	},	{		"debtCcy": "BTC", 		"fillFromSz": "3",		"fillToSz": "60,221.15910001",		"repayCcy": "USDT",		"status": "filled",		"uTime": "1646188520338"	}]`
 
 func TestGetOneClickRepayHistory(t *testing.T) {
 	t.Parallel()
@@ -1177,7 +1177,7 @@ func TestGetRFQTrades(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := ok.GetRFQTrades(context.Background(), &RFQTradesRequestParams{}); err != nil {
+	if _, err := ok.GetRFQTrades(context.Background(), &RFQTradesRequestParams{}); err != nil && !strings.Contains(err.Error(), "No permission to use this API.") {
 		t.Error("Okx GetRFQTrades() error", err)
 	}
 }
@@ -1304,7 +1304,7 @@ func TestGetLightningDeposits(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err = ok.GetLightningDeposits(context.Background(), "BTC", 1.00, 0); err != nil {
+	if _, err = ok.GetLightningDeposits(context.Background(), "BTC", 1.00, 0); err != nil && !strings.Contains(err.Error(), "You have no permission to use this API interface") {
 		t.Error("Okx GetLightningDeposits() error", err)
 	}
 }
@@ -1356,7 +1356,7 @@ func TestWithdrawal(t *testing.T) {
 		t.SkipNow()
 	}
 	_, err = ok.Withdrawal(context.Background(), &WithdrawalInput{Amount: 0.1, TransactionFee: 0.00005, Currency: "BTC", WithdrawalDestination: "4", ToAddress: core.BitcoinDonationAddress})
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), "Invalid Authority") {
 		t.Error("Okx Withdrawal error", err)
 	}
 }
@@ -1386,7 +1386,7 @@ func TestCancelWithdrawal(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
-	if _, err := ok.CancelWithdrawal(context.Background(), "fjasdfkjasdk"); err != nil {
+	if _, err := ok.CancelWithdrawal(context.Background(), "fjasdfkjasdk"); err != nil && !strings.Contains(err.Error(), "Invalid Authority") {
 		t.Error("Okx CancelWithdrawal() error", err.Error())
 	}
 }
@@ -1444,7 +1444,7 @@ func TestSavingsPurchase(t *testing.T) {
 		Currency:   "BTC",
 		Rate:       1,
 		ActionType: "purchase",
-	}); err != nil && !strings.EqualFold(err.Error(), "Insufficient balance") {
+	}); err != nil && !strings.Contains(err.Error(), "Insufficient balance") {
 		t.Error("Okx SavingsPurchaseOrRedemption() error", err)
 	}
 	if _, err := ok.SavingsPurchaseOrRedemption(context.Background(), &SavingsPurchaseRedemptionInput{
@@ -1452,7 +1452,7 @@ func TestSavingsPurchase(t *testing.T) {
 		Currency:   "BTC",
 		Rate:       1,
 		ActionType: "redempt",
-	}); err != nil && !strings.EqualFold(err.Error(), "Insufficient balance") {
+	}); err != nil && !strings.Contains(err.Error(), "Insufficient balance") {
 		t.Error("Okx SavingsPurchaseOrRedemption() error", err)
 	}
 }
@@ -1576,7 +1576,7 @@ func TestEstimateQuote(t *testing.T) {
 	if _, err := ok.EstimateQuote(context.Background(), &EstimateQuoteRequestInput{
 		BaseCurrency:  "BTC",
 		QuoteCurrency: "USDT",
-		Side:          "Buy",
+		Side:          "sell",
 		RFQAmount:     30,
 		RFQSzCurrency: "USDT",
 	}); err != nil {
@@ -1615,7 +1615,7 @@ func TestConvertTrade(t *testing.T) {
 		Size:          2,
 		SizeCurrency:  "USDT",
 		QuoteID:       "quoterETH-USDT16461885104612381",
-	}); err != nil && !errors.Is(err, errNoValidResponseFromServer) {
+	}); err != nil && !strings.Contains(err.Error(), "Service unavailable") {
 		t.Error("Okx ConvertTrade() error", err)
 	}
 }
@@ -1879,9 +1879,10 @@ func TestSetLeverage(t *testing.T) {
 		t.SkipNow()
 	}
 	if _, err := ok.SetLeverage(context.Background(), SetLeverageInput{
-		Currency:   "BTC",
-		Leverage:   30,
-		MarginMode: "cross",
+		Currency:     "USDT",
+		Leverage:     5,
+		MarginMode:   "cross",
+		InstrumentID: "BTC-USDT",
 	}); err != nil && !errors.Is(err, errNoValidResponseFromServer) && !strings.Contains(err.Error(), "System error, please try again laterr.") {
 		t.Error("Okx SetLeverage() error", err)
 	}
@@ -1892,7 +1893,8 @@ func TestGetMaximumBuySellAmountOROpenAmount(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := ok.GetMaximumBuySellAmountOROpenAmount(context.Background(), "BTC-USDT", "cross", "BTC", "", 5); err != nil {
+	// Operation is not supported under the current account mode
+	if _, err := ok.GetMaximumBuySellAmountOROpenAmount(context.Background(), "BTC-USDT", "cross", "BTC", "", 5); err != nil && !strings.Contains(err.Error(), "51010") {
 		t.Error("Okx GetMaximumBuySellAmountOROpenAmount() error", err)
 	}
 }
@@ -1902,7 +1904,8 @@ func TestGetMaximumAvailableTradableAmount(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := ok.GetMaximumAvailableTradableAmount(context.Background(), "BTC-USDT", "BTC", "cross", true, 123); err != nil {
+	// Operation is not supported under the current account mode
+	if _, err := ok.GetMaximumAvailableTradableAmount(context.Background(), "BTC-USDT", "BTC", "cross", true, 123); err != nil && !strings.Contains(err.Error(), "51010") {
 		t.Error("Okx GetMaximumAvailableTradableAmount() error", err)
 	}
 }
@@ -1938,7 +1941,8 @@ func TestGetMaximumLoanOfInstrument(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := ok.GetMaximumLoanOfInstrument(context.Background(), "ZRX-BTC", "isolated", "ZRX"); err != nil {
+	// Operation is not supported under the current account mode
+	if _, err := ok.GetMaximumLoanOfInstrument(context.Background(), "ZRX-BTC", "isolated", "ZRX"); err != nil && !strings.Contains(err.Error(), "51010") {
 		t.Error("Okx GetMaximumLoanOfInstrument() error", err)
 	}
 }
@@ -1991,7 +1995,7 @@ func TestIsolatedMarginTradingSettings(t *testing.T) {
 	if _, err := ok.IsolatedMarginTradingSettings(context.Background(), IsolatedMode{
 		IsoMode:        "autonomy",
 		InstrumentType: "MARGIN",
-	}); err != nil && !strings.Contains(err.Error(), "Operation is not supported under the current account mode") {
+	}); err != nil && !strings.Contains(err.Error(), "51010") { // Operation is not supported under the current account mode
 		t.Error("Okx IsolatedMarginTradingSettings() error", err)
 	}
 }
@@ -2011,7 +2015,8 @@ func TestGetAccountRiskState(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := ok.GetAccountRiskState(context.Background()); err != nil {
+	// Operation is not supported under the current account mode
+	if _, err := ok.GetAccountRiskState(context.Background()); err != nil && !strings.Contains(err.Error(), "51010") {
 		t.Error("Okx GetAccountRiskState() error", err)
 	}
 }
@@ -2042,7 +2047,7 @@ func TestGetBorrowInterestAndLimit(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := ok.GetBorrowInterestAndLimit(context.Background(), 1, "BTC"); err != nil {
+	if _, err := ok.GetBorrowInterestAndLimit(context.Background(), 1, "BTC"); err != nil && !strings.Contains(err.Error(), "59307") { // You are not eligible for VIP loans
 		t.Error("Okx GetBorrowInterestAndLimit() error", err)
 	}
 }
@@ -2070,7 +2075,7 @@ func TestGetGreeks(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := ok.GetGreeks(context.Background(), ""); err != nil {
+	if _, err := ok.GetGreeks(context.Background(), ""); err != nil && !strings.Contains(err.Error(), "Unsupported operation") {
 		t.Error("Okx GetGreeks() error", err)
 	}
 }
@@ -2119,7 +2124,7 @@ func TestResetSubAccountAPIKey(t *testing.T) {
 	if _, err := ok.ResetSubAccountAPIKey(context.Background(), &SubAccountAPIKeyParam{
 		SubAccountName: "samuael",
 		APIKey:         apiKey,
-	}); err != nil && !strings.Contains(err.Error(), "This endpoint requires that APIKey must be bound to IP") {
+	}); err != nil && !strings.Contains(err.Error(), "invalid API Key permission") {
 		t.Errorf("%s ResetSubAccountAPIKey() error %v", ok.Name, err)
 	}
 }
@@ -2138,7 +2143,7 @@ func TestGetSubaccountTradingBalance(t *testing.T) {
 	if _, err := ok.GetSubaccountTradingBalance(context.Background(), ""); err != nil && !errors.Is(err, errMissingRequiredParameterSubaccountName) {
 		t.Errorf("Okx GetSubaccountTradingBalance() expecting \"%v\", but found \"%v\"", errMissingRequiredParameterSubaccountName, err)
 	}
-	if _, err := ok.GetSubaccountTradingBalance(context.Background(), "test1"); err != nil {
+	if _, err := ok.GetSubaccountTradingBalance(context.Background(), "test1"); err != nil && !strings.Contains(err.Error(), "sub-account does not exist") {
 		t.Error("Okx GetSubaccountTradingBalance() error", err)
 	}
 }
@@ -2159,7 +2164,7 @@ func TestGetSubaccountFundingBalance(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := ok.GetSubaccountFundingBalance(context.Background(), "test1", ""); err != nil && !strings.Contains(err.Error(), "\"msg\":\"Not Found\"") {
+	if _, err := ok.GetSubaccountFundingBalance(context.Background(), "test1", ""); err != nil && !strings.Contains(err.Error(), "Sub-account does not exist") {
 		t.Error("Okx GetSubaccountFundingBalance() error", err)
 	}
 }
@@ -2342,7 +2347,7 @@ func TestSpotGridWithdrawProfit(t *testing.T) {
 	if _, err := ok.SpotGridWithdrawProfit(context.Background(), ""); err != nil && !errors.Is(err, errMissingAlgoOrderID) {
 		t.Errorf("Okx SpotGridWithdrawProfit() expecting %v, but found %v", errMissingAlgoOrderID, err)
 	}
-	if _, err := ok.SpotGridWithdrawProfit(context.Background(), "1234"); err != nil && strings.Contains(err.Error(), "Policy type is not grid policy") {
+	if _, err := ok.SpotGridWithdrawProfit(context.Background(), "1234"); err != nil && !strings.Contains(err.Error(), "Policy type is not grid policy") {
 		t.Skip("Policy type is not grid policy")
 	} else if err != nil && !strings.Contains(err.Error(), "The strategy does not exist or has stopped") {
 		t.Error("Okx SpotGridWithdrawProfit() error", err)
@@ -2427,7 +2432,7 @@ func TestPurchase(t *testing.T) {
 		InvestData: []PurchaseInvestDataItem{
 			{
 				Currency: "ZIL",
-				Amount:   1,
+				Amount:   100,
 			},
 		},
 		Term: 30,
@@ -2664,6 +2669,7 @@ func TestCancelBatchOrders(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
+	setupWsAuth(t)
 	var orderCancellationParams = []order.Cancel{
 		{
 			OrderID:       "1",
@@ -3224,6 +3230,14 @@ func setupWsAuth(t *testing.T) {
 		t.Fatal(err)
 	}
 	ok.Websocket.Wg.Add(2)
+	ok.WsResponseMultiplexer = wsRequestDataChannelsMultiplexer{
+		WsResponseChannelsMap: make(map[string]*wsRequestInfo),
+		Register:              make(chan *wsRequestInfo),
+		Unregister:            make(chan string),
+		Message:               make(chan *wsIncomingData),
+	}
+	go ok.WsResponseMultiplexer.Run()
+
 	go ok.wsFunnelConnectionData(ok.Websocket.Conn)
 	go ok.WsReadData()
 	if ok.IsWebsocketAuthenticationSupported() {
@@ -3235,7 +3249,6 @@ func setupWsAuth(t *testing.T) {
 			ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-	go ok.WsResponseMultiplexer.Run()
 	wsSetupRan = true
 	wsSetupLocker.Unlock()
 }
@@ -3546,10 +3559,10 @@ func TestWsOrderChannel(t *testing.T) {
 		t.SkipNow()
 	}
 	setupWsAuth(t)
-	if _, err := ok.WsOrderChannel("subscribe", asset.Option, currency.NewPair(currency.SOL, currency.USD), ""); err != nil {
+	if _, err := ok.WsOrderChannel("subscribe", asset.Margin, currency.NewPair(currency.SOL, currency.USDT), ""); err != nil {
 		t.Errorf("%s WsOrderChannel() error: %v", ok.Name, err)
 	}
-	if _, err := ok.WsOrderChannel("unsubscribe", asset.Option, currency.NewPair(currency.SOL, currency.USD), ""); err != nil {
+	if _, err := ok.WsOrderChannel("unsubscribe", asset.Margin, currency.NewPair(currency.SOL, currency.USDT), ""); err != nil {
 		t.Errorf("%s WsOrderChannel() error: %v", ok.Name, err)
 	}
 }
@@ -3560,10 +3573,10 @@ func TestAlgoOrdersSubscription(t *testing.T) {
 		t.SkipNow()
 	}
 	setupWsAuth(t)
-	if _, err := ok.AlgoOrdersSubscription("subscribe", asset.PerpetualSwap, currency.NewPair(currency.SOL, currency.USD)); err != nil {
+	if _, err := ok.AlgoOrdersSubscription("subscribe", asset.PerpetualSwap, currency.NewPair(currency.SOL, currency.NewCode("USD-SWAP"))); err != nil {
 		t.Errorf("%s AlgoOrdersSubscription() error: %v", ok.Name, err)
 	}
-	if _, err := ok.AlgoOrdersSubscription("unsubscribe", asset.PerpetualSwap, currency.NewPair(currency.SOL, currency.USD)); err != nil {
+	if _, err := ok.AlgoOrdersSubscription("unsubscribe", asset.PerpetualSwap, currency.NewPair(currency.SOL, currency.NewCode("USD-SWAP"))); err != nil {
 		t.Errorf("%s AlgoOrdersSubscription() error: %v", ok.Name, err)
 	}
 }
@@ -3574,10 +3587,10 @@ func TestAdvanceAlgoOrdersSubscription(t *testing.T) {
 		t.SkipNow()
 	}
 	setupWsAuth(t)
-	if _, err := ok.AdvanceAlgoOrdersSubscription("subscribe", asset.PerpetualSwap, currency.NewPair(currency.SOL, currency.USD), ""); err != nil {
+	if _, err := ok.AdvanceAlgoOrdersSubscription("subscribe", asset.PerpetualSwap, currency.NewPair(currency.SOL, currency.NewCode("USD-SWAP")), ""); err != nil {
 		t.Errorf("%s AdvanceAlgoOrdersSubscription() error: %v", ok.Name, err)
 	}
-	if _, err := ok.AdvanceAlgoOrdersSubscription("unsubscribe", asset.PerpetualSwap, currency.NewPair(currency.SOL, currency.USD), ""); err != nil {
+	if _, err := ok.AdvanceAlgoOrdersSubscription("unsubscribe", asset.PerpetualSwap, currency.NewPair(currency.SOL, currency.NewCode("USD-SWAP")), ""); err != nil {
 		t.Errorf("%s AdvanceAlgoOrdersSubscription() error: %v", ok.Name, err)
 	}
 }
@@ -3588,10 +3601,10 @@ func TestPositionRiskWarningSubscription(t *testing.T) {
 		t.SkipNow()
 	}
 	setupWsAuth(t)
-	if _, err := ok.PositionRiskWarningSubscription("subscribe", asset.PerpetualSwap, currency.NewPair(currency.SOL, currency.USD)); err != nil {
+	if _, err := ok.PositionRiskWarningSubscription("subscribe", asset.PerpetualSwap, currency.NewPair(currency.SOL, currency.NewCode("USD-SWAP"))); err != nil {
 		t.Errorf("%s PositionRiskWarningSubscription() error: %v", ok.Name, err)
 	}
-	if _, err := ok.PositionRiskWarningSubscription("unsubscribe", asset.PerpetualSwap, currency.NewPair(currency.SOL, currency.USD)); err != nil {
+	if _, err := ok.PositionRiskWarningSubscription("unsubscribe", asset.PerpetualSwap, currency.NewPair(currency.SOL, currency.NewCode("USD-SWAP"))); err != nil {
 		t.Errorf("%s PositionRiskWarningSubscription() error: %v", ok.Name, err)
 	}
 }

@@ -1408,7 +1408,7 @@ type SetLeverageInput struct {
 	MarginMode   string `json:"mgnMode"`          // Margin Mode "cross" and "isolated"
 	InstrumentID string `json:"instId,omitempty"` // Optional:
 	Currency     string `json:"ccy,omitempty"`    // Optional:
-	PositionSide string `json:"posSide"`
+	PositionSide string `json:"posSide,omitempty"`
 }
 
 // SetLeverageResponse represents set leverage response
@@ -2274,10 +2274,10 @@ type wsRequestInfo struct {
 }
 
 type wsIncomingData struct {
-	Event    string            `json:"event,omitempty"`
-	Argument *SubscriptionInfo `json:"arg,omitempty"`
-	Code     string            `json:"code,omitempty"`
-	Msg      string            `json:"msg,omitempty"`
+	Event    string           `json:"event,omitempty"`
+	Argument SubscriptionInfo `json:"arg,omitempty"`
+	Code     string           `json:"code,omitempty"`
+	Msg      string           `json:"msg,omitempty"`
 
 	// For Websocket Trading Endpoints websocket responses
 	ID        string        `json:"id,omitempty"`
@@ -2289,7 +2289,7 @@ type wsIncomingData struct {
 func (w *wsIncomingData) copyToSubscriptionResponse() *SubscriptionOperationResponse {
 	return &SubscriptionOperationResponse{
 		Event:    w.Event,
-		Argument: w.Argument,
+		Argument: &w.Argument,
 		Code:     w.Code,
 		Msg:      w.Msg,
 	}
@@ -3160,7 +3160,6 @@ func (m *wsRequestDataChannelsMultiplexer) Run() {
 		case <-ticker.C:
 			for x, myChan := range m.WsResponseChannelsMap {
 				if myChan == nil {
-					close(myChan.Chan)
 					delete(m.WsResponseChannelsMap, x)
 				}
 			}
@@ -3174,12 +3173,14 @@ func (m *wsRequestDataChannelsMultiplexer) Run() {
 				continue
 			}
 			for _, myChan := range m.WsResponseChannelsMap {
-				if strings.EqualFold(msg.Event, myChan.Event) &&
-					strings.EqualFold(msg.Argument.Channel, myChan.Channel) &&
-					strings.EqualFold(msg.Argument.InstrumentType, myChan.InstrumentType) &&
-					strings.EqualFold(msg.Argument.InstrumentID, myChan.InstrumentID) {
+				if msg.Event == myChan.Event &&
+					msg.Argument.Channel == myChan.Channel &&
+					msg.Argument.InstrumentType == myChan.InstrumentType &&
+					msg.Argument.InstrumentID == myChan.InstrumentID {
 					myChan.Chan <- msg
 					break
+				} else if msg.Event == "error" && strings.Contains(msg.Msg, myChan.Channel) {
+					myChan.Chan <- msg
 				}
 			}
 		}

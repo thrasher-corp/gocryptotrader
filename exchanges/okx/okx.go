@@ -1844,8 +1844,8 @@ func (ok *Okx) EstimateQuote(ctx context.Context, arg *EstimateQuoteRequestInput
 	if arg.QuoteCurrency == "" {
 		return nil, errors.New("missing quote currency")
 	}
-	arg.Side = strings.ToUpper(arg.Side)
-	if !(arg.Side == order.Buy.String() || arg.Side == order.Sell.String()) {
+	arg.Side = strings.ToLower(arg.Side)
+	if !(arg.Side == order.Buy.Lower() || arg.Side == order.Sell.Lower()) {
 		return nil, errors.New("missing  order side")
 	}
 	if arg.RFQAmount <= 0 {
@@ -1855,7 +1855,7 @@ func (ok *Okx) EstimateQuote(ctx context.Context, arg *EstimateQuoteRequestInput
 		return nil, errors.New("missing rfq currency")
 	}
 	var resp []EstimateQuoteResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, estimateQuoteEPL, http.MethodPost, assetEstimateQuote, &arg, &resp, true)
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, estimateQuoteEPL, http.MethodPost, assetEstimateQuote, arg, &resp, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1876,9 +1876,9 @@ func (ok *Okx) ConvertTrade(ctx context.Context, arg *ConvertTradeInput) (*Conve
 	if arg.QuoteCurrency == "" {
 		return nil, errors.New("missing quote currency")
 	}
-	arg.Side = strings.ToUpper(arg.Side)
-	if !(arg.Side == order.Buy.String() ||
-		arg.Side == order.Sell.String()) {
+	arg.Side = strings.ToLower(arg.Side)
+	if !(arg.Side == order.Buy.Lower() ||
+		arg.Side == order.Sell.Lower()) {
 		return nil, errMissingOrderSide
 	}
 	if arg.Size <= 0 {
@@ -2081,15 +2081,13 @@ func (ok *Okx) SetPositionMode(ctx context.Context, positionMode string) (string
 // SetLeverage sets a leverage setting for instrument id.
 func (ok *Okx) SetLeverage(ctx context.Context, arg SetLeverageInput) (*SetLeverageResponse, error) {
 	if arg.InstrumentID == "" && arg.Currency == "" {
-		return nil, errors.New("either instrument id or currency is missing")
+		return nil, errors.New("either instrument id or currency is required")
 	}
 	if arg.Leverage < 0 {
 		return nil, errors.New("missing leverage")
 	}
 	if !(arg.MarginMode == TradeModeIsolated || arg.MarginMode == TradeModeCross) {
 		return nil, errors.New("invalid margin mode")
-	} else if arg.MarginMode == TradeModeCross {
-		arg.PositionSide = ""
 	}
 	if arg.InstrumentID == "" && arg.MarginMode == TradeModeIsolated {
 		return nil, errors.New("only can be cross if ccy is passed")
@@ -2102,8 +2100,6 @@ func (ok *Okx) SetLeverage(ctx context.Context, arg SetLeverageInput) (*SetLever
 		arg.PositionSide == positionSideShort) &&
 		arg.MarginMode == "isolated" {
 		return nil, errors.New("\"long\" \"short\" Only applicable to isolated margin mode of FUTURES/SWAP")
-	} else if arg.MarginMode != "isolated" {
-		arg.MarginMode = ""
 	}
 	var resp []SetLeverageResponse
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, setLeverateEPL, http.MethodPost, accountSetLeverage, &arg, &resp, true)
