@@ -257,3 +257,25 @@ type Position struct {
 	MaintainMargin       float64            `json:"maintainMargin"`
 	RiskLimitLevel       int64              `json:"riskLimitLevel"`
 }
+
+type RiskLimitLevel struct {
+	Symbol         string  `json:"symbol"`
+	Level          int64   `json:"level"`
+	MaxRiskLimit   int64   `json:"maxRiskLimit"`
+	MinRiskLimit   int64   `json:"minRiskLimit"`
+	MaxLeverage    int64   `json:"maxLeverage"`
+	InitialMargin  float64 `json:"initialMargin"`
+	MaintainMargin float64 `json:"maintainMargin"`
+}
+
+type FundingHistory struct {
+	ID             string             `json:"id"`
+	Symbol         string             `json:"symbol"`
+	Time           kucoinTimeMilliSec `json:"timePoint"`
+	FundingRate    float64            `json:"fundingRate"`
+	MarkPrice      float64            `json:"markPrice"`
+	PositionQty    float64            `json:"positionQty"`
+	PositionCost   float64            `json:"positionCost"`
+	Funding        float64            `json:"funding"`
+	SettleCurrency string             `json:"settleCurrency"`
+}

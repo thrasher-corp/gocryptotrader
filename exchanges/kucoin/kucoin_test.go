@@ -1421,3 +1421,63 @@ func TestGetFuturesPositionList(t *testing.T) {
 		t.Error("GetFuturesPositionList() error", err)
 	}
 }
+
+func TestSetAutoDepositMargin(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	_, err := k.SetAutoDepositMargin(context.Background(), "ADAUSDTM", true)
+	if err != nil {
+		t.Error("SetAutoDepositMargin() error", err)
+	}
+}
+
+func TestAddMargin(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	_, err := k.AddMargin(context.Background(), "XBTUSDTM", "6200c9b83aecfb000152dasfdee", 1)
+	if err != nil {
+		t.Error("AddMargin() error", err)
+	}
+}
+
+func TestGetFuturesRiskLimitLevel(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetFuturesRiskLimitLevel(context.Background(), "ADAUSDTM")
+	if err != nil {
+		t.Error("GetFuturesRiskLimitLevel() error", err)
+	}
+}
+
+func TestUpdateRiskLmitLevel(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	_, err := k.UpdateRiskLmitLevel(context.Background(), "ADASUDTM", 2)
+	if err != nil {
+		t.Error("UpdateRiskLmitLevel() error", err)
+	}
+}
+
+func TestGetFuturesFundingHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetFuturesFundingHistory(context.Background(), "XBTUSDM", 0, 0, true, true, time.Time{}, time.Time{})
+	if err != nil {
+		t.Error("GetFuturesFundingHistory() error", err)
+	}
+}

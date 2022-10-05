@@ -46,8 +46,15 @@ const (
 	kucoinFuturesRecentFills    = "/api/v1/recentFills"
 	kucoinFuturesOpenOrderStats = "/api/v1/openOrderStatistics"
 
-	kucoinFuturesPosition     = "/api/v1/position"
-	kucoinFuturesPositionList = "/api/v1/positions"
+	kucoinFuturesPosition       = "/api/v1/position"
+	kucoinFuturesPositionList   = "/api/v1/positions"
+	kucoinFuturesSetAutoDeposit = "/api/v1/position/margin/auto-deposit-status"
+	kucoinFuturesAddMargin      = "/api/v1/position/margin/deposit-margin"
+
+	kucoinFuturesRiskLimitLevel      = "/api/v1/contracts/risk-limit/%s"
+	kucoinFuturesUpdateRiskLmitLevel = "/api/v1/position/risk-limit-level/change"
+
+	kucoinFuturesFundingHistory = "/api/v1/funding-history"
 )
 
 // GetFuturesOpenContracts gets all open futures contract with its details
@@ -670,6 +677,109 @@ func (k *Kucoin) GetFuturesPositionList(ctx context.Context) ([]Position, error)
 	}{}
 
 	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, kucoinFuturesPositionList, nil, publicSpotRate, &resp)
+}
+
+// SetAutoDepositMargin enable/disable of auto-deposit margin
+func (k *Kucoin) SetAutoDepositMargin(ctx context.Context, symbol string, status bool) (bool, error) {
+	resp := struct {
+		Data bool `json:"data"`
+		Error
+	}{}
+
+	params := make(map[string]interface{})
+	if symbol == "" {
+		return resp.Data, errors.New("symbol can't be empty")
+	}
+	params["symbol"] = symbol
+	params["status"] = status
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, kucoinFuturesSetAutoDeposit, params, publicSpotRate, &resp)
+}
+
+// AddMargin is used to add margin manually
+func (k *Kucoin) AddMargin(ctx context.Context, symbol, uniqueID string, margin float64) (Position, error) {
+	resp := struct {
+		Data Position `json:"data"`
+		Error
+	}{}
+
+	params := make(map[string]interface{})
+	if symbol == "" {
+		return resp.Data, errors.New("symbol can't be empty")
+	}
+	params["symbol"] = symbol
+	if uniqueID == "" {
+		return resp.Data, errors.New("uniqueID can't be empty")
+	}
+	params["bizNo"] = uniqueID
+	if margin <= 0 {
+		return resp.Data, errors.New("margin can't be zero or negative")
+	}
+	params["margin"] = strconv.FormatFloat(margin, 'f', -1, 64)
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, kucoinFuturesAddMargin, params, publicSpotRate, &resp)
+}
+
+// GetFuturesRiskLimitLevel gets information about risk limit level of a specific contract
+func (k *Kucoin) GetFuturesRiskLimitLevel(ctx context.Context, symbol string) ([]RiskLimitLevel, error) {
+	resp := struct {
+		Data []RiskLimitLevel `json:"data"`
+		Error
+	}{}
+
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, fmt.Sprintf(kucoinFuturesRiskLimitLevel, symbol), nil, publicSpotRate, &resp)
+}
+
+// UpdateRiskLmitLevel is used to adjustment the risk limit level
+func (k *Kucoin) UpdateRiskLmitLevel(ctx context.Context, symbol string, level int64) (bool, error) {
+	resp := struct {
+		Data bool `json:"data"`
+		Error
+	}{}
+
+	params := make(map[string]interface{})
+	if symbol == "" {
+		return resp.Data, errors.New("symbol can't be empty")
+	}
+	params["symbol"] = symbol
+	params["level"] = strconv.FormatInt(level, 10)
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, kucoinFuturesUpdateRiskLmitLevel, params, publicSpotRate, &resp)
+}
+
+// GetFuturesFundingHistory gets information about risk limit level of a specific contract
+func (k *Kucoin) GetFuturesFundingHistory(ctx context.Context, symbol string, offset, maxCount int64, reverse, forward bool, startAt, endAt time.Time) ([]FundingHistory, error) {
+	resp := struct {
+		Data []FundingHistory `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if symbol == "" {
+		return resp.Data, errors.New("symbol can't be empty")
+	}
+	params.Set("symbol", symbol)
+	if !startAt.IsZero() {
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	if reverse {
+		params.Set("reverse", "true")
+	} else {
+		params.Set("reverse", "false")
+	}
+	if forward {
+		params.Set("forward", "true")
+	} else {
+		params.Set("forward", "false")
+	}
+	if offset != 0 {
+		params.Set("offset", strconv.FormatInt(offset, 10))
+	}
+	if maxCount != 0 {
+		params.Set("maxCount", strconv.FormatInt(maxCount, 10))
+	}
+
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, fmt.Sprintf(kucoinFuturesRiskLimitLevel, symbol), nil, publicSpotRate, &resp)
 }
 
 func processFuturesOB(ob [][2]float64) ([]orderbook.Item, error) {
