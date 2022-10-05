@@ -30,7 +30,7 @@ import (
 type Okx struct {
 	exchange.Base
 	WsResponseMultiplexer wsRequestDataChannelsMultiplexer
-	RequestSemaphore      chan int
+	WsRequestSemaphore    chan int
 }
 
 const (

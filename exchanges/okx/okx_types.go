@@ -3,6 +3,7 @@ package okx
 import (
 	"encoding/json"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -2263,9 +2264,13 @@ type WebsocketDataResponse struct {
 	Data     []interface{}    `json:"data"`
 }
 
-type wsIncomingChannelWithID struct {
-	ID   string
-	Chan chan *wsIncomingData
+type wsRequestInfo struct {
+	ID             string
+	Chan           chan *wsIncomingData
+	Event          string
+	Channel        string
+	InstrumentType string
+	InstrumentID   string
 }
 
 type wsIncomingData struct {
@@ -3141,8 +3146,8 @@ type FundingOrder struct {
 // wsRequestDataChannelsMultiplexer a single multiplexer instance to multiplex websocket messages multiplexer channels
 type wsRequestDataChannelsMultiplexer struct {
 	// To Synchronize incoming messages coming through the websocket channel
-	WsResponseChannelsMap map[string]chan *wsIncomingData
-	Register              chan wsIncomingChannelWithID
+	WsResponseChannelsMap map[string]*wsRequestInfo
+	Register              chan *wsRequestInfo
 	Unregister            chan string
 	Message               chan *wsIncomingData
 }
@@ -3155,20 +3160,27 @@ func (m *wsRequestDataChannelsMultiplexer) Run() {
 		case <-ticker.C:
 			for x, myChan := range m.WsResponseChannelsMap {
 				if myChan == nil {
+					close(myChan.Chan)
 					delete(m.WsResponseChannelsMap, x)
 				}
 			}
 		case id := <-m.Unregister:
 			delete(m.WsResponseChannelsMap, id)
 		case reg := <-m.Register:
-			m.WsResponseChannelsMap[reg.ID] = reg.Chan
+			m.WsResponseChannelsMap[reg.ID] = reg
 		case msg := <-m.Message:
 			if msg.ID != "" && m.WsResponseChannelsMap[msg.ID] != nil {
-				m.WsResponseChannelsMap[msg.ID] <- msg
+				m.WsResponseChannelsMap[msg.ID].Chan <- msg
 				continue
 			}
 			for _, myChan := range m.WsResponseChannelsMap {
-				myChan <- msg
+				if strings.EqualFold(msg.Event, myChan.Event) &&
+					strings.EqualFold(msg.Argument.Channel, myChan.Channel) &&
+					strings.EqualFold(msg.Argument.InstrumentType, myChan.InstrumentType) &&
+					strings.EqualFold(msg.Argument.InstrumentID, myChan.InstrumentID) {
+					myChan.Chan <- msg
+					break
+				}
 			}
 		}
 	}

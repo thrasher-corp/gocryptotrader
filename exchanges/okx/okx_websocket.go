@@ -294,9 +294,10 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 		return fmt.Errorf("%w, generating random string for incoming websocket response failed", err)
 	}
 	wsResponse := make(chan *wsIncomingData)
-	ok.WsResponseMultiplexer.Register <- wsIncomingChannelWithID{
-		ID:   randomID,
-		Chan: wsResponse,
+	ok.WsResponseMultiplexer.Register <- &wsRequestInfo{
+		ID:    randomID,
+		Chan:  wsResponse,
+		Event: "login",
 	}
 	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
 	for {
@@ -314,7 +315,7 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 			continue
 		case <-timer.C:
 			timer.Stop()
-			return fmt.Errorf("%s websocket connection: timeout waiting for response with and operation: %v",
+			return fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
 				ok.Name,
 				request.Operation)
 		}
@@ -326,6 +327,7 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 func (ok *Okx) wsFunnelConnectionData(ws stream.Connection) {
 	defer ok.Websocket.Wg.Done()
 	for {
+		time.Sleep(time.Millisecond)
 		resp := ws.ReadMessage()
 		if resp.Raw == nil {
 			return
@@ -356,7 +358,8 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 		Operation: operation,
 		Arguments: []SubscriptionInfo{},
 	}
-
+	ok.WsRequestSemaphore <- 1
+	defer func() { <-ok.WsRequestSemaphore }()
 	var channels []stream.ChannelSubscription
 	var authChannels []stream.ChannelSubscription
 	var err error
@@ -1284,7 +1287,7 @@ func (ok *Okx) WsPlaceOrder(arg *PlaceOrderRequestParam) (*OrderData, error) {
 	}
 	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
 	wsResponse := make(chan *wsIncomingData)
-	ok.WsResponseMultiplexer.Register <- wsIncomingChannelWithID{
+	ok.WsResponseMultiplexer.Register <- &wsRequestInfo{
 		ID:   randomID,
 		Chan: wsResponse,
 	}
@@ -1311,7 +1314,7 @@ func (ok *Okx) WsPlaceOrder(arg *PlaceOrderRequestParam) (*OrderData, error) {
 			continue
 		case <-timer.C:
 			timer.Stop()
-			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with and operation: %v",
+			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
 				ok.Name,
 				input.Operation)
 		}
@@ -1363,7 +1366,7 @@ func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]OrderData,
 	}
 	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
 	wsResponse := make(chan *wsIncomingData)
-	ok.WsResponseMultiplexer.Register <- wsIncomingChannelWithID{
+	ok.WsResponseMultiplexer.Register <- &wsRequestInfo{
 		ID:   randomID,
 		Chan: wsResponse,
 	}
@@ -1384,7 +1387,7 @@ func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]OrderData,
 			continue
 		case <-timer.C:
 			timer.Stop()
-			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with and operation: %v",
+			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
 				ok.Name,
 				input.Operation)
 		}
@@ -1414,7 +1417,7 @@ func (ok *Okx) WsCancelOrder(arg CancelOrderRequestParam) (*OrderData, error) {
 	}
 	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
 	wsResponse := make(chan *wsIncomingData)
-	ok.WsResponseMultiplexer.Register <- wsIncomingChannelWithID{
+	ok.WsResponseMultiplexer.Register <- &wsRequestInfo{
 		ID:   randomID,
 		Chan: wsResponse,
 	}
@@ -1441,7 +1444,7 @@ func (ok *Okx) WsCancelOrder(arg CancelOrderRequestParam) (*OrderData, error) {
 			continue
 		case <-timer.C:
 			timer.Stop()
-			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with and operation: %v",
+			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
 				ok.Name,
 				input.Operation)
 		}
@@ -1474,7 +1477,7 @@ func (ok *Okx) WsCancelMultipleOrder(args []CancelOrderRequestParam) ([]OrderDat
 	}
 	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
 	wsResponse := make(chan *wsIncomingData)
-	ok.WsResponseMultiplexer.Register <- wsIncomingChannelWithID{
+	ok.WsResponseMultiplexer.Register <- &wsRequestInfo{
 		ID:   randomID,
 		Chan: wsResponse,
 	}
@@ -1495,7 +1498,7 @@ func (ok *Okx) WsCancelMultipleOrder(args []CancelOrderRequestParam) ([]OrderDat
 			continue
 		case <-timer.C:
 			timer.Stop()
-			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with and operation: %v",
+			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
 				ok.Name,
 				input.Operation)
 		}
@@ -1531,7 +1534,7 @@ func (ok *Okx) WsAmendOrder(arg *AmendOrderRequestParams) (*OrderData, error) {
 	}
 	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
 	wsResponse := make(chan *wsIncomingData)
-	ok.WsResponseMultiplexer.Register <- wsIncomingChannelWithID{
+	ok.WsResponseMultiplexer.Register <- &wsRequestInfo{
 		ID:   randomID,
 		Chan: wsResponse,
 	}
@@ -1558,7 +1561,7 @@ func (ok *Okx) WsAmendOrder(arg *AmendOrderRequestParams) (*OrderData, error) {
 			continue
 		case <-timer.C:
 			timer.Stop()
-			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with and operation: %v",
+			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
 				ok.Name,
 				input.Operation)
 		}
@@ -1593,7 +1596,7 @@ func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]OrderDat
 	}
 	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
 	wsResponse := make(chan *wsIncomingData)
-	ok.WsResponseMultiplexer.Register <- wsIncomingChannelWithID{
+	ok.WsResponseMultiplexer.Register <- &wsRequestInfo{
 		ID:   randomID,
 		Chan: wsResponse,
 	}
@@ -1614,7 +1617,7 @@ func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]OrderDat
 			continue
 		case <-timer.C:
 			timer.Stop()
-			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with and operation: %v",
+			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
 				ok.Name,
 				input.Operation)
 		}
@@ -1673,10 +1676,8 @@ func (ok *Okx) WsChannelSubscription(operation, channel string, assetType asset.
 			},
 		},
 	}
-	ok.RequestSemaphore <- 1
-	defer func() {
-		<-ok.RequestSemaphore
-	}()
+	ok.WsRequestSemaphore <- 1
+	defer func() { <-ok.WsRequestSemaphore }()
 	err = ok.Websocket.Conn.SendJSONMessage(input)
 	if err != nil {
 		return nil, err
@@ -1687,15 +1688,22 @@ func (ok *Okx) WsChannelSubscription(operation, channel string, assetType asset.
 	if err != nil {
 		return nil, fmt.Errorf("%w, generating random string for incoming websocket response failed", err)
 	}
-	ok.WsResponseMultiplexer.Register <- wsIncomingChannelWithID{
-		ID:   randomID,
-		Chan: wsResponse,
+	ok.WsResponseMultiplexer.Register <- &wsRequestInfo{
+		ID:             randomID,
+		Chan:           wsResponse,
+		Event:          input.Operation,
+		Channel:        input.Arguments[0].Channel,
+		InstrumentType: input.Arguments[0].InstrumentType,
+		InstrumentID:   input.Arguments[0].InstrumentID,
 	}
 	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
 	for {
 		select {
 		case data := <-wsResponse:
-			if strings.EqualFold(data.Event, operation) && data.Argument.Channel == input.Arguments[0].Channel && data.Argument.InstrumentType == input.Arguments[0].InstrumentType && data.Argument.InstrumentID == input.Arguments[0].InstrumentID {
+			if strings.EqualFold(data.Event, operation) &&
+				data.Argument.Channel == input.Arguments[0].Channel &&
+				data.Argument.InstrumentType == input.Arguments[0].InstrumentType &&
+				data.Argument.InstrumentID == input.Arguments[0].InstrumentID {
 				return data.copyToSubscriptionResponse(), nil
 			} else if strings.EqualFold(data.Event, "error") || strings.EqualFold(data.Code, "60012") {
 				if data.Msg == "" {
@@ -1706,7 +1714,7 @@ func (ok *Okx) WsChannelSubscription(operation, channel string, assetType asset.
 			continue
 		case <-timer.C:
 			timer.Stop()
-			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with and operation: %v",
+			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
 				ok.Name,
 				input.Operation)
 		}
@@ -1778,10 +1786,8 @@ func (ok *Okx) WsAuthChannelSubscription(operation, channel string, assetType as
 			},
 		},
 	}
-	ok.RequestSemaphore <- 1
-	defer func() {
-		<-ok.RequestSemaphore
-	}()
+	ok.WsRequestSemaphore <- 1
+	defer func() { <-ok.WsRequestSemaphore }()
 	err = ok.Websocket.AuthConn.SendJSONMessage(input)
 	if err != nil {
 		return nil, err
@@ -1792,15 +1798,22 @@ func (ok *Okx) WsAuthChannelSubscription(operation, channel string, assetType as
 	if err != nil {
 		return nil, fmt.Errorf("%w, generating random string for incoming websocket response failed", err)
 	}
-	ok.WsResponseMultiplexer.Register <- wsIncomingChannelWithID{
-		ID:   randomID,
-		Chan: wsResponse,
+	ok.WsResponseMultiplexer.Register <- &wsRequestInfo{
+		ID:             randomID,
+		Chan:           wsResponse,
+		Event:          input.Operation,
+		Channel:        input.Arguments[0].Channel,
+		InstrumentType: input.Arguments[0].InstrumentType,
+		InstrumentID:   input.Arguments[0].InstrumentID,
 	}
 	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
 	for {
 		select {
 		case data := <-wsResponse:
-			if strings.EqualFold(data.Event, operation) && data.Argument.Channel == input.Arguments[0].Channel && data.Argument.InstrumentType == input.Arguments[0].InstrumentType && data.Argument.InstrumentID == input.Arguments[0].InstrumentID {
+			if strings.EqualFold(data.Event, operation) &&
+				data.Argument.Channel == input.Arguments[0].Channel &&
+				data.Argument.InstrumentType == input.Arguments[0].InstrumentType &&
+				data.Argument.InstrumentID == input.Arguments[0].InstrumentID {
 				return data.copyToSubscriptionResponse(), nil
 			} else if strings.EqualFold(data.Event, "error") || strings.EqualFold(data.Code, "60012") {
 				if data.Msg == "" {
@@ -1811,7 +1824,7 @@ func (ok *Okx) WsAuthChannelSubscription(operation, channel string, assetType as
 			continue
 		case <-timer.C:
 			timer.Stop()
-			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with and operation: %v",
+			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
 				ok.Name,
 				input.Operation)
 		}
@@ -1977,9 +1990,13 @@ func (ok *Okx) PriceLimitSubscription(operation, instrumentID string) (*Subscrip
 	if err != nil {
 		return nil, fmt.Errorf("%w, generating random string for incoming websocket response failed", err)
 	}
-	ok.WsResponseMultiplexer.Register <- wsIncomingChannelWithID{
-		ID:   randomID,
-		Chan: wsResponse,
+	ok.WsResponseMultiplexer.Register <- &wsRequestInfo{
+		ID:             randomID,
+		Chan:           wsResponse,
+		Event:          input.Operation,
+		Channel:        input.Arguments[0].Channel,
+		InstrumentType: input.Arguments[0].InstrumentType,
+		InstrumentID:   input.Arguments[0].InstrumentID,
 	}
 	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
 	for {
@@ -1996,7 +2013,7 @@ func (ok *Okx) PriceLimitSubscription(operation, instrumentID string) (*Subscrip
 			continue
 		case <-timer.C:
 			timer.Stop()
-			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with and operation: %v",
+			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
 				ok.Name,
 				input.Operation)
 		}

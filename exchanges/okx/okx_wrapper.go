@@ -64,12 +64,12 @@ func (ok *Okx) SetDefaults() {
 	ok.Verbose = true
 
 	ok.WsResponseMultiplexer = wsRequestDataChannelsMultiplexer{
-		WsResponseChannelsMap: make(map[string]chan *wsIncomingData),
-		Register:              make(chan wsIncomingChannelWithID),
+		WsResponseChannelsMap: make(map[string]*wsRequestInfo),
+		Register:              make(chan *wsRequestInfo),
 		Unregister:            make(chan string),
 		Message:               make(chan *wsIncomingData),
 	}
-	ok.RequestSemaphore = make(chan int, 5)
+	ok.WsRequestSemaphore = make(chan int, 5)
 	ok.API.CredentialsValidator.RequiresKey = true
 	ok.API.CredentialsValidator.RequiresSecret = true
 	ok.API.CredentialsValidator.RequiresClientID = true
