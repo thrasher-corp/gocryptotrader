@@ -1481,3 +1481,99 @@ func TestGetFuturesFundingHistory(t *testing.T) {
 		t.Error("GetFuturesFundingHistory() error", err)
 	}
 }
+
+func TestGetFuturesAccountOverview(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetFuturesAccountOverview(context.Background(), "")
+	if err != nil {
+		t.Error("GetFuturesAccountOverview() error", err)
+	}
+}
+
+func TestGetFuturesTransactionHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetFuturesTransactionHistory(context.Background(), "", "", 0, 0, true, time.Time{}, time.Time{})
+	if err != nil {
+		t.Error("GetFuturesTransactionHistory() error", err)
+	}
+}
+
+func TestCreateFuturesSubAccountAPIKey(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	_, err := k.CreateFuturesSubAccountAPIKey(context.Background(), "", "passphrase", "", "remark", "subAccName")
+	if err != nil {
+		t.Error("CreateFuturesSubAccountAPIKey() error", err)
+	}
+}
+
+func TestGetFuturesDepositAddress(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetFuturesDepositAddress(context.Background(), "XBT")
+	if err != nil {
+		t.Error("GetFuturesDepositAddress() error", err)
+	}
+}
+
+func TestGetFuturesDepositsList(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetFuturesDepositsList(context.Background(), "", "", time.Time{}, time.Time{})
+	if err != nil {
+		t.Error("GetFuturesDepositsList() error", err)
+	}
+}
+
+func TestGetFuturesWithdrawalLimit(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetFuturesWithdrawalLimit(context.Background(), "XBT")
+	if err != nil {
+		t.Error("GetFuturesWithdrawalLimit() error", err)
+	}
+}
+
+func TestGetFuturesWithdrawalList(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetFuturesWithdrawalList(context.Background(), "", "", time.Time{}, time.Time{})
+	if err != nil {
+		t.Error("GetFuturesWithdrawalList() error", err)
+	}
+}
+
+func TestCancelFuturesWithdrawal(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	_, err := k.CancelFuturesWithdrawal(context.Background(), "5cda659603aa67131f305f7e")
+	if err != nil {
+		t.Error("CancelFuturesWithdrawal() error", err)
+	}
+}

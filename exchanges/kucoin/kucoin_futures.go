@@ -42,19 +42,25 @@ const (
 	kucoinFuturesGetOrderDetails           = "/api/v1/orders/%s"
 	kucoinFuturesGetOrderDetailsByClientID = "/api/v1/orders/byClientOid"
 
-	kucoinFuturesFills          = "/api/v1/fills"
-	kucoinFuturesRecentFills    = "/api/v1/recentFills"
-	kucoinFuturesOpenOrderStats = "/api/v1/openOrderStatistics"
-
-	kucoinFuturesPosition       = "/api/v1/position"
-	kucoinFuturesPositionList   = "/api/v1/positions"
-	kucoinFuturesSetAutoDeposit = "/api/v1/position/margin/auto-deposit-status"
-	kucoinFuturesAddMargin      = "/api/v1/position/margin/deposit-margin"
-
+	kucoinFuturesFills               = "/api/v1/fills"
+	kucoinFuturesRecentFills         = "/api/v1/recentFills"
+	kucoinFuturesOpenOrderStats      = "/api/v1/openOrderStatistics"
+	kucoinFuturesPosition            = "/api/v1/position"
+	kucoinFuturesPositionList        = "/api/v1/positions"
+	kucoinFuturesSetAutoDeposit      = "/api/v1/position/margin/auto-deposit-status"
+	kucoinFuturesAddMargin           = "/api/v1/position/margin/deposit-margin"
 	kucoinFuturesRiskLimitLevel      = "/api/v1/contracts/risk-limit/%s"
 	kucoinFuturesUpdateRiskLmitLevel = "/api/v1/position/risk-limit-level/change"
+	kucoinFuturesFundingHistory      = "/api/v1/funding-history"
 
-	kucoinFuturesFundingHistory = "/api/v1/funding-history"
+	kucoinFuturesAccountOverview    = "/api/v1/account-overview"
+	kucoinFuturesTransactionHistory = "/api/v1/transaction-history"
+	kucoinFuturesSubAccountAPIKey   = "/api/v1/sub/api-key"
+	kucoinFuturesDepositAddress     = "/api/v1/deposit-address"
+	kucoinFuturesDepositsList       = "/api/v1/deposit-list"
+	kucoinFuturesWithdrawalLimit    = "/api/v1/withdrawals/quotas"
+	kucoinFuturesWithdrawalList     = "/api/v1/withdrawal-list"
+	kucoinFuturesCancelWithdrawal   = "/api/v1/withdrawals/%s"
 )
 
 // GetFuturesOpenContracts gets all open futures contract with its details
@@ -744,7 +750,7 @@ func (k *Kucoin) UpdateRiskLmitLevel(ctx context.Context, symbol string, level i
 	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, kucoinFuturesUpdateRiskLmitLevel, params, publicSpotRate, &resp)
 }
 
-// GetFuturesFundingHistory gets information about risk limit level of a specific contract
+// GetFuturesFundingHistory gets information about funding history
 func (k *Kucoin) GetFuturesFundingHistory(ctx context.Context, symbol string, offset, maxCount int64, reverse, forward bool, startAt, endAt time.Time) ([]FundingHistory, error) {
 	resp := struct {
 		Data []FundingHistory `json:"data"`
@@ -778,8 +784,185 @@ func (k *Kucoin) GetFuturesFundingHistory(ctx context.Context, symbol string, of
 	if maxCount != 0 {
 		params.Set("maxCount", strconv.FormatInt(maxCount, 10))
 	}
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(kucoinFuturesFundingHistory, params), nil, publicSpotRate, &resp)
+}
 
-	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, fmt.Sprintf(kucoinFuturesRiskLimitLevel, symbol), nil, publicSpotRate, &resp)
+// GetFuturesAccountOverview gets future account overview
+func (k *Kucoin) GetFuturesAccountOverview(ctx context.Context, currency string) (Account, error) {
+	resp := struct {
+		Data Account `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if currency != "" {
+		params.Set("currency", currency)
+	}
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(kucoinFuturesAccountOverview, params), nil, publicSpotRate, &resp)
+}
+
+// GetFuturesTransactionHistory gets future transaction history
+func (k *Kucoin) GetFuturesTransactionHistory(ctx context.Context, currency, txType string, offset, maxCount int64, forward bool, startAt, endAt time.Time) ([]TransactionHistory, error) {
+	resp := struct {
+		Data struct {
+			List    []TransactionHistory `json:"dataList"`
+			HasMore bool                 `json:"hasMore"`
+		} `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if currency != "" {
+		params.Set("currency", currency)
+	}
+	if txType != "" {
+		params.Set("type", txType)
+	}
+	if !startAt.IsZero() {
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	if forward {
+		params.Set("forward", "true")
+	} else {
+		params.Set("forward", "false")
+	}
+	if offset != 0 {
+		params.Set("offset", strconv.FormatInt(offset, 10))
+	}
+	if maxCount != 0 {
+		params.Set("maxCount", strconv.FormatInt(maxCount, 10))
+	}
+	return resp.Data.List, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(kucoinFuturesTransactionHistory, params), nil, publicSpotRate, &resp)
+}
+
+// CreateFuturesSubAccountAPIKey is used to create Futures APIs for sub-accounts
+func (k *Kucoin) CreateFuturesSubAccountAPIKey(ctx context.Context, ipWhitelist, passphrase, permission, remark, subName string) (APIKeyDetail, error) {
+	resp := struct {
+		Data APIKeyDetail `json:"data"`
+		Error
+	}{}
+
+	params := make(map[string]interface{})
+	if ipWhitelist != "" {
+		params["ipWhitelist"] = ipWhitelist
+	}
+	if passphrase == "" {
+		return resp.Data, errors.New("passphrase can't be empty")
+	}
+	params["passphrase"] = passphrase
+	if permission != "" {
+		params["permission"] = permission
+	}
+	if remark == "" {
+		return resp.Data, errors.New("remark can't be empty")
+	}
+	params["remark"] = remark
+	if subName == "" {
+		return resp.Data, errors.New("subName can't be empty")
+	}
+	params["subName"] = subName
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, kucoinFuturesSubAccountAPIKey, params, publicSpotRate, &resp)
+}
+
+// GetFuturesDepositAddress gets deposit address for currency
+func (k *Kucoin) GetFuturesDepositAddress(ctx context.Context, currency string) (DepositAddress, error) {
+	resp := struct {
+		Data DepositAddress `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if currency == "" {
+		return resp.Data, errors.New("currency can't be empty")
+	}
+	params.Set("currency", currency)
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(kucoinFuturesDepositAddress, params), nil, publicSpotRate, &resp)
+}
+
+// GetFuturesDepositsList gets deposits list
+func (k *Kucoin) GetFuturesDepositsList(ctx context.Context, currency, status string, startAt, endAt time.Time) ([]DepositDetail, error) {
+	resp := struct {
+		Data struct {
+			CurrentPage int64           `json:"currentPage"`
+			PageSize    int64           `json:"pageSize"`
+			TotalNum    int64           `json:"totalNum"`
+			TotalPage   int64           `json:"totalPage"`
+			Items       []DepositDetail `json:"items"`
+		} `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if currency != "" {
+		params.Set("currency", currency)
+	}
+	if status != "" {
+		params.Set("status", status)
+	}
+	if !startAt.IsZero() {
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	return resp.Data.Items, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(kucoinFuturesDepositsList, params), nil, publicSpotRate, &resp)
+}
+
+// GetFuturesDepositsList gets withdrawal limits for currency
+func (k *Kucoin) GetFuturesWithdrawalLimit(ctx context.Context, currency string) (WithdrawalLimit, error) {
+	resp := struct {
+		Data WithdrawalLimit `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if currency == "" {
+		return resp.Data, errors.New("currency can't be empty")
+	}
+	params.Set("currency", currency)
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(kucoinFuturesWithdrawalLimit, params), nil, publicSpotRate, &resp)
+}
+
+// GetFuturesWithdrawalList gets withdrawal list
+func (k *Kucoin) GetFuturesWithdrawalList(ctx context.Context, currency, status string, startAt, endAt time.Time) ([]WithdrawalHistory, error) {
+	resp := struct {
+		Data struct {
+			CurrentPage int64               `json:"currentPage"`
+			PageSize    int64               `json:"pageSize"`
+			TotalNum    int64               `json:"totalNum"`
+			TotalPage   int64               `json:"totalPage"`
+			Items       []WithdrawalHistory `json:"items"`
+		} `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if currency != "" {
+		params.Set("currency", currency)
+	}
+	if status != "" {
+		params.Set("status", status)
+	}
+	if !startAt.IsZero() {
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	return resp.Data.Items, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(kucoinFuturesWithdrawalList, params), nil, publicSpotRate, &resp)
+}
+
+// CancelFuturesWithdrawal is used to cancel withdrawal request of only PROCESSING status
+func (k *Kucoin) CancelFuturesWithdrawal(ctx context.Context, withdrawalID string) (bool, error) {
+	resp := struct {
+		Data bool `json:"data"`
+		Error
+	}{}
+
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodDelete, fmt.Sprintf(kucoinFuturesCancelWithdrawal, withdrawalID), nil, publicSpotRate, &resp)
 }
 
 func processFuturesOB(ob [][2]float64) ([]orderbook.Item, error) {

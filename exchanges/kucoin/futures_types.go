@@ -279,3 +279,77 @@ type FundingHistory struct {
 	Funding        float64            `json:"funding"`
 	SettleCurrency string             `json:"settleCurrency"`
 }
+
+type Account struct {
+	AccountEquity    float64 `json:"accountEquity"` // marginBalance + Unrealised PNL
+	UnrealisedPNL    float64 `json:"unrealisedPNL"` // unrealised profit and loss
+	MarginBalance    float64 `json:"marginBalance"` // positionMargin + orderMargin + frozenFunds + availableBalance - unrealisedPNL
+	PositionMargin   float64 `json:"positionMargin"`
+	OrderMargin      float64 `json:"orderMargin"`
+	FrozenFunds      float64 `json:"frozenFunds"` // frozen funds for withdrawal and out-transfer
+	AvailableBalance float64 `json:"availableBalance"`
+	Currency         string  `json:"currency"`
+}
+
+type TransactionHistory struct {
+	Time          kucoinTimeMilliSec `json:"time"`
+	Type          string             `json:"type"`
+	Amount        float64            `json:"amount"`
+	Fee           float64            `json:"fee"`
+	AccountEquity float64            `json:"accountEquity"`
+	Status        string             `json:"status"`
+	Remark        string             `json:"remark"`
+	Offset        int64              `json:"offset"`
+	Currency      string             `json:"currency"`
+}
+
+type APIKeyDetail struct {
+	SubName     string             `json:"subName"`
+	Remark      string             `json:"remark"`
+	APIKey      string             `json:"apiKey"`
+	APISecret   string             `json:"apiSecret"`
+	Passphrase  string             `json:"passphrase"`
+	Permission  string             `json:"permission"`
+	IPWhitelist string             `json:"ipWhitelist"`
+	CreateAt    kucoinTimeMilliSec `json:"createdAt"`
+}
+
+type DepositDetail struct {
+	Currency   string             `json:"currency"`
+	Status     string             `json:"status"`
+	Address    string             `json:"address"`
+	IsInner    bool               `json:"isInner"`
+	Amount     float64            `json:"amount"`
+	Fee        float64            `json:"fee"`
+	WalletTxId string             `json:"walletTxId"`
+	CreatedAt  kucoinTimeMilliSec `json:"createdAt"`
+}
+
+type WithdrawalLimit struct {
+	Currency            string  `json:"currency"`
+	ChainId             string  `json:"chainId"`
+	LimitAmount         float64 `json:"limitAmount"`
+	UsedAmount          float64 `json:"usedAmount"`
+	RemainAmount        float64 `json:"remainAmount"`
+	AvailableAmount     float64 `json:"availableAmount"`
+	WithdrawMinFee      float64 `json:"withdrawMinFee"`
+	InnerWithdrawMinFee float64 `json:"innerWithdrawMinFee"`
+	WithdrawMinSize     float64 `json:"withdrawMinSize"`
+	IsWithdrawEnabled   bool    `json:"isWithdrawEnabled"`
+	Precision           float64 `json:"precision"`
+}
+
+type WithdrawalHistory struct {
+	WithdrawalID string             `json:"withdrawalId"`
+	Currency     string             `json:"currency"`
+	Status       string             `json:"status"`
+	Address      string             `json:"address"`
+	Memo         string             `json:"memo"`
+	IsInner      bool               `json:"isInner"`
+	Amount       float64            `json:"amount"`
+	Fee          float64            `json:"fee"`
+	WalletTxID   string             `json:"walletTxId"`
+	CreatedAt    kucoinTimeMilliSec `json:"createdAt"`
+	Remark       string             `json:"remark"`
+	Reason       string             `json:"reason"`
+}

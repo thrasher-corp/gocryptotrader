@@ -600,7 +600,7 @@ type DepositAddress struct {
 	Address         string `json:"address"`
 	Memo            string `json:"memo"`
 	Chain           string `json:"chain"`
-	ContractAddress string `json:"contractAddress"`
+	ContractAddress string `json:"contractAddress"` // missing in case of futures
 }
 
 type baseDeposit struct {
