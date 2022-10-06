@@ -3219,6 +3219,7 @@ func setupWsAuth(t *testing.T) {
 		return
 	}
 	wsSetupLocker.Lock()
+	wsSetupRan = true
 	var err error
 	if !ok.Websocket.IsEnabled() &&
 		!canManipulateRealOrders {
@@ -3249,7 +3250,7 @@ func setupWsAuth(t *testing.T) {
 			ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-	wsSetupRan = true
+	wsSetupRan = false
 	wsSetupLocker.Unlock()
 }
 
