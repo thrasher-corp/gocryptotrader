@@ -448,8 +448,8 @@ func executeStrategyFromConfig(c *cli.Context) error {
 				Keys: &btrpc.ExchangeKeys{
 					Key:             defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.Key,
 					Secret:          defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.Secret,
-					ClientID:        defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.ClientID,
-					PEMKey:          defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.PEMKey,
+					ClientId:        defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.ClientID,
+					PemKey:          defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.PEMKey,
 					SubAccount:      defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.SubAccount,
 					OneTimePassword: defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.OneTimePassword,
 				},

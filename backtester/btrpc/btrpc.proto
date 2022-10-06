@@ -126,12 +126,12 @@ message CSVData {
 }
 
 message ExchangeKeys {
-  string Key = 1;
-  string Secret = 2;
-  string ClientID = 3;
-  string PEMKey = 4;
-  string SubAccount = 5;
-  string OneTimePassword = 6;
+  string key = 1;
+  string secret = 2;
+  string client_id = 3;
+  string pem_key = 4;
+  string sub_account = 5;
+  string one_time_password = 6;
 }
 
 message ExchangeCredentials {

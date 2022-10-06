@@ -782,22 +782,22 @@
     "btrpcExchangeKeys": {
       "type": "object",
       "properties": {
-        "Key": {
+        "key": {
           "type": "string"
         },
-        "Secret": {
+        "secret": {
           "type": "string"
         },
-        "ClientID": {
+        "clientId": {
           "type": "string"
         },
-        "PEMKey": {
+        "pemKey": {
           "type": "string"
         },
-        "SubAccount": {
+        "subAccount": {
           "type": "string"
         },
-        "OneTimePassword": {
+        "oneTimePassword": {
           "type": "string"
         }
       }
