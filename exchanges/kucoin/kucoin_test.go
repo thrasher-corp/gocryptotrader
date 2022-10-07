@@ -1577,3 +1577,51 @@ func TestCancelFuturesWithdrawal(t *testing.T) {
 		t.Error("CancelFuturesWithdrawal() error", err)
 	}
 }
+
+func TestTransferFuturesFundsToMainAccount(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	_, err := k.TransferFuturesFundsToMainAccount(context.Background(), 1, "USDT", "MAIN")
+	if err != nil {
+		t.Error("TransferFuturesFundsToMainAccount() error", err)
+	}
+}
+
+func TestTransferFundsToFuturesAccount(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	err := k.TransferFundsToFuturesAccount(context.Background(), 1, "USDT", "MAIN")
+	if err != nil {
+		t.Error("TransferFundsToFuturesAccount() error", err)
+	}
+}
+
+func TestGetFuturesTransferOutList(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetFuturesTransferOutList(context.Background(), "USDT", "", time.Time{}, time.Time{})
+	if err != nil {
+		t.Error("GetFuturesTransferOutList() error", err)
+	}
+}
+
+func TestCancelFuturesTransferOut(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	err := k.CancelFuturesTransferOut(context.Background(), "5cd53be30c19fc3754b60928")
+	if err != nil {
+		t.Error("CancelFuturesTransferOut() error", err)
+	}
+}

@@ -53,14 +53,18 @@ const (
 	kucoinFuturesUpdateRiskLmitLevel = "/api/v1/position/risk-limit-level/change"
 	kucoinFuturesFundingHistory      = "/api/v1/funding-history"
 
-	kucoinFuturesAccountOverview    = "/api/v1/account-overview"
-	kucoinFuturesTransactionHistory = "/api/v1/transaction-history"
-	kucoinFuturesSubAccountAPIKey   = "/api/v1/sub/api-key"
-	kucoinFuturesDepositAddress     = "/api/v1/deposit-address"
-	kucoinFuturesDepositsList       = "/api/v1/deposit-list"
-	kucoinFuturesWithdrawalLimit    = "/api/v1/withdrawals/quotas"
-	kucoinFuturesWithdrawalList     = "/api/v1/withdrawal-list"
-	kucoinFuturesCancelWithdrawal   = "/api/v1/withdrawals/%s"
+	kucoinFuturesAccountOverview              = "/api/v1/account-overview"
+	kucoinFuturesTransactionHistory           = "/api/v1/transaction-history"
+	kucoinFuturesSubAccountAPIKey             = "/api/v1/sub/api-key"
+	kucoinFuturesDepositAddress               = "/api/v1/deposit-address"
+	kucoinFuturesDepositsList                 = "/api/v1/deposit-list"
+	kucoinFuturesWithdrawalLimit              = "/api/v1/withdrawals/quotas"
+	kucoinFuturesWithdrawalList               = "/api/v1/withdrawal-list"
+	kucoinFuturesCancelWithdrawal             = "/api/v1/withdrawals/%s"
+	kucoinFuturesTransferFundtoMainAccount    = "/api/v3/transfer-out"
+	kucoinFuturesTransferFundtoFuturesAccount = "/api/v1/transfer-in"
+	kucoinFuturesTransferOutList              = "/api/v1/transfer-list"
+	kucoinFuturesCancelTransferOut            = "/api/v1/cancel/transfer-out"
 )
 
 // GetFuturesOpenContracts gets all open futures contract with its details
@@ -963,6 +967,95 @@ func (k *Kucoin) CancelFuturesWithdrawal(ctx context.Context, withdrawalID strin
 	}{}
 
 	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodDelete, fmt.Sprintf(kucoinFuturesCancelWithdrawal, withdrawalID), nil, publicSpotRate, &resp)
+}
+
+// TransferFuturesFundsToMainAccount helps in transfering funds from futures to main/trade account
+func (k *Kucoin) TransferFuturesFundsToMainAccount(ctx context.Context, amount float64, currency, recAccountType string) (TransferRes, error) {
+	resp := struct {
+		Data TransferRes `json:"data"`
+		Error
+	}{}
+
+	params := make(map[string]interface{})
+	if amount <= 0 {
+		return resp.Data, errors.New("amount can't be zero or negative")
+	}
+	params["amount"] = amount
+	if currency == "" {
+		return resp.Data, errors.New("currency can't be empty")
+	}
+	params["currency"] = currency
+	if recAccountType == "" {
+		return resp.Data, errors.New("recAccountType can't be empty")
+	}
+	params["recAccountType"] = recAccountType
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, kucoinFuturesTransferFundtoMainAccount, params, publicSpotRate, &resp)
+}
+
+// TransferFundsToFuturesAccount helps in transfering funds from payee account to futures account
+func (k *Kucoin) TransferFundsToFuturesAccount(ctx context.Context, amount float64, currency, payAccountType string) error {
+	resp := struct {
+		Error
+	}{}
+
+	params := make(map[string]interface{})
+	if amount <= 0 {
+		return errors.New("amount can't be zero or negative")
+	}
+	params["amount"] = amount
+	if currency == "" {
+		return errors.New("currency can't be empty")
+	}
+	params["currency"] = currency
+	if payAccountType == "" {
+		return errors.New("payAccountType can't be empty")
+	}
+	params["payAccountType"] = payAccountType
+	return k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, kucoinFuturesTransferFundtoFuturesAccount, params, publicSpotRate, &resp)
+}
+
+// GetFuturesTransferOutList gets list of trasfer out
+func (k *Kucoin) GetFuturesTransferOutList(ctx context.Context, currency, status string, startAt, endAt time.Time) ([]Transfer, error) {
+	resp := struct {
+		Data struct {
+			CurrentPage int64      `json:"currentPage"`
+			PageSize    int64      `json:"pageSize"`
+			TotalNum    int64      `json:"totalNum"`
+			TotalPage   int64      `json:"totalPage"`
+			Items       []Transfer `json:"items"`
+		} `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if currency == "" {
+		return resp.Data.Items, errors.New("currency can't be empty")
+	}
+	params.Set("currency", currency)
+	if status != "" {
+		params.Set("status", status)
+	}
+	if !startAt.IsZero() {
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	return resp.Data.Items, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(kucoinFuturesTransferOutList, params), nil, publicSpotRate, &resp)
+}
+
+// CancelFuturesTransferOut is used to cancel transfer out request of only PROCESSING status
+func (k *Kucoin) CancelFuturesTransferOut(ctx context.Context, applyID string) error {
+	resp := struct {
+		Error
+	}{}
+
+	params := url.Values{}
+	if applyID == "" {
+		return errors.New("applyID can't be empty")
+	}
+	params.Set("applyId", applyID)
+	return k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodDelete, common.EncodeURLValues(kucoinFuturesCancelTransferOut, params), nil, publicSpotRate, &resp)
 }
 
 func processFuturesOB(ob [][2]float64) ([]orderbook.Item, error) {

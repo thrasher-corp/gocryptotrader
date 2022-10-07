@@ -353,3 +353,32 @@ type WithdrawalHistory struct {
 	Remark       string             `json:"remark"`
 	Reason       string             `json:"reason"`
 }
+
+type TransferBase struct {
+	ApplyID   string             `json:"applyId"`
+	Currency  string             `json:"currency"`
+	RecRemark string             `json:"recRemark"`
+	RecSystem string             `json:"recSystem"`
+	Status    string             `json:"status"`
+	Amount    float64            `json:"amount,string"`
+	Reason    string             `json:"reason"`
+	CreatedAt kucoinTimeMilliSec `json:"createdAt"`
+	Remark    string             `json:"remark"`
+}
+
+type TransferRes struct {
+	TransferBase
+	BizNo          string             `json:"bizNo"`
+	PayAccountType string             `json:"payAccountType"`
+	PayTag         string             `json:"payTag"`
+	RecAccountType string             `json:"recAccountType"`
+	RecTag         string             `json:"recTag"`
+	Fee            float64            `json:"fee,string"`
+	Serial         int64              `json:"sn"`
+	UpdatedAt      kucoinTimeMilliSec `json:"updatedAt"`
+}
+
+type Transfer struct {
+	TransferBase
+	Offset int64 `json:"offset"`
+}
