@@ -8,6 +8,22 @@ import (
 )
 
 // UnmarshalJSON decerializes json, and timestamp information.
+func (a *CrossMarginAccountHistoryItem) UnmarshalJSON(data []byte) error {
+	type Alias CrossMarginAccountHistoryItem
+	chil := &struct {
+		*Alias
+		Time int64 `json:"time"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
+	}
+	a.Time = time.Unix(int64(chil.Time), 0)
+	return nil
+}
+
+// UnmarshalJSON decerializes json, and timestamp information.
 func (a *DeliveryTradingHistory) UnmarshalJSON(data []byte) error {
 	type Alias DeliveryTradingHistory
 	chil := &struct {
@@ -78,7 +94,7 @@ func (a *LoanRepaymentRecord) UnmarshalJSON(data []byte) error {
 	type Alias LoanRepaymentRecord
 	chil := &struct {
 		*Alias
-		CreateTime int64 `json:" create_time,string"`
+		CreateTime int64 `json:"create_time,string"`
 	}{
 		Alias: (*Alias)(a),
 	}

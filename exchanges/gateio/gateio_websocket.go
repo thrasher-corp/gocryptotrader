@@ -77,9 +77,10 @@ func (g *Gateio) WsConnect() error {
 		return err
 	}
 	g.Websocket.Conn.SetupPingHandler(stream.PingHandler{
-		Websocket: true,
-		Delay:     time.Second * 15,
-		Message:   pingMessage,
+		Websocket:   true,
+		Delay:       time.Second * 15,
+		Message:     pingMessage,
+		MessageType: websocket.PingMessage,
 	})
 	g.Websocket.Wg.Add(1)
 	go g.wsReadData()
@@ -94,42 +95,6 @@ func (g *Gateio) generateSpotWsSignature(secret, event, channel string, dtime ti
 		return "", err
 	}
 	return hex.EncodeToString(mac.Sum(nil)), nil
-}
-
-func (g *Gateio) wsServerSignIn(ctx context.Context) error {
-	// creds, err := g.GetCredentials(ctx)
-	// if err != nil {
-	// 	return err
-	// }
-	timestamp := time.Now()
-	// sigTemp, err := g.generateSpotWsSignature(creds.Secret, "subscribe", futuresOrdersChannel, timestamp)
-	// if err != nil {
-	// 	return err
-	// }
-	// account, err := g.QueryFuturesAccount(context.Background(), "btc")
-	// if err != nil {
-	// 	return err
-	// }
-	signinWsRequest := WsInput{
-		Time:    timestamp.Unix(),
-		ID:      g.Websocket.Conn.GenerateMessageID(false),
-		Channel: optionsTradesChannel,
-		Event:   "subscribe",
-		Payload: []string{ /*strconv.FormatInt(account.User, 10),*/ "BTC_USDT-20221028-26000-C"},
-		// Auth: &WsAuthInput{
-		// 	Method: "api_key",
-		// 	Key:    creds.Key,
-		// 	Sign:   sigTemp,
-		// },
-	}
-	println("Sending trade subscription message ...")
-	err := g.Websocket.Conn.SendJSONMessage( /*signinWsRequest.ID, */ signinWsRequest)
-	if err != nil {
-		println(err.Error())
-		// g.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		return err
-	}
-	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
@@ -148,7 +113,6 @@ func (g *Gateio) wsReadData() {
 }
 
 func (g *Gateio) wsHandleData(respRaw []byte) error {
-	println(string(respRaw))
 	var result WsResponse
 	var eventResponse WsEventResponse
 	err := json.Unmarshal(respRaw, &eventResponse)
@@ -423,7 +387,6 @@ func (g *Gateio) processOrderbookUpdate(data []byte) error {
 }
 
 func (g *Gateio) processOrderbookSnapshot(data []byte) error {
-	println(string(data))
 	var response WsResponse
 	snapshot := &WsOrderbookSnapshot{}
 	response.Result = snapshot
@@ -712,19 +675,12 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 
 // Subscribe sends a websocket message to receive data from the channel
 func (g *Gateio) handleSubscription(event string, channelsToSubscribe []stream.ChannelSubscription) error {
-	println("Generating Payloads")
-
 	payloads, err := g.generatePayload(event, channelsToSubscribe)
 	if err != nil {
-		println(err.Error())
 		return err
 	}
-
-	println(" Payloads length: ", strconv.Itoa(len(payloads)))
 	var errs common.Errors
 	for k := range payloads {
-		values, err := json.Marshal(payloads[k])
-		println(string(values))
 		err = g.Websocket.Conn.SendJSONMessage(payloads[k])
 		if err != nil {
 			errs = append(errs, err)
@@ -876,7 +832,6 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 			}
 		} else if channelsToSubscribe[i].Channel == spotOrderbookUpdateChannel {
 			params = append(params, g.GetIntervalString(channelsToSubscribe[i].Params["interval"].(kline.Interval)))
-			println(strings.Join(params, " - "))
 		}
 		payloads[i] = WsInput{
 			ID:      g.Websocket.Conn.GenerateMessageID(false),

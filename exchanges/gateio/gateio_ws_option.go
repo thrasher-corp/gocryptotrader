@@ -1,7 +1,6 @@
 package gateio
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -81,7 +80,6 @@ func (g *Gateio) WsOptionsConnect() error {
 		}(),
 		Channel: optionsPingChannel,
 	})
-	println(string(pingMessage))
 	if err != nil {
 		return err
 	}
@@ -89,26 +87,11 @@ func (g *Gateio) WsOptionsConnect() error {
 	go g.wsReadData()
 	go g.WsChannelsMultiplexer.Run()
 	g.Websocket.Conn.SetupPingHandler(stream.PingHandler{
-		Websocket: true,
-		Delay:     time.Second * 5,
-		Message:   pingMessage,
+		Websocket:   true,
+		Delay:       time.Second * 5,
+		MessageType: websocket.PingMessage,
+		Message:     pingMessage,
 	})
-	subscriptions, err := g.GenerateOptionsDefaultSubscriptions()
-	if err != nil {
-		println(err.Error())
-		return err
-	}
-	println("Length: ", strconv.Itoa(len(subscriptions)))
-	go func() {
-		err := g.Subscribe(subscriptions)
-		if err != nil {
-			println(err.Error())
-		}
-	}()
-	if g.Websocket.CanUseAuthenticatedEndpoints() {
-		g.wsServerSignIn(context.Background())
-	}
-	println("Connected to public websocket server")
 	return nil
 }
 
@@ -332,14 +315,12 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, data []by
 		}
 		asks := make([]orderbook.Item, len(snapshot.Asks))
 		bids := make([]orderbook.Item, len(snapshot.Bids))
-		println(len(asks))
 		for x := range asks {
 			asks[x] = orderbook.Item{
 				Amount: snapshot.Asks[x].Size,
 				Price:  snapshot.Asks[x].Price,
 			}
 		}
-		println(len(bids))
 		for x := range bids {
 			bids[x] = orderbook.Item{
 				Amount: snapshot.Bids[x].Size,

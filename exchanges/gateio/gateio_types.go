@@ -967,20 +967,20 @@ type OrderbookData struct {
 }
 
 // MakeOrderbook parse Orderbook asks/bids Price and Amount and create an Orderbook Instance with asks and bids data in []OrderbookItem.
-func (o *OrderbookData) MakeOrderbook() (*Orderbook, error) {
+func (a *OrderbookData) MakeOrderbook() (*Orderbook, error) {
 	ob := &Orderbook{
-		ID:      o.ID,
-		Current: o.Current,
-		Update:  o.Update,
+		ID:      a.ID,
+		Current: a.Current,
+		Update:  a.Update,
 	}
-	asks := make([]OrderbookItem, len(o.Asks))
-	bids := make([]OrderbookItem, len(o.Bids))
-	for x := range o.Asks {
-		price, er := strconv.ParseFloat(o.Asks[x][0], 64)
+	asks := make([]OrderbookItem, len(a.Asks))
+	bids := make([]OrderbookItem, len(a.Bids))
+	for x := range a.Asks {
+		price, er := strconv.ParseFloat(a.Asks[x][0], 64)
 		if er != nil {
 			return nil, er
 		}
-		amount, er := strconv.ParseFloat(o.Asks[x][1], 64)
+		amount, er := strconv.ParseFloat(a.Asks[x][1], 64)
 		if er != nil {
 			return nil, er
 		}
@@ -989,12 +989,12 @@ func (o *OrderbookData) MakeOrderbook() (*Orderbook, error) {
 			Amount: amount,
 		}
 	}
-	for x := range o.Bids {
-		price, er := strconv.ParseFloat(o.Bids[x][0], 64)
+	for x := range a.Bids {
+		price, er := strconv.ParseFloat(a.Bids[x][0], 64)
 		if er != nil {
 			return nil, er
 		}
-		amount, er := strconv.ParseFloat(o.Bids[x][1], 64)
+		amount, er := strconv.ParseFloat(a.Bids[x][1], 64)
 		if er != nil {
 			return nil, er
 		}
@@ -2198,7 +2198,7 @@ type Order struct {
 	IsLiq           bool      `json:"is_liq"`
 	Text            string    `json:"text"`
 	Status          string    `json:"status"`
-	FinishTime      time.Time `json:"finish_time,string"`
+	FinishTime      time.Time `json:"finish_time"`
 	FinishAs        string    `json:"finish_as"`
 }
 
@@ -2370,7 +2370,6 @@ type WsMultiplexer struct {
 
 // Run multiplexes incoming messages to *WsEventResponse channels listening.
 func (w *WsMultiplexer) Run() {
-	ticker := time.NewTicker(time.Second * 15)
 	for {
 		select {
 		case unreg := <-w.Unregister:
@@ -2381,8 +2380,6 @@ func (w *WsMultiplexer) Run() {
 			if dchann, okay := w.Channels[strconv.FormatInt(msg.ID, 10)]; okay {
 				dchann <- msg
 			}
-		case <-ticker.C:
-			// println("string")
 		}
 	}
 }

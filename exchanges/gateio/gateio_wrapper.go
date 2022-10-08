@@ -2,7 +2,6 @@ package gateio
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -184,10 +183,10 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		ExchangeConfig:        exch,
 		DefaultURL:            gateioWebsocketEndpoint,
 		RunningURL:            wsRunningURL,
-		Connector:             g.WsOptionsConnect,
+		Connector:             g.WsConnect,
 		Subscriber:            g.Subscribe,
 		Unsubscriber:          g.Unsubscribe,
-		GenerateSubscriptions: g.GenerateOptionsDefaultSubscriptions,
+		GenerateSubscriptions: g.GenerateDefaultSubscriptions,
 		Features:              &g.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
@@ -509,7 +508,7 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 			if err != nil {
 				return err
 			}
-			err = ticker.ProcessTicker(&ticker.Price{
+			return ticker.ProcessTicker(&ticker.Price{
 				Last:         tickers[x].Last,
 				High:         tickers[x].High24H,
 				Low:          tickers[x].Low24H,
@@ -521,9 +520,6 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 				Pair:         currencyPair,
 				AssetType:    a,
 			})
-			if err != nil {
-				return err
-			}
 		}
 	case asset.Futures, asset.DeliveryFutures:
 		var tickers []FuturesTicker
@@ -544,7 +540,7 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 			if err != nil {
 				return err
 			}
-			err = ticker.ProcessTicker(&ticker.Price{
+			return ticker.ProcessTicker(&ticker.Price{
 				Last:         tickers[x].Last,
 				High:         tickers[x].High24H,
 				Low:          tickers[x].Low24H,
@@ -554,9 +550,6 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 				Pair:         currencyPair,
 				AssetType:    a,
 			})
-			if err != nil {
-				return err
-			}
 		}
 	case asset.Options:
 		pairs, err := g.GetEnabledPairs(a)
@@ -564,9 +557,8 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 			return err
 		}
 		for i := range pairs {
-			println(pairs[i].Upper().String(), "-,-")
 			pairs[i] = pairs[i].TrimEmptyString()
-			if pairs[i].IsEmpty() || pairs[i].IsEmpty() {
+			if pairs[i].Base.IsEmpty() || pairs[i].Quote.IsEmpty() {
 				continue
 			}
 			tickers, err := g.GetOptionsTickers(ctx, pairs[i].String())
@@ -578,13 +570,12 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 				if err != nil {
 					return err
 				}
-				err = ticker.ProcessTicker(&ticker.Price{
-					Last:    tickers[x].LastPrice,
-					Ask:     tickers[x].Ask1Price,
-					AskSize: tickers[x].Ask1Size,
-					Bid:     tickers[x].Bid1Price,
-					BidSize: tickers[x].Bid1Size,
-
+				return ticker.ProcessTicker(&ticker.Price{
+					Last:         tickers[x].LastPrice,
+					Ask:          tickers[x].Ask1Price,
+					AskSize:      tickers[x].Ask1Size,
+					Bid:          tickers[x].Bid1Price,
+					BidSize:      tickers[x].Bid1Size,
 					Pair:         currencyPair,
 					ExchangeName: g.Name,
 					AssetType:    a,
@@ -617,6 +608,7 @@ func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 	if err != nil {
 		return book, err
 	}
+	fPair.Delimiter = currency.UnderscoreDelimiter
 	book.Pair = fPair.Upper().TrimEmptyString()
 	fPair = fPair.Upper().TrimEmptyString()
 	var orderbookNew *Orderbook
@@ -625,19 +617,22 @@ func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 		orderbookNew, err = g.GetOrderbook(ctx, fPair, "", 0, true)
 	case asset.Futures:
 		if !(strings.HasPrefix(fPair.Quote.String(), currency.USD.Upper().String()) || strings.HasPrefix(fPair.Quote.String(), currency.USDT.Upper().String()) || strings.HasPrefix(fPair.Quote.String(), currency.BTC.Upper().String())) {
-			println("A", fPair.String())
 			return nil, errUnsupportedSettleValue
 		}
 		orderbookNew, err = g.GetFuturesOrderbook(ctx, fPair.Quote.String(), fPair, "", 0, true)
 	case asset.DeliveryFutures:
 		if !(strings.HasPrefix(fPair.Quote.String(), currency.USD.Upper().String()) || strings.HasPrefix(fPair.Quote.String(), currency.USDT.Upper().String()) || strings.HasPrefix(fPair.Quote.String(), currency.BTC.Upper().String())) {
-			println("B", fPair.String())
 			return nil, errUnsupportedSettleValue
 		}
-		orderbookNew, err = g.GetDeliveryOrderbook(ctx, fPair.Quote.String(), fPair.Upper().String(), "", 0, true)
+		var quote string
+		if strings.HasPrefix(fPair.Quote.String(), currency.USDT.Upper().String()) {
+			quote = "usdt"
+		} else {
+			quote = "btc"
+		}
+		orderbookNew, err = g.GetDeliveryOrderbook(ctx, quote, fPair.Upper().String(), "", 0, true)
 	case asset.Options:
 		if !(strings.HasPrefix(fPair.Quote.String(), currency.USD.Upper().String()) || strings.HasPrefix(fPair.Quote.String(), currency.USDT.Upper().String()) || strings.HasPrefix(fPair.Quote.String(), currency.BTC.Upper().String())) {
-			println("C", fPair.String())
 			return nil, errUnsupportedSettleValue
 		}
 		orderbookNew, err = g.GetOptionsOrderbook(ctx, fPair, "", 0, true)
@@ -875,10 +870,18 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.I
 			})
 		}
 	case asset.DeliveryFutures:
-		if !(strings.EqualFold(p.Quote.String(), currency.USD.String()) || strings.EqualFold(p.Quote.String(), currency.USDT.String()) || strings.EqualFold(p.Quote.String(), currency.BTC.String())) {
+		if !(strings.HasPrefix(p.Quote.Upper().String(), currency.USD.String()) ||
+			strings.HasPrefix(p.Quote.Upper().String(), currency.USDT.String()) ||
+			strings.HasPrefix(p.Quote.Upper().String(), currency.BTC.String())) {
 			return nil, errUnsupportedSettleValue
 		}
-		deliveryTrades, err := g.GetDeliveryTradingHistory(ctx, p.Quote.String(), p.Upper().String(), 0, "", time.Time{}, time.Time{})
+		var quote string
+		if strings.HasPrefix(p.Quote.String(), currency.USDT.Upper().String()) {
+			quote = "usdt"
+		} else {
+			quote = "btc"
+		}
+		deliveryTrades, err := g.GetDeliveryTradingHistory(ctx, quote, p.Upper().String(), 0, "", time.Time{}, time.Time{})
 		if err != nil {
 			return nil, err
 		}
@@ -1419,8 +1422,7 @@ func (g *Gateio) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReques
 	}, nil
 }
 
-// WithdrawFiatFunds returns a withdrawal ID when a
-// withdrawal is submitted
+// WithdrawFiatFunds returns a withdrawal ID when a withdrawal is submitted
 func (g *Gateio) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
@@ -1459,8 +1461,6 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 		if err != nil {
 			return nil, err
 		}
-		values, _ := json.Marshal(spotOrders)
-		println(string(values))
 		for x := range spotOrders {
 			var symbol currency.Pair
 			symbol, err = currency.NewPairDelimiter(spotOrders[x].CurrencyPair,
@@ -1646,8 +1646,6 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 					Exchange:  g.Name,
 					Pair:      req.Pairs[x],
 					AssetType: req.AssetType,
-					// ExecutedAmount: futuresOrder[o].Amount,
-					// AverageExecutedPrice: spotOrders[o].Rate,
 				}
 				detail.InferCostsAndTimes()
 				orders = append(orders, detail)
@@ -1668,8 +1666,6 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 					Exchange:  g.Name,
 					Pair:      req.Pairs[x],
 					AssetType: req.AssetType,
-					// ExecutedAmount: futuresOrder[o].Amount,
-					// AverageExecutedPrice: spotOrders[o].Rate,
 				}
 				detail.InferCostsAndTimes()
 				orders = append(orders, detail)
@@ -1688,11 +1684,12 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := g.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
-	}
 	formattedPair, err := g.FormatExchangeCurrency(pair, a)
 	if err != nil {
+		return kline.Item{}, err
+	}
+	formattedPair = formattedPair.Upper()
+	if err := g.ValidateKline(formattedPair, a, interval); err != nil {
 		return kline.Item{}, err
 	}
 	klineData := kline.Item{
@@ -1731,7 +1728,7 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 			candles, err = g.GetDeliveryFuturesCandlesticks(ctx, formattedPair.Quote.Lower().String(), formattedPair.Upper().String(), start, end, 0, interval)
 		}
 		if err != nil {
-			return klineData, nil
+			return klineData, err
 		}
 		klineData.Candles = make([]kline.Candle, len(candles))
 		for x := range candles {
@@ -1748,7 +1745,7 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 	case asset.Options:
 		candles, err := g.GetOptionFuturesCandlesticks(ctx, formattedPair.Upper().String(), 0, start, end, interval)
 		if err != nil {
-			return klineData, nil
+			return klineData, err
 		}
 		klineData.Candles = make([]kline.Candle, len(candles))
 		for x := range candles {
@@ -1820,7 +1817,7 @@ func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 				candles, err = g.GetDeliveryFuturesCandlesticks(ctx, formattedPair.Quote.Lower().String(), formattedPair.Upper().String(), dates.Ranges[b].Start.Time, dates.Ranges[b].End.Time, uint(g.Features.Enabled.Kline.ResultLimit), interval)
 			}
 			if err != nil {
-				return klineData, nil
+				return klineData, err
 			}
 			for x := range candles {
 				candlestickItems = append(candlestickItems, kline.Candle{
@@ -1836,7 +1833,7 @@ func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 		case asset.Options:
 			candles, err := g.GetOptionFuturesCandlesticks(ctx, formattedPair.Upper().String(), int(g.Features.Enabled.Kline.ResultLimit), start, end, interval)
 			if err != nil {
-				return klineData, nil
+				return klineData, err
 			}
 			for x := range candles {
 				candlestickItems = append(candlestickItems, kline.Candle{

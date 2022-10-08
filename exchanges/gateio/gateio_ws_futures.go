@@ -54,6 +54,8 @@ var defaultFuturesSubscriptions = []string{
 	futuresCandlesticksChannel,
 }
 
+var futuresAssetType = asset.Futures
+
 // WsFuturesConnect initiates a websocket connection
 func (g *Gateio) WsFuturesConnect() error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
@@ -83,23 +85,25 @@ func (g *Gateio) WsFuturesConnect() error {
 		return err
 	}
 	g.Websocket.Conn.SetupPingHandler(stream.PingHandler{
-		Websocket: true,
-		Delay:     time.Second * 15,
-		Message:   pingMessage,
+		Websocket:   true,
+		MessageType: websocket.PingMessage,
+		Delay:       time.Second * 15,
+		Message:     pingMessage,
 	})
 	g.Websocket.Wg.Add(1)
 	go g.wsReadData()
-	if g.Websocket.CanUseAuthenticatedEndpoints() {
-		g.wsServerSignIn(context.Background())
-	}
 	go g.WsChannelsMultiplexer.Run()
 	return nil
 }
 
-// GenerateDefaultFuturesSubscriptions returns default subscriptions informations.
-func (g *Gateio) GenerateDefaultFuturesSubscriptions() ([]stream.ChannelSubscription, error) {
+// GenerateFuturesDefaultSubscriptions returns default subscriptions informations.
+func (g *Gateio) GenerateFuturesDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+	_, err := g.GetCredentials(context.Background())
+	if err != nil {
+		g.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	}
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
-		defaultSubscriptions = append(defaultFuturesSubscriptions,
+		defaultFuturesSubscriptions = append(defaultFuturesSubscriptions,
 			futuresOrdersChannel,
 			futuresUserTradesChannel,
 			futuresBalancesChannel,
@@ -107,8 +111,7 @@ func (g *Gateio) GenerateDefaultFuturesSubscriptions() ([]stream.ChannelSubscrip
 	}
 	var subscriptions []stream.ChannelSubscription
 	var pairs []currency.Pair
-	var err error
-	pairs, err = g.GetEnabledPairs(asset.Futures)
+	pairs, err = g.GetEnabledPairs(futuresAssetType)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +127,7 @@ func (g *Gateio) GenerateDefaultFuturesSubscriptions() ([]stream.ChannelSubscrip
 				params["frequency"] = kline.ThousandMilliseconds
 				params["level"] = "100"
 			}
-			fpair, err := g.FormatExchangeCurrency(pairs[j], asset.Futures)
+			fpair, err := g.FormatExchangeCurrency(pairs[j], futuresAssetType)
 			if err != nil {
 				return nil, err
 			}
@@ -162,7 +165,7 @@ func (g *Gateio) processFuturesTickers(data []byte) error {
 			High:         resp.Result[x].High24H,
 			Low:          resp.Result[x].Low24H,
 			Last:         resp.Result[x].Last,
-			AssetType:    asset.Futures,
+			AssetType:    futuresAssetType,
 			Pair:         currencyPair,
 			LastUpdated:  time.Unix(resp.Time, 0),
 		}
@@ -191,7 +194,7 @@ func (g *Gateio) processFuturesTrades(data []byte) error {
 		trades[x] = trade.Data{
 			Timestamp:    time.UnixMilli(int64(resp.Result[x].CreateTimeMs)),
 			CurrencyPair: currencyPair,
-			AssetType:    asset.Futures,
+			AssetType:    futuresAssetType,
 			Exchange:     g.Name,
 			Price:        resp.Result[x].Price,
 			Amount:       resp.Result[x].Size,
@@ -225,7 +228,7 @@ func (g *Gateio) processFuturesCandlesticks(data []byte) error {
 		}
 		g.Websocket.DataHandler <- stream.KlineData{
 			Pair:       currencyPair,
-			AssetType:  asset.Futures,
+			AssetType:  futuresAssetType,
 			Exchange:   g.Name,
 			StartTime:  resp.Result[x].Timestamp,
 			Interval:   icp[0],
@@ -284,7 +287,7 @@ func (g *Gateio) procesFuturesAndOptionsOrderbookUpdate(data []byte) error {
 	if response.Channel == optionsOrderbookUpdateChannel {
 		assetType = asset.Options
 	} else {
-		assetType = asset.Futures
+		assetType = futuresAssetType
 	}
 	return g.Websocket.Orderbook.Update(&orderbook.Update{
 		UpdateTime: time.UnixMilli(update.TimestampInMs),
@@ -326,7 +329,7 @@ func (g *Gateio) processFuturesOrderbookSnapshot(event string, data []byte) erro
 		return g.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 			Asks:            asks,
 			Bids:            bids,
-			Asset:           asset.Futures,
+			Asset:           futuresAssetType,
 			Exchange:        g.Name,
 			Pair:            pair,
 			LastUpdated:     time.UnixMilli(snapshot.TimestampInMs),
@@ -376,7 +379,7 @@ func (g *Gateio) processFuturesOrderbookSnapshot(event string, data []byte) erro
 		err = g.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 			Asks:            ab[0],
 			Bids:            ab[1],
-			Asset:           asset.Futures,
+			Asset:           futuresAssetType,
 			Exchange:        g.Name,
 			Pair:            currencyPair,
 			LastUpdated:     time.Unix(resp.Time, 0),
@@ -425,7 +428,7 @@ func (g *Gateio) processFuturesOrdersPushData(data []byte) error {
 			Date:           time.UnixMilli(resp.Result[x].CreateTimeMs),
 			ExecutedAmount: resp.Result[x].Size - resp.Result[x].Left,
 			Price:          resp.Result[x].Price,
-			AssetType:      asset.Futures,
+			AssetType:      futuresAssetType,
 			AccountID:      resp.Result[x].User,
 			CloseTime:      time.UnixMilli(resp.Result[x].FinishTimeMs),
 		}
@@ -533,7 +536,7 @@ func (g *Gateio) processBalancePushData(data []byte) error {
 		g.Websocket.DataHandler <- account.Change{
 			Exchange: g.Name,
 			Currency: code,
-			Asset:    asset.Futures,
+			Asset:    futuresAssetType,
 			Amount:   resp.Result[x].Balance,
 		}
 	}
