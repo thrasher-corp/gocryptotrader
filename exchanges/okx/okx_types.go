@@ -3,7 +3,6 @@ package okx
 import (
 	"encoding/json"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -2257,13 +2256,6 @@ type WSOrderResponse struct {
 	Msg       string      `json:"msg,omitempty"`
 }
 
-// WebsocketDataResponse represents all pushed websocket data coming thought the websocket connection
-type WebsocketDataResponse struct {
-	Argument SubscriptionInfo `json:"arg"`
-	Action   string           `json:"action"`
-	Data     []interface{}    `json:"data"`
-}
-
 type wsRequestInfo struct {
 	ID             string
 	Chan           chan *wsIncomingData
@@ -2275,6 +2267,7 @@ type wsRequestInfo struct {
 
 type wsIncomingData struct {
 	Event    string           `json:"event,omitempty"`
+	Action   string           `json:"action,omitempty"`
 	Argument SubscriptionInfo `json:"arg,omitempty"`
 	Code     string           `json:"code,omitempty"`
 	Msg      string           `json:"msg,omitempty"`
@@ -3150,39 +3143,4 @@ type wsRequestDataChannelsMultiplexer struct {
 	Register              chan *wsRequestInfo
 	Unregister            chan string
 	Message               chan *wsIncomingData
-}
-
-// Run this functions distributes websocket request responses to
-func (m *wsRequestDataChannelsMultiplexer) Run() {
-	ticker := time.NewTicker(time.Second)
-	for {
-		select {
-		case <-ticker.C:
-			for x, myChan := range m.WsResponseChannelsMap {
-				if myChan == nil {
-					delete(m.WsResponseChannelsMap, x)
-				}
-			}
-		case id := <-m.Unregister:
-			delete(m.WsResponseChannelsMap, id)
-		case reg := <-m.Register:
-			m.WsResponseChannelsMap[reg.ID] = reg
-		case msg := <-m.Message:
-			if msg.ID != "" && m.WsResponseChannelsMap[msg.ID] != nil {
-				m.WsResponseChannelsMap[msg.ID].Chan <- msg
-				continue
-			}
-			for _, myChan := range m.WsResponseChannelsMap {
-				if msg.Event == myChan.Event &&
-					msg.Argument.Channel == myChan.Channel &&
-					msg.Argument.InstrumentType == myChan.InstrumentType &&
-					msg.Argument.InstrumentID == myChan.InstrumentID {
-					myChan.Chan <- msg
-					break
-				} else if msg.Event == "error" && strings.Contains(msg.Msg, myChan.Channel) {
-					myChan.Chan <- msg
-				}
-			}
-		}
-	}
 }

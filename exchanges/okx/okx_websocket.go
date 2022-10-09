@@ -308,9 +308,8 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 			if strings.EqualFold(data.Event, "login") && data.Code == "0" {
 				ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
 				return nil
-			} else if strings.EqualFold(data.Event, "error") ||
-				data.Code == "60006" || data.Code == "60007" ||
-				data.Code == "60009" || data.Code == "60026" {
+			} else if strings.EqualFold(data.Event, "error") &&
+				(data.Code == "60022" || data.Code == "60009") {
 				ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
 				return fmt.Errorf("authentication failed with error: %v", ErrorCodes[data.Code])
 			}
@@ -551,20 +550,17 @@ func (ok *Okx) WsReadData() {
 func (ok *Okx) WsHandleData(respRaw []byte) error {
 	var resp wsIncomingData
 	err := json.Unmarshal(respRaw, &resp)
-	if err == nil && (resp.Event != "" || resp.Operation != "") && (resp.Event == "login" || resp.Event == "error" || resp.Event == "subscribe" || resp.Event == "unsubscribe" || resp.Operation == "subscribe" || resp.Operation == "unsubscribe" ||
-		resp.Operation == okxOpOrder || resp.Operation == okxOpBatchOrders || resp.Operation == okxOpCancelOrder || resp.Operation == okxOpBatchCancelOrders || resp.Operation == okxOpAmendOrder || resp.Operation == okxOpBatchAmendOrders) {
-		ok.WsResponseMultiplexer.Message <- &resp
-		return nil
-	}
-	var dataResponse WebsocketDataResponse
-	err = json.Unmarshal(respRaw, &dataResponse)
 	if err != nil {
 		return err
 	}
-	if len(dataResponse.Data) == 0 {
+	if resp.Event != "" || resp.Operation != "" {
+		ok.WsResponseMultiplexer.Message <- &resp
 		return nil
 	}
-	switch dataResponse.Argument.Channel {
+	if len(resp.Data) == 0 {
+		return nil
+	}
+	switch resp.Argument.Channel {
 	case okxChannelCandle1Y, okxChannelCandle6M, okxChannelCandle3M, okxChannelCandle1M, okxChannelCandle1W,
 		okxChannelCandle1D, okxChannelCandle2D, okxChannelCandle3D, okxChannelCandle5D, okxChannelCandle12H,
 		okxChannelCandle6H, okxChannelCandle4H, okxChannelCandle2H, okxChannelCandle1H, okxChannelCandle30m,
@@ -572,7 +568,7 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		okxChannelCandle3Mutc, okxChannelCandle1Mutc, okxChannelCandle1Wutc, okxChannelCandle1Dutc,
 		okxChannelCandle2Dutc, okxChannelCandle3Dutc, okxChannelCandle5Dutc, okxChannelCandle12Hutc,
 		okxChannelCandle6Hutc:
-		return ok.wsProcessCandles(&dataResponse)
+		return ok.wsProcessCandles(&resp)
 	case okxChannelIndexCandle1Y, okxChannelIndexCandle6M, okxChannelIndexCandle3M, okxChannelIndexCandle1M,
 		okxChannelIndexCandle1W, okxChannelIndexCandle1D, okxChannelIndexCandle2D, okxChannelIndexCandle3D,
 		okxChannelIndexCandle5D, okxChannelIndexCandle12H, okxChannelIndexCandle6H, okxChannelIndexCandle4H,
@@ -581,7 +577,7 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		okxChannelIndexCandle3Mutc, okxChannelIndexCandle1Mutc, okxChannelIndexCandle1Wutc,
 		okxChannelIndexCandle1Dutc, okxChannelIndexCandle2Dutc, okxChannelIndexCandle3Dutc, okxChannelIndexCandle5Dutc,
 		okxChannelIndexCandle12Hutc, okxChannelIndexCandle6Hutc:
-		return ok.wsProcessIndexCandles(&dataResponse)
+		return ok.wsProcessIndexCandles(&resp)
 	case okxChannelTickers:
 		return ok.wsProcessTickers(respRaw)
 	case okxChannelIndexTickers:
@@ -681,7 +677,7 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 }
 
 // wsProcessIndexCandles processes index candlestic data
-func (ok *Okx) wsProcessIndexCandles(intermediate *WebsocketDataResponse) error {
+func (ok *Okx) wsProcessIndexCandles(intermediate *wsIncomingData) error {
 	if intermediate == nil {
 		return errNilArgument
 	}
@@ -1081,7 +1077,7 @@ func (ok *Okx) wsProcessOrders(respRaw []byte) error {
 }
 
 // wsProcessCandles handler to get a list of candlestick messages.
-func (ok *Okx) wsProcessCandles(intermediate *WebsocketDataResponse) error {
+func (ok *Okx) wsProcessCandles(intermediate *wsIncomingData) error {
 	if intermediate == nil {
 		return errNilArgument
 	}
@@ -1230,6 +1226,10 @@ func (ok *Okx) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, err
 				})
 			}
 		}
+	}
+	if len(subscriptions) >= 240 {
+		log.Warnf(log.WebsocketMgr, "OKx has 240 subscription limit, only subscribing within limit. Requested %v", len(subscriptions))
+		subscriptions = subscriptions[:239]
 	}
 	return subscriptions, nil
 }
@@ -1625,6 +1625,43 @@ func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]OrderDat
 	}
 }
 
+// Run this functions distributes websocket request responses to
+func (m *wsRequestDataChannelsMultiplexer) Run() {
+	ticker := time.NewTicker(time.Second)
+	for {
+		select {
+		case <-ticker.C:
+			for x, myChan := range m.WsResponseChannelsMap {
+				if myChan == nil {
+					delete(m.WsResponseChannelsMap, x)
+				}
+			}
+		case id := <-m.Unregister:
+			delete(m.WsResponseChannelsMap, id)
+		case reg := <-m.Register:
+			m.WsResponseChannelsMap[reg.ID] = reg
+		case msg := <-m.Message:
+			if msg.ID != "" && m.WsResponseChannelsMap[msg.ID] != nil {
+				m.WsResponseChannelsMap[msg.ID].Chan <- msg
+				continue
+			}
+			for _, myChan := range m.WsResponseChannelsMap {
+				if msg.Event == "error" && myChan.Event == "login" &&
+					(msg.Code == "60009" || msg.Code == "60022") {
+					myChan.Chan <- msg
+				} else if msg.Event != myChan.Event ||
+					msg.Argument.Channel != myChan.Channel ||
+					msg.Argument.InstrumentType != myChan.InstrumentType ||
+					msg.Argument.InstrumentID != myChan.InstrumentID {
+					continue
+				}
+				myChan.Chan <- msg
+				break
+			}
+		}
+	}
+}
+
 // WsChannelSubscription send a subscription or unsubscription request for different channels through the websocket stream.
 func (ok *Okx) WsChannelSubscription(operation, channel string, assetType asset.Item, pair currency.Pair, tooglers ...bool) (*SubscriptionOperationResponse, error) {
 	if !(strings.EqualFold(operation, "subscribe") || strings.EqualFold(operation, "unsubscribe")) {
@@ -1706,11 +1743,6 @@ func (ok *Okx) WsChannelSubscription(operation, channel string, assetType asset.
 				data.Argument.InstrumentType == input.Arguments[0].InstrumentType &&
 				data.Argument.InstrumentID == input.Arguments[0].InstrumentID {
 				return data.copyToSubscriptionResponse(), nil
-			} else if strings.EqualFold(data.Event, "error") || strings.EqualFold(data.Code, "60012") {
-				if data.Msg == "" {
-					return nil, fmt.Errorf("%s %s error %v", channel, operation, data)
-				}
-				return nil, errors.New(data.Msg)
 			}
 			continue
 		case <-timer.C:
@@ -1816,11 +1848,6 @@ func (ok *Okx) WsAuthChannelSubscription(operation, channel string, assetType as
 				data.Argument.InstrumentType == input.Arguments[0].InstrumentType &&
 				data.Argument.InstrumentID == input.Arguments[0].InstrumentID {
 				return data.copyToSubscriptionResponse(), nil
-			} else if strings.EqualFold(data.Event, "error") || strings.EqualFold(data.Code, "60012") {
-				if data.Msg == "" {
-					return nil, fmt.Errorf("%s %s error %v", channel, operation, data)
-				}
-				return nil, fmt.Errorf("error code:%s message: %s", data.Code, data.Msg)
 			}
 			continue
 		case <-timer.C:
@@ -2005,11 +2032,6 @@ func (ok *Okx) PriceLimitSubscription(operation, instrumentID string) (*Subscrip
 		case data := <-wsResponse:
 			if strings.EqualFold(data.Event, operation) && data.Argument.Channel == input.Arguments[0].Channel && data.Argument.InstrumentType == input.Arguments[0].InstrumentType && data.Argument.InstrumentID == input.Arguments[0].InstrumentID {
 				return data.copyToSubscriptionResponse(), nil
-			} else if strings.EqualFold(data.Event, "error") || strings.EqualFold(data.Code, "60012") {
-				if data.Msg == "" {
-					return nil, fmt.Errorf("%s %s error %v", okxChannelPriceLimit, operation, data)
-				}
-				return nil, errors.New(data.Msg)
 			}
 			continue
 		case <-timer.C:
@@ -2044,7 +2066,9 @@ func (ok *Okx) FundingRateSubscription(operation string, assetType asset.Item, p
 // IndexCandlesticksSubscription a method to subscribe and unsubscribe to "index-candle*" channel
 // to retrieve the candlesticks data of the index. Data will be pushed every 500 ms.
 func (ok *Okx) IndexCandlesticksSubscription(operation, channel string, assetType asset.Item, pair currency.Pair) (*SubscriptionOperationResponse, error) {
-	if !(channel == okxChannelIndexCandle1Y || channel == okxChannelIndexCandle6M || channel == okxChannelIndexCandle3M || channel == okxChannelIndexCandle1M || channel == okxChannelIndexCandle1W || channel == okxChannelIndexCandle1D || channel == okxChannelIndexCandle2D || channel == okxChannelIndexCandle3D || channel == okxChannelIndexCandle5D || channel == okxChannelIndexCandle12H || channel == okxChannelIndexCandle6H || channel == okxChannelIndexCandle4H || channel == okxChannelIndexCandle2H || channel == okxChannelIndexCandle1H || channel == okxChannelIndexCandle30m || channel == okxChannelIndexCandle15m || channel == okxChannelIndexCandle5m || channel == okxChannelIndexCandle3m || channel == okxChannelIndexCandle1m || channel == okxChannelIndexCandle1Yutc || channel == okxChannelIndexCandle3Mutc || channel == okxChannelIndexCandle1Mutc || channel == okxChannelIndexCandle1Wutc || channel == okxChannelIndexCandle1Dutc || channel == okxChannelIndexCandle2Dutc || channel == okxChannelIndexCandle3Dutc || channel == okxChannelIndexCandle5Dutc || channel == okxChannelIndexCandle12Hutc || channel == okxChannelIndexCandle6Hutc) {
+	empty := struct{}{}
+	channelNameMap := map[string]struct{}{okxChannelIndexCandle1Y: empty, okxChannelIndexCandle6M: empty, okxChannelIndexCandle3M: empty, okxChannelIndexCandle1M: empty, okxChannelIndexCandle1W: empty, okxChannelIndexCandle1D: empty, okxChannelIndexCandle2D: empty, okxChannelIndexCandle3D: empty, okxChannelIndexCandle5D: empty, okxChannelIndexCandle12H: empty, okxChannelIndexCandle6H: empty, okxChannelIndexCandle4H: empty, okxChannelIndexCandle2H: empty, okxChannelIndexCandle1H: empty, okxChannelIndexCandle30m: empty, okxChannelIndexCandle15m: empty, okxChannelIndexCandle5m: empty, okxChannelIndexCandle3m: empty, okxChannelIndexCandle1m: empty, okxChannelIndexCandle1Yutc: empty, okxChannelIndexCandle3Mutc: empty, okxChannelIndexCandle1Mutc: empty, okxChannelIndexCandle1Wutc: empty, okxChannelIndexCandle1Dutc: empty, okxChannelIndexCandle2Dutc: empty, okxChannelIndexCandle3Dutc: empty, okxChannelIndexCandle5Dutc: empty, okxChannelIndexCandle12Hutc: empty, okxChannelIndexCandle6Hutc: empty}
+	if _, ok := channelNameMap[channel]; !ok {
 		return nil, errMissingValidChannelInformation
 	}
 	return ok.WsChannelSubscription(operation, channel, assetType, pair, false, true)
