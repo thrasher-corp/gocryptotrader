@@ -14,9 +14,30 @@ type TimeInterval int
 const (
 	// Order book depth intervals
 
-	OrderbookIntervalZero        = "0" //  means no aggregation is applied. default to 0
-	OrderbookIntervalZeroPt1     = "0.1"
-	OrderbookIntervalZeroPtZero1 = "0.01"
+	orderbookIntervalZero        = "0" // orderbookIntervalZero means no aggregation is applied. default to 0
+	orderbookIntervalZeroPt1     = "0.1"
+	orderbookIntervalZeroPtZero1 = "0.01"
+
+	// Settles
+	settleBTC  = "btc"
+	settleUSD  = "usd"
+	settleUSDT = "usdt"
+
+	// time in force variables
+
+	gct = "gct" // good-'til-canceled
+	ioc = "ioc" // immediate-or-cancel
+	poc = "poc"
+	foc = "foc" // fill-or-kill
+
+	// frequently used order Status
+
+	statusOpen     = "open"
+	statusFinished = "finished"
+
+	// Loan sides
+	sideLend   = "lend"
+	sideBorrow = "borrow"
 )
 
 // TimeInterval vars
@@ -32,129 +53,6 @@ var (
 	TimeIntervalSixHours       = TimeInterval(6 * 60 * 60)
 	TimeIntervalDay            = TimeInterval(60 * 60 * 24)
 )
-
-// MarketInfoResponse holds the market info data
-// type MarketInfoResponse struct {
-// 	Result string                    `json:"result"`
-// 	Pairs  []MarketInfoPairsResponse `json:"pairs"`
-// }
-
-// // MarketInfoPairsResponse holds the market info response data
-// type MarketInfoPairsResponse struct {
-// 	Symbol string
-// 	// DecimalPlaces symbol price accuracy
-// 	DecimalPlaces float64
-// 	// MinAmount minimum order amount
-// 	MinAmount float64
-// 	// Fee transaction fee
-// 	Fee float64
-// }
-
-// // BalancesResponse holds the user balances
-// type BalancesResponse struct {
-// 	Result    string      `json:"result"`
-// 	Available interface{} `json:"available"`
-// 	Locked    interface{} `json:"locked"`
-// }
-
-// // KlinesRequestParams represents Klines request data.
-// type KlinesRequestParams struct {
-// 	Symbol   string // Required field; example LTCBTC,BTCUSDT
-// 	HourSize int    // How many hours of data
-// 	GroupSec string
-// }
-
-// // KLineResponse holds the kline response data
-// type KLineResponse struct {
-// 	ID        float64
-// 	KlineTime time.Time
-// 	Open      float64
-// 	Time      float64
-// 	High      float64
-// 	Low       float64
-// 	Close     float64
-// 	Volume    float64
-// 	Amount    float64 `db:"amount"`
-// }
-
-// // TickerResponse  holds the ticker response data
-// type TickerResponse struct {
-// 	Period      int64   `json:"period"`
-// 	BaseVolume  float64 `json:"baseVolume,string"`
-// 	Change      float64 `json:"change,string"`
-// 	Close       float64 `json:"close,string"`
-// 	High        float64 `json:"high,string"`
-// 	Last        float64 `json:"last,string"`
-// 	Low         float64 `json:"low,string"`
-// 	Open        float64 `json:"open,string"`
-// 	QuoteVolume float64 `json:"quoteVolume,string"`
-// }
-
-// // SpotNewOrderRequestParams Order params
-// type SpotNewOrderRequestParams struct {
-// 	Amount float64 `json:"amount"` // Order quantity
-// 	Price  float64 `json:"price"`  // Order price
-// 	Symbol string  `json:"symbol"` // Trading pair; btc_usdt, eth_btc......
-// 	Type   string  `json:"type"`   // Order type (buy or sell),
-// }
-
-// // SpotNewOrderResponse Order response
-// type SpotNewOrderResponse struct {
-// 	OrderNumber  int64       `json:"orderNumber"`         // OrderID number
-// 	Price        float64     `json:"rate,string"`         // Order price
-// 	LeftAmount   float64     `json:"leftAmount,string"`   // The remaining amount to fill
-// 	FilledAmount float64     `json:"filledAmount,string"` // The filled amount
-// 	Filledrate   interface{} `json:"filledRate"`          // FilledPrice. if we send a market order, the exchange returns float64.
-// 	//			  if we set a limit order, which will remain in the order book, the exchange will return the string
-// }
-
-// // OpenOrdersResponse the main response from GetOpenOrders
-// type OpenOrdersResponse struct {
-// 	Code    int         `json:"code"`
-// 	Elapsed string      `json:"elapsed"`
-// 	Message string      `json:"message"`
-// 	Orders  []OpenOrder `json:"orders"`
-// 	Result  string      `json:"result"`
-// }
-
-// // OpenOrder details each open order
-// type OpenOrder struct {
-// 	Amount        float64 `json:"amount,string"`
-// 	CurrencyPair  string  `json:"currencyPair"`
-// 	FilledAmount  float64 `json:"filledAmount,string"`
-// 	FilledRate    float64 `json:"filledRate"`
-// 	InitialAmount float64 `json:"initialAmount"`
-// 	InitialRate   float64 `json:"initialRate"`
-// 	OrderNumber   string  `json:"orderNumber"`
-// 	Rate          float64 `json:"rate"`
-// 	Status        string  `json:"status"`
-// 	Timestamp     int64   `json:"timestamp"`
-// 	Total         float64 `json:"total,string"`
-// 	Type          string  `json:"type"`
-// }
-
-// // TradHistoryResponse The full response for retrieving all user trade history
-// type TradHistoryResponse struct {
-// 	Code    int              `json:"code,omitempty"`
-// 	Elapsed string           `json:"elapsed,omitempty"`
-// 	Message string           `json:"message"`
-// 	Trades  []TradesResponse `json:"trades"`
-// 	Result  string           `json:"result"`
-// }
-
-// // TradesResponse details trade history
-// type TradesResponse struct {
-// 	ID       int64   `json:"tradeID"`
-// 	OrderID  int64   `json:"orderNumber"`
-// 	Pair     string  `json:"pair"`
-// 	Type     string  `json:"type"`
-// 	Side     string  `json:"side"`
-// 	Rate     float64 `json:"rate,string"`
-// 	Amount   float64 `json:"amount,string"`
-// 	Total    float64 `json:"total"`
-// 	Time     string  `json:"date"`
-// 	TimeUnix int64   `json:"time_unix"`
-// }
 
 // WithdrawalFees the large list of predefined withdrawal fees
 // Prone to change
@@ -976,13 +874,13 @@ func (a *OrderbookData) MakeOrderbook() (*Orderbook, error) {
 	asks := make([]OrderbookItem, len(a.Asks))
 	bids := make([]OrderbookItem, len(a.Bids))
 	for x := range a.Asks {
-		price, er := strconv.ParseFloat(a.Asks[x][0], 64)
-		if er != nil {
-			return nil, er
+		price, err := strconv.ParseFloat(a.Asks[x][0], 64)
+		if err != nil {
+			return nil, err
 		}
-		amount, er := strconv.ParseFloat(a.Asks[x][1], 64)
-		if er != nil {
-			return nil, er
+		amount, err := strconv.ParseFloat(a.Asks[x][1], 64)
+		if err != nil {
+			return nil, err
 		}
 		asks[x] = OrderbookItem{
 			Price:  price,
@@ -990,13 +888,13 @@ func (a *OrderbookData) MakeOrderbook() (*Orderbook, error) {
 		}
 	}
 	for x := range a.Bids {
-		price, er := strconv.ParseFloat(a.Bids[x][0], 64)
-		if er != nil {
-			return nil, er
+		price, err := strconv.ParseFloat(a.Bids[x][0], 64)
+		if err != nil {
+			return nil, err
 		}
-		amount, er := strconv.ParseFloat(a.Bids[x][1], 64)
-		if er != nil {
-			return nil, er
+		amount, err := strconv.ParseFloat(a.Bids[x][1], 64)
+		if err != nil {
+			return nil, err
 		}
 		bids[x] = OrderbookItem{
 			Price:  price,
@@ -1188,7 +1086,7 @@ type FuturesFundingRate struct {
 	Rate      float64   `json:"r"`
 }
 
-// InsuranceBalance
+// InsuranceBalance represents futures insurance balance item.
 type InsuranceBalance struct {
 	Timestamp time.Time `json:"t"`
 	Balance   float64   `json:"b"`
@@ -1237,6 +1135,7 @@ type LiquidationHistory struct {
 	Left             int       `json:"left"`
 }
 
+// DeliveryContract represents a delivery contract instance detail.
 type DeliveryContract struct {
 	Name                string    `json:"name"`
 	Underlying          string    `json:"underlying"`
@@ -1438,7 +1337,7 @@ type ContractClosePosition struct {
 
 // OptionOrderParam represents option order request body
 type OptionOrderParam struct {
-	OrderSize   float64 `json:"size"`              //** [[Note]] Order size. Specify positive number to make a bid, and negative number to ask
+	OrderSize   float64 `json:"size"`              // Order size. Specify positive number to make a bid, and negative number to ask
 	Iceberg     float64 `json:"iceberg,omitempty"` // Display size for iceberg order. 0 for non-iceberg. Note that you will have to pay the taker fee for the hidden size
 	Contract    string  `json:"contract"`
 	Text        string  `json:"text,omitempty"`
@@ -2233,7 +2132,7 @@ type LiquidationHistoryItem struct {
 	Left       int       `json:"left"`
 }
 
-// CountdownParams represents query paramters for countdown cancel order
+// CountdownParams represents query parameters for countdown cancel order
 type CountdownParams struct {
 	Timeout  int           `json:"timeout"` // In Seconds
 	Contract currency.Pair `json:"contract"`
@@ -2460,7 +2359,7 @@ type WsOrderbookSnapshot struct {
 	Asks         [][2]string `json:"asks"`
 }
 
-// WsOrder represents an order push data through the websocket channel.
+// WsSpotOrder represents an order push data through the websocket channel.
 type WsSpotOrder struct {
 	ID                 string    `json:"id,omitempty"`
 	User               int64     `json:"user"`

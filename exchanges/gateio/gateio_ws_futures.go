@@ -23,8 +23,8 @@ import (
 )
 
 const (
-	futuresWebsocket_btc_url  = "wss://fx-ws.gateio.ws/v4/ws/btc"
-	futuresWebsocket_usdt_url = "wss://fx-ws.gateio.ws/v4/ws/usdt"
+	futuresWebsocketBtcURL  = "wss://fx-ws.gateio.ws/v4/ws/btc"
+	futuresWebsocketUsdtURL = "wss://fx-ws.gateio.ws/v4/ws/usdt"
 
 	futuresPingChannel            = "futures.ping"
 	futuresTickersChannel         = "futures.tickers"
@@ -56,17 +56,17 @@ var defaultFuturesSubscriptions = []string{
 
 var futuresAssetType = asset.Futures
 
-// WsFuturesConnect initiates a websocket connection
+// WsFuturesConnect initiates a websocket connection for futures account
 func (g *Gateio) WsFuturesConnect() error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := g.Websocket.SetWebsocketURL(futuresWebsocket_btc_url, false, true)
+	err := g.Websocket.SetWebsocketURL(futuresWebsocketBtcURL, false, true)
 	if err != nil {
 		return err
 	}
-	err = g.Websocket.SetWebsocketURL(futuresWebsocket_usdt_url, true, true)
+	err = g.Websocket.SetWebsocketURL(futuresWebsocketUsdtURL, true, true)
 	if err != nil {
 		return err
 	}
@@ -118,12 +118,13 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions() ([]stream.ChannelSubscrip
 	for i := range defaultFuturesSubscriptions {
 		for j := range pairs {
 			params := make(map[string]interface{})
-			if strings.EqualFold(defaultFuturesSubscriptions[i], futuresOrderbookChannel) {
+			switch defaultFuturesSubscriptions[i] {
+			case futuresOrderbookChannel:
 				params["limit"] = 100
 				params["interval"] = "0"
-			} else if strings.EqualFold(defaultFuturesSubscriptions[i], futuresCandlesticksChannel) {
+			case futuresCandlesticksChannel:
 				params["interval"] = kline.FiveMin
-			} else if strings.EqualFold(defaultFuturesSubscriptions[i], futuresOrderbookUpdateChannel) {
+			case futuresOrderbookUpdateChannel:
 				params["frequency"] = kline.ThousandMilliseconds
 				params["level"] = "100"
 			}

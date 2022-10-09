@@ -32,6 +32,7 @@ var defaultDeliveryFuturesSubscriptions = []string{
 	futuresCandlesticksChannel,
 }
 
+// WsDeliveryFuturesConnect initiates a websocket connection for delivery futures account
 func (g *Gateio) WsDeliveryFuturesConnect() error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
@@ -70,7 +71,7 @@ func (g *Gateio) WsDeliveryFuturesConnect() error {
 	return nil
 }
 
-// GenerateDelliveryFuturesDefaultSubscriptions returns delivery futures default subscriptions params.
+// GenerateDeliveryFuturesDefaultSubscriptions returns delivery futures default subscriptions params.
 func (g *Gateio) GenerateDeliveryFuturesDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	_, err := g.GetCredentials(context.Background())
 	if err != nil {

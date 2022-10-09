@@ -638,11 +638,12 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 	var pairs []currency.Pair
 	var err error
 	for i := range defaultSubscriptions {
-		if defaultSubscriptions[i] == marginBalancesChannel {
+		switch defaultSubscriptions[i] {
+		case marginBalancesChannel:
 			pairs, err = g.GetEnabledPairs(asset.Margin)
-		} else if defaultSubscriptions[i] == crossMarginBalanceChannel {
+		case crossMarginBalanceChannel:
 			pairs, err = g.GetEnabledPairs(asset.CrossMargin)
-		} else {
+		default:
 			pairs, err = g.GetEnabledPairs(asset.Spot)
 		}
 		if err != nil {
@@ -650,12 +651,13 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 		}
 		for j := range pairs {
 			params := make(map[string]interface{})
-			if strings.EqualFold(defaultSubscriptions[i], spotOrderbookChannel) {
+			switch defaultSubscriptions[i] {
+			case spotOrderbookChannel:
 				params["level"] = 100
 				params["interval"] = kline.HundredMilliseconds
-			} else if strings.EqualFold(defaultSubscriptions[i], spotCandlesticksChannel) {
+			case spotCandlesticksChannel:
 				params["interval"] = kline.FiveMin
-			} else if strings.EqualFold(defaultSubscriptions[i], spotOrderbookUpdateChannel) {
+			case spotOrderbookUpdateChannel:
 				params["interval"] = kline.ThousandMilliseconds
 			}
 			fpair, err := g.FormatExchangeCurrency(pairs[j], asset.Spot)
@@ -747,51 +749,96 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 				return nil, err
 			}
 			params = append(params, uly)
-		case optionsBalancesChannel: // options.balance channel does not require neither underlying not contract
+		case optionsBalancesChannel:
+			// options.balance channel does not require neither underlying not contract
 		default:
-			// contract := strings.ReplaceAll(channelsToSubscribe[i].Currency.String(), currency.DashDelimiter, currency.UnderscoreDelimiter)
+			channelsToSubscribe[i].Currency.Delimiter = currency.UnderscoreDelimiter
 			params = append(params, channelsToSubscribe[i].Currency.String())
 		}
-
-		if strings.EqualFold(channelsToSubscribe[i].Channel, spotOrderbookChannel) {
+		switch channelsToSubscribe[i].Channel {
+		case spotOrderbookChannel:
+			interval, okay := channelsToSubscribe[i].Params["interval"].(kline.Interval)
+			if !okay {
+				return nil, errors.New("invalid interval parameter")
+			}
+			level, okay := channelsToSubscribe[i].Params["level"].(int)
+			if !okay {
+				return nil, errors.New("invalid spot order level")
+			}
 			params = append(params,
-				strconv.Itoa(channelsToSubscribe[i].Params["level"].(int)),
-				g.GetIntervalString(channelsToSubscribe[i].Params["interval"].(kline.Interval)))
-		} else if strings.EqualFold(channelsToSubscribe[i].Channel, futuresOrderbookChannel) {
+				strconv.Itoa(level),
+				g.GetIntervalString(interval))
+		case futuresOrderbookChannel:
+			limit, ok := channelsToSubscribe[i].Params["limit"].(int)
+			if !ok {
+				return nil, errors.New("invlaid futures orderbook limit")
+			}
+			interval, ok := channelsToSubscribe[i].Params["interval"].(string)
+			if !ok {
+				return nil, errors.New("missing futures orderbook interval parameter")
+			}
 			params = append(params,
-				strconv.Itoa(channelsToSubscribe[i].Params["limit"].(int)), channelsToSubscribe[i].Params["interval"].(string))
-		} else if strings.EqualFold(channelsToSubscribe[i].Channel, optionsOrderbookChannel) {
+				strconv.Itoa(limit), interval)
+		case optionsOrderbookChannel:
+			accuracy, ok := channelsToSubscribe[i].Params["accuracy"].(string)
+			if !ok {
+				return nil, errors.New("invalid options orderbook accuracy parameter")
+			}
+			level, ok := channelsToSubscribe[i].Params["level"].(string)
+			if !ok {
+				return nil, errors.New("invalid options orderbook level parameter")
+			}
 			params = append(
 				params,
-				channelsToSubscribe[i].Params["accuracy"].(string),
-				channelsToSubscribe[i].Params["level"].(string),
+				accuracy,
+				level,
 			)
-		} else if strings.EqualFold(channelsToSubscribe[i].Channel, futuresOrderbookUpdateChannel) {
+		case futuresOrderbookUpdateChannel:
+			interval, ok := channelsToSubscribe[i].Params["frequency"].(kline.Interval)
+			if !ok {
+				return nil, errors.New("missing frequency for futures orderbook update")
+			}
 			params = append(params,
-				g.GetIntervalString(channelsToSubscribe[i].Params["frequency"].(kline.Interval)))
+				g.GetIntervalString(interval))
 			if value, ok := channelsToSubscribe[i].Params["level"].(string); ok {
 				params = append(params, value)
 			}
-		} else if strings.EqualFold(channelsToSubscribe[i].Channel, optionsOrderbookUpdateChannel) {
+		case optionsOrderbookUpdateChannel:
+			interval, ok := channelsToSubscribe[i].Params["interval"].(kline.Interval)
+			if !ok {
+				return nil, errors.New("missing options orderbook interval")
+			}
 			params = append(params,
-				g.GetIntervalString(channelsToSubscribe[i].Params["interval"].(kline.Interval)))
+				g.GetIntervalString(interval))
 			if value, ok := channelsToSubscribe[i].Params["level"].(int); ok {
 				params = append(params, strconv.Itoa(value))
 			}
-		} else if strings.EqualFold(channelsToSubscribe[i].Channel, futuresCandlesticksChannel) {
+		case futuresCandlesticksChannel:
+			interval, ok := channelsToSubscribe[i].Params["interval"].(kline.Interval)
+			if !ok {
+				return nil, errors.New("missing futures candlesticks interval")
+			}
 			params = append(
-				[]string{g.GetIntervalString(channelsToSubscribe[i].Params["interval"].(kline.Interval))},
+				[]string{g.GetIntervalString(interval)},
 				params...)
-		} else if strings.EqualFold(channelsToSubscribe[i].Channel, optionsContractCandlesticksChannel) ||
-			strings.EqualFold(channelsToSubscribe[i].Channel, optionsUnderlyingCandlesticksChannel) {
+		case optionsContractCandlesticksChannel, optionsUnderlyingCandlesticksChannel:
+			interval, ok := channelsToSubscribe[i].Params["interval"].(kline.Interval)
+			if !ok {
+				return nil, errors.New("missing options underlying candlesticks interval")
+			}
 			params = append(
-				[]string{g.GetIntervalString(channelsToSubscribe[i].Params["interval"].(kline.Interval))},
+				[]string{g.GetIntervalString(interval)},
 				params...)
-		} else if strings.EqualFold(channelsToSubscribe[i].Channel, spotCandlesticksChannel) {
+		case spotCandlesticksChannel:
+			interval, ok := channelsToSubscribe[i].Params["interval"].(kline.Interval)
+			if !ok {
+				return nil, errors.New("missing spot candlesticks interval")
+			}
 			params = append(
-				[]string{g.GetIntervalString(channelsToSubscribe[i].Params["interval"].(kline.Interval))},
+				[]string{g.GetIntervalString(interval)},
 				params...)
-		} else if g.Websocket.CanUseAuthenticatedEndpoints() && (channelsToSubscribe[i].Channel == spotUserTradesChannel ||
+		}
+		if g.Websocket.CanUseAuthenticatedEndpoints() && (channelsToSubscribe[i].Channel == spotUserTradesChannel ||
 			channelsToSubscribe[i].Channel == spotBalancesChannel ||
 			channelsToSubscribe[i].Channel == marginBalancesChannel ||
 			channelsToSubscribe[i].Channel == spotFundingBalanceChannel ||
@@ -831,7 +878,11 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 				Sign:   sigTemp,
 			}
 		} else if channelsToSubscribe[i].Channel == spotOrderbookUpdateChannel {
-			params = append(params, g.GetIntervalString(channelsToSubscribe[i].Params["interval"].(kline.Interval)))
+			interval, ok := channelsToSubscribe[i].Params["interval"].(kline.Interval)
+			if !ok {
+				return nil, errors.New("missing spot orderbook interval")
+			}
+			params = append(params, g.GetIntervalString(interval))
 		}
 		payloads[i] = WsInput{
 			ID:      g.Websocket.Conn.GenerateMessageID(false),
@@ -841,7 +892,6 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 			Auth:    auth,
 			Time:    timestamp.Unix(),
 		}
-
 	}
 	return payloads, nil
 }

@@ -112,13 +112,13 @@ func (g *Gateio) GenerateOptionsDefaultSubscriptions() ([]stream.ChannelSubscrip
 	for i := range defaultOptionsSubscriptions {
 		for j := range pairs {
 			params := make(map[string]interface{})
-			if strings.EqualFold(defaultOptionsSubscriptions[i], optionsOrderbookChannel) {
+			switch defaultOptionsSubscriptions[i] {
+			case optionsOrderbookChannel:
 				params["accuracy"] = "0"
 				params["level"] = "20"
-			} else if strings.EqualFold(defaultOptionsSubscriptions[i], optionsContractCandlesticksChannel) ||
-				strings.EqualFold(defaultOptionsSubscriptions[i], optionsUnderlyingCandlesticksChannel) {
+			case optionsContractCandlesticksChannel, optionsUnderlyingCandlesticksChannel:
 				params["interval"] = kline.FiveMin
-			} else if strings.EqualFold(defaultOptionsSubscriptions[i], optionsOrderbookUpdateChannel) {
+			case optionsOrderbookUpdateChannel:
 				params["interval"] = kline.ThousandMilliseconds
 				params["level"] = 50
 			}

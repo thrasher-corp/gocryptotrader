@@ -19,7 +19,7 @@ func (a *CrossMarginAccountHistoryItem) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, chil); err != nil {
 		return err
 	}
-	a.Time = time.Unix(int64(chil.Time), 0)
+	a.Time = time.Unix(chil.Time, 0)
 	return nil
 }
 
@@ -66,8 +66,8 @@ func (a *RepaymentHistoryItem) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(a),
 	}
-	if er := json.Unmarshal(data, chil); er != nil {
-		return er
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
 	}
 	a.CreateTime = time.Unix(chil.CreateTime, 0)
 	return nil
@@ -82,8 +82,8 @@ func (a *TriggerTimeResponse) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(a),
 	}
-	if er := json.Unmarshal(data, chil); er != nil {
-		return er
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
 	}
 	a.TriggerTime = time.Unix(chil.TriggerTime, 0)
 	return nil
@@ -151,8 +151,8 @@ func (a *SpotPriceTriggeredOrder) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(a),
 	}
-	if er := json.Unmarshal(data, chil); er != nil {
-		return er
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
 	}
 	a.CreationTime = time.Unix(chil.CreationTime, 0)
 	a.FireTime = time.Unix(chil.FireTime, 0)
@@ -169,8 +169,8 @@ func (a *SpotPersonalTradeHistory) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(a),
 	}
-	if er := json.Unmarshal(data, chil); er != nil {
-		return er
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
 	}
 	a.CreateTime = time.Unix(int64(chil.CreateTime), 0)
 	a.CreateTimeMs = time.UnixMilli(int64(chil.CreateTime))
@@ -186,8 +186,8 @@ func (a *SubAccountTransferResponse) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(a),
 	}
-	if er := json.Unmarshal(data, chil); er != nil {
-		return er
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
 	}
 	a.Timestamp = time.Unix(int64(chil.Timestamp), 0)
 	return nil
@@ -202,8 +202,8 @@ func (a *WithdrawalResponse) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(a),
 	}
-	if er := json.Unmarshal(data, chil); er != nil {
-		return er
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
 	}
 	a.Timestamp = time.Unix(int64(chil.Timestamp), 0)
 	return nil
@@ -218,8 +218,8 @@ func (a *OptionTradingHistory) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(a),
 	}
-	if er := json.Unmarshal(data, chil); er != nil {
-		return er
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
 	}
 	a.CreateTime = time.Unix(int64(chil.CreateTime), 0)
 	return nil
@@ -234,8 +234,8 @@ func (a *SettlementHistoryItem) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(a),
 	}
-	if er := json.Unmarshal(data, chil); er != nil {
-		return er
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
 	}
 	a.Time = time.Unix(int64(chil.Time), 0)
 	return nil
@@ -251,8 +251,8 @@ func (a *OptionOrderResponse) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(a),
 	}
-	if er := json.Unmarshal(data, chil); er != nil {
-		return er
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
 	}
 	a.CreateTime = time.Unix(int64(chil.CreateTime), 0)
 	a.FinishTime = time.Unix(int64(chil.FinishTime), 0)
@@ -268,8 +268,8 @@ func (a *ContractClosePosition) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(a),
 	}
-	if er := json.Unmarshal(data, chil); er != nil {
-		return er
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
 	}
 	a.PositionCloseTime = time.Unix(int64(chil.PositionCloseTime), 0)
 	return nil
@@ -284,13 +284,14 @@ func (a *AccountBook) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(a),
 	}
-	if er := json.Unmarshal(data, chil); er != nil {
-		return er
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
 	}
 	a.ChangeTime = time.Unix(int64(chil.ChangeTime), 0)
 	return nil
 }
 
+// UnmarshalJSON decerializes json data into CurrencyPairDetail
 func (a *CurrencyPairDetail) UnmarshalJSON(data []byte) error {
 	type Alias CurrencyPairDetail
 	chil := struct {
@@ -301,21 +302,32 @@ func (a *CurrencyPairDetail) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(a),
 	}
-	if er := json.Unmarshal(data, &chil); er != nil {
-		return er
+	err := json.Unmarshal(data, &chil)
+	if err != nil {
+		return err
 	}
-	if val, er := strconv.ParseFloat(chil.Fee, 64); er == nil {
-		a.Fee = val
+	if chil.Fee != "" {
+		a.Fee, err = strconv.ParseFloat(chil.Fee, 64)
+		if err != nil {
+			return err
+		}
 	}
-	if val, er := strconv.ParseFloat(chil.MinBaseAmount, 64); er == nil {
-		a.MinBaseAmount = val
+	if chil.MinBaseAmount != "" {
+		a.MinBaseAmount, err = strconv.ParseFloat(chil.MinBaseAmount, 64)
+		if err != nil {
+			return err
+		}
 	}
-	if val, er := strconv.ParseFloat(chil.MinQuoteAmount, 64); er == nil {
-		a.MinQuoteAmount = val
+	if chil.MinQuoteAmount != "" {
+		a.MinQuoteAmount, err = strconv.ParseFloat(chil.MinQuoteAmount, 64)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
+// UnmarshalJSON decerializes json, and timestamp information
 func (a *Ticker) UnmarshalJSON(data []byte) error {
 	type Alias Ticker
 	child := &struct {
@@ -333,34 +345,49 @@ func (a *Ticker) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(a),
 	}
-	var er error
-	if er = json.Unmarshal(data, child); er != nil {
-		return er
+	err := json.Unmarshal(data, child)
+	if err != nil {
+		return err
 	}
-	var val float64
-	if val, er = strconv.ParseFloat(child.BaseVolume, 64); er == nil {
-		a.BaseVolume = val
+	if child.BaseVolume != "" {
+		if a.BaseVolume, err = strconv.ParseFloat(child.BaseVolume, 64); err != nil {
+			return err
+		}
 	}
-	if val, er = strconv.ParseFloat(child.QuoteVolume, 64); er == nil {
-		a.QuoteVolume = val
+	if child.QuoteVolume != "" {
+		if a.QuoteVolume, err = strconv.ParseFloat(child.QuoteVolume, 64); err != nil {
+			return err
+		}
 	}
-	if val, er = strconv.ParseFloat(child.High24H, 64); er == nil {
-		a.High24H = val
+	if child.High24H != "" {
+		if a.High24H, err = strconv.ParseFloat(child.High24H, 64); err != nil {
+			return err
+		}
 	}
-	if val, er = strconv.ParseFloat(child.Low24H, 64); er == nil {
-		a.Low24H = val
+	if child.Low24H != "" {
+		if a.Low24H, err = strconv.ParseFloat(child.Low24H, 64); err != nil {
+			return err
+		}
 	}
-	if val, er = strconv.ParseFloat(child.LowestAsk, 64); er == nil {
-		a.LowestAsk = val
+	if child.LowestAsk != "" {
+		if a.LowestAsk, err = strconv.ParseFloat(child.LowestAsk, 64); err != nil {
+			return err
+		}
 	}
-	if val, er = strconv.ParseFloat(child.HighestBid, 64); er == nil {
-		a.HighestBid = val
+	if child.HighestBid != "" {
+		if a.HighestBid, err = strconv.ParseFloat(child.HighestBid, 64); err != nil {
+			return err
+		}
 	}
-	if val, er = strconv.ParseFloat(child.EtfLeverage, 64); er == nil {
-		a.EtfLeverage = val
+	if child.EtfLeverage != "" {
+		if a.EtfLeverage, err = strconv.ParseFloat(child.EtfLeverage, 64); err != nil {
+			return err
+		}
 	}
-	if val, er = strconv.ParseFloat(child.Last, 64); er == nil {
-		a.Last = val
+	if child.Last != "" {
+		if a.Last, err = strconv.ParseFloat(child.Last, 64); err != nil {
+			return err
+		}
 	}
 	a.EtfPreTimestamp = time.Unix(child.EtfPreTimestamp, 0)
 	return nil
@@ -376,8 +403,8 @@ func (a *OrderbookData) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(a),
 	}
-	if er := json.Unmarshal(data, chil); er != nil {
-		return er
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
 	}
 	a.Current = time.Unix(int64(math.Round(chil.Current)), 0)
 	a.Update = time.Unix(int64(math.Round(chil.Update)), 0)
@@ -429,17 +456,17 @@ func (a *Orderbook) UnmarshalJSON(data []byte) error {
 		Bids    []askorbid `json:"asks"`
 		Asks    []askorbid `json:"bids"`
 	}{}
-	if er := json.Unmarshal(data, &chil); er != nil {
-		return er
+	if err := json.Unmarshal(data, &chil); err != nil {
+		return err
 	}
 	a.Current = time.Unix(int64(chil.Current), 0)
 	a.Update = time.Unix(int64(chil.Update), 0)
 	asks := make([]OrderbookItem, len(chil.Asks))
 	bids := make([]OrderbookItem, len(chil.Bids))
 	for x := range chil.Asks {
-		val, er := strconv.ParseFloat(chil.Asks[x].Price, 64)
-		if er != nil {
-			return er
+		val, err := strconv.ParseFloat(chil.Asks[x].Price, 64)
+		if err != nil {
+			return err
 		}
 		asks[x] = OrderbookItem{
 			Price:  val,
@@ -447,9 +474,9 @@ func (a *Orderbook) UnmarshalJSON(data []byte) error {
 		}
 	}
 	for x := range chil.Bids {
-		val, er := strconv.ParseFloat(chil.Bids[x].Price, 64)
-		if er != nil {
-			return er
+		val, err := strconv.ParseFloat(chil.Bids[x].Price, 64)
+		if err != nil {
+			return err
 		}
 		bids[x] = OrderbookItem{
 			Price:  val,
@@ -471,8 +498,8 @@ func (a *Trade) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(a),
 	}
-	if er := json.Unmarshal(data, chil); er != nil {
-		return er
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
 	}
 	a.TradingTime = time.Unix(chil.TradingTime, 0)
 	a.CreateTimeMs = time.UnixMilli(int64(math.Round(chil.CreateTimeMs)))
@@ -489,8 +516,8 @@ func (a *FuturesContract) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(a),
 	}
-	if er := json.Unmarshal(data, chil); er != nil {
-		return er
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
 	}
 	a.FundingNextApply = time.Unix(chil.FundingNextApply, 0)
 	a.ConfigChangeTime = time.Unix(chil.ConfigChangeTime, 0)
@@ -506,8 +533,8 @@ func (a *TradingHistoryItem) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(a),
 	}
-	if er := json.Unmarshal(data, chil); er != nil {
-		return er
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
 	}
 	a.CreateTime = time.Unix(int64(chil.CreateTime), 0)
 	return nil
@@ -522,8 +549,8 @@ func (a *FuturesCandlestick) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(a),
 	}
-	if er := json.Unmarshal(data, chil); er != nil {
-		return er
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
 	}
 	a.Timestamp = time.Unix(int64(chil.Timestamp), 10)
 	return nil
@@ -539,11 +566,14 @@ func (a *FuturesFundingRate) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(a),
 	}
-	if er := json.Unmarshal(data, chil); er != nil {
-		return er
+	err := json.Unmarshal(data, chil)
+	if err != nil {
+		return err
 	}
-	if val, er := strconv.ParseFloat(chil.Rate, 64); er == nil {
-		a.Rate = val
+	if chil.Rate != "" {
+		if a.Rate, err = strconv.ParseFloat(chil.Rate, 64); err != nil {
+			return err
+		}
 	}
 	a.Timestamp = time.Unix(int64(chil.Timestamp), 0)
 	return nil
@@ -558,8 +588,8 @@ func (a *InsuranceBalance) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(a),
 	}
-	if er := json.Unmarshal(data, chil); er != nil {
-		return er
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
 	}
 	a.Timestamp = time.Unix(int64(chil.Timestamp), 0)
 	return nil
@@ -574,8 +604,8 @@ func (a *ContractStat) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(a),
 	}
-	if er := json.Unmarshal(data, chil); er != nil {
-		return er
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
 	}
 	a.Time = time.Unix(int64(chil.Time), 0)
 	return nil
@@ -590,8 +620,8 @@ func (a *LiquidationHistory) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(a),
 	}
-	if er := json.Unmarshal(data, chil); er != nil {
-		return er
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
 	}
 	a.Time = time.Unix(int64(chil.Time), 0)
 	return nil
@@ -607,8 +637,8 @@ func (a *DeliveryContract) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(a),
 	}
-	if er := json.Unmarshal(data, chil); er != nil {
-		return er
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
 	}
 	a.ExpireTime = time.Unix(int64(chil.ExpireTime), 0)
 	a.ConfigChangeTime = time.Unix(int64(chil.ConfigChangeTime), 0)
@@ -625,8 +655,8 @@ func (a *OptionContract) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(a),
 	}
-	if er := json.Unmarshal(data, chil); er != nil {
-		return er
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
 	}
 	a.CreateTime = time.Unix(int64(chil.CreateTime), 0)
 	a.ExpirationTime = time.Unix(int64(chil.ExpirationTime), 0)
@@ -638,14 +668,14 @@ func (a *OptionSettlement) UnmarshalJSON(data []byte) error {
 	type Alias OptionSettlement
 	chil := &struct {
 		*Alias
-		Time float64 `json:"time"`
+		Time int64 `json:"time"`
 	}{
 		Alias: (*Alias)(a),
 	}
-	if er := json.Unmarshal(data, chil); er != nil {
-		return er
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
 	}
-	a.Time = time.Unix(int64(chil.Time), 10)
+	a.Time = time.Unix(chil.Time, 10)
 	return nil
 }
 
@@ -658,10 +688,10 @@ func (a *PositionCloseHistoryResponse) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(a),
 	}
-	if er := json.Unmarshal(data, chil); er != nil {
-		return er
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
 	}
-	a.Time = time.Unix(int64(chil.Time), 10)
+	a.Time = time.Unix(chil.Time, 10)
 	return nil
 }
 
@@ -674,10 +704,10 @@ func (a *LiquidationHistoryItem) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(a),
 	}
-	if er := json.Unmarshal(data, chil); er != nil {
-		return er
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
 	}
-	a.Time = time.Unix(int64(chil.Time), 10)
+	a.Time = time.Unix(chil.Time, 10)
 	return nil
 }
 
