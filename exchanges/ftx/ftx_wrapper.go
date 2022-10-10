@@ -919,7 +919,8 @@ func (f *FTX) GetWebsocket() (*stream.Websocket, error) {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (f *FTX) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := getOrdersRequest.Validate(); err != nil {
+	filter, err := getOrdersRequest.Validate()
+	if err != nil {
 		return nil, err
 	}
 
@@ -1008,13 +1009,14 @@ func (f *FTX) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOr
 			resp = append(resp, tempResp)
 		}
 	}
-	return resp, nil
+	return filter.Clean(f.Name, resp), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (f *FTX) GetOrderHistory(ctx context.Context, request *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := request.Validate(); err != nil {
+	filter, err := request.Validate()
+	if err != nil {
 		return nil, err
 	}
 	var resp []order.Detail
@@ -1114,7 +1116,7 @@ func (f *FTX) GetOrderHistory(ctx context.Context, request *order.GetOrdersReque
 			resp = append(resp, d)
 		}
 	}
-	return resp, nil
+	return filter.Clean(f.Name, resp), nil
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction

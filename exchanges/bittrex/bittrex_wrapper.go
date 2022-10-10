@@ -758,7 +758,8 @@ func (b *Bittrex) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *wit
 
 // GetActiveOrders retrieves any orders that are active/open
 func (b *Bittrex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+	filter, err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 
@@ -821,22 +822,15 @@ func (b *Bittrex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 			Pair:            pair,
 		})
 	}
-
-	order.FilterOrdersByType(&resp, req.Type)
-	err = order.FilterOrdersByTimeRange(&resp, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
-	}
-	order.FilterOrdersByPairs(&resp, req.Pairs)
-
 	b.WsSequenceOrders = sequence
-	return resp, nil
+	return filter.Clean(b.Name, resp), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (b *Bittrex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+	filter, err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 	if len(req.Pairs) == 0 {
@@ -910,16 +904,8 @@ func (b *Bittrex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 			detail.InferCostsAndTimes()
 			resp = append(resp, detail)
 		}
-
-		order.FilterOrdersByType(&resp, req.Type)
-		err = order.FilterOrdersByTimeRange(&resp, req.StartTime, req.EndTime)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
-		}
-		order.FilterOrdersByPairs(&resp, req.Pairs)
 	}
-
-	return resp, nil
+	return filter.Clean(b.Name, resp), nil
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction

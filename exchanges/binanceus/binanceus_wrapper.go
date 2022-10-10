@@ -778,10 +778,10 @@ func (bi *Binanceus) WithdrawFiatFundsToInternationalBank(ctx context.Context, w
 
 // GetActiveOrders retrieves any orders that are active/open
 func (bi *Binanceus) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := getOrdersRequest.Validate(); err != nil {
+	filter, err := getOrdersRequest.Validate()
+	if err != nil {
 		return nil, err
 	}
-	var err error
 	var symbol string
 	var pair currency.Pair
 	var selectedOrders []Order
@@ -844,12 +844,7 @@ func (bi *Binanceus) GetActiveOrders(ctx context.Context, getOrdersRequest *orde
 			LastUpdated:   resp[x].UpdateTime,
 		}
 	}
-
-	order.FilterOrdersByPairs(&orders, getOrdersRequest.Pairs)
-	order.FilterOrdersByType(&orders, getOrdersRequest.Type)
-	order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
-	err = order.FilterOrdersByTimeRange(&orders, getOrdersRequest.StartTime, getOrdersRequest.EndTime)
-	return orders, err
+	return filter.Clean(bi.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information Can Limit response to specific order status

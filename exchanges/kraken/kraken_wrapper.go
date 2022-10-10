@@ -1111,7 +1111,8 @@ func (k *Kraken) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuild
 
 // GetActiveOrders retrieves any orders that are active/open
 func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+	filter, err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 	var orders []order.Detail
@@ -1217,19 +1218,14 @@ func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 	default:
 		return nil, fmt.Errorf("%s assetType not supported", req.AssetType)
 	}
-	err := order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
-	}
-	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByPairs(&orders, req.Pairs)
-	return orders, nil
+	return filter.Clean(k.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := getOrdersRequest.Validate(); err != nil {
+	filter, err := getOrdersRequest.Validate()
+	if err != nil {
 		return nil, err
 	}
 	var orders []order.Detail
@@ -1447,10 +1443,7 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Ge
 			}
 		}
 	}
-
-	order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
-	order.FilterOrdersByPairs(&orders, getOrdersRequest.Pairs)
-	return orders, nil
+	return filter.Clean(k.Name, orders), nil
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

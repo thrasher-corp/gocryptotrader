@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -1106,14 +1107,25 @@ func (c *Cancel) Validate(opt ...validate.Checker) error {
 	return nil
 }
 
-// Validate checks internal struct requirements
-func (g *GetOrdersRequest) Validate(opt ...validate.Checker) error {
+// Validate checks internal struct requirements and returns filter requirement
+// options for wrapper standardization procedures.
+func (g *GetOrdersRequest) Validate(opt ...validate.Checker) (*FilterOptions, error) {
 	if g == nil {
-		return ErrGetOrdersRequestIsNil
+		return nil, ErrGetOrdersRequestIsNil
 	}
+
 	if !g.AssetType.IsValid() {
-		return fmt.Errorf("%v %w", g.AssetType, asset.ErrNotSupported)
+		return nil, fmt.Errorf("%v %w", g.AssetType, asset.ErrNotSupported)
 	}
+
+	if g.Side == 0 {
+		return nil, errUnrecognisedOrderSide
+	}
+
+	if g.Type == 0 {
+		return nil, errUnrecognisedOrderType
+	}
+
 	var errs common.Errors
 	for _, o := range opt {
 		err := o.Check()
@@ -1123,9 +1135,9 @@ func (g *GetOrdersRequest) Validate(opt ...validate.Checker) error {
 	}
 
 	if errs != nil {
-		return errs
+		return nil, errs
 	}
-	return nil
+	return &FilterOptions{g}, nil
 }
 
 // Validate checks internal struct requirements
@@ -1157,4 +1169,18 @@ func (m *Modify) Validate(opt ...validate.Checker) error {
 		return ErrOrderIDNotSet
 	}
 	return nil
+}
+
+// Clean reduces slice by optional fields
+func (f *FilterOptions) Clean(exch string, orders []Detail) []Detail {
+	filtered := make([]Detail, len(orders))
+	copy(filtered, orders)
+	FilterOrdersByPairs(&filtered, f.Pairs)
+	FilterOrdersByType(&filtered, f.Type)
+	FilterOrdersBySide(&filtered, f.Side)
+	err := FilterOrdersByTimeRange(&filtered, f.StartTime, f.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", exch, err)
+	}
+	return filtered
 }

@@ -1310,25 +1310,43 @@ func TestValidationOnOrderTypes(t *testing.T) {
 	}
 
 	var getOrders *GetOrdersRequest
-	if getOrders.Validate() != ErrGetOrdersRequestIsNil {
-		t.Fatal("unexpected error")
+	_, err = getOrders.Validate()
+	if !errors.Is(err, ErrGetOrdersRequestIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrGetOrdersRequestIsNil)
 	}
 
 	getOrders = new(GetOrdersRequest)
-	if getOrders.Validate() == nil {
-		t.Fatal("should error since assetType hasn't been provided")
+	_, err = getOrders.Validate()
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
 	}
 
-	if getOrders.Validate(validate.Check(func() error {
-		return errors.New("this should error")
-	})) == nil {
-		t.Fatal("expected error")
+	getOrders.AssetType = asset.Spot
+	_, err = getOrders.Validate()
+	if !errors.Is(err, errUnrecognisedOrderSide) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errUnrecognisedOrderSide)
 	}
 
-	if getOrders.Validate(validate.Check(func() error {
+	getOrders.Side = AnySide
+	_, err = getOrders.Validate()
+	if !errors.Is(err, errUnrecognisedOrderType) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errUnrecognisedOrderType)
+	}
+
+	var errTestError = errors.New("test error")
+	getOrders.Type = AnyType
+	_, err = getOrders.Validate(validate.Check(func() error {
+		return errTestError
+	}))
+	if !errors.Is(err, errTestError) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errTestError)
+	}
+
+	_, err = getOrders.Validate(validate.Check(func() error {
 		return nil
-	})) == nil {
-		t.Fatal("should output an error since assetType isn't provided")
+	}))
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
 	var modifyOrder *Modify
@@ -1867,5 +1885,56 @@ func TestDeriveCancel(t *testing.T) {
 		!cancel.Pair.Equal(pair) ||
 		cancel.AssetType != asset.Futures {
 		t.Fatalf("unexpected values %+v", cancel)
+	}
+}
+
+func TestGetOrdersRequest_FilterOptions(t *testing.T) {
+	request := new(GetOrdersRequest)
+	request.AssetType = asset.Spot
+	request.Type = AnyType
+	request.Side = AnySide
+	filter, err := request.Validate()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	var orders = []Detail{
+		{Pair: btcusd, AssetType: asset.Spot, Type: Limit, Side: Buy},
+		{Pair: btcusd, AssetType: asset.Spot, Type: Limit, Side: Sell},
+		{Pair: btcusd, AssetType: asset.Spot, Type: Market, Side: Buy},
+		{Pair: btcusd, AssetType: asset.Spot, Type: Market, Side: Sell},
+		{Pair: btcusd, AssetType: asset.Futures, Type: Limit, Side: Buy},
+		{Pair: btcusd, AssetType: asset.Futures, Type: Limit, Side: Sell},
+		{Pair: btcusd, AssetType: asset.Futures, Type: Market, Side: Buy},
+		{Pair: btcusd, AssetType: asset.Futures, Type: Market, Side: Sell},
+		{Pair: btcltc, AssetType: asset.Spot, Type: Limit, Side: Buy},
+		{Pair: btcltc, AssetType: asset.Spot, Type: Limit, Side: Sell},
+		{Pair: btcltc, AssetType: asset.Spot, Type: Market, Side: Buy},
+		{Pair: btcltc, AssetType: asset.Spot, Type: Market, Side: Sell},
+		{Pair: btcltc, AssetType: asset.Futures, Type: Limit, Side: Buy},
+		{Pair: btcltc, AssetType: asset.Futures, Type: Limit, Side: Sell},
+		{Pair: btcltc, AssetType: asset.Futures, Type: Market, Side: Buy},
+		{Pair: btcltc, AssetType: asset.Futures, Type: Market, Side: Sell},
+	}
+
+	shinyAndClean := filter.Clean("test", orders)
+	if len(shinyAndClean) != 16 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(shinyAndClean), 16)
+	}
+
+	request.Pairs = []currency.Pair{btcltc}
+
+	// Kicks off time error
+	request.EndTime = time.Unix(1336, 0)
+	request.StartTime = time.Unix(1337, 0)
+
+	shinyAndClean = filter.Clean("test", orders)
+
+	if len(shinyAndClean) != 8 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(shinyAndClean), 8)
+	}
+
+	if !shinyAndClean[0].Pair.Equal(btcltc) {
+		t.Fatalf("received: '%v' but expected: '%v'", !shinyAndClean[0].Pair.Equal(btcltc), true)
 	}
 }

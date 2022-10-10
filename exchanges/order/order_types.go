@@ -356,3 +356,9 @@ type ClassificationError struct {
 	OrderID  string
 	Err      error
 }
+
+// FilterOptions houses order request fields to attach a wrapper specific
+// function for standardization.
+type FilterOptions struct {
+	*GetOrdersRequest
+}
