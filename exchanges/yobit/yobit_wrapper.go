@@ -630,7 +630,8 @@ func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 
 	var allOrders []TradeHistory
 	for x := range req.Pairs {
-		fpair, err := y.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
+		var fPair currency.Pair
+		fPair, err = y.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
@@ -641,7 +642,7 @@ func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 			req.StartTime.Unix(),
 			req.EndTime.Unix(),
 			"DESC",
-			fpair.String())
+			fPair.String())
 		if err != nil {
 			return nil, err
 		}

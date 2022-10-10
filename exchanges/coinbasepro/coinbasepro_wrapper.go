@@ -756,15 +756,16 @@ func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.GetOrdersR
 		return nil, err
 	}
 	var respOrders []GeneralizedOrderResponse
+	var fPair currency.Pair
 	for i := range req.Pairs {
-		fpair, err := c.FormatExchangeCurrency(req.Pairs[i], asset.Spot)
+		fPair, err = c.FormatExchangeCurrency(req.Pairs[i], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
 
 		resp, err := c.GetOrders(ctx,
 			[]string{"open", "pending", "active"},
-			fpair.String())
+			fPair.String())
 		if err != nil {
 			return nil, err
 		}
@@ -817,27 +818,24 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersR
 	}
 	var respOrders []GeneralizedOrderResponse
 	if len(req.Pairs) > 0 {
+		var fPair currency.Pair
+		var resp []GeneralizedOrderResponse
 		for i := range req.Pairs {
-			fpair, err := c.FormatExchangeCurrency(req.Pairs[i], asset.Spot)
+			fPair, err = c.FormatExchangeCurrency(req.Pairs[i], asset.Spot)
 			if err != nil {
 				return nil, err
 			}
-			resp, err := c.GetOrders(ctx,
-				[]string{"done"},
-				fpair.String())
+			resp, err = c.GetOrders(ctx, []string{"done"}, fPair.String())
 			if err != nil {
 				return nil, err
 			}
 			respOrders = append(respOrders, resp...)
 		}
 	} else {
-		resp, err := c.GetOrders(ctx,
-			[]string{"done"},
-			"")
+		respOrders, err = c.GetOrders(ctx, []string{"done"}, "")
 		if err != nil {
 			return nil, err
 		}
-		respOrders = resp
 	}
 
 	format, err := c.GetPairFormat(asset.Spot, false)

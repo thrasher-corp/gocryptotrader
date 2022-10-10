@@ -735,7 +735,8 @@ func (h *HitBTC) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 
 	var allOrders []OrderHistoryResponse
 	for i := range req.Pairs {
-		resp, err := h.GetOpenOrders(ctx, req.Pairs[i].String())
+		var resp []OrderHistoryResponse
+		resp, err = h.GetOpenOrders(ctx, req.Pairs[i].String())
 		if err != nil {
 			return nil, err
 		}
@@ -787,7 +788,8 @@ func (h *HitBTC) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 
 	var allOrders []OrderHistoryResponse
 	for i := range req.Pairs {
-		resp, err := h.GetOrders(ctx, req.Pairs[i].String())
+		var resp []OrderHistoryResponse
+		resp, err = h.GetOrders(ctx, req.Pairs[i].String())
 		if err != nil {
 			return nil, err
 		}

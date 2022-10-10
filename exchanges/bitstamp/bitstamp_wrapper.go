@@ -711,7 +711,8 @@ func (b *Bitstamp) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 	if len(req.Pairs) != 1 {
 		currPair = "all"
 	} else {
-		fPair, err := b.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
+		var fPair currency.Pair
+		fPair, err = b.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
@@ -773,7 +774,8 @@ func (b *Bitstamp) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 
 	var currPair string
 	if len(req.Pairs) == 1 {
-		fPair, err := b.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
+		var fPair currency.Pair
+		fPair, err = b.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
 		if err != nil {
 			return nil, err
 		}

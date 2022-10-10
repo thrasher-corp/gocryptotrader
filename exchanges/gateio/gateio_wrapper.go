@@ -830,7 +830,8 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 
 	var trades []TradesResponse
 	for i := range req.Pairs {
-		resp, err := g.GetTradeHistory(ctx, req.Pairs[i].String())
+		var resp TradeHistoryResponse
+		resp, err = g.GetTradeHistory(ctx, req.Pairs[i].String())
 		if err != nil {
 			return nil, err
 		}

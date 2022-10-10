@@ -765,7 +765,8 @@ func (b *Bittrex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 
 	var currPair string
 	if len(req.Pairs) == 1 {
-		formattedPair, err := b.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
+		var formattedPair currency.Pair
+		formattedPair, err = b.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
 		if err != nil {
 			return nil, err
 		}

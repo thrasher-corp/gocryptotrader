@@ -711,11 +711,13 @@ func (z *ZB) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (
 	var allOrders []Order
 	for x := range req.Pairs {
 		for i := int64(1); ; i++ {
-			fPair, err := z.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
+			var fPair currency.Pair
+			fPair, err = z.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
 			if err != nil {
 				return nil, err
 			}
-			resp, err := z.GetUnfinishedOrdersIgnoreTradeType(ctx,
+			var resp []Order
+			resp, err = z.GetUnfinishedOrdersIgnoreTradeType(ctx,
 				fPair.String(), i, 10)
 			if err != nil {
 				if strings.Contains(err.Error(), "3001") {
@@ -781,7 +783,8 @@ func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (
 	if z.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		for x := range req.Pairs {
 			for y := int64(1); ; y++ {
-				resp, err := z.wsGetOrdersIgnoreTradeType(ctx, req.Pairs[x], y, 10)
+				var resp *WsGetOrdersIgnoreTradeTypeResponse
+				resp, err = z.wsGetOrdersIgnoreTradeType(ctx, req.Pairs[x], y, 10)
 				if err != nil {
 					return nil, err
 				}
@@ -798,11 +801,13 @@ func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (
 		}
 		for x := range req.Pairs {
 			for y := int64(1); ; y++ {
-				fPair, err := z.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
+				var fPair currency.Pair
+				fPair, err = z.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
 				if err != nil {
 					return nil, err
 				}
-				resp, err := z.GetOrders(ctx, fPair.String(), y, side)
+				var resp []Order
+				resp, err = z.GetOrders(ctx, fPair.String(), y, side)
 				if err != nil {
 					return nil, err
 				}
