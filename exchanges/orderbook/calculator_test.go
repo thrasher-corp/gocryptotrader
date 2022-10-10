@@ -222,8 +222,8 @@ func TestSimulateOrder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", result.MinimumPrice, 7000)
 	}
 
-	if result.MaximumPrice != 0 { // No tranches left on book to support price.
-		t.Fatalf("received: '%v' but expected: '%v'", result.MaximumPrice, 0)
+	if result.MaximumPrice != 7001 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.MaximumPrice, 7001)
 	}
 
 	if !strings.Contains(result.Status, fullLiquidityUsageWarning) {
@@ -248,8 +248,8 @@ func TestSimulateOrder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", result.MinimumPrice, 7000)
 	}
 
-	if result.MaximumPrice != 0 { // No tranches left on book to support price.
-		t.Fatalf("received: '%v' but expected: '%v'", result.MaximumPrice, 0)
+	if result.MaximumPrice != 7001 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.MaximumPrice, 7001)
 	}
 
 	if !strings.Contains(result.Status, fullLiquidityUsageWarning) {
@@ -374,8 +374,8 @@ func TestSimulateOrder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", result.MaximumPrice, 6999)
 	}
 
-	if result.MinimumPrice != 0 { // No tranches left on book to support price.
-		t.Fatalf("received: '%v' but expected: '%v'", result.MinimumPrice, 0)
+	if result.MinimumPrice != 6998 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.MinimumPrice, 6998)
 	}
 
 	if !strings.Contains(result.Status, fullLiquidityUsageWarning) {
@@ -400,8 +400,8 @@ func TestSimulateOrder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", result.MaximumPrice, 6999)
 	}
 
-	if result.MinimumPrice != 0 { // No tranches left on book to support price.
-		t.Fatalf("received: '%v' but expected: '%v'", result.MinimumPrice, 0)
+	if result.MinimumPrice != 6998 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.MinimumPrice, 6998)
 	}
 
 	if !strings.Contains(result.Status, fullLiquidityUsageWarning) {

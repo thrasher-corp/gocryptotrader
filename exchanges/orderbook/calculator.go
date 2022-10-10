@@ -198,7 +198,6 @@ func (b *Base) buy(quote float64) (*DeploymentAction, error) {
 					action.TranchePositionPrice = b.Asks[x+1].Price
 				} else {
 					action.FullLiquidityUsed = true
-					action.TranchePositionPrice = 0
 				}
 			}
 			subAmount := quote / b.Asks[x].Price
@@ -211,7 +210,6 @@ func (b *Base) buy(quote float64) (*DeploymentAction, error) {
 		}
 		if len(b.Asks)-1 <= x {
 			action.FullLiquidityUsed = true
-			action.TranchePositionPrice = 0
 		}
 		quote = remaining
 		action.BaseAmount += b.Asks[x].Amount
@@ -238,7 +236,6 @@ func (b *Base) sell(base float64) (*DeploymentAction, error) {
 					action.TranchePositionPrice = b.Bids[x+1].Price
 				} else {
 					action.FullLiquidityUsed = true
-					action.TranchePositionPrice = 0
 				}
 			}
 			action.Tranches = append(action.Tranches, Item{
@@ -251,7 +248,6 @@ func (b *Base) sell(base float64) (*DeploymentAction, error) {
 		}
 		if len(b.Bids)-1 <= x {
 			action.FullLiquidityUsed = true
-			action.TranchePositionPrice = 0
 		}
 		base = remaining
 		action.BaseAmount += b.Bids[x].Amount

@@ -2116,7 +2116,7 @@ func TestGetHeadPrice(t *testing.T) {
 	}
 }
 
-func TestMutateFields(t *testing.T) {
+func TestFinalizeFields(t *testing.T) {
 	m := &Movement{}
 	_, err := m.finalizeFields(0, 0, 0, 0, false)
 	if !errors.Is(err, errInvalidCost) {
