@@ -553,8 +553,8 @@ func (l *LocalBitcoins) GetFeeByType(ctx context.Context, feeBuilder *exchange.F
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (l *LocalBitcoins) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	filter, err := getOrdersRequest.Validate()
+func (l *LocalBitcoins) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := getOrdersRequest.Validate()
 	if err != nil {
 		return nil, err
 	}
@@ -599,13 +599,13 @@ func (l *LocalBitcoins) GetActiveOrders(ctx context.Context, getOrdersRequest *o
 			Exchange: l.Name,
 		}
 	}
-	return filter.Clean(l.Name, orders), nil
+	return getOrdersRequest.Filter(l.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (l *LocalBitcoins) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	filter, err := getOrdersRequest.Validate()
+func (l *LocalBitcoins) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := getOrdersRequest.Validate()
 	if err != nil {
 		return nil, err
 	}
@@ -688,7 +688,7 @@ func (l *LocalBitcoins) GetOrderHistory(ctx context.Context, getOrdersRequest *o
 			Exchange: l.Name,
 		}
 	}
-	return filter.Clean(l.Name, orders), nil
+	return getOrdersRequest.Filter(l.Name, orders), nil
 }
 
 // ValidateCredentials validates current credentials used for wrapper

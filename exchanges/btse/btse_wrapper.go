@@ -778,8 +778,8 @@ func (b *BTSE) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdr
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *BTSE) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	filter, err := req.Validate()
+func (b *BTSE) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
 	if err != nil {
 		return nil, err
 	}
@@ -883,7 +883,7 @@ func (b *BTSE) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 			orders = append(orders, openOrder)
 		}
 	}
-	return filter.Clean(b.Name, orders), nil
+	return req.Filter(b.Name, orders), nil
 }
 
 func matchType(input int, required order.Type) bool {
@@ -895,8 +895,8 @@ func matchType(input int, required order.Type) bool {
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	filter, err := getOrdersRequest.Validate()
+func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := getOrdersRequest.Validate()
 	if err != nil {
 		return nil, err
 	}
@@ -951,7 +951,7 @@ func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetO
 			resp = append(resp, tempOrder)
 		}
 	}
-	return filter.Clean(b.Name, resp), nil
+	return getOrdersRequest.Filter(b.Name, resp), nil
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction

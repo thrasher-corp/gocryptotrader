@@ -723,8 +723,8 @@ func (h *HitBTC) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuild
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (h *HitBTC) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	filter, err := req.Validate()
+func (h *HitBTC) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
 	if err != nil {
 		return nil, err
 	}
@@ -770,13 +770,13 @@ func (h *HitBTC) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			Pair:     symbol,
 		}
 	}
-	return filter.Clean(h.Name, orders), nil
+	return req.Filter(h.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (h *HitBTC) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	filter, err := req.Validate()
+func (h *HitBTC) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
 	if err != nil {
 		return nil, err
 	}
@@ -834,7 +834,7 @@ func (h *HitBTC) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		detail.InferCostsAndTimes()
 		orders[i] = detail
 	}
-	return filter.Clean(h.Name, orders), nil
+	return req.Filter(h.Name, orders), nil
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

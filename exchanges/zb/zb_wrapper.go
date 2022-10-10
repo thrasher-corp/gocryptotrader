@@ -702,8 +702,8 @@ func (z *ZB) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) 
 
 // GetActiveOrders retrieves any orders that are active/open
 // This function is not concurrency safe due to orderSide/orderType maps
-func (z *ZB) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	filter, err := req.Validate()
+func (z *ZB) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
 	if err != nil {
 		return nil, err
 	}
@@ -761,14 +761,14 @@ func (z *ZB) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (
 			Pair:     symbol,
 		}
 	}
-	return filter.Clean(z.Name, orders), nil
+	return req.Filter(z.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 // This function is not concurrency safe due to orderSide/orderType maps
-func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	filter, err := req.Validate()
+func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
 	if err != nil {
 		return nil, err
 	}
@@ -847,7 +847,7 @@ func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (
 		detail.InferCostsAndTimes()
 		orders[i] = detail
 	}
-	return filter.Clean(z.Name, orders), nil
+	return req.Filter(z.Name, orders), nil
 }
 
 // ValidateCredentials validates current credentials used for wrapper

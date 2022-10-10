@@ -811,8 +811,8 @@ func (p *Poloniex) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	filter, err := req.Validate()
+func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
 	if err != nil {
 		return nil, err
 	}
@@ -862,13 +862,13 @@ func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 			})
 		}
 	}
-	return filter.Clean(p.Name, orders), nil
+	return req.Filter(p.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	filter, err := req.Validate()
+func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
 	if err != nil {
 		return nil, err
 	}
@@ -926,7 +926,7 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 			orders = append(orders, detail)
 		}
 	}
-	return filter.Clean(p.Name, orders), nil
+	return req.Filter(p.Name, orders), nil
 }
 
 // ValidateCredentials validates current credentials used for wrapper

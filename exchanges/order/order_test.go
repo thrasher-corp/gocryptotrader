@@ -1310,39 +1310,39 @@ func TestValidationOnOrderTypes(t *testing.T) {
 	}
 
 	var getOrders *GetOrdersRequest
-	_, err = getOrders.Validate()
+	err = getOrders.Validate()
 	if !errors.Is(err, ErrGetOrdersRequestIsNil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrGetOrdersRequestIsNil)
 	}
 
 	getOrders = new(GetOrdersRequest)
-	_, err = getOrders.Validate()
+	err = getOrders.Validate()
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
 	}
 
 	getOrders.AssetType = asset.Spot
-	_, err = getOrders.Validate()
+	err = getOrders.Validate()
 	if !errors.Is(err, errUnrecognisedOrderSide) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errUnrecognisedOrderSide)
 	}
 
 	getOrders.Side = AnySide
-	_, err = getOrders.Validate()
+	err = getOrders.Validate()
 	if !errors.Is(err, errUnrecognisedOrderType) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errUnrecognisedOrderType)
 	}
 
 	var errTestError = errors.New("test error")
 	getOrders.Type = AnyType
-	_, err = getOrders.Validate(validate.Check(func() error {
+	err = getOrders.Validate(validate.Check(func() error {
 		return errTestError
 	}))
 	if !errors.Is(err, errTestError) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errTestError)
 	}
 
-	_, err = getOrders.Validate(validate.Check(func() error {
+	err = getOrders.Validate(validate.Check(func() error {
 		return nil
 	}))
 	if !errors.Is(err, nil) {
@@ -1888,15 +1888,11 @@ func TestDeriveCancel(t *testing.T) {
 	}
 }
 
-func TestGetOrdersRequest_FilterOptions(t *testing.T) {
+func TestGetOrdersRequest_Filter(t *testing.T) {
 	request := new(GetOrdersRequest)
 	request.AssetType = asset.Spot
 	request.Type = AnyType
 	request.Side = AnySide
-	filter, err := request.Validate()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
 
 	var orders = []Detail{
 		{Pair: btcusd, AssetType: asset.Spot, Type: Limit, Side: Buy},
@@ -1917,7 +1913,7 @@ func TestGetOrdersRequest_FilterOptions(t *testing.T) {
 		{Pair: btcltc, AssetType: asset.Futures, Type: Market, Side: Sell},
 	}
 
-	shinyAndClean := filter.Clean("test", orders)
+	shinyAndClean := request.Filter("test", orders)
 	if len(shinyAndClean) != 16 {
 		t.Fatalf("received: '%v' but expected: '%v'", len(shinyAndClean), 16)
 	}
@@ -1928,7 +1924,7 @@ func TestGetOrdersRequest_FilterOptions(t *testing.T) {
 	request.EndTime = time.Unix(1336, 0)
 	request.StartTime = time.Unix(1337, 0)
 
-	shinyAndClean = filter.Clean("test", orders)
+	shinyAndClean = request.Filter("test", orders)
 
 	if len(shinyAndClean) != 8 {
 		t.Fatalf("received: '%v' but expected: '%v'", len(shinyAndClean), 8)

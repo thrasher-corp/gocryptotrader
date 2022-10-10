@@ -810,8 +810,8 @@ func (b *BTCMarkets) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeB
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *BTCMarkets) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	filter, err := req.Validate()
+func (b *BTCMarkets) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
 	if err != nil {
 		return nil, err
 	}
@@ -881,13 +881,13 @@ func (b *BTCMarkets) GetActiveOrders(ctx context.Context, req *order.GetOrdersRe
 			resp = append(resp, tempResp)
 		}
 	}
-	return filter.Clean(b.Name, resp), nil
+	return req.Filter(b.Name, resp), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *BTCMarkets) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	filter, err := req.Validate()
+func (b *BTCMarkets) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
 	if err != nil {
 		return nil, err
 	}
@@ -962,7 +962,7 @@ func (b *BTCMarkets) GetOrderHistory(ctx context.Context, req *order.GetOrdersRe
 			resp = append(resp, tempResp)
 		}
 	}
-	return filter.Clean(b.Name, resp), nil
+	return req.Filter(b.Name, resp), nil
 }
 
 // ValidateCredentials validates current credentials used for wrapper

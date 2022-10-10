@@ -1357,8 +1357,8 @@ func (b *Binance) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuil
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *Binance) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	filter, err := req.Validate()
+func (b *Binance) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
 	if err != nil {
 		return nil, err
 	}
@@ -1474,13 +1474,13 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 			return orders, fmt.Errorf("assetType not supported")
 		}
 	}
-	return filter.Clean(b.Name, orders), nil
+	return req.Filter(b.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	filter, err := req.Validate()
+func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
 	if err != nil {
 		return nil, err
 	}
@@ -1664,7 +1664,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 	default:
 		return orders, fmt.Errorf("assetType not supported")
 	}
-	return filter.Clean(b.Name, orders), nil
+	return req.Filter(b.Name, orders), nil
 }
 
 // ValidateCredentials validates current credentials used for wrapper

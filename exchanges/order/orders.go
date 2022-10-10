@@ -1109,21 +1109,21 @@ func (c *Cancel) Validate(opt ...validate.Checker) error {
 
 // Validate checks internal struct requirements and returns filter requirement
 // options for wrapper standardization procedures.
-func (g *GetOrdersRequest) Validate(opt ...validate.Checker) (*FilterOptions, error) {
+func (g *GetOrdersRequest) Validate(opt ...validate.Checker) error {
 	if g == nil {
-		return nil, ErrGetOrdersRequestIsNil
+		return ErrGetOrdersRequestIsNil
 	}
 
 	if !g.AssetType.IsValid() {
-		return nil, fmt.Errorf("%v %w", g.AssetType, asset.ErrNotSupported)
+		return fmt.Errorf("%v %w", g.AssetType, asset.ErrNotSupported)
 	}
 
-	if g.Side == 0 {
-		return nil, errUnrecognisedOrderSide
+	if g.Side == UnknownSide {
+		return errUnrecognisedOrderSide
 	}
 
-	if g.Type == 0 {
-		return nil, errUnrecognisedOrderType
+	if g.Type == UnknownType {
+		return errUnrecognisedOrderType
 	}
 
 	var errs common.Errors
@@ -1133,11 +1133,24 @@ func (g *GetOrdersRequest) Validate(opt ...validate.Checker) (*FilterOptions, er
 			errs = append(errs, err)
 		}
 	}
-
 	if errs != nil {
-		return nil, errs
+		return errs
 	}
-	return &FilterOptions{g}, nil
+	return nil
+}
+
+// Filter reduces slice by optional fields
+func (g *GetOrdersRequest) Filter(exch string, orders []Detail) FilteredOrders {
+	filtered := make([]Detail, len(orders))
+	copy(filtered, orders)
+	FilterOrdersByPairs(&filtered, g.Pairs)
+	FilterOrdersByType(&filtered, g.Type)
+	FilterOrdersBySide(&filtered, g.Side)
+	err := FilterOrdersByTimeRange(&filtered, g.StartTime, g.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", exch, err)
+	}
+	return filtered
 }
 
 // Validate checks internal struct requirements
@@ -1169,18 +1182,4 @@ func (m *Modify) Validate(opt ...validate.Checker) error {
 		return ErrOrderIDNotSet
 	}
 	return nil
-}
-
-// Clean reduces slice by optional fields
-func (f *FilterOptions) Clean(exch string, orders []Detail) []Detail {
-	filtered := make([]Detail, len(orders))
-	copy(filtered, orders)
-	FilterOrdersByPairs(&filtered, f.Pairs)
-	FilterOrdersByType(&filtered, f.Type)
-	FilterOrdersBySide(&filtered, f.Side)
-	err := FilterOrdersByTimeRange(&filtered, f.StartTime, f.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", exch, err)
-	}
-	return filtered
 }

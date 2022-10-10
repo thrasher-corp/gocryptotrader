@@ -867,8 +867,8 @@ func (c *COINUT) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuild
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	filter, err := req.Validate()
+func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
 	if err != nil {
 		return nil, err
 	}
@@ -992,13 +992,13 @@ func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			}
 		}
 	}
-	return filter.Clean(c.Name, orders), nil
+	return req.Filter(c.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	filter, err := req.Validate()
+func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
 	if err != nil {
 		return nil, err
 	}
@@ -1112,7 +1112,7 @@ func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 			}
 		}
 	}
-	return filter.Clean(c.Name, allOrders), nil
+	return req.Filter(c.Name, allOrders), nil
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

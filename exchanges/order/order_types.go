@@ -357,8 +357,7 @@ type ClassificationError struct {
 	Err      error
 }
 
-// FilterOptions houses order request fields to attach a wrapper specific
-// function for standardization.
-type FilterOptions struct {
-	*GetOrdersRequest
-}
+// FilteredOrders defines orders that have been filtered at the wrapper level
+// forcing required filter operations when calling method Filter() on
+// GetOrdersRequest.
+type FilteredOrders []Detail

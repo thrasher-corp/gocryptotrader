@@ -676,8 +676,8 @@ func (g *Gemini) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuild
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (g *Gemini) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	filter, err := req.Validate()
+func (g *Gemini) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
 	if err != nil {
 		return nil, err
 	}
@@ -730,13 +730,13 @@ func (g *Gemini) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			Date:            orderDate,
 		}
 	}
-	return filter.Clean(g.Name, orders), nil
+	return req.Filter(g.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	filter, err := req.Validate()
+func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
 	if err != nil {
 		return nil, err
 	}
@@ -799,7 +799,7 @@ func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		detail.InferCostsAndTimes()
 		orders[i] = detail
 	}
-	return filter.Clean(g.Name, orders), nil
+	return req.Filter(g.Name, orders), nil
 }
 
 // ValidateCredentials validates current credentials used for wrapper

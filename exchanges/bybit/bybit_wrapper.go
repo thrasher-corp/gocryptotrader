@@ -1406,8 +1406,8 @@ func (by *Bybit) WithdrawFiatFundsToInternationalBank(ctx context.Context, withd
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	filter, err := req.Validate()
+func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
 	if err != nil {
 		return nil, err
 	}
@@ -1558,13 +1558,13 @@ func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 	default:
 		return orders, fmt.Errorf("%s %w", req.AssetType, asset.ErrNotSupported)
 	}
-	return filter.Clean(by.Name, orders), nil
+	return req.Filter(by.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	filter, err := req.Validate()
+func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
 	if err != nil {
 		return nil, err
 	}
@@ -1730,7 +1730,7 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 	default:
 		return orders, fmt.Errorf("%s %w", req.AssetType, asset.ErrNotSupported)
 	}
-	return filter.Clean(by.Name, orders), nil
+	return req.Filter(by.Name, orders), nil
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
