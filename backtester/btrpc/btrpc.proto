@@ -171,29 +171,127 @@ message Config {
   StatisticSettings statistic_settings = 8;
 }
 
+message RunSummary {
+  string id = 1;
+  string strategy_name = 2;
+  string date_loaded = 3;
+  string date_started = 4;
+  string date_ended = 5;
+  bool closed = 6;
+  bool live_testing = 7;
+  bool real_orders = 8;
+}
+
 // Requests and responses
 message ExecuteStrategyFromFileRequest {
   string strategy_file_path = 1;
+  bool do_not_run_immediately = 2;
+  bool do_not_store = 3;
 }
 
 message ExecuteStrategyResponse {
-  bool success = 1;
-  string message = 2;
+  RunSummary run = 1;
 }
 
 message ExecuteStrategyFromConfigRequest {
-  btrpc.Config config = 1;
+  bool do_not_run_immediately = 1;
+  bool do_not_store = 2;
+  btrpc.Config config = 3;
+}
+
+message ListAllRunsRequest {}
+
+message ListAllRunsResponse {
+  repeated RunSummary runs = 1;
+}
+
+message StopRunRequest {
+  string id = 1;
+}
+
+message StopRunResponse {
+  RunSummary stopped_run = 1;
+}
+
+message StartRunRequest {
+  string id = 1;
+}
+
+message StartRunResponse {
+  bool started = 1;
+}
+
+message StartAllRunsRequest {}
+
+message StartAllRunsResponse {
+  repeated string runs_started = 1;
+}
+
+message StopAllRunsRequest {}
+
+message StopAllRunsResponse {
+  repeated RunSummary runs_stopped = 1;
+}
+
+message ClearRunRequest {
+  string id = 1;
+}
+
+message ClearRunResponse {
+  RunSummary cleared_run = 1;
+}
+
+message ClearAllRunsRequest {}
+
+message ClearAllRunsResponse {
+  repeated RunSummary cleared_runs = 1;
+  repeated RunSummary remaining_runs = 2;
 }
 
 service BacktesterService {
   rpc ExecuteStrategyFromFile(ExecuteStrategyFromFileRequest) returns (ExecuteStrategyResponse) {
     option (google.api.http) = {
-      get: "/v1/executestrategyfromfile"
+      post: "/v1/executestrategyfromfile"
     };
   }
   rpc ExecuteStrategyFromConfig(ExecuteStrategyFromConfigRequest) returns (ExecuteStrategyResponse) {
     option (google.api.http) = {
-      get: "/v1/executestrategyfromconfig"
+      post: "/v1/executestrategyfromconfig"
+    };
+  }
+  rpc ListAllRuns(ListAllRunsRequest) returns (ListAllRunsResponse) {
+    option (google.api.http) = {
+      get: "/v1/listallruns"
+    };
+  }
+  rpc StartRun(StartRunRequest) returns (StartRunResponse) {
+    option (google.api.http) = {
+      post: "/v1/startrun"
+    };
+  }
+  rpc StartAllRuns(StartAllRunsRequest) returns (StartAllRunsResponse) {
+    option (google.api.http) = {
+      post: "/v1/startallruns"
+    };
+  }
+  rpc StopRun(StopRunRequest) returns (StopRunResponse) {
+    option (google.api.http) = {
+      post: "/v1/stoprun"
+    };
+  }
+  rpc StopAllRuns(StopAllRunsRequest) returns (StopAllRunsResponse) {
+    option (google.api.http) = {
+      post: "/v1/stopallruns"
+    };
+  }
+  rpc ClearRun(ClearRunRequest) returns (ClearRunResponse) {
+    option (google.api.http) = {
+      delete: "/v1/clearrun"
+    };
+  }
+  rpc ClearAllRuns(ClearAllRunsRequest) returns (ClearAllRunsResponse) {
+    option (google.api.http) = {
+      delete: "/v1/clearallruns"
     };
   }
 }

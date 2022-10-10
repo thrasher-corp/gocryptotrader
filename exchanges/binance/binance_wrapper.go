@@ -934,6 +934,9 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			timeInForce = ""
 			requestParamsOrderType = BinanceRequestParamsOrderMarket
 		case order.Limit:
+			if s.ImmediateOrCancel {
+				timeInForce = BinanceRequestParamsTimeIOC
+			}
 			requestParamsOrderType = BinanceRequestParamsOrderLimit
 		default:
 			return nil, errors.New("unsupported order type")
@@ -1050,10 +1053,17 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			return nil, errors.New("invalid type, check api docs for updates")
 		}
 		order, err := b.UFuturesNewOrder(ctx,
-			s.Pair, reqSide,
-			"", oType, "GTC", "",
-			s.ClientOrderID, "", "",
-			s.Amount, s.Price, 0, 0, 0, s.ReduceOnly)
+			&UFuturesNewOrderRequest{
+				Symbol:           s.Pair,
+				Side:             reqSide,
+				OrderType:        oType,
+				TimeInForce:      "GTC",
+				NewClientOrderID: s.ClientOrderID,
+				Quantity:         s.Amount,
+				Price:            s.Price,
+				ReduceOnly:       s.ReduceOnly,
+			},
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -1374,7 +1384,7 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 				if err != nil {
 					log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
 				}
-				orderStatus, err := order.StringToOrderStatus(resp[i].Status)
+				orderStatus, err := order.StringToOrderStatus(resp[x].Status)
 				if err != nil {
 					log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
 				}
@@ -1496,7 +1506,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 
 			for i := range resp {
 				var side order.Side
-				side, err = order.StringToOrderSide(resp[x].Side)
+				side, err = order.StringToOrderSide(resp[i].Side)
 				if err != nil {
 					log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
 				}
@@ -1890,7 +1900,7 @@ func (b *Binance) FormatExchangeCurrency(p currency.Pair, a asset.Item) (currenc
 	if a == asset.USDTMarginedFutures {
 		return b.formatUSDTMarginedFuturesPair(p, pairFmt), nil
 	}
-	return p.Format(pairFmt.Delimiter, pairFmt.Uppercase), nil
+	return p.Format(pairFmt), nil
 }
 
 // FormatSymbol formats the given pair to a string suitable for exchange API requests
@@ -1914,10 +1924,11 @@ func (b *Binance) formatUSDTMarginedFuturesPair(p currency.Pair, pairFmt currenc
 	for _, c := range quote {
 		if c < '0' || c > '9' {
 			// character rune is alphabetic, cannot be expiring contract
-			return p.Format(pairFmt.Delimiter, pairFmt.Uppercase)
+			return p.Format(pairFmt)
 		}
 	}
-	return p.Format(currency.UnderscoreDelimiter, pairFmt.Uppercase)
+	pairFmt.Delimiter = currency.UnderscoreDelimiter
+	return p.Format(pairFmt)
 }
 
 // GetServerTime returns the current exchange server time.

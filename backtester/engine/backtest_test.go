@@ -2,11 +2,14 @@ package engine
 
 import (
 	"errors"
+	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
@@ -24,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -180,7 +184,19 @@ func TestFullCycle(t *testing.T) {
 
 func TestStop(t *testing.T) {
 	t.Parallel()
-	bt := BackTest{shutdown: make(chan struct{})}
+	bt := &BackTest{
+		shutdown:  make(chan struct{}),
+		Statistic: &statistics.Statistic{},
+	}
+	bt.Stop()
+	tt := bt.MetaData.DateEnded
+
+	bt.Stop()
+	if !tt.Equal(bt.MetaData.DateEnded) {
+		t.Errorf("received '%v' expected '%v'", bt.MetaData.DateEnded, tt)
+	}
+
+	bt = nil
 	bt.Stop()
 }
 
@@ -963,5 +979,234 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 	err = bt.processFuturesFillEvent(ev, pair)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+}
+
+func TestGenerateSummary(t *testing.T) {
+	t.Parallel()
+	bt := &BackTest{}
+	sum, err := bt.GenerateSummary()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if !sum.MetaData.ID.IsNil() {
+		t.Errorf("received '%v' expected '%v'", sum.MetaData.ID, "")
+	}
+	id, err := uuid.NewV4()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	bt.MetaData.ID = id
+	sum, err = bt.GenerateSummary()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if sum.MetaData.ID != id {
+		t.Errorf("received '%v' expected '%v'", sum.MetaData.ID, id)
+	}
+
+	bt = nil
+	_, err = bt.GenerateSummary()
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
+	}
+}
+
+func TestSetupMetaData(t *testing.T) {
+	t.Parallel()
+	bt := &BackTest{}
+	err := bt.SetupMetaData()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if bt.MetaData.ID.IsNil() {
+		t.Errorf("received '%v' expected '%v'", bt.MetaData.ID, "an ID")
+	}
+	firstID := bt.MetaData.ID
+	err = bt.SetupMetaData()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if bt.MetaData.ID != firstID {
+		t.Errorf("received '%v' expected '%v'", bt.MetaData.ID, firstID)
+	}
+
+	bt = nil
+	err = bt.SetupMetaData()
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
+	}
+}
+
+func TestIsRunning(t *testing.T) {
+	t.Parallel()
+	bt := &BackTest{}
+	if bt.IsRunning() {
+		t.Errorf("received '%v' expected '%v'", true, false)
+	}
+
+	bt.MetaData.DateStarted = time.Now()
+	if !bt.IsRunning() {
+		t.Errorf("received '%v' expected '%v'", false, true)
+	}
+
+	bt.MetaData.Closed = true
+	if bt.IsRunning() {
+		t.Errorf("received '%v' expected '%v'", true, false)
+	}
+
+	bt = nil
+	if bt.IsRunning() {
+		t.Errorf("received '%v' expected '%v'", true, false)
+	}
+}
+
+func TestHasRan(t *testing.T) {
+	t.Parallel()
+	bt := &BackTest{}
+	if bt.HasRan() {
+		t.Errorf("received '%v' expected '%v'", true, false)
+	}
+
+	bt.MetaData.DateStarted = time.Now()
+	if bt.HasRan() {
+		t.Errorf("received '%v' expected '%v'", false, true)
+	}
+
+	bt.MetaData.Closed = true
+	if !bt.HasRan() {
+		t.Errorf("received '%v' expected '%v'", true, false)
+	}
+
+	bt = nil
+	if bt.HasRan() {
+		t.Errorf("received '%v' expected '%v'", true, false)
+	}
+}
+
+func TestEqual(t *testing.T) {
+	t.Parallel()
+	bt := &BackTest{}
+	bt2 := &BackTest{}
+	bt3 := &BackTest{}
+	if !bt.Equal(bt2) {
+		t.Errorf("received '%v' expected '%v'", false, true)
+	}
+
+	err := bt.SetupMetaData()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	bt2.MetaData = bt.MetaData
+	if !bt.Equal(bt2) {
+		t.Errorf("received '%v' expected '%v'", false, true)
+	}
+
+	if bt.Equal(nil) {
+		t.Errorf("received '%v' expected '%v'", true, false)
+	}
+
+	err = bt3.SetupMetaData()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if bt.Equal(bt3) {
+		t.Errorf("received '%v' expected '%v'", true, false)
+	}
+
+	bt = nil
+	if bt.Equal(bt2) {
+		t.Errorf("received '%v' expected '%v'", true, false)
+	}
+}
+
+func TestMatchesID(t *testing.T) {
+	t.Parallel()
+	bt := &BackTest{}
+	if bt.MatchesID(uuid.Nil) {
+		t.Errorf("received '%v' expected '%v'", true, false)
+	}
+
+	err := bt.SetupMetaData()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	if bt.MatchesID(uuid.Nil) {
+		t.Errorf("received '%v' expected '%v'", true, false)
+	}
+
+	if !bt.MatchesID(bt.MetaData.ID) {
+		t.Errorf("received '%v' expected '%v'", false, true)
+	}
+
+	id := bt.MetaData.ID
+	bt.MetaData.ID = uuid.Nil
+	if bt.MatchesID(id) {
+		t.Errorf("received '%v' expected '%v'", true, false)
+	}
+
+	bt = nil
+	if bt.MatchesID(id) {
+		t.Errorf("received '%v' expected '%v'", true, false)
+	}
+}
+
+func TestExecuteStrategy(t *testing.T) {
+	t.Parallel()
+	bt := &BackTest{}
+	err := bt.ExecuteStrategy(false)
+	if !errors.Is(err, errNotSetup) {
+		t.Errorf("received '%v' expected '%v'", err, errNotSetup)
+	}
+	bt.MetaData.DateLoaded = time.Now()
+	bt.MetaData.DateStarted = time.Now()
+	err = bt.ExecuteStrategy(false)
+	if !errors.Is(err, errRunIsRunning) {
+		t.Errorf("received '%v' expected '%v'", err, errRunIsRunning)
+	}
+
+	strat1 := filepath.Join("..", "config", "strategyexamples", "dca-api-candles.strat")
+	cfg, err := config.ReadStrategyConfigFromFile(strat1)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	bt, err = NewFromConfig(cfg, "", "", false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	bt.Stop()
+
+	err = bt.ExecuteStrategy(true)
+	if !errors.Is(err, errAlreadyRan) {
+		t.Errorf("received '%v' expected '%v'", err, errAlreadyRan)
+	}
+
+	strat2 := filepath.Join("..", "config", "strategyexamples", "dca-candles-live.strat")
+	cfg, err = config.ReadStrategyConfigFromFile(strat2)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	bt, err = NewFromConfig(cfg, "", "", false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	err = bt.ExecuteStrategy(true)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	bt.MetaData.DateStarted = time.Time{}
+	err = bt.ExecuteStrategy(false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	bt.Stop()
+
+	bt = nil
+	err = bt.ExecuteStrategy(false)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 }

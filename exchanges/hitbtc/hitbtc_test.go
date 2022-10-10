@@ -174,7 +174,10 @@ func TestUpdateTicker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	h.CurrencyPairs.StorePairs(asset.Spot, pairs, true)
+	err = h.CurrencyPairs.StorePairs(asset.Spot, pairs, true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	_, err = h.UpdateTicker(context.Background(),
 		currency.NewPair(currency.BTC, currency.USD),
 		asset.Spot)

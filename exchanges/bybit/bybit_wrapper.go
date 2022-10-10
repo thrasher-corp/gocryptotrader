@@ -303,7 +303,17 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 			if allPairs[x].Status != "Trading" || allPairs[x].QuoteCurrency != "USD" {
 				continue
 			}
-			symbol := allPairs[x].BaseCurrency + currency.DashDelimiter + allPairs[x].QuoteCurrency
+
+			contractSplit := strings.Split(allPairs[x].Name, allPairs[x].BaseCurrency)
+			if len(contractSplit) != 2 {
+				log.Warnf(log.ExchangeSys, "%s base currency %s cannot split contract name %s cannot add to tradable pairs",
+					by.Name,
+					allPairs[x].BaseCurrency,
+					allPairs[x].Name)
+				continue
+			}
+
+			symbol := allPairs[x].BaseCurrency + currency.DashDelimiter + contractSplit[1]
 			pairs = append(pairs, symbol)
 		}
 		return pairs, nil

@@ -99,13 +99,6 @@ func (b *Binance) GetCrossMarginInterestHistory(ctx context.Context) (CrossMargi
 	return resp, nil
 }
 
-// GetMarginMarkets returns exchange information. Check binance_types for more information
-func (b *Binance) GetMarginMarkets(ctx context.Context) (PerpsExchangeInfo, error) {
-	var resp PerpsExchangeInfo
-	return resp, b.SendHTTPRequest(ctx,
-		exchange.RestSpot, perpExchangeInfo, spotDefaultRate, &resp)
-}
-
 // GetExchangeInfo returns exchange information. Check binance_types for more
 // information
 func (b *Binance) GetExchangeInfo(ctx context.Context) (ExchangeInfo, error) {
@@ -293,7 +286,7 @@ func (b *Binance) batchAggregateTrades(ctx context.Context, arg *AggregatedTrade
 		// cutting off trades for high activity pairs
 		increment := time.Second * 10
 		for start := arg.StartTime; len(resp) == 0; start = start.Add(increment) {
-			if !arg.EndTime.IsZero() && !start.Before(arg.EndTime) {
+			if !arg.EndTime.IsZero() && start.After(arg.EndTime) {
 				// All requests returned empty
 				return nil, nil
 			}
@@ -813,7 +806,7 @@ func (b *Binance) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, m
 	interim := json.RawMessage{}
 	err = b.SendPayload(ctx, f, func() (*request.Item, error) {
 		fullPath := endpointPath + path
-		params.Set("timestamp", strconv.FormatInt(time.Now().Unix()*1000, 10))
+		params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 		signature := params.Encode()
 		var hmacSigned []byte
 		hmacSigned, err = crypto.GetHMAC(crypto.HashSHA256,
@@ -1008,11 +1001,11 @@ func (b *Binance) DepositHistory(ctx context.Context, c currency.Code, status st
 	}
 
 	if !startTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(startTime.UTC().Unix(), 10))
+		params.Set("startTime", strconv.FormatInt(startTime.UTC().UnixMilli(), 10))
 	}
 
 	if !endTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(endTime.UTC().Unix(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UTC().UnixMilli(), 10))
 	}
 
 	if offset != 0 {
@@ -1060,11 +1053,11 @@ func (b *Binance) WithdrawHistory(ctx context.Context, c currency.Code, status s
 	}
 
 	if !startTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(startTime.UTC().Unix(), 10))
+		params.Set("startTime", strconv.FormatInt(startTime.UTC().UnixMilli(), 10))
 	}
 
 	if !endTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(endTime.UTC().Unix(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UTC().UnixMilli(), 10))
 	}
 
 	if offset != 0 {
@@ -1196,7 +1189,7 @@ func (b *Binance) FetchSpotExchangeLimits(ctx context.Context) ([]order.MinMaxLe
 				assets = append(assets, asset.Spot)
 			case "MARGIN":
 				assets = append(assets, asset.Margin)
-			case "LEVERAGED", "TRD_GRP_003": // unused permissions
+			case "LEVERAGED", "TRD_GRP_003", "TRD_GRP_004", "TRD_GRP_005": // unused permissions
 			default:
 				return nil, fmt.Errorf("unhandled asset type for exchange limits loading %s",
 					spot.Symbols[x].Permissions[y])

@@ -405,7 +405,10 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 	b := Base{
 		Config: &config.Exchange{},
 	}
-	b.SetCurrencyPairFormat()
+	err := b.SetCurrencyPairFormat()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if b.Config.CurrencyPairs == nil {
 		t.Error("currencyPairs shouldn't be nil")
 	}
@@ -418,7 +421,10 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 	}
 	b.CurrencyPairs.RequestFormat = pFmt
 	b.CurrencyPairs.ConfigFormat = pFmt
-	b.SetCurrencyPairFormat()
+	err = b.SetCurrencyPairFormat()
+	if err != nil {
+		t.Fatal(err)
+	}
 	spot, err := b.GetPairFormat(asset.Spot, true)
 	if err != nil {
 		t.Fatal(err)
@@ -431,17 +437,22 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 	// Test individual asset type formatting logic
 	b.CurrencyPairs.UseGlobalFormat = false
 	// Store non-nil pair stores
-	b.CurrencyPairs.Store(asset.Spot, currency.PairStore{
-		ConfigFormat: &currency.PairFormat{
-			Delimiter: "~",
-		},
+	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+		ConfigFormat: &currency.PairFormat{Delimiter: "~"},
 	})
-	b.CurrencyPairs.Store(asset.Futures, currency.PairStore{
-		ConfigFormat: &currency.PairFormat{
-			Delimiter: ":)",
-		},
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.CurrencyPairs.Store(asset.Futures, &currency.PairStore{
+		ConfigFormat: &currency.PairFormat{Delimiter: ":)"},
 	})
-	b.SetCurrencyPairFormat()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.SetCurrencyPairFormat()
+	if err != nil {
+		t.Fatal(err)
+	}
 	spot, err = b.GetPairFormat(asset.Spot, false)
 	if err != nil {
 		t.Fatal(err)
@@ -479,8 +490,8 @@ func TestLoadConfigPairs(t *testing.T) {
 			},
 			Pairs: map[asset.Item]*currency.PairStore{
 				asset.Spot: {
-					RequestFormat: &currency.PairFormat{},
-					ConfigFormat:  &currency.PairFormat{},
+					RequestFormat: &currency.EMPTYFORMAT,
+					ConfigFormat:  &currency.EMPTYFORMAT,
 				},
 			},
 		},
@@ -516,7 +527,11 @@ func TestLoadConfigPairs(t *testing.T) {
 	}
 
 	// Test UseGlobalFormat setting of pairs
-	b.SetCurrencyPairFormat()
+	err = b.SetCurrencyPairFormat()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	err = b.SetConfigPairs()
 	if err != nil {
 		t.Fatal(err)
@@ -535,7 +550,7 @@ func TestLoadConfigPairs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	p := pairs[0].Format(pFmt.Delimiter, pFmt.Uppercase).String()
+	p := pairs[0].Format(pFmt).String()
 	if p != "BTC^USD" {
 		t.Errorf("incorrect value, expected BTC^USD")
 	}
@@ -562,17 +577,23 @@ func TestLoadConfigPairs(t *testing.T) {
 	}
 
 	// Test !UseGlobalFormat setting of pairs
-	exchPS, err := b.CurrencyPairs.Get(asset.Spot)
+	err = b.CurrencyPairs.StoreFormat(asset.Spot, &currency.PairFormat{Delimiter: "~"}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	exchPS.RequestFormat.Delimiter = "~"
-	exchPS.RequestFormat.Uppercase = false
-	exchPS.ConfigFormat.Delimiter = "/"
-	exchPS.ConfigFormat.Uppercase = false
+	err = b.CurrencyPairs.StoreFormat(asset.Spot, &currency.PairFormat{Delimiter: "/"}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	pairs = append(pairs, currency.Pair{Base: currency.XRP, Quote: currency.USD})
-	b.Config.CurrencyPairs.StorePairs(asset.Spot, pairs, false)
-	b.Config.CurrencyPairs.StorePairs(asset.Spot, pairs, true)
+	err = b.Config.CurrencyPairs.StorePairs(asset.Spot, pairs, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.Config.CurrencyPairs.StorePairs(asset.Spot, pairs, true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	b.Config.CurrencyPairs.UseGlobalFormat = false
 	b.CurrencyPairs.UseGlobalFormat = false
 
@@ -585,7 +606,7 @@ func TestLoadConfigPairs(t *testing.T) {
 	// 2) pair format is set for RequestFormat
 	// 3) pair format is set for ConfigFormat
 	// 4) Config pair store formats are the same as the exchanges
-	pFmt, err = b.GetPairFormat(asset.Spot, false)
+	configFmt, err := b.GetPairFormat(asset.Spot, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -593,7 +614,7 @@ func TestLoadConfigPairs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p = pairs[2].Format(pFmt.Delimiter, pFmt.Uppercase).String()
+	p = pairs[2].Format(configFmt).String()
 	if p != "xrp/usd" {
 		t.Error("incorrect value, expected xrp/usd", p)
 	}
@@ -687,13 +708,13 @@ func TestGetPairFormat(t *testing.T) {
 
 	// Test individual asset pair store formatting
 	b.CurrencyPairs.UseGlobalFormat = false
-	b.CurrencyPairs.Store(asset.Spot, currency.PairStore{
-		ConfigFormat: &pFmt,
-		RequestFormat: &currency.PairFormat{
-			Delimiter: "/",
-			Uppercase: true,
-		},
+	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+		ConfigFormat:  &pFmt,
+		RequestFormat: &currency.PairFormat{Delimiter: "/", Uppercase: true},
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	pFmt, err = b.GetPairFormat(asset.Spot, false)
 	if err != nil {
 		t.Fatal(err)
@@ -722,8 +743,14 @@ func TestGetEnabledPairs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot, defaultPairs, true)
-	b.CurrencyPairs.StorePairs(asset.Spot, defaultPairs, false)
+	err = b.CurrencyPairs.StorePairs(asset.Spot, defaultPairs, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.CurrencyPairs.StorePairs(asset.Spot, defaultPairs, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	format := currency.PairFormat{
 		Delimiter: "-",
 		Index:     "",
@@ -773,8 +800,14 @@ func TestGetEnabledPairs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot, btcdoge, true)
-	b.CurrencyPairs.StorePairs(asset.Spot, btcdoge, false)
+	err = b.CurrencyPairs.StorePairs(asset.Spot, btcdoge, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.CurrencyPairs.StorePairs(asset.Spot, btcdoge, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	format.Index = currency.BTC.String()
 	b.CurrencyPairs.ConfigFormat = &format
 	c, err = b.GetEnabledPairs(asset.Spot)
@@ -790,8 +823,14 @@ func TestGetEnabledPairs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot, btcusdUnderscore, true)
-	b.CurrencyPairs.StorePairs(asset.Spot, btcusdUnderscore, false)
+	err = b.CurrencyPairs.StorePairs(asset.Spot, btcusdUnderscore, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.CurrencyPairs.StorePairs(asset.Spot, btcusdUnderscore, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	b.CurrencyPairs.RequestFormat.Delimiter = ""
 	b.CurrencyPairs.ConfigFormat.Delimiter = "_"
 	c, err = b.GetEnabledPairs(asset.Spot)
@@ -802,8 +841,14 @@ func TestGetEnabledPairs(t *testing.T) {
 		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot, btcdoge, true)
-	b.CurrencyPairs.StorePairs(asset.Spot, btcdoge, false)
+	err = b.CurrencyPairs.StorePairs(asset.Spot, btcdoge, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.CurrencyPairs.StorePairs(asset.Spot, btcdoge, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	b.CurrencyPairs.RequestFormat.Delimiter = ""
 	b.CurrencyPairs.ConfigFormat.Delimiter = ""
 	b.CurrencyPairs.ConfigFormat.Index = currency.BTC.String()
@@ -820,8 +865,14 @@ func TestGetEnabledPairs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot, btcusd, true)
-	b.CurrencyPairs.StorePairs(asset.Spot, btcusd, false)
+	err = b.CurrencyPairs.StorePairs(asset.Spot, btcusd, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.CurrencyPairs.StorePairs(asset.Spot, btcusd, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	b.CurrencyPairs.ConfigFormat.Index = ""
 	c, err = b.GetEnabledPairs(asset.Spot)
 	if err != nil {
@@ -844,7 +895,10 @@ func TestGetAvailablePairs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot, defaultPairs, false)
+	err = b.CurrencyPairs.StorePairs(asset.Spot, defaultPairs, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	format := currency.PairFormat{
 		Delimiter: "-",
 		Index:     "",
@@ -892,7 +946,11 @@ func TestGetAvailablePairs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot, dogePairs, false)
+	err = b.CurrencyPairs.StorePairs(asset.Spot, dogePairs, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	format.Index = currency.BTC.String()
 	b.CurrencyPairs.ConfigFormat = &format
 	c, err = b.GetAvailablePairs(assetType)
@@ -909,7 +967,11 @@ func TestGetAvailablePairs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot, btcusdUnderscore, false)
+	err = b.CurrencyPairs.StorePairs(asset.Spot, btcusdUnderscore, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	b.CurrencyPairs.RequestFormat.Delimiter = ""
 	b.CurrencyPairs.ConfigFormat.Delimiter = "_"
 	c, err = b.GetAvailablePairs(assetType)
@@ -921,7 +983,11 @@ func TestGetAvailablePairs(t *testing.T) {
 		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot, dogePairs, false)
+	err = b.CurrencyPairs.StorePairs(asset.Spot, dogePairs, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	b.CurrencyPairs.RequestFormat.Delimiter = ""
 	b.CurrencyPairs.ConfigFormat.Delimiter = "_"
 	b.CurrencyPairs.ConfigFormat.Index = currency.BTC.String()
@@ -939,7 +1005,11 @@ func TestGetAvailablePairs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot, btcusd, false)
+	err = b.CurrencyPairs.StorePairs(asset.Spot, btcusd, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	b.CurrencyPairs.ConfigFormat.Index = ""
 	c, err = b.GetAvailablePairs(assetType)
 	if err != nil {
@@ -971,14 +1041,20 @@ func TestSupportsPair(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot, pairs, false)
+	err = b.CurrencyPairs.StorePairs(asset.Spot, pairs, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	defaultpairs, err := currency.NewPairsFromStrings([]string{defaultTestCurrencyPair})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot, defaultpairs, true)
+	err = b.CurrencyPairs.StorePairs(asset.Spot, defaultpairs, true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	format := &currency.PairFormat{
 		Delimiter: "-",
@@ -1148,13 +1224,12 @@ func TestSetupDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	b.CurrencyPairs.Store(asset.Spot,
-		currency.PairStore{
-			Enabled: currency.Pairs{
-				p,
-			},
-		},
-	)
+	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+		Enabled: currency.Pairs{p},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	err = b.SetupDefaults(&cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -1276,6 +1351,8 @@ func TestUpdatePairs(t *testing.T) {
 					AssetEnabled: convert.BoolPtr(true),
 				},
 			},
+			ConfigFormat:    &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+			UseGlobalFormat: true,
 		},
 	}
 	UAC.Config = exchCfg
@@ -1350,7 +1427,7 @@ func TestUpdatePairs(t *testing.T) {
 	}
 	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false, false)
 	if err != nil {
-		t.Errorf("Forced Exchange UpdatePairs() error: %s", err)
+		t.Errorf("Exchange UpdatePairs() error: %s", err)
 	}
 
 	// Test empty pair
@@ -1358,18 +1435,29 @@ func TestUpdatePairs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pairs := currency.Pairs{
-		currency.EMPTYPAIR,
-		p,
-	}
+	pairs := currency.Pairs{currency.EMPTYPAIR, p}
 	err = UAC.UpdatePairs(pairs, asset.Spot, true, true)
-	if err != nil {
-		t.Errorf("Forced Exchange UpdatePairs() error: %s", err)
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrCurrencyPairEmpty)
 	}
+
+	pairs = currency.Pairs{p, p}
 	err = UAC.UpdatePairs(pairs, asset.Spot, false, true)
-	if err != nil {
-		t.Errorf("Forced Exchange UpdatePairs() error: %s", err)
+	if !errors.Is(err, currency.ErrPairDuplication) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrPairDuplication)
 	}
+
+	pairs = currency.Pairs{p}
+	err = UAC.UpdatePairs(pairs, asset.Spot, false, true)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	err = UAC.UpdatePairs(pairs, asset.Spot, true, true)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
 	UAC.CurrencyPairs.UseGlobalFormat = true
 	UAC.CurrencyPairs.ConfigFormat = &currency.PairFormat{
 		Delimiter: "-",
@@ -1381,6 +1469,86 @@ func TestUpdatePairs(t *testing.T) {
 	}
 	if !uacPairs.Contains(p, true) {
 		t.Fatal("expected currency pair not found")
+	}
+
+	pairs = currency.Pairs{
+		currency.NewPair(currency.XRP, currency.USD),
+		currency.NewPair(currency.BTC, currency.USD),
+		currency.NewPair(currency.LTC, currency.USD),
+		currency.NewPair(currency.LTC, currency.USDT),
+	}
+	err = UAC.UpdatePairs(pairs, asset.Spot, true, true)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	pairs = currency.Pairs{
+		currency.NewPair(currency.WABI, currency.USD),
+		currency.NewPair(currency.EASY, currency.USD),
+		currency.NewPair(currency.LARIX, currency.USD),
+		currency.NewPair(currency.LTC, currency.USDT),
+	}
+	err = UAC.UpdatePairs(pairs, asset.Spot, false, true)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	uacEnabledPairs, err := UAC.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if uacEnabledPairs.Contains(currency.NewPair(currency.XRP, currency.USD), true) {
+		t.Fatal("expected currency pair not found")
+	}
+	if uacEnabledPairs.Contains(currency.NewPair(currency.BTC, currency.USD), true) {
+		t.Fatal("expected currency pair not found")
+	}
+	if uacEnabledPairs.Contains(currency.NewPair(currency.LTC, currency.USD), true) {
+		t.Fatal("expected currency pair not found")
+	}
+	if !uacEnabledPairs.Contains(currency.NewPair(currency.LTC, currency.USDT), true) {
+		t.Fatal("expected currency pair not found")
+	}
+
+	// This should be matched and formatted to `link-usd`
+	unintentionalInput, err := currency.NewPairFromString("linkusd")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	pairs = currency.Pairs{
+		currency.NewPair(currency.WABI, currency.USD),
+		currency.NewPair(currency.EASY, currency.USD),
+		currency.NewPair(currency.LARIX, currency.USD),
+		currency.NewPair(currency.LTC, currency.USDT),
+		unintentionalInput,
+	}
+
+	err = UAC.UpdatePairs(pairs, asset.Spot, true, true)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	pairs = currency.Pairs{
+		currency.NewPair(currency.WABI, currency.USD),
+		currency.NewPair(currency.EASY, currency.USD),
+		currency.NewPair(currency.LARIX, currency.USD),
+		currency.NewPair(currency.LTC, currency.USDT),
+		currency.NewPair(currency.LINK, currency.USD),
+	}
+
+	err = UAC.UpdatePairs(pairs, asset.Spot, false, true)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	uacEnabledPairs, err = UAC.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !uacEnabledPairs.Contains(currency.NewPair(currency.LINK, currency.USD), true) {
+		t.Fatalf("received: '%v' but expected: '%v'", false, true)
 	}
 }
 
@@ -1591,7 +1759,10 @@ func TestGetFormattedPairAndAssetType(t *testing.T) {
 	b := Base{
 		Config: &config.Exchange{},
 	}
-	b.SetCurrencyPairFormat()
+	err := b.SetCurrencyPairFormat()
+	if err != nil {
+		t.Fatal(err)
+	}
 	b.Config.CurrencyPairs.UseGlobalFormat = true
 	b.CurrencyPairs.UseGlobalFormat = true
 	pFmt := &currency.PairFormat{
@@ -1649,13 +1820,20 @@ func TestStoreAssetPairFormat(t *testing.T) {
 	err = b.StoreAssetPairFormat(asset.Spot, currency.PairStore{
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true}})
+	if !errors.Is(err, errConfigPairFormatRequiresDelimiter) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errConfigPairFormatRequiresDelimiter)
+	}
+
+	err = b.StoreAssetPairFormat(asset.Futures, currency.PairStore{
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}})
 	if err != nil {
 		t.Error(err)
 	}
 
 	err = b.StoreAssetPairFormat(asset.Futures, currency.PairStore{
 		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true}})
+		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}})
 	if err != nil {
 		t.Error(err)
 	}
@@ -1689,7 +1867,17 @@ func TestSetGlobalPairsManager(t *testing.T) {
 	}
 
 	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true},
-		&currency.PairFormat{Uppercase: true}, asset.Spot, asset.Binary)
+		&currency.PairFormat{Uppercase: true},
+		asset.Spot,
+		asset.Binary)
+	if !errors.Is(err, errConfigPairFormatRequiresDelimiter) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errConfigPairFormatRequiresDelimiter)
+	}
+
+	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true},
+		&currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+		asset.Spot,
+		asset.Binary)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2151,10 +2339,11 @@ func TestAssetWebsocketFunctionality(t *testing.T) {
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
+			Delimiter: currency.DashDelimiter,
 		},
 	})
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
 	err = b.DisableAssetWebsocketSupport(asset.Spot)
@@ -2357,5 +2546,74 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 	var b Base
 	if _, err := b.IsPerpetualFutureCurrency(asset.Spot, currency.NewPair(currency.BTC, currency.USD)); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
+	}
+}
+
+func TestGetPairAndAssetTypeRequestFormatted(t *testing.T) {
+	t.Parallel()
+
+	expected := currency.Pair{Base: currency.BTC, Quote: currency.USDT}
+	enabledPairs := currency.Pairs{expected}
+	availablePairs := currency.Pairs{
+		currency.Pair{Base: currency.BTC, Quote: currency.USDT},
+		currency.Pair{Base: currency.BTC, Quote: currency.AUD},
+	}
+
+	b := Base{
+		CurrencyPairs: currency.PairsManager{
+			Pairs: map[asset.Item]*currency.PairStore{
+				asset.Spot: {
+					AssetEnabled:  convert.BoolPtr(true),
+					Enabled:       enabledPairs,
+					Available:     availablePairs,
+					RequestFormat: &currency.PairFormat{Delimiter: "-", Uppercase: true},
+					ConfigFormat:  &currency.EMPTYFORMAT,
+				},
+				asset.PerpetualContract: {
+					AssetEnabled:  convert.BoolPtr(true),
+					Enabled:       enabledPairs,
+					Available:     availablePairs,
+					RequestFormat: &currency.PairFormat{Delimiter: "_", Uppercase: true},
+					ConfigFormat:  &currency.EMPTYFORMAT,
+				},
+			},
+		},
+	}
+
+	_, _, err := b.GetPairAndAssetTypeRequestFormatted("")
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrCurrencyPairEmpty)
+	}
+
+	_, _, err = b.GetPairAndAssetTypeRequestFormatted("BTCAUD")
+	if !errors.Is(err, errSymbolCannotBeMatched) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errSymbolCannotBeMatched)
+	}
+
+	_, _, err = b.GetPairAndAssetTypeRequestFormatted("BTCUSDT")
+	if !errors.Is(err, errSymbolCannotBeMatched) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errSymbolCannotBeMatched)
+	}
+
+	p, a, err := b.GetPairAndAssetTypeRequestFormatted("BTC-USDT")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+	if a != asset.Spot {
+		t.Fatal("unexpected value", a)
+	}
+	if !p.Equal(expected) {
+		t.Fatalf("received: '%v' but expected: '%v'", p, expected)
+	}
+
+	p, a, err = b.GetPairAndAssetTypeRequestFormatted("BTC_USDT")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+	if a != asset.PerpetualContract {
+		t.Fatal("unexpected value", a)
+	}
+	if !p.Equal(expected) {
+		t.Fatalf("received: '%v' but expected: '%v'", p, expected)
 	}
 }
