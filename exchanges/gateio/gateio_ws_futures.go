@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -20,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -54,6 +57,9 @@ var defaultFuturesSubscriptions = []string{
 	futuresCandlesticksChannel,
 }
 
+// responseStream a channel thought which the data coming from the two websocket connection will go through.
+var responseStream = make(chan stream.Response)
+
 var futuresAssetType = asset.Futures
 
 // WsFuturesConnect initiates a websocket connection for futures account
@@ -62,17 +68,36 @@ func (g *Gateio) WsFuturesConnect() error {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := g.Websocket.SetWebsocketURL(futuresWebsocketBtcURL, false, true)
-	if err != nil {
-		return err
-	}
-	err = g.Websocket.SetWebsocketURL(futuresWebsocketUsdtURL, true, true)
+	err := g.Websocket.SetWebsocketURL(futuresWebsocketUsdtURL, false, true)
 	if err != nil {
 		return err
 	}
 	err = g.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
+	}
+
+	err = g.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		URL:                  futuresWebsocketBtcURL,
+		RateLimit:            gateioWebsocketRateLimit,
+		ResponseCheckTimeout: g.Config.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     g.Config.WebsocketResponseMaxLimit,
+		Authenticated:        true,
+	})
+	if err != nil {
+		return err
+	}
+	err = g.Websocket.AuthConn.Dial(&dialer, http.Header{})
+	if err != nil {
+		return err
+	}
+	g.Websocket.Wg.Add(3)
+	go g.wsFunnelConnectionData(g.Websocket.Conn)
+	go g.wsFunnelConnectionData(g.Websocket.AuthConn)
+	go g.wsReadData()
+	if g.Verbose {
+		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
+			g.Websocket.GetWebsocketURL())
 	}
 	pingMessage, err := json.Marshal(WsInput{
 		ID: g.Websocket.Conn.GenerateMessageID(false),
@@ -94,6 +119,47 @@ func (g *Gateio) WsFuturesConnect() error {
 	go g.wsReadData()
 	go g.WsChannelsMultiplexer.Run()
 	return nil
+}
+
+// wsReadData read coming messages thought the websocket connection and pass the data to wsHandleData for further process.
+func (g *Gateio) wsReadData() {
+	defer g.Websocket.Wg.Done()
+	for {
+		select {
+		case <-g.Websocket.ShutdownC:
+			select {
+			case resp := <-responseStream:
+				err := g.wsHandleData(resp.Raw)
+				if err != nil {
+					select {
+					case g.Websocket.DataHandler <- err:
+					default:
+						log.Errorf(log.WebsocketMgr, "%s websocket handle data error: %v", g.Name, err)
+					}
+				}
+			default:
+			}
+			return
+		case resp := <-responseStream:
+			err := g.wsHandleData(resp.Raw)
+			if err != nil {
+				g.Websocket.DataHandler <- err
+			}
+		}
+	}
+}
+
+// wsFunnelConnectionData receives data from multiple connection and pass the data
+// to wsRead through a channel responseStream
+func (g *Gateio) wsFunnelConnectionData(ws stream.Connection) {
+	defer g.Websocket.Wg.Done()
+	for {
+		resp := ws.ReadMessage()
+		if resp.Raw == nil {
+			return
+		}
+		responseStream <- stream.Response{Raw: resp.Raw}
+	}
 }
 
 // GenerateFuturesDefaultSubscriptions returns default subscriptions informations.
@@ -140,6 +206,135 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions() ([]stream.ChannelSubscrip
 		}
 	}
 	return subscriptions, nil
+}
+
+// FuturesSubscribe sends a websocket message to stop receiving data from the channel
+func (g *Gateio) FuturesSubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+	return g.handleFuturesSubscription("subscribe", channelsToUnsubscribe)
+}
+
+// FuturesUnsubscribe sends a websocket message to stop receiving data from the channel
+func (g *Gateio) FuturesUnsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+	return g.handleFuturesSubscription("unsubscribe", channelsToUnsubscribe)
+}
+
+// handleFuturesSubscription sends a websocket message to receive data from the channel
+func (g *Gateio) handleFuturesSubscription(event string, channelsToSubscribe []stream.ChannelSubscription) error {
+	payloads, err := g.generateFuturesPayload(event, channelsToSubscribe)
+	if err != nil {
+		return err
+	}
+	var errs common.Errors
+	for con := range payloads {
+		for k := range payloads[con] {
+			if con == 0 {
+				err = g.Websocket.Conn.SendJSONMessage(payloads[con][k])
+			} else {
+				err = g.Websocket.AuthConn.SendJSONMessage(payloads[con][k])
+			}
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
+			channel := make(chan *WsEventResponse)
+			g.WsChannelsMultiplexer.Register <- &wsChanReg{
+				ID:   strconv.FormatInt(payloads[con][k].ID, 10),
+				Chan: channel,
+			}
+			ticker := time.NewTicker(time.Second * 3)
+		receive:
+			for {
+				select {
+				case resp := <-channel:
+					if resp.Result != nil && resp.Result.Status != "success" {
+						errs = append(errs, fmt.Errorf("%s websocket connection: timeout waiting for response with and subscription: %v", g.Name, payloads[con][k].Channel))
+						break receive
+					} else if resp.Error != nil && resp.Error.Code != 0 {
+						errs = append(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[con][k].Event, payloads[con][k].Channel, resp.Error.Code, resp.Error.Message))
+						break receive
+					}
+					g.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[k])
+					g.WsChannelsMultiplexer.Unregister <- strconv.FormatInt(payloads[con][k].ID, 10)
+					break receive
+				case <-ticker.C:
+					ticker.Stop()
+					errs = append(errs, fmt.Errorf("%s websocket connection: timeout waiting for response with and subscription: %v",
+						g.Name, payloads[con][k].Channel))
+					g.WsChannelsMultiplexer.Unregister <- strconv.FormatInt(payloads[con][k].ID, 10)
+				}
+			}
+		}
+	}
+	if errs != nil {
+		return errs
+	}
+	return nil
+}
+
+func (g *Gateio) generateFuturesPayload(event string, channelsToSubscribe []stream.ChannelSubscription) ([2][]WsInput, error) {
+	if len(channelsToSubscribe) == 0 {
+		return [2][]WsInput{}, errors.New("cannot generate payload, no channels supplied")
+	}
+	var creds *account.Credentials
+	var err error
+	if g.Websocket.CanUseAuthenticatedEndpoints() {
+		creds, err = g.GetCredentials(context.TODO())
+		if err != nil {
+			g.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		}
+	}
+	payloads := [2][]WsInput{}
+	for i := range channelsToSubscribe {
+		var auth *WsAuthInput
+		timestamp := time.Now()
+		var params []string
+		params = []string{channelsToSubscribe[i].Currency.String()}
+		if g.Websocket.CanUseAuthenticatedEndpoints() && (channelsToSubscribe[i].Channel == futuresOrdersChannel ||
+			channelsToSubscribe[i].Channel == futuresUserTradesChannel ||
+			channelsToSubscribe[i].Channel == futuresLiquidatesChannel ||
+			channelsToSubscribe[i].Channel == futuresAutoDeleveragesChannel ||
+			channelsToSubscribe[i].Channel == futuresAutoPositionCloseChannel ||
+			channelsToSubscribe[i].Channel == futuresBalancesChannel ||
+			channelsToSubscribe[i].Channel == futuresReduceRiskLimitsChannel ||
+			channelsToSubscribe[i].Channel == futuresPositionsChannel ||
+			channelsToSubscribe[i].Channel == futuresAutoOrdersChannel) {
+			value, ok := channelsToSubscribe[i].Params["user"].(string)
+			if ok {
+				params = append(
+					[]string{value},
+					params...)
+			}
+			sigTemp, err := g.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp)
+			if err != nil {
+				return [2][]WsInput{}, err
+			}
+			auth = &WsAuthInput{
+				Method: "api_key",
+				Key:    creds.Key,
+				Sign:   sigTemp,
+			}
+		}
+		if strings.HasPrefix(channelsToSubscribe[i].Currency.Quote.Upper().String(), "USDT") {
+			payloads[0] = append(payloads[0], WsInput{
+				ID:      g.Websocket.Conn.GenerateMessageID(false),
+				Event:   event,
+				Channel: channelsToSubscribe[i].Channel,
+				Payload: params,
+				Auth:    auth,
+				Time:    timestamp.Unix(),
+			})
+		} else {
+			payloads[1] = append(payloads[1], WsInput{
+				ID:      g.Websocket.Conn.GenerateMessageID(false),
+				Event:   event,
+				Channel: channelsToSubscribe[i].Channel,
+				Payload: params,
+				Auth:    auth,
+				Time:    timestamp.Unix(),
+			})
+		}
+	}
+	return payloads, nil
 }
 
 func (g *Gateio) processFuturesTickers(data []byte) error {

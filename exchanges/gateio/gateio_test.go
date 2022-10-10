@@ -77,11 +77,28 @@ func areTestAPIKeysSet() bool {
 	return g.ValidateAPICredentials(g.GetDefaultCredentials()) == nil
 }
 
+// getTradablePair returns the first tradable currency pair for the given asset type, skip the test otherwise.
+func getTradablePair(t *testing.T, a asset.Item) currency.Pair {
+	t.Helper()
+	pairs, err := g.FetchTradablePairs(context.Background(), a)
+	if err != nil {
+		t.Skip(err)
+	}
+	if len(pairs) == 0 {
+		t.Skip("No tradable pairs found for asset ")
+	}
+	pair, err := currency.NewPairFromString(pairs[0])
+	if err != nil {
+		t.Skip(err)
+	}
+	return pair
+}
+
 func TestCancelAllExchangeOrders(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip()
 	}
-	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
+	currencyPair := getTradablePair(t, asset.Options)
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
@@ -142,7 +159,7 @@ func TestGetOrderInfo(t *testing.T) {
 		t.SkipNow()
 	}
 	_, err := g.GetOrderInfo(context.Background(),
-		"917591554", currency.NewPair(currency.BTC, currency.USDT), asset.Options)
+		"917591554", getTradablePair(t, asset.Options), asset.Options)
 	if err != nil && !strings.Contains(err.Error(), "ORDER_NOT_FOUND") {
 		if err.Error() != "no order found with id 917591554" && err.Error() != "failed to get open orders" {
 			t.Fatalf("GetOrderInfo() returned an error skipping test: %v", err)
@@ -152,15 +169,12 @@ func TestGetOrderInfo(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("btc_usdt")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = g.UpdateTicker(context.Background(), cp, asset.Options)
+	cp := getTradablePair(t, asset.Options)
+	_, err := g.UpdateTicker(context.Background(), cp, asset.Options)
 	if err != nil {
 		t.Error(err)
 	}
-	t.SkipNow()
+	cp = getTradablePair(t, asset.DeliveryFutures)
 	_, err = g.UpdateTicker(context.Background(), cp, asset.DeliveryFutures)
 	if err != nil {
 		t.Error(err)
@@ -169,64 +183,64 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestListAllCurrencies(t *testing.T) {
 	t.Parallel()
-	if _, er := g.ListAllCurrencies(context.Background()); er != nil {
-		t.Errorf("%s ListAllCurrencies() error %v", g.Name, er)
+	if _, err := g.ListAllCurrencies(context.Background()); err != nil {
+		t.Errorf("%s ListAllCurrencies() error %v", g.Name, err)
 	}
 }
 
 func TestGetCurrencyDetail(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetCurrencyDetail(context.Background(), currency.BTC); er != nil {
-		t.Errorf("%s GetCurrencyDetail() error %v", g.Name, er)
+	if _, err := g.GetCurrencyDetail(context.Background(), currency.BTC); err != nil {
+		t.Errorf("%s GetCurrencyDetail() error %v", g.Name, err)
 	}
 }
 
 func TestListAllCurrencyPairs(t *testing.T) {
 	t.Parallel()
-	if _, er := g.ListAllCurrencyPairs(context.Background()); er != nil {
-		t.Errorf("%s ListAllCurrencyPairs() error %v", g.Name, er)
+	if _, err := g.ListAllCurrencyPairs(context.Background()); err != nil {
+		t.Errorf("%s ListAllCurrencyPairs() error %v", g.Name, err)
 	}
 }
 
 func TestGetCurrencyPairDetal(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetCurrencyPairDetail(context.Background(), currency.NewPair(currency.BTC, currency.USDT)); er != nil {
-		t.Errorf("%s GetCurrencyPairDetal() error %v", g.Name, er)
+	if _, err := g.GetCurrencyPairDetail(context.Background(), currency.NewPair(currency.BTC, currency.USDT)); err != nil {
+		t.Errorf("%s GetCurrencyPairDetal() error %v", g.Name, err)
 	}
 }
 
 func TestGetTickers(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetTickers(context.Background(), currency.Pair{}, ""); er != nil {
-		t.Errorf("%s GetTickers() error %v", g.Name, er)
+	if _, err := g.GetTickers(context.Background(), currency.Pair{}, ""); err != nil {
+		t.Errorf("%s GetTickers() error %v", g.Name, err)
 	}
 }
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetTicker(context.Background(), currency.NewPair(currency.BTC, currency.USDT), utc8TimeZone); er != nil {
-		t.Errorf("%s GetTicker() error %v", g.Name, er)
+	if _, err := g.GetTicker(context.Background(), currency.NewPair(currency.BTC, currency.USDT), utc8TimeZone); err != nil {
+		t.Errorf("%s GetTicker() error %v", g.Name, err)
 	}
 }
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetOrderbook(context.Background(), currency.NewPair(currency.BCH, currency.USDT), "0.1", 100, true); er != nil {
-		t.Errorf("%s GetOrderbook() error %v", g.Name, er)
+	if _, err := g.GetOrderbook(context.Background(), currency.NewPair(currency.BCH, currency.USDT), "0.1", 100, true); err != nil {
+		t.Errorf("%s GetOrderbook() error %v", g.Name, err)
 	}
 }
 
 func TestGetMarketTrades(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetMarketTrades(context.Background(), currency.NewPair(currency.BTC, currency.USDT), 0, "", true, time.Time{}, time.Time{}, 1); er != nil {
-		t.Errorf("%s GetMarketTrades() error %v", g.Name, er)
+	if _, err := g.GetMarketTrades(context.Background(), currency.NewPair(currency.BTC, currency.USDT), 0, "", true, time.Time{}, time.Time{}, 1); err != nil {
+		t.Errorf("%s GetMarketTrades() error %v", g.Name, err)
 	}
 }
 
 func TestGetCandlesticks(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetCandlesticks(context.Background(), currency.NewPair(currency.BTC, currency.USDT), 0, time.Time{}, time.Time{}, kline.OneDay); er != nil {
-		t.Errorf("%s GetCandlesticks() error %v", g.Name, er)
+	if _, err := g.GetCandlesticks(context.Background(), currency.NewPair(currency.BTC, currency.USDT), 0, time.Time{}, time.Time{}, kline.OneDay); err != nil {
+		t.Errorf("%s GetCandlesticks() error %v", g.Name, err)
 	}
 }
 func TestGetTradingFeeRatio(t *testing.T) {
@@ -234,8 +248,8 @@ func TestGetTradingFeeRatio(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.GetTradingFeeRatio(context.Background(), currency.NewPair(currency.BTC, currency.USDT)); er != nil {
-		t.Errorf("%s GetTradingFeeRatio() error %v", g.Name, er)
+	if _, err := g.GetTradingFeeRatio(context.Background(), currency.NewPair(currency.BTC, currency.USDT)); err != nil {
+		t.Errorf("%s GetTradingFeeRatio() error %v", g.Name, err)
 	}
 }
 
@@ -244,8 +258,8 @@ func TestGetSpotAccounts(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.GetSpotAccounts(context.Background(), currency.BTC); er != nil {
-		t.Errorf("%s GetSpotAccounts() error %v", g.Name, er)
+	if _, err := g.GetSpotAccounts(context.Background(), currency.BTC); err != nil {
+		t.Errorf("%s GetSpotAccounts() error %v", g.Name, err)
 	}
 }
 
@@ -254,7 +268,7 @@ func TestCreateBatchOrders(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
-	if _, er := g.CreateBatchOrders(context.Background(), []CreateOrderRequestData{
+	if _, err := g.CreateBatchOrders(context.Background(), []CreateOrderRequestData{
 		{
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
 			Side:         "sell",
@@ -271,8 +285,8 @@ func TestCreateBatchOrders(t *testing.T) {
 			Account:      asset.Spot,
 			Type:         "limit",
 		},
-	}); er != nil {
-		t.Errorf("%s CreateBatchOrders() error %v", g.Name, er)
+	}); err != nil {
+		t.Errorf("%s CreateBatchOrders() error %v", g.Name, err)
 	}
 }
 
@@ -281,8 +295,8 @@ func TestGetSpotOpenOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.GetSpotOpenOrders(context.Background(), 0, 0, asset.Spot); er != nil {
-		t.Errorf("%s GetSpotOpenOrders() error %v", g.Name, er)
+	if _, err := g.GetSpotOpenOrders(context.Background(), 0, 0, asset.Spot); err != nil {
+		t.Errorf("%s GetSpotOpenOrders() error %v", g.Name, err)
 	}
 }
 
@@ -291,12 +305,12 @@ func TestSpotClosePositionWhenCrossCurrencyDisabled(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
-	if _, er := g.SpotClosePositionWhenCrossCurrencyDisabled(context.Background(), &ClosePositionRequestParam{
+	if _, err := g.SpotClosePositionWhenCrossCurrencyDisabled(context.Background(), &ClosePositionRequestParam{
 		Amount:       0.1,
 		Price:        1234567384,
 		CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
-	}); er != nil {
-		t.Errorf("%s SpotClosePositionWhenCrossCurrencyDisabled() error %v", g.Name, er)
+	}); err != nil {
+		t.Errorf("%s SpotClosePositionWhenCrossCurrencyDisabled() error %v", g.Name, err)
 	}
 }
 
@@ -305,15 +319,15 @@ func TestCreateSpotOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
-	if _, er := g.PlaceSpotOrder(context.Background(), &CreateOrderRequestData{
+	if _, err := g.PlaceSpotOrder(context.Background(), &CreateOrderRequestData{
 		CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
 		Side:         "buy",
 		Amount:       1,
 		Price:        1234567789,
 		Account:      asset.Spot,
 		Type:         "limit",
-	}); er != nil {
-		t.Errorf("%s CreateSpotOrder() error %v", g.Name, er)
+	}); err != nil {
+		t.Errorf("%s CreateSpotOrder() error %v", g.Name, err)
 	}
 }
 
@@ -322,8 +336,8 @@ func TestGetSpotOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.GetSpotOrders(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "open", 0, 0); er != nil {
-		t.Errorf("%s GetSpotOrders() error %v", g.Name, er)
+	if _, err := g.GetSpotOrders(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "open", 0, 0); err != nil {
+		t.Errorf("%s GetSpotOrders() error %v", g.Name, err)
 	}
 }
 
@@ -332,8 +346,8 @@ func TestCancelAllOpenOrdersSpecifiedCurrencyPair(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.CancelAllOpenOrdersSpecifiedCurrencyPair(context.Background(), currency.NewPair(currency.BTC, currency.USDT), order.Sell, asset.Empty); er != nil {
-		t.Errorf("%s CancelAllOpenOrdersSpecifiedCurrencyPair() error %v", g.Name, er)
+	if _, err := g.CancelAllOpenOrdersSpecifiedCurrencyPair(context.Background(), currency.NewPair(currency.BTC, currency.USDT), order.Sell, asset.Empty); err != nil {
+		t.Errorf("%s CancelAllOpenOrdersSpecifiedCurrencyPair() error %v", g.Name, err)
 	}
 }
 
@@ -342,7 +356,7 @@ func TestCancelBatchOrdersWithIDList(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
-	if _, er := g.CancelBatchOrdersWithIDList(context.Background(), []CancelOrderByIDParam{
+	if _, err := g.CancelBatchOrdersWithIDList(context.Background(), []CancelOrderByIDParam{
 		{
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
 			ID:           "1234567",
@@ -351,8 +365,8 @@ func TestCancelBatchOrdersWithIDList(t *testing.T) {
 			CurrencyPair: currency.NewPair(currency.ETH, currency.USDT),
 			ID:           "something",
 		},
-	}); er != nil {
-		t.Errorf("%s CancelBatchOrderWithIDList() error %v", g.Name, er)
+	}); err != nil {
+		t.Errorf("%s CancelBatchOrderWithIDList() error %v", g.Name, err)
 	}
 }
 
@@ -361,14 +375,14 @@ var spotOrderJSON = `{"id": "12332324","text": "t-123456","create_time": "154800
 func TestGetSpotOrder(t *testing.T) {
 	t.Parallel()
 	var response SpotOrder
-	if er := json.Unmarshal([]byte(spotOrderJSON), &response); er != nil {
-		t.Errorf("%s error while deserializing to SpotOrder %v", g.Name, er)
+	if err := json.Unmarshal([]byte(spotOrderJSON), &response); err != nil {
+		t.Errorf("%s error while deserializing to SpotOrder %v", g.Name, err)
 	}
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.GetSpotOrder(context.Background(), "1234", currency.NewPair(currency.BTC, currency.USDT), asset.Spot); er != nil && !strings.Contains(er.Error(), "Order with ID 1234 not found") {
-		t.Errorf("%s GetSpotOrder() error %v", g.Name, er)
+	if _, err := g.GetSpotOrder(context.Background(), "1234", currency.NewPair(currency.BTC, currency.USDT), asset.Spot); err != nil && !strings.Contains(err.Error(), "Order with ID 1234 not found") {
+		t.Errorf("%s GetSpotOrder() error %v", g.Name, err)
 	}
 }
 func TestCancelSingleSpotOrder(t *testing.T) {
@@ -376,8 +390,8 @@ func TestCancelSingleSpotOrder(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.CancelSingleSpotOrder(context.Background(), "1234", currency.NewPair(currency.ETH, currency.USDT), asset.Empty); er != nil && !strings.Contains(er.Error(), "Order not found") {
-		t.Errorf("%s CancelSingleSpotOrder() error %v", g.Name, er)
+	if _, err := g.CancelSingleSpotOrder(context.Background(), "1234", currency.NewPair(currency.ETH, currency.USDT), asset.Empty); err != nil && !strings.Contains(err.Error(), "Order not found") {
+		t.Errorf("%s CancelSingleSpotOrder() error %v", g.Name, err)
 	}
 }
 
@@ -386,14 +400,14 @@ var personalTradingHistoryJSON = `{"id": "1232893232","create_time": "1548000000
 func TestGetPersonalTradingHistory(t *testing.T) {
 	t.Parallel()
 	var response SpotPersonalTradeHistory
-	if er := json.Unmarshal([]byte(personalTradingHistoryJSON), &response); er != nil {
-		t.Errorf("%s error while deserializing to PersonalTrading History %v", g.Name, er)
+	if err := json.Unmarshal([]byte(personalTradingHistoryJSON), &response); err != nil {
+		t.Errorf("%s error while deserializing to PersonalTrading History %v", g.Name, err)
 	}
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.GetPersonalTradingHistory(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "", 0, 0, asset.Spot, time.Time{}, time.Time{}); er != nil {
-		t.Errorf("%s GetPersonalTradingHistory() error %v", g.Name, er)
+	if _, err := g.GetPersonalTradingHistory(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "", 0, 0, asset.Spot, time.Time{}, time.Time{}); err != nil {
+		t.Errorf("%s GetPersonalTradingHistory() error %v", g.Name, err)
 	}
 }
 
@@ -402,8 +416,8 @@ func TestGetServerTime(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.GetServerTime(context.Background(), asset.Empty); er != nil {
-		t.Errorf("%s GetServerTime() error %v", g.Name, er)
+	if _, err := g.GetServerTime(context.Background(), asset.Empty); err != nil {
+		t.Errorf("%s GetServerTime() error %v", g.Name, err)
 	}
 }
 
@@ -412,11 +426,11 @@ func TestCountdownCancelorder(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.CountdownCancelorder(context.Background(), CountdownCancelOrderParam{
+	if _, err := g.CountdownCancelorder(context.Background(), CountdownCancelOrderParam{
 		Timeout:      10,
 		CurrencyPair: currency.NewPair(currency.BTC, currency.ETH),
-	}); er != nil {
-		t.Errorf("%s CountdownCancelorder() error %v", g.Name, er)
+	}); err != nil {
+		t.Errorf("%s CountdownCancelorder() error %v", g.Name, err)
 	}
 }
 
@@ -425,7 +439,7 @@ func TestCreatePriceTriggeredOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
-	if _, er := g.CreatePriceTriggeredOrder(context.Background(), &PriceTriggeredOrderParam{
+	if _, err := g.CreatePriceTriggeredOrder(context.Background(), &PriceTriggeredOrderParam{
 		Trigger: TriggerPriceInfo{
 			Price:      123,
 			Rule:       ">=",
@@ -439,8 +453,8 @@ func TestCreatePriceTriggeredOrder(t *testing.T) {
 			TimeInForce: "gtc",
 		},
 		Market: currency.NewPair(currency.GT, currency.USDT),
-	}); er != nil {
-		t.Errorf("%s CreatePriceTriggeredOrder() erro %v", g.Name, er)
+	}); err != nil {
+		t.Errorf("%s CreatePriceTriggeredOrder() erro %v", g.Name, err)
 	}
 }
 
@@ -449,8 +463,8 @@ func TestGetPriceTriggeredOrderList(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.GetPriceTriggeredOrderList(context.Background(), "open", currency.EMPTYPAIR, asset.Empty, 0, 0); er != nil {
-		t.Errorf("%s GetPriceTriggeredOrderList() error %v", g.Name, er)
+	if _, err := g.GetPriceTriggeredOrderList(context.Background(), "open", currency.EMPTYPAIR, asset.Empty, 0, 0); err != nil {
+		t.Errorf("%s GetPriceTriggeredOrderList() error %v", g.Name, err)
 	}
 }
 
@@ -459,8 +473,8 @@ func TestCancelAllOpenOrders(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
-	if _, er := g.CancelMultipleSpotOpenOrders(context.Background(), currency.EMPTYPAIR, asset.CrossMargin); er != nil {
-		t.Errorf("%s CancelAllOpenOrders() error %v", g.Name, er)
+	if _, err := g.CancelMultipleSpotOpenOrders(context.Background(), currency.EMPTYPAIR, asset.CrossMargin); err != nil {
+		t.Errorf("%s CancelAllOpenOrders() error %v", g.Name, err)
 	}
 }
 
@@ -881,8 +895,8 @@ func TestGetMaxBorrowableAmountForSpecificCrossMarginCurrency(t *testing.T) {
 
 func TestListCurrencyChain(t *testing.T) {
 	t.Parallel()
-	if _, er := g.ListCurrencyChain(context.Background(), currency.BTC); er != nil {
-		t.Errorf("%s ListCurrencyChain() error %v", g.Name, er)
+	if _, err := g.ListCurrencyChain(context.Background(), currency.BTC); err != nil {
+		t.Errorf("%s ListCurrencyChain() error %v", g.Name, err)
 	}
 }
 
@@ -891,8 +905,8 @@ func TestGenerateCurrencyDepositAddress(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.GenerateCurrencyDepositAddress(context.Background(), currency.BTC); er != nil {
-		t.Errorf("%s GenerateCurrencyDepositAddress() error %v", g.Name, er)
+	if _, err := g.GenerateCurrencyDepositAddress(context.Background(), currency.BTC); err != nil {
+		t.Errorf("%s GenerateCurrencyDepositAddress() error %v", g.Name, err)
 	}
 }
 
@@ -901,8 +915,8 @@ func TestGetWithdrawalRecords(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.GetWithdrawalRecords(context.Background(), currency.BTC, time.Time{}, time.Time{}, 0, 0); er != nil {
-		t.Errorf("%s GetWithdrawalRecords() error %v", g.Name, er)
+	if _, err := g.GetWithdrawalRecords(context.Background(), currency.BTC, time.Time{}, time.Time{}, 0, 0); err != nil {
+		t.Errorf("%s GetWithdrawalRecords() error %v", g.Name, err)
 	}
 }
 
@@ -911,8 +925,8 @@ func TestGetDepositRecords(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.GetDepositRecords(context.Background(), currency.BTC, time.Time{}, time.Time{}, 0, 0); er != nil {
-		t.Errorf("%s GetDepositRecords() error %v", g.Name, er)
+	if _, err := g.GetDepositRecords(context.Background(), currency.BTC, time.Time{}, time.Time{}, 0, 0); err != nil {
+		t.Errorf("%s GetDepositRecords() error %v", g.Name, err)
 	}
 }
 
@@ -921,14 +935,14 @@ func TestTransferCurrency(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.TransferCurrency(context.Background(), &TransferCurrencyParam{
+	if _, err := g.TransferCurrency(context.Background(), &TransferCurrencyParam{
 		Currency:     currency.BTC,
 		From:         asset.Spot,
 		To:           asset.Margin,
 		Amount:       1202.000,
 		CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
-	}); er != nil && !strings.Contains(er.Error(), "BALANCE_NOT_ENOUGH") {
-		t.Errorf("%s TransferCurrency() error %v", g.Name, er)
+	}); err != nil && !strings.Contains(err.Error(), "BALANCE_NOT_ENOUGH") {
+		t.Errorf("%s TransferCurrency() error %v", g.Name, err)
 	}
 }
 
@@ -937,13 +951,13 @@ func TestSubAccountTransfer(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if er := g.SubAccountTransfer(context.Background(), SubAccountTransferParam{
+	if err := g.SubAccountTransfer(context.Background(), SubAccountTransferParam{
 		Currency:   currency.BTC,
 		SubAccount: "12222",
 		Direction:  "to",
 		Amount:     1,
-	}); er != nil && !strings.Contains(er.Error(), "invalid account") {
-		t.Errorf("%s SubAccountTransfer() error %v", g.Name, er)
+	}); err != nil && !strings.Contains(err.Error(), "invalid account") {
+		t.Errorf("%s SubAccountTransfer() error %v", g.Name, err)
 	}
 }
 
@@ -952,14 +966,14 @@ var subAccountTransferHistoryJSON = `{"uid": "10001","timest": "1592809000","sou
 func TestGetSubAccountTransferHistory(t *testing.T) {
 	t.Parallel()
 	var response SubAccountTransferResponse
-	if er := json.Unmarshal([]byte(subAccountTransferHistoryJSON), &response); er != nil {
-		t.Errorf("%s deserializing to SubAccountTransferResponse error %v", g.Name, er)
+	if err := json.Unmarshal([]byte(subAccountTransferHistoryJSON), &response); err != nil {
+		t.Errorf("%s deserializing to SubAccountTransferResponse error %v", g.Name, err)
 	}
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.GetSubAccountTransferHistory(context.Background(), "", time.Time{}, time.Time{}, 0, 0); er != nil {
-		t.Errorf("%s GetSubAccountTransferHistory() error %v", g.Name, er)
+	if _, err := g.GetSubAccountTransferHistory(context.Background(), "", time.Time{}, time.Time{}, 0, 0); err != nil {
+		t.Errorf("%s GetSubAccountTransferHistory() error %v", g.Name, err)
 	}
 }
 
@@ -968,14 +982,14 @@ var withdrawalStatusJSON = `{"currency": "GT","name": "GateToken","name_cn": "Ga
 func TestGetWithdrawalStatus(t *testing.T) {
 	t.Parallel()
 	var response WithdrawalStatus
-	if er := json.Unmarshal([]byte(withdrawalStatusJSON), &response); er != nil {
-		t.Errorf("%s error while deserializing to WithdrawalStatus %v", g.Name, er)
+	if err := json.Unmarshal([]byte(withdrawalStatusJSON), &response); err != nil {
+		t.Errorf("%s error while deserializing to WithdrawalStatus %v", g.Name, err)
 	}
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.GetWithdrawalStatus(context.Background(), currency.NewCode("")); er != nil {
-		t.Errorf("%s GetWithdrawalStatus() error %v", g.Name, er)
+	if _, err := g.GetWithdrawalStatus(context.Background(), currency.NewCode("")); err != nil {
+		t.Errorf("%s GetWithdrawalStatus() error %v", g.Name, err)
 	}
 }
 
@@ -984,14 +998,14 @@ var subAccountBalanceJSON = `{"uid": "10003","available": {  "BTC": "0.1",  "GT"
 func TestGetSubAccountBalances(t *testing.T) {
 	t.Parallel()
 	var response SubAccountBalance
-	if er := json.Unmarshal([]byte(subAccountBalanceJSON), &response); er != nil {
-		t.Errorf("%s deserializes to SubAccountBalance error %v", g.Name, er)
+	if err := json.Unmarshal([]byte(subAccountBalanceJSON), &response); err != nil {
+		t.Errorf("%s deserializes to SubAccountBalance error %v", g.Name, err)
 	}
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.GetSubAccountBalances(context.Background(), ""); er != nil {
-		t.Errorf("%s GetSubAccountBalances() error %v", g.Name, er)
+	if _, err := g.GetSubAccountBalances(context.Background(), ""); err != nil {
+		t.Errorf("%s GetSubAccountBalances() error %v", g.Name, err)
 	}
 }
 
@@ -1000,14 +1014,14 @@ var subAccountMarginBalance = `{"uid": "10000","available": [  {    "locked": fa
 func TestGetSubAccountMarginBalances(t *testing.T) {
 	t.Parallel()
 	var response SubAccountMarginBalance
-	if er := json.Unmarshal([]byte(subAccountMarginBalance), &response); er != nil {
-		t.Errorf("%s error while deserializing to SubAccountMarginBalance %v", g.Name, er)
+	if err := json.Unmarshal([]byte(subAccountMarginBalance), &response); err != nil {
+		t.Errorf("%s error while deserializing to SubAccountMarginBalance %v", g.Name, err)
 	}
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.GetSubAccountMarginBalances(context.Background(), ""); er != nil {
-		t.Errorf("%s GetSubAccountMarginBalances() error %v", g.Name, er)
+	if _, err := g.GetSubAccountMarginBalances(context.Background(), ""); err != nil {
+		t.Errorf("%s GetSubAccountMarginBalances() error %v", g.Name, err)
 	}
 }
 
@@ -1016,8 +1030,8 @@ func TestGetSubAccountFuturesBalances(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.GetSubAccountFuturesBalances(context.Background(), "", ""); er != nil {
-		t.Errorf("%s GetSubAccountFuturesBalance() error %v", g.Name, er)
+	if _, err := g.GetSubAccountFuturesBalances(context.Background(), "", ""); err != nil {
+		t.Errorf("%s GetSubAccountFuturesBalance() error %v", g.Name, err)
 	}
 }
 
@@ -1026,14 +1040,14 @@ var subAccountCrossMarginInfo = `{"uid": "100000","available": {  "user_id": 100
 func TestGetSubAccountCrossMarginBalances(t *testing.T) {
 	t.Parallel()
 	var response SubAccountCrossMarginInfo
-	if er := json.Unmarshal([]byte(subAccountCrossMarginInfo), &response); er != nil {
-		t.Errorf("%s error while deserializing to SubAccountCrossMarginInfo %v", g.Name, er)
+	if err := json.Unmarshal([]byte(subAccountCrossMarginInfo), &response); err != nil {
+		t.Errorf("%s error while deserializing to SubAccountCrossMarginInfo %v", g.Name, err)
 	}
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.GetSubAccountCrossMarginBalances(context.Background(), ""); er != nil {
-		t.Errorf("%s GetSubAccountCrossMarginBalances() error %v", g.Name, er)
+	if _, err := g.GetSubAccountCrossMarginBalances(context.Background(), ""); err != nil {
+		t.Errorf("%s GetSubAccountCrossMarginBalances() error %v", g.Name, err)
 	}
 }
 
@@ -1042,14 +1056,14 @@ var savedAddressJSON = `{"currency": "usdt","chain": "TRX","address": "TWYirLzw2
 func TestGetSavedAddresses(t *testing.T) {
 	t.Parallel()
 	var response WalletSavedAddress
-	if er := json.Unmarshal([]byte(savedAddressJSON), &response); er != nil {
-		t.Errorf("%s error while deserializing to WalletSavedAddress %v", g.Name, er)
+	if err := json.Unmarshal([]byte(savedAddressJSON), &response); err != nil {
+		t.Errorf("%s error while deserializing to WalletSavedAddress %v", g.Name, err)
 	}
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.GetSavedAddresses(context.Background(), currency.BTC, "", 0); er != nil {
-		t.Errorf("%s GetSavedAddresses() error %v", g.Name, er)
+	if _, err := g.GetSavedAddresses(context.Background(), currency.BTC, "", 0); err != nil {
+		t.Errorf("%s GetSavedAddresses() error %v", g.Name, err)
 	}
 }
 
@@ -1058,14 +1072,14 @@ var personalTradingFeeJSON = `{"user_id": 10001,"taker_fee": "0.002","maker_fee"
 func TestGetPersonalTradingFee(t *testing.T) {
 	t.Parallel()
 	var response PersonalTradingFee
-	if er := json.Unmarshal([]byte(personalTradingFeeJSON), &response); er != nil {
-		t.Errorf("%s GetPersonalTradingFee() error %v", g.Name, er)
+	if err := json.Unmarshal([]byte(personalTradingFeeJSON), &response); err != nil {
+		t.Errorf("%s GetPersonalTradingFee() error %v", g.Name, err)
 	}
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.GetPersonalTradingFee(context.Background(), currency.NewPair(currency.BTC, currency.USDT)); er != nil {
-		t.Errorf("%s GetPersonalTradingFee() error %v", g.Name, er)
+	if _, err := g.GetPersonalTradingFee(context.Background(), currency.NewPair(currency.BTC, currency.USDT)); err != nil {
+		t.Errorf("%s GetPersonalTradingFee() error %v", g.Name, err)
 	}
 }
 
@@ -1074,110 +1088,114 @@ var usersTotalBalanceJSON = `{"details": {"cross_margin": {"amount": "0","curren
 func TestGetUsersTotalBalance(t *testing.T) {
 	t.Parallel()
 	var response UsersAllAccountBalance
-	if er := json.Unmarshal([]byte(usersTotalBalanceJSON), &response); er != nil {
-		t.Errorf("%s error while deserializing to UsersAllAccountBalance %v", g.Name, er)
+	if err := json.Unmarshal([]byte(usersTotalBalanceJSON), &response); err != nil {
+		t.Errorf("%s error while deserializing to UsersAllAccountBalance %v", g.Name, err)
 	}
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.GetUsersTotalBalance(context.Background(), currency.BTC); er != nil {
-		t.Errorf("%s GetUsersTotalBalance() error %v", g.Name, er)
+	if _, err := g.GetUsersTotalBalance(context.Background(), currency.BTC); err != nil {
+		t.Errorf("%s GetUsersTotalBalance() error %v", g.Name, err)
 	}
 }
 
 func TestGetMarginSupportedCurrencyPairs(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetMarginSupportedCurrencyPairs(context.Background()); er != nil {
-		t.Errorf("%s GetMarginSupportedCurrencyPair() error %v", g.Name, er)
+	if _, err := g.GetMarginSupportedCurrencyPairs(context.Background()); err != nil {
+		t.Errorf("%s GetMarginSupportedCurrencyPair() error %v", g.Name, err)
 	}
 }
 
 func TestGetMarginSupportedCurrencyPair(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetMarginSupportedCurrencyPair(context.Background(), currency.NewPair(currency.BTC, currency.USDT)); er != nil {
-		t.Errorf("%s GetMarginSupportedCurrencyPair() error %v", g.Name, er)
+	if _, err := g.GetMarginSupportedCurrencyPair(context.Background(), currency.NewPair(currency.BTC, currency.USDT)); err != nil {
+		t.Errorf("%s GetMarginSupportedCurrencyPair() error %v", g.Name, err)
 	}
 }
 
 func TestGetOrderbookOfLendingLoans(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetOrderbookOfLendingLoans(context.Background(), currency.BTC); er != nil {
-		t.Errorf("%s GetOrderbookOfLendingLoans() error %v", g.Name, er)
+	if _, err := g.GetOrderbookOfLendingLoans(context.Background(), currency.BTC); err != nil {
+		t.Errorf("%s GetOrderbookOfLendingLoans() error %v", g.Name, err)
 	}
 }
 
 func TestGetAllFutureContracts(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetAllFutureContracts(context.Background(), settleBTC); er != nil {
-		t.Errorf("%s GetAllFutureContracts() error %v", g.Name, er)
+	if resps, err := g.GetAllFutureContracts(context.Background(), settleUSD); err != nil {
+		t.Errorf("%s GetAllFutureContracts() error %v", g.Name, err)
+	} else {
+		for x := range resps {
+			print(resps[x].Name, ",")
+		}
 	}
 }
 func TestGetSingleContract(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetSingleContract(context.Background(), settleUSDT, currency.NewPair(currency.BTC, currency.USDT)); er != nil {
-		t.Errorf("%s GetSingleContract() error %s", g.Name, er)
+	if _, err := g.GetSingleContract(context.Background(), settleUSDT, currency.NewPair(currency.BTC, currency.USDT)); err != nil {
+		t.Errorf("%s GetSingleContract() error %s", g.Name, err)
 	}
 }
 
 func TestGetFuturesOrderbook(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetFuturesOrderbook(context.Background(), settleUSDT, currency.NewPair(currency.BTC, currency.USDT), "0.1", 0, true); er != nil {
-		t.Errorf("%s GetFuturesOrderbook() error %v", g.Name, er)
+	if _, err := g.GetFuturesOrderbook(context.Background(), settleUSDT, currency.NewPair(currency.BTC, currency.USDT), "0.1", 0, true); err != nil {
+		t.Errorf("%s GetFuturesOrderbook() error %v", g.Name, err)
 	}
 }
 func TestGetFuturesTradingHistory(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetFuturesTradingHistory(context.Background(), settleUSDT, currency.NewPair(currency.COMP, currency.USDT), 0, 0, "", time.Time{}, time.Time{}); er != nil {
-		t.Errorf("%s GetFuturesTradingHistory() error %v", g.Name, er)
+	if _, err := g.GetFuturesTradingHistory(context.Background(), settleUSDT, currency.NewPair(currency.COMP, currency.USDT), 0, 0, "", time.Time{}, time.Time{}); err != nil {
+		t.Errorf("%s GetFuturesTradingHistory() error %v", g.Name, err)
 	}
 }
 
 func TestGetFuturesCandlesticks(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetFuturesCandlesticks(context.Background(), settleUSDT, currency.NewPair(currency.BTC, currency.USDT), time.Time{}, time.Time{}, 0, kline.OneWeek); er != nil {
-		t.Errorf("%s GetFuturesCandlesticks() error %v", g.Name, er)
+	if _, err := g.GetFuturesCandlesticks(context.Background(), settleUSDT, currency.NewPair(currency.BTC, currency.USDT), time.Time{}, time.Time{}, 0, kline.OneWeek); err != nil {
+		t.Errorf("%s GetFuturesCandlesticks() error %v", g.Name, err)
 	}
 }
 
 func TestGetFutureTickers(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetFuturesTickers(context.Background(), settleUSDT, currency.NewPair(currency.NEAR, currency.USDT)); er != nil {
-		t.Errorf("%s GetFuturesTickers() error %v", g.Name, er)
+	if _, err := g.GetFuturesTickers(context.Background(), settleUSDT, currency.NewPair(currency.NEAR, currency.USDT)); err != nil {
+		t.Errorf("%s GetFuturesTickers() error %v", g.Name, err)
 	}
 }
 
 func TestGetFutureFundingRates(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetFutureFundingRates(context.Background(), settleUSDT, currency.NewPair(currency.BTC, currency.USDT), 0); er != nil {
-		t.Errorf("%s GetFutureFundingRates() error %v", g.Name, er)
+	if _, err := g.GetFutureFundingRates(context.Background(), settleUSDT, currency.NewPair(currency.BTC, currency.USDT), 0); err != nil {
+		t.Errorf("%s GetFutureFundingRates() error %v", g.Name, err)
 	}
 }
 
 func TestGetFuturesInsuranceBalanceHistory(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetFuturesInsuranceBalanceHistory(context.Background(), settleUSDT, 0); er != nil {
-		t.Errorf("%s GetFuturesInsuranceBalanceHistory() error %v", g.Name, er)
+	if _, err := g.GetFuturesInsuranceBalanceHistory(context.Background(), settleUSDT, 0); err != nil {
+		t.Errorf("%s GetFuturesInsuranceBalanceHistory() error %v", g.Name, err)
 	}
 }
 
 func TestGetFutureStats(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetFutureStats(context.Background(), settleUSDT, currency.NewPair(currency.BTC, currency.USDT), time.Time{}, kline.OneHour, 0); er != nil {
-		t.Errorf("%s GetFutureStats() error %v", g.Name, er)
+	if _, err := g.GetFutureStats(context.Background(), settleUSDT, currency.NewPair(currency.BTC, currency.USDT), time.Time{}, kline.OneHour, 0); err != nil {
+		t.Errorf("%s GetFutureStats() error %v", g.Name, err)
 	}
 }
 
 func TestGetIndexConstituent(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetIndexConstituent(context.Background(), settleUSDT, currency.NewPair(currency.BTC, currency.USDT)); er != nil {
-		t.Errorf("%s GetIndexConstituent() error %v", g.Name, er)
+	if _, err := g.GetIndexConstituent(context.Background(), settleUSDT, currency.NewPair(currency.BTC, currency.USDT)); err != nil {
+		t.Errorf("%s GetIndexConstituent() error %v", g.Name, err)
 	}
 }
 
 func TestGetLiquidationHistory(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetLiquidationHistory(context.Background(), settleUSDT, currency.NewPair(currency.BTC, currency.USDT), time.Time{}, time.Time{}, 0); er != nil {
-		t.Errorf("%s GetLiquidationHistory() error %v", g.Name, er)
+	if _, err := g.GetLiquidationHistory(context.Background(), settleUSDT, currency.NewPair(currency.BTC, currency.USDT), time.Time{}, time.Time{}, 0); err != nil {
+		t.Errorf("%s GetLiquidationHistory() error %v", g.Name, err)
 	}
 }
 func TestQueryFuturesAccount(t *testing.T) {
@@ -1273,14 +1291,15 @@ func TestCreateDeliveryOrder(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
+	currencyPair := getTradablePair(t, asset.DeliveryFutures)
 	if _, err := g.PlaceDeliveryOrder(context.Background(), &OrderCreateParams{
-		Contract:    currency.NewPair(currency.BTC, currency.USDT),
+		Contract:    currencyPair,
 		Size:        6024,
 		Iceberg:     0,
 		Price:       3765,
-		TimeInForce: "gtc",
 		Text:        "t-my-custom-id",
 		Settle:      settleBTC,
+		TimeInForce: gctTIF,
 	}); err != nil {
 		t.Errorf("%s CreateDeliveryOrder() error %v", g.Name, err)
 	}
@@ -1291,7 +1310,8 @@ func TestGetDeliveryOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := g.GetDeliveryOrders(context.Background(), currency.NewPair(currency.BTC, currency.USD), "open", 0, 0, "", 1, settleBTC); err != nil {
+	cp := getTradablePair(t, asset.DeliveryFutures)
+	if _, err := g.GetDeliveryOrders(context.Background(), cp, "open", 0, 0, "", 1, settleBTC); err != nil {
 		t.Errorf("%s GetDeliveryOrders() error %v", g.Name, err)
 	}
 }
@@ -1301,7 +1321,8 @@ func TestCancelAllDeliveryOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := g.CancelMultipleDeliveryOrders(context.Background(), currency.NewPair(currency.BTC, currency.USD), "ask", settleUSDT); err != nil && !strings.Contains(err.Error(), "USER_NOT_FOUND") {
+	cp := getTradablePair(t, asset.DeliveryFutures)
+	if _, err := g.CancelMultipleDeliveryOrders(context.Background(), cp, "ask", settleUSDT); err != nil && !strings.Contains(err.Error(), "USER_NOT_FOUND") {
 		t.Errorf("%s CancelAllDeliveryOrders() error %v", g.Name, err)
 	}
 }
@@ -1331,7 +1352,8 @@ func TestGetDeliveryPersonalTradingHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := g.GetDeliveryPersonalTradingHistory(context.Background(), settleUSDT, currency.NewPair(currency.BTC, currency.USDT), "1234", 0, 0, 1, ""); err != nil && !strings.Contains(err.Error(), "CONTRACT_NOT_FOUND") {
+	cp := getTradablePair(t, asset.DeliveryFutures)
+	if _, err := g.GetDeliveryPersonalTradingHistory(context.Background(), settleUSDT, cp, "1234", 0, 0, 1, ""); err != nil {
 		t.Errorf("%s GetDeliveryPersonalTradingHistory() error %v", g.Name, err)
 	}
 }
@@ -1341,7 +1363,8 @@ func TestGetDeliveryPositionCloseHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := g.GetDeliveryPositionCloseHistory(context.Background(), settleUSDT, currency.NewPair(currency.BTC, currency.USDT), 0, 0, time.Time{}, time.Time{}); err != nil && !strings.Contains(err.Error(), "CONTRACT_NOT_FOUND") {
+	pair := getTradablePair(t, asset.DeliveryFutures)
+	if _, err := g.GetDeliveryPositionCloseHistory(context.Background(), settleUSDT, pair, 0, 0, time.Time{}, time.Time{}); err != nil {
 		t.Errorf("%s GetDeliveryPositionCloseHistory() error %v", g.Name, err)
 	}
 }
@@ -1351,7 +1374,8 @@ func TestGetDeliveryLiquidationHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := g.GetDeliveryLiquidationHistory(context.Background(), settleUSDT, currency.NewPair(currency.BTC, currency.USDT), 0, time.Now()); err != nil {
+	cp := getTradablePair(t, asset.DeliveryFutures)
+	if _, err := g.GetDeliveryLiquidationHistory(context.Background(), settleUSDT, cp, 0, time.Now()); err != nil {
 		t.Errorf("%s GetDeliveryLiquidationHistory() error %v", g.Name, err)
 	}
 }
@@ -1361,7 +1385,8 @@ func TestGetDeliverySettlementHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := g.GetDeliverySettlementHistory(context.Background(), settleUSDT, currency.NewPair(currency.BTC, currency.USDT), 0, time.Now()); err != nil {
+	cp := getTradablePair(t, asset.DeliveryFutures)
+	if _, err := g.GetDeliverySettlementHistory(context.Background(), settleUSDT, cp, 0, time.Now()); err != nil {
 		t.Errorf("%s GetDeliverySettlementHistory() error %v", g.Name, err)
 	}
 }
@@ -1371,11 +1396,12 @@ func TestGetDeliveryPriceTriggeredOrder(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
+	cp := getTradablePair(t, asset.DeliveryFutures)
 	if _, err := g.GetDeliveryPriceTriggeredOrder(context.Background(), settleUSDT, &FuturesPriceTriggeredOrderParam{
 		Initial: FuturesInitial{
 			Price:    1234.,
 			Size:     12,
-			Contract: currency.NewPair(currency.OKB, currency.USDT),
+			Contract: cp,
 		},
 		Trigger: FuturesTrigger{
 			Rule:      1,
@@ -1392,7 +1418,8 @@ func TestGetDeliveryAllAutoOrder(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := g.GetDeliveryAllAutoOrder(context.Background(), "open", settleUSDT, currency.NewPair(currency.OKB, currency.USD), 0, 1); err != nil {
+	cp := getTradablePair(t, asset.DeliveryFutures)
+	if _, err := g.GetDeliveryAllAutoOrder(context.Background(), "open", settleUSDT, cp, 0, 1); err != nil {
 		t.Errorf("%s GetDeliveryAllAutoOrder() error %v", g.Name, err)
 	}
 }
@@ -1402,7 +1429,8 @@ func TestCancelAllDeliveryPriceTriggeredOrder(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := g.CancelAllDeliveryPriceTriggeredOrder(context.Background(), settleUSDT, currency.NewPair(currency.OKB, currency.USDT)); err != nil {
+	cp := getTradablePair(t, asset.DeliveryFutures)
+	if _, err := g.CancelAllDeliveryPriceTriggeredOrder(context.Background(), settleUSDT, cp); err != nil {
 		t.Errorf("%s CancelAllDeliveryPriceTriggeredOrder() error %v", g.Name, err)
 	}
 }
@@ -1432,7 +1460,7 @@ func TestEnableOrDisableDualMode(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := g.EnableOrDisableDualMode(context.Background(), settleBTC, true); err != nil {
+	if _, err := g.EnableOrDisableDualMode(context.Background(), settleBTC, true); err != nil && !strings.Contains(err.Error(), "NOT_FOUND") {
 		t.Errorf("%s EnableOrDisableDualMode() error %v", g.Name, err)
 	}
 }
@@ -1723,8 +1751,8 @@ func TestCancelAllFuturesOpenOrders(t *testing.T) {
 
 func TestGetAllDeliveryContracts(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetAllDeliveryContracts(context.Background(), settleUSDT); er != nil {
-		t.Errorf("%s GetAllDeliveryContracts() error %v", g.Name, er)
+	if _, err := g.GetAllDeliveryContracts(context.Background(), settleUSDT); err != nil {
+		t.Errorf("%s GetAllDeliveryContracts() error %v", g.Name, err)
 	}
 }
 
@@ -1757,15 +1785,15 @@ func TestGetDeliveryFuturesCandlesticks(t *testing.T) {
 
 func TestGetDeliveryFutureTickers(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetDeliveryFutureTickers(context.Background(), settleBTC, currency.NewPair(currency.BTC, currency.NewCode("USD_20221021"))); er != nil {
-		t.Errorf("%s GetDeliveryFutureTickers() error %v", g.Name, er)
+	if _, err := g.GetDeliveryFutureTickers(context.Background(), settleBTC, currency.NewPair(currency.BTC, currency.NewCode("USD_20221021"))); err != nil {
+		t.Errorf("%s GetDeliveryFutureTickers() error %v", g.Name, err)
 	}
 }
 
 func TestGetDeliveryInsuranceBalanceHistory(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetDeliveryInsuranceBalanceHistory(context.Background(), settleBTC, 0); er != nil {
-		t.Errorf("%s GetDeliveryInsuranceBalanceHistory() error %v", g.Name, er)
+	if _, err := g.GetDeliveryInsuranceBalanceHistory(context.Background(), settleBTC, 0); err != nil {
+		t.Errorf("%s GetDeliveryInsuranceBalanceHistory() error %v", g.Name, err)
 	}
 }
 
@@ -1803,7 +1831,8 @@ func TestGetSingleDeliveryPosition(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := g.GetSingleDeliveryPosition(context.Background(), settleUSDT, currency.NewPair(currency.BTC, currency.USDT)); err != nil {
+	cp := getTradablePair(t, asset.DeliveryFutures)
+	if _, err := g.GetSingleDeliveryPosition(context.Background(), settleUSDT, cp); err != nil {
 		t.Errorf("%s GetSingleDeliveryPosition() error %v", g.Name, err)
 	}
 }
@@ -1813,7 +1842,8 @@ func TestUpdateDeliveryPositionMargin(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := g.UpdateDeliveryPositionMargin(context.Background(), "usd", 0.001, currency.NewPair(currency.BTC, currency.USDT)); err != nil {
+	cp := getTradablePair(t, asset.DeliveryFutures)
+	if _, err := g.UpdateDeliveryPositionMargin(context.Background(), "usd", 0.001, cp); err != nil {
 		t.Errorf("%s UpdateDeliveryPositionMargin() error %v", g.Name, err)
 	}
 }
@@ -1823,7 +1853,8 @@ func TestUpdateDeliveryPositionLeverage(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := g.UpdateDeliveryPositionLeverage(context.Background(), "usd", currency.NewPair(currency.BTC, currency.USDT), 0.001); err != nil {
+	cp := getTradablePair(t, asset.DeliveryFutures)
+	if _, err := g.UpdateDeliveryPositionLeverage(context.Background(), "usd", cp, 0.001); err != nil {
 		t.Errorf("%s UpdateDeliveryPositionLeverage() error %v", g.Name, err)
 	}
 }
@@ -1833,57 +1864,58 @@ func TestUpdateDeliveryPositionRiskLimit(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := g.UpdateDeliveryPositionRiskLimit(context.Background(), "usd", currency.NewPair(currency.ONEK, currency.USDT), 30); err != nil {
+	cp := getTradablePair(t, asset.DeliveryFutures)
+	if _, err := g.UpdateDeliveryPositionRiskLimit(context.Background(), "usd", cp, 30); err != nil {
 		t.Errorf("%s UpdateDeliveryPositionRiskLimit() error %v", g.Name, err)
 	}
 }
 
 func TestGetAllUnderlyings(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetAllUnderlyings(context.Background()); er != nil {
-		t.Errorf("%s GetAllUnderlyings() error %v", g.Name, er)
+	if _, err := g.GetAllUnderlyings(context.Background()); err != nil {
+		t.Errorf("%s GetAllUnderlyings() error %v", g.Name, err)
 	}
 }
 
 func TestGetExpirationTime(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetExpirationTime(context.Background(), "BTC_USDT"); er != nil {
-		t.Errorf("%s GetExpirationTime() error %v", g.Name, er)
+	if _, err := g.GetExpirationTime(context.Background(), "BTC_USDT"); err != nil {
+		t.Errorf("%s GetExpirationTime() error %v", g.Name, err)
 	}
 }
 
 func TestGetAllContractOfUnderlyingWithinExpiryDate(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetAllContractOfUnderlyingWithinExpiryDate(context.Background(), "BTC_USDT", time.Time{}); er != nil {
-		t.Errorf("%s GetAllContractOfUnderlyingWithinExpiryDate() error %v", g.Name, er)
+	if _, err := g.GetAllContractOfUnderlyingWithinExpiryDate(context.Background(), "BTC_USDT", time.Time{}); err != nil {
+		t.Errorf("%s GetAllContractOfUnderlyingWithinExpiryDate() error %v", g.Name, err)
 	}
 }
 
 func TestGetOptionsSpecifiedContractDetail(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetOptionsSpecifiedContractDetail(context.Background(), "BTC_USDT-20221028-26000-C"); er != nil {
-		t.Errorf("%s GetOptionsSpecifiedContractDetail() error %v", g.Name, er)
+	if _, err := g.GetOptionsSpecifiedContractDetail(context.Background(), "BTC_USDT-20221028-26000-C"); err != nil {
+		t.Errorf("%s GetOptionsSpecifiedContractDetail() error %v", g.Name, err)
 	}
 }
 
 func TestGetSettlementHistory(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetSettlementHistory(context.Background(), "BTC_USDT", 0, 0, time.Time{}, time.Time{}); er != nil {
-		t.Errorf("%s GetSettlementHistory() error %v", g.Name, er)
+	if _, err := g.GetSettlementHistory(context.Background(), "BTC_USDT", 0, 0, time.Time{}, time.Time{}); err != nil {
+		t.Errorf("%s GetSettlementHistory() error %v", g.Name, err)
 	}
 }
 
 func TestGetOptionsSpecifiedSettlementHistory(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetOptionsSpecifiedSettlementHistory(context.Background(), "BTC_USDT-20221028-40000-C", "BTC_USDT", 0); er != nil && !strings.Contains(er.Error(), "NOT_FOUND") {
-		t.Errorf("%s GetOptionsSpecifiedSettlementHistory() error %s", g.Name, er)
+	if _, err := g.GetOptionsSpecifiedSettlementHistory(context.Background(), "BTC_USDT-20221028-40000-C", "BTC_USDT", 0); err != nil && !strings.Contains(err.Error(), "NOT_FOUND") {
+		t.Errorf("%s GetOptionsSpecifiedSettlementHistory() error %s", g.Name, err)
 	}
 }
 
 func TestGetSupportedFlashSwapCurrencies(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetSupportedFlashSwapCurrencies(context.Background()); er != nil {
-		t.Errorf("%s GetSupportedFlashSwapCurrencies() error %v", g.Name, er)
+	if _, err := g.GetSupportedFlashSwapCurrencies(context.Background()); err != nil {
+		t.Errorf("%s GetSupportedFlashSwapCurrencies() error %v", g.Name, err)
 	}
 }
 
@@ -1949,8 +1981,8 @@ func TestGetMyOptionsSettlements(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.GetMyOptionsSettlements(context.Background(), "BTC_USDT", "", 0, 0, time.Time{}); er != nil {
-		t.Errorf("%s GetMyOptionsSettlements() error %v", g.Name, er)
+	if _, err := g.GetMyOptionsSettlements(context.Background(), "BTC_USDT", "", 0, 0, time.Time{}); err != nil {
+		t.Errorf("%s GetMyOptionsSettlements() error %v", g.Name, err)
 	}
 }
 
@@ -1959,10 +1991,8 @@ func TestGetOptionAccounts(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.GetOptionAccounts(context.Background()); er != nil && !strings.Contains(er.Error(), "USER_NOT_FOUND") {
-		t.Errorf("%s GetOptionAccounts() error %v", g.Name, er)
-	} else if er != nil {
-		t.Skipf("%s GetOptionAccounts() user has no futures account", g.Name)
+	if _, err := g.GetOptionAccounts(context.Background()); err != nil {
+		t.Errorf("%s GetOptionAccounts() error %v", g.Name, err)
 	}
 }
 
@@ -1971,14 +2001,14 @@ var accountChangingHistory = `{"time": 1636426005,"change": "-0.16","balance": "
 func TestGetAccountChangingHistory(t *testing.T) {
 	t.Parallel()
 	var accountBook AccountBook
-	if er := json.Unmarshal([]byte(accountChangingHistory), &accountBook); er != nil {
-		t.Errorf("%s error while deserializing to AccounBook %v", g.Name, er)
+	if err := json.Unmarshal([]byte(accountChangingHistory), &accountBook); err != nil {
+		t.Errorf("%s error while deserializing to AccounBook %v", g.Name, err)
 	}
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.GetAccountChangingHistory(context.Background(), 0, 0, time.Time{}, time.Time{}, ""); er != nil {
-		t.Errorf("%s GetAccountChangingHistory() error %v", g.Name, er)
+	if _, err := g.GetAccountChangingHistory(context.Background(), 0, 0, time.Time{}, time.Time{}, ""); err != nil {
+		t.Errorf("%s GetAccountChangingHistory() error %v", g.Name, err)
 	}
 }
 
@@ -1987,14 +2017,14 @@ var userUnderlyingPosition = `{"user": 11027586,"contract": "BTC_USDT-20211216-5
 func TestGetUsersPositionSpecifiedUnderlying(t *testing.T) {
 	t.Parallel()
 	var resp UsersPositionForUnderlying
-	if er := json.Unmarshal([]byte(userUnderlyingPosition), &resp); er != nil {
-		t.Errorf("%s error while decerializing to UsersPositionForUnderlying instance %v", g.Name, er)
+	if err := json.Unmarshal([]byte(userUnderlyingPosition), &resp); err != nil {
+		t.Errorf("%s error while decerializing to UsersPositionForUnderlying instance %v", g.Name, err)
 	}
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.GetUsersPositionSpecifiedUnderlying(context.Background(), ""); er != nil {
-		t.Errorf("%s GetUsersPositionSpecifiedUnderlying() error %v", g.Name, er)
+	if _, err := g.GetUsersPositionSpecifiedUnderlying(context.Background(), ""); err != nil {
+		t.Errorf("%s GetUsersPositionSpecifiedUnderlying() error %v", g.Name, err)
 	}
 }
 
@@ -2003,13 +2033,13 @@ func TestGetSpecifiedContractPosition(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	_, er := g.GetSpecifiedContractPosition(context.Background(), "")
-	if er != nil && !errors.Is(er, errInvalidOrMissingContractParam) {
-		t.Errorf("%s GetSpecifiedContractPosition() error expecting %v, but found %v", g.Name, errInvalidOrMissingContractParam, er)
+	_, err := g.GetSpecifiedContractPosition(context.Background(), "")
+	if err != nil && !errors.Is(err, errInvalidOrMissingContractParam) {
+		t.Errorf("%s GetSpecifiedContractPosition() error expecting %v, but found %v", g.Name, errInvalidOrMissingContractParam, err)
 	}
-	_, er = g.GetSpecifiedContractPosition(context.Background(), "BTC_USDT-20220826-32000-C")
-	if er != nil {
-		t.Errorf("%s GetSpecifiedContractPosition() error expecting %v, but found %v", g.Name, errInvalidOrMissingContractParam, er)
+	_, err = g.GetSpecifiedContractPosition(context.Background(), "BTC_USDT-20220826-32000-C")
+	if err != nil {
+		t.Errorf("%s GetSpecifiedContractPosition() error expecting %v, but found %v", g.Name, errInvalidOrMissingContractParam, err)
 	}
 }
 
@@ -2018,15 +2048,15 @@ var optionsClosePositionData = `{"time": 1631764800,"pnl": "-42914.291","settle_
 func TestGetUsersLiquidationHistoryForSpecifiedUnderlying(t *testing.T) {
 	t.Parallel()
 	var response ContractClosePosition
-	er := json.Unmarshal([]byte(optionsClosePositionData), &response)
-	if er != nil {
-		t.Errorf("%s error while deserializes ContractClosePosition %v", g.Name, er)
+	err := json.Unmarshal([]byte(optionsClosePositionData), &response)
+	if err != nil {
+		t.Errorf("%s error while deserializes ContractClosePosition %v", g.Name, err)
 	}
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er = g.GetUsersLiquidationHistoryForSpecifiedUnderlying(context.Background(), "BTC_USDT", ""); er != nil {
-		t.Errorf("%s GetUsersLiquidationHistoryForSpecifiedUnderlying() error %v", g.Name, er)
+	if _, err = g.GetUsersLiquidationHistoryForSpecifiedUnderlying(context.Background(), "BTC_USDT", ""); err != nil {
+		t.Errorf("%s GetUsersLiquidationHistoryForSpecifiedUnderlying() error %v", g.Name, err)
 	}
 }
 
@@ -2035,22 +2065,23 @@ var optionOrderJSON = `{"status": "finished","size": -1,"id": 2,"iceberg": 0,"is
 func TestPlaceOptionOrder(t *testing.T) {
 	t.Parallel()
 	var optionOrderResponse OptionOrderResponse
-	er := json.Unmarshal([]byte(optionOrderJSON), &optionOrderResponse)
-	if er != nil {
-		t.Errorf("%s error while deserializing to OptionOrderResponse %v", g.Name, er)
+	err := json.Unmarshal([]byte(optionOrderJSON), &optionOrderResponse)
+	if err != nil {
+		t.Errorf("%s error while deserializing to OptionOrderResponse %v", g.Name, err)
 	}
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er = g.PlaceOptionOrder(context.Background(), OptionOrderParam{
+	_, err = g.PlaceOptionOrder(context.Background(), OptionOrderParam{
 		Contract:    "BTC_USDT-20220902-18000-P",
 		OrderSize:   -1,
 		Iceberg:     0,
 		Text:        "-",
 		TimeInForce: "gtc",
 		Price:       100,
-	}); er != nil {
-		t.Errorf("%s PlaceOptionOrder() error %v", g.Name, er)
+	})
+	if err != nil {
+		t.Errorf("%s PlaceOptionOrder() error %v", g.Name, err)
 	}
 }
 
@@ -2059,8 +2090,8 @@ func TestGetOptionFuturesOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.GetOptionFuturesOrders(context.Background(), "", "", "", 0, 0, time.Time{}, time.Time{}); er != nil {
-		t.Errorf("%s GetOptionFuturesOrders() error %v", g.Name, er)
+	if _, err := g.GetOptionFuturesOrders(context.Background(), "", "", "", 0, 0, time.Time{}, time.Time{}); err != nil {
+		t.Errorf("%s GetOptionFuturesOrders() error %v", g.Name, err)
 	}
 }
 
@@ -2069,8 +2100,19 @@ func TestCancelOptionOpenOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.CancelMultipleOptionOpenOrders(context.Background(), currency.NewPair(currency.OKB, currency.USDT), "", ""); er != nil {
-		t.Errorf("%s CancelOptionOpenOrders() error %v", g.Name, er)
+	pairs, err := g.FetchTradablePairs(context.Background(), asset.Options)
+	if err != nil {
+		t.Skip(err)
+	}
+	if len(pairs) == 0 {
+		t.Skip("No tradable pairs found")
+	}
+	pair, err := currency.NewPairFromString(pairs[0])
+	if err != nil {
+		t.Skip(err)
+	}
+	if _, err := g.CancelMultipleOptionOpenOrders(context.Background(), pair, "", ""); err != nil {
+		t.Errorf("%s CancelOptionOpenOrders() error %v", g.Name, err)
 	}
 }
 func TestGetSingleOptionOrder(t *testing.T) {
@@ -2078,11 +2120,11 @@ func TestGetSingleOptionOrder(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.GetSingleOptionOrder(context.Background(), ""); er != nil && !errors.Is(errInvalidOrderID, er) {
-		t.Errorf("%s GetSingleOptionorder() expecting %v, but found %v", g.Name, errInvalidOrderID, er)
+	if _, err := g.GetSingleOptionOrder(context.Background(), ""); err != nil && !errors.Is(errInvalidOrderID, err) {
+		t.Errorf("%s GetSingleOptionorder() expecting %v, but found %v", g.Name, errInvalidOrderID, err)
 	}
-	if _, er := g.GetSingleOptionOrder(context.Background(), "1234"); er != nil {
-		t.Errorf("%s GetSingleOptionOrder() error %v", g.Name, er)
+	if _, err := g.GetSingleOptionOrder(context.Background(), "1234"); err != nil {
+		t.Errorf("%s GetSingleOptionOrder() error %v", g.Name, err)
 	}
 }
 
@@ -2091,8 +2133,8 @@ func TestCancelSingleOrder(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.CancelOptionSingleOrder(context.Background(), "1234"); er != nil && !strings.Contains(er.Error(), "ORDER_NOT_FOUND") {
-		t.Errorf("%s CancelSingleOrder() error %v", g.Name, er)
+	if _, err := g.CancelOptionSingleOrder(context.Background(), "1234"); err != nil && !strings.Contains(err.Error(), "ORDER_NOT_FOUND") {
+		t.Errorf("%s CancelSingleOrder() error %v", g.Name, err)
 	}
 }
 
@@ -2101,8 +2143,8 @@ func TestGetOptionsPersonalTradingHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.GetOptionsPersonalTradingHistory(context.Background(), "BTC_USDT", "", 0, 0, time.Time{}, time.Time{}); er != nil {
-		t.Errorf("%s GetOptionPersonalTradingHistory() error %v", g.Name, er)
+	if _, err := g.GetOptionsPersonalTradingHistory(context.Background(), "BTC_USDT", "", 0, 0, time.Time{}, time.Time{}); err != nil {
+		t.Errorf("%s GetOptionPersonalTradingHistory() error %v", g.Name, err)
 	}
 }
 
@@ -2111,17 +2153,17 @@ func TestWithdrawCurrency(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	_, er := g.WithdrawCurrency(context.Background(), WithdrawalRequestParam{})
-	if er != nil && !errors.Is(er, errInvalidAmount) {
-		t.Errorf("%s WithdrawCurrency() expecting error %v, but found %v", g.Name, errInvalidAmount, er)
+	_, err := g.WithdrawCurrency(context.Background(), WithdrawalRequestParam{})
+	if err != nil && !errors.Is(err, errInvalidAmount) {
+		t.Errorf("%s WithdrawCurrency() expecting error %v, but found %v", g.Name, errInvalidAmount, err)
 	}
-	_, er = g.WithdrawCurrency(context.Background(), WithdrawalRequestParam{
+	_, err = g.WithdrawCurrency(context.Background(), WithdrawalRequestParam{
 		Currency: currency.BTC,
 		Amount:   0.00000001,
 		Address:  "bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc",
 	})
-	if er != nil {
-		t.Errorf("%s WithdrawCurrency() expecting error %v, but found %v", g.Name, errInvalidAmount, er)
+	if err != nil {
+		t.Errorf("%s WithdrawCurrency() expecting error %v, but found %v", g.Name, errInvalidAmount, err)
 	}
 }
 
@@ -2130,43 +2172,51 @@ func TestCancelWithdrawalWithSpecifiedID(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := g.CancelWithdrawalWithSpecifiedID(context.Background(), "1234567"); er != nil {
-		t.Errorf("%s CancelWithdrawalWithSpecifiedID() error %v", g.Name, er)
+	if _, err := g.CancelWithdrawalWithSpecifiedID(context.Background(), "1234567"); err != nil {
+		t.Errorf("%s CancelWithdrawalWithSpecifiedID() error %v", g.Name, err)
 	}
 }
 
 func TestGetOptionsOrderbook(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetOptionsOrderbook(context.Background(), currency.NewPair(currency.BTC, currency.NewCode("USDT-20221028-26000-C")), "0.1", 9, true); er != nil {
-		t.Errorf("%s GetOptionsFuturesOrderbooks() error %v", g.Name, er)
+	cp := getTradablePair(t, asset.Options)
+	if _, err := g.GetOptionsOrderbook(context.Background(), cp, "0.1", 9, true); err != nil {
+		t.Errorf("%s GetOptionsFuturesOrderbooks() error %v", g.Name, err)
 	}
 }
 
 func TestGetOptionsTickers(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetOptionsTickers(context.Background(), "BTC_USDT"); er != nil {
-		t.Errorf("%s GetOptionsTickers() error %v", g.Name, er)
+	if _, err := g.GetOptionsTickers(context.Background(), "BTC_USDT"); err != nil {
+		t.Errorf("%s GetOptionsTickers() error %v", g.Name, err)
 	}
 }
 
 func TestGetOptionUnderlyingTickers(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetOptionUnderlyingTickers(context.Background(), "BTC_USDT"); er != nil {
-		t.Errorf("%s GetOptionUnderlyingTickers() error %v", g.Name, er)
+	if _, err := g.GetOptionUnderlyingTickers(context.Background(), "BTC_USDT"); err != nil {
+		t.Errorf("%s GetOptionUnderlyingTickers() error %v", g.Name, err)
 	}
 }
 
 func TestGetOptionFuturesCandlesticks(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetOptionFuturesCandlesticks(context.Background(), "BTC_USDT-20220826-32000-C", 0, time.Time{}, time.Time{}, kline.OneMonth); er != nil {
-		t.Errorf("%s GetOptionFuturesCandlesticks() error %v", g.Name, er)
+	pairs, err := g.FetchTradablePairs(context.Background(), asset.Options)
+	if err != nil {
+		t.Skip(err)
+	}
+	if len(pairs) == 0 {
+		t.Skip("No options tradable pairs found")
+	}
+	if _, err := g.GetOptionFuturesCandlesticks(context.Background(), pairs[0], 0, time.Time{}, time.Time{}, kline.OneMonth); err != nil {
+		t.Errorf("%s GetOptionFuturesCandlesticks() error %v", g.Name, err)
 	}
 }
 
 func TestGetOptionFuturesMarkPriceCandlesticks(t *testing.T) {
 	t.Parallel()
-	if _, er := g.GetOptionFuturesMarkPriceCandlesticks(context.Background(), "BTC_USDT", 0, time.Time{}, time.Time{}, kline.OneMonth); er != nil {
-		t.Errorf("%s GetOptionFuturesMarkPriceCandlesticks() error %v", g.Name, er)
+	if _, err := g.GetOptionFuturesMarkPriceCandlesticks(context.Background(), "BTC_USDT", 0, time.Time{}, time.Time{}, kline.OneMonth); err != nil {
+		t.Errorf("%s GetOptionFuturesMarkPriceCandlesticks() error %v", g.Name, err)
 	}
 }
 
@@ -2178,8 +2228,15 @@ func TestGetOptionsTradeHistory(t *testing.T) {
 	if err := json.Unmarshal([]byte(optionTradingHistoryJSON), &response); err != nil {
 		t.Errorf("%s error while decerializing to TradingHistoryItem %v", g.Name, err)
 	}
-	if _, er := g.GetOptionsTradeHistory(context.Background(), "BTC_USDT-20220826-32000-C", "C", 0, 0, time.Time{}, time.Time{}); er != nil {
-		t.Errorf("%s GetOptionsTradeHistory() error %v", g.Name, er)
+	pairs, err := g.FetchTradablePairs(context.Background(), asset.Options)
+	if err != nil {
+		t.Skip(err)
+	}
+	if len(pairs) == 0 {
+		t.Skip("No options tradable pairs found")
+	}
+	if _, err := g.GetOptionsTradeHistory(context.Background(), pairs[0], "C", 0, 0, time.Time{}, time.Time{}); err != nil {
+		t.Errorf("%s GetOptionsTradeHistory() error %v", g.Name, err)
 	}
 }
 
@@ -2248,7 +2305,8 @@ func TestUpdateTickers(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	if _, err := g.UpdateOrderbook(context.Background(), currency.NewPair(currency.BTC, currency.NewCode("USD_20221021")), asset.DeliveryFutures); err != nil {
+	cp := getTradablePair(t, asset.DeliveryFutures)
+	if _, err := g.UpdateOrderbook(context.Background(), cp, asset.DeliveryFutures); err != nil {
 		t.Errorf("%s UpdateOrderbook() error %v", g.Name, err)
 	}
 }
@@ -2269,7 +2327,8 @@ func TestGetRecentTrades(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = g.GetRecentTrades(context.Background(), currency.NewPair(currency.BTC, currency.NewCode("USD_20221021")), asset.DeliveryFutures)
+	cp := getTradablePair(t, asset.DeliveryFutures)
+	_, err = g.GetRecentTrades(context.Background(), cp, asset.DeliveryFutures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2307,12 +2366,11 @@ func TestCancelExchangeOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip()
 	}
-	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		Pair:          currencyPair,
+		Pair:          currency.NewPair(currency.LTC, currency.BTC),
 		AssetType:     asset.Spot,
 	}
 	err := g.CancelOrder(context.Background(), orderCancellation)
@@ -2428,8 +2486,10 @@ func TestDetermineAccount(t *testing.T) {
 
 func TestGetUnderlyingFromCurrencyPair(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GetUnderlyingFromCurrencyPair(currency.NewPair(currency.BTC, currency.NewCode("USDT_LLK"))); err != nil {
+	if uly, err := g.GetUnderlyingFromCurrencyPair(currency.NewPair(currency.BTC, currency.NewCode("USDT_LLK"))); err != nil {
 		t.Error(err)
+	} else if uly != "BTC_USDT" {
+		t.Error("unexpected underlying")
 	}
 }
 

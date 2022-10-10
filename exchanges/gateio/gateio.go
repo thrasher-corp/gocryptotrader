@@ -273,7 +273,7 @@ func (g *Gateio) ListAllCurrencyPairs(ctx context.Context) ([]CurrencyPairDetail
 	return resp, g.SendHTTPRequest(ctx, exchange.RestSpot, spotCurrencyPairs, &resp)
 }
 
-// GetCurrencyPairDetail to get details of a specifc order
+// GetCurrencyPairDetail to get details of a specifc order for spot/margin accounts.
 func (g *Gateio) GetCurrencyPairDetail(ctx context.Context, currencyPair currency.Pair) (*CurrencyPairDetail, error) {
 	var resp CurrencyPairDetail
 	if currencyPair.IsEmpty() {
@@ -581,11 +581,11 @@ func (g *Gateio) CreateBatchOrders(ctx context.Context, args []CreateOrderReques
 			return nil, errInvalidOrEmptyCurrencyPair
 		}
 		args[x].CurrencyPair.Delimiter = currency.UnderscoreDelimiter
-		if args[x].TimeInForce != gct &&
-			args[x].TimeInForce != ioc &&
-			args[x].TimeInForce != poc &&
-			args[x].TimeInForce != foc {
-			args[x].TimeInForce = gct
+		if args[x].TimeInForce != gctTIF &&
+			args[x].TimeInForce != iocTIF &&
+			args[x].TimeInForce != pocTIF &&
+			args[x].TimeInForce != focTIF {
+			args[x].TimeInForce = gctTIF
 		}
 		if args[x].Type != "limit" {
 			return nil, fmt.Errorf("only order type %s is allowed", "limit")
@@ -671,8 +671,8 @@ func (g *Gateio) PlaceSpotOrder(ctx context.Context, arg *CreateOrderRequestData
 		return nil, errInvalidOrEmptyCurrencyPair
 	}
 	arg.CurrencyPair.Delimiter = currency.UnderscoreDelimiter
-	if !(arg.TimeInForce == gct || arg.TimeInForce == ioc || arg.TimeInForce == poc || arg.TimeInForce == foc) {
-		arg.TimeInForce = gct
+	if !(arg.TimeInForce == gctTIF || arg.TimeInForce == iocTIF || arg.TimeInForce == pocTIF || arg.TimeInForce == focTIF) {
+		arg.TimeInForce = gctTIF
 	}
 	if arg.Type != "limit" {
 		return nil, errOnlyLimitOrderType
@@ -905,7 +905,7 @@ func (g *Gateio) CreatePriceTriggeredOrder(ctx context.Context, arg *PriceTrigge
 	if !(arg.Put.Account == "margin" || arg.Put.Account == "cross_margin") || arg.Put.Account == "spot" {
 		arg.Put.Account = "normal"
 	}
-	if !(arg.Put.TimeInForce == gct || arg.Put.TimeInForce == ioc) {
+	if !(arg.Put.TimeInForce == gctTIF || arg.Put.TimeInForce == iocTIF) {
 		arg.Put.TimeInForce = ""
 	}
 	if arg.Market.IsEmpty() {
@@ -2400,10 +2400,10 @@ func (g *Gateio) PlaceFuturesOrder(ctx context.Context, arg *OrderCreateParams) 
 	if arg.Size == 0 {
 		return nil, fmt.Errorf("%v, specify positive number to make a bid, and negative number to ask", errInvalidOrderSide)
 	}
-	if !(arg.TimeInForce == gct || arg.TimeInForce == ioc || arg.TimeInForce == poc || arg.TimeInForce == foc) {
+	if !(arg.TimeInForce == gctTIF || arg.TimeInForce == iocTIF || arg.TimeInForce == pocTIF || arg.TimeInForce == focTIF) {
 		return nil, errInvalidTimeInForce
 	}
-	if arg.Price > 0 && arg.TimeInForce == ioc {
+	if arg.Price > 0 && arg.TimeInForce == iocTIF {
 		arg.Price = 0
 	}
 	if arg.Price < 0 {
@@ -2504,13 +2504,13 @@ func (g *Gateio) PlaceBatchFuturesOrders(ctx context.Context, settle string, arg
 		if args[x].Size == 0 {
 			return nil, fmt.Errorf("%v, specify positive number to make a bid, and negative number to ask", errInvalidOrderSide)
 		}
-		if !(args[x].TimeInForce == gct ||
-			args[x].TimeInForce == ioc ||
-			args[x].TimeInForce == poc ||
-			args[x].TimeInForce == foc) {
+		if !(args[x].TimeInForce == gctTIF ||
+			args[x].TimeInForce == iocTIF ||
+			args[x].TimeInForce == pocTIF ||
+			args[x].TimeInForce == focTIF) {
 			return nil, errInvalidTimeInForce
 		}
-		if args[x].Price > 0 && args[x].TimeInForce == ioc {
+		if args[x].Price > 0 && args[x].TimeInForce == iocTIF {
 			args[x].Price = 0
 		}
 		if args[x].Price < 0 {
@@ -2688,7 +2688,7 @@ func (g *Gateio) CreatePriceTriggeredFuturesOrder(ctx context.Context, settle st
 	if arg.Initial.Price < 0 {
 		return nil, fmt.Errorf("%v, price must be greater than 0", errInvalidPrice)
 	}
-	if arg.Initial.TimeInForce != "" && !(arg.Initial.TimeInForce == gct || arg.Initial.TimeInForce == ioc) {
+	if arg.Initial.TimeInForce != "" && !(arg.Initial.TimeInForce == gctTIF || arg.Initial.TimeInForce == iocTIF) {
 		return nil, fmt.Errorf("%v, only time in force value 'gtc' and 'ioc' are supported", errInvalidTimeInForce)
 	}
 	if !(arg.Trigger.StrategyType == 0 || arg.Trigger.StrategyType == 1) {
@@ -3059,10 +3059,10 @@ func (g *Gateio) PlaceDeliveryOrder(ctx context.Context, arg *OrderCreateParams)
 	if arg.Size == 0 {
 		return nil, fmt.Errorf("%v, specify positive number to make a bid, and negative number to ask", errInvalidOrderSide)
 	}
-	if !(arg.TimeInForce == gct || arg.TimeInForce == ioc || arg.TimeInForce == poc || arg.TimeInForce == foc) {
+	if !(arg.TimeInForce == gctTIF || arg.TimeInForce == iocTIF || arg.TimeInForce == pocTIF || arg.TimeInForce == focTIF) {
 		return nil, errInvalidTimeInForce
 	}
-	if arg.Price > 0 && arg.TimeInForce == ioc {
+	if arg.Price > 0 && arg.TimeInForce == iocTIF {
 		arg.Price = 0
 	}
 	if arg.Price < 0 {
@@ -3282,7 +3282,7 @@ func (g *Gateio) GetDeliveryPriceTriggeredOrder(ctx context.Context, settle stri
 	if arg.Initial.Size <= 0 {
 		return nil, errors.New("invalid argument: initial.size out of range")
 	}
-	if arg.Initial.TimeInForce != "" && !(arg.Initial.TimeInForce == gct || arg.Initial.TimeInForce == ioc) {
+	if arg.Initial.TimeInForce != "" && !(arg.Initial.TimeInForce == gctTIF || arg.Initial.TimeInForce == iocTIF) {
 		return nil, fmt.Errorf("%v, only time in force value 'gtc' and 'ioc' are supported", errInvalidTimeInForce)
 	}
 	if !(arg.Trigger.StrategyType == 0 || arg.Trigger.StrategyType == 1) {
@@ -3588,10 +3588,10 @@ func (g *Gateio) PlaceOptionOrder(ctx context.Context, arg OptionOrderParam) (*O
 	if arg.Iceberg < 0 {
 		arg.Iceberg = 0
 	}
-	if !(arg.TimeInForce == gct || arg.TimeInForce == ioc || arg.TimeInForce == poc) {
+	if !(arg.TimeInForce == gctTIF || arg.TimeInForce == iocTIF || arg.TimeInForce == pocTIF) {
 		arg.TimeInForce = ""
 	}
-	if arg.TimeInForce == ioc || arg.Price < 0 {
+	if arg.TimeInForce == iocTIF || arg.Price < 0 {
 		arg.Price = 0
 	}
 	if arg.Close {

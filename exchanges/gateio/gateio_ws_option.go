@@ -84,7 +84,7 @@ func (g *Gateio) WsOptionsConnect() error {
 		return err
 	}
 	g.Websocket.Wg.Add(1)
-	go g.wsReadData()
+	go g.wsReadConnData()
 	go g.WsChannelsMultiplexer.Run()
 	g.Websocket.Conn.SetupPingHandler(stream.PingHandler{
 		Websocket:   true,
@@ -120,7 +120,7 @@ func (g *Gateio) GenerateOptionsDefaultSubscriptions() ([]stream.ChannelSubscrip
 				params["interval"] = kline.FiveMin
 			case optionsOrderbookUpdateChannel:
 				params["interval"] = kline.ThousandMilliseconds
-				params["level"] = 50
+				params["level"] = 20
 			}
 			fpair, err := g.FormatExchangeCurrency(pairs[j], asset.Options)
 			if err != nil {

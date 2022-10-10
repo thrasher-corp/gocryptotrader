@@ -192,7 +192,6 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-
 	return g.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  gateioWebsocketEndpoint,
 		RateLimit:            gateioWebsocketRateLimit,
@@ -321,11 +320,17 @@ func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 			AssetType:    a,
 		}
 	case asset.DeliveryFutures:
-		if !(strings.EqualFold(fPair.Quote.String(), currency.USD.String()) || strings.EqualFold(fPair.Quote.String(), currency.USDT.String()) || strings.EqualFold(fPair.Quote.String(), currency.BTC.String())) {
+		if !(strings.HasPrefix(fPair.Quote.String(), currency.USD.Upper().String()) || strings.HasPrefix(fPair.Quote.String(), currency.USDT.Upper().String()) || strings.HasPrefix(fPair.Quote.String(), currency.BTC.Upper().String())) {
 			return nil, errUnsupportedSettleValue
 		}
+		var settle string
+		if strings.HasPrefix(currency.USDT.String(), fPair.Quote.String()) {
+			settle = settleUSDT
+		} else {
+			settle = settleBTC
+		}
 		var tickers []FuturesTicker
-		tickers, err = g.GetDeliveryFutureTickers(ctx, fPair.Quote.String(), fPair)
+		tickers, err = g.GetDeliveryFutureTickers(ctx, settle, fPair)
 		if err != nil {
 			return nil, err
 		}

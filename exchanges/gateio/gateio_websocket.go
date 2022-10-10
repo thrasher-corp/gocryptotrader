@@ -83,12 +83,12 @@ func (g *Gateio) WsConnect() error {
 		MessageType: websocket.PingMessage,
 	})
 	g.Websocket.Wg.Add(1)
-	go g.wsReadData()
+	go g.wsReadConnData()
 	go g.WsChannelsMultiplexer.Run()
 	return nil
 }
 
-func (g *Gateio) generateSpotWsSignature(secret, event, channel string, dtime time.Time) (string, error) {
+func (g *Gateio) generateWsSignature(secret, event, channel string, dtime time.Time) (string, error) {
 	msg := fmt.Sprintf("channel=%s&event=%s&time=%d", channel, event, dtime.Unix())
 	mac := hmac.New(sha512.New, []byte(secret))
 	if _, err := mac.Write([]byte(msg)); err != nil {
@@ -97,8 +97,8 @@ func (g *Gateio) generateSpotWsSignature(secret, event, channel string, dtime ti
 	return hex.EncodeToString(mac.Sum(nil)), nil
 }
 
-// wsReadData receives and passes on websocket messages for processing
-func (g *Gateio) wsReadData() {
+// wsReadConnData receives and passes on websocket messages for processing
+func (g *Gateio) wsReadConnData() {
 	defer g.Websocket.Wg.Done()
 	for {
 		resp := g.Websocket.Conn.ReadMessage()
@@ -675,7 +675,7 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 	return subscriptions, nil
 }
 
-// Subscribe sends a websocket message to receive data from the channel
+// handleSubscription sends a websocket message to receive data from the channel
 func (g *Gateio) handleSubscription(event string, channelsToSubscribe []stream.ChannelSubscription) error {
 	payloads, err := g.generatePayload(event, channelsToSubscribe)
 	if err != nil {
@@ -790,8 +790,8 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 			}
 			params = append(
 				params,
-				accuracy,
 				level,
+				accuracy,
 			)
 		case futuresOrderbookUpdateChannel:
 			interval, ok := channelsToSubscribe[i].Params["frequency"].(kline.Interval)
@@ -845,16 +845,6 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 			channelsToSubscribe[i].Channel == crossMarginBalanceChannel ||
 			channelsToSubscribe[i].Channel == crossMarginLoanChannel ||
 
-			channelsToSubscribe[i].Channel == futuresOrdersChannel ||
-			channelsToSubscribe[i].Channel == futuresUserTradesChannel ||
-			channelsToSubscribe[i].Channel == futuresLiquidatesChannel ||
-			channelsToSubscribe[i].Channel == futuresAutoDeleveragesChannel ||
-			channelsToSubscribe[i].Channel == futuresAutoPositionCloseChannel ||
-			channelsToSubscribe[i].Channel == futuresBalancesChannel ||
-			channelsToSubscribe[i].Channel == futuresReduceRiskLimitsChannel ||
-			channelsToSubscribe[i].Channel == futuresPositionsChannel ||
-			channelsToSubscribe[i].Channel == futuresAutoOrdersChannel ||
-
 			channelsToSubscribe[i].Channel == optionsOrdersChannel ||
 			channelsToSubscribe[i].Channel == optionsUserTradesChannel ||
 			channelsToSubscribe[i].Channel == optionsLiquidatesChannel ||
@@ -868,7 +858,7 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 					[]string{value},
 					params...)
 			}
-			sigTemp, err := g.generateSpotWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp)
+			sigTemp, err := g.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp)
 			if err != nil {
 				return nil, err
 			}

@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -43,13 +44,31 @@ func (g *Gateio) WsDeliveryFuturesConnect() error {
 	if err != nil {
 		return err
 	}
-	err = g.Websocket.SetWebsocketURL(deliveryRealBTCTradingURL, true, true)
-	if err != nil {
-		return err
-	}
 	err = g.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
+	}
+	err = g.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		URL:                  deliveryRealBTCTradingURL,
+		RateLimit:            gateioWebsocketRateLimit,
+		ResponseCheckTimeout: g.Config.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     g.Config.WebsocketResponseMaxLimit,
+		Authenticated:        true,
+	})
+	if err != nil {
+		return err
+	}
+	err = g.Websocket.AuthConn.Dial(&dialer, http.Header{})
+	if err != nil {
+		return err
+	}
+	g.Websocket.Wg.Add(3)
+	go g.wsFunnelConnectionData(g.Websocket.Conn)
+	go g.wsFunnelConnectionData(g.Websocket.AuthConn)
+	go g.wsReadData()
+	if g.Verbose {
+		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
+			g.Websocket.GetWebsocketURL())
 	}
 	pingMessage, err := json.Marshal(WsInput{
 		ID:      g.Websocket.Conn.GenerateMessageID(false),
