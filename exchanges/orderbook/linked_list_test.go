@@ -1581,7 +1581,7 @@ func TestGetBaseAmountFromNominalSlippage(t *testing.T) {
 		{
 			Name:            "invalid slippage",
 			NominalSlippage: -1,
-			ExpectedError:   errInvalidSlippage,
+			ExpectedError:   errInvalidNominalSlippage,
 		},
 		{
 			Name:            "invalid slippage - larger than 100%",
@@ -1703,7 +1703,7 @@ func TestGetBaseAmountFromImpact(t *testing.T) {
 	}{
 		{
 			Name:          "invalid slippage",
-			ExpectedError: errInvalidSlippage,
+			ExpectedError: errInvalidImpactSlippage,
 		},
 		{
 			Name:           "invalid slippage - exceed 100%",
@@ -1894,7 +1894,7 @@ func TestGetQuoteAmountFromNominalSlippage(t *testing.T) {
 		{
 			Name:            "invalid slippage",
 			NominalSlippage: -1,
-			ExpectedError:   errInvalidSlippage,
+			ExpectedError:   errInvalidNominalSlippage,
 		},
 		{
 			Name:            "no reference price",
@@ -2010,7 +2010,7 @@ func TestGetQuoteAmountFromImpact(t *testing.T) {
 		{
 			Name:           "invalid slippage",
 			ImpactSlippage: -1,
-			ExpectedError:  errInvalidSlippage,
+			ExpectedError:  errInvalidImpactSlippage,
 		},
 		{
 			Name:           "no reference price",
@@ -2118,21 +2118,21 @@ func TestGetHeadPrice(t *testing.T) {
 
 func TestMutateFields(t *testing.T) {
 	m := &Movement{}
-	_, err := m.mutateFields(0, 0, 0, 0, false)
+	_, err := m.finalizeFields(0, 0, 0, 0, false)
 	if !errors.Is(err, errInvalidCost) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidCost)
 	}
-	_, err = m.mutateFields(1, 0, 0, 0, false)
+	_, err = m.finalizeFields(1, 0, 0, 0, false)
 	if !errors.Is(err, errInvalidAmount) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidAmount)
 	}
-	_, err = m.mutateFields(1, 1, 0, 0, false)
+	_, err = m.finalizeFields(1, 1, 0, 0, false)
 	if !errors.Is(err, errInvalidHeadPrice) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidHeadPrice)
 	}
 
 	// Test slippage as per https://en.wikipedia.org/wiki/Slippage_(finance)
-	mov, err := m.mutateFields(20000*151.11585, 20000, 151.08, 0, false)
+	mov, err := m.finalizeFields(20000*151.11585, 20000, 151.08, 0, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}

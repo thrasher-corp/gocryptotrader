@@ -15,7 +15,8 @@ var (
 	errIDCannotBeMatched               = errors.New("cannot match ID on linked list")
 	errCollisionDetected               = errors.New("cannot insert update collision detected")
 	errAmountCannotBeLessOrEqualToZero = errors.New("amount cannot be less or equal to zero")
-	errInvalidSlippage                 = errors.New("invalid slippage amount must be equal or greater than zero")
+	errInvalidNominalSlippage          = errors.New("invalid slippage amount must be greater or equal to zero")
+	errInvalidImpactSlippage           = errors.New("invalid slippage amount must be greater than zero")
 	errInvalidSlippageCannotExceed100  = errors.New("invalid slippage cannot exceed 100%")
 	errBaseAmountInvalid               = errors.New("invalid base amount")
 	errInvalidReferencePrice           = errors.New("invalid reference price")
@@ -23,10 +24,6 @@ var (
 	errInvalidCost                     = errors.New("invalid cost amount")
 	errInvalidAmount                   = errors.New("invalid amount")
 	errInvalidHeadPrice                = errors.New("invalid head price")
-
-	// ErrFullLiquidityUsed defines an error for when the entire liquidity side
-	// is used up.
-	ErrFullLiquidityUsed = errors.New("full side liquidity used")
 )
 
 // linkedList defines a linked list for a depth level, reutilisation of nodes
@@ -420,7 +417,7 @@ func (ll *linkedList) getMovementByQuotation(quote, refPrice float64, swap bool)
 			}
 		}
 	}
-	return m.mutateFields(m.Purchased, m.Sold, head, quote, swap)
+	return m.finalizeFields(m.Purchased, m.Sold, head, quote, swap)
 }
 
 // getMovementByBase traverses through orderbook liquidity using base currency
@@ -466,7 +463,7 @@ func (ll *linkedList) getMovementByBase(base, refPrice float64, swap bool) (*Mov
 			}
 		}
 	}
-	return m.mutateFields(m.Purchased, m.Sold, head, base, swap)
+	return m.finalizeFields(m.Purchased, m.Sold, head, base, swap)
 }
 
 // bids embed a linked list to attach methods for bid depth specific
@@ -501,7 +498,7 @@ func (ll *bids) insertUpdates(updts Items, stack *stack) error {
 // movement details.
 func (ll *bids) hitBidsByNominalSlippage(slippage, refPrice float64) (*Movement, error) {
 	if slippage < 0 {
-		return nil, errInvalidSlippage
+		return nil, errInvalidNominalSlippage
 	}
 
 	if slippage > 100 {
@@ -568,7 +565,7 @@ func (ll *bids) hitBidsByNominalSlippage(slippage, refPrice float64) (*Movement,
 // movement details.
 func (ll *bids) hitBidsByImpactSlippage(slippage, refPrice float64) (*Movement, error) {
 	if slippage <= 0 {
-		return nil, errInvalidSlippage
+		return nil, errInvalidImpactSlippage
 	}
 
 	if slippage > 100 {
@@ -637,7 +634,7 @@ func (ll *asks) insertUpdates(updts Items, stack *stack) error {
 // movement details.
 func (ll *asks) liftAsksByNominalSlippage(slippage, refPrice float64) (*Movement, error) {
 	if slippage < 0 {
-		return nil, errInvalidSlippage
+		return nil, errInvalidNominalSlippage
 	}
 
 	if refPrice <= 0 {
@@ -695,8 +692,8 @@ func (ll *asks) liftAsksByNominalSlippage(slippage, refPrice float64) (*Movement
 // percentage, calculated from the reference price and returns orderbook
 // movement details.
 func (ll *asks) liftAsksByImpactSlippage(slippage, refPrice float64) (*Movement, error) {
-	if slippage < 0 {
-		return nil, errInvalidSlippage
+	if slippage <= 0 {
+		return nil, errInvalidImpactSlippage
 	}
 
 	if refPrice <= 0 {
@@ -859,9 +856,9 @@ func shiftBookmark(tip *Node, bookmark, head **Node, updt Item) bool {
 	return true
 }
 
-// mutateFields sets average order costing, percentages, slippage cost and
+// finalizeFields sets average order costing, percentages, slippage cost and
 // preserves existing fields.
-func (m *Movement) mutateFields(cost, amount, headPrice, leftover float64, swap bool) (*Movement, error) {
+func (m *Movement) finalizeFields(cost, amount, headPrice, leftover float64, swap bool) (*Movement, error) {
 	if cost <= 0 {
 		return nil, errInvalidCost
 	}

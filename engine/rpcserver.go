@@ -5327,6 +5327,15 @@ func (s *RPCServer) GetOrderbookMovement(ctx context.Context, r *gctrpc.GetOrder
 		return nil, err
 	}
 
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+
+	err = checkParams(r.Exchange, exch, as, pair)
+	if err != nil {
+		return nil, err
+	}
+
 	depth, err := orderbook.GetDepth(exch.GetName(), pair, as)
 	if err != nil {
 		return nil, err
@@ -5395,6 +5404,15 @@ func (s *RPCServer) GetOrderbookAmountByNominal(ctx context.Context, r *gctrpc.G
 		return nil, err
 	}
 
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+
+	err = checkParams(r.Exchange, exch, as, pair)
+	if err != nil {
+		return nil, err
+	}
+
 	depth, err := orderbook.GetDepth(exch.GetName(), pair, as)
 	if err != nil {
 		return nil, err
@@ -5455,6 +5473,15 @@ func (s *RPCServer) GetOrderbookAmountByImpact(ctx context.Context, r *gctrpc.Ge
 	}
 
 	pair, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+
+	err = checkParams(r.Exchange, exch, as, pair)
 	if err != nil {
 		return nil, err
 	}
