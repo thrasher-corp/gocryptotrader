@@ -747,14 +747,13 @@ func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 
 	var trades []TradeHistory
 	for j := range req.Pairs {
-		fpair, err := g.FormatExchangeCurrency(req.Pairs[j], asset.Spot)
+		var fPair currency.Pair
+		fPair, err = g.FormatExchangeCurrency(req.Pairs[j], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
 
-		resp, err := g.GetTradeHistory(ctx,
-			fpair.String(),
-			req.StartTime.Unix())
+		resp, err := g.GetTradeHistory(ctx, fPair.String(), req.StartTime.Unix())
 		if err != nil {
 			return nil, err
 		}

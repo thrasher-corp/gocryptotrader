@@ -635,7 +635,8 @@ func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 		if err != nil {
 			return nil, err
 		}
-		resp, err := y.GetTradeHistory(ctx,
+		var resp map[string]TradeHistory
+		resp, err = y.GetTradeHistory(ctx,
 			0,
 			10000,
 			math.MaxInt64,

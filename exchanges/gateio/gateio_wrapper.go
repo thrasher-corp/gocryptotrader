@@ -727,7 +727,8 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 	var orders []order.Detail
 	var currPair string
 	if len(req.Pairs) == 1 {
-		fPair, err := g.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
+		var fPair currency.Pair
+		fPair, err = g.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
@@ -735,7 +736,8 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 	}
 	if g.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		for i := 0; ; i += 100 {
-			resp, err := g.wsGetOrderInfo(req.Type.String(), i, 100)
+			var resp *WebSocketOrderQueryResult
+			resp, err = g.wsGetOrderInfo(req.Type.String(), i, 100)
 			if err != nil {
 				return orders, err
 			}
@@ -749,7 +751,8 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 				if resp.WebSocketOrderQueryRecords[j].OrderType == 1 {
 					orderType = order.Limit
 				}
-				p, err := currency.NewPairFromString(resp.WebSocketOrderQueryRecords[j].Market)
+				var p currency.Pair
+				p, err = currency.NewPairFromString(resp.WebSocketOrderQueryRecords[j].Market)
 				if err != nil {
 					return nil, err
 				}
@@ -773,12 +776,14 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			}
 		}
 	} else {
-		resp, err := g.GetOpenOrders(ctx, currPair)
+		var resp OpenOrdersResponse
+		resp, err = g.GetOpenOrders(ctx, currPair)
 		if err != nil {
 			return nil, err
 		}
 
-		format, err := g.GetPairFormat(asset.Spot, false)
+		var format currency.PairFormat
+		format, err = g.GetPairFormat(asset.Spot, false)
 		if err != nil {
 			return nil, err
 		}
@@ -798,7 +803,8 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
 			}
-			status, err := order.StringToOrderStatus(resp.Orders[i].Status)
+			var status order.Status
+			status, err = order.StringToOrderStatus(resp.Orders[i].Status)
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
 			}
