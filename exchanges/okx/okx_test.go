@@ -2999,6 +2999,7 @@ func TestCalculateUpdateOrderbookChecksum(t *testing.T) {
 	if err != nil {
 		t.Error("Okx Snapshot order book push data error", err)
 	}
+	time.Sleep(time.Second * 5)
 	var orderbookBase orderbook.Base
 	err = json.Unmarshal([]byte(calculateOrderbookChecksumUpdateorderbookJSON), &orderbookBase)
 	if err != nil {

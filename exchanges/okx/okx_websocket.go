@@ -226,7 +226,7 @@ func (ok *Okx) WsConnect() error {
 	ok.Websocket.Conn.SetupPingHandler(stream.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       websocket.PingMessage,
-		Delay:             time.Second * 5,
+		Delay:             time.Second * 10,
 	})
 	if ok.IsWebsocketAuthenticationSupported() {
 		var authDialer websocket.Dialer
