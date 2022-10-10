@@ -753,7 +753,8 @@ func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 			return nil, err
 		}
 
-		resp, err := g.GetTradeHistory(ctx, fPair.String(), req.StartTime.Unix())
+		var resp []TradeHistory
+		resp, err = g.GetTradeHistory(ctx, fPair.String(), req.StartTime.Unix())
 		if err != nil {
 			return nil, err
 		}

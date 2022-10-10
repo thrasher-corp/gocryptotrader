@@ -763,7 +763,8 @@ func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.GetOrdersR
 			return nil, err
 		}
 
-		resp, err := c.GetOrders(ctx,
+		var resp []GeneralizedOrderResponse
+		resp, err = c.GetOrders(ctx,
 			[]string{"open", "pending", "active"},
 			fPair.String())
 		if err != nil {
