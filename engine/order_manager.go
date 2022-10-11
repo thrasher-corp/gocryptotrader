@@ -681,22 +681,20 @@ func (m *OrderManager) processOrders() {
 					err)
 				continue
 			}
-			if len(orders) > 0 && len(result) > 0 {
-				for z := range result {
-					var upsertResponse *OrderUpsertResponse
-					upsertResponse, err = m.UpsertOrder(&result[z])
-					if err != nil {
-						log.Error(log.OrderMgr, err)
-					} else {
-						for i := range orders {
-							if orders[i].InternalOrderID != upsertResponse.OrderDetails.InternalOrderID {
-								continue
-							}
-							orders[i] = orders[len(orders)-1]
-							orders = orders[:len(orders)-1]
-							break
-						}
+			for z := range result {
+				var upsertResponse *OrderUpsertResponse
+				upsertResponse, err = m.UpsertOrder(&result[z])
+				if err != nil {
+					log.Error(log.OrderMgr, err)
+					continue
+				}
+				for i := range orders {
+					if orders[i].InternalOrderID != upsertResponse.OrderDetails.InternalOrderID {
+						continue
 					}
+					orders[i] = orders[len(orders)-1]
+					orders = orders[:len(orders)-1]
+					break
 				}
 			}
 
