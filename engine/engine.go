@@ -792,7 +792,10 @@ func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
 			if err != nil {
 				return err
 			}
-			exchCfg.CurrencyPairs.StorePairs(assets[x], pairs, true)
+			err = exchCfg.CurrencyPairs.StorePairs(assets[x], pairs, true)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -842,6 +845,9 @@ func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
 			)
 		}
 	}
+
+	// NOTE: This will standardize name to default and apply it to the config.
+	exchCfg.Name = exch.GetName()
 
 	exchCfg.Enabled = true
 	err = exch.Setup(exchCfg)

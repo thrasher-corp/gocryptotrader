@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange/slippage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/size"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
@@ -43,17 +44,20 @@ import (
 
 // NewFromConfig takes a strategy config and configures a backtester variable to run
 func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool) (*BackTest, error) {
-	log.Infoln(common.Setup, "loading config...")
+	log.Infoln(common.Setup, "Loading config...")
 	if cfg == nil {
 		return nil, errNilConfig
 	}
-	var err error
-	bt := New()
+	bt, err := New()
+	if err != nil {
+		return nil, err
+	}
 	bt.exchangeManager = engine.SetupExchangeManager()
 	bt.orderManager, err = engine.SetupOrderManager(bt.exchangeManager, &engine.CommunicationManager{}, &sync.WaitGroup{}, false, false, 0)
 	if err != nil {
 		return nil, err
 	}
+
 	err = bt.orderManager.Start()
 	if err != nil {
 		return nil, err
@@ -199,7 +203,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 		if err != nil {
 			return nil, fmt.Errorf("could not get pair format %v, %w", curr, err)
 		}
-		curr = curr.Format(requestFormat.Delimiter, requestFormat.Uppercase)
+		curr = curr.Format(requestFormat)
 		var avail, enabled currency.Pairs
 		avail, err = exch.GetAvailablePairs(a)
 		if err != nil {
@@ -232,7 +236,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 		if cfg.CurrencySettings[i].MakerFee != nil &&
 			cfg.CurrencySettings[i].TakerFee != nil &&
 			cfg.CurrencySettings[i].MakerFee.GreaterThan(*cfg.CurrencySettings[i].TakerFee) {
-			log.Warnf(common.Setup, "maker fee '%v' should not exceed taker fee '%v'. Please review config",
+			log.Warnf(common.Setup, "Maker fee '%v' should not exceed taker fee '%v'. Please review config",
 				cfg.CurrencySettings[i].MakerFee,
 				cfg.CurrencySettings[i].TakerFee)
 		}
@@ -346,7 +350,9 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 	if err != nil {
 		return nil, err
 	}
+	bt.MetaData.Strategy = bt.Strategy.Name()
 	bt.Strategy.SetDefaults()
+
 	if cfg.StrategySettings.CustomSettings != nil {
 		err = bt.Strategy.SetCustomSettings(cfg.StrategySettings.CustomSettings)
 		if err != nil && !errors.Is(err, base.ErrCustomSettingsUnsupported) {
@@ -414,13 +420,25 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 	}
 	bt.Portfolio = p
 
+	hasFunding := false
+	fundingItems := funds.GetAllFunding()
+	for i := range fundingItems {
+		if fundingItems[i].InitialFunds.IsPositive() {
+			hasFunding = true
+			break
+		}
+	}
+	if !hasFunding {
+		return nil, holdings.ErrInitialFundsZero
+	}
+
 	cfg.PrintSetting()
 
 	return bt, nil
 }
 
 func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange, error) {
-	log.Infoln(common.Setup, "setting exchange settings...")
+	log.Infoln(common.Setup, "Setting exchange settings...")
 	resp := exchange.Exchange{}
 
 	for i := range cfg.CurrencySettings {
@@ -476,7 +494,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		}
 
 		if cfg.CurrencySettings[i].MaximumSlippagePercent.LessThan(decimal.Zero) {
-			log.Warnf(common.Setup, "invalid maximum slippage percent '%v'. Slippage percent is defined as a number, eg '100.00', defaulting to '%v'",
+			log.Warnf(common.Setup, "Invalid maximum slippage percent '%v'. Slippage percent is defined as a number, eg '100.00', defaulting to '%v'",
 				cfg.CurrencySettings[i].MaximumSlippagePercent,
 				slippage.DefaultMaximumSlippagePercent)
 			cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
@@ -485,7 +503,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
 		}
 		if cfg.CurrencySettings[i].MinimumSlippagePercent.LessThan(decimal.Zero) {
-			log.Warnf(common.Setup, "invalid minimum slippage percent '%v'. Slippage percent is defined as a number, eg '80.00', defaulting to '%v'",
+			log.Warnf(common.Setup, "Invalid minimum slippage percent '%v'. Slippage percent is defined as a number, eg '80.00', defaulting to '%v'",
 				cfg.CurrencySettings[i].MinimumSlippagePercent,
 				slippage.DefaultMinimumSlippagePercent)
 			cfg.CurrencySettings[i].MinimumSlippagePercent = slippage.DefaultMinimumSlippagePercent
@@ -500,6 +518,8 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		realOrders := false
 		if cfg.DataSettings.LiveData != nil {
 			realOrders = cfg.DataSettings.LiveData.RealOrders
+			bt.MetaData.LiveTesting = true
+			bt.MetaData.RealOrders = realOrders
 		}
 
 		buyRule := exchange.MinMax{
@@ -520,7 +540,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 
 		if limits != (gctorder.MinMaxLevel{}) {
 			if !cfg.CurrencySettings[i].CanUseExchangeLimits {
-				log.Warnf(common.Setup, "exchange %s order execution limits supported but disabled for %s %s, live results may differ",
+				log.Warnf(common.Setup, "Exchange %s order execution limits supported but disabled for %s %s, live results may differ",
 					cfg.CurrencySettings[i].ExchangeName,
 					pair,
 					a)
@@ -568,7 +588,7 @@ func (bt *BackTest) loadExchangePairAssetBase(exch string, base, quote currency.
 
 	exchangeBase := e.GetBase()
 	if exchangeBase.ValidateAPICredentials(exchangeBase.GetDefaultCredentials()) != nil {
-		log.Warnf(common.Setup, "no credentials set for %v, this is theoretical only", exchangeBase.Name)
+		log.Warnf(common.Setup, "No credentials set for %v, this is theoretical only", exchangeBase.Name)
 	}
 
 	fPair, err = exchangeBase.FormatExchangeCurrency(cp, ai)
@@ -633,7 +653,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		return nil, err
 	}
 
-	log.Infof(common.Setup, "loading data for %v %v %v...\n", exch.GetName(), a, fPair)
+	log.Infof(common.Setup, "Loading data for %v %v %v...\n", exch.GetName(), a, fPair)
 	resp := &kline.DataFromKline{}
 	switch {
 	case cfg.DataSettings.CSVData != nil:
@@ -860,8 +880,30 @@ func loadLiveData(cfg *config.Config, base *gctexchange.Base) error {
 	validated := base.AreCredentialsValid(context.TODO())
 	base.API.AuthenticatedSupport = validated
 	if !validated && cfg.DataSettings.LiveData.RealOrders {
-		log.Warn(common.Setup, "invalid API credentials set, real orders set to false")
+		log.Warn(common.Setup, "Invalid API credentials set, real orders set to false")
 		cfg.DataSettings.LiveData.RealOrders = false
 	}
 	return nil
+}
+
+// NewBacktesterFromConfigs creates a new backtester based on config settings
+func NewBacktesterFromConfigs(strategyCfg *config.Config, backtesterCfg *config.BacktesterConfig) (*BackTest, error) {
+	if strategyCfg == nil {
+		return nil, fmt.Errorf("%w strategy config", gctcommon.ErrNilPointer)
+	}
+	if backtesterCfg == nil {
+		return nil, fmt.Errorf("%w backtester config", gctcommon.ErrNilPointer)
+	}
+	if err := strategyCfg.Validate(); err != nil {
+		return nil, err
+	}
+	bt, err := NewFromConfig(strategyCfg, backtesterCfg.Report.TemplatePath, backtesterCfg.Report.OutputPath, backtesterCfg.Verbose)
+	if err != nil {
+		return nil, err
+	}
+	err = bt.SetupMetaData()
+	if err != nil {
+		return nil, err
+	}
+	return bt, nil
 }

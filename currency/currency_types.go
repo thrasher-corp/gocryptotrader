@@ -83,7 +83,9 @@ const (
 )
 
 // delimiters is a delimiter list
-var delimiters = []string{UnderscoreDelimiter,
+var delimiters = []string{
 	DashDelimiter,
+	UnderscoreDelimiter,
 	ForwardSlashDelimiter,
-	ColonDelimiter}
+	ColonDelimiter,
+}

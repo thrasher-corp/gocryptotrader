@@ -76,6 +76,7 @@ var (
 	errShutdownNotAllowed      = errors.New("shutting down this bot instance is not allowed via gRPC, please enable by command line flag --grpcshutdown or config.json field grpcAllowBotShutdown")
 	errGRPCShutdownSignalIsNil = errors.New("cannot shutdown, gRPC shutdown channel is nil")
 	errInvalidStrategy         = errors.New("invalid strategy")
+	errSpecificPairNotEnabled  = errors.New("specified pair is not enabled")
 )
 
 // RPCServer struct
@@ -104,10 +105,9 @@ func (s *RPCServer) authenticateClient(ctx context.Context) (context.Context, er
 		return ctx, fmt.Errorf("unable to base64 decode authorization header")
 	}
 
-	credentials := strings.Split(string(decoded), ":")
-
-	username := credentials[0]
-	password := credentials[1]
+	cred := strings.Split(string(decoded), ":")
+	username := cred[0]
+	password := cred[1]
 
 	if username != s.Config.RemoteControl.Username ||
 		password != s.Config.RemoteControl.Password {
@@ -127,8 +127,8 @@ func (s *RPCServer) authenticateClient(ctx context.Context) (context.Context, er
 // StartRPCServer starts a gRPC server with TLS auth
 func StartRPCServer(engine *Engine) {
 	targetDir := utils.GetTLSDir(engine.Settings.DataDir)
-	if err := checkCerts(targetDir); err != nil {
-		log.Errorf(log.GRPCSys, "gRPC checkCerts failed. err: %s\n", err)
+	if err := CheckCerts(targetDir); err != nil {
+		log.Errorf(log.GRPCSys, "gRPC CheckCerts failed. err: %s\n", err)
 		return
 	}
 	log.Debugf(log.GRPCSys, "gRPC server support enabled. Starting gRPC server on https://%v.\n", engine.Config.RemoteControl.GRPC.ListenAddress)
@@ -345,14 +345,21 @@ func (s *RPCServer) GetExchangeInfo(_ context.Context, r *gctrpc.GenericExchange
 	resp.SupportedAssets = make(map[string]*gctrpc.PairsSupported)
 	assets := exchCfg.CurrencyPairs.GetAssetTypes(false)
 	for i := range assets {
-		ps, err := exchCfg.CurrencyPairs.Get(assets[i])
+		var enabled currency.Pairs
+		enabled, err = exchCfg.CurrencyPairs.GetPairs(assets[i], true)
+		if err != nil {
+			return nil, err
+		}
+
+		var available currency.Pairs
+		available, err = exchCfg.CurrencyPairs.GetPairs(assets[i], false)
 		if err != nil {
 			return nil, err
 		}
 
 		resp.SupportedAssets[assets[i].String()] = &gctrpc.PairsSupported{
-			EnabledPairs:   ps.Enabled.Join(),
-			AvailablePairs: ps.Available.Join(),
+			EnabledPairs:   enabled.Join(),
+			AvailablePairs: available.Join(),
 		}
 	}
 	return resp, nil
@@ -948,6 +955,8 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 	request := &order.GetOrdersRequest{
 		Pairs:     []currency.Pair{cp},
 		AssetType: a,
+		Type:      order.AnyType,
+		Side:      order.AnySide,
 	}
 	if !start.IsZero() {
 		request.StartTime = start
@@ -1971,14 +1980,21 @@ func (s *RPCServer) GetExchangePairs(_ context.Context, r *gctrpc.GetExchangePai
 			continue
 		}
 
-		ps, err := exchCfg.CurrencyPairs.Get(assetTypes[x])
+		var enabled currency.Pairs
+		enabled, err = exchCfg.CurrencyPairs.GetPairs(assetTypes[x], true)
+		if err != nil {
+			return nil, err
+		}
+
+		var available currency.Pairs
+		available, err = exchCfg.CurrencyPairs.GetPairs(assetTypes[x], false)
 		if err != nil {
 			return nil, err
 		}
 
 		resp.SupportedAssets[assetTypes[x].String()] = &gctrpc.PairsSupported{
-			AvailablePairs: ps.Available.Join(),
-			EnabledPairs:   ps.Enabled.Join(),
+			AvailablePairs: available.Join(),
+			EnabledPairs:   enabled.Join(),
 		}
 	}
 	return &resp, nil
@@ -2025,31 +2041,36 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 		}
 
 		if r.Enable {
-			err = exchCfg.CurrencyPairs.EnablePair(a,
-				p.Format(pairFmt.Delimiter, pairFmt.Uppercase))
+			err = exchCfg.CurrencyPairs.EnablePair(a, p.Format(pairFmt))
 			if err != nil {
-				newErrors = append(newErrors, err)
+				newErrors = append(newErrors, fmt.Errorf("%s %w", r.Pairs[i], err))
 				continue
 			}
 			err = base.CurrencyPairs.EnablePair(a, p)
 			if err != nil {
-				newErrors = append(newErrors, err)
+				newErrors = append(newErrors, fmt.Errorf("%s %w", r.Pairs[i], err))
 				continue
 			}
 			pass = true
 			continue
 		}
 
-		err = exchCfg.CurrencyPairs.DisablePair(a,
-			p.Format(pairFmt.Delimiter, pairFmt.Uppercase))
+		err = exchCfg.CurrencyPairs.DisablePair(a, p.Format(pairFmt))
 		if err != nil {
-			newErrors = append(newErrors, err)
-			continue
+			if errors.Is(err, currency.ErrPairNotFound) {
+				newErrors = append(newErrors, fmt.Errorf("%s %w", r.Pairs[i], errSpecificPairNotEnabled))
+				continue
+			}
+			return nil, err
 		}
+
 		err = base.CurrencyPairs.DisablePair(a, p)
 		if err != nil {
-			newErrors = append(newErrors, err)
-			continue
+			if errors.Is(err, currency.ErrPairNotFound) {
+				newErrors = append(newErrors, fmt.Errorf("%s %w", r.Pairs[i], errSpecificPairNotEnabled))
+				continue
+			}
+			return nil, err
 		}
 		pass = true
 	}
@@ -2914,13 +2935,25 @@ func (s *RPCServer) SetAllExchangePairs(_ context.Context, r *gctrpc.SetExchange
 			if err != nil {
 				return nil, err
 			}
-			exchCfg.CurrencyPairs.StorePairs(assets[i], pairs, true)
-			base.CurrencyPairs.StorePairs(assets[i], pairs, true)
+			err = exchCfg.CurrencyPairs.StorePairs(assets[i], pairs, true)
+			if err != nil {
+				return nil, err
+			}
+			err = base.CurrencyPairs.StorePairs(assets[i], pairs, true)
+			if err != nil {
+				return nil, err
+			}
 		}
 	} else {
 		for i := range assets {
-			exchCfg.CurrencyPairs.StorePairs(assets[i], nil, true)
-			base.CurrencyPairs.StorePairs(assets[i], nil, true)
+			err = exchCfg.CurrencyPairs.StorePairs(assets[i], nil, true)
+			if err != nil {
+				return nil, err
+			}
+			err = base.CurrencyPairs.StorePairs(assets[i], nil, true)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 

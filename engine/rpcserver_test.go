@@ -1464,6 +1464,7 @@ func TestCheckVars(t *testing.T) {
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
+			Delimiter: currency.DashDelimiter,
 		},
 	}
 	err = e.GetBase().StoreAssetPairFormat(asset.Spot, fmt1)
@@ -1492,7 +1493,10 @@ func TestCheckVars(t *testing.T) {
 		{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.USDT},
 	}
 
-	e.GetBase().CurrencyPairs.StorePairs(asset.Spot, data, false)
+	err = e.GetBase().CurrencyPairs.StorePairs(asset.Spot, data, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
 	if !errors.Is(err, errCurrencyNotEnabled) {
@@ -2174,7 +2178,7 @@ func TestCurrencyStateTradingPair(t *testing.T) {
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		AssetEnabled: convert.BoolPtr(true),
-		ConfigFormat: &currency.PairFormat{},
+		ConfigFormat: &currency.EMPTYFORMAT,
 		Available:    currency.Pairs{cp},
 		Enabled:      currency.Pairs{cp},
 	}
@@ -2351,13 +2355,13 @@ func TestGetCollateral(t *testing.T) {
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Futures] = &currency.PairStore{
 		AssetEnabled: convert.BoolPtr(true),
-		ConfigFormat: &currency.PairFormat{},
+		ConfigFormat: &currency.EMPTYFORMAT,
 		Available:    currency.Pairs{cp},
 		Enabled:      currency.Pairs{cp},
 	}
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		AssetEnabled: convert.BoolPtr(true),
-		ConfigFormat: &currency.PairFormat{},
+		ConfigFormat: &currency.EMPTYFORMAT,
 		Available:    currency.Pairs{cp},
 		Enabled:      currency.Pairs{cp},
 	}

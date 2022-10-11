@@ -39,6 +39,7 @@ var (
 	errNoSyncItemsEnabled         = errors.New("no sync items enabled")
 	errUnknownSyncItem            = errors.New("unknown sync item")
 	errSyncPairNotFound           = errors.New("exchange currency pair syncer not found")
+	errCouldNotSyncNewData        = errors.New("could not sync new data")
 )
 
 // setupSyncManager starts a new CurrencyPairSyncer
@@ -87,8 +88,7 @@ func setupSyncManager(c *SyncManagerConfig, exchangeManager iExchangeManager, re
 		exchangeManager:                exchangeManager,
 		websocketRoutineManagerEnabled: websocketRoutineManagerEnabled,
 		fiatDisplayCurrency:            c.FiatDisplayCurrency,
-		delimiter:                      c.PairFormatDisplay.Delimiter,
-		uppercase:                      c.PairFormatDisplay.Uppercase,
+		format:                         *c.PairFormatDisplay,
 		tickerBatchLastRequested:       make(map[string]time.Time),
 	}
 
@@ -422,7 +422,7 @@ func (m *syncManager) Update(exchangeName string, p currency.Pair, a asset.Item,
 						createdCounter)
 					m.initSyncWG.Done()
 				}
-
+				return nil
 			case SyncItemOrderbook:
 				origHadData := m.currencyPairs[x].Orderbook.HaveData
 				m.currencyPairs[x].Orderbook.LastUpdated = time.Now()
@@ -440,7 +440,7 @@ func (m *syncManager) Update(exchangeName string, p currency.Pair, a asset.Item,
 						createdCounter)
 					m.initSyncWG.Done()
 				}
-
+				return nil
 			case SyncItemTrade:
 				origHadData := m.currencyPairs[x].Trade.HaveData
 				m.currencyPairs[x].Trade.LastUpdated = time.Now()
@@ -458,10 +458,11 @@ func (m *syncManager) Update(exchangeName string, p currency.Pair, a asset.Item,
 						createdCounter)
 					m.initSyncWG.Done()
 				}
+				return nil
 			}
 		}
 	}
-	return nil
+	return fmt.Errorf("%w for %s %s %s", errCouldNotSyncNewData, exchangeName, p, a)
 }
 
 func (m *syncManager) worker() {
@@ -813,7 +814,7 @@ func (m *syncManager) FormatCurrency(p currency.Pair) currency.Pair {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return p
 	}
-	return p.Format(m.delimiter, m.uppercase)
+	return p.Format(m.format)
 }
 
 const (

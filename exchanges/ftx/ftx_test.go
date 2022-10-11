@@ -1348,8 +1348,12 @@ func TestGetHistoricTrades(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		rPair, err := enabledPairs.GetRandomPair()
+		if !errors.Is(err, nil) {
+			t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+		}
 		_, err = f.GetHistoricTrades(context.Background(),
-			enabledPairs.GetRandomPair(),
+			rPair,
 			assets[i],
 			time.Now().Add(-time.Minute*15),
 			time.Now())
@@ -1367,8 +1371,12 @@ func TestGetRecentTrades(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		rPair, err := enabledPairs.GetRandomPair()
+		if !errors.Is(err, nil) {
+			t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+		}
 		_, err = f.GetRecentTrades(context.Background(),
-			enabledPairs.GetRandomPair(), assets[i])
+			rPair, assets[i])
 		if err != nil {
 			t.Error(err)
 		}
@@ -2736,5 +2744,53 @@ func TestGetFundingPayments(t *testing.T) {
 	_, err = f.getFundingPayments(context.Background(), time.Unix(authEndTime, 0), time.Unix(authStartTime, 0), cp, -1)
 	if err != errStartTimeCannotBeAfterEndTime {
 		t.Errorf("should have thrown errStartTimeCannotBeAfterEndTime, got %v", err)
+	}
+}
+
+func TestGetCustomReferralCodes(t *testing.T) {
+	t.Parallel()
+
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+
+	if _, err := f.GetCustomReferralCodes(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetReferralRebates(t *testing.T) {
+	t.Parallel()
+
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+
+	if _, err := f.GetReferralRebates(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetReferralRebateHistory(t *testing.T) {
+	t.Parallel()
+
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+
+	if _, err := f.GetReferralRebateHistory(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetReferralRebateRate(t *testing.T) {
+	t.Parallel()
+
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+
+	if _, err := f.GetReferralRebateRate(context.Background()); err != nil {
+		t.Fatal(err)
 	}
 }

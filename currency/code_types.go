@@ -28,7 +28,7 @@ type Role uint8
 
 // BaseCodes defines a basket of bare currency codes
 type BaseCodes struct {
-	Items          []*Item
+	Items          map[string][]*Item
 	LastMainUpdate time.Time
 	mtx            sync.Mutex
 }

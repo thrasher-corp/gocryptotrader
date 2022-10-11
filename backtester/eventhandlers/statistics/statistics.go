@@ -182,7 +182,7 @@ func (s *Statistic) AddComplianceSnapshotForTime(c compliance.Snapshot, e fill.E
 // CalculateAllResults calculates the statistics of all exchange asset pair holdings,
 // orders, ratios and drawdowns
 func (s *Statistic) CalculateAllResults() error {
-	log.Info(common.Statistics, "calculating backtesting results")
+	log.Info(common.Statistics, "Calculating backtesting results")
 	s.PrintAllEventsChronologically()
 	currCount := 0
 	var finalResults []FinalResultsHolder
@@ -297,6 +297,15 @@ func (s *Statistic) SetStrategyName(name string) {
 
 // Serialise outputs the Statistic struct in json
 func (s *Statistic) Serialise() (string, error) {
+	s.CurrencyStatistics = nil
+	for _, exchangeMap := range s.ExchangeAssetPairStatistics {
+		for _, assetMap := range exchangeMap {
+			for _, stats := range assetMap {
+				s.CurrencyStatistics = append(s.CurrencyStatistics, stats)
+			}
+		}
+	}
+
 	resp, err := json.MarshalIndent(s, "", " ")
 	if err != nil {
 		return "", err
