@@ -3968,7 +3968,8 @@ func (g *Gateio) determineAccount(ctx context.Context) (asset.Item, error) {
 
 // GetUnderlyingFromCurrencyPair returns an underlying string from a currency pair
 func (g *Gateio) GetUnderlyingFromCurrencyPair(p currency.Pair) (string, error) {
-	pairString := strings.Replace(p.Format(currency.UnderscoreDelimiter, true).String(), currency.DashDelimiter, currency.UnderscoreDelimiter, -1)
+	p.Delimiter = currency.UnderscoreDelimiter
+	pairString := strings.Replace(p.Upper().String(), currency.DashDelimiter, currency.UnderscoreDelimiter, -1)
 	ccies := strings.Split(pairString, currency.UnderscoreDelimiter)
 	if len(ccies) < 2 {
 		return "", errors.New("invalid currency pair")
