@@ -1940,7 +1940,8 @@ func TestGetMidPrice_Depth(t *testing.T) {
 	}
 
 	depth := NewDepth(id)
-	if _, err := depth.GetMidPrice(); !errors.Is(err, errNoLiquidity) {
+	_, err = depth.GetMidPrice()
+	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
