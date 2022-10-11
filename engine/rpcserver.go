@@ -960,6 +960,8 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 	request := &order.GetOrdersRequest{
 		Pairs:     []currency.Pair{cp},
 		AssetType: a,
+		Type:      order.AnyType,
+		Side:      order.AnySide,
 	}
 	if !start.IsZero() {
 		request.StartTime = start

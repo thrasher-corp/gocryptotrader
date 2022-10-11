@@ -928,7 +928,7 @@ func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetO
 			if !matchType(currentOrder[y].OrderType, orderDeref.Type) {
 				continue
 			}
-			orderStatus, err := order.StringToOrderStatus(currentOrder[x].OrderState)
+			orderStatus, err := order.StringToOrderStatus(currentOrder[y].OrderState)
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
 			}
