@@ -2256,6 +2256,13 @@ type WSOrderResponse struct {
 	Msg       string      `json:"msg,omitempty"`
 }
 
+// WebsocketDataResponse represents all pushed websocket data coming thought the websocket connection
+type WebsocketDataResponse struct {
+	Argument SubscriptionInfo `json:"arg"`
+	Action   string           `json:"action"`
+	Data     []interface{}    `json:"data"`
+}
+
 type wsRequestInfo struct {
 	ID             string
 	Chan           chan *wsIncomingData
@@ -2267,7 +2274,6 @@ type wsRequestInfo struct {
 
 type wsIncomingData struct {
 	Event    string           `json:"event,omitempty"`
-	Action   string           `json:"action,omitempty"`
 	Argument SubscriptionInfo `json:"arg,omitempty"`
 	Code     string           `json:"code,omitempty"`
 	Msg      string           `json:"msg,omitempty"`

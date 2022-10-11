@@ -82,7 +82,6 @@ func TestMain(m *testing.M) {
 
 func TestStart(t *testing.T) {
 	t.Parallel()
-	ok.Verbose = false
 	err := ok.Start(nil)
 	if !errors.Is(err, common.ErrNilPointer) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
@@ -775,10 +774,10 @@ func TestStopOrder(t *testing.T) {
 		SizeLimit:    9999.9,
 		OrderType:    "twap",
 		PriceSpread:  "0.4",
-		TimeInterval: kline.ThreeDay,
 		TradeMode:    "cross",
 		Side:         order.Sell,
 		Size:         6,
+		TimeInterval: kline.ThreeDay,
 	}); err != nil && !strings.Contains(err.Error(), "Unsupported operation") {
 		t.Error("Okx PlaceTWAPOrder() error", err)
 	}
@@ -2994,12 +2993,10 @@ var calculateOrderbookChecksumUpdateorderbookJSON = `{"Bids":[{"Amount":56,"Pric
 
 func TestCalculateUpdateOrderbookChecksum(t *testing.T) {
 	t.Parallel()
-	ok.Verbose = true
 	err := ok.WsHandleData([]byte(snapshotOrderBookPushData))
 	if err != nil {
 		t.Error("Okx Snapshot order book push data error", err)
 	}
-	time.Sleep(time.Second * 5)
 	var orderbookBase orderbook.Base
 	err = json.Unmarshal([]byte(calculateOrderbookChecksumUpdateorderbookJSON), &orderbookBase)
 	if err != nil {

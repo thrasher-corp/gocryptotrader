@@ -818,18 +818,6 @@ func (ok *Okx) PlaceStopOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoO
 	if arg.TakeProfitTriggerPriceType == "" {
 		return nil, errMissingTakeProfitOrderPrice
 	}
-	if !(arg.TakeProfitTriggerPriceType != "" &&
-		(arg.TakeProfitTriggerPriceType == "index" ||
-			arg.TakeProfitTriggerPriceType == "last" ||
-			arg.TakeProfitTriggerPriceType == "mark")) {
-		arg.TakeProfitTriggerPriceType = ""
-	}
-	if !(arg.StopLossTriggerPriceType != "" &&
-		(arg.StopLossTriggerPriceType == "index" ||
-			arg.StopLossTriggerPriceType == "last" ||
-			arg.StopLossTriggerPriceType == "mark")) {
-		arg.StopLossTriggerPriceType = ""
-	}
 	return ok.PlaceAlgoOrder(ctx, arg)
 }
 
@@ -1038,7 +1026,7 @@ func (ok *Okx) PlaceEasyConvert(ctx context.Context, arg PlaceEasyConvertParam) 
 		return nil, fmt.Errorf("%w, missing 'fromCcy'", errMissingRequiredParameter)
 	}
 	if arg.ToCurrency == "" {
-		return nil, fmt.Errorf("%w, missing t'toCcy'", errMissingRequiredParameter)
+		return nil, fmt.Errorf("%w, missing 'toCcy'", errMissingRequiredParameter)
 	}
 	var resp []EasyConvertItem
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeEasyConvertEPL, http.MethodPost, easyConvert, &arg, &resp, true)
@@ -2440,11 +2428,9 @@ func (ok *Okx) GetBorrowInterestAndLimit(ctx context.Context, loanType int64, cu
 }
 
 // PositionBuilder calculates portfolio margin information for simulated position or current position of the user. You can add up to 200 simulated positions in one request.
+// Instrument type SWAP  FUTURES, and OPTION are supported
 func (ok *Okx) PositionBuilder(ctx context.Context, arg PositionBuilderInput) ([]PositionBuilderResponse, error) {
 	arg.InstrumentType = strings.ToUpper(arg.InstrumentType)
-	if arg.InstrumentType != okxInstTypeSwap && arg.InstrumentType != okxInstTypeFutures && arg.InstrumentType != okxInstTypeOption {
-		arg.InstrumentType = ""
-	}
 	var resp []PositionBuilderResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, positionBuilderEPL, http.MethodPost, accountSimulatedMargin, &arg, &resp, true)
 }
@@ -3028,13 +3014,11 @@ func (ok *Okx) GetEarnActiveOrders(ctx context.Context, productID, protocolType,
 }
 
 // GetFundingOrderHistory retrives funding order history
+// valid protocol types are 'staking' and 'defi'
 func (ok *Okx) GetFundingOrderHistory(ctx context.Context, productID, protocolType, currency string, after, before time.Time, limit int64) ([]ActiveFundingOrder, error) {
 	params := url.Values{}
 	if productID != "" {
 		params.Set("productId", productID)
-	}
-	if protocolType == "staking" || protocolType == "defi" {
-		params.Set("protocolType", protocolType)
 	}
 	if currency != "" {
 		params.Set("ccy", currency)
@@ -3134,8 +3118,7 @@ func (ok *Okx) GetPairFromInstrumentID(instrumentID string) (currency.Pair, erro
 	if len(codes) >= 2 {
 		instrumentID = codes[0] + currency.DashDelimiter + strings.Join(codes[1:], currency.DashDelimiter)
 	}
-	pair, err := currency.NewPairFromString(instrumentID)
-	return pair, err
+	return currency.NewPairFromString(instrumentID)
 }
 
 // GetOrderBookDepth returns the recent order asks and bids before specified timestamp.
@@ -3255,12 +3238,9 @@ func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, inte
 	}
 	klineData := make([]CandleStick, len(responseData))
 	for x := range responseData {
-		individualData, ok := responseData[x].([]interface{})
+		individualData, ok := responseData[x].([7]interface{})
 		if !ok {
 			return nil, errUnableToTypeAssertKlineData
-		}
-		if len(individualData) != 7 {
-			return nil, errUnexpectedKlineDataLength
 		}
 		var candle CandleStick
 		var err error
@@ -3938,9 +3918,6 @@ func (ok *Okx) GetLongShortRatio(ctx context.Context, currency string, begin, en
 	}
 	ratios := []LongShortRatio{}
 	for x := range response {
-		if len(response[x]) != 2 {
-			return nil, fmt.Errorf("%w, expecting length 2 but found %d", errMalformedData, len(response[x]))
-		}
 		timestamp, err := strconv.Atoi(response[x][0])
 		if err != nil {
 			return nil, err
@@ -3985,9 +3962,6 @@ func (ok *Okx) GetContractsOpenInterestAndVolume(
 		return nil, err
 	}
 	for x := range response {
-		if len(response[x]) != 3 {
-			return nil, errMalformedData
-		}
 		timestamp, err := strconv.ParseFloat(response[x][0], 64)
 		if err != nil {
 			return nil, err
@@ -4032,9 +4006,6 @@ func (ok *Okx) GetOptionsOpenInterestAndVolume(ctx context.Context, currency str
 		return nil, err
 	}
 	for x := range response {
-		if len(response[x]) != 3 {
-			return nil, errors.New("invalid data length")
-		}
 		timestamp, err := strconv.Atoi(response[x][0])
 		if err != nil {
 			return nil, errors.New("invalid timestamp information")
@@ -4079,9 +4050,6 @@ func (ok *Okx) GetPutCallRatio(ctx context.Context, currency string,
 		return nil, err
 	}
 	for x := range response {
-		if len(response[x]) != 3 {
-			return nil, fmt.Errorf("%w, expecting row length 3 but found %d", errMalformedData, len(response[x]))
-		}
 		timestamp, err := strconv.Atoi(response[x][0])
 		if err != nil {
 			return nil, err
@@ -4122,9 +4090,6 @@ func (ok *Okx) GetOpenInterestAndVolumeExpiry(ctx context.Context, currency stri
 	volumes := []ExpiryOpenInterestAndVolume{}
 	for x := range resp {
 		var timestamp int
-		if len(resp[x]) != 6 {
-			return nil, errMalformedData
-		}
 		timestamp, err = strconv.Atoi(resp[x][0])
 		if err != nil {
 			return nil, err
@@ -4225,9 +4190,6 @@ func (ok *Okx) GetOpenInterestAndVolumeStrike(ctx context.Context, currency stri
 	}
 	volumes := []StrikeOpenInterestAndVolume{}
 	for x := range resp {
-		if len(resp[x]) != 6 {
-			return nil, fmt.Errorf("%w, expecting row length of 6 but found %d", errMalformedData, len(resp[x]))
-		}
 		timestamp, err := strconv.Atoi(resp[x][0])
 		if err != nil {
 			return nil, err
@@ -4324,6 +4286,10 @@ func (ok *Okx) GetTakerFlow(ctx context.Context, currency string, period kline.I
 // path with a JSON payload (of present)
 // URL arguments must be in the request path and not as url.URL values
 func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, httpMethod, requestPath string, data, result interface{}, authenticated bool) (err error) {
+	rv := reflect.ValueOf(result)
+	if rv.Kind() != reflect.Pointer || rv.IsNil() {
+		return errInvalidResponseParam
+	}
 	endpoint, err := ok.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -4373,9 +4339,6 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 			HTTPRecording: ok.HTTPRecording,
 		}, nil
 	}
-	if result == nil {
-		return errNilResponseField
-	}
 	err = ok.SendPayload(ctx, f, newRequest)
 	if err != nil {
 		return err
@@ -4386,10 +4349,6 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 		Data interface{} `json:"data"`
 	}
 	var errMessage errCap
-	rv := reflect.ValueOf(result)
-	if rv.Kind() != reflect.Pointer || rv.IsNil() {
-		return errInvalidResponseParam
-	}
 	errMessage.Data = result
 	err = json.Unmarshal(intermediary, &errMessage)
 	if err != nil {
@@ -4412,11 +4371,10 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 // Status
 
 // SystemStatusResponse retrieves the system status.
+// state supports valid values 'scheduled', 'ongoing', 'pre_open', 'completed', and 'canceled'.
 func (ok *Okx) SystemStatusResponse(ctx context.Context, state string) ([]SystemStatusResponse, error) {
 	params := url.Values{}
-	if state == "scheduled" || state == "ongoing" || state == "pre_open" || state == "completed" || state == "canceled" {
-		params.Set("state", state)
-	}
+	params.Set("state", state)
 	var resp []SystemStatusResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getEventStatusEPL, http.MethodGet, common.EncodeURLValues(systemStatus, params), nil, &resp, false)
 }
@@ -4431,7 +4389,7 @@ func (ok *Okx) GetAssetTypeFromInstrumentType(instrumentType string) (asset.Item
 	case okxInstTypeANY:
 		return asset.Empty, nil
 	default:
-		return asset.New(strings.ToLower(instrumentType))
+		return asset.New(instrumentType)
 	}
 }
 
