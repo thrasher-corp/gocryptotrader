@@ -627,8 +627,13 @@ func TestIsValid(t *testing.T) {
 
 func TestHitTheBidsByNominalSlippage(t *testing.T) {
 	t.Parallel()
+	_, err := getInvalidDepth().HitTheBidsByNominalSlippage(10, 1355.5)
+	if !errors.Is(err, ErrOrderbookInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
+	}
+
 	depth := NewDepth(id)
-	_, err := depth.HitTheBidsByNominalSlippage(10, 1355.5)
+	_, err = depth.HitTheBidsByNominalSlippage(10, 1355.5)
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
@@ -743,9 +748,14 @@ func TestHitTheBidsByNominalSlippage(t *testing.T) {
 
 func TestHitTheBidsByNominalSlippageFromMid(t *testing.T) {
 	t.Parallel()
+	_, err := getInvalidDepth().HitTheBidsByNominalSlippageFromMid(10)
+	if !errors.Is(err, ErrOrderbookInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
+	}
+
 	depth := NewDepth(id)
 
-	_, err := depth.HitTheBidsByNominalSlippageFromMid(10)
+	_, err = depth.HitTheBidsByNominalSlippageFromMid(10)
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
@@ -775,9 +785,14 @@ func TestHitTheBidsByNominalSlippageFromMid(t *testing.T) {
 
 func TestHitTheBidsByNominalSlippageFromBest(t *testing.T) {
 	t.Parallel()
+	_, err := getInvalidDepth().HitTheBidsByNominalSlippageFromBest(10)
+	if !errors.Is(err, ErrOrderbookInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
+	}
+
 	depth := NewDepth(id)
 
-	_, err := depth.HitTheBidsByNominalSlippageFromBest(10)
+	_, err = depth.HitTheBidsByNominalSlippageFromBest(10)
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
@@ -807,9 +822,14 @@ func TestHitTheBidsByNominalSlippageFromBest(t *testing.T) {
 
 func TestLiftTheAsksByNominalSlippage(t *testing.T) {
 	t.Parallel()
+	_, err := getInvalidDepth().LiftTheAsksByNominalSlippage(10, 1355.5)
+	if !errors.Is(err, ErrOrderbookInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
+	}
+
 	depth := NewDepth(id)
 
-	_, err := depth.LiftTheAsksByNominalSlippage(10, 1355.5)
+	_, err = depth.LiftTheAsksByNominalSlippage(10, 1355.5)
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
@@ -839,9 +859,14 @@ func TestLiftTheAsksByNominalSlippage(t *testing.T) {
 
 func TestLiftTheAsksByNominalSlippageFromMid(t *testing.T) {
 	t.Parallel()
+	_, err := getInvalidDepth().LiftTheAsksByNominalSlippageFromMid(10)
+	if !errors.Is(err, ErrOrderbookInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
+	}
+
 	depth := NewDepth(id)
 
-	_, err := depth.LiftTheAsksByNominalSlippageFromMid(10)
+	_, err = depth.LiftTheAsksByNominalSlippageFromMid(10)
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
@@ -871,9 +896,14 @@ func TestLiftTheAsksByNominalSlippageFromMid(t *testing.T) {
 
 func TestLiftTheAsksByNominalSlippageFromBest(t *testing.T) {
 	t.Parallel()
+	_, err := getInvalidDepth().LiftTheAsksByNominalSlippageFromBest(10)
+	if !errors.Is(err, ErrOrderbookInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
+	}
+
 	depth := NewDepth(id)
 
-	_, err := depth.LiftTheAsksByNominalSlippageFromBest(10)
+	_, err = depth.LiftTheAsksByNominalSlippageFromBest(10)
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
@@ -903,6 +933,11 @@ func TestLiftTheAsksByNominalSlippageFromBest(t *testing.T) {
 
 func TestHitTheBidsByImpactSlippage(t *testing.T) {
 	t.Parallel()
+	_, err := getInvalidDepth().HitTheBidsByImpactSlippage(0.7485029940119761, 1336)
+	if !errors.Is(err, ErrOrderbookInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
+	}
+
 	depth := NewDepth(id)
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
 
@@ -930,8 +965,13 @@ func TestHitTheBidsByImpactSlippage(t *testing.T) {
 
 func TestHitTheBidsByImpactSlippageFromMid(t *testing.T) {
 	t.Parallel()
+	_, err := getInvalidDepth().HitTheBidsByImpactSlippageFromMid(10)
+	if !errors.Is(err, ErrOrderbookInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
+	}
+
 	depth := NewDepth(id)
-	_, err := depth.HitTheBidsByImpactSlippageFromMid(10)
+	_, err = depth.HitTheBidsByImpactSlippageFromMid(10)
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
@@ -961,8 +1001,13 @@ func TestHitTheBidsByImpactSlippageFromMid(t *testing.T) {
 
 func TestHitTheBidsByImpactSlippageFromBest(t *testing.T) {
 	t.Parallel()
+	_, err := getInvalidDepth().HitTheBidsByImpactSlippageFromBest(10)
+	if !errors.Is(err, ErrOrderbookInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
+	}
+
 	depth := NewDepth(id)
-	_, err := depth.HitTheBidsByImpactSlippageFromBest(10)
+	_, err = depth.HitTheBidsByImpactSlippageFromBest(10)
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
@@ -991,6 +1036,11 @@ func TestHitTheBidsByImpactSlippageFromBest(t *testing.T) {
 
 func TestLiftTheAsksByImpactSlippage(t *testing.T) {
 	t.Parallel()
+	_, err := getInvalidDepth().LiftTheAsksByImpactSlippage(0.7479431563201197, 1337)
+	if !errors.Is(err, ErrOrderbookInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
+	}
+
 	depth := NewDepth(id)
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
 
@@ -1017,8 +1067,13 @@ func TestLiftTheAsksByImpactSlippage(t *testing.T) {
 
 func TestLiftTheAsksByImpactSlippageFromMid(t *testing.T) {
 	t.Parallel()
+	_, err := getInvalidDepth().LiftTheAsksByImpactSlippageFromMid(10)
+	if !errors.Is(err, ErrOrderbookInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
+	}
+
 	depth := NewDepth(id)
-	_, err := depth.LiftTheAsksByImpactSlippageFromMid(10)
+	_, err = depth.LiftTheAsksByImpactSlippageFromMid(10)
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
@@ -1047,8 +1102,13 @@ func TestLiftTheAsksByImpactSlippageFromMid(t *testing.T) {
 
 func TestLiftTheAsksByImpactSlippageFromBest(t *testing.T) {
 	t.Parallel()
+	_, err := getInvalidDepth().LiftTheAsksByImpactSlippageFromBest(10)
+	if !errors.Is(err, ErrOrderbookInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
+	}
+
 	depth := NewDepth(id)
-	_, err := depth.LiftTheAsksByImpactSlippageFromBest(10)
+	_, err = depth.LiftTheAsksByImpactSlippageFromBest(10)
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
@@ -1140,6 +1200,11 @@ func TestHitTheBids(t *testing.T) {
 
 func TestHitTheBids_QuotationRequired(t *testing.T) {
 	t.Parallel()
+	_, err := getInvalidDepth().HitTheBids(26531, 1336, true)
+	if !errors.Is(err, ErrOrderbookInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
+	}
+
 	depth := NewDepth(id)
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
 	mov, err := depth.HitTheBids(26531, 1336, true)
@@ -1201,8 +1266,13 @@ func TestHitTheBids_QuotationRequired(t *testing.T) {
 
 func TestHitTheBidsFromMid(t *testing.T) {
 	t.Parallel()
+	_, err := getInvalidDepth().HitTheBidsFromMid(10, false)
+	if !errors.Is(err, ErrOrderbookInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
+	}
+
 	depth := NewDepth(id)
-	_, err := depth.HitTheBidsFromMid(10, false)
+	_, err = depth.HitTheBidsFromMid(10, false)
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
@@ -1395,8 +1465,13 @@ func TestHitTheBidsFromBest(t *testing.T) {
 
 func TestHitTheBidsFromBest_QuotationRequired(t *testing.T) {
 	t.Parallel()
+	_, err := getInvalidDepth().HitTheBidsFromBest(10, false)
+	if !errors.Is(err, ErrOrderbookInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
+	}
+
 	depth := NewDepth(id)
-	_, err := depth.HitTheBidsFromBest(10, false)
+	_, err = depth.HitTheBidsFromBest(10, false)
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
@@ -1519,6 +1594,11 @@ func TestLiftTheAsks(t *testing.T) {
 
 func TestLiftTheAsks_BaseRequired(t *testing.T) {
 	t.Parallel()
+	_, err := getInvalidDepth().LiftTheAsks(21, 1337, true)
+	if !errors.Is(err, ErrOrderbookInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
+	}
+
 	depth := NewDepth(id)
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
 	mov, err := depth.LiftTheAsks(21, 1337, true)
@@ -1579,8 +1659,13 @@ func TestLiftTheAsks_BaseRequired(t *testing.T) {
 
 func TestLiftTheAsksFromMid(t *testing.T) {
 	t.Parallel()
+	_, err := getInvalidDepth().LiftTheAsksFromMid(10, false)
+	if !errors.Is(err, ErrOrderbookInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
+	}
+
 	depth := NewDepth(id)
-	_, err := depth.LiftTheAsksFromMid(10, false)
+	_, err = depth.LiftTheAsksFromMid(10, false)
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
@@ -1643,8 +1728,13 @@ func TestLiftTheAsksFromMid(t *testing.T) {
 
 func TestLiftTheAsksFromMid_BaseRequired(t *testing.T) {
 	t.Parallel()
+	_, err := getInvalidDepth().LiftTheAsksFromMid(10, false)
+	if !errors.Is(err, ErrOrderbookInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
+	}
+
 	depth := NewDepth(id)
-	_, err := depth.LiftTheAsksFromMid(10, false)
+	_, err = depth.LiftTheAsksFromMid(10, false)
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
@@ -1707,8 +1797,13 @@ func TestLiftTheAsksFromMid_BaseRequired(t *testing.T) {
 
 func TestLiftTheAsksFromBest(t *testing.T) {
 	t.Parallel()
+	_, err := getInvalidDepth().LiftTheAsksFromBest(10, false)
+	if !errors.Is(err, ErrOrderbookInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
+	}
+
 	depth := NewDepth(id)
-	_, err := depth.LiftTheAsksFromBest(10, false)
+	_, err = depth.LiftTheAsksFromBest(10, false)
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
@@ -1771,8 +1866,13 @@ func TestLiftTheAsksFromBest(t *testing.T) {
 
 func TestLiftTheAsksFromBest_BaseRequired(t *testing.T) {
 	t.Parallel()
+	_, err := getInvalidDepth().LiftTheAsksFromBest(10, false)
+	if !errors.Is(err, ErrOrderbookInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
+	}
+
 	depth := NewDepth(id)
-	_, err := depth.LiftTheAsksFromBest(10, false)
+	_, err = depth.LiftTheAsksFromBest(10, false)
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
@@ -1834,6 +1934,11 @@ func TestLiftTheAsksFromBest_BaseRequired(t *testing.T) {
 
 func TestGetMidPrice_Depth(t *testing.T) {
 	t.Parallel()
+	_, err := getInvalidDepth().GetMidPrice()
+	if !errors.Is(err, ErrOrderbookInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
+	}
+
 	depth := NewDepth(id)
 	if _, err := depth.GetMidPrice(); !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
@@ -1875,8 +1980,18 @@ func TestGetMidPriceNoLock_Depth(t *testing.T) {
 
 func TestGetBestBidASk_Depth(t *testing.T) {
 	t.Parallel()
+	_, err := getInvalidDepth().GetBestBid()
+	if !errors.Is(err, ErrOrderbookInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
+	}
+
+	_, err = getInvalidDepth().GetBestAsk()
+	if !errors.Is(err, ErrOrderbookInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
+	}
+
 	depth := NewDepth(id)
-	_, err := depth.GetBestBid()
+	_, err = depth.GetBestBid()
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
@@ -1902,9 +2017,15 @@ func TestGetBestBidASk_Depth(t *testing.T) {
 }
 
 func TestGetSpreadAmount(t *testing.T) {
+	t.Parallel()
+	_, err := getInvalidDepth().GetSpreadAmount()
+	if !errors.Is(err, ErrOrderbookInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
+	}
+
 	depth := NewDepth(id)
 
-	_, err := depth.GetSpreadAmount()
+	_, err = depth.GetSpreadAmount()
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
@@ -1929,9 +2050,15 @@ func TestGetSpreadAmount(t *testing.T) {
 }
 
 func TestGetSpreadPercentage(t *testing.T) {
+	t.Parallel()
+	_, err := getInvalidDepth().GetSpreadPercentage()
+	if !errors.Is(err, ErrOrderbookInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
+	}
+
 	depth := NewDepth(id)
 
-	_, err := depth.GetSpreadPercentage()
+	_, err = depth.GetSpreadPercentage()
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
@@ -1956,9 +2083,15 @@ func TestGetSpreadPercentage(t *testing.T) {
 }
 
 func TestGetImbalance_Depth(t *testing.T) {
+	t.Parallel()
+	_, err := getInvalidDepth().GetImbalance()
+	if !errors.Is(err, ErrOrderbookInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
+	}
+
 	depth := NewDepth(id)
 
-	_, err := depth.GetImbalance()
+	_, err = depth.GetImbalance()
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
@@ -1980,4 +2113,10 @@ func TestGetImbalance_Depth(t *testing.T) {
 	if imbalance != 0 {
 		t.Fatalf("received: '%v' but expected: '%v'", imbalance, 0)
 	}
+}
+
+func getInvalidDepth() *Depth {
+	depth := NewDepth(id)
+	_ = depth.Invalidate(errors.New("invalid reasoning"))
+	return depth
 }

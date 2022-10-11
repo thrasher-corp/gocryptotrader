@@ -337,6 +337,9 @@ func (d *Depth) updateAndAlert(update *Update) {
 func (d *Depth) HitTheBidsByNominalSlippage(maxSlippage, refPrice float64) (*Movement, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
+	if d.validationError != nil {
+		return nil, d.validationError
+	}
 	return d.bids.hitBidsByNominalSlippage(maxSlippage, refPrice)
 }
 
@@ -346,6 +349,9 @@ func (d *Depth) HitTheBidsByNominalSlippage(maxSlippage, refPrice float64) (*Mov
 func (d *Depth) HitTheBidsByNominalSlippageFromMid(maxSlippage float64) (*Movement, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
+	if d.validationError != nil {
+		return nil, d.validationError
+	}
 	mid, err := d.getMidPriceNoLock()
 	if err != nil {
 		return nil, err
@@ -359,6 +365,9 @@ func (d *Depth) HitTheBidsByNominalSlippageFromMid(maxSlippage float64) (*Moveme
 func (d *Depth) HitTheBidsByNominalSlippageFromBest(maxSlippage float64) (*Movement, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
+	if d.validationError != nil {
+		return nil, d.validationError
+	}
 	head, err := d.bids.getHeadPriceNoLock()
 	if err != nil {
 		return nil, err
@@ -372,6 +381,9 @@ func (d *Depth) HitTheBidsByNominalSlippageFromBest(maxSlippage float64) (*Movem
 func (d *Depth) LiftTheAsksByNominalSlippage(maxSlippage, refPrice float64) (*Movement, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
+	if d.validationError != nil {
+		return nil, d.validationError
+	}
 	return d.asks.liftAsksByNominalSlippage(maxSlippage, refPrice)
 }
 
@@ -381,6 +393,9 @@ func (d *Depth) LiftTheAsksByNominalSlippage(maxSlippage, refPrice float64) (*Mo
 func (d *Depth) LiftTheAsksByNominalSlippageFromMid(maxSlippage float64) (*Movement, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
+	if d.validationError != nil {
+		return nil, d.validationError
+	}
 	mid, err := d.getMidPriceNoLock()
 	if err != nil {
 		return nil, err
@@ -394,6 +409,9 @@ func (d *Depth) LiftTheAsksByNominalSlippageFromMid(maxSlippage float64) (*Movem
 func (d *Depth) LiftTheAsksByNominalSlippageFromBest(maxSlippage float64) (*Movement, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
+	if d.validationError != nil {
+		return nil, d.validationError
+	}
 	head, err := d.asks.getHeadPriceNoLock()
 	if err != nil {
 		return nil, err
@@ -407,6 +425,9 @@ func (d *Depth) LiftTheAsksByNominalSlippageFromBest(maxSlippage float64) (*Move
 func (d *Depth) HitTheBidsByImpactSlippage(maxSlippage, refPrice float64) (*Movement, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
+	if d.validationError != nil {
+		return nil, d.validationError
+	}
 	return d.bids.hitBidsByImpactSlippage(maxSlippage, refPrice)
 }
 
@@ -416,6 +437,9 @@ func (d *Depth) HitTheBidsByImpactSlippage(maxSlippage, refPrice float64) (*Move
 func (d *Depth) HitTheBidsByImpactSlippageFromMid(maxSlippage float64) (*Movement, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
+	if d.validationError != nil {
+		return nil, d.validationError
+	}
 	mid, err := d.getMidPriceNoLock()
 	if err != nil {
 		return nil, err
@@ -429,6 +453,9 @@ func (d *Depth) HitTheBidsByImpactSlippageFromMid(maxSlippage float64) (*Movemen
 func (d *Depth) HitTheBidsByImpactSlippageFromBest(maxSlippage float64) (*Movement, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
+	if d.validationError != nil {
+		return nil, d.validationError
+	}
 	head, err := d.bids.getHeadPriceNoLock()
 	if err != nil {
 		return nil, err
@@ -442,6 +469,9 @@ func (d *Depth) HitTheBidsByImpactSlippageFromBest(maxSlippage float64) (*Moveme
 func (d *Depth) LiftTheAsksByImpactSlippage(maxSlippage, refPrice float64) (*Movement, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
+	if d.validationError != nil {
+		return nil, d.validationError
+	}
 	return d.asks.liftAsksByImpactSlippage(maxSlippage, refPrice)
 }
 
@@ -451,6 +481,9 @@ func (d *Depth) LiftTheAsksByImpactSlippage(maxSlippage, refPrice float64) (*Mov
 func (d *Depth) LiftTheAsksByImpactSlippageFromMid(maxSlippage float64) (*Movement, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
+	if d.validationError != nil {
+		return nil, d.validationError
+	}
 	mid, err := d.getMidPriceNoLock()
 	if err != nil {
 		return nil, err
@@ -464,6 +497,9 @@ func (d *Depth) LiftTheAsksByImpactSlippageFromMid(maxSlippage float64) (*Moveme
 func (d *Depth) LiftTheAsksByImpactSlippageFromBest(maxSlippage float64) (*Movement, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
+	if d.validationError != nil {
+		return nil, d.validationError
+	}
 	head, err := d.asks.getHeadPriceNoLock()
 	if err != nil {
 		return nil, err
@@ -477,6 +513,9 @@ func (d *Depth) LiftTheAsksByImpactSlippageFromBest(maxSlippage float64) (*Movem
 func (d *Depth) HitTheBids(amount, refPrice float64, purchase bool) (*Movement, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
+	if d.validationError != nil {
+		return nil, d.validationError
+	}
 	if purchase {
 		return d.bids.getMovementByQuotation(amount, refPrice, false)
 	}
@@ -489,6 +528,9 @@ func (d *Depth) HitTheBids(amount, refPrice float64, purchase bool) (*Movement, 
 func (d *Depth) HitTheBidsFromMid(amount float64, purchase bool) (*Movement, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
+	if d.validationError != nil {
+		return nil, d.validationError
+	}
 	mid, err := d.getMidPriceNoLock()
 	if err != nil {
 		return nil, err
@@ -505,6 +547,9 @@ func (d *Depth) HitTheBidsFromMid(amount float64, purchase bool) (*Movement, err
 func (d *Depth) HitTheBidsFromBest(amount float64, purchase bool) (*Movement, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
+	if d.validationError != nil {
+		return nil, d.validationError
+	}
 	head, err := d.bids.getHeadPriceNoLock()
 	if err != nil {
 		return nil, err
@@ -521,6 +566,9 @@ func (d *Depth) HitTheBidsFromBest(amount float64, purchase bool) (*Movement, er
 func (d *Depth) LiftTheAsks(amount, refPrice float64, purchase bool) (*Movement, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
+	if d.validationError != nil {
+		return nil, d.validationError
+	}
 	if purchase {
 		return d.asks.getMovementByBase(amount, refPrice, true)
 	}
@@ -533,6 +581,9 @@ func (d *Depth) LiftTheAsks(amount, refPrice float64, purchase bool) (*Movement,
 func (d *Depth) LiftTheAsksFromMid(amount float64, purchase bool) (*Movement, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
+	if d.validationError != nil {
+		return nil, d.validationError
+	}
 	mid, err := d.getMidPriceNoLock()
 	if err != nil {
 		return nil, err
@@ -549,6 +600,9 @@ func (d *Depth) LiftTheAsksFromMid(amount float64, purchase bool) (*Movement, er
 func (d *Depth) LiftTheAsksFromBest(amount float64, purchase bool) (*Movement, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
+	if d.validationError != nil {
+		return nil, d.validationError
+	}
 	head, err := d.asks.getHeadPriceNoLock()
 	if err != nil {
 		return nil, err
@@ -563,6 +617,9 @@ func (d *Depth) LiftTheAsksFromBest(amount float64, purchase bool) (*Movement, e
 func (d *Depth) GetMidPrice() (float64, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
+	if d.validationError != nil {
+		return 0, d.validationError
+	}
 	return d.getMidPriceNoLock()
 }
 
@@ -583,6 +640,9 @@ func (d *Depth) getMidPriceNoLock() (float64, error) {
 func (d *Depth) GetBestBid() (float64, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
+	if d.validationError != nil {
+		return 0, d.validationError
+	}
 	return d.bids.getHeadPriceNoLock()
 }
 
@@ -590,6 +650,9 @@ func (d *Depth) GetBestBid() (float64, error) {
 func (d *Depth) GetBestAsk() (float64, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
+	if d.validationError != nil {
+		return 0, d.validationError
+	}
 	return d.asks.getHeadPriceNoLock()
 }
 
@@ -597,6 +660,9 @@ func (d *Depth) GetBestAsk() (float64, error) {
 func (d *Depth) GetSpreadAmount() (float64, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
+	if d.validationError != nil {
+		return 0, d.validationError
+	}
 	askHead, err := d.asks.getHeadPriceNoLock()
 	if err != nil {
 		return 0, err
@@ -612,6 +678,9 @@ func (d *Depth) GetSpreadAmount() (float64, error) {
 func (d *Depth) GetSpreadPercentage() (float64, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
+	if d.validationError != nil {
+		return 0, d.validationError
+	}
 	askHead, err := d.asks.getHeadPriceNoLock()
 	if err != nil {
 		return 0, err
@@ -627,6 +696,9 @@ func (d *Depth) GetSpreadPercentage() (float64, error) {
 func (d *Depth) GetImbalance() (float64, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
+	if d.validationError != nil {
+		return 0, d.validationError
+	}
 	askVolume, err := d.asks.getHeadVolumeNoLock()
 	if err != nil {
 		return 0, err
