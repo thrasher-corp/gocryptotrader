@@ -1299,7 +1299,7 @@ func TestCreateDeliveryOrder(t *testing.T) {
 		Price:       3765,
 		Text:        "t-my-custom-id",
 		Settle:      settleBTC,
-		TimeInForce: gctTIF,
+		TimeInForce: gtcTIF,
 	}); err != nil {
 		t.Errorf("%s CreateDeliveryOrder() error %v", g.Name, err)
 	}
@@ -2474,16 +2474,6 @@ func TestGetAvailableTransferTrains(t *testing.T) {
 	}
 }
 
-func TestDetermineAccount(t *testing.T) {
-	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.SkipNow()
-	}
-	if _, err := g.determineAccount(context.Background()); err != nil {
-		t.Errorf("%s determineAccount() error %v", g.Name, err)
-	}
-}
-
 func TestGetUnderlyingFromCurrencyPair(t *testing.T) {
 	t.Parallel()
 	if uly, err := g.GetUnderlyingFromCurrencyPair(currency.NewPair(currency.BTC, currency.NewCode("USDT_LLK"))); err != nil {
@@ -2493,7 +2483,7 @@ func TestGetUnderlyingFromCurrencyPair(t *testing.T) {
 	}
 }
 
-var wsTickerPushDataJSON = `{	"time": 1606291803,	"channel": "spot.tickers",	"event": "update",	"result": {	  "currency_pair": "BTC_USDT",	  "last": "19106.55",	  "lowest_ask": "19108.71",	  "highest_bid": "19106.55",	  "change_percentage": "3.66",	  "base_volume": "2811.3042155865",	  "quote_volume": "53441606.52411221454674732293",	  "high_24h": "19417.74",	  "low_24h": "18434.21"	}}`
+var wsTickerPushDataJSON = `{"time": 1606291803,	"channel": "spot.tickers",	"event": "update",	"result": {	  "currency_pair": "BTC_USDT",	  "last": "19106.55",	  "lowest_ask": "19108.71",	  "highest_bid": "19106.55",	  "change_percentage": "3.66",	  "base_volume": "2811.3042155865",	  "quote_volume": "53441606.52411221454674732293",	  "high_24h": "19417.74",	  "low_24h": "18434.21"	}}`
 
 func TestWsTickerPushData(t *testing.T) {
 	t.Parallel()

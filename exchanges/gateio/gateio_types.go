@@ -25,7 +25,7 @@ const (
 
 	// time in force variables
 
-	gctTIF = "gct" // good-'til-canceled
+	gtcTIF = "gtc" // good-'til-canceled
 	iocTIF = "ioc" // immediate-or-cancel
 	pocTIF = "poc"
 	focTIF = "foc" // fill-or-kill
@@ -518,11 +518,11 @@ type CurrencyPairDetail struct {
 	Fee             float64 `json:"fee"`
 	MinBaseAmount   float64 `json:"min_base_amount"`
 	MinQuoteAmount  float64 `json:"min_quote_amount"`
-	AmountPrecision int     `json:"amount_precision"`
-	Precision       int     `json:"precision"`
+	AmountPrecision float64 `json:"amount_precision"`
+	Precision       float64 `json:"precision"`
 	TradeStatus     string  `json:"trade_status"`
-	SellStart       int     `json:"sell_start"`
-	BuyStart        int     `json:"buy_start"`
+	SellStart       float64 `json:"sell_start"`
+	BuyStart        float64 `json:"buy_start"`
 }
 
 // Ticker holds detail ticker information for a currency pair
@@ -560,8 +560,8 @@ func (a *OrderbookData) MakeOrderbook() (*Orderbook, error) {
 		Current: a.Current,
 		Update:  a.Update,
 	}
-	asks := make([]OrderbookItem, len(a.Asks))
-	bids := make([]OrderbookItem, len(a.Bids))
+	ob.Asks = make([]OrderbookItem, len(a.Asks))
+	ob.Bids = make([]OrderbookItem, len(a.Bids))
 	for x := range a.Asks {
 		price, err := strconv.ParseFloat(a.Asks[x][0], 64)
 		if err != nil {
@@ -571,7 +571,7 @@ func (a *OrderbookData) MakeOrderbook() (*Orderbook, error) {
 		if err != nil {
 			return nil, err
 		}
-		asks[x] = OrderbookItem{
+		ob.Asks[x] = OrderbookItem{
 			Price:  price,
 			Amount: amount,
 		}
@@ -585,13 +585,11 @@ func (a *OrderbookData) MakeOrderbook() (*Orderbook, error) {
 		if err != nil {
 			return nil, err
 		}
-		bids[x] = OrderbookItem{
+		ob.Bids[x] = OrderbookItem{
 			Price:  price,
 			Amount: amount,
 		}
 	}
-	ob.Asks = asks
-	ob.Bids = bids
 	return ob, nil
 }
 

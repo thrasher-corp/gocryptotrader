@@ -239,9 +239,9 @@ func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 		return nil, err
 	}
 	if fPair.IsEmpty() || fPair.Quote.IsEmpty() {
-		return nil, errInvalidOrEmptyCurrencyPair
+		return nil, currency.ErrCurrencyPairEmpty
 	}
-	fPair = fPair.TrimEmptyString().Upper()
+	fPair = fPair.Upper()
 	var tickerData *ticker.Price
 	switch a {
 	case asset.Margin, asset.Spot, asset.CrossMargin:
@@ -575,7 +575,6 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 			return err
 		}
 		for i := range pairs {
-			pairs[i] = pairs[i].TrimEmptyString()
 			if pairs[i].Base.IsEmpty() || pairs[i].Quote.IsEmpty() {
 				continue
 			}
@@ -630,8 +629,8 @@ func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 		return book, err
 	}
 	fPair.Delimiter = currency.UnderscoreDelimiter
-	book.Pair = fPair.Upper().TrimEmptyString()
-	fPair = fPair.Upper().TrimEmptyString()
+	book.Pair = fPair.Upper()
+	fPair = fPair.Upper()
 	var orderbookNew *Orderbook
 	switch a {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
@@ -1859,9 +1858,9 @@ func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 
 			var candles []FuturesCandlestick
 			if a == asset.Futures {
-				candles, err = g.GetFuturesCandlesticks(ctx, formattedPair.Quote.Lower().String(), pair, dates.Ranges[b].Start.Time, dates.Ranges[b].End.Time, uint(g.Features.Enabled.Kline.ResultLimit), interval)
+				candles, err = g.GetFuturesCandlesticks(ctx, formattedPair.Quote.Lower().String(), pair, dates.Ranges[b].Start.Time, dates.Ranges[b].End.Time, uint64(g.Features.Enabled.Kline.ResultLimit), interval)
 			} else {
-				candles, err = g.GetDeliveryFuturesCandlesticks(ctx, formattedPair.Quote.Lower().String(), formattedPair.Upper().String(), dates.Ranges[b].Start.Time, dates.Ranges[b].End.Time, uint(g.Features.Enabled.Kline.ResultLimit), interval)
+				candles, err = g.GetDeliveryFuturesCandlesticks(ctx, formattedPair.Quote.Lower().String(), formattedPair.Upper().String(), dates.Ranges[b].Start.Time, dates.Ranges[b].End.Time, uint64(g.Features.Enabled.Kline.ResultLimit), interval)
 			}
 			if err != nil {
 				return klineData, err
@@ -1878,7 +1877,7 @@ func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 			}
 			return klineData, nil
 		case asset.Options:
-			candles, err := g.GetOptionFuturesCandlesticks(ctx, formattedPair.Upper().String(), int(g.Features.Enabled.Kline.ResultLimit), start, end, interval)
+			candles, err := g.GetOptionFuturesCandlesticks(ctx, formattedPair.Upper().String(), uint64(g.Features.Enabled.Kline.ResultLimit), start, end, interval)
 			if err != nil {
 				return klineData, err
 			}

@@ -485,20 +485,26 @@ func GetAssertError(required string, received interface{}) error {
 	return fmt.Errorf("%w from %T to %s", ErrTypeAssertFailure, received, required)
 }
 
-// GenerateRandomString generates a random string provided a length and list of Character types {  }.
-func GenerateRandomString(length int, characters ...string) string {
+// GenerateRandomString generates a random string provided a length and list of Character types { SmallLetters, CapitalLetters, NumberCharacters}.
+// if no characters are provided, the function uses a NumberCharacters(string of numeric characters).
+func GenerateRandomString(length uint, characters ...string) (string, error) {
+	if length == 0 {
+		return "", errors.New("invalid length, length must be non-zero positive integer")
+	}
 	b := make([]byte, length)
-	chars := strings.Join(characters, "")
-	if chars == "" {
+	chars := strings.Replace(strings.Join(characters, ""), " ", "", -1)
+	if chars == "" && len(characters) != 0 {
+		return "", errors.New("invalid characters, character must not be empty")
+	} else if chars == "" {
 		chars = NumberCharacters
 	}
 	for i := range b {
 		nBig, err := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
 		if err != nil {
-			return ""
+			return "", err
 		}
 		n := nBig.Int64()
 		b[i] = chars[n]
 	}
-	return string(b)
+	return string(b), nil
 }

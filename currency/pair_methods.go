@@ -2,7 +2,6 @@ package currency
 
 import (
 	"encoding/json"
-	"strings"
 )
 
 // EMPTYFORMAT defines an empty pair format
@@ -139,11 +138,4 @@ func (p Pair) Other(c Code) (Code, error) {
 		return p.Base, nil
 	}
 	return EMPTYCODE, ErrCurrencyCodeEmpty
-}
-
-// TrimEmptyString trims empty string from currency code strings.
-func (p Pair) TrimEmptyString() Pair {
-	p.Base = NewCode(strings.Trim(p.Base.String(), " "))
-	p.Quote = NewCode(strings.Trim(p.Quote.String(), " "))
-	return p
 }

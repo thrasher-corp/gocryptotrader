@@ -406,8 +406,8 @@ func (a *OrderbookData) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, chil); err != nil {
 		return err
 	}
-	a.Current = time.Unix(int64(math.Round(chil.Current)), 0)
-	a.Update = time.Unix(int64(math.Round(chil.Update)), 0)
+	a.Current = time.Unix(int64(chil.Current), 0)
+	a.Update = time.Unix(int64(chil.Update), 0)
 	return nil
 }
 
@@ -461,14 +461,14 @@ func (a *Orderbook) UnmarshalJSON(data []byte) error {
 	}
 	a.Current = time.Unix(int64(chil.Current), 0)
 	a.Update = time.Unix(int64(chil.Update), 0)
-	asks := make([]OrderbookItem, len(chil.Asks))
-	bids := make([]OrderbookItem, len(chil.Bids))
+	a.Asks = make([]OrderbookItem, len(chil.Asks))
+	a.Bids = make([]OrderbookItem, len(chil.Bids))
 	for x := range chil.Asks {
 		val, err := strconv.ParseFloat(chil.Asks[x].Price, 64)
 		if err != nil {
 			return err
 		}
-		asks[x] = OrderbookItem{
+		a.Asks[x] = OrderbookItem{
 			Price:  val,
 			Amount: chil.Asks[x].Size,
 		}
@@ -478,13 +478,11 @@ func (a *Orderbook) UnmarshalJSON(data []byte) error {
 		if err != nil {
 			return err
 		}
-		bids[x] = OrderbookItem{
+		a.Bids[x] = OrderbookItem{
 			Price:  val,
 			Amount: chil.Bids[x].Size,
 		}
 	}
-	a.Asks = asks
-	a.Bids = bids
 	return nil
 }
 
@@ -675,7 +673,7 @@ func (a *OptionSettlement) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, chil); err != nil {
 		return err
 	}
-	a.Time = time.Unix(chil.Time, 10)
+	a.Time = time.Unix(chil.Time, 0)
 	return nil
 }
 
@@ -691,7 +689,7 @@ func (a *PositionCloseHistoryResponse) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, chil); err != nil {
 		return err
 	}
-	a.Time = time.Unix(chil.Time, 10)
+	a.Time = time.Unix(chil.Time, 0)
 	return nil
 }
 
@@ -707,7 +705,7 @@ func (a *LiquidationHistoryItem) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, chil); err != nil {
 		return err
 	}
-	a.Time = time.Unix(chil.Time, 10)
+	a.Time = time.Unix(chil.Time, 0)
 	return nil
 }
 
