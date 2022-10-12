@@ -584,10 +584,10 @@ type PlaceOrderRequestParam struct {
 	ClientSupplierOrderID string  `json:"clOrdId"`
 	Currency              string  `json:"ccy,omitempty"` // Only applicable to cross MARGIN orders in Single-currency margin.
 	OrderTag              string  `json:"tag"`
-	Side                  string  `json:"side"`
-	PositionSide          string  `json:"posSide"`
+	Side                  string  `json:"side,omitempty"`
+	PositionSide          string  `json:"posSide,omitempty"`
 	OrderType             string  `json:"ordType"`
-	QuantityToBuyOrSell   float64 `json:"sz,string"`
+	Amount                float64 `json:"sz,string"`
 	Price                 float64 `json:"px,string"`
 	ReduceOnly            bool    `json:"reduceOnly,string,omitempty"`
 	QuantityType          string  `json:"tgtCcy,omitempty"` // values base_ccy and quote_ccy
@@ -2397,8 +2397,8 @@ type WsAmendOrderInput struct {
 	Arguments []AmendOrderRequestParams `json:"args"`
 }
 
-// WsAmendOrderResponse holds websocket response Amendment request
-type WsAmendOrderResponse struct {
+// WsOrderActionResponse holds websocket response Amendment request
+type WsOrderActionResponse struct {
 	ID        string      `json:"id"`
 	Operation string      `json:"op"`
 	Data      []OrderData `json:"data"`

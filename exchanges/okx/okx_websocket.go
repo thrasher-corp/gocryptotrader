@@ -1263,8 +1263,8 @@ func (ok *Okx) WsPlaceOrder(arg *PlaceOrderRequestParam) (*OrderData, error) {
 		strings.EqualFold(arg.OrderType, "fok") || strings.EqualFold(arg.OrderType, "ioc") || strings.EqualFold(arg.OrderType, "optimal_limit_ioc")) {
 		return nil, errInvalidOrderType
 	}
-	if arg.QuantityToBuyOrSell <= 0 {
-		return nil, errInvalidQuantityToButOrSell
+	if arg.Amount <= 0 {
+		return nil, errInvalidAmount
 	}
 	if arg.Price <= 0 && (strings.EqualFold(arg.OrderType, "limit") || strings.EqualFold(arg.OrderType, "post_only") ||
 		strings.EqualFold(arg.OrderType, "fok") || strings.EqualFold(arg.OrderType, "ioc")) {
@@ -1341,8 +1341,8 @@ func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]OrderData,
 			strings.EqualFold(arg.OrderType, "fok") || strings.EqualFold(arg.OrderType, "ioc") || strings.EqualFold(arg.OrderType, "optimal_limit_ioc")) {
 			return nil, errInvalidOrderType
 		}
-		if arg.QuantityToBuyOrSell <= 0 {
-			return nil, errInvalidQuantityToButOrSell
+		if arg.Amount <= 0 {
+			return nil, errInvalidAmount
 		}
 		if arg.Price <= 0 && (strings.EqualFold(arg.OrderType, "limit") || strings.EqualFold(arg.OrderType, "post_only") ||
 			strings.EqualFold(arg.OrderType, "fok") || strings.EqualFold(arg.OrderType, "ioc")) {
@@ -1383,7 +1383,25 @@ func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]OrderData,
 					}
 					return resp.Data, nil
 				}
-				return nil, fmt.Errorf("error code:%s message: %v", data.Code, ErrorCodes[data.Code])
+				if len(data.Data) == 0 {
+					return nil, fmt.Errorf("error code:%s message: %v", data.Code, ErrorCodes[data.Code])
+				}
+				var resp WsOrderActionResponse
+				dataByte, err := json.Marshal(data)
+				if err != nil {
+					return nil, err
+				}
+				err = json.Unmarshal(dataByte, &resp)
+				if err != nil {
+					return nil, err
+				}
+				errs := common.Errors{}
+				for x := range resp.Data {
+					if resp.Data[x].SCode != "0" {
+						errs = append(errs, fmt.Errorf("error code:%s message: %s", resp.Data[x].SCode, resp.Data[x].SMessage))
+					}
+				}
+				return nil, errs
 			}
 			continue
 		case <-timer.C:
@@ -1494,7 +1512,25 @@ func (ok *Okx) WsCancelMultipleOrder(args []CancelOrderRequestParam) ([]OrderDat
 					}
 					return resp.Data, nil
 				}
-				return nil, fmt.Errorf("error code:%s message: %v", data.Code, ErrorCodes[data.Code])
+				if len(data.Data) == 0 {
+					return nil, fmt.Errorf("error code:%s message: %v", data.Code, ErrorCodes[data.Code])
+				}
+				var resp WsOrderActionResponse
+				dataByte, err := json.Marshal(data)
+				if err != nil {
+					return nil, err
+				}
+				err = json.Unmarshal(dataByte, &resp)
+				if err != nil {
+					return nil, err
+				}
+				errs := common.Errors{}
+				for x := range resp.Data {
+					if resp.Data[x].SCode != "0" {
+						errs = append(errs, fmt.Errorf("error code:%s message: %v", resp.Data[x].SCode, resp.Data[x].SMessage))
+					}
+				}
+				return nil, errs
 			}
 			continue
 		case <-timer.C:
@@ -1613,7 +1649,25 @@ func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]OrderDat
 					}
 					return resp.Data, nil
 				}
-				return nil, fmt.Errorf("error code:%s message: %v", data.Code, ErrorCodes[data.Code])
+				if len(data.Data) == 0 {
+					return nil, fmt.Errorf("error code:%s message: %v", data.Code, ErrorCodes[data.Code])
+				}
+				var resp WsOrderActionResponse
+				dataByte, err := json.Marshal(data)
+				if err != nil {
+					return nil, err
+				}
+				err = json.Unmarshal(dataByte, &resp)
+				if err != nil {
+					return nil, err
+				}
+				errs := common.Errors{}
+				for x := range resp.Data {
+					if resp.Data[x].SCode != "0" {
+						errs = append(errs, fmt.Errorf("error code:%s message: %v", resp.Data[x].SCode, resp.Data[x].SMessage))
+					}
+				}
+				return nil, errs
 			}
 			continue
 		case <-timer.C:
@@ -1646,9 +1700,11 @@ func (m *wsRequestDataChannelsMultiplexer) Run() {
 				continue
 			}
 			for _, myChan := range m.WsResponseChannelsMap {
-				if msg.Event == "error" && myChan.Event == "login" &&
-					(msg.Code == "60009" || msg.Code == "60022") {
+				if msg.Event == "error" || myChan.Event == "login" &&
+					(msg.Code == "60009" || msg.Code == "60022" || msg.Code == "60018") &&
+					strings.Contains(msg.Msg, myChan.Channel) {
 					myChan.Chan <- msg
+					continue
 				} else if msg.Event != myChan.Event ||
 					msg.Argument.Channel != myChan.Channel ||
 					msg.Argument.InstrumentType != myChan.InstrumentType ||
@@ -1848,6 +1904,8 @@ func (ok *Okx) WsAuthChannelSubscription(operation, channel string, assetType as
 				data.Argument.InstrumentType == input.Arguments[0].InstrumentType &&
 				data.Argument.InstrumentID == input.Arguments[0].InstrumentID {
 				return data.copyToSubscriptionResponse(), nil
+			} else if strings.Contains(data.Msg, fmt.Sprintf("channel:%s doesn't exist", input.Arguments[0].Channel)) {
+				return nil, fmt.Errorf("code: %s, error:%s ", data.Code, data.Msg)
 			}
 			continue
 		case <-timer.C:

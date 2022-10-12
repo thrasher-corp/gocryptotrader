@@ -258,7 +258,7 @@ var (
 	errInvalidTradeModeValue                         = errors.New("invalid trade mode value")
 	errMissingOrderSide                              = errors.New("missing order side")
 	errInvalidOrderType                              = errors.New("invalid order type")
-	errInvalidQuantityToButOrSell                    = errors.New("unacceptable quantity to buy or sell")
+	errInvalidAmount                                 = errors.New("unacceptable quantity to buy or sell")
 	errMissingClientOrderIDOrOrderID                 = errors.New("client supplier order id or order id is missing")
 	errMissingNewSizeOrPriceInformation              = errors.New("missing the new size or price information")
 	errMissingNewSize                                = errors.New("missing the order size information")
@@ -391,10 +391,6 @@ func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam, a as
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
-	ast := strings.ToUpper(a.String())
-	if !(((arg.TradeMode == TradeModeCross || arg.TradeMode == TradeModeIsolated) && ast == okxInstTypeMargin) || (arg.TradeMode == TradeModeCash && ast != okxInstTypeMargin)) {
-		return nil, fmt.Errorf("%w, Trade mode Margin mode \"cross\" \"isolated\" Non-Margin mode \"cash\"", errInvalidTradeModeValue)
-	}
 	arg.Side = strings.ToUpper(arg.Side)
 	if !(arg.Side == order.Buy.String() || arg.Side == order.Sell.String()) {
 		return nil, errMissingOrderSide
@@ -418,8 +414,8 @@ func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam, a as
 		arg.OrderType == OkxOrderOptimalLimitIOC) {
 		return nil, errInvalidOrderType
 	}
-	if arg.QuantityToBuyOrSell <= 0 {
-		return nil, errInvalidQuantityToButOrSell
+	if arg.Amount <= 0 {
+		return nil, errInvalidAmount
 	}
 	if arg.Price <= 0 && (arg.OrderType == OkxOrderLimit ||
 		arg.OrderType == OkxOrderPostOnly ||
@@ -434,7 +430,10 @@ func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam, a as
 	var resp []OrderData
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, tradeOrder, &arg, &resp, true)
 	if err != nil {
-		return nil, err
+		if len(resp) != 1 {
+			return nil, err
+		}
+		return nil, fmt.Errorf("error code:%s message: %v", resp[0].SCode, resp[0].SMessage)
 	}
 	if len(resp) == 1 {
 		return &resp[0], nil
@@ -470,8 +469,8 @@ func (ok *Okx) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequest
 			args[x].OrderType == "optimal_limit_ioc") {
 			return nil, errInvalidOrderType
 		}
-		if args[x].QuantityToBuyOrSell <= 0 {
-			return nil, errInvalidQuantityToButOrSell
+		if args[x].Amount <= 0 {
+			return nil, errInvalidAmount
 		}
 		if args[x].Price <= 0 && (args[x].OrderType == OkxOrderLimit ||
 			args[x].OrderType == OkxOrderPostOnly ||
@@ -484,7 +483,18 @@ func (ok *Okx) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequest
 		}
 	}
 	var resp []OrderData
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeMultipleOrdersEPL, http.MethodPost, placeMultipleOrderURL, &args, &resp, true)
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, placeMultipleOrdersEPL, http.MethodPost, placeMultipleOrderURL, &args, &resp, true)
+	if err != nil {
+		if len(resp) == 0 {
+			return nil, err
+		}
+		var errs common.Errors
+		for x := range resp {
+			errs = append(errs, fmt.Errorf("error code:%s message: %v", resp[x].SCode, resp[x].SMessage))
+		}
+		return nil, errs
+	}
+	return resp, nil
 }
 
 // CancelSingleOrder cancel an incomplete order.
@@ -498,7 +508,10 @@ func (ok *Okx) CancelSingleOrder(ctx context.Context, arg CancelOrderRequestPara
 	var resp []OrderData
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelOrderEPL, http.MethodPost, cancelTradeOrder, &arg, &resp, true)
 	if err != nil {
-		return nil, err
+		if len(resp) != 1 {
+			return nil, err
+		}
+		return nil, fmt.Errorf("error code:%s message: %v", resp[0].SCode, resp[0].SMessage)
 	}
 	if len(resp) == 1 {
 		return &resp[0], nil
@@ -519,8 +532,21 @@ func (ok *Okx) CancelMultipleOrders(ctx context.Context, args []CancelOrderReque
 		}
 	}
 	var resp []OrderData
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleOrdersEPL,
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleOrdersEPL,
 		http.MethodPost, cancelBatchTradeOrders, args, &resp, true)
+	if err != nil {
+		if len(resp) == 0 {
+			return nil, err
+		}
+		errs := common.Errors{}
+		for x := range resp {
+			if resp[x].SCode != "0" {
+				errs = append(errs, fmt.Errorf("error code:%s message: %v", resp[x].SCode, resp[x].SMessage))
+			}
+		}
+		return nil, errs
+	}
+	return resp, nil
 }
 
 // AmendOrder an incomplete order.
@@ -1049,9 +1075,10 @@ func (ok *Okx) GetEasyConvertHistory(ctx context.Context, after, before time.Tim
 }
 
 // GetOneClickRepayCurrencyList retrives list of debt currency data and repay currencies. Debt currencies include both cross and isolated debts.
+// debt level "cross", and "isolated" are allowed
 func (ok *Okx) GetOneClickRepayCurrencyList(ctx context.Context, debtType string) ([]CurrencyOneClickRepay, error) {
 	params := url.Values{}
-	if debtType == "cross" || debtType == "isolated" {
+	if debtType != "" {
 		params.Set("debtType", debtType)
 	}
 	var resp []CurrencyOneClickRepay
@@ -1499,12 +1526,13 @@ func (ok *Okx) FundingTransfer(ctx context.Context, arg *FundingTransferRequestI
 // GetFundsTransferState get funding rate response.
 func (ok *Okx) GetFundsTransferState(ctx context.Context, transferID, clientID string, transferType int64) ([]TransferFundRateResponse, error) {
 	params := url.Values{}
-	switch {
-	case transferID == "" && clientID == "":
+	if transferID == "" && clientID == "" {
 		return nil, errors.New("either 'transfer id' or 'client id' is required")
-	case transferID != "":
+	}
+	if transferID != "" {
 		params.Set("transId", transferID)
-	case clientID != "":
+	}
+	if clientID != "" {
 		params.Set("clientId", clientID)
 	}
 	if transferType > 0 && transferType <= 4 {
@@ -2651,7 +2679,10 @@ func (ok *Okx) PlaceGridAlgoOrder(ctx context.Context, arg *GridAlgoOrder) (*Gri
 	var resp []GridAlgoOrderIDResponse
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, gridTradingEPL, http.MethodPost, gridOrderAlgo, &arg, &resp, true)
 	if err != nil {
-		return nil, err
+		if len(resp) != 1 {
+			return nil, err
+		}
+		return nil, fmt.Errorf("error code:%s message: %v", resp[0].SCode, resp[0].SMsg)
 	}
 	if len(resp) == 1 {
 		return &resp[0], nil
@@ -2670,7 +2701,10 @@ func (ok *Okx) AmendGridAlgoOrder(ctx context.Context, arg GridAlgoOrderAmend) (
 	var resp []GridAlgoOrderIDResponse
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, amendGridAlgoOrderEPL, http.MethodPost, gridAmendOrderAlgo, &arg, &resp, true)
 	if err != nil {
-		return nil, err
+		if len(resp) != 1 {
+			return nil, err
+		}
+		return nil, fmt.Errorf("error code:%s message: %v", resp[0].SCode, resp[0].SMsg)
 	}
 	if len(resp) == 1 {
 		return &resp[0], nil
@@ -2701,7 +2735,14 @@ func (ok *Okx) StopGridAlgoOrder(ctx context.Context, arg []StopGridAlgoOrderReq
 		}
 	}
 	var resp []GridAlgoOrderIDResponse
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, stopGridAlgoOrderEPL, http.MethodPost, gridAlgoOrderStop, arg, &resp, true)
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, stopGridAlgoOrderEPL, http.MethodPost, gridAlgoOrderStop, arg, &resp, true)
+	if err != nil {
+		if len(resp) == 0 {
+			return nil, err
+		}
+		return nil, fmt.Errorf("error code:%s message: %v", resp[0].SCode, resp[0].SMsg)
+	}
+	return resp, nil
 }
 
 // GetGridAlgoOrdersList retrieves list of pending grid algo orders with the complete data.
@@ -2795,12 +2836,10 @@ func (ok *Okx) GetGridAlgoSubOrders(ctx context.Context, algoOrderType, algoID, 
 	} else {
 		return nil, errMissingAlgoOrderID
 	}
-	subOrderType = strings.ToUpper(subOrderType)
-	if subOrderType == "LIVE" || subOrderType == order.Filled.String() {
-		params.Set("type", subOrderType)
-	} else {
+	if subOrderType != "live" && subOrderType != order.Filled.String() {
 		return nil, errMissingSubOrderType
 	}
+	params.Set("type", subOrderType)
 	if groupID != "" {
 		params.Set("groupId", groupID)
 	}
@@ -3212,7 +3251,7 @@ func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, inte
 		return nil, errMissingInstrumentID
 	}
 	params.Set("instId", instrumentID)
-	var resp interface{}
+	var resp [][7]string
 	if limit <= 100 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	} else if limit > 100 {
@@ -3232,39 +3271,31 @@ func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, inte
 	if err != nil {
 		return nil, err
 	}
-	responseData, okk := (resp).([]interface{})
-	if !okk {
-		return nil, errUnableToTypeAssertResponseData
-	}
-	klineData := make([]CandleStick, len(responseData))
-	for x := range responseData {
-		individualData, ok := responseData[x].([7]interface{})
-		if !ok {
-			return nil, errUnableToTypeAssertKlineData
-		}
+	klineData := make([]CandleStick, len(resp))
+	for x := range resp {
 		var candle CandleStick
 		var err error
-		timestamp, err := strconv.Atoi(individualData[0].(string))
+		timestamp, err := strconv.Atoi(resp[x][0])
 		if err != nil {
 			return nil, err
 		}
 		candle.OpenTime = time.UnixMilli(int64(timestamp))
-		if candle.OpenPrice, err = convert.FloatFromString(individualData[1]); err != nil {
+		if candle.OpenPrice, err = convert.FloatFromString(resp[x][1]); err != nil {
 			return nil, err
 		}
-		if candle.HighestPrice, err = convert.FloatFromString(individualData[2]); err != nil {
+		if candle.HighestPrice, err = convert.FloatFromString(resp[x][2]); err != nil {
 			return nil, err
 		}
-		if candle.LowestPrice, err = convert.FloatFromString(individualData[3]); err != nil {
+		if candle.LowestPrice, err = convert.FloatFromString(resp[x][3]); err != nil {
 			return nil, err
 		}
-		if candle.ClosePrice, err = convert.FloatFromString(individualData[4]); err != nil {
+		if candle.ClosePrice, err = convert.FloatFromString(resp[x][4]); err != nil {
 			return nil, err
 		}
-		if candle.Volume, err = convert.FloatFromString(individualData[5]); err != nil {
+		if candle.Volume, err = convert.FloatFromString(resp[x][5]); err != nil {
 			return nil, err
 		}
-		if candle.QuoteAssetVolume, err = convert.FloatFromString(individualData[6]); err != nil {
+		if candle.QuoteAssetVolume, err = convert.FloatFromString(resp[x][6]); err != nil {
 			return nil, err
 		}
 		klineData[x] = candle

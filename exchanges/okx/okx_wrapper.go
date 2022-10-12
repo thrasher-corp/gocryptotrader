@@ -744,10 +744,6 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 	if !ok.SupportsAsset(s.AssetType) {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, s.AssetType)
 	}
-	orderType, err := ok.OrderTypeString(s.Type)
-	if err != nil {
-		return nil, err
-	}
 	if s.Amount <= 0 {
 		return nil, fmt.Errorf("amount, or size (sz) of quantity to buy or sell hast to be greater than zero ")
 	}
@@ -765,20 +761,20 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 	}
 	var sideType string
 	if s.Side == order.Buy {
-		sideType = order.Buy.String()
+		sideType = order.Buy.Lower()
 	} else {
-		sideType = order.Sell.String()
+		sideType = order.Sell.Lower()
 	}
-	sideType = strings.ToLower(sideType)
 	var orderRequest = &PlaceOrderRequestParam{
 		InstrumentID:          instrumentID,
 		TradeMode:             tradeMode,
 		Side:                  sideType,
-		OrderType:             orderType,
-		QuantityToBuyOrSell:   s.Amount,
+		OrderType:             s.Type.Lower(),
+		Amount:                s.Amount,
 		ClientSupplierOrderID: s.ClientOrderID,
+		Price:                 s.Price,
 	}
-	switch orderType {
+	switch s.Type.Lower() {
 	case OkxOrderLimit, OkxOrderPostOnly, OkxOrderFOK, OkxOrderIOC:
 		orderRequest.Price = s.Price
 	}
@@ -791,11 +787,10 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			placeOrderResponse, err = ok.PlaceOrder(ctx, orderRequest, s.AssetType)
 		}
 	case asset.PerpetualSwap, asset.Futures:
-		if orderType == "" {
-			orderType = OkxOrderOptimalLimitIOC // only applicable for Futures and Perpetual Swap Types.
+		if s.Type.Lower() == "" {
+			orderRequest.OrderType = OkxOrderOptimalLimitIOC // only applicable for Futures and Perpetual Swap Types.
 		}
 		orderRequest.PositionSide = positionSideLong
-		orderRequest.OrderType = orderType
 		if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			placeOrderResponse, err = ok.WsPlaceOrder(orderRequest)
 		} else {
