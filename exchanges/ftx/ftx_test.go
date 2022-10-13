@@ -1099,6 +1099,8 @@ func TestGetActiveOrders(t *testing.T) {
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "/")
 	orderReq.Pairs = append(orderReq.Pairs, cp)
 	orderReq.AssetType = asset.Spot
+	orderReq.Side = order.AnySide
+	orderReq.Type = order.AnyType
 	_, err := f.GetActiveOrders(context.Background(), &orderReq)
 	if err != nil {
 		t.Fatal(err)
@@ -1114,6 +1116,8 @@ func TestGetOrderHistory(t *testing.T) {
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "/")
 	orderReq.Pairs = append(orderReq.Pairs, cp)
 	orderReq.AssetType = asset.Spot
+	orderReq.Side = order.AnySide
+	orderReq.Type = order.AnyType
 	_, err := f.GetOrderHistory(context.Background(), &orderReq)
 	if err != nil {
 		t.Fatal(err)

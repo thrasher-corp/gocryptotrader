@@ -2794,6 +2794,8 @@ func TestGetActiveOrders(t *testing.T) {
 	var getOrdersRequestSpot = order.GetOrdersRequest{
 		Pairs:     currency.Pairs{pair},
 		AssetType: asset.Spot,
+		Side:      order.AnySide,
+		Type:      order.AnyType,
 	}
 
 	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestSpot)
@@ -2871,6 +2873,8 @@ func TestGetOrderHistory(t *testing.T) {
 	var getOrdersRequestSpot = order.GetOrdersRequest{
 		Pairs:     currency.Pairs{pair},
 		AssetType: asset.Spot,
+		Type:      order.AnyType,
+		Side:      order.AnySide,
 	}
 
 	_, err = b.GetOrderHistory(context.Background(), &getOrdersRequestSpot)
@@ -2881,6 +2885,8 @@ func TestGetOrderHistory(t *testing.T) {
 	var getOrdersRequestUMF = order.GetOrdersRequest{
 		Pairs:     currency.Pairs{pair},
 		AssetType: asset.USDTMarginedFutures,
+		Type:      order.AnyType,
+		Side:      order.AnySide,
 	}
 
 	_, err = b.GetOrderHistory(context.Background(), &getOrdersRequestUMF)
@@ -2896,6 +2902,8 @@ func TestGetOrderHistory(t *testing.T) {
 	var getOrdersRequestCMF = order.GetOrdersRequest{
 		Pairs:     currency.Pairs{pair1},
 		AssetType: asset.CoinMarginedFutures,
+		Type:      order.AnyType,
+		Side:      order.AnySide,
 	}
 
 	_, err = b.GetOrderHistory(context.Background(), &getOrdersRequestCMF)
@@ -2911,6 +2919,8 @@ func TestGetOrderHistory(t *testing.T) {
 	var getOrdersRequestFutures = order.GetOrdersRequest{
 		Pairs:     currency.Pairs{pair2},
 		AssetType: asset.Futures,
+		Type:      order.AnyType,
+		Side:      order.AnySide,
 	}
 
 	_, err = b.GetOrderHistory(context.Background(), &getOrdersRequestFutures)
@@ -2926,6 +2936,8 @@ func TestGetOrderHistory(t *testing.T) {
 	var getOrdersRequestUSDC = order.GetOrdersRequest{
 		Pairs:     currency.Pairs{pair3},
 		AssetType: asset.USDCMarginedFutures,
+		Type:      order.AnyType,
+		Side:      order.AnySide,
 	}
 
 	_, err = b.GetOrderHistory(context.Background(), &getOrdersRequestUSDC)

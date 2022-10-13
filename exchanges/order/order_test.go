@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -1895,27 +1896,33 @@ func TestGetOrdersRequest_Filter(t *testing.T) {
 	request.Side = AnySide
 
 	var orders = []Detail{
-		{Pair: btcusd, AssetType: asset.Spot, Type: Limit, Side: Buy},
-		{Pair: btcusd, AssetType: asset.Spot, Type: Limit, Side: Sell},
-		{Pair: btcusd, AssetType: asset.Spot, Type: Market, Side: Buy},
-		{Pair: btcusd, AssetType: asset.Spot, Type: Market, Side: Sell},
-		{Pair: btcusd, AssetType: asset.Futures, Type: Limit, Side: Buy},
-		{Pair: btcusd, AssetType: asset.Futures, Type: Limit, Side: Sell},
-		{Pair: btcusd, AssetType: asset.Futures, Type: Market, Side: Buy},
-		{Pair: btcusd, AssetType: asset.Futures, Type: Market, Side: Sell},
-		{Pair: btcltc, AssetType: asset.Spot, Type: Limit, Side: Buy},
-		{Pair: btcltc, AssetType: asset.Spot, Type: Limit, Side: Sell},
-		{Pair: btcltc, AssetType: asset.Spot, Type: Market, Side: Buy},
-		{Pair: btcltc, AssetType: asset.Spot, Type: Market, Side: Sell},
-		{Pair: btcltc, AssetType: asset.Futures, Type: Limit, Side: Buy},
-		{Pair: btcltc, AssetType: asset.Futures, Type: Limit, Side: Sell},
-		{Pair: btcltc, AssetType: asset.Futures, Type: Market, Side: Buy},
-		{Pair: btcltc, AssetType: asset.Futures, Type: Market, Side: Sell},
+		{OrderID: "0", Pair: btcusd, AssetType: asset.Spot, Type: Limit, Side: Buy},
+		{OrderID: "1", Pair: btcusd, AssetType: asset.Spot, Type: Limit, Side: Sell},
+		{OrderID: "2", Pair: btcusd, AssetType: asset.Spot, Type: Market, Side: Buy},
+		{OrderID: "3", Pair: btcusd, AssetType: asset.Spot, Type: Market, Side: Sell},
+		{OrderID: "4", Pair: btcusd, AssetType: asset.Futures, Type: Limit, Side: Buy},
+		{OrderID: "5", Pair: btcusd, AssetType: asset.Futures, Type: Limit, Side: Sell},
+		{OrderID: "6", Pair: btcusd, AssetType: asset.Futures, Type: Market, Side: Buy},
+		{OrderID: "7", Pair: btcusd, AssetType: asset.Futures, Type: Market, Side: Sell},
+		{OrderID: "8", Pair: btcltc, AssetType: asset.Spot, Type: Limit, Side: Buy},
+		{OrderID: "9", Pair: btcltc, AssetType: asset.Spot, Type: Limit, Side: Sell},
+		{OrderID: "10", Pair: btcltc, AssetType: asset.Spot, Type: Market, Side: Buy},
+		{OrderID: "11", Pair: btcltc, AssetType: asset.Spot, Type: Market, Side: Sell},
+		{OrderID: "12", Pair: btcltc, AssetType: asset.Futures, Type: Limit, Side: Buy},
+		{OrderID: "13", Pair: btcltc, AssetType: asset.Futures, Type: Limit, Side: Sell},
+		{OrderID: "14", Pair: btcltc, AssetType: asset.Futures, Type: Market, Side: Buy},
+		{OrderID: "15", Pair: btcltc, AssetType: asset.Futures, Type: Market, Side: Sell},
 	}
 
 	shinyAndClean := request.Filter("test", orders)
 	if len(shinyAndClean) != 16 {
 		t.Fatalf("received: '%v' but expected: '%v'", len(shinyAndClean), 16)
+	}
+
+	for x := range shinyAndClean {
+		if strconv.FormatInt(int64(x), 10) != shinyAndClean[x].OrderID {
+			t.Fatalf("received: '%v' but expected: '%v'", shinyAndClean[x].OrderID, int64(x))
+		}
 	}
 
 	request.Pairs = []currency.Pair{btcltc}
@@ -1930,7 +1937,9 @@ func TestGetOrdersRequest_Filter(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", len(shinyAndClean), 8)
 	}
 
-	if !shinyAndClean[0].Pair.Equal(btcltc) {
-		t.Fatalf("received: '%v' but expected: '%v'", !shinyAndClean[0].Pair.Equal(btcltc), true)
+	for x := range shinyAndClean {
+		if strconv.FormatInt(int64(x)+8, 10) != shinyAndClean[x].OrderID {
+			t.Fatalf("received: '%v' but expected: '%v'", shinyAndClean[x].OrderID, int64(x)+8)
+		}
 	}
 }
