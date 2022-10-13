@@ -256,14 +256,12 @@ var (
 	errInsuranceFundInformationNotFound              = errors.New("insurance fund information not found")
 	errMissingExpiryTimeParameter                    = errors.New("missing expiry date parameter")
 	errInvalidTradeModeValue                         = errors.New("invalid trade mode value")
-	errMissingOrderSide                              = errors.New("missing order side")
 	errInvalidOrderType                              = errors.New("invalid order type")
 	errInvalidAmount                                 = errors.New("unacceptable quantity to buy or sell")
 	errMissingClientOrderIDOrOrderID                 = errors.New("client supplier order id or order id is missing")
 	errMissingNewSizeOrPriceInformation              = errors.New("missing the new size or price information")
 	errMissingNewSize                                = errors.New("missing the order size information")
 	errMissingMarginMode                             = errors.New("missing required param margin mode \"mgnMode\"")
-	errMissingTradeMode                              = errors.New("missing trade mode")
 	errInvalidTriggerPrice                           = errors.New("invalid trigger price value")
 	errMssingAlgoOrderID                             = errors.New("missing algo orders id")
 	errInvalidPriceLimit                             = errors.New("invalid price limit value")
@@ -391,9 +389,9 @@ func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam, a as
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
-	arg.Side = strings.ToUpper(arg.Side)
-	if !(arg.Side == order.Buy.String() || arg.Side == order.Sell.String()) {
-		return nil, errMissingOrderSide
+	arg.Side = strings.ToLower(arg.Side)
+	if arg.Side != order.Buy.Lower() && arg.Side != order.Sell.String() {
+		return nil, errInvalidOrderSide
 	}
 	if arg.PositionSide != "" {
 		if ((a == asset.Futures || a == asset.PerpetualSwap) && (arg.PositionSide == positionSideLong || arg.PositionSide == positionSideShort)) ||
@@ -405,13 +403,13 @@ func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam, a as
 		(a == asset.Futures || a == asset.PerpetualSwap) {
 		return nil, errors.New("\"optimal_limit_ioc\": market order with immediate-or-cancel order (applicable only to Futures and Perpetual swap)")
 	}
-	arg.OrderType = strings.ToUpper(arg.OrderType)
-	if !(arg.OrderType == OkxOrderMarket ||
-		arg.OrderType == OkxOrderLimit ||
-		arg.OrderType == OkxOrderPostOnly ||
-		arg.OrderType == OkxOrderFOK ||
-		arg.OrderType == OkxOrderIOC ||
-		arg.OrderType == OkxOrderOptimalLimitIOC) {
+	arg.OrderType = strings.ToLower(arg.OrderType)
+	if arg.OrderType != OkxOrderMarket &&
+		arg.OrderType != OkxOrderLimit &&
+		arg.OrderType != OkxOrderPostOnly &&
+		arg.OrderType != OkxOrderFOK &&
+		arg.OrderType != OkxOrderIOC &&
+		arg.OrderType != OkxOrderOptimalLimitIOC {
 		return nil, errInvalidOrderType
 	}
 	if arg.Amount <= 0 {
@@ -423,8 +421,8 @@ func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam, a as
 		arg.OrderType == OkxOrderIOC) {
 		return nil, fmt.Errorf("invalid order price for %s order types", arg.OrderType)
 	}
-	if !(arg.QuantityType == "base_ccy" ||
-		arg.QuantityType == "quote_ccy") {
+	if arg.QuantityType != "base_ccy" &&
+		arg.QuantityType != "quote_ccy" {
 		arg.QuantityType = ""
 	}
 	var resp []OrderData
@@ -450,23 +448,23 @@ func (ok *Okx) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequest
 		if args[x].InstrumentID == "" {
 			return nil, errMissingInstrumentID
 		}
-		if !(args[x].TradeMode == TradeModeCross ||
-			args[x].TradeMode == TradeModeIsolated ||
-			args[x].TradeMode == TradeModeCash) {
+		if args[x].TradeMode != TradeModeCross &&
+			args[x].TradeMode != TradeModeIsolated &&
+			args[x].TradeMode != TradeModeCash {
 			return nil, errInvalidTradeModeValue
 		}
 		args[x].Side = strings.ToUpper(args[x].Side)
-		if !(args[x].Side == order.Buy.String() ||
-			args[x].Side == order.Sell.String()) {
-			return nil, errMissingOrderSide
+		if args[x].Side != order.Buy.String() &&
+			args[x].Side != order.Sell.String() {
+			return nil, errInvalidOrderSide
 		}
 		args[x].OrderType = strings.ToLower(args[x].OrderType)
-		if !(args[x].OrderType == "market" ||
-			args[x].OrderType == "limit" ||
-			args[x].OrderType == "post_only" ||
-			args[x].OrderType == "fok" ||
-			args[x].OrderType == "ioc" ||
-			args[x].OrderType == "optimal_limit_ioc") {
+		if args[x].OrderType != OkxOrderMarket &&
+			args[x].OrderType != OkxOrderLimit &&
+			args[x].OrderType != OkxOrderPostOnly &&
+			args[x].OrderType != OkxOrderFOK &&
+			args[x].OrderType != OkxOrderIOC &&
+			args[x].OrderType != OkxOrderOptimalLimitIOC {
 			return nil, errInvalidOrderType
 		}
 		if args[x].Amount <= 0 {
@@ -478,7 +476,7 @@ func (ok *Okx) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequest
 			args[x].OrderType == OkxOrderIOC) {
 			return nil, fmt.Errorf("invalid order price for %s order types", args[x].OrderType)
 		}
-		if !(args[x].QuantityType == "base_ccy" || args[x].QuantityType == "quote_ccy") {
+		if args[x].QuantityType != "base_ccy" && args[x].QuantityType != "quote_ccy" {
 			args[x].QuantityType = ""
 		}
 	}
@@ -593,9 +591,9 @@ func (ok *Okx) ClosePositions(ctx context.Context, arg *ClosePositionsRequestPar
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
-	if !(arg.MarginMode != "" &&
-		(arg.MarginMode == TradeModeCross ||
-			arg.MarginMode == TradeModeIsolated)) {
+	if arg.MarginMode != "" &&
+		arg.MarginMode != TradeModeCross &&
+		arg.MarginMode != TradeModeIsolated {
 		return nil, errMissingMarginMode
 	}
 	var resp []ClosePositionResponse
@@ -644,13 +642,8 @@ func (ok *Okx) GetOrderList(ctx context.Context, arg *OrderListRequestParams) ([
 		return nil, errNilArgument
 	}
 	params := url.Values{}
-	arg.InstrumentType = strings.ToUpper(arg.InstrumentType)
-	if arg.InstrumentType == okxInstTypeSpot ||
-		arg.InstrumentType == okxInstTypeMargin ||
-		arg.InstrumentType == okxInstTypeSwap ||
-		arg.InstrumentType == okxInstTypeFutures ||
-		arg.InstrumentType == okxInstTypeOption {
-		params.Set("instType", arg.InstrumentType)
+	if arg.InstrumentType != "" {
+		params.Set("instType", strings.ToUpper(arg.InstrumentType))
 	}
 	if arg.InstrumentID != "" {
 		params.Set("instId", arg.InstrumentID)
@@ -658,6 +651,7 @@ func (ok *Okx) GetOrderList(ctx context.Context, arg *OrderListRequestParams) ([
 	if arg.Underlying != "" {
 		params.Set("uly", arg.Underlying)
 	}
+	arg.OrderType = strings.ToLower(arg.OrderType)
 	if arg.OrderType == OkxOrderMarket ||
 		arg.OrderType == OkxOrderLimit ||
 		arg.OrderType == OkxOrderPostOnly ||
@@ -697,6 +691,7 @@ func (ok *Okx) Get3MonthOrderHistory(ctx context.Context, arg *OrderHistoryReque
 // getOrderHistory retrieves the order history of the past limited times
 func (ok *Okx) getOrderHistory(ctx context.Context, arg *OrderHistoryRequestParams, route string) ([]OrderDetail, error) {
 	params := url.Values{}
+	arg.InstrumentType = strings.ToUpper(arg.InstrumentType)
 	if arg.InstrumentType == okxInstTypeSpot ||
 		arg.InstrumentType == okxInstTypeMargin ||
 		arg.InstrumentType == okxInstTypeSwap ||
@@ -712,7 +707,7 @@ func (ok *Okx) getOrderHistory(ctx context.Context, arg *OrderHistoryRequestPara
 	if arg.Underlying != "" {
 		params.Set("uly", arg.Underlying)
 	}
-	arg.OrderType = strings.ToUpper(arg.OrderType)
+	arg.OrderType = strings.ToLower(arg.OrderType)
 	if arg.OrderType == OkxOrderMarket ||
 		arg.OrderType == OkxOrderLimit ||
 		arg.OrderType == OkxOrderPostOnly ||
@@ -779,7 +774,7 @@ func (ok *Okx) getTransactionDetails(ctx context.Context, arg *TransactionDetail
 		params.Set("end", strconv.FormatInt(arg.End.UnixMilli(), 10))
 	}
 	if arg.Limit > 0 {
-		params.Set("limit", strconv.Itoa(arg.Limit))
+		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
 	}
 	if arg.InstrumentID != "" {
 		params.Set("instId", arg.InstrumentID)
@@ -800,20 +795,20 @@ func (ok *Okx) PlaceAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoO
 		return nil, errMissingInstrumentID
 	}
 	arg.TradeMode = strings.ToLower(arg.TradeMode)
-	if !(arg.TradeMode == TradeModeCross ||
-		arg.TradeMode == TradeModeIsolated) {
-		return nil, errMissingTradeMode
+	if arg.TradeMode != TradeModeCross &&
+		arg.TradeMode != TradeModeIsolated {
+		return nil, errInvalidTradeModeValue
 	}
-	if !(arg.Side == order.Buy ||
-		arg.Side == order.Sell) {
-		return nil, errMissingOrderSide
+	if arg.Side != order.Buy &&
+		arg.Side != order.Sell {
+		return nil, errInvalidOrderSide
 	}
-	if !(arg.OrderType == "conditional" ||
-		arg.OrderType == "oco" ||
-		arg.OrderType == "trigger" ||
-		arg.OrderType == "move_order_stop" ||
-		arg.OrderType == "iceberg" ||
-		arg.OrderType == "twap") {
+	if arg.OrderType != "conditional" &&
+		arg.OrderType != "oco" &&
+		arg.OrderType != "trigger" &&
+		arg.OrderType != "move_order_stop" &&
+		arg.OrderType != "iceberg" &&
+		arg.OrderType != "twap" {
 		return nil, errInvalidOrderType
 	}
 	if arg.Size <= 0 {
@@ -913,9 +908,9 @@ func (ok *Okx) TriggerAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*Alg
 	if arg.TriggerPrice <= 0 {
 		return nil, errInvalidTriggerPrice
 	}
-	if !(arg.TriggerPriceType == "last" ||
-		arg.TriggerPriceType == "index" ||
-		arg.TriggerPriceType == "mark") {
+	if arg.TriggerPriceType != "last" &&
+		arg.TriggerPriceType != "index" &&
+		arg.TriggerPriceType != "mark" {
 		arg.TriggerPriceType = ""
 	}
 	return ok.PlaceAlgoOrder(ctx, arg)
@@ -956,13 +951,13 @@ func (ok *Okx) cancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams
 func (ok *Okx) GetAlgoOrderList(ctx context.Context, orderType, algoOrderID, clientSuppliedOrderID, instrumentType, instrumentID string, after, before time.Time, limit int64) ([]AlgoOrderResponse, error) {
 	params := url.Values{}
 	orderType = strings.ToLower(orderType)
-	if !(orderType == "conditional" ||
-		orderType == "oco" ||
-		orderType == "trigger" ||
-		orderType == "move_order_stop" ||
-		orderType == "iceberg" ||
-		orderType == "twap") {
-		return nil, fmt.Errorf("invalid order type value %s,%s,%s,%s,%s,and %s", "conditional", "oco", "trigger", "move_order_stop", "iceberg", "twap")
+	if orderType != "conditional" &&
+		orderType != "oco" &&
+		orderType != "trigger" &&
+		orderType != "move_order_stop" &&
+		orderType != "iceberg" &&
+		orderType != "twap" {
+		return nil, errors.New("invalid order type value; only conditional, oco, trigger, move_order_stop, iceberg, and twap are allowed")
 	}
 	params.Set("ordType", orderType)
 	var resp []AlgoOrderResponse
@@ -972,6 +967,7 @@ func (ok *Okx) GetAlgoOrderList(ctx context.Context, orderType, algoOrderID, cli
 	if clientSuppliedOrderID != "" {
 		params.Set("clOrdId", clientSuppliedOrderID)
 	}
+	instrumentType = strings.ToUpper(instrumentType)
 	if instrumentType == okxInstTypeSpot ||
 		instrumentType == okxInstTypeSwap ||
 		instrumentType == okxInstTypeFutures ||
@@ -997,16 +993,16 @@ func (ok *Okx) GetAlgoOrderList(ctx context.Context, orderType, algoOrderID, cli
 func (ok *Okx) GetAlgoOrderHistory(ctx context.Context, orderType, state, algoOrderID, instrumentType, instrumentID string, after, before time.Time, limit int64) ([]AlgoOrderResponse, error) {
 	params := url.Values{}
 	orderType = strings.ToLower(strings.Trim(orderType, " "))
-	if !(orderType == "conditional" || orderType == "oco" || orderType == "trigger" || orderType == "move_order_stop" ||
-		orderType == "iceberg" || orderType == "twap") {
-		return nil, fmt.Errorf("invalid order type value %s,%s,%s,%s,%s,and %s", "conditional", "oco", "trigger", "move_order_stop", "iceberg", "twap")
+	if orderType != "conditional" && orderType != "oco" && orderType != "trigger" && orderType != "move_order_stop" &&
+		orderType != "iceberg" && orderType != "twap" {
+		return nil, errors.New("invalid order type value; only conditional, oco, trigger, move_order_stop, iceberg, and twap are allowed")
 	}
 	params.Set("ordType", orderType)
 	var resp []AlgoOrderResponse
 	if algoOrderID == "" &&
-		!(state == "effective" ||
-			state == "order_failed" ||
-			state == "canceled") {
+		state != "effective" &&
+		state != "order_failed" &&
+		state != "canceled" {
 		return nil, errMissingEitherAlgoIDOrState
 	}
 	if algoOrderID != "" {
@@ -1014,6 +1010,7 @@ func (ok *Okx) GetAlgoOrderHistory(ctx context.Context, orderType, state, algoOr
 	} else {
 		params.Set("state", state)
 	}
+	instrumentType = strings.ToUpper(instrumentType)
 	if instrumentType == okxInstTypeSpot || instrumentType == okxInstTypeSwap ||
 		instrumentType == okxInstTypeFutures || instrumentType == okxInstTypeOption {
 		params.Set("instType", instrumentType)
@@ -1202,13 +1199,14 @@ func (ok *Okx) SetQuoteProducts(ctx context.Context, args []SetQuoteProductParam
 		return nil, errEmptyArgument
 	}
 	for x := range args {
-		if !(args[x].InstrumentType == okxInstTypeSwap ||
-			args[x].InstrumentType == okxInstTypeSpot ||
-			args[x].InstrumentType == okxInstTypeFutures ||
-			args[x].InstrumentType == okxInstTypeOption) {
+		args[x].InstrumentType = strings.ToUpper(args[x].InstrumentType)
+		if args[x].InstrumentType != okxInstTypeSwap &&
+			args[x].InstrumentType != okxInstTypeSpot &&
+			args[x].InstrumentType != okxInstTypeFutures &&
+			args[x].InstrumentType != okxInstTypeOption {
 			return nil, errInvalidInstrumentType
 		}
-		if len(args) == 0 {
+		if len(args[x].Data) == 0 {
 			return nil, errMissingMakerInstrumentSettings
 		}
 		for y := range args[x].Data {
@@ -1250,8 +1248,8 @@ func (ok *Okx) CreateQuote(ctx context.Context, arg CreateQuoteParams) (*QuoteRe
 	switch {
 	case arg.RfqID == "":
 		return nil, errMissingRfqID
-	case !(arg.QuoteSide == order.Buy || arg.QuoteSide == order.Sell):
-		return nil, errMissingOrderSide
+	case arg.QuoteSide != order.Buy && arg.QuoteSide != order.Sell:
+		return nil, errInvalidOrderSide
 	case len(arg.Legs) == 0:
 		return nil, errMissingLegs
 	}
@@ -1264,7 +1262,7 @@ func (ok *Okx) CreateQuote(ctx context.Context, arg CreateQuoteParams) (*QuoteRe
 		case arg.Legs[x].Price <= 0:
 			return nil, errMossingLegsQuotePrice
 		case arg.Legs[x].Side == order.UnknownSide:
-			return nil, errMissingOrderSide
+			return nil, errInvalidOrderSide
 		}
 	}
 	var resp []QuoteResponse
@@ -1386,7 +1384,7 @@ func (ok *Okx) GetQuotes(ctx context.Context, arg *QuoteRequestParams) ([]QuoteR
 		params.Set("endId", arg.EndID)
 	}
 	if arg.Limit > 0 {
-		params.Set("limit", strconv.Itoa(arg.Limit))
+		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
 	}
 	var resp []QuoteResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getQuotesEPL, http.MethodGet, common.EncodeURLValues(rfqQuotes, params), nil, &resp, true)
@@ -1502,7 +1500,7 @@ func (ok *Okx) FundingTransfer(ctx context.Context, arg *FundingTransferRequestI
 	if arg.Currency == "" {
 		return nil, errors.New("invalid currency value")
 	}
-	if !(arg.From == "6" || arg.From == "18") {
+	if arg.From != "6" && arg.From != "18" {
 		return nil, errors.New("missing funding source field \"From\", only '6' and '18' are supported")
 	}
 	if arg.To == "" {
@@ -1758,9 +1756,9 @@ func (ok *Okx) SavingsPurchaseOrRedemption(ctx context.Context, arg *SavingsPurc
 		return nil, errInvalidCurrencyValue
 	case arg.Amount <= 0:
 		return nil, errUnacceptableAmount
-	case !(arg.ActionType == "purchase" || arg.ActionType == "redempt"):
+	case arg.ActionType != "purchase" && arg.ActionType != "redempt":
 		return nil, errors.New("invalid side value, side has to be either \"redemption\" or \"purchase\"")
-	case arg.ActionType == "purchase" && !(arg.Rate >= 1 && arg.Rate <= 365):
+	case arg.ActionType == "purchase" && (arg.Rate < 1 || arg.Rate > 365):
 		return nil, errors.New("the rate value range is between 1% and 365%")
 	}
 	var resp []SavingsPurchaseRedemptionResponse
@@ -1797,7 +1795,7 @@ func (ok *Okx) GetLendingHistory(ctx context.Context, currency string, before, a
 func (ok *Okx) SetLendingRate(ctx context.Context, arg LendingRate) (*LendingRate, error) {
 	if arg.Currency == "" {
 		return nil, errInvalidCurrencyValue
-	} else if !(arg.Rate >= 1 && arg.Rate <= 365) {
+	} else if arg.Rate < 1 || arg.Rate > 365 {
 		return nil, errors.New("invalid lending rate value. the rate value range is between 1% and 365%")
 	}
 	var resp []LendingRate
@@ -1862,8 +1860,8 @@ func (ok *Okx) EstimateQuote(ctx context.Context, arg *EstimateQuoteRequestInput
 		return nil, errors.New("missing quote currency")
 	}
 	arg.Side = strings.ToLower(arg.Side)
-	if !(arg.Side == order.Buy.Lower() || arg.Side == order.Sell.Lower()) {
-		return nil, errors.New("missing  order side")
+	if arg.Side != order.Buy.Lower() && arg.Side != order.Sell.Lower() {
+		return nil, errInvalidOrderSide
 	}
 	if arg.RFQAmount <= 0 {
 		return nil, errors.New("missing rfq amount")
@@ -1894,9 +1892,9 @@ func (ok *Okx) ConvertTrade(ctx context.Context, arg *ConvertTradeInput) (*Conve
 		return nil, errors.New("missing quote currency")
 	}
 	arg.Side = strings.ToLower(arg.Side)
-	if !(arg.Side == order.Buy.Lower() ||
-		arg.Side == order.Sell.Lower()) {
-		return nil, errMissingOrderSide
+	if arg.Side != order.Buy.Lower() &&
+		arg.Side != order.Sell.Lower() {
+		return nil, errInvalidOrderSide
 	}
 	if arg.Size <= 0 {
 		return nil, errors.New("quote amount should be more than 0 and RFQ amount")
@@ -1954,6 +1952,7 @@ func (ok *Okx) GetNonZeroBalances(ctx context.Context, currency string) ([]Accou
 func (ok *Okx) GetPositions(ctx context.Context, instrumentType, instrumentID, positionID string) ([]AccountPosition, error) {
 	params := url.Values{}
 	if instrumentType != "" {
+		instrumentType = strings.ToUpper(instrumentType)
 		params.Set("instType", instrumentType)
 	}
 	if instrumentID != "" {
@@ -1969,15 +1968,18 @@ func (ok *Okx) GetPositions(ctx context.Context, instrumentType, instrumentID, p
 // GetPositionsHistory retrieves the updated position data for the last 3 months.
 func (ok *Okx) GetPositionsHistory(ctx context.Context, instrumentType, instrumentID, marginMode string, closePositionType, limit int64, after, before time.Time) ([]AccountPositionHistory, error) {
 	params := url.Values{}
-	if strings.EqualFold(instrumentType, okxInstTypeMargin) || strings.EqualFold(instrumentType, okxInstTypeSwap) || strings.EqualFold(instrumentType, okxInstTypeFutures) ||
-		strings.EqualFold(instrumentType, okxInstTypeOption) {
-		params.Set("instType", strings.ToUpper(instrumentType))
+	instrumentType = strings.ToUpper(instrumentType)
+	if instrumentType == okxInstTypeMargin ||
+		instrumentType == okxInstTypeSwap ||
+		instrumentType == okxInstTypeFutures ||
+		instrumentType == okxInstTypeOption {
+		params.Set("instType", instrumentType)
 	}
 	if instrumentID != "" {
 		params.Set("instId", instrumentID)
 	}
-	if strings.EqualFold(marginMode, TradeModeCross) || strings.EqualFold(marginMode, TradeModeIsolated) {
-		params.Set("mgnMode", marginMode)
+	if marginMode != "" {
+		params.Set("mgnMode", marginMode) // margin mode 'cross' and 'isolated' are allowed
 	}
 	// The type of closing position
 	// 1：Close position partially;2：Close all;3：Liquidation;4：Partial liquidation; 5：ADL;
@@ -2002,7 +2004,7 @@ func (ok *Okx) GetPositionsHistory(ctx context.Context, instrumentType, instrume
 func (ok *Okx) GetAccountAndPositionRisk(ctx context.Context, instrumentType string) ([]AccountAndPositionRisk, error) {
 	params := url.Values{}
 	if instrumentType != "" {
-		params.Set("instType", instrumentType)
+		params.Set("instType", strings.ToUpper(instrumentType))
 	}
 	var resp []AccountAndPositionRisk
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getAccountAndPositionRiskEPL, http.MethodGet, common.EncodeURLValues(accountAndPositionRisk, params), nil, &resp, true)
@@ -2027,11 +2029,12 @@ func (ok *Okx) GetBillsDetail(ctx context.Context, arg *BillsDetailQueryParamete
 		return nil, errNilArgument
 	}
 	params := url.Values{}
+	arg.InstrumentType = strings.ToUpper(arg.InstrumentType)
 	if arg.InstrumentType == okxInstTypeMargin ||
 		arg.InstrumentType == okxInstTypeSwap ||
 		arg.InstrumentType == okxInstTypeOption ||
 		arg.InstrumentType == okxInstTypeFutures {
-		params.Set("instType", strings.ToUpper(arg.InstrumentType))
+		params.Set("instType", arg.InstrumentType)
 	}
 	if arg.Currency != "" {
 		params.Set("ccy", strings.ToUpper(arg.Currency))
@@ -2079,7 +2082,7 @@ func (ok *Okx) GetAccountConfiguration(ctx context.Context) ([]AccountConfigurat
 
 // SetPositionMode FUTURES and SWAP support both long/short mode and net mode. In net mode, users can only have positions in one direction; In long/short mode, users can hold positions in long and short directions.
 func (ok *Okx) SetPositionMode(ctx context.Context, positionMode string) (string, error) {
-	if !(positionMode == "long_short_mode" || positionMode == "net_mode") {
+	if positionMode != "long_short_mode" && positionMode != "net_mode" {
 		return "", errors.New("missing position mode, \"long_short_mode\": long/short, only applicable to FUTURES/SWAP \"net_mode\": net")
 	}
 	input := &PositionMode{
@@ -2104,18 +2107,15 @@ func (ok *Okx) SetLeverage(ctx context.Context, arg SetLeverageInput) (*SetLever
 	if arg.Leverage < 0 {
 		return nil, errors.New("missing leverage")
 	}
-	if !(arg.MarginMode == TradeModeIsolated || arg.MarginMode == TradeModeCross) {
-		return nil, errors.New("invalid margin mode")
-	}
 	if arg.InstrumentID == "" && arg.MarginMode == TradeModeIsolated {
 		return nil, errors.New("only can be cross if ccy is passed")
 	}
-	if !(arg.MarginMode == TradeModeCross || arg.MarginMode == TradeModeIsolated) {
-		return nil, errors.New("only applicable to \"isolated\" margin mode of FUTURES/SWAP")
+	if arg.MarginMode != TradeModeCross && arg.MarginMode != TradeModeIsolated {
+		return nil, errors.New("only applicable to \"isolated\" margin mode of FUTURES/SWAP allowed")
 	}
 	arg.PositionSide = strings.ToLower(arg.PositionSide)
-	if !(arg.PositionSide == positionSideLong ||
-		arg.PositionSide == positionSideShort) &&
+	if arg.PositionSide != positionSideLong &&
+		arg.PositionSide != positionSideShort &&
 		arg.MarginMode == "isolated" {
 		return nil, errors.New("\"long\" \"short\" Only applicable to isolated margin mode of FUTURES/SWAP")
 	}
@@ -2137,7 +2137,7 @@ func (ok *Okx) GetMaximumBuySellAmountOROpenAmount(ctx context.Context, instrume
 		return nil, errors.New("missing instrument id")
 	}
 	params.Set("instId", instrumentID)
-	if !(tradeMode == TradeModeCross || tradeMode == TradeModeIsolated || tradeMode == TradeModeCash) {
+	if tradeMode != TradeModeCross && tradeMode != TradeModeIsolated && tradeMode != TradeModeCash {
 		return nil, errors.New("missing valid trade mode")
 	}
 	params.Set("tdMode", tradeMode)
@@ -2165,10 +2165,10 @@ func (ok *Okx) GetMaximumAvailableTradableAmount(ctx context.Context, instrument
 	if currency != "" {
 		params.Set("ccy", currency)
 	}
-	if !(tradeMode == TradeModeIsolated ||
-		tradeMode == TradeModeCross ||
-		tradeMode == TradeModeCash) {
-		return nil, errors.New("missing trade mode")
+	if tradeMode != TradeModeIsolated &&
+		tradeMode != TradeModeCross &&
+		tradeMode != TradeModeCash {
+		return nil, errInvalidTradeModeValue
 	}
 	params.Set("tdMode", tradeMode)
 	params.Set("px", strconv.FormatFloat(price, 'f', 0, 64))
@@ -2288,10 +2288,14 @@ func (ok *Okx) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (flo
 func (ok *Okx) GetTradeFee(ctx context.Context, instrumentType, instrumentID, underlying string) ([]TradeFeeRate, error) {
 	params := url.Values{}
 	instrumentType = strings.ToUpper(instrumentType)
-	if !(instrumentType == okxInstTypeSpot || instrumentType == okxInstTypeMargin || instrumentType == okxInstTypeSwap || instrumentType == okxInstTypeFutures || instrumentType == okxInstTypeOption) {
+	if instrumentType != okxInstTypeSpot &&
+		instrumentType != okxInstTypeMargin &&
+		instrumentType != okxInstTypeSwap &&
+		instrumentType != okxInstTypeFutures &&
+		instrumentType != okxInstTypeOption {
 		return nil, errInvalidInstrumentType
 	}
-	params.Set("instType", strings.ToUpper(instrumentType))
+	params.Set("instType", instrumentType)
 	if instrumentID != "" {
 		params.Set("instId", instrumentID)
 	}
@@ -2345,7 +2349,7 @@ func (ok *Okx) GetInterestRate(ctx context.Context, currency string) ([]Interest
 // SetGreeks set the display type of Greeks. PA: Greeks in coins BS: Black-Scholes Greeks in dollars
 func (ok *Okx) SetGreeks(ctx context.Context, greeksType string) (*GreeksType, error) {
 	greeksType = strings.ToUpper(greeksType)
-	if !(greeksType == "PA" || greeksType == "BS") {
+	if greeksType != "PA" && greeksType != "BS" {
 		return nil, errMissingValidGreeksType
 	}
 	input := &GreeksType{
@@ -2369,6 +2373,7 @@ func (ok *Okx) IsolatedMarginTradingSettings(ctx context.Context, arg IsolatedMo
 		arg.IsoMode != "autonomy" {
 		return nil, errMissingIsolatedMarginTradingSetting
 	}
+	arg.InstrumentType = strings.ToUpper(arg.InstrumentType)
 	if arg.InstrumentType != okxInstTypeMargin &&
 		arg.InstrumentType != okxInstTypeContract {
 		return nil, fmt.Errorf("%w, only margin and contract instrument types are allowed", errInvalidInstrumentType)
@@ -2482,7 +2487,7 @@ func (ok *Okx) GetPMLimitation(ctx context.Context, instrumentType, underlying s
 	if underlying == "" {
 		return nil, errInvalidUnderlying
 	}
-	params.Set("instType", instrumentType)
+	params.Set("instType", strings.ToUpper(instrumentType))
 	params.Set("uly", underlying)
 	var resp []PMLimitationResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getPMLimitationEPL, http.MethodGet, common.EncodeURLValues(accountPortfolioMarginLimitation, params), nil, &resp, true)
@@ -2779,6 +2784,7 @@ func (ok *Okx) getGridAlgoOrders(ctx context.Context, algoOrderType, algoID,
 	if instrumentID != "" {
 		params.Set("instId", instrumentID)
 	}
+	instrumentType = strings.ToUpper(instrumentType)
 	if instrumentType == okxInstTypeSpot || instrumentType == okxInstTypeMargin ||
 		instrumentType == okxInstTypeFutures || instrumentType == okxInstTypeSwap {
 		params.Set("instType", strings.ToUpper(instrumentType))
@@ -2803,8 +2809,8 @@ func (ok *Okx) getGridAlgoOrders(ctx context.Context, algoOrderType, algoID,
 // GetGridAlgoOrderDetails retrieves grid algo order details
 func (ok *Okx) GetGridAlgoOrderDetails(ctx context.Context, algoOrderType, algoID string) (*GridAlgoOrderResponse, error) {
 	params := url.Values{}
-	if !(algoOrderType == AlgoOrdTypeGrid ||
-		algoOrderType == AlgoOrdTypeContractGrid) {
+	if algoOrderType != AlgoOrdTypeGrid &&
+		algoOrderType != AlgoOrdTypeContractGrid {
 		return nil, errMissingAlgoOrderType
 	}
 	if algoID == "" {
@@ -2826,8 +2832,8 @@ func (ok *Okx) GetGridAlgoOrderDetails(ctx context.Context, algoOrderType, algoI
 // GetGridAlgoSubOrders retrieves grid algo sub orders
 func (ok *Okx) GetGridAlgoSubOrders(ctx context.Context, algoOrderType, algoID, subOrderType, groupID, after, before string, limit int64) ([]GridAlgoOrderResponse, error) {
 	params := url.Values{}
-	if !(algoOrderType == AlgoOrdTypeGrid ||
-		algoOrderType == AlgoOrdTypeContractGrid) {
+	if algoOrderType != AlgoOrdTypeGrid &&
+		algoOrderType != AlgoOrdTypeContractGrid {
 		return nil, errMissingAlgoOrderType
 	}
 	params.Set("algoOrdType", algoOrderType)
@@ -2859,8 +2865,8 @@ func (ok *Okx) GetGridAlgoSubOrders(ctx context.Context, algoOrderType, algoID, 
 // GetGridAlgoOrderPositions retrieves grid algo order positions.
 func (ok *Okx) GetGridAlgoOrderPositions(ctx context.Context, algoOrderType, algoID string) ([]AlgoOrderPosition, error) {
 	params := url.Values{}
-	if !(algoOrderType == AlgoOrdTypeGrid || algoOrderType == AlgoOrdTypeContractGrid) {
-		return nil, errMissingAlgoOrderType
+	if algoOrderType != AlgoOrdTypeGrid && algoOrderType != AlgoOrdTypeContractGrid {
+		return nil, errInvalidAlgoOrderType
 	}
 	if algoID == "" {
 		return nil, errMissingAlgoOrderID
@@ -3275,11 +3281,11 @@ func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, inte
 	for x := range resp {
 		var candle CandleStick
 		var err error
-		timestamp, err := strconv.Atoi(resp[x][0])
+		timestamp, err := strconv.ParseInt(resp[x][0], 10, 64)
 		if err != nil {
 			return nil, err
 		}
-		candle.OpenTime = time.UnixMilli(int64(timestamp))
+		candle.OpenTime = time.UnixMilli(timestamp)
 		if candle.OpenPrice, err = convert.FloatFromString(resp[x][1]); err != nil {
 			return nil, err
 		}
@@ -3396,6 +3402,7 @@ func (ok *Okx) GetIndexComponents(ctx context.Context, index string) (*IndexComp
 // Instrument Type Is Mendatory, and Underlying is Optional.
 func (ok *Okx) GetBlockTickers(ctx context.Context, instrumentType, underlying string) ([]BlockTicker, error) {
 	params := url.Values{}
+	instrumentType = strings.ToUpper(instrumentType)
 	if instrumentType != okxInstTypeSpot && instrumentType != okxInstTypeSwap &&
 		instrumentType != okxInstTypeFutures && instrumentType != okxInstTypeOption {
 		return nil, errMissingRequiredArgInstType
@@ -3442,6 +3449,7 @@ func (ok *Okx) GetBlockTrades(ctx context.Context, instrumentID string) ([]Block
 // GetInstruments Retrieve a list of instruments with open contracts.
 func (ok *Okx) GetInstruments(ctx context.Context, arg *InstrumentsFetchParams) ([]Instrument, error) {
 	params := url.Values{}
+	arg.InstrumentType = strings.ToUpper(arg.InstrumentType)
 	if arg.InstrumentType != okxInstTypeSpot && arg.InstrumentType != okxInstTypeMargin && arg.InstrumentType != okxInstTypeSwap &&
 		arg.InstrumentType != okxInstTypeFutures && arg.InstrumentType != okxInstTypeOption {
 		return nil, errMissingRequiredArgInstType
@@ -3460,10 +3468,9 @@ func (ok *Okx) GetInstruments(ctx context.Context, arg *InstrumentsFetchParams) 
 // GetDeliveryHistory retrieves the estimated delivery price of the last 3 months, which will only have a return value one hour before the delivery/exercise.
 func (ok *Okx) GetDeliveryHistory(ctx context.Context, instrumentType, underlying string, after, before time.Time, limit int64) ([]DeliveryHistory, error) {
 	params := url.Values{}
+	instrumentType = strings.ToUpper(instrumentType)
 	if instrumentType != "" && instrumentType != okxInstTypeFutures && instrumentType != okxInstTypeOption {
-		return nil, fmt.Errorf("unacceptable instrument Type! Only %s and %s are allowed", "FUTURE", okxInstTypeOption)
-	} else if instrumentType == "" {
-		return nil, errMissingRequiredArgInstType
+		return nil, fmt.Errorf("unacceptable instrument Type. Only %s and %s are allowed", "FUTURE", okxInstTypeOption)
 	}
 	params.Set("instType", instrumentType)
 	if underlying == "" {
@@ -3477,7 +3484,7 @@ func (ok *Okx) GetDeliveryHistory(ctx context.Context, instrumentType, underlyin
 	if !before.IsZero() {
 		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
 	}
-	if !(limit > 0 && limit <= 100) {
+	if limit <= 0 || limit > 100 {
 		return nil, errLimitValueExceedsMaxOf100
 	}
 	params.Set("limit", strconv.FormatInt(limit, 10))
@@ -3489,7 +3496,7 @@ func (ok *Okx) GetDeliveryHistory(ctx context.Context, instrumentType, underlyin
 func (ok *Okx) GetOpenInterest(ctx context.Context, instType, uly, instID string) ([]OpenInterest, error) {
 	params := url.Values{}
 	instType = strings.ToUpper(instType)
-	if !(instType == okxInstTypeSpot || instType == okxInstTypeFutures || instType == okxInstTypeOption) {
+	if instType != okxInstTypeSpot && instType != okxInstTypeFutures && instType != okxInstTypeOption {
 		return nil, errMissingRequiredArgInstType
 	}
 	params.Set("instType", instType)
@@ -3613,8 +3620,9 @@ func (ok *Okx) GetSystemTime(ctx context.Context) (*time.Time, error) {
 // GetLiquidationOrders retrieves information on liquidation orders in the last day.
 func (ok *Okx) GetLiquidationOrders(ctx context.Context, arg *LiquidationOrderRequestParams) (*LiquidationOrder, error) {
 	params := url.Values{}
-	if !(arg.InstrumentType == okxInstTypeMargin || arg.InstrumentType == okxInstTypeFutures ||
-		arg.InstrumentType == okxInstTypeSwap || arg.InstrumentType == okxInstTypeOption) {
+	arg.InstrumentType = strings.ToUpper(arg.InstrumentType)
+	if arg.InstrumentType != okxInstTypeMargin && arg.InstrumentType != okxInstTypeFutures &&
+		arg.InstrumentType != okxInstTypeSwap && arg.InstrumentType != okxInstTypeOption {
 		return nil, errMissingRequiredArgInstType
 	}
 	params.Set("instType", arg.InstrumentType)
@@ -3684,15 +3692,15 @@ func (ok *Okx) GetMarkPrice(ctx context.Context, instrumentType, underlying, ins
 func (ok *Okx) GetPositionTiers(ctx context.Context, instrumentType, tradeMode, underlying, instrumentID, tiers string) ([]PositionTiers, error) {
 	params := url.Values{}
 	instrumentType = strings.ToUpper(instrumentType)
-	if !(instrumentType == okxInstTypeMargin ||
-		instrumentType == okxInstTypeFutures ||
-		instrumentType == okxInstTypeSwap ||
-		instrumentType == okxInstTypeOption) {
+	if instrumentType != okxInstTypeMargin &&
+		instrumentType != okxInstTypeFutures &&
+		instrumentType != okxInstTypeSwap &&
+		instrumentType != okxInstTypeOption {
 		return nil, errMissingRequiredArgInstType
 	}
 	params.Set("instType", instrumentType)
 	tradeMode = strings.ToLower(tradeMode)
-	if !(tradeMode == TradeModeCross || tradeMode == TradeModeIsolated) {
+	if tradeMode != TradeModeCross && tradeMode != TradeModeIsolated {
 		return nil, errIncorrectRequiredParameterTradeMode
 	}
 	params.Set("tdMode", tradeMode)
@@ -3843,7 +3851,7 @@ func (ok *Okx) GetTakerVolume(ctx context.Context, currency, instrumentType stri
 		instrumentType != okxInstTypeSpot {
 		return nil, fmt.Errorf("%w, only Contract CONTRACT and SPOT instrument types are supported", errInvalidInstrumentType)
 	}
-	params.Set("instType", strings.ToUpper(instrumentType))
+	params.Set("instType", instrumentType)
 	interval := ok.GetIntervalEnum(period)
 	if interval != "" {
 		params.Set("period", interval)
@@ -3864,7 +3872,7 @@ func (ok *Okx) GetTakerVolume(ctx context.Context, currency, instrumentType stri
 	}
 	takerVolumes := []TakerVolume{}
 	for x := range response {
-		timestamp, err := strconv.Atoi(response[x][0])
+		timestamp, err := strconv.ParseInt(response[x][0], 10, 64)
 		if err != nil {
 			return nil, err
 		}
@@ -3877,7 +3885,7 @@ func (ok *Okx) GetTakerVolume(ctx context.Context, currency, instrumentType stri
 			return nil, err
 		}
 		takerVolume := TakerVolume{
-			Timestamp:  time.UnixMilli(int64(timestamp)),
+			Timestamp:  time.UnixMilli(timestamp),
 			SellVolume: sellVolume,
 			BuyVolume:  buyVolume,
 		}
@@ -3909,7 +3917,7 @@ func (ok *Okx) GetMarginLendingRatio(ctx context.Context, currency string, begin
 	}
 	lendingRatios := []MarginLendRatioItem{}
 	for x := range response {
-		timestamp, err := strconv.Atoi(response[x][0])
+		timestamp, err := strconv.ParseInt(response[x][0], 10, 64)
 		if err != nil {
 			return nil, err
 		}
@@ -3918,7 +3926,7 @@ func (ok *Okx) GetMarginLendingRatio(ctx context.Context, currency string, begin
 			return nil, err
 		}
 		lendRatio := MarginLendRatioItem{
-			Timestamp:       time.UnixMilli(int64(timestamp)),
+			Timestamp:       time.UnixMilli(timestamp),
 			MarginLendRatio: ratio,
 		}
 		lendingRatios = append(lendingRatios, lendRatio)
@@ -3949,7 +3957,7 @@ func (ok *Okx) GetLongShortRatio(ctx context.Context, currency string, begin, en
 	}
 	ratios := []LongShortRatio{}
 	for x := range response {
-		timestamp, err := strconv.Atoi(response[x][0])
+		timestamp, err := strconv.ParseInt(response[x][0], 10, 64)
 		if err != nil {
 			return nil, err
 		} else if timestamp <= 0 {
@@ -3960,7 +3968,7 @@ func (ok *Okx) GetLongShortRatio(ctx context.Context, currency string, begin, en
 			return nil, err
 		}
 		dratio := LongShortRatio{
-			Timestamp:       time.UnixMilli(int64(timestamp)),
+			Timestamp:       time.UnixMilli(timestamp),
 			MarginLendRatio: ratio,
 		}
 		ratios = append(ratios, dratio)
@@ -4037,7 +4045,7 @@ func (ok *Okx) GetOptionsOpenInterestAndVolume(ctx context.Context, currency str
 		return nil, err
 	}
 	for x := range response {
-		timestamp, err := strconv.Atoi(response[x][0])
+		timestamp, err := strconv.ParseInt(response[x][0], 10, 64)
 		if err != nil {
 			return nil, errors.New("invalid timestamp information")
 		} else if timestamp <= 0 {
@@ -4054,7 +4062,7 @@ func (ok *Okx) GetOptionsOpenInterestAndVolume(ctx context.Context, currency str
 			return nil, err
 		}
 		openInterestVolume := OpenInterestVolume{
-			Timestamp:    time.UnixMilli(int64(timestamp)),
+			Timestamp:    time.UnixMilli(timestamp),
 			Volume:       volume,
 			OpenInterest: openInterest,
 		}
@@ -4081,7 +4089,7 @@ func (ok *Okx) GetPutCallRatio(ctx context.Context, currency string,
 		return nil, err
 	}
 	for x := range response {
-		timestamp, err := strconv.Atoi(response[x][0])
+		timestamp, err := strconv.ParseInt(response[x][0], 10, 64)
 		if err != nil {
 			return nil, err
 		}
@@ -4094,7 +4102,7 @@ func (ok *Okx) GetPutCallRatio(ctx context.Context, currency string,
 			return nil, err
 		}
 		openInterestVolume := OpenInterestVolumeRatio{
-			Timestamp:         time.UnixMilli(int64(timestamp)),
+			Timestamp:         time.UnixMilli(timestamp),
 			VolumeRatio:       volume,
 			OpenInterestRatio: openInterest,
 		}
@@ -4120,19 +4128,19 @@ func (ok *Okx) GetOpenInterestAndVolumeExpiry(ctx context.Context, currency stri
 	}
 	volumes := []ExpiryOpenInterestAndVolume{}
 	for x := range resp {
-		var timestamp int
-		timestamp, err = strconv.Atoi(resp[x][0])
+		var timestamp int64
+		timestamp, err = strconv.ParseInt(resp[x][0], 10, 64)
 		if err != nil {
 			return nil, err
 		}
 		var expiryTime time.Time
 		expTime := resp[x][1]
 		if expTime != "" && len(expTime) == 8 {
-			year, err := strconv.Atoi(expTime[0:4])
+			year, err := strconv.ParseInt(expTime[0:4], 10, 64)
 			if err != nil {
 				return nil, err
 			}
-			month, err := strconv.Atoi(expTime[4:6])
+			month, err := strconv.ParseInt(expTime[4:6], 10, 64)
 			if err != nil {
 				return nil, err
 			}
@@ -4141,16 +4149,16 @@ func (ok *Okx) GetOpenInterestAndVolumeExpiry(ctx context.Context, currency stri
 			if month <= 9 {
 				months = fmt.Sprintf("0%d", month)
 			} else {
-				months = strconv.Itoa(month)
+				months = strconv.FormatInt(month, 10)
 			}
-			day, err := strconv.Atoi(expTime[6:])
+			day, err := strconv.ParseInt(expTime[6:], 10, 64)
 			if err != nil {
 				return nil, err
 			}
 			if day <= 9 {
 				days = fmt.Sprintf("0%d", day)
 			} else {
-				days = strconv.Itoa(day)
+				days = strconv.FormatInt(day, 10)
 			}
 			expiryTime, err = time.Parse("2006-01-02", fmt.Sprintf("%d-%s-%s", year, months, days))
 			if err != nil {
@@ -4174,7 +4182,7 @@ func (ok *Okx) GetOpenInterestAndVolumeExpiry(ctx context.Context, currency stri
 			return nil, err
 		}
 		volume := ExpiryOpenInterestAndVolume{
-			Timestamp:        time.UnixMilli(int64(timestamp)),
+			Timestamp:        time.UnixMilli(timestamp),
 			ExpiryTime:       expiryTime,
 			CallOpenInterest: calloi,
 			PutOpenInterest:  putoi,
@@ -4221,7 +4229,7 @@ func (ok *Okx) GetOpenInterestAndVolumeStrike(ctx context.Context, currency stri
 	}
 	volumes := []StrikeOpenInterestAndVolume{}
 	for x := range resp {
-		timestamp, err := strconv.Atoi(resp[x][0])
+		timestamp, err := strconv.ParseInt(resp[x][0], 10, 64)
 		if err != nil {
 			return nil, err
 		}
@@ -4246,7 +4254,7 @@ func (ok *Okx) GetOpenInterestAndVolumeStrike(ctx context.Context, currency stri
 			return nil, err
 		}
 		volume := StrikeOpenInterestAndVolume{
-			Timestamp:        time.UnixMilli(int64(timestamp)),
+			Timestamp:        time.UnixMilli(timestamp),
 			Strike:           strike,
 			CallOpenInterest: calloi,
 			PutOpenInterest:  putoi,

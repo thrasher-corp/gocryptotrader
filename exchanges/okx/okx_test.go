@@ -330,7 +330,7 @@ func TestGetEstimatedDeliveryPrice(t *testing.T) {
 	if err != nil {
 		t.Error("Okx GetEstimatedDeliveryPrice() error", err)
 	}
-	if _, err := ok.GetEstimatedDeliveryPrice(context.Background(), "BTC-USD"); err != nil && !(strings.Contains(err.Error(), "Instrument ID does not exist.")) {
+	if _, err := ok.GetEstimatedDeliveryPrice(context.Background(), "BTC-USD"); err != nil && !strings.Contains(err.Error(), "Instrument ID does not exist.") {
 		t.Error("Okx GetEstimatedDeliveryPrice() error", err)
 	}
 }

@@ -44,17 +44,17 @@ const (
 
 const (
 	// OkxOrderLimit Limit order
-	OkxOrderLimit = "LIMIT"
+	OkxOrderLimit = "limit"
 	// OkxOrderMarket Market order
-	OkxOrderMarket = "MARKET"
+	OkxOrderMarket = "market"
 	// OkxOrderPostOnly POST_ONLY order type
-	OkxOrderPostOnly = "POST_ONLY"
+	OkxOrderPostOnly = "post_only"
 	// OkxOrderFOK fill or kill order type
-	OkxOrderFOK = "FOK"
+	OkxOrderFOK = "fok"
 	// OkxOrderIOC IOC (immediate or cancel)
-	OkxOrderIOC = "IOC"
+	OkxOrderIOC = "ioc"
 	// OkxOrderOptimalLimitIOC OPTIMAL_LIMIT_IOC
-	OkxOrderOptimalLimitIOC = "OPTIMAL_LIMIT_IOC"
+	OkxOrderOptimalLimitIOC = "optimal_limit_ioc"
 
 	// Instrument Types ( Asset Types )
 
@@ -65,6 +65,10 @@ const (
 	okxInstTypeOption   = "OPTION"   // Okx Instrument Type "option"
 	okxInstTypeMargin   = "MARGIN"   // Okx Instrument Type "margin"
 	okxInstTypeContract = "CONTRACT" // Okx Instrument Type "contract"
+
+	operationSubscribe   = "subscribe"
+	operationUnsubscribe = "unsubscribe"
+	operationLogin       = "login"
 )
 
 // Market Data Endoints
@@ -120,16 +124,16 @@ type OrderBookResponseDetail struct {
 type OrderAsk struct {
 	DepthPrice        float64
 	NumberOfContracts float64
-	LiquidationOrders int
-	NumberOfOrders    int
+	LiquidationOrders int64
+	NumberOfOrders    int64
 }
 
 // OrderBid represents currencies bid detailed information.
 type OrderBid struct {
 	DepthPrice        float64
 	BaseCurrencies    float64
-	LiquidationOrders int
-	NumberOfOrders    int
+	LiquidationOrders int64
+	NumberOfOrders    int64
 }
 
 // GetOrderBookResponseDetail returns the OrderBookResponseDetail instance from OrderBookResponse object.
@@ -161,11 +165,11 @@ func (a *OrderBookResponse) GetAsks() ([]OrderAsk, error) {
 		if er != nil {
 			return nil, er
 		}
-		liquidation, er := strconv.Atoi(a.Asks[x][2])
+		liquidation, er := strconv.ParseInt(a.Asks[x][2], 10, 64)
 		if er != nil {
 			return nil, er
 		}
-		orders, er := strconv.Atoi(a.Asks[x][3])
+		orders, er := strconv.ParseInt(a.Asks[x][3], 10, 64)
 		if er != nil {
 			return nil, er
 		}
@@ -191,11 +195,11 @@ func (a *OrderBookResponse) GetBids() ([]OrderBid, error) {
 		if er != nil {
 			return nil, er
 		}
-		liquidation, er := strconv.Atoi(a.Bids[x][2])
+		liquidation, er := strconv.ParseInt(a.Bids[x][2], 10, 64)
 		if er != nil {
 			return nil, er
 		}
-		orders, er := strconv.Atoi(a.Bids[x][3])
+		orders, er := strconv.ParseInt(a.Bids[x][3], 10, 64)
 		if er != nil {
 			return nil, er
 		}
@@ -758,7 +762,7 @@ type TransactionDetailRequestParams struct {
 	Before         string    `json:"before"` // before billid
 	Begin          time.Time `json:"begin"`
 	End            time.Time `json:"end"`
-	Limit          int       `json:"limit"`
+	Limit          int64     `json:"limit"`
 }
 
 // TransactionDetail holds ecently-filled transaction detail data.
@@ -1805,7 +1809,7 @@ type QuoteRequestParams struct {
 	State                 string
 	BeginID               string
 	EndID                 string
-	Limit                 int
+	Limit                 int64
 }
 
 // RFQTradesRequestParams represents RFQ trades request param

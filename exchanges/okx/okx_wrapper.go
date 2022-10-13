@@ -926,7 +926,7 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (or
 	}
 	for x := range canceledOrders {
 		cancelBatchResponse.Status[canceledOrders[x].OrderID] = func() string {
-			if !(canceledOrders[x].SCode == "0" || canceledOrders[x].SCode == "2") {
+			if canceledOrders[x].SCode != "0" && canceledOrders[x].SCode != "2" {
 				return ""
 			}
 			return order.Cancelled.String()
