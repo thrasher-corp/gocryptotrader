@@ -773,7 +773,7 @@ func FilterOrdersBySide(orders *[]Detail, side Side) {
 
 	target := 0
 	for i := range *orders {
-		if (*orders)[i].Side == side {
+		if (*orders)[i].Side == UnknownSide || (*orders)[i].Side == side {
 			(*orders)[target] = (*orders)[i]
 			target++
 		}
@@ -790,7 +790,7 @@ func FilterOrdersByType(orders *[]Detail, orderType Type) {
 
 	target := 0
 	for i := range *orders {
-		if (*orders)[i].Type == orderType {
+		if (*orders)[i].Type == UnknownType || (*orders)[i].Type == orderType {
 			(*orders)[target] = (*orders)[i]
 			target++
 		}
@@ -835,6 +835,12 @@ func FilterOrdersByPairs(orders *[]Detail, pairs []currency.Pair) {
 
 	target := 0
 	for x := range *orders {
+		if (*orders)[x].Pair.IsEmpty() { // If pair not set then keep
+			(*orders)[target] = (*orders)[x]
+			target++
+			continue
+		}
+
 		for y := range pairs {
 			if (*orders)[x].Pair.EqualIncludeReciprocal(pairs[y]) {
 				(*orders)[target] = (*orders)[x]

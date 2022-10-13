@@ -374,20 +374,21 @@ func TestFilterOrdersByType(t *testing.T) {
 		{
 			Type: Limit,
 		},
+		{}, // Unpopulated fields are preserved for API differences
 	}
 
 	FilterOrdersByType(&orders, AnyType)
-	if len(orders) != 2 {
+	if len(orders) != 3 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 2, len(orders))
 	}
 
 	FilterOrdersByType(&orders, Limit)
-	if len(orders) != 1 {
+	if len(orders) != 2 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
 	}
 
 	FilterOrdersByType(&orders, Stop)
-	if len(orders) != 0 {
+	if len(orders) != 1 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 0, len(orders))
 	}
 }
@@ -425,7 +426,7 @@ func TestFilterOrdersBySide(t *testing.T) {
 		{
 			Side: Sell,
 		},
-		{},
+		{}, // Unpopulated fields are preserved for API differences
 	}
 
 	FilterOrdersBySide(&orders, AnySide)
@@ -434,12 +435,12 @@ func TestFilterOrdersBySide(t *testing.T) {
 	}
 
 	FilterOrdersBySide(&orders, Buy)
-	if len(orders) != 1 {
+	if len(orders) != 2 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
 	}
 
 	FilterOrdersBySide(&orders, Sell)
-	if len(orders) != 0 {
+	if len(orders) != 1 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 0, len(orders))
 	}
 }
@@ -568,43 +569,44 @@ func TestFilterOrdersByPairs(t *testing.T) {
 		{
 			Pair: currency.NewPair(currency.DOGE, currency.RUB),
 		},
+		{}, // Unpopulated fields are preserved for API differences
 	}
 
 	currencies := []currency.Pair{currency.NewPair(currency.BTC, currency.USD),
 		currency.NewPair(currency.LTC, currency.EUR),
 		currency.NewPair(currency.DOGE, currency.RUB)}
 	FilterOrdersByPairs(&orders, currencies)
-	if len(orders) != 3 {
+	if len(orders) != 4 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 3, len(orders))
 	}
 
 	currencies = []currency.Pair{currency.NewPair(currency.BTC, currency.USD),
 		currency.NewPair(currency.LTC, currency.EUR)}
 	FilterOrdersByPairs(&orders, currencies)
-	if len(orders) != 2 {
+	if len(orders) != 3 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 2, len(orders))
 	}
 
 	currencies = []currency.Pair{currency.NewPair(currency.BTC, currency.USD)}
 	FilterOrdersByPairs(&orders, currencies)
-	if len(orders) != 1 {
+	if len(orders) != 2 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
 	}
 
 	currencies = []currency.Pair{currency.NewPair(currency.USD, currency.BTC)}
 	FilterOrdersByPairs(&orders, currencies)
-	if len(orders) != 1 {
+	if len(orders) != 2 {
 		t.Errorf("Reverse Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
 	}
 
 	currencies = []currency.Pair{}
 	FilterOrdersByPairs(&orders, currencies)
-	if len(orders) != 1 {
+	if len(orders) != 2 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
 	}
 	currencies = append(currencies, currency.EMPTYPAIR)
 	FilterOrdersByPairs(&orders, currencies)
-	if len(orders) != 1 {
+	if len(orders) != 2 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
 	}
 }
