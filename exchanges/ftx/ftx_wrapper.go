@@ -1046,7 +1046,8 @@ func (f *FTX) GetOrderHistory(ctx context.Context, request *order.GetOrdersReque
 		if request.Type == order.AnyType ||
 			request.Type == order.Limit ||
 			request.Type == order.Market {
-			history, err := f.FetchOrderHistory(ctx,
+			var history []OrderData
+			history, err = f.FetchOrderHistory(ctx,
 				fp.String(),
 				request.StartTime,
 				request.EndTime,
