@@ -453,9 +453,9 @@ func (ok *Okx) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequest
 			args[x].TradeMode != TradeModeCash {
 			return nil, errInvalidTradeModeValue
 		}
-		args[x].Side = strings.ToUpper(args[x].Side)
-		if args[x].Side != order.Buy.String() &&
-			args[x].Side != order.Sell.String() {
+		args[x].Side = strings.ToLower(args[x].Side)
+		if args[x].Side != order.Buy.Lower() &&
+			args[x].Side != order.Sell.Lower() {
 			return nil, errInvalidOrderSide
 		}
 		args[x].OrderType = strings.ToLower(args[x].OrderType)

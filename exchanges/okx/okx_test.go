@@ -508,7 +508,7 @@ func TestGetTakerFlow(t *testing.T) {
 	}
 }
 
-var placeOrderRequestParamsJSON = `{"instId":"BTC-USDT",    "tdMode":"cash",    "clOrdId":"b15",    "side":"buy",    "ordType":"limit",    "px":"2.15",    "sz":"2"}`
+var placeOrderRequestParamsJSON = `{"instId":"BTC-USDT",    "tdMode":"cash",    "clOrdId":"b15",    "side":"Buy",    "ordType":"limit",    "px":"2.15",    "sz":"2"}`
 
 func TestPlaceOrder(t *testing.T) {
 	t.Parallel()
@@ -523,11 +523,11 @@ func TestPlaceOrder(t *testing.T) {
 	if _, err = ok.PlaceOrder(context.Background(), &PlaceOrderRequestParam{
 		InstrumentID: "BTC-USDC",
 		TradeMode:    "cross",
-		Side:         "sell",
+		Side:         "Buy",
 		OrderType:    "limit",
 		Amount:       2.6,
 		Price:        2.1,
-	}, asset.Margin); err != nil && strings.Contains(err.Error(), "Parameter side  error") {
+	}, asset.Margin); err != nil && strings.Contains(err.Error(), "Operation is not supported under the current account mode") {
 		t.Skip(err)
 	} else if err != nil {
 		t.Error("Okx PlaceOrder() error", err)
@@ -547,7 +547,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 		t.SkipNow()
 	}
 	if _, err = ok.PlaceMultipleOrders(context.Background(),
-		params); err != nil && strings.Contains(err.Error(), "Parameter side  error") {
+		params); err != nil && strings.Contains(err.Error(), "Insufficient USDT balance in account") {
 		t.Skip(err)
 	} else if err != nil {
 		t.Error("Okx PlaceMultipleOrders() error", err)
@@ -2360,8 +2360,8 @@ func TestGetGridAlgoOrderPositions(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := ok.GetGridAlgoOrderPositions(context.Background(), "", ""); err != nil && !errors.Is(err, errMissingAlgoOrderType) {
-		t.Errorf("Okx GetGridAlgoOrderPositions() expecting %v, but found %v", errMissingAlgoOrderType, err)
+	if _, err := ok.GetGridAlgoOrderPositions(context.Background(), "", ""); err != nil && !errors.Is(err, errInvalidAlgoOrderType) {
+		t.Errorf("Okx GetGridAlgoOrderPositions() expecting %v, but found %v", errInvalidAlgoOrderType, err)
 	}
 	if _, err := ok.GetGridAlgoOrderPositions(context.Background(), "contract_grid", ""); err != nil && !errors.Is(err, errMissingAlgoOrderID) {
 		t.Errorf("Okx GetGridAlgoOrderPositions() expecting %v, but found %v", errMissingAlgoOrderID, err)
@@ -2679,7 +2679,7 @@ func TestSubmitOrder(t *testing.T) {
 	_, err = ok.SubmitOrder(context.Background(), orderSubmission)
 	if err != nil && strings.Contains(err.Error(), "Parameter side  error") {
 		t.Skip(err)
-	} else if err != nil {
+	} else if err != nil && !strings.Contains(err.Error(), "Insufficient BTC balance in account") {
 		t.Error("Okx SubmitOrder() error", err)
 	}
 }
@@ -3522,7 +3522,7 @@ func TestWsAccountSubscription(t *testing.T) {
 	}
 }
 
-var placeOrderJSON = `{	"id": "1512",	"op": "order",	"args": [	  {		"side": "buy",		"instId": "BTC-USDT",		"tdMode": "isolated",		"ordType": "market",		"sz": "100"	  }	]}`
+var placeOrderJSON = `{	"id": "1512",	"op": "order",	"args": [	  {"instId":"BTC-USDT",    "tdMode":"cash",    "clOrdId":"b15",    "side":"buy",    "ordType":"limit",    "px":"2.15",    "sz":"2"}	]}`
 
 func TestWsPlaceOrder(t *testing.T) {
 	t.Parallel()
