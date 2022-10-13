@@ -261,7 +261,7 @@ func stopAllTasks(c *cli.Context) error {
 
 var clearTaskCommand = &cli.Command{
 	Name:      "cleartask",
-	Usage:     "clears/deletes a strategy loaded into the server - if it is not taskning",
+	Usage:     "clears/deletes a strategy loaded into the server - if it is not running",
 	ArgsUsage: "<id>",
 	Action:    clearTask,
 	Flags: []cli.Flag{
@@ -308,7 +308,7 @@ func clearTask(c *cli.Context) error {
 
 var clearAllTasksCommand = &cli.Command{
 	Name:   "clearalltasks",
-	Usage:  "clears all strategies loaded into the server. Only tasks not actively taskning will be cleared",
+	Usage:  "clears all strategies loaded into the server. Only tasks not actively running will be cleared",
 	Action: clearAllTasks,
 }
 

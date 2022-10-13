@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -227,18 +226,7 @@ func (d *dataChecker) HasShutdown() <-chan bool {
 
 // Reset clears all stored data
 func (d *dataChecker) Reset() {
-	if d == nil {
-		return
-	}
-	d.m.Lock()
-	defer d.m.Unlock()
-	d.dataCheckInterval = 0
-	d.eventTimeout = 0
-	d.exchangeManager = nil
-	d.sourcesToCheck = nil
-	d.exchangeManager = nil
-	d.verboseDataCheck = false
-	d.wg = sync.WaitGroup{}
+	*d = dataChecker{}
 }
 
 // AppendDataSource stores params to allow the datachecker to fetch and append live data

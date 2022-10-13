@@ -33,10 +33,9 @@ func Setup(sh SizeHandler, r risk.Handler, riskFreeRate decimal.Decimal) (*Portf
 
 // Reset returns the portfolio manager to its default state
 func (p *Portfolio) Reset() {
-	if p == nil {
-		return
+	*p = Portfolio{
+		exchangeAssetPairSettings: make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings),
 	}
-	p.exchangeAssetPairSettings = nil
 }
 
 // SetupCurrencySettingsMap ensures a map is created and no panics happen

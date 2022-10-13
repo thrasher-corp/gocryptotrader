@@ -413,6 +413,11 @@ func TestAppendResults(t *testing.T) {
 	if len(hello.stream) != 1 {
 		t.Errorf("received '%v' expected '%v'", len(hello.stream), 1)
 	}
+
+	hello.AppendStream()
+	if len(hello.stream) != 1 {
+		t.Errorf("received '%v' expected '%v'", len(hello.stream), 1)
+	}
 }
 
 func TestEqualSource(t *testing.T) {

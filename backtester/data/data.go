@@ -1,6 +1,7 @@
 package data
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -23,16 +24,25 @@ func (h *HandlerPerCurrency) SetDataForCurrency(e string, a asset.Item, p curren
 		h.Setup()
 	}
 	e = strings.ToLower(e)
-	if h.data[e] == nil {
-		h.data[e] = make(map[asset.Item]map[*currency.Item]map[*currency.Item]Handler)
+	m1, ok := h.data[e]
+	if !ok {
+		m1 = make(map[asset.Item]map[*currency.Item]map[*currency.Item]Handler)
+		h.data[e] = m1
 	}
-	if h.data[e][a] == nil {
-		h.data[e][a] = make(map[*currency.Item]map[*currency.Item]Handler)
+
+	m2, ok := m1[a]
+	if !ok {
+		m2 = make(map[*currency.Item]map[*currency.Item]Handler)
+		m1[a] = m2
 	}
-	if h.data[e][a][p.Base.Item] == nil {
-		h.data[e][a][p.Base.Item] = make(map[*currency.Item]Handler)
+
+	m3, ok := m2[p.Base.Item]
+	if !ok {
+		m3 = make(map[*currency.Item]Handler)
+		m2[p.Base.Item] = m3
 	}
-	h.data[e][a][p.Base.Item][p.Quote.Item] = k
+
+	m3[p.Quote.Item] = k
 }
 
 // GetAllData returns all set data in the data map
@@ -50,27 +60,20 @@ func (h *HandlerPerCurrency) GetDataForCurrency(ev common.Event) (Handler, error
 	p := ev.Pair()
 	handler, ok := h.data[exch][a][p.Base.Item][p.Quote.Item]
 	if !ok {
-		return nil, fmt.Errorf("%s %s %s %w", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), ErrHandlerNotFound)
+		return nil, fmt.Errorf("%s %s %s %w", exch, a, p, ErrHandlerNotFound)
 	}
 	return handler, nil
 }
 
 // Reset returns the struct to defaults
 func (h *HandlerPerCurrency) Reset() {
-	if h == nil {
-		return
-	}
-	h.data = nil
+	hi := &HandlerPerCurrency{data: make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]Handler)}
+	*h = *hi
 }
 
 // Reset loaded data to blank state
 func (b *Base) Reset() {
-	if b == nil {
-		return
-	}
-	b.latest = nil
-	b.offset = 0
-	b.stream = nil
+	*b = Base{}
 }
 
 // GetStream will return entire data list
@@ -85,33 +88,46 @@ func (b *Base) Offset() int64 {
 
 // SetStream sets the data stream for candle analysis
 func (b *Base) SetStream(s []Event) {
-	b.stream = s
+	b.stream = make([]Event, len(s))
 	// due to the Next() function, we cannot take
 	// stream offsets as is, and we re-set them
-	for i := range b.stream {
+	for i := range s {
+		b.stream[i] = s[i]
 		b.stream[i].SetOffset(int64(i + 1))
 	}
 }
 
+var errNothingToAdd = errors.New("passed in empty void")
+var errInvalidEventSupplied = errors.New("invalid event supplied")
+
 // AppendStream appends new datas onto the stream, however, will not
 // add duplicates. Used for live analysis
-func (b *Base) AppendStream(s ...Event) {
+func (b *Base) AppendStream(s ...Event) error {
+	if len(s) == 0 {
+		return errNothingToAdd
+	}
+	updatedStream := make([]Event, 0, len(s))
 candles:
 	for x := range s {
-		if s[x] == nil || !b.equalSource(s[x]) {
-			continue
+		if !b.equalSource(s[x]) {
+			return errInvalidEventSupplied
 		}
 		for y := range b.stream {
 			if s[x].GetTime().Equal(b.stream[y].GetTime()) {
 				continue candles
 			}
 		}
-		b.stream = append(b.stream, s[x])
+		updatedStream = append(updatedStream, s[x])
 	}
+	if len(updatedStream) == 0 {
+		return nil
+	}
+	b.stream = append(b.stream, updatedStream...)
+	b.SortStream()
 	for i := range b.stream {
 		b.stream[i].SetOffset(int64(i + 1))
 	}
-	b.SortStream()
+	return nil
 }
 
 // equalSource verifies that incoming data matches

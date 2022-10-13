@@ -24,9 +24,6 @@ import (
 
 // Reset returns the exchange to initial settings
 func (e *Exchange) Reset() {
-	if e == nil {
-		return
-	}
 	*e = Exchange{}
 }
 

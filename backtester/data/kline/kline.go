@@ -1,6 +1,8 @@
 package kline
 
 import (
+	"fmt"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -64,26 +66,26 @@ func (d *DataFromKline) Load() error {
 }
 
 // AppendResults adds a candle item to the data stream and sorts it to ensure it is all in order
-func (d *DataFromKline) AppendResults(ki *gctkline.Item) {
+func (d *DataFromKline) AppendResults(ki *gctkline.Item) error {
 	if ki == nil {
-		return
+		return fmt.Errorf("%w kline item", gctcommon.ErrNilPointer)
 	}
 	if !d.Item.EqualSource(ki) {
-		return
+		return fmt.Errorf("%w does not match", errNoCandleData)
 	}
 	var gctCandles []gctkline.Candle
-	streamerino := d.Base.GetStream()
+	stream := d.Base.GetStream()
 candleLoop:
 	for x := range ki.Candles {
-		for y := range streamerino {
-			if streamerino[y].GetTime().Equal(ki.Candles[x].Time) {
+		for y := range stream {
+			if stream[y].GetTime().Equal(ki.Candles[x].Time) {
 				continue candleLoop
 			}
 		}
 		gctCandles = append(gctCandles, ki.Candles[x])
 	}
 	if len(gctCandles) == 0 {
-		return
+		return nil
 	}
 	klineData := make([]data.Event, len(gctCandles))
 	for i := range gctCandles {
@@ -105,7 +107,10 @@ candleLoop:
 		}
 		klineData[i] = newKline
 	}
-	d.AppendStream(klineData...)
+	err := d.AppendStream(klineData...)
+	if err != nil {
+		return err
+	}
 
 	d.Item.RemoveDuplicateCandlesByTime()
 	d.Item.SortCandlesByTimestamp(false)
@@ -114,6 +119,7 @@ candleLoop:
 		// live data does not need this
 		d.RangeHolder.SetHasDataFromCandles(d.Item.Candles)
 	}
+	return nil
 }
 
 // StreamOpen returns all Open prices from the beginning until the current iteration

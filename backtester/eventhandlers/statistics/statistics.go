@@ -21,10 +21,9 @@ import (
 
 // Reset returns the struct to defaults
 func (s *Statistic) Reset() {
-	if s == nil {
-		return
+	*s = Statistic{
+		ExchangeAssetPairStatistics: make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*CurrencyPairStatistic),
 	}
-	*s = Statistic{}
 }
 
 // SetEventForOffset sets up the big map for to store important data at each time interval

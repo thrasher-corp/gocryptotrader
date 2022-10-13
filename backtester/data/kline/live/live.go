@@ -3,6 +3,7 @@ package live
 import (
 	"context"
 	"fmt"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"strings"
 	"time"
 
@@ -23,10 +24,8 @@ func LoadData(ctx context.Context, timeToRetrieve time.Time, exch exchange.IBotE
 	}
 	var candles kline.Item
 	var err error
-	var b *exchange.Base
 	if verbose {
-		b = exch.GetBase()
-		b.Verbose = verbose
+		ctx = request.WithVerbose(ctx)
 	}
 	switch dataType {
 	case common.DataCandle:
@@ -75,9 +74,6 @@ func LoadData(ctx context.Context, timeToRetrieve time.Time, exch exchange.IBotE
 		}
 	default:
 		return nil, fmt.Errorf("could not retrieve live data for %v %v %v, %w: '%v'", exch.GetName(), a, fPair, common.ErrInvalidDataType, dataType)
-	}
-	if verbose && b != nil {
-		b.Verbose = false
 	}
 	candles.Exchange = strings.ToLower(exch.GetName())
 	candles.UnderlyingPair = underlyingPair

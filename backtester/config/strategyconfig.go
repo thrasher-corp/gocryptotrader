@@ -18,9 +18,8 @@ import (
 
 // ReadStrategyConfigFromFile will take a config from a path
 func ReadStrategyConfigFromFile(path string) (*Config, error) {
-	wd, _ := os.Getwd()
 	if !file.Exists(path) {
-		return nil, fmt.Errorf("%w %v %v", common.ErrFileNotFound, path, wd)
+		return nil, fmt.Errorf("%w %v", common.ErrFileNotFound, path)
 	}
 
 	data, err := os.ReadFile(path)
@@ -36,7 +35,7 @@ func ReadStrategyConfigFromFile(path string) (*Config, error) {
 // Validate checks all config settings
 func (c *Config) Validate() error {
 	if c == nil {
-		return fmt.Errorf("%w nil config", gctcommon.ErrNilPointer)
+		return fmt.Errorf("%w config", gctcommon.ErrNilPointer)
 	}
 	err := c.validateDate()
 	if err != nil {
@@ -311,7 +310,7 @@ func (c *Config) PrintSetting() {
 		log.Infof(common.Config, "Data check timer: %v", c.DataSettings.LiveData.DataCheckTimer)
 		log.Infof(common.Config, "New event timeout: %v", c.DataSettings.LiveData.NewEventTimeout)
 		for i := range c.DataSettings.LiveData.ExchangeCredentials {
-			log.Infof(common.Config, "%s credentials: %s", c.DataSettings.LiveData.ExchangeCredentials[i].Exchange, c.DataSettings.LiveData.ExchangeCredentials[i].Keys.String())
+			log.Infof(common.Config, "%s credentials: %s", c.DataSettings.LiveData.ExchangeCredentials[i].Exchange, c.DataSettings.LiveData.ExchangeCredentials[i].Keys)
 		}
 	}
 	if c.DataSettings.APIData != nil {

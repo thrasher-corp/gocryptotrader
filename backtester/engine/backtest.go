@@ -30,16 +30,17 @@ import (
 
 // Reset BackTest values to default
 func (bt *BackTest) Reset() {
-	if bt == nil {
-		return
+	if bt.orderManager != nil {
+		err := bt.orderManager.Stop()
+		if err != nil {
+			log.Error(common.Backtester, err)
+		}
 	}
-	err := bt.orderManager.Stop()
-	if err != nil {
-		log.Error(common.Backtester, err)
-	}
-	err = bt.databaseManager.Stop()
-	if err != nil {
-		log.Error(common.Backtester, err)
+	if bt.databaseManager != nil {
+		err := bt.databaseManager.Stop()
+		if err != nil {
+			log.Error(common.Backtester, err)
+		}
 	}
 	bt.EventQueue.Reset()
 	bt.DataHolder.Reset()

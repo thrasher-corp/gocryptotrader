@@ -198,7 +198,7 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 		return nil, fmt.Errorf("%w task manager", gctcommon.ErrNilPointer)
 	}
 	if request == nil {
-		return nil, fmt.Errorf("%w nil request", gctcommon.ErrNilPointer)
+		return nil, fmt.Errorf("%w request", gctcommon.ErrNilPointer)
 	}
 	if request.DoNotRunImmediately && request.DoNotStore {
 		return nil, fmt.Errorf("%w cannot manage a task with both dnr and dns", errCannotHandleRequest)
@@ -262,7 +262,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		return nil, fmt.Errorf("%w task manager", gctcommon.ErrNilPointer)
 	}
 	if request == nil || request.Config == nil {
-		return nil, fmt.Errorf("%w nil request", gctcommon.ErrNilPointer)
+		return nil, fmt.Errorf("%w request", gctcommon.ErrNilPointer)
 	}
 	if request.DoNotRunImmediately && request.DoNotStore {
 		return nil, fmt.Errorf("%w cannot manage a task with both dnr and dns", errCannotHandleRequest)
@@ -735,7 +735,7 @@ func (s *GRPCServer) StartAllTasks(_ context.Context, _ *btrpc.StartAllTasksRequ
 	}, nil
 }
 
-// ClearTask removes a task from memory, but only if it is not taskning
+// ClearTask removes a task from memory, but only if it is not running
 func (s *GRPCServer) ClearTask(_ context.Context, req *btrpc.ClearTaskRequest) (*btrpc.ClearTaskResponse, error) {
 	if s.manager == nil {
 		return nil, fmt.Errorf("%w task manager", gctcommon.ErrNilPointer)
@@ -760,7 +760,7 @@ func (s *GRPCServer) ClearTask(_ context.Context, req *btrpc.ClearTaskRequest) (
 	}, nil
 }
 
-// ClearAllTasks removes all tasks from memory, but only if they are not taskning
+// ClearAllTasks removes all tasks from memory, but only if they are not running
 func (s *GRPCServer) ClearAllTasks(_ context.Context, _ *btrpc.ClearAllTasksRequest) (*btrpc.ClearAllTasksResponse, error) {
 	if s.manager == nil {
 		return nil, fmt.Errorf("%w task manager", gctcommon.ErrNilPointer)
