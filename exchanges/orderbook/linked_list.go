@@ -16,7 +16,7 @@ var (
 	errCollisionDetected               = errors.New("cannot insert update, collision detected")
 	errAmountCannotBeLessOrEqualToZero = errors.New("amount cannot be less than or equal to zero")
 	errInvalidNominalSlippage          = errors.New("invalid slippage amount, its value must be greater than or equal to zero")
-	errInvalidImpactSlippage           = errors.New("invalid slippage amount must be greater than zero")
+	errInvalidImpactSlippage           = errors.New("invalid slippage amount, its value must be greater than zero")
 	errInvalidSlippageCannotExceed100  = errors.New("invalid slippage cannot exceed 100%")
 	errBaseAmountInvalid               = errors.New("invalid base amount")
 	errInvalidReferencePrice           = errors.New("invalid reference price")
