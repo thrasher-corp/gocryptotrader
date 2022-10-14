@@ -569,6 +569,7 @@ func (w *Websocket) trafficMonitor() {
 				}
 				trafficTimer.Stop()
 				w.Wg.Done() // without this the w.Shutdown() call below will deadlock
+				w.setTrafficMonitorRunning(false)
 				if !w.IsConnecting() && w.IsConnected() {
 					err := w.Shutdown()
 					if err != nil {
@@ -577,7 +578,7 @@ func (w *Websocket) trafficMonitor() {
 							w.exchangeName, err)
 					}
 				}
-				w.setTrafficMonitorRunning(false)
+
 				return
 			}
 
