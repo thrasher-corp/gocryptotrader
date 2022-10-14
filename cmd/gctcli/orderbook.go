@@ -54,7 +54,7 @@ var orderbookCommand = &cli.Command{
 
 var nominal = &cli.Command{
 	Name:      "nominal",
-	Usage:     "simulates a buy or sell based off the percentage between the reference price and the average order cost.",
+	Usage:     "simulates a buy or sell based off the percentage between the reference price and the average order cost",
 	ArgsUsage: "<exchange> <pair> <asset> <percent>",
 	Action:    getNominal,
 	Flags: append(orderbookCommonFlags, &cli.Float64Flag{
@@ -140,7 +140,7 @@ func getNominal(c *cli.Context) error {
 
 var impact = &cli.Command{
 	Name:      "impact",
-	Usage:     "simulates a buy or sell based off the reference price and the orderbook impact slippage.",
+	Usage:     "simulates a buy or sell based off the reference price and the orderbook impact slippage",
 	ArgsUsage: "<exchange> <pair> <asset> <percent>",
 	Action:    getImpact,
 	Flags: append(orderbookCommonFlags, &cli.Float64Flag{
