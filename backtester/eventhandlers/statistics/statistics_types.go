@@ -41,7 +41,8 @@ type Statistic struct {
 	EndDate                     time.Time                                                          `json:"end-date"`
 	CandleInterval              gctkline.Interval                                                  `json:"candle-interval"`
 	RiskFreeRate                decimal.Decimal                                                    `json:"risk-free-rate"`
-	ExchangeAssetPairStatistics map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic `json:"exchange-asset-pair-statistics"`
+	ExchangeAssetPairStatistics map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic `json:"-"`
+	CurrencyStatistics          []*CurrencyPairStatistic                                           `json:"currency-statistics"`
 	TotalBuyOrders              int64                                                              `json:"total-buy-orders"`
 	TotalLongOrders             int64                                                              `json:"total-long-orders"`
 	TotalShortOrders            int64                                                              `json:"total-short-orders"`
@@ -164,11 +165,11 @@ type CurrencyPairStatistic struct {
 	UnrealisedPNL                decimal.Decimal `json:"unrealised-pnl"`
 	RealisedPNL                  decimal.Decimal `json:"realised-pnl"`
 	CompoundAnnualGrowthRate     decimal.Decimal `json:"compound-annual-growth-rate"`
-	TotalAssetValue              decimal.Decimal
-	TotalFees                    decimal.Decimal
-	TotalValueLostToVolumeSizing decimal.Decimal
-	TotalValueLostToSlippage     decimal.Decimal
-	TotalValueLost               decimal.Decimal
+	TotalAssetValue              decimal.Decimal `json:"total-asset-value"`
+	TotalFees                    decimal.Decimal `json:"total-fees"`
+	TotalValueLostToVolumeSizing decimal.Decimal `json:"total-value-lost-to-volume-sizing"`
+	TotalValueLostToSlippage     decimal.Decimal `json:"total-value-lost-to-slippage"`
+	TotalValueLost               decimal.Decimal `json:"total-value-lost"`
 
 	Events []DataAtOffset `json:"-"`
 
@@ -194,7 +195,7 @@ type Swing struct {
 	Highest          ValueAtTime     `json:"highest"`
 	Lowest           ValueAtTime     `json:"lowest"`
 	DrawdownPercent  decimal.Decimal `json:"drawdown"`
-	IntervalDuration int64
+	IntervalDuration int64           `json:"interval-duration"`
 }
 
 // ValueAtTime is an individual iteration of price at a time
@@ -211,55 +212,55 @@ type relatedCurrencyPairStatistics struct {
 
 // FundingStatistics stores all funding related statistics
 type FundingStatistics struct {
-	Report             *funding.Report
-	Items              []FundingItemStatistics
-	TotalUSDStatistics *TotalFundingStatistics
+	Report             *funding.Report         `json:"-"`
+	Items              []FundingItemStatistics `json:"funding-item-statistics"`
+	TotalUSDStatistics *TotalFundingStatistics `json:"total-usd-statistics"`
 }
 
 // FundingItemStatistics holds statistics for funding items
 type FundingItemStatistics struct {
-	ReportItem *funding.ReportItem
+	ReportItem *funding.ReportItem `json:"-"`
 	// USD stats
-	StartingClosePrice       ValueAtTime
-	EndingClosePrice         ValueAtTime
-	LowestClosePrice         ValueAtTime
-	HighestClosePrice        ValueAtTime
-	MarketMovement           decimal.Decimal
-	StrategyMovement         decimal.Decimal
-	DidStrategyBeatTheMarket bool
-	RiskFreeRate             decimal.Decimal
-	CompoundAnnualGrowthRate decimal.Decimal
-	BuyOrders                int64
-	SellOrders               int64
-	TotalOrders              int64
-	MaxDrawdown              Swing
-	HighestCommittedFunds    ValueAtTime
+	StartingClosePrice       ValueAtTime     `json:"starting-close-price"`
+	EndingClosePrice         ValueAtTime     `json:"ending-close-price"`
+	LowestClosePrice         ValueAtTime     `json:"lowest-close-price"`
+	HighestClosePrice        ValueAtTime     `json:"highest-close-price"`
+	MarketMovement           decimal.Decimal `json:"market-movement"`
+	StrategyMovement         decimal.Decimal `json:"strategy-movement"`
+	DidStrategyBeatTheMarket bool            `json:"did-strategy-beat-the-market"`
+	RiskFreeRate             decimal.Decimal `json:"risk-free-rate"`
+	CompoundAnnualGrowthRate decimal.Decimal `json:"compound-annual-growth-rate"`
+	BuyOrders                int64           `json:"buy-orders"`
+	SellOrders               int64           `json:"sell-orders"`
+	TotalOrders              int64           `json:"total-orders"`
+	MaxDrawdown              Swing           `json:"max-drawdown"`
+	HighestCommittedFunds    ValueAtTime     `json:"highest-committed-funds"`
 	// CollateralPair stats
-	IsCollateral      bool
-	InitialCollateral ValueAtTime
-	FinalCollateral   ValueAtTime
-	HighestCollateral ValueAtTime
-	LowestCollateral  ValueAtTime
+	IsCollateral      bool        `json:"is-collateral"`
+	InitialCollateral ValueAtTime `json:"initial-collateral"`
+	FinalCollateral   ValueAtTime `json:"final-collateral"`
+	HighestCollateral ValueAtTime `json:"highest-collateral"`
+	LowestCollateral  ValueAtTime `json:"lowest-collateral"`
 	// Contracts
-	LowestHoldings  ValueAtTime
-	HighestHoldings ValueAtTime
-	InitialHoldings ValueAtTime
-	FinalHoldings   ValueAtTime
+	LowestHoldings  ValueAtTime `json:"lowest-holdings"`
+	HighestHoldings ValueAtTime `json:"highest-holdings"`
+	InitialHoldings ValueAtTime `json:"initial-holdings"`
+	FinalHoldings   ValueAtTime `json:"final-holdings"`
 }
 
 // TotalFundingStatistics holds values for overall statistics for funding items
 type TotalFundingStatistics struct {
-	HoldingValues            []ValueAtTime
-	HighestHoldingValue      ValueAtTime
-	LowestHoldingValue       ValueAtTime
-	BenchmarkMarketMovement  decimal.Decimal
-	StrategyMovement         decimal.Decimal
-	RiskFreeRate             decimal.Decimal
-	CompoundAnnualGrowthRate decimal.Decimal
-	MaxDrawdown              Swing
-	GeometricRatios          *Ratios
-	ArithmeticRatios         *Ratios
-	DidStrategyBeatTheMarket bool
-	DidStrategyMakeProfit    bool
-	HoldingValueDifference   decimal.Decimal
+	HoldingValues            []ValueAtTime   `json:"-"`
+	HighestHoldingValue      ValueAtTime     `json:"highest-holding-value"`
+	LowestHoldingValue       ValueAtTime     `json:"lowest-holding-value"`
+	BenchmarkMarketMovement  decimal.Decimal `json:"benchmark-market-movement"`
+	StrategyMovement         decimal.Decimal `json:"strategy-movement"`
+	RiskFreeRate             decimal.Decimal `json:"risk-free-rate"`
+	CompoundAnnualGrowthRate decimal.Decimal `json:"compound-annual-growth-rate"`
+	MaxDrawdown              Swing           `json:"max-drawdown"`
+	GeometricRatios          *Ratios         `json:"geometric-ratios"`
+	ArithmeticRatios         *Ratios         `json:"arithmetic-ratios"`
+	DidStrategyBeatTheMarket bool            `json:"did-strategy-beat-the-market"`
+	DidStrategyMakeProfit    bool            `json:"did-strategy-make-profit"`
+	HoldingValueDifference   decimal.Decimal `json:"holding-value-difference"`
 }

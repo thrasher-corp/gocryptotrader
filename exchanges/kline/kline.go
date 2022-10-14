@@ -415,7 +415,7 @@ func CalculateCandleDateRanges(start, end time.Time, interval Interval, limit ui
 		End:   CreateIntervalTime(end),
 	}
 	var intervalsInWholePeriod []IntervalData
-	for i := start; !i.After(end) && !i.Equal(end); i = i.Add(interval.Duration()) {
+	for i := start; i.Before(end) && !i.Equal(end); i = i.Add(interval.Duration()) {
 		intervalsInWholePeriod = append(intervalsInWholePeriod, IntervalData{
 			Start: CreateIntervalTime(i.Round(interval.Duration())),
 			End:   CreateIntervalTime(i.Round(interval.Duration()).Add(interval.Duration())),
