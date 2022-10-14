@@ -17,7 +17,7 @@ var (
 	errAmountCannotBeLessOrEqualToZero = errors.New("amount cannot be less than or equal to zero")
 	errInvalidNominalSlippage          = errors.New("invalid slippage amount, its value must be greater than or equal to zero")
 	errInvalidImpactSlippage           = errors.New("invalid slippage amount, its value must be greater than zero")
-	errInvalidSlippageCannotExceed100  = errors.New("invalid slippage cannot exceed 100%")
+	errInvalidSlippageCannotExceed100  = errors.New("invalid slippage amount, its value cannot exceed 100%")
 	errBaseAmountInvalid               = errors.New("invalid base amount")
 	errInvalidReferencePrice           = errors.New("invalid reference price")
 	errQuoteAmountInvalid              = errors.New("quote amount invalid")
