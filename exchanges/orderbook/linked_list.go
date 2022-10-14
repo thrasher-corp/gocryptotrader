@@ -13,7 +13,7 @@ const FullLiquidityExhaustedPercentage = -100
 
 var (
 	errIDCannotBeMatched               = errors.New("cannot match ID on linked list")
-	errCollisionDetected               = errors.New("cannot insert update collision detected")
+	errCollisionDetected               = errors.New("cannot insert update, collision detected")
 	errAmountCannotBeLessOrEqualToZero = errors.New("amount cannot be less or equal to zero")
 	errInvalidNominalSlippage          = errors.New("invalid slippage amount, its value must be greater than or equal to zero")
 	errInvalidImpactSlippage           = errors.New("invalid slippage amount must be greater than zero")
