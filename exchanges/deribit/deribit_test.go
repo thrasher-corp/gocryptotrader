@@ -2,9 +2,11 @@ package deribit
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -17,9 +19,10 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
-	canManipulateRealOrders = false
+	apiKey    = ""
+	apiSecret = ""
+
+	canManipulateRealOrders = true
 	btcInstrument           = "BTC-30JUN23" //NOTE: This needs to be updated periodically
 	btcPerpInstrument       = "BTC-PERPETUAL"
 	btcCurrency             = "BTC"
@@ -62,11 +65,15 @@ func areTestAPIKeysSet() bool {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	_, err := d.FetchTradablePairs(asset.Futures)
+	results, err := d.FetchTradablePairs(context.Background(), asset.Futures)
 	if err != nil {
 		t.Error(err)
+	} else {
+		for x := range results {
+			print(results[x] + ",")
+		}
 	}
-	_, err = d.FetchTradablePairs(asset.Spot)
+	_, err = d.FetchTradablePairs(context.Background(), asset.Spot)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("expected: %v, received %v", asset.ErrNotSupported, err)
 	}
@@ -78,11 +85,11 @@ func TestUpdateTicker(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.UpdateTicker(cp, asset.Futures)
+	_, err = d.UpdateTicker(context.Background(), cp, asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.UpdateTicker(currency.Pair{}, asset.Spot)
+	_, err = d.UpdateTicker(context.Background(), currency.Pair{}, asset.Spot)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("expected: %v, received %v", asset.ErrNotSupported, err)
 	}
@@ -98,11 +105,11 @@ func TestUpdateOrderbook(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.UpdateOrderbook(fmtPair, asset.Futures)
+	_, err = d.UpdateOrderbook(context.Background(), fmtPair, asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.UpdateOrderbook(fmtPair, asset.Spot)
+	_, err = d.UpdateOrderbook(context.Background(), fmtPair, asset.Spot)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("expected: %v, received %v", asset.ErrNotSupported, err)
 	}
@@ -114,11 +121,11 @@ func TestFetchRecentTrades(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.GetRecentTrades(cp, asset.Futures)
+	_, err = d.GetRecentTrades(context.Background(), cp, asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.GetRecentTrades(cp, asset.Spot)
+	_, err = d.GetRecentTrades(context.Background(), cp, asset.Spot)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("expected: %v, received %v", asset.ErrNotSupported, err)
 	}
@@ -131,6 +138,7 @@ func TestGetHistoricTrades(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = d.GetHistoricTrades(
+		context.Background(),
 		cp,
 		asset.Futures,
 		time.Now().Add(-time.Minute*10),
@@ -147,7 +155,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.GetHistoricCandles(cp,
+	_, err = d.GetHistoricCandles(context.Background(), cp,
 		asset.Futures,
 		time.Now().Add(-time.Hour),
 		time.Now(),
@@ -184,15 +192,21 @@ func TestSubmitOrder(t *testing.T) {
 
 func TestGetMarkPriceHistory(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetMarkPriceHistory(btcPerpInstrument, time.Now().Add(-24*time.Hour), time.Now())
+	_, err := d.GetMarkPriceHistory(context.Background(), btcPerpInstrument, time.Now().Add(-24*time.Hour), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
 }
 
+var bookSummaryByCurrencyJSON = `{	"volume_usd": 0,	"volume": 0,	"quote_currency": "USD",	"price_change": -11.1896349,	"open_interest": 0,	"mid_price": null,	"mark_price": 3579.73,	"low": null,	"last": null,	"instrument_name": "BTC-22FEB19",	"high": null,	"estimated_delivery_price": 3579.73,	"creation_timestamp": 1550230036440,	"bid_price": null,	"base_currency": "BTC",	"ask_price": null}`
+
 func TestGetBookSummaryByCurrency(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetBookSummaryByCurrency(btcCurrency, "")
+	var response BookSummaryData
+	if err := json.Unmarshal([]byte(bookSummaryByCurrencyJSON), &response); err != nil {
+		t.Error(err)
+	}
+	_, err := d.GetBookSummaryByCurrency(context.Background(), btcCurrency, "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -200,7 +214,7 @@ func TestGetBookSummaryByCurrency(t *testing.T) {
 
 func TestGetBookSummaryByInstrument(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetBookSummaryByInstrument(btcInstrument)
+	_, err := d.GetBookSummaryByInstrument(context.Background(), btcInstrument)
 	if err != nil {
 		t.Error(err)
 	}
@@ -208,7 +222,7 @@ func TestGetBookSummaryByInstrument(t *testing.T) {
 
 func TestGetContractSize(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetContractSize(btcInstrument)
+	_, err := d.GetContractSize(context.Background(), btcInstrument)
 	if err != nil {
 		t.Error(err)
 	}
@@ -216,7 +230,15 @@ func TestGetContractSize(t *testing.T) {
 
 func TestGetCurrencies(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetCurrencies()
+	_, err := d.GetCurrencies(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetDeliveryPrices(t *testing.T) {
+	t.Parallel()
+	_, err := d.GetDeliveryPrices(context.Background(), "ada_usd", 0, 5)
 	if err != nil {
 		t.Error(err)
 	}
@@ -224,7 +246,7 @@ func TestGetCurrencies(t *testing.T) {
 
 func TestGetFundingChartData(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetFundingChartData(btcPerpInstrument, "8h")
+	_, err := d.GetFundingChartData(context.Background(), btcPerpInstrument, "8h")
 	if err != nil {
 		t.Error(err)
 	}
@@ -232,11 +254,11 @@ func TestGetFundingChartData(t *testing.T) {
 
 func TestGetFundingRateValue(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetFundingRateValue(btcPerpInstrument, time.Now().Add(-time.Hour*8), time.Now())
+	_, err := d.GetFundingRateValue(context.Background(), btcPerpInstrument, time.Now().Add(-time.Hour*8), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.GetFundingRateValue(btcPerpInstrument, time.Now(), time.Now().Add(-time.Hour*8))
+	_, err = d.GetFundingRateValue(context.Background(), btcPerpInstrument, time.Now(), time.Now().Add(-time.Hour*8))
 	if !errors.Is(err, errStartTimeCannotBeAfterEndTime) {
 		t.Errorf("expected: %v, received %v", errStartTimeCannotBeAfterEndTime, err)
 	}
@@ -244,15 +266,22 @@ func TestGetFundingRateValue(t *testing.T) {
 
 func TestGetHistoricalVolatility(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetHistoricalVolatility(btcCurrency)
+	_, err := d.GetHistoricalVolatility(context.Background(), btcCurrency)
 	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetCurrencyIndexPrice(t *testing.T) {
+	t.Parallel()
+	if _, err := d.GetCurrencyIndexPrice(context.Background(), btcCurrency); err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetIndexPrice(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetIndexPrice("btc_usd")
+	_, err := d.GetIndexPrice(context.Background(), "btc_usd")
 	if err != nil {
 		t.Error(err)
 	}
@@ -260,7 +289,7 @@ func TestGetIndexPrice(t *testing.T) {
 
 func TestGetIndexPriceNames(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetIndexPriceNames()
+	_, err := d.GetIndexPriceNames(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -268,7 +297,7 @@ func TestGetIndexPriceNames(t *testing.T) {
 
 func TestGetInstrumentData(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetInstrumentData(btcInstrument)
+	_, err := d.GetInstrumentData(context.Background(), btcInstrument)
 	if err != nil {
 		t.Error(err)
 	}
@@ -276,11 +305,11 @@ func TestGetInstrumentData(t *testing.T) {
 
 func TestGetInstrumentsData(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetInstrumentsData(btcCurrency, "", false)
+	_, err := d.GetInstrumentsData(context.Background(), btcCurrency, "", false)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.GetInstrumentsData(btcCurrency, "option", true)
+	_, err = d.GetInstrumentsData(context.Background(), btcCurrency, "option", true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -288,11 +317,11 @@ func TestGetInstrumentsData(t *testing.T) {
 
 func TestGetLastSettlementsByCurrency(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetLastSettlementsByCurrency(btcCurrency, "", "", 0, time.Time{})
+	_, err := d.GetLastSettlementsByCurrency(context.Background(), btcCurrency, "", "", 0, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.GetLastSettlementsByCurrency(btcCurrency, "delivery", "5", 0, time.Now().Add(-time.Hour))
+	_, err = d.GetLastSettlementsByCurrency(context.Background(), btcCurrency, "delivery", "5", 0, time.Now().Add(-time.Hour))
 	if err != nil {
 		t.Error(err)
 	}
@@ -300,11 +329,11 @@ func TestGetLastSettlementsByCurrency(t *testing.T) {
 
 func TestGetLastSettlementsByInstrument(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetLastSettlementsByInstrument(btcInstrument, "", "", 0, time.Time{})
+	_, err := d.GetLastSettlementsByInstrument(context.Background(), btcInstrument, "", "", 0, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.GetLastSettlementsByInstrument(btcInstrument, "settlement", "5", 0, time.Now().Add(-2*time.Hour))
+	_, err = d.GetLastSettlementsByInstrument(context.Background(), btcInstrument, "settlement", "5", 0, time.Now().Add(-2*time.Hour))
 	if err != nil {
 		t.Error(err)
 	}
@@ -312,11 +341,11 @@ func TestGetLastSettlementsByInstrument(t *testing.T) {
 
 func TestGetLastTradesByCurrency(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetLastTradesByCurrency(btcCurrency, "", "", "", "", 0, false)
+	_, err := d.GetLastTradesByCurrency(context.Background(), btcCurrency, "", "", "", "", 0, false)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.GetLastTradesByCurrency(btcCurrency, "option", "36798", "36799", "asc", 0, true)
+	_, err = d.GetLastTradesByCurrency(context.Background(), btcCurrency, "option", "36798", "36799", "asc", 0, true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -324,12 +353,12 @@ func TestGetLastTradesByCurrency(t *testing.T) {
 
 func TestGetLastTradesByCurrencyAndTime(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetLastTradesByCurrencyAndTime(btcCurrency, "", "", 0, false,
+	_, err := d.GetLastTradesByCurrencyAndTime(context.Background(), btcCurrency, "", "", 0, false,
 		time.Now().Add(-8*time.Hour), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.GetLastTradesByCurrencyAndTime(btcCurrency, "option", "asc", 25, false,
+	_, err = d.GetLastTradesByCurrencyAndTime(context.Background(), btcCurrency, "option", "asc", 25, false,
 		time.Now().Add(-8*time.Hour), time.Now())
 	if err != nil {
 		t.Error(err)
@@ -338,11 +367,11 @@ func TestGetLastTradesByCurrencyAndTime(t *testing.T) {
 
 func TestGetLastTradesByInstrument(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetLastTradesByInstrument(btcInstrument, "", "", "", 0, false)
+	_, err := d.GetLastTradesByInstrument(context.Background(), btcInstrument, "", "", "", 0, false)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.GetLastTradesByInstrument(btcInstrument, "30500", "31500", "desc", 0, true)
+	_, err = d.GetLastTradesByInstrument(context.Background(), btcInstrument, "30500", "31500", "desc", 0, true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -350,12 +379,12 @@ func TestGetLastTradesByInstrument(t *testing.T) {
 
 func TestGetLastTradesByInstrumentAndTime(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetLastTradesByInstrumentAndTime(btcInstrument, "", 0, false,
+	_, err := d.GetLastTradesByInstrumentAndTime(context.Background(), btcInstrument, "", 0, false,
 		time.Now().Add(-8*time.Hour), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.GetLastTradesByInstrumentAndTime(btcInstrument, "asc", 0, false,
+	_, err = d.GetLastTradesByInstrumentAndTime(context.Background(), btcInstrument, "asc", 0, false,
 		time.Now().Add(-8*time.Hour), time.Now())
 	if err != nil {
 		t.Error(err)
@@ -364,7 +393,37 @@ func TestGetLastTradesByInstrumentAndTime(t *testing.T) {
 
 func TestGetOrderbookData(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetOrderbookData(btcInstrument, 0)
+	_, err := d.GetOrderbookData(context.Background(), btcInstrument, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+var orderbookJSON = `{	"timestamp":1550757626706,	"stats":{"volume":93.35589552,"price_change": 0.6913,		"low":3940.75,		"high":3976.25	},	"state":"open",	"settlement_price":3925.85,	"open_interest":45.27600333464605,	"min_price":3932.22,	"max_price":3971.74,	"mark_price":3931.97,	"last_price":3955.75,	"instrument_name":"BTC-PERPETUAL",	"index_price":3910.46,	"funding_8h":0.00455263,	"current_funding":0.00500063,	"change_id":474988,	"bids":[		[			3955.75,			30.0		],		[			3940.75,			102020.0		],		[			3423.0,			42840.0		]	],	"best_bid_price":3955.75,	"best_bid_amount":30.0,	"best_ask_price":0.0,	"best_ask_amount":0.0,	"asks":[	]}`
+
+func TestGetOrderbookByInstrumentID(t *testing.T) {
+	t.Parallel()
+	var response Orderbook
+	err := json.Unmarshal([]byte(orderbookJSON), &response)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetOrderbookByInstrumentID(context.Background(), 12, 50)
+	if err != nil && !strings.Contains(err.Error(), "not_found") {
+		t.Error(err)
+	}
+}
+
+var rfqJSON = `{"traded_volume": 0,	"amount": 10,"side": "buy",	"last_rfq_tstamp": 1634816611595,"instrument_name": "BTC-PERPETUAL"}`
+
+func TestGetRFQ(t *testing.T) {
+	t.Parallel()
+	var response RFQ
+	err := json.Unmarshal([]byte(rfqJSON), &response)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetRFQ(context.Background(), btcCurrency, "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -372,7 +431,7 @@ func TestGetOrderbookData(t *testing.T) {
 
 func TestGetTradeVolumes(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetTradeVolumes(false)
+	_, err := d.GetTradeVolumes(context.Background(), false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -380,7 +439,7 @@ func TestGetTradeVolumes(t *testing.T) {
 
 func TestGetTradingViewChartData(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetTradingViewChartData(btcInstrument, "60", time.Now().Add(-time.Hour), time.Now())
+	_, err := d.GetTradingViewChartData(context.Background(), btcInstrument, "60", time.Now().Add(-time.Hour), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
@@ -388,7 +447,7 @@ func TestGetTradingViewChartData(t *testing.T) {
 
 func TestGetVolatilityIndexData(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetVolatilityIndexData(btcCurrency, "60", time.Now().Add(-time.Hour), time.Now())
+	_, err := d.GetVolatilityIndexData(context.Background(), btcCurrency, "60", time.Now().Add(-time.Hour), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
@@ -396,7 +455,7 @@ func TestGetVolatilityIndexData(t *testing.T) {
 
 func TestGetPublicTicker(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetPublicTicker(btcInstrument)
+	_, err := d.GetPublicTicker(context.Background(), btcInstrument)
 	if err != nil {
 		t.Error(err)
 	}
@@ -523,6 +582,38 @@ func TestSubmitWithdraw(t *testing.T) {
 	}
 }
 
+func TestGetAnnouncements(t *testing.T) {
+	t.Parallel()
+	_, err := d.GetAnnouncements(context.Background(), time.Now(), 5)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPublicPortfolioMargins(t *testing.T) {
+	t.Parallel()
+	info, err := d.GetInstrumentData(context.Background(), "BTC-PERPETUAL")
+	if err != nil {
+		t.Skip(err)
+	}
+	_, err = d.GetPublicPortfolioMargins(context.Background(), btcCurrency, map[string]float64{
+		"BTC-PERPETUAL": info.ContractSize * 2,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAccessLog(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := d.GetAccessLog(context.Background(), 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestChangeAPIKeyName(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
@@ -596,7 +687,7 @@ func TestDisableTFAForSubAccount(t *testing.T) {
 	t.Parallel()
 	// Use with caution will reduce the security of the account
 	_, err := d.DisableTFAForSubAccount(context.Background(), 1)
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), "Method not found") { // this functionality is removed by now.
 		t.Error(err)
 	}
 }
@@ -656,6 +747,16 @@ func TestGetNewAnnouncements(t *testing.T) {
 	}
 }
 
+func TestGetPricatePortfolioMargins(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	t.Parallel()
+	if _, err := d.GetPricatePortfolioMargins(context.Background(), btcCurrency, false, nil); err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetPosition(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
@@ -673,6 +774,17 @@ func TestGetSubAccounts(t *testing.T) {
 	}
 	t.Parallel()
 	_, err := d.GetSubAccounts(context.Background(), false)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSubAccountDetails(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	t.Parallel()
+	_, err := d.GetSubAccountDetails(context.Background(), btcCurrency, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -703,6 +815,17 @@ func TestGetTransactionLog(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = d.GetTransactionLog(context.Background(), btcCurrency, "trade", time.Now().Add(-24*time.Hour), time.Now(), 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUserLocks(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := d.GetUserLocks(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -804,6 +927,24 @@ func TestToggleNotificationsFromSubAccount(t *testing.T) {
 	t.Parallel()
 	_, err := d.ToggleNotificationsFromSubAccount(context.Background(), 1, false)
 	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestTogglePortfolioMargining(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	subaccount, err := d.GetSubAccountDetails(context.Background(), btcCurrency, false)
+	if err != nil {
+		t.Skip(err)
+	}
+	if len(subaccount) == 0 {
+		t.SkipNow()
+	}
+	_, err = d.TogglePortfolioMargining(context.Background(), int64(subaccount[0].UID), false, false)
+	if err != nil && !strings.Contains(err.Error(), "account is already on SM") {
 		t.Error(err)
 	}
 }
@@ -1077,6 +1218,17 @@ func TestResetMMP(t *testing.T) {
 	}
 }
 
+func TestSendRFQ(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	t.Parallel()
+	_, err := d.SendRFQ(context.Background(), "BTC-PERPETUAL", 1000, order.Buy)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestSetMMPConfig(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
@@ -1124,6 +1276,204 @@ func TestSubmitEdit(t *testing.T) {
 		false,
 		false,
 		false)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// Combo Books Endpoints
+
+func TestGetComboIDS(t *testing.T) {
+	t.Parallel()
+	_, err := d.GetComboIDS(context.Background(), btcCurrency, "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetComboDetails(t *testing.T) {
+	t.Parallel()
+	combos, err := d.GetComboIDS(context.Background(), btcCurrency, "")
+	if err != nil {
+		t.Skip(err)
+	}
+	if len(combos) == 0 {
+		t.Skip("no combo instance found for currency BTC")
+	}
+	_, err = d.GetComboDetails(context.Background(), combos[0])
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetCombos(t *testing.T) {
+	t.Parallel()
+	_, err := d.GetCombos(context.Background(), btcCurrency)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCreateCombo(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	_, err := d.CreateCombo(context.Background(), []ComboParam{})
+	if err != nil && !errors.Is(errNoArgumentPassed, err) {
+		t.Errorf("expecting %v, but found %v", errNoArgumentPassed, err)
+	}
+	instruments, err := d.FetchTradablePairs(context.Background(), asset.Futures)
+	if err != nil {
+		t.Skip(err)
+	}
+	if len(instruments) < 2 {
+		t.Skip("no enough instrument found")
+	}
+	_, err = d.CreateCombo(context.Background(), []ComboParam{
+		{
+			InstrumentName: instruments[0],
+			Direction:      "sell",
+		},
+		{
+			InstrumentName: instruments[1],
+			Direction:      "sell",
+			Amount:         1200,
+		},
+	})
+	if err != nil && !errors.Is(errInvalidAmount, err) {
+		t.Errorf("expecting %v, but found %v", errInvalidAmount, err)
+	}
+	_, err = d.CreateCombo(context.Background(), []ComboParam{
+		{
+			InstrumentName: instruments[0],
+			Amount:         123,
+		},
+		{
+			InstrumentName: instruments[1],
+			Direction:      "sell",
+			Amount:         1200,
+		},
+	})
+	if err != nil && !strings.Contains(err.Error(), "invalid direction") {
+		t.Errorf("expecting error message 'invalid direction', but found %v", err)
+	}
+	_, err = d.CreateCombo(context.Background(), []ComboParam{
+		{
+			InstrumentName: instruments[0],
+			Direction:      "buy",
+			Amount:         123,
+		},
+		{
+			InstrumentName: instruments[1],
+			Direction:      "buy",
+			Amount:         1200,
+		},
+	})
+	if err != nil && !strings.Contains(err.Error(), "not_enough_funds") {
+		t.Error(err)
+	}
+}
+
+func TestVerifyBlockTrade(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	info, err := d.GetInstrumentData(context.Background(), "BTC-PERPETUAL")
+	if err != nil {
+		t.Skip(err)
+	}
+	result, err := d.VerifyBlockTrade(context.Background(), time.Now(), "sdjkafdad", "maker", "", []BlockTradeParam{
+		{
+			Price:          0.777 * 25000,
+			InstrumentName: "BTC-PERPETUAL",
+			Direction:      "buy",
+			Amount:         info.MinimumTradeAmount*5 + (200000 - info.MinimumTradeAmount*5) + 10,
+		},
+	})
+	if err != nil && !strings.Contains(err.Error(), "not_enough_funds") {
+		t.Error(err)
+	} else {
+		println(result)
+	}
+}
+
+var blockTradeResponseJSON = `[	{	  "trade_seq":30289730,	  "trade_id":"48079573",	  "timestamp":1590485535978,	  "tick_direction":0,	  "state":"filled",	  "self_trade":false,	  "reduce_only":false,	  "price":8900.0,	  "post_only":false,	  "order_type":"limit",	  "order_id":"4009043192",	  "matching_id":"None",	  "mark_price":8895.19,	  "liquidity":"M",	  "instrument_name":"BTC-PERPETUAL",	  "index_price":8900.45,	  "fee_currency":"BTC",	  "fee":-0.00561798,	  "direction":"sell",	  "block_trade_id":"6165",	  "amount":200000.0	},	{	  "underlying_price":8902.86,	  "trade_seq":1,	  "trade_id":"48079574",	  "timestamp":1590485535979,	  "tick_direction":1,	  "state":"filled",	  "self_trade":false,	  "reduce_only":false,	  "price":0.0133,	  "post_only":false,	  "order_type":"limit",	  "order_id":"4009043194",	  "matching_id":"None",	  "mark_price":0.01831619,	  "liquidity":"M",	  "iv":62.44,	  "instrument_name":"BTC-28MAY20-9000-C",	  "index_price":8900.45,	  "fee_currency":"BTC",	  "fee":0.002,	  "direction":"sell",	  "block_trade_id":"6165",	  "amount":5.0	}]`
+
+func TestExecuteBlockTrade(t *testing.T) {
+	t.Parallel()
+	var response []BlockTradeResponse
+	err := json.Unmarshal([]byte(blockTradeResponseJSON), &response)
+	if err != nil {
+		t.Error(err)
+	}
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	info, err := d.GetInstrumentData(context.Background(), "BTC-PERPETUAL")
+	if err != nil {
+		t.Skip(err)
+	}
+	_, err = d.ExecuteBlockTrade(context.Background(), time.Now(), "sdjkafdad", "maker", "", []BlockTradeParam{
+		{
+			Price:          0.777 * 25000,
+			InstrumentName: "BTC-PERPETUAL",
+			Direction:      "buy",
+			Amount:         info.MinimumTradeAmount*5 + (200000 - info.MinimumTradeAmount*5) + 10,
+		},
+	})
+	if err != nil && !strings.Contains(err.Error(), "not_enough_funds") {
+		t.Error(err)
+	}
+}
+
+func TestGetUserBlocTrade(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := d.GetUserBlocTrade(context.Background(), "12345567")
+	if err != nil && !strings.Contains(err.Error(), "block_trade_not_found") {
+		t.Error(err)
+	}
+}
+
+var blockTradeResponsesJSON = `[	{	  "trade_seq": 4,	  "trade_id": "92462",	  "timestamp": 1565093070164,	  "tick_direction": 2,	  "state": "filled",	  "self_trade": false,	  "price": 0.0151,	  "order_type": "limit",	  "order_id": "343121",	  "matching_id": null,	  "liquidity": "M",	  "iv": 72.38,	  "instrument_name": "BTC-9AUG19-11500-P",	  "index_price": 11758.65,	  "fee_currency": "BTC",	  "fee": 0,	  "direction": "sell",	  "block_trade_id": "66",	  "amount": 2.3	},	{	  "trade_seq": 41,	  "trade_id": "92460",	  "timestamp": 1565093070164,	  "tick_direction": 2,	  "state": "filled",	  "self_trade": false,	  "price": 11753,	  "order_type": "limit",	  "order_id": "343117",	  "matching_id": null,	  "liquidity": "M",	  "instrument_name": "BTC-9AUG19",	  "index_price": 11758.65,	  "fee_currency": "BTC",	  "fee": 0,	  "direction": "sell",	  "block_trade_id": "66",	  "amount": 50	}]`
+
+func TestGetLastBlockTradesbyCurrency(t *testing.T) {
+	t.Parallel()
+	var resp []BlockTradeData
+	err := json.Unmarshal([]byte(blockTradeResponsesJSON), &resp)
+	if err != nil {
+		t.Error(err)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err = d.GetLastBlockTradesbyCurrency(context.Background(), "SOL", "", "", 5)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestMovePositions(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	info, err := d.GetInstrumentData(context.Background(), "BTC-PERPETUAL")
+	if err != nil {
+		t.Skip(err)
+	}
+	_, err = d.MovePositions(context.Background(), btcCurrency, 123, 345, []BlockTradeParam{
+		{
+			Price:          0.777 * 25000,
+			InstrumentName: "BTC-PERPETUAL",
+			Direction:      "buy",
+			Amount:         info.MinimumTradeAmount*5 + (200000 - info.MinimumTradeAmount*5) + 10,
+		},
+	})
 	if err != nil {
 		t.Error(err)
 	}

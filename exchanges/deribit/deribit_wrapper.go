@@ -33,11 +33,12 @@ func (d *Deribit) GetDefaultConfig() (*config.Exchange, error) {
 	exchCfg.Name = d.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = d.BaseCurrencies
-
-	d.SetupDefaults(exchCfg)
-
+	err := d.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
 	if d.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := d.UpdateTradablePairs(true)
+		err := d.UpdateTradablePairs(context.Background(), true)
 		if err != nil {
 			return nil, err
 		}
@@ -115,10 +116,14 @@ func (d *Deribit) SetDefaults() {
 
 	// NOTE: SET THE URLs HERE
 	d.API.Endpoints = d.NewEndpoints()
-	d.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+	err = d.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestFutures: deribitAPIURL,
+		exchange.RestSpot:    deribitTestAPIURL,
 		// exchange.WebsocketSpot: deribitWSAPIURL,
 	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	d.Websocket = stream.New()
 	d.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	d.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -131,14 +136,11 @@ func (d *Deribit) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-
 	if !exch.Enabled {
 		d.SetEnabled(false)
 		return nil
 	}
-
-	d.SetupDefaults(exch)
-	return nil
+	return d.SetupDefaults(exch)
 }
 
 // Start starts the Deribit go routine
@@ -164,7 +166,7 @@ func (d *Deribit) Run() {
 		return
 	}
 
-	err := d.UpdateTradablePairs(false)
+	err := d.UpdateTradablePairs(context.TODO(), false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
@@ -174,30 +176,22 @@ func (d *Deribit) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (d *Deribit) FetchTradablePairs(assetType asset.Item) ([]string, error) {
+func (d *Deribit) FetchTradablePairs(ctx context.Context, assetType asset.Item) ([]string, error) {
 	if !d.SupportsAsset(assetType) {
 		return nil, fmt.Errorf("%s: %w - %s", d.Name, asset.ErrNotSupported, d.Name)
 	}
-	format, err := d.GetPairFormat(assetType, false)
-	if err != nil {
-		return nil, err
-	}
-	currs, err := d.GetCurrencies()
+	currs, err := d.GetCurrencies(ctx)
 	if err != nil {
 		return nil, err
 	}
 	var resp []string
 	for x := range currs {
-		instrumentsData, err := d.GetInstrumentsData(currs[x].Currency, "", false)
+		instrumentsData, err := d.GetInstrumentsData(ctx, currs[x].Currency, "", false)
 		if err != nil {
 			return nil, err
 		}
 		for y := range instrumentsData {
-			curr, err := currency.NewPairFromString(instrumentsData[y].InstrumentName)
-			if err != nil {
-				return nil, err
-			}
-			resp = append(resp, format.Format(curr))
+			resp = append(resp, instrumentsData[y].InstrumentName)
 		}
 	}
 	return resp, nil
@@ -205,11 +199,11 @@ func (d *Deribit) FetchTradablePairs(assetType asset.Item) ([]string, error) {
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (d *Deribit) UpdateTradablePairs(forceUpdate bool) error {
+func (d *Deribit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 	assets := d.GetAssetTypes(false)
 	fmt.Println(assets)
 	for x := range assets {
-		pairs, err := d.FetchTradablePairs(assets[x])
+		pairs, err := d.FetchTradablePairs(ctx, assets[x])
 		if err != nil {
 			return err
 		}
@@ -226,7 +220,7 @@ func (d *Deribit) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (d *Deribit) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (d *Deribit) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	if !d.SupportsAsset(assetType) {
 		return nil, fmt.Errorf("%s: %w - %s", d.Name, asset.ErrNotSupported, assetType)
 	}
@@ -240,7 +234,7 @@ func (d *Deribit) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 		if err != nil {
 			return nil, err
 		}
-		tickerData, err := d.GetPublicTicker(fmtPair.String())
+		tickerData, err := d.GetPublicTicker(ctx, fmtPair.String())
 		if err != nil {
 			return nil, err
 		}
@@ -266,25 +260,25 @@ func (d *Deribit) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (d *Deribit) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (d *Deribit) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(d.Name, p, assetType)
 	if err != nil {
-		return d.UpdateTicker(p, assetType)
+		return d.UpdateTicker(ctx, p, assetType)
 	}
 	return tickerNew, nil
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (d *Deribit) FetchOrderbook(currency currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (d *Deribit) FetchOrderbook(ctx context.Context, currency currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(d.Name, currency, assetType)
 	if err != nil {
-		return d.UpdateOrderbook(currency, assetType)
+		return d.UpdateOrderbook(ctx, currency, assetType)
 	}
 	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (d *Deribit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
 		Exchange:        d.Name,
 		Pair:            p,
@@ -299,7 +293,7 @@ func (d *Deribit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 			return nil, err
 		}
 
-		obData, err := d.GetOrderbookData(fmtPair.String(), 50)
+		obData, err := d.GetOrderbookData(ctx, fmtPair.String(), 50)
 		if err != nil {
 			return nil, err
 		}
@@ -334,7 +328,7 @@ func (d *Deribit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 	resp.Exchange = d.Name
 	switch assetType {
 	case asset.Futures:
-		currencies, err := d.GetCurrencies()
+		currencies, err := d.GetCurrencies(ctx)
 		if err != nil {
 			return resp, err
 		}
@@ -374,7 +368,7 @@ func (d *Deribit) FetchAccountInfo(ctx context.Context, assetType asset.Item) (a
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (d *Deribit) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
-	currencies, err := d.GetCurrencies()
+	currencies, err := d.GetCurrencies(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -419,7 +413,7 @@ func (d *Deribit) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 
 // GetWithdrawalsHistory returns previous withdrawals data
 func (d *Deribit) GetWithdrawalsHistory(ctx context.Context, c currency.Code) ([]exchange.WithdrawalHistory, error) {
-	currencies, err := d.GetCurrencies()
+	currencies, err := d.GetCurrencies(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -448,7 +442,7 @@ func (d *Deribit) GetWithdrawalsHistory(ctx context.Context, c currency.Code) ([
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (d *Deribit) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (d *Deribit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	if !d.SupportsAsset(assetType) {
 		return nil, fmt.Errorf("%s: %w - %s", d.Name, asset.ErrNotSupported, d.Name)
 	}
@@ -456,19 +450,20 @@ func (d *Deribit) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trad
 	if err != nil {
 		return nil, err
 	}
-	currs, err := d.GetCurrencies()
+	currs, err := d.GetCurrencies(ctx)
 	if err != nil {
 		return nil, err
 	}
 	var resp []trade.Data
 	for x := range currs {
-		instrumentsData, err := d.GetInstrumentsData(currs[x].Currency, "", false)
+		instrumentsData, err := d.GetInstrumentsData(ctx, currs[x].Currency, "", false)
 		if err != nil {
 			return nil, err
 		}
 		for y := range instrumentsData {
 			if strings.EqualFold(format.Format(p), instrumentsData[y].InstrumentName) {
 				trades, err := d.GetLastTradesByInstrument(
+					ctx,
 					instrumentsData[y].InstrumentName,
 					"",
 					"",
@@ -480,7 +475,7 @@ func (d *Deribit) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trad
 				}
 				for a := range trades.Trades {
 					sideData := order.Sell
-					if trades.Trades[a].Direction == "buy" {
+					if trades.Trades[a].Direction == sideBUY {
 						sideData = order.Buy
 					}
 					resp = append(resp, trade.Data{
@@ -501,7 +496,7 @@ func (d *Deribit) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trad
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (d *Deribit) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+func (d *Deribit) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	if timestampStart.Equal(timestampEnd) ||
 		timestampEnd.After(time.Now()) ||
 		timestampEnd.Before(timestampStart) ||
@@ -518,7 +513,7 @@ func (d *Deribit) GetHistoricTrades(p currency.Pair, assetType asset.Item, times
 	var tradesData PublicTradesData
 	var hasMore = true
 	for hasMore {
-		tradesData, err = d.GetLastTradesByInstrumentAndTime(fmtPair.String(),
+		tradesData, err = d.GetLastTradesByInstrumentAndTime(ctx, fmtPair.String(),
 			"asc",
 			100,
 			false,
@@ -535,7 +530,7 @@ func (d *Deribit) GetHistoricTrades(p currency.Pair, assetType asset.Item, times
 				timestampStart = time.Unix(tradesData.Trades[t].Timestamp/1000, 0)
 			}
 			sideData := order.Sell
-			if tradesData.Trades[t].Direction == "buy" {
+			if tradesData.Trades[t].Direction == sideBUY {
 				sideData = order.Buy
 			}
 			resp = append(resp, trade.Data{
@@ -560,10 +555,11 @@ func (d *Deribit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		return nil, err
 	}
 	var orderID string
+	var fmtPair currency.Pair
 	status := order.New
 	switch s.AssetType {
 	case asset.Futures:
-		fmtPair, err := d.FormatExchangeCurrency(s.Pair, asset.Futures)
+		fmtPair, err = d.FormatExchangeCurrency(s.Pair, asset.Futures)
 		if err != nil {
 			return nil, err
 		}
@@ -571,11 +567,11 @@ func (d *Deribit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		if s.ImmediateOrCancel {
 			timeInForce = "immediate_or_cancel"
 		}
-
+		var data *PrivateTradeData
 		switch s.Side {
 		case order.Bid, order.Buy:
 			if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				data, err := d.wsPlaceOrder(fmtPair.String(),
+				data, err = d.wsPlaceOrder(fmtPair.String(),
 					strings.ToLower(s.Type.String()),
 					s.ClientOrderID,
 					timeInForce, "", "",
@@ -592,7 +588,7 @@ func (d *Deribit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 				}
 				orderID = data.Order.OrderID
 			} else {
-				data, err := d.SubmitBuy(ctx, fmtPair.String(),
+				data, err = d.SubmitBuy(ctx, fmtPair.String(),
 					strings.ToLower(s.Type.String()),
 					s.ClientOrderID,
 					timeInForce, "", "",
@@ -610,7 +606,7 @@ func (d *Deribit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 				orderID = data.Order.OrderID
 			}
 		case order.Sell, order.Ask:
-			data, err := d.SubmitSell(ctx, fmtPair.String(),
+			data, err = d.SubmitSell(ctx, fmtPair.String(),
 				s.Type.String(),
 				s.ClientOrderID,
 				"", "", "",
@@ -744,7 +740,7 @@ func (d *Deribit) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			return resp, err
 		}
 		orderSide := order.Sell
-		if orderInfo.Direction == "buy" {
+		if orderInfo.Direction == sideBUY {
 			orderSide = order.Buy
 		}
 		var orderType order.Type
@@ -853,7 +849,7 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 			}
 			for y := range ordersData {
 				orderSide := order.Sell
-				if ordersData[y].Direction == "buy" {
+				if ordersData[y].Direction == sideBUY {
 					orderSide = order.Buy
 				}
 				if getOrdersRequest.Side != orderSide || getOrdersRequest.Side != order.AnySide {
@@ -932,7 +928,7 @@ func (d *Deribit) GetOrderHistory(ctx context.Context, getOrdersRequest *order.G
 		}
 		for y := range ordersData {
 			orderSide := order.Sell
-			if ordersData[y].Direction == "buy" {
+			if ordersData[y].Direction == sideBUY {
 				orderSide = order.Buy
 			}
 			if getOrdersRequest.Side != orderSide || getOrdersRequest.Side != order.AnySide {
@@ -1002,7 +998,7 @@ func (d *Deribit) ValidateCredentials(ctx context.Context, assetType asset.Item)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (d *Deribit) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (d *Deribit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	fmtPair, err := d.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return kline.Item{}, err
@@ -1013,7 +1009,9 @@ func (d *Deribit) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 		min = "1D"
 	}
 
-	tradingViewData, err := d.GetTradingViewChartData(fmtPair.String(),
+	tradingViewData, err := d.GetTradingViewChartData(
+		ctx,
+		fmtPair.String(),
 		min,
 		start,
 		end)

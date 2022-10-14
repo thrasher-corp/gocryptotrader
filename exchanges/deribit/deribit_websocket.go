@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"time"	
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -89,7 +89,7 @@ func (d *Deribit) wsLogin(ctx context.Context) error {
 		return err
 	}
 
-	var response WsLoginResponse
+	var response wsLoginResponse
 	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return fmt.Errorf("%v %v", d.Name, err)
@@ -119,8 +119,8 @@ func (d *Deribit) wsReadData() {
 }
 
 func (d *Deribit) wsHandleData(respRaw []byte) error {
-	var wsResponse WsResponse
-	err := json.Unmarshal(respRaw, &wsResponse)
+	var response wsResponse
+	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
 		return fmt.Errorf("%s - err %s could not parse websocket data: %s",
 			d.Name,
@@ -128,7 +128,7 @@ func (d *Deribit) wsHandleData(respRaw []byte) error {
 			respRaw)
 	}
 
-	id := wsResponse.ID
+	id := response.ID
 	if id > 0 && !d.Websocket.Match.IncomingWithData(id, respRaw) {
 		return fmt.Errorf("can't send ws incoming data to Matched channel with RequestID: %d", id)
 	}
@@ -218,7 +218,7 @@ func (d *Deribit) wsPlaceOrder(instrumentName, orderType, label, timeInForce, tr
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", d.Name, err)
 	}
-	var response WsSubmitOrderResponse
+	var response wsSubmitOrderResponse
 	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", d.Name, err)

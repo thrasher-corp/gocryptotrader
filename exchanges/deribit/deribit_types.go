@@ -2,6 +2,7 @@ package deribit
 
 import (
 	"errors"
+	"time"
 )
 
 // UnmarshalError is the struct which is used for unmarshalling errors
@@ -13,9 +14,33 @@ type UnmarshalError struct {
 	Code int64 `json:"code"`
 }
 
+const (
+	sideBUY  = "buy"
+	sideSELL = "sell"
+
+	// currencies
+
+	currencyBTC  = "BTC"
+	currencyETH  = "ETH"
+	currencySOL  = "SOL"
+	currencyUSDC = "USDC"
+)
+
 var (
 	errTypeAssert                    = errors.New("type assertion failed")
 	errStartTimeCannotBeAfterEndTime = errors.New("start timestamp cannot be after end timestamp")
+	errUnsupportedIndexName          = errors.New("unsupported index name")
+	errInvalidInstrumentID           = errors.New("invalid instrument ID")
+	errInvalidIndexPriceCurrency     = errors.New("invalid currency, only BTC, ETH, SOL and USDC are supported")
+	errInvalidInstrumentName         = errors.New("invalid instrument name")
+	errInvalidComboID                = errors.New("invalid combo ID")
+	errInvalidCurrency               = errors.New("invalid currency")
+	errInvalidComboState             = errors.New("invalid combo state")
+	errNoArgumentPassed              = errors.New("no argument passed")
+	errInvalidAmount                 = errors.New("invalid amount, must be greater than 0")
+	errMissingNonce                  = errors.New("missing nonce")
+	errInvalidTradeRole              = errors.New("invalid trade role, only 'maker' and 'taker' are allowed")
+	errInvalidPrice                  = errors.New("invalid trade price")
 )
 
 // BookSummaryData stores summary data
@@ -56,6 +81,18 @@ type CurrencyData struct {
 		Value float64 `json:"value"`
 		Name  string  `json:"name"`
 	} `json:"withdrawal_priorities"`
+}
+
+// IndexDeliveryPrice store index delivery prices list.
+type IndexDeliveryPrice struct {
+	Data         []DeliveryPriceData `json:"data"`
+	TotalRecords int64               `json:"records_total"`
+}
+
+// DeliveryPriceData stores index delivery_price
+type DeliveryPriceData struct {
+	Date          time.Time `json:"date"`
+	DeliveryPrice float64   `json:"delivery_price"`
 }
 
 // FundingChartData stores futures funding chart data
@@ -121,7 +158,7 @@ type SettlementsData struct {
 		Funded            float64 `json:"funded"`
 		Funding           float64 `json:"funding"`
 		IndexPrice        float64 `json:"index_price"`
-		SessionBankruptcy float64 `json:"session_bankrupcy"` // nolint // deribit spelling
+		SessionBankruptcy float64 `json:"session_bankrupcy"`
 		SessionTax        float64 `json:"session_tax"`
 		SessionTaxRate    float64 `json:"session_tax_rate"`
 		Socialized        float64 `json:"socialized"`
@@ -162,11 +199,11 @@ type MarkPriceHistory struct {
 	MarkPriceValue float64
 }
 
-// OBData stores orderbook data
-type OBData struct {
-	UnderlyingPrice float64 `json:"underlying_price"`
-	UnderlyingIndex float64 `json:"underlying_index"`
-	Timestamp       int64   `json:"timestamp"`
+// Orderbook stores orderbook data
+type Orderbook struct {
+	UnderlyingPrice float64   `json:"underlying_price"`
+	UnderlyingIndex float64   `json:"underlying_index"`
+	Timestamp       time.Time `json:"timestamp"`
 	Stats           struct {
 		Volume      float64 `json:"volume"`
 		PriceChange float64 `json:"price_change"`
@@ -460,7 +497,7 @@ type MMPConfigData struct {
 	QuantityLimit float64 `json:"quantity_limit"`
 }
 
-// OrderMarginsData stores data for order margins
+// OrderMarginData stores data for order margins
 type OrderMarginData struct {
 	OrderID       string  `json:"order_id"`
 	InitialMargin float64 `json:"initial_margin"`
@@ -514,7 +551,7 @@ type UserTradeData struct {
 	Amount          float64 `json:"amount"`
 }
 
-// PrivateSettlementHistoryData stores data for private settlement history
+// PrivateSettlementsHistoryData stores data for private settlement history
 type PrivateSettlementsHistoryData struct {
 	Settlements  []PrivateSettlementData `json:"settlements"`
 	Continuation string                  `json:"continuation"`
@@ -705,7 +742,7 @@ type TransactionsData struct {
 	Continuation int64                `json:"continuation"`
 }
 
-// PrivateTradeData stores data of a private trade/order
+// PlaceTradeData stores data of a private trade/order
 type PlaceTradeData struct {
 	Trades []PrivateTradeData `json:"trades"`
 	Order  OrderData          `json:"order"`
@@ -720,12 +757,12 @@ type WsRequest struct {
 	Params         map[string]interface{} `json:"params,omitempty"`
 }
 
-type WsResponse struct {
+type wsResponse struct {
 	JSONRPCVersion string `json:"jsonrpc,omitempty"`
 	ID             int64  `json:"id,omitempty"`
 }
 
-type WsSubmitOrderResponse struct {
+type wsSubmitOrderResponse struct {
 	JSONRPCVersion string            `json:"jsonrpc"`
 	ID             int64             `json:"id"`
 	Method         string            `json:"method"`
@@ -733,10 +770,223 @@ type WsSubmitOrderResponse struct {
 	Error          *UnmarshalError   `json:"error"`
 }
 
-type WsLoginResponse struct {
+type wsLoginResponse struct {
 	JSONRPCVersion string                 `json:"jsonrpc"`
 	ID             int64                  `json:"id"`
 	Method         string                 `json:"method"`
 	Result         map[string]interface{} `json:"result"`
 	Error          *UnmarshalError        `json:"error"`
+}
+
+// RFQ RFQs for instruments in given currency.
+type RFQ struct {
+	TradedVolume     float64   `json:"traded_volume"`
+	Amount           float64   `json:"amount"`
+	Side             string    `json:"side"`
+	LastRfqTimestamp time.Time `json:"last_rfq_tstamp"`
+	InstrumentName   string    `json:"instrument_name"`
+}
+
+// ComboDetail retrieves information about a combo
+type ComboDetail struct {
+	ID                string    `json:"id"`
+	InstrumentID      int64     `json:"instrument_id"`
+	CreationTimestamp time.Time `json:"creation_timestamp"`
+	StateTimestamp    int64     `json:"state_timestamp"`
+	State             string    `json:"state"`
+	Legs              []struct {
+		InstrumentName string  `json:"instrument_name"`
+		Amount         float64 `json:"amount"`
+	} `json:"legs"`
+}
+
+// ComboParam represents a parameter to sell and buy combo.
+type ComboParam struct {
+	InstrumentName string  `json:"instrument_name"`
+	Direction      string  `json:"direction"`
+	Amount         float64 `json:"amount,string"`
+}
+
+// BlockTradeParam represents a block trade parameter.
+type BlockTradeParam struct {
+	Price          float64 `json:"price"`
+	InstrumentName string  `json:"instrument_name"`
+	Direction      string  `json:"direction,omitempty"`
+	Amount         float64 `json:"amount"`
+}
+
+// BlockTradeData represents a user's block trade data.
+type BlockTradeData struct {
+	TradeSeq               int64       `json:"trade_seq"`
+	TradeID                string      `json:"trade_id"`
+	Timestamp              int64       `json:"timestamp"`
+	TickDirection          int64       `json:"tick_direction"`
+	State                  string      `json:"state"`
+	SelfTrade              bool        `json:"self_trade"`
+	Price                  float64     `json:"price"`
+	OrderType              string      `json:"order_type"`
+	OrderID                string      `json:"order_id"`
+	MatchingID             interface{} `json:"matching_id"`
+	Liquidity              string      `json:"liquidity"`
+	OptionmpliedVolatility float64     `json:"iv,omitempty"`
+	InstrumentName         string      `json:"instrument_name"`
+	IndexPrice             float64     `json:"index_price"`
+	FeeCurrency            string      `json:"fee_currency"`
+	Fee                    float64     `json:"fee"`
+	Direction              string      `json:"direction"`
+	BlockTradeID           string      `json:"block_trade_id"`
+	Amount                 float64     `json:"amount"`
+}
+
+// Announcement represents public announcements.
+type Announcement struct {
+	Title                string    `json:"title"`
+	PublicationTimestamp time.Time `json:"publication_timestamp"`
+	Important            bool      `json:"important"`
+	ID                   int64     `json:"id"`
+	Body                 string    `json:"body"`
+}
+
+// PortfolioMargin represents public portfolio margins.
+type PortfolioMargin struct {
+	VolumeRange         []float64          `json:"vol_range"`
+	VegaPow2            float64            `json:"vega_pow2"`
+	VegaPow1            float64            `json:"vega_pow1"`
+	Skew                float64            `json:"skew"`
+	PriceRange          float64            `json:"price_range"`
+	OptSumContinguency  float64            `json:"opt_sum_continguency"`
+	OptContinguency     float64            `json:"opt_continguency"`
+	Kurtosis            float64            `json:"kurtosis"`
+	IntRate             float64            `json:"int_rate"`
+	InitialMarginFactor float64            `json:"initial_margin_factor"`
+	FtuContinguency     float64            `json:"ftu_continguency"`
+	AtmRange            float64            `json:"atm_range"`
+	ProjectedMarginPos  float64            `json:"projected_margin_pos"`
+	ProjectedMargin     float64            `json:"projected_margin"`
+	PositionSizes       map[string]float64 `json:"position_sizes"`
+	Pls                 []float64          `json:"pls"`
+	PcoOpt              float64            `json:"pco_opt"`
+	PcoFtu              float64            `json:"pco_ftu"`
+	OptSummary          []interface{}      `json:"opt_summary"`
+	OptPls              []float64          `json:"opt_pls"`
+	OptEntries          []interface{}      `json:"opt_entries"`
+	MarginPos           float64            `json:"margin_pos"`
+	Margin              float64            `json:"margin"`
+	FtuSummary          []struct {
+		ShortTotalCost  float64   `json:"short_total_cost"`
+		PlVec           []float64 `json:"pl_vec"`
+		LongTotalCost   float64   `json:"long_total_cost"`
+		ExpiryTimestamp int64     `json:"exp_tstamp"`
+	} `json:"ftu_summary"`
+	FtuPls     []float64 `json:"ftu_pls"`
+	FtuEntries []struct {
+		TotalCost       float64   `json:"total_cost"`
+		Size            float64   `json:"size"`
+		PlVec           []float64 `json:"pl_vec"`
+		MarkPrice       float64   `json:"mark_price"`
+		InstrumentName  string    `json:"instrument_name"`
+		ExpiryTimestamp int64     `json:"exp_tstamp"`
+	} `json:"ftu_entries"`
+	CoOpt                float64 `json:"co_opt"`
+	CoFtu                float64 `json:"co_ftu"`
+	CalculationTimestamp int64   `json:"calculation_timestamp"`
+}
+
+// AccessLog represents access log information.
+type AccessLog struct {
+	RecordsTotal int               `json:"records_total"`
+	Data         []AccessLogDetail `json:"data"`
+}
+
+// AccessLogDetail represents detailed access log information.
+type AccessLogDetail struct {
+	Timestamp time.Time `json:"timestamp"`
+	Result    string    `json:"result"`
+	IP        string    `json:"ip"`
+	ID        int64     `json:"id"`
+	Country   string    `json:"country"`
+	City      string    `json:"city"`
+}
+
+// SubAccountDetail represents subaccount positions detail.
+type SubAccountDetail struct {
+	UID       int `json:"uid"`
+	Positions []struct {
+		TotalProfitLoss           float64 `json:"total_profit_loss"`
+		SizeCurrency              float64 `json:"size_currency"`
+		Size                      float64 `json:"size"`
+		SettlementPrice           float64 `json:"settlement_price"`
+		RealizedProfitLoss        float64 `json:"realized_profit_loss"`
+		RealizedFunding           float64 `json:"realized_funding"`
+		OpenOrdersMargin          float64 `json:"open_orders_margin"`
+		MarkPrice                 float64 `json:"mark_price"`
+		MaintenanceMargin         float64 `json:"maintenance_margin"`
+		Leverage                  float64 `json:"leverage"`
+		Kind                      string  `json:"kind"`
+		InstrumentName            string  `json:"instrument_name"`
+		InitialMargin             float64 `json:"initial_margin"`
+		IndexPrice                float64 `json:"index_price"`
+		FloatingProfitLoss        float64 `json:"floating_profit_loss"`
+		EstimatedLiquidationPrice float64 `json:"estimated_liquidation_price"`
+		Direction                 string  `json:"direction"`
+		Delta                     float64 `json:"delta"`
+		AveragePrice              float64 `json:"average_price"`
+	} `json:"positions"`
+}
+
+// UserLock represents a user lock information for currency.
+type UserLock struct {
+	Message  string `json:"message"`
+	Locked   bool   `json:"locked"`
+	Currency string `json:"currency"`
+}
+
+// TogglePortfolioMarginResponse represents a response from toggling portfolio margin for currency.
+type TogglePortfolioMarginResponse struct {
+	OldState struct {
+		MaintenanceMarginRate float64 `json:"maintenance_margin_rate"`
+		InitialMarginRate     float64 `json:"initial_margin_rate"`
+		AvailableBalance      float64 `json:"available_balance"`
+	} `json:"old_state"`
+	NewState struct {
+		MaintenanceMarginRate float64 `json:"maintenance_margin_rate"`
+		InitialMarginRate     float64 `json:"initial_margin_rate"`
+		AvailableBalance      float64 `json:"available_balance"`
+	} `json:"new_state"`
+	Currency string `json:"currency"`
+}
+
+// BlockTradeResponse represents a block trade response.
+type BlockTradeResponse struct {
+	TradeSeq       int64     `json:"trade_seq"`
+	TradeID        string    `json:"trade_id"`
+	Timestamp      time.Time `json:"timestamp"`
+	TickDirection  int64     `json:"tick_direction"`
+	State          string    `json:"state"`
+	SelfTrade      bool      `json:"self_trade"`
+	ReduceOnly     bool      `json:"reduce_only"`
+	Price          float64   `json:"price"`
+	PostOnly       bool      `json:"post_only"`
+	OrderType      string    `json:"order_type"`
+	OrderID        string    `json:"order_id"`
+	MatchingID     string    `json:"matching_id"`
+	MarkPrice      float64   `json:"mark_price"`
+	Liquidity      string    `json:"liquidity"`
+	InstrumentName string    `json:"instrument_name"`
+	IndexPrice     float64   `json:"index_price"`
+	FeeCurrency    string    `json:"fee_currency"`
+	Fee            float64   `json:"fee"`
+	Direction      string    `json:"direction"`
+	BlockTradeID   string    `json:"block_trade_id"`
+	Amount         float64   `json:"amount"`
+}
+
+// BlockTradeMoveResponse represents block trade move response.
+type BlockTradeMoveResponse struct {
+	TargetSubAccountUID int64   `json:"target_uid"`
+	SourceSubAccountUID int64   `json:"source_uid"`
+	Price               float64 `json:"price"`
+	InstrumentName      string  `json:"instrument_name"`
+	Direction           string  `json:"direction"`
+	Amount              float64 `json:"amount"`
 }
