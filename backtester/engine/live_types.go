@@ -43,7 +43,7 @@ type Handler interface {
 	IsRunning() bool
 	DataFetcher() error
 	Stop() error
-	Reset()
+	Reset() error
 	Updated() <-chan bool
 	HasShutdown() <-chan bool
 	SetDataForClosingAllPositions(events ...signal.Event) error

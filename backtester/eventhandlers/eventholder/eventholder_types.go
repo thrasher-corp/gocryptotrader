@@ -11,7 +11,7 @@ type Holder struct {
 
 // EventHolder interface details what is expected of an event holder to perform
 type EventHolder interface {
-	Reset()
+	Reset() error
 	AppendEvent(common.Event)
 	NextEvent() common.Event
 }

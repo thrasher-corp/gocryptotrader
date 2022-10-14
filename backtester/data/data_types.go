@@ -10,8 +10,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-// ErrHandlerNotFound returned when a handler is not found for specified exchange, asset, pair
-var ErrHandlerNotFound = errors.New("handler not found")
+var (
+	// ErrHandlerNotFound returned when a handler is not found for specified exchange, asset, pair
+	ErrHandlerNotFound = errors.New("handler not found")
+
+	errNothingToAdd         = errors.New("cannot append empty event to stream")
+	errInvalidEventSupplied = errors.New("invalid event supplied")
+)
 
 // HandlerPerCurrency stores an event handler per exchange asset pair
 type HandlerPerCurrency struct {
@@ -24,7 +29,7 @@ type Holder interface {
 	SetDataForCurrency(string, asset.Item, currency.Pair, Handler)
 	GetAllData() map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]Handler
 	GetDataForCurrency(ev common.Event) (Handler, error)
-	Reset()
+	Reset() error
 }
 
 // Base is the base implementation of some interface functions
@@ -40,13 +45,13 @@ type Base struct {
 type Handler interface {
 	Loader
 	Streamer
-	Reset()
+	Reset() error
 }
 
 // Loader interface for Loading data into backtest supported format
 type Loader interface {
 	Load() error
-	AppendStream(s ...Event)
+	AppendStream(s ...Event) error
 }
 
 // Streamer interface handles loading, parsing, distributing BackTest data

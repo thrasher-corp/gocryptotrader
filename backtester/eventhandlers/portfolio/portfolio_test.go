@@ -32,12 +32,21 @@ const testExchange = "ftx"
 
 func TestReset(t *testing.T) {
 	t.Parallel()
-	p := Portfolio{
+	p := &Portfolio{
 		exchangeAssetPairSettings: make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings),
 	}
-	p.Reset()
-	if p.exchangeAssetPairSettings != nil {
-		t.Error("expected nil")
+	err := p.Reset()
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+	if p.exchangeAssetPairSettings == nil {
+		t.Error("expected a map")
+	}
+
+	p = nil
+	err = p.Reset()
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNilPointer)
 	}
 }
 

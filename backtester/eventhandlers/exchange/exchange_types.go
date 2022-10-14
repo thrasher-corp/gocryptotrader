@@ -16,6 +16,9 @@ import (
 )
 
 var (
+	// ErrCannotTransact returns when its an issue to do nothing for an event
+	ErrCannotTransact = errors.New("cannot transact")
+
 	errDataMayBeIncorrect      = errors.New("data may be incorrect")
 	errExceededPortfolioLimit  = errors.New("exceeded portfolio limit")
 	errNilCurrencySettings     = errors.New("received nil currency settings")
@@ -28,7 +31,7 @@ type ExecutionHandler interface {
 	SetExchangeAssetCurrencySettings(asset.Item, currency.Pair, *Settings)
 	GetCurrencySettings(string, asset.Item, currency.Pair) (Settings, error)
 	ExecuteOrder(order.Event, data.Handler, *engine.OrderManager, funding.IFundReleaser) (fill.Event, error)
-	Reset()
+	Reset() error
 }
 
 // Exchange contains all the currency settings

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -225,8 +226,28 @@ func (d *dataChecker) HasShutdown() <-chan bool {
 }
 
 // Reset clears all stored data
-func (d *dataChecker) Reset() {
-	*d = dataChecker{}
+func (d *dataChecker) Reset() error {
+	if d == nil {
+		return gctcommon.ErrNilPointer
+	}
+	d.m.Lock()
+	defer d.m.Unlock()
+	d.wg = sync.WaitGroup{}
+	d.started = 0
+	d.updatingFunding = 0
+	d.verboseDataCheck = false
+	d.realOrders = false
+	d.hasUpdatedFunding = false
+	d.exchangeManager = nil
+	d.sourcesToCheck = nil
+	d.eventTimeout = 0
+	d.dataCheckInterval = 0
+	d.dataHolder = nil
+	d.shutdown = make(chan struct{})
+	d.report = nil
+	d.funding = nil
+
+	return nil
 }
 
 // AppendDataSource stores params to allow the datachecker to fetch and append live data

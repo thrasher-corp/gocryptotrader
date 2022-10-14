@@ -15,7 +15,7 @@ import (
 
 // IFundingManager limits funding usage for portfolio event handling
 type IFundingManager interface {
-	Reset()
+	Reset() error
 	IsUsingExchangeLevelFunding() bool
 	GetFundingForEvent(common.Event) (IFundingPair, error)
 	Transfer(decimal.Decimal, *Item, *Item, bool) error

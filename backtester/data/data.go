@@ -1,8 +1,8 @@
 package data
 
 import (
-	"errors"
 	"fmt"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"sort"
 	"strings"
 
@@ -66,14 +66,24 @@ func (h *HandlerPerCurrency) GetDataForCurrency(ev common.Event) (Handler, error
 }
 
 // Reset returns the struct to defaults
-func (h *HandlerPerCurrency) Reset() {
-	hi := &HandlerPerCurrency{data: make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]Handler)}
-	*h = *hi
+func (h *HandlerPerCurrency) Reset() error {
+	if h == nil {
+		return gctcommon.ErrNilPointer
+	}
+	h.data = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]Handler)
+	return nil
 }
 
 // Reset loaded data to blank state
-func (b *Base) Reset() {
-	*b = Base{}
+func (b *Base) Reset() error {
+	if b == nil {
+		return gctcommon.ErrNilPointer
+	}
+	b.stream = nil
+	b.latest = nil
+	b.offset = 0
+	b.isLiveData = false
+	return nil
 }
 
 // GetStream will return entire data list
@@ -88,17 +98,16 @@ func (b *Base) Offset() int64 {
 
 // SetStream sets the data stream for candle analysis
 func (b *Base) SetStream(s []Event) {
-	b.stream = make([]Event, len(s))
-	// due to the Next() function, we cannot take
-	// stream offsets as is, and we re-set them
+	sort.Slice(s, func(i, j int) bool {
+		return s[i].GetTime().Before(s[j].GetTime())
+	})
 	for i := range s {
-		b.stream[i] = s[i]
-		b.stream[i].SetOffset(int64(i + 1))
+		// due to the Next() function, we cannot take
+		// stream offsets as is, and we re-set them
+		s[i].SetOffset(int64(i) + 1)
 	}
+	b.stream = s
 }
-
-var errNothingToAdd = errors.New("passed in empty void")
-var errInvalidEventSupplied = errors.New("invalid event supplied")
 
 // AppendStream appends new datas onto the stream, however, will not
 // add duplicates. Used for live analysis
@@ -106,11 +115,12 @@ func (b *Base) AppendStream(s ...Event) error {
 	if len(s) == 0 {
 		return errNothingToAdd
 	}
-	updatedStream := make([]Event, 0, len(s))
+	updatedStream := make([]Event, len(b.stream), len(b.stream)+len(s))
+	updatedStream = append(updatedStream, b.stream...)
 candles:
 	for x := range s {
-		if !b.equalSource(s[x]) {
-			return errInvalidEventSupplied
+		if err := b.equalSource(s[x]); err != nil {
+			return err
 		}
 		for y := range b.stream {
 			if s[x].GetTime().Equal(b.stream[y].GetTime()) {
@@ -122,29 +132,34 @@ candles:
 	if len(updatedStream) == 0 {
 		return nil
 	}
-	b.stream = append(b.stream, updatedStream...)
-	b.SortStream()
-	for i := range b.stream {
-		b.stream[i].SetOffset(int64(i + 1))
+	sort.Slice(updatedStream, func(i, j int) bool {
+		return updatedStream[i].GetTime().Before(updatedStream[j].GetTime())
+	})
+	for i := range updatedStream {
+		updatedStream[i].SetOffset(int64(i) + 1)
 	}
+	b.stream = updatedStream
 	return nil
 }
 
 // equalSource verifies that incoming data matches
 // internal source
-func (b *Base) equalSource(s Event) bool {
+func (b *Base) equalSource(s Event) error {
 	if b == nil || s == nil {
-		return false
+		return gctcommon.ErrNilPointer
 	}
 	if s.GetExchange() == "" || !s.GetAssetType().IsValid() || s.Pair().IsEmpty() {
-		return false
+		return errNothingToAdd
 	}
 	if len(b.stream) == 0 {
-		return true
+		return nil
 	}
-	return s.GetExchange() == b.stream[0].GetExchange() &&
-		s.GetAssetType() == b.stream[0].GetAssetType() &&
-		s.Pair().Equal(b.stream[0].Pair())
+	if s.GetExchange() != b.stream[0].GetExchange() &&
+		s.GetAssetType() != b.stream[0].GetAssetType() &&
+		!s.Pair().Equal(b.stream[0].Pair()) {
+		return fmt.Errorf("%w %v %v %v event cannot be appended to %v %v %v", errInvalidEventSupplied, s.GetExchange(), s.GetAssetType(), s.Pair(), b.stream[0].GetExchange(), b.stream[0].GetAssetType(), b.stream[0].Pair())
+	}
+	return nil
 }
 
 // Next will return the next event in the list and also shift the offset one
@@ -182,13 +197,6 @@ func (b *Base) List() []Event {
 // and this signal cannot be completely relied upon
 func (b *Base) IsLastEvent() bool {
 	return b.latest != nil && b.latest.GetOffset() == int64(len(b.stream)) && !b.isLiveData
-}
-
-// SortStream sorts the stream by timestamp
-func (b *Base) SortStream() {
-	sort.Slice(b.stream, func(i, j int) bool {
-		return b.stream[i].GetTime().Before(b.stream[j].GetTime())
-	})
 }
 
 // IsLive returns if the data source is a live one

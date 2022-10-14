@@ -75,7 +75,7 @@ type Handler interface {
 	AddHoldingsForTime(*holdings.Holding) error
 	AddComplianceSnapshotForTime(compliance.Snapshot, fill.Event) error
 	CalculateAllResults() error
-	Reset()
+	Reset() error
 	Serialise() (string, error)
 	AddPNLForTime(*portfolio.PNLSummary) error
 	CreateLog(common.Event) (string, error)

@@ -71,12 +71,23 @@ func (f *fakeFund) Release(decimal.Decimal, decimal.Decimal, gctorder.Side) erro
 
 func TestReset(t *testing.T) {
 	t.Parallel()
-	e := Exchange{
-		CurrencySettings: []Settings{},
+	e := &Exchange{
+		CurrencySettings: []Settings{
+			{},
+		},
 	}
-	e.Reset()
-	if e.CurrencySettings != nil {
-		t.Error("expected nil")
+	err := e.Reset()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if len(e.CurrencySettings) > 0 {
+		t.Error("expected no entries")
+	}
+
+	e = nil
+	err = e.Reset()
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 }
 

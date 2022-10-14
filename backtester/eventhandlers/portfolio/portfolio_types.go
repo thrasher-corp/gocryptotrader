@@ -65,7 +65,7 @@ type Handler interface {
 	CheckLiquidationStatus(data.Event, funding.ICollateralReader, *PNLSummary) error
 	CreateLiquidationOrdersForExchange(data.Event, funding.IFundingManager) ([]order.Event, error)
 	GetLatestHoldingsForAllCurrencies() []holdings.Holding
-	Reset()
+	Reset() error
 	SetHoldingsForEvent(funding.IFundReader, common.Event) error
 }
 

@@ -61,7 +61,6 @@ func (d *DataFromKline) Load() error {
 	}
 
 	d.SetStream(klineData)
-	d.SortStream()
 	return nil
 }
 

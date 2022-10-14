@@ -1,6 +1,7 @@
 package portfolio
 
 import (
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"strings"
 
 	"github.com/shopspring/decimal"
@@ -32,10 +33,15 @@ func Setup(sh SizeHandler, r risk.Handler, riskFreeRate decimal.Decimal) (*Portf
 }
 
 // Reset returns the portfolio manager to its default state
-func (p *Portfolio) Reset() {
-	*p = Portfolio{
-		exchangeAssetPairSettings: make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings),
+func (p *Portfolio) Reset() error {
+	if p == nil {
+		return gctcommon.ErrNilPointer
 	}
+	p.exchangeAssetPairSettings = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings)
+	p.riskFreeRate = decimal.Zero
+	p.sizeManager = nil
+	p.riskManager = nil
+	return nil
 }
 
 // SetupCurrencySettingsMap ensures a map is created and no panics happen

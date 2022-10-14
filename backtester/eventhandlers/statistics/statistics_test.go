@@ -36,12 +36,21 @@ var (
 
 func TestReset(t *testing.T) {
 	t.Parallel()
-	s := Statistic{
+	s := &Statistic{
 		TotalOrders: 1,
 	}
-	s.Reset()
+	err := s.Reset()
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 	if s.TotalOrders != 0 {
 		t.Error("expected 0")
+	}
+
+	s = nil
+	err = s.Reset()
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNilPointer)
 	}
 }
 

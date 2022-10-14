@@ -2,11 +2,16 @@ package eventholder
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 )
 
 // Reset returns struct to defaults
-func (h *Holder) Reset() {
+func (h *Holder) Reset() error {
+	if h == nil {
+		return gctcommon.ErrNilPointer
+	}
 	h.Queue = nil
+	return nil
 }
 
 // AppendEvent adds and event to the queue

@@ -429,7 +429,7 @@ func TestReset(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	bt := BackTest{
+	bt := &BackTest{
 		shutdown:   make(chan struct{}),
 		DataHolder: &data.HandlerPerCurrency{},
 		Strategy:   &dollarcostaverage.Strategy{},
@@ -440,9 +440,18 @@ func TestReset(t *testing.T) {
 		Reports:    &report.Data{},
 		Funding:    f,
 	}
-	bt.Reset()
+	err = bt.Reset()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	if bt.Funding.IsUsingExchangeLevelFunding() {
 		t.Error("expected false")
+	}
+
+	bt = nil
+	err = bt.Reset()
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 }
 
@@ -1589,7 +1598,9 @@ func (f fakeDataHolder) GetDataForCurrency(ev common.Event) (data.Handler, error
 	return nil, nil
 }
 
-func (f fakeDataHolder) Reset() {}
+func (f fakeDataHolder) Reset() error {
+	return nil
+}
 
 type fakeFunding struct{}
 
@@ -1609,7 +1620,8 @@ func (f fakeFunding) SetFunding(s string, item asset.Item, balance *account.Bala
 	return nil
 }
 
-func (f fakeFunding) Reset() {
+func (f fakeFunding) Reset() error {
+	return nil
 }
 
 func (f fakeFunding) IsUsingExchangeLevelFunding() bool {
@@ -1795,7 +1807,9 @@ func (f fakeFolio) GetLatestHoldingsForAllCurrencies() []holdings.Holding {
 	return nil
 }
 
-func (f fakeFolio) Reset() {}
+func (f fakeFolio) Reset() error {
+	return nil
+}
 
 func TestGenerateSummary(t *testing.T) {
 	t.Parallel()

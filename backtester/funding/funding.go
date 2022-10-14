@@ -285,8 +285,16 @@ func CreateCollateral(contract, collateral *Item) (*CollateralPair, error) {
 }
 
 // Reset clears all settings
-func (f *FundManager) Reset() {
-	*f = FundManager{}
+func (f *FundManager) Reset() error {
+	if f == nil {
+		return gctcommon.ErrNilPointer
+	}
+	f.items = nil
+	f.verbose = false
+	f.exchangeManager = nil
+	f.disableUSDTracking = false
+	f.usingExchangeLevelFunding = false
+	return nil
 }
 
 // USDTrackingDisabled clears all settings

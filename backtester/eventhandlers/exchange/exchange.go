@@ -2,7 +2,6 @@ package exchange
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -23,12 +22,13 @@ import (
 )
 
 // Reset returns the exchange to initial settings
-func (e *Exchange) Reset() {
-	*e = Exchange{}
+func (e *Exchange) Reset() error {
+	if e == nil {
+		return gctcommon.ErrNilPointer
+	}
+	e.CurrencySettings = nil
+	return nil
 }
-
-// ErrCannotTransact returns when its an issue to do nothing for an event
-var ErrCannotTransact = errors.New("cannot transact")
 
 // ExecuteOrder assesses the portfolio manager's order event and if it passes validation
 // will send an order to the exchange/fake order manager to be stored and raise a fill event

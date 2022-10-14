@@ -29,28 +29,51 @@ import (
 )
 
 // Reset BackTest values to default
-func (bt *BackTest) Reset() {
+func (bt *BackTest) Reset() error {
+	if bt == nil {
+		return gctcommon.ErrNilPointer
+	}
+	var err error
 	if bt.orderManager != nil {
-		err := bt.orderManager.Stop()
+		err = bt.orderManager.Stop()
 		if err != nil {
-			log.Error(common.Backtester, err)
+			return err
 		}
 	}
 	if bt.databaseManager != nil {
-		err := bt.databaseManager.Stop()
+		err = bt.databaseManager.Stop()
 		if err != nil {
-			log.Error(common.Backtester, err)
+			return err
 		}
 	}
-	bt.EventQueue.Reset()
-	bt.DataHolder.Reset()
-	bt.Portfolio.Reset()
-	bt.Statistic.Reset()
-	bt.Exchange.Reset()
-	bt.Funding.Reset()
+	err = bt.EventQueue.Reset()
+	if err != nil {
+		return err
+	}
+	err = bt.DataHolder.Reset()
+	if err != nil {
+		return err
+	}
+	err = bt.Portfolio.Reset()
+	if err != nil {
+		return err
+	}
+	err = bt.Statistic.Reset()
+	if err != nil {
+		return err
+	}
+	err = bt.Exchange.Reset()
+	if err != nil {
+		return err
+	}
+	err = bt.Funding.Reset()
+	if err != nil {
+		return err
+	}
 	bt.exchangeManager = nil
 	bt.orderManager = nil
 	bt.databaseManager = nil
+	return nil
 }
 
 // RunLive is a proof of concept function that does not yet support multi currency usage
