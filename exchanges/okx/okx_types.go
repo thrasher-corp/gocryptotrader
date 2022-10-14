@@ -584,21 +584,21 @@ type CurrencyTakerFlow struct {
 // PlaceOrderRequestParam requesting parameter for placing an order.
 type PlaceOrderRequestParam struct {
 	InstrumentID          string  `json:"instId"`
-	TradeMode             string  `json:"tdMode"` // cash isolated
-	ClientSupplierOrderID string  `json:"clOrdId"`
+	TradeMode             string  `json:"tdMode,omitempty"` // cash isolated
+	ClientSupplierOrderID string  `json:"clOrdId,omitempty"`
 	Currency              string  `json:"ccy,omitempty"` // Only applicable to cross MARGIN orders in Single-currency margin.
-	OrderTag              string  `json:"tag"`
+	OrderTag              string  `json:"tag,omitempty"`
 	Side                  string  `json:"side,omitempty"`
 	PositionSide          string  `json:"posSide,omitempty"`
-	OrderType             string  `json:"ordType"`
-	Amount                float64 `json:"sz,string"`
-	Price                 float64 `json:"px,string"`
+	OrderType             string  `json:"ordType,omitempty"`
+	Amount                float64 `json:"sz,string,omitempty"`
+	Price                 float64 `json:"px,string,omitempty"`
 	ReduceOnly            bool    `json:"reduceOnly,string,omitempty"`
 	QuantityType          string  `json:"tgtCcy,omitempty"` // values base_ccy and quote_ccy
 
 	// Added in the websocket requests
-	BanAmend   bool      `json:"banAmend"` // Whether the SPOT Market Order size can be amended by the system.
-	ExpiryTime time.Time `json:"expTime"`
+	BanAmend   bool      `json:"banAmend,omitempty"` // Whether the SPOT Market Order size can be amended by the system.
+	ExpiryTime time.Time `json:"expTime,omitempty"`
 }
 
 // OrderData response message for place, cancel, and amend an order requests.

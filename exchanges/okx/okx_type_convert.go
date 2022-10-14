@@ -2451,3 +2451,18 @@ func (a *PublicBorrowInfo) UnmarshalJSON(data []byte) error {
 	a.Timestamp = time.UnixMilli(chil.Timestamp)
 	return nil
 }
+
+// MarshalJSON marshals PlaceOrderRequestParam instance into []byte
+func (a *PlaceOrderRequestParam) MarshalJSON() ([]byte, error) {
+	type Alias PlaceOrderRequestParam
+	chil := &struct {
+		*Alias
+		ExpiryTime int64 `json:"expTime,string,omitempty"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if !a.ExpiryTime.IsZero() {
+		chil.ExpiryTime = a.ExpiryTime.UnixMilli()
+	}
+	return json.Marshal(chil)
+}
