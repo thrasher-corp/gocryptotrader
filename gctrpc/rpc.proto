@@ -382,6 +382,7 @@ message WhaleBombRequest {
   CurrencyPair pair = 2;
   double price_target = 3;
   string side = 4;
+  string asset_type = 5;
 }
 
 message CancelOrderRequest {
@@ -1279,6 +1280,79 @@ message GetMarginRatesHistoryResponse {
   string taker_fee_rate = 9;
 }
 
+message GetOrderbookMovementRequest {
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+  double amount = 6;
+  bool sell = 7;
+  bool requires_rest_orderbook = 8;
+  bool purchase = 9;
+}
+
+message GetOrderbookMovementResponse {
+  double nominal_percentage = 1;
+  double impact_percentage = 2;
+  double slippage_cost = 3;
+  string currency_bought = 4;
+  double bought = 5;
+  string currency_sold = 6;
+  double sold = 7;
+  string side_affected = 8;
+  string update_protocol = 9;
+  bool full_orderbook_side_consumed = 10;
+  double start_price = 11;
+  double end_price = 12;
+  bool no_slippage_occurred = 13;
+  double average_order_cost = 14;
+}
+
+message GetOrderbookAmountByNominalRequest {
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+  double nominal_percentage = 6;
+  bool sell = 7;
+  bool requires_rest_orderbook = 8;
+}
+
+message GetOrderbookAmountByNominalResponse {
+  double amount_required = 1;
+  string currency_selling = 2;
+  double amount_received = 3;
+  string currency_buying = 4;
+  double start_price = 5;
+  double end_price = 6;
+  double average_order_cost = 7;
+  string side_affected = 8;
+  double approximate_nominal_slippage_percentage = 9;
+  string update_protocol = 10;
+  bool full_orderbook_side_consumed = 11;
+}
+
+message GetOrderbookAmountByImpactRequest {
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+  double impact_percentage = 6;
+  bool sell = 7;
+  bool requires_rest_orderbook = 8;
+}
+
+message GetOrderbookAmountByImpactResponse {
+  double amount_required = 1;
+  string currency_selling = 2;
+  double amount_received = 3;
+  string currency_buying = 4;
+  double start_price = 5;
+  double end_price = 6;
+  double average_order_cost = 7;
+  string side_affected = 8;
+  double approximate_impact_slippage_percentage = 9;
+  string update_protocol = 10;
+  bool full_orderbook_side_consumed = 11;
+}
+
 service GoCryptoTraderService {
   rpc GetInfo(GetInfoRequest) returns (GetInfoResponse) {
     option (google.api.http) = {
@@ -1905,6 +1979,21 @@ service GoCryptoTraderService {
   rpc GetFundingRates(GetFundingRatesRequest) returns (GetFundingRatesResponse) {
     option (google.api.http) = {
       get: "/v1/getfundingrates"
+    };
+  }
+  rpc GetOrderbookMovement(GetOrderbookMovementRequest) returns (GetOrderbookMovementResponse) {
+    option (google.api.http) = {
+      get: "/v1/getorderbookmovement"
+    };
+  }
+  rpc GetOrderbookAmountByNominal(GetOrderbookAmountByNominalRequest) returns (GetOrderbookAmountByNominalResponse) {
+    option (google.api.http) = {
+      get: "/v1/getorderbookamountbynominal"
+    };
+  }
+  rpc GetOrderbookAmountByImpact(GetOrderbookAmountByImpactRequest) returns (GetOrderbookAmountByImpactResponse) {
+    option (google.api.http) = {
+      get: "/v1/getorderbookamountbyimpact"
     };
   }
 }
