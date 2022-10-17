@@ -15,7 +15,7 @@ import (
 
 func TestSetupRunManager(t *testing.T) {
 	t.Parallel()
-	rm := SetupTaskManager()
+	rm := NewTaskManager()
 	if rm == nil {
 		t.Errorf("received '%v' expected '%v'", rm, "&TaskManager{}")
 	}
@@ -23,7 +23,7 @@ func TestSetupRunManager(t *testing.T) {
 
 func TestAddRun(t *testing.T) {
 	t.Parallel()
-	rm := SetupTaskManager()
+	rm := NewTaskManager()
 	err := rm.AddTask(nil)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
@@ -58,7 +58,7 @@ func TestAddRun(t *testing.T) {
 
 func TestGetSummary(t *testing.T) {
 	t.Parallel()
-	rm := SetupTaskManager()
+	rm := NewTaskManager()
 	id, err := uuid.NewV4()
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
@@ -94,7 +94,7 @@ func TestGetSummary(t *testing.T) {
 
 func TestList(t *testing.T) {
 	t.Parallel()
-	rm := SetupTaskManager()
+	rm := NewTaskManager()
 	list, err := rm.List()
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
@@ -129,7 +129,7 @@ func TestList(t *testing.T) {
 
 func TestStopRun(t *testing.T) {
 	t.Parallel()
-	rm := SetupTaskManager()
+	rm := NewTaskManager()
 	list, err := rm.List()
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
@@ -181,7 +181,7 @@ func TestStopRun(t *testing.T) {
 
 func TestStopAllRuns(t *testing.T) {
 	t.Parallel()
-	rm := SetupTaskManager()
+	rm := NewTaskManager()
 	stoppedRuns, err := rm.StopAllTasks()
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
@@ -217,7 +217,7 @@ func TestStopAllRuns(t *testing.T) {
 
 func TestStartRun(t *testing.T) {
 	t.Parallel()
-	rm := SetupTaskManager()
+	rm := NewTaskManager()
 	list, err := rm.List()
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
@@ -273,7 +273,7 @@ func TestStartRun(t *testing.T) {
 
 func TestStartAllRuns(t *testing.T) {
 	t.Parallel()
-	rm := SetupTaskManager()
+	rm := NewTaskManager()
 	startedRuns, err := rm.StartAllTasks()
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
@@ -310,7 +310,7 @@ func TestStartAllRuns(t *testing.T) {
 
 func TestClearRun(t *testing.T) {
 	t.Parallel()
-	rm := SetupTaskManager()
+	rm := NewTaskManager()
 
 	id, err := uuid.NewV4()
 	if !errors.Is(err, nil) {
@@ -361,7 +361,7 @@ func TestClearRun(t *testing.T) {
 
 func TestClearAllRuns(t *testing.T) {
 	t.Parallel()
-	rm := SetupTaskManager()
+	rm := NewTaskManager()
 
 	clearedRuns, remainingRuns, err := rm.ClearAllTasks()
 	if len(clearedRuns) != 0 {

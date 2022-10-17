@@ -79,6 +79,8 @@ func (b *Base) Reset() error {
 	if b == nil {
 		return gctcommon.ErrNilPointer
 	}
+	b.m.Lock()
+	defer b.m.Unlock()
 	b.stream = nil
 	b.latest = nil
 	b.offset = 0
@@ -87,126 +89,203 @@ func (b *Base) Reset() error {
 }
 
 // GetStream will return entire data list
-func (b *Base) GetStream() []Event {
-	return b.stream
+func (b *Base) GetStream() ([]Event, error) {
+	if b == nil {
+		return nil, fmt.Errorf("%w Base", gctcommon.ErrNilPointer)
+	}
+	b.m.Lock()
+	defer b.m.Unlock()
+	stream := make([]Event, len(b.stream))
+	copy(stream, b.stream)
+
+	return stream, nil
 }
 
 // Offset returns the current iteration of candle data the backtester is assessing
-func (b *Base) Offset() int64 {
-	return b.offset
+func (b *Base) Offset() (int64, error) {
+	if b == nil {
+		return 0, fmt.Errorf("%w Base", gctcommon.ErrNilPointer)
+	}
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.offset, nil
 }
 
 // SetStream sets the data stream for candle analysis
-func (b *Base) SetStream(s []Event) {
+func (b *Base) SetStream(s []Event) error {
+	if b == nil {
+		return fmt.Errorf("%w Base", gctcommon.ErrNilPointer)
+	}
+	b.m.Lock()
+	defer b.m.Unlock()
+
 	sort.Slice(s, func(i, j int) bool {
 		return s[i].GetTime().Before(s[j].GetTime())
 	})
-	for i := range s {
+	for x := range s {
+		if s[x] == nil {
+			return fmt.Errorf("%w Event", gctcommon.ErrNilPointer)
+		}
+		if s[x].GetExchange() == "" || !s[x].GetAssetType().IsValid() || s[x].Pair().IsEmpty() || s[x].GetTime().IsZero() {
+			return errInvalidEventSupplied
+		}
+		if len(b.stream) > 0 {
+			if s[x].GetExchange() != b.stream[0].GetExchange() ||
+				s[x].GetAssetType() != b.stream[0].GetAssetType() ||
+				!s[x].Pair().Equal(b.stream[0].Pair()) {
+				return fmt.Errorf("%w cannot set base stream from %v %v %v to %v %v %v", errMisMatchedEvent, s[x].GetExchange(), s[x].GetAssetType(), s[x].Pair(), b.stream[0].GetExchange(), b.stream[0].GetAssetType(), b.stream[0].Pair())
+			}
+		}
+	}
+
+	for x := range s {
 		// due to the Next() function, we cannot take
 		// stream offsets as is, and we re-set them
-		s[i].SetOffset(int64(i) + 1)
+		s[x].SetOffset(int64(x) + 1)
 	}
+
 	b.stream = s
+	return nil
 }
 
 // AppendStream appends new datas onto the stream, however, will not
 // add duplicates. Used for live analysis
 func (b *Base) AppendStream(s ...Event) error {
+	if b == nil {
+		return fmt.Errorf("%w Base", gctcommon.ErrNilPointer)
+	}
 	if len(s) == 0 {
 		return errNothingToAdd
 	}
-	updatedStream := make([]Event, len(b.stream), len(b.stream)+len(s))
-	updatedStream = append(updatedStream, b.stream...)
+	b.m.Lock()
+	defer b.m.Unlock()
 candles:
 	for x := range s {
-		if err := b.equalSource(s[x]); err != nil {
-			return err
+		if s[x] == nil {
+			return fmt.Errorf("%w Event", gctcommon.ErrNilPointer)
 		}
-		for y := range b.stream {
-			if s[x].GetTime().Equal(b.stream[y].GetTime()) {
-				continue candles
+		if s[x].GetExchange() == "" || !s[x].GetAssetType().IsValid() || s[x].Pair().IsEmpty() || s[x].GetTime().IsZero() {
+			return errInvalidEventSupplied
+		}
+		if len(b.stream) > 0 {
+			if s[x].GetExchange() != b.stream[0].GetExchange() ||
+				s[x].GetAssetType() != b.stream[0].GetAssetType() ||
+				!s[x].Pair().Equal(b.stream[0].Pair()) {
+				return fmt.Errorf("%w %v %v %v received  %v %v %v", errMisMatchedEvent, b.stream[0].GetExchange(), b.stream[0].GetAssetType(), b.stream[0].Pair(), s[x].GetExchange(), s[x].GetAssetType(), s[x].Pair())
+			}
+			for y := range b.stream {
+				if s[x].GetTime().Equal(b.stream[y].GetTime()) {
+					continue candles
+				}
 			}
 		}
-		updatedStream = append(updatedStream, s[x])
-	}
-	if len(updatedStream) == 0 {
-		return nil
-	}
-	sort.Slice(updatedStream, func(i, j int) bool {
-		return updatedStream[i].GetTime().Before(updatedStream[j].GetTime())
-	})
-	for i := range updatedStream {
-		updatedStream[i].SetOffset(int64(i) + 1)
-	}
-	b.stream = updatedStream
-	return nil
-}
 
-// equalSource verifies that incoming data matches
-// internal source
-func (b *Base) equalSource(s Event) error {
-	if b == nil || s == nil {
-		return gctcommon.ErrNilPointer
+		b.stream = append(b.stream, s[x])
 	}
-	if s.GetExchange() == "" || !s.GetAssetType().IsValid() || s.Pair().IsEmpty() {
-		return errNothingToAdd
-	}
-	if len(b.stream) == 0 {
-		return nil
-	}
-	if s.GetExchange() != b.stream[0].GetExchange() &&
-		s.GetAssetType() != b.stream[0].GetAssetType() &&
-		!s.Pair().Equal(b.stream[0].Pair()) {
-		return fmt.Errorf("%w %v %v %v event cannot be appended to %v %v %v", errInvalidEventSupplied, s.GetExchange(), s.GetAssetType(), s.Pair(), b.stream[0].GetExchange(), b.stream[0].GetAssetType(), b.stream[0].Pair())
+
+	sort.Slice(b.stream, func(i, j int) bool {
+		return b.stream[i].GetTime().Before(b.stream[j].GetTime())
+	})
+	for i := range b.stream {
+		b.stream[i].SetOffset(int64(i) + 1)
 	}
 	return nil
 }
 
 // Next will return the next event in the list and also shift the offset one
-func (b *Base) Next() Event {
+func (b *Base) Next() (Event, error) {
+	if b == nil {
+		return nil, fmt.Errorf("%w Base", gctcommon.ErrNilPointer)
+	}
+	b.m.Lock()
+	defer b.m.Unlock()
 	if int64(len(b.stream)) <= b.offset {
-		return nil
+		return nil, fmt.Errorf("%w of %v", errInvalidOffset, b.offset)
 	}
 	ret := b.stream[b.offset]
 	b.offset++
 	b.latest = ret
-	return ret
+	return ret, nil
 }
 
 // History will return all previous data events that have happened
-func (b *Base) History() []Event {
-	return b.stream[:b.offset]
+func (b *Base) History() ([]Event, error) {
+	if b == nil {
+		return nil, fmt.Errorf("%w Base", gctcommon.ErrNilPointer)
+	}
+	b.m.Lock()
+	defer b.m.Unlock()
+
+	stream := make([]Event, len(b.stream[:b.offset]))
+	copy(stream, b.stream[:b.offset])
+
+	return stream, nil
 }
 
 // Latest will return latest data event
-func (b *Base) Latest() Event {
+func (b *Base) Latest() (Event, error) {
+	if b == nil {
+		return nil, fmt.Errorf("%w Base", gctcommon.ErrNilPointer)
+	}
+	b.m.Lock()
+	defer b.m.Unlock()
+
 	if b.latest == nil && int64(len(b.stream)) >= b.offset+1 {
 		b.latest = b.stream[b.offset]
 	}
-	return b.latest
+	return b.latest, nil
 }
 
 // List returns all future data events from the current iteration
 // ill-advised to use this in strategies because you don't know the future in real life
-func (b *Base) List() []Event {
-	return b.stream[b.offset:]
+func (b *Base) List() ([]Event, error) {
+	if b == nil {
+		return nil, fmt.Errorf("%w Base", gctcommon.ErrNilPointer)
+	}
+	b.m.Lock()
+	defer b.m.Unlock()
+
+	stream := make([]Event, len(b.stream[b.offset:]))
+	copy(stream, b.stream[b.offset:])
+
+	return stream, nil
 }
 
 // IsLastEvent determines whether the latest event is the last event
 // for live data, this will be false, as all appended data is the latest available data
 // and this signal cannot be completely relied upon
-func (b *Base) IsLastEvent() bool {
-	return b.latest != nil && b.latest.GetOffset() == int64(len(b.stream)) && !b.isLiveData
+func (b *Base) IsLastEvent() (bool, error) {
+	if b == nil {
+		return false, fmt.Errorf("%w Base", gctcommon.ErrNilPointer)
+	}
+	b.m.Lock()
+	defer b.m.Unlock()
+
+	return b.latest != nil && b.latest.GetOffset() == int64(len(b.stream)) && !b.isLiveData,
+		nil
 }
 
 // IsLive returns if the data source is a live one
 // less scrutiny on checks is required on live data sourcing
-func (b *Base) IsLive() bool {
-	return b.isLiveData
+func (b *Base) IsLive() (bool, error) {
+	if b == nil {
+		return false, fmt.Errorf("%w Base", gctcommon.ErrNilPointer)
+	}
+	b.m.Lock()
+	defer b.m.Unlock()
+
+	return b.isLiveData, nil
 }
 
 // SetLive sets if the data source is a live one
 // less scrutiny on checks is required on live data sourcing
-func (b *Base) SetLive(isLive bool) {
+func (b *Base) SetLive(isLive bool) error {
+	if b == nil {
+		return fmt.Errorf("%w Base", gctcommon.ErrNilPointer)
+	}
+	b.m.Lock()
+	defer b.m.Unlock()
+
 	b.isLiveData = isLive
+	return nil
 }

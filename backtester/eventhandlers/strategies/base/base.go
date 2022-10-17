@@ -19,7 +19,10 @@ func (s *Strategy) GetBaseData(d data.Handler) (signal.Signal, error) {
 	if d == nil {
 		return signal.Signal{}, gctcommon.ErrNilPointer
 	}
-	latest := d.Latest()
+	latest, err := d.Latest()
+	if err != nil {
+		return signal.Signal{}, err
+	}
 	if latest == nil {
 		return signal.Signal{}, common.ErrNilEvent
 	}

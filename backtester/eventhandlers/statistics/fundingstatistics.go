@@ -20,7 +20,10 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 	if currStats == nil {
 		return nil, gctcommon.ErrNilPointer
 	}
-	report := funds.GenerateReport()
+	report, err := funds.GenerateReport()
+	if err != nil {
+		return nil, err
+	}
 	if report == nil {
 		return nil, errReceivedNoData
 	}
@@ -104,7 +107,6 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 	if !usdStats.HoldingValues[0].Value.IsZero() {
 		usdStats.BenchmarkMarketMovement = benchmarkMovement.Sub(usdStats.HoldingValues[0].Value).Div(usdStats.HoldingValues[0].Value).Mul(decimal.NewFromInt(100))
 	}
-	var err error
 	usdStats.MaxDrawdown, err = CalculateBiggestValueAtTimeDrawdown(usdStats.HoldingValues, interval)
 	if err != nil {
 		return nil, err
@@ -264,14 +266,16 @@ func CalculateIndividualFundingStatistics(disableUSDTracking bool, reportItem *f
 	if item.ReportItem.USDPairCandle == nil && !reportItem.IsCollateral {
 		return nil, fmt.Errorf("%w usd candles missing", errMissingSnapshots)
 	}
-	s := item.ReportItem.USDPairCandle.GetStream()
+	s, err := item.ReportItem.USDPairCandle.GetStream()
+	if err != nil {
+		return nil, err
+	}
 	if len(s) == 0 {
 		return nil, fmt.Errorf("%w stream missing", errMissingSnapshots)
 	}
 	if reportItem.IsCollateral {
 		return item, nil
 	}
-	var err error
 	item.MaxDrawdown, err = CalculateBiggestEventDrawdown(s)
 	return item, err
 }

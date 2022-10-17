@@ -2,6 +2,7 @@ package data
 
 import (
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -16,6 +17,8 @@ var (
 
 	errNothingToAdd         = errors.New("cannot append empty event to stream")
 	errInvalidEventSupplied = errors.New("invalid event supplied")
+	errInvalidOffset        = errors.New("event base set to invalid offset")
+	errMisMatchedEvent      = errors.New("cannot add event to stream, does not match")
 )
 
 // HandlerPerCurrency stores an event handler per exchange asset pair
@@ -35,6 +38,7 @@ type Holder interface {
 // Base is the base implementation of some interface functions
 // where further specific functions are implemented in DataFromKline
 type Base struct {
+	m          sync.Mutex
 	latest     Event
 	stream     []Event
 	offset     int64
@@ -56,21 +60,21 @@ type Loader interface {
 
 // Streamer interface handles loading, parsing, distributing BackTest data
 type Streamer interface {
-	Next() Event
-	GetStream() []Event
-	History() []Event
-	Latest() Event
-	List() []Event
-	IsLastEvent() bool
-	Offset() int64
+	Next() (Event, error)
+	GetStream() ([]Event, error)
+	History() ([]Event, error)
+	Latest() (Event, error)
+	List() ([]Event, error)
+	IsLastEvent() (bool, error)
+	Offset() (int64, error)
 
-	StreamOpen() []decimal.Decimal
-	StreamHigh() []decimal.Decimal
-	StreamLow() []decimal.Decimal
-	StreamClose() []decimal.Decimal
-	StreamVol() []decimal.Decimal
+	StreamOpen() ([]decimal.Decimal, error)
+	StreamHigh() ([]decimal.Decimal, error)
+	StreamLow() ([]decimal.Decimal, error)
+	StreamClose() ([]decimal.Decimal, error)
+	StreamVol() ([]decimal.Decimal, error)
 
-	HasDataAtTime(time.Time) bool
+	HasDataAtTime(time.Time) (bool, error)
 }
 
 // Event interface used for loading and interacting with Data

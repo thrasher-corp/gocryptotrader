@@ -113,9 +113,7 @@ func (d *dataChecker) DataFetcher() error {
 	if d == nil {
 		return fmt.Errorf("%w dataChecker", gctcommon.ErrNilPointer)
 	}
-	defer func() {
-		d.wg.Done()
-	}()
+	d.wg.Done()
 	if atomic.LoadUint32(&d.started) == 0 {
 		return engine.ErrSubSystemNotStarted
 	}
@@ -126,28 +124,23 @@ func (d *dataChecker) DataFetcher() error {
 		case <-d.shutdown:
 			return nil
 		case <-checkTimer.C:
-			err := d.checkData(checkTimer, timeoutTimer)
+			err := d.checkData()
 			if err != nil {
 				return err
 			}
+			checkTimer.Reset(d.dataCheckInterval)
+			if !timeoutTimer.Stop() {
+				// drain to avoid closure
+				<-timeoutTimer.C
+			}
+			timeoutTimer.Reset(d.eventTimeout)
 		case <-timeoutTimer.C:
 			return fmt.Errorf("%w of %v", ErrLiveDataTimeout, d.eventTimeout)
 		}
 	}
 }
 
-func (d *dataChecker) checkData(checkTimer, timeoutTimer *time.Timer) error {
-	if checkTimer == nil || timeoutTimer == nil {
-		return fmt.Errorf("%w timer", gctcommon.ErrNilPointer)
-	}
-	defer func() {
-		checkTimer.Reset(d.dataCheckInterval)
-		if !timeoutTimer.Stop() {
-			// drain to avoid closure
-			<-timeoutTimer.C
-		}
-		timeoutTimer.Reset(d.eventTimeout)
-	}()
+func (d *dataChecker) checkData() error {
 	updated, err := d.FetchLatestData()
 	if err != nil {
 		return err
@@ -344,20 +337,19 @@ func (d *dataChecker) FetchLatestData() (bool, error) {
 		}
 		results[i] = updated
 	}
-	allUpdated := true
 	for i := range results {
 		if !results[i] {
-			allUpdated = false
+			return false, nil
 		}
-	}
-	if !allUpdated {
-		return false, nil
 	}
 	for i := range d.sourcesToCheck {
 		if d.verboseDataCheck {
 			log.Infof(common.LiveStrategy, "%v %v %v found new data", d.sourcesToCheck[i].exchangeName, d.sourcesToCheck[i].asset, d.sourcesToCheck[i].pair)
 		}
-		d.sourcesToCheck[i].pairCandles.AppendResults(d.sourcesToCheck[i].candlesToAppend)
+		err = d.sourcesToCheck[i].pairCandles.AppendResults(d.sourcesToCheck[i].candlesToAppend)
+		if err != nil {
+			return false, err
+		}
 		d.sourcesToCheck[i].candlesToAppend.Candles = nil
 		d.dataHolder.SetDataForCurrency(d.sourcesToCheck[i].exchangeName, d.sourcesToCheck[i].asset, d.sourcesToCheck[i].pair, &d.sourcesToCheck[i].pairCandles)
 		err = d.report.SetKlineData(&d.sourcesToCheck[i].pairCandles.Item)
@@ -482,10 +474,8 @@ func (c *liveDataSourceDataHandler) loadCandleData(timeToRetrieve time.Time) (bo
 	if len(unprocessedCandles) > 0 {
 		if c.candlesToAppend == nil {
 			c.candlesToAppend = candles
-			c.candlesToAppend.Candles = unprocessedCandles
-		} else {
-			c.candlesToAppend.Candles = append(c.candlesToAppend.Candles, unprocessedCandles...)
 		}
+		c.candlesToAppend.Candles = append(c.candlesToAppend.Candles, unprocessedCandles...)
 		return true, nil
 	}
 	return false, nil

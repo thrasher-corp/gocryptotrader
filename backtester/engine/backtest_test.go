@@ -107,10 +107,7 @@ func TestSetupFromConfig(t *testing.T) {
 	}
 	cfg.CurrencySettings[0].Base = currency.BTC
 	cfg.CurrencySettings[0].Quote = currency.USD
-	cfg.DataSettings.APIData = &config.APIData{
-		StartDate: time.Time{},
-		EndDate:   time.Time{},
-	}
+	cfg.DataSettings.APIData = &config.APIData{}
 
 	err = bt.SetupFromConfig(cfg, "", "", false)
 	if err != nil && !strings.Contains(err.Error(), "unrecognised dataType") {
@@ -175,10 +172,6 @@ func TestLoadDataAPI(t *testing.T) {
 				SpotDetails: &config.SpotDetails{
 					InitialQuoteFunds: &leet,
 				},
-				BuySide:  config.MinMax{},
-				SellSide: config.MinMax{},
-				MakerFee: &decimal.Zero,
-				TakerFee: &decimal.Zero,
 			},
 		},
 		DataSettings: config.DataSettings{
@@ -232,8 +225,6 @@ func TestLoadDataCSV(t *testing.T) {
 				SpotDetails: &config.SpotDetails{
 					InitialQuoteFunds: &leet,
 				},
-				BuySide:  config.MinMax{},
-				SellSide: config.MinMax{},
 				MakerFee: &decimal.Zero,
 				TakerFee: &decimal.Zero,
 			},
@@ -289,8 +280,6 @@ func TestLoadDataDatabase(t *testing.T) {
 				SpotDetails: &config.SpotDetails{
 					InitialQuoteFunds: &leet,
 				},
-				BuySide:  config.MinMax{},
-				SellSide: config.MinMax{},
 				MakerFee: &decimal.Zero,
 				TakerFee: &decimal.Zero,
 			},
@@ -363,8 +352,6 @@ func TestLoadDataLive(t *testing.T) {
 				SpotDetails: &config.SpotDetails{
 					InitialQuoteFunds: &leet,
 				},
-				BuySide:  config.MinMax{},
-				SellSide: config.MinMax{},
 				MakerFee: &decimal.Zero,
 				TakerFee: &decimal.Zero,
 			},
@@ -620,7 +607,6 @@ func TestFullCycleMulti(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	bt := BackTest{
-		shutdown:                 nil,
 		DataHolder:               &data.HandlerPerCurrency{},
 		Portfolio:                port,
 		Exchange:                 &exchange.Exchange{},
@@ -1765,10 +1751,6 @@ func (f fakeFolio) GetLatestOrderSnapshots() ([]compliance.Snapshot, error) {
 
 func (f fakeFolio) ViewHoldingAtTimePeriod(c common.Event) (*holdings.Holding, error) {
 	return nil, nil
-}
-
-func (f fakeFolio) setHoldingsForOffset(holding *holdings.Holding, b bool) error {
-	return nil
 }
 
 func (f fakeFolio) UpdateHoldings(d data.Event, releaser funding.IFundReleaser) error {

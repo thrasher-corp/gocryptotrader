@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"sort"
 	"strings"
 	"time"
@@ -124,7 +125,7 @@ func (f *FundManager) LinkCollateralCurrency(item *Item, code currency.Code) err
 // CreateSnapshot creates a Snapshot for an event's point in time
 // as funding.snapshots is a map, it allows for the last event
 // in the chronological list to establish the canon at X time
-func (f *FundManager) CreateSnapshot(t time.Time) {
+func (f *FundManager) CreateSnapshot(t time.Time) error {
 	for i := range f.items {
 		if f.items[i].snapshot == nil {
 			f.items[i].snapshot = make(map[int64]ItemSnapshot)
@@ -141,7 +142,10 @@ func (f *FundManager) CreateSnapshot(t time.Time) {
 				continue
 			}
 			var usdClosePrice decimal.Decimal
-			usdCandles := f.items[i].trackingCandles.GetStream()
+			usdCandles, err := f.items[i].trackingCandles.GetStream()
+			if err != nil {
+				return err
+			}
 			for j := range usdCandles {
 				if usdCandles[j].GetTime().Equal(t) {
 					usdClosePrice = usdCandles[j].GetClosePrice()
@@ -154,6 +158,7 @@ func (f *FundManager) CreateSnapshot(t time.Time) {
 
 		f.items[i].snapshot[t.UnixNano()] = iss
 	}
+	return nil
 }
 
 // AddUSDTrackingData adds USD tracking data to a funding item
@@ -235,12 +240,13 @@ func (f *FundManager) setUSDCandles(k *kline.DataFromKline, i int) error {
 			Close: 1,
 		}
 	}
-	cpy := *k
-	cpy.Item = usdCandles
-	if err := cpy.Load(); err != nil {
+	usdData := &kline.DataFromKline{
+		Item: usdCandles,
+	}
+	if err := usdData.Load(); err != nil {
 		return err
 	}
-	f.items[i].trackingCandles = &cpy
+	f.items[i].trackingCandles = usdData
 	return nil
 }
 
@@ -303,7 +309,7 @@ func (f *FundManager) USDTrackingDisabled() bool {
 }
 
 // GenerateReport builds report data for result HTML report
-func (f *FundManager) GenerateReport() *Report {
+func (f *FundManager) GenerateReport() (*Report, error) {
 	report := Report{
 		UsingExchangeLevelFunding: f.usingExchangeLevelFunding,
 		DisableUSDTracking:        f.disableUSDTracking,
@@ -323,7 +329,10 @@ func (f *FundManager) GenerateReport() *Report {
 
 		if !f.disableUSDTracking &&
 			f.items[x].trackingCandles != nil {
-			usdStream := f.items[x].trackingCandles.GetStream()
+			usdStream, err := f.items[x].trackingCandles.GetStream()
+			if err != nil {
+				return nil, err
+			}
 			if usdStream == nil {
 				log.Errorf(common.FundManager, "usd tracking data is nil for %v %v %v, please ensure data is present", f.items[x].exchange, f.items[x].asset, f.items[x].currency)
 				continue
@@ -399,7 +408,7 @@ func (f *FundManager) GenerateReport() *Report {
 	}
 
 	report.Items = items
-	return &report
+	return &report, nil
 }
 
 // Transfer allows transferring funds from one pretend exchange to another
@@ -549,12 +558,15 @@ func (f *FundManager) Liquidate(ev common.Event) {
 
 // GetAllFunding returns basic representations of all current
 // holdings from the latest point
-func (f *FundManager) GetAllFunding() []BasicItem {
+func (f *FundManager) GetAllFunding() ([]BasicItem, error) {
 	result := make([]BasicItem, len(f.items))
 	for i := range f.items {
 		var usd decimal.Decimal
 		if f.items[i].trackingCandles != nil {
-			latest := f.items[i].trackingCandles.Latest()
+			latest, err := f.items[i].trackingCandles.Latest()
+			if err != nil {
+				return nil, err
+			}
 			if latest != nil {
 				usd = latest.GetClosePrice()
 			}
@@ -569,7 +581,7 @@ func (f *FundManager) GetAllFunding() []BasicItem {
 			USDPrice:     usd,
 		}
 	}
-	return result
+	return result, nil
 }
 
 // UpdateFundingFromLiveData forcefully updates funding from a live source
@@ -635,7 +647,11 @@ func (f *FundManager) UpdateAllCollateral(isLive, initialFundsSet bool) error {
 			}
 			var usd decimal.Decimal
 			if f.items[y].trackingCandles != nil {
-				latest := f.items[y].trackingCandles.Latest()
+				var latest data.Event
+				latest, err = f.items[y].trackingCandles.Latest()
+				if err != nil {
+					return err
+				}
 				if latest != nil {
 					usd = latest.GetClosePrice()
 				}
@@ -716,7 +732,8 @@ func (f *FundManager) UpdateCollateralForEvent(ev common.Event, isLive bool) err
 		}
 		var usd decimal.Decimal
 		if f.items[i].trackingCandles != nil {
-			latest := f.items[i].trackingCandles.Latest()
+			var latest data.Event
+			latest, err = f.items[i].trackingCandles.Latest()
 			if latest != nil {
 				usd = latest.GetClosePrice()
 			}

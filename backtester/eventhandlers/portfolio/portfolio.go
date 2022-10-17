@@ -659,7 +659,10 @@ func (p *Portfolio) CreateLiquidationOrdersForExchange(ev data.Event, funds fund
 						LiquidatingPosition: true,
 					})
 				case item == asset.Spot:
-					allFunds := funds.GetAllFunding()
+					allFunds, err := funds.GetAllFunding()
+					if err != nil {
+						return nil, err
+					}
 					for i := range allFunds {
 						if allFunds[i].Asset.IsFutures() {
 							continue

@@ -166,7 +166,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 					exchBase.States = currencystate.NewCurrencyStates()
 				}
 				if cfg.CurrencySettings[i].CanUseExchangeLimits || (cfg.DataSettings.LiveData != nil && cfg.DataSettings.LiveData.RealOrders) {
-					err = exch.UpdateOrderExecutionLimits(context.TODO(), asset.Empty)
+					err = exch.UpdateOrderExecutionLimits(context.TODO(), cfg.CurrencySettings[i].Asset)
 					if err != nil && !errors.Is(err, gctcommon.ErrNotYetImplemented) {
 						return err
 					}
@@ -444,7 +444,10 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 	}
 	bt.Portfolio = p
 	hasFunding := false
-	fundingItems := funds.GetAllFunding()
+	fundingItems, err := funds.GetAllFunding()
+	if err != nil {
+		return err
+	}
 	for i := range fundingItems {
 		if fundingItems[i].InitialFunds.IsPositive() {
 			hasFunding = true
@@ -513,7 +516,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			var apiMakerFee, apiTakerFee decimal.Decimal
 			apiMakerFee, apiTakerFee, err = getFees(context.TODO(), exch, pair)
 			if err != nil {
-				log.Errorf(common.Setup, "Could not retrieve maker fee for %v. %v", exch.GetName(), err)
+				log.Errorf(common.Setup, "Could not retrieve fees for %v. %v", exch.GetName(), err)
 			}
 			if cfg.CurrencySettings[i].MakerFee == nil {
 				makerFee = apiMakerFee
@@ -696,7 +699,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 	if a.IsFutures() {
 		// returning the collateral currency along with using the
 		// fPair base creates a pair that links the futures contract to
-		// is underlyingPair pair
+		// its underlyingPair pair
 		// eg BTC-PERP on FTX has a collateral currency of USD
 		// taking the BTC base and USD as quote, allows linking
 		// BTC-USD and BTC-PERP
@@ -799,9 +802,6 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		}
 	case cfg.DataSettings.LiveData != nil:
 		bt.exchangeManager.Add(exch)
-		if err != nil {
-			return nil, err
-		}
 		err = bt.LiveDataHandler.AppendDataSource(&liveDataSourceSetup{
 			exchange:                  exch,
 			interval:                  cfg.DataSettings.Interval,

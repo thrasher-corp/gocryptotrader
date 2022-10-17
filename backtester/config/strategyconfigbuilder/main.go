@@ -569,10 +569,7 @@ func customSettingsLoop(reader *bufio.Reader) map[string]interface{} {
 }
 
 func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*config.CurrencySettings, error) {
-	setting := config.CurrencySettings{
-		BuySide:  config.MinMax{},
-		SellSide: config.MinMax{},
-	}
+	setting := config.CurrencySettings{}
 	fmt.Println("Enter the exchange name. eg Binance")
 	setting.ExchangeName = quickParse(reader)
 

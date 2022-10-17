@@ -19,12 +19,12 @@ type IFundingManager interface {
 	IsUsingExchangeLevelFunding() bool
 	GetFundingForEvent(common.Event) (IFundingPair, error)
 	Transfer(decimal.Decimal, *Item, *Item, bool) error
-	GenerateReport() *Report
+	GenerateReport() (*Report, error)
 	AddUSDTrackingData(*kline.DataFromKline) error
-	CreateSnapshot(time.Time)
+	CreateSnapshot(time.Time) error
 	USDTrackingDisabled() bool
 	Liquidate(common.Event)
-	GetAllFunding() []BasicItem
+	GetAllFunding() ([]BasicItem, error)
 	UpdateCollateralForEvent(common.Event, bool) error
 	UpdateAllCollateral(isLive, hasUpdateFunding bool) error
 	UpdateFundingFromLiveData(hasUpdatedFunding bool) error

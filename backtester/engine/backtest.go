@@ -183,7 +183,11 @@ dataLoadingIssue:
 				for assetItem, assetMap := range exchangeMap {
 					for baseCurrency, baseMap := range assetMap {
 						for quoteCurrency, dataHandler := range baseMap {
-							d := dataHandler.Next()
+							d, err := dataHandler.Next()
+							if err != nil {
+								// todo re-eval
+								return
+							}
 							if d == nil {
 								if !bt.hasProcessedAnEvent && bt.LiveDataHandler == nil {
 									log.Errorf(common.Backtester, "Unable to perform `Next` for %v %v %v-%v", exchangeName, assetItem, baseCurrency, quoteCurrency)
@@ -307,7 +311,10 @@ func (bt *BackTest) processSimultaneousDataEvents() error {
 		for _, assetMap := range exchangeMap {
 			for _, baseMap := range assetMap {
 				for _, dataHandler := range baseMap {
-					latestData := dataHandler.Latest()
+					latestData, err := dataHandler.Latest()
+					if err != nil {
+						return err
+					}
 					funds, err := bt.Funding.GetFundingForEvent(latestData)
 					if err != nil {
 						return err
@@ -621,7 +628,11 @@ func (bt *BackTest) triggerLiquidationsForExchange(ev data.Event, pnl *portfolio
 		if err != nil {
 			return err
 		}
-		latest := datas.Latest()
+		var latest data.Event
+		latest, err = datas.Latest()
+		if err != nil {
+			return err
+		}
 		err = bt.Statistic.SetEventForOffset(latest)
 		if err != nil && !errors.Is(err, statistics.ErrAlreadyProcessed) {
 			return err
@@ -654,7 +665,12 @@ func (bt *BackTest) CloseAllPositions() error {
 		for _, assetMap := range exchangeMap {
 			for _, baseMap := range assetMap {
 				for _, handler := range baseMap {
-					latestPrices = append(latestPrices, handler.Latest())
+					var latest data.Event
+					latest, err = handler.Latest()
+					if err != nil {
+						return err
+					}
+					latestPrices = append(latestPrices, latest)
 				}
 			}
 		}

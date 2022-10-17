@@ -17,8 +17,8 @@ var (
 	errCannotClear          = errors.New("cannot clear task")
 )
 
-// SetupTaskManager creates a run manager to allow the backtester to manage multiple strategies
-func SetupTaskManager() *TaskManager {
+// NewTaskManager creates a run manager to allow the backtester to manage multiple strategies
+func NewTaskManager() *TaskManager {
 	return &TaskManager{}
 }
 
@@ -169,7 +169,7 @@ func (r *TaskManager) StartAllTasks() ([]uuid.UUID, error) {
 	return executedRuns, nil
 }
 
-// ClearTask removes a run from memory
+// ClearTask removes a run from memory, but only if it is not running
 func (r *TaskManager) ClearTask(id uuid.UUID) error {
 	if r == nil {
 		return fmt.Errorf("%w TaskManager", gctcommon.ErrNilPointer)
@@ -189,7 +189,7 @@ func (r *TaskManager) ClearTask(id uuid.UUID) error {
 	return fmt.Errorf("%s %w", id, errTaskNotFound)
 }
 
-// ClearAllTasks removes all tasks from memory
+// ClearAllTasks removes all tasks from memory, but only if they are not running
 func (r *TaskManager) ClearAllTasks() (clearedRuns, remainingRuns []*TaskSummary, err error) {
 	if r == nil {
 		return nil, nil, fmt.Errorf("%w TaskManager", gctcommon.ErrNilPointer)

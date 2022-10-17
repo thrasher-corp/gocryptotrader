@@ -69,23 +69,26 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 
 	for _, b := range sortedSignals {
 		for _, v := range b {
-			pos, err := p.GetPositions(v.futureSignal.Latest())
+			var latestSpot, latestFuture data.Event
+			var pos []order.Position
+			pos, err = p.GetPositions(latestFuture)
 			if err != nil {
 				return nil, err
 			}
-			spotSignal, err := s.GetBaseData(v.spotSignal)
+			var spotSignal, futuresSignal signal.Signal
+			spotSignal, err = s.GetBaseData(v.spotSignal)
 			if err != nil {
 				return nil, err
 			}
-			futuresSignal, err := s.GetBaseData(v.futureSignal)
+			futuresSignal, err = s.GetBaseData(v.futureSignal)
 			if err != nil {
 				return nil, err
 			}
 
 			spotSignal.SetDirection(order.DoNothing)
 			futuresSignal.SetDirection(order.DoNothing)
-			fp := v.futureSignal.Latest().GetClosePrice()
-			sp := v.spotSignal.Latest().GetClosePrice()
+			fp := latestFuture.GetClosePrice()
+			sp := latestSpot.GetClosePrice()
 			diffBetweenFuturesSpot := fp.Sub(sp).Div(sp).Mul(decimal.NewFromInt(100))
 			futuresSignal.AppendReasonf("Futures Spot Difference: %v%%", diffBetweenFuturesSpot)
 			if len(pos) > 0 && pos[len(pos)-1].Status == order.Open {
@@ -97,7 +100,13 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 				response = append(response, &spotSignal, &futuresSignal)
 				continue
 			}
-			signals, err := s.createSignals(pos, &spotSignal, &futuresSignal, diffBetweenFuturesSpot, v.futureSignal.IsLastEvent())
+			var isLastEvent bool
+			var signals []signal.Event
+			isLastEvent, err = v.futureSignal.IsLastEvent()
+			if err != nil {
+				return nil, err
+			}
+			signals, err = s.createSignals(pos, &spotSignal, &futuresSignal, diffBetweenFuturesSpot, isLastEvent)
 			if err != nil {
 				return nil, err
 			}
@@ -213,7 +222,10 @@ func sortSignals(d []data.Handler) (map[*currency.Item]map[*currency.Item]cashCa
 	}
 	var response = make(map[*currency.Item]map[*currency.Item]cashCarrySignals, len(d))
 	for i := range d {
-		l := d[i].Latest()
+		l, err := d[i].Latest()
+		if err != nil {
+			return nil, err
+		}
 		if !strings.EqualFold(l.GetExchange(), exchangeName) {
 			return nil, fmt.Errorf("%w, received '%v'", errOnlyFTXSupported, l.GetExchange())
 		}

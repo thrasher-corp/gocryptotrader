@@ -204,7 +204,7 @@ func main() {
 	btCfg.Report.DarkMode = darkReport
 	btCfg.Report.GenerateReport = generateReport
 
-	runManager := backtest.SetupTaskManager()
+	runManager := backtest.NewTaskManager()
 
 	go func(c *config.BacktesterConfig) {
 		log.Info(log.GRPCSys, "Starting RPC server")

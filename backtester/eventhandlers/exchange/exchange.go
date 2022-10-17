@@ -32,7 +32,7 @@ func (e *Exchange) Reset() error {
 
 // ExecuteOrder assesses the portfolio manager's order event and if it passes validation
 // will send an order to the exchange/fake order manager to be stored and raise a fill event
-func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, om *engine.OrderManager, funds funding.IFundReleaser) (fill.Event, error) {
+func (e *Exchange) ExecuteOrder(o order.Event, dh data.Handler, om *engine.OrderManager, funds funding.IFundReleaser) (fill.Event, error) {
 	f := &fill.Fill{
 		Base:               o.GetBase(),
 		Direction:          o.GetDirection(),
@@ -85,15 +85,12 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, om *engine.Ord
 			f.VolumeAdjustedPrice = f.ClosePrice
 			amount = f.Amount
 		} else {
-			highStr := data.StreamHigh()
-			high := highStr[len(highStr)-1]
-
-			lowStr := data.StreamLow()
-			low := lowStr[len(lowStr)-1]
-
-			volStr := data.StreamVol()
-			volume := volStr[len(volStr)-1]
-			adjustedPrice, adjustedAmount = ensureOrderFitsWithinHLV(price, amount, high, low, volume)
+			var latest data.Event
+			latest, err = dh.Latest()
+			if err != nil {
+				return nil, err
+			}
+			adjustedPrice, adjustedAmount = ensureOrderFitsWithinHLV(price, amount, latest.GetHighPrice(), latest.GetLowPrice(), latest.GetVolume())
 			if !amount.Equal(adjustedAmount) {
 				f.AppendReasonf("Order size shrunk from %v to %v to fit candle", amount, adjustedAmount)
 				amount = adjustedAmount

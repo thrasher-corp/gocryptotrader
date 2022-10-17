@@ -39,7 +39,7 @@ func TestExecuteStrategyFromFile(t *testing.T) {
 		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
 	}
 
-	s.manager = SetupTaskManager()
+	s.manager = NewTaskManager()
 	_, err = s.ExecuteStrategyFromFile(context.Background(), nil)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
@@ -85,7 +85,7 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 	}
 
 	s.config.Report.GenerateReport = false
-	s.manager = SetupTaskManager()
+	s.manager = NewTaskManager()
 	_, err = s.ExecuteStrategyFromConfig(context.Background(), nil)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
@@ -343,7 +343,7 @@ func TestListAllTasks(t *testing.T) {
 		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
 	}
 
-	s.manager = SetupTaskManager()
+	s.manager = NewTaskManager()
 	_, err = s.ListAllTasks(context.Background(), nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expecting '%v'", err, nil)
@@ -377,7 +377,7 @@ func TestGRPCStopTask(t *testing.T) {
 		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
 	}
 
-	s.manager = SetupTaskManager()
+	s.manager = NewTaskManager()
 	_, err = s.StopTask(context.Background(), nil)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
@@ -424,7 +424,7 @@ func TestGRPCStopAllTasks(t *testing.T) {
 		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
 	}
 
-	s.manager = SetupTaskManager()
+	s.manager = NewTaskManager()
 	_, err = s.StopAllTasks(context.Background(), nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expecting '%v'", err, nil)
@@ -473,7 +473,7 @@ func TestGRPCStartTask(t *testing.T) {
 		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
 	}
 
-	s.manager = SetupTaskManager()
+	s.manager = NewTaskManager()
 	_, err = s.StartTask(context.Background(), nil)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
@@ -512,7 +512,7 @@ func TestGRPCStartAllTasks(t *testing.T) {
 		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
 	}
 
-	s.manager = SetupTaskManager()
+	s.manager = NewTaskManager()
 	_, err = s.StartAllTasks(context.Background(), nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expecting '%v'", err, nil)
@@ -549,7 +549,7 @@ func TestGRPCClearTask(t *testing.T) {
 		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
 	}
 
-	s.manager = SetupTaskManager()
+	s.manager = NewTaskManager()
 	_, err = s.ClearTask(context.Background(), nil)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
@@ -585,7 +585,7 @@ func TestGRPCClearAllTasks(t *testing.T) {
 		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
 	}
 
-	s.manager = SetupTaskManager()
+	s.manager = NewTaskManager()
 	_, err = s.ClearAllTasks(context.Background(), nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expecting '%v'", err, nil)
