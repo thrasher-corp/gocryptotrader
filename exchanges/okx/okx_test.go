@@ -1524,7 +1524,6 @@ func TestGetPublicBorrowInfo(t *testing.T) {
 	if err := json.Unmarshal([]byte(publicBorrowInfoJSON), &resp); err != nil {
 		t.Error("Okx Unmarshaling to LendingHistory error", err)
 	}
-	t.SkipNow()
 	if _, err := ok.GetPublicBorrowInfo(context.Background(), ""); err != nil {
 		t.Error("Okx GetPublicBorrowInfo() error", err)
 	}
@@ -3526,16 +3525,22 @@ func TestWsAccountSubscription(t *testing.T) {
 	}
 }
 
-var placeOrderJSON = `{	"id": "1512",	"op": "order",	"args": [ "instId":"BTC-USDC",    "tdMode":"cash",    "clOrdId":"b15",    "side":"Buy",    "ordType":"limit",    "px":"2.15",    "sz":"2"}	]}`
+var placeOrderJSON = `{	"id": "1512",	"op": "order",	"args": [{ "instId":"BTC-USDC",    "tdMode":"cash",    "clOrdId":"b15",    "side":"Buy",    "ordType":"limit",    "px":"2.15",    "sz":"2"}	]}`
 
 func TestWsPlaceOrder(t *testing.T) {
 	t.Parallel()
+	var resp WsPlaceOrderInput
+	err := json.Unmarshal([]byte(placeOrderArgs), &resp)
+	if err != nil {
+		t.Error(err)
+	}
+	var response OrderData
+	err = json.Unmarshal([]byte(placeOrderJSON), &response)
+	if err != nil {
+		t.Error(err)
+	}
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
-	}
-	var resp WsPlaceOrderInput
-	if err := json.Unmarshal([]byte(placeOrderArgs), &resp); err != nil {
-		t.Error(err)
 	}
 	setupWsAuth(t)
 	pairs, err := ok.FetchTradablePairs(context.Background(), asset.Spot)
@@ -3832,14 +3837,4 @@ func TestGridSubOrders(t *testing.T) {
 	if _, err := ok.GridSubOrders("unsubscribe", ""); err != nil && !strings.Contains(err.Error(), "grid-sub-orders doesn't exist") {
 		t.Errorf("%s GridSubOrders() error: %v", ok.Name, err)
 	}
-}
-
-func getSingleInstrument(ctx context.Context, a asset.Item) (currency.Pair, error) {
-	pairs, err := ok.FetchTradablePairs(ctx, a)
-	if err != nil {
-		return currency.EMPTYPAIR, err
-	} else if len(pairs) == 0 {
-		return currency.EMPTYPAIR, errors.New("no pairs found")
-	}
-	return currency.NewPairFromString(pairs[0])
 }

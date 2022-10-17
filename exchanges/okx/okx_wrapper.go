@@ -265,7 +265,6 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, 
 	if err != nil {
 		return nil, err
 	}
-	pairs := []string{}
 	insts := []Instrument{}
 	switch a {
 	case asset.Spot:
@@ -314,6 +313,9 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, 
 	if len(insts) == 0 {
 		return nil, errNoInstrumentFound
 	}
+	pairsMap := map[string]struct{}{}
+	selectedPairs := []string{}
+	empty := struct{}{}
 	for x := range insts {
 		var pair string
 		switch insts[x].InstrumentType {
@@ -329,18 +331,12 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, 
 			}
 			pair = c.Base.String() + format.Delimiter + c.Quote.String()
 		}
-		pairs = append(pairs, pair)
-	}
-	selectedPairs := []string{}
-	pairsMap := map[string]int{}
-	for i := range pairs {
-		if pairs[i] == "" {
+		if pair == "" {
 			return nil, errInvalidCurrencyPair
 		}
-		count, ok := pairsMap[pairs[i]]
-		if !ok || count == 0 {
-			pairsMap[pairs[i]] = 1
-			selectedPairs = append(selectedPairs, pairs[i])
+		if _, okay := pairsMap[pair]; !okay {
+			pairsMap[pair] = empty
+			selectedPairs = append(selectedPairs, pair)
 		}
 	}
 	return selectedPairs, nil
@@ -443,7 +439,7 @@ func (ok *Okx) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 			if err != nil {
 				return err
 			}
-			if pair.String() != pairFmt.String() {
+			if !pair.Equal(pairFmt) {
 				continue
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
@@ -1092,14 +1088,21 @@ func (ok *Okx) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdra
 
 // GetActiveOrders retrieves any orders that are active/open
 func (ok *Okx) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 	if !ok.SupportsAsset(req.AssetType) {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, req.AssetType)
 	}
 	instrumentType := ok.GetInstrumentTypeFromAssetItem(req.AssetType)
-	orderType, _ := ok.OrderTypeString(req.Type)
+	var orderType string
+	if req.Type != order.UnknownType {
+		orderType, err = ok.OrderTypeString(req.Type)
+		if err != nil {
+			return nil, err
+		}
+	}
 	requestParam := &OrderListRequestParams{
 		OrderType:      orderType,
 		After:          req.StartTime,
@@ -1183,7 +1186,7 @@ func (ok *Okx) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 		pair, err = ok.GetPairFromInstrumentID(response[i].InstrumentID)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", ok.Name, err)
-			continue
+			return nil, err
 		}
 		for j := range req.Pairs {
 			if !req.Pairs[j].Equal(pair) {

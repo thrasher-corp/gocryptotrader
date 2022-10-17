@@ -195,6 +195,7 @@ const (
 	rfqQuotes               = "rfq/quotes"
 	rfqTrades               = "rfq/trades"
 	rfqPublicTrades         = "rfq/public-trades"
+
 	// Subaccount endpoints
 	usersSubaccountList          = "users/subaccount/list"
 	subAccountModifyAPIKey       = "users/subaccount/modify-apikey"
@@ -204,6 +205,7 @@ const (
 	assetSubaccountTransfer      = "asset/subaccount/transfer"
 	userSubaccountSetTransferOut = "users/subaccount/set-transfer-out"
 	usersEntrustSubaccountList   = "users/entrust-subaccount-list"
+
 	// Grid Trading Endpoints
 	gridOrderAlgo            = "tradingBot/grid/order-algo"
 	gridAmendOrderAlgo       = "tradingBot/grid/amend-order-algo"
@@ -217,6 +219,7 @@ const (
 	gridComputeMarginBalance = "tradingBot/grid/compute-margin-balance"
 	gridMarginBalance        = "tradingBot/grid/margin-balance"
 	gridAIParams             = "tradingBot/grid/ai-param"
+
 	// Earn
 	financeOffers        = "finance/staking-defi/offers"
 	financePurchase      = "finance/staking-defi/purchase"
@@ -224,6 +227,7 @@ const (
 	financeCacelPurchase = "finance/staking-defi/cancel"
 	financeActiveOrders  = "finance/staking-defi/orders-active"
 	financeOrdersHistory = "finance/staking-defi/orders-history"
+
 	// Status Endpoints
 	systemStatus = "system/status"
 )
@@ -234,9 +238,6 @@ var (
 	// numbers a regular expression for numbers.
 	numbers = regexp.MustCompile(`^\d+$`)
 
-	errUnableToTypeAssertResponseData                = errors.New("unable to type assert responseData")
-	errUnableToTypeAssertKlineData                   = errors.New("unable to type assert kline data")
-	errUnexpectedKlineDataLength                     = errors.New("unexpected kline data length")
 	errLimitExceedsMaximumResultPerRequest           = errors.New("maximum result per request exceeds the limit")
 	errNo24HrTradeVolumeFound                        = errors.New("no trade record found in the 24 trade volume ")
 	errOracleInformationNotFound                     = errors.New("oracle informations not found")
@@ -334,7 +335,6 @@ var (
 	errEmptyPlaceOrderResponse                       = errors.New("empty place order response")
 	errTooManyArgument                               = errors.New("too many cancel request params")
 	errIncompleteCurrencyPair                        = errors.New("incomplete currency pair")
-	errNilResponseField                              = errors.New("response interface cannot be nil")
 	errInvalidDuration                               = errors.New("invalid grid contract duration, only '7D', '30D', and '180D' are allowed")
 	errInvalidProtocolType                           = errors.New("invalid protocol type, only 'staking' and 'defi' allowed")
 )
@@ -4147,7 +4147,7 @@ func (ok *Okx) GetOpenInterestAndVolumeExpiry(ctx context.Context, currency stri
 			var months string
 			var days string
 			if month <= 9 {
-				months = fmt.Sprintf("0%d", month)
+				months = "0" + strconv.FormatInt(month, 10)
 			} else {
 				months = strconv.FormatInt(month, 10)
 			}
@@ -4156,11 +4156,11 @@ func (ok *Okx) GetOpenInterestAndVolumeExpiry(ctx context.Context, currency stri
 				return nil, err
 			}
 			if day <= 9 {
-				days = fmt.Sprintf("0%d", day)
+				days = "0" + strconv.FormatInt(day, 10)
 			} else {
 				days = strconv.FormatInt(day, 10)
 			}
-			expiryTime, err = time.Parse("2006-01-02", fmt.Sprintf("%d-%s-%s", year, months, days))
+			expiryTime, err = time.Parse("2006-01-02", strconv.FormatInt(year, 10)+"-"+months+"-"+days)
 			if err != nil {
 				return nil, err
 			}

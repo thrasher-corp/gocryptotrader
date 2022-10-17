@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -24,10 +23,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
-
-// OkxOrderbookMutex Ensures if two entries arrive at once, only one can be
-// processed at a time
-var OkxOrderbookMutex sync.Mutex
 
 // responseStream a channel thought which the data coming from the two websocket connection will go through.
 var responseStream = make(chan stream.Response)
