@@ -103,12 +103,13 @@ func getFirstTradablePair(t *testing.T, a asset.Item) (currency.Pair, error) {
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip()
 	}
 	currencyPair, err := getFirstTradablePair(t, asset.Options)
 	if err != nil {
-		t.Skip(err)
+		t.Fatal(err)
 	}
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
@@ -146,6 +147,7 @@ func TestGetAccountInfo(t *testing.T) {
 }
 
 func TestWithdraw(t *testing.T) {
+	t.Parallel()
 	withdrawCryptoRequest := withdraw.Request{
 		Exchange:    g.Name,
 		Amount:      1,
@@ -166,12 +168,13 @@ func TestWithdraw(t *testing.T) {
 }
 
 func TestGetOrderInfo(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	cp, err := getFirstTradablePair(t, asset.Options)
 	if err != nil {
-		t.Skip(err)
+		t.Fatal(err)
 	}
 	_, err = g.GetOrderInfo(context.Background(),
 		"917591554", cp, asset.Options)
@@ -186,7 +189,7 @@ func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	cp, err := getFirstTradablePair(t, asset.Options)
 	if err != nil {
-		t.Skip(err)
+		t.Fatal(err)
 	}
 	_, err = g.UpdateTicker(context.Background(), cp, asset.Options)
 	if err != nil {
@@ -194,7 +197,7 @@ func TestUpdateTicker(t *testing.T) {
 	}
 	cp, err = getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
-		t.Skip(err)
+		t.Fatal(err)
 	}
 	_, err = g.UpdateTicker(context.Background(), cp, asset.DeliveryFutures)
 	if err != nil {
@@ -1310,7 +1313,7 @@ func TestCreateDeliveryOrder(t *testing.T) {
 	}
 	currencyPair, err := getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
-		t.Skip(err)
+		t.Fatal(err)
 	}
 	if _, err = g.PlaceDeliveryOrder(context.Background(), &OrderCreateParams{
 		Contract:    currencyPair,
@@ -1332,7 +1335,7 @@ func TestGetDeliveryOrders(t *testing.T) {
 	}
 	cp, err := getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
-		t.Skip(err)
+		t.Fatal(err)
 	}
 	if _, err = g.GetDeliveryOrders(context.Background(), cp, "open", 0, 0, "", 1, settleBTC); err != nil {
 		t.Errorf("%s GetDeliveryOrders() error %v", g.Name, err)
@@ -1346,7 +1349,7 @@ func TestCancelAllDeliveryOrders(t *testing.T) {
 	}
 	cp, err := getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
-		t.Skip(err)
+		t.Fatal(err)
 	}
 	if _, err = g.CancelMultipleDeliveryOrders(context.Background(), cp, "ask", settleUSDT); err != nil && !strings.Contains(err.Error(), "USER_NOT_FOUND") {
 		t.Errorf("%s CancelAllDeliveryOrders() error %v", g.Name, err)
@@ -1380,7 +1383,7 @@ func TestGetDeliveryPersonalTradingHistory(t *testing.T) {
 	}
 	cp, err := getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
-		t.Skip(err)
+		t.Fatal(err)
 	}
 	if _, err := g.GetDeliveryPersonalTradingHistory(context.Background(), settleUSDT, cp, "1234", 0, 0, 1, ""); err != nil {
 		t.Errorf("%s GetDeliveryPersonalTradingHistory() error %v", g.Name, err)
@@ -1394,7 +1397,7 @@ func TestGetDeliveryPositionCloseHistory(t *testing.T) {
 	}
 	pair, err := getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
-		t.Skip(err)
+		t.Fatal(err)
 	}
 	if _, err = g.GetDeliveryPositionCloseHistory(context.Background(), settleUSDT, pair, 0, 0, time.Time{}, time.Time{}); err != nil {
 		t.Errorf("%s GetDeliveryPositionCloseHistory() error %v", g.Name, err)
@@ -1408,7 +1411,7 @@ func TestGetDeliveryLiquidationHistory(t *testing.T) {
 	}
 	cp, err := getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
-		t.Skip(err)
+		t.Fatal(err)
 	}
 	if _, err = g.GetDeliveryLiquidationHistory(context.Background(), settleUSDT, cp, 0, time.Now()); err != nil {
 		t.Errorf("%s GetDeliveryLiquidationHistory() error %v", g.Name, err)
@@ -1422,7 +1425,7 @@ func TestGetDeliverySettlementHistory(t *testing.T) {
 	}
 	cp, err := getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
-		t.Skip(err)
+		t.Fatal(err)
 	}
 	if _, err = g.GetDeliverySettlementHistory(context.Background(), settleUSDT, cp, 0, time.Now()); err != nil {
 		t.Errorf("%s GetDeliverySettlementHistory() error %v", g.Name, err)
@@ -1436,7 +1439,7 @@ func TestGetDeliveryPriceTriggeredOrder(t *testing.T) {
 	}
 	cp, err := getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
-		t.Skip(err)
+		t.Fatal(err)
 	}
 	if _, err = g.GetDeliveryPriceTriggeredOrder(context.Background(), settleUSDT, &FuturesPriceTriggeredOrderParam{
 		Initial: FuturesInitial{
@@ -1461,7 +1464,7 @@ func TestGetDeliveryAllAutoOrder(t *testing.T) {
 	}
 	cp, err := getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
-		t.Skip(err)
+		t.Fatal(err)
 	}
 	if _, err = g.GetDeliveryAllAutoOrder(context.Background(), "open", settleUSDT, cp, 0, 1); err != nil {
 		t.Errorf("%s GetDeliveryAllAutoOrder() error %v", g.Name, err)
@@ -1475,7 +1478,7 @@ func TestCancelAllDeliveryPriceTriggeredOrder(t *testing.T) {
 	}
 	cp, err := getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
-		t.Skip(err)
+		t.Fatal(err)
 	}
 	if _, err = g.CancelAllDeliveryPriceTriggeredOrder(context.Background(), settleUSDT, cp); err != nil {
 		t.Errorf("%s CancelAllDeliveryPriceTriggeredOrder() error %v", g.Name, err)
@@ -1880,7 +1883,7 @@ func TestGetSingleDeliveryPosition(t *testing.T) {
 	}
 	cp, err := getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
-		t.Skip(err)
+		t.Fatal(err)
 	}
 	if _, err = g.GetSingleDeliveryPosition(context.Background(), settleUSDT, cp); err != nil {
 		t.Errorf("%s GetSingleDeliveryPosition() error %v", g.Name, err)
@@ -1894,7 +1897,7 @@ func TestUpdateDeliveryPositionMargin(t *testing.T) {
 	}
 	cp, err := getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
-		t.Skip(err)
+		t.Fatal(err)
 	}
 	if _, err = g.UpdateDeliveryPositionMargin(context.Background(), "usd", 0.001, cp); err != nil {
 		t.Errorf("%s UpdateDeliveryPositionMargin() error %v", g.Name, err)
@@ -1908,7 +1911,7 @@ func TestUpdateDeliveryPositionLeverage(t *testing.T) {
 	}
 	cp, err := getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
-		t.Skip(err)
+		t.Fatal(err)
 	}
 	if _, err = g.UpdateDeliveryPositionLeverage(context.Background(), "usd", cp, 0.001); err != nil {
 		t.Errorf("%s UpdateDeliveryPositionLeverage() error %v", g.Name, err)
@@ -1922,7 +1925,7 @@ func TestUpdateDeliveryPositionRiskLimit(t *testing.T) {
 	}
 	cp, err := getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
-		t.Skip(err)
+		t.Fatal(err)
 	}
 	if _, err = g.UpdateDeliveryPositionRiskLimit(context.Background(), "usd", cp, 30); err != nil {
 		t.Errorf("%s UpdateDeliveryPositionRiskLimit() error %v", g.Name, err)
@@ -2231,7 +2234,7 @@ func TestCancelWithdrawalWithSpecifiedID(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := g.CancelWithdrawalWithSpecifiedID(context.Background(), "1234567"); err != nil {
+	if _, err := g.CancelWithdrawalWithSpecifiedID(context.Background(), "1234567"); err != nil && !strings.Contains(err.Error(), "INVALID_WITHDRAW_ID") {
 		t.Errorf("%s CancelWithdrawalWithSpecifiedID() error %v", g.Name, err)
 	}
 }
@@ -2240,7 +2243,7 @@ func TestGetOptionsOrderbook(t *testing.T) {
 	t.Parallel()
 	cp, err := getFirstTradablePair(t, asset.Options)
 	if err != nil {
-		t.Skip(err)
+		t.Fatal(err)
 	}
 	if _, err = g.GetOptionsOrderbook(context.Background(), cp, "0.1", 9, true); err != nil {
 		t.Errorf("%s GetOptionsFuturesOrderbooks() error %v", g.Name, err)
@@ -2346,12 +2349,8 @@ func TestGetSingleSubAccount(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	if resp, err := g.FetchTradablePairs(context.Background(), asset.DeliveryFutures); err != nil {
+	if _, err := g.FetchTradablePairs(context.Background(), asset.DeliveryFutures); err != nil {
 		t.Errorf("%s FetchTradablePairs() error %v", g.Name, err)
-	} else {
-		for x := range resp {
-			print(resp[x] + ",")
-		}
 	}
 }
 
@@ -2373,7 +2372,7 @@ func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	cp, err := getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
-		t.Skip(err)
+		t.Fatal(err)
 	}
 	if _, err = g.UpdateOrderbook(context.Background(), cp, asset.DeliveryFutures); err != nil {
 		t.Errorf("%s UpdateOrderbook() error %v", g.Name, err)
@@ -2398,7 +2397,7 @@ func TestGetRecentTrades(t *testing.T) {
 	}
 	cp, err := getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
-		t.Skip(err)
+		t.Fatal(err)
 	}
 	_, err = g.GetRecentTrades(context.Background(), cp, asset.DeliveryFutures)
 	if err != nil {

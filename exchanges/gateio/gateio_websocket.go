@@ -67,10 +67,8 @@ func (g *Gateio) WsConnect() error {
 		return err
 	}
 	pingMessage, err := json.Marshal(WsInput{
-		ID: g.Websocket.Conn.GenerateMessageID(false),
-		Time: func() int64 {
-			return time.Now().Unix()
-		}(),
+		ID:      g.Websocket.Conn.GenerateMessageID(false),
+		Time:    time.Now().Unix(),
 		Channel: spotPingChannel,
 	})
 	if err != nil {
@@ -89,7 +87,7 @@ func (g *Gateio) WsConnect() error {
 }
 
 func (g *Gateio) generateWsSignature(secret, event, channel string, dtime time.Time) (string, error) {
-	msg := fmt.Sprintf("channel=%s&event=%s&time=%d", channel, event, dtime.Unix())
+	msg := "channel=" + channel + "&event=" + event + "&time=" + strconv.FormatInt(dtime.Unix(), 10)
 	mac := hmac.New(sha512.New, []byte(secret))
 	if _, err := mac.Write([]byte(msg)); err != nil {
 		return "", err
@@ -382,7 +380,6 @@ func (g *Gateio) processOrderbookUpdate(data []byte) error {
 		Bids:       bids,
 		Pair:       pair,
 		Asset:      asset.Spot,
-		MaxDepth:   int(update.LastOrderbookUpdatedID - update.FirstOrderbookUpdatedID),
 	})
 }
 
@@ -734,6 +731,7 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 			g.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
+	var intervalString string
 	payloads := make([]WsInput, len(channelsToSubscribe))
 	for i := range channelsToSubscribe {
 		var auth *WsAuthInput
@@ -744,7 +742,8 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 			optionsUnderlyingTradesChannel,
 			optionsUnderlyingPriceChannel,
 			optionsUnderlyingCandlesticksChannel:
-			uly, err := g.GetUnderlyingFromCurrencyPair(channelsToSubscribe[i].Currency)
+			var uly string
+			uly, err = g.GetUnderlyingFromCurrencyPair(channelsToSubscribe[i].Currency)
 			if err != nil {
 				return nil, err
 			}
@@ -765,9 +764,14 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 			if !okay {
 				return nil, errors.New("invalid spot order level")
 			}
+			intervalString, err = g.GetIntervalString(interval)
+			if err != nil {
+				return nil, err
+			}
 			params = append(params,
 				strconv.Itoa(level),
-				g.GetIntervalString(interval))
+				intervalString,
+			)
 		case futuresOrderbookChannel:
 			limit, ok := channelsToSubscribe[i].Params["limit"].(int)
 			if !ok {
@@ -798,8 +802,13 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 			if !ok {
 				return nil, errors.New("missing frequency for futures orderbook update")
 			}
-			params = append(params,
-				g.GetIntervalString(interval))
+			intervalString, err = g.GetIntervalString(interval)
+			if err != nil {
+				return nil, err
+			}
+			params = append(
+				params,
+				intervalString)
 			if value, ok := channelsToSubscribe[i].Params["level"].(string); ok {
 				params = append(params, value)
 			}
@@ -808,8 +817,12 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 			if !ok {
 				return nil, errors.New("missing options orderbook interval")
 			}
+			intervalString, err = g.GetIntervalString(interval)
+			if err != nil {
+				return nil, err
+			}
 			params = append(params,
-				g.GetIntervalString(interval))
+				intervalString)
 			if value, ok := channelsToSubscribe[i].Params["level"].(int); ok {
 				params = append(params, strconv.Itoa(value))
 			}
@@ -818,24 +831,36 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 			if !ok {
 				return nil, errors.New("missing futures candlesticks interval")
 			}
+			intervalString, err = g.GetIntervalString(interval)
+			if err != nil {
+				return nil, err
+			}
 			params = append(
-				[]string{g.GetIntervalString(interval)},
+				[]string{intervalString},
 				params...)
 		case optionsContractCandlesticksChannel, optionsUnderlyingCandlesticksChannel:
 			interval, ok := channelsToSubscribe[i].Params["interval"].(kline.Interval)
 			if !ok {
 				return nil, errors.New("missing options underlying candlesticks interval")
 			}
+			intervalString, err = g.GetIntervalString(interval)
+			if err != nil {
+				return nil, err
+			}
 			params = append(
-				[]string{g.GetIntervalString(interval)},
+				[]string{intervalString},
 				params...)
 		case spotCandlesticksChannel:
 			interval, ok := channelsToSubscribe[i].Params["interval"].(kline.Interval)
 			if !ok {
 				return nil, errors.New("missing spot candlesticks interval")
 			}
+			intervalString, err = g.GetIntervalString(interval)
+			if err != nil {
+				return nil, err
+			}
 			params = append(
-				[]string{g.GetIntervalString(interval)},
+				[]string{intervalString},
 				params...)
 		}
 		if g.Websocket.CanUseAuthenticatedEndpoints() && (channelsToSubscribe[i].Channel == spotUserTradesChannel ||
@@ -858,7 +883,8 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 					[]string{value},
 					params...)
 			}
-			sigTemp, err := g.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp)
+			var sigTemp string
+			sigTemp, err = g.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp)
 			if err != nil {
 				return nil, err
 			}
@@ -872,7 +898,11 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 			if !ok {
 				return nil, errors.New("missing spot orderbook interval")
 			}
-			params = append(params, g.GetIntervalString(interval))
+			intervalString, err = g.GetIntervalString(interval)
+			if err != nil {
+				return nil, err
+			}
+			params = append(params, intervalString)
 		}
 		payloads[i] = WsInput{
 			ID:      g.Websocket.Conn.GenerateMessageID(false),

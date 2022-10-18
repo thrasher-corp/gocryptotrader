@@ -426,18 +426,16 @@ func (a *OptionsTicker) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if chil.LastPrice != "" {
-		val, err := strconv.ParseFloat(chil.LastPrice, 64)
+		a.LastPrice, err = strconv.ParseFloat(chil.LastPrice, 64)
 		if err != nil {
 			return err
 		}
-		a.LastPrice = val
 	}
 	if chil.MarkPrice != "" {
-		val, err := strconv.ParseFloat(chil.MarkPrice, 64)
+		a.MarkPrice, err = strconv.ParseFloat(chil.MarkPrice, 64)
 		if err != nil {
 			return err
 		}
-		a.MarkPrice = val
 	}
 	return nil
 }
@@ -456,7 +454,8 @@ func (a *Orderbook) UnmarshalJSON(data []byte) error {
 		Bids    []askorbid `json:"asks"`
 		Asks    []askorbid `json:"bids"`
 	}{}
-	if err := json.Unmarshal(data, &chil); err != nil {
+	err := json.Unmarshal(data, &chil)
+	if err != nil {
 		return err
 	}
 	a.Current = time.Unix(int64(chil.Current), 0)
@@ -464,23 +463,21 @@ func (a *Orderbook) UnmarshalJSON(data []byte) error {
 	a.Asks = make([]OrderbookItem, len(chil.Asks))
 	a.Bids = make([]OrderbookItem, len(chil.Bids))
 	for x := range chil.Asks {
-		val, err := strconv.ParseFloat(chil.Asks[x].Price, 64)
+		a.Asks[x] = OrderbookItem{
+			Amount: chil.Asks[x].Size,
+		}
+		a.Asks[x].Price, err = strconv.ParseFloat(chil.Asks[x].Price, 64)
 		if err != nil {
 			return err
-		}
-		a.Asks[x] = OrderbookItem{
-			Price:  val,
-			Amount: chil.Asks[x].Size,
 		}
 	}
 	for x := range chil.Bids {
-		val, err := strconv.ParseFloat(chil.Bids[x].Price, 64)
+		a.Bids[x] = OrderbookItem{
+			Amount: chil.Bids[x].Size,
+		}
+		a.Bids[x].Price, err = strconv.ParseFloat(chil.Bids[x].Price, 64)
 		if err != nil {
 			return err
-		}
-		a.Bids[x] = OrderbookItem{
-			Price:  val,
-			Amount: chil.Bids[x].Size,
 		}
 	}
 	return nil
