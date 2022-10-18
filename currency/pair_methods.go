@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 )
 
+// EMPTYFORMAT defines an empty pair format
+var EMPTYFORMAT = PairFormat{}
+
 // String returns a currency pair string
 func (p Pair) String() string {
 	return p.Base.String() + p.Delimiter + p.Quote.String()
@@ -31,6 +34,11 @@ func (p *Pair) UnmarshalJSON(d []byte) error {
 		return err
 	}
 
+	if pair == "" {
+		*p = EMPTYPAIR
+		return nil
+	}
+
 	newPair, err := NewPairFromString(pair)
 	if err != nil {
 		return err
@@ -47,9 +55,9 @@ func (p Pair) MarshalJSON() ([]byte, error) {
 
 // Format changes the currency based on user preferences overriding the default
 // String() display
-func (p Pair) Format(delimiter string, uppercase bool) Pair {
-	p.Delimiter = delimiter
-	if uppercase {
+func (p Pair) Format(pf PairFormat) Pair {
+	p.Delimiter = pf.Delimiter
+	if pf.Uppercase {
 		return p.Upper()
 	}
 	return p.Lower()

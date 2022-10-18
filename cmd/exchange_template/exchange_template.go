@@ -160,6 +160,7 @@ func makeExchange(exchangeDirectory string, configTestFile *config.Config, exch 
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
+			Delimiter: currency.DashDelimiter,
 		},
 	}
 

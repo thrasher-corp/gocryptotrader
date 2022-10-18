@@ -30,7 +30,10 @@ func TestCalculateSlippageByOrderbook(t *testing.T) {
 	}
 	amountOfFunds := decimal.NewFromInt(1000)
 	feeRate := decimal.NewFromFloat(0.03)
-	price, amount := CalculateSlippageByOrderbook(ob, gctorder.Buy, amountOfFunds, feeRate)
+	price, amount, err := CalculateSlippageByOrderbook(ob, gctorder.Buy, amountOfFunds, feeRate)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if price.Mul(amount).Add(price.Mul(amount).Mul(feeRate)).GreaterThan(amountOfFunds) {
 		t.Error("order size must be less than funds")
 	}

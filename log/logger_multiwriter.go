@@ -7,8 +7,8 @@ import (
 )
 
 var (
-	errWriterAlreadyLoaded = errors.New("io.Writer already loaded")
 	errWriterNotFound      = errors.New("io.Writer not found")
+	errWriterAlreadyLoaded = errors.New("io.Writer already loaded")
 )
 
 // Add appends a new writer to the multiwriter slice

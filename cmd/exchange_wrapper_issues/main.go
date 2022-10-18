@@ -299,31 +299,31 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 	for i := range assetTypes {
 		var msg string
 		log.Printf("%v %v", base.GetName(), assetTypes[i])
-		if _, ok := base.Config.CurrencyPairs.Pairs[assetTypes[i]]; !ok {
+		storedPairs, ok := base.Config.CurrencyPairs.Pairs[assetTypes[i]]
+		if !ok {
 			continue
 		}
 
 		var p currency.Pair
+		var err error
 		switch {
 		case currencyPairOverride != "":
-			var err error
 			p, err = currency.NewPairFromString(currencyPairOverride)
-			if err != nil {
-				log.Printf("%v Encountered error: '%v'", base.GetName(), err)
-				continue
+		case len(storedPairs.Enabled) == 0:
+			if len(storedPairs.Available) == 0 {
+				err = fmt.Errorf("%v has no enabled or available currencies. Skipping", base.GetName())
+				break
 			}
-		case len(base.Config.CurrencyPairs.Pairs[assetTypes[i]].Enabled) == 0:
-			if len(base.Config.CurrencyPairs.Pairs[assetTypes[i]].Available) == 0 {
-				log.Printf("%v has no enabled or available currencies. Skipping",
-					base.GetName())
-				continue
-			}
-			p = base.Config.CurrencyPairs.Pairs[assetTypes[i]].Available.GetRandomPair()
+			p, err = storedPairs.Available.GetRandomPair()
 		default:
-			p = base.Config.CurrencyPairs.Pairs[assetTypes[i]].Enabled.GetRandomPair()
+			p, err = storedPairs.Enabled.GetRandomPair()
 		}
 
-		var err error
+		if err != nil {
+			log.Printf("%v Encountered error: '%v'", base.GetName(), err)
+			continue
+		}
+
 		p, err = disruptFormatting(p)
 		if err != nil {
 			log.Println("failed to disrupt currency pair formatting:", err)

@@ -70,6 +70,22 @@ func TestPairUnmarshalJSON(t *testing.T) {
 		t.Errorf("Pairs UnmarshalJSON() error expected %s but received %s",
 			configPair, unmarshalHere)
 	}
+
+	encoded, err = json.Marshal(EMPTYPAIR)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = json.Unmarshal(encoded, &unmarshalHere)
+	if err != nil {
+		t.Fatal("Pair UnmarshalJSON() error", err)
+	}
+	err = json.Unmarshal([]byte("null"), &unmarshalHere)
+	if err != nil {
+		t.Fatal("Pair UnmarshalJSON() error", err)
+	}
+	if unmarshalHere != EMPTYPAIR {
+		t.Fatalf("Expected EMPTYPAIR got: %s", unmarshalHere)
+	}
 }
 
 func TestPairMarshalJSON(t *testing.T) {
@@ -210,7 +226,7 @@ func TestDisplay(t *testing.T) {
 		)
 	}
 
-	actual = pair.Format("", false).String()
+	actual = EMPTYFORMAT.Format(pair)
 	expected = "btcusd"
 	if actual != expected {
 		t.Errorf(
@@ -219,7 +235,7 @@ func TestDisplay(t *testing.T) {
 		)
 	}
 
-	actual = pair.Format("~", true).String()
+	actual = pair.Format(PairFormat{Delimiter: "~", Uppercase: true}).String()
 	expected = "BTC~USD"
 	if actual != expected {
 		t.Errorf(
@@ -529,7 +545,7 @@ func TestNewPairFromFormattedPairs(t *testing.T) {
 	}
 
 	// Now a wrong one, will default to NewPairFromString
-	p, err = NewPairFromFormattedPairs("ethusdt", pairs, PairFormat{})
+	p, err = NewPairFromFormattedPairs("ethusdt", pairs, EMPTYFORMAT)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -618,33 +634,74 @@ func TestFindPairDifferences(t *testing.T) {
 	}
 
 	// Test new pair update
-	newPairs, removedPairs := pairList.FindDifferences(dash)
-	if len(newPairs) != 1 && len(removedPairs) != 3 {
+	diff, err := pairList.FindDifferences(dash, PairFormat{Delimiter: DashDelimiter, Uppercase: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(diff.New) != 1 && len(diff.Remove) != 3 && diff.FormatDifference {
 		t.Error("TestFindPairDifferences: Unexpected values")
 	}
 
-	emptyPairsList, err := NewPairsFromStrings([]string{""})
-	if !errors.Is(err, errCannotCreatePair) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errCannotCreatePair)
+	diff, err = pairList.FindDifferences(Pairs{}, EMPTYFORMAT)
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	// Test that we don't allow empty strings for new pairs
-	newPairs, removedPairs = pairList.FindDifferences(emptyPairsList)
-	if len(newPairs) != 0 && len(removedPairs) != 3 {
+	if len(diff.New) != 0 && len(diff.Remove) != 3 && !diff.FormatDifference {
 		t.Error("TestFindPairDifferences: Unexpected values")
 	}
 
-	// Test that we don't allow empty strings for new pairs
-	newPairs, removedPairs = emptyPairsList.FindDifferences(pairList)
-	if len(newPairs) != 3 && len(removedPairs) != 0 {
+	diff, err = Pairs{}.FindDifferences(pairList, EMPTYFORMAT)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(diff.New) != 3 && len(diff.Remove) != 0 && diff.FormatDifference {
 		t.Error("TestFindPairDifferences: Unexpected values")
 	}
 
 	// Test that the supplied pair lists are the same, so
 	// no newPairs or removedPairs
-	newPairs, removedPairs = pairList.FindDifferences(pairList)
-	if len(newPairs) != 0 && len(removedPairs) != 0 {
+	diff, err = pairList.FindDifferences(pairList, PairFormat{Delimiter: DashDelimiter, Uppercase: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(diff.New) != 0 && len(diff.Remove) != 0 && !diff.FormatDifference {
 		t.Error("TestFindPairDifferences: Unexpected values")
+	}
+
+	_, err = pairList.FindDifferences(Pairs{EMPTYPAIR}, EMPTYFORMAT)
+	if !errors.Is(err, ErrCurrencyPairEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrCurrencyPairEmpty)
+	}
+
+	_, err = Pairs{EMPTYPAIR}.FindDifferences(pairList, EMPTYFORMAT)
+	if !errors.Is(err, ErrCurrencyPairEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrCurrencyPairEmpty)
+	}
+
+	// Test duplication
+	duplication, err := NewPairsFromStrings([]string{defaultPairWDelimiter, "ETH-USD", "LTC-USD", "ETH-USD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = pairList.FindDifferences(duplication, EMPTYFORMAT)
+	if !errors.Is(err, ErrPairDuplication) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrPairDuplication)
+	}
+
+	// This will allow for the removal of the duplicated item to be returned if
+	// contained in the original list.
+	diff, err = duplication.FindDifferences(pairList, EMPTYFORMAT)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(diff.Remove) != 1 {
+		t.Fatal("expected removal value in pair difference struct")
+	}
+
+	if !diff.Remove[0].Equal(pairList[1]) {
+		t.Fatal("unexpected value returned", diff.Remove[0], pairList[1])
 	}
 }
 
@@ -663,7 +720,10 @@ func TestPairsToStringArray(t *testing.T) {
 func TestRandomPairFromPairs(t *testing.T) {
 	// Test that an empty pairs array returns an empty currency pair
 	var emptyPairs Pairs
-	result := emptyPairs.GetRandomPair()
+	result, err := emptyPairs.GetRandomPair()
+	if !errors.Is(err, ErrCurrencyPairsEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrCurrencyPairsEmpty)
+	}
 	if !result.IsEmpty() {
 		t.Error("TestRandomPairFromPairs: Unexpected values")
 	}
@@ -671,7 +731,10 @@ func TestRandomPairFromPairs(t *testing.T) {
 	// Test that a populated pairs array returns a non-empty currency pair
 	var pairs Pairs
 	pairs = append(pairs, NewPair(BTC, USD))
-	result = pairs.GetRandomPair()
+	result, err = pairs.GetRandomPair()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 
 	if result.IsEmpty() {
 		t.Error("TestRandomPairFromPairs: Unexpected values")
@@ -682,16 +745,15 @@ func TestRandomPairFromPairs(t *testing.T) {
 	pairs = append(pairs, NewPair(ETH, USD))
 	expectedResults := make(map[string]bool)
 	for i := 0; i < 50; i++ {
-		p := pairs.GetRandomPair().String()
-		_, ok := expectedResults[p]
-		if !ok {
-			expectedResults[p] = true
+		result, err = pairs.GetRandomPair()
+		if !errors.Is(err, nil) {
+			t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 		}
+		expectedResults[result.String()] = true
 	}
 
 	for x := range pairs {
-		_, ok := expectedResults[pairs[x].String()]
-		if !ok {
+		if !expectedResults[pairs[x].String()] {
 			t.Error("TestRandomPairFromPairs: Unexpected values")
 		}
 	}
