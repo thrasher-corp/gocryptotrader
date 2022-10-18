@@ -54,7 +54,7 @@ func TestOnSignal(t *testing.T) {
 	exch := "binance"
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	d := data.Base{}
+	d := &data.Base{}
 	d.SetStream([]data.Event{&eventkline.Kline{
 		Base: &event.Base{
 			Exchange:     exch,
@@ -132,7 +132,7 @@ func TestOnSignals(t *testing.T) {
 	exch := "binance"
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	d := data.Base{}
+	d := &data.Base{}
 	d.SetStream([]data.Event{&eventkline.Kline{
 		Base: &event.Base{
 			Offset:       1,

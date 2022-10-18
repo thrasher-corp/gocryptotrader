@@ -2,11 +2,11 @@ package data
 
 import (
 	"fmt"
-	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"sort"
 	"strings"
 
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -127,7 +127,7 @@ func (b *Base) SetStream(s []Event) error {
 			return fmt.Errorf("%w Event", gctcommon.ErrNilPointer)
 		}
 		if s[x].GetExchange() == "" || !s[x].GetAssetType().IsValid() || s[x].Pair().IsEmpty() || s[x].GetTime().IsZero() {
-			return errInvalidEventSupplied
+			return ErrInvalidEventSupplied
 		}
 		if len(b.stream) > 0 {
 			if s[x].GetExchange() != b.stream[0].GetExchange() ||
@@ -165,7 +165,7 @@ candles:
 			return fmt.Errorf("%w Event", gctcommon.ErrNilPointer)
 		}
 		if s[x].GetExchange() == "" || !s[x].GetAssetType().IsValid() || s[x].Pair().IsEmpty() || s[x].GetTime().IsZero() {
-			return errInvalidEventSupplied
+			return ErrInvalidEventSupplied
 		}
 		if len(b.stream) > 0 {
 			if s[x].GetExchange() != b.stream[0].GetExchange() ||

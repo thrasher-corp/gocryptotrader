@@ -2,10 +2,11 @@ package data
 
 import (
 	"errors"
-	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"strings"
 	"testing"
 	"time"
+
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -243,8 +244,8 @@ func TestSetStream(t *testing.T) {
 		},
 	}
 	err = b.SetStream([]Event{misMatchEvent})
-	if !errors.Is(err, errInvalidEventSupplied) {
-		t.Fatalf("received '%v' expected '%v'", err, errInvalidEventSupplied)
+	if !errors.Is(err, ErrInvalidEventSupplied) {
+		t.Fatalf("received '%v' expected '%v'", err, ErrInvalidEventSupplied)
 	}
 
 	misMatchEvent.Time = time.Now()
@@ -594,8 +595,8 @@ func TestAppendStream(t *testing.T) {
 		Base: &event.Base{},
 	}
 	err := b.AppendStream(e)
-	if !errors.Is(err, errInvalidEventSupplied) {
-		t.Errorf("received '%v' expected '%v'", err, errInvalidEventSupplied)
+	if !errors.Is(err, ErrInvalidEventSupplied) {
+		t.Errorf("received '%v' expected '%v'", err, ErrInvalidEventSupplied)
 	}
 	if len(b.stream) != 0 {
 		t.Errorf("received '%v' expected '%v'", len(b.stream), 0)
@@ -606,8 +607,8 @@ func TestAppendStream(t *testing.T) {
 	e.AssetType = asset.Spot
 	e.CurrencyPair = cp
 	err = b.AppendStream(e)
-	if !errors.Is(err, errInvalidEventSupplied) {
-		t.Fatalf("received '%v' expected '%v'", err, errInvalidEventSupplied)
+	if !errors.Is(err, ErrInvalidEventSupplied) {
+		t.Fatalf("received '%v' expected '%v'", err, ErrInvalidEventSupplied)
 	}
 
 	e.Time = tt

@@ -2,15 +2,14 @@ package funding
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding/trackingcurrencies"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
@@ -22,25 +21,6 @@ import (
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
-)
-
-var (
-	// ErrFundsNotFound used when funds are requested but the funding is not found in the manager
-	ErrFundsNotFound = errors.New("funding not found")
-	// ErrAlreadyExists used when a matching item or pair is already in the funding manager
-	ErrAlreadyExists = errors.New("funding already exists")
-	// ErrUSDTrackingDisabled used when attempting to track USD values when disabled
-	ErrUSDTrackingDisabled = errors.New("USD tracking disabled")
-
-	errCannotAllocate             = errors.New("cannot allocate funds")
-	errZeroAmountReceived         = errors.New("amount received less than or equal to zero")
-	errNegativeAmountReceived     = errors.New("received negative decimal")
-	errNotEnoughFunds             = errors.New("not enough funds")
-	errCannotTransferToSameFunds  = errors.New("cannot send funds to self")
-	errTransferMustBeSameCurrency = errors.New("cannot transfer to different currency")
-	errCannotMatchTrackingToItem  = errors.New("cannot match tracking data to funding items")
-	errNotFutures                 = errors.New("item linking collateral currencies must be a futures asset")
-	errExchangeManagerRequired    = errors.New("exchange manager required")
 )
 
 // SetupFundingManager creates the funding holder. It carries knowledge about levels of funding
@@ -241,6 +221,7 @@ func (f *FundManager) setUSDCandles(k *kline.DataFromKline, i int) error {
 		}
 	}
 	usdData := &kline.DataFromKline{
+		Base: &data.Base{},
 		Item: usdCandles,
 	}
 	if err := usdData.Load(); err != nil {

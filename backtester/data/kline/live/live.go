@@ -3,9 +3,10 @@ package live
 import (
 	"context"
 	"fmt"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"strings"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"

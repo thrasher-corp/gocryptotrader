@@ -189,7 +189,11 @@ func main() {
 			interrupt := signaler.WaitForInterrupt()
 			log.Infof(log.Global, "Captured %v, shutdown requested.\n", interrupt)
 			log.Infoln(log.Global, "Exiting.")
-			bt.Stop()
+			err = bt.Stop()
+			if err != nil {
+				fmt.Printf("Could execute strategy. Error: %v.\n", err)
+				os.Exit(1)
+			}
 		} else {
 			err = bt.ExecuteStrategy(true)
 			if err != nil {

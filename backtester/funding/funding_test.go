@@ -73,7 +73,10 @@ func TestReset(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	f.Reset()
+	err = f.Reset()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	if f.usingExchangeLevelFunding {
 		t.Errorf("expected '%v received '%v'", false, true)
 	}
@@ -397,7 +400,10 @@ func TestGetFundingForEAP(t *testing.T) {
 func TestGenerateReport(t *testing.T) {
 	t.Parallel()
 	f := FundManager{}
-	report := f.GenerateReport()
+	report, err := f.GenerateReport()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	if report == nil { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Fatal("shouldn't be nil")
 	}
@@ -411,11 +417,14 @@ func TestGenerateReport(t *testing.T) {
 		currency:     currency.BTC,
 		asset:        a,
 	}
-	err := f.AddItem(item)
+	err = f.AddItem(item)
 	if err != nil {
 		t.Fatal(err)
 	}
-	report = f.GenerateReport()
+	report, err = f.GenerateReport()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	if len(report.Items) != 1 {
 		t.Fatal("expected 1")
 	}
@@ -436,6 +445,7 @@ func TestGenerateReport(t *testing.T) {
 	}
 
 	dfk := &kline.DataFromKline{
+		Base: &data.Base{},
 		Item: gctkline.Item{
 			Exchange: exchName,
 			Pair:     currency.NewPair(currency.BTC, currency.USD),
@@ -457,9 +467,15 @@ func TestGenerateReport(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	f.items[0].trackingCandles = dfk
-	f.CreateSnapshot(dfk.Item.Candles[0].Time)
+	err = f.CreateSnapshot(dfk.Item.Candles[0].Time)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 
-	report = f.GenerateReport()
+	report, err = f.GenerateReport()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	if len(report.Items) != 2 {
 		t.Fatal("expected 2")
 	}
@@ -474,11 +490,18 @@ func TestGenerateReport(t *testing.T) {
 func TestCreateSnapshot(t *testing.T) {
 	t.Parallel()
 	f := FundManager{}
-	f.CreateSnapshot(time.Time{})
+	err := f.CreateSnapshot(time.Time{})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	f.items = append(f.items, &Item{})
-	f.CreateSnapshot(time.Time{})
+	err = f.CreateSnapshot(time.Time{})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 
 	dfk := &kline.DataFromKline{
+		Base: &data.Base{},
 		Item: gctkline.Item{
 			Candles: []gctkline.Candle{
 				{
@@ -487,9 +510,11 @@ func TestCreateSnapshot(t *testing.T) {
 			},
 		},
 	}
-	if err := dfk.Load(); err != nil {
-		t.Error(err)
+	err = dfk.Load()
+	if !errors.Is(err, data.ErrInvalidEventSupplied) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
+
 	f.items = append(f.items, &Item{
 		exchange:        "test",
 		asset:           asset.Spot,
@@ -500,7 +525,10 @@ func TestCreateSnapshot(t *testing.T) {
 		transferFee:     decimal.NewFromInt(1337),
 		trackingCandles: dfk,
 	})
-	f.CreateSnapshot(dfk.Item.Candles[0].Time)
+	err = f.CreateSnapshot(dfk.Item.Candles[0].Time)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 }
 
 func TestAddUSDTrackingData(t *testing.T) {
@@ -511,12 +539,13 @@ func TestAddUSDTrackingData(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 
-	err = f.AddUSDTrackingData(&kline.DataFromKline{})
+	err = f.AddUSDTrackingData(kline.NewDataFromKline())
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 
 	dfk := &kline.DataFromKline{
+		Base: &data.Base{},
 		Item: gctkline.Item{
 			Candles: []gctkline.Candle{
 				{
@@ -526,8 +555,8 @@ func TestAddUSDTrackingData(t *testing.T) {
 		},
 	}
 	err = dfk.Load()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
+	if !errors.Is(err, data.ErrInvalidEventSupplied) {
+		t.Errorf("received '%v' expected '%v'", err, data.ErrInvalidEventSupplied)
 	}
 	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
 	if !errors.Is(err, nil) {
@@ -551,6 +580,7 @@ func TestAddUSDTrackingData(t *testing.T) {
 	}
 
 	dfk = &kline.DataFromKline{
+		Base: &data.Base{},
 		Item: gctkline.Item{
 			Exchange: exchName,
 			Pair:     currency.NewPair(pair.Quote, currency.USD),
@@ -650,7 +680,10 @@ func TestHasExchangeBeenLiquidated(t *testing.T) {
 func TestGetAllFunding(t *testing.T) {
 	t.Parallel()
 	f := FundManager{}
-	resp := f.GetAllFunding()
+	resp, err := f.GetAllFunding()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	if len(resp) != 0 {
 		t.Errorf("received '%v' expected '%v'", len(resp), 0)
 	}
@@ -662,7 +695,10 @@ func TestGetAllFunding(t *testing.T) {
 		available: decimal.NewFromInt(1337),
 	})
 
-	resp = f.GetAllFunding()
+	resp, err = f.GetAllFunding()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	if len(resp) != 1 {
 		t.Errorf("received '%v' expected '%v'", len(resp), 1)
 	}
@@ -977,7 +1013,7 @@ func TestUpdateAllCollateral(t *testing.T) {
 		t.Errorf("received '%v', expected  '%v'", err, nil)
 	}
 
-	f.items[0].trackingCandles = &kline.DataFromKline{}
+	f.items[0].trackingCandles = kline.NewDataFromKline()
 	f.items[0].trackingCandles.SetStream([]data.Event{
 		&fakeEvent{},
 	})

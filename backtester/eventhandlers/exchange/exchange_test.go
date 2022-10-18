@@ -3,6 +3,7 @@ package exchange
 import (
 	"context"
 	"errors"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"strings"
 	"testing"
 	"time"
@@ -272,17 +273,22 @@ func TestExecuteOrder(t *testing.T) {
 				High:   1,
 				Low:    1,
 				Volume: 1,
+				Time:   time.Now(),
 			},
 		},
 	}
 	d := &kline.DataFromKline{
+		Base: &data.Base{},
 		Item: item,
 	}
 	err = d.Load()
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	d.Next()
+	_, err = d.Next()
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
 	if !errors.Is(err, errNoCurrencySettingsFound) {
 		t.Error(err)
@@ -372,17 +378,19 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	}
 
 	d := &kline.DataFromKline{
+		Base: &data.Base{},
 		Item: gctkline.Item{
-			Exchange: "",
-			Pair:     currency.EMPTYPAIR,
-			Asset:    asset.Empty,
-			Interval: 0,
+			Exchange: "ftx",
+			Pair:     p,
+			Asset:    asset.Spot,
+			Interval: gctkline.FifteenMin,
 			Candles: []gctkline.Candle{
 				{
 					Close:  1,
 					High:   1,
 					Low:    1,
 					Volume: 1,
+					Time:   time.Now(),
 				},
 			},
 		},
@@ -391,7 +399,10 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	d.Next()
+	_, err = d.Next()
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
 	if !errors.Is(err, errExceededPortfolioLimit) {
 		t.Errorf("received %v expected %v", err, errExceededPortfolioLimit)

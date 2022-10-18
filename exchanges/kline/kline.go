@@ -564,13 +564,24 @@ func (i *IntervalTime) Equal(tt time.Time) bool {
 	return tt.Unix() == i.Ticks
 }
 
+var (
+	ErrItemNotEqual           = errors.New("kline item not equal")
+	ErrItemUnderlyingNotEqual = errors.New("kline item underlying pair not equal")
+)
+
 // EqualSource checks whether two sets of candles
 // come from the same data source
-func (k *Item) EqualSource(i *Item) bool {
-	return k != nil &&
-		i != nil &&
-		k.Exchange == i.Exchange &&
-		k.Asset == i.Asset &&
-		k.Pair.Equal(i.Pair) &&
-		k.UnderlyingPair.Equal(i.UnderlyingPair)
+func (k *Item) EqualSource(i *Item) error {
+	if k == nil || i == nil {
+		return common.ErrNilPointer
+	}
+	if k.Exchange != i.Exchange ||
+		k.Asset != i.Asset ||
+		!k.Pair.Equal(i.Pair) {
+		return fmt.Errorf("%v %v %v %w %v %v %v", k.Exchange, k.Asset, k.Pair, ErrItemNotEqual, i.Exchange, i.Asset, i.Pair)
+	}
+	if !k.UnderlyingPair.IsEmpty() && !i.UnderlyingPair.IsEmpty() && !k.UnderlyingPair.Equal(i.UnderlyingPair) {
+		return fmt.Errorf("%w %v %v", ErrItemUnderlyingNotEqual, k.UnderlyingPair, i.UnderlyingPair)
+	}
+	return nil
 }

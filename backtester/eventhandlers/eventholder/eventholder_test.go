@@ -2,11 +2,11 @@ package eventholder
 
 import (
 	"errors"
-	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 )
 
 func TestReset(t *testing.T) {
@@ -25,7 +25,6 @@ func TestReset(t *testing.T) {
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
-
 }
 
 func TestAppendEvent(t *testing.T) {

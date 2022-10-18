@@ -114,7 +114,7 @@ func TestSortSignals(t *testing.T) {
 	exch := "ftx"
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	d := data.Base{}
+	d := &data.Base{}
 	d.SetStream([]data.Event{&eventkline.Kline{
 		Base: &event.Base{
 			Exchange:     exch,
@@ -140,7 +140,7 @@ func TestSortSignals(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, errNotSetup)
 	}
 
-	d2 := data.Base{}
+	d2 := &data.Base{}
 	d2.SetStream([]data.Event{&eventkline.Kline{
 		Base: &event.Base{
 			Exchange:       exch,
@@ -284,14 +284,14 @@ func TestCreateSignals(t *testing.T) {
 	}
 }
 
-// funderino overrides default implementation
-type funderino struct {
+// fakeFunds overrides default implementation
+type fakeFunds struct {
 	funding.FundManager
 	hasBeenLiquidated bool
 }
 
 // HasExchangeBeenLiquidated overrides default implementation
-func (f funderino) HasExchangeBeenLiquidated(_ common.Event) bool {
+func (f fakeFunds) HasExchangeBeenLiquidated(_ common.Event) bool {
 	return f.hasBeenLiquidated
 }
 
@@ -316,16 +316,14 @@ func (p portfolerino) GetPositions(common.Event) ([]gctorder.Position, error) {
 func TestOnSimultaneousSignals(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
-	var expectedError = errNoSignals
 	_, err := s.OnSimultaneousSignals(nil, nil, nil)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v", err, expectedError)
+	if !errors.Is(err, errNoSignals) {
+		t.Errorf("received '%v' expected '%v", err, errNoSignals)
 	}
 
-	expectedError = gctcommon.ErrNilPointer
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	d := &datakline.DataFromKline{
-		Base: data.Base{},
+		Base: &data.Base{},
 		Item: gctkline.Item{
 			Exchange:       exchangeName,
 			Asset:          asset.Spot,
@@ -334,7 +332,7 @@ func TestOnSimultaneousSignals(t *testing.T) {
 		},
 	}
 	tt := time.Now()
-	d.SetStream([]data.Event{&eventkline.Kline{
+	err = d.SetStream([]data.Event{&eventkline.Kline{
 		Base: &event.Base{
 			Exchange:     exchangeName,
 			Time:         tt,
@@ -348,27 +346,28 @@ func TestOnSimultaneousSignals(t *testing.T) {
 		High:   decimal.NewFromInt(1337),
 		Volume: decimal.NewFromInt(1337),
 	}})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
 
-	d.Next()
+	_, err = d.Next()
 	signals := []data.Handler{
 		d,
 	}
-	f := &funderino{}
+	f := &fakeFunds{}
 	_, err = s.OnSimultaneousSignals(signals, f, nil)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v", err, expectedError)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v", err, gctcommon.ErrNilPointer)
 	}
 
 	p := &portfolerino{}
-	expectedError = errNotSetup
 	_, err = s.OnSimultaneousSignals(signals, f, p)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v", err, expectedError)
+	if !errors.Is(err, errNotSetup) {
+		t.Errorf("received '%v' expected '%v", err, errNotSetup)
 	}
 
-	expectedError = nil
 	d2 := &datakline.DataFromKline{
-		Base: data.Base{},
+		Base: &data.Base{},
 		Item: gctkline.Item{
 			Exchange:       exchangeName,
 			Asset:          asset.Futures,
@@ -376,7 +375,7 @@ func TestOnSimultaneousSignals(t *testing.T) {
 			UnderlyingPair: cp,
 		},
 	}
-	d2.SetStream([]data.Event{&eventkline.Kline{
+	err = d2.SetStream([]data.Event{&eventkline.Kline{
 		Base: &event.Base{
 			Exchange:       exchangeName,
 			Time:           tt,
@@ -391,14 +390,21 @@ func TestOnSimultaneousSignals(t *testing.T) {
 		High:   decimal.NewFromInt(1337),
 		Volume: decimal.NewFromInt(1337),
 	}})
-	d2.Next()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+
+	_, err = d2.Next()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
 	signals = []data.Handler{
 		d,
 		d2,
 	}
 	resp, err := s.OnSimultaneousSignals(signals, f, p)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v", err, expectedError)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
 	}
 	if len(resp) != 2 {
 		t.Errorf("received '%v' expected '%v", len(resp), 2)
@@ -406,8 +412,8 @@ func TestOnSimultaneousSignals(t *testing.T) {
 
 	f.hasBeenLiquidated = true
 	resp, err = s.OnSimultaneousSignals(signals, f, p)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v", err, expectedError)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
 	}
 	if len(resp) != 2 {
 		t.Fatalf("received '%v' expected '%v", len(resp), 2)

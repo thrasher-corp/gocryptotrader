@@ -25,7 +25,7 @@ func TestGetBase(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNilPointer)
 	}
 
-	_, err = s.GetBaseData(&datakline.DataFromKline{})
+	_, err = s.GetBaseData(datakline.NewDataFromKline())
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
@@ -33,8 +33,8 @@ func TestGetBase(t *testing.T) {
 	exch := "binance"
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	d := data.Base{}
-	d.SetStream([]data.Event{&kline.Kline{
+	d := &data.Base{}
+	err = d.SetStream([]data.Event{&kline.Kline{
 		Base: &event.Base{
 			Exchange:     exch,
 			Time:         tt,
@@ -48,8 +48,14 @@ func TestGetBase(t *testing.T) {
 		High:   decimal.NewFromInt(1337),
 		Volume: decimal.NewFromInt(1337),
 	}})
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 
-	d.Next()
+	_, err = d.Next()
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 	_, err = s.GetBaseData(&datakline.DataFromKline{
 		Item:        gctkline.Item{},
 		Base:        d,

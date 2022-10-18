@@ -148,20 +148,24 @@ func TestStopRun(t *testing.T) {
 	}
 
 	bt := &BackTest{
-		Strategy:  &ftxcashandcarry.Strategy{},
-		Statistic: &statistics.Statistic{},
+		Strategy:  &fakeStrat{},
+		Statistic: &fakeStats{},
+		Reports:   &fakeReport{},
 		shutdown:  make(chan struct{}),
 	}
 	err = rm.AddTask(bt)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
+
 	err = rm.StopTask(bt.MetaData.ID)
 	if !errors.Is(err, errTaskHasNotRan) {
 		t.Errorf("received '%v' expected '%v'", err, errTaskHasNotRan)
 	}
 
+	bt.m.Lock()
 	bt.MetaData.DateStarted = time.Now()
+	bt.m.Unlock()
 	err = rm.StopTask(bt.MetaData.ID)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
@@ -192,14 +196,17 @@ func TestStopAllRuns(t *testing.T) {
 
 	bt := &BackTest{
 		Strategy:  &ftxcashandcarry.Strategy{},
-		Statistic: &statistics.Statistic{},
+		Statistic: &fakeStats{},
+		Reports:   &fakeReport{},
 		shutdown:  make(chan struct{}),
 	}
 	err = rm.AddTask(bt)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
+	bt.m.Lock()
 	bt.MetaData.DateStarted = time.Now()
+	bt.m.Unlock()
 	stoppedRuns, err = rm.StopAllTasks()
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
@@ -255,9 +262,11 @@ func TestStartRun(t *testing.T) {
 	if !errors.Is(err, errTaskIsRunning) {
 		t.Errorf("received '%v' expected '%v'", err, errTaskIsRunning)
 	}
-
+	bt.m.Lock()
 	bt.MetaData.DateEnded = time.Now()
 	bt.MetaData.Closed = true
+	bt.shutdown = make(chan struct{})
+	bt.m.Unlock()
 
 	err = rm.StartTask(bt.MetaData.ID)
 	if !errors.Is(err, errAlreadyRan) {
@@ -333,13 +342,17 @@ func TestClearRun(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
+	bt.m.Lock()
 	bt.MetaData.DateStarted = time.Now()
+	bt.m.Unlock()
 	err = rm.ClearTask(bt.MetaData.ID)
 	if !errors.Is(err, errCannotClear) {
 		t.Errorf("received '%v' expected '%v'", err, errCannotClear)
 	}
 
+	bt.m.Lock()
 	bt.MetaData.DateStarted = time.Time{}
+	bt.m.Unlock()
 	err = rm.ClearTask(bt.MetaData.ID)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
@@ -386,7 +399,9 @@ func TestClearAllRuns(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
+	bt.m.Lock()
 	bt.MetaData.DateStarted = time.Now()
+	bt.m.Unlock()
 	clearedRuns, remainingRuns, err = rm.ClearAllTasks()
 	if len(clearedRuns) != 0 {
 		t.Errorf("received '%v' expected '%v'", len(clearedRuns), 0)
@@ -398,7 +413,9 @@ func TestClearAllRuns(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
+	bt.m.Lock()
 	bt.MetaData.DateStarted = time.Time{}
+	bt.m.Unlock()
 	clearedRuns, remainingRuns, err = rm.ClearAllTasks()
 	if len(clearedRuns) != 1 {
 		t.Errorf("received '%v' expected '%v'", len(clearedRuns), 1)

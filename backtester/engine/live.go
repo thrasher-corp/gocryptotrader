@@ -201,7 +201,7 @@ func (d *dataChecker) UpdateFunding(force bool) error {
 func (d *dataChecker) Updated() <-chan bool {
 	if d == nil {
 		immediateClosure := make(chan bool)
-		defer close(immediateClosure)
+		close(immediateClosure)
 		return immediateClosure
 	}
 	return d.notice.Wait(d.shutdown)
@@ -212,7 +212,7 @@ func (d *dataChecker) Updated() <-chan bool {
 func (d *dataChecker) HasShutdown() <-chan bool {
 	if d == nil {
 		immediateClosure := make(chan bool)
-		defer close(immediateClosure)
+		close(immediateClosure)
 		return immediateClosure
 	}
 	return d.hasShutdown.Wait(nil)
@@ -276,17 +276,19 @@ func (d *dataChecker) AppendDataSource(dataSource *liveDataSourceSetup) error {
 			return fmt.Errorf("%w %v %v %v", errDataSourceExists, exchName, dataSource.asset, dataSource.pair)
 		}
 	}
-
-	k := kline.DataFromKline{
-		Item: gctkline.Item{
-			Exchange:       exchName,
-			Pair:           dataSource.pair,
-			UnderlyingPair: dataSource.underlyingPair,
-			Asset:          dataSource.asset,
-			Interval:       dataSource.interval,
-		},
+	k := kline.NewDataFromKline()
+	k.Item = gctkline.Item{
+		Exchange:       exchName,
+		Pair:           dataSource.pair,
+		UnderlyingPair: dataSource.underlyingPair,
+		Asset:          dataSource.asset,
+		Interval:       dataSource.interval,
 	}
-	k.SetLive(true)
+
+	err := k.SetLive(true)
+	if err != nil {
+		return err
+	}
 	if dataSource.dataRequestRetryTolerance == 0 {
 		dataSource.dataRequestRetryTolerance = 1
 	}
@@ -351,12 +353,12 @@ func (d *dataChecker) FetchLatestData() (bool, error) {
 			return false, err
 		}
 		d.sourcesToCheck[i].candlesToAppend.Candles = nil
-		d.dataHolder.SetDataForCurrency(d.sourcesToCheck[i].exchangeName, d.sourcesToCheck[i].asset, d.sourcesToCheck[i].pair, &d.sourcesToCheck[i].pairCandles)
+		d.dataHolder.SetDataForCurrency(d.sourcesToCheck[i].exchangeName, d.sourcesToCheck[i].asset, d.sourcesToCheck[i].pair, d.sourcesToCheck[i].pairCandles)
 		err = d.report.SetKlineData(&d.sourcesToCheck[i].pairCandles.Item)
 		if err != nil {
 			log.Errorf(common.LiveStrategy, "%v %v %v issue processing kline data: %v", d.sourcesToCheck[i].exchangeName, d.sourcesToCheck[i].asset, d.sourcesToCheck[i].pair, err)
 		}
-		err = d.funding.AddUSDTrackingData(&d.sourcesToCheck[i].pairCandles)
+		err = d.funding.AddUSDTrackingData(d.sourcesToCheck[i].pairCandles)
 		if err != nil && !errors.Is(err, funding.ErrUSDTrackingDisabled) {
 			log.Errorf(common.LiveStrategy, "%v %v %v issue processing USD tracking data: %v", d.sourcesToCheck[i].exchangeName, d.sourcesToCheck[i].asset, d.sourcesToCheck[i].pair, err)
 		}
@@ -406,14 +408,20 @@ func (d *dataChecker) SetDataForClosingAllPositions(s ...signal.Event) error {
 				Close:  s[x].GetClosePrice().InexactFloat64(),
 				Volume: s[x].GetVolume().InexactFloat64(),
 			})
-			d.sourcesToCheck[y].pairCandles.AppendResults(&d.sourcesToCheck[y].pairCandles.Item)
+			err = d.sourcesToCheck[y].pairCandles.AppendResults(&d.sourcesToCheck[y].pairCandles.Item)
+			if err != nil {
+				log.Errorf(common.LiveStrategy, "%v %v %v issue appending kline data: %v", d.sourcesToCheck[y].exchangeName, d.sourcesToCheck[y].asset, d.sourcesToCheck[y].pair, err)
+				continue
+			}
 			err = d.report.SetKlineData(&d.sourcesToCheck[y].pairCandles.Item)
 			if err != nil {
 				log.Errorf(common.LiveStrategy, "%v %v %v issue processing kline data: %v", d.sourcesToCheck[y].exchangeName, d.sourcesToCheck[y].asset, d.sourcesToCheck[y].pair, err)
+				continue
 			}
-			err = d.funding.AddUSDTrackingData(&d.sourcesToCheck[y].pairCandles)
+			err = d.funding.AddUSDTrackingData(d.sourcesToCheck[y].pairCandles)
 			if err != nil && !errors.Is(err, funding.ErrUSDTrackingDisabled) {
 				log.Errorf(common.LiveStrategy, "%v %v %v issue processing USD tracking data: %v", d.sourcesToCheck[y].exchangeName, d.sourcesToCheck[y].asset, d.sourcesToCheck[y].pair, err)
+				continue
 			}
 			setData = true
 		}
@@ -434,7 +442,10 @@ func (d *dataChecker) IsRealOrders() bool {
 // to the candles to be added to the backtester event queue
 func (c *liveDataSourceDataHandler) loadCandleData(timeToRetrieve time.Time) (bool, error) {
 	if c == nil {
-		return false, gctcommon.ErrNilPointer
+		return false, fmt.Errorf("%w live data source data handler", gctcommon.ErrNilPointer)
+	}
+	if c.pairCandles == nil {
+		return false, fmt.Errorf("%w pair candles", gctcommon.ErrNilPointer)
 	}
 	var candles *gctkline.Item
 	var err error

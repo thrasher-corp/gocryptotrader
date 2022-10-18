@@ -2,15 +2,21 @@ package kline
 
 import (
 	"fmt"
-	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
+
+func NewDataFromKline() *DataFromKline {
+	return &DataFromKline{
+		Base: &data.Base{},
+	}
+}
 
 // HasDataAtTime verifies checks the underlying range data
 // To determine whether there is any candle data present at the time provided
@@ -24,7 +30,6 @@ func (d *DataFromKline) HasDataAtTime(t time.Time) (bool, error) {
 		s, err = d.GetStream()
 		if err != nil {
 			return false, err
-
 		}
 		for i := range s {
 			if s[i].GetTime().Equal(t) {
@@ -75,8 +80,9 @@ func (d *DataFromKline) AppendResults(ki *gctkline.Item) error {
 	if ki == nil {
 		return fmt.Errorf("%w kline item", gctcommon.ErrNilPointer)
 	}
-	if !d.Item.EqualSource(ki) {
-		return fmt.Errorf("%w does not match", errNoCandleData)
+	err := d.Item.EqualSource(ki)
+	if err != nil {
+		return err
 	}
 	var gctCandles []gctkline.Candle
 	stream, err := d.Base.GetStream()

@@ -209,12 +209,18 @@ func TestLiveHandlerReset(t *testing.T) {
 	dataHandler := &dataChecker{
 		eventTimeout: 1,
 	}
-	dataHandler.Reset()
+	err := dataHandler.Reset()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	if dataHandler.eventTimeout != 0 {
 		t.Errorf("received '%v' expected '%v'", dataHandler.eventTimeout, 0)
 	}
 	var dh *dataChecker
-	dh.Reset()
+	err = dh.Reset()
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
+	}
 }
 
 func TestAppendDataSource(t *testing.T) {
@@ -307,16 +313,30 @@ func TestFetchLatestData(t *testing.T) {
 	dataHandler.sourcesToCheck = []*liveDataSourceDataHandler{
 		{
 			exchange:                  f,
-			exchangeName:              "ftx",
+			exchangeName:              testExchange,
 			asset:                     asset.Spot,
 			pair:                      cp,
 			dataRequestRetryWaitTime:  defaultDataRequestWaitTime,
 			dataRequestRetryTolerance: 1,
 			underlyingPair:            cp,
-			pairCandles: datakline.DataFromKline{
-				Base: data.Base{},
+			pairCandles: &datakline.DataFromKline{
+				Base: &data.Base{},
 				Item: kline.Item{
-					Interval: kline.OneHour,
+					Exchange:       testExchange,
+					Pair:           cp,
+					UnderlyingPair: cp,
+					Asset:          asset.Spot,
+					Interval:       kline.OneHour,
+					Candles: []kline.Candle{
+						{
+							Time:   time.Now(),
+							Open:   1337,
+							High:   1337,
+							Low:    1337,
+							Close:  1337,
+							Volume: 1337,
+						},
+					},
 				},
 			},
 			dataType:      common.DataCandle,
@@ -363,7 +383,8 @@ func TestLoadCandleData(t *testing.T) {
 	l.dataType = common.DataCandle
 	l.asset = asset.Spot
 	l.pair = cp
-	l.pairCandles = datakline.DataFromKline{
+	l.pairCandles = &datakline.DataFromKline{
+		Base: &data.Base{},
 		Item: kline.Item{
 			Exchange:       testExchange,
 			Asset:          asset.Spot,
@@ -390,8 +411,8 @@ func TestLoadCandleData(t *testing.T) {
 func TestSetDataForClosingAllPositions(t *testing.T) {
 	t.Parallel()
 	dataHandler := &dataChecker{
-		report:  &report.Data{},
-		funding: &funding.FundManager{},
+		report:  &fakeReport{},
+		funding: &fakeFunding{},
 	}
 
 	dataHandler.started = 1
@@ -409,16 +430,30 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 	dataHandler.sourcesToCheck = []*liveDataSourceDataHandler{
 		{
 			exchange:                  f,
-			exchangeName:              "ftx",
+			exchangeName:              testExchange,
 			asset:                     asset.Spot,
 			pair:                      cp,
 			dataRequestRetryWaitTime:  defaultDataRequestWaitTime,
 			dataRequestRetryTolerance: 1,
 			underlyingPair:            cp,
-			pairCandles: datakline.DataFromKline{
-				Base: data.Base{},
+			pairCandles: &datakline.DataFromKline{
+				Base: &data.Base{},
 				Item: kline.Item{
-					Interval: kline.OneHour,
+					Exchange:       testExchange,
+					Pair:           cp,
+					UnderlyingPair: cp,
+					Asset:          asset.Spot,
+					Interval:       kline.OneHour,
+					Candles: []kline.Candle{
+						{
+							Time:   time.Now(),
+							Open:   1337,
+							High:   1337,
+							Low:    1337,
+							Close:  1337,
+							Volume: 1337,
+						},
+					},
 				},
 			},
 			dataType:      common.DataCandle,
@@ -443,7 +478,7 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 	err = dataHandler.SetDataForClosingAllPositions(&signal.Signal{
 		Base: &event.Base{
 			Offset:         3,
-			Exchange:       "ftx",
+			Exchange:       testExchange,
 			Time:           time.Now(),
 			Interval:       kline.OneHour,
 			CurrencyPair:   cp,

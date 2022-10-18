@@ -101,7 +101,7 @@ func StartRPCServer(server *GRPCServer) error {
 
 // StartRPCRESTProxy starts a gRPC proxy
 func (s *GRPCServer) StartRPCRESTProxy() error {
-	log.Debugf(log.GRPCSys, "GRPC proxy server support enabled. Starting gRPC proxy server on http://%v.\n", s.config.GRPC.GRPCProxyListenAddress)
+	log.Debugf(log.GRPCSys, "GRPC proxy server support enabled. Starting gRPC proxy server on %v\n", s.config.GRPC.GRPCProxyListenAddress)
 	targetDir := utils.GetTLSDir(s.config.GRPC.TLSDir)
 	creds, err := credentials.NewClientTLSFromFile(filepath.Join(targetDir, "cert.pem"), "")
 	if err != nil {

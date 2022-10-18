@@ -459,15 +459,6 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 	}
 
 	cfg.PrintSetting()
-	if bt.LiveDataHandler != nil {
-		if bt.LiveDataHandler.IsRealOrders() {
-			err = bt.LiveDataHandler.UpdateFunding(false)
-			if err != nil {
-				return err
-			}
-		}
-		return bt.LiveDataHandler.Start()
-	}
 
 	return nil
 }
@@ -694,7 +685,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 	}
 
 	log.Infof(common.Setup, "Loading data for %v %v %v...\n", exch.GetName(), a, fPair)
-	resp := &kline.DataFromKline{}
+	resp := kline.NewDataFromKline()
 	underlyingPair := currency.EMPTYPAIR
 	if a.IsFutures() {
 		// returning the collateral currency along with using the
@@ -888,6 +879,7 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	candles.FillMissingDataWithEmptyEntries(dates)
 	candles.RemoveOutsideRange(cfg.DataSettings.APIData.StartDate, cfg.DataSettings.APIData.EndDate)
 	return &kline.DataFromKline{
+		Base:        &data.Base{},
 		Item:        *candles,
 		RangeHolder: dates,
 	}, nil

@@ -1,6 +1,7 @@
 package funding
 
 import (
+	"errors"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -11,6 +12,25 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+)
+
+var (
+	// ErrFundsNotFound used when funds are requested but the funding is not found in the manager
+	ErrFundsNotFound = errors.New("funding not found")
+	// ErrAlreadyExists used when a matching item or pair is already in the funding manager
+	ErrAlreadyExists = errors.New("funding already exists")
+	// ErrUSDTrackingDisabled used when attempting to track USD values when disabled
+	ErrUSDTrackingDisabled = errors.New("USD tracking disabled")
+
+	errCannotAllocate             = errors.New("cannot allocate funds")
+	errZeroAmountReceived         = errors.New("amount received less than or equal to zero")
+	errNegativeAmountReceived     = errors.New("received negative decimal")
+	errNotEnoughFunds             = errors.New("not enough funds")
+	errCannotTransferToSameFunds  = errors.New("cannot send funds to self")
+	errTransferMustBeSameCurrency = errors.New("cannot transfer to different currency")
+	errCannotMatchTrackingToItem  = errors.New("cannot match tracking data to funding items")
+	errNotFutures                 = errors.New("item linking collateral currencies must be a futures asset")
+	errExchangeManagerRequired    = errors.New("exchange manager required")
 )
 
 // IFundingManager limits funding usage for portfolio event handling

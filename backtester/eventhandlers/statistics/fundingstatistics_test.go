@@ -2,9 +2,11 @@ package statistics
 
 import (
 	"errors"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"testing"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
@@ -63,6 +65,7 @@ func TestCalculateFundingStatistics(t *testing.T) {
 		},
 	}
 	dfk := &kline.DataFromKline{
+		Base: &data.Base{},
 		Item: usdKline,
 	}
 	err = dfk.Load()
@@ -104,8 +107,14 @@ func TestCalculateFundingStatistics(t *testing.T) {
 	if !errors.Is(err, errMissingSnapshots) {
 		t.Errorf("received %v expected %v", err, errMissingSnapshots)
 	}
-	f.CreateSnapshot(usdKline.Candles[0].Time)
-	f.CreateSnapshot(usdKline.Candles[1].Time)
+	err = f.CreateSnapshot(usdKline.Candles[0].Time)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
+	err = f.CreateSnapshot(usdKline.Candles[1].Time)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
 	cs["binance"][asset.Spot][currency.BTC.Item] = make(map[*currency.Item]*CurrencyPairStatistic)
 	cs["binance"][asset.Spot][currency.BTC.Item][currency.USDT.Item] = &CurrencyPairStatistic{}
 
@@ -161,10 +170,15 @@ func TestCalculateIndividualFundingStatistics(t *testing.T) {
 	if !errors.Is(err, errMissingSnapshots) {
 		t.Errorf("received %v expected %v", err, errMissingSnapshots)
 	}
-
+	cp := currency.NewPair(currency.BTC, currency.USD)
 	ri.USDPairCandle = &kline.DataFromKline{
+		Base: &data.Base{},
 		Item: gctkline.Item{
-			Interval: gctkline.OneHour,
+			Exchange:       testExchange,
+			Pair:           cp,
+			UnderlyingPair: cp,
+			Asset:          asset.Spot,
+			Interval:       gctkline.OneHour,
 			Candles: []gctkline.Candle{
 				{
 					Time: time.Now().Add(-time.Hour),
@@ -173,6 +187,8 @@ func TestCalculateIndividualFundingStatistics(t *testing.T) {
 					Time: time.Now(),
 				},
 			},
+			SourceJobID:     uuid.UUID{},
+			ValidationJobID: uuid.UUID{},
 		},
 	}
 	err = ri.USDPairCandle.Load()
@@ -224,7 +240,10 @@ func TestFundingStatisticsPrintResults(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
-	f.Report = funds.GenerateReport()
+	f.Report, err = funds.GenerateReport()
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
 	err = f.PrintResults(false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)

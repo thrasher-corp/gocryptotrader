@@ -114,7 +114,8 @@ func (d *Data) SetKlineData(k *kline.Item) error {
 		return nil
 	}
 	for i := range d.OriginalCandles {
-		if !d.OriginalCandles[i].EqualSource(k) {
+		err := d.OriginalCandles[i].EqualSource(k)
+		if err != nil {
 			continue
 		}
 		d.OriginalCandles[i].Candles = append(d.OriginalCandles[i].Candles, k.Candles...)

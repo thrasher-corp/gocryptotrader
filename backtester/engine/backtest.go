@@ -115,9 +115,22 @@ func (bt *BackTest) ExecuteStrategy(waitForOfflineCompletion bool) error {
 		return fmt.Errorf("%w %v %v", errAlreadyRan, bt.MetaData.ID, bt.MetaData.Strategy)
 	}
 
+	var err error
 	bt.MetaData.DateStarted = time.Now()
 	liveTesting := bt.MetaData.LiveTesting
 	bt.m.Unlock()
+	if bt.LiveDataHandler != nil {
+		if bt.LiveDataHandler.IsRealOrders() {
+			err = bt.LiveDataHandler.UpdateFunding(false)
+			if err != nil {
+				return err
+			}
+		}
+		err = bt.LiveDataHandler.Start()
+		if err != nil {
+			return err
+		}
+	}
 	var wg sync.WaitGroup
 	if waitForOfflineCompletion {
 		wg.Add(1)
@@ -137,8 +150,12 @@ func (bt *BackTest) ExecuteStrategy(waitForOfflineCompletion bool) error {
 			}
 		} else {
 			bt.Run()
-			close(bt.shutdown)
 			bt.m.Lock()
+			_, ok := <-bt.shutdown
+			if !ok {
+				return
+			}
+			close(bt.shutdown)
 			bt.MetaData.Closed = true
 			bt.MetaData.DateEnded = time.Now()
 			bt.m.Unlock()
@@ -269,8 +286,7 @@ func (bt *BackTest) handleEvent(ev common.Event) error {
 		return err
 	}
 
-	bt.Funding.CreateSnapshot(ev.GetTime())
-	return nil
+	return bt.Funding.CreateSnapshot(ev.GetTime())
 }
 
 // processSingleDataEvent will pass the event to the strategy and determine how it should be handled
@@ -578,14 +594,14 @@ func (bt *BackTest) processFuturesFillEvent(ev fill.Event, funds funding.IFundRe
 }
 
 // Stop shuts down the live data loop
-func (bt *BackTest) Stop() {
+func (bt *BackTest) Stop() error {
 	if bt == nil {
-		return
+		return gctcommon.ErrNilPointer
 	}
 	bt.m.Lock()
 	defer bt.m.Unlock()
 	if bt.MetaData.Closed {
-		return
+		return errAlreadyRan
 	}
 	close(bt.shutdown)
 	bt.MetaData.Closed = true
@@ -598,13 +614,13 @@ func (bt *BackTest) Stop() {
 	}
 	err := bt.Statistic.CalculateAllResults()
 	if err != nil {
-		log.Error(log.Global, err)
-		return
+		return err
 	}
 	err = bt.Reports.GenerateReport()
 	if err != nil {
-		log.Error(log.Global, err)
+		return err
 	}
+	return nil
 }
 
 func (bt *BackTest) triggerLiquidationsForExchange(ev data.Event, pnl *portfolio.PNLSummary) error {
@@ -706,7 +722,10 @@ func (bt *BackTest) CloseAllPositions() error {
 		return err
 	}
 
-	bt.Funding.CreateSnapshot(events[0].GetTime())
+	err = bt.Funding.CreateSnapshot(events[0].GetTime())
+	if err != nil {
+		return err
+	}
 	for i := range events {
 		var funds funding.IFundingPair
 		funds, err = bt.Funding.GetFundingForEvent(events[i])

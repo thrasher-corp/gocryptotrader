@@ -70,6 +70,14 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 	for _, b := range sortedSignals {
 		for _, v := range b {
 			var latestSpot, latestFuture data.Event
+			latestSpot, err = v.spotSignal.Latest()
+			if err != nil {
+				return nil, err
+			}
+			latestFuture, err = v.futureSignal.Latest()
+			if err != nil {
+				return nil, err
+			}
 			var pos []order.Position
 			pos, err = p.GetPositions(latestFuture)
 			if err != nil {

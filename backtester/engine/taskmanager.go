@@ -92,8 +92,7 @@ func (r *TaskManager) StopTask(id uuid.UUID) error {
 		case !r.tasks[i].MatchesID(id):
 			continue
 		case r.tasks[i].IsRunning():
-			r.tasks[i].Stop()
-			return nil
+			return r.tasks[i].Stop()
 		case r.tasks[i].HasRan():
 			return fmt.Errorf("%w %v", errAlreadyRan, id)
 		default:
@@ -115,7 +114,10 @@ func (r *TaskManager) StopAllTasks() ([]*TaskSummary, error) {
 		if !r.tasks[i].IsRunning() {
 			continue
 		}
-		r.tasks[i].Stop()
+		err := r.tasks[i].Stop()
+		if err != nil {
+			return nil, err
+		}
 		sum, err := r.tasks[i].GenerateSummary()
 		if err != nil {
 			return nil, err

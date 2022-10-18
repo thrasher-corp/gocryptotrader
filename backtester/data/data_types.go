@@ -14,11 +14,12 @@ import (
 var (
 	// ErrHandlerNotFound returned when a handler is not found for specified exchange, asset, pair
 	ErrHandlerNotFound = errors.New("handler not found")
+	// ErrInvalidEventSupplied returned when a bad event is supplied
+	ErrInvalidEventSupplied = errors.New("invalid event supplied")
 
-	errNothingToAdd         = errors.New("cannot append empty event to stream")
-	errInvalidEventSupplied = errors.New("invalid event supplied")
-	errInvalidOffset        = errors.New("event base set to invalid offset")
-	errMisMatchedEvent      = errors.New("cannot add event to stream, does not match")
+	errNothingToAdd    = errors.New("cannot append empty event to stream")
+	errInvalidOffset   = errors.New("event base set to invalid offset")
+	errMisMatchedEvent = errors.New("cannot add event to stream, does not match")
 )
 
 // HandlerPerCurrency stores an event handler per exchange asset pair
