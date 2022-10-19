@@ -531,15 +531,17 @@ func (g *Gateio) processSpotBalances(data []byte) error {
 	if err != nil {
 		return err
 	}
+	accountChanges := make([]account.Change, len(resp.Result))
 	for x := range resp.Result {
 		code := currency.NewCode(resp.Result[x].Currency)
-		g.Websocket.DataHandler <- account.Change{
+		accountChanges[x] = account.Change{
 			Exchange: g.Name,
 			Currency: code,
 			Asset:    asset.Spot,
 			Amount:   resp.Result[x].Available,
 		}
 	}
+	g.Websocket.DataHandler <- accountChanges
 	return nil
 }
 

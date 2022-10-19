@@ -764,7 +764,7 @@ type FuturesTicker struct {
 	MarkPrice             float64 `json:"mark_price,string"`
 	FundingRate           float64 `json:"funding_rate,string"`
 	FundingRateIndicative string  `json:"funding_rate_indicative"`
-	IndexPrice            string  `json:"index_price"`
+	IndexPrice            float64 `json:"index_price,string"`
 }
 
 // FuturesFundingRate represents futures funding rate response.
@@ -1045,7 +1045,7 @@ type OptionOrderResponse struct {
 	IsOrderPositionClose bool      `json:"is_close"`
 	Contract             string    `json:"contract"`
 	Text                 string    `json:"text"`
-	FillPrice            string    `json:"fill_price"`
+	FillPrice            float64   `json:"fill_price,string"`
 	FinishAs             string    `json:"finish_as"` //  finish_as 	filled, cancelled, liquidated, ioc, auto_deleveraged, reduce_only, position_closed, reduce_out
 	Left                 float64   `json:"left"`
 	TimeInForce          string    `json:"tif"`
@@ -1062,7 +1062,7 @@ type OptionOrderResponse struct {
 // OptionTradingHistory list personal trading history
 type OptionTradingHistory struct {
 	ID              int64     `json:"id"`
-	UnderlyingPrice string    `json:"underlying_price"`
+	UnderlyingPrice float64   `json:"underlying_price,string"`
 	Size            float64   `json:"size"`
 	Contract        string    `json:"contract"`
 	TradeRole       string    `json:"role"`
@@ -1702,7 +1702,7 @@ type Position struct {
 	MaintenanceRate float64 `json:"maintenance_rate,string"`
 	Value           float64 `json:"value,string"`
 	Margin          float64 `json:"margin,string"`
-	EntryPrice      string  `json:"entry_price"`
+	EntryPrice      float64 `json:"entry_price,string"`
 	LiqPrice        float64 `json:"liq_price,string"`
 	MarkPrice       float64 `json:"mark_price,string"`
 	UnrealisedPnl   string  `json:"unrealised_pnl"`
@@ -2406,10 +2406,10 @@ type WsFuturesAutoOrder struct {
 
 // WsOptionUnderlyingTicker represents options underlying ticker push data
 type WsOptionUnderlyingTicker struct {
-	TradePut   int64  `json:"trade_put"`
-	TradeCall  int64  `json:"trade_call"`
-	IndexPrice string `json:"index_price"`
-	Name       string `json:"name"`
+	TradePut   int64   `json:"trade_put"`
+	TradeCall  int64   `json:"trade_call"`
+	IndexPrice float64 `json:"index_price,string"`
+	Name       string  `json:"name"`
 }
 
 // WsOptionsTrades represents options trades for websocket push data.
