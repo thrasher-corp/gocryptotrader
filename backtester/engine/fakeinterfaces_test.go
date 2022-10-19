@@ -204,7 +204,9 @@ func (f fakeDataHolder) Reset() error {
 	return nil
 }
 
-type fakeFunding struct{}
+type fakeFunding struct {
+	hasFutures bool
+}
 
 func (f fakeFunding) UpdateCollateralForEvent(common.Event, bool) error {
 	return nil
@@ -266,7 +268,7 @@ func (f fakeFunding) UpdateCollateral() error {
 }
 
 func (f fakeFunding) HasFutures() bool {
-	return false
+	return f.hasFutures
 }
 
 func (f fakeFunding) HasExchangeBeenLiquidated(common.Event) bool {

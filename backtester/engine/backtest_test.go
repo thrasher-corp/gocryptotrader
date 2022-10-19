@@ -73,6 +73,12 @@ func TestSetupFromConfig(t *testing.T) {
 			Quote:        currency.NewCode("0624"),
 			Asset:        asset.Spot,
 		},
+		{
+			ExchangeName: testExchange,
+			Base:         currency.BTC,
+			Quote:        currency.NewCode("0624"),
+			Asset:        asset.Futures,
+		},
 	}
 	err = bt.SetupFromConfig(cfg, "", "", false)
 	if !errors.Is(err, base.ErrStrategyNotFound) {
@@ -1370,7 +1376,9 @@ func TestCloseAllPositions(t *testing.T) {
 	}
 
 	bt.shutdown = make(chan struct{})
-	dc := &dataChecker{}
+	dc := &dataChecker{
+		realOrders: true,
+	}
 	bt.LiveDataHandler = dc
 	err = bt.CloseAllPositions()
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
@@ -1898,5 +1906,102 @@ func TestNewBacktesterFromConfigs(t *testing.T) {
 	}
 	if bt.MetaData.DateLoaded.IsZero() {
 		t.Errorf("received '%v' expected '%v'", bt.MetaData.DateLoaded, "a date")
+	}
+}
+
+func TestProcessSingleDataEvent(t *testing.T) {
+	t.Parallel()
+	bt := &BackTest{
+		Strategy:   &fakeStrat{},
+		Portfolio:  &fakeFolio{},
+		Statistic:  &fakeStats{},
+		Reports:    &fakeReport{},
+		Funding:    &fakeFunding{},
+		DataHolder: &data.HandlerPerCurrency{},
+		EventQueue: &eventholder.Holder{},
+	}
+
+	err := bt.processSingleDataEvent(nil, nil)
+	if !errors.Is(err, common.ErrNilEvent) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrNilEvent)
+	}
+	cp := currency.NewPair(currency.BTC, currency.USD)
+	a := asset.Spot
+	ev := &evkline.Kline{
+		Base: &event.Base{
+			Exchange:     testExchange,
+			Time:         time.Now(),
+			Interval:     gctkline.FifteenMin,
+			CurrencyPair: cp,
+			AssetType:    a,
+		},
+	}
+	err = bt.processSingleDataEvent(ev, nil)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
+	}
+
+	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	b, err := funding.CreateItem(testExchange, a, cp.Base, decimal.Zero, decimal.Zero)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	quote, err := funding.CreateItem(testExchange, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	collateral, err := funding.CreateCollateral(b, quote)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	bt.Funding = f
+	tt := time.Now()
+	bt.DataHolder.Setup()
+	k := &kline.DataFromKline{
+		Item: gctkline.Item{
+			Exchange: testExchange,
+			Pair:     cp,
+			Asset:    a,
+			Interval: gctkline.FifteenMin,
+			Candles: []gctkline.Candle{{
+				Time:   tt,
+				Open:   1337,
+				High:   1337,
+				Low:    1337,
+				Close:  1337,
+				Volume: 1337,
+			}},
+		},
+		Base: &data.Base{},
+		RangeHolder: &gctkline.IntervalRangeHolder{
+			Start: gctkline.CreateIntervalTime(tt),
+			End:   gctkline.CreateIntervalTime(tt.Add(gctkline.FifteenMin.Duration())),
+			Ranges: []gctkline.IntervalRange{
+				{
+					Start: gctkline.CreateIntervalTime(tt),
+					End:   gctkline.CreateIntervalTime(tt.Add(gctkline.FifteenMin.Duration())),
+					Intervals: []gctkline.IntervalData{
+						{
+							Start:   gctkline.CreateIntervalTime(tt),
+							End:     gctkline.CreateIntervalTime(tt.Add(gctkline.FifteenMin.Duration())),
+							HasData: true,
+						},
+					},
+				},
+			},
+		},
+	}
+	err = k.Load()
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+	bt.DataHolder.SetDataForCurrency(testExchange, a, cp, k)
+
+	err = bt.processSingleDataEvent(ev, collateral)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 }

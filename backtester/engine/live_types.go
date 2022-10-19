@@ -26,12 +26,14 @@ var (
 	errInvalidCredentials           = errors.New("credentials are invalid, please check your config")
 	errNoCredsNoLive                = errors.New("cannot use real orders without credentials to fulfil those real orders")
 	errNoDataSetForClosingPositions = errors.New("no data was set for closing positions")
+	errCannotForceWithoutRealOrders = errors.New("cannot forcefully update funding with real orders disabled")
 )
 
 var (
-	defaultEventTimeout        = time.Minute
-	defaultDataCheckInterval   = time.Second
-	defaultDataRequestWaitTime = time.Millisecond * 500
+	defaultEventTimeout              = time.Minute
+	defaultDataCheckInterval         = time.Second
+	defaultDataRetryAttempts   int64 = 1
+	defaultDataRequestWaitTime       = time.Millisecond * 500
 )
 
 // Handler is all the functionality required in order to

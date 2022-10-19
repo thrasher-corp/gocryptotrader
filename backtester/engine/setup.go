@@ -57,21 +57,7 @@ func NewBacktester() (*BackTest, error) {
 		return nil, err
 	}
 	bt.exchangeManager = engine.SetupExchangeManager()
-	bt.orderManager, err = engine.SetupOrderManager(
-		bt.exchangeManager,
-		&engine.CommunicationManager{},
-		&sync.WaitGroup{},
-		false,
-		false,
-		0)
-	if err != nil {
-		return nil, err
-	}
 
-	err = bt.orderManager.Start()
-	if err != nil {
-		return nil, err
-	}
 	return bt, nil
 }
 

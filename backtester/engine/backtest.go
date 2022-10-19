@@ -570,7 +570,7 @@ func (bt *BackTest) processFuturesFillEvent(ev fill.Event, funds funding.IFundRe
 
 	err = bt.Statistic.AddPNLForTime(pnl)
 	if err != nil {
-		log.Errorf(common.Backtester, "AddHoldingsForTime %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+		return fmt.Errorf("AddPNLForTime %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 	}
 	err = bt.Funding.UpdateCollateralForEvent(ev, false)
 	if err != nil {
@@ -661,6 +661,7 @@ func (bt *BackTest) CloseAllPositions() error {
 	if err != nil {
 		return err
 	}
+	// todo investigate copy of all data
 	allData := bt.DataHolder.GetAllData()
 	var latestPrices []data.Event
 	for _, exchangeMap := range allData {

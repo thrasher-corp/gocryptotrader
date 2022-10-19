@@ -539,3 +539,54 @@ func TestIsRealOrders(t *testing.T) {
 		t.Error("expected true")
 	}
 }
+
+func TestUpdateFunding(t *testing.T) {
+	t.Parallel()
+	d := &dataChecker{}
+	err := d.UpdateFunding(false)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
+	}
+
+	ff := &fakeFunding{}
+	d.funding = ff
+	err = d.UpdateFunding(false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	err = d.UpdateFunding(true)
+	if !errors.Is(err, errCannotForceWithoutRealOrders) {
+		t.Errorf("received '%v' expected '%v'", err, errCannotForceWithoutRealOrders)
+	}
+
+	d.realOrders = true
+	err = d.UpdateFunding(true)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	ff.hasFutures = true
+	err = d.UpdateFunding(true)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	d.updatingFunding = 1
+	err = d.UpdateFunding(true)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	d.updatingFunding = 1
+	err = d.UpdateFunding(false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	d = nil
+	err = d.UpdateFunding(false)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
+	}
+}

@@ -162,17 +162,21 @@ func (d *dataChecker) checkData() error {
 
 // UpdateFunding requests and updates funding levels
 func (d *dataChecker) UpdateFunding(force bool) error {
-	if d == nil || d.funding == nil {
-		return gctcommon.ErrNilPointer
-	}
-	if force {
+	switch {
+	case d == nil:
+		return fmt.Errorf("%w datachecker", gctcommon.ErrNilPointer)
+	case d.funding == nil:
+		return fmt.Errorf("%w datachecker funding manager", gctcommon.ErrNilPointer)
+	case force && !d.realOrders:
+		return errCannotForceWithoutRealOrders
+	case force:
 		atomic.StoreUint32(&d.updatingFunding, 1)
-	} else if !atomic.CompareAndSwapUint32(&d.updatingFunding, 0, 1) {
+	case !atomic.CompareAndSwapUint32(&d.updatingFunding, 0, 1):
 		// already processing funding and can't go any faster
 		return nil
 	}
-	defer atomic.StoreUint32(&d.updatingFunding, 0)
 
+	defer atomic.StoreUint32(&d.updatingFunding, 0)
 	var err error
 	if d.funding.HasFutures() {
 		err = d.funding.UpdateAllCollateral(d.realOrders, d.hasUpdatedFunding)
@@ -289,10 +293,12 @@ func (d *dataChecker) AppendDataSource(dataSource *liveDataSourceSetup) error {
 	if err != nil {
 		return err
 	}
-	if dataSource.dataRequestRetryTolerance == 0 {
-		dataSource.dataRequestRetryTolerance = 1
+	if dataSource.dataRequestRetryTolerance <= 0 {
+		log.Warnf(common.LiveStrategy, "invalid data retry tolerance, setting %v to %v", dataSource.dataRequestRetryTolerance, defaultDataRetryAttempts)
+		dataSource.dataRequestRetryTolerance = defaultDataRetryAttempts
 	}
 	if dataSource.dataRequestRetryWaitTime <= 0 {
+		log.Warnf(common.LiveStrategy, "invalid data request wait time, setting %v to %v", dataSource.dataRequestRetryWaitTime, defaultDataRequestWaitTime)
 		dataSource.dataRequestRetryWaitTime = defaultDataRequestWaitTime
 	}
 	d.sourcesToCheck = append(d.sourcesToCheck, &liveDataSourceDataHandler{

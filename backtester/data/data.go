@@ -173,7 +173,8 @@ candles:
 				!s[x].Pair().Equal(b.stream[0].Pair()) {
 				return fmt.Errorf("%w %v %v %v received  %v %v %v", errMisMatchedEvent, b.stream[0].GetExchange(), b.stream[0].GetAssetType(), b.stream[0].Pair(), s[x].GetExchange(), s[x].GetAssetType(), s[x].Pair())
 			}
-			for y := range b.stream {
+			// todo change b.stream to map
+			for y := len(b.stream) - 1; y >= 0; y-- {
 				if s[x].GetTime().Equal(b.stream[y].GetTime()) {
 					continue candles
 				}
