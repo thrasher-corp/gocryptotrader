@@ -2806,6 +2806,8 @@ func TestGetActiveOrders(t *testing.T) {
 	var getOrdersRequestUMF = order.GetOrdersRequest{
 		Pairs:     currency.Pairs{pair},
 		AssetType: asset.USDTMarginedFutures,
+		Side:      order.AnySide,
+		Type:      order.AnyType,
 	}
 
 	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestUMF)
@@ -2821,6 +2823,8 @@ func TestGetActiveOrders(t *testing.T) {
 	var getOrdersRequestCMF = order.GetOrdersRequest{
 		Pairs:     currency.Pairs{pair1},
 		AssetType: asset.CoinMarginedFutures,
+		Side:      order.AnySide,
+		Type:      order.AnyType,
 	}
 
 	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestCMF)
@@ -2836,6 +2840,8 @@ func TestGetActiveOrders(t *testing.T) {
 	var getOrdersRequestFutures = order.GetOrdersRequest{
 		Pairs:     currency.Pairs{pair2},
 		AssetType: asset.Futures,
+		Side:      order.AnySide,
+		Type:      order.AnyType,
 	}
 
 	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestFutures)
@@ -2851,6 +2857,8 @@ func TestGetActiveOrders(t *testing.T) {
 	var getOrdersRequestUSDC = order.GetOrdersRequest{
 		Pairs:     currency.Pairs{pair3},
 		AssetType: asset.USDCMarginedFutures,
+		Side:      order.AnySide,
+		Type:      order.AnyType,
 	}
 
 	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestUSDC)

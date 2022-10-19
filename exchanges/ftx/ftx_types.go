@@ -1,6 +1,7 @@
 package ftx
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -958,6 +959,8 @@ type ReferralRebateHistory struct {
 	Day        time.Time `json:"day"`
 }
 
+var errUnhandledOrderType = errors.New("unhandled order type")
+
 // validTypes attaches package specific checker functionality for valid type
 // check
 type validTypes struct {
@@ -972,7 +975,10 @@ func (v validTypes) Check() error {
 		}
 	}
 
-	return fmt.Errorf("unhandled order type %s, expected: [%v]", v.Type, validOrderTypeForRequest)
+	return fmt.Errorf("%w %s, expected: [%v]",
+		errUnhandledOrderType,
+		v.Type,
+		validOrderTypeForRequest)
 }
 
 var validOrderTypeForRequest = []order.Type{
@@ -983,6 +989,8 @@ var validOrderTypeForRequest = []order.Type{
 	order.Limit,
 	order.Market,
 }
+
+var errUnhandledOrderSide = errors.New("unhandled order side")
 
 // validSides attaches package specific checker functionality for valid side
 // check
@@ -998,7 +1006,10 @@ func (v validSides) Check() error {
 		}
 	}
 
-	return fmt.Errorf("unhandled order side %s, expected: %v", v.Type, validOrderSideForRequest)
+	return fmt.Errorf("%w %s, expected: %v",
+		errUnhandledOrderSide,
+		v.Type,
+		validOrderSideForRequest)
 }
 
 var validOrderSideForRequest = []order.Side{
