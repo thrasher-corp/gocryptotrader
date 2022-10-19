@@ -313,9 +313,8 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, 
 	if len(insts) == 0 {
 		return nil, errNoInstrumentFound
 	}
-	pairsMap := map[string]struct{}{}
+	pairsMap := map[string]bool{}
 	selectedPairs := []string{}
-	empty := struct{}{}
 	for x := range insts {
 		var pair string
 		switch insts[x].InstrumentType {
@@ -335,7 +334,7 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, 
 			return nil, errInvalidCurrencyPair
 		}
 		if _, okay := pairsMap[pair]; !okay {
-			pairsMap[pair] = empty
+			pairsMap[pair] = true
 			selectedPairs = append(selectedPairs, pair)
 		}
 	}

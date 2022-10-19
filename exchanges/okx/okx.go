@@ -1543,8 +1543,7 @@ func (ok *Okx) GetFundsTransferState(ctx context.Context, transferID, clientID s
 // GetAssetBillsDetails Query the billing record, you can get the latest 1 month historical data
 func (ok *Okx) GetAssetBillsDetails(ctx context.Context, currency, clientID, clientSecret string, after, before time.Time, billType, limit int64) ([]AssetBillDetail, error) {
 	params := url.Values{}
-	empty := struct{}{}
-	billTypeMap := map[int64]struct{}{1: empty, 2: empty, 13: empty, 20: empty, 21: empty, 28: empty, 47: empty, 48: empty, 49: empty, 50: empty, 51: empty, 52: empty, 53: empty, 54: empty, 61: empty, 68: empty, 69: empty, 72: empty, 73: empty, 74: empty, 75: empty, 76: empty, 77: empty, 78: empty, 79: empty, 80: empty, 81: empty, 82: empty, 83: empty, 84: empty, 85: empty, 86: empty, 87: empty, 88: empty, 89: empty, 90: empty, 91: empty, 92: empty, 93: empty, 94: empty, 95: empty, 96: empty, 97: empty, 98: empty, 99: empty, 102: empty, 103: empty, 104: empty, 105: empty, 106: empty, 107: empty, 108: empty, 109: empty, 110: empty, 111: empty, 112: empty, 113: empty, 114: empty, 115: empty, 116: empty, 117: empty, 118: empty, 119: empty, 120: empty, 121: empty, 122: empty, 123: empty, 124: empty, 125: empty, 126: empty, 127: empty, 128: empty, 129: empty, 130: empty, 131: empty, 132: empty, 133: empty, 134: empty, 135: empty, 136: empty, 137: empty, 138: empty, 139: empty, 141: empty, 142: empty, 143: empty, 144: empty, 145: empty, 146: empty, 147: empty, 150: empty, 151: empty, 152: empty, 153: empty, 154: empty, 155: empty, 156: empty, 157: empty, 160: empty, 161: empty, 162: empty, 163: empty, 169: empty, 170: empty, 171: empty, 172: empty, 173: empty, 174: empty, 175: empty, 176: empty, 177: empty, 178: empty, 179: empty, 180: empty, 181: empty, 182: empty, 183: empty, 184: empty, 185: empty, 186: empty, 187: empty, 188: empty, 189: empty, 193: empty, 194: empty, 195: empty, 196: empty, 197: empty, 198: empty, 199: empty, 200: empty, 211: empty}
+	billTypeMap := map[int64]bool{1: true, 2: true, 13: true, 20: true, 21: true, 28: true, 47: true, 48: true, 49: true, 50: true, 51: true, 52: true, 53: true, 54: true, 61: true, 68: true, 69: true, 72: true, 73: true, 74: true, 75: true, 76: true, 77: true, 78: true, 79: true, 80: true, 81: true, 82: true, 83: true, 84: true, 85: true, 86: true, 87: true, 88: true, 89: true, 90: true, 91: true, 92: true, 93: true, 94: true, 95: true, 96: true, 97: true, 98: true, 99: true, 102: true, 103: true, 104: true, 105: true, 106: true, 107: true, 108: true, 109: true, 110: true, 111: true, 112: true, 113: true, 114: true, 115: true, 116: true, 117: true, 118: true, 119: true, 120: true, 121: true, 122: true, 123: true, 124: true, 125: true, 126: true, 127: true, 128: true, 129: true, 130: true, 131: true, 132: true, 133: true, 134: true, 135: true, 136: true, 137: true, 138: true, 139: true, 141: true, 142: true, 143: true, 144: true, 145: true, 146: true, 147: true, 150: true, 151: true, 152: true, 153: true, 154: true, 155: true, 156: true, 157: true, 160: true, 161: true, 162: true, 163: true, 169: true, 170: true, 171: true, 172: true, 173: true, 174: true, 175: true, 176: true, 177: true, 178: true, 179: true, 180: true, 181: true, 182: true, 183: true, 184: true, 185: true, 186: true, 187: true, 188: true, 189: true, 193: true, 194: true, 195: true, 196: true, 197: true, 198: true, 199: true, 200: true, 211: true}
 	if _, okay := billTypeMap[billType]; okay {
 		params.Set("type", strconv.FormatInt(billType, 10))
 	}
@@ -2048,10 +2047,9 @@ func (ok *Okx) GetBillsDetail(ctx context.Context, arg *BillsDetailQueryParamete
 	if arg.BillType >= 1 && arg.BillType <= 13 {
 		params.Set("type", strconv.Itoa(int(arg.BillType)))
 	}
-	empty := struct{}{}
-	billSubtypesMap := map[int]struct{}{1: empty, 2: empty, 3: empty, 4: empty, 5: empty, 6: empty, 9: empty, 11: empty, 12: empty, 14: empty, 100: empty, 106: empty,
-		110: empty, 111: empty, 112: empty, 113: empty, 117: empty, 118: empty, 119: empty, 125: empty, 126: empty, 127: empty, 128: empty, 131: empty, 132: empty,
-		160: empty, 161: empty, 162: empty, 170: empty, 171: empty, 172: empty, 173: empty, 174: empty, 200: empty, 201: empty, 202: empty, 203: empty}
+	billSubtypesMap := map[int]bool{1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 9: true, 11: true, 12: true, 14: true, 100: true, 106: true,
+		110: true, 111: true, 112: true, 113: true, 117: true, 118: true, 119: true, 125: true, 126: true, 127: true, 128: true, 131: true, 132: true,
+		160: true, 161: true, 162: true, 170: true, 171: true, 172: true, 173: true, 174: true, 200: true, 201: true, 202: true, 203: true}
 	if _, okay := billSubtypesMap[arg.BillSubType]; okay {
 		params.Set("subType", strconv.Itoa(arg.BillSubType))
 	}
