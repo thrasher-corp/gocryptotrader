@@ -74,6 +74,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 			return err
 		}
 	}
+
 	bt.verbose = verbose
 	bt.DataHolder.Setup()
 	reports := &report.Data{
@@ -181,11 +182,29 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 	}
 
 	bt.Funding = funds
+	var trackFuturesPositions bool
 	if cfg.DataSettings.LiveData != nil {
+		trackFuturesPositions = cfg.DataSettings.LiveData.RealOrders
 		err = bt.SetupLiveDataHandler(cfg.DataSettings.LiveData.NewEventTimeout, cfg.DataSettings.LiveData.DataCheckTimer, cfg.DataSettings.LiveData.RealOrders, verbose)
 		if err != nil {
 			return err
 		}
+	}
+
+	bt.orderManager, err = engine.SetupOrderManager(
+		bt.exchangeManager,
+		&engine.CommunicationManager{},
+		&sync.WaitGroup{},
+		verbose,
+		trackFuturesPositions,
+		0)
+	if err != nil {
+		return err
+	}
+
+	err = bt.orderManager.Start()
+	if err != nil {
+		return err
 	}
 
 	for i := range cfg.CurrencySettings {

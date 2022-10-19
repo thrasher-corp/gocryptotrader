@@ -564,11 +564,6 @@ func (i *IntervalTime) Equal(tt time.Time) bool {
 	return tt.Unix() == i.Ticks
 }
 
-var (
-	ErrItemNotEqual           = errors.New("kline item not equal")
-	ErrItemUnderlyingNotEqual = errors.New("kline item underlying pair not equal")
-)
-
 // EqualSource checks whether two sets of candles
 // come from the same data source
 func (k *Item) EqualSource(i *Item) error {
