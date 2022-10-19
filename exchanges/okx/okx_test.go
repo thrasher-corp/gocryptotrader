@@ -148,14 +148,14 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Skip(err)
 	}
-	if _, err := ok.GetHistoricCandlesExtended(context.Background(), currencyPair, asset.Spot, time.Now().Add(-time.Minute*5), time.Now(), kline.OneMin); err != nil {
+	if _, err := ok.GetHistoricCandlesExtended(context.Background(), currencyPair, asset.Spot, time.Now().Add(-time.Minute*1), time.Now(), kline.OneMin); err != nil {
 		t.Errorf("%s GetHistoricCandlesExtended() error: %v", ok.Name, err)
 	}
 }
 
 func TestGetCandlesticksHistory(t *testing.T) {
 	t.Parallel()
-	_, err := ok.GetCandlesticksHistory(context.Background(), "BTC-USDT", kline.OneHour, time.Unix(time.Now().Unix()-3600, 0), time.Now(), 3)
+	_, err := ok.GetCandlesticksHistory(context.Background(), "BTC-USDT", kline.OneHour, time.Unix(time.Now().Unix()-int64(time.Minute), 3), time.Now(), 3)
 	if err != nil {
 		t.Error("Okx GetCandlesticksHistory() error", err)
 	}
