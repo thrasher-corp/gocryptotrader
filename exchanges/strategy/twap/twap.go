@@ -8,45 +8,36 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/strategy"
 )
 
 var (
 	errParamsAreNil                   = errors.New("params are nil")
 	errInvalidVolume                  = errors.New("invalid volume")
-	errInvalidMaxSlippageValue        = errors.New("invalid max slippage percentage value, need to be between 0 and 100")
+	errInvalidMaxSlippageValue        = errors.New("invalid max slippage percentage value")
 	errExchangeIsNil                  = errors.New("exchange is nil")
 	errTWAPIsNil                      = errors.New("twap is nil")
 	errNoBalanceFound                 = errors.New("no balance found")
 	errVolumeToSellExceedsFreeBalance = errors.New("volume to sell exceeds free balance")
 	errConfigurationIsNil             = errors.New("strategy configuration is nil")
-
-	errExceedsFreeBalance = errors.New("amount exceeds current free balance")
+	errInvalidPriceLimit              = errors.New("invalid price limit")
+	errInvalidMaxSpreadPercentage     = errors.New("invalid spread percentage")
+	errExceedsFreeBalance             = errors.New("amount exceeds current free balance")
+	errCannotSetAmount                = errors.New("specific amount cannot be set, full amount bool set")
 )
-
-// Strategy defines a TWAP strategy that handles the accumulation/de-accumulation
-// of assets via a time weighted average price.
-type Strategy struct {
-	strategy.Base
-	*Config
-	holdings  map[currency.Code]*account.ProtectedBalance
-	Reporter  chan Report
-	Candles   kline.Item
-	orderbook *orderbook.Depth
-}
 
 // GetTWAP returns a TWAP struct to manage TWAP allocation or deallocation of
 // position.
 func New(ctx context.Context, p *Config) (*Strategy, error) {
-	if err := p.Check(ctx); err != nil {
+	err := p.Check(ctx)
+	if err != nil {
 		return nil, err
 	}
+
 	depth, err := orderbook.GetDepth(p.Exchange.GetName(), p.Pair, p.Asset)
 	if err != nil {
 		return nil, err
@@ -69,9 +60,17 @@ func New(ctx context.Context, p *Config) (*Strategy, error) {
 		return nil, err
 	}
 
-	if p.Accumulation {
+	if p.Buy {
 		freeQuote := quoteAmount.GetFree()
-		if p.Amount > freeQuote {
+		if freeQuote == 0 {
+			fmt.Errorf("cannot sell quote %s amount %f to buy base %s %w of %f",
+				p.Pair.Quote,
+				p.Amount,
+				p.Pair.Base,
+				errNoBalanceFound,
+				freeQuote)
+		}
+		if p.FullAmount && p.Amount > freeQuote {
 			return nil, fmt.Errorf("cannot sell quote %s amount %f to buy base %s %w of %f",
 				p.Pair.Quote,
 				p.Amount,
@@ -81,7 +80,15 @@ func New(ctx context.Context, p *Config) (*Strategy, error) {
 		}
 	} else {
 		freeBase := baseAmount.GetFree()
-		if p.Amount > freeBase {
+		if freeBase == 0 {
+			fmt.Errorf("cannot sell quote %s amount %f to buy base %s %w of %f",
+				p.Pair.Quote,
+				p.Amount,
+				p.Pair.Base,
+				errNoBalanceFound,
+				freeBase)
+		}
+		if p.FullAmount && p.Amount > freeBase {
 			return nil, fmt.Errorf("cannot sell base %s amount %f to buy quote %s %w of %f",
 				p.Pair.Base,
 				p.Amount,
@@ -102,31 +109,6 @@ func New(ctx context.Context, p *Config) (*Strategy, error) {
 		orderbook: depth,
 		holdings:  monAmounts,
 	}, nil
-}
-
-// Config defines the base elements required to undertake the TWAP strategy.
-type Config struct {
-	Exchange exchange.IBotExchange
-	Pair     currency.Pair
-	Asset    asset.Item
-
-	Start time.Time
-	End   time.Time
-
-	// Interval between market orders
-	Interval kline.Interval
-
-	// Amount if accumulating refers to quotation used to buy, if deaccum it
-	// will refer to the base amount to sell
-	Amount float64
-
-	// MaxSlippage needed for protection in low liqudity environments.
-	// WARNING: 0 value == 100% slippage
-	MaxSlippage float64
-	// Accumulation if you are buying or selling value
-	Accumulation bool
-	// AllowTradingPastEndTime if volume has not been met exceed end time.
-	AllowTradingPastEndTime bool
 }
 
 // Check validates all parameter fields before undertaking specfic strategy
@@ -156,49 +138,43 @@ func (cfg *Config) Check(ctx context.Context) error {
 		return kline.ErrUnsetInterval
 	}
 
-	err = cfg.Exchange.GetBase().ValidateKline(cfg.Pair, cfg.Asset, cfg.Interval)
-	if err != nil {
-		return err
+	if cfg.FullAmount && cfg.Amount != 0 {
+		return errCannotSetAmount
 	}
-
-	if cfg.Amount <= 0 {
+	if !cfg.FullAmount && cfg.Amount <= 0 {
 		return errInvalidVolume
 	}
 
-	if cfg.MaxSlippage < 0 || cfg.MaxSlippage > 100 {
-		return fmt.Errorf("'%v' %w", cfg.MaxSlippage, errInvalidMaxSlippageValue)
+	if cfg.MaxImpactSlippage < 0 || !cfg.Buy && cfg.MaxImpactSlippage > 100 {
+		return fmt.Errorf("impact '%v' %w", cfg.MaxImpactSlippage, errInvalidMaxSlippageValue)
 	}
+
+	if cfg.MaxNominalSlippage < 0 || !cfg.Buy && cfg.MaxNominalSlippage > 100 {
+		return fmt.Errorf("nominal '%v' %w", cfg.MaxNominalSlippage, errInvalidMaxSlippageValue)
+	}
+
+	if cfg.PriceLimit < 0 {
+		return fmt.Errorf("price '%v' %w", cfg.PriceLimit, errInvalidPriceLimit)
+	}
+
+	if cfg.MaxSpreadpercentage < 0 {
+		return fmt.Errorf("max spread '%v' %w", cfg.MaxSpreadpercentage, errInvalidMaxSpreadPercentage)
+	}
+
 	return nil
 }
 
 // Run inititates a TWAP allocation using the specified paramaters.
-func (t *Strategy) Run(ctx context.Context) error {
-	if t == nil {
+func (s *Strategy) Run(ctx context.Context) error {
+	if s == nil {
 		return errTWAPIsNil
 	}
 
-	if t.Config == nil {
+	if s.Config == nil {
 		return errConfigurationIsNil
 	}
 
-	// candles, err := t.Exchange.GetHistoricCandlesExtended(ctx, t.Pair, t.Asset, time.Now(), time.Now(), kline.EightHour)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// var count, cum float64
-	// for x := range candles.Candles {
-	// 	cum += candles.Candles[x].GetAveragePrice()
-	// 	count++
-	// }
-
-	// twapPrice := cum / count
-	// fmt.Println(twapPrice)
-
-	// GET HISTORICAL CANDLES ON INTERVAL
-	// DERIVE TWAP ON CANDLES
-
-	balance, err := t.fetchCurrentBalance(ctx)
+	balance, err := s.fetchCurrentBalance(ctx)
 	if err != nil {
 		return err
 	}
@@ -206,7 +182,7 @@ func (t *Strategy) Run(ctx context.Context) error {
 	fmt.Println("balance", balance)
 
 	tn := time.Now()
-	start := tn.Truncate(time.Duration(t.Interval))
+	start := tn.Truncate(time.Duration(s.Interval))
 	fmt.Println(kline.ThirtyMin, start)
 	return nil
 }
@@ -251,30 +227,30 @@ func (t *Strategy) fetchCurrentBalance(ctx context.Context) (float64, error) {
 		selling, t.Asset, errNoBalanceFound)
 }
 
-// func (t *Strategy) funky(ctx context.Context) {
-// 	until := time.Until(t.Start)
-// 	timer := time.NewTimer(until)
-// 	for {
-// 		select {
-// 		case <-ctx.Done():
-// 			t.Reporter <- Report{Error: ctx.Err(), Finished: true}
-// 			return
-// 		case <-timer.C:
-// 			resp, err := t.Exchange.SubmitOrder(ctx, &order.Submit{
-// 				Exchange:  t.Exchange.GetName(),
-// 				Pair:      t.Pair,
-// 				AssetType: t.Asset,
-// 				Side:      order.Bid,
-// 				Type:      order.Market,
-// 				Amount:    10, // Base amount
-// 			})
-// 			if err != nil {
-// 				fmt.Println("LAME")
-// 			}
-// 			t.Reporter <- Report{Order: *resp}
-// 		}
-// 	}
-// }
+func (t *Strategy) funky(ctx context.Context) {
+	until := time.Until(t.Start)
+	timer := time.NewTimer(until)
+	for {
+		select {
+		case <-ctx.Done():
+			t.Reporter <- Report{Error: ctx.Err(), Finished: true}
+			return
+		case <-timer.C:
+			resp, err := t.Exchange.SubmitOrder(ctx, &order.Submit{
+				Exchange:  t.Exchange.GetName(),
+				Pair:      t.Pair,
+				AssetType: t.Asset,
+				Side:      order.Bid,
+				Type:      order.Market,
+				Amount:    10, // Base amount
+			})
+			if err != nil {
+				fmt.Println("LAME")
+			}
+			t.Reporter <- Report{Order: *resp}
+		}
+	}
+}
 
 // Report defines a TWAP action
 type Report struct {
