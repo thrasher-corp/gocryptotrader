@@ -305,13 +305,17 @@ func TestGetInstrumentData(t *testing.T) {
 
 func TestGetInstrumentsData(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetInstrumentsData(context.Background(), btcCurrency, "", false)
+	// _, err := d.GetInstrumentsData(context.Background(), btcCurrency, "", false)
+	// if err != nil {
+	// 	t.Error(err)
+	// }
+	instruments, err := d.GetInstrumentsData(context.Background(), btcCurrency, "option_combo", true)
 	if err != nil {
 		t.Error(err)
-	}
-	_, err = d.GetInstrumentsData(context.Background(), btcCurrency, "option", true)
-	if err != nil {
-		t.Error(err)
+	} else {
+		for x := range instruments {
+			println(instruments[x].InstrumentName + ",")
+		}
 	}
 }
 
