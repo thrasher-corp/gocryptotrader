@@ -12,6 +12,7 @@ import (
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
+// NewDataFromKline returns a new struct
 func NewDataFromKline() *DataFromKline {
 	return &DataFromKline{
 		Base: &data.Base{},

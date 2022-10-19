@@ -50,7 +50,8 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 				}
 			}
 		}
-		fundingStat, err := CalculateIndividualFundingStatistics(report.DisableUSDTracking, &report.Items[i], relevantStats)
+		var fundingStat *FundingItemStatistics
+		fundingStat, err = CalculateIndividualFundingStatistics(report.DisableUSDTracking, &report.Items[i], relevantStats)
 		if err != nil {
 			return nil, err
 		}

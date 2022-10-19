@@ -202,6 +202,9 @@ func TestOnSignals(t *testing.T) {
 	}
 
 	_, err = d.Next()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
 	da := &kline.DataFromKline{
 		Item:        gctkline.Item{},
 		Base:        d,

@@ -6,11 +6,10 @@ import (
 	"testing"
 	"time"
 
-	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
-
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -162,7 +161,7 @@ func TestGetStream(t *testing.T) {
 	}
 
 	b = nil
-	resp, err = b.GetStream()
+	_, err = b.GetStream()
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
@@ -188,7 +187,7 @@ func TestOffset(t *testing.T) {
 	}
 
 	b = nil
-	o, err = b.Offset()
+	_, err = b.Offset()
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
@@ -746,7 +745,7 @@ func (f fakeEvent) GetUnderlyingPair() currency.Pair {
 	return f.Pair()
 }
 
-func (f fakeEvent) AppendReasonf(s string, i ...interface{}) {}
+func (f fakeEvent) AppendReasonf(string, ...interface{}) {}
 
 func (f fakeEvent) GetBase() *event.Base {
 	return &event.Base{}
@@ -764,7 +763,7 @@ func (f fakeHandler) Load() error {
 	return nil
 }
 
-func (f fakeHandler) AppendStream(s ...Event) error {
+func (f fakeHandler) AppendStream(...Event) error {
 	return nil
 }
 
@@ -820,7 +819,7 @@ func (f fakeHandler) StreamVol() ([]decimal.Decimal, error) {
 	return nil, nil
 }
 
-func (f fakeHandler) HasDataAtTime(t time.Time) (bool, error) {
+func (f fakeHandler) HasDataAtTime(time.Time) (bool, error) {
 	return false, nil
 }
 

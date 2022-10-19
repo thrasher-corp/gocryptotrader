@@ -1014,9 +1014,12 @@ func TestUpdateAllCollateral(t *testing.T) {
 	}
 
 	f.items[0].trackingCandles = kline.NewDataFromKline()
-	f.items[0].trackingCandles.SetStream([]data.Event{
+	err = f.items[0].trackingCandles.SetStream([]data.Event{
 		&fakeEvent{},
 	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected  '%v'", err, nil)
+	}
 
 	err = f.UpdateAllCollateral(false, false)
 	if !errors.Is(err, nil) {

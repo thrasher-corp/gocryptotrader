@@ -115,7 +115,7 @@ func TestSortSignals(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := &data.Base{}
-	d.SetStream([]data.Event{&eventkline.Kline{
+	err := d.SetStream([]data.Event{&eventkline.Kline{
 		Base: &event.Base{
 			Exchange:     exch,
 			Time:         dInsert,
@@ -129,19 +129,25 @@ func TestSortSignals(t *testing.T) {
 		High:   decimal.NewFromInt(1337),
 		Volume: decimal.NewFromInt(1337),
 	}})
-	d.Next()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected  '%v'", err, nil)
+	}
+	_, err = d.Next()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected  '%v'", err, nil)
+	}
 	da := &datakline.DataFromKline{
 		Item:        gctkline.Item{},
 		Base:        d,
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
-	_, err := sortSignals([]data.Handler{da})
+	_, err = sortSignals([]data.Handler{da})
 	if !errors.Is(err, errNotSetup) {
 		t.Errorf("received: %v, expected: %v", err, errNotSetup)
 	}
 
 	d2 := &data.Base{}
-	d2.SetStream([]data.Event{&eventkline.Kline{
+	err = d2.SetStream([]data.Event{&eventkline.Kline{
 		Base: &event.Base{
 			Exchange:       exch,
 			Time:           dInsert,
@@ -156,7 +162,13 @@ func TestSortSignals(t *testing.T) {
 		High:   decimal.NewFromInt(1337),
 		Volume: decimal.NewFromInt(1337),
 	}})
-	d2.Next()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected  '%v'", err, nil)
+	}
+	_, err = d2.Next()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected  '%v'", err, nil)
+	}
 	da2 := &datakline.DataFromKline{
 		Item:        gctkline.Item{},
 		Base:        d2,
@@ -351,6 +363,10 @@ func TestOnSimultaneousSignals(t *testing.T) {
 	}
 
 	_, err = d.Next()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+
 	signals := []data.Handler{
 		d,
 	}

@@ -55,7 +55,7 @@ func TestOnSignal(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := &data.Base{}
-	d.SetStream([]data.Event{&eventkline.Kline{
+	err = d.SetStream([]data.Event{&eventkline.Kline{
 		Base: &event.Base{
 			Exchange:     exch,
 			Time:         dInsert,
@@ -69,7 +69,13 @@ func TestOnSignal(t *testing.T) {
 		High:   decimal.NewFromInt(1337),
 		Volume: decimal.NewFromInt(1337),
 	}})
-	d.Next()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected  '%v'", err, nil)
+	}
+	_, err = d.Next()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected  '%v'", err, nil)
+	}
 	da := &kline.DataFromKline{
 		Item:        gctkline.Item{},
 		Base:        d,
@@ -133,7 +139,7 @@ func TestOnSignals(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := &data.Base{}
-	d.SetStream([]data.Event{&eventkline.Kline{
+	err = d.SetStream([]data.Event{&eventkline.Kline{
 		Base: &event.Base{
 			Offset:       1,
 			Exchange:     exch,
@@ -148,7 +154,13 @@ func TestOnSignals(t *testing.T) {
 		High:   decimal.NewFromInt(1337),
 		Volume: decimal.NewFromInt(1337),
 	}})
-	d.Next()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected  '%v'", err, nil)
+	}
+	_, err = d.Next()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected  '%v'", err, nil)
+	}
 	da := &kline.DataFromKline{
 		Item:        gctkline.Item{},
 		Base:        d,

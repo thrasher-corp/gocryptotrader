@@ -482,10 +482,11 @@ func TestGRPCStartTask(t *testing.T) {
 	}
 
 	bt := &BackTest{
-		Strategy:   &ftxcashandcarry.Strategy{},
+		Strategy:   &fakeStrat{},
 		EventQueue: &eventholder.Holder{},
 		DataHolder: &data.HandlerPerCurrency{},
-		Statistic:  &statistics.Statistic{},
+		Statistic:  &fakeStats{},
+		Reports:    &fakeReport{},
 		shutdown:   make(chan struct{}),
 	}
 	err = s.manager.AddTask(bt)

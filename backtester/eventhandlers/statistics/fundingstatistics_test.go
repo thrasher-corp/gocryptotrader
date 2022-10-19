@@ -2,12 +2,12 @@ package statistics
 
 import (
 	"errors"
-	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"testing"
 	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/common"

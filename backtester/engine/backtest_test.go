@@ -5,7 +5,6 @@ import (
 	"errors"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -50,24 +49,6 @@ import (
 const testExchange = "ftx"
 
 var leet = decimal.NewFromInt(1337)
-
-type portfolioOverride struct {
-	Err error
-	portfolio.Portfolio
-}
-
-func (p portfolioOverride) CreateLiquidationOrdersForExchange(ev data.Event, _ funding.IFundingManager) ([]order.Event, error) {
-	if p.Err != nil {
-		return nil, p.Err
-	}
-	return []order.Event{
-		&order.Order{
-			Base:      ev.GetBase(),
-			ID:        "1",
-			Direction: gctorder.Short,
-		},
-	}, nil
-}
 
 func TestSetupFromConfig(t *testing.T) {
 	t.Parallel()
@@ -680,6 +661,24 @@ func TestFullCycleMulti(t *testing.T) {
 	bt.DataHolder.SetDataForCurrency(ex, a, cp, k)
 
 	bt.Run()
+}
+
+type portfolioOverride struct {
+	Err error
+	portfolio.Portfolio
+}
+
+func (p portfolioOverride) CreateLiquidationOrdersForExchange(ev data.Event, _ funding.IFundingManager) ([]order.Event, error) {
+	if p.Err != nil {
+		return nil, p.Err
+	}
+	return []order.Event{
+		&order.Order{
+			Base:      ev.GetBase(),
+			ID:        "1",
+			Direction: gctorder.Short,
+		},
+	}, nil
 }
 
 func TestTriggerLiquidationsForExchange(t *testing.T) {
@@ -1454,20 +1453,14 @@ func TestRunLive(t *testing.T) {
 		shutdown:          make(chan struct{}),
 		report:            bt.Reports,
 		funding:           bt.Funding,
-		started:           1,
 	}
 	bt.LiveDataHandler = dc
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		err = bt.RunLive()
-		if !errors.Is(err, nil) {
-			t.Errorf("received '%v' expected '%v'", err, nil)
-		}
-	}()
+	err = bt.RunLive()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	close(bt.shutdown)
-	wg.Wait()
+	bt.wg.Wait()
 
 	dc = &dataChecker{
 		exchangeManager:   bt.exchangeManager,
@@ -1477,7 +1470,6 @@ func TestRunLive(t *testing.T) {
 		shutdown:          make(chan struct{}),
 		report:            bt.Reports,
 		funding:           bt.Funding,
-		started:           1,
 	}
 	bt.LiveDataHandler = dc
 	cp := currency.NewPair(currency.BTC, currency.USD)
@@ -1513,15 +1505,11 @@ func TestRunLive(t *testing.T) {
 	}
 	bt.Reports = &report.Data{}
 	bt.Funding = &fakeFunding{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		err = bt.RunLive()
-		if !errors.Is(err, nil) {
-			t.Errorf("received '%v' expected '%v'", err, nil)
-		}
-	}()
-	wg.Wait()
+	dc.started = 0
+	err = bt.RunLive()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 }
 
 func TestSetExchangeCredentials(t *testing.T) {
@@ -1792,50 +1780,51 @@ func TestMatchesID(t *testing.T) {
 
 func TestExecuteStrategy(t *testing.T) {
 	t.Parallel()
-	bt := &BackTest{}
+	bt := &BackTest{
+		DataHolder: &fakeDataHolder{},
+		Strategy:   &fakeStrat{},
+		Portfolio:  &fakeFolio{},
+		Statistic:  &fakeStats{},
+		Reports:    &fakeReport{},
+		Funding:    &fakeFunding{},
+		EventQueue: &eventholder.Holder{},
+		shutdown:   make(chan struct{}),
+	}
 	err := bt.ExecuteStrategy(false)
 	if !errors.Is(err, errNotSetup) {
 		t.Errorf("received '%v' expected '%v'", err, errNotSetup)
 	}
+	id, err := uuid.NewV4()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	bt.m.Lock()
+	bt.MetaData.ID = id
 	bt.MetaData.DateLoaded = time.Now()
 	bt.MetaData.DateStarted = time.Now()
+	bt.m.Unlock()
 	err = bt.ExecuteStrategy(false)
 	if !errors.Is(err, errTaskIsRunning) {
 		t.Errorf("received '%v' expected '%v'", err, errTaskIsRunning)
 	}
 
-	strat1 := filepath.Join("..", "config", "strategyexamples", "dca-api-candles.strat")
-	cfg, err := config.ReadStrategyConfigFromFile(strat1)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-
-	dc, err := config.GenerateDefaultConfig()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	bt, err = NewBacktesterFromConfigs(cfg, dc)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
 	err = bt.Stop()
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
+
 	err = bt.ExecuteStrategy(true)
 	if !errors.Is(err, errAlreadyRan) {
 		t.Errorf("received '%v' expected '%v'", err, errAlreadyRan)
 	}
 
-	strat2 := filepath.Join("..", "config", "strategyexamples", "dca-candles-live.strat")
-	cfg, err = config.ReadStrategyConfigFromFile(strat2)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	bt, err = NewBacktesterFromConfigs(cfg, dc)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	bt.m.Lock()
+	bt.MetaData.DateStarted = time.Time{}
+	bt.MetaData.DateEnded = time.Time{}
+	bt.MetaData.Closed = false
+	bt.shutdown = make(chan struct{})
+	bt.m.Unlock()
+
 	err = bt.ExecuteStrategy(true)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
@@ -1843,14 +1832,30 @@ func TestExecuteStrategy(t *testing.T) {
 
 	bt.m.Lock()
 	bt.MetaData.DateStarted = time.Time{}
+	bt.MetaData.DateEnded = time.Time{}
+	bt.MetaData.Closed = false
+	bt.shutdown = make(chan struct{})
 	bt.m.Unlock()
 	err = bt.ExecuteStrategy(false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	err = bt.Stop()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
+
+	bt.m.Lock()
+	bt.MetaData.LiveTesting = true
+	bt.MetaData.DateStarted = time.Time{}
+	bt.MetaData.DateEnded = time.Time{}
+	bt.MetaData.Closed = false
+	bt.shutdown = make(chan struct{})
+	bt.m.Unlock()
+	err = bt.ExecuteStrategy(true)
+	if !errors.Is(err, errCannotHandleRequest) {
+		t.Errorf("received '%v' expected '%v'", err, errCannotHandleRequest)
+	}
+
+	err = bt.ExecuteStrategy(false)
+	if !errors.Is(err, errLiveOnly) {
+		t.Errorf("received '%v' expected '%v'", err, errLiveOnly)
 	}
 
 	bt = nil

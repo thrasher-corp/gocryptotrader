@@ -715,6 +715,9 @@ func (f *FundManager) UpdateCollateralForEvent(ev common.Event, isLive bool) err
 		if f.items[i].trackingCandles != nil {
 			var latest data.Event
 			latest, err = f.items[i].trackingCandles.Latest()
+			if err != nil {
+				return err
+			}
 			if latest != nil {
 				usd = latest.GetClosePrice()
 			}

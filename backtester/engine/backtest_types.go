@@ -31,6 +31,7 @@ var (
 // BackTest is the main holder of all backtesting functionality
 type BackTest struct {
 	m                        sync.Mutex
+	wg                       sync.WaitGroup
 	verbose                  bool
 	hasProcessedAnEvent      bool
 	hasShutdown              bool

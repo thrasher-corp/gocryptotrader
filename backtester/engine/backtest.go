@@ -3,7 +3,6 @@ package engine
 import (
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -83,17 +82,37 @@ func (bt *BackTest) RunLive() error {
 	if bt.LiveDataHandler == nil {
 		return errLiveOnly
 	}
-	log.Info(common.LiveStrategy, "running backtester against live data")
-	for {
-		select {
-		case <-bt.shutdown:
-			return bt.LiveDataHandler.Stop()
-		case <-bt.LiveDataHandler.Updated():
-			bt.Run()
-		case <-bt.LiveDataHandler.HasShutdown():
-			return nil
+	var err error
+	if bt.LiveDataHandler.IsRealOrders() {
+		err = bt.LiveDataHandler.UpdateFunding(false)
+		if err != nil {
+			return err
 		}
 	}
+	err = bt.LiveDataHandler.Start()
+	if err != nil {
+		return err
+	}
+	bt.wg.Add(1)
+	go func() {
+		defer bt.wg.Done()
+		log.Info(common.LiveStrategy, "running backtester against live data")
+		for {
+			select {
+			case <-bt.shutdown:
+				err = bt.LiveDataHandler.Stop()
+				if err != nil {
+					log.Error(common.LiveStrategy, err)
+				}
+				return
+			case <-bt.LiveDataHandler.Updated():
+				bt.Run()
+			case <-bt.LiveDataHandler.HasShutdown():
+				return
+			}
+		}
+	}()
+	return nil
 }
 
 // ExecuteStrategy executes the strategy using the provided configs
@@ -114,63 +133,30 @@ func (bt *BackTest) ExecuteStrategy(waitForOfflineCompletion bool) error {
 		bt.m.Unlock()
 		return fmt.Errorf("%w %v %v", errAlreadyRan, bt.MetaData.ID, bt.MetaData.Strategy)
 	}
+	if waitForOfflineCompletion && bt.MetaData.LiveTesting {
+		bt.m.Unlock()
+		return fmt.Errorf("%w cannot wait for a live task to finish", errCannotHandleRequest)
+	}
 
-	var err error
 	bt.MetaData.DateStarted = time.Now()
 	liveTesting := bt.MetaData.LiveTesting
 	bt.m.Unlock()
-	if bt.LiveDataHandler != nil {
-		if bt.LiveDataHandler.IsRealOrders() {
-			err = bt.LiveDataHandler.UpdateFunding(false)
-			if err != nil {
-				return err
-			}
-		}
-		err = bt.LiveDataHandler.Start()
-		if err != nil {
-			return err
-		}
-	}
-	var wg sync.WaitGroup
-	if waitForOfflineCompletion {
-		wg.Add(1)
-	}
-	go func() {
-		if waitForOfflineCompletion {
-			defer wg.Done()
-		}
-		if liveTesting {
-			if waitForOfflineCompletion {
-				log.Errorf(common.Backtester, "%v cannot wait for completion of a live test", errCannotHandleRequest)
-				return
-			}
-			err := bt.RunLive()
-			if err != nil {
-				log.Error(log.Global, err)
-			}
-		} else {
+
+	switch {
+	case waitForOfflineCompletion && !liveTesting:
+		bt.Run()
+		return bt.Stop()
+	case !waitForOfflineCompletion && liveTesting:
+		return bt.RunLive()
+	case !waitForOfflineCompletion && !liveTesting:
+		go func() {
 			bt.Run()
-			bt.m.Lock()
-			_, ok := <-bt.shutdown
-			if !ok {
-				return
-			}
-			close(bt.shutdown)
-			bt.MetaData.Closed = true
-			bt.MetaData.DateEnded = time.Now()
-			bt.m.Unlock()
-			err := bt.Statistic.CalculateAllResults()
+			err := bt.Stop()
 			if err != nil {
-				log.Error(log.Global, err)
-				return
+				log.Error(common.Backtester, err)
 			}
-			err = bt.Reports.GenerateReport()
-			if err != nil {
-				log.Error(log.Global, err)
-			}
-		}
-	}()
-	wg.Wait()
+		}()
+	}
 	return nil
 }
 

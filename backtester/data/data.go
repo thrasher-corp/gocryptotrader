@@ -2,10 +2,10 @@ package data
 
 import (
 	"fmt"
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"sort"
 	"strings"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
