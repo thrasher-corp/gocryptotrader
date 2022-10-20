@@ -41,6 +41,11 @@ var (
 	errMissingNonce                  = errors.New("missing nonce")
 	errInvalidTradeRole              = errors.New("invalid trade role, only 'maker' and 'taker' are allowed")
 	errInvalidPrice                  = errors.New("invalid trade price")
+	errInvalidCryptoAddress          = errors.New("invalid crypto address")
+	errIntervalNotSupported          = errors.New("iterval not supported")
+	errInvalidTimestamp              = errors.New("invalid or zero timestamp")
+	errInvalidID                     = errors.New("invalid id")
+	errInvalidEmailAddress           = errors.New("invalid email address")
 )
 
 // BookSummaryData stores summary data
@@ -91,8 +96,8 @@ type IndexDeliveryPrice struct {
 
 // DeliveryPriceData stores index delivery_price
 type DeliveryPriceData struct {
-	Date          time.Time `json:"date"`
-	DeliveryPrice float64   `json:"delivery_price"`
+	Date          string  `json:"date"`
+	DeliveryPrice float64 `json:"delivery_price"`
 }
 
 // FundingChartData stores futures funding chart data
@@ -481,8 +486,8 @@ type PrivateCancelData struct {
 	Amount              float64 `json:"amount"`
 }
 
-// GetMarginsData stores data for margin
-type GetMarginsData struct {
+// MarginsData stores data for margin
+type MarginsData struct {
 	Buy      float64 `json:"buy"`
 	MaxPrice float64 `json:"max_price"`
 	MinPrice float64 `json:"min_price"`

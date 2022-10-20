@@ -14,12 +14,14 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -54,35 +56,9 @@ func (d *Deribit) SetDefaults() {
 	d.API.CredentialsValidator.RequiresKey = true
 	d.API.CredentialsValidator.RequiresSecret = true
 
-	// If using only one pair format for request and configuration, across all
-	// supported asset types either SPOT and FUTURES etc. You can use the
-	// example below:
-
-	// Request format denotes what the pair as a string will be, when you send
-	// a request to an exchange.
-	requestFmt := &currency.PairFormat{ /*Set pair request formatting details here for e.g.*/ Uppercase: true, Delimiter: ":"}
-	// Config format denotes what the pair as a string will be, when saved to
-	// the config.json file.
-	configFmt := &currency.PairFormat{ /*Set pair request formatting details here*/ }
-	err := d.SetGlobalPairsManager(requestFmt, configFmt /*multiple assets can be set here using the asset package ie asset.Spot*/)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-
-	// If assets require multiple differences in formating for request and
-	// configuration, another exchange method can be be used e.g. futures
-	// contracts require a dash as a delimiter rather than an underscore. You
-	// can use this example below:
-
-	fmt1 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: currency.DashDelimiter,
-		},
-		ConfigFormat: &currency.PairFormat{Uppercase: true},
-	}
-
-	err = d.StoreAssetPairFormat(asset.Futures, fmt1)
+	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
+	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
+	err := d.SetGlobalPairsManager(requestFmt, configFmt, asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -93,8 +69,25 @@ func (d *Deribit) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerFetching:    true,
-				OrderbookFetching: true,
+				TickerBatching:        true,
+				TickerFetching:        true,
+				KlineFetching:         true,
+				TradeFetching:         true,
+				OrderbookFetching:     true,
+				AutoPairUpdates:       true,
+				AccountInfo:           true,
+				GetOrder:              true,
+				GetOrders:             true,
+				CancelOrders:          true,
+				CancelOrder:           true,
+				SubmitOrder:           true,
+				UserTradeHistory:      true,
+				CryptoDeposit:         true,
+				CryptoWithdrawal:      true,
+				TradeFee:              true,
+				CryptoWithdrawalFee:   true,
+				MultiChainDeposits:    true,
+				MultiChainWithdrawals: true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TickerFetching:    true,
@@ -102,24 +95,38 @@ func (d *Deribit) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.AutoWithdrawFiat,
+			Kline: kline.ExchangeCapabilitiesSupported{
+				Intervals: true,
+			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			Kline: kline.ExchangeCapabilitiesEnabled{
+				Intervals: map[string]bool{
+					kline.OneMin.Word():     true,
+					kline.ThreeMin.Word():   true,
+					kline.FiveMin.Word():    true,
+					kline.FifteenMin.Word(): true,
+					kline.ThirtyMin.Word():  true,
+					kline.OneHour.Word():    true,
+					kline.TwoHour.Word():    true,
+					kline.FourHour.Word():   true,
+					kline.SixHour.Word():    true,
+					kline.TwelveHour.Word(): true,
+					kline.OneDay.Word():     true,
+				},
+			},
 		},
 	}
-	// NOTE: SET THE EXCHANGES RATE LIMIT HERE
 	d.Requester, err = request.New(d.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-
-	// NOTE: SET THE URLs HERE
 	d.API.Endpoints = d.NewEndpoints()
 	err = d.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestFutures: deribitAPIURL,
 		exchange.RestSpot:    deribitTestAPIURL,
-		// exchange.WebsocketSpot: deribitWSAPIURL,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -140,16 +147,45 @@ func (d *Deribit) Setup(exch *config.Exchange) error {
 		d.SetEnabled(false)
 		return nil
 	}
-	return d.SetupDefaults(exch)
+	err = d.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
+	err = d.Websocket.Setup(&stream.WebsocketSetup{
+		ExchangeConfig:        exch,
+		DefaultURL:            deribitWebsocketAddress,
+		RunningURL:            deribitWebsocketAddress,
+		Connector:             d.WsConnect,
+		Subscriber:            d.Subscribe,
+		Unsubscriber:          d.Unsubscribe,
+		GenerateSubscriptions: d.GenerateDefaultSubscriptions,
+		Features:              &d.Features.Supports.WebsocketCapabilities,
+		OrderbookBufferConfig: buffer.Config{
+			SortBuffer:            true,
+			SortBufferByUpdateIDs: true,
+		},
+	})
+	if err != nil {
+		return err
+	}
+	return d.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		RateLimit:            rateLimit,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	})
 }
 
 // Start starts the Deribit go routine
-func (d *Deribit) Start(wg *sync.WaitGroup) {
+func (d *Deribit) Start(wg *sync.WaitGroup) error {
+	if wg == nil {
+		return common.ErrNilPointer
+	}
 	wg.Add(1)
 	go func() {
 		d.Run()
 		wg.Done()
 	}()
+	return nil
 }
 
 // Run implements the Deribit wrapper
@@ -161,11 +197,9 @@ func (d *Deribit) Run() {
 			common.IsEnabled(d.Websocket.IsEnabled()))
 		d.PrintEnabledPairs()
 	}
-
 	if !d.GetEnabledFeatures().AutoPairUpdates {
 		return
 	}
-
 	err := d.UpdateTradablePairs(context.TODO(), false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
@@ -178,20 +212,19 @@ func (d *Deribit) Run() {
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (d *Deribit) FetchTradablePairs(ctx context.Context, assetType asset.Item) ([]string, error) {
 	if !d.SupportsAsset(assetType) {
-		return nil, fmt.Errorf("%s: %w - %s", d.Name, asset.ErrNotSupported, d.Name)
-	}
-	currs, err := d.GetCurrencies(ctx)
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%s: %w - %s", d.Name, asset.ErrNotSupported, assetType.String())
 	}
 	var resp []string
-	for x := range currs {
-		instrumentsData, err := d.GetInstrumentsData(ctx, currs[x].Currency, "", false)
-		if err != nil {
-			return nil, err
-		}
-		for y := range instrumentsData {
-			resp = append(resp, instrumentsData[y].InstrumentName)
+	switch assetType {
+	case asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo:
+		for _, x := range []string{"BTC", "SOL", "ETH", "USDC"} {
+			instrumentsData, err := d.GetInstrumentsData(ctx, x, d.GetAssetKind(assetType), false)
+			if err != nil && len(resp) == 0 {
+				return nil, err
+			}
+			for y := range instrumentsData {
+				resp = append(resp, instrumentsData[y].InstrumentName)
+			}
 		}
 	}
 	return resp, nil
@@ -201,7 +234,6 @@ func (d *Deribit) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 // them in the exchanges config
 func (d *Deribit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 	assets := d.GetAssetTypes(false)
-	fmt.Println(assets)
 	for x := range assets {
 		pairs, err := d.FetchTradablePairs(ctx, assets[x])
 		if err != nil {
@@ -219,14 +251,18 @@ func (d *Deribit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 	return nil
 }
 
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (d *Deribit) UpdateTickers(ctx context.Context, a asset.Item) error {
+	return common.ErrFunctionNotSupported
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
 func (d *Deribit) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	if !d.SupportsAsset(assetType) {
 		return nil, fmt.Errorf("%s: %w - %s", d.Name, asset.ErrNotSupported, assetType)
 	}
-
 	switch assetType {
-	case asset.Futures:
+	case asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo:
 		if p.IsEmpty() {
 			return nil, fmt.Errorf("pair provided is empty")
 		}
@@ -324,30 +360,28 @@ func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
 func (d *Deribit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+	if !d.SupportsAsset(assetType) {
+		return account.Holdings{}, fmt.Errorf("%s: %w - %s", d.Name, asset.ErrNotSupported, assetType)
+	}
 	var resp account.Holdings
 	resp.Exchange = d.Name
-	switch assetType {
-	case asset.Futures:
-		currencies, err := d.GetCurrencies(ctx)
+	currencies, err := d.GetCurrencies(ctx)
+	if err != nil {
+		return resp, err
+	}
+	for x := range currencies {
+		data, err := d.GetAccountSummary(ctx, currencies[x].Currency, false)
 		if err != nil {
 			return resp, err
 		}
-		for x := range currencies {
-			data, err := d.GetAccountSummary(ctx, currencies[x].Currency, false)
-			if err != nil {
-				return resp, err
-			}
 
-			var subAcc account.SubAccount
-			subAcc.AssetType = asset.Futures
-			subAcc.Currencies = append(subAcc.Currencies, account.Balance{
-				CurrencyName: currency.NewCode(currencies[x].Currency),
-				Total:        data.Balance,
-				Hold:         data.Balance - data.AvailableFunds,
-			})
-		}
-	default:
-		return resp, fmt.Errorf("%s: %w - %v", d.Name, asset.ErrNotSupported, assetType)
+		var subAcc account.SubAccount
+		subAcc.AssetType = asset.Futures
+		subAcc.Currencies = append(subAcc.Currencies, account.Balance{
+			CurrencyName: currency.NewCode(currencies[x].Currency),
+			Total:        data.Balance,
+			Hold:         data.Balance - data.AvailableFunds,
+		})
 	}
 	return resp, nil
 }
@@ -412,7 +446,7 @@ func (d *Deribit) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (d *Deribit) GetWithdrawalsHistory(ctx context.Context, c currency.Code) ([]exchange.WithdrawalHistory, error) {
+func (d *Deribit) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
 	currencies, err := d.GetCurrencies(ctx)
 	if err != nil {
 		return nil, err
@@ -450,13 +484,9 @@ func (d *Deribit) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 	if err != nil {
 		return nil, err
 	}
-	currs, err := d.GetCurrencies(ctx)
-	if err != nil {
-		return nil, err
-	}
 	var resp []trade.Data
-	for x := range currs {
-		instrumentsData, err := d.GetInstrumentsData(ctx, currs[x].Currency, "", false)
+	for _, x := range []string{"BTC", "SOL", "ETH", "USDC"} {
+		instrumentsData, err := d.GetInstrumentsData(ctx, x, d.GetAssetKind(assetType), false)
 		if err != nil {
 			return nil, err
 		}
@@ -510,7 +540,7 @@ func (d *Deribit) GetHistoricTrades(ctx context.Context, p currency.Pair, assetT
 		return nil, err
 	}
 	var resp []trade.Data
-	var tradesData PublicTradesData
+	var tradesData *PublicTradesData
 	var hasMore = true
 	for hasMore {
 		tradesData, err = d.GetLastTradesByInstrumentAndTime(ctx, fmtPair.String(),
@@ -558,7 +588,7 @@ func (d *Deribit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 	var fmtPair currency.Pair
 	status := order.New
 	switch s.AssetType {
-	case asset.Futures:
+	case asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo:
 		fmtPair, err = d.FormatExchangeCurrency(s.Pair, asset.Futures)
 		if err != nil {
 			return nil, err
@@ -636,11 +666,11 @@ func (d *Deribit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (d *Deribit) ModifyOrder(ctx context.Context, action *order.Modify) (string, error) {
+func (d *Deribit) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
-		return "", err
+		return nil, err
 	}
-	var modify PrivateTradeData
+	var modify *PrivateTradeData
 	var err error
 	switch action.AssetType {
 	case asset.Futures:
@@ -654,12 +684,17 @@ func (d *Deribit) ModifyOrder(ctx context.Context, action *order.Modify) (string
 			false,
 			false)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 	default:
-		return "", fmt.Errorf("%s: %w - %v", d.Name, asset.ErrNotSupported, action.AssetType)
+		return nil, fmt.Errorf("%s: %w - %v", d.Name, asset.ErrNotSupported, action.AssetType)
 	}
-	return modify.Order.OrderID, nil
+	resp, err := action.DeriveModifyResponse()
+	if err != nil {
+		return nil, err
+	}
+	resp.OrderID = modify.Order.OrderID
+	return resp, nil
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -794,9 +829,12 @@ func (d *Deribit) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (d *Deribit) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, accountID string) (string, error) {
+func (d *Deribit) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, accountID string, chain string) (*deposit.Address, error) {
 	addressData, err := d.GetCurrentDepositAddress(ctx, cryptocurrency.String())
-	return addressData.Address, err
+	return &deposit.Address{
+		Address: addressData.Address,
+		Chain:   addressData.Currency,
+	}, err
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -810,7 +848,6 @@ func (d *Deribit) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReque
 		withdrawRequest.Currency.String(),
 		withdrawRequest.Crypto.Address,
 		"",
-		strconv.FormatInt(withdrawRequest.OneTimePassword, 10),
 		withdrawRequest.Amount)
 	return &withdraw.ExchangeResponse{
 		ID:     strconv.FormatInt(withdrawData.ID, 10),
@@ -818,15 +855,13 @@ func (d *Deribit) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReque
 	}, err
 }
 
-// WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
-// submitted
-func (d *Deribit) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+// WithdrawFiatFunds returns a withdrawal ID when a withdrawal is submitted
+func (d *Deribit) WithdrawFiatFunds(ctx context.Context, request *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
-// submitted
-func (d *Deribit) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+// WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is submitted
+func (d *Deribit) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -837,7 +872,7 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 	}
 	var resp []order.Detail
 	switch getOrdersRequest.AssetType {
-	case asset.Futures:
+	case asset.Futures, asset.Options, asset.FutureCombo, asset.OptionCombo:
 		for x := range getOrdersRequest.Pairs {
 			fmtPair, err := d.FormatExchangeCurrency(getOrdersRequest.Pairs[x], asset.Futures)
 			if err != nil {
@@ -872,20 +907,21 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 					continue
 				}
 				var orderStatus order.Status
-				switch ordersData[y].OrderState {
-				case "open":
-					orderStatus = order.Active
-				case "filled":
-					orderStatus = order.Filled
-				case "rejected":
-					orderStatus = order.Rejected
-				case "cancelled":
-					orderStatus = order.Cancelled
-				case "untriggered":
-					orderStatus = order.UnknownStatus
-				default:
-					return resp, fmt.Errorf("%v: orderStatus %s not supported", d.Name, ordersData[y].OrderState)
+				if !strings.EqualFold(ordersData[y].OrderState, "open") {
+					continue
 				}
+				// switch ordersData[y].OrderState {
+				// case "filled":
+				// 	orderStatus = order.Filled
+				// case "rejected":
+				// 	orderStatus = order.Rejected
+				// case "cancelled":
+				// 	orderStatus = order.Cancelled
+				// case "untriggered":
+				// 	orderStatus = order.UnknownStatus
+				// default:
+				// 	return resp, fmt.Errorf("%v: orderStatus %s not supported", d.Name, ordersData[y].OrderState)
+				// }
 				resp = append(resp, order.Detail{
 					AssetType:       asset.Futures,
 					Exchange:        d.Name,
@@ -987,7 +1023,7 @@ func (d *Deribit) GetOrderHistory(ctx context.Context, getOrdersRequest *order.G
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
-func (d *Deribit) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (d *Deribit) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return 0, common.ErrNotYetImplemented
 }
 
@@ -1045,6 +1081,6 @@ func (d *Deribit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (d *Deribit) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrNotYetImplemented
 }

@@ -93,6 +93,11 @@ func TestNew(t *testing.T) {
 		{Input: "CoinMarginedFutures", Expected: CoinMarginedFutures},
 		{Input: "USDTMarginedFutures", Expected: USDTMarginedFutures},
 		{Input: "USDCMarginedFutures", Expected: USDCMarginedFutures},
+		{Input: "Options", Expected: Options},
+		{Input: "Option", Error: ErrNotSupported},
+		{Input: "Future", Error: ErrNotSupported},
+		{Input: "future_combo", Expected: FutureCombo},
+		{Input: "option_combo", Expected: OptionCombo},
 	}
 
 	for x := range cases {
@@ -180,6 +185,15 @@ func TestIsFutures(t *testing.T) {
 		},
 		{
 			item:      USDCMarginedFutures,
+			isFutures: true,
+		}, {
+			item:      Options,
+			isFutures: true,
+		}, {
+			item:      OptionCombo,
+			isFutures: true,
+		}, {
+			item:      FutureCombo,
 			isFutures: true,
 		},
 	}

@@ -56,6 +56,7 @@ $ ./gctcli withdrawcryptofunds --exchange=ftx --currency=USDT --address=TJU9piX2
 | Bybit | Yes | Yes | |
 | CoinbasePro | No | No | No|
 | COINUT | No | No | NA |
+| Derobit | Yes | Yes | |
 | Exmo | Yes | Yes | Addresses must be created via their website first |
 | FTX | Yes | Yes | |
 | GateIO | Yes | Yes | |

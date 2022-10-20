@@ -13,7 +13,7 @@ var (
 )
 
 // Item stores the asset type
-type Item uint16
+type Item uint32
 
 // Items stores a list of assets types
 type Items []Item
@@ -34,9 +34,12 @@ const (
 	CoinMarginedFutures
 	USDTMarginedFutures
 	USDCMarginedFutures
+	Options
+	OptionCombo
+	FutureCombo
 
-	futuresFlag   = PerpetualContract | PerpetualSwap | Futures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures
-	supportedFlag = Spot | Margin | MarginFunding | Index | Binary | PerpetualContract | PerpetualSwap | Futures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures
+	futuresFlag   = PerpetualContract | PerpetualSwap | Futures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Options | OptionCombo | FutureCombo
+	supportedFlag = Spot | Margin | MarginFunding | Index | Binary | PerpetualContract | PerpetualSwap | Futures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Options | OptionCombo | FutureCombo
 
 	spot                   = "spot"
 	margin                 = "margin"
@@ -51,10 +54,13 @@ const (
 	coinMarginedFutures    = "coinmarginedfutures"
 	usdtMarginedFutures    = "usdtmarginedfutures"
 	usdcMarginedFutures    = "usdcmarginedfutures"
+	options                = "options"
+	optionCombo            = "option_combo"
+	futureCombo            = "future_combo"
 )
 
 var (
-	supportedList = Items{Spot, Margin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures}
+	supportedList = Items{Spot, Margin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, Options, OptionCombo, FutureCombo}
 )
 
 // Supported returns a list of supported asset types
@@ -91,6 +97,12 @@ func (a Item) String() string {
 		return usdtMarginedFutures
 	case USDCMarginedFutures:
 		return usdcMarginedFutures
+	case Options:
+		return options
+	case OptionCombo:
+		return optionCombo
+	case FutureCombo:
+		return futureCombo
 	default:
 		return ""
 	}
@@ -186,6 +198,12 @@ func New(input string) (Item, error) {
 		return USDTMarginedFutures, nil
 	case usdcMarginedFutures:
 		return USDCMarginedFutures, nil
+	case options:
+		return Options, nil
+	case optionCombo:
+		return OptionCombo, nil
+	case futureCombo:
+		return FutureCombo, nil
 	default:
 		return 0, fmt.Errorf("%w '%v', only supports %s",
 			ErrNotSupported,

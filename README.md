@@ -32,6 +32,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Bybit | Yes | Yes | NA |
 | CoinbasePro | Yes | Yes | No|
 | COINUT | Yes | Yes | NA |
+| Deribit | Yes | Yes | NA |
 | Exmo | Yes | NA | NA |
 | FTX | Yes | Yes | No |
 | GateIO | Yes | Yes | NA |
