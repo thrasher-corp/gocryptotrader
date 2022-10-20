@@ -49,6 +49,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	cfg.Database.Enabled = true
 	ok.SkipAuthCheck = true
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
@@ -60,7 +61,6 @@ func TestMain(m *testing.M) {
 		Message:               make(chan *wsIncomingData),
 	}
 	ok.SetDefaults()
-
 	if apiKey != "" && apiSecret != "" {
 		exchCfg.API.AuthenticatedSupport = true
 		exchCfg.API.AuthenticatedWebsocketSupport = true
@@ -554,16 +554,9 @@ func TestCancelSingleOrder(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	pairs, err := ok.FetchTradablePairs(context.Background(), asset.Futures)
-	if err != nil {
-		t.SkipNow()
-	}
-	if len(pairs) == 0 {
-		t.Skip("no instrument found")
-	}
 	if _, err := ok.CancelSingleOrder(context.Background(),
 		CancelOrderRequestParam{
-			InstrumentID: pairs[0],
+			InstrumentID: "BTC-USDT",
 			OrderID:      "2510789768709120",
 		}); err != nil && !strings.Contains(err.Error(), "order does not exist") {
 		t.Error("Okx CancelOrder() error", err)
@@ -946,7 +939,7 @@ func TestGetCounterparties(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := ok.GetCounterparties(context.Background()); err != nil && !strings.Contains(err.Error(), "No permission to use this API") {
+	if _, err := ok.GetCounterparties(context.Background()); err != nil && !strings.Contains(err.Error(), "code: 70006 message: Does not meet the minimum asset requirement.") {
 		t.Error("Okx GetCounterparties() error", err)
 	}
 }
@@ -967,7 +960,7 @@ func TestCreateRFQ(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
-	if _, err := ok.CreateRFQ(context.Background(), input); err != nil && !strings.Contains(err.Error(), "No permission to use this API") {
+	if _, err := ok.CreateRFQ(context.Background(), input); err != nil && !strings.Contains(err.Error(), "code: 70006 message: Does not meet the minimum asset requirement.") {
 		t.Error("Okx CreateRFQ() error", err)
 	}
 }
@@ -984,7 +977,7 @@ func TestCancelRFQ(t *testing.T) {
 	_, err = ok.CancelRFQ(context.Background(), CancelRFQRequestParam{
 		ClientSuppliedRFQID: "somersdjskfjsdkfj",
 	})
-	if err != nil && !strings.Contains(err.Error(), "No permission to use this API") {
+	if err != nil && !strings.Contains(err.Error(), "code: 70006 message: Does not meet the minimum asset requirement.") {
 		t.Error("Okx CancelRFQ() error", err)
 	}
 }
@@ -1012,7 +1005,7 @@ func TestCancelAllRFQs(t *testing.T) {
 		t.SkipNow()
 	}
 	if _, err := ok.CancelAllRFQs(context.Background()); err != nil &&
-		!strings.Contains(err.Error(), "No permission to use this API.") {
+		!strings.Contains(err.Error(), "code: 70006 message: Does not meet the minimum asset requirement.") {
 		t.Errorf("%s CancelAllRFQs() error %v", ok.Name, err)
 	}
 }
@@ -1034,7 +1027,7 @@ func TestExecuteQuote(t *testing.T) {
 	if _, err := ok.ExecuteQuote(context.Background(), ExecuteQuoteParams{
 		RfqID:   "22540",
 		QuoteID: "84073",
-	}); err != nil && !strings.Contains(err.Error(), "No permission to use this API") {
+	}); err != nil && !strings.Contains(err.Error(), "code: 70006 message: Does not meet the minimum asset requirement.") {
 		t.Error("Okx ExecuteQuote() error", err)
 	}
 }
@@ -1057,7 +1050,7 @@ func TestSetQuoteProducts(t *testing.T) {
 					Underlying: "ETH-USDT",
 				},
 			},
-		}}); err != nil && !strings.Contains(err.Error(), "No permission to use this API") {
+		}}); err != nil && !strings.Contains(err.Error(), "code: 70006 message: Does not meet the minimum asset requirement.") {
 		t.Errorf("%s SetQuoteProducts() error %v", ok.Name, err)
 	}
 }
@@ -1103,7 +1096,7 @@ func TestCreateQuote(t *testing.T) {
 				Side:           order.Buy,
 			},
 		},
-	}); err != nil && !strings.Contains(err.Error(), "No permission to use this API.") {
+	}); err != nil && !strings.Contains(err.Error(), "code: 70006 message: Does not meet the minimum asset requirement.") {
 		t.Errorf("%s CreateQuote() error %v", ok.Name, err)
 	}
 }
@@ -1137,7 +1130,7 @@ func TestCancelAllQuotes(t *testing.T) {
 	switch {
 	case err != nil &&
 		(strings.Contains(err.Error(), "Cancellation failed as you do not have any active Quotes.") ||
-			strings.Contains(err.Error(), "No permission to use this API.")):
+			strings.Contains(err.Error(), "code: 70006 message: Does not meet the minimum asset requirement.")):
 		t.Skip("Skiping test with reason:", err)
 	case err != nil:
 		t.Error("Okx CancelAllQuotes() error", err)
@@ -1153,7 +1146,7 @@ func TestGetRFQs(t *testing.T) {
 	}
 	if _, err := ok.GetRfqs(context.Background(), &RfqRequestParams{
 		Limit: 3,
-	}); err != nil && !strings.Contains(err.Error(), "No permission to use this API.") {
+	}); err != nil && !strings.Contains(err.Error(), "code: 70006 message: Does not meet the minimum asset requirement.") {
 		t.Error("Okx GetRfqs() error", err)
 	}
 }
@@ -1165,7 +1158,7 @@ func TestGetQuotes(t *testing.T) {
 	}
 	if _, err := ok.GetQuotes(context.Background(), &QuoteRequestParams{
 		Limit: 3,
-	}); err != nil && !strings.Contains(err.Error(), "No permission to use this API") {
+	}); err != nil && !strings.Contains(err.Error(), "code: 70006 message: Does not meet the minimum asset requirement.") {
 		t.Error("Okx GetQuotes() error", err)
 	}
 }
@@ -1203,7 +1196,7 @@ func TestGetRFQTrades(t *testing.T) {
 	}
 	if _, err := ok.GetRFQTrades(context.Background(), &RFQTradesRequestParams{
 		Limit: 3,
-	}); err != nil && !strings.Contains(err.Error(), "No permission to use this API.") {
+	}); err != nil && !strings.Contains(err.Error(), "code: 70006 message: Does not meet the minimum asset requirement.") {
 		t.Error("Okx GetRFQTrades() error", err)
 	}
 }
@@ -2245,7 +2238,7 @@ func TestGetCustodyTradingSubaccountList(t *testing.T) {
 	}
 }
 
-var gridTradingPlaceOrder = `{"instId": "BTC-USDT-SWAP","algoOrdType": "contract_grid","maxPx": "5000","minPx": "400","gridNum": "10","runType": "1","sz": "200", "direction": "long","lever": "2"}`
+var gridTradingPlaceOrder = `{"instId": "BTC-USD-SWAP","algoOrdType": "contract_grid","maxPx": "5000","minPx": "400","gridNum": "10","runType": "1","sz": "200", "direction": "long","lever": "2"}`
 
 func TestPlaceGridAlgoOrder(t *testing.T) {
 	t.Parallel()
@@ -2257,7 +2250,7 @@ func TestPlaceGridAlgoOrder(t *testing.T) {
 		t.SkipNow()
 	}
 	if _, err := ok.PlaceGridAlgoOrder(context.Background(), &input); err != nil &&
-		!strings.Contains(err.Error(), "Insufficient account level") {
+		!strings.Contains(err.Error(), "Futures Grid is not available in Simple trading mode") {
 		t.Error("Okx PlaceGridAlgoOrder() error", err)
 	}
 }
@@ -2767,20 +2760,15 @@ func TestGetOrderInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("Okx GetOrderInfo() skipping test: api keys not set")
 	}
-	tradablePairs, err := ok.FetchTradablePairs(context.Background(),
-		asset.Futures)
+	enabled, err := ok.GetEnabledPairs(asset.Spot)
 	if err != nil {
-		t.Error("Okx GetOrderInfo() error", err)
+		t.Error("couldn't find enabled tradable pairs")
 	}
-	if len(tradablePairs) == 0 {
-		t.Fatal("Okx GetOrderInfo() no tradable pairs")
-	}
-	cp, err := currency.NewPairFromString(tradablePairs[0])
-	if err != nil {
-		t.Error("Okx GetOrderinfo() error", err)
+	if len(enabled) == 0 {
+		t.SkipNow()
 	}
 	_, err = ok.GetOrderInfo(context.Background(),
-		"123", cp, asset.Futures)
+		"123", enabled[0], asset.Futures)
 	if err != nil && !strings.Contains(err.Error(), "Order does not exist") {
 		t.Errorf("Okx GetOrderInfo() expecting %s, but found %v", "Order does not exist", err)
 	}
@@ -3326,18 +3314,14 @@ func TestOpenInterestSubscription(t *testing.T) {
 func TestCandlesticksSubscription(t *testing.T) {
 	t.Parallel()
 	setupWsAuth(t)
-	futuresPairs, err := ok.FetchTradablePairs(context.Background(), asset.Futures)
+	enabled, err := ok.GetEnabledPairs(asset.PerpetualSwap)
 	if err != nil {
-		t.Errorf("%s error while fetching tradable pairs for instrument type %v: %v", ok.Name, asset.Futures, err)
+		t.Error("couldn't find enabled tradable pairs")
 	}
-	if len(futuresPairs) == 0 {
+	if len(enabled) == 0 {
 		t.SkipNow()
 	}
-	currencyPair, err := currency.NewPairFromString(futuresPairs[0])
-	if err != nil {
-		t.Error(err)
-	}
-	if _, err := ok.CandlesticksSubscription("subscribe", okxChannelCandle1m, asset.Futures, currencyPair); err != nil {
+	if _, err := ok.CandlesticksSubscription("subscribe", okxChannelCandle1m, asset.Futures, enabled[0]); err != nil {
 		t.Errorf("%s CandlesticksSubscription() error: %v", ok.Name, err)
 	}
 }
@@ -3391,18 +3375,14 @@ func TestMarkPriceSubscription(t *testing.T) {
 func TestMarkPriceCandlesticksSubscription(t *testing.T) {
 	t.Parallel()
 	setupWsAuth(t)
-	futuresPairs, err := ok.FetchTradablePairs(context.Background(), asset.Futures)
+	enabled, err := ok.GetEnabledPairs(asset.Spot)
 	if err != nil {
-		t.Errorf("%s error while fetching tradable pairs for instrument type %v: %v", ok.Name, asset.Futures, err)
+		t.Error("couldn't find enabled tradable pairs")
 	}
-	if len(futuresPairs) == 0 {
+	if len(enabled) == 0 {
 		t.SkipNow()
 	}
-	currencyPair, err := currency.NewPairFromString(futuresPairs[0])
-	if err != nil {
-		t.Error(err)
-	}
-	if _, err := ok.MarkPriceSubscription("subscribe", asset.Futures, currencyPair); err != nil {
+	if _, err := ok.MarkPriceSubscription("subscribe", asset.Futures, enabled[0]); err != nil {
 		t.Errorf("%s MarkPriceSubscription() error: %v", ok.Name, err)
 	}
 }
@@ -3418,21 +3398,17 @@ func TestPriceLimitSubscription(t *testing.T) {
 func TestOrderBooksSubscription(t *testing.T) {
 	t.Parallel()
 	setupWsAuth(t)
-	futuresPairs, err := ok.FetchTradablePairs(context.Background(), asset.Futures)
+	enabled, err := ok.GetEnabledPairs(asset.Spot)
 	if err != nil {
-		t.Errorf("%s error while fetching tradable pairs for instrument type %v: %v", ok.Name, asset.Futures, err)
+		t.Error("couldn't find enabled tradable pairs")
 	}
-	if len(futuresPairs) == 0 {
+	if len(enabled) == 0 {
 		t.SkipNow()
 	}
-	currencyPair, err := currency.NewPairFromString(futuresPairs[0])
-	if err != nil {
-		t.Error(err)
-	}
-	if _, err := ok.OrderBooksSubscription("subscribe", okxChannelOrderBooks, asset.Futures, currencyPair); err != nil {
+	if _, err := ok.OrderBooksSubscription("subscribe", okxChannelOrderBooks, asset.Futures, enabled[0]); err != nil {
 		t.Errorf("%s OrderBooksSubscription() error: %v", ok.Name, err)
 	}
-	if _, err := ok.OrderBooksSubscription("unsubscribe", okxChannelOrderBooks, asset.Futures, currencyPair); err != nil {
+	if _, err := ok.OrderBooksSubscription("unsubscribe", okxChannelOrderBooks, asset.Futures, enabled[0]); err != nil {
 		t.Errorf("%s OrderBooksSubscription() error: %v", ok.Name, err)
 	}
 }
@@ -3543,12 +3519,6 @@ func TestWsPlaceOrder(t *testing.T) {
 		t.SkipNow()
 	}
 	setupWsAuth(t)
-	pairs, err := ok.FetchTradablePairs(context.Background(), asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	} else if len(pairs) == 0 {
-		t.Skip("no pairs found")
-	}
 	if _, err := ok.WsPlaceOrder(&PlaceOrderRequestParam{
 		InstrumentID: "BTC-USDC",
 		TradeMode:    "cross",

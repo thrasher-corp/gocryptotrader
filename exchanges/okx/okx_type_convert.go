@@ -2466,3 +2466,30 @@ func (a *PlaceOrderRequestParam) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(chil)
 }
+
+// UnmarshalJSON decerializes JSON, and timestamp information.
+func (a *ConvertCurrency) UnmarshalJSON(data []byte) error {
+	type Alias ConvertCurrency
+	chil := &struct {
+		*Alias
+		Min string `json:"min"`
+		Max string `json:"max"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	err := json.Unmarshal(data, chil)
+	if err != nil {
+		return err
+	}
+	if chil.Min != "" {
+		if a.Min, err = strconv.ParseFloat(chil.Min, 64); err != nil {
+			return err
+		}
+	}
+	if chil.Max != "" {
+		if a.Max, err = strconv.ParseFloat(chil.Max, 64); err != nil {
+			return err
+		}
+	}
+	return nil
+}
