@@ -5590,18 +5590,17 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 		return err
 	}
 
-	fmt.Println("STREAM TWAPO:", r)
-
+	// TODO: Implement a new strategy manager.
 	strategy, err := twap.New(stream.Context(), &twap.Config{
-		Exchange:                exch,
-		Pair:                    pair,
-		Asset:                   as,
-		Start:                   r.Start.AsTime(),
-		End:                     r.End.AsTime(),
-		Interval:                kline.Interval(r.Interval * int64(time.Second)),
-		Amount:                  r.Amount,
-		MaxSlippage:             r.MaxSlippage,
-		Accumulation:            r.Accumulate,
+		Exchange: exch,
+		Pair:     pair,
+		Asset:    as,
+		Start:    r.Start.AsTime(),
+		End:      r.End.AsTime(),
+		Interval: kline.Interval(r.Interval * int64(time.Second)),
+		Amount:   r.Amount,
+		// MaxSlippage:             r.MaxSlippage,
+		// Accumulation:            r.Accumulate,
 		AllowTradingPastEndTime: r.AllowTradingPastEnd,
 	})
 	if err != nil {

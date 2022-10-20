@@ -60,10 +60,11 @@ func New(ctx context.Context, p *Config) (*Strategy, error) {
 		return nil, err
 	}
 
+	var buying, selling Holding
 	if p.Buy {
 		freeQuote := quoteAmount.GetFree()
 		if freeQuote == 0 {
-			fmt.Errorf("cannot sell quote %s amount %f to buy base %s %w of %f",
+			return nil, fmt.Errorf("cannot sell quote %s amount %f to buy base %s %w of %f",
 				p.Pair.Quote,
 				p.Amount,
 				p.Pair.Base,
@@ -78,10 +79,13 @@ func New(ctx context.Context, p *Config) (*Strategy, error) {
 				errExceedsFreeBalance,
 				freeQuote)
 		}
+
+		buying = Holding{Currency: p.Pair.Base, Amount: baseAmount}
+		selling = Holding{Currency: p.Pair.Quote, Amount: quoteAmount}
 	} else {
 		freeBase := baseAmount.GetFree()
 		if freeBase == 0 {
-			fmt.Errorf("cannot sell quote %s amount %f to buy base %s %w of %f",
+			return nil, fmt.Errorf("cannot sell quote %s amount %f to buy base %s %w of %f",
 				p.Pair.Quote,
 				p.Amount,
 				p.Pair.Base,
@@ -96,18 +100,17 @@ func New(ctx context.Context, p *Config) (*Strategy, error) {
 				errExceedsFreeBalance,
 				freeBase)
 		}
-	}
 
-	monAmounts := map[currency.Code]*account.ProtectedBalance{
-		p.Pair.Base:  baseAmount,
-		p.Pair.Quote: quoteAmount,
+		selling = Holding{Currency: p.Pair.Base, Amount: baseAmount}
+		buying = Holding{Currency: p.Pair.Quote, Amount: quoteAmount}
 	}
 
 	return &Strategy{
 		Config:    p,
 		Reporter:  make(chan Report),
 		orderbook: depth,
-		holdings:  monAmounts,
+		Buying:    buying,
+		Selling:   selling,
 	}, nil
 }
 
@@ -174,90 +177,125 @@ func (s *Strategy) Run(ctx context.Context) error {
 		return errConfigurationIsNil
 	}
 
-	balance, err := s.fetchCurrentBalance(ctx)
+	var requestedAmount float64
+	if s.FullAmount {
+		requestedAmount = s.Selling.Amount.GetFree()
+	} else {
+		requestedAmount = s.Amount
+	}
+
+	distrubution, err := s.GetDistrbutionAmount(requestedAmount)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("balance", balance)
-
-	tn := time.Now()
-	start := tn.Truncate(time.Duration(s.Interval))
-	fmt.Println(kline.ThirtyMin, start)
+	s.wg.Add(1)
+	go s.Deploy(ctx, distrubution)
 	return nil
 }
 
-// fetchCurrentBalance checks current available balance to undertake full
-// strategy.
-func (t *Strategy) fetchCurrentBalance(ctx context.Context) (float64, error) {
-	holdings, err := t.Exchange.UpdateAccountInfo(ctx, t.Asset)
-	if err != nil {
-		return 0, err
-	}
-
-	var selling currency.Code
-	if t.Accumulation {
-		selling = t.Pair.Quote
-	} else {
-		selling = t.Pair.Base
-	}
-
-	for x := range holdings.Accounts {
-		if holdings.Accounts[x].AssetType != t.Asset /*&& holdings.Accounts[x].ID != t.creds.SubAccount*/ {
-			continue
-		}
-
-		for y := range holdings.Accounts[x].Currencies {
-			if !holdings.Accounts[x].Currencies[y].CurrencyName.Equal(selling) {
-				continue
-			}
-
-			if t.Amount > holdings.Accounts[x].Currencies[y].Free {
-				return 0, fmt.Errorf("%s %w %v",
-					selling,
-					errVolumeToSellExceedsFreeBalance,
-					holdings.Accounts[x].Currencies[y].Free)
-			}
-
-			return holdings.Accounts[x].Currencies[y].Free, nil
-		}
-		break
-	}
-	return 0, fmt.Errorf("selling currency %s %s %w",
-		selling, t.Asset, errNoBalanceFound)
-}
-
-func (t *Strategy) funky(ctx context.Context) {
-	until := time.Until(t.Start)
-	timer := time.NewTimer(until)
+func (s *Strategy) Deploy(ctx context.Context, amount float64) {
+	defer s.wg.Done()
+	timer := time.NewTimer(0)
 	for {
 		select {
-		case <-ctx.Done():
-			t.Reporter <- Report{Error: ctx.Err(), Finished: true}
-			return
 		case <-timer.C:
-			resp, err := t.Exchange.SubmitOrder(ctx, &order.Submit{
-				Exchange:  t.Exchange.GetName(),
-				Pair:      t.Pair,
-				AssetType: t.Asset,
-				Side:      order.Bid,
-				Type:      order.Market,
-				Amount:    10, // Base amount
-			})
+			err := s.checkAndSubmit(ctx, amount)
 			if err != nil {
-				fmt.Println("LAME")
+				fmt.Println("ERROR:", err)
 			}
-			t.Reporter <- Report{Order: *resp}
+			timer.Reset(time.Duration(s.Interval))
+		case <-s.shutdown:
+			return
 		}
 	}
+}
+
+type OrderExecutionInformation struct {
+	Time     time.Time
+	Submit   *order.Submit
+	Response *order.SubmitResponse
+	Error    error
+}
+
+func (s *Strategy) checkAndSubmit(ctx context.Context, amount float64) error {
+	spread, err := s.orderbook.GetSpreadPercentage()
+	if err != nil {
+		return err
+	}
+	if s.MaxSpreadpercentage != 0 && s.MaxSpreadpercentage < spread {
+		return errors.New("spread percentage exceeded")
+	}
+
+	var details *orderbook.Movement
+	if s.Buy {
+		details, err = s.orderbook.LiftTheAsksFromBest(amount, true)
+	} else {
+		details, err = s.orderbook.HitTheBidsFromBest(amount, false)
+	}
+	if err != nil {
+		return err
+	}
+
+	if s.MaxImpactSlippage != 0 && s.MaxImpactSlippage < details.ImpactPercentage {
+		return errors.New("impact percentage exceeded")
+	}
+
+	if s.MaxNominalSlippage != 0 && s.MaxNominalSlippage < details.NominalPercentage {
+		return errors.New("nominal percentage exceeded")
+	}
+
+	if s.PriceLimit != 0 &&
+		(s.Buy && details.StartPrice > s.PriceLimit ||
+			!s.Buy && details.StartPrice < s.PriceLimit) {
+		return errors.New("price limit exceeded")
+	}
+
+	submit := &order.Submit{
+		Exchange:   s.Exchange.GetName(),
+		Type:       order.Market,
+		Pair:       s.Pair,
+		AssetType:  s.Asset,
+		ReduceOnly: s.ReduceOnly,
+	}
+
+	if s.Buy {
+		submit.Side = order.Buy
+		submit.Amount = details.Purchased // Easy way to convert to base.
+	} else {
+		submit.Side = order.Sell
+		submit.Amount = amount // Already base.
+	}
+
+	resp, err := s.Exchange.SubmitOrder(ctx, submit)
+	s.TradeInformation = append(s.TradeInformation, OrderExecutionInformation{
+		Time:     time.Now(),
+		Submit:   submit,
+		Response: resp,
+		Error:    err,
+	})
+	return err
+}
+
+type DeploymentSchedule struct {
+	Time     time.Time
+	Amount   float64
+	Executed order.Detail
+}
+
+// GetDeploymentAmount will truncate and equally distribute amounts across time.
+func (c *Config) GetDistrbutionAmount(amount float64) (float64, error) {
+	window := c.End.Sub(c.Start)
+	if int64(window) <= int64(c.Interval) {
+		return 0, errors.New("start end time window is equal to or less than interval")
+	}
+	segment := int64(window) / int64(c.Interval)
+	return amount / float64(segment), nil
 }
 
 // Report defines a TWAP action
 type Report struct {
-	Order    order.SubmitResponse
-	TWAP     float64
-	Slippage float64
-	Error    error
-	Finished bool
-	Balance  map[currency.Code]float64
+	Information OrderExecutionInformation
+	Deployment  *orderbook.Movement
+	Finished    bool
 }

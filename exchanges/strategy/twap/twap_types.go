@@ -1,6 +1,7 @@
 package twap
 
 import (
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -17,10 +18,24 @@ import (
 type Strategy struct {
 	strategy.Base
 	*Config
-	holdings  map[currency.Code]*account.ProtectedBalance
-	Reporter  chan Report
-	Candles   kline.Item
+	Buying           Holding
+	Selling          Holding
+	Reporter         chan Report
+	TradeInformation []OrderExecutionInformation
+
 	orderbook *orderbook.Depth
+	wg        sync.WaitGroup
+	shutdown  chan struct{}
+	pause     chan struct{}
+	running   bool
+	paused    bool
+	finished  bool
+	mtx       sync.Mutex
+}
+
+type Holding struct {
+	Currency currency.Code
+	Amount   *account.ProtectedBalance
 }
 
 // Config defines the base elements required to undertake the TWAP strategy
@@ -28,7 +43,6 @@ type Config struct {
 	Exchange exchange.IBotExchange
 	Pair     currency.Pair
 	Asset    asset.Item
-	Verbose  bool
 
 	// Simulate will run the strategy and order execution in simulation mode.
 	Simulate bool
