@@ -32,7 +32,7 @@ import (
 )
 
 const (
-	okxWebsocketResponseMaxLimit = time.Second * 15
+	okxWebsocketResponseMaxLimit = time.Second * 3
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -63,12 +63,6 @@ func (ok *Okx) SetDefaults() {
 	ok.Enabled = true
 	ok.Verbose = true
 
-	ok.WsResponseMultiplexer = wsRequestDataChannelsMultiplexer{
-		WsResponseChannelsMap: make(map[string]*wsRequestInfo),
-		Register:              make(chan *wsRequestInfo),
-		Unregister:            make(chan string),
-		Message:               make(chan *wsIncomingData),
-	}
 	ok.WsRequestSemaphore = make(chan int, 5)
 	ok.API.CredentialsValidator.RequiresKey = true
 	ok.API.CredentialsValidator.RequiresSecret = true
@@ -209,6 +203,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		URL:                  okxAPIWebsocketPublicURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
+		RateLimit:            500,
 	})
 	if err != nil {
 		return err
@@ -218,6 +213,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
 		Authenticated:        true,
+		RateLimit:            500,
 	})
 }
 
