@@ -950,11 +950,12 @@ func (g *Gateio) CancelMultipleSpotOpenOrders(ctx context.Context, currencyPair 
 	if !currencyPair.Base.IsEmpty() && !currencyPair.Quote.IsEmpty() {
 		params.Set("currency_pair", currencyPair.String())
 	}
-	if account.String() == "" {
+	switch account {
+	case asset.Empty:
 		return nil, errInvalidAssetType
-	} else if account == asset.Spot {
+	case asset.Spot:
 		params.Set("account", "normal")
-	} else {
+	default:
 		params.Set("account", account.String())
 	}
 	var response []SpotPriceTriggeredOrder
@@ -1411,7 +1412,7 @@ func (g *Gateio) GetMarginAccountList(ctx context.Context, currencyPair currency
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, marginAccount, params, nil, &response)
 }
 
-// ListMarginAccountBalanceChangeHistory retrieves retrieves margin account balance change history
+// ListMarginAccountBalanceChangeHistory retrieves margin account balance change history
 // Only transferals from and to margin account are provided for now. Time range allows 30 days at most
 func (g *Gateio) ListMarginAccountBalanceChangeHistory(ctx context.Context, ccy currency.Code, currencyPair currency.Pair, from, to time.Time, page, limit uint64) ([]MarginAccountBalanceChangeInfo, error) {
 	params := url.Values{}
@@ -1475,9 +1476,10 @@ func (g *Gateio) MarginLoan(ctx context.Context, arg *MarginLoanRequestParam) (*
 // GetMarginAllLoans retrieves all loans (borrow and lending) orders.
 func (g *Gateio) GetMarginAllLoans(ctx context.Context, status, side string, ccy currency.Code, currencyPair currency.Pair, sortBy string, reverseSort bool, page, limit uint64) ([]MarginLoanResponse, error) {
 	params := url.Values{}
-	if side == sideLend || side == sideBorrow {
-		params.Set("side", side)
+	if side != sideLend && side != sideBorrow {
+		return nil, fmt.Errorf("%w, only 'lend' and 'borrow' are supported", errInvalidOrderSide)
 	}
+	params.Set("side", side)
 	if status == statusOpen || status == "loaned" || status == statusFinished || status == "auto_repair" {
 		params.Set("status", status)
 	} else {
@@ -2011,7 +2013,7 @@ func (g *Gateio) GetFuturesTickers(ctx context.Context, settle string, contract 
 			Delimiter: currency.UnderscoreDelimiter,
 			Uppercase: true,
 		}
-		pairString := strings.ToUpper(fPair.Format(contract))
+		pairString := fPair.Format(contract)
 		params.Set("contract", pairString)
 	}
 	return tickers, g.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(fmt.Sprintf(futuresTicker, settle), params), &tickers)
@@ -2086,7 +2088,7 @@ func (g *Gateio) GetFutureStats(ctx context.Context, settle string, contract cur
 	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.Unix(), 10))
 	}
-	if interval.Duration().Milliseconds() != 0 {
+	if int64(interval) != 0 {
 		intervalString, err := g.GetIntervalString(interval)
 		if err != nil {
 			return nil, err
@@ -2881,7 +2883,7 @@ func (g *Gateio) GetDeliveryFuturesCandlesticks(ctx context.Context, settle, con
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	if interval.Duration().Milliseconds() != 0 {
+	if int64(interval) != 0 {
 		intervalString, err := g.GetIntervalString(interval)
 		if err != nil {
 			return nil, err
@@ -3752,7 +3754,7 @@ func (g *Gateio) GetOptionFuturesMarkPriceCandlesticks(ctx context.Context, unde
 	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
-	if interval.Duration().Milliseconds() != 0 {
+	if int64(interval) != 0 {
 		intervalString, err := g.GetIntervalString(interval)
 		if err != nil {
 			return nil, err

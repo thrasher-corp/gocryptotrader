@@ -1391,9 +1391,8 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			Price:          fOrder.Price,
 			Date:           fOrder.CreateTime,
 			LastUpdated:    fOrder.FinishTime,
-			// Cost: fOrder.,
-			Pair:      pair,
-			AssetType: a,
+			Pair:           pair,
+			AssetType:      a,
 		}, nil
 	case asset.Options:
 		optionOrder, err := g.GetSingleOptionOrder(ctx, orderID)
@@ -1417,10 +1416,8 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			Price:          optionOrder.Price,
 			Date:           optionOrder.CreateTime,
 			LastUpdated:    optionOrder.FinishTime,
-			// Cost: fOrder.,
-			// Side:
-			Pair:      pair,
-			AssetType: a,
+			Pair:           pair,
+			AssetType:      a,
 		}, nil
 	default:
 		return orderDetail, fmt.Errorf("%s does not support %s", g.Name, a)
