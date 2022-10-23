@@ -30,7 +30,13 @@ import (
 type Okx struct {
 	exchange.Base
 	WsResponseMultiplexer wsRequestDataChannelsMultiplexer
-	WsRequestSemaphore    chan int
+
+	// WsRequestSemaphore channel is used to block write operation on the websocket connection to reduce contention; a kind of bounded parallelism.
+	// it is made to hold upto 5 integers so that up to 5 write operations can be called over the websocket connection at a time.
+	// and when the operation is completed the thread releases (consumes) one value from the channel so that the other waiting operation can enter.
+	// ok.WsRequestSemaphore <- 1
+	// defer func() { <-ok.WsRequestSemaphore }()
+	WsRequestSemaphore chan int
 }
 
 const (
