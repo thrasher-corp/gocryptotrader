@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -772,7 +773,7 @@ func FilterOrdersBySide(orders *[]Detail, side Side) {
 
 	target := 0
 	for i := range *orders {
-		if (*orders)[i].Side == side {
+		if (*orders)[i].Side == UnknownSide || (*orders)[i].Side == side {
 			(*orders)[target] = (*orders)[i]
 			target++
 		}
@@ -789,7 +790,7 @@ func FilterOrdersByType(orders *[]Detail, orderType Type) {
 
 	target := 0
 	for i := range *orders {
-		if (*orders)[i].Type == orderType {
+		if (*orders)[i].Type == UnknownType || (*orders)[i].Type == orderType {
 			(*orders)[target] = (*orders)[i]
 			target++
 		}
@@ -834,6 +835,12 @@ func FilterOrdersByPairs(orders *[]Detail, pairs []currency.Pair) {
 
 	target := 0
 	for x := range *orders {
+		if (*orders)[x].Pair.IsEmpty() { // If pair not set then keep
+			(*orders)[target] = (*orders)[x]
+			target++
+			continue
+		}
+
 		for y := range pairs {
 			if (*orders)[x].Pair.EqualIncludeReciprocal(pairs[y]) {
 				(*orders)[target] = (*orders)[x]
@@ -1106,14 +1113,25 @@ func (c *Cancel) Validate(opt ...validate.Checker) error {
 	return nil
 }
 
-// Validate checks internal struct requirements
+// Validate checks internal struct requirements and returns filter requirement
+// options for wrapper standardization procedures.
 func (g *GetOrdersRequest) Validate(opt ...validate.Checker) error {
 	if g == nil {
 		return ErrGetOrdersRequestIsNil
 	}
+
 	if !g.AssetType.IsValid() {
 		return fmt.Errorf("%v %w", g.AssetType, asset.ErrNotSupported)
 	}
+
+	if g.Side == UnknownSide {
+		return errUnrecognisedOrderSide
+	}
+
+	if g.Type == UnknownType {
+		return errUnrecognisedOrderType
+	}
+
 	var errs common.Errors
 	for _, o := range opt {
 		err := o.Check()
@@ -1121,11 +1139,24 @@ func (g *GetOrdersRequest) Validate(opt ...validate.Checker) error {
 			errs = append(errs, err)
 		}
 	}
-
 	if errs != nil {
 		return errs
 	}
 	return nil
+}
+
+// Filter reduces slice by optional fields
+func (g *GetOrdersRequest) Filter(exch string, orders []Detail) FilteredOrders {
+	filtered := make([]Detail, len(orders))
+	copy(filtered, orders)
+	FilterOrdersByPairs(&filtered, g.Pairs)
+	FilterOrdersByType(&filtered, g.Type)
+	FilterOrdersBySide(&filtered, g.Side)
+	err := FilterOrdersByTimeRange(&filtered, g.StartTime, g.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", exch, err)
+	}
+	return filtered
 }
 
 // Validate checks internal struct requirements

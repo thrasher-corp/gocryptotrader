@@ -356,3 +356,8 @@ type ClassificationError struct {
 	OrderID  string
 	Err      error
 }
+
+// FilteredOrders defines orders that have been filtered at the wrapper level
+// forcing required filter operations when calling method Filter() on
+// GetOrdersRequest.
+type FilteredOrders []Detail

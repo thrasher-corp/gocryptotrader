@@ -701,8 +701,9 @@ func (b *Bitstamp) WithdrawFiatFundsToInternationalBank(ctx context.Context, wit
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *Bitstamp) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (b *Bitstamp) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 
@@ -710,7 +711,8 @@ func (b *Bitstamp) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 	if len(req.Pairs) != 1 {
 		currPair = "all"
 	} else {
-		fPair, err := b.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
+		var fPair currency.Pair
+		fPair, err = b.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
@@ -759,25 +761,21 @@ func (b *Bitstamp) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 			Exchange: b.Name,
 		}
 	}
-
-	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
-	}
-	order.FilterOrdersByPairs(&orders, req.Pairs)
-	return orders, nil
+	return req.Filter(b.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *Bitstamp) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (b *Bitstamp) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 
 	var currPair string
 	if len(req.Pairs) == 1 {
-		fPair, err := b.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
+		var fPair currency.Pair
+		fPair, err = b.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
@@ -846,13 +844,7 @@ func (b *Bitstamp) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 			Pair:     currPair,
 		})
 	}
-
-	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
-	}
-	order.FilterOrdersByPairs(&orders, req.Pairs)
-	return orders, nil
+	return req.Filter(b.Name, orders), nil
 }
 
 // ValidateCredentials validates current credentials used for wrapper

@@ -862,6 +862,7 @@ func TestGetActiveOrders(t *testing.T) {
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Pairs:     currency.Pairs{pair},
+		Side:      order.AnySide,
 	}
 
 	_, err = k.GetActiveOrders(context.Background(), &getOrdersRequest)
@@ -876,6 +877,7 @@ func TestGetOrderHistory(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
+		Side:      order.AnySide,
 	}
 
 	_, err := k.GetOrderHistory(context.Background(), &getOrdersRequest)

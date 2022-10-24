@@ -147,8 +147,8 @@ type OpenOrder struct {
 	Type          string  `json:"type"`
 }
 
-// TradHistoryResponse The full response for retrieving all user trade history
-type TradHistoryResponse struct {
+// TradeHistoryResponse The full response for retrieving all user trade history
+type TradeHistoryResponse struct {
 	Code    int              `json:"code,omitempty"`
 	Elapsed string           `json:"elapsed,omitempty"`
 	Message string           `json:"message"`
