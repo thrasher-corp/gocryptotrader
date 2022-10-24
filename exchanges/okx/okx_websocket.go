@@ -551,7 +551,7 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-	if (resp.Event != "" && resp.Event != "login" && resp.Event != "error") || resp.Operation != "" {
+	if (resp.Event != "" && (resp.Event == "login" || resp.Event == "error")) || resp.Operation != "" {
 		ok.WsResponseMultiplexer.Message <- &resp
 		return nil
 	}
