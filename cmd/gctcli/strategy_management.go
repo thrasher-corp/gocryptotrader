@@ -80,7 +80,7 @@ var (
 			},
 			&cli.Int64Flag{
 				Name:  "twapgranularity",
-				Usage: "twap signal granularity",
+				Usage: "twap interval granularity - this will truncate and structure order execution to UTC alignment (for now)",
 				// Destination: &stratLookback,
 				Value: 30,
 			},
