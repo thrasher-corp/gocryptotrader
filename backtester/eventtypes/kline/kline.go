@@ -34,8 +34,3 @@ func (k *Kline) GetVolume() decimal.Decimal {
 func (k *Kline) GetUnderlyingPair() currency.Pair {
 	return k.UnderlyingPair
 }
-
-// IsKline helps identify that this is a kline
-func (k *Kline) IsKline() bool {
-	return true
-}

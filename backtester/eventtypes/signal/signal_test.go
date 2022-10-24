@@ -1,6 +1,8 @@
 package signal
 
 import (
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"testing"
 
 	"github.com/shopspring/decimal"
@@ -191,8 +193,13 @@ func TestToKline(t *testing.T) {
 		OpenPrice: decimal.NewFromInt(1337),
 	}
 	k := s.ToKline()
-	if !k.IsKline() {
-		t.Errorf("received '%v' expected '%v'", false, true)
+	switch k.(type) {
+	case Event:
+		t.Errorf("expected  '%v' received '%v'", "kline event", "signal event")
+	case order.Event:
+		t.Errorf("expected  '%v' received '%v'", "kline event", "order event")
+	case fill.Event:
+		t.Errorf("expected  '%v' received '%v'", "kline event", "fill event")
 	}
 	if !k.GetOpenPrice().Equal(decimal.NewFromInt(1337)) {
 		t.Errorf("received '%v' expected '%v'", k.GetOpenPrice(), 1337)

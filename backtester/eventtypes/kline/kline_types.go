@@ -21,5 +21,4 @@ type Kline struct {
 // Event is a kline data event
 type Event interface {
 	data.Event
-	IsKline() bool
 }

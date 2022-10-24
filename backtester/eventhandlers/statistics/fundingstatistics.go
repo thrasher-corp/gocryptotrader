@@ -119,6 +119,7 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 		return nil, err
 	}
 
+	var cagr decimal.Decimal
 	for i := range response.Items {
 		var cagr decimal.Decimal
 		if response.Items[i].ReportItem.InitialFunds.IsZero() {
@@ -136,7 +137,6 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 		response.Items[i].CompoundAnnualGrowthRate = cagr
 	}
 	if !usdStats.HoldingValues[0].Value.IsZero() {
-		var cagr decimal.Decimal
 		cagr, err = gctmath.DecimalCompoundAnnualGrowthRate(
 			usdStats.HoldingValues[0].Value,
 			usdStats.HoldingValues[len(usdStats.HoldingValues)-1].Value,

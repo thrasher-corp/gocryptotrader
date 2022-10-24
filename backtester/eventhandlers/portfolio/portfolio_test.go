@@ -761,7 +761,6 @@ func TestCalculatePNL(t *testing.T) {
 	}
 	ev.Close = decimal.NewFromInt(1337)
 	err = s.ComplianceManager.AddSnapshot(&compliance.Snapshot{
-		Offset:    0,
 		Timestamp: tt0,
 		Orders: []compliance.SnapshotOrder{
 			{
@@ -1550,7 +1549,6 @@ func TestSetHoldingsForEvent(t *testing.T) {
 	}
 
 	err = p.SetHoldingsForOffset(&holdings.Holding{
-		Offset:    0,
 		Item:      currency.BTC,
 		Pair:      ev.Pair(),
 		Asset:     ev.AssetType,

@@ -30,8 +30,11 @@ import (
 // if successful, it will pass on an order.Order to be used by the exchange event handler to place an order based on
 // the portfolio manager's recommendations
 func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds funding.IFundReserver) (*order.Order, error) {
-	if ev == nil || cs == nil {
-		return nil, gctcommon.ErrNilPointer
+	if ev == nil {
+		return nil, fmt.Errorf("%w signal event", gctcommon.ErrNilPointer)
+	}
+	if cs == nil {
+		return nil, fmt.Errorf("%w exchange settings", gctcommon.ErrNilPointer)
 	}
 	if p.sizeManager == nil {
 		return nil, errSizeManagerUnset
@@ -115,7 +118,6 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 		}
 	}
 	if sizingFunds.LessThanOrEqual(decimal.Zero) {
-		sizingFunds.LessThanOrEqual(decimal.Zero)
 		return cannotPurchase(ev, o)
 	}
 	sizedOrder, err := p.sizeOrder(ev, cs, o, sizingFunds, funds)
@@ -326,7 +328,6 @@ func (p *Portfolio) SetHoldingsForOffset(h *holdings.Holding, overwriteExisting 
 		if lookup.HoldingsSnapshots[i].Offset == h.Offset {
 			if overwriteExisting {
 				lookup.HoldingsSnapshots[i] = *h
-				p.exchangeAssetPairSettings[h.Exchange][h.Asset][h.Pair.Base.Item][h.Pair.Quote.Item] = lookup
 				return nil
 			}
 			return errHoldingsAlreadySet
@@ -337,7 +338,6 @@ func (p *Portfolio) SetHoldingsForOffset(h *holdings.Holding, overwriteExisting 
 	}
 
 	lookup.HoldingsSnapshots = append(lookup.HoldingsSnapshots, *h)
-	p.exchangeAssetPairSettings[h.Exchange][h.Asset][h.Pair.Base.Item][h.Pair.Quote.Item] = lookup
 	return nil
 }
 

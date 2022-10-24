@@ -106,6 +106,9 @@ func (f *FundManager) LinkCollateralCurrency(item *Item, code currency.Code) err
 // as funding.snapshots is a map, it allows for the last event
 // in the chronological list to establish the canon at X time
 func (f *FundManager) CreateSnapshot(t time.Time) error {
+	if t.IsZero() {
+		return gctcommon.ErrDateUnset
+	}
 	for i := range f.items {
 		if f.items[i].snapshot == nil {
 			f.items[i].snapshot = make(map[int64]ItemSnapshot)
@@ -511,16 +514,6 @@ func (f *FundManager) getFundingForEAP(exch string, a asset.Item, p currency.Pai
 	}
 
 	return nil, fmt.Errorf("%v %v %v %w", exch, a, p, ErrFundsNotFound)
-}
-
-// GetFundingForEAC This will construct a funding based on the exchange, asset, currency code
-func (f *FundManager) getFundingForEAC(exch string, a asset.Item, c currency.Code) (*Item, error) {
-	for i := range f.items {
-		if f.items[i].BasicEqual(exch, a, c, currency.EMPTYCODE) {
-			return f.items[i], nil
-		}
-	}
-	return nil, ErrFundsNotFound
 }
 
 // Liquidate will remove all funding for all items belonging to an exchange

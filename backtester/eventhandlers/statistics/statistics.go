@@ -86,7 +86,7 @@ func (s *Statistic) SetEventForOffset(ev common.Event) error {
 		if lookup.Events[i].Offset != ev.GetOffset() {
 			continue
 		}
-		return applyEventAtOffset(ev, lookup, i)
+		return applyEventAtOffset(ev, &lookup.Events[i])
 	}
 
 	// add to events and then apply the supplied event to it
@@ -94,7 +94,7 @@ func (s *Statistic) SetEventForOffset(ev common.Event) error {
 		Offset: ev.GetOffset(),
 		Time:   ev.GetTime(),
 	})
-	err := applyEventAtOffset(ev, lookup, len(lookup.Events)-1)
+	err := applyEventAtOffset(ev, &lookup.Events[len(lookup.Events)-1])
 	if err != nil {
 		return err
 	}
@@ -104,34 +104,34 @@ func (s *Statistic) SetEventForOffset(ev common.Event) error {
 	return nil
 }
 
-func applyEventAtOffset(ev common.Event, lookup *CurrencyPairStatistic, i int) error {
+func applyEventAtOffset(ev common.Event, data *DataAtOffset) error {
 	switch t := ev.(type) {
 	case kline.Event:
 		// using kline.Event as signal.Event also matches data.Event
-		if lookup.Events[i].DataEvent != nil && lookup.Events[i].DataEvent != ev {
+		if data.DataEvent != nil && data.DataEvent != ev {
 			return fmt.Errorf("kline event %w", ErrAlreadyProcessed)
 		}
-		lookup.Events[i].DataEvent = t
+		data.DataEvent = t
 	case signal.Event:
-		if lookup.Events[i].SignalEvent != nil {
+		if data.SignalEvent != nil {
 			return fmt.Errorf("signal event %w", ErrAlreadyProcessed)
 		}
-		lookup.Events[i].SignalEvent = t
+		data.SignalEvent = t
 	case order.Event:
-		if lookup.Events[i].OrderEvent != nil {
+		if data.OrderEvent != nil {
 			return fmt.Errorf("order event %w", ErrAlreadyProcessed)
 		}
-		lookup.Events[i].OrderEvent = t
+		data.OrderEvent = t
 	case fill.Event:
-		if lookup.Events[i].FillEvent != nil {
+		if data.FillEvent != nil {
 			return fmt.Errorf("fill event %w", ErrAlreadyProcessed)
 		}
-		lookup.Events[i].FillEvent = t
+		data.FillEvent = t
 	default:
 		return fmt.Errorf("unknown event type received: %v", ev)
 	}
-	lookup.Events[i].Time = ev.GetTime()
-	lookup.Events[i].ClosePrice = ev.GetClosePrice()
+	data.Time = ev.GetTime()
+	data.ClosePrice = ev.GetClosePrice()
 
 	return nil
 }

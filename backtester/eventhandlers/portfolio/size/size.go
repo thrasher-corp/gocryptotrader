@@ -14,8 +14,11 @@ import (
 
 // SizeOrder is responsible for ensuring that the order size is within config limits
 func (s *Size) SizeOrder(o order.Event, amountAvailable decimal.Decimal, cs *exchange.Settings) (*order.Order, decimal.Decimal, error) {
-	if o == nil || cs == nil {
-		return nil, decimal.Zero, gctcommon.ErrNilPointer
+	if o == nil {
+		return nil, decimal.Zero, fmt.Errorf("%w order event", gctcommon.ErrNilPointer)
+	}
+	if cs == nil {
+		return nil, decimal.Zero, fmt.Errorf("%w exchange settings", gctcommon.ErrNilPointer)
 	}
 	if amountAvailable.LessThanOrEqual(decimal.Zero) {
 		return nil, decimal.Zero, errNoFunds

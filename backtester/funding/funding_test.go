@@ -252,14 +252,6 @@ func TestExists(t *testing.T) {
 	if !f.Exists(&baseCopy) {
 		t.Errorf("received '%v' expected '%v'", false, true)
 	}
-
-	currFunds, err := f.getFundingForEAC(exchName, a, base)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if currFunds.pairedWith != nil {
-		t.Errorf("received '%v' expected '%v'", nil, currFunds.pairedWith)
-	}
 }
 
 func TestAddPair(t *testing.T) {
@@ -322,32 +314,6 @@ func TestGetFundingForEvent(t *testing.T) {
 	_, err = f.GetFundingForEvent(e)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-}
-
-func TestGetFundingForEAC(t *testing.T) {
-	t.Parallel()
-	f := FundManager{}
-	_, err := f.getFundingForEAC(exchName, a, base)
-	if !errors.Is(err, ErrFundsNotFound) {
-		t.Errorf("received '%v' expected '%v'", err, ErrFundsNotFound)
-	}
-	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	err = f.AddItem(baseItem)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-
-	fundo, err := f.getFundingForEAC(exchName, a, base)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-
-	if !baseItem.Equal(fundo) {
-		t.Errorf("received '%v' expected '%v'", baseItem, fundo)
 	}
 }
 

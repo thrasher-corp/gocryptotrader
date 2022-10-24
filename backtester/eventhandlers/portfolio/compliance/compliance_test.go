@@ -19,9 +19,7 @@ func TestAddSnapshot(t *testing.T) {
 	}
 
 	err = m.AddSnapshot(&Snapshot{
-		Offset:    0,
 		Timestamp: tt,
-		Orders:    nil,
 	}, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
@@ -30,9 +28,7 @@ func TestAddSnapshot(t *testing.T) {
 		t.Error("expected 1")
 	}
 	err = m.AddSnapshot(&Snapshot{
-		Offset:    0,
 		Timestamp: tt,
-		Orders:    nil,
 	}, true)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
@@ -90,9 +86,7 @@ func TestGetLatestSnapshot(t *testing.T) {
 	}
 	tt := time.Now()
 	err := m.AddSnapshot(&Snapshot{
-		Offset:    0,
 		Timestamp: tt,
-		Orders:    nil,
 	}, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
