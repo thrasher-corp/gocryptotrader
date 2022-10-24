@@ -9,8 +9,6 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -28,15 +26,6 @@ var (
 	testScriptRunnerNegative = filepath.Join("..", "..", "testdata", "gctscript", "negative_timer.gct")
 	testScriptRunnerInvalid  = filepath.Join("..", "..", "testdata", "gctscript", "invalid_timer.gct")
 )
-
-func TestMain(m *testing.M) {
-	c := log.GenDefaultSettings()
-	c.Enabled = convert.BoolPtr(false)
-	log.RWM.Lock()
-	log.GlobalLogConfig = c
-	log.RWM.Unlock()
-	os.Exit(m.Run())
-}
 
 func TestNewVM(t *testing.T) {
 	manager := GctScriptManager{

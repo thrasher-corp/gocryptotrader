@@ -34,13 +34,9 @@ const (
 
 var (
 	settings = engine.Settings{
-		ConfigFile:          filepath.Join("..", "..", "..", "..", "testdata", "configtest.json"),
-		EnableDryRun:        true,
-		DataDir:             filepath.Join("..", "..", "..", "..", "testdata", "gocryptotrader"),
-		Verbose:             false,
-		EnableGRPC:          false,
-		EnableDeprecatedRPC: false,
-		EnableWebsocketRPC:  false,
+		ConfigFile:   filepath.Join("..", "..", "..", "..", "testdata", "configtest.json"),
+		EnableDryRun: true,
+		DataDir:      filepath.Join("..", "..", "..", "..", "testdata", "gocryptotrader"),
 	}
 	exchangeTest = Exchange{}
 )
