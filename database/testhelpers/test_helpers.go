@@ -11,7 +11,6 @@ import (
 	psqlConn "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	sqliteConn "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
-	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/goose"
 	"github.com/thrasher-corp/sqlboiler/boil"
 )
@@ -119,14 +118,7 @@ func migrateDB(db *sql.DB) error {
 
 // EnableVerboseTestOutput enables debug output for SQL queries
 func EnableVerboseTestOutput() error {
-	log.RWM.Lock()
-	log.GlobalLogConfig = log.GenDefaultSettings()
-	log.RWM.Unlock()
-	if err := log.SetupGlobalLogger(); err != nil {
-		return err
-	}
-	DBLogger := database.Logger{}
 	boil.DebugMode = true
-	boil.DebugWriter = DBLogger
+	boil.DebugWriter = database.Logger{}
 	return nil
 }

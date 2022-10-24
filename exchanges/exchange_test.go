@@ -3,9 +3,7 @@ package exchange
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net"
-	"os"
 	"testing"
 	"time"
 
@@ -18,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
 
@@ -26,17 +23,6 @@ const (
 	defaultTestExchange     = "Bitfinex"
 	defaultTestCurrencyPair = "BTC-USD"
 )
-
-func TestMain(m *testing.M) {
-	log.RWM.Lock()
-	log.GlobalLogConfig = log.GenDefaultSettings()
-	log.RWM.Unlock()
-	if err := log.SetupGlobalLogger(); err != nil {
-		fmt.Println("Cannot setup global logger. Error:", err)
-		os.Exit(1)
-	}
-	os.Exit(m.Run())
-}
 
 func TestSupportsRESTTickerBatchUpdates(t *testing.T) {
 	t.Parallel()

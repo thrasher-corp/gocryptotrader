@@ -124,7 +124,7 @@ go build
 copy config_example.json %APPDATA%\GoCryptoTrader\config.json
 ```
 
-+ Make any neccessary changes to the `config.json` file.
++ Make any necessary changes to the `config.json` file.
 + Run the `gocryptotrader` binary file inside your GOPATH bin folder.
 
 ## Donations

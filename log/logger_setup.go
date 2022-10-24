@@ -11,11 +11,16 @@ import (
 )
 
 var (
-	errSubloggerConfigIsNil  = errors.New("sublogger config is nil")
-	errUnhandledOutputWriter = errors.New("unhandled output writer")
+	errSubloggerConfigIsNil              = errors.New("sublogger config is nil")
+	errUnhandledOutputWriter             = errors.New("unhandled output writer")
+	errLogPathIsEmpty                    = errors.New("log path is empty")
+	errConfigNil                         = errors.New("config is nil")
+	errFileLoggingNotConfiguredCorrectly = errors.New("file logging not configured correctly")
 )
 
-func getWriters(s *SubLoggerConfig) (io.Writer, error) {
+// getWriters returns a new multi writer holder from sub logger configuration.
+// Note: Calling function must have mutex lock in place.
+func getWriters(s *SubLoggerConfig) (*multiWriterHolder, error) {
 	if s == nil {
 		return nil, errSubloggerConfigIsNil
 	}
@@ -30,12 +35,13 @@ func getWriters(s *SubLoggerConfig) (io.Writer, error) {
 		case "stderr":
 			writer = os.Stderr
 		case "file":
-			if FileLoggingConfiguredCorrectly {
-				writer = GlobalLogFile
+			if !fileLoggingConfiguredCorrectly {
+				return nil, errFileLoggingNotConfiguredCorrectly
 			}
+			writer = globalLogFile
 		default:
-			// Note: Do not want to add a io.Discard here as this adds
-			// additional routines for every write for no reason.
+			// Note: Do not want to add an io.Discard here as this adds
+			// additional write calls for no reason.
 			return nil, fmt.Errorf("%w: %s", errUnhandledOutputWriter, outputWriters[x])
 		}
 		writers = append(writers, writer)
@@ -54,7 +60,6 @@ func GenDefaultSettings() *Config {
 		LoggerFileConfig: &loggerFileConfig{
 			FileName: "log.txt",
 			Rotate:   convert.BoolPtr(false),
-			MaxSize:  0,
 		},
 		AdvancedSettings: advancedSettings{
 			ShowLogSystemName: convert.BoolPtr(false),
@@ -70,22 +75,65 @@ func GenDefaultSettings() *Config {
 	}
 }
 
-func configureSubLogger(subLogger, levels string, output io.Writer) error {
-	RWM.Lock()
-	defer RWM.Unlock()
+// SetGlobalLogConfig sets the global config with the supplied config
+func SetGlobalLogConfig(incoming *Config) error {
+	if incoming == nil {
+		return errConfigNil
+	}
+	var fileConf loggerFileConfig
+	if incoming.LoggerFileConfig != nil {
+		fileConf = *incoming.LoggerFileConfig
+	}
+	subs := make([]SubLoggerConfig, len(incoming.SubLoggers))
+	copy(subs, incoming.SubLoggers)
+	mu.Lock()
+	defer mu.Unlock()
+	globalLogConfig.SubLoggerConfig = incoming.SubLoggerConfig
+	globalLogConfig.Enabled = convert.BoolPtr(incoming.Enabled != nil && *incoming.Enabled)
+	globalLogConfig.LoggerFileConfig = &fileConf
+	globalLogConfig.AdvancedSettings = incoming.AdvancedSettings
+	return nil
+}
+
+// SetLogPath sets the log path for writing to file
+func SetLogPath(newLogPath string) error {
+	if newLogPath == "" {
+		return errLogPathIsEmpty
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	logPath = newLogPath
+	return nil
+}
+
+// GetLogPath returns path of log file
+func GetLogPath() string {
+	mu.RLock()
+	defer mu.RUnlock()
+	return logPath
+}
+
+// configureSubLogger configures a new sub logger. Note: Calling function must
+// have mutex lock in place.
+func configureSubLogger(subLogger, levels string, output *multiWriterHolder) error {
 	logPtr, found := SubLoggers[subLogger]
 	if !found {
 		return fmt.Errorf("sub logger %v not found", subLogger)
 	}
 
-	logPtr.SetOutput(output)
-	logPtr.SetLevels(splitLevel(levels))
+	err := logPtr.setOutput(output)
+	if err != nil {
+		return err
+	}
+	logPtr.setLevels(splitLevel(levels))
 	SubLoggers[subLogger] = logPtr
 	return nil
 }
 
 // SetupSubLoggers configure all sub loggers with provided configuration values
 func SetupSubLoggers(s []SubLoggerConfig) error {
+	mu.Lock()
+	defer mu.Unlock()
 	for x := range s {
 		output, err := getWriters(&s[x])
 		if err != nil {
@@ -101,33 +149,45 @@ func SetupSubLoggers(s []SubLoggerConfig) error {
 
 // SetupGlobalLogger setup the global loggers with the default global config values
 func SetupGlobalLogger() error {
-	RWM.Lock()
-	defer RWM.Unlock()
+	mu.Lock()
+	defer mu.Unlock()
 
-	if FileLoggingConfiguredCorrectly {
-		GlobalLogFile = &Rotate{
-			FileName: GlobalLogConfig.LoggerFileConfig.FileName,
-			MaxSize:  GlobalLogConfig.LoggerFileConfig.MaxSize,
-			Rotate:   GlobalLogConfig.LoggerFileConfig.Rotate,
+	if fileLoggingConfiguredCorrectly {
+		globalLogFile = &Rotate{
+			FileName: globalLogConfig.LoggerFileConfig.FileName,
+			MaxSize:  globalLogConfig.LoggerFileConfig.MaxSize,
+			Rotate:   globalLogConfig.LoggerFileConfig.Rotate,
 		}
 	}
 
-	for x := range SubLoggers {
-		SubLoggers[x].SetLevels(splitLevel(GlobalLogConfig.Level))
-		writers, err := getWriters(&GlobalLogConfig.SubLoggerConfig)
+	writers, err := getWriters(&globalLogConfig.SubLoggerConfig)
+	if err != nil {
+		return err
+	}
+
+	for _, subLogger := range SubLoggers {
+		subLogger.setLevels(splitLevel(globalLogConfig.Level))
+		err = subLogger.setOutput(writers)
 		if err != nil {
 			return err
 		}
-		SubLoggers[x].SetOutput(writers)
 	}
-	logger = newLogger(GlobalLogConfig)
+	logger = newLogger(globalLogConfig)
 	return nil
+}
+
+// SetFileLoggingState can set file logging state if it is correctly configured
+// or not. This will bypass the ability to log to file if set as false.
+func SetFileLoggingState(correctlyConfigured bool) {
+	mu.Lock()
+	fileLoggingConfiguredCorrectly = correctlyConfigured
+	mu.Unlock()
 }
 
 func splitLevel(level string) (l Levels) {
 	enabledLevels := strings.Split(level, "|")
 	for x := range enabledLevels {
-		switch level := enabledLevels[x]; level {
+		switch enabledLevels[x] {
 		case "DEBUG":
 			l.Debug = true
 		case "INFO":
@@ -141,20 +201,32 @@ func splitLevel(level string) (l Levels) {
 	return
 }
 
+// registerNewSubLogger registers a new sub logger. Note: Calling function must
+// have mutex lock in place.
 func registerNewSubLogger(subLogger string) *SubLogger {
+	tempHolder, err := getWriters(&SubLoggerConfig{
+		Name:   strings.ToUpper(subLogger),
+		Level:  "INFO|WARN|DEBUG|ERROR",
+		Output: "stdout"})
+	if err != nil {
+		return nil
+	}
+
 	temp := &SubLogger{
 		name:   strings.ToUpper(subLogger),
-		output: os.Stdout,
+		output: tempHolder,
 		levels: splitLevel("INFO|WARN|DEBUG|ERROR"),
 	}
-	RWM.Lock()
 	SubLoggers[subLogger] = temp
-	RWM.Unlock()
 	return temp
 }
 
 // register all loggers at package init()
 func init() {
+	// Start persistent worker to handle logs
+	go loggerWorker()
+
+	mu.Lock()
 	Global = registerNewSubLogger("LOG")
 
 	ConnectionMgr = registerNewSubLogger("CONNECTION")
@@ -182,4 +254,5 @@ func init() {
 	Trade = registerNewSubLogger("TRADE")
 	Fill = registerNewSubLogger("FILL")
 	Currency = registerNewSubLogger("CURRENCY")
+	mu.Unlock()
 }
