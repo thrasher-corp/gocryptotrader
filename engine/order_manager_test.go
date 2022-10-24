@@ -98,7 +98,7 @@ func (f omfExchange) GetOrderInfo(ctx context.Context, orderID string, pair curr
 }
 
 // GetActiveOrders overrides the function used by processOrders to return 1 active order
-func (f omfExchange) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
+func (f omfExchange) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
 	return []order.Detail{{
 		Exchange:    testExchange,
 		Pair:        currency.Pair{Base: currency.BTC, Quote: currency.USD},

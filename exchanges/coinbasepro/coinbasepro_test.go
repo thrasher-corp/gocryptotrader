@@ -441,6 +441,7 @@ func TestGetActiveOrders(t *testing.T) {
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Pairs:     []currency.Pair{testPair},
+		Side:      order.AnySide,
 	}
 
 	_, err := c.GetActiveOrders(context.Background(), &getOrdersRequest)
@@ -456,6 +457,7 @@ func TestGetOrderHistory(t *testing.T) {
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Pairs:     []currency.Pair{testPair},
+		Side:      order.AnySide,
 	}
 
 	_, err := c.GetOrderHistory(context.Background(), &getOrdersRequest)

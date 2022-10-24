@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"runtime"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -37,7 +36,7 @@ func main() {
 	flag.BoolVar(&settings.EnableAllPairs, "enableallpairs", false, "enables all pairs for enabled exchanges")
 	flag.BoolVar(&settings.EnablePortfolioManager, "portfoliomanager", true, "enables the portfolio manager")
 	flag.BoolVar(&settings.EnableDataHistoryManager, "datahistorymanager", false, "enables the data history manager")
-	flag.DurationVar(&settings.PortfolioManagerDelay, "portfoliomanagerdelay", time.Duration(0), "sets the portfolio managers sleep delay between updates")
+	flag.DurationVar(&settings.PortfolioManagerDelay, "portfoliomanagerdelay", 0, "sets the portfolio managers sleep delay between updates")
 	flag.BoolVar(&settings.EnableGRPC, "grpc", true, "enables the grpc server")
 	flag.BoolVar(&settings.EnableGRPCProxy, "grpcproxy", false, "enables the grpc proxy server")
 	flag.BoolVar(&settings.EnableGRPCShutdown, "grpcshutdown", false, "enables gRPC bot instance shutdown functionality")
@@ -55,7 +54,7 @@ func main() {
 	flag.BoolVar(&settings.EnableConnectivityMonitor, "connectivitymonitor", true, "enables the connectivity monitor")
 	flag.BoolVar(&settings.EnableDatabaseManager, "databasemanager", true, "enables database manager")
 	flag.BoolVar(&settings.EnableGCTScriptManager, "gctscriptmanager", true, "enables gctscript manager")
-	flag.DurationVar(&settings.EventManagerDelay, "eventmanagerdelay", time.Duration(0), "sets the event managers sleep delay between event checking")
+	flag.DurationVar(&settings.EventManagerDelay, "eventmanagerdelay", 0, "sets the event managers sleep delay between event checking")
 	flag.BoolVar(&settings.EnableNTPClient, "ntpclient", true, "enables the NTP client to check system clock drift")
 	flag.BoolVar(&settings.EnableDispatcher, "dispatch", true, "enables the dispatch system")
 	flag.BoolVar(&settings.EnableCurrencyStateManager, "currencystatemanager", true, "enables the currency state manager")
@@ -91,7 +90,7 @@ func main() {
 	flag.BoolVar(&settings.EnableExchangeHTTPRateLimiter, "ratelimiter", true, "enables the rate limiter for HTTP requests")
 	flag.IntVar(&settings.MaxHTTPRequestJobsLimit, "requestjobslimit", int(request.DefaultMaxRequestJobs), "sets the max amount of jobs the HTTP request package stores")
 	flag.IntVar(&settings.RequestMaxRetryAttempts, "httpmaxretryattempts", request.DefaultMaxRetryAttempts, "sets the number of retry attempts after a retryable HTTP failure")
-	flag.DurationVar(&settings.HTTPTimeout, "httptimeout", time.Duration(0), "sets the HTTP timeout value for HTTP requests")
+	flag.DurationVar(&settings.HTTPTimeout, "httptimeout", 0, "sets the HTTP timeout value for HTTP requests")
 	flag.StringVar(&settings.HTTPUserAgent, "httpuseragent", "", "sets the HTTP user agent")
 	flag.StringVar(&settings.HTTPProxy, "httpproxy", "", "sets the HTTP proxy server")
 	flag.BoolVar(&settings.EnableExchangeHTTPDebugging, "exchangehttpdebugging", false, "sets the exchanges HTTP debugging")
@@ -99,7 +98,7 @@ func main() {
 	flag.IntVar(&settings.AlertSystemPreAllocationCommsBuffer, "alertbuffer", alert.PreAllocCommsDefaultBuffer, "sets the size of the pre-allocation communications buffer")
 
 	// Common tuning settings
-	flag.DurationVar(&settings.GlobalHTTPTimeout, "globalhttptimeout", time.Duration(0), "sets common HTTP timeout value for HTTP requests")
+	flag.DurationVar(&settings.GlobalHTTPTimeout, "globalhttptimeout", 0, "sets common HTTP timeout value for HTTP requests")
 	flag.StringVar(&settings.GlobalHTTPUserAgent, "globalhttpuseragent", "", "sets the common HTTP client's user agent")
 	flag.StringVar(&settings.GlobalHTTPProxy, "globalhttpproxy", "", "sets the common HTTP client's proxy server")
 
@@ -142,14 +141,16 @@ func main() {
 
 	engine.PrintSettings(&engine.Bot.Settings)
 	if err = engine.Bot.Start(); err != nil {
-		gctlog.Errorf(gctlog.Global, "Unable to start bot engine. Error: %s\n", err)
-		os.Exit(1)
+		errClose := gctlog.CloseLogger()
+		if errClose != nil {
+			log.Printf("Unable to close logger. Error: %s\n", errClose)
+		}
+		log.Fatalf("Unable to start bot engine. Error: %s\n", err)
 	}
 
 	go waitForInterupt(settings.Shutdown)
 	<-settings.Shutdown
 	engine.Bot.Stop()
-	gctlog.Infoln(gctlog.Global, "Exiting.")
 }
 
 func waitForInterupt(waiter chan<- struct{}) {

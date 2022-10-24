@@ -100,22 +100,24 @@ func (p Pairs) MarshalJSON() ([]byte, error) {
 	return json.Marshal(p.Join())
 }
 
-// Upper updates the original pairs and returns the pairs for convenience if
-// needed.
+// Upper updates and returns the entire slice of pairs to upper casing
+// NOTE: Do not duplicate slice reference as this can cause race issues.
 func (p Pairs) Upper() Pairs {
+	newSlice := make(Pairs, len(p))
 	for i := range p {
-		p[i] = p[i].Upper()
+		newSlice[i] = p[i].Upper()
 	}
-	return p
+	return newSlice
 }
 
-// Lower updates the original pairs and returns the pairs for convenience if
-// needed.
+// Lower updates and returns the entire slice of pairs to upper casing
+// NOTE: Do not duplicate slice reference as this can cause race issues.
 func (p Pairs) Lower() Pairs {
+	newSlice := make(Pairs, len(p))
 	for i := range p {
-		p[i] = p[i].Lower()
+		newSlice[i] = p[i].Lower()
 	}
-	return p
+	return newSlice
 }
 
 // Contains checks to see if a specified pair exists inside a currency pair
