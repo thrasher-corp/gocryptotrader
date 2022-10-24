@@ -710,8 +710,7 @@ func (d *Deribit) GetAccountSummary(ctx context.Context, currency string, extend
 	params.Set("currency", currency)
 	params.Set("extended", strconv.FormatBool(extended))
 	var resp AccountSummaryData
-	return &resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
-		common.EncodeURLValues(getAccountSummary, params), params, &resp)
+	return &resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet, getAccountSummary, params, &resp)
 }
 
 // CancelWithdrawal cancels withdrawal request for a given currency by its id
@@ -745,8 +744,7 @@ func (d *Deribit) CancelTransferByID(ctx context.Context, currency, tfa string, 
 	}
 	params.Set("id", strconv.FormatInt(id, 10))
 	var resp AccountSummaryData
-	return &resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
-		common.EncodeURLValues(cancelTransferByID, params), params, &resp)
+	return &resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet, cancelTransferByID, params, &resp)
 }
 
 // CreateDepositAddress creates a deposit address for the currency requested
@@ -836,6 +834,10 @@ func (d *Deribit) SubmitTransferToSubAccount(ctx context.Context, currency strin
 	if amount <= 0 {
 		return nil, errInvalidAmount
 	}
+	if destinationID <= 0 {
+		return nil, errors.New("invalid destination address")
+	}
+	params.Set("destination", strconv.FormatInt(destinationID, 10))
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	var resp TransferData
 	return &resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
@@ -855,6 +857,10 @@ func (d *Deribit) SubmitTransferToUser(ctx context.Context, currency, tfa string
 	if tfa != "" {
 		params.Set("tfa", tfa)
 	}
+	if destinationID <= 0 {
+		return nil, errors.New("invalid destination address")
+	}
+	params.Set("destination", strconv.FormatInt(destinationID, 10))
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	var resp TransferData
 	return &resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
@@ -1168,7 +1174,7 @@ func (d *Deribit) GetPositions(ctx context.Context, currency, kind string) ([]Po
 }
 
 // GetTransactionLog gets transaction logs' data
-func (d *Deribit) GetTransactionLog(ctx context.Context, currency, query string, startTime, endTime time.Time, count, continuation int64) ([]TransactionsData, error) {
+func (d *Deribit) GetTransactionLog(ctx context.Context, currency, query string, startTime, endTime time.Time, count, continuation int64) (*TransactionsData, error) {
 	currency = strings.ToUpper(currency)
 	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
 		return nil, errInvalidCurrency
@@ -1194,9 +1200,8 @@ func (d *Deribit) GetTransactionLog(ctx context.Context, currency, query string,
 	if continuation != 0 {
 		params.Set("continuation", strconv.FormatInt(continuation, 10))
 	}
-	var resp []TransactionsData
-	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
-		getTransactionLog, params, &resp)
+	var resp TransactionsData
+	return &resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet, getTransactionLog, params, &resp)
 }
 
 // GetUserLocks retrieves information about locks on user account.
@@ -1218,18 +1223,33 @@ func (d *Deribit) ListAPIKeys(ctx context.Context, tfa string) ([]APIKeyData, er
 
 // RemoveAPIKey removes api key vid ID
 func (d *Deribit) RemoveAPIKey(ctx context.Context, id int64) (string, error) {
+	if id <= 0 {
+		return "", fmt.Errorf("%w, invalid api key id", errInvalidID)
+	}
 	params := url.Values{}
 	params.Set("id", strconv.FormatInt(id, 10))
-	var resp string
-	err := d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
-		removeAPIKey, params, &resp)
+	var resp interface{}
+	err := d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet, removeAPIKey, params, &resp)
 	if err != nil {
 		return "", err
+	}
+	_, ok := resp.(map[string]interface{})
+	if ok {
+		data, err := json.Marshal(resp)
+		if err != nil {
+			return "", err
+		}
+		var respo TFAChallenge
+		err = json.Unmarshal(data, &respo)
+		if err != nil {
+			return "", err
+		}
+		return string(data), nil
 	}
 	if resp != "ok" {
 		return "", fmt.Errorf("removal of the api key requested failed")
 	}
-	return resp, nil
+	return "ok", nil
 }
 
 // RemoveSubAccount removes a subaccount given its id
@@ -1290,16 +1310,29 @@ func (d *Deribit) SetEmailForSubAccount(ctx context.Context, sid int64, email st
 	params := url.Values{}
 	params.Set("sid", strconv.FormatInt(sid, 10))
 	params.Set("email", email)
-	var resp string
+	var resp interface{}
 	err := d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
 		setEmailForSubAccount, params, &resp)
 	if err != nil {
 		return "", err
 	}
+	_, ok := resp.(map[string]interface{})
+	if ok {
+		data, err := json.Marshal(resp)
+		if err != nil {
+			return "", err
+		}
+		var respo TFAChallenge
+		err = json.Unmarshal(data, &respo)
+		if err != nil {
+			return "", err
+		}
+		return string(data), nil
+	}
 	if resp != "ok" {
 		return "", fmt.Errorf("could not link email (%v) to subaccount %v", email, sid)
 	}
-	return resp, nil
+	return "resp", nil
 }
 
 // SetEmailLanguage sets a requested language for an email
@@ -1332,16 +1365,29 @@ func (d *Deribit) SetPasswordForSubAccount(ctx context.Context, sid int64, passw
 	params := url.Values{}
 	params.Set("password", password)
 	params.Set("sid", strconv.FormatInt(sid, 10))
-	var resp string
+	var resp interface{}
 	err := d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
 		setPasswordForSubAccount, params, &resp)
 	if err != nil {
 		return "", err
 	}
+	_, ok := resp.(map[string]interface{})
+	if ok {
+		data, err := json.Marshal(resp)
+		if err != nil {
+			return "", err
+		}
+		var respo TFAChallenge
+		err = json.Unmarshal(data, &respo)
+		if err != nil {
+			return "", err
+		}
+		return string(data), nil
+	}
 	if resp != "ok" {
 		return "", fmt.Errorf("could not set the provided password to subaccount %v", sid)
 	}
-	return resp, nil
+	return "ok", nil
 }
 
 // ToggleNotificationsFromSubAccount toggles the notifications from a subaccount specified
@@ -1484,11 +1530,11 @@ func (d *Deribit) SubmitSell(ctx context.Context, instrument, orderType, label, 
 	if maxShow != 0 {
 		params.Set("max_show", strconv.FormatFloat(maxShow, 'f', -1, 64))
 	}
-	postOnlyStr := falseStr
-	if postOnly {
-		postOnlyStr = trueStr
+	if price <= 0 {
+		return nil, errInvalidPrice
 	}
-	params.Set("post_only", postOnlyStr)
+	params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
+	params.Set("post_only", strconv.FormatBool(postOnly))
 	rejectPostOnlyStr := falseStr
 	if rejectPostOnly {
 		rejectPostOnlyStr = trueStr
@@ -1556,8 +1602,7 @@ func (d *Deribit) SubmitEdit(ctx context.Context, orderID, advanced string, amou
 		params.Set("advanced", advanced)
 	}
 	var resp PrivateTradeData
-	return &resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
-		editByLabel, params, &resp)
+	return &resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet, submitEdit, params, &resp)
 }
 
 // EditOrderByLabel submits an edit order request sorted via label
@@ -1677,7 +1722,7 @@ func (d *Deribit) SubmitClosePosition(ctx context.Context, instrument, orderType
 	params := url.Values{}
 	params.Set("instrument_name", instrument)
 	if orderType != "" {
-		params.Set("order_type", orderType)
+		params.Set("type", orderType)
 	}
 	params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	var resp PrivateTradeData
@@ -1814,16 +1859,15 @@ func (d *Deribit) GetOrderHistoryByInstrument(ctx context.Context, instrument st
 
 // GetOrderMarginsByID sends a request to fetch order margins data according to their ids
 func (d *Deribit) GetOrderMarginsByID(ctx context.Context, ids []string) ([]OrderData, error) {
-	var idsString string
-	for x := range ids {
-		if len(ids)-1 == x {
-			idsString += ids[x]
-			break
-		}
-		idsString += ids[x] + ","
+	if len(ids) == 0 {
+		return nil, fmt.Errorf("%w, order ids cannot be empty", errInvalidID)
 	}
 	params := url.Values{}
-	params.Set("ids", idsString)
+	values, err := json.Marshal(ids)
+	if err != nil {
+		return nil, err
+	}
+	params.Set("ids", string(values))
 	var resp []OrderData
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
 		getOrderMarginByIDs, params, &resp)
@@ -1838,7 +1882,7 @@ func (d *Deribit) GetOrderState(ctx context.Context, orderID string) (*OrderData
 	params.Set("order_id", orderID)
 	var resp OrderData
 	return &resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
-		getOrderHistoryByInstrument, params, &resp)
+		getOrderState, params, &resp)
 }
 
 // GetTriggerOrderHistory sends a request to fetch order state of the order id provided
@@ -1993,7 +2037,7 @@ func (d *Deribit) GetUserTradesByOrder(ctx context.Context, orderID, sorting str
 	}
 	var resp UserTradesData
 	return &resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
-		getUserTradesByInstrumentAndTime, params, &resp)
+		getUserTradesByOrder, params, &resp)
 }
 
 // ResetMMP sends a request to reset MMP for a currency provided
@@ -2029,7 +2073,7 @@ func (d *Deribit) SendRFQ(ctx context.Context, instrumentName string, amount flo
 		params.Set("side", side.String())
 	}
 	var resp string
-	err := d.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues(sendRFQ, params), &resp)
+	err := d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet, sendRFQ, params, &resp)
 	if err != nil {
 		return "", err
 	}
@@ -2142,6 +2186,7 @@ func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, meth
 		ID      int64           `json:"id"`
 		Data    json.RawMessage `json:"result"`
 	}
+	println(endpoint + deribitAPIVersion + common.EncodeURLValues(path, data))
 	item := &request.Item{
 		Method:        method,
 		Path:          endpoint + deribitAPIVersion + common.EncodeURLValues(path, data),

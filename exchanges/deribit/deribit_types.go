@@ -709,7 +709,7 @@ type PositionData struct {
 	RealizedProfitLoss        float64 `json:"realized_profit_loss"`
 	SettlementPrice           float64 `json:"settlement_price"`
 	Size                      float64 `json:"size"`
-	SizeCurrency              string  `json:"size_currency"`
+	SizeCurrency              float64 `json:"size_currency"`
 	TotalProfitLoss           float64 `json:"total_profit_loss"`
 }
 
@@ -994,4 +994,15 @@ type BlockTradeMoveResponse struct {
 	InstrumentName      string  `json:"instrument_name"`
 	Direction           string  `json:"direction"`
 	Amount              float64 `json:"amount"`
+}
+
+// TFAChallenge represents response to Remove API Key.
+type TFAChallenge struct {
+	Challenge                        string `json:"challenge"`
+	RpID                             string `json:"rp_id"`
+	SecurityKeyAuthorizationRequired bool   `json:"security_key_authorization_required"`
+	SecurityKeys                     []struct {
+		Name string `json:"name"`
+		Type string `json:"type"`
+	} `json:"security_keys"`
 }

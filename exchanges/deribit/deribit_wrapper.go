@@ -829,7 +829,7 @@ func (d *Deribit) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (d *Deribit) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, accountID string, chain string) (*deposit.Address, error) {
+func (d *Deribit) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, accountID, chain string) (*deposit.Address, error) {
 	addressData, err := d.GetCurrentDepositAddress(ctx, cryptocurrency.String())
 	return &deposit.Address{
 		Address: addressData.Address,
@@ -910,18 +910,6 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 				if !strings.EqualFold(ordersData[y].OrderState, "open") {
 					continue
 				}
-				// switch ordersData[y].OrderState {
-				// case "filled":
-				// 	orderStatus = order.Filled
-				// case "rejected":
-				// 	orderStatus = order.Rejected
-				// case "cancelled":
-				// 	orderStatus = order.Cancelled
-				// case "untriggered":
-				// 	orderStatus = order.UnknownStatus
-				// default:
-				// 	return resp, fmt.Errorf("%v: orderStatus %s not supported", d.Name, ordersData[y].OrderState)
-				// }
 				resp = append(resp, order.Detail{
 					AssetType:       asset.Futures,
 					Exchange:        d.Name,
