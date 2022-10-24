@@ -5595,13 +5595,20 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 		Exchange: exch,
 		Pair:     pair,
 		Asset:    as,
-		Start:    r.Start.AsTime(),
-		End:      r.End.AsTime(),
-		Interval: kline.Interval(r.Interval * int64(time.Second)),
-		Amount:   r.Amount,
-		// MaxSlippage:             r.MaxSlippage,
-		// Accumulation:            r.Accumulate,
+		// Simulate: Simulation,
+		Start:                   r.Start.AsTime(),
+		End:                     r.End.AsTime(),
 		AllowTradingPastEndTime: r.AllowTradingPastEnd,
+		Interval:                kline.Interval(r.Interval * int64(time.Second)),
+		Amount:                  r.Amount,
+		// FullAmount: ,
+		// PriceLimit: ,
+
+		MaxImpactSlippage:  r.MaxSlippage,
+		MaxNominalSlippage: r.MaxSlippage,
+		// ReduceOnly: ,
+		Buy: r.Accumulate,
+		// MaxSpreadpercentage: ,
 	})
 	if err != nil {
 		return err
