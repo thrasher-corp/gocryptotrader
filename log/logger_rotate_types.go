@@ -2,7 +2,6 @@ package log
 
 import (
 	"os"
-	"sync"
 )
 
 const (
@@ -18,5 +17,4 @@ type Rotate struct {
 
 	size   int64
 	output *os.File
-	mu     sync.Mutex
 }

@@ -955,6 +955,8 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 	request := &order.GetOrdersRequest{
 		Pairs:     []currency.Pair{cp},
 		AssetType: a,
+		Type:      order.AnyType,
+		Side:      order.AnySide,
 	}
 	if !start.IsZero() {
 		request.StartTime = start
@@ -1295,7 +1297,11 @@ func (s *RPCServer) SimulateOrder(ctx context.Context, r *gctrpc.SimulateOrderRe
 		buy = false
 	}
 
-	result := o.SimulateOrder(r.Amount, buy)
+	result, err := o.SimulateOrder(r.Amount, buy)
+	if err != nil {
+		return nil, err
+	}
+
 	var resp gctrpc.SimulateOrderResponse
 	for x := range result.Orders {
 		resp.Orders = append(resp.Orders, &gctrpc.OrderbookItem{
@@ -1330,12 +1336,17 @@ func (s *RPCServer) WhaleBomb(ctx context.Context, r *gctrpc.WhaleBombRequest) (
 		return nil, err
 	}
 
-	err = checkParams(r.Exchange, exch, asset.Spot, p)
+	a, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
 	}
 
-	o, err := exch.FetchOrderbook(ctx, p, asset.Spot)
+	err = checkParams(r.Exchange, exch, a, p)
+	if err != nil {
+		return nil, err
+	}
+
+	o, err := exch.FetchOrderbook(ctx, p, a)
 	if err != nil {
 		return nil, err
 	}
@@ -5330,4 +5341,227 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 	}
 
 	return resp, nil
+}
+
+// GetOrderbookMovement using the requested amount simulates a buy or sell and
+// returns the nominal/impact percentages and costings.
+func (s *RPCServer) GetOrderbookMovement(ctx context.Context, r *gctrpc.GetOrderbookMovementRequest) (*gctrpc.GetOrderbookMovementResponse, error) {
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	as, err := asset.New(r.Asset)
+	if err != nil {
+		return nil, err
+	}
+
+	pair, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+
+	err = checkParams(r.Exchange, exch, as, pair)
+	if err != nil {
+		return nil, err
+	}
+
+	depth, err := orderbook.GetDepth(exch.GetName(), pair, as)
+	if err != nil {
+		return nil, err
+	}
+
+	isRest, err := depth.IsRESTSnapshot()
+	if err != nil {
+		return nil, err
+	}
+
+	updateProtocol := "WEBSOCKET"
+	if isRest {
+		updateProtocol = "REST"
+	}
+
+	var move *orderbook.Movement
+	var bought, sold, side string
+	if r.Sell {
+		move, err = depth.HitTheBidsFromBest(r.Amount, r.Purchase)
+		bought = pair.Quote.Upper().String()
+		sold = pair.Base.Upper().String()
+		side = order.Bid.String()
+	} else {
+		move, err = depth.LiftTheAsksFromBest(r.Amount, r.Purchase)
+		bought = pair.Base.Upper().String()
+		sold = pair.Quote.Upper().String()
+		side = order.Ask.String()
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &gctrpc.GetOrderbookMovementResponse{
+		NominalPercentage:         move.NominalPercentage,
+		ImpactPercentage:          move.ImpactPercentage,
+		SlippageCost:              move.SlippageCost,
+		CurrencyBought:            bought,
+		Bought:                    move.Purchased,
+		CurrencySold:              sold,
+		Sold:                      move.Sold,
+		SideAffected:              side,
+		UpdateProtocol:            updateProtocol,
+		FullOrderbookSideConsumed: move.FullBookSideConsumed,
+		NoSlippageOccurred:        move.ImpactPercentage == 0,
+		StartPrice:                move.StartPrice,
+		EndPrice:                  move.EndPrice,
+		AverageOrderCost:          move.AverageOrderCost,
+	}, nil
+}
+
+// GetOrderbookAmountByNominal using the requested nominal percentage requirement
+// returns the amount on orderbook that can fit without exceeding that value.
+func (s *RPCServer) GetOrderbookAmountByNominal(ctx context.Context, r *gctrpc.GetOrderbookAmountByNominalRequest) (*gctrpc.GetOrderbookAmountByNominalResponse, error) {
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	as, err := asset.New(r.Asset)
+	if err != nil {
+		return nil, err
+	}
+
+	pair, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+
+	err = checkParams(r.Exchange, exch, as, pair)
+	if err != nil {
+		return nil, err
+	}
+
+	depth, err := orderbook.GetDepth(exch.GetName(), pair, as)
+	if err != nil {
+		return nil, err
+	}
+
+	isRest, err := depth.IsRESTSnapshot()
+	if err != nil {
+		return nil, err
+	}
+
+	updateProtocol := "WEBSOCKET"
+	if isRest {
+		updateProtocol = "REST"
+	}
+
+	var nominal *orderbook.Movement
+	var selling, buying, side string
+	if r.Sell {
+		nominal, err = depth.HitTheBidsByNominalSlippageFromBest(r.NominalPercentage)
+		selling = pair.Upper().Base.String()
+		buying = pair.Upper().Quote.String()
+		side = order.Bid.String()
+	} else {
+		nominal, err = depth.LiftTheAsksByNominalSlippageFromBest(r.NominalPercentage)
+		buying = pair.Upper().Base.String()
+		selling = pair.Upper().Quote.String()
+		side = order.Ask.String()
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &gctrpc.GetOrderbookAmountByNominalResponse{
+		AmountRequired:                       nominal.Sold,
+		CurrencySelling:                      selling,
+		AmountReceived:                       nominal.Purchased,
+		CurrencyBuying:                       buying,
+		SideAffected:                         side,
+		ApproximateNominalSlippagePercentage: nominal.NominalPercentage,
+		UpdateProtocol:                       updateProtocol,
+		FullOrderbookSideConsumed:            nominal.FullBookSideConsumed,
+		StartPrice:                           nominal.StartPrice,
+		EndPrice:                             nominal.EndPrice,
+		AverageOrderCost:                     nominal.AverageOrderCost,
+	}, nil
+}
+
+// GetOrderbookAmountByImpact using the requested impact percentage requirement
+// determines the amount on orderbook that can fit that will slip the orderbook.
+func (s *RPCServer) GetOrderbookAmountByImpact(ctx context.Context, r *gctrpc.GetOrderbookAmountByImpactRequest) (*gctrpc.GetOrderbookAmountByImpactResponse, error) {
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	as, err := asset.New(r.Asset)
+	if err != nil {
+		return nil, err
+	}
+
+	pair, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+
+	err = checkParams(r.Exchange, exch, as, pair)
+	if err != nil {
+		return nil, err
+	}
+
+	depth, err := orderbook.GetDepth(exch.GetName(), pair, as)
+	if err != nil {
+		return nil, err
+	}
+
+	isRest, err := depth.IsRESTSnapshot()
+	if err != nil {
+		return nil, err
+	}
+
+	updateProtocol := "WEBSOCKET"
+	if isRest {
+		updateProtocol = "REST"
+	}
+
+	var impact *orderbook.Movement
+	var selling, buying, side string
+	if r.Sell {
+		impact, err = depth.HitTheBidsByImpactSlippageFromBest(r.ImpactPercentage)
+		selling = pair.Upper().Base.String()
+		buying = pair.Upper().Quote.String()
+		side = order.Bid.String()
+	} else {
+		impact, err = depth.LiftTheAsksByImpactSlippageFromBest(r.ImpactPercentage)
+		buying = pair.Upper().Base.String()
+		selling = pair.Upper().Quote.String()
+		side = order.Ask.String()
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &gctrpc.GetOrderbookAmountByImpactResponse{
+		AmountRequired:                      impact.Sold,
+		CurrencySelling:                     selling,
+		AmountReceived:                      impact.Purchased,
+		CurrencyBuying:                      buying,
+		SideAffected:                        side,
+		ApproximateImpactSlippagePercentage: impact.ImpactPercentage,
+		UpdateProtocol:                      updateProtocol,
+		FullOrderbookSideConsumed:           impact.FullBookSideConsumed,
+		StartPrice:                          impact.StartPrice,
+		EndPrice:                            impact.EndPrice,
+		AverageOrderCost:                    impact.AverageOrderCost,
+	}, nil
 }

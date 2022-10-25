@@ -34,6 +34,11 @@ func (p *Pair) UnmarshalJSON(d []byte) error {
 		return err
 	}
 
+	if pair == "" {
+		*p = EMPTYPAIR
+		return nil
+	}
+
 	newPair, err := NewPairFromString(pair)
 	if err != nil {
 		return err

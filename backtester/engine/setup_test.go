@@ -2,6 +2,7 @@ package engine
 
 import (
 	"errors"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/dollarcostaverage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
@@ -128,7 +130,8 @@ func TestNewFromConfig(t *testing.T) {
 func TestLoadDataAPI(t *testing.T) {
 	t.Parallel()
 	bt := BackTest{
-		Reports: &report.Data{},
+		Reports:   &report.Data{},
+		Statistic: &statistics.Statistic{},
 	}
 	cp := currency.NewPair(currency.BTC, currency.USDT)
 	cfg := &config.Config{
@@ -185,7 +188,8 @@ func TestLoadDataAPI(t *testing.T) {
 func TestLoadDataDatabase(t *testing.T) {
 	t.Parallel()
 	bt := BackTest{
-		Reports: &report.Data{},
+		Reports:   &report.Data{},
+		Statistic: &statistics.Statistic{},
 	}
 	cp := currency.NewPair(currency.BTC, currency.USDT)
 	cfg := &config.Config{
@@ -253,7 +257,8 @@ func TestLoadDataDatabase(t *testing.T) {
 func TestLoadDataCSV(t *testing.T) {
 	t.Parallel()
 	bt := BackTest{
-		Reports: &report.Data{},
+		Reports:   &report.Data{},
+		Statistic: &statistics.Statistic{},
 	}
 	cp := currency.NewPair(currency.BTC, currency.USDT)
 	cfg := &config.Config{
@@ -310,8 +315,9 @@ func TestLoadDataCSV(t *testing.T) {
 func TestLoadDataLive(t *testing.T) {
 	t.Parallel()
 	bt := BackTest{
-		Reports:  &report.Data{},
-		shutdown: make(chan struct{}),
+		Reports:   &report.Data{},
+		Statistic: &statistics.Statistic{},
+		shutdown:  make(chan struct{}),
 	}
 	cp := currency.NewPair(currency.BTC, currency.USDT)
 	cfg := &config.Config{
@@ -366,4 +372,40 @@ func TestLoadDataLive(t *testing.T) {
 		t.Error(err)
 	}
 	bt.Stop()
+}
+
+func TestNewBacktesterFromConfigs(t *testing.T) {
+	t.Parallel()
+	_, err := NewBacktesterFromConfigs(nil, nil)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
+	}
+
+	strat1 := filepath.Join("..", "config", "strategyexamples", "dca-api-candles.strat")
+	cfg, err := config.ReadStrategyConfigFromFile(strat1)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	dc, err := config.GenerateDefaultConfig()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	_, err = NewBacktesterFromConfigs(cfg, nil)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
+	}
+
+	_, err = NewBacktesterFromConfigs(nil, dc)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
+	}
+
+	bt, err := NewBacktesterFromConfigs(cfg, dc)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if bt.MetaData.DateLoaded.IsZero() {
+		t.Errorf("received '%v' expected '%v'", bt.MetaData.DateLoaded, "a date")
+	}
 }

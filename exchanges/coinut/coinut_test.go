@@ -264,6 +264,7 @@ func TestGetActiveOrders(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
+		Side:      order.AnySide,
 	}
 	_, err := c.GetActiveOrders(context.Background(), &getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
@@ -276,8 +277,8 @@ func TestGetOrderHistoryWrapper(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
-		Pairs: []currency.Pair{currency.NewPair(currency.BTC,
-			currency.USD)},
+		Pairs:     []currency.Pair{currency.NewPair(currency.BTC, currency.USD)},
+		Side:      order.AnySide,
 	}
 
 	_, err := c.GetOrderHistory(context.Background(), &getOrdersRequest)

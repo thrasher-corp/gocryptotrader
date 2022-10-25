@@ -817,6 +817,7 @@ func TestGetOrderHistory(t *testing.T) {
 		Type:      order.AnyType,
 		Pairs:     []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
 		AssetType: asset.Spot,
+		Side:      order.AnySide,
 	}
 	_, err := h.GetOrderHistory(context.Background(), &getOrdersRequest)
 	if err != nil {
@@ -2009,6 +2010,7 @@ func TestGetActiveOrders(t *testing.T) {
 		AssetType: asset.Spot,
 		Type:      order.AnyType,
 		Pairs:     []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
+		Side:      order.AnySide,
 	}
 
 	_, err := h.GetActiveOrders(context.Background(), &getOrdersRequest)

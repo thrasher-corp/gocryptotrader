@@ -111,7 +111,7 @@ func (t *TimePeriodCalculator) calculatePeriods() {
 		return
 	}
 	iterateDateMate := t.start
-	for !iterateDateMate.Equal(t.end) && !iterateDateMate.After(t.end) {
+	for !iterateDateMate.Equal(t.end) && iterateDateMate.Before(t.end) {
 		tp := TimePeriod{
 			Time:        iterateDateMate,
 			dataInRange: false,

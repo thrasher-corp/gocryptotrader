@@ -2556,6 +2556,231 @@
         ]
       }
     },
+    "/v1/getorderbookamountbyimpact": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetOrderbookAmountByImpact",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetOrderbookAmountByImpactResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "impactPercentage",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "sell",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "requiresRestOrderbook",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
+    "/v1/getorderbookamountbynominal": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetOrderbookAmountByNominal",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetOrderbookAmountByNominalResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "nominalPercentage",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "sell",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "requiresRestOrderbook",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
+    "/v1/getorderbookmovement": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetOrderbookMovement",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetOrderbookMovementResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "amount",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "sell",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "requiresRestOrderbook",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "purchase",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
     "/v1/getorderbooks": {
       "get": {
         "operationId": "GoCryptoTraderService_GetOrderbooks",
@@ -5527,6 +5752,149 @@
         }
       }
     },
+    "gctrpcGetOrderbookAmountByImpactResponse": {
+      "type": "object",
+      "properties": {
+        "amountRequired": {
+          "type": "number",
+          "format": "double"
+        },
+        "currencySelling": {
+          "type": "string"
+        },
+        "amountReceived": {
+          "type": "number",
+          "format": "double"
+        },
+        "currencyBuying": {
+          "type": "string"
+        },
+        "startPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "endPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "averageOrderCost": {
+          "type": "number",
+          "format": "double"
+        },
+        "sideAffected": {
+          "type": "string"
+        },
+        "approximateImpactSlippagePercentage": {
+          "type": "number",
+          "format": "double"
+        },
+        "updateProtocol": {
+          "type": "string"
+        },
+        "fullOrderbookSideConsumed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "gctrpcGetOrderbookAmountByNominalResponse": {
+      "type": "object",
+      "properties": {
+        "amountRequired": {
+          "type": "number",
+          "format": "double"
+        },
+        "currencySelling": {
+          "type": "string"
+        },
+        "amountReceived": {
+          "type": "number",
+          "format": "double"
+        },
+        "currencyBuying": {
+          "type": "string"
+        },
+        "startPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "endPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "averageOrderCost": {
+          "type": "number",
+          "format": "double"
+        },
+        "sideAffected": {
+          "type": "string"
+        },
+        "approximateNominalSlippagePercentage": {
+          "type": "number",
+          "format": "double"
+        },
+        "updateProtocol": {
+          "type": "string"
+        },
+        "fullOrderbookSideConsumed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "gctrpcGetOrderbookMovementResponse": {
+      "type": "object",
+      "properties": {
+        "nominalPercentage": {
+          "type": "number",
+          "format": "double"
+        },
+        "impactPercentage": {
+          "type": "number",
+          "format": "double"
+        },
+        "slippageCost": {
+          "type": "number",
+          "format": "double"
+        },
+        "currencyBought": {
+          "type": "string"
+        },
+        "bought": {
+          "type": "number",
+          "format": "double"
+        },
+        "currencySold": {
+          "type": "string"
+        },
+        "sold": {
+          "type": "number",
+          "format": "double"
+        },
+        "sideAffected": {
+          "type": "string"
+        },
+        "updateProtocol": {
+          "type": "string"
+        },
+        "fullOrderbookSideConsumed": {
+          "type": "boolean"
+        },
+        "startPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "endPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "noSlippageOccurred": {
+          "type": "boolean"
+        },
+        "averageOrderCost": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
     "gctrpcGetOrderbookRequest": {
       "type": "object",
       "properties": {
@@ -6467,6 +6835,9 @@
           "format": "double"
         },
         "side": {
+          "type": "string"
+        },
+        "assetType": {
           "type": "string"
         }
       }

@@ -1099,7 +1099,16 @@ func TestGetActiveOrders(t *testing.T) {
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "/")
 	orderReq.Pairs = append(orderReq.Pairs, cp)
 	orderReq.AssetType = asset.Spot
+	orderReq.Side = order.AnySide
+
+	orderReq.Type = order.ImmediateOrCancel
 	_, err := f.GetActiveOrders(context.Background(), &orderReq)
+	if !errors.Is(err, errUnhandledOrderType) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errUnhandledOrderType)
+	}
+
+	orderReq.Type = order.AnyType
+	_, err = f.GetActiveOrders(context.Background(), &orderReq)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1114,7 +1123,23 @@ func TestGetOrderHistory(t *testing.T) {
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "/")
 	orderReq.Pairs = append(orderReq.Pairs, cp)
 	orderReq.AssetType = asset.Spot
+	orderReq.Side = order.AnySide
+	orderReq.Type = order.ImmediateOrCancel
+
 	_, err := f.GetOrderHistory(context.Background(), &orderReq)
+	if !errors.Is(err, errUnhandledOrderType) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errUnhandledOrderType)
+	}
+
+	orderReq.Type = order.AnyType
+	orderReq.Side = order.CouldNotCloseShort
+	_, err = f.GetOrderHistory(context.Background(), &orderReq)
+	if !errors.Is(err, errUnhandledOrderSide) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errUnhandledOrderSide)
+	}
+
+	orderReq.Side = order.AnySide
+	_, err = f.GetOrderHistory(context.Background(), &orderReq)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2744,5 +2769,53 @@ func TestGetFundingPayments(t *testing.T) {
 	_, err = f.getFundingPayments(context.Background(), time.Unix(authEndTime, 0), time.Unix(authStartTime, 0), cp, -1)
 	if err != errStartTimeCannotBeAfterEndTime {
 		t.Errorf("should have thrown errStartTimeCannotBeAfterEndTime, got %v", err)
+	}
+}
+
+func TestGetCustomReferralCodes(t *testing.T) {
+	t.Parallel()
+
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+
+	if _, err := f.GetCustomReferralCodes(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetReferralRebates(t *testing.T) {
+	t.Parallel()
+
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+
+	if _, err := f.GetReferralRebates(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetReferralRebateHistory(t *testing.T) {
+	t.Parallel()
+
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+
+	if _, err := f.GetReferralRebateHistory(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetReferralRebateRate(t *testing.T) {
+	t.Parallel()
+
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+
+	if _, err := f.GetReferralRebateRate(context.Background()); err != nil {
+		t.Fatal(err)
 	}
 }

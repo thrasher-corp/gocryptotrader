@@ -129,6 +129,12 @@ const (
 	spotString            = "spot"
 	futuresString         = "future"
 
+	// Referral endpoints
+	customReferralCodes   = "/custom_referral_codes"
+	referralRebates       = "/referral_rebates"
+	referralRebateHistory = "/referral_rebate_history"
+	referralRebateRate    = "/referral_rebate_rate"
+
 	ratePeriod = time.Second
 	rateLimit  = 30
 )
@@ -1784,4 +1790,36 @@ func (c CollateralWeightHolder) load(code string, total, initial, imfFactor floa
 		Initial:                     initial,
 		InitialMarginFractionFactor: imfFactor,
 	}
+}
+
+// GetCustomReferralCodes returns the user's custom referral codes.
+func (f *FTX) GetCustomReferralCodes(ctx context.Context) ([]CustomReferralCode, error) {
+	resp := struct {
+		Data []CustomReferralCode `json:"result"`
+	}{}
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, customReferralCodes, nil, &resp)
+}
+
+// GetReferralRebates returns the user's referral rebates grouped by account ID.
+func (f *FTX) GetReferralRebates(ctx context.Context) ([]ReferralRebate, error) {
+	resp := struct {
+		Data []ReferralRebate `json:"result"`
+	}{}
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, referralRebates, nil, &resp)
+}
+
+// GetReferralRebateHistory returns the users daily referral rebate history.
+func (f *FTX) GetReferralRebateHistory(ctx context.Context) ([]ReferralRebateHistory, error) {
+	resp := struct {
+		Data []ReferralRebateHistory `json:"result"`
+	}{}
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, referralRebateHistory, nil, &resp)
+}
+
+// GetReferralRebateRate returns the referral rebate rate.
+func (f *FTX) GetReferralRebateRate(ctx context.Context) (float64, error) {
+	resp := struct {
+		Rate float64 `json:"result"`
+	}{}
+	return resp.Rate, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, referralRebateRate, nil, &resp)
 }

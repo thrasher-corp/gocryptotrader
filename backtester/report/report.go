@@ -18,6 +18,9 @@ import (
 // GenerateReport sends final data from statistics to a template
 // to create a lovely final report for someone to view
 func (d *Data) GenerateReport() error {
+	if d.TemplatePath == "" || d.OutputPath == "" {
+		return nil
+	}
 	log.Info(common.Report, "Generating report")
 	err := d.enhanceCandles()
 	if err != nil {
@@ -138,7 +141,7 @@ func (d *Data) enhanceCandles() error {
 			Asset:     lookup.Asset,
 			Pair:      lookup.Pair,
 			Interval:  lookup.Interval,
-			Watermark: fmt.Sprintf("%s - %s - %s", strings.Title(lookup.Exchange), lookup.Asset.String(), lookup.Pair.Upper()), //nolint // Title usage
+			Watermark: fmt.Sprintf("%s - %s - %s", strings.Title(lookup.Exchange), lookup.Asset.String(), lookup.Pair.Upper()), //nolint:staticcheck // Ignore Title usage warning
 		}
 
 		statsForCandles :=

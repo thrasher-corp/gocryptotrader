@@ -247,3 +247,77 @@ func TestWaitForInitialSync(t *testing.T) {
 		t.Fatalf("received %v, but expected: %v", err, nil)
 	}
 }
+
+func TestSyncManagerUpdate(t *testing.T) {
+	t.Parallel()
+	var m *syncManager
+	err := m.Update("", currency.EMPTYPAIR, 1, 47, nil)
+	if !errors.Is(err, ErrNilSubsystem) {
+		t.Fatalf("received %v, but expected: %v", err, ErrNilSubsystem)
+	}
+
+	m = &syncManager{}
+	err = m.Update("", currency.EMPTYPAIR, 1, 47, nil)
+	if !errors.Is(err, ErrSubSystemNotStarted) {
+		t.Fatalf("received %v, but expected: %v", err, ErrSubSystemNotStarted)
+	}
+
+	m.started = 1
+	// not started initial sync
+	err = m.Update("", currency.EMPTYPAIR, 1, 47, nil)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, but expected: %v", err, nil)
+	}
+
+	m.initSyncStarted = 1
+	// orderbook not enabled
+	err = m.Update("", currency.EMPTYPAIR, 1, 1, nil)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, but expected: %v", err, nil)
+	}
+
+	m.config.SynchronizeOrderbook = true
+	// ticker not enabled
+	err = m.Update("", currency.EMPTYPAIR, 1, 0, nil)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, but expected: %v", err, nil)
+	}
+
+	m.config.SynchronizeTicker = true
+	// trades not enabled
+	err = m.Update("", currency.EMPTYPAIR, 1, 2, nil)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, but expected: %v", err, nil)
+	}
+
+	m.config.SynchronizeTrades = true
+	err = m.Update("", currency.EMPTYPAIR, 1, 1336, nil)
+	if !errors.Is(err, errUnknownSyncItem) {
+		t.Fatalf("received %v, but expected: %v", err, errUnknownSyncItem)
+	}
+
+	err = m.Update("", currency.EMPTYPAIR, 1, 1, nil)
+	if !errors.Is(err, errCouldNotSyncNewData) {
+		t.Fatalf("received %v, but expected: %v", err, errCouldNotSyncNewData)
+	}
+
+	m.currencyPairs = append(m.currencyPairs, currencyPairSyncAgent{AssetType: 1})
+	m.initSyncWG.Add(3)
+	// orderbook match
+	err = m.Update("", currency.EMPTYPAIR, 1, 1, errors.New("test"))
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, but expected: %v", err, nil)
+	}
+
+	// ticker match
+	err = m.Update("", currency.EMPTYPAIR, 1, 0, errors.New("test"))
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, but expected: %v", err, nil)
+	}
+
+	// trades match
+	err = m.Update("", currency.EMPTYPAIR, 1, 2, errors.New("test"))
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, but expected: %v", err, nil)
+	}
+}

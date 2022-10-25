@@ -5,122 +5,244 @@ import (
 	"log"
 )
 
-// Info takes a pointer subLogger struct and string sends to newLogEvent
+// Info takes a pointer subLogger struct and string sends to StageLogEvent
 func Info(sl *SubLogger, data string) {
+	mu.RLock()
+	defer mu.RUnlock()
 	fields := sl.getFields()
-	if fields == nil || !fields.info {
+	if fields == nil {
 		return
 	}
-
-	displayError(fields.logger.newLogEvent(data,
-		fields.logger.InfoHeader,
-		fields.name,
-		fields.output))
+	if fields.info {
+		fields.output.StageLogEvent(func() string { return data },
+			fields.logger.InfoHeader,
+			fields.name,
+			fields.logger.Spacer,
+			fields.logger.TimestampFormat,
+			fields.logger.ShowLogSystemName,
+			fields.logger.BypassJobChannelFilledWarning)
+	}
+	logFieldsPool.Put(fields)
 }
 
-// Infoln takes a pointer subLogger struct and interface sends to newLogEvent
+// Infoln takes a pointer subLogger struct and interface sends to StageLogEvent
 func Infoln(sl *SubLogger, v ...interface{}) {
+	mu.RLock()
+	defer mu.RUnlock()
 	fields := sl.getFields()
-	if fields == nil || !fields.info {
+	if fields == nil {
 		return
 	}
-	displayError(fields.logger.newLogEvent(fmt.Sprintln(v...),
-		fields.logger.InfoHeader,
-		fields.name,
-		fields.output))
+	if fields.info {
+		fields.output.StageLogEvent(func() string { return fmt.Sprintln(v...) },
+			fields.logger.InfoHeader,
+			fields.name,
+			fields.logger.Spacer,
+			fields.logger.TimestampFormat,
+			fields.logger.ShowLogSystemName,
+			fields.logger.BypassJobChannelFilledWarning)
+	}
+	logFieldsPool.Put(fields)
 }
 
-// Infof takes a pointer subLogger struct, string & interface formats and sends to Info()
+// Infof takes a pointer subLogger struct, string and interface formats sends to StageLogEvent
 func Infof(sl *SubLogger, data string, v ...interface{}) {
-	Info(sl, fmt.Sprintf(data, v...))
+	mu.RLock()
+	defer mu.RUnlock()
+	fields := sl.getFields()
+	if fields == nil {
+		return
+	}
+	if fields.info {
+		fields.output.StageLogEvent(func() string { return fmt.Sprintf(data, v...) },
+			fields.logger.InfoHeader,
+			fields.name,
+			fields.logger.Spacer,
+			fields.logger.TimestampFormat,
+			fields.logger.ShowLogSystemName,
+			fields.logger.BypassJobChannelFilledWarning)
+	}
+	logFieldsPool.Put(fields)
 }
 
-// Debug takes a pointer subLogger struct and string sends to multiwriter
+// Debug takes a pointer subLogger struct and string sends to StageLogEvent
 func Debug(sl *SubLogger, data string) {
+	mu.RLock()
+	defer mu.RUnlock()
 	fields := sl.getFields()
-	if fields == nil || !fields.debug {
+	if fields == nil {
 		return
 	}
-	displayError(fields.logger.newLogEvent(data,
-		fields.logger.DebugHeader,
-		fields.name,
-		fields.output))
+	if fields.debug {
+		fields.output.StageLogEvent(func() string { return data },
+			fields.logger.DebugHeader,
+			fields.name,
+			fields.logger.Spacer,
+			fields.logger.TimestampFormat,
+			fields.logger.ShowLogSystemName,
+			fields.logger.BypassJobChannelFilledWarning)
+	}
+	logFieldsPool.Put(fields)
 }
 
-// Debugln  takes a pointer subLogger struct, string and interface sends to newLogEvent
+// Debugln takes a pointer subLogger struct, string and interface sends to StageLogEvent
 func Debugln(sl *SubLogger, v ...interface{}) {
+	mu.RLock()
+	defer mu.RUnlock()
 	fields := sl.getFields()
-	if fields == nil || !fields.debug {
+	if fields == nil {
 		return
 	}
-
-	displayError(fields.logger.newLogEvent(fmt.Sprintln(v...),
-		fields.logger.DebugHeader,
-		fields.name,
-		fields.output))
+	if fields.debug {
+		fields.output.StageLogEvent(func() string { return fmt.Sprintln(v...) },
+			fields.logger.DebugHeader,
+			fields.name,
+			fields.logger.Spacer,
+			fields.logger.TimestampFormat,
+			fields.logger.ShowLogSystemName,
+			fields.logger.BypassJobChannelFilledWarning)
+	}
+	logFieldsPool.Put(fields)
 }
 
-// Debugf takes a pointer subLogger struct, string & interface formats and sends to Info()
+// Debugf takes a pointer subLogger struct, string and interface formats sends to StageLogEvent
 func Debugf(sl *SubLogger, data string, v ...interface{}) {
-	Debug(sl, fmt.Sprintf(data, v...))
+	mu.RLock()
+	defer mu.RUnlock()
+	fields := sl.getFields()
+	if fields == nil {
+		return
+	}
+	if fields.debug {
+		fields.output.StageLogEvent(func() string { return fmt.Sprintf(data, v...) },
+			fields.logger.DebugHeader,
+			fields.name,
+			fields.logger.Spacer,
+			fields.logger.TimestampFormat,
+			fields.logger.ShowLogSystemName,
+			fields.logger.BypassJobChannelFilledWarning)
+	}
+	logFieldsPool.Put(fields)
 }
 
-// Warn takes a pointer subLogger struct & string  and sends to newLogEvent()
+// Warn takes a pointer subLogger struct & string and sends to StageLogEvent
 func Warn(sl *SubLogger, data string) {
+	mu.RLock()
+	defer mu.RUnlock()
 	fields := sl.getFields()
-	if fields == nil || !fields.warn {
+	if fields == nil {
 		return
 	}
-	displayError(fields.logger.newLogEvent(data,
-		fields.logger.WarnHeader,
-		fields.name,
-		fields.output))
+	if fields.warn {
+		fields.output.StageLogEvent(func() string { return data },
+			fields.logger.WarnHeader,
+			fields.name,
+			fields.logger.Spacer,
+			fields.logger.TimestampFormat,
+			fields.logger.ShowLogSystemName,
+			fields.logger.BypassJobChannelFilledWarning)
+	}
+	logFieldsPool.Put(fields)
 }
 
-// Warnln takes a pointer subLogger struct & interface formats and sends to newLogEvent()
+// Warnln takes a pointer subLogger struct & interface formats and sends to StageLogEvent
 func Warnln(sl *SubLogger, v ...interface{}) {
+	mu.RLock()
+	defer mu.RUnlock()
 	fields := sl.getFields()
-	if fields == nil || !fields.warn {
+	if fields == nil {
 		return
 	}
-	displayError(fields.logger.newLogEvent(fmt.Sprintln(v...),
-		fields.logger.WarnHeader,
-		fields.name,
-		fields.output))
+	if fields.warn {
+		fields.output.StageLogEvent(func() string { return fmt.Sprintln(v...) },
+			fields.logger.WarnHeader,
+			fields.name,
+			fields.logger.Spacer,
+			fields.logger.TimestampFormat,
+			fields.logger.ShowLogSystemName,
+			fields.logger.BypassJobChannelFilledWarning)
+	}
+	logFieldsPool.Put(fields)
 }
 
-// Warnf takes a pointer subLogger struct, string & interface formats and sends to Warn()
+// Warnf takes a pointer subLogger struct, string and interface formats sends to StageLogEvent
 func Warnf(sl *SubLogger, data string, v ...interface{}) {
-	Warn(sl, fmt.Sprintf(data, v...))
+	mu.RLock()
+	defer mu.RUnlock()
+	fields := sl.getFields()
+	if fields == nil {
+		return
+	}
+	if fields.warn {
+		fields.output.StageLogEvent(func() string { return fmt.Sprintf(data, v...) },
+			fields.logger.WarnHeader,
+			fields.name,
+			fields.logger.Spacer,
+			fields.logger.TimestampFormat,
+			fields.logger.ShowLogSystemName,
+			fields.logger.BypassJobChannelFilledWarning)
+	}
+	logFieldsPool.Put(fields)
 }
 
-// Error takes a pointer subLogger struct & interface formats and sends to newLogEvent()
+// Error takes a pointer subLogger struct & interface formats and sends to StageLogEvent
 func Error(sl *SubLogger, data ...interface{}) {
+	mu.RLock()
+	defer mu.RUnlock()
 	fields := sl.getFields()
-	if fields == nil || !fields.error {
+	if fields == nil {
 		return
 	}
-	displayError(fields.logger.newLogEvent(fmt.Sprint(data...),
-		fields.logger.ErrorHeader,
-		fields.name,
-		fields.output))
+	if fields.error {
+		fields.output.StageLogEvent(func() string { return fmt.Sprint(data...) },
+			fields.logger.ErrorHeader,
+			fields.name,
+			fields.logger.Spacer,
+			fields.logger.TimestampFormat,
+			fields.logger.ShowLogSystemName,
+			fields.logger.BypassJobChannelFilledWarning)
+	}
+	logFieldsPool.Put(fields)
 }
 
-// Errorln takes a pointer subLogger struct, string & interface formats and sends to newLogEvent()
+// Errorln takes a pointer subLogger struct, string & interface formats and sends to StageLogEvent
 func Errorln(sl *SubLogger, v ...interface{}) {
+	mu.RLock()
+	defer mu.RUnlock()
 	fields := sl.getFields()
-	if fields == nil || !fields.error {
+	if fields == nil {
 		return
 	}
-	displayError(fields.logger.newLogEvent(fmt.Sprintln(v...),
-		fields.logger.ErrorHeader,
-		fields.name,
-		fields.output))
+	if fields.error {
+		fields.output.StageLogEvent(func() string { return fmt.Sprintln(v...) },
+			fields.logger.ErrorHeader,
+			fields.name,
+			fields.logger.Spacer,
+			fields.logger.TimestampFormat,
+			fields.logger.ShowLogSystemName,
+			fields.logger.BypassJobChannelFilledWarning)
+	}
+	logFieldsPool.Put(fields)
 }
 
-// Errorf takes a pointer subLogger struct, string & interface formats and sends to Debug()
+// Errorf takes a pointer subLogger struct, string and interface formats sends to StageLogEvent
 func Errorf(sl *SubLogger, data string, v ...interface{}) {
-	Error(sl, fmt.Sprintf(data, v...))
+	mu.RLock()
+	defer mu.RUnlock()
+	fields := sl.getFields()
+	if fields == nil {
+		return
+	}
+	if fields.error {
+		fields.output.StageLogEvent(func() string { return fmt.Sprintf(data, v...) },
+			fields.logger.ErrorHeader,
+			fields.name,
+			fields.logger.Spacer,
+			fields.logger.TimestampFormat,
+			fields.logger.ShowLogSystemName,
+			fields.logger.BypassJobChannelFilledWarning)
+	}
+	logFieldsPool.Put(fields)
 }
 
 func displayError(err error) {

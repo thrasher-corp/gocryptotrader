@@ -32,6 +32,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
@@ -3200,5 +3201,314 @@ func TestGetAllManagedPositions(t *testing.T) {
 	_, err = s.GetAllManagedPositions(context.Background(), request)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+}
+
+func TestGetOrderbookMovement(t *testing.T) {
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName("ftx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+
+	cp, err := currency.NewPairFromString("btc-metal")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled:  convert.BoolPtr(true),
+		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
+		RequestFormat: &currency.PairFormat{Delimiter: "/"},
+		Available:     currency.Pairs{cp},
+		Enabled:       currency.Pairs{cp},
+	}
+
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	em.Add(fakeExchange)
+
+	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+
+	req := &gctrpc.GetOrderbookMovementRequest{}
+	_, err = s.GetOrderbookMovement(context.Background(), req)
+	if !errors.Is(err, ErrExchangeNameIsEmpty) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, ErrExchangeNameIsEmpty)
+	}
+
+	req.Exchange = "fake"
+	_, err = s.GetOrderbookMovement(context.Background(), req)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	req.Asset = asset.Spot.String()
+	req.Pair = &gctrpc.CurrencyPair{}
+	_, err = s.GetOrderbookMovement(context.Background(), req)
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, currency.ErrCurrencyPairEmpty)
+	}
+
+	req.Pair = &gctrpc.CurrencyPair{
+		Base:  currency.BTC.String(),
+		Quote: currency.METAL.String(),
+	}
+	_, err = s.GetOrderbookMovement(context.Background(), req)
+	if !strings.Contains(err.Error(), "cannot find orderbook") {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, "cannot find orderbook")
+	}
+
+	depth, err := orderbook.DeployDepth(req.Exchange, currency.NewPair(currency.BTC, currency.METAL), asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bid := []orderbook.Item{
+		{Price: 10, Amount: 1},
+		{Price: 9, Amount: 1},
+		{Price: 8, Amount: 1},
+		{Price: 7, Amount: 1},
+	}
+	ask := []orderbook.Item{
+		{Price: 11, Amount: 1},
+		{Price: 12, Amount: 1},
+		{Price: 13, Amount: 1},
+		{Price: 14, Amount: 1},
+	}
+	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+
+	_, err = s.GetOrderbookMovement(context.Background(), req)
+	if err.Error() != "quote amount invalid" {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, "quote amount invalid")
+	}
+
+	req.Amount = 11
+	move, err := s.GetOrderbookMovement(context.Background(), req)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, nil)
+	}
+
+	if move.Bought != 1 {
+		t.Fatalf("received: '%v' but expected: '%v'", move.Bought, 1)
+	}
+
+	req.Sell = true
+	req.Amount = 1
+	move, err = s.GetOrderbookMovement(context.Background(), req)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, nil)
+	}
+
+	if move.Bought != 10 {
+		t.Fatalf("received: '%v' but expected: '%v'", move.Bought, 10)
+	}
+}
+
+func TestGetOrderbookAmountByNominal(t *testing.T) {
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName("ftx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+
+	cp, err := currency.NewPairFromString("btc-meme")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled:  convert.BoolPtr(true),
+		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
+		RequestFormat: &currency.PairFormat{Delimiter: "/"},
+		Available:     currency.Pairs{cp},
+		Enabled:       currency.Pairs{cp},
+	}
+
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	em.Add(fakeExchange)
+
+	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+
+	req := &gctrpc.GetOrderbookAmountByNominalRequest{}
+	_, err = s.GetOrderbookAmountByNominal(context.Background(), req)
+	if !errors.Is(err, ErrExchangeNameIsEmpty) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, ErrExchangeNameIsEmpty)
+	}
+
+	req.Exchange = "fake"
+	_, err = s.GetOrderbookAmountByNominal(context.Background(), req)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	req.Asset = asset.Spot.String()
+	req.Pair = &gctrpc.CurrencyPair{}
+	_, err = s.GetOrderbookAmountByNominal(context.Background(), req)
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, currency.ErrCurrencyPairEmpty)
+	}
+
+	req.Pair = &gctrpc.CurrencyPair{
+		Base:  currency.BTC.String(),
+		Quote: currency.MEME.String(),
+	}
+	_, err = s.GetOrderbookAmountByNominal(context.Background(), req)
+	if !strings.Contains(err.Error(), "cannot find orderbook") {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, "cannot find orderbook")
+	}
+
+	depth, err := orderbook.DeployDepth(req.Exchange, currency.NewPair(currency.BTC, currency.MEME), asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bid := []orderbook.Item{
+		{Price: 10, Amount: 1},
+		{Price: 9, Amount: 1},
+		{Price: 8, Amount: 1},
+		{Price: 7, Amount: 1},
+	}
+	ask := []orderbook.Item{
+		{Price: 11, Amount: 1},
+		{Price: 12, Amount: 1},
+		{Price: 13, Amount: 1},
+		{Price: 14, Amount: 1},
+	}
+	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+
+	nominal, err := s.GetOrderbookAmountByNominal(context.Background(), req)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, nil)
+	}
+
+	if nominal.AmountRequired != 11 {
+		t.Fatalf("received: '%v' but expected: '%v'", nominal.AmountRequired, 11)
+	}
+
+	req.Sell = true
+	nominal, err = s.GetOrderbookAmountByNominal(context.Background(), req)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, nil)
+	}
+
+	if nominal.AmountRequired != 1 {
+		t.Fatalf("received: '%v' but expected: '%v'", nominal.AmountRequired, 1)
+	}
+}
+
+func TestGetOrderbookAmountByImpact(t *testing.T) {
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName("ftx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+
+	cp, err := currency.NewPairFromString("btc-mad")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled:  convert.BoolPtr(true),
+		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
+		RequestFormat: &currency.PairFormat{Delimiter: "/"},
+		Available:     currency.Pairs{cp},
+		Enabled:       currency.Pairs{cp},
+	}
+
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	em.Add(fakeExchange)
+
+	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+
+	req := &gctrpc.GetOrderbookAmountByImpactRequest{}
+	_, err = s.GetOrderbookAmountByImpact(context.Background(), req)
+	if !errors.Is(err, ErrExchangeNameIsEmpty) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, ErrExchangeNameIsEmpty)
+	}
+
+	req.Exchange = "fake"
+	_, err = s.GetOrderbookAmountByImpact(context.Background(), req)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	req.Asset = asset.Spot.String()
+	req.Pair = &gctrpc.CurrencyPair{}
+	_, err = s.GetOrderbookAmountByImpact(context.Background(), req)
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, currency.ErrCurrencyPairEmpty)
+	}
+
+	req.Pair = &gctrpc.CurrencyPair{
+		Base:  currency.BTC.String(),
+		Quote: currency.MAD.String(),
+	}
+	_, err = s.GetOrderbookAmountByImpact(context.Background(), req)
+	if !strings.Contains(err.Error(), "cannot find orderbook") {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, "cannot find orderbook")
+	}
+
+	depth, err := orderbook.DeployDepth(req.Exchange, currency.NewPair(currency.BTC, currency.MAD), asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bid := []orderbook.Item{
+		{Price: 10, Amount: 1},
+		{Price: 9, Amount: 1},
+		{Price: 8, Amount: 1},
+		{Price: 7, Amount: 1},
+	}
+	ask := []orderbook.Item{
+		{Price: 11, Amount: 1},
+		{Price: 12, Amount: 1},
+		{Price: 13, Amount: 1},
+		{Price: 14, Amount: 1},
+	}
+	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+
+	req.ImpactPercentage = 9.090909090909092
+	impact, err := s.GetOrderbookAmountByImpact(context.Background(), req)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, nil)
+	}
+
+	if impact.AmountRequired != 11 {
+		t.Fatalf("received: '%v' but expected: '%v'", impact.AmountRequired, 11)
+	}
+
+	req.Sell = true
+	req.ImpactPercentage = 10
+	impact, err = s.GetOrderbookAmountByImpact(context.Background(), req)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, nil)
+	}
+
+	if impact.AmountRequired != 1 {
+		t.Fatalf("received: '%v' but expected: '%v'", impact.AmountRequired, 1)
 	}
 }

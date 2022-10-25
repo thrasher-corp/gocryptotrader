@@ -571,18 +571,18 @@ func (y *Yobit) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilde
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (y *Yobit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (y *Yobit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
-
-	var orders []order.Detail
 
 	format, err := y.GetPairFormat(asset.Spot, false)
 	if err != nil {
 		return nil, err
 	}
 
+	var orders []order.Detail
 	for x := range req.Pairs {
 		var fCurr currency.Pair
 		fCurr, err = y.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
@@ -617,36 +617,33 @@ func (y *Yobit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 			})
 		}
 	}
-
-	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", y.Name, err)
-	}
-	order.FilterOrdersBySide(&orders, req.Side)
-	return orders, nil
+	return req.Filter(y.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 
 	var allOrders []TradeHistory
 	for x := range req.Pairs {
-		fpair, err := y.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
+		var fPair currency.Pair
+		fPair, err = y.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
-		resp, err := y.GetTradeHistory(ctx,
+		var resp map[string]TradeHistory
+		resp, err = y.GetTradeHistory(ctx,
 			0,
 			10000,
 			math.MaxInt64,
 			req.StartTime.Unix(),
 			req.EndTime.Unix(),
 			"DESC",
-			fpair.String())
+			fPair.String())
 		if err != nil {
 			return nil, err
 		}
@@ -689,9 +686,7 @@ func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 		detail.InferCostsAndTimes()
 		orders[i] = detail
 	}
-
-	order.FilterOrdersBySide(&orders, req.Side)
-	return orders, nil
+	return req.Filter(y.Name, orders), nil
 }
 
 // ValidateCredentials validates current credentials used for wrapper
