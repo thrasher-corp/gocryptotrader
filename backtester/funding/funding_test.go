@@ -462,8 +462,8 @@ func TestCreateSnapshot(t *testing.T) {
 	}
 	f.items = append(f.items, &Item{})
 	err = f.CreateSnapshot(time.Time{})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
+	if !errors.Is(err, gctcommon.ErrDateUnset) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrDateUnset)
 	}
 
 	dfk := &kline.DataFromKline{

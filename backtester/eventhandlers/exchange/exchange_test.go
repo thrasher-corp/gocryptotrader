@@ -30,20 +30,38 @@ const testExchange = "ftx"
 
 type fakeFund struct{}
 
+var leet = decimal.NewFromInt(1337)
+
 func (f *fakeFund) GetPairReader() (funding.IPairReader, error) {
-	return nil, nil
-}
-
-func (f *fakeFund) GetCollateralReader() (funding.ICollateralReader, error) {
-	return nil, nil
-}
-
-func (f *fakeFund) PairReleaser() (funding.IPairReleaser, error) {
-	btc, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(9999), decimal.NewFromInt(9999))
+	i, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, leet, leet)
 	if err != nil {
 		return nil, err
 	}
-	usd, err := funding.CreateItem(testExchange, asset.Spot, currency.USD, decimal.NewFromInt(9999), decimal.NewFromInt(9999))
+	j, err := funding.CreateItem(testExchange, asset.Spot, currency.USD, leet, leet)
+	if err != nil {
+		return nil, err
+	}
+	return funding.CreatePair(i, j)
+}
+
+func (f *fakeFund) GetCollateralReader() (funding.ICollateralReader, error) {
+	i, err := funding.CreateItem(testExchange, asset.Futures, currency.BTC, leet, leet)
+	if err != nil {
+		return nil, err
+	}
+	j, err := funding.CreateItem(testExchange, asset.Futures, currency.USD, leet, leet)
+	if err != nil {
+		return nil, err
+	}
+	return funding.CreateCollateral(i, j)
+}
+
+func (f *fakeFund) PairReleaser() (funding.IPairReleaser, error) {
+	btc, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, leet, leet)
+	if err != nil {
+		return nil, err
+	}
+	usd, err := funding.CreateItem(testExchange, asset.Spot, currency.USD, leet, leet)
 	if err != nil {
 		return nil, err
 	}
@@ -51,18 +69,26 @@ func (f *fakeFund) PairReleaser() (funding.IPairReleaser, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = p.Reserve(decimal.NewFromInt(1337), gctorder.Buy)
+	err = p.Reserve(leet, gctorder.Buy)
 	if err != nil {
 		return nil, err
 	}
-	err = p.Reserve(decimal.NewFromInt(1337), gctorder.Sell)
+	err = p.Reserve(leet, gctorder.Sell)
 	if err != nil {
 		return nil, err
 	}
 	return p, nil
 }
 func (f *fakeFund) CollateralReleaser() (funding.ICollateralReleaser, error) {
-	return nil, nil
+	i, err := funding.CreateItem(testExchange, asset.Futures, currency.BTC, decimal.Zero, decimal.Zero)
+	if err != nil {
+		return nil, err
+	}
+	j, err := funding.CreateItem(testExchange, asset.Futures, currency.USD, decimal.Zero, decimal.Zero)
+	if err != nil {
+		return nil, err
+	}
+	return funding.CreateCollateral(i, j)
 }
 
 func (f *fakeFund) IncreaseAvailable(decimal.Decimal, gctorder.Side) {}
@@ -269,11 +295,10 @@ func TestExecuteOrder(t *testing.T) {
 		Interval: 0,
 		Candles: []gctkline.Candle{
 			{
-				Close:  1,
-				High:   1,
-				Low:    1,
-				Volume: 1,
-				Time:   time.Now(),
+				Close: 1,
+				High:  1,
+				Low:   1,
+				Time:  time.Now(),
 			},
 		},
 	}
@@ -302,6 +327,30 @@ func TestExecuteOrder(t *testing.T) {
 	if !errors.Is(err, exchange.ErrCredentialsAreEmpty) {
 		t.Errorf("received: %v but expected: %v", err, exchange.ErrCredentialsAreEmpty)
 	}
+
+	o.LiquidatingPosition = true
+	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v but expected: %v", err, nil)
+	}
+
+	o.AssetType = asset.Futures
+	e.CurrencySettings[0].Asset = asset.Futures
+	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v but expected: %v", err, nil)
+	}
+
+	o.LiquidatingPosition = false
+	o.Amount = decimal.Zero
+	o.AssetType = asset.Spot
+	e.CurrencySettings[0].Asset = asset.Spot
+	e.CurrencySettings[0].UseRealOrders = false
+	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
+	if !errors.Is(err, gctorder.ErrAmountIsInvalid) {
+		t.Errorf("received: %v but expected: %v", err, gctorder.ErrAmountIsInvalid)
+	}
+
 }
 
 func TestExecuteOrderBuySellSizeLimit(t *testing.T) {

@@ -2,6 +2,7 @@ package holdings
 
 import (
 	"fmt"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -65,11 +66,15 @@ func (h *Holding) Update(e fill.Event, f funding.IFundReader) error {
 }
 
 // UpdateValue calculates the holding's value for a data event's time and price
-func (h *Holding) UpdateValue(d common.Event) {
+func (h *Holding) UpdateValue(d common.Event) error {
+	if d == nil {
+		return fmt.Errorf("%w event", gctcommon.ErrNilPointer)
+	}
 	h.Timestamp = d.GetTime()
 	latest := d.GetClosePrice()
 	h.Offset = d.GetOffset()
 	h.scaleValuesToCurrentPrice(latest)
+	return nil
 }
 
 func (h *Holding) update(e fill.Event, f funding.IFundReader) error {

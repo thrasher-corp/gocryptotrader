@@ -265,6 +265,7 @@ func CreateCollateral(contract, collateral *Item) (*CollateralPair, error) {
 	if collateral == nil {
 		return nil, fmt.Errorf("quote %w", gctcommon.ErrNilPointer)
 	}
+	collateral.isCollateral = true
 	// copy to prevent the off chance of sending in the same base OR quote
 	// to create a new pair with a new base OR quote
 	bCopy := *contract

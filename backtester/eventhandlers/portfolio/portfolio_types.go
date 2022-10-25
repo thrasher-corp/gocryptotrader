@@ -41,10 +41,10 @@ var (
 // Portfolio stores all holdings and rules to assess orders, allowing the portfolio manager to
 // modify, accept or reject strategy signals
 type Portfolio struct {
-	riskFreeRate              decimal.Decimal
-	sizeManager               SizeHandler
-	riskManager               risk.Handler
-	exchangeAssetPairSettings map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings
+	riskFreeRate                       decimal.Decimal
+	sizeManager                        SizeHandler
+	riskManager                        risk.Handler
+	exchangeAssetPairPortfolioSettings map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings
 }
 
 // Handler contains all functions expected to operate a portfolio manager

@@ -37,7 +37,7 @@ func (p *Portfolio) Reset() error {
 	if p == nil {
 		return gctcommon.ErrNilPointer
 	}
-	p.exchangeAssetPairSettings = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings)
+	p.exchangeAssetPairPortfolioSettings = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings)
 	p.riskFreeRate = decimal.Zero
 	p.sizeManager = nil
 	p.riskManager = nil
@@ -58,20 +58,20 @@ func (p *Portfolio) SetupCurrencySettingsMap(setup *exchange.Settings) error {
 	if setup.Pair.IsEmpty() {
 		return errCurrencyPairUnset
 	}
-	if p.exchangeAssetPairSettings == nil {
-		p.exchangeAssetPairSettings = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings)
+	if p.exchangeAssetPairPortfolioSettings == nil {
+		p.exchangeAssetPairPortfolioSettings = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings)
 	}
 	name := strings.ToLower(setup.Exchange.GetName())
-	if p.exchangeAssetPairSettings[name] == nil {
-		p.exchangeAssetPairSettings[name] = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings)
+	if p.exchangeAssetPairPortfolioSettings[name] == nil {
+		p.exchangeAssetPairPortfolioSettings[name] = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings)
 	}
-	if p.exchangeAssetPairSettings[name][setup.Asset] == nil {
-		p.exchangeAssetPairSettings[name][setup.Asset] = make(map[*currency.Item]map[*currency.Item]*Settings)
+	if p.exchangeAssetPairPortfolioSettings[name][setup.Asset] == nil {
+		p.exchangeAssetPairPortfolioSettings[name][setup.Asset] = make(map[*currency.Item]map[*currency.Item]*Settings)
 	}
-	if p.exchangeAssetPairSettings[name][setup.Asset][setup.Pair.Base.Item] == nil {
-		p.exchangeAssetPairSettings[name][setup.Asset][setup.Pair.Base.Item] = make(map[*currency.Item]*Settings)
+	if p.exchangeAssetPairPortfolioSettings[name][setup.Asset][setup.Pair.Base.Item] == nil {
+		p.exchangeAssetPairPortfolioSettings[name][setup.Asset][setup.Pair.Base.Item] = make(map[*currency.Item]*Settings)
 	}
-	if _, ok := p.exchangeAssetPairSettings[name][setup.Asset][setup.Pair.Base.Item][setup.Pair.Quote.Item]; ok {
+	if _, ok := p.exchangeAssetPairPortfolioSettings[name][setup.Asset][setup.Pair.Base.Item][setup.Pair.Quote.Item]; ok {
 		return nil
 	}
 	collateralCurrency, _, err := setup.Exchange.GetCollateralCurrencyForContract(setup.Asset, setup.Pair)
@@ -105,6 +105,6 @@ func (p *Portfolio) SetupCurrencySettingsMap(setup *exchange.Settings) error {
 		}
 		settings.FuturesTracker = tracker
 	}
-	p.exchangeAssetPairSettings[name][setup.Asset][setup.Pair.Base.Item][setup.Pair.Quote.Item] = settings
+	p.exchangeAssetPairPortfolioSettings[name][setup.Asset][setup.Pair.Base.Item][setup.Pair.Quote.Item] = settings
 	return nil
 }

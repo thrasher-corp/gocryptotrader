@@ -2,6 +2,7 @@ package holdings
 
 import (
 	"errors"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"testing"
 	"time"
 
@@ -105,11 +106,20 @@ func TestUpdateValue(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
+
+	err = h.UpdateValue(nil)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNilPointer)
+	}
+
 	h.BaseSize = decimal.NewFromInt(1)
-	h.UpdateValue(&kline.Kline{
+	err = h.UpdateValue(&kline.Kline{
 		Base:  b,
 		Close: decimal.NewFromInt(1337),
 	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 	if !h.BaseValue.Equal(decimal.NewFromInt(1337)) {
 		t.Errorf("expected '%v' received '%v'", h.BaseSize, decimal.NewFromInt(1337))
 	}

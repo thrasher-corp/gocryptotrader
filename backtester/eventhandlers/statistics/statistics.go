@@ -64,16 +64,22 @@ func (s *Statistic) SetEventForOffset(ev common.Event) error {
 	if s.ExchangeAssetPairStatistics == nil {
 		s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*CurrencyPairStatistic)
 	}
-	if s.ExchangeAssetPairStatistics[ex] == nil {
-		s.ExchangeAssetPairStatistics[ex] = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*CurrencyPairStatistic)
+	m, ok := s.ExchangeAssetPairStatistics[ex]
+	if !ok {
+		m = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*CurrencyPairStatistic)
+		s.ExchangeAssetPairStatistics[ex] = m
 	}
-	if s.ExchangeAssetPairStatistics[ex][a] == nil {
-		s.ExchangeAssetPairStatistics[ex][a] = make(map[*currency.Item]map[*currency.Item]*CurrencyPairStatistic)
+	m2, ok := m[a]
+	if !ok {
+		m2 = make(map[*currency.Item]map[*currency.Item]*CurrencyPairStatistic)
+		m[a] = m2
 	}
-	if s.ExchangeAssetPairStatistics[ex][a][p.Base.Item] == nil {
-		s.ExchangeAssetPairStatistics[ex][a][p.Base.Item] = make(map[*currency.Item]*CurrencyPairStatistic)
+	m3, ok := m2[p.Base.Item]
+	if !ok {
+		m3 = make(map[*currency.Item]*CurrencyPairStatistic)
+		m2[p.Base.Item] = m3
 	}
-	lookup, ok := s.ExchangeAssetPairStatistics[ex][a][p.Base.Item][p.Quote.Item]
+	lookup, ok := m3[p.Quote.Item]
 	if !ok {
 		lookup = &CurrencyPairStatistic{
 			Exchange:       ev.GetExchange(),
@@ -81,6 +87,7 @@ func (s *Statistic) SetEventForOffset(ev common.Event) error {
 			Currency:       ev.Pair(),
 			UnderlyingPair: ev.GetUnderlyingPair(),
 		}
+		m3[p.Quote.Item] = lookup
 	}
 	for i := range lookup.Events {
 		if lookup.Events[i].Offset != ev.GetOffset() {

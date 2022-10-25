@@ -101,22 +101,6 @@ func (e *Exchange) ExecuteOrder(o order.Event, dh data.Handler, om *engine.Order
 				f.VolumeAdjustedPrice = price
 			}
 		}
-		if amount.LessThanOrEqual(decimal.Zero) && f.GetAmount().GreaterThan(decimal.Zero) {
-			switch f.GetDirection() {
-			case gctorder.Buy, gctorder.Bid:
-				f.SetDirection(gctorder.CouldNotBuy)
-			case gctorder.Sell, gctorder.Ask:
-				f.SetDirection(gctorder.CouldNotSell)
-			case gctorder.Short:
-				f.SetDirection(gctorder.CouldNotShort)
-			case gctorder.Long:
-				f.SetDirection(gctorder.CouldNotLong)
-			default:
-				f.SetDirection(gctorder.DoNothing)
-			}
-			f.AppendReasonf("amount set to 0, %s", errDataMayBeIncorrect)
-			return f, err
-		}
 		adjustedPrice, err = applySlippageToPrice(f.GetDirection(), price, slippageRate)
 		if err != nil {
 			return f, err

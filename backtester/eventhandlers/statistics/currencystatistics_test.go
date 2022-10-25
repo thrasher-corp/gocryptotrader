@@ -313,7 +313,6 @@ func TestAnalysePNLGrowth(t *testing.T) {
 			Exchange: e,
 			Asset:    a,
 			Pair:     p,
-			Offset:   0,
 			Result: order.PNLResult{
 				Time:          time.Now(),
 				UnrealisedPNL: decimal.NewFromInt(1),
@@ -335,7 +334,6 @@ func TestAnalysePNLGrowth(t *testing.T) {
 			Exchange: e,
 			Asset:    a,
 			Pair:     p,
-			Offset:   0,
 			Result: order.PNLResult{
 				Time:          time.Now(),
 				UnrealisedPNL: decimal.NewFromFloat(0.5),
