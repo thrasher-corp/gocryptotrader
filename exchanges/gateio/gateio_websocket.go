@@ -25,6 +25,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -107,6 +108,47 @@ func (g *Gateio) wsReadConnData() {
 		if err != nil {
 			g.Websocket.DataHandler <- err
 		}
+	}
+}
+
+// wsReadData read coming messages thought the websocket connection and pass the data to wsHandleData for further process.
+func (g *Gateio) wsReadData() {
+	defer g.Websocket.Wg.Done()
+	for {
+		select {
+		case <-g.Websocket.ShutdownC:
+			select {
+			case resp := <-responseStream:
+				err := g.wsHandleData(resp.Raw)
+				if err != nil {
+					select {
+					case g.Websocket.DataHandler <- err:
+					default:
+						log.Errorf(log.WebsocketMgr, "%s websocket handle data error: %v", g.Name, err)
+					}
+				}
+			default:
+			}
+			return
+		case resp := <-responseStream:
+			err := g.wsHandleData(resp.Raw)
+			if err != nil {
+				g.Websocket.DataHandler <- err
+			}
+		}
+	}
+}
+
+// wsFunnelConnectionData receives data from multiple connection and pass the data
+// to wsRead through a channel responseStream
+func (g *Gateio) wsFunnelConnectionData(ws stream.Connection) {
+	defer g.Websocket.Wg.Done()
+	for {
+		resp := ws.ReadMessage()
+		if resp.Raw == nil {
+			return
+		}
+		responseStream <- stream.Response{Raw: resp.Raw}
 	}
 }
 
@@ -341,9 +383,14 @@ func (g *Gateio) processOrderbookUpdate(data []byte) error {
 	if err != nil {
 		return err
 	}
-	bids := make([]orderbook.Item, len(update.Bids))
-	asks := make([]orderbook.Item, len(update.Asks))
-	for x := range asks {
+	updates := orderbook.Update{
+		UpdateTime: time.UnixMilli(update.UpdateTimeMs),
+		Pair:       pair,
+		Asset:      asset.Spot,
+	}
+	updates.Bids = make([]orderbook.Item, len(update.Bids))
+	updates.Asks = make([]orderbook.Item, len(update.Asks))
+	for x := range updates.Asks {
 		price, err := strconv.ParseFloat(update.Asks[x][0], 64)
 		if err != nil {
 			return err
@@ -352,12 +399,12 @@ func (g *Gateio) processOrderbookUpdate(data []byte) error {
 		if err != nil {
 			return err
 		}
-		asks[x] = orderbook.Item{
+		updates.Asks[x] = orderbook.Item{
 			Amount: amount,
 			Price:  price,
 		}
 	}
-	for x := range bids {
+	for x := range updates.Bids {
 		price, err := strconv.ParseFloat(update.Bids[x][0], 64)
 		if err != nil {
 			return err
@@ -366,21 +413,15 @@ func (g *Gateio) processOrderbookUpdate(data []byte) error {
 		if err != nil {
 			return err
 		}
-		bids[x] = orderbook.Item{
+		updates.Bids[x] = orderbook.Item{
 			Amount: amount,
 			Price:  price,
 		}
 	}
-	if len(asks) == 0 && len(bids) == 0 {
+	if len(updates.Asks) == 0 && len(updates.Bids) == 0 {
 		return nil
 	}
-	return g.Websocket.Orderbook.Update(&orderbook.Update{
-		UpdateTime: time.UnixMilli(update.UpdateTimeMs),
-		Asks:       asks,
-		Bids:       bids,
-		Pair:       pair,
-		Asset:      asset.Spot,
-	})
+	return g.Websocket.Orderbook.Update(&updates)
 }
 
 func (g *Gateio) processOrderbookSnapshot(data []byte) error {
@@ -395,9 +436,16 @@ func (g *Gateio) processOrderbookSnapshot(data []byte) error {
 	if err != nil {
 		return err
 	}
-	bids := make([]orderbook.Item, len(snapshot.Bids))
-	asks := make([]orderbook.Item, len(snapshot.Asks))
-	for x := range asks {
+	bases := orderbook.Base{
+		Asset:           asset.Spot,
+		Exchange:        g.Name,
+		Pair:            pair,
+		LastUpdated:     time.UnixMilli(snapshot.UpdateTimeMs),
+		VerifyOrderbook: g.CanVerifyOrderbook,
+	}
+	bases.Bids = make([]orderbook.Item, len(snapshot.Bids))
+	bases.Asks = make([]orderbook.Item, len(snapshot.Asks))
+	for x := range bases.Asks {
 		price, err := strconv.ParseFloat(snapshot.Asks[x][0], 64)
 		if err != nil {
 			return err
@@ -406,12 +454,12 @@ func (g *Gateio) processOrderbookSnapshot(data []byte) error {
 		if err != nil {
 			return err
 		}
-		asks[x] = orderbook.Item{
+		bases.Asks[x] = orderbook.Item{
 			Amount: amount,
 			Price:  price,
 		}
 	}
-	for x := range bids {
+	for x := range bases.Bids {
 		price, err := strconv.ParseFloat(snapshot.Bids[x][0], 64)
 		if err != nil {
 			return err
@@ -420,30 +468,21 @@ func (g *Gateio) processOrderbookSnapshot(data []byte) error {
 		if err != nil {
 			return err
 		}
-		bids[x] = orderbook.Item{
+		bases.Bids[x] = orderbook.Item{
 			Amount: amount,
 			Price:  price,
 		}
 	}
-	return g.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-		Asks:            asks,
-		Bids:            bids,
-		Asset:           asset.Spot,
-		Exchange:        g.Name,
-		Pair:            pair,
-		LastUpdated:     time.UnixMilli(snapshot.UpdateTimeMs),
-		VerifyOrderbook: g.CanVerifyOrderbook,
-	})
+	return g.Websocket.Orderbook.LoadSnapshot(&bases)
 }
 
 func (g *Gateio) processSpotOrders(data []byte) error {
-	type response struct {
+	resp := struct {
 		Time    int64         `json:"time"`
 		Channel string        `json:"channel"`
 		Event   string        `json:"event"`
 		Result  []WsSpotOrder `json:"result"`
-	}
-	var resp response
+	}{}
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		return err
@@ -484,13 +523,12 @@ func (g *Gateio) processSpotOrders(data []byte) error {
 }
 
 func (g *Gateio) processUserPersonalTrades(data []byte) error {
-	type response struct {
+	resp := struct {
 		Time    int64                 `json:"time"`
 		Channel string                `json:"channel"`
 		Event   string                `json:"event"`
 		Result  []WsUserPersonalTrade `json:"result"`
-	}
-	var resp response
+	}{}
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		return err
@@ -520,13 +558,12 @@ func (g *Gateio) processUserPersonalTrades(data []byte) error {
 }
 
 func (g *Gateio) processSpotBalances(data []byte) error {
-	type response struct {
+	resp := struct {
 		Time    int64           `json:"time"`
 		Channel string          `json:"channel"`
 		Event   string          `json:"event"`
 		Result  []WsSpotBalance `json:"result"`
-	}
-	var resp response
+	}{}
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		return err
@@ -546,13 +583,12 @@ func (g *Gateio) processSpotBalances(data []byte) error {
 }
 
 func (g *Gateio) processMarginBalances(data []byte) error {
-	type response struct {
+	resp := struct {
 		Time    int64             `json:"time"`
 		Channel string            `json:"channel"`
 		Event   string            `json:"event"`
 		Result  []WsMarginBalance `json:"result"`
-	}
-	var resp response
+	}{}
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		return err
@@ -570,13 +606,12 @@ func (g *Gateio) processMarginBalances(data []byte) error {
 }
 
 func (g *Gateio) processFundingBalances(data []byte) error {
-	type response struct {
+	resp := struct {
 		Time    int64              `json:"time"`
 		Channel string             `json:"channel"`
 		Event   string             `json:"event"`
 		Result  []WsFundingBalance `json:"result"`
-	}
-	var resp response
+	}{}
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		return err
@@ -586,13 +621,12 @@ func (g *Gateio) processFundingBalances(data []byte) error {
 }
 
 func (g *Gateio) processCrossMarginBalance(data []byte) error {
-	type response struct {
+	resp := struct {
 		Time    int64                  `json:"time"`
 		Channel string                 `json:"channel"`
 		Event   string                 `json:"event"`
 		Result  []WsCrossMarginBalance `json:"result"`
-	}
-	var resp response
+	}{}
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		return err
@@ -610,13 +644,12 @@ func (g *Gateio) processCrossMarginBalance(data []byte) error {
 }
 
 func (g *Gateio) processCrossMarginLoans(data []byte) error {
-	type response struct {
+	resp := struct {
 		Time    int64             `json:"time"`
 		Channel string            `json:"channel"`
 		Event   string            `json:"event"`
 		Result  WsCrossMarginLoan `json:"result"`
-	}
-	var resp response
+	}{}
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		return err
@@ -627,8 +660,9 @@ func (g *Gateio) processCrossMarginLoans(data []byte) error {
 
 // GenerateDefaultSubscriptions returns default subscriptions
 func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+	channelsToSubscribe := defaultSubscriptions
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
-		defaultSubscriptions = append(defaultSubscriptions, []string{
+		channelsToSubscribe = append(channelsToSubscribe, []string{
 			crossMarginBalanceChannel,
 			marginBalancesChannel,
 			spotBalancesChannel}...)
@@ -636,8 +670,8 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 	var subscriptions []stream.ChannelSubscription
 	var pairs []currency.Pair
 	var err error
-	for i := range defaultSubscriptions {
-		switch defaultSubscriptions[i] {
+	for i := range channelsToSubscribe {
+		switch channelsToSubscribe[i] {
 		case marginBalancesChannel:
 			pairs, err = g.GetEnabledPairs(asset.Margin)
 		case crossMarginBalanceChannel:
@@ -650,7 +684,7 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 		}
 		for j := range pairs {
 			params := make(map[string]interface{})
-			switch defaultSubscriptions[i] {
+			switch channelsToSubscribe[i] {
 			case spotOrderbookChannel:
 				params["level"] = 100
 				params["interval"] = kline.HundredMilliseconds
@@ -665,7 +699,7 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 			}
 
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel:  defaultSubscriptions[i],
+				Channel:  channelsToSubscribe[i],
 				Currency: fpair.Upper(),
 				Params:   params,
 			})

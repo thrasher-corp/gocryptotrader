@@ -2192,9 +2192,9 @@ type WsFuturesOrderbookTicker struct {
 	UpdateID      int64   `json:"u"`
 	CurrencyPair  string  `json:"s"`
 	BestBidPrice  float64 `json:"b,string"`
-	BestBidAmount float64 `json:"B,string"`
+	BestBidAmount float64 `json:"B"`
 	BestAskPrice  float64 `json:"a,string"`
-	BestAskAmount float64 `json:"A,string"`
+	BestAskAmount float64 `json:"A"`
 }
 
 // WsFuturesAndOptionsOrderbookUpdate represents futures and options account orderbook update push data

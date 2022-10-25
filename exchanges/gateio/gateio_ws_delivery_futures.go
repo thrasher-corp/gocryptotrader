@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -96,26 +95,26 @@ func (g *Gateio) GenerateDeliveryFuturesDefaultSubscriptions() ([]stream.Channel
 	if err != nil {
 		g.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
+	channelsToSubscribe := defaultDeliveryFuturesSubscriptions
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
-		defaultDeliveryFuturesSubscriptions = append(defaultDeliveryFuturesSubscriptions,
+		channelsToSubscribe = append(channelsToSubscribe,
 			futuresOrdersChannel,
 			futuresUserTradesChannel,
 			futuresBalancesChannel,
 		)
 	}
 	var subscriptions []stream.ChannelSubscription
-	var pairs []currency.Pair
-	pairs, err = g.GetEnabledPairs(asset.DeliveryFutures)
+	pairs, err := g.GetEnabledPairs(asset.DeliveryFutures)
 	if err != nil {
 		return nil, err
 	}
-	for i := range defaultDeliveryFuturesSubscriptions {
+	for i := range channelsToSubscribe {
 		for j := range pairs {
 			params := make(map[string]interface{})
-			if strings.EqualFold(defaultDeliveryFuturesSubscriptions[i], futuresOrderbookChannel) {
+			if strings.EqualFold(channelsToSubscribe[i], futuresOrderbookChannel) {
 				params["limit"] = 20
 				params["interval"] = "0"
-			} else if strings.EqualFold(defaultDeliveryFuturesSubscriptions[i], futuresCandlesticksChannel) {
+			} else if strings.EqualFold(channelsToSubscribe[i], futuresCandlesticksChannel) {
 				params["interval"] = kline.FiveMin
 			}
 			fpair, err := g.FormatExchangeCurrency(pairs[j], asset.DeliveryFutures)
@@ -123,7 +122,7 @@ func (g *Gateio) GenerateDeliveryFuturesDefaultSubscriptions() ([]stream.Channel
 				return nil, err
 			}
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel:  defaultDeliveryFuturesSubscriptions[i],
+				Channel:  channelsToSubscribe[i],
 				Currency: fpair.Upper(),
 				Params:   params,
 			})

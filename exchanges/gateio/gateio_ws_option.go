@@ -50,7 +50,7 @@ const (
 
 var defaultOptionsSubscriptions = []string{
 	optionsContractTickersChannel,
-	// optionsUnderlyingTickersChannel,
+	optionsUnderlyingTickersChannel,
 	optionsTradesChannel,
 	optionsUnderlyingTradesChannel,
 	optionsContractCandlesticksChannel,
@@ -74,10 +74,8 @@ func (g *Gateio) WsOptionsConnect() error {
 		return err
 	}
 	pingMessage, err := json.Marshal(WsInput{
-		ID: g.Websocket.Conn.GenerateMessageID(false),
-		Time: func() int64 {
-			return time.Now().Unix()
-		}(),
+		ID:      g.Websocket.Conn.GenerateMessageID(false),
+		Time:    time.Now().Unix(),
 		Channel: optionsPingChannel,
 	})
 	if err != nil {
@@ -97,22 +95,22 @@ func (g *Gateio) WsOptionsConnect() error {
 
 // GenerateOptionsDefaultSubscriptions generates list of channel subscriptions for options asset type.
 func (g *Gateio) GenerateOptionsDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+	channelsToSubscribe := defaultOptionsSubscriptions
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
-		defaultOptionsSubscriptions = append(defaultOptionsSubscriptions,
+		channelsToSubscribe = append(channelsToSubscribe,
 			optionsUserTradesChannel,
 			optionsBalancesChannel,
 		)
 	}
 	var subscriptions []stream.ChannelSubscription
-	var err error
 	pairs, err := g.GetEnabledPairs(asset.Options)
 	if err != nil {
 		return nil, err
 	}
-	for i := range defaultOptionsSubscriptions {
+	for i := range channelsToSubscribe {
 		for j := range pairs {
 			params := make(map[string]interface{})
-			switch defaultOptionsSubscriptions[i] {
+			switch channelsToSubscribe[i] {
 			case optionsOrderbookChannel:
 				params["accuracy"] = "0"
 				params["level"] = "20"
@@ -127,7 +125,7 @@ func (g *Gateio) GenerateOptionsDefaultSubscriptions() ([]stream.ChannelSubscrip
 				return nil, err
 			}
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel:  defaultOptionsSubscriptions[i],
+				Channel:  channelsToSubscribe[i],
 				Currency: fpair.Upper(),
 				Params:   params,
 			})
@@ -148,7 +146,7 @@ func (g *Gateio) processOptionsContractTickers(data []byte) error {
 	if err != nil {
 		return err
 	}
-	g.Websocket.DataHandler <- &ticker.Price{
+	g.Websocket.DataHandler <- ticker.Price{
 		Pair:         currencyPair,
 		Last:         tickerData.LastPrice,
 		Bid:          tickerData.Bid1Price,
@@ -173,13 +171,12 @@ func (g *Gateio) processOptionsUnderlyingTicker(data []byte) error {
 }
 
 func (g *Gateio) processOptionsTradesPushData(data []byte) error {
-	type response struct {
+	resp := struct {
 		Time    int64             `json:"time"`
 		Channel string            `json:"channel"`
 		Event   string            `json:"event"`
 		Result  []WsOptionsTrades `json:"result"`
-	}
-	var resp response
+	}{}
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		return err
@@ -200,6 +197,7 @@ func (g *Gateio) processOptionsTradesPushData(data []byte) error {
 			TID:          strconv.FormatInt(resp.Result[x].ID, 10),
 		}
 	}
+	g.Websocket.DataHandler <- trades
 	return nil
 }
 
@@ -252,17 +250,17 @@ func (g *Gateio) processOptionsContractPushData(data []byte) error {
 }
 
 func (g *Gateio) processOptionsCandlestickPushData(data []byte) error {
-	type response struct {
+	resp := struct {
 		Time    int64                          `json:"time"`
 		Channel string                         `json:"channel"`
 		Event   string                         `json:"event"`
 		Result  []WsOptionsContractCandlestick `json:"result"`
-	}
-	var resp response
+	}{}
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		return err
 	}
+	candles := make([]stream.KlineData, len(resp.Result))
 	for x := range resp.Result {
 		icp := strings.Split(resp.Result[x].NameOfSubscription, currency.UnderscoreDelimiter)
 		if len(icp) < 3 {
@@ -272,7 +270,7 @@ func (g *Gateio) processOptionsCandlestickPushData(data []byte) error {
 		if err != nil {
 			return err
 		}
-		g.Websocket.DataHandler <- stream.KlineData{
+		candles[x] = stream.KlineData{
 			Pair:       currencyPair,
 			AssetType:  asset.Options,
 			Exchange:   g.Name,
@@ -285,6 +283,7 @@ func (g *Gateio) processOptionsCandlestickPushData(data []byte) error {
 			Volume:     resp.Result[x].Amount,
 		}
 	}
+	g.Websocket.DataHandler <- candles
 	return nil
 }
 
@@ -313,37 +312,35 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, data []by
 		if err != nil {
 			return err
 		}
-		asks := make([]orderbook.Item, len(snapshot.Asks))
-		bids := make([]orderbook.Item, len(snapshot.Bids))
-		for x := range asks {
-			asks[x] = orderbook.Item{
-				Amount: snapshot.Asks[x].Size,
-				Price:  snapshot.Asks[x].Price,
-			}
-		}
-		for x := range bids {
-			bids[x] = orderbook.Item{
-				Amount: snapshot.Bids[x].Size,
-				Price:  snapshot.Bids[x].Price,
-			}
-		}
-		return g.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-			Asks:            asks,
-			Bids:            bids,
+		base := orderbook.Base{
 			Asset:           asset.Options,
 			Exchange:        g.Name,
 			Pair:            pair,
 			LastUpdated:     time.Unix(snapshot.Timestamp, 0),
 			VerifyOrderbook: g.CanVerifyOrderbook,
-		})
+		}
+		base.Asks = make([]orderbook.Item, len(snapshot.Asks))
+		base.Bids = make([]orderbook.Item, len(snapshot.Bids))
+		for x := range base.Asks {
+			base.Asks[x] = orderbook.Item{
+				Amount: snapshot.Asks[x].Size,
+				Price:  snapshot.Asks[x].Price,
+			}
+		}
+		for x := range base.Bids {
+			base.Bids[x] = orderbook.Item{
+				Amount: snapshot.Bids[x].Size,
+				Price:  snapshot.Bids[x].Price,
+			}
+		}
+		return g.Websocket.Orderbook.LoadSnapshot(&base)
 	}
-	type response struct {
+	resp := struct {
 		Time    int64                           `json:"time"`
 		Channel string                          `json:"channel"`
 		Event   string                          `json:"event"`
 		Result  []WsFuturesOrderbookUpdateEvent `json:"result"`
-	}
-	var resp response
+	}{}
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		return err
@@ -394,17 +391,17 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, data []by
 }
 
 func (g *Gateio) processOptionsOrderPushData(data []byte) error {
-	type response struct {
+	resp := struct {
 		Time    int64            `json:"time"`
 		Channel string           `json:"channel"`
 		Event   string           `json:"event"`
 		Result  []WsOptionsOrder `json:"result"`
-	}
-	var resp response
+	}{}
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		return err
 	}
+	orders := make([]order.Detail, len(resp.Result))
 	for x := range resp.Result {
 		currencyPair, err := currency.NewPairFromString(resp.Result[x].Contract)
 		if err != nil {
@@ -419,7 +416,7 @@ func (g *Gateio) processOptionsOrderPushData(data []byte) error {
 		if err != nil {
 			return err
 		}
-		g.Websocket.DataHandler <- &order.Detail{
+		orders[x] = order.Detail{
 			Amount:         resp.Result[x].Size,
 			Exchange:       g.Name,
 			OrderID:        strconv.FormatInt(resp.Result[x].ID, 10),
@@ -432,17 +429,17 @@ func (g *Gateio) processOptionsOrderPushData(data []byte) error {
 			AccountID:      resp.Result[x].User,
 		}
 	}
+	g.Websocket.DataHandler <- orders
 	return nil
 }
 
 func (g *Gateio) procesOptionsUserTradesPushData(data []byte) error {
-	type response struct {
+	resp := struct {
 		Time    int64                `json:"time"`
 		Channel string               `json:"channel"`
 		Event   string               `json:"event"`
 		Result  []WsOptionsUserTrade `json:"result"`
-	}
-	var resp response
+	}{}
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		return err
@@ -467,13 +464,12 @@ func (g *Gateio) procesOptionsUserTradesPushData(data []byte) error {
 }
 
 func (g *Gateio) processOptionsLiquidatesPushData(data []byte) error {
-	type response struct {
+	resp := struct {
 		Time    int64                 `json:"time"`
 		Channel string                `json:"channel"`
 		Event   string                `json:"event"`
 		Result  []WsOptionsLiquidates `json:"result"`
-	}
-	var resp response
+	}{}
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		return err
@@ -483,13 +479,12 @@ func (g *Gateio) processOptionsLiquidatesPushData(data []byte) error {
 }
 
 func (g *Gateio) processOptionsUsersPersonalSettlementsPushData(data []byte) error {
-	type response struct {
+	resp := struct {
 		Time    int64                     `json:"time"`
 		Channel string                    `json:"channel"`
 		Event   string                    `json:"event"`
 		Result  []WsOptionsUserSettlement `json:"result"`
-	}
-	var resp response
+	}{}
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		return err
@@ -499,13 +494,12 @@ func (g *Gateio) processOptionsUsersPersonalSettlementsPushData(data []byte) err
 }
 
 func (g *Gateio) processOptionsPositionPushData(data []byte) error {
-	type response struct {
+	resp := struct {
 		Time    int64               `json:"time"`
 		Channel string              `json:"channel"`
 		Event   string              `json:"event"`
 		Result  []WsOptionsPosition `json:"result"`
-	}
-	var resp response
+	}{}
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		return err
