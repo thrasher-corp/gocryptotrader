@@ -1082,7 +1082,7 @@ func (ok *Okx) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdra
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (ok *Okx) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
+func (ok *Okx) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -1156,7 +1156,7 @@ func (ok *Okx) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 }
 
 // GetOrderHistory retrieves account order information Can Limit response to specific order status
-func (ok *Okx) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
+func (ok *Okx) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
