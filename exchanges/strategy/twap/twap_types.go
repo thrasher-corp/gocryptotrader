@@ -22,6 +22,8 @@ type Strategy struct {
 	Selling          Holding
 	Reporter         chan Report
 	TradeInformation []OrderExecutionInformation
+	AmountRequired   float64
+	AmountDeployed   float64
 
 	orderbook *orderbook.Depth
 	wg        sync.WaitGroup

@@ -1357,20 +1357,27 @@ message TWAPRequest {
   string exchange = 1;
   CurrencyPair pair = 2;
   string asset = 3;
-  google.protobuf.Timestamp start = 4;
-  google.protobuf.Timestamp end = 5;
-  int64 interval = 6;
-  double amount = 7;
-  double max_slippage = 8;
-  bool accumulate = 9;
-  bool allow_trading_past_end = 10;
+  bool simulate = 4;
+  google.protobuf.Timestamp start = 5;
+  google.protobuf.Timestamp end = 6;
+  bool allow_trading_past_end = 7;
+  int64 interval = 8;
+  double amount = 9;
+  bool full_amount = 10;
+  double price_limit = 11;
+  double max_impact_slippage = 12;
+  double max_nominal_slippage = 13;
+  bool reduce_only = 14;
+  bool buy = 15;
+  double max_spread_percentage = 16;
 }
 
 message TWAPResponse {
-  string order = 1; 
-  double slippage = 2;
-  string error = 3;
-  map<string, double> balance = 5;
+  string submit = 1; 
+  string submit_response = 2; 
+  string orderbook = 3;
+  string error = 4;
+  bool finished = 5;
 }
 
 service GoCryptoTraderService {

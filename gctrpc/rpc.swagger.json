@@ -3880,6 +3880,12 @@
             "type": "string"
           },
           {
+            "name": "simulate",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
             "name": "start",
             "in": "query",
             "required": false,
@@ -3892,6 +3898,12 @@
             "required": false,
             "type": "string",
             "format": "date-time"
+          },
+          {
+            "name": "allowTradingPastEnd",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           },
           {
             "name": "interval",
@@ -3908,23 +3920,50 @@
             "format": "double"
           },
           {
-            "name": "maxSlippage",
+            "name": "fullAmount",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "priceLimit",
             "in": "query",
             "required": false,
             "type": "number",
             "format": "double"
           },
           {
-            "name": "accumulate",
+            "name": "maxImpactSlippage",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "maxNominalSlippage",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "reduceOnly",
             "in": "query",
             "required": false,
             "type": "boolean"
           },
           {
-            "name": "allowTradingPastEnd",
+            "name": "buy",
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "maxSpreadPercentage",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
           }
         ],
         "tags": [
@@ -6671,22 +6710,20 @@
     "gctrpcTWAPResponse": {
       "type": "object",
       "properties": {
-        "order": {
+        "submit": {
           "type": "string"
         },
-        "slippage": {
-          "type": "number",
-          "format": "double"
+        "submitResponse": {
+          "type": "string"
+        },
+        "orderbook": {
+          "type": "string"
         },
         "error": {
           "type": "string"
         },
-        "balance": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "number",
-            "format": "double"
-          }
+        "finished": {
+          "type": "boolean"
         }
       }
     },

@@ -3512,3 +3512,9 @@ func TestGetOrderbookAmountByImpact(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", impact.AmountRequired, 1)
 	}
 }
+
+func TestS(t *testing.T) {
+	hello := time.Duration(180)
+
+	fmt.Println(hello)
+}

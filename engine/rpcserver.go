@@ -5590,25 +5590,31 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 		return err
 	}
 
+	interval, err := kline.NewInterval(r.Interval, false)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("strategy: %+v\n", r)
+
 	// TODO: Implement a new strategy manager.
 	strategy, err := twap.New(stream.Context(), &twap.Config{
-		Exchange: exch,
-		Pair:     pair,
-		Asset:    as,
-		// Simulate: Simulation,
+		Exchange:                exch,
+		Pair:                    pair,
+		Asset:                   as,
+		Simulate:                r.Simulate,
 		Start:                   r.Start.AsTime(),
 		End:                     r.End.AsTime(),
 		AllowTradingPastEndTime: r.AllowTradingPastEnd,
-		Interval:                kline.Interval(r.Interval * int64(time.Second)),
+		Interval:                interval,
 		Amount:                  r.Amount,
-		// FullAmount: ,
-		// PriceLimit: ,
-
-		MaxImpactSlippage:  r.MaxSlippage,
-		MaxNominalSlippage: r.MaxSlippage,
-		// ReduceOnly: ,
-		Buy: r.Accumulate,
-		// MaxSpreadpercentage: ,
+		FullAmount:              r.FullAmount,
+		PriceLimit:              r.PriceLimit,
+		MaxImpactSlippage:       r.MaxImpactSlippage,
+		MaxNominalSlippage:      r.MaxNominalSlippage,
+		ReduceOnly:              r.ReduceOnly,
+		Buy:                     r.Buy,
+		MaxSpreadpercentage:     r.MaxSpreadPercentage,
 	})
 	if err != nil {
 		return err
@@ -5616,35 +5622,46 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 
 	fmt.Printf("strategy: %+v\n", strategy)
 
+	err = strategy.Run(stream.Context())
+	if err != nil {
+		return err
+	}
+
+	for report := range strategy.Reporter {
+		var submit string
+		if report.Information.Submit != nil {
+			submit = fmt.Sprintf("%+v\n", report.Information.Submit)
+		}
+		var submitResponse string
+		if report.Information.Response != nil {
+			submitResponse = fmt.Sprintf("%+v\n", report.Information.Response)
+		}
+		var book string
+		if report.Deployment != nil {
+			book = fmt.Sprintf("%+v\n", report.Deployment)
+		}
+		var errStr string
+		if report.Information.Error != nil {
+			errStr = report.Information.Error.Error()
+		}
+
+		if report.Error != nil {
+			errStr = report.Error.Error()
+		}
+		err := stream.Send(&gctrpc.TWAPResponse{
+			Submit:         submit,
+			SubmitResponse: submitResponse,
+			Orderbook:      book,
+			Error:          errStr,
+			Finished:       report.Finished,
+		})
+		if err != nil {
+			return err
+		}
+		if report.Finished {
+			break
+		}
+	}
+
 	return nil
-
-	// err = strategy.Run(stream.Context())
-	// if err != nil {
-	// 	return err
-	// }
-
-	// for report := range strategy.Reporter {
-	// 	var twapError string
-	// 	if report.Error != nil {
-	// 		twapError = report.Error.Error()
-	// 	}
-	// 	balance := make(map[string]float64)
-	// 	for k, v := range report.Balance {
-	// 		balance[k.String()] = v
-	// 	}
-	// 	err := stream.Send(&gctrpc.TWAPResponse{
-	// 		Order:    report.Order.OrderID,
-	// 		Slippage: report.Slippage,
-	// 		Error:    twapError,
-	// 		Balance:  balance,
-	// 		Finished: report.Finished,
-	// 	})
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	if report.Finished {
-	// 		break
-	// 	}
-	// }
-	// return nil
 }

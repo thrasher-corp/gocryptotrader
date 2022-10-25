@@ -503,7 +503,7 @@ func parseDataChoice(reader *bufio.Reader, multiCurrency bool) (string, error) {
 }
 
 func parseKlineInterval(reader *bufio.Reader) (gctkline.Interval, error) {
-	allCandles := gctkline.SupportedIntervals
+	allCandles := gctkline.GetSupportedIntervals()
 	for i := range allCandles {
 		fmt.Printf("%v. %s\n", i+1, allCandles[i].Word())
 	}

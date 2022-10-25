@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log"
 	"strconv"
 	"time"
 
@@ -16,6 +17,9 @@ var (
 	stratStartTime   string
 	stratEndTime     string
 	stratGranularity int64
+	stratMaxImpact   float64
+	stratReduceOnly  bool
+	stratMaxSpread   float64
 )
 
 var strategyManagementCommand = &cli.Command{
@@ -52,8 +56,8 @@ var (
 				Usage: "asset",
 			},
 			&cli.BoolFlag{
-				Name:  "buy",
-				Usage: "whether you are buying base or selling base",
+				Name:  "simulate",
+				Usage: "puts the strategy in simulation mode and will not execute live orders",
 			},
 			&cli.StringFlag{
 				Name:        "start",
@@ -67,6 +71,10 @@ var (
 				Value:       time.Now().AddDate(0, 0, 30).Format(common.SimpleTimeFormat),
 				Destination: &stratEndTime,
 			},
+			&cli.BoolFlag{
+				Name:  "continue",
+				Usage: "this will continue to deplete the required amount even after the strategy end date",
+			},
 			&cli.Int64Flag{
 				Name:        "granularity",
 				Aliases:     []string{"g"},
@@ -78,17 +86,39 @@ var (
 				Name:  "amount",
 				Usage: "if buying is how much quote to use, if selling is how much base to liquidate",
 			},
-			&cli.Int64Flag{
-				Name:  "twapgranularity",
-				Usage: "twap interval granularity - this will truncate and structure order execution to UTC alignment (for now)",
-				// Destination: &stratLookback,
-				Value: 30,
+			&cli.BoolFlag{
+				Name:  "fullamount",
+				Usage: "will use entire funding amount associated with the apikeys",
 			},
-			&cli.Int64Flag{
-				Name:  "lookback",
-				Usage: "how many candles previous from strategy interval to create signal",
-				// Destination: &stratLookback,
-				Value: 30,
+			&cli.Float64Flag{
+				Name:  "pricelimit",
+				Usage: "enforces price limits if lifting the asks it will not execute an order above this price. If hitting the bids this will not execute an order below this price",
+			},
+			&cli.Float64Flag{
+				Name:        "maximpact",
+				Usage:       "will enforce no orderbook impact slippage beyond this percentage amount",
+				Value:       1, // Default 1% slippage catch if not set.
+				Destination: &stratMaxImpact,
+			},
+			&cli.Float64Flag{
+				Name:  "maxnominal",
+				Usage: "will enforce no orderbook nominal (your average order cost from initial order cost) slippage beyond this percentage amount",
+			},
+			&cli.BoolFlag{
+				Name:        "reduceonly",
+				Usage:       "will not stack orders in opposing direction",
+				Value:       true,
+				Destination: &stratReduceOnly,
+			},
+			&cli.BoolFlag{
+				Name:  "buy",
+				Usage: "whether you are buying base or selling base",
+			},
+			&cli.Float64Flag{
+				Name:        "maxspread",
+				Usage:       "will enforce no orderbook spread percentage beyond this amount. If there is massive spread it usually means liquidity issues",
+				Value:       1, // Default 1% spread catch if not set.
+				Destination: &stratMaxSpread,
 			},
 		},
 	}
@@ -130,11 +160,11 @@ func twapStreamfunc(c *cli.Context) error {
 		return errInvalidAsset
 	}
 
-	var accumulate bool
-	if c.IsSet("buy") {
-		accumulate = c.Bool("buy")
+	var simulate bool
+	if c.IsSet("simulate") {
+		simulate = c.Bool("simulate")
 	} else {
-		accumulate, _ = strconv.ParseBool(c.Args().Get(3))
+		simulate, _ = strconv.ParseBool(c.Args().Get(3))
 	}
 
 	if !c.IsSet("start") {
@@ -168,10 +198,17 @@ func twapStreamfunc(c *cli.Context) error {
 		return err
 	}
 
+	var continueAfterEnd bool
+	if c.IsSet("continue") {
+		continueAfterEnd = c.Bool("continue")
+	} else {
+		continueAfterEnd, _ = strconv.ParseBool(c.Args().Get(6))
+	}
+
 	if c.IsSet("granularity") {
 		stratGranularity = c.Int64("granularity")
 	} else if c.Args().Get(6) != "" {
-		stratGranularity, err = strconv.ParseInt(c.Args().Get(6), 10, 64)
+		stratGranularity, err = strconv.ParseInt(c.Args().Get(7), 10, 64)
 		if err != nil {
 			return err
 		}
@@ -181,7 +218,78 @@ func twapStreamfunc(c *cli.Context) error {
 	if c.IsSet("amount") {
 		amount = c.Float64("amount")
 	} else if c.Args().Get(7) != "" {
-		amount, err = strconv.ParseFloat(c.Args().Get(7), 64)
+		amount, err = strconv.ParseFloat(c.Args().Get(8), 64)
+		if err != nil {
+			return err
+		}
+	}
+
+	var fullAmount bool
+	if c.IsSet("fullamount") {
+		fullAmount = c.Bool("fullamount")
+	} else {
+		fullAmount, _ = strconv.ParseBool(c.Args().Get(9))
+	}
+
+	var priceLimit float64
+	if c.IsSet("pricelimit") {
+		priceLimit = c.Float64("pricelimit")
+	} else if c.Args().Get(7) != "" {
+		priceLimit, err = strconv.ParseFloat(c.Args().Get(10), 64)
+		if err != nil {
+			return err
+		}
+	}
+
+	if c.IsSet("maximpact") {
+		stratMaxImpact = c.Float64("maximpact")
+	} else if c.Args().Get(7) != "" {
+		stratMaxImpact, err = strconv.ParseFloat(c.Args().Get(11), 64)
+		if err != nil {
+			return err
+		}
+	}
+
+	var maxNominal float64
+	if c.IsSet("maxnominal") {
+		maxNominal = c.Float64("maxnominal")
+	} else if c.Args().Get(7) != "" {
+		maxNominal, err = strconv.ParseFloat(c.Args().Get(12), 64)
+		if err != nil {
+			return err
+		}
+	}
+
+	if stratMaxImpact <= 0 && maxNominal <= 0 {
+		// Protection for user without any slippage protection if a large amount
+		// on a non-liquid book was to be deployed.
+		log.Println("Warning: No slippage protection on strategy run, this can have dire consequences. Continue (y/n)?")
+		input := ""
+		if _, err := fmt.Scanln(&input); err != nil {
+			return err
+		}
+		if !common.YesOrNo(input) {
+			return nil
+		}
+	}
+
+	if c.IsSet("reduceonly") {
+		stratReduceOnly = c.Bool("reduceonly")
+	} else {
+		stratReduceOnly, _ = strconv.ParseBool(c.Args().Get(13))
+	}
+
+	var buy bool
+	if c.IsSet("buy") {
+		buy = c.Bool("buy")
+	} else {
+		buy, _ = strconv.ParseBool(c.Args().Get(14))
+	}
+
+	if c.IsSet("maxspread") {
+		stratMaxSpread = c.Float64("maxspread")
+	} else if c.Args().Get(7) != "" {
+		stratMaxSpread, err = strconv.ParseFloat(c.Args().Get(15), 64)
 		if err != nil {
 			return err
 		}
@@ -200,12 +308,20 @@ func twapStreamfunc(c *cli.Context) error {
 			Base:  cp.Base.String(),
 			Quote: cp.Quote.String(),
 		},
-		Asset:      assetType,
-		Accumulate: accumulate,
-		Start:      negateLocalOffsetTS(s),
-		End:        negateLocalOffsetTS(e),
-		Interval:   stratGranularity,
-		Amount:     amount,
+		Simulate:            simulate,
+		Asset:               assetType,
+		Start:               negateLocalOffsetTS(s),
+		End:                 negateLocalOffsetTS(e),
+		AllowTradingPastEnd: continueAfterEnd,
+		Interval:            stratGranularity * int64(time.Second),
+		Amount:              amount,
+		FullAmount:          fullAmount,
+		PriceLimit:          priceLimit,
+		MaxImpactSlippage:   stratMaxImpact,
+		MaxNominalSlippage:  maxNominal,
+		ReduceOnly:          stratReduceOnly,
+		Buy:                 buy,
+		MaxSpreadPercentage: stratMaxSpread,
 	})
 	if err != nil {
 		return err
@@ -219,9 +335,9 @@ func twapStreamfunc(c *cli.Context) error {
 
 		jsonOutput(resp)
 
-		// if resp.Finished {
-		// 	fmt.Println("TWAP HAS COMPLETED")
-		// 	return nil
-		// }
+		if resp.Finished {
+			fmt.Println("TWAP HAS COMPLETED")
+			return nil
+		}
 	}
 }

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -130,33 +129,6 @@ func validateData(trades []order.TradeHistory) error {
 		return trades[i].Timestamp.Before(trades[j].Timestamp)
 	})
 	return nil
-}
-
-// String returns numeric string
-func (i Interval) String() string {
-	return i.Duration().String()
-}
-
-// Word returns text version of Interval
-func (i Interval) Word() string {
-	return durationToWord(i)
-}
-
-// Duration returns interval casted as time.Duration for compatibility
-func (i Interval) Duration() time.Duration {
-	return time.Duration(i)
-}
-
-// Short returns short string version of interval
-func (i Interval) Short() string {
-	s := i.String()
-	if strings.HasSuffix(s, "m0s") {
-		s = s[:len(s)-2]
-	}
-	if strings.HasSuffix(s, "h0m") {
-		s = s[:len(s)-2]
-	}
-	return s
 }
 
 // FillMissingDataWithEmptyEntries amends a kline item to have candle entries
