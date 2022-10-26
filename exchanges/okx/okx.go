@@ -32,7 +32,7 @@ type Okx struct {
 	WsResponseMultiplexer wsRequestDataChannelsMultiplexer
 
 	// WsRequestSemaphore channel is used to block write operation on the websocket connection to reduce contention; a kind of bounded parallelism.
-	// it is made to hold upto 5 integers so that up to 5 write operations can be called over the websocket connection at a time.
+	// it is made to hold upto 20 integers so that up to 20 write operations can be called over the websocket connection at a time.
 	// and when the operation is completed the thread releases (consumes) one value from the channel so that the other waiting operation can enter.
 	// ok.WsRequestSemaphore <- 1
 	// defer func() { <-ok.WsRequestSemaphore }()
@@ -227,12 +227,12 @@ const (
 	gridAIParams             = "tradingBot/grid/ai-param"
 
 	// Earn
-	financeOffers        = "finance/staking-defi/offers"
-	financePurchase      = "finance/staking-defi/purchase"
-	financeRedeem        = "finance/staking-defi/redeem"
-	financeCacelPurchase = "finance/staking-defi/cancel"
-	financeActiveOrders  = "finance/staking-defi/orders-active"
-	financeOrdersHistory = "finance/staking-defi/orders-history"
+	financeOffers         = "finance/staking-defi/offers"
+	financePurchase       = "finance/staking-defi/purchase"
+	financeRedeem         = "finance/staking-defi/redeem"
+	financeCancelPurchase = "finance/staking-defi/cancel"
+	financeActiveOrders   = "finance/staking-defi/orders-active"
+	financeOrdersHistory  = "finance/staking-defi/orders-history"
 
 	// Status Endpoints
 	systemStatus = "system/status"
@@ -246,7 +246,7 @@ var (
 
 	errLimitExceedsMaximumResultPerRequest           = errors.New("maximum result per request exceeds the limit")
 	errNo24HrTradeVolumeFound                        = errors.New("no trade record found in the 24 trade volume ")
-	errOracleInformationNotFound                     = errors.New("oracle informations not found")
+	errOracleInformationNotFound                     = errors.New("oracle information not found")
 	errExchangeInfoNotFound                          = errors.New("exchange information not found")
 	errIndexComponentNotFound                        = errors.New("unable to fetch index components")
 	errMissingRequiredArgInstType                    = errors.New("invalid required argument instrument type")
@@ -792,7 +792,7 @@ func (ok *Okx) getTransactionDetails(ctx context.Context, arg *TransactionDetail
 		params.Set("before", arg.Before)
 	}
 	var resp []TransactionDetail
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTrasactionDetailsEPL, http.MethodGet, common.EncodeURLValues(route, params), nil, &resp, true)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTransactionDetailsEPL, http.MethodGet, common.EncodeURLValues(route, params), nil, &resp, true)
 }
 
 // PlaceAlgoOrder order includes trigger order, oco order, conditional order,iceberg order, twap order and trailing order.
@@ -926,18 +926,18 @@ func (ok *Okx) TriggerAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*Alg
 // A maximum of 10 orders can be canceled at a time.
 // Request parameters should be passed in the form of an array.
 func (ok *Okx) CancelAdvanceAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams) ([]AlgoOrder, error) {
-	return ok.cancelAlgoOrder(ctx, args, cancelAdvancedAlgoOrder)
+	return ok.cancelAlgoOrder(ctx, args, cancelAdvancedAlgoOrder, cancelAdvanceAlgoOrderEPL)
 }
 
 // CancelAlgoOrder to cancel unfilled algo orders (not including Iceberg order, TWAP order, Trailing Stop order).
 // A maximum of 10 orders can be canceled at a time.
 // Request parameters should be passed in the form of an array.
 func (ok *Okx) CancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams) ([]AlgoOrder, error) {
-	return ok.cancelAlgoOrder(ctx, args, cancelAlgoOrder)
+	return ok.cancelAlgoOrder(ctx, args, cancelAlgoOrder, cancelAlgoOrderEPL)
 }
 
 // cancelAlgoOrder to cancel unfilled algo orders.
-func (ok *Okx) cancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams, route string) ([]AlgoOrder, error) {
+func (ok *Okx) cancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams, route string, rateLimit request.EndpointLimit) ([]AlgoOrder, error) {
 	for x := range args {
 		arg := args[x]
 		if arg.AlgoOrderID == "" {
@@ -950,7 +950,7 @@ func (ok *Okx) cancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams
 		return nil, errors.New("no parameter")
 	}
 	var resp []AlgoOrder
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAlgoOrderEPL, http.MethodPost, route, args, &resp, true)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, rateLimit, http.MethodPost, route, args, &resp, true)
 }
 
 // GetAlgoOrderList retrieves a list of untriggered Algo orders under the current account.
@@ -1039,7 +1039,7 @@ func (ok *Okx) GetAlgoOrderHistory(ctx context.Context, orderType, state, algoOr
 // GetEasyConvertCurrencyList retrieve list of small convertibles and mainstream currencies. Only applicable to the crypto balance less than $10.
 func (ok *Okx) GetEasyConvertCurrencyList(ctx context.Context) (*EasyConvertDetail, error) {
 	var resp []EasyConvertDetail
-	if err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getEasyConvertCurrencyListRate, http.MethodGet,
+	if err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getEasyConvertCurrencyListEPL, http.MethodGet,
 		easyConvertCurrencyList, nil, &resp, true); err != nil {
 		return nil, err
 	}
@@ -1049,7 +1049,7 @@ func (ok *Okx) GetEasyConvertCurrencyList(ctx context.Context) (*EasyConvertDeta
 	return nil, errNoValidResponseFromServer
 }
 
-// PlaceEasyConvert onvert small currencies to mainstream currencies. Only applicable to the crypto balance less than $10.
+// PlaceEasyConvert converts small currencies to mainstream currencies. Only applicable to the crypto balance less than $10.
 func (ok *Okx) PlaceEasyConvert(ctx context.Context, arg PlaceEasyConvertParam) ([]EasyConvertItem, error) {
 	if len(arg.FromCurrency) == 0 {
 		return nil, fmt.Errorf("%w, missing 'fromCcy'", errMissingRequiredParameter)
@@ -1061,7 +1061,7 @@ func (ok *Okx) PlaceEasyConvert(ctx context.Context, arg PlaceEasyConvertParam) 
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeEasyConvertEPL, http.MethodPost, easyConvert, &arg, &resp, true)
 }
 
-// GetEasyConvertHistory retrives the history and status of easy convert trades.
+// GetEasyConvertHistory retrieves the history and status of easy convert trades.
 func (ok *Okx) GetEasyConvertHistory(ctx context.Context, after, before time.Time, limit int64) ([]EasyConvertItem, error) {
 	params := url.Values{}
 	if !before.IsZero() {
@@ -1077,7 +1077,7 @@ func (ok *Okx) GetEasyConvertHistory(ctx context.Context, after, before time.Tim
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getEasyConvertHistoryEPL, http.MethodGet, easyConvertHistoryPath, nil, &resp, true)
 }
 
-// GetOneClickRepayCurrencyList retrives list of debt currency data and repay currencies. Debt currencies include both cross and isolated debts.
+// GetOneClickRepayCurrencyList retrieves list of debt currency data and repay currencies. Debt currencies include both cross and isolated debts.
 // debt level "cross", and "isolated" are allowed
 func (ok *Okx) GetOneClickRepayCurrencyList(ctx context.Context, debtType string) ([]CurrencyOneClickRepay, error) {
 	params := url.Values{}
@@ -1085,7 +1085,7 @@ func (ok *Okx) GetOneClickRepayCurrencyList(ctx context.Context, debtType string
 		params.Set("debtType", debtType)
 	}
 	var resp []CurrencyOneClickRepay
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, oneClickRepayCurrencyListEPL, http.MethodGet, oneClickRepayCurrencyListPath, nil, &resp, true)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, oneClickRepayCurrencyListEPL, http.MethodGet, common.EncodeURLValues(oneClickRepayCurrencyListPath, params), nil, &resp, true)
 }
 
 // TradeOneClickRepay trade one-click repay to repay cross debts. Isolated debts are not applicable. The maximum repayment amount is based on the remaining available balance of funding and trading accounts.
@@ -1588,7 +1588,7 @@ func (ok *Okx) GetLightningDeposits(ctx context.Context, currency string, amount
 		params.Set("to", strconv.FormatInt(to, 10))
 	}
 	var resp []LightningDepositItem
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, ligntningDepositsEPL, http.MethodGet, common.EncodeURLValues(lightningDeposit, params), nil, &resp, true)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, lightningDepositsEPL, http.MethodGet, common.EncodeURLValues(lightningDeposit, params), nil, &resp, true)
 }
 
 // GetCurrencyDepositAddress returns the deposit address and related informations for the provided currency information.
@@ -2015,7 +2015,7 @@ func (ok *Okx) GetAccountAndPositionRisk(ctx context.Context, instrumentType str
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getAccountAndPositionRiskEPL, http.MethodGet, common.EncodeURLValues(accountAndPositionRisk, params), nil, &resp, true)
 }
 
-// GetBillsDetailLast7Days The bill refers to all transaction records that result in changing the balance of an account. Pagination is supported, and the response is sorted with the most recent first. This endpoint can retrieves data from the last 7 days.
+// GetBillsDetailLast7Days The bill refers to all transaction records that result in changing the balance of an account. Pagination is supported, and the response is sorted with the most recent first. This endpoint can retrieve data from the last 7 days.
 func (ok *Okx) GetBillsDetailLast7Days(ctx context.Context, arg *BillsDetailQueryParameter) ([]BillsDetailResponse, error) {
 	return ok.GetBillsDetail(ctx, arg, accountBillsDetail)
 }
@@ -2023,7 +2023,7 @@ func (ok *Okx) GetBillsDetailLast7Days(ctx context.Context, arg *BillsDetailQuer
 // GetBillsDetail3Months retrieves the account’s bills.
 // The bill refers to all transaction records that result in changing the balance of an account.
 // Pagination is supported, and the response is sorted with most recent first.
-// This endpoint can retrieves data from the last 3 months.
+// This endpoint can retrieve data from the last 3 months.
 func (ok *Okx) GetBillsDetail3Months(ctx context.Context, arg *BillsDetailQueryParameter) ([]BillsDetailResponse, error) {
 	return ok.GetBillsDetail(ctx, arg, accountBillsDetailArchive)
 }
@@ -2124,7 +2124,7 @@ func (ok *Okx) SetLeverage(ctx context.Context, arg SetLeverageInput) (*SetLever
 		return nil, errors.New("\"long\" \"short\" Only applicable to isolated margin mode of FUTURES/SWAP")
 	}
 	var resp []SetLeverageResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, setLeverateEPL, http.MethodPost, accountSetLeverage, &arg, &resp, true)
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, setLeverageEPL, http.MethodPost, accountSetLeverage, &arg, &resp, true)
 	if err != nil {
 		return nil, err
 	}
@@ -2220,7 +2220,7 @@ func (ok *Okx) GetLeverage(ctx context.Context, instrumentID, marginMode string)
 	}
 	params.Set("mgnMode", marginMode)
 	var resp []LeverageResponse
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getLeverateEPL, http.MethodGet, common.EncodeURLValues(accountLeverageInfo, params), nil, &resp, true)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getLeverageEPL, http.MethodGet, common.EncodeURLValues(accountLeverageInfo, params), nil, &resp, true)
 }
 
 // GetMaximumLoanOfInstrument returns list of maximum loan of instruments.
@@ -2310,7 +2310,7 @@ func (ok *Okx) GetTradeFee(ctx context.Context, instrumentType, instrumentID, un
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getFeeRatesEPL, http.MethodGet, common.EncodeURLValues(accountTradeFee, params), nil, &resp, true)
 }
 
-// GetInterestAccruedData account accred data.
+// GetInterestAccruedData returns accrued interest data
 func (ok *Okx) GetInterestAccruedData(ctx context.Context, loanType, limit int64, currency, instrumentID, marginMode string, after, before time.Time) ([]InterestAccruedData, error) {
 	params := url.Values{}
 	if loanType == 1 || loanType == 2 {
@@ -2360,7 +2360,7 @@ func (ok *Okx) SetGreeks(ctx context.Context, greeksType string) (*GreeksType, e
 		GreeksType: greeksType,
 	}
 	var resp []GreeksType
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, setGeeksEPL, http.MethodPost, accountSetGeeks, input, &resp, true)
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, setGreeksEPL, http.MethodPost, accountSetGeeks, input, &resp, true)
 	if err != nil {
 		return nil, err
 	}
@@ -2635,7 +2635,7 @@ func (ok *Okx) SetPermissionOfTransferOut(ctx context.Context, arg PermissingOfT
 		return nil, errMissingRequiredParameterSubaccountName
 	}
 	var resp []PermissingOfTransfer
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, setPermissingOfTransferOutEPL, http.MethodPost, userSubaccountSetTransferOut, &arg, &resp, true)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, setPermissionOfTransferOutEPL, http.MethodPost, userSubaccountSetTransferOut, &arg, &resp, true)
 }
 
 // GetCustodyTradingSubaccountList the trading team uses this interface to view the list of sub-accounts currently under escrow
@@ -2646,7 +2646,7 @@ func (ok *Okx) GetCustodyTradingSubaccountList(ctx context.Context, subaccountNa
 		params.Set("setAcct", subaccountName)
 	}
 	var resp []SubaccountName
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getCustoryTradingSubaccountListEPL, http.MethodGet, common.EncodeURLValues(usersEntrustSubaccountList, params), nil, &resp, true)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getCustodyTradingSubaccountListEPL, http.MethodGet, common.EncodeURLValues(usersEntrustSubaccountList, params), nil, &resp, true)
 }
 
 /*************************************** Grid Trading Endpoints ***************************************************/
@@ -2920,7 +2920,7 @@ func (ok *Okx) ComputeMarginBalance(ctx context.Context, arg MarginBalanceParam)
 	return nil, errNoValidResponseFromServer
 }
 
-// AdjustMarginBalance retrives adjust margin balance with 'add' and 'reduce' balance type
+// AdjustMarginBalance retrieves adjust margin balance with 'add' and 'reduce' balance type
 func (ok *Okx) AdjustMarginBalance(ctx context.Context, arg MarginBalanceParam) (*AdjustMarginBalanceResponse, error) {
 	if arg.AlgoID == "" {
 		return nil, errInvalidAlgoID
@@ -2941,7 +2941,7 @@ func (ok *Okx) AdjustMarginBalance(ctx context.Context, arg MarginBalanceParam) 
 	return nil, errNoValidResponseFromServer
 }
 
-// GetGridAIParameter retrives grid AI parameter
+// GetGridAIParameter retrieves grid AI parameter
 func (ok *Okx) GetGridAIParameter(ctx context.Context, algoOrderType, instrumentID, direction, duration string) ([]GridAIParameterResponse, error) {
 	params := url.Values{}
 	if algoOrderType != "moon_grid" && algoOrderType != "contract_grid" && algoOrderType != "grid" {
@@ -2965,7 +2965,7 @@ func (ok *Okx) GetGridAIParameter(ctx context.Context, algoOrderType, instrument
 
 // ****************************************** Earn **************************************************
 
-// GetOffers retrives list of offers for different protocols.
+// GetOffers retrieves list of offers for different protocols.
 func (ok *Okx) GetOffers(ctx context.Context, productID, protocolType, currency string) ([]Offer, error) {
 	params := url.Values{}
 	if productID != "" {
@@ -3022,7 +3022,7 @@ func (ok *Okx) Redeem(ctx context.Context, arg RedeemRequestParam) (*OrderIDResp
 	return nil, errNoValidResponseFromServer
 }
 
-// CancelPurchaseOrRedemption canceld Purchase or Redemptions
+// CancelPurchaseOrRedemption cancels Purchases or Redemptions
 // after cancelling, returning funds will go to the funding account.
 func (ok *Okx) CancelPurchaseOrRedemption(ctx context.Context, arg CancelFundingParam) (*OrderIDResponse, error) {
 	if arg.OrderID == "" {
@@ -3032,7 +3032,7 @@ func (ok *Okx) CancelPurchaseOrRedemption(ctx context.Context, arg CancelFunding
 		return nil, errInvalidProtocolType
 	}
 	var resp []OrderIDResponse
-	if err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelPurchaseOrRedemptionEPL, http.MethodPost, financeCacelPurchase, &arg, &resp, true); err != nil {
+	if err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelPurchaseOrRedemptionEPL, http.MethodPost, financeCancelPurchase, &arg, &resp, true); err != nil {
 		return nil, err
 	}
 	if len(resp) == 1 {
@@ -3041,7 +3041,7 @@ func (ok *Okx) CancelPurchaseOrRedemption(ctx context.Context, arg CancelFunding
 	return nil, errNoValidResponseFromServer
 }
 
-// GetEarnActiveOrders retrives active orders.
+// GetEarnActiveOrders retrieves active orders.
 func (ok *Okx) GetEarnActiveOrders(ctx context.Context, productID, protocolType, currency, state string) ([]ActiveFundingOrder, error) {
 	params := url.Values{}
 	if productID != "" {
@@ -3062,7 +3062,7 @@ func (ok *Okx) GetEarnActiveOrders(ctx context.Context, productID, protocolType,
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getEarnActiveOrdersEPL, http.MethodGet, common.EncodeURLValues(financeActiveOrders, params), nil, &resp, true)
 }
 
-// GetFundingOrderHistory retrives funding order history
+// GetFundingOrderHistory retrieves funding order history
 // valid protocol types are 'staking' and 'defi'
 func (ok *Okx) GetFundingOrderHistory(ctx context.Context, productID, protocolType, currency string, after, before time.Time, limit int64) ([]ActiveFundingOrder, error) {
 	params := url.Values{}
@@ -3082,10 +3082,10 @@ func (ok *Okx) GetFundingOrderHistory(ctx context.Context, productID, protocolTy
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []ActiveFundingOrder
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getEarnActiveOrdersEPL, http.MethodGet, common.EncodeURLValues(financeOrdersHistory, params), nil, &resp, true)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getFundingOrderHistoryEPL, http.MethodGet, common.EncodeURLValues(financeOrdersHistory, params), nil, &resp, true)
 }
 
-// GetTickers retrieves the latest price snopshots best bid/ ask price, and tranding volume in the last 34 hours.
+// GetTickers retrieves the latest price snapshots best bid/ ask price, and trading volume in the last 24 hours.
 func (ok *Okx) GetTickers(ctx context.Context, instType, uly, instID string) ([]TickerResponse, error) {
 	params := url.Values{}
 	instType = strings.ToUpper(instType)
@@ -3233,7 +3233,7 @@ func (ok *Okx) GetIntervalEnum(interval kline.Interval) string {
 	}
 }
 
-// GetCandlesticks Retrieve the candlestick charts. This endpoint can retrieves the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
+// GetCandlesticks Retrieve the candlestick charts. This endpoint can retrieve the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
 func (ok *Okx) GetCandlesticks(ctx context.Context, instrumentID string, interval kline.Interval, before, after time.Time, limit int64) ([]CandleStick, error) {
 	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketCandles)
 }
@@ -3243,13 +3243,13 @@ func (ok *Okx) GetCandlesticksHistory(ctx context.Context, instrumentID string, 
 	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketCandlesHistory)
 }
 
-// GetIndexCandlesticks Retrieve the candlestick charts of the index. This endpoint can retrieves the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
-// the respos is a lis of Candlestick data.
+// GetIndexCandlesticks Retrieve the candlestick charts of the index. This endpoint can retrieve the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
+// the response is a list of Candlestick data.
 func (ok *Okx) GetIndexCandlesticks(ctx context.Context, instrumentID string, interval kline.Interval, before, after time.Time, limit int64) ([]CandleStick, error) {
 	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketCandlesIndex)
 }
 
-// GetMarkPriceCandlesticks Retrieve the candlestick charts of mark price. This endpoint can retrieves the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
+// GetMarkPriceCandlesticks Retrieve the candlestick charts of mark price. This endpoint can retrieve the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
 func (ok *Okx) GetMarkPriceCandlesticks(ctx context.Context, instrumentID string, interval kline.Interval, before, after time.Time, limit int64) ([]CandleStick, error) {
 	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketPriceCandles)
 }
@@ -3283,32 +3283,32 @@ func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, inte
 	}
 	klineData := make([]CandleStick, len(resp))
 	for x := range resp {
-		var candle CandleStick
+		var candleData CandleStick
 		var err error
 		timestamp, err := strconv.ParseInt(resp[x][0], 10, 64)
 		if err != nil {
 			return nil, err
 		}
-		candle.OpenTime = time.UnixMilli(timestamp)
-		if candle.OpenPrice, err = convert.FloatFromString(resp[x][1]); err != nil {
+		candleData.OpenTime = time.UnixMilli(timestamp)
+		if candleData.OpenPrice, err = convert.FloatFromString(resp[x][1]); err != nil {
 			return nil, err
 		}
-		if candle.HighestPrice, err = convert.FloatFromString(resp[x][2]); err != nil {
+		if candleData.HighestPrice, err = convert.FloatFromString(resp[x][2]); err != nil {
 			return nil, err
 		}
-		if candle.LowestPrice, err = convert.FloatFromString(resp[x][3]); err != nil {
+		if candleData.LowestPrice, err = convert.FloatFromString(resp[x][3]); err != nil {
 			return nil, err
 		}
-		if candle.ClosePrice, err = convert.FloatFromString(resp[x][4]); err != nil {
+		if candleData.ClosePrice, err = convert.FloatFromString(resp[x][4]); err != nil {
 			return nil, err
 		}
-		if candle.Volume, err = convert.FloatFromString(resp[x][5]); err != nil {
+		if candleData.Volume, err = convert.FloatFromString(resp[x][5]); err != nil {
 			return nil, err
 		}
-		if candle.QuoteAssetVolume, err = convert.FloatFromString(resp[x][6]); err != nil {
+		if candleData.QuoteAssetVolume, err = convert.FloatFromString(resp[x][6]); err != nil {
 			return nil, err
 		}
-		klineData[x] = candle
+		klineData[x] = candleData
 	}
 	return klineData, nil
 }
@@ -3403,7 +3403,7 @@ func (ok *Okx) GetIndexComponents(ctx context.Context, index string) (*IndexComp
 }
 
 // GetBlockTickers retrieves the latest block trading volume in the last 24 hours.
-// Instrument Type Is Mendatory, and Underlying is Optional.
+// Instrument Type Is Mandatory, and Underlying is Optional.
 func (ok *Okx) GetBlockTickers(ctx context.Context, instrumentType, underlying string) ([]BlockTicker, error) {
 	params := url.Values{}
 	instrumentType = strings.ToUpper(instrumentType)
@@ -3532,7 +3532,7 @@ func (ok *Okx) GetFundingRate(ctx context.Context, instrumentID string) (*Fundin
 	return nil, errNoValidResponseFromServer
 }
 
-// GetFundingRateHistory retrieves funding rate history. This endpoint can retrieves data from the last 3 months.
+// GetFundingRateHistory retrieves funding rate history. This endpoint can retrieve data from the last 3 months.
 func (ok *Okx) GetFundingRateHistory(ctx context.Context, instrumentID string, before, after time.Time, limit int64) ([]FundingRateResponse, error) {
 	params := url.Values{}
 	if instrumentID == "" {
@@ -3761,8 +3761,8 @@ func (ok *Okx) GetPublicUnderlyings(ctx context.Context, instrumentType string) 
 	return nil, errUnderlyingsForSpecifiedInstTypeNofFound
 }
 
-// GetInsuranceFundInformations returns insurance fund balance informations.
-func (ok *Okx) GetInsuranceFundInformations(ctx context.Context, arg *InsuranceFundInformationRequestParams) (*InsuranceFundInformation, error) {
+// GetInsuranceFundInformation returns insurance fund balance informations.
+func (ok *Okx) GetInsuranceFundInformation(ctx context.Context, arg *InsuranceFundInformationRequestParams) (*InsuranceFundInformation, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -4000,7 +4000,7 @@ func (ok *Okx) GetContractsOpenInterestAndVolume(
 	}
 	openInterestVolumes := []OpenInterestVolume{}
 	var response [][3]string
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getContractsOpeninterestAndVolumeEPL, http.MethodGet, common.EncodeURLValues(contractOpenInterestVolume, params), nil, &response, false)
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getContractsOpenInterestAndVolumeEPL, http.MethodGet, common.EncodeURLValues(contractOpenInterestVolume, params), nil, &response, false)
 	if err != nil {
 		return nil, err
 	}
@@ -4370,6 +4370,7 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 			headers["OK-ACCESS-TIMESTAMP"] = utcTime
 			headers["OK-ACCESS-PASSPHRASE"] = creds.ClientID
 		}
+		println(path)
 		return &request.Item{
 			Method:        strings.ToUpper(httpMethod),
 			Path:          path,

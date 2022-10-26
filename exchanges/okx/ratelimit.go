@@ -31,11 +31,11 @@ type RateLimit struct {
 	CancelMultipleOrders       *rate.Limiter
 	AmendOrder                 *rate.Limiter
 	AmendMultipleOrders        *rate.Limiter
-	CloseDposit                *rate.Limiter
+	CloseDeposit               *rate.Limiter
 	GetOrderDetails            *rate.Limiter
 	GetOrderList               *rate.Limiter
 	GetOrderHistory            *rate.Limiter
-	GetTrasactionDetails       *rate.Limiter
+	GetTransactionDetails      *rate.Limiter
 	PlaceAlgoOrder             *rate.Limiter
 	CancelAlgoOrder            *rate.Limiter
 	CancelAdvanceAlgoOrder     *rate.Limiter
@@ -71,7 +71,7 @@ type RateLimit struct {
 	FundsTransfer            *rate.Limiter
 	GetFundsTransferState    *rate.Limiter
 	AssetBillsDetails        *rate.Limiter
-	LigntningDeposits        *rate.Limiter
+	LightningDeposits        *rate.Limiter
 	GetDepositAddress        *rate.Limiter
 	GetDepositHistory        *rate.Limiter
 	Withdrawal               *rate.Limiter
@@ -82,7 +82,7 @@ type RateLimit struct {
 	GetSavingBalance         *rate.Limiter
 	SavingsPurchaseRedemp    *rate.Limiter
 	SetLendingRate           *rate.Limiter
-	GetLendinghistory        *rate.Limiter
+	GetLendingHistory        *rate.Limiter
 	GetPublicBorrowInfo      *rate.Limiter
 	// Convert
 	GetConvertCurrencies   *rate.Limiter
@@ -98,16 +98,16 @@ type RateLimit struct {
 	GetBillsDetails                   *rate.Limiter
 	GetAccountConfiguration           *rate.Limiter
 	SetPositionMode                   *rate.Limiter
-	SetLeverate                       *rate.Limiter
+	SetLeverage                       *rate.Limiter
 	GetMaximumBuyOrSellAmount         *rate.Limiter
 	GetMaximumAvailableTradableAmount *rate.Limiter
 	IncreaseOrDecreaseMargin          *rate.Limiter
-	GetLeverate                       *rate.Limiter
+	GetLeverage                       *rate.Limiter
 	GetTheMaximumLoanOfInstrument     *rate.Limiter
 	GetFeeRates                       *rate.Limiter
 	GetInterestAccruedData            *rate.Limiter
 	GetInterestRate                   *rate.Limiter
-	SetGeeks                          *rate.Limiter
+	SetGreeks                         *rate.Limiter
 	IsolatedMarginTradingSettings     *rate.Limiter
 	GetMaximumWithdrawals             *rate.Limiter
 	GetAccountRiskState               *rate.Limiter
@@ -124,8 +124,8 @@ type RateLimit struct {
 	GetSubaccountFundingBalance                    *rate.Limiter
 	HistoryOfSubaccountTransfer                    *rate.Limiter
 	MasterAccountsManageTransfersBetweenSubaccount *rate.Limiter
-	SetPermissingOfTransferOut                     *rate.Limiter
-	GetCustoryTradingSubaccountList                *rate.Limiter
+	SetPermissionOfTransferOut                     *rate.Limiter
+	GetCustodyTradingSubaccountList                *rate.Limiter
 	GridTrading                                    *rate.Limiter
 	AmendGridAlgoOrder                             *rate.Limiter
 	StopGridAlgoOrder                              *rate.Limiter
@@ -169,8 +169,8 @@ type RateLimit struct {
 	GetFundingRateHistory                  *rate.Limiter
 	GetLimitPrice                          *rate.Limiter
 	GetOptionMarketDate                    *rate.Limiter
-	GetEstimatedDeliveryExercisePriice     *rate.Limiter
-	GetDIscountRateAndInterestFreeQuota    *rate.Limiter
+	GetEstimatedDeliveryExercisePrice      *rate.Limiter
+	GetDiscountRateAndInterestFreeQuota    *rate.Limiter
 	GetSystemTime                          *rate.Limiter
 	GetLiquidationOrders                   *rate.Limiter
 	GetMarkPrice                           *rate.Limiter
@@ -185,7 +185,7 @@ type RateLimit struct {
 	GetTakerVolume                    *rate.Limiter
 	GetMarginLendingRatio             *rate.Limiter
 	GetLongShortRatio                 *rate.Limiter
-	GetContractsOpeninterestAndVolume *rate.Limiter
+	GetContractsOpenInterestAndVolume *rate.Limiter
 	GetOptionsOpenInterestAndVolume   *rate.Limiter
 	GetPutCallRatio                   *rate.Limiter
 	GetOpenInterestAndVolume          *rate.Limiter
@@ -206,11 +206,11 @@ const (
 	getOrderDetails                = 60
 	getOrderListRate               = 60
 	getOrderHistoryRate            = 40
-	getTrasactionDetailsRate       = 60
+	getTransactionDetailsRate      = 60
 	placeAlgoOrderRate             = 20
 	cancelAlgoOrderRate            = 20
 	getAlgoOrderListRate           = 20
-	getAlgoOrderhistoryRate        = 20
+	getAlgoOrderHistoryRate        = 20
 	getEasyConvertCurrencyListRate = 1
 	placeEasyConvert               = 1
 	getEasyConvertHistory          = 1
@@ -241,7 +241,7 @@ const (
 	fundsTransferRate            = 1
 	getFundsTransferStateRate    = 1
 	assetBillsDetailsRate        = 6
-	ligntningDepositsRate        = 2
+	lightningDepositsRate        = 2
 	getDepositAddressRate        = 6
 	getDepositHistoryRate        = 6
 	withdrawalRate               = 6
@@ -268,20 +268,20 @@ const (
 	getBillsDetailsRate                   = 6
 	getAccountConfigurationRate           = 5
 	setPositionModeRate                   = 5
-	setLeverateRate                       = 20
+	setLeverageRate                       = 20
 	getMaximumBuyOrSellAmountRate         = 20
 	getMaximumAvailableTradableAmountRate = 20
 	increaseOrDecreaseMarginRate          = 20
-	getLeverateRate                       = 20
+	getLeverageRate                       = 20
 	getTheMaximumLoanOfInstrumentRate     = 20
 	getFeeRatesRate                       = 5
 	getInterestAccruedDataRate            = 5
 	getInterestRateRate                   = 5
-	setGeeksRate                          = 5
+	setGreeksRate                         = 5
 	isolatedMarginTradingSettingsRate     = 5
 	getMaximumWithdrawalsRate             = 20
 	getAccountRiskStateRate               = 10
-	vipLoansBorrowAnsRepayRate            = 6
+	vipLoansBorrowAndRepayRate            = 6
 	getBorrowAnsRepayHistoryHistoryRate   = 5
 	getBorrowInterestAndLimitRate         = 5
 	positionBuilderRate                   = 2
@@ -294,8 +294,8 @@ const (
 	getSubaccountFundingBalanceRate                    = 2
 	historyOfSubaccountTransferRate                    = 6
 	masterAccountsManageTransfersBetweenSubaccountRate = 1
-	setPermissingOfTransferOutRate                     = 1
-	getCustoryTradingSubaccountListRate                = 1
+	setPermissionOfTransferOutRate                     = 1
+	getCustodyTradingSubaccountListRate                = 1
 	gridTradingRate                                    = 20
 	amendGridAlgoOrderRate                             = 20
 	stopGridAlgoOrderRate                              = 20
@@ -339,8 +339,8 @@ const (
 	getFundingRateHistoryRate                  = 20
 	getLimitPriceRate                          = 20
 	getOptionMarketDateRate                    = 20
-	getEstimatedDeliveryExercisePriiceRate     = 10
-	getDIscountRateAndInterestFreeQuotaRate    = 2
+	getEstimatedDeliveryExercisePriceRate      = 10
+	getDiscountRateAndInterestFreeQuotaRate    = 2
 	getSystemTimeRate                          = 10
 	getLiquidationOrdersRate                   = 2
 	getMarkPriceRate                           = 10
@@ -355,7 +355,7 @@ const (
 	getTakerVolumeRate                    = 5
 	getMarginLendingRatioRate             = 5
 	getLongShortRatioRate                 = 5
-	getContractsOpeninterestAndVolumeRate = 5
+	getContractsOpenInterestAndVolumeRate = 5
 	getOptionsOpenInterestAndVolumeRate   = 5
 	getPutCallRatioRate                   = 5
 	getOpenInterestAndVolumeRate          = 5
@@ -375,7 +375,7 @@ const (
 	getOrderDetEPL
 	getOrderListEPL
 	getOrderHistoryEPL
-	getTrasactionDetailsEPL
+	getTransactionDetailsEPL
 	placeAlgoOrderEPL
 	cancelAlgoOrderEPL
 	cancelAdvanceAlgoOrderEPL
@@ -409,7 +409,7 @@ const (
 	fundsTransferEPL
 	getFundsTransferStateEPL
 	assetBillsDetailsEPL
-	ligntningDepositsEPL
+	lightningDepositsEPL
 	getDepositAddressEPL
 	getDepositHistoryEPL
 	withdrawalEPL
@@ -434,16 +434,16 @@ const (
 	getBillsDetailsEPL
 	getAccountConfigurationEPL
 	setPositionModeEPL
-	setLeverateEPL
+	setLeverageEPL
 	getMaximumBuyOrSellAmountEPL
 	getMaximumAvailableTradableAmountEPL
 	increaseOrDecreaseMarginEPL
-	getLeverateEPL
+	getLeverageEPL
 	getTheMaximumLoanOfInstrumentEPL
 	getFeeRatesEPL
 	getInterestAccruedDataEPL
 	getInterestRateEPL
-	setGeeksEPL
+	setGreeksEPL
 	isolatedMarginTradingSettingsEPL
 	getMaximumWithdrawalsEPL
 	getAccountRiskStateEPL
@@ -459,8 +459,8 @@ const (
 	getSubaccountFundingBalanceEPL
 	historyOfSubaccountTransferEPL
 	masterAccountsManageTransfersBetweenSubaccountEPL
-	setPermissingOfTransferOutEPL
-	getCustoryTradingSubaccountListEPL
+	setPermissionOfTransferOutEPL
+	getCustodyTradingSubaccountListEPL
 	gridTradingEPL
 	amendGridAlgoOrderEPL
 	stopGridAlgoOrderEPL
@@ -512,11 +512,10 @@ const (
 	getTakerVolumeEPL
 	getMarginLendingRatioEPL
 	getLongShortRatioEPL
-	getContractsOpeninterestAndVolumeEPL
+	getContractsOpenInterestAndVolumeEPL
 	getOptionsOpenInterestAndVolumeEPL
 	getPutCallRatioEPL
 	getOpenInterestAndVolumeEPL
-	getopenInterestAndVolumeEPL
 	getTakerFlowEPL
 	getEventStatusEPL
 )
@@ -537,15 +536,15 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	case amendMultipleOrdersEPL:
 		return r.AmendMultipleOrders.Wait(ctx)
 	case closePositionEPL:
-		return r.CloseDposit.Wait(ctx)
+		return r.CloseDeposit.Wait(ctx)
 	case getOrderDetEPL:
 		return r.GetOrderDetails.Wait(ctx)
 	case getOrderListEPL:
 		return r.GetOrderList.Wait(ctx)
 	case getOrderHistoryEPL:
 		return r.GetOrderHistory.Wait(ctx)
-	case getTrasactionDetailsEPL:
-		return r.GetTrasactionDetails.Wait(ctx)
+	case getTransactionDetailsEPL:
+		return r.GetTransactionDetails.Wait(ctx)
 	case placeAlgoOrderEPL:
 		return r.PlaceAlgoOrder.Wait(ctx)
 	case cancelAlgoOrderEPL:
@@ -612,8 +611,8 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.GetFundsTransferState.Wait(ctx)
 	case assetBillsDetailsEPL:
 		return r.AssetBillsDetails.Wait(ctx)
-	case ligntningDepositsEPL:
-		return r.LigntningDeposits.Wait(ctx)
+	case lightningDepositsEPL:
+		return r.LightningDeposits.Wait(ctx)
 	case getDepositAddressEPL:
 		return r.GetDepositAddress.Wait(ctx)
 	case getDepositHistoryEPL:
@@ -635,7 +634,7 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	case setLendingRateEPL:
 		return r.SetLendingRate.Wait(ctx)
 	case getLendingHistoryEPL:
-		return r.GetLendinghistory.Wait(ctx)
+		return r.GetLendingHistory.Wait(ctx)
 	case getPublicBorrowInfoEPL:
 		return r.GetPublicBorrowInfo.Wait(ctx)
 	case getConvertCurrenciesEPL:
@@ -662,16 +661,16 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.GetAccountConfiguration.Wait(ctx)
 	case setPositionModeEPL:
 		return r.SetPositionMode.Wait(ctx)
-	case setLeverateEPL:
-		return r.SetLeverate.Wait(ctx)
+	case setLeverageEPL:
+		return r.SetLeverage.Wait(ctx)
 	case getMaximumBuyOrSellAmountEPL:
 		return r.GetMaximumBuyOrSellAmount.Wait(ctx)
 	case getMaximumAvailableTradableAmountEPL:
 		return r.GetMaximumAvailableTradableAmount.Wait(ctx)
 	case increaseOrDecreaseMarginEPL:
 		return r.IncreaseOrDecreaseMargin.Wait(ctx)
-	case getLeverateEPL:
-		return r.GetLeverate.Wait(ctx)
+	case getLeverageEPL:
+		return r.GetLeverage.Wait(ctx)
 	case getTheMaximumLoanOfInstrumentEPL:
 		return r.GetTheMaximumLoanOfInstrument.Wait(ctx)
 	case getFeeRatesEPL:
@@ -680,8 +679,8 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.GetInterestAccruedData.Wait(ctx)
 	case getInterestRateEPL:
 		return r.GetInterestRate.Wait(ctx)
-	case setGeeksEPL:
-		return r.SetGeeks.Wait(ctx)
+	case setGreeksEPL:
+		return r.SetGreeks.Wait(ctx)
 	case isolatedMarginTradingSettingsEPL:
 		return r.IsolatedMarginTradingSettings.Wait(ctx)
 	case getMaximumWithdrawalsEPL:
@@ -712,10 +711,10 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.HistoryOfSubaccountTransfer.Wait(ctx)
 	case masterAccountsManageTransfersBetweenSubaccountEPL:
 		return r.MasterAccountsManageTransfersBetweenSubaccount.Wait(ctx)
-	case setPermissingOfTransferOutEPL:
-		return r.SetPermissingOfTransferOut.Wait(ctx)
-	case getCustoryTradingSubaccountListEPL:
-		return r.GetCustoryTradingSubaccountList.Wait(ctx)
+	case setPermissionOfTransferOutEPL:
+		return r.SetPermissionOfTransferOut.Wait(ctx)
+	case getCustodyTradingSubaccountListEPL:
+		return r.GetCustodyTradingSubaccountList.Wait(ctx)
 	case gridTradingEPL:
 		return r.GridTrading.Wait(ctx)
 	case amendGridAlgoOrderEPL:
@@ -789,9 +788,9 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	case getOptionMarketDateEPL:
 		return r.GetOptionMarketDate.Wait(ctx)
 	case getEstimatedDeliveryPriceEPL:
-		return r.GetEstimatedDeliveryExercisePriice.Wait(ctx)
+		return r.GetEstimatedDeliveryExercisePrice.Wait(ctx)
 	case getDiscountRateAndInterestFreeQuotaEPL:
-		return r.GetDIscountRateAndInterestFreeQuota.Wait(ctx)
+		return r.GetDiscountRateAndInterestFreeQuota.Wait(ctx)
 	case getSystemTimeEPL:
 		return r.GetSystemTime.Wait(ctx)
 	case getLiquidationOrdersEPL:
@@ -818,8 +817,8 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.GetMarginLendingRatio.Wait(ctx)
 	case getLongShortRatioEPL:
 		return r.GetLongShortRatio.Wait(ctx)
-	case getContractsOpeninterestAndVolumeEPL:
-		return r.GetContractsOpeninterestAndVolume.Wait(ctx)
+	case getContractsOpenInterestAndVolumeEPL:
+		return r.GetContractsOpenInterestAndVolume.Wait(ctx)
 	case getOptionsOpenInterestAndVolumeEPL:
 		return r.GetOptionsOpenInterestAndVolume.Wait(ctx)
 	case getPutCallRatioEPL:
@@ -845,15 +844,15 @@ func SetRateLimit() *RateLimit {
 		CancelMultipleOrders:       request.NewRateLimit(twoSecondsInterval, cancelMultipleOrdersRate),
 		AmendOrder:                 request.NewRateLimit(twoSecondsInterval, amendOrderRate),
 		AmendMultipleOrders:        request.NewRateLimit(twoSecondsInterval, amendMultipleOrdersRate),
-		CloseDposit:                request.NewRateLimit(twoSecondsInterval, closeDepositions),
+		CloseDeposit:               request.NewRateLimit(twoSecondsInterval, closeDepositions),
 		GetOrderDetails:            request.NewRateLimit(twoSecondsInterval, getOrderDetails),
 		GetOrderList:               request.NewRateLimit(twoSecondsInterval, getOrderListRate),
 		GetOrderHistory:            request.NewRateLimit(twoSecondsInterval, getOrderHistoryRate),
-		GetTrasactionDetails:       request.NewRateLimit(twoSecondsInterval, getTrasactionDetailsRate),
+		GetTransactionDetails:      request.NewRateLimit(twoSecondsInterval, getTransactionDetailsRate),
 		PlaceAlgoOrder:             request.NewRateLimit(twoSecondsInterval, placeAlgoOrderRate),
 		CancelAlgoOrder:            request.NewRateLimit(twoSecondsInterval, cancelAlgoOrderRate),
 		GetAlgoOrderList:           request.NewRateLimit(twoSecondsInterval, getAlgoOrderListRate),
-		GetAlgoOrderHistory:        request.NewRateLimit(twoSecondsInterval, getAlgoOrderhistoryRate),
+		GetAlgoOrderHistory:        request.NewRateLimit(twoSecondsInterval, getAlgoOrderHistoryRate),
 		GetEasyConvertCurrencyList: request.NewRateLimit(twoSecondsInterval, getEasyConvertCurrencyListRate),
 		PlaceEasyConvert:           request.NewRateLimit(twoSecondsInterval, placeEasyConvert),
 		GetEasyConvertHistory:      request.NewRateLimit(twoSecondsInterval, getEasyConvertHistory),
@@ -884,7 +883,7 @@ func SetRateLimit() *RateLimit {
 		FundsTransfer:            request.NewRateLimit(oneSecondInterval, fundsTransferRate),
 		GetFundsTransferState:    request.NewRateLimit(oneSecondInterval, getFundsTransferStateRate),
 		AssetBillsDetails:        request.NewRateLimit(oneSecondInterval, assetBillsDetailsRate),
-		LigntningDeposits:        request.NewRateLimit(oneSecondInterval, ligntningDepositsRate),
+		LightningDeposits:        request.NewRateLimit(oneSecondInterval, lightningDepositsRate),
 		GetDepositAddress:        request.NewRateLimit(oneSecondInterval, getDepositAddressRate),
 		GetDepositHistory:        request.NewRateLimit(oneSecondInterval, getDepositHistoryRate),
 		Withdrawal:               request.NewRateLimit(oneSecondInterval, withdrawalRate),
@@ -895,7 +894,7 @@ func SetRateLimit() *RateLimit {
 		GetSavingBalance:         request.NewRateLimit(oneSecondInterval, getSavingBalanceRate),
 		SavingsPurchaseRedemp:    request.NewRateLimit(oneSecondInterval, savingsPurchaseRedemption),
 		SetLendingRate:           request.NewRateLimit(oneSecondInterval, setLendingRateRate),
-		GetLendinghistory:        request.NewRateLimit(oneSecondInterval, getLendingHistoryRate),
+		GetLendingHistory:        request.NewRateLimit(oneSecondInterval, getLendingHistoryRate),
 		GetPublicBorrowInfo:      request.NewRateLimit(oneSecondInterval, getPublicBorrowInfoRate),
 		// Convert
 		GetConvertCurrencies:   request.NewRateLimit(oneSecondInterval, getConvertCurrenciesRate),
@@ -911,20 +910,20 @@ func SetRateLimit() *RateLimit {
 		GetBillsDetails:                   request.NewRateLimit(oneSecondInterval, getBillsDetailsRate),
 		GetAccountConfiguration:           request.NewRateLimit(twoSecondsInterval, getAccountConfigurationRate),
 		SetPositionMode:                   request.NewRateLimit(twoSecondsInterval, setPositionModeRate),
-		SetLeverate:                       request.NewRateLimit(twoSecondsInterval, setLeverateRate),
+		SetLeverage:                       request.NewRateLimit(twoSecondsInterval, setLeverageRate),
 		GetMaximumBuyOrSellAmount:         request.NewRateLimit(twoSecondsInterval, getMaximumBuyOrSellAmountRate),
 		GetMaximumAvailableTradableAmount: request.NewRateLimit(twoSecondsInterval, getMaximumAvailableTradableAmountRate),
 		IncreaseOrDecreaseMargin:          request.NewRateLimit(twoSecondsInterval, increaseOrDecreaseMarginRate),
-		GetLeverate:                       request.NewRateLimit(twoSecondsInterval, getLeverateRate),
+		GetLeverage:                       request.NewRateLimit(twoSecondsInterval, getLeverageRate),
 		GetTheMaximumLoanOfInstrument:     request.NewRateLimit(twoSecondsInterval, getTheMaximumLoanOfInstrumentRate),
 		GetFeeRates:                       request.NewRateLimit(twoSecondsInterval, getFeeRatesRate),
 		GetInterestAccruedData:            request.NewRateLimit(twoSecondsInterval, getInterestAccruedDataRate),
 		GetInterestRate:                   request.NewRateLimit(twoSecondsInterval, getInterestRateRate),
-		SetGeeks:                          request.NewRateLimit(twoSecondsInterval, setGeeksRate),
+		SetGreeks:                         request.NewRateLimit(twoSecondsInterval, setGreeksRate),
 		IsolatedMarginTradingSettings:     request.NewRateLimit(twoSecondsInterval, isolatedMarginTradingSettingsRate),
 		GetMaximumWithdrawals:             request.NewRateLimit(twoSecondsInterval, getMaximumWithdrawalsRate),
 		GetAccountRiskState:               request.NewRateLimit(twoSecondsInterval, getAccountRiskStateRate),
-		VipLoansBorrowAnsRepay:            request.NewRateLimit(oneSecondInterval, vipLoansBorrowAnsRepayRate),
+		VipLoansBorrowAnsRepay:            request.NewRateLimit(oneSecondInterval, vipLoansBorrowAndRepayRate),
 		GetBorrowAnsRepayHistoryHistory:   request.NewRateLimit(twoSecondsInterval, getBorrowAnsRepayHistoryHistoryRate),
 		GetBorrowInterestAndLimit:         request.NewRateLimit(twoSecondsInterval, getBorrowInterestAndLimitRate),
 		PositionBuilder:                   request.NewRateLimit(twoSecondsInterval, positionBuilderRate),
@@ -938,8 +937,8 @@ func SetRateLimit() *RateLimit {
 		GetSubaccountFundingBalance:                    request.NewRateLimit(twoSecondsInterval, getSubaccountFundingBalanceRate),
 		HistoryOfSubaccountTransfer:                    request.NewRateLimit(oneSecondInterval, historyOfSubaccountTransferRate),
 		MasterAccountsManageTransfersBetweenSubaccount: request.NewRateLimit(oneSecondInterval, masterAccountsManageTransfersBetweenSubaccountRate),
-		SetPermissingOfTransferOut:                     request.NewRateLimit(oneSecondInterval, setPermissingOfTransferOutRate),
-		GetCustoryTradingSubaccountList:                request.NewRateLimit(oneSecondInterval, getCustoryTradingSubaccountListRate),
+		SetPermissionOfTransferOut:                     request.NewRateLimit(oneSecondInterval, setPermissionOfTransferOutRate),
+		GetCustodyTradingSubaccountList:                request.NewRateLimit(oneSecondInterval, getCustodyTradingSubaccountListRate),
 		GridTrading:                                    request.NewRateLimit(twoSecondsInterval, gridTradingRate),
 		AmendGridAlgoOrder:                             request.NewRateLimit(twoSecondsInterval, amendGridAlgoOrderRate),
 		StopGridAlgoOrder:                              request.NewRateLimit(twoSecondsInterval, stopGridAlgoOrderRate),
@@ -985,8 +984,8 @@ func SetRateLimit() *RateLimit {
 		GetFundingRateHistory:                  request.NewRateLimit(twoSecondsInterval, getFundingRateHistoryRate),
 		GetLimitPrice:                          request.NewRateLimit(twoSecondsInterval, getLimitPriceRate),
 		GetOptionMarketDate:                    request.NewRateLimit(twoSecondsInterval, getOptionMarketDateRate),
-		GetEstimatedDeliveryExercisePriice:     request.NewRateLimit(twoSecondsInterval, getEstimatedDeliveryExercisePriiceRate),
-		GetDIscountRateAndInterestFreeQuota:    request.NewRateLimit(twoSecondsInterval, getDIscountRateAndInterestFreeQuotaRate),
+		GetEstimatedDeliveryExercisePrice:      request.NewRateLimit(twoSecondsInterval, getEstimatedDeliveryExercisePriceRate),
+		GetDiscountRateAndInterestFreeQuota:    request.NewRateLimit(twoSecondsInterval, getDiscountRateAndInterestFreeQuotaRate),
 		GetSystemTime:                          request.NewRateLimit(twoSecondsInterval, getSystemTimeRate),
 		GetLiquidationOrders:                   request.NewRateLimit(twoSecondsInterval, getLiquidationOrdersRate),
 		GetMarkPrice:                           request.NewRateLimit(twoSecondsInterval, getMarkPriceRate),
@@ -1003,7 +1002,7 @@ func SetRateLimit() *RateLimit {
 		GetTakerVolume:                    request.NewRateLimit(twoSecondsInterval, getTakerVolumeRate),
 		GetMarginLendingRatio:             request.NewRateLimit(twoSecondsInterval, getMarginLendingRatioRate),
 		GetLongShortRatio:                 request.NewRateLimit(twoSecondsInterval, getLongShortRatioRate),
-		GetContractsOpeninterestAndVolume: request.NewRateLimit(twoSecondsInterval, getContractsOpeninterestAndVolumeRate),
+		GetContractsOpenInterestAndVolume: request.NewRateLimit(twoSecondsInterval, getContractsOpenInterestAndVolumeRate),
 		GetOptionsOpenInterestAndVolume:   request.NewRateLimit(twoSecondsInterval, getOptionsOpenInterestAndVolumeRate),
 		GetPutCallRatio:                   request.NewRateLimit(twoSecondsInterval, getPutCallRatioRate),
 		GetOpenInterestAndVolume:          request.NewRateLimit(twoSecondsInterval, getOpenInterestAndVolumeRate),

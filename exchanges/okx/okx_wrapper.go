@@ -1149,10 +1149,7 @@ func (ok *Okx) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 			}
 		}
 	}
-	order.FilterOrdersByPairs(&orders, req.Pairs)
-	order.FilterOrdersByType(&orders, req.Type)
-	order.FilterOrdersBySide(&orders, req.Side)
-	return orders, order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	return req.Filter(ok.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information Can Limit response to specific order status
@@ -1221,7 +1218,7 @@ func (ok *Okx) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 			})
 		}
 	}
-	return orders, nil
+	return req.Filter(ok.Name, orders), nil
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction

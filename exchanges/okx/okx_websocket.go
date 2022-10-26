@@ -566,7 +566,7 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		okxChannelCandle3Mutc, okxChannelCandle1Mutc, okxChannelCandle1Wutc, okxChannelCandle1Dutc,
 		okxChannelCandle2Dutc, okxChannelCandle3Dutc, okxChannelCandle5Dutc, okxChannelCandle12Hutc,
 		okxChannelCandle6Hutc:
-		return ok.wsProcessCandles(&resp)
+		return ok.wsProcessCandles(respRaw)
 	case okxChannelIndexCandle1Y, okxChannelIndexCandle6M, okxChannelIndexCandle3M, okxChannelIndexCandle1M,
 		okxChannelIndexCandle1W, okxChannelIndexCandle1D, okxChannelIndexCandle2D, okxChannelIndexCandle3D,
 		okxChannelIndexCandle5D, okxChannelIndexCandle12H, okxChannelIndexCandle6H, okxChannelIndexCandle4H,
@@ -575,7 +575,7 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		okxChannelIndexCandle3Mutc, okxChannelIndexCandle1Mutc, okxChannelIndexCandle1Wutc,
 		okxChannelIndexCandle1Dutc, okxChannelIndexCandle2Dutc, okxChannelIndexCandle3Dutc, okxChannelIndexCandle5Dutc,
 		okxChannelIndexCandle12Hutc, okxChannelIndexCandle6Hutc:
-		return ok.wsProcessIndexCandles(&resp)
+		return ok.wsProcessIndexCandles(respRaw)
 	case okxChannelTickers:
 		return ok.wsProcessTickers(respRaw)
 	case okxChannelIndexTickers:
@@ -674,28 +674,32 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 	}
 }
 
-// wsProcessIndexCandles processes index candlestic data
-func (ok *Okx) wsProcessIndexCandles(intermediate *wsIncomingData) error {
-	if intermediate == nil {
+// wsProcessIndexCandles processes index candlestick data
+func (ok *Okx) wsProcessIndexCandles(respRaw []byte) error {
+	if respRaw == nil {
 		return errNilArgument
 	}
-	var response WSCandlestickResponse
-	if len(intermediate.Data) == 0 {
+	response := struct {
+		Argument SubscriptionInfo `json:"arg"`
+		Data     [][5]string      `json:"data"`
+	}{}
+	err := json.Unmarshal(respRaw, &response)
+	if err != nil {
+		return err
+	}
+	if len(response.Data) == 0 {
 		return errNoCandlestickDataFound
 	}
-	pair, err := ok.GetPairFromInstrumentID(intermediate.Argument.InstrumentID)
+	pair, err := ok.GetPairFromInstrumentID(response.Argument.InstrumentID)
 	if err != nil {
 		return err
 	}
 	var a asset.Item
-	a, _ = ok.GetAssetTypeFromInstrumentType(intermediate.Argument.InstrumentType)
-	candleInterval := strings.TrimPrefix(intermediate.Argument.Channel, candle)
+	a, _ = ok.GetAssetTypeFromInstrumentType(response.Argument.InstrumentType)
+	candleInterval := strings.TrimPrefix(response.Argument.Channel, candle)
 	for i := range response.Data {
-		candles, okay := (intermediate.Data[i]).([5]string)
-		if !okay {
-			return errIncompleteCandlestickData
-		}
-		timestamp, err := strconv.ParseInt(candles[0], 10, 64)
+		candlesData := (response.Data[i])
+		timestamp, err := strconv.ParseInt(candlesData[0], 10, 64)
 		if err != nil {
 			return err
 		}
@@ -706,19 +710,19 @@ func (ok *Okx) wsProcessIndexCandles(intermediate *wsIncomingData) error {
 			Interval:  candleInterval,
 			AssetType: a,
 		}
-		candle.OpenPrice, err = strconv.ParseFloat(candles[1], 64)
+		candle.OpenPrice, err = strconv.ParseFloat(candlesData[1], 64)
 		if err != nil {
 			return err
 		}
-		candle.HighPrice, err = strconv.ParseFloat(candles[2], 64)
+		candle.HighPrice, err = strconv.ParseFloat(candlesData[2], 64)
 		if err != nil {
 			return err
 		}
-		candle.LowPrice, err = strconv.ParseFloat(candles[3], 64)
+		candle.LowPrice, err = strconv.ParseFloat(candlesData[3], 64)
 		if err != nil {
 			return err
 		}
-		candle.ClosePrice, err = strconv.ParseFloat(candles[4], 64)
+		candle.ClosePrice, err = strconv.ParseFloat(candlesData[4], 64)
 		if err != nil {
 			return err
 		}
@@ -1075,29 +1079,33 @@ func (ok *Okx) wsProcessOrders(respRaw []byte) error {
 }
 
 // wsProcessCandles handler to get a list of candlestick messages.
-func (ok *Okx) wsProcessCandles(intermediate *wsIncomingData) error {
-	if intermediate == nil {
+func (ok *Okx) wsProcessCandles(respRaw []byte) error {
+	if respRaw == nil {
 		return errNilArgument
 	}
-	var response WSCandlestickResponse
-	if len(intermediate.Data) == 0 {
+	response := struct {
+		Argument SubscriptionInfo `json:"arg"`
+		Data     [][7]string      `json:"data"`
+	}{}
+	err := json.Unmarshal(respRaw, &response)
+	if err != nil {
+		return err
+	}
+	if len(response.Data) == 0 {
 		return errNoCandlestickDataFound
 	}
-	pair, err := ok.GetPairFromInstrumentID(intermediate.Argument.InstrumentID)
+	pair, err := ok.GetPairFromInstrumentID(response.Argument.InstrumentID)
 	if err != nil {
 		return err
 	}
 	var a asset.Item
-	a, err = ok.GetAssetTypeFromInstrumentType(intermediate.Argument.InstrumentType)
+	a, err = ok.GetAssetTypeFromInstrumentType(response.Argument.InstrumentType)
 	if err != nil {
-		a = ok.GuessAssetTypeFromInstrumentID(intermediate.Argument.InstrumentID)
+		a = ok.GuessAssetTypeFromInstrumentID(response.Argument.InstrumentID)
 	}
-	candleInterval := strings.TrimPrefix(intermediate.Argument.Channel, candle)
+	candleInterval := strings.TrimPrefix(response.Argument.Channel, candle)
 	for i := range response.Data {
-		candles, okay := (intermediate.Data[i]).([7]string)
-		if !okay {
-			return errIncompleteCandlestickData
-		}
+		candles := (response.Data[i])
 		timestamp, err := strconv.ParseInt(candles[0], 10, 64)
 		if err != nil {
 			return err
@@ -1342,8 +1350,12 @@ func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]OrderData,
 			return nil, errInvalidOrderSide
 		}
 		arg.OrderType = strings.ToLower(arg.OrderType)
-		if arg.OrderType != OkxOrderMarket && arg.OrderType != OkxOrderLimit && arg.OrderType != OkxOrderPostOnly &&
-			arg.OrderType != OkxOrderFOK && arg.OrderType != OkxOrderIOC && arg.OrderType == OkxOrderOptimalLimitIOC {
+		if arg.OrderType != OkxOrderMarket &&
+			arg.OrderType != OkxOrderLimit &&
+			arg.OrderType != OkxOrderPostOnly &&
+			arg.OrderType != OkxOrderFOK &&
+			arg.OrderType != OkxOrderIOC &&
+			arg.OrderType != OkxOrderOptimalLimitIOC {
 			return nil, errInvalidOrderType
 		}
 		if arg.Amount <= 0 {
@@ -1686,10 +1698,10 @@ func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]OrderDat
 
 // Run this functions distributes websocket request responses to
 func (m *wsRequestDataChannelsMultiplexer) Run() {
-	ticker := time.NewTicker(time.Second)
+	tickerData := time.NewTicker(time.Second)
 	for {
 		select {
-		case <-ticker.C:
+		case <-tickerData.C:
 			for x, myChan := range m.WsResponseChannelsMap {
 				if myChan == nil {
 					delete(m.WsResponseChannelsMap, x)
@@ -2017,7 +2029,7 @@ func (ok *Okx) OptionSummarySubscription(operation string, pair currency.Pair) e
 	return ok.WsChannelSubscription(operation, okxChannelOptSummary, asset.Option, pair, false, false, true)
 }
 
-// FundingRateSubscription a methos to subscribe and unsubscribe to "funding-rate" channel.
+// FundingRateSubscription a method to subscribe and unsubscribe to "funding-rate" channel.
 // retrieve funding rate. Data will be pushed in 30s to 90s.
 func (ok *Okx) FundingRateSubscription(operation string, assetType asset.Item, pair currency.Pair) error {
 	return ok.WsChannelSubscription(operation, okxChannelFundingRate, assetType, pair, false, true)

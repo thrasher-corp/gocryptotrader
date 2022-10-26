@@ -1760,8 +1760,8 @@ type CancelQuoteRequestParams struct {
 
 // CancelQuotesRequestParams represents cancel multiple quotes request params
 type CancelQuotesRequestParams struct {
-	QuoteIDs               []string `json:"quoteId"`
-	ClientSuppliedQuoteIDs []string `json:"clQuoteId"`
+	QuoteIDs               []string `json:"quoteIds,omitempty"`
+	ClientSuppliedQuoteIDs []string `json:"clQuoteIds,omitempty"`
 }
 
 // CancelQuoteResponse represents cancel quote response

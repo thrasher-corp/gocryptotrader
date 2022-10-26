@@ -347,9 +347,9 @@ func TestGetPublicUnderlyings(t *testing.T) {
 	}
 }
 
-func TestGetInsuranceFundInformations(t *testing.T) {
+func TestGetInsuranceFundInformation(t *testing.T) {
 	t.Parallel()
-	if _, err := ok.GetInsuranceFundInformations(context.Background(), &InsuranceFundInformationRequestParams{
+	if _, err := ok.GetInsuranceFundInformation(context.Background(), &InsuranceFundInformationRequestParams{
 		InstrumentType: "FUTURES",
 		Underlying:     "BTC-USDT",
 		Limit:          2,
@@ -365,7 +365,7 @@ func TestCurrencyUnitConvert(t *testing.T) {
 	}
 }
 
-// Trading related enndpoints test functions.
+// Trading related endpoints test functions.
 func TestGetSupportCoins(t *testing.T) {
 	t.Parallel()
 	if _, err := ok.GetSupportCoins(context.Background()); err != nil {
@@ -447,7 +447,7 @@ func TestPlaceOrder(t *testing.T) {
 		OrderType:    "limit",
 		Amount:       2.6,
 		Price:        2.1,
-	}, asset.Margin); err != nil && strings.Contains(err.Error(), "Operation is not supported under the current account mode") {
+	}, asset.Margin); err != nil {
 		t.Skip(err)
 	} else if err != nil {
 		t.Error("Okx PlaceOrder() error", err)
@@ -467,7 +467,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 		t.SkipNow()
 	}
 	if _, err = ok.PlaceMultipleOrders(context.Background(),
-		params); err != nil && strings.Contains(err.Error(), "Insufficient USDT balance in account") {
+		params); err != nil {
 		t.Skip(err)
 	} else if err != nil {
 		t.Error("Okx PlaceMultipleOrders() error", err)
@@ -476,7 +476,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 
 func TestCancelSingleOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	if _, err := ok.CancelSingleOrder(context.Background(),
@@ -490,7 +490,7 @@ func TestCancelSingleOrder(t *testing.T) {
 
 func TestCancelMultipleOrders(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	if _, err := ok.CancelMultipleOrders(context.Background(), []CancelOrderRequestParam{{
@@ -503,7 +503,7 @@ func TestCancelMultipleOrders(t *testing.T) {
 
 func TestAmendOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	if _, err := ok.AmendOrder(context.Background(), &AmendOrderRequestParams{
@@ -516,7 +516,7 @@ func TestAmendOrder(t *testing.T) {
 }
 func TestAmendMultipleOrders(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	if _, err := ok.AmendMultipleOrders(context.Background(), []AmendOrderRequestParams{{
@@ -530,7 +530,7 @@ func TestAmendMultipleOrders(t *testing.T) {
 
 func TestClosePositions(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	if _, err := ok.ClosePositions(context.Background(), &ClosePositionsRequestParams{
@@ -673,7 +673,7 @@ func TestStopOrder(t *testing.T) {
 
 func TestCancelAlgoOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	if _, err := ok.CancelAlgoOrder(context.Background(), []AlgoOrderCancelParams{
@@ -688,7 +688,7 @@ func TestCancelAlgoOrder(t *testing.T) {
 
 func TestCancelAdvanceAlgoOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	if _, err := ok.CancelAdvanceAlgoOrder(context.Background(), []AlgoOrderCancelParams{{
@@ -729,9 +729,19 @@ func TestGetEasyConvertCurrencyList(t *testing.T) {
 	}
 }
 
-func TestPlaceEasyConvert(t *testing.T) {
+func TestGetOneClickRepayCurrencyList(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := ok.GetOneClickRepayCurrencyList(context.Background(), "cross"); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestPlaceEasyConvert(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	if _, err := ok.PlaceEasyConvert(context.Background(),
@@ -757,7 +767,6 @@ func TestGetOneClickRepayHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.SkipNow()
 	if _, err := ok.GetOneClickRepayHistory(context.Background(), time.Time{}, time.Time{}, 1); err != nil {
 		t.Errorf("%s GetOneClickRepayHistory() error %v", ok.Name, err)
 	}
@@ -765,10 +774,9 @@ func TestGetOneClickRepayHistory(t *testing.T) {
 
 func TestTradeOneClickRepay(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
-	t.SkipNow()
 	if _, err := ok.TradeOneClickRepay(context.Background(), TradeOneClickRepayParam{
 		DebtCurrency:  []string{"BTC"},
 		RepayCurrency: "USDT",
@@ -930,7 +938,7 @@ func TestCreateQuote(t *testing.T) {
 
 func TestCancelQuote(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	if _, err := ok.CancelQuote(context.Background(), CancelQuoteRequestParams{}); err != nil && !errors.Is(err, errMissingQuoteIDOrClientSuppliedQuoteID) {
@@ -940,17 +948,22 @@ func TestCancelQuote(t *testing.T) {
 
 func TestCancelMultipleQuote(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	if _, err := ok.CancelMultipleQuote(context.Background(), CancelQuotesRequestParams{}); err != nil && !errors.Is(errMissingEitherQuoteIDAOrClientSuppliedQuoteIDs, err) {
+		t.Error("Okx CancelQuote() error", err)
+	}
+	if _, err := ok.CancelMultipleQuote(context.Background(), CancelQuotesRequestParams{
+		QuoteIDs: []string{"1150", "1151", "1152"},
+	}); err != nil && !strings.Contains(err.Error(), "Does not meet the minimum asset requirement.") { // Block trades require a minimum of $100,000 in assets in your trading account
 		t.Error("Okx CancelQuote() error", err)
 	}
 }
 
 func TestCancelAllQuotes(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	time, err := ok.CancelAllQuotes(context.Background())
@@ -1044,7 +1057,7 @@ func TestGetAccountAssetValuation(t *testing.T) {
 
 func TestFundingTransfer(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	if _, err := ok.FundingTransfer(context.Background(), &FundingTransferRequestInput{
@@ -1083,7 +1096,7 @@ func TestGetLightningDeposits(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := ok.GetLightningDeposits(context.Background(), "BTC", 1.00, 0); err != nil && !strings.Contains(err.Error(), "You have no permission to use this API interface") {
+	if _, err := ok.GetLightningDeposits(context.Background(), "BTC", 1.00, 0); err != nil && !strings.Contains(err.Error(), "58355") {
 		t.Error("Okx GetLightningDeposits() error", err)
 	}
 }
@@ -1155,7 +1168,7 @@ func TestGetWithdrawalHistory(t *testing.T) {
 
 func TestSmallAssetsConvert(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	if _, err := ok.SmallAssetsConvert(context.Background(), []string{"BTC", "USDT"}); err != nil && !strings.Contains(err.Error(), "You do not have assets in this currency") {
@@ -1262,7 +1275,7 @@ func TestEstimateQuote(t *testing.T) {
 
 func TestConvertTrade(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	if _, err := ok.ConvertTrade(context.Background(), &ConvertTradeInput{
@@ -1360,7 +1373,7 @@ func TestSetPositionMode(t *testing.T) {
 
 func TestSetLeverage(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	if _, err := ok.SetLeverage(context.Background(), SetLeverageInput{
@@ -1378,7 +1391,6 @@ func TestGetMaximumBuySellAmountOROpenAmount(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	// Operation is not supported under the current account mode
 	if _, err := ok.GetMaximumBuySellAmountOROpenAmount(context.Background(), "BTC-USDT", "cross", "BTC", "", 5); err != nil && !strings.Contains(err.Error(), "51010") {
 		t.Error("Okx GetMaximumBuySellAmountOROpenAmount() error", err)
 	}
@@ -1397,7 +1409,7 @@ func TestGetMaximumAvailableTradableAmount(t *testing.T) {
 
 func TestIncreaseDecreaseMargin(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	if _, err := ok.IncreaseDecreaseMargin(context.Background(), IncreaseDecreaseMarginInput{
@@ -1474,13 +1486,13 @@ func TestSetGreeks(t *testing.T) {
 
 func TestIsolatedMarginTradingSettings(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	if _, err := ok.IsolatedMarginTradingSettings(context.Background(), IsolatedMode{
 		IsoMode:        "autonomy",
 		InstrumentType: "MARGIN",
-	}); err != nil && !strings.Contains(err.Error(), "51010") { // Operation is not supported under the current account mode
+	}); err != nil && !strings.Contains(err.Error(), "51010") {
 		t.Error("Okx IsolatedMarginTradingSettings() error", err)
 	}
 }
@@ -1588,9 +1600,9 @@ func TestResetSubAccountAPIKey(t *testing.T) {
 		t.SkipNow()
 	}
 	if _, err := ok.ResetSubAccountAPIKey(context.Background(), &SubAccountAPIKeyParam{
-		SubAccountName: "samuael",
+		SubAccountName: "sam",
 		APIKey:         apiKey,
-	}); err != nil && !strings.Contains(err.Error(), "invalid API Key permission") {
+	}); err != nil {
 		t.Errorf("%s ResetSubAccountAPIKey() error %v", ok.Name, err)
 	}
 }
@@ -1630,13 +1642,16 @@ func TestHistoryOfSubaccountTransfer(t *testing.T) {
 
 func TestMasterAccountsManageTransfersBetweenSubaccounts(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	if _, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(context.Background(), "BTC", 1200, 9, 9, "", "", true); err != nil && !errors.Is(err, errInvalidInvalidSubaccount) {
 		t.Error("Okx MasterAccountsManageTransfersBetweenSubaccounts() error", err)
 	}
 	if _, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(context.Background(), "BTC", 1200, 8, 8, "", "", true); err != nil && !errors.Is(err, errInvalidInvalidSubaccount) {
+		t.Error("Okx MasterAccountsManageTransfersBetweenSubaccounts() error", err)
+	}
+	if _, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(context.Background(), "BTC", 1200, 6, 6, "test-1", "test-2", true); err != nil {
 		t.Error("Okx MasterAccountsManageTransfersBetweenSubaccounts() error", err)
 	}
 }
@@ -1669,7 +1684,7 @@ func TestPlaceGridAlgoOrder(t *testing.T) {
 	if err := json.Unmarshal([]byte(gridTradingPlaceOrder), &input); err != nil {
 		t.Error("Okx Decerializing to GridALgoOrder error", err)
 	}
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	if _, err := ok.PlaceGridAlgoOrder(context.Background(), &input); err != nil &&
@@ -1691,7 +1706,7 @@ func TestAmendGridAlgoOrder(t *testing.T) {
 	if err := json.Unmarshal([]byte(gridOrderAmendAlgo), &input); err != nil {
 		t.Error("Okx Decerializing to GridAlgoOrderAmend error", err)
 	}
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	if _, err := ok.AmendGridAlgoOrder(context.Background(), input); err != nil &&
@@ -1708,7 +1723,7 @@ func TestStopGridAlgoOrder(t *testing.T) {
 	if err := json.Unmarshal([]byte(stopGridAlgoOrderJSON), &resp); err != nil {
 		t.Error("error deserializing to StopGridAlgoOrder error", err)
 	}
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	if _, err := ok.StopGridAlgoOrder(context.Background(), []StopGridAlgoOrderRequest{
@@ -1790,11 +1805,14 @@ func TestGetGridAlgoOrderPositions(t *testing.T) {
 	if _, err := ok.GetGridAlgoOrderPositions(context.Background(), "contract_grid", ""); err != nil && !errors.Is(err, errMissingAlgoOrderID) {
 		t.Errorf("Okx GetGridAlgoOrderPositions() expecting %v, but found %v", errMissingAlgoOrderID, err)
 	}
+	if _, err := ok.GetGridAlgoOrderPositions(context.Background(), "contract_grid", "448965992920907776"); err != nil && !strings.Contains(err.Error(), "The strategy does not exist or has stopped") {
+		t.Errorf("Okx GetGridAlgoOrderPositions() expecting %v, but found %v", errMissingAlgoOrderID, err)
+	}
 }
 
 func TestSpotGridWithdrawProfit(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	if _, err := ok.SpotGridWithdrawProfit(context.Background(), ""); err != nil && !errors.Is(err, errMissingAlgoOrderID) {
@@ -1828,7 +1846,7 @@ func TestComputeMarginBalance(t *testing.T) {
 
 func TestAdjustMarginBalance(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	if _, err := ok.AdjustMarginBalance(context.Background(), MarginBalanceParam{
@@ -1864,7 +1882,7 @@ func TestGetOffers(t *testing.T) {
 
 func TestPurchase(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	if _, err := ok.Purchase(context.Background(), PurchaseRequestParam{
@@ -1885,7 +1903,7 @@ func TestPurchase(t *testing.T) {
 
 func TestRedeem(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	if _, err := ok.Redeem(context.Background(), RedeemRequestParam{
@@ -1899,7 +1917,7 @@ func TestRedeem(t *testing.T) {
 
 func TestCancelPurchaseOrRedemption(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	if _, err := ok.CancelPurchaseOrRedemption(context.Background(), CancelFundingParam{
@@ -2113,7 +2131,7 @@ func TestCancelBatchOrders(t *testing.T) {
 
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	if _, err := ok.CancelAllOrders(context.Background(), &order.Cancel{}); err != nil {
@@ -2123,7 +2141,7 @@ func TestCancelAllOrders(t *testing.T) {
 
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	_, err := ok.ModifyOrder(context.Background(),
@@ -2217,6 +2235,7 @@ func TestGetActiveOrders(t *testing.T) {
 		Type:      order.Limit,
 		Pairs:     currency.Pairs{pair, currency.NewPair(currency.USDT, currency.USD), currency.NewPair(currency.USD, currency.LTC)},
 		AssetType: asset.Spot,
+		Side:      order.Buy,
 	}
 	if _, err := ok.GetActiveOrders(context.Background(), &getOrdersRequest); err != nil {
 		t.Error("Okx GetActiveOrders() error", err)
@@ -2231,6 +2250,7 @@ func TestGetOrderHistory(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
+		Side:      order.Buy,
 	}
 	_, err := ok.GetOrderHistory(context.Background(), &getOrdersRequest)
 	if err == nil {
@@ -2864,7 +2884,8 @@ func TestWsPlaceOrder(t *testing.T) {
 		OrderType:    "limit",
 		Amount:       2.6,
 		Price:        2.1,
-	}); err != nil && !strings.Contains(err.Error(), "The current account mode does not support this API interface.") {
+		Currency:     "BTC",
+	}); err != nil {
 		t.Errorf("%s WsPlaceOrder() error: %v", ok.Name, err)
 	}
 }
