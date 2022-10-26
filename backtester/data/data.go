@@ -1,6 +1,7 @@
 package data
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -88,8 +89,26 @@ func (b *Base) Reset() error {
 	return nil
 }
 
+type Events []Event
+
+var ErrEmptySlice = errors.New("empty slice")
+
+func (e Events) Last() (Event, error) {
+	if len(e) == 0 {
+		return nil, ErrEmptySlice
+	}
+	return e[len(e)-1], nil
+}
+
+func (e Events) First() (Event, error) {
+	if len(e) == 0 {
+		return nil, ErrEmptySlice
+	}
+	return e[0], nil
+}
+
 // GetStream will return entire data list
-func (b *Base) GetStream() ([]Event, error) {
+func (b *Base) GetStream() (Events, error) {
 	if b == nil {
 		return nil, fmt.Errorf("%w Base", gctcommon.ErrNilPointer)
 	}
@@ -210,7 +229,7 @@ func (b *Base) Next() (Event, error) {
 }
 
 // History will return all previous data events that have happened
-func (b *Base) History() ([]Event, error) {
+func (b *Base) History() (Events, error) {
 	if b == nil {
 		return nil, fmt.Errorf("%w Base", gctcommon.ErrNilPointer)
 	}
@@ -239,7 +258,7 @@ func (b *Base) Latest() (Event, error) {
 
 // List returns all future data events from the current iteration
 // ill-advised to use this in strategies because you don't know the future in real life
-func (b *Base) List() ([]Event, error) {
+func (b *Base) List() (Events, error) {
 	if b == nil {
 		return nil, fmt.Errorf("%w Base", gctcommon.ErrNilPointer)
 	}

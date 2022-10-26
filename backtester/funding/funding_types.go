@@ -43,7 +43,7 @@ type IFundingManager interface {
 	AddUSDTrackingData(*kline.DataFromKline) error
 	CreateSnapshot(time.Time) error
 	USDTrackingDisabled() bool
-	Liquidate(common.Event)
+	Liquidate(common.Event) error
 	GetAllFunding() ([]BasicItem, error)
 	UpdateCollateralForEvent(common.Event, bool) error
 	UpdateAllCollateral(isLive, hasUpdateFunding bool) error
@@ -161,7 +161,7 @@ type Item struct {
 	snapshot          map[int64]ItemSnapshot
 	isCollateral      bool
 	isLiquidated      bool
-	wasAppended       bool
+	appendedViaAPI    bool
 	collateralCandles map[currency.Code]kline.DataFromKline
 }
 
@@ -217,7 +217,7 @@ type ReportItem struct {
 	Difference           decimal.Decimal
 	ShowInfinite         bool
 	IsCollateral         bool
-	WasAppended          bool
+	AppendedViaAPI       bool
 	PairedWith           currency.Code
 }
 

@@ -339,5 +339,26 @@ func (c Code) IsStableCurrency() bool {
 
 // Currency allows an item to revert to a code
 func (i *Item) Currency() Code {
+	if i == nil {
+		return EMPTYCODE
+	}
 	return NewCode(i.Symbol)
+}
+
+// UpperCurrency allows an item to revert to a code
+// taking an upper
+func (i *Item) UpperCurrency() Code {
+	if i == nil {
+		return EMPTYCODE.Upper()
+	}
+	return NewCode(i.Symbol).Upper()
+}
+
+// LowerCurrency allows an item to revert to a code
+// returning in lower format
+func (i *Item) LowerCurrency() Code {
+	if i == nil {
+		return EMPTYCODE.Lower()
+	}
+	return NewCode(i.Symbol).Lower()
 }

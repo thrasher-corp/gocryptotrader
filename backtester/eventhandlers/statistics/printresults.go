@@ -327,7 +327,7 @@ func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) error {
 	if len(spotResults) > 0 {
 		log.Info(common.FundingStatistics, common.CMDColours.H2+"------------------Funding Spot Item Results------------------"+common.CMDColours.Default)
 		for i := range spotResults {
-			if spotResults[i].ReportItem.WasAppended {
+			if spotResults[i].ReportItem.AppendedViaAPI {
 				continue
 			}
 			sep := fmt.Sprintf("%v%v%v| ", fSIL(spotResults[i].ReportItem.Exchange, limit12), fSIL(spotResults[i].ReportItem.Asset.String(), limit10), fSIL(spotResults[i].ReportItem.Currency.String(), limit14))
@@ -357,7 +357,7 @@ func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) error {
 	if len(futuresResults) > 0 {
 		log.Info(common.FundingStatistics, common.CMDColours.H2+"------------------Funding Futures Item Results---------------"+common.CMDColours.Default)
 		for i := range futuresResults {
-			if futuresResults[i].ReportItem.WasAppended {
+			if futuresResults[i].ReportItem.AppendedViaAPI {
 				continue
 			}
 			sep := fmt.Sprintf("%v%v%v| ", fSIL(futuresResults[i].ReportItem.Exchange, limit12), fSIL(futuresResults[i].ReportItem.Asset.String(), limit10), fSIL(futuresResults[i].ReportItem.Currency.String(), limit14))

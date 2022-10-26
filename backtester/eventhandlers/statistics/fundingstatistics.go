@@ -164,7 +164,7 @@ func CalculateIndividualFundingStatistics(disableUSDTracking bool, reportItem *f
 	item := &FundingItemStatistics{
 		ReportItem: reportItem,
 	}
-	if disableUSDTracking || reportItem.WasAppended {
+	if disableUSDTracking || reportItem.AppendedViaAPI {
 		return item, nil
 	}
 	closePrices := reportItem.Snapshots

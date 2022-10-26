@@ -223,7 +223,7 @@
 					</thead>
 					<tbody>
 					{{ range .Statistics.FundingStatistics.Report.Items}}
-						{{ if or .IsCollateral .WasAppended}}
+						{{ if or .IsCollateral .AppendedViaAPI}}
 						{{else }}
 							<tr>
 								<td>{{.Exchange}}</td>
@@ -471,7 +471,7 @@
 					</thead>
 					<tbody>
 					{{ range .Statistics.FundingStatistics.Report.Items}}
-						{{ if .WasAppended}}
+						{{ if .AppendedViaAPI}}
 							{{else}}
 						<tr>
 							<td>{{.Exchange}}</td>
@@ -1473,7 +1473,7 @@
 			{{end}}
 		{{end}}
 		{{ range .Statistics.FundingStatistics.Items }}
-			{{ if .ReportItem.WasAppended}}
+			{{ if .ReportItem.AppendedViaAPI}}
 				{{else}}
 			<div class="card card-cascade narrower">
 				<div class="view view-cascade bg-primary">

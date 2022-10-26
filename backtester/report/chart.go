@@ -36,7 +36,7 @@ func createUSDTotalsChart(items []statistics.ValueAtTime, stats []statistics.Fun
 
 	for i := range stats {
 		var plots []LinePlot
-		if stats[i].ReportItem.WasAppended {
+		if stats[i].ReportItem.AppendedViaAPI {
 			continue
 		}
 		for j := range stats[i].ReportItem.Snapshots {
@@ -68,7 +68,7 @@ func createHoldingsOverTimeChart(stats []statistics.FundingItemStatistics) (*Cha
 	}
 	for i := range stats {
 		var plots []LinePlot
-		if stats[i].ReportItem.WasAppended {
+		if stats[i].ReportItem.AppendedViaAPI {
 			continue
 		}
 		for j := range stats[i].ReportItem.Snapshots {

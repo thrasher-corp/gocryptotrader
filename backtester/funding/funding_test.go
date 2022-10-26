@@ -597,7 +597,10 @@ func TestUSDTrackingDisabled(t *testing.T) {
 func TestFundingLiquidate(t *testing.T) {
 	t.Parallel()
 	f := FundManager{}
-	f.Liquidate(nil)
+	err := f.Liquidate(nil)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("recevied '%v' expected '%v'", err, gctcommon.ErrNilPointer)
+	}
 	f.items = append(f.items, &Item{
 		exchange:  "test",
 		asset:     asset.Spot,
@@ -605,13 +608,16 @@ func TestFundingLiquidate(t *testing.T) {
 		available: decimal.NewFromInt(1337),
 	})
 
-	f.Liquidate(&signal.Signal{
+	err = f.Liquidate(&signal.Signal{
 		Base: &event.Base{
 			Exchange:     "test",
 			AssetType:    asset.Spot,
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
 		},
 	})
+	if !errors.Is(err, nil) {
+		t.Errorf("recevied '%v' expected '%v'", err, nil)
+	}
 	if !f.items[0].available.IsZero() {
 		t.Errorf("received '%v' expected '%v'", f.items[0].available, "0")
 	}
@@ -620,7 +626,10 @@ func TestFundingLiquidate(t *testing.T) {
 func TestHasExchangeBeenLiquidated(t *testing.T) {
 	t.Parallel()
 	f := FundManager{}
-	f.Liquidate(nil)
+	err := f.Liquidate(nil)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("recevied '%v' expected '%v'", err, gctcommon.ErrNilPointer)
+	}
 	f.items = append(f.items, &Item{
 		exchange:  "test",
 		asset:     asset.Spot,
@@ -634,7 +643,10 @@ func TestHasExchangeBeenLiquidated(t *testing.T) {
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
 		},
 	}
-	f.Liquidate(ev)
+	err = f.Liquidate(ev)
+	if !errors.Is(err, nil) {
+		t.Errorf("recevied '%v' expected '%v'", err, nil)
+	}
 	if !f.items[0].available.IsZero() {
 		t.Errorf("received '%v' expected '%v'", f.items[0].available, "0")
 	}

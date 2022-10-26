@@ -190,7 +190,7 @@ func main() {
 		if bt.MetaData.LiveTesting {
 			err = bt.ExecuteStrategy(false)
 			if err != nil {
-				fmt.Printf("Could execute strategy. Error: %v.\n", err)
+				fmt.Printf("Could not stop task %v %v. Error: %v.\n", bt.MetaData.ID, bt.MetaData.Strategy, err)
 				os.Exit(1)
 			}
 			interrupt := signaler.WaitForInterrupt()
@@ -198,13 +198,13 @@ func main() {
 			log.Infoln(log.Global, "Exiting.")
 			err = bt.Stop()
 			if err != nil {
-				fmt.Printf("Could execute strategy. Error: %v.\n", err)
+				fmt.Printf("Could not stop task %v %v. Error: %v.\n", bt.MetaData.ID, bt.MetaData.Strategy, err)
 				os.Exit(1)
 			}
 		} else {
 			err = bt.ExecuteStrategy(true)
 			if err != nil {
-				fmt.Printf("Could execute strategy. Error: %v.\n", err)
+				fmt.Printf("Could not stop task %v %v. Error: %v.\n", bt.MetaData.ID, bt.MetaData.Strategy, err)
 				os.Exit(1)
 			}
 		}
@@ -230,9 +230,13 @@ func main() {
 	}(btCfg)
 	interrupt := signaler.WaitForInterrupt()
 	if btCfg.StopAllJobsOnClose {
-		_, err = runManager.StopAllTasks()
+		var stopped []*backtest.TaskSummary
+		stopped, err = runManager.StopAllTasks()
 		if err != nil {
 			log.Error(common.Backtester, err)
+		}
+		for i := range stopped {
+			log.Infof(common.Backtester, "task %v %v was stopped", stopped[i].MetaData.ID, stopped[i].MetaData.Strategy)
 		}
 	}
 	log.Infof(log.Global, "Captured %v, shutdown requested.\n", interrupt)

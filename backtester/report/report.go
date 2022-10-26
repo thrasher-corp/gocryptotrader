@@ -220,11 +220,12 @@ func (d *Data) enhanceCandles() error {
 }
 
 func (d *DetailedCandle) copyCloseFromPreviousEvent(ek *EnhancedKline) {
+	cp := ek.Candles[len(ek.Candles)-1].Close
 	// if the data is missing, ensure that all values just continue the previous candle's close price visually
-	d.Open = ek.Candles[len(ek.Candles)-1].Close
-	d.High = ek.Candles[len(ek.Candles)-1].Close
-	d.Low = ek.Candles[len(ek.Candles)-1].Close
-	d.Close = ek.Candles[len(ek.Candles)-1].Close
+	d.Open = cp
+	d.High = cp
+	d.Low = cp
+	d.Close = cp
 	d.Colour = "white"
 	d.Position = "aboveBar"
 	d.Shape = "arrowDown"
