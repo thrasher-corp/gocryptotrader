@@ -5612,9 +5612,8 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 		PriceLimit:              r.PriceLimit,
 		MaxImpactSlippage:       r.MaxImpactSlippage,
 		MaxNominalSlippage:      r.MaxNominalSlippage,
-		ReduceOnly:              r.ReduceOnly,
 		Buy:                     r.Buy,
-		MaxSpreadpercentage:     r.MaxSpreadPercentage,
+		MaxSpreadPercentage:     r.MaxSpreadPercentage,
 	})
 	if err != nil {
 		return err
@@ -5628,18 +5627,6 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 	}
 
 	for report := range strategy.Reporter {
-		var submit string
-		if report.Information.Submit != nil {
-			submit = fmt.Sprintf("%+v\n", report.Information.Submit)
-		}
-		var submitResponse string
-		if report.Information.Response != nil {
-			submitResponse = fmt.Sprintf("%+v\n", report.Information.Response)
-		}
-		var book string
-		if report.Deployment != nil {
-			book = fmt.Sprintf("%+v\n", report.Deployment)
-		}
 		var errStr string
 		if report.Information.Error != nil {
 			errStr = report.Information.Error.Error()
@@ -5649,9 +5636,9 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 			errStr = report.Error.Error()
 		}
 		err := stream.Send(&gctrpc.TWAPResponse{
-			Submit:         submit,
-			SubmitResponse: submitResponse,
-			Orderbook:      book,
+			Submit:         report.Information.Submit.String(),
+			SubmitResponse: report.Information.Response.String(),
+			Orderbook:      report.Deployment.String(),
 			Error:          errStr,
 			Finished:       report.Finished,
 		})
@@ -5662,6 +5649,5 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 			break
 		}
 	}
-
 	return nil
 }

@@ -84,15 +84,17 @@ type Config struct {
 	// can occur.
 	MaxNominalSlippage float64
 
+	// TODO: When TWAP becomes applicable to use as a position allocator with
+	// margin.
 	// ReduceOnly does not add to the size of position.
-	ReduceOnly bool
+	// ReduceOnly bool
 
 	// Buy if you are buying and lifting the asks else hitting those pesky bids.
 	Buy bool
 
-	// MaxSpreadpercentage defines the max spread percentage between best bid
+	// MaxSpreadPercentage defines the max spread percentage between best bid
 	// and ask. If exceeded will not execute an order.
-	MaxSpreadpercentage float64
+	MaxSpreadPercentage float64
 
 	// TODO:
 	// - Randomize and obfuscate amounts

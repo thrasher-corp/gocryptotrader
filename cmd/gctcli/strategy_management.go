@@ -18,7 +18,6 @@ var (
 	stratEndTime     string
 	stratGranularity int64
 	stratMaxImpact   float64
-	stratReduceOnly  bool
 	stratMaxSpread   float64
 )
 
@@ -68,7 +67,7 @@ var (
 			&cli.StringFlag{
 				Name:        "end",
 				Usage:       "the end date",
-				Value:       time.Now().AddDate(0, 0, 30).Format(common.SimpleTimeFormat),
+				Value:       time.Now().Add(time.Minute * 5).Format(common.SimpleTimeFormat),
 				Destination: &stratEndTime,
 			},
 			&cli.BoolFlag{
@@ -79,7 +78,7 @@ var (
 				Name:        "granularity",
 				Aliases:     []string{"g"},
 				Usage:       klineMessage,
-				Value:       86400,
+				Value:       60,
 				Destination: &stratGranularity,
 			},
 			&cli.Float64Flag{
@@ -104,12 +103,13 @@ var (
 				Name:  "maxnominal",
 				Usage: "will enforce no orderbook nominal (your average order cost from initial order cost) slippage beyond this percentage amount",
 			},
-			&cli.BoolFlag{
-				Name:        "reduceonly",
-				Usage:       "will not stack orders in opposing direction",
-				Value:       true,
-				Destination: &stratReduceOnly,
-			},
+			// TODO: Not yet implemented.
+			// &cli.BoolFlag{
+			// 	Name:        "reduceonly",
+			// 	Usage:       "will not stack orders in opposing direction",
+			// 	Value:       true,
+			// 	Destination: &stratReduceOnly,
+			// },
 			&cli.BoolFlag{
 				Name:  "buy",
 				Usage: "whether you are buying base or selling base",
@@ -273,23 +273,17 @@ func twapStreamfunc(c *cli.Context) error {
 		}
 	}
 
-	if c.IsSet("reduceonly") {
-		stratReduceOnly = c.Bool("reduceonly")
-	} else {
-		stratReduceOnly, _ = strconv.ParseBool(c.Args().Get(13))
-	}
-
 	var buy bool
 	if c.IsSet("buy") {
 		buy = c.Bool("buy")
 	} else {
-		buy, _ = strconv.ParseBool(c.Args().Get(14))
+		buy, _ = strconv.ParseBool(c.Args().Get(13))
 	}
 
 	if c.IsSet("maxspread") {
 		stratMaxSpread = c.Float64("maxspread")
 	} else if c.Args().Get(7) != "" {
-		stratMaxSpread, err = strconv.ParseFloat(c.Args().Get(15), 64)
+		stratMaxSpread, err = strconv.ParseFloat(c.Args().Get(14), 64)
 		if err != nil {
 			return err
 		}
@@ -319,7 +313,6 @@ func twapStreamfunc(c *cli.Context) error {
 		PriceLimit:          priceLimit,
 		MaxImpactSlippage:   stratMaxImpact,
 		MaxNominalSlippage:  maxNominal,
-		ReduceOnly:          stratReduceOnly,
 		Buy:                 buy,
 		MaxSpreadPercentage: stratMaxSpread,
 	})

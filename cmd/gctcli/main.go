@@ -39,7 +39,7 @@ func jsonOutput(in interface{}) {
 	if err != nil {
 		return
 	}
-	fmt.Print(string(j))
+	fmt.Println(string(j))
 }
 
 func setupClient(c *cli.Context) (*grpc.ClientConn, context.CancelFunc, error) {
@@ -56,7 +56,9 @@ func setupClient(c *cli.Context) (*grpc.ClientConn, context.CancelFunc, error) {
 	}
 
 	var cancel context.CancelFunc
-	c.Context, cancel = context.WithTimeout(c.Context, timeout)
+	if timeout > 0 {
+		c.Context, cancel = context.WithTimeout(c.Context, timeout)
+	}
 	if !exchangeCreds.IsEmpty() {
 		flag, values := exchangeCreds.GetMetaData()
 		c.Context = metadata.AppendToOutgoingContext(c.Context, flag, values)

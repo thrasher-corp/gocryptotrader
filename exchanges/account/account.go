@@ -352,3 +352,13 @@ func (b *ProtectedBalance) GetFree() float64 {
 	defer b.m.Unlock()
 	return b.free
 }
+
+// GetAvailableWithoutBorrow returns the current free balance without margin.
+func (b *ProtectedBalance) GetAvailableWithoutBorrow() float64 {
+	if b == nil {
+		return 0
+	}
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.availableWithoutBorrow
+}
