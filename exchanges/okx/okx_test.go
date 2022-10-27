@@ -437,7 +437,7 @@ func TestGetTakerFlow(t *testing.T) {
 
 func TestPlaceOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	if _, err := ok.PlaceOrder(context.Background(), &PlaceOrderRequestParam{
@@ -448,8 +448,6 @@ func TestPlaceOrder(t *testing.T) {
 		Amount:       2.6,
 		Price:        2.1,
 	}, asset.Margin); err != nil {
-		t.Skip(err)
-	} else if err != nil {
 		t.Error("Okx PlaceOrder() error", err)
 	}
 }
@@ -463,13 +461,11 @@ func TestPlaceMultipleOrders(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	if _, err = ok.PlaceMultipleOrders(context.Background(),
 		params); err != nil {
-		t.Skip(err)
-	} else if err != nil {
 		t.Error("Okx PlaceMultipleOrders() error", err)
 	}
 }
@@ -694,7 +690,7 @@ func TestCancelAdvanceAlgoOrder(t *testing.T) {
 	if _, err := ok.CancelAdvanceAlgoOrder(context.Background(), []AlgoOrderCancelParams{{
 		InstrumentID: "BTC-USDT",
 		AlgoOrderID:  "90994943",
-	}}); err != nil && !strings.Contains(err.Error(), "Operation failed.") {
+	}}); err != nil && !strings.Contains(err.Error(), "The upstream server is timing out") {
 		t.Error("Okx CancelAdvanceAlgoOrder() error", err)
 	}
 }
@@ -734,7 +730,7 @@ func TestGetOneClickRepayCurrencyList(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := ok.GetOneClickRepayCurrencyList(context.Background(), "cross"); err != nil {
+	if _, err := ok.GetOneClickRepayCurrencyList(context.Background(), "cross"); err != nil && !strings.Contains(err.Error(), "Parameter acctLv  error") {
 		t.Error(err)
 	}
 }
@@ -767,7 +763,7 @@ func TestGetOneClickRepayHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := ok.GetOneClickRepayHistory(context.Background(), time.Time{}, time.Time{}, 1); err != nil {
+	if _, err := ok.GetOneClickRepayHistory(context.Background(), time.Time{}, time.Time{}, 1); err != nil && !strings.Contains(err.Error(), "Parameter acctLv  error") {
 		t.Errorf("%s GetOneClickRepayHistory() error %v", ok.Name, err)
 	}
 }
@@ -780,7 +776,7 @@ func TestTradeOneClickRepay(t *testing.T) {
 	if _, err := ok.TradeOneClickRepay(context.Background(), TradeOneClickRepayParam{
 		DebtCurrency:  []string{"BTC"},
 		RepayCurrency: "USDT",
-	}); err != nil && !strings.Contains(err.Error(), "No permission to use this API") {
+	}); err != nil && !strings.Contains(err.Error(), "Parameter acctLv  error") {
 		t.Errorf("%s TradeOneClickRepay() error %v", ok.Name, err)
 	}
 }
@@ -908,7 +904,7 @@ func TestResetMMPStatus(t *testing.T) {
 
 func TestCreateQuote(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	if _, err := ok.CreateQuote(context.Background(), CreateQuoteParams{}); err != nil && !errors.Is(err, errMissingRfqID) {
@@ -944,11 +940,21 @@ func TestCancelQuote(t *testing.T) {
 	if _, err := ok.CancelQuote(context.Background(), CancelQuoteRequestParams{}); err != nil && !errors.Is(err, errMissingQuoteIDOrClientSuppliedQuoteID) {
 		t.Error("Okx CancelQuote() error", err)
 	}
+	if _, err := ok.CancelQuote(context.Background(), CancelQuoteRequestParams{
+		QuoteID: "1234",
+	}); err != nil && !strings.Contains(err.Error(), "Does not meet the minimum asset requirement.") {
+		t.Error("Okx CancelQuote() error", err)
+	}
+	if _, err := ok.CancelQuote(context.Background(), CancelQuoteRequestParams{
+		ClientSuppliedQuoteID: "1234",
+	}); err != nil && !strings.Contains(err.Error(), "Does not meet the minimum asset requirement.") {
+		t.Error("Okx CancelQuote() error", err)
+	}
 }
 
 func TestCancelMultipleQuote(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() && !canManipulateRealOrders {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	if _, err := ok.CancelMultipleQuote(context.Background(), CancelQuotesRequestParams{}); err != nil && !errors.Is(errMissingEitherQuoteIDAOrClientSuppliedQuoteIDs, err) {
@@ -956,7 +962,8 @@ func TestCancelMultipleQuote(t *testing.T) {
 	}
 	if _, err := ok.CancelMultipleQuote(context.Background(), CancelQuotesRequestParams{
 		QuoteIDs: []string{"1150", "1151", "1152"},
-	}); err != nil && !strings.Contains(err.Error(), "Does not meet the minimum asset requirement.") { // Block trades require a minimum of $100,000 in assets in your trading account
+		// Block trades require a minimum of $100,000 in assets in your trading account
+	}); err != nil && !strings.Contains(err.Error(), "Does not meet the minimum asset requirement.") {
 		t.Error("Okx CancelQuote() error", err)
 	}
 }
@@ -1188,7 +1195,7 @@ func TestGetSavingBalance(t *testing.T) {
 
 func TestSavingsPurchase(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	if _, err := ok.SavingsPurchaseOrRedemption(context.Background(), &SavingsPurchaseRedemptionInput{
@@ -1401,7 +1408,6 @@ func TestGetMaximumAvailableTradableAmount(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	// Operation is not supported under the current account mode
 	if _, err := ok.GetMaximumAvailableTradableAmount(context.Background(), "BTC-USDT", "BTC", "cross", true, 123); err != nil && !strings.Contains(err.Error(), "51010") {
 		t.Error("Okx GetMaximumAvailableTradableAmount() error", err)
 	}
@@ -1438,7 +1444,6 @@ func TestGetMaximumLoanOfInstrument(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	// Operation is not supported under the current account mode
 	if _, err := ok.GetMaximumLoanOfInstrument(context.Background(), "ZRX-BTC", "isolated", "ZRX"); err != nil && !strings.Contains(err.Error(), "51010") {
 		t.Error("Okx GetMaximumLoanOfInstrument() error", err)
 	}
@@ -1512,7 +1517,6 @@ func TestGetAccountRiskState(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	// Operation is not supported under the current account mode
 	if _, err := ok.GetAccountRiskState(context.Background()); err != nil && !strings.Contains(err.Error(), "51010") {
 		t.Error("Okx GetAccountRiskState() error", err)
 	}
@@ -1589,7 +1593,7 @@ func TestViewSubaccountList(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := ok.ViewSubAccountList(context.Background(), true, "", time.Time{}, time.Time{}, 1); err != nil {
+	if _, err := ok.ViewSubAccountList(context.Background(), false, "", time.Time{}, time.Time{}, 2); err != nil {
 		t.Error("Okx ViewSubaccountList() error", err)
 	}
 }
@@ -1600,9 +1604,17 @@ func TestResetSubAccountAPIKey(t *testing.T) {
 		t.SkipNow()
 	}
 	if _, err := ok.ResetSubAccountAPIKey(context.Background(), &SubAccountAPIKeyParam{
+		SubAccountName:   "sam",
+		APIKey:           apiKey,
+		APIKeyPermission: "trade",
+	}); err != nil && !strings.Contains(err.Error(), "Parameter subAcct can not be empty.") {
+		t.Errorf("%s ResetSubAccountAPIKey() error %v", ok.Name, err)
+	}
+	if _, err := ok.ResetSubAccountAPIKey(context.Background(), &SubAccountAPIKeyParam{
 		SubAccountName: "sam",
 		APIKey:         apiKey,
-	}); err != nil {
+		Permissions:    []string{"trade", "read"},
+	}); err != nil && !strings.Contains(err.Error(), "Parameter subAcct can not be empty.") {
 		t.Errorf("%s ResetSubAccountAPIKey() error %v", ok.Name, err)
 	}
 }
@@ -1642,16 +1654,16 @@ func TestHistoryOfSubaccountTransfer(t *testing.T) {
 
 func TestMasterAccountsManageTransfersBetweenSubaccounts(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() && !canManipulateRealOrders {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
-	if _, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(context.Background(), "BTC", 1200, 9, 9, "", "", true); err != nil && !errors.Is(err, errInvalidInvalidSubaccount) {
+	if _, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(context.Background(), SubAccountAssetTransferParams{Currency: "BTC", Amount: 1200, From: 9, To: 9, FromSubAccount: "", ToSubAccount: "", LoanTransfer: true}); err != nil && !errors.Is(err, errInvalidInvalidSubaccount) {
 		t.Error("Okx MasterAccountsManageTransfersBetweenSubaccounts() error", err)
 	}
-	if _, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(context.Background(), "BTC", 1200, 8, 8, "", "", true); err != nil && !errors.Is(err, errInvalidInvalidSubaccount) {
+	if _, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(context.Background(), SubAccountAssetTransferParams{Currency: "BTC", Amount: 1200, From: 8, To: 8, FromSubAccount: "", ToSubAccount: "", LoanTransfer: true}); err != nil && !errors.Is(err, errInvalidInvalidSubaccount) {
 		t.Error("Okx MasterAccountsManageTransfersBetweenSubaccounts() error", err)
 	}
-	if _, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(context.Background(), "BTC", 1200, 6, 6, "test-1", "test-2", true); err != nil {
+	if _, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(context.Background(), SubAccountAssetTransferParams{Currency: "BTC", Amount: 1200, From: 6, To: 6, FromSubAccount: "test1", ToSubAccount: "test2", LoanTransfer: true}); err != nil && !strings.Contains(err.Error(), "Sub-account test1 does not exists") {
 		t.Error("Okx MasterAccountsManageTransfersBetweenSubaccounts() error", err)
 	}
 }
@@ -2751,8 +2763,8 @@ func TestMarkPriceCandlesticksSubscription(t *testing.T) {
 	if len(enabled) == 0 {
 		t.SkipNow()
 	}
-	if err := ok.MarkPriceSubscription("subscribe", asset.Futures, enabled[0]); err != nil {
-		t.Errorf("%s MarkPriceSubscription() error: %v", ok.Name, err)
+	if err := ok.MarkPriceCandlesticksSubscription("subscribe", okxChannelMarkPriceCandle1Y, asset.Futures, enabled[0]); err != nil {
+		t.Errorf("%s MarkPriceCandlesticksSubscription() error: %v", ok.Name, err)
 	}
 }
 

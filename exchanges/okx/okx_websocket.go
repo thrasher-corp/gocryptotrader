@@ -1105,35 +1105,35 @@ func (ok *Okx) wsProcessCandles(respRaw []byte) error {
 	}
 	candleInterval := strings.TrimPrefix(response.Argument.Channel, candle)
 	for i := range response.Data {
-		candles := (response.Data[i])
-		timestamp, err := strconv.ParseInt(candles[0], 10, 64)
+		candlesItem := (response.Data[i])
+		timestamp, err := strconv.ParseInt(candlesItem[0], 10, 64)
 		if err != nil {
 			return err
 		}
-		candle := &stream.KlineData{
+		candle := stream.KlineData{
 			Pair:      pair,
 			Exchange:  ok.Name,
 			Timestamp: time.UnixMilli(timestamp),
 			Interval:  candleInterval,
 			AssetType: a,
 		}
-		candle.OpenPrice, err = strconv.ParseFloat(candles[1], 64)
+		candle.OpenPrice, err = strconv.ParseFloat(candlesItem[1], 64)
 		if err != nil {
 			return err
 		}
-		candle.HighPrice, err = strconv.ParseFloat(candles[2], 64)
+		candle.HighPrice, err = strconv.ParseFloat(candlesItem[2], 64)
 		if err != nil {
 			return err
 		}
-		candle.LowPrice, err = strconv.ParseFloat(candles[3], 64)
+		candle.LowPrice, err = strconv.ParseFloat(candlesItem[3], 64)
 		if err != nil {
 			return err
 		}
-		candle.ClosePrice, err = strconv.ParseFloat(candles[4], 64)
+		candle.ClosePrice, err = strconv.ParseFloat(candlesItem[4], 64)
 		if err != nil {
 			return err
 		}
-		candle.Volume, err = strconv.ParseFloat(candles[5], 64)
+		candle.Volume, err = strconv.ParseFloat(candlesItem[5], 64)
 		if err != nil {
 			return err
 		}

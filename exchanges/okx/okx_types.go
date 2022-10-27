@@ -1926,6 +1926,18 @@ type SubaccountBillItem struct {
 	Timestamp              time.Time `json:"ts"`
 }
 
+// SubAccountAssetTransferParams represents subaccount asset transfer request parameters.
+type SubAccountAssetTransferParams struct {
+	Currency         string  `json:"ccy"`            // {REQUIRED}
+	Amount           float64 `json:"amt,string"`     // {REQUIRED}
+	From             int64   `json:"from,string"`    // {REQUIRED} 6:Funding Account 18:Trading account
+	To               int64   `json:"to,string"`      // {REQUIRED} 6:Funding Account 18:Trading account
+	FromSubAccount   string  `json:"fromSubAccount"` // {REQUIRED} subaccount name.
+	ToSubAccount     string  `json:"toSubAccount"`   // {REQUIRED} destination sub-account
+	LoanTransfer     bool    `json:"loanTrans,omitempty"`
+	OmitPositionRisk bool    `json:"omitPosRisk,omitempty"`
+}
+
 // TransferIDInfo represents master account transfer between subaccount.
 type TransferIDInfo struct {
 	TransferID string `json:"transId"`
@@ -2992,11 +3004,12 @@ type SetQuoteProductsResult struct {
 
 // SubAccountAPIKeyParam represents Reset the APIKey of a sub-account request param
 type SubAccountAPIKeyParam struct {
-	SubAccountName   string `json:"subAcct"`         // Sub-account name
-	APIKey           string `json:"apiKey"`          // Sub-accountAPI public key
-	Label            string `json:"label,omitempty"` // Sub-account APIKey label
-	APIKeyPermission string `json:"perm,omitempty"`  // Sub-account APIKey permissions
-	IP               string `json:"ip,omitempty"`    // Sub-account APIKey linked IP addresses, separate with commas if more than
+	SubAccountName   string   `json:"subAcct"`         // Sub-account name
+	APIKey           string   `json:"apiKey"`          // Sub-accountAPI public key
+	Label            string   `json:"label,omitempty"` // Sub-account APIKey label
+	APIKeyPermission string   `json:"perm,omitempty"`  // Sub-account APIKey permissions
+	IP               string   `json:"ip,omitempty"`    // Sub-account APIKey linked IP addresses, separate with commas if more than
+	Permissions      []string `json:"-"`
 }
 
 // SubAccountAPIKeyResponse represents sub-account api key reset response

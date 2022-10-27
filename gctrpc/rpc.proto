@@ -1355,45 +1355,31 @@ message GetOrderbookAmountByImpactResponse {
 
 service GoCryptoTraderService {
   rpc GetInfo(GetInfoRequest) returns (GetInfoResponse) {
-    option (google.api.http) = {
-      get: "/v1/getinfo"
-    };
+    option (google.api.http) = {get: "/v1/getinfo"};
   }
 
   rpc GetSubsystems(GetSubsystemsRequest) returns (GetSusbsytemsResponse) {
-    option (google.api.http) = {
-      get: "/v1/getsubsystems"
-    };
+    option (google.api.http) = {get: "/v1/getsubsystems"};
   }
 
   rpc EnableSubsystem(GenericSubsystemRequest) returns (GenericResponse) {
-    option (google.api.http) = {
-      get: "/v1/enablesubsystem"
-    };
+    option (google.api.http) = {get: "/v1/enablesubsystem"};
   }
 
   rpc DisableSubsystem(GenericSubsystemRequest) returns (GenericResponse) {
-    option (google.api.http) = {
-      get: "/v1/disablesubsystem"
-    };
+    option (google.api.http) = {get: "/v1/disablesubsystem"};
   }
 
   rpc GetRPCEndpoints(GetRPCEndpointsRequest) returns (GetRPCEndpointsResponse) {
-    option (google.api.http) = {
-      get: "/v1/getrpcendpoints"
-    };
+    option (google.api.http) = {get: "/v1/getrpcendpoints"};
   }
 
   rpc GetCommunicationRelayers(GetCommunicationRelayersRequest) returns (GetCommunicationRelayersResponse) {
-    option (google.api.http) = {
-      get: "/v1/getcommunicationrelayers"
-    };
+    option (google.api.http) = {get: "/v1/getcommunicationrelayers"};
   }
 
   rpc GetExchanges(GetExchangesRequest) returns (GetExchangesResponse) {
-    option (google.api.http) = {
-      get: "/v1/getexchanges"
-    };
+    option (google.api.http) = {get: "/v1/getexchanges"};
   }
 
   rpc DisableExchange(GenericExchangeNameRequest) returns (GenericResponse) {
@@ -1404,21 +1390,15 @@ service GoCryptoTraderService {
   }
 
   rpc GetExchangeInfo(GenericExchangeNameRequest) returns (GetExchangeInfoResponse) {
-    option (google.api.http) = {
-      get: "/v1/getexchangeinfo"
-    };
+    option (google.api.http) = {get: "/v1/getexchangeinfo"};
   }
 
   rpc GetExchangeOTPCode(GenericExchangeNameRequest) returns (GetExchangeOTPResponse) {
-    option (google.api.http) = {
-      get: "/v1/getexchangeotp"
-    };
+    option (google.api.http) = {get: "/v1/getexchangeotp"};
   }
 
   rpc GetExchangeOTPCodes(GetExchangeOTPsRequest) returns (GetExchangeOTPsResponse) {
-    option (google.api.http) = {
-      get: "/v1/getexchangeotps"
-    };
+    option (google.api.http) = {get: "/v1/getexchangeotps"};
   }
 
   rpc EnableExchange(GenericExchangeNameRequest) returns (GenericResponse) {
@@ -1436,9 +1416,7 @@ service GoCryptoTraderService {
   }
 
   rpc GetTickers(GetTickersRequest) returns (GetTickersResponse) {
-    option (google.api.http) = {
-      get: "/v1/gettickers"
-    };
+    option (google.api.http) = {get: "/v1/gettickers"};
   }
 
   rpc GetOrderbook(GetOrderbookRequest) returns (OrderbookResponse) {
@@ -1449,45 +1427,31 @@ service GoCryptoTraderService {
   }
 
   rpc GetOrderbooks(GetOrderbooksRequest) returns (GetOrderbooksResponse) {
-    option (google.api.http) = {
-      get: "/v1/getorderbooks"
-    };
+    option (google.api.http) = {get: "/v1/getorderbooks"};
   }
 
   rpc GetAccountInfo(GetAccountInfoRequest) returns (GetAccountInfoResponse) {
-    option (google.api.http) = {
-      get: "/v1/getaccountinfo"
-    };
+    option (google.api.http) = {get: "/v1/getaccountinfo"};
   }
 
   rpc UpdateAccountInfo(GetAccountInfoRequest) returns (GetAccountInfoResponse) {
-    option (google.api.http) = {
-      get: "/v1/updateaccountinfo"
-    };
+    option (google.api.http) = {get: "/v1/updateaccountinfo"};
   }
 
   rpc GetAccountInfoStream(GetAccountInfoRequest) returns (stream GetAccountInfoResponse) {
-    option (google.api.http) = {
-      get: "/v1/getaccountinfostream"
-    };
+    option (google.api.http) = {get: "/v1/getaccountinfostream"};
   }
 
   rpc GetConfig(GetConfigRequest) returns (GetConfigResponse) {
-    option (google.api.http) = {
-      get: "/v1/getconfig"
-    };
+    option (google.api.http) = {get: "/v1/getconfig"};
   }
 
   rpc GetPortfolio(GetPortfolioRequest) returns (GetPortfolioResponse) {
-    option (google.api.http) = {
-      get: "/v1/getportfolio"
-    };
+    option (google.api.http) = {get: "/v1/getportfolio"};
   }
 
   rpc GetPortfolioSummary(GetPortfolioSummaryRequest) returns (GetPortfolioSummaryResponse) {
-    option (google.api.http) = {
-      get: "/v1/getportfoliosummary"
-    };
+    option (google.api.http) = {get: "/v1/getportfoliosummary"};
   }
 
   rpc AddPortfolioAddress(AddPortfolioAddressRequest) returns (GenericResponse) {
@@ -1505,15 +1469,11 @@ service GoCryptoTraderService {
   }
 
   rpc GetForexProviders(GetForexProvidersRequest) returns (GetForexProvidersResponse) {
-    option (google.api.http) = {
-      get: "/v1/getforexproviders"
-    };
+    option (google.api.http) = {get: "/v1/getforexproviders"};
   }
 
   rpc GetForexRates(GetForexRatesRequest) returns (GetForexRatesResponse) {
-    option (google.api.http) = {
-      get: "/v1/getforexrates"
-    };
+    option (google.api.http) = {get: "/v1/getforexrates"};
   }
 
   rpc GetOrders(GetOrdersRequest) returns (GetOrdersResponse) {
@@ -1573,9 +1533,7 @@ service GoCryptoTraderService {
   }
 
   rpc GetEvents(GetEventsRequest) returns (GetEventsResponse) {
-    option (google.api.http) = {
-      get: "/v1/getevents"
-    };
+    option (google.api.http) = {get: "/v1/getevents"};
   }
 
   rpc AddEvent(AddEventRequest) returns (AddEventResponse) {
@@ -1649,9 +1607,7 @@ service GoCryptoTraderService {
   }
 
   rpc GetLoggerDetails(GetLoggerDetailsRequest) returns (GetLoggerDetailsResponse) {
-    option (google.api.http) = {
-      get: "/v1/getloggerdetails"
-    };
+    option (google.api.http) = {get: "/v1/getloggerdetails"};
   }
 
   rpc SetLoggerDetails(SetLoggerDetailsRequest) returns (GetLoggerDetailsResponse) {
@@ -1676,39 +1632,27 @@ service GoCryptoTraderService {
   }
 
   rpc GetOrderbookStream(GetOrderbookStreamRequest) returns (stream OrderbookResponse) {
-    option (google.api.http) = {
-      get: "/v1/getorderbookstream"
-    };
+    option (google.api.http) = {get: "/v1/getorderbookstream"};
   }
 
   rpc GetExchangeOrderbookStream(GetExchangeOrderbookStreamRequest) returns (stream OrderbookResponse) {
-    option (google.api.http) = {
-      get: "/v1/getexchangeorderbookstream"
-    };
+    option (google.api.http) = {get: "/v1/getexchangeorderbookstream"};
   }
 
   rpc GetTickerStream(GetTickerStreamRequest) returns (stream TickerResponse) {
-    option (google.api.http) = {
-      get: "/v1/gettickerstream"
-    };
+    option (google.api.http) = {get: "/v1/gettickerstream"};
   }
 
   rpc GetExchangeTickerStream(GetExchangeTickerStreamRequest) returns (stream TickerResponse) {
-    option (google.api.http) = {
-      get: "/v1/getexchangetickerstream",
-    };
+    option (google.api.http) = {get: "/v1/getexchangetickerstream"};
   }
 
   rpc GetAuditEvent(GetAuditEventRequest) returns (GetAuditEventResponse) {
-    option (google.api.http) = {
-      get: "/v1/getauditevent",
-    };
+    option (google.api.http) = {get: "/v1/getauditevent"};
   }
 
   rpc GCTScriptExecute(GCTScriptExecuteRequest) returns (GenericResponse) {
-    option (google.api.http) = {
-      get: "/v1/gctscript/execute",
-    };
+    option (google.api.http) = {get: "/v1/gctscript/execute"};
   }
 
   rpc GCTScriptUpload(GCTScriptUploadRequest) returns (GenericResponse) {
@@ -1726,15 +1670,11 @@ service GoCryptoTraderService {
   }
 
   rpc GCTScriptStatus(GCTScriptStatusRequest) returns (GCTScriptStatusResponse) {
-    option (google.api.http) = {
-      get: "/v1/gctscript/status",
-    };
+    option (google.api.http) = {get: "/v1/gctscript/status"};
   }
 
   rpc GCTScriptQuery(GCTScriptQueryRequest) returns (GCTScriptQueryResponse) {
-    option (google.api.http) = {
-      get: "/v1/gctscript/query",
-    };
+    option (google.api.http) = {get: "/v1/gctscript/query"};
   }
 
   rpc GCTScriptStop(GCTScriptStopRequest) returns (GenericResponse) {
@@ -1765,104 +1705,70 @@ service GoCryptoTraderService {
   }
 
   rpc GetHistoricCandles(GetHistoricCandlesRequest) returns (GetHistoricCandlesResponse) {
-    option (google.api.http) = {
-      get: "/v1/gethistoriccandles"
-    };
+    option (google.api.http) = {get: "/v1/gethistoriccandles"};
   }
 
   rpc SetExchangeAsset(SetExchangeAssetRequest) returns (GenericResponse) {
-    option (google.api.http) = {
-      get: "/v1/setexchangeasset"
-    };
+    option (google.api.http) = {get: "/v1/setexchangeasset"};
   }
 
   rpc SetAllExchangePairs(SetExchangeAllPairsRequest) returns (GenericResponse) {
-    option (google.api.http) = {
-      get: "/v1/setallexchangepairs"
-    };
+    option (google.api.http) = {get: "/v1/setallexchangepairs"};
   }
 
   rpc UpdateExchangeSupportedPairs(UpdateExchangeSupportedPairsRequest) returns (GenericResponse) {
-    option (google.api.http) = {
-      get: "/v1/updateexchangesupportedpairs"
-    };
+    option (google.api.http) = {get: "/v1/updateexchangesupportedpairs"};
   }
 
   rpc GetExchangeAssets(GetExchangeAssetsRequest) returns (GetExchangeAssetsResponse) {
-    option (google.api.http) = {
-      get: "/v1/getexchangeassets"
-    };
+    option (google.api.http) = {get: "/v1/getexchangeassets"};
   }
 
   rpc WebsocketGetInfo(WebsocketGetInfoRequest) returns (WebsocketGetInfoResponse) {
-    option (google.api.http) = {
-      get: "/v1/websocketgetinfo"
-    };
+    option (google.api.http) = {get: "/v1/websocketgetinfo"};
   }
 
   rpc WebsocketSetEnabled(WebsocketSetEnabledRequest) returns (GenericResponse) {
-    option (google.api.http) = {
-      get: "/v1/websocketsetenabled"
-    };
+    option (google.api.http) = {get: "/v1/websocketsetenabled"};
   }
 
   rpc WebsocketGetSubscriptions(WebsocketGetSubscriptionsRequest) returns (WebsocketGetSubscriptionsResponse) {
-    option (google.api.http) = {
-      get: "/v1/websocketgetsubscriptions"
-    };
+    option (google.api.http) = {get: "/v1/websocketgetsubscriptions"};
   }
 
   rpc WebsocketSetProxy(WebsocketSetProxyRequest) returns (GenericResponse) {
-    option (google.api.http) = {
-      get: "/v1/websocketsetproxy"
-    };
+    option (google.api.http) = {get: "/v1/websocketsetproxy"};
   }
 
   rpc WebsocketSetURL(WebsocketSetURLRequest) returns (GenericResponse) {
-    option (google.api.http) = {
-      get: "/v1/websocketseturl"
-    };
+    option (google.api.http) = {get: "/v1/websocketseturl"};
   }
 
   rpc GetRecentTrades(GetSavedTradesRequest) returns (SavedTradesResponse) {
-    option (google.api.http) = {
-      get: "/v1/getrecenttrades"
-    };
+    option (google.api.http) = {get: "/v1/getrecenttrades"};
   }
 
   rpc GetHistoricTrades(GetSavedTradesRequest) returns (stream SavedTradesResponse) {
-    option (google.api.http) = {
-      get: "/v1/gethistorictrades"
-    };
+    option (google.api.http) = {get: "/v1/gethistorictrades"};
   }
 
   rpc GetSavedTrades(GetSavedTradesRequest) returns (SavedTradesResponse) {
-    option (google.api.http) = {
-      get: "/v1/getsavedtrades"
-    };
+    option (google.api.http) = {get: "/v1/getsavedtrades"};
   }
 
   rpc ConvertTradesToCandles(ConvertTradesToCandlesRequest) returns (GetHistoricCandlesResponse) {
-    option (google.api.http) = {
-      get: "/v1/converttradestocandles"
-    };
+    option (google.api.http) = {get: "/v1/converttradestocandles"};
   }
 
   rpc FindMissingSavedCandleIntervals(FindMissingCandlePeriodsRequest) returns (FindMissingIntervalsResponse) {
-    option (google.api.http) = {
-      get: "/v1/findmissingsavedcandleintervals"
-    };
+    option (google.api.http) = {get: "/v1/findmissingsavedcandleintervals"};
   }
 
   rpc FindMissingSavedTradeIntervals(FindMissingTradePeriodsRequest) returns (FindMissingIntervalsResponse) {
-    option (google.api.http) = {
-      get: "/v1/findmissingsavedtradeintervals"
-    };
+    option (google.api.http) = {get: "/v1/findmissingsavedtradeintervals"};
   }
   rpc SetExchangeTradeProcessing(SetExchangeTradeProcessingRequest) returns (GenericResponse) {
-    option (google.api.http) = {
-      get: "/v1/setexchangetradeprocessing"
-    };
+    option (google.api.http) = {get: "/v1/setexchangetradeprocessing"};
   }
 
   rpc UpsertDataHistoryJob(UpsertDataHistoryJobRequest) returns (UpsertDataHistoryJobResponse) {
@@ -1873,24 +1779,16 @@ service GoCryptoTraderService {
   }
 
   rpc GetDataHistoryJobDetails(GetDataHistoryJobDetailsRequest) returns (DataHistoryJob) {
-    option (google.api.http) = {
-      get: "/v1/getdatahistoryjobdetails"
-    };
+    option (google.api.http) = {get: "/v1/getdatahistoryjobdetails"};
   }
   rpc GetActiveDataHistoryJobs(GetInfoRequest) returns (DataHistoryJobs) {
-    option (google.api.http) = {
-      get: "/v1/getactivedatahistoryjobs"
-    };
+    option (google.api.http) = {get: "/v1/getactivedatahistoryjobs"};
   }
   rpc GetDataHistoryJobsBetween(GetDataHistoryJobsBetweenRequest) returns (DataHistoryJobs) {
-    option (google.api.http) = {
-      get: "/v1/getdatahistoryjobsbetween"
-    };
+    option (google.api.http) = {get: "/v1/getdatahistoryjobsbetween"};
   }
   rpc GetDataHistoryJobSummary(GetDataHistoryJobDetailsRequest) returns (DataHistoryJob) {
-    option (google.api.http) = {
-      get: "/v1/getdatahistoryjobsummary"
-    };
+    option (google.api.http) = {get: "/v1/getdatahistoryjobsummary"};
   }
   rpc SetDataHistoryJobStatus(SetDataHistoryJobStatusRequest) returns (GenericResponse) {
     option (google.api.http) = {
@@ -1911,89 +1809,55 @@ service GoCryptoTraderService {
     };
   }
   rpc ModifyOrder(ModifyOrderRequest) returns (ModifyOrderResponse) {
-    option (google.api.http) = {
-      get: "/v1/modifyorder"
-    };
+    option (google.api.http) = {get: "/v1/modifyorder"};
   }
 
   rpc CurrencyStateGetAll(CurrencyStateGetAllRequest) returns (CurrencyStateResponse) {
-    option (google.api.http) = {
-      get: "/v1/currencystategetall"
-    };
+    option (google.api.http) = {get: "/v1/currencystategetall"};
   }
   rpc CurrencyStateTrading(CurrencyStateTradingRequest) returns (GenericResponse) {
-    option (google.api.http) = {
-      get: "/v1/currencystatetrading"
-    };
+    option (google.api.http) = {get: "/v1/currencystatetrading"};
   }
   rpc CurrencyStateDeposit(CurrencyStateDepositRequest) returns (GenericResponse) {
-    option (google.api.http) = {
-      get: "/v1/currencystatedeposit"
-    };
+    option (google.api.http) = {get: "/v1/currencystatedeposit"};
   }
   rpc CurrencyStateWithdraw(CurrencyStateWithdrawRequest) returns (GenericResponse) {
-    option (google.api.http) = {
-      get: "/v1/currencystatewithdraw"
-    };
+    option (google.api.http) = {get: "/v1/currencystatewithdraw"};
   }
   rpc CurrencyStateTradingPair(CurrencyStateTradingPairRequest) returns (GenericResponse) {
-    option (google.api.http) = {
-      get: "/v1/currencystatetradingpair"
-    };
+    option (google.api.http) = {get: "/v1/currencystatetradingpair"};
   }
   rpc GetFuturesPositions(GetFuturesPositionsRequest) returns (GetFuturesPositionsResponse) {
-    option (google.api.http) = {
-      get: "/v1/getfuturespositions"
-    };
+    option (google.api.http) = {get: "/v1/getfuturespositions"};
   }
   rpc GetCollateral(GetCollateralRequest) returns (GetCollateralResponse) {
-    option (google.api.http) = {
-      get: "/v1/getcollateral"
-    };
+    option (google.api.http) = {get: "/v1/getcollateral"};
   }
   rpc Shutdown(ShutdownRequest) returns (ShutdownResponse) {
-    option (google.api.http) = {
-      get: "/v1/shutdown"
-    };
+    option (google.api.http) = {get: "/v1/shutdown"};
   }
   rpc GetTechnicalAnalysis(GetTechnicalAnalysisRequest) returns (GetTechnicalAnalysisResponse) {
-    option (google.api.http) = {
-      get: "/v1/gettechnicalanalysis"
-    };
+    option (google.api.http) = {get: "/v1/gettechnicalanalysis"};
   }
   rpc GetMarginRatesHistory(GetMarginRatesHistoryRequest) returns (GetMarginRatesHistoryResponse) {
-    option (google.api.http) = {
-      get: "/v1/getmarginrateshistory"
-    };
+    option (google.api.http) = {get: "/v1/getmarginrateshistory"};
   }
   rpc GetManagedPosition(GetManagedPositionRequest) returns (GetManagedPositionsResponse) {
-    option (google.api.http) = {
-      get: "/v1/getmanagedposition"
-    };
+    option (google.api.http) = {get: "/v1/getmanagedposition"};
   }
   rpc GetAllManagedPositions(GetAllManagedPositionsRequest) returns (GetManagedPositionsResponse) {
-    option (google.api.http) = {
-      get: "/v1/getallmanagedpositions"
-    };
+    option (google.api.http) = {get: "/v1/getallmanagedpositions"};
   }
   rpc GetFundingRates(GetFundingRatesRequest) returns (GetFundingRatesResponse) {
-    option (google.api.http) = {
-      get: "/v1/getfundingrates"
-    };
+    option (google.api.http) = {get: "/v1/getfundingrates"};
   }
   rpc GetOrderbookMovement(GetOrderbookMovementRequest) returns (GetOrderbookMovementResponse) {
-    option (google.api.http) = {
-      get: "/v1/getorderbookmovement"
-    };
+    option (google.api.http) = {get: "/v1/getorderbookmovement"};
   }
   rpc GetOrderbookAmountByNominal(GetOrderbookAmountByNominalRequest) returns (GetOrderbookAmountByNominalResponse) {
-    option (google.api.http) = {
-      get: "/v1/getorderbookamountbynominal"
-    };
+    option (google.api.http) = {get: "/v1/getorderbookamountbynominal"};
   }
   rpc GetOrderbookAmountByImpact(GetOrderbookAmountByImpactRequest) returns (GetOrderbookAmountByImpactResponse) {
-    option (google.api.http) = {
-      get: "/v1/getorderbookamountbyimpact"
-    };
+    option (google.api.http) = {get: "/v1/getorderbookamountbyimpact"};
   }
 }

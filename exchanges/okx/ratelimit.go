@@ -209,6 +209,7 @@ const (
 	getTransactionDetailsRate      = 60
 	placeAlgoOrderRate             = 20
 	cancelAlgoOrderRate            = 20
+	cancelAdvanceAlgoOrderRate     = 20
 	getAlgoOrderListRate           = 20
 	getAlgoOrderHistoryRate        = 20
 	getEasyConvertCurrencyListRate = 1
@@ -851,6 +852,7 @@ func SetRateLimit() *RateLimit {
 		GetTransactionDetails:      request.NewRateLimit(twoSecondsInterval, getTransactionDetailsRate),
 		PlaceAlgoOrder:             request.NewRateLimit(twoSecondsInterval, placeAlgoOrderRate),
 		CancelAlgoOrder:            request.NewRateLimit(twoSecondsInterval, cancelAlgoOrderRate),
+		CancelAdvanceAlgoOrder:     request.NewRateLimit(twoSecondsInterval, cancelAdvanceAlgoOrderRate),
 		GetAlgoOrderList:           request.NewRateLimit(twoSecondsInterval, getAlgoOrderListRate),
 		GetAlgoOrderHistory:        request.NewRateLimit(twoSecondsInterval, getAlgoOrderHistoryRate),
 		GetEasyConvertCurrencyList: request.NewRateLimit(twoSecondsInterval, getEasyConvertCurrencyListRate),

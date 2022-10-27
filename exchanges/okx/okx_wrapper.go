@@ -329,7 +329,7 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, 
 		if pair == "" {
 			return nil, errInvalidCurrencyPair
 		}
-		if _, okay := pairsMap[pair]; !okay {
+		if pairsMap[pair] {
 			pairsMap[pair] = true
 			selectedPairs = append(selectedPairs, pair)
 		}
@@ -728,7 +728,6 @@ func (ok *Okx) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType
 
 // SubmitOrder submits a new order
 func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
@@ -793,10 +792,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 	if err != nil {
 		return nil, err
 	}
-	if placeOrderResponse.OrderID != "0" && placeOrderResponse.OrderID != "" {
-		submitOrderResponse.OrderID = placeOrderResponse.OrderID
-	}
-	return &submitOrderResponse, nil
+	return s.DeriveSubmitResponse(placeOrderResponse.OrderID)
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to market conversion
@@ -804,7 +800,6 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 	if err := action.Validate(); err != nil {
 		return nil, err
 	}
-	var amendRequest AmendOrderRequestParams
 	var err error
 	if math.Mod(action.Amount, 1) != 0 {
 		return nil, errors.New("Okx contract amount can not be decimal")
@@ -820,27 +815,21 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 	if err != nil {
 		return nil, err
 	}
-	amendRequest.InstrumentID = instrumentID
-	amendRequest.NewQuantity = action.Amount
-	amendRequest.OrderID = action.OrderID
-	amendRequest.ClientSuppliedOrderID = action.ClientOrderID
-	var response *OrderData
+	amendRequest := AmendOrderRequestParams{
+		InstrumentID:          instrumentID,
+		NewQuantity:           action.Amount,
+		OrderID:               action.OrderID,
+		ClientSuppliedOrderID: action.ClientOrderID,
+	}
 	if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		response, err = ok.WsAmendOrder(&amendRequest)
+		_, err = ok.WsAmendOrder(&amendRequest)
 	} else {
-		response, err = ok.AmendOrder(ctx, &amendRequest)
+		_, err = ok.AmendOrder(ctx, &amendRequest)
 	}
 	if err != nil {
 		return nil, err
 	}
-	return &order.ModifyResponse{
-		Exchange:  action.Exchange,
-		AssetType: action.AssetType,
-		Pair:      action.Pair,
-		OrderID:   response.OrderID,
-		Price:     action.Price,
-		Amount:    amendRequest.NewQuantity,
-	}, nil
+	return action.DeriveModifyResponse()
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -999,12 +988,13 @@ func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 	}
 	status, err := order.StringToOrderStatus(orderDetail.State)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", ok.Name, err)
+		return respData, err
 	}
 	orderType, err := ok.OrderTypeFromString(orderDetail.OrderType)
 	if err != nil {
 		return respData, err
 	}
+
 	return order.Detail{
 		Amount:         orderDetail.Size,
 		Exchange:       ok.Name,
@@ -1029,7 +1019,6 @@ func (ok *Okx) GetDepositAddress(ctx context.Context, c currency.Code, accountID
 	if err != nil {
 		return nil, err
 	}
-
 	for x := range response {
 		if accountID == response[x].Address && (strings.EqualFold(response[x].Chain, chain) || strings.HasPrefix(response[x].Chain, c.String()+"-"+chain)) {
 			return &deposit.Address{
@@ -1054,13 +1043,14 @@ func (ok *Okx) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest 
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	var input WithdrawalInput
-	input.ChainName = withdrawRequest.Crypto.Chain
-	input.Amount = withdrawRequest.Amount
-	input.Currency = withdrawRequest.Currency.String()
-	input.ToAddress = withdrawRequest.Crypto.Address
-	input.TransactionFee = withdrawRequest.Crypto.FeeAmount
-	input.WithdrawalDestination = "3"
+	input := WithdrawalInput{
+		ChainName:             withdrawRequest.Crypto.Chain,
+		Amount:                withdrawRequest.Amount,
+		Currency:              withdrawRequest.Currency.String(),
+		ToAddress:             withdrawRequest.Crypto.Address,
+		TransactionFee:        withdrawRequest.Crypto.FeeAmount,
+		WithdrawalDestination: "3",
+	}
 	resp, err := ok.Withdrawal(ctx, &input)
 	if err != nil {
 		return nil, err

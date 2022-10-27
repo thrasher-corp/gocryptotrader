@@ -241,8 +241,6 @@ const (
 var (
 	// letters a regular expression for both uppercase and lowercase english characters.
 	letters = regexp.MustCompile(`^[a-zA-Z]+$`)
-	// numbers a regular expression for numbers.
-	numbers = regexp.MustCompile(`^\d+$`)
 
 	errLimitExceedsMaximumResultPerRequest           = errors.New("maximum result per request exceeds the limit")
 	errNo24HrTradeVolumeFound                        = errors.New("no trade record found in the 24 trade volume ")
@@ -926,6 +924,9 @@ func (ok *Okx) TriggerAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*Alg
 // A maximum of 10 orders can be canceled at a time.
 // Request parameters should be passed in the form of an array.
 func (ok *Okx) CancelAdvanceAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams) ([]AlgoOrder, error) {
+	if args == nil {
+		return nil, errNilArgument
+	}
 	return ok.cancelAlgoOrder(ctx, args, cancelAdvancedAlgoOrder, cancelAdvanceAlgoOrderEPL)
 }
 
@@ -933,6 +934,9 @@ func (ok *Okx) CancelAdvanceAlgoOrder(ctx context.Context, args []AlgoOrderCance
 // A maximum of 10 orders can be canceled at a time.
 // Request parameters should be passed in the form of an array.
 func (ok *Okx) CancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams) ([]AlgoOrder, error) {
+	if args == nil {
+		return nil, errNilArgument
+	}
 	return ok.cancelAlgoOrder(ctx, args, cancelAlgoOrder, cancelAlgoOrderEPL)
 }
 
@@ -949,8 +953,8 @@ func (ok *Okx) cancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams
 	if len(args) == 0 {
 		return nil, errors.New("no parameter")
 	}
-	var resp []AlgoOrder
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, rateLimit, http.MethodPost, route, args, &resp, true)
+	resp := []AlgoOrder{}
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, rateLimit, http.MethodPost, route, &args, &resp, true)
 }
 
 // GetAlgoOrderList retrieves a list of untriggered Algo orders under the current account.
@@ -2521,12 +2525,14 @@ func (ok *Okx) ViewSubAccountList(ctx context.Context, enable bool, subaccountNa
 
 // ResetSubAccountAPIKey applies to master accounts only and master accounts APIKey must be linked to IP addresses.
 func (ok *Okx) ResetSubAccountAPIKey(ctx context.Context, arg *SubAccountAPIKeyParam) (*SubAccountAPIKeyResponse, error) {
+	params := url.Values{}
 	if arg == nil {
 		return nil, errNilArgument
 	}
 	if arg.SubAccountName == "" {
 		return nil, errInvalidSubAccountName
 	}
+	params.Set("subAcct", arg.SubAccountName)
 	if arg.APIKey == "" {
 		return nil, errInvalidAPIKey
 	}
@@ -2534,7 +2540,20 @@ func (ok *Okx) ResetSubAccountAPIKey(ctx context.Context, arg *SubAccountAPIKeyP
 	if arg.IP != "" && !common.MatchesIPV4Address(arg.IP) {
 		return nil, errInvalidIPAddress
 	}
-	if arg.APIKeyPermission != "read" && arg.APIKeyPermission != "withdraw" && arg.APIKeyPermission != "trade" && arg.APIKeyPermission != "read_only" {
+	if arg.APIKeyPermission == "" && len(arg.Permissions) != 0 {
+		for x := range arg.Permissions {
+			if arg.Permissions[x] != "read" &&
+				arg.Permissions[x] != "withdraw" &&
+				arg.Permissions[x] != "trade" &&
+				arg.Permissions[x] != "read_only" {
+				return nil, errInvalidAPIKeyPermission
+			}
+			if x != 0 {
+				arg.APIKeyPermission += ","
+			}
+			arg.APIKeyPermission += arg.Permissions[x]
+		}
+	} else if arg.APIKeyPermission != "read" && arg.APIKeyPermission != "withdraw" && arg.APIKeyPermission != "trade" && arg.APIKeyPermission != "read_only" {
 		return nil, errInvalidAPIKeyPermission
 	}
 	if err := ok.SendHTTPRequest(ctx, exchange.RestSpot, resetSubAccountAPIKeyEPL, http.MethodPost, subAccountModifyAPIKey, &arg, &resp, true); err != nil {
@@ -2598,35 +2617,27 @@ func (ok *Okx) HistoryOfSubaccountTransfer(ctx context.Context, currency string,
 }
 
 // MasterAccountsManageTransfersBetweenSubaccounts master accounts manage the transfers between sub-accounts applies to master accounts only
-func (ok *Okx) MasterAccountsManageTransfersBetweenSubaccounts(ctx context.Context, currency string, amount float64, from, to uint, fromSubaccount, toSubaccount string, loanTransfer bool) ([]TransferIDInfo, error) {
-	params := url.Values{}
-	if currency == "" {
+func (ok *Okx) MasterAccountsManageTransfersBetweenSubaccounts(ctx context.Context, arg SubAccountAssetTransferParams) ([]TransferIDInfo, error) {
+	if arg.Currency == "" {
 		return nil, errInvalidCurrencyValue
 	}
-	params.Set("ccy", currency)
-	if amount <= 0 {
+	if arg.Amount <= 0 {
 		return nil, errInvalidTransferAmount
 	}
-	params.Set("amt", strconv.FormatFloat(amount, 'f', -1, 64))
-	if from != 6 && from != 18 {
+	if arg.From != 6 && arg.From != 18 {
 		return nil, errInvalidInvalidSubaccount
 	}
-	params.Set("from", strconv.FormatUint(uint64(from), 10))
-	if to != 6 && to != 18 {
+	if arg.To != 6 && arg.To != 18 {
 		return nil, errInvalidInvalidSubaccount
 	}
-	params.Set("to", strconv.FormatUint(uint64(to), 10))
-	if fromSubaccount == "" {
+	if arg.FromSubAccount == "" {
 		return nil, errMissingInitialSubaccountName
 	}
-	params.Set("fromSubAccount", fromSubaccount)
-	if toSubaccount == "" {
+	if arg.ToSubAccount == "" {
 		return nil, errMissingDestinationSubaccountName
 	}
-	params.Set("toSubAccount", toSubaccount)
-	params.Set("loanTrans", strconv.FormatBool(loanTransfer))
 	var resp []TransferIDInfo
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, masterAccountsManageTransfersBetweenSubaccountEPL, http.MethodGet, common.EncodeURLValues(assetSubaccountTransfer, params), nil, &resp, true)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, masterAccountsManageTransfersBetweenSubaccountEPL, http.MethodPost, assetSubaccountTransfer, &arg, &resp, true)
 }
 
 // SetPermissionOfTransferOut set permission of transfer out for sub-account(only applicable to master account). Sub-account can transfer out to master account by default.
@@ -4370,7 +4381,6 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 			headers["OK-ACCESS-TIMESTAMP"] = utcTime
 			headers["OK-ACCESS-PASSPHRASE"] = creds.ClientID
 		}
-		println(path)
 		return &request.Item{
 			Method:        strings.ToUpper(httpMethod),
 			Path:          path,
