@@ -6,189 +6,89 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
-const (
-	minimumSizeResponse = "reduce end date, increase granularity (interval) or increase deployable capital requirements"
-	maximumSizeResponse = "increase end date, decrease granularity (interval) or decrease deployable capital requirements"
-)
-
 var (
-	errParamsAreNil               = errors.New("params are nil")
-	errInvalidVolume              = errors.New("invalid volume")
-	errInvalidMaxSlippageValue    = errors.New("invalid max slippage percentage value")
-	errExchangeIsNil              = errors.New("exchange is nil")
-	errTWAPIsNil                  = errors.New("twap is nil")
-	errNoBalanceFound             = errors.New("no balance found")
-	errConfigurationIsNil         = errors.New("strategy configuration is nil")
-	errInvalidPriceLimit          = errors.New("invalid price limit")
-	errInvalidMaxSpreadPercentage = errors.New("invalid spread percentage")
-	errExceedsFreeBalance         = errors.New("amount exceeds current free balance")
-	errCannotSetAmount            = errors.New("specific amount cannot be set, full amount bool set")
-	errSpreadPercentageExceeded   = errors.New("spread percentage has been exceeded")
-	errImpactPercentageExceeded   = errors.New("impact percentage exceeded")
-	errNominalPercentageExceeded  = errors.New("nominal percentage exceeded")
-	errPriceLimitExceeded         = errors.New("price limit exceeded")
-	errEndBeforeNow               = errors.New("end time is before current time")
-	errUnderMinimumAmount         = errors.New("strategy deployment amount is under the exchange minimum")
-	errOverMaximumAmount          = errors.New("strategy deployment amount is over the exchange maximum")
+	errTWAPIsNil                 = errors.New("twap is nil")
+	errNoBalanceFound            = errors.New("no balance found")
+	errConfigurationIsNil        = errors.New("strategy configuration is nil")
+	errExceedsFreeBalance        = errors.New("amount exceeds current free balance")
+	errSpreadPercentageExceeded  = errors.New("spread percentage has been exceeded")
+	errImpactPercentageExceeded  = errors.New("impact percentage exceeded")
+	errNominalPercentageExceeded = errors.New("nominal percentage exceeded")
+	errPriceLimitExceeded        = errors.New("price limit exceeded")
+	errInvalidAssetType          = errors.New("non spot trading pairs not currently supported")
 )
 
 // GetTWAP returns a TWAP struct to manage TWAP allocation or deallocation of
 // position.
-func New(ctx context.Context, p *Config) (*Strategy, error) {
-	err := p.Check(ctx)
+func New(ctx context.Context, cfg *Config) (*Strategy, error) {
+	err := cfg.Check(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	depth, err := orderbook.GetDepth(p.Exchange.GetName(), p.Pair, p.Asset)
+	if cfg.Asset != asset.Spot {
+		return nil, errInvalidAssetType
+	}
+
+	depth, err := orderbook.GetDepth(cfg.Exchange.GetName(), cfg.Pair, cfg.Asset)
 	if err != nil {
 		return nil, err
 	}
 
-	creds, err := p.Exchange.GetCredentials(ctx)
+	creds, err := cfg.Exchange.GetCredentials(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	baseAmount, err := account.GetBalance(p.Exchange.GetName(),
-		creds.SubAccount, creds, p.Asset, p.Pair.Base)
+	buying, err := account.GetBalance(cfg.Exchange.GetName(),
+		creds.SubAccount, creds, cfg.Asset, cfg.Pair.Base)
 	if err != nil {
 		return nil, err
 	}
 
-	quoteAmount, err := account.GetBalance(p.Exchange.GetName(),
-		creds.SubAccount, creds, p.Asset, p.Pair.Quote)
+	deployment := cfg.Pair.Quote
+	selling, err := account.GetBalance(cfg.Exchange.GetName(),
+		creds.SubAccount, creds, cfg.Asset, cfg.Pair.Quote)
 	if err != nil {
 		return nil, err
 	}
 
-	var buying, selling Holding
-	if p.Buy {
-		freeQuote := quoteAmount.GetFree()
-		fmt.Println("FREE QUOTE HOLDINGS:", freeQuote)
-		if freeQuote == 0 {
-			return nil, fmt.Errorf("cannot sell quote %s amount %f to buy base %s %w of %f",
-				p.Pair.Quote,
-				p.Amount,
-				p.Pair.Base,
-				errNoBalanceFound,
-				freeQuote)
-		}
-		if !p.FullAmount && p.Amount > freeQuote {
-			return nil, fmt.Errorf("cannot sell quote %s amount %f to buy base %s %w of %f",
-				p.Pair.Quote,
-				p.Amount,
-				p.Pair.Base,
-				errExceedsFreeBalance,
-				freeQuote)
-		}
-		buying = Holding{Currency: p.Pair.Base, Amount: baseAmount}
-		selling = Holding{Currency: p.Pair.Quote, Amount: quoteAmount}
-	} else {
-		freeBase := baseAmount.GetFree()
-		fmt.Println("FREE BASE HOLDINGS:", freeBase)
-		if freeBase == 0 {
-			return nil, fmt.Errorf("cannot sell quote %s amount %f to buy base %s %w of %f",
-				p.Pair.Quote,
-				p.Amount,
-				p.Pair.Base,
-				errNoBalanceFound,
-				freeBase)
-		}
-		if !p.FullAmount && p.Amount > freeBase {
-			return nil, fmt.Errorf("cannot sell base %s amount %f to buy quote %s %w of %f",
-				p.Pair.Base,
-				p.Amount,
-				p.Pair.Quote,
-				errExceedsFreeBalance,
-				freeBase)
-		}
-		selling = Holding{Currency: p.Pair.Base, Amount: baseAmount}
-		buying = Holding{Currency: p.Pair.Quote, Amount: quoteAmount}
+	if !cfg.Buy {
+		buying, selling = selling, buying
+		deployment = cfg.Pair.Base
+	}
+
+	avail := selling.GetAvailableWithoutBorrow()
+	if avail == 0 {
+		return nil, fmt.Errorf("cannot sell %s amount %f to buy base %s %w of %f",
+			deployment,
+			cfg.Amount,
+			cfg.Pair.Base,
+			errNoBalanceFound,
+			avail)
+	}
+	if !cfg.FullAmount && cfg.Amount > avail {
+		return nil, fmt.Errorf("cannot sell %s amount %f to buy base %s %w of %f",
+			deployment,
+			cfg.Amount,
+			cfg.Pair.Base,
+			errExceedsFreeBalance,
+			avail)
 	}
 
 	return &Strategy{
-		Config:    p,
+		Config:    cfg,
 		Reporter:  make(chan Report),
 		orderbook: depth,
 		Buying:    buying,
 		Selling:   selling,
 	}, nil
-}
-
-// Check validates all parameter fields before undertaking specfic strategy
-func (cfg *Config) Check(ctx context.Context) error {
-	if cfg == nil {
-		return errParamsAreNil
-	}
-
-	if cfg.Exchange == nil {
-		return errExchangeIsNil
-	}
-
-	if cfg.Pair.IsEmpty() {
-		return currency.ErrPairIsEmpty
-	}
-
-	if !cfg.Asset.IsValid() {
-		return fmt.Errorf("'%v' %w", cfg.Asset, asset.ErrNotSupported)
-	}
-
-	err := common.StartEndTimeCheck(cfg.Start, cfg.End)
-	if err != nil {
-		if !errors.Is(err, common.ErrStartAfterTimeNow) {
-			// We can schedule a future process
-			return err
-		}
-	}
-
-	if cfg.End.Before(time.Now()) {
-		return errEndBeforeNow
-	}
-
-	if cfg.Interval == 0 {
-		return kline.ErrUnsetInterval
-	}
-
-	if cfg.FullAmount && cfg.Amount != 0 {
-		return errCannotSetAmount
-	}
-	if !cfg.FullAmount && cfg.Amount <= 0 {
-		return errInvalidVolume
-	}
-
-	if cfg.MaxImpactSlippage < 0 || !cfg.Buy && cfg.MaxImpactSlippage > 100 {
-		return fmt.Errorf("impact '%v' %w",
-			cfg.MaxImpactSlippage,
-			errInvalidMaxSlippageValue)
-	}
-
-	if cfg.MaxNominalSlippage < 0 || !cfg.Buy && cfg.MaxNominalSlippage > 100 {
-		return fmt.Errorf("nominal '%v' %w",
-			cfg.MaxNominalSlippage,
-			errInvalidMaxSlippageValue)
-	}
-
-	if cfg.PriceLimit < 0 {
-		return fmt.Errorf("price '%v' %w", cfg.PriceLimit, errInvalidPriceLimit)
-	}
-
-	if cfg.MaxSpreadPercentage < 0 {
-		return fmt.Errorf("max spread '%v' %w",
-			cfg.MaxSpreadPercentage,
-			errInvalidMaxSpreadPercentage)
-	}
-
-	return nil
 }
 
 // Run inititates a TWAP allocation using the specified paramaters.
@@ -202,7 +102,7 @@ func (s *Strategy) Run(ctx context.Context) error {
 	}
 
 	if s.FullAmount {
-		s.AmountRequired = s.Selling.Amount.GetAvailableWithoutBorrow()
+		s.AmountRequired = s.Selling.GetAvailableWithoutBorrow()
 	} else {
 		s.AmountRequired = s.Amount
 	}
@@ -231,9 +131,9 @@ func (s *Strategy) Deploy(ctx context.Context, amount float64) {
 			timer.Reset(time.Duration(s.Interval))
 			var balance *account.ProtectedBalance
 			if s.Buy {
-				balance = s.Buying.Amount
+				balance = s.Buying
 			} else {
-				balance = s.Selling.Amount
+				balance = s.Selling
 			}
 
 			preOrderBalance := balance.GetAvailableWithoutBorrow()
@@ -277,9 +177,9 @@ func (s *Strategy) Deploy(ctx context.Context, amount float64) {
 		case <-ctx.Done():
 			s.Reporter <- Report{Error: ctx.Err(), Finished: true}
 			return
-		case <-s.shutdown:
-			s.Reporter <- Report{Finished: true}
-			return
+			// case <-s.shutdown:
+			// 	s.Reporter <- Report{Finished: true}
+			// 	return
 		}
 	}
 }
@@ -404,54 +304,6 @@ type DeploymentSchedule struct {
 	Time     time.Time
 	Amount   float64
 	Executed order.Detail
-}
-
-// GetDeploymentAmount will truncate and equally distribute amounts across time.
-func (c *Config) GetDistrbutionAmount(fullRequiredAmount float64, book *orderbook.Depth, quote bool) (float64, error) {
-	window := c.End.Sub(c.Start)
-	if int64(window) <= int64(c.Interval) {
-		return 0, errors.New("start end time window is equal to or less than interval")
-	}
-	segment := int64(window) / int64(c.Interval)
-
-	iterationAmount := fullRequiredAmount / float64(segment)
-
-	fmt.Println("iteration amount", iterationAmount)
-
-	iterationAmountInBase := iterationAmount
-	if quote {
-		// Quote needs to be converted to base for deployment capabilities.
-		details, err := book.LiftTheAsksFromBest(iterationAmount, false)
-		if err != nil {
-			return 0, nil
-		}
-		iterationAmountInBase = details.Purchased
-	}
-
-	minMax, err := c.Exchange.GetOrderExecutionLimits(c.Asset, c.Pair)
-	if err != nil {
-		return 0, err
-	}
-
-	if minMax.MinAmount != 0 && minMax.MinAmount > iterationAmountInBase {
-		return 0, fmt.Errorf("%w; %s", errUnderMinimumAmount, minimumSizeResponse)
-	}
-
-	if minMax.MaxAmount != 0 && minMax.MaxAmount < iterationAmountInBase {
-		return 0, fmt.Errorf("%w; %s", errOverMaximumAmount, maximumSizeResponse)
-	}
-
-	fmt.Printf("minmax stuff: %+v\n", minMax)
-
-	conformedAmount := minMax.ConformToAmount(iterationAmountInBase)
-
-	fmt.Printf("conformed amount: %f iteration amount: %f changed by: %f\n",
-		conformedAmount,
-		iterationAmountInBase,
-		iterationAmountInBase-conformedAmount,
-	)
-
-	return iterationAmount, nil
 }
 
 // Report defines a TWAP action

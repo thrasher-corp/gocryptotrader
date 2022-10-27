@@ -3,79 +3,152 @@ package twap
 import (
 	"context"
 	"errors"
+	"log"
+	"os"
 	"testing"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ftx"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
-func TestCheck(t *testing.T) {
+var btcusd = currency.NewPair(currency.BTC, currency.USD)
+var errTestCredsFail = errors.New("fail on creds")
+
+type fake struct {
+	fields exchange.Base
+	exchange.IBotExchange
+}
+
+func (f *fake) GetCredentials(ctx context.Context) (*account.Credentials, error) {
+	creds, err := f.fields.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if creds.Key == "FAIL" {
+		return nil, errTestCredsFail
+	}
+	return creds, nil
+}
+
+func (f *fake) GetName() string {
+	return "fake"
+}
+
+func TestMain(m *testing.M) {
+	_, err := orderbook.DeployDepth("fake", btcusd, asset.Spot)
+	if err != nil {
+		log.Fatal(err)
+	}
+	os.Exit(m.Run())
+}
+
+func loadHoldingsState(freeQuote, freeBase float64) error {
+	return account.Process(
+		&account.Holdings{
+			Exchange: "fake",
+			Accounts: []account.SubAccount{
+				{
+					AssetType: asset.Spot,
+					Currencies: []account.Balance{
+						{
+							CurrencyName:           currency.USD,
+							AvailableWithoutBorrow: freeQuote,
+						},
+						{
+							CurrencyName:           currency.BTC,
+							AvailableWithoutBorrow: freeBase,
+							// TODO: Upgrade to allow for no balance loaded.
+						},
+					},
+				},
+			},
+		},
+		&account.Credentials{Key: "KEY"},
+	)
+}
+
+func TestNew(t *testing.T) {
 	t.Parallel()
 
-	var p *Config
-	err := p.Check(context.Background())
+	_, err := New(context.Background(), nil)
 	if !errors.Is(err, errParamsAreNil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errParamsAreNil)
 	}
 
-	p = &Config{}
-	err = p.Check(context.Background())
-	if !errors.Is(err, currency.ErrPairIsEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrPairIsEmpty)
+	tn := time.Now()
+
+	c := &Config{
+		Exchange: &fake{},
+		Pair:     currency.NewPair(currency.AAA, currency.WABI),
+		Asset:    asset.Futures,
+		Interval: kline.OneMin,
+		Start:    tn,
+		End:      tn.Add(time.Minute * 5),
+		Amount:   100001, // Quotation funding (USD)
+		Buy:      true,
 	}
 
-	p.Pair = currency.NewPair(currency.BTC, currency.USD)
-	err = p.Check(context.Background())
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	_, err = New(context.Background(), c)
+	if !errors.Is(err, errInvalidAssetType) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidAssetType)
 	}
 
-	p.Asset = asset.Spot
-	err = p.Check(context.Background())
-	if !errors.Is(err, common.ErrDateUnset) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrDateUnset)
+	c.Asset = asset.Spot
+
+	_, err = New(context.Background(), c)
+	if !errors.Is(err, orderbook.ErrCannotFindOrderbook) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, orderbook.ErrCannotFindOrderbook)
 	}
 
-	p.Start = time.Now()
-	p.End = p.Start.AddDate(0, 0, 7)
-	err = p.Check(context.Background())
-	if !errors.Is(err, kline.ErrUnsetInterval) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrUnsetInterval)
+	c.Pair = btcusd
+
+	failCtx := account.DeployCredentialsToContext(context.Background(), &account.Credentials{Key: "FAIL"})
+	_, err = New(failCtx, c)
+	if !errors.Is(err, errTestCredsFail) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errTestCredsFail)
 	}
 
-	p.Interval = kline.OneDay
-	err = p.Check(context.Background())
-	if !errors.Is(err, errInvalidVolume) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidVolume)
+	err = loadHoldingsState(0, 0)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	p.Amount = 100000
-	p.MaxSlippage = -1
-	err = p.Check(context.Background())
-	if !errors.Is(err, errInvalidMaxSlippageValue) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidMaxSlippageValue)
+	ctx := account.DeployCredentialsToContext(context.Background(), &account.Credentials{Key: "KEY"})
+	_, err = New(ctx, c)
+	if !errors.Is(err, errNoBalanceFound) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNoBalanceFound)
 	}
 
-	p.MaxSlippage = 0
-	err = p.Check(context.Background())
-	if !errors.Is(err, errExchangeIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeIsNil)
+	err = loadHoldingsState(500, 0)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	p.Exchange = &ftx.FTX{}
-	err = p.Check(context.Background())
-	if !errors.Is(err, exchange.ErrCredentialsAreEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, exchange.ErrCredentialsAreEmpty)
+	_, err = New(ctx, c)
+	if !errors.Is(err, errExceedsFreeBalance) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errExceedsFreeBalance)
 	}
 
-	p.Exchange.GetBase().API.SetKey("sweet cheeks")
-	err = p.Check(context.Background())
+	c.FullAmount = true
+	c.Amount = 0
+	_, err = New(ctx, c)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	err = loadHoldingsState(0, 1)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	c.Buy = false // Sell
+	_, err = New(ctx, c)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -99,7 +172,7 @@ func TestGetTWAP(t *testing.T) {
 		End:                     time.Now().AddDate(0, 0, 7),
 		Interval:                kline.OneDay,
 		Amount:                  100000,
-		Accumulation:            true,
+		Buy:                     true,
 		AllowTradingPastEndTime: true,
 	})
 	if !errors.Is(err, nil) {

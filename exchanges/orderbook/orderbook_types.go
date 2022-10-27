@@ -12,19 +12,19 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-// const values for orderbook package
 const (
 	bidLoadBookFailure = "cannot load book for exchange %s pair %s asset %s for Bids: %w"
 	askLoadBookFailure = "cannot load book for exchange %s pair %s asset %s for Asks: %w"
 	bookLengthIssue    = "Potential book issue for exchange %s pair %s asset %s length Bids %d length Asks %d"
 )
 
-// Vars for the orderbook package
 var (
+	// ErrCannotFindOrderbook defines an error for when an orderbook cannot be
+	// found.
+	ErrCannotFindOrderbook = errors.New("cannot find orderbook(s)")
 	errExchangeNameUnset   = errors.New("orderbook exchange name not set")
 	errPairNotSet          = errors.New("orderbook currency pair not set")
 	errAssetTypeNotSet     = errors.New("orderbook asset type not set")
-	errCannotFindOrderbook = errors.New("cannot find orderbook(s)")
 	errPriceNotSet         = errors.New("price cannot be zero")
 	errAmountInvalid       = errors.New("amount cannot be less or equal to zero")
 	errPriceOutOfOrder     = errors.New("pricing out of order")
