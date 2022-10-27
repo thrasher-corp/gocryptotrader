@@ -2,6 +2,8 @@ package deribit
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -169,6 +171,7 @@ func (d *Deribit) Setup(exch *config.Exchange) error {
 		return err
 	}
 	return d.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		URL:                  deribitWebsocketAddress,
 		RateLimit:            rateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -243,7 +246,7 @@ func (d *Deribit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 		if err != nil {
 			return err
 		}
-		err = d.UpdatePairs(p, assets[x], false, forceUpdate)
+		err = d.UpdatePairs(p, assets[x], true, forceUpdate)
 		if err != nil {
 			return err
 		}
@@ -274,18 +277,21 @@ func (d *Deribit) UpdateTicker(ctx context.Context, p currency.Pair, assetType a
 		if err != nil {
 			return nil, err
 		}
-		var resp ticker.Price
-		resp.ExchangeName = d.Name
-		resp.Pair = p
-		resp.AssetType = assetType
-		resp.Ask = tickerData.BestAskPrice
-		resp.AskSize = tickerData.BestAskAmount
-		resp.Bid = tickerData.BestBidPrice
-		resp.BidSize = tickerData.BestBidAmount
-		resp.High = tickerData.Stats.High
-		resp.Low = tickerData.Stats.Low
-		resp.Last = tickerData.LastPrice
+		resp := ticker.Price{
+			ExchangeName: d.Name,
+			Pair:         p,
+			AssetType:    assetType,
+			Ask:          tickerData.BestAskPrice,
+			AskSize:      tickerData.BestAskAmount,
+			Bid:          tickerData.BestBidPrice,
+			BidSize:      tickerData.BestBidAmount,
+			High:         tickerData.Stats.High,
+			Low:          tickerData.Stats.Low,
+			Last:         tickerData.LastPrice,
+			Volume:       tickerData.Stats.Volume,
+		}
 		err = ticker.ProcessTicker(&resp)
+
 		if err != nil {
 			return nil, err
 		}
@@ -321,33 +327,38 @@ func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		Asset:           assetType,
 		VerifyOrderbook: d.CanVerifyOrderbook,
 	}
-
 	switch assetType {
-	case asset.Futures:
+	case asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo:
 		fmtPair, err := d.FormatExchangeCurrency(p, assetType)
 		if err != nil {
 			return nil, err
 		}
-
 		obData, err := d.GetOrderbookData(ctx, fmtPair.String(), 50)
 		if err != nil {
 			return nil, err
 		}
-
-		for x := range obData.Asks {
-			book.Asks = append(book.Asks, orderbook.Item{
+		values, _ := json.Marshal(obData)
+		println(string(values))
+		book.Asks = make([]orderbook.Item, len(obData.Asks))
+		for x := range book.Asks {
+			book.Asks[x] = orderbook.Item{
 				Price:  obData.Asks[x][0],
 				Amount: obData.Asks[x][1],
-			})
+			}
+			if book.Asks[x].Price == 0 {
+				return nil, errors.New("asks price cannot be zero")
+			}
 		}
-
-		for x := range obData.Bids {
-			book.Bids = append(book.Bids, orderbook.Item{
+		book.Bids = make([]orderbook.Item, len(obData.Bids))
+		for x := range book.Bids {
+			book.Bids[x] = orderbook.Item{
 				Price:  obData.Bids[x][0],
 				Amount: obData.Bids[x][1],
-			})
+			}
+			if book.Bids[x].Price == 0 {
+				return nil, errors.New("bids price cannot be zero")
+			}
 		}
-
 		err = book.Process()
 		if err != nil {
 			return book, err

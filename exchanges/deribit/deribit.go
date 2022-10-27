@@ -10,10 +10,12 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -686,6 +688,7 @@ func (d *Deribit) SendHTTPRequest(ctx context.Context, ep exchange.URL, path str
 		Data    json.RawMessage `json:"result"`
 	}
 	err = d.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+		println(endpoint + deribitAPIVersion + path)
 		return &request.Item{
 			Method:        http.MethodGet,
 			Path:          endpoint + deribitAPIVersion + path,
@@ -2451,4 +2454,21 @@ func (d *Deribit) GetAssetKind(assetType asset.Item) string {
 	default:
 		return assetType.String()
 	}
+}
+
+func (d *Deribit) getFirstAssetTradablePair(t *testing.T, assetType asset.Item) (currency.Pair, error) {
+	instruments, err := d.FetchTradablePairs(context.Background(), asset.Futures)
+	if err != nil {
+		t.Skip(err)
+	}
+	if len(instruments) < 1 {
+		t.Skip("no enough instrument found")
+	}
+	cp, err := currency.NewPairFromString(instruments[0])
+	if err != nil {
+		return currency.EMPTYPAIR, err
+	}
+	cp = cp.Upper()
+	cp.Delimiter = currency.DashDelimiter
+	return cp, nil
 }

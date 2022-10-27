@@ -207,7 +207,7 @@ type MarkPriceHistory struct {
 // Orderbook stores orderbook data
 type Orderbook struct {
 	UnderlyingPrice float64   `json:"underlying_price"`
-	UnderlyingIndex float64   `json:"underlying_index"`
+	UnderlyingIndex string    `json:"underlying_index"`
 	Timestamp       time.Time `json:"timestamp"`
 	Stats           struct {
 		Volume      float64 `json:"volume"`
@@ -311,7 +311,7 @@ type TickerData struct {
 		High        float64 `json:"high"`
 	} `json:"stats"`
 	Timestamp       int64   `json:"timestamp"`
-	UnderlyingIndex float64 `json:"underlying_index"`
+	UnderlyingIndex string  `json:"underlying_index"`
 	UnderlyingPrice float64 `json:"underlying_price"`
 }
 

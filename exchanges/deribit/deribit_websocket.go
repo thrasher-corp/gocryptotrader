@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	deribitWebsocketAddress = "wss://www.deribit.com"
+	deribitWebsocketAddress = "wss://www.deribit.com/ws" + deribitAPIVersion
 	rpcVersion              = "2.0"
 	rateLimit               = 20
 	errAuthFailed           = 1002
@@ -30,6 +30,7 @@ func (d *Deribit) WsConnect() error {
 	var dialer websocket.Dialer
 	err := d.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
+		println("Failed to connect ")
 		return err
 	}
 
@@ -85,6 +86,7 @@ func (d *Deribit) wsLogin(ctx context.Context) error {
 
 	resp, err := d.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
 	if err != nil {
+		println("Authentication failed: ", err.Error())
 		d.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
 	}

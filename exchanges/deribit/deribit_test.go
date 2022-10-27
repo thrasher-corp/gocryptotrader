@@ -106,7 +106,7 @@ func TestUpdateTicker(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = d.UpdateTicker(context.Background(), currency.Pair{}, asset.Spot)
-	if !errors.Is(err, asset.ErrNotSupported) {
+	if err != nil && !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("expected: %v, received %v", asset.ErrNotSupported, err)
 	}
 }
@@ -124,10 +124,6 @@ func TestUpdateOrderbook(t *testing.T) {
 	_, err = d.UpdateOrderbook(context.Background(), fmtPair, asset.Futures)
 	if err != nil {
 		t.Error(err)
-	}
-	_, err = d.UpdateOrderbook(context.Background(), fmtPair, asset.Spot)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Errorf("expected: %v, received %v", asset.ErrNotSupported, err)
 	}
 }
 
@@ -410,7 +406,11 @@ func TestGetLastTradesByInstrumentAndTime(t *testing.T) {
 
 func TestGetOrderbookData(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetOrderbookData(context.Background(), btcPerpInstrument, 0)
+	cp, err := d.getFirstAssetTradablePair(t, asset.OptionCombo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = d.GetOrderbookData(context.Background(), cp.String(), 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -472,9 +472,13 @@ func TestGetVolatilityIndexData(t *testing.T) {
 
 func TestGetPublicTicker(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetPublicTicker(context.Background(), btcPerpInstrument)
+
+	response, err := d.GetPublicTicker(context.Background(), btcPerpInstrument)
 	if err != nil {
 		t.Error(err)
+	} else {
+		values, _ := json.Marshal(response)
+		println(string(values))
 	}
 }
 
@@ -1484,6 +1488,14 @@ func TestMovePositions(t *testing.T) {
 		},
 	})
 	if err != nil && !strings.Contains(err.Error(), "must be one of the subaccounts") {
+		t.Error(err)
+	}
+}
+
+func TestWsConnect(t *testing.T) {
+	t.Parallel()
+	err := d.WsConnect()
+	if err != nil {
 		t.Error(err)
 	}
 }
