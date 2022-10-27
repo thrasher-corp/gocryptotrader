@@ -121,7 +121,6 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 
 	var cagr decimal.Decimal
 	for i := range response.Items {
-		var cagr decimal.Decimal
 		if response.Items[i].ReportItem.InitialFunds.IsZero() {
 			continue
 		}

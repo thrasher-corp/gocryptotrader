@@ -22,7 +22,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // OnSignal receives the event from the strategy on whether it has signalled to buy, do nothing or sell
@@ -239,42 +238,34 @@ func (p *Portfolio) OnFill(ev fill.Event, funds funding.IFundReleaser) (fill.Eve
 	if lookup == nil {
 		return nil, fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	}
-	var err error
 
-	// Get the holding from the previous iteration, create it if it doesn't yet have a timestamp
-	h := lookup.GetHoldingsForTime(ev.GetTime().Add(-ev.GetInterval().Duration()))
-	if !h.Timestamp.IsZero() {
+	var created bool
+	h, err := lookup.GetHoldingsForTime(ev.GetTime().Add(-ev.GetInterval().Duration()))
+	if err != nil {
+		if !errors.Is(err, errNoHoldings) {
+			return nil, err
+		}
+		h, err = holdings.Create(ev, funds)
+		if err != nil {
+			return nil, err
+		}
+		created = true
+	}
+
+	if !created {
 		err = h.Update(ev, funds)
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		h = lookup.GetLatestHoldings()
-		if h.Timestamp.IsZero() {
-			h, err = holdings.Create(ev, funds)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			err = h.Update(ev, funds)
-			if err != nil {
-				return nil, err
-			}
-		}
 	}
-	err = p.SetHoldingsForOffset(&h, true)
-	if errors.Is(err, errNoHoldings) {
-		err = p.SetHoldingsForOffset(&h, false)
-	}
+	err = p.SetHoldingsForTimestamp(h)
 	if err != nil {
-		log.Error(common.Portfolio, err)
+		return nil, err
 	}
-
 	err = p.addComplianceSnapshot(ev)
 	if err != nil {
-		log.Error(common.Portfolio, err)
+		return nil, err
 	}
-
 	return ev, nil
 }
 
@@ -308,37 +299,6 @@ func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
 		Orders:    prevSnap.Orders,
 	}
 	return complianceManager.AddSnapshot(snap, false)
-}
-
-// SetHoldingsForOffset stores a holdings struct in the portfolio for a given offset
-// will return error if already exists, unless overwriteExisting is true
-func (p *Portfolio) SetHoldingsForOffset(h *holdings.Holding, overwriteExisting bool) error {
-	if h.Timestamp.IsZero() {
-		return errHoldingsNoTimestamp
-	}
-	lookup, ok := p.exchangeAssetPairPortfolioSettings[h.Exchange][h.Asset][h.Pair.Base.Item][h.Pair.Quote.Item]
-	if !ok {
-		return fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, h.Exchange, h.Asset, h.Pair)
-	}
-
-	if overwriteExisting && len(lookup.HoldingsSnapshots) == 0 {
-		return errNoHoldings
-	}
-	for i := len(lookup.HoldingsSnapshots) - 1; i >= 0; i-- {
-		if lookup.HoldingsSnapshots[i].Offset == h.Offset {
-			if overwriteExisting {
-				lookup.HoldingsSnapshots[i] = *h
-				return nil
-			}
-			return errHoldingsAlreadySet
-		}
-	}
-	if overwriteExisting {
-		return fmt.Errorf("%w at %v", errNoHoldings, h.Timestamp)
-	}
-
-	lookup.HoldingsSnapshots = append(lookup.HoldingsSnapshots, *h)
-	return nil
 }
 
 // GetLatestOrderSnapshotForEvent gets orders related to the event
@@ -375,91 +335,6 @@ func (p *Portfolio) GetComplianceManager(exchangeName string, a asset.Item, cp c
 		return nil, fmt.Errorf("%w for %v %v %v could not retrieve compliance manager", errNoPortfolioSettings, exchangeName, a, cp)
 	}
 	return &lookup.ComplianceManager, nil
-}
-
-// UpdateHoldings updates the portfolio holdings for the data event
-func (p *Portfolio) UpdateHoldings(e data.Event, funds funding.IFundReleaser) error {
-	if e == nil {
-		return common.ErrNilEvent
-	}
-	if funds == nil {
-		return funding.ErrFundsNotFound
-	}
-	settings, err := p.getSettings(e.GetExchange(), e.GetAssetType(), e.Pair())
-	if err != nil {
-		return fmt.Errorf("%v %v %v %w", e.GetExchange(), e.GetAssetType(), e.Pair(), err)
-	}
-	h := settings.GetLatestHoldings()
-	if h.Timestamp.IsZero() {
-		h, err = holdings.Create(e, funds)
-		if err != nil {
-			return err
-		}
-	}
-	err = h.UpdateValue(e)
-	if err != nil {
-		return err
-	}
-	err = p.SetHoldingsForOffset(&h, true)
-	if errors.Is(err, errNoHoldings) {
-		err = p.SetHoldingsForOffset(&h, false)
-	}
-	return err
-}
-
-// GetLatestHoldingsForAllCurrencies will return the current holdings for all loaded currencies
-// this is useful to assess the position of your entire portfolio in order to help with risk decisions
-func (p *Portfolio) GetLatestHoldingsForAllCurrencies() []holdings.Holding {
-	var resp []holdings.Holding
-	for _, exchangeMap := range p.exchangeAssetPairPortfolioSettings {
-		for _, assetMap := range exchangeMap {
-			for _, baseMap := range assetMap {
-				for _, quoteMap := range baseMap {
-					holds := quoteMap.GetLatestHoldings()
-					if !holds.Timestamp.IsZero() {
-						resp = append(resp, holds)
-					}
-				}
-			}
-		}
-	}
-	return resp
-}
-
-// ViewHoldingAtTimePeriod retrieves a snapshot of holdings at a specific time period,
-// returning empty when not found
-func (p *Portfolio) ViewHoldingAtTimePeriod(ev common.Event) (*holdings.Holding, error) {
-	exchangeAssetPairSettings := p.exchangeAssetPairPortfolioSettings[ev.GetExchange()][ev.GetAssetType()][ev.Pair().Base.Item][ev.Pair().Quote.Item]
-	if exchangeAssetPairSettings == nil {
-		return nil, fmt.Errorf("%w for %v %v %v", errNoHoldings, ev.GetExchange(), ev.GetAssetType(), ev.Pair())
-	}
-
-	for i := len(exchangeAssetPairSettings.HoldingsSnapshots) - 1; i >= 0; i-- {
-		if ev.GetTime().Equal(exchangeAssetPairSettings.HoldingsSnapshots[i].Timestamp) {
-			return &exchangeAssetPairSettings.HoldingsSnapshots[i], nil
-		}
-	}
-
-	return nil, fmt.Errorf("%w for %v %v %v at %v", errNoHoldings, ev.GetExchange(), ev.GetAssetType(), ev.Pair(), ev.GetTime())
-}
-
-// GetLatestHoldings returns the latest holdings after being sorted by time
-func (s *Settings) GetLatestHoldings() holdings.Holding {
-	if len(s.HoldingsSnapshots) == 0 {
-		return holdings.Holding{}
-	}
-
-	return s.HoldingsSnapshots[len(s.HoldingsSnapshots)-1]
-}
-
-// GetHoldingsForTime returns the holdings for a time period, or an empty holding if not found
-func (s *Settings) GetHoldingsForTime(t time.Time) holdings.Holding {
-	for i := len(s.HoldingsSnapshots) - 1; i >= 0; i-- {
-		if s.HoldingsSnapshots[i].Timestamp.Equal(t) {
-			return s.HoldingsSnapshots[i]
-		}
-	}
-	return holdings.Holding{}
 }
 
 // GetPositions returns all futures positions for an event's exchange, asset, pair
@@ -722,58 +597,111 @@ func (p *Portfolio) getFuturesSettingsFromEvent(e common.Event) (*Settings, erro
 }
 
 func (p *Portfolio) getSettings(exch string, item asset.Item, pair currency.Pair) (*Settings, error) {
-	exchMap, ok := p.exchangeAssetPairPortfolioSettings[strings.ToLower(exch)]
+	exch = strings.ToLower(exch)
+	settings, ok := p.exchangeAssetPairPortfolioSettings[exch][item][pair.Base.Item][pair.Quote.Item]
 	if !ok {
-		return nil, errExchangeUnset
+		return nil, fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, exch, item, pair)
 	}
-	itemMap, ok := exchMap[item]
-	if !ok {
-		return nil, errAssetUnset
-	}
-	pairSettings, ok := itemMap[pair.Base.Item][pair.Quote.Item]
-	if !ok {
-		return nil, errCurrencyPairUnset
-	}
-
-	return pairSettings, nil
+	return settings, nil
 }
 
-// GetLatestPNLs returns all PNL details in one array
-func (p *Portfolio) GetLatestPNLs() []PNLSummary {
-	var result []PNLSummary
-	for exch, assetPairSettings := range p.exchangeAssetPairPortfolioSettings {
-		for ai, baseMap := range assetPairSettings {
-			if !ai.IsFutures() {
-				continue
-			}
-			for b, quoteMap := range baseMap {
-				for q, settings := range quoteMap {
-					if settings == nil {
+// SetHoldingsForTimestamp stores a holdings struct in the portfolio for a given offset
+// will return error if already exists, unless overwriteExisting is true
+func (p *Portfolio) SetHoldingsForTimestamp(h *holdings.Holding) error {
+	if h.Timestamp.IsZero() {
+		return errHoldingsNoTimestamp
+	}
+	lookup, ok := p.exchangeAssetPairPortfolioSettings[h.Exchange][h.Asset][h.Pair.Base.Item][h.Pair.Quote.Item]
+	if !ok {
+		return fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, h.Exchange, h.Asset, h.Pair)
+	}
+	lookup.HoldingsSnapshots[h.Timestamp.UnixNano()] = h
+	return nil
+}
+
+// UpdateHoldings updates the portfolio holdings for the data event
+func (p *Portfolio) UpdateHoldings(e data.Event, funds funding.IFundReleaser) error {
+	if e == nil {
+		return common.ErrNilEvent
+	}
+	if funds == nil {
+		return funding.ErrFundsNotFound
+	}
+	settings, err := p.getSettings(e.GetExchange(), e.GetAssetType(), e.Pair())
+	if err != nil {
+		return fmt.Errorf("%v %v %v %w", e.GetExchange(), e.GetAssetType(), e.Pair(), err)
+	}
+	h, err := settings.GetLatestHoldings()
+	if err != nil {
+		return err
+	}
+	err = h.UpdateValue(e)
+	if err != nil {
+		return err
+	}
+	err = p.SetHoldingsForTimestamp(h)
+	if errors.Is(err, errNoHoldings) {
+		err = p.SetHoldingsForTimestamp(h)
+	}
+	return err
+}
+
+// GetLatestHoldingsForAllCurrencies will return the current holdings for all loaded currencies
+// this is useful to assess the position of your entire portfolio in order to help with risk decisions
+func (p *Portfolio) GetLatestHoldingsForAllCurrencies() []holdings.Holding {
+	var resp []holdings.Holding
+	for _, exchangeMap := range p.exchangeAssetPairPortfolioSettings {
+		for _, assetMap := range exchangeMap {
+			for _, baseMap := range assetMap {
+				for _, quoteMap := range baseMap {
+					holds, err := quoteMap.GetLatestHoldings()
+					if err != nil {
 						continue
 					}
-					if settings.FuturesTracker == nil {
-						continue
-					}
-					cp := currency.NewPair(b.Currency(), q.Currency())
-					summary := PNLSummary{
-						Exchange: exch,
-						Asset:    ai,
-						Pair:     cp,
-					}
-					positions := settings.FuturesTracker.GetPositions()
-					if len(positions) > 0 {
-						summary.CollateralCurrency = positions[0].CollateralCurrency
-						pnlHistory := positions[len(positions)-1].PNLHistory
-						if len(pnlHistory) > 0 {
-							summary.Result = pnlHistory[len(pnlHistory)-1]
-						}
-					}
-					result = append(result, summary)
+					resp = append(resp, *holds)
 				}
 			}
 		}
 	}
-	return result
+	return resp
+}
+
+// ViewHoldingAtTimePeriod retrieves a snapshot of holdings at a specific time period,
+// returning empty when not found
+func (p *Portfolio) ViewHoldingAtTimePeriod(ev common.Event) (*holdings.Holding, error) {
+	exchangeAssetPairSettings := p.exchangeAssetPairPortfolioSettings[ev.GetExchange()][ev.GetAssetType()][ev.Pair().Base.Item][ev.Pair().Quote.Item]
+	if exchangeAssetPairSettings == nil {
+		return nil, fmt.Errorf("%w for %v %v %v", errNoHoldings, ev.GetExchange(), ev.GetAssetType(), ev.Pair())
+	}
+
+	h, ok := exchangeAssetPairSettings.HoldingsSnapshots[ev.GetTime().UnixNano()]
+	if !ok {
+		return nil, fmt.Errorf("%w for %v %v %v at %v", errNoHoldings, ev.GetExchange(), ev.GetAssetType(), ev.Pair(), ev.GetTime())
+	}
+	return h, nil
+}
+
+// GetLatestHoldings returns the latest holdings after being sorted by time
+func (s *Settings) GetLatestHoldings() (*holdings.Holding, error) {
+	if len(s.HoldingsSnapshots) == 0 {
+		return nil, errNoHoldings
+	}
+	var latestTime int64
+	for k := range s.HoldingsSnapshots {
+		if k > latestTime {
+			latestTime = k
+		}
+	}
+	return s.HoldingsSnapshots[latestTime], nil
+}
+
+// GetHoldingsForTime returns the holdings for a time period, or an empty holding if not found
+func (s *Settings) GetHoldingsForTime(t time.Time) (*holdings.Holding, error) {
+	h, ok := s.HoldingsSnapshots[t.UnixNano()]
+	if !ok {
+		return nil, fmt.Errorf("%w for %v %v %v at %v", errNoHoldings, s.exchangeName, s.assetType, s.pair, t)
+	}
+	return h, nil
 }
 
 // SetHoldingsForEvent re-sets offset details at the events time,
@@ -789,7 +717,16 @@ func (p *Portfolio) SetHoldingsForEvent(fm funding.IFundReader, e common.Event) 
 	if err != nil {
 		return err
 	}
-	h := settings.GetHoldingsForTime(e.GetTime())
+	h, err := settings.GetHoldingsForTime(e.GetTime())
+	if err != nil {
+		if !errors.Is(err, errNoHoldings) {
+			return err
+		}
+		h, err = holdings.Create(e, fm)
+		if err != nil {
+			return err
+		}
+	}
 	if e.GetAssetType().IsFutures() {
 		var c funding.ICollateralReader
 		c, err = fm.GetCollateralReader()
@@ -811,7 +748,7 @@ func (p *Portfolio) SetHoldingsForEvent(fm funding.IFundReader, e common.Event) 
 	if err != nil {
 		return err
 	}
-	return p.SetHoldingsForOffset(&h, true)
+	return p.SetHoldingsForTimestamp(h)
 }
 
 // GetUnrealisedPNL returns a basic struct containing unrealised PNL

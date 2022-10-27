@@ -106,8 +106,6 @@ func (s *Statistic) SetEventForOffset(ev common.Event) error {
 		return err
 	}
 
-	s.ExchangeAssetPairStatistics[ex][a][p.Base.Item][p.Quote.Item] = lookup
-
 	return nil
 }
 
@@ -116,22 +114,22 @@ func applyEventAtOffset(ev common.Event, data *DataAtOffset) error {
 	case kline.Event:
 		// using kline.Event as signal.Event also matches data.Event
 		if data.DataEvent != nil && data.DataEvent != ev {
-			return fmt.Errorf("kline event %w", ErrAlreadyProcessed)
+			return fmt.Errorf("kline event %w %v %v %v %v", ErrAlreadyProcessed, ev.GetExchange(), ev.GetAssetType(), ev.Pair(), ev.GetOffset())
 		}
 		data.DataEvent = t
 	case signal.Event:
 		if data.SignalEvent != nil {
-			return fmt.Errorf("signal event %w", ErrAlreadyProcessed)
+			return fmt.Errorf("signal event %w %v %v %v %v", ErrAlreadyProcessed, ev.GetExchange(), ev.GetAssetType(), ev.Pair(), ev.GetOffset())
 		}
 		data.SignalEvent = t
 	case order.Event:
 		if data.OrderEvent != nil {
-			return fmt.Errorf("order event %w", ErrAlreadyProcessed)
+			return fmt.Errorf("order event %w %v %v %v %v", ErrAlreadyProcessed, ev.GetExchange(), ev.GetAssetType(), ev.Pair(), ev.GetOffset())
 		}
 		data.OrderEvent = t
 	case fill.Event:
 		if data.FillEvent != nil {
-			return fmt.Errorf("fill event %w", ErrAlreadyProcessed)
+			return fmt.Errorf("fill event %w %v %v %v %v", ErrAlreadyProcessed, ev.GetExchange(), ev.GetAssetType(), ev.Pair(), ev.GetOffset())
 		}
 		data.FillEvent = t
 	default:

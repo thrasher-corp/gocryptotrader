@@ -2,28 +2,29 @@ package holdings
 
 import (
 	"fmt"
-	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // Create makes a Holding struct to track total values of strategy holdings over the course of a backtesting run
-func Create(ev ClosePriceReader, fundReader funding.IFundReader) (Holding, error) {
+func Create(ev ClosePriceReader, fundReader funding.IFundReader) (*Holding, error) {
 	if ev == nil {
-		return Holding{}, common.ErrNilEvent
+		return nil, common.ErrNilEvent
 	}
-
-	if ev.GetAssetType().IsFutures() {
+	a := ev.GetAssetType()
+	switch {
+	case a.IsFutures():
 		funds, err := fundReader.GetCollateralReader()
 		if err != nil {
-			return Holding{}, err
+			return nil, err
 		}
-		return Holding{
+		return &Holding{
 			Offset:            ev.GetOffset(),
 			Pair:              ev.Pair(),
 			Asset:             ev.GetAssetType(),
@@ -33,16 +34,16 @@ func Create(ev ClosePriceReader, fundReader funding.IFundReader) (Holding, error
 			QuoteSize:         funds.InitialFunds(),
 			TotalInitialValue: funds.InitialFunds(),
 		}, nil
-	} else if ev.GetAssetType() == asset.Spot {
+	case a == asset.Spot:
 		funds, err := fundReader.GetPairReader()
 		if err != nil {
-			return Holding{}, err
+			return nil, err
 		}
 		if funds.QuoteInitialFunds().LessThan(decimal.Zero) {
-			return Holding{}, ErrInitialFundsZero
+			return nil, ErrInitialFundsZero
 		}
 
-		return Holding{
+		return &Holding{
 			Offset:            ev.GetOffset(),
 			Pair:              ev.Pair(),
 			Asset:             ev.GetAssetType(),
@@ -54,8 +55,9 @@ func Create(ev ClosePriceReader, fundReader funding.IFundReader) (Holding, error
 			BaseSize:          funds.BaseInitialFunds(),
 			TotalInitialValue: funds.QuoteInitialFunds().Add(funds.BaseInitialFunds().Mul(ev.GetClosePrice())),
 		}, nil
+	default:
+		return nil, fmt.Errorf("%v %w", ev.GetAssetType(), asset.ErrNotSupported)
 	}
-	return Holding{}, fmt.Errorf("%v %w", ev.GetAssetType(), asset.ErrNotSupported)
 }
 
 // Update calculates holding statistics for the events time

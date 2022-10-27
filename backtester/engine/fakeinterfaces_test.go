@@ -39,7 +39,7 @@ func (f fakeFolio) SetHoldingsForEvent(funding.IFundReader, common.Event) error 
 	return nil
 }
 
-func (f fakeFolio) SetHoldingsForOffset(*holdings.Holding, bool) error {
+func (f fakeFolio) SetHoldingsForTimestamp(*holdings.Holding) error {
 	return nil
 }
 
@@ -256,7 +256,8 @@ func (f fakeFunding) USDTrackingDisabled() bool {
 	return false
 }
 
-func (f fakeFunding) Liquidate(common.Event) {
+func (f fakeFunding) Liquidate(common.Event) error {
+	return nil
 }
 
 func (f fakeFunding) GetAllFunding() ([]funding.BasicItem, error) {

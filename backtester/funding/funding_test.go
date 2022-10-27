@@ -457,15 +457,11 @@ func TestCreateSnapshot(t *testing.T) {
 	t.Parallel()
 	f := FundManager{}
 	err := f.CreateSnapshot(time.Time{})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	f.items = append(f.items, &Item{})
-	err = f.CreateSnapshot(time.Time{})
 	if !errors.Is(err, gctcommon.ErrDateUnset) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrDateUnset)
 	}
 
+	f.items = append(f.items, &Item{})
 	dfk := &kline.DataFromKline{
 		Base: &data.Base{},
 		Item: gctkline.Item{

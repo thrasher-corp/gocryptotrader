@@ -775,11 +775,11 @@ func (f fakeHandler) Next() (Event, error) {
 	return nil, nil
 }
 
-func (f fakeHandler) GetStream() ([]Event, error) {
+func (f fakeHandler) GetStream() (Events, error) {
 	return nil, nil
 }
 
-func (f fakeHandler) History() ([]Event, error) {
+func (f fakeHandler) History() (Events, error) {
 	return nil, nil
 }
 
@@ -787,7 +787,7 @@ func (f fakeHandler) Latest() (Event, error) {
 	return nil, nil
 }
 
-func (f fakeHandler) List() ([]Event, error) {
+func (f fakeHandler) List() (Events, error) {
 	return nil, nil
 }
 

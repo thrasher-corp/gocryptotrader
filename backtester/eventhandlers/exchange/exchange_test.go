@@ -350,7 +350,6 @@ func TestExecuteOrder(t *testing.T) {
 	if !errors.Is(err, gctorder.ErrAmountIsInvalid) {
 		t.Errorf("received: %v but expected: %v", err, gctorder.ErrAmountIsInvalid)
 	}
-
 }
 
 func TestExecuteOrderBuySellSizeLimit(t *testing.T) {

@@ -81,29 +81,29 @@ func TestSetup(t *testing.T) {
 func TestSetupCurrencySettingsMap(t *testing.T) {
 	t.Parallel()
 	p := &Portfolio{}
-	err := p.SetupCurrencySettingsMap(nil)
+	err := p.SetCurrencySettingsMap(nil)
 	if !errors.Is(err, errNoPortfolioSettings) {
 		t.Errorf("received: %v, expected: %v", err, errNoPortfolioSettings)
 	}
 
-	err = p.SetupCurrencySettingsMap(&exchange.Settings{})
+	err = p.SetCurrencySettingsMap(&exchange.Settings{})
 	if !errors.Is(err, errExchangeUnset) {
 		t.Errorf("received: %v, expected: %v", err, errExchangeUnset)
 	}
 
 	ff := &ftx.FTX{}
 	ff.Name = testExchange
-	err = p.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ff})
+	err = p.SetCurrencySettingsMap(&exchange.Settings{Exchange: ff})
 	if !errors.Is(err, errAssetUnset) {
 		t.Errorf("received: %v, expected: %v", err, errAssetUnset)
 	}
 
-	err = p.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot})
+	err = p.SetCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot})
 	if !errors.Is(err, errCurrencyPairUnset) {
 		t.Errorf("received: %v, expected: %v", err, errCurrencyPairUnset)
 	}
 
-	err = p.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: currency.NewPair(currency.BTC, currency.USD)})
+	err = p.SetCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: currency.NewPair(currency.BTC, currency.USD)})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -113,37 +113,37 @@ func TestSetHoldings(t *testing.T) {
 	t.Parallel()
 	p := &Portfolio{}
 
-	err := p.SetHoldingsForOffset(&holdings.Holding{}, false)
+	err := p.SetHoldingsForTimestamp(&holdings.Holding{})
 	if !errors.Is(err, errHoldingsNoTimestamp) {
 		t.Errorf("received: %v, expected: %v", err, errHoldingsNoTimestamp)
 	}
 	tt := time.Now()
 
-	err = p.SetHoldingsForOffset(&holdings.Holding{Timestamp: tt}, false)
+	err = p.SetHoldingsForTimestamp(&holdings.Holding{Timestamp: tt})
 	if !errors.Is(err, errNoPortfolioSettings) {
 		t.Errorf("received: %v, expected: %v", err, errNoPortfolioSettings)
 	}
 
 	ff := &ftx.FTX{}
 	ff.Name = testExchange
-	err = p.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: currency.NewPair(currency.BTC, currency.USD)})
+	err = p.SetCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: currency.NewPair(currency.BTC, currency.USD)})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	err = p.SetHoldingsForOffset(&holdings.Holding{
+	err = p.SetHoldingsForTimestamp(&holdings.Holding{
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USD),
-		Timestamp: tt}, false)
+		Timestamp: tt})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	err = p.SetHoldingsForOffset(&holdings.Holding{
+	err = p.SetHoldingsForTimestamp(&holdings.Holding{
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USD),
-		Timestamp: tt}, true)
+		Timestamp: tt})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -157,18 +157,18 @@ func TestGetLatestHoldingsForAllCurrencies(t *testing.T) {
 		t.Error("expected 0")
 	}
 	tt := time.Now()
-	err := p.SetHoldingsForOffset(&holdings.Holding{
+	err := p.SetHoldingsForTimestamp(&holdings.Holding{
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USD),
-		Timestamp: tt}, true)
+		Timestamp: tt})
 	if !errors.Is(err, errNoPortfolioSettings) {
 		t.Errorf("received: %v, expected: %v", err, errNoPortfolioSettings)
 	}
 
 	ff := &ftx.FTX{}
 	ff.Name = testExchange
-	err = p.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: currency.NewPair(currency.BTC, currency.USD)})
+	err = p.SetCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: currency.NewPair(currency.BTC, currency.USD)})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -176,12 +176,12 @@ func TestGetLatestHoldingsForAllCurrencies(t *testing.T) {
 	if len(h) != 0 {
 		t.Errorf("received %v, expected %v", len(h), 0)
 	}
-	err = p.SetHoldingsForOffset(&holdings.Holding{
+	err = p.SetHoldingsForTimestamp(&holdings.Holding{
 		Offset:    1,
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USD),
-		Timestamp: tt}, false)
+		Timestamp: tt})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -189,21 +189,12 @@ func TestGetLatestHoldingsForAllCurrencies(t *testing.T) {
 	if len(h) != 1 {
 		t.Errorf("received %v, expected %v", len(h), 1)
 	}
-	err = p.SetHoldingsForOffset(&holdings.Holding{
+	err = p.SetHoldingsForTimestamp(&holdings.Holding{
 		Offset:    1,
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USD),
-		Timestamp: tt}, false)
-	if !errors.Is(err, errHoldingsAlreadySet) {
-		t.Errorf("received: %v, expected: %v", err, errHoldingsAlreadySet)
-	}
-	err = p.SetHoldingsForOffset(&holdings.Holding{
-		Offset:    1,
-		Exchange:  testExchange,
-		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USD),
-		Timestamp: tt}, true)
+		Timestamp: tt})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -232,26 +223,26 @@ func TestViewHoldingAtTimePeriod(t *testing.T) {
 
 	ff := &ftx.FTX{}
 	ff.Name = testExchange
-	err = p.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: currency.NewPair(currency.BTC, currency.USD)})
+	err = p.SetCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: currency.NewPair(currency.BTC, currency.USD)})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	err = p.SetHoldingsForOffset(&holdings.Holding{
+	err = p.SetHoldingsForTimestamp(&holdings.Holding{
 		Offset:    1,
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USD),
-		Timestamp: tt}, false)
+		Timestamp: tt})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	err = p.SetHoldingsForOffset(&holdings.Holding{
+	err = p.SetHoldingsForTimestamp(&holdings.Holding{
 		Offset:    2,
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USD),
-		Timestamp: tt.Add(time.Hour)}, false)
+		Timestamp: tt.Add(time.Hour)})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -294,25 +285,25 @@ func TestUpdate(t *testing.T) {
 	err = p.UpdateHoldings(&kline.Kline{
 		Base: b,
 	}, pair)
-	if !errors.Is(err, errExchangeUnset) {
-		t.Errorf("received '%v' expected '%v'", err, errExchangeUnset)
+	if !errors.Is(err, errNoPortfolioSettings) {
+		t.Errorf("received '%v' expected '%v'", err, errNoPortfolioSettings)
 	}
 
 	tt := time.Now()
-	err = p.SetHoldingsForOffset(&holdings.Holding{
+	err = p.SetHoldingsForTimestamp(&holdings.Holding{
 		Offset:    1,
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USD),
 		Timestamp: tt,
-	}, false)
+	})
 	if !errors.Is(err, errNoPortfolioSettings) {
 		t.Errorf("received: %v, expected: %v", err, errNoPortfolioSettings)
 	}
 
 	ff := &ftx.FTX{}
 	ff.Name = testExchange
-	err = p.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: currency.NewPair(currency.BTC, currency.USD)})
+	err = p.SetCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: currency.NewPair(currency.BTC, currency.USD)})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -323,8 +314,8 @@ func TestUpdate(t *testing.T) {
 	err = p.UpdateHoldings(&kline.Kline{
 		Base: b,
 	}, pair)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
+	if !errors.Is(err, errNoHoldings) {
+		t.Errorf("received: %v, expected: %v", err, errNoHoldings)
 	}
 }
 
@@ -338,7 +329,7 @@ func TestGetComplianceManager(t *testing.T) {
 
 	ff := &ftx.FTX{}
 	ff.Name = testExchange
-	err = p.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: currency.NewPair(currency.BTC, currency.USD)})
+	err = p.SetCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: currency.NewPair(currency.BTC, currency.USD)})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -369,7 +360,7 @@ func TestAddComplianceSnapshot(t *testing.T) {
 
 	ff := &ftx.FTX{}
 	ff.Name = testExchange
-	err = p.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: currency.NewPair(currency.BTC, currency.USD)})
+	err = p.SetCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: currency.NewPair(currency.BTC, currency.USD)})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -417,7 +408,7 @@ func TestOnFill(t *testing.T) {
 	}
 	ff := &ftx.FTX{}
 	ff.Name = testExchange
-	err = p.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: currency.NewPair(currency.BTC, currency.USD)})
+	err = p.SetCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: currency.NewPair(currency.BTC, currency.USD)})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -434,6 +425,12 @@ func TestOnFill(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	_, err = p.OnFill(f, pair)
+	if !errors.Is(err, errHoldingsNoTimestamp) {
+		t.Errorf("received: %v, expected: %v", err, errHoldingsNoTimestamp)
+	}
+
+	f.Time = time.Now()
 	_, err = p.OnFill(f, pair)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
@@ -498,7 +495,7 @@ func TestOnSignal(t *testing.T) {
 	}
 	ff := &ftx.FTX{}
 	ff.Name = testExchange
-	err = p.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: currency.NewPair(currency.BTC, currency.USDT)})
+	err = p.SetCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: currency.NewPair(currency.BTC, currency.USDT)})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -534,17 +531,17 @@ func TestOnSignal(t *testing.T) {
 	}
 
 	s.Direction = gctorder.Buy
-	err = p.SetHoldingsForOffset(&holdings.Holding{
+	err = p.SetHoldingsForTimestamp(&holdings.Holding{
 		Exchange:  "lol",
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USDT),
 		Timestamp: time.Now(),
-		QuoteSize: decimal.NewFromInt(1337)}, false)
+		QuoteSize: decimal.NewFromInt(1337)})
 	if !errors.Is(err, errNoPortfolioSettings) {
 		t.Errorf("received: %v, expected: %v", err, errNoPortfolioSettings)
 	}
 	cs := &exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: currency.NewPair(currency.BTC, currency.USDT)}
-	err = p.SetupCurrencySettingsMap(cs)
+	err = p.SetCurrencySettingsMap(cs)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -582,12 +579,12 @@ func TestOnSignal(t *testing.T) {
 	s.AssetType = asset.Futures
 	cs.Asset = asset.Futures
 
-	err = p.SetupCurrencySettingsMap(cs)
+	err = p.SetCurrencySettingsMap(cs)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	s.Direction = gctorder.Long
-	resp, err = p.OnSignal(s, cs, collateralFunds)
+	_, err = p.OnSignal(s, cs, collateralFunds)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -625,7 +622,7 @@ func TestOnSignal(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	s.Direction = gctorder.ClosePosition
-	resp, err = p.OnSignal(s, cs, collateralFunds)
+	_, err = p.OnSignal(s, cs, collateralFunds)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -633,15 +630,21 @@ func TestOnSignal(t *testing.T) {
 
 func TestGetLatestHoldings(t *testing.T) {
 	t.Parallel()
-	cs := Settings{}
-	h := cs.GetLatestHoldings()
-	if !h.Timestamp.IsZero() {
-		t.Error("expected unset holdings")
+	s := &Settings{
+		HoldingsSnapshots: make(map[int64]*holdings.Holding),
 	}
-	tt := time.Now()
-	cs.HoldingsSnapshots = append(cs.HoldingsSnapshots, holdings.Holding{Timestamp: tt})
+	_, err := s.GetLatestHoldings()
+	if !errors.Is(err, errNoHoldings) {
+		t.Errorf("received: %v, expected: %v", err, errNoHoldings)
+	}
 
-	h = cs.GetLatestHoldings()
+	tt := time.Now()
+	s.HoldingsSnapshots[tt.UnixNano()] = &holdings.Holding{Timestamp: tt}
+
+	h, err := s.GetLatestHoldings()
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 	if !h.Timestamp.Equal(tt) {
 		t.Errorf("expected %v, received %v", tt, h.Timestamp)
 	}
@@ -660,7 +663,7 @@ func TestGetSnapshotAtTime(t *testing.T) {
 	cp := currency.NewPair(currency.XRP, currency.DOGE)
 	ff := &ftx.FTX{}
 	ff.Name = testExchange
-	err = p.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: cp})
+	err = p.SetCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: cp})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -715,7 +718,7 @@ func TestGetLatestSnapshot(t *testing.T) {
 	cp := currency.NewPair(currency.XRP, currency.DOGE)
 	ff := &ftx.FTX{}
 	ff.Name = testExchange
-	err = p.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: currency.NewPair(currency.XRP, currency.DOGE)})
+	err = p.SetCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: currency.NewPair(currency.XRP, currency.DOGE)})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -788,7 +791,7 @@ func TestCalculatePNL(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	err = p.SetupCurrencySettingsMap(&exchange.Settings{
+	err = p.SetCurrencySettingsMap(&exchange.Settings{
 		Exchange:      exch,
 		UseRealOrders: false,
 		Pair:          pair,
@@ -949,13 +952,13 @@ func TestTrackFuturesOrder(t *testing.T) {
 	_, err = p.TrackFuturesOrder(&fill.Fill{
 		Order: od,
 	}, collat)
-	if !errors.Is(err, errExchangeUnset) {
-		t.Errorf("received '%v' expected '%v", err, errExchangeUnset)
+	if !errors.Is(err, errNoPortfolioSettings) {
+		t.Errorf("received '%v' expected '%v", err, errNoPortfolioSettings)
 	}
 
 	ff := &ftx.FTX{}
 	ff.Name = testExchange
-	err = p.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Futures, Pair: cp})
+	err = p.SetCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Futures, Pair: cp})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -999,27 +1002,31 @@ func TestTrackFuturesOrder(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v", err, nil)
 	}
-
 }
 
 func TestGetHoldingsForTime(t *testing.T) {
 	t.Parallel()
-	s := &Settings{}
-	h := s.GetHoldingsForTime(time.Now())
-	if !h.Timestamp.IsZero() {
-		t.Error("expected unset holdings")
+	s := &Settings{
+		HoldingsSnapshots: make(map[int64]*holdings.Holding),
+	}
+	_, err := s.GetHoldingsForTime(time.Now())
+	if !errors.Is(err, errNoHoldings) {
+		t.Errorf("received '%v' expected '%v", err, errNoHoldings)
 	}
 	tt := time.Now()
-	s.HoldingsSnapshots = append(s.HoldingsSnapshots, holdings.Holding{
+	s.HoldingsSnapshots[tt.UnixNano()] = &holdings.Holding{
 		Timestamp: tt,
 		Offset:    1337,
-	})
-	h = s.GetHoldingsForTime(time.Unix(1337, 0))
-	if !h.Timestamp.IsZero() {
-		t.Error("expected unset holdings")
+	}
+	_, err = s.GetHoldingsForTime(time.Unix(1337, 0))
+	if !errors.Is(err, errNoHoldings) {
+		t.Errorf("received '%v' expected '%v", err, errNoHoldings)
 	}
 
-	h = s.GetHoldingsForTime(tt)
+	h, err := s.GetHoldingsForTime(tt)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
 	if h.Timestamp.IsZero() && h.Offset != 1337 {
 		t.Error("expected set holdings")
 	}
@@ -1042,7 +1049,7 @@ func TestGetPositions(t *testing.T) {
 	}
 	ff := &ftx.FTX{}
 	ff.Name = testExchange
-	err = p.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: ev.AssetType, Pair: ev.Pair()})
+	err = p.SetCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: ev.AssetType, Pair: ev.Pair()})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -1070,7 +1077,7 @@ func TestGetLatestPNLForEvent(t *testing.T) {
 	}
 	ff := &ftx.FTX{}
 	ff.Name = testExchange
-	err = p.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: ev.AssetType, Pair: ev.Pair()})
+	err = p.SetCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: ev.AssetType, Pair: ev.Pair()})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -1110,19 +1117,16 @@ func TestGetLatestPNLForEvent(t *testing.T) {
 func TestGetFuturesSettingsFromEvent(t *testing.T) {
 	t.Parallel()
 	p := &Portfolio{}
-	var expectedError = common.ErrNilEvent
 	_, err := p.getFuturesSettingsFromEvent(nil)
-	if !errors.Is(err, expectedError) {
-		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	if !errors.Is(err, common.ErrNilEvent) {
+		t.Fatalf("received '%v' expected '%v'", err, common.ErrNilEvent)
 	}
-	expectedError = gctorder.ErrNotFuturesAsset
 	b := &event.Base{}
-
 	_, err = p.getFuturesSettingsFromEvent(&fill.Fill{
 		Base: b,
 	})
-	if !errors.Is(err, expectedError) {
-		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	if !errors.Is(err, gctorder.ErrNotFuturesAsset) {
+		t.Fatalf("received '%v' expected '%v'", err, gctorder.ErrNotFuturesAsset)
 	}
 	b.Exchange = testExchange
 	b.CurrencyPair = currency.NewPair(currency.BTC, currency.USDT)
@@ -1130,72 +1134,26 @@ func TestGetFuturesSettingsFromEvent(t *testing.T) {
 	ev := &fill.Fill{
 		Base: b,
 	}
-	expectedError = errExchangeUnset
 	_, err = p.getFuturesSettingsFromEvent(ev)
-	if !errors.Is(err, expectedError) {
-		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	if !errors.Is(err, errNoPortfolioSettings) {
+		t.Fatalf("received '%v' expected '%v'", err, errNoPortfolioSettings)
 	}
 
 	ff := &ftx.FTX{}
 	ff.Name = testExchange
-	err = p.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: ev.AssetType, Pair: ev.Pair()})
+	err = p.SetCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: ev.AssetType, Pair: ev.Pair()})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	expectedError = nil
 	settings, err := p.getFuturesSettingsFromEvent(ev)
-	if !errors.Is(err, expectedError) {
-		t.Fatalf("received '%v' expected '%v'", err, expectedError)
-	}
-
-	expectedError = errUnsetFuturesTracker
-	settings.FuturesTracker = nil
-	_, err = p.getFuturesSettingsFromEvent(ev)
-	if !errors.Is(err, expectedError) {
-		t.Fatalf("received '%v' expected '%v'", err, expectedError)
-	}
-}
-
-func TestGetLatestPNLs(t *testing.T) {
-	t.Parallel()
-	p := &Portfolio{}
-	latest := p.GetLatestPNLs()
-	if len(latest) != 0 {
-		t.Error("expected empty")
-	}
-	ev := &fill.Fill{
-		Base: &event.Base{
-			Exchange:     testExchange,
-			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
-			AssetType:    asset.Futures,
-		},
-	}
-	ff := &ftx.FTX{}
-	ff.Name = testExchange
-	err := p.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: ev.AssetType, Pair: ev.Pair()})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
-	settings, ok := p.exchangeAssetPairPortfolioSettings[ev.GetExchange()][ev.GetAssetType()][ev.Pair().Base.Item][ev.Pair().Quote.Item]
-	if !ok {
-		t.Fatalf("where did settings go?")
-	}
-	err = settings.FuturesTracker.TrackNewOrder(&gctorder.Detail{
-		Exchange:  ev.GetExchange(),
-		AssetType: ev.AssetType,
-		Pair:      ev.Pair(),
-		Amount:    1,
-		Price:     1,
-		OrderID:   "one",
-		Date:      time.Now(),
-		Side:      gctorder.Buy,
-	})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received '%v' expected '%v'", err, nil)
 	}
-	latest = p.GetLatestPNLs()
-	if len(latest) != 1 {
-		t.Error("expected 1")
+
+	settings.FuturesTracker = nil
+	_, err = p.getFuturesSettingsFromEvent(ev)
+	if !errors.Is(err, errUnsetFuturesTracker) {
+		t.Fatalf("received '%v' expected '%v'", err, errUnsetFuturesTracker)
 	}
 }
 
@@ -1442,11 +1400,11 @@ func TestCreateLiquidationOrdersForExchange(t *testing.T) {
 	ff.Name = testExchange
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	expectedError = nil
-	err = p.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Futures, Pair: cp})
+	err = p.SetCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Futures, Pair: cp})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	err = p.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: cp})
+	err = p.SetCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: cp})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -1571,7 +1529,7 @@ func TestCheckLiquidationStatus(t *testing.T) {
 	exch := &ftx.FTX{}
 	exch.Name = testExchange
 	expectedError = nil
-	err = p.SetupCurrencySettingsMap(&exchange.Settings{Exchange: exch, Asset: asset.Futures, Pair: pair})
+	err = p.SetCurrencySettingsMap(&exchange.Settings{Exchange: exch, Asset: asset.Futures, Pair: pair})
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v', expected '%v'", err, expectedError)
 	}
@@ -1636,7 +1594,7 @@ func TestSetHoldingsForEvent(t *testing.T) {
 	}
 	f := &ftx.FTX{}
 	f.SetDefaults()
-	err = p.SetupCurrencySettingsMap(&exchange.Settings{
+	err = p.SetCurrencySettingsMap(&exchange.Settings{
 		Exchange: f,
 		Pair:     ev.Pair(),
 		Asset:    ev.AssetType,
@@ -1645,17 +1603,17 @@ func TestSetHoldingsForEvent(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 	err = p.SetHoldingsForEvent(cp.FundReader(), ev)
-	if !errors.Is(err, errNoPortfolioSettings) {
-		t.Errorf("received '%v', expected '%v'", err, errNoPortfolioSettings)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 
-	err = p.SetHoldingsForOffset(&holdings.Holding{
+	err = p.SetHoldingsForTimestamp(&holdings.Holding{
 		Item:      currency.BTC,
 		Pair:      ev.Pair(),
 		Asset:     ev.AssetType,
 		Exchange:  ev.Exchange,
 		Timestamp: tt,
-	}, false)
+	})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}

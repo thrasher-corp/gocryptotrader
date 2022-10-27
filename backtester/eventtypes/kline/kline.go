@@ -34,3 +34,10 @@ func (k *Kline) GetVolume() decimal.Decimal {
 func (k *Kline) GetUnderlyingPair() currency.Pair {
 	return k.UnderlyingPair
 }
+
+// IsKline is a function to help distinguish between kline.Event
+// and signal.Event as  singal.Event implements kline.Event definitions otherwise
+// this function is not called
+func (k *Kline) IsKline() bool {
+	return true
+}

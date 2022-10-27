@@ -34,7 +34,6 @@ var (
 	errNoPortfolioSettings  = errors.New("no portfolio settings")
 	errNoHoldings           = errors.New("no holdings found")
 	errHoldingsNoTimestamp  = errors.New("holding with unset timestamp received")
-	errHoldingsAlreadySet   = errors.New("holding already set")
 	errUnsetFuturesTracker  = errors.New("portfolio settings futures tracker unset")
 )
 
@@ -54,14 +53,13 @@ type Handler interface {
 	GetLatestOrderSnapshotForEvent(common.Event) (compliance.Snapshot, error)
 	GetLatestOrderSnapshots() ([]compliance.Snapshot, error)
 	ViewHoldingAtTimePeriod(common.Event) (*holdings.Holding, error)
-	SetHoldingsForOffset(*holdings.Holding, bool) error
+	SetHoldingsForTimestamp(*holdings.Holding) error
 	UpdateHoldings(data.Event, funding.IFundReleaser) error
 	GetComplianceManager(string, asset.Item, currency.Pair) (*compliance.Manager, error)
 	GetPositions(common.Event) ([]gctorder.Position, error)
 	TrackFuturesOrder(fill.Event, funding.IFundReleaser) (*PNLSummary, error)
 	UpdatePNL(common.Event, decimal.Decimal) error
 	GetLatestPNLForEvent(common.Event) (*PNLSummary, error)
-	GetLatestPNLs() []PNLSummary
 	CheckLiquidationStatus(data.Event, funding.ICollateralReader, *PNLSummary) error
 	CreateLiquidationOrdersForExchange(data.Event, funding.IFundingManager) ([]order.Event, error)
 	GetLatestHoldingsForAllCurrencies() []holdings.Holding
@@ -77,10 +75,14 @@ type SizeHandler interface {
 // Settings holds all important information for the portfolio manager
 // to assess purchasing decisions
 type Settings struct {
+	exchangeName string
+	assetType    asset.Item
+	pair         currency.Pair
+
 	BuySideSizing     exchange.MinMax
 	SellSideSizing    exchange.MinMax
 	Leverage          exchange.Leverage
-	HoldingsSnapshots []holdings.Holding
+	HoldingsSnapshots map[int64]*holdings.Holding
 	ComplianceManager compliance.Manager
 	Exchange          gctexchange.IBotExchange
 	FuturesTracker    *gctorder.MultiPositionTracker

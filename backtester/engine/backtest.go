@@ -644,7 +644,10 @@ func (bt *BackTest) triggerLiquidationsForExchange(ev data.Event, pnl *portfolio
 		if err != nil {
 			log.Errorf(common.Backtester, "SetEventForOffset %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 		}
-		bt.Funding.Liquidate(orders[i])
+		err = bt.Funding.Liquidate(orders[i])
+		if err != nil {
+			return err
+		}
 	}
 	pnl.Result.IsLiquidated = true
 	pnl.Result.Status = gctorder.Liquidated

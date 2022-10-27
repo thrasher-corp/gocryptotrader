@@ -1,11 +1,11 @@
 package signal
 
 import (
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"testing"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -200,5 +200,4 @@ func TestToKline(t *testing.T) {
 	default:
 		t.Errorf("expected  '%v' received '%v'", "kline event", "signal event")
 	}
-
 }

@@ -454,7 +454,7 @@ func TestFullCycle(t *testing.T) {
 	}
 	fx := &ftx.FTX{}
 	fx.Name = testExchange
-	err = port.SetupCurrencySettingsMap(&exchange.Settings{Exchange: fx, Asset: a, Pair: cp})
+	err = port.SetCurrencySettingsMap(&exchange.Settings{Exchange: fx, Asset: a, Pair: cp})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -583,7 +583,7 @@ func TestFullCycleMulti(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	err = port.SetupCurrencySettingsMap(&exchange.Settings{Exchange: &ftx.FTX{}, Asset: a, Pair: cp})
+	err = port.SetCurrencySettingsMap(&exchange.Settings{Exchange: &ftx.FTX{}, Asset: a, Pair: cp})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -820,7 +820,7 @@ func TestUpdateStatsForDataEvent(t *testing.T) {
 	bt.Funding = f
 	exch := &ftx.FTX{}
 	exch.Name = testExchange
-	err = pt.SetupCurrencySettingsMap(&exchange.Settings{
+	err = pt.SetCurrencySettingsMap(&exchange.Settings{
 		Exchange: exch,
 		Pair:     cp,
 		Asset:    a,
@@ -909,7 +909,7 @@ func TestProcessSignalEvent(t *testing.T) {
 	bt.Funding = f
 	exch := &ftx.FTX{}
 	exch.Name = testExchange
-	err = pt.SetupCurrencySettingsMap(&exchange.Settings{
+	err = pt.SetCurrencySettingsMap(&exchange.Settings{
 		Exchange: exch,
 		Pair:     cp,
 		Asset:    a,
@@ -984,7 +984,7 @@ func TestProcessOrderEvent(t *testing.T) {
 	bt.Funding = f
 	exch := &ftx.FTX{}
 	exch.Name = testExchange
-	err = pt.SetupCurrencySettingsMap(&exchange.Settings{
+	err = pt.SetCurrencySettingsMap(&exchange.Settings{
 		Exchange: exch,
 		Pair:     cp,
 		Asset:    a,
@@ -1057,10 +1057,9 @@ func TestProcessOrderEvent(t *testing.T) {
 
 func TestProcessFillEvent(t *testing.T) {
 	t.Parallel()
-	var expectedError error
 	pt, err := portfolio.Setup(&size.Size{}, &risk.Risk{}, decimal.Zero)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	bt := &BackTest{
 		Statistic:  &statistics.Statistic{},
@@ -1073,14 +1072,18 @@ func TestProcessFillEvent(t *testing.T) {
 	}
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	a := asset.Futures
+	tt := time.Now()
 	de := &evkline.Kline{
-		Base: &event.Base{Exchange: testExchange,
+		Base: &event.Base{
+			Exchange:     testExchange,
 			AssetType:    a,
-			CurrencyPair: cp},
+			CurrencyPair: cp,
+			Time:         tt,
+		},
 	}
 	err = bt.Statistic.SetEventForOffset(de)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	ev := &fill.Fill{
 		Base: de.Base,
@@ -1093,56 +1096,56 @@ func TestProcessFillEvent(t *testing.T) {
 	exch.SetDefaults()
 	em.Add(exch)
 	f, err := funding.SetupFundingManager(em, false, true, false)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	b, err := funding.CreateItem(testExchange, a, cp.Base, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	quote, err := funding.CreateItem(testExchange, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	pair, err := funding.CreateCollateral(b, quote)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	err = f.AddItem(b)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	err = f.AddItem(quote)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	spotBase, err := funding.CreateItem(testExchange, asset.Spot, cp.Base, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	spotQuote, err := funding.CreateItem(testExchange, asset.Spot, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	spotPair, err := funding.CreatePair(spotBase, spotQuote)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	err = f.AddPair(spotPair)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	bt.Funding = f
-	err = pt.SetupCurrencySettingsMap(&exchange.Settings{
+	err = pt.SetCurrencySettingsMap(&exchange.Settings{
 		Exchange: exch,
 		Pair:     cp,
 		Asset:    a,
 	})
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	bt.Exchange.SetExchangeAssetCurrencySettings(a, cp, &exchange.Settings{
@@ -1152,10 +1155,9 @@ func TestProcessFillEvent(t *testing.T) {
 	})
 	ev.Direction = gctorder.Short
 	err = bt.Statistic.SetEventForOffset(ev)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	tt := time.Now()
 	bt.DataHolder.Setup()
 	k := &kline.DataFromKline{
 		Item: gctkline.Item{
@@ -1198,8 +1200,8 @@ func TestProcessFillEvent(t *testing.T) {
 
 	bt.DataHolder.SetDataForCurrency(testExchange, a, cp, k)
 	err = bt.processFillEvent(ev, pair)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 }
 
@@ -1284,7 +1286,7 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 	}
 	bt.exchangeManager = em
 	bt.Funding = f
-	err = pt.SetupCurrencySettingsMap(&exchange.Settings{
+	err = pt.SetCurrencySettingsMap(&exchange.Settings{
 		Exchange: exch,
 		Pair:     cp,
 		Asset:    a,

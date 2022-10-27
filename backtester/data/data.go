@@ -1,7 +1,6 @@
 package data
 
 import (
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -87,24 +86,6 @@ func (b *Base) Reset() error {
 	b.offset = 0
 	b.isLiveData = false
 	return nil
-}
-
-type Events []Event
-
-var ErrEmptySlice = errors.New("empty slice")
-
-func (e Events) Last() (Event, error) {
-	if len(e) == 0 {
-		return nil, ErrEmptySlice
-	}
-	return e[len(e)-1], nil
-}
-
-func (e Events) First() (Event, error) {
-	if len(e) == 0 {
-		return nil, ErrEmptySlice
-	}
-	return e[0], nil
 }
 
 // GetStream will return entire data list
@@ -308,4 +289,20 @@ func (b *Base) SetLive(isLive bool) error {
 
 	b.isLiveData = isLive
 	return nil
+}
+
+// First returns the first element of a slice
+func (e Events) First() (Event, error) {
+	if len(e) == 0 {
+		return nil, ErrEmptySlice
+	}
+	return e[0], nil
+}
+
+// Last returns the last element of a slice
+func (e Events) Last() (Event, error) {
+	if len(e) == 0 {
+		return nil, ErrEmptySlice
+	}
+	return e[len(e)-1], nil
 }
