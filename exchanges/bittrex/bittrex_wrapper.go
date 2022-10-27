@@ -757,14 +757,16 @@ func (b *Bittrex) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *wit
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *Bittrex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (b *Bittrex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 
 	var currPair string
 	if len(req.Pairs) == 1 {
-		formattedPair, err := b.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
+		var formattedPair currency.Pair
+		formattedPair, err = b.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
@@ -821,22 +823,15 @@ func (b *Bittrex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 			Pair:            pair,
 		})
 	}
-
-	order.FilterOrdersByType(&resp, req.Type)
-	err = order.FilterOrdersByTimeRange(&resp, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
-	}
-	order.FilterOrdersByPairs(&resp, req.Pairs)
-
 	b.WsSequenceOrders = sequence
-	return resp, nil
+	return req.Filter(b.Name, resp), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *Bittrex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (b *Bittrex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 	if len(req.Pairs) == 0 {
@@ -910,16 +905,8 @@ func (b *Bittrex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 			detail.InferCostsAndTimes()
 			resp = append(resp, detail)
 		}
-
-		order.FilterOrdersByType(&resp, req.Type)
-		err = order.FilterOrdersByTimeRange(&resp, req.StartTime, req.EndTime)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
-		}
-		order.FilterOrdersByPairs(&resp, req.Pairs)
 	}
-
-	return resp, nil
+	return req.Filter(b.Name, resp), nil
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction

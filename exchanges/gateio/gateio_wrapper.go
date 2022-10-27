@@ -1494,8 +1494,9 @@ func (g *Gateio) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuild
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 	var orders []order.Detail
@@ -1613,9 +1614,6 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 				return nil, err
 			}
 			status, err = order.StringToOrderStatus(optionsOrders[x].Status)
-			if err != nil {
-				return nil, err
-			}
 			orders = append(orders, order.Detail{
 				Status:          status,
 				Amount:          optionsOrders[x].Size,
@@ -1633,17 +1631,12 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 	default:
 		return nil, fmt.Errorf("%s does not support %s", g.Name, req.AssetType)
 	}
-	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
-	}
-	order.FilterOrdersBySide(&orders, req.Side)
-	return orders, nil
+	return req.Filter(g.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
+func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -1736,12 +1729,7 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 	default:
 		return nil, fmt.Errorf("%s does not support %s", g.Name, req.AssetType)
 	}
-	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
-	}
-	order.FilterOrdersBySide(&orders, req.Side)
-	return orders, nil
+	return req.Filter(g.Name, orders), nil
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval

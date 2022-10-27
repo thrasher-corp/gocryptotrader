@@ -631,8 +631,9 @@ func (e *EXMO) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (e *EXMO) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (e *EXMO) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 
@@ -664,19 +665,14 @@ func (e *EXMO) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 			Pair:     symbol,
 		})
 	}
-
-	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
-	}
-	order.FilterOrdersBySide(&orders, req.Side)
-	return orders, nil
+	return req.Filter(e.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 
@@ -727,13 +723,7 @@ func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 		detail.InferCostsAndTimes()
 		orders[i] = detail
 	}
-
-	err := order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
-	}
-	order.FilterOrdersBySide(&orders, req.Side)
-	return orders, nil
+	return req.Filter(e.Name, orders), nil
 }
 
 // ValidateCredentials validates current credentials used for wrapper

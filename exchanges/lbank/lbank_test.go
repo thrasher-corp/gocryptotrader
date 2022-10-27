@@ -425,6 +425,22 @@ func TestGetAccountInfo(t *testing.T) {
 	}
 }
 
+func TestGetActiveOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
+	var input order.GetOrdersRequest
+	input.Side = order.Buy
+	input.AssetType = asset.Spot
+	input.Type = order.AnyType
+	input.Side = order.AnySide
+	_, err := l.GetActiveOrders(context.Background(), &input)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
@@ -433,6 +449,8 @@ func TestGetOrderHistory(t *testing.T) {
 	var input order.GetOrdersRequest
 	input.Side = order.Buy
 	input.AssetType = asset.Spot
+	input.Type = order.AnyType
+	input.Side = order.AnySide
 	_, err := l.GetOrderHistory(context.Background(), &input)
 	if err != nil {
 		t.Error(err)

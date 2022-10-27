@@ -487,6 +487,7 @@ func (g *Gateio) processSpotOrders(data []byte) error {
 	if err != nil {
 		return err
 	}
+	details := make([]order.Detail, len(resp.Result))
 	for x := range resp.Result {
 		pair, err := currency.NewPairFromString(resp.Result[x].CurrencyPair)
 		if err != nil {
@@ -504,7 +505,7 @@ func (g *Gateio) processSpotOrders(data []byte) error {
 		if err != nil {
 			return err
 		}
-		g.Websocket.DataHandler <- &order.Detail{
+		details[x] = order.Detail{
 			Amount:         resp.Result[x].Amount,
 			Exchange:       g.Name,
 			OrderID:        resp.Result[x].ID,
@@ -519,6 +520,7 @@ func (g *Gateio) processSpotOrders(data []byte) error {
 			LastUpdated:    resp.Result[x].UpdateTimeMs,
 		}
 	}
+	g.Websocket.DataHandler <- details
 	return nil
 }
 
