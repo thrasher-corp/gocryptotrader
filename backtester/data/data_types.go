@@ -18,22 +18,24 @@ var (
 	ErrInvalidEventSupplied = errors.New("invalid event supplied")
 	// ErrEmptySlice is returned when the supplied slice is nil or empty
 	ErrEmptySlice = errors.New("empty slice")
+	// ErrEndOfData is returned when attempting to load the next offset when there is no more
+	ErrEndOfData = errors.New("no more data to retreive")
 
 	errNothingToAdd    = errors.New("cannot append empty event to stream")
 	errInvalidOffset   = errors.New("event base set to invalid offset")
 	errMisMatchedEvent = errors.New("cannot add event to stream, does not match")
 )
 
-// HandlerPerCurrency stores an event handler per exchange asset pair
-type HandlerPerCurrency struct {
+// HandlerHolder stores an event handler per exchange asset pair
+type HandlerHolder struct {
+	m    sync.Mutex
 	data map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]Handler
 }
 
-// Holder interface dictates what a data holder is expected to do
+// Holder interface dictates what a Data holder is expected to do
 type Holder interface {
-	Setup()
-	SetDataForCurrency(string, asset.Item, currency.Pair, Handler)
-	GetAllData() map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]Handler
+	SetDataForCurrency(string, asset.Item, currency.Pair, Handler) error
+	GetAllData() ([]Handler, error)
 	GetDataForCurrency(ev common.Event) (Handler, error)
 	Reset() error
 }
@@ -48,20 +50,21 @@ type Base struct {
 	isLiveData bool
 }
 
-// Handler interface for Loading and Streaming data
+// Handler interface for Loading and Streaming Data
 type Handler interface {
 	Loader
 	Streamer
+	GetDetails() (string, asset.Item, currency.Pair, error)
 	Reset() error
 }
 
-// Loader interface for Loading data into backtest supported format
+// Loader interface for Loading Data into backtest supported format
 type Loader interface {
 	Load() error
 	AppendStream(s ...Event) error
 }
 
-// Streamer interface handles loading, parsing, distributing BackTest data
+// Streamer interface handles loading, parsing, distributing BackTest Data
 type Streamer interface {
 	Next() (Event, error)
 	GetStream() (Events, error)

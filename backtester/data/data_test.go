@@ -28,7 +28,7 @@ type fakeHandler struct{}
 
 func TestSetup(t *testing.T) {
 	t.Parallel()
-	d := HandlerPerCurrency{}
+	d := HandlerHolder{}
 	d.Setup()
 	if d.data == nil {
 		t.Error("expected not nil")
@@ -37,7 +37,7 @@ func TestSetup(t *testing.T) {
 
 func TestSetDataForCurrency(t *testing.T) {
 	t.Parallel()
-	d := HandlerPerCurrency{}
+	d := HandlerHolder{}
 	d.SetDataForCurrency(exch, a, p, nil)
 	if d.data == nil {
 		t.Error("expected not nil")
@@ -49,7 +49,7 @@ func TestSetDataForCurrency(t *testing.T) {
 
 func TestGetAllData(t *testing.T) {
 	t.Parallel()
-	d := HandlerPerCurrency{}
+	d := HandlerHolder{}
 	d.SetDataForCurrency(exch, a, p, nil)
 	d.SetDataForCurrency(exch, a, currency.NewPair(currency.BTC, currency.DOGE), nil)
 	result := d.GetAllData()
@@ -59,11 +59,12 @@ func TestGetAllData(t *testing.T) {
 	if len(result[exch][a][currency.BTC.Item]) != 2 {
 		t.Error("expected 2")
 	}
+
 }
 
 func TestGetDataForCurrency(t *testing.T) {
 	t.Parallel()
-	d := HandlerPerCurrency{}
+	d := HandlerHolder{}
 	d.SetDataForCurrency(exch, a, p, &fakeHandler{})
 
 	d.SetDataForCurrency(exch, a, currency.NewPair(currency.BTC, currency.DOGE), nil)
@@ -94,7 +95,7 @@ func TestGetDataForCurrency(t *testing.T) {
 
 func TestReset(t *testing.T) {
 	t.Parallel()
-	d := &HandlerPerCurrency{}
+	d := &HandlerHolder{}
 	d.SetDataForCurrency(exch, a, p, nil)
 	d.SetDataForCurrency(exch, a, currency.NewPair(currency.BTC, currency.DOGE), nil)
 	err := d.Reset()

@@ -322,7 +322,7 @@ func TestLoadDataLive(t *testing.T) {
 	bt := BackTest{
 		Reports:         &fakeReport{},
 		Funding:         &funding.FundManager{},
-		DataHolder:      &data.HandlerPerCurrency{},
+		DataHolder:      &data.HandlerHolder{},
 		Statistic:       &fakeStats{},
 		exchangeManager: engine.SetupExchangeManager(),
 		shutdown:        make(chan struct{}),
@@ -408,7 +408,7 @@ func TestReset(t *testing.T) {
 	}
 	bt := &BackTest{
 		shutdown:   make(chan struct{}),
-		DataHolder: &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerHolder{},
 		Strategy:   &dollarcostaverage.Strategy{},
 		Portfolio:  &portfolio.Portfolio{},
 		Exchange:   &exchange.Exchange{},
@@ -479,7 +479,7 @@ func TestFullCycle(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	bt := BackTest{
-		DataHolder:               &data.HandlerPerCurrency{},
+		DataHolder:               &data.HandlerHolder{},
 		Strategy:                 &dollarcostaverage.Strategy{},
 		Portfolio:                port,
 		Exchange:                 &exchange.Exchange{},
@@ -530,9 +530,15 @@ func TestFullCycle(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	bt.DataHolder.SetDataForCurrency(ex, a, cp, k)
+	err = bt.DataHolder.SetDataForCurrency(ex, a, cp, k)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 
-	bt.Run()
+	err = bt.Run()
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 }
 
 func TestStop(t *testing.T) {
@@ -608,7 +614,7 @@ func TestFullCycleMulti(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	bt := BackTest{
-		DataHolder:               &data.HandlerPerCurrency{},
+		DataHolder:               &data.HandlerHolder{},
 		Portfolio:                port,
 		Exchange:                 &exchange.Exchange{},
 		Statistic:                stats,
@@ -664,9 +670,15 @@ func TestFullCycleMulti(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	bt.DataHolder.SetDataForCurrency(ex, a, cp, k)
+	err = bt.DataHolder.SetDataForCurrency(ex, a, cp, k)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 
-	bt.Run()
+	err = bt.Run()
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 }
 
 type portfolioOverride struct {
@@ -713,7 +725,7 @@ func TestTriggerLiquidationsForExchange(t *testing.T) {
 
 	bt.Portfolio = &portfolioOverride{}
 	pnl := &portfolio.PNLSummary{}
-	bt.DataHolder = &data.HandlerPerCurrency{}
+	bt.DataHolder = &data.HandlerHolder{}
 	d := &data.Base{}
 	err = d.SetStream([]data.Event{&evkline.Kline{
 		Base: &event.Base{
@@ -947,7 +959,7 @@ func TestProcessOrderEvent(t *testing.T) {
 		Portfolio:  pt,
 		Exchange:   &exchange.Exchange{},
 		EventQueue: &eventholder.Holder{},
-		DataHolder: &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerHolder{},
 		shutdown:   make(chan struct{}),
 	}
 	cp := currency.NewPair(currency.BTC, currency.USD)
@@ -1067,7 +1079,7 @@ func TestProcessFillEvent(t *testing.T) {
 		Portfolio:  pt,
 		Exchange:   &exchange.Exchange{},
 		EventQueue: &eventholder.Holder{},
-		DataHolder: &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerHolder{},
 		shutdown:   make(chan struct{}),
 	}
 	cp := currency.NewPair(currency.BTC, currency.USD)
@@ -1218,7 +1230,7 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 		Portfolio:  pt,
 		Exchange:   &exchange.Exchange{},
 		EventQueue: &eventholder.Holder{},
-		DataHolder: &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerHolder{},
 		shutdown:   make(chan struct{}),
 	}
 	cp := currency.NewPair(currency.BTC, currency.USD)
@@ -1919,7 +1931,7 @@ func TestProcessSingleDataEvent(t *testing.T) {
 		Statistic:  &fakeStats{},
 		Reports:    &fakeReport{},
 		Funding:    &fakeFunding{},
-		DataHolder: &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerHolder{},
 		EventQueue: &eventholder.Holder{},
 	}
 

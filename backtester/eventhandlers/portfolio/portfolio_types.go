@@ -55,7 +55,6 @@ type Handler interface {
 	ViewHoldingAtTimePeriod(common.Event) (*holdings.Holding, error)
 	SetHoldingsForTimestamp(*holdings.Holding) error
 	UpdateHoldings(data.Event, funding.IFundReleaser) error
-	GetComplianceManager(string, asset.Item, currency.Pair) (*compliance.Manager, error)
 	GetPositions(common.Event) ([]gctorder.Position, error)
 	TrackFuturesOrder(fill.Event, funding.IFundReleaser) (*PNLSummary, error)
 	UpdatePNL(common.Event, decimal.Decimal) error
@@ -65,6 +64,7 @@ type Handler interface {
 	GetLatestHoldingsForAllCurrencies() []holdings.Holding
 	Reset() error
 	SetHoldingsForEvent(funding.IFundReader, common.Event) error
+	GetLatestComplianceSnapshot(string, asset.Item, currency.Pair) (*compliance.Snapshot, error)
 }
 
 // SizeHandler is the interface to help size orders

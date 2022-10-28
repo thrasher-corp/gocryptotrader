@@ -73,7 +73,7 @@ type Handler interface {
 	SetStrategyName(string)
 	SetEventForOffset(common.Event) error
 	AddHoldingsForTime(*holdings.Holding) error
-	AddComplianceSnapshotForTime(compliance.Snapshot, fill.Event) error
+	AddComplianceSnapshotForTime(*compliance.Snapshot, fill.Event) error
 	CalculateAllResults() error
 	Reset() error
 	Serialise() (string, error)
@@ -127,7 +127,7 @@ type DataAtOffset struct {
 	ClosePrice   decimal.Decimal
 	Time         time.Time
 	Holdings     holdings.Holding
-	Transactions compliance.Snapshot
+	Transactions *compliance.Snapshot
 	DataEvent    data.Event
 	SignalEvent  signal.Event
 	OrderEvent   order.Event

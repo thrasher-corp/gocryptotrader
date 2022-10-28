@@ -352,7 +352,7 @@ func TestListAllTasks(t *testing.T) {
 	bt := &BackTest{
 		Strategy:   &ftxcashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
-		DataHolder: &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerHolder{},
 		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
@@ -386,7 +386,7 @@ func TestGRPCStopTask(t *testing.T) {
 	bt := &BackTest{
 		Strategy:   &fakeStrat{},
 		EventQueue: &eventholder.Holder{},
-		DataHolder: &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerHolder{},
 		Statistic:  &fakeStats{},
 		Reports:    &fakeReport{},
 		shutdown:   make(chan struct{}),
@@ -434,7 +434,7 @@ func TestGRPCStopAllTasks(t *testing.T) {
 	bt := &BackTest{
 		Strategy:   &fakeStrat{},
 		EventQueue: &eventholder.Holder{},
-		DataHolder: &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerHolder{},
 		Statistic:  &fakeStats{},
 		Reports:    &fakeReport{},
 		shutdown:   make(chan struct{}),
@@ -484,7 +484,7 @@ func TestGRPCStartTask(t *testing.T) {
 	bt := &BackTest{
 		Strategy:   &fakeStrat{},
 		EventQueue: &eventholder.Holder{},
-		DataHolder: &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerHolder{},
 		Statistic:  &fakeStats{},
 		Reports:    &fakeReport{},
 		shutdown:   make(chan struct{}),
@@ -524,7 +524,7 @@ func TestGRPCStartAllTasks(t *testing.T) {
 	bt := &BackTest{
 		Strategy:   &ftxcashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
-		DataHolder: &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerHolder{},
 		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
@@ -561,7 +561,7 @@ func TestGRPCClearTask(t *testing.T) {
 	bt := &BackTest{
 		Strategy:   &ftxcashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
-		DataHolder: &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerHolder{},
 		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
@@ -597,7 +597,7 @@ func TestGRPCClearAllTasks(t *testing.T) {
 	bt := &BackTest{
 		Strategy:   &ftxcashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
-		DataHolder: &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerHolder{},
 		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}

@@ -2,26 +2,30 @@ package data
 
 import (
 	"fmt"
-	"sort"
-	"strings"
-
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"sort"
+	"strings"
 )
 
-// Setup creates a basic map
-func (h *HandlerPerCurrency) Setup() {
-	if h.data == nil {
-		h.data = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]Handler)
+// NewHandlerHolder returns a new HandlerHolder
+func NewHandlerHolder() *HandlerHolder {
+	return &HandlerHolder{
+		data: make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]Handler),
 	}
 }
 
-// SetDataForCurrency assigns a data Handler to the data map by exchange, asset and currency
-func (h *HandlerPerCurrency) SetDataForCurrency(e string, a asset.Item, p currency.Pair, k Handler) {
+// SetDataForCurrency assigns a Data Handler to the Data map by exchange, asset and currency
+func (h *HandlerHolder) SetDataForCurrency(e string, a asset.Item, p currency.Pair, k Handler) error {
+	if h == nil {
+		return fmt.Errorf("%w handler holder", gctcommon.ErrNilPointer)
+	}
+	h.m.Lock()
+	defer h.m.Unlock()
 	if h.data == nil {
-		h.Setup()
+		h.data = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]Handler)
 	}
 	e = strings.ToLower(e)
 	m1, ok := h.data[e]
@@ -43,18 +47,39 @@ func (h *HandlerPerCurrency) SetDataForCurrency(e string, a asset.Item, p curren
 	}
 
 	m3[p.Quote.Item] = k
+	return nil
 }
 
-// GetAllData returns all set data in the data map
-func (h *HandlerPerCurrency) GetAllData() map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]Handler {
-	return h.data
+// GetAllData returns all set Data in the Data map
+func (h *HandlerHolder) GetAllData() ([]Handler, error) {
+	if h == nil {
+		return nil, fmt.Errorf("%w handler holder", gctcommon.ErrNilPointer)
+	}
+	h.m.Lock()
+	defer h.m.Unlock()
+	var resp []Handler
+	for _, exchMap := range h.data {
+		for _, assetMap := range exchMap {
+			for _, baseMap := range assetMap {
+				for _, handler := range baseMap {
+					resp = append(resp, handler)
+				}
+			}
+		}
+	}
+	return resp, nil
 }
 
 // GetDataForCurrency returns the Handler for a specific exchange, asset, currency
-func (h *HandlerPerCurrency) GetDataForCurrency(ev common.Event) (Handler, error) {
+func (h *HandlerHolder) GetDataForCurrency(ev common.Event) (Handler, error) {
+	if h == nil {
+		return nil, fmt.Errorf("%w handler holder", gctcommon.ErrNilPointer)
+	}
 	if ev == nil {
 		return nil, common.ErrNilEvent
 	}
+	h.m.Lock()
+	defer h.m.Unlock()
 	exch := ev.GetExchange()
 	a := ev.GetAssetType()
 	p := ev.Pair()
@@ -66,15 +91,27 @@ func (h *HandlerPerCurrency) GetDataForCurrency(ev common.Event) (Handler, error
 }
 
 // Reset returns the struct to defaults
-func (h *HandlerPerCurrency) Reset() error {
+func (h *HandlerHolder) Reset() error {
 	if h == nil {
 		return gctcommon.ErrNilPointer
 	}
+	h.m.Lock()
+	defer h.m.Unlock()
 	h.data = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]Handler)
 	return nil
 }
 
-// Reset loaded data to blank state
+// GetDetails returns data about the Base Holder
+func (b *Base) GetDetails() (string, asset.Item, currency.Pair, error) {
+	if b == nil {
+		return "", asset.Empty, currency.EMPTYPAIR, fmt.Errorf("%w base", gctcommon.ErrNilPointer)
+	}
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.latest.GetExchange(), b.latest.GetAssetType(), b.latest.Pair(), nil
+}
+
+// Reset loaded Data to blank state
 func (b *Base) Reset() error {
 	if b == nil {
 		return gctcommon.ErrNilPointer
@@ -88,7 +125,7 @@ func (b *Base) Reset() error {
 	return nil
 }
 
-// GetStream will return entire data list
+// GetStream will return entire Data list
 func (b *Base) GetStream() (Events, error) {
 	if b == nil {
 		return nil, fmt.Errorf("%w Base", gctcommon.ErrNilPointer)
@@ -101,7 +138,7 @@ func (b *Base) GetStream() (Events, error) {
 	return stream, nil
 }
 
-// Offset returns the current iteration of candle data the backtester is assessing
+// Offset returns the current iteration of candle Data the backtester is assessing
 func (b *Base) Offset() (int64, error) {
 	if b == nil {
 		return 0, fmt.Errorf("%w Base", gctcommon.ErrNilPointer)
@@ -111,7 +148,7 @@ func (b *Base) Offset() (int64, error) {
 	return b.offset, nil
 }
 
-// SetStream sets the data stream for candle analysis
+// SetStream sets the Data stream for candle analysis
 func (b *Base) SetStream(s []Event) error {
 	if b == nil {
 		return fmt.Errorf("%w Base", gctcommon.ErrNilPointer)
@@ -136,9 +173,6 @@ func (b *Base) SetStream(s []Event) error {
 				return fmt.Errorf("%w cannot set base stream from %v %v %v to %v %v %v", errMisMatchedEvent, s[x].GetExchange(), s[x].GetAssetType(), s[x].Pair(), b.stream[0].GetExchange(), b.stream[0].GetAssetType(), b.stream[0].Pair())
 			}
 		}
-	}
-
-	for x := range s {
 		// due to the Next() function, we cannot take
 		// stream offsets as is, and we re-set them
 		s[x].SetOffset(int64(x) + 1)
@@ -201,7 +235,7 @@ func (b *Base) Next() (Event, error) {
 	b.m.Lock()
 	defer b.m.Unlock()
 	if int64(len(b.stream)) <= b.offset {
-		return nil, fmt.Errorf("%w of %v", errInvalidOffset, b.offset)
+		return nil, fmt.Errorf("%w data length %v offset %v", ErrEndOfData, len(b.stream), b.offset)
 	}
 	ret := b.stream[b.offset]
 	b.offset++
@@ -209,7 +243,7 @@ func (b *Base) Next() (Event, error) {
 	return ret, nil
 }
 
-// History will return all previous data events that have happened
+// History will return all previous Data events that have happened
 func (b *Base) History() (Events, error) {
 	if b == nil {
 		return nil, fmt.Errorf("%w Base", gctcommon.ErrNilPointer)
@@ -223,7 +257,7 @@ func (b *Base) History() (Events, error) {
 	return stream, nil
 }
 
-// Latest will return latest data event
+// Latest will return latest Data event
 func (b *Base) Latest() (Event, error) {
 	if b == nil {
 		return nil, fmt.Errorf("%w Base", gctcommon.ErrNilPointer)
@@ -237,7 +271,7 @@ func (b *Base) Latest() (Event, error) {
 	return b.latest, nil
 }
 
-// List returns all future data events from the current iteration
+// List returns all future Data events from the current iteration
 // ill-advised to use this in strategies because you don't know the future in real life
 func (b *Base) List() (Events, error) {
 	if b == nil {
@@ -253,7 +287,7 @@ func (b *Base) List() (Events, error) {
 }
 
 // IsLastEvent determines whether the latest event is the last event
-// for live data, this will be false, as all appended data is the latest available data
+// for live Data, this will be false, as all appended Data is the latest available Data
 // and this signal cannot be completely relied upon
 func (b *Base) IsLastEvent() (bool, error) {
 	if b == nil {
@@ -266,8 +300,8 @@ func (b *Base) IsLastEvent() (bool, error) {
 		nil
 }
 
-// IsLive returns if the data source is a live one
-// less scrutiny on checks is required on live data sourcing
+// IsLive returns if the Data source is a live one
+// less scrutiny on checks is required on live Data sourcing
 func (b *Base) IsLive() (bool, error) {
 	if b == nil {
 		return false, fmt.Errorf("%w Base", gctcommon.ErrNilPointer)
@@ -278,8 +312,8 @@ func (b *Base) IsLive() (bool, error) {
 	return b.isLiveData, nil
 }
 
-// SetLive sets if the data source is a live one
-// less scrutiny on checks is required on live data sourcing
+// SetLive sets if the Data source is a live one
+// less scrutiny on checks is required on live Data sourcing
 func (b *Base) SetLive(isLive bool) error {
 	if b == nil {
 		return fmt.Errorf("%w Base", gctcommon.ErrNilPointer)

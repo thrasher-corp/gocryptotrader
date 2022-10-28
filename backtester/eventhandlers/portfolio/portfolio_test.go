@@ -322,7 +322,7 @@ func TestUpdate(t *testing.T) {
 func TestGetComplianceManager(t *testing.T) {
 	t.Parallel()
 	p := Portfolio{}
-	_, err := p.GetComplianceManager("", asset.Empty, currency.EMPTYPAIR)
+	_, err := p.getComplianceManager("", asset.Empty, currency.EMPTYPAIR)
 	if !errors.Is(err, errNoPortfolioSettings) {
 		t.Errorf("received: %v, expected: %v", err, errNoPortfolioSettings)
 	}
@@ -334,7 +334,7 @@ func TestGetComplianceManager(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	var cm *compliance.Manager
-	cm, err = p.GetComplianceManager(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD))
+	cm, err = p.getComplianceManager(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD))
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -471,11 +471,11 @@ func TestOnSignal(t *testing.T) {
 	if !errors.Is(err, funding.ErrFundsNotFound) {
 		t.Errorf("received: %v, expected: %v", err, funding.ErrFundsNotFound)
 	}
-	bc, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1337), decimal.Zero)
+	bc, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, leet, decimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
-	qc, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(1337), decimal.Zero)
+	qc, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, leet, decimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -536,7 +536,8 @@ func TestOnSignal(t *testing.T) {
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USDT),
 		Timestamp: time.Now(),
-		QuoteSize: decimal.NewFromInt(1337)})
+		QuoteSize: leet,
+	})
 	if !errors.Is(err, errNoPortfolioSettings) {
 		t.Errorf("received: %v, expected: %v", err, errNoPortfolioSettings)
 	}
@@ -564,11 +565,11 @@ func TestOnSignal(t *testing.T) {
 		t.Error("expected an amount to be sized")
 	}
 
-	bc, err = funding.CreateItem(testExchange, asset.Futures, currency.BTC, decimal.NewFromInt(1337), decimal.Zero)
+	bc, err = funding.CreateItem(testExchange, asset.Futures, currency.BTC, leet, decimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
-	qc, err = funding.CreateItem(testExchange, asset.Futures, currency.USDT, decimal.NewFromInt(1337), decimal.Zero)
+	qc, err = funding.CreateItem(testExchange, asset.Futures, currency.USDT, leet, decimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -827,7 +828,7 @@ func TestCalculatePNL(t *testing.T) {
 	if !ok {
 		t.Fatal("couldn't get settings")
 	}
-	ev.Close = decimal.NewFromInt(1337)
+	ev.Close = leet
 	err = s.ComplianceManager.AddSnapshot(&compliance.Snapshot{
 		Timestamp: tt0,
 		Orders: []compliance.SnapshotOrder{
@@ -937,11 +938,11 @@ func TestTrackFuturesOrder(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v", err, nil)
 	}
-	err = collateral.Reserve(decimal.NewFromInt(1337))
+	err = collateral.Reserve(leet)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v", err, nil)
 	}
-	err = contract.Reserve(decimal.NewFromInt(1337))
+	err = contract.Reserve(leet)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v", err, nil)
 	}
@@ -1167,7 +1168,7 @@ func TestGetUnrealisedPNL(t *testing.T) {
 		Offset:             1,
 		Result: gctorder.PNLResult{
 			Time:                  time.Now(),
-			UnrealisedPNL:         decimal.NewFromInt(1337),
+			UnrealisedPNL:         leet,
 			RealisedPNLBeforeFees: decimal.NewFromInt(1338),
 			RealisedPNL:           decimal.NewFromInt(1339),
 			Price:                 decimal.NewFromInt(1331),
@@ -1199,7 +1200,7 @@ func TestGetRealisedPNL(t *testing.T) {
 		Offset:             1,
 		Result: gctorder.PNLResult{
 			Time:                  time.Now(),
-			UnrealisedPNL:         decimal.NewFromInt(1337),
+			UnrealisedPNL:         leet,
 			RealisedPNLBeforeFees: decimal.NewFromInt(1338),
 			RealisedPNL:           decimal.NewFromInt(1339),
 			Price:                 decimal.NewFromInt(1331),
@@ -1231,7 +1232,7 @@ func TestGetExposure(t *testing.T) {
 		Offset:             1,
 		Result: gctorder.PNLResult{
 			Time:                  time.Now(),
-			UnrealisedPNL:         decimal.NewFromInt(1337),
+			UnrealisedPNL:         leet,
 			RealisedPNLBeforeFees: decimal.NewFromInt(1338),
 			RealisedPNL:           decimal.NewFromInt(1339),
 			Price:                 decimal.NewFromInt(1331),
@@ -1256,7 +1257,7 @@ func TestGetCollateralCurrency(t *testing.T) {
 		Offset:             1,
 		Result: gctorder.PNLResult{
 			Time:                  time.Now(),
-			UnrealisedPNL:         decimal.NewFromInt(1337),
+			UnrealisedPNL:         leet,
 			RealisedPNLBeforeFees: decimal.NewFromInt(1338),
 			RealisedPNL:           decimal.NewFromInt(1339),
 			Price:                 decimal.NewFromInt(1331),
@@ -1282,7 +1283,7 @@ func TestGetDirection(t *testing.T) {
 		Offset:             1,
 		Result: gctorder.PNLResult{
 			Time:                  time.Now(),
-			UnrealisedPNL:         decimal.NewFromInt(1337),
+			UnrealisedPNL:         leet,
 			RealisedPNLBeforeFees: decimal.NewFromInt(1338),
 			RealisedPNL:           decimal.NewFromInt(1339),
 			Price:                 decimal.NewFromInt(1331),
@@ -1449,7 +1450,7 @@ func TestCreateLiquidationOrdersForExchange(t *testing.T) {
 	if !errors.Is(err, expectedError) {
 		t.Fatalf("received '%v' expected '%v'", err, expectedError)
 	}
-	err = item.IncreaseAvailable(decimal.NewFromInt(1337))
+	err = item.IncreaseAvailable(leet)
 	if !errors.Is(err, expectedError) {
 		t.Fatalf("received '%v' expected '%v'", err, expectedError)
 	}

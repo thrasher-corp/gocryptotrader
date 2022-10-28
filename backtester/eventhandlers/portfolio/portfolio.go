@@ -159,7 +159,7 @@ func cannotPurchase(ev signal.Event, o *order.Order) (*order.Order, error) {
 
 func (p *Portfolio) evaluateOrder(d common.Directioner, originalOrderSignal, ev *order.Order) (*order.Order, error) {
 	var evaluatedOrder *order.Order
-	cm, err := p.GetComplianceManager(originalOrderSignal.GetExchange(), originalOrderSignal.GetAssetType(), originalOrderSignal.Pair())
+	cm, err := p.getComplianceManager(originalOrderSignal.GetExchange(), originalOrderSignal.GetAssetType(), originalOrderSignal.Pair())
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +239,6 @@ func (p *Portfolio) OnFill(ev fill.Event, funds funding.IFundReleaser) (fill.Eve
 		return nil, fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	}
 
-	var created bool
 	h, err := lookup.GetHoldingsForTime(ev.GetTime().Add(-ev.GetInterval().Duration()))
 	if err != nil {
 		if !errors.Is(err, errNoHoldings) {
@@ -249,14 +248,11 @@ func (p *Portfolio) OnFill(ev fill.Event, funds funding.IFundReleaser) (fill.Eve
 		if err != nil {
 			return nil, err
 		}
-		created = true
 	}
 
-	if !created {
-		err = h.Update(ev, funds)
-		if err != nil {
-			return nil, err
-		}
+	err = h.Update(ev, funds)
+	if err != nil {
+		return nil, err
 	}
 	err = p.SetHoldingsForTimestamp(h)
 	if err != nil {
@@ -275,7 +271,7 @@ func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
 	if fillEvent == nil {
 		return common.ErrNilEvent
 	}
-	complianceManager, err := p.GetComplianceManager(fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair())
+	complianceManager, err := p.getComplianceManager(fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair())
 	if err != nil {
 		return err
 	}
@@ -328,8 +324,18 @@ func (p *Portfolio) GetLatestOrderSnapshots() ([]compliance.Snapshot, error) {
 	return resp, nil
 }
 
-// GetComplianceManager returns the order snapshots for a given exchange, asset, pair
-func (p *Portfolio) GetComplianceManager(exchangeName string, a asset.Item, cp currency.Pair) (*compliance.Manager, error) {
+func (p *Portfolio) GetLatestComplianceSnapshot(exchangeName string, a asset.Item, cp currency.Pair) (*compliance.Snapshot, error) {
+	cm, err := p.getComplianceManager(exchangeName, a, cp)
+	if err != nil {
+		return nil, err
+	}
+	snap := cm.GetLatestSnapshot()
+
+	return &snap, nil
+}
+
+// getComplianceManager returns the order snapshots for a given exchange, asset, pair
+func (p *Portfolio) getComplianceManager(exchangeName string, a asset.Item, cp currency.Pair) (*compliance.Manager, error) {
 	lookup := p.exchangeAssetPairPortfolioSettings[exchangeName][a][cp.Base.Item][cp.Quote.Item]
 	if lookup == nil {
 		return nil, fmt.Errorf("%w for %v %v %v could not retrieve compliance manager", errNoPortfolioSettings, exchangeName, a, cp)
@@ -605,15 +611,14 @@ func (p *Portfolio) getSettings(exch string, item asset.Item, pair currency.Pair
 	return settings, nil
 }
 
-// SetHoldingsForTimestamp stores a holdings struct in the portfolio for a given offset
-// will return error if already exists, unless overwriteExisting is true
+// SetHoldingsForTimestamp stores a holding snapshot for the holding's timestamp
 func (p *Portfolio) SetHoldingsForTimestamp(h *holdings.Holding) error {
 	if h.Timestamp.IsZero() {
 		return errHoldingsNoTimestamp
 	}
-	lookup, ok := p.exchangeAssetPairPortfolioSettings[h.Exchange][h.Asset][h.Pair.Base.Item][h.Pair.Quote.Item]
-	if !ok {
-		return fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, h.Exchange, h.Asset, h.Pair)
+	lookup, err := p.getSettings(h.Exchange, h.Asset, h.Pair)
+	if err != nil {
+		return err
 	}
 	lookup.HoldingsSnapshots[h.Timestamp.UnixNano()] = h
 	return nil
@@ -633,17 +638,19 @@ func (p *Portfolio) UpdateHoldings(e data.Event, funds funding.IFundReleaser) er
 	}
 	h, err := settings.GetLatestHoldings()
 	if err != nil {
-		return err
+		if !errors.Is(err, errNoHoldings) {
+			return err
+		}
+		h, err = holdings.Create(e, funds)
+		if err != nil {
+			return err
+		}
 	}
 	err = h.UpdateValue(e)
 	if err != nil {
 		return err
 	}
-	err = p.SetHoldingsForTimestamp(h)
-	if errors.Is(err, errNoHoldings) {
-		err = p.SetHoldingsForTimestamp(h)
-	}
-	return err
+	return p.SetHoldingsForTimestamp(h)
 }
 
 // GetLatestHoldingsForAllCurrencies will return the current holdings for all loaded currencies
@@ -667,14 +674,14 @@ func (p *Portfolio) GetLatestHoldingsForAllCurrencies() []holdings.Holding {
 }
 
 // ViewHoldingAtTimePeriod retrieves a snapshot of holdings at a specific time period,
-// returning empty when not found
+// returning an error if not found
 func (p *Portfolio) ViewHoldingAtTimePeriod(ev common.Event) (*holdings.Holding, error) {
-	exchangeAssetPairSettings := p.exchangeAssetPairPortfolioSettings[ev.GetExchange()][ev.GetAssetType()][ev.Pair().Base.Item][ev.Pair().Quote.Item]
-	if exchangeAssetPairSettings == nil {
-		return nil, fmt.Errorf("%w for %v %v %v", errNoHoldings, ev.GetExchange(), ev.GetAssetType(), ev.Pair())
+	settings, err := p.getSettings(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
+	if err != nil {
+		return nil, err
 	}
 
-	h, ok := exchangeAssetPairSettings.HoldingsSnapshots[ev.GetTime().UnixNano()]
+	h, ok := settings.HoldingsSnapshots[ev.GetTime().UnixNano()]
 	if !ok {
 		return nil, fmt.Errorf("%w for %v %v %v at %v", errNoHoldings, ev.GetExchange(), ev.GetAssetType(), ev.Pair(), ev.GetTime())
 	}
@@ -695,7 +702,7 @@ func (s *Settings) GetLatestHoldings() (*holdings.Holding, error) {
 	return s.HoldingsSnapshots[latestTime], nil
 }
 
-// GetHoldingsForTime returns the holdings for a time period, or an empty holding if not found
+// GetHoldingsForTime returns the holdings for a time period, or an error holding if not found
 func (s *Settings) GetHoldingsForTime(t time.Time) (*holdings.Holding, error) {
 	h, ok := s.HoldingsSnapshots[t.UnixNano()]
 	if !ok {
@@ -736,13 +743,13 @@ func (p *Portfolio) SetHoldingsForEvent(fm funding.IFundReader, e common.Event) 
 		h.BaseSize = c.CurrentHoldings()
 		h.QuoteSize = c.AvailableFunds()
 	} else {
-		var p funding.IPairReader
-		p, err = fm.GetPairReader()
+		var pr funding.IPairReader
+		pr, err = fm.GetPairReader()
 		if err != nil {
 			return err
 		}
-		h.BaseSize = p.BaseAvailable()
-		h.QuoteSize = p.QuoteAvailable()
+		h.BaseSize = pr.BaseAvailable()
+		h.QuoteSize = pr.QuoteAvailable()
 	}
 	err = h.UpdateValue(e)
 	if err != nil {

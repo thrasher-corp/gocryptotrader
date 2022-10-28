@@ -48,7 +48,7 @@ import (
 func NewBacktester() (*BackTest, error) {
 	bt := &BackTest{
 		shutdown:                 make(chan struct{}),
-		DataHolder:               &data.HandlerPerCurrency{},
+		DataHolder:               &data.HandlerHolder{},
 		EventQueue:               &eventholder.Holder{},
 		hasProcessedDataAtOffset: make(map[int64]bool),
 	}
@@ -76,7 +76,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 	}
 
 	bt.verbose = verbose
-	bt.DataHolder.Setup()
+	bt.DataHolder = data.NewHandlerHolder()
 	reports := &report.Data{
 		Config:       cfg,
 		TemplatePath: templatePath,

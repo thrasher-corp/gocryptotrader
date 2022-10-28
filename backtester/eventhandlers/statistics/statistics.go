@@ -182,7 +182,7 @@ func (s *Statistic) AddPNLForTime(pnl *portfolio.PNLSummary) error {
 }
 
 // AddComplianceSnapshotForTime adds the compliance snapshot to the statistics at the time period
-func (s *Statistic) AddComplianceSnapshotForTime(c compliance.Snapshot, e fill.Event) error {
+func (s *Statistic) AddComplianceSnapshotForTime(c *compliance.Snapshot, e fill.Event) error {
 	if e == nil {
 		return common.ErrNilEvent
 	}
