@@ -46,6 +46,7 @@ var (
 	errInvalidTimestamp              = errors.New("invalid or zero timestamp")
 	errInvalidID                     = errors.New("invalid id")
 	errInvalidEmailAddress           = errors.New("invalid email address")
+	errMalformedData                 = errors.New("malformed data")
 )
 
 // BookSummaryData stores summary data
@@ -682,15 +683,6 @@ type AffiliateProgramInfo struct {
 	IsEnabled          bool   `json:"is_enabled"`
 }
 
-// PrivateAnnouncementsData stores data of private announcements
-type PrivateAnnouncementsData struct {
-	Title                string `json:"title"`
-	PublicationTimestamp int64  `json:"publication_timestamp"`
-	Important            bool   `json:"important"`
-	ID                   int64  `json:"id"`
-	Body                 string `json:"body"`
-}
-
 // PositionData stores data for account's position
 type PositionData struct {
 	AveragePrice              float64 `json:"average_price"`
@@ -753,13 +745,22 @@ type PlaceTradeData struct {
 	Order  OrderData          `json:"order"`
 }
 
-// WsRequest defines a request obj for the JSON-RPC and gets a websocket
+// wsInput defines a request obj for the JSON-RPC login and gets a websocket
 // response
-type WsRequest struct {
+type wsInput struct {
 	JSONRPCVersion string                 `json:"jsonrpc,omitempty"`
 	ID             int64                  `json:"id,omitempty"`
 	Method         string                 `json:"method"`
 	Params         map[string]interface{} `json:"params,omitempty"`
+}
+
+// WsSubscriptionInput defines a request obj for the JSON-RPC and gets a websocket
+// response
+type WsSubscriptionInput struct {
+	JSONRPCVersion string              `json:"jsonrpc,omitempty"`
+	ID             int64               `json:"id,omitempty"`
+	Method         string              `json:"method"`
+	Params         map[string][]string `json:"params,omitempty"`
 }
 
 type wsResponse struct {
@@ -781,6 +782,15 @@ type wsLoginResponse struct {
 	Method         string                 `json:"method"`
 	Result         map[string]interface{} `json:"result"`
 	Error          *UnmarshalError        `json:"error"`
+}
+
+type wsSubscriptionResponse struct {
+	JSONRPCVersion string   `json:"jsonrpc"`
+	ID             int64    `json:"id"`
+	Method         string   `json:"method"`
+	Result         []string `json:"result"`
+	UseIn          int64    `json:"usIn"`
+	UseOut         int64    `json:"usOut"`
 }
 
 // RFQ RFQs for instruments in given currency.
@@ -850,6 +860,9 @@ type Announcement struct {
 	Important            bool      `json:"important"`
 	ID                   int64     `json:"id"`
 	Body                 string    `json:"body"`
+
+	// Action taken by the platform administrators.
+	Action string `json:"action"`
 }
 
 // PortfolioMargin represents public portfolio margins.
@@ -1005,4 +1018,154 @@ type TFAChallenge struct {
 		Name string `json:"name"`
 		Type string `json:"type"`
 	} `json:"security_keys"`
+}
+
+// WsResponse represents generalized websocket subscription push data and immediate websocket call responses.
+type WsResponse struct {
+	ID     int64 `json:"id,omitempty"`
+	Params struct {
+		Data    interface{} `json:"data"`
+		Channel string      `json:"channel"`
+
+		// For websocket subscriptions immediate response.
+		// Channels []string `json:"channels"`
+	} `json:"params"`
+	Method         string `json:"method"`
+	JsonRPCVersion string `json:"jsonrpc"`
+
+	// For websocket subscriptions immediate response.
+	// Result interface{} `json:"result"`
+	// UsIn   int64       `json:"usIn"`
+	// UsOut  int64       `json:"usOut"`
+	// UsDiff int         `json:"usDiff"`
+}
+
+// wsOrderbook represents orderbook push data for a book websocket subscription.
+type wsOrderbook struct {
+	Type           string          `json:"type"`
+	Timestamp      int64           `json:"timestamp"`
+	InstrumentName string          `json:"instrument_name"`
+	ChangeID       int             `json:"change_id"`
+	Bids           [][]interface{} `json:"bids"`
+	Asks           [][]interface{} `json:"asks"`
+}
+
+// wsCandlestickData represents publicly available market data used to generate a TradingView candle chart.
+type wsCandlestickData struct {
+	Volume float64 `json:"volume"`
+	Tick   int64   `json:"tick"`
+	Open   float64 `json:"open"`
+	Low    float64 `json:"low"`
+	High   float64 `json:"high"`
+	Cost   float64 `json:"cost"`
+	Close  float64 `json:"close"`
+}
+
+// wsIndexPrice represents information about current value (price) for Deribit Index
+type wsIndexPrice struct {
+	Timestamp int64   `json:"timestamp"`
+	Price     float64 `json:"price"`
+	IndexName string  `json:"index_name"`
+}
+
+// wsRankingPrice
+type wsRankingPrice struct {
+	Weight        float64 `json:"weight"`
+	Timestamp     int64   `json:"timestamp"`
+	Price         float64 `json:"price"`
+	OriginalPrice float64 `json:"original_price"`
+	Identifier    string  `json:"identifier"`
+	Enabled       bool    `json:"enabled"`
+}
+
+// wsRankingPrices
+type wsRankingPrices []wsRankingPrice
+
+// wsPriceStatistics represents basic statistics about Deribit Index
+type wsPriceStatistics struct {
+	Low24H         float64 `json:"low24h"`
+	IndexName      string  `json:"index_name"`
+	HighVolatility bool    `json:"high_volatility"`
+	High24H        float64 `json:"high24h"`
+	Change24H      float64 `json:"change24h"`
+}
+
+// wsVolatilityIndex represents volatility index push data
+type wsVolatilityIndex struct {
+	Volatility        float64 `json:"volatility"`
+	Timestamp         int64   `json:"timestamp"`
+	IndexName         string  `json:"index_name"`
+	EstimatedDelivery float64 `json:"estimated_delivery"`
+}
+
+// wsEstimatedExpirationPrice represents push data of ending price for given index.
+type wsEstimatedExpirationPrice struct {
+	Seconds     int     `json:"seconds"`
+	Price       float64 `json:"price"`
+	IsEstimated bool    `json:"is_estimated"`
+}
+
+// wsIncrementalTicker represents changes in instrument ticker (key information about the instrument).
+type wsIncrementalTicker struct {
+	Timestamp int64 `json:"timestamp"`
+	Stats     struct {
+		VolumeUsd   float64 `json:"volume_usd"`
+		Volume      float64 `json:"volume"`
+		PriceChange float64 `json:"price_change"`
+		Low         float64 `json:"low"`
+		High        float64 `json:"high"`
+	} `json:"stats"`
+	State                  string  `json:"state"`
+	SettlementPrice        float64 `json:"settlement_price"`
+	OpenInterest           float64 `json:"open_interest"`
+	MinPrice               float64 `json:"min_price"`
+	MaxPrice               float64 `json:"max_price"`
+	MarkPrice              float64 `json:"mark_price"`
+	LastPrice              float64 `json:"last_price"`
+	InstrumentName         string  `json:"instrument_name"`
+	IndexPrice             float64 `json:"index_price"`
+	Funding8H              float64 `json:"funding_8h"`
+	EstimatedDeliveryPrice float64 `json:"estimated_delivery_price"`
+	CurrentFunding         float64 `json:"current_funding"`
+	BestBidPrice           float64 `json:"best_bid_price"`
+	BestBidAmount          float64 `json:"best_bid_amount"`
+	BestAskPrice           float64 `json:"best_ask_price"`
+	BestAskAmount          float64 `json:"best_ask_amount"`
+}
+
+// wsInstrumentState represents notifications about new or terminated instruments of given kind in given currency.
+type wsInstrumentState struct {
+	Timestamp      int64  `json:"timestamp"`
+	State          string `json:"state"`
+	InstrumentName string `json:"instrument_name"`
+}
+
+// wsMarkPriceOptions represents information about options markprices.
+type wsMarkPriceOptions struct {
+	Timestamp      int64   `json:"timestamp"`
+	MarkPrice      float64 `json:"mark_price"`
+	Iv             float64 `json:"iv"`
+	InstrumentName string  `json:"instrument_name"`
+}
+
+// wsPerpetualInterest represents current interest rate - but only for perpetual instruments.
+type wsPerpetualInterest struct {
+	Timestamp  int64   `json:"timestamp"`
+	Interest   float64 `json:"interest"`
+	IndexPrice float64 `json:"index_price"`
+}
+
+// wsPlatformState holds Information whether unauthorized public requests are allowed
+type wsPlatformState struct {
+	AllowUnauthenticatedPublicRequests bool `json:"allow_unauthenticated_public_requests"`
+}
+
+// wsQuoteTickerInformation represents best bid/ask price and size.
+type wsQuoteTickerInformation struct {
+	Timestamp      int64   `json:"timestamp"`
+	InstrumentName string  `json:"instrument_name"`
+	BestBidPrice   float64 `json:"best_bid_price"`
+	BestBidAmount  float64 `json:"best_bid_amount"`
+	BestAskPrice   float64 `json:"best_ask_price"`
+	BestAskAmount  float64 `json:"best_ask_amount"`
 }

@@ -54,6 +54,15 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Deribit setup error", err)
 	}
+	d.Websocket = sharedtestvalues.NewTestWebsocket()
+	d.Base.Config = exchCfg
+	err = d.Setup(exchCfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+	d.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	d.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	setupWs()
 	os.Exit(m.Run())
 }
 
@@ -472,13 +481,9 @@ func TestGetVolatilityIndexData(t *testing.T) {
 
 func TestGetPublicTicker(t *testing.T) {
 	t.Parallel()
-
-	response, err := d.GetPublicTicker(context.Background(), btcPerpInstrument)
+	_, err := d.GetPublicTicker(context.Background(), btcPerpInstrument)
 	if err != nil {
 		t.Error(err)
-	} else {
-		values, _ := json.Marshal(response)
-		println(string(values))
 	}
 }
 
@@ -1497,5 +1502,139 @@ func TestWsConnect(t *testing.T) {
 	err := d.WsConnect()
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+var announcementPushDataJSON = `{    "jsonrpc": "2.0",    "method": "subscription",    "params": {         "channel": "announcements",         "data": {            "action": "new",            "body": "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",            "id": 1532593832021,            "important": true,            "publication_timestamp": 1532593832021,            "title": "Example announcement"        }    }}`
+
+func TestHandlerAnnouncementPushData(t *testing.T) {
+	t.Parallel()
+	if err := d.wsHandleData([]byte(announcementPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var orderbookPushDataJSON = `{	"params" : {"data" : {"timestamp" : 1554375447971,"instrument_name" : "ETH-PERPETUAL","change_id" : 109615,"bids" : [[160,40]],"asks" : [[161,20]]},	  "channel" : "book.ETH-PERPETUAL.100.1.100ms"	},	"method" : "subscription",	"jsonrpc" : "2.0"}`
+var orderbookUpdatePushDataJSON = `{"params" : {"data" : {"type" : "snapshot","timestamp" : 1554373962454,"instrument_name" : "BTC-PERPETUAL","change_id" : 297217,"bids" : [["new",5042.34,30],["new",5041.94,20]],"asks" : [["new",5042.64,40],["new",5043.3,40]]},"channel" : "book.BTC-PERPETUAL.100ms"},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+
+func TestOrderbookPushData(t *testing.T) {
+	t.Parallel()
+	if err := d.wsHandleData([]byte(orderbookPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+	if err := d.wsHandleData([]byte(orderbookUpdatePushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var candlestickPushDataJSON = `{"params" : {"data" : {"volume" : 0.05219351,"tick" : 1573645080000,"open" : 8869.79,"low" : 8788.25,"high" : 8870.31,"cost" : 460,"close" : 8791.25},"channel" : "chart.trades.BTC-PERPETUAL.1"},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+
+func TestChartPushData(t *testing.T) {
+	t.Parallel()
+	if err := d.wsHandleData([]byte(candlestickPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var indexPricePushDataJSON = `{	"params" : {"data" : {"timestamp" : 1550588002899,"price" : 3937.89,"index_name" : "btc_usd"},"channel" : "deribit_price_index.btc_usd"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+
+func TestIndexPricePushData(t *testing.T) {
+	t.Parallel()
+	if err := d.wsHandleData([]byte(indexPricePushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var priceRankingPushDataJSON = `{"params" : {"data" : [{"weight" : 14.29,		  "timestamp" : 1573202284040,		  "price" : 9109.35,		  "original_price" : 9109.35,		  "identifier" : "bitfinex",		  "enabled" : true		},		{		  "weight" : 14.29,		  "timestamp" : 1573202284055,		  "price" : 9084.83,		  "original_price" : 9084.83,		  "identifier" : "bitstamp",		  "enabled" : true		},		{		  "weight" : 14.29,		  "timestamp" : 1573202283191,		  "price" : 9079.91,		  "original_price" : 9079.91,		  "identifier" : "bittrex",		  "enabled" : true		},		{		  "weight" : 14.29,		  "timestamp" : 1573202284094,		  "price" : 9085.81,		  "original_price" : 9085.81,		  "identifier" : "coinbase",		  "enabled" : true		},		{		  "weight" : 14.29,		  "timestamp" : 1573202283881,		  "price" : 9086.27,		  "original_price" : 9086.27,		  "identifier" : "gemini",		  "enabled" : true		},		{		  "weight" : 14.29,		  "timestamp" : 1573202283420,		  "price" : 9088.38,		  "original_price" : 9088.38,		  "identifier" : "itbit",		  "enabled" : true		},		{		  "weight" : 14.29,		  "timestamp" : 1573202283459,		  "price" : 9083.6,		  "original_price" : 9083.6,		  "identifier" : "kraken",		  "enabled" : true		},		{		  "weight" : 0,		  "timestamp" : 0,		  "price" : null,		  "original_price" : null,		  "identifier" : "lmax",		  "enabled" : false		}	  ],	  "channel" : "deribit_price_ranking.btc_usd"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+
+func TestPriceRakingPushData(t *testing.T) {
+	t.Parallel()
+	if err := d.wsHandleData([]byte(priceRankingPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var priceStatisticsPushDataJSON = `{"params" : {"data" : {"low24h" : 58012.08,"index_name" : "btc_usd","high_volatility" : false,"high24h" : 59311.42,"change24h" : 1009.61},"channel" : "deribit_price_statistics.btc_usd"},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+
+func TestPriceStatisticsPushData(t *testing.T) {
+	t.Parallel()
+	if err := d.wsHandleData([]byte(priceStatisticsPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var volatilityIndexPushDataJSON = `{"params" : {"data" : {"volatility" : 129.36,"timestamp" : 1619777946007,"index_name" : "btc_usd","estimated_delivery" : 129.36},"channel" : "deribit_volatility_index.btc_usd"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+
+func TestVolatilityIndexPushData(t *testing.T) {
+	t.Parallel()
+	if err := d.wsHandleData([]byte(volatilityIndexPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var estimatedExpirationPricePushDataJSON = `{"params" : {"data" : {"seconds" : 180929,"price" : 3939.73,"is_estimated" : false},"channel" : "estimated_expiration_price.btc_usd"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+
+func TestEstimatedExpirationPricePushData(t *testing.T) {
+	t.Parallel()
+	if err := d.wsHandleData([]byte(estimatedExpirationPricePushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var incrementalTickerPushDataJSON = `{	"params" : {	  "data" : {		"timestamp" : 1623060194301,		"stats" : {		  "volume_usd" : 284061480,		  "volume" : 7871.02139035,		  "price_change" : 0.7229,		  "low" : 35213.5,		  "high" : 36824.5		},		"state" : "open",		"settlement_price" : 36169.49,		"open_interest" : 502097590,		"min_price" : 35898.37,		"max_price" : 36991.72,		"mark_price" : 36446.51,		"last_price" : 36457.5,		"instrument_name" : "BTC-PERPETUAL",		"index_price" : 36441.64,		"funding_8h" : 0.0000211,		"estimated_delivery_price" : 36441.64,		"current_funding" : 0,		"best_bid_price" : 36442.5,		"best_bid_amount" : 5000,		"best_ask_price" : 36443,		"best_ask_amount" : 100	  },	  "channel" : "incremental_ticker.BTC-PERPETUAL"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+
+func TestIncrementalTickerPushData(t *testing.T) {
+	t.Parallel()
+	if err := d.wsHandleData([]byte(incrementalTickerPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var instrumentStatePushDataJSON = `{"params" : {"data" : {"timestamp" : 1553080940000,"state" : "created","instrument_name" : "BTC-22MAR19"},"channel" : "instrument.state.any.any"},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+
+func TestInstrumentStatePushData(t *testing.T) {
+	t.Parallel()
+	if err := d.wsHandleData([]byte(instrumentStatePushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var markPriceOptionsPushDataJSON = `{"params" : {"data" : [{"timestamp" : 1622470378005,"mark_price" : 0.0333,"iv" : 0.9,"instrument_name" : "BTC-2JUN21-37000-P"},{"timestamp" : 1622470378005,"mark_price" : 0.117,"iv" : 0.9,"instrument_name" : "BTC-4JUN21-40500-P"},{"timestamp" : 1622470378005,"mark_price" : 0.0177,"iv" : 0.9,"instrument_name" : "BTC-4JUN21-38250-C"},{"timestamp" : 1622470378005,		  "mark_price" : 0.0098,		  "iv" : 0.9,		  "instrument_name" : "BTC-1JUN21-37000-C"		},		{		  "timestamp" : 1622470378005,		  "mark_price" : 0.0371,		  "iv" : 0.9,		  "instrument_name" : "BTC-4JUN21-36500-P"		}	  ],	  "channel" : "markprice.options.btc_usd"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+
+func TestMarkPriceOption(t *testing.T) {
+	t.Parallel()
+	if err := d.wsHandleData([]byte(markPriceOptionsPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var platformStatePushDataJSON = `{"params" : {"data" : {"allow_unauthenticated_public_requests" : true},"channel" : "platform_state.public_methods_state"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+
+func TestPlatformStatsPushData(t *testing.T) {
+	t.Parallel()
+	if err := d.wsHandleData([]byte(platformStatePushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var quoteTickerPushDataJSON = `{	"params" : {"data" : {"timestamp" : 1550658624149,"instrument_name" : "BTC-PERPETUAL","best_bid_price" : 3914.97,"best_bid_amount" : 40,"best_ask_price" : 3996.61,"best_ask_amount" : 50},"channel" : "quote.BTC-PERPETUAL"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+
+func TestQuoteTickerPushData(t *testing.T) {
+	t.Parallel()
+	if err := d.wsHandleData([]byte(quoteTickerPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+func setupWs() {
+	if !d.Websocket.IsEnabled() {
+		return
+	}
+	if !areTestAPIKeysSet() {
+		d.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	}
+	err := d.WsConnect()
+	if err != nil {
+		log.Fatal(err)
 	}
 }

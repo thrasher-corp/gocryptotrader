@@ -688,7 +688,6 @@ func (d *Deribit) SendHTTPRequest(ctx context.Context, ep exchange.URL, path str
 		Data    json.RawMessage `json:"result"`
 	}
 	err = d.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
-		println(endpoint + deribitAPIVersion + path)
 		return &request.Item{
 			Method:        http.MethodGet,
 			Path:          endpoint + deribitAPIVersion + path,
@@ -1092,8 +1091,8 @@ func (d *Deribit) GetEmailLanguage(ctx context.Context) (string, error) {
 }
 
 // GetNewAnnouncements gets new announcements
-func (d *Deribit) GetNewAnnouncements(ctx context.Context) ([]PrivateAnnouncementsData, error) {
-	var resp []PrivateAnnouncementsData
+func (d *Deribit) GetNewAnnouncements(ctx context.Context) ([]Announcement, error) {
+	var resp []Announcement
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
 		getNewAnnouncements, nil, &resp)
 }
@@ -2189,7 +2188,6 @@ func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, meth
 		ID      int64           `json:"id"`
 		Data    json.RawMessage `json:"result"`
 	}
-	println(endpoint + deribitAPIVersion + common.EncodeURLValues(path, data))
 	item := &request.Item{
 		Method:        method,
 		Path:          endpoint + deribitAPIVersion + common.EncodeURLValues(path, data),
@@ -2451,8 +2449,10 @@ func (d *Deribit) GetAssetKind(assetType asset.Item) string {
 		return "option"
 	case asset.Futures:
 		return "future"
-	default:
+	case asset.FutureCombo, asset.OptionCombo, asset.Combo:
 		return assetType.String()
+	default:
+		return "any"
 	}
 }
 

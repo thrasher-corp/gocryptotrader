@@ -2,7 +2,6 @@ package deribit
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -246,7 +245,7 @@ func (d *Deribit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 		if err != nil {
 			return err
 		}
-		err = d.UpdatePairs(p, assets[x], true, forceUpdate)
+		err = d.UpdatePairs(p, assets[x], false, forceUpdate)
 		if err != nil {
 			return err
 		}
@@ -337,8 +336,6 @@ func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		if err != nil {
 			return nil, err
 		}
-		values, _ := json.Marshal(obData)
-		println(string(values))
 		book.Asks = make([]orderbook.Item, len(obData.Asks))
 		for x := range book.Asks {
 			book.Asks[x] = orderbook.Item{
@@ -611,41 +608,22 @@ func (d *Deribit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		var data *PrivateTradeData
 		switch s.Side {
 		case order.Bid, order.Buy:
-			if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				data, err = d.wsPlaceOrder(fmtPair.String(),
-					strings.ToLower(s.Type.String()),
-					s.ClientOrderID,
-					timeInForce, "", "",
-					s.Amount,
-					s.Price,
-					0,
-					s.TriggerPrice,
-					s.PostOnly,
-					false,
-					s.ReduceOnly,
-					false)
-				if err != nil {
-					return nil, err
-				}
-				orderID = data.Order.OrderID
-			} else {
-				data, err = d.SubmitBuy(ctx, fmtPair.String(),
-					strings.ToLower(s.Type.String()),
-					s.ClientOrderID,
-					timeInForce, "", "",
-					s.Amount,
-					s.Price,
-					0,
-					s.TriggerPrice,
-					s.PostOnly,
-					false,
-					s.ReduceOnly,
-					false)
-				if err != nil {
-					return nil, err
-				}
-				orderID = data.Order.OrderID
+			data, err = d.SubmitBuy(ctx, fmtPair.String(),
+				strings.ToLower(s.Type.String()),
+				s.ClientOrderID,
+				timeInForce, "", "",
+				s.Amount,
+				s.Price,
+				0,
+				s.TriggerPrice,
+				s.PostOnly,
+				false,
+				s.ReduceOnly,
+				false)
+			if err != nil {
+				return nil, err
 			}
+			orderID = data.Order.OrderID
 		case order.Sell, order.Ask:
 			data, err = d.SubmitSell(ctx, fmtPair.String(),
 				s.Type.String(),
