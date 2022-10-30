@@ -1496,7 +1496,7 @@ func TestGetMovementByBaseAmount(t *testing.T) {
 			Name:           "not enough liquidity to service quote amount",
 			BaseAmount:     1,
 			ReferencePrice: 1000,
-			ExpectedError:  errNoLiquidity,
+			ExpectedError:  ErrNoLiquidity,
 		},
 		{
 			Name:            "thrasher test",
@@ -1597,7 +1597,7 @@ func TestGetBaseAmountFromNominalSlippage(t *testing.T) {
 			Name:            "no liquidity to service quote amount",
 			NominalSlippage: 1,
 			ReferencePrice:  1000,
-			ExpectedError:   errNoLiquidity,
+			ExpectedError:   ErrNoLiquidity,
 		},
 		{
 			Name:            "thrasher test",
@@ -1719,7 +1719,7 @@ func TestGetBaseAmountFromImpact(t *testing.T) {
 			Name:           "no liquidity",
 			ImpactSlippage: 1,
 			ReferencePrice: 10000,
-			ExpectedError:  errNoLiquidity,
+			ExpectedError:  ErrNoLiquidity,
 		},
 		{
 			Name:           "thrasher test",
@@ -1809,7 +1809,7 @@ func TestGetMovementByQuoteAmount(t *testing.T) {
 			Name:           "not enough liquidity to service quote amount",
 			QuoteAmount:    1,
 			ReferencePrice: 1000,
-			ExpectedError:  errNoLiquidity,
+			ExpectedError:  ErrNoLiquidity,
 		},
 		{
 			Name:            "thrasher test",
@@ -1905,7 +1905,7 @@ func TestGetQuoteAmountFromNominalSlippage(t *testing.T) {
 			Name:            "no liquidity",
 			NominalSlippage: 1,
 			ReferencePrice:  10000,
-			ExpectedError:   errNoLiquidity,
+			ExpectedError:   ErrNoLiquidity,
 		},
 		{
 			Name:            "consume first tranche - one amount on second tranche",
@@ -2021,7 +2021,7 @@ func TestGetQuoteAmountFromImpact(t *testing.T) {
 			Name:           "no liquidity",
 			ImpactSlippage: 1,
 			ReferencePrice: 1000,
-			ExpectedError:  errNoLiquidity,
+			ExpectedError:  ErrNoLiquidity,
 		},
 		{
 			Name:           "thrasher test",
@@ -2089,11 +2089,11 @@ func TestGetQuoteAmountFromImpact(t *testing.T) {
 func TestGetHeadPrice(t *testing.T) {
 	t.Parallel()
 	depth := NewDepth(id)
-	if _, err := depth.bids.getHeadPriceNoLock(); !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if _, err := depth.bids.getHeadPriceNoLock(); !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
-	if _, err := depth.asks.getHeadPriceNoLock(); !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if _, err := depth.asks.getHeadPriceNoLock(); !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
 

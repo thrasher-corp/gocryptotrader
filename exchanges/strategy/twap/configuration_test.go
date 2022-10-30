@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
 func TestConfig_Check(t *testing.T) {
@@ -113,32 +114,73 @@ func TestConfig_GetDistrbutionAmount(t *testing.T) {
 	t.Parallel()
 
 	var c *Config
-	_, err := c.GetDistrbutionAmount(0, nil, false)
+	_, err := c.GetDistrbutionAmount(0, nil)
 	if !errors.Is(err, errConfigurationIsNil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errConfigurationIsNil)
 	}
 
-	_, err = c.GetDistrbutionAmount(0, nil, false)
+	tn := time.Now()
+	c = &Config{Start: tn, End: tn.Add(time.Minute)}
+	_, err = c.GetDistrbutionAmount(0, nil)
+	if !errors.Is(err, errExchangeIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeIsNil)
+	}
+
+	c.Exchange = &fake{}
+	_, err = c.GetDistrbutionAmount(0, nil)
 	if !errors.Is(err, errInvalidAllocatedAmount) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidAllocatedAmount)
 	}
 
-	tn := time.Now()
-	c = &Config{Start: tn, End: tn.Add(time.Minute)}
-	_, err = c.GetDistrbutionAmount(5, nil, false)
+	_, err = c.GetDistrbutionAmount(5, nil)
+	if !errors.Is(err, errOrderbookIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errOrderbookIsNil)
+	}
+
+	depth, err := orderbook.DeployDepth("test", currency.NewPair(currency.MANA, currency.CYC), asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	_, err = c.GetDistrbutionAmount(5, depth)
 	if !errors.Is(err, kline.ErrUnsetInterval) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrUnsetInterval)
 	}
 
 	c.Interval = kline.OneMin
-	_, err = c.GetDistrbutionAmount(5, nil, false)
+	_, err = c.GetDistrbutionAmount(5, depth)
 	if !errors.Is(err, errInvalidOperationWindow) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidOperationWindow)
 	}
 
 	c.End = tn.Add(time.Minute * 5)
-	_, err = c.GetDistrbutionAmount(5, nil, false)
-	if !errors.Is(err, errInvalidOperationWindow) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidOperationWindow)
+	_, err = c.GetDistrbutionAmount(5, depth)
+	if !errors.Is(err, orderbook.ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, orderbook.ErrNoLiquidity)
+	}
+
+	depth.LoadSnapshot(nil, []orderbook.Item{{Amount: 10000000, Price: 100}}, 0, time.Time{}, true)
+	_, err = c.GetDistrbutionAmount(0.01, depth)
+	if !errors.Is(err, errUnderMinimumAmount) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errUnderMinimumAmount)
+	}
+
+	_, err = c.GetDistrbutionAmount(5000000, depth)
+	if !errors.Is(err, errOverMaximumAmount) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errOverMaximumAmount)
+	}
+
+	amount, err := c.GetDistrbutionAmount(500000, depth)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if amount != 1000 {
+		t.Fatalf("received: '%v' but expected: '%v'", amount, 100)
+	}
+
+	_, err = c.GetDistrbutionAmount(1000, depth)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 }

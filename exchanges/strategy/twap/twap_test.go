@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ftx"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
@@ -38,6 +39,10 @@ func (f *fake) GetCredentials(ctx context.Context) (*account.Credentials, error)
 
 func (f *fake) GetName() string {
 	return "fake"
+}
+
+func (f *fake) GetOrderExecutionLimits(asset.Item, currency.Pair) (order.MinMaxLevel, error) {
+	return order.MinMaxLevel{MinAmount: 0.0001, MaxAmount: 1000}, nil
 }
 
 func TestMain(m *testing.M) {

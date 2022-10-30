@@ -20,17 +20,20 @@ const (
 )
 
 var (
-	errParamsAreNil               = errors.New("params are nil")
-	errExchangeIsNil              = errors.New("exchange is nil")
-	errEndBeforeNow               = errors.New("end time is before current time")
-	errCannotSetAmount            = errors.New("specific amount cannot be set, full amount bool set")
-	errInvalidVolume              = errors.New("invalid volume")
-	errInvalidMaxSlippageValue    = errors.New("invalid max slippage percentage value")
-	errInvalidPriceLimit          = errors.New("invalid price limit")
-	errInvalidMaxSpreadPercentage = errors.New("invalid spread percentage")
-	errUnderMinimumAmount         = errors.New("strategy deployment amount is under the exchange minimum")
-	errOverMaximumAmount          = errors.New("strategy deployment amount is over the exchange maximum")
-	errInvalidOperationWindow     = errors.New("start to end time window is cannot be less than or equal to interval")
+	errParamsAreNil                = errors.New("params are nil")
+	errExchangeIsNil               = errors.New("exchange is nil")
+	errEndBeforeNow                = errors.New("end time is before current time")
+	errCannotSetAmount             = errors.New("specific amount cannot be set, full amount bool set")
+	errInvalidVolume               = errors.New("invalid volume")
+	errInvalidMaxSlippageValue     = errors.New("invalid max slippage percentage value")
+	errInvalidPriceLimit           = errors.New("invalid price limit")
+	errInvalidMaxSpreadPercentage  = errors.New("invalid spread percentage")
+	errUnderMinimumAmount          = errors.New("strategy deployment amount is under the exchange minimum")
+	errOverMaximumAmount           = errors.New("strategy deployment amount is over the exchange maximum")
+	errInvalidOperationWindow      = errors.New("start to end time window is cannot be less than or equal to interval")
+	errInvalidAllocatedAmount      = errors.New("allocated amount must be greater than zero")
+	errOrderbookIsNil              = errors.New("orderbook is nil")
+	errMaxSpreadPercentageExceeded = errors.New("max spread percentage exceeded")
 )
 
 // Config defines the base elements required to undertake the TWAP strategy
@@ -115,7 +118,7 @@ func (c *Config) Check(ctx context.Context) error {
 	err := common.StartEndTimeCheck(c.Start, c.End)
 	if err != nil {
 		if !errors.Is(err, common.ErrStartAfterTimeNow) {
-			// We can schedule a future process
+			// NOTE: This can schedule a future task.
 			return err
 		}
 	}
@@ -158,15 +161,19 @@ func (c *Config) Check(ctx context.Context) error {
 	return nil
 }
 
-var errInvalidAllocatedAmount = errors.New("allocated amount must be greater than zero")
-
 // GetDeploymentAmount will truncate and equally distribute amounts across time.
-func (c *Config) GetDistrbutionAmount(allocatedAmount float64, book *orderbook.Depth, quote bool) (float64, error) {
+func (c *Config) GetDistrbutionAmount(allocatedAmount float64, book *orderbook.Depth) (float64, error) {
 	if c == nil {
 		return 0, errConfigurationIsNil
 	}
+	if c.Exchange == nil {
+		return 0, errExchangeIsNil
+	}
 	if allocatedAmount <= 0 {
 		return 0, errInvalidAllocatedAmount
+	}
+	if book == nil {
+		return 0, errOrderbookIsNil
 	}
 	if c.Interval <= 0 {
 		return 0, kline.ErrUnsetInterval // This can panic on zero value.
@@ -176,46 +183,77 @@ func (c *Config) GetDistrbutionAmount(allocatedAmount float64, book *orderbook.D
 	if int64(window) <= int64(c.Interval) {
 		return 0, errInvalidOperationWindow
 	}
-	segment := int64(window) / int64(c.Interval)
+	deployments := int64(window) / int64(c.Interval)
+	deploymentAmount := allocatedAmount / float64(deployments)
 
-	fmt.Println("segment", segment)
-
-	iterationAmount := allocatedAmount / float64(segment)
-
-	fmt.Println("iteration amount", iterationAmount)
-
-	iterationAmountInBase := iterationAmount
-	if quote {
-		// Quote needs to be converted to base for deployment capabilities.
-		details, err := book.LiftTheAsksFromBest(iterationAmount, false)
-		if err != nil {
-			return 0, nil
-		}
-		iterationAmountInBase = details.Purchased
-	}
-
-	minMax, err := c.Exchange.GetOrderExecutionLimits(c.Asset, c.Pair)
+	// The checks below determines if the allocation spread over time can or
+	// *should* be deployed on the exchange.
+	deploymentAmountInBase, err := c.VerifyBookReturnBase(book, deploymentAmount)
 	if err != nil {
 		return 0, err
 	}
 
-	if minMax.MinAmount != 0 && minMax.MinAmount > iterationAmountInBase {
-		return 0, fmt.Errorf("%w; %s", errUnderMinimumAmount, minimumSizeResponse)
+	err = c.VerifyExecutionLimits(deploymentAmountInBase)
+	if err != nil {
+		return 0, err
+	}
+	return deploymentAmount, nil
+}
+
+// VerifyBookReturnBase verifies book liquidity and structure with deployment
+// amount and returns base amount.
+func (c *Config) VerifyBookReturnBase(book *orderbook.Depth, deploymentAmount float64) (float64, error) {
+	var details *orderbook.Movement
+	var err error
+	if c.Buy {
+		// Quote needs to be converted to base for deployment checks.
+		details, err = book.LiftTheAsksFromBest(deploymentAmount, false)
+		if err != nil {
+			return 0, err
+		}
+		deploymentAmount = details.Purchased
+	} else {
+		details, err = book.HitTheBidsFromBest(deploymentAmount, false)
+		if err != nil {
+			return 0, err
+		}
 	}
 
-	if minMax.MaxAmount != 0 && minMax.MaxAmount < iterationAmountInBase {
-		return 0, fmt.Errorf("%w; %s", errOverMaximumAmount, maximumSizeResponse)
+	if c.MaxImpactSlippage != 0 && c.MaxImpactSlippage < details.ImpactPercentage {
+		return 0, errImpactPercentageExceeded
 	}
 
-	fmt.Printf("minmax stuff: %+v\n", minMax)
+	if c.MaxNominalSlippage != 0 && c.MaxNominalSlippage < details.NominalPercentage {
+		return 0, errImpactPercentageExceeded
+	}
 
-	conformedAmount := minMax.ConformToAmount(iterationAmountInBase)
+	if c.MaxSpreadPercentage != 0 {
+		spread, err := book.GetSpreadPercentage()
+		if err != nil {
+			return 0, err
+		}
+		if spread > c.MaxSpreadPercentage {
+			return 0, errMaxSpreadPercentageExceeded
+		}
+	}
+	return deploymentAmount, nil
+}
 
-	fmt.Printf("conformed amount: %f iteration amount: %f changed by: %f\n",
-		conformedAmount,
-		iterationAmountInBase,
-		iterationAmountInBase-conformedAmount,
-	)
+// VerifyExecutionLimits verifies if the deploument amount exceeds the exchange
+// execution limits. TODO: This will need to be expanded.
+func (c *Config) VerifyExecutionLimits(deploymentAmountInBase float64) error {
+	minMax, err := c.Exchange.GetOrderExecutionLimits(c.Asset, c.Pair)
+	if err != nil {
+		return err
+	}
 
-	return iterationAmount, nil
+	if minMax.MinAmount != 0 && minMax.MinAmount > deploymentAmountInBase {
+		return fmt.Errorf("%w; %s", errUnderMinimumAmount, minimumSizeResponse)
+	}
+
+	if minMax.MaxAmount != 0 && minMax.MaxAmount < deploymentAmountInBase {
+		return fmt.Errorf("%w; %s", errOverMaximumAmount, maximumSizeResponse)
+	}
+
+	return nil
 }

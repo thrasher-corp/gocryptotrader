@@ -204,8 +204,8 @@ func TestSimulateOrder(t *testing.T) {
 	}
 
 	_, err = (&Base{}).SimulateOrder(1337, true)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 
 	// Full liquidity used
@@ -356,8 +356,8 @@ func TestSimulateOrder(t *testing.T) {
 	}
 
 	_, err = (&Base{}).SimulateOrder(2, false)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 
 	// Full liquidity used

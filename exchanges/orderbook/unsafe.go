@@ -1,15 +1,12 @@
 package orderbook
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 )
-
-var errNoLiquidity = errors.New("no liquidity")
 
 // Unsafe is an exported linked list reference to the current bid/ask heads and
 // a reference to the underlying depth mutex. This allows for the exposure of
@@ -101,7 +98,7 @@ func (src *Unsafe) GetBestAsk() (float64, error) {
 func (src *Unsafe) GetBidLiquidity() (*Node, error) {
 	n := *src.BidHead
 	if n == nil {
-		return nil, fmt.Errorf("bid %w", errNoLiquidity)
+		return nil, fmt.Errorf("bid %w", ErrNoLiquidity)
 	}
 	return n, nil
 }
@@ -110,7 +107,7 @@ func (src *Unsafe) GetBidLiquidity() (*Node, error) {
 func (src *Unsafe) GetAskLiquidity() (*Node, error) {
 	n := *src.AskHead
 	if n == nil {
-		return nil, fmt.Errorf("ask %w", errNoLiquidity)
+		return nil, fmt.Errorf("ask %w", ErrNoLiquidity)
 	}
 	return n, nil
 }
@@ -156,7 +153,7 @@ func (src *Unsafe) GetImbalance() (float64, error) {
 	top := bid.Value.Amount - ask.Value.Amount
 	bottom := bid.Value.Amount + ask.Value.Amount
 	if bottom == 0 {
-		return 0, errNoLiquidity
+		return 0, ErrNoLiquidity
 	}
 	return top / bottom, nil
 }

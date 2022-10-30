@@ -18,7 +18,9 @@ type Strategy struct {
 	Selling          *account.ProtectedBalance
 	Reporter         chan Report
 	TradeInformation []OrderExecutionInformation
-	AmountRequired   float64
+
+	FullDeployment   float64
+	DeploymentAmount float64
 	AmountDeployed   float64
 
 	orderbook *orderbook.Depth

@@ -26,68 +26,82 @@ var (
 
 // GetTWAP returns a TWAP struct to manage TWAP allocation or deallocation of
 // position.
-func New(ctx context.Context, cfg *Config) (*Strategy, error) {
-	err := cfg.Check(ctx)
+func New(ctx context.Context, c *Config) (*Strategy, error) {
+	err := c.Check(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	if cfg.Asset != asset.Spot {
+	if c.Asset != asset.Spot {
 		return nil, errInvalidAssetType
 	}
 
-	depth, err := orderbook.GetDepth(cfg.Exchange.GetName(), cfg.Pair, cfg.Asset)
+	depth, err := orderbook.GetDepth(c.Exchange.GetName(), c.Pair, c.Asset)
 	if err != nil {
 		return nil, err
 	}
 
-	creds, err := cfg.Exchange.GetCredentials(ctx)
+	creds, err := c.Exchange.GetCredentials(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	buying, err := account.GetBalance(cfg.Exchange.GetName(),
-		creds.SubAccount, creds, cfg.Asset, cfg.Pair.Base)
+	buying, err := account.GetBalance(c.Exchange.GetName(),
+		creds.SubAccount, creds, c.Asset, c.Pair.Base)
 	if err != nil {
 		return nil, err
 	}
 
-	deployment := cfg.Pair.Quote
-	selling, err := account.GetBalance(cfg.Exchange.GetName(),
-		creds.SubAccount, creds, cfg.Asset, cfg.Pair.Quote)
+	deployment := c.Pair.Quote
+	selling, err := account.GetBalance(c.Exchange.GetName(),
+		creds.SubAccount, creds, c.Asset, c.Pair.Quote)
 	if err != nil {
 		return nil, err
 	}
 
-	if !cfg.Buy {
+	if !c.Buy {
 		buying, selling = selling, buying
-		deployment = cfg.Pair.Base
+		deployment = c.Pair.Base
 	}
 
 	avail := selling.GetAvailableWithoutBorrow()
 	if avail == 0 {
 		return nil, fmt.Errorf("cannot sell %s amount %f to buy base %s %w of %f",
 			deployment,
-			cfg.Amount,
-			cfg.Pair.Base,
+			c.Amount,
+			c.Pair.Base,
 			errNoBalanceFound,
 			avail)
 	}
-	if !cfg.FullAmount && cfg.Amount > avail {
+	if !c.FullAmount && c.Amount > avail {
 		return nil, fmt.Errorf("cannot sell %s amount %f to buy base %s %w of %f",
 			deployment,
-			cfg.Amount,
-			cfg.Pair.Base,
+			c.Amount,
+			c.Pair.Base,
 			errExceedsFreeBalance,
 			avail)
 	}
 
+	var fullDeployment float64
+	if c.FullAmount {
+		fullDeployment = selling.GetAvailableWithoutBorrow()
+	} else {
+		fullDeployment = c.Amount
+	}
+
+	deploymentAmount, err := c.GetDistrbutionAmount(fullDeployment, depth)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Strategy{
-		Config:    cfg,
-		Reporter:  make(chan Report),
-		orderbook: depth,
-		Buying:    buying,
-		Selling:   selling,
+		Config:           c,
+		Reporter:         make(chan Report),
+		orderbook:        depth,
+		Buying:           buying,
+		Selling:          selling,
+		FullDeployment:   fullDeployment,
+		DeploymentAmount: deploymentAmount,
 	}, nil
 }
 
@@ -102,12 +116,12 @@ func (s *Strategy) Run(ctx context.Context) error {
 	}
 
 	if s.FullAmount {
-		s.AmountRequired = s.Selling.GetAvailableWithoutBorrow()
+		s.FullDeployment = s.Selling.GetAvailableWithoutBorrow()
 	} else {
-		s.AmountRequired = s.Amount
+		s.FullDeployment = s.Amount
 	}
 
-	distrubution, err := s.GetDistrbutionAmount(s.AmountRequired, s.orderbook, s.Buy)
+	distrubution, err := s.GetDistrbutionAmount(s.FullDeployment, s.orderbook)
 	if err != nil {
 		return err
 	}
@@ -149,7 +163,7 @@ func (s *Strategy) Deploy(ctx context.Context, amount float64) {
 
 			if s.Simulate {
 				s.AmountDeployed += amount
-				if s.AmountDeployed >= s.AmountRequired {
+				if s.AmountDeployed >= s.FullDeployment {
 					s.Reporter <- Report{Error: err, Finished: true}
 					fmt.Println("finished amount yay")
 					return

@@ -12,6 +12,8 @@ import (
 const FullLiquidityExhaustedPercentage = -100
 
 var (
+	// ErrNoLiquidity dddefines when an orderbook side contains no liquidity
+	ErrNoLiquidity                     = errors.New("no liquidity")
 	errIDCannotBeMatched               = errors.New("cannot match ID on linked list")
 	errCollisionDetected               = errors.New("cannot insert update, collision detected")
 	errAmountCannotBeLessOrEqualToZero = errors.New("amount cannot be less than or equal to zero")
@@ -360,7 +362,7 @@ func (ll *linkedList) insertUpdates(updts Items, stack *stack, comp comparison) 
 // getHeadPriceNoLock gets best/head price
 func (ll *linkedList) getHeadPriceNoLock() (float64, error) {
 	if ll.head == nil {
-		return 0, errNoLiquidity
+		return 0, ErrNoLiquidity
 	}
 	return ll.head.Value.Price, nil
 }
@@ -368,7 +370,7 @@ func (ll *linkedList) getHeadPriceNoLock() (float64, error) {
 // getHeadVolumeNoLock gets best/head volume
 func (ll *linkedList) getHeadVolumeNoLock() (float64, error) {
 	if ll.head == nil {
-		return 0, errNoLiquidity
+		return 0, ErrNoLiquidity
 	}
 	return ll.head.Value.Amount, nil
 }
@@ -510,7 +512,7 @@ func (ll *bids) hitBidsByNominalSlippage(slippage, refPrice float64) (*Movement,
 	}
 
 	if ll.head == nil {
-		return nil, errNoLiquidity
+		return nil, ErrNoLiquidity
 	}
 
 	nominal := &Movement{StartPrice: refPrice, EndPrice: refPrice}
@@ -577,7 +579,7 @@ func (ll *bids) hitBidsByImpactSlippage(slippage, refPrice float64) (*Movement, 
 	}
 
 	if ll.head == nil {
-		return nil, errNoLiquidity
+		return nil, ErrNoLiquidity
 	}
 
 	impact := &Movement{StartPrice: refPrice, EndPrice: refPrice}
@@ -642,7 +644,7 @@ func (ll *asks) liftAsksByNominalSlippage(slippage, refPrice float64) (*Movement
 	}
 
 	if ll.head == nil {
-		return nil, errNoLiquidity
+		return nil, ErrNoLiquidity
 	}
 
 	nominal := &Movement{StartPrice: refPrice, EndPrice: refPrice}
@@ -701,7 +703,7 @@ func (ll *asks) liftAsksByImpactSlippage(slippage, refPrice float64) (*Movement,
 	}
 
 	if ll.head == nil {
-		return nil, errNoLiquidity
+		return nil, ErrNoLiquidity
 	}
 
 	impact := &Movement{StartPrice: refPrice, EndPrice: refPrice}

@@ -634,8 +634,8 @@ func TestHitTheBidsByNominalSlippage(t *testing.T) {
 
 	depth := NewDepth(id)
 	_, err = depth.HitTheBidsByNominalSlippage(10, 1355.5)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
@@ -756,8 +756,8 @@ func TestHitTheBidsByNominalSlippageFromMid(t *testing.T) {
 	depth := NewDepth(id)
 
 	_, err = depth.HitTheBidsByNominalSlippageFromMid(10)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
@@ -793,8 +793,8 @@ func TestHitTheBidsByNominalSlippageFromBest(t *testing.T) {
 	depth := NewDepth(id)
 
 	_, err = depth.HitTheBidsByNominalSlippageFromBest(10)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
@@ -830,8 +830,8 @@ func TestLiftTheAsksByNominalSlippage(t *testing.T) {
 	depth := NewDepth(id)
 
 	_, err = depth.LiftTheAsksByNominalSlippage(10, 1355.5)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
@@ -867,8 +867,8 @@ func TestLiftTheAsksByNominalSlippageFromMid(t *testing.T) {
 	depth := NewDepth(id)
 
 	_, err = depth.LiftTheAsksByNominalSlippageFromMid(10)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
@@ -904,8 +904,8 @@ func TestLiftTheAsksByNominalSlippageFromBest(t *testing.T) {
 	depth := NewDepth(id)
 
 	_, err = depth.LiftTheAsksByNominalSlippageFromBest(10)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
@@ -972,8 +972,8 @@ func TestHitTheBidsByImpactSlippageFromMid(t *testing.T) {
 
 	depth := NewDepth(id)
 	_, err = depth.HitTheBidsByImpactSlippageFromMid(10)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
@@ -1008,8 +1008,8 @@ func TestHitTheBidsByImpactSlippageFromBest(t *testing.T) {
 
 	depth := NewDepth(id)
 	_, err = depth.HitTheBidsByImpactSlippageFromBest(10)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
 
@@ -1074,8 +1074,8 @@ func TestLiftTheAsksByImpactSlippageFromMid(t *testing.T) {
 
 	depth := NewDepth(id)
 	_, err = depth.LiftTheAsksByImpactSlippageFromMid(10)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
 
@@ -1109,8 +1109,8 @@ func TestLiftTheAsksByImpactSlippageFromBest(t *testing.T) {
 
 	depth := NewDepth(id)
 	_, err = depth.LiftTheAsksByImpactSlippageFromBest(10)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
 
@@ -1273,8 +1273,8 @@ func TestHitTheBidsFromMid(t *testing.T) {
 
 	depth := NewDepth(id)
 	_, err = depth.HitTheBidsFromMid(10, false)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
 	mov, err := depth.HitTheBidsFromMid(20.1, false)
@@ -1338,8 +1338,8 @@ func TestHitTheBidsFromMid_QuotationRequired(t *testing.T) {
 	t.Parallel()
 	depth := NewDepth(id)
 	_, err := depth.HitTheBidsFromMid(10, false)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
 	mov, err := depth.HitTheBidsFromMid(26531, true)
@@ -1403,8 +1403,8 @@ func TestHitTheBidsFromBest(t *testing.T) {
 	t.Parallel()
 	depth := NewDepth(id)
 	_, err := depth.HitTheBidsFromBest(10, false)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
 	mov, err := depth.HitTheBidsFromBest(20.1, false)
@@ -1472,8 +1472,8 @@ func TestHitTheBidsFromBest_QuotationRequired(t *testing.T) {
 
 	depth := NewDepth(id)
 	_, err = depth.HitTheBidsFromBest(10, false)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
 	mov, err := depth.HitTheBidsFromBest(26531, true)
@@ -1666,8 +1666,8 @@ func TestLiftTheAsksFromMid(t *testing.T) {
 
 	depth := NewDepth(id)
 	_, err = depth.LiftTheAsksFromMid(10, false)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
 	mov, err := depth.LiftTheAsksFromMid(26931, false)
@@ -1735,8 +1735,8 @@ func TestLiftTheAsksFromMid_BaseRequired(t *testing.T) {
 
 	depth := NewDepth(id)
 	_, err = depth.LiftTheAsksFromMid(10, false)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
 	mov, err := depth.LiftTheAsksFromMid(21, true)
@@ -1804,8 +1804,8 @@ func TestLiftTheAsksFromBest(t *testing.T) {
 
 	depth := NewDepth(id)
 	_, err = depth.LiftTheAsksFromBest(10, false)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
 	mov, err := depth.LiftTheAsksFromBest(26931, false)
@@ -1873,8 +1873,8 @@ func TestLiftTheAsksFromBest_BaseRequired(t *testing.T) {
 
 	depth := NewDepth(id)
 	_, err = depth.LiftTheAsksFromBest(10, false)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
 	mov, err := depth.LiftTheAsksFromBest(21, true)
@@ -1941,8 +1941,8 @@ func TestGetMidPrice_Depth(t *testing.T) {
 
 	depth := NewDepth(id)
 	_, err = depth.GetMidPrice()
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
 	mid, err := depth.GetMidPrice()
@@ -1959,13 +1959,13 @@ func TestGetMidPriceNoLock_Depth(t *testing.T) {
 	t.Parallel()
 	depth := NewDepth(id)
 	_, err := depth.getMidPriceNoLock()
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 	depth.LoadSnapshot(bid, nil, 0, time.Time{}, true)
 	_, err = depth.getMidPriceNoLock()
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
@@ -1993,12 +1993,12 @@ func TestGetBestBidASk_Depth(t *testing.T) {
 
 	depth := NewDepth(id)
 	_, err = depth.GetBestBid()
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 	_, err = depth.GetBestAsk()
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
 	mid, err := depth.GetBestBid()
@@ -2027,15 +2027,15 @@ func TestGetSpreadAmount(t *testing.T) {
 	depth := NewDepth(id)
 
 	_, err = depth.GetSpreadAmount()
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 
 	depth.LoadSnapshot(nil, ask, 0, time.Time{}, true)
 
 	_, err = depth.GetSpreadAmount()
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
@@ -2060,15 +2060,15 @@ func TestGetSpreadPercentage(t *testing.T) {
 	depth := NewDepth(id)
 
 	_, err = depth.GetSpreadPercentage()
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 
 	depth.LoadSnapshot(nil, ask, 0, time.Time{}, true)
 
 	_, err = depth.GetSpreadPercentage()
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
@@ -2093,15 +2093,15 @@ func TestGetImbalance_Depth(t *testing.T) {
 	depth := NewDepth(id)
 
 	_, err = depth.GetImbalance()
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 
 	depth.LoadSnapshot(nil, ask, 0, time.Time{}, true)
 
 	_, err = depth.GetImbalance()
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	if !errors.Is(err, ErrNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoLiquidity)
 	}
 
 	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)

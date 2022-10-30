@@ -126,7 +126,7 @@ func (b *Base) findAmount(priceTarget float64, buy bool) (*DeploymentAction, err
 	action := DeploymentAction{}
 	if buy {
 		if len(b.Asks) == 0 {
-			return nil, errNoLiquidity
+			return nil, ErrNoLiquidity
 		}
 		action.ReferencePrice = b.Asks[0].Price
 		if action.ReferencePrice > priceTarget {
@@ -148,7 +148,7 @@ func (b *Base) findAmount(priceTarget float64, buy bool) (*DeploymentAction, err
 	}
 
 	if len(b.Bids) == 0 {
-		return nil, errNoLiquidity
+		return nil, ErrNoLiquidity
 	}
 	action.ReferencePrice = b.Bids[0].Price
 	if action.ReferencePrice < priceTarget {
@@ -184,7 +184,7 @@ func (b *Base) buy(quote float64) (*DeploymentAction, error) {
 		return nil, errQuoteAmountInvalid
 	}
 	if len(b.Asks) == 0 {
-		return nil, errNoLiquidity
+		return nil, ErrNoLiquidity
 	}
 	action := &DeploymentAction{ReferencePrice: b.Asks[0].Price}
 	for x := range b.Asks {
@@ -224,7 +224,7 @@ func (b *Base) sell(base float64) (*DeploymentAction, error) {
 		return nil, errBaseAmountInvalid
 	}
 	if len(b.Bids) == 0 {
-		return nil, errNoLiquidity
+		return nil, ErrNoLiquidity
 	}
 	action := &DeploymentAction{ReferencePrice: b.Bids[0].Price}
 	for x := range b.Bids {
