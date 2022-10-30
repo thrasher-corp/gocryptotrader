@@ -191,7 +191,7 @@ func (z *ZB) Setup(exch *config.Exchange) error {
 	})
 }
 
-// Start starts the OKCoin go routine
+// Start starts the ZB go routine
 func (z *ZB) Start(wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)

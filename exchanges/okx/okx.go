@@ -414,7 +414,7 @@ func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam, a as
 		arg.OrderType != OkxOrderFOK &&
 		arg.OrderType != OkxOrderIOC &&
 		arg.OrderType != OkxOrderOptimalLimitIOC {
-		return nil, errInvalidOrderType
+		return nil, fmt.Errorf("%w %v", errInvalidOrderType, arg.OrderType)
 	}
 	if arg.Amount <= 0 {
 		return nil, errInvalidAmount
