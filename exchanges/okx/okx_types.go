@@ -382,7 +382,7 @@ type DeliveryEstimatedPrice struct {
 	Timestamp              time.Time  `json:"ts"`
 }
 
-// DiscountRate represents the discount rate amount, currency, and other discount related informations.
+// DiscountRate represents the discount rate amount, currency, and other discount related information.
 type DiscountRate struct {
 	Amount            string                 `json:"amt"`
 	Currency          string                 `json:"ccy"`
@@ -459,14 +459,14 @@ type PositionTiers struct {
 	Underlying                    string  `json:"uly"`
 }
 
-// InterestRateLoanQuotaBasic holds the basic Currency, loan,and interest rate informations.
+// InterestRateLoanQuotaBasic holds the basic Currency, loan,and interest rate information.
 type InterestRateLoanQuotaBasic struct {
 	Currency     string  `json:"ccy"`
 	LoanQuota    string  `json:"quota"`
 	InterestRate float64 `json:"rate,string"`
 }
 
-// InterestRateLoanQuotaItem holds the basic Currency, loan,interest rate, and other level and VIP related informations.
+// InterestRateLoanQuotaItem holds the basic Currency, loan,interest rate, and other level and VIP related information.
 type InterestRateLoanQuotaItem struct {
 	InterestRateLoanQuotaBasic
 	InterestRateDiscount float64 `json:"0.7,string"`
@@ -784,7 +784,7 @@ type TransactionDetail struct {
 	Timestamp             time.Time  `json:"ts"`
 }
 
-// AlgoOrderParams holds algo order informations.
+// AlgoOrderParams holds algo order information.
 type AlgoOrderParams struct {
 	InstrumentID string     `json:"instId"` // Required
 	TradeMode    string     `json:"tdMode"` // Required
@@ -849,7 +849,7 @@ type AlgoOrderCancelParams struct {
 	InstrumentID string `json:"instId"`
 }
 
-// AlgoOrderResponse holds algo order informations.
+// AlgoOrderResponse holds algo order information.
 type AlgoOrderResponse struct {
 	InstrumentType             asset.Item `json:"instType"`
 	InstrumentID               string     `json:"instId"`
@@ -1405,7 +1405,7 @@ type PositionMode struct {
 	PositionMode string `json:"posMode"` // "long_short_mode": long/short, only applicable to FUTURES/SWAP "net_mode": net
 }
 
-// SetLeverageInput represents set leverate request input
+// SetLeverageInput represents set leverage request input
 type SetLeverageInput struct {
 	Leverage     int    `json:"lever,string"`     // set leverage for isolated
 	MarginMode   string `json:"mgnMode"`          // Margin Mode "cross" and "isolated"
@@ -1704,7 +1704,7 @@ type ExecuteQuoteResponse struct {
 	Legs                  []OrderLeg `json:"legs"`
 }
 
-// OrderLeg represents legs information for both websocket and REST available Quote informations.
+// OrderLeg represents legs information for both websocket and REST available Quote information.
 type OrderLeg struct {
 	Price          string `json:"px"`
 	Size           string `json:"sz"`

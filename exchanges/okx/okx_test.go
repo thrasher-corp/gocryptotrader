@@ -354,7 +354,7 @@ func TestGetInsuranceFundInformation(t *testing.T) {
 		Underlying:     "BTC-USDT",
 		Limit:          2,
 	}); err != nil {
-		t.Error("Okx GetInsuranceFundInformations() error", err)
+		t.Error("Okx GetInsuranceFundInformation() error", err)
 	}
 }
 

@@ -1595,7 +1595,7 @@ func (ok *Okx) GetLightningDeposits(ctx context.Context, currency string, amount
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, lightningDepositsEPL, http.MethodGet, common.EncodeURLValues(lightningDeposit, params), nil, &resp, true)
 }
 
-// GetCurrencyDepositAddress returns the deposit address and related informations for the provided currency information.
+// GetCurrencyDepositAddress returns the deposit address and related information for the provided currency information.
 func (ok *Okx) GetCurrencyDepositAddress(ctx context.Context, currency string) ([]CurrencyDepositResponseItem, error) {
 	params := url.Values{}
 	if currency == "" {
@@ -3080,6 +3080,9 @@ func (ok *Okx) GetFundingOrderHistory(ctx context.Context, productID, protocolTy
 	if productID != "" {
 		params.Set("productId", productID)
 	}
+	if protocolType != "" {
+		params.Set("protocolType", protocolType)
+	}
 	if currency != "" {
 		params.Set("ccy", currency)
 	}
@@ -3772,7 +3775,7 @@ func (ok *Okx) GetPublicUnderlyings(ctx context.Context, instrumentType string) 
 	return nil, errUnderlyingsForSpecifiedInstTypeNofFound
 }
 
-// GetInsuranceFundInformation returns insurance fund balance informations.
+// GetInsuranceFundInformation returns insurance fund balance information.
 func (ok *Okx) GetInsuranceFundInformation(ctx context.Context, arg *InsuranceFundInformationRequestParams) (*InsuranceFundInformation, error) {
 	if arg == nil {
 		return nil, errNilArgument

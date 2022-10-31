@@ -703,30 +703,30 @@ func (ok *Okx) wsProcessIndexCandles(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		candle := stream.KlineData{
+		myCandle := stream.KlineData{
 			Pair:      pair,
 			Exchange:  ok.Name,
 			Timestamp: time.UnixMilli(timestamp),
 			Interval:  candleInterval,
 			AssetType: a,
 		}
-		candle.OpenPrice, err = strconv.ParseFloat(candlesData[1], 64)
+		myCandle.OpenPrice, err = strconv.ParseFloat(candlesData[1], 64)
 		if err != nil {
 			return err
 		}
-		candle.HighPrice, err = strconv.ParseFloat(candlesData[2], 64)
+		myCandle.HighPrice, err = strconv.ParseFloat(candlesData[2], 64)
 		if err != nil {
 			return err
 		}
-		candle.LowPrice, err = strconv.ParseFloat(candlesData[3], 64)
+		myCandle.LowPrice, err = strconv.ParseFloat(candlesData[3], 64)
 		if err != nil {
 			return err
 		}
-		candle.ClosePrice, err = strconv.ParseFloat(candlesData[4], 64)
+		myCandle.ClosePrice, err = strconv.ParseFloat(candlesData[4], 64)
 		if err != nil {
 			return err
 		}
-		ok.Websocket.DataHandler <- candle
+		ok.Websocket.DataHandler <- myCandle
 	}
 	return nil
 }
@@ -1110,34 +1110,34 @@ func (ok *Okx) wsProcessCandles(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		candle := stream.KlineData{
+		myCandle := stream.KlineData{
 			Pair:      pair,
 			Exchange:  ok.Name,
 			Timestamp: time.UnixMilli(timestamp),
 			Interval:  candleInterval,
 			AssetType: a,
 		}
-		candle.OpenPrice, err = strconv.ParseFloat(candlesItem[1], 64)
+		myCandle.OpenPrice, err = strconv.ParseFloat(candlesItem[1], 64)
 		if err != nil {
 			return err
 		}
-		candle.HighPrice, err = strconv.ParseFloat(candlesItem[2], 64)
+		myCandle.HighPrice, err = strconv.ParseFloat(candlesItem[2], 64)
 		if err != nil {
 			return err
 		}
-		candle.LowPrice, err = strconv.ParseFloat(candlesItem[3], 64)
+		myCandle.LowPrice, err = strconv.ParseFloat(candlesItem[3], 64)
 		if err != nil {
 			return err
 		}
-		candle.ClosePrice, err = strconv.ParseFloat(candlesItem[4], 64)
+		myCandle.ClosePrice, err = strconv.ParseFloat(candlesItem[4], 64)
 		if err != nil {
 			return err
 		}
-		candle.Volume, err = strconv.ParseFloat(candlesItem[5], 64)
+		myCandle.Volume, err = strconv.ParseFloat(candlesItem[5], 64)
 		if err != nil {
 			return err
 		}
-		ok.Websocket.DataHandler <- candle
+		ok.Websocket.DataHandler <- myCandle
 	}
 	return nil
 }

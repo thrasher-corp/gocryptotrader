@@ -921,15 +921,53 @@ func (ok *Okx) CancelAllOrders(ctx context.Context, orderCancellation *order.Can
 	cancelAllResponse := order.CancelAllResponse{
 		Status: map[string]string{},
 	}
-	myOrders, err := ok.GetOrderList(ctx, &OrderListRequestParams{})
+	myOrders, err := ok.GetOrderList(ctx, &OrderListRequestParams{
+		InstrumentType: func() string {
+			if orderCancellation.AssetType == asset.Spot || orderCancellation.AssetType == asset.Margin || orderCancellation.AssetType == asset.PerpetualSwap || orderCancellation.AssetType == asset.Futures || orderCancellation.AssetType == asset.Option {
+				return ok.GetInstrumentTypeFromAssetItem(orderCancellation.AssetType)
+			}
+			return ""
+		}(),
+		OrderType: func() string {
+			if oType, err := ok.OrderTypeString(orderCancellation.Type); err == nil {
+				return oType
+			}
+			return ""
+		}(),
+		InstrumentID: func() string {
+			if orderCancellation.Pair.IsPopulated() {
+				return orderCancellation.Pair.Upper().String()
+			}
+			return ""
+		}(),
+	})
 	if err != nil {
 		return cancelAllResponse, err
 	}
 	cancelAllOrdersRequestParams := make([]CancelOrderRequestParam, len(myOrders))
 	for x := range myOrders {
-		cancelAllOrdersRequestParams[x] = CancelOrderRequestParam{
-			OrderID:               myOrders[x].OrderID,
-			ClientSupplierOrderID: myOrders[x].ClientSupplierOrderID,
+		switch {
+		case orderCancellation.OrderID != "" || orderCancellation.ClientOrderID != "":
+			if myOrders[x].OrderID == orderCancellation.OrderID || myOrders[x].ClientSupplierOrderID == orderCancellation.ClientOrderID {
+				cancelAllOrdersRequestParams[x] = CancelOrderRequestParam{
+					OrderID:               myOrders[x].OrderID,
+					ClientSupplierOrderID: myOrders[x].ClientSupplierOrderID,
+				}
+				break
+			}
+		case orderCancellation.Side == order.Buy || orderCancellation.Side == order.Sell:
+			if myOrders[x].Side == order.Buy || myOrders[x].Side == order.Sell {
+				cancelAllOrdersRequestParams[x] = CancelOrderRequestParam{
+					OrderID:               myOrders[x].OrderID,
+					ClientSupplierOrderID: myOrders[x].ClientSupplierOrderID,
+				}
+				continue
+			}
+		default:
+			cancelAllOrdersRequestParams[x] = CancelOrderRequestParam{
+				OrderID:               myOrders[x].OrderID,
+				ClientSupplierOrderID: myOrders[x].ClientSupplierOrderID,
+			}
 		}
 	}
 	remaining := cancelAllOrdersRequestParams
