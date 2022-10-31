@@ -3,8 +3,6 @@ package twap
 import (
 	"context"
 	"errors"
-	"log"
-	"os"
 	"testing"
 	"time"
 
@@ -12,7 +10,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ftx"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -45,15 +42,14 @@ func (f *fake) GetOrderExecutionLimits(asset.Item, currency.Pair) (order.MinMaxL
 	return order.MinMaxLevel{MinAmount: 0.0001, MaxAmount: 1000}, nil
 }
 
-func TestMain(m *testing.M) {
-	_, err := orderbook.DeployDepth("fake", btcusd, asset.Spot)
-	if err != nil {
-		log.Fatal(err)
-	}
-	os.Exit(m.Run())
+func (f *fake) SubmitOrder(_ context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+	return s.DeriveSubmitResponse(Simulation)
 }
 
-func loadHoldingsState(freeQuote, freeBase float64) error {
+func loadHoldingsState(pair currency.Pair, freeQuote, freeBase float64) error {
+	if pair.IsEmpty() {
+		return errors.New("pair is empty")
+	}
 	return account.Process(
 		&account.Holdings{
 			Exchange: "fake",
@@ -62,11 +58,11 @@ func loadHoldingsState(freeQuote, freeBase float64) error {
 					AssetType: asset.Spot,
 					Currencies: []account.Balance{
 						{
-							CurrencyName:           currency.USD,
+							CurrencyName:           pair.Quote,
 							AvailableWithoutBorrow: freeQuote,
 						},
 						{
-							CurrencyName:           currency.BTC,
+							CurrencyName:           pair.Base,
 							AvailableWithoutBorrow: freeBase,
 							// TODO: Upgrade to allow for no balance loaded.
 						},
@@ -89,14 +85,15 @@ func TestNew(t *testing.T) {
 	tn := time.Now()
 
 	c := &Config{
-		Exchange: &fake{},
-		Pair:     currency.NewPair(currency.AAA, currency.WABI),
-		Asset:    asset.Futures,
-		Interval: kline.OneMin,
-		Start:    tn,
-		End:      tn.Add(time.Minute * 5),
-		Amount:   100001, // Quotation funding (USD)
-		Buy:      true,
+		Exchange:      &fake{},
+		Pair:          currency.NewPair(currency.AAA, currency.WABI),
+		Asset:         asset.Futures,
+		Interval:      kline.OneMin,
+		Start:         tn,
+		End:           tn.Add(time.Minute * 5),
+		Amount:        100001, // Quotation funding (USD)
+		Buy:           true,
+		RetryAttempts: 3,
 	}
 
 	_, err = New(context.Background(), c)
@@ -112,6 +109,10 @@ func TestNew(t *testing.T) {
 	}
 
 	c.Pair = btcusd
+	depth, err := orderbook.DeployDepth("fake", btcusd, asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 
 	failCtx := account.DeployCredentialsToContext(context.Background(), &account.Credentials{Key: "FAIL"})
 	_, err = New(failCtx, c)
@@ -119,7 +120,7 @@ func TestNew(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errTestCredsFail)
 	}
 
-	err = loadHoldingsState(0, 0)
+	err = loadHoldingsState(btcusd, 0, 0)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -130,7 +131,7 @@ func TestNew(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoBalanceFound)
 	}
 
-	err = loadHoldingsState(500, 0)
+	err = loadHoldingsState(btcusd, 500, 0)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -142,12 +143,19 @@ func TestNew(t *testing.T) {
 
 	c.FullAmount = true
 	c.Amount = 0
+	depth.LoadSnapshot(
+		[]orderbook.Item{{Amount: 10000000, Price: 99}},
+		[]orderbook.Item{{Amount: 10000000, Price: 100}},
+		0,
+		time.Time{},
+		true)
+
 	_, err = New(ctx, c)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	err = loadHoldingsState(0, 1)
+	err = loadHoldingsState(btcusd, 0, 1)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -159,32 +167,60 @@ func TestNew(t *testing.T) {
 	}
 }
 
-func TestGetTWAP(t *testing.T) {
+func TestStrategy_CheckAndSubmit(t *testing.T) {
 	t.Parallel()
-	_, err := New(context.Background(), nil)
-	if !errors.Is(err, errParamsAreNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errParamsAreNil)
+
+	var s *Strategy
+	err := s.checkAndSubmit(context.Background(), 0)
+	if !errors.Is(err, errStrategyIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errStrategyIsNil)
 	}
 
-	ctx := account.DeployCredentialsToContext(context.Background(),
-		&account.Credentials{Key: "smelly old man"})
+	pair := currency.NewPair(currency.B20, currency.F16)
 
-	twap, err := New(ctx, &Config{
-		Exchange:                &ftx.FTX{},
-		Pair:                    currency.NewPair(currency.BTC, currency.USD),
-		Asset:                   asset.Spot,
-		Start:                   time.Now(),
-		End:                     time.Now().AddDate(0, 0, 7),
-		Interval:                kline.OneDay,
-		Amount:                  100000,
-		Buy:                     true,
-		AllowTradingPastEndTime: true,
+	depth, err := orderbook.DeployDepth("fake", pair, asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	depth.LoadSnapshot(
+		[]orderbook.Item{{Amount: 10000000, Price: 99}},
+		[]orderbook.Item{{Amount: 10000000, Price: 100}},
+		0,
+		time.Time{},
+		true,
+	)
+
+	err = loadHoldingsState(pair, 500, 500)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	ctx := account.DeployCredentialsToContext(context.Background(), &account.Credentials{Key: "KEY"})
+
+	s, err = New(ctx, &Config{
+		Exchange:      &fake{},
+		Pair:          pair,
+		Asset:         asset.Spot,
+		Interval:      kline.OneMin,
+		Start:         time.Now(),
+		End:           time.Now().Add(time.Minute * 5),
+		Amount:        1,
+		Buy:           true,
+		Simulate:      true,
+		RetryAttempts: 3,
 	})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	if twap == nil {
-		t.Fatal("unexpected value")
+	err = s.checkAndSubmit(context.Background(), 0)
+	if !errors.Is(err, errInvalidAllocatedAmount) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidAllocatedAmount)
+	}
+
+	err = s.checkAndSubmit(context.Background(), 1)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 }

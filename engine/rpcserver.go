@@ -5614,6 +5614,8 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 		MaxNominalSlippage:      r.MaxNominalSlippage,
 		Buy:                     r.Buy,
 		MaxSpreadPercentage:     r.MaxSpreadPercentage,
+		RetryAttempts:           3,
+		CandleStickAligned:      true,
 	})
 	if err != nil {
 		return err

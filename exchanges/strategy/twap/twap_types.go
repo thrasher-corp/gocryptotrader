@@ -16,7 +16,7 @@ type Strategy struct {
 	*Config
 	Buying           *account.ProtectedBalance
 	Selling          *account.ProtectedBalance
-	Reporter         chan Report
+	Reporter         chan *Report
 	TradeInformation []OrderExecutionInformation
 
 	FullDeployment   float64
@@ -25,8 +25,8 @@ type Strategy struct {
 
 	orderbook *orderbook.Depth
 	wg        sync.WaitGroup
-	// shutdown  chan struct{}
-	// pause     chan struct{}
+	shutdown  chan struct{}
+	pause     chan struct{}
 	// running   bool
 	// paused    bool
 	// finished  bool
