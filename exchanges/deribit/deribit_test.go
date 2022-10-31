@@ -1619,6 +1619,100 @@ func TestPlatformStatsPushData(t *testing.T) {
 
 var quoteTickerPushDataJSON = `{	"params" : {"data" : {"timestamp" : 1550658624149,"instrument_name" : "BTC-PERPETUAL","best_bid_price" : 3914.97,"best_bid_amount" : 40,"best_ask_price" : 3996.61,"best_ask_amount" : 50},"channel" : "quote.BTC-PERPETUAL"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
 
+func TestQuotePushData(t *testing.T) {
+	t.Parallel()
+	if err := d.wsHandleData([]byte(quoteTickerPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var rfqPushDataJSON = `{"params" : {"data" : {"state" : true,"side" : null,"last_rfq_tstamp" : 1634816143836,"instrument_name" : "BTC-PERPETUAL","amount" : null	  },"channel" : "rfq.btc"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+
+func TestRFQPushData(t *testing.T) {
+	t.Parallel()
+	if err := d.wsHandleData([]byte(rfqPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var instrumentsTickerPushDataJSON = `{"params" : {"data" : {"timestamp" : 1623060194301,"stats" : {"volume_usd" : 284061480,"volume" : 7871.02139035,"price_change" : 0.7229,"low" : 35213.5,"high" : 36824.5},"state" : "open","settlement_price" : 36169.49,"open_interest" : 502097590,"min_price" : 35898.37,		"max_price" : 36991.72,		"mark_price" : 36446.51,		"last_price" : 36457.5,		"interest_value" : 1.7362511643080387,		"instrument_name" : "BTC-PERPETUAL",		"index_price" : 36441.64,		"funding_8h" : 0.0000211,		"estimated_delivery_price" : 36441.64,		"current_funding" : 0,		"best_bid_price" : 36442.5,		"best_bid_amount" : 5000,		"best_ask_price" : 36443,		"best_ask_amount" : 100	  },	  "channel" : "ticker.BTC-PERPETUAL.raw"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+
+func TestInstrumentsTickerPushData(t *testing.T) {
+	t.Parallel()
+	if err := d.wsHandleData([]byte(instrumentsTickerPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var instrumentTradesPushDataJSON = `{"params" : {"data" : [{"trade_seq" : 30289442,"trade_id" : "48079269","timestamp" : 1590484512188,"tick_direction" : 2,"price" : 8950,"mark_price" : 8948.9,"instrument_name" : "BTC-PERPETUAL","index_price" : 8955.88,"direction" : "sell","amount" : 10}],"channel" : "trades.BTC-PERPETUAL.raw"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+var currencyTradesPushDataJSON = `{	"params" : {"data" : [{"trade_seq" : 2,"trade_id" : "48079289","timestamp" : 1590484589306,"tick_direction" : 2,"price" : 0.0075,"mark_price" : 0.01062686,"iv" : 47.58,"instrument_name" : "BTC-27MAY20-9000-C",		  "index_price" : 8956.17,"direction" : "sell","amount" : 3}],"channel" : "trades.option.BTC.raw"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+
+func TestInstrumentTradesPushData(t *testing.T) {
+	t.Parallel()
+	if err := d.wsHandleData([]byte(instrumentTradesPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+	if err := d.wsHandleData([]byte(currencyTradesPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var changeUpdatesPushDataJSON = `{"params" : {"data" : {"trades" : [{"trade_seq" : 866638,"trade_id" : "1430914","timestamp" : 1605780344032,"tick_direction" : 1,"state" : "filled","self_trade" : false,"reduce_only" : false,"profit_loss" : 0.00004898,"price" : 17391,"post_only" : false,"order_type" : "market",			"order_id" : "3398016",			"matching_id" : null,			"mark_price" : 17391,			"liquidity" : "T",			"instrument_name" : "BTC-PERPETUAL",			"index_price" : 17501.88,			"fee_currency" : "BTC",			"fee" : 1.6e-7,			"direction" : "sell",			"amount" : 10		  }		],		"positions" : [		  {			"total_profit_loss" : 1.69711368,			"size_currency" : 10.646886321,			"size" : 185160,			"settlement_price" : 16025.83,			"realized_profit_loss" : 0.012454598,			"realized_funding" : 0.01235663,			"open_orders_margin" : 0,			"mark_price" : 17391,			"maintenance_margin" : 0.234575865,			"leverage" : 33,			"kind" : "future",			"interest_value" : 1.7362511643080387,			"instrument_name" : "BTC-PERPETUAL",			"initial_margin" : 0.319750953,			"index_price" : 17501.88,			"floating_profit_loss" : 0.906961435,			"direction" : "buy",			"delta" : 10.646886321,			"average_price" : 15000		  }		],		"orders" : [		  {			"web" : true,			"time_in_force" : "good_til_cancelled",			"replaced" : false,			"reduce_only" : false,			"profit_loss" : 0.00009166,			"price" : 15665.5,			"post_only" : false,			"order_type" : "market",			"order_state" : "filled",			"order_id" : "3398016",			"max_show" : 10,			"last_update_timestamp" : 1605780344032,			"label" : "",			"is_liquidation" : false,			"instrument_name" : "BTC-PERPETUAL",			"filled_amount" : 10,			"direction" : "sell",			"creation_timestamp" : 1605780344032,			"commission" : 1.6e-7,			"average_price" : 17391,			"api" : false,			"amount" : 10		  }		],		"instrument_name" : "BTC-PERPETUAL"	  },	  "channel" : "user.changes.BTC-PERPETUAL.raw"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+var currencyChangesUpdatesPushDataJSON = `{"params" : {"data" : {"trades" : [{"trade_seq" : 866638,"trade_id" : "1430914","timestamp" : 1605780344032,"tick_direction" : 1,"state" : "filled","self_trade" : false,"reduce_only" : false,"profit_loss" : 0.00004898,"price" : 17391,"post_only" : false,"order_type" : "market","order_id" : "3398016",			"matching_id" : null,			"mark_price" : 17391,			"liquidity" : "T",			"instrument_name" : "BTC-PERPETUAL",			"index_price" : 17501.88,			"fee_currency" : "BTC",			"fee" : 1.6e-7,			"direction" : "sell",			"amount" : 10		  }		],		"positions" : [		  {			"total_profit_loss" : 1.69711368,			"size_currency" : 10.646886321,			"size" : 185160,			"settlement_price" : 16025.83,			"realized_profit_loss" : 0.012454598,			"realized_funding" : 0.01235663,			"open_orders_margin" : 0,			"mark_price" : 17391,			"maintenance_margin" : 0.234575865,			"leverage" : 33,			"kind" : "future",			"interest_value" : 1.7362511643080387,			"instrument_name" : "BTC-PERPETUAL",			"initial_margin" : 0.319750953,			"index_price" : 17501.88,			"floating_profit_loss" : 0.906961435,			"direction" : "buy",			"delta" : 10.646886321,			"average_price" : 15000		  }		],		"orders" : [		  {			"web" : true,			"time_in_force" : "good_til_cancelled",			"replaced" : false,			"reduce_only" : false,			"profit_loss" : 0.00009166,			"price" : 15665.5,			"post_only" : false,			"order_type" : "market",			"order_state" : "filled",			"order_id" : "3398016",			"max_show" : 10,			"last_update_timestamp" : 1605780344032,			"label" : "",			"is_liquidation" : false,			"instrument_name" : "BTC-PERPETUAL",			"filled_amount" : 10,			"direction" : "sell",			"creation_timestamp" : 1605780344032,			"commission" : 1.6e-7,			"average_price" : 17391,			"api" : false,			"amount" : 10		  }		],		"instrument_name" : "BTC-PERPETUAL"	  },	  "channel" : "user.changes.future.BTC.raw"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+
+func TestChangeUpdatesPushData(t *testing.T) {
+	t.Parallel()
+	if err := d.wsHandleData([]byte(changeUpdatesPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+	if err := d.wsHandleData([]byte(currencyChangesUpdatesPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var userOrdersRawInstrumentPushDataJSON = `{	"params" : {	  "data" : {		"time_in_force" : "good_til_cancelled",		"replaced" : false,		"reduce_only" : false,		"profit_loss" : 0,		"price" : 10502.52,		"post_only" : false,		"original_order_type" : "market",		"order_type" : "limit",		"order_state" : "open",		"order_id" : "5",		"max_show" : 200,		"last_update_timestamp" : 1581507423789,		"label" : "",		"is_liquidation" : false,		"instrument_name" : "BTC-PERPETUAL",		"filled_amount" : 0,		"direction" : "buy",		"creation_timestamp" : 1581507423789,		"commission" : 0,		"average_price" : 0,		"api" : false,		"amount" : 200	  },	  "channel" : "user.orders.BTC-PERPETUAL.raw"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+var userOrdersByInstrumentWithIntervalPushDataJSON = `{	"params" : {	  "data" : [		{		  "time_in_force" : "good_til_cancelled","replaced" : false,		  "reduce_only" : false,		  "profit_loss" : 0,		  "price" : 10460.43,		  "post_only" : false,		  "original_order_type" : "market",		  "order_type" : "limit",		  "order_state" : "open",		  "order_id" : "4",		  "max_show" : 200,		  "last_update_timestamp" : 1581507159533,		  "label" : "",		  "is_liquidation" : false,		  "instrument_name" : "BTC-PERPETUAL",		  "filled_amount" : 0,		  "direction" : "buy",		  "creation_timestamp" : 1581507159533,		  "commission" : 0,		  "average_price" : 0,		  "api" : false,		  "amount" : 200		}	  ],	  "channel" : "user.orders.BTC-PERPETUAL.100ms"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+var userOrderByCurrencyRawPushDataJSON = `{	"params" : {	  "data" : {		"time_in_force" : "good_til_cancelled",		"replaced" : false,"reduce_only" : false,		"profit_loss" : 0,		"price" : 10542.68,		"post_only" : false,		"original_order_type" : "market",		"order_type" : "limit",		"order_state" : "open",		"order_id" : "6",		"max_show" : 200,		"last_update_timestamp" : 1581507583024,		"label" : "",		"is_liquidation" : false,		"instrument_name" : "BTC-PERPETUAL",		"filled_amount" : 0,		"direction" : "buy",		"creation_timestamp" : 1581507583024,		"commission" : 0,		"average_price" : 0,		"api" : false,		"amount" : 200	  },	  "channel" : "user.orders.any.any.raw"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+var userOrderByCurrencyWithIntervalPushDataJSON = `{"params" : {"data" : [{"time_in_force" : "good_til_cancelled","reduce_only" : false,		  "profit_loss" : 0,		  "price" : 3928.5,		  "post_only" : false,		  "order_type" : "limit",		  "order_state" : "open",		  "order_id" : "476137",		  "max_show" : 120,		  "last_update_timestamp" : 1550826337209,		  "label" : "",		  "is_liquidation" : false,		  "instrument_name" : "BTC-PERPETUAL",		  "filled_amount" : 0,		  "direction" : "buy",		  "creation_timestamp" : 1550826337209,		  "commission" : 0,		  "average_price" : 0,		  "api" : false,		  "amount" : 120		}	  ],	  "channel" : "user.orders.future.BTC.100ms"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+
+func TestUserOrdersPushData(t *testing.T) {
+	t.Parallel()
+	if err := d.wsHandleData([]byte(userOrdersRawInstrumentPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+	if err := d.wsHandleData([]byte(userOrdersByInstrumentWithIntervalPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+	if err := d.wsHandleData([]byte(userOrderByCurrencyRawPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+	if err := d.wsHandleData([]byte(userOrderByCurrencyWithIntervalPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var userPortfolioPushDataJSON = `{	"params" : {	  "data" : {		"total_pl" : 0.00000425,		"session_upl" : 0.00000425,		"session_rpl" : -2e-8,		"projected_maintenance_margin" : 0.00009141,		"projected_initial_margin" : 0.00012542,		"projected_delta_total" : 0.0043,		"portfolio_margining_enabled" : false,		"options_vega" : 0,		"options_value" : 0,		"options_theta" : 0,		"options_session_upl" : 0,		"options_session_rpl" : 0,		"options_pl" : 0,		"options_gamma" : 0,		"options_delta" : 0,		"margin_balance" : 0.2340038,		"maintenance_margin" : 0.00009141,		"initial_margin" : 0.00012542,		"futures_session_upl" : 0.00000425,		"futures_session_rpl" : -2e-8,		"futures_pl" : 0.00000425,		"estimated_liquidation_ratio" : 0.01822795,		"equity" : 0.2340038,		"delta_total" : 0.0043,		"currency" : "BTC",		"balance" : 0.23399957,		"available_withdrawal_funds" : 0.23387415,		"available_funds" : 0.23387838	  },	  "channel" : "user.portfolio.btc"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+
+func TestUserPortfolioPushData(t *testing.T) {
+	t.Parallel()
+	if err := d.wsHandleData([]byte(userPortfolioPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var userTradesPushDataJSON = `{	"params" : {	  "data" : [		{		  "trade_seq" : 30289432,		  "trade_id" : "48079254",		  "timestamp" : 1590484156350,		  "tick_direction" : 0,		  "state" : "filled",		  "self_trade" : false,		  "reduce_only" : false,		  "price" : 8954,		  "post_only" : false,		  "order_type" : "market",		  "order_id" : "4008965646",		  "matching_id" : null,		  "mark_price" : 8952.86,		  "liquidity" : "T",		  "instrument_name" : "BTC-PERPETUAL",		  "index_price" : 8956.73,		  "fee_currency" : "BTC",		  "fee" : 0.00000168,		  "direction" : "sell",		  "amount" : 20		},		{		  "trade_seq" : 30289433,		  "trade_id" : "48079255",		  "timestamp" : 1590484156350,		  "tick_direction" : 1,		  "state" : "filled",		  "self_trade" : false,		  "reduce_only" : false,		  "price" : 8954,		  "post_only" : false,		  "order_type" : "market",		  "order_id" : "4008965646",		  "matching_id" : null,		  "mark_price" : 8952.86,		  "liquidity" : "T",		  "instrument_name" : "BTC-PERPETUAL",		  "index_price" : 8956.73,		  "fee_currency" : "BTC",		  "fee" : 0.00000168,		  "direction" : "sell",		  "amount" : 20		}	  ],	  "channel" : "user.trades.BTC-PERPETUAL.raw"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+var userTradesWithCurrencyPushDataJSON = `{	"params" : {	  "data" : [		{		  "trade_seq" : 74405,		  "trade_id" : "48079262",		  "timestamp" : 1590484255886,		  "tick_direction" : 2,		  "state" : "filled",		  "self_trade" : false,		  "reduce_only" : false,		  "price" : 8947,		  "post_only" : false,		  "order_type" : "limit",		  "order_id" : "4008978075",		  "matching_id" : null,		  "mark_price" : 8970.03,		  "liquidity" : "T",		  "instrument_name" : "BTC-25SEP20",		  "index_price" : 8953.53,		  "fee_currency" : "BTC",		  "fee" : 0.00049961,		  "direction" : "sell",		  "amount" : 8940		}	  ],	  "channel" : "user.trades.future.BTC.100ms"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+
+func TestUserTradesPushData(t *testing.T) {
+	t.Parallel()
+	if err := d.wsHandleData([]byte(userTradesPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+	if err := d.wsHandleData([]byte(userTradesWithCurrencyPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
 func TestQuoteTickerPushData(t *testing.T) {
 	t.Parallel()
 	if err := d.wsHandleData([]byte(quoteTickerPushDataJSON)); err != nil {

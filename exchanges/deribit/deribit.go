@@ -2442,7 +2442,7 @@ func (d *Deribit) MovePositions(ctx context.Context, currency string, sourceSubA
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet, movePositions, params, &resp)
 }
 
-// GetAssetKind represents the asset type (kind) string representation.
+// GetAssetKind returns the asset type (kind) string representation.
 func (d *Deribit) GetAssetKind(assetType asset.Item) string {
 	switch assetType {
 	case asset.Options:
@@ -2453,6 +2453,21 @@ func (d *Deribit) GetAssetKind(assetType asset.Item) string {
 		return assetType.String()
 	default:
 		return "any"
+	}
+}
+
+// StringToAssetKind returns the asset type (kind) from a string representation.
+func (d *Deribit) StringToAssetKind(assetType string) (asset.Item, error) {
+	assetType = strings.ToLower(assetType)
+	switch assetType {
+	case "option":
+		return asset.Options, nil
+	case "future":
+		return asset.Futures, nil
+	case "any":
+		return asset.Empty, nil
+	default:
+		return asset.New(assetType)
 	}
 }
 

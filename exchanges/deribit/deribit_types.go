@@ -1105,8 +1105,8 @@ type wsEstimatedExpirationPrice struct {
 	IsEstimated bool    `json:"is_estimated"`
 }
 
-// wsIncrementalTicker represents changes in instrument ticker (key information about the instrument).
-type wsIncrementalTicker struct {
+// wsTicker represents changes in ticker (key information about the instrument).
+type wsTicker struct {
 	Timestamp int64 `json:"timestamp"`
 	Stats     struct {
 		VolumeUsd   float64 `json:"volume_usd"`
@@ -1122,6 +1122,7 @@ type wsIncrementalTicker struct {
 	MaxPrice               float64 `json:"max_price"`
 	MarkPrice              float64 `json:"mark_price"`
 	LastPrice              float64 `json:"last_price"`
+	InterestValue          float64 `json:"interest_value"`
 	InstrumentName         string  `json:"instrument_name"`
 	IndexPrice             float64 `json:"index_price"`
 	Funding8H              float64 `json:"funding_8h"`
@@ -1168,4 +1169,183 @@ type wsQuoteTickerInformation struct {
 	BestBidAmount  float64 `json:"best_bid_amount"`
 	BestAskPrice   float64 `json:"best_ask_price"`
 	BestAskAmount  float64 `json:"best_ask_amount"`
+}
+
+// wsRFQ represents a notifications about RFQs for instruments in given currency.
+type wsRFQ struct {
+	State          bool        `json:"state"`
+	Side           interface{} `json:"side"`
+	LastRfqTstamp  int64       `json:"last_rfq_tstamp"`
+	InstrumentName string      `json:"instrument_name"`
+	Amount         interface{} `json:"amount"`
+}
+
+// wsTrade represents trades for an instrument.
+type wsTrade struct {
+	TradeSeq       int     `json:"trade_seq"`
+	TradeID        string  `json:"trade_id"`
+	Timestamp      int64   `json:"timestamp"`
+	TickDirection  float64 `json:"tick_direction"`
+	Price          float64 `json:"price"`
+	MarkPrice      float64 `json:"mark_price"`
+	InstrumentName string  `json:"instrument_name"`
+	IndexPrice     float64 `json:"index_price"`
+	Direction      string  `json:"direction"`
+	Amount         float64 `json:"amount"`
+}
+
+// wsAccessLog represents security events related to the account
+type wsAccessLog struct {
+	Timestamp int64  `json:"timestamp"`
+	Log       string `json:"log"`
+	IP        string `json:"ip"`
+	ID        int64  `json:"id"`
+	Country   string `json:"country"`
+	City      string `json:"city"`
+}
+
+// wsChanges represents user's updates related to order, trades, etc. in an instrument.
+type wsChanges struct {
+	Trades []struct {
+		TradeSeq       float64     `json:"trade_seq"`
+		TradeID        string      `json:"trade_id"`
+		Timestamp      int64       `json:"timestamp"`
+		TickDirection  float64     `json:"tick_direction"`
+		State          string      `json:"state"`
+		SelfTrade      bool        `json:"self_trade"`
+		ReduceOnly     bool        `json:"reduce_only"`
+		ProfitLoss     float64     `json:"profit_loss"`
+		Price          float64     `json:"price"`
+		PostOnly       bool        `json:"post_only"`
+		OrderType      string      `json:"order_type"`
+		OrderID        string      `json:"order_id"`
+		MatchingID     interface{} `json:"matching_id"`
+		MarkPrice      float64     `json:"mark_price"`
+		Liquidity      string      `json:"liquidity"`
+		InstrumentName string      `json:"instrument_name"`
+		IndexPrice     float64     `json:"index_price"`
+		FeeCurrency    string      `json:"fee_currency"`
+		Fee            float64     `json:"fee"`
+		Direction      string      `json:"direction"`
+		Amount         float64     `json:"amount"`
+	} `json:"trades"`
+	Positions []WebsocketPosition `json:"positions"`
+	Orders    []struct {
+		Web                 bool    `json:"web"`
+		TimeInForce         string  `json:"time_in_force"`
+		Replaced            bool    `json:"replaced"`
+		ReduceOnly          bool    `json:"reduce_only"`
+		ProfitLoss          float64 `json:"profit_loss"`
+		Price               float64 `json:"price"`
+		PostOnly            bool    `json:"post_only"`
+		OrderType           string  `json:"order_type"`
+		OrderState          string  `json:"order_state"`
+		OrderID             string  `json:"order_id"`
+		MaxShow             float64 `json:"max_show"`
+		LastUpdateTimestamp int64   `json:"last_update_timestamp"`
+		Label               string  `json:"label"`
+		IsLiquidation       bool    `json:"is_liquidation"`
+		InstrumentName      string  `json:"instrument_name"`
+		FilledAmount        float64 `json:"filled_amount"`
+		Direction           string  `json:"direction"`
+		CreationTimestamp   int64   `json:"creation_timestamp"`
+		Commission          float64 `json:"commission"`
+		AveragePrice        float64 `json:"average_price"`
+		API                 bool    `json:"api"`
+		Amount              float64 `json:"amount"`
+	} `json:"orders"`
+	InstrumentName string `json:"instrument_name"`
+}
+
+// WebsocketPosition holds position information
+type WebsocketPosition struct {
+	TotalProfitLoss    float64 `json:"total_profit_loss"`
+	SizeCurrency       float64 `json:"size_currency"`
+	Size               float64 `json:"size"`
+	SettlementPrice    float64 `json:"settlement_price"`
+	RealizedProfitLoss float64 `json:"realized_profit_loss"`
+	RealizedFunding    float64 `json:"realized_funding"`
+	OpenOrdersMargin   float64 `json:"open_orders_margin"`
+	MarkPrice          float64 `json:"mark_price"`
+	MaintenanceMargin  float64 `json:"maintenance_margin"`
+	Leverage           float64 `json:"leverage"`
+	Kind               string  `json:"kind"`
+	InterestValue      float64 `json:"interest_value"`
+	InstrumentName     string  `json:"instrument_name"`
+	InitialMargin      float64 `json:"initial_margin"`
+	IndexPrice         float64 `json:"index_price"`
+	FloatingProfitLoss float64 `json:"floating_profit_loss"`
+	Direction          string  `json:"direction"`
+	Delta              float64 `json:"delta"`
+	AveragePrice       float64 `json:"average_price"`
+}
+
+// WsUserLock represents a notificiation data when account is locked/unlocked
+type WsUserLock struct {
+	Locked   bool   `json:"locked"`
+	Currency string `json:"currency"`
+}
+
+// WsMMPTrigger represents mmp trigger data.
+type WsMMPTrigger struct {
+	FrozenUntil int64  `json:"frozen_until"`
+	Currency    string `json:"currency"`
+}
+
+// WsOrder represents changes in user's orders for given instrument.
+type WsOrder struct {
+	TimeInForce         string  `json:"time_in_force"`
+	Replaced            bool    `json:"replaced"`
+	ReduceOnly          bool    `json:"reduce_only"`
+	ProfitLoss          float64 `json:"profit_loss"`
+	Price               float64 `json:"price"`
+	PostOnly            bool    `json:"post_only"`
+	OriginalOrderType   string  `json:"original_order_type"`
+	OrderType           string  `json:"order_type"`
+	OrderState          string  `json:"order_state"`
+	OrderID             string  `json:"order_id"`
+	MaxShow             float64 `json:"max_show"`
+	LastUpdateTimestamp int64   `json:"last_update_timestamp"`
+	Label               string  `json:"label"`
+	IsLiquidation       bool    `json:"is_liquidation"`
+	InstrumentName      string  `json:"instrument_name"`
+	FilledAmount        float64 `json:"filled_amount"`
+	Direction           string  `json:"direction"`
+	CreationTimestamp   int64   `json:"creation_timestamp"`
+	Commission          float64 `json:"commission"`
+	AveragePrice        float64 `json:"average_price"`
+	API                 bool    `json:"api"`
+	Amount              float64 `json:"amount"`
+}
+
+// wsUserPortfolio represents current user portfolio
+type wsUserPortfolio struct {
+	TotalPl                    float64 `json:"total_pl"`
+	SessionUpl                 float64 `json:"session_upl"`
+	SessionRpl                 float64 `json:"session_rpl"`
+	ProjectedMaintenanceMargin float64 `json:"projected_maintenance_margin"`
+	ProjectedInitialMargin     float64 `json:"projected_initial_margin"`
+	ProjectedDeltaTotal        float64 `json:"projected_delta_total"`
+	PortfolioMarginingEnabled  bool    `json:"portfolio_margining_enabled"`
+	OptionsVega                int     `json:"options_vega"`
+	OptionsValue               int     `json:"options_value"`
+	OptionsTheta               int     `json:"options_theta"`
+	OptionsSessionUpl          int     `json:"options_session_upl"`
+	OptionsSessionRpl          int     `json:"options_session_rpl"`
+	OptionsPl                  int     `json:"options_pl"`
+	OptionsGamma               int     `json:"options_gamma"`
+	OptionsDelta               int     `json:"options_delta"`
+	MarginBalance              float64 `json:"margin_balance"`
+	MaintenanceMargin          float64 `json:"maintenance_margin"`
+	InitialMargin              float64 `json:"initial_margin"`
+	FuturesSessionUpl          float64 `json:"futures_session_upl"`
+	FuturesSessionRpl          float64 `json:"futures_session_rpl"`
+	FuturesPl                  float64 `json:"futures_pl"`
+	EstimatedLiquidationRatio  float64 `json:"estimated_liquidation_ratio"`
+	Equity                     float64 `json:"equity"`
+	DeltaTotal                 float64 `json:"delta_total"`
+	Currency                   string  `json:"currency"`
+	Balance                    float64 `json:"balance"`
+	AvailableWithdrawalFunds   float64 `json:"available_withdrawal_funds"`
+	AvailableFunds             float64 `json:"available_funds"`
 }

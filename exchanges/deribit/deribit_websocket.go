@@ -14,9 +14,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -246,43 +248,193 @@ func (d *Deribit) wsHandleData(respRaw []byte) error {
 	case "quote": // Quote ticker information.
 		return d.processQuoteTicker(respRaw, channels)
 	case "rfq":
-		fallthrough
+		rfq := &wsRFQ{}
+		return d.processData(respRaw, rfq)
 	case "ticker":
-		fallthrough
+		return d.processInstrumentTicker(respRaw, channels)
 	case "trades":
-		fallthrough
+		return d.processTrades(respRaw, channels)
 	case "user":
 		switch channels[1] {
 		case "access_log":
-			fallthrough
-			//
+			accessLog := &wsAccessLog{}
+			return d.processData(respRaw, accessLog)
 		case "changes":
-			fallthrough
-			//
+			return d.processChanges(respRaw, channels)
 		case "lock":
-			fallthrough
-			//
+			userLock := &WsUserLock{}
+			return d.processData(respRaw, userLock)
 		case "mmp_trigger":
-			fallthrough
-			//
-		case "orders":
-
-			if len(channels) == 4 {
-
-			} else if len(channels) == 5 {
-
+			data := &WsMMPTrigger{
+				Currency: channels[2],
 			}
-			fallthrough
+			return d.processData(respRaw, data)
+		case "orders":
+			return d.processOrders(respRaw, channels)
 		case "portfolio":
-			fallthrough
+			portfolio := &wsUserPortfolio{}
+			return d.processData(respRaw, portfolio)
 		case "trades":
-			return errIntervalNotSupported
-			//
+			return d.processTrades(respRaw, channels)
+		default:
+			d.Websocket.DataHandler <- stream.UnhandledMessageWarning{
+				Message: d.Name + stream.UnhandledMessage + string(respRaw),
+			}
+			return nil
 		}
 	default:
-		return errors.New("unhandled channel")
+		d.Websocket.DataHandler <- stream.UnhandledMessageWarning{
+			Message: d.Name + stream.UnhandledMessage + string(respRaw),
+		}
+		return nil
 	}
-	return errors.New("sdkfjadkfjaklj")
+	return nil
+}
+
+func (d *Deribit) processOrders(respRaw []byte, channels []string) error {
+	var currencyPair currency.Pair
+	a := asset.Futures
+	var err error
+	switch len(channels) {
+	case 4:
+		currencyPair, err = currency.NewPairFromString(channels[2])
+		if err != nil {
+			return err
+		}
+	case 5:
+		a, err = d.StringToAssetKind(channels[2])
+		if err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("%w, expected format 'user.orders.{instrument_name}.raw, user.orders.{instrument_name}.{interval}, user.orders.{kind}.{currency}.raw, or user.orders.{kind}.{currency}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
+	}
+	var response WsResponse
+	orderData := []WsOrder{}
+	response.Params.Data = orderData
+	err = json.Unmarshal(respRaw, &response)
+	if err != nil {
+		return err
+	}
+	for x := range orderData {
+		oType, err := order.StringToOrderType(orderData[x].OrderType)
+		if err != nil {
+			return err
+		}
+		side, err := order.StringToOrderSide(orderData[x].Direction)
+		if err != nil {
+			return err
+		}
+		status, err := order.StringToOrderStatus(orderData[x].OrderState)
+		if err != nil {
+			return err
+		}
+		if a != asset.Empty {
+			currencyPair, err = currency.NewPairFromString(orderData[x].InstrumentName)
+		}
+		d.Websocket.DataHandler <- order.Detail{
+			Price:           orderData[x].Price,
+			Amount:          orderData[x].Amount,
+			ExecutedAmount:  orderData[x].FilledAmount,
+			RemainingAmount: orderData[x].Amount - orderData[x].FilledAmount,
+			Exchange:        d.Name,
+			OrderID:         orderData[x].OrderID,
+			Type:            oType,
+			Side:            side,
+			Status:          status,
+			AssetType:       a,
+			Date:            time.UnixMilli(orderData[x].CreationTimestamp),
+			LastUpdated:     time.UnixMilli(orderData[x].LastUpdateTimestamp),
+			Pair:            currencyPair,
+		}
+	}
+	return nil
+}
+
+func (d *Deribit) processChanges(respRaw []byte, channels []string) error {
+	var response WsResponse
+	changeData := &wsChanges{}
+	response.Params.Data = changeData
+	err := json.Unmarshal(respRaw, &response)
+	if err != nil {
+		return err
+	}
+	var currencyPair currency.Pair
+	a := asset.Futures
+	switch len(channels) {
+	case 4:
+		currencyPair, err = currency.NewPairFromString(channels[2])
+		if err != nil {
+			return err
+		}
+	case 5:
+		a, err = d.StringToAssetKind(channels[2])
+		if err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("%w, expected format 'trades.{instrument_name}.{interval} or trades.{kind}.{currency}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
+	}
+	tradeDatas := make([]trade.Data, len(changeData.Trades))
+	for x := range changeData.Trades {
+		side, err := order.StringToOrderSide(changeData.Trades[x].Direction)
+		if err != nil {
+			return err
+		}
+		if a != asset.Empty {
+			currencyPair, err = currency.NewPairFromString(changeData.Trades[x].InstrumentName)
+		}
+		tradeDatas[x] = trade.Data{
+			CurrencyPair: currencyPair,
+			Exchange:     d.Name,
+			Timestamp:    time.UnixMilli(changeData.Trades[x].Timestamp),
+			Price:        changeData.Trades[x].Price,
+			Amount:       changeData.Trades[x].Amount,
+			Side:         side,
+			TID:          changeData.Trades[x].TradeID,
+			AssetType:    a,
+		}
+		err = trade.AddTradesToBuffer(d.Name, tradeDatas...)
+		if err != nil {
+			return err
+		}
+	}
+	orders := make([]order.Detail, len(changeData.Orders))
+	for x := range orders {
+		oType, err := order.StringToOrderType(changeData.Orders[x].OrderType)
+		if err != nil {
+			return err
+		}
+		side, err := order.StringToOrderSide(changeData.Orders[x].Direction)
+		if err != nil {
+			return err
+		}
+		status, err := order.StringToOrderStatus(changeData.Orders[x].OrderState)
+		if err != nil {
+			return err
+		}
+		if a != asset.Empty {
+			currencyPair, err = currency.NewPairFromString(changeData.Orders[x].InstrumentName)
+		}
+		d.Websocket.DataHandler <- order.Detail{
+			Price:           changeData.Orders[x].Price,
+			Amount:          changeData.Orders[x].Amount,
+			ExecutedAmount:  changeData.Orders[x].FilledAmount,
+			RemainingAmount: changeData.Orders[x].Amount - changeData.Orders[x].FilledAmount,
+			Exchange:        d.Name,
+			OrderID:         changeData.Orders[x].OrderID,
+			Type:            oType,
+			Side:            side,
+			Status:          status,
+			AssetType:       a,
+			Date:            time.UnixMilli(changeData.Orders[x].CreationTimestamp),
+			LastUpdated:     time.UnixMilli(changeData.Orders[x].LastUpdateTimestamp),
+			Pair:            currencyPair,
+			//  bybit_websocket.go L453
+		}
+	}
+	d.Websocket.DataHandler <- changeData.Positions
+	return nil
 }
 
 func (d *Deribit) processQuoteTicker(respRaw []byte, channels []string) error {
@@ -310,16 +462,76 @@ func (d *Deribit) processQuoteTicker(respRaw []byte, channels []string) error {
 	return nil
 }
 
+func (d *Deribit) processTrades(respRaw []byte, channels []string) error {
+	var err error
+	var currencyPair currency.Pair
+	a := asset.Futures
+	switch {
+	case (len(channels) == 3 && channels[0] == "trades") || (len(channels) == 4 && channels[0] == "user"):
+		currencyPair, err = currency.NewPairFromString(channels[len(channels)-2])
+		if err != nil {
+			return err
+		}
+	case (len(channels) == 4 && channels[0] == "trades") || (len(channels) == 5 && channels[0] == "user"):
+		a, err = d.StringToAssetKind(channels[len(channels)-3])
+		if err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("%w, expected format 'trades.{instrument_name}.{interval} or trades.{kind}.{currency}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
+	}
+	var response WsResponse
+	tradeList := []wsTrade{}
+	response.Params.Data = tradeList
+	err = json.Unmarshal(respRaw, &response)
+	if err != nil {
+		return err
+	}
+
+	tradeDatas := make([]trade.Data, len(tradeList))
+	for x := range tradeDatas {
+		side, err := order.StringToOrderSide(tradeList[x].Direction)
+		if err != nil {
+			return err
+		}
+		if a != asset.Empty {
+			currencyPair, err = currency.NewPairFromString(tradeList[x].InstrumentName)
+		}
+		tradeDatas[x] = trade.Data{
+			CurrencyPair: currencyPair,
+			Exchange:     d.Name,
+			Timestamp:    time.UnixMilli(tradeList[x].Timestamp),
+			Price:        tradeList[x].Price,
+			Amount:       tradeList[x].Amount,
+			Side:         side,
+			TID:          tradeList[x].TradeID,
+			AssetType:    a,
+		}
+	}
+	return trade.AddTradesToBuffer(d.Name, tradeDatas...)
+}
+
 func (d *Deribit) processIncrementalTicker(respRaw []byte, channels []string) error {
 	if len(channels) != 2 {
-		return fmt.Errorf("%w, expected format 'chart.trades.{instrument_name}.{resolution}', but found %s", errMalformedData, strings.Join(channels, "."))
+		return fmt.Errorf("%w, expected format 'incremental_ticker.{instrument_name}', but found %s", errMalformedData, strings.Join(channels, "."))
 	}
+	return d.processTicker(respRaw, channels)
+}
+
+func (d *Deribit) processInstrumentTicker(respRaw []byte, channels []string) error {
+	if len(channels) != 3 {
+		return fmt.Errorf("%w, expected format 'ticker.{instrument_name}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
+	}
+	return d.processTicker(respRaw, channels)
+}
+
+func (d *Deribit) processTicker(respRaw []byte, channels []string) error {
 	cp, err := currency.NewPairFromString(channels[1])
 	if err != nil {
 		return err
 	}
 	var response WsResponse
-	incrementalTicker := &wsIncrementalTicker{}
+	incrementalTicker := &wsTicker{}
 	response.Params.Data = incrementalTicker
 	err = json.Unmarshal(respRaw, &response)
 	if err != nil {
