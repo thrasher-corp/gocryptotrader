@@ -45,7 +45,7 @@ func TestCalculateResults(t *testing.T) {
 			Timestamp:                 tt1,
 			QuoteInitialFunds:         decimal.NewFromInt(1337),
 		},
-		Transactions: compliance.Snapshot{
+		ComplianceSnapshot: &compliance.Snapshot{
 			Orders: []compliance.SnapshotOrder{
 				{
 					ClosePrice:          decimal.NewFromInt(1338),
@@ -88,7 +88,7 @@ func TestCalculateResults(t *testing.T) {
 			Timestamp:                 tt2,
 			QuoteInitialFunds:         decimal.NewFromInt(1337),
 		},
-		Transactions: compliance.Snapshot{
+		ComplianceSnapshot: &compliance.Snapshot{
 			Orders: []compliance.SnapshotOrder{
 				{
 					ClosePrice:          decimal.NewFromInt(1338),
@@ -176,7 +176,7 @@ func TestPrintResults(t *testing.T) {
 			Timestamp:                 tt1,
 			QuoteInitialFunds:         decimal.NewFromInt(1337),
 		},
-		Transactions: compliance.Snapshot{
+		ComplianceSnapshot: &compliance.Snapshot{
 			Orders: []compliance.SnapshotOrder{
 				{
 					ClosePrice:          decimal.NewFromInt(1338),
@@ -215,7 +215,7 @@ func TestPrintResults(t *testing.T) {
 			Timestamp:                 tt2,
 			QuoteInitialFunds:         decimal.NewFromInt(1337),
 		},
-		Transactions: compliance.Snapshot{
+		ComplianceSnapshot: &compliance.Snapshot{
 			Orders: []compliance.SnapshotOrder{
 				{
 					ClosePrice:          decimal.NewFromInt(1338),

@@ -491,7 +491,7 @@ func TestFullCycle(t *testing.T) {
 		shutdown:                 make(chan struct{}),
 	}
 
-	bt.DataHolder.Setup()
+	bt.DataHolder = data.NewHandlerHolder()
 	k := &kline.DataFromKline{
 		Item: gctkline.Item{
 			Exchange: ex,
@@ -535,6 +535,7 @@ func TestFullCycle(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
+	bt.MetaData.DateLoaded = time.Now()
 	err = bt.Run()
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
@@ -630,7 +631,7 @@ func TestFullCycleMulti(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	bt.DataHolder.Setup()
+	bt.DataHolder = data.NewHandlerHolder()
 	k := &kline.DataFromKline{
 		Item: gctkline.Item{
 			Exchange: ex,
@@ -675,6 +676,12 @@ func TestFullCycleMulti(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
+	err = bt.Run()
+	if !errors.Is(err, errNotSetup) {
+		t.Errorf("received: %v, expected: %v", err, errNotSetup)
+	}
+
+	bt.MetaData.DateLoaded = time.Now()
 	err = bt.Run()
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
@@ -762,7 +769,10 @@ func TestTriggerLiquidationsForExchange(t *testing.T) {
 
 	bt.EventQueue = &eventholder.Holder{}
 	bt.Funding = &funding.FundManager{}
-	bt.DataHolder.SetDataForCurrency(testExchange, a, cp, da)
+	err = bt.DataHolder.SetDataForCurrency(testExchange, a, cp, da)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	err = bt.Statistic.SetEventForOffset(ev)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
@@ -1016,7 +1026,7 @@ func TestProcessOrderEvent(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 	tt := time.Now()
-	bt.DataHolder.Setup()
+	bt.DataHolder = data.NewHandlerHolder()
 	k := &kline.DataFromKline{
 		Item: gctkline.Item{
 			Exchange: testExchange,
@@ -1056,7 +1066,10 @@ func TestProcessOrderEvent(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	bt.DataHolder.SetDataForCurrency(testExchange, a, cp, k)
+	err = bt.DataHolder.SetDataForCurrency(testExchange, a, cp, k)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	err = bt.processOrderEvent(ev, pair)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
@@ -1170,7 +1183,7 @@ func TestProcessFillEvent(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	bt.DataHolder.Setup()
+	bt.DataHolder = data.NewHandlerHolder()
 	k := &kline.DataFromKline{
 		Item: gctkline.Item{
 			Exchange: testExchange,
@@ -1210,7 +1223,10 @@ func TestProcessFillEvent(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	bt.DataHolder.SetDataForCurrency(testExchange, a, cp, k)
+	err = bt.DataHolder.SetDataForCurrency(testExchange, a, cp, k)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	err = bt.processFillEvent(ev, pair)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
@@ -1318,7 +1334,7 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 	tt := time.Now()
-	bt.DataHolder.Setup()
+	bt.DataHolder = data.NewHandlerHolder()
 	k := &kline.DataFromKline{
 		Item: gctkline.Item{
 			Exchange: testExchange,
@@ -1367,7 +1383,10 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 		OrderID:   "1",
 		Date:      time.Now(),
 	}
-	bt.DataHolder.SetDataForCurrency(testExchange, a, cp, k)
+	err = bt.DataHolder.SetDataForCurrency(testExchange, a, cp, k)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	err = bt.processFuturesFillEvent(ev, pair)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
@@ -1973,7 +1992,7 @@ func TestProcessSingleDataEvent(t *testing.T) {
 	}
 	bt.Funding = f
 	tt := time.Now()
-	bt.DataHolder.Setup()
+	bt.DataHolder = data.NewHandlerHolder()
 	k := &kline.DataFromKline{
 		Item: gctkline.Item{
 			Exchange: testExchange,
@@ -2012,8 +2031,10 @@ func TestProcessSingleDataEvent(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	bt.DataHolder.SetDataForCurrency(testExchange, a, cp, k)
-
+	err = bt.DataHolder.SetDataForCurrency(testExchange, a, cp, k)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	err = bt.processSingleDataEvent(ev, collateral)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)

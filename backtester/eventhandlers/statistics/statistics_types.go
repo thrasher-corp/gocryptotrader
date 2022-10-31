@@ -123,16 +123,16 @@ type CurrencyStats interface {
 // DataAtOffset is used to hold all event information
 // at a time interval
 type DataAtOffset struct {
-	Offset       int64
-	ClosePrice   decimal.Decimal
-	Time         time.Time
-	Holdings     holdings.Holding
-	Transactions *compliance.Snapshot
-	DataEvent    data.Event
-	SignalEvent  signal.Event
-	OrderEvent   order.Event
-	FillEvent    fill.Event
-	PNL          portfolio.IPNL
+	Offset             int64
+	ClosePrice         decimal.Decimal
+	Time               time.Time
+	Holdings           holdings.Holding
+	ComplianceSnapshot *compliance.Snapshot
+	DataEvent          data.Event
+	SignalEvent        signal.Event
+	OrderEvent         order.Event
+	FillEvent          fill.Event
+	PNL                portfolio.IPNL
 }
 
 // CurrencyPairStatistic Holds all events and statistics relevant to an exchange, asset type and currency pair

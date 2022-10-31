@@ -21,9 +21,12 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 
 	firstPrice := first.ClosePrice
 	last := c.Events[len(c.Events)-1]
+	if last.ComplianceSnapshot == nil {
+		return errMissingSnapshots
+	}
 	lastPrice := last.ClosePrice
-	for i := range last.Transactions.Orders {
-		if last.Transactions.Orders[i].Order.Side.IsLong() {
+	for i := range last.ComplianceSnapshot.Orders {
+		if last.ComplianceSnapshot.Orders[i].Order.Side.IsLong() {
 			c.BuyOrders++
 		} else {
 			c.SellOrders++

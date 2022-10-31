@@ -311,17 +311,22 @@ func TestAddComplianceSnapshotForTime(t *testing.T) {
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	s := Statistic{}
 
-	err := s.AddComplianceSnapshotForTime(compliance.Snapshot{}, nil)
+	err := s.AddComplianceSnapshotForTime(nil, nil)
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
-	err = s.AddComplianceSnapshotForTime(compliance.Snapshot{}, &fill.Fill{})
+	err = s.AddComplianceSnapshotForTime(nil, &fill.Fill{})
+	if !errors.Is(err, common.ErrNilEvent) {
+		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
+	}
+
+	err = s.AddComplianceSnapshotForTime(&compliance.Snapshot{}, &fill.Fill{})
 	if !errors.Is(err, errExchangeAssetPairStatsUnset) {
 		t.Errorf("received: %v, expected: %v", err, errExchangeAssetPairStatsUnset)
 	}
 	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*CurrencyPairStatistic)
 	b := &event.Base{}
-	err = s.AddComplianceSnapshotForTime(compliance.Snapshot{}, &fill.Fill{Base: b})
+	err = s.AddComplianceSnapshotForTime(&compliance.Snapshot{}, &fill.Fill{Base: b})
 	if !errors.Is(err, errCurrencyStatisticsUnset) {
 		t.Errorf("received: %v, expected: %v", err, errCurrencyStatisticsUnset)
 	}
@@ -341,7 +346,7 @@ func TestAddComplianceSnapshotForTime(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	err = s.AddComplianceSnapshotForTime(compliance.Snapshot{
+	err = s.AddComplianceSnapshotForTime(&compliance.Snapshot{
 		Timestamp: tt,
 	}, &fill.Fill{
 		Base: b,
@@ -700,7 +705,7 @@ func TestCalculateTheResults(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	err = s.SetEventForOffset(&signal.Signal{
+	signal4 := &signal.Signal{
 		Base: &event.Base{
 			Exchange:     exch,
 			Time:         tt2,
@@ -715,7 +720,8 @@ func TestCalculateTheResults(t *testing.T) {
 		ClosePrice: eleeb,
 		Volume:     eleeb,
 		Direction:  gctorder.Buy,
-	})
+	}
+	err = s.SetEventForOffset(signal4)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -786,6 +792,11 @@ func TestCalculateTheResults(t *testing.T) {
 	}
 	s.FundManager = funds
 	err = s.CalculateAllResults()
+	if !errors.Is(err, errMissingSnapshots) {
+		t.Errorf("received '%v' expected '%v'", err, errMissingSnapshots)
+	}
+
+	err = s.AddComplianceSnapshotForTime(&compliance.Snapshot{Timestamp: tt2}, signal4)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}

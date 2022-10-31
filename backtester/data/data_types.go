@@ -22,7 +22,6 @@ var (
 	ErrEndOfData = errors.New("no more data to retreive")
 
 	errNothingToAdd    = errors.New("cannot append empty event to stream")
-	errInvalidOffset   = errors.New("event base set to invalid offset")
 	errMisMatchedEvent = errors.New("cannot add event to stream, does not match")
 )
 

@@ -21,24 +21,19 @@ const a = asset.Spot
 var p = currency.NewPair(currency.BTC, currency.USD)
 
 type fakeEvent struct {
+	secretID int64
 	*event.Base
 }
 
 type fakeHandler struct{}
 
-func TestSetup(t *testing.T) {
-	t.Parallel()
-	d := HandlerHolder{}
-	d.Setup()
-	if d.data == nil {
-		t.Error("expected not nil")
-	}
-}
-
 func TestSetDataForCurrency(t *testing.T) {
 	t.Parallel()
 	d := HandlerHolder{}
-	d.SetDataForCurrency(exch, a, p, nil)
+	err := d.SetDataForCurrency(exch, a, p, nil)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	if d.data == nil {
 		t.Error("expected not nil")
 	}
@@ -50,13 +45,16 @@ func TestSetDataForCurrency(t *testing.T) {
 func TestGetAllData(t *testing.T) {
 	t.Parallel()
 	d := HandlerHolder{}
-	d.SetDataForCurrency(exch, a, p, nil)
-	d.SetDataForCurrency(exch, a, currency.NewPair(currency.BTC, currency.DOGE), nil)
-	result := d.GetAllData()
-	if len(result) != 1 {
-		t.Error("expected 1")
+	err := d.SetDataForCurrency(exch, a, p, nil)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	if len(result[exch][a][currency.BTC.Item]) != 2 {
+	err = d.SetDataForCurrency(exch, a, currency.NewPair(currency.BTC, currency.DOGE), nil)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	result, err := d.GetAllData()
+	if len(result) != 2 {
 		t.Error("expected 2")
 	}
 
@@ -65,11 +63,14 @@ func TestGetAllData(t *testing.T) {
 func TestGetDataForCurrency(t *testing.T) {
 	t.Parallel()
 	d := HandlerHolder{}
-	d.SetDataForCurrency(exch, a, p, &fakeHandler{})
+	err := d.SetDataForCurrency(exch, a, p, &fakeHandler{})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 
 	d.SetDataForCurrency(exch, a, currency.NewPair(currency.BTC, currency.DOGE), nil)
 
-	_, err := d.GetDataForCurrency(nil)
+	_, err = d.GetDataForCurrency(nil)
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("received '%v' expected '%v'", err, common.ErrNilEvent)
 	}
@@ -308,8 +309,8 @@ func TestNext(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	resp, err = b.Next()
-	if !errors.Is(err, errInvalidOffset) {
-		t.Errorf("received '%v' expected '%v'", err, errInvalidOffset)
+	if !errors.Is(err, ErrEndOfData) {
+		t.Errorf("received '%v' expected '%v'", err, ErrEndOfData)
 	}
 	if resp != nil {
 		t.Errorf("received '%v' expected '%v'", resp, nil)
@@ -682,8 +683,51 @@ func TestAppendStream(t *testing.T) {
 	}
 }
 
+func TestFirst(t *testing.T) {
+	t.Parallel()
+	var id1 int64 = 1
+	var id2 int64 = 2
+	var id3 int64 = 3
+	e := Events{
+		fakeEvent{secretID: id1},
+		fakeEvent{secretID: id2},
+		fakeEvent{secretID: id3},
+	}
+
+	first, err := e.First()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if first.GetOffset() != id1 {
+		t.Errorf("received '%v' expected '%v'", first.GetOffset(), id1)
+	}
+}
+
+func TestLast(t *testing.T) {
+	t.Parallel()
+	var id1 int64 = 1
+	var id2 int64 = 2
+	var id3 int64 = 3
+	e := Events{
+		fakeEvent{secretID: id1},
+		fakeEvent{secretID: id2},
+		fakeEvent{secretID: id3},
+	}
+
+	last, err := e.Last()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if last.GetOffset() != id3 {
+		t.Errorf("received '%v' expected '%v'", last.GetOffset(), id1)
+	}
+}
+
 // methods that satisfy the common.Event interface
 func (f fakeEvent) GetOffset() int64 {
+	if f.secretID > 0 {
+		return f.secretID
+	}
 	return f.Offset
 }
 
@@ -826,4 +870,8 @@ func (f fakeHandler) HasDataAtTime(time.Time) (bool, error) {
 
 func (f fakeHandler) Reset() error {
 	return nil
+}
+
+func (f fakeHandler) GetDetails() (string, asset.Item, currency.Pair, error) {
+	return "", asset.Empty, currency.EMPTYPAIR, nil
 }

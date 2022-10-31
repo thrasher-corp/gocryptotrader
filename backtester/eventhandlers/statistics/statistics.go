@@ -182,9 +182,12 @@ func (s *Statistic) AddPNLForTime(pnl *portfolio.PNLSummary) error {
 }
 
 // AddComplianceSnapshotForTime adds the compliance snapshot to the statistics at the time period
-func (s *Statistic) AddComplianceSnapshotForTime(c *compliance.Snapshot, e fill.Event) error {
+func (s *Statistic) AddComplianceSnapshotForTime(c *compliance.Snapshot, e common.Event) error {
+	if c == nil {
+		return fmt.Errorf("%w compliance snapshot", common.ErrNilEvent)
+	}
 	if e == nil {
-		return common.ErrNilEvent
+		return fmt.Errorf("%w fill event", common.ErrNilEvent)
 	}
 	if s.ExchangeAssetPairStatistics == nil {
 		return errExchangeAssetPairStatsUnset
@@ -198,7 +201,7 @@ func (s *Statistic) AddComplianceSnapshotForTime(c *compliance.Snapshot, e fill.
 	}
 	for i := len(lookup.Events) - 1; i >= 0; i-- {
 		if lookup.Events[i].Offset == e.GetOffset() {
-			lookup.Events[i].Transactions = c
+			lookup.Events[i].ComplianceSnapshot = c
 			return nil
 		}
 	}
@@ -228,7 +231,10 @@ func (s *Statistic) CalculateAllResults() error {
 					}
 					stats.FinalHoldings = last.Holdings
 					stats.InitialHoldings = stats.Events[0].Holdings
-					stats.FinalOrders = last.Transactions
+					if last.ComplianceSnapshot == nil {
+						return errMissingSnapshots
+					}
+					stats.FinalOrders = *last.ComplianceSnapshot
 					s.StartDate = stats.Events[0].Time
 					s.EndDate = last.Time
 					cp := currency.NewPair(b.Currency(), q.Currency())

@@ -31,6 +31,10 @@ import (
 
 type fakeFolio struct{}
 
+func (f fakeFolio) GetLatestComplianceSnapshot(string, asset.Item, currency.Pair) (*compliance.Snapshot, error) {
+	return &compliance.Snapshot{}, nil
+}
+
 func (f fakeFolio) GetPositions(common.Event) ([]gctorder.Position, error) {
 	return nil, nil
 }
@@ -129,7 +133,7 @@ func (f *fakeStats) AddHoldingsForTime(*holdings.Holding) error {
 	return nil
 }
 
-func (f *fakeStats) AddComplianceSnapshotForTime(compliance.Snapshot, fill.Event) error {
+func (f *fakeStats) AddComplianceSnapshotForTime(*compliance.Snapshot, fill.Event) error {
 	return nil
 }
 
@@ -158,42 +162,36 @@ type fakeDataHolder struct{}
 func (f fakeDataHolder) Setup() {
 }
 
-func (f fakeDataHolder) SetDataForCurrency(string, asset.Item, currency.Pair, data.Handler) {
+func (f fakeDataHolder) SetDataForCurrency(string, asset.Item, currency.Pair, data.Handler) error {
+	return nil
 }
 
-func (f fakeDataHolder) GetAllData() map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]data.Handler {
+func (f fakeDataHolder) GetAllData() ([]data.Handler, error) {
 	cp := currency.NewPair(currency.BTC, currency.USD)
-	return map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]data.Handler{
-		testExchange: {
-			asset.Spot: {
-				cp.Base.Item: map[*currency.Item]data.Handler{
-					cp.Quote.Item: &kline.DataFromKline{
-						Base: &data.Base{},
-						Item: gctkline.Item{
-							Exchange:       testExchange,
-							Pair:           cp,
-							UnderlyingPair: cp,
-							Asset:          asset.Spot,
-							Interval:       gctkline.OneMin,
-							Candles: []gctkline.Candle{
-								{
-									Time:   time.Now(),
-									Open:   1337,
-									High:   1337,
-									Low:    1337,
-									Close:  1337,
-									Volume: 1337,
-								},
-							},
-							SourceJobID:     uuid.UUID{},
-							ValidationJobID: uuid.UUID{},
-						},
-						RangeHolder: &gctkline.IntervalRangeHolder{},
-					},
+	return []data.Handler{&kline.DataFromKline{
+		Base: &data.Base{},
+		Item: gctkline.Item{
+			Exchange:       testExchange,
+			Pair:           cp,
+			UnderlyingPair: cp,
+			Asset:          asset.Spot,
+			Interval:       gctkline.OneMin,
+			Candles: []gctkline.Candle{
+				{
+					Time:   time.Now(),
+					Open:   1337,
+					High:   1337,
+					Low:    1337,
+					Close:  1337,
+					Volume: 1337,
 				},
 			},
+			SourceJobID:     uuid.UUID{},
+			ValidationJobID: uuid.UUID{},
 		},
-	}
+		RangeHolder: &gctkline.IntervalRangeHolder{},
+	},
+	}, nil
 }
 
 func (f fakeDataHolder) GetDataForCurrency(common.Event) (data.Handler, error) {

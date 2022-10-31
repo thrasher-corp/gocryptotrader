@@ -217,8 +217,8 @@ func TestViewHoldingAtTimePeriod(t *testing.T) {
 		},
 	}
 	_, err := p.ViewHoldingAtTimePeriod(s)
-	if !errors.Is(err, errNoHoldings) {
-		t.Errorf("received: %v, expected: %v", err, errNoHoldings)
+	if !errors.Is(err, errNoPortfolioSettings) {
+		t.Errorf("received: %v, expected: %v", err, errNoPortfolioSettings)
 	}
 
 	ff := &ftx.FTX{}
@@ -226,6 +226,11 @@ func TestViewHoldingAtTimePeriod(t *testing.T) {
 	err = p.SetCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: currency.NewPair(currency.BTC, currency.USD)})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+
+	_, err = p.ViewHoldingAtTimePeriod(s)
+	if !errors.Is(err, errNoHoldings) {
+		t.Errorf("received: %v, expected: %v", err, errNoHoldings)
 	}
 
 	err = p.SetHoldingsForTimestamp(&holdings.Holding{
@@ -314,8 +319,8 @@ func TestUpdate(t *testing.T) {
 	err = p.UpdateHoldings(&kline.Kline{
 		Base: b,
 	}, pair)
-	if !errors.Is(err, errNoHoldings) {
-		t.Errorf("received: %v, expected: %v", err, errNoHoldings)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 }
 
