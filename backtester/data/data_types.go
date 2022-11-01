@@ -19,7 +19,7 @@ var (
 	// ErrEmptySlice is returned when the supplied slice is nil or empty
 	ErrEmptySlice = errors.New("empty slice")
 	// ErrEndOfData is returned when attempting to load the next offset when there is no more
-	ErrEndOfData = errors.New("no more data to retreive")
+	ErrEndOfData = errors.New("no more data to retrieve")
 
 	errNothingToAdd    = errors.New("cannot append empty event to stream")
 	errMisMatchedEvent = errors.New("cannot add event to stream, does not match")

@@ -133,7 +133,7 @@ func (f *fakeStats) AddHoldingsForTime(*holdings.Holding) error {
 	return nil
 }
 
-func (f *fakeStats) AddComplianceSnapshotForTime(*compliance.Snapshot, fill.Event) error {
+func (f *fakeStats) AddComplianceSnapshotForTime(*compliance.Snapshot, common.Event) error {
 	return nil
 }
 

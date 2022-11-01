@@ -73,7 +73,7 @@ type Handler interface {
 	SetStrategyName(string)
 	SetEventForOffset(common.Event) error
 	AddHoldingsForTime(*holdings.Holding) error
-	AddComplianceSnapshotForTime(*compliance.Snapshot, fill.Event) error
+	AddComplianceSnapshotForTime(*compliance.Snapshot, common.Event) error
 	CalculateAllResults() error
 	Reset() error
 	Serialise() (string, error)

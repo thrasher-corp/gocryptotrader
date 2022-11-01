@@ -2,12 +2,13 @@ package data
 
 import (
 	"fmt"
+	"sort"
+	"strings"
+
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"sort"
-	"strings"
 )
 
 // NewHandlerHolder returns a new HandlerHolder

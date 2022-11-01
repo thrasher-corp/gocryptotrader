@@ -142,6 +142,33 @@ func TestLiveHandlerStop(t *testing.T) {
 	}
 }
 
+func TestLiveHandlerStopFromError(t *testing.T) {
+	t.Parallel()
+	dataHandler := &dataChecker{}
+	err := dataHandler.StopFromError(errNoCredsNoLive)
+	if !errors.Is(err, engine.ErrSubSystemNotStarted) {
+		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemNotStarted)
+	}
+
+	dataHandler.started = 1
+	dataHandler.shutdown = make(chan struct{})
+	err = dataHandler.StopFromError(nil)
+	if !errors.Is(err, errNilError) {
+		t.Errorf("received '%v' expected '%v'", err, errNilError)
+	}
+
+	err = dataHandler.StopFromError(errNoCredsNoLive)
+	if !errors.Is(err, engine.ErrSubSystemNotStarted) {
+		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemNotStarted)
+	}
+
+	var dh *dataChecker
+	err = dh.StopFromError(errNoCredsNoLive)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
+	}
+}
+
 func TestDataFetcher(t *testing.T) {
 	t.Parallel()
 	dataHandler := &dataChecker{}

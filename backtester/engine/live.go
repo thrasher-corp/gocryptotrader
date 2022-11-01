@@ -76,8 +76,7 @@ func (d *dataChecker) Start() error {
 	go func() {
 		err := d.DataFetcher()
 		if err != nil {
-			log.Error(common.LiveStrategy, err)
-			stopErr := d.Stop()
+			stopErr := d.StopFromError(err)
 			if stopErr != nil {
 				log.Error(common.LiveStrategy, stopErr)
 			}
@@ -102,7 +101,26 @@ func (d *dataChecker) Stop() error {
 	}
 	d.m.Lock()
 	defer d.m.Unlock()
-	d.hasShutdown.Alert()
+	close(d.shutdown)
+	d.wg.Wait()
+	return nil
+}
+
+// StopFromError ceases fetching and processing live data
+func (d *dataChecker) StopFromError(err error) error {
+	if err == nil {
+		return errNilError
+	}
+	if d == nil {
+		return gctcommon.ErrNilPointer
+	}
+	if !atomic.CompareAndSwapUint32(&d.started, 1, 0) {
+		return engine.ErrSubSystemNotStarted
+	}
+	d.m.Lock()
+	defer d.m.Unlock()
+	log.Error(common.LiveStrategy, err)
+	d.shutdownErr = err
 	close(d.shutdown)
 	d.wg.Wait()
 	return nil
@@ -211,15 +229,41 @@ func (d *dataChecker) Updated() <-chan bool {
 	return d.notice.Wait(d.shutdown)
 }
 
+func closedChan() chan bool {
+	immediateClosure := make(chan bool)
+	close(immediateClosure)
+	return immediateClosure
+}
+
 // HasShutdown indicates when the live data checker
 // has been shutdown
 func (d *dataChecker) HasShutdown() <-chan bool {
 	if d == nil {
-		immediateClosure := make(chan bool)
-		close(immediateClosure)
-		return immediateClosure
+		return closedChan()
 	}
-	return d.hasShutdown.Wait(nil)
+	d.m.Lock()
+	defer d.m.Unlock()
+	if atomic.LoadUint32(&d.started) == 1 {
+		return nil
+	}
+	return closedChan()
+}
+
+// HasShutdownFromError indicates when the live data checker
+// has been shutdown from encountering an error
+func (d *dataChecker) HasShutdownFromError() <-chan bool {
+	if d == nil {
+		return closedChan()
+	}
+	d.m.Lock()
+	defer d.m.Unlock()
+	if atomic.LoadUint32(&d.started) == 1 {
+		return nil
+	}
+	if d.shutdownErr != nil {
+		return closedChan()
+	}
+	return nil
 }
 
 // Reset clears all stored data
@@ -359,14 +403,17 @@ func (d *dataChecker) FetchLatestData() (bool, error) {
 			return false, err
 		}
 		d.sourcesToCheck[i].candlesToAppend.Candles = nil
-		d.dataHolder.SetDataForCurrency(d.sourcesToCheck[i].exchangeName, d.sourcesToCheck[i].asset, d.sourcesToCheck[i].pair, d.sourcesToCheck[i].pairCandles)
+		err = d.dataHolder.SetDataForCurrency(d.sourcesToCheck[i].exchangeName, d.sourcesToCheck[i].asset, d.sourcesToCheck[i].pair, d.sourcesToCheck[i].pairCandles)
+		if err != nil {
+			return false, err
+		}
 		err = d.report.SetKlineData(&d.sourcesToCheck[i].pairCandles.Item)
 		if err != nil {
-			log.Errorf(common.LiveStrategy, "%v %v %v issue processing kline data: %v", d.sourcesToCheck[i].exchangeName, d.sourcesToCheck[i].asset, d.sourcesToCheck[i].pair, err)
+			return false, err
 		}
 		err = d.funding.AddUSDTrackingData(d.sourcesToCheck[i].pairCandles)
 		if err != nil && !errors.Is(err, funding.ErrUSDTrackingDisabled) {
-			log.Errorf(common.LiveStrategy, "%v %v %v issue processing USD tracking data: %v", d.sourcesToCheck[i].exchangeName, d.sourcesToCheck[i].asset, d.sourcesToCheck[i].pair, err)
+			return false, err
 		}
 	}
 	if !d.hasUpdatedFunding {

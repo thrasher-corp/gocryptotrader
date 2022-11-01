@@ -57,7 +57,6 @@ func TestGetAllData(t *testing.T) {
 	if len(result) != 2 {
 		t.Error("expected 2")
 	}
-
 }
 
 func TestGetDataForCurrency(t *testing.T) {
@@ -68,8 +67,10 @@ func TestGetDataForCurrency(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
-	d.SetDataForCurrency(exch, a, currency.NewPair(currency.BTC, currency.DOGE), nil)
-
+	err = d.SetDataForCurrency(exch, a, currency.NewPair(currency.BTC, currency.DOGE), nil)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	_, err = d.GetDataForCurrency(nil)
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("received '%v' expected '%v'", err, common.ErrNilEvent)
@@ -97,9 +98,15 @@ func TestGetDataForCurrency(t *testing.T) {
 func TestReset(t *testing.T) {
 	t.Parallel()
 	d := &HandlerHolder{}
-	d.SetDataForCurrency(exch, a, p, nil)
-	d.SetDataForCurrency(exch, a, currency.NewPair(currency.BTC, currency.DOGE), nil)
-	err := d.Reset()
+	err := d.SetDataForCurrency(exch, a, p, nil)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	err = d.SetDataForCurrency(exch, a, currency.NewPair(currency.BTC, currency.DOGE), nil)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	err = d.Reset()
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}

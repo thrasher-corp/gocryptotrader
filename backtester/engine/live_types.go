@@ -27,6 +27,7 @@ var (
 	errNoCredsNoLive                = errors.New("cannot use real orders without credentials to fulfil those real orders")
 	errNoDataSetForClosingPositions = errors.New("no data was set for closing positions")
 	errCannotForceWithoutRealOrders = errors.New("cannot forcefully update funding with real orders disabled")
+	errNilError                     = errors.New("nil error received when expecting an error")
 )
 
 var (
@@ -48,6 +49,7 @@ type Handler interface {
 	Reset() error
 	Updated() <-chan bool
 	HasShutdown() <-chan bool
+	HasShutdownFromError() <-chan bool
 	SetDataForClosingAllPositions(events ...signal.Event) error
 	UpdateFunding(force bool) error
 	IsRealOrders() bool
@@ -69,7 +71,7 @@ type dataChecker struct {
 	dataCheckInterval time.Duration
 	dataHolder        data.Holder
 	notice            alert.Notice
-	hasShutdown       alert.Notice
+	shutdownErr       error
 	shutdown          chan struct{}
 	report            report.Handler
 	funding           funding.IFundingManager

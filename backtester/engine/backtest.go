@@ -94,26 +94,28 @@ func (bt *BackTest) RunLive() error {
 	bt.wg.Add(1)
 	go func() {
 		defer bt.wg.Done()
-		log.Info(common.LiveStrategy, "running backtester against live data")
-		for {
-			select {
-			case <-bt.shutdown:
-				err = bt.LiveDataHandler.Stop()
-				if err != nil {
-					log.Error(common.LiveStrategy, err)
-				}
-				return
-			case <-bt.LiveDataHandler.Updated():
-				err = bt.Run()
-				if err != nil {
-					log.Error(common.LiveStrategy, err)
-				}
-			case <-bt.LiveDataHandler.HasShutdown():
-				return
-			}
+		err = bt.liveLoop()
+		if err != nil {
+			log.Error(common.LiveStrategy, err)
 		}
 	}()
 	return nil
+}
+
+func (bt *BackTest) liveLoop() error {
+	log.Info(common.LiveStrategy, "running backtester against live data")
+	for {
+		select {
+		case <-bt.shutdown:
+			return bt.LiveDataHandler.Stop()
+		case <-bt.LiveDataHandler.HasShutdownFromError():
+			return bt.Stop()
+		case <-bt.LiveDataHandler.HasShutdown():
+			return nil
+		case <-bt.LiveDataHandler.Updated():
+			return bt.Run()
+		}
+	}
 }
 
 // ExecuteStrategy executes the strategy using the provided configs
