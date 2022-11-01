@@ -136,7 +136,7 @@ func TestGetCandlesticks(t *testing.T) {
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
 	currencyPair := currency.NewPair(currency.BTC, currency.USDT)
-	if _, err := ok.GetHistoricCandlesExtended(context.Background(), currencyPair, asset.Spot, time.Now().Add(-time.Minute*1), time.Now(), kline.OneMin); err != nil {
+	if _, err := ok.GetHistoricCandlesExtended(context.Background(), currencyPair, asset.Spot, time.Now().Add(-time.Hour), time.Now(), kline.OneMin); err != nil {
 		t.Errorf("%s GetHistoricCandlesExtended() error: %v", ok.Name, err)
 	}
 }
