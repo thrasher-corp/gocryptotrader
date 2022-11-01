@@ -41,9 +41,11 @@ var (
 	errBookSmallerThanDeploymentAmount = errors.New("orderbook cannot take in deployment amount")
 	errConfigurationIsNil              = errors.New("strategy configuration is nil")
 	errInvalidRetryAttempts            = errors.New("invalid retry attempts")
+	errTimerIsNil                      = errors.New("timer is nil")
 )
 
 // Config defines the base elements required to undertake the TWAP strategy
+// TODO: Shift core details to common.
 type Config struct {
 	Exchange exchange.IBotExchange
 	Pair     currency.Pair
@@ -309,7 +311,7 @@ func (c *Config) VerifyBookDeployment(book *orderbook.Depth, deploymentAmount fl
 }
 
 // VerifyExecutionLimitsReturnConformed verifies if the deploument amount
-// exceeds the exchange execution limits. TODO: This will need to be expanded.
+// exceeds the exchange execution limits. TODO: This will need to be expanded. Abstract further
 func (c *Config) VerifyExecutionLimitsReturnConformed(deploymentAmountInBase float64) (float64, error) {
 	if c == nil {
 		return 0, errConfigurationIsNil
@@ -351,8 +353,6 @@ func (c *Config) GetNextSchedule(scheduled time.Time) (time.Duration, error) {
 	}
 	return time.Until(scheduled.Add(c.Interval.Duration())), nil
 }
-
-var errTimerIsNil = errors.New("timer is nil")
 
 // SetTimer sets timer at new interval time.
 func (c *Config) SetTimer(timer *time.Timer) error {

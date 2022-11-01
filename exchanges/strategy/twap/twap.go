@@ -11,17 +11,18 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	strategy "github.com/thrasher-corp/gocryptotrader/exchanges/strategy/common"
 )
 
-const Simulation = "SIMULATION"
+const (
+	endTimeLapse = "Stategy has lapsed end time"
+)
 
 var (
-	errTWAPIsNil           = errors.New("twap is nil")
-	errNoBalanceFound      = errors.New("no balance found")
-	errExceedsFreeBalance  = errors.New("amount exceeds current free balance")
-	errInvalidAssetType    = errors.New("non spot trading pairs not currently supported")
-	errStrategyIsNil       = errors.New("strategy is nil")
-	errActivityReportIsNil = errors.New("activity report is nil")
+	errNoBalanceFound     = errors.New("no balance found")
+	errExceedsFreeBalance = errors.New("amount exceeds current free balance")
+	errInvalidAssetType   = errors.New("non spot trading pairs not currently supported")
+	errStrategyIsNil      = errors.New("strategy is nil")
 )
 
 // GetTWAP returns a TWAP struct to manage allocation or deallocation of
@@ -64,34 +65,32 @@ func New(ctx context.Context, c *Config) (*Strategy, error) {
 		deployment = c.Pair.Base
 	}
 
-	avail := selling.GetAvailableWithoutBorrow()
-	if avail == 0 {
+	fullDeployment := selling.GetAvailableWithoutBorrow()
+	if fullDeployment == 0 {
 		return nil, fmt.Errorf("cannot sell %s amount %f to buy base %s %w of %f",
 			deployment,
 			c.Amount,
 			c.Pair.Base,
 			errNoBalanceFound,
-			avail)
-	}
-	if !c.FullAmount && c.Amount > avail {
-		return nil, fmt.Errorf("cannot sell %s amount %f to buy base %s %w of %f",
-			deployment,
-			c.Amount,
-			c.Pair.Base,
-			errExceedsFreeBalance,
-			avail)
+			fullDeployment)
 	}
 
-	var fullDeployment float64
-	if c.FullAmount {
-		fullDeployment = selling.GetAvailableWithoutBorrow()
-	} else {
+	if !c.FullAmount {
+		if c.Amount > fullDeployment {
+			return nil, fmt.Errorf("cannot sell %s amount %f to buy base %s %w of %f",
+				deployment,
+				c.Amount,
+				c.Pair.Base,
+				errExceedsFreeBalance,
+				fullDeployment)
+		}
 		fullDeployment = c.Amount
 	}
 
 	// NOTE: For now this will not allow any amount to deplete the full
 	// orderbook, just until a safe, effective and efficient system has been
-	// tested and deployed.
+	// tested and deployed. TODO: Bypass error
+	// errBookSmallerThanDeploymentAmount.
 	deploymentAmount, err := c.GetDistrbutionAmount(fullDeployment, depth)
 	if err != nil {
 		return nil, err
@@ -99,7 +98,6 @@ func New(ctx context.Context, c *Config) (*Strategy, error) {
 
 	return &Strategy{
 		Config:           c,
-		Reporter:         make(chan *Report),
 		orderbook:        depth,
 		Buying:           buying,
 		Selling:          selling,
@@ -108,104 +106,111 @@ func New(ctx context.Context, c *Config) (*Strategy, error) {
 	}, nil
 }
 
-// Run inititates a TWAP allocation using the specified paramaters.
-func (s *Strategy) Run(ctx context.Context) error {
-	if s == nil {
-		return errTWAPIsNil
-	}
-	if s.Config == nil {
-		return errConfigurationIsNil
-	}
-
-	var start time.Duration
-	if s.CandleStickAligned {
-		// If aligned this will need to be truncated
-		var err error
-		start, err = s.GetNextSchedule(s.Start)
-		if err != nil {
-			return err
-		}
-	}
-
-	s.wg.Add(1)
-	go s.Deploy(ctx, start)
-	return nil
-}
-
-// Deploy oversees the deployment of the current strategy adhering to policies,
+// deploy oversees the deployment of the current strategy adhering to policies,
 // limits, signals and timings.
-func (s *Strategy) Deploy(ctx context.Context, start time.Duration) {
-	defer s.wg.Done()
-	fmt.Printf("Starting twap operation in %s...\n", start)
+func (s *Strategy) deploy(ctx context.Context, start time.Duration) {
+	defer func() {
+		s.wg.Done()
+		s.mtx.Lock()
+		s.running = false
+		s.mtx.Unlock()
+	}()
+	wow := fmt.Sprintf("Starting twap operation in %s...\n", start)
+	s.Reporter.Send(&strategy.Report{Reason: wow})
 	// NOTE: Zero value start duration will execute immediately then deploy at
 	// intervals.
 	timer := time.NewTimer(start)
+	finished := time.NewTimer(time.Until(s.End))
 	for {
 		select {
 		case <-timer.C:
+			if !s.AllowTradingPastEndTime && time.Now().After(s.End) {
+				s.Reporter.Send(&strategy.Report{Reason: endTimeLapse, Finished: true})
+				return
+			}
+
 			err := s.SetTimer(timer)
 			if err != nil {
-				_ = s.SendReport(&Report{Error: err, Finished: true})
+				s.Reporter.Send(&strategy.Report{Error: err, Finished: true})
 				return
 			}
 
 			preOrderBalance := s.Selling.GetAvailableWithoutBorrow()
 			if preOrderBalance < s.DeploymentAmount {
+				reduction := fmt.Sprintf("Reducing deployment amount from: %f to: %f\n",
+					s.DeploymentAmount,
+					preOrderBalance)
+				s.Reporter.Send(&strategy.Report{Reason: reduction})
 				s.DeploymentAmount = preOrderBalance
 			}
 
 			err = s.checkAndSubmit(ctx, s.DeploymentAmount)
 			if err != nil {
-				_ = s.SendReport(&Report{Error: err, Finished: true})
+				s.Reporter.Send(&strategy.Report{Error: err, Finished: true})
 				return
 			}
 
 			if s.Simulate {
 				s.AmountDeployed += s.DeploymentAmount
 				if s.AmountDeployed >= s.FullDeployment {
-					_ = s.SendReport(&Report{Error: err, Finished: true})
-					fmt.Println("finished amount yay")
+					s.Reporter.Send(&strategy.Report{Reason: "SIMULATION COMPLETED", Finished: true})
 					return
 				}
 			} else {
-				var afterOrderBalance = s.Selling.GetAvailableWithoutBorrow()
-				for x := 0; afterOrderBalance == preOrderBalance || x < 3; x++ {
-					time.Sleep(time.Second)
-					afterOrderBalance = s.Selling.GetAvailableWithoutBorrow()
-				}
-
-				if afterOrderBalance == 0 {
-					_ = s.SendReport(&Report{Error: err, Finished: true})
-					fmt.Println("finished amount yay")
+				wait, cancel, err := s.Selling.Wait(0)
+				if err != nil {
+					s.Reporter.Send(&strategy.Report{Error: err, Finished: true})
 					return
 				}
+
+				var timedOut bool
+				select {
+				case timedOut = <-wait:
+				case <-ctx.Done():
+					select {
+					case cancel <- struct{}{}:
+					default:
+					}
+					s.Reporter.Send(&strategy.Report{Error: ctx.Err(), Finished: true})
+					return
+				}
+
+				if timedOut {
+					// TODO: Logger output
+					continue
+				}
+
+				afterOrderBalance := s.Selling.GetAvailableWithoutBorrow()
+
+				if afterOrderBalance == 0 {
+					s.Reporter.Send(&strategy.Report{Reason: "Balance depleted", Finished: true})
+					return
+				}
+
+				change := fmt.Sprintf("change received prev: %f, now: %f and change: %f\n",
+					preOrderBalance,
+					afterOrderBalance,
+					preOrderBalance-afterOrderBalance,
+				)
+
+				s.Reporter.Send(&strategy.Report{Reason: change})
 			}
 
 			if !s.AllowTradingPastEndTime && time.Now().After(s.End) {
-				_ = s.SendReport(&Report{Error: err, Finished: true})
-				fmt.Println("finished cute time")
+				s.Reporter.Send(&strategy.Report{Reason: endTimeLapse, Finished: true})
 				return
 			}
-
+		case <-finished.C:
+			s.Reporter.Send(&strategy.Report{Reason: endTimeLapse, Finished: true})
+			return
 		case <-ctx.Done():
-			_ = s.SendReport(&Report{Error: ctx.Err(), Finished: true})
+			s.Reporter.Send(&strategy.Report{Error: ctx.Err(), Finished: true})
 			return
 		case <-s.shutdown:
-			_ = s.SendReport(&Report{Finished: true})
-			return
-		case <-s.pause:
-			// TODO: Pause
-			_ = s.SendReport(&Report{Finished: true})
+			s.Reporter.Send(&strategy.Report{Reason: "Shutdown called on strategy", Finished: true})
 			return
 		}
 	}
-}
-
-type OrderExecutionInformation struct {
-	Time     time.Time
-	Submit   *order.Submit
-	Response *order.SubmitResponse
-	Error    error
 }
 
 // checkAndSubmit verifies orderbook deployability then executes an order if
@@ -228,38 +233,28 @@ func (s *Strategy) checkAndSubmit(ctx context.Context, deployment float64) error
 		return err
 	}
 
-	submit, err := s.DeriveOrder(conformed)
+	submit, err := s.deriveOrder(conformed)
 	if err != nil {
 		return err
 	}
 
-	resp, err := s.SubmitOrder(ctx, submit)
-	info := OrderExecutionInformation{
-		Time:     time.Now(),
-		Submit:   submit,
-		Response: resp,
-		Error:    err,
+	resp, err := s.submitOrder(ctx, submit)
+	if err != nil {
+		return err
 	}
-	s.TradeInformation = append(s.TradeInformation, info)
-	return s.SendReport(&Report{Information: info, Deployment: details})
+
+	s.Reporter.Send(&strategy.Report{
+		Submit:     submit,
+		Response:   resp,
+		Deployment: details,
+	})
+
+	return nil
 }
 
-type DeploymentSchedule struct {
-	Time     time.Time
-	Amount   float64
-	Executed order.Detail
-}
-
-// Report defines a TWAP action
-type Report struct {
-	Information OrderExecutionInformation
-	Deployment  *orderbook.Movement
-	Error       error
-	Finished    bool
-}
-
-// DeriveOrder checks amount and returns an order submission
-func (s *Strategy) DeriveOrder(amountInBase float64) (*order.Submit, error) {
+// deriveOrder checks amount and returns an order submission. TODO: Abstract
+// futher.
+func (s *Strategy) deriveOrder(amountInBase float64) (*order.Submit, error) {
 	if amountInBase <= 0 {
 		return nil, errInvalidAllocatedAmount
 	}
@@ -268,34 +263,41 @@ func (s *Strategy) DeriveOrder(amountInBase float64) (*order.Submit, error) {
 		side = order.Sell
 	}
 	return &order.Submit{
-		Exchange:   s.Exchange.GetName(),
-		Type:       order.Market,
-		Pair:       s.Pair,
-		AssetType:  s.Asset,
-		ReduceOnly: true, // Have reduce only as default for this strategy
-		Side:       side,
-		Amount:     amountInBase,
+		Exchange:  s.Exchange.GetName(),
+		Type:      order.Market,
+		Pair:      s.Pair,
+		AssetType: s.Asset,
+		// ReduceOnly: true, // Have reduce only as default for this strategy.
+		Side:   side,
+		Amount: amountInBase,
 	}, nil
 }
 
-// SubmitOrder will submit and retry an order if fail.
-func (s *Strategy) SubmitOrder(ctx context.Context, submit *order.Submit) (*order.SubmitResponse, error) {
+// submitOrder will submit and retry an order if fail. TODO: Abstract futher
+func (s *Strategy) submitOrder(ctx context.Context, submit *order.Submit) (*order.SubmitResponse, error) {
+	if submit == nil {
+		return nil, errors.New("submit order is invalid")
+	}
 	var errors common.Errors
-	var err error
 	var resp *order.SubmitResponse
 	for attempt := 0; attempt < int(s.RetryAttempts); attempt++ {
+		// Check context here so we can immediately bypass the retry attempt and
+		// release resources.
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		default:
 		}
 
+		var err error
 		if !s.Simulate {
+			fmt.Printf("WOW: %+v\n", submit)
 			resp, err = s.Exchange.SubmitOrder(ctx, submit)
 		} else {
-			resp, err = submit.DeriveSubmitResponse(Simulation)
+			resp, err = submit.DeriveSubmitResponse(strategy.SimulationTag)
 		}
 		if err == nil {
+			errors = nil // These errors prior we don't need to worry about.
 			break
 		}
 		errors = append(errors, err)
@@ -306,17 +308,4 @@ func (s *Strategy) SubmitOrder(ctx context.Context, submit *order.Submit) (*orde
 		errReturn = errors
 	}
 	return resp, errReturn
-}
-
-// SendReport sends a strategy activity report to a potential receiver. Will
-// do nothing if there is no receiver.
-func (s *Strategy) SendReport(rp *Report) error {
-	if rp == nil {
-		return errActivityReportIsNil
-	}
-	select {
-	case s.Reporter <- rp:
-	default:
-	}
-	return nil
 }

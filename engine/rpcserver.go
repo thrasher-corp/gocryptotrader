@@ -5596,9 +5596,8 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 	}
 
 	fmt.Printf("strategy: %+v\n", r)
-
-	// TODO: Implement a new strategy manager.
-	strategy, err := twap.New(stream.Context(), &twap.Config{
+	ctx := stream.Context()
+	twap, err := twap.New(ctx, &twap.Config{
 		Exchange:                exch,
 		Pair:                    pair,
 		Asset:                   as,
@@ -5621,27 +5620,29 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 		return err
 	}
 
-	fmt.Printf("strategy: %+v\n", strategy)
-
-	err = strategy.Run(stream.Context())
+	id, err := s.strategyManager.Register(twap)
 	if err != nil {
 		return err
 	}
 
-	for report := range strategy.Reporter {
-		var errStr string
-		if report.Information.Error != nil {
-			errStr = report.Information.Error.Error()
-		}
+	fmt.Printf("twaaap: %+v\n", twap)
 
+	reporter, err := s.strategyManager.RunStream(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	for report := range reporter {
+		var errStr string
 		if report.Error != nil {
 			errStr = report.Error.Error()
 		}
 		err := stream.Send(&gctrpc.TWAPResponse{
-			Submit:         report.Information.Submit.String(),
-			SubmitResponse: report.Information.Response.String(),
+			Submit:         report.Submit.String(),
+			SubmitResponse: report.Response.String(),
 			Orderbook:      report.Deployment.String(),
 			Error:          errStr,
+			Reason:         report.Reason,
 			Finished:       report.Finished,
 		})
 		if err != nil {

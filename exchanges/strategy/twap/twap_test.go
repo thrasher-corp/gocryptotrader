@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	strategy "github.com/thrasher-corp/gocryptotrader/exchanges/strategy/common"
 )
 
 var btcusd = currency.NewPair(currency.BTC, currency.USD)
@@ -43,7 +44,7 @@ func (f *fake) GetOrderExecutionLimits(asset.Item, currency.Pair) (order.MinMaxL
 }
 
 func (f *fake) SubmitOrder(_ context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	return s.DeriveSubmitResponse(Simulation)
+	return s.DeriveSubmitResponse(strategy.SimulationTag)
 }
 
 func loadHoldingsState(pair currency.Pair, freeQuote, freeBase float64) error {

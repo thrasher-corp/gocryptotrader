@@ -3947,12 +3947,6 @@
             "format": "double"
           },
           {
-            "name": "reduceOnly",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
-          },
-          {
             "name": "buy",
             "in": "query",
             "required": false,
@@ -6719,7 +6713,13 @@
         "orderbook": {
           "type": "string"
         },
+        "account": {
+          "type": "string"
+        },
         "error": {
+          "type": "string"
+        },
+        "reason": {
           "type": "string"
         },
         "finished": {

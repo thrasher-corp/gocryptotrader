@@ -1377,7 +1377,8 @@ message TWAPResponse {
   string orderbook = 3;
   string account = 4;
   string error = 5;
-  bool finished = 6;
+  string reason = 6;
+  bool finished = 7;
 }
 
 service GoCryptoTraderService {

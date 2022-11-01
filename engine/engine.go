@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/strategy"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
@@ -47,6 +48,7 @@ type Engine struct {
 	WithdrawManager         *WithdrawManager
 	dataHistoryManager      *DataHistoryManager
 	currencyStateManager    *CurrencyStateManager
+	strategyManager         strategy.Manager
 	Settings                Settings
 	uptime                  time.Time
 	GRPCShutdownSignal      chan struct{}
