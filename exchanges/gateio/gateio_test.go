@@ -1808,8 +1808,12 @@ func TestGetExpirationTime(t *testing.T) {
 
 func TestGetAllContractOfUnderlyingWithinExpiryDate(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GetAllContractOfUnderlyingWithinExpiryDate(context.Background(), "BTC_USDT", time.Time{}); err != nil {
+	if conts, err := g.GetAllContractOfUnderlyingWithinExpiryDate(context.Background(), "BTC_USDT", time.Time{}); err != nil {
 		t.Errorf("%s GetAllContractOfUnderlyingWithinExpiryDate() error %v", g.Name, err)
+	} else {
+		for x := range conts {
+			println(conts[x].Name)
+		}
 	}
 }
 
