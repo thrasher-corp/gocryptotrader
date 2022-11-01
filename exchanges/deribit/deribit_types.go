@@ -27,26 +27,29 @@ const (
 )
 
 var (
-	errTypeAssert                    = errors.New("type assertion failed")
-	errStartTimeCannotBeAfterEndTime = errors.New("start timestamp cannot be after end timestamp")
-	errUnsupportedIndexName          = errors.New("unsupported index name")
-	errInvalidInstrumentID           = errors.New("invalid instrument ID")
-	errInvalidIndexPriceCurrency     = errors.New("invalid currency, only BTC, ETH, SOL and USDC are supported")
-	errInvalidInstrumentName         = errors.New("invalid instrument name")
-	errInvalidComboID                = errors.New("invalid combo ID")
-	errInvalidCurrency               = errors.New("invalid currency")
-	errInvalidComboState             = errors.New("invalid combo state")
-	errNoArgumentPassed              = errors.New("no argument passed")
-	errInvalidAmount                 = errors.New("invalid amount, must be greater than 0")
-	errMissingNonce                  = errors.New("missing nonce")
-	errInvalidTradeRole              = errors.New("invalid trade role, only 'maker' and 'taker' are allowed")
-	errInvalidPrice                  = errors.New("invalid trade price")
-	errInvalidCryptoAddress          = errors.New("invalid crypto address")
-	errIntervalNotSupported          = errors.New("iterval not supported")
-	errInvalidTimestamp              = errors.New("invalid or zero timestamp")
-	errInvalidID                     = errors.New("invalid id")
-	errInvalidEmailAddress           = errors.New("invalid email address")
-	errMalformedData                 = errors.New("malformed data")
+	errTypeAssert                          = errors.New("type assertion failed")
+	errStartTimeCannotBeAfterEndTime       = errors.New("start timestamp cannot be after end timestamp")
+	errUnsupportedIndexName                = errors.New("unsupported index name")
+	errInvalidInstrumentID                 = errors.New("invalid instrument ID")
+	errInvalidIndexPriceCurrency           = errors.New("invalid currency, only BTC, ETH, SOL and USDC are supported")
+	errInvalidInstrumentName               = errors.New("invalid instrument name")
+	errInvalidComboID                      = errors.New("invalid combo ID")
+	errInvalidCurrency                     = errors.New("invalid currency")
+	errInvalidComboState                   = errors.New("invalid combo state")
+	errNoArgumentPassed                    = errors.New("no argument passed")
+	errInvalidAmount                       = errors.New("invalid amount, must be greater than 0")
+	errMissingNonce                        = errors.New("missing nonce")
+	errInvalidTradeRole                    = errors.New("invalid trade role, only 'maker' and 'taker' are allowed")
+	errInvalidPrice                        = errors.New("invalid trade price")
+	errInvalidCryptoAddress                = errors.New("invalid crypto address")
+	errIntervalNotSupported                = errors.New("iterval not supported")
+	errInvalidTimestamp                    = errors.New("invalid or zero timestamp")
+	errInvalidID                           = errors.New("invalid id")
+	errInvalidEmailAddress                 = errors.New("invalid email address")
+	errMalformedData                       = errors.New("malformed data")
+	errInvalidResponseReceiver             = errors.New("invalid response receiver; must be a non nil pointer")
+	errDisconnectedConnection              = errors.New("websocket connection is not established")
+	errWebsocketConnectionNotAuthenticated = errors.New("websocket connection is not authenticated")
 )
 
 // BookSummaryData stores summary data
@@ -754,6 +757,15 @@ type wsInput struct {
 	Params         map[string]interface{} `json:"params,omitempty"`
 }
 
+// WsRequest defines a request obj for the JSON-RPC endpoints and gets a websocket
+// response
+type WsRequest struct {
+	JSONRPCVersion string      `json:"jsonrpc,omitempty"`
+	ID             int64       `json:"id,omitempty"`
+	Method         string      `json:"method"`
+	Params         interface{} `json:"params,omitempty"`
+}
+
 // WsSubscriptionInput defines a request obj for the JSON-RPC and gets a websocket
 // response
 type WsSubscriptionInput struct {
@@ -764,8 +776,17 @@ type WsSubscriptionInput struct {
 }
 
 type wsResponse struct {
-	JSONRPCVersion string `json:"jsonrpc,omitempty"`
-	ID             int64  `json:"id,omitempty"`
+	JSONRPCVersion string      `json:"jsonrpc,omitempty"`
+	ID             int64       `json:"id,omitempty"`
+	Result         interface{} `json:"result,omitempty"`
+	Error          struct {
+		Message string `json:"message,omitempty"`
+		Code    int64  `json:"code,omitempty"`
+		Data    struct {
+			Reason string `json:"reason,omitempty"`
+			Param  string `json:"param,omitempty"`
+		}
+	} `json:"error,omitempty"`
 }
 
 type wsSubmitOrderResponse struct {
@@ -1327,14 +1348,14 @@ type wsUserPortfolio struct {
 	ProjectedInitialMargin     float64 `json:"projected_initial_margin"`
 	ProjectedDeltaTotal        float64 `json:"projected_delta_total"`
 	PortfolioMarginingEnabled  bool    `json:"portfolio_margining_enabled"`
-	OptionsVega                int     `json:"options_vega"`
-	OptionsValue               int     `json:"options_value"`
-	OptionsTheta               int     `json:"options_theta"`
-	OptionsSessionUpl          int     `json:"options_session_upl"`
-	OptionsSessionRpl          int     `json:"options_session_rpl"`
-	OptionsPl                  int     `json:"options_pl"`
-	OptionsGamma               int     `json:"options_gamma"`
-	OptionsDelta               int     `json:"options_delta"`
+	OptionsVega                float64 `json:"options_vega"`
+	OptionsValue               float64 `json:"options_value"`
+	OptionsTheta               float64 `json:"options_theta"`
+	OptionsSessionUpl          float64 `json:"options_session_upl"`
+	OptionsSessionRpl          float64 `json:"options_session_rpl"`
+	OptionsPl                  float64 `json:"options_pl"`
+	OptionsGamma               float64 `json:"options_gamma"`
+	OptionsDelta               float64 `json:"options_delta"`
 	MarginBalance              float64 `json:"margin_balance"`
 	MaintenanceMargin          float64 `json:"maintenance_margin"`
 	InitialMargin              float64 `json:"initial_margin"`

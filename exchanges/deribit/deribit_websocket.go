@@ -76,7 +76,7 @@ var defaultSubscriptions = []string{
 	incrementalTickerChannel,
 	orderbookChannel,
 	tickerChannel,
-	tradesChannel,
+	tradesWithKindChannel,
 }
 
 var (
@@ -724,7 +724,8 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 
 			// authenticated subscriptions
 			rawUsersOrdersKindCurrencyChannel,
-			tradesWithKindChannel,
+			rawUsersOrdersWithKindCurrencyAndIntervalChannel,
+			userTradesByKindCurrencyAndIntervalChannel,
 		)
 	}
 
@@ -813,6 +814,26 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 					subscriptions = append(subscriptions,
 						stream.ChannelSubscription{
 							Channel:  userOrdersWithIntervalChannel,
+							Currency: pairs[z],
+							Asset:    assets[y],
+							Params: map[string]interface{}{
+								"interval": "100ms",
+							},
+						})
+				case rawUsersOrdersWithKindCurrencyAndIntervalChannel:
+					subscriptions = append(subscriptions,
+						stream.ChannelSubscription{
+							Channel:  rawUsersOrdersWithKindCurrencyAndIntervalChannel,
+							Currency: pairs[z],
+							Asset:    assets[y],
+							Params: map[string]interface{}{
+								"interval": "100ms",
+							},
+						})
+				case userTradesByKindCurrencyAndIntervalChannel:
+					subscriptions = append(subscriptions,
+						stream.ChannelSubscription{
+							Channel:  userTradesByKindCurrencyAndIntervalChannel,
 							Currency: pairs[z],
 							Asset:    assets[y],
 							Params: map[string]interface{}{

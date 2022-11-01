@@ -1732,3 +1732,134 @@ func setupWs() {
 		log.Fatal(err)
 	}
 }
+
+func TestWSGetBookSummaryByCurrency(t *testing.T) {
+	t.Parallel()
+	d.Verbose = true
+	_, err := d.WSRetriveBookBySummary(currencySOL, "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveBookSummaryByInstrument(t *testing.T) {
+	t.Parallel()
+	_, err := d.WSRetriveBookSummaryByInstrument(btcPerpInstrument)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSGetContractSize(t *testing.T) {
+	t.Parallel()
+	_, err := d.WSRetriveContractSize(btcPerpInstrument)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSGetCurrencies(t *testing.T) {
+	t.Parallel()
+	_, err := d.WSRetriveCurrencies()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSGetDeliveryPrices(t *testing.T) {
+	t.Parallel()
+	_, err := d.WSRetriveDeliveryPrices("btc_usd", 0, 5)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSGetFundingChartData(t *testing.T) {
+	t.Parallel()
+	_, err := d.WSRetriveFundingChartData(btcPerpInstrument, "8h")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveFundingRateValue(t *testing.T) {
+	t.Parallel()
+	_, err := d.WSRetriveFundingRateValue(btcPerpInstrument, time.Now(), time.Now().Add(-time.Hour*8))
+	if !errors.Is(err, errStartTimeCannotBeAfterEndTime) {
+		t.Errorf("expected: %v, received %v", errStartTimeCannotBeAfterEndTime, err)
+	}
+	_, err = d.WSRetriveFundingRateValue(btcPerpInstrument, time.Now().Add(-time.Hour*8), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveHistoricalVolatility(t *testing.T) {
+	t.Parallel()
+	_, err := d.WSRetriveHistoricalVolatility(currencySOL)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveCurrencyIndexPrice(t *testing.T) {
+	t.Parallel()
+	if _, err := d.WSRetriveCurrencyIndexPrice(currencyBTC); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveIndexPrice(t *testing.T) {
+	t.Parallel()
+	_, err := d.WSRetriveIndexPrice("ada_usd")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveIndexPriceNames(t *testing.T) {
+	t.Parallel()
+	_, err := d.WSRetriveIndexPriceNames()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveInstrumentData(t *testing.T) {
+	t.Parallel()
+	_, err := d.WSRetriveInstrumentData(btcPerpInstrument)
+	if err != nil {
+		t.Error(err)
+	}
+}
+func TestWSRetriveInstrumentsData(t *testing.T) {
+	t.Parallel()
+	_, err := d.WSRetriveInstrumentsData(currencyBTC, "", false)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveLastSettlementsByInstrument(t *testing.T) {
+	t.Parallel()
+	_, err := d.WSRetriveLastSettlementsByInstrument(btcPerpInstrument, "", "", 0, time.Time{})
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.WSRetriveLastSettlementsByInstrument(btcPerpInstrument, "settlement", "5", 0, time.Now().Add(-2*time.Hour))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveLastTradesByCurrency(t *testing.T) {
+	t.Parallel()
+	_, err := d.WSRetriveLastTradesByCurrency(currencyBTC, "", "", "", "", 0, false)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.WSRetriveLastTradesByCurrency(currencyBTC, "option", "36798", "36799", "asc", 0, true)
+	if err != nil {
+		t.Error(err)
+	}
+}
