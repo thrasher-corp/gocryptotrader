@@ -1815,7 +1815,14 @@ func TestGetAllContractOfUnderlyingWithinExpiryDate(t *testing.T) {
 
 func TestGetOptionsSpecifiedContractDetail(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GetOptionsSpecifiedContractDetail(context.Background(), "BTC_USDT-20221028-26000-C"); err != nil {
+	pairs, err := g.FetchTradablePairs(context.Background(), asset.Options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pairs) == 0 {
+		t.Fatal(errors.New("no options contract found"))
+	}
+	if _, err := g.GetOptionsSpecifiedContractDetail(context.Background(), pairs[0]); err != nil {
 		t.Errorf("%s GetOptionsSpecifiedContractDetail() error %v", g.Name, err)
 	}
 }

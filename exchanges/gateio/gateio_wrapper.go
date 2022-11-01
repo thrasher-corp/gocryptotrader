@@ -463,13 +463,17 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 			return nil, err
 		}
 		pairs := []string{}
+		println("Underlyings : ", strconv.Itoa(len(underlyings)))
 		for x := range underlyings {
+			println(underlyings[x].Name)
 			contracts, err := g.GetAllContractOfUnderlyingWithinExpiryDate(ctx, underlyings[x].Name, time.Time{})
 			if err != nil {
 				return nil, err
 			}
+			println(len(contracts))
 			for c := range contracts {
 				if !g.IsValidPairString(contracts[c].Name) {
+					println("Skipping")
 					continue
 				}
 				pairs = append(pairs, contracts[c].Name)
@@ -1614,6 +1618,9 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 				return nil, err
 			}
 			status, err = order.StringToOrderStatus(optionsOrders[x].Status)
+			if err != nil {
+				return nil, err
+			}
 			orders = append(orders, order.Detail{
 				Status:          status,
 				Amount:          optionsOrders[x].Size,
