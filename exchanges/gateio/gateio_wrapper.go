@@ -493,6 +493,8 @@ func (g *Gateio) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 		p, err := currency.NewPairsFromStrings(pairs)
 		if err != nil {
 			return err
+		} else if len(p) == 0 {
+			continue
 		}
 		err = g.UpdatePairs(p, assets[x], false, forceUpdate)
 		if err != nil {

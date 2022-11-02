@@ -1080,7 +1080,6 @@ func (g *Gateio) SendHTTPRequest(ctx context.Context, ep exchange.URL, path stri
 	if err != nil {
 		return err
 	}
-	path = "/" + gateioAPIVersion + "/" + path
 	item := &request.Item{
 		Method:        http.MethodGet,
 		Path:          endpoint + path,

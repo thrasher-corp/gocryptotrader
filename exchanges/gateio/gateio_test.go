@@ -1801,19 +1801,15 @@ func TestGetAllUnderlyings(t *testing.T) {
 
 func TestGetExpirationTime(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GetExpirationTime(context.Background(), "BTC_USDT"); err != nil {
+	if _, err := g.GetExpirationTime(context.Background(), "BTC_USDT"); err != nil && !errors.Is(err, errNoValidResponseFromServer) {
 		t.Errorf("%s GetExpirationTime() error %v", g.Name, err)
 	}
 }
 
 func TestGetAllContractOfUnderlyingWithinExpiryDate(t *testing.T) {
 	t.Parallel()
-	if conts, err := g.GetAllContractOfUnderlyingWithinExpiryDate(context.Background(), "BTC_USDT", time.Time{}); err != nil {
+	if _, err := g.GetAllContractOfUnderlyingWithinExpiryDate(context.Background(), "BTC_USDT", time.Time{}); err != nil {
 		t.Errorf("%s GetAllContractOfUnderlyingWithinExpiryDate() error %v", g.Name, err)
-	} else {
-		for x := range conts {
-			println(conts[x].Name)
-		}
 	}
 }
 
@@ -1824,7 +1820,7 @@ func TestGetOptionsSpecifiedContractDetail(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(pairs) == 0 {
-		t.Fatal(errors.New("no options contract found"))
+		t.Skip(errors.New("no options contract found"))
 	}
 	if _, err := g.GetOptionsSpecifiedContractDetail(context.Background(), pairs[0]); err != nil {
 		t.Errorf("%s GetOptionsSpecifiedContractDetail() error %v", g.Name, err)
@@ -2183,6 +2179,9 @@ func TestGetSingleSubAccount(t *testing.T) {
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
 	if _, err := g.FetchTradablePairs(context.Background(), asset.DeliveryFutures); err != nil {
+		t.Errorf("%s FetchTradablePairs() error %v", g.Name, err)
+	}
+	if _, err := g.FetchTradablePairs(context.Background(), asset.Options); err != nil {
 		t.Errorf("%s FetchTradablePairs() error %v", g.Name, err)
 	}
 }
