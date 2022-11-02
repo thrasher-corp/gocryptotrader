@@ -56,6 +56,7 @@ func (bt *BackTest) SetupLiveDataHandler(eventTimeout, dataCheckInterval time.Du
 		dataCheckInterval: dataCheckInterval,
 		dataHolder:        bt.DataHolder,
 		shutdown:          make(chan struct{}),
+		updatedChannel:    make(chan bool),
 		report:            bt.Reports,
 		funding:           bt.Funding,
 	}
@@ -166,7 +167,7 @@ func (d *dataChecker) checkData() error {
 	if !updated {
 		return nil
 	}
-	d.notice.Alert()
+	d.updatedChannel <- true
 	if d.realOrders {
 		go func() {
 			err = d.UpdateFunding(false)
@@ -218,31 +219,27 @@ func (d *dataChecker) UpdateFunding(force bool) error {
 	return nil
 }
 
-// Updated gives other endpoints the ability to listen to
-// when data is updated from live sources
-func (d *dataChecker) Updated() <-chan bool {
-	if d == nil {
-		immediateClosure := make(chan bool)
-		close(immediateClosure)
-		return immediateClosure
-	}
-	return d.notice.Wait(d.shutdown)
-}
-
 func closedChan() chan bool {
 	immediateClosure := make(chan bool)
 	close(immediateClosure)
 	return immediateClosure
 }
 
-// HasShutdown indicates when the live data checker
-// has been shutdown
-func (d *dataChecker) HasShutdown() <-chan bool {
+// Updated gives other endpoints the ability to listen to
+// when data is updated from live sources
+func (d *dataChecker) Updated() chan bool {
 	if d == nil {
 		return closedChan()
 	}
-	d.m.Lock()
-	defer d.m.Unlock()
+	return d.updatedChannel
+}
+
+// HasShutdown indicates when the live data checker
+// has been shutdown
+func (d *dataChecker) HasShutdown() chan bool {
+	if d == nil {
+		return closedChan()
+	}
 	if atomic.LoadUint32(&d.started) == 1 {
 		return nil
 	}
@@ -251,15 +248,16 @@ func (d *dataChecker) HasShutdown() <-chan bool {
 
 // HasShutdownFromError indicates when the live data checker
 // has been shutdown from encountering an error
-func (d *dataChecker) HasShutdownFromError() <-chan bool {
+func (d *dataChecker) HasShutdownFromError() chan bool {
 	if d == nil {
 		return closedChan()
 	}
-	d.m.Lock()
-	defer d.m.Unlock()
+
 	if atomic.LoadUint32(&d.started) == 1 {
 		return nil
 	}
+	d.m.Lock()
+	defer d.m.Unlock()
 	if d.shutdownErr != nil {
 		return closedChan()
 	}

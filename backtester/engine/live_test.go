@@ -218,7 +218,7 @@ func TestUpdated(t *testing.T) {
 		<-waitChan
 		wg.Done()
 	}()
-	dataHandler.notice.Alert()
+	dataHandler.dataUpdatedNotice.Alert()
 	wg.Wait()
 
 	dataHandler = nil
@@ -615,5 +615,22 @@ func TestUpdateFunding(t *testing.T) {
 	err = d.UpdateFunding(false)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
+	}
+}
+
+func TestClosedChan(t *testing.T) {
+	t.Parallel()
+	chantel := closedChan()
+	if chantel == nil {
+		t.Errorf("expected channel, received %v", nil)
+	}
+	<-chantel
+	// demonstrate nil channel still functions on a select case
+	chantel = nil
+	select {
+	case <-chantel:
+		t.Error("woah")
+	default:
+
 	}
 }

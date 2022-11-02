@@ -47,9 +47,9 @@ type Handler interface {
 	DataFetcher() error
 	Stop() error
 	Reset() error
-	Updated() <-chan bool
-	HasShutdown() <-chan bool
-	HasShutdownFromError() <-chan bool
+	Updated() chan bool
+	HasShutdown() chan bool
+	HasShutdownFromError() chan bool
 	SetDataForClosingAllPositions(events ...signal.Event) error
 	UpdateFunding(force bool) error
 	IsRealOrders() bool
@@ -70,9 +70,10 @@ type dataChecker struct {
 	eventTimeout      time.Duration
 	dataCheckInterval time.Duration
 	dataHolder        data.Holder
-	notice            alert.Notice
+	dataUpdatedNotice alert.Notice
 	shutdownErr       error
 	shutdown          chan struct{}
+	updatedChannel    chan bool
 	report            report.Handler
 	funding           funding.IFundingManager
 }

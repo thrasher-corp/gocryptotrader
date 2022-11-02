@@ -1564,13 +1564,14 @@ func TestLiveLoop(t *testing.T) {
 	bt.Funding = &fakeFunding{}
 	bt.Statistic = &fakeStats{}
 
-	err = bt.SetupLiveDataHandler(1, 1, false, false)
+	err = bt.SetupLiveDataHandler(time.Minute, time.Minute, false, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	dc := bt.LiveDataHandler.(*dataChecker)
-	dc.started = 1
 
+	// updated case
+	dc.started = 1
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
@@ -1580,24 +1581,14 @@ func TestLiveLoop(t *testing.T) {
 			t.Errorf("received '%v' expected '%v'", err, nil)
 		}
 	}()
-	close(bt.shutdown)
+	dc.updatedChannel <- true
+	close(dc.shutdown)
 	wg.Wait()
 
-	dc.dataCheckInterval = time.Hour
+	// shutdown from error case
+	wg.Add(1)
 	bt.shutdown = make(chan struct{})
 	dc.started = 0
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		err = bt.liveLoop()
-		if !errors.Is(err, nil) {
-			t.Errorf("received '%v' expected '%v'", err, nil)
-		}
-	}()
-	wg.Wait()
-
-	bt.shutdown = make(chan struct{})
-	wg.Add(1)
 	dc.shutdownErr = errAlreadyRan
 	go func() {
 		defer wg.Done()
@@ -1607,6 +1598,20 @@ func TestLiveLoop(t *testing.T) {
 		}
 	}()
 	wg.Wait()
+
+	// already shutdown case
+	dc.shutdownErr = nil
+	dc.shutdown = make(chan struct{})
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err = bt.liveLoop()
+		if !errors.Is(err, nil) {
+			t.Errorf("received '%v' expected '%v'", err, nil)
+		}
+	}()
+	wg.Wait()
+
 }
 
 func TestSetExchangeCredentials(t *testing.T) {
