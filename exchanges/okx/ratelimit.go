@@ -115,7 +115,7 @@ type RateLimit struct {
 	GetBorrowAnsRepayHistoryHistory   *rate.Limiter
 	GetBorrowInterestAndLimit         *rate.Limiter
 	PositionBuilder                   *rate.Limiter
-	GetGeeks                          *rate.Limiter
+	GetGreeks                         *rate.Limiter
 	GetPMLimitation                   *rate.Limiter
 	// Sub Account Endpoints
 	ViewSubaccountList                             *rate.Limiter
@@ -286,7 +286,7 @@ const (
 	getBorrowAnsRepayHistoryHistoryRate   = 5
 	getBorrowInterestAndLimitRate         = 5
 	positionBuilderRate                   = 2
-	getGeeksRate                          = 10
+	getGreeksRate                         = 10
 	getPMLimitation                       = 6
 	// Sub Account Endpoints
 	viewSubaccountListRate                             = 2
@@ -452,7 +452,7 @@ const (
 	getBorrowAnsRepayHistoryHistoryEPL
 	getBorrowInterestAndLimitEPL
 	positionBuilderEPL
-	getGeeksEPL
+	getGreeksEPL
 	getPMLimitationEPL
 	viewSubaccountListEPL
 	resetSubAccountAPIKeyEPL
@@ -696,8 +696,8 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.GetBorrowInterestAndLimit.Wait(ctx)
 	case positionBuilderEPL:
 		return r.PositionBuilder.Wait(ctx)
-	case getGeeksEPL:
-		return r.GetGeeks.Wait(ctx)
+	case getGreeksEPL:
+		return r.GetGreeks.Wait(ctx)
 	case getPMLimitationEPL:
 		return r.GetPMLimitation.Wait(ctx)
 	case viewSubaccountListEPL:
@@ -929,7 +929,7 @@ func SetRateLimit() *RateLimit {
 		GetBorrowAnsRepayHistoryHistory:   request.NewRateLimit(twoSecondsInterval, getBorrowAnsRepayHistoryHistoryRate),
 		GetBorrowInterestAndLimit:         request.NewRateLimit(twoSecondsInterval, getBorrowInterestAndLimitRate),
 		PositionBuilder:                   request.NewRateLimit(twoSecondsInterval, positionBuilderRate),
-		GetGeeks:                          request.NewRateLimit(twoSecondsInterval, getGeeksRate),
+		GetGreeks:                         request.NewRateLimit(twoSecondsInterval, getGreeksRate),
 		GetPMLimitation:                   request.NewRateLimit(twoSecondsInterval, getPMLimitation),
 		// Sub Account Endpoints
 

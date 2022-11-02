@@ -664,8 +664,9 @@ func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 	}
 
 	resp := make([]trade.Data, len(tradeData))
+	var side order.Side
 	for x := range tradeData {
-		side, err := order.StringToOrderSide(tradeData[x].Side)
+		side, err = order.StringToOrderSide(tradeData[x].Side)
 		if err != nil {
 			return nil, err
 		}
@@ -681,7 +682,7 @@ func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 		}
 	}
 	if ok.IsSaveTradeDataEnabled() {
-		err := trade.AddTradesToBuffer(ok.Name, resp...)
+		err = trade.AddTradesToBuffer(ok.Name, resp...)
 		if err != nil {
 			return nil, err
 		}
@@ -718,7 +719,7 @@ func (ok *Okx) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType
 		}
 	}
 	if ok.IsSaveTradeDataEnabled() {
-		err := trade.AddTradesToBuffer(ok.Name, resp...)
+		err = trade.AddTradesToBuffer(ok.Name, resp...)
 		if err != nil {
 			return nil, err
 		}
@@ -751,7 +752,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		tradeMode = "cash"
 	}
 	var sideType string
-	if s.Side == order.Buy {
+	if s.Side.IsLong() {
 		sideType = order.Buy.Lower()
 	} else {
 		sideType = order.Sell.Lower()
@@ -865,6 +866,11 @@ func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 // CancelBatchOrders cancels orders by their corresponding ID numbers
 func (ok *Okx) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (order.CancelBatchResponse, error) {
 	var cancelBatchResponse order.CancelBatchResponse
+	if len(orders) > 20 {
+		return cancelBatchResponse, fmt.Errorf("%w, cannot cancel more than 20 orders", errExceedLimit)
+	} else if len(orders) == 0 {
+		return cancelBatchResponse, fmt.Errorf("%w, must have at least 1 cancel order", errNoOrderParameterPassed)
+	}
 	cancelOrderParams := []CancelOrderRequestParam{}
 	var err error
 	for x := range orders {
@@ -918,28 +924,36 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (or
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (ok *Okx) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+	err := orderCancellation.Validate()
+	if err != nil {
+		return order.CancelAllResponse{}, err
+	}
 	cancelAllResponse := order.CancelAllResponse{
 		Status: map[string]string{},
 	}
+	var instrumentType string
+	if orderCancellation.AssetType.IsValid() {
+		err = ok.CurrencyPairs.IsAssetEnabled(orderCancellation.AssetType)
+		if err != nil {
+			return order.CancelAllResponse{}, err
+		}
+		instrumentType = ok.GetInstrumentTypeFromAssetItem(orderCancellation.AssetType)
+	}
+	var oType string
+	if orderCancellation.Type != order.UnknownType {
+		oType, err = ok.OrderTypeString(orderCancellation.Type)
+		if err != nil {
+			return order.CancelAllResponse{}, err
+		}
+	}
+	var curr string
+	if orderCancellation.Pair.IsPopulated() {
+		curr = orderCancellation.Pair.Upper().String()
+	}
 	myOrders, err := ok.GetOrderList(ctx, &OrderListRequestParams{
-		InstrumentType: func() string {
-			if orderCancellation.AssetType == asset.Spot || orderCancellation.AssetType == asset.Margin || orderCancellation.AssetType == asset.PerpetualSwap || orderCancellation.AssetType == asset.Futures || orderCancellation.AssetType == asset.Option {
-				return ok.GetInstrumentTypeFromAssetItem(orderCancellation.AssetType)
-			}
-			return ""
-		}(),
-		OrderType: func() string {
-			if oType, err := ok.OrderTypeString(orderCancellation.Type); err == nil {
-				return oType
-			}
-			return ""
-		}(),
-		InstrumentID: func() string {
-			if orderCancellation.Pair.IsPopulated() {
-				return orderCancellation.Pair.Upper().String()
-			}
-			return ""
-		}(),
+		InstrumentType: instrumentType,
+		OrderType:      oType,
+		InstrumentID:   curr,
 	})
 	if err != nil {
 		return cancelAllResponse, err
@@ -948,7 +962,8 @@ func (ok *Okx) CancelAllOrders(ctx context.Context, orderCancellation *order.Can
 	for x := range myOrders {
 		switch {
 		case orderCancellation.OrderID != "" || orderCancellation.ClientOrderID != "":
-			if myOrders[x].OrderID == orderCancellation.OrderID || myOrders[x].ClientSupplierOrderID == orderCancellation.ClientOrderID {
+			if myOrders[x].OrderID == orderCancellation.OrderID ||
+				myOrders[x].ClientSupplierOrderID == orderCancellation.ClientOrderID {
 				cancelAllOrdersRequestParams[x] = CancelOrderRequestParam{
 					OrderID:               myOrders[x].OrderID,
 					ClientSupplierOrderID: myOrders[x].ClientSupplierOrderID,

@@ -1668,8 +1668,8 @@ type CancelRFQRequestParam struct {
 
 // CancelRFQRequestsParam represents cancel multiple RFQ orders request params
 type CancelRFQRequestsParam struct {
-	RfqID               []string `json:"rfqId"`
-	ClientSuppliedRFQID []string `json:"clRfqId"`
+	RfqID               []string `json:"rfqIds"`
+	ClientSuppliedRFQID []string `json:"clRfqIds"`
 }
 
 // CancelRFQResponse represents cancel RFQ orders response
@@ -2295,9 +2295,9 @@ type wsIncomingData struct {
 	Msg      string           `json:"msg,omitempty"`
 
 	// For Websocket Trading Endpoints websocket responses
-	ID        string        `json:"id,omitempty"`
-	Operation string        `json:"op,omitempty"`
-	Data      []interface{} `json:"data,omitempty"`
+	ID        string          `json:"id,omitempty"`
+	Operation string          `json:"op,omitempty"`
+	Data      json.RawMessage `json:"data,omitempty"`
 }
 
 // copyToSubscriptionResponse returns a *SubscriptionOperationResponse instance.
@@ -2316,11 +2316,7 @@ func (w *wsIncomingData) copyToPlaceOrderResponse() (*WSOrderResponse, error) {
 		return nil, errEmptyPlaceOrderResponse
 	}
 	var placeOrds []OrderData
-	value, err := json.Marshal(w.Data)
-	if err != nil {
-		return nil, err
-	}
-	err = json.Unmarshal(value, &placeOrds)
+	err := json.Unmarshal(w.Data, &placeOrds)
 	if err != nil {
 		return nil, err
 	}
@@ -2420,6 +2416,17 @@ type WsOrderActionResponse struct {
 	Data      []OrderData `json:"data"`
 	Code      string      `json:"code"`
 	Msg       string      `json:"msg"`
+}
+
+func (a *WsOrderActionResponse) populateFromIncomingData(incoming *wsIncomingData) error {
+	if incoming == nil {
+		return errNilArgument
+	}
+	a.ID = incoming.ID
+	a.Code = incoming.Code
+	a.Operation = incoming.Operation
+	a.Msg = incoming.Msg
+	return nil
 }
 
 // SubscriptionOperationInput represents the account channel input datas
@@ -3166,4 +3173,12 @@ type wsRequestDataChannelsMultiplexer struct {
 	Register              chan *wsRequestInfo
 	Unregister            chan string
 	Message               chan *wsIncomingData
+}
+
+// wsSubscriptionParametersToggler represents toggling boolean values for subscription parameters.
+type wsSubscriptionParametersToggler struct {
+	InstrumentType bool
+	InstrumentID   bool
+	Underlying     bool
+	Currency       bool
 }

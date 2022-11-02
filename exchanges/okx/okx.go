@@ -173,7 +173,7 @@ const (
 	accountTradeFee                  = "account/trade-fee"
 	accountInterestAccrued           = "account/interest-accrued"
 	accountInterestRate              = "account/interest-rate"
-	accountSetGeeks                  = "account/set-greeks"
+	accountSetGreeks                 = "account/set-greeks"
 	accountSetIsolatedMode           = "account/set-isolated-mode"
 	accountMaxWithdrawal             = "account/max-withdrawal"
 	accountRiskState                 = "account/risk-state"
@@ -181,7 +181,7 @@ const (
 	accountBorrowRepayHistory        = "account/borrow-repay-history"
 	accountInterestLimits            = "account/interest-limits"
 	accountSimulatedMargin           = "account/simulated_margin"
-	accountGeeks                     = "account/greeks"
+	accountGreeks                    = "account/greeks"
 	accountPortfolioMarginLimitation = "account/position-tiers"
 
 	// Block Trading
@@ -341,6 +341,7 @@ var (
 	errIncompleteCurrencyPair                        = errors.New("incomplete currency pair")
 	errInvalidDuration                               = errors.New("invalid grid contract duration, only '7D', '30D', and '180D' are allowed")
 	errInvalidProtocolType                           = errors.New("invalid protocol type, only 'staking' and 'defi' allowed")
+	errExceedLimit                                   = errors.New("limit exceeded")
 )
 
 /************************************ MarketData Endpoints *************************************************/
@@ -425,9 +426,9 @@ func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam, a as
 		arg.OrderType == OkxOrderIOC) {
 		return nil, fmt.Errorf("invalid order price for %s order types", arg.OrderType)
 	}
-	if arg.QuantityType != "base_ccy" &&
+	if arg.QuantityType != "" && arg.QuantityType != "base_ccy" &&
 		arg.QuantityType != "quote_ccy" {
-		arg.QuantityType = ""
+		return nil, errors.New("only base_ccy and quote_ccy quantity types are supported")
 	}
 	var resp []OrderData
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, tradeOrder, &arg, &resp, true)
@@ -480,8 +481,8 @@ func (ok *Okx) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequest
 			args[x].OrderType == OkxOrderIOC) {
 			return nil, fmt.Errorf("invalid order price for %s order types", args[x].OrderType)
 		}
-		if args[x].QuantityType != "base_ccy" && args[x].QuantityType != "quote_ccy" {
-			args[x].QuantityType = ""
+		if args[x].QuantityType != "" && args[x].QuantityType != "base_ccy" && args[x].QuantityType != "quote_ccy" {
+			return nil, errors.New("only base_ccy and quote_ccy quantity types are supported")
 		}
 	}
 	var resp []OrderData
@@ -912,10 +913,11 @@ func (ok *Okx) TriggerAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*Alg
 	if arg.TriggerPrice <= 0 {
 		return nil, errInvalidTriggerPrice
 	}
-	if arg.TriggerPriceType != "last" &&
+	if arg.TriggerPriceType != "" &&
+		arg.TriggerPriceType != "last" &&
 		arg.TriggerPriceType != "index" &&
 		arg.TriggerPriceType != "mark" {
-		arg.TriggerPriceType = ""
+		return nil, errors.New("only last, index and mark trigger price types are allowed")
 	}
 	return ok.PlaceAlgoOrder(ctx, arg)
 }
@@ -2364,7 +2366,7 @@ func (ok *Okx) SetGreeks(ctx context.Context, greeksType string) (*GreeksType, e
 		GreeksType: greeksType,
 	}
 	var resp []GreeksType
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, setGreeksEPL, http.MethodPost, accountSetGeeks, input, &resp, true)
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, setGreeksEPL, http.MethodPost, accountSetGreeks, input, &resp, true)
 	if err != nil {
 		return nil, err
 	}
@@ -2483,7 +2485,7 @@ func (ok *Okx) GetGreeks(ctx context.Context, currency string) ([]GreeksItem, er
 		params.Set("ccy", currency)
 	}
 	var resp []GreeksItem
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getGeeksEPL, http.MethodGet, common.EncodeURLValues(accountGeeks, params), nil, &resp, true)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getGreeksEPL, http.MethodGet, common.EncodeURLValues(accountGreeks, params), nil, &resp, true)
 }
 
 // GetPMLimitation retrieve cross position limitation of SWAP/FUTURES/OPTION under Portfolio margin mode.

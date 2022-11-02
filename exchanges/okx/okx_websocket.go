@@ -1281,8 +1281,8 @@ func (ok *Okx) WsPlaceOrder(arg *PlaceOrderRequestParam) (*OrderData, error) {
 		arg.OrderType == OkxOrderFOK || arg.OrderType == OkxOrderIOC) {
 		return nil, fmt.Errorf("invalid order price for %s order types", arg.OrderType)
 	}
-	if arg.QuantityType != "base_ccy" && arg.QuantityType != "quote_ccy" {
-		arg.QuantityType = ""
+	if arg.QuantityType != "" && arg.QuantityType != "base_ccy" && arg.QuantityType != "quote_ccy" {
+		return nil, errors.New("only base_ccy and quote_ccy quantity types are supported")
 	}
 	randomID, err := common.GenerateRandomString(32, common.SmallLetters, common.CapitalLetters, common.NumberCharacters)
 	if err != nil {
@@ -1366,7 +1366,7 @@ func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]OrderData,
 			return nil, fmt.Errorf("invalid order price for %s order types", arg.OrderType)
 		}
 		if arg.QuantityType != "base_ccy" && arg.QuantityType != "quote_ccy" {
-			arg.QuantityType = ""
+			return nil, errors.New("only base_ccy and quote_ccy quantity types are supported")
 		}
 	}
 	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
@@ -1394,23 +1394,24 @@ func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]OrderData,
 		case data := <-wsResponse:
 			if data.Operation == okxOpBatchOrders && data.ID == input.ID {
 				if data.Code == "0" || data.Code == "2" {
-					resp, err := data.copyToPlaceOrderResponse()
+					var resp *WSOrderResponse
+					resp, err = data.copyToPlaceOrderResponse()
 					if err != nil {
 						return nil, err
 					}
 					return resp.Data, nil
 				}
+				var resp WsOrderActionResponse
+				err = resp.populateFromIncomingData(data)
+				if err != nil {
+					return nil, err
+				}
+				err = json.Unmarshal(data.Data, &(resp.Data))
+				if err != nil {
+					return nil, err
+				}
 				if len(data.Data) == 0 {
 					return nil, fmt.Errorf("error code:%s message: %v", data.Code, ErrorCodes[data.Code])
-				}
-				var resp WsOrderActionResponse
-				dataByte, err := json.Marshal(data)
-				if err != nil {
-					return nil, err
-				}
-				err = json.Unmarshal(dataByte, &resp)
-				if err != nil {
-					return nil, err
 				}
 				errs := common.Errors{}
 				for x := range resp.Data {
@@ -1523,7 +1524,8 @@ func (ok *Okx) WsCancelMultipleOrder(args []CancelOrderRequestParam) ([]OrderDat
 		case data := <-wsResponse:
 			if data.Operation == okxOpBatchCancelOrders && data.ID == input.ID {
 				if data.Code == "0" || data.Code == "2" {
-					resp, err := data.copyToPlaceOrderResponse()
+					var resp *WSOrderResponse
+					resp, err = data.copyToPlaceOrderResponse()
 					if err != nil {
 						return nil, err
 					}
@@ -1533,11 +1535,11 @@ func (ok *Okx) WsCancelMultipleOrder(args []CancelOrderRequestParam) ([]OrderDat
 					return nil, fmt.Errorf("error code:%s message: %v", data.Code, ErrorCodes[data.Code])
 				}
 				var resp WsOrderActionResponse
-				dataByte, err := json.Marshal(data)
+				err = resp.populateFromIncomingData(data)
 				if err != nil {
 					return nil, err
 				}
-				err = json.Unmarshal(dataByte, &resp)
+				err = json.Unmarshal(data.Data, &(resp.Data))
 				if err != nil {
 					return nil, err
 				}
@@ -1660,7 +1662,8 @@ func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]OrderDat
 		case data := <-wsResponse:
 			if data.Operation == okxOpBatchAmendOrders && data.ID == input.ID {
 				if data.Code == "0" || data.Code == "2" {
-					resp, err := data.copyToPlaceOrderResponse()
+					var resp *WSOrderResponse
+					resp, err = data.copyToPlaceOrderResponse()
 					if err != nil {
 						return nil, err
 					}
@@ -1670,11 +1673,11 @@ func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]OrderDat
 					return nil, fmt.Errorf("error code:%s message: %v", data.Code, ErrorCodes[data.Code])
 				}
 				var resp WsOrderActionResponse
-				dataByte, err := json.Marshal(data)
+				err = resp.populateFromIncomingData(data)
 				if err != nil {
 					return nil, err
 				}
-				err = json.Unmarshal(dataByte, &resp)
+				err = json.Unmarshal(data.Data, &(resp.Data))
 				if err != nil {
 					return nil, err
 				}
@@ -1717,8 +1720,8 @@ func (m *wsRequestDataChannelsMultiplexer) Run() {
 				continue
 			}
 			for _, myChan := range m.WsResponseChannelsMap {
-				if msg.Event == "error" || myChan.Event == operationLogin &&
-					(msg.Code == "60009" || msg.Code == "60022" || msg.Code == "60018") &&
+				if (msg.Event == "error" || myChan.Event == operationLogin) &&
+					(msg.Code == "60009" || msg.Code == "60022" || msg.Code == "0") &&
 					strings.Contains(msg.Msg, myChan.Channel) {
 					myChan.Chan <- msg
 					continue
@@ -1735,17 +1738,20 @@ func (m *wsRequestDataChannelsMultiplexer) Run() {
 	}
 }
 
-// WsChannelSubscription send a subscription or unsubscription request for different channels through the websocket stream.
-func (ok *Okx) WsChannelSubscription(operation, channel string, assetType asset.Item, pair currency.Pair, tooglers ...bool) error {
+// wsChannelSubscription send a subscription or unsubscription request for different channels through the websocket stream.
+func (ok *Okx) wsChannelSubscription(operation, channel string, assetType asset.Item, pair currency.Pair, tooglers wsSubscriptionParametersToggler) error {
 	if operation != operationSubscribe && operation != operationUnsubscribe {
 		return errInvalidWebsocketEvent
+	}
+	if channel == "" {
+		return errMissingValidChannelInformation
 	}
 	var underlying string
 	var instrumentID string
 	var instrumentType string
 	var format currency.PairFormat
 	var err error
-	if len(tooglers) > 0 && tooglers[0] {
+	if tooglers.InstrumentType {
 		instrumentType = strings.ToUpper(ok.GetInstrumentTypeFromAssetItem(assetType))
 		if instrumentType != okxInstTypeSpot &&
 			instrumentType != okxInstTypeMargin &&
@@ -1755,26 +1761,23 @@ func (ok *Okx) WsChannelSubscription(operation, channel string, assetType asset.
 			instrumentType = okxInstTypeANY
 		}
 	}
-	if len(tooglers) > 2 && tooglers[2] {
+	if tooglers.Underlying {
 		if !pair.IsEmpty() {
 			underlying, _ = ok.GetUnderlying(pair, assetType)
 		}
 	}
-	if len(tooglers) > 1 && tooglers[1] {
+	if tooglers.InstrumentID {
 		format, err = ok.GetPairFormat(assetType, false)
 		if err != nil {
 			return err
 		}
-		if pair.Base.String() == "" || pair.Quote.String() == "" {
+		if !pair.IsPopulated() {
 			return errIncompleteCurrencyPair
 		}
 		instrumentID = format.Format(pair)
 		if err != nil {
 			instrumentID = ""
 		}
-	}
-	if channel == "" {
-		return errMissingValidChannelInformation
 	}
 	input := &SubscriptionOperationInput{
 		Operation: operation,
@@ -1794,8 +1797,8 @@ func (ok *Okx) WsChannelSubscription(operation, channel string, assetType asset.
 
 // Private Channel Websocket methods
 
-// WsAuthChannelSubscription send a subscription or unsubscription request for different channels through the websocket stream.
-func (ok *Okx) WsAuthChannelSubscription(operation, channel string, assetType asset.Item, pair currency.Pair, uid, algoID string, tooglers ...bool) error {
+// wsAuthChannelSubscription send a subscription or unsubscription request for different channels through the websocket stream.
+func (ok *Okx) wsAuthChannelSubscription(operation, channel string, assetType asset.Item, pair currency.Pair, uid, algoID string, tooglers wsSubscriptionParametersToggler) error {
 	if operation != operationSubscribe && operation != operationUnsubscribe {
 		return errInvalidWebsocketEvent
 	}
@@ -1805,7 +1808,7 @@ func (ok *Okx) WsAuthChannelSubscription(operation, channel string, assetType as
 	var ccy string
 	var err error
 	var format currency.PairFormat
-	if len(tooglers) > 0 && tooglers[0] {
+	if tooglers.InstrumentType {
 		instrumentType = strings.ToUpper(ok.GetInstrumentTypeFromAssetItem(assetType))
 		if instrumentType != okxInstTypeMargin &&
 			instrumentType != okxInstTypeSwap &&
@@ -1814,12 +1817,12 @@ func (ok *Okx) WsAuthChannelSubscription(operation, channel string, assetType as
 			instrumentType = okxInstTypeANY
 		}
 	}
-	if len(tooglers) > 2 && tooglers[2] {
+	if tooglers.Underlying {
 		if !pair.IsEmpty() {
 			underlying, _ = ok.GetUnderlying(pair, assetType)
 		}
 	}
-	if len(tooglers) > 1 && tooglers[1] {
+	if tooglers.InstrumentID {
 		format, err = ok.GetPairFormat(assetType, false)
 		if err != nil {
 			return err
@@ -1832,7 +1835,7 @@ func (ok *Okx) WsAuthChannelSubscription(operation, channel string, assetType as
 			instrumentID = ""
 		}
 	}
-	if len(tooglers) > 3 && tooglers[3] {
+	if tooglers.Currency {
 		if !pair.IsEmpty() {
 			if !pair.Base.IsEmpty() {
 				ccy = strings.ToUpper(pair.Base.String())
@@ -1852,6 +1855,7 @@ func (ok *Okx) WsAuthChannelSubscription(operation, channel string, assetType as
 				InstrumentType: instrumentType,
 				Underlying:     underlying,
 				InstrumentID:   instrumentID,
+				AlgoID:         algoID,
 				Currency:       ccy,
 				UID:            uid,
 			},
@@ -1866,78 +1870,78 @@ func (ok *Okx) WsAuthChannelSubscription(operation, channel string, assetType as
 // events such as placing order, canceling order, transaction execution, etc.
 // It will also be pushed in regular interval according to subscription granularity.
 func (ok *Okx) WsAccountSubscription(operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.WsAuthChannelSubscription(operation, okxChannelAccount, assetType, pair, "", "", false, false, false, true)
+	return ok.wsAuthChannelSubscription(operation, okxChannelAccount, assetType, pair, "", "", wsSubscriptionParametersToggler{Currency: true})
 }
 
 // WsPositionChannel retrieve the position data. The first snapshot will be sent in accordance with the granularity of the subscription. Data will be pushed when certain actions, such placing or canceling an order, trigger it. It will also be pushed periodically based on the granularity of the subscription.
 func (ok *Okx) WsPositionChannel(operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.WsAuthChannelSubscription(operation, okxChannelPositions, assetType, pair, "", "", true)
+	return ok.wsAuthChannelSubscription(operation, okxChannelPositions, assetType, pair, "", "", wsSubscriptionParametersToggler{InstrumentType: true})
 }
 
 // BalanceAndPositionSubscription retrieve account balance and position information. Data will be pushed when triggered by events such as filled order, funding transfer.
 func (ok *Okx) BalanceAndPositionSubscription(operation, uid string) error {
-	return ok.WsAuthChannelSubscription(operation, okxChannelBalanceAndPosition, asset.Empty, currency.EMPTYPAIR, uid, "")
+	return ok.wsAuthChannelSubscription(operation, okxChannelBalanceAndPosition, asset.Empty, currency.EMPTYPAIR, uid, "", wsSubscriptionParametersToggler{})
 }
 
 // WsOrderChannel for subscribing for orders.
 func (ok *Okx) WsOrderChannel(operation string, assetType asset.Item, pair currency.Pair, instrumentID string) error {
-	return ok.WsAuthChannelSubscription(operation, okxChannelOrders, assetType, pair, "", "", true, true, true)
+	return ok.wsAuthChannelSubscription(operation, okxChannelOrders, assetType, pair, "", "", wsSubscriptionParametersToggler{InstrumentType: true, InstrumentID: true, Underlying: true})
 }
 
 // AlgoOrdersSubscription for subscribing to algo - order channels
 func (ok *Okx) AlgoOrdersSubscription(operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.WsAuthChannelSubscription(operation, okxChannelAlgoOrders, assetType, pair, "", "", true, true, true)
+	return ok.wsAuthChannelSubscription(operation, okxChannelAlgoOrders, assetType, pair, "", "", wsSubscriptionParametersToggler{InstrumentType: true, InstrumentID: true, Underlying: true})
 }
 
 // AdvanceAlgoOrdersSubscription algo order subscription to retrieve advance algo orders (including Iceberg order, TWAP order, Trailing order). Data will be pushed when first subscribed. Data will be pushed when triggered by events such as placing/canceling order.
 func (ok *Okx) AdvanceAlgoOrdersSubscription(operation string, assetType asset.Item, pair currency.Pair, algoID string) error {
-	return ok.WsAuthChannelSubscription(operation, okxChannelAlgoAdvance, assetType, pair, "", algoID, true, true)
+	return ok.wsAuthChannelSubscription(operation, okxChannelAlgoAdvance, assetType, pair, "", algoID, wsSubscriptionParametersToggler{InstrumentType: true, InstrumentID: true})
 }
 
 // PositionRiskWarningSubscription this push channel is only used as a risk warning, and is not recommended as a risk judgment for strategic trading
 // In the case that the market is not moving violently, there may be the possibility that the position has been liquidated at the same time that this message is pushed.
 func (ok *Okx) PositionRiskWarningSubscription(operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.WsAuthChannelSubscription(operation, okxChannelLiquidationWarning, assetType, pair, "", "", true, true, true)
+	return ok.wsAuthChannelSubscription(operation, okxChannelLiquidationWarning, assetType, pair, "", "", wsSubscriptionParametersToggler{InstrumentType: true, InstrumentID: true, Underlying: true})
 }
 
 // AccountGreeksSubscription algo order subscription to retrieve account greeks information. Data will be pushed when triggered by events such as increase/decrease positions or cash balance in account, and will also be pushed in regular interval according to subscription granularity.
 func (ok *Okx) AccountGreeksSubscription(operation string, pair currency.Pair) error {
-	return ok.WsAuthChannelSubscription(operation, okxChannelAccountGreeks, asset.Empty, pair, "", "", false, false, false, true)
+	return ok.wsAuthChannelSubscription(operation, okxChannelAccountGreeks, asset.Empty, pair, "", "", wsSubscriptionParametersToggler{Currency: true})
 }
 
 // RfqSubscription subscription to retrieve Rfq updates on RFQ orders.
 func (ok *Okx) RfqSubscription(operation, uid string) error {
-	return ok.WsAuthChannelSubscription(operation, okxChannelRFQs, asset.Empty, currency.EMPTYPAIR, uid, "")
+	return ok.wsAuthChannelSubscription(operation, okxChannelRFQs, asset.Empty, currency.EMPTYPAIR, uid, "", wsSubscriptionParametersToggler{})
 }
 
 // QuotesSubscription subscription to retrieve Quote subscription
 func (ok *Okx) QuotesSubscription(operation string) error {
-	return ok.WsAuthChannelSubscription(operation, okxChannelQuotes, asset.Empty, currency.EMPTYPAIR, "", "")
+	return ok.wsAuthChannelSubscription(operation, okxChannelQuotes, asset.Empty, currency.EMPTYPAIR, "", "", wsSubscriptionParametersToggler{})
 }
 
 // StructureBlockTradesSubscription to retrieve Structural block subscription
 func (ok *Okx) StructureBlockTradesSubscription(operation string) error {
-	return ok.WsAuthChannelSubscription(operation, okxChannelStruckeBlockTrades, asset.Empty, currency.EMPTYPAIR, "", "")
+	return ok.wsAuthChannelSubscription(operation, okxChannelStruckeBlockTrades, asset.Empty, currency.EMPTYPAIR, "", "", wsSubscriptionParametersToggler{})
 }
 
 // SpotGridAlgoOrdersSubscription to retrieve spot grid algo orders. Data will be pushed when first subscribed. Data will be pushed when triggered by events such as placing/canceling order.
 func (ok *Okx) SpotGridAlgoOrdersSubscription(operation string, assetType asset.Item, pair currency.Pair, algoID string) error {
-	return ok.WsAuthChannelSubscription(operation, okxChannelSpotGridOrder, assetType, pair, "", algoID, true, false, true)
+	return ok.wsAuthChannelSubscription(operation, okxChannelSpotGridOrder, assetType, pair, "", algoID, wsSubscriptionParametersToggler{InstrumentType: true, Underlying: true})
 }
 
 // ContractGridAlgoOrders to retrieve contract grid algo orders. Data will be pushed when first subscribed. Data will be pushed when triggered by events such as placing/canceling order.
 func (ok *Okx) ContractGridAlgoOrders(operation string, assetType asset.Item, pair currency.Pair, algoID string) error {
-	return ok.WsAuthChannelSubscription(operation, okxChannelGridOrdersContract, assetType, pair, "", algoID, true, false, true)
+	return ok.wsAuthChannelSubscription(operation, okxChannelGridOrdersContract, assetType, pair, "", algoID, wsSubscriptionParametersToggler{InstrumentType: true, Underlying: true})
 }
 
 // GridPositionsSubscription to retrieve grid positions. Data will be pushed when first subscribed. Data will be pushed when triggered by events such as placing/canceling order.
 func (ok *Okx) GridPositionsSubscription(operation, algoID string) error {
-	return ok.WsAuthChannelSubscription(operation, okxChannelGridPositions, asset.Empty, currency.EMPTYPAIR, "", algoID)
+	return ok.wsAuthChannelSubscription(operation, okxChannelGridPositions, asset.Empty, currency.EMPTYPAIR, "", algoID, wsSubscriptionParametersToggler{})
 }
 
 // GridSubOrders to retrieve grid sub orders. Data will be pushed when first subscribed. Data will be pushed when triggered by events such as placing order.
 func (ok *Okx) GridSubOrders(operation, algoID string) error {
-	return ok.WsAuthChannelSubscription(operation, okcChannelGridSubOrders, asset.Empty, currency.EMPTYPAIR, "", algoID)
+	return ok.wsAuthChannelSubscription(operation, okcChannelGridSubOrders, asset.Empty, currency.EMPTYPAIR, "", algoID, wsSubscriptionParametersToggler{})
 }
 
 // Public Websocket stream subscription
@@ -1946,12 +1950,12 @@ func (ok *Okx) GridSubOrders(operation, algoID string) error {
 // for the first time after subscription. Subsequently, the instruments will be pushed if there is any change to the instrument’s state (such as delivery of FUTURES,
 // exercise of OPTION, listing of new contracts / trading pairs, trading suspension, etc.).
 func (ok *Okx) InstrumentsSubscription(operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.WsChannelSubscription(operation, okxChannelInstruments, assetType, pair, true)
+	return ok.wsChannelSubscription(operation, okxChannelInstruments, assetType, pair, wsSubscriptionParametersToggler{InstrumentType: true})
 }
 
 // TickersSubscription subscribing to "ticker" channel to retrieve the last traded price, bid price, ask price and 24-hour trading volume of instruments. Data will be pushed every 100 ms.
 func (ok *Okx) TickersSubscription(operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.WsChannelSubscription(operation, okxChannelTickers, assetType, pair, false, true)
+	return ok.wsChannelSubscription(operation, okxChannelTickers, assetType, pair, wsSubscriptionParametersToggler{InstrumentID: true})
 }
 
 // OpenInterestSubscription to subscribe or unsubscribe to "open-interest" channel to retrieve the open interest. Data will by pushed every 3 seconds.
@@ -1959,7 +1963,7 @@ func (ok *Okx) OpenInterestSubscription(operation string, assetType asset.Item, 
 	if assetType != asset.Futures && assetType != asset.Option && assetType != asset.PerpetualSwap {
 		return fmt.Errorf("%w, only FUTURES, SWAP and OPTION asset types are supported", errInvalidInstrumentType)
 	}
-	return ok.WsChannelSubscription(operation, okxChannelOpenInterest, assetType, pair, false, true)
+	return ok.wsChannelSubscription(operation, okxChannelOpenInterest, assetType, pair, wsSubscriptionParametersToggler{InstrumentID: true})
 }
 
 // CandlesticksSubscription to subscribe or unsubscribe to "candle" channels to retrieve the candlesticks data of an instrument. the push frequency is the fastest interval 500ms push the data.
@@ -1967,12 +1971,12 @@ func (ok *Okx) CandlesticksSubscription(operation, channel string, assetType ass
 	if _, okay := candlestickChannelsMap[channel]; !okay {
 		return errMissingValidChannelInformation
 	}
-	return ok.WsChannelSubscription(operation, channel, assetType, pair, false, true)
+	return ok.wsChannelSubscription(operation, channel, assetType, pair, wsSubscriptionParametersToggler{InstrumentID: true})
 }
 
 // TradesSubscription to subscribe or unsubscribe to "trades" channel to retrieve the recent trades data. Data will be pushed whenever there is a trade. Every update contain only one trade.
 func (ok *Okx) TradesSubscription(operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.WsChannelSubscription(operation, okxChannelTrades, assetType, pair, false, true)
+	return ok.wsChannelSubscription(operation, okxChannelTrades, assetType, pair, wsSubscriptionParametersToggler{InstrumentID: true})
 }
 
 // EstimatedDeliveryExercisePriceSubscription to subscribe or unsubscribe to "estimated-price" channel to retrieve the estimated delivery/exercise price of FUTURES contracts and OPTION.
@@ -1980,12 +1984,12 @@ func (ok *Okx) EstimatedDeliveryExercisePriceSubscription(operation string, asse
 	if assetType != asset.Futures && assetType != asset.Option {
 		return fmt.Errorf("%w, only FUTURES and OPTION asset types are supported", errInvalidInstrumentType)
 	}
-	return ok.WsChannelSubscription(operation, okxChannelEstimatedPrice, assetType, pair, true, true, false)
+	return ok.wsChannelSubscription(operation, okxChannelEstimatedPrice, assetType, pair, wsSubscriptionParametersToggler{InstrumentType: true, InstrumentID: true})
 }
 
 // MarkPriceSubscription to subscribe or unsubscribe to to "mark-price" to retrieve the mark price. Data will be pushed every 200 ms when the mark price changes, and will be pushed every 10 seconds when the mark price does not change.
 func (ok *Okx) MarkPriceSubscription(operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.WsChannelSubscription(operation, okxChannelMarkPrice, assetType, pair, false, true)
+	return ok.wsChannelSubscription(operation, okxChannelMarkPrice, assetType, pair, wsSubscriptionParametersToggler{InstrumentID: true})
 }
 
 // MarkPriceCandlesticksSubscription to subscribe or unsubscribe to "mark-price-candles" channels to retrieve the candlesticks data of the mark price. Data will be pushed every 500 ms.
@@ -1993,26 +1997,15 @@ func (ok *Okx) MarkPriceCandlesticksSubscription(operation, channel string, asse
 	if _, okay := candlesticksMarkPriceMap[channel]; !okay {
 		return errMissingValidChannelInformation
 	}
-	return ok.WsChannelSubscription(operation, channel, assetType, pair, false, true)
+	return ok.wsChannelSubscription(operation, channel, assetType, pair, wsSubscriptionParametersToggler{InstrumentID: true})
 }
 
 // PriceLimitSubscription subscribe or unsubscribe to "price-limit" channel to retrieve the maximum buy price and minimum sell price of the instrument. Data will be pushed every 5 seconds when there are changes in limits, and will not be pushed when there is no changes on limit.
-func (ok *Okx) PriceLimitSubscription(operation, instrumentID string) error {
+func (ok *Okx) PriceLimitSubscription(operation string, pair currency.Pair) error {
 	if operation != operationSubscribe && operation != operationUnsubscribe {
 		return errInvalidWebsocketEvent
 	}
-	input := &SubscriptionOperationInput{
-		Operation: operation,
-		Arguments: []SubscriptionInfo{
-			{
-				Channel:      okxChannelPriceLimit,
-				InstrumentID: instrumentID,
-			},
-		},
-	}
-	ok.WsRequestSemaphore <- 1
-	defer func() { <-ok.WsRequestSemaphore }()
-	return ok.Websocket.Conn.SendJSONMessage(input)
+	return ok.wsChannelSubscription(operation, okxChannelPriceLimit, asset.Empty, pair, wsSubscriptionParametersToggler{InstrumentID: true})
 }
 
 // OrderBooksSubscription subscribe or unsubscribe to "books*" channel to retrieve order book data.
@@ -2020,48 +2013,48 @@ func (ok *Okx) OrderBooksSubscription(operation, channel string, assetType asset
 	if channel != okxChannelOrderBooks && channel != okxChannelOrderBooks5 && channel != okxChannelOrderBooks50TBT && channel != okxChannelOrderBooksTBT && channel != okxChannelBBOTBT {
 		return errMissingValidChannelInformation
 	}
-	return ok.WsChannelSubscription(operation, channel, assetType, pair, false, true)
+	return ok.wsChannelSubscription(operation, channel, assetType, pair, wsSubscriptionParametersToggler{InstrumentID: true})
 }
 
 // OptionSummarySubscription a method to subscribe or unsubscribe to "opt-summary" channel
 // to retrieve detailed pricing information of all OPTION contracts. Data will be pushed at once.
 func (ok *Okx) OptionSummarySubscription(operation string, pair currency.Pair) error {
-	return ok.WsChannelSubscription(operation, okxChannelOptSummary, asset.Option, pair, false, false, true)
+	return ok.wsChannelSubscription(operation, okxChannelOptSummary, asset.Option, pair, wsSubscriptionParametersToggler{Underlying: true})
 }
 
 // FundingRateSubscription a method to subscribe and unsubscribe to "funding-rate" channel.
 // retrieve funding rate. Data will be pushed in 30s to 90s.
 func (ok *Okx) FundingRateSubscription(operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.WsChannelSubscription(operation, okxChannelFundingRate, assetType, pair, false, true)
+	return ok.wsChannelSubscription(operation, okxChannelFundingRate, assetType, pair, wsSubscriptionParametersToggler{InstrumentID: true})
 }
 
 // IndexCandlesticksSubscription a method to subscribe and unsubscribe to "index-candle*" channel
 // to retrieve the candlesticks data of the index. Data will be pushed every 500 ms.
 func (ok *Okx) IndexCandlesticksSubscription(operation, channel string, assetType asset.Item, pair currency.Pair) error {
 	if _, okay := candlesticksIndexPriceMap[channel]; !okay {
-		return errMissingValidChannelInformation
+		return fmt.Errorf("%w channel: %v", errMissingValidChannelInformation, channel)
 	}
-	return ok.WsChannelSubscription(operation, channel, assetType, pair, false, true)
+	return ok.wsChannelSubscription(operation, channel, assetType, pair, wsSubscriptionParametersToggler{InstrumentID: true})
 }
 
 // IndexTickerChannel a method to subscribe and unsubscribe to "index-tickers" channel
 func (ok *Okx) IndexTickerChannel(operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.WsChannelSubscription(operation, okxChannelIndexTickers, assetType, pair, false, true)
+	return ok.wsChannelSubscription(operation, okxChannelIndexTickers, assetType, pair, wsSubscriptionParametersToggler{InstrumentID: true})
 }
 
 // StatusSubscription get the status of system maintenance and push when the system maintenance status changes.
 // First subscription: "Push the latest change data"; every time there is a state change, push the changed content
 func (ok *Okx) StatusSubscription(operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.WsChannelSubscription(operation, okxChannelStatus, assetType, pair)
+	return ok.wsChannelSubscription(operation, okxChannelStatus, assetType, pair, wsSubscriptionParametersToggler{})
 }
 
 // PublicStructureBlockTradesSubscription a method to subscribe or unsubscribe to "public-struc-block-trades" channel
 func (ok *Okx) PublicStructureBlockTradesSubscription(operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.WsChannelSubscription(operation, okxChannelPublicStrucBlockTrades, assetType, pair)
+	return ok.wsChannelSubscription(operation, okxChannelPublicStrucBlockTrades, assetType, pair, wsSubscriptionParametersToggler{})
 }
 
 // BlockTickerSubscription a method to subscribe and unsubscribe to a "block-tickers" channel to retrieve the latest block trading volume in the last 24 hours.
 // The data will be pushed when triggered by transaction execution event. In addition, it will also be pushed in 5 minutes interval according to subscription granularity.
 func (ok *Okx) BlockTickerSubscription(operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.WsChannelSubscription(operation, okxChannelBlockTickers, assetType, pair, false, true)
+	return ok.wsChannelSubscription(operation, okxChannelBlockTickers, assetType, pair, wsSubscriptionParametersToggler{InstrumentID: true})
 }
