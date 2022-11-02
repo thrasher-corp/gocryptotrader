@@ -182,7 +182,7 @@ func (k *Kraken) SetDefaults() {
 	k.API.Endpoints = k.NewEndpoints()
 	err = k.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      krakenAPIURL,
-		exchange.RestFutures:   futuresURL,
+		exchange.RestFutures:   krakenFuturesURL,
 		exchange.WebsocketSpot: krakenWSURL,
 	})
 	if err != nil {
