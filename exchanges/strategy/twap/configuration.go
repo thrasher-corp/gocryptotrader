@@ -184,26 +184,26 @@ func (c *Config) Check(ctx context.Context) error {
 }
 
 // GetDeploymentAmount will truncate and equally distribute amounts across time.
-func (c *Config) GetDistrbutionAmount(allocatedAmount float64, book *orderbook.Depth) (float64, error) {
+func (c *Config) GetDistrbutionAmount(allocatedAmount float64, book *orderbook.Depth) (*Allocation, error) {
 	if c == nil {
-		return 0, errConfigurationIsNil
+		return nil, errConfigurationIsNil
 	}
 	if c.Exchange == nil {
-		return 0, errExchangeIsNil
+		return nil, errExchangeIsNil
 	}
 	if allocatedAmount <= 0 {
-		return 0, errInvalidAllocatedAmount
+		return nil, errInvalidAllocatedAmount
 	}
 	if book == nil {
-		return 0, errOrderbookIsNil
+		return nil, errOrderbookIsNil
 	}
 	if c.Interval <= 0 {
-		return 0, kline.ErrUnsetInterval // This can panic on zero value.
+		return nil, kline.ErrUnsetInterval // This can panic on zero value.
 	}
 
 	window := c.End.Sub(c.Start)
 	if int64(window) <= int64(c.Interval) {
-		return 0, errInvalidOperationWindow
+		return nil, errInvalidOperationWindow
 	}
 	deployments := int64(window) / int64(c.Interval)
 	deploymentAmount := allocatedAmount / float64(deployments)
@@ -212,15 +212,24 @@ func (c *Config) GetDistrbutionAmount(allocatedAmount float64, book *orderbook.D
 	// *should* be deployed on the exchange.
 	deploymentAmountInBase, _, err := c.VerifyBookDeployment(book, deploymentAmount)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	// NOTE: Don't need to returned conformed amount if returning quote holdings
 	_, err = c.VerifyExecutionLimitsReturnConformed(deploymentAmountInBase)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	return deploymentAmount, nil
+
+	return &Allocation{
+		Total:       allocatedAmount,
+		Deployment:  deploymentAmount,
+		Window:      window,
+		Interval:    c.Interval,
+		Deployments: deployments,
+		Start:       c.Start,
+		End:         c.End,
+	}, nil
 }
 
 // VerifyBookDeployment verifies book liquidity and structure with deployment

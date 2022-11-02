@@ -11,9 +11,8 @@ import (
 
 const SimulationTag = "SIMULATION"
 
-// Requirement defines baseline functionality for strategy implementation to
-// GCT.
-type Requirements interface {
+// Requirement define baseline functionality for strategy implementation to GCT
+type Requirement interface {
 	Run(ctx context.Context) error
 	Stop() error
 	GetReporter() (Reporter, error)

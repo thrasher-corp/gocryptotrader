@@ -1,13 +1,11 @@
 package common
 
 import (
-	"errors"
-
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
-var errReportIsNil = errors.New("activity report is nil")
+// var errReportIsNil = errors.New("activity report is nil")
 
 // Reporter defines an initial concept broadcaster of a strategy action
 type Reporter chan *Report

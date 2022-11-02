@@ -18,12 +18,12 @@ var (
 // Manager defines strategy management - NOTE: This is a POC wrapper layer for
 // management purposes.
 type Manager struct {
-	strategies map[uuid.UUID]strategy.Requirements
+	strategies map[uuid.UUID]strategy.Requirement
 	mu         sync.Mutex
 }
 
 // Register stores the current strategy for management
-func (m *Manager) Register(strat strategy.Requirements) (uuid.UUID, error) {
+func (m *Manager) Register(strat strategy.Requirement) (uuid.UUID, error) {
 	if strat == nil {
 		return uuid.Nil, errStrategyIsNil
 	}
@@ -34,7 +34,7 @@ func (m *Manager) Register(strat strategy.Requirements) (uuid.UUID, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.strategies == nil {
-		m.strategies = make(map[uuid.UUID]strategy.Requirements)
+		m.strategies = make(map[uuid.UUID]strategy.Requirement)
 	}
 	m.strategies[id] = strat
 	return id, nil

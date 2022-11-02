@@ -91,18 +91,17 @@ func New(ctx context.Context, c *Config) (*Strategy, error) {
 	// orderbook, just until a safe, effective and efficient system has been
 	// tested and deployed. TODO: Bypass error
 	// errBookSmallerThanDeploymentAmount.
-	deploymentAmount, err := c.GetDistrbutionAmount(fullDeployment, depth)
+	allocation, err := c.GetDistrbutionAmount(fullDeployment, depth)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Strategy{
-		Config:           c,
-		orderbook:        depth,
-		Buying:           buying,
-		Selling:          selling,
-		FullDeployment:   fullDeployment,
-		DeploymentAmount: deploymentAmount,
+		Config:     c,
+		orderbook:  depth,
+		Buying:     buying,
+		Selling:    selling,
+		allocation: allocation,
 	}, nil
 }
 
@@ -116,7 +115,7 @@ func (s *Strategy) deploy(ctx context.Context, start time.Duration) {
 		s.mtx.Unlock()
 	}()
 	wow := fmt.Sprintf("Starting twap operation in %s...\n", start)
-	s.Reporter.Send(&strategy.Report{Reason: wow})
+	s.reporter.Send(&strategy.Report{Reason: wow})
 	// NOTE: Zero value start duration will execute immediately then deploy at
 	// intervals.
 	timer := time.NewTimer(start)
@@ -125,89 +124,39 @@ func (s *Strategy) deploy(ctx context.Context, start time.Duration) {
 		select {
 		case <-timer.C:
 			if !s.AllowTradingPastEndTime && time.Now().After(s.End) {
-				s.Reporter.Send(&strategy.Report{Reason: endTimeLapse, Finished: true})
+				s.reporter.Send(&strategy.Report{Reason: endTimeLapse, Finished: true})
 				return
 			}
 
 			err := s.SetTimer(timer)
 			if err != nil {
-				s.Reporter.Send(&strategy.Report{Error: err, Finished: true})
+				s.reporter.Send(&strategy.Report{Error: err, Finished: true})
 				return
 			}
 
-			preOrderBalance := s.Selling.GetAvailableWithoutBorrow()
-			if preOrderBalance < s.DeploymentAmount {
-				reduction := fmt.Sprintf("Reducing deployment amount from: %f to: %f\n",
-					s.DeploymentAmount,
-					preOrderBalance)
-				s.Reporter.Send(&strategy.Report{Reason: reduction})
-				s.DeploymentAmount = preOrderBalance
-			}
-
-			err = s.checkAndSubmit(ctx, s.DeploymentAmount)
+			err = s.checkAndSubmit(ctx)
 			if err != nil {
-				s.Reporter.Send(&strategy.Report{Error: err, Finished: true})
+				s.reporter.Send(&strategy.Report{Error: err, Finished: true})
 				return
 			}
 
-			if s.Simulate {
-				s.AmountDeployed += s.DeploymentAmount
-				if s.AmountDeployed >= s.FullDeployment {
-					s.Reporter.Send(&strategy.Report{Reason: "SIMULATION COMPLETED", Finished: true})
-					return
-				}
-			} else {
-				wait, cancel, err := s.Selling.Wait(0)
-				if err != nil {
-					s.Reporter.Send(&strategy.Report{Error: err, Finished: true})
-					return
-				}
-
-				var timedOut bool
-				select {
-				case timedOut = <-wait:
-				case <-ctx.Done():
-					select {
-					case cancel <- struct{}{}:
-					default:
-					}
-					s.Reporter.Send(&strategy.Report{Error: ctx.Err(), Finished: true})
-					return
-				}
-
-				if timedOut {
-					// TODO: Logger output
-					continue
-				}
-
-				afterOrderBalance := s.Selling.GetAvailableWithoutBorrow()
-
-				if afterOrderBalance == 0 {
-					s.Reporter.Send(&strategy.Report{Reason: "Balance depleted", Finished: true})
-					return
-				}
-
-				change := fmt.Sprintf("change received prev: %f, now: %f and change: %f\n",
-					preOrderBalance,
-					afterOrderBalance,
-					preOrderBalance-afterOrderBalance,
-				)
-
-				s.Reporter.Send(&strategy.Report{Reason: change})
+			if s.allocation.Deployed == s.allocation.Total {
+				s.reporter.Send(&strategy.Report{Reason: "SIMULATION COMPLETED", Finished: true})
+				return
 			}
 
 			if !s.AllowTradingPastEndTime && time.Now().After(s.End) {
-				s.Reporter.Send(&strategy.Report{Reason: endTimeLapse, Finished: true})
+				s.reporter.Send(&strategy.Report{Reason: endTimeLapse, Finished: true})
 				return
 			}
 		case <-finished.C:
-			s.Reporter.Send(&strategy.Report{Reason: endTimeLapse, Finished: true})
+			s.reporter.Send(&strategy.Report{Reason: endTimeLapse, Finished: true})
 			return
 		case <-ctx.Done():
-			s.Reporter.Send(&strategy.Report{Error: ctx.Err(), Finished: true})
+			s.reporter.Send(&strategy.Report{Error: ctx.Err(), Finished: true})
 			return
 		case <-s.shutdown:
-			s.Reporter.Send(&strategy.Report{Reason: "Shutdown called on strategy", Finished: true})
+			s.reporter.Send(&strategy.Report{Reason: "Shutdown called on strategy", Finished: true})
 			return
 		}
 	}
@@ -215,15 +164,12 @@ func (s *Strategy) deploy(ctx context.Context, start time.Duration) {
 
 // checkAndSubmit verifies orderbook deployability then executes an order if
 // all checks pass.
-func (s *Strategy) checkAndSubmit(ctx context.Context, deployment float64) error {
+func (s *Strategy) checkAndSubmit(ctx context.Context) error {
 	if s == nil {
 		return errStrategyIsNil
 	}
-	if deployment <= 0 {
-		return errInvalidAllocatedAmount
-	}
 
-	deploymentInBase, details, err := s.VerifyBookDeployment(s.orderbook, deployment)
+	deploymentInBase, details, err := s.VerifyBookDeployment(s.orderbook, s.allocation.Deployment)
 	if err != nil {
 		return err
 	}
@@ -243,7 +189,12 @@ func (s *Strategy) checkAndSubmit(ctx context.Context, deployment float64) error
 		return err
 	}
 
-	s.Reporter.Send(&strategy.Report{
+	// Note: For first iteration of strategy this is just easy reconciliation.
+	// TODO: Reconcile to adjusted amount.
+	s.allocation.Deployed += s.allocation.Deployment
+	s.allocation.Deployments++
+
+	s.reporter.Send(&strategy.Report{
 		Submit:     submit,
 		Response:   resp,
 		Deployment: details,
@@ -291,7 +242,6 @@ func (s *Strategy) submitOrder(ctx context.Context, submit *order.Submit) (*orde
 
 		var err error
 		if !s.Simulate {
-			fmt.Printf("WOW: %+v\n", submit)
 			resp, err = s.Exchange.SubmitOrder(ctx, submit)
 		} else {
 			resp, err = submit.DeriveSubmitResponse(strategy.SimulationTag)
@@ -309,3 +259,43 @@ func (s *Strategy) submitOrder(ctx context.Context, submit *order.Submit) (*orde
 	}
 	return resp, errReturn
 }
+
+// if !s.Simulate {
+// wait, cancel, err := s.Selling.Wait(0)
+// if err != nil {
+// 	s.reporter.Send(&strategy.Report{Error: err, Finished: true})
+// 	return
+// }
+
+// var timedOut bool
+// select {
+// case timedOut = <-wait:
+// case <-ctx.Done():
+// 	select {
+// 	case cancel <- struct{}{}:
+// 	default:
+// 	}
+// 	s.reporter.Send(&strategy.Report{Error: ctx.Err(), Finished: true})
+// 	return
+// }
+
+// if timedOut {
+// 	// TODO: Logger output
+// 	continue
+// }
+
+// afterOrderBalance := s.Selling.GetAvailableWithoutBorrow()
+
+// if afterOrderBalance == 0 {
+// 	s.reporter.Send(&strategy.Report{Reason: "Balance depleted", Finished: true})
+// 	return
+// }
+
+// change := fmt.Sprintf("change received prev: %f, now: %f and change: %f\n",
+// 	preOrderBalance,
+// 	afterOrderBalance,
+// 	preOrderBalance-afterOrderBalance,
+// )
+
+// s.reporter.Send(&strategy.Report{Reason: change})
+// }

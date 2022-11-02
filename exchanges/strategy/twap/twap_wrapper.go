@@ -68,10 +68,10 @@ func (s *Strategy) GetReporter() (strategy.Reporter, error) {
 
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
-	if s.Reporter == nil {
-		s.Reporter = make(strategy.Reporter, 1)
+	if s.reporter == nil {
+		s.reporter = make(strategy.Reporter, 1)
 	}
-	return s.Reporter, nil
+	return s.reporter, nil
 }
 
 // GetState returns the state of the strategy

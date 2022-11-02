@@ -189,7 +189,7 @@ func TestConfig_GetDistrbutionAmount(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	if amount != 100000 { // This will stick to the quote amount from above.
+	if amount.Deployment != 100000 { // This will stick to the quote amount from above.
 		t.Fatalf("received: '%v' but expected: '%v'", amount, 100000)
 	}
 
