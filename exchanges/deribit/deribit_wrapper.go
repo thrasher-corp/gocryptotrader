@@ -608,35 +608,43 @@ func (d *Deribit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		var data *PrivateTradeData
 		switch s.Side {
 		case order.Bid, order.Buy:
-			data, err = d.SubmitBuy(ctx, fmtPair.String(),
-				strings.ToLower(s.Type.String()),
-				s.ClientOrderID,
-				timeInForce, "", "",
-				s.Amount,
-				s.Price,
-				0,
-				s.TriggerPrice,
-				s.PostOnly,
-				false,
-				s.ReduceOnly,
-				false)
+			data, err = d.SubmitBuy(ctx,
+				&OrderBuyAndSellParams{
+					Instrument:  fmtPair.String(),
+					OrderType:   strings.ToLower(s.Type.String()),
+					Label:       s.ClientOrderID,
+					TimeInForce: timeInForce, Trigger: "", Advanced: "",
+					Amount:         s.Amount,
+					Price:          s.Price,
+					MaxShow:        0,
+					TriggerPrice:   s.TriggerPrice,
+					PostOnly:       s.PostOnly,
+					RejectPostOnly: false,
+					ReduceOnly:     s.ReduceOnly,
+					MMP:            false,
+				})
 			if err != nil {
 				return nil, err
 			}
 			orderID = data.Order.OrderID
 		case order.Sell, order.Ask:
-			data, err = d.SubmitSell(ctx, fmtPair.String(),
-				s.Type.String(),
-				s.ClientOrderID,
-				"", "", "",
-				s.Amount,
-				s.Price,
-				0,
-				s.TriggerPrice,
-				s.PostOnly,
-				false,
-				s.ReduceOnly,
-				false)
+			data, err = d.SubmitSell(ctx,
+				&OrderBuyAndSellParams{
+					Instrument:     fmtPair.String(),
+					OrderType:      s.Type.String(),
+					Label:          s.ClientOrderID,
+					TimeInForce:    "",
+					Trigger:        "",
+					Advanced:       "",
+					Amount:         s.Amount,
+					Price:          s.Price,
+					MaxShow:        0,
+					TriggerPrice:   s.TriggerPrice,
+					PostOnly:       s.PostOnly,
+					RejectPostOnly: false,
+					ReduceOnly:     s.ReduceOnly,
+					MMP:            false,
+				})
 			if err != nil {
 				return nil, err
 			}

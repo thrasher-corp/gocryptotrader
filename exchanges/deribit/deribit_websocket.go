@@ -331,6 +331,9 @@ func (d *Deribit) processOrders(respRaw []byte, channels []string) error {
 		}
 		if a != asset.Empty {
 			currencyPair, err = currency.NewPairFromString(orderData[x].InstrumentName)
+			if err != nil {
+				return err
+			}
 		}
 		d.Websocket.DataHandler <- order.Detail{
 			Price:           orderData[x].Price,
@@ -383,6 +386,9 @@ func (d *Deribit) processChanges(respRaw []byte, channels []string) error {
 		}
 		if a != asset.Empty {
 			currencyPair, err = currency.NewPairFromString(changeData.Trades[x].InstrumentName)
+			if err != nil {
+				return err
+			}
 		}
 		tradeDatas[x] = trade.Data{
 			CurrencyPair: currencyPair,
@@ -415,6 +421,9 @@ func (d *Deribit) processChanges(respRaw []byte, channels []string) error {
 		}
 		if a != asset.Empty {
 			currencyPair, err = currency.NewPairFromString(changeData.Orders[x].InstrumentName)
+			if err != nil {
+				return err
+			}
 		}
 		d.Websocket.DataHandler <- order.Detail{
 			Price:           changeData.Orders[x].Price,
@@ -487,7 +496,6 @@ func (d *Deribit) processTrades(respRaw []byte, channels []string) error {
 	if err != nil {
 		return err
 	}
-
 	tradeDatas := make([]trade.Data, len(tradeList))
 	for x := range tradeDatas {
 		side, err := order.StringToOrderSide(tradeList[x].Direction)
@@ -496,6 +504,9 @@ func (d *Deribit) processTrades(respRaw []byte, channels []string) error {
 		}
 		if a != asset.Empty {
 			currencyPair, err = currency.NewPairFromString(tradeList[x].InstrumentName)
+			if err != nil {
+				return err
+			}
 		}
 		tradeDatas[x] = trade.Data{
 			CurrencyPair: currencyPair,
@@ -1013,11 +1024,10 @@ func (d *Deribit) handleSubscription(operation string, channels []stream.Channel
 		var response wsSubscriptionResponse
 		err = json.Unmarshal(data, &response)
 		if err != nil {
-
 			return fmt.Errorf("%v %v", d.Name, err)
 		}
 		if payloads[x].ID == response.ID && len(response.Result) == 0 {
-			return fmt.Errorf("subscription to channel %s was not succesful", payloads[x].Params["channels"][0])
+			return fmt.Errorf("subscription to channel %s was not successful", payloads[x].Params["channels"][0])
 		}
 	}
 	return nil

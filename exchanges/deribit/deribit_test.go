@@ -488,10 +488,10 @@ func TestGetPublicTicker(t *testing.T) {
 }
 
 func TestGetAccountSummary(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	t.Parallel()
 	_, err := d.GetAccountSummary(context.Background(), currencyBTC, false)
 	if err != nil {
 		t.Error(err)
@@ -499,10 +499,10 @@ func TestGetAccountSummary(t *testing.T) {
 }
 
 func TestCancelTransferByID(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
-	t.Parallel()
 	_, err := d.CancelTransferByID(context.Background(), currencyBTC, "", 23487)
 	if err != nil {
 		t.Error(err)
@@ -510,10 +510,10 @@ func TestCancelTransferByID(t *testing.T) {
 }
 
 func TestGetTransfers(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	t.Parallel()
 	_, err := d.GetTransfers(context.Background(), currencyBTC, 0, 0)
 	if err != nil {
 		t.Error(err)
@@ -521,10 +521,10 @@ func TestGetTransfers(t *testing.T) {
 }
 
 func TestCancelWithdrawal(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
-	t.Parallel()
 	_, err := d.CancelWithdrawal(context.Background(), currencyBTC, 123844)
 	if err != nil && !strings.Contains(err.Error(), "withdrawal with given id and currency not found") {
 		t.Error(err)
@@ -532,10 +532,10 @@ func TestCancelWithdrawal(t *testing.T) {
 }
 
 func TestCreateDepositAddress(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
-	t.Parallel()
 	_, err := d.CreateDepositAddress(context.Background(), currencySOL)
 	if err != nil && !strings.Contains(err.Error(), "max_addr_count_exceeded") {
 		t.Error(err)
@@ -543,10 +543,10 @@ func TestCreateDepositAddress(t *testing.T) {
 }
 
 func TestGetCurrentDepositAddress(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	t.Parallel()
 	_, err := d.GetCurrentDepositAddress(context.Background(), currencyETH)
 	if err != nil && !strings.Contains(err.Error(), "max_addr_count_exceeded") {
 		t.Error(err)
@@ -554,10 +554,10 @@ func TestGetCurrentDepositAddress(t *testing.T) {
 }
 
 func TestGetDeposits(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	t.Parallel()
 	_, err := d.GetDeposits(context.Background(), currencyBTC, 25, 0)
 	if err != nil {
 		t.Error(err)
@@ -565,10 +565,10 @@ func TestGetDeposits(t *testing.T) {
 }
 
 func TestGetWithdrawals(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	t.Parallel()
 	_, err := d.GetWithdrawals(context.Background(), currencyBTC, 25, 0)
 	if err != nil {
 		t.Error(err)
@@ -576,10 +576,10 @@ func TestGetWithdrawals(t *testing.T) {
 }
 
 func TestSubmitTransferToSubAccount(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
-	t.Parallel()
 	_, err := d.SubmitTransferToSubAccount(context.Background(), currencyBTC, 0.01, 13434)
 	if err != nil && !strings.Contains(err.Error(), "transfer_not_allowed") {
 		t.Error(err)
@@ -587,11 +587,11 @@ func TestSubmitTransferToSubAccount(t *testing.T) {
 }
 
 func TestSubmitTransferToUser(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
-	t.Parallel()
-	_, err := d.SubmitTransferToUser(context.Background(), currencyBTC, "", 0.001, 13434)
+	_, err := d.SubmitTransferToUser(context.Background(), currencyBTC, "", "13434", 0.001)
 	if err != nil && !strings.Contains(err.Error(), "transfer_not_allowed") {
 		t.Error(err)
 	}
@@ -995,7 +995,7 @@ func TestSubmitSell(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = d.SubmitSell(context.Background(), btcPerpInstrument, "limit", "testOrder", "", "", "", info.ContractSize*3, 500000, 0, 0, false, false, false, false)
+	_, err = d.SubmitSell(context.Background(), &OrderBuyAndSellParams{Instrument: btcPerpInstrument, OrderType: "limit", Label: "testOrder", TimeInForce: "", Trigger: "", Advanced: "", Amount: info.ContractSize * 3, Price: 500000, MaxShow: 0, TriggerPrice: 0, PostOnly: false, RejectPostOnly: false, ReduceOnly: false, MMP: false})
 	if err != nil && !strings.Contains(err.Error(), "not_enough_funds") {
 		t.Error(err)
 	}
@@ -1006,8 +1006,8 @@ func TestEditOrderByLabel(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
-	_, err := d.EditOrderByLabel(context.Background(), "incorrectUserLabel", btcPerpInstrument, "",
-		1, 30000, 0, false, false, false, false)
+	_, err := d.EditOrderByLabel(context.Background(), &OrderBuyAndSellParams{Label: "incorrectUserLabel", Instrument: btcPerpInstrument,
+		Advanced: "", Amount: 1, Price: 30000, TriggerPrice: 0, PostOnly: false, ReduceOnly: false, RejectPostOnly: false, MMP: false})
 	if err != nil && !strings.Contains(err.Error(), "order_not_found") {
 		t.Error(err)
 	}
@@ -1469,7 +1469,7 @@ func TestGetLastBlockTradesbyCurrency(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	_, err = d.GetLastBlockTradesbyCurrency(context.Background(), "SOL", "", "", 5)
+	_, err = d.GetLastBlockTradesByCurrency(context.Background(), "SOL", "", "", 5)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1859,6 +1859,222 @@ func TestWSRetriveLastTradesByCurrency(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = d.WSRetriveLastTradesByCurrency(currencyBTC, "option", "36798", "36799", "asc", 0, true)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveLastTradesByCurrencyAndTime(t *testing.T) {
+	t.Parallel()
+	_, err := d.WSRetriveLastTradesByCurrencyAndTime(currencyBTC, "", "", 0, false,
+		time.Now().Add(-8*time.Hour), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.WSRetriveLastTradesByCurrencyAndTime(currencyBTC, "option", "asc", 25, false,
+		time.Now().Add(-8*time.Hour), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveLastTradesByInstrument(t *testing.T) {
+	t.Parallel()
+	_, err := d.WSRetriveLastTradesByInstrument(btcPerpInstrument, "", "", "", 0, false)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.WSRetriveLastTradesByInstrument(btcPerpInstrument, "30500", "31500", "desc", 0, true)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveLastTradesByInstrumentAndTime(t *testing.T) {
+	t.Parallel()
+	_, err := d.WSRetriveLastTradesByInstrumentAndTime(btcPerpInstrument, "", 0, false, time.Now().Add(-8*time.Hour), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.WSRetriveLastTradesByInstrumentAndTime(btcPerpInstrument, "asc", 0, false, time.Now().Add(-8*time.Hour), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveMarkPriceHistory(t *testing.T) {
+	t.Parallel()
+	_, err := d.WSRetriveMarkPriceHistory(btcPerpInstrument, time.Now().Add(-24*time.Hour), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveOrderbookData(t *testing.T) {
+	t.Parallel()
+	cp, err := d.getFirstAssetTradablePair(t, asset.OptionCombo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = d.WSRetriveOrderbookData(cp.String(), 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveOrderbookByInstrumentID(t *testing.T) {
+	t.Parallel()
+	_, err := d.WSRetriveOrderbookByInstrumentID(12, 50)
+	if err != nil && !strings.Contains(err.Error(), "not_found") {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveRFQ(t *testing.T) {
+	t.Parallel()
+	if _, err := d.WSRetriveRFQ(currencyBTC, ""); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveTradeVolumes(t *testing.T) {
+	t.Parallel()
+	_, err := d.WSRetriveTradeVolumes(false)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetrivesTradingViewChartData(t *testing.T) {
+	t.Parallel()
+	_, err := d.WSRetrivesTradingViewChartData(btcPerpInstrument, "60", time.Now().Add(-time.Hour), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveVolatilityIndexData(t *testing.T) {
+	t.Parallel()
+	_, err := d.WSRetriveVolatilityIndexData(currencyBTC, "60", time.Now().Add(-time.Hour), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetrivePublicTicker(t *testing.T) {
+	t.Parallel()
+	_, err := d.WSRetrivePublicTicker(btcPerpInstrument)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveAccountSummary(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := d.WSRetriveAccountSummary(currencyBTC, false)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSCancelWithdrawal(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
+	_, err := d.WSCancelWithdrawal(currencyBTC, 123844)
+	if err != nil && !strings.Contains(err.Error(), "withdrawal with given id and currency not found") {
+		t.Error(err)
+	}
+}
+
+func TestWSCancelTransferByID(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
+	_, err := d.WSCancelTransferByID(currencyBTC, "", 23487)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSCreateDepositAddress(t *testing.T) {
+	t.Parallel()
+	d.Verbose = true
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
+	_, err := d.WSCreateDepositAddress(currencySOL)
+	if err != nil && !strings.Contains(err.Error(), "max_addr_count_exceeded") {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveCurrentDepositAddress(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSRetriveCurrentDepositAddress(currencyETH)
+	if err != nil && !strings.Contains(err.Error(), "max_addr_count_exceeded") {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveDeposits(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSRetriveDeposits(currencyBTC, 25, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveTransfers(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSRetriveTransfers(currencyBTC, 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveWithdrawals(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSRetriveWithdrawals(currencyBTC, 25, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSSubmitTransferToSubAccount(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
+	_, err := d.WSSubmitTransferToSubAccount(currencyBTC, 0.01, 13434)
+	if err != nil && !strings.Contains(err.Error(), "transfer_not_allowed") {
+		t.Error(err)
+	}
+}
+
+func TestWSSubmitTransferToUser(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
+	_, err := d.WSSubmitTransferToUser(currencyBTC, "", "0x4aa0753d798d668056920094d65321a8e8913e26", 0.001)
 	if err != nil {
 		t.Error(err)
 	}

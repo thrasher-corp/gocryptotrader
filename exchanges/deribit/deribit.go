@@ -403,7 +403,7 @@ func (d *Deribit) GetLastSettlementsByInstrument(ctx context.Context, instrument
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
 	if !startTime.IsZero() {
-		params.Set("search_start_timestamp", strconv.FormatInt(startTime.Unix()*1000, 10))
+		params.Set("search_start_timestamp", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
 	var resp SettlementsData
 	return &resp, d.SendHTTPRequest(ctx, exchange.RestFutures,
@@ -731,7 +731,7 @@ func (d *Deribit) CancelWithdrawal(ctx context.Context, currency string, id int6
 		cancelWithdrawal, params, &resp)
 }
 
-// CancelTransferByID gets volatility index data for the requested instrument
+// CancelTransferByID cancels transfer by ID through the websocket connection.
 func (d *Deribit) CancelTransferByID(ctx context.Context, currency, tfa string, id int64) (*AccountSummaryData, error) {
 	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
 		return nil, errInvalidIndexPriceCurrency
@@ -847,7 +847,7 @@ func (d *Deribit) SubmitTransferToSubAccount(ctx context.Context, currency strin
 }
 
 // SubmitTransferToUser submits a request to transfer a currency to another user
-func (d *Deribit) SubmitTransferToUser(ctx context.Context, currency, tfa string, amount float64, destinationID int64) (*TransferData, error) {
+func (d *Deribit) SubmitTransferToUser(ctx context.Context, currency, tfa, destinationAddress string, amount float64) (*TransferData, error) {
 	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
 		return nil, errInvalidIndexPriceCurrency
 	}
@@ -859,14 +859,14 @@ func (d *Deribit) SubmitTransferToUser(ctx context.Context, currency, tfa string
 	if tfa != "" {
 		params.Set("tfa", tfa)
 	}
-	if destinationID <= 0 {
+	if destinationAddress == "" {
 		return nil, errors.New("invalid destination address")
 	}
-	params.Set("destination", strconv.FormatInt(destinationID, 10))
+	params.Set("destination", destinationAddress)
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	var resp TransferData
 	return &resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
-		submitTransferToSubaccount, params, &resp)
+		submitTransferToUser, params, &resp)
 }
 
 // SubmitWithdraw submits a withdrawal request to the exchange for the requested currency
@@ -1073,6 +1073,8 @@ func (d *Deribit) GetAccessLog(ctx context.Context, offset, count int64) (*Acces
 	return &resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet, getAccessLog, params, &resp)
 }
 
+// [[ TODO ]]
+
 // GetAffiliateProgramInfo gets the affiliate program info
 func (d *Deribit) GetAffiliateProgramInfo(ctx context.Context, id int64) (*AffiliateProgramInfo, error) {
 	if id <= 0 {
@@ -1098,15 +1100,15 @@ func (d *Deribit) GetNewAnnouncements(ctx context.Context) ([]Announcement, erro
 }
 
 // GetPricatePortfolioMargins calculates portfolio margin info for simulated position or current position of the user. This request has special restricted rate limit (not more than once per a second).
-func (d *Deribit) GetPricatePortfolioMargins(ctx context.Context, currency string, addPositions bool, simulatedPositions map[string]float64) (*PortfolioMargin, error) {
+func (d *Deribit) GetPricatePortfolioMargins(ctx context.Context, currency string, accPositions bool, simulatedPositions map[string]float64) (*PortfolioMargin, error) {
 	currency = strings.ToUpper(currency)
 	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
 		return nil, errInvalidCurrency
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
-	if addPositions {
-		params.Set("acc_positions", strconv.FormatBool(addPositions))
+	if accPositions {
+		params.Set("acc_positions", strconv.FormatBool(accPositions))
 	}
 	if len(simulatedPositions) != 0 {
 		values, err := json.Marshal(simulatedPositions)
@@ -1134,17 +1136,13 @@ func (d *Deribit) GetPosition(ctx context.Context, instrument string) (*Position
 // GetSubAccounts gets all subaccounts' data
 func (d *Deribit) GetSubAccounts(ctx context.Context, withPortfolio bool) ([]SubAccountData, error) {
 	params := url.Values{}
-	withPortfolioStr := falseStr
-	if withPortfolio {
-		withPortfolioStr = trueStr
-	}
-	params.Set("with_portfolio", withPortfolioStr)
+	params.Set("with_portfolio", strconv.FormatBool(withPortfolio))
 	var resp []SubAccountData
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
 		getSubAccounts, params, &resp)
 }
 
-// GetSubAccountDetails retrives sub accounts positions.
+// GetSubAccountDetails retrives sub accounts detail information.
 func (d *Deribit) GetSubAccountDetails(ctx context.Context, currency string, withOpenOrders bool) ([]SubAccountDetail, error) {
 	currency = strings.ToUpper(currency)
 	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
@@ -1399,11 +1397,7 @@ func (d *Deribit) ToggleNotificationsFromSubAccount(ctx context.Context, sid int
 	}
 	params := url.Values{}
 	params.Set("sid", strconv.FormatInt(sid, 10))
-	notifStateStr := falseStr
-	if !state {
-		notifStateStr = trueStr
-	}
-	params.Set("state", notifStateStr)
+	params.Set("state", strconv.FormatBool(state))
 	var resp string
 	err := d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
 		toggleNotificationsFromSubAccount, params, &resp)
@@ -1438,11 +1432,7 @@ func (d *Deribit) ToggleSubAccountLogin(ctx context.Context, sid int64, state bo
 	}
 	params := url.Values{}
 	params.Set("sid", strconv.FormatInt(sid, 10))
-	notifStateStr := falseStr
-	if !state {
-		notifStateStr = trueStr
-	}
-	params.Set("state", notifStateStr)
+	params.Set("state", strconv.FormatBool(state))
 	var resp string
 	err := d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
 		toggleSubAccountLogin, params, &resp)
@@ -1455,57 +1445,44 @@ func (d *Deribit) ToggleSubAccountLogin(ctx context.Context, sid int64, state bo
 	return resp, nil
 }
 
-// SubmitBuy submits submits a private buy request
-func (d *Deribit) SubmitBuy(ctx context.Context, instrument, orderType, label, timeInForce, trigger, advanced string, amount, price, maxShow, triggerPrice float64, postOnly, rejectPostOnly, reduceOnly, mmp bool) (*PrivateTradeData, error) {
-	if instrument == "" {
+// SubmitBuy submits a private buy request through the websocket connection.
+func (d *Deribit) SubmitBuy(ctx context.Context, arg *OrderBuyAndSellParams) (*PrivateTradeData, error) {
+	if arg == nil {
+		return nil, fmt.Errorf("%w parameter is required", common.ErrNilPointer)
+	}
+	if arg.Instrument == "" {
 		return nil, fmt.Errorf("%w, instrument_name is missing", errInvalidInstrumentName)
 	}
 	params := url.Values{}
-	params.Set("instrument_name", instrument)
-	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	if orderType != "" {
-		params.Set("type", orderType)
+	params.Set("instrument_name", arg.Instrument)
+	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
+	if arg.OrderType != "" {
+		params.Set("type", arg.OrderType)
 	}
-	if price != 0 {
-		params.Set("price", strconv.FormatFloat(amount, 'f', -1, 64))
+	if arg.Price != 0 {
+		params.Set("price", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
 	}
-	if label != "" {
-		params.Set("label", label)
+	if arg.Label != "" {
+		params.Set("label", arg.Label)
 	}
-	if timeInForce != "" {
-		params.Set("time_in_force", timeInForce)
+	if arg.TimeInForce != "" {
+		params.Set("time_in_force", arg.TimeInForce)
 	}
-	if maxShow != 0 {
-		params.Set("max_show", strconv.FormatFloat(maxShow, 'f', -1, 64))
+	if arg.MaxShow != 0 {
+		params.Set("max_show", strconv.FormatFloat(arg.MaxShow, 'f', -1, 64))
 	}
-	postOnlyStr := falseStr
-	if postOnly {
-		postOnlyStr = trueStr
+	params.Set("post_only", strconv.FormatBool(arg.PostOnly))
+	params.Set("reject_post_only", strconv.FormatBool(arg.RejectPostOnly))
+	params.Set("reduce_only", strconv.FormatBool(arg.ReduceOnly))
+	params.Set("mmp", strconv.FormatBool(arg.MMP))
+	if arg.TriggerPrice != 0 {
+		params.Set("trigger_price", strconv.FormatFloat(arg.TriggerPrice, 'f', -1, 64))
 	}
-	params.Set("post_only", postOnlyStr)
-	rejectPostOnlyStr := falseStr
-	if rejectPostOnly {
-		rejectPostOnlyStr = trueStr
+	if arg.Trigger != "" {
+		params.Set("trigger", arg.Trigger)
 	}
-	params.Set("reject_post_only", rejectPostOnlyStr)
-	reduceOnlyStr := falseStr
-	if reduceOnly {
-		reduceOnlyStr = trueStr
-	}
-	params.Set("reduce_only", reduceOnlyStr)
-	mmpStr := falseStr
-	if mmp {
-		mmpStr = trueStr
-	}
-	params.Set("mmp", mmpStr)
-	if triggerPrice != 0 {
-		params.Set("trigger_price", strconv.FormatFloat(triggerPrice, 'f', -1, 64))
-	}
-	if trigger != "" {
-		params.Set("trigger", trigger)
-	}
-	if advanced != "" {
-		params.Set("advanced", advanced)
+	if arg.Advanced != "" {
+		params.Set("advanced", arg.Advanced)
 	}
 	var resp PrivateTradeData
 	return &resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
@@ -1513,53 +1490,44 @@ func (d *Deribit) SubmitBuy(ctx context.Context, instrument, orderType, label, t
 }
 
 // SubmitSell submits a sell request with the parameters provided
-func (d *Deribit) SubmitSell(ctx context.Context, instrument, orderType, label, timeInForce, trigger, advanced string, amount, price, maxShow, triggerPrice float64, postOnly, rejectPostOnly, reduceOnly, mmp bool) (*PrivateTradeData, error) {
-	if instrument == "" {
+func (d *Deribit) SubmitSell(ctx context.Context, arg *OrderBuyAndSellParams) (*PrivateTradeData, error) {
+	if arg == nil {
+		return nil, fmt.Errorf("%s argument is required", common.ErrNilPointer)
+	}
+	if arg.Instrument == "" {
 		return nil, fmt.Errorf("%w, instrument_name is missing", errInvalidInstrumentName)
 	}
 	params := url.Values{}
-	params.Set("instrument_name", instrument)
-	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	if orderType != "" {
-		params.Set("type", orderType)
+	params.Set("instrument_name", arg.Instrument)
+	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
+	if arg.OrderType != "" {
+		params.Set("type", arg.OrderType)
 	}
-	if label != "" {
-		params.Set("label", label)
+	if arg.Label != "" {
+		params.Set("label", arg.Label)
 	}
-	if timeInForce != "" {
-		params.Set("time_in_force", timeInForce)
+	if arg.TimeInForce != "" {
+		params.Set("time_in_force", arg.TimeInForce)
 	}
-	if maxShow != 0 {
-		params.Set("max_show", strconv.FormatFloat(maxShow, 'f', -1, 64))
+	if arg.MaxShow != 0 {
+		params.Set("max_show", strconv.FormatFloat(arg.MaxShow, 'f', -1, 64))
 	}
-	if price <= 0 {
+	if arg.Price <= 0 {
 		return nil, errInvalidPrice
 	}
-	params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
-	params.Set("post_only", strconv.FormatBool(postOnly))
-	rejectPostOnlyStr := falseStr
-	if rejectPostOnly {
-		rejectPostOnlyStr = trueStr
+	params.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
+	params.Set("post_only", strconv.FormatBool(arg.PostOnly))
+	params.Set("reject_post_only", strconv.FormatBool(arg.RejectPostOnly))
+	params.Set("reduce_only", strconv.FormatBool(arg.ReduceOnly))
+	params.Set("mmp", strconv.FormatBool(arg.MMP))
+	if arg.TriggerPrice != 0 {
+		params.Set("trigger_price", strconv.FormatFloat(arg.TriggerPrice, 'f', -1, 64))
 	}
-	params.Set("reject_post_only", rejectPostOnlyStr)
-	reduceOnlyStr := falseStr
-	if reduceOnly {
-		reduceOnlyStr = trueStr
+	if arg.Trigger != "" {
+		params.Set("trigger", arg.Trigger)
 	}
-	params.Set("reduce_only", reduceOnlyStr)
-	mmpStr := falseStr
-	if mmp {
-		mmpStr = trueStr
-	}
-	params.Set("mmp", mmpStr)
-	if triggerPrice != 0 {
-		params.Set("trigger_price", strconv.FormatFloat(triggerPrice, 'f', -1, 64))
-	}
-	if trigger != "" {
-		params.Set("trigger", trigger)
-	}
-	if advanced != "" {
-		params.Set("advanced", advanced)
+	if arg.Advanced != "" {
+		params.Set("advanced", arg.Advanced)
 	}
 	var resp PrivateTradeData
 	return &resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
@@ -1608,44 +1576,31 @@ func (d *Deribit) SubmitEdit(ctx context.Context, orderID, advanced string, amou
 }
 
 // EditOrderByLabel submits an edit order request sorted via label
-func (d *Deribit) EditOrderByLabel(ctx context.Context, label, instrument, advanced string, amount, price, triggerPrice float64, postOnly, reduceOnly, rejectPostOnly, mmp bool) (*PrivateTradeData, error) {
-	if instrument == "" {
+func (d *Deribit) EditOrderByLabel(ctx context.Context, arg *OrderBuyAndSellParams) (*PrivateTradeData, error) {
+	if arg == nil {
+		return nil, fmt.Errorf("%w parameter is required", common.ErrNilPointer)
+	}
+	if arg.Instrument == "" {
 		return nil, errInvalidInstrumentName
 	}
-	if amount <= 0 {
+	if arg.Amount <= 0 {
 		return nil, errInvalidAmount
 	}
 	params := url.Values{}
-	if label != "" {
-		params.Set("label", label)
+	if arg.Label != "" {
+		params.Set("label", arg.Label)
 	}
-	params.Set("instrument_name", instrument)
-	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	postOnlyStr := falseStr
-	if postOnly {
-		postOnlyStr = trueStr
+	params.Set("instrument_name", arg.Instrument)
+	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
+	params.Set("post_only", strconv.FormatBool(arg.PostOnly))
+	params.Set("reject_post_only", strconv.FormatBool(arg.RejectPostOnly))
+	params.Set("reduce_only", strconv.FormatBool(arg.ReduceOnly))
+	params.Set("mmp", strconv.FormatBool(arg.MMP))
+	if arg.TriggerPrice != 0 {
+		params.Set("trigger_price", strconv.FormatFloat(arg.TriggerPrice, 'f', -1, 64))
 	}
-	params.Set("post_only", postOnlyStr)
-	rejectPostOnlyStr := falseStr
-	if rejectPostOnly {
-		rejectPostOnlyStr = trueStr
-	}
-	params.Set("reject_post_only", rejectPostOnlyStr)
-	reduceOnlyStr := falseStr
-	if reduceOnly {
-		reduceOnlyStr = trueStr
-	}
-	params.Set("reduce_only", reduceOnlyStr)
-	mmpStr := falseStr
-	if mmp {
-		mmpStr = trueStr
-	}
-	params.Set("mmp", mmpStr)
-	if triggerPrice != 0 {
-		params.Set("trigger_price", strconv.FormatFloat(triggerPrice, 'f', -1, 64))
-	}
-	if advanced != "" {
-		params.Set("advanced", advanced)
+	if arg.Advanced != "" {
+		params.Set("advanced", arg.Advanced)
 	}
 	var resp PrivateTradeData
 	return &resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
@@ -1816,16 +1771,8 @@ func (d *Deribit) GetOrderHistoryByCurrency(ctx context.Context, currency, kind 
 	if offset != 0 {
 		params.Set("offset", strconv.FormatInt(offset, 10))
 	}
-	includeOldStr := falseStr
-	if includeOld {
-		includeOldStr = trueStr
-	}
-	params.Set("include_old", includeOldStr)
-	includeUnfilledStr := falseStr
-	if includeUnfilled {
-		includeUnfilledStr = trueStr
-	}
-	params.Set("include_unfilled", includeUnfilledStr)
+	params.Set("include_old", strconv.FormatBool(includeOld))
+	params.Set("include_unfilled", strconv.FormatBool(includeUnfilled))
 	var resp []OrderData
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
 		getOrderHistoryByCurrency, params, &resp)
@@ -1844,16 +1791,8 @@ func (d *Deribit) GetOrderHistoryByInstrument(ctx context.Context, instrument st
 	if offset != 0 {
 		params.Set("offset", strconv.FormatInt(offset, 10))
 	}
-	includeOldStr := falseStr
-	if includeOld {
-		includeOldStr = trueStr
-	}
-	params.Set("include_old", includeOldStr)
-	includeUnfilledStr := falseStr
-	if includeUnfilled {
-		includeUnfilledStr = trueStr
-	}
-	params.Set("include_unfilled", includeUnfilledStr)
+	params.Set("include_old", strconv.FormatBool(includeOld))
+	params.Set("include_unfilled", strconv.FormatBool(includeUnfilled))
 	var resp []OrderData
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
 		getOrderHistoryByInstrument, params, &resp)
@@ -1932,15 +1871,13 @@ func (d *Deribit) GetUserTradesByCurrency(ctx context.Context, currency, kind, s
 	if count != 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
-	includeOldString := falseStr
-	if includeOld {
-		includeOldString = trueStr
-	}
-	params.Set("include_old", includeOldString)
+	params.Set("include_old", strconv.FormatBool(includeOld))
 	var resp UserTradesData
 	return &resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
 		getUserTradesByCurrency, params, &resp)
 }
+
+// [[ TODO ]]
 
 // GetUserTradesByCurrencyAndTime sends a request to fetch user trades sorted by currency and time
 func (d *Deribit) GetUserTradesByCurrencyAndTime(ctx context.Context, currency, kind, sorting string, count int64, includeOld bool, startID, endID string) (*UserTradesData, error) {
@@ -1989,11 +1926,7 @@ func (d *Deribit) GetUserTradesByInstrument(ctx context.Context, instrument, sor
 	if count != 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
-	includeOldString := falseStr
-	if includeOld {
-		includeOldString = trueStr
-	}
-	params.Set("include_old", includeOldString)
+	params.Set("include_old", strconv.FormatBool(includeOld))
 	var resp UserTradesData
 	return &resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
 		getUserTradesByInstrument, params, &resp)
@@ -2115,13 +2048,13 @@ func (d *Deribit) GetSettlementHistoryByInstrument(ctx context.Context, instrume
 		params.Set("settlement_type", settlementType)
 	}
 	if continuation != "" {
-		params.Set("contiuation", continuation)
+		params.Set("continuation", continuation)
 	}
 	if count != 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
 	if !searchStartTimeStamp.IsZero() {
-		params.Set("search_start_timestamp", strconv.FormatInt(searchStartTimeStamp.Unix()*1000, 10))
+		params.Set("search_start_timestamp", strconv.FormatInt(searchStartTimeStamp.UnixMilli(), 10))
 	}
 	var resp PrivateSettlementsHistoryData
 	return &resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
@@ -2140,13 +2073,13 @@ func (d *Deribit) GetSettlementHistoryByCurency(ctx context.Context, currency, s
 		params.Set("settlement_type", settlementType)
 	}
 	if continuation != "" {
-		params.Set("contiuation", continuation)
+		params.Set("continuation", continuation)
 	}
 	if count != 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
 	if !searchStartTimeStamp.IsZero() {
-		params.Set("search_start_timestamp", strconv.FormatInt(searchStartTimeStamp.Unix()*1000, 10))
+		params.Set("search_start_timestamp", strconv.FormatInt(searchStartTimeStamp.UnixMilli(), 10))
 	}
 	var resp PrivateSettlementsHistoryData
 	return &resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
@@ -2161,7 +2094,7 @@ func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, meth
 	}
 	reqDataStr := method + "\n" + deribitAPIVersion + common.EncodeURLValues(path, data) + "\n" + "" + "\n"
 	n := d.Requester.GetNonce(true)
-	strTS := strconv.FormatInt(time.Now().Unix()*1000, 10)
+	strTS := strconv.FormatInt(time.Now().UnixMilli(), 10)
 	str2Sign := fmt.Sprintf("%s\n%s\n%s", strTS,
 		n, reqDataStr)
 	creds, err := d.GetCredentials(ctx)
@@ -2385,8 +2318,8 @@ func (d *Deribit) GetUserBlocTrade(ctx context.Context, id string) ([]BlockTrade
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet, getBlockTrades, params, &resp)
 }
 
-// GetLastBlockTradesbyCurrency returns list of last users block trades
-func (d *Deribit) GetLastBlockTradesbyCurrency(ctx context.Context, currency, startID, endID string, count int64) ([]BlockTradeData, error) {
+// GetLastBlockTradesByCurrency returns list of last users block trades
+func (d *Deribit) GetLastBlockTradesByCurrency(ctx context.Context, currency, startID, endID string, count int64) ([]BlockTradeData, error) {
 	currency = strings.ToUpper(currency)
 	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
 		return nil, errInvalidCurrency
@@ -2471,7 +2404,8 @@ func (d *Deribit) StringToAssetKind(assetType string) (asset.Item, error) {
 	}
 }
 
-func (d *Deribit) getFirstAssetTradablePair(t *testing.T, assetType asset.Item) (currency.Pair, error) {
+func (d *Deribit) getFirstAssetTradablePair(t *testing.T, _ asset.Item) (currency.Pair, error) {
+	t.Helper()
 	instruments, err := d.FetchTradablePairs(context.Background(), asset.Futures)
 	if err != nil {
 		t.Skip(err)

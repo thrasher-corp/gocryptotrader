@@ -1047,18 +1047,9 @@ type WsResponse struct {
 	Params struct {
 		Data    interface{} `json:"data"`
 		Channel string      `json:"channel"`
-
-		// For websocket subscriptions immediate response.
-		// Channels []string `json:"channels"`
 	} `json:"params"`
 	Method         string `json:"method"`
-	JsonRPCVersion string `json:"jsonrpc"`
-
-	// For websocket subscriptions immediate response.
-	// Result interface{} `json:"result"`
-	// UsIn   int64       `json:"usIn"`
-	// UsOut  int64       `json:"usOut"`
-	// UsDiff int         `json:"usDiff"`
+	JSONRPCVersion string `json:"jsonrpc"`
 }
 
 // wsOrderbook represents orderbook push data for a book websocket subscription.
@@ -1369,4 +1360,22 @@ type wsUserPortfolio struct {
 	Balance                    float64 `json:"balance"`
 	AvailableWithdrawalFunds   float64 `json:"available_withdrawal_funds"`
 	AvailableFunds             float64 `json:"available_funds"`
+}
+
+// OrderBuyAndSellParams represents request parameters for submit order.
+type OrderBuyAndSellParams struct {
+	Instrument     string  `json:"instrument_name"`
+	Amount         float64 `json:"amount"`
+	OrderType      string  `json:"order_type,omitempty"`
+	Price          float64 `json:"price,omitempty"`
+	Label          string  `json:"label,omitempty"`
+	TimeInForce    string  `json:"time_in_force,omitempty"`
+	MaxShow        float64 `json:"max_show,omitempty"`
+	PostOnly       bool    `json:"post_only,omitempty"`
+	RejectPostOnly bool    `json:"reject_post_only,omitempty"`
+	ReduceOnly     bool    `json:"reduce_only,omitempty"`
+	MMP            bool    `json:"mmp,omitempty"`
+	TriggerPrice   float64 `json:"trigger_price,omitempty"`
+	Trigger        string  `json:"trigger,omitempty"`
+	Advanced       string  `json:"advanced,omitempty"`
 }
