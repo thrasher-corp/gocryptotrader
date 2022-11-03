@@ -55,8 +55,6 @@ func (bt *BackTest) SetupLiveDataHandler(eventTimeout, dataCheckInterval time.Du
 		eventTimeout:      eventTimeout,
 		dataCheckInterval: dataCheckInterval,
 		dataHolder:        bt.DataHolder,
-		shutdown:          make(chan struct{}),
-		updatedChannel:    make(chan bool),
 		report:            bt.Reports,
 		funding:           bt.Funding,
 	}
@@ -71,13 +69,11 @@ func (d *dataChecker) Start() error {
 	if !atomic.CompareAndSwapUint32(&d.started, 0, 1) {
 		return engine.ErrSubSystemAlreadyStarted
 	}
-	d.shutdown = make(chan struct{})
-
 	d.wg.Add(1)
 	go func() {
 		err := d.DataFetcher()
 		if err != nil {
-			stopErr := d.StopFromError(err)
+			stopErr := d.SignalStopFromError(err)
 			if stopErr != nil {
 				log.Error(common.LiveStrategy, stopErr)
 			}
@@ -100,15 +96,12 @@ func (d *dataChecker) Stop() error {
 	if !atomic.CompareAndSwapUint32(&d.started, 1, 0) {
 		return engine.ErrSubSystemNotStarted
 	}
-	d.m.Lock()
-	defer d.m.Unlock()
-	close(d.shutdown)
-	d.wg.Wait()
+	d.shutdown.Alert()
 	return nil
 }
 
-// StopFromError ceases fetching and processing live data
-func (d *dataChecker) StopFromError(err error) error {
+// SignalStopFromError ceases fetching and processing live data
+func (d *dataChecker) SignalStopFromError(err error) error {
 	if err == nil {
 		return errNilError
 	}
@@ -118,12 +111,8 @@ func (d *dataChecker) StopFromError(err error) error {
 	if !atomic.CompareAndSwapUint32(&d.started, 1, 0) {
 		return engine.ErrSubSystemNotStarted
 	}
-	d.m.Lock()
-	defer d.m.Unlock()
 	log.Error(common.LiveStrategy, err)
-	d.shutdownErr = err
-	close(d.shutdown)
-	d.wg.Wait()
+	d.shutdownErr.Alert()
 	return nil
 }
 
@@ -140,8 +129,10 @@ func (d *dataChecker) DataFetcher() error {
 	timeoutTimer := time.NewTimer(d.eventTimeout)
 	for {
 		select {
-		case <-d.shutdown:
+		case <-d.shutdown.Wait(nil):
 			return nil
+		case <-timeoutTimer.C:
+			return fmt.Errorf("%w of %v", ErrLiveDataTimeout, d.eventTimeout)
 		case <-checkTimer.C:
 			err := d.checkData()
 			if err != nil {
@@ -153,8 +144,6 @@ func (d *dataChecker) DataFetcher() error {
 				<-timeoutTimer.C
 			}
 			timeoutTimer.Reset(d.eventTimeout)
-		case <-timeoutTimer.C:
-			return fmt.Errorf("%w of %v", ErrLiveDataTimeout, d.eventTimeout)
 		}
 	}
 }
@@ -167,7 +156,7 @@ func (d *dataChecker) checkData() error {
 	if !updated {
 		return nil
 	}
-	d.updatedChannel <- true
+	d.updated.Alert()
 	if d.realOrders {
 		go func() {
 			err = d.UpdateFunding(false)
@@ -219,7 +208,7 @@ func (d *dataChecker) UpdateFunding(force bool) error {
 	return nil
 }
 
-func closedChan() chan bool {
+func closedChan() <-chan bool {
 	immediateClosure := make(chan bool)
 	close(immediateClosure)
 	return immediateClosure
@@ -227,41 +216,29 @@ func closedChan() chan bool {
 
 // Updated gives other endpoints the ability to listen to
 // when data is updated from live sources
-func (d *dataChecker) Updated() chan bool {
+func (d *dataChecker) Updated() <-chan bool {
 	if d == nil {
 		return closedChan()
 	}
-	return d.updatedChannel
+	return d.updated.Wait(nil)
 }
 
 // HasShutdown indicates when the live data checker
 // has been shutdown
-func (d *dataChecker) HasShutdown() chan bool {
+func (d *dataChecker) HasShutdown() <-chan bool {
 	if d == nil {
 		return closedChan()
 	}
-	if atomic.LoadUint32(&d.started) == 1 {
-		return nil
-	}
-	return closedChan()
+	return d.shutdown.Wait(nil)
 }
 
 // HasShutdownFromError indicates when the live data checker
 // has been shutdown from encountering an error
-func (d *dataChecker) HasShutdownFromError() chan bool {
+func (d *dataChecker) HasShutdownFromError() <-chan bool {
 	if d == nil {
 		return closedChan()
 	}
-
-	if atomic.LoadUint32(&d.started) == 1 {
-		return nil
-	}
-	d.m.Lock()
-	defer d.m.Unlock()
-	if d.shutdownErr != nil {
-		return closedChan()
-	}
-	return nil
+	return d.shutdownErr.Wait(nil)
 }
 
 // Reset clears all stored data
@@ -282,7 +259,6 @@ func (d *dataChecker) Reset() error {
 	d.eventTimeout = 0
 	d.dataCheckInterval = 0
 	d.dataHolder = nil
-	d.shutdown = make(chan struct{})
 	d.report = nil
 	d.funding = nil
 

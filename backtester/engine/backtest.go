@@ -94,27 +94,30 @@ func (bt *BackTest) RunLive() error {
 	bt.wg.Add(1)
 	go func() {
 		defer bt.wg.Done()
-		err = bt.liveLoop()
-		if err != nil {
-			log.Error(common.LiveStrategy, err)
+		for {
+			select {
+			case <-bt.shutdown:
+				err = bt.LiveDataHandler.Stop()
+			default:
+				err = bt.liveCheck()
+			}
+			if err != nil {
+				log.Error(common.LiveStrategy, err)
+			}
+
 		}
 	}()
 	return nil
 }
 
-func (bt *BackTest) liveLoop() error {
-	log.Info(common.LiveStrategy, "running backtester against live data")
-	for {
-		select {
-		case <-bt.shutdown:
-			return bt.LiveDataHandler.Stop()
-		case <-bt.LiveDataHandler.HasShutdownFromError():
-			return bt.Stop()
-		case <-bt.LiveDataHandler.HasShutdown():
-			return nil
-		case <-bt.LiveDataHandler.Updated():
-			return bt.Run()
-		}
+func (bt *BackTest) liveCheck() error {
+	select {
+	case <-bt.LiveDataHandler.HasShutdownFromError():
+		return bt.Stop()
+	case <-bt.LiveDataHandler.HasShutdown():
+		return nil
+	case <-bt.LiveDataHandler.Updated():
+		return bt.Run()
 	}
 }
 

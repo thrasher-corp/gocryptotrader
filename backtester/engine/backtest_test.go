@@ -1492,7 +1492,6 @@ func TestRunLive(t *testing.T) {
 		eventTimeout:      defaultEventTimeout,
 		dataCheckInterval: defaultDataCheckInterval,
 		dataHolder:        bt.DataHolder,
-		shutdown:          make(chan struct{}),
 		report:            bt.Reports,
 		funding:           bt.Funding,
 	}
@@ -1509,7 +1508,6 @@ func TestRunLive(t *testing.T) {
 		eventTimeout:      defaultEventTimeout,
 		dataCheckInterval: defaultDataCheckInterval,
 		dataHolder:        bt.DataHolder,
-		shutdown:          make(chan struct{}),
 		report:            bt.Reports,
 		funding:           bt.Funding,
 	}
@@ -1564,53 +1562,62 @@ func TestLiveLoop(t *testing.T) {
 	bt.Funding = &fakeFunding{}
 	bt.Statistic = &fakeStats{}
 
-	err = bt.SetupLiveDataHandler(time.Minute, time.Minute, false, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	dc := bt.LiveDataHandler.(*dataChecker)
+	dc := &dataChecker{}
+	bt.LiveDataHandler = dc
 
 	// updated case
-	dc.started = 1
 	var wg sync.WaitGroup
 	wg.Add(1)
+	dc.updated.Alert()
 	go func() {
 		defer wg.Done()
-		err = bt.liveLoop()
+		err = bt.liveCheck()
 		if !errors.Is(err, nil) {
 			t.Errorf("received '%v' expected '%v'", err, nil)
 		}
 	}()
-	dc.updatedChannel <- true
-	close(dc.shutdown)
 	wg.Wait()
+	/*
+		// shutdown from error case
+		wg.Add(1)
+		bt.shutdown = make(chan struct{})
+		dc.started = 0
+		go func() {
+			defer wg.Done()
+			err = bt.liveCheck()
+			if !errors.Is(err, nil) {
+				t.Errorf("received '%v' expected '%v'", err, nil)
+			}
+		}()
+		dc.shutdownErr.Alert()
+		wg.Wait()
+		// shutdown case
+		dc.started = 1
+		bt.shutdown = make(chan struct{})
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err = bt.liveCheck()
+			if !errors.Is(err, nil) {
+				t.Errorf("received '%v' expected '%v'", err, nil)
+			}
+		}()
+		dc.shutdown.Alert()
+		wg.Wait()
 
-	// shutdown from error case
-	wg.Add(1)
-	bt.shutdown = make(chan struct{})
-	dc.started = 0
-	dc.shutdownErr = errAlreadyRan
-	go func() {
-		defer wg.Done()
-		err = bt.liveLoop()
-		if !errors.Is(err, nil) {
-			t.Errorf("received '%v' expected '%v'", err, nil)
-		}
-	}()
-	wg.Wait()
+		// backtester has shutdown
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err = bt.liveCheck()
+			if !errors.Is(err, nil) {
+				t.Errorf("received '%v' expected '%v'", err, nil)
+			}
+		}()
+		close(bt.shutdown)
+		wg.Wait()
 
-	// already shutdown case
-	dc.shutdownErr = nil
-	dc.shutdown = make(chan struct{})
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		err = bt.liveLoop()
-		if !errors.Is(err, nil) {
-			t.Errorf("received '%v' expected '%v'", err, nil)
-		}
-	}()
-	wg.Wait()
+	*/
 
 }
 

@@ -75,15 +75,13 @@ func TestSetupLiveDataHandler(t *testing.T) {
 
 func TestStart(t *testing.T) {
 	t.Parallel()
-	dataHandler := &dataChecker{
-		shutdown: make(chan struct{}),
-	}
+	dataHandler := &dataChecker{}
 	err := dataHandler.Start()
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
-	close(dataHandler.shutdown)
+	dataHandler.shutdown.Alert()
 	err = dataHandler.Start()
 	if !errors.Is(err, engine.ErrSubSystemAlreadyStarted) {
 		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemAlreadyStarted)
@@ -117,20 +115,19 @@ func TestDataCheckerIsRunning(t *testing.T) {
 
 func TestLiveHandlerStop(t *testing.T) {
 	t.Parallel()
-	dataHandler := &dataChecker{}
-	err := dataHandler.Stop()
+	dc := &dataChecker{}
+	err := dc.Stop()
 	if !errors.Is(err, engine.ErrSubSystemNotStarted) {
 		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemNotStarted)
 	}
 
-	dataHandler.started = 1
-	dataHandler.shutdown = make(chan struct{})
-	err = dataHandler.Stop()
+	dc.started = 1
+	err = dc.Stop()
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-
-	err = dataHandler.Stop()
+	dc.shutdown.Alert()
+	err = dc.Stop()
 	if !errors.Is(err, engine.ErrSubSystemNotStarted) {
 		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemNotStarted)
 	}
@@ -144,26 +141,34 @@ func TestLiveHandlerStop(t *testing.T) {
 
 func TestLiveHandlerStopFromError(t *testing.T) {
 	t.Parallel()
-	dataHandler := &dataChecker{}
-	err := dataHandler.StopFromError(errNoCredsNoLive)
+	dc := &dataChecker{}
+	err := dc.SignalStopFromError(errNoCredsNoLive)
 	if !errors.Is(err, engine.ErrSubSystemNotStarted) {
 		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemNotStarted)
 	}
 
-	dataHandler.started = 1
-	dataHandler.shutdown = make(chan struct{})
-	err = dataHandler.StopFromError(nil)
+	err = dc.SignalStopFromError(nil)
 	if !errors.Is(err, errNilError) {
 		t.Errorf("received '%v' expected '%v'", err, errNilError)
 	}
 
-	err = dataHandler.StopFromError(errNoCredsNoLive)
-	if !errors.Is(err, engine.ErrSubSystemNotStarted) {
-		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemNotStarted)
+	dc.started = 1
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err = dc.SignalStopFromError(errNoCredsNoLive)
+		if !errors.Is(err, nil) {
+			t.Errorf("received '%v' expected '%v'", err, nil)
+		}
+	}()
+	dc.shutdownErr.Alert()
+	if !errors.Is(err, errNoCredsNoLive) {
+		t.Errorf("received '%v' expected '%v'", err, errNoCredsNoLive)
 	}
-
+	wg.Wait()
 	var dh *dataChecker
-	err = dh.StopFromError(errNoCredsNoLive)
+	err = dh.SignalStopFromError(errNoCredsNoLive)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
@@ -171,33 +176,21 @@ func TestLiveHandlerStopFromError(t *testing.T) {
 
 func TestDataFetcher(t *testing.T) {
 	t.Parallel()
-	dataHandler := &dataChecker{}
-	dataHandler.wg.Add(1)
-	err := dataHandler.DataFetcher()
+	dc := &dataChecker{
+		dataCheckInterval: time.Millisecond,
+	}
+	dc.wg.Add(1)
+	err := dc.DataFetcher()
 	if !errors.Is(err, engine.ErrSubSystemNotStarted) {
 		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemNotStarted)
 	}
 
-	dataHandler.started = 1
-	dataHandler.wg.Add(1)
-	err = dataHandler.DataFetcher()
+	dc.started = 1
+	dc.wg.Add(1)
+	err = dc.DataFetcher()
 	if !errors.Is(err, ErrLiveDataTimeout) {
 		t.Errorf("received '%v' expected '%v'", err, ErrLiveDataTimeout)
 	}
-
-	dataHandler.wg.Add(1)
-	dataHandler.shutdown = make(chan struct{})
-	dataHandler.eventTimeout = time.Nanosecond
-	var localWg sync.WaitGroup
-	localWg.Add(1)
-	go func() {
-		defer localWg.Done()
-		asyncErr := dataHandler.DataFetcher()
-		if !errors.Is(asyncErr, ErrLiveDataTimeout) {
-			t.Errorf("received '%v' expected '%v'", asyncErr, ErrLiveDataTimeout)
-		}
-	}()
-	localWg.Wait()
 
 	var dh *dataChecker
 	err = dh.DataFetcher()
@@ -208,24 +201,20 @@ func TestDataFetcher(t *testing.T) {
 
 func TestUpdated(t *testing.T) {
 	t.Parallel()
-	dataHandler := &dataChecker{
-		shutdown: make(chan struct{}),
-	}
+	dc := &dataChecker{}
 	var wg sync.WaitGroup
 	wg.Add(1)
-	waitChan := dataHandler.Updated()
 	go func() {
-		<-waitChan
+		_ = dc.Updated()
 		wg.Done()
 	}()
-	dataHandler.dataUpdatedNotice.Alert()
+	dc.updated.Alert()
 	wg.Wait()
 
-	dataHandler = nil
+	dc = nil
 	wg.Add(1)
-	waitChan = dataHandler.Updated()
 	go func() {
-		<-waitChan
+		_ = dc.Updated()
 		wg.Done()
 	}()
 	wg.Wait()
@@ -314,7 +303,7 @@ func TestFetchLatestData(t *testing.T) {
 	t.Parallel()
 	dataHandler := &dataChecker{
 		report:  &report.Data{},
-		funding: &funding.FundManager{},
+		funding: &fakeFunding{},
 	}
 	_, err := dataHandler.FetchLatestData()
 	if !errors.Is(err, engine.ErrSubSystemNotStarted) {

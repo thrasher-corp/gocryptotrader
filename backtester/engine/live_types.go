@@ -2,6 +2,7 @@ package engine
 
 import (
 	"errors"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"sync"
 	"time"
 
@@ -13,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
@@ -47,9 +47,9 @@ type Handler interface {
 	DataFetcher() error
 	Stop() error
 	Reset() error
-	Updated() chan bool
-	HasShutdown() chan bool
-	HasShutdownFromError() chan bool
+	Updated() <-chan bool
+	HasShutdown() <-chan bool
+	HasShutdownFromError() <-chan bool
 	SetDataForClosingAllPositions(events ...signal.Event) error
 	UpdateFunding(force bool) error
 	IsRealOrders() bool
@@ -70,10 +70,9 @@ type dataChecker struct {
 	eventTimeout      time.Duration
 	dataCheckInterval time.Duration
 	dataHolder        data.Holder
-	dataUpdatedNotice alert.Notice
-	shutdownErr       error
-	shutdown          chan struct{}
-	updatedChannel    chan bool
+	shutdownErr       alert.Notice
+	shutdown          alert.Notice
+	updated           alert.Notice
 	report            report.Handler
 	funding           funding.IFundingManager
 }
