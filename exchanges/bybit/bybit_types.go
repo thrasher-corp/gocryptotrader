@@ -149,6 +149,33 @@ func (b bybitTimeNanoSec) Time() time.Time {
 	return time.Time(b)
 }
 
+type bybitNumericalValue float64
+
+// UnmarshalJSON is custom type json unmarshaller for bybitNumericalValue
+func (b *bybitNumericalValue) UnmarshalJSON(data []byte) error {
+	var num string
+	err := json.Unmarshal(data, &num)
+	if err != nil {
+		return err
+	}
+
+	if num == "" {
+		*b = 0
+		return nil
+	}
+
+	v, err := strconv.ParseFloat(num, 64)
+	if err != nil {
+		return err
+	}
+
+	*b = bybitNumericalValue(v)
+	return nil
+}
+
+// Float64 returns a float64 value for bybitNumericalValue
+func (b *bybitNumericalValue) Float64() float64 { return float64(*b) }
+
 // UnmarshalTo acts as interface to exchange API response
 type UnmarshalTo interface {
 	GetError() error
