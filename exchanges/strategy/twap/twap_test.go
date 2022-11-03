@@ -172,7 +172,7 @@ func TestStrategy_CheckAndSubmit(t *testing.T) {
 	t.Parallel()
 
 	var s *Strategy
-	err := s.checkAndSubmit(context.Background(), 0)
+	err := s.checkAndSubmit(context.Background())
 	if !errors.Is(err, errStrategyIsNil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errStrategyIsNil)
 	}
@@ -215,12 +215,12 @@ func TestStrategy_CheckAndSubmit(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	err = s.checkAndSubmit(context.Background(), 0)
+	err = s.checkAndSubmit(context.Background())
 	if !errors.Is(err, errInvalidAllocatedAmount) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidAllocatedAmount)
 	}
 
-	err = s.checkAndSubmit(context.Background(), 1)
+	err = s.checkAndSubmit(context.Background())
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}

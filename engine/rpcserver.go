@@ -5595,7 +5595,6 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 		return err
 	}
 
-	fmt.Printf("strategy: %+v\n", r)
 	ctx := stream.Context()
 	twap, err := twap.New(ctx, &twap.Config{
 		Exchange:                exch,
@@ -5624,8 +5623,6 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 	if err != nil {
 		return err
 	}
-
-	fmt.Printf("twaaap: %+v\n", twap)
 
 	reporter, err := s.strategyManager.RunStream(ctx, id)
 	if err != nil {

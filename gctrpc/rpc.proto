@@ -1377,8 +1377,24 @@ message TWAPResponse {
   string orderbook = 3;
   string account = 4;
   string error = 5;
-  string reason = 6;
+  string message = 6;
   bool finished = 7;
+}
+
+message Strategy {
+  string id = 1;
+  string name = 2;
+  string scheduled = 3;
+  string ending = 4;
+  bool completed = 5;
+  bool running = 6; 
+}
+
+message GetAllStrategies {}
+
+message GetAllStrategiesResponse {
+  repeated Strategy strategies = 1;
+
 }
 
 service GoCryptoTraderService {

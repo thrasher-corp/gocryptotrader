@@ -14,6 +14,7 @@ import (
 // of assets via a time weighted average price.
 type Strategy struct {
 	*Config
+	strategy.State
 	Buying  *account.ProtectedBalance
 	Selling *account.ProtectedBalance
 

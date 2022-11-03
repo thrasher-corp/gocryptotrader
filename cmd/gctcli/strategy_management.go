@@ -19,6 +19,7 @@ var (
 	stratGranularity int64
 	stratMaxImpact   float64
 	stratMaxSpread   float64
+	stratSimulate    bool
 )
 
 var strategyManagementCommand = &cli.Command{
@@ -26,6 +27,12 @@ var strategyManagementCommand = &cli.Command{
 	Usage:     "execute strategy management command",
 	ArgsUsage: "<command> <args>",
 	Subcommands: []*cli.Command{
+		{
+			Name:        "manager",
+			Usage:       "interacts with manager layer",
+			ArgsUsage:   "<command> <args>",
+			Subcommands: []*cli.Command{managerGetAll, managerStopAll},
+		},
 		{
 			Name:        "twap",
 			Usage:       "initiates a twap strategy to accumulate or decumulate your position",
@@ -36,6 +43,17 @@ var strategyManagementCommand = &cli.Command{
 }
 
 var (
+	managerGetAll = &cli.Command{
+		Name:   "getall",
+		Usage:  "gets all strategies",
+		Action: getAllStrats,
+	}
+	managerStopAll = &cli.Command{
+		Name:   "stopall",
+		Usage:  "stops all strategies",
+		Action: stopAllStrats,
+	}
+
 	twapStream = &cli.Command{
 		Name:      "stream",
 		Usage:     "executes strategy while reporting all actions to the client, exiting will stop strategy NOTE: cli flag might need to be used to access underyling funds e.g. --apisubaccount='main' for ftx main sub account",
@@ -55,8 +73,10 @@ var (
 				Usage: "asset",
 			},
 			&cli.BoolFlag{
-				Name:  "simulate",
-				Usage: "puts the strategy in simulation mode and will not execute live orders",
+				Name:        "simulate",
+				Usage:       "puts the strategy in simulation mode and will not execute live orders, this is on by default",
+				Value:       true,
+				Destination: &stratSimulate,
 			},
 			&cli.StringFlag{
 				Name:        "start",
@@ -103,13 +123,6 @@ var (
 				Name:  "maxnominal",
 				Usage: "will enforce no orderbook nominal (your average order cost from initial order cost) slippage beyond this percentage amount",
 			},
-			// TODO: Not yet implemented.
-			// &cli.BoolFlag{
-			// 	Name:        "reduceonly",
-			// 	Usage:       "will not stack orders in opposing direction",
-			// 	Value:       true,
-			// 	Destination: &stratReduceOnly,
-			// },
 			&cli.BoolFlag{
 				Name:  "buy",
 				Usage: "whether you are buying base or selling base",
@@ -124,13 +137,20 @@ var (
 	}
 )
 
+func getAllStrats(c *cli.Context) error {
+	return nil
+}
+
+func stopAllStrats(c *cli.Context) error {
+	return nil
+}
+
 func twapStreamfunc(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
-
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
 	} else {
@@ -160,11 +180,14 @@ func twapStreamfunc(c *cli.Context) error {
 		return errInvalidAsset
 	}
 
-	var simulate bool
 	if c.IsSet("simulate") {
-		simulate = c.Bool("simulate")
+		stratSimulate = c.Bool("simulate")
 	} else {
-		simulate, _ = strconv.ParseBool(c.Args().Get(3))
+		var arg bool
+		arg, err = strconv.ParseBool(c.Args().Get(3))
+		if err == nil {
+			stratSimulate = arg
+		}
 	}
 
 	if !c.IsSet("start") {
@@ -302,7 +325,7 @@ func twapStreamfunc(c *cli.Context) error {
 			Base:  cp.Base.String(),
 			Quote: cp.Quote.String(),
 		},
-		Simulate:            simulate,
+		Simulate:            stratSimulate,
 		Asset:               assetType,
 		Start:               negateLocalOffsetTS(s),
 		End:                 negateLocalOffsetTS(e),
@@ -327,9 +350,7 @@ func twapStreamfunc(c *cli.Context) error {
 		}
 
 		jsonOutput(resp)
-
 		if resp.Finished {
-			fmt.Println("TWAP HAS COMPLETED")
 			return nil
 		}
 	}

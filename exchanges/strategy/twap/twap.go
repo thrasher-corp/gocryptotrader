@@ -14,10 +14,6 @@ import (
 	strategy "github.com/thrasher-corp/gocryptotrader/exchanges/strategy/common"
 )
 
-const (
-	endTimeLapse = "Stategy has lapsed end time"
-)
-
 var (
 	errNoBalanceFound     = errors.New("no balance found")
 	errExceedsFreeBalance = errors.New("amount exceeds current free balance")
@@ -65,33 +61,33 @@ func New(ctx context.Context, c *Config) (*Strategy, error) {
 		deployment = c.Pair.Base
 	}
 
-	fullDeployment := selling.GetAvailableWithoutBorrow()
-	if fullDeployment == 0 {
+	balance := selling.GetAvailableWithoutBorrow()
+	if balance == 0 {
 		return nil, fmt.Errorf("cannot sell %s amount %f to buy base %s %w of %f",
 			deployment,
 			c.Amount,
 			c.Pair.Base,
 			errNoBalanceFound,
-			fullDeployment)
+			balance)
 	}
 
 	if !c.FullAmount {
-		if c.Amount > fullDeployment {
+		if c.Amount > balance {
 			return nil, fmt.Errorf("cannot sell %s amount %f to buy base %s %w of %f",
 				deployment,
 				c.Amount,
 				c.Pair.Base,
 				errExceedsFreeBalance,
-				fullDeployment)
+				balance)
 		}
-		fullDeployment = c.Amount
+		balance = c.Amount
 	}
 
 	// NOTE: For now this will not allow any amount to deplete the full
 	// orderbook, just until a safe, effective and efficient system has been
-	// tested and deployed. TODO: Bypass error
-	// errBookSmallerThanDeploymentAmount.
-	allocation, err := c.GetDistrbutionAmount(fullDeployment, depth)
+	// tested and deployed for public use.
+	// TODO: Bypass error errBookSmallerThanDeploymentAmount.
+	allocation, err := c.GetDistrbutionAmount(balance, depth)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +102,8 @@ func New(ctx context.Context, c *Config) (*Strategy, error) {
 }
 
 // deploy oversees the deployment of the current strategy adhering to policies,
-// limits, signals and timings.
+// limits, signals and timings. TODO: Abstract to common. Implement OnSignal
+// interface requirement method.
 func (s *Strategy) deploy(ctx context.Context, start time.Duration) {
 	defer func() {
 		s.wg.Done()
@@ -114,49 +111,41 @@ func (s *Strategy) deploy(ctx context.Context, start time.Duration) {
 		s.running = false
 		s.mtx.Unlock()
 	}()
-	wow := fmt.Sprintf("Starting twap operation in %s...\n", start)
-	s.reporter.Send(&strategy.Report{Reason: wow})
+
+	s.reporter.OnStart(s)
 	// NOTE: Zero value start duration will execute immediately then deploy at
 	// intervals.
 	timer := time.NewTimer(start)
 	finished := time.NewTimer(time.Until(s.End))
+
 	for {
 		select {
-		case <-timer.C:
-			if !s.AllowTradingPastEndTime && time.Now().After(s.End) {
-				s.reporter.Send(&strategy.Report{Reason: endTimeLapse, Finished: true})
-				return
-			}
-
+		case sig := <-timer.C:
 			err := s.SetTimer(timer)
 			if err != nil {
-				s.reporter.Send(&strategy.Report{Error: err, Finished: true})
+				s.reporter.OnFatalError(err)
 				return
 			}
 
-			err = s.checkAndSubmit(ctx)
+			var complete bool
+			complete, err = s.OnSignal(ctx, sig)
 			if err != nil {
-				s.reporter.Send(&strategy.Report{Error: err, Finished: true})
+				s.reporter.OnFatalError(err)
 				return
 			}
 
-			if s.allocation.Deployed == s.allocation.Total {
-				s.reporter.Send(&strategy.Report{Reason: "SIMULATION COMPLETED", Finished: true})
-				return
-			}
-
-			if !s.AllowTradingPastEndTime && time.Now().After(s.End) {
-				s.reporter.Send(&strategy.Report{Reason: endTimeLapse, Finished: true})
+			if complete {
+				s.reporter.OnComplete()
 				return
 			}
 		case <-finished.C:
-			s.reporter.Send(&strategy.Report{Reason: endTimeLapse, Finished: true})
+			s.reporter.OnTimeout(s.End)
 			return
 		case <-ctx.Done():
-			s.reporter.Send(&strategy.Report{Error: ctx.Err(), Finished: true})
+			s.reporter.OnContextDone(ctx.Err())
 			return
 		case <-s.shutdown:
-			s.reporter.Send(&strategy.Report{Reason: "Shutdown called on strategy", Finished: true})
+			s.reporter.OnShutdown()
 			return
 		}
 	}
@@ -194,12 +183,7 @@ func (s *Strategy) checkAndSubmit(ctx context.Context) error {
 	s.allocation.Deployed += s.allocation.Deployment
 	s.allocation.Deployments++
 
-	s.reporter.Send(&strategy.Report{
-		Submit:     submit,
-		Response:   resp,
-		Deployment: details,
-	})
-
+	s.reporter.OnOrder(submit, resp, details)
 	return nil
 }
 
@@ -214,13 +198,12 @@ func (s *Strategy) deriveOrder(amountInBase float64) (*order.Submit, error) {
 		side = order.Sell
 	}
 	return &order.Submit{
-		Exchange:  s.Exchange.GetName(),
+		Exchange:  s.Config.Exchange.GetName(),
 		Type:      order.Market,
-		Pair:      s.Pair,
-		AssetType: s.Asset,
-		// ReduceOnly: true, // Have reduce only as default for this strategy.
-		Side:   side,
-		Amount: amountInBase,
+		Pair:      s.Config.Pair,
+		AssetType: s.Config.Asset,
+		Side:      side,
+		Amount:    amountInBase,
 	}, nil
 }
 
@@ -242,7 +225,7 @@ func (s *Strategy) submitOrder(ctx context.Context, submit *order.Submit) (*orde
 
 		var err error
 		if !s.Simulate {
-			resp, err = s.Exchange.SubmitOrder(ctx, submit)
+			resp, err = s.Config.Exchange.SubmitOrder(ctx, submit)
 		} else {
 			resp, err = submit.DeriveSubmitResponse(strategy.SimulationTag)
 		}
@@ -259,43 +242,3 @@ func (s *Strategy) submitOrder(ctx context.Context, submit *order.Submit) (*orde
 	}
 	return resp, errReturn
 }
-
-// if !s.Simulate {
-// wait, cancel, err := s.Selling.Wait(0)
-// if err != nil {
-// 	s.reporter.Send(&strategy.Report{Error: err, Finished: true})
-// 	return
-// }
-
-// var timedOut bool
-// select {
-// case timedOut = <-wait:
-// case <-ctx.Done():
-// 	select {
-// 	case cancel <- struct{}{}:
-// 	default:
-// 	}
-// 	s.reporter.Send(&strategy.Report{Error: ctx.Err(), Finished: true})
-// 	return
-// }
-
-// if timedOut {
-// 	// TODO: Logger output
-// 	continue
-// }
-
-// afterOrderBalance := s.Selling.GetAvailableWithoutBorrow()
-
-// if afterOrderBalance == 0 {
-// 	s.reporter.Send(&strategy.Report{Reason: "Balance depleted", Finished: true})
-// 	return
-// }
-
-// change := fmt.Sprintf("change received prev: %f, now: %f and change: %f\n",
-// 	preOrderBalance,
-// 	afterOrderBalance,
-// 	preOrderBalance-afterOrderBalance,
-// )
-
-// s.reporter.Send(&strategy.Report{Reason: change})
-// }
