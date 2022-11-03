@@ -149,6 +149,8 @@ func (b bybitTimeNanoSec) Time() time.Time {
 	return time.Time(b)
 }
 
+// bybitNumericalValue is a type used for when the API returns an empty or
+// numerical string
 type bybitNumericalValue float64
 
 // UnmarshalJSON is custom type json unmarshaller for bybitNumericalValue
@@ -160,7 +162,6 @@ func (b *bybitNumericalValue) UnmarshalJSON(data []byte) error {
 	}
 
 	if num == "" {
-		*b = 0
 		return nil
 	}
 
