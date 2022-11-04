@@ -125,28 +125,13 @@ message CSVData {
   string path = 1;
 }
 
-message ExchangeKeys {
-  string key = 1;
-  string secret = 2;
-  string client_id = 3;
-  string pem_key = 4;
-  string sub_account = 5;
-  string one_time_password = 6;
-}
-
-message ExchangeCredentials {
-  string exchange = 1;
-  ExchangeKeys keys = 2;
-}
-
 message LiveData {
-  int64 new_event_timeout = 1;
-  int64 data_check_timer = 2;
-  bool real_orders = 3;
-  bool close_positions_on_stop = 4;
-  int64 data_request_retry_tolerance = 5;
-  int64 data_request_retry_wait_time = 6;
-  repeated ExchangeCredentials credentials = 7;
+  string api_key_override = 1;
+  string api_secret_override = 2;
+  string api_client_id_override = 3;
+  string api_2fa_override = 4;
+  string api_sub_account_override = 5;
+  bool use_real_orders = 6;
 }
 
 message DataSettings {
@@ -186,7 +171,7 @@ message Config {
   StatisticSettings statistic_settings = 8;
 }
 
-message TaskSummary {
+message RunSummary {
   string id = 1;
   string strategy_name = 2;
   string date_loaded = 3;
@@ -205,7 +190,7 @@ message ExecuteStrategyFromFileRequest {
 }
 
 message ExecuteStrategyResponse {
-  TaskSummary task = 1;
+  RunSummary run = 1;
 }
 
 message ExecuteStrategyFromConfigRequest {
@@ -214,53 +199,53 @@ message ExecuteStrategyFromConfigRequest {
   btrpc.Config config = 3;
 }
 
-message ListAllTasksRequest {}
+message ListAllRunsRequest {}
 
-message ListAllTasksResponse {
-  repeated TaskSummary tasks = 1;
+message ListAllRunsResponse {
+  repeated RunSummary runs = 1;
 }
 
-message StopTaskRequest {
+message StopRunRequest {
   string id = 1;
 }
 
-message StopTaskResponse {
-  TaskSummary stopped_task = 1;
+message StopRunResponse {
+  RunSummary stopped_run = 1;
 }
 
-message StartTaskRequest {
+message StartRunRequest {
   string id = 1;
 }
 
-message StartTaskResponse {
+message StartRunResponse {
   bool started = 1;
 }
 
-message StartAllTasksRequest {}
+message StartAllRunsRequest {}
 
-message StartAllTasksResponse {
-  repeated string tasks_started = 1;
+message StartAllRunsResponse {
+  repeated string runs_started = 1;
 }
 
-message StopAllTasksRequest {}
+message StopAllRunsRequest {}
 
-message StopAllTasksResponse {
-  repeated TaskSummary tasks_stopped = 1;
+message StopAllRunsResponse {
+  repeated RunSummary runs_stopped = 1;
 }
 
-message ClearTaskRequest {
+message ClearRunRequest {
   string id = 1;
 }
 
-message ClearTaskResponse {
-  TaskSummary cleared_task = 1;
+message ClearRunResponse {
+  RunSummary cleared_run = 1;
 }
 
-message ClearAllTasksRequest {}
+message ClearAllRunsRequest {}
 
-message ClearAllTasksResponse {
-  repeated TaskSummary cleared_tasks = 1;
-  repeated TaskSummary remaining_tasks = 2;
+message ClearAllRunsResponse {
+  repeated RunSummary cleared_runs = 1;
+  repeated RunSummary remaining_runs = 2;
 }
 
 service BacktesterService {
@@ -270,25 +255,25 @@ service BacktesterService {
   rpc ExecuteStrategyFromConfig(ExecuteStrategyFromConfigRequest) returns (ExecuteStrategyResponse) {
     option (google.api.http) = {post: "/v1/executestrategyfromconfig"};
   }
-  rpc ListAllTasks(ListAllTasksRequest) returns (ListAllTasksResponse) {
-    option (google.api.http) = {get: "/v1/listalltasks"};
+  rpc ListAllRuns(ListAllRunsRequest) returns (ListAllRunsResponse) {
+    option (google.api.http) = {get: "/v1/listallruns"};
   }
-  rpc StartTask(StartTaskRequest) returns (StartTaskResponse) {
-    option (google.api.http) = {post: "/v1/starttask"};
+  rpc StartRun(StartRunRequest) returns (StartRunResponse) {
+    option (google.api.http) = {post: "/v1/startrun"};
   }
-  rpc StartAllTasks(StartAllTasksRequest) returns (StartAllTasksResponse) {
-    option (google.api.http) = {post: "/v1/startall"};
+  rpc StartAllRuns(StartAllRunsRequest) returns (StartAllRunsResponse) {
+    option (google.api.http) = {post: "/v1/startallruns"};
   }
-  rpc StopTask(StopTaskRequest) returns (StopTaskResponse) {
-    option (google.api.http) = {post: "/v1/stoptask"};
+  rpc StopRun(StopRunRequest) returns (StopRunResponse) {
+    option (google.api.http) = {post: "/v1/stoprun"};
   }
-  rpc StopAllTasks(StopAllTasksRequest) returns (StopAllTasksResponse) {
-    option (google.api.http) = {post: "/v1/stopalltasks"};
+  rpc StopAllRuns(StopAllRunsRequest) returns (StopAllRunsResponse) {
+    option (google.api.http) = {post: "/v1/stopallruns"};
   }
-  rpc ClearTask(ClearTaskRequest) returns (ClearTaskResponse) {
-    option (google.api.http) = {delete: "/v1/cleartask"};
+  rpc ClearRun(ClearRunRequest) returns (ClearRunResponse) {
+    option (google.api.http) = {delete: "/v1/clearrun"};
   }
-  rpc ClearAllTasks(ClearAllTasksRequest) returns (ClearAllTasksResponse) {
-    option (google.api.http) = {delete: "/v1/clearalltasks"};
+  rpc ClearAllRuns(ClearAllRunsRequest) returns (ClearAllRunsResponse) {
+    option (google.api.http) = {delete: "/v1/clearallruns"};
   }
 }

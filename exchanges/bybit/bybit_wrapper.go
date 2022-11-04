@@ -464,7 +464,7 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 					Bid:          tick[y].BidPrice,
 					Ask:          tick[y].AskPrice,
 					Volume:       tick[y].Volume24h,
-					Open:         tick[y].OpenValue,
+					Open:         tick[y].OpenValue.Float64(),
 					Pair:         cp,
 					ExchangeName: by.Name,
 					AssetType:    assetType})
@@ -567,7 +567,7 @@ func (by *Bybit) UpdateTicker(ctx context.Context, p currency.Pair, assetType as
 				Bid:          tick[y].BidPrice,
 				Ask:          tick[y].AskPrice,
 				Volume:       tick[y].Volume24h,
-				Open:         tick[y].OpenValue,
+				Open:         tick[y].OpenValue.Float64(),
 				Pair:         cp,
 				ExchangeName: by.Name,
 				AssetType:    assetType})
