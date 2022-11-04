@@ -54,6 +54,9 @@ func TestGetAllData(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	result, err := d.GetAllData()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	if len(result) != 2 {
 		t.Error("expected 2")
 	}

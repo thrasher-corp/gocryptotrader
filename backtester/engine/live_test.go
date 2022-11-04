@@ -75,13 +75,16 @@ func TestSetupLiveDataHandler(t *testing.T) {
 
 func TestStart(t *testing.T) {
 	t.Parallel()
-	dataHandler := &dataChecker{}
+	dataHandler := &dataChecker{
+		shutdown: make(chan bool),
+	}
 	err := dataHandler.Start()
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
+	close(dataHandler.shutdown)
 
-	dataHandler.shutdown.Alert()
+	dataHandler.started = 1
 	err = dataHandler.Start()
 	if !errors.Is(err, engine.ErrSubSystemAlreadyStarted) {
 		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemAlreadyStarted)
@@ -115,7 +118,9 @@ func TestDataCheckerIsRunning(t *testing.T) {
 
 func TestLiveHandlerStop(t *testing.T) {
 	t.Parallel()
-	dc := &dataChecker{}
+	dc := &dataChecker{
+		shutdown: make(chan bool),
+	}
 	err := dc.Stop()
 	if !errors.Is(err, engine.ErrSubSystemNotStarted) {
 		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemNotStarted)
@@ -126,7 +131,7 @@ func TestLiveHandlerStop(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	dc.shutdown.Alert()
+	dc.shutdown = make(chan bool)
 	err = dc.Stop()
 	if !errors.Is(err, engine.ErrSubSystemNotStarted) {
 		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemNotStarted)
@@ -141,7 +146,9 @@ func TestLiveHandlerStop(t *testing.T) {
 
 func TestLiveHandlerStopFromError(t *testing.T) {
 	t.Parallel()
-	dc := &dataChecker{}
+	dc := &dataChecker{
+		shutdownErr: make(chan bool, 10),
+	}
 	err := dc.SignalStopFromError(errNoCredsNoLive)
 	if !errors.Is(err, engine.ErrSubSystemNotStarted) {
 		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemNotStarted)
@@ -151,7 +158,6 @@ func TestLiveHandlerStopFromError(t *testing.T) {
 	if !errors.Is(err, errNilError) {
 		t.Errorf("received '%v' expected '%v'", err, errNilError)
 	}
-
 	dc.started = 1
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -162,11 +168,8 @@ func TestLiveHandlerStopFromError(t *testing.T) {
 			t.Errorf("received '%v' expected '%v'", err, nil)
 		}
 	}()
-	dc.shutdownErr.Alert()
-	if !errors.Is(err, errNoCredsNoLive) {
-		t.Errorf("received '%v' expected '%v'", err, errNoCredsNoLive)
-	}
 	wg.Wait()
+
 	var dh *dataChecker
 	err = dh.SignalStopFromError(errNoCredsNoLive)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
@@ -177,7 +180,11 @@ func TestLiveHandlerStopFromError(t *testing.T) {
 func TestDataFetcher(t *testing.T) {
 	t.Parallel()
 	dc := &dataChecker{
-		dataCheckInterval: time.Millisecond,
+		dataCheckInterval: time.Second,
+		eventTimeout:      time.Millisecond,
+		shutdown:          make(chan bool, 10),
+		shutdownErr:       make(chan bool, 10),
+		dataUpdated:       make(chan bool, 10),
 	}
 	dc.wg.Add(1)
 	err := dc.DataFetcher()
@@ -201,14 +208,15 @@ func TestDataFetcher(t *testing.T) {
 
 func TestUpdated(t *testing.T) {
 	t.Parallel()
-	dc := &dataChecker{}
+	dc := &dataChecker{
+		dataUpdated: make(chan bool, 10),
+	}
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		_ = dc.Updated()
 		wg.Done()
 	}()
-	dc.updated.Alert()
 	wg.Wait()
 
 	dc = nil
@@ -620,6 +628,5 @@ func TestClosedChan(t *testing.T) {
 	case <-chantel:
 		t.Error("woah")
 	default:
-
 	}
 }

@@ -440,7 +440,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		return err
 	}
 
-	bt.Exchange = &e
+	bt.Exchange = e
 	for i := range e.CurrencySettings {
 		err = p.SetCurrencySettingsMap(&e.CurrencySettings[i])
 		if err != nil {
@@ -468,10 +468,10 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 	return nil
 }
 
-func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange, error) {
+func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (*exchange.Exchange, error) {
 	log.Infoln(common.Setup, "Setting exchange settings...")
-	resp := exchange.Exchange{}
 
+	resp := &exchange.Exchange{}
 	for i := range cfg.CurrencySettings {
 		exch, pair, a, err := bt.loadExchangePairAssetBase(
 			cfg.CurrencySettings[i].ExchangeName,
@@ -479,27 +479,30 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			cfg.CurrencySettings[i].Quote,
 			cfg.CurrencySettings[i].Asset)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 
 		exchangeName := strings.ToLower(exch.GetName())
 		klineData, err := bt.loadData(cfg, exch, pair, a, cfg.CurrencySettings[i].USDTrackingPair)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		if bt.LiveDataHandler == nil {
 			err = bt.Funding.AddUSDTrackingData(klineData)
 			if err != nil &&
 				!errors.Is(err, trackingcurrencies.ErrCurrencyDoesNotContainsUSD) &&
 				!errors.Is(err, funding.ErrUSDTrackingDisabled) {
-				return resp, err
+				return nil, err
 			}
 
 			if cfg.CurrencySettings[i].USDTrackingPair {
 				continue
 			}
 
-			bt.DataHolder.SetDataForCurrency(exchangeName, a, pair, klineData)
+			err = bt.DataHolder.SetDataForCurrency(exchangeName, a, pair, klineData)
+			if err != nil {
+				return nil, err
+			}
 		}
 		var makerFee, takerFee decimal.Decimal
 		if cfg.CurrencySettings[i].MakerFee != nil && cfg.CurrencySettings[i].MakerFee.GreaterThan(decimal.Zero) {

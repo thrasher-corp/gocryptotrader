@@ -49,12 +49,16 @@ func (bt *BackTest) SetupLiveDataHandler(eventTimeout, dataCheckInterval time.Du
 		dataCheckInterval = defaultDataCheckInterval
 	}
 	bt.LiveDataHandler = &dataChecker{
-		realOrders:        realOrders,
 		verboseDataCheck:  verbose,
+		realOrders:        realOrders,
+		hasUpdatedFunding: false,
 		exchangeManager:   bt.exchangeManager,
+		sourcesToCheck:    nil,
 		eventTimeout:      eventTimeout,
 		dataCheckInterval: dataCheckInterval,
 		dataHolder:        bt.DataHolder,
+		shutdownErr:       make(chan bool),
+		dataUpdated:       make(chan bool),
 		report:            bt.Reports,
 		funding:           bt.Funding,
 	}
@@ -70,6 +74,9 @@ func (d *dataChecker) Start() error {
 		return engine.ErrSubSystemAlreadyStarted
 	}
 	d.wg.Add(1)
+	d.shutdown = make(chan bool)
+	d.dataUpdated = make(chan bool)
+	d.shutdownErr = make(chan bool)
 	go func() {
 		err := d.DataFetcher()
 		if err != nil {
@@ -96,7 +103,7 @@ func (d *dataChecker) Stop() error {
 	if !atomic.CompareAndSwapUint32(&d.started, 1, 0) {
 		return engine.ErrSubSystemNotStarted
 	}
-	d.shutdown.Alert()
+	close(d.shutdown)
 	return nil
 }
 
@@ -112,7 +119,7 @@ func (d *dataChecker) SignalStopFromError(err error) error {
 		return engine.ErrSubSystemNotStarted
 	}
 	log.Error(common.LiveStrategy, err)
-	d.shutdownErr.Alert()
+	d.shutdownErr <- true
 	return nil
 }
 
@@ -129,7 +136,7 @@ func (d *dataChecker) DataFetcher() error {
 	timeoutTimer := time.NewTimer(d.eventTimeout)
 	for {
 		select {
-		case <-d.shutdown.Wait(nil):
+		case <-d.shutdown:
 			return nil
 		case <-timeoutTimer.C:
 			return fmt.Errorf("%w of %v", ErrLiveDataTimeout, d.eventTimeout)
@@ -140,7 +147,6 @@ func (d *dataChecker) DataFetcher() error {
 			}
 			checkTimer.Reset(d.dataCheckInterval)
 			if !timeoutTimer.Stop() {
-				// drain to avoid closure
 				<-timeoutTimer.C
 			}
 			timeoutTimer.Reset(d.eventTimeout)
@@ -149,14 +155,14 @@ func (d *dataChecker) DataFetcher() error {
 }
 
 func (d *dataChecker) checkData() error {
-	updated, err := d.FetchLatestData()
+	hasDataUpdated, err := d.FetchLatestData()
 	if err != nil {
 		return err
 	}
-	if !updated {
+	if !hasDataUpdated {
 		return nil
 	}
-	d.updated.Alert()
+	d.dataUpdated <- hasDataUpdated
 	if d.realOrders {
 		go func() {
 			err = d.UpdateFunding(false)
@@ -208,37 +214,38 @@ func (d *dataChecker) UpdateFunding(force bool) error {
 	return nil
 }
 
-func closedChan() <-chan bool {
+func closedChan() chan bool {
 	immediateClosure := make(chan bool)
 	close(immediateClosure)
 	return immediateClosure
 }
 
 // Updated gives other endpoints the ability to listen to
-// when data is updated from live sources
-func (d *dataChecker) Updated() <-chan bool {
+// when data is dataUpdated from live sources
+func (d *dataChecker) Updated() chan bool {
 	if d == nil {
 		return closedChan()
 	}
-	return d.updated.Wait(nil)
+	return d.dataUpdated
 }
 
 // HasShutdown indicates when the live data checker
 // has been shutdown
-func (d *dataChecker) HasShutdown() <-chan bool {
+func (d *dataChecker) HasShutdown() chan bool {
 	if d == nil {
 		return closedChan()
 	}
-	return d.shutdown.Wait(nil)
+
+	return d.shutdown
 }
 
 // HasShutdownFromError indicates when the live data checker
 // has been shutdown from encountering an error
-func (d *dataChecker) HasShutdownFromError() <-chan bool {
+func (d *dataChecker) HasShutdownFromError() chan bool {
 	if d == nil {
 		return closedChan()
 	}
-	return d.shutdownErr.Wait(nil)
+	return d.shutdownErr
 }
 
 // Reset clears all stored data

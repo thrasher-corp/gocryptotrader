@@ -240,7 +240,11 @@ func main() {
 		}
 	}
 	log.Infof(log.Global, "Captured %v, shutdown requested.\n", interrupt)
-	log.Infoln(log.Global, "Exiting.")
+	log.Infoln(log.Global, "Exiting. Have a nice day")
+	err = log.CloseLogger()
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
 func parseFlags(wd string) map[string]bool {

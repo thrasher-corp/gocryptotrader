@@ -324,6 +324,7 @@ func (p *Portfolio) GetLatestOrderSnapshots() ([]compliance.Snapshot, error) {
 	return resp, nil
 }
 
+// GetLatestComplianceSnapshot returns the latest compliance snapshot for a given exchange, asset, pair
 func (p *Portfolio) GetLatestComplianceSnapshot(exchangeName string, a asset.Item, cp currency.Pair) (*compliance.Snapshot, error) {
 	cm, err := p.getComplianceManager(exchangeName, a, cp)
 	if err != nil {

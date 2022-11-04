@@ -93,31 +93,31 @@ func (bt *BackTest) RunLive() error {
 	}
 	bt.wg.Add(1)
 	go func() {
-		defer bt.wg.Done()
-		for {
-			select {
-			case <-bt.shutdown:
-				err = bt.LiveDataHandler.Stop()
-			default:
-				err = bt.liveCheck()
-			}
-			if err != nil {
-				log.Error(common.LiveStrategy, err)
-			}
-
+		err = bt.liveCheck()
+		if err != nil {
+			log.Error(common.LiveStrategy, err)
 		}
+		bt.wg.Done()
 	}()
+
 	return nil
 }
 
 func (bt *BackTest) liveCheck() error {
-	select {
-	case <-bt.LiveDataHandler.HasShutdownFromError():
-		return bt.Stop()
-	case <-bt.LiveDataHandler.HasShutdown():
-		return nil
-	case <-bt.LiveDataHandler.Updated():
-		return bt.Run()
+	for {
+		select {
+		case <-bt.shutdown:
+			return bt.LiveDataHandler.Stop()
+		case <-bt.LiveDataHandler.HasShutdownFromError():
+			return bt.Stop()
+		case <-bt.LiveDataHandler.HasShutdown():
+			return nil
+		case <-bt.LiveDataHandler.Updated():
+			err := bt.Run()
+			if err != nil {
+				return err
+			}
+		}
 	}
 }
 
@@ -328,11 +328,12 @@ func (bt *BackTest) processSingleDataEvent(ev data.Event, funds funding.IFundRel
 // to the event queue. It will pass all currency events to the strategy to determine what
 // currencies to act upon
 func (bt *BackTest) processSimultaneousDataEvents() error {
-	var dataEvents []data.Handler
 	dataHolders, err := bt.DataHolder.GetAllData()
 	if err != nil {
 		return err
 	}
+
+	dataEvents := make([]data.Handler, 0, len(dataHolders))
 	for i := range dataHolders {
 		var latestData data.Event
 		latestData, err = dataHolders[i].Latest()

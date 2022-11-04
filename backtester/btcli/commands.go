@@ -40,15 +40,15 @@ var executeStrategyFromFileCommand = &cli.Command{
 }
 
 func executeStrategyFromFile(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, c.Command.Name)
+	}
+
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
 	defer closeConn(conn, cancel)
-
-	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, c.Command.Name)
-	}
 
 	var path string
 	if c.IsSet("path") {
@@ -125,12 +125,6 @@ var startTaskCommand = &cli.Command{
 }
 
 func startTask(c *cli.Context) error {
-	conn, cancel, err := setupClient(c)
-	if err != nil {
-		return err
-	}
-	defer closeConn(conn, cancel)
-
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowCommandHelp(c, c.Command.Name)
 	}
@@ -142,6 +136,11 @@ func startTask(c *cli.Context) error {
 		id = c.Args().First()
 	}
 
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
 	client := btrpc.NewBacktesterServiceClient(conn)
 	result, err := client.StartTask(
 		c.Context,
@@ -199,15 +198,15 @@ var stopTaskCommand = &cli.Command{
 }
 
 func stopTask(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, c.Command.Name)
+	}
+
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
 	defer closeConn(conn, cancel)
-
-	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, c.Command.Name)
-	}
 
 	var id string
 	if c.IsSet("id") {
@@ -273,15 +272,15 @@ var clearTaskCommand = &cli.Command{
 }
 
 func clearTask(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, c.Command.Name)
+	}
+
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
 	defer closeConn(conn, cancel)
-
-	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, c.Command.Name)
-	}
 
 	var id string
 	if c.IsSet("id") {
