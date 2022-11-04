@@ -1183,6 +1183,36 @@
         ]
       }
     },
+    "/v1/getallstrategies": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetAllStrategies",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetAllStrategiesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "running",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
     "/v1/getauditevent": {
       "get": {
         "operationId": "GoCryptoTraderService_GetAuditEvent",
@@ -3790,6 +3820,36 @@
         ]
       }
     },
+    "/v1/stopstrategy": {
+      "get": {
+        "operationId": "GoCryptoTraderService_StopStrategy",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcStopStrategyResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
     "/v1/submitorder": {
       "post": {
         "operationId": "GoCryptoTraderService_SubmitOrder",
@@ -5428,6 +5488,17 @@
         }
       }
     },
+    "gctrpcGetAllStrategiesResponse": {
+      "type": "object",
+      "properties": {
+        "strategies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcStrategy"
+          }
+        }
+      }
+    },
     "gctrpcGetAuditEventResponse": {
       "type": "object",
       "properties": {
@@ -6653,6 +6724,34 @@
         }
       }
     },
+    "gctrpcStopStrategyResponse": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcStrategy": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        },
+        "stopped": {
+          "type": "boolean"
+        },
+        "running": {
+          "type": "boolean"
+        }
+      }
+    },
     "gctrpcSubmitOrderRequest": {
       "type": "object",
       "properties": {
@@ -6719,7 +6818,7 @@
         "error": {
           "type": "string"
         },
-        "reason": {
+        "message": {
           "type": "string"
         },
         "finished": {

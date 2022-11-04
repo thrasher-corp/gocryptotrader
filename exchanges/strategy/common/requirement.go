@@ -19,12 +19,11 @@ type Requirement interface {
 	GetState() (*State, error)
 	OnSignal(ctx context.Context, sig interface{}) (bool, error)
 
-	Deploy(ctx context.Context, strat Requirement)
 	String() string
 
-	WaitForSignal() <-chan interface{}
-	WaitForEnd() <-chan time.Time
-	WaitForShutdown() <-chan struct{}
+	// WaitForSignal() <-chan interface{}
+	// WaitForEnd() <-chan time.Time
+	// WaitForShutdown() <-chan struct{}
 }
 
 // State defines basic identification for strategy
@@ -38,48 +37,48 @@ type State struct {
 	Running    bool
 }
 
-// Deploy oversees the deployment of the current strategy adhering to policies,
-// limits, signals and timings.
-func (s *State) Deploy(ctx context.Context, strat Requirement) error {
-	// defer func() {
-	// 	s.wg.Done()
-	// 	s.mtx.Lock()
-	// 	s.running = false
-	// 	s.mtx.Unlock()
-	// }()
+// // Deploy oversees the deployment of the current strategy adhering to policies,
+// // limits, signals and timings.
+// func (s *State) Deploy(ctx context.Context, strat Requirement) error {
+// 	// defer func() {
+// 	// 	s.wg.Done()
+// 	// 	s.mtx.Lock()
+// 	// 	s.running = false
+// 	// 	s.mtx.Unlock()
+// 	// }()
 
-	report, err := strat.GetReporter()
-	if err != nil {
-		return err
-	}
-	report.OnStart(strat)
+// 	report, err := strat.GetReporter()
+// 	if err != nil {
+// 		return err
+// 	}
+// 	report.OnStart(strat)
 
-	go func() {
-		for {
-			select {
-			case sig := <-strat.WaitForSignal():
-				var complete bool
-				complete, err = strat.OnSignal(ctx, sig)
-				if err != nil {
-					report.OnFatalError(err)
-					return
-				}
+// 	go func() {
+// 		for {
+// 			select {
+// 			case sig := <-strat.WaitForSignal():
+// 				var complete bool
+// 				complete, err = strat.OnSignal(ctx, sig)
+// 				if err != nil {
+// 					report.OnFatalError(err)
+// 					return
+// 				}
 
-				if complete {
-					report.OnComplete()
-					return
-				}
-			case end := <-strat.WaitForEnd():
-				report.OnTimeout(end)
-				return
-			case <-ctx.Done():
-				report.OnContextDone(ctx.Err())
-				return
-			case <-strat.WaitForShutdown():
-				report.OnShutdown()
-				return
-			}
-		}
-	}()
-	return nil
-}
+// 				if complete {
+// 					report.OnComplete()
+// 					return
+// 				}
+// 			case end := <-strat.WaitForEnd():
+// 				report.OnTimeout(end)
+// 				return
+// 			case <-ctx.Done():
+// 				report.OnContextDone(ctx.Err())
+// 				return
+// 			case <-strat.WaitForShutdown():
+// 				report.OnShutdown()
+// 				return
+// 			}
+// 		}
+// 	}()
+// 	return nil
+// }

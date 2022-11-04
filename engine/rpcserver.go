@@ -5568,6 +5568,44 @@ func (s *RPCServer) GetOrderbookAmountByImpact(ctx context.Context, r *gctrpc.Ge
 	}, nil
 }
 
+// GetAllStrategies returns all strategies loaded or if requested only running
+// strategies.
+func (s *RPCServer) GetAllStrategies(ctx context.Context, r *gctrpc.GetAllStrategiesRequest) (*gctrpc.GetAllStrategiesResponse, error) {
+	strats, err := s.strategyManager.GetAllStrategies(r.Running)
+	if err != nil {
+		return nil, err
+	}
+
+	rpcStrats := make([]*gctrpc.Strategy, len(strats))
+	for x := range strats {
+		if r.Running && !strats[x].Running {
+			continue
+		}
+		rpcStrats[x] = &gctrpc.Strategy{
+			Id:      strats[x].ID.String(),
+			Name:    strats[x].Strategy,
+			State:   fmt.Sprintf("Exchange:%s Asset:%s Pair:%s", strats[x].Exchange, strats[x].Asset, strats[x].Pair),
+			Stopped: !strats[x].Running,
+			Running: strats[x].Running,
+		}
+	}
+	return &gctrpc.GetAllStrategiesResponse{Strategies: rpcStrats}, nil
+}
+
+// StopStrategy stops a strategy by its corresponding UUID.
+func (s *RPCServer) StopStrategy(ctx context.Context, r *gctrpc.StopStrategyRequest) (*gctrpc.StopStrategyResponse, error) {
+	id, err := uuid.FromString(r.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.strategyManager.Stop(id)
+	if err != nil {
+		return nil, err
+	}
+	return &gctrpc.StopStrategyResponse{Message: fmt.Sprintf("STRATEGY %s STOPPED", id)}, nil
+}
+
 // TWAPStream manages an externally called TWAP strategy.
 func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTraderService_TWAPStreamServer) error {
 	exch, err := s.GetExchangeByName(r.Exchange)
@@ -5612,8 +5650,9 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 		MaxNominalSlippage:      r.MaxNominalSlippage,
 		Buy:                     r.Buy,
 		MaxSpreadPercentage:     r.MaxSpreadPercentage,
-		RetryAttempts:           3,
-		CandleStickAligned:      true,
+		// TODO: Set values below via rpc
+		RetryAttempts:      3,
+		CandleStickAligned: true,
 	})
 	if err != nil {
 		return err
@@ -5639,7 +5678,7 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 			SubmitResponse: report.Response.String(),
 			Orderbook:      report.Deployment.String(),
 			Error:          errStr,
-			Reason:         report.Reason,
+			Message:        report.Reason,
 			Finished:       report.Finished,
 		})
 		if err != nil {

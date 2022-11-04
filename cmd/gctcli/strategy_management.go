@@ -44,14 +44,28 @@ var strategyManagementCommand = &cli.Command{
 
 var (
 	managerGetAll = &cli.Command{
-		Name:   "getall",
-		Usage:  "gets all strategies",
+		Name:      "getall",
+		Usage:     "gets all strategies",
+		ArgsUsage: "<running>",
+		Flags: []cli.Flag{
+			&cli.BoolFlag{
+				Name:  "running",
+				Usage: "only returns running strategies",
+			},
+		},
 		Action: getAllStrats,
 	}
 	managerStopAll = &cli.Command{
-		Name:   "stopall",
-		Usage:  "stops all strategies",
-		Action: stopAllStrats,
+		Name:      "stopstrategy",
+		Usage:     "stops a strategy by uuid",
+		ArgsUsage: "<uuid>",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:  "uuid",
+				Usage: "the registered strategy's uuid",
+			},
+		},
+		Action: stopStrategy,
 	}
 
 	twapStream = &cli.Command{
@@ -138,10 +152,56 @@ var (
 )
 
 func getAllStrats(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	var running bool
+	if c.IsSet("running") {
+		running = c.Bool("running")
+	} else {
+		running, _ = strconv.ParseBool(c.Args().First())
+	}
+
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
+	result, err := client.GetAllStrategies(c.Context, &gctrpc.GetAllStrategiesRequest{
+		Running: running,
+	})
+	if err != nil {
+		return err
+	}
+	jsonOutput(result)
 	return nil
 }
 
-func stopAllStrats(c *cli.Context) error {
+func stopStrategy(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowSubcommandHelp(c)
+	}
+
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	var id string
+	if c.IsSet("uuid") {
+		id = c.String("uuid")
+	} else {
+		id = c.Args().First()
+	}
+
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
+	result, err := client.StopStrategy(c.Context, &gctrpc.StopStrategyRequest{
+		Id: id,
+	})
+	if err != nil {
+		return err
+	}
+	jsonOutput(result)
 	return nil
 }
 

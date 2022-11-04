@@ -1384,17 +1384,25 @@ message TWAPResponse {
 message Strategy {
   string id = 1;
   string name = 2;
-  string scheduled = 3;
-  string ending = 4;
-  bool completed = 5;
-  bool running = 6; 
+  string state = 3;
+  bool stopped = 4;
+  bool running = 5; 
 }
 
-message GetAllStrategies {}
+message GetAllStrategiesRequest {
+  bool running = 1;
+}
 
 message GetAllStrategiesResponse {
   repeated Strategy strategies = 1;
+}
 
+message StopStrategyRequest {
+  string id = 1;
+}
+
+message StopStrategyResponse {
+  string message = 1;
 }
 
 service GoCryptoTraderService {
@@ -2038,6 +2046,16 @@ service GoCryptoTraderService {
   rpc GetOrderbookAmountByImpact(GetOrderbookAmountByImpactRequest) returns (GetOrderbookAmountByImpactResponse) {
     option (google.api.http) = {
       get: "/v1/getorderbookamountbyimpact"
+    };
+  }
+  rpc GetAllStrategies(GetAllStrategiesRequest) returns (GetAllStrategiesResponse) {
+    option (google.api.http) = {
+      get: "/v1/getallstrategies",
+    };
+  }
+  rpc StopStrategy(StopStrategyRequest) returns (StopStrategyResponse) {
+    option (google.api.http) = {
+      get: "/v1/stopstrategy",
     };
   }
   rpc TWAPStream(TWAPRequest) returns (stream TWAPResponse) {

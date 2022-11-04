@@ -38,6 +38,7 @@ func (s *Strategy) Run(ctx context.Context) error {
 			return err
 		}
 	}
+	s.shutdown = make(chan struct{})
 	s.wg.Add(1)
 	go s.deploy(ctx, start)
 	s.running = true
