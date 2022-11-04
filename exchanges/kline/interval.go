@@ -60,8 +60,9 @@ var (
 	// ErrUnsetInterval is an error for date range calculation
 	ErrUnsetInterval = errors.New("cannot calculate range, interval unset")
 	// ErrUnsupportedInterval returns when the provided interval is not supported by an exchange
-	ErrUnsupportedInterval   = errors.New("interval unsupported by exchange")
-	errInvalidIntervalNumber = errors.New("invalid interval must be greater than zero")
+	ErrUnsupportedInterval = errors.New("interval unsupported by exchange")
+	// ErrInvalidIntervalNumber defines an error when it is unset
+	ErrInvalidIntervalNumber = errors.New("invalid interval must be greater than zero")
 )
 
 // NewInterval returns a new interval derived from a nanosecond integer. This
@@ -69,7 +70,7 @@ var (
 // generated.
 func NewInterval(ns int64, custom bool) (Interval, error) {
 	if ns <= 0 {
-		return 0, errInvalidIntervalNumber
+		return 0, ErrInvalidIntervalNumber
 	}
 	if custom {
 		return Interval(ns), nil

@@ -1360,15 +1360,14 @@ message TWAPRequest {
   bool simulate = 4;
   google.protobuf.Timestamp start = 5;
   google.protobuf.Timestamp end = 6;
-  bool allow_trading_past_end = 7;
-  int64 interval = 8;
-  double amount = 9;
-  bool full_amount = 10;
-  double price_limit = 11;
-  double max_impact_slippage = 12;
-  double max_nominal_slippage = 13;
-  bool buy = 14;
-  double max_spread_percentage = 15;
+  int64 interval = 7;
+  double amount = 8;
+  bool full_amount = 9;
+  double price_limit = 10;
+  double max_impact_slippage = 11;
+  double max_nominal_slippage = 12;
+  bool buy = 13;
+  double max_spread_percentage = 14;
 }
 
 message TWAPResponse {

@@ -78,6 +78,7 @@ var (
 	errGRPCShutdownSignalIsNil = errors.New("cannot shutdown, gRPC shutdown channel is nil")
 	errInvalidStrategy         = errors.New("invalid strategy")
 	errSpecificPairNotEnabled  = errors.New("specified pair is not enabled")
+	errEmptyUUID               = errors.New("empty uuid")
 )
 
 // RPCServer struct
@@ -5594,6 +5595,9 @@ func (s *RPCServer) GetAllStrategies(ctx context.Context, r *gctrpc.GetAllStrate
 
 // StopStrategy stops a strategy by its corresponding UUID.
 func (s *RPCServer) StopStrategy(ctx context.Context, r *gctrpc.StopStrategyRequest) (*gctrpc.StopStrategyResponse, error) {
+	if r.Id == "" {
+		return nil, errEmptyUUID
+	}
 	id, err := uuid.FromString(r.Id)
 	if err != nil {
 		return nil, err
@@ -5618,6 +5622,10 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 		return err
 	}
 
+	if pair.IsEmpty() {
+		return errCurrencyPairUnset
+	}
+
 	as, err := asset.New(r.Asset)
 	if err != nil {
 		return err
@@ -5635,24 +5643,24 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 
 	ctx := stream.Context()
 	twap, err := twap.New(ctx, &twap.Config{
-		Exchange:                exch,
-		Pair:                    pair,
-		Asset:                   as,
-		Simulate:                r.Simulate,
-		Start:                   r.Start.AsTime(),
-		End:                     r.End.AsTime(),
-		AllowTradingPastEndTime: r.AllowTradingPastEnd,
-		Interval:                interval,
-		Amount:                  r.Amount,
-		FullAmount:              r.FullAmount,
-		PriceLimit:              r.PriceLimit,
-		MaxImpactSlippage:       r.MaxImpactSlippage,
-		MaxNominalSlippage:      r.MaxNominalSlippage,
-		Buy:                     r.Buy,
-		MaxSpreadPercentage:     r.MaxSpreadPercentage,
+		Exchange:            exch,
+		Pair:                pair,
+		Asset:               as,
+		Simulate:            r.Simulate,
+		Start:               r.Start.AsTime(),
+		End:                 r.End.AsTime(),
+		Interval:            interval,
+		Amount:              r.Amount,
+		FullAmount:          r.FullAmount,
+		PriceLimit:          r.PriceLimit,
+		MaxImpactSlippage:   r.MaxImpactSlippage,
+		MaxNominalSlippage:  r.MaxNominalSlippage,
+		Buy:                 r.Buy,
+		MaxSpreadPercentage: r.MaxSpreadPercentage,
 		// TODO: Set values below via rpc
-		RetryAttempts:      3,
-		CandleStickAligned: true,
+		RetryAttempts:           3,
+		CandleStickAligned:      true,
+		AllowTradingPastEndTime: false, // TODO: Not yet supported
 	})
 	if err != nil {
 		return err

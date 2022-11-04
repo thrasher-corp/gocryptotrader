@@ -3960,12 +3960,6 @@
             "format": "date-time"
           },
           {
-            "name": "allowTradingPastEnd",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
-          },
-          {
             "name": "interval",
             "in": "query",
             "required": false,

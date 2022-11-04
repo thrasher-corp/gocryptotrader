@@ -33,6 +33,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	strategy "github.com/thrasher-corp/gocryptotrader/exchanges/strategy/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
@@ -40,6 +41,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/goose"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -3513,8 +3515,158 @@ func TestGetOrderbookAmountByImpact(t *testing.T) {
 	}
 }
 
-func TestS(t *testing.T) {
-	hello := time.Duration(180)
+type supaTestStrat struct {
+	strategy.Requirement
+}
 
-	fmt.Println(hello)
+func (s supaTestStrat) GetState() (*strategy.State, error) {
+	return &strategy.State{}, nil
+}
+
+func (s supaTestStrat) Stop() error {
+	return nil
+}
+
+func TestGetAllStrategies(t *testing.T) {
+	t.Parallel()
+
+	e := &Engine{}
+	s := RPCServer{Engine: e}
+	_, err := s.GetAllStrategies(context.Background(), &gctrpc.GetAllStrategiesRequest{})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	id, err := e.strategyManager.Register(&supaTestStrat{})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	resp, err := s.GetAllStrategies(context.Background(), &gctrpc.GetAllStrategiesRequest{})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(resp.Strategies) != 1 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Strategies), 2)
+	}
+
+	if resp.Strategies[0].Id != id.String() {
+		t.Fatalf("received: '%v' but expected: '%v'", resp.Strategies[0].Id, id.String())
+	}
+}
+
+func TestStopStrategy(t *testing.T) {
+	t.Parallel()
+
+	e := &Engine{}
+	s := RPCServer{Engine: e}
+	_, err := s.StopStrategy(context.Background(), &gctrpc.StopStrategyRequest{})
+	if !errors.Is(err, errEmptyUUID) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errEmptyUUID)
+	}
+
+	_, err = s.StopStrategy(context.Background(), &gctrpc.StopStrategyRequest{
+		Id: "bro",
+	})
+	if errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, "uuid error")
+	}
+
+	id, err := e.strategyManager.Register(&supaTestStrat{})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	resp, err := s.StopStrategy(context.Background(), &gctrpc.StopStrategyRequest{
+		Id: id.String(),
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if !strings.Contains(resp.Message, id.String()) {
+		t.Fatalf("received: '%v' but must contain: '%v'", resp.Message, id.String())
+	}
+}
+
+type streamyMcStreamServer struct {
+	gctrpc.GoCryptoTraderService_TWAPStreamServer
+}
+
+func (s *streamyMcStreamServer) Context() context.Context {
+	return context.Background()
+}
+
+func TestTWAPStream(t *testing.T) {
+	t.Parallel()
+
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName("ftx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+
+	cp := currency.NewPair(currency.ACA, currency.MOOND)
+
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled:  convert.BoolPtr(true),
+		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
+		RequestFormat: &currency.PairFormat{Delimiter: "/"},
+		Available:     currency.Pairs{cp},
+		Enabled:       currency.Pairs{cp},
+	}
+
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	em.Add(fakeExchange)
+
+	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+
+	request := &gctrpc.TWAPRequest{}
+	err = s.TWAPStream(request, nil)
+	if !errors.Is(err, ErrExchangeNameIsEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeNameIsEmpty)
+	}
+
+	request.Exchange = "fake"
+	request.Pair = &gctrpc.CurrencyPair{}
+	err = s.TWAPStream(request, nil)
+	if !errors.Is(err, errCurrencyPairUnset) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errCurrencyPairUnset)
+	}
+
+	request.Pair = &gctrpc.CurrencyPair{Base: "BRO", Quote: "MOOND"}
+	err = s.TWAPStream(request, nil)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	request.Asset = asset.Spot.String()
+	err = s.TWAPStream(request, nil)
+	if !errors.Is(err, errCurrencyPairInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errCurrencyPairInvalid)
+	}
+
+	request.Pair = &gctrpc.CurrencyPair{Base: "ACA", Quote: "MOOND"}
+	err = s.TWAPStream(request, nil)
+	if !errors.Is(err, kline.ErrInvalidIntervalNumber) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrInvalidIntervalNumber)
+	}
+
+	request.Interval = int64(kline.OneMin.Duration())
+	request.Simulate = true
+	request.Start = timestamppb.New(time.Now())
+	request.End = timestamppb.New(time.Now().Add(time.Minute))
+	request.Amount = 1000
+	err = s.TWAPStream(request, &streamyMcStreamServer{})
+	if errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, "An Error")
+	}
 }
