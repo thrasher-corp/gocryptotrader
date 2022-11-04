@@ -97,8 +97,3 @@ func (r *Reporter) OnStart(data fmt.Stringer) {
 	}
 	r.send(&Report{Reason: data.String()})
 }
-
-// OnBalance is called when there is a balance change resulting from strategy.
-func (r *Reporter) OnBalance(data string) {
-	r.send(&Report{Reason: "BALANCE CHANGE:" + data})
-}

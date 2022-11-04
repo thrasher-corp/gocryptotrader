@@ -57,7 +57,7 @@ func New(ctx context.Context, c *Config) (*Strategy, error) {
 	}
 
 	if !c.Buy {
-		buying, selling = selling, buying
+		selling = buying
 		deployment = c.Pair.Base
 	}
 
@@ -95,7 +95,6 @@ func New(ctx context.Context, c *Config) (*Strategy, error) {
 	return &Strategy{
 		Config:     c,
 		orderbook:  depth,
-		Buying:     buying,
 		Selling:    selling,
 		allocation: allocation,
 	}, nil

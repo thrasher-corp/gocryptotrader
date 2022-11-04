@@ -15,7 +15,11 @@ import (
 type Strategy struct {
 	*Config
 	strategy.State
-	Buying  *account.ProtectedBalance
+
+	// TODO: Currently not being used but will be implented when balance change
+	// is added.
+	// Buying  *account.ProtectedBalance
+
 	Selling *account.ProtectedBalance
 
 	reporter strategy.Reporter
