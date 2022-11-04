@@ -31,7 +31,7 @@ var strategyManagementCommand = &cli.Command{
 			Name:        "manager",
 			Usage:       "interacts with manager layer",
 			ArgsUsage:   "<command> <args>",
-			Subcommands: []*cli.Command{managerGetAll, managerStopAll},
+			Subcommands: []*cli.Command{managerGetAll, managerStopStrategy},
 		},
 		{
 			Name:        "twap",
@@ -55,7 +55,7 @@ var (
 		},
 		Action: getAllStrats,
 	}
-	managerStopAll = &cli.Command{
+	managerStopStrategy = &cli.Command{
 		Name:      "stopstrategy",
 		Usage:     "stops a strategy by uuid",
 		ArgsUsage: "<uuid>",
