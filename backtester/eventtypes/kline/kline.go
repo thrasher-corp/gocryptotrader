@@ -36,7 +36,7 @@ func (k *Kline) GetUnderlyingPair() currency.Pair {
 }
 
 // IsKline is a function to help distinguish between kline.Event
-// and signal.Event as  singal.Event implements kline.Event definitions otherwise
+// and signal.Event as signal.Event implements kline.Event definitions otherwise
 // this function is not called
 func (k *Kline) IsKline() bool {
 	return true

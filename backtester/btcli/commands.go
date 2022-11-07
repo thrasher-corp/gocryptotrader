@@ -41,7 +41,7 @@ var executeStrategyFromFileCommand = &cli.Command{
 
 func executeStrategyFromFile(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, c.Command.Name)
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -126,7 +126,7 @@ var startTaskCommand = &cli.Command{
 
 func startTask(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, c.Command.Name)
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var id string
@@ -199,7 +199,7 @@ var stopTaskCommand = &cli.Command{
 
 func stopTask(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, c.Command.Name)
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -273,7 +273,7 @@ var clearTaskCommand = &cli.Command{
 
 func clearTask(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, c.Command.Name)
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	conn, cancel, err := setupClient(c)
