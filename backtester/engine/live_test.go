@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -75,17 +76,17 @@ func TestSetupLiveDataHandler(t *testing.T) {
 
 func TestStart(t *testing.T) {
 	t.Parallel()
-	dataHandler := &dataChecker{
+	dc := &dataChecker{
 		shutdown: make(chan bool),
 	}
-	err := dataHandler.Start()
+	err := dc.Start()
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	close(dataHandler.shutdown)
-
-	dataHandler.started = 1
-	err = dataHandler.Start()
+	close(dc.shutdown)
+	dc.wg.Wait()
+	atomic.CompareAndSwapUint32(&dc.started, 0, 1)
+	err = dc.Start()
 	if !errors.Is(err, engine.ErrSubSystemAlreadyStarted) {
 		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemAlreadyStarted)
 	}

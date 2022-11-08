@@ -236,7 +236,7 @@ func parseExchangeSettings(reader *bufio.Reader, cfg *config.Config) error {
 
 func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) error {
 	fmt.Println("Firstly, please select which strategy you wish to use")
-	strats := strategies.GetStrategies()
+	strats := strategies.GetSupportedStrategies()
 	strategiesToUse := make([]string, len(strats))
 	for i := range strats {
 		fmt.Printf("%v. %s\n", i+1, strats[i].Name())

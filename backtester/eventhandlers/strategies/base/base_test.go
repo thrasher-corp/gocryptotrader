@@ -80,30 +80,6 @@ func TestSetSimultaneousProcessing(t *testing.T) {
 	}
 }
 
-func TestUsingExchangeLevelFunding(t *testing.T) {
-	t.Parallel()
-	s := &Strategy{}
-	if s.UsingExchangeLevelFunding() {
-		t.Error("expected false")
-	}
-	s.usingExchangeLevelFunding = true
-	if !s.UsingExchangeLevelFunding() {
-		t.Error("expected true")
-	}
-}
-
-func TestSetExchangeLevelFunding(t *testing.T) {
-	t.Parallel()
-	s := &Strategy{}
-	s.SetExchangeLevelFunding(true)
-	if !s.UsingExchangeLevelFunding() {
-		t.Error("expected true")
-	}
-	if !s.UsingExchangeLevelFunding() {
-		t.Error("expected true")
-	}
-}
-
 func TestCloseAllPositions(t *testing.T) {
 	t.Parallel()
 	s := &Strategy{}

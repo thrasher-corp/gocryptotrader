@@ -122,7 +122,7 @@ func (c *Config) validateStrategySettings() error {
 			}
 		}
 	}
-	strats := strategies.GetStrategies()
+	strats := strategies.GetSupportedStrategies()
 	for i := range strats {
 		if strings.EqualFold(strats[i].Name(), c.StrategySettings.Name) {
 			return nil

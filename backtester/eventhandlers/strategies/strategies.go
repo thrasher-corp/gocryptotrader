@@ -2,6 +2,7 @@ package strategies
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"sync"
 
@@ -15,31 +16,31 @@ import (
 
 // LoadStrategyByName returns the strategy by its name
 func LoadStrategyByName(name string, useSimultaneousProcessing bool) (Handler, error) {
-	strategies := GetStrategies()
+	strategies := GetSupportedStrategies()
 	for i := range strategies {
 		if !strings.EqualFold(name, strategies[i].Name()) {
 			continue
 		}
-		if useSimultaneousProcessing {
-			if !strategies[i].SupportsSimultaneousProcessing() {
-				return nil, fmt.Errorf(
-					"strategy '%v' %w",
-					name,
-					base.ErrSimultaneousProcessingNotSupported)
-			}
-			strategies[i].SetSimultaneousProcessing(useSimultaneousProcessing)
+		// create new instance so strategy is not shared across all tasks
+		s, ok := reflect.New(reflect.ValueOf(strategies[i]).Elem().Type()).Interface().(Handler)
+		if !ok {
+			return nil, fmt.Errorf("'%v' %w when creating new strategy", name, base.ErrStrategyNotFound)
 		}
-		return strategies[i], nil
+		if useSimultaneousProcessing && !s.SupportsSimultaneousProcessing() {
+			return nil, base.ErrSimultaneousProcessingNotSupported
+		}
+		s.SetSimultaneousProcessing(useSimultaneousProcessing)
+		return s, nil
 	}
 	return nil, fmt.Errorf("strategy '%v' %w", name, base.ErrStrategyNotFound)
 }
 
-// GetStrategies returns a static list of set strategies
+// GetSupportedStrategies returns a static list of set strategies
 // they must be set in here for the backtester to recognise them
-func GetStrategies() StrategyHolder {
+func GetSupportedStrategies() StrategyHolder {
 	m.Lock()
 	defer m.Unlock()
-	return strategyHolder
+	return supportedStrategies
 }
 
 // AddStrategy will add a strategy to the list of strategies
@@ -49,19 +50,18 @@ func AddStrategy(strategy Handler) error {
 	}
 	m.Lock()
 	defer m.Unlock()
-	for i := range strategyHolder {
-		if strings.EqualFold(strategyHolder[i].Name(), strategy.Name()) {
+	for i := range supportedStrategies {
+		if strings.EqualFold(supportedStrategies[i].Name(), strategy.Name()) {
 			return fmt.Errorf("'%v' %w", strategy.Name(), ErrStrategyAlreadyExists)
 		}
 	}
-	strategyHolder = append(strategyHolder, strategy)
+	supportedStrategies = append(supportedStrategies, strategy)
 	return nil
 }
 
 var (
-	m sync.Mutex
-
-	strategyHolder = StrategyHolder{
+	m                   sync.Mutex
+	supportedStrategies = StrategyHolder{
 		new(dollarcostaverage.Strategy),
 		new(rsi.Strategy),
 		new(top2bottom2.Strategy),
