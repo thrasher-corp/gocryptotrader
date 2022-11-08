@@ -29,11 +29,10 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	passphrase              = ""
-	canManipulateRealOrders = true
+	canManipulateRealOrders = false
 )
 
 var ok Okx
-var wsSetupRan bool
 
 func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
@@ -447,6 +446,7 @@ func TestPlaceOrder(t *testing.T) {
 		OrderType:    "limit",
 		Amount:       2.6,
 		Price:        2.1,
+		Currency:     "BTC",
 	}, asset.Margin); err != nil {
 		t.Error("Okx PlaceOrder() error", err)
 	}
@@ -532,6 +532,7 @@ func TestClosePositions(t *testing.T) {
 	if _, err := ok.ClosePositions(context.Background(), &ClosePositionsRequestParams{
 		InstrumentID: "BTC-USDT",
 		MarginMode:   "cross",
+		Currency:     "BTC",
 	}); err != nil {
 		t.Error("Okc ClosePositions() error", err)
 	}
@@ -1822,8 +1823,6 @@ func TestSpotGridWithdrawProfit(t *testing.T) {
 		t.Errorf("Okx SpotGridWithdrawProfit() expecting %v, but found %v", errMissingAlgoOrderID, err)
 	}
 	if _, err := ok.SpotGridWithdrawProfit(context.Background(), "1234"); err != nil {
-		t.Skip("Policy type is not grid policy")
-	} else if err != nil {
 		t.Error("Okx SpotGridWithdrawProfit() error", err)
 	}
 }
@@ -3152,5 +3151,12 @@ func TestGridSubOrders(t *testing.T) {
 	}
 	if err := ok.GridSubOrders("unsubscribe", ""); err != nil && !strings.Contains(err.Error(), "grid-sub-orders doesn't exist") {
 		t.Errorf("%s GridSubOrders() error: %v", ok.Name, err)
+	}
+}
+
+func TestGetServerTime(t *testing.T) {
+	t.Parallel()
+	if _, err := ok.GetServerTime(context.Background(), asset.Empty); err != nil {
+		t.Error(err)
 	}
 }

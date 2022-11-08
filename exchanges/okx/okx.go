@@ -560,9 +560,6 @@ func (ok *Okx) AmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (*O
 	if arg.ClientSuppliedOrderID == "" && arg.OrderID == "" {
 		return nil, errMissingClientOrderIDOrOrderID
 	}
-	if arg.NewQuantity <= 0 && arg.NewPrice <= 0 {
-		return nil, errMissingNewSizeOrPriceInformation
-	}
 	var resp []OrderData
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, amendOrderEPL, http.MethodPost, amendOrder, arg, &resp, true)
 	if err != nil {
@@ -582,9 +579,6 @@ func (ok *Okx) AmendMultipleOrders(ctx context.Context, args []AmendOrderRequest
 		}
 		if args[x].ClientSuppliedOrderID == "" && args[x].OrderID == "" {
 			return nil, errMissingClientOrderIDOrOrderID
-		}
-		if args[x].NewQuantity <= 0 && args[x].NewPrice <= 0 {
-			return nil, errMissingNewSizeOrPriceInformation
 		}
 	}
 	var resp []OrderData
@@ -3626,15 +3620,15 @@ func (ok *Okx) GetDiscountRateAndInterestFreeQuota(ctx context.Context, currency
 }
 
 // GetSystemTime Retrieve API server time.
-func (ok *Okx) GetSystemTime(ctx context.Context) (*time.Time, error) {
+func (ok *Okx) GetSystemTime(ctx context.Context) (time.Time, error) {
 	var resp []ServerTime
 	if err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getSystemTimeEPL, http.MethodGet, publicTime, nil, &resp, false); err != nil {
-		return nil, err
+		return time.Time{}, err
 	}
 	if len(resp) == 1 {
-		return &(resp[0].Timestamp), nil
+		return resp[0].Timestamp, nil
 	}
-	return nil, errNoValidResponseFromServer
+	return time.Time{}, errNoValidResponseFromServer
 }
 
 // GetLiquidationOrders retrieves information on liquidation orders in the last day.
@@ -4439,12 +4433,18 @@ func (ok *Okx) SystemStatusResponse(ctx context.Context, state string) ([]System
 }
 
 // GetAssetTypeFromInstrumentType returns an asset Item instance given and Instrument Type string.
-func (ok *Okx) GetAssetTypeFromInstrumentType(instrumentType string) (asset.Item, error) {
+func GetAssetTypeFromInstrumentType(instrumentType string) (asset.Item, error) {
 	switch strings.ToUpper(instrumentType) {
-	case okxInstTypeContract:
-		return asset.PerpetualContract, nil
-	case okxInstTypeSwap:
+	case okxInstTypeSwap, okxInstTypeContract:
 		return asset.PerpetualSwap, nil
+	case okxInstTypeSpot:
+		return asset.Spot, nil
+	case okxInstTypeFutures:
+		return asset.Futures, nil
+	case okxInstTypeOption:
+		return asset.Option, nil
+	case okxInstTypeMargin:
+		return asset.Margin, nil
 	case okxInstTypeANY:
 		return asset.Empty, nil
 	default:
@@ -4453,17 +4453,30 @@ func (ok *Okx) GetAssetTypeFromInstrumentType(instrumentType string) (asset.Item
 }
 
 // GuessAssetTypeFromInstrumentID returns or guesses the instrument id.
-func (ok *Okx) GuessAssetTypeFromInstrumentID(instrumentID string) asset.Item {
+func (ok *Okx) GuessAssetTypeFromInstrumentID(instrumentID string) (asset.Item, error) {
 	if strings.HasSuffix(instrumentID, okxInstTypeSwap) {
-		return asset.PerpetualSwap
+		return asset.PerpetualSwap, nil
 	}
 	filter := strings.Split(instrumentID, currency.DashDelimiter)
 	switch {
 	case len(filter) >= 4:
-		return asset.Option
+		return asset.Option, nil
 	case len(filter) == 3:
-		return asset.Futures
+		return asset.Futures, nil
 	default:
-		return asset.Spot
+		pair, err := currency.NewPairFromString(instrumentID)
+		if err != nil {
+			return asset.Empty, err
+		}
+		pairs, err := ok.GetAvailablePairs(asset.Margin)
+		if err != nil {
+			return asset.Empty, err
+		}
+		for x := range pairs {
+			if pairs[x].Equal(pair) {
+				return asset.Margin, nil
+			}
+		}
+		return asset.Spot, nil
 	}
 }

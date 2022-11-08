@@ -252,6 +252,11 @@ func (ok *Okx) Run() {
 	}
 }
 
+// GetServerTime returns the current exchange server time.
+func (ok *Okx) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, error) {
+	return ok.GetSystemTime(ctx)
+}
+
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, error) {
 	if !ok.SupportsAsset(a) {
@@ -771,25 +776,22 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		orderRequest.Price = s.Price
 	}
 	var placeOrderResponse *OrderData
-	switch s.AssetType {
-	case asset.Spot, asset.Option, asset.Margin:
-		if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			placeOrderResponse, err = ok.WsPlaceOrder(orderRequest)
-		} else {
-			placeOrderResponse, err = ok.PlaceOrder(ctx, orderRequest, s.AssetType)
-		}
-	case asset.PerpetualSwap, asset.Futures:
+	if s.AssetType == asset.PerpetualSwap || s.AssetType == asset.Futures {
 		if s.Type.Lower() == "" {
 			orderRequest.OrderType = OkxOrderOptimalLimitIOC // only applicable for Futures and Perpetual Swap Types.
 		}
 		orderRequest.PositionSide = positionSideLong
-		if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			placeOrderResponse, err = ok.WsPlaceOrder(orderRequest)
-		} else {
-			placeOrderResponse, err = ok.PlaceOrder(ctx, orderRequest, s.AssetType)
+	}
+	if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		placeOrderResponse, err = ok.WsPlaceOrder(orderRequest)
+		if err != nil {
+			return nil, err
 		}
-	default:
-		return nil, errInvalidInstrumentType
+	} else {
+		placeOrderResponse, err = ok.PlaceOrder(ctx, orderRequest, s.AssetType)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if err != nil {
 		return nil, err
@@ -1221,7 +1223,6 @@ func (ok *Okx) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 		var pair currency.Pair
 		pair, err = ok.GetPairFromInstrumentID(response[i].InstrumentID)
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s %v", ok.Name, err)
 			return nil, err
 		}
 		for j := range req.Pairs {
@@ -1233,7 +1234,7 @@ func (ok *Okx) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "%s %v", ok.Name, err)
 			}
-			if orderStatus == order.New {
+			if orderStatus == order.Active {
 				continue
 			}
 			orderSide := response[i].Side
