@@ -2825,3 +2825,41 @@ func TestGetReferralRebateRate(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestGetCollateralCurrencyForContract(t *testing.T) {
+	t.Parallel()
+	c, a, err := f.GetCollateralCurrencyForContract(asset.Futures, currency.NewPair(currency.XRP, currency.BABYDOGE))
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+	if a != asset.Futures {
+		t.Fatalf("received: '%v' but expected: '%v'", a, asset.Futures)
+	}
+	if !c.Equal(currency.USD) {
+		t.Fatalf("received: '%v' but expected: '%v'", c, currency.USD)
+	}
+
+	_, _, err = f.GetCollateralCurrencyForContract(asset.Spot, currency.NewPair(currency.SHIB, currency.DOGE))
+	if !errors.Is(err, order.ErrNotFuturesAsset) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrNotFuturesAsset)
+	}
+}
+
+func TestGetCurrencyForRealisedPNL(t *testing.T) {
+	t.Parallel()
+	c, a, err := f.GetCurrencyForRealisedPNL(asset.Futures, currency.NewPair(currency.XRP, currency.BABYDOGE))
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+	if a != asset.Spot {
+		t.Fatalf("received: '%v' but expected: '%v'", a, asset.Spot)
+	}
+	if !c.Equal(currency.USD) {
+		t.Fatalf("received: '%v' but expected: '%v'", c, currency.USD)
+	}
+
+	_, _, err = f.GetCurrencyForRealisedPNL(asset.Spot, currency.NewPair(currency.SHIB, currency.DOGE))
+	if !errors.Is(err, order.ErrNotFuturesAsset) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrNotFuturesAsset)
+	}
+}

@@ -1800,12 +1800,18 @@ func (f *FTX) GetFuturesPositions(ctx context.Context, request *order.PositionsR
 }
 
 // GetCollateralCurrencyForContract returns the collateral currency for an asset and contract pair
-func (f *FTX) GetCollateralCurrencyForContract(_ asset.Item, _ currency.Pair) (currency.Code, asset.Item, error) {
+func (f *FTX) GetCollateralCurrencyForContract(a asset.Item, _ currency.Pair) (currency.Code, asset.Item, error) {
+	if !a.IsFutures() {
+		return currency.EMPTYCODE, asset.Empty, fmt.Errorf("%v %w", a, order.ErrNotFuturesAsset)
+	}
 	return currency.USD, asset.Futures, nil
 }
 
 // GetCurrencyForRealisedPNL returns where to put realised PNL
-func (f *FTX) GetCurrencyForRealisedPNL(_ asset.Item, _ currency.Pair) (currency.Code, asset.Item, error) {
+func (f *FTX) GetCurrencyForRealisedPNL(a asset.Item, _ currency.Pair) (currency.Code, asset.Item, error) {
+	if !a.IsFutures() {
+		return currency.EMPTYCODE, asset.Empty, fmt.Errorf("%v %w", a, order.ErrNotFuturesAsset)
+	}
 	return currency.USD, asset.Spot, nil
 }
 

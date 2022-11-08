@@ -19,7 +19,6 @@ var (
 	// ErrCannotTransact returns when its an issue to do nothing for an event
 	ErrCannotTransact = errors.New("cannot transact")
 
-	errDataMayBeIncorrect      = errors.New("data may be incorrect")
 	errExceededPortfolioLimit  = errors.New("exceeded portfolio limit")
 	errNilCurrencySettings     = errors.New("received nil currency settings")
 	errInvalidDirection        = errors.New("received invalid order direction")

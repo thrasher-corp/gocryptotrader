@@ -78,10 +78,7 @@ func (p *Portfolio) SetCurrencySettingsMap(setup *exchange.Settings) error {
 		m3 = make(map[*currency.Item]*Settings)
 		m2[setup.Pair.Base.Item] = m3
 	}
-	collateralCurrency, _, err := setup.Exchange.GetCollateralCurrencyForContract(setup.Asset, setup.Pair)
-	if err != nil {
-		return err
-	}
+
 	settings := &Settings{
 		Exchange:          setup.Exchange,
 		exchangeName:      name,
@@ -93,6 +90,10 @@ func (p *Portfolio) SetCurrencySettingsMap(setup *exchange.Settings) error {
 		HoldingsSnapshots: make(map[int64]*holdings.Holding),
 	}
 	if setup.Asset.IsFutures() {
+		collateralCurrency, _, err := setup.Exchange.GetCollateralCurrencyForContract(setup.Asset, setup.Pair)
+		if err != nil {
+			return err
+		}
 		futureTrackerSetup := &gctorder.MultiPositionTrackerSetup{
 			Exchange:                  name,
 			Asset:                     setup.Asset,

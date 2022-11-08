@@ -509,7 +509,8 @@ func (c *liveDataSourceDataHandler) loadCandleData(timeToRetrieve time.Time) (bo
 	if len(candles.Candles) == 0 {
 		return false, nil
 	}
-	var unprocessedCandles []gctkline.Candle
+
+	unprocessedCandles := make([]gctkline.Candle, 0, len(candles.Candles))
 	for i := range candles.Candles {
 		if _, ok := c.processedData[candles.Candles[i].Time.UnixNano()]; !ok {
 			unprocessedCandles = append(unprocessedCandles, candles.Candles[i])

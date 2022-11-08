@@ -27,13 +27,16 @@ func LoadData(ctx context.Context, timeToRetrieve time.Time, exch exchange.IBotE
 	if verbose {
 		ctx = request.WithVerbose(ctx)
 	}
+	var s, e time.Time
+	s = timeToRetrieve.Truncate(interval).Add(-interval)
+	e = timeToRetrieve.Truncate(interval).Add(-1)
 	switch dataType {
 	case common.DataCandle:
 		candles, err = exch.GetHistoricCandles(ctx,
 			fPair,
 			a,
-			timeToRetrieve.Truncate(interval).Add(-interval*2),
-			timeToRetrieve,
+			s,
+			e,
 			kline.Interval(interval),
 		)
 		if err != nil {
@@ -44,8 +47,8 @@ func LoadData(ctx context.Context, timeToRetrieve time.Time, exch exchange.IBotE
 		trades, err = exch.GetHistoricTrades(ctx,
 			fPair,
 			a,
-			timeToRetrieve.Truncate(interval).Add(-interval*2),
-			timeToRetrieve,
+			s,
+			e,
 		)
 		if err != nil {
 			return nil, err
@@ -60,8 +63,8 @@ func LoadData(ctx context.Context, timeToRetrieve time.Time, exch exchange.IBotE
 			trades, err = exch.GetHistoricTrades(ctx,
 				fPair,
 				a,
-				timeToRetrieve.Add(-interval*2),
-				timeToRetrieve,
+				s,
+				e,
 			)
 			if err != nil {
 				return nil, fmt.Errorf("could not retrieve live trade data for %v %v %v, %v", exch.GetName(), a, fPair, err)

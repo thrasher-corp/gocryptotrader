@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -2614,5 +2615,48 @@ func TestGetPairAndAssetTypeRequestFormatted(t *testing.T) {
 	}
 	if !p.Equal(expected) {
 		t.Fatalf("received: '%v' but expected: '%v'", p, expected)
+	}
+}
+
+func TestGetCollateralCurrencyForContract(t *testing.T) {
+	t.Parallel()
+	b := Base{}
+	_, _, err := b.GetCollateralCurrencyForContract(asset.Futures, currency.NewPair(currency.XRP, currency.BABYDOGE))
+	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNotYetImplemented)
+	}
+
+	_, _, err = b.GetCollateralCurrencyForContract(asset.Spot, currency.NewPair(currency.SHIB, currency.DOGE))
+	if !errors.Is(err, order.ErrNotFuturesAsset) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrNotFuturesAsset)
+	}
+}
+
+func TestGetCurrencyForRealisedPNL(t *testing.T) {
+	t.Parallel()
+	b := Base{}
+	_, _, err := b.GetCurrencyForRealisedPNL(asset.Empty, currency.EMPTYPAIR)
+	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNotYetImplemented)
+	}
+}
+
+func TestHasAssetTypeAccountSegregation(t *testing.T) {
+	t.Parallel()
+	b := Base{
+		Name: "RAWR",
+		Features: Features{
+			Supports: FeaturesSupported{
+				REST: true,
+				RESTCapabilities: protocol.Features{
+					HasAssetTypeAccountSegregation: true,
+				},
+			},
+		},
+	}
+
+	has := b.HasAssetTypeAccountSegregation()
+	if !has {
+		t.Errorf("expected '%v' received '%v'", true, false)
 	}
 }
