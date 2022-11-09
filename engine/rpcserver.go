@@ -39,7 +39,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/strategy/twap"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/strategy/dca"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
@@ -5585,7 +5585,7 @@ func (s *RPCServer) GetAllStrategies(ctx context.Context, r *gctrpc.GetAllStrate
 		rpcStrats[x] = &gctrpc.Strategy{
 			Id:      strats[x].ID.String(),
 			Name:    strats[x].Strategy,
-			State:   fmt.Sprintf("Exchange:%s Asset:%s Pair:%s", strats[x].Exchange, strats[x].Asset, strats[x].Pair),
+			State:   strats[x].Strategy,
 			Stopped: !strats[x].Running,
 			Running: strats[x].Running,
 		}
@@ -5642,7 +5642,7 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 	}
 
 	ctx := stream.Context()
-	twap, err := twap.New(ctx, &twap.Config{
+	dcaStrat, err := dca.New(ctx, &dca.Config{
 		Exchange:            exch,
 		Pair:                pair,
 		Asset:               as,
@@ -5666,7 +5666,7 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 		return err
 	}
 
-	id, err := s.strategyManager.Register(twap)
+	id, err := s.strategyManager.Register(dcaStrat)
 	if err != nil {
 		return err
 	}

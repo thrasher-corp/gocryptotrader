@@ -1,7 +1,6 @@
-package twap
+package dca
 
 import (
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -14,24 +13,11 @@ import (
 // of assets via a time weighted average price.
 type Strategy struct {
 	*Config
-	strategy.State
-
-	// TODO: Currently not being used but will be implemented when balance change
-	// is added.
-	// Buying  *account.ProtectedBalance
-
-	Selling *account.ProtectedBalance
-
-	reporter strategy.Reporter
-
+	strategy.Requirement
+	*strategy.Scheduler
+	Selling    *account.ProtectedBalance
 	allocation *Allocation
-
-	orderbook *orderbook.Depth
-
-	wg       sync.WaitGroup
-	shutdown chan struct{}
-	running  bool
-	mtx      sync.Mutex
+	orderbook  *orderbook.Depth
 }
 
 // Allocation defines the full allocation of funds and information of strategy

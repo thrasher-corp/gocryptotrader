@@ -18,12 +18,12 @@ var (
 // Manager defines strategy management - NOTE: This is a POC wrapper layer for
 // management purposes.
 type Manager struct {
-	strategies map[uuid.UUID]strategy.Requirement
+	strategies map[uuid.UUID]strategy.Requirements
 	mu         sync.Mutex
 }
 
 // Register stores the current strategy for management
-func (m *Manager) Register(strat strategy.Requirement) (uuid.UUID, error) {
+func (m *Manager) Register(strat strategy.Requirements) (uuid.UUID, error) {
 	if strat == nil {
 		return uuid.Nil, errStrategyIsNil
 	}
@@ -34,7 +34,7 @@ func (m *Manager) Register(strat strategy.Requirement) (uuid.UUID, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.strategies == nil {
-		m.strategies = make(map[uuid.UUID]strategy.Requirement)
+		m.strategies = make(map[uuid.UUID]strategy.Requirements)
 	}
 	m.strategies[id] = strat
 	return id, nil
@@ -51,11 +51,11 @@ func (m *Manager) Run(ctx context.Context, id uuid.UUID) error {
 	if !ok {
 		return errStrategyNotFound
 	}
-	return strat.Run(ctx)
+	return strat.Run(ctx, strat)
 }
 
 // RunStream runs then hooks into the strategy and reports events.
-func (m *Manager) RunStream(ctx context.Context, id uuid.UUID) (strategy.Reporter, error) {
+func (m *Manager) RunStream(ctx context.Context, id uuid.UUID) (<-chan *strategy.Report, error) {
 	if id.IsNil() {
 		return nil, errInvalidUUID
 	}
@@ -65,7 +65,7 @@ func (m *Manager) RunStream(ctx context.Context, id uuid.UUID) (strategy.Reporte
 	if !ok {
 		return nil, errStrategyNotFound
 	}
-	err := strat.Run(ctx)
+	err := strat.Run(ctx, strat)
 	if err != nil {
 		return nil, err
 	}
@@ -74,18 +74,18 @@ func (m *Manager) RunStream(ctx context.Context, id uuid.UUID) (strategy.Reporte
 
 // GetAllStrategies returns all strategies if running set true will only return
 // operating strategies.
-func (m *Manager) GetAllStrategies(running bool) ([]strategy.State, error) {
+func (m *Manager) GetAllStrategies(running bool) ([]strategy.Details, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	ss := make([]strategy.State, len(m.strategies))
+	ss := make([]strategy.Details, len(m.strategies))
 	target := 0
 	for id, obj := range m.strategies {
-		state, err := obj.GetState()
+		details, err := obj.GetDetails()
 		if err != nil {
 			return nil, err
 		}
-		state.ID = id // TODO: Change this implementation.
-		ss[target] = *state
+		details.ID = id // TODO: Change this implementation.
+		ss[target] = *details
 		target++
 	}
 	return ss, nil
