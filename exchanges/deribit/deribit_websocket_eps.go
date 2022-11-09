@@ -2143,8 +2143,6 @@ func (d *Deribit) SendWSRequest(method string, params, response interface{}, aut
 	if err != nil {
 		return err
 	}
-	println(string(result))
-	print("\n\n\n\n\n\n\n")
 	resp := &wsResponse{Result: response}
 	err = json.Unmarshal(result, resp)
 	if err != nil {
