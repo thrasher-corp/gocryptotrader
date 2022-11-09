@@ -1880,7 +1880,7 @@ func (d *Deribit) GetUserTradesByCurrency(ctx context.Context, currency, kind, s
 // [[ TODO ]]
 
 // GetUserTradesByCurrencyAndTime sends a request to fetch user trades sorted by currency and time
-func (d *Deribit) GetUserTradesByCurrencyAndTime(ctx context.Context, currency, kind, sorting string, count int64, includeOld bool, startID, endID string) (*UserTradesData, error) {
+func (d *Deribit) GetUserTradesByCurrencyAndTime(ctx context.Context, currency, kind, sorting string, count int64, includeOld bool, startTime, endTime time.Time) (*UserTradesData, error) {
 	currency = strings.ToUpper(currency)
 	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
 		return nil, errInvalidCurrency
@@ -1896,15 +1896,15 @@ func (d *Deribit) GetUserTradesByCurrencyAndTime(ctx context.Context, currency, 
 	if count != 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
-	if startID != "" {
-		params.Set("start_id", startID)
+	if !startTime.IsZero() {
+		params.Set("start_timestamp", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
-	if endID != "" {
-		params.Set("end_id", endID)
+	if !endTime.IsZero() {
+		params.Set("end_timestamp", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp UserTradesData
 	return &resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
-		getUserTradesByCurrency, params, &resp)
+		getUserTradesByCurrencyAndTime, params, &resp)
 }
 
 // GetUserTradesByInstrument sends a request to fetch user trades sorted by instrument

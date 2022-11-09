@@ -351,6 +351,7 @@ func TestGetLastSettlementsByCurrency(t *testing.T) {
 
 func TestGetLastSettlementsByInstrument(t *testing.T) {
 	t.Parallel()
+	d.Verbose = true
 	_, err := d.GetLastSettlementsByInstrument(context.Background(), btcPerpInstrument, "", "", 0, time.Time{})
 	if err != nil {
 		t.Error(err)
@@ -598,10 +599,10 @@ func TestSubmitTransferToUser(t *testing.T) {
 }
 
 func TestSubmitWithdraw(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
-	t.Parallel()
 	_, err := d.SubmitWithdraw(context.Background(), currencyBTC, core.BitcoinDonationAddress, "", 0.001)
 	if err != nil {
 		t.Error(err)
@@ -631,6 +632,7 @@ func TestGetPublicPortfolioMargins(t *testing.T) {
 }
 
 func TestGetAccessLog(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
@@ -641,10 +643,10 @@ func TestGetAccessLog(t *testing.T) {
 }
 
 func TestChangeAPIKeyName(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	t.Parallel()
 	_, err := d.ChangeAPIKeyName(context.Background(), 1, "TestKey123")
 	if err != nil {
 		t.Error(err)
@@ -652,10 +654,10 @@ func TestChangeAPIKeyName(t *testing.T) {
 }
 
 func TestChangeScopeInAPIKey(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
-	t.Parallel()
 	_, err := d.ChangeScopeInAPIKey(context.Background(), 1, "account:read_write")
 	if err != nil {
 		t.Error(err)
@@ -663,10 +665,10 @@ func TestChangeScopeInAPIKey(t *testing.T) {
 }
 
 func TestChangeSubAccountName(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	t.Parallel()
 	_, err := d.ChangeSubAccountName(context.Background(), 1, "new_sub")
 	if err != nil && !strings.Contains(err.Error(), "unauthorized") {
 		t.Error(err)
@@ -674,10 +676,10 @@ func TestChangeSubAccountName(t *testing.T) {
 }
 
 func TestCreateAPIKey(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
-	t.Parallel()
 	_, err := d.CreateAPIKey(context.Background(), "account:read_write", "new_sub", false)
 	if err != nil {
 		t.Error(err)
@@ -685,10 +687,10 @@ func TestCreateAPIKey(t *testing.T) {
 }
 
 func TestCreateSubAccount(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
-	t.Parallel()
 	_, err := d.CreateSubAccount(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -696,10 +698,10 @@ func TestCreateSubAccount(t *testing.T) {
 }
 
 func TestDisableAPIKey(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
-	t.Parallel()
 	_, err := d.DisableAPIKey(context.Background(), 1)
 	if err != nil {
 		t.Error(err)
@@ -707,10 +709,10 @@ func TestDisableAPIKey(t *testing.T) {
 }
 
 func TestDisableTFAForSubAccount(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
-	t.Parallel()
 	// Use with caution will reduce the security of the account
 	_, err := d.DisableTFAForSubAccount(context.Background(), 1)
 	if err != nil && !strings.Contains(err.Error(), "Method not found") { // this functionality is removed by now.
@@ -730,10 +732,10 @@ func TestEnableAffiliateProgram(t *testing.T) {
 }
 
 func TestEnableAPIKey(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
-	t.Parallel()
 	_, err := d.EnableAPIKey(context.Background(), 1)
 	if err != nil {
 		t.Error(err)
@@ -741,10 +743,10 @@ func TestEnableAPIKey(t *testing.T) {
 }
 
 func TestGetAffiliateProgramInfo(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	t.Parallel()
 	_, err := d.GetAffiliateProgramInfo(context.Background(), 1)
 	if err != nil {
 		t.Error(err)
@@ -752,10 +754,10 @@ func TestGetAffiliateProgramInfo(t *testing.T) {
 }
 
 func TestGetEmailLanguage(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	t.Parallel()
 	_, err := d.GetEmailLanguage(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -763,10 +765,10 @@ func TestGetEmailLanguage(t *testing.T) {
 }
 
 func TestGetNewAnnouncements(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	t.Parallel()
 	_, err := d.GetNewAnnouncements(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -774,20 +776,20 @@ func TestGetNewAnnouncements(t *testing.T) {
 }
 
 func TestGetPricatePortfolioMargins(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	t.Parallel()
 	if _, err := d.GetPricatePortfolioMargins(context.Background(), currencyBTC, false, nil); err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetPosition(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	t.Parallel()
 	_, err := d.GetPosition(context.Background(), btcPerpInstrument)
 	if err != nil {
 		t.Error(err)
@@ -795,10 +797,10 @@ func TestGetPosition(t *testing.T) {
 }
 
 func TestGetSubAccounts(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	t.Parallel()
 	_, err := d.GetSubAccounts(context.Background(), false)
 	if err != nil {
 		t.Error(err)
@@ -806,10 +808,10 @@ func TestGetSubAccounts(t *testing.T) {
 }
 
 func TestGetSubAccountDetails(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	t.Parallel()
 	_, err := d.GetSubAccountDetails(context.Background(), currencyBTC, false)
 	if err != nil {
 		t.Error(err)
@@ -817,10 +819,10 @@ func TestGetSubAccountDetails(t *testing.T) {
 }
 
 func TestGetPositions(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	t.Parallel()
 	_, err := d.GetPositions(context.Background(), currencyBTC, "option")
 	if err != nil {
 		t.Error(err)
@@ -832,10 +834,10 @@ func TestGetPositions(t *testing.T) {
 }
 
 func TestGetTransactionLog(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	t.Parallel()
 	_, err := d.GetTransactionLog(context.Background(), currencyBTC, "trade", time.Now().Add(-24*time.Hour), time.Now(), 5, 0)
 	if err != nil {
 		t.Error(err)
@@ -858,10 +860,10 @@ func TestGetUserLocks(t *testing.T) {
 }
 
 func TestListAPIKeys(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	t.Parallel()
 	_, err := d.ListAPIKeys(context.Background(), "")
 	if err != nil {
 		t.Error(err)
@@ -880,10 +882,10 @@ func TestRemoveAPIKey(t *testing.T) {
 }
 
 func TestRemoveSubAccount(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	t.Parallel()
 	_, err := d.RemoveSubAccount(context.Background(), 1)
 	if err != nil && !strings.Contains(err.Error(), "unauthorized") {
 		t.Error(err)
@@ -891,10 +893,10 @@ func TestRemoveSubAccount(t *testing.T) {
 }
 
 func TestResetAPIKey(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	t.Parallel()
 	_, err := d.ResetAPIKey(context.Background(), 1)
 	if err != nil {
 		t.Error(err)
@@ -969,7 +971,7 @@ func TestTogglePortfolioMargining(t *testing.T) {
 	if len(subaccount) == 0 {
 		t.SkipNow()
 	}
-	_, err = d.TogglePortfolioMargining(context.Background(), int64(subaccount[0].UID), false, false)
+	_, err = d.TogglePortfolioMargining(context.Background(), subaccount[0].UID, false, false)
 	if err != nil && !strings.Contains(err.Error(), "account is already on SM") {
 		t.Error(err)
 	}
@@ -982,6 +984,28 @@ func TestToggleSubAccountLogin(t *testing.T) {
 	}
 	_, err := d.ToggleSubAccountLogin(context.Background(), 1, false)
 	if err != nil && !strings.Contains(err.Error(), "unauthorized") {
+		t.Error(err)
+	}
+}
+
+func TestSubmitBuy(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
+	pairs, err := d.FetchTradablePairs(context.Background(), asset.Futures)
+	if err != nil {
+		t.Skip(err)
+	}
+	_, err = d.SubmitBuy(context.Background(), &OrderBuyAndSellParams{
+		Instrument: pairs[0], OrderType: "limit",
+		Label: "testOrder", TimeInForce: "",
+		Trigger: "", Advanced: "",
+		Amount: 30, Price: 500000,
+		MaxShow: 0, TriggerPrice: 0,
+		PostOnly: false, RejectPostOnly: false,
+		ReduceOnly: false, MMP: false})
+	if err != nil && !strings.Contains(err.Error(), "not_enough_funds") {
 		t.Error(err)
 	}
 }
@@ -1196,7 +1220,7 @@ func TestGetUserTradesByCurrencyAndTime(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := d.GetUserTradesByCurrencyAndTime(context.Background(), currencyETH, "future", "default", 5, false, "", "")
+	_, err := d.GetUserTradesByCurrencyAndTime(context.Background(), currencyETH, "future", "default", 5, false, time.Now().Add(-time.Hour*10), time.Now().Add(-time.Hour*1))
 	if err != nil {
 		t.Error(err)
 	}
@@ -1832,6 +1856,19 @@ func TestWSRetriveInstrumentData(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestWSRetriveLastSettlementsByCurrency(t *testing.T) {
+	t.Parallel()
+	_, err := d.WSRetriveLastSettlementsByCurrency(currencyBTC, "", "", 0, time.Now().Add(-time.Hour))
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.WSRetriveLastSettlementsByCurrency(currencyBTC, "delivery", "5", 0, time.Now().Add(-time.Hour))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestWSRetriveInstrumentsData(t *testing.T) {
 	t.Parallel()
 	_, err := d.WSRetriveInstrumentsData(currencyBTC, "", false)
@@ -2076,6 +2113,885 @@ func TestWSSubmitTransferToUser(t *testing.T) {
 	}
 	_, err := d.WSSubmitTransferToUser(currencyBTC, "", "0x4aa0753d798d668056920094d65321a8e8913e26", 0.001)
 	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSSubmitWithdraw(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
+	_, err := d.WSSubmitWithdraw(currencyBTC, core.BitcoinDonationAddress, "", 0.001)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveAnnouncements(t *testing.T) {
+	t.Parallel()
+	_, err := d.WSRetriveAnnouncements(time.Now(), 5)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetrivePublicPortfolioMargins(t *testing.T) {
+	t.Parallel()
+	info, err := d.GetInstrumentData(context.Background(), "BTC-PERPETUAL")
+	if err != nil {
+		t.Skip(err)
+	}
+	_, err = d.WSRetrivePublicPortfolioMargins(currencyBTC, map[string]float64{
+		"BTC-PERPETUAL": info.ContractSize * 2,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSChangeAPIKeyName(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSChangeAPIKeyName(1, "TestKey123")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSChangeScopeInAPIKey(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
+	_, err := d.WSChangeScopeInAPIKey(1, "account:read_write")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSChangeSubAccountName(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSChangeSubAccountName(1, "new_sub")
+	if err != nil && !strings.Contains(err.Error(), "unauthorized") {
+		t.Error(err)
+	}
+}
+
+func TestWSCreateAPIKey(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
+	_, err := d.WSCreateAPIKey("account:read_write", "new_sub", false)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSCreateSubAccount(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
+	_, err := d.WSCreateSubAccount()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSDisableAPIKey(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
+	_, err := d.WSDisableAPIKey(1)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSDisableTFAForSubAccount(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
+	// Use with caution will reduce the security of the account
+	_, err := d.WSDisableTFAForSubAccount(1)
+	if err != nil && !strings.Contains(err.Error(), "Method not found") { // this functionality is removed by now.
+		t.Error(err)
+	}
+}
+
+func TestWSEnableAffiliateProgram(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSEnableAffiliateProgram()
+	if err != nil && !strings.Contains(err.Error(), "not_allowed_to_enable_affiliate_program") {
+		t.Error(err)
+	}
+}
+
+func TestWSEnableAPIKey(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
+	_, err := d.WSEnableAPIKey(1)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveAccessLog(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := d.WSRetriveAccessLog(0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveAffiliateProgramInfo(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSRetriveAffiliateProgramInfo(1)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveEmailLanguage(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSRetriveEmailLanguage()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveNewAnnouncements(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSRetriveNewAnnouncements()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetrivePricatePortfolioMargins(t *testing.T) {
+	t.Parallel()
+	if _, err := d.WSRetrivePricatePortfolioMargins(currencyBTC, false, nil); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetrivePosition(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSRetrivePosition(btcPerpInstrument)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveSubAccounts(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSRetriveSubAccounts(false)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveSubAccountDetails(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSRetriveSubAccountDetails(currencyBTC, false)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetrivePositions(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSRetrivePositions(currencyBTC, "option")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.WSRetrivePositions(currencyETH, "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveTransactionLog(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSRetriveTransactionLog(currencyBTC, "trade", time.Now().Add(-24*time.Hour), time.Now(), 5, 0)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.WSRetriveTransactionLog(currencyBTC, "trade", time.Now().Add(-24*time.Hour), time.Now(), 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveUserLocks(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := d.WSRetriveUserLocks()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSListAPIKeys(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := d.WSListAPIKeys("")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRemoveAPIKey(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSRemoveAPIKey(1)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRemoveSubAccount(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSRemoveSubAccount(1)
+	if err != nil && !strings.Contains(err.Error(), "unauthorized") {
+		t.Error(err)
+	}
+}
+
+func TestWSResetAPIKey(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSResetAPIKey(1)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSSetEmailForSubAccount(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
+	_, err := d.WSSetEmailForSubAccount(1, "wrongemail@wrongemail.com")
+	if err != nil && !strings.Contains(err.Error(), "could not link email (wrongemail@wrongemail.com) to subaccount 1") {
+		t.Error(err)
+	}
+}
+
+func TestWSSetEmailLanguage(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSSetEmailLanguage("en")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSSetPasswordForSubAccount(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
+	// Caution! This may reduce the security of the subaccount
+	_, err := d.WSSetPasswordForSubAccount(1, "randompassword123")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSToggleNotificationsFromSubAccount(t *testing.T) {
+	t.Parallel()
+	_, err := d.WSToggleNotificationsFromSubAccount(1, false)
+	if err != nil && !strings.Contains(err.Error(), "unauthorized") {
+		t.Error(err)
+	}
+}
+
+func TestWSTogglePortfolioMargining(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	subaccount, err := d.WSRetriveSubAccountDetails(currencyBTC, false)
+	if err != nil {
+		t.Skip(err)
+	}
+	if len(subaccount) == 0 {
+		t.SkipNow()
+	}
+	_, err = d.WSTogglePortfolioMargining(subaccount[0].UID, false, false)
+	if err != nil && !strings.Contains(err.Error(), "account is already on SM") {
+		t.Error(err)
+	}
+}
+
+func TestWSToggleSubAccountLogin(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSToggleSubAccountLogin(1, false)
+	if err != nil && !strings.Contains(err.Error(), "unauthorized") {
+		t.Error(err)
+	}
+}
+
+func TestWSSubmitBuy(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
+	_, err := d.WSSubmitBuy(&OrderBuyAndSellParams{
+		Instrument: btcPerpInstrument, OrderType: "limit",
+		Label: "testOrder", TimeInForce: "",
+		Trigger: "", Advanced: "",
+		Amount: 30, Price: 500000,
+		MaxShow: 0, TriggerPrice: 0,
+		PostOnly: false, RejectPostOnly: false,
+		ReduceOnly: false, MMP: false})
+	if err != nil && !strings.Contains(err.Error(), "not_enough_funds") {
+		t.Error(err)
+	}
+}
+
+func TestWSSubmitSell(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
+	info, err := d.WSRetriveInstrumentData(btcPerpInstrument)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = d.WSSubmitSell(&OrderBuyAndSellParams{
+		Instrument: btcPerpInstrument, OrderType: "limit",
+		Label: "testOrder", TimeInForce: "",
+		Trigger: "", Advanced: "", Amount: info.ContractSize * 3,
+		Price: 500000, MaxShow: 0, TriggerPrice: 0, PostOnly: false,
+		RejectPostOnly: false, ReduceOnly: false, MMP: false})
+	if err != nil && !strings.Contains(err.Error(), "not_enough_funds") {
+		t.Error(err)
+	}
+}
+
+func TestWSEditOrderByLabel(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
+	_, err := d.WSEditOrderByLabel(&OrderBuyAndSellParams{Label: "incorrectUserLabel", Instrument: btcPerpInstrument,
+		Advanced: "", Amount: 1, Price: 30000, TriggerPrice: 0, PostOnly: false, ReduceOnly: false, RejectPostOnly: false, MMP: false})
+	if err != nil && !strings.Contains(err.Error(), "order_not_found") {
+		t.Error(err)
+	}
+}
+
+func TestWSSubmitCancel(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
+	_, err := d.WSSubmitCancel("incorrectID")
+	if err != nil && !strings.Contains(err.Error(), "order_not_found") {
+		t.Error(err)
+	}
+}
+
+func TestWSSubmitCancelAll(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
+	_, err := d.WSSubmitCancelAll()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSSubmitCancelAllByCurrency(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
+	_, err := d.WSSubmitCancelAllByCurrency(currencyBTC, "option", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSSubmitCancelAllByInstrument(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
+	_, err := d.WSSubmitCancelAllByInstrument(btcPerpInstrument, "all")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSSubmitCancelByLabel(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
+	_, err := d.WSSubmitCancelByLabel("incorrectOrderLabel", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSSubmitClosePosition(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
+	_, err := d.WSSubmitClosePosition(btcPerpInstrument, "limit", 35000)
+	if err != nil && !strings.Contains(err.Error(), "already_closed") {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveMargins(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSRetriveMargins(btcPerpInstrument, 5, 35000)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveMMPConfig(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSRetriveMMPConfig(currencyETH)
+	if err != nil && !strings.Contains(err.Error(), "MMP disabled") {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveOpenOrdersByCurrency(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSRetriveOpenOrdersByCurrency(currencyBTC, "option", "all")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveOpenOrdersByInstrument(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSRetriveOpenOrdersByInstrument(btcPerpInstrument, "all")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveOrderHistoryByCurrency(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSRetriveOrderHistoryByCurrency(currencyBTC, "future", 0, 0, false, false)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveOrderHistoryByInstrument(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSRetriveOrderHistoryByInstrument(btcPerpInstrument, 0, 0, false, false)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveOrderMarginsByID(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSRetriveOrderMarginsByID([]string{"ETH-349280", "ETH-349279", "ETH-349278"})
+	if err != nil && strings.Contains(err.Error(), "value must be a list") {
+		t.Skip(err)
+	} else if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetrivesOrderState(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSRetrivesOrderState("brokenid123")
+	if err != nil && !strings.Contains(err.Error(), "order_not_found") {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveTriggerOrderHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSRetriveTriggerOrderHistory(currencyETH, "", "", 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveUserTradesByCurrency(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSRetriveUserTradesByCurrency(currencyETH, "future", "", "", "asc", 0, false)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveUserTradesByCurrencyAndTime(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSRetriveUserTradesByCurrencyAndTime(currencyETH, "future", "default", 5, false, time.Now().Add(-time.Hour*10), time.Now().Add(-time.Hour*1))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveUserTradesByInstrument(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSRetriveUserTradesByInstrument(btcPerpInstrument, "asc", 5, 10, 4, true)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveUserTradesByInstrumentAndTime(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSRetriveUserTradesByInstrumentAndTime(btcPerpInstrument, "asc", 10, false, time.Now().Add(-time.Hour), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveUserTradesByOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSRetriveUserTradesByOrder("wrongOrderID", "default")
+	if err != nil && !strings.Contains(err.Error(), "order_not_found") {
+		t.Error(err)
+	}
+}
+
+func TestWSResetMMP(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSResetMMP(currencyBTC)
+	if err != nil && !strings.Contains(err.Error(), "MMP disabled") {
+		t.Error(err)
+	}
+}
+
+func TestWSSendRFQ(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSSendRFQ("BTC-PERPETUAL", 1000, order.Buy)
+	if err != nil && !strings.Contains(err.Error(), "not_enough_funds") {
+		t.Error(err)
+	}
+}
+
+func TestWSSetMMPConfig(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSSetMMPConfig(currencyBTC, 5, 5, 0, 0)
+	if err != nil && !strings.Contains(err.Error(), "MMP disabled") {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveSettlementHistoryByInstrument(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSRetriveSettlementHistoryByInstrument(btcPerpInstrument, "settlement", "", 10, time.Now().Add(-time.Hour))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveSettlementHistoryByCurency(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := d.WSRetriveSettlementHistoryByCurency(currencyBTC, "settlement", "", 10, time.Now().Add(-time.Hour))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveComboIDS(t *testing.T) {
+	t.Parallel()
+	_, err := d.WSRetriveComboIDS(currencyBTC, "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveComboDetails(t *testing.T) {
+	t.Parallel()
+	combos, err := d.WSRetriveComboIDS(currencyBTC, "")
+	if err != nil {
+		t.Skip(err)
+	}
+	if len(combos) == 0 {
+		t.Skip("no combo instance found for currency BTC")
+	}
+	_, err = d.WSRetriveComboDetails(combos[0])
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveCombos(t *testing.T) {
+	t.Parallel()
+	_, err := d.WSRetriveCombos(currencyBTC)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSCreateCombo(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	_, err := d.WSCreateCombo([]ComboParam{})
+	if err != nil && !errors.Is(errNoArgumentPassed, err) {
+		t.Errorf("expecting %v, but found %v", errNoArgumentPassed, err)
+	}
+	instruments, err := d.FetchTradablePairs(context.Background(), asset.Futures)
+	if err != nil {
+		t.Skip(err)
+	}
+	if len(instruments) < 2 {
+		t.Skip("no enough instrument found")
+	}
+	_, err = d.WSCreateCombo([]ComboParam{
+		{
+			InstrumentName: instruments[0],
+			Direction:      "sell",
+		},
+		{
+			InstrumentName: instruments[1],
+			Direction:      "sell",
+			Amount:         1200,
+		},
+	})
+	if err != nil && !errors.Is(errInvalidAmount, err) {
+		t.Errorf("expecting %v, but found %v", errInvalidAmount, err)
+	}
+	_, err = d.WSCreateCombo([]ComboParam{
+		{
+			InstrumentName: instruments[0],
+			Amount:         123,
+		},
+		{
+			InstrumentName: instruments[1],
+			Direction:      "sell",
+			Amount:         1200,
+		},
+	})
+	if err != nil && !strings.Contains(err.Error(), "invalid direction") {
+		t.Errorf("expecting error message 'invalid direction', but found %v", err)
+	}
+	_, err = d.WSCreateCombo([]ComboParam{
+		{
+			InstrumentName: instruments[0],
+			Direction:      "buy",
+			Amount:         123,
+		},
+		{
+			InstrumentName: instruments[1],
+			Direction:      "buy",
+			Amount:         1200,
+		},
+	})
+	if err != nil && !strings.Contains(err.Error(), "not_enough_funds") {
+		t.Error(err)
+	}
+}
+
+func TestWSExecuteBlockTrade(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	info, err := d.WSRetriveInstrumentData(btcPerpInstrument)
+	if err != nil {
+		t.Skip(err)
+	}
+	_, err = d.WSExecuteBlockTrade(time.Now(), "sdjkafdad", "maker", "", []BlockTradeParam{
+		{
+			Price:          0.777 * 22000,
+			InstrumentName: btcPerpInstrument,
+			Direction:      "buy",
+			Amount:         info.MinimumTradeAmount*5 + (200000 - info.MinimumTradeAmount*5) + 10,
+		},
+	})
+	if err != nil && !strings.Contains(err.Error(), "not_enough_funds") {
+		t.Error(err)
+	}
+}
+func TestWSVerifyBlockTrade(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	info, err := d.WSRetriveInstrumentData(btcPerpInstrument)
+	if err != nil {
+		t.Skip(err)
+	}
+	_, err = d.WSVerifyBlockTrade(time.Now(), "sdjkafdad", "maker", "", []BlockTradeParam{
+		{
+			Price:          0.777 * 22000,
+			InstrumentName: btcPerpInstrument,
+			Direction:      "buy",
+			Amount:         info.MinimumTradeAmount*5 + (200000 - info.MinimumTradeAmount*5) + 10,
+		},
+	})
+	if err != nil && !strings.Contains(err.Error(), "not_enough_funds") {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveUserBlocTrade(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := d.WSRetriveUserBlocTrade("12345567")
+	if err != nil && !strings.Contains(err.Error(), "block_trade_not_found") {
+		t.Error(err)
+	}
+}
+
+func TestWSRetriveLastBlockTradesByCurrency(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := d.WSRetriveLastBlockTradesByCurrency("SOL", "", "", 5)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSMovePositions(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	info, err := d.WSRetriveInstrumentData(btcPerpInstrument)
+	if err != nil {
+		t.Skip(err)
+	}
+	_, err = d.WSMovePositions(currencyBTC, 123, 345, []BlockTradeParam{
+		{
+			Price:          0.777 * 25000,
+			InstrumentName: btcPerpInstrument,
+			Direction:      "buy",
+			Amount:         info.MinimumTradeAmount*5 + (200000 - info.MinimumTradeAmount*5) + 10,
+		},
+	})
+	if err != nil && !strings.Contains(err.Error(), "must be one of the subaccounts") {
 		t.Error(err)
 	}
 }

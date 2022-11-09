@@ -243,9 +243,9 @@ func (d *Deribit) WSRetriveLastSettlementsByCurrency(currency, settlementType, c
 		return nil, errInvalidIndexPriceCurrency
 	}
 	input := &struct {
-		Currency             string `json:"currency"`
+		Currency             string `json:"currency,omitempty"`
 		Type                 string `json:"type,omitempty"`
-		Continuation         string `json:"continuation"`
+		Continuation         string `json:"continuation,omitempty"`
 		Count                int64  `json:"count,omitempty"`
 		SearchStartTimestamp int64  `json:"search_start_timestamp,omitempty"`
 	}{
@@ -259,7 +259,7 @@ func (d *Deribit) WSRetriveLastSettlementsByCurrency(currency, settlementType, c
 		input.SearchStartTimestamp = startTime.UnixMilli()
 	}
 	var resp SettlementsData
-	return &resp, d.SendWSRequest(getLastSettlementsByCurrency, input, resp, false)
+	return &resp, d.SendWSRequest(getLastSettlementsByCurrency, input, &resp, false)
 }
 
 // WSRetriveLastSettlementsByInstrument retrives last settlement data for requested instrument through the websocket connection.
@@ -784,7 +784,7 @@ func (d *Deribit) WSSubmitWithdraw(currency, address, priority string, amount fl
 		Amount:   amount,
 	}
 	var resp WithdrawData
-	return &resp, d.SendWSRequest(submitWithdraw, input, resp, true)
+	return &resp, d.SendWSRequest(submitWithdraw, input, &resp, true)
 }
 
 // WSRetriveAnnouncements retrieves announcements through the websocket connection. Default "start_timestamp" parameter value is current timestamp, "count" parameter value must be between 1 and 50, default is 5.
@@ -884,7 +884,7 @@ func (d *Deribit) WSChangeSubAccountName(sid int64, name string) (string, error)
 }
 
 // WSCreateAPIKey creates an api key based on the provided settings through the websocket connection.
-func (d *Deribit) WSCreateAPIKey(maxScope, name string, defaultKey bool) (*APIKeyData, error) {
+func (d *Deribit) WSCreateAPIKey(maxScope, name string, defaultKey bool) (interface{}, error) {
 	input := &struct {
 		MaxScope string `json:"max_scope"`
 		Name     string `json:"name,omitempty"`
@@ -894,8 +894,22 @@ func (d *Deribit) WSCreateAPIKey(maxScope, name string, defaultKey bool) (*APIKe
 		Name:     name,
 		Default:  defaultKey,
 	}
+	var result json.RawMessage
+	err := d.SendWSRequest(createAPIKey, input, &result, true)
+	if err != nil {
+		return nil, err
+	}
+	challenge := &TFAChallenge{}
+	err = json.Unmarshal(result, challenge)
+	if err == nil && challenge.SecurityKeyAuthorizationRequired {
+		return challenge, nil
+	}
 	var resp APIKeyData
-	return &resp, d.SendWSRequest(createAPIKey, input, &resp, true)
+	err = json.Unmarshal(result, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
 // WSCreateSubAccount creates a new subaccount through the websocket connection.
@@ -905,7 +919,7 @@ func (d *Deribit) WSCreateSubAccount() (*SubAccountData, error) {
 }
 
 // WSDisableAPIKey disables the api key linked to the provided id through the websocket connection.
-func (d *Deribit) WSDisableAPIKey(id int64) (*APIKeyData, error) {
+func (d *Deribit) WSDisableAPIKey(id int64) (interface{}, error) {
 	if id <= 0 {
 		return nil, fmt.Errorf("%w, invalid api key id", errInvalidID)
 	}
@@ -914,8 +928,22 @@ func (d *Deribit) WSDisableAPIKey(id int64) (*APIKeyData, error) {
 	}{
 		ID: id,
 	}
+	var response json.RawMessage
+	err := d.SendWSRequest(disableAPIKey, input, &response, true)
+	if err != nil {
+		return nil, err
+	}
+	challenge := &TFAChallenge{}
+	err = json.Unmarshal(response, challenge)
+	if err == nil && challenge.SecurityKeyAuthorizationRequired {
+		return challenge, nil
+	}
 	var resp APIKeyData
-	return &resp, d.SendWSRequest(disableAPIKey, input, &resp, true)
+	err = json.Unmarshal(response, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
 }
 
 // WSDisableTFAForSubAccount disables two factor authentication for the subaccount linked to the requested id through the websocket connection.
@@ -953,16 +981,30 @@ func (d *Deribit) WSEnableAffiliateProgram() (string, error) {
 }
 
 // WSEnableAPIKey enables the api key linked to the provided id through the websocket connection.
-func (d *Deribit) WSEnableAPIKey(id int64) (*APIKeyData, error) {
+func (d *Deribit) WSEnableAPIKey(id int64) (interface{}, error) {
 	if id <= 0 {
 		return nil, fmt.Errorf("%w, invalid api key id", errInvalidID)
 	}
+	var response json.RawMessage
+	err := d.SendWSRequest(enableAPIKey, map[string]int64{"id": id}, &response, true)
+	if err != nil {
+		return nil, err
+	}
+	challenge := &TFAChallenge{}
+	err = json.Unmarshal(response, challenge)
+	if err == nil && challenge.SecurityKeyAuthorizationRequired {
+		return challenge, nil
+	}
 	var resp APIKeyData
-	return &resp, d.SendWSRequest(enableAPIKey, map[string]int64{"id": id}, &resp, true)
+	err = json.Unmarshal(response, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
 }
 
-// WSRetrivesAccessLog lists access logs for the user through the websocket connection.
-func (d *Deribit) WSRetrivesAccessLog(offset, count int64) (*AccessLog, error) {
+// WSRetriveAccessLog lists access logs for the user through the websocket connection.
+func (d *Deribit) WSRetriveAccessLog(offset, count int64) (*AccessLog, error) {
 	input := &struct {
 		Offset int64 `json:"offset,omitempty"`
 		Count  int64 `json:"count,omitempty"`
@@ -980,7 +1022,7 @@ func (d *Deribit) WSRetriveAffiliateProgramInfo(id int64) (*AffiliateProgramInfo
 		return nil, fmt.Errorf("%w, invalid api key id", errInvalidID)
 	}
 	var resp AffiliateProgramInfo
-	return &resp, d.SendWSRequest(getEmailLanguage, map[string]int64{"id": id}, &resp, true)
+	return &resp, d.SendWSRequest(getAffiliateProgramInfo, map[string]int64{"id": id}, &resp, true)
 }
 
 // WSRetriveEmailLanguage retrives the current language set for the email through the websocket connection.
@@ -1226,7 +1268,7 @@ func (d *Deribit) WSSetEmailLanguage(language string) (string, error) {
 }
 
 // WSSetPasswordForSubAccount sets a password for subaccount usage through the websocket connection.
-func (d *Deribit) WSSetPasswordForSubAccount(sid int64, password string) (string, error) {
+func (d *Deribit) WSSetPasswordForSubAccount(sid int64, password string) (interface{}, error) {
 	if sid <= 0 {
 		return "", fmt.Errorf("%w, invalid subaccount user id", errInvalidID)
 	}
@@ -1254,9 +1296,9 @@ func (d *Deribit) WSSetPasswordForSubAccount(sid int64, password string) (string
 		var respo TFAChallenge
 		err = json.Unmarshal(data, &respo)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
-		return string(data), nil
+		return respo, nil
 	}
 	if resp != "ok" {
 		return "", fmt.Errorf("could not set the provided password to subaccount %v", sid)
@@ -1379,7 +1421,7 @@ func (d *Deribit) WSSubmitCancel(orderID string) (*PrivateCancelData, error) {
 // WSSubmitCancelAll sends a request to cancel all user orders in all currencies and instruments
 func (d *Deribit) WSSubmitCancelAll() (int64, error) {
 	var resp int64
-	return resp, d.SendWSRequest(submitCancel, nil, &resp, true)
+	return resp, d.SendWSRequest(submitCancelAll, nil, &resp, true)
 }
 
 // WSSubmitCancelAllByCurrency sends a request to cancel all user orders for the specified currency through the websocket connection.
@@ -1471,8 +1513,8 @@ func (d *Deribit) WSRetriveMargins(instrument string, amount, price float64) (*M
 	return &resp, d.SendWSRequest(getMargins, input, &resp, true)
 }
 
-// WSRetrivesMMPConfig sends a request to fetch the config for MMP of the requested currency through the websocket connection.
-func (d *Deribit) WSRetrivesMMPConfig(currency string) (*MMPConfigData, error) {
+// WSRetriveMMPConfig sends a request to fetch the config for MMP of the requested currency through the websocket connection.
+func (d *Deribit) WSRetriveMMPConfig(currency string) (*MMPConfigData, error) {
 	currency = strings.ToUpper(currency)
 	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
 		return nil, errInvalidCurrency
@@ -1628,8 +1670,6 @@ func (d *Deribit) WSRetriveUserTradesByCurrency(currency, kind, startID, endID, 
 	var resp UserTradesData
 	return &resp, d.SendWSRequest(getUserTradesByCurrency, input, &resp, true)
 }
-
-// [[ TODO ]]
 
 // WSRetriveUserTradesByCurrencyAndTime retrives user trades sorted by currency and time through the websocket connection.
 func (d *Deribit) WSRetriveUserTradesByCurrencyAndTime(currency, kind, sorting string, count int64, includeOld bool, startTime, endTime time.Time) (*UserTradesData, error) {
@@ -1853,8 +1893,6 @@ func (d *Deribit) WSRetriveSettlementHistoryByCurency(currency, settlementType, 
 	return &resp, d.SendWSRequest(getSettlementHistoryByCurrency, input, &resp, true)
 }
 
-// ------------------------------------------------------------------------------------------------
-
 // WSRetriveComboIDS Retrieves available combos.
 // This method can be used to get the list of all combos, or only the list of combos in the given state.
 func (d *Deribit) WSRetriveComboIDS(currency, state string) ([]string, error) {
@@ -1890,8 +1928,6 @@ func (d *Deribit) WSRetriveCombos(currency string) ([]ComboDetail, error) {
 	var resp []ComboDetail
 	return resp, d.SendWSRequest(getCombos, map[string]string{"currency": currency}, &resp, true)
 }
-
-// [[ TODO ]]
 
 // WSCreateCombo verifies and creates a combo book or returns an existing combo matching given trades through the websocket connection.
 func (d *Deribit) WSCreateCombo(args []ComboParam) (*ComboDetail, error) {
@@ -2107,13 +2143,22 @@ func (d *Deribit) SendWSRequest(method string, params, response interface{}, aut
 	if err != nil {
 		return err
 	}
+	println(string(result))
+	print("\n\n\n\n\n\n\n")
 	resp := &wsResponse{Result: response}
 	err = json.Unmarshal(result, resp)
 	if err != nil {
 		return err
 	}
 	if resp.Error.Code != 0 || resp.Error.Message != "" {
-		return fmt.Errorf("code: %d message: %s; %s: %s", resp.Error.Code, resp.Error.Message, resp.Error.Data.Param, resp.Error.Data.Reason)
+		var data string
+		if resp.Error.Data != nil {
+			value, err := json.Marshal(resp.Error.Data)
+			if err == nil {
+				data = string(value)
+			}
+		}
+		return fmt.Errorf("code: %d message: %s %s", resp.Error.Code, resp.Error.Message, data)
 	}
 	return nil
 }

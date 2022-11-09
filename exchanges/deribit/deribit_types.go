@@ -167,7 +167,6 @@ type SettlementsData struct {
 		Funded            float64 `json:"funded"`
 		Funding           float64 `json:"funding"`
 		IndexPrice        float64 `json:"index_price"`
-		SessionBankruptcy float64 `json:"session_bankrupcy"`
 		SessionTax        float64 `json:"session_tax"`
 		SessionTaxRate    float64 `json:"session_tax_rate"`
 		Socialized        float64 `json:"socialized"`
@@ -642,48 +641,36 @@ type APIKeyData struct {
 
 // SubAccountData stores stores subaccount data
 type SubAccountData struct {
-	Email        string `json:"email"`
-	ID           int64  `json:"id"`
-	IsPassword   bool   `json:"is_password"`
-	LoginEnabled bool   `json:"login_enabled"`
-	Portfolio    struct {
-		Eth struct {
-			AvailableFunds           float64 `json:"available_funds"`
-			AvailableWithdrawalFunds float64 `json:"available_withdrawal_funds"`
-			Balance                  float64 `json:"balance"`
-			Currency                 string  `json:"currency"`
-			Equity                   float64 `json:"equity"`
-			InitialMargin            float64 `json:"initial_margin"`
-			MaintenanceMargin        float64 `json:"maintenance_margin"`
-			MarginBalance            float64 `json:"margin_balance"`
-		} `json:"eth"`
-		Btc struct {
-			AvailableFunds           float64 `json:"available_funds"`
-			AvailableWithdrawalFunds float64 `json:"available_withdrawal_funds"`
-			Balance                  float64 `json:"balance"`
-			Currency                 string  `json:"currency"`
-			Equity                   float64 `json:"equity"`
-			InitialMargin            float64 `json:"initial_margin"`
-			MaintenanceMargin        float64 `json:"maintenance_margin"`
-			MarginBalance            float64 `json:"margin_balance"`
-		} `json:"btc"`
-	}
-	ReceiveNotifications bool   `json:"receive_notifications"`
-	SystemName           string `json:"system_name"`
-	TFAEnabled           bool   `json:"tfa_enabled"`
-	Type                 string `json:"type"`
-	Username             string `json:"username"`
+	Email                string                           `json:"email"`
+	ID                   int64                            `json:"id"`
+	IsPassword           bool                             `json:"is_password"`
+	LoginEnabled         bool                             `json:"login_enabled"`
+	Portfolio            map[string]SubAccountBalanceData `json:"portfolio"`
+	ReceiveNotifications bool                             `json:"receive_notifications"`
+	SystemName           string                           `json:"system_name"`
+	TFAEnabled           bool                             `json:"tfa_enabled"`
+	Type                 string                           `json:"type"`
+	Username             string                           `json:"username"`
+}
+
+// SubAccountBalanceData represents the subaccount balance information for each currency.
+type SubAccountBalanceData struct {
+	AvailableFunds           float64 `json:"available_funds"`
+	AvailableWithdrawalFunds float64 `json:"available_withdrawal_funds"`
+	Balance                  float64 `json:"balance"`
+	Currency                 string  `json:"currency"`
+	Equity                   float64 `json:"equity"`
+	InitialMargin            float64 `json:"initial_margin"`
+	MaintenanceMargin        float64 `json:"maintenance_margin"`
+	MarginBalance            float64 `json:"margin_balance"`
 }
 
 // AffiliateProgramInfo stores info of affiliate program
 type AffiliateProgramInfo struct {
-	Received struct {
-		Eth float64 `json:"eth"`
-		Btc float64 `json:"btc"`
-	} `json:"received"`
-	NumberOfAffiliates int64  `json:"number_of_affiliates"`
-	Link               string `json:"link"`
-	IsEnabled          bool   `json:"is_enabled"`
+	Received           map[string]float64 `json:"received"`
+	NumberOfAffiliates int64              `json:"number_of_affiliates"`
+	Link               string             `json:"link"`
+	IsEnabled          bool               `json:"is_enabled"`
 }
 
 // PositionData stores data for account's position
@@ -780,12 +767,9 @@ type wsResponse struct {
 	ID             int64       `json:"id,omitempty"`
 	Result         interface{} `json:"result,omitempty"`
 	Error          struct {
-		Message string `json:"message,omitempty"`
-		Code    int64  `json:"code,omitempty"`
-		Data    struct {
-			Reason string `json:"reason,omitempty"`
-			Param  string `json:"param,omitempty"`
-		}
+		Message string      `json:"message,omitempty"`
+		Code    int64       `json:"code,omitempty"`
+		Data    interface{} `json:"data"`
 	} `json:"error,omitempty"`
 }
 
@@ -949,7 +933,7 @@ type AccessLogDetail struct {
 
 // SubAccountDetail represents subaccount positions detail.
 type SubAccountDetail struct {
-	UID       int `json:"uid"`
+	UID       int64 `json:"uid"`
 	Positions []struct {
 		TotalProfitLoss           float64 `json:"total_profit_loss"`
 		SizeCurrency              float64 `json:"size_currency"`
