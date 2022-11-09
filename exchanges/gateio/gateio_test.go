@@ -32,7 +32,6 @@ const (
 )
 
 var g Gateio
-var wsSetupRan bool
 
 func TestMain(m *testing.M) {
 	g.SetDefaults()

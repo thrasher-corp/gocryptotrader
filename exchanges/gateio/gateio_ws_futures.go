@@ -305,13 +305,12 @@ func (g *Gateio) processFuturesTickers(data []byte) error {
 	if err != nil {
 		return err
 	}
-	tickers := make([]ticker.Price, len(resp.Result))
 	for x := range resp.Result {
 		currencyPair, err := currency.NewPairFromString(resp.Result[x].Contract)
 		if err != nil {
 			return err
 		}
-		tickers[x] = ticker.Price{
+		g.Websocket.DataHandler <- &ticker.Price{
 			ExchangeName: g.Name,
 			Volume:       resp.Result[x].Volume24HBase,
 			QuoteVolume:  resp.Result[x].Volume24HQuote,
@@ -323,7 +322,6 @@ func (g *Gateio) processFuturesTickers(data []byte) error {
 			LastUpdated:  time.Unix(resp.Time, 0),
 		}
 	}
-	g.Websocket.DataHandler <- tickers
 	return nil
 }
 
@@ -368,7 +366,6 @@ func (g *Gateio) processFuturesCandlesticks(data []byte) error {
 	if err != nil {
 		return err
 	}
-	candlesticks := make([]stream.KlineData, len(resp.Result))
 	for x := range resp.Result {
 		icp := strings.Split(resp.Result[x].Name, currency.UnderscoreDelimiter)
 		if len(icp) < 3 {
@@ -378,7 +375,7 @@ func (g *Gateio) processFuturesCandlesticks(data []byte) error {
 		if err != nil {
 			return err
 		}
-		candlesticks[x] = stream.KlineData{
+		g.Websocket.DataHandler <- stream.KlineData{
 			Pair:       currencyPair,
 			AssetType:  futuresAssetType,
 			Exchange:   g.Name,
@@ -391,7 +388,6 @@ func (g *Gateio) processFuturesCandlesticks(data []byte) error {
 			Volume:     resp.Result[x].Volume,
 		}
 	}
-	g.Websocket.DataHandler <- candlesticks
 	return nil
 }
 
@@ -552,7 +548,6 @@ func (g *Gateio) processFuturesOrdersPushData(data []byte) error {
 	if err != nil {
 		return err
 	}
-	orders := make([]order.Detail, len(resp.Result))
 	for x := range resp.Result {
 		currencyPair, err := currency.NewPairFromString(resp.Result[x].Contract)
 		if err != nil {
@@ -567,7 +562,7 @@ func (g *Gateio) processFuturesOrdersPushData(data []byte) error {
 		if err != nil {
 			return err
 		}
-		orders[x] = order.Detail{
+		g.Websocket.DataHandler <- &order.Detail{
 			Amount:         resp.Result[x].Size,
 			Exchange:       g.Name,
 			OrderID:        strconv.FormatInt(resp.Result[x].ID, 10),
@@ -582,7 +577,6 @@ func (g *Gateio) processFuturesOrdersPushData(data []byte) error {
 			CloseTime:      time.UnixMilli(resp.Result[x].FinishTimeMs),
 		}
 	}
-	g.Websocket.DataHandler <- orders
 	return nil
 }
 
@@ -672,21 +666,19 @@ func (g *Gateio) processBalancePushData(data []byte) error {
 	if err != nil {
 		return err
 	}
-	accounts := make([]account.Change, len(resp.Result))
 	for x := range resp.Result {
 		info := strings.Split(resp.Result[x].Text, currency.UnderscoreDelimiter)
 		if len(info) != 2 {
 			return errors.New("malformed text")
 		}
 		code := currency.NewCode(info[0])
-		accounts[x] = account.Change{
+		g.Websocket.DataHandler <- account.Change{
 			Exchange: g.Name,
 			Currency: code,
 			Asset:    futuresAssetType,
 			Amount:   resp.Result[x].Balance,
 		}
 	}
-	g.Websocket.DataHandler <- accounts
 	return nil
 }
 

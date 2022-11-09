@@ -146,7 +146,7 @@ func (g *Gateio) processOptionsContractTickers(data []byte) error {
 	if err != nil {
 		return err
 	}
-	g.Websocket.DataHandler <- ticker.Price{
+	g.Websocket.DataHandler <- &ticker.Price{
 		Pair:         currencyPair,
 		Last:         tickerData.LastPrice,
 		Bid:          tickerData.Bid1Price,
@@ -171,6 +171,11 @@ func (g *Gateio) processOptionsUnderlyingTicker(data []byte) error {
 }
 
 func (g *Gateio) processOptionsTradesPushData(data []byte) error {
+	saveTradeData := g.IsSaveTradeDataEnabled()
+	if !saveTradeData &&
+		!g.IsTradeFeedEnabled() {
+		return nil
+	}
 	resp := struct {
 		Time    int64             `json:"time"`
 		Channel string            `json:"channel"`
@@ -197,8 +202,7 @@ func (g *Gateio) processOptionsTradesPushData(data []byte) error {
 			TID:          strconv.FormatInt(resp.Result[x].ID, 10),
 		}
 	}
-	g.Websocket.DataHandler <- trades
-	return nil
+	return g.Websocket.Trade.Update(saveTradeData, trades...)
 }
 
 func (g *Gateio) processOptionsUnderlyingPricePushData(data []byte) error {
@@ -260,7 +264,6 @@ func (g *Gateio) processOptionsCandlestickPushData(data []byte) error {
 	if err != nil {
 		return err
 	}
-	candles := make([]stream.KlineData, len(resp.Result))
 	for x := range resp.Result {
 		icp := strings.Split(resp.Result[x].NameOfSubscription, currency.UnderscoreDelimiter)
 		if len(icp) < 3 {
@@ -270,7 +273,7 @@ func (g *Gateio) processOptionsCandlestickPushData(data []byte) error {
 		if err != nil {
 			return err
 		}
-		candles[x] = stream.KlineData{
+		g.Websocket.DataHandler <- stream.KlineData{
 			Pair:       currencyPair,
 			AssetType:  asset.Options,
 			Exchange:   g.Name,
@@ -283,7 +286,6 @@ func (g *Gateio) processOptionsCandlestickPushData(data []byte) error {
 			Volume:     resp.Result[x].Amount,
 		}
 	}
-	g.Websocket.DataHandler <- candles
 	return nil
 }
 
@@ -401,7 +403,6 @@ func (g *Gateio) processOptionsOrderPushData(data []byte) error {
 	if err != nil {
 		return err
 	}
-	orders := make([]order.Detail, len(resp.Result))
 	for x := range resp.Result {
 		currencyPair, err := currency.NewPairFromString(resp.Result[x].Contract)
 		if err != nil {
@@ -416,7 +417,7 @@ func (g *Gateio) processOptionsOrderPushData(data []byte) error {
 		if err != nil {
 			return err
 		}
-		orders[x] = order.Detail{
+		g.Websocket.DataHandler <- &order.Detail{
 			Amount:         resp.Result[x].Size,
 			Exchange:       g.Name,
 			OrderID:        strconv.FormatInt(resp.Result[x].ID, 10),
@@ -429,7 +430,6 @@ func (g *Gateio) processOptionsOrderPushData(data []byte) error {
 			AccountID:      resp.Result[x].User,
 		}
 	}
-	g.Websocket.DataHandler <- orders
 	return nil
 }
 
