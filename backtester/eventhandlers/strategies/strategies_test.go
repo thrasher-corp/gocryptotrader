@@ -61,6 +61,55 @@ func TestLoadStrategyByName(t *testing.T) {
 	}
 }
 
+func TestAddStrategy(t *testing.T) {
+	t.Parallel()
+	err := AddStrategy(nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrNilPointer)
+	}
+	err = AddStrategy(new(dollarcostaverage.Strategy))
+	if !errors.Is(err, ErrStrategyAlreadyExists) {
+		t.Errorf("received '%v' expected '%v'", err, ErrStrategyAlreadyExists)
+	}
+
+	err = AddStrategy(new(customStrategy))
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+}
+
+func TestCreateNewStrategy(t *testing.T) {
+	t.Parallel()
+
+	// invalid Handler
+	resp, err := createNewStrategy(dollarcostaverage.Name, false, nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrNilPointer)
+	}
+	if resp != nil {
+		t.Errorf("received '%v' expected '%v'", resp, nil)
+	}
+
+	// mismatched name
+	resp, err = createNewStrategy(dollarcostaverage.Name, false, &customStrategy{})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if resp != nil {
+		t.Errorf("received '%v' expected '%v'", resp, nil)
+	}
+
+	// valid
+	h := new(dollarcostaverage.Strategy)
+	resp, err = createNewStrategy(dollarcostaverage.Name, false, h)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if resp == nil {
+		t.Errorf("received '%v' expected '%v'", resp, h)
+	}
+}
+
 type customStrategy struct {
 	base.Strategy
 }
@@ -89,20 +138,3 @@ func (s *customStrategy) SetCustomSettings(map[string]interface{}) error {
 
 // SetDefaults sets default values for overridable custom settings
 func (s *customStrategy) SetDefaults() {}
-
-func TestAddStrategy(t *testing.T) {
-	t.Parallel()
-	err := AddStrategy(nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, common.ErrNilPointer)
-	}
-	err = AddStrategy(new(dollarcostaverage.Strategy))
-	if !errors.Is(err, ErrStrategyAlreadyExists) {
-		t.Errorf("received '%v' expected '%v'", err, ErrStrategyAlreadyExists)
-	}
-
-	err = AddStrategy(new(customStrategy))
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-}
