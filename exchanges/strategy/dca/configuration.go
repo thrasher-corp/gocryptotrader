@@ -47,6 +47,7 @@ var (
 // Config defines the base elements required to undertake the TWAP strategy
 // TODO: Shift core details to common.
 type Config struct {
+	//
 	Exchange exchange.IBotExchange
 	Pair     currency.Pair
 	Asset    asset.Item

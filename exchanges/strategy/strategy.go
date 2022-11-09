@@ -2,17 +2,10 @@ package strategy
 
 import (
 	"context"
-	"errors"
 	"sync"
 
 	"github.com/gofrs/uuid"
 	strategy "github.com/thrasher-corp/gocryptotrader/exchanges/strategy/common"
-)
-
-var (
-	errStrategyIsNil    = errors.New("strategy is nil")
-	errInvalidUUID      = errors.New("invalid UUID")
-	errStrategyNotFound = errors.New("strategy not found")
 )
 
 // Manager defines strategy management - NOTE: This is a POC wrapper layer for
@@ -25,7 +18,7 @@ type Manager struct {
 // Register stores the current strategy for management
 func (m *Manager) Register(strat strategy.Requirements) (uuid.UUID, error) {
 	if strat == nil {
-		return uuid.Nil, errStrategyIsNil
+		return uuid.Nil, strategy.ErrIsNil
 	}
 	id, err := uuid.NewV4()
 	if err != nil {
@@ -43,13 +36,13 @@ func (m *Manager) Register(strat strategy.Requirements) (uuid.UUID, error) {
 // Run runs the applicable strategy
 func (m *Manager) Run(ctx context.Context, id uuid.UUID) error {
 	if id.IsNil() {
-		return errInvalidUUID
+		return strategy.ErrInvalidUUID
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	strat, ok := m.strategies[id]
 	if !ok {
-		return errStrategyNotFound
+		return strategy.ErrNotFound
 	}
 	return strat.Run(ctx, strat)
 }
@@ -57,13 +50,13 @@ func (m *Manager) Run(ctx context.Context, id uuid.UUID) error {
 // RunStream runs then hooks into the strategy and reports events.
 func (m *Manager) RunStream(ctx context.Context, id uuid.UUID) (<-chan *strategy.Report, error) {
 	if id.IsNil() {
-		return nil, errInvalidUUID
+		return nil, strategy.ErrInvalidUUID
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	strat, ok := m.strategies[id]
 	if !ok {
-		return nil, errStrategyNotFound
+		return nil, strategy.ErrNotFound
 	}
 	err := strat.Run(ctx, strat)
 	if err != nil {
@@ -94,13 +87,13 @@ func (m *Manager) GetAllStrategies(running bool) ([]strategy.Details, error) {
 // Stop stops a strategy from executing further orders
 func (m *Manager) Stop(id uuid.UUID) error {
 	if id.IsNil() {
-		return errInvalidUUID
+		return strategy.ErrInvalidUUID
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	strat, ok := m.strategies[id]
 	if !ok {
-		return errStrategyNotFound
+		return strategy.ErrNotFound
 	}
 	return strat.Stop()
 }

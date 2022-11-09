@@ -11,6 +11,8 @@ import (
 
 const SimulationTag = "SIMULATION"
 
+var errRequirementIsNil = errors.New("requirement is nil")
+
 // Requirements define baseline functionality for strategy management
 type Requirements interface {
 	// Run checks the base requirement state and generates a routine to handle
@@ -65,8 +67,6 @@ type Requirement struct {
 	mtx      sync.Mutex
 }
 
-var errRequirementIsNil = errors.New("requirement is nil")
-
 // Run oversees the deployment of the current strategy adhering to policies,
 // limits, signals and schedules.
 func (r *Requirement) Run(ctx context.Context, strategy Runner) error {
@@ -94,7 +94,7 @@ func (r *Requirement) Run(ctx context.Context, strategy Runner) error {
 
 // deploy is the core routine that handles strategy functionality and lifecycle
 func (r *Requirement) deploy(ctx context.Context, strategy Runner) {
-	defer func() { r.wg.Done(); r.Stop() }()
+	defer func() { r.wg.Done(); _ = r.Stop() }()
 	strategy.ReportStart(strategy)
 	for {
 		select {

@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	strategy "github.com/thrasher-corp/gocryptotrader/exchanges/strategy/common"
@@ -87,7 +88,7 @@ func New(ctx context.Context, c *Config) (*Strategy, error) {
 	// orderbook, just until a safe, effective and efficient system has been
 	// tested and deployed for public use.
 	// TODO: Bypass error errBookSmallerThanDeploymentAmount.
-	allocation, err := c.GetDistrbutionAmount(balance, depth)
+	allocation, err := c.GetDistrbutionAmount(ctx, balance, depth)
 	if err != nil {
 		return nil, err
 	}
@@ -100,56 +101,6 @@ func New(ctx context.Context, c *Config) (*Strategy, error) {
 	}, nil
 }
 
-// deploy oversees the deployment of the current strategy adhering to policies,
-// limits, signals and timings. TODO: Abstract to common. Implement OnSignal
-// interface requirement method.
-func (s *Strategy) deploy(ctx context.Context, start time.Duration) {
-	defer func() {
-		s.wg.Done()
-		s.mtx.Lock()
-		s.running = false
-		s.mtx.Unlock()
-	}()
-
-	s.reporter.OnStart(s)
-	// NOTE: Zero value start duration will execute immediately then deploy at
-	// intervals.
-	timer := time.NewTimer(start)
-	finished := time.NewTimer(time.Until(s.End))
-
-	for {
-		select {
-		case sig := <-timer.C:
-			err := s.SetTimer(timer)
-			if err != nil {
-				s.reporter.OnFatalError(err)
-				return
-			}
-
-			var complete bool
-			complete, err = s.OnSignal(ctx, sig)
-			if err != nil {
-				s.reporter.OnFatalError(err)
-				return
-			}
-
-			if complete {
-				s.reporter.OnComplete()
-				return
-			}
-		case <-finished.C:
-			s.reporter.OnTimeout(s.End)
-			return
-		case <-ctx.Done():
-			s.reporter.OnContextDone(ctx.Err())
-			return
-		case <-s.shutdown:
-			s.reporter.OnShutdown()
-			return
-		}
-	}
-}
-
 // checkAndSubmit verifies orderbook deployability then executes an order if
 // all checks pass.
 func (s *Strategy) checkAndSubmit(ctx context.Context) error {
@@ -157,7 +108,25 @@ func (s *Strategy) checkAndSubmit(ctx context.Context) error {
 		return errStrategyIsNil
 	}
 
-	deploymentInBase, details, err := s.VerifyBookDeployment(s.orderbook, s.allocation.Deployment)
+	candles, err := s.Exchange.GetHistoricCandles(ctx,
+		s.Pair,
+		s.Asset,
+		time.Now().AddDate(0, 0, -28),
+		time.Now(),
+		kline.OneDay)
+	if err != nil {
+		fmt.Println("BRUH")
+		return err
+	}
+
+	twapPrice, err := candles.GetTWAP()
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("TWAP PRICE:", twapPrice)
+
+	deploymentInBase, details, err := s.VerifyBookDeployment(s.orderbook, s.allocation.Deployment, twapPrice)
 	if err != nil {
 		return err
 	}
@@ -182,7 +151,7 @@ func (s *Strategy) checkAndSubmit(ctx context.Context) error {
 	s.allocation.Deployed += s.allocation.Deployment
 	s.allocation.Deployments++
 
-	s.reporter.OnOrder(submit, resp, details)
+	s.ReportOrder(submit, resp, details)
 	return nil
 }
 

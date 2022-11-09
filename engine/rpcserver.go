@@ -39,7 +39,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/strategy/dca"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/strategy/twap"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
@@ -5642,7 +5642,7 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 	}
 
 	ctx := stream.Context()
-	dcaStrat, err := dca.New(ctx, &dca.Config{
+	twapStrat, err := twap.New(ctx, &twap.Config{
 		Exchange:            exch,
 		Pair:                pair,
 		Asset:               as,
@@ -5666,7 +5666,7 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 		return err
 	}
 
-	id, err := s.strategyManager.Register(dcaStrat)
+	id, err := s.strategyManager.Register(twapStrat)
 	if err != nil {
 		return err
 	}

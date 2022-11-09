@@ -44,8 +44,7 @@ var (
 	errTimerIsNil                      = errors.New("timer is nil")
 )
 
-// Config defines the base elements required to undertake the TWAP strategy
-// TODO: Shift core details to common.
+// Config defines the base elements required to undertake strategy
 type Config struct {
 	Exchange exchange.IBotExchange
 	Pair     currency.Pair
@@ -184,7 +183,7 @@ func (c *Config) Check(ctx context.Context) error {
 }
 
 // GetDeploymentAmount will truncate and equally distribute amounts across time.
-func (c *Config) GetDistrbutionAmount(allocatedAmount float64, book *orderbook.Depth) (*Allocation, error) {
+func (c *Config) GetDistrbutionAmount(ctx context.Context, allocatedAmount float64, book *orderbook.Depth) (*Allocation, error) {
 	if c == nil {
 		return nil, errConfigurationIsNil
 	}
@@ -208,9 +207,28 @@ func (c *Config) GetDistrbutionAmount(allocatedAmount float64, book *orderbook.D
 	deployments := int64(window) / int64(c.Interval)
 	deploymentAmount := allocatedAmount / float64(deployments)
 
+	candles, err := c.Exchange.GetHistoricCandles(ctx,
+		c.Pair,
+		c.Asset,
+		time.Now().AddDate(0, 0, -28),
+		time.Now(),
+		kline.OneDay)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println(len(candles.Candles))
+
+	twapPrice, err := candles.GetTWAP()
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println("TWAP PRICE:", twapPrice)
+
 	// The checks below determines if the allocation spread over time can or
 	// *should* be deployed on the exchange.
-	deploymentAmountInBase, _, err := c.VerifyBookDeployment(book, deploymentAmount)
+	deploymentAmountInBase, _, err := c.VerifyBookDeployment(book, deploymentAmount, twapPrice)
 	if err != nil {
 		return nil, err
 	}
@@ -234,7 +252,7 @@ func (c *Config) GetDistrbutionAmount(allocatedAmount float64, book *orderbook.D
 
 // VerifyBookDeployment verifies book liquidity and structure with deployment
 // amount and returns base amount and details.
-func (c *Config) VerifyBookDeployment(book *orderbook.Depth, deploymentAmount float64) (float64, *orderbook.Movement, error) {
+func (c *Config) VerifyBookDeployment(book *orderbook.Depth, deploymentAmount, twapPrice float64) (float64, *orderbook.Movement, error) {
 	if c == nil {
 		return 0, nil, errConfigurationIsNil
 	}
@@ -249,13 +267,13 @@ func (c *Config) VerifyBookDeployment(book *orderbook.Depth, deploymentAmount fl
 	var err error
 	if c.Buy {
 		// Quote needs to be converted to base for deployment checks.
-		details, err = book.LiftTheAsksFromBest(deploymentAmount, false)
+		details, err = book.LiftTheAsks(deploymentAmount, twapPrice, false)
 		if err != nil {
 			return 0, nil, err
 		}
 		deploymentAmount = details.Purchased
 	} else {
-		details, err = book.HitTheBidsFromBest(deploymentAmount, false)
+		details, err = book.HitTheBids(deploymentAmount, twapPrice, false)
 		if err != nil {
 			return 0, nil, err
 		}
@@ -270,6 +288,7 @@ func (c *Config) VerifyBookDeployment(book *orderbook.Depth, deploymentAmount fl
 		}
 
 		if c.MaxImpactSlippage < details.ImpactPercentage {
+			fmt.Printf("%+v\n", details)
 			return 0, nil, fmt.Errorf("%w: book slippage: %f requested max slippage %f",
 				errMaxImpactPercentageExceeded,
 				details.ImpactPercentage,
