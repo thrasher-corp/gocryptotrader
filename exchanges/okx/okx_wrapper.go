@@ -780,7 +780,11 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		if s.Type.Lower() == "" {
 			orderRequest.OrderType = OkxOrderOptimalLimitIOC // only applicable for Futures and Perpetual Swap Types.
 		}
-		orderRequest.PositionSide = positionSideLong
+		if s.Side.IsLong() {
+			orderRequest.PositionSide = positionSideLong
+		} else {
+			orderRequest.PositionSide = positionSideShort
+		}
 	}
 	if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		placeOrderResponse, err = ok.WsPlaceOrder(orderRequest)

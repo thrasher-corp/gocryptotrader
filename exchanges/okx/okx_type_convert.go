@@ -29,7 +29,7 @@ func (a *OrderBookResponse) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// UnmarshalJSON decerialize the timestamp information to TakerVolume.
+// UnmarshalJSON deserializes the timestamp information to TakerVolume.
 func (a *TakerVolume) UnmarshalJSON(data []byte) error {
 	type Alias TakerVolume
 	chil := &struct {
@@ -64,7 +64,7 @@ func (a *TradeResponse) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// UnmarshalJSON deserializes json incloding type conversion
+// UnmarshalJSON deserializes json including type conversion
 func (a *Offer) UnmarshalJSON(data []byte) error {
 	type Alias Offer
 	chil := &struct {
@@ -86,7 +86,7 @@ func (a *Offer) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// UnmarshalJSON deserializes json incloding type conversion
+// UnmarshalJSON deserializes json including type conversion
 func (a *DiscountRateInfoItem) UnmarshalJSON(data []byte) error {
 	type Alias DiscountRateInfoItem
 	chil := &struct {
@@ -410,7 +410,7 @@ func (a *LimitPriceResponse) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// UnmarshalJSON decerialize the account and position response.
+// UnmarshalJSON deserializes the account and position response.
 func (a *TickerResponse) UnmarshalJSON(data []byte) error {
 	type Alias TickerResponse
 	chil := &struct {
@@ -1150,7 +1150,7 @@ func (a *AccountPositionHistory) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// UnmarshalJSON decerialize the account and position response, and timestamp information.
+// UnmarshalJSON deserializes the account and position response, and timestamp information.
 func (a *AccountAndPositionRisk) UnmarshalJSON(data []byte) error {
 	type Alias AccountAndPositionRisk
 	chil := &struct {
@@ -1226,7 +1226,7 @@ func (a *InterestAccruedData) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// UnmarshalJSON decerialize the account and position response.
+// UnmarshalJSON deserializes the account and position response.
 func (a *AccountRiskState) UnmarshalJSON(data []byte) error {
 	type Alias AccountRiskState
 	chil := &struct {
@@ -1258,7 +1258,7 @@ func (a *BorrowRepayHistory) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// UnmarshalJSON decerialize the account and position response.
+// UnmarshalJSON deserializes the account and position response.
 func (a *BorrowInterestAndLimitResponse) UnmarshalJSON(data []byte) error {
 	type Alias BorrowInterestAndLimitResponse
 	chil := &struct {

@@ -620,13 +620,13 @@ type CancelOrderRequestParam struct {
 
 // AmendOrderRequestParams represents amend order requesting parameters.
 type AmendOrderRequestParams struct {
-	InstrumentID            string  `json:"instId"`
-	CancelOnFail            bool    `json:"cxlOnFail"`
-	OrderID                 string  `json:"ordId"`
-	ClientSuppliedOrderID   string  `json:"clOrdId"`
-	ClientSuppliedRequestID string  `json:"reqId"`
-	NewQuantity             float64 `json:"newSz,string"`
-	NewPrice                float64 `json:"newPx,string"`
+	InstrumentID            string  `json:"instId,omitempty"`
+	CancelOnFail            bool    `json:"cxlOnFail,omitempty"`
+	OrderID                 string  `json:"ordId,omitempty"`
+	ClientSuppliedOrderID   string  `json:"clOrdId,omitempty"`
+	ClientSuppliedRequestID string  `json:"reqId,omitempty"`
+	NewQuantity             float64 `json:"newSz,string,omitempty"`
+	NewPrice                float64 `json:"newPx,string,omitempty"`
 }
 
 // ClosePositionsRequestParams input parameters for close position endpoints

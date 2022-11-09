@@ -1378,6 +1378,9 @@ func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]OrderData,
 			arg.OrderType == OkxOrderFOK || arg.OrderType == OkxOrderIOC) {
 			return nil, fmt.Errorf("invalid order price for %s order types", arg.OrderType)
 		}
+		if arg.QuantityType != "" && arg.QuantityType != "base_ccy" && arg.QuantityType != "quote_ccy" {
+			return nil, errors.New("only base_ccy and quote_ccy quantity types are supported")
+		}
 	}
 	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
 	if err != nil {
@@ -1583,7 +1586,7 @@ func (ok *Okx) WsAmendOrder(arg *AmendOrderRequestParams) (*OrderData, error) {
 		return nil, errMissingClientOrderIDOrOrderID
 	}
 	if arg.NewQuantity <= 0 && arg.NewPrice <= 0 {
-		return nil, errMissingNewSizeOrPriceInformation
+		return nil, errInvalidNewSizeOrPriceInformation
 	}
 	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
 	if err != nil {
@@ -1644,7 +1647,7 @@ func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]OrderDat
 			return nil, errMissingClientOrderIDOrOrderID
 		}
 		if args[x].NewQuantity <= 0 && args[x].NewPrice <= 0 {
-			return nil, errMissingNewSizeOrPriceInformation
+			return nil, errInvalidNewSizeOrPriceInformation
 		}
 	}
 	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
@@ -1748,7 +1751,7 @@ func (m *wsRequestDataChannelsMultiplexer) Run() {
 	}
 }
 
-// wsChannelSubscription send a subscription or unsubscription request for different channels through the websocket stream.
+// wsChannelSubscription sends a subscription or unsubscription request for different channels through the websocket stream.
 func (ok *Okx) wsChannelSubscription(operation, channel string, assetType asset.Item, pair currency.Pair, tInstrumentType, tInstrumentID, tUnderlying bool) error {
 	if operation != operationSubscribe && operation != operationUnsubscribe {
 		return errInvalidWebsocketEvent

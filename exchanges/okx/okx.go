@@ -264,7 +264,7 @@ var (
 	errInvalidOrderType                              = errors.New("invalid order type")
 	errInvalidAmount                                 = errors.New("unacceptable quantity to buy or sell")
 	errMissingClientOrderIDOrOrderID                 = errors.New("client supplier order id or order id is missing")
-	errMissingNewSizeOrPriceInformation              = errors.New("missing the new size or price information")
+	errInvalidNewSizeOrPriceInformation              = errors.New("invalid the new size or price information")
 	errMissingNewSize                                = errors.New("missing the order size information")
 	errMissingMarginMode                             = errors.New("missing required param margin mode \"mgnMode\"")
 	errInvalidTriggerPrice                           = errors.New("invalid trigger price value")
@@ -560,6 +560,9 @@ func (ok *Okx) AmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (*O
 	if arg.ClientSuppliedOrderID == "" && arg.OrderID == "" {
 		return nil, errMissingClientOrderIDOrOrderID
 	}
+	if arg.NewQuantity < 0 && arg.NewPrice < 0 {
+		return nil, errInvalidNewSizeOrPriceInformation
+	}
 	var resp []OrderData
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, amendOrderEPL, http.MethodPost, amendOrder, arg, &resp, true)
 	if err != nil {
@@ -579,6 +582,9 @@ func (ok *Okx) AmendMultipleOrders(ctx context.Context, args []AmendOrderRequest
 		}
 		if args[x].ClientSuppliedOrderID == "" && args[x].OrderID == "" {
 			return nil, errMissingClientOrderIDOrOrderID
+		}
+		if args[x].NewQuantity < 0 && args[x].NewPrice < 0 {
+			return nil, errInvalidNewSizeOrPriceInformation
 		}
 	}
 	var resp []OrderData
