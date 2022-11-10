@@ -490,11 +490,12 @@ func areTestAPIKeysSet() bool {
 	return c.ValidateAPICredentials(c.GetDefaultCredentials()) == nil
 }
 
-func TestSubmitLimitOrder(t *testing.T) {
+func TestSubmitOrder(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
+	// limit order
 	var orderSubmission = &order.Submit{
 		Exchange: c.Name,
 		Pair: currency.Pair{
@@ -515,13 +516,9 @@ func TestSubmitLimitOrder(t *testing.T) {
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
-}
-func TestSubmitMarketOrderFromAmount(t *testing.T) {
-	if areTestAPIKeysSet() && !canManipulateRealOrders {
-		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
-	}
 
-	var orderSubmission = &order.Submit{
+	// market order from amount
+	orderSubmission = &order.Submit{
 		Exchange: c.Name,
 		Pair: currency.Pair{
 			Delimiter: "-",
@@ -534,20 +531,15 @@ func TestSubmitMarketOrderFromAmount(t *testing.T) {
 		ClientID:  "meowOrder",
 		AssetType: asset.Spot,
 	}
-	response, err := c.SubmitOrder(context.Background(), orderSubmission)
+	response, err = c.SubmitOrder(context.Background(), orderSubmission)
 	if areTestAPIKeysSet() && (err != nil || response.Status != order.New) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
-}
 
-func TestSubmitMarketOrderFromQuoteAmount(t *testing.T) {
-	if areTestAPIKeysSet() && !canManipulateRealOrders {
-		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
-	}
-
-	var orderSubmission = &order.Submit{
+	// market order from quote amount
+	orderSubmission = &order.Submit{
 		Exchange: c.Name,
 		Pair: currency.Pair{
 			Delimiter: "-",
@@ -560,7 +552,7 @@ func TestSubmitMarketOrderFromQuoteAmount(t *testing.T) {
 		ClientID:    "meowOrder",
 		AssetType:   asset.Spot,
 	}
-	response, err := c.SubmitOrder(context.Background(), orderSubmission)
+	response, err = c.SubmitOrder(context.Background(), orderSubmission)
 	if areTestAPIKeysSet() && (err != nil || response.Status != order.New) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {
