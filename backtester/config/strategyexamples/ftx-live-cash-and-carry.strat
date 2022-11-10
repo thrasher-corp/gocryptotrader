@@ -76,7 +76,7 @@
    "new-event-timeout": 60000000000,
    "data-check-timer": 1000000000,
    "real-orders": false,
-   "close-positions-on-exit": true,
+   "close-positions-on-stop": true,
    "data-request-retry-tolerance": 3,
    "data-request-retry-wait-time": 500000000,
    "exchange-credentials": [

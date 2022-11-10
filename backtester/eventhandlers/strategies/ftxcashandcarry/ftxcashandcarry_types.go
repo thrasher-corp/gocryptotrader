@@ -19,7 +19,6 @@ const (
 var (
 	errFuturesOnly      = errors.New("can only work with futures")
 	errOnlyFTXSupported = errors.New("only FTX supported for this strategy")
-	errNoSignals        = errors.New("no data signals to process")
 )
 
 // Strategy is an implementation of the Handler interface

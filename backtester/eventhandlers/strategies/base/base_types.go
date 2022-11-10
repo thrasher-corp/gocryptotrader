@@ -16,4 +16,6 @@ var (
 	ErrInvalidCustomSettings = errors.New("invalid custom settings in config")
 	// ErrTooMuchBadData used when there is too much missing data
 	ErrTooMuchBadData = errors.New("backtesting cannot continue as there is too much invalid data. Please review your dataset")
+	// ErrNoDataToProcess is returned when simultaneous signal processing is enabled, but no evens are passed in
+	ErrNoDataToProcess = errors.New("no kline data to process")
 )

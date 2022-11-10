@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -2624,11 +2623,6 @@ func TestGetCollateralCurrencyForContract(t *testing.T) {
 	_, _, err := b.GetCollateralCurrencyForContract(asset.Futures, currency.NewPair(currency.XRP, currency.BABYDOGE))
 	if !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNotYetImplemented)
-	}
-
-	_, _, err = b.GetCollateralCurrencyForContract(asset.Spot, currency.NewPair(currency.SHIB, currency.DOGE))
-	if !errors.Is(err, order.ErrNotFuturesAsset) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrNotFuturesAsset)
 	}
 }
 

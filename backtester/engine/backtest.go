@@ -276,13 +276,14 @@ func (bt *BackTest) handleEvent(ev common.Event) error {
 		err = bt.processFillEvent(eType, funds.FundReleaser())
 		if bt.LiveDataHandler != nil {
 			// output log data per interval instead of at the end
-			var result string
-			result, err = bt.Statistic.CreateLog(eType)
-			if err != nil {
-				log.Error(common.LiveStrategy, err)
-			} else {
-				log.Info(common.LiveStrategy, result)
+			result, logErr := bt.Statistic.CreateLog(eType)
+			if logErr != nil {
+				return logErr
 			}
+			if err != nil {
+				return err
+			}
+			log.Info(common.LiveStrategy, result)
 		}
 	default:
 		err = fmt.Errorf("handleEvent %w %T received, could not process",
@@ -349,7 +350,11 @@ func (bt *BackTest) processSimultaneousDataEvents() error {
 		if err != nil {
 			switch {
 			case errors.Is(err, statistics.ErrAlreadyProcessed):
-				log.Warnf(common.LiveStrategy, "%v %v", latestData.GetOffset(), err)
+				if !bt.MetaData.Closed || !bt.MetaData.ClosePositionsOnStop {
+					// Closing positions on close reuses existing events and doesn't need to be logged
+					// any other scenario, this should be logged
+					log.Warnf(common.LiveStrategy, "%v %v", latestData.GetOffset(), err)
+				}
 				continue
 			case errors.Is(err, gctorder.ErrPositionLiquidated):
 				return nil
@@ -361,12 +366,17 @@ func (bt *BackTest) processSimultaneousDataEvents() error {
 	}
 	signals, err := bt.Strategy.OnSimultaneousSignals(dataEvents, bt.Funding, bt.Portfolio)
 	if err != nil {
-		if errors.Is(err, base.ErrTooMuchBadData) {
+		switch {
+		case errors.Is(err, base.ErrTooMuchBadData):
 			// too much bad data is a severe error and backtesting must cease
 			return err
+		case errors.Is(err, base.ErrNoDataToProcess) && bt.MetaData.Closed && bt.MetaData.ClosePositionsOnStop:
+			// event queue is being cleared with no data events to process
+			return nil
+		default:
+			log.Errorf(common.Backtester, "OnSimultaneousSignals %v", err)
+			return nil
 		}
-		log.Errorf(common.Backtester, "OnSimultaneousSignals %v", err)
-		return nil
 	}
 	for i := range signals {
 		err = bt.Statistic.SetEventForOffset(signals[i])

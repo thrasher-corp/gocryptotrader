@@ -2838,11 +2838,6 @@ func TestGetCollateralCurrencyForContract(t *testing.T) {
 	if !c.Equal(currency.USD) {
 		t.Fatalf("received: '%v' but expected: '%v'", c, currency.USD)
 	}
-
-	_, _, err = f.GetCollateralCurrencyForContract(asset.Spot, currency.NewPair(currency.SHIB, currency.DOGE))
-	if !errors.Is(err, order.ErrNotFuturesAsset) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrNotFuturesAsset)
-	}
 }
 
 func TestGetCurrencyForRealisedPNL(t *testing.T) {

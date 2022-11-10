@@ -329,8 +329,8 @@ func TestOnSimultaneousSignals(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
 	_, err := s.OnSimultaneousSignals(nil, nil, nil)
-	if !errors.Is(err, errNoSignals) {
-		t.Errorf("received '%v' expected '%v", err, errNoSignals)
+	if !errors.Is(err, base.ErrNoDataToProcess) {
+		t.Errorf("received '%v' expected '%v", err, base.ErrNoDataToProcess)
 	}
 
 	cp := currency.NewPair(currency.BTC, currency.USD)

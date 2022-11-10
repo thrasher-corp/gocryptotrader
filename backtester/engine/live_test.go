@@ -581,8 +581,8 @@ func TestUpdateFunding(t *testing.T) {
 	}
 
 	err = d.UpdateFunding(true)
-	if !errors.Is(err, errCannotForceWithoutRealOrders) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotForceWithoutRealOrders)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	d.realOrders = true

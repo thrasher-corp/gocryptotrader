@@ -181,8 +181,6 @@ func (d *dataChecker) UpdateFunding(force bool) error {
 		return fmt.Errorf("%w datachecker", gctcommon.ErrNilPointer)
 	case d.funding == nil:
 		return fmt.Errorf("%w datachecker funding manager", gctcommon.ErrNilPointer)
-	case force && !d.realOrders:
-		return errCannotForceWithoutRealOrders
 	case force:
 		atomic.StoreUint32(&d.updatingFunding, 1)
 	case !atomic.CompareAndSwapUint32(&d.updatingFunding, 0, 1):
