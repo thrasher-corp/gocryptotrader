@@ -1158,13 +1158,16 @@ func (ok *Okx) wsProcessTickers(data []byte) error {
 	if err != nil {
 		return err
 	}
-
 	for i := range response.Data {
 		a := response.Data[i].InstrumentType
-		if a == asset.Empty {
+		assetEnabledInMargin := false
+		if a == asset.Empty || a == asset.Spot {
+			// Here, if the asset type is empty, then we do a guess for the asset type of the instrument depending on the instrument id.
+			// But, if the asset type is Spot and since the ticker data for an instrument of asset.Spot and asset.Marigin is same, I will do a check if the instrument ID is enabled for asset.Margins.
+			// If so, I will send the ticker data to the data handler with Spot and Marigin asset types.
 			a, err = ok.GuessAssetTypeFromInstrumentID(response.Data[i].InstrumentID)
-			if err != nil {
-				return err
+			if err == nil && a == asset.Margin {
+				assetEnabledInMargin = true
 			}
 		}
 		if !ok.SupportsAsset(a) {
@@ -1188,7 +1191,7 @@ func (ok *Okx) wsProcessTickers(data []byte) error {
 		default:
 			return fmt.Errorf("%w, asset type %s is not supported", errInvalidInstrumentType, a.String())
 		}
-		ok.Websocket.DataHandler <- &ticker.Price{
+		tickData := &ticker.Price{
 			ExchangeName: ok.Name,
 			Open:         response.Data[i].Open24H,
 			Volume:       baseVolume,
@@ -1203,6 +1206,11 @@ func (ok *Okx) wsProcessTickers(data []byte) error {
 			AssetType:    a,
 			Pair:         c,
 			LastUpdated:  response.Data[i].TickerDataGenerationTime,
+		}
+		ok.Websocket.DataHandler <- tickData
+		if assetEnabledInMargin {
+			tickData.AssetType = asset.Margin
+			ok.Websocket.DataHandler <- tickData
 		}
 	}
 	return nil
@@ -1765,7 +1773,7 @@ func (ok *Okx) wsChannelSubscription(operation, channel string, assetType asset.
 	var format currency.PairFormat
 	var err error
 	if tInstrumentType {
-		instrumentType = strings.ToUpper(ok.GetInstrumentTypeFromAssetItem(assetType))
+		instrumentType = strings.ToLower(ok.GetInstrumentTypeFromAssetItem(assetType))
 		if instrumentType != okxInstTypeSpot &&
 			instrumentType != okxInstTypeMargin &&
 			instrumentType != okxInstTypeSwap &&
@@ -2008,7 +2016,7 @@ func (ok *Okx) MarkPriceSubscription(operation string, assetType asset.Item, pai
 // MarkPriceCandlesticksSubscription to subscribe or unsubscribe to "mark-price-candles" channels to retrieve the candlesticks data of the mark price. Data will be pushed every 500 ms.
 func (ok *Okx) MarkPriceCandlesticksSubscription(operation, channel string, assetType asset.Item, pair currency.Pair) error {
 	if _, okay := candlesticksMarkPriceMap[channel]; !okay {
-		return errMissingValidChannelInformation
+		return fmt.Errorf("%w channel: %v", errMissingValidChannelInformation, channel)
 	}
 	return ok.wsChannelSubscription(operation, channel, assetType, pair, false, true, false)
 }
@@ -2024,7 +2032,7 @@ func (ok *Okx) PriceLimitSubscription(operation string, pair currency.Pair) erro
 // OrderBooksSubscription subscribe or unsubscribe to "books*" channel to retrieve order book data.
 func (ok *Okx) OrderBooksSubscription(operation, channel string, assetType asset.Item, pair currency.Pair) error {
 	if channel != okxChannelOrderBooks && channel != okxChannelOrderBooks5 && channel != okxChannelOrderBooks50TBT && channel != okxChannelOrderBooksTBT && channel != okxChannelBBOTBT {
-		return errMissingValidChannelInformation
+		return fmt.Errorf("%w channel: %v", errMissingValidChannelInformation, channel)
 	}
 	return ok.wsChannelSubscription(operation, channel, assetType, pair, false, true, false)
 }

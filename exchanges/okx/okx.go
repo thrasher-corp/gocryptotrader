@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -239,9 +238,6 @@ const (
 )
 
 var (
-	// letters a regular expression for both uppercase and lowercase english characters.
-	letters = regexp.MustCompile(`^[a-zA-Z]+$`)
-
 	errLimitExceedsMaximumResultPerRequest           = errors.New("maximum result per request exceeds the limit")
 	errNo24HrTradeVolumeFound                        = errors.New("no trade record found in the 24 trade volume ")
 	errOracleInformationNotFound                     = errors.New("oracle information not found")
@@ -319,7 +315,6 @@ var (
 	errNilArgument                                   = errors.New("nil argument is not acceptable")
 	errNoOrderParameterPassed                        = errors.New("no order parameter was passed")
 	errEitherPriceVarianceOrPriceSpreadRequired      = errors.New("either \"price ratio\" or \"price variance\" is allowed to be passed")
-	errIncompleteCandlestickData                     = errors.New("incomplete candlestick data")
 	errMaxRFQOrdersToCancel                          = errors.New("no more than 100 RFQ cancel order parameter is allowed")
 	errMalformedData                                 = errors.New("malformed data")
 	errInvalidUnderlying                             = errors.New("invalid underlying")
@@ -4474,7 +4469,7 @@ func (ok *Okx) GuessAssetTypeFromInstrumentID(instrumentID string) (asset.Item, 
 		if err != nil {
 			return asset.Empty, err
 		}
-		pairs, err := ok.GetAvailablePairs(asset.Margin)
+		pairs, err := ok.GetEnabledPairs(asset.Margin)
 		if err != nil {
 			return asset.Empty, err
 		}

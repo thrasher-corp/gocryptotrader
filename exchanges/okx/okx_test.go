@@ -2677,7 +2677,7 @@ func TestInstrumentsSubscription(t *testing.T) {
 
 func TestTickersSubscription(t *testing.T) {
 	t.Parallel()
-	if err := ok.TickersSubscription("subscribe", asset.Spot, currency.NewPair(currency.BTC, currency.USDT)); err != nil {
+	if err := ok.TickersSubscription("subscribe", asset.Margin, currency.NewPair(currency.BTC, currency.USDT)); err != nil {
 		t.Errorf("%s TickersSubscription() error: %v", ok.Name, err)
 	}
 	if err := ok.TickersSubscription("unsubscribe", asset.Spot, currency.NewPair(currency.BTC, currency.USDT)); err != nil {

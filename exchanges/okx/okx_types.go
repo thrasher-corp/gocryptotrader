@@ -2300,16 +2300,6 @@ type wsIncomingData struct {
 	Data      json.RawMessage `json:"data,omitempty"`
 }
 
-// copyToSubscriptionResponse returns a *SubscriptionOperationResponse instance.
-func (w *wsIncomingData) copyToSubscriptionResponse() *SubscriptionOperationResponse {
-	return &SubscriptionOperationResponse{
-		Event:    w.Event,
-		Argument: &w.Argument,
-		Code:     w.Code,
-		Msg:      w.Msg,
-	}
-}
-
 // copyToPlaceOrderResponse returns WSPlaceOrderResponse struct instance
 func (w *wsIncomingData) copyToPlaceOrderResponse() (*WSOrderResponse, error) {
 	if len(w.Data) == 0 {
