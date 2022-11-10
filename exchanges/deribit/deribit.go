@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -635,6 +636,40 @@ func (d *Deribit) GetTradingViewChartData(ctx context.Context, instrument, resol
 	var resp TVChartData
 	return &resp, d.SendHTTPRequest(ctx, exchange.RestFutures,
 		common.EncodeURLValues(getTradingViewChartData, params), &resp)
+}
+
+// GetResolutionFromInterval returns the string representation of intervals given kline.Interval instance.
+func (d *Deribit) GetResolutionFromInterval(interval kline.Interval) (string, error) {
+	switch interval {
+	case kline.HundredMilliSec:
+		return "100ms", nil
+	case kline.OneMin:
+		return "1", nil
+	case kline.ThreeMin:
+		return "3", nil
+	case kline.FiveMin:
+		return "5", nil
+	case kline.TenMin:
+		return "10", nil
+	case kline.FifteenMin:
+		return "15", nil
+	case kline.ThirtyMin:
+		return "30", nil
+	case kline.OneHour:
+		return "60", nil
+	case kline.TwoHour:
+		return "120", nil
+	case kline.ThreeHour:
+		return "180", nil
+	case kline.SixHour:
+		return "360", nil
+	case kline.TwelveHour:
+		return "720", nil
+	case kline.OneDay:
+		return "1D", nil
+	default:
+		return "", kline.ErrUnsupportedInterval
+	}
 }
 
 // GetVolatilityIndexData gets volatility index data for the requested currency
@@ -1535,41 +1570,31 @@ func (d *Deribit) SubmitSell(ctx context.Context, arg *OrderBuyAndSellParams) (*
 }
 
 // SubmitEdit submits an edit order request
-func (d *Deribit) SubmitEdit(ctx context.Context, orderID, advanced string, amount, price, triggerPrice float64, postOnly, reduceOnly, rejectPostOnly, mmp bool) (*PrivateTradeData, error) {
-	if orderID == "" {
+func (d *Deribit) SubmitEdit(ctx context.Context, arg *OrderBuyAndSellParams) (*PrivateTradeData, error) {
+	if arg == nil {
+		return nil, fmt.Errorf("%w parameter is required", common.ErrNilPointer)
+	}
+	if arg.OrderID == "" {
 		return nil, fmt.Errorf("%w, order id is required", errInvalidID)
 	}
-	if amount <= 0 {
+	if arg.Amount <= 0 {
 		return nil, errInvalidAmount
 	}
 	params := url.Values{}
-	params.Set("order_id", orderID)
-	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	postOnlyStr := falseStr
-	if postOnly {
-		postOnlyStr = trueStr
+	params.Set("order_id", arg.OrderID)
+	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
+	params.Set("post_only", strconv.FormatBool(arg.PostOnly))
+	params.Set("reject_post_only", strconv.FormatBool(arg.RejectPostOnly))
+	params.Set("reduce_only", strconv.FormatBool(arg.ReduceOnly))
+	params.Set("mmp", strconv.FormatBool(arg.MMP))
+	if arg.TriggerPrice != 0 {
+		params.Set("trigger_price", strconv.FormatFloat(arg.TriggerPrice, 'f', -1, 64))
 	}
-	params.Set("post_only", postOnlyStr)
-	rejectPostOnlyStr := falseStr
-	if rejectPostOnly {
-		rejectPostOnlyStr = trueStr
+	if arg.Advanced != "" {
+		params.Set("advanced", arg.Advanced)
 	}
-	params.Set("reject_post_only", rejectPostOnlyStr)
-	reduceOnlyStr := falseStr
-	if reduceOnly {
-		reduceOnlyStr = trueStr
-	}
-	params.Set("reduce_only", reduceOnlyStr)
-	mmpStr := falseStr
-	if mmp {
-		mmpStr = trueStr
-	}
-	params.Set("mmp", mmpStr)
-	if triggerPrice != 0 {
-		params.Set("trigger_price", strconv.FormatFloat(triggerPrice, 'f', -1, 64))
-	}
-	if advanced != "" {
-		params.Set("advanced", advanced)
+	if arg.Price > 0 {
+		params.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
 	}
 	var resp PrivateTradeData
 	return &resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet, submitEdit, params, &resp)

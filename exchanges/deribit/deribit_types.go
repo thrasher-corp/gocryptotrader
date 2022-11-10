@@ -1348,8 +1348,9 @@ type wsUserPortfolio struct {
 
 // OrderBuyAndSellParams represents request parameters for submit order.
 type OrderBuyAndSellParams struct {
-	Instrument     string  `json:"instrument_name"`
-	Amount         float64 `json:"amount"`
+	OrderID        string  `json:"order_id,omitempty"`
+	Instrument     string  `json:"instrument_name,omitempty"`
+	Amount         float64 `json:"amount,omitempty"`
 	OrderType      string  `json:"order_type,omitempty"`
 	Price          float64 `json:"price,omitempty"`
 	Label          string  `json:"label,omitempty"`

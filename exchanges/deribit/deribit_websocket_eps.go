@@ -688,7 +688,7 @@ func (d *Deribit) WSRetriveCurrentDepositAddress(currency string) (*DepositAddre
 }
 
 // WSRetriveWithdrawals retrives withdrawals data for a requested currency through the websocket connection.
-func (d *Deribit) WSRetriveWithdrawals(currency string, count, offset int64) (*TransferData, error) {
+func (d *Deribit) WSRetriveWithdrawals(currency string, count, offset int64) (*WithdrawalsData, error) {
 	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
 		return nil, errInvalidIndexPriceCurrency
 	}
@@ -701,7 +701,7 @@ func (d *Deribit) WSRetriveWithdrawals(currency string, count, offset int64) (*T
 		Count:    count,
 		Offset:   offset,
 	}
-	var resp TransferData
+	var resp WithdrawalsData
 	return &resp, d.SendWSRequest(getWithdrawals, input, &resp, true)
 }
 
@@ -800,7 +800,7 @@ func (d *Deribit) WSRetriveAnnouncements(startTime time.Time, count int64) ([]An
 		input.Count = count
 	}
 	var resp []Announcement
-	return resp, d.SendWSRequest(getAnnouncements, input, &resp, true)
+	return resp, d.SendWSRequest(getAnnouncements, input, &resp, false)
 }
 
 // WSRetrivePublicPortfolioMargins public version of the method calculates portfolio margin info for simulated position. For concrete user position, the private version of the method must be used. The public version of the request has special restricted rate limit (not more than once per a second for the IP).
@@ -819,7 +819,7 @@ func (d *Deribit) WSRetrivePublicPortfolioMargins(currency string, simulatedPosi
 		input.SimulatedPositions = simulatedPositions
 	}
 	var resp PortfolioMargin
-	return &resp, d.SendWSRequest(getPublicPortfolioMargins, input, &resp, true)
+	return &resp, d.SendWSRequest(getPublicPortfolioMargins, input, &resp, false)
 }
 
 // WSChangeAPIKeyName changes the name of the api key requested through the websocket connection.
@@ -1394,6 +1394,18 @@ func (d *Deribit) WSSubmitSell(arg *OrderBuyAndSellParams) (*PrivateTradeData, e
 	return &resp, d.SendWSRequest(submitSell, &arg, &resp, true)
 }
 
+// WSSubmitEdit submits an edit order request through the websocket connection.
+func (d *Deribit) WSSubmitEdit(arg *OrderBuyAndSellParams) (*PrivateTradeData, error) {
+	if arg.OrderID == "" {
+		return nil, fmt.Errorf("%w, order id is required", errInvalidID)
+	}
+	if arg.Amount <= 0 {
+		return nil, errInvalidAmount
+	}
+	var resp PrivateTradeData
+	return &resp, d.SendWSRequest(submitEdit, &arg, &resp, true)
+}
+
 // WSEditOrderByLabel submits an edit order request sorted via label through the websocket connection.
 func (d *Deribit) WSEditOrderByLabel(arg *OrderBuyAndSellParams) (*PrivateTradeData, error) {
 	if arg == nil {
@@ -1926,7 +1938,7 @@ func (d *Deribit) WSRetriveCombos(currency string) ([]ComboDetail, error) {
 		return nil, fmt.Errorf("%w, only BTC, ETH, SOL, and USDC are supported", errInvalidCurrency)
 	}
 	var resp []ComboDetail
-	return resp, d.SendWSRequest(getCombos, map[string]string{"currency": currency}, &resp, true)
+	return resp, d.SendWSRequest(getCombos, map[string]string{"currency": currency}, &resp, false)
 }
 
 // WSCreateCombo verifies and creates a combo book or returns an existing combo matching given trades through the websocket connection.

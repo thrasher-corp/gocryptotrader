@@ -176,9 +176,20 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.GetHistoricCandles(context.Background(), cp,
+	_, err = d.GetHistoricCandles(context.Background(), cp, asset.Futures, time.Now().Add(-time.Hour), time.Now(), kline.FifteenMin)
+	if err != nil {
+		t.Error(err)
+	}
+}
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	t.Parallel()
+	cp, err := currency.NewPairFromString(btcPerpInstrument)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetHistoricCandlesExtended(context.Background(), cp,
 		asset.Futures,
-		time.Now().Add(-time.Hour),
+		time.Now().Add(-time.Hour*10),
 		time.Now(),
 		kline.FifteenMin)
 	if err != nil {
@@ -1319,7 +1330,7 @@ func TestSubmitEdit(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
-	_, err := d.SubmitEdit(context.Background(), "incorrectID", "", 0.001, 100000, 123, false, false, false, false)
+	_, err := d.SubmitEdit(context.Background(), &OrderBuyAndSellParams{OrderID: "incorrectID", Advanced: "", TriggerPrice: 0.001, Price: 100000, Amount: 123})
 	if err != nil && !strings.Contains(err.Error(), "order_not_found") {
 		t.Error(err)
 	}
@@ -2296,6 +2307,9 @@ func TestWSRetriveNewAnnouncements(t *testing.T) {
 
 func TestWSRetrivePricatePortfolioMargins(t *testing.T) {
 	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
 	if _, err := d.WSRetrivePricatePortfolioMargins(currencyBTC, false, nil); err != nil {
 		t.Error(err)
 	}
@@ -2455,6 +2469,9 @@ func TestWSSetPasswordForSubAccount(t *testing.T) {
 
 func TestWSToggleNotificationsFromSubAccount(t *testing.T) {
 	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
 	_, err := d.WSToggleNotificationsFromSubAccount(1, false)
 	if err != nil && !strings.Contains(err.Error(), "unauthorized") {
 		t.Error(err)
@@ -2819,6 +2836,9 @@ func TestWSRetriveSettlementHistoryByCurency(t *testing.T) {
 
 func TestWSRetriveComboIDS(t *testing.T) {
 	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
 	_, err := d.WSRetriveComboIDS(currencyBTC, "")
 	if err != nil {
 		t.Error(err)
@@ -2992,6 +3012,31 @@ func TestWSMovePositions(t *testing.T) {
 		},
 	})
 	if err != nil && !strings.Contains(err.Error(), "must be one of the subaccounts") {
+		t.Error(err)
+	}
+}
+
+func TestGenerateDefaultSubscriptions(t *testing.T) {
+	t.Parallel()
+	_, err := d.GenerateDefaultSubscriptions()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSSubmitEdit(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
+	_, err := d.WSSubmitEdit(&OrderBuyAndSellParams{
+		OrderID:      "incorrectID",
+		Advanced:     "",
+		TriggerPrice: 0.001,
+		Price:        100000,
+		Amount:       123,
+	})
+	if err != nil && !strings.Contains(err.Error(), "order_not_found") {
 		t.Error(err)
 	}
 }
