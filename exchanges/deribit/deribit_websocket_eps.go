@@ -1929,7 +1929,7 @@ func (d *Deribit) WSRetriveComboDetails(comboID string) (*ComboDetail, error) {
 		return nil, errInvalidComboID
 	}
 	var resp ComboDetail
-	return &resp, d.SendWSRequest(getComboDetails, map[string]string{"combo_id": comboID}, &resp, true)
+	return &resp, d.SendWSRequest(getComboDetails, map[string]string{"combo_id": comboID}, &resp, false)
 }
 
 // WSRetriveCombos retrieves information about active combos through the websocket connection.
