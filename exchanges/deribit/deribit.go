@@ -119,7 +119,7 @@ const (
 	createAPIKey                      = "private/create_api_key"
 	createSubAccount                  = "private/create_subaccount"
 	disableAPIKey                     = "private/disable_api_key"
-	disableTFAForSubaccount           = "private/disable_tfa_for_subaccount" // to be removed
+	disableTFAForSubaccount           = "private/disable_tfa_for_subaccount"
 	enableAffiliateProgram            = "private/enable_affiliate_program"
 	enableAPIKey                      = "private/enable_api_key"
 	getAccessLog                      = "private/get_access_log"
@@ -160,9 +160,6 @@ const (
 	invalidateBlockTradesSignature = "private/invalidate_block_trade_signature"
 	movePositions                  = "private/move_positions"
 	verifyBlockTrades              = "private/verify_block_trade"
-
-	falseStr = "false"
-	trueStr  = "true"
 )
 
 // Start implementing public and private exchange API funcs below
@@ -434,11 +431,7 @@ func (d *Deribit) GetLastTradesByCurrency(ctx context.Context, currency, kind, s
 	if count != 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
-	includeOldString := falseStr
-	if includeOld {
-		includeOldString = trueStr
-	}
-	params.Set("include_old", includeOldString)
+	params.Set("include_old", strconv.FormatBool(includeOld))
 	var resp PublicTradesData
 	return &resp, d.SendHTTPRequest(ctx, exchange.RestFutures,
 		common.EncodeURLValues(getLastTradesByCurrency, params), &resp)
@@ -495,11 +488,7 @@ func (d *Deribit) GetLastTradesByInstrument(ctx context.Context, instrument, sta
 	if count != 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
-	includeOldString := falseStr
-	if includeOld {
-		includeOldString = trueStr
-	}
-	params.Set("include_old", includeOldString)
+	params.Set("include_old", strconv.FormatBool(includeOld))
 	var resp PublicTradesData
 	return &resp, d.SendHTTPRequest(ctx, exchange.RestFutures,
 		common.EncodeURLValues(getLastTradesByInstrument, params), &resp)
@@ -601,11 +590,7 @@ func (d *Deribit) GetRFQ(ctx context.Context, currency, kind string) ([]RFQ, err
 // GetTradeVolumes gets trade volumes' data of all instruments
 func (d *Deribit) GetTradeVolumes(ctx context.Context, extended bool) ([]TradeVolumesData, error) {
 	params := url.Values{}
-	extendedStr := falseStr
-	if extended {
-		extendedStr = trueStr
-	}
-	params.Set("extended", extendedStr)
+	params.Set("extended", strconv.FormatBool(extended))
 	var resp []TradeVolumesData
 	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures,
 		common.EncodeURLValues(getTradeVolumes, params), &resp)
@@ -1021,11 +1006,7 @@ func (d *Deribit) CreateAPIKey(ctx context.Context, maxScope, name string, defau
 	if name != "" {
 		params.Set("name", name)
 	}
-	defaultKeyStr := falseStr
-	if defaultKey {
-		defaultKeyStr = trueStr
-	}
-	params.Set("default", defaultKeyStr)
+	params.Set("default", strconv.FormatBool(defaultKey))
 	var resp APIKeyData
 	return &resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
 		createAPIKey, params, &resp)

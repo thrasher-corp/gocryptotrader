@@ -35,7 +35,6 @@ var (
 	errInvalidInstrumentName               = errors.New("invalid instrument name")
 	errInvalidComboID                      = errors.New("invalid combo ID")
 	errInvalidCurrency                     = errors.New("invalid currency")
-	errInvalidComboState                   = errors.New("invalid combo state")
 	errNoArgumentPassed                    = errors.New("no argument passed")
 	errInvalidAmount                       = errors.New("invalid amount, must be greater than 0")
 	errMissingNonce                        = errors.New("missing nonce")
@@ -48,7 +47,6 @@ var (
 	errInvalidEmailAddress                 = errors.New("invalid email address")
 	errMalformedData                       = errors.New("malformed data")
 	errInvalidResponseReceiver             = errors.New("invalid response receiver; must be a non nil pointer")
-	errDisconnectedConnection              = errors.New("websocket connection is not established")
 	errWebsocketConnectionNotAuthenticated = errors.New("websocket connection is not authenticated")
 )
 
@@ -112,20 +110,6 @@ type FundingChartData struct {
 		Interest8H float64 `json:"interest_8h"`
 		Timestamp  int64   `json:"timestamp"`
 	} `json:"data"`
-}
-
-// FundingRateHistoryData stores data for funding rate history
-type FundingRateHistoryData struct {
-	Timestamp      int64   `json:"timestamp"`
-	IndexPrice     float64 `json:"index_price"`
-	PrevIndexPrice float64 `json:"prev_index_price"`
-	Interest8H     float64 `json:"interest_8h"`
-	Interest1H     float64 `json:"interest_1h"`
-}
-
-// FundingRateValueData stores funding rate for the requested period
-type FundingRateValueData struct {
-	Result float64 `json:"result"`
 }
 
 // HistoricalVolatilityData stores volatility data for requested symbols
@@ -381,12 +365,6 @@ type TransferData struct {
 	UpdatedTimestamp int64   `json:"updated_timestamp"`
 }
 
-// TransfersData stores data of transfers
-type TransfersData struct {
-	Count int64          `json:"count"`
-	Data  []TransferData `json:"data"`
-}
-
 // WithdrawData stores data of withdrawal
 type WithdrawData struct {
 	Address            string  `json:"address"`
@@ -503,28 +481,6 @@ type MMPConfigData struct {
 	Interval      int64   `json:"interval"`
 	FrozenTime    int64   `json:"frozen_time"`
 	QuantityLimit float64 `json:"quantity_limit"`
-}
-
-// OrderMarginData stores data for order margins
-type OrderMarginData struct {
-	OrderID       string  `json:"order_id"`
-	InitialMargin float64 `json:"initial_margin"`
-}
-
-// TriggerOrderData stores data for trigger orders
-type TriggerOrderData struct {
-	Trigger        string  `json:"trigger"`
-	Timestamp      int64   `json:"timestamp"`
-	TriggerPrice   float64 `json:"trigger_price"`
-	TriggerOrderID string  `json:"trigger_order_id"`
-	OrderState     string  `json:"order_state"`
-	Request        string  `json:"request"`
-	Price          float64 `json:"price"`
-	OrderID        int64   `json:"order_id"`
-	Offset         int64   `json:"offset"`
-	InstrumentName string  `json:"instrument_name"`
-	Amount         float64 `json:"amount"`
-	Direction      string  `json:"direction"`
 }
 
 // UserTradesData stores data of user trades
@@ -729,12 +685,6 @@ type TransactionsData struct {
 	Continuation int64                `json:"continuation"`
 }
 
-// PlaceTradeData stores data of a private trade/order
-type PlaceTradeData struct {
-	Trades []PrivateTradeData `json:"trades"`
-	Order  OrderData          `json:"order"`
-}
-
 // wsInput defines a request obj for the JSON-RPC login and gets a websocket
 // response
 type wsInput struct {
@@ -771,14 +721,6 @@ type wsResponse struct {
 		Code    int64       `json:"code,omitempty"`
 		Data    interface{} `json:"data"`
 	} `json:"error,omitempty"`
-}
-
-type wsSubmitOrderResponse struct {
-	JSONRPCVersion string            `json:"jsonrpc"`
-	ID             int64             `json:"id"`
-	Method         string            `json:"method"`
-	Result         *PrivateTradeData `json:"result"`
-	Error          *UnmarshalError   `json:"error"`
 }
 
 type wsLoginResponse struct {
