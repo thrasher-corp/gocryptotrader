@@ -316,6 +316,12 @@ func (k *Kraken) SendFuturesAuthRequest(ctx context.Context, method, path string
 			"Nonce":   nonce,
 		}
 
+		var futuresURL string
+		futuresURL, err = k.API.Endpoints.GetURL(exchange.RestFutures)
+		if err != nil {
+			return nil, err
+		}
+
 		return &request.Item{
 			Method:        method,
 			Path:          futuresURL + common.EncodeURLValues(path, data),

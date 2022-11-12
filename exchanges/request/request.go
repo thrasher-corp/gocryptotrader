@@ -165,7 +165,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 
 		resp, err := r._HTTPClient.do(req)
 
-		if r.reporter != nil {
+		if r.reporter != nil && err == nil {
 			r.reporter.Latency(r.name, p.Method, p.Path, time.Since(start))
 		}
 

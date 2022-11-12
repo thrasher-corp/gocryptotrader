@@ -549,7 +549,7 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 		orderID, err = c.PlaceMarketOrder(ctx,
 			"",
 			s.Amount,
-			s.Amount,
+			s.QuoteAmount,
 			s.Side.Lower(),
 			fpair.String(),
 			"")
