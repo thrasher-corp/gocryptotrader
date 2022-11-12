@@ -789,7 +789,7 @@ func (d *Deribit) GetCurrentDepositAddress(ctx context.Context, currency string)
 	params := url.Values{}
 	params.Set("currency", currency)
 	var resp DepositAddressData
-	return &resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet, createDepositAddress, params, &resp)
+	return &resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet, getCurrentDepositAddress, params, &resp)
 }
 
 // GetDeposits gets the deposits of a given currency
@@ -806,8 +806,7 @@ func (d *Deribit) GetDeposits(ctx context.Context, currency string, count, offse
 		params.Set("offset", strconv.FormatInt(offset, 10))
 	}
 	var resp DepositsData
-	return &resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
-		getDeposits, params, &resp)
+	return &resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet, getDeposits, params, &resp)
 }
 
 // GetTransfers gets transfers data for the requested currency
@@ -2129,7 +2128,7 @@ func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, meth
 	}
 	item := &request.Item{
 		Method:        method,
-		Path:          endpoint + deribitAPIVersion + common.EncodeURLValues(path, data),
+		Path:          endpoint + deribitAPIVersion + "/" + common.EncodeURLValues(path, data),
 		Headers:       headers,
 		Body:          nil,
 		Result:        &tempData,

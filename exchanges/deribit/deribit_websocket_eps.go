@@ -684,7 +684,7 @@ func (d *Deribit) WSRetriveCurrentDepositAddress(currency string) (*DepositAddre
 		Currency: currency,
 	}
 	var resp DepositAddressData
-	return &resp, d.SendWSRequest(createDepositAddress, input, &resp, true)
+	return &resp, d.SendWSRequest(getCurrentDepositAddress, input, &resp, true)
 }
 
 // WSRetriveWithdrawals retrives withdrawals data for a requested currency through the websocket connection.

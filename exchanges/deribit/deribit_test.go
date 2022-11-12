@@ -687,10 +687,10 @@ func TestGetCurrentDepositAddress(t *testing.T) {
 		t.Skip()
 	}
 	_, err := d.GetCurrentDepositAddress(context.Background(), currencyETH)
-	if err != nil && !strings.Contains(err.Error(), "max_addr_count_exceeded") {
+	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveCurrentDepositAddress(currencyETH); err != nil && !strings.Contains(err.Error(), "max_addr_count_exceeded") {
+	if _, err := d.WSRetriveCurrentDepositAddress(currencyETH); err != nil {
 		t.Error(err)
 	}
 }
