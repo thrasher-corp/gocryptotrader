@@ -51,32 +51,32 @@ type FuturesCandleStickWithStringParam struct {
 
 // SymbolPriceTicker stores ticker price stats
 type SymbolPriceTicker struct {
-	Symbol                 string  `json:"symbol"`
-	BidPrice               float64 `json:"bid_price,string"`
-	AskPrice               float64 `json:"ask_price,string"`
-	LastPrice              float64 `json:"last_price,string"`
-	LastTickDirection      string  `json:"last_tick_direction"`
-	Price24hAgo            float64 `json:"prev_price_24h,string"`
-	PricePcntChange24h     float64 `json:"price_24h_pcnt,string"`
-	HighPrice24h           float64 `json:"high_price_24h,string"`
-	LowPrice24h            float64 `json:"low_price_24h,string"`
-	Price1hAgo             float64 `json:"prev_price_1h,string"`
-	PricePcntChange1h      float64 `json:"price_1h_pcnt,string"`
-	MarkPrice              float64 `json:"mark_price,string"`
-	IndexPrice             float64 `json:"index_price,string"`
-	OpenInterest           float64 `json:"open_interest"`
-	OpenValue              float64 `json:"open_value,string"`
-	TotalTurnover          float64 `json:"total_turnover,string"`
-	Turnover24h            float64 `json:"turnover_24h,string"`
-	TotalVolume            float64 `json:"total_volume"`
-	Volume24h              float64 `json:"volume_24h"`
-	FundingRate            float64 `json:"funding_rate,string"`
-	PredictedFundingRate   float64 `json:"predicted_funding_rate,string"`
-	NextFundingTime        string  `json:"next_funding_time"`
-	CountdownHour          int64   `json:"countdown_hour"`
-	DeliveryFeeRate        string  `json:"delivery_fee_rate"`        // type is string because it comes as empty string in API response sometime
-	PredictedDeliveryPrice string  `json:"predicted_delivery_price"` // type is string because it comes as empty string in API response sometime
-	DeliveryTime           string  `json:"delivery_time"`
+	Symbol                 string              `json:"symbol"`
+	BidPrice               float64             `json:"bid_price,string"`
+	AskPrice               float64             `json:"ask_price,string"`
+	LastPrice              float64             `json:"last_price,string"`
+	LastTickDirection      string              `json:"last_tick_direction"`
+	Price24hAgo            float64             `json:"prev_price_24h,string"`
+	PricePcntChange24h     float64             `json:"price_24h_pcnt,string"`
+	HighPrice24h           float64             `json:"high_price_24h,string"`
+	LowPrice24h            float64             `json:"low_price_24h,string"`
+	Price1hAgo             float64             `json:"prev_price_1h,string"`
+	PricePcntChange1h      bybitNumericalValue `json:"price_1h_pcnt"`
+	MarkPrice              float64             `json:"mark_price,string"`
+	IndexPrice             float64             `json:"index_price,string"`
+	OpenInterest           float64             `json:"open_interest"`
+	OpenValue              bybitNumericalValue `json:"open_value"`
+	TotalTurnover          bybitNumericalValue `json:"total_turnover"`
+	Turnover24h            float64             `json:"turnover_24h,string"`
+	TotalVolume            float64             `json:"total_volume"`
+	Volume24h              float64             `json:"volume_24h"`
+	FundingRate            float64             `json:"funding_rate,string"`
+	PredictedFundingRate   bybitNumericalValue `json:"predicted_funding_rate"`
+	NextFundingTime        string              `json:"next_funding_time"`
+	CountdownHour          int64               `json:"countdown_hour"`
+	DeliveryFeeRate        bybitNumericalValue `json:"delivery_fee_rate"`
+	PredictedDeliveryPrice bybitNumericalValue `json:"predicted_delivery_price"`
+	DeliveryTime           string              `json:"delivery_time"`
 }
 
 // FuturesPublicTradesData stores recent public trades for futures
@@ -149,10 +149,11 @@ type OpenInterestData struct {
 
 // BigDealData stores big deal data
 type BigDealData struct {
-	Symbol string `json:"symbol"`
-	Side   string `json:"side"`
-	Time   int64  `json:"timestamp"`
-	Value  int64  `json:"value"`
+	ID     int64   `json:"id"`
+	Symbol string  `json:"symbol"`
+	Side   string  `json:"side"`
+	Time   int64   `json:"timestamp"`
+	Value  float64 `json:"value"`
 }
 
 // AccountRatioData stores user accounts long short ratio
