@@ -718,15 +718,17 @@ func (g *Gateio) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuild
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 
 	var orders []order.Detail
 	var currPair string
 	if len(req.Pairs) == 1 {
-		fPair, err := g.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
+		var fPair currency.Pair
+		fPair, err = g.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
@@ -734,7 +736,8 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 	}
 	if g.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		for i := 0; ; i += 100 {
-			resp, err := g.wsGetOrderInfo(req.Type.String(), i, 100)
+			var resp *WebSocketOrderQueryResult
+			resp, err = g.wsGetOrderInfo(req.Type.String(), i, 100)
 			if err != nil {
 				return orders, err
 			}
@@ -748,7 +751,8 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 				if resp.WebSocketOrderQueryRecords[j].OrderType == 1 {
 					orderType = order.Limit
 				}
-				p, err := currency.NewPairFromString(resp.WebSocketOrderQueryRecords[j].Market)
+				var p currency.Pair
+				p, err = currency.NewPairFromString(resp.WebSocketOrderQueryRecords[j].Market)
 				if err != nil {
 					return nil, err
 				}
@@ -772,12 +776,14 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			}
 		}
 	} else {
-		resp, err := g.GetOpenOrders(ctx, currPair)
+		var resp OpenOrdersResponse
+		resp, err = g.GetOpenOrders(ctx, currPair)
 		if err != nil {
 			return nil, err
 		}
 
-		format, err := g.GetPairFormat(asset.Spot, false)
+		var format currency.PairFormat
+		format, err = g.GetPairFormat(asset.Spot, false)
 		if err != nil {
 			return nil, err
 		}
@@ -797,7 +803,8 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
 			}
-			status, err := order.StringToOrderStatus(resp.Orders[i].Status)
+			var status order.Status
+			status, err = order.StringToOrderStatus(resp.Orders[i].Status)
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
 			}
@@ -816,24 +823,21 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			})
 		}
 	}
-	err := order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
-	}
-	order.FilterOrdersBySide(&orders, req.Side)
-	return orders, nil
+	return req.Filter(g.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 
 	var trades []TradesResponse
 	for i := range req.Pairs {
-		resp, err := g.GetTradeHistory(ctx, req.Pairs[i].String())
+		var resp TradeHistoryResponse
+		resp, err = g.GetTradeHistory(ctx, req.Pairs[i].String())
 		if err != nil {
 			return nil, err
 		}
@@ -872,13 +876,7 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		detail.InferCostsAndTimes()
 		orders[i] = detail
 	}
-
-	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
-	}
-	order.FilterOrdersBySide(&orders, req.Side)
-	return orders, nil
+	return req.Filter(g.Name, orders), nil
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

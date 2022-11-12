@@ -250,48 +250,30 @@ message ClearAllRunsResponse {
 
 service BacktesterService {
   rpc ExecuteStrategyFromFile(ExecuteStrategyFromFileRequest) returns (ExecuteStrategyResponse) {
-    option (google.api.http) = {
-      post: "/v1/executestrategyfromfile"
-    };
+    option (google.api.http) = {post: "/v1/executestrategyfromfile"};
   }
   rpc ExecuteStrategyFromConfig(ExecuteStrategyFromConfigRequest) returns (ExecuteStrategyResponse) {
-    option (google.api.http) = {
-      post: "/v1/executestrategyfromconfig"
-    };
+    option (google.api.http) = {post: "/v1/executestrategyfromconfig"};
   }
   rpc ListAllRuns(ListAllRunsRequest) returns (ListAllRunsResponse) {
-    option (google.api.http) = {
-      get: "/v1/listallruns"
-    };
+    option (google.api.http) = {get: "/v1/listallruns"};
   }
   rpc StartRun(StartRunRequest) returns (StartRunResponse) {
-    option (google.api.http) = {
-      post: "/v1/startrun"
-    };
+    option (google.api.http) = {post: "/v1/startrun"};
   }
   rpc StartAllRuns(StartAllRunsRequest) returns (StartAllRunsResponse) {
-    option (google.api.http) = {
-      post: "/v1/startallruns"
-    };
+    option (google.api.http) = {post: "/v1/startallruns"};
   }
   rpc StopRun(StopRunRequest) returns (StopRunResponse) {
-    option (google.api.http) = {
-      post: "/v1/stoprun"
-    };
+    option (google.api.http) = {post: "/v1/stoprun"};
   }
   rpc StopAllRuns(StopAllRunsRequest) returns (StopAllRunsResponse) {
-    option (google.api.http) = {
-      post: "/v1/stopallruns"
-    };
+    option (google.api.http) = {post: "/v1/stopallruns"};
   }
   rpc ClearRun(ClearRunRequest) returns (ClearRunResponse) {
-    option (google.api.http) = {
-      delete: "/v1/clearrun"
-    };
+    option (google.api.http) = {delete: "/v1/clearrun"};
   }
   rpc ClearAllRuns(ClearAllRunsRequest) returns (ClearAllRunsResponse) {
-    option (google.api.http) = {
-      delete: "/v1/clearallruns"
-    };
+    option (google.api.http) = {delete: "/v1/clearallruns"};
   }
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -48,6 +49,7 @@ func TestMain(m *testing.M) {
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
+	request.MaxRequestJobs = 100
 	err = b.Setup(exchCfg)
 	if err != nil {
 		log.Fatal(err)
@@ -2794,6 +2796,8 @@ func TestGetActiveOrders(t *testing.T) {
 	var getOrdersRequestSpot = order.GetOrdersRequest{
 		Pairs:     currency.Pairs{pair},
 		AssetType: asset.Spot,
+		Side:      order.AnySide,
+		Type:      order.AnyType,
 	}
 
 	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestSpot)
@@ -2804,6 +2808,8 @@ func TestGetActiveOrders(t *testing.T) {
 	var getOrdersRequestUMF = order.GetOrdersRequest{
 		Pairs:     currency.Pairs{pair},
 		AssetType: asset.USDTMarginedFutures,
+		Side:      order.AnySide,
+		Type:      order.AnyType,
 	}
 
 	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestUMF)
@@ -2819,6 +2825,8 @@ func TestGetActiveOrders(t *testing.T) {
 	var getOrdersRequestCMF = order.GetOrdersRequest{
 		Pairs:     currency.Pairs{pair1},
 		AssetType: asset.CoinMarginedFutures,
+		Side:      order.AnySide,
+		Type:      order.AnyType,
 	}
 
 	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestCMF)
@@ -2834,6 +2842,8 @@ func TestGetActiveOrders(t *testing.T) {
 	var getOrdersRequestFutures = order.GetOrdersRequest{
 		Pairs:     currency.Pairs{pair2},
 		AssetType: asset.Futures,
+		Side:      order.AnySide,
+		Type:      order.AnyType,
 	}
 
 	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestFutures)
@@ -2849,6 +2859,8 @@ func TestGetActiveOrders(t *testing.T) {
 	var getOrdersRequestUSDC = order.GetOrdersRequest{
 		Pairs:     currency.Pairs{pair3},
 		AssetType: asset.USDCMarginedFutures,
+		Side:      order.AnySide,
+		Type:      order.AnyType,
 	}
 
 	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestUSDC)
@@ -2871,6 +2883,8 @@ func TestGetOrderHistory(t *testing.T) {
 	var getOrdersRequestSpot = order.GetOrdersRequest{
 		Pairs:     currency.Pairs{pair},
 		AssetType: asset.Spot,
+		Type:      order.AnyType,
+		Side:      order.AnySide,
 	}
 
 	_, err = b.GetOrderHistory(context.Background(), &getOrdersRequestSpot)
@@ -2881,6 +2895,8 @@ func TestGetOrderHistory(t *testing.T) {
 	var getOrdersRequestUMF = order.GetOrdersRequest{
 		Pairs:     currency.Pairs{pair},
 		AssetType: asset.USDTMarginedFutures,
+		Type:      order.AnyType,
+		Side:      order.AnySide,
 	}
 
 	_, err = b.GetOrderHistory(context.Background(), &getOrdersRequestUMF)
@@ -2896,6 +2912,8 @@ func TestGetOrderHistory(t *testing.T) {
 	var getOrdersRequestCMF = order.GetOrdersRequest{
 		Pairs:     currency.Pairs{pair1},
 		AssetType: asset.CoinMarginedFutures,
+		Type:      order.AnyType,
+		Side:      order.AnySide,
 	}
 
 	_, err = b.GetOrderHistory(context.Background(), &getOrdersRequestCMF)
@@ -2911,6 +2929,8 @@ func TestGetOrderHistory(t *testing.T) {
 	var getOrdersRequestFutures = order.GetOrdersRequest{
 		Pairs:     currency.Pairs{pair2},
 		AssetType: asset.Futures,
+		Type:      order.AnyType,
+		Side:      order.AnySide,
 	}
 
 	_, err = b.GetOrderHistory(context.Background(), &getOrdersRequestFutures)
@@ -2926,6 +2946,8 @@ func TestGetOrderHistory(t *testing.T) {
 	var getOrdersRequestUSDC = order.GetOrdersRequest{
 		Pairs:     currency.Pairs{pair3},
 		AssetType: asset.USDCMarginedFutures,
+		Type:      order.AnyType,
+		Side:      order.AnySide,
 	}
 
 	_, err = b.GetOrderHistory(context.Background(), &getOrdersRequestUSDC)

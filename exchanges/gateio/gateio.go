@@ -390,9 +390,9 @@ func (g *Gateio) GetOpenOrders(ctx context.Context, symbol string) (OpenOrdersRe
 }
 
 // GetTradeHistory retrieves all orders with an optional symbol filter
-func (g *Gateio) GetTradeHistory(ctx context.Context, symbol string) (TradHistoryResponse, error) {
+func (g *Gateio) GetTradeHistory(ctx context.Context, symbol string) (TradeHistoryResponse, error) {
 	var params string
-	var result TradHistoryResponse
+	var result TradeHistoryResponse
 	params = fmt.Sprintf("currencyPair=%s", symbol)
 
 	err := g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, gateioTradeHistory, params, &result)
