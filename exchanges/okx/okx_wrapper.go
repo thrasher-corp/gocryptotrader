@@ -965,6 +965,7 @@ func (ok *Okx) CancelAllOrders(ctx context.Context, orderCancellation *order.Can
 		return cancelAllResponse, err
 	}
 	cancelAllOrdersRequestParams := make([]CancelOrderRequestParam, len(myOrders))
+ordersLoop:
 	for x := range myOrders {
 		switch {
 		case orderCancellation.OrderID != "" || orderCancellation.ClientOrderID != "":
@@ -974,7 +975,7 @@ func (ok *Okx) CancelAllOrders(ctx context.Context, orderCancellation *order.Can
 					OrderID:               myOrders[x].OrderID,
 					ClientSupplierOrderID: myOrders[x].ClientSupplierOrderID,
 				}
-				break
+				break ordersLoop
 			}
 		case orderCancellation.Side == order.Buy || orderCancellation.Side == order.Sell:
 			if myOrders[x].Side == order.Buy || myOrders[x].Side == order.Sell {
