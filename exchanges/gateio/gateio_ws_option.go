@@ -264,6 +264,7 @@ func (g *Gateio) processOptionsCandlestickPushData(data []byte) error {
 	if err != nil {
 		return err
 	}
+	klineDatas := make([]stream.KlineData, len(resp.Result))
 	for x := range resp.Result {
 		icp := strings.Split(resp.Result[x].NameOfSubscription, currency.UnderscoreDelimiter)
 		if len(icp) < 3 {
@@ -273,7 +274,7 @@ func (g *Gateio) processOptionsCandlestickPushData(data []byte) error {
 		if err != nil {
 			return err
 		}
-		g.Websocket.DataHandler <- stream.KlineData{
+		klineDatas[x] = stream.KlineData{
 			Pair:       currencyPair,
 			AssetType:  asset.Options,
 			Exchange:   g.Name,
@@ -286,6 +287,7 @@ func (g *Gateio) processOptionsCandlestickPushData(data []byte) error {
 			Volume:     resp.Result[x].Amount,
 		}
 	}
+	g.Websocket.DataHandler <- klineDatas
 	return nil
 }
 
@@ -403,6 +405,7 @@ func (g *Gateio) processOptionsOrderPushData(data []byte) error {
 	if err != nil {
 		return err
 	}
+	orderDetails := make([]order.Detail, len(resp.Result))
 	for x := range resp.Result {
 		currencyPair, err := currency.NewPairFromString(resp.Result[x].Contract)
 		if err != nil {
@@ -417,7 +420,7 @@ func (g *Gateio) processOptionsOrderPushData(data []byte) error {
 		if err != nil {
 			return err
 		}
-		g.Websocket.DataHandler <- &order.Detail{
+		orderDetails[x] = order.Detail{
 			Amount:         resp.Result[x].Size,
 			Exchange:       g.Name,
 			OrderID:        strconv.FormatInt(resp.Result[x].ID, 10),
@@ -430,6 +433,7 @@ func (g *Gateio) processOptionsOrderPushData(data []byte) error {
 			AccountID:      resp.Result[x].User,
 		}
 	}
+	g.Websocket.DataHandler <- orderDetails
 	return nil
 }
 

@@ -305,12 +305,13 @@ func (g *Gateio) processFuturesTickers(data []byte) error {
 	if err != nil {
 		return err
 	}
+	tickerPriceDatas := make([]ticker.Price, len(resp.Result))
 	for x := range resp.Result {
 		currencyPair, err := currency.NewPairFromString(resp.Result[x].Contract)
 		if err != nil {
 			return err
 		}
-		g.Websocket.DataHandler <- &ticker.Price{
+		tickerPriceDatas[x] = ticker.Price{
 			ExchangeName: g.Name,
 			Volume:       resp.Result[x].Volume24HBase,
 			QuoteVolume:  resp.Result[x].Volume24HQuote,
@@ -322,6 +323,7 @@ func (g *Gateio) processFuturesTickers(data []byte) error {
 			LastUpdated:  time.Unix(resp.Time, 0),
 		}
 	}
+	g.Websocket.DataHandler <- tickerPriceDatas
 	return nil
 }
 
@@ -366,6 +368,7 @@ func (g *Gateio) processFuturesCandlesticks(data []byte) error {
 	if err != nil {
 		return err
 	}
+	klineDatas := make([]stream.KlineData, len(resp.Result))
 	for x := range resp.Result {
 		icp := strings.Split(resp.Result[x].Name, currency.UnderscoreDelimiter)
 		if len(icp) < 3 {
@@ -375,7 +378,7 @@ func (g *Gateio) processFuturesCandlesticks(data []byte) error {
 		if err != nil {
 			return err
 		}
-		g.Websocket.DataHandler <- stream.KlineData{
+		klineDatas[x] = stream.KlineData{
 			Pair:       currencyPair,
 			AssetType:  futuresAssetType,
 			Exchange:   g.Name,
@@ -388,6 +391,7 @@ func (g *Gateio) processFuturesCandlesticks(data []byte) error {
 			Volume:     resp.Result[x].Volume,
 		}
 	}
+	g.Websocket.DataHandler <- klineDatas
 	return nil
 }
 
@@ -548,6 +552,7 @@ func (g *Gateio) processFuturesOrdersPushData(data []byte) error {
 	if err != nil {
 		return err
 	}
+	orderDetails := make([]order.Detail, len(resp.Result))
 	for x := range resp.Result {
 		currencyPair, err := currency.NewPairFromString(resp.Result[x].Contract)
 		if err != nil {
@@ -562,7 +567,7 @@ func (g *Gateio) processFuturesOrdersPushData(data []byte) error {
 		if err != nil {
 			return err
 		}
-		g.Websocket.DataHandler <- &order.Detail{
+		orderDetails[x] = order.Detail{
 			Amount:         resp.Result[x].Size,
 			Exchange:       g.Name,
 			OrderID:        strconv.FormatInt(resp.Result[x].ID, 10),
@@ -577,6 +582,7 @@ func (g *Gateio) processFuturesOrdersPushData(data []byte) error {
 			CloseTime:      time.UnixMilli(resp.Result[x].FinishTimeMs),
 		}
 	}
+	g.Websocket.DataHandler <- orderDetails
 	return nil
 }
 
