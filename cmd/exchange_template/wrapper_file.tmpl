@@ -161,7 +161,7 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.Exchange) error {
 			RunningURL:      wsRunningEndpoint,
 			Connector:       {{.Variable}}.WsConnect,
 			Subscriber:      {{.Variable}}.Subscribe,
-			UnSubscriber:    {{.Variable}}.Unsubscribe,
+			Unsubscriber:    {{.Variable}}.Unsubscribe,
 			Features:        &{{.Variable}}.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
@@ -173,7 +173,6 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.Exchange) error {
 		URL:                  {{.Variable}}.Websocket.GetWebsocketURL(),
 		ProxyURL:             {{.Variable}}.Websocket.GetProxyAddress(),
 		Verbose:              {{.Variable}}.Verbose,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	}
 	*/
