@@ -57,3 +57,67 @@ type MarketTrade struct {
 	CreatedAt   time.Time `json:"createdAt"`
 	Liquidation bool      `json:"liquidation"`
 }
+
+// WithdrawalLiquidityResponse represents accounts that have available funds for fast withdrawals.
+type WithdrawalLiquidityResponse struct {
+	LiquidityProviders map[string]LiquidityProvider `json:"liquidityProviders"`
+}
+
+// LiquidityProvider represents a liquidation provider item data
+type LiquidityProvider struct {
+	AvailableFunds string      `json:"availableFunds"`
+	StarkKey       string      `json:"starkKey"`
+	Quote          interface{} `json:"quote"`
+}
+
+// TickerDatas represents market's statistics data.
+type TickerDatas struct {
+	Markets map[string]TickerData `json:"markets"`
+}
+
+// TickerData represents ticker data for a market.
+type TickerData struct {
+	Market      string `json:"market"`
+	Open        string `json:"open"`
+	Close       string `json:"close"`
+	High        string `json:"high"`
+	Low         string `json:"low"`
+	BaseVolume  string `json:"baseVolume"`
+	QuoteVolume string `json:"quoteVolume"`
+	Type        string `json:"type"`
+	Fees        string `json:"fees"`
+}
+
+// HistoricFundingResponse represents a historic funding response data.
+type HistoricFundingResponse struct {
+	HistoricalFundings []HistoricalFunding `json:"historicalFunding"`
+}
+
+// HistoricalFunding represents historical funding rates for a market.
+type HistoricalFunding struct {
+	Market      string    `json:"market"`
+	Rate        string    `json:"rate"`
+	Price       string    `json:"price"`
+	EffectiveAt time.Time `json:"effectiveAt"`
+}
+
+// MarketCandlesResponse represents response data for market candlestick data.
+type MarketCandlesResponse struct {
+	Candles []MarketCandle `json:"candles"`
+}
+
+// MarketCandle represents candle statistics for a specific market.
+type MarketCandle struct {
+	StartedAt            time.Time `json:"startedAt"`
+	UpdatedAt            time.Time `json:"updatedAt"`
+	Market               string    `json:"market"`
+	Resolution           string    `json:"resolution"`
+	Low                  float64   `json:"low,string"`
+	High                 float64   `json:"high,string"`
+	Open                 float64   `json:"open,string"`
+	Close                float64   `json:"close,string"`
+	BaseTokenVolume      string    `json:"baseTokenVolume"`
+	Trades               string    `json:"trades"`
+	UsdVolume            float64   `json:"usdVolume,string"`
+	StartingOpenInterest string    `json:"startingOpenInterest"`
+}

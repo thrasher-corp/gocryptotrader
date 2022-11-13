@@ -109,6 +109,18 @@ func (dy *DYDX) SetDefaults() {
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			Kline: kline.ExchangeCapabilitiesEnabled{
+				Intervals: map[string]bool{
+					kline.OneMin.Word():     true,
+					kline.FiveMin.Word():    true,
+					kline.FifteenMin.Word(): true,
+					kline.ThirtyMin.Word():  true,
+					kline.OneHour.Word():    true,
+					kline.FourHour.Word():   true,
+					kline.OneDay.Word():     true,
+				},
+				ResultLimit: 200,
+			},
 		},
 	}
 	// NOTE: SET THE EXCHANGES RATE LIMIT HERE

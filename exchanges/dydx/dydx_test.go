@@ -10,6 +10,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -84,10 +85,35 @@ func TestGetOrderbooks(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	if result, err := dy.GetTrades(context.Background(), "CRV-USD", time.Now().Add(time.Hour*-1), 5); err != nil {
+	if _, err := dy.GetTrades(context.Background(), "CRV-USD", time.Time{}, 5); err != nil {
 		t.Error(err)
-	} else {
-		value, _ := json.Marshal(result)
-		println(value)
+	}
+}
+
+func TestGetFastWithdrawalLiquidity(t *testing.T) {
+	t.Parallel()
+	if _, err := dy.GetFastWithdrawalLiquidity(context.Background(), "", 0, 0); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetMarketStats(t *testing.T) {
+	t.Parallel()
+	if _, err := dy.GetMarketStats(context.Background(), "CRV-USD", 7); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetHistoricalFunding(t *testing.T) {
+	t.Parallel()
+	if _, err := dy.GetHistoricalFunding(context.Background(), "CRV-USD", time.Time{}); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetCandlesForMarket(t *testing.T) {
+	t.Parallel()
+	if _, err := dy.GetCandlesForMarket(context.Background(), "CRV-USD", kline.FiveMin, "", "", 10); err != nil {
+		t.Error()
 	}
 }
