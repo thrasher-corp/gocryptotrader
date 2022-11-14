@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -634,7 +635,7 @@ func (a *MarkPrice) UnmarshalJSON(data []byte) error {
 	}
 	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
 	if a.InstrumentType, err = GetAssetTypeFromInstrumentType(chil.InstrumentType); err != nil {
-		return err
+		a.InstrumentType = asset.Empty
 	}
 	return nil
 }
