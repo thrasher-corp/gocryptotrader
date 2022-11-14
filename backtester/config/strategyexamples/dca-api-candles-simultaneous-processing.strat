@@ -11,7 +11,7 @@
  },
  "currency-settings": [
   {
-   "exchange-name": "ftx",
+   "exchange-name": "binance",
    "asset": "spot",
    "base": "BTC",
    "quote": "USDT",
@@ -38,7 +38,7 @@
    "use-exchange-pnl-calculation": false
   },
   {
-   "exchange-name": "ftx",
+   "exchange-name": "binance",
    "asset": "spot",
    "base": "ETH",
    "quote": "USDT",

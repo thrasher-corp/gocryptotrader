@@ -11,10 +11,10 @@
  },
  "currency-settings": [
   {
-   "exchange-name": "ftx",
+   "exchange-name": "binance",
    "asset": "spot",
    "base": "BTC",
-   "quote": "USD",
+   "quote": "USDT",
    "spot-details": {
     "initial-quote-funds": "100000"
    },
@@ -51,7 +51,7 @@
    "data-request-retry-wait-time": 500000000,
    "exchange-credentials": [
     {
-     "exchange": "ftx",
+     "exchange": "binance",
      "credentials": {
       "Key": "",
       "Secret": "",

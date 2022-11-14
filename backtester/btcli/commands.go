@@ -358,7 +358,7 @@ func executeStrategyFromConfig(c *cli.Context) error {
 		"..",
 		"config",
 		"strategyexamples",
-		"ftx-cash-and-carry.strat")
+		"dca-api-candles.strat")
 	defaultConfig, err := config.ReadStrategyConfigFromFile(defaultPath)
 	if err != nil {
 		return err
@@ -375,12 +375,16 @@ func executeStrategyFromConfig(c *cli.Context) error {
 
 	currencySettings := make([]*btrpc.CurrencySettings, len(defaultConfig.CurrencySettings))
 	for i := range defaultConfig.CurrencySettings {
-		var sd *btrpc.SpotDetails
+		var sd btrpc.SpotDetails
 		if defaultConfig.CurrencySettings[i].SpotDetails != nil {
-			sd.InitialBaseFunds = defaultConfig.CurrencySettings[i].SpotDetails.InitialBaseFunds.String()
-			sd.InitialQuoteFunds = defaultConfig.CurrencySettings[i].SpotDetails.InitialQuoteFunds.String()
+			if defaultConfig.CurrencySettings[i].SpotDetails.InitialBaseFunds != nil {
+				sd.InitialBaseFunds = defaultConfig.CurrencySettings[i].SpotDetails.InitialBaseFunds.String()
+			}
+			if defaultConfig.CurrencySettings[i].SpotDetails.InitialQuoteFunds != nil {
+				sd.InitialQuoteFunds = defaultConfig.CurrencySettings[i].SpotDetails.InitialQuoteFunds.String()
+			}
 		}
-		var fd *btrpc.FuturesDetails
+		var fd btrpc.FuturesDetails
 		if defaultConfig.CurrencySettings[i].FuturesDetails != nil {
 			fd.Leverage = &btrpc.Leverage{
 				CanUseLeverage:                 defaultConfig.CurrencySettings[i].FuturesDetails.Leverage.CanUseLeverage,
@@ -412,8 +416,12 @@ func executeStrategyFromConfig(c *cli.Context) error {
 			SkipCandleVolumeFitting:   defaultConfig.CurrencySettings[i].SkipCandleVolumeFitting,
 			UseExchangeOrderLimits:    defaultConfig.CurrencySettings[i].CanUseExchangeLimits,
 			UseExchangePnlCalculation: defaultConfig.CurrencySettings[i].UseExchangePNLCalculation,
-			SpotDetails:               sd,
-			FuturesDetails:            fd,
+		}
+		if sd.InitialQuoteFunds != "" || sd.InitialBaseFunds != "" {
+			currencySettings[i].SpotDetails = &sd
+		}
+		if fd.Leverage != nil {
+			currencySettings[i].FuturesDetails = &fd
 		}
 	}
 

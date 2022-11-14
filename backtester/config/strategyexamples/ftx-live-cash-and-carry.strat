@@ -12,7 +12,7 @@
    {
     "exchange-name": "ftx",
     "asset": "spot",
-    "currency": "USD",
+    "currency": "USDT",
     "initial-funds": "100000",
     "transfer-fee": "0"
    }
@@ -47,7 +47,7 @@
    "exchange-name": "ftx",
    "asset": "spot",
    "base": "BTC",
-   "quote": "USD",
+   "quote": "USDT",
    "buy-side": {
     "minimum-size": "0.001",
     "maximum-size": "0.05",

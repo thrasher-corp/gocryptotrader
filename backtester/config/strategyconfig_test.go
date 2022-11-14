@@ -23,10 +23,10 @@ import (
 )
 
 const (
-	testExchange = "ftx"
+	mainExchange = "binance"
 	dca          = "dollarcostaverage"
 	// change this if you modify a config and want it to save to the example folder
-	saveConfig = false
+	saveConfig = !false
 )
 
 var (
@@ -49,6 +49,8 @@ var (
 	initialFunds1000000 *decimal.Decimal
 	initialFunds100000  *decimal.Decimal
 	initialFunds10      *decimal.Decimal
+
+	mainCurrencyPair = currency.NewPair(currency.BTC, currency.USDT)
 )
 
 func TestMain(m *testing.M) {
@@ -368,10 +370,10 @@ func TestPrintSettings(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: testExchange,
+				ExchangeName: mainExchange,
 				Asset:        asset.Spot,
-				Base:         currency.BTC,
-				Quote:        currency.USDT,
+				Base:         mainCurrencyPair.Base,
+				Quote:        mainCurrencyPair.Quote,
 				SpotDetails: &SpotDetails{
 					InitialQuoteFunds: initialFunds1000000,
 					InitialBaseFunds:  initialFunds1000000,
@@ -422,10 +424,10 @@ func TestValidate(t *testing.T) {
 		StrategySettings: StrategySettings{Name: dca},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: testExchange,
+				ExchangeName: mainExchange,
 				Asset:        asset.Spot,
-				Base:         currency.BTC,
-				Quote:        currency.USDT,
+				Base:         mainCurrencyPair.Base,
+				Quote:        mainCurrencyPair.Quote,
 				SpotDetails: &SpotDetails{
 					InitialBaseFunds:  initialFunds10,
 					InitialQuoteFunds: initialFunds100000,
@@ -487,10 +489,10 @@ func TestGenerateConfigForDCAAPICandles(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: testExchange,
+				ExchangeName: mainExchange,
 				Asset:        asset.Spot,
-				Base:         currency.BTC,
-				Quote:        currency.USDT,
+				Base:         mainCurrencyPair.Base,
+				Quote:        mainCurrencyPair.Quote,
 				SpotDetails: &SpotDetails{
 					InitialQuoteFunds: initialFunds100000,
 				},
@@ -545,10 +547,10 @@ func TestGenerateConfigForPluginStrategy(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: testExchange,
+				ExchangeName: mainExchange,
 				Asset:        asset.Spot,
-				Base:         currency.BTC,
-				Quote:        currency.USDT,
+				Base:         mainCurrencyPair.Base,
+				Quote:        mainCurrencyPair.Quote,
 				SpotDetails: &SpotDetails{
 					InitialQuoteFunds: initialFunds1000000,
 				},
@@ -610,29 +612,29 @@ func TestGenerateConfigForDCAAPICandlesExchangeLevelFunding(t *testing.T) {
 			UseExchangeLevelFunding: true,
 			ExchangeLevelFunding: []ExchangeLevelFunding{
 				{
-					ExchangeName: testExchange,
+					ExchangeName: mainExchange,
 					Asset:        asset.Spot,
-					Currency:     currency.USDT,
+					Currency:     mainCurrencyPair.Quote,
 					InitialFunds: decimal.NewFromInt(100000),
 				},
 			},
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: testExchange,
+				ExchangeName: mainExchange,
 				Asset:        asset.Spot,
-				Base:         currency.BTC,
-				Quote:        currency.USDT,
+				Base:         mainCurrencyPair.Base,
+				Quote:        mainCurrencyPair.Quote,
 				BuySide:      minMax,
 				SellSide:     minMax,
 				MakerFee:     &makerFee,
 				TakerFee:     &takerFee,
 			},
 			{
-				ExchangeName: testExchange,
+				ExchangeName: mainExchange,
 				Asset:        asset.Spot,
 				Base:         currency.ETH,
-				Quote:        currency.USDT,
+				Quote:        mainCurrencyPair.Quote,
 				BuySide:      minMax,
 				SellSide:     minMax,
 				MakerFee:     &makerFee,
@@ -684,10 +686,10 @@ func TestGenerateConfigForDCAAPITrades(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: "ftx",
+				ExchangeName: mainExchange,
 				Asset:        asset.Spot,
-				Base:         currency.BTC,
-				Quote:        currency.USDT,
+				Base:         mainCurrencyPair.Base,
+				Quote:        mainCurrencyPair.Quote,
 				SpotDetails: &SpotDetails{
 					InitialQuoteFunds: initialFunds100000,
 				},
@@ -751,10 +753,10 @@ func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: testExchange,
+				ExchangeName: mainExchange,
 				Asset:        asset.Spot,
-				Base:         currency.BTC,
-				Quote:        currency.USDT,
+				Base:         mainCurrencyPair.Base,
+				Quote:        mainCurrencyPair.Quote,
 				SpotDetails: &SpotDetails{
 					InitialQuoteFunds: initialFunds100000,
 				},
@@ -764,10 +766,10 @@ func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 				TakerFee: &takerFee,
 			},
 			{
-				ExchangeName: testExchange,
+				ExchangeName: mainExchange,
 				Asset:        asset.Spot,
 				Base:         currency.ETH,
-				Quote:        currency.USDT,
+				Quote:        mainCurrencyPair.Quote,
 				SpotDetails: &SpotDetails{
 					InitialQuoteFunds: initialFunds100000,
 				},
@@ -823,10 +825,10 @@ func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: testExchange,
+				ExchangeName: mainExchange,
 				Asset:        asset.Spot,
-				Base:         currency.BTC,
-				Quote:        currency.USDT,
+				Base:         mainCurrencyPair.Base,
+				Quote:        mainCurrencyPair.Quote,
 				SpotDetails: &SpotDetails{
 					InitialQuoteFunds: initialFunds1000000,
 				},
@@ -836,10 +838,10 @@ func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 				TakerFee: &takerFee,
 			},
 			{
-				ExchangeName: testExchange,
+				ExchangeName: mainExchange,
 				Asset:        asset.Spot,
 				Base:         currency.ETH,
-				Quote:        currency.USDT,
+				Quote:        mainCurrencyPair.Quote,
 				SpotDetails: &SpotDetails{
 					InitialQuoteFunds: initialFunds100000,
 				},
@@ -895,10 +897,10 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: testExchange,
+				ExchangeName: mainExchange,
 				Asset:        asset.Spot,
-				Base:         currency.BTC,
-				Quote:        currency.USD,
+				Base:         mainCurrencyPair.Base,
+				Quote:        mainCurrencyPair.Quote,
 				SpotDetails: &SpotDetails{
 					InitialQuoteFunds: initialFunds100000,
 				},
@@ -919,7 +921,7 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 				DataRequestRetryWaitTime:  time.Millisecond * 500,
 				ExchangeCredentials: []Credentials{
 					{
-						Exchange: "ftx",
+						Exchange: mainExchange,
 						Keys: account.Credentials{
 							Key:    "",
 							Secret: "",
@@ -969,10 +971,10 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: testExchange,
+				ExchangeName: mainExchange,
 				Asset:        asset.Spot,
-				Base:         currency.BTC,
-				Quote:        currency.USDT,
+				Base:         mainCurrencyPair.Base,
+				Quote:        mainCurrencyPair.Quote,
 				SpotDetails: &SpotDetails{
 					InitialQuoteFunds: initialFunds100000,
 				},
@@ -1029,10 +1031,10 @@ func TestGenerateConfigForDCACSVCandles(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: testExchange,
+				ExchangeName: mainExchange,
 				Asset:        asset.Spot,
-				Base:         currency.BTC,
-				Quote:        currency.USDT,
+				Base:         mainCurrencyPair.Base,
+				Quote:        mainCurrencyPair.Quote,
 				SpotDetails: &SpotDetails{
 					InitialQuoteFunds: initialFunds100000,
 				},
@@ -1087,10 +1089,10 @@ func TestGenerateConfigForDCACSVTrades(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: testExchange,
+				ExchangeName: mainExchange,
 				Asset:        asset.Spot,
-				Base:         currency.BTC,
-				Quote:        currency.USDT,
+				Base:         mainCurrencyPair.Base,
+				Quote:        mainCurrencyPair.Quote,
 				SpotDetails: &SpotDetails{
 					InitialQuoteFunds: initialFunds100000,
 				},
@@ -1138,10 +1140,10 @@ func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: testExchange,
+				ExchangeName: mainExchange,
 				Asset:        asset.Spot,
-				Base:         currency.BTC,
-				Quote:        currency.USDT,
+				Base:         mainCurrencyPair.Base,
+				Quote:        mainCurrencyPair.Quote,
 				SpotDetails: &SpotDetails{
 					InitialQuoteFunds: initialFunds100000,
 				},
@@ -1214,75 +1216,75 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 			UseExchangeLevelFunding: true,
 			ExchangeLevelFunding: []ExchangeLevelFunding{
 				{
-					ExchangeName: testExchange,
+					ExchangeName: mainExchange,
 					Asset:        asset.Spot,
-					Currency:     currency.BTC,
+					Currency:     mainCurrencyPair.Base,
 					InitialFunds: decimal.NewFromFloat(3),
 				},
 				{
-					ExchangeName: testExchange,
+					ExchangeName: mainExchange,
 					Asset:        asset.Spot,
-					Currency:     currency.USDT,
+					Currency:     mainCurrencyPair.Quote,
 					InitialFunds: decimal.NewFromInt(10000),
 				},
 			},
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: testExchange,
+				ExchangeName: mainExchange,
 				Asset:        asset.Spot,
-				Base:         currency.BTC,
-				Quote:        currency.USDT,
+				Base:         mainCurrencyPair.Base,
+				Quote:        mainCurrencyPair.Quote,
 				BuySide:      minMax,
 				SellSide:     minMax,
 				MakerFee:     &makerFee,
 				TakerFee:     &takerFee,
 			},
 			{
-				ExchangeName: testExchange,
+				ExchangeName: mainExchange,
 				Asset:        asset.Spot,
 				Base:         currency.DOGE,
-				Quote:        currency.USDT,
+				Quote:        mainCurrencyPair.Quote,
 				BuySide:      minMax,
 				SellSide:     minMax,
 				MakerFee:     &makerFee,
 				TakerFee:     &takerFee,
 			},
 			{
-				ExchangeName: testExchange,
+				ExchangeName: mainExchange,
 				Asset:        asset.Spot,
 				Base:         currency.ETH,
-				Quote:        currency.BTC,
+				Quote:        mainCurrencyPair.Base,
 				BuySide:      minMax,
 				SellSide:     minMax,
 				MakerFee:     &makerFee,
 				TakerFee:     &takerFee,
 			},
 			{
-				ExchangeName: testExchange,
+				ExchangeName: mainExchange,
 				Asset:        asset.Spot,
 				Base:         currency.LTC,
-				Quote:        currency.BTC,
+				Quote:        mainCurrencyPair.Base,
 				BuySide:      minMax,
 				SellSide:     minMax,
 				MakerFee:     &makerFee,
 				TakerFee:     &takerFee,
 			},
 			{
-				ExchangeName: testExchange,
+				ExchangeName: mainExchange,
 				Asset:        asset.Spot,
 				Base:         currency.XRP,
-				Quote:        currency.USDT,
+				Quote:        mainCurrencyPair.Quote,
 				BuySide:      minMax,
 				SellSide:     minMax,
 				MakerFee:     &makerFee,
 				TakerFee:     &takerFee,
 			},
 			{
-				ExchangeName: testExchange,
+				ExchangeName: mainExchange,
 				Asset:        asset.Spot,
 				Base:         currency.BNB,
-				Quote:        currency.BTC,
+				Quote:        mainCurrencyPair.Base,
 				BuySide:      minMax,
 				SellSide:     minMax,
 				MakerFee:     &makerFee,
@@ -1338,7 +1340,7 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 				{
 					ExchangeName: "ftx",
 					Asset:        asset.Spot,
-					Currency:     currency.USD,
+					Currency:     mainCurrencyPair.Quote,
 					InitialFunds: *initialFunds100000,
 				},
 			},
@@ -1347,7 +1349,7 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 			{
 				ExchangeName: "ftx",
 				Asset:        asset.Futures,
-				Base:         currency.BTC,
+				Base:         mainCurrencyPair.Base,
 				Quote:        currency.NewCode("20210924"),
 				MakerFee:     &makerFee,
 				TakerFee:     &takerFee,
@@ -1357,8 +1359,8 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 			{
 				ExchangeName: "ftx",
 				Asset:        asset.Spot,
-				Base:         currency.BTC,
-				Quote:        currency.USD,
+				Base:         mainCurrencyPair.Base,
+				Quote:        mainCurrencyPair.Quote,
 				MakerFee:     &makerFee,
 				TakerFee:     &takerFee,
 				BuySide:      minMax,
@@ -1411,7 +1413,7 @@ func TestGenerateConfigForLiveCashAndCarry(t *testing.T) {
 				{
 					ExchangeName: "ftx",
 					Asset:        asset.Spot,
-					Currency:     currency.USD,
+					Currency:     mainCurrencyPair.Quote,
 					InitialFunds: *initialFunds100000,
 				},
 			},
@@ -1420,7 +1422,7 @@ func TestGenerateConfigForLiveCashAndCarry(t *testing.T) {
 			{
 				ExchangeName:            "ftx",
 				Asset:                   asset.Futures,
-				Base:                    currency.BTC,
+				Base:                    mainCurrencyPair.Base,
 				Quote:                   currency.NewCode("1230"),
 				MakerFee:                &makerFee,
 				TakerFee:                &takerFee,
@@ -1431,8 +1433,8 @@ func TestGenerateConfigForLiveCashAndCarry(t *testing.T) {
 			{
 				ExchangeName:            "ftx",
 				Asset:                   asset.Spot,
-				Base:                    currency.BTC,
-				Quote:                   currency.USD,
+				Base:                    mainCurrencyPair.Base,
+				Quote:                   mainCurrencyPair.Quote,
 				MakerFee:                &makerFee,
 				TakerFee:                &takerFee,
 				SkipCandleVolumeFitting: true,
