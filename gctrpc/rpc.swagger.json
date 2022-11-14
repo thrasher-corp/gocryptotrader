@@ -459,6 +459,143 @@
         ]
       }
     },
+    "/v1/dcastream": {
+      "get": {
+        "operationId": "GoCryptoTraderService_DCAStream",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "$ref": "#/definitions/gctrpcDCAResponse"
+                },
+                "error": {
+                  "$ref": "#/definitions/rpcStatus"
+                }
+              },
+              "title": "Stream result of gctrpcDCAResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "simulate",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "interval",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "amount",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "fullAmount",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "priceLimit",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "maxImpactSlippage",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "maxNominalSlippage",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "buy",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "maxSpreadPercentage",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
     "/v1/disableexchange": {
       "post": {
         "operationId": "GoCryptoTraderService_DisableExchange",
@@ -4962,6 +5099,36 @@
           "items": {
             "$ref": "#/definitions/gctrpcCurrencyState"
           }
+        }
+      }
+    },
+    "gctrpcDCAResponse": {
+      "type": "object",
+      "properties": {
+        "submit": {
+          "type": "string"
+        },
+        "submitResponse": {
+          "type": "string"
+        },
+        "orderbook": {
+          "type": "string"
+        },
+        "account": {
+          "type": "string"
+        },
+        "error": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "finished": {
+          "type": "boolean"
+        },
+        "something": {
+          "type": "string",
+          "format": "byte"
         }
       }
     },

@@ -39,6 +39,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/strategy/dca"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/strategy/twap"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -5608,6 +5609,109 @@ func (s *RPCServer) StopStrategy(ctx context.Context, r *gctrpc.StopStrategyRequ
 		return nil, err
 	}
 	return &gctrpc.StopStrategyResponse{Message: fmt.Sprintf("STRATEGY %s STOPPED", id)}, nil
+}
+
+// DCAStream manages an externally called DCA strategy.
+func (s *RPCServer) DCAStream(r *gctrpc.DCARequest, stream gctrpc.GoCryptoTraderService_DCAStreamServer) error {
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return err
+	}
+
+	pair, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return err
+	}
+
+	if pair.IsEmpty() {
+		return errCurrencyPairUnset
+	}
+
+	as, err := asset.New(r.Asset)
+	if err != nil {
+		return err
+	}
+
+	err = checkParams(r.Exchange, exch, as, pair)
+	if err != nil {
+		return err
+	}
+
+	interval, err := kline.NewInterval(r.Interval, false)
+	if err != nil {
+		return err
+	}
+
+	ctx := stream.Context()
+	dcaStrat, err := dca.New(ctx, &dca.Config{
+		Exchange:            exch,
+		Pair:                pair,
+		Asset:               as,
+		Simulate:            r.Simulate,
+		Start:               r.Start.AsTime(),
+		End:                 r.End.AsTime(),
+		Interval:            interval,
+		Amount:              r.Amount,
+		FullAmount:          r.FullAmount,
+		PriceLimit:          r.PriceLimit,
+		MaxImpactSlippage:   r.MaxImpactSlippage,
+		MaxNominalSlippage:  r.MaxNominalSlippage,
+		Buy:                 r.Buy,
+		MaxSpreadPercentage: r.MaxSpreadPercentage,
+		// TODO: Set values below via rpc
+		RetryAttempts:           3,
+		CandleStickAligned:      true,
+		AllowTradingPastEndTime: false, // TODO: Not yet supported
+	})
+	if err != nil {
+		return err
+	}
+
+	id, err := s.strategyManager.Register(dcaStrat)
+	if err != nil {
+		return err
+	}
+
+	reporter, err := s.strategyManager.RunStream(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	weirdSomethingJson, err := json.Marshal(struct {
+		Field string `json:"field"`
+		Error error  `json:"error"`
+		Tag   int64  `json:"tag"`
+	}{
+		Field: "Something",
+		Error: errors.New("super error of something"),
+		Tag:   1337,
+	})
+	if err != nil {
+		return err
+	}
+
+	for report := range reporter {
+		var errStr string
+		if report.Error != nil {
+			errStr = report.Error.Error()
+		}
+		err := stream.Send(&gctrpc.DCAResponse{
+			Submit:         report.Submit.String(),
+			SubmitResponse: report.Response.String(),
+			Orderbook:      report.Deployment.String(),
+			Error:          errStr,
+			Message:        report.Reason,
+			Finished:       report.Finished,
+			Something:      weirdSomethingJson,
+		})
+		if err != nil {
+			return err
+		}
+		if report.Finished {
+			break
+		}
+	}
+	return nil
 }
 
 // TWAPStream manages an externally called TWAP strategy.

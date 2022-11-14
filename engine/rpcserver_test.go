@@ -3516,7 +3516,7 @@ func TestGetOrderbookAmountByImpact(t *testing.T) {
 }
 
 type supaTestStrat struct {
-	strategy.Requirement
+	strategy.Requirements
 }
 
 func (s supaTestStrat) GetState() (*strategy.State, error) {

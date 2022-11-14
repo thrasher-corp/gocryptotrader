@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -377,7 +378,7 @@ func twapStreamfunc(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.TWAPStream(c.Context, &gctrpc.TWAPRequest{
+	result, err := client.DCAStream(c.Context, &gctrpc.DCARequest{
 		Exchange: exchangeName,
 		Pair: &gctrpc.CurrencyPair{
 			Base:  cp.Base.String(),
@@ -407,6 +408,14 @@ func twapStreamfunc(c *cli.Context) error {
 		}
 
 		jsonOutput(resp)
+
+		var something interface{}
+		err = json.Unmarshal(resp.Something, &something)
+		if err != nil {
+			log.Println("ERROR:", err)
+		}
+
+		jsonOutput(something)
 		if resp.Finished {
 			return nil
 		}

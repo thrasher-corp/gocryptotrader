@@ -1353,6 +1353,34 @@ message GetOrderbookAmountByImpactResponse {
   bool full_orderbook_side_consumed = 11;
 }
 
+message DCARequest {
+  string exchange = 1;
+  CurrencyPair pair = 2;
+  string asset = 3;
+  bool simulate = 4;
+  google.protobuf.Timestamp start = 5;
+  google.protobuf.Timestamp end = 6;
+  int64 interval = 7;
+  double amount = 8;
+  bool full_amount = 9;
+  double price_limit = 10;
+  double max_impact_slippage = 11;
+  double max_nominal_slippage = 12;
+  bool buy = 13;
+  double max_spread_percentage = 14;
+}
+
+message DCAResponse {
+  string submit = 1; 
+  string submit_response = 2; 
+  string orderbook = 3;
+  string account = 4;
+  string error = 5;
+  string message = 6;
+  bool finished = 7;
+  bytes something = 8;
+}
+
 message TWAPRequest {
   string exchange = 1;
   CurrencyPair pair = 2;
@@ -1912,18 +1940,15 @@ service GoCryptoTraderService {
     option (google.api.http) = {get: "/v1/getorderbookamountbyimpact"};
   }
   rpc GetAllStrategies(GetAllStrategiesRequest) returns (GetAllStrategiesResponse) {
-    option (google.api.http) = {
-      get: "/v1/getallstrategies",
-    };
+    option (google.api.http) = {get: "/v1/getallstrategies"};
   }
   rpc StopStrategy(StopStrategyRequest) returns (StopStrategyResponse) {
-    option (google.api.http) = {
-      get: "/v1/stopstrategy",
-    };
+    option (google.api.http) = {get: "/v1/stopstrategy"};
+  }
+  rpc DCAStream(DCARequest) returns (stream DCAResponse) {
+    option (google.api.http) = {get: "/v1/dcastream"};
   }
   rpc TWAPStream(TWAPRequest) returns (stream TWAPResponse) {
-    option (google.api.http) = {
-      get: "/v1/twapstream",
-    };
+    option (google.api.http) = {get: "/v1/twapstream"};
   }
 }

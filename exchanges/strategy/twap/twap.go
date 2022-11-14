@@ -62,7 +62,7 @@ func New(ctx context.Context, c *Config) (*Strategy, error) {
 		deployment = c.Pair.Base
 	}
 
-	balance := selling.GetAvailableWithoutBorrow()
+	balance := selling.GetFree()
 	if balance == 0 {
 		return nil, fmt.Errorf("cannot sell %s amount %f to buy base %s %w of %f",
 			deployment,
@@ -108,23 +108,10 @@ func (s *Strategy) checkAndSubmit(ctx context.Context) error {
 		return errStrategyIsNil
 	}
 
-	candles, err := s.Exchange.GetHistoricCandles(ctx,
-		s.Pair,
-		s.Asset,
-		time.Now().AddDate(0, 0, -28),
-		time.Now(),
-		kline.OneDay)
-	if err != nil {
-		fmt.Println("BRUH")
-		return err
-	}
-
-	twapPrice, err := candles.GetTWAP()
+	twapPrice, err := s.getTwapPrice(ctx)
 	if err != nil {
 		return err
 	}
-
-	fmt.Println("TWAP PRICE:", twapPrice)
 
 	deploymentInBase, details, err := s.VerifyBookDeployment(s.orderbook, s.allocation.Deployment, twapPrice)
 	if err != nil {
@@ -209,4 +196,18 @@ func (s *Strategy) submitOrder(ctx context.Context, submit *order.Submit) (*orde
 		errReturn = errors
 	}
 	return resp, errReturn
+}
+
+// getTwapPrice returns a typical twap price from an exchange
+func (c *Config) getTwapPrice(ctx context.Context) (float64, error) {
+	candles, err := c.Exchange.GetHistoricCandles(ctx,
+		c.Pair,
+		c.Asset,
+		time.Now().AddDate(0, 0, -28),
+		time.Now(),
+		kline.OneDay)
+	if err != nil {
+		return 0, err
+	}
+	return candles.GetTWAP()
 }

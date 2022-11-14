@@ -1,6 +1,7 @@
 package common
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -9,9 +10,39 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
+var errStrategyDescriptionIsEmpty = errors.New("strategy description is empty")
+
+// Activities defines a holder for strategy activity and reportable actions.
+type Activities struct {
+	strategy   string
+	id         uuid.UUID
+	simulation bool
+	reporter   chan *Report
+
+	// TODO: Shell out operations and histories.
+}
+
+// NewReporter returns a Activities holder.
+func NewActivities(strategy string, id uuid.UUID, simulation bool) (*Activities, error) {
+	if strategy == "" {
+		return nil, errStrategyDescriptionIsEmpty
+	}
+	if id.IsNil() {
+		return nil, ErrInvalidUUID
+	}
+	return &Activities{
+		strategy:   strategy,
+		id:         id,
+		simulation: simulation,
+		reporter:   make(chan *Report),
+	}, nil
+}
+
 // Activity defines functionality that will store and broadcast strategy related
 // actions.
 type Activity interface {
+	// GetReporter returns a channel that gives you a full report or summary of
+	// action.
 	GetReporter() (<-chan *Report, error)
 	ReportComplete()
 	ReportTimeout(end time.Time)

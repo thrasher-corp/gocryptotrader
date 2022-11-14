@@ -6,6 +6,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
+// NewScheduler returns a new schedular to assist in timing strategy heartbeat.
 func NewScheduler(start, end time.Time, aligned bool, heartbeat kline.Interval) (*Scheduler, error) {
 	schedule := &Scheduler{
 		start:          start,
@@ -20,9 +21,9 @@ func NewScheduler(start, end time.Time, aligned bool, heartbeat kline.Interval) 
 }
 
 // Scheduler defines scheduling assistance for strategies. NOTE: Acts as base
-// for all potential strategies and all methods be overridable. e.g.
+// for all potential strategies and all methods can be overridden. e.g.
 // GetSignal() <-chan interface{} core will return a time.Time and then signal
-// can be strategy defined in methodOnSignal(ctx context.Context, sig interface{}).
+// can be strategy defined in method OnSignal(ctx context.Context, sig interface{}).
 // This can then build up to market making bots and standard TA wrappers.
 type Scheduler struct {
 	// start defines scheduled start time
@@ -35,10 +36,14 @@ type Scheduler struct {
 	// interval defines the actual lowest interval as heart beat to execute
 	// strategy.
 	interval kline.Interval
-
+	// timer defines the next firing sequence for the wake up signal
 	timer *time.Timer
+	// ender defines the end of life for the strategy
 	ender *time.Timer
-	pipe  chan interface{}
+	// the pipe defines a common channel to return to implement the GetSignal
+	// method, theres now way to type cast a channel in go and requires a
+	// routine
+	pipe chan interface{}
 }
 
 // GetSignal implements requirements interface
@@ -68,6 +73,8 @@ func (s *Scheduler) pipeTimer() <-chan interface{} {
 	return s.pipe
 }
 
+// piper routine takes the timer signal and sends it to the OnSignal channel it
+// then resets the timer to the appropriate next heartbeat.
 func (s *Scheduler) piper() {
 	for signal := range s.timer.C {
 		s.pipe <- signal

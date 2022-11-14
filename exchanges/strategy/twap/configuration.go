@@ -207,24 +207,10 @@ func (c *Config) GetDistrbutionAmount(ctx context.Context, allocatedAmount float
 	deployments := int64(window) / int64(c.Interval)
 	deploymentAmount := allocatedAmount / float64(deployments)
 
-	candles, err := c.Exchange.GetHistoricCandles(ctx,
-		c.Pair,
-		c.Asset,
-		time.Now().AddDate(0, 0, -28),
-		time.Now(),
-		kline.OneDay)
+	twapPrice, err := c.getTwapPrice(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Println(len(candles.Candles))
-
-	twapPrice, err := candles.GetTWAP()
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Println("TWAP PRICE:", twapPrice)
 
 	// The checks below determines if the allocation spread over time can or
 	// *should* be deployed on the exchange.
@@ -267,17 +253,19 @@ func (c *Config) VerifyBookDeployment(book *orderbook.Depth, deploymentAmount, t
 	var err error
 	if c.Buy {
 		// Quote needs to be converted to base for deployment checks.
-		details, err = book.LiftTheAsks(deploymentAmount, twapPrice, false)
+		details, err = book.LiftTheAsksByImpactSlippage(c.MaxImpactSlippage, twapPrice)
 		if err != nil {
 			return 0, nil, err
 		}
 		deploymentAmount = details.Purchased
 	} else {
-		details, err = book.HitTheBids(deploymentAmount, twapPrice, false)
+		details, err = book.HitTheBidsByImpactSlippage(deploymentAmount, twapPrice)
 		if err != nil {
 			return 0, nil, err
 		}
 	}
+
+	fmt.Printf("deets bro: %+v\n", details)
 
 	if c.MaxImpactSlippage != 0 {
 		// This check is nested because this cares about book impact slippage
@@ -396,4 +384,14 @@ func (c *Config) SetTimer(timer *time.Timer) error {
 	}
 	timer.Reset(schedule)
 	return nil
+}
+
+// Quote needs to be converted to base for deployment checks.
+
+// GetImpact returns the orderbook movement details
+func (c Config) GetImpact(book *orderbook.Depth, twapPrice float64) (*orderbook.Movement, error) {
+	if c.Buy {
+		return book.LiftTheAsksByImpactSlippage(c.MaxImpactSlippage, twapPrice)
+	}
+	return book.HitTheBidsByImpactSlippage(c.MaxImpactSlippage, twapPrice)
 }

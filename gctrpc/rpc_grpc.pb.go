@@ -129,6 +129,7 @@ type GoCryptoTraderServiceClient interface {
 	GetOrderbookAmountByImpact(ctx context.Context, in *GetOrderbookAmountByImpactRequest, opts ...grpc.CallOption) (*GetOrderbookAmountByImpactResponse, error)
 	GetAllStrategies(ctx context.Context, in *GetAllStrategiesRequest, opts ...grpc.CallOption) (*GetAllStrategiesResponse, error)
 	StopStrategy(ctx context.Context, in *StopStrategyRequest, opts ...grpc.CallOption) (*StopStrategyResponse, error)
+	DCAStream(ctx context.Context, in *DCARequest, opts ...grpc.CallOption) (GoCryptoTraderService_DCAStreamClient, error)
 	TWAPStream(ctx context.Context, in *TWAPRequest, opts ...grpc.CallOption) (GoCryptoTraderService_TWAPStreamClient, error)
 }
 
@@ -1241,8 +1242,40 @@ func (c *goCryptoTraderServiceClient) StopStrategy(ctx context.Context, in *Stop
 	return out, nil
 }
 
+func (c *goCryptoTraderServiceClient) DCAStream(ctx context.Context, in *DCARequest, opts ...grpc.CallOption) (GoCryptoTraderService_DCAStreamClient, error) {
+	stream, err := c.cc.NewStream(ctx, &GoCryptoTraderService_ServiceDesc.Streams[6], "/gctrpc.GoCryptoTraderService/DCAStream", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &goCryptoTraderServiceDCAStreamClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type GoCryptoTraderService_DCAStreamClient interface {
+	Recv() (*DCAResponse, error)
+	grpc.ClientStream
+}
+
+type goCryptoTraderServiceDCAStreamClient struct {
+	grpc.ClientStream
+}
+
+func (x *goCryptoTraderServiceDCAStreamClient) Recv() (*DCAResponse, error) {
+	m := new(DCAResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 func (c *goCryptoTraderServiceClient) TWAPStream(ctx context.Context, in *TWAPRequest, opts ...grpc.CallOption) (GoCryptoTraderService_TWAPStreamClient, error) {
-	stream, err := c.cc.NewStream(ctx, &GoCryptoTraderService_ServiceDesc.Streams[6], "/gctrpc.GoCryptoTraderService/TWAPStream", opts...)
+	stream, err := c.cc.NewStream(ctx, &GoCryptoTraderService_ServiceDesc.Streams[7], "/gctrpc.GoCryptoTraderService/TWAPStream", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1384,6 +1417,7 @@ type GoCryptoTraderServiceServer interface {
 	GetOrderbookAmountByImpact(context.Context, *GetOrderbookAmountByImpactRequest) (*GetOrderbookAmountByImpactResponse, error)
 	GetAllStrategies(context.Context, *GetAllStrategiesRequest) (*GetAllStrategiesResponse, error)
 	StopStrategy(context.Context, *StopStrategyRequest) (*StopStrategyResponse, error)
+	DCAStream(*DCARequest, GoCryptoTraderService_DCAStreamServer) error
 	TWAPStream(*TWAPRequest, GoCryptoTraderService_TWAPStreamServer) error
 	mustEmbedUnimplementedGoCryptoTraderServiceServer()
 }
@@ -1712,6 +1746,9 @@ func (UnimplementedGoCryptoTraderServiceServer) GetAllStrategies(context.Context
 }
 func (UnimplementedGoCryptoTraderServiceServer) StopStrategy(context.Context, *StopStrategyRequest) (*StopStrategyResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method StopStrategy not implemented")
+}
+func (UnimplementedGoCryptoTraderServiceServer) DCAStream(*DCARequest, GoCryptoTraderService_DCAStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method DCAStream not implemented")
 }
 func (UnimplementedGoCryptoTraderServiceServer) TWAPStream(*TWAPRequest, GoCryptoTraderService_TWAPStreamServer) error {
 	return status.Errorf(codes.Unimplemented, "method TWAPStream not implemented")
@@ -3673,6 +3710,27 @@ func _GoCryptoTraderService_StopStrategy_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GoCryptoTraderService_DCAStream_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(DCARequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(GoCryptoTraderServiceServer).DCAStream(m, &goCryptoTraderServiceDCAStreamServer{stream})
+}
+
+type GoCryptoTraderService_DCAStreamServer interface {
+	Send(*DCAResponse) error
+	grpc.ServerStream
+}
+
+type goCryptoTraderServiceDCAStreamServer struct {
+	grpc.ServerStream
+}
+
+func (x *goCryptoTraderServiceDCAStreamServer) Send(m *DCAResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 func _GoCryptoTraderService_TWAPStream_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(TWAPRequest)
 	if err := stream.RecvMsg(m); err != nil {
@@ -4135,6 +4193,11 @@ var GoCryptoTraderService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "GetHistoricTrades",
 			Handler:       _GoCryptoTraderService_GetHistoricTrades_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "DCAStream",
+			Handler:       _GoCryptoTraderService_DCAStream_Handler,
 			ServerStreams: true,
 		},
 		{

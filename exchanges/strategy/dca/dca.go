@@ -61,7 +61,7 @@ func New(ctx context.Context, c *Config) (*Strategy, error) {
 		deployment = c.Pair.Base
 	}
 
-	balance := selling.GetAvailableWithoutBorrow()
+	balance := selling.GetFree()
 	if balance == 0 {
 		return nil, fmt.Errorf("cannot sell %s amount %f to buy base %s %w of %f",
 			deployment,

@@ -1,7 +1,6 @@
 package twap
 
 import (
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -19,10 +18,6 @@ type Strategy struct {
 	Selling    *account.ProtectedBalance
 	allocation *Allocation
 	orderbook  *orderbook.Depth
-	wg         sync.WaitGroup
-	shutdown   chan struct{}
-	running    bool
-	mtx        sync.Mutex
 }
 
 // Allocation defines the full allocation of funds and information of strategy
