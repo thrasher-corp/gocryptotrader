@@ -20,13 +20,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ftx"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-const testExchange = "ftx"
+const testExchange = "binance"
 
 type fakeFund struct{}
 
@@ -37,7 +37,7 @@ func (f *fakeFund) GetPairReader() (funding.IPairReader, error) {
 	if err != nil {
 		return nil, err
 	}
-	j, err := funding.CreateItem(testExchange, asset.Spot, currency.USD, leet, leet)
+	j, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, leet, leet)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func (f *fakeFund) GetCollateralReader() (funding.ICollateralReader, error) {
 	if err != nil {
 		return nil, err
 	}
-	j, err := funding.CreateItem(testExchange, asset.Futures, currency.USD, leet, leet)
+	j, err := funding.CreateItem(testExchange, asset.Futures, currency.USDT, leet, leet)
 	if err != nil {
 		return nil, err
 	}
@@ -61,11 +61,11 @@ func (f *fakeFund) PairReleaser() (funding.IPairReleaser, error) {
 	if err != nil {
 		return nil, err
 	}
-	usd, err := funding.CreateItem(testExchange, asset.Spot, currency.USD, leet, leet)
+	usdt, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, leet, leet)
 	if err != nil {
 		return nil, err
 	}
-	p, err := funding.CreatePair(btc, usd)
+	p, err := funding.CreatePair(btc, usdt)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +84,7 @@ func (f *fakeFund) CollateralReleaser() (funding.ICollateralReleaser, error) {
 	if err != nil {
 		return nil, err
 	}
-	j, err := funding.CreateItem(testExchange, asset.Futures, currency.USD, decimal.Zero, decimal.Zero)
+	j, err := funding.CreateItem(testExchange, asset.Futures, currency.USDT, decimal.Zero, decimal.Zero)
 	if err != nil {
 		return nil, err
 	}
@@ -125,23 +125,23 @@ func TestSetCurrency(t *testing.T) {
 	if len(e.CurrencySettings) != 0 {
 		t.Error("expected 0")
 	}
-	f := &ftx.FTX{}
+	f := &binance.Binance{}
 	f.Name = testExchange
 	cs := &Settings{
 		Exchange:      f,
 		UseRealOrders: true,
-		Pair:          currency.NewPair(currency.BTC, currency.USD),
+		Pair:          currency.NewPair(currency.BTC, currency.USDT),
 		Asset:         asset.Spot,
 	}
-	e.SetExchangeAssetCurrencySettings(asset.Spot, currency.NewPair(currency.BTC, currency.USD), cs)
-	result, err := e.GetCurrencySettings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD))
+	e.SetExchangeAssetCurrencySettings(asset.Spot, currency.NewPair(currency.BTC, currency.USDT), cs)
+	result, err := e.GetCurrencySettings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	if !result.UseRealOrders {
 		t.Error("expected true")
 	}
-	e.SetExchangeAssetCurrencySettings(asset.Spot, currency.NewPair(currency.BTC, currency.USD), cs)
+	e.SetExchangeAssetCurrencySettings(asset.Spot, currency.NewPair(currency.BTC, currency.USDT), cs)
 	if len(e.CurrencySettings) != 1 {
 		t.Error("expected 1")
 	}
@@ -218,7 +218,7 @@ func TestPlaceOrder(t *testing.T) {
 	if !errors.Is(err, gctorder.ErrPairIsEmpty) {
 		t.Errorf("received: %v, expected: %v", err, gctorder.ErrPairIsEmpty)
 	}
-	f.CurrencyPair = currency.NewPair(currency.BTC, currency.USD)
+	f.CurrencyPair = currency.NewPair(currency.BTC, currency.USDT)
 	f.AssetType = asset.Spot
 	f.Direction = gctorder.Buy
 	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), decimal.Zero, false, true, f, bot.OrderManager)
@@ -255,13 +255,13 @@ func TestExecuteOrder(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	p := currency.NewPair(currency.BTC, currency.USD)
+	p := currency.NewPair(currency.BTC, currency.USDT)
 	a := asset.Spot
 	_, err = exch.FetchOrderbook(context.Background(), p, a)
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := &ftx.FTX{}
+	f := &binance.Binance{}
 	f.Name = testExchange
 	cs := Settings{
 		Exchange:            f,
@@ -374,7 +374,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	p := currency.NewPair(currency.BTC, currency.USD)
+	p := currency.NewPair(currency.BTC, currency.USDT)
 	a := asset.Spot
 	_, err = exch.FetchOrderbook(context.Background(), p, a)
 	if err != nil {
@@ -390,7 +390,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := &ftx.FTX{}
+	f := &binance.Binance{}
 	f.Name = testExchange
 	cs := Settings{
 		Exchange:      f,
@@ -428,7 +428,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	d := &kline.DataFromKline{
 		Base: &data.Base{},
 		Item: gctkline.Item{
-			Exchange: "ftx",
+			Exchange: testExchange,
 			Pair:     p,
 			Asset:    asset.Spot,
 			Interval: gctkline.FifteenMin,
@@ -658,7 +658,7 @@ func TestAllocateFundsPostOrder(t *testing.T) {
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
-	item2, err := funding.CreateItem(testExchange, asset.Spot, currency.USD, decimal.NewFromInt(1337), decimal.Zero)
+	item2, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(1337), decimal.Zero)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
@@ -699,7 +699,7 @@ func TestAllocateFundsPostOrder(t *testing.T) {
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
-	item4, err := funding.CreateItem(testExchange, asset.Futures, currency.USD, decimal.NewFromInt(1337), decimal.Zero)
+	item4, err := funding.CreateItem(testExchange, asset.Futures, currency.USDT, decimal.NewFromInt(1337), decimal.Zero)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}

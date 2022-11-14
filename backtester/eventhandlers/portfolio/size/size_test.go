@@ -194,10 +194,10 @@ func TestSizeOrder(t *testing.T) {
 	o := &order.Order{
 		Base: &event.Base{
 			Offset:         1,
-			Exchange:       "ftx",
+			Exchange:       "binance",
 			Time:           time.Now(),
-			CurrencyPair:   currency.NewPair(currency.BTC, currency.USD),
-			UnderlyingPair: currency.NewPair(currency.BTC, currency.USD),
+			CurrencyPair:   currency.NewPair(currency.BTC, currency.USDT),
+			UnderlyingPair: currency.NewPair(currency.BTC, currency.USDT),
 			AssetType:      asset.Spot,
 		},
 	}

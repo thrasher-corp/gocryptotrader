@@ -404,7 +404,7 @@ func (p *Portfolio) TrackFuturesOrder(ev fill.Event, fund funding.IFundReleaser)
 	}
 	settings, err := p.getSettings(detail.Exchange, detail.AssetType, detail.Pair)
 	if err != nil {
-		return nil, fmt.Errorf("%v %v %v %w", detail.Exchange, detail.AssetType, detail.Pair, err)
+		return nil, fmt.Errorf("%w", err)
 	}
 
 	err = settings.FuturesTracker.TrackNewOrder(detail)

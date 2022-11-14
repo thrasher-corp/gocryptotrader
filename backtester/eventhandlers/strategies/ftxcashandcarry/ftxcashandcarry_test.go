@@ -23,6 +23,8 @@ import (
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+const testExchange = "ftx"
+
 func TestName(t *testing.T) {
 	t.Parallel()
 	d := Strategy{}
@@ -111,7 +113,7 @@ func TestSetDefaults(t *testing.T) {
 func TestSortSignals(t *testing.T) {
 	t.Parallel()
 	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	exch := "ftx"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := &data.Base{}
@@ -454,14 +456,14 @@ func TestCloseAllPositions(t *testing.T) {
 			Item:     cp.Base,
 			Pair:     cp,
 			Asset:    asset.Spot,
-			Exchange: "ftx",
+			Exchange: testExchange,
 		},
 		{
 			Offset:   1,
 			Item:     cp.Base,
 			Pair:     cp,
 			Asset:    asset.Futures,
-			Exchange: "ftx",
+			Exchange: testExchange,
 		},
 	}
 
@@ -469,7 +471,7 @@ func TestCloseAllPositions(t *testing.T) {
 		&signal.Signal{
 			Base: &event.Base{
 				Offset:         1,
-				Exchange:       "ftx",
+				Exchange:       testExchange,
 				Time:           time.Now(),
 				Interval:       gctkline.OneDay,
 				CurrencyPair:   cp,
@@ -489,7 +491,7 @@ func TestCloseAllPositions(t *testing.T) {
 		&signal.Signal{
 			Base: &event.Base{
 				Offset:         1,
-				Exchange:       "ftx",
+				Exchange:       testExchange,
 				Time:           time.Now(),
 				Interval:       gctkline.OneDay,
 				CurrencyPair:   cp,

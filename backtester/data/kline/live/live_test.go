@@ -14,20 +14,21 @@ import (
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
-const testExchange = "ftx"
+const testExchange = "binance"
 
 func TestLoadCandles(t *testing.T) {
 	t.Parallel()
 	interval := gctkline.OneHour
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewPair(currency.BTC, currency.USDT)
 	a := asset.Spot
 	em := engine.SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
 	}
-	pFormat := &currency.PairFormat{Uppercase: true, Delimiter: currency.ForwardSlashDelimiter}
+	pFormat := &currency.PairFormat{Uppercase: true}
 	b := exch.GetBase()
+	b.Verbose = true
 	exch.SetDefaults()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
@@ -38,14 +39,14 @@ func TestLoadCandles(t *testing.T) {
 		ConfigFormat:  pFormat,
 	}
 	var data *gctkline.Item
-	data, err = LoadData(context.Background(), time.Now(), exch, common.DataCandle, interval.Duration(), cp, currency.EMPTYPAIR, a, false)
+	data, err = LoadData(context.Background(), time.Now(), exch, common.DataCandle, interval.Duration(), cp, currency.EMPTYPAIR, a, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(data.Candles) == 0 {
 		t.Error("expected candles")
 	}
-	_, err = LoadData(context.Background(), time.Now(), exch, -1, interval.Duration(), cp, currency.EMPTYPAIR, a, false)
+	_, err = LoadData(context.Background(), time.Now(), exch, -1, interval.Duration(), cp, currency.EMPTYPAIR, a, true)
 	if !errors.Is(err, common.ErrInvalidDataType) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrInvalidDataType)
 	}
@@ -54,14 +55,14 @@ func TestLoadCandles(t *testing.T) {
 func TestLoadTrades(t *testing.T) {
 	t.Parallel()
 	interval := gctkline.OneMin
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewPair(currency.BTC, currency.USDT)
 	a := asset.Spot
 	em := engine.SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
 	}
-	pFormat := &currency.PairFormat{Uppercase: true, Delimiter: currency.ForwardSlashDelimiter}
+	pFormat := &currency.PairFormat{Uppercase: true}
 	b := exch.GetBase()
 	exch.SetDefaults()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)

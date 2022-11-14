@@ -19,7 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ftx"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
@@ -262,7 +262,7 @@ func TestAppendDataSource(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 
-	setup.exchange = &ftx.FTX{}
+	setup.exchange = &binance.Binance{}
 	err = dataHandler.AppendDataSource(setup)
 	if !errors.Is(err, common.ErrInvalidDataType) {
 		t.Errorf("received '%v' expected '%v'", err, common.ErrInvalidDataType)
@@ -280,7 +280,7 @@ func TestAppendDataSource(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, currency.ErrCurrencyPairEmpty)
 	}
 
-	setup.pair = currency.NewPair(currency.BTC, currency.USD)
+	setup.pair = currency.NewPair(currency.BTC, currency.USDT)
 	err = dataHandler.AppendDataSource(setup)
 	if !errors.Is(err, kline.ErrUnsetInterval) {
 		t.Errorf("received '%v' expected '%v'", err, kline.ErrUnsetInterval)
@@ -324,12 +324,11 @@ func TestFetchLatestData(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	cp := currency.NewPair(currency.BTC, currency.USD).Format(
+	cp := currency.NewPair(currency.BTC, currency.USDT).Format(
 		currency.PairFormat{
 			Uppercase: true,
-			Delimiter: "/",
 		})
-	f := &ftx.FTX{}
+	f := &binance.Binance{}
 	f.SetDefaults()
 	fb := f.GetBase()
 	fbA := fb.CurrencyPairs.Pairs[asset.Spot]
@@ -393,12 +392,11 @@ func TestLoadCandleData(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 
-	exch := &ftx.FTX{}
+	exch := &binance.Binance{}
 	exch.SetDefaults()
-	cp := currency.NewPair(currency.BTC, currency.USD).Format(
+	cp := currency.NewPair(currency.BTC, currency.USDT).Format(
 		currency.PairFormat{
 			Uppercase: true,
-			Delimiter: "/",
 		})
 	eba := exch.CurrencyPairs.Pairs[asset.Spot]
 	eba.Available = eba.Available.Add(cp)
@@ -441,12 +439,11 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 	}
 
 	dataHandler.started = 1
-	cp := currency.NewPair(currency.BTC, currency.USD).Format(
+	cp := currency.NewPair(currency.BTC, currency.USDT).Format(
 		currency.PairFormat{
 			Uppercase: true,
-			Delimiter: "/",
 		})
-	f := &ftx.FTX{}
+	f := &binance.Binance{}
 	f.SetDefaults()
 	fb := f.GetBase()
 	fbA := fb.CurrencyPairs.Pairs[asset.Spot]
@@ -525,8 +522,8 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 
 	err = dataHandler.SetDataForClosingAllPositions(&signal.Signal{
 		Base: &event.Base{
-			Offset:         3,
-			Exchange:       "binance",
+			Offset:         4,
+			Exchange:       "ftx",
 			Time:           time.Now(),
 			Interval:       kline.OneHour,
 			CurrencyPair:   cp,

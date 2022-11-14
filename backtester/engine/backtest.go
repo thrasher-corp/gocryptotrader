@@ -466,18 +466,18 @@ func (bt *BackTest) processSignalEvent(ev signal.Event, funds funding.IFundReser
 	}
 	cs, err := bt.Exchange.GetCurrencySettings(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	if err != nil {
-		log.Errorf(common.Backtester, "GetCurrencySettings %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
-		return fmt.Errorf("GetCurrencySettings %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+		log.Errorf(common.Backtester, "GetCurrencySettings %v", err)
+		return fmt.Errorf("GetCurrencySettings %v", err)
 	}
 	var o *order.Order
 	o, err = bt.Portfolio.OnSignal(ev, &cs, funds)
 	if err != nil {
-		log.Errorf(common.Backtester, "OnSignal %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+		log.Errorf(common.Backtester, "OnSignal %v", err)
 		return fmt.Errorf("OnSignal %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 	}
 	err = bt.Statistic.SetEventForOffset(o)
 	if err != nil {
-		return fmt.Errorf("SetEventForOffset %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+		return fmt.Errorf("SetEventForOffset %v", err)
 	}
 
 	bt.EventQueue.AppendEvent(o)

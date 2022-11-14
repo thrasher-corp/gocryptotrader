@@ -25,7 +25,7 @@ var (
 	elite    = decimal.NewFromInt(1337)
 	neg      = decimal.NewFromInt(-1)
 	one      = decimal.NewFromInt(1)
-	exchName = "exchname"
+	exchName = "binance"
 	a        = asset.Spot
 	base     = currency.DOGE
 	quote    = currency.XRP
@@ -403,7 +403,7 @@ func TestGenerateReport(t *testing.T) {
 		exchange:     exchName,
 		initialFunds: decimal.NewFromInt(100),
 		available:    decimal.NewFromInt(200),
-		currency:     currency.USD,
+		currency:     currency.USDT,
 		asset:        a,
 	})
 	if err != nil {
@@ -414,7 +414,7 @@ func TestGenerateReport(t *testing.T) {
 		Base: &data.Base{},
 		Item: gctkline.Item{
 			Exchange: exchName,
-			Pair:     currency.NewPair(currency.BTC, currency.USD),
+			Pair:     currency.NewPair(currency.BTC, currency.USDT),
 			Asset:    a,
 			Interval: gctkline.OneHour,
 			Candles: []gctkline.Candle{
@@ -545,7 +545,7 @@ func TestAddUSDTrackingData(t *testing.T) {
 		Base: &data.Base{},
 		Item: gctkline.Item{
 			Exchange: exchName,
-			Pair:     currency.NewPair(pair.Quote, currency.USD),
+			Pair:     currency.NewPair(pair.Quote, currency.USDT),
 			Asset:    a,
 			Interval: gctkline.OneHour,
 			Candles: []gctkline.Candle{
@@ -608,7 +608,7 @@ func TestFundingLiquidate(t *testing.T) {
 		Base: &event.Base{
 			Exchange:     "test",
 			AssetType:    asset.Spot,
-			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
+			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
 		},
 	})
 	if !errors.Is(err, nil) {
@@ -636,7 +636,7 @@ func TestHasExchangeBeenLiquidated(t *testing.T) {
 		Base: &event.Base{
 			Exchange:     "test",
 			AssetType:    asset.Spot,
-			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
+			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
 		},
 	}
 	err = f.Liquidate(ev)
@@ -864,25 +864,25 @@ func TestSetFunding(t *testing.T) {
 		t.Errorf("received '%v', expected  '%v'", err, engine.ErrExchangeNameIsEmpty)
 	}
 
-	err = f.SetFunding("ftx", 0, nil, false)
+	err = f.SetFunding(exchName, 0, nil, false)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("received '%v', expected  '%v'", err, asset.ErrNotSupported)
 	}
 
-	err = f.SetFunding("ftx", asset.Spot, nil, false)
+	err = f.SetFunding(exchName, asset.Spot, nil, false)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v', expected  '%v'", err, gctcommon.ErrNilPointer)
 	}
 
 	bal := &account.Balance{}
-	err = f.SetFunding("ftx", asset.Spot, bal, false)
+	err = f.SetFunding(exchName, asset.Spot, bal, false)
 	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
 		t.Errorf("received '%v', expected  '%v'", err, currency.ErrCurrencyCodeEmpty)
 	}
 
 	bal.Currency = currency.BTC
 	bal.Total = 1337
-	err = f.SetFunding("ftx", asset.Spot, bal, false)
+	err = f.SetFunding(exchName, asset.Spot, bal, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected  '%v'", err, nil)
 	}
@@ -897,7 +897,7 @@ func TestSetFunding(t *testing.T) {
 	}
 
 	bal.Total = 1338
-	err = f.SetFunding("ftx", asset.Spot, bal, true)
+	err = f.SetFunding(exchName, asset.Spot, bal, true)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected  '%v'", err, nil)
 	}
@@ -976,7 +976,7 @@ func TestUpdateAllCollateral(t *testing.T) {
 
 	f.items = []*Item{
 		{
-			exchange:     "ftx",
+			exchange:     exchName,
 			asset:        asset.Spot,
 			currency:     currency.BTC,
 			isCollateral: true,

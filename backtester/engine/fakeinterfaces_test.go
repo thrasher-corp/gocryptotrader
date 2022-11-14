@@ -76,7 +76,7 @@ func (f fakeFolio) GetComplianceManager(string, asset.Item, currency.Pair) (*com
 }
 
 func (f fakeFolio) TrackFuturesOrder(fill.Event, funding.IFundReleaser) (*portfolio.PNLSummary, error) {
-	return nil, nil
+	return &portfolio.PNLSummary{}, nil
 }
 
 func (f fakeFolio) UpdatePNL(common.Event, decimal.Decimal) error {
@@ -84,7 +84,7 @@ func (f fakeFolio) UpdatePNL(common.Event, decimal.Decimal) error {
 }
 
 func (f fakeFolio) GetLatestPNLForEvent(common.Event) (*portfolio.PNLSummary, error) {
-	return nil, nil
+	return &portfolio.PNLSummary{}, nil
 }
 
 func (f fakeFolio) GetLatestPNLs() []portfolio.PNLSummary {
