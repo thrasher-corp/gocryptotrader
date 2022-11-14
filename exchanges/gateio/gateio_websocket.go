@@ -638,6 +638,7 @@ func (g *Gateio) processCrossMarginBalance(data []byte) error {
 			Currency: code,
 			Asset:    asset.Margin,
 			Amount:   resp.Result[x].Available,
+			Account:  resp.Result[x].User,
 		}
 	}
 	return nil

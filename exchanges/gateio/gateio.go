@@ -25,10 +25,10 @@ import (
 )
 
 const (
-	gateioTradeURL                      = "https://api.gateio.ws"
+	gateioTradeURL                      = "https://api.gateio.ws/" + gateioAPIVersion
 	gateioFuturesTestnetTrading         = "https://fx-api-testnet.gateio.ws"
 	gateioFuturesLiveTradingAlternative = "https://fx-api.gateio.ws"
-	gateioAPIVersion                    = "api/v4"
+	gateioAPIVersion                    = "api/v4/"
 
 	// SubAccount Endpoints
 	subAccounts = "sub_accounts"

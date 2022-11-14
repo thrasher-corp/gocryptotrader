@@ -301,7 +301,6 @@ func (m *websocketRoutineManager) websocketDataHandler(exchName string, data int
 				}
 				m.printOrderSummary(&d[x], false)
 			} else {
-
 				od, err := m.orderManager.GetByExchangeAndID(d[x].Exchange, d[x].OrderID)
 				if err != nil {
 					return err
@@ -310,7 +309,6 @@ func (m *websocketRoutineManager) websocketDataHandler(exchName string, data int
 				if err != nil {
 					return err
 				}
-
 				err = m.orderManager.UpdateExistingOrder(od)
 				if err != nil {
 					return err

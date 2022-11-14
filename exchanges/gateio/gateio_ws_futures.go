@@ -683,6 +683,7 @@ func (g *Gateio) processBalancePushData(data []byte) error {
 			Currency: code,
 			Asset:    futuresAssetType,
 			Amount:   resp.Result[x].Balance,
+			Account:  resp.Result[x].User,
 		}
 	}
 	return nil
