@@ -32,7 +32,7 @@ var executeStrategyFromFileCommand = &cli.Command{
 		&cli.StringFlag{
 			Name:    "path",
 			Aliases: []string{"p"},
-			Usage:   fmt.Sprintf("the filepath to a strategy to execute eg: %v", filepath.Join("..", "config", "strategyexamples", "dca-api-candles.strat")),
+			Usage:   "the filepath to a strategy to execute",
 		},
 		doNotRunFlag,
 		doNotStoreFlag,

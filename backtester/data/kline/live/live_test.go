@@ -28,7 +28,6 @@ func TestLoadCandles(t *testing.T) {
 	}
 	pFormat := &currency.PairFormat{Uppercase: true}
 	b := exch.GetBase()
-	b.Verbose = true
 	exch.SetDefaults()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
