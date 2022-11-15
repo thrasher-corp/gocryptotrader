@@ -620,7 +620,7 @@ type CancelOrderRequestParam struct {
 
 // AmendOrderRequestParams represents amend order requesting parameters.
 type AmendOrderRequestParams struct {
-	InstrumentID            string  `json:"instId,omitempty"`
+	InstrumentID            string  `json:"instId"`
 	CancelOnFail            bool    `json:"cxlOnFail,omitempty"`
 	OrderID                 string  `json:"ordId,omitempty"`
 	ClientSuppliedOrderID   string  `json:"clOrdId,omitempty"`

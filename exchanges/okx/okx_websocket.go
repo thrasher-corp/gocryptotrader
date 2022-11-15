@@ -1819,7 +1819,7 @@ func (ok *Okx) wsChannelSubscription(operation, channel string, assetType asset.
 // Private Channel Websocket methods
 
 // wsAuthChannelSubscription send a subscription or unsubscription request for different channels through the websocket stream.
-func (ok *Okx) wsAuthChannelSubscription(operation, channel string, assetType asset.Item, pair currency.Pair, uid, algoID string, tooglers wsSubscriptionParametersToggler) error {
+func (ok *Okx) wsAuthChannelSubscription(operation, channel string, assetType asset.Item, pair currency.Pair, uid, algoID string, params wsSubscriptionParametersToggler) error {
 	if operation != operationSubscribe && operation != operationUnsubscribe {
 		return errInvalidWebsocketEvent
 	}
@@ -1829,7 +1829,7 @@ func (ok *Okx) wsAuthChannelSubscription(operation, channel string, assetType as
 	var ccy string
 	var err error
 	var format currency.PairFormat
-	if tooglers.InstrumentType {
+	if params.InstrumentType {
 		instrumentType = strings.ToUpper(ok.GetInstrumentTypeFromAssetItem(assetType))
 		if instrumentType != okxInstTypeMargin &&
 			instrumentType != okxInstTypeSwap &&
@@ -1838,12 +1838,12 @@ func (ok *Okx) wsAuthChannelSubscription(operation, channel string, assetType as
 			instrumentType = okxInstTypeANY
 		}
 	}
-	if tooglers.Underlying {
+	if params.Underlying {
 		if !pair.IsEmpty() {
 			underlying, _ = ok.GetUnderlying(pair, assetType)
 		}
 	}
-	if tooglers.InstrumentID {
+	if params.InstrumentID {
 		format, err = ok.GetPairFormat(assetType, false)
 		if err != nil {
 			return err
@@ -1856,7 +1856,7 @@ func (ok *Okx) wsAuthChannelSubscription(operation, channel string, assetType as
 			instrumentID = ""
 		}
 	}
-	if tooglers.Currency {
+	if params.Currency {
 		if !pair.IsEmpty() {
 			if !pair.Base.IsEmpty() {
 				ccy = strings.ToUpper(pair.Base.String())

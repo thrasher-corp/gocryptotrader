@@ -778,8 +778,9 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 	var placeOrderResponse *OrderData
 	if s.AssetType == asset.PerpetualSwap || s.AssetType == asset.Futures {
 		if s.Type.Lower() == "" {
-			orderRequest.OrderType = OkxOrderOptimalLimitIOC // only applicable for Futures and Perpetual Swap Types.
+			orderRequest.OrderType = OkxOrderOptimalLimitIOC
 		}
+		// TODO: handle positionSideLong while side is Short and positionSideShort while side is Long
 		if s.Side.IsLong() {
 			orderRequest.PositionSide = positionSideLong
 		} else {
