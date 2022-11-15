@@ -994,8 +994,10 @@ func StringToOrderType(oType string) (Type, error) {
 		return ImmediateOrCancel, nil
 	case Stop.String(), "STOP LOSS", "STOP_LOSS", "EXCHANGE STOP":
 		return Stop, nil
-	case StopLimit.String(), "EXCHANGE STOP LIMIT":
+	case StopLimit.String(), "EXCHANGE STOP LIMIT", "STOP_LIMIT":
 		return StopLimit, nil
+	case StopMarket.String(), "STOP_MARKET":
+		return StopMarket, nil
 	case TrailingStop.String(), "TRAILING STOP", "EXCHANGE TRAILING STOP":
 		return TrailingStop, nil
 	case FillOrKill.String(), "EXCHANGE FOK":

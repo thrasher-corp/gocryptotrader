@@ -718,7 +718,7 @@ func TestGetWithdrawals(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveWithdrawals(currencyBTC, 25, 0); err != nil {
+	if _, err := d.WSRetriveWithdrawals(currencyBTC, 25, 0); err != nil {
 		t.Error(err)
 	}
 }
@@ -1188,7 +1188,7 @@ func TestSetEmailLanguage(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSSetEmailLanguage("en"); err != nil {
+	if _, err := d.WSSetEmailLanguage("en"); err != nil {
 		t.Error(err)
 	}
 }
@@ -2233,6 +2233,79 @@ func TestGenerateDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
 	_, err := d.GenerateDefaultSubscriptions()
 	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFetchTicker(t *testing.T) {
+	t.Parallel()
+	pair, err := currency.NewPairFromString(btcPerpInstrument)
+	if err != nil {
+		t.Skip(err)
+	}
+	if _, err := d.FetchTicker(context.Background(), pair, asset.Futures); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFetchOrderbook(t *testing.T) {
+	t.Parallel()
+	pair, err := currency.NewPairFromString(btcPerpInstrument)
+	if err != nil {
+		t.Skip(err)
+	}
+	if _, err := d.FetchOrderbook(context.Background(), pair, asset.Futures); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateAccountInfo(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := d.UpdateAccountInfo(context.Background(), asset.Futures); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFetchAccountInfo(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := d.FetchAccountInfo(context.Background(), asset.Futures); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFundingHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := d.GetFundingHistory(context.Background()); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWithdrawalsHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := d.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Empty); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	t.Parallel()
+	pair, err := currency.NewPairFromString(btcPerpInstrument)
+	if err != nil {
+		t.Error(err)
+	}
+	if _, err := d.GetRecentTrades(context.Background(), pair, asset.Futures); err != nil {
 		t.Error(err)
 	}
 }

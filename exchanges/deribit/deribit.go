@@ -167,8 +167,8 @@ const (
 // GetBookSummaryByCurrency gets book summary data for currency requested
 func (d *Deribit) GetBookSummaryByCurrency(ctx context.Context, currency, kind string) ([]BookSummaryData, error) {
 	currency = strings.ToUpper(currency)
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -212,8 +212,7 @@ func (d *Deribit) GetCurrencies(ctx context.Context) ([]CurrencyData, error) {
 
 // GetDeliveryPrices gets all delivery prices for the given inde name
 func (d *Deribit) GetDeliveryPrices(ctx context.Context, indexName string, offset, count int64) (*IndexDeliveryPrice, error) {
-	indexNames := map[string]bool{"ada_usd": true, "avax_usd": true, "btc_usd": true, "eth_usd": true, "dot_usd": true, "luna_usd": true, "matic_usd": true, "sol_usd": true, "usdc_usd": true, "xrp_usd": true, "ada_usdc": true, "avax_usdc": true, "btc_usdc": true, "eth_usdc": true, "dot_usdc": true, "luna_usdc": true, "matic_usdc": true, "sol_usdc": true, "xrp_usdc": true, "btcdvol_usdc": true, "ethdvol_usdc": true}
-	if !indexNames[indexName] {
+	if indexName == "" {
 		return nil, errUnsupportedIndexName
 	}
 	params := url.Values{}
@@ -236,9 +235,6 @@ func (d *Deribit) GetFundingChartData(ctx context.Context, instrument, length st
 	}
 	params := url.Values{}
 	params.Set("instrument_name", instrument)
-	if length != "8h" && length != "24h" && length != "12h" && length != "1m" {
-		return nil, fmt.Errorf("%w, only 8h, 12h, 1m, and 24h are supported", errIntervalNotSupported)
-	}
 	params.Set("length", length)
 	var resp FundingChartData
 	return &resp, d.SendHTTPRequest(ctx, exchange.RestFutures,
@@ -252,15 +248,11 @@ func (d *Deribit) GetFundingRateValue(ctx context.Context, instrument string, st
 	}
 	params := url.Values{}
 	params.Set("instrument_name", instrument)
-	if startTime.IsZero() {
-		return 0, fmt.Errorf("%w, start time can not be zero", errInvalidTimestamp)
-	} else if startTime.After(endTime) {
-		return 0, errStartTimeCannotBeAfterEndTime
+	err := common.StartEndTimeCheck(startTime, endTime)
+	if err != nil {
+		return 0, err
 	}
 	params.Set("start_timestamp", strconv.FormatInt(startTime.UnixMilli(), 10))
-	if endTime.IsZero() {
-		endTime = time.Now()
-	}
 	params.Set("end_timestamp", strconv.FormatInt(endTime.UnixMilli(), 10))
 	var resp float64
 	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures,
@@ -270,8 +262,8 @@ func (d *Deribit) GetFundingRateValue(ctx context.Context, instrument string, st
 // GetHistoricalVolatility gets historical volatility data
 func (d *Deribit) GetHistoricalVolatility(ctx context.Context, currency string) ([]HistoricalVolatilityData, error) {
 	currency = strings.ToUpper(currency)
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -301,9 +293,8 @@ func (d *Deribit) GetHistoricalVolatility(ctx context.Context, currency string) 
 
 // GetCurrencyIndexPrice retrives the current index price for the instruments, for the selected currency.
 func (d *Deribit) GetCurrencyIndexPrice(ctx context.Context, currency string) (map[string]float64, error) {
-	currency = strings.ToUpper(currency)
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidIndexPriceCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -313,8 +304,7 @@ func (d *Deribit) GetCurrencyIndexPrice(ctx context.Context, currency string) (m
 
 // GetIndexPrice gets price data for the requested index
 func (d *Deribit) GetIndexPrice(ctx context.Context, index string) (*IndexPriceData, error) {
-	indexNames := map[string]bool{"ada_usd": true, "avax_usd": true, "btc_usd": true, "eth_usd": true, "dot_usd": true, "luna_usd": true, "matic_usd": true, "sol_usd": true, "usdc_usd": true, "xrp_usd": true, "ada_usdc": true, "avax_usdc": true, "btc_usdc": true, "eth_usdc": true, "dot_usdc": true, "luna_usdc": true, "matic_usdc": true, "sol_usdc": true, "xrp_usdc": true, "btcdvol_usdc": true, "ethdvol_usdc": true}
-	if !indexNames[index] {
+	if index == "" {
 		return nil, errUnsupportedIndexName
 	}
 	params := url.Values{}
@@ -344,9 +334,8 @@ func (d *Deribit) GetInstrumentData(ctx context.Context, instrument string) (*In
 
 // GetInstrumentsData gets data for all available instruments
 func (d *Deribit) GetInstrumentsData(ctx context.Context, currency, kind string, expired bool) ([]InstrumentData, error) {
-	currency = strings.ToUpper(currency)
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidIndexPriceCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -361,9 +350,8 @@ func (d *Deribit) GetInstrumentsData(ctx context.Context, currency, kind string,
 
 // GetLastSettlementsByCurrency gets last settlement data by currency
 func (d *Deribit) GetLastSettlementsByCurrency(ctx context.Context, currency, settlementType, continuation string, count int64, startTime time.Time) (*SettlementsData, error) {
-	currency = strings.ToUpper(currency)
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidIndexPriceCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -410,9 +398,8 @@ func (d *Deribit) GetLastSettlementsByInstrument(ctx context.Context, instrument
 
 // GetLastTradesByCurrency gets last trades for requested currency
 func (d *Deribit) GetLastTradesByCurrency(ctx context.Context, currency, kind, startID, endID, sorting string, count int64, includeOld bool) (*PublicTradesData, error) {
-	currency = strings.ToUpper(currency)
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidIndexPriceCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -439,9 +426,8 @@ func (d *Deribit) GetLastTradesByCurrency(ctx context.Context, currency, kind, s
 
 // GetLastTradesByCurrencyAndTime gets last trades for requested currency and time intervals
 func (d *Deribit) GetLastTradesByCurrencyAndTime(ctx context.Context, currency, kind, sorting string, count int64, includeOld bool, startTime, endTime time.Time) (*PublicTradesData, error) {
-	currency = strings.ToUpper(currency)
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidIndexPriceCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -454,15 +440,11 @@ func (d *Deribit) GetLastTradesByCurrencyAndTime(ctx context.Context, currency, 
 	if count != 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
-	if startTime.IsZero() {
-		return nil, fmt.Errorf("%w, start time can not be zero", errInvalidTimestamp)
-	} else if startTime.After(endTime) {
-		return nil, errStartTimeCannotBeAfterEndTime
+	err := common.StartEndTimeCheck(startTime, endTime)
+	if err != nil {
+		return nil, err
 	}
 	params.Set("start_timestamp", strconv.FormatInt(startTime.UnixMilli(), 10))
-	if endTime.IsZero() {
-		endTime = time.Now()
-	}
 	params.Set("end_timestamp", strconv.FormatInt(endTime.UnixMilli(), 10))
 	var resp PublicTradesData
 	return &resp, d.SendHTTPRequest(ctx, exchange.RestFutures,
@@ -507,15 +489,11 @@ func (d *Deribit) GetLastTradesByInstrumentAndTime(ctx context.Context, instrume
 	if count != 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
-	if startTime.IsZero() {
-		return nil, fmt.Errorf("%w, start time can not be zero", errInvalidTimestamp)
-	} else if startTime.After(endTime) {
-		return nil, errStartTimeCannotBeAfterEndTime
+	err := common.StartEndTimeCheck(startTime, endTime)
+	if err != nil {
+		return nil, err
 	}
 	params.Set("start_timestamp", strconv.FormatInt(startTime.UnixMilli(), 10))
-	if endTime.IsZero() {
-		endTime = time.Now()
-	}
 	params.Set("end_timestamp", strconv.FormatInt(endTime.UnixMilli(), 10))
 	var resp PublicTradesData
 	return &resp, d.SendHTTPRequest(ctx, exchange.RestFutures,
@@ -529,15 +507,11 @@ func (d *Deribit) GetMarkPriceHistory(ctx context.Context, instrument string, st
 	}
 	params := url.Values{}
 	params.Set("instrument_name", instrument)
-	if startTime.IsZero() {
-		return nil, fmt.Errorf("%w, start time can not be zero", errInvalidTimestamp)
-	} else if startTime.After(endTime) {
-		return nil, errStartTimeCannotBeAfterEndTime
+	err := common.StartEndTimeCheck(startTime, endTime)
+	if err != nil {
+		return nil, err
 	}
 	params.Set("start_timestamp", strconv.FormatInt(startTime.UnixMilli(), 10))
-	if endTime.IsZero() {
-		endTime = time.Now()
-	}
 	params.Set("end_timestamp", strconv.FormatInt(endTime.UnixMilli(), 10))
 	var resp []MarkPriceHistory
 	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures,
@@ -575,8 +549,8 @@ func (d *Deribit) GetOrderbookByInstrumentID(ctx context.Context, instrumentID i
 
 // GetRFQ retrives RFQ information.
 func (d *Deribit) GetRFQ(ctx context.Context, currency, kind string) ([]RFQ, error) {
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidIndexPriceCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -603,15 +577,11 @@ func (d *Deribit) GetTradingViewChartData(ctx context.Context, instrument, resol
 	}
 	params := url.Values{}
 	params.Set("instrument_name", instrument)
-	if startTime.IsZero() {
-		return nil, fmt.Errorf("%w, start time can not be zero", errInvalidTimestamp)
-	} else if startTime.After(endTime) {
-		return nil, errStartTimeCannotBeAfterEndTime
+	err := common.StartEndTimeCheck(startTime, endTime)
+	if err != nil {
+		return nil, err
 	}
 	params.Set("start_timestamp", strconv.FormatInt(startTime.UnixMilli(), 10))
-	if endTime.IsZero() {
-		endTime = time.Now()
-	}
 	params.Set("end_timestamp", strconv.FormatInt(endTime.UnixMilli(), 10))
 	resolutionMap := map[string]bool{"1": true, "3": true, "5": true, "10": true, "15": true, "30": true, "60": true, "120": true, "180": true, "360": true, "720": true, "1D": true}
 	if !resolutionMap[resolution] {
@@ -659,20 +629,16 @@ func (d *Deribit) GetResolutionFromInterval(interval kline.Interval) (string, er
 
 // GetVolatilityIndexData gets volatility index data for the requested currency
 func (d *Deribit) GetVolatilityIndexData(ctx context.Context, currency, resolution string, startTime, endTime time.Time) (*VolatilityIndexData, error) {
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidIndexPriceCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
-	if startTime.IsZero() {
-		return nil, fmt.Errorf("%w, start time can not be zero", errInvalidTimestamp)
-	} else if !endTime.IsZero() && startTime.After(endTime) {
-		return nil, errStartTimeCannotBeAfterEndTime
+	err := common.StartEndTimeCheck(startTime, endTime)
+	if err != nil {
+		return nil, err
 	}
 	params.Set("start_timestamp", strconv.FormatInt(startTime.UnixMilli(), 10))
-	if endTime.IsZero() {
-		endTime = time.Now()
-	}
 	params.Set("end_timestamp", strconv.FormatInt(endTime.UnixMilli(), 10))
 	resolutionMap := map[string]bool{"1": true, "60": true, "3600": true, "43200": true, "1D": true}
 	if !resolutionMap[resolution] {
@@ -725,8 +691,8 @@ func (d *Deribit) SendHTTPRequest(ctx context.Context, ep exchange.URL, path str
 
 // GetAccountSummary gets account summary data for the requested instrument
 func (d *Deribit) GetAccountSummary(ctx context.Context, currency string, extended bool) (*AccountSummaryData, error) {
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidIndexPriceCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -737,8 +703,8 @@ func (d *Deribit) GetAccountSummary(ctx context.Context, currency string, extend
 
 // CancelWithdrawal cancels withdrawal request for a given currency by its id
 func (d *Deribit) CancelWithdrawal(ctx context.Context, currency string, id int64) (*CancelWithdrawalData, error) {
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidIndexPriceCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -753,8 +719,8 @@ func (d *Deribit) CancelWithdrawal(ctx context.Context, currency string, id int6
 
 // CancelTransferByID cancels transfer by ID through the websocket connection.
 func (d *Deribit) CancelTransferByID(ctx context.Context, currency, tfa string, id int64) (*AccountSummaryData, error) {
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidIndexPriceCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -771,8 +737,8 @@ func (d *Deribit) CancelTransferByID(ctx context.Context, currency, tfa string, 
 
 // CreateDepositAddress creates a deposit address for the currency requested
 func (d *Deribit) CreateDepositAddress(ctx context.Context, currency string) (*DepositAddressData, error) {
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidIndexPriceCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -783,8 +749,8 @@ func (d *Deribit) CreateDepositAddress(ctx context.Context, currency string) (*D
 
 // GetCurrentDepositAddress gets the current deposit address for the requested currency
 func (d *Deribit) GetCurrentDepositAddress(ctx context.Context, currency string) (*DepositAddressData, error) {
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidIndexPriceCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -794,8 +760,8 @@ func (d *Deribit) GetCurrentDepositAddress(ctx context.Context, currency string)
 
 // GetDeposits gets the deposits of a given currency
 func (d *Deribit) GetDeposits(ctx context.Context, currency string, count, offset int64) (*DepositsData, error) {
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidIndexPriceCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -811,8 +777,8 @@ func (d *Deribit) GetDeposits(ctx context.Context, currency string, count, offse
 
 // GetTransfers gets transfers data for the requested currency
 func (d *Deribit) GetTransfers(ctx context.Context, currency string, count, offset int64) (*TransferData, error) {
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidIndexPriceCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -829,8 +795,8 @@ func (d *Deribit) GetTransfers(ctx context.Context, currency string, count, offs
 
 // GetWithdrawals gets withdrawals data for a requested currency
 func (d *Deribit) GetWithdrawals(ctx context.Context, currency string, count, offset int64) (*WithdrawalsData, error) {
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidIndexPriceCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -847,8 +813,8 @@ func (d *Deribit) GetWithdrawals(ctx context.Context, currency string, count, of
 
 // SubmitTransferToSubAccount submits a request to transfer a currency to a subaccount
 func (d *Deribit) SubmitTransferToSubAccount(ctx context.Context, currency string, amount float64, destinationID int64) (*TransferData, error) {
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidIndexPriceCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -867,8 +833,8 @@ func (d *Deribit) SubmitTransferToSubAccount(ctx context.Context, currency strin
 
 // SubmitTransferToUser submits a request to transfer a currency to another user
 func (d *Deribit) SubmitTransferToUser(ctx context.Context, currency, tfa, destinationAddress string, amount float64) (*TransferData, error) {
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidIndexPriceCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	if amount <= 0 {
 		return nil, errInvalidAmount
@@ -891,8 +857,8 @@ func (d *Deribit) SubmitTransferToUser(ctx context.Context, currency, tfa, desti
 // SubmitWithdraw submits a withdrawal request to the exchange for the requested currency
 func (d *Deribit) SubmitWithdraw(ctx context.Context, currency, address, priority string, amount float64) (*WithdrawData, error) {
 	currency = strings.ToUpper(currency)
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	if amount <= 0 {
 		return nil, errInvalidAmount
@@ -903,9 +869,10 @@ func (d *Deribit) SubmitWithdraw(ctx context.Context, currency, address, priorit
 	}
 	params.Set("currency", currency)
 	params.Set("address", address)
-	if priority != "" && priority != "insane" && priority != "extreme_high" && priority != "very_high" && priority != "high" && priority != "mid" && priority != "low" && priority != "very_low" {
-		return nil, errors.New("unsupported priority '%s', only insane ,extreme_high ,very_high ,high ,mid ,low ,and very_low")
-	} else if priority != "" {
+	if priority != "" {
+		if priority != "insane" && priority != "extreme_high" && priority != "very_high" && priority != "high" && priority != "mid" && priority != "low" && priority != "very_low" {
+			return nil, errors.New("unsupported priority '%s', only insane ,extreme_high ,very_high ,high ,mid ,low ,and very_low")
+		}
 		params.Set("priority", priority)
 	}
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
@@ -930,8 +897,8 @@ func (d *Deribit) GetAnnouncements(ctx context.Context, startTime time.Time, cou
 // GetPublicPortfolioMargins public version of the method calculates portfolio margin info for simulated position. For concrete user position, the private version of the method must be used. The public version of the request has special restricted rate limit (not more than once per a second for the IP).
 func (d *Deribit) GetPublicPortfolioMargins(ctx context.Context, currency string, simulatedPositions map[string]float64) (*PortfolioMargin, error) {
 	currency = strings.ToUpper(currency)
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -1117,8 +1084,8 @@ func (d *Deribit) GetNewAnnouncements(ctx context.Context) ([]Announcement, erro
 // GetPricatePortfolioMargins calculates portfolio margin info for simulated position or current position of the user. This request has special restricted rate limit (not more than once per a second).
 func (d *Deribit) GetPricatePortfolioMargins(ctx context.Context, currency string, accPositions bool, simulatedPositions map[string]float64) (*PortfolioMargin, error) {
 	currency = strings.ToUpper(currency)
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -1160,8 +1127,8 @@ func (d *Deribit) GetSubAccounts(ctx context.Context, withPortfolio bool) ([]Sub
 // GetSubAccountDetails retrives sub accounts detail information.
 func (d *Deribit) GetSubAccountDetails(ctx context.Context, currency string, withOpenOrders bool) ([]SubAccountDetail, error) {
 	currency = strings.ToUpper(currency)
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -1175,8 +1142,8 @@ func (d *Deribit) GetSubAccountDetails(ctx context.Context, currency string, wit
 // GetPositions gets positions data of the user account
 func (d *Deribit) GetPositions(ctx context.Context, currency, kind string) ([]PositionData, error) {
 	currency = strings.ToUpper(currency)
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -1191,23 +1158,19 @@ func (d *Deribit) GetPositions(ctx context.Context, currency, kind string) ([]Po
 // GetTransactionLog gets transaction logs' data
 func (d *Deribit) GetTransactionLog(ctx context.Context, currency, query string, startTime, endTime time.Time, count, continuation int64) (*TransactionsData, error) {
 	currency = strings.ToUpper(currency)
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
 	if query != "" {
 		params.Set("query", query)
 	}
-	if startTime.IsZero() {
-		return nil, fmt.Errorf("%w, start time can not be zero", errInvalidTimestamp)
-	} else if startTime.After(endTime) {
-		return nil, errStartTimeCannotBeAfterEndTime
+	err := common.StartEndTimeCheck(startTime, endTime)
+	if err != nil {
+		return nil, err
 	}
 	params.Set("start_timestamp", strconv.FormatInt(startTime.UnixMilli(), 10))
-	if endTime.IsZero() {
-		endTime = time.Now()
-	}
 	params.Set("end_timestamp", strconv.FormatInt(endTime.UnixMilli(), 10))
 	if count != 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
@@ -1352,8 +1315,8 @@ func (d *Deribit) SetEmailForSubAccount(ctx context.Context, sid int64, email st
 
 // SetEmailLanguage sets a requested language for an email
 func (d *Deribit) SetEmailLanguage(ctx context.Context, language string) (string, error) {
-	if language != "en" && language != "ko" && language != "zh" && language != "ja" && language != "ru" {
-		return "", errors.New("invalid language, only 'en', 'ko', 'zh', 'ja' and 'ru' are supported")
+	if language == "" {
+		return "", errors.New("field language cannot be empty")
 	}
 	params := url.Values{}
 	params.Set("language", language)
@@ -1633,8 +1596,8 @@ func (d *Deribit) SubmitCancelAll(ctx context.Context) (int64, error) {
 
 // SubmitCancelAllByCurrency sends a request to cancel all user orders for the specified currency
 func (d *Deribit) SubmitCancelAllByCurrency(ctx context.Context, currency, kind, orderType string) (int64, error) {
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return 0, errInvalidCurrency
+	if currency == "" {
+		return 0, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -1715,8 +1678,8 @@ func (d *Deribit) GetMargins(ctx context.Context, instrument string, amount, pri
 // GetMMPConfig sends a request to fetch the config for MMP of the requested currency
 func (d *Deribit) GetMMPConfig(ctx context.Context, currency string) (*MMPConfigData, error) {
 	currency = strings.ToUpper(currency)
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -1728,8 +1691,8 @@ func (d *Deribit) GetMMPConfig(ctx context.Context, currency string) (*MMPConfig
 // GetOpenOrdersByCurrency sends a request to fetch open orders data sorted by requested params
 func (d *Deribit) GetOpenOrdersByCurrency(ctx context.Context, currency, kind, orderType string) ([]OrderData, error) {
 	currency = strings.ToUpper(currency)
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -1762,8 +1725,8 @@ func (d *Deribit) GetOpenOrdersByInstrument(ctx context.Context, instrument, ord
 // GetOrderHistoryByCurrency sends a request to fetch order history according to given params and currency
 func (d *Deribit) GetOrderHistoryByCurrency(ctx context.Context, currency, kind string, count, offset int64, includeOld, includeUnfilled bool) ([]OrderData, error) {
 	currency = strings.ToUpper(currency)
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -1834,8 +1797,8 @@ func (d *Deribit) GetOrderState(ctx context.Context, orderID string) (*OrderData
 // GetTriggerOrderHistory sends a request to fetch order state of the order id provided
 func (d *Deribit) GetTriggerOrderHistory(ctx context.Context, currency, instrumentName, continuation string, count int64) (*OrderData, error) {
 	currency = strings.ToUpper(currency)
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -1856,8 +1819,8 @@ func (d *Deribit) GetTriggerOrderHistory(ctx context.Context, currency, instrume
 // GetUserTradesByCurrency sends a request to fetch user trades sorted by currency
 func (d *Deribit) GetUserTradesByCurrency(ctx context.Context, currency, kind, startID, endID, sorting string, count int64, includeOld bool) (*UserTradesData, error) {
 	currency = strings.ToUpper(currency)
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -1887,8 +1850,8 @@ func (d *Deribit) GetUserTradesByCurrency(ctx context.Context, currency, kind, s
 // GetUserTradesByCurrencyAndTime sends a request to fetch user trades sorted by currency and time
 func (d *Deribit) GetUserTradesByCurrencyAndTime(ctx context.Context, currency, kind, sorting string, count int64, includeOld bool, startTime, endTime time.Time) (*UserTradesData, error) {
 	currency = strings.ToUpper(currency)
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -1950,15 +1913,11 @@ func (d *Deribit) GetUserTradesByInstrumentAndTime(ctx context.Context, instrume
 	if count != 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
-	if startTime.IsZero() {
-		return nil, fmt.Errorf("%w, start time can not be zero", errInvalidTimestamp)
-	} else if startTime.After(endTime) {
-		return nil, errStartTimeCannotBeAfterEndTime
+	err := common.StartEndTimeCheck(startTime, endTime)
+	if err != nil {
+		return nil, err
 	}
 	params.Set("start_timestamp", strconv.FormatInt(startTime.UnixMilli(), 10))
-	if endTime.IsZero() {
-		endTime = time.Now()
-	}
 	params.Set("end_timestamp", strconv.FormatInt(endTime.UnixMilli(), 10))
 	var resp UserTradesData
 	return &resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
@@ -1982,8 +1941,8 @@ func (d *Deribit) GetUserTradesByOrder(ctx context.Context, orderID, sorting str
 
 // ResetMMP sends a request to reset MMP for a currency provided
 func (d *Deribit) ResetMMP(ctx context.Context, currency string) (string, error) {
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return "", errInvalidCurrency
+	if currency == "" {
+		return "", fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -2025,8 +1984,8 @@ func (d *Deribit) SendRFQ(ctx context.Context, instrumentName string, amount flo
 
 // SetMMPConfig sends a request to set the given parameter values to the mmp config for the provided currency
 func (d *Deribit) SetMMPConfig(ctx context.Context, currency string, interval, frozenTime int64, quantityLimit, deltaLimit float64) (string, error) {
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return "", errInvalidCurrency
+	if currency == "" {
+		return "", fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -2069,8 +2028,8 @@ func (d *Deribit) GetSettlementHistoryByInstrument(ctx context.Context, instrume
 // GetSettlementHistoryByCurency sends a request to fetch settlement history data sorted by currency
 func (d *Deribit) GetSettlementHistoryByCurency(ctx context.Context, currency, settlementType, continuation string, count int64, searchStartTimeStamp time.Time) (*PrivateSettlementsHistoryData, error) {
 	currency = strings.ToUpper(currency)
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -2097,7 +2056,7 @@ func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, meth
 	if err != nil {
 		return err
 	}
-	reqDataStr := method + "\n" + deribitAPIVersion + common.EncodeURLValues(path, data) + "\n" + "" + "\n"
+	reqDataStr := method + "\n" + deribitAPIVersion + "/" + common.EncodeURLValues(path, data) + "\n" + "" + "\n"
 	n := d.Requester.GetNonce(true)
 	strTS := strconv.FormatInt(time.Now().UnixMilli(), 10)
 	str2Sign := fmt.Sprintf("%s\n%s\n%s", strTS,
@@ -2152,8 +2111,8 @@ func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, meth
 // This method can be used to get the list of all combos, or only the list of combos in the given state.
 func (d *Deribit) GetComboIDS(ctx context.Context, currency, state string) ([]string, error) {
 	currency = strings.ToUpper(currency)
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -2177,8 +2136,8 @@ func (d *Deribit) GetComboDetails(ctx context.Context, comboID string) (*ComboDe
 
 // GetCombos retrieves information about active combos
 func (d *Deribit) GetCombos(ctx context.Context, currency string) ([]ComboDetail, error) {
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, fmt.Errorf("%w, only BTC, ETH, SOL, and USDC are supported", errInvalidCurrency)
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -2326,8 +2285,8 @@ func (d *Deribit) GetUserBlocTrade(ctx context.Context, id string) ([]BlockTrade
 // GetLastBlockTradesByCurrency returns list of last users block trades
 func (d *Deribit) GetLastBlockTradesByCurrency(ctx context.Context, currency, startID, endID string, count int64) ([]BlockTradeData, error) {
 	currency = strings.ToUpper(currency)
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)
@@ -2347,8 +2306,8 @@ func (d *Deribit) GetLastBlockTradesByCurrency(ctx context.Context, currency, st
 // MovePositions moves positions from source subaccount to target subaccount
 func (d *Deribit) MovePositions(ctx context.Context, currency string, sourceSubAccountUID, targetSubAccountUID int64, trades []BlockTradeParam) ([]BlockTradeMoveResponse, error) {
 	currency = strings.ToUpper(currency)
-	if currency != currencyBTC && currency != currencyETH && currency != currencySOL && currency != currencyUSDC {
-		return nil, errInvalidCurrency
+	if currency == "" {
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
 	params := url.Values{}
 	params.Set("currency", currency)

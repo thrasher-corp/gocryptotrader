@@ -384,16 +384,14 @@ func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func (d *Deribit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	if !d.SupportsAsset(assetType) {
-		return account.Holdings{}, fmt.Errorf("%s: %w - %s", d.Name, asset.ErrNotSupported, assetType)
-	}
+func (d *Deribit) UpdateAccountInfo(ctx context.Context, _ asset.Item) (account.Holdings, error) {
 	var resp account.Holdings
 	resp.Exchange = d.Name
 	currencies, err := d.GetCurrencies(ctx)
 	if err != nil {
 		return resp, err
 	}
+	resp.Accounts = make([]account.SubAccount, len(currencies))
 	for x := range currencies {
 		var data *AccountSummaryData
 		if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
@@ -405,12 +403,12 @@ func (d *Deribit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 			return resp, err
 		}
 		var subAcc account.SubAccount
-		subAcc.AssetType = asset.Futures
 		subAcc.Currencies = append(subAcc.Currencies, account.Balance{
 			CurrencyName: currency.NewCode(currencies[x].Currency),
 			Total:        data.Balance,
 			Hold:         data.Balance - data.AvailableFunds,
 		})
+		resp.Accounts[x] = subAcc
 	}
 	return resp, nil
 }
@@ -500,7 +498,7 @@ func (d *Deribit) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ 
 	if err != nil {
 		return nil, err
 	}
-	var resp []exchange.WithdrawalHistory
+	resp := []exchange.WithdrawalHistory{}
 	for x := range currencies {
 		if !strings.EqualFold(currencies[x].Currency, c.String()) {
 			continue
@@ -538,59 +536,41 @@ func (d *Deribit) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 	if err != nil {
 		return nil, err
 	}
-	var resp []trade.Data
-	for _, x := range []string{"BTC", "SOL", "ETH", "USDC"} {
-		var instrumentsData []InstrumentData
-		if d.Websocket.IsConnected() {
-			instrumentsData, err = d.WSRetriveInstrumentsData(x, d.GetAssetKind(assetType), false)
-		} else {
-			instrumentsData, err = d.GetInstrumentsData(ctx, x, d.GetAssetKind(assetType), false)
+	resp := []trade.Data{}
+	var trades *PublicTradesData
+	if d.Websocket.IsConnected() {
+		trades, err = d.WSRetriveLastTradesByInstrument(
+			format.Format(p), "", "", "", 0, false)
+	} else {
+		trades, err = d.GetLastTradesByInstrument(
+			ctx,
+			format.Format(p), "", "", "", 0, false)
+	}
+	if err != nil {
+		return nil, err
+	}
+	for a := range trades.Trades {
+		sideData := order.Sell
+		if trades.Trades[a].Direction == sideBUY {
+			sideData = order.Buy
 		}
-		if err != nil {
-			return nil, err
-		}
-		for y := range instrumentsData {
-			if strings.EqualFold(format.Format(p), instrumentsData[y].InstrumentName) {
-				var trades *PublicTradesData
-				if d.Websocket.IsConnected() {
-					trades, err = d.WSRetriveLastTradesByInstrument(
-						instrumentsData[y].InstrumentName, "", "", "", 0, false)
-				} else {
-					trades, err = d.GetLastTradesByInstrument(
-						ctx,
-						instrumentsData[y].InstrumentName, "", "", "", 0, false)
-				}
-				if err != nil {
-					return nil, err
-				}
-				for a := range trades.Trades {
-					sideData := order.Sell
-					if trades.Trades[a].Direction == sideBUY {
-						sideData = order.Buy
-					}
-					resp = append(resp, trade.Data{
-						TID:          trades.Trades[a].TradeID,
-						Exchange:     d.Name,
-						Price:        trades.Trades[a].Price,
-						Amount:       trades.Trades[a].Amount,
-						Timestamp:    time.UnixMilli(trades.Trades[a].Timestamp),
-						AssetType:    assetType,
-						Side:         sideData,
-						CurrencyPair: p,
-					})
-				}
-			}
-		}
+		resp = append(resp, trade.Data{
+			TID:          trades.Trades[a].TradeID,
+			Exchange:     d.Name,
+			Price:        trades.Trades[a].Price,
+			Amount:       trades.Trades[a].Amount,
+			Timestamp:    time.UnixMilli(trades.Trades[a].Timestamp),
+			AssetType:    assetType,
+			Side:         sideData,
+			CurrencyPair: p,
+		})
 	}
 	return resp, nil
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (d *Deribit) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
-	if timestampStart.Equal(timestampEnd) ||
-		timestampEnd.After(time.Now()) ||
-		timestampEnd.Before(timestampStart) ||
-		(timestampStart.IsZero() && !timestampEnd.IsZero()) {
+	if common.StartEndTimeCheck(timestampStart, timestampEnd) != nil {
 		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v",
 			timestampStart,
 			timestampEnd)
@@ -612,6 +592,9 @@ func (d *Deribit) GetHistoricTrades(ctx context.Context, p currency.Pair, assetT
 		}
 		for t := range tradesData.Trades {
 			if t == 99 {
+				if timestampStart.Equal(time.UnixMilli(tradesData.Trades[t].Timestamp)) {
+					hasMore = false
+				}
 				timestampStart = time.UnixMilli(tradesData.Trades[t].Timestamp)
 			}
 			sideData := order.Sell
@@ -653,8 +636,8 @@ func (d *Deribit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			timeInForce = "immediate_or_cancel"
 		}
 		var data *PrivateTradeData
-		switch s.Side {
-		case order.Bid, order.Buy:
+		switch {
+		case s.Side.IsLong():
 			if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 				data, err = d.WSSubmitBuy(
 					&OrderBuyAndSellParams{
@@ -692,7 +675,7 @@ func (d *Deribit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 				return nil, err
 			}
 			orderID = data.Order.OrderID
-		case order.Sell, order.Ask:
+		case s.Side.IsShort():
 			var data *PrivateTradeData
 			if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 				data, err = d.WSSubmitSell(
@@ -890,33 +873,18 @@ func (d *Deribit) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		if orderInfo.Direction == sideBUY {
 			orderSide = order.Buy
 		}
-		var orderType order.Type
-		switch orderInfo.OrderType {
-		case "market":
-			orderType = order.Market
-		case "limit":
-			orderType = order.Limit
-		case "stop_limit":
-			orderType = order.StopLimit
-		case "stop_market":
-			orderType = order.StopMarket
-		default:
-			return resp, fmt.Errorf("%v: orderType %s not supported", d.Name, orderInfo.OrderType)
+		orderType, err := order.StringToOrderType(orderInfo.OrderType)
+		if err != nil {
+			return resp, err
 		}
 		var orderStatus order.Status
-		switch orderInfo.OrderState {
-		case "open":
-			orderStatus = order.Active
-		case "filled":
-			orderStatus = order.Filled
-		case "rejected":
-			orderStatus = order.Rejected
-		case "cancelled":
-			orderStatus = order.Cancelled
-		case "untriggered":
+		if orderInfo.OrderState == "untriggered" {
 			orderStatus = order.UnknownStatus
-		default:
-			return resp, fmt.Errorf("%v: orderStatus %s not supported", d.Name, orderInfo.OrderState)
+		} else {
+			orderStatus, err = order.StringToOrderStatus(orderInfo.OrderState)
+			if err != nil {
+				return resp, fmt.Errorf("%v: orderStatus %s not supported", d.Name, orderInfo.OrderState)
+			}
 		}
 		resp = order.Detail{
 			AssetType:       asset.Futures,
@@ -985,7 +953,7 @@ func (d *Deribit) WithdrawFiatFundsToInternationalBank(ctx context.Context, with
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
 	if err := getOrdersRequest.Validate(); err != nil {
 		return nil, err
 	}
@@ -1011,27 +979,19 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 				if ordersData[y].Direction == sideBUY {
 					orderSide = order.Buy
 				}
-				if getOrdersRequest.Side != orderSide || getOrdersRequest.Side != order.AnySide {
+				if getOrdersRequest.Side != orderSide && getOrdersRequest.Side != order.AnySide {
 					continue
 				}
-				var orderType order.Type
-				switch ordersData[y].OrderType {
-				case "market":
-					orderType = order.Market
-				case "limit":
-					orderType = order.Limit
-				case "stop_limit":
-					orderType = order.StopLimit
-				case "stop_market":
-					orderType = order.StopMarket
-				default:
-					return resp, fmt.Errorf("%v: orderType %s not supported", d.Name, ordersData[y].OrderType)
+				orderType, err := order.StringToOrderType(ordersData[y].OrderType)
+				if err != nil {
+					return nil, err
 				}
-				if getOrdersRequest.Type != orderType || getOrdersRequest.Type != order.AnyType {
+				if getOrdersRequest.Type != orderType && getOrdersRequest.Type != order.AnyType {
 					continue
 				}
 				var orderStatus order.Status
-				if !strings.EqualFold(ordersData[y].OrderState, "open") {
+				ordersData[y].OrderState = strings.ToLower(ordersData[y].OrderState)
+				if ordersData[y].OrderState != "open" {
 					continue
 				}
 				resp = append(resp, order.Detail{
@@ -1060,7 +1020,7 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (d *Deribit) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (d *Deribit) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
 	if err := getOrdersRequest.Validate(); err != nil {
 		return nil, err
 	}
@@ -1084,39 +1044,24 @@ func (d *Deribit) GetOrderHistory(ctx context.Context, getOrdersRequest *order.G
 			if ordersData[y].Direction == sideBUY {
 				orderSide = order.Buy
 			}
-			if getOrdersRequest.Side != orderSide || getOrdersRequest.Side != order.AnySide {
+			if getOrdersRequest.Side != orderSide && getOrdersRequest.Side != order.AnySide {
 				continue
 			}
-			var orderType order.Type
-			switch ordersData[y].OrderType {
-			case "market":
-				orderType = order.Market
-			case "limit":
-				orderType = order.Limit
-			case "stop_limit":
-				orderType = order.StopLimit
-			case "stop_market":
-				orderType = order.StopMarket
-			default:
-				return resp, fmt.Errorf("%v: orderType %s not supported", d.Name, ordersData[y].OrderType)
+			orderType, err := order.StringToOrderType(ordersData[y].OrderType)
+			if err != nil {
+				return nil, err
 			}
-			if getOrdersRequest.Type != orderType || getOrdersRequest.Type != order.AnyType {
+			if getOrdersRequest.Type != orderType && getOrdersRequest.Type != order.AnyType {
 				continue
 			}
 			var orderStatus order.Status
-			switch ordersData[y].OrderState {
-			case "open":
-				orderStatus = order.Active
-			case "filled":
-				orderStatus = order.Filled
-			case "rejected":
-				orderStatus = order.Rejected
-			case "cancelled":
-				orderStatus = order.Cancelled
-			case "untriggered":
+			if ordersData[y].OrderState == "untriggered" {
 				orderStatus = order.UnknownStatus
-			default:
-				return resp, fmt.Errorf("%v: orderStatus %s not supported", d.Name, ordersData[y].OrderState)
+			} else {
+				orderStatus, err = order.StringToOrderStatus(ordersData[y].OrderState)
+				if err != nil {
+					return resp, fmt.Errorf("%v: orderStatus %s not supported", d.Name, ordersData[y].OrderState)
+				}
 			}
 			resp = append(resp, order.Detail{
 				AssetType:       asset.Futures,
