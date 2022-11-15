@@ -634,8 +634,10 @@ func (a *MarkPrice) UnmarshalJSON(data []byte) error {
 		a.Timestamp = time.UnixMilli(chil.Timestamp)
 	}
 	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
-	if a.InstrumentType, err = GetAssetTypeFromInstrumentType(chil.InstrumentType); err != nil {
+	if chil.InstrumentType != "" {
 		a.InstrumentType = asset.Empty
+	} else if a.InstrumentType, err = GetAssetTypeFromInstrumentType(chil.InstrumentType); err != nil {
+		return err
 	}
 	return nil
 }
