@@ -324,6 +324,12 @@ func (m *websocketRoutineManager) websocketDataHandler(exchName string, data int
 		if m.verbose {
 			m.printAccountHoldingsChangeSummary(d)
 		}
+	case []account.Change:
+		if m.verbose {
+			for x := range d {
+				m.printAccountHoldingsChangeSummary(d[x])
+			}
+		}
 	case []trade.Data:
 		if m.verbose {
 			log.Infof(log.Trade, "%+v", d)

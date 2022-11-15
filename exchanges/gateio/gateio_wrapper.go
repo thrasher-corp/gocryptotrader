@@ -114,20 +114,22 @@ func (g *Gateio) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: map[string]bool{
-					kline.TenSecond.Word():    true,
-					kline.ThirtySecond.Word(): true,
-					kline.OneMin.Word():       true,
-					kline.FiveMin.Word():      true,
-					kline.FifteenMin.Word():   true,
-					kline.ThirtyMin.Word():    true,
-					kline.OneHour.Word():      true,
-					kline.TwoHour.Word():      true,
-					kline.FourHour.Word():     true,
-					kline.EightHour.Word():    true,
-					kline.TwelveHour.Word():   true,
-					kline.OneDay.Word():       true,
-					kline.OneWeek.Word():      true,
-					kline.ThirtyDay.Word():    true,
+					kline.HundredMilliseconds.Word():  true,
+					kline.ThousandMilliseconds.Word(): true,
+					kline.TenSecond.Word():            true,
+					kline.ThirtySecond.Word():         true,
+					kline.OneMin.Word():               true,
+					kline.FiveMin.Word():              true,
+					kline.FifteenMin.Word():           true,
+					kline.ThirtyMin.Word():            true,
+					kline.OneHour.Word():              true,
+					kline.TwoHour.Word():              true,
+					kline.FourHour.Word():             true,
+					kline.EightHour.Word():            true,
+					kline.TwelveHour.Word():           true,
+					kline.OneDay.Word():               true,
+					kline.OneWeek.Word():              true,
+					kline.ThirtyDay.Word():            true,
 				},
 				ResultLimit: 1000,
 			},
@@ -458,7 +460,7 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 		}
 		return pairs, nil
 	case asset.Options:
-		underlyings, err := g.GetAllUnderlyings(ctx)
+		underlyings, err := g.GetAllOptionsUnderlyings(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -1926,8 +1928,7 @@ func (g *Gateio) GetAvailableTransferChains(ctx context.Context, cryptocurrency 
 	if err != nil {
 		return nil, err
 	}
-
-	availableChains := make([]string, len(chains))
+	availableChains := make([]string, 0, len(chains))
 	for x := range chains {
 		if chains[x].IsDisabled == 0 {
 			availableChains[x] = chains[x].Chain

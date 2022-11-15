@@ -604,8 +604,8 @@ type Orderbook struct {
 	ID      int64           `json:"id"`
 	Current time.Time       `json:"current"` // The timestamp of the response data being generated (in milliseconds)
 	Update  time.Time       `json:"update"`  // The timestamp of when the orderbook last changed (in milliseconds)
-	Bids    []OrderbookItem `json:"asks"`
-	Asks    []OrderbookItem `json:"bids"`
+	Bids    []OrderbookItem `json:"bids"`
+	Asks    []OrderbookItem `json:"asks"`
 }
 
 // Trade represents market trade.

@@ -451,15 +451,15 @@ func (a *Orderbook) UnmarshalJSON(data []byte) error {
 		*Alias
 		Current float64    `json:"current"`
 		Update  float64    `json:"update"`
-		Bids    []askorbid `json:"asks"`
-		Asks    []askorbid `json:"bids"`
+		Asks    []askorbid `json:"asks"`
+		Bids    []askorbid `json:"bids"`
 	}{}
 	err := json.Unmarshal(data, &chil)
 	if err != nil {
 		return err
 	}
-	a.Current = time.Unix(int64(chil.Current), 0)
-	a.Update = time.Unix(int64(chil.Update), 0)
+	a.Current = time.UnixMilli(int64(chil.Current * 1000))
+	a.Update = time.UnixMilli(int64(chil.Update * 1000))
 	a.Asks = make([]OrderbookItem, len(chil.Asks))
 	a.Bids = make([]OrderbookItem, len(chil.Bids))
 	for x := range chil.Asks {

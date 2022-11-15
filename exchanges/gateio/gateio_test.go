@@ -1793,14 +1793,14 @@ func TestUpdateDeliveryPositionRiskLimit(t *testing.T) {
 
 func TestGetAllUnderlyings(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GetAllUnderlyings(context.Background()); err != nil {
+	if _, err := g.GetAllOptionsUnderlyings(context.Background()); err != nil {
 		t.Errorf("%s GetAllUnderlyings() error %v", g.Name, err)
 	}
 }
 
 func TestGetExpirationTime(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GetExpirationTime(context.Background(), "BTC_USDT"); err != nil && !errors.Is(err, errNoValidResponseFromServer) {
+	if _, err := g.GetExpirationTime(context.Background(), "BTC_USDT"); err != nil {
 		t.Errorf("%s GetExpirationTime() error %v", g.Name, err)
 	}
 }
@@ -1835,7 +1835,22 @@ func TestGetSettlementHistory(t *testing.T) {
 
 func TestGetOptionsSpecifiedSettlementHistory(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GetOptionsSpecifiedSettlementHistory(context.Background(), "BTC_USDT-20221028-40000-C", "BTC_USDT", 0); err != nil && !strings.Contains(err.Error(), "NOT_FOUND") {
+	pairs, err := g.FetchTradablePairs(context.Background(), asset.Options)
+	if err != nil {
+		t.Skip(err)
+	}
+	if len(pairs) == 0 {
+		t.Skip(err)
+	}
+	pair, err := currency.NewPairFromString(pairs[1])
+	if err != nil {
+		t.Skip(err)
+	}
+	underlying, err := g.GetUnderlyingFromCurrencyPair(pair)
+	if err != nil {
+		t.Skip(err)
+	}
+	if _, err := g.GetOptionsSpecifiedSettlementHistory(context.Background(), pairs[1], underlying, 0); err != nil {
 		t.Errorf("%s GetOptionsSpecifiedSettlementHistory() error %s", g.Name, err)
 	}
 }
@@ -2085,7 +2100,7 @@ func TestGetOptionsOrderbook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = g.GetOptionsOrderbook(context.Background(), cp, "0.1", 9, true); err != nil {
+	if _, err := g.GetOptionsOrderbook(context.Background(), cp, "0.1", 9, true); err != nil {
 		t.Errorf("%s GetOptionsFuturesOrderbooks() error %v", g.Name, err)
 	}
 }
