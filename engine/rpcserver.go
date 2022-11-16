@@ -5677,32 +5677,17 @@ func (s *RPCServer) DCAStream(r *gctrpc.DCARequest, stream gctrpc.GoCryptoTrader
 		return err
 	}
 
-	weirdSomethingJson, err := json.Marshal(struct {
-		Field string `json:"field"`
-		Error error  `json:"error"`
-		Tag   int64  `json:"tag"`
-	}{
-		Field: "Something",
-		Error: errors.New("super error of something"),
-		Tag:   1337,
-	})
-	if err != nil {
-		return err
-	}
-
 	for report := range reporter {
-		var errStr string
-		if report.Error != nil {
-			errStr = report.Error.Error()
+		action, err := json.Marshal(report.Action)
+		if err != nil {
+			return err
 		}
-		err := stream.Send(&gctrpc.DCAResponse{
-			Submit:         report.Submit.String(),
-			SubmitResponse: report.Response.String(),
-			Orderbook:      report.Deployment.String(),
-			Error:          errStr,
-			Message:        report.Reason,
-			Finished:       report.Finished,
-			Something:      weirdSomethingJson,
+		err = stream.Send(&gctrpc.DCAStreamResponse{
+			Id:       report.ID.String(),
+			Strategy: report.Strategy,
+			Reason:   report.Reason,
+			Action:   action,
+			Finished: report.Finished,
 		})
 		if err != nil {
 			return err
@@ -5781,17 +5766,16 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 	}
 
 	for report := range reporter {
-		var errStr string
-		if report.Error != nil {
-			errStr = report.Error.Error()
+		action, err := json.Marshal(report.Action)
+		if err != nil {
+			return err
 		}
-		err := stream.Send(&gctrpc.TWAPResponse{
-			Submit:         report.Submit.String(),
-			SubmitResponse: report.Response.String(),
-			Orderbook:      report.Deployment.String(),
-			Error:          errStr,
-			Message:        report.Reason,
-			Finished:       report.Finished,
+		err = stream.Send(&gctrpc.TWAPStreamResponse{
+			Id:       report.ID.String(),
+			Strategy: report.Strategy,
+			Reason:   report.Reason,
+			Action:   action,
+			Finished: report.Finished,
 		})
 		if err != nil {
 			return err

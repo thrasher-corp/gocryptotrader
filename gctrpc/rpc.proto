@@ -1370,15 +1370,12 @@ message DCARequest {
   double max_spread_percentage = 14;
 }
 
-message DCAResponse {
-  string submit = 1; 
-  string submit_response = 2; 
-  string orderbook = 3;
-  string account = 4;
-  string error = 5;
-  string message = 6;
-  bool finished = 7;
-  bytes something = 8;
+message DCAStreamResponse {
+  string id = 1;
+  string strategy = 2;
+  string reason = 3;
+  bytes action = 4;
+  bool finished = 5;
 }
 
 message TWAPRequest {
@@ -1398,14 +1395,12 @@ message TWAPRequest {
   double max_spread_percentage = 14;
 }
 
-message TWAPResponse {
-  string submit = 1; 
-  string submit_response = 2; 
-  string orderbook = 3;
-  string account = 4;
-  string error = 5;
-  string message = 6;
-  bool finished = 7;
+message TWAPStreamResponse {
+  string id = 1;
+  string strategy = 2;
+  string reason = 3;
+  bytes action = 4;
+  bool finished = 5;
 }
 
 message Strategy {
@@ -1945,10 +1940,10 @@ service GoCryptoTraderService {
   rpc StopStrategy(StopStrategyRequest) returns (StopStrategyResponse) {
     option (google.api.http) = {get: "/v1/stopstrategy"};
   }
-  rpc DCAStream(DCARequest) returns (stream DCAResponse) {
+  rpc DCAStream(DCARequest) returns (stream DCAStreamResponse) {
     option (google.api.http) = {get: "/v1/dcastream"};
   }
-  rpc TWAPStream(TWAPRequest) returns (stream TWAPResponse) {
+  rpc TWAPStream(TWAPRequest) returns (stream TWAPStreamResponse) {
     option (google.api.http) = {get: "/v1/twapstream"};
   }
 }

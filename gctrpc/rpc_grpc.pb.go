@@ -1258,7 +1258,7 @@ func (c *goCryptoTraderServiceClient) DCAStream(ctx context.Context, in *DCARequ
 }
 
 type GoCryptoTraderService_DCAStreamClient interface {
-	Recv() (*DCAResponse, error)
+	Recv() (*DCAStreamResponse, error)
 	grpc.ClientStream
 }
 
@@ -1266,8 +1266,8 @@ type goCryptoTraderServiceDCAStreamClient struct {
 	grpc.ClientStream
 }
 
-func (x *goCryptoTraderServiceDCAStreamClient) Recv() (*DCAResponse, error) {
-	m := new(DCAResponse)
+func (x *goCryptoTraderServiceDCAStreamClient) Recv() (*DCAStreamResponse, error) {
+	m := new(DCAStreamResponse)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -1290,7 +1290,7 @@ func (c *goCryptoTraderServiceClient) TWAPStream(ctx context.Context, in *TWAPRe
 }
 
 type GoCryptoTraderService_TWAPStreamClient interface {
-	Recv() (*TWAPResponse, error)
+	Recv() (*TWAPStreamResponse, error)
 	grpc.ClientStream
 }
 
@@ -1298,8 +1298,8 @@ type goCryptoTraderServiceTWAPStreamClient struct {
 	grpc.ClientStream
 }
 
-func (x *goCryptoTraderServiceTWAPStreamClient) Recv() (*TWAPResponse, error) {
-	m := new(TWAPResponse)
+func (x *goCryptoTraderServiceTWAPStreamClient) Recv() (*TWAPStreamResponse, error) {
+	m := new(TWAPStreamResponse)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -3719,7 +3719,7 @@ func _GoCryptoTraderService_DCAStream_Handler(srv interface{}, stream grpc.Serve
 }
 
 type GoCryptoTraderService_DCAStreamServer interface {
-	Send(*DCAResponse) error
+	Send(*DCAStreamResponse) error
 	grpc.ServerStream
 }
 
@@ -3727,7 +3727,7 @@ type goCryptoTraderServiceDCAStreamServer struct {
 	grpc.ServerStream
 }
 
-func (x *goCryptoTraderServiceDCAStreamServer) Send(m *DCAResponse) error {
+func (x *goCryptoTraderServiceDCAStreamServer) Send(m *DCAStreamResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
@@ -3740,7 +3740,7 @@ func _GoCryptoTraderService_TWAPStream_Handler(srv interface{}, stream grpc.Serv
 }
 
 type GoCryptoTraderService_TWAPStreamServer interface {
-	Send(*TWAPResponse) error
+	Send(*TWAPStreamResponse) error
 	grpc.ServerStream
 }
 
@@ -3748,7 +3748,7 @@ type goCryptoTraderServiceTWAPStreamServer struct {
 	grpc.ServerStream
 }
 
-func (x *goCryptoTraderServiceTWAPStreamServer) Send(m *TWAPResponse) error {
+func (x *goCryptoTraderServiceTWAPStreamServer) Send(m *TWAPStreamResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 

@@ -60,7 +60,7 @@ type Requirement struct {
 	id         uuid.UUID
 	registered time.Time
 	strategy   string
-	Reporter
+	Activities
 	wg       sync.WaitGroup
 	shutdown chan struct{}
 	running  bool
@@ -175,8 +175,8 @@ func (r *Requirement) GetReporter() (<-chan *Report, error) {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 
-	if r.Reporter == nil {
+	if r.reporter == nil {
 		return nil, ErrReporterIsNil
 	}
-	return r.Reporter, nil
+	return r.reporter, nil
 }

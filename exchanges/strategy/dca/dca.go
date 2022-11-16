@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -97,17 +98,23 @@ func New(ctx context.Context, c *Config) (*Strategy, error) {
 		return nil, err
 	}
 
-	reporter := make(strategy.Reporter)
+	id, err := uuid.NewV4()
+	if err != nil {
+		return nil, err
+	}
+
+	activities, err := strategy.NewActivities("DOLLAR COST AVERAGE", id, c.Simulate)
+	if err != nil {
+		return nil, err
+	}
 
 	return &Strategy{
-		Config:     c,
-		orderbook:  depth,
-		Selling:    selling,
-		allocation: allocation,
-		Scheduler:  schedule,
-		Requirement: strategy.Requirement{
-			Reporter: reporter,
-		},
+		Config:      c,
+		orderbook:   depth,
+		Selling:     selling,
+		allocation:  allocation,
+		Scheduler:   schedule,
+		Requirement: strategy.Requirement{Activities: *activities},
 	}, nil
 }
 

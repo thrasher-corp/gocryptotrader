@@ -469,13 +469,13 @@
               "type": "object",
               "properties": {
                 "result": {
-                  "$ref": "#/definitions/gctrpcDCAResponse"
+                  "$ref": "#/definitions/gctrpcDCAStreamResponse"
                 },
                 "error": {
                   "$ref": "#/definitions/rpcStatus"
                 }
               },
-              "title": "Stream result of gctrpcDCAResponse"
+              "title": "Stream result of gctrpcDCAStreamResponse"
             }
           },
           "default": {
@@ -4029,13 +4029,13 @@
               "type": "object",
               "properties": {
                 "result": {
-                  "$ref": "#/definitions/gctrpcTWAPResponse"
+                  "$ref": "#/definitions/gctrpcTWAPStreamResponse"
                 },
                 "error": {
                   "$ref": "#/definitions/rpcStatus"
                 }
               },
-              "title": "Stream result of gctrpcTWAPResponse"
+              "title": "Stream result of gctrpcTWAPStreamResponse"
             }
           },
           "default": {
@@ -5102,33 +5102,24 @@
         }
       }
     },
-    "gctrpcDCAResponse": {
+    "gctrpcDCAStreamResponse": {
       "type": "object",
       "properties": {
-        "submit": {
+        "id": {
           "type": "string"
         },
-        "submitResponse": {
+        "strategy": {
           "type": "string"
         },
-        "orderbook": {
+        "reason": {
           "type": "string"
         },
-        "account": {
-          "type": "string"
-        },
-        "error": {
-          "type": "string"
-        },
-        "message": {
-          "type": "string"
+        "action": {
+          "type": "string",
+          "format": "byte"
         },
         "finished": {
           "type": "boolean"
-        },
-        "something": {
-          "type": "string",
-          "format": "byte"
         }
       }
     },
@@ -6961,26 +6952,21 @@
         }
       }
     },
-    "gctrpcTWAPResponse": {
+    "gctrpcTWAPStreamResponse": {
       "type": "object",
       "properties": {
-        "submit": {
+        "id": {
           "type": "string"
         },
-        "submitResponse": {
+        "strategy": {
           "type": "string"
         },
-        "orderbook": {
+        "reason": {
           "type": "string"
         },
-        "account": {
-          "type": "string"
-        },
-        "error": {
-          "type": "string"
-        },
-        "message": {
-          "type": "string"
+        "action": {
+          "type": "string",
+          "format": "byte"
         },
         "finished": {
           "type": "boolean"
