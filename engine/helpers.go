@@ -743,7 +743,7 @@ func (bot *Engine) GetAllExchangeCryptocurrencyDepositAddresses() map[string]map
 						}
 						for z := range availChains {
 							if availChains[z] == "" {
-								log.Warnf(log.Global, "%s %s. Available transfer chain is populated with an empty string\n",
+								log.Warnf(log.Global, "%s %s available transfer chain is populated with an empty string\n",
 									exchName,
 									cryptocurrency)
 								continue
