@@ -301,9 +301,13 @@ func TestGetSystemTime(t *testing.T) {
 
 func TestGetLiquidationOrders(t *testing.T) {
 	t.Parallel()
+	insts, err := ok.FetchTradablePairs(context.Background(), asset.Margin)
+	if err != nil {
+		t.Skip(err)
+	}
 	if _, err := ok.GetLiquidationOrders(context.Background(), &LiquidationOrderRequestParams{
-		InstrumentType: "MARGIN",
-		Underlying:     "BTC-USD",
+		InstrumentType: okxInstTypeMargin,
+		Underlying:     insts[0],
 		Currency:       currency.BTC,
 		Limit:          2,
 	}); err != nil {
@@ -359,7 +363,7 @@ func TestGetInsuranceFundInformation(t *testing.T) {
 
 func TestCurrencyUnitConvert(t *testing.T) {
 	t.Parallel()
-	if _, err := ok.CurrencyUnitConvert(context.Background(), "BTC-USD-SWAP", 1, 3500, CurrencyToContract, ""); err != nil {
+	if _, err := ok.CurrencyUnitConvert(context.Background(), "BTC-USD-SWAP", 1, 3500, 1, ""); err != nil {
 		t.Error("Okx CurrencyUnitConvert() error", err)
 	}
 }
@@ -1163,7 +1167,7 @@ func TestGetWithdrawalHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := ok.GetWithdrawalHistory(context.Background(), "BTC", "", "", "", time.Time{}, time.Time{}, 0, 1); err != nil {
+	if _, err := ok.GetWithdrawalHistory(context.Background(), "BTC", "", "", "", "", time.Time{}, time.Time{}, 1); err != nil {
 		t.Error("Okx GetWithdrawalHistory() error", err)
 	}
 }
@@ -1641,7 +1645,7 @@ func TestHistoryOfSubaccountTransfer(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := ok.HistoryOfSubaccountTransfer(context.Background(), "", 0, "", time.Time{}, time.Time{}, 1); err != nil {
+	if _, err := ok.HistoryOfSubaccountTransfer(context.Background(), "", "0", "", time.Time{}, time.Time{}, 1); err != nil {
 		t.Error("Okx HistoryOfSubaccountTransfer() error", err)
 	}
 }
@@ -1651,10 +1655,10 @@ func TestMasterAccountsManageTransfersBetweenSubaccounts(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
-	if _, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(context.Background(), SubAccountAssetTransferParams{Currency: "BTC", Amount: 1200, From: 9, To: 9, FromSubAccount: "", ToSubAccount: "", LoanTransfer: true}); err != nil && !errors.Is(err, errInvalidInvalidSubaccount) {
+	if _, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(context.Background(), SubAccountAssetTransferParams{Currency: "BTC", Amount: 1200, From: 9, To: 9, FromSubAccount: "", ToSubAccount: "", LoanTransfer: true}); err != nil && !errors.Is(err, errInvalidSubaccount) {
 		t.Error("Okx MasterAccountsManageTransfersBetweenSubaccounts() error", err)
 	}
-	if _, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(context.Background(), SubAccountAssetTransferParams{Currency: "BTC", Amount: 1200, From: 8, To: 8, FromSubAccount: "", ToSubAccount: "", LoanTransfer: true}); err != nil && !errors.Is(err, errInvalidInvalidSubaccount) {
+	if _, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(context.Background(), SubAccountAssetTransferParams{Currency: "BTC", Amount: 1200, From: 8, To: 8, FromSubAccount: "", ToSubAccount: "", LoanTransfer: true}); err != nil && !errors.Is(err, errInvalidSubaccount) {
 		t.Error("Okx MasterAccountsManageTransfersBetweenSubaccounts() error", err)
 	}
 	if _, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(context.Background(), SubAccountAssetTransferParams{Currency: "BTC", Amount: 1200, From: 6, To: 6, FromSubAccount: "test1", ToSubAccount: "test2", LoanTransfer: true}); err != nil && !strings.Contains(err.Error(), "Sub-account test1 does not exists") {
@@ -1667,7 +1671,7 @@ func TestSetPermissionOfTransferOut(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := ok.SetPermissionOfTransferOut(context.Background(), PermissingOfTransfer{SubAcct: "Test1"}); err != nil && !strings.Contains(err.Error(), "Sub-account does not exist") {
+	if _, err := ok.SetPermissionOfTransferOut(context.Background(), PermissionOfTransfer{SubAcct: "Test1"}); err != nil && !strings.Contains(err.Error(), "Sub-account does not exist") {
 		t.Error("Okx SetPermissionOfTransferOut() error", err)
 	}
 }
@@ -1963,7 +1967,7 @@ func TestSystemStatusResponse(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	if _, err := ok.FetchTradablePairs(context.Background(), asset.Futures); err != nil {
+	if _, err := ok.FetchTradablePairs(context.Background(), asset.Option); err != nil {
 		t.Error("Okx FetchTradablePairs() error", err)
 	}
 }
@@ -1978,21 +1982,25 @@ func TestUpdateTradablePairs(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	if _, err := ok.UpdateTicker(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.Option); err != nil {
+	if _, err := ok.UpdateTicker(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.Spot); err != nil {
 		t.Error("Okx UpdateTicker() error", err)
 	}
 }
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
-	if err := ok.UpdateTickers(context.Background(), asset.Futures); err != nil {
+	if err := ok.UpdateTickers(context.Background(), asset.Spot); err != nil {
 		t.Error("Okx UpdateTicker() error", err)
 	}
 }
 
 func TestFetchTicker(t *testing.T) {
 	t.Parallel()
-	if _, err := ok.FetchTicker(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.PerpetualSwap); err != nil {
+	_, err := ok.FetchTicker(context.Background(), currency.NewPair(currency.BTC, currency.NewCode("USDT-SWAP")), asset.PerpetualSwap)
+	if err != nil {
+		t.Error("Okx FetchTicker() error", err)
+	}
+	if _, err = ok.FetchTicker(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.Spot); err != nil {
 		t.Error("Okx FetchTicker() error", err)
 	}
 }
@@ -2006,7 +2014,7 @@ func TestFetchOrderbook(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	if _, err := ok.UpdateOrderbook(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.Spot); err != nil {
+	if _, err := ok.UpdateOrderbook(context.Background(), currency.NewPair(currency.BTC, currency.NewCode("USDT-SWAP")), asset.Spot); err != nil {
 		t.Error("Okx UpdateOrderbook() error", err)
 	}
 }

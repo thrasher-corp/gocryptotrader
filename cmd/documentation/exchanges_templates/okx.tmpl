@@ -77,20 +77,34 @@ if err != nil {
 	// Handle error
 }
 
+// Fetches historic trade data within the timeframe provided
+tradeDatas, err := ok.GetHistoricTrades(...)
+if err != nil {
+	// Handle error
+}
+
+
+// Returns an estimate of fee based on the type of transaction
+fee, err := ok.GetFeeByType(...)
+if err != nil {
+	// Handle error
+}
+
 // Private calls - make sure your APIKEY and APISECRET are set and
 // AuthenticatedAPISupport is set to true
 
-// GetUserInfo returns account info
-accountInfo, err := ok.GetUserInfo(...)
+// Submits an order and the exchange and returns its tradeID
+orderID, err := ok.SubmitOrder(...)
 if err != nil {
 	// Handle error
 }
 
-// Submits an order and the exchange and returns its tradeID
-tradeID, err := ok.Trade(...)
+// ModifyOrder will allow of changing orderbook placement and limit to market conversion
+updatedOrder, err := ok.ModifyOrder(...)
 if err != nil {
 	// Handle error
 }
+
 ```
 
 ### How to do Websocket public/private calls

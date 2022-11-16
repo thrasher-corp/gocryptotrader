@@ -758,6 +758,9 @@ func TestMatchesIPV4Address(t *testing.T) {
 	if okay := MatchesIPV4Address("0.0.0.0"); !okay {
 		t.Error("MatchesIPV4Address() unexpected test validataion result")
 	}
+	if okay := MatchesIPV4Address("172.217.24.46"); !okay {
+		t.Error("MatchesIPV4Address() unexpected test validataion result")
+	}
 	if okay := MatchesIPV4Address("0.266.0.0"); okay {
 		t.Error("MatchesIPV4Address() unexpected test validataion result")
 	}

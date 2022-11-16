@@ -281,28 +281,22 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, 
 			InstrumentType: okxInstTypeSwap,
 		})
 	case asset.Option:
-		var instsb []Instrument
-		var instsc []Instrument
-		insts, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
-			InstrumentType: okxInstTypeOption,
-			Underlying:     "BTC-USD",
-		})
+		var underlyings []string
+		underlyings, err = ok.GetPublicUnderlyings(context.Background(), okxInstTypeOption)
 		if err != nil {
 			return nil, err
 		}
-		instsb, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
-			InstrumentType: okxInstTypeOption,
-			Underlying:     "ETH-USD",
-		})
-		if err != nil {
-			return nil, err
+		var instruments []Instrument
+		for x := range underlyings {
+			instruments, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
+				InstrumentType: okxInstTypeOption,
+				Underlying:     underlyings[x],
+			})
+			if err != nil {
+				return nil, err
+			}
+			insts = append(insts, instruments...)
 		}
-		instsc, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
-			InstrumentType: okxInstTypeOption,
-			Underlying:     "SOL-USD",
-		})
-		insts = append(insts, instsb...)
-		insts = append(insts, instsc...)
 	case asset.Margin:
 		insts, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
 			InstrumentType: okxInstTypeMargin,
@@ -422,21 +416,13 @@ func (ok *Okx) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 	if err != nil {
 		return err
 	}
-	format, err := ok.GetPairFormat(assetType, false)
-	if err != nil {
-		return err
-	}
-	for i := range pairs {
-		pairFmt, err := ok.FormatExchangeCurrency(pairs[i], assetType)
+	for y := range ticks {
+		pair, err := ok.GetPairFromInstrumentID(ticks[y].InstrumentID)
 		if err != nil {
 			return err
 		}
-		pairFmt, err = ok.GetPairFromInstrumentID(format.Format(pairFmt))
-		if err != nil {
-			return err
-		}
-		for y := range ticks {
-			pair, err := ok.GetPairFromInstrumentID(ticks[y].InstrumentID)
+		for i := range pairs {
+			pairFmt, err := ok.FormatExchangeCurrency(pairs[i], assetType)
 			if err != nil {
 				return err
 			}
@@ -452,7 +438,7 @@ func (ok *Okx) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 				Volume:       ticks[y].Vol24H,
 				QuoteVolume:  ticks[y].VolCcy24H,
 				Open:         ticks[y].Open24H,
-				Pair:         pair,
+				Pair:         pairFmt,
 				ExchangeName: ok.Name,
 				AssetType:    assetType,
 			})
@@ -562,7 +548,6 @@ func (ok *Okx) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 		}
 	}
 	acc.Currencies = currencyBalance
-
 	acc.AssetType = assetType
 	info.Accounts = append(info.Accounts, acc)
 	creds, err := ok.GetCredentials(ctx)
@@ -594,7 +579,7 @@ func (ok *Okx) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, e
 	if err != nil {
 		return nil, err
 	}
-	withdrawalHistories, err := ok.GetWithdrawalHistory(ctx, "", "", "", "", time.Time{}, time.Time{}, -5, 0)
+	withdrawalHistories, err := ok.GetWithdrawalHistory(ctx, "", "", "", "", "", time.Time{}, time.Time{}, -5)
 	if err != nil {
 		return nil, err
 	}
@@ -631,7 +616,7 @@ func (ok *Okx) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, e
 
 // GetWithdrawalsHistory returns previous withdrawals data
 func (ok *Okx) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
-	withdrawals, err := ok.GetWithdrawalHistory(ctx, c.String(), "", "", "", time.Time{}, time.Time{}, -5, 0)
+	withdrawals, err := ok.GetWithdrawalHistory(ctx, c.String(), "", "", "", "", time.Time{}, time.Time{}, -5)
 	if err != nil {
 		return nil, err
 	}
@@ -696,7 +681,7 @@ func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 	return resp, nil
 }
 
-// GetHistoricTrades returns historic trade data within the timeframe provided
+// GetHistoricTrades retrives historic trade data within the timeframe provided
 func (ok *Okx) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	const limit = 1000
 	format, err := ok.GetPairFormat(assetType, false)
@@ -707,7 +692,7 @@ func (ok *Okx) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType
 		return nil, errIncompleteCurrencyPair
 	}
 	instrumentID := format.Format(p)
-	tradeData, err := ok.GetTradesHistory(ctx, instrumentID, "", "", limit)
+	tradeData, err := ok.GetTradesHistory(ctx, instrumentID, "", strconv.FormatInt(timestampStart.UnixMilli(), 10), limit)
 	if err != nil {
 		return nil, err
 	}
@@ -811,7 +796,7 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 	}
 	var err error
 	if math.Mod(action.Amount, 1) != 0 {
-		return nil, errors.New("Okx contract amount can not be decimal")
+		return nil, errors.New("okx contract amount can not be decimal")
 	}
 	format, err := ok.GetPairFormat(action.AssetType, false)
 	if err != nil {
@@ -947,7 +932,7 @@ func (ok *Okx) CancelAllOrders(ctx context.Context, orderCancellation *order.Can
 		instrumentType = ok.GetInstrumentTypeFromAssetItem(orderCancellation.AssetType)
 	}
 	var oType string
-	if orderCancellation.Type != order.UnknownType {
+	if orderCancellation.Type != order.UnknownType && orderCancellation.Type != order.AnyType {
 		oType, err = ok.OrderTypeString(orderCancellation.Type)
 		if err != nil {
 			return order.CancelAllResponse{}, err
@@ -1144,7 +1129,7 @@ func (ok *Okx) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 	}
 	instrumentType := ok.GetInstrumentTypeFromAssetItem(req.AssetType)
 	var orderType string
-	if req.Type != order.UnknownType {
+	if req.Type != order.UnknownType && req.Type != order.AnyType {
 		orderType, err = ok.OrderTypeString(req.Type)
 		if err != nil {
 			return nil, err
@@ -1160,7 +1145,7 @@ func (ok *Okx) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 	if err != nil {
 		return nil, err
 	}
-	orders := make([]order.Detail, len(response))
+	orders := []order.Detail{}
 	for x := range response {
 		orderSide := response[x].Side
 		var pair currency.Pair
@@ -1168,38 +1153,45 @@ func (ok *Okx) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 		if err != nil {
 			return nil, err
 		}
-		for i := range req.Pairs {
+
+		if len(req.Pairs) != 0 {
+			i := 0
+			for i = range req.Pairs {
+				if req.Pairs[i].Equal(pair) {
+					break
+				}
+			}
 			if !req.Pairs[i].Equal(pair) {
 				continue
 			}
-			orderStatus, err := order.StringToOrderStatus(strings.ToUpper(response[x].State))
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s %v", ok.Name, err)
-			}
-			var oType order.Type
-			oType, err = ok.OrderTypeFromString(response[x].OrderType)
-			if err != nil {
-				return nil, err
-			}
-			orders[x] = order.Detail{
-				Amount:          response[x].Size,
-				Pair:            pair,
-				Price:           response[x].Price,
-				ExecutedAmount:  response[x].FillSize,
-				RemainingAmount: response[x].Size - response[x].FillSize,
-				Fee:             response[i].TransactionFee,
-				FeeAsset:        currency.NewCode(response[x].FeeCurrency),
-				Exchange:        ok.Name,
-				OrderID:         response[x].OrderID,
-				ClientOrderID:   response[x].ClientSupplierOrderID,
-				Type:            oType,
-				Side:            orderSide,
-				Status:          orderStatus,
-				AssetType:       req.AssetType,
-				Date:            response[x].CreationTime,
-				LastUpdated:     response[x].UpdateTime,
-			}
 		}
+		orderStatus, err := order.StringToOrderStatus(strings.ToUpper(response[x].State))
+		if err != nil {
+			return nil, err
+		}
+		var oType order.Type
+		oType, err = ok.OrderTypeFromString(response[x].OrderType)
+		if err != nil {
+			return nil, err
+		}
+		orders = append(orders, order.Detail{
+			Amount:          response[x].Size,
+			Pair:            pair,
+			Price:           response[x].Price,
+			ExecutedAmount:  response[x].FillSize,
+			RemainingAmount: response[x].Size - response[x].FillSize,
+			Fee:             response[x].TransactionFee,
+			FeeAsset:        currency.NewCode(response[x].FeeCurrency),
+			Exchange:        ok.Name,
+			OrderID:         response[x].OrderID,
+			ClientOrderID:   response[x].ClientSupplierOrderID,
+			Type:            oType,
+			Side:            orderSide,
+			Status:          orderStatus,
+			AssetType:       asset.Spot,
+			Date:            response[x].CreationTime,
+			LastUpdated:     response[x].UpdateTime,
+		})
 	}
 	return req.Filter(ok.Name, orders), nil
 }

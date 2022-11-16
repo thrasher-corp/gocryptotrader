@@ -11,15 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// CurrencyConvertType represents two types of currency convert 1: currency-contract and 2: contract-currency
-type CurrencyConvertType uint
-
 const (
-	// CurrencyToContract 1: Convert currency to contract. It will be rounded up when the value of contract is decimal
-	CurrencyToContract = CurrencyConvertType(1)
-	// ContractToCurrency 2: Convert contract to currency.
-	ContractToCurrency = CurrencyConvertType(2)
-
 	// Trade Modes
 
 	// TradeModeCross trade mode, cross
@@ -269,7 +261,7 @@ type IndexComponentItem struct {
 	Symbol          string `json:"symbol"`
 	SymbolPairPrice string `json:"symbolPx"`
 	Weights         string `json:"wgt"`
-	ConverToPrice   string `json:"cnvPx"`
+	ConvertToPrice  string `json:"cnvPx"`
 	ExchangeName    string `json:"exch"`
 }
 
@@ -303,7 +295,7 @@ type Instrument struct {
 	ContractType                    string     `json:"ctType"`
 	Alias                           string     `json:"alias"`
 	State                           string     `json:"state"`
-	MaxQuantityoOfSpotLimitOrder    float64    `json:"maxLmtSz,string"`
+	MaxQuantityOfSpotLimitOrder     float64    `json:"maxLmtSz,string"`
 	MaxQuantityOfMarketLimitOrder   float64    `json:"maxMktSz,string"`
 	MaxQuantityOfSpotTwapLimitOrder float64    `json:"maxTwapSz,string"`
 	MaxSpotIcebergSize              float64    `json:"maxIcebergSz,string"`
@@ -368,7 +360,7 @@ type OptionMarketDataResponse struct {
 	RealVol        string     `json:"realVol"`
 	BidVolatility  string     `json:"bidVol"`
 	AskVolatility  float64    `json:"askVol,string"`
-	MarkVolitility float64    `json:"markVol,string"`
+	MarkVolatility float64    `json:"markVol,string"`
 	Leverage       float64    `json:"lever,string"`
 	ForwardPrice   string     `json:"fwdPx"`
 	Timestamp      time.Time  `json:"ts"`
@@ -446,17 +438,17 @@ type MarkPrice struct {
 
 // PositionTiers represents position tier detailed information.
 type PositionTiers struct {
-	BaseMaxLoan                   string  `json:"baseMaxLoan"`
-	InitialMarginRequirement      string  `json:"imr"`
-	InstrumentID                  string  `json:"instId"`
-	MaximumLeverage               string  `json:"maxLever"`
-	MaximumSize                   float64 `json:"maxSz,string"`
-	MinSize                       float64 `json:"minSz,string"`
-	MaintainanceMarginRequirement string  `json:"mmr"`
-	OptionalMarginFactor          string  `json:"optMgnFactor"`
-	QuoteMaxLoan                  string  `json:"quoteMaxLoan"`
-	Tier                          string  `json:"tier"`
-	Underlying                    string  `json:"uly"`
+	BaseMaxLoan                  string  `json:"baseMaxLoan"`
+	InitialMarginRequirement     string  `json:"imr"`
+	InstrumentID                 string  `json:"instId"`
+	MaximumLeverage              string  `json:"maxLever"`
+	MaximumSize                  float64 `json:"maxSz,string"`
+	MinSize                      float64 `json:"minSz,string"`
+	MaintenanceMarginRequirement string  `json:"mmr"`
+	OptionalMarginFactor         string  `json:"optMgnFactor"`
+	QuoteMaxLoan                 string  `json:"quoteMaxLoan"`
+	Tier                         string  `json:"tier"`
+	Underlying                   string  `json:"uly"`
 }
 
 // InterestRateLoanQuotaBasic holds the basic Currency, loan,and interest rate information.
@@ -583,18 +575,19 @@ type CurrencyTakerFlow struct {
 
 // PlaceOrderRequestParam requesting parameter for placing an order.
 type PlaceOrderRequestParam struct {
-	InstrumentID          string  `json:"instId"`
-	TradeMode             string  `json:"tdMode,omitempty"` // cash isolated
-	ClientSupplierOrderID string  `json:"clOrdId,omitempty"`
-	Currency              string  `json:"ccy,omitempty"` // Only applicable to cross MARGIN orders in Single-currency margin.
-	OrderTag              string  `json:"tag,omitempty"`
-	Side                  string  `json:"side,omitempty"`
-	PositionSide          string  `json:"posSide,omitempty"`
-	OrderType             string  `json:"ordType,omitempty"`
-	Amount                float64 `json:"sz,string,omitempty"`
-	Price                 float64 `json:"px,string,omitempty"`
-	ReduceOnly            bool    `json:"reduceOnly,string,omitempty"`
-	QuantityType          string  `json:"tgtCcy,omitempty"` // values base_ccy and quote_ccy
+	AssetType             asset.Item `json:"-"`
+	InstrumentID          string     `json:"instId"`
+	TradeMode             string     `json:"tdMode,omitempty"` // cash isolated
+	ClientSupplierOrderID string     `json:"clOrdId,omitempty"`
+	Currency              string     `json:"ccy,omitempty"` // Only applicable to cross MARGIN orders in Single-currency margin.
+	OrderTag              string     `json:"tag,omitempty"`
+	Side                  string     `json:"side,omitempty"`
+	PositionSide          string     `json:"posSide,omitempty"`
+	OrderType             string     `json:"ordType,omitempty"`
+	Amount                float64    `json:"sz,string,omitempty"`
+	Price                 float64    `json:"px,string,omitempty"`
+	ReduceOnly            bool       `json:"reduceOnly,string,omitempty"`
+	QuantityType          string     `json:"tgtCcy,omitempty"` // values base_ccy and quote_ccy
 
 	// Added in the websocket requests
 	BanAmend   bool      `json:"banAmend,omitempty"` // Whether the SPOT Market Order size can be amended by the system.
@@ -668,7 +661,7 @@ type OrderDetail struct {
 	TradeMode                  string     `json:"tdMode"`
 	TradeID                    string     `json:"tradeId"`
 	FillTime                   time.Time  `json:"fillTime"`
-	Source                     string     `json:"source,omitempty"`
+	Source                     string     `json:"source"`
 	State                      string     `json:"state"`
 	TakeProfitTriggerPriceType string     `json:"tpTriggerPxType"`
 	StopLossTriggerPriceType   string     `json:"slTriggerPxType"`
@@ -676,19 +669,19 @@ type OrderDetail struct {
 	RebateCurrency             string     `json:"rebateCcy"`
 	QuantityType               string     `json:"tgtCcy"`   // base_ccy and quote_ccy
 	Category                   string     `json:"category"` // normal, twap, adl, full_liquidation, partial_liquidation, delivery, ddh
-	AccumulatedFillSize        float64    `json:"accFillSz,string"`
-	FillPrice                  float64    `json:"fillPx,string"`
-	FillSize                   float64    `json:"fillSz,string"`
+	AccumulatedFillSize        float64    `json:"accFillSz"`
+	FillPrice                  float64    `json:"fillPx"`
+	FillSize                   float64    `json:"fillSz"`
 	RebateAmount               float64    `json:"rebate"`
 	FeeCurrency                string     `json:"feeCcy"`
-	TransactionFee             float64    `json:"fee,string"`
-	AveragePrice               float64    `json:"avgPx,string"`
-	Leverage                   float64    `json:"lever,string"`
-	Price                      float64    `json:"px,string"`
-	Size                       float64    `json:"sz,string"`
-	TakeProfitTriggerPrice     float64    `json:"tpTriggerPx,string"`
-	TakeProfitOrderPrice       float64    `json:"tpOrdPx,string"`
-	StopLossTriggerPrice       float64    `json:"slTriggerPx,string"`
+	TransactionFee             float64    `json:"fee"`
+	AveragePrice               float64    `json:"avgPx"`
+	Leverage                   float64    `json:"lever"`
+	Price                      float64    `json:"px"`
+	Size                       float64    `json:"sz"`
+	TakeProfitTriggerPrice     float64    `json:"tpTriggerPx"`
+	TakeProfitOrderPrice       float64    `json:"tpOrdPx"`
+	StopLossTriggerPrice       float64    `json:"slTriggerPx"`
 	UpdateTime                 time.Time  `json:"uTime"`
 	CreationTime               time.Time  `json:"cTime"`
 }
@@ -890,21 +883,21 @@ type AlgoOrderResponse struct {
 
 // CurrencyResponse represents a currency item detail response data.
 type CurrencyResponse struct {
-	CanDeposit           bool    `json:"canDep"`        // Availability to deposit from chain. false: not available true: available
-	CanInternalTransffer bool    `json:"canInternal"`   // Availability to internal transfer.
-	CanWithdraw          bool    `json:"canWd"`         // Availability to withdraw to chain.
-	Currency             string  `json:"ccy"`           //
-	Chain                string  `json:"chain"`         //
-	LogoLink             string  `json:"logoLink"`      // Logo link of currency
-	MainNet              bool    `json:"mainNet"`       // If current chain is main net then return true, otherwise return false
-	MaxFee               float64 `json:"maxFee,string"` // Minimum withdrawal fee
-	MaxWithdrawal        float64 `json:"maxWd,string"`  // Minimum amount of currency withdrawal in a single transaction
-	MinFee               float64 `json:"minFee,string"` // Minimum withdrawal fee
-	MinWithdrawal        string  `json:"minWd"`         // Minimum amount of currency withdrawal in a single transaction
-	Name                 string  `json:"name"`          // Chinese name of currency
-	UsedWithdrawalQuota  string  `json:"usedWdQuota"`   // Amount of currency withdrawal used in the past 24 hours, unit in BTC
-	WithdrawalQuota      string  `json:"wdQuota"`       // Minimum amount of currency withdrawal in a single transaction
-	WithdrawalTickSize   string  `json:"wdTickSz"`      // Withdrawal precision, indicating the number of digits after the decimal point
+	CanDeposit          bool    `json:"canDep"`        // Availability to deposit from chain. false: not available true: available
+	CanInternalTransfer bool    `json:"canInternal"`   // Availability to internal transfer.
+	CanWithdraw         bool    `json:"canWd"`         // Availability to withdraw to chain.
+	Currency            string  `json:"ccy"`           //
+	Chain               string  `json:"chain"`         //
+	LogoLink            string  `json:"logoLink"`      // Logo link of currency
+	MainNet             bool    `json:"mainNet"`       // If current chain is main net then return true, otherwise return false
+	MaxFee              float64 `json:"maxFee,string"` // Minimum withdrawal fee
+	MaxWithdrawal       float64 `json:"maxWd,string"`  // Minimum amount of currency withdrawal in a single transaction
+	MinFee              float64 `json:"minFee,string"` // Minimum withdrawal fee
+	MinWithdrawal       string  `json:"minWd"`         // Minimum amount of currency withdrawal in a single transaction
+	Name                string  `json:"name"`          // Chinese name of currency
+	UsedWithdrawalQuota string  `json:"usedWdQuota"`   // Amount of currency withdrawal used in the past 24 hours, unit in BTC
+	WithdrawalQuota     string  `json:"wdQuota"`       // Minimum amount of currency withdrawal in a single transaction
+	WithdrawalTickSize  string  `json:"wdTickSz"`      // Withdrawal precision, indicating the number of digits after the decimal point
 }
 
 // AssetBalance represents account owner asset balance
@@ -923,20 +916,20 @@ type AccountAssetValuation struct {
 		Funding float64 `json:"funding,string"`
 		Trading float64 `json:"trading,string"`
 	} `json:"details"`
-	TotalBal  float64   `json:"totalBal,string"`
-	Timestamp time.Time `json:"ts"`
+	TotalBalance float64   `json:"totalBal,string"`
+	Timestamp    time.Time `json:"ts"`
 }
 
 // FundingTransferRequestInput represents funding account request input.
 type FundingTransferRequestInput struct {
-	Currency      string  `json:"ccy"`
-	Type          int     `json:"type,string"`
-	Amount        float64 `json:"amt,string"`
-	From          string  `json:"from"` // "6": Funding account, "18": Trading account
-	To            string  `json:"to"`
-	SubAccount    string  `json:"subAcct"`
-	LoanTransffer bool    `json:"loanTrans,string"`
-	ClientID      string  `json:"clientId"` // Client-supplied ID A combination of case-sensitive alphanumerics, all numbers, or all letters of up to 32 characters.
+	Currency     string  `json:"ccy"`
+	Type         int     `json:"type,string"`
+	Amount       float64 `json:"amt,string"`
+	From         string  `json:"from"` // "6": Funding account, "18": Trading account
+	To           string  `json:"to"`
+	SubAccount   string  `json:"subAcct"`
+	LoanTransfer bool    `json:"loanTrans,string"`
+	ClientID     string  `json:"clientId"` // Client-supplied ID A combination of case-sensitive alphanumerics, all numbers, or all letters of up to 32 characters.
 }
 
 // FundingTransferResponse represents funding transfer and trading account transfer response.
@@ -957,10 +950,10 @@ type TransferFundRateResponse struct {
 	From           string  `json:"from"`
 	InstrumentID   string  `json:"instId"`
 	State          string  `json:"state"`
-	SubAccountt    string  `json:"subAcct"`
+	SubAccount     string  `json:"subAcct"`
 	To             string  `json:"to"`
 	ToInstrumentID string  `json:"toInstId"`
-	TransrumentID  string  `json:"transId"`
+	TransferID     string  `json:"transId"`
 	Type           int     `json:"type,string"`
 }
 
@@ -983,16 +976,16 @@ type LightningDepositItem struct {
 
 // CurrencyDepositResponseItem represents the deposit address information item.
 type CurrencyDepositResponseItem struct {
-	Tag                       string `json:"tag"`
-	Chain                     string `json:"chain"`
-	ContractAddress           string `json:"ctAddr"`
-	Currency                  string `json:"ccy"`
-	ToBeneficiaryAccount      string `json:"to"`
-	Address                   string `json:"addr"`
-	Selected                  bool   `json:"selected"`
-	Memo                      string `json:"memo"`
-	DepositAddressAttachement string `json:"addrEx"`
-	PaymentID                 string `json:"pmtId"`
+	Tag                      string `json:"tag"`
+	Chain                    string `json:"chain"`
+	ContractAddress          string `json:"ctAddr"`
+	Currency                 string `json:"ccy"`
+	ToBeneficiaryAccount     string `json:"to"`
+	Address                  string `json:"addr"`
+	Selected                 bool   `json:"selected"`
+	Memo                     string `json:"memo"`
+	DepositAddressAttachment string `json:"addrEx"`
+	PaymentID                string `json:"pmtId"`
 }
 
 // DepositHistoryResponseItem deposit history response item.
@@ -1251,44 +1244,44 @@ type AccountDetail struct {
 
 // AccountPosition account position.
 type AccountPosition struct {
-	AutoDeleverging               string     `json:"adl"`      // Auto-deleveraging (ADL) indicator Divided into 5 levels, from 1 to 5, the smaller the number, the weaker the adl intensity.
-	AvailablePosition             string     `json:"availPos"` // Position that can be closed Only applicable to MARGIN, FUTURES/SWAP in the long-short mode, OPTION in Simple and isolated OPTION in margin Account.
-	AveragePrice                  string     `json:"avgPx"`
-	CreationTime                  time.Time  `json:"cTime"`
-	Currency                      string     `json:"ccy"`
-	DeltaBS                       string     `json:"deltaBS"` // delta：Black-Scholes Greeks in dollars,only applicable to OPTION
-	DeltaPA                       string     `json:"deltaPA"` // delta：Greeks in coins,only applicable to OPTION
-	GammaBS                       string     `json:"gammaBS"` // gamma：Black-Scholes Greeks in dollars,only applicable to OPTION
-	GammaPA                       string     `json:"gammaPA"` // gamma：Greeks in coins,only applicable to OPTION
-	InitionMarginRequirement      string     `json:"imr"`     // Initial margin requirement, only applicable to cross.
-	InstrumentID                  string     `json:"instId"`
-	InstrumentType                asset.Item `json:"instType"`
-	Interest                      string     `json:"interest"`
-	USDPrice                      string     `json:"usdPx"`
-	LastTradePrice                string     `json:"last"`
-	Leverage                      string     `json:"lever"`   // Leverage, not applicable to OPTION seller
-	Liabilities                   string     `json:"liab"`    // Liabilities, only applicable to MARGIN.
-	LiabilitiesCurrency           string     `json:"liabCcy"` // Liabilities currency, only applicable to MARGIN.
-	LiquidationPrice              string     `json:"liqPx"`   // Estimated liquidation price Not applicable to OPTION
-	MarkPx                        string     `json:"markPx"`
-	Margin                        string     `json:"margin"`
-	MgnMode                       string     `json:"mgnMode"`
-	MgnRatio                      string     `json:"mgnRatio"`
-	MaintainanceMarginRequirement string     `json:"mmr"`         // Maintenance margin requirement in USD level Applicable to Multi-currency margin and Portfolio margin
-	NotionalUsd                   string     `json:"notionalUsd"` // Quality of Positions -- usd
-	OptionValue                   string     `json:"optVal"`      // Option Value, only application to position.
-	QuantityOfPosition            string     `json:"pos"`         // Quantity of positions,In the mode of autonomous transfer from position to position, after the deposit is transferred, a position with pos of 0 will be generated
-	PositionCurrency              string     `json:"posCcy"`
-	PositionID                    string     `json:"posId"`
-	PositionSide                  string     `json:"posSide"`
-	ThetaBS                       string     `json:"thetaBS"` // theta：Black-Scholes Greeks in dollars,only applicable to OPTION
-	ThetaPA                       string     `json:"thetaPA"` // theta：Greeks in coins,only applicable to OPTION
-	TradeID                       string     `json:"tradeId"`
-	UpdatedTime                   time.Time  `json:"uTime"`                     // Latest time position was adjusted,
-	Upl                           float64    `json:"upl,string,omitempty"`      // Unrealized profit and loss
-	UPLRatio                      float64    `json:"uplRatio,string,omitempty"` // Unrealized profit and loss ratio
-	VegaBS                        string     `json:"vegaBS"`                    // vega：Black-Scholes Greeks in dollars,only applicable to OPTION
-	VegaPA                        string     `json:"vegaPA"`                    // vega：Greeks in coins,only applicable to OPTION
+	AutoDeleveraging             string     `json:"adl"`      // Auto-deleveraging (ADL) indicator Divided into 5 levels, from 1 to 5, the smaller the number, the weaker the adl intensity.
+	AvailablePosition            string     `json:"availPos"` // Position that can be closed Only applicable to MARGIN, FUTURES/SWAP in the long-short mode, OPTION in Simple and isolated OPTION in margin Account.
+	AveragePrice                 string     `json:"avgPx"`
+	CreationTime                 time.Time  `json:"cTime"`
+	Currency                     string     `json:"ccy"`
+	DeltaBS                      string     `json:"deltaBS"` // delta：Black-Scholes Greeks in dollars,only applicable to OPTION
+	DeltaPA                      string     `json:"deltaPA"` // delta：Greeks in coins,only applicable to OPTION
+	GammaBS                      string     `json:"gammaBS"` // gamma：Black-Scholes Greeks in dollars,only applicable to OPTION
+	GammaPA                      string     `json:"gammaPA"` // gamma：Greeks in coins,only applicable to OPTION
+	InitialMarginRequirement     string     `json:"imr"`     // Initial margin requirement, only applicable to cross.
+	InstrumentID                 string     `json:"instId"`
+	InstrumentType               asset.Item `json:"instType"`
+	Interest                     string     `json:"interest"`
+	USDPrice                     string     `json:"usdPx"`
+	LastTradePrice               string     `json:"last"`
+	Leverage                     string     `json:"lever"`   // Leverage, not applicable to OPTION seller
+	Liabilities                  string     `json:"liab"`    // Liabilities, only applicable to MARGIN.
+	LiabilitiesCurrency          string     `json:"liabCcy"` // Liabilities currency, only applicable to MARGIN.
+	LiquidationPrice             string     `json:"liqPx"`   // Estimated liquidation price Not applicable to OPTION
+	MarkPx                       string     `json:"markPx"`
+	Margin                       string     `json:"margin"`
+	MgnMode                      string     `json:"mgnMode"`
+	MgnRatio                     string     `json:"mgnRatio"`
+	MaintenanceMarginRequirement string     `json:"mmr"`         // Maintenance margin requirement in USD level Applicable to Multi-currency margin and Portfolio margin
+	NotionalUsd                  string     `json:"notionalUsd"` // Quality of Positions -- usd
+	OptionValue                  string     `json:"optVal"`      // Option Value, only application to position.
+	QuantityOfPosition           string     `json:"pos"`         // Quantity of positions,In the mode of autonomous transfer from position to position, after the deposit is transferred, a position with pos of 0 will be generated
+	PositionCurrency             string     `json:"posCcy"`
+	PositionID                   string     `json:"posId"`
+	PositionSide                 string     `json:"posSide"`
+	ThetaBS                      string     `json:"thetaBS"` // theta：Black-Scholes Greeks in dollars,only applicable to OPTION
+	ThetaPA                      string     `json:"thetaPA"` // theta：Greeks in coins,only applicable to OPTION
+	TradeID                      string     `json:"tradeId"`
+	UpdatedTime                  time.Time  `json:"uTime"`                     // Latest time position was adjusted,
+	Upl                          float64    `json:"upl,string,omitempty"`      // Unrealized profit and loss
+	UPLRatio                     float64    `json:"uplRatio,string,omitempty"` // Unrealized profit and loss ratio
+	VegaBS                       string     `json:"vegaBS"`                    // vega：Black-Scholes Greeks in dollars,only applicable to OPTION
+	VegaPA                       string     `json:"vegaPA"`                    // vega：Greeks in coins,only applicable to OPTION
 
 	// PushTime added feature in the websocket push data.
 
@@ -1330,7 +1323,7 @@ type PositionData struct {
 	Currency         string     `json:"ccy"`
 	InstrumentID     string     `json:"instId"`
 	InstrumentType   asset.Item `json:"instType"`
-	MamagementMode   string     `json:"mgnMode"`
+	ManagementMode   string     `json:"mgnMode"`
 	NotionalCurrency string     `json:"notionalCcy"`
 	NotionalUsd      string     `json:"notionalUsd"`
 	Position         string     `json:"pos"`
@@ -1342,10 +1335,10 @@ type PositionData struct {
 
 // AccountAndPositionRisk holds information.
 type AccountAndPositionRisk struct {
-	AdjEq               string               `json:"adjEq"`
-	AccountBalanceDatas []AccountBalanceData `json:"balData"`
-	PosData             []PositionData       `json:"posData"`
-	Timestamp           time.Time            `json:"ts"`
+	AdjEq              string               `json:"adjEq"`
+	AccountBalanceData []AccountBalanceData `json:"balData"`
+	PosData            []PositionData       `json:"posData"`
+	Timestamp          time.Time            `json:"ts"`
 }
 
 // BillsDetailQueryParameter represents bills detail query parameter
@@ -1355,7 +1348,7 @@ type BillsDetailQueryParameter struct {
 	MarginMode     string // Margin mode "isolated" "cross"
 	ContractType   string // Contract type "linear" & "inverse" Only applicable to FUTURES/SWAP
 	BillType       uint   // Bill type 1: Transfer 2: Trade 3: Delivery 4: Auto token conversion 5: Liquidation 6: Margin transfer 7: Interest deduction 8: Funding fee 9: ADL 10: Clawback 11: System token conversion 12: Strategy transfer 13: ddh
-	BillSubType    int    // allowed bill substype values are [ 1,2,3,4,5,6,9,11,12,14,160,161,162,110,111,118,119,100,101,102,103,104,105,106,110,125,126,127,128,131,132,170,171,172,112,113,117,173,174,200,201,202,203 ], link: https://www.okx.com/docs-v5/en/#rest-api-account-get-bills-details-last-7-days
+	BillSubType    int    // allowed bill subtype values are [ 1,2,3,4,5,6,9,11,12,14,160,161,162,110,111,118,119,100,101,102,103,104,105,106,110,125,126,127,128,131,132,170,171,172,112,113,117,173,174,200,201,202,203 ], link: https://www.okx.com/docs-v5/en/#rest-api-account-get-bills-details-last-7-days
 	After          string
 	Before         string
 	BeginTime      time.Time
@@ -1363,7 +1356,7 @@ type BillsDetailQueryParameter struct {
 	Limit          int64
 }
 
-// BillsDetailResponse represents account bills informaiton.
+// BillsDetailResponse represents account bills information.
 type BillsDetailResponse struct {
 	Balance                    string     `json:"bal"`
 	BalanceChange              string     `json:"balChg"`
@@ -1374,7 +1367,7 @@ type BillsDetailResponse struct {
 	From                       string     `json:"from"`     // The remitting account 6: FUNDING 18: Trading account When bill type is not transfer, the field returns "".
 	InstrumentID               string     `json:"instId"`
 	InstrumentType             asset.Item `json:"instType"`
-	ManegementMode             string     `json:"mgnMode"`
+	MarginMode                 string     `json:"mgnMode"`
 	Notes                      string     `json:"notes"` // notes When bill type is not transfer, the field returns "".
 	OrderID                    string     `json:"ordId"`
 	ProfitAndLoss              string     `json:"pnl"`
@@ -1439,13 +1432,13 @@ type MaximumTradableAmount struct {
 
 // IncreaseDecreaseMarginInput represents increase or decrease the margin of the isolated position.
 type IncreaseDecreaseMarginInput struct {
-	InstrumentID      string  `json:"instId"`
-	PositionSide      string  `json:"posSide"`
-	Type              string  `json:"type"`
-	Amount            float64 `json:"amt,string"`
-	Currency          string  `json:"ccy"`
-	AutoLoadTransffer bool    `json:"auto"`
-	LoadTransffer     bool    `json:"loanTrans"`
+	InstrumentID     string  `json:"instId"`
+	PositionSide     string  `json:"posSide"`
+	Type             string  `json:"type"`
+	Amount           float64 `json:"amt,string"`
+	Currency         string  `json:"ccy"`
+	AutoLoadTransfer bool    `json:"auto"`
+	LoadTransfer     bool    `json:"loanTrans"`
 }
 
 // IncreaseDecreaseMargin represents increase or decrease the margin of the isolated position response
@@ -1504,8 +1497,8 @@ type InterestAccruedData struct {
 
 // InterestRateResponse represents interest rate response.
 type InterestRateResponse struct {
-	InterstRate float64 `json:"interestRate,string"`
-	Currency    string  `json:"ccy"`
+	InterestRate float64 `json:"interestRate,string"`
+	Currency     string  `json:"ccy"`
 }
 
 // GreeksType represents for greeks type response
@@ -1572,7 +1565,7 @@ type BorrowInterestAndLimitResponse struct {
 		Currency   string `json:"ccy"`
 		Interest   string `json:"interest"`
 		LoanQuota  string `json:"loanQuota"`
-		PosLoan    string `json:"posLoan"` // Frozon amount for current account Only applicable to VIP loans
+		PosLoan    string `json:"posLoan"` // Frozen amount for current account Only applicable to VIP loans
 		Rate       string `json:"rate"`
 		SurplusLmt string `json:"surplusLmt"`
 		UsedLmt    string `json:"usedLmt"`
@@ -1604,7 +1597,7 @@ type PositionBuilderResponse struct {
 	VegaTermStructure            string                `json:"mr3"`
 	BasicRisk                    string                `json:"mr4"`
 	InterestRateRisk             string                `json:"mr5"`
-	ExtreamMarketMove            string                `json:"mr6"`
+	ExtremeMarketMove            string                `json:"mr6"`
 	TransactionCostAndSlippage   string                `json:"mr7"`
 	PositionData                 []PositionBuilderData `json:"posData"` // List of positions
 	RiskUnit                     string                `json:"riskUnit"`
@@ -1777,7 +1770,7 @@ type RfqRequestParams struct {
 	RfqID               string
 	ClientSuppliedRfqID string
 	State               string
-	BeginingID          string
+	BeginningID         string
 	EndID               string
 	Limit               int64
 }
@@ -1896,16 +1889,16 @@ type SubaccountBalanceDetail struct {
 
 // SubaccountBalanceResponse represents subaccount balance response
 type SubaccountBalanceResponse struct {
-	AdjustedEffectiveEquity       string                    `json:"adjEq"`
-	Details                       []SubaccountBalanceDetail `json:"details"`
-	Imr                           string                    `json:"imr"`
-	IsolatedMarginEquity          string                    `json:"isoEq"`
-	MarginRatio                   string                    `json:"mgnRatio"`
-	MaintainanceMarginRequirement string                    `json:"mmr"`
-	NotionalUsd                   string                    `json:"notionalUsd"`
-	OrdFroz                       string                    `json:"ordFroz"`
-	TotalEq                       string                    `json:"totalEq"`
-	UpdateTime                    time.Time                 `json:"uTime"`
+	AdjustedEffectiveEquity      string                    `json:"adjEq"`
+	Details                      []SubaccountBalanceDetail `json:"details"`
+	Imr                          string                    `json:"imr"`
+	IsolatedMarginEquity         string                    `json:"isoEq"`
+	MarginRatio                  string                    `json:"mgnRatio"`
+	MaintenanceMarginRequirement string                    `json:"mmr"`
+	NotionalUsd                  string                    `json:"notionalUsd"`
+	OrdFroz                      string                    `json:"ordFroz"`
+	TotalEq                      string                    `json:"totalEq"`
+	UpdateTime                   time.Time                 `json:"uTime"`
 }
 
 // FundingBalance holds function balance.
@@ -1943,8 +1936,8 @@ type TransferIDInfo struct {
 	TransferID string `json:"transId"`
 }
 
-// PermissingOfTransfer represents subaccount transfer information and it's permission.
-type PermissingOfTransfer struct {
+// PermissionOfTransfer represents subaccount transfer information and it's permission.
+type PermissionOfTransfer struct {
 	SubAcct     string `json:"subAcct"`
 	CanTransOut bool   `json:"canTransOut"`
 }
@@ -1965,10 +1958,10 @@ type GridAlgoOrder struct {
 
 	// Spot Grid Order
 	QuoteSize float64 `json:"quoteSz,string"` // Invest amount for quote currency Either "instId" or "ccy" is required
-	BaseSize  float64 `json:"baseSz,string"`  // nvest amount for base currency Either "instId" or "ccy" is required
+	BaseSize  float64 `json:"baseSz,string"`  // Invest amount for base currency Either "instId" or "ccy" is required
 
 	// Contract Grid Order
-	BasePosition bool    `json:"basePos"` // Wether or not open a position when strategy actives Default is false Neutral contract grid should omit the parameter
+	BasePosition bool    `json:"basePos"` // Whether or not open a position when strategy actives Default is false Neutral contract grid should omit the parameter
 	Size         float64 `json:"sz,string"`
 	Direction    string  `json:"direction"`
 	Lever        string  `json:"lever"`
@@ -2098,27 +2091,27 @@ type GridAlgoSuborder struct {
 
 // AlgoOrderPosition represents algo order position detailed data.
 type AlgoOrderPosition struct {
-	AutoDecreasingLine            string     `json:"adl"`
-	AlgoID                        string     `json:"algoId"`
-	AveragePrice                  string     `json:"avgPx"`
-	Currency                      string     `json:"ccy"`
-	InitialMarginRequirement      string     `json:"imr"`
-	InstrumentID                  string     `json:"instId"`
-	InstrumentType                asset.Item `json:"instType"`
-	LastTradedPrice               string     `json:"last"`
-	Leverage                      string     `json:"lever"`
-	LiquidationPrice              string     `json:"liqPx"`
-	MarkPrice                     string     `json:"markPx"`
-	MarginMode                    string     `json:"mgnMode"`
-	MarginRatio                   string     `json:"mgnRatio"`
-	MaintainanceMarginRequirement string     `json:"mmr"`
-	NotionalUSD                   string     `json:"notionalUsd"`
-	QuantityPosition              string     `json:"pos"`
-	PositionSide                  string     `json:"posSide"`
-	UnrealizedProfitAndLoss       string     `json:"upl"`
-	UnrealizedProfitAndLossRatio  string     `json:"uplRatio"`
-	UpdateTime                    time.Time  `json:"uTime"`
-	CreationTime                  time.Time  `json:"cTime"`
+	AutoDecreasingLine           string     `json:"adl"`
+	AlgoID                       string     `json:"algoId"`
+	AveragePrice                 string     `json:"avgPx"`
+	Currency                     string     `json:"ccy"`
+	InitialMarginRequirement     string     `json:"imr"`
+	InstrumentID                 string     `json:"instId"`
+	InstrumentType               asset.Item `json:"instType"`
+	LastTradedPrice              string     `json:"last"`
+	Leverage                     string     `json:"lever"`
+	LiquidationPrice             string     `json:"liqPx"`
+	MarkPrice                    string     `json:"markPx"`
+	MarginMode                   string     `json:"mgnMode"`
+	MarginRatio                  string     `json:"mgnRatio"`
+	MaintenanceMarginRequirement string     `json:"mmr"`
+	NotionalUSD                  string     `json:"notionalUsd"`
+	QuantityPosition             string     `json:"pos"`
+	PositionSide                 string     `json:"posSide"`
+	UnrealizedProfitAndLoss      string     `json:"upl"`
+	UnrealizedProfitAndLossRatio string     `json:"uplRatio"`
+	UpdateTime                   time.Time  `json:"uTime"`
+	CreationTime                 time.Time  `json:"cTime"`
 }
 
 // AlgoOrderWithdrawalProfit algo withdrawal order profit info.
@@ -2163,11 +2156,11 @@ type BlockTrade struct {
 
 // UnitConvertResponse unit convert response.
 type UnitConvertResponse struct {
-	InstrumentID string              `json:"instId"`
-	Price        float64             `json:"px,string"`
-	Size         float64             `json:"sz,string"`
-	ConvertType  CurrencyConvertType `json:"type"`
-	Unit         string              `json:"unit"`
+	InstrumentID string  `json:"instId"`
+	Price        float64 `json:"px,string"`
+	Size         float64 `json:"sz,string"`
+	ConvertType  uint64  `json:"type"`
+	Unit         string  `json:"unit"`
 }
 
 // Websocket Models
@@ -2212,8 +2205,8 @@ type WSSubscriptionInformation struct {
 	Arguments SubscriptionInfo `json:"arg"`
 }
 
-// WSSubscriptionInformations websocket subscription and unsubscription operation inputs.
-type WSSubscriptionInformations struct {
+// WSSubscriptionInformationList websocket subscription and unsubscription operation inputs.
+type WSSubscriptionInformationList struct {
 	Operation string             `json:"op"`
 	Arguments []SubscriptionInfo `json:"args"`
 }
@@ -2385,7 +2378,7 @@ type WsPlaceOrderInput struct {
 	Arguments []PlaceOrderRequestParam `json:"args"`
 }
 
-// WsCancelOrderInput websocker cancel order request
+// WsCancelOrderInput websocket cancel order request
 type WsCancelOrderInput struct {
 	ID        string                    `json:"id"`
 	Operation string                    `json:"op"`
@@ -2439,7 +2432,7 @@ type WsAccountChannelPushData struct {
 	Data     []Account        `json:"data,omitempty"`
 }
 
-// WsPositionResponse represents pushd position data through the websocket channel.
+// WsPositionResponse represents pushed position data through the websocket channel.
 type WsPositionResponse struct {
 	Argument  SubscriptionInfo  `json:"arg"`
 	Arguments []AccountPosition `json:"data"`
@@ -2469,10 +2462,10 @@ type BalanceData struct {
 
 // BalanceAndPositionData represents balance and position data with the push time.
 type BalanceAndPositionData struct {
-	PushTime      time.Time            `json:"pTime"`
-	EventType     string               `json:"eventType"`
-	BalanceData   []BalanceData        `json:"balData"`
-	PositionDatas []PositionDataDetail `json:"posData"`
+	PushTime     time.Time            `json:"pTime"`
+	EventType    string               `json:"eventType"`
+	BalanceData  []BalanceData        `json:"balData"`
+	PositionData []PositionDataDetail `json:"posData"`
 }
 
 // WsBalanceAndPosition websocket push data for lis of BalanceAndPosition information.
@@ -2586,7 +2579,7 @@ type WsAdvancedAlgoOrderDetail struct {
 	TriggerTime            time.Time `json:"triggerTime"`
 }
 
-// WsGreeks greeks push data with the subcription info through websocket channel
+// WsGreeks greeks push data with the subscription info through websocket channel
 type WsGreeks struct {
 	Argument SubscriptionInfo `json:"arg"`
 	Data     []WsGreekData    `json:"data"`
@@ -2722,7 +2715,7 @@ type WsContractGridAlgoOrder struct {
 	Data     []ContractGridAlgoOrder `json:"data"`
 }
 
-// ContractGridAlgoOrder represents contrat grid algo order
+// ContractGridAlgoOrder represents contract grid algo order
 type ContractGridAlgoOrder struct {
 	ActualLever            string    `json:"actualLever"`
 	AlgoID                 string    `json:"algoId"`
@@ -2734,7 +2727,7 @@ type ContractGridAlgoOrder struct {
 	Direction              string    `json:"direction"`
 	Eq                     string    `json:"eq"`
 	FloatProfit            string    `json:"floatProfit"`
-	GridQuantitty          string    `json:"gridNum"`
+	GridQuantity           string    `json:"gridNum"`
 	GridProfit             string    `json:"gridProfit"`
 	InstrumentID           string    `json:"instId"`
 	InstrumentType         string    `json:"instType"`
@@ -2773,28 +2766,28 @@ type WsGridPosition struct {
 
 // GridPositionData represents a position data
 type GridPositionData struct {
-	AutoDeleverging               string    `json:"adl"`
-	AlgoID                        string    `json:"algoId"`
-	AveragePrice                  string    `json:"avgPx"`
-	Currency                      string    `json:"ccy"`
-	InitialMarginRequirement      string    `json:"imr"`
-	InstrumentID                  string    `json:"instId"`
-	InstrumentType                string    `json:"instType"`
-	Last                          string    `json:"last"`
-	Leverage                      string    `json:"lever"`
-	LiquidationPrice              string    `json:"liqPx"`
-	MarkPrice                     string    `json:"markPx"`
-	MarginMode                    string    `json:"mgnMode"`
-	MarginRatio                   string    `json:"mgnRatio"`
-	MaintainanceMarginRequirement string    `json:"mmr"`
-	NotionalUsd                   string    `json:"notionalUsd"`
-	QuantityOfPositions           string    `json:"pos"`
-	PositionSide                  string    `json:"posSide"`
-	UnrealizedProfitAndLoss       string    `json:"upl"`
-	UnrealizedProfitAndLossRatio  string    `json:"uplRatio"`
-	PushTime                      time.Time `json:"pTime"`
-	UpdateTime                    time.Time `json:"uTime"`
-	CreationTime                  time.Time `json:"cTime"`
+	AutoDeleveraging             string    `json:"adl"`
+	AlgoID                       string    `json:"algoId"`
+	AveragePrice                 string    `json:"avgPx"`
+	Currency                     string    `json:"ccy"`
+	InitialMarginRequirement     string    `json:"imr"`
+	InstrumentID                 string    `json:"instId"`
+	InstrumentType               string    `json:"instType"`
+	Last                         string    `json:"last"`
+	Leverage                     string    `json:"lever"`
+	LiquidationPrice             string    `json:"liqPx"`
+	MarkPrice                    string    `json:"markPx"`
+	MarginMode                   string    `json:"mgnMode"`
+	MarginRatio                  string    `json:"mgnRatio"`
+	MaintenanceMarginRequirement string    `json:"mmr"`
+	NotionalUsd                  string    `json:"notionalUsd"`
+	QuantityOfPositions          string    `json:"pos"`
+	PositionSide                 string    `json:"posSide"`
+	UnrealizedProfitAndLoss      string    `json:"upl"`
+	UnrealizedProfitAndLossRatio string    `json:"uplRatio"`
+	PushTime                     time.Time `json:"pTime"`
+	UpdateTime                   time.Time `json:"uTime"`
+	CreationTime                 time.Time `json:"cTime"`
 }
 
 // WsGridSubOrderData to retrieve grid sub orders. Data will be pushed when first subscribed. Data will be pushed when triggered by events such as placing order.
@@ -3027,7 +3020,7 @@ type MarginBalanceParam struct {
 	Percentage float64 `json:"percent,string,omitempty"` // Adjust margin balance percentage, used In Adjusting margin balance
 }
 
-// ComputeMarginBalance represents compute marign amount request response
+// ComputeMarginBalance represents compute margin amount request response
 type ComputeMarginBalance struct {
 	Leverage      float64 `json:"lever,string"`
 	MaximumAmount float64 `json:"maxAmt,string"`
@@ -3165,8 +3158,8 @@ type wsRequestDataChannelsMultiplexer struct {
 	Message               chan *wsIncomingData
 }
 
-// wsSubscriptionParametersToggler represents toggling boolean values for subscription parameters.
-type wsSubscriptionParametersToggler struct {
+// wsSubscriptionParameters represents toggling boolean values for subscription parameters.
+type wsSubscriptionParameters struct {
 	InstrumentType bool
 	InstrumentID   bool
 	Underlying     bool

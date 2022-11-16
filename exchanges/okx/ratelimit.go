@@ -25,28 +25,30 @@ const (
 // RateLimit implements the request.Limiter interface
 type RateLimit struct {
 	// Trade Endpoints
-	PlaceOrder                 *rate.Limiter
-	PlaceMultipleOrders        *rate.Limiter
-	CancelOrder                *rate.Limiter
-	CancelMultipleOrders       *rate.Limiter
-	AmendOrder                 *rate.Limiter
-	AmendMultipleOrders        *rate.Limiter
-	CloseDeposit               *rate.Limiter
-	GetOrderDetails            *rate.Limiter
-	GetOrderList               *rate.Limiter
-	GetOrderHistory            *rate.Limiter
-	GetTransactionDetails      *rate.Limiter
-	PlaceAlgoOrder             *rate.Limiter
-	CancelAlgoOrder            *rate.Limiter
-	CancelAdvanceAlgoOrder     *rate.Limiter
-	GetAlgoOrderList           *rate.Limiter
-	GetAlgoOrderHistory        *rate.Limiter
-	GetEasyConvertCurrencyList *rate.Limiter
-	PlaceEasyConvert           *rate.Limiter
-	GetEasyConvertHistory      *rate.Limiter
-	GetOneClickRepayHistory    *rate.Limiter
-	OneClickRepayCurrencyList  *rate.Limiter
-	TradeOneClickRepay         *rate.Limiter
+	PlaceOrder                  *rate.Limiter
+	PlaceMultipleOrders         *rate.Limiter
+	CancelOrder                 *rate.Limiter
+	CancelMultipleOrders        *rate.Limiter
+	AmendOrder                  *rate.Limiter
+	AmendMultipleOrders         *rate.Limiter
+	CloseDeposit                *rate.Limiter
+	GetOrderDetails             *rate.Limiter
+	GetOrderList                *rate.Limiter
+	GetOrderHistory7Days        *rate.Limiter
+	GetOrderHistory3Months      *rate.Limiter
+	GetTransactionDetail3Days   *rate.Limiter
+	GetTransactionDetail3Months *rate.Limiter
+	PlaceAlgoOrder              *rate.Limiter
+	CancelAlgoOrder             *rate.Limiter
+	CancelAdvanceAlgoOrder      *rate.Limiter
+	GetAlgoOrderList            *rate.Limiter
+	GetAlgoOrderHistory         *rate.Limiter
+	GetEasyConvertCurrencyList  *rate.Limiter
+	PlaceEasyConvert            *rate.Limiter
+	GetEasyConvertHistory       *rate.Limiter
+	GetOneClickRepayHistory     *rate.Limiter
+	OneClickRepayCurrencyList   *rate.Limiter
+	TradeOneClickRepay          *rate.Limiter
 	// Block Trading endpoints
 	GetCounterparties    *rate.Limiter
 	CreateRfq            *rate.Limiter
@@ -196,28 +198,30 @@ type RateLimit struct {
 
 const (
 	// Trade Endpoints
-	placeOrderRate                 = 60
-	placeMultipleOrdersRate        = 300
-	cancelOrderRate                = 60
-	cancelMultipleOrdersRate       = 300
-	amendOrderRate                 = 60
-	amendMultipleOrdersRate        = 300
-	closeDepositions               = 20
-	getOrderDetails                = 60
-	getOrderListRate               = 60
-	getOrderHistoryRate            = 40
-	getTransactionDetailsRate      = 60
-	placeAlgoOrderRate             = 20
-	cancelAlgoOrderRate            = 20
-	cancelAdvanceAlgoOrderRate     = 20
-	getAlgoOrderListRate           = 20
-	getAlgoOrderHistoryRate        = 20
-	getEasyConvertCurrencyListRate = 1
-	placeEasyConvert               = 1
-	getEasyConvertHistory          = 1
-	oneClickRepayCurrencyList      = 1
-	tradeOneClickRepay             = 1
-	getOneClickRepayHistory        = 1
+	placeOrderRate                  = 60
+	placeMultipleOrdersRate         = 300
+	cancelOrderRate                 = 60
+	cancelMultipleOrdersRate        = 300
+	amendOrderRate                  = 60
+	amendMultipleOrdersRate         = 300
+	closeDepositions                = 20
+	getOrderDetails                 = 60
+	getOrderListRate                = 60
+	getOrderHistory7DaysRate        = 40
+	getOrderHistory3MonthsRate      = 20
+	getTransactionDetail3DaysRate   = 60
+	getTransactionDetail3MonthsRate = 10
+	placeAlgoOrderRate              = 20
+	cancelAlgoOrderRate             = 20
+	cancelAdvanceAlgoOrderRate      = 20
+	getAlgoOrderListRate            = 20
+	getAlgoOrderHistoryRate         = 20
+	getEasyConvertCurrencyListRate  = 1
+	placeEasyConvert                = 1
+	getEasyConvertHistory           = 1
+	oneClickRepayCurrencyList       = 1
+	tradeOneClickRepay              = 1
+	getOneClickRepayHistory         = 1
 	// Block Trading endpoints
 	getCounterpartiesRate    = 5
 	createRfqRate            = 5
@@ -258,8 +262,8 @@ const (
 	// Convert
 	getConvertCurrenciesRate   = 6
 	getConvertCurrencyPairRate = 6
-	estimateQuoteRate          = 2
-	convertTradeRate           = 2
+	estimateQuoteRate          = 10
+	convertTradeRate           = 10
 	getConvertHistoryRate      = 6
 	// Account
 	getAccountBalanceRate                 = 10
@@ -287,7 +291,7 @@ const (
 	getBorrowInterestAndLimitRate         = 5
 	positionBuilderRate                   = 2
 	getGreeksRate                         = 10
-	getPMLimitation                       = 6
+	getPMLimitation                       = 10
 	// Sub Account Endpoints
 	viewSubaccountListRate                             = 2
 	resetSubAccountAPIKey                              = 1
@@ -310,12 +314,12 @@ const (
 	adjustMarginBalance                                = 20
 	getGridAIParameter                                 = 20
 	// Earn
-	getOffer                   = 6
+	getOffer                   = 3
 	purchase                   = 2
 	redeem                     = 2
 	cancelPurchaseOrRedemption = 2
-	getEarnActiveOrders        = 6
-	getFundingOrderHistory     = 6
+	getEarnActiveOrders        = 3
+	getFundingOrderHistory     = 3
 	// Market Data
 	getTickersRate               = 20
 	getIndexTickersRate          = 20
@@ -324,7 +328,7 @@ const (
 	getCandlesticksHistoryRate   = 20
 	getIndexCandlesticksRate     = 20
 	getMarkPriceCandlesticksRate = 20
-	getTradesRequestRate         = 20
+	getTradesRequestRate         = 100
 	getTradesHistoryRate         = 10
 	get24HTotalVolumeRate        = 2
 	getOracleRate                = 1
@@ -343,7 +347,7 @@ const (
 	getEstimatedDeliveryExercisePriceRate      = 10
 	getDiscountRateAndInterestFreeQuotaRate    = 2
 	getSystemTimeRate                          = 10
-	getLiquidationOrdersRate                   = 2
+	getLiquidationOrdersRate                   = 40
 	getMarkPriceRate                           = 10
 	getPositionTiersRate                       = 10
 	getInterestRateAndLoanQuotaRate            = 2
@@ -375,8 +379,10 @@ const (
 	closePositionEPL
 	getOrderDetEPL
 	getOrderListEPL
-	getOrderHistoryEPL
-	getTransactionDetailsEPL
+	getOrderHistory7DaysEPL
+	getOrderHistory3MonthsEPL
+	getTransactionDetail3DaysEPL
+	getTransactionDetail3MonthsEPL
 	placeAlgoOrderEPL
 	cancelAlgoOrderEPL
 	cancelAdvanceAlgoOrderEPL
@@ -542,10 +548,14 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.GetOrderDetails.Wait(ctx)
 	case getOrderListEPL:
 		return r.GetOrderList.Wait(ctx)
-	case getOrderHistoryEPL:
-		return r.GetOrderHistory.Wait(ctx)
-	case getTransactionDetailsEPL:
-		return r.GetTransactionDetails.Wait(ctx)
+	case getOrderHistory7DaysEPL:
+		return r.GetOrderHistory7Days.Wait(ctx)
+	case getOrderHistory3MonthsEPL:
+		return r.GetOrderHistory3Months.Wait(ctx)
+	case getTransactionDetail3DaysEPL:
+		return r.GetTransactionDetail3Days.Wait(ctx)
+	case getTransactionDetail3MonthsEPL:
+		return r.GetTransactionDetail3Months.Wait(ctx)
 	case placeAlgoOrderEPL:
 		return r.PlaceAlgoOrder.Wait(ctx)
 	case cancelAlgoOrderEPL:
@@ -839,28 +849,30 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 func SetRateLimit() *RateLimit {
 	return &RateLimit{
 		// Trade Endpoints
-		PlaceOrder:                 request.NewRateLimit(twoSecondsInterval, placeOrderRate),
-		PlaceMultipleOrders:        request.NewRateLimit(twoSecondsInterval, placeMultipleOrdersRate),
-		CancelOrder:                request.NewRateLimit(twoSecondsInterval, cancelOrderRate),
-		CancelMultipleOrders:       request.NewRateLimit(twoSecondsInterval, cancelMultipleOrdersRate),
-		AmendOrder:                 request.NewRateLimit(twoSecondsInterval, amendOrderRate),
-		AmendMultipleOrders:        request.NewRateLimit(twoSecondsInterval, amendMultipleOrdersRate),
-		CloseDeposit:               request.NewRateLimit(twoSecondsInterval, closeDepositions),
-		GetOrderDetails:            request.NewRateLimit(twoSecondsInterval, getOrderDetails),
-		GetOrderList:               request.NewRateLimit(twoSecondsInterval, getOrderListRate),
-		GetOrderHistory:            request.NewRateLimit(twoSecondsInterval, getOrderHistoryRate),
-		GetTransactionDetails:      request.NewRateLimit(twoSecondsInterval, getTransactionDetailsRate),
-		PlaceAlgoOrder:             request.NewRateLimit(twoSecondsInterval, placeAlgoOrderRate),
-		CancelAlgoOrder:            request.NewRateLimit(twoSecondsInterval, cancelAlgoOrderRate),
-		CancelAdvanceAlgoOrder:     request.NewRateLimit(twoSecondsInterval, cancelAdvanceAlgoOrderRate),
-		GetAlgoOrderList:           request.NewRateLimit(twoSecondsInterval, getAlgoOrderListRate),
-		GetAlgoOrderHistory:        request.NewRateLimit(twoSecondsInterval, getAlgoOrderHistoryRate),
-		GetEasyConvertCurrencyList: request.NewRateLimit(twoSecondsInterval, getEasyConvertCurrencyListRate),
-		PlaceEasyConvert:           request.NewRateLimit(twoSecondsInterval, placeEasyConvert),
-		GetEasyConvertHistory:      request.NewRateLimit(twoSecondsInterval, getEasyConvertHistory),
-		GetOneClickRepayHistory:    request.NewRateLimit(twoSecondsInterval, getOneClickRepayHistory),
-		OneClickRepayCurrencyList:  request.NewRateLimit(twoSecondsInterval, oneClickRepayCurrencyList),
-		TradeOneClickRepay:         request.NewRateLimit(twoSecondsInterval, tradeOneClickRepay),
+		PlaceOrder:                  request.NewRateLimit(twoSecondsInterval, placeOrderRate),
+		PlaceMultipleOrders:         request.NewRateLimit(twoSecondsInterval, placeMultipleOrdersRate),
+		CancelOrder:                 request.NewRateLimit(twoSecondsInterval, cancelOrderRate),
+		CancelMultipleOrders:        request.NewRateLimit(twoSecondsInterval, cancelMultipleOrdersRate),
+		AmendOrder:                  request.NewRateLimit(twoSecondsInterval, amendOrderRate),
+		AmendMultipleOrders:         request.NewRateLimit(twoSecondsInterval, amendMultipleOrdersRate),
+		CloseDeposit:                request.NewRateLimit(twoSecondsInterval, closeDepositions),
+		GetOrderDetails:             request.NewRateLimit(twoSecondsInterval, getOrderDetails),
+		GetOrderList:                request.NewRateLimit(twoSecondsInterval, getOrderListRate),
+		GetOrderHistory7Days:        request.NewRateLimit(twoSecondsInterval, getOrderHistory7DaysRate),
+		GetOrderHistory3Months:      request.NewRateLimit(twoSecondsInterval, getOrderHistory3MonthsRate),
+		GetTransactionDetail3Days:   request.NewRateLimit(twoSecondsInterval, getTransactionDetail3DaysRate),
+		GetTransactionDetail3Months: request.NewRateLimit(twoSecondsInterval, getTransactionDetail3MonthsRate),
+		PlaceAlgoOrder:              request.NewRateLimit(twoSecondsInterval, placeAlgoOrderRate),
+		CancelAlgoOrder:             request.NewRateLimit(twoSecondsInterval, cancelAlgoOrderRate),
+		CancelAdvanceAlgoOrder:      request.NewRateLimit(twoSecondsInterval, cancelAdvanceAlgoOrderRate),
+		GetAlgoOrderList:            request.NewRateLimit(twoSecondsInterval, getAlgoOrderListRate),
+		GetAlgoOrderHistory:         request.NewRateLimit(twoSecondsInterval, getAlgoOrderHistoryRate),
+		GetEasyConvertCurrencyList:  request.NewRateLimit(twoSecondsInterval, getEasyConvertCurrencyListRate),
+		PlaceEasyConvert:            request.NewRateLimit(twoSecondsInterval, placeEasyConvert),
+		GetEasyConvertHistory:       request.NewRateLimit(twoSecondsInterval, getEasyConvertHistory),
+		GetOneClickRepayHistory:     request.NewRateLimit(twoSecondsInterval, getOneClickRepayHistory),
+		OneClickRepayCurrencyList:   request.NewRateLimit(twoSecondsInterval, oneClickRepayCurrencyList),
+		TradeOneClickRepay:          request.NewRateLimit(twoSecondsInterval, tradeOneClickRepay),
 		// Block Trading endpoints
 		GetCounterparties:    request.NewRateLimit(twoSecondsInterval, getCounterpartiesRate),
 		CreateRfq:            request.NewRateLimit(twoSecondsInterval, createRfqRate),
@@ -881,7 +893,7 @@ func SetRateLimit() *RateLimit {
 		// Funding
 		GetCurrencies:            request.NewRateLimit(oneSecondInterval, getCurrenciesRate),
 		GetBalance:               request.NewRateLimit(oneSecondInterval, getBalanceRate),
-		GetAccountAssetValuation: request.NewRateLimit(oneSecondInterval, getAccountAssetValuationRate),
+		GetAccountAssetValuation: request.NewRateLimit(twoSecondsInterval, getAccountAssetValuationRate),
 		FundsTransfer:            request.NewRateLimit(oneSecondInterval, fundsTransferRate),
 		GetFundsTransferState:    request.NewRateLimit(oneSecondInterval, getFundsTransferStateRate),
 		AssetBillsDetails:        request.NewRateLimit(oneSecondInterval, assetBillsDetailsRate),
@@ -941,18 +953,20 @@ func SetRateLimit() *RateLimit {
 		MasterAccountsManageTransfersBetweenSubaccount: request.NewRateLimit(oneSecondInterval, masterAccountsManageTransfersBetweenSubaccountRate),
 		SetPermissionOfTransferOut:                     request.NewRateLimit(oneSecondInterval, setPermissionOfTransferOutRate),
 		GetCustodyTradingSubaccountList:                request.NewRateLimit(oneSecondInterval, getCustodyTradingSubaccountListRate),
-		GridTrading:                                    request.NewRateLimit(twoSecondsInterval, gridTradingRate),
-		AmendGridAlgoOrder:                             request.NewRateLimit(twoSecondsInterval, amendGridAlgoOrderRate),
-		StopGridAlgoOrder:                              request.NewRateLimit(twoSecondsInterval, stopGridAlgoOrderRate),
-		GetGridAlgoOrderList:                           request.NewRateLimit(twoSecondsInterval, getGridAlgoOrderListRate),
-		GetGridAlgoOrderHistory:                        request.NewRateLimit(twoSecondsInterval, getGridAlgoOrderHistoryRate),
-		GetGridAlgoOrderDetails:                        request.NewRateLimit(twoSecondsInterval, getGridAlgoOrderDetailsRate),
-		GetGridAlgoSubOrders:                           request.NewRateLimit(twoSecondsInterval, getGridAlgoSubOrdersRate),
-		GetGridAlgoOrderPositions:                      request.NewRateLimit(twoSecondsInterval, getGridAlgoOrderPositionsRate),
-		SpotGridWithdrawIncome:                         request.NewRateLimit(twoSecondsInterval, spotGridWithdrawIncomeRate),
-		ComputeMarginBalance:                           request.NewRateLimit(twoSecondsInterval, computeMarginBalance),
-		AdjustMarginBalance:                            request.NewRateLimit(twoSecondsInterval, adjustMarginBalance),
-		GetGridAIParameter:                             request.NewRateLimit(twoSecondsInterval, getGridAIParameter),
+		// Grid Trading Endpoints
+
+		GridTrading:               request.NewRateLimit(twoSecondsInterval, gridTradingRate),
+		AmendGridAlgoOrder:        request.NewRateLimit(twoSecondsInterval, amendGridAlgoOrderRate),
+		StopGridAlgoOrder:         request.NewRateLimit(twoSecondsInterval, stopGridAlgoOrderRate),
+		GetGridAlgoOrderList:      request.NewRateLimit(twoSecondsInterval, getGridAlgoOrderListRate),
+		GetGridAlgoOrderHistory:   request.NewRateLimit(twoSecondsInterval, getGridAlgoOrderHistoryRate),
+		GetGridAlgoOrderDetails:   request.NewRateLimit(twoSecondsInterval, getGridAlgoOrderDetailsRate),
+		GetGridAlgoSubOrders:      request.NewRateLimit(twoSecondsInterval, getGridAlgoSubOrdersRate),
+		GetGridAlgoOrderPositions: request.NewRateLimit(twoSecondsInterval, getGridAlgoOrderPositionsRate),
+		SpotGridWithdrawIncome:    request.NewRateLimit(twoSecondsInterval, spotGridWithdrawIncomeRate),
+		ComputeMarginBalance:      request.NewRateLimit(twoSecondsInterval, computeMarginBalance),
+		AdjustMarginBalance:       request.NewRateLimit(twoSecondsInterval, adjustMarginBalance),
+		GetGridAIParameter:        request.NewRateLimit(twoSecondsInterval, getGridAIParameter),
 		// Earn
 		GetOffer:                   request.NewRateLimit(oneSecondInterval, getOffer),
 		Purchase:                   request.NewRateLimit(oneSecondInterval, purchase),

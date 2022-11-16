@@ -684,7 +684,7 @@ func (a *OrderDetail) UnmarshalJSON(data []byte) error {
 
 		Leverage     string `json:"lever"`
 		RebateAmount string `json:"rebate"`
-		FillTime     int64  `json:"fillTime,string"`
+		FillTime     string `json:"fillTime"`
 	}{
 		Alias: (*Alias)(a),
 	}
@@ -695,7 +695,16 @@ func (a *OrderDetail) UnmarshalJSON(data []byte) error {
 	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
 	a.CreationTime = time.UnixMilli(chil.CreationTime)
 	a.Side, err = order.StringToOrderSide(chil.Side)
-	a.FillTime = time.UnixMilli(chil.FillTime)
+	if chil.FillTime == "" {
+		a.FillTime = time.Time{}
+	} else {
+		var value int64
+		value, err = strconv.ParseInt(chil.FillTime, 10, 64)
+		if err != nil {
+			return err
+		}
+		a.FillTime = time.UnixMilli(value)
+	}
 	if err != nil {
 		return err
 	}
@@ -1568,9 +1577,9 @@ func (a *UnitConvertResponse) UnmarshalJSON(data []byte) error {
 	}
 	switch chil.ConvertType {
 	case 1:
-		a.ConvertType = CurrencyConvertType(1)
+		a.ConvertType = 1
 	case 2:
-		a.ConvertType = CurrencyConvertType(2)
+		a.ConvertType = 2
 	}
 	return nil
 }
