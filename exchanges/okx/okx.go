@@ -4062,19 +4062,7 @@ func (ok *Okx) GetOpenInterestAndVolumeStrike(ctx context.Context, currency stri
 		params.Set("period", interval)
 	}
 	if !expTime.IsZero() {
-		var months string
-		var days string
-		if expTime.Month() <= 9 {
-			months = fmt.Sprintf("0%d", expTime.Month())
-		} else {
-			months = strconv.Itoa(int(expTime.Month()))
-		}
-		if expTime.Day() <= 9 {
-			days = fmt.Sprintf("0%d", expTime.Day())
-		} else {
-			days = strconv.Itoa(expTime.Day())
-		}
-		params.Set("expTime", fmt.Sprintf("%d%s%s", expTime.Year(), months, days))
+		params.Set("expTime", expTime.Format("20060102"))
 	} else {
 		return nil, errMissingExpiryTimeParameter
 	}
