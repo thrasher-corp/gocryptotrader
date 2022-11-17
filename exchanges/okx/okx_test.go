@@ -1974,7 +1974,6 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	ok.Verbose = false
 	if err := ok.UpdateTradablePairs(context.Background(), true); err != nil {
 		t.Error("Okx UpdateTradablePairs() error", err)
 	}

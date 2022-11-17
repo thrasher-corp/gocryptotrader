@@ -692,7 +692,7 @@ func (ok *Okx) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType
 		return nil, errIncompleteCurrencyPair
 	}
 	instrumentID := format.Format(p)
-	tradeData, err := ok.GetTradesHistory(ctx, instrumentID, "", strconv.FormatInt(timestampStart.UnixMilli(), 10), limit)
+	tradeData, err := ok.GetTradesHistory(ctx, instrumentID, strconv.FormatInt(timestampStart.UnixMilli(), 10), strconv.FormatInt(timestampEnd.UnixMilli(), 10), limit)
 	if err != nil {
 		return nil, err
 	}

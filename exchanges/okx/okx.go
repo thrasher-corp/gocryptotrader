@@ -3503,7 +3503,7 @@ func (ok *Okx) GetLiquidationOrders(ctx context.Context, arg *LiquidationOrderRe
 	}
 	params.Set("instType", arg.InstrumentType)
 	arg.MarginMode = strings.ToLower(arg.MarginMode)
-	if arg.MarginMode == TradeModeIsolated || arg.MarginMode == TradeModeCross {
+	if arg.MarginMode != "" {
 		params.Set("mgnMode", arg.MarginMode)
 	}
 	switch {
@@ -3519,9 +3519,6 @@ func (ok *Okx) GetLiquidationOrders(ctx context.Context, arg *LiquidationOrderRe
 	}
 	if arg.InstrumentType == okxInstTypeFutures && arg.Alias != "" {
 		params.Set("alias", arg.Alias)
-	}
-	if ((arg.InstrumentType == okxInstTypeFutures || arg.InstrumentType == okxInstTypeSwap) && arg.Alias == "unfilled") || arg.Alias == "filled" {
-		params.Set("alias", arg.Underlying)
 	}
 	if !arg.Before.IsZero() {
 		params.Set("before", strconv.FormatInt(arg.Before.UnixMilli(), 10))
@@ -3610,9 +3607,7 @@ func (ok *Okx) GetInterestRateAndLoanQuotaForVIPLoans(ctx context.Context) ([]VI
 func (ok *Okx) GetPublicUnderlyings(ctx context.Context, instrumentType string) ([]string, error) {
 	params := url.Values{}
 	instrumentType = strings.ToUpper(instrumentType)
-	if instrumentType != okxInstTypeFutures &&
-		instrumentType != okxInstTypeSwap &&
-		instrumentType != okxInstTypeOption {
+	if instrumentType == "" {
 		return nil, errMissingRequiredArgInstType
 	}
 	params.Set("instType", strings.ToUpper(instrumentType))
@@ -3640,12 +3635,12 @@ func (ok *Okx) GetInsuranceFundInformation(ctx context.Context, arg *InsuranceFu
 	if arg.Type != "" {
 		params.Set("type", arg.Type)
 	}
-	if (arg.InstrumentType != okxInstTypeMargin) && arg.Underlying != "" {
+	if arg.Underlying != "" {
 		params.Set("uly", arg.Underlying)
 	} else if arg.InstrumentType != okxInstTypeMargin {
 		return nil, errMissingRequiredUnderlying
 	}
-	if (arg.InstrumentType == okxInstTypeMargin) && arg.Currency != "" {
+	if arg.Currency != "" {
 		params.Set("ccy", arg.Currency)
 	}
 	if !arg.Before.IsZero() {
