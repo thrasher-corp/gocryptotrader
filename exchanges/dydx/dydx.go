@@ -35,7 +35,7 @@ const (
 	marketCandles                  = "candles/%s"            // candles/:market
 	globalConfigurations           = "config"
 	usersExists                    = "users/exists"
-	usernames                      = "usernames"
+	usernameExists                 = "usernames"
 	apiServerTime                  = "time"
 	leaderboardPNL                 = "leaderboard-pnl"
 	publicRetroactiveMiningRewards = "rewards/public-retroactive-mining"
@@ -50,6 +50,9 @@ const (
 
 var (
 	errMissingMarketInstrument = errors.New("missing market instrument")
+	errInvalidPeriod           = errors.New("invalid period specified")
+	errSortByIsRequired        = errors.New("parameter \"sortBy\" is required")
+	errMissingPublicID         = errors.New("missing user public id")
 )
 
 // GetMarkets retrives one or all markets as well as metadata about each retrieved market.
@@ -184,6 +187,111 @@ func (dy *DYDX) GetCandlesForMarket(ctx context.Context, instrument string, inte
 	}
 	var resp MarketCandlesResponse
 	return resp.Candles, dy.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(fmt.Sprintf(marketCandles, instrument), params), &resp)
+}
+
+// GetGlobalConfigurationVariables retrives any global configuration variables for the exchange as a whole.
+func (dy *DYDX) GetGlobalConfigurationVariables(ctx context.Context) (*ConfigurationVariableResponse, error) {
+	var resp ConfigurationVariableResponse
+	return &resp, dy.SendHTTPRequest(ctx, exchange.RestSpot, globalConfigurations, &resp)
+}
+
+// CheckIfUserExists checks if a user exists for a given Ethereum address.
+func (dy *DYDX) CheckIfUserExists(ctx context.Context, etheriumAddress string) (bool, error) {
+	resp := &struct {
+		Exists bool `json:"exists"`
+	}{}
+	return resp.Exists, dy.SendHTTPRequest(ctx, exchange.RestSpot, usersExists+"?ethereumAddress="+etheriumAddress, resp)
+}
+
+// CheckIfUsernameExists check if a username has been taken by a user.
+func (dy *DYDX) CheckIfUsernameExists(ctx context.Context, username string) (bool, error) {
+	resp := &struct {
+		Exists bool `json:"exists"`
+	}{}
+	return resp.Exists, dy.SendHTTPRequest(ctx, exchange.RestSpot, usernameExists+"?username="+username, resp)
+}
+
+// GetAPIServerTime get the current time of the API server.
+func (dy *DYDX) GetAPIServerTime(ctx context.Context) (*APIServerTime, error) {
+	var resp APIServerTime
+	return &resp, dy.SendHTTPRequest(ctx, exchange.RestSpot, apiServerTime, &resp)
+}
+
+// GetPublicLeaderboardPNLs retrives the top PNLs for a specified period and how they rank against each other.
+func (dy *DYDX) GetPublicLeaderboardPNLs(ctx context.Context, period, sortBy string, startingBeforeOrAt time.Time, limit int64) (*LeaderboardPNLs, error) {
+	params := url.Values{}
+	if period == "" {
+		return nil, fmt.Errorf("%w \"period\" is required", errInvalidPeriod)
+	}
+	params.Set("period", period)
+	if !startingBeforeOrAt.IsZero() {
+		params.Set("startingBeforeOrAt", startingBeforeOrAt.Format("2022-02-02T15:31:10.813Z"))
+	}
+	if sortBy == "" {
+		return nil, errSortByIsRequired
+	}
+	params.Set("sortBy", sortBy)
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp LeaderboardPNLs
+	return &resp, dy.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(leaderboardPNL, params), &resp)
+}
+
+// GetPublicRetroactiveMiningReqards retrives the retroactive mining rewards for an ethereum address.
+func (dy *DYDX) GetPublicRetroactiveMiningReqards(ctx context.Context, ethereumAddress string) (*RetroactiveMiningReward, error) {
+	var resp RetroactiveMiningReward
+	return &resp, dy.SendHTTPRequest(ctx, exchange.RestSpot, publicRetroactiveMiningRewards+"?ethereumAddress="+ethereumAddress, &resp)
+}
+
+// VerifyEmailAddress verify an email address by providing the verification token sent to the email address.
+func (dy *DYDX) VerifyEmailAddress(ctx context.Context, token string) (interface{}, error) {
+	var response interface{}
+	return response, dy.SendHTTPRequest(ctx, exchange.RestSpot, verifyEmailAddress+"?token="+token, response)
+}
+
+// GetCurrentlyRevealedHedgies retrives the currently revealed Hedgies for competition distribution.
+func (dy *DYDX) GetCurrentlyRevealedHedgies(ctx context.Context, daily, weekly string) (*CurrentRevealedHedgies, error) {
+	params := url.Values{}
+	if daily != "" {
+		params.Set("daily", daily)
+	}
+	if weekly != "" {
+		params.Set("weekly", weekly)
+	}
+	var resp CurrentRevealedHedgies
+	return &resp, dy.SendHTTPRequest(ctx, exchange.RestSpot, currentHedgies, &resp)
+}
+
+// GetHistoricallyRevealedHedgies retrives the historically revealed Hedgies from competition distributions.
+func (dy *DYDX) GetHistoricallyRevealedHedgies(ctx context.Context, nftRevealType string, start, end int64) (*HistoricalRevealedHedgies, error) {
+	params := url.Values{}
+	if nftRevealType != "" {
+		params.Set("nftRevealType", nftRevealType)
+	}
+	if start != 0 {
+		params.Set("start", strconv.FormatInt(start, 10))
+	}
+	if end != 0 {
+		params.Set("end", strconv.FormatInt(end, 10))
+	}
+	var resp HistoricalRevealedHedgies
+	return &resp, dy.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(historicalHedgies, params), &resp)
+}
+
+// GetInsuranceFundBalance retrives the balance of dydx insurance fund.
+func (dy *DYDX) GetInsuranceFundBalance(ctx context.Context) (*InsuranceFundBalance, error) {
+	var resp InsuranceFundBalance
+	return &resp, dy.SendHTTPRequest(ctx, exchange.RestSpot, insuranceFundBalance, &resp)
+}
+
+// GetPublicProfile retrives the public profile of a user given their public id.
+func (dy *DYDX) GetPublicProfile(ctx context.Context, publicID string) (*PublicProfile, error) {
+	var resp PublicProfile
+	if publicID == "" {
+		return nil, errMissingPublicID
+	}
+	return &resp, dy.SendHTTPRequest(ctx, exchange.RestSpot, fmt.Sprintf(publicProifle, publicID), &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request

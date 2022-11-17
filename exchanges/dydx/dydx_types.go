@@ -121,3 +121,121 @@ type MarketCandle struct {
 	UsdVolume            float64   `json:"usdVolume,string"`
 	StartingOpenInterest string    `json:"startingOpenInterest"`
 }
+
+// ConfigurationVariableResponse represents any configuration variables for the exchange.
+type ConfigurationVariableResponse struct {
+	CollateralAssetID             string `json:"collateralAssetId"`
+	CollateralTokenAddress        string `json:"collateralTokenAddress"`
+	DefaultMakerFee               string `json:"defaultMakerFee"`
+	DefaultTakerFee               string `json:"defaultTakerFee"`
+	ExchangeAddress               string `json:"exchangeAddress"`
+	MaxExpectedBatchLengthMinutes string `json:"maxExpectedBatchLengthMinutes"`
+	MaxFastWithdrawalAmount       string `json:"maxFastWithdrawalAmount"`
+	CancelOrderRateLimiting       struct {
+		MaxPointsMulti  int `json:"maxPointsMulti"`
+		MaxPointsSingle int `json:"maxPointsSingle"`
+		WindowSecMulti  int `json:"windowSecMulti"`
+		WindowSecSingle int `json:"windowSecSingle"`
+	} `json:"cancelOrderRateLimiting"`
+	PlaceOrderRateLimiting struct {
+		MaxPoints                 int `json:"maxPoints"`
+		WindowSec                 int `json:"windowSec"`
+		TargetNotional            int `json:"targetNotional"`
+		MinLimitConsumption       int `json:"minLimitConsumption"`
+		MinMarketConsumption      int `json:"minMarketConsumption"`
+		MinTriggerableConsumption int `json:"minTriggerableConsumption"`
+		MaxOrderConsumption       int `json:"maxOrderConsumption"`
+	} `json:"placeOrderRateLimiting"`
+}
+
+// APIServerTime represents the server time in ISO(string) and Epoch milliseconds.
+type APIServerTime struct {
+	ISO   string    `json:"iso"`
+	Epoch time.Time `json:"epoch"`
+}
+
+// LeaderboardPNLs represents top PNLs for a specified period and how they rank against
+type LeaderboardPNLs struct {
+	PrizePool         int64   `json:"prizePool"`
+	NumHedgiesWinners int64   `json:"numHedgiesWinners"`
+	NumPrizeWinners   int64   `json:"numPrizeWinners"`
+	RatioPromoted     float64 `json:"ratioPromoted"`
+	RatioDemoted      float64 `json:"ratioDemoted"`
+	MinimumEquity     int64   `json:"minimumEquity"`
+	MinimumDYDXTokens int64   `json:"minimumDYDXTokens"`
+	SeasonNumber      int64   `json:"seasonNumber"`
+	TopPnls           []struct {
+		Username              string      `json:"username"`
+		EthereumAddress       string      `json:"ethereumAddress"`
+		PublicID              string      `json:"publicId"`
+		AbsolutePnl           string      `json:"absolutePnl"`
+		PercentPnl            string      `json:"percentPnl"`
+		AbsoluteRank          int64       `json:"absoluteRank"`
+		PercentRank           int64       `json:"percentRank"`
+		SeasonExpectedOutcome string      `json:"seasonExpectedOutcome"`
+		HedgieWon             interface{} `json:"hedgieWon"`
+		PrizeWon              interface{} `json:"prizeWon"`
+	} `json:"topPnls"`
+	NumParticipants int       `json:"numParticipants"`
+	UpdatedAt       time.Time `json:"updatedAt"`
+	StartedAt       time.Time `json:"startedAt"`
+	EndsAt          time.Time `json:"endsAt"`
+}
+
+// RetroactiveMiningReward represents retroactive mining rewards for an ethereum address.
+type RetroactiveMiningReward struct {
+	Allocation   string `json:"allocation"`
+	TargetVolume string `json:"targetVolume"`
+}
+
+// CurrentRevealedHedgies represents hedgies for competition distribution
+type CurrentRevealedHedgies struct {
+	Daily struct {
+		BlockNumber       int64    `json:"blockNumber,string"`
+		CompetitionPeriod int64    `json:"competitionPeriod"`
+		TokenIds          []string `json:"tokenIds"`
+	} `json:"daily"`
+	Weekly struct {
+		BlockNumber       int64    `json:"blockNumber,string"`
+		Competitionperiod int64    `json:"competitionperiod"`
+		TokenIds          []string `json:"tokenIds"`
+	} `json:"weekly"`
+}
+
+// HistoricalRevealedHedgies represents historically revealed Hedgies.
+type HistoricalRevealedHedgies struct {
+	HistoricalTokenIds []struct {
+		BlockNumber       int64    `json:"blockNumber,string"`
+		Competitionperiod int64    `json:"competitionperiod"`
+		TokenIds          []string `json:"tokenIds"`
+	} `json:"historicalTokenIds"`
+}
+
+// InsuranceFundBalance represents balance of the dYdX insurance fund.
+type InsuranceFundBalance struct {
+	Balance string `json:"balance"`
+}
+
+// PublicProfile represents the public profile of a user given their public ID.
+type PublicProfile struct {
+	Username           string `json:"username"`
+	EthereumAddress    string `json:"ethereumAddress"`
+	DYDXHoldings       string `json:"DYDXHoldings"`
+	StakedDYDXHoldings string `json:"stakedDYDXHoldings"`
+	HedgiesHeld        []int  `json:"hedgiesHeld"`
+	TwitterHandle      string `json:"twitterHandle"`
+	TradingLeagues     struct {
+		CurrentLeague        string `json:"currentLeague"`
+		CurrentLeagueRanking int    `json:"currentLeagueRanking"`
+	} `json:"tradingLeagues"`
+	TradingPnls struct {
+		AbsolutePnl30D string `json:"absolutePnl30D"`
+		PercentPnl30D  string `json:"percentPnl30D"`
+		Volume30D      string `json:"volume30D"`
+	} `json:"tradingPnls"`
+	TradingRewards struct {
+		CurEpoch                  string `json:"curEpoch"`
+		CurEpochEstimatedRewards  int    `json:"curEpochEstimatedRewards"`
+		PrevEpochEstimatedRewards int    `json:"prevEpochEstimatedRewards"`
+	} `json:"tradingRewards"`
+}

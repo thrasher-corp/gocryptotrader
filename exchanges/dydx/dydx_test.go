@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -115,5 +116,82 @@ func TestGetCandlesForMarket(t *testing.T) {
 	t.Parallel()
 	if _, err := dy.GetCandlesForMarket(context.Background(), "CRV-USD", kline.FiveMin, "", "", 10); err != nil {
 		t.Error()
+	}
+}
+
+func TestGetGlobalConfigurationVariables(t *testing.T) {
+	t.Parallel()
+	if _, err := dy.GetGlobalConfigurationVariables(context.Background()); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCheckIfUserExists(t *testing.T) {
+	t.Parallel()
+	if _, err := dy.CheckIfUserExists(context.Background(), ""); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCheckIfUsernameExists(t *testing.T) {
+	t.Parallel()
+	if _, err := dy.CheckIfUsernameExists(context.Background(), ""); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAPIServerTime(t *testing.T) {
+	t.Parallel()
+	if _, err := dy.GetAPIServerTime(context.Background()); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPublicLeaderboardPNLs(t *testing.T) {
+	t.Parallel()
+	if _, err := dy.GetPublicLeaderboardPNLs(context.Background(), "DAILY", "ABSOLUTE", time.Time{}, 2); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPublicRetroactiveMiningReqards(t *testing.T) {
+	t.Parallel()
+	if _, err := dy.GetPublicRetroactiveMiningReqards(context.Background(), ""); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestVerifyEmailAddress(t *testing.T) {
+	t.Parallel()
+	if _, err := dy.VerifyEmailAddress(context.Background(), "1234"); err != nil && !strings.Contains(err.Error(), "Not Found") {
+		t.Error(err)
+	}
+}
+
+func TestGetCurrentlyRevealedHedgies(t *testing.T) {
+	t.Parallel()
+	if _, err := dy.GetCurrentlyRevealedHedgies(context.Background(), "", ""); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetHistoricallyRevealedHedgies(t *testing.T) {
+	t.Parallel()
+	if _, err := dy.GetHistoricallyRevealedHedgies(context.Background(), "daily", 1, 10); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetInsuranceFundBalance(t *testing.T) {
+	t.Parallel()
+	if _, err := dy.GetInsuranceFundBalance(context.Background()); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPublicProfile(t *testing.T) {
+	t.Parallel()
+	if _, err := dy.GetPublicProfile(context.Background(), "some_public_profile"); err != nil && !strings.Contains(err.Error(), "User not found") {
+		t.Error(err)
 	}
 }
