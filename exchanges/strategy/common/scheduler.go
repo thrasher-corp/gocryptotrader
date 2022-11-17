@@ -11,6 +11,7 @@ func NewScheduler(start, end time.Time, aligned bool, heartbeat kline.Interval) 
 	schedule := &Scheduler{
 		start:          start,
 		end:            end,
+		next:           start,
 		alignmentToUTC: aligned,
 		interval:       heartbeat,
 	}
@@ -30,6 +31,8 @@ type Scheduler struct {
 	start time.Time
 	// end defines scheduled end time
 	end time.Time
+	// next defines the next signal fire
+	next time.Time
 	// alignmentToUTC allows the heartbeat of strategy to occur at actual
 	// candle close
 	alignmentToUTC bool
@@ -89,7 +92,8 @@ func (s *Scheduler) setTimer() {
 	if s.alignmentToUTC {
 		tn = tn.Truncate(intDur)
 	}
-	fireAt := time.Until(tn.Add(intDur))
+	s.next = tn.Add(intDur)
+	fireAt := time.Until(s.next)
 	if s.timer == nil {
 		s.timer = time.NewTimer(fireAt)
 		return
@@ -101,4 +105,8 @@ func (s *Scheduler) setTimer() {
 func (s *Scheduler) setEndTimer() {
 	fireAt := time.Until(s.end)
 	s.ender = time.NewTimer(fireAt)
+}
+
+func (s *Scheduler) GetNext() time.Time {
+	return s.next
 }

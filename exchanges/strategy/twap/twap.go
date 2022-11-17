@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -39,47 +40,59 @@ func New(ctx context.Context, c *Config) (*Strategy, error) {
 		return nil, err
 	}
 
-	creds, err := c.Exchange.GetCredentials(ctx)
-	if err != nil {
-		return nil, err
-	}
+	var selling *account.ProtectedBalance
+	var balance float64
+	if !c.Simulate {
+		creds, err := c.Exchange.GetCredentials(ctx)
+		if err != nil {
+			return nil, err
+		}
 
-	buying, err := account.GetBalance(c.Exchange.GetName(),
-		creds.SubAccount, creds, c.Asset, c.Pair.Base)
-	if err != nil {
-		return nil, err
-	}
+		buying, err := account.GetBalance(c.Exchange.GetName(),
+			creds.SubAccount, creds, c.Asset, c.Pair.Base)
+		if err != nil {
+			return nil, err
+		}
 
-	deployment := c.Pair.Quote
-	selling, err := account.GetBalance(c.Exchange.GetName(),
-		creds.SubAccount, creds, c.Asset, c.Pair.Quote)
-	if err != nil {
-		return nil, err
-	}
+		deployment := c.Pair.Quote
+		selling, err := account.GetBalance(c.Exchange.GetName(),
+			creds.SubAccount, creds, c.Asset, c.Pair.Quote)
+		if err != nil {
+			return nil, err
+		}
 
-	if !c.Buy {
-		selling = buying
-		deployment = c.Pair.Base
-	}
+		if !c.Buy {
+			selling = buying
+			deployment = c.Pair.Base
+		}
 
-	balance := selling.GetFree()
-	if balance == 0 {
-		return nil, fmt.Errorf("cannot sell %s amount %f to buy base %s %w of %f",
-			deployment,
-			c.Amount,
-			c.Pair.Base,
-			errNoBalanceFound,
-			balance)
-	}
-
-	if !c.FullAmount {
-		if c.Amount > balance {
+		balance = selling.GetFree()
+		if balance == 0 {
 			return nil, fmt.Errorf("cannot sell %s amount %f to buy base %s %w of %f",
 				deployment,
 				c.Amount,
 				c.Pair.Base,
-				errExceedsFreeBalance,
+				errNoBalanceFound,
 				balance)
+		}
+
+		if !c.FullAmount {
+			if c.Amount > balance {
+				return nil, fmt.Errorf("cannot sell %s amount %f to buy base %s %w of %f",
+					deployment,
+					c.Amount,
+					c.Pair.Base,
+					errExceedsFreeBalance,
+					balance)
+			}
+			balance = c.Amount
+		}
+	} else {
+		if c.FullAmount {
+			return nil, errors.New("full amount cannot be requested in simulation, for now")
+		}
+		if c.Amount == 0 {
+			return nil, errors.New("invalid requested amount for simulation")
 		}
 		balance = c.Amount
 	}
@@ -93,11 +106,28 @@ func New(ctx context.Context, c *Config) (*Strategy, error) {
 		return nil, err
 	}
 
+	schedule, err := strategy.NewScheduler(c.Start, c.End, c.CandleStickAligned, c.Interval)
+	if err != nil {
+		return nil, err
+	}
+
+	id, err := uuid.NewV4()
+	if err != nil {
+		return nil, err
+	}
+
+	activities, err := strategy.NewActivities("TIME WEIGHTED AVERAGE PRICE (TWAP)", id, c.Simulate)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Strategy{
-		Config:     c,
-		orderbook:  depth,
-		Selling:    selling,
-		allocation: allocation,
+		Config:      c,
+		orderbook:   depth,
+		Selling:     selling,
+		allocation:  allocation,
+		Scheduler:   schedule,
+		Requirement: strategy.Requirement{Activities: *activities},
 	}, nil
 }
 
@@ -115,7 +145,24 @@ func (s *Strategy) checkAndSubmit(ctx context.Context) error {
 
 	deploymentInBase, details, err := s.VerifyBookDeployment(s.orderbook, s.allocation.Deployment, twapPrice)
 	if err != nil {
+		fmt.Println("Bro")
 		return err
+	}
+
+	// This check is nested because this cares about book impact slippage
+	// levels and has the potential to wipe out complete book stored in
+	// memory.
+	if details.FullBookSideConsumed {
+		return errExceedsTotalBookLiquidity
+	}
+
+	if s.MaxImpactSlippage < details.ImpactPercentage {
+		s.ReportInfo(fmt.Sprintf("%s: book slippage from TWAP-PRICE:%f: %f requested max slippage %f",
+			errMaxImpactPercentageExceeded,
+			twapPrice,
+			details.ImpactPercentage,
+			s.MaxImpactSlippage))
+		return nil
 	}
 
 	conformed, err := s.VerifyExecutionLimitsReturnConformed(deploymentInBase)
@@ -138,7 +185,7 @@ func (s *Strategy) checkAndSubmit(ctx context.Context) error {
 	s.allocation.Deployed += s.allocation.Deployment
 	s.allocation.Deployments++
 
-	s.ReportOrder(submit, resp, details)
+	s.ReportOrder(&strategy.ExecutedOrder{Submit: submit, Response: resp, Orderbook: details})
 	return nil
 }
 

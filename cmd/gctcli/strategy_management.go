@@ -210,7 +210,7 @@ var (
 			},
 			&cli.Float64Flag{
 				Name:        "maximpact",
-				Usage:       "will enforce no orderbook impact slippage beyond this percentage amount",
+				Usage:       "will enforce no orderbook impact slippage from TWAP beyond this percentage amount",
 				Value:       1, // Default 1% slippage catch if not set.
 				Destination: &stratMaxImpact,
 			},
@@ -287,18 +287,19 @@ func stopStrategy(c *cli.Context) error {
 }
 
 type StrategyReponse struct {
-	ID       string
-	Strategy string
-	Action   interface{}
-	Finished bool
-	Reason   string
+	ID       string      `json:"id,omitempty"`
+	Strategy string      `json:"strategy,omitempty"`
+	Reason   string      `json:"reason,omitempty"`
+	Time     string      `json:"time,omitempty"`
+	Action   interface{} `json:"action,omitempty"`
+	Finished bool        `json:"finished,omitempty"`
 }
 
-func jsonStrategyOutput(id, strategy, reason string, action []byte, finished bool) {
+func jsonStrategyOutput(id, strategy, reason, timeOfBroadcast string, action []byte, finished bool) {
 	var ready interface{}
 	_ = json.Unmarshal(action, &ready)
 
-	payload, _ := json.MarshalIndent(StrategyReponse{ID: id, Strategy: strategy, Action: ready, Finished: finished, Reason: reason}, "", " ")
+	payload, _ := json.MarshalIndent(StrategyReponse{ID: id, Strategy: strategy, Action: ready, Finished: finished, Reason: reason, Time: timeOfBroadcast}, "", " ")
 	fmt.Println(string(payload))
 }
 
@@ -506,7 +507,7 @@ func dcaStreamfunc(c *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		jsonStrategyOutput(resp.Id, resp.Strategy, resp.Reason, resp.Action, resp.Finished)
+		jsonStrategyOutput(resp.Id, resp.Strategy, resp.Reason, time.Now().String(), resp.Action, resp.Finished)
 		if resp.Finished {
 			return nil
 		}
@@ -717,7 +718,7 @@ func twapStreamfunc(c *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		jsonOutput(resp)
+		jsonStrategyOutput(resp.Id, resp.Strategy, resp.Reason, time.Now().String(), resp.Action, resp.Finished)
 		if resp.Finished {
 			return nil
 		}

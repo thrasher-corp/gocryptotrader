@@ -265,25 +265,6 @@ func (c *Config) VerifyBookDeployment(book *orderbook.Depth, deploymentAmount, t
 		}
 	}
 
-	fmt.Printf("deets bro: %+v\n", details)
-
-	if c.MaxImpactSlippage != 0 {
-		// This check is nested because this cares about book impact slippage
-		// levels and has the potential to wipe out complete book stored in
-		// memory.
-		if details.FullBookSideConsumed {
-			return 0, nil, errExceedsTotalBookLiquidity
-		}
-
-		if c.MaxImpactSlippage < details.ImpactPercentage {
-			fmt.Printf("%+v\n", details)
-			return 0, nil, fmt.Errorf("%w: book slippage: %f requested max slippage %f",
-				errMaxImpactPercentageExceeded,
-				details.ImpactPercentage,
-				c.MaxImpactSlippage)
-		}
-	}
-
 	if c.MaxNominalSlippage != 0 && c.MaxNominalSlippage < details.NominalPercentage {
 		return 0, nil, fmt.Errorf("%w: book slippage: %f requested max slippage %f",
 			errMaxNominalPercentageExceeded,

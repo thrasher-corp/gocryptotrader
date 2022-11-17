@@ -50,6 +50,9 @@ type Runner interface {
 	// String is a strategy defined function that returns basic information
 	String() string
 
+	// GetNext return the next execution time.
+	GetNext() time.Time
+
 	Activity
 }
 
@@ -108,6 +111,7 @@ func (r *Requirement) deploy(ctx context.Context, strategy Runner) {
 				strategy.ReportComplete()
 				return
 			}
+			strategy.ReportWait(strategy.GetNext())
 		case end := <-strategy.GetEnd():
 			strategy.ReportTimeout(end)
 			return

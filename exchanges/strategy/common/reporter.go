@@ -12,6 +12,13 @@ import (
 
 var errStrategyDescriptionIsEmpty = errors.New("strategy description is empty")
 
+// ExecutedOrder holds order execution details
+type ExecutedOrder struct {
+	Submit    *order.Submit         `json:"submit,omitempty"`
+	Response  *order.SubmitResponse `json:"response,omitempty"`
+	Orderbook *orderbook.Movement   `json:"orderbook,omitempty"`
+}
+
 // Activities defines a holder for strategy activity and reportable actions.
 type Activities struct {
 	id         uuid.UUID
@@ -34,7 +41,7 @@ func NewActivities(strategy string, id uuid.UUID, simulation bool) (*Activities,
 		strategy:   strategy,
 		id:         id,
 		simulation: simulation,
-		reporter:   make(chan *Report),
+		reporter:   make(chan *Report, 1000), // Buffered for reasons.
 	}, nil
 }
 
@@ -50,8 +57,9 @@ type Activity interface {
 	ReportContextDone(err error)
 	ReportShutdown()
 	ReportInfo(message string)
-	ReportOrder(submit *order.Submit, resp *order.SubmitResponse, detail *orderbook.Movement)
+	ReportOrder(*ExecutedOrder)
 	ReportStart(data fmt.Stringer)
+	ReportWait(next time.Time)
 }
 
 // // Reporter defines an initial concept broadcaster of a strategy action
@@ -62,29 +70,32 @@ type Activity interface {
 // Report defines an order execution action with corresponding orderbook
 // deployment details.
 type Report struct {
-	ID       uuid.UUID
-	Strategy string
-	Action   interface{}
-	Error    error
-	Finished bool
-	Reason   string
+	ID       uuid.UUID   `json:"id"`
+	Strategy string      `json:"strategy"`
+	Action   interface{} `json:"action,omitempty"`
+	Finished bool        `json:"finished,omitempty"`
+	Reason   string      `json:"reason"`
+	Time     time.Time   `json:"time"`
 }
 
 // Send sends a strategy activity report to a potential receiver. Will
 // do nothing if there is no receiver.
 func (r *Activities) send(reason string, action interface{}, complete bool) {
-	if r == nil || r.reporter == nil || action == nil {
+	if r == nil || r.reporter == nil {
 		return // TODO: expand
 	}
-	timeout := time.NewTimer(time.Millisecond * 200) // Wait for receiver. TODO: Implement a better policy.
+	// timeout := time.NewTimer(time.Millisecond * 200) // Wait for receiver. TODO: Implement a better policy.
 	select {
 	case r.reporter <- &Report{
 		ID:       r.id,
 		Strategy: r.strategy,
 		Reason:   reason,
 		Action:   action,
+		Finished: complete,
+		Time:     time.Now(),
 	}:
-	case <-timeout.C:
+	// case <-timeout.C:
+	default:
 	}
 
 	if complete {
@@ -95,7 +106,7 @@ func (r *Activities) send(reason string, action interface{}, complete bool) {
 // ReportComplete is called when a strategy has completed sufficiently. This will
 // alert a receiver that it has completed and will close the reporting channel.
 func (r *Activities) ReportComplete() {
-	r.send("STRATEGY COMPLETED", struct{ Time time.Time }{Time: time.Now()}, true)
+	r.send("STRATEGY COMPLETED", nil, true)
 }
 
 // ReportTimeout is called when a strategy has timed-out and it has exceeded its
@@ -123,7 +134,7 @@ func (r *Activities) ReportContextDone(err error) {
 // operations. This will alert a receiver that it has completed and will close
 // the reporting channel.
 func (r *Activities) ReportShutdown() {
-	r.send("STRATEGY SHUTDOWN", struct{ Time time.Time }{Time: time.Now()}, true)
+	r.send("STRATEGY SHUTDOWN", nil, true)
 }
 
 // ReportInfo is called when the strategy wants to send relevant information to a
@@ -132,22 +143,10 @@ func (r *Activities) ReportInfo(message string) {
 	r.send("INFO", struct{ Message string }{Message: message}, false)
 }
 
-type ExecutedOrder struct {
-	Submit    *order.Submit
-	Response  *order.SubmitResponse
-	Orderbook *orderbook.Movement
-}
-
 // ReportOrder is called when the strategy wants to send order exectution
 // information to a reporter receiver.
-func (r *Activities) ReportOrder(submit *order.Submit, resp *order.SubmitResponse, detail *orderbook.Movement) {
-	r.send("ORDER EXECUTION",
-		&ExecutedOrder{
-			Submit:    submit,
-			Response:  resp,
-			Orderbook: detail,
-		},
-		false)
+func (r *Activities) ReportOrder(exec *ExecutedOrder) {
+	r.send("ORDER EXECUTION", exec, false)
 }
 
 // ReportStart is called when the strategy is accepted and run.
@@ -160,5 +159,23 @@ func (r *Activities) ReportStart(data fmt.Stringer) {
 
 // ReportRegister is called when the strategy is registered with the manager.
 func (r *Activities) ReportRegister() {
-	r.send("STRATEGY REGISTERED", struct{ ID uuid.UUID }{ID: r.id}, false)
+	r.send("STRATEGY REGISTERED", nil, false)
+}
+
+// ReportWait is called to notify when the next signal is going to occur.
+func (r *Activities) ReportWait(next time.Time) {
+	if next.IsZero() {
+		return
+	}
+	r.send("STRATEGY WAITING", struct{ Until string }{Until: time.Until(next).String()}, false)
+}
+
+// ReportAcceptedSignal
+func (r *Activities) ReportAcceptedSignal(obj interface{}) {
+	r.send("STRATEGY ACCEPTED SIGNAL", struct{ Reason interface{} }{Reason: obj}, false)
+}
+
+// ReportRejectedSignal
+func (r *Activities) ReportRejectedSignal(obj interface{}) {
+	r.send("STRATEGY REJECTED SIGNAL", struct{ Reason interface{} }{Reason: obj}, false)
 }

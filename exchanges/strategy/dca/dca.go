@@ -39,47 +39,59 @@ func New(ctx context.Context, c *Config) (*Strategy, error) {
 		return nil, err
 	}
 
-	creds, err := c.Exchange.GetCredentials(ctx)
-	if err != nil {
-		return nil, err
-	}
+	var selling *account.ProtectedBalance
+	var balance float64
+	if !c.Simulate {
+		creds, err := c.Exchange.GetCredentials(ctx)
+		if err != nil {
+			return nil, err
+		}
 
-	buying, err := account.GetBalance(c.Exchange.GetName(),
-		creds.SubAccount, creds, c.Asset, c.Pair.Base)
-	if err != nil {
-		return nil, err
-	}
+		buying, err := account.GetBalance(c.Exchange.GetName(),
+			creds.SubAccount, creds, c.Asset, c.Pair.Base)
+		if err != nil {
+			return nil, err
+		}
 
-	deployment := c.Pair.Quote
-	selling, err := account.GetBalance(c.Exchange.GetName(),
-		creds.SubAccount, creds, c.Asset, c.Pair.Quote)
-	if err != nil {
-		return nil, err
-	}
+		deployment := c.Pair.Quote
+		selling, err := account.GetBalance(c.Exchange.GetName(),
+			creds.SubAccount, creds, c.Asset, c.Pair.Quote)
+		if err != nil {
+			return nil, err
+		}
 
-	if !c.Buy {
-		selling = buying
-		deployment = c.Pair.Base
-	}
+		if !c.Buy {
+			selling = buying
+			deployment = c.Pair.Base
+		}
 
-	balance := selling.GetFree()
-	if balance == 0 {
-		return nil, fmt.Errorf("cannot sell %s amount %f to buy base %s %w of %f",
-			deployment,
-			c.Amount,
-			c.Pair.Base,
-			errNoBalanceFound,
-			balance)
-	}
-
-	if !c.FullAmount {
-		if c.Amount > balance {
+		balance = selling.GetFree()
+		if balance == 0 {
 			return nil, fmt.Errorf("cannot sell %s amount %f to buy base %s %w of %f",
 				deployment,
 				c.Amount,
 				c.Pair.Base,
-				errExceedsFreeBalance,
+				errNoBalanceFound,
 				balance)
+		}
+
+		if !c.FullAmount {
+			if c.Amount > balance {
+				return nil, fmt.Errorf("cannot sell %s amount %f to buy base %s %w of %f",
+					deployment,
+					c.Amount,
+					c.Pair.Base,
+					errExceedsFreeBalance,
+					balance)
+			}
+			balance = c.Amount
+		}
+	} else {
+		if c.FullAmount {
+			return nil, errors.New("full amount cannot be requested in simulation, for now")
+		}
+		if c.Amount == 0 {
+			return nil, errors.New("invalid requested amount for simulation")
 		}
 		balance = c.Amount
 	}
@@ -150,7 +162,7 @@ func (s *Strategy) checkAndSubmit(ctx context.Context) error {
 	s.allocation.Deployed += s.allocation.Deployment
 	s.allocation.Deployments++
 
-	s.ReportOrder(submit, resp, details)
+	s.ReportOrder(&strategy.ExecutedOrder{Submit: submit, Response: resp, Orderbook: details})
 	return nil
 }
 

@@ -1,6 +1,7 @@
 package order
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -34,63 +35,63 @@ var (
 // Each exchange has their own requirements, so not all fields
 // are required to be populated
 type Submit struct {
-	Exchange  string
-	Type      Type
-	Side      Side
-	Pair      currency.Pair
-	AssetType asset.Item
+	Exchange  string        `json:"exchange"`
+	Type      Type          `json:"type"`
+	Side      Side          `json:"side"`
+	Pair      currency.Pair `json:"pair"`
+	AssetType asset.Item    `json:"assetType"`
 
 	// Time in force values ------ TODO: Time In Force uint8
-	ImmediateOrCancel bool
-	FillOrKill        bool
+	ImmediateOrCancel bool `json:"immediateOrCancel,omitempty"`
+	FillOrKill        bool `json:"fillOrKill,omitempty"`
 
-	PostOnly bool
+	PostOnly bool `json:"postOnly,omitempty"`
 	// ReduceOnly reduces a position instead of opening an opposing
 	// position; this also equates to closing the position in huobi_wrapper.go
 	// swaps.
-	ReduceOnly bool
+	ReduceOnly bool `json:"reduceOnly,omitempty"`
 	// Leverage is the amount of leverage that will be used: see huobi_wrapper.go
-	Leverage float64
-	Price    float64
+	Leverage float64 `json:"leverage,omitempty"`
+	Price    float64 `json:"price,omitempty"`
 	// Amount in base terms
-	Amount float64
+	Amount float64 `json:"amount,omitempty"`
 	// QuoteAmount is the max amount in quote currency when purchasing base.
 	// This is only used in Market orders.
-	QuoteAmount float64
+	QuoteAmount float64 `json:"quoteAmount,omitempty"`
 	// TriggerPrice is mandatory if order type `Stop, Stop Limit or Take Profit`
 	// See btcmarkets_wrapper.go.
-	TriggerPrice  float64
-	ClientID      string // TODO: Shift to credentials
-	ClientOrderID string
+	TriggerPrice  float64 `json:"triggerPrice,omitempty"`
+	ClientID      string  `json:"clientID,omitempty"` // TODO: Shift to credentials
+	ClientOrderID string  `json:"clientOrderID,omitempty"`
 }
 
 // SubmitResponse is what is returned after submitting an order to an exchange
 type SubmitResponse struct {
-	Exchange  string
-	Type      Type
-	Side      Side
-	Pair      currency.Pair
-	AssetType asset.Item
+	Exchange  string        `json:"exchange"`
+	Type      Type          `json:"type"`
+	Side      Side          `json:"side"`
+	Pair      currency.Pair `json:"pair"`
+	AssetType asset.Item    `json:"assetType"`
 
-	ImmediateOrCancel bool
-	FillOrKill        bool
-	PostOnly          bool
-	ReduceOnly        bool
-	Leverage          float64
-	Price             float64
-	Amount            float64
-	QuoteAmount       float64
-	TriggerPrice      float64
-	ClientID          string
-	ClientOrderID     string
+	ImmediateOrCancel bool    `json:"immediateOrCancel,omitempty"`
+	FillOrKill        bool    `json:"fillOrKill,omitempty"`
+	PostOnly          bool    `json:"postOnly,omitempty"`
+	ReduceOnly        bool    `json:"reduceOnly,omitempty"`
+	Leverage          float64 `json:"leverage,omitempty"`
+	Price             float64 `json:"price,omitempty"`
+	Amount            float64 `json:"amount,omitempty"`
+	QuoteAmount       float64 `json:"quoteAmount,omitempty"`
+	TriggerPrice      float64 `json:"triggerPrice,omitempty"`
+	ClientID          string  `json:"clientID,omitempty"`
+	ClientOrderID     string  `json:"clientOrderID,omitempty"`
 
-	LastUpdated time.Time
-	Date        time.Time
-	Status      Status
-	OrderID     string
-	Trades      []TradeHistory
-	Fee         float64
-	Cost        float64
+	LastUpdated time.Time      `json:"lastUpdate,omitempty"`
+	Date        time.Time      `json:"date,omitempty"`
+	Status      Status         `json:"status,omitempty"`
+	OrderID     string         `json:"orderID,omitempty"`
+	Trades      []TradeHistory `json:"trades,omitempty"`
+	Fee         float64        `json:"fee,omitempty"`
+	Cost        float64        `json:"cost,omitempty"`
 }
 
 // Modify contains all properties of an order
@@ -261,6 +262,11 @@ type GetOrdersRequest struct {
 // Status defines order status types
 type Status uint32
 
+// MarshalJSON marshals as string
+func (s *Status) MarshalJSON() ([]byte, error) {
+	return json.Marshal(s.String())
+}
+
 // All order status types
 const (
 	UnknownStatus Status = 0
@@ -288,6 +294,11 @@ const (
 // Type enforces a standard for order types across the code base
 type Type uint16
 
+// MarshalJSON marshals as string
+func (t *Type) MarshalJSON() ([]byte, error) {
+	return json.Marshal(t.String())
+}
+
 // Defined package order types
 const (
 	UnknownType Type = 0
@@ -310,6 +321,11 @@ const (
 
 // Side enforces a standard for order sides across the code base
 type Side uint32
+
+// MarshalJSON marshals as string
+func (s *Side) MarshalJSON() ([]byte, error) {
+	return json.Marshal(s.String())
+}
 
 // Order side types
 const (
