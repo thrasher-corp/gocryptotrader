@@ -287,6 +287,11 @@ func main() {
 				URL:           "https://github.com/lozdog245",
 				Contributions: 2,
 			},
+			{
+				Login:         "if1live",
+				URL:           "https://github.com/soxipy",
+				Contributions: 2,
+			},
 		}...)
 
 		if verbose {

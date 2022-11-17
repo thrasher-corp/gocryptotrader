@@ -146,7 +146,7 @@ func TestValidateCurrencySettings(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, errPerpetualsUnsupported)
 	}
 
-	c.CurrencySettings[0].Asset = asset.Futures
+	c.CurrencySettings[0].Asset = asset.USDTMarginedFutures
 	c.CurrencySettings[0].Quote = currency.NewCode("PERP")
 	err = c.validateCurrencySettings()
 	if !errors.Is(err, errPerpetualsUnsupported) {
@@ -1323,7 +1323,7 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 	}
 }
 
-func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
+func TestGenerateBinanceCashAndCarryStrategy(t *testing.T) {
 	if !saveConfig {
 		t.Skip()
 	}
@@ -1331,14 +1331,14 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 		Nickname: "ExampleCashAndCarry",
 		Goal:     "To demonstrate a cash and carry strategy",
 		StrategySettings: StrategySettings{
-			Name:                         "ftx-cash-carry",
+			Name:                         "binance-cash-carry",
 			SimultaneousSignalProcessing: true,
 		},
 		FundingSettings: FundingSettings{
 			UseExchangeLevelFunding: true,
 			ExchangeLevelFunding: []ExchangeLevelFunding{
 				{
-					ExchangeName: "ftx",
+					ExchangeName: mainExchange,
 					Asset:        asset.Spot,
 					Currency:     mainCurrencyPair.Quote,
 					InitialFunds: *initialFunds100000,
@@ -1347,17 +1347,17 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: "ftx",
-				Asset:        asset.Futures,
+				ExchangeName: mainExchange,
+				Asset:        asset.USDTMarginedFutures,
 				Base:         mainCurrencyPair.Base,
-				Quote:        currency.NewCode("20210924"),
+				Quote:        mainCurrencyPair.Quote,
 				MakerFee:     &makerFee,
 				TakerFee:     &takerFee,
 				BuySide:      minMax,
 				SellSide:     minMax,
 			},
 			{
-				ExchangeName: "ftx",
+				ExchangeName: mainExchange,
 				Asset:        asset.Spot,
 				Base:         mainCurrencyPair.Base,
 				Quote:        mainCurrencyPair.Quote,
@@ -1389,7 +1389,7 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(filepath.Join(p, "strategyexamples", "ftx-cash-and-carry.strat"), result, file.DefaultPermissionOctal)
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "binance-cash-and-carry.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}
@@ -1401,17 +1401,17 @@ func TestGenerateConfigForLiveCashAndCarry(t *testing.T) {
 		t.Skip()
 	}
 	cfg := Config{
-		Nickname: "ExampleFTXLiveCashAndCarry",
+		Nickname: "ExampleBinanceLiveCashAndCarry",
 		Goal:     "To demonstrate a cash and carry strategy using a live data source",
 		StrategySettings: StrategySettings{
-			Name:                         "ftx-cash-carry",
+			Name:                         "binance-cash-carry",
 			SimultaneousSignalProcessing: true,
 		},
 		FundingSettings: FundingSettings{
 			UseExchangeLevelFunding: true,
 			ExchangeLevelFunding: []ExchangeLevelFunding{
 				{
-					ExchangeName: "ftx",
+					ExchangeName: mainExchange,
 					Asset:        asset.Spot,
 					Currency:     mainCurrencyPair.Quote,
 					InitialFunds: *initialFunds100000,
@@ -1420,10 +1420,10 @@ func TestGenerateConfigForLiveCashAndCarry(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName:            "ftx",
-				Asset:                   asset.Futures,
+				ExchangeName:            mainExchange,
+				Asset:                   asset.USDTMarginedFutures,
 				Base:                    mainCurrencyPair.Base,
-				Quote:                   currency.NewCode("1230"),
+				Quote:                   mainCurrencyPair.Quote,
 				MakerFee:                &makerFee,
 				TakerFee:                &takerFee,
 				SkipCandleVolumeFitting: true,
@@ -1431,7 +1431,7 @@ func TestGenerateConfigForLiveCashAndCarry(t *testing.T) {
 				SellSide:                strictMinMax,
 			},
 			{
-				ExchangeName:            "ftx",
+				ExchangeName:            mainExchange,
 				Asset:                   asset.Spot,
 				Base:                    mainCurrencyPair.Base,
 				Quote:                   mainCurrencyPair.Quote,
@@ -1454,7 +1454,7 @@ func TestGenerateConfigForLiveCashAndCarry(t *testing.T) {
 				DataRequestRetryWaitTime:  time.Millisecond * 500,
 				ExchangeCredentials: []Credentials{
 					{
-						Exchange: "ftx",
+						Exchange: mainExchange,
 						Keys: account.Credentials{
 							Key:        "",
 							Secret:     "",
@@ -1477,7 +1477,7 @@ func TestGenerateConfigForLiveCashAndCarry(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(filepath.Join(p, "strategyexamples", "ftx-live-cash-and-carry.strat"), result, file.DefaultPermissionOctal)
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "binance-live-cash-and-carry.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}

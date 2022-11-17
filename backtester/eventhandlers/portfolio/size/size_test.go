@@ -1,7 +1,6 @@
 package size
 
 import (
-	"context"
 	"errors"
 	"testing"
 	"time"
@@ -14,7 +13,7 @@ import (
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ftx"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -251,21 +250,18 @@ func TestSizeOrder(t *testing.T) {
 		MatchesOrderAmount: true,
 		ClosePrice:         decimal.NewFromInt(1337),
 	}
-	exch := ftx.FTX{}
-	err = exch.LoadCollateralWeightings(context.Background())
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	exch := binance.Binance{}
+	// TODO adjust when Binance futures wrappers are implemented
 	cs.Exchange = &exch
 	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
+	if !errors.Is(err, gctcommon.ErrNotYetImplemented) {
+		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNotYetImplemented)
 	}
 
 	o.ClosePrice = decimal.NewFromInt(1000000000)
 	o.Amount = decimal.NewFromInt(1000000000)
 	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
-	if !errors.Is(err, errCannotAllocate) {
-		t.Errorf("received: %v, expected: %v", err, errCannotAllocate)
+	if !errors.Is(err, gctcommon.ErrNotYetImplemented) {
+		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNotYetImplemented)
 	}
 }

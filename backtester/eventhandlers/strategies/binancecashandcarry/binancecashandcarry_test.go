@@ -1,4 +1,4 @@
-package ftxcashandcarry
+package binancecashandcarry
 
 import (
 	"errors"
@@ -23,7 +23,7 @@ import (
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-const testExchange = "ftx"
+const testExchange = "binance"
 
 func TestName(t *testing.T) {
 	t.Parallel()

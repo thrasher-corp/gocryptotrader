@@ -523,7 +523,7 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 	err = dataHandler.SetDataForClosingAllPositions(&signal.Signal{
 		Base: &event.Base{
 			Offset:         4,
-			Exchange:       "ftx",
+			Exchange:       testExchange,
 			Time:           time.Now(),
 			Interval:       kline.OneHour,
 			CurrencyPair:   cp,
@@ -539,8 +539,8 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 		SellLimit:  leet,
 		Amount:     leet,
 	})
-	if !errors.Is(err, errNoDataSetForClosingPositions) {
-		t.Errorf("received '%v' expected '%v'", err, errNoDataSetForClosingPositions)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	dataHandler = nil

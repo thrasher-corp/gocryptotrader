@@ -17,7 +17,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ftx"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
@@ -768,19 +768,19 @@ func TestUpdateCollateral(t *testing.T) {
 
 	ev := &signal.Signal{
 		Base: &event.Base{
-			Exchange:     "ftx",
+			Exchange:     exchName,
 			AssetType:    asset.Futures,
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
 		},
 	}
 	f.items = append(f.items, &Item{
-		exchange:  "ftx",
+		exchange:  exchName,
 		asset:     asset.Spot,
 		currency:  currency.BTC,
 		available: decimal.NewFromInt(1336),
 	})
 	em := engine.SetupExchangeManager()
-	exch, err := em.NewExchangeByName("ftx")
+	exch, err := em.NewExchangeByName(exchName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -794,9 +794,9 @@ func TestUpdateCollateral(t *testing.T) {
 		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
 	}
 
-	expectedError = nil
+	expectedError = gctcommon.ErrNotYetImplemented
 	f.items = append(f.items, &Item{
-		exchange:     "ftx",
+		exchange:     exchName,
 		asset:        asset.Futures,
 		currency:     currency.USD,
 		available:    decimal.NewFromInt(1336),
@@ -923,7 +923,7 @@ func TestUpdateFundingFromLiveData(t *testing.T) {
 		t.Errorf("received '%v', expected  '%v'", err, nil)
 	}
 
-	ff := &ftx.FTX{}
+	ff := &binance.Binance{}
 	ff.SetDefaults()
 	f.exchangeManager.Add(ff)
 	err = f.UpdateFundingFromLiveData(false)
@@ -966,12 +966,12 @@ func TestUpdateAllCollateral(t *testing.T) {
 		t.Errorf("received '%v', expected  '%v'", err, nil)
 	}
 
-	ff := &ftx.FTX{}
+	ff := &binance.Binance{}
 	ff.SetDefaults()
 	f.exchangeManager.Add(ff)
 	err = f.UpdateAllCollateral(false, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected  '%v'", err, nil)
+	if !errors.Is(err, gctcommon.ErrNotYetImplemented) {
+		t.Errorf("received '%v', expected  '%v'", err, gctcommon.ErrNotYetImplemented)
 	}
 
 	f.items = []*Item{
@@ -983,8 +983,8 @@ func TestUpdateAllCollateral(t *testing.T) {
 		},
 	}
 	err = f.UpdateAllCollateral(false, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected  '%v'", err, nil)
+	if !errors.Is(err, gctcommon.ErrNotYetImplemented) {
+		t.Errorf("received '%v', expected  '%v'", err, gctcommon.ErrNotYetImplemented)
 	}
 
 	f.items[0].trackingCandles = kline.NewDataFromKline()
@@ -996,14 +996,14 @@ func TestUpdateAllCollateral(t *testing.T) {
 	}
 
 	err = f.UpdateAllCollateral(false, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected  '%v'", err, nil)
+	if !errors.Is(err, gctcommon.ErrNotYetImplemented) {
+		t.Errorf("received '%v', expected  '%v'", err, gctcommon.ErrNotYetImplemented)
 	}
 
 	f.items[0].asset = asset.Futures
 	err = f.UpdateAllCollateral(false, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected  '%v'", err, nil)
+	if !errors.Is(err, gctcommon.ErrNotYetImplemented) {
+		t.Errorf("received '%v', expected  '%v'", err, gctcommon.ErrNotYetImplemented)
 	}
 
 	apiKey := ""

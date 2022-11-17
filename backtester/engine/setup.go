@@ -63,11 +63,17 @@ func NewBacktester() (*BackTest, error) {
 
 // SetupFromConfig takes a strategy config and configures a backtester variable to run
 func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output string, verbose bool) error {
+	var err error
+	defer func() {
+		if err != nil {
+			log.Errorf(common.Backtester, "could not setup backtester %v: %v", cfg.Nickname, err)
+		}
+	}()
 	log.Infoln(common.Setup, "loading config...")
 	if cfg == nil {
 		return errNilConfig
 	}
-	var err error
+
 	if cfg.DataSettings.DatabaseData != nil {
 		bt.databaseManager, err = engine.SetupDatabaseConnectionManager(&cfg.DataSettings.DatabaseData.Config)
 		if err != nil {
@@ -699,9 +705,9 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		// returning the collateral currency along with using the
 		// fPair base creates a pair that links the futures contract to
 		// its underlyingPair pair
-		// eg BTC-PERP on FTX has a collateral currency of USD
-		// taking the BTC base and USD as quote, allows linking
-		// BTC-USD and BTC-PERP
+		// eg BTCUSDT-PERP on Binance has a collateral currency of USDT
+		// taking the BTC base and USDT as quote, allows linking
+		// BTC-USDT and BTCUSDT-PERP
 		var curr currency.Code
 		curr, _, err = exch.GetCollateralCurrencyForContract(a, fPair)
 		if err != nil {

@@ -259,7 +259,7 @@ See below for a set of tables and fields, expected values and what they can do
 
 ##### ExchangeCredentials Settings
 
-| Exchange | The exchange to apply credentials to | `ftx` |
+| Exchange | The exchange to apply credentials to | `binance` |
 | Credentials | The API credentials to use. See table named `Credentials` | |
 
 ##### Credentials Settings

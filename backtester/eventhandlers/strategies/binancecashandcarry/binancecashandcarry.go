@@ -1,4 +1,4 @@
-package ftxcashandcarry
+package binancecashandcarry
 
 import (
 	"errors"
@@ -233,7 +233,7 @@ func sortSignals(d []data.Handler) ([]cashCarrySignals, error) {
 			return nil, err
 		}
 		if !strings.EqualFold(l.GetExchange(), exchangeName) {
-			return nil, fmt.Errorf("%w, received '%v'", errOnlyFTXSupported, l.GetExchange())
+			return nil, fmt.Errorf("%w, received '%v'", errOnlyBinanceSupported, l.GetExchange())
 		}
 		a := l.GetAssetType()
 		switch {

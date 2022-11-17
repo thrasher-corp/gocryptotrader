@@ -14,7 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/ftxcashandcarry"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/binancecashandcarry"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -350,7 +350,7 @@ func TestListAllTasks(t *testing.T) {
 	}
 
 	bt := &BackTest{
-		Strategy:   &ftxcashandcarry.Strategy{},
+		Strategy:   &binancecashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
 		DataHolder: &data.HandlerHolder{},
 		Statistic:  &statistics.Statistic{},
@@ -522,7 +522,7 @@ func TestGRPCStartAllTasks(t *testing.T) {
 	}
 
 	bt := &BackTest{
-		Strategy:   &ftxcashandcarry.Strategy{},
+		Strategy:   &binancecashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
 		DataHolder: &data.HandlerHolder{},
 		Statistic:  &statistics.Statistic{},
@@ -559,7 +559,7 @@ func TestGRPCClearTask(t *testing.T) {
 	}
 
 	bt := &BackTest{
-		Strategy:   &ftxcashandcarry.Strategy{},
+		Strategy:   &binancecashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
 		DataHolder: &data.HandlerHolder{},
 		Statistic:  &statistics.Statistic{},
@@ -595,7 +595,7 @@ func TestGRPCClearAllTasks(t *testing.T) {
 	}
 
 	bt := &BackTest{
-		Strategy:   &ftxcashandcarry.Strategy{},
+		Strategy:   &binancecashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
 		DataHolder: &data.HandlerHolder{},
 		Statistic:  &statistics.Statistic{},

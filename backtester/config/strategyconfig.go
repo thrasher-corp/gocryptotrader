@@ -158,12 +158,11 @@ func (c *Config) validateCurrencySettings() error {
 			c.CurrencySettings[i].Asset == asset.PerpetualContract {
 			return errPerpetualsUnsupported
 		}
-		if c.CurrencySettings[i].Asset == asset.Futures &&
-			(c.CurrencySettings[i].Quote.String() == "PERP" || c.CurrencySettings[i].Base.String() == "PI") {
-			return errPerpetualsUnsupported
-		}
 		if c.CurrencySettings[i].Asset.IsFutures() {
 			hasFutures = true
+			if c.CurrencySettings[i].Quote.String() == "PERP" || c.CurrencySettings[i].Base.String() == "PI" {
+				return errPerpetualsUnsupported
+			}
 		}
 		if c.CurrencySettings[i].SpotDetails != nil {
 			if c.FundingSettings.UseExchangeLevelFunding {

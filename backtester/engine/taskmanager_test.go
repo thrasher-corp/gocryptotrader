@@ -9,7 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/ftxcashandcarry"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/binancecashandcarry"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 )
 
@@ -69,7 +69,7 @@ func TestGetSummary(t *testing.T) {
 	}
 
 	bt := &BackTest{
-		Strategy:  &ftxcashandcarry.Strategy{},
+		Strategy:  &binancecashandcarry.Strategy{},
 		Statistic: &statistics.Statistic{},
 	}
 	err = rm.AddTask(bt)
@@ -104,7 +104,7 @@ func TestList(t *testing.T) {
 	}
 
 	bt := &BackTest{
-		Strategy:  &ftxcashandcarry.Strategy{},
+		Strategy:  &binancecashandcarry.Strategy{},
 		Statistic: &statistics.Statistic{},
 	}
 	err = rm.AddTask(bt)
@@ -195,7 +195,7 @@ func TestStopAllRuns(t *testing.T) {
 	}
 
 	bt := &BackTest{
-		Strategy:  &ftxcashandcarry.Strategy{},
+		Strategy:  &binancecashandcarry.Strategy{},
 		Statistic: &fakeStats{},
 		Reports:   &fakeReport{},
 		shutdown:  make(chan struct{}),
@@ -243,7 +243,7 @@ func TestStartRun(t *testing.T) {
 	}
 
 	bt := &BackTest{
-		Strategy:   &ftxcashandcarry.Strategy{},
+		Strategy:   &binancecashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
 		DataHolder: &data.HandlerHolder{},
 		Statistic:  &statistics.Statistic{},
@@ -292,7 +292,7 @@ func TestStartAllRuns(t *testing.T) {
 	}
 
 	bt := &BackTest{
-		Strategy:   &ftxcashandcarry.Strategy{},
+		Strategy:   &binancecashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
 		DataHolder: &data.HandlerHolder{},
 		Statistic:  &statistics.Statistic{},
@@ -331,7 +331,7 @@ func TestClearRun(t *testing.T) {
 	}
 
 	bt := &BackTest{
-		Strategy:   &ftxcashandcarry.Strategy{},
+		Strategy:   &binancecashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
 		DataHolder: &data.HandlerHolder{},
 		Statistic:  &statistics.Statistic{},
@@ -388,7 +388,7 @@ func TestClearAllRuns(t *testing.T) {
 	}
 
 	bt := &BackTest{
-		Strategy:   &ftxcashandcarry.Strategy{},
+		Strategy:   &binancecashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
 		DataHolder: &data.HandlerHolder{},
 		Statistic:  &statistics.Statistic{},

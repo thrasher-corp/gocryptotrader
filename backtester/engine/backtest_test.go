@@ -23,8 +23,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/binancecashandcarry"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/dollarcostaverage"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/ftxcashandcarry"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	evkline "github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
@@ -42,7 +42,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ftx"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -842,8 +841,8 @@ func TestUpdateStatsForDataEvent(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 	bt.Funding = f
-	exch := &ftx.FTX{}
-	exch.Name = "ftx"
+	exch := &binance.Binance{}
+	exch.Name = testExchange
 	ev.Time = time.Now()
 	fl := &fill.Fill{
 		Base:                ev.Base,
@@ -855,7 +854,7 @@ func TestUpdateStatsForDataEvent(t *testing.T) {
 		Total:               decimal.NewFromInt(1),
 		Slippage:            decimal.NewFromInt(1),
 		Order: &gctorder.Detail{
-			Exchange:  "ftx",
+			Exchange:  testExchange,
 			AssetType: ev.AssetType,
 			Pair:      cp,
 			Amount:    1,
@@ -1077,7 +1076,7 @@ func TestProcessFillEvent(t *testing.T) {
 	tt := time.Now()
 	de := &evkline.Kline{
 		Base: &event.Base{
-			Exchange:     "ftx",
+			Exchange:     testExchange,
 			AssetType:    a,
 			CurrencyPair: cp,
 			Time:         tt,
@@ -1091,17 +1090,17 @@ func TestProcessFillEvent(t *testing.T) {
 		Base: de.Base,
 	}
 	em := engine.SetupExchangeManager()
-	exch, err := em.NewExchangeByName("ftx")
+	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
 	em.Add(exch)
-	b, err := funding.CreateItem("ftx", a, cp.Base, decimal.Zero, decimal.Zero)
+	b, err := funding.CreateItem(testExchange, a, cp.Base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	quote, err := funding.CreateItem("ftx", a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
+	quote, err := funding.CreateItem(testExchange, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -1123,7 +1122,7 @@ func TestProcessFillEvent(t *testing.T) {
 	bt.DataHolder = data.NewHandlerHolder()
 	k := &kline.DataFromKline{
 		Item: gctkline.Item{
-			Exchange: "ftx",
+			Exchange: testExchange,
 			Pair:     cp,
 			Asset:    a,
 			Interval: gctkline.FifteenMin,
@@ -1160,7 +1159,7 @@ func TestProcessFillEvent(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	err = bt.DataHolder.SetDataForCurrency("ftx", a, cp, k)
+	err = bt.DataHolder.SetDataForCurrency(testExchange, a, cp, k)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -1186,7 +1185,7 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 	a := asset.Futures
 	de := &evkline.Kline{
 		Base: &event.Base{
-			Exchange:     "ftx",
+			Exchange:     testExchange,
 			AssetType:    a,
 			CurrencyPair: cp},
 	}
@@ -1198,17 +1197,17 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 		Base: de.Base,
 	}
 	em := engine.SetupExchangeManager()
-	exch, err := em.NewExchangeByName("ftx")
+	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
 	em.Add(exch)
-	b, err := funding.CreateItem("ftx", a, cp.Base, decimal.Zero, decimal.Zero)
+	b, err := funding.CreateItem(testExchange, a, cp.Base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
-	quote, err := funding.CreateItem("ftx", a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
+	quote, err := funding.CreateItem(testExchange, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
@@ -1232,7 +1231,7 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 	bt.DataHolder = data.NewHandlerHolder()
 	k := &kline.DataFromKline{
 		Item: gctkline.Item{
-			Exchange: "ftx",
+			Exchange: testExchange,
 			Pair:     cp,
 			Asset:    a,
 			Interval: gctkline.FifteenMin,
@@ -1269,7 +1268,7 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	ev.Order = &gctorder.Detail{
-		Exchange:  "ftx",
+		Exchange:  testExchange,
 		AssetType: ev.AssetType,
 		Pair:      cp,
 		Amount:    1,
@@ -1278,7 +1277,7 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 		OrderID:   "1",
 		Date:      time.Now(),
 	}
-	err = bt.DataHolder.SetDataForCurrency("ftx", a, cp, k)
+	err = bt.DataHolder.SetDataForCurrency(testExchange, a, cp, k)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -1315,7 +1314,7 @@ func TestCloseAllPositions(t *testing.T) {
 	}
 
 	bt.shutdown = make(chan struct{})
-	bt.Strategy = &ftxcashandcarry.Strategy{}
+	bt.Strategy = &binancecashandcarry.Strategy{}
 	err = bt.CloseAllPositions()
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
