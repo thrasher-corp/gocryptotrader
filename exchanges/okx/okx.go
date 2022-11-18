@@ -335,6 +335,7 @@ var (
 	errInvalidDuration                               = errors.New("invalid grid contract duration, only '7D', '30D', and '180D' are allowed")
 	errInvalidProtocolType                           = errors.New("invalid protocol type, only 'staking' and 'defi' allowed")
 	errExceedLimit                                   = errors.New("limit exceeded")
+	errOnlyThreeMonthsSupported                      = errors.New("only three months of trade data retrieval supported")
 )
 
 /************************************ MarketData Endpoints *************************************************/
@@ -633,11 +634,11 @@ func (ok *Okx) GetOrderList(ctx context.Context, arg *OrderListRequestParams) ([
 	if arg.State != "" {
 		params.Set("state", arg.State)
 	}
-	if !arg.Before.IsZero() {
-		params.Set("before", strconv.FormatInt(arg.Before.UnixMilli(), 10))
+	if arg.Before != "" {
+		params.Set("before", arg.Before)
 	}
-	if !arg.After.IsZero() {
-		params.Set("after", strconv.FormatInt(arg.After.UnixMilli(), 10))
+	if arg.After != "" {
+		params.Set("after", arg.After)
 	}
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
@@ -676,11 +677,17 @@ func (ok *Okx) getOrderHistory(ctx context.Context, arg *OrderHistoryRequestPara
 	if arg.State != "" {
 		params.Set("state", arg.State)
 	}
-	if !arg.Before.IsZero() {
-		params.Set("before", strconv.FormatInt(arg.Before.UnixMilli(), 10))
+	if arg.Before != "" {
+		params.Set("before", arg.Before)
 	}
-	if !arg.After.IsZero() {
-		params.Set("after", strconv.FormatInt(arg.After.UnixMilli(), 10))
+	if arg.After != "" {
+		params.Set("after", arg.After)
+	}
+	if !arg.Start.IsZero() {
+		params.Set("begin", strconv.FormatInt(arg.Start.UnixMilli(), 10))
+	}
+	if !arg.End.IsZero() {
+		params.Set("end", strconv.FormatInt(arg.End.UnixMilli(), 10))
 	}
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
@@ -3220,7 +3227,7 @@ func (ok *Okx) GetTradesHistory(ctx context.Context, instrumentID, before, after
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTradesRequestEPL, http.MethodGet, common.EncodeURLValues(marketTradesHistory, params), nil, &resp, false)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTradesHistroyEPL, http.MethodGet, common.EncodeURLValues(marketTradesHistory, params), nil, &resp, false)
 }
 
 // Get24HTotalVolume The 24-hour trading volume is calculated on a rolling basis, using USD as the pricing unit.

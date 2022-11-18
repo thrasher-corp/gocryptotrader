@@ -683,7 +683,10 @@ func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 
 // GetHistoricTrades retrives historic trade data within the timeframe provided
 func (ok *Okx) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
-	const limit = 1000
+	if timestampStart.Before(time.Now().Add(-kline.ThreeMonth.Duration())) {
+		return nil, errOnlyThreeMonthsSupported
+	}
+	const limit = 100
 	format, err := ok.GetPairFormat(assetType, false)
 	if err != nil {
 		return nil, err
@@ -691,22 +694,43 @@ func (ok *Okx) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType
 	if !p.IsPopulated() {
 		return nil, errIncompleteCurrencyPair
 	}
+	var resp []trade.Data
 	instrumentID := format.Format(p)
-	tradeData, err := ok.GetTradesHistory(ctx, instrumentID, strconv.FormatInt(timestampStart.UnixMilli(), 10), strconv.FormatInt(timestampEnd.UnixMilli(), 10), limit)
-	if err != nil {
-		return nil, err
-	}
-	resp := make([]trade.Data, len(tradeData))
-	for x := range tradeData {
-		resp[x] = trade.Data{
-			TID:          tradeData[x].TradeID,
-			Exchange:     ok.Name,
-			CurrencyPair: p,
-			AssetType:    assetType,
-			Price:        tradeData[x].Price,
-			Amount:       tradeData[x].Quantity,
-			Timestamp:    tradeData[x].Timestamp,
+	tradeIDEnd := ""
+allTrades:
+	for {
+		var trades []TradeResponse
+		trades, err = ok.GetTradesHistory(ctx, instrumentID, "", tradeIDEnd, limit)
+		if err != nil {
+			return nil, err
 		}
+		if len(trades) == 0 {
+			break
+		}
+		for i := 0; i < len(trades); i++ {
+			if timestampStart.Equal(trades[i].Timestamp) ||
+				trades[i].Timestamp.Before(timestampStart) ||
+				tradeIDEnd == trades[len(trades)-1].TradeID {
+				// reached end of trades to crawl
+				break allTrades
+			}
+			var tradeSide order.Side
+			tradeSide, err = order.StringToOrderSide(trades[i].Side)
+			if err != nil {
+				return nil, err
+			}
+			resp = append(resp, trade.Data{
+				TID:          trades[i].TradeID,
+				Exchange:     ok.Name,
+				CurrencyPair: p,
+				AssetType:    assetType,
+				Price:        trades[i].Price,
+				Amount:       trades[i].Quantity,
+				Timestamp:    trades[i].Timestamp,
+				Side:         tradeSide,
+			})
+		}
+		tradeIDEnd = trades[len(trades)-1].TradeID
 	}
 	if ok.IsSaveTradeDataEnabled() {
 		err = trade.AddTradesToBuffer(ok.Name, resp...)
@@ -715,7 +739,7 @@ func (ok *Okx) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType
 		}
 	}
 	sort.Sort(trade.ByDate(resp))
-	return resp, nil
+	return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil
 }
 
 // SubmitOrder submits a new order
@@ -1124,6 +1148,9 @@ func (ok *Okx) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 	if err != nil {
 		return nil, err
 	}
+	if !req.StartTime.IsZero() && req.StartTime.Before(time.Now().Add(-kline.ThreeMonth.Duration())) {
+		return nil, errOnlyThreeMonthsSupported
+	}
 	if !ok.SupportsAsset(req.AssetType) {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, req.AssetType)
 	}
@@ -1135,71 +1162,88 @@ func (ok *Okx) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 			return nil, err
 		}
 	}
-	requestParam := &OrderListRequestParams{
-		OrderType:      orderType,
-		After:          req.StartTime,
-		Before:         req.EndTime,
-		InstrumentType: instrumentType,
-	}
-	response, err := ok.GetOrderList(ctx, requestParam)
-	if err != nil {
-		return nil, err
-	}
-	orders := []order.Detail{}
-	for x := range response {
-		orderSide := response[x].Side
-		var pair currency.Pair
-		pair, err = ok.GetPairFromInstrumentID(response[x].InstrumentID)
+	endTime := req.EndTime
+	var resp []order.Detail
+allOrders:
+	for {
+		requestParam := &OrderListRequestParams{
+			OrderType:      orderType,
+			End:            endTime,
+			InstrumentType: instrumentType,
+		}
+		var orderList []OrderDetail
+		orderList, err = ok.GetOrderList(ctx, requestParam)
 		if err != nil {
 			return nil, err
 		}
-
-		if len(req.Pairs) != 0 {
-			i := 0
-			for i = range req.Pairs {
-				if req.Pairs[i].Equal(pair) {
-					break
+		if len(orderList) == 0 {
+			break
+		}
+		for i := range orderList {
+			if req.StartTime.Equal(orderList[i].CreationTime) ||
+				orderList[i].CreationTime.Before(req.StartTime) ||
+				endTime == orderList[i].CreationTime {
+				// reached end of orders to crawl
+				break allOrders
+			}
+			orderSide := orderList[i].Side
+			var pair currency.Pair
+			pair, err = ok.GetPairFromInstrumentID(orderList[i].InstrumentID)
+			if err != nil {
+				return nil, err
+			}
+			if len(req.Pairs) > 0 {
+				x := 0
+				for x = range req.Pairs {
+					if req.Pairs[x].Equal(pair) {
+						break
+					}
+				}
+				if !req.Pairs[x].Equal(pair) {
+					continue
 				}
 			}
-			if !req.Pairs[i].Equal(pair) {
-				continue
+			var orderStatus order.Status
+			orderStatus, err = order.StringToOrderStatus(strings.ToUpper(orderList[i].State))
+			if err != nil {
+				return nil, err
 			}
+			var oType order.Type
+			oType, err = ok.OrderTypeFromString(orderList[i].OrderType)
+			if err != nil {
+				return nil, err
+			}
+			resp = append(resp, order.Detail{
+				Amount:          orderList[i].Size,
+				Pair:            pair,
+				Price:           orderList[i].Price,
+				ExecutedAmount:  orderList[i].FillSize,
+				RemainingAmount: orderList[i].Size - orderList[i].FillSize,
+				Fee:             orderList[i].TransactionFee,
+				FeeAsset:        currency.NewCode(orderList[i].FeeCurrency),
+				Exchange:        ok.Name,
+				OrderID:         orderList[i].OrderID,
+				ClientOrderID:   orderList[i].ClientSupplierOrderID,
+				Type:            oType,
+				Side:            orderSide,
+				Status:          orderStatus,
+				AssetType:       req.AssetType,
+				Date:            orderList[i].CreationTime,
+				LastUpdated:     orderList[i].UpdateTime,
+			})
 		}
-		orderStatus, err := order.StringToOrderStatus(strings.ToUpper(response[x].State))
-		if err != nil {
-			return nil, err
-		}
-		var oType order.Type
-		oType, err = ok.OrderTypeFromString(response[x].OrderType)
-		if err != nil {
-			return nil, err
-		}
-		orders = append(orders, order.Detail{
-			Amount:          response[x].Size,
-			Pair:            pair,
-			Price:           response[x].Price,
-			ExecutedAmount:  response[x].FillSize,
-			RemainingAmount: response[x].Size - response[x].FillSize,
-			Fee:             response[x].TransactionFee,
-			FeeAsset:        currency.NewCode(response[x].FeeCurrency),
-			Exchange:        ok.Name,
-			OrderID:         response[x].OrderID,
-			ClientOrderID:   response[x].ClientSupplierOrderID,
-			Type:            oType,
-			Side:            orderSide,
-			Status:          orderStatus,
-			AssetType:       asset.Spot,
-			Date:            response[x].CreationTime,
-			LastUpdated:     response[x].UpdateTime,
-		})
+		endTime = orderList[len(orderList)-1].CreationTime
 	}
-	return req.Filter(ok.Name, orders), nil
+	return req.Filter(ok.Name, resp), nil
 }
 
 // GetOrderHistory retrieves account order information Can Limit response to specific order status
 func (ok *Okx) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
+	}
+	if !req.StartTime.IsZero() && req.StartTime.Before(time.Now().Add(-kline.ThreeMonth.Duration())) {
+		return nil, errOnlyThreeMonthsSupported
 	}
 	if len(req.Pairs) == 0 {
 		return nil, errMissingAtLeast1CurrencyPair
@@ -1208,60 +1252,75 @@ func (ok *Okx) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, req.AssetType)
 	}
 	instrumentType := strings.ToUpper(ok.GetInstrumentTypeFromAssetItem(req.AssetType))
-	response, err := ok.Get3MonthOrderHistory(ctx, &OrderHistoryRequestParams{
-		OrderListRequestParams: OrderListRequestParams{
-			InstrumentType: instrumentType,
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-	orders := make([]order.Detail, 0, len(response))
-	for i := range response {
-		var pair currency.Pair
-		pair, err = ok.GetPairFromInstrumentID(response[i].InstrumentID)
+	endTime := req.EndTime
+	var resp []order.Detail
+allOrders:
+	for {
+		orderList, err := ok.Get3MonthOrderHistory(ctx, &OrderHistoryRequestParams{
+			OrderListRequestParams: OrderListRequestParams{
+				InstrumentType: instrumentType,
+				End:            endTime,
+			},
+		})
 		if err != nil {
 			return nil, err
 		}
-		for j := range req.Pairs {
-			if !req.Pairs[j].Equal(pair) {
-				continue
+		if len(orderList) == 0 {
+			break
+		}
+		for i := range orderList {
+			if req.StartTime.Equal(orderList[i].CreationTime) ||
+				orderList[i].CreationTime.Before(req.StartTime) ||
+				endTime == orderList[i].CreationTime {
+				// reached end of orders to crawl
+				break allOrders
 			}
-			var orderStatus order.Status
-			orderStatus, err = order.StringToOrderStatus(strings.ToUpper(response[i].State))
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s %v", ok.Name, err)
-			}
-			if orderStatus == order.Active {
-				continue
-			}
-			orderSide := response[i].Side
-			var oType order.Type
-			oType, err = ok.OrderTypeFromString(response[i].OrderType)
+			var pair currency.Pair
+			pair, err = ok.GetPairFromInstrumentID(orderList[i].InstrumentID)
 			if err != nil {
 				return nil, err
 			}
-			orders = append(orders, order.Detail{
-				Price:           response[i].Price,
-				Amount:          response[i].Size,
-				ExecutedAmount:  response[i].FillSize,
-				RemainingAmount: response[i].Size - response[i].FillSize,
-				Fee:             response[i].TransactionFee,
-				FeeAsset:        currency.NewCode(response[i].FeeCurrency),
-				Exchange:        ok.Name,
-				OrderID:         response[i].OrderID,
-				ClientOrderID:   response[i].ClientSupplierOrderID,
-				Type:            oType,
-				Side:            orderSide,
-				Status:          orderStatus,
-				AssetType:       req.AssetType,
-				Date:            response[i].CreationTime,
-				LastUpdated:     response[i].UpdateTime,
-				Pair:            pair,
-			})
+			for j := range req.Pairs {
+				if !req.Pairs[j].Equal(pair) {
+					continue
+				}
+				var orderStatus order.Status
+				orderStatus, err = order.StringToOrderStatus(strings.ToUpper(orderList[i].State))
+				if err != nil {
+					log.Errorf(log.ExchangeSys, "%s %v", ok.Name, err)
+				}
+				if orderStatus == order.Active {
+					continue
+				}
+				orderSide := orderList[i].Side
+				var oType order.Type
+				oType, err = ok.OrderTypeFromString(orderList[i].OrderType)
+				if err != nil {
+					return nil, err
+				}
+				resp = append(resp, order.Detail{
+					Price:           orderList[i].Price,
+					Amount:          orderList[i].Size,
+					ExecutedAmount:  orderList[i].FillSize,
+					RemainingAmount: orderList[i].Size - orderList[i].FillSize,
+					Fee:             orderList[i].TransactionFee,
+					FeeAsset:        currency.NewCode(orderList[i].FeeCurrency),
+					Exchange:        ok.Name,
+					OrderID:         orderList[i].OrderID,
+					ClientOrderID:   orderList[i].ClientSupplierOrderID,
+					Type:            oType,
+					Side:            orderSide,
+					Status:          orderStatus,
+					AssetType:       req.AssetType,
+					Date:            orderList[i].CreationTime,
+					LastUpdated:     orderList[i].UpdateTime,
+					Pair:            pair,
+				})
+			}
 		}
+		endTime = orderList[len(orderList)-1].CreationTime
 	}
-	return req.Filter(ok.Name, orders), nil
+	return req.Filter(ok.Name, resp), nil
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction

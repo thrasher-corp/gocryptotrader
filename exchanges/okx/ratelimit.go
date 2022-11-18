@@ -65,6 +65,7 @@ type RateLimit struct {
 	GetRfqs              *rate.Limiter
 	GetQuotes            *rate.Limiter
 	GetTrades            *rate.Limiter
+	GetTradesHistroy     *rate.Limiter
 	GetPublicTrades      *rate.Limiter
 	// Funding
 	GetCurrencies            *rate.Limiter
@@ -238,6 +239,7 @@ const (
 	getRfqsRate              = 2
 	getQuotesRate            = 2
 	getTradesRate            = 5
+	getTradesHistroyRate     = 10
 	getPublicTradesRate      = 5
 	// Funding
 	getCurrenciesRate            = 6
@@ -409,6 +411,7 @@ const (
 	getRfqsEPL
 	getQuotesEPL
 	getTradesEPL
+	getTradesHistroyEPL
 	getPublicTradesEPL
 	getCurrenciesEPL
 	getBalanceEPL
@@ -608,6 +611,8 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.GetQuotes.Wait(ctx)
 	case getTradesEPL:
 		return r.GetTrades.Wait(ctx)
+	case getTradesHistroyEPL:
+		return r.GetTradesHistroy.Wait(ctx)
 	case getPublicTradesEPL:
 		return r.GetPublicTrades.Wait(ctx)
 	case getCurrenciesEPL:
@@ -889,6 +894,7 @@ func SetRateLimit() *RateLimit {
 		GetRfqs:              request.NewRateLimit(twoSecondsInterval, getRfqsRate),
 		GetQuotes:            request.NewRateLimit(twoSecondsInterval, getQuotesRate),
 		GetTrades:            request.NewRateLimit(twoSecondsInterval, getTradesRate),
+		GetTradesHistroy:     request.NewRateLimit(twoSecondsInterval, getTradesHistroyRate),
 		GetPublicTrades:      request.NewRateLimit(twoSecondsInterval, getPublicTradesRate),
 		// Funding
 		GetCurrencies:            request.NewRateLimit(oneSecondInterval, getCurrenciesRate),

@@ -692,10 +692,12 @@ type OrderListRequestParams struct {
 	Underlying     string    `json:"uly"`
 	InstrumentID   string    `json:"instId"`
 	OrderType      string    `json:"orderType"`
-	State          string    `json:"state"` // live, partially_filled
-	After          time.Time `json:"after"`
-	Before         time.Time `json:"before"`
-	Limit          int64     `json:"limit"`
+	State          string    `json:"state"`            // live, partially_filled
+	Before         string    `json:"before,omitempty"` // used for order IDs
+	After          string    `json:"after,omitempty"`  // used for order IDs
+	Start          time.Time `json:"begin"`
+	End            time.Time `json:"end"`
+	Limit          int64     `json:"limit,omitempty"`
 }
 
 // OrderHistoryRequestParams holds parameters to request order data history of last 7 days.
