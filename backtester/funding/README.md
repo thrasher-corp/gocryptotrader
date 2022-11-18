@@ -57,7 +57,7 @@ Yes! Though it does use some things to consider.
   - For example, if an indicator is very strong on one exchange, but not another, you may wish to transfer funds to the strongest exchange to act upon
 - It comes with the assumption that a transfer is actually possible in the candle timeframe your strategy runs on.
   - For example, a 1 minute candle strategy likely would not be able to process a transfer of funds and have another exchange use it in that timeframe. So any positive results from such a strategy may not be reflected in real-world scenarios
-- You can only transfer to the same currency eg BTC from Binance to FTX, no conversions
+- You can only transfer to the same currency eg BTC from Binance to Kraken, no conversions
 - You set the transfer fee in your config
 
 ### Do I need to add funding settings to my config if Exchange Level Funding is disabled?
