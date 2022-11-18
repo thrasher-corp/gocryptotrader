@@ -48,7 +48,7 @@
     "start:web": "ng serve --o"
   },
   "dependencies": {
-    "@angular-devkit/build-angular": "^0.13.0",
+    "@angular-devkit/build-angular": "^15.0.0",
     "node-sass": "^4.14.1",
     "hammerjs": "^2.0.8",
     "rxjs-compat": "^6.3.3",
