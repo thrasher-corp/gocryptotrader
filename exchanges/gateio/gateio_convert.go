@@ -398,16 +398,16 @@ func (a *OrderbookData) UnmarshalJSON(data []byte) error {
 	type Alias OrderbookData
 	chil := &struct {
 		*Alias
-		Current float64 `json:"current"`
-		Update  float64 `json:"update"`
+		Current int64 `json:"current"`
+		Update  int64 `json:"update"`
 	}{
 		Alias: (*Alias)(a),
 	}
 	if err := json.Unmarshal(data, chil); err != nil {
 		return err
 	}
-	a.Current = time.Unix(int64(chil.Current), 0)
-	a.Update = time.Unix(int64(chil.Update), 0)
+	a.Current = time.UnixMilli(chil.Current)
+	a.Update = time.UnixMilli(chil.Update)
 	return nil
 }
 
@@ -453,7 +453,9 @@ func (a *Orderbook) UnmarshalJSON(data []byte) error {
 		Update  float64    `json:"update"`
 		Asks    []askorbid `json:"asks"`
 		Bids    []askorbid `json:"bids"`
-	}{}
+	}{
+		Alias: (*Alias)(a),
+	}
 	err := json.Unmarshal(data, &chil)
 	if err != nil {
 		return err
@@ -869,5 +871,21 @@ func (a *WsOptionsTrades) UnmarshalJSON(data []byte) error {
 		}
 		return chil.CreateTime
 	}())
+	return nil
+}
+
+// UnmarshalJSON decerializes json, and timestamp information
+func (a *OptionUnderlying) UnmarshalJSON(data []byte) error {
+	type Alias OptionUnderlying
+	chil := &struct {
+		*Alias
+		IndexTime int64 `json:"index_time"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
+	}
+	a.IndexTime = time.Unix(chil.IndexTime, 0)
 	return nil
 }

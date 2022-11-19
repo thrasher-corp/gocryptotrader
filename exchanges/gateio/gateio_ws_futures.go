@@ -678,12 +678,14 @@ func (g *Gateio) processBalancePushData(data []byte) error {
 			return errors.New("malformed text")
 		}
 		code := currency.NewCode(info[0])
-		g.Websocket.DataHandler <- account.Change{
-			Exchange: g.Name,
-			Currency: code,
-			Asset:    futuresAssetType,
-			Amount:   resp.Result[x].Balance,
-			Account:  resp.Result[x].User,
+		g.Websocket.DataHandler <- []account.Change{
+			{
+				Exchange: g.Name,
+				Currency: code,
+				Asset:    futuresAssetType,
+				Amount:   resp.Result[x].Balance,
+				Account:  resp.Result[x].User,
+			},
 		}
 	}
 	return nil

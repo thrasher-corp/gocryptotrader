@@ -3380,8 +3380,8 @@ func (g *Gateio) CancelDeliveryPriceTriggeredOrder(ctx context.Context, settle, 
 
 // GetAllOptionsUnderlyings retrieves all option underlyings
 func (g *Gateio) GetAllOptionsUnderlyings(ctx context.Context) ([]OptionUnderlying, error) {
-	var underlyings []OptionUnderlying
-	return underlyings, g.SendHTTPRequest(ctx, exchange.RestSpot, optionUnderlyings, &underlyings)
+	var response []OptionUnderlying
+	return response, g.SendHTTPRequest(ctx, exchange.RestSpot, optionUnderlyings, &response)
 }
 
 // GetExpirationTime return the expiration time for the provided underlying.
@@ -3445,8 +3445,8 @@ func (g *Gateio) GetSettlementHistory(ctx context.Context, underlying string, of
 		common.EncodeURLValues(optionSettlement, params), &settlements)
 }
 
-// GetOptionsSpecifiedSettlementHistory retrieve a single contract settlement detail passing the underlying and contract name
-func (g *Gateio) GetOptionsSpecifiedSettlementHistory(ctx context.Context, contract, underlying string, at int64) (*OptionSettlement, error) {
+// GetOptionsSpecifiedContractsSettlement retrieve a single contract settlement detail passing the underlying and contract name
+func (g *Gateio) GetOptionsSpecifiedContractsSettlement(ctx context.Context, contract, underlying string, at int64) (*OptionSettlement, error) {
 	if underlying == "" {
 		return nil, errInvalidUnderlying
 	}
@@ -3457,7 +3457,7 @@ func (g *Gateio) GetOptionsSpecifiedSettlementHistory(ctx context.Context, contr
 	params.Set("underlying", underlying)
 	params.Set("at", strconv.FormatInt(at, 10))
 	var settlement OptionSettlement
-	return &settlement, g.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(fmt.Sprintf(optionSettlement+"/%s", contract), params), &settlement)
+	return &settlement, g.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(optionSettlement+"/"+contract, params), &settlement)
 }
 
 // GetMyOptionsSettlements retrieves accounts option settlements.

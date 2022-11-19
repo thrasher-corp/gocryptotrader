@@ -595,11 +595,13 @@ func (g *Gateio) processMarginBalances(data []byte) error {
 	}
 	for x := range resp.Result {
 		code := currency.NewCode(resp.Result[x].Currency)
-		g.Websocket.DataHandler <- account.Change{
-			Exchange: g.Name,
-			Currency: code,
-			Asset:    asset.Margin,
-			Amount:   resp.Result[x].Available,
+		g.Websocket.DataHandler <- []account.Change{
+			{
+				Exchange: g.Name,
+				Currency: code,
+				Asset:    asset.Margin,
+				Amount:   resp.Result[x].Available,
+			},
 		}
 	}
 	return nil

@@ -876,8 +876,9 @@ type DeliveryTradingHistory struct {
 
 // OptionUnderlying represents option underlying and it's index price.
 type OptionUnderlying struct {
-	Name       string  `json:"name"`
-	IndexPrice float64 `json:"index_price,string"`
+	Name       string    `json:"name"`
+	IndexPrice float64   `json:"index_price,string"`
+	IndexTime  time.Time `json:"index_time"`
 }
 
 // OptionContract represents an option contract detail.

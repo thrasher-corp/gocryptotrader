@@ -428,7 +428,7 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 		btcContracts = append(btcContracts, usdtContracts...)
 		pairs := []string{}
 		for x := range btcContracts {
-			p := btcContracts[x].Name
+			p := strings.ToUpper(btcContracts[x].Name)
 			if !g.IsValidPairString(p) {
 				continue
 			}
@@ -452,7 +452,7 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 		btcContracts = append(btcContracts, usdContracts...)
 		pairs := []string{}
 		for x := range btcContracts {
-			p := btcContracts[x].Name
+			p := strings.ToUpper(btcContracts[x].Name)
 			if !g.IsValidPairString(p) {
 				continue
 			}
@@ -474,7 +474,7 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 				if !g.IsValidPairString(contracts[c].Name) {
 					continue
 				}
-				pairs = append(pairs, contracts[c].Name)
+				pairs = append(pairs, strings.ToUpper(contracts[c].Name))
 			}
 		}
 		return pairs, nil
@@ -672,33 +672,17 @@ func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 		return book, err
 	}
 	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
-	leng := len(orderbookNew.Bids)
 	for x := range orderbookNew.Bids {
-		if a == asset.Spot || a == asset.Margin || a == asset.CrossMargin {
-			book.Bids[x] = orderbook.Item{
-				Amount: orderbookNew.Bids[x].Amount,
-				Price:  orderbookNew.Bids[x].Price,
-			}
-		} else {
-			book.Bids[x] = orderbook.Item{
-				Amount: orderbookNew.Bids[leng-x-1].Amount,
-				Price:  orderbookNew.Bids[leng-x-1].Price,
-			}
+		book.Bids[x] = orderbook.Item{
+			Amount: orderbookNew.Bids[x].Amount,
+			Price:  orderbookNew.Bids[x].Price,
 		}
 	}
 	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
-	leng = len(orderbookNew.Asks)
 	for x := range orderbookNew.Asks {
-		if a == asset.Spot || a == asset.Margin || a == asset.CrossMargin {
-			book.Asks[x] = orderbook.Item{
-				Amount: orderbookNew.Asks[x].Amount,
-				Price:  orderbookNew.Asks[x].Price,
-			}
-		} else {
-			book.Asks[x] = orderbook.Item{
-				Amount: orderbookNew.Asks[leng-x-1].Amount,
-				Price:  orderbookNew.Asks[leng-x-1].Price,
-			}
+		book.Asks[x] = orderbook.Item{
+			Amount: orderbookNew.Asks[x].Amount,
+			Price:  orderbookNew.Asks[x].Price,
 		}
 	}
 	err = book.Process()
@@ -1931,7 +1915,7 @@ func (g *Gateio) GetAvailableTransferChains(ctx context.Context, cryptocurrency 
 	availableChains := make([]string, 0, len(chains))
 	for x := range chains {
 		if chains[x].IsDisabled == 0 {
-			availableChains[x] = chains[x].Chain
+			availableChains = append(availableChains, chains[x].Chain)
 		}
 	}
 	return availableChains, nil

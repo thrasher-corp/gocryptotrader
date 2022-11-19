@@ -248,7 +248,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GetOrderbook(context.Background(), currency.NewPair(currency.BCH, currency.USDT), "0.1", 100, true); err != nil {
+	if _, err := g.GetOrderbook(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "0.1", 10, false); err != nil {
 		t.Errorf("%s GetOrderbook() error %v", g.Name, err)
 	}
 }
@@ -1842,7 +1842,7 @@ func TestGetOptionsSpecifiedSettlementHistory(t *testing.T) {
 	if len(pairs) == 0 {
 		t.Skip(err)
 	}
-	pair, err := currency.NewPairFromString(pairs[1])
+	pair, err := currency.NewPairFromString(pairs[0])
 	if err != nil {
 		t.Skip(err)
 	}
@@ -1850,8 +1850,8 @@ func TestGetOptionsSpecifiedSettlementHistory(t *testing.T) {
 	if err != nil {
 		t.Skip(err)
 	}
-	if _, err := g.GetOptionsSpecifiedSettlementHistory(context.Background(), pairs[1], underlying, 0); err != nil {
-		t.Errorf("%s GetOptionsSpecifiedSettlementHistory() error %s", g.Name, err)
+	if _, err := g.GetOptionsSpecifiedContractsSettlement(context.Background(), pairs[0], underlying, 12); err != nil {
+		t.Errorf("%s GetOptionsSpecifiedContractsSettlement() error %s", g.Name, err)
 	}
 }
 
@@ -2096,6 +2096,7 @@ func TestCancelWithdrawalWithSpecifiedID(t *testing.T) {
 
 func TestGetOptionsOrderbook(t *testing.T) {
 	t.Parallel()
+	g.Verbose = true
 	cp, err := getFirstTradablePair(t, asset.Options)
 	if err != nil {
 		t.Fatal(err)
@@ -2220,7 +2221,7 @@ func TestUpdateOrderbook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = g.UpdateOrderbook(context.Background(), cp, asset.DeliveryFutures); err != nil {
+	if _, err := g.UpdateOrderbook(context.Background(), cp, asset.DeliveryFutures); err != nil {
 		t.Errorf("%s UpdateOrderbook() error %v", g.Name, err)
 	}
 }
