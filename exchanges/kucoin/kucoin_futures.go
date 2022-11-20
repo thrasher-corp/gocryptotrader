@@ -15,56 +15,56 @@ import (
 )
 
 const (
-	kucoinFuturesAPIURL = "https://api-futures.kucoin.com"
+	kucoinFuturesAPIURL = "https://api-futures.kucoin.com/api"
 
 	// Public market endpoints
-	kucoinFuturesOpenContracts    = "/api/v1/contracts/active"
-	kucoinFuturesContract         = "/api/v1/contracts/%s"
-	kucoinFuturesRealTimeTicker   = "/api/v1/ticker"
-	kucoinFuturesFullOrderbook    = "/api/v1/level2/snapshot"
-	kucoinFuturesPartOrderbook20  = "/api/v1/level2/depth20"
-	kucoinFuturesPartOrderbook100 = "/api/v1/level2/depth100"
-	kucoinFuturesTradeHistory     = "/api/v1/trade/history"
-	kucoinFuturesInterestRate     = "/api/v1/interest/query"
-	kucoinFuturesIndex            = "/api/v1/index/query"
-	kucoinFuturesMarkPrice        = "/api/v1/mark-price/%s/current"
-	kucoinFuturesPremiumIndex     = "/api/v1/premium/query"
-	kucoinFuturesFundingRate      = "/api/v1/funding-rate/%s/current"
-	kucoinFuturesServerTime       = "/api/v1/timestamp"
-	kucoinFuturesServiceStatus    = "/api/v1/status"
-	kucoinFuturesKline            = "/api/v1/kline/query"
+	kucoinFuturesOpenContracts    = "/v1/contracts/active"
+	kucoinFuturesContract         = "/v1/contracts/%s"
+	kucoinFuturesRealTimeTicker   = "/v1/ticker"
+	kucoinFuturesFullOrderbook    = "/v1/level2/snapshot"
+	kucoinFuturesPartOrderbook20  = "/v1/level2/depth20"
+	kucoinFuturesPartOrderbook100 = "/v1/level2/depth100"
+	kucoinFuturesTradeHistory     = "/v1/trade/history"
+	kucoinFuturesInterestRate     = "/v1/interest/query"
+	kucoinFuturesIndex            = "/v1/index/query"
+	kucoinFuturesMarkPrice        = "/v1/mark-price/%s/current"
+	kucoinFuturesPremiumIndex     = "/v1/premium/query"
+	kucoinFuturesFundingRate      = "/v1/funding-rate/%s/current"
+	kucoinFuturesServerTime       = "/v1/timestamp"
+	kucoinFuturesServiceStatus    = "/v1/status"
+	kucoinFuturesKline            = "/v1/kline/query"
 
 	// Authenticated endpoints
-	kucoinFuturesOrder                     = "/api/v1/orders"
-	kucoinFuturesCancelOrder               = "/api/v1/orders/%s"
-	kucoinFuturesStopOrder                 = "/api/v1/stopOrders"
-	kucoinFuturesRecentCompletedOrder      = "/api/v1/recentDoneOrders"
-	kucoinFuturesGetOrderDetails           = "/api/v1/orders/%s"
-	kucoinFuturesGetOrderDetailsByClientID = "/api/v1/orders/byClientOid"
+	kucoinFuturesOrder                     = "/v1/orders"
+	kucoinFuturesCancelOrder               = "/v1/orders/%s"
+	kucoinFuturesStopOrder                 = "/v1/stopOrders"
+	kucoinFuturesRecentCompletedOrder      = "/v1/recentDoneOrders"
+	kucoinFuturesGetOrderDetails           = "/v1/orders/%s"
+	kucoinFuturesGetOrderDetailsByClientID = "/v1/orders/byClientOid"
 
-	kucoinFuturesFills               = "/api/v1/fills"
-	kucoinFuturesRecentFills         = "/api/v1/recentFills"
-	kucoinFuturesOpenOrderStats      = "/api/v1/openOrderStatistics"
-	kucoinFuturesPosition            = "/api/v1/position"
-	kucoinFuturesPositionList        = "/api/v1/positions"
-	kucoinFuturesSetAutoDeposit      = "/api/v1/position/margin/auto-deposit-status"
-	kucoinFuturesAddMargin           = "/api/v1/position/margin/deposit-margin"
-	kucoinFuturesRiskLimitLevel      = "/api/v1/contracts/risk-limit/%s"
-	kucoinFuturesUpdateRiskLmitLevel = "/api/v1/position/risk-limit-level/change"
-	kucoinFuturesFundingHistory      = "/api/v1/funding-history"
+	kucoinFuturesFills               = "/v1/fills"
+	kucoinFuturesRecentFills         = "/v1/recentFills"
+	kucoinFuturesOpenOrderStats      = "/v1/openOrderStatistics"
+	kucoinFuturesPosition            = "/v1/position"
+	kucoinFuturesPositionList        = "/v1/positions"
+	kucoinFuturesSetAutoDeposit      = "/v1/position/margin/auto-deposit-status"
+	kucoinFuturesAddMargin           = "/v1/position/margin/deposit-margin"
+	kucoinFuturesRiskLimitLevel      = "/v1/contracts/risk-limit/%s"
+	kucoinFuturesUpdateRiskLmitLevel = "/v1/position/risk-limit-level/change"
+	kucoinFuturesFundingHistory      = "/v1/funding-history"
 
-	kucoinFuturesAccountOverview              = "/api/v1/account-overview"
-	kucoinFuturesTransactionHistory           = "/api/v1/transaction-history"
-	kucoinFuturesSubAccountAPIKey             = "/api/v1/sub/api-key"
-	kucoinFuturesDepositAddress               = "/api/v1/deposit-address"
-	kucoinFuturesDepositsList                 = "/api/v1/deposit-list"
-	kucoinFuturesWithdrawalLimit              = "/api/v1/withdrawals/quotas"
-	kucoinFuturesWithdrawalList               = "/api/v1/withdrawal-list"
-	kucoinFuturesCancelWithdrawal             = "/api/v1/withdrawals/%s"
-	kucoinFuturesTransferFundtoMainAccount    = "/api/v3/transfer-out"
-	kucoinFuturesTransferFundtoFuturesAccount = "/api/v1/transfer-in"
-	kucoinFuturesTransferOutList              = "/api/v1/transfer-list"
-	kucoinFuturesCancelTransferOut            = "/api/v1/cancel/transfer-out"
+	kucoinFuturesAccountOverview              = "/v1/account-overview"
+	kucoinFuturesTransactionHistory           = "/v1/transaction-history"
+	kucoinFuturesSubAccountAPIKey             = "/v1/sub/api-key"
+	kucoinFuturesDepositAddress               = "/v1/deposit-address"
+	kucoinFuturesDepositsList                 = "/v1/deposit-list"
+	kucoinFuturesWithdrawalLimit              = "/v1/withdrawals/quotas"
+	kucoinFuturesWithdrawalList               = "/v1/withdrawal-list"
+	kucoinFuturesCancelWithdrawal             = "/v1/withdrawals/%s"
+	kucoinFuturesTransferFundtoMainAccount    = "/v3/transfer-out"
+	kucoinFuturesTransferFundtoFuturesAccount = "/v1/transfer-in"
+	kucoinFuturesTransferOutList              = "/v1/transfer-list"
+	kucoinFuturesCancelTransferOut            = "/v1/cancel/transfer-out"
 )
 
 // GetFuturesOpenContracts gets all open futures contract with its details
@@ -91,7 +91,7 @@ func (k *Kucoin) GetFuturesContract(ctx context.Context, symbol string) (Contrac
 }
 
 // GetFuturesRealTimeTicker get real time ticker
-func (k *Kucoin) GetFuturesRealTimeTicker(ctx context.Context, symbol string) (FuturesTicker, error) {
+func (k *Kucoin) GetFuturesRealTimeTicker(ctx context.Context, symbol string) (*FuturesTicker, error) {
 	resp := struct {
 		Data FuturesTicker `json:"data"`
 		Error
@@ -99,10 +99,10 @@ func (k *Kucoin) GetFuturesRealTimeTicker(ctx context.Context, symbol string) (F
 
 	params := url.Values{}
 	if symbol == "" {
-		return resp.Data, errors.New("symbol can't be empty")
+		return &resp.Data, errors.New("symbol can't be empty")
 	}
 	params.Set("symbol", symbol)
-	return resp.Data, k.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues(kucoinFuturesRealTimeTicker, params), publicSpotRate, &resp)
+	return &resp.Data, k.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues(kucoinFuturesRealTimeTicker, params), publicSpotRate, &resp)
 }
 
 // GetFuturesOrderbook gets full orderbook for a specified symbol
@@ -156,7 +156,6 @@ func (k *Kucoin) GetFuturesTradeHistory(ctx context.Context, symbol string) ([]F
 		Data []FuturesTrade `json:"data"`
 		Error
 	}{}
-
 	params := url.Values{}
 	if symbol == "" {
 		return resp.Data, errors.New("symbol can't be empty")
@@ -942,7 +941,6 @@ func (k *Kucoin) GetFuturesWithdrawalList(ctx context.Context, currency, status 
 		} `json:"data"`
 		Error
 	}{}
-
 	params := url.Values{}
 	if currency != "" {
 		params.Set("currency", currency)
@@ -965,7 +963,6 @@ func (k *Kucoin) CancelFuturesWithdrawal(ctx context.Context, withdrawalID strin
 		Data bool `json:"data"`
 		Error
 	}{}
-
 	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodDelete, fmt.Sprintf(kucoinFuturesCancelWithdrawal, withdrawalID), nil, publicSpotRate, &resp)
 }
 

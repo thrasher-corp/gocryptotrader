@@ -2999,6 +2999,12 @@ var (
 	USDFL            = NewCode("USDFL")
 	FLUSD            = NewCode("FLUSD")
 	DUSD             = NewCode("DUSD")
+	USDD             = NewCode("USDD")
+	KDA              = NewCode("KDA")
+	XCN              = NewCode("XCN")
+	APE              = NewCode("APE")
+	TEL              = NewCode("TEL")
+	XDC              = NewCode("XDC")
 
 	stables = Currencies{
 		USDT,

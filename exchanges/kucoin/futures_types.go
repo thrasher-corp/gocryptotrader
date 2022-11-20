@@ -153,7 +153,7 @@ type FuturesOrder struct {
 	Symbol         string             `json:"symbol"`
 	OrderType      string             `json:"type"`
 	Side           string             `json:"side"`
-	Price          string             `json:"price"`
+	Price          float64            `json:"price,string"`
 	Size           float64            `json:"size"`
 	Value          float64            `json:"value,string"`
 	DealValue      float64            `json:"dealValue,string"`

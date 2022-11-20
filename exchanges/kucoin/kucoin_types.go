@@ -3,9 +3,11 @@ package kucoin
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
@@ -13,7 +15,111 @@ var (
 	validPeriods = []string{
 		"1min", "3min", "5min", "15min", "30min", "1hour", "2hour", "4hour", "6hour", "8hour", "12hour", "1day", "1week",
 	}
+
+	errInvalidResponseReciever = errors.New("invalid response receiver")
 )
+
+var offlineTradeFee = map[currency.Code]float64{
+	currency.BTC:   0.0005,
+	currency.ETH:   0.005,
+	currency.BNB:   0.01,
+	currency.USDT:  25,
+	currency.SOL:   0.01,
+	currency.ADA:   1.000,
+	currency.XRP:   0.5,
+	currency.DOT:   0.1,
+	currency.USDC:  20,
+	currency.DOGE:  20,
+	currency.AVAX:  0.01,
+	currency.SHIB:  600000,
+	currency.LUNA:  0.15,
+	currency.LTC:   0.001,
+	currency.CRO:   50,
+	currency.UNI:   1.2,
+	currency.BUSD:  1,
+	currency.LINK:  1,
+	currency.MATIC: 10,
+	currency.ALGO:  0.1,
+	currency.BCH:   0.01,
+	currency.VET:   30,
+	currency.XLM:   0.02,
+	currency.ICP:   0.0005,
+	currency.AXS:   0.6,
+	currency.EGLD:  0.005,
+	currency.TRX:   1.5,
+	currency.FTT:   0.35,
+	currency.UST:   4,
+	currency.MANA:  10,
+	currency.THETA: 0.2,
+	currency.ETC:   0.01,
+	currency.FIL:   0.01,
+	currency.ATOM:  0.01,
+	currency.DAI:   6,
+	currency.APE:   1.5,
+	currency.HBAR:  3,
+	currency.NEAR:  0.01,
+	currency.FTM:   30,
+	currency.XTZ:   0.2,
+	currency.XCN:   100,
+	currency.HNT:   0.05,
+	currency.XMR:   0.001,
+	currency.GRT:   60,
+	currency.EOS:   0.2,
+	currency.FLOW:  0.05,
+	currency.KLAY:  0.5,
+	currency.SAND:  10,
+	currency.CAKE:  0.05,
+	currency.AAVE:  0.2,
+	currency.LRC:   20,
+	currency.XEC:   5000,
+	currency.KSM:   0.01,
+	currency.ONE:   100,
+	currency.MKR:   0.0075,
+	currency.KDA:   0.5,
+	currency.BSV:   0.01,
+	currency.BTT:   300000,
+	currency.NEO:   0,
+	currency.RUNE:  0.05,
+	currency.USDD:  1,
+	currency.QNT:   0.04,
+	currency.CHZ:   4,
+	currency.STX:   1.5,
+	currency.ZEC:   0.005,
+	currency.WAVES: 0.002,
+	currency.AR:    0.02,
+	currency.AMP:   2100,
+	currency.DASH:  0.002,
+	currency.KCS:   0.75,
+	currency.CELO:  0.1,
+	currency.COMP:  0.15,
+	currency.TFUEL: 5,
+	currency.CRV:   8.5,
+	currency.XEM:   4,
+	currency.BAT:   25,
+	currency.HT:    0.1,
+	currency.IMX:   10,
+	currency.QTUM:  0.01,
+	currency.DCR:   0.01,
+	currency.ICX:   1,
+	currency.OMG:   3,
+	currency.TUSD:  15,
+	currency.RVN:   2,
+	currency.ROSE:  0.1,
+	currency.ZEN:   0.002,
+	currency.ZIL:   10,
+	currency.SUSHI: 5,
+	currency.AUDIO: 24,
+	currency.LPT:   0.85,
+	currency.XDC:   2,
+	currency.SCRT:  0.25,
+	currency.UMA:   3.5,
+	currency.VLX:   10,
+	currency.ANKR:  275,
+	currency.GMT:   0.5,
+	currency.PERP:  7.5,
+	currency.TEL:   5500,
+	currency.SNX:   6,
+}
 
 // UnmarshalTo acts as interface to exchange API response
 type UnmarshalTo interface {
@@ -31,14 +137,12 @@ func (e Error) GetError() error {
 	code, err := strconv.ParseInt(e.Code, 10, 64)
 	if err != nil {
 		return err
-
 	}
-
 	switch code {
 	case 200000, 200:
 		return nil
 	default:
-		return errors.New(e.Msg)
+		return fmt.Errorf("Code: %s Message: %s", e.Code, e.Msg)
 	}
 }
 
@@ -180,7 +284,7 @@ type orderbookResponse struct {
 		Bids     [][2]string        `json:"bids"`
 		Time     kucoinTimeMilliSec `json:"time"`
 		Sequence string             `json:"sequence"`
-	} `json:"result"`
+	} `json:"data"`
 	Error
 }
 
@@ -467,22 +571,22 @@ type PostMarginOrderResp struct {
 }
 
 type OrderRequest struct {
-	ClientOID   string `json:"clientOid"`
-	Symbol      string `json:"symbol"`
-	Side        string `json:"side"`
-	Type        string `json:"type,omitempty"`      // optional
-	Remark      string `json:"remark,omitempty"`    // optional
-	Stop        string `json:"stop,omitempty"`      // optional
-	StopPrice   string `json:"stopPrice,omitempty"` // optional
-	STP         string `json:"stp,omitempty"`       // optional
-	Price       string `json:"price,omitempty"`
-	Size        string `json:"size,omitempty"`
-	TimeInForce string `json:"timeInForce,omitempty"` // optional
-	CancelAfter int64  `json:"cancelAfter,omitempty"` // optional
-	PostOnly    bool   `json:"postOnly,omitempty"`    // optional
-	Hidden      bool   `json:"hidden,omitempty"`      // optional
-	Iceberg     bool   `json:"iceberg,omitempty"`     // optional
-	VisibleSize string `json:"visibleSize,omitempty"` // optional
+	ClientOID   string  `json:"clientOid"`
+	Symbol      string  `json:"symbol"`
+	Side        string  `json:"side"`
+	Type        string  `json:"type,omitempty"`      // optional
+	Remark      string  `json:"remark,omitempty"`    // optional
+	Stop        string  `json:"stop,omitempty"`      // optional
+	StopPrice   string  `json:"stopPrice,omitempty"` // optional
+	STP         string  `json:"stp,omitempty"`       // optional
+	Price       float64 `json:"price,string,omitempty"`
+	Size        float64 `json:"size,string,omitempty"`
+	TimeInForce string  `json:"timeInForce,omitempty"` // optional
+	CancelAfter int64   `json:"cancelAfter,omitempty"` // optional
+	PostOnly    bool    `json:"postOnly,omitempty"`    // optional
+	Hidden      bool    `json:"hidden,omitempty"`      // optional
+	Iceberg     bool    `json:"iceberg,omitempty"`     // optional
+	VisibleSize string  `json:"visibleSize,omitempty"` // optional
 }
 
 type PostBulkOrderResp struct {
@@ -500,8 +604,8 @@ type OrderDetail struct {
 	OpType        string             `json:"opType"` // operation type: DEAL
 	Funds         string             `json:"funds"`
 	DealFunds     string             `json:"dealFunds"`
-	DealSize      string             `json:"dealSize"`
-	Fee           string             `json:"fee"`
+	DealSize      float64            `json:"dealSize,string"`
+	Fee           float64            `json:"fee,string"`
 	FeeCurrency   string             `json:"feeCurrency"`
 	StopTriggered bool               `json:"stopTriggered"`
 	Tags          string             `json:"tags"`
