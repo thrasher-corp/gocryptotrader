@@ -218,22 +218,19 @@ func (d *Deribit) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 		return nil, fmt.Errorf("%s: %w - %s", d.Name, asset.ErrNotSupported, assetType.String())
 	}
 	var resp []string
-	switch assetType {
-	case asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo:
-		for _, x := range []string{"BTC", "SOL", "ETH", "USDC"} {
-			var instrumentsData []InstrumentData
-			var err error
-			if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				instrumentsData, err = d.WSRetriveInstrumentsData(x, d.GetAssetKind(assetType), false)
-			} else {
-				instrumentsData, err = d.GetInstrumentsData(ctx, x, d.GetAssetKind(assetType), false)
-			}
-			if err != nil && len(resp) == 0 {
-				return nil, err
-			}
-			for y := range instrumentsData {
-				resp = append(resp, instrumentsData[y].InstrumentName)
-			}
+	for _, x := range []string{"BTC", "SOL", "ETH", "USDC"} {
+		var instrumentsData []InstrumentData
+		var err error
+		if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			instrumentsData, err = d.WSRetriveInstrumentsData(x, d.GetAssetKind(assetType), false)
+		} else {
+			instrumentsData, err = d.GetInstrumentsData(ctx, x, d.GetAssetKind(assetType), false)
+		}
+		if err != nil && len(resp) == 0 {
+			return nil, err
+		}
+		for y := range instrumentsData {
+			resp = append(resp, instrumentsData[y].InstrumentName)
 		}
 	}
 	return resp, nil
@@ -270,44 +267,39 @@ func (d *Deribit) UpdateTicker(ctx context.Context, p currency.Pair, assetType a
 	if !d.SupportsAsset(assetType) {
 		return nil, fmt.Errorf("%s: %w - %s", d.Name, asset.ErrNotSupported, assetType)
 	}
-	switch assetType {
-	case asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo:
-		if p.IsEmpty() {
-			return nil, fmt.Errorf("pair provided is empty")
-		}
-		fmtPair, err := d.FormatExchangeCurrency(p, asset.Futures)
-		if err != nil {
-			return nil, err
-		}
-		var tickerData *TickerData
-		if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			tickerData, err = d.WSRetrivePublicTicker(fmtPair.String())
-		} else {
-			tickerData, err = d.GetPublicTicker(ctx, fmtPair.String())
-		}
-		if err != nil {
-			return nil, err
-		}
-		resp := ticker.Price{
-			ExchangeName: d.Name,
-			Pair:         p,
-			AssetType:    assetType,
-			Ask:          tickerData.BestAskPrice,
-			AskSize:      tickerData.BestAskAmount,
-			Bid:          tickerData.BestBidPrice,
-			BidSize:      tickerData.BestBidAmount,
-			High:         tickerData.Stats.High,
-			Low:          tickerData.Stats.Low,
-			Last:         tickerData.LastPrice,
-			Volume:       tickerData.Stats.Volume,
-		}
-		err = ticker.ProcessTicker(&resp)
+	if p.IsEmpty() {
+		return nil, fmt.Errorf("pair provided is empty")
+	}
+	fmtPair, err := d.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	var tickerData *TickerData
+	if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		tickerData, err = d.WSRetrivePublicTicker(fmtPair.String())
+	} else {
+		tickerData, err = d.GetPublicTicker(ctx, fmtPair.String())
+	}
+	if err != nil {
+		return nil, err
+	}
+	resp := ticker.Price{
+		ExchangeName: d.Name,
+		Pair:         p,
+		AssetType:    assetType,
+		Ask:          tickerData.BestAskPrice,
+		AskSize:      tickerData.BestAskAmount,
+		Bid:          tickerData.BestBidPrice,
+		BidSize:      tickerData.BestBidAmount,
+		High:         tickerData.Stats.High,
+		Low:          tickerData.Stats.Low,
+		Last:         tickerData.LastPrice,
+		Volume:       tickerData.Stats.Volume,
+	}
+	err = ticker.ProcessTicker(&resp)
 
-		if err != nil {
-			return nil, err
-		}
-	default:
-		return nil, fmt.Errorf("%s: %w - %v", d.Name, asset.ErrNotSupported, assetType)
+	if err != nil {
+		return nil, err
 	}
 	return ticker.GetTicker(d.Name, p, assetType)
 }
@@ -338,47 +330,42 @@ func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		Asset:           assetType,
 		VerifyOrderbook: d.CanVerifyOrderbook,
 	}
-	switch assetType {
-	case asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo:
-		fmtPair, err := d.FormatExchangeCurrency(p, assetType)
-		if err != nil {
-			return nil, err
+	fmtPair, err := d.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	var obData *Orderbook
+	if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		obData, err = d.WSRetriveOrderbookData(fmtPair.String(), 50)
+	} else {
+		obData, err = d.GetOrderbookData(ctx, fmtPair.String(), 50)
+	}
+	if err != nil {
+		return nil, err
+	}
+	book.Asks = make([]orderbook.Item, len(obData.Asks))
+	for x := range book.Asks {
+		book.Asks[x] = orderbook.Item{
+			Price:  obData.Asks[x][0],
+			Amount: obData.Asks[x][1],
 		}
-		var obData *Orderbook
-		if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			obData, err = d.WSRetriveOrderbookData(fmtPair.String(), 50)
-		} else {
-			obData, err = d.GetOrderbookData(ctx, fmtPair.String(), 50)
+		if book.Asks[x].Price == 0 {
+			return nil, errors.New("asks price cannot be zero")
 		}
-		if err != nil {
-			return nil, err
+	}
+	book.Bids = make([]orderbook.Item, len(obData.Bids))
+	for x := range book.Bids {
+		book.Bids[x] = orderbook.Item{
+			Price:  obData.Bids[x][0],
+			Amount: obData.Bids[x][1],
 		}
-		book.Asks = make([]orderbook.Item, len(obData.Asks))
-		for x := range book.Asks {
-			book.Asks[x] = orderbook.Item{
-				Price:  obData.Asks[x][0],
-				Amount: obData.Asks[x][1],
-			}
-			if book.Asks[x].Price == 0 {
-				return nil, errors.New("asks price cannot be zero")
-			}
+		if book.Bids[x].Price == 0 {
+			return nil, errors.New("bids price cannot be zero")
 		}
-		book.Bids = make([]orderbook.Item, len(obData.Bids))
-		for x := range book.Bids {
-			book.Bids[x] = orderbook.Item{
-				Price:  obData.Bids[x][0],
-				Amount: obData.Bids[x][1],
-			}
-			if book.Bids[x].Price == 0 {
-				return nil, errors.New("bids price cannot be zero")
-			}
-		}
-		err = book.Process()
-		if err != nil {
-			return book, err
-		}
-	default:
-		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
+	}
+	err = book.Process()
+	if err != nil {
+		return book, err
 	}
 	return orderbook.Get(d.Name, p, assetType)
 }
@@ -622,98 +609,54 @@ func (d *Deribit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 	if err != nil {
 		return nil, err
 	}
+	if !d.SupportsAsset(s.AssetType) {
+		return nil, fmt.Errorf("%s: orderType %v is not valid", d.Name, s.AssetType)
+	}
 	var orderID string
 	var fmtPair currency.Pair
 	status := order.New
-	switch s.AssetType {
-	case asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo:
-		fmtPair, err = d.FormatExchangeCurrency(s.Pair, asset.Futures)
+	fmtPair, err = d.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return nil, err
+	}
+	timeInForce := ""
+	if s.ImmediateOrCancel {
+		timeInForce = "immediate_or_cancel"
+	}
+	var data *PrivateTradeData
+	reqParams := &OrderBuyAndSellParams{
+		Instrument:   fmtPair.String(),
+		OrderType:    strings.ToLower(s.Type.String()),
+		Label:        s.ClientOrderID,
+		TimeInForce:  timeInForce,
+		Amount:       s.Amount,
+		Price:        s.Price,
+		TriggerPrice: s.TriggerPrice,
+		PostOnly:     s.PostOnly,
+		ReduceOnly:   s.ReduceOnly,
+	}
+	switch {
+	case s.Side.IsLong():
+		if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			data, err = d.WSSubmitBuy(reqParams)
+		} else {
+			data, err = d.SubmitBuy(ctx, reqParams)
+		}
 		if err != nil {
 			return nil, err
 		}
-		timeInForce := ""
-		if s.ImmediateOrCancel {
-			timeInForce = "immediate_or_cancel"
-		}
+		orderID = data.Order.OrderID
+	case s.Side.IsShort():
 		var data *PrivateTradeData
-		switch {
-		case s.Side.IsLong():
-			if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				data, err = d.WSSubmitBuy(
-					&OrderBuyAndSellParams{
-						Instrument:  fmtPair.String(),
-						OrderType:   strings.ToLower(s.Type.String()),
-						Label:       s.ClientOrderID,
-						TimeInForce: timeInForce, Trigger: "", Advanced: "",
-						Amount:         s.Amount,
-						Price:          s.Price,
-						MaxShow:        0,
-						TriggerPrice:   s.TriggerPrice,
-						PostOnly:       s.PostOnly,
-						RejectPostOnly: false,
-						ReduceOnly:     s.ReduceOnly,
-						MMP:            false,
-					})
-			} else {
-				data, err = d.SubmitBuy(ctx,
-					&OrderBuyAndSellParams{
-						Instrument:  fmtPair.String(),
-						OrderType:   strings.ToLower(s.Type.String()),
-						Label:       s.ClientOrderID,
-						TimeInForce: timeInForce, Trigger: "", Advanced: "",
-						Amount:         s.Amount,
-						Price:          s.Price,
-						MaxShow:        0,
-						TriggerPrice:   s.TriggerPrice,
-						PostOnly:       s.PostOnly,
-						RejectPostOnly: false,
-						ReduceOnly:     s.ReduceOnly,
-						MMP:            false,
-					})
-			}
-			if err != nil {
-				return nil, err
-			}
-			orderID = data.Order.OrderID
-		case s.Side.IsShort():
-			var data *PrivateTradeData
-			if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				data, err = d.WSSubmitSell(
-					&OrderBuyAndSellParams{
-						Instrument:     fmtPair.String(),
-						OrderType:      s.Type.String(),
-						Label:          s.ClientOrderID,
-						TimeInForce:    "",
-						Trigger:        "",
-						Advanced:       "",
-						Amount:         s.Amount,
-						Price:          s.Price,
-						MaxShow:        0,
-						TriggerPrice:   s.TriggerPrice,
-						PostOnly:       s.PostOnly,
-						RejectPostOnly: false,
-						ReduceOnly:     s.ReduceOnly,
-						MMP:            false,
-					})
-			} else {
-				data, err = d.SubmitSell(ctx,
-					&OrderBuyAndSellParams{
-						Instrument: fmtPair.String(), OrderType: s.Type.String(),
-						Label: s.ClientOrderID, TimeInForce: "",
-						Trigger: "", Advanced: "",
-						Amount: s.Amount, Price: s.Price,
-						MaxShow: 0, TriggerPrice: s.TriggerPrice,
-						PostOnly: s.PostOnly, RejectPostOnly: false,
-						ReduceOnly: s.ReduceOnly, MMP: false,
-					})
-			}
-			if err != nil {
-				return nil, err
-			}
-			orderID = data.Order.OrderID
+		if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			data, err = d.WSSubmitSell(reqParams)
+		} else {
+			data, err = d.SubmitSell(ctx, reqParams)
 		}
-	default:
-		return nil, fmt.Errorf("%s: %w - %v", d.Name, asset.ErrNotSupported, s.AssetType)
+		if err != nil {
+			return nil, err
+		}
+		orderID = data.Order.OrderID
 	}
 	resp, err := s.DeriveSubmitResponse(orderID)
 	if err != nil {
@@ -729,40 +672,28 @@ func (d *Deribit) ModifyOrder(ctx context.Context, action *order.Modify) (*order
 	if err := action.Validate(); err != nil {
 		return nil, err
 	}
+	if !d.SupportsAsset(action.AssetType) || action.AssetType == asset.Combo {
+		return nil, fmt.Errorf("%s: %w - %v", d.Name, asset.ErrNotSupported, action.AssetType)
+	}
 	var modify *PrivateTradeData
 	var err error
 	switch action.AssetType {
-	case asset.Futures:
+	case asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo:
+		reqParam := &OrderBuyAndSellParams{
+			TriggerPrice: action.TriggerPrice,
+			PostOnly:     action.PostOnly,
+			Amount:       action.Amount,
+			OrderID:      action.OrderID,
+			Price:        action.Price,
+		}
 		if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			modify, err = d.WSSubmitEdit(&OrderBuyAndSellParams{
-				Advanced:       "",
-				TriggerPrice:   action.TriggerPrice,
-				MMP:            false,
-				ReduceOnly:     false,
-				RejectPostOnly: false,
-				PostOnly:       action.PostOnly,
-				Amount:         action.Amount,
-				OrderID:        action.OrderID,
-				Price:          action.Price,
-			})
+			modify, err = d.WSSubmitEdit(reqParam)
 		} else {
-			modify, err = d.SubmitEdit(ctx, &OrderBuyAndSellParams{
-				Advanced:       "",
-				TriggerPrice:   action.TriggerPrice,
-				MMP:            false,
-				ReduceOnly:     false,
-				RejectPostOnly: false,
-				PostOnly:       action.PostOnly,
-				Amount:         action.Amount,
-				OrderID:        action.OrderID,
-				Price:          action.Price,
-			})
+			modify, err = d.SubmitEdit(ctx, reqParam)
 		}
 		if err != nil {
 			return nil, err
 		}
-	default:
-		return nil, fmt.Errorf("%s: %w - %v", d.Name, asset.ErrNotSupported, action.AssetType)
 	}
 	resp, err := action.DeriveModifyResponse()
 	if err != nil {
@@ -779,7 +710,7 @@ func (d *Deribit) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		return err
 	}
 	switch ord.AssetType {
-	case asset.Futures:
+	case asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo:
 		if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			_, err = d.WSSubmitCancel(ord.OrderID)
 		} else {
@@ -824,7 +755,7 @@ func (d *Deribit) CancelAllOrders(ctx context.Context, orderCancellation *order.
 	}
 	var cancelData int64
 	switch orderCancellation.AssetType {
-	case asset.Futures:
+	case asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo:
 		pairFmt, err := d.GetPairFormat(orderCancellation.AssetType, true)
 		if err != nil {
 			return order.CancelAllResponse{}, err
@@ -857,53 +788,51 @@ func (d *Deribit) CancelAllOrders(ctx context.Context, orderCancellation *order.
 // GetOrderInfo returns order information based on order ID
 func (d *Deribit) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var resp order.Detail
-	switch assetType {
-	case asset.Futures:
-		var orderInfo *OrderData
-		var err error
-		if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			orderInfo, err = d.WSRetrivesOrderState(orderID)
-		} else {
-			orderInfo, err = d.GetOrderState(ctx, orderID)
-		}
-		if err != nil {
-			return resp, err
-		}
-		orderSide := order.Sell
-		if orderInfo.Direction == sideBUY {
-			orderSide = order.Buy
-		}
-		orderType, err := order.StringToOrderType(orderInfo.OrderType)
-		if err != nil {
-			return resp, err
-		}
-		var orderStatus order.Status
-		if orderInfo.OrderState == "untriggered" {
-			orderStatus = order.UnknownStatus
-		} else {
-			orderStatus, err = order.StringToOrderStatus(orderInfo.OrderState)
-			if err != nil {
-				return resp, fmt.Errorf("%v: orderStatus %s not supported", d.Name, orderInfo.OrderState)
-			}
-		}
-		resp = order.Detail{
-			AssetType:       asset.Futures,
-			Exchange:        d.Name,
-			PostOnly:        orderInfo.PostOnly,
-			Price:           orderInfo.Price,
-			Amount:          orderInfo.Amount,
-			ExecutedAmount:  orderInfo.FilledAmount,
-			Fee:             orderInfo.Commission,
-			RemainingAmount: orderInfo.Amount - orderInfo.FilledAmount,
-			OrderID:         orderInfo.OrderID,
-			Pair:            pair,
-			LastUpdated:     time.UnixMilli(orderInfo.LastUpdateTimestamp),
-			Side:            orderSide,
-			Type:            orderType,
-			Status:          orderStatus,
-		}
-	default:
+	if !d.SupportsAsset(assetType) {
 		return resp, fmt.Errorf("%s: orderType %v is not valid", d.Name, assetType)
+	}
+	var orderInfo *OrderData
+	var err error
+	if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		orderInfo, err = d.WSRetrivesOrderState(orderID)
+	} else {
+		orderInfo, err = d.GetOrderState(ctx, orderID)
+	}
+	if err != nil {
+		return resp, err
+	}
+	orderSide := order.Sell
+	if orderInfo.Direction == sideBUY {
+		orderSide = order.Buy
+	}
+	orderType, err := order.StringToOrderType(orderInfo.OrderType)
+	if err != nil {
+		return resp, err
+	}
+	var orderStatus order.Status
+	if orderInfo.OrderState == "untriggered" {
+		orderStatus = order.UnknownStatus
+	} else {
+		orderStatus, err = order.StringToOrderStatus(orderInfo.OrderState)
+		if err != nil {
+			return resp, fmt.Errorf("%v: orderStatus %s not supported", d.Name, orderInfo.OrderState)
+		}
+	}
+	resp = order.Detail{
+		AssetType:       assetType,
+		Exchange:        d.Name,
+		PostOnly:        orderInfo.PostOnly,
+		Price:           orderInfo.Price,
+		Amount:          orderInfo.Amount,
+		ExecutedAmount:  orderInfo.FilledAmount,
+		Fee:             orderInfo.Commission,
+		RemainingAmount: orderInfo.Amount - orderInfo.FilledAmount,
+		OrderID:         orderInfo.OrderID,
+		Pair:            pair,
+		LastUpdated:     time.UnixMilli(orderInfo.LastUpdateTimestamp),
+		Side:            orderSide,
+		Type:            orderType,
+		Status:          orderStatus,
 	}
 	return resp, nil
 }
@@ -961,7 +890,7 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 	switch getOrdersRequest.AssetType {
 	case asset.Futures, asset.Options, asset.FutureCombo, asset.OptionCombo:
 		for x := range getOrdersRequest.Pairs {
-			fmtPair, err := d.FormatExchangeCurrency(getOrdersRequest.Pairs[x], asset.Futures)
+			fmtPair, err := d.FormatExchangeCurrency(getOrdersRequest.Pairs[x], getOrdersRequest.AssetType)
 			if err != nil {
 				return nil, err
 			}
@@ -995,7 +924,7 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 					continue
 				}
 				resp = append(resp, order.Detail{
-					AssetType:       asset.Futures,
+					AssetType:       getOrdersRequest.AssetType,
 					Exchange:        d.Name,
 					PostOnly:        ordersData[y].PostOnly,
 					Price:           ordersData[y].Price,
@@ -1026,7 +955,7 @@ func (d *Deribit) GetOrderHistory(ctx context.Context, getOrdersRequest *order.G
 	}
 	var resp []order.Detail
 	for x := range getOrdersRequest.Pairs {
-		fmtPair, err := d.FormatExchangeCurrency(getOrdersRequest.Pairs[x], asset.Futures)
+		fmtPair, err := d.FormatExchangeCurrency(getOrdersRequest.Pairs[x], getOrdersRequest.AssetType)
 		if err != nil {
 			return nil, err
 		}
@@ -1064,7 +993,7 @@ func (d *Deribit) GetOrderHistory(ctx context.Context, getOrdersRequest *order.G
 				}
 			}
 			resp = append(resp, order.Detail{
-				AssetType:       asset.Futures,
+				AssetType:       getOrdersRequest.AssetType,
 				Exchange:        d.Name,
 				PostOnly:        ordersData[y].PostOnly,
 				Price:           ordersData[y].Price,

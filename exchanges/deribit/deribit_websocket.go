@@ -136,10 +136,9 @@ func (d *Deribit) wsLogin(ctx context.Context) error {
 		return err
 	}
 	d.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	data := ""
 	n := d.Requester.GetNonce(true)
 	strTS := strconv.FormatInt(time.Now().Unix()*1000, 10)
-	str2Sign := fmt.Sprintf("%s\n%s\n%s", strTS, n.String(), data)
+	str2Sign := fmt.Sprintf("%s\n%s\n%s", strTS, n.String(), "")
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(str2Sign),
 		[]byte(creds.Secret))
@@ -310,47 +309,49 @@ func (d *Deribit) processOrders(respRaw []byte, channels []string) error {
 		return fmt.Errorf("%w, expected format 'user.orders.{instrument_name}.raw, user.orders.{instrument_name}.{interval}, user.orders.{kind}.{currency}.raw, or user.orders.{kind}.{currency}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
 	}
 	var response WsResponse
-	orderData := []WsOrder{}
+	orderData := &[]WsOrder{}
 	response.Params.Data = orderData
 	err = json.Unmarshal(respRaw, &response)
 	if err != nil {
 		return err
 	}
-	for x := range orderData {
-		oType, err := order.StringToOrderType(orderData[x].OrderType)
+	orderDetails := make([]order.Detail, len(*orderData))
+	for x := range *orderData {
+		oType, err := order.StringToOrderType((*orderData)[x].OrderType)
 		if err != nil {
 			return err
 		}
-		side, err := order.StringToOrderSide(orderData[x].Direction)
+		side, err := order.StringToOrderSide((*orderData)[x].Direction)
 		if err != nil {
 			return err
 		}
-		status, err := order.StringToOrderStatus(orderData[x].OrderState)
+		status, err := order.StringToOrderStatus((*orderData)[x].OrderState)
 		if err != nil {
 			return err
 		}
 		if a != asset.Empty {
-			currencyPair, err = currency.NewPairFromString(orderData[x].InstrumentName)
+			currencyPair, err = currency.NewPairFromString((*orderData)[x].InstrumentName)
 			if err != nil {
 				return err
 			}
 		}
-		d.Websocket.DataHandler <- order.Detail{
-			Price:           orderData[x].Price,
-			Amount:          orderData[x].Amount,
-			ExecutedAmount:  orderData[x].FilledAmount,
-			RemainingAmount: orderData[x].Amount - orderData[x].FilledAmount,
+		orderDetails[x] = order.Detail{
+			Price:           (*orderData)[x].Price,
+			Amount:          (*orderData)[x].Amount,
+			ExecutedAmount:  (*orderData)[x].FilledAmount,
+			RemainingAmount: (*orderData)[x].Amount - (*orderData)[x].FilledAmount,
 			Exchange:        d.Name,
-			OrderID:         orderData[x].OrderID,
+			OrderID:         (*orderData)[x].OrderID,
 			Type:            oType,
 			Side:            side,
 			Status:          status,
 			AssetType:       a,
-			Date:            time.UnixMilli(orderData[x].CreationTimestamp),
-			LastUpdated:     time.UnixMilli(orderData[x].LastUpdateTimestamp),
+			Date:            time.UnixMilli((*orderData)[x].CreationTimestamp),
+			LastUpdated:     time.UnixMilli((*orderData)[x].LastUpdateTimestamp),
 			Pair:            currencyPair,
 		}
 	}
+	d.Websocket.DataHandler <- orderDetails
 	return nil
 }
 
@@ -425,7 +426,7 @@ func (d *Deribit) processChanges(respRaw []byte, channels []string) error {
 				return err
 			}
 		}
-		d.Websocket.DataHandler <- order.Detail{
+		orders[x] = order.Detail{
 			Price:           changeData.Orders[x].Price,
 			Amount:          changeData.Orders[x].Amount,
 			ExecutedAmount:  changeData.Orders[x].FilledAmount,
@@ -439,9 +440,9 @@ func (d *Deribit) processChanges(respRaw []byte, channels []string) error {
 			Date:            time.UnixMilli(changeData.Orders[x].CreationTimestamp),
 			LastUpdated:     time.UnixMilli(changeData.Orders[x].LastUpdateTimestamp),
 			Pair:            currencyPair,
-			//  bybit_websocket.go L453
 		}
 	}
+	d.Websocket.DataHandler <- orders
 	d.Websocket.DataHandler <- changeData.Positions
 	return nil
 }
@@ -490,20 +491,20 @@ func (d *Deribit) processTrades(respRaw []byte, channels []string) error {
 		return fmt.Errorf("%w, expected format 'trades.{instrument_name}.{interval} or trades.{kind}.{currency}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
 	}
 	var response WsResponse
-	tradeList := []wsTrade{}
+	tradeList := &[]wsTrade{}
 	response.Params.Data = tradeList
 	err = json.Unmarshal(respRaw, &response)
 	if err != nil {
 		return err
 	}
-	tradeDatas := make([]trade.Data, len(tradeList))
+	tradeDatas := make([]trade.Data, len(*tradeList))
 	for x := range tradeDatas {
-		side, err := order.StringToOrderSide(tradeList[x].Direction)
+		side, err := order.StringToOrderSide((*tradeList)[x].Direction)
 		if err != nil {
 			return err
 		}
 		if a != asset.Empty {
-			currencyPair, err = currency.NewPairFromString(tradeList[x].InstrumentName)
+			currencyPair, err = currency.NewPairFromString((*tradeList)[x].InstrumentName)
 			if err != nil {
 				return err
 			}
@@ -511,11 +512,11 @@ func (d *Deribit) processTrades(respRaw []byte, channels []string) error {
 		tradeDatas[x] = trade.Data{
 			CurrencyPair: currencyPair,
 			Exchange:     d.Name,
-			Timestamp:    time.UnixMilli(tradeList[x].Timestamp),
-			Price:        tradeList[x].Price,
-			Amount:       tradeList[x].Amount,
+			Timestamp:    time.UnixMilli((*tradeList)[x].Timestamp),
+			Price:        (*tradeList)[x].Price,
+			Amount:       (*tradeList)[x].Amount,
 			Side:         side,
-			TID:          tradeList[x].TradeID,
+			TID:          (*tradeList)[x].TradeID,
 			AssetType:    a,
 		}
 	}

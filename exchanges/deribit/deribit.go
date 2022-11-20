@@ -10,12 +10,10 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"testing"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -2366,22 +2364,4 @@ func (d *Deribit) StringToAssetKind(assetType string) (asset.Item, error) {
 	default:
 		return asset.New(assetType)
 	}
-}
-
-func (d *Deribit) getFirstAssetTradablePair(t *testing.T, _ asset.Item) (currency.Pair, error) {
-	t.Helper()
-	instruments, err := d.FetchTradablePairs(context.Background(), asset.Futures)
-	if err != nil {
-		t.Skip(err)
-	}
-	if len(instruments) < 1 {
-		t.Skip("no enough instrument found")
-	}
-	cp, err := currency.NewPairFromString(instruments[0])
-	if err != nil {
-		return currency.EMPTYPAIR, err
-	}
-	cp = cp.Upper()
-	cp.Delimiter = currency.DashDelimiter
-	return cp, nil
 }

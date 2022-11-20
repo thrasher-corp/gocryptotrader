@@ -2309,3 +2309,21 @@ func TestGetRecentTrades(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func (d *Deribit) getFirstAssetTradablePair(t *testing.T, _ asset.Item) (currency.Pair, error) {
+	t.Helper()
+	instruments, err := d.FetchTradablePairs(context.Background(), asset.Futures)
+	if err != nil {
+		t.Skip(err)
+	}
+	if len(instruments) < 1 {
+		t.Skip("no enough instrument found")
+	}
+	cp, err := currency.NewPairFromString(instruments[0])
+	if err != nil {
+		return currency.EMPTYPAIR, err
+	}
+	cp = cp.Upper()
+	cp.Delimiter = currency.DashDelimiter
+	return cp, nil
+}
