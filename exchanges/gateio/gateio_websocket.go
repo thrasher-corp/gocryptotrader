@@ -570,15 +570,17 @@ func (g *Gateio) processSpotBalances(data []byte) error {
 	if err != nil {
 		return err
 	}
+	accountChanges := make([]account.Change, len(resp.Result))
 	for x := range resp.Result {
 		code := currency.NewCode(resp.Result[x].Currency)
-		g.Websocket.DataHandler <- account.Change{
+		accountChanges[x] = account.Change{
 			Exchange: g.Name,
 			Currency: code,
 			Asset:    asset.Spot,
 			Amount:   resp.Result[x].Available,
 		}
 	}
+	g.Websocket.DataHandler <- accountChanges
 	return nil
 }
 
@@ -593,17 +595,17 @@ func (g *Gateio) processMarginBalances(data []byte) error {
 	if err != nil {
 		return err
 	}
+	accountChange := make([]account.Change, len(resp.Result))
 	for x := range resp.Result {
 		code := currency.NewCode(resp.Result[x].Currency)
-		g.Websocket.DataHandler <- []account.Change{
-			{
-				Exchange: g.Name,
-				Currency: code,
-				Asset:    asset.Margin,
-				Amount:   resp.Result[x].Available,
-			},
+		accountChange[x] = account.Change{
+			Exchange: g.Name,
+			Currency: code,
+			Asset:    asset.Margin,
+			Amount:   resp.Result[x].Available,
 		}
 	}
+	g.Websocket.DataHandler <- accountChange
 	return nil
 }
 
@@ -633,9 +635,10 @@ func (g *Gateio) processCrossMarginBalance(data []byte) error {
 	if err != nil {
 		return err
 	}
+	accountChanges := make([]account.Change, len(resp.Result))
 	for x := range resp.Result {
 		code := currency.NewCode(resp.Result[x].Currency)
-		g.Websocket.DataHandler <- account.Change{
+		accountChanges[x] = account.Change{
 			Exchange: g.Name,
 			Currency: code,
 			Asset:    asset.Margin,
@@ -643,6 +646,7 @@ func (g *Gateio) processCrossMarginBalance(data []byte) error {
 			Account:  resp.Result[x].User,
 		}
 	}
+	g.Websocket.DataHandler <- accountChanges
 	return nil
 }
 

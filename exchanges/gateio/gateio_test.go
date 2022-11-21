@@ -2096,7 +2096,6 @@ func TestCancelWithdrawalWithSpecifiedID(t *testing.T) {
 
 func TestGetOptionsOrderbook(t *testing.T) {
 	t.Parallel()
-	g.Verbose = true
 	cp, err := getFirstTradablePair(t, asset.Options)
 	if err != nil {
 		t.Fatal(err)

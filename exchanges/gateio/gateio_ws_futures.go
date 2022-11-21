@@ -672,22 +672,22 @@ func (g *Gateio) processBalancePushData(data []byte) error {
 	if err != nil {
 		return err
 	}
+	accountChange := make([]account.Change, len(resp.Result))
 	for x := range resp.Result {
 		info := strings.Split(resp.Result[x].Text, currency.UnderscoreDelimiter)
 		if len(info) != 2 {
 			return errors.New("malformed text")
 		}
 		code := currency.NewCode(info[0])
-		g.Websocket.DataHandler <- []account.Change{
-			{
-				Exchange: g.Name,
-				Currency: code,
-				Asset:    futuresAssetType,
-				Amount:   resp.Result[x].Balance,
-				Account:  resp.Result[x].User,
-			},
+		accountChange[x] = account.Change{
+			Exchange: g.Name,
+			Currency: code,
+			Asset:    futuresAssetType,
+			Amount:   resp.Result[x].Balance,
+			Account:  resp.Result[x].User,
 		}
 	}
+	g.Websocket.DataHandler <- accountChange
 	return nil
 }
 
