@@ -1060,15 +1060,16 @@ func (d *Deribit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		Interval: interval,
 		Exchange: d.Name,
 	}
+	resp.Candles = make([]kline.Candle, len(tradingViewData.Ticks))
 	for x := range tradingViewData.Ticks {
-		resp.Candles = append(resp.Candles, kline.Candle{
+		resp.Candles[x] = kline.Candle{
 			Time:   time.UnixMilli(int64(tradingViewData.Ticks[x])),
 			Open:   tradingViewData.Open[x],
 			High:   tradingViewData.High[x],
 			Low:    tradingViewData.Low[x],
 			Close:  tradingViewData.Close[x],
 			Volume: tradingViewData.Volume[x],
-		})
+		}
 	}
 	return resp, nil
 }

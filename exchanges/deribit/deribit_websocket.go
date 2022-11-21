@@ -44,7 +44,7 @@ const (
 	platformStateChannel                   = "platform_state"
 	platformStatePublicMethodsStateChannel = "platform_state.public_methods_state"
 	quoteChannel                           = "quote.%s" // %s representing instrument_name
-	rfqChannel                             = "rfq"
+	requestForQuoteChannel                 = "rfq"
 	tickerChannel                          = "ticker.%s.%s"    // %s.%s instrument_name.interval
 	tradesChannel                          = "trades.%s.%s"    // %s.%s instrument_name.interval
 	tradesWithKindChannel                  = "trades.%s.%s.%s" // %s.%s.%s kind.currency.interval
@@ -62,13 +62,6 @@ const (
 	userPortfolioChannel                             = "user.portfolio"
 	userTradesChannelByInstrument                    = "user.trades.%s.%s"    // %s.%s instrument_name.interval
 	userTradesByKindCurrencyAndIntervalChannel       = "user.trades.%s.%s.%s" // %s.%s.%s represents kind.currency.interval
-
-	// Websocket methods
-
-	publicSubscribe    = "public/subscribe"
-	publicUnsubscribe  = "public/unsubscribe"
-	privateSubscribe   = "private/subscribe"
-	privateUnsubscribe = "private/unsubscribe"
 )
 
 var defaultSubscriptions = []string{
@@ -137,8 +130,8 @@ func (d *Deribit) wsLogin(ctx context.Context) error {
 	}
 	d.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	n := d.Requester.GetNonce(true)
-	strTS := strconv.FormatInt(time.Now().Unix()*1000, 10)
-	str2Sign := fmt.Sprintf("%s\n%s\n%s", strTS, n.String(), "")
+	strTS := strconv.FormatInt(time.Now().UnixMilli(), 10)
+	str2Sign := strTS + "\n" + n.String() + "\n" + ""
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(str2Sign),
 		[]byte(creds.Secret))
@@ -247,7 +240,7 @@ func (d *Deribit) wsHandleData(respRaw []byte) error {
 	case "quote": // Quote ticker information.
 		return d.processQuoteTicker(respRaw, channels)
 	case "rfq":
-		rfq := &wsRFQ{}
+		rfq := &wsRequestForQuote{}
 		return d.processData(respRaw, rfq)
 	case "ticker":
 		return d.processInstrumentTicker(respRaw, channels)
@@ -381,7 +374,8 @@ func (d *Deribit) processChanges(respRaw []byte, channels []string) error {
 	}
 	tradeDatas := make([]trade.Data, len(changeData.Trades))
 	for x := range changeData.Trades {
-		side, err := order.StringToOrderSide(changeData.Trades[x].Direction)
+		var side order.Side
+		side, err = order.StringToOrderSide(changeData.Trades[x].Direction)
 		if err != nil {
 			return err
 		}
@@ -401,10 +395,10 @@ func (d *Deribit) processChanges(respRaw []byte, channels []string) error {
 			TID:          changeData.Trades[x].TradeID,
 			AssetType:    a,
 		}
-		err = trade.AddTradesToBuffer(d.Name, tradeDatas...)
-		if err != nil {
-			return err
-		}
+	}
+	err = trade.AddTradesToBuffer(d.Name, tradeDatas...)
+	if err != nil {
+		return err
 	}
 	orders := make([]order.Detail, len(changeData.Orders))
 	for x := range orders {
@@ -941,7 +935,7 @@ func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs 
 				return nil, currency.ErrCurrencyPairEmpty
 			}
 			subscription.Params["channels"] = []string{fmt.Sprintf(subscs[x].Channel, subscs[x].Currency.String())}
-		case rfqChannel,
+		case requestForQuoteChannel,
 			userMMPTriggerChannel,
 			userPortfolioChannel:
 			currencyCode := subscs[x].Currency.Base.Upper().String()

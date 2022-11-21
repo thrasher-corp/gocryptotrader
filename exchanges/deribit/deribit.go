@@ -541,12 +541,23 @@ func (d *Deribit) GetOrderbookByInstrumentID(ctx context.Context, instrumentID i
 	if depth != 0 {
 		params.Set("depth", strconv.FormatFloat(depth, 'f', -1, 64))
 	}
-	var response Orderbook
-	return &response, d.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues(getOrderbookByInstrumentID, params), &response)
+	var response json.RawMessage
+	err := d.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues(getOrderbookByInstrumentID, params), &response)
+	if err != nil {
+		return nil, err
+	} else if response == nil {
+		return nil, errors.New("no valid response from server")
+	}
+	var resp Orderbook
+	err = json.Unmarshal(response, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
 }
 
-// GetRFQ retrives RFQ information.
-func (d *Deribit) GetRFQ(ctx context.Context, currency, kind string) ([]RFQ, error) {
+// GetRequestForQuote retrives RFQ information.
+func (d *Deribit) GetRequestForQuote(ctx context.Context, currency, kind string) ([]RequestForQuote, error) {
 	if currency == "" {
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
@@ -555,7 +566,7 @@ func (d *Deribit) GetRFQ(ctx context.Context, currency, kind string) ([]RFQ, err
 	if kind != "" {
 		params.Set("kind", kind)
 	}
-	var resp []RFQ
+	var resp []RequestForQuote
 	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues(getRFQ, params), &resp)
 }
 
@@ -626,7 +637,7 @@ func (d *Deribit) GetResolutionFromInterval(interval kline.Interval) (string, er
 }
 
 // GetVolatilityIndexData gets volatility index data for the requested currency
-func (d *Deribit) GetVolatilityIndexData(ctx context.Context, currency, resolution string, startTime, endTime time.Time) (*VolatilityIndexData, error) {
+func (d *Deribit) GetVolatilityIndexData(ctx context.Context, currency, resolution string, startTime, endTime time.Time) ([]VolatilityIndexData, error) {
 	if currency == "" {
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
@@ -643,9 +654,23 @@ func (d *Deribit) GetVolatilityIndexData(ctx context.Context, currency, resoluti
 		return nil, fmt.Errorf("unsupported resolution, only 1 ,60 ,3600 ,43200 and 1D are supported")
 	}
 	params.Set("resolution", resolution)
-	var resp VolatilityIndexData
-	return &resp, d.SendHTTPRequest(ctx, exchange.RestFutures,
+	var resp VolatilityIndexRawData
+	err = d.SendHTTPRequest(ctx, exchange.RestFutures,
 		common.EncodeURLValues(getVolatilityIndexData, params), &resp)
+	if err != nil {
+		return nil, err
+	}
+	response := make([]VolatilityIndexData, len(resp.Data))
+	for x := range resp.Data {
+		response[x] = VolatilityIndexData{
+			TimestampMS: time.UnixMilli(int64(resp.Data[x][0])),
+			Open:        resp.Data[x][1],
+			High:        resp.Data[x][2],
+			Low:         resp.Data[x][3],
+			Close:       resp.Data[x][4],
+		}
+	}
+	return response, nil
 }
 
 // GetPublicTicker gets public ticker data of the instrument requested
@@ -671,6 +696,7 @@ func (d *Deribit) SendHTTPRequest(ctx context.Context, ep exchange.URL, path str
 		ID      int64           `json:"id"`
 		Data    json.RawMessage `json:"result"`
 	}
+	println(endpoint + deribitAPIVersion + "/" + path)
 	err = d.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return &request.Item{
 			Method:        http.MethodGet,
@@ -1079,8 +1105,8 @@ func (d *Deribit) GetNewAnnouncements(ctx context.Context) ([]Announcement, erro
 		getNewAnnouncements, nil, &resp)
 }
 
-// GetPricatePortfolioMargins calculates portfolio margin info for simulated position or current position of the user. This request has special restricted rate limit (not more than once per a second).
-func (d *Deribit) GetPricatePortfolioMargins(ctx context.Context, currency string, accPositions bool, simulatedPositions map[string]float64) (*PortfolioMargin, error) {
+// GetPrivatePortfolioMargins calculates portfolio margin info for simulated position or current position of the user. This request has special restricted rate limit (not more than once per a second).
+func (d *Deribit) GetPrivatePortfolioMargins(ctx context.Context, currency string, accPositions bool, simulatedPositions map[string]float64) (*PortfolioMargin, error) {
 	currency = strings.ToUpper(currency)
 	if currency == "" {
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
@@ -1956,8 +1982,8 @@ func (d *Deribit) ResetMMP(ctx context.Context, currency string) (string, error)
 	return resp, nil
 }
 
-// SendRFQ sends RFQ on a given instrument.
-func (d *Deribit) SendRFQ(ctx context.Context, instrumentName string, amount float64, side order.Side) (string, error) {
+// SendRequestForQuote sends RFQ on a given instrument.
+func (d *Deribit) SendRequestForQuote(ctx context.Context, instrumentName string, amount float64, side order.Side) (string, error) {
 	if instrumentName == "" {
 		return "", errInvalidInstrumentName
 	}

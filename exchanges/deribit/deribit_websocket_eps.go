@@ -435,12 +435,23 @@ func (d *Deribit) WSRetriveOrderbookByInstrumentID(instrumentID int64, depth flo
 		InstrumentID: instrumentID,
 		Depth:        depth,
 	}
-	var response Orderbook
-	return &response, d.SendWSRequest(getOrderbookByInstrumentID, input, &response, false)
+	var response json.RawMessage
+	err := d.SendWSRequest(getOrderbookByInstrumentID, input, &response, false)
+	if err != nil {
+		return nil, err
+	} else if response == nil {
+		return nil, errors.New("no valid response from server")
+	}
+	var resp Orderbook
+	err = json.Unmarshal(response, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
 }
 
-// WSRetriveRFQ retrives RFQ information.
-func (d *Deribit) WSRetriveRFQ(currency, kind string) ([]RFQ, error) {
+// WSRetriveRequestForQuote retrives RFQ information.
+func (d *Deribit) WSRetriveRequestForQuote(currency, kind string) ([]RequestForQuote, error) {
 	if currency == "" {
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
@@ -451,7 +462,7 @@ func (d *Deribit) WSRetriveRFQ(currency, kind string) ([]RFQ, error) {
 		Currency: currency,
 		Kind:     kind,
 	}
-	var resp []RFQ
+	var resp []RequestForQuote
 	return resp, d.SendWSRequest(getRFQ, input, &resp, false)
 }
 
@@ -493,11 +504,12 @@ func (d *Deribit) WSRetrivesTradingViewChartData(instrument, resolution string, 
 }
 
 // WSRetriveVolatilityIndexData retrives volatility index data for the requested currency through the websocket connection.
-func (d *Deribit) WSRetriveVolatilityIndexData(currency, resolution string, startTime, endTime time.Time) (*VolatilityIndexData, error) {
+func (d *Deribit) WSRetriveVolatilityIndexData(currency, resolution string, startTime, endTime time.Time) ([]VolatilityIndexData, error) {
 	if currency == "" {
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, currency)
 	}
-	if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+	err := common.StartEndTimeCheck(startTime, endTime)
+	if err != nil {
 		return nil, err
 	}
 	if resolution == "" {
@@ -514,8 +526,22 @@ func (d *Deribit) WSRetriveVolatilityIndexData(currency, resolution string, star
 		StartTimestamp: startTime.UnixMilli(),
 		EndTimestamp:   endTime.UnixMilli(),
 	}
-	var resp VolatilityIndexData
-	return &resp, d.SendWSRequest(getVolatilityIndexData, input, &resp, false)
+	var resp VolatilityIndexRawData
+	err = d.SendWSRequest(getVolatilityIndexData, input, &resp, false)
+	if err != nil {
+		return nil, err
+	}
+	response := make([]VolatilityIndexData, len(resp.Data))
+	for x := range resp.Data {
+		response[x] = VolatilityIndexData{
+			TimestampMS: time.UnixMilli(int64(resp.Data[x][0])),
+			Open:        resp.Data[x][1],
+			High:        resp.Data[x][2],
+			Low:         resp.Data[x][3],
+			Close:       resp.Data[x][4],
+		}
+	}
+	return response, nil
 }
 
 // WSRetrivePublicTicker retrives public ticker data of the instrument requested through the websocket connection.
@@ -1747,8 +1773,8 @@ func (d *Deribit) WSResetMMP(currency string) (string, error) {
 	return resp, nil
 }
 
-// WSSendRFQ sends RFQ on a given instrument through the websocket connection.
-func (d *Deribit) WSSendRFQ(instrumentName string, amount float64, side order.Side) (string, error) {
+// WSSendRequestForQuote sends RFQ on a given instrument through the websocket connection.
+func (d *Deribit) WSSendRequestForQuote(instrumentName string, amount float64, side order.Side) (string, error) {
 	if instrumentName == "" {
 		return "", errInvalidInstrumentName
 	}
@@ -1861,7 +1887,7 @@ func (d *Deribit) WSRetriveComboIDS(currency, state string) ([]string, error) {
 		State:    state,
 	}
 	var resp []string
-	return resp, d.SendWSRequest(getComboIDS, input, &resp, true)
+	return resp, d.SendWSRequest(getComboIDS, input, &resp, false)
 }
 
 // WSRetriveComboDetails retrieves information about a combo through the websocket connection.

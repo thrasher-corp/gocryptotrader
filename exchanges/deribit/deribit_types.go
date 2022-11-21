@@ -31,7 +31,6 @@ var (
 	errStartTimeCannotBeAfterEndTime       = errors.New("start timestamp cannot be after end timestamp")
 	errUnsupportedIndexName                = errors.New("unsupported index name")
 	errInvalidInstrumentID                 = errors.New("invalid instrument ID")
-	errInvalidIndexPriceCurrency           = errors.New("invalid currency, only BTC, ETH, SOL and USDC are supported")
 	errInvalidInstrumentName               = errors.New("invalid instrument name")
 	errInvalidComboID                      = errors.New("invalid combo ID")
 	errInvalidCurrency                     = errors.New("invalid currency")
@@ -41,8 +40,7 @@ var (
 	errInvalidTradeRole                    = errors.New("invalid trade role, only 'maker' and 'taker' are allowed")
 	errInvalidPrice                        = errors.New("invalid trade price")
 	errInvalidCryptoAddress                = errors.New("invalid crypto address")
-	errIntervalNotSupported                = errors.New("iterval not supported")
-	errInvalidTimestamp                    = errors.New("invalid or zero timestamp")
+	errIntervalNotSupported                = errors.New("interval not supported")
 	errInvalidID                           = errors.New("invalid id")
 	errInvalidEmailAddress                 = errors.New("invalid email address")
 	errMalformedData                       = errors.New("malformed data")
@@ -58,7 +56,7 @@ type BookSummaryData struct {
 	PriceChange            float64 `json:"price_change"`
 	OpenInterest           float64 `json:"open_interest"`
 	MidPrice               float64 `json:"mid_price"`
-	MarkPlace              float64 `json:"mark_place"`
+	MarkPrice              float64 `json:"mark_price"`
 	Low                    float64 `json:"low"`
 	Last                   float64 `json:"last"`
 	InstrumentName         string  `json:"instrument_name"`
@@ -126,23 +124,31 @@ type IndexPriceData struct {
 
 // InstrumentData gets data for instruments
 type InstrumentData struct {
-	BaseCurrency         string  `json:"base_currency"`
-	BlockTradeCommission float64 `json:"block_trade_commission"`
-	ContractSize         float64 `json:"contract_size"`
-	CreationTimestamp    int64   `json:"creation_timestamp"`
-	ExpirationTimestamp  int64   `json:"expiration_timestamp"`
-	InstrumentName       string  `json:"instrument_name"`
-	IsActive             bool    `json:"is_active"`
-	Kind                 string  `json:"kind"`
-	Leverage             float64 `json:"leverage"`
-	MakerCommission      float64 `json:"maker_commission"`
-	MinimumTradeAmount   float64 `json:"min_trade_amount"`
-	OptionType           string  `json:"option_type"`
-	QuoteCurrency        string  `json:"quote_currency"`
-	TickSize             float64 `json:"tick_size"`
-	TakerCommission      float64 `json:"taker_commission"`
-	Strike               float64 `json:"strike"`
-	SettlementPeriod     string  `json:"settlement_period"`
+	BaseCurrency                string  `json:"base_currency"`
+	BlockTradeCommission        float64 `json:"block_trade_commission"`
+	ContractSize                float64 `json:"contract_size"`
+	CreationTimestamp           int64   `json:"creation_timestamp"`
+	ExpirationTimestamp         int64   `json:"expiration_timestamp"`
+	InstrumentName              string  `json:"instrument_name"`
+	IsActive                    bool    `json:"is_active"`
+	Kind                        string  `json:"kind"`
+	Leverage                    float64 `json:"leverage"`
+	MaxLeverage                 float64 `json:"max_leverage"`
+	MakerCommission             float64 `json:"maker_commission"`
+	MinimumTradeAmount          float64 `json:"min_trade_amount"`
+	OptionType                  string  `json:"option_type"`
+	QuoteCurrency               string  `json:"quote_currency"`
+	TickSize                    float64 `json:"tick_size"`
+	TakerCommission             float64 `json:"taker_commission"`
+	Strike                      float64 `json:"strike"`
+	SettlementPeriod            string  `json:"settlement_period"`
+	SettlementCurrency          string  `json:"settlement_currency"`
+	RequestForQuote             bool    `json:"rfq"`
+	PriceIndex                  string  `json:"price_index"`
+	InstrumentID                int64   `json:"instrument_id"`
+	CounterCurrency             string  `json:"counter_currency"`
+	MaximumLiquidationCommision float64 `json:"max_liquidation_commission"`
+	FutureType                  string  `json:"future_type"`
 }
 
 // SettlementsData stores data for settlement futures
@@ -168,19 +174,19 @@ type SettlementsData struct {
 // PublicTradesData stores data for public trades
 type PublicTradesData struct {
 	Trades []struct {
-		TradeSeq       float64 `json:"trade_seq"`
-		TradeID        string  `json:"trade_id"`
-		Timestamp      int64   `json:"timestamp"`
-		TickDirection  int64   `json:"tick_direction"`
-		Price          float64 `json:"price"`
-		MarkPrice      float64 `json:"mark_price"`
-		Liquidation    string  `json:"liquidation"`
-		IV             float64 `json:"iv"`
-		InstrumentName string  `json:"instrument_name"`
-		IndexPrice     float64 `json:"index_price"`
-		Direction      string  `json:"direction"`
-		BlockTradeID   string  `json:"block_trade_id"`
-		Amount         float64 `json:"amount"`
+		TradeSeq          float64 `json:"trade_seq"`
+		TradeID           string  `json:"trade_id"`
+		Timestamp         int64   `json:"timestamp"`
+		TickDirection     int64   `json:"tick_direction"`
+		Price             float64 `json:"price"`
+		MarkPrice         float64 `json:"mark_price"`
+		Liquidation       string  `json:"liquidation"`
+		ImpliedVolatility float64 `json:"iv"`
+		InstrumentName    string  `json:"instrument_name"`
+		IndexPrice        float64 `json:"index_price"`
+		Direction         string  `json:"direction"`
+		BlockTradeID      string  `json:"block_trade_id"`
+		Amount            float64 `json:"amount"`
 	} `json:"trades"`
 	HasMore bool `json:"has_more"`
 }
@@ -258,9 +264,18 @@ type TVChartData struct {
 	Close  []float64 `json:"close"`
 }
 
+// VolatilityIndexRawData stores raw index data for volatility
+type VolatilityIndexRawData struct {
+	Data [][5]float64 `json:"data"`
+}
+
 // VolatilityIndexData stores index data for volatility
 type VolatilityIndexData struct {
-	Data [][]float64 `json:"data"`
+	TimestampMS time.Time `json:"timestamp"`
+	Open        float64   `json:"open"`
+	High        float64   `json:"high"`
+	Low         float64   `json:"low"`
+	Close       float64   `json:"close"`
 }
 
 // TickerData stores data for ticker
@@ -740,12 +755,12 @@ type wsSubscriptionResponse struct {
 	UseOut         int64    `json:"usOut"`
 }
 
-// RFQ RFQs for instruments in given currency.
-type RFQ struct {
+// RequestForQuote RFQs for instruments in given currency.
+type RequestForQuote struct {
 	TradedVolume     float64   `json:"traded_volume"`
 	Amount           float64   `json:"amount"`
 	Side             string    `json:"side"`
-	LastRfqTimestamp time.Time `json:"last_rfq_tstamp"`
+	LastRFQTimestamp time.Time `json:"last_rfq_tstamp"`
 	InstrumentName   string    `json:"instrument_name"`
 }
 
@@ -1109,13 +1124,13 @@ type wsQuoteTickerInformation struct {
 	BestAskAmount  float64 `json:"best_ask_amount"`
 }
 
-// wsRFQ represents a notifications about RFQs for instruments in given currency.
-type wsRFQ struct {
-	State          bool        `json:"state"`
-	Side           interface{} `json:"side"`
-	LastRfqTstamp  int64       `json:"last_rfq_tstamp"`
-	InstrumentName string      `json:"instrument_name"`
-	Amount         interface{} `json:"amount"`
+// wsRequestForQuote represents a notifications about RFQs for instruments in given currency.
+type wsRequestForQuote struct {
+	State            bool        `json:"state"`
+	Side             interface{} `json:"side"`
+	LastRFQTimestamp int64       `json:"last_rfq_tstamp"`
+	InstrumentName   string      `json:"instrument_name"`
+	Amount           interface{} `json:"amount"`
 }
 
 // wsTrade represents trades for an instrument.

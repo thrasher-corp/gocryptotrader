@@ -22,8 +22,8 @@ func (a *Orderbook) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalJSON deserializes timestamp information to RFQ instance.
-func (a *RFQ) UnmarshalJSON(data []byte) error {
-	type Alias RFQ
+func (a *RequestForQuote) UnmarshalJSON(data []byte) error {
+	type Alias RequestForQuote
 	chil := &struct {
 		*Alias
 		LastRfqTimestamp int64 `json:"last_rfq_tstamp"`
@@ -33,7 +33,7 @@ func (a *RFQ) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, chil); err != nil {
 		return err
 	}
-	a.LastRfqTimestamp = time.UnixMilli(chil.LastRfqTimestamp)
+	a.LastRFQTimestamp = time.UnixMilli(chil.LastRfqTimestamp)
 	return nil
 }
 
