@@ -69,10 +69,11 @@ type syncManager struct {
 	createdCounter int64
 	removedCounter int64
 
-	jobs chan Job
+	jobs chan syncJob
 }
 
-type Job struct {
+// syncJob defines a potential REST synchronization job
+type syncJob struct {
 	exch  exchange.IBotExchange
 	Pair  currency.Pair
 	Asset asset.Item

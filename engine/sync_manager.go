@@ -88,7 +88,7 @@ func setupSyncManager(c *SyncManagerConfig, exchangeManager iExchangeManager, re
 		fiatDisplayCurrency:            c.FiatDisplayCurrency,
 		format:                         *c.PairFormatDisplay,
 		tickerBatchLastRequested:       make(map[string]map[asset.Item]time.Time),
-		jobs:                           make(chan Job, 10000),
+		jobs:                           make(chan syncJob, 10000),
 	}
 
 	log.Debugf(log.SyncMgr,
@@ -329,7 +329,6 @@ func (m *syncManager) add(c *currencyPairSyncAgent) {
 	}
 
 	cpy := *c
-	// cpy.Created = time.Now()
 	m3[c.AssetType] = &cpy
 }
 
@@ -549,7 +548,7 @@ func (m *syncManager) controller() {
 								}
 
 								m.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemOrderbook, true)
-								m.jobs <- Job{
+								m.jobs <- syncJob{
 									exch:  exchanges[x],
 									Pair:  c.Pair,
 									Asset: c.AssetType,
@@ -583,7 +582,7 @@ func (m *syncManager) controller() {
 
 								if c.Ticker.IsUsingREST {
 									m.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemTicker, true)
-									m.jobs <- Job{
+									m.jobs <- syncJob{
 										exch:  exchanges[x],
 										Pair:  c.Pair,
 										Asset: c.AssetType,
@@ -599,14 +598,13 @@ func (m *syncManager) controller() {
 						(c.Trade.LastUpdated.IsZero() ||
 							time.Since(c.Trade.LastUpdated) > m.config.TimeoutREST) {
 						m.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemTrade, true)
-						m.jobs <- Job{
+						m.jobs <- syncJob{
 							exch:  exchanges[x],
 							Pair:  c.Pair,
 							Asset: c.AssetType,
 							class: SyncItemTrade,
 						}
 					}
-
 				}
 			}
 		}
@@ -623,7 +621,8 @@ func (m *syncManager) worker(ctx context.Context) {
 		var err error
 		switch j.class {
 		case SyncItemOrderbook:
-			result, err := j.exch.UpdateOrderbook(ctx, j.Pair, j.Asset)
+			var result *orderbook.Base
+			result, err = j.exch.UpdateOrderbook(ctx, j.Pair, j.Asset)
 			m.PrintOrderbookSummary(result, "REST", err)
 			if err == nil && m.remoteConfig.WebsocketRPC.Enabled {
 				relayWebsocketEvent(result, "orderbook_update", j.Asset.String(), exchName)
