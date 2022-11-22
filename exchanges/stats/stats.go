@@ -3,13 +3,16 @@ package stats
 import (
 	"errors"
 	"sort"
+	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-// Item holds various fields for storing currency pair stats
-type Item struct {
+var errInvalidParams = errors.New("cannot add or update, invalid params")
+
+// item holds various fields for storing currency pair stats
+type item struct {
 	Exchange  string
 	Pair      currency.Pair
 	AssetType asset.Item
@@ -17,11 +20,17 @@ type Item struct {
 	Volume    float64
 }
 
-// Items var array
-var Items []Item
+// items holds a match lookup and alignment
+var items = struct {
+	bucket []item
+	match  map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*item
+	mu     sync.Mutex
+}{
+	match: make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*item),
+}
 
 // ByPrice allows sorting by price
-type ByPrice []Item
+type ByPrice []item
 
 func (b ByPrice) Len() int {
 	return len(b)
@@ -36,7 +45,7 @@ func (b ByPrice) Swap(i, j int) {
 }
 
 // ByVolume allows sorting by volume
-type ByVolume []Item
+type ByVolume []item
 
 func (b ByVolume) Len() int {
 	return len(b)
@@ -51,85 +60,75 @@ func (b ByVolume) Swap(i, j int) {
 }
 
 // Add adds or updates the item stats
-func Add(exchange string, p currency.Pair, a asset.Item, price, volume float64) error {
-	if exchange == "" ||
-		a == asset.Empty ||
-		price == 0 ||
-		volume == 0 ||
-		p.Base.IsEmpty() ||
-		p.Quote.IsEmpty() {
-		return errors.New("cannot add or update, invalid params")
+func Add(exchName string, p currency.Pair, a asset.Item, price, volume float64) error {
+	if exchName == "" || p.Base.IsEmpty() || p.Quote.IsEmpty() || !a.IsValid() || price <= 0 || volume <= 0 {
+		return errInvalidParams
 	}
 
 	if p.Base.Equal(currency.XBT) {
-		newPair, err := currency.NewPairFromStrings(currency.BTC.String(),
-			p.Quote.String())
-		if err != nil {
-			return err
-		}
-		Append(exchange, newPair, a, price, volume)
+		similarMatch := currency.NewPair(currency.BTC, p.Quote)
+		update(exchName, similarMatch, a, price, volume)
 	}
 
 	if p.Quote.Equal(currency.USDT) {
-		newPair, err := currency.NewPairFromStrings(p.Base.String(), currency.USD.String())
-		if err != nil {
-			return err
-		}
-		Append(exchange, newPair, a, price, volume)
+		similarMatch := currency.NewPair(p.Base, currency.USD)
+		update(exchName, similarMatch, a, price, volume)
 	}
-
-	Append(exchange, p, a, price, volume)
+	update(exchName, p, a, price, volume)
 	return nil
 }
 
-// Append adds or updates the item stats for a specific
-// currency pair and asset type
-func Append(exchange string, p currency.Pair, a asset.Item, price, volume float64) {
-	if AlreadyExists(exchange, p, a, price, volume) {
+// update adds or updates the item stats for a specific currency pair and asset
+func update(exchName string, p currency.Pair, a asset.Item, price, volume float64) {
+	items.mu.Lock()
+	defer items.mu.Unlock()
+	m1, ok := items.match[exchName]
+	if !ok {
+		m1 = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*item)
+		items.match[exchName] = m1
+	}
+
+	m2, ok := m1[a]
+	if !ok {
+		m2 = make(map[*currency.Item]map[*currency.Item]*item)
+		m1[a] = m2
+	}
+
+	m3, ok := m2[p.Base.Item]
+	if !ok {
+		m3 = make(map[*currency.Item]*item)
+		m2[p.Base.Item] = m3
+	}
+
+	data := m3[p.Quote.Item]
+	if data != nil {
+		data.Price = price
+		data.Volume = volume
 		return
 	}
-
-	i := Item{
-		Exchange:  exchange,
-		Pair:      p,
-		AssetType: a,
-		Price:     price,
-		Volume:    volume,
-	}
-
-	Items = append(Items, i)
-}
-
-// AlreadyExists checks to see if item info already exists
-// for a specific currency pair and asset type
-func AlreadyExists(exchange string, p currency.Pair, assetType asset.Item, price, volume float64) bool {
-	for i := range Items {
-		if Items[i].Exchange == exchange &&
-			Items[i].Pair.EqualIncludeReciprocal(p) &&
-			Items[i].AssetType == assetType {
-			Items[i].Price, Items[i].Volume = price, volume
-			return true
-		}
-	}
-	return false
+	items.bucket = append(items.bucket, item{exchName, p, a, price, volume})
+	m3[p.Quote.Item] = &items.bucket[len(items.bucket)-1]
 }
 
 // SortExchangesByVolume sorts item info by volume for a specific
 // currency pair and asset type. Reverse will reverse the order from lowest to
 // highest
-func SortExchangesByVolume(p currency.Pair, assetType asset.Item, reverse bool) []Item {
-	var result []Item
-	for x := range Items {
-		if Items[x].Pair.EqualIncludeReciprocal(p) &&
-			Items[x].AssetType == assetType {
-			result = append(result, Items[x])
+func SortExchangesByVolume(p currency.Pair, a asset.Item, reverse bool) []item {
+	items.mu.Lock()
+	defer items.mu.Unlock()
+
+	result := make(ByVolume, 0, len(items.bucket))
+	for x := range items.bucket {
+		if items.bucket[x].Pair.EqualIncludeReciprocal(p) &&
+			items.bucket[x].AssetType == a {
+			result = append(result, items.bucket[x])
 		}
 	}
 
 	if reverse {
-		sort.Sort(sort.Reverse(ByVolume(result)))
+		sort.Sort(sort.Reverse(result))
 	} else {
-		sort.Sort(ByVolume(result))
+		sort.Sort(result)
 	}
 	return result
 }
@@ -137,19 +136,22 @@ func SortExchangesByVolume(p currency.Pair, assetType asset.Item, reverse bool) 
 // SortExchangesByPrice sorts item info by volume for a specific
 // currency pair and asset type. Reverse will reverse the order from lowest to
 // highest
-func SortExchangesByPrice(p currency.Pair, assetType asset.Item, reverse bool) []Item {
-	var result []Item
-	for x := range Items {
-		if Items[x].Pair.EqualIncludeReciprocal(p) &&
-			Items[x].AssetType == assetType {
-			result = append(result, Items[x])
+func SortExchangesByPrice(p currency.Pair, a asset.Item, reverse bool) []item {
+	items.mu.Lock()
+	defer items.mu.Unlock()
+
+	result := make(ByPrice, 0, len(items.bucket))
+	for x := range items.bucket {
+		if items.bucket[x].Pair.EqualIncludeReciprocal(p) &&
+			items.bucket[x].AssetType == a {
+			result = append(result, items.bucket[x])
 		}
 	}
 
 	if reverse {
-		sort.Sort(sort.Reverse(ByPrice(result)))
+		sort.Sort(sort.Reverse(result))
 	} else {
-		sort.Sort(ByPrice(result))
+		sort.Sort(result)
 	}
 	return result
 }

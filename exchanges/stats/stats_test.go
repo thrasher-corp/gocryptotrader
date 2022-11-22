@@ -1,224 +1,167 @@
 package stats
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-const (
-	testExchange = "OKEX"
-)
-
-func TestLenByPrice(t *testing.T) {
-	p, err := currency.NewPairFromStrings("BTC", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	Items = []Item{
-		{
-			Exchange:  testExchange,
-			Pair:      p,
-			AssetType: asset.Spot,
-			Price:     1200,
-			Volume:    5,
-		},
-	}
-
-	if ByPrice.Len(Items) < 1 {
-		t.Error("stats LenByPrice() length not correct.")
-	}
-}
-
-func TestLessByPrice(t *testing.T) {
-	p, err := currency.NewPairFromStrings("BTC", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	Items = []Item{
-		{
-			Exchange:  "alphapoint",
-			Pair:      p,
-			AssetType: asset.Spot,
-			Price:     1200,
-			Volume:    5,
-		},
-		{
-			Exchange:  "bitfinex",
-			Pair:      p,
-			AssetType: asset.Spot,
-			Price:     1198,
-			Volume:    20,
-		},
-	}
-
-	if !ByPrice.Less(Items, 1, 0) {
-		t.Error("stats LessByPrice() incorrect return.")
-	}
-	if ByPrice.Less(Items, 0, 1) {
-		t.Error("stats LessByPrice() incorrect return.")
-	}
-}
-
-func TestSwapByPrice(t *testing.T) {
-	p, err := currency.NewPairFromStrings("BTC", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	Items = []Item{
-		{
-			Exchange:  "bitstamp",
-			Pair:      p,
-			AssetType: asset.Spot,
-			Price:     1324,
-			Volume:    5,
-		},
-		{
-			Exchange:  "bitfinex",
-			Pair:      p,
-			AssetType: asset.Spot,
-			Price:     7863,
-			Volume:    20,
-		},
-	}
-
-	ByPrice.Swap(Items, 0, 1)
-	if Items[0].Exchange != "bitfinex" || Items[1].Exchange != "bitstamp" {
-		t.Error("stats SwapByPrice did not swap values.")
-	}
-}
-
-func TestLenByVolume(t *testing.T) {
-	if ByVolume.Len(Items) != 2 {
-		t.Error("stats lenByVolume did not swap values.")
-	}
-}
-
-func TestLessByVolume(t *testing.T) {
-	if !ByVolume.Less(Items, 1, 0) {
-		t.Error("stats LessByVolume() incorrect return.")
-	}
-	if ByVolume.Less(Items, 0, 1) {
-		t.Error("stats LessByVolume() incorrect return.")
-	}
-}
-
-func TestSwapByVolume(t *testing.T) {
-	ByPrice.Swap(Items, 0, 1)
-
-	if Items[1].Exchange != "bitfinex" || Items[0].Exchange != "bitstamp" {
-		t.Error("stats SwapByVolume did not swap values.")
-	}
-}
+const testExchange = "OKx"
 
 func TestAdd(t *testing.T) {
-	Items = Items[:0]
-	p, err := currency.NewPairFromStrings("BTC", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = Add(testExchange, p, asset.Spot, 1200, 42)
-	if err != nil {
-		t.Fatal(err)
+	t.Parallel()
+
+	err := Add("", currency.EMPTYPAIR, asset.Empty, 0, 0)
+	if !errors.Is(err, errInvalidParams) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidParams)
 	}
 
-	if len(Items) < 1 {
-		t.Error("stats Add did not add exchange info.")
+	err = Add(testExchange, currency.EMPTYPAIR, asset.Empty, 0, 0)
+	if !errors.Is(err, errInvalidParams) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidParams)
 	}
 
-	err = Add("", p, asset.Empty, 0, 0)
-	if err == nil {
-		t.Fatal("error cannot be nil")
+	stdPair, err := currency.NewPairFromStrings("BTC", "USD")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	if len(Items) != 1 {
-		t.Error("stats Add did not add exchange info.")
+	err = Add(testExchange, stdPair, asset.Spot, 0, 0)
+	if !errors.Is(err, errInvalidParams) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidParams)
 	}
 
-	p.Base = currency.XBT
-	err = Add(testExchange, p, asset.Spot, 1201, 43)
-	if err != nil {
-		t.Fatal(err)
+	err = Add(testExchange, stdPair, asset.Spot, 1, 0)
+	if !errors.Is(err, errInvalidParams) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidParams)
 	}
 
-	if Items[1].Pair.String() != "XBTUSD" {
+	err = Add(testExchange, stdPair, asset.Spot, 1200, 42)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(getItemsByExchange(testExchange)) != 1 {
 		t.Fatal("stats Add did not add exchange info.")
 	}
 
-	p, err = currency.NewPairFromStrings("ETH", "USDT")
+	stdPair.Base = currency.XBT
+	err = Add(testExchange, stdPair, asset.Spot, 1201, 43)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = Add(testExchange, p, asset.Spot, 300, 1000)
+	stored := getItemsByExchange(testExchange)
+	if len(stored) != 2 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(stored), 2)
+	}
+
+	if stored[1].Pair.String() != "XBTUSD" {
+		t.Fatal("stats Add did not add exchange info.")
+	}
+
+	stdPair, err = currency.NewPairFromStrings("ETH", "USDT")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if Items[2].Pair.String() != "ETHUSD" {
+	err = Add(testExchange, stdPair, asset.Spot, 300, 1000)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	stored = getItemsByExchange(testExchange)
+	if len(stored) != 4 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(stored), 4)
+	}
+
+	if stored[2].Pair.String() != "ETHUSD" {
 		t.Fatal("stats Add did not add exchange info.")
 	}
 }
 
-func TestAppend(t *testing.T) {
+func getItemsByExchange(name string) []item {
+	items.mu.Lock()
+	defer items.mu.Unlock()
+	result := make([]item, 0, len(items.bucket))
+	for x := range items.bucket {
+		if items.bucket[x].Exchange == name {
+			result = append(result, items.bucket[x])
+		}
+	}
+	return result
+}
+
+func TestUpdate(t *testing.T) {
+	t.Parallel()
 	p, err := currency.NewPairFromStrings("BTC", "USD")
 	if err != nil {
 		t.Fatal(err)
 	}
-	Append("sillyexchange", p, asset.Spot, 1234, 45)
-	if len(Items) < 2 {
+	update("sillyexchange", p, asset.Spot, 1234, 45)
+	stored := getItemsByExchange("sillyexchange")
+	if len(stored) != 1 {
 		t.Error("stats AppendResults did not add exchange values.")
 	}
 
-	Append("sillyexchange", p, asset.Spot, 1234, 45)
-	if len(Items) == 3 {
+	update("sillyexchange", p, asset.Spot, 1234, 45)
+	stored = getItemsByExchange("sillyexchange")
+	if len(stored) != 1 {
 		t.Error("stats AppendResults added exchange values")
 	}
 }
 
-func TestAlreadyExists(t *testing.T) {
-	p, err := currency.NewPairFromStrings("BTC", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !AlreadyExists(testExchange, p, asset.Spot, 1200, 42) {
-		t.Error("stats AlreadyExists exchange does not exist.")
-	}
-	p.Base = currency.NewCode("dii")
-	if AlreadyExists("bla", p, asset.Spot, 1234, 123) {
-		t.Error("stats AlreadyExists found incorrect exchange.")
-	}
-}
-
 func TestSortExchangesByVolume(t *testing.T) {
+	t.Parallel()
 	p, err := currency.NewPairFromStrings("BTC", "USD")
 	if err != nil {
 		t.Fatal(err)
 	}
+	err = Add("byVolume1", p, asset.Spot, 1200, 42)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	err = Add("byVolume2", p, asset.Spot, 1200, 43)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
 	topVolume := SortExchangesByVolume(p, asset.Spot, true)
-	if topVolume[0].Exchange != "sillyexchange" {
+	if topVolume[0].Exchange != "byVolume2" {
 		t.Error("stats SortExchangesByVolume incorrectly sorted values.")
 	}
 
 	topVolume = SortExchangesByVolume(p, asset.Spot, false)
-	if topVolume[0].Exchange != testExchange {
+	if topVolume[0].Exchange != "byVolume1" {
 		t.Error("stats SortExchangesByVolume incorrectly sorted values.")
 	}
 }
 
 func TestSortExchangesByPrice(t *testing.T) {
+	t.Parallel()
 	p, err := currency.NewPairFromStrings("BTC", "USD")
 	if err != nil {
 		t.Fatal(err)
 	}
+	err = Add("byPrice1", p, asset.Spot, 1200, 42)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	err = Add("byPrice2", p, asset.Spot, 1201, 42)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	topPrice := SortExchangesByPrice(p, asset.Spot, true)
-	if topPrice[0].Exchange != "sillyexchange" {
+	if topPrice[0].Exchange != "byPrice2" {
 		t.Error("stats SortExchangesByPrice incorrectly sorted values.")
 	}
 
 	topPrice = SortExchangesByPrice(p, asset.Spot, false)
-	if topPrice[0].Exchange != testExchange {
+	if topPrice[0].Exchange != "byPrice1" {
 		t.Error("stats SortExchangesByPrice incorrectly sorted values.")
 	}
 }

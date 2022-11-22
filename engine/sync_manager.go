@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -726,8 +727,8 @@ func (m *syncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 		return
 	}
 
-	// // ignoring error as not all tickers have volume populated and error is not actionable
-	// _ = stats.Add(result.ExchangeName, result.Pair, result.AssetType, result.Last, result.Volume)
+	// ignoring error as not all tickers have volume populated and error is not actionable
+	_ = stats.Add(result.ExchangeName, result.Pair, result.AssetType, result.Last, result.Volume)
 
 	if result.Pair.Quote.IsFiatCurrency() &&
 		!result.Pair.Quote.Equal(m.fiatDisplayCurrency) &&
