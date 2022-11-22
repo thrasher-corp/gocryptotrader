@@ -6,6 +6,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
@@ -21,7 +22,7 @@ type syncBase struct {
 
 // currencyPairSyncAgent stores the sync agent info
 type currencyPairSyncAgent struct {
-	Created   time.Time
+	// Created   time.Time
 	Exchange  string
 	AssetType asset.Item
 	Pair      currency.Pair
@@ -53,14 +54,27 @@ type syncManager struct {
 	initSyncStartTime              time.Time
 	fiatDisplayCurrency            currency.Code
 	websocketRoutineManagerEnabled bool
-	mux                            sync.Mutex
+	mu                             sync.Mutex
 	initSyncWG                     sync.WaitGroup
 	inService                      sync.WaitGroup
 
 	currencyPairs            map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]*currencyPairSyncAgent
-	tickerBatchLastRequested map[string]time.Time
+	tickerBatchLastRequested map[string]map[asset.Item]time.Time
+	batchMtx                 sync.Mutex
 
 	remoteConfig    *config.RemoteControlConfig
 	config          SyncManagerConfig
 	exchangeManager iExchangeManager
+
+	createdCounter int64
+	removedCounter int64
+
+	jobs chan Job
+}
+
+type Job struct {
+	exch  exchange.IBotExchange
+	Pair  currency.Pair
+	Asset asset.Item
+	class int
 }

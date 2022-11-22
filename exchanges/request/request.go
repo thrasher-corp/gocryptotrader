@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common/timedmutex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
@@ -150,14 +151,16 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 
 		verbose := isVerbose(ctx, p.Verbose)
 
+		var id uuid.UUID
 		if verbose {
-			log.Debugf(log.RequestSys, "%s attempt %d request path: %s", r.name, attempt, p.Path)
+			id, _ = uuid.NewV4()
+			log.Debugf(log.RequestSys, "ID:%s %s attempt %d request path: %s", id, r.name, attempt, p.Path)
 			for k, d := range req.Header {
-				log.Debugf(log.RequestSys, "%s request header [%s]: %s", r.name, k, d)
+				log.Debugf(log.RequestSys, "ID:%s %s request header [%s]: %s", id, r.name, k, d)
 			}
-			log.Debugf(log.RequestSys, "%s request type: %s", r.name, p.Method)
+			log.Debugf(log.RequestSys, "ID:%s %s request type: %s", id, r.name, p.Method)
 			if p.Body != nil {
-				log.Debugf(log.RequestSys, "%s request body: %v", r.name, p.Body)
+				log.Debugf(log.RequestSys, "ID:%s %s request body: %v", id, r.name, p.Body)
 			}
 		}
 
@@ -266,7 +269,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 				resp.StatusCode)
 			if !p.HTTPDebugging {
 				log.Debugf(log.RequestSys,
-					"%s raw response: %s",
+					"ID:%s %s raw response: %s", id,
 					r.name,
 					string(contents))
 			}

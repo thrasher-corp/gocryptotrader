@@ -235,6 +235,10 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 			context.DeadlineExceeded)
 	}
 
+	if finalDelay > time.Second*5 {
+		fmt.Printf("routine is sleeping for %s\n", finalDelay)
+	}
+
 	time.Sleep(finalDelay)
 	return nil
 }

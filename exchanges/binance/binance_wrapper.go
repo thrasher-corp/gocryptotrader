@@ -453,6 +453,11 @@ func (b *Binance) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
+	enabledPairs, err := b.GetEnabledPairs(a)
+	if err != nil {
+		return err
+	}
+
 	switch a {
 	case asset.Spot, asset.Margin:
 		tick, err := b.GetTickers(ctx)
@@ -460,41 +465,31 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 			return err
 		}
 
-		pairs, err := b.GetEnabledPairs(a)
-		if err != nil {
-			return err
-		}
+		for y := range tick {
+			cp, err := enabledPairs.DeriveFrom(tick[y].Symbol)
+			if err != nil {
+				continue
+			}
 
-		for i := range pairs {
-			for y := range tick {
-				pairFmt, err := b.FormatExchangeCurrency(pairs[i], a)
-				if err != nil {
-					return err
-				}
-
-				if tick[y].Symbol != pairFmt.String() {
-					continue
-				}
-
-				err = ticker.ProcessTicker(&ticker.Price{
-					Last:         tick[y].LastPrice,
-					High:         tick[y].HighPrice,
-					Low:          tick[y].LowPrice,
-					Bid:          tick[y].BidPrice,
-					Ask:          tick[y].AskPrice,
-					Volume:       tick[y].Volume,
-					QuoteVolume:  tick[y].QuoteVolume,
-					Open:         tick[y].OpenPrice,
-					Close:        tick[y].PrevClosePrice,
-					Pair:         pairFmt,
-					ExchangeName: b.Name,
-					AssetType:    a,
-				})
-				if err != nil {
-					return err
-				}
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         tick[y].LastPrice,
+				High:         tick[y].HighPrice,
+				Low:          tick[y].LowPrice,
+				Bid:          tick[y].BidPrice,
+				Ask:          tick[y].AskPrice,
+				Volume:       tick[y].Volume,
+				QuoteVolume:  tick[y].QuoteVolume,
+				Open:         tick[y].OpenPrice,
+				Close:        tick[y].PrevClosePrice,
+				Pair:         cp,
+				ExchangeName: b.Name,
+				AssetType:    a,
+			})
+			if err != nil {
+				return err
 			}
 		}
+
 	case asset.USDTMarginedFutures:
 		tick, err := b.U24HTickerPriceChangeStats(ctx, currency.EMPTYPAIR)
 		if err != nil {
@@ -502,9 +497,9 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 		}
 
 		for y := range tick {
-			cp, err := currency.NewPairFromString(tick[y].Symbol)
+			cp, err := enabledPairs.DeriveFrom(tick[y].Symbol)
 			if err != nil {
-				return err
+				continue
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         tick[y].LastPrice,
@@ -529,7 +524,7 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 		}
 
 		for y := range tick {
-			cp, err := currency.NewPairFromString(tick[y].Symbol)
+			cp, err := enabledPairs.DeriveFrom(tick[y].Symbol)
 			if err != nil {
 				return err
 			}
