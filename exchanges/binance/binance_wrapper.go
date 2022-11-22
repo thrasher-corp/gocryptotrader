@@ -489,7 +489,6 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 				return err
 			}
 		}
-
 	case asset.USDTMarginedFutures:
 		tick, err := b.U24HTickerPriceChangeStats(ctx, currency.EMPTYPAIR)
 		if err != nil {

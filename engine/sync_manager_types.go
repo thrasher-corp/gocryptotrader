@@ -22,7 +22,6 @@ type syncBase struct {
 
 // currencyPairSyncAgent stores the sync agent info
 type currencyPairSyncAgent struct {
-	// Created   time.Time
 	Exchange  string
 	AssetType asset.Item
 	Pair      currency.Pair
