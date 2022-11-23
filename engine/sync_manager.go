@@ -440,7 +440,9 @@ func (m *syncManager) Update(exchangeName string, p currency.Pair, a asset.Item,
 		m.FormatCurrency(p).String(),
 		m.removedCounter,
 		m.createdCounter)
-	m.initSyncWG.Done()
+	if m.removedCounter <= m.createdCounter {
+		m.initSyncWG.Done()
+	}
 	return nil
 }
 
@@ -463,13 +465,13 @@ func (m *syncManager) controller() {
 			exchangeName := exchanges[x].GetName()
 			supportsREST := exchanges[x].SupportsREST()
 
-			var usingWebsocket bool
+			usingWebsocket := exchanges[x].SupportsWebsocket() && exchanges[x].IsWebsocketEnabled()
 			if exchanges[x].SupportsWebsocket() && exchanges[x].IsWebsocketEnabled() {
 				ws, err := exchanges[x].GetWebsocket()
 				if err != nil {
 					log.Errorf(log.SyncMgr, "%s unable to get websocket pointer. Err: %s", exchangeName, err)
 				}
-				usingWebsocket = ws.IsConnected()
+				usingWebsocket = ws.IsConnected() || ws.IsConnecting()
 			}
 			usingREST := !usingWebsocket
 
@@ -517,6 +519,7 @@ func (m *syncManager) controller() {
 
 						m.add(c)
 					}
+
 					if switchedToRest && usingWebsocket {
 						log.Warnf(log.SyncMgr,
 							"%s %s: Websocket re-enabled, switching from rest to websocket",
@@ -525,78 +528,66 @@ func (m *syncManager) controller() {
 						switchedToRest = false
 					}
 
-					if m.config.SynchronizeOrderbook {
-						if !m.isProcessing(exchangeName, c.Pair, c.AssetType, SyncItemOrderbook) {
-							if c.Orderbook.LastUpdated.IsZero() ||
-								(time.Since(c.Orderbook.LastUpdated) > m.config.TimeoutREST && c.Orderbook.IsUsingREST) ||
-								(time.Since(c.Orderbook.LastUpdated) > m.config.TimeoutWebsocket && c.Orderbook.IsUsingWebsocket) {
-								if c.Orderbook.IsUsingWebsocket {
-									if supportsREST {
-										m.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemOrderbook, true)
-										c.Orderbook.IsUsingWebsocket = false
-										c.Orderbook.IsUsingREST = true
-										log.Warnf(log.SyncMgr,
-											"%s %s %s: No orderbook update after %s, switching from websocket to rest",
-											c.Exchange,
-											m.FormatCurrency(c.Pair).String(),
-											strings.ToUpper(c.AssetType.String()),
-											m.config.TimeoutWebsocket,
-										)
-										switchedToRest = true
-										m.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemOrderbook, false)
-									}
-								}
-
-								m.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemOrderbook, true)
-								m.jobs <- syncJob{
-									exch:  exchanges[x],
-									Pair:  c.Pair,
-									Asset: c.AssetType,
-									class: SyncItemOrderbook,
-								}
-							}
+					lastUpdatedIsZero := c.Orderbook.LastUpdated.IsZero()
+					if m.config.SynchronizeOrderbook &&
+						!m.isProcessing(exchangeName, c.Pair, c.AssetType, SyncItemOrderbook) &&
+						(lastUpdatedIsZero && !usingWebsocket) ||
+						(!lastUpdatedIsZero && time.Since(c.Orderbook.LastUpdated) >= m.config.TimeoutREST && usingREST) ||
+						(!lastUpdatedIsZero && time.Since(c.Orderbook.LastUpdated) >= m.config.TimeoutWebsocket && usingWebsocket) {
+						if usingWebsocket && supportsREST {
+							c.Orderbook.IsUsingWebsocket = false
+							c.Orderbook.IsUsingREST = true
+							log.Warnf(log.SyncMgr,
+								"%s %s %s: No orderbook update after %s, switching from websocket to rest",
+								c.Exchange,
+								m.FormatCurrency(c.Pair).String(),
+								strings.ToUpper(c.AssetType.String()),
+								m.config.TimeoutWebsocket,
+							)
+							switchedToRest = true
+						}
+						m.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemOrderbook, true)
+						m.jobs <- syncJob{
+							exch:  exchanges[x],
+							Pair:  c.Pair,
+							Asset: c.AssetType,
+							class: SyncItemOrderbook,
 						}
 					}
 
-					if m.config.SynchronizeTicker {
-						if !m.isProcessing(exchangeName, c.Pair, c.AssetType, SyncItemTicker) {
-							if c.Ticker.LastUpdated.IsZero() ||
-								(time.Since(c.Ticker.LastUpdated) > m.config.TimeoutREST && c.Ticker.IsUsingREST) ||
-								(time.Since(c.Ticker.LastUpdated) > m.config.TimeoutWebsocket && c.Ticker.IsUsingWebsocket) {
-								if c.Ticker.IsUsingWebsocket {
-									if supportsREST {
-										m.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemTicker, true)
-										c.Ticker.IsUsingWebsocket = false
-										c.Ticker.IsUsingREST = true
-										log.Warnf(log.SyncMgr,
-											"%s %s %s: No ticker update after %s, switching from websocket to rest",
-											c.Exchange,
-											m.FormatCurrency(enabledPairs[i]).String(),
-											strings.ToUpper(c.AssetType.String()),
-											m.config.TimeoutWebsocket,
-										)
-										switchedToRest = true
-										m.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemTicker, false)
-									}
-								}
-
-								if c.Ticker.IsUsingREST {
-									m.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemTicker, true)
-									m.jobs <- syncJob{
-										exch:  exchanges[x],
-										Pair:  c.Pair,
-										Asset: c.AssetType,
-										class: SyncItemTicker,
-									}
-								}
-							}
+					lastUpdatedIsZero = c.Ticker.LastUpdated.IsZero()
+					if m.config.SynchronizeTicker &&
+						!m.isProcessing(exchangeName, c.Pair, c.AssetType, SyncItemTicker) &&
+						(lastUpdatedIsZero && !usingWebsocket) ||
+						(!lastUpdatedIsZero && time.Since(c.Ticker.LastUpdated) >= m.config.TimeoutREST && usingREST) ||
+						(!lastUpdatedIsZero && time.Since(c.Ticker.LastUpdated) >= m.config.TimeoutWebsocket && usingWebsocket) {
+						if usingWebsocket && supportsREST {
+							c.Ticker.IsUsingWebsocket = false
+							c.Ticker.IsUsingREST = true
+							log.Warnf(log.SyncMgr,
+								"%s %s %s: No ticker update after %s, switching from websocket to rest",
+								c.Exchange,
+								m.FormatCurrency(enabledPairs[i]).String(),
+								strings.ToUpper(c.AssetType.String()),
+								m.config.TimeoutWebsocket,
+							)
+							switchedToRest = true
+						}
+						m.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemTicker, true)
+						m.jobs <- syncJob{
+							exch:  exchanges[x],
+							Pair:  c.Pair,
+							Asset: c.AssetType,
+							class: SyncItemTicker,
 						}
 					}
 
+					lastUpdatedIsZero = c.Trade.LastUpdated.IsZero()
 					if m.config.SynchronizeTrades &&
 						!m.isProcessing(exchangeName, c.Pair, c.AssetType, SyncItemTrade) &&
-						(c.Trade.LastUpdated.IsZero() ||
-							time.Since(c.Trade.LastUpdated) > m.config.TimeoutREST) {
+						(lastUpdatedIsZero && !usingWebsocket) ||
+						(!lastUpdatedIsZero && time.Since(c.Trade.LastUpdated) >= m.config.TimeoutREST) ||
+						(!lastUpdatedIsZero && time.Since(c.Ticker.LastUpdated) >= m.config.TimeoutWebsocket && usingWebsocket) {
 						m.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemTrade, true)
 						m.jobs <- syncJob{
 							exch:  exchanges[x],
