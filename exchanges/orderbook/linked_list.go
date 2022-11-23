@@ -3,11 +3,28 @@ package orderbook
 import (
 	"errors"
 	"fmt"
+
+	"github.com/thrasher-corp/gocryptotrader/common/math"
 )
 
-var errIDCannotBeMatched = errors.New("cannot match ID on linked list")
-var errCollisionDetected = errors.New("cannot insert update collision detected")
-var errAmountCannotBeLessOrEqualToZero = errors.New("amount cannot be less or equal to zero")
+// FullLiquidityExhaustedPercentage defines when a book has been completely
+// wiped out of potential liquidity.
+const FullLiquidityExhaustedPercentage = -100
+
+var (
+	errIDCannotBeMatched               = errors.New("cannot match ID on linked list")
+	errCollisionDetected               = errors.New("cannot insert update, collision detected")
+	errAmountCannotBeLessOrEqualToZero = errors.New("amount cannot be less than or equal to zero")
+	errInvalidNominalSlippage          = errors.New("invalid slippage amount, its value must be greater than or equal to zero")
+	errInvalidImpactSlippage           = errors.New("invalid slippage amount, its value must be greater than zero")
+	errInvalidSlippageCannotExceed100  = errors.New("invalid slippage amount, its value cannot exceed 100%")
+	errBaseAmountInvalid               = errors.New("invalid base amount")
+	errInvalidReferencePrice           = errors.New("invalid reference price")
+	errQuoteAmountInvalid              = errors.New("quote amount invalid")
+	errInvalidCost                     = errors.New("invalid cost amount")
+	errInvalidAmount                   = errors.New("invalid amount")
+	errInvalidHeadPrice                = errors.New("invalid head price")
+)
 
 // linkedList defines a linked list for a depth level, reutilisation of nodes
 // to and from a stack.
@@ -340,6 +357,115 @@ func (ll *linkedList) insertUpdates(updts Items, stack *stack, comp comparison) 
 	return nil
 }
 
+// getHeadPriceNoLock gets best/head price
+func (ll *linkedList) getHeadPriceNoLock() (float64, error) {
+	if ll.head == nil {
+		return 0, errNoLiquidity
+	}
+	return ll.head.Value.Price, nil
+}
+
+// getHeadVolumeNoLock gets best/head volume
+func (ll *linkedList) getHeadVolumeNoLock() (float64, error) {
+	if ll.head == nil {
+		return 0, errNoLiquidity
+	}
+	return ll.head.Value.Amount, nil
+}
+
+// getMovementByQuotation traverses through orderbook liquidity using quotation
+// currency as a limiter and returns orderbook movement details. Swap boolean
+// allows the swap of sold and purchased to reduce code so it doesn't need to be
+// specific to bid or ask.
+func (ll *linkedList) getMovementByQuotation(quote, refPrice float64, swap bool) (*Movement, error) {
+	if quote <= 0 {
+		return nil, errQuoteAmountInvalid
+	}
+
+	if refPrice <= 0 {
+		return nil, errInvalidReferencePrice
+	}
+
+	head, err := ll.getHeadPriceNoLock()
+	if err != nil {
+		return nil, err
+	}
+
+	m := Movement{StartPrice: refPrice}
+	for tip := ll.head; tip != nil; tip = tip.Next {
+		trancheValue := tip.Value.Amount * tip.Value.Price
+		leftover := quote - trancheValue
+		if leftover < 0 {
+			m.Purchased += quote
+			m.Sold += quote / trancheValue * tip.Value.Amount
+			// This tranche is not consumed so the book shifts to this price.
+			m.EndPrice = tip.Value.Price
+			quote = 0
+			break
+		}
+		// Full tranche consumed
+		m.Purchased += tip.Value.Price * tip.Value.Amount
+		m.Sold += tip.Value.Amount
+		quote = leftover
+		if leftover == 0 {
+			// Price no longer exists on the book so use next full price tranche
+			// to calculate book impact. If available.
+			if tip.Next != nil {
+				m.EndPrice = tip.Next.Value.Price
+			} else {
+				m.FullBookSideConsumed = true
+			}
+		}
+	}
+	return m.finalizeFields(m.Purchased, m.Sold, head, quote, swap)
+}
+
+// getMovementByBase traverses through orderbook liquidity using base currency
+// as a limiter and returns orderbook movement details. Swap boolean allows the
+// swap of sold and purchased to reduce code so it doesn't need to be specific
+// to bid or ask.
+func (ll *linkedList) getMovementByBase(base, refPrice float64, swap bool) (*Movement, error) {
+	if base <= 0 {
+		return nil, errBaseAmountInvalid
+	}
+
+	if refPrice <= 0 {
+		return nil, errInvalidReferencePrice
+	}
+
+	head, err := ll.getHeadPriceNoLock()
+	if err != nil {
+		return nil, err
+	}
+
+	m := Movement{StartPrice: refPrice}
+	for tip := ll.head; tip != nil; tip = tip.Next {
+		leftover := base - tip.Value.Amount
+		if leftover < 0 {
+			m.Purchased += tip.Value.Price * base
+			m.Sold += base
+			// This tranche is not consumed so the book shifts to this price.
+			m.EndPrice = tip.Value.Price
+			base = 0
+			break
+		}
+		// Full tranche consumed
+		m.Purchased += tip.Value.Price * tip.Value.Amount
+		m.Sold += tip.Value.Amount
+		base = leftover
+		if leftover == 0 {
+			// Price no longer exists on the book so use next full price tranche
+			// to calculate book impact.
+			if tip.Next != nil {
+				m.EndPrice = tip.Next.Value.Price
+			} else {
+				m.FullBookSideConsumed = true
+			}
+		}
+	}
+	return m.finalizeFields(m.Purchased, m.Sold, head, base, swap)
+}
+
 // bids embed a linked list to attach methods for bid depth specific
 // functionality
 type bids struct {
@@ -367,6 +493,115 @@ func (ll *bids) insertUpdates(updts Items, stack *stack) error {
 	return ll.linkedList.insertUpdates(updts, stack, bidCompare)
 }
 
+// hitBidsByNominalSlippage hits the bids by the required nominal slippage
+// percentage, calculated from the reference price and returns orderbook
+// movement details.
+func (ll *bids) hitBidsByNominalSlippage(slippage, refPrice float64) (*Movement, error) {
+	if slippage < 0 {
+		return nil, errInvalidNominalSlippage
+	}
+
+	if slippage > 100 {
+		return nil, errInvalidSlippageCannotExceed100
+	}
+
+	if refPrice <= 0 {
+		return nil, errInvalidReferencePrice
+	}
+
+	if ll.head == nil {
+		return nil, errNoLiquidity
+	}
+
+	nominal := &Movement{StartPrice: refPrice, EndPrice: refPrice}
+	var cumulativeValue, cumulativeAmounts float64
+	for tip := ll.head; tip != nil; tip = tip.Next {
+		totalTrancheValue := tip.Value.Price * tip.Value.Amount
+		currentFullValue := totalTrancheValue + cumulativeValue
+		currentTotalAmounts := cumulativeAmounts + tip.Value.Amount
+
+		nominal.AverageOrderCost = currentFullValue / currentTotalAmounts
+		percent := math.CalculatePercentageGainOrLoss(nominal.AverageOrderCost, refPrice)
+		if percent != 0 {
+			percent *= -1
+		}
+
+		if slippage < percent {
+			targetCost := (1 - slippage/100) * refPrice
+			if targetCost == refPrice {
+				nominal.AverageOrderCost = cumulativeValue / cumulativeAmounts
+				// Rounding issue on requested nominal percentage
+				return nominal, nil
+			}
+			comparative := targetCost * cumulativeAmounts
+			comparativeDiff := comparative - cumulativeValue
+			trancheTargetPriceDiff := tip.Value.Price - targetCost
+			trancheAmountExpectation := comparativeDiff / trancheTargetPriceDiff
+			nominal.NominalPercentage = slippage
+			nominal.Sold = cumulativeAmounts + trancheAmountExpectation
+			nominal.Purchased += trancheAmountExpectation * tip.Value.Price
+			nominal.AverageOrderCost = nominal.Purchased / nominal.Sold
+			nominal.EndPrice = tip.Value.Price
+			return nominal, nil
+		}
+
+		nominal.EndPrice = tip.Value.Price
+		cumulativeValue = currentFullValue
+		nominal.NominalPercentage = percent
+		nominal.Sold += tip.Value.Amount
+		nominal.Purchased += totalTrancheValue
+		cumulativeAmounts = currentTotalAmounts
+		if slippage == percent {
+			nominal.FullBookSideConsumed = tip.Next == nil
+			return nominal, nil
+		}
+	}
+	nominal.FullBookSideConsumed = true
+	return nominal, nil
+}
+
+// hitBidsByImpactSlippage hits the bids by the required impact slippage
+// percentage, calculated from the reference price and returns orderbook
+// movement details.
+func (ll *bids) hitBidsByImpactSlippage(slippage, refPrice float64) (*Movement, error) {
+	if slippage <= 0 {
+		return nil, errInvalidImpactSlippage
+	}
+
+	if slippage > 100 {
+		return nil, errInvalidSlippageCannotExceed100
+	}
+
+	if refPrice <= 0 {
+		return nil, errInvalidReferencePrice
+	}
+
+	if ll.head == nil {
+		return nil, errNoLiquidity
+	}
+
+	impact := &Movement{StartPrice: refPrice, EndPrice: refPrice}
+	for tip := ll.head; tip != nil; tip = tip.Next {
+		percent := math.CalculatePercentageGainOrLoss(tip.Value.Price, refPrice)
+		if percent != 0 {
+			percent *= -1
+		}
+		impact.EndPrice = tip.Value.Price
+		impact.ImpactPercentage = percent
+		if slippage <= percent {
+			// Don't include this tranche amount as this consumes the tranche
+			// book price, thus obtaining a higher percentage impact.
+			return impact, nil
+		}
+		impact.Sold += tip.Value.Amount
+		impact.Purchased += tip.Value.Amount * tip.Value.Price
+		impact.AverageOrderCost = impact.Purchased / impact.Sold
+	}
+	impact.FullBookSideConsumed = true
+	impact.ImpactPercentage = FullLiquidityExhaustedPercentage
+	return impact, nil
+}
+
 // asks embed a linked list to attach methods for ask depth specific
 // functionality
 type asks struct {
@@ -392,6 +627,100 @@ func (ll *asks) updateInsertByID(updts Items, stack *stack) error {
 // insertUpdates inserts new updates for asks based on price level
 func (ll *asks) insertUpdates(updts Items, stack *stack) error {
 	return ll.linkedList.insertUpdates(updts, stack, askCompare)
+}
+
+// liftAsksByNominalSlippage lifts the asks by the required nominal slippage
+// percentage, calculated from the reference price and returns orderbook
+// movement details.
+func (ll *asks) liftAsksByNominalSlippage(slippage, refPrice float64) (*Movement, error) {
+	if slippage < 0 {
+		return nil, errInvalidNominalSlippage
+	}
+
+	if refPrice <= 0 {
+		return nil, errInvalidReferencePrice
+	}
+
+	if ll.head == nil {
+		return nil, errNoLiquidity
+	}
+
+	nominal := &Movement{StartPrice: refPrice, EndPrice: refPrice}
+	var cumulativeAmounts float64
+	for tip := ll.head; tip != nil; tip = tip.Next {
+		totalTrancheValue := tip.Value.Price * tip.Value.Amount
+		currentValue := totalTrancheValue + nominal.Sold
+		currentAmounts := cumulativeAmounts + tip.Value.Amount
+
+		nominal.AverageOrderCost = currentValue / currentAmounts
+		percent := math.CalculatePercentageGainOrLoss(nominal.AverageOrderCost, refPrice)
+
+		if slippage < percent {
+			targetCost := (1 + slippage/100) * refPrice
+			if targetCost == refPrice {
+				nominal.AverageOrderCost = nominal.Sold / nominal.Purchased
+				// Rounding issue on requested nominal percentage
+				return nominal, nil
+			}
+
+			comparative := targetCost * cumulativeAmounts
+			comparativeDiff := comparative - nominal.Sold
+			trancheTargetPriceDiff := tip.Value.Price - targetCost
+			trancheAmountExpectation := comparativeDiff / trancheTargetPriceDiff
+			nominal.NominalPercentage = slippage
+			nominal.Sold += trancheAmountExpectation * tip.Value.Price
+			nominal.Purchased += trancheAmountExpectation
+			nominal.AverageOrderCost = nominal.Sold / nominal.Purchased
+			nominal.EndPrice = tip.Value.Price
+			return nominal, nil
+		}
+
+		nominal.EndPrice = tip.Value.Price
+		nominal.Sold = currentValue
+		nominal.Purchased += tip.Value.Amount
+		nominal.NominalPercentage = percent
+		if slippage == percent {
+			return nominal, nil
+		}
+		cumulativeAmounts = currentAmounts
+	}
+	nominal.FullBookSideConsumed = true
+	return nominal, nil
+}
+
+// liftAsksByImpactSlippage lifts the asks by the required impact slippage
+// percentage, calculated from the reference price and returns orderbook
+// movement details.
+func (ll *asks) liftAsksByImpactSlippage(slippage, refPrice float64) (*Movement, error) {
+	if slippage <= 0 {
+		return nil, errInvalidImpactSlippage
+	}
+
+	if refPrice <= 0 {
+		return nil, errInvalidReferencePrice
+	}
+
+	if ll.head == nil {
+		return nil, errNoLiquidity
+	}
+
+	impact := &Movement{StartPrice: refPrice, EndPrice: refPrice}
+	for tip := ll.head; tip != nil; tip = tip.Next {
+		percent := math.CalculatePercentageGainOrLoss(tip.Value.Price, refPrice)
+		impact.ImpactPercentage = percent
+		impact.EndPrice = tip.Value.Price
+		if slippage <= percent {
+			// Don't include this tranche amount as this consumes the tranche
+			// book price, thus obtaining a higher percentage impact.
+			return impact, nil
+		}
+		impact.Sold += tip.Value.Amount * tip.Value.Price
+		impact.Purchased += tip.Value.Amount
+		impact.AverageOrderCost = impact.Sold / impact.Purchased
+	}
+	impact.FullBookSideConsumed = true
+	impact.ImpactPercentage = FullLiquidityExhaustedPercentage
+	return impact, nil
 }
 
 // move moves a node from a point in a node chain to another node position,
@@ -525,4 +854,68 @@ func shiftBookmark(tip *Node, bookmark, head **Node, updt Item) bool {
 	(*bookmark).Prev = tip
 	(*bookmark).Next = nil
 	return true
+}
+
+// finalizeFields sets average order costing, percentages, slippage cost and
+// preserves existing fields.
+func (m *Movement) finalizeFields(cost, amount, headPrice, leftover float64, swap bool) (*Movement, error) {
+	if cost <= 0 {
+		return nil, errInvalidCost
+	}
+
+	if amount <= 0 {
+		return nil, errInvalidAmount
+	}
+
+	if headPrice <= 0 {
+		return nil, errInvalidHeadPrice
+	}
+
+	if m.StartPrice != m.EndPrice {
+		// Average order cost defines the actual cost price as capital is
+		// deployed through the orderbook liquidity.
+		m.AverageOrderCost = cost / amount
+	} else {
+		// Edge case rounding issue for float64 with small numbers.
+		m.AverageOrderCost = m.StartPrice
+	}
+
+	// Nominal percentage is the difference from the reference price to average
+	// order cost.
+	m.NominalPercentage = math.CalculatePercentageGainOrLoss(m.AverageOrderCost, m.StartPrice)
+	if m.NominalPercentage < 0 {
+		m.NominalPercentage *= -1
+	}
+
+	if !m.FullBookSideConsumed && leftover == 0 {
+		// Impact percentage is how much the orderbook slips from the reference
+		// price to the remaining tranche price.
+
+		m.ImpactPercentage = math.CalculatePercentageGainOrLoss(m.EndPrice, m.StartPrice)
+		if m.ImpactPercentage < 0 {
+			m.ImpactPercentage *= -1
+		}
+	} else {
+		// Full liquidity exhausted by request amount
+		m.ImpactPercentage = FullLiquidityExhaustedPercentage
+		m.FullBookSideConsumed = true
+	}
+
+	// Slippage cost is the difference in quotation terms between the actual
+	// cost and the amounts at head price e.g.
+	// Let P(n)=Price A(n)=Amount and iterate through a descending bid order example;
+	// Cost: $270 (P1:100 x A1:1 + P2:90 x A2:1 + P3:80 x A3:1)
+	// No slippage cost: $300 (P1:100 x A1:1 + P1:100 x A2:1 + P1:100 x A3:1)
+	// $300 - $270 = $30 of slippage.
+	m.SlippageCost = cost - (headPrice * amount)
+	if m.SlippageCost < 0 {
+		m.SlippageCost *= -1
+	}
+
+	// Swap saves on code duplication for difference in ask or bid amounts.
+	if swap {
+		m.Sold, m.Purchased = m.Purchased, m.Sold
+	}
+
+	return m, nil
 }

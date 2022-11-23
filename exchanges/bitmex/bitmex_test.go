@@ -623,6 +623,7 @@ func TestGetActiveOrders(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
+		Side:      order.AnySide,
 	}
 
 	_, err := b.GetActiveOrders(context.Background(), &getOrdersRequest)
@@ -636,10 +637,10 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	var getOrdersRequest = order.GetOrdersRequest{
-		Type: order.AnyType,
-		Pairs: []currency.Pair{currency.NewPair(currency.LTC,
-			currency.BTC)},
+		Type:      order.AnyType,
+		Pairs:     []currency.Pair{currency.NewPair(currency.LTC, currency.BTC)},
 		AssetType: asset.Spot,
+		Side:      order.AnySide,
 	}
 
 	_, err := b.GetOrderHistory(context.Background(), &getOrdersRequest)

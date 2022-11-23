@@ -85,7 +85,10 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 			return f, err
 		}
 		// calculate an estimated slippage rate
-		price, amount = slippage.CalculateSlippageByOrderbook(ob, o.GetDirection(), allocatedFunds, f.ExchangeFee)
+		price, amount, err = slippage.CalculateSlippageByOrderbook(ob, o.GetDirection(), allocatedFunds, f.ExchangeFee)
+		if err != nil {
+			return f, err
+		}
 		f.Slippage = price.Sub(f.ClosePrice).Div(f.ClosePrice).Mul(decimal.NewFromInt(100))
 	} else {
 		slippageRate := slippage.EstimateSlippagePercentage(cs.MinimumSlippageRate, cs.MaximumSlippageRate)

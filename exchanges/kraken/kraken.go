@@ -25,8 +25,7 @@ import (
 
 const (
 	krakenAPIURL         = "https://api.kraken.com"
-	krakenFuturesURL     = "https://futures.kraken.com"
-	futuresURL           = "https://futures.kraken.com/derivatives"
+	krakenFuturesURL     = "https://futures.kraken.com/derivatives"
 	krakenSpotVersion    = "0"
 	krakenFuturesVersion = "3"
 )

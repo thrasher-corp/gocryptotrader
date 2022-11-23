@@ -478,6 +478,7 @@ func TestGetActiveOrders(t *testing.T) {
 		Type:      order.AnyType,
 		Pairs:     []currency.Pair{p},
 		AssetType: asset.Spot,
+		Side:      order.AnySide,
 	}
 
 	getOrdersRequest.Pairs[0].Delimiter = currency.DashDelimiter
@@ -494,6 +495,7 @@ func TestGetOrderHistory(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
+		Side:      order.AnySide,
 	}
 
 	_, err := b.GetOrderHistory(context.Background(), &getOrdersRequest)

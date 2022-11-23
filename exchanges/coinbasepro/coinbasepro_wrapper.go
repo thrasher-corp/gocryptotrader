@@ -549,7 +549,7 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 		orderID, err = c.PlaceMarketOrder(ctx,
 			"",
 			s.Amount,
-			s.Amount,
+			s.QuoteAmount,
 			s.Side.Lower(),
 			fpair.String(),
 			"")
@@ -750,20 +750,23 @@ func (c *CoinbasePro) GetFeeByType(ctx context.Context, feeBuilder *exchange.Fee
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 	var respOrders []GeneralizedOrderResponse
+	var fPair currency.Pair
 	for i := range req.Pairs {
-		fpair, err := c.FormatExchangeCurrency(req.Pairs[i], asset.Spot)
+		fPair, err = c.FormatExchangeCurrency(req.Pairs[i], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
 
-		resp, err := c.GetOrders(ctx,
+		var resp []GeneralizedOrderResponse
+		resp, err = c.GetOrders(ctx,
 			[]string{"open", "pending", "active"},
-			fpair.String())
+			fPair.String())
 		if err != nil {
 			return nil, err
 		}
@@ -804,45 +807,36 @@ func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.GetOrdersR
 			Exchange:       c.Name,
 		}
 	}
-
-	order.FilterOrdersByType(&orders, req.Type)
-	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
-	}
-	order.FilterOrdersBySide(&orders, req.Side)
-	return orders, nil
+	return req.Filter(c.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 	var respOrders []GeneralizedOrderResponse
 	if len(req.Pairs) > 0 {
+		var fPair currency.Pair
+		var resp []GeneralizedOrderResponse
 		for i := range req.Pairs {
-			fpair, err := c.FormatExchangeCurrency(req.Pairs[i], asset.Spot)
+			fPair, err = c.FormatExchangeCurrency(req.Pairs[i], asset.Spot)
 			if err != nil {
 				return nil, err
 			}
-			resp, err := c.GetOrders(ctx,
-				[]string{"done"},
-				fpair.String())
+			resp, err = c.GetOrders(ctx, []string{"done"}, fPair.String())
 			if err != nil {
 				return nil, err
 			}
 			respOrders = append(respOrders, resp...)
 		}
 	} else {
-		resp, err := c.GetOrders(ctx,
-			[]string{"done"},
-			"")
+		respOrders, err = c.GetOrders(ctx, []string{"done"}, "")
 		if err != nil {
 			return nil, err
 		}
-		respOrders = resp
 	}
 
 	format, err := c.GetPairFormat(asset.Spot, false)
@@ -894,14 +888,7 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersR
 		detail.InferCostsAndTimes()
 		orders[i] = detail
 	}
-
-	order.FilterOrdersByType(&orders, req.Type)
-	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
-	}
-	order.FilterOrdersBySide(&orders, req.Side)
-	return orders, nil
+	return req.Filter(c.Name, orders), nil
 }
 
 // checkInterval checks allowable interval

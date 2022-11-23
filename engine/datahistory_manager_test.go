@@ -979,6 +979,7 @@ func createDHM(t *testing.T) (*DataHistoryManager, *datahistoryjob.DataHistoryJo
 		},
 	}
 	m := &DataHistoryManager{
+		databaseConnectionInstance: &dataBaseConnection{},
 		jobDB: dataHistoryJobService{
 			job: j,
 		},
@@ -991,6 +992,20 @@ func createDHM(t *testing.T) (*DataHistoryManager, *datahistoryjob.DataHistoryJo
 		maxResultInsertions: defaultMaxResultInsertions,
 	}
 	return m, j
+}
+
+type dataBaseConnection struct{}
+
+func (d *dataBaseConnection) IsConnected() bool {
+	return false
+}
+
+func (d *dataBaseConnection) GetSQL() (*sql.DB, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (d *dataBaseConnection) GetConfig() *database.Config {
+	return nil
 }
 
 func TestProcessCandleData(t *testing.T) {
