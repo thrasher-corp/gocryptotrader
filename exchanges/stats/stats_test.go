@@ -119,12 +119,12 @@ func TestSortExchangesByVolume(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = Add("byVolume1", p, asset.Spot, 1200, 42)
+	err = Add("byVolume1", p, asset.Spot, 1200, 1)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	err = Add("byVolume2", p, asset.Spot, 1200, 43)
+	err = Add("byVolume2", p, asset.Spot, 1200, 500)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -146,12 +146,12 @@ func TestSortExchangesByPrice(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = Add("byPrice1", p, asset.Spot, 1200, 42)
+	err = Add("byPrice1", p, asset.Spot, 1, 42)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	err = Add("byPrice2", p, asset.Spot, 1201, 42)
+	err = Add("byPrice2", p, asset.Spot, 5000, 42)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
