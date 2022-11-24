@@ -1791,10 +1791,10 @@ func TestUpdateDeliveryPositionRiskLimit(t *testing.T) {
 	}
 }
 
-func TestGetAllUnderlyings(t *testing.T) {
+func TestGetAllOptionsUnderlyings(t *testing.T) {
 	t.Parallel()
 	if _, err := g.GetAllOptionsUnderlyings(context.Background()); err != nil {
-		t.Errorf("%s GetAllUnderlyings() error %v", g.Name, err)
+		t.Errorf("%s GetAllOptionsUnderlyings() error %v", g.Name, err)
 	}
 }
 
@@ -1850,7 +1850,8 @@ func TestGetOptionsSpecifiedSettlementHistory(t *testing.T) {
 	if err != nil {
 		t.Skip(err)
 	}
-	if _, err := g.GetOptionsSpecifiedContractsSettlement(context.Background(), pairs[0], underlying, 12); err != nil {
+	g.Verbose = true
+	if _, err := g.GetOptionsSpecifiedContractsSettlement(context.Background(), pairs[0], underlying, 0); err != nil {
 		t.Errorf("%s GetOptionsSpecifiedContractsSettlement() error %s", g.Name, err)
 	}
 }
@@ -2216,11 +2217,11 @@ func TestUpdateTickers(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	cp, err := getFirstTradablePair(t, asset.DeliveryFutures)
+	cp, err := getFirstTradablePair(t, asset.Futures)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := g.UpdateOrderbook(context.Background(), cp, asset.DeliveryFutures); err != nil {
+	if _, err := g.UpdateOrderbook(context.Background(), cp, asset.Futures); err != nil {
 		t.Errorf("%s UpdateOrderbook() error %v", g.Name, err)
 	}
 }
