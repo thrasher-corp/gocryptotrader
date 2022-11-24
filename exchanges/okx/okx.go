@@ -3227,7 +3227,7 @@ func (ok *Okx) GetTradesHistory(ctx context.Context, instrumentID, before, after
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTradesHistroyEPL, http.MethodGet, common.EncodeURLValues(marketTradesHistory, params), nil, &resp, false)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTradesHistoryEPL, http.MethodGet, common.EncodeURLValues(marketTradesHistory, params), nil, &resp, false)
 }
 
 // Get24HTotalVolume The 24-hour trading volume is calculated on a rolling basis, using USD as the pricing unit.

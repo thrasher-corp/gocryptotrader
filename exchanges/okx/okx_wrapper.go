@@ -1232,6 +1232,12 @@ allOrders:
 				LastUpdated:     orderList[i].UpdateTime,
 			})
 		}
+		if len(orderList) < 100 {
+			// Since the we passed a limit of 0 to the method GetOrderList,
+			// we expect 100 orders to be retrieved if the number of orders are more that 100.
+			// If not, break out of the loop to not send another request.
+			break
+		}
 		endTime = orderList[len(orderList)-1].CreationTime
 	}
 	return req.Filter(ok.Name, resp), nil
@@ -1317,6 +1323,9 @@ allOrders:
 					Pair:            pair,
 				})
 			}
+		}
+		if len(orderList) < 100 {
+			break
 		}
 		endTime = orderList[len(orderList)-1].CreationTime
 	}

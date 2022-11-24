@@ -204,7 +204,7 @@ func (z *ZB) Start(wg *sync.WaitGroup) error {
 	return nil
 }
 
-// Run implements the OKCoin wrapper
+// Run implements the ZB wrapper
 func (z *ZB) Run() {
 	if z.Verbose {
 		z.PrintEnabledPairs()
