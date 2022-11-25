@@ -10,19 +10,19 @@ type Builder struct {
 }
 
 // GetBuilder generates a builder for interval conversions supported by an
-// exchange.
+// exchange. Request
 func GetBuilder(request, required Interval) (*Builder, error) {
 	if request == 0 {
-		return nil, fmt.Errorf("request interval %w", ErrUnsetInterval)
+		return nil, fmt.Errorf("request %w", ErrUnsetInterval)
 	}
 	if required == 0 {
-		return nil, fmt.Errorf("required interval %w", ErrUnsetInterval)
+		return nil, fmt.Errorf("required %w", ErrUnsetInterval)
 	}
 	return &Builder{request, required}, nil
 }
 
 // Request returns the interval supported by the exchange which can then be
-// built to other candles.
+// used to build higher time series candles.
 func (b *Builder) Request() Interval {
 	return b.request
 }

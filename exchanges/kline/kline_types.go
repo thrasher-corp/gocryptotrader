@@ -2,6 +2,7 @@ package kline
 
 import (
 	"errors"
+	"sort"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -128,8 +129,57 @@ type ExchangeCapabilitiesSupported struct {
 
 // ExchangeCapabilitiesEnabled all kline related exchange enabled options
 type ExchangeCapabilitiesEnabled struct {
-	Intervals   map[string]bool `json:"intervals,omitempty"`
+	Intervals   ExchangeIntervals
 	ResultLimit uint32
+}
+
+func DeployExchangeIntervals(enabled ...Interval) ExchangeIntervals {
+	sort.Slice(enabled, func(i, j int) bool {
+		return enabled[i] < enabled[j]
+	})
+
+	store := make(map[Interval]int)
+	for x := range enabled {
+		store[enabled[x]] = x
+	}
+
+	return ExchangeIntervals{store: store, aligned: enabled}
+}
+
+// ExchangeIntervals stores the supported intervals in an optimized lookup table
+// with a supplementary aligned retrieval list
+type ExchangeIntervals struct {
+	store   map[Interval]int
+	aligned []Interval
+}
+
+// Supports returns if the exchange directly supports the interval. In future
+// this might be able to be deprecated because we can construct custom intervals
+// from the supported list.
+func (e *ExchangeIntervals) Supports(required Interval) bool {
+	_, ok := e.store[required]
+	return ok
+}
+
+// Construct fetches supported interval that can construct the required interval
+// e.g. 1 hour interval can be made from 2 * 30min intervals.
+func (e *ExchangeIntervals) Construct(required Interval) (Interval, error) {
+	_, ok := e.store[required]
+	if !ok {
+		// Directly supported by exchange can return.
+		return required, nil
+	}
+
+	for x := range e.aligned {
+		if e.aligned[x] <= required {
+			for y := x; y != -1; y-- {
+				if required%e.aligned[y] == 0 {
+					return e.aligned[y], nil
+				}
+			}
+		}
+	}
+	return 0, errors.New("cannot construct required interval from supported intervals")
 }
 
 // Interval type for kline Interval usage

@@ -339,35 +339,35 @@ func (i *Interval) IntervalsPerYear() float64 {
 // eg convert OneDay candles to ThreeDay candles, if there are adequate candles
 // incomplete candles are NOT converted
 // eg an 4 OneDay candles will convert to one ThreeDay candle, skipping the fourth
-func ConvertToNewInterval(item *Item, newInterval Interval) (*Item, error) {
-	if item == nil {
+func ConvertToNewInterval(old *Item, newInterval Interval) (*Item, error) {
+	if old == nil {
 		return nil, errNilKline
 	}
 	if newInterval <= 0 {
 		return nil, ErrUnsetInterval
 	}
-	if newInterval.Duration() <= item.Interval.Duration() {
+	if newInterval <= old.Interval {
 		return nil, ErrCanOnlyDownscaleCandles
 	}
-	if newInterval.Duration()%item.Interval.Duration() != 0 {
+	if newInterval%old.Interval != 0 {
 		return nil, ErrWholeNumberScaling
 	}
 
-	oldIntervalsPerNewCandle := int64(newInterval / item.Interval)
+	oldIntervalsPerNewCandle := int64(newInterval / old.Interval)
 	var candleBundles [][]Candle
 	candles := make([]Candle, 0, oldIntervalsPerNewCandle)
-	for i := range item.Candles {
-		candles = append(candles, item.Candles[i])
+	for i := range old.Candles {
+		candles = append(candles, old.Candles[i])
 		intervalCount := int64(i + 1)
 		if oldIntervalsPerNewCandle == intervalCount {
 			candleBundles = append(candleBundles, candles)
 			candles = candles[:0]
 		}
 	}
-	responseCandle := &Item{
-		Exchange: item.Exchange,
-		Pair:     item.Pair,
-		Asset:    item.Asset,
+	newCandle := &Item{
+		Exchange: old.Exchange,
+		Pair:     old.Pair,
+		Asset:    old.Asset,
 		Interval: newInterval,
 	}
 	for i := range candleBundles {
@@ -384,7 +384,7 @@ func ConvertToNewInterval(item *Item, newInterval Interval) (*Item, error) {
 			}
 			volume += candleBundles[i][j].Volume
 		}
-		responseCandle.Candles = append(responseCandle.Candles, Candle{
+		newCandle.Candles = append(newCandle.Candles, Candle{
 			Time:   candleBundles[i][0].Time,
 			Open:   candleBundles[i][0].Open,
 			High:   highest,
@@ -394,7 +394,7 @@ func ConvertToNewInterval(item *Item, newInterval Interval) (*Item, error) {
 		})
 	}
 
-	return responseCandle, nil
+	return newCandle, nil
 }
 
 // CalculateCandleDateRanges will calculate the expected candle data in intervals in a date range

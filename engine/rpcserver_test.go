@@ -2487,9 +2487,7 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 		Enabled:      currency.Pairs{cp},
 	}
 
-	b.Features.Enabled.Kline.Intervals = map[string]bool{
-		kline.OneDay.Word(): true,
-	}
+	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.OneDay)
 	em.Add(fExchange{IBotExchange: exch})
 	s := RPCServer{
 		Engine: &Engine{

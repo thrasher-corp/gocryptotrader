@@ -1227,7 +1227,7 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 	}
 
 	b := exch.GetBase()
-	if !b.Features.Enabled.Kline.Intervals[job.Interval.Word()] &&
+	if !b.Features.Enabled.Kline.Intervals.Supports(job.Interval) &&
 		(job.DataType == dataHistoryCandleDataType || job.DataType == dataHistoryCandleValidationDataType) {
 		return fmt.Errorf("job interval %s %s %w %s", job.Nickname, job.Interval.Word(), kline.ErrUnsupportedInterval, job.Exchange)
 	}
