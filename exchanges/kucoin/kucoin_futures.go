@@ -380,7 +380,10 @@ func (k *Kucoin) GetFuturesKline(ctx context.Context, granularity, symbol string
 }
 
 // PostOrder used to place two types of futures orders: limit and market
-func (k *Kucoin) PostFuturesOrder(ctx context.Context, clientOID, side, symbol, orderType, leverage, remark, stop, stopPriceType, stopPrice, price, timeInForce string, size, visibleSize float64, reduceOnly, closeOrder, forceHold, postOnly, hidden, iceberg bool) (string, error) {
+func (k *Kucoin) PostFuturesOrder(ctx context.Context, clientOID, side, symbol,
+	orderType, remark,
+	stop, stopPriceType, stopPrice, timeInForce string, size, price,
+	leverage, visibleSize float64, reduceOnly, closeOrder, forceHold, postOnly, hidden, iceberg bool) (string, error) {
 	resp := struct {
 		Data struct {
 			OrderID string `json:"orderId"`
@@ -401,10 +404,9 @@ func (k *Kucoin) PostFuturesOrder(ctx context.Context, clientOID, side, symbol, 
 		return resp.Data.OrderID, errors.New("symbol can't be empty")
 	}
 	params["symbol"] = symbol
-	if leverage == "" {
-		return resp.Data.OrderID, errors.New("leverage can't be empty")
+	if leverage != 0 {
+		params["leverage"] = strconv.FormatFloat(leverage, 'f', -1, 64)
 	}
-	params["leverage"] = leverage
 	if remark != "" {
 		params["remark"] = remark
 	}
@@ -420,12 +422,12 @@ func (k *Kucoin) PostFuturesOrder(ctx context.Context, clientOID, side, symbol, 
 		params["stopPrice"] = stopPrice
 	}
 	if orderType == "limit" || orderType == "" {
-		if price == "" {
-			return resp.Data.OrderID, errors.New("price can't be empty")
+		if price <= 0 {
+			return resp.Data.OrderID, fmt.Errorf("%w %f", errInvalidPrice, price)
 		}
 		params["price"] = price
 		if size <= 0 {
-			return resp.Data.OrderID, errors.New("size can't be zero or negative")
+			return resp.Data.OrderID, fmt.Errorf("%w size must be non-zero positive value", errInvalidSize)
 		}
 		params["size"] = strconv.FormatFloat(size, 'f', -1, 64)
 		if timeInForce != "" {

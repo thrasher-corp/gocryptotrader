@@ -610,13 +610,13 @@ func TestPostOrder(t *testing.T) {
 	}
 
 	// default order type is limit
-	_, err := ku.PostOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "", "", "", "10000", "", 0.1, 0, 0, 0, true, false, false)
+	_, err := ku.PostOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "limit", "", "", "", 0.1, 0, 0, 0, 0, true, false, false)
 	if err != nil && err.Error() != "Balance insufficient!" {
 		t.Error("PostOrder() error", err)
 	}
 
 	// market order
-	_, err = ku.PostOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "market", "remark", "", "", "", 0.1, 0, 0, 0, true, false, false)
+	_, err = ku.PostOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "market", "remark", "", "", 0.1, 0, 0, 0, 0, true, false, false)
 	if err != nil && err.Error() != "Balance insufficient!" {
 		t.Error("PostOrder() error", err)
 	}
@@ -629,13 +629,13 @@ func TestPostMarginOrder(t *testing.T) {
 	}
 
 	// default order type is limit and margin mode is cross
-	_, err := ku.PostMarginOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "", "", "", "", "10000", "", 0.1, 0, 0, 0, true, false, false, false)
+	_, err := ku.PostMarginOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "", "", "", "", "10000", 1000, 0.1, 0, 0, 0, true, false, false, false)
 	if err != nil && err.Error() != "Balance insufficient!" {
 		t.Error("PostMarginOrder() error", err)
 	}
 
 	// market isolated order
-	_, err = ku.PostMarginOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "market", "remark", "", "isolated", "", "", 0.1, 0, 0, 5, true, false, false, true)
+	_, err = ku.PostMarginOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "market", "remark", "", "isolated", "", 1000, 0.1, 0, 0, 5, true, false, false, true)
 	if err != nil && err.Error() != "Balance insufficient!" {
 		t.Error("PostMarginOrder() error", err)
 	}
@@ -1151,6 +1151,10 @@ func TestGetFuturesOrderbook(t *testing.T) {
 	pairs, err := ku.FetchTradablePairs(context.Background(), asset.Futures)
 	if err != nil {
 		t.Skip(err)
+	} else {
+		for x := range pairs {
+			print(pairs[x] + ",")
+		}
 	}
 	_, err = ku.GetFuturesOrderbook(context.Background(), pairs[0])
 	if err != nil {
@@ -1253,8 +1257,9 @@ func TestPostFuturesOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-
-	_, err := ku.PostFuturesOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "XBTUSDM", "", "10", "", "", "", "", "5000", "", 1, 0, false, false, false, false, false, false)
+	_, err := ku.PostFuturesOrder(context.Background(), "5bd6e9286d99522a52e458de",
+		"buy", "XBTUSDM", "", "10", "", "", "", "", 1, 1000, 0,
+		0, false, false, false, false, false, false)
 	if err != nil {
 		t.Error("PostFuturesOrder() error", err)
 	}
@@ -1725,5 +1730,29 @@ func TestGetOrderHistory(t *testing.T) {
 		t.Errorf("Could not get order history: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
+	}
+}
+
+func TestGetInstanceServers(t *testing.T) {
+	t.Parallel()
+	if _, err := ku.GetInstanceServers(context.Background()); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSConnect(t *testing.T) {
+	err := ku.WsConnect()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAuthenticatedServersInstances(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+	_, err := ku.GetAuthenticatedInstanceServers(context.Background())
+	if err != nil {
+		t.Error(err)
 	}
 }

@@ -33,6 +33,7 @@ type Kucoin struct {
 
 const (
 	kucoinAPIURL        = "https://api.kucoin.com/api"
+	kucoinWebsocketURL  = "wss://ws-api.kucoin.com/endpoint" // Prone to change
 	kucoinAPIVersion    = "1"
 	kucoinAPIKeyVersion = "2"
 
@@ -917,7 +918,7 @@ func (ku *Kucoin) GetServiceStatus(ctx context.Context) (string, string, error) 
 
 // PostOrder used to place two types of orders: limit and market
 // Note: use this only for SPOT trades
-func (ku *Kucoin) PostOrder(ctx context.Context, clientOID, side, symbol, orderType, remark, stop, price, timeInForce string, size, cancelAfter, visibleSize, funds float64, postOnly, hidden, iceberg bool) (string, error) {
+func (ku *Kucoin) PostOrder(ctx context.Context, clientOID, side, symbol, orderType, remark, stop, timeInForce string, size, price, cancelAfter, visibleSize, funds float64, postOnly, hidden, iceberg bool) (string, error) {
 	resp := struct {
 		OrderID string `json:"orderId"`
 		Error
@@ -942,7 +943,7 @@ func (ku *Kucoin) PostOrder(ctx context.Context, clientOID, side, symbol, orderT
 		params["stp"] = stop
 	}
 	if orderType == "limit" || orderType == "" {
-		if price == "" {
+		if price <= 0 {
 			return resp.OrderID, errors.New("price can't be empty")
 		}
 		params["price"] = price
@@ -981,7 +982,7 @@ func (ku *Kucoin) PostOrder(ctx context.Context, clientOID, side, symbol, orderT
 }
 
 // PostMarginOrder used to place two types of margin orders: limit and market
-func (ku *Kucoin) PostMarginOrder(ctx context.Context, clientOID, side, symbol, orderType, remark, stop, marginMode, price, timeInForce string, size, cancelAfter, visibleSize, funds float64, postOnly, hidden, iceberg, autoBorrow bool) (PostMarginOrderResp, error) {
+func (ku *Kucoin) PostMarginOrder(ctx context.Context, clientOID, side, symbol, orderType, remark, stop, marginMode, timeInForce string, price, size, cancelAfter, visibleSize, funds float64, postOnly, hidden, iceberg, autoBorrow bool) (PostMarginOrderResp, error) {
 	resp := struct {
 		PostMarginOrderResp
 		Error
@@ -1010,7 +1011,7 @@ func (ku *Kucoin) PostMarginOrder(ctx context.Context, clientOID, side, symbol, 
 	}
 	params["autoBorrow"] = autoBorrow
 	if orderType == "limit" || orderType == "" {
-		if price == "" {
+		if price <= 0 {
 			return resp.PostMarginOrderResp, errors.New("price can't be empty")
 		}
 		params["price"] = price

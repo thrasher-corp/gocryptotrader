@@ -17,6 +17,8 @@ var (
 	}
 
 	errInvalidResponseReciever = errors.New("invalid response receiver")
+	errInvalidPrice            = errors.New("invalid price")
+	errInvalidSize             = errors.New("invalid size")
 )
 
 var offlineTradeFee = map[currency.Code]float64{
@@ -753,4 +755,33 @@ type Fees struct {
 	Symbol       string  `json:"symbol"`
 	TakerFeeRate float64 `json:"takerFeeRate,string"`
 	MakerFeeRate float64 `json:"makerFeeRate,string"`
+}
+
+// WSInstanceServers response
+type WSInstanceServers struct {
+	Token           string           `json:"token"`
+	InstanceServers []InstanceServer `json:"instanceServers"`
+}
+
+// InstanceServer represents a a single websocket instance server information.
+type InstanceServer struct {
+	Endpoint     string `json:"endpoint"`
+	Encrypt      bool   `json:"encrypt"`
+	Protocol     string `json:"protocol"`
+	PingInterval int64  `json:"pingInterval"`
+	PingTimeout  int64  `json:"pingTimeout"`
+}
+
+// WSConnMessages represents response messages ping, pong, and welcome message structures.
+type WSConnMessages struct {
+	ID   string `json:"id"`
+	Type string `json:"type"`
+}
+
+// WsSubscriptionInput represents a subscription information structure.
+type WsSubscriptionInput struct {
+	ID       int64  `json:"id"`
+	Type     string `json:"type"`
+	Topic    string `json:"topic"`
+	Response bool   `json:"response,omitempty"`
 }

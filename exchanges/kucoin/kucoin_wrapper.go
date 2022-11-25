@@ -35,9 +35,7 @@ func (ku *Kucoin) GetDefaultConfig() (*config.Exchange, error) {
 	exchCfg.Name = ku.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = ku.BaseCurrencies
-
 	ku.SetupDefaults(exchCfg)
-
 	if ku.Features.Supports.RESTCapabilities.AutoPairUpdates {
 		err := ku.UpdateTradablePairs(context.TODO(), true)
 		if err != nil {
@@ -120,9 +118,9 @@ func (ku *Kucoin) SetDefaults() {
 	// NOTE: SET THE URLs HERE
 	ku.API.Endpoints = ku.NewEndpoints()
 	ku.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:    kucoinAPIURL,
-		exchange.RestFutures: kucoinFuturesAPIURL,
-		// exchange.WebsocketSpot: kucoinWSAPIURL,
+		exchange.RestSpot:      kucoinAPIURL,
+		exchange.RestFutures:   kucoinFuturesAPIURL,
+		exchange.WebsocketSpot: kucoinWebsocketURL,
 	})
 	ku.Websocket = stream.New()
 	ku.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -145,37 +143,32 @@ func (ku *Kucoin) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	/*
-		wsRunningEndpoint, err := ku.API.Endpoints.GetURL(exchange.WebsocketSpot)
-		if err != nil {
-			return err
-		}
-
-		// If websocket is supported, please fill out the following
-
-		err = ku.Websocket.Setup(
-			&stream.WebsocketSetup{
-				ExchangeConfig:  exch,
-				DefaultURL:      kucoinWSAPIURL,
-				RunningURL:      wsRunningEndpoint,
-				Connector:       ku.WsConnect,
-				Subscriber:      ku.Subscribe,
-				UnSubscriber:    ku.Unsubscribe,
-				Features:        &ku.Features.Supports.WebsocketCapabilities,
-			})
-		if err != nil {
-			return err
-		}
-
-		ku.WebsocketConn = &stream.WebsocketConnection{
-			ExchangeName:         ku.Name,
-			URL:                  ku.Websocket.GetWebsocketURL(),
-			ProxyURL:             ku.Websocket.GetProxyAddress(),
-			Verbose:              ku.Verbose,
-			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		}
-	*/
+	wsRunningEndpoint, err := ku.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+	err = ku.Websocket.Setup(
+		&stream.WebsocketSetup{
+			ExchangeConfig:        exch,
+			DefaultURL:            kucoinWebsocketURL,
+			RunningURL:            wsRunningEndpoint,
+			Connector:             ku.WsConnect,
+			Subscriber:            ku.Subscribe,
+			Unsubscriber:          ku.Unsubscribe,
+			GenerateSubscriptions: ku.GenerateDefaultSubscriptions,
+			Features:              &ku.Features.Supports.WebsocketCapabilities,
+		})
+	if err != nil {
+		return err
+	}
+	ku.Websocket.Conn = &stream.WebsocketConnection{
+		ExchangeName: ku.Name,
+		URL:          ku.Websocket.GetWebsocketURL(),
+		ProxyURL:     ku.Websocket.GetProxyAddress(),
+		Verbose:      ku.Verbose,
+		// ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit: exch.WebsocketResponseMaxLimit,
+	}
 	return nil
 }
 
@@ -380,25 +373,125 @@ func (ku *Kucoin) UpdateOrderbook(ctx context.Context, pair currency.Pair, asset
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
 func (ku *Kucoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	// If fetching requires more than one asset type please set
-	// HasAssetTypeAccountSegregation to true in RESTCapabilities above.
-	return account.Holdings{}, common.ErrNotYetImplemented
+	holding := account.Holdings{
+		Exchange: ku.Name,
+	}
+	if !ku.SupportsAsset(assetType) {
+		return holding, asset.ErrNotSupported
+	}
+	if assetType.IsFutures() {
+		accoutH, err := ku.GetFuturesAccountOverview(ctx, "")
+		if err != nil {
+			return account.Holdings{}, err
+		}
+		holding.Accounts = append(holding.Accounts, account.SubAccount{
+			AssetType: assetType,
+			Currencies: []account.Balance{{
+				CurrencyName: currency.NewCode(accoutH.Currency),
+				Total:        accoutH.AvailableBalance + accoutH.MarginBalance,
+				Hold:         accoutH.FrozenFunds,
+				Free:         accoutH.AvailableBalance,
+			}},
+		})
+	}
+	accountH, err := ku.GetMarginAccount(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	for x := range accountH.Accounts {
+		holding.Accounts = append(holding.Accounts, account.SubAccount{
+			AssetType: assetType,
+			Currencies: []account.Balance{
+				{
+					CurrencyName: currency.NewCode(accountH.Accounts[x].Currency),
+					Total:        accountH.Accounts[x].TotalBalance,
+					Hold:         accountH.Accounts[x].HoldBalance,
+					Free:         accountH.Accounts[x].TotalBalance - accountH.Accounts[x].HoldBalance,
+				}},
+		})
+	}
+	return holding, nil
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (ku *Kucoin) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	return account.Holdings{}, common.ErrNotYetImplemented
+	acc, err := account.GetHoldings(ku.Name, assetType)
+	if err != nil {
+		return ku.UpdateAccountInfo(ctx, assetType)
+	}
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (ku *Kucoin) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+	withdrawalsData, err := ku.GetWithdrawalList(ctx, "", "", time.Time{}, time.Time{})
+	if err != nil {
+		return nil, err
+	}
+	depositsData, err := ku.GetHistoricalDepositList(ctx, "", "", time.Time{}, time.Time{})
+	if err != nil {
+		return nil, err
+	}
+	fundingData := make([]exchange.FundHistory, 0, len(withdrawalsData)+len(depositsData))
+	for x := range depositsData {
+		fundingData = append(fundingData, exchange.FundHistory{
+			// Fee: depositsData[x].
+			Timestamp:    depositsData[x].CreatedAt.Time(),
+			ExchangeName: ku.Name,
+			CryptoTxID:   depositsData[x].WalletTxID,
+			Status:       depositsData[x].Status,
+			Amount:       depositsData[x].Amount,
+			Currency:     depositsData[x].Currency,
+		})
+	}
+
+	for x := range withdrawalsData {
+		fundingData = append(fundingData, exchange.FundHistory{
+			Fee:             withdrawalsData[x].Fee,
+			Timestamp:       withdrawalsData[x].UpdatedAt.Time(),
+			ExchangeName:    ku.Name,
+			CryptoToAddress: withdrawalsData[x].Address,
+			CryptoTxID:      withdrawalsData[x].WalletTxID,
+			Status:          withdrawalsData[x].Status,
+			Amount:          withdrawalsData[x].Amount,
+			Currency:        withdrawalsData[x].Currency,
+			TransferID:      withdrawalsData[x].ID,
+		})
+	}
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
 func (ku *Kucoin) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
-	return nil, common.ErrNotYetImplemented
+	withdrawals, err := ku.GetHistoricalWithdrawalList(ctx, c.String(), "", time.Time{}, time.Time{}, 0, 0)
+	if err != nil {
+		return
+	}
+	for x := range withdrawals {
+		resp = append(resp, exchange.WithdrawalHistory{
+			Status:     withdrawals[x].Status,
+			CryptoTxID: withdrawals[x].WalletTxID,
+			Timestamp:  withdrawals[x].CreatedAt.Time(),
+			Amount:     withdrawals[x].Amount,
+			// Fee: withdrawals[x].Fee,
+			Currency: c.String(),
+		})
+	}
+	futuresWithdrawals, err := ku.GetFuturesWithdrawalList(ctx, c.String(), "", time.Time{}, time.Time{})
+	if err != nil {
+		return
+	}
+	for y := range futuresWithdrawals {
+		resp = append(resp, exchange.WithdrawalHistory{
+			Status:     futuresWithdrawals[y].Status,
+			CryptoTxID: futuresWithdrawals[y].WalletTxID,
+			Timestamp:  futuresWithdrawals[y].CreatedAt.Time(),
+			Amount:     futuresWithdrawals[y].Amount,
+			Currency:   c.String(),
+		})
+	}
+	return
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
@@ -460,7 +553,20 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
-	return submitOrderResponse, common.ErrNotYetImplemented
+	if s.AssetType.IsFutures() {
+		o, err := ku.PostFuturesOrder(ctx, s.ClientOrderID, s.Side.String(), s.Pair.String(), s.Type.Lower(), "", "", "", "", "", s.Amount, s.Price, s.Leverage, 0, s.ReduceOnly, false, false, s.PostOnly, s.HiddenOrder, false)
+		if err != nil {
+			return submitOrderResponse, err
+		}
+		return order.SubmitResponse{OrderID: o}, nil
+	}
+	o, err := ku.PostOrder(ctx, s.ClientOrderID, s.Side.Lower(), s.Pair.Upper().String(), s.Type.Lower(), "", "", "", s.Amount, s.Price, 0, 0, 0, s.PostOnly, s.HiddenOrder, false)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+	return order.SubmitResponse{
+		OrderID: o,
+	}, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -695,7 +801,6 @@ func (ku *Kucoin) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuil
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
-	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyWithdrawalFee,
 		exchange.CryptocurrencyTradeFee:
@@ -724,10 +829,6 @@ func (ku *Kucoin) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuil
 		}
 		return 0, fmt.Errorf("can't construct fee")
 	}
-	if fee < 0 {
-		fee = 0
-	}
-	return fee, nil
 }
 
 // ValidateCredentials validates current credentials used for wrapper
