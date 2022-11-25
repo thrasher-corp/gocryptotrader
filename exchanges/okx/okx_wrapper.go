@@ -1304,23 +1304,36 @@ allOrders:
 				if err != nil {
 					return nil, err
 				}
+				orderAmount := orderList[i].Size
+				if orderList[i].QuantityType == "quote_ccy" {
+					// Size is quote amount.
+					orderAmount /= orderList[i].AveragePrice
+				}
+
+				remainingAmount := float64(0)
+				if orderStatus != order.Filled {
+					remainingAmount = orderAmount - orderList[i].AccumulatedFillSize
+				}
 				resp = append(resp, order.Detail{
-					Price:           orderList[i].Price,
-					Amount:          orderList[i].Size,
-					ExecutedAmount:  orderList[i].FillSize,
-					RemainingAmount: orderList[i].Size - orderList[i].FillSize,
-					Fee:             orderList[i].TransactionFee,
-					FeeAsset:        currency.NewCode(orderList[i].FeeCurrency),
-					Exchange:        ok.Name,
-					OrderID:         orderList[i].OrderID,
-					ClientOrderID:   orderList[i].ClientSupplierOrderID,
-					Type:            oType,
-					Side:            orderSide,
-					Status:          orderStatus,
-					AssetType:       req.AssetType,
-					Date:            orderList[i].CreationTime,
-					LastUpdated:     orderList[i].UpdateTime,
-					Pair:            pair,
+					Price:                orderList[i].Price,
+					AverageExecutedPrice: orderList[i].AveragePrice,
+					Amount:               orderAmount,
+					ExecutedAmount:       orderList[i].AccumulatedFillSize,
+					RemainingAmount:      remainingAmount,
+					Fee:                  orderList[i].TransactionFee,
+					FeeAsset:             currency.NewCode(orderList[i].FeeCurrency),
+					Exchange:             ok.Name,
+					OrderID:              orderList[i].OrderID,
+					ClientOrderID:        orderList[i].ClientSupplierOrderID,
+					Type:                 oType,
+					Side:                 orderSide,
+					Status:               orderStatus,
+					AssetType:            req.AssetType,
+					Date:                 orderList[i].CreationTime,
+					LastUpdated:          orderList[i].UpdateTime,
+					Pair:                 pair,
+					Cost:                 orderList[i].AveragePrice * orderList[i].AccumulatedFillSize,
+					CostAsset:            currency.NewCode(orderList[i].RebateCurrency),
 				})
 			}
 		}
