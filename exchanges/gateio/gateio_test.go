@@ -2193,10 +2193,11 @@ func TestGetSingleSubAccount(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	if _, err := g.FetchTradablePairs(context.Background(), asset.DeliveryFutures); err != nil {
+	_, err := g.FetchTradablePairs(context.Background(), asset.DeliveryFutures)
+	if err != nil {
 		t.Errorf("%s FetchTradablePairs() error %v", g.Name, err)
 	}
-	if _, err := g.FetchTradablePairs(context.Background(), asset.Options); err != nil {
+	if _, err = g.FetchTradablePairs(context.Background(), asset.Options); err != nil {
 		t.Errorf("%s FetchTradablePairs() error %v", g.Name, err)
 	}
 }
