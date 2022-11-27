@@ -1990,3 +1990,34 @@ func (ku *Kucoin) intervalToString(interval kline.Interval) (string, error) {
 		return "", kline.ErrUnsupportedInterval
 	}
 }
+
+func (ku *Kucoin) stringToInterval(interval string) (kline.Interval, error) {
+	switch interval {
+	case "1min":
+		return kline.OneMin, nil
+	case "3min":
+		return kline.ThreeMin, nil
+	case "5min":
+		return kline.FiveMin, nil
+	case "15min":
+		return kline.FifteenMin, nil
+	case "30min":
+		return kline.ThirtyMin, nil
+	case "1hour":
+		return kline.OneHour, nil
+	case "4hour":
+		return kline.FourHour, nil
+	case "6hour":
+		return kline.SixHour, nil
+	case "8hour":
+		return kline.EightHour, nil
+	case "12hour":
+		return kline.TwelveHour, nil
+	case "1day":
+		return kline.OneDay, nil
+	case "1week":
+		return kline.OneWeek, nil
+	default:
+		return 0, kline.ErrUnsupportedInterval
+	}
+}

@@ -169,7 +169,6 @@ func TestGetKlines(t *testing.T) {
 
 func TestGetCurrencies(t *testing.T) {
 	t.Parallel()
-
 	_, err := ku.GetCurrencies(context.Background())
 	if err != nil {
 		t.Error("GetCurrencies() error", err)

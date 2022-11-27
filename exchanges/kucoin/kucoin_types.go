@@ -19,6 +19,7 @@ var (
 	errInvalidResponseReciever = errors.New("invalid response receiver")
 	errInvalidPrice            = errors.New("invalid price")
 	errInvalidSize             = errors.New("invalid size")
+	errMalformedData           = errors.New("malformed data")
 )
 
 var offlineTradeFee = map[currency.Code]float64{
@@ -780,8 +781,167 @@ type WSConnMessages struct {
 
 // WsSubscriptionInput represents a subscription information structure.
 type WsSubscriptionInput struct {
-	ID       int64  `json:"id"`
-	Type     string `json:"type"`
-	Topic    string `json:"topic"`
-	Response bool   `json:"response,omitempty"`
+	ID             int64  `json:"id"`
+	Type           string `json:"type"`
+	Topic          string `json:"topic"`
+	PrivateChannel bool   `json:"privateChannel"`
+	Response       bool   `json:"response,omitempty"`
+}
+
+// WSSubscriptionResponse represents a subscription response.
+type WSSubscriptionResponse struct {
+	ID   string `json:"id"`
+	Type string `json:"type"`
+}
+
+// WsPushData represents a push data from a server.
+type WsPushData struct {
+	ID      string          `json:"id"`
+	Type    string          `json:"type"`
+	Topic   string          `json:"topic"`
+	Subject string          `json:"subject"`
+	Data    json.RawMessage `json:"data"`
+}
+
+// WsTicker represents a ticker push data from server.
+type WsTicker struct {
+	Sequence    string  `json:"sequence"`
+	BestAsk     float64 `json:"bestAsk,string"`
+	Size        float64 `json:"size,string"`
+	BestBidSize float64 `json:"bestBidSize,string"`
+	Price       float64 `json:"price,string"`
+	BestAskSize float64 `json:"bestAskSize,string"`
+	BestBid     float64 `json:"bestBid,string"`
+}
+
+// WsTickerDetail represents a ticker snapshot data from server.
+type WsTickerDetail struct {
+	Sequence string `json:"sequence"`
+	Data     struct {
+		Trading         bool    `json:"trading"`
+		Symbol          string  `json:"symbol"`
+		Buy             float64 `json:"buy"`
+		Sell            float64 `json:"sell"`
+		Sort            int     `json:"sort"`
+		VolValue        float64 `json:"volValue"`
+		BaseCurrency    string  `json:"baseCurrency"`
+		Market          string  `json:"market"`
+		QuoteCurrency   string  `json:"quoteCurrency"`
+		SymbolCode      string  `json:"symbolCode"`
+		Datetime        int64   `json:"datetime"`
+		High            float64 `json:"high"`
+		Vol             float64 `json:"vol"`
+		Low             float64 `json:"low"`
+		ChangePrice     float64 `json:"changePrice"`
+		ChangeRate      float64 `json:"changeRate"`
+		LastTradedPrice float64 `json:"lastTradedPrice"`
+		Board           int     `json:"board"`
+		Mark            int     `json:"mark"`
+	} `json:"data"`
+}
+
+// WsOrderbook represents orderbook information.
+type WsOrderbook struct {
+	Changes struct {
+		Asks [][3]string `json:"asks"`
+		Bids [][3]string `json:"bids"`
+	} `json:"changes"`
+	SequenceEnd   int64  `json:"sequenceEnd"`
+	SequenceStart int64  `json:"sequenceStart"`
+	Symbol        string `json:"symbol"`
+	TimeMS        int64  `json:"time"`
+}
+
+// WsCandlestickData represents candlestick information push data for a symbol.
+type WsCandlestickData struct {
+	Symbol  string    `json:"symbol"`
+	Candles [7]string `json:"candles"`
+	Time    int64     `json:"time"`
+}
+
+// WsCandlestick represents candlestick information push data for a symbol.
+type WsCandlestick struct {
+	Symbol  string `json:"symbol"`
+	Candles struct {
+		StartTime         time.Time
+		OpenPrice         float64
+		ClosePrice        float64
+		HighPrice         float64
+		LowPrice          float64
+		TransactionVolume float64
+		TransactionAmount float64
+	} `json:"candles"`
+	Time time.Time `json:"time"`
+}
+
+func (a *WsCandlestickData) getCandlestickData() (*WsCandlestick, error) {
+	cand := &WsCandlestick{
+		Symbol: a.Symbol,
+		Time:   time.UnixMilli(a.Time),
+	}
+	timeStamp, err := strconv.ParseInt(a.Candles[0], 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	cand.Candles.StartTime = time.UnixMilli(timeStamp)
+	cand.Candles.OpenPrice, err = strconv.ParseFloat(a.Candles[1], 64)
+	if err != nil {
+		return nil, err
+	}
+	cand.Candles.ClosePrice, err = strconv.ParseFloat(a.Candles[2], 64)
+	if err != nil {
+		return nil, err
+	}
+	cand.Candles.HighPrice, err = strconv.ParseFloat(a.Candles[3], 64)
+	if err != nil {
+		return nil, err
+	}
+	cand.Candles.LowPrice, err = strconv.ParseFloat(a.Candles[4], 64)
+	if err != nil {
+		return nil, err
+	}
+	cand.Candles.TransactionVolume, err = strconv.ParseFloat(a.Candles[5], 64)
+	if err != nil {
+		return nil, err
+	}
+	cand.Candles.TransactionAmount, err = strconv.ParseFloat(a.Candles[6], 64)
+	if err != nil {
+		return nil, err
+	}
+	return cand, nil
+}
+
+// WsTrade represents a trade push data.
+type WsTrade struct {
+	Sequence     string  `json:"sequence"`
+	Type         string  `json:"type"`
+	Symbol       string  `json:"symbol"`
+	Side         string  `json:"side"`
+	Price        float64 `json:"price,string"`
+	Size         float64 `json:"size,string"`
+	TradeID      string  `json:"tradeId"`
+	TakerOrderID string  `json:"takerOrderId"`
+	MakerOrderID string  `json:"makerOrderId"`
+	Time         int64   `json:"time,string"`
+}
+
+// WsPriceIndicator represents index price or mark price indicator push data.
+type WsPriceIndicator struct {
+	Symbol      string  `json:"symbol"`
+	Granularity float64 `json:"granularity"`
+	Timestamp   int64   `json:"timestamp"`
+	Value       float64 `json:"value"`
+}
+
+// WsMarginFundingBook represents order book changes on margin.
+type WsMarginFundingBook struct {
+	Sequence           string  `json:"sequence"`
+	Currency           string  `json:"currency"`
+	DailyInterestRate  float64 `json:"dailyIntRate,string"`
+	AnnualInterestRate float64 `json:"annualIntRate,string"`
+	Term               int64   `json:"term"`
+	Size               float64 `json:"size,string"`
+	Side               string  `json:"side"`
+	Timestamp          int64   `json:"ts"` // In Nanosecond
+
 }
