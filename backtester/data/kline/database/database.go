@@ -73,7 +73,7 @@ func LoadData(startDate, endDate time.Time, interval time.Duration, exchangeName
 	return resp, nil
 }
 
-func getCandleDatabaseData(startDate, endDate time.Time, interval time.Duration, exchangeName string, fPair currency.Pair, a asset.Item) (gctkline.Item, error) {
+func getCandleDatabaseData(startDate, endDate time.Time, interval time.Duration, exchangeName string, fPair currency.Pair, a asset.Item) (*gctkline.Item, error) {
 	return gctkline.LoadFromDatabase(
 		exchangeName,
 		fPair,

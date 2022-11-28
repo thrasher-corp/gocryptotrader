@@ -232,9 +232,9 @@ func SQLDataToTrade(dbTrades ...tradesql.Data) ([]Data, error) {
 }
 
 // ConvertTradesToCandles turns trade data into kline.Items
-func ConvertTradesToCandles(interval kline.Interval, trades ...Data) (kline.Item, error) {
+func ConvertTradesToCandles(interval kline.Interval, trades ...Data) (*kline.Item, error) {
 	if len(trades) == 0 {
-		return kline.Item{}, ErrNoTradesSupplied
+		return nil, ErrNoTradesSupplied
 	}
 	groupedData := groupTradesToInterval(interval, trades...)
 	candles := kline.Item{
@@ -247,7 +247,7 @@ func ConvertTradesToCandles(interval kline.Interval, trades ...Data) (kline.Item
 		candles.Candles = append(candles.Candles, classifyOHLCV(time.Unix(k, 0), v...))
 	}
 
-	return candles, nil
+	return &candles, nil
 }
 
 func groupTradesToInterval(interval kline.Interval, times ...Data) map[int64][]Data {

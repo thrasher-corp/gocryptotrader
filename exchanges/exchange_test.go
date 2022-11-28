@@ -1961,9 +1961,7 @@ func TestBase_ValidateKline(t *testing.T) {
 		Features: Features{
 			Enabled: FeaturesEnabled{
 				Kline: kline.ExchangeCapabilitiesEnabled{
-					Intervals: map[string]bool{
-						kline.OneMin.Word(): true,
-					},
+					Intervals: kline.DeployExchangeIntervals(kline.OneMin),
 				},
 			},
 		},
@@ -2644,14 +2642,14 @@ func TestGetKlineBuilder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrUnsupportedInterval)
 	}
 
-	b.Features.Enabled.Kline.Intervals = map[string]bool{
-		kline.OneMin.Word():   true,
-		kline.FiveMin.Word():  true,
-		kline.OneHour.Word():  true,
-		kline.OneDay.Word():   true,
-		kline.OneWeek.Word():  true,
-		kline.OneMonth.Word(): true,
-	}
+	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(
+		kline.OneMin,
+		kline.FiveMin,
+		kline.OneHour,
+		kline.OneDay,
+		kline.OneWeek,
+		kline.OneMonth,
+	)
 
 	builder, err := b.GetKlineBuilder(kline.OneMin)
 	if !errors.Is(err, nil) {

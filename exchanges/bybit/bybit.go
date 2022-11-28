@@ -299,22 +299,14 @@ func (by *Bybit) GetKlines(ctx context.Context, symbol, period string, limit int
 		}
 		kline.TradesCount = int64(tradesCount)
 
-		takerBaseVolume, ok := resp.Data[x][9].(string)
+		kline.TakerBaseVolume, ok = resp.Data[x][9].(float64)
 		if !ok {
 			return klines, fmt.Errorf("%v GetKlines: %w for TakerBaseVolume", by.Name, errTypeAssert)
 		}
-		kline.TakerBaseVolume, err = strconv.ParseFloat(takerBaseVolume, 64)
-		if err != nil {
-			return klines, fmt.Errorf("%v GetKlines: %w for TakerBaseVolume", by.Name, errStrParsing)
-		}
 
-		takerQuoteVolume, ok := resp.Data[x][10].(string)
+		kline.TakerQuoteVolume, ok = resp.Data[x][10].(float64)
 		if !ok {
 			return klines, fmt.Errorf("%v GetKlines: %w for TakerQuoteVolume", by.Name, errTypeAssert)
-		}
-		kline.TakerQuoteVolume, err = strconv.ParseFloat(takerQuoteVolume, 64)
-		if err != nil {
-			return klines, fmt.Errorf("%v GetKlines: %w for TakerQuoteVolume", by.Name, errStrParsing)
 		}
 
 		klines[x] = kline

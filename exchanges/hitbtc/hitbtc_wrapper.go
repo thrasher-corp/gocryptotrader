@@ -115,16 +115,16 @@ func (h *HitBTC) SetDefaults() {
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.OneMin.Word():    true,
-					kline.ThreeMin.Word():  true,
-					kline.FiveMin.Word():   true,
-					kline.ThirtyMin.Word(): true,
-					kline.OneHour.Word():   true,
-					kline.FourHour.Word():  true,
-					kline.OneDay.Word():    true,
-					kline.SevenDay.Word():  true,
-				},
+				Intervals: kline.DeployExchangeIntervals(
+					kline.OneMin,
+					kline.ThreeMin,
+					kline.FiveMin,
+					kline.ThirtyMin,
+					kline.OneHour,
+					kline.FourHour,
+					kline.OneDay,
+					kline.SevenDay,
+				),
 				ResultLimit: 1000,
 			},
 		},
@@ -874,82 +874,75 @@ func (h *HitBTC) FormatExchangeKlineInterval(in kline.Interval) string {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (h *HitBTC) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := h.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
+func (h *HitBTC) GetHistoricCandles(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
+	if builder == nil {
+		return nil, kline.ErrNilBuilder
 	}
 
-	formattedPair, err := h.FormatExchangeCurrency(pair, a)
+	formattedPair, err := h.FormatExchangeCurrency(builder.Pair, builder.Asset)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
 	data, err := h.GetCandles(ctx,
 		formattedPair.String(),
 		strconv.FormatInt(int64(h.Features.Enabled.Kline.ResultLimit), 10),
-		h.FormatExchangeKlineInterval(interval),
-		start,
-		end)
+		h.FormatExchangeKlineInterval(builder.Request),
+		builder.Start,
+		builder.End)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
-	ret := kline.Item{
-		Exchange: h.Name,
-		Pair:     pair,
-		Asset:    a,
-		Interval: interval,
-	}
+	timeSeries := make([]kline.Candle, len(data))
 	for x := range data {
-		ret.Candles = append(ret.Candles, kline.Candle{
+		timeSeries[x] = kline.Candle{
 			Time:   data[x].Timestamp,
 			Open:   data[x].Open,
 			High:   data[x].Max,
 			Low:    data[x].Min,
 			Close:  data[x].Close,
 			Volume: data[x].Volume,
-		})
+		}
 	}
-
+	ret, err := builder.ConvertCandles(timeSeries)
+	if err != nil {
+		return nil, err
+	}
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (h *HitBTC) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := h.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
-	}
-	ret := kline.Item{
-		Exchange: h.Name,
-		Pair:     pair,
-		Asset:    a,
-		Interval: interval,
+func (h *HitBTC) GetHistoricCandlesExtended(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
+	if builder == nil {
+		return nil, kline.ErrNilBuilder
 	}
 
-	dates, err := kline.CalculateCandleDateRanges(start, end, interval, h.Features.Enabled.Kline.ResultLimit)
+	dates, err := builder.GetRanges(h.Features.Enabled.Kline.ResultLimit)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
-	formattedPair, err := h.FormatExchangeCurrency(pair, a)
+	formattedPair, err := h.FormatExchangeCurrency(builder.Pair, builder.Asset)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
+	var timeSeries []kline.Candle
 	for y := range dates.Ranges {
 		var data []ChartData
 		data, err = h.GetCandles(ctx,
 			formattedPair.String(),
 			strconv.FormatInt(int64(h.Features.Enabled.Kline.ResultLimit), 10),
-			h.FormatExchangeKlineInterval(interval),
+			h.FormatExchangeKlineInterval(builder.Request),
 			dates.Ranges[y].Start.Time,
 			dates.Ranges[y].End.Time)
 		if err != nil {
-			return kline.Item{}, err
+			return nil, err
 		}
 
 		for i := range data {
-			ret.Candles = append(ret.Candles, kline.Candle{
+			timeSeries = append(timeSeries, kline.Candle{
 				Time:   data[i].Timestamp,
 				Open:   data[i].Open,
 				High:   data[i].Max,
@@ -959,13 +952,18 @@ func (h *HitBTC) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 			})
 		}
 	}
+	ret, err := builder.ConvertCandles(timeSeries)
+	if err != nil {
+		return nil, err
+	}
+
 	dates.SetHasDataFromCandles(ret.Candles)
 	summary := dates.DataSummary(false)
 	if len(summary) > 0 {
 		log.Warnf(log.ExchangeSys, "%v - %v", h.Name, summary)
 	}
 	ret.RemoveDuplicates()
-	ret.RemoveOutsideRange(start, end)
+	ret.RemoveOutsideRange(builder.Start, builder.End)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }

@@ -2,6 +2,7 @@ package kline
 
 import (
 	"errors"
+	"fmt"
 	"sort"
 	"time"
 
@@ -133,6 +134,8 @@ type ExchangeCapabilitiesEnabled struct {
 	ResultLimit uint32
 }
 
+// DeployExchangeIntervals aligns and stores supported intervals for an exchange
+// for future matching.
 func DeployExchangeIntervals(enabled ...Interval) ExchangeIntervals {
 	sort.Slice(enabled, func(i, j int) bool {
 		return enabled[i] < enabled[j]
@@ -161,22 +164,25 @@ func (e *ExchangeIntervals) Supports(required Interval) bool {
 	return ok
 }
 
+var errInvalidInterval = errors.New("invalid interval")
+
 // Construct fetches supported interval that can construct the required interval
 // e.g. 1 hour interval can be made from 2 * 30min intervals.
 func (e *ExchangeIntervals) Construct(required Interval) (Interval, error) {
+	if required <= 0 {
+		return 0, errInvalidInterval
+	}
 	_, ok := e.store[required]
-	if !ok {
+	if ok {
+		fmt.Println("bruh match")
 		// Directly supported by exchange can return.
 		return required, nil
 	}
 
-	for x := range e.aligned {
-		if e.aligned[x] <= required {
-			for y := x; y != -1; y-- {
-				if required%e.aligned[y] == 0 {
-					return e.aligned[y], nil
-				}
-			}
+	for x := len(e.aligned) - 1; x > -1; x-- {
+		if e.aligned[x] < required && required%e.aligned[x] == 0 {
+			fmt.Println("WOW TIME MATCH", e.aligned[x])
+			return e.aligned[x], nil
 		}
 	}
 	return 0, errors.New("cannot construct required interval from supported intervals")

@@ -50,7 +50,7 @@ func TestGetBase(t *testing.T) {
 
 	d.Next()
 	_, err = s.GetBaseData(&datakline.DataFromKline{
-		Item:        gctkline.Item{},
+		Item:        &gctkline.Item{},
 		Base:        d,
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	})

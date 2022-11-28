@@ -92,18 +92,18 @@ func (l *Lbank) SetDefaults() {
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.OneMin.Word():     true,
-					kline.FiveMin.Word():    true,
-					kline.FifteenMin.Word(): true,
-					kline.ThirtyMin.Word():  true,
-					kline.OneHour.Word():    true,
-					kline.FourHour.Word():   true,
-					kline.EightHour.Word():  true,
-					kline.TwelveHour.Word(): true,
-					kline.OneDay.Word():     true,
-					kline.OneWeek.Word():    true,
-				},
+				Intervals: kline.DeployExchangeIntervals(
+					kline.OneMin,
+					kline.FiveMin,
+					kline.FifteenMin,
+					kline.ThirtyMin,
+					kline.OneHour,
+					kline.FourHour,
+					kline.EightHour,
+					kline.TwelveHour,
+					kline.OneDay,
+					kline.OneWeek,
+				),
 				ResultLimit: 2000,
 			},
 		},
@@ -890,84 +890,76 @@ func (l *Lbank) FormatExchangeKlineInterval(in kline.Interval) string {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (l *Lbank) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := l.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
+func (l *Lbank) GetHistoricCandles(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
+	if builder == nil {
+		return nil, kline.ErrNilBuilder
 	}
 
-	formattedPair, err := l.FormatExchangeCurrency(pair, a)
+	formattedPair, err := l.FormatExchangeCurrency(builder.Pair, builder.Asset)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
 	data, err := l.GetKlines(ctx,
 		formattedPair.String(),
 		strconv.FormatInt(int64(l.Features.Enabled.Kline.ResultLimit), 10),
-		l.FormatExchangeKlineInterval(interval),
-		strconv.FormatInt(start.Unix(), 10))
+		l.FormatExchangeKlineInterval(builder.Request),
+		strconv.FormatInt(builder.Start.Unix(), 10))
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
-	ret := kline.Item{
-		Exchange: l.Name,
-		Pair:     pair,
-		Asset:    a,
-		Interval: interval,
-	}
-
+	timeSeries := make([]kline.Candle, len(data))
 	for x := range data {
-		ret.Candles = append(ret.Candles, kline.Candle{
+		timeSeries[x] = kline.Candle{
 			Time:   data[x].TimeStamp,
 			Open:   data[x].OpenPrice,
 			High:   data[x].HigestPrice,
 			Low:    data[x].LowestPrice,
 			Close:  data[x].ClosePrice,
 			Volume: data[x].TradingVolume,
-		})
+		}
 	}
 
+	ret, err := builder.ConvertCandles(timeSeries)
+	if err != nil {
+		return nil, err
+	}
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (l *Lbank) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := l.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
+func (l *Lbank) GetHistoricCandlesExtended(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
+	if builder == nil {
+		return nil, kline.ErrNilBuilder
 	}
 
-	ret := kline.Item{
-		Exchange: l.Name,
-		Pair:     pair,
-		Asset:    a,
-		Interval: interval,
-	}
-
-	dates, err := kline.CalculateCandleDateRanges(start, end, interval, l.Features.Enabled.Kline.ResultLimit)
+	dates, err := builder.GetRanges(l.Features.Enabled.Kline.ResultLimit)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
-	formattedPair, err := l.FormatExchangeCurrency(pair, a)
+	formattedPair, err := l.FormatExchangeCurrency(builder.Pair, builder.Asset)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
+	var timeSeries []kline.Candle
 	for x := range dates.Ranges {
 		var data []KlineResponse
 		data, err = l.GetKlines(ctx,
 			formattedPair.String(),
 			strconv.FormatInt(int64(l.Features.Enabled.Kline.ResultLimit), 10),
-			l.FormatExchangeKlineInterval(interval),
+			l.FormatExchangeKlineInterval(builder.Request),
 			strconv.FormatInt(dates.Ranges[x].Start.Ticks, 10))
 		if err != nil {
-			return kline.Item{}, err
+			return nil, err
 		}
 		for i := range data {
 			if data[i].TimeStamp.Unix() < dates.Ranges[x].Start.Ticks || data[i].TimeStamp.Unix() > dates.Ranges[x].End.Ticks {
 				continue
 			}
-			ret.Candles = append(ret.Candles, kline.Candle{
+			timeSeries = append(timeSeries, kline.Candle{
 				Time:   data[i].TimeStamp,
 				Open:   data[i].OpenPrice,
 				High:   data[i].HigestPrice,
@@ -978,13 +970,18 @@ func (l *Lbank) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 		}
 	}
 
+	ret, err := builder.ConvertCandles(timeSeries)
+	if err != nil {
+		return nil, err
+	}
+
 	dates.SetHasDataFromCandles(ret.Candles)
 	summary := dates.DataSummary(false)
 	if len(summary) > 0 {
 		log.Warnf(log.ExchangeSys, "%v - %v", l.Name, summary)
 	}
 	ret.RemoveDuplicates()
-	ret.RemoveOutsideRange(start, end)
+	ret.RemoveOutsideRange(builder.Start, builder.End)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }

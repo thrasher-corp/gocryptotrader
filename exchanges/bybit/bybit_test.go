@@ -2315,16 +2315,25 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	end := time.Now()
+	startTime := end.AddDate(0, 0, -3)
 
-	startTime := time.Unix(1546300800, 0)
-	end := time.Unix(1577836799, 0)
+	builder, err := b.GetKlineBuilder(pair, asset.Spot, kline.OneDay, startTime, end)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, startTime, end, kline.OneDay)
+	_, err = b.GetHistoricCandles(context.Background(), builder)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = b.GetHistoricCandles(context.Background(), pair, asset.USDTMarginedFutures, startTime, end, kline.OneDay)
+	builder, err = b.GetKlineBuilder(pair, asset.USDTMarginedFutures, kline.OneDay, startTime, end)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetHistoricCandles(context.Background(), builder)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2334,7 +2343,12 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetHistoricCandles(context.Background(), pair1, asset.CoinMarginedFutures, startTime, end, kline.OneMin)
+	builder, err = b.GetKlineBuilder(pair1, asset.CoinMarginedFutures, kline.OneMin, startTime, end)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetHistoricCandles(context.Background(), builder)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2344,7 +2358,12 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetHistoricCandles(context.Background(), pair2, asset.Futures, startTime, end, kline.OneMin)
+	builder, err = b.GetKlineBuilder(pair2, asset.Futures, kline.OneMin, startTime, end)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetHistoricCandles(context.Background(), builder)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2354,7 +2373,12 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetHistoricCandles(context.Background(), pair3, asset.USDCMarginedFutures, startTime, end, kline.OneDay)
+	builder, err = b.GetKlineBuilder(pair3, asset.USDCMarginedFutures, kline.OneDay, startTime, end)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetHistoricCandles(context.Background(), builder)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2370,12 +2394,22 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	startTime := time.Now().Add(-time.Hour * 24 * 3)
 	end := time.Now().Add(-time.Hour * 1)
 
-	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, startTime, end, kline.OneMin)
+	builder, err := b.GetKlineBuilder(pair, asset.Spot, kline.OneMin, startTime, end)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetHistoricCandlesExtended(context.Background(), builder)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.USDTMarginedFutures, startTime, end, kline.OneMin)
+	builder, err = b.GetKlineBuilder(pair, asset.USDTMarginedFutures, kline.OneMin, startTime, end)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetHistoricCandlesExtended(context.Background(), builder)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2385,7 +2419,12 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetHistoricCandlesExtended(context.Background(), pair1, asset.CoinMarginedFutures, startTime, end, kline.OneHour)
+	builder, err = b.GetKlineBuilder(pair1, asset.CoinMarginedFutures, kline.OneHour, startTime, end)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetHistoricCandlesExtended(context.Background(), builder)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2395,7 +2434,12 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetHistoricCandlesExtended(context.Background(), pair2, asset.Futures, startTime, end, kline.OneDay)
+	builder, err = b.GetKlineBuilder(pair2, asset.Futures, kline.OneDay, startTime, end)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetHistoricCandlesExtended(context.Background(), builder)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2405,7 +2449,12 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetHistoricCandlesExtended(context.Background(), pair3, asset.USDCMarginedFutures, startTime, end, kline.FiveMin)
+	builder, err = b.GetKlineBuilder(pair3, asset.USDCMarginedFutures, kline.FiveMin, startTime, end)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetHistoricCandlesExtended(context.Background(), builder)
 	if err != nil {
 		t.Error(err)
 	}

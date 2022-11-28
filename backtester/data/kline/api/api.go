@@ -16,7 +16,7 @@ import (
 
 // LoadData retrieves data from a GoCryptoTrader exchange wrapper which calls the exchange's API
 func LoadData(ctx context.Context, dataType int64, startDate, endDate time.Time, interval time.Duration, exch exchange.IBotExchange, fPair currency.Pair, a asset.Item) (*kline.Item, error) {
-	var candles kline.Item
+	var candles *kline.Item
 	var err error
 	switch dataType {
 	case common.DataCandle:
@@ -48,6 +48,5 @@ func LoadData(ctx context.Context, dataType int64, startDate, endDate time.Time,
 		return nil, fmt.Errorf("could not retrieve data for %v %v %v, %w", exch.GetName(), a, fPair, common.ErrInvalidDataType)
 	}
 	candles.Exchange = strings.ToLower(candles.Exchange)
-
-	return &candles, nil
+	return candles, nil
 }

@@ -260,7 +260,7 @@ func TestExecuteOrder(t *testing.T) {
 		ClosePrice:     decimal.NewFromInt(1),
 	}
 
-	item := gctkline.Item{
+	item := &gctkline.Item{
 		Exchange: testExchange,
 		Pair:     p,
 		Asset:    a,
@@ -378,7 +378,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	}
 
 	d := &kline.DataFromKline{
-		Item: gctkline.Item{
+		Item: &gctkline.Item{
 			Exchange: "",
 			Pair:     currency.EMPTYPAIR,
 			Asset:    asset.Empty,

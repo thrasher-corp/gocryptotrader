@@ -94,42 +94,64 @@ func TestGetChartCandles(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTC-USD")
+	t.Parallel()
+
+	pair, err := currency.NewPairFromString("BTC-USD")
 	if err != nil {
 		t.Fatal(err)
 	}
 	startTime := time.Now().Add(-time.Hour * 24)
 	end := time.Now()
-	_, err = h.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, startTime, end, kline.OneMin)
+	builder, err := h.GetKlineBuilder(pair, asset.Spot, kline.OneMin, startTime, end)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = h.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, startTime, end, kline.Interval(time.Hour*7))
+	_, err = h.GetHistoricCandles(context.Background(), builder)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	builder, err = h.GetKlineBuilder(pair, asset.Spot, kline.Interval(time.Hour*7), startTime, end)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// TODO: Fix conversion
+	_, err = h.GetHistoricCandles(context.Background(), builder)
 	if err == nil {
 		t.Fatal("unexpected result")
 	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTC-USD")
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTC-USD")
 	if err != nil {
 		t.Fatal(err)
 	}
 	startTime := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
-	_, err = h.GetHistoricCandlesExtended(context.Background(),
-		currencyPair, asset.Spot, startTime, end, kline.OneHour)
+
+	builder, err := h.GetKlineBuilder(pair, asset.Spot, kline.OneHour, startTime, end)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = h.GetHistoricCandlesExtended(context.Background(),
-		currencyPair, asset.Spot, startTime, end, kline.Interval(time.Hour*7))
-	if err == nil {
-		t.Fatal("unexpected result")
+	_, err = h.GetHistoricCandlesExtended(context.Background(), builder)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	builder, err = h.GetKlineBuilder(pair, asset.Spot, kline.Interval(time.Hour*7), startTime, end)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// TODO: Fix conversion
+	_, err = h.GetHistoricCandlesExtended(context.Background(), builder)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

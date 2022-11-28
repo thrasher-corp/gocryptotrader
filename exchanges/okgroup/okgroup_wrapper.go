@@ -653,68 +653,65 @@ func (o *OKGroup) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (o *OKGroup) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := o.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
+func (o *OKGroup) GetHistoricCandles(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
+	if builder == nil {
+		return nil, kline.ErrNilBuilder
 	}
 
-	formattedPair, err := o.FormatExchangeCurrency(pair, a)
+	formattedPair, err := o.FormatExchangeCurrency(builder.Pair, builder.Asset)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
-	req := &GetMarketDataRequest{
-		Asset:        a,
-		Start:        start.UTC().Format(time.RFC3339),
-		End:          end.UTC().Format(time.RFC3339),
-		Granularity:  o.FormatExchangeKlineInterval(interval),
+	candles, err := o.GetMarketData(ctx, &GetMarketDataRequest{
+		Asset:        builder.Asset,
+		Start:        builder.Start.UTC().Format(time.RFC3339),
+		End:          builder.End.UTC().Format(time.RFC3339),
+		Granularity:  o.FormatExchangeKlineInterval(builder.Request),
 		InstrumentID: formattedPair.String(),
-	}
-
-	candles, err := o.GetMarketData(ctx, req)
+	})
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
-	ret := kline.Item{
-		Exchange: o.Name,
-		Pair:     pair,
-		Asset:    a,
-		Interval: interval,
-	}
-
+	timeSeries := make([]kline.Candle, len(candles))
 	for x := range candles {
 		t, ok := candles[x].([]interface{})
 		if !ok {
-			return kline.Item{}, errors.New("unable to type asset candle data")
+			return nil, errors.New("unable to type asset candle data")
 		}
 		if len(t) < 6 {
-			return kline.Item{}, errors.New("incorrect candles data length")
+			return nil, errors.New("incorrect candles data length")
 		}
 		v, ok := t[0].(string)
 		if !ok {
-			return kline.Item{}, errors.New("unable to type asset time data")
+			return nil, errors.New("unable to type asset time data")
 		}
 		var tempCandle kline.Candle
 		if tempCandle.Time, err = time.Parse(time.RFC3339, v); err != nil {
-			return kline.Item{}, err
+			return nil, err
 		}
 		if tempCandle.Open, err = convert.FloatFromString(t[1]); err != nil {
-			return kline.Item{}, err
+			return nil, err
 		}
 		if tempCandle.High, err = convert.FloatFromString(t[2]); err != nil {
-			return kline.Item{}, err
+			return nil, err
 		}
 		if tempCandle.Low, err = convert.FloatFromString(t[3]); err != nil {
-			return kline.Item{}, err
+			return nil, err
 		}
 		if tempCandle.Close, err = convert.FloatFromString(t[4]); err != nil {
-			return kline.Item{}, err
+			return nil, err
 		}
 		if tempCandle.Volume, err = convert.FloatFromString(t[5]); err != nil {
-			return kline.Item{}, err
+			return nil, err
 		}
-		ret.Candles = append(ret.Candles, tempCandle)
+		timeSeries[x] = tempCandle
+	}
+
+	ret, err := builder.ConvertCandles(timeSeries)
+	if err != nil {
+		return nil, err
 	}
 
 	ret.SortCandlesByTimestamp(false)
@@ -722,87 +719,86 @@ func (o *OKGroup) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (o *OKGroup) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := o.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
+func (o *OKGroup) GetHistoricCandlesExtended(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
+	if builder == nil {
+		return nil, kline.ErrNilBuilder
 	}
 
-	ret := kline.Item{
-		Exchange: o.Name,
-		Pair:     pair,
-		Asset:    a,
-		Interval: interval,
-	}
-
-	dates, err := kline.CalculateCandleDateRanges(start, end, interval, o.Features.Enabled.Kline.ResultLimit)
+	dates, err := builder.GetRanges(o.Features.Enabled.Kline.ResultLimit)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
-	formattedPair, err := o.FormatExchangeCurrency(pair, a)
+	formattedPair, err := o.FormatExchangeCurrency(builder.Pair, builder.Asset)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
+	var timeSeries []kline.Candle
 	for x := range dates.Ranges {
-		req := &GetMarketDataRequest{
-			Asset:        a,
+		var candles GetMarketDataResponse
+		candles, err = o.GetMarketData(ctx, &GetMarketDataRequest{
+			Asset:        builder.Asset,
 			Start:        dates.Ranges[x].Start.Time.UTC().Format(time.RFC3339),
 			End:          dates.Ranges[x].End.Time.UTC().Format(time.RFC3339),
-			Granularity:  o.FormatExchangeKlineInterval(interval),
+			Granularity:  o.FormatExchangeKlineInterval(builder.Request),
 			InstrumentID: formattedPair.String(),
-		}
-
-		var candles GetMarketDataResponse
-		candles, err = o.GetMarketData(ctx, req)
+		})
 		if err != nil {
-			return kline.Item{}, err
+			return nil, err
 		}
 
 		for i := range candles {
 			t, ok := candles[i].([]interface{})
 			if !ok {
-				return kline.Item{}, errors.New("unable to type assert candles data")
+				return nil, errors.New("unable to type assert candles data")
 			}
 			if len(t) < 6 {
-				return kline.Item{}, errors.New("candle data length invalid")
+				return nil, errors.New("candle data length invalid")
 			}
 			v, ok := t[0].(string)
 			if !ok {
-				return kline.Item{}, errors.New("unable to type assert time value")
+				return nil, errors.New("unable to type assert time value")
 			}
 			var tempCandle kline.Candle
 			if tempCandle.Time, err = time.Parse(time.RFC3339, v); err != nil {
-				return kline.Item{}, err
+				return nil, err
 			}
 			if tempCandle.Open, err = convert.FloatFromString(t[1]); err != nil {
-				return kline.Item{}, err
+				return nil, err
 			}
 			if tempCandle.High, err = convert.FloatFromString(t[2]); err != nil {
-				return kline.Item{}, err
+				return nil, err
 			}
 
 			if tempCandle.Low, err = convert.FloatFromString(t[3]); err != nil {
-				return kline.Item{}, err
+				return nil, err
 			}
 
 			if tempCandle.Close, err = convert.FloatFromString(t[4]); err != nil {
-				return kline.Item{}, err
+				return nil, err
 			}
 
 			if tempCandle.Volume, err = convert.FloatFromString(t[5]); err != nil {
-				return kline.Item{}, err
+				return nil, err
 			}
-			ret.Candles = append(ret.Candles, tempCandle)
+			timeSeries = append(timeSeries, tempCandle)
 		}
 	}
 
+	ret, err := builder.ConvertCandles(timeSeries)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: This needs testing
 	dates.SetHasDataFromCandles(ret.Candles)
 	summary := dates.DataSummary(false)
 	if len(summary) > 0 {
 		log.Warnf(log.ExchangeSys, "%v - %v", o.Base.Name, summary)
 	}
+	// TODO: Inline builder methods
 	ret.RemoveDuplicates()
-	ret.RemoveOutsideRange(start, end)
+	ret.RemoveOutsideRange(builder.Start, builder.End)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }

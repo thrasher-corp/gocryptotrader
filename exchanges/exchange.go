@@ -1115,7 +1115,7 @@ func (b *Base) AuthenticateWebsocket(_ context.Context) error {
 
 // KlineIntervalEnabled returns if requested interval is enabled on exchange
 func (b *Base) klineIntervalEnabled(in kline.Interval) bool {
-	return b.Features.Enabled.Kline.Intervals[in.Word()]
+	return b.Features.Enabled.Kline.Intervals.Supports(in)
 }
 
 // FormatExchangeKlineInterval returns Interval to string
@@ -1486,38 +1486,25 @@ func (b *Base) IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error
 	return false, common.ErrNotYetImplemented
 }
 
-// GetKlineBuilder
-func (b *Base) GetKlineBuilder(interval kline.Interval) (*kline.Builder, error) {
-	word := interval.Word()
-	if word == "notfound" {
-		return nil, kline.ErrUnsetInterval
+// GetKlineBuilder generates a builder for custom candles to be generated from
+// supported candles.
+func (b *Base) GetKlineBuilder(pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Builder, error) {
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
 	}
-	_, ok := b.Features.Enabled.Kline.Intervals[interval.Word()]
-	if ok {
-		return kline.GetBuilder(interval, interval)
-	}
-
-	for x := range kline.SupportedIntervals {
-		if interval > kline.SupportedIntervals[x] {
-			continue
-		}
-
-		for y := x - 1; y > -1; y-- {
-			_, ok = b.Features.Enabled.Kline.Intervals[kline.SupportedIntervals[y].Word()]
-			if !ok {
-				// Not supported on exchange
-				continue
-			}
-
-			if interval%kline.SupportedIntervals[y] != 0 {
-				// Cannot fit inside this bro
-				continue
-			}
-
-			return kline.GetBuilder(kline.SupportedIntervals[y], interval)
-		}
-		break
+	if !a.IsValid() {
+		return nil, asset.ErrNotSupported
 	}
 
-	return nil, kline.ErrUnsupportedInterval
+	request, err := b.Features.Enabled.Kline.Intervals.Construct(required)
+	if err != nil {
+		return nil, err
+	}
+
+	err = b.ValidateKline(pair, a, request)
+	if err != nil {
+		return nil, err
+	}
+
+	return kline.GetBuilder(b.Name, pair, a, required, request, start, end)
 }

@@ -138,8 +138,8 @@ func (f fExchange) GetFundingRates(ctx context.Context, request *order.FundingRa
 	}, nil
 }
 
-func (f fExchange) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{
+func (f fExchange) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (*kline.Item, error) {
+	return &kline.Item{
 		Exchange: fakeExchangeName,
 		Pair:     p,
 		Asset:    a,
@@ -173,8 +173,8 @@ func generateCandles(amount int, timeStart time.Time, interval kline.Interval) [
 	return candy
 }
 
-func (f fExchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{
+func (f fExchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (*kline.Item, error) {
+	return &kline.Item{
 		Exchange: fakeExchangeName,
 		Pair:     p,
 		Asset:    a,

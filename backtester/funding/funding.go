@@ -234,7 +234,7 @@ func (f *FundManager) setUSDCandles(k *kline.DataFromKline, i int) error {
 		}
 	}
 	cpy := *k
-	cpy.Item = usdCandles
+	cpy.Item = &usdCandles
 	if err := cpy.Load(); err != nil {
 		return err
 	}

@@ -763,26 +763,34 @@ func TestParseTime(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTC_USDT")
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTC_USDT")
 	if err != nil {
 		t.Fatal(err)
 	}
 	startTime := time.Now().Add(-time.Hour * 6)
-	_, err = g.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
+	builder, err := g.GetKlineBuilder(pair, asset.Spot, kline.OneMin, startTime, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = g.GetHistoricCandles(context.Background(), builder)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTC_USDT")
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTC_USDT")
 	if err != nil {
 		t.Fatal(err)
 	}
-	startTime := time.Now().Add(-time.Minute * 2)
-	_, err = g.GetHistoricCandlesExtended(context.Background(),
-		currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
+	startTime := time.Now().Add(-time.Hour * 2)
+	builder, err := g.GetKlineBuilder(pair, asset.Spot, kline.OneMin, startTime, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = g.GetHistoricCandlesExtended(context.Background(), builder)
 	if err != nil {
 		t.Fatal(err)
 	}

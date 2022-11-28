@@ -91,7 +91,7 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Conf
 	}
 	dates.SetHasDataFromCandles(candles.Candles)
 	resp.RangeHolder = dates
-	resp.Item = *candles
+	resp.Item = candles
 
 	loadNewDataTimer := time.NewTimer(time.Second * 5)
 	for {
@@ -133,7 +133,7 @@ func (bt *BackTest) loadLiveData(resp *kline.DataFromKline, cfg *config.Config, 
 		return nil
 	}
 	resp.AppendResults(candles)
-	bt.Reports.UpdateItem(&resp.Item)
+	bt.Reports.UpdateItem(resp.Item)
 	log.Info(common.Backtester, "Sleeping for 30 seconds before checking for new candle data")
 	return nil
 }

@@ -110,20 +110,20 @@ func (b *Bitstamp) SetDefaults() {
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.OneMin.Word():     true,
-					kline.ThreeMin.Word():   true,
-					kline.FiveMin.Word():    true,
-					kline.FifteenMin.Word(): true,
-					kline.ThirtyMin.Word():  true,
-					kline.OneHour.Word():    true,
-					kline.TwoHour.Word():    true,
-					kline.FourHour.Word():   true,
-					kline.SixHour.Word():    true,
-					kline.TwelveHour.Word(): true,
-					kline.OneDay.Word():     true,
-					kline.ThreeDay.Word():   true,
-				},
+				Intervals: kline.DeployExchangeIntervals(
+					kline.OneMin,
+					kline.ThreeMin,
+					kline.FiveMin,
+					kline.FifteenMin,
+					kline.ThirtyMin,
+					kline.OneHour,
+					kline.TwoHour,
+					kline.FourHour,
+					kline.SixHour,
+					kline.TwelveHour,
+					kline.OneDay,
+					kline.ThreeDay,
+				),
 				ResultLimit: 1000,
 			},
 		},
@@ -863,41 +863,35 @@ func (b *Bitstamp) ValidateCredentials(ctx context.Context, assetType asset.Item
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (b *Bitstamp) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := b.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
+func (b *Bitstamp) GetHistoricCandles(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
+	if builder == nil {
+		return nil, kline.ErrNilBuilder
 	}
 
-	ret := kline.Item{
-		Exchange: b.Name,
-		Pair:     pair,
-		Asset:    a,
-		Interval: interval,
-	}
-
-	formattedPair, err := b.FormatExchangeCurrency(pair, a)
+	// TODO: Shift formatting to builder creation
+	formattedPair, err := b.FormatExchangeCurrency(builder.Pair, builder.Asset)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
 	candles, err := b.OHLC(ctx,
-		formattedPair.Lower().String(),
-		start,
-		end,
-		b.FormatExchangeKlineInterval(interval),
-		strconv.FormatInt(int64(b.Features.Enabled.Kline.ResultLimit), 10),
-	)
-
+		formattedPair.Lower().String(), // Bruh...
+		builder.Start,
+		builder.End,
+		b.FormatExchangeKlineInterval(builder.Request),
+		strconv.FormatInt(int64(b.Features.Enabled.Kline.ResultLimit), 10))
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
+	timeSeries := make([]kline.Candle, 0, len(candles.Data.OHLCV))
 	for x := range candles.Data.OHLCV {
-		if time.Unix(candles.Data.OHLCV[x].Timestamp, 0).Before(start) ||
-			time.Unix(candles.Data.OHLCV[x].Timestamp, 0).After(end) {
+		// TODO: probably remove this check
+		if time.Unix(candles.Data.OHLCV[x].Timestamp, 0).Before(builder.Start) ||
+			time.Unix(candles.Data.OHLCV[x].Timestamp, 0).After(builder.End) {
 			continue
 		}
-		ret.Candles = append(ret.Candles, kline.Candle{
+		timeSeries = append(timeSeries, kline.Candle{
 			Time:   time.Unix(candles.Data.OHLCV[x].Timestamp, 0),
 			Open:   candles.Data.OHLCV[x].Open,
 			High:   candles.Data.OHLCV[x].High,
@@ -906,52 +900,51 @@ func (b *Bitstamp) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 			Volume: candles.Data.OHLCV[x].Volume,
 		})
 	}
-
+	ret, err := builder.ConvertCandles(timeSeries)
+	if err != nil {
+		return nil, err
+	}
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (b *Bitstamp) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := b.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
+func (b *Bitstamp) GetHistoricCandlesExtended(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
+	if builder == nil {
+		return nil, kline.ErrNilBuilder
 	}
 
-	ret := kline.Item{
-		Exchange: b.Name,
-		Pair:     pair,
-		Asset:    a,
-		Interval: interval,
-	}
-
-	dates, err := kline.CalculateCandleDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
+	dates, err := builder.GetRanges(b.Features.Enabled.Kline.ResultLimit)
 	if err != nil {
-		return kline.Item{}, err
-	}
-	formattedPair, err := b.FormatExchangeCurrency(pair, a)
-	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
+	formattedPair, err := b.FormatExchangeCurrency(builder.Pair, builder.Asset)
+	if err != nil {
+		return nil, err
+	}
+
+	var timeSeries []kline.Candle
 	for x := range dates.Ranges {
 		var candles OHLCResponse
 		candles, err = b.OHLC(ctx,
-			formattedPair.Lower().String(),
+			formattedPair.Lower().String(), // Why format above?
 			dates.Ranges[x].Start.Time,
 			dates.Ranges[x].End.Time,
-			b.FormatExchangeKlineInterval(interval),
+			b.FormatExchangeKlineInterval(builder.Request),
 			strconv.FormatInt(int64(b.Features.Enabled.Kline.ResultLimit), 10),
 		)
 		if err != nil {
-			return kline.Item{}, err
+			return nil, err
 		}
 
 		for i := range candles.Data.OHLCV {
-			if time.Unix(candles.Data.OHLCV[i].Timestamp, 0).Before(start) ||
-				time.Unix(candles.Data.OHLCV[i].Timestamp, 0).After(end) {
+			// TODO: Shift formatting to builder creation
+			if time.Unix(candles.Data.OHLCV[i].Timestamp, 0).Before(builder.Start) ||
+				time.Unix(candles.Data.OHLCV[i].Timestamp, 0).After(builder.End) {
 				continue
 			}
-			ret.Candles = append(ret.Candles, kline.Candle{
+			timeSeries = append(timeSeries, kline.Candle{
 				Time:   time.Unix(candles.Data.OHLCV[i].Timestamp, 0),
 				Open:   candles.Data.OHLCV[i].Open,
 				High:   candles.Data.OHLCV[i].High,
@@ -961,13 +954,17 @@ func (b *Bitstamp) GetHistoricCandlesExtended(ctx context.Context, pair currency
 			})
 		}
 	}
+	ret, err := builder.ConvertCandles(timeSeries)
+	if err != nil {
+		return nil, err
+	}
 	dates.SetHasDataFromCandles(ret.Candles)
 	summary := dates.DataSummary(false)
 	if len(summary) > 0 {
 		log.Warnf(log.ExchangeSys, "%v - %v", b.Name, summary)
 	}
 	ret.RemoveDuplicates()
-	ret.RemoveOutsideRange(start, end)
+	ret.RemoveOutsideRange(builder.Start, builder.End)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }

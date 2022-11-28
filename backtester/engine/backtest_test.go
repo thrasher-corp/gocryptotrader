@@ -140,7 +140,7 @@ func TestFullCycle(t *testing.T) {
 
 	bt.Datas.Setup()
 	k := kline.DataFromKline{
-		Item: gctkline.Item{
+		Item: &gctkline.Item{
 			Exchange: ex,
 			Pair:     cp,
 			Asset:    a,
@@ -261,7 +261,7 @@ func TestFullCycleMulti(t *testing.T) {
 
 	bt.Datas.Setup()
 	k := kline.DataFromKline{
-		Item: gctkline.Item{
+		Item: &gctkline.Item{
 			Exchange: ex,
 			Pair:     cp,
 			Asset:    a,
@@ -346,7 +346,7 @@ func TestTriggerLiquidationsForExchange(t *testing.T) {
 	}})
 	d.Next()
 	da := &kline.DataFromKline{
-		Item: gctkline.Item{
+		Item: &gctkline.Item{
 			Exchange: testExchange,
 			Asset:    a,
 			Pair:     cp,
@@ -612,7 +612,7 @@ func TestProcessOrderEvent(t *testing.T) {
 	tt := time.Now()
 	bt.Datas.Setup()
 	k := kline.DataFromKline{
-		Item: gctkline.Item{
+		Item: &gctkline.Item{
 			Exchange: testExchange,
 			Pair:     cp,
 			Asset:    a,
@@ -771,7 +771,7 @@ func TestProcessFillEvent(t *testing.T) {
 	tt := time.Now()
 	bt.Datas.Setup()
 	k := kline.DataFromKline{
-		Item: gctkline.Item{
+		Item: &gctkline.Item{
 			Exchange: testExchange,
 			Pair:     cp,
 			Asset:    a,
@@ -928,7 +928,7 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 	tt := time.Now()
 	bt.Datas.Setup()
 	k := kline.DataFromKline{
-		Item: gctkline.Item{
+		Item: &gctkline.Item{
 			Exchange: testExchange,
 			Pair:     cp,
 			Asset:    a,

@@ -799,41 +799,48 @@ func TestWsOrders(t *testing.T) {
 }
 
 func TestBTCMarkets_GetHistoricCandles(t *testing.T) {
-	p, err := currency.NewPairFromString(BTCAUD)
+	t.Parallel()
+	pair, err := currency.NewPairFromString(BTCAUD)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = b.GetHistoricCandles(context.Background(),
-		p,
-		asset.Spot,
-		time.Now().Add(-time.Hour*24).UTC(),
-		time.Now().UTC(),
-		kline.OneHour)
+
+	builder, err := b.GetKlineBuilder(pair, asset.Spot, kline.OneHour, time.Now().Add(-time.Hour*24).UTC(), time.Now().UTC())
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = b.GetHistoricCandles(context.Background(),
-		p,
-		asset.Spot,
-		time.Now().Add(-time.Hour*24).UTC(),
-		time.Now().UTC(),
-		kline.FifteenMin)
+
+	_, err = b.GetHistoricCandles(context.Background(), builder)
 	if err != nil {
-		if err.Error() != "interval not supported" {
-			t.Fatal(err)
-		}
+		t.Fatal(err)
+	}
+
+	builder, err = b.GetKlineBuilder(pair, asset.Spot, kline.FifteenMin, time.Now().Add(-time.Hour*24).UTC(), time.Now().UTC())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetHistoricCandles(context.Background(), builder)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
 func TestBTCMarkets_GetHistoricCandlesExtended(t *testing.T) {
+	t.Parallel()
 	start := time.Now().AddDate(0, 0, -2)
 	end := time.Now()
-	p, err := currency.NewPairFromString(BTCAUD)
+	pair, err := currency.NewPairFromString(BTCAUD)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = b.GetHistoricCandlesExtended(context.Background(),
-		p, asset.Spot, start, end, kline.OneDay)
+
+	builder, err := b.GetKlineBuilder(pair, asset.Spot, kline.OneDay, start, end)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetHistoricCandlesExtended(context.Background(), builder)
 	if err != nil {
 		t.Fatal(err)
 	}

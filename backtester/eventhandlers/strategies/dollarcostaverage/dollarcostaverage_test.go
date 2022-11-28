@@ -71,7 +71,7 @@ func TestOnSignal(t *testing.T) {
 	}})
 	d.Next()
 	da := &kline.DataFromKline{
-		Item:        gctkline.Item{},
+		Item:        &gctkline.Item{},
 		Base:        d,
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
@@ -84,7 +84,7 @@ func TestOnSignal(t *testing.T) {
 		t.Error("expected missing data")
 	}
 
-	da.Item = gctkline.Item{
+	da.Item = &gctkline.Item{
 		Exchange: exch,
 		Pair:     p,
 		Asset:    a,
@@ -150,7 +150,7 @@ func TestOnSignals(t *testing.T) {
 	}})
 	d.Next()
 	da := &kline.DataFromKline{
-		Item:        gctkline.Item{},
+		Item:        &gctkline.Item{},
 		Base:        d,
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
@@ -166,7 +166,7 @@ func TestOnSignals(t *testing.T) {
 		t.Error("expected missing data")
 	}
 
-	da.Item = gctkline.Item{
+	da.Item = &gctkline.Item{
 		Exchange: exch,
 		Pair:     p,
 		Asset:    a,

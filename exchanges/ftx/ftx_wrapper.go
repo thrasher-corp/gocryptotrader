@@ -136,15 +136,15 @@ func (f *FTX) SetDefaults() {
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.FifteenSecond.Word(): true,
-					kline.OneMin.Word():        true,
-					kline.FiveMin.Word():       true,
-					kline.FifteenMin.Word():    true,
-					kline.OneHour.Word():       true,
-					kline.FourHour.Word():      true,
-					kline.OneDay.Word():        true,
-				},
+				Intervals: kline.DeployExchangeIntervals(
+					kline.FifteenSecond,
+					kline.OneMin,
+					kline.FiveMin,
+					kline.FifteenMin,
+					kline.OneHour,
+					kline.FourHour,
+					kline.OneDay,
+				),
 				ResultLimit: 5000,
 			},
 		},
@@ -1150,29 +1150,24 @@ func (f *FTX) ValidateCredentials(ctx context.Context, assetType asset.Item) err
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (f *FTX) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	builder, err := f.GetKlineBuilder(interval)
-	if err != nil {
-		return kline.Item{}, err
+func (f *FTX) GetHistoricCandles(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
+	if builder == nil {
+		return nil, kline.ErrNilBuilder
 	}
 
-	// if err := f.ValidateKline(p, a, builder.Request()); err != nil {
-	// 	return kline.Item{}, err
-	// }
-
-	formattedPair, err := f.FormatExchangeCurrency(p, a)
+	formattedPair, err := f.FormatExchangeCurrency(builder.Pair, builder.Asset)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
 	ohlcData, err := f.GetHistoricalData(ctx,
 		formattedPair.String(),
-		int64(builder.Request().Duration().Seconds()),
+		int64(builder.Request.Duration().Seconds()),
 		int64(f.Features.Enabled.Kline.ResultLimit),
-		start,
-		end)
+		builder.Start,
+		builder.End)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
 	candles := make([]kline.Candle, len(ohlcData))
@@ -1187,58 +1182,46 @@ func (f *FTX) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.I
 		}
 	}
 
-	ret := &kline.Item{
-		Exchange: f.Name,
-		Pair:     p,
-		Asset:    a,
-		Interval: interval,
+	ret, err := builder.ConvertCandles(candles)
+	if err != nil {
+		return nil, err
 	}
 
 	ret.Candles = candles
-
-	converted, err := builder.Convert(ret)
-
-	return *converted, err
+	return builder.Convert(ret)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (f *FTX) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	builder, err := f.GetKlineBuilder(interval)
+func (f *FTX) GetHistoricCandlesExtended(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
+	if builder == nil {
+		return nil, kline.ErrNilBuilder
+	}
+
+	dates, err := builder.GetRanges(f.Features.Enabled.Kline.ResultLimit)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
-	ret := kline.Item{
-		Exchange: f.Name,
-		Pair:     p,
-		Asset:    a,
-		Interval: builder.Request(),
-	}
-
-	dates, err := kline.CalculateCandleDateRanges(start, end, builder.Request(), f.Features.Enabled.Kline.ResultLimit)
+	formattedPair, err := f.FormatExchangeCurrency(builder.Pair, builder.Asset)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
-	formattedPair, err := f.FormatExchangeCurrency(p, a)
-	if err != nil {
-		return kline.Item{}, err
-	}
-
+	var timeSeries []kline.Candle
 	for x := range dates.Ranges {
 		var ohlcData []OHLCVData
 		ohlcData, err = f.GetHistoricalData(ctx,
 			formattedPair.String(),
-			int64(builder.Request().Duration().Seconds()),
+			int64(builder.Request.Duration().Seconds()),
 			int64(f.Features.Enabled.Kline.ResultLimit),
 			dates.Ranges[x].Start.Time,
 			dates.Ranges[x].End.Time)
 		if err != nil {
-			return kline.Item{}, err
+			return nil, err
 		}
 
 		for i := range ohlcData {
-			ret.Candles = append(ret.Candles, kline.Candle{
+			timeSeries = append(timeSeries, kline.Candle{
 				Time:   ohlcData[i].StartTime,
 				Open:   ohlcData[i].Open,
 				High:   ohlcData[i].High,
@@ -1248,24 +1231,20 @@ func (f *FTX) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a
 			})
 		}
 	}
+	ret, err := builder.ConvertCandles(timeSeries)
+	if err != nil {
+		return nil, err
+	}
 	dates.SetHasDataFromCandles(ret.Candles)
 	summary := dates.DataSummary(false)
 	if len(summary) > 0 {
 		log.Warnf(log.ExchangeSys, "%v - %v", f.Name, summary)
 	}
 	ret.RemoveDuplicates()
-	ret.RemoveOutsideRange(start, end)
+	ret.RemoveOutsideRange(builder.Start, builder.End)
 	ret.SortCandlesByTimestamp(false)
 
-	fmt.Printf("BEFORE: %+v\n", ret.Candles)
-
-	convert, err := builder.Convert(&ret)
-	if err != nil {
-		return ret, err
-	}
-
-	fmt.Printf("AFTER: %+v\n", convert.Candles)
-	return *convert, nil
+	return ret, nil
 }
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type

@@ -110,21 +110,21 @@ func (z *ZB) SetDefaults() {
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.OneMin.Word():     true,
-					kline.ThreeMin.Word():   true,
-					kline.FiveMin.Word():    true,
-					kline.FifteenMin.Word(): true,
-					kline.ThirtyMin.Word():  true,
-					kline.OneHour.Word():    true,
-					kline.TwoHour.Word():    true,
-					kline.FourHour.Word():   true,
-					kline.SixHour.Word():    true,
-					kline.TwelveHour.Word(): true,
-					kline.OneDay.Word():     true,
-					kline.ThreeDay.Word():   true,
-					kline.OneWeek.Word():    true,
-				},
+				Intervals: kline.DeployExchangeIntervals(
+					kline.OneMin,
+					kline.ThreeMin,
+					kline.FiveMin,
+					kline.FifteenMin,
+					kline.ThirtyMin,
+					kline.OneHour,
+					kline.TwoHour,
+					kline.FourHour,
+					kline.SixHour,
+					kline.TwelveHour,
+					kline.OneDay,
+					kline.ThreeDay,
+					kline.OneWeek,
+				),
 				ResultLimit: 1000,
 			},
 		},
@@ -886,15 +886,15 @@ func (z *ZB) FormatExchangeKlineInterval(in kline.Interval) string {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (z *ZB) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (z *ZB) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (*kline.Item, error) {
 	ret, err := z.validateCandlesRequest(p, a, start, end, interval)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
 	p, err = z.FormatExchangeCurrency(p, a)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
 	klineParams := KlinesRequestParams{
@@ -906,7 +906,7 @@ func (z *ZB) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.It
 	var candles KLineResponse
 	candles, err = z.GetSpotKline(ctx, klineParams)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
 	for x := range candles.Data {
@@ -928,15 +928,15 @@ func (z *ZB) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.It
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (z *ZB) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (z *ZB) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (*kline.Item, error) {
 	ret, err := z.validateCandlesRequest(p, a, start, end, interval)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
 	p, err = z.FormatExchangeCurrency(p, a)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
 	startTime := start
@@ -951,7 +951,7 @@ allKlines:
 
 		candles, err := z.GetSpotKline(ctx, klineParams)
 		if err != nil {
-			return kline.Item{}, err
+			return nil, err
 		}
 
 		for x := range candles.Data {
@@ -983,15 +983,15 @@ allKlines:
 	return ret, nil
 }
 
-func (z *ZB) validateCandlesRequest(p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (z *ZB) validateCandlesRequest(p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (*kline.Item, error) {
 	if err := common.StartEndTimeCheck(start, end); err != nil {
-		return kline.Item{}, fmt.Errorf("invalid time range supplied. Start: %v End %v %w", start, end, err)
+		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v %w", start, end, err)
 	}
 	if err := z.ValidateKline(p, a, interval); err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
-	return kline.Item{
+	return &kline.Item{
 		Exchange: z.Name,
 		Pair:     p,
 		Asset:    a,

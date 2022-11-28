@@ -1278,14 +1278,18 @@ func TestGetFundingHistory(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("BTC/USD")
+	pair, err := currency.NewPairFromString("BTC/USD")
 	if err != nil {
 		t.Fatal(err)
 	}
 	start := time.Date(2019, 11, 12, 0, 0, 0, 0, time.UTC)
 	end := start.AddDate(0, 0, 2)
-	_, err = f.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, start, end, kline.OneDay)
+
+	builder, err := f.GetKlineBuilder(pair, asset.Spot, kline.OneDay, start, end)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = f.GetHistoricCandles(context.Background(), builder)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1293,14 +1297,18 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("BTC/USD")
+	pair, err := currency.NewPairFromString("BTC/USD")
 	if err != nil {
 		t.Fatal(err)
 	}
 	start := time.Date(2019, 11, 12, 0, 0, 0, 0, time.UTC)
 	end := start.AddDate(0, 0, 2)
-	_, err = f.GetHistoricCandlesExtended(context.Background(),
-		currencyPair, asset.Spot, start, end, kline.OneDay)
+
+	builder, err := f.GetKlineBuilder(pair, asset.Spot, kline.OneDay, start, end)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = f.GetHistoricCandlesExtended(context.Background(), builder)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2162,6 +2170,10 @@ func TestLoadCollateralWeightings(t *testing.T) {
 	}
 }
 
+func (c CollateralWeightHolder) hasData() bool {
+	return len(c) > 0
+}
+
 func TestLoadTotalIMF(t *testing.T) {
 	t.Parallel()
 	c := CollateralWeightHolder{}
@@ -2198,18 +2210,6 @@ func TestLoadCollateralWeight(t *testing.T) {
 	}
 	if cw.InitialMarginFractionFactor != 3 {
 		t.Errorf("expected '3', received '%v'", cw.InitialMarginFractionFactor)
-	}
-}
-
-func TestCollateralWeightHasData(t *testing.T) {
-	t.Parallel()
-	c := CollateralWeightHolder{}
-	if c.hasData() {
-		t.Error("expected false")
-	}
-	c.load("test", 1, 2, 3)
-	if !c.hasData() {
-		t.Error("expected true")
 	}
 }
 

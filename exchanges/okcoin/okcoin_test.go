@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -1115,35 +1116,51 @@ func TestGetOrderbook(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTC-USD")
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTC-USD")
 	if err != nil {
 		t.Fatal(err)
 	}
 	startTime := time.Unix(1588636800, 0)
-	_, err = o.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
+	builder, err := o.GetKlineBuilder(pair, asset.Spot, kline.OneMin, startTime, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = o.GetHistoricCandles(context.Background(), builder)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTC-USD")
+	pair, err := currency.NewPairFromString("BTC-USD")
 	if err != nil {
 		t.Fatal(err)
 	}
 	startTime := time.Unix(1588636800, 0)
-	_, err = o.GetHistoricCandlesExtended(context.Background(),
-		currencyPair, asset.Spot, startTime, time.Now(), kline.OneWeek)
+	builder, err := o.GetKlineBuilder(pair, asset.Spot, kline.OneWeek, startTime, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = o.GetHistoricCandlesExtended(context.Background(), builder)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = o.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, startTime, time.Now(), kline.Interval(time.Hour*7))
-	if err == nil {
-		t.Fatal("unexpected result")
+	o.Verbose = true
+
+	builder, err = o.GetKlineBuilder(pair, asset.Spot, kline.Interval(time.Hour*7), startTime, time.Now())
+	if err != nil {
+		t.Fatal(err)
 	}
+
+	// TODO: This 7 hour conversion return is wrong.
+	moo, err := o.GetHistoricCandles(context.Background(), builder)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fmt.Printf("%+v\n", moo)
 }
 
 func TestGetRecentTrades(t *testing.T) {

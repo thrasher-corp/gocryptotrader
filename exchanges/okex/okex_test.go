@@ -21,7 +21,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -650,61 +649,6 @@ func TestGetSpotMarketData(t *testing.T) {
 	_, err := o.GetMarketData(context.Background(), request)
 	if err != nil {
 		t.Error(err)
-	}
-}
-
-func TestGetHistoricCandles(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("EOS-USDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-	startTime := time.Unix(1588636800, 0)
-	_, err = o.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = o.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, startTime, time.Now(), kline.Interval(time.Hour*7))
-	if err == nil {
-		t.Fatal("unexpected result")
-	}
-
-	_, err = o.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Margin, startTime, time.Now(), kline.Interval(time.Hour*7))
-	if err == nil {
-		t.Fatal("unexpected result")
-	}
-
-	swapPair, err := currency.NewPairFromString("EOS-USD_SWAP")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = o.GetHistoricCandles(context.Background(),
-		swapPair, asset.PerpetualSwap, startTime, time.Now(), kline.OneDay)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestGetHistoricCandlesExtended(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("EOS-USDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-	startTime := time.Unix(1607494054, 0)
-	endTime := time.Unix(1607594054, 0)
-	_, err = o.GetHistoricCandlesExtended(context.Background(),
-		currencyPair, asset.Spot, startTime, endTime, kline.OneMin)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = o.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, startTime, endTime, kline.Interval(time.Hour*15))
-	if err == nil {
-		t.Fatal("unexpected result")
 	}
 }
 

@@ -1755,6 +1755,8 @@ func (h *HUOBI) FormatExchangeKlineInterval(in kline.Interval) string {
 	switch in {
 	case kline.OneMin, kline.FiveMin, kline.FifteenMin, kline.ThirtyMin:
 		return in.Short() + "in"
+	case kline.OneHour:
+		return "60min"
 	case kline.FourHour:
 		return "4hour"
 	case kline.OneDay:
@@ -1770,30 +1772,26 @@ func (h *HUOBI) FormatExchangeKlineInterval(in kline.Interval) string {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := h.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
+func (h *HUOBI) GetHistoricCandles(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
+	if builder == nil {
+		return nil, kline.ErrNilBuilder
 	}
-	klineParams := &KlinesRequestParams{
-		Period: h.FormatExchangeKlineInterval(interval),
-		Symbol: pair,
-	}
-	candles, err := h.GetSpotKline(ctx, klineParams)
+
+	candles, err := h.GetSpotKline(ctx, KlinesRequestParams{
+		Period: h.FormatExchangeKlineInterval(builder.Request),
+		Symbol: builder.Pair,
+	})
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
-	ret := kline.Item{
-		Exchange: h.Name,
-		Pair:     pair,
-		Asset:    a,
-		Interval: interval,
-	}
+
+	timeSeries := make([]kline.Candle, 0, len(candles))
 	for x := range candles {
-		if time.Unix(candles[x].ID, 0).Before(start) ||
-			time.Unix(candles[x].ID, 0).After(end) {
+		if time.Unix(candles[x].ID, 0).Before(builder.Start) ||
+			time.Unix(candles[x].ID, 0).After(builder.End) {
 			continue
 		}
-		ret.Candles = append(ret.Candles, kline.Candle{
+		timeSeries = append(timeSeries, kline.Candle{
 			Time:   time.Unix(candles[x].ID, 0),
 			Open:   candles[x].Open,
 			High:   candles[x].High,
@@ -1802,13 +1800,18 @@ func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 			Volume: candles[x].Volume,
 		})
 	}
+
+	ret, err := builder.ConvertCandles(timeSeries)
+	if err != nil {
+		return nil, err
+	}
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (h *HUOBI) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return h.GetHistoricCandles(ctx, pair, a, start, end, interval)
+func (h *HUOBI) GetHistoricCandlesExtended(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
+	return h.GetHistoricCandles(ctx, builder)
 }
 
 // compatibleVars gets compatible variables for order vars

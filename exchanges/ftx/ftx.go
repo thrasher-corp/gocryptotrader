@@ -1765,10 +1765,6 @@ func (f *FTX) LoadCollateralWeightings(ctx context.Context) error {
 	return nil
 }
 
-func (c CollateralWeightHolder) hasData() bool {
-	return len(c) > 0
-}
-
 func (c CollateralWeightHolder) loadTotal(code string, weighting float64) {
 	cc := currency.NewCode(code)
 	currencyCollateral := c[cc.Item]

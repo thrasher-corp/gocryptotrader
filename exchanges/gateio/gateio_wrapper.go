@@ -114,19 +114,19 @@ func (g *Gateio) SetDefaults() {
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.OneMin.Word():     true,
-					kline.ThreeMin.Word():   true,
-					kline.FiveMin.Word():    true,
-					kline.FifteenMin.Word(): true,
-					kline.ThirtyMin.Word():  true,
-					kline.OneHour.Word():    true,
-					kline.TwoHour.Word():    true,
-					kline.FourHour.Word():   true,
-					kline.SixHour.Word():    true,
-					kline.TwelveHour.Word(): true,
-					kline.OneDay.Word():     true,
-				},
+				Intervals: kline.DeployExchangeIntervals(
+					kline.OneMin,
+					kline.ThreeMin,
+					kline.FiveMin,
+					kline.FifteenMin,
+					kline.ThirtyMin,
+					kline.OneHour,
+					kline.TwoHour,
+					kline.FourHour,
+					kline.SixHour,
+					kline.TwelveHour,
+					kline.OneDay,
+				),
 			},
 		},
 	}
@@ -899,39 +899,39 @@ func (g *Gateio) FormatExchangeKlineInterval(in kline.Interval) string {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := g.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
+func (g *Gateio) GetHistoricCandles(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
+	if builder == nil {
+		return nil, kline.ErrNilBuilder
 	}
 
-	hours := time.Since(start).Hours()
-	formattedPair, err := g.FormatExchangeCurrency(pair, a)
+	formattedPair, err := g.FormatExchangeCurrency(builder.Pair, builder.Asset)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
-	params := KlinesRequestParams{
+	klineData, err := g.GetSpotKline(ctx, KlinesRequestParams{
 		Symbol:   formattedPair.String(),
-		GroupSec: g.FormatExchangeKlineInterval(interval),
-		HourSize: int(hours),
-	}
-
-	klineData, err := g.GetSpotKline(ctx, params)
+		GroupSec: g.FormatExchangeKlineInterval(builder.Request),
+		HourSize: int(time.Since(builder.Start).Hours()),
+	})
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
-	klineData.Interval = interval
-	klineData.Pair = pair
-	klineData.Asset = a
 
-	klineData.SortCandlesByTimestamp(false)
-	klineData.RemoveOutsideRange(start, end)
-	return klineData, nil
+	ret, err := builder.ConvertCandles(klineData)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Add as methods to builder and auto filter everthing
+	ret.SortCandlesByTimestamp(false)
+	ret.RemoveOutsideRange(builder.Start, builder.End)
+	return ret, nil
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return g.GetHistoricCandles(ctx, pair, a, start, end, interval)
+func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
+	return g.GetHistoricCandles(ctx, builder)
 }
 
 // GetAvailableTransferChains returns the available transfer blockchains for the specific

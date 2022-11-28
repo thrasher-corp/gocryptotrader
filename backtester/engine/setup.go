@@ -794,7 +794,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 	if err != nil {
 		return nil, err
 	}
-	bt.Reports.AddKlineItem(&resp.Item)
+	bt.Reports.AddKlineItem(resp.Item)
 	return resp, nil
 }
 
@@ -848,7 +848,7 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	candles.FillMissingDataWithEmptyEntries(dates)
 	candles.RemoveOutsideRange(cfg.DataSettings.APIData.StartDate, cfg.DataSettings.APIData.EndDate)
 	return &kline.DataFromKline{
-		Item:        *candles,
+		Item:        candles,
 		RangeHolder: dates,
 	}, nil
 }

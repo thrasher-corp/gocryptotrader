@@ -448,7 +448,7 @@ func TestGenerateReport(t *testing.T) {
 	}
 
 	dfk := &kline.DataFromKline{
-		Item: gctkline.Item{
+		Item: &gctkline.Item{
 			Exchange: exchName,
 			Pair:     currency.NewPair(currency.BTC, currency.USD),
 			Asset:    a,
@@ -491,7 +491,7 @@ func TestCreateSnapshot(t *testing.T) {
 	f.CreateSnapshot(time.Time{})
 
 	dfk := &kline.DataFromKline{
-		Item: gctkline.Item{
+		Item: &gctkline.Item{
 			Candles: []gctkline.Candle{
 				{
 					Time: time.Now(),
@@ -529,7 +529,7 @@ func TestAddUSDTrackingData(t *testing.T) {
 	}
 
 	dfk := &kline.DataFromKline{
-		Item: gctkline.Item{
+		Item: &gctkline.Item{
 			Candles: []gctkline.Candle{
 				{
 					Time: time.Now(),
@@ -563,7 +563,7 @@ func TestAddUSDTrackingData(t *testing.T) {
 	}
 
 	dfk = &kline.DataFromKline{
-		Item: gctkline.Item{
+		Item: &gctkline.Item{
 			Exchange: exchName,
 			Pair:     currency.NewPair(pair.Quote, currency.USD),
 			Asset:    a,

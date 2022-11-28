@@ -146,21 +146,21 @@ func (b *Bitfinex) SetDefaults() {
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.OneMin.Word():     true,
-					kline.ThreeMin.Word():   true,
-					kline.FiveMin.Word():    true,
-					kline.FifteenMin.Word(): true,
-					kline.ThirtyMin.Word():  true,
-					kline.OneHour.Word():    true,
-					kline.TwoHour.Word():    true,
-					kline.FourHour.Word():   true,
-					kline.SixHour.Word():    true,
-					kline.TwelveHour.Word(): true,
-					kline.OneDay.Word():     true,
-					kline.OneWeek.Word():    true,
-					kline.TwoWeek.Word():    true,
-				},
+				Intervals: kline.DeployExchangeIntervals(
+					kline.OneMin,
+					kline.ThreeMin,
+					kline.FiveMin,
+					kline.FifteenMin,
+					kline.ThirtyMin,
+					kline.OneHour,
+					kline.TwoHour,
+					kline.FourHour,
+					kline.SixHour,
+					kline.TwelveHour,
+					kline.OneDay,
+					kline.OneWeek,
+					kline.TwoWeek,
+				),
 				ResultLimit: 10000,
 			},
 		},
@@ -1100,83 +1100,82 @@ func (b *Bitfinex) FormatExchangeKlineInterval(in kline.Interval) string {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (b *Bitfinex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := b.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
+func (b *Bitfinex) GetHistoricCandles(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
+	if builder == nil {
+		return nil, kline.ErrNilBuilder
 	}
 
-	if kline.TotalCandlesPerInterval(start, end, interval) > float64(b.Features.Enabled.Kline.ResultLimit) {
-		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
+	// TODO: Shift
+	if kline.TotalCandlesPerInterval(builder.Start, builder.End, builder.Request) >
+		float64(b.Features.Enabled.Kline.ResultLimit) {
+		return nil, errors.New(kline.ErrRequestExceedsExchangeLimits)
 	}
 
-	cf, err := b.fixCasing(pair, a)
+	cf, err := b.fixCasing(builder.Pair, builder.Asset)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
 	candles, err := b.GetCandles(ctx,
-		cf, b.FormatExchangeKlineInterval(interval),
-		start.Unix()*1000, end.Unix()*1000,
+		cf,
+		b.FormatExchangeKlineInterval(builder.Request),
+		builder.Start.UnixMilli(),
+		builder.End.UnixMilli(),
 		b.Features.Enabled.Kline.ResultLimit, true)
 	if err != nil {
-		return kline.Item{}, err
-	}
-	ret := kline.Item{
-		Exchange: b.Name,
-		Pair:     pair,
-		Asset:    a,
-		Interval: interval,
+		return nil, err
 	}
 
+	timeSeries := make([]kline.Candle, len(candles))
 	for x := range candles {
-		ret.Candles = append(ret.Candles, kline.Candle{
+		timeSeries[x] = kline.Candle{
 			Time:   candles[x].Timestamp,
 			Open:   candles[x].Open,
 			High:   candles[x].High,
 			Low:    candles[x].Low,
 			Close:  candles[x].Close,
 			Volume: candles[x].Volume,
-		})
+		}
 	}
-
+	ret, err := builder.ConvertCandles(timeSeries)
+	if err != nil {
+		return nil, err
+	}
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (b *Bitfinex) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := b.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
+func (b *Bitfinex) GetHistoricCandlesExtended(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
+	if builder == nil {
+		return nil, kline.ErrNilBuilder
 	}
 
-	ret := kline.Item{
-		Exchange: b.Name,
-		Pair:     pair,
-		Asset:    a,
-		Interval: interval,
-	}
-
-	dates, err := kline.CalculateCandleDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
+	dates, err := builder.GetRanges(b.Features.Enabled.Kline.ResultLimit)
 	if err != nil {
-		return kline.Item{}, err
-	}
-	cf, err := b.fixCasing(pair, a)
-	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
+	cf, err := b.fixCasing(builder.Pair, builder.Asset)
+	if err != nil {
+		return nil, err
+	}
+
+	var timeSeries []kline.Candle
 	for x := range dates.Ranges {
 		var candles []Candle
 		candles, err = b.GetCandles(ctx,
-			cf, b.FormatExchangeKlineInterval(interval),
-			dates.Ranges[x].Start.Ticks*1000, dates.Ranges[x].End.Ticks*1000,
-			b.Features.Enabled.Kline.ResultLimit, true)
+			cf, b.FormatExchangeKlineInterval(builder.Request),
+			dates.Ranges[x].Start.Ticks*1000,
+			dates.Ranges[x].End.Ticks*1000,
+			b.Features.Enabled.Kline.ResultLimit,
+			true)
 		if err != nil {
-			return kline.Item{}, err
+			return nil, err
 		}
 
 		for i := range candles {
-			ret.Candles = append(ret.Candles, kline.Candle{
+			timeSeries = append(timeSeries, kline.Candle{
 				Time:   candles[i].Timestamp,
 				Open:   candles[i].Open,
 				High:   candles[i].High,
@@ -1186,13 +1185,17 @@ func (b *Bitfinex) GetHistoricCandlesExtended(ctx context.Context, pair currency
 			})
 		}
 	}
+	ret, err := builder.ConvertCandles(timeSeries)
+	if err != nil {
+		return nil, err
+	}
 	dates.SetHasDataFromCandles(ret.Candles)
 	summary := dates.DataSummary(false)
 	if len(summary) > 0 {
 		log.Warnf(log.ExchangeSys, "%v - %v", b.Name, summary)
 	}
 	ret.RemoveDuplicates()
-	ret.RemoveOutsideRange(start, end)
+	ret.RemoveOutsideRange(builder.Start, builder.End)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }

@@ -63,7 +63,7 @@ func TestCalculateFundingStatistics(t *testing.T) {
 		},
 	}
 	dfk := &kline.DataFromKline{
-		Item: usdKline,
+		Item: &usdKline,
 	}
 	err = dfk.Load()
 	if !errors.Is(err, nil) {
@@ -161,7 +161,7 @@ func TestCalculateIndividualFundingStatistics(t *testing.T) {
 	}
 
 	ri.USDPairCandle = &kline.DataFromKline{
-		Item: gctkline.Item{
+		Item: &gctkline.Item{
 			Interval: gctkline.OneHour,
 			Candles: []gctkline.Candle{
 				{

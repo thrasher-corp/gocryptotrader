@@ -1411,41 +1411,59 @@ func TestWSFundingTrade(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTCUSD")
+	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
 		t.Fatal(err)
 	}
 	startTime := time.Now().Add(-time.Hour * 24)
 	endTime := time.Now().Add(-time.Hour * 20)
-	_, err = b.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, startTime, endTime, kline.OneHour)
+
+	builder, err := b.GetKlineBuilder(pair, asset.Spot, kline.OneHour, startTime, endTime)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin*1337)
-	if err == nil {
+	_, err = b.GetHistoricCandles(context.Background(), builder)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	builder, err = b.GetKlineBuilder(pair, asset.Spot, kline.OneMin*1337, startTime, endTime)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetHistoricCandles(context.Background(), builder)
+	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTCUSD")
+	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
 		t.Fatal(err)
 	}
 	startTime := time.Now().Add(-time.Hour * 24)
 	endTime := time.Now().Add(-time.Hour * 20)
-	_, err = b.GetHistoricCandlesExtended(context.Background(),
-		currencyPair, asset.Spot, startTime, endTime, kline.OneHour)
+
+	builder, err := b.GetKlineBuilder(pair, asset.Spot, kline.OneHour, startTime, endTime)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetHistoricCandlesExtended(context.Background(),
-		currencyPair, asset.Spot, startTime, endTime, kline.OneMin*1337)
-	if err == nil {
+	_, err = b.GetHistoricCandlesExtended(context.Background(), builder)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	builder, err = b.GetKlineBuilder(pair, asset.Spot, kline.OneMin*1337, startTime, endTime)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetHistoricCandlesExtended(context.Background(), builder)
+	if err != nil {
 		t.Fatal(err)
 	}
 }

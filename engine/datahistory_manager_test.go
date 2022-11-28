@@ -1515,8 +1515,8 @@ func dataHistoryTraderLoader(exch, a, base, quote string, start, _ time.Time) ([
 	}, nil
 }
 
-func dataHistoryCandleLoader(exch string, cp currency.Pair, a asset.Item, i kline.Interval, start, _ time.Time) (kline.Item, error) {
-	return kline.Item{
+func dataHistoryCandleLoader(exch string, cp currency.Pair, a asset.Item, i kline.Interval, start, _ time.Time) (*kline.Item, error) {
+	return &kline.Item{
 		Exchange: exch,
 		Pair:     cp,
 		Asset:    a,
@@ -1548,8 +1548,8 @@ type dhmExchange struct {
 	exchange.IBotExchange
 }
 
-func (f dhmExchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{
+func (f dhmExchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (*kline.Item, error) {
+	return &kline.Item{
 		Exchange: testExchange,
 		Pair:     p,
 		Asset:    a,

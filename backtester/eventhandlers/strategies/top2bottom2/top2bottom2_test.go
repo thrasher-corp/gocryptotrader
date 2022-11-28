@@ -126,7 +126,7 @@ func TestOnSignals(t *testing.T) {
 	}})
 	d.Next()
 	da := &kline.DataFromKline{
-		Item:        gctkline.Item{},
+		Item:        &gctkline.Item{},
 		Base:        d,
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
