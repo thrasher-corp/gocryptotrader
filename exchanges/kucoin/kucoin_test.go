@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -49,7 +50,8 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	ku.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	ku.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
 }
 
@@ -1752,6 +1754,52 @@ func TestGetAuthenticatedServersInstances(t *testing.T) {
 	}
 	_, err := ku.GetAuthenticatedInstanceServers(context.Background())
 	if err != nil {
+		t.Error(err)
+	}
+}
+
+var symbolTickerPushDataJSON = `{"type":"message","topic":"/market/ticker:BTC-USDT","subject":"trade.ticker","data":{"sequence":"1545896668986","price":"0.08","size":"0.011","bestAsk":"0.08","bestAskSize":"0.18","bestBid":"0.049","bestBidSize":"0.036"}}`
+var allSymbolsTickerPushDataJSON = `{"type":"message","topic":"/market/ticker:all","subject":"BTC-USDT","data":{"sequence":"1545896668986","bestAsk":"0.08","size":"0.011","bestBidSize":"0.036","price":"0.08","bestAskSize":"0.18",        "bestBid":"0.049"    }}`
+
+func TestSybmbolTicker(t *testing.T) {
+	err := ku.wsHandleData([]byte(symbolTickerPushDataJSON))
+	if err != nil {
+		t.Error(err)
+	}
+	if err = ku.wsHandleData([]byte(allSymbolsTickerPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var symbolSnapshotPushDataJSON = `{"type": "message","topic": "/market/snapshot:KCS-BTC","subject": "trade.snapshot","data": {"sequence": "1545896669291","data": {"trading": true,"symbol": "KCS-BTC","buy": 0.00011,"sell": 0.00012,            "sort": 100,            "volValue": 3.13851792584,            "baseCurrency": "KCS",            "market": "BTC",            "quoteCurrency": "BTC",            "symbolCode": "KCS-BTC",            "datetime": 1548388122031,            "high": 0.00013,            "vol": 27514.34842,            "low": 0.0001,            "changePrice": -1.0e-5,            "changeRate": -0.0769,            "lastTradedPrice": 0.00012,            "board": 0,            "mark": 0        }    }}`
+
+func TestSymbolSnapshotPushData(t *testing.T) {
+	if err := ku.wsHandleData([]byte(symbolSnapshotPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var marketTradeSnapshotPushDataJSON = `{"type": "message","topic": "/market/snapshot:BTC","subject": "trade.snapshot","data": {"sequence": "1545896669291","data": [{"trading": true,"symbol": "KCS-BTC","buy": 0.00011,"sell": 0.00012,"sort": 100,"volValue": 3.13851792584,"baseCurrency": "KCS","market": "BTC","quoteCurrency": "BTC","symbolCode": "KCS-BTC","datetime": 1548388122031,"high": 0.00013,"vol": 27514.34842,"low": 0.0001,"changePrice": -1.0e-5,"changeRate": -0.0769,"lastTradedPrice": 0.00012,"board": 0,"mark": 0}]}}`
+
+func TestMarketTradeSnapshotPushData(t *testing.T) {
+	if err := ku.wsHandleData([]byte(marketTradeSnapshotPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var orderbookLevel2PushDataJSON = `{"type": "message","topic": "/market/level2:BTC-USDT",    "subject": "trade.l2update",    "data": {"changes": {"asks": [["18906","0.00331","14103845"],["18907.3","0.58751503","14103844"]],"bids": [["18891.9","0.15688","14103847"]]},"sequenceEnd": 14103847,"sequenceStart": 14103844,"symbol": "BTC-USDT","time": 1663747970273}}`
+var orderbookLevel5PushDataJSON = `{"type": "message","topic": "/spotMarket/level2Depth5:BTC-USDT",    "subject": "level2",    "data": {          "asks":[            ["9989","8"],            ["9990","32"],            ["9991","47"],            ["9992","3"],            ["9993","3"]        ],        "bids":[            ["9988","56"],            ["9987","15"],            ["9986","100"],            ["9985","10"],            ["9984","10"]        ],        "timestamp": 1586948108193    }}`
+var orderbookLevel50PushData = `{    "type": "message",    "topic": "/spotMarket/level2Depth50:BTC-USDT",    "subject": "level2",    "data": {          "asks":[            ["9993","3"],            ["9992","3"],            ["9991","47"],            ["9990","32"],            ["9989","8"]        ],        "bids":[            ["9988","56"],            ["9987","15"],            ["9986","100"],            ["9985","10"],            ["9984","10"]        ]        "timestamp": 1586948108193    }}`
+
+func TestOrderbookPushData(t *testing.T) {
+	err := ku.wsHandleData([]byte(orderbookLevel2PushDataJSON))
+	if err != nil {
+		t.Error(err)
+	}
+	if err = ku.wsHandleData([]byte(orderbookLevel5PushDataJSON)); err != nil {
+		t.Error(err)
+	}
+	if err = ku.wsHandleData([]byte(orderbookLevel50PushData)); err != nil {
 		t.Error(err)
 	}
 }

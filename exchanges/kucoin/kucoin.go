@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -2019,5 +2020,18 @@ func (ku *Kucoin) stringToInterval(interval string) (kline.Interval, error) {
 		return kline.OneWeek, nil
 	default:
 		return 0, kline.ErrUnsupportedInterval
+	}
+}
+
+func (ku *Kucoin) stringToOrderStatus(status string) (order.Status, error) {
+	switch status {
+	case "match":
+		return order.Filled, nil
+	case "open":
+		return order.Open, nil
+	case "done":
+		return order.Closed, nil
+	default:
+		return order.StringToOrderStatus(status)
 	}
 }

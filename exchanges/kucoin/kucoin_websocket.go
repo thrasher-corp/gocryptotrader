@@ -14,6 +14,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -100,8 +102,8 @@ func (ku *Kucoin) WsConnect() error {
 	})
 	ku.Websocket.Wg.Add(1)
 	ku.Websocket.Wg = &sync.WaitGroup{}
-	println(string(pingMessage))
 	ku.Websocket.Wg.Add(1)
+	println(string(pingMessage))
 	// ku.Websocket.Conn.SetupPingHandler(stream.PingHandler{
 	// 	Delay:       time.Millisecond * time.Duration(instances.InstanceServers[0].PingTimeout),
 	// 	Message:     pingMessage,
@@ -165,45 +167,185 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 	if resp.ID != "" && !ku.Websocket.Match.IncomingWithData(resp.ID, respData) {
 		return fmt.Errorf("can't send ws incoming data to Matched channel with RequestID: %s", resp.ID)
 	}
-	if resp.Type == "message" {
-		topicInfo := strings.Split(resp.Topic, ":")
-		switch {
-		case strings.HasPrefix(marketAllTickersChannel, topicInfo[0]) ||
-			strings.HasPrefix(marketTickerChannel, topicInfo[0]):
-			instruments := ""
-			if topicInfo[1] == "all" {
-				instruments = resp.Subject
-			} else {
-				instruments = topicInfo[1]
-			}
-			return ku.processTicker(resp.Data, instruments)
-		case strings.HasPrefix(marketTickerSnapshotChannel, topicInfo[0]) ||
-			strings.HasPrefix(marketTickerSnapshotForCurrencyChannel, topicInfo[0]):
-			return ku.processMarketSnapshot(resp.Data)
-		case strings.HasPrefix(marketOrderbookLevel2Channels, topicInfo[0]),
-			strings.HasPrefix(marketOrderbookLevel2to5Channel, topicInfo[0]),
-			strings.HasPrefix(marketOrderbokLevel2To50Channel, topicInfo[0]):
-			return ku.processOrderbook(resp.Data, topicInfo[1])
-		case strings.HasPrefix(marketCandlesChannel, topicInfo[0]):
-			symbolAndInterval := strings.Split(topicInfo[1], "_")
-			if len(symbolAndInterval) != 2 {
-				return errMalformedData
-			}
-			return ku.processCandlesticks(resp.Data, symbolAndInterval[0], symbolAndInterval[1])
-		case strings.HasPrefix(marketMatchChannel, topicInfo[0]):
-			return ku.processTradeData(resp.Data, topicInfo[1])
-		case strings.HasPrefix(indexPriceIndicatorChannel, topicInfo[0]):
-			return ku.pricessIndexPriceIndicator(resp.Data)
-		case strings.HasPrefix(markPriceIndicatorChannel, topicInfo[0]):
-			return ku.pricessMarkPriceIndicator(resp.Data)
-		case strings.HasPrefix(marginFundingbookChangeChannel, topicInfo[0]):
-			return ku.processMariginFundingBook(resp.Data)
-		case true: //privateChannel:
-		case true: //accountBalanceChannel:
-		case true: //marginPositionChannel:
-		case true: //marginLoanChannel:
-		case true: //spotMarketAdvancedChannel:
+
+	topicInfo := strings.Split(resp.Topic, ":")
+	switch {
+	case strings.HasPrefix(marketAllTickersChannel, topicInfo[0]) ||
+		strings.HasPrefix(marketTickerChannel, topicInfo[0]):
+		instruments := ""
+		if topicInfo[1] == "all" {
+			instruments = resp.Subject
+		} else {
+			instruments = topicInfo[1]
 		}
+		return ku.processTicker(resp.Data, instruments)
+	case strings.HasPrefix(marketTickerSnapshotChannel, topicInfo[0]) ||
+		strings.HasPrefix(marketTickerSnapshotForCurrencyChannel, topicInfo[0]):
+		return ku.processMarketSnapshot(resp.Data)
+	case strings.HasPrefix(marketOrderbookLevel2Channels, topicInfo[0]),
+		strings.HasPrefix(marketOrderbookLevel2to5Channel, topicInfo[0]),
+		strings.HasPrefix(marketOrderbokLevel2To50Channel, topicInfo[0]):
+		return ku.processOrderbook(resp.Data, topicInfo[1])
+	case strings.HasPrefix(marketCandlesChannel, topicInfo[0]):
+		symbolAndInterval := strings.Split(topicInfo[1], "_")
+		if len(symbolAndInterval) != 2 {
+			return errMalformedData
+		}
+		return ku.processCandlesticks(resp.Data, symbolAndInterval[0], symbolAndInterval[1])
+	case strings.HasPrefix(marketMatchChannel, topicInfo[0]):
+		return ku.processTradeData(resp.Data, topicInfo[1])
+	case strings.HasPrefix(indexPriceIndicatorChannel, topicInfo[0]):
+		return ku.pricessIndexPriceIndicator(resp.Data)
+	case strings.HasPrefix(markPriceIndicatorChannel, topicInfo[0]):
+		return ku.pricessMarkPriceIndicator(resp.Data)
+	case strings.HasPrefix(marginFundingbookChangeChannel, topicInfo[0]):
+		return ku.processMariginFundingBook(resp.Data)
+	case strings.HasPrefix(privateChannel, topicInfo[0]):
+		return ku.processOrderChangeEvent(resp.Data)
+	case strings.HasPrefix(accountBalanceChannel, topicInfo[0]):
+		return ku.processAccountBalanceChange(resp.Data)
+	case strings.HasPrefix(marginPositionChannel, topicInfo[0]):
+		if resp.Subject == "debt.ratio" {
+			return ku.processDebtRatioChange(resp.Data)
+		}
+		return ku.processPositionStatus(resp.Data)
+	case strings.HasPrefix(marginLoanChannel, topicInfo[0]) && resp.Subject == "order.done":
+		return ku.processMarginLendingTradeOrderDoneEvent(resp.Data)
+	case strings.HasPrefix(marginLoanChannel, topicInfo[0]):
+		return ku.processMarginLendingTradeOrderEvent(resp.Data)
+	case strings.HasPrefix(spotMarketAdvancedChannel, topicInfo[0]):
+		return ku.processStopOrderEvent(resp.Data)
+	default:
+		ku.Websocket.DataHandler <- stream.UnhandledMessageWarning{
+			Message: ku.Name + stream.UnhandledMessage + string(respData),
+		}
+		return errors.New("push data not handled")
+	}
+}
+
+func (ku *Kucoin) processStopOrderEvent(respData []byte) error {
+	resp := WsStopOrder{}
+	if err := json.Unmarshal(respData, &resp); err != nil {
+		return err
+	}
+	pair, err := currency.NewPairFromString(resp.Symbol)
+	if err != nil {
+		return err
+	}
+	oType, err := order.StringToOrderType(resp.OrderType)
+	if err != nil {
+		return err
+	}
+	side, err := order.StringToOrderSide(resp.Side)
+	if err != nil {
+		return err
+	}
+	ku.Websocket.DataHandler <- &order.Detail{
+		Price:        resp.OrderPrice,
+		TriggerPrice: resp.StopPrice,
+		Amount:       resp.Size,
+		// AverageExecutedPrice: response.,
+		Exchange: ku.Name,
+		ID:       resp.OrderID,
+		Type:     oType,
+		Side:     side,
+		// AssetType:       asset.Futures,
+		Date:        resp.CreatedAt,
+		LastUpdated: resp.Timestamp,
+		Pair:        pair,
+	}
+	return nil
+}
+
+func (ku *Kucoin) processMarginLendingTradeOrderDoneEvent(respData []byte) error {
+	resp := WsMarginTradeOrderDoneEvent{}
+	if err := json.Unmarshal(respData, &resp); err != nil {
+		return err
+	}
+	ku.Websocket.DataHandler <- resp
+	return nil
+}
+
+func (ku *Kucoin) processMarginLendingTradeOrderEvent(respData []byte) error {
+	resp := WsMarginTradeOrderEntersEvent{}
+	if err := json.Unmarshal(respData, &resp); err != nil {
+		return err
+	}
+	ku.Websocket.DataHandler <- resp
+	return nil
+}
+
+func (ku *Kucoin) processPositionStatus(data []byte) error {
+	resp := WsPositionStatus{}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return err
+	}
+	ku.Websocket.DataHandler <- resp
+	return nil
+}
+
+func (ku *Kucoin) processDebtRatioChange(data []byte) error {
+	resp := WsDebtRatioChange{}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return err
+	}
+	ku.Websocket.DataHandler <- resp
+	return nil
+}
+
+func (ku *Kucoin) processAccountBalanceChange(respData []byte) error {
+	response := WsAccountBalance{}
+	err := json.Unmarshal(respData, &response)
+	if err != nil {
+		return err
+	}
+	ku.Websocket.DataHandler <- account.Change{
+		Exchange: ku.Name,
+		Currency: currency.NewCode(response.Currency),
+		Asset:    asset.Futures,
+		Amount:   response.Available,
+	}
+	return nil
+}
+
+func (ku *Kucoin) processOrderChangeEvent(respData []byte) error {
+	response := WsTradeOrder{}
+	err := json.Unmarshal(respData, &response)
+	if err != nil {
+		return err
+	}
+	oType, err := order.StringToOrderType(response.OrderType)
+	if err != nil {
+		return err
+	}
+	oStatus, err := ku.stringToOrderStatus(response.Status)
+	if err != nil {
+		return err
+	}
+	pair, err := currency.NewPairFromString(response.Symbol)
+	if err != nil {
+		return err
+	}
+	side, err := order.StringToOrderSide(response.Side)
+	if err != nil {
+		return err
+	}
+	ku.Websocket.DataHandler <- &order.Detail{
+		Price:  response.Price,
+		Amount: response.Size,
+		// AverageExecutedPrice: response.,
+		ExecutedAmount:  response.FilledSize,
+		RemainingAmount: response.RemainSize,
+		Exchange:        ku.Name,
+		ID:              response.OrderID,
+		ClientOrderID:   response.ClientOid,
+		Type:            oType,
+		Side:            side,
+		Status:          oStatus,
+		// AssetType:       asset.Futures,
+		Date:        time.UnixMilli(response.OrderTime),
+		LastUpdated: time.UnixMilli(response.Timestamp),
+		Pair:        pair,
 	}
 	return nil
 }
@@ -377,23 +519,27 @@ func (ku *Kucoin) processMarketSnapshot(respData []byte) error {
 	if err != nil {
 		return err
 	}
-	pair, err := currency.NewPairFromString(response.Data.Symbol)
-	if err != nil {
-		return err
+	tickers := make([]ticker.Price, len(response.Data))
+	for x := range response.Data {
+		pair, err := currency.NewPairFromString(response.Data[x].Symbol)
+		if err != nil {
+			return err
+		}
+		tickers[x] = ticker.Price{
+			ExchangeName: ku.Name,
+			// AssetType:    asset.Futures,
+			Last: response.Data[x].LastTradedPrice,
+			Pair: pair,
+			// Open: response.Data.,
+			// Close: response.Data.Close,
+			Low:         response.Data[x].Low,
+			High:        response.Data[x].High,
+			QuoteVolume: response.Data[x].VolValue,
+			Volume:      response.Data[x].Vol,
+			LastUpdated: time.UnixMilli(response.Data[x].Datetime),
+		}
 	}
-	ku.Websocket.DataHandler <- &ticker.Price{
-		ExchangeName: ku.Name,
-		// AssetType:    asset.Futures,
-		Last: response.Data.LastTradedPrice,
-		Pair: pair,
-		// Open: response.Data.,
-		// Close: response.Data.Close,
-		Low:         response.Data.Low,
-		High:        response.Data.High,
-		QuoteVolume: response.Data.VolValue,
-		Volume:      response.Data.Vol,
-		LastUpdated: time.UnixMilli(response.Data.Datetime),
-	}
+	ku.Websocket.DataHandler <- tickers
 	return nil
 }
 

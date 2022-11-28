@@ -796,11 +796,12 @@ type WSSubscriptionResponse struct {
 
 // WsPushData represents a push data from a server.
 type WsPushData struct {
-	ID      string          `json:"id"`
-	Type    string          `json:"type"`
-	Topic   string          `json:"topic"`
-	Subject string          `json:"subject"`
-	Data    json.RawMessage `json:"data"`
+	ID          string          `json:"id"`
+	Type        string          `json:"type"`
+	Topic       string          `json:"topic"`
+	Subject     string          `json:"subject"`
+	ChannelType string          `json:"channelType,omitempty"`
+	Data        json.RawMessage `json:"data"`
 }
 
 // WsTicker represents a ticker push data from server.
@@ -817,7 +818,7 @@ type WsTicker struct {
 // WsTickerDetail represents a ticker snapshot data from server.
 type WsTickerDetail struct {
 	Sequence string `json:"sequence"`
-	Data     struct {
+	Data     []struct {
 		Trading         bool    `json:"trading"`
 		Symbol          string  `json:"symbol"`
 		Buy             float64 `json:"buy"`
@@ -944,4 +945,99 @@ type WsMarginFundingBook struct {
 	Side               string  `json:"side"`
 	Timestamp          int64   `json:"ts"` // In Nanosecond
 
+}
+
+// WsTradeOrder represents a private trade order push data.
+type WsTradeOrder struct {
+	Symbol     string  `json:"symbol"`
+	OrderType  string  `json:"orderType"`
+	Side       string  `json:"side"`
+	OrderID    string  `json:"orderId"`
+	Type       string  `json:"type"`
+	OrderTime  int64   `json:"orderTime"`
+	Size       float64 `json:"size,string"`
+	FilledSize float64 `json:"filledSize,string"`
+	Price      float64 `json:"price,string"`
+	ClientOid  string  `json:"clientOid"`
+	RemainSize float64 `json:"remainSize,string"`
+	Status     string  `json:"status"`
+	Timestamp  int64   `json:"ts"`
+	Liquidity  string  `json:"liquidity,omitempty"`
+	MatchPrice string  `json:"matchPrice,omitempty"`
+	MatchSize  string  `json:"matchSize,omitempty"`
+	TradeID    string  `json:"tradeId,omitempty"`
+	OldSize    string  `json:"oldSize,omitempty"`
+}
+
+// WsAccountBalance represents a Account Balance push data.
+type WsAccountBalance struct {
+	Total           float64 `json:"total,string"`
+	Available       float64 `json:"available,string"`
+	AvailableChange float64 `json:"availableChange,string"`
+	Currency        string  `json:"currency"`
+	Hold            float64 `json:"hold,string"`
+	HoldChange      float64 `json:"holdChange,string"`
+	RelationEvent   string  `json:"relationEvent"`
+	RelationEventID string  `json:"relationEventId"`
+	RelationContext struct {
+		Symbol  string `json:"symbol"`
+		TradeID string `json:"tradeId"`
+		OrderID string `json:"orderId"`
+	} `json:"relationContext"`
+	Time int64 `json:"time,string"`
+}
+
+// WsDebtRatioChange represents a push data
+type WsDebtRatioChange struct {
+	DebtRatio float64            `json:"debtRatio"`
+	TotalDebt float64            `json:"totalDebt,string"`
+	DebtList  map[string]float64 `json:"debtList"`
+	Timestamp time.Time          `json:"timestamp"`
+}
+
+// WsPositionStatus represents a position status push data.
+type WsPositionStatus struct {
+	Type        string    `json:"type"`
+	TimestampMS time.Time `json:"timestamp"`
+}
+
+// WsMarginTradeOrderEntersEvent represents a push data to the lenders
+// when the order enters the order book or when the order is executed.
+type WsMarginTradeOrderEntersEvent struct {
+	Currency     string    `json:"currency"`
+	OrderID      string    `json:"orderId"`      //Trade ID
+	DailyIntRate float64   `json:"dailyIntRate"` //Daily interest rate.
+	Term         int64     `json:"term"`         //Term (Unit: Day)
+	Size         float64   `json:"size"`         //Size
+	LentSize     float64   `json:"lentSize"`     //Size executed -- filled when the subject is order.update
+	Side         string    `json:"side"`         //Lend or borrow. Currently, only "Lend" is available
+	Timestamp    time.Time `json:"ts"`           //Timestamp (nanosecond)
+}
+
+// WsMarginTradeOrderDoneEvent represents a push message to the lenders when the order is completed.
+type WsMarginTradeOrderDoneEvent struct {
+	Currency  string    `json:"currency"`
+	OrderID   string    `json:"orderId"`
+	Reason    string    `json:"reason"`
+	Side      string    `json:"side"`
+	Timestamp time.Time `json:"ts"`
+}
+
+// WsStopOrder represents a stop order.
+// When a stop order is received by the system, you will receive a message with "open" type.
+// It means that this order entered the system and waited to be triggered.
+type WsStopOrder struct {
+	CreatedAt      time.Time `json:"createdAt"`
+	OrderID        string    `json:"orderId"`
+	OrderPrice     float64   `json:"orderPrice,string"`
+	OrderType      string    `json:"orderType"`
+	Side           string    `json:"side"`
+	Size           float64   `json:"size,string"`
+	Stop           string    `json:"stop"`
+	StopPrice      float64   `json:"stopPrice,string"`
+	Symbol         string    `json:"symbol"`
+	TradeType      string    `json:"tradeType"`
+	TriggerSuccess bool      `json:"triggerSuccess"`
+	Timestamp      time.Time `json:"ts"`
+	Type           string    `json:"type"`
 }

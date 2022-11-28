@@ -115,7 +115,6 @@ func (ku *Kucoin) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	// NOTE: SET THE URLs HERE
 	ku.API.Endpoints = ku.NewEndpoints()
 	ku.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      kucoinAPIURL,
