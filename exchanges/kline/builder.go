@@ -11,9 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-var (
-	ErrUnsetName = errors.New("unset exchange name")
-)
+var ErrUnsetName = errors.New("unset exchange name")
 
 // Builder is a helper to request and convert time series to a required candle
 // interval.
@@ -80,7 +78,6 @@ func (b *Builder) ConvertCandles(timeSeries []Candle) (*Item, error) {
 	if b.Required == b.Request {
 		return holder, nil
 	}
-	// TODO: Fix
 	return ConvertToNewInterval(holder, b.Required)
 }
 
@@ -99,7 +96,8 @@ func (b *BuilderExtended) ConvertCandles(timeSeries []Candle) (*Item, error) {
 		return nil, err
 	}
 
-	b.SetHasDataFromCandles(holder.Candles)
+	// This checks from pre-converted time series data for date range matching.
+	b.SetHasDataFromCandles(timeSeries)
 	summary := b.DataSummary(false)
 	if len(summary) > 0 {
 		log.Warnf(log.ExchangeSys, "%v - %v", b.Name, summary)

@@ -119,11 +119,17 @@ func TestGetRanges(t *testing.T) {
 var oneMinuteCandles = func() []Candle {
 	var candles []Candle
 	start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	for x := 0; x < 1440; x++ { // two extra candles.
-		candles = append(candles, Candle{Time: start, Volume: 1})
+	for x := 0; x < 1442; x++ { // two extra candles.
+		candles = append(candles, Candle{
+			Time:   start,
+			Volume: 1,
+			Open:   1,
+			High:   float64(1 + x),
+			Low:    float64(-(1 + x)),
+			Close:  1,
+		})
 		start = start.Add(time.Minute)
 	}
-	fmt.Println("LEN:", len(candles))
 	return candles
 }()
 
@@ -131,10 +137,16 @@ var oneHourCandles = func() []Candle {
 	var candles []Candle
 	start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	for x := 0; x < 24; x++ {
-		candles = append(candles, Candle{Time: start, Volume: 1})
-		start = start.Add(time.Minute)
+		candles = append(candles, Candle{
+			Time:   start,
+			Volume: 1,
+			Open:   1,
+			High:   float64(1 + x),
+			Low:    float64(-(1 + x)),
+			Close:  1,
+		})
+		start = start.Add(time.Hour)
 	}
-	fmt.Println("LEN:", len(candles))
 	return candles
 }()
 
@@ -173,6 +185,58 @@ func TestBuilder_ConvertCandles(t *testing.T) {
 
 	fmt.Printf("moo: '%+v'\n", holder)
 	fmt.Printf("moo: '%+v'\n", len(holder.Candles))
+
+	if len(holder.Candles) != 24 {
+		t.Fatalf("received: '%v', but expected '%v'", len(holder.Candles), 24)
+	}
+}
+
+func TestBuilderExtended_ConvertCandles(t *testing.T) {
+	t.Parallel()
+
+	start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	end := start.AddDate(0, 0, 1)
+	pair := currency.NewPair(currency.BTC, currency.USDT)
+
+	// no conversion
+	builder, err := GetBuilder("name", pair, pair, asset.Spot, OneHour, OneHour, start, end)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v', but expected '%v'", err, nil)
+	}
+
+	dates, err := builder.GetRanges(100)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v', but expected '%v'", err, nil)
+	}
+
+	buildExt := BuilderExtended{builder, dates}
+
+	holder, err := buildExt.ConvertCandles(oneHourCandles)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v', but expected '%v'", err, nil)
+	}
+
+	if len(holder.Candles) != 24 {
+		t.Fatalf("received: '%v', but expected '%v'", len(holder.Candles), 24)
+	}
+
+	// with conversion
+	builder, err = GetBuilder("name", pair, pair, asset.Spot, OneHour, OneMin, start, end)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v', but expected '%v'", err, nil)
+	}
+
+	dates, err = builder.GetRanges(100)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v', but expected '%v'", err, nil)
+	}
+
+	buildExt = BuilderExtended{builder, dates}
+
+	holder, err = buildExt.ConvertCandles(oneMinuteCandles)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v', but expected '%v'", err, nil)
+	}
 
 	if len(holder.Candles) != 24 {
 		t.Fatalf("received: '%v', but expected '%v'", len(holder.Candles), 24)

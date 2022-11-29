@@ -317,31 +317,33 @@ func ConvertToNewInterval(old *Item, newInterval Interval) (*Item, error) {
 	}
 
 	oldIntervalsPerNewCandle := int(newInterval / old.Interval)
-	candles := make([]Candle, 0, len(old.Candles)/oldIntervalsPerNewCandle)
-	var blank Candle
+	candles := make([]Candle, len(old.Candles)/oldIntervalsPerNewCandle)
+	var target int
 	for x := range old.Candles {
-		if blank.Time.IsZero() {
-			blank.Time = old.Candles[x].Time
-			blank.Open = old.Candles[x].Open
+		if candles[target].Time.IsZero() {
+			candles[target].Time = old.Candles[x].Time
+			candles[target].Open = old.Candles[x].Open
 		}
 
-		if old.Candles[x].High > blank.High {
-			blank.High = old.Candles[x].High
+		if old.Candles[x].High > candles[target].High {
+			candles[target].High = old.Candles[x].High
 		}
 
-		if blank.Low == 0 || blank.Low != 0 && old.Candles[x].Low < blank.Low {
-			blank.Low = old.Candles[x].Low
+		if candles[target].Low == 0 || candles[target].Low != 0 && old.Candles[x].Low < candles[target].Low {
+			candles[target].Low = old.Candles[x].Low
 		}
 
-		blank.Volume += old.Candles[x].Volume
-		blank.Close = old.Candles[x].Close
+		candles[target].Volume += old.Candles[x].Volume
 
-		if x+1%oldIntervalsPerNewCandle == 0 {
-			candles = append(candles, blank)
-			blank = Candle{}
-			if len(old.Candles[x:]) < int(oldIntervalsPerNewCandle) {
-				fmt.Println("BREA")
-				break // Test this potential optim.
+		if (x+1)%oldIntervalsPerNewCandle == 0 {
+			candles[target].Close = old.Candles[x].Close
+			target++
+			// Note: Below checks the length of the proceeding slice so we can
+			// break instantly if we cannot make an entire candle. e.g. 60 min
+			// candles in an hour candle and we have 59 minute candles left.
+			// This entire procession is cleaved.
+			if len(old.Candles[x:])-1 < int(oldIntervalsPerNewCandle) {
+				break
 			}
 		}
 	}
@@ -446,18 +448,21 @@ func (k *Item) GetClosePriceAtTime(t time.Time) (float64, error) {
 
 // SetHasDataFromCandles will calculate whether there is data in each candle
 // allowing any missing data from an API request to be highlighted
-func (h *IntervalRangeHolder) SetHasDataFromCandles(c []Candle) {
+func (h *IntervalRangeHolder) SetHasDataFromCandles(incoming []Candle) {
+	bucket := make([]Candle, len(incoming))
+	copy(bucket, incoming)
 	for x := range h.Ranges {
 	intervals:
 		for y := range h.Ranges[x].Intervals {
-			for z := range c {
-				cu := c[z].Time.Unix()
-				if cu >= h.Ranges[x].Intervals[y].Start.Ticks && cu < h.Ranges[x].Intervals[y].End.Ticks {
+			for z := range bucket {
+				cu := bucket[z].Time.Unix()
+				if cu >= h.Ranges[x].Intervals[y].Start.Ticks &&
+					cu < h.Ranges[x].Intervals[y].End.Ticks {
 					h.Ranges[x].Intervals[y].HasData = true
+					bucket = bucket[z+1:]
 					continue intervals
 				}
 			}
-			h.Ranges[x].Intervals[y].HasData = false
 		}
 	}
 }
