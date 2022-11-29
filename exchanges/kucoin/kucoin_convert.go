@@ -2,7 +2,10 @@ package kucoin
 
 import (
 	"encoding/json"
+	"strconv"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
 // UnmarshalJSON deserialises the JSON info, including the timestamp
@@ -134,5 +137,101 @@ func (a *WsAccountBalance) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	a.Time = time.UnixMilli(chil.Time)
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *WsFuturesTicker) UnmarshalJSON(data []byte) error {
+	type Alias WsFuturesTicker
+	chil := &struct {
+		*Alias
+		FilledTime int64 `json:"ts"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, &chil); err != nil {
+		return err
+	}
+	a.FilledTime = time.UnixMicro(int64(chil.FilledTime / 1e3))
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *WsFuturesOrderbokInfo) UnmarshalJSON(data []byte) error {
+	type Alias WsFuturesOrderbokInfo
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"timestamp"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, &chil); err != nil {
+		return err
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *WsFuturesExecutionData) UnmarshalJSON(data []byte) error {
+	type Alias WsFuturesExecutionData
+	chil := &struct {
+		*Alias
+		Time int64 `json:"time"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, &chil); err != nil {
+		return err
+	}
+	a.Time = time.UnixMicro(int64(chil.Time / 1e3))
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *WsOrderbookLevel5) UnmarshalJSON(data []byte) error {
+	type Alias WsOrderbookLevel5
+	chil := &struct {
+		*Alias
+		Asks      [][2]string `json:"asks"`
+		Bids      [][2]string `json:"bids"`
+		Timestamp int64       `json:"ts"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, &chil); err != nil {
+		return err
+	}
+	a.Asks = make([]orderbook.Item, len(chil.Asks))
+	for x := range chil.Asks {
+		price, err := strconv.ParseFloat(chil.Asks[x][0], 64)
+		if err != nil {
+			return err
+		}
+		amount, err := strconv.ParseFloat(chil.Asks[x][1], 64)
+		if err != nil {
+			return err
+		}
+		a.Asks[x] = orderbook.Item{
+			Price:  price,
+			Amount: amount,
+		}
+	}
+	a.Bids = make([]orderbook.Item, len(chil.Bids))
+	for x := range chil.Bids {
+		price, err := strconv.ParseFloat(chil.Bids[x][0], 64)
+		if err != nil {
+			return err
+		}
+		amount, err := strconv.ParseFloat(chil.Bids[x][1], 64)
+		if err != nil {
+			return err
+		}
+		a.Bids[x] = orderbook.Item{
+			Price:  price,
+			Amount: amount,
+		}
+	}
+	a.Timestamp = time.UnixMicro(int64(chil.Timestamp / 1e3))
 	return nil
 }

@@ -1081,6 +1081,7 @@ func constructFuturesOrderbook(o *futuresOrderbookResponse) (*Orderbook, error) 
 	if err != nil {
 		return nil, err
 	}
+	s.Sequence = o.Data.Sequence
 	s.Time = o.Data.Time.Time()
 	return &s, err
 }

@@ -276,9 +276,10 @@ type Stats24hrs struct {
 
 // Orderbook stores the orderbook data
 type Orderbook struct {
-	Bids []orderbook.Item
-	Asks []orderbook.Item
-	Time time.Time
+	Sequence int64
+	Bids     []orderbook.Item
+	Asks     []orderbook.Item
+	Time     time.Time
 }
 
 type orderbookResponse struct {
@@ -1040,4 +1041,53 @@ type WsStopOrder struct {
 	TriggerSuccess bool      `json:"triggerSuccess"`
 	Timestamp      time.Time `json:"ts"`
 	Type           string    `json:"type"`
+}
+
+// WsFuturesTicker represents a futures ticker push data.
+type WsFuturesTicker struct {
+	Symbol       string    `json:"symbol"`
+	Sequence     int64     `json:"sequence"`
+	Side         string    `json:"side"`
+	FilledPrice  float64   `json:"price"`
+	FilledSize   float64   `json:"size"`
+	TradeID      string    `json:"tradeId"`
+	BestBidSize  float64   `json:"bestBidSize"`
+	BestBidPrice float64   `json:"bestBidPrice"`
+	BestAskPrice float64   `json:"bestAskPrice"`
+	BestAskSize  float64   `json:"bestAskSize"`
+	FilledTime   time.Time `json:"ts"`
+}
+
+// WsFuturesOrderbokInfo represents Level 2 order book information.
+type WsFuturesOrderbokInfo struct {
+	Sequence  int64     `json:"sequence"`
+	Change    string    `json:"change"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+// WsFuturesExecutionData represents execution data for symbol.
+type WsFuturesExecutionData struct {
+	Symbol           string    `json:"symbol"`
+	Sequence         int64     `json:"sequence"`
+	Side             string    `json:"side"`
+	FilledQuantity   float64   `json:"matchSize"` // Filled quantity
+	UnfilledQuantity float64   `json:"size"`
+	FilledPrice      float64   `json:"price"`
+	TakerOrderID     string    `json:"takerOrderId"`
+	Time             time.Time `json:"time"`
+	MakerOrderID     string    `json:"makerOrderId"`
+	TradeID          string    `json:"tradeId"`
+}
+
+// WsOrderbookLevel5 represents an orderbook push data with depth level 5.
+type WsOrderbookLevel5 struct {
+	Asks      []orderbook.Item `json:"asks"`
+	Bids      []orderbook.Item `json:"bids"`
+	Timestamp time.Time        `json:"ts"`
+}
+
+type Ws struct {
+	Granularity int     `json:"granularity"`
+	FundingRate float64 `json:"fundingRate"`
+	Timestamp   int64   `json:"timestamp"`
 }

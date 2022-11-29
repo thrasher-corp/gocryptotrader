@@ -2035,3 +2035,18 @@ func (ku *Kucoin) stringToOrderStatus(status string) (order.Status, error) {
 		return order.StringToOrderStatus(status)
 	}
 }
+
+func (ku *Kucoin) stringToOrderType(oType string) (order.Type, error) {
+	switch oType {
+	case "open":
+	case "match":
+	case "filled":
+	case "canceled":
+		// return order.Limit
+	case "update":
+		// return order.Update,nil
+	default:
+		return order.StringToOrderType(oType)
+	}
+	return order.AnyType, nil
+}
