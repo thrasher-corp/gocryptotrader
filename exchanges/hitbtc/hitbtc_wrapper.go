@@ -874,18 +874,14 @@ func (h *HitBTC) FormatExchangeKlineInterval(in kline.Interval) string {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (h *HitBTC) GetHistoricCandles(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
-	if builder == nil {
-		return nil, kline.ErrNilBuilder
-	}
-
-	formattedPair, err := h.FormatExchangeCurrency(builder.Pair, builder.Asset)
+func (h *HitBTC) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := h.GetKlineBuilder(pair, a, required, start, end)
 	if err != nil {
 		return nil, err
 	}
 
 	data, err := h.GetCandles(ctx,
-		formattedPair.String(),
+		builder.Formatted.String(),
 		strconv.FormatInt(int64(h.Features.Enabled.Kline.ResultLimit), 10),
 		h.FormatExchangeKlineInterval(builder.Request),
 		builder.Start,
@@ -905,38 +901,25 @@ func (h *HitBTC) GetHistoricCandles(ctx context.Context, builder *kline.Builder)
 			Volume: data[x].Volume,
 		}
 	}
-	ret, err := builder.ConvertCandles(timeSeries)
-	if err != nil {
-		return nil, err
-	}
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
+	return builder.ConvertCandles(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (h *HitBTC) GetHistoricCandlesExtended(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
-	if builder == nil {
-		return nil, kline.ErrNilBuilder
-	}
-
-	dates, err := builder.GetRanges(h.Features.Enabled.Kline.ResultLimit)
-	if err != nil {
-		return nil, err
-	}
-	formattedPair, err := h.FormatExchangeCurrency(builder.Pair, builder.Asset)
+func (h *HitBTC) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := h.GetKlineBuilderExtended(pair, a, required, start, end)
 	if err != nil {
 		return nil, err
 	}
 
 	var timeSeries []kline.Candle
-	for y := range dates.Ranges {
+	for y := range builder.Ranges {
 		var data []ChartData
 		data, err = h.GetCandles(ctx,
-			formattedPair.String(),
+			builder.Formatted.String(),
 			strconv.FormatInt(int64(h.Features.Enabled.Kline.ResultLimit), 10),
 			h.FormatExchangeKlineInterval(builder.Request),
-			dates.Ranges[y].Start.Time,
-			dates.Ranges[y].End.Time)
+			builder.Ranges[y].Start.Time,
+			builder.Ranges[y].End.Time)
 		if err != nil {
 			return nil, err
 		}
@@ -952,18 +935,5 @@ func (h *HitBTC) GetHistoricCandlesExtended(ctx context.Context, builder *kline.
 			})
 		}
 	}
-	ret, err := builder.ConvertCandles(timeSeries)
-	if err != nil {
-		return nil, err
-	}
-
-	dates.SetHasDataFromCandles(ret.Candles)
-	summary := dates.DataSummary(false)
-	if len(summary) > 0 {
-		log.Warnf(log.ExchangeSys, "%v - %v", h.Name, summary)
-	}
-	ret.RemoveDuplicates()
-	ret.RemoveOutsideRange(builder.Start, builder.End)
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
+	return builder.ConvertCandles(timeSeries)
 }

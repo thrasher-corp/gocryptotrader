@@ -899,12 +899,12 @@ func TestGetHistoricCandles(t *testing.T) {
 	}
 
 	_, err = z.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, startTime, endTime, kline.OneDay)
+		currencyPair, asset.Spot, kline.OneDay, startTime, endTime)
 	if err != nil {
 		t.Fatal(err)
 	}
 	_, err = z.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, startTime, endTime, kline.Interval(time.Hour*7))
+		currencyPair, asset.Spot, kline.Interval(time.Hour*7), startTime, endTime)
 	if err == nil {
 		t.Fatal("unexpected result")
 	}
@@ -922,7 +922,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		endTime = time.Date(2020, 9, 2, 0, 0, 0, 0, time.UTC)
 	}
 	_, err = z.GetHistoricCandlesExtended(context.Background(),
-		currencyPair, asset.Spot, startTime, endTime, kline.OneDay)
+		currencyPair, asset.Spot, kline.OneDay, startTime, endTime)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -976,43 +976,6 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
 			}
 		})
-	}
-}
-
-func TestValidateCandlesRequest(t *testing.T) {
-	_, err := z.validateCandlesRequest(currency.EMPTYPAIR, asset.Empty, time.Time{}, time.Time{}, kline.Interval(-1))
-	if !errors.Is(err, common.ErrDateUnset) {
-		t.Error(err)
-	}
-	_, err = z.validateCandlesRequest(currency.EMPTYPAIR, asset.Empty, time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC), time.Time{}, kline.Interval(-1))
-	if !errors.Is(err, common.ErrDateUnset) {
-		t.Error(err)
-	}
-	_, err = z.validateCandlesRequest(currency.EMPTYPAIR, asset.Spot, time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC), time.Date(2020, 1, 1, 1, 1, 1, 3, time.UTC), kline.OneHour)
-	if !errors.Is(err, kline.ErrValidatingParams) {
-		t.Error(err)
-	}
-
-	p, err := currency.NewPairFromString(testCurrency)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	item, err := z.validateCandlesRequest(p, asset.Spot, time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC), time.Date(2020, 1, 1, 1, 1, 1, 3, time.UTC), kline.OneHour)
-	if err != nil {
-		t.Error(err)
-	}
-	if !item.Pair.Equal(p) {
-		t.Errorf("unexpected result, expected %v, received %v", p, item.Pair)
-	}
-	if item.Asset != asset.Spot {
-		t.Errorf("unexpected result, expected %v, received %v", asset.Spot, item.Asset)
-	}
-	if item.Interval != kline.OneHour {
-		t.Errorf("unexpected result, expected %v, received %v", kline.OneHour, item.Interval)
-	}
-	if item.Exchange != z.Name {
-		t.Errorf("unexpected result, expected %v, received %v", z.Name, item.Exchange)
 	}
 }
 

@@ -794,18 +794,14 @@ func (b *Bithumb) FormatExchangeKlineInterval(in kline.Interval) string {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (b *Bithumb) GetHistoricCandles(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
-	if builder == nil {
-		return nil, kline.ErrNilBuilder
-	}
-
-	formattedPair, err := b.FormatExchangeCurrency(builder.Pair, builder.Asset)
+func (b *Bithumb) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := b.GetKlineBuilder(pair, a, required, start, end)
 	if err != nil {
 		return nil, err
 	}
 
 	candle, err := b.GetCandleStick(ctx,
-		formattedPair.String(),
+		builder.Formatted.String(),
 		b.FormatExchangeKlineInterval(builder.Request))
 	if err != nil {
 		return nil, err
@@ -843,17 +839,12 @@ func (b *Bithumb) GetHistoricCandles(ctx context.Context, builder *kline.Builder
 		}
 		timeSeries[x] = tempCandle
 	}
-	ret, err := builder.ConvertCandles(timeSeries)
-	if err != nil {
-		return nil, err
-	}
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
+	return builder.ConvertCandles(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (b *Bithumb) GetHistoricCandlesExtended(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
-	return b.GetHistoricCandles(ctx, builder)
+func (b *Bithumb) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
+	return b.GetHistoricCandles(ctx, pair, a, required, start, end)
 }
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type

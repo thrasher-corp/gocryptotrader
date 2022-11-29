@@ -1603,32 +1603,18 @@ func TestGetHistoricCandles(t *testing.T) {
 	}
 
 	startTime := time.Now().Add(-time.Hour * 1)
-	builder, err := h.GetKlineBuilder(pair, asset.Spot, kline.OneMin, startTime, time.Now())
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = h.GetHistoricCandles(context.Background(), builder)
+	_, err = h.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneMin, startTime, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	builder, err = h.GetKlineBuilder(pair, asset.Spot, kline.OneDay, startTime.AddDate(0, 0, -7), time.Now())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = h.GetHistoricCandles(context.Background(), builder)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	builder, err = h.GetKlineBuilder(pair, asset.Spot, kline.Interval(time.Hour*7), startTime.AddDate(0, 0, 6), time.Now())
+	_, err = h.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, startTime.AddDate(0, 0, -7), time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// TODO: Fix custom conversions
-	_, err = h.GetHistoricCandles(context.Background(), builder)
+	_, err = h.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.Interval(time.Hour*7), startTime.AddDate(0, 0, 6), time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1640,34 +1626,19 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	startTime := time.Now().Add(-time.Hour * 1)
-	builder, err := h.GetKlineBuilder(pair, asset.Spot, kline.OneMin, startTime, time.Now())
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = h.GetHistoricCandlesExtended(context.Background(), builder)
+	_, err = h.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneMin, startTime, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	builder, err = h.GetKlineBuilder(pair, asset.Spot, kline.OneDay, startTime.AddDate(0, 0, -7), time.Now())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = h.GetHistoricCandlesExtended(context.Background(), builder)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	builder, err = h.GetKlineBuilder(pair, asset.Spot, kline.Interval(time.Hour*7), startTime.AddDate(0, 0, 6), time.Now())
+	_, err = h.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneDay, startTime.AddDate(0, 0, -7), time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// TODO: Fix custom conversions
-	_, err = h.GetHistoricCandlesExtended(context.Background(), builder)
+	_, err = h.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.Interval(time.Hour*7), startTime.AddDate(0, 0, 6), time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}

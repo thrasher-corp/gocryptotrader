@@ -523,12 +523,12 @@ func ({{.Variable}} *{{.CapitalName}}) ValidateCredentials(ctx context.Context, 
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func ({{.Variable}} *{{.CapitalName}}) GetHistoricCandles(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
 	return kline.Item{}, common.ErrNotYetImplemented
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func ({{.Variable}} *{{.CapitalName}}) GetHistoricCandlesExtended(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
 	return kline.Item{}, common.ErrNotYetImplemented
 }
 

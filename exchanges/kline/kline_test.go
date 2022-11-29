@@ -269,7 +269,7 @@ func TestTotalCandlesPerInterval(t *testing.T) {
 	testCases := []struct {
 		name     string
 		interval Interval
-		expected float64
+		expected int64
 	}{
 		{
 			"FifteenSecond",
@@ -344,27 +344,27 @@ func TestTotalCandlesPerInterval(t *testing.T) {
 		{
 			"ThreeDay",
 			ThreeDay,
-			121.66666666666667,
+			121,
 		},
 		{
 			"FifteenDay",
 			FifteenDay,
-			24.333333333333332,
+			24,
 		},
 		{
 			"OneWeek",
 			OneWeek,
-			52.142857142857146,
+			52,
 		},
 		{
 			"TwoWeek",
 			TwoWeek,
-			26.071428571428573,
+			26,
 		},
 		{
 			"OneMonth",
 			OneMonth,
-			12.166666666666666,
+			12,
 		},
 		{
 			"OneYear",

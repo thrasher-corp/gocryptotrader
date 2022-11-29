@@ -23,9 +23,9 @@ func LoadData(ctx context.Context, dataType int64, startDate, endDate time.Time,
 		candles, err = exch.GetHistoricCandlesExtended(ctx,
 			fPair,
 			a,
+			kline.Interval(interval),
 			startDate,
-			endDate,
-			kline.Interval(interval))
+			endDate)
 		if err != nil {
 			return nil, fmt.Errorf("could not retrieve candle data for %v %v %v, %v", exch.GetName(), a, fPair, err)
 		}

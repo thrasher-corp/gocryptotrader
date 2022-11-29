@@ -440,22 +440,12 @@ func TestGetHistoricCandles(t *testing.T) {
 	startTime := time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, 2, 15, 0, 0, 0, 0, time.UTC)
 
-	builder, err := bi.GetKlineBuilder(pair, asset.Spot, kline.Interval(time.Hour*5), startTime, endTime)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = bi.GetHistoricCandles(context.Background(), builder)
+	_, err := bi.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.Interval(time.Hour*5), startTime, endTime)
 	if err != nil && !strings.Contains(err.Error(), "requested data would exceed exchange limits") {
 		t.Fatal(err)
 	}
 
-	builder, err = bi.GetKlineBuilder(pair, asset.Spot, kline.FourHour, time.Time{}, time.Time{})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = bi.GetHistoricCandles(context.Background(), builder)
+	_, err = bi.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.FourHour, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error("Binanceus GetHistoricCandles() error", err)
 	}
@@ -467,12 +457,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	startTime := time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, 2, 15, 0, 0, 0, 0, time.UTC)
 
-	builder, err := bi.GetKlineBuilder(pair, asset.Spot, kline.FourHour, startTime, endTime)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = bi.GetHistoricCandlesExtended(context.Background(), builder)
+	_, err := bi.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.FourHour, startTime, endTime)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -480,12 +465,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	startTime = time.Now().Add(-time.Hour * 30)
 	endTime = time.Now()
 
-	builder, err = bi.GetKlineBuilder(pair, asset.Spot, kline.FourHour, startTime, endTime)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = bi.GetHistoricCandlesExtended(context.Background(), builder)
+	_, err = bi.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.FourHour, startTime, endTime)
 	if err != nil {
 		t.Error("Binanceus GetHistoricCandlesExtended() error", err)
 	}

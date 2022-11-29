@@ -704,9 +704,9 @@ func (m *DataHistoryManager) processCandleData(job *DataHistoryJob, exch exchang
 	candles, err := exch.GetHistoricCandlesExtended(context.TODO(),
 		job.Pair,
 		job.Asset,
+		job.Interval,
 		startRange,
-		endRange,
-		job.Interval)
+		endRange)
 	if err != nil {
 		r.Result += "could not get candles: " + err.Error() + ". "
 		r.Status = dataHistoryStatusFailed
@@ -907,9 +907,9 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 	apiCandles, err := exch.GetHistoricCandlesExtended(context.TODO(),
 		job.Pair,
 		job.Asset,
+		job.Interval,
 		startRange,
-		endRange,
-		job.Interval)
+		endRange)
 	if err != nil {
 		r.Result = "could not get API candles: " + err.Error()
 		r.Status = dataHistoryStatusFailed

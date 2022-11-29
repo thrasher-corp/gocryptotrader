@@ -1548,7 +1548,7 @@ type dhmExchange struct {
 	exchange.IBotExchange
 }
 
-func (f dhmExchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (*kline.Item, error) {
+func (f dhmExchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, interval kline.Interval, timeStart, _ time.Time) (*kline.Item, error) {
 	return &kline.Item{
 		Exchange: testExchange,
 		Pair:     p,

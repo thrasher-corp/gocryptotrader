@@ -946,12 +946,8 @@ func (p *Poloniex) ValidateCredentials(ctx context.Context, assetType asset.Item
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (p *Poloniex) GetHistoricCandles(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
-	if builder == nil {
-		return nil, kline.ErrNilBuilder
-	}
-
-	formattedPair, err := p.FormatExchangeCurrency(builder.Pair, builder.Asset)
+func (p *Poloniex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := p.GetKlineBuilder(pair, a, required, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -961,7 +957,7 @@ func (p *Poloniex) GetHistoricCandles(ctx context.Context, builder *kline.Builde
 	// minutes will go down 10:15 this is due to poloniex returning a
 	// non-complete candle if the time does not match.
 	resp, err := p.GetChartData(ctx,
-		formattedPair.String(),
+		builder.Formatted.String(),
 		builder.Start.Truncate(builder.Request.Duration()),
 		builder.End,
 		p.FormatExchangeKlineInterval(builder.Request))
@@ -969,9 +965,9 @@ func (p *Poloniex) GetHistoricCandles(ctx context.Context, builder *kline.Builde
 		return nil, err
 	}
 
-	candles := make([]kline.Candle, len(resp))
+	timeSeries := make([]kline.Candle, len(resp))
 	for x := range resp {
-		candles[x] = kline.Candle{
+		timeSeries[x] = kline.Candle{
 			Time:   time.Unix(resp[x].Date, 0),
 			Open:   resp[x].Open,
 			High:   resp[x].High,
@@ -980,18 +976,12 @@ func (p *Poloniex) GetHistoricCandles(ctx context.Context, builder *kline.Builde
 			Volume: resp[x].Volume,
 		}
 	}
-
-	ret, err := builder.ConvertCandles(candles)
-	if err != nil {
-		return nil, err
-	}
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
+	return builder.ConvertCandles(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (p *Poloniex) GetHistoricCandlesExtended(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
-	return p.GetHistoricCandles(ctx, builder)
+func (p *Poloniex) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetAvailableTransferChains returns the available transfer blockchains for the specific

@@ -1501,10 +1501,60 @@ func (b *Base) GetKlineBuilder(pair currency.Pair, a asset.Item, required kline.
 		return nil, err
 	}
 
+	if kline.TotalCandlesPerInterval(start, end, request) >
+		int64(b.Features.Enabled.Kline.ResultLimit) {
+		fmt.Println("actual limit:", b.Features.Enabled.Kline.ResultLimit)
+		return nil, kline.ErrRequestExceedsExchangeLimits
+	}
+
 	err = b.ValidateKline(pair, a, request)
 	if err != nil {
 		return nil, err
 	}
 
-	return kline.GetBuilder(b.Name, pair, a, required, request, start, end)
+	formatted, err := b.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return nil, err
+	}
+
+	return kline.GetBuilder(b.Name, pair, formatted, a, required, request, start, end)
+}
+
+// GetKlineBuilderExtended generates a builder for custom candles to be generated from
+// supported candles. This is in extended functionality to also break down
+// calls to fetch total history.
+func (b *Base) GetKlineBuilderExtended(pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.BuilderExt, error) {
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if !a.IsValid() {
+		return nil, asset.ErrNotSupported
+	}
+
+	request, err := b.Features.Enabled.Kline.Intervals.Construct(required)
+	if err != nil {
+		return nil, err
+	}
+
+	err = b.ValidateKline(pair, a, request)
+	if err != nil {
+		return nil, err
+	}
+
+	formatted, err := b.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return nil, err
+	}
+
+	builder, err := kline.GetBuilder(b.Name, pair, formatted, a, required, request, start, end)
+	if err != nil {
+		return nil, err
+	}
+
+	dates, err := builder.GetRanges(b.Features.Enabled.Kline.ResultLimit)
+	if err != nil {
+		return nil, err
+	}
+
+	return &kline.BuilderExt{Builder: builder, IntervalRangeHolder: dates}, nil
 }

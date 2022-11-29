@@ -686,11 +686,11 @@ func (i *ItBit) ValidateCredentials(ctx context.Context, assetType asset.Item) e
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (i *ItBit) GetHistoricCandles(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
+func (i *ItBit) GetHistoricCandles(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (i *ItBit) GetHistoricCandlesExtended(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
+func (i *ItBit) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
 	return nil, common.ErrFunctionNotSupported
 }

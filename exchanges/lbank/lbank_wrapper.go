@@ -890,18 +890,14 @@ func (l *Lbank) FormatExchangeKlineInterval(in kline.Interval) string {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (l *Lbank) GetHistoricCandles(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
-	if builder == nil {
-		return nil, kline.ErrNilBuilder
-	}
-
-	formattedPair, err := l.FormatExchangeCurrency(builder.Pair, builder.Asset)
+func (l *Lbank) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := l.GetKlineBuilder(pair, a, required, start, end)
 	if err != nil {
 		return nil, err
 	}
 
 	data, err := l.GetKlines(ctx,
-		formattedPair.String(),
+		builder.Formatted.String(),
 		strconv.FormatInt(int64(l.Features.Enabled.Kline.ResultLimit), 10),
 		l.FormatExchangeKlineInterval(builder.Request),
 		strconv.FormatInt(builder.Start.Unix(), 10))
@@ -920,43 +916,30 @@ func (l *Lbank) GetHistoricCandles(ctx context.Context, builder *kline.Builder) 
 			Volume: data[x].TradingVolume,
 		}
 	}
-
-	ret, err := builder.ConvertCandles(timeSeries)
-	if err != nil {
-		return nil, err
-	}
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
+	return builder.ConvertCandles(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (l *Lbank) GetHistoricCandlesExtended(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
-	if builder == nil {
-		return nil, kline.ErrNilBuilder
-	}
-
-	dates, err := builder.GetRanges(l.Features.Enabled.Kline.ResultLimit)
-	if err != nil {
-		return nil, err
-	}
-	formattedPair, err := l.FormatExchangeCurrency(builder.Pair, builder.Asset)
+func (l *Lbank) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := l.GetKlineBuilderExtended(pair, a, required, start, end)
 	if err != nil {
 		return nil, err
 	}
 
 	var timeSeries []kline.Candle
-	for x := range dates.Ranges {
+	for x := range builder.Ranges {
 		var data []KlineResponse
 		data, err = l.GetKlines(ctx,
-			formattedPair.String(),
+			builder.Formatted.String(),
 			strconv.FormatInt(int64(l.Features.Enabled.Kline.ResultLimit), 10),
 			l.FormatExchangeKlineInterval(builder.Request),
-			strconv.FormatInt(dates.Ranges[x].Start.Ticks, 10))
+			strconv.FormatInt(builder.Ranges[x].Start.Ticks, 10))
 		if err != nil {
 			return nil, err
 		}
 		for i := range data {
-			if data[i].TimeStamp.Unix() < dates.Ranges[x].Start.Ticks || data[i].TimeStamp.Unix() > dates.Ranges[x].End.Ticks {
+			if (data[i].TimeStamp.Unix() < builder.Ranges[x].Start.Ticks) ||
+				(data[i].TimeStamp.Unix() > builder.Ranges[x].End.Ticks) {
 				continue
 			}
 			timeSeries = append(timeSeries, kline.Candle{
@@ -969,21 +952,7 @@ func (l *Lbank) GetHistoricCandlesExtended(ctx context.Context, builder *kline.B
 			})
 		}
 	}
-
-	ret, err := builder.ConvertCandles(timeSeries)
-	if err != nil {
-		return nil, err
-	}
-
-	dates.SetHasDataFromCandles(ret.Candles)
-	summary := dates.DataSummary(false)
-	if len(summary) > 0 {
-		log.Warnf(log.ExchangeSys, "%v - %v", l.Name, summary)
-	}
-	ret.RemoveDuplicates()
-	ret.RemoveOutsideRange(builder.Start, builder.End)
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
+	return builder.ConvertCandles(timeSeries)
 }
 
 // GetStatus returns the order.Status from the int representation.

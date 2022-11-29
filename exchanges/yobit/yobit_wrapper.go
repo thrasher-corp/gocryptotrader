@@ -702,12 +702,12 @@ func (y *Yobit) ValidateCredentials(ctx context.Context, assetType asset.Item) e
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (y *Yobit) GetHistoricCandles(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
+func (y *Yobit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (y *Yobit) GetHistoricCandlesExtended(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
+func (y *Yobit) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

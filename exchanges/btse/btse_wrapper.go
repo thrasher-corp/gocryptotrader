@@ -984,15 +984,12 @@ func (b *BTSE) FormatExchangeKlineInterval(in kline.Interval) string {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (b *BTSE) GetHistoricCandles(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
-	if builder == nil {
-		return nil, kline.ErrNilBuilder
-	}
-
-	fPair, err := b.FormatExchangeCurrency(builder.Pair, builder.Asset)
+func (b *BTSE) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := b.GetKlineBuilder(pair, a, required, start, end)
 	if err != nil {
 		return nil, err
 	}
+
 	intervalInt, err := strconv.Atoi(b.FormatExchangeKlineInterval(builder.Request))
 	if err != nil {
 		return nil, err
@@ -1001,7 +998,11 @@ func (b *BTSE) GetHistoricCandles(ctx context.Context, builder *kline.Builder) (
 	var timeSeries []kline.Candle
 	switch builder.Asset {
 	case asset.Spot:
-		req, err := b.OHLCV(ctx, fPair.String(), builder.Start, builder.End, intervalInt)
+		req, err := b.OHLCV(ctx,
+			builder.Formatted.String(),
+			builder.Start,
+			builder.End,
+			intervalInt)
 		if err != nil {
 			return nil, err
 		}
@@ -1022,62 +1023,12 @@ func (b *BTSE) GetHistoricCandles(ctx context.Context, builder *kline.Builder) (
 	default:
 		return nil, fmt.Errorf("asset %s not supported", builder.Asset)
 	}
-	ret, err := builder.ConvertCandles(timeSeries)
-	if err != nil {
-		return nil, err
-	}
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
+	return builder.ConvertCandles(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (b *BTSE) GetHistoricCandlesExtended(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
-	if builder == nil {
-		return nil, kline.ErrNilBuilder
-	}
-
-	if kline.TotalCandlesPerInterval(builder.Start, builder.End, builder.Request) > float64(b.Features.Enabled.Kline.ResultLimit) {
-		return nil, errors.New(kline.ErrRequestExceedsExchangeLimits)
-	}
-
-	fPair, err := b.FormatExchangeCurrency(builder.Pair, builder.Asset)
-	if err != nil {
-		return nil, err
-	}
-	intervalInt, err := strconv.Atoi(b.FormatExchangeKlineInterval(builder.Request))
-	if err != nil {
-		return nil, err
-	}
-
-	var timeSeries []kline.Candle
-	switch builder.Asset {
-	case asset.Spot:
-		req, err := b.OHLCV(ctx, fPair.String(), builder.Start, builder.End, intervalInt)
-		if err != nil {
-			return nil, err
-		}
-		timeSeries = make([]kline.Candle, len(req))
-		for x := range req {
-			timeSeries[x] = kline.Candle{
-				Time:   time.Unix(int64(req[x][0]), 0),
-				Open:   req[x][1],
-				High:   req[x][2],
-				Low:    req[x][3],
-				Close:  req[x][4],
-				Volume: req[x][5],
-			}
-		}
-	case asset.Futures:
-		return nil, common.ErrNotYetImplemented
-	default:
-		return nil, fmt.Errorf("asset %s not supported", builder.Asset)
-	}
-	ret, err := builder.ConvertCandles(timeSeries)
-	if err != nil {
-		return nil, err
-	}
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
+func (b *BTSE) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 func (b *BTSE) seedOrderSizeLimits(ctx context.Context) error {

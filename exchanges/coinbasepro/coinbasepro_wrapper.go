@@ -904,48 +904,21 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersR
 	return orders, nil
 }
 
-// checkInterval checks allowable interval
-func checkInterval(i time.Duration) (int64, error) {
-	switch i.Seconds() {
-	case 60:
-		return 60, nil
-	case 300:
-		return 300, nil
-	case 900:
-		return 900, nil
-	case 3600:
-		return 3600, nil
-	case 21600:
-		return 21600, nil
-	case 86400:
-		return 86400, nil
-	}
-	return 0, fmt.Errorf("interval not allowed %v", i.Seconds())
-}
-
 // GetHistoricCandles returns a set of candle between two time periods for a
 // designated time period
-func (c *CoinbasePro) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (*kline.Item, error) {
-	if err := c.ValidateKline(p, a, interval); err != nil {
-		return nil, err
-	}
-
-	if kline.TotalCandlesPerInterval(start, end, interval) > float64(c.Features.Enabled.Kline.ResultLimit) {
-		return nil, errors.New(kline.ErrRequestExceedsExchangeLimits)
-	}
-
-	gran, err := strconv.ParseInt(c.FormatExchangeKlineInterval(interval), 10, 64)
+func (c *CoinbasePro) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := c.GetKlineBuilder(pair, a, required, start, end)
 	if err != nil {
 		return nil, err
 	}
 
-	formatP, err := c.FormatExchangeCurrency(p, a)
+	gran, err := strconv.ParseInt(c.FormatExchangeKlineInterval(builder.Request), 10, 64)
 	if err != nil {
 		return nil, err
 	}
 
 	history, err := c.GetHistoricRates(ctx,
-		formatP.String(),
+		builder.Formatted.String(),
 		start.Format(time.RFC3339),
 		end.Format(time.RFC3339),
 		gran)
@@ -953,16 +926,9 @@ func (c *CoinbasePro) GetHistoricCandles(ctx context.Context, p currency.Pair, a
 		return nil, err
 	}
 
-	candles := kline.Item{
-		Exchange: c.Name,
-		Pair:     p,
-		Asset:    a,
-		Interval: interval,
-		Candles:  make([]kline.Candle, len(history)),
-	}
-
+	timeSeries := make([]kline.Candle, len(history))
 	for x := range history {
-		candles.Candles[x] = kline.Candle{
+		timeSeries[x] = kline.Candle{
 			Time:   history[x].Time,
 			Low:    history[x].Low,
 			High:   history[x].High,
@@ -971,51 +937,35 @@ func (c *CoinbasePro) GetHistoricCandles(ctx context.Context, p currency.Pair, a
 			Volume: history[x].Volume,
 		}
 	}
-
-	candles.SortCandlesByTimestamp(false)
-	return &candles, nil
+	return builder.ConvertCandles(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (c *CoinbasePro) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (*kline.Item, error) {
-	if err := c.ValidateKline(p, a, interval); err != nil {
-		return nil, err
-	}
-
-	gran, err := strconv.ParseInt(c.FormatExchangeKlineInterval(interval), 10, 64)
-	if err != nil {
-		return nil, err
-	}
-	dates, err := kline.CalculateCandleDateRanges(start, end, interval, c.Features.Enabled.Kline.ResultLimit)
+func (c *CoinbasePro) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := c.GetKlineBuilderExtended(pair, a, required, start, end)
 	if err != nil {
 		return nil, err
 	}
 
-	formattedPair, err := c.FormatExchangeCurrency(p, a)
+	gran, err := strconv.ParseInt(c.FormatExchangeKlineInterval(builder.Request), 10, 64)
 	if err != nil {
 		return nil, err
 	}
 
-	ret := kline.Item{
-		Exchange: c.Name,
-		Pair:     p,
-		Asset:    a,
-		Interval: interval,
-	}
-
-	for x := range dates.Ranges {
+	var timeSeries []kline.Candle
+	for x := range builder.Ranges {
 		var history []History
 		history, err = c.GetHistoricRates(ctx,
-			formattedPair.String(),
-			dates.Ranges[x].Start.Time.Format(time.RFC3339),
-			dates.Ranges[x].End.Time.Format(time.RFC3339),
+			builder.Formatted.String(),
+			builder.Ranges[x].Start.Time.Format(time.RFC3339),
+			builder.Ranges[x].End.Time.Format(time.RFC3339),
 			gran)
 		if err != nil {
 			return nil, err
 		}
 
 		for i := range history {
-			ret.Candles = append(ret.Candles, kline.Candle{
+			timeSeries = append(timeSeries, kline.Candle{
 				Time:   history[i].Time,
 				Low:    history[i].Low,
 				High:   history[i].High,
@@ -1025,15 +975,7 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(ctx context.Context, p currency
 			})
 		}
 	}
-	dates.SetHasDataFromCandles(ret.Candles)
-	summary := dates.DataSummary(false)
-	if len(summary) > 0 {
-		log.Warnf(log.ExchangeSys, "%v - %v", c.Name, summary)
-	}
-	ret.RemoveDuplicates()
-	ret.RemoveOutsideRange(start, end)
-	ret.SortCandlesByTimestamp(false)
-	return &ret, nil
+	return builder.ConvertCandles(timeSeries)
 }
 
 // ValidateCredentials validates current credentials used for wrapper

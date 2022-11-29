@@ -221,7 +221,7 @@ func (e Exchange) OHLCV(ctx context.Context, exch string, pair currency.Pair, it
 	if err != nil {
 		return nil, err
 	}
-	ret, err := ex.GetHistoricCandlesExtended(ctx, pair, item, start, end, interval)
+	ret, err := ex.GetHistoricCandlesExtended(ctx, pair, item, interval, start, end)
 	if err != nil {
 		return nil, err
 	}

@@ -279,12 +279,12 @@ func (c *CustomEx) SupportsAsset(assetType asset.Item) bool {
 }
 
 // GetHistoricCandles is a mock method for CustomEx
-func (c *CustomEx) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.Item, timeStart, timeEnd time.Time, interval kline.Interval) (*kline.Item, error) {
+func (c *CustomEx) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.Item, interval kline.Interval, timeStart, timeEnd time.Time) (*kline.Item, error) {
 	return &kline.Item{}, nil
 }
 
 // GetHistoricCandlesExtended is a mock method for CustomEx
-func (c *CustomEx) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, timeStart, timeEnd time.Time, interval kline.Interval) (*kline.Item, error) {
+func (c *CustomEx) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, interval kline.Interval, timeStart, timeEnd time.Time) (*kline.Item, error) {
 	return &kline.Item{}, nil
 }
 

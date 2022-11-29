@@ -58,9 +58,8 @@ type IBotExchange interface {
 	SetClientProxyAddress(addr string) error
 	GetDefaultConfig() (*config.Exchange, error)
 	GetBase() *Base
-	GetKlineBuilder(pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Builder, error)
-	GetHistoricCandles(ctx context.Context, builder *kline.Builder) (*kline.Item, error)
-	GetHistoricCandlesExtended(ctx context.Context, builder *kline.Builder) (*kline.Item, error)
+	GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error)
+	GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error)
 	DisableRateLimiter() error
 	EnableRateLimiter() error
 	GetServerTime(ctx context.Context, ai asset.Item) (time.Time, error)

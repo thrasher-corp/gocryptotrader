@@ -23,9 +23,9 @@ func LoadData(ctx context.Context, exch exchange.IBotExchange, dataType int64, i
 		candles, err = exch.GetHistoricCandles(ctx,
 			fPair,
 			a,
+			kline.Interval(interval),
 			time.Now().Add(-interval*2), // multiplied by 2 to ensure the latest candle is always included
-			time.Now(),
-			kline.Interval(interval))
+			time.Now())
 		if err != nil {
 			return nil, fmt.Errorf("could not retrieve live candle data for %v %v %v, %v", exch.GetName(), a, fPair, err)
 		}

@@ -2445,15 +2445,10 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, r *gctrpc.GetHistori
 			start,
 			end)
 	} else {
-		var builder *kline.Builder
-		builder, err = exch.GetKlineBuilder(pair, a, interval, start, end)
-		if err != nil {
-			return nil, err
-		}
 		if r.ExRequest {
-			klineItem, err = exch.GetHistoricCandlesExtended(ctx, builder)
+			klineItem, err = exch.GetHistoricCandlesExtended(ctx, pair, a, interval, start, end)
 		} else {
-			klineItem, err = exch.GetHistoricCandles(ctx, builder)
+			klineItem, err = exch.GetHistoricCandles(ctx, pair, a, interval, start, end)
 		}
 	}
 	if err != nil {
@@ -5005,16 +5000,11 @@ func (s *RPCServer) GetTechnicalAnalysis(ctx context.Context, r *gctrpc.GetTechn
 		return nil, err
 	}
 
-	builder, err := exch.GetKlineBuilder(pair,
+	klines, err := exch.GetHistoricCandlesExtended(ctx, pair,
 		as,
 		klineInterval,
 		r.Start.AsTime(),
 		r.End.AsTime())
-	if err != nil {
-		return nil, err
-	}
-
-	klines, err := exch.GetHistoricCandlesExtended(ctx, builder)
 	if err != nil {
 		return nil, err
 	}
@@ -5081,17 +5071,13 @@ func (s *RPCServer) GetTechnicalAnalysis(ctx context.Context, r *gctrpc.GetTechn
 			return nil, err
 		}
 
-		builder, err = otherExch.GetKlineBuilder(otherPair,
+		var otherKlines *kline.Item
+		otherKlines, err = otherExch.GetHistoricCandlesExtended(ctx,
+			otherPair,
 			otherAs,
 			klineInterval,
 			r.Start.AsTime(),
 			r.End.AsTime())
-		if err != nil {
-			return nil, err
-		}
-
-		var otherKlines *kline.Item
-		otherKlines, err = otherExch.GetHistoricCandlesExtended(ctx, builder)
 		if err != nil {
 			return nil, err
 		}

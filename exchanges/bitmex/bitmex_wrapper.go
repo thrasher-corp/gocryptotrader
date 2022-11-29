@@ -935,12 +935,12 @@ func (b *Bitmex) ValidateCredentials(ctx context.Context, assetType asset.Item) 
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (b *Bitmex) GetHistoricCandles(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
+func (b *Bitmex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (b *Bitmex) GetHistoricCandlesExtended(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
+func (b *Bitmex) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

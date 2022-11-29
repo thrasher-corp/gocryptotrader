@@ -769,11 +769,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 	startTime := time.Now().Add(-time.Hour * 6)
-	builder, err := g.GetKlineBuilder(pair, asset.Spot, kline.OneMin, startTime, time.Now())
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = g.GetHistoricCandles(context.Background(), builder)
+	_, err = g.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneMin, startTime, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -786,11 +782,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		t.Fatal(err)
 	}
 	startTime := time.Now().Add(-time.Hour * 2)
-	builder, err := g.GetKlineBuilder(pair, asset.Spot, kline.OneMin, startTime, time.Now())
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = g.GetHistoricCandlesExtended(context.Background(), builder)
+	_, err = g.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneMin, startTime, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -878,15 +878,10 @@ func (bi *Binanceus) ValidateCredentials(ctx context.Context, assetType asset.It
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (bi *Binanceus) GetHistoricCandles(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
-	if builder == nil {
-		return nil, kline.ErrNilBuilder
-	}
-
-	// TODO: Shift
-	if kline.TotalCandlesPerInterval(builder.Start, builder.End, builder.Request) >
-		float64(bi.Features.Enabled.Kline.ResultLimit) {
-		return nil, errors.New(kline.ErrRequestExceedsExchangeLimits)
+func (bi *Binanceus) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := bi.GetKlineBuilder(pair, a, required, start, end)
+	if err != nil {
+		return nil, err
 	}
 
 	candles, err := bi.GetSpotKline(ctx, &KlinesRequestParams{
@@ -911,33 +906,24 @@ func (bi *Binanceus) GetHistoricCandles(ctx context.Context, builder *kline.Buil
 			Volume: candles[x].Volume,
 		}
 	}
-	ret, err := builder.ConvertCandles(timeSeries)
-	if err != nil {
-		return nil, err
-	}
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
+	return builder.ConvertCandles(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (bi *Binanceus) GetHistoricCandlesExtended(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
-	if builder == nil {
-		return nil, kline.ErrNilBuilder
-	}
-
-	dates, err := builder.GetRanges(bi.Features.Enabled.Kline.ResultLimit)
+func (bi *Binanceus) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := bi.GetKlineBuilderExtended(pair, a, required, start, end)
 	if err != nil {
 		return nil, err
 	}
 
 	var timeSeries []kline.Candle
-	for x := range dates.Ranges {
+	for x := range builder.Ranges {
 		var candles []CandleStick
 		candles, err = bi.GetSpotKline(ctx, &KlinesRequestParams{
 			Interval:  bi.GetIntervalEnum(builder.Request),
 			Symbol:    builder.Pair,
-			StartTime: dates.Ranges[x].Start.Time,
-			EndTime:   dates.Ranges[x].End.Time,
+			StartTime: builder.Ranges[x].Start.Time,
+			EndTime:   builder.Ranges[x].End.Time,
 			Limit:     int64(bi.Features.Enabled.Kline.ResultLimit),
 		})
 		if err != nil {
@@ -955,19 +941,7 @@ func (bi *Binanceus) GetHistoricCandlesExtended(ctx context.Context, builder *kl
 			})
 		}
 	}
-	ret, err := builder.ConvertCandles(timeSeries)
-	if err != nil {
-		return nil, err
-	}
-	dates.SetHasDataFromCandles(ret.Candles)
-	summary := dates.DataSummary(false)
-	if len(summary) > 0 {
-		log.Warnf(log.ExchangeSys, "%v - %v", bi.Name, summary)
-	}
-	ret.RemoveDuplicates()
-	ret.RemoveOutsideRange(builder.Start, builder.End)
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
+	return builder.ConvertCandles(timeSeries)
 }
 
 // GetAvailableTransferChains returns the available transfer blockchains for the specific

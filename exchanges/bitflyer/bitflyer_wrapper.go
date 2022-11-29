@@ -479,11 +479,11 @@ func (b *Bitflyer) ValidateCredentials(ctx context.Context, assetType asset.Item
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (b *Bitflyer) GetHistoricCandles(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time, _ kline.Interval) (*kline.Item, error) {
+func (b *Bitflyer) GetHistoricCandles(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (b *Bitflyer) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time, _ kline.Interval) (*kline.Item, error) {
+func (b *Bitflyer) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
 	return nil, common.ErrFunctionNotSupported
 }

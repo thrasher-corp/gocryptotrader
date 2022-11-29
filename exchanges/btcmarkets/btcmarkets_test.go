@@ -805,22 +805,12 @@ func TestBTCMarkets_GetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	builder, err := b.GetKlineBuilder(pair, asset.Spot, kline.OneHour, time.Now().Add(-time.Hour*24).UTC(), time.Now().UTC())
+	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneHour, time.Now().Add(-time.Hour*24).UTC(), time.Now().UTC())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetHistoricCandles(context.Background(), builder)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	builder, err = b.GetKlineBuilder(pair, asset.Spot, kline.FifteenMin, time.Now().Add(-time.Hour*24).UTC(), time.Now().UTC())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetHistoricCandles(context.Background(), builder)
+	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.FifteenMin, time.Now().Add(-time.Hour*24).UTC(), time.Now().UTC())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -835,12 +825,7 @@ func TestBTCMarkets_GetHistoricCandlesExtended(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	builder, err := b.GetKlineBuilder(pair, asset.Spot, kline.OneDay, start, end)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetHistoricCandlesExtended(context.Background(), builder)
+	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneDay, start, end)
 	if err != nil {
 		t.Fatal(err)
 	}

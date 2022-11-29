@@ -1122,11 +1122,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 	startTime := time.Unix(1588636800, 0)
-	builder, err := o.GetKlineBuilder(pair, asset.Spot, kline.OneMin, startTime, time.Now())
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = o.GetHistoricCandles(context.Background(), builder)
+	_, err = o.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneMin, startTime, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1138,24 +1134,13 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		t.Fatal(err)
 	}
 	startTime := time.Unix(1588636800, 0)
-	builder, err := o.GetKlineBuilder(pair, asset.Spot, kline.OneWeek, startTime, time.Now())
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = o.GetHistoricCandlesExtended(context.Background(), builder)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	o.Verbose = true
-
-	builder, err = o.GetKlineBuilder(pair, asset.Spot, kline.Interval(time.Hour*7), startTime, time.Now())
+	_, err = o.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneWeek, startTime, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// TODO: This 7 hour conversion return is wrong.
-	moo, err := o.GetHistoricCandles(context.Background(), builder)
+	moo, err := o.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.Interval(time.Hour*7), startTime, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}

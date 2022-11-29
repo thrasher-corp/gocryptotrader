@@ -713,12 +713,7 @@ func TestBitstamp_GetHistoricCandles(t *testing.T) {
 	start := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
 
-	builder, err := b.GetKlineBuilder(pair, asset.Spot, kline.OneDay, start, end)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetHistoricCandles(context.Background(), builder)
+	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, start, end)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -732,12 +727,7 @@ func TestBitstamp_GetHistoricCandlesExtended(t *testing.T) {
 	start := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
 
-	builder, err := b.GetKlineBuilder(pair, asset.Spot, kline.OneDay, start, end)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetHistoricCandlesExtended(context.Background(), builder)
+	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneDay, start, end)
 	if err != nil {
 		t.Fatal(err)
 	}

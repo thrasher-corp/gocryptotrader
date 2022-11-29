@@ -649,40 +649,17 @@ func TestWsPriceAggregateOrderbook(t *testing.T) {
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 
-	_, err := p.GetHistoricCandles(context.Background(), nil)
-	if !errors.Is(err, kline.ErrNilBuilder) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrNilBuilder)
-	}
-
-	currencyPair, err := currency.NewPairFromString("BTC_LTC")
+	pair, err := currency.NewPairFromString("BTC_LTC")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	builder, err := p.GetKlineBuilder(currencyPair,
-		asset.Spot,
-		kline.FiveMin,
-		time.Unix(1588741402, 0),
-		time.Unix(1588745003, 0))
+	_, err = p.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.FiveMin, time.Unix(1588741402, 0), time.Unix(1588745003, 0))
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	_, err = p.GetHistoricCandles(context.Background(), builder)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	builder, err = p.GetKlineBuilder(currencyPair,
-		asset.Spot,
-		kline.Interval(time.Hour*7), // Custom interval
-		time.Unix(1588741402, 0),
-		time.Unix(1588745003, 0))
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	_, err = p.GetHistoricCandles(context.Background(), builder)
+	_, err = p.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.Interval(time.Hour*7), time.Unix(1588741402, 0), time.Unix(1588745003, 0))
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -690,40 +667,18 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	_, err := p.GetHistoricCandlesExtended(context.Background(), nil)
-	if !errors.Is(err, kline.ErrNilBuilder) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrNilBuilder)
-	}
 
-	currencyPair, err := currency.NewPairFromString("BTC_LTC")
+	pair, err := currency.NewPairFromString("BTC_LTC")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	builder, err := p.GetKlineBuilder(currencyPair,
-		asset.Spot,
-		kline.FiveMin,
-		time.Unix(1588741402, 0),
-		time.Unix(1588745003, 0))
+	_, err = p.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.FiveMin, time.Unix(1588741402, 0), time.Unix(1588745003, 0))
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	_, err = p.GetHistoricCandlesExtended(context.Background(), builder)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	builder, err = p.GetKlineBuilder(currencyPair,
-		asset.Spot,
-		kline.Interval(time.Hour*7), // Custom interval
-		time.Unix(1588741402, 0),
-		time.Unix(1588745003, 0))
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	_, err = p.GetHistoricCandlesExtended(context.Background(), builder)
+	_, err = p.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.Interval(time.Hour*7), time.Unix(1588741402, 0), time.Unix(1588745003, 0))
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}

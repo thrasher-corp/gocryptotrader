@@ -278,50 +278,13 @@ func durationToWord(in Interval) string {
 }
 
 // TotalCandlesPerInterval turns total candles per period for interval
-func TotalCandlesPerInterval(start, end time.Time, interval Interval) (out float64) {
-	switch interval {
-	case FifteenSecond:
-		return end.Sub(start).Seconds() / 15
-	case OneMin:
-		return end.Sub(start).Minutes()
-	case ThreeMin:
-		return end.Sub(start).Minutes() / 3
-	case FiveMin:
-		return end.Sub(start).Minutes() / 5
-	case TenMin:
-		return end.Sub(start).Minutes() / 10
-	case FifteenMin:
-		return end.Sub(start).Minutes() / 15
-	case ThirtyMin:
-		return end.Sub(start).Minutes() / 30
-	case OneHour:
-		return end.Sub(start).Hours()
-	case TwoHour:
-		return end.Sub(start).Hours() / 2
-	case FourHour:
-		return end.Sub(start).Hours() / 4
-	case SixHour:
-		return end.Sub(start).Hours() / 6
-	case EightHour:
-		return end.Sub(start).Hours() / 8
-	case TwelveHour:
-		return end.Sub(start).Hours() / 12
-	case OneDay:
-		return end.Sub(start).Hours() / 24
-	case ThreeDay:
-		return end.Sub(start).Hours() / 72
-	case FifteenDay:
-		return end.Sub(start).Hours() / (24 * 15)
-	case OneWeek:
-		return end.Sub(start).Hours() / (24 * 7)
-	case TwoWeek:
-		return end.Sub(start).Hours() / (24 * 14)
-	case OneMonth:
-		return end.Sub(start).Hours() / (24 * 30)
-	case OneYear:
-		return end.Sub(start).Hours() / 8760
-	}
-	return -1
+func TotalCandlesPerInterval(start, end time.Time, interval Interval) int64 {
+	window := end.Sub(start)
+	fmt.Println("window", window)
+	fmt.Println("interval", interval)
+	fmt.Println("counts", int64(window)/int64(interval))
+
+	return int64(window) / int64(interval)
 }
 
 var oneYearDurationInNano = float64(OneYear.Duration().Nanoseconds())

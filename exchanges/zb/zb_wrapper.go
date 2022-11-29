@@ -886,34 +886,28 @@ func (z *ZB) FormatExchangeKlineInterval(in kline.Interval) string {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (z *ZB) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (*kline.Item, error) {
-	ret, err := z.validateCandlesRequest(p, a, start, end, interval)
+func (z *ZB) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := z.GetKlineBuilder(pair, a, required, start, end)
 	if err != nil {
 		return nil, err
 	}
 
-	p, err = z.FormatExchangeCurrency(p, a)
-	if err != nil {
-		return nil, err
-	}
-
-	klineParams := KlinesRequestParams{
-		Type:   z.FormatExchangeKlineInterval(interval),
-		Symbol: p.String(),
+	candles, err := z.GetSpotKline(ctx, KlinesRequestParams{
+		Type:   z.FormatExchangeKlineInterval(builder.Request),
+		Symbol: builder.Formatted.String(),
 		Since:  start.UnixMilli(),
 		Size:   int64(z.Features.Enabled.Kline.ResultLimit),
-	}
-	var candles KLineResponse
-	candles, err = z.GetSpotKline(ctx, klineParams)
+	})
 	if err != nil {
 		return nil, err
 	}
 
+	timeSeries := make([]kline.Candle, 0, len(candles.Data))
 	for x := range candles.Data {
 		if candles.Data[x].KlineTime.Before(start) || candles.Data[x].KlineTime.After(end) {
 			continue
 		}
-		ret.Candles = append(ret.Candles, kline.Candle{
+		timeSeries = append(timeSeries, kline.Candle{
 			Time:   candles.Data[x].KlineTime,
 			Open:   candles.Data[x].Open,
 			High:   candles.Data[x].High,
@@ -922,34 +916,26 @@ func (z *ZB) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.It
 			Volume: candles.Data[x].Volume,
 		})
 	}
-
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
+	return builder.ConvertCandles(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (z *ZB) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (*kline.Item, error) {
-	ret, err := z.validateCandlesRequest(p, a, start, end, interval)
-	if err != nil {
-		return nil, err
-	}
-
-	p, err = z.FormatExchangeCurrency(p, a)
+func (z *ZB) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := z.GetKlineBuilderExtended(pair, a, required, start, end)
 	if err != nil {
 		return nil, err
 	}
 
 	startTime := start
+	var timeSeries []kline.Candle
 allKlines:
 	for {
-		klineParams := KlinesRequestParams{
-			Type:   z.FormatExchangeKlineInterval(interval),
-			Symbol: p.String(),
+		candles, err := z.GetSpotKline(ctx, KlinesRequestParams{
+			Type:   z.FormatExchangeKlineInterval(builder.Request),
+			Symbol: builder.Formatted.String(),
 			Since:  startTime.UnixMilli(),
 			Size:   int64(z.Features.Enabled.Kline.ResultLimit),
-		}
-
-		candles, err := z.GetSpotKline(ctx, klineParams)
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -962,7 +948,7 @@ allKlines:
 				// no new data has been sent
 				break allKlines
 			}
-			ret.Candles = append(ret.Candles, kline.Candle{
+			timeSeries = append(timeSeries, kline.Candle{
 				Time:   candles.Data[x].KlineTime,
 				Open:   candles.Data[x].Open,
 				High:   candles.Data[x].High,
@@ -978,25 +964,7 @@ allKlines:
 			break allKlines
 		}
 	}
-
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
-}
-
-func (z *ZB) validateCandlesRequest(p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (*kline.Item, error) {
-	if err := common.StartEndTimeCheck(start, end); err != nil {
-		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v %w", start, end, err)
-	}
-	if err := z.ValidateKline(p, a, interval); err != nil {
-		return nil, err
-	}
-
-	return &kline.Item{
-		Exchange: z.Name,
-		Pair:     p,
-		Asset:    a,
-		Interval: interval,
-	}, nil
+	return builder.ConvertCandles(timeSeries)
 }
 
 // GetAvailableTransferChains returns the available transfer blockchains for the specific

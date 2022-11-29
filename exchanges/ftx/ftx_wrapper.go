@@ -1150,18 +1150,14 @@ func (f *FTX) ValidateCredentials(ctx context.Context, assetType asset.Item) err
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (f *FTX) GetHistoricCandles(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
-	if builder == nil {
-		return nil, kline.ErrNilBuilder
-	}
-
-	formattedPair, err := f.FormatExchangeCurrency(builder.Pair, builder.Asset)
+func (f *FTX) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := f.GetKlineBuilder(pair, a, required, start, end)
 	if err != nil {
 		return nil, err
 	}
 
 	ohlcData, err := f.GetHistoricalData(ctx,
-		formattedPair.String(),
+		builder.Formatted.String(),
 		int64(builder.Request.Duration().Seconds()),
 		int64(f.Features.Enabled.Kline.ResultLimit),
 		builder.Start,
@@ -1181,41 +1177,25 @@ func (f *FTX) GetHistoricCandles(ctx context.Context, builder *kline.Builder) (*
 			Volume: ohlcData[x].Volume,
 		}
 	}
-
-	ret, err := builder.ConvertCandles(candles)
-	if err != nil {
-		return nil, err
-	}
-
-	ret.Candles = candles
-	return builder.Convert(ret)
+	return builder.ConvertCandles(candles)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (f *FTX) GetHistoricCandlesExtended(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
-	if builder == nil {
-		return nil, kline.ErrNilBuilder
-	}
-
-	dates, err := builder.GetRanges(f.Features.Enabled.Kline.ResultLimit)
-	if err != nil {
-		return nil, err
-	}
-
-	formattedPair, err := f.FormatExchangeCurrency(builder.Pair, builder.Asset)
+func (f *FTX) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := f.GetKlineBuilderExtended(pair, a, required, start, end)
 	if err != nil {
 		return nil, err
 	}
 
 	var timeSeries []kline.Candle
-	for x := range dates.Ranges {
+	for x := range builder.Ranges {
 		var ohlcData []OHLCVData
 		ohlcData, err = f.GetHistoricalData(ctx,
-			formattedPair.String(),
+			builder.Formatted.String(),
 			int64(builder.Request.Duration().Seconds()),
 			int64(f.Features.Enabled.Kline.ResultLimit),
-			dates.Ranges[x].Start.Time,
-			dates.Ranges[x].End.Time)
+			builder.Ranges[x].Start.Time,
+			builder.Ranges[x].End.Time)
 		if err != nil {
 			return nil, err
 		}
@@ -1231,20 +1211,7 @@ func (f *FTX) GetHistoricCandlesExtended(ctx context.Context, builder *kline.Bui
 			})
 		}
 	}
-	ret, err := builder.ConvertCandles(timeSeries)
-	if err != nil {
-		return nil, err
-	}
-	dates.SetHasDataFromCandles(ret.Candles)
-	summary := dates.DataSummary(false)
-	if len(summary) > 0 {
-		log.Warnf(log.ExchangeSys, "%v - %v", f.Name, summary)
-	}
-	ret.RemoveDuplicates()
-	ret.RemoveOutsideRange(builder.Start, builder.End)
-	ret.SortCandlesByTimestamp(false)
-
-	return ret, nil
+	return builder.ConvertCandles(timeSeries)
 }
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type

@@ -32,16 +32,13 @@ const (
 	FifteenDay    = 15 * OneDay
 	OneWeek       = 7 * OneDay
 	TwoWeek       = 2 * OneWeek
-	OneMonth      = 31 * OneDay
+	OneMonth      = 30 * OneDay
 	OneYear       = 365 * OneDay
 )
 
-const (
-	// ErrRequestExceedsExchangeLimits locale for exceeding rate limits message
-	ErrRequestExceedsExchangeLimits = "requested data would exceed exchange limits please lower range or use GetHistoricCandlesEx"
-)
-
 var (
+	// ErrRequestExceedsExchangeLimits locale for exceeding rate limits message
+	ErrRequestExceedsExchangeLimits = errors.New("request will exceed exchange limits, please reduce start-end time window or use GetHistoricCandlesExtended")
 	// ErrUnsetInterval is an error for date range calculation
 	ErrUnsetInterval = errors.New("cannot calculate range, interval unset")
 	// ErrUnsupportedInterval returns when the provided interval is not supported by an exchange

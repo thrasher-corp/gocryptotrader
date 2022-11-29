@@ -1475,12 +1475,14 @@ func (k *Kraken) FormatExchangeKlineInterval(in kline.Interval) string {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (k *Kraken) GetHistoricCandles(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
-	if builder == nil {
-		return nil, kline.ErrNilBuilder
+func (k *Kraken) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := k.GetKlineBuilder(pair, a, required, start, end)
+	if err != nil {
+		return nil, err
 	}
-
-	candles, err := k.GetOHLC(ctx, builder.Pair, k.FormatExchangeKlineInterval(builder.Request))
+	candles, err := k.GetOHLC(ctx,
+		builder.Pair,
+		k.FormatExchangeKlineInterval(builder.Request))
 	if err != nil {
 		return nil, err
 	}
@@ -1503,17 +1505,12 @@ func (k *Kraken) GetHistoricCandles(ctx context.Context, builder *kline.Builder)
 			Volume: candles[x].Volume,
 		})
 	}
-	ret, err := builder.ConvertCandles(timeSeries)
-	if err != nil {
-		return nil, err
-	}
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
+	return builder.ConvertCandles(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (k *Kraken) GetHistoricCandlesExtended(ctx context.Context, builder *kline.Builder) (*kline.Item, error) {
-	return k.GetHistoricCandles(ctx, builder)
+func (k *Kraken) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 func compatibleOrderSide(side string) (order.Side, error) {
