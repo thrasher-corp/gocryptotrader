@@ -936,37 +936,37 @@ type WsPriceIndicator struct {
 
 // WsMarginFundingBook represents order book changes on margin.
 type WsMarginFundingBook struct {
-	Sequence           string  `json:"sequence"`
-	Currency           string  `json:"currency"`
-	DailyInterestRate  float64 `json:"dailyIntRate,string"`
-	AnnualInterestRate float64 `json:"annualIntRate,string"`
-	Term               int64   `json:"term"`
-	Size               float64 `json:"size,string"`
-	Side               string  `json:"side"`
-	Timestamp          int64   `json:"ts"` // In Nanosecond
+	Sequence           int64     `json:"sequence"`
+	Currency           string    `json:"currency"`
+	DailyInterestRate  float64   `json:"dailyIntRate,string"`
+	AnnualInterestRate float64   `json:"annualIntRate,string"`
+	Term               int64     `json:"term"`
+	Size               float64   `json:"size,string"`
+	Side               string    `json:"side"`
+	Timestamp          time.Time `json:"ts"` // In Nanosecond
 
 }
 
 // WsTradeOrder represents a private trade order push data.
 type WsTradeOrder struct {
-	Symbol     string  `json:"symbol"`
-	OrderType  string  `json:"orderType"`
-	Side       string  `json:"side"`
-	OrderID    string  `json:"orderId"`
-	Type       string  `json:"type"`
-	OrderTime  int64   `json:"orderTime"`
-	Size       float64 `json:"size,string"`
-	FilledSize float64 `json:"filledSize,string"`
-	Price      float64 `json:"price,string"`
-	ClientOid  string  `json:"clientOid"`
-	RemainSize float64 `json:"remainSize,string"`
-	Status     string  `json:"status"`
-	Timestamp  int64   `json:"ts"`
-	Liquidity  string  `json:"liquidity,omitempty"`
-	MatchPrice string  `json:"matchPrice,omitempty"`
-	MatchSize  string  `json:"matchSize,omitempty"`
-	TradeID    string  `json:"tradeId,omitempty"`
-	OldSize    string  `json:"oldSize,omitempty"`
+	Symbol     string    `json:"symbol"`
+	OrderType  string    `json:"orderType"`
+	Side       string    `json:"side"`
+	OrderID    string    `json:"orderId"`
+	Type       string    `json:"type"`
+	OrderTime  time.Time `json:"orderTime"`
+	Size       float64   `json:"size,string"`
+	FilledSize float64   `json:"filledSize,string"`
+	Price      float64   `json:"price,string"`
+	ClientOid  string    `json:"clientOid"`
+	RemainSize float64   `json:"remainSize,string"`
+	Status     string    `json:"status"`
+	Timestamp  time.Time `json:"ts"`
+	Liquidity  string    `json:"liquidity,omitempty"`
+	MatchPrice string    `json:"matchPrice,omitempty"`
+	MatchSize  string    `json:"matchSize,omitempty"`
+	TradeID    string    `json:"tradeId,omitempty"`
+	OldSize    string    `json:"oldSize,omitempty"`
 }
 
 // WsAccountBalance represents a Account Balance push data.
@@ -984,15 +984,15 @@ type WsAccountBalance struct {
 		TradeID string `json:"tradeId"`
 		OrderID string `json:"orderId"`
 	} `json:"relationContext"`
-	Time int64 `json:"time,string"`
+	Time time.Time `json:"time,string"`
 }
 
 // WsDebtRatioChange represents a push data
 type WsDebtRatioChange struct {
-	DebtRatio float64            `json:"debtRatio"`
-	TotalDebt float64            `json:"totalDebt,string"`
-	DebtList  map[string]float64 `json:"debtList"`
-	Timestamp time.Time          `json:"timestamp"`
+	DebtRatio float64           `json:"debtRatio"`
+	TotalDebt string            `json:"totalDebt"`
+	DebtList  map[string]string `json:"debtList"`
+	Timestamp time.Time         `json:"timestamp"`
 }
 
 // WsPositionStatus represents a position status push data.

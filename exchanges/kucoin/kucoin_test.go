@@ -50,6 +50,8 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	ku.SetDefaults()
+	ku.Websocket = sharedtestvalues.NewTestWebsocket()
 	ku.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	ku.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
@@ -1788,8 +1790,8 @@ func TestMarketTradeSnapshotPushData(t *testing.T) {
 }
 
 var orderbookLevel2PushDataJSON = `{"type": "message","topic": "/market/level2:BTC-USDT",    "subject": "trade.l2update",    "data": {"changes": {"asks": [["18906","0.00331","14103845"],["18907.3","0.58751503","14103844"]],"bids": [["18891.9","0.15688","14103847"]]},"sequenceEnd": 14103847,"sequenceStart": 14103844,"symbol": "BTC-USDT","time": 1663747970273}}`
-var orderbookLevel5PushDataJSON = `{"type": "message","topic": "/spotMarket/level2Depth5:BTC-USDT",    "subject": "level2",    "data": {          "asks":[            ["9989","8"],            ["9990","32"],            ["9991","47"],            ["9992","3"],            ["9993","3"]        ],        "bids":[            ["9988","56"],            ["9987","15"],            ["9986","100"],            ["9985","10"],            ["9984","10"]        ],        "timestamp": 1586948108193    }}`
-var orderbookLevel50PushData = `{    "type": "message",    "topic": "/spotMarket/level2Depth50:BTC-USDT",    "subject": "level2",    "data": {          "asks":[            ["9993","3"],            ["9992","3"],            ["9991","47"],            ["9990","32"],            ["9989","8"]        ],        "bids":[            ["9988","56"],            ["9987","15"],            ["9986","100"],            ["9985","10"],            ["9984","10"]        ]        "timestamp": 1586948108193    }}`
+var orderbookLevel5PushDataJSON = `{"type": "message","topic": "/spotMarket/level2Depth5:BTC-USDT",    "subject": "level2",    "data": {          "asks":[            ["9989","8"],            ["9990","32"],            ["9991","47"],            ["9992","3"],            ["9993","3"]        ],        "bids":[            ["9988","56"],            ["9987","15"],["9986","100"],["9985","10"],["9984","10"]],"timestamp": 1586948108193}}`
+var orderbookLevel50PushData = `{"type": "message",    "topic": "/spotMarket/level2Depth50:BTC-USDT",    "subject": "level2",    "data": {          "asks":[            ["9993","3"],            ["9992","3"],            ["9991","47"],            ["9990","32"],            ["9989","8"]        ],        "bids":[["9988","56"],["9987","15"],["9986","100"],["9985","10"],["9984","10"]]"timestamp": 1586948108193}}`
 
 func TestOrderbookPushData(t *testing.T) {
 	err := ku.wsHandleData([]byte(orderbookLevel2PushDataJSON))
@@ -1800,6 +1802,135 @@ func TestOrderbookPushData(t *testing.T) {
 		t.Error(err)
 	}
 	if err = ku.wsHandleData([]byte(orderbookLevel50PushData)); err != nil {
+		t.Error(err)
+	}
+}
+
+var tradeCandlesUpdatePushDataJSON = `{"type":"message","topic":"/market/candles:BTC-USDT_1hour","subject":"trade.candles.update","data":{"symbol":"BTC-USDT","candles":["1589968800","9786.9","9740.8","9806.1","9732","27.45649579","268280.09830877"],"time":1589970010253893337}}`
+
+func TestTradeCandlestickPushDataJSON(t *testing.T) {
+	t.Parallel()
+	if err := ku.wsHandleData([]byte(tradeCandlesUpdatePushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var matchExecutionPushDataJSON = `{"type":"message","topic":"/market/match:BTC-USDT","subject":"trade.l3match","data":{"sequence":"1545896669145","type":"match","symbol":"BTC-USDT","side":"buy","price":"0.08200000000000000000","size":"0.01022222000000000000","tradeId":"5c24c5da03aa673885cd67aa","takerOrderId":"5c24c5d903aa6772d55b371e","makerOrderId":"5c2187d003aa677bd09d5c93","time":"1545913818099033203"}}`
+
+func TestMatchExecutionPushData(t *testing.T) {
+	t.Parallel()
+	if err := ku.wsHandleData([]byte(matchExecutionPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var indexPricePushDataJSON = `{"id":"","type":"message","topic":"/indicator/index:USDT-BTC","subject":"tick","data":{"symbol": "USDT-BTC","granularity": 5000,"timestamp": 1551770400000,"value": 0.0001092}}`
+
+func TestIndexPricePushData(t *testing.T) {
+	t.Parallel()
+	if err := ku.wsHandleData([]byte(indexPricePushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var markPricePushDataJSON = `{"type":"message","topic":"/indicator/markPrice:USDT-BTC","subject":"tick","data":{"symbol": "USDT-BTC","granularity": 5000,"timestamp": 1551770400000,"value": 0.0001093}}`
+
+func TestMarkPricePushData(t *testing.T) {
+	t.Parallel()
+	if err := ku.wsHandleData([]byte(markPricePushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var orderbookChangePushDataJSON = `{"id": "","type": "message","topic": "/margin/fundingBook:BTC","subject": "funding.update","data": {"sequence": 1000000,"currency": "BTC","dailyIntRate": "0.00007","annualIntRate": "0.12","term": 7,"size": "1017.5","side": "lend","ts": 1553846081210004941}}`
+
+func TestOrderbookChangePushDataJSON(t *testing.T) {
+	t.Parallel()
+	if err := ku.wsHandleData([]byte(orderbookChangePushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var orderChangeStateOpenPushDataJSON = `{"type":"message","topic":"/spotMarket/tradeOrders","subject":"orderChange","channelType":"private","data":{"symbol":"KCS-USDT","orderType":"limit","side":"buy","orderId":"5efab07953bdea00089965d2","type":"open","orderTime":1593487481683297666,"size":"0.1","filledSize":"0","price":"0.937","clientOid":"1593487481000906","remainSize":"0.1","status":"open","ts":1593487481683297666}}`
+var orderChangeStateMatchPushDataJSON = `{"type":"message","topic":"/spotMarket/tradeOrders","subject":"orderChange","channelType":"private","data":{"symbol":"KCS-USDT","orderType":"limit","side":"sell","orderId":"5efab07953bdea00089965fa","liquidity":"taker","type":"match","orderTime":1593487482038606180,"size":"0.1","filledSize":"0.1","price":"0.938","matchPrice":"0.96738","matchSize":"0.1","tradeId":"5efab07a4ee4c7000a82d6d9","clientOid":"1593487481000313","remainSize":"0","status":"match","ts":1593487482038606180}}`
+var orderChangeStateFilledPushDataJSON = `{"type":"message","topic":"/spotMarket/tradeOrders","subject":"orderChange","channelType":"private","data":{"symbol":"KCS-USDT","orderType":"limit","side":"sell","orderId":"5efab07953bdea00089965fa","type":"filled","orderTime":1593487482038606180,"size":"0.1","filledSize":"0.1","price":"0.938","clientOid":"1593487481000313","remainSize":"0","status":"done","ts":1593487482038606180}}`
+var orderChangeStateCancelledPushDataJSON = `{"type":"message","topic":"/spotMarket/tradeOrders","subject":"orderChange","channelType":"private","data":{"symbol":"KCS-USDT","orderType":"limit","side":"buy","orderId":"5efab07953bdea00089965d2","type":"canceled","orderTime":1593487481683297666,"size":"0.1","filledSize":"0","price":"0.937","clientOid":"1593487481000906","remainSize":"0","status":"done","ts":1593487481893140844}}`
+var orderChangeStateUpdatePushDataJSON = `{"type":"message","topic":"/spotMarket/tradeOrders","subject":"orderChange","channelType":"private","data":{"symbol":"KCS-USDT","orderType":"limit","side":"buy","orderId":"5efab13f53bdea00089971df","type":"update","oldSize":"0.1","orderTime":1593487679693183319,"size":"0.06","filledSize":"0","price":"0.937","clientOid":"1593487679000249","remainSize":"0.06","status":"open","ts":1593487682916117521}}`
+
+func TestOrderChangePushData(t *testing.T) {
+	t.Parallel()
+	err := ku.wsHandleData([]byte(orderChangeStateOpenPushDataJSON))
+	if err != nil {
+		t.Error(err)
+	}
+	if err = ku.wsHandleData([]byte(orderChangeStateMatchPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+	if err = ku.wsHandleData([]byte(orderChangeStateFilledPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+	if err = ku.wsHandleData([]byte(orderChangeStateCancelledPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+	if err = ku.wsHandleData([]byte(orderChangeStateUpdatePushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+// func TestMe(t *testing.T) {
+// 	println(1e3 == 1000)
+// }
+
+var accountBalanceNoticePushDataJSON = `{"type": "message","topic": "/account/balance","subject": "account.balance","channelType":"private","data": {"total": "88","available": "88","availableChange": "88","currency": "KCS","hold": "0","holdChange": "0","relationEvent": "trade.setted","relationEventId": "5c21e80303aa677bd09d7dff","relationContext": {"symbol":"BTC-USDT","tradeId":"5e6a5dca9e16882a7d83b7a4","orderId":"5ea10479415e2f0009949d54"},"time": "1545743136994"}}`
+
+func TestAccountBalanceNotice(t *testing.T) {
+	t.Parallel()
+	if err := ku.wsHandleData([]byte(accountBalanceNoticePushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var debtRatioChangePushDataJSON = `{"type":"message","topic":"/margin/position","subject":"debt.ratio",    "channelType":"private",    "data": {        "debtRatio": 0.7505,        "totalDebt": "21.7505",        "debtList": {"BTC": "1.21","USDT": "2121.2121","EOS": "0"},        "timestamp": 15538460812100               }}`
+
+func TestDebtRatioChangePushData(t *testing.T) {
+	t.Parallel()
+	if err := ku.wsHandleData([]byte(debtRatioChangePushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var positionStatusChangeEventPushDataJSON = `{"type":"message","topic":"/margin/position","subject":"position.status","channelType":"private","data": {"type": "FROZEN_FL","timestamp": 15538460812100}}`
+
+func TestPositionStatusChangeEvent(t *testing.T) {
+	t.Parallel()
+	if err := ku.wsHandleData([]byte(positionStatusChangeEventPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var marginTradeOrderEntersEventPushDataJSON = `{"type": "message","topic": "/margin/loan:BTC","subject": "order.open","channelType":"private","data": {    "currency": "BTC",    "orderId": "ac928c66ca53498f9c13a127a60e8",    "dailyIntRate": 0.0001,    "term": 7,    "size": 1,        "side": "lend",    "ts": 1553846081210004941}}`
+var marginTradeOrderUpdateEventPushDataJSON = `{"type": "message","topic": "/margin/loan:BTC","subject": "order.update","channelType":"private","data": {    "currency": "BTC",    "orderId": "ac928c66ca53498f9c13a127a60e8",    "dailyIntRate": 0.0001,    "term": 7,    "size": 1,    "lentSize": 0.5,    "side": "lend",    "ts": 1553846081210004941}}`
+var marginTradeOrderDoneEventPushDataJSON = `{"type": "message","topic": "/margin/loan:BTC","subject": "order.done","channelType":"private","data": {    "currency": "BTC",    "orderId": "ac928c66ca53498f9c13a127a60e8",    "reason": "filled",    "side": "lend",    "ts": 1553846081210004941  }}`
+
+func TestMarginTradeOrderPushData(t *testing.T) {
+	t.Parallel()
+	err := ku.wsHandleData([]byte(marginTradeOrderEntersEventPushDataJSON))
+	if err != nil {
+		t.Error(err)
+	}
+	if err = ku.wsHandleData([]byte(marginTradeOrderUpdateEventPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+	if err = ku.wsHandleData([]byte(marginTradeOrderDoneEventPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var stopOrderEventPushDataJSON = `{"type":"message","topic":"/spotMarket/advancedOrders","subject":"stopOrder","channelType":"private","data":{"createdAt":1589789942337,"orderId":"5ec244f6a8a75e0009958237","orderPrice":"0.00062","orderType":"stop","side":"sell","size":"1","stop":"entry","stopPrice":"0.00062","symbol":"KCS-BTC","tradeType":"TRADE","triggerSuccess":true,"ts":1589790121382281286,"type":"triggered"}}`
+
+func TestStopOrderEventPushData(t *testing.T) {
+	t.Parallel()
+	if err := ku.wsHandleData([]byte(stopOrderEventPushDataJSON)); err != nil {
 		t.Error(err)
 	}
 }

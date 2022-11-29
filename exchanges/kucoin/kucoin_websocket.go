@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -31,9 +30,11 @@ const (
 
 	// channels
 
-	channelPing                            = "ping"
-	channelPong                            = "pong"
-	typeWelcome                            = "welcome"
+	channelPing = "ping"
+	channelPong = "pong"
+	typeWelcome = "welcome"
+
+	// spot channels
 	marketTickerChannel                    = "/market/ticker:%s" // /market/ticker:{symbol},{symbol}...
 	marketAllTickersChannel                = "/market/ticker:all"
 	marketTickerSnapshotChannel            = "/market/snapshot:%s"          // /market/snapshot:{symbol}
@@ -54,6 +55,26 @@ const (
 	marginPositionChannel     = "/margin/position"
 	marginLoanChannel         = "/margin/loan:%s" // /margin/loan:{currency}
 	spotMarketAdvancedChannel = "/spotMarket/advancedOrders"
+
+	// futures channels
+	futuresTickerV2Channel                       = "/contractMarket/tickerV2:%s"      // /contractMarket/tickerV2:{symbol}
+	futuresTickerChannel                         = "/contractMarket/ticker:%s"        // /contractMarket/ticker:{symbol}
+	futuresOrderbookLevel2Channel                = "/contractMarket/level2:%s"        // /contractMarket/level2:{symbol}
+	futuresExecutionDataChannel                  = "/contractMarket/execution:%s"     // /contractMarket/execution:{symbol}
+	futuresOrderbookLevel2Depth5Channel          = "/contractMarket/level2Depth5:%s"  // /contractMarket/level2Depth5:{symbol}
+	futuresOrderbookLevel2Depth50Channel         = "/contractMarket/level2Depth50:%s" // /contractMarket/level2Depth50:{symbol}
+	futuresContractMarketDataChannel             = "/contract/instrument:%s"          // /contract/instrument:{symbol}
+	futuresSystemAnnouncementChannel             = "/contract/announcement"
+	futuresTrasactionStatisticsTimerEventChannel = "/contractMarket/snapshot:%s" // /contractMarket/snapshot:{symbol}
+
+	// futures private channels
+
+	futuresTradeOrdersBySymbolChannel      = "/contractMarket/tradeOrders:%s" // /contractMarket/tradeOrders:{symbol}
+	futuresTradeOrderChannel               = "/contractMarket/tradeOrders"
+	futuresStopOrdersLifecycleEventChannel = "/contractMarket/advancedOrders"
+	futuresAccountBalanceEventChannel      = "/contractAccount/wallet"
+	futuresPositionChangeEventChannel      = "/contract/position:%s" // /contract/position:{symbol}
+
 )
 
 var defaultSubscriptionChannels = []string{
@@ -100,15 +121,11 @@ func (ku *Kucoin) WsConnect() error {
 		ID:   strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10),
 		Type: channelPing,
 	})
-	ku.Websocket.Wg.Add(1)
-	ku.Websocket.Wg = &sync.WaitGroup{}
-	ku.Websocket.Wg.Add(1)
-	println(string(pingMessage))
-	// ku.Websocket.Conn.SetupPingHandler(stream.PingHandler{
-	// 	Delay:       time.Millisecond * time.Duration(instances.InstanceServers[0].PingTimeout),
-	// 	Message:     pingMessage,
-	// 	MessageType: websocket.TextMessage,
-	// })
+	ku.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+		Delay:       time.Millisecond * time.Duration(instances.InstanceServers[0].PingTimeout),
+		Message:     pingMessage,
+		MessageType: websocket.TextMessage,
+	})
 	return nil
 }
 
@@ -245,11 +262,11 @@ func (ku *Kucoin) processStopOrderEvent(respData []byte) error {
 		TriggerPrice: resp.StopPrice,
 		Amount:       resp.Size,
 		// AverageExecutedPrice: response.,
-		Exchange: ku.Name,
-		ID:       resp.OrderID,
-		Type:     oType,
-		Side:     side,
-		// AssetType:       asset.Futures,
+		Exchange:    ku.Name,
+		ID:          resp.OrderID,
+		Type:        oType,
+		Side:        side,
+		AssetType:   asset.Spot,
 		Date:        resp.CreatedAt,
 		LastUpdated: resp.Timestamp,
 		Pair:        pair,
@@ -342,10 +359,10 @@ func (ku *Kucoin) processOrderChangeEvent(respData []byte) error {
 		Type:            oType,
 		Side:            side,
 		Status:          oStatus,
-		// AssetType:       asset.Futures,
-		Date:        time.UnixMilli(response.OrderTime),
-		LastUpdated: time.UnixMilli(response.Timestamp),
-		Pair:        pair,
+		AssetType:       asset.Spot,
+		Date:            response.OrderTime,
+		LastUpdated:     response.Timestamp,
+		Pair:            pair,
 	}
 	return nil
 }
@@ -406,7 +423,7 @@ func (ku *Kucoin) processTradeData(respData []byte, instrument string) error {
 		Side:         side,
 		Exchange:     ku.Name,
 		TID:          response.TradeID,
-		// AssetType: asset.Futures,
+		AssetType:    asset.Spot,
 	})
 }
 
@@ -448,9 +465,9 @@ func (ku *Kucoin) processCandlesticks(respData []byte, instrument, intervalStrin
 		return err
 	}
 	ku.Websocket.DataHandler <- stream.KlineData{
-		Timestamp: time.UnixMilli(response.Time),
-		Pair:      pair,
-		// AssetType: asset.Futures,
+		Timestamp:  time.UnixMilli(response.Time),
+		Pair:       pair,
+		AssetType:  asset.Spot,
 		Exchange:   ku.Name,
 		StartTime:  resp.Candles.StartTime,
 		Interval:   intervalString,
@@ -478,6 +495,7 @@ func (ku *Kucoin) processOrderbook(respData []byte, instrument string) error {
 		VerifyOrderbook: ku.CanVerifyOrderbook,
 		LastUpdated:     time.UnixMilli(response.TimeMS),
 		Pair:            pair,
+		Asset:           asset.Spot,
 	}
 	for x := range response.Changes.Asks {
 		price, err := strconv.ParseFloat(response.Changes.Asks[x][0], 64)
@@ -527,9 +545,9 @@ func (ku *Kucoin) processMarketSnapshot(respData []byte) error {
 		}
 		tickers[x] = ticker.Price{
 			ExchangeName: ku.Name,
-			// AssetType:    asset.Futures,
-			Last: response.Data[x].LastTradedPrice,
-			Pair: pair,
+			AssetType:    asset.Spot,
+			Last:         response.Data[x].LastTradedPrice,
+			Pair:         pair,
 			// Open: response.Data.,
 			// Close: response.Data.Close,
 			Low:         response.Data[x].Low,

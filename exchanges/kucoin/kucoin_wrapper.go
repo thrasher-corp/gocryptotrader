@@ -108,7 +108,6 @@ func (ku *Kucoin) SetDefaults() {
 			},
 		},
 	}
-	// NOTE: SET THE EXCHANGES RATE LIMIT HERE
 	ku.Requester, err = request.New(ku.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	if err != nil {
@@ -122,6 +121,8 @@ func (ku *Kucoin) SetDefaults() {
 		exchange.WebsocketSpot: kucoinWebsocketURL,
 	})
 	ku.Websocket = stream.New()
+	ku.Websocket.Wg = &sync.WaitGroup{}
+	ku.Websocket.Match = &stream.Match{}
 	ku.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	ku.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	ku.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -167,6 +168,8 @@ func (ku *Kucoin) Setup(exch *config.Exchange) error {
 		Verbose:      ku.Verbose,
 		// ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit: exch.WebsocketResponseMaxLimit,
+		Wg:               &sync.WaitGroup{},
+		Match:            &stream.Match{},
 	}
 	return nil
 }
