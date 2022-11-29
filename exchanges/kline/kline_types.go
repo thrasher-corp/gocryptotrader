@@ -161,13 +161,17 @@ func (e *ExchangeIntervals) Supports(required Interval) bool {
 	return ok
 }
 
-var errInvalidInterval = errors.New("invalid interval")
+// ErrInvalidInterval defines when an interval is invalid e.g. interval <= 0
+var ErrInvalidInterval = errors.New("invalid interval")
+
+// ErrCannotConstructInterval defines an error when an interval cannot be constructed from a list of support intervals
+var ErrCannotConstructInterval = errors.New("cannot construct required interval from supported intervals")
 
 // Construct fetches supported interval that can construct the required interval
 // e.g. 1 hour interval can be made from 2 * 30min intervals.
 func (e *ExchangeIntervals) Construct(required Interval) (Interval, error) {
 	if required <= 0 {
-		return 0, errInvalidInterval
+		return 0, ErrInvalidInterval
 	}
 	_, ok := e.store[required]
 	if ok {
@@ -182,7 +186,7 @@ func (e *ExchangeIntervals) Construct(required Interval) (Interval, error) {
 			return e.aligned[x], nil
 		}
 	}
-	return 0, errors.New("cannot construct required interval from supported intervals")
+	return 0, ErrCannotConstructInterval
 }
 
 // Interval type for kline Interval usage

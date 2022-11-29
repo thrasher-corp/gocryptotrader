@@ -2,7 +2,6 @@ package kline
 
 import (
 	"testing"
-	"time"
 )
 
 func TestGetBuilder(t *testing.T) {
@@ -14,19 +13,4 @@ func TestGetBuilder(t *testing.T) {
 
 func TestWow(t *testing.T) {
 
-	resp, err := Wow(FifteenSecond * 2)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resp != FifteenSecond {
-		t.Fatalf("not what I wanted %s", resp)
-	}
-
-	resp, err = Wow(FifteenSecond*3 + Interval(time.Second)) // 46 seconds does not exactly match
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resp != FifteenSecond {
-		t.Fatalf("not what I wanted %s", resp)
-	}
 }

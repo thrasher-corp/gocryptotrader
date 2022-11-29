@@ -881,13 +881,12 @@ func (b *Bitstamp) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 
 	timeSeries := make([]kline.Candle, 0, len(candles.Data.OHLCV))
 	for x := range candles.Data.OHLCV {
-		// TODO: Check this.
-		if time.Unix(candles.Data.OHLCV[x].Timestamp, 0).Before(builder.Start) ||
-			time.Unix(candles.Data.OHLCV[x].Timestamp, 0).After(builder.End) {
+		timestamp := time.Unix(candles.Data.OHLCV[x].Timestamp, 0)
+		if timestamp.Before(builder.Start) || timestamp.After(builder.End) {
 			continue
 		}
 		timeSeries = append(timeSeries, kline.Candle{
-			Time:   time.Unix(candles.Data.OHLCV[x].Timestamp, 0),
+			Time:   timestamp,
 			Open:   candles.Data.OHLCV[x].Open,
 			High:   candles.Data.OHLCV[x].High,
 			Low:    candles.Data.OHLCV[x].Low,
@@ -920,9 +919,9 @@ func (b *Bitstamp) GetHistoricCandlesExtended(ctx context.Context, pair currency
 		}
 
 		for i := range candles.Data.OHLCV {
-			// TODO: Check this if this is neccessary or filter at end.
-			if time.Unix(candles.Data.OHLCV[i].Timestamp, 0).Before(builder.Ranges[x].Start.Time) ||
-				time.Unix(candles.Data.OHLCV[i].Timestamp, 0).After(builder.Ranges[x].End.Time) {
+			timstamp := time.Unix(candles.Data.OHLCV[i].Timestamp, 0)
+			if timstamp.Before(builder.Ranges[x].Start.Time) ||
+				timstamp.After(builder.Ranges[x].End.Time) {
 				continue
 			}
 			timeSeries = append(timeSeries, kline.Candle{

@@ -1036,14 +1036,12 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 
 	timeSeries := make([]kline.Candle, 0, len(ohlcData))
 	for x := range ohlcData {
-		timestamp := ohlcData[x].StartsAt
-		// TODO: Shift this functionality to builder operations so this doesn't
-		// need to be addressed.
-		if timestamp.Before(builder.Start) || timestamp.After(builder.End) {
+		if ohlcData[x].StartsAt.Before(builder.Start) ||
+			ohlcData[x].StartsAt.After(builder.End) {
 			continue
 		}
 		timeSeries = append(timeSeries, kline.Candle{
-			Time:   timestamp,
+			Time:   ohlcData[x].StartsAt,
 			Open:   ohlcData[x].Open,
 			High:   ohlcData[x].High,
 			Low:    ohlcData[x].Low,
@@ -1055,6 +1053,6 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (b *Bittrex) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
+func (b *Bittrex) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
 	return nil, common.ErrNotYetImplemented
 }

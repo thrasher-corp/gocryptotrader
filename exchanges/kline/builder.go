@@ -11,6 +11,7 @@ import (
 )
 
 var ErrNilBuilder = errors.New("nil kline builder")
+var ErrUnsetName = errors.New("unset exchange name")
 
 // Builder is a helper to request and convert time series to a required candle
 // interval.
@@ -25,10 +26,15 @@ type Builder struct {
 	End       time.Time
 }
 
-var ErrUnsetName = errors.New("unset exchange name")
+// BuilderExtended used in extended functionality for when candles requested
+// exceed exchange limits and require multiple requests.
+type BuilderExtended struct {
+	*Builder
+	*IntervalRangeHolder
+}
 
 // GetBuilder generates a builder for interval conversions supported by an
-// exchange. Request
+// exchange.
 func GetBuilder(name string, pair, formatted currency.Pair, a asset.Item, required, request Interval, start, end time.Time) (*Builder, error) {
 	if name == "" {
 		return nil, ErrUnsetName
@@ -79,21 +85,9 @@ func (b *Builder) ConvertCandles(timeSeries []Candle) (*Item, error) {
 	return ConvertToNewInterval(holder, b.Required)
 }
 
-// Convert takes in candles from a lower order time series to be converted to
-// a higher time series.
-func (b *Builder) Convert(incoming *Item) (*Item, error) {
-	return ConvertToNewInterval(incoming, b.Required)
-}
-
-// BuilderExt used in extended functionality
-type BuilderExt struct {
-	*Builder
-	*IntervalRangeHolder
-}
-
 // ConvertCandles converts time series candles into a kline.Item type. This will
 // auto convert from a lower to higher time series if applicable.
-func (b *BuilderExt) ConvertCandles(timeSeries []Candle) (*Item, error) {
+func (b *BuilderExtended) ConvertCandles(timeSeries []Candle) (*Item, error) {
 	holder, err := b.Builder.ConvertCandles(timeSeries)
 	if err != nil {
 		return nil, err

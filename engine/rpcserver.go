@@ -4993,16 +4993,9 @@ func (s *RPCServer) GetTechnicalAnalysis(ctx context.Context, r *gctrpc.GetTechn
 		return nil, err
 	}
 
-	klineInterval := kline.Interval(r.Interval)
-
-	err = exch.GetBase().ValidateKline(pair, as, klineInterval)
-	if err != nil {
-		return nil, err
-	}
-
 	klines, err := exch.GetHistoricCandlesExtended(ctx, pair,
 		as,
-		klineInterval,
+		kline.Interval(r.Interval),
 		r.Start.AsTime(),
 		r.End.AsTime())
 	if err != nil {
@@ -5075,7 +5068,7 @@ func (s *RPCServer) GetTechnicalAnalysis(ctx context.Context, r *gctrpc.GetTechn
 		otherKlines, err = otherExch.GetHistoricCandlesExtended(ctx,
 			otherPair,
 			otherAs,
-			klineInterval,
+			kline.Interval(r.Interval),
 			r.Start.AsTime(),
 			r.End.AsTime())
 		if err != nil {

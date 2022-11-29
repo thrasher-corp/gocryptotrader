@@ -843,8 +843,8 @@ func (b *Bithumb) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (b *Bithumb) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
-	return b.GetHistoricCandles(ctx, pair, a, required, start, end)
+func (b *Bithumb) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type

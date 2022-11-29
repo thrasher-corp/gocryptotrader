@@ -1036,34 +1036,10 @@ func (b *BTCMarkets) GetHistoricCandles(ctx context.Context, pair currency.Pair,
 
 	timeSeries := make([]kline.Candle, len(candles))
 	for x := range candles {
-		var tempTime time.Time
-		var tempData kline.Candle
-		tempTime, err = time.Parse(time.RFC3339, candles[x][0])
+		timeSeries[x], err = convert(candles[x])
 		if err != nil {
 			return nil, err
 		}
-		tempData.Time = tempTime
-		tempData.Open, err = strconv.ParseFloat(candles[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		tempData.High, err = strconv.ParseFloat(candles[x][2], 64)
-		if err != nil {
-			return nil, err
-		}
-		tempData.Low, err = strconv.ParseFloat(candles[x][3], 64)
-		if err != nil {
-			return nil, err
-		}
-		tempData.Close, err = strconv.ParseFloat(candles[x][4], 64)
-		if err != nil {
-			return nil, err
-		}
-		tempData.Volume, err = strconv.ParseFloat(candles[x][5], 64)
-		if err != nil {
-			return nil, err
-		}
-		timeSeries[x] = tempData
 	}
 	return builder.ConvertCandles(timeSeries)
 }
@@ -1091,34 +1067,11 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(ctx context.Context, pair curren
 		}
 
 		for i := range candles {
-			var tempTime time.Time
-			var tempData kline.Candle
-			tempTime, err = time.Parse(time.RFC3339, candles[i][0])
+			elem, err := convert(candles[i])
 			if err != nil {
 				return nil, err
 			}
-			tempData.Time = tempTime
-			tempData.Open, err = strconv.ParseFloat(candles[i][1], 64)
-			if err != nil {
-				return nil, err
-			}
-			tempData.High, err = strconv.ParseFloat(candles[i][2], 64)
-			if err != nil {
-				return nil, err
-			}
-			tempData.Low, err = strconv.ParseFloat(candles[i][3], 64)
-			if err != nil {
-				return nil, err
-			}
-			tempData.Close, err = strconv.ParseFloat(candles[i][4], 64)
-			if err != nil {
-				return nil, err
-			}
-			tempData.Volume, err = strconv.ParseFloat(candles[i][5], 64)
-			if err != nil {
-				return nil, err
-			}
-			timeSeries = append(timeSeries, tempData)
+			timeSeries = append(timeSeries, elem)
 		}
 	}
 	return builder.ConvertCandles(timeSeries)
@@ -1158,4 +1111,34 @@ func (b *BTCMarkets) UpdateOrderExecutionLimits(ctx context.Context, a asset.Ite
 		}
 	}
 	return b.LoadLimits(limits)
+}
+
+func convert(candle [6]string) (kline.Candle, error) {
+	var elem kline.Candle
+	var err error
+	elem.Time, err = time.Parse(time.RFC3339, candle[0])
+	if err != nil {
+		return elem, err
+	}
+	elem.Open, err = strconv.ParseFloat(candle[1], 64)
+	if err != nil {
+		return elem, err
+	}
+	elem.High, err = strconv.ParseFloat(candle[2], 64)
+	if err != nil {
+		return elem, err
+	}
+	elem.Low, err = strconv.ParseFloat(candle[3], 64)
+	if err != nil {
+		return elem, err
+	}
+	elem.Close, err = strconv.ParseFloat(candle[4], 64)
+	if err != nil {
+		return elem, err
+	}
+	elem.Volume, err = strconv.ParseFloat(candle[5], 64)
+	if err != nil {
+		return elem, err
+	}
+	return elem, nil
 }

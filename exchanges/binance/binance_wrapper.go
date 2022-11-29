@@ -1721,14 +1721,14 @@ func (b *Binance) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 	}
 	timeSeries := make([]kline.Candle, len(candles))
 	for x := range candles {
-		timeSeries = append(timeSeries, kline.Candle{
+		timeSeries[x] = kline.Candle{
 			Time:   candles[x].OpenTime,
 			Open:   candles[x].Open,
 			High:   candles[x].High,
 			Low:    candles[x].Low,
 			Close:  candles[x].Close,
 			Volume: candles[x].Volume,
-		})
+		}
 	}
 	return builder.ConvertCandles(timeSeries)
 }
