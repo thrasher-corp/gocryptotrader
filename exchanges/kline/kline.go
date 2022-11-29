@@ -299,9 +299,9 @@ func (i *Interval) IntervalsPerYear() float64 {
 }
 
 // ConvertToNewInterval allows the scaling of candles to larger candles
-// eg convert OneDay candles to ThreeDay candles, if there are adequate candles
-// incomplete candles are NOT converted
-// eg an 4 OneDay candles will convert to one ThreeDay candle, skipping the fourth
+// e.g. Convert OneDay candles to ThreeDay candles, if there are adequate
+// candles. Incomplete candles are NOT converted e.g. an 4 OneDay candles will
+// convert to one ThreeDay candle, skipping the fourth.
 func ConvertToNewInterval(old *Item, newInterval Interval) (*Item, error) {
 	if old == nil {
 		return nil, errNilKline
@@ -316,48 +316,42 @@ func ConvertToNewInterval(old *Item, newInterval Interval) (*Item, error) {
 		return nil, ErrWholeNumberScaling
 	}
 
-	oldIntervalsPerNewCandle := int64(newInterval / old.Interval)
-	var candleBundles [][]Candle
-	candles := make([]Candle, 0, oldIntervalsPerNewCandle)
-	for i := range old.Candles {
-		candles = append(candles, old.Candles[i])
-		intervalCount := int64(i + 1)
-		if oldIntervalsPerNewCandle == intervalCount {
-			candleBundles = append(candleBundles, candles)
-			candles = candles[:0]
+	oldIntervalsPerNewCandle := int(newInterval / old.Interval)
+	candles := make([]Candle, 0, len(old.Candles)/oldIntervalsPerNewCandle)
+	var blank Candle
+	for x := range old.Candles {
+		if blank.Time.IsZero() {
+			blank.Time = old.Candles[x].Time
+			blank.Open = old.Candles[x].Open
+		}
+
+		if old.Candles[x].High > blank.High {
+			blank.High = old.Candles[x].High
+		}
+
+		if blank.Low == 0 || blank.Low != 0 && old.Candles[x].Low < blank.Low {
+			blank.Low = old.Candles[x].Low
+		}
+
+		blank.Volume += old.Candles[x].Volume
+		blank.Close = old.Candles[x].Close
+
+		if x+1%oldIntervalsPerNewCandle == 0 {
+			candles = append(candles, blank)
+			blank = Candle{}
+			if len(old.Candles[x:]) < int(oldIntervalsPerNewCandle) {
+				fmt.Println("BREA")
+				break // Test this potential optim.
+			}
 		}
 	}
-	newCandle := &Item{
+	return &Item{
 		Exchange: old.Exchange,
 		Pair:     old.Pair,
 		Asset:    old.Asset,
 		Interval: newInterval,
-	}
-	for i := range candleBundles {
-		var lowest, highest, volume float64
-		lowest = candleBundles[i][0].Low
-		highest = candleBundles[i][0].High
-		for j := range candleBundles[i] {
-			volume += candleBundles[i][j].Volume
-			if candleBundles[i][j].Low < lowest {
-				lowest = candleBundles[i][j].Low
-			}
-			if candleBundles[i][j].High > highest {
-				lowest = candleBundles[i][j].High
-			}
-			volume += candleBundles[i][j].Volume
-		}
-		newCandle.Candles = append(newCandle.Candles, Candle{
-			Time:   candleBundles[i][0].Time,
-			Open:   candleBundles[i][0].Open,
-			High:   highest,
-			Low:    lowest,
-			Close:  candleBundles[i][len(candleBundles[i])-1].Close,
-			Volume: volume,
-		})
-	}
-
-	return newCandle, nil
+		Candles:  candles,
+	}, nil
 }
 
 // CalculateCandleDateRanges will calculate the expected candle data in intervals in a date range

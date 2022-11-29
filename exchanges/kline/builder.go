@@ -5,13 +5,15 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-var ErrNilBuilder = errors.New("nil kline builder")
-var ErrUnsetName = errors.New("unset exchange name")
+var (
+	ErrUnsetName = errors.New("unset exchange name")
+)
 
 // Builder is a helper to request and convert time series to a required candle
 // interval.
@@ -24,13 +26,6 @@ type Builder struct {
 	Required  Interval
 	Start     time.Time
 	End       time.Time
-}
-
-// BuilderExtended used in extended functionality for when candles requested
-// exceed exchange limits and require multiple requests.
-type BuilderExtended struct {
-	*Builder
-	*IntervalRangeHolder
 }
 
 // GetBuilder generates a builder for interval conversions supported by an
@@ -53,6 +48,10 @@ func GetBuilder(name string, pair, formatted currency.Pair, a asset.Item, requir
 	}
 	if request == 0 {
 		return nil, fmt.Errorf("request %w", ErrUnsetInterval)
+	}
+	err := common.StartEndTimeCheck(start, end)
+	if err != nil {
+		return nil, err
 	}
 	return &Builder{name, pair, formatted, a, request, required, start, end}, nil
 }
@@ -83,6 +82,13 @@ func (b *Builder) ConvertCandles(timeSeries []Candle) (*Item, error) {
 	}
 	// TODO: Fix
 	return ConvertToNewInterval(holder, b.Required)
+}
+
+// BuilderExtended used in extended functionality for when candles requested
+// exceed exchange limits and require multiple requests.
+type BuilderExtended struct {
+	*Builder
+	*IntervalRangeHolder
 }
 
 // ConvertCandles converts time series candles into a kline.Item type. This will
