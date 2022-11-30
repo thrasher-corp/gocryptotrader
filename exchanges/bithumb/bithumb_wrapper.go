@@ -796,7 +796,7 @@ func (b *Bithumb) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		return nil, err
 	}
 
-	timeSeries := make([]kline.Candle, len(candle.Data))
+	timeSeries := make([]kline.Candle, 0, len(candle.Data))
 	for x := range candle.Data {
 		if len(candle.Data[x]) < 6 {
 			return nil, errors.New("invalid candle length")
@@ -826,7 +826,7 @@ func (b *Bithumb) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		if tempCandle.Volume, err = convert.FloatFromString(candle.Data[x][5]); err != nil {
 			return nil, fmt.Errorf("kline volume conversion failed: %w", err)
 		}
-		timeSeries[x] = tempCandle
+		timeSeries = append(timeSeries, tempCandle)
 	}
 	return builder.ConvertCandles(timeSeries)
 }
