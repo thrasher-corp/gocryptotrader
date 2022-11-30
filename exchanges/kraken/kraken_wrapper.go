@@ -692,6 +692,7 @@ func (k *Kraken) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 			side = order.Sell
 		}
 		resp[i] = trade.Data{
+			TID:          strconv.FormatInt(tradeData[i].TradeID, 10),
 			Exchange:     k.Name,
 			CurrencyPair: p,
 			AssetType:    assetType,

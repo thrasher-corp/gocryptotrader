@@ -23,7 +23,7 @@ func (d *DataFromKline) HasDataAtTime(t time.Time) bool {
 // Load sets the candle data to the stream for processing
 func (d *DataFromKline) Load() error {
 	d.addedTimes = make(map[int64]bool)
-	if len(d.Item.Candles) == 0 {
+	if d.Item == nil || len(d.Item.Candles) == 0 {
 		return errNoCandleData
 	}
 

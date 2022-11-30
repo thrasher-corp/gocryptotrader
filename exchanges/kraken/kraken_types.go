@@ -164,6 +164,13 @@ type OpenHighLowClose struct {
 	Count                      float64
 }
 
+// RecentTradesResponse defines the response for recent trades
+type RecentTradesResponse struct {
+	Error  []interface{}          `json:"error"`
+	Result map[string]interface{} `json:"result"`
+	Last   string                 `json:"last"`
+}
+
 // RecentTrades holds recent trade data
 type RecentTrades struct {
 	Price         float64
@@ -172,6 +179,7 @@ type RecentTrades struct {
 	BuyOrSell     string
 	MarketOrLimit string
 	Miscellaneous interface{}
+	TradeID       int64
 }
 
 // OrderbookBase stores the orderbook price and amount data
