@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -55,22 +56,29 @@ func TestMain(m *testing.M) {
 		log.Fatal("Bittrex Setup values not set correctly")
 	}
 
+	var wg sync.WaitGroup
+	err = b.Start(&wg)
+	if err != nil {
+		log.Fatal(err)
+	}
+	wg.Wait()
+
 	os.Exit(m.Run())
 }
 
-func TestStart(t *testing.T) {
-	t.Parallel()
-	err := b.Start(nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
-	}
-	var testWg sync.WaitGroup
-	err = b.Start(&testWg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	testWg.Wait()
-}
+// func TestStart(t *testing.T) {
+// 	t.Parallel()
+// 	err := b.Start(nil)
+// 	if !errors.Is(err, common.ErrNilPointer) {
+// 		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
+// 	}
+// 	var testWg sync.WaitGroup
+// 	err = b.Start(&testWg)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	testWg.Wait()
+// }
 
 func TestGetMarkets(t *testing.T) {
 	t.Parallel()
@@ -698,6 +706,33 @@ func TestGetHistoricTrades(t *testing.T) {
 	_, err = b.GetHistoricTrades(context.Background(),
 		currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil && err != common.ErrFunctionNotSupported {
+		t.Fatal(err)
+	}
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	pair, err := currency.NewPairFromString("btc-usdt")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	start := time.Unix(1546300800, 0)
+	end := time.Unix(1577836799, 0)
+	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, start, end)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	pair, err := currency.NewPairFromString("btc-usdt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := time.Unix(1546300800, 0)
+	end := time.Unix(1577836799, 0)
+	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneDay, start, end)
+	if !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Fatal(err)
 	}
 }

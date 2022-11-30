@@ -116,6 +116,7 @@ func (b *Bittrex) SetDefaults() {
 					kline.OneHour,
 					kline.OneDay,
 				),
+				ResultLimit: 1000,
 			},
 		},
 	}
