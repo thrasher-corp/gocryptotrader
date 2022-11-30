@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	backtest "github.com/thrasher-corp/gocryptotrader/backtester/engine"
 	"github.com/thrasher-corp/gocryptotrader/backtester/plugins/strategies"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -110,12 +111,18 @@ func main() {
 		common.PurgeColours()
 	}
 
-	log.GlobalLogConfig = log.GenDefaultSettings()
-	log.GlobalLogConfig.AdvancedSettings.ShowLogSystemName = &logSubHeader
-	log.GlobalLogConfig.AdvancedSettings.Headers.Info = common.CMDColours.Info + "[INFO]" + common.CMDColours.Default
-	log.GlobalLogConfig.AdvancedSettings.Headers.Warn = common.CMDColours.Warn + "[WARN]" + common.CMDColours.Default
-	log.GlobalLogConfig.AdvancedSettings.Headers.Debug = common.CMDColours.Debug + "[DEBUG]" + common.CMDColours.Default
-	log.GlobalLogConfig.AdvancedSettings.Headers.Error = common.CMDColours.Error + "[ERROR]" + common.CMDColours.Default
+	defaultLogSettings := log.GenDefaultSettings()
+	defaultLogSettings.AdvancedSettings.ShowLogSystemName = convert.BoolPtr(logSubHeader)
+	defaultLogSettings.AdvancedSettings.Headers.Info = common.CMDColours.Info + "[INFO]" + common.CMDColours.Default
+	defaultLogSettings.AdvancedSettings.Headers.Warn = common.CMDColours.Warn + "[WARN]" + common.CMDColours.Default
+	defaultLogSettings.AdvancedSettings.Headers.Debug = common.CMDColours.Debug + "[DEBUG]" + common.CMDColours.Default
+	defaultLogSettings.AdvancedSettings.Headers.Error = common.CMDColours.Error + "[ERROR]" + common.CMDColours.Default
+	err = log.SetGlobalLogConfig(defaultLogSettings)
+	if err != nil {
+		fmt.Printf("Could not setup global logger. Error: %v.\n", err)
+		os.Exit(1)
+	}
+
 	err = log.SetupGlobalLogger()
 	if err != nil {
 		fmt.Printf("Could not setup global logger. Error: %v.\n", err)

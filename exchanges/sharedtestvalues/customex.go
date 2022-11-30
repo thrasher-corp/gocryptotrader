@@ -209,7 +209,7 @@ func (c *CustomEx) GetDepositAddress(ctx context.Context, cryptocurrency currenc
 }
 
 // GetOrderHistory is a mock method for CustomEx
-func (c *CustomEx) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (c *CustomEx) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
 	return nil, nil
 }
 
@@ -219,7 +219,7 @@ func (c *CustomEx) GetWithdrawalsHistory(ctx context.Context, code currency.Code
 }
 
 // GetActiveOrders is a mock method for CustomEx
-func (c *CustomEx) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (c *CustomEx) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
 	return []order.Detail{}, nil
 }
 

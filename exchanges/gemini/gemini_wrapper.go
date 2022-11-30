@@ -676,8 +676,9 @@ func (g *Gemini) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuild
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (g *Gemini) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (g *Gemini) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 
@@ -729,21 +730,14 @@ func (g *Gemini) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			Date:            orderDate,
 		}
 	}
-
-	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
-	}
-	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByType(&orders, req.Type)
-	order.FilterOrdersByPairs(&orders, req.Pairs)
-	return orders, nil
+	return req.Filter(g.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 
@@ -753,14 +747,14 @@ func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 
 	var trades []TradeHistory
 	for j := range req.Pairs {
-		fpair, err := g.FormatExchangeCurrency(req.Pairs[j], asset.Spot)
+		var fPair currency.Pair
+		fPair, err = g.FormatExchangeCurrency(req.Pairs[j], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
 
-		resp, err := g.GetTradeHistory(ctx,
-			fpair.String(),
-			req.StartTime.Unix())
+		var resp []TradeHistory
+		resp, err = g.GetTradeHistory(ctx, fPair.String(), req.StartTime.Unix())
 		if err != nil {
 			return nil, err
 		}
@@ -805,13 +799,7 @@ func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		detail.InferCostsAndTimes()
 		orders[i] = detail
 	}
-
-	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
-	}
-	order.FilterOrdersBySide(&orders, req.Side)
-	return orders, nil
+	return req.Filter(g.Name, orders), nil
 }
 
 // ValidateCredentials validates current credentials used for wrapper

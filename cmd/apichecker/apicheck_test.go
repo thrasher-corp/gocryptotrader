@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	gctfile "github.com/thrasher-corp/gocryptotrader/common/file"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -25,14 +24,12 @@ var (
 
 func TestMain(m *testing.M) {
 	setTestVars()
-	testMode = true
-	c := log.GenDefaultSettings()
-	c.Enabled = convert.BoolPtr(true)
-	log.RWM.Lock()
-	log.GlobalLogConfig = c
-	log.RWM.Unlock()
+	err := log.SetGlobalLogConfig(log.GenDefaultSettings())
+	if err != nil {
+		log.Error(log.Global, err)
+		os.Exit(1)
+	}
 	log.Infoln(log.Global, "set verbose to true for more detailed output")
-	var err error
 	configData, err = readFileData(jsonFile)
 	if err != nil {
 		log.Error(log.Global, err)

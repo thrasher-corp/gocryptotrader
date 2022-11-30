@@ -162,8 +162,6 @@ func main() {
 		getExchangeInfoCommand,
 		getTickerCommand,
 		getTickersCommand,
-		getOrderbookCommand,
-		getOrderbooksCommand,
 		getAccountInfoCommand,
 		getAccountInfoStreamCommand,
 		updateAccountInfoCommand,
@@ -179,7 +177,6 @@ func main() {
 		getOrderCommand,
 		submitOrderCommand,
 		simulateOrderCommand,
-		whaleBombCommand,
 		cancelOrderCommand,
 		cancelBatchOrdersCommand,
 		cancelAllOrdersCommand,
@@ -196,8 +193,6 @@ func main() {
 		getLoggerDetailsCommand,
 		setLoggerDetailsCommand,
 		exchangePairManagerCommand,
-		getOrderbookStreamCommand,
-		getExchangeOrderbookStreamCommand,
 		getTickerStreamCommand,
 		getExchangeTickerStreamCommand,
 		getAuditEventCommand,
@@ -213,6 +208,7 @@ func main() {
 		shutdownCommand,
 		technicalAnalysisCommand,
 		getMarginRatesHistoryCommand,
+		orderbookCommand,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

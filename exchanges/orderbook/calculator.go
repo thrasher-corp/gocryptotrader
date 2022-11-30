@@ -3,10 +3,16 @@ package orderbook
 import (
 	"errors"
 	"fmt"
-	"sort"
 
 	math "github.com/thrasher-corp/gocryptotrader/common/math"
-	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+)
+
+const fullLiquidityUsageWarning = "[WARNING]: Full liquidity exhausted."
+
+var (
+	errPriceTargetInvalid = errors.New("price target is invalid")
+	errCannotShiftPrice   = errors.New("cannot shift price")
 )
 
 // WhaleBombResult returns the whale bomb result
@@ -15,214 +21,240 @@ type WhaleBombResult struct {
 	MinimumPrice         float64
 	MaximumPrice         float64
 	PercentageGainOrLoss float64
-	Orders               orderSummary
+	Orders               Items
 	Status               string
 }
 
 // WhaleBomb finds the amount required to target a price
 func (b *Base) WhaleBomb(priceTarget float64, buy bool) (*WhaleBombResult, error) {
 	if priceTarget < 0 {
-		return nil, errors.New("price target is invalid")
+		return nil, errPriceTargetInvalid
 	}
-	if buy {
-		a, orders := b.findAmount(priceTarget, true)
-		min, max := orders.MinimumPrice(false), orders.MaximumPrice(true)
-		var err error
-		if max < priceTarget {
-			err = errors.New("unable to hit price target due to insufficient orderbook items")
-		}
-		status := fmt.Sprintf("Buying %.2f %v worth of %v will send the price from %v to %v [%.2f%%] and take %v orders.",
-			a, b.Pair.Quote.String(), b.Pair.Base.String(), min, max,
-			math.CalculatePercentageGainOrLoss(max, min), len(orders))
-		return &WhaleBombResult{
-			Amount:       a,
-			Orders:       orders,
-			MinimumPrice: min,
-			MaximumPrice: max,
-			Status:       status,
-		}, err
+	action, err := b.findAmount(priceTarget, buy)
+	if err != nil {
+		return nil, err
 	}
 
-	a, orders := b.findAmount(priceTarget, false)
-	min, max := orders.MinimumPrice(false), orders.MaximumPrice(true)
-	var err error
-	if min > priceTarget {
-		err = errors.New("unable to hit price target due to insufficient orderbook items")
+	var warning string
+	if action.FullLiquidityUsed {
+		warning = fullLiquidityUsageWarning
 	}
-	status := fmt.Sprintf("Selling %.2f %v worth of %v will send the price from %v to %v [%.2f%%] and take %v orders.",
-		a, b.Pair.Base.String(), b.Pair.Quote.String(), max, min,
-		math.CalculatePercentageGainOrLoss(min, max), len(orders))
+
+	var status string
+	var percent, min, max, amount float64
+	if buy {
+		min = action.ReferencePrice
+		max = action.TranchePositionPrice
+		amount = action.QuoteAmount
+		percent = math.CalculatePercentageGainOrLoss(action.TranchePositionPrice, action.ReferencePrice)
+		status = fmt.Sprintf("Buying using %.2f %s worth of %s will send the price from %v to %v [%.2f%%] and impact %d price tranche(s). %s",
+			amount, b.Pair.Quote, b.Pair.Base, min, max,
+			percent, len(action.Tranches), warning)
+	} else {
+		min = action.TranchePositionPrice
+		max = action.ReferencePrice
+		amount = action.BaseAmount
+		percent = math.CalculatePercentageGainOrLoss(action.TranchePositionPrice, action.ReferencePrice)
+		status = fmt.Sprintf("Selling using %.2f %s worth of %s will send the price from %v to %v [%.2f%%] and impact %d price tranche(s). %s",
+			amount, b.Pair.Base, b.Pair.Quote, max, min,
+			percent, len(action.Tranches), warning)
+	}
+
 	return &WhaleBombResult{
-		Amount:       a,
-		Orders:       orders,
-		MinimumPrice: min,
-		MaximumPrice: max,
-		Status:       status,
+		Amount:               amount,
+		Orders:               action.Tranches,
+		MinimumPrice:         min,
+		MaximumPrice:         max,
+		Status:               status,
+		PercentageGainOrLoss: percent,
 	}, err
 }
 
-// OrderSimulationResult returns the order simulation result
-type OrderSimulationResult WhaleBombResult
-
 // SimulateOrder simulates an order
-func (b *Base) SimulateOrder(amount float64, buy bool) *OrderSimulationResult {
+func (b *Base) SimulateOrder(amount float64, buy bool) (*WhaleBombResult, error) {
+	var direction string
+	var action *DeploymentAction
+	var soldAmount, boughtAmount, minimumPrice, maximumPrice float64
+	var sold, bought currency.Code
+	var err error
 	if buy {
-		orders, amt := b.buy(amount)
-		min, max := orders.MinimumPrice(false), orders.MaximumPrice(true)
-		pct := math.CalculatePercentageGainOrLoss(max, min)
-		status := fmt.Sprintf("Buying %.2f %v worth of %v will send the price from %v to %v [%.2f%%] and take %v orders.",
-			amount, b.Pair.Quote.String(), b.Pair.Base.String(), min, max,
-			pct, len(orders))
-		return &OrderSimulationResult{
-			Orders:               orders,
-			Amount:               amt,
-			MinimumPrice:         min,
-			MaximumPrice:         max,
-			PercentageGainOrLoss: pct,
-			Status:               status,
+		direction = "Buying"
+		action, err = b.buy(amount)
+		if err != nil {
+			return nil, err
 		}
+		soldAmount = action.QuoteAmount
+		boughtAmount = action.BaseAmount
+		maximumPrice = action.TranchePositionPrice
+		minimumPrice = action.ReferencePrice
+		sold = b.Pair.Quote
+		bought = b.Pair.Base
+	} else {
+		direction = "Selling"
+		action, err = b.sell(amount)
+		if err != nil {
+			return nil, err
+		}
+		soldAmount = action.BaseAmount
+		boughtAmount = action.QuoteAmount
+		minimumPrice = action.TranchePositionPrice
+		maximumPrice = action.ReferencePrice
+		sold = b.Pair.Base
+		bought = b.Pair.Quote
 	}
-	orders, amt := b.sell(amount)
-	min, max := orders.MinimumPrice(false), orders.MaximumPrice(true)
-	pct := math.CalculatePercentageGainOrLoss(min, max)
-	status := fmt.Sprintf("Selling %f %v worth of %v will send the price from %v to %v [%.2f%%] and take %v orders.",
-		amount, b.Pair.Base.String(), b.Pair.Quote.String(), max, min,
-		pct, len(orders))
-	return &OrderSimulationResult{
-		Orders:               orders,
-		Amount:               amt,
-		MinimumPrice:         min,
-		MaximumPrice:         max,
+
+	var warning string
+	if action.FullLiquidityUsed {
+		warning = fullLiquidityUsageWarning
+	}
+
+	pct := math.CalculatePercentageGainOrLoss(action.TranchePositionPrice, action.ReferencePrice)
+	status := fmt.Sprintf("%s using %f %v worth of %v will send the price from %v to %v [%.2f%%] and impact %v price tranche(s). %s",
+		direction, soldAmount, sold, bought, action.ReferencePrice,
+		action.TranchePositionPrice, pct, len(action.Tranches), warning)
+	return &WhaleBombResult{
+		Orders:               action.Tranches,
+		Amount:               boughtAmount,
+		MinimumPrice:         minimumPrice,
+		MaximumPrice:         maximumPrice,
 		PercentageGainOrLoss: pct,
 		Status:               status,
-	}
+	}, nil
 }
 
-type orderSummary []Item
-
-func (o orderSummary) Print() {
-	for x := range o {
-		log.Debugf(log.OrderBook, "Order: Price: %f Amount: %f", o[x].Price, o[x].Amount)
-	}
-}
-
-func (o orderSummary) MinimumPrice(reverse bool) float64 {
-	if len(o) != 0 {
-		sortOrdersByPrice(&o, reverse)
-		return o[0].Price
-	}
-	return 0
-}
-
-func (o orderSummary) MaximumPrice(reverse bool) float64 {
-	if len(o) != 0 {
-		sortOrdersByPrice(&o, reverse)
-		return o[0].Price
-	}
-	return 0
-}
-
-// ByPrice used for sorting orders by order date
-type ByPrice orderSummary
-
-func (b ByPrice) Len() int           { return len(b) }
-func (b ByPrice) Less(i, j int) bool { return b[i].Price < b[j].Price }
-func (b ByPrice) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
-
-// sortOrdersByPrice the caller function to sort orders
-func sortOrdersByPrice(o *orderSummary, reverse bool) {
-	if reverse {
-		sort.Sort(sort.Reverse(ByPrice(*o)))
-	} else {
-		sort.Sort(ByPrice(*o))
-	}
-}
-
-func (b *Base) findAmount(price float64, buy bool) (float64, orderSummary) {
-	orders := make(orderSummary, 0)
-	var amt float64
-
+func (b *Base) findAmount(priceTarget float64, buy bool) (*DeploymentAction, error) {
+	action := DeploymentAction{}
 	if buy {
+		if len(b.Asks) == 0 {
+			return nil, errNoLiquidity
+		}
+		action.ReferencePrice = b.Asks[0].Price
+		if action.ReferencePrice > priceTarget {
+			return nil, fmt.Errorf("%w to %f as it's below ascending ask prices starting at %f",
+				errCannotShiftPrice, priceTarget, action.ReferencePrice)
+		}
 		for x := range b.Asks {
-			if b.Asks[x].Price >= price {
-				amt += b.Asks[x].Price * b.Asks[x].Amount
-				orders = append(orders, Item{
-					Price:  b.Asks[x].Price,
-					Amount: b.Asks[x].Amount,
-				})
-				return amt, orders
+			if b.Asks[x].Price >= priceTarget {
+				action.TranchePositionPrice = b.Asks[x].Price
+				return &action, nil
 			}
-			orders = append(orders, Item{
-				Price:  b.Asks[x].Price,
-				Amount: b.Asks[x].Amount,
-			})
-			amt += b.Asks[x].Price * b.Asks[x].Amount
+			action.Tranches = append(action.Tranches, b.Asks[x])
+			action.QuoteAmount += b.Asks[x].Price * b.Asks[x].Amount
+			action.BaseAmount += b.Asks[x].Amount
 		}
-		return amt, orders
+		action.TranchePositionPrice = b.Asks[len(b.Asks)-1].Price
+		action.FullLiquidityUsed = true
+		return &action, nil
 	}
 
-	for x := range b.Bids {
-		if b.Bids[x].Price <= price {
-			amt += b.Bids[x].Amount
-			orders = append(orders, Item{
-				Price:  b.Bids[x].Price,
-				Amount: b.Bids[x].Amount,
-			})
-			break
-		}
-		orders = append(orders, Item{
-			Price:  b.Bids[x].Price,
-			Amount: b.Bids[x].Amount,
-		})
-		amt += b.Bids[x].Amount
+	if len(b.Bids) == 0 {
+		return nil, errNoLiquidity
 	}
-	return amt, orders
+	action.ReferencePrice = b.Bids[0].Price
+	if action.ReferencePrice < priceTarget {
+		return nil, fmt.Errorf("%w to %f as it's above descending bid prices starting at %f",
+			errCannotShiftPrice, priceTarget, action.ReferencePrice)
+	}
+	for x := range b.Bids {
+		if b.Bids[x].Price <= priceTarget {
+			action.TranchePositionPrice = b.Bids[x].Price
+			return &action, nil
+		}
+		action.Tranches = append(action.Tranches, b.Bids[x])
+		action.QuoteAmount += b.Bids[x].Price * b.Bids[x].Amount
+		action.BaseAmount += b.Bids[x].Amount
+	}
+	action.TranchePositionPrice = b.Bids[len(b.Bids)-1].Price
+	action.FullLiquidityUsed = true
+	return &action, nil
 }
 
-func (b *Base) buy(amount float64) (orders orderSummary, baseAmount float64) {
-	var processedAmt float64
+// DeploymentAction defines deployment information on a liquidity side.
+type DeploymentAction struct {
+	ReferencePrice       float64
+	TranchePositionPrice float64
+	BaseAmount           float64
+	QuoteAmount          float64
+	Tranches             Items
+	FullLiquidityUsed    bool
+}
+
+func (b *Base) buy(quote float64) (*DeploymentAction, error) {
+	if quote <= 0 {
+		return nil, errQuoteAmountInvalid
+	}
+	if len(b.Asks) == 0 {
+		return nil, errNoLiquidity
+	}
+	action := &DeploymentAction{ReferencePrice: b.Asks[0].Price}
 	for x := range b.Asks {
-		subtotal := b.Asks[x].Price * b.Asks[x].Amount
-		if processedAmt+subtotal >= amount {
-			diff := amount - processedAmt
-			subAmt := diff / b.Asks[x].Price
-			orders = append(orders, Item{
+		action.TranchePositionPrice = b.Asks[x].Price
+		trancheValue := b.Asks[x].Price * b.Asks[x].Amount
+		action.QuoteAmount += trancheValue
+		remaining := quote - trancheValue
+		if remaining <= 0 {
+			if remaining == 0 {
+				if len(b.Asks)-1 > x {
+					action.TranchePositionPrice = b.Asks[x+1].Price
+				} else {
+					action.FullLiquidityUsed = true
+				}
+			}
+			subAmount := quote / b.Asks[x].Price
+			action.Tranches = append(action.Tranches, Item{
 				Price:  b.Asks[x].Price,
-				Amount: subAmt,
+				Amount: subAmount,
 			})
-			baseAmount += subAmt
-			break
+			action.BaseAmount += subAmount
+			return action, nil
 		}
-		processedAmt += subtotal
-		baseAmount += b.Asks[x].Amount
-		orders = append(orders, Item{
-			Price:  b.Asks[x].Price,
-			Amount: b.Asks[x].Amount,
-		})
+		if len(b.Asks)-1 <= x {
+			action.FullLiquidityUsed = true
+		}
+		quote = remaining
+		action.BaseAmount += b.Asks[x].Amount
+		action.Tranches = append(action.Tranches, b.Asks[x])
 	}
-	return
+
+	return action, nil
 }
 
-func (b *Base) sell(amount float64) (orders orderSummary, quoteAmount float64) {
-	var processedAmt float64
-	for x := range b.Bids {
-		if processedAmt+b.Bids[x].Amount >= amount {
-			diff := amount - processedAmt
-			orders = append(orders, Item{
-				Price:  b.Bids[x].Price,
-				Amount: diff,
-			})
-			quoteAmount += diff * b.Bids[x].Price
-			break
-		}
-		processedAmt += b.Bids[x].Amount
-		quoteAmount += b.Bids[x].Amount * b.Bids[x].Price
-		orders = append(orders, Item{
-			Price:  b.Bids[x].Price,
-			Amount: b.Bids[x].Amount,
-		})
+func (b *Base) sell(base float64) (*DeploymentAction, error) {
+	if base <= 0 {
+		return nil, errBaseAmountInvalid
 	}
-	return
+	if len(b.Bids) == 0 {
+		return nil, errNoLiquidity
+	}
+	action := &DeploymentAction{ReferencePrice: b.Bids[0].Price}
+	for x := range b.Bids {
+		action.TranchePositionPrice = b.Bids[x].Price
+		remaining := base - b.Bids[x].Amount
+		if remaining <= 0 {
+			if remaining == 0 {
+				if len(b.Bids)-1 > x {
+					action.TranchePositionPrice = b.Bids[x+1].Price
+				} else {
+					action.FullLiquidityUsed = true
+				}
+			}
+			action.Tranches = append(action.Tranches, Item{
+				Price:  b.Bids[x].Price,
+				Amount: base,
+			})
+			action.BaseAmount += base
+			action.QuoteAmount += base * b.Bids[x].Price
+			return action, nil
+		}
+		if len(b.Bids)-1 <= x {
+			action.FullLiquidityUsed = true
+		}
+		base = remaining
+		action.BaseAmount += b.Bids[x].Amount
+		action.QuoteAmount += b.Bids[x].Amount * b.Bids[x].Price
+		action.Tranches = append(action.Tranches, b.Bids[x])
+	}
+	return action, nil
 }
 
 // GetAveragePrice finds the average buy or sell price of a specified amount.
@@ -254,10 +286,9 @@ func (elem Items) FindNominalAmount(amount float64) (aggNominalAmount, remaining
 			aggNominalAmount += elem[x].Price * remainingAmount
 			remainingAmount = 0
 			break
-		} else {
-			aggNominalAmount += elem[x].Price * elem[x].Amount
-			remainingAmount -= elem[x].Amount
 		}
+		aggNominalAmount += elem[x].Price * elem[x].Amount
+		remainingAmount -= elem[x].Amount
 	}
 	return aggNominalAmount, remainingAmount
 }

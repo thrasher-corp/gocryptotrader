@@ -702,19 +702,22 @@ func (z *ZB) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) 
 
 // GetActiveOrders retrieves any orders that are active/open
 // This function is not concurrency safe due to orderSide/orderType maps
-func (z *ZB) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (z *ZB) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 
 	var allOrders []Order
 	for x := range req.Pairs {
 		for i := int64(1); ; i++ {
-			fPair, err := z.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
+			var fPair currency.Pair
+			fPair, err = z.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
 			if err != nil {
 				return nil, err
 			}
-			resp, err := z.GetUnfinishedOrdersIgnoreTradeType(ctx,
+			var resp []Order
+			resp, err = z.GetUnfinishedOrdersIgnoreTradeType(ctx,
 				fPair.String(), i, 10)
 			if err != nil {
 				if strings.Contains(err.Error(), "3001") {
@@ -760,20 +763,15 @@ func (z *ZB) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (
 			Pair:     symbol,
 		}
 	}
-
-	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", z.Name, err)
-	}
-	order.FilterOrdersBySide(&orders, req.Side)
-	return orders, nil
+	return req.Filter(z.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 // This function is not concurrency safe due to orderSide/orderType maps
-func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 
@@ -782,12 +780,11 @@ func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (
 	}
 
 	var allOrders []Order
-	var side int64
-
 	if z.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		for x := range req.Pairs {
 			for y := int64(1); ; y++ {
-				resp, err := z.wsGetOrdersIgnoreTradeType(ctx, req.Pairs[x], y, 10)
+				var resp *WsGetOrdersIgnoreTradeTypeResponse
+				resp, err = z.wsGetOrdersIgnoreTradeType(ctx, req.Pairs[x], y, 10)
 				if err != nil {
 					return nil, err
 				}
@@ -798,16 +795,19 @@ func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (
 			}
 		}
 	} else {
+		var side int64
 		if req.Side == order.Buy {
 			side = 1
 		}
 		for x := range req.Pairs {
 			for y := int64(1); ; y++ {
-				fPair, err := z.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
+				var fPair currency.Pair
+				fPair, err = z.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
 				if err != nil {
 					return nil, err
 				}
-				resp, err := z.GetOrders(ctx, fPair.String(), y, side)
+				var resp []Order
+				resp, err = z.GetOrders(ctx, fPair.String(), y, side)
 				if err != nil {
 					return nil, err
 				}
@@ -852,12 +852,7 @@ func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (
 		detail.InferCostsAndTimes()
 		orders[i] = detail
 	}
-
-	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", z.Name, err)
-	}
-	return orders, nil
+	return req.Filter(z.Name, orders), nil
 }
 
 // ValidateCredentials validates current credentials used for wrapper

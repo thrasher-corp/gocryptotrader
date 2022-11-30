@@ -777,11 +777,11 @@ func (bi *Binanceus) WithdrawFiatFundsToInternationalBank(ctx context.Context, w
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (bi *Binanceus) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := getOrdersRequest.Validate(); err != nil {
+func (bi *Binanceus) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := getOrdersRequest.Validate()
+	if err != nil {
 		return nil, err
 	}
-	var err error
 	var symbol string
 	var pair currency.Pair
 	var selectedOrders []Order
@@ -844,16 +844,11 @@ func (bi *Binanceus) GetActiveOrders(ctx context.Context, getOrdersRequest *orde
 			LastUpdated:   resp[x].UpdateTime,
 		}
 	}
-
-	order.FilterOrdersByPairs(&orders, getOrdersRequest.Pairs)
-	order.FilterOrdersByType(&orders, getOrdersRequest.Type)
-	order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
-	err = order.FilterOrdersByTimeRange(&orders, getOrdersRequest.StartTime, getOrdersRequest.EndTime)
-	return orders, err
+	return getOrdersRequest.Filter(bi.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information Can Limit response to specific order status
-func (bi *Binanceus) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (bi *Binanceus) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
 	// An endpoint like /api/v3/allOrders does not exist in the binance us
 	// so This end point is left unimplemented
 	return nil, common.ErrFunctionNotSupported

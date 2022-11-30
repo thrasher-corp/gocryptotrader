@@ -1,6 +1,8 @@
 package ftx
 
 import (
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -955,4 +957,63 @@ type ReferralRebateHistory struct {
 	Subaccount string    `json:"subaccount"`
 	Size       float64   `json:"size"`
 	Day        time.Time `json:"day"`
+}
+
+var errUnhandledOrderType = errors.New("unhandled order type")
+
+// validTypes attaches package specific checker functionality for valid type
+// check
+type validTypes struct {
+	*order.GetOrdersRequest
+}
+
+// Check determines if the request is valid
+func (v validTypes) Check() error {
+	for x := range validOrderTypeForRequest {
+		if v.Type == validOrderTypeForRequest[x] {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("%w %s, expected: [%v]",
+		errUnhandledOrderType,
+		v.Type,
+		validOrderTypeForRequest)
+}
+
+var validOrderTypeForRequest = []order.Type{
+	order.AnyType,
+	order.Stop,
+	order.TrailingStop,
+	order.TakeProfit,
+	order.Limit,
+	order.Market,
+}
+
+var errUnhandledOrderSide = errors.New("unhandled order side")
+
+// validSides attaches package specific checker functionality for valid side
+// check
+type validSides struct {
+	*order.GetOrdersRequest
+}
+
+// Check determines if the request is valid
+func (v validSides) Check() error {
+	for x := range validOrderSideForRequest {
+		if v.Side == validOrderSideForRequest[x] {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("%w %s, expected: %v",
+		errUnhandledOrderSide,
+		v.Type,
+		validOrderSideForRequest)
+}
+
+var validOrderSideForRequest = []order.Side{
+	order.AnySide,
+	order.Buy,
+	order.Sell,
 }

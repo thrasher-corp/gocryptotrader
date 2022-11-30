@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -373,20 +374,21 @@ func TestFilterOrdersByType(t *testing.T) {
 		{
 			Type: Limit,
 		},
+		{}, // Unpopulated fields are preserved for API differences
 	}
 
 	FilterOrdersByType(&orders, AnyType)
-	if len(orders) != 2 {
+	if len(orders) != 3 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 2, len(orders))
 	}
 
 	FilterOrdersByType(&orders, Limit)
-	if len(orders) != 1 {
+	if len(orders) != 2 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
 	}
 
 	FilterOrdersByType(&orders, Stop)
-	if len(orders) != 0 {
+	if len(orders) != 1 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 0, len(orders))
 	}
 }
@@ -424,7 +426,7 @@ func TestFilterOrdersBySide(t *testing.T) {
 		{
 			Side: Sell,
 		},
-		{},
+		{}, // Unpopulated fields are preserved for API differences
 	}
 
 	FilterOrdersBySide(&orders, AnySide)
@@ -433,12 +435,12 @@ func TestFilterOrdersBySide(t *testing.T) {
 	}
 
 	FilterOrdersBySide(&orders, Buy)
-	if len(orders) != 1 {
+	if len(orders) != 2 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
 	}
 
 	FilterOrdersBySide(&orders, Sell)
-	if len(orders) != 0 {
+	if len(orders) != 1 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 0, len(orders))
 	}
 }
@@ -567,43 +569,44 @@ func TestFilterOrdersByPairs(t *testing.T) {
 		{
 			Pair: currency.NewPair(currency.DOGE, currency.RUB),
 		},
+		{}, // Unpopulated fields are preserved for API differences
 	}
 
 	currencies := []currency.Pair{currency.NewPair(currency.BTC, currency.USD),
 		currency.NewPair(currency.LTC, currency.EUR),
 		currency.NewPair(currency.DOGE, currency.RUB)}
 	FilterOrdersByPairs(&orders, currencies)
-	if len(orders) != 3 {
+	if len(orders) != 4 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 3, len(orders))
 	}
 
 	currencies = []currency.Pair{currency.NewPair(currency.BTC, currency.USD),
 		currency.NewPair(currency.LTC, currency.EUR)}
 	FilterOrdersByPairs(&orders, currencies)
-	if len(orders) != 2 {
+	if len(orders) != 3 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 2, len(orders))
 	}
 
 	currencies = []currency.Pair{currency.NewPair(currency.BTC, currency.USD)}
 	FilterOrdersByPairs(&orders, currencies)
-	if len(orders) != 1 {
+	if len(orders) != 2 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
 	}
 
 	currencies = []currency.Pair{currency.NewPair(currency.USD, currency.BTC)}
 	FilterOrdersByPairs(&orders, currencies)
-	if len(orders) != 1 {
+	if len(orders) != 2 {
 		t.Errorf("Reverse Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
 	}
 
 	currencies = []currency.Pair{}
 	FilterOrdersByPairs(&orders, currencies)
-	if len(orders) != 1 {
+	if len(orders) != 2 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
 	}
 	currencies = append(currencies, currency.EMPTYPAIR)
 	FilterOrdersByPairs(&orders, currencies)
-	if len(orders) != 1 {
+	if len(orders) != 2 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
 	}
 }
@@ -1310,25 +1313,43 @@ func TestValidationOnOrderTypes(t *testing.T) {
 	}
 
 	var getOrders *GetOrdersRequest
-	if getOrders.Validate() != ErrGetOrdersRequestIsNil {
-		t.Fatal("unexpected error")
+	err = getOrders.Validate()
+	if !errors.Is(err, ErrGetOrdersRequestIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrGetOrdersRequestIsNil)
 	}
 
 	getOrders = new(GetOrdersRequest)
-	if getOrders.Validate() == nil {
-		t.Fatal("should error since assetType hasn't been provided")
+	err = getOrders.Validate()
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
 	}
 
-	if getOrders.Validate(validate.Check(func() error {
-		return errors.New("this should error")
-	})) == nil {
-		t.Fatal("expected error")
+	getOrders.AssetType = asset.Spot
+	err = getOrders.Validate()
+	if !errors.Is(err, errUnrecognisedOrderSide) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errUnrecognisedOrderSide)
 	}
 
-	if getOrders.Validate(validate.Check(func() error {
+	getOrders.Side = AnySide
+	err = getOrders.Validate()
+	if !errors.Is(err, errUnrecognisedOrderType) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errUnrecognisedOrderType)
+	}
+
+	var errTestError = errors.New("test error")
+	getOrders.Type = AnyType
+	err = getOrders.Validate(validate.Check(func() error {
+		return errTestError
+	}))
+	if !errors.Is(err, errTestError) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errTestError)
+	}
+
+	err = getOrders.Validate(validate.Check(func() error {
 		return nil
-	})) == nil {
-		t.Fatal("should output an error since assetType isn't provided")
+	}))
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
 	var modifyOrder *Modify
@@ -1867,5 +1888,60 @@ func TestDeriveCancel(t *testing.T) {
 		!cancel.Pair.Equal(pair) ||
 		cancel.AssetType != asset.Futures {
 		t.Fatalf("unexpected values %+v", cancel)
+	}
+}
+
+func TestGetOrdersRequest_Filter(t *testing.T) {
+	request := new(GetOrdersRequest)
+	request.AssetType = asset.Spot
+	request.Type = AnyType
+	request.Side = AnySide
+
+	var orders = []Detail{
+		{OrderID: "0", Pair: btcusd, AssetType: asset.Spot, Type: Limit, Side: Buy},
+		{OrderID: "1", Pair: btcusd, AssetType: asset.Spot, Type: Limit, Side: Sell},
+		{OrderID: "2", Pair: btcusd, AssetType: asset.Spot, Type: Market, Side: Buy},
+		{OrderID: "3", Pair: btcusd, AssetType: asset.Spot, Type: Market, Side: Sell},
+		{OrderID: "4", Pair: btcusd, AssetType: asset.Futures, Type: Limit, Side: Buy},
+		{OrderID: "5", Pair: btcusd, AssetType: asset.Futures, Type: Limit, Side: Sell},
+		{OrderID: "6", Pair: btcusd, AssetType: asset.Futures, Type: Market, Side: Buy},
+		{OrderID: "7", Pair: btcusd, AssetType: asset.Futures, Type: Market, Side: Sell},
+		{OrderID: "8", Pair: btcltc, AssetType: asset.Spot, Type: Limit, Side: Buy},
+		{OrderID: "9", Pair: btcltc, AssetType: asset.Spot, Type: Limit, Side: Sell},
+		{OrderID: "10", Pair: btcltc, AssetType: asset.Spot, Type: Market, Side: Buy},
+		{OrderID: "11", Pair: btcltc, AssetType: asset.Spot, Type: Market, Side: Sell},
+		{OrderID: "12", Pair: btcltc, AssetType: asset.Futures, Type: Limit, Side: Buy},
+		{OrderID: "13", Pair: btcltc, AssetType: asset.Futures, Type: Limit, Side: Sell},
+		{OrderID: "14", Pair: btcltc, AssetType: asset.Futures, Type: Market, Side: Buy},
+		{OrderID: "15", Pair: btcltc, AssetType: asset.Futures, Type: Market, Side: Sell},
+	}
+
+	shinyAndClean := request.Filter("test", orders)
+	if len(shinyAndClean) != 16 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(shinyAndClean), 16)
+	}
+
+	for x := range shinyAndClean {
+		if strconv.FormatInt(int64(x), 10) != shinyAndClean[x].OrderID {
+			t.Fatalf("received: '%v' but expected: '%v'", shinyAndClean[x].OrderID, int64(x))
+		}
+	}
+
+	request.Pairs = []currency.Pair{btcltc}
+
+	// Kicks off time error
+	request.EndTime = time.Unix(1336, 0)
+	request.StartTime = time.Unix(1337, 0)
+
+	shinyAndClean = request.Filter("test", orders)
+
+	if len(shinyAndClean) != 8 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(shinyAndClean), 8)
+	}
+
+	for x := range shinyAndClean {
+		if strconv.FormatInt(int64(x)+8, 10) != shinyAndClean[x].OrderID {
+			t.Fatalf("received: '%v' but expected: '%v'", shinyAndClean[x].OrderID, int64(x)+8)
+		}
 	}
 }

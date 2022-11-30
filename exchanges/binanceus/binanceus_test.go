@@ -362,6 +362,7 @@ func TestGetActiveOrders(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
+		Side:      order.AnySide,
 	}
 	_, err := bi.GetActiveOrders(context.Background(), &getOrdersRequest)
 	if err != nil {

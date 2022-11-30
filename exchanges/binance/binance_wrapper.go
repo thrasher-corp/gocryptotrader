@@ -1357,8 +1357,9 @@ func (b *Binance) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuil
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *Binance) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (b *Binance) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 	if len(req.Pairs) == 0 || len(req.Pairs) >= 40 {
@@ -1384,7 +1385,7 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 				if err != nil {
 					log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
 				}
-				orderStatus, err := order.StringToOrderStatus(resp[i].Status)
+				orderStatus, err := order.StringToOrderStatus(resp[x].Status)
 				if err != nil {
 					log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
 				}
@@ -1473,20 +1474,14 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 			return orders, fmt.Errorf("assetType not supported")
 		}
 	}
-	order.FilterOrdersByPairs(&orders, req.Pairs)
-	order.FilterOrdersByType(&orders, req.Type)
-	order.FilterOrdersBySide(&orders, req.Side)
-	err := order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
-	}
-	return orders, nil
+	return req.Filter(b.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 	if len(req.Pairs) == 0 {
@@ -1506,7 +1501,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 
 			for i := range resp {
 				var side order.Side
-				side, err = order.StringToOrderSide(resp[x].Side)
+				side, err = order.StringToOrderSide(resp[i].Side)
 				if err != nil {
 					log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
 				}
@@ -1669,14 +1664,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 	default:
 		return orders, fmt.Errorf("assetType not supported")
 	}
-	order.FilterOrdersByType(&orders, req.Type)
-	order.FilterOrdersBySide(&orders, req.Side)
-	err := order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
-	}
-
-	return orders, nil
+	return req.Filter(b.Name, orders), nil
 }
 
 // ValidateCredentials validates current credentials used for wrapper

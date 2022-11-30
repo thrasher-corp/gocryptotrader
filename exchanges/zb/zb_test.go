@@ -248,10 +248,10 @@ func TestGetActiveOrders(t *testing.T) {
 		t.Skip("skipping authenticated function for mock testing")
 	}
 	var getOrdersRequest = order.GetOrdersRequest{
-		Type: order.AnyType,
-		Pairs: []currency.Pair{currency.NewPair(currency.XRP,
-			currency.USDT)},
+		Type:      order.AnyType,
+		Pairs:     []currency.Pair{currency.NewPair(currency.XRP, currency.USDT)},
 		AssetType: asset.Spot,
+		Side:      order.AnySide,
 	}
 
 	_, err := z.GetActiveOrders(context.Background(), &getOrdersRequest)
@@ -270,8 +270,7 @@ func TestGetOrderHistory(t *testing.T) {
 		Type:      order.AnyType,
 		Side:      order.Buy,
 		AssetType: asset.Spot,
-		Pairs: []currency.Pair{currency.NewPair(currency.LTC,
-			currency.BTC)},
+		Pairs:     []currency.Pair{currency.NewPair(currency.LTC, currency.BTC)},
 	}
 
 	_, err := z.GetOrderHistory(context.Background(), &getOrdersRequest)

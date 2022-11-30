@@ -540,6 +540,7 @@ func TestGetOrderHistory(t *testing.T) {
 	_, err := b.GetOrderHistory(context.Background(), &order.GetOrdersRequest{
 		Side:      order.Buy,
 		AssetType: asset.Spot,
+		Type:      order.AnyType,
 	})
 	if err != nil {
 		t.Error(err)
@@ -579,7 +580,7 @@ func TestGetActiveOrders(t *testing.T) {
 	}
 
 	_, err := b.GetActiveOrders(context.Background(),
-		&order.GetOrdersRequest{AssetType: asset.Spot})
+		&order.GetOrdersRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -505,12 +505,13 @@ func (o *OKGroup) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a 
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (o *OKGroup) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (resp []order.Detail, err error) {
-	err = req.Validate()
+func (o *OKGroup) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
 	if err != nil {
 		return nil, err
 	}
 
+	var resp []order.Detail
 	for x := range req.Pairs {
 		var fPair currency.Pair
 		fPair, err = o.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
@@ -523,7 +524,7 @@ func (o *OKGroup) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 				InstrumentID: fPair.String(),
 			})
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		for i := range spotOpenOrders {
 			var status order.Status
@@ -555,17 +556,18 @@ func (o *OKGroup) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 			})
 		}
 	}
-	return resp, err
+	return req.Filter(o.Name, resp), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (o *OKGroup) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (resp []order.Detail, err error) {
-	err = req.Validate()
+func (o *OKGroup) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
 	if err != nil {
 		return nil, err
 	}
 
+	var resp []order.Detail
 	for x := range req.Pairs {
 		var fPair currency.Pair
 		fPair, err = o.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
@@ -579,7 +581,7 @@ func (o *OKGroup) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 				InstrumentID: fPair.String(),
 			})
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		for i := range spotOrders {
 			var status order.Status
@@ -615,7 +617,7 @@ func (o *OKGroup) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 			resp = append(resp, detail)
 		}
 	}
-	return resp, err
+	return req.Filter(o.Name, resp), nil
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction

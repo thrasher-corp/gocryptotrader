@@ -918,60 +918,77 @@ func (f *FTX) GetWebsocket() (*stream.Websocket, error) {
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (f *FTX) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := getOrdersRequest.Validate(); err != nil {
+func (f *FTX) GetActiveOrders(ctx context.Context, request *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := request.Validate(validTypes{request})
+	if err != nil {
 		return nil, err
 	}
 
 	var resp []order.Detail
-	for x := range getOrdersRequest.Pairs {
-		assetType, err := f.GetPairAssetType(getOrdersRequest.Pairs[x])
+	for x := range request.Pairs {
+		var assetType asset.Item
+		assetType, err = f.GetPairAssetType(request.Pairs[x])
 		if err != nil {
 			return resp, err
 		}
 
-		formattedPair, err := f.FormatExchangeCurrency(getOrdersRequest.Pairs[x], assetType)
+		var fPair currency.Pair
+		fPair, err = f.FormatExchangeCurrency(request.Pairs[x], assetType)
 		if err != nil {
 			return nil, err
 		}
 
 		var tempResp order.Detail
-		orderData, err := f.GetOpenOrders(ctx, formattedPair.String())
-		if err != nil {
-			return resp, err
-		}
-		for y := range orderData {
-			tempResp.OrderID = strconv.FormatInt(orderData[y].ID, 10)
-			tempResp.Amount = orderData[y].Size
-			tempResp.AssetType = assetType
-			tempResp.ClientOrderID = orderData[y].ClientID
-			tempResp.Date = orderData[y].CreatedAt
-			tempResp.Exchange = f.Name
-			tempResp.ExecutedAmount = orderData[y].Size - orderData[y].RemainingSize
-			tempResp.Pair = orderData[y].Market
-			tempResp.Price = orderData[y].Price
-			tempResp.RemainingAmount = orderData[y].RemainingSize
-			var orderVars OrderVars
-			orderVars, err = f.compatibleOrderVars(ctx,
-				orderData[y].Side,
-				orderData[y].Status,
-				orderData[y].Type,
-				orderData[y].Size,
-				orderData[y].FilledSize,
-				orderData[y].AvgFillPrice)
+		if request.Type == order.AnyType ||
+			request.Type == order.Limit ||
+			request.Type == order.Market {
+			orderData, err := f.GetOpenOrders(ctx, fPair.String())
 			if err != nil {
 				return resp, err
 			}
-			tempResp.Status = orderVars.Status
-			tempResp.Side = orderVars.Side
-			tempResp.Type = orderVars.OrderType
-			tempResp.Fee = orderVars.Fee
-			resp = append(resp, tempResp)
+			for y := range orderData {
+				tempResp.OrderID = strconv.FormatInt(orderData[y].ID, 10)
+				tempResp.Amount = orderData[y].Size
+				tempResp.AssetType = assetType
+				tempResp.ClientOrderID = orderData[y].ClientID
+				tempResp.Date = orderData[y].CreatedAt
+				tempResp.Exchange = f.Name
+				tempResp.ExecutedAmount = orderData[y].Size - orderData[y].RemainingSize
+				tempResp.Pair = orderData[y].Market
+				tempResp.Price = orderData[y].Price
+				tempResp.RemainingAmount = orderData[y].RemainingSize
+				var orderVars OrderVars
+				orderVars, err = f.compatibleOrderVars(ctx,
+					orderData[y].Side,
+					orderData[y].Status,
+					orderData[y].Type,
+					orderData[y].Size,
+					orderData[y].FilledSize,
+					orderData[y].AvgFillPrice)
+				if err != nil {
+					return resp, err
+				}
+				tempResp.Status = orderVars.Status
+				tempResp.Side = orderVars.Side
+				tempResp.Type = orderVars.OrderType
+				tempResp.Fee = orderVars.Fee
+				resp = append(resp, tempResp)
+			}
 		}
 
-		triggerOrderData, err := f.GetOpenTriggerOrders(ctx,
-			formattedPair.String(),
-			getOrdersRequest.Type.String())
+		if request.Type != order.AnyType &&
+			request.Type != order.Stop &&
+			request.Type != order.TrailingStop &&
+			request.Type != order.TakeProfit {
+			continue
+		}
+
+		var t string
+		if request.Type != order.AnyType {
+			t = request.Type.Lower()
+		}
+
+		triggerOrderData, err := f.GetOpenTriggerOrders(ctx, fPair.String(), t)
 		if err != nil {
 			return resp, err
 		}
@@ -1008,13 +1025,14 @@ func (f *FTX) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOr
 			resp = append(resp, tempResp)
 		}
 	}
-	return resp, nil
+	return request.Filter(f.Name, resp), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (f *FTX) GetOrderHistory(ctx context.Context, request *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := request.Validate(); err != nil {
+func (f *FTX) GetOrderHistory(ctx context.Context, request *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := request.Validate(validTypes{request}, validSides{request})
+	if err != nil {
 		return nil, err
 	}
 	var resp []order.Detail
@@ -1025,50 +1043,66 @@ func (f *FTX) GetOrderHistory(ctx context.Context, request *order.GetOrdersReque
 			return nil, err
 		}
 
-		history, err := f.FetchOrderHistory(ctx,
-			fp.String(),
-			request.StartTime,
-			request.EndTime,
-			"")
-		if err != nil {
-			return nil, err
-		}
-		for y := range history {
-			d.OrderID = strconv.FormatInt(history[y].ID, 10)
-			d.Amount = history[y].Size
-			d.AssetType = request.AssetType
-			d.AverageExecutedPrice = history[y].AvgFillPrice
-			d.ClientOrderID = history[y].ClientID
-			d.Date = history[y].CreatedAt
-			d.Exchange = f.Name
-			d.ExecutedAmount = history[y].Size - history[y].RemainingSize
-			d.Pair = history[y].Market
-			d.Price = history[y].Price
-			d.RemainingAmount = history[y].RemainingSize
-			var orderVars OrderVars
-			orderVars, err = f.compatibleOrderVars(ctx,
-				history[y].Side,
-				history[y].Status,
-				history[y].Type,
-				history[y].Size,
-				history[y].FilledSize,
-				history[y].AvgFillPrice)
+		if request.Type == order.AnyType ||
+			request.Type == order.Limit ||
+			request.Type == order.Market {
+			var history []OrderData
+			history, err = f.FetchOrderHistory(ctx,
+				fp.String(),
+				request.StartTime,
+				request.EndTime,
+				"")
 			if err != nil {
-				return resp, err
+				return nil, err
 			}
-			d.Status = orderVars.Status
-			d.Side = orderVars.Side
-			d.Type = orderVars.OrderType
-			d.Fee = orderVars.Fee
-			resp = append(resp, d)
+			for y := range history {
+				d.OrderID = strconv.FormatInt(history[y].ID, 10)
+				d.Amount = history[y].Size
+				d.AssetType = request.AssetType
+				d.AverageExecutedPrice = history[y].AvgFillPrice
+				d.ClientOrderID = history[y].ClientID
+				d.Date = history[y].CreatedAt
+				d.Exchange = f.Name
+				d.ExecutedAmount = history[y].Size - history[y].RemainingSize
+				d.Pair = history[y].Market
+				d.Price = history[y].Price
+				d.RemainingAmount = history[y].RemainingSize
+				var orderVars OrderVars
+				orderVars, err = f.compatibleOrderVars(ctx,
+					history[y].Side,
+					history[y].Status,
+					history[y].Type,
+					history[y].Size,
+					history[y].FilledSize,
+					history[y].AvgFillPrice)
+				if err != nil {
+					return resp, err
+				}
+				d.Status = orderVars.Status
+				d.Side = orderVars.Side
+				d.Type = orderVars.OrderType
+				d.Fee = orderVars.Fee
+				resp = append(resp, d)
+			}
 		}
-		var side, t string
-		if request.Side != order.UnknownSide {
+
+		if request.Type != order.AnyType &&
+			request.Type != order.Stop &&
+			request.Type != order.TrailingStop &&
+			request.Type != order.TakeProfit {
+			continue
+		}
+
+		var side string
+		if request.Side != order.AnySide {
 			side = request.Side.Lower()
 		}
-		if request.Type != order.UnknownType {
+
+		var t string
+		if request.Type != order.AnyType {
 			t = request.Type.Lower()
 		}
+
 		triggerOrderData, err := f.GetTriggerOrderHistory(ctx,
 			fp.String(),
 			request.StartTime,
@@ -1114,7 +1148,7 @@ func (f *FTX) GetOrderHistory(ctx context.Context, request *order.GetOrdersReque
 			resp = append(resp, d)
 		}
 	}
-	return resp, nil
+	return request.Filter(f.Name, resp), nil
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction

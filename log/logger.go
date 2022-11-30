@@ -3,8 +3,8 @@ package log
 import (
 	"errors"
 	"fmt"
-	"io"
-	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 )
 
 var (
@@ -15,56 +15,32 @@ var (
 
 func newLogger(c *Config) Logger {
 	return Logger{
-		Timestamp:         c.AdvancedSettings.TimeStampFormat,
-		Spacer:            c.AdvancedSettings.Spacer,
-		ErrorHeader:       c.AdvancedSettings.Headers.Error,
-		InfoHeader:        c.AdvancedSettings.Headers.Info,
-		WarnHeader:        c.AdvancedSettings.Headers.Warn,
-		DebugHeader:       c.AdvancedSettings.Headers.Debug,
-		ShowLogSystemName: *c.AdvancedSettings.ShowLogSystemName,
+		TimestampFormat:               c.AdvancedSettings.TimeStampFormat,
+		Spacer:                        c.AdvancedSettings.Spacer,
+		ErrorHeader:                   c.AdvancedSettings.Headers.Error,
+		InfoHeader:                    c.AdvancedSettings.Headers.Info,
+		WarnHeader:                    c.AdvancedSettings.Headers.Warn,
+		DebugHeader:                   c.AdvancedSettings.Headers.Debug,
+		ShowLogSystemName:             c.AdvancedSettings.ShowLogSystemName != nil && *c.AdvancedSettings.ShowLogSystemName,
+		BypassJobChannelFilledWarning: c.AdvancedSettings.BypassJobChannelFilledWarning,
 	}
-}
-
-func (l *Logger) newLogEvent(data, header, slName string, w io.Writer) error {
-	if w == nil {
-		return errors.New("io.Writer not set")
-	}
-
-	pool, ok := eventPool.Get().(*[]byte)
-	if !ok {
-		return errors.New("unable to type assert slice of bytes pointer")
-	}
-
-	*pool = append(*pool, header...)
-	if l.ShowLogSystemName {
-		*pool = append(*pool, l.Spacer...)
-		*pool = append(*pool, slName...)
-	}
-	*pool = append(*pool, l.Spacer...)
-	if l.Timestamp != "" {
-		*pool = time.Now().AppendFormat(*pool, l.Timestamp)
-	}
-	*pool = append(*pool, l.Spacer...)
-	*pool = append(*pool, data...)
-	if data == "" || data[len(data)-1] != '\n' {
-		*pool = append(*pool, '\n')
-	}
-	_, err := w.Write(*pool)
-	*pool = (*pool)[:0]
-	eventPool.Put(pool)
-
-	return err
 }
 
 // CloseLogger is called on shutdown of application
 func CloseLogger() error {
-	return GlobalLogFile.Close()
+	ch := make(chan struct{})
+	mu.Lock()
+	defer mu.Unlock()
+	globalLogConfig.Enabled = convert.BoolPtr(false)
+	jobsChannel <- &job{Passback: ch}
+	<-ch
+	return globalLogFile.Close()
 }
 
-// Level retries the current sublogger levels
+// Level retrieves the current sublogger levels
 func Level(name string) (Levels, error) {
-	RWM.RLock()
-	defer RWM.RUnlock()
+	mu.RLock()
+	defer mu.RUnlock()
 	subLogger, found := SubLoggers[name]
 	if !found {
 		return Levels{}, fmt.Errorf("logger %s not found", name)
@@ -74,12 +50,12 @@ func Level(name string) (Levels, error) {
 
 // SetLevel sets sublogger levels
 func SetLevel(s, level string) (Levels, error) {
-	RWM.Lock()
-	defer RWM.Unlock()
+	mu.Lock()
+	defer mu.Unlock()
 	subLogger, found := SubLoggers[s]
 	if !found {
 		return Levels{}, fmt.Errorf("sub logger %v not found", s)
 	}
-	subLogger.SetLevels(splitLevel(level))
+	subLogger.setLevels(splitLevel(level))
 	return subLogger.levels, nil
 }
