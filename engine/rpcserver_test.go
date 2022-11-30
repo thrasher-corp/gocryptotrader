@@ -173,7 +173,12 @@ func generateCandles(amount int, timeStart time.Time, interval kline.Interval) [
 	return candy
 }
 
+var errTest = errors.New("test error")
+
 func (f fExchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, interval kline.Interval, timeStart, _ time.Time) (*kline.Item, error) {
+	if interval == 0 {
+		return nil, errTest
+	}
 	return &kline.Item{
 		Exchange: fakeExchangeName,
 		Pair:     p,
@@ -2516,8 +2521,8 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 		AssetType: "upsideprofitcontract",
 		Pair:      &gctrpc.CurrencyPair{},
 	})
-	if !errors.Is(err, kline.ErrValidatingParams) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrValidatingParams)
+	if !errors.Is(err, errTest) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errTest)
 	}
 
 	_, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{

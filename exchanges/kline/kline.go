@@ -13,6 +13,19 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+var (
+	// ErrInvalidInterval defines when an interval is invalid e.g. interval <= 0
+	ErrInvalidInterval = errors.New("invalid interval")
+	// ErrCannotConstructInterval defines an error when an interval cannot be
+	// constructed from a list of support intervals.
+	ErrCannotConstructInterval = errors.New("cannot construct required interval from supported intervals")
+	// ErrInsufficientCandleData defines an error when you have a candle that
+	// requires multiple candles to generate.
+	ErrInsufficientCandleData = errors.New("insufficient candle data to generate new candle")
+
+	oneYearDurationInNano = float64(OneYear.Duration().Nanoseconds())
+)
+
 // CreateKline creates candles out of trade history data for a set time interval
 func CreateKline(trades []order.TradeHistory, interval Interval, p currency.Pair, a asset.Item, exchange string) (Item, error) {
 	if interval.Duration() < time.Minute {
@@ -280,14 +293,8 @@ func durationToWord(in Interval) string {
 // TotalCandlesPerInterval turns total candles per period for interval
 func TotalCandlesPerInterval(start, end time.Time, interval Interval) int64 {
 	window := end.Sub(start)
-	fmt.Println("window", window)
-	fmt.Println("interval", interval)
-	fmt.Println("counts", int64(window)/int64(interval))
-
 	return int64(window) / int64(interval)
 }
-
-var oneYearDurationInNano = float64(OneYear.Duration().Nanoseconds())
 
 // IntervalsPerYear helps determine the number of intervals in a year
 // used in CAGR calculation to know the amount of time of an interval in a year
@@ -318,6 +325,9 @@ func ConvertToNewInterval(old *Item, newInterval Interval) (*Item, error) {
 
 	oldIntervalsPerNewCandle := int(newInterval / old.Interval)
 	candles := make([]Candle, len(old.Candles)/oldIntervalsPerNewCandle)
+	if len(candles) == 0 {
+		return nil, ErrInsufficientCandleData
+	}
 	var target int
 	for x := range old.Candles {
 		if candles[target].Time.IsZero() {
@@ -463,6 +473,7 @@ func (h *IntervalRangeHolder) SetHasDataFromCandles(incoming []Candle) {
 					continue intervals
 				}
 			}
+			h.Ranges[x].Intervals[y].HasData = false
 		}
 	}
 }
@@ -527,4 +538,45 @@ func CreateIntervalTime(tt time.Time) IntervalTime {
 // Equal allows for easier unix comparison
 func (i *IntervalTime) Equal(tt time.Time) bool {
 	return tt.Unix() == i.Ticks
+}
+
+// DeployExchangeIntervals aligns and stores supported intervals for an exchange
+// for future matching.
+func DeployExchangeIntervals(enabled ...Interval) ExchangeIntervals {
+	sort.Slice(enabled, func(i, j int) bool { return enabled[i] < enabled[j] })
+
+	supported := make(map[Interval]bool)
+	for x := range enabled {
+		supported[enabled[x]] = true
+	}
+	return ExchangeIntervals{supported: supported, aligned: enabled}
+}
+
+// Supports returns if the exchange directly supports the interval. In future
+// this might be able to be deprecated because we can construct custom intervals
+// from the supported list.
+func (e *ExchangeIntervals) Supports(required Interval) bool {
+	return e.supported[required]
+}
+
+// Construct fetches supported interval that can construct the required interval
+// e.g. 1 hour interval candles can be made from 2 * 30 minute interval candles.
+func (e *ExchangeIntervals) Construct(required Interval) (Interval, error) {
+	if required <= 0 {
+		return 0, ErrInvalidInterval
+	}
+
+	if e.supported[required] {
+		// Directly supported by exchange can return.
+		return required, nil
+	}
+
+	for x := len(e.aligned) - 1; x > -1; x-- {
+		if e.aligned[x] < required && required%e.aligned[x] == 0 {
+			// Indirectly supported by exchange. Can generate required candle
+			// from this lower time frame supported candle.
+			return e.aligned[x], nil
+		}
+	}
+	return 0, ErrCannotConstructInterval
 }

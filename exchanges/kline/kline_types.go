@@ -2,8 +2,6 @@ package kline
 
 import (
 	"errors"
-	"fmt"
-	"sort"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -131,62 +129,11 @@ type ExchangeCapabilitiesEnabled struct {
 	ResultLimit uint32
 }
 
-// DeployExchangeIntervals aligns and stores supported intervals for an exchange
-// for future matching.
-func DeployExchangeIntervals(enabled ...Interval) ExchangeIntervals {
-	sort.Slice(enabled, func(i, j int) bool {
-		return enabled[i] < enabled[j]
-	})
-
-	store := make(map[Interval]int)
-	for x := range enabled {
-		store[enabled[x]] = x
-	}
-
-	return ExchangeIntervals{store: store, aligned: enabled}
-}
-
 // ExchangeIntervals stores the supported intervals in an optimized lookup table
 // with a supplementary aligned retrieval list
 type ExchangeIntervals struct {
-	store   map[Interval]int
-	aligned []Interval
-}
-
-// Supports returns if the exchange directly supports the interval. In future
-// this might be able to be deprecated because we can construct custom intervals
-// from the supported list.
-func (e *ExchangeIntervals) Supports(required Interval) bool {
-	_, ok := e.store[required]
-	return ok
-}
-
-// ErrInvalidInterval defines when an interval is invalid e.g. interval <= 0
-var ErrInvalidInterval = errors.New("invalid interval")
-
-// ErrCannotConstructInterval defines an error when an interval cannot be constructed from a list of support intervals
-var ErrCannotConstructInterval = errors.New("cannot construct required interval from supported intervals")
-
-// Construct fetches supported interval that can construct the required interval
-// e.g. 1 hour interval can be made from 2 * 30min intervals.
-func (e *ExchangeIntervals) Construct(required Interval) (Interval, error) {
-	if required <= 0 {
-		return 0, ErrInvalidInterval
-	}
-	_, ok := e.store[required]
-	if ok {
-		fmt.Println("bruh match")
-		// Directly supported by exchange can return.
-		return required, nil
-	}
-
-	for x := len(e.aligned) - 1; x > -1; x-- {
-		if e.aligned[x] < required && required%e.aligned[x] == 0 {
-			fmt.Println("WOW TIME MATCH", e.aligned[x])
-			return e.aligned[x], nil
-		}
-	}
-	return 0, ErrCannotConstructInterval
+	supported map[Interval]bool
+	aligned   []Interval
 }
 
 // Interval type for kline Interval usage

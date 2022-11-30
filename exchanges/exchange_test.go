@@ -1967,17 +1967,17 @@ func TestBase_ValidateKline(t *testing.T) {
 		},
 	}
 
-	err := b.validateKline(availablePairs[0], asset.Spot, kline.OneMin)
+	err := b.ValidateKline(availablePairs[0], asset.Spot, kline.OneMin)
 	if err != nil {
 		t.Fatalf("expected validation to pass received error: %v", err)
 	}
 
-	err = b.validateKline(availablePairs[1], asset.Spot, kline.OneYear)
+	err = b.ValidateKline(availablePairs[1], asset.Spot, kline.OneYear)
 	if err == nil {
 		t.Fatal("expected validation to fail")
 	}
 
-	err = b.validateKline(availablePairs[1], asset.Index, kline.OneYear)
+	err = b.ValidateKline(availablePairs[1], asset.Index, kline.OneYear)
 	if err == nil {
 		t.Fatal("expected validation to fail")
 	}

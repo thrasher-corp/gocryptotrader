@@ -1125,9 +1125,9 @@ func (b *Base) FormatExchangeKlineInterval(in kline.Interval) string {
 	return strconv.FormatFloat(in.Duration().Seconds(), 'f', 0, 64)
 }
 
-// validateKline confirms that the requested pair, asset & interval are
+// ValidateKline confirms that the requested pair, asset & interval are
 // supported and/or enabled by the requested exchange.
-func (b *Base) validateKline(pair currency.Pair, a asset.Item, interval kline.Interval) error {
+func (b *Base) ValidateKline(pair currency.Pair, a asset.Item, interval kline.Interval) error {
 	var errorList []string
 	if b.CurrencyPairs.IsAssetEnabled(a) != nil {
 		errorList = append(errorList, fmt.Sprintf("[%s] asset not enabled", a))
@@ -1516,7 +1516,7 @@ func (b *Base) GetKlineBuilder(pair currency.Pair, a asset.Item, required kline.
 			kline.ErrRequestExceedsExchangeLimits)
 	}
 
-	err = b.validateKline(pair, a, request)
+	err = b.ValidateKline(pair, a, request)
 	if err != nil {
 		return nil, err
 	}
@@ -1545,7 +1545,7 @@ func (b *Base) GetKlineBuilderExtended(pair currency.Pair, a asset.Item, require
 		return nil, err
 	}
 
-	err = b.validateKline(pair, a, request)
+	err = b.ValidateKline(pair, a, request)
 	if err != nil {
 		return nil, err
 	}

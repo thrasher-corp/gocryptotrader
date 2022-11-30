@@ -963,6 +963,11 @@ func TestConvertToNewInterval(t *testing.T) {
 	if len(newCandle.Candles) != 1 {
 		t.Error("expected one candle")
 	}
+
+	_, err = ConvertToNewInterval(old, OneMonth)
+	if !errors.Is(err, ErrInsufficientCandleData) {
+		t.Errorf("received '%v' expected '%v'", err, ErrInsufficientCandleData)
+	}
 }
 
 func TestGetClosePriceAtTime(t *testing.T) {
@@ -989,5 +994,48 @@ func TestGetClosePriceAtTime(t *testing.T) {
 	_, err = k.GetClosePriceAtTime(tt.Add(time.Minute))
 	if !errors.Is(err, ErrNotFoundAtTime) {
 		t.Errorf("received '%v' expected '%v'", err, ErrNotFoundAtTime)
+	}
+}
+
+func TestDeployExchangeIntervals(t *testing.T) {
+	t.Parallel()
+	exchangeIntervals := DeployExchangeIntervals()
+	if exchangeIntervals.Supports(OneWeek) {
+		t.Errorf("received '%v' expected '%v'", exchangeIntervals.Supports(OneWeek), false)
+	}
+
+	exchangeIntervals = DeployExchangeIntervals(OneWeek)
+	if !exchangeIntervals.Supports(OneWeek) {
+		t.Errorf("received '%v' expected '%v'", exchangeIntervals.Supports(OneWeek), true)
+	}
+
+	_, err := exchangeIntervals.Construct(0)
+	if !errors.Is(err, ErrInvalidInterval) {
+		t.Errorf("received '%v' expected '%v'", err, ErrInvalidInterval)
+	}
+
+	_, err = exchangeIntervals.Construct(OneMin)
+	if !errors.Is(err, ErrCannotConstructInterval) {
+		t.Errorf("received '%v' expected '%v'", err, ErrCannotConstructInterval)
+	}
+
+	request, err := exchangeIntervals.Construct(OneWeek)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	if request != OneWeek {
+		t.Errorf("received '%v' expected '%v'", request, OneWeek)
+	}
+
+	exchangeIntervals = DeployExchangeIntervals(OneWeek, OneDay)
+
+	request, err = exchangeIntervals.Construct(OneMonth)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	if request != OneDay {
+		t.Errorf("received '%v' expected '%v'", request, OneDay)
 	}
 }
