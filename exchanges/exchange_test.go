@@ -2654,23 +2654,29 @@ func TestGetKlineBuilder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrValidatingParams)
 	}
 
-	b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		AssetEnabled: convert.BoolPtr(true),
 		Enabled:      []currency.Pair{pair},
 		Available:    []currency.Pair{pair},
 	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 
 	_, err = b.GetKlineBuilder(pair, asset.Spot, kline.OneHour, start, end)
 	if !errors.Is(err, errAssetRequestFormatIsNil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errAssetRequestFormatIsNil)
 	}
 
-	b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		AssetEnabled:  convert.BoolPtr(true),
 		Enabled:       []currency.Pair{pair},
 		Available:     []currency.Pair{pair},
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 
 	builder, err := b.GetKlineBuilder(pair, asset.Spot, kline.OneHour, start, end)
 	if !errors.Is(err, nil) {
@@ -2748,23 +2754,29 @@ func TestGetKlineBuilderExtended(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrValidatingParams)
 	}
 
-	b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		AssetEnabled: convert.BoolPtr(true),
 		Enabled:      []currency.Pair{pair},
 		Available:    []currency.Pair{pair},
 	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 
 	_, err = b.GetKlineBuilderExtended(pair, asset.Spot, kline.OneHour, start, end)
 	if !errors.Is(err, errAssetRequestFormatIsNil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errAssetRequestFormatIsNil)
 	}
 
-	b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		AssetEnabled:  convert.BoolPtr(true),
 		Enabled:       []currency.Pair{pair},
 		Available:     []currency.Pair{pair},
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 
 	// The one hour is not supported in this situation and will be converted
 	// to one minute request interval for construction. Below will demonstrate

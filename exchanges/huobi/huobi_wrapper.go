@@ -1780,12 +1780,12 @@ func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 
 	timeSeries := make([]kline.Candle, 0, len(candles))
 	for x := range candles {
-		if time.Unix(candles[x].ID, 0).Before(builder.Start) ||
-			time.Unix(candles[x].ID, 0).After(builder.End) {
+		timestamp := time.Unix(candles[x].ID, 0)
+		if timestamp.Before(builder.Start) || timestamp.After(builder.End) {
 			continue
 		}
 		timeSeries = append(timeSeries, kline.Candle{
-			Time:   time.Unix(candles[x].ID, 0),
+			Time:   timestamp,
 			Open:   candles[x].Open,
 			High:   candles[x].High,
 			Low:    candles[x].Low,

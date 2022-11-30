@@ -674,7 +674,6 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Fatal(err)
 	}
-
 }
 
 func TestGetRecentTrades(t *testing.T) {

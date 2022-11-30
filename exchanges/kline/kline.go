@@ -355,7 +355,7 @@ func ConvertToNewInterval(old *Item, newInterval Interval) (*Item, error) {
 			// break instantly if we cannot make an entire candle. e.g. 60 min
 			// candles in an hour candle and we have 59 minute candles left.
 			// This entire procession is cleaved.
-			if len(old.Candles[x:])-1 < int(oldIntervalsPerNewCandle) {
+			if len(old.Candles[x:])-1 < oldIntervalsPerNewCandle {
 				break
 			}
 		}

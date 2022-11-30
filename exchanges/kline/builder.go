@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+// ErrUnsetName is an error for when the exchange name is not set
 var ErrUnsetName = errors.New("unset exchange name")
 
 // Builder is a helper to request and convert time series to a required candle
