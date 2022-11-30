@@ -2434,18 +2434,14 @@ func TestGetHistoricCandles(t *testing.T) {
 	startTime := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
 
-	b.Verbose = true
-
-	moo, err := b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, startTime, end)
+	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, startTime, end)
 	if err != nil {
 		t.Error(err)
 	}
 
-	fmt.Printf("%+v\n", moo)
-
 	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.Interval(time.Hour*7), startTime, end)
-	if err != nil {
-		t.Fatal(err)
+	if !errors.Is(err, kline.ErrRequestExceedsExchangeLimits) {
+		t.Fatalf("received: '%v', but expected: '%v'", err, kline.ErrRequestExceedsExchangeLimits)
 	}
 }
 
@@ -2460,11 +2456,6 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	end := time.Date(2021, 2, 15, 0, 0, 0, 0, time.UTC)
 
 	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneDay, startTime, end)
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.Interval(time.Hour*7), startTime, end)
 	if err != nil {
 		t.Error(err)
 	}

@@ -169,6 +169,7 @@ func (k *Kraken) SetDefaults() {
 					kline.FifteenDay,
 					kline.OneWeek,
 				),
+				ResultLimit: 720,
 			},
 		},
 	}

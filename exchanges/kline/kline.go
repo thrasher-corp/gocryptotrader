@@ -197,32 +197,35 @@ func (k *Item) FillMissingDataWithEmptyEntries(i *IntervalRangeHolder) {
 }
 
 // RemoveDuplicates removes any duplicate candles
+// Filter in place must be used as it keeps the slice reference pointer the same.
+// If changed BuilderExteneded ConvertCandles functionality will break.
 func (k *Item) RemoveDuplicates() {
-	var newCandles []Candle
-	for x := range k.Candles {
-		if x == 0 {
-			newCandles = append(newCandles, k.Candles[x])
+	lookup := make(map[int64]bool)
+	target := 0
+	for _, keep := range k.Candles {
+		key := keep.Time.Unix()
+		if lookup[key] {
 			continue
 		}
-		if !k.Candles[x].Time.Equal(k.Candles[x-1].Time) {
-			// don't add duplicate
-			newCandles = append(newCandles, k.Candles[x])
-		}
+		lookup[key] = true
+		k.Candles[target] = keep
+		target++
 	}
-
-	k.Candles = newCandles
+	k.Candles = k.Candles[:target]
 }
 
 // RemoveOutsideRange removes any candles outside the start and end date
+// Filter in place must be used as it keeps the slice reference pointer the same.
+// If changed BuilderExteneded ConvertCandles functionality will break.
 func (k *Item) RemoveOutsideRange(start, end time.Time) {
-	var newCandles []Candle
-	for i := range k.Candles {
-		if k.Candles[i].Time.Equal(start) ||
-			(k.Candles[i].Time.After(start) && k.Candles[i].Time.Before(end)) {
-			newCandles = append(newCandles, k.Candles[i])
+	target := 0
+	for _, keep := range k.Candles {
+		if keep.Time.Equal(start) || (keep.Time.After(start) && keep.Time.Before(end)) {
+			k.Candles[target] = keep
+			target++
 		}
 	}
-	k.Candles = newCandles
+	k.Candles = k.Candles[:target]
 }
 
 // SortCandlesByTimestamp sorts candles by timestamp

@@ -441,11 +441,11 @@ func TestGetHistoricCandles(t *testing.T) {
 	endTime := time.Date(2021, 2, 15, 0, 0, 0, 0, time.UTC)
 
 	_, err := bi.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.Interval(time.Hour*5), startTime, endTime)
-	if err != nil && !strings.Contains(err.Error(), "requested data would exceed exchange limits") {
-		t.Fatal(err)
+	if !errors.Is(err, kline.ErrRequestExceedsExchangeLimits) {
+		t.Fatalf("received: '%v', but expected: '%v'", err, kline.ErrRequestExceedsExchangeLimits)
 	}
 
-	_, err = bi.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.FourHour, time.Time{}, time.Time{})
+	_, err = bi.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, startTime, endTime)
 	if err != nil {
 		t.Error("Binanceus GetHistoricCandles() error", err)
 	}
@@ -457,7 +457,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	startTime := time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, 2, 15, 0, 0, 0, 0, time.UTC)
 
-	_, err := bi.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.FourHour, startTime, endTime)
+	_, err := bi.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneDay, startTime, endTime)
 	if err != nil {
 		t.Fatal(err)
 	}

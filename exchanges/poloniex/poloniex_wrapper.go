@@ -130,6 +130,7 @@ func (p *Poloniex) SetDefaults() {
 					kline.FourHour,
 					kline.OneDay,
 				),
+				ResultLimit: 500,
 			},
 		},
 	}
@@ -968,7 +969,7 @@ func (p *Poloniex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	timeSeries := make([]kline.Candle, len(resp))
 	for x := range resp {
 		timeSeries[x] = kline.Candle{
-			Time:   time.Unix(resp[x].Date, 0),
+			Time:   time.UnixMilli(resp[x].Date),
 			Open:   resp[x].Open,
 			High:   resp[x].High,
 			Low:    resp[x].Low,

@@ -1612,12 +1612,6 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// TODO: Fix custom conversions
-	_, err = h.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.Interval(time.Hour*7), startTime.AddDate(0, 0, 6), time.Now())
-	if err != nil {
-		t.Fatal(err)
-	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
@@ -1628,18 +1622,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	}
 	startTime := time.Now().Add(-time.Hour * 1)
 	_, err = h.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneMin, startTime, time.Now())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = h.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneDay, startTime.AddDate(0, 0, -7), time.Now())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// TODO: Fix custom conversions
-	_, err = h.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.Interval(time.Hour*7), startTime.AddDate(0, 0, 6), time.Now())
-	if err != nil {
+	if !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Fatal(err)
 	}
 }

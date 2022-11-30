@@ -127,6 +127,7 @@ func (g *Gateio) SetDefaults() {
 					kline.TwelveHour,
 					kline.OneDay,
 				),
+				ResultLimit: 1001,
 			},
 		},
 	}

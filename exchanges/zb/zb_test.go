@@ -898,11 +898,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		endTime = time.Date(2020, 9, 2, 0, 0, 0, 0, time.UTC)
 	}
 
-	_, err = z.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, kline.OneDay, startTime, endTime)
-	if err != nil {
-		t.Fatal(err)
-	}
+	// Current endpoint is dead.
 	_, err = z.GetHistoricCandles(context.Background(),
 		currencyPair, asset.Spot, kline.Interval(time.Hour*7), startTime, endTime)
 	if err == nil {
@@ -921,10 +917,11 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		startTime = time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
 		endTime = time.Date(2020, 9, 2, 0, 0, 0, 0, time.UTC)
 	}
+	// Current endpoint is dead.
 	_, err = z.GetHistoricCandlesExtended(context.Background(),
 		currencyPair, asset.Spot, kline.OneDay, startTime, endTime)
-	if err != nil {
-		t.Fatal(err)
+	if err == nil {
+		t.Fatal("unexpected result")
 	}
 }
 

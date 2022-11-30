@@ -818,14 +818,14 @@ func TestBTCMarkets_GetHistoricCandles(t *testing.T) {
 
 func TestBTCMarkets_GetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	start := time.Now().AddDate(0, 0, -2)
+	start := time.Now().AddDate(0, 0, -1)
 	end := time.Now()
 	pair, err := currency.NewPairFromString(BTCAUD)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneDay, start, end)
+	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneHour, start, end)
 	if err != nil {
 		t.Fatal(err)
 	}

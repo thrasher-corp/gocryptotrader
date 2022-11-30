@@ -185,12 +185,13 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneMin, time.Now(), time.Now())
+	start := time.Now().AddDate(0, 0, -1)
+	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneHour, start, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, time.Now(), time.Now())
+	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, start, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,8 +204,9 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneMin, time.Now(), time.Now())
-	if err != nil {
+	start := time.Now().AddDate(0, 0, -1)
+	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneMin, start, time.Now())
+	if !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Fatal(err)
 	}
 }

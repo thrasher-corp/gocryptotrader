@@ -653,13 +653,8 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	_, err = p.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.FiveMin, time.Unix(1588741402, 0), time.Unix(1588745003, 0))
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	_, err = p.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.Interval(time.Hour*7), time.Unix(1588741402, 0), time.Unix(1588745003, 0))
+	start := time.Unix(1588741402, 0)
+	_, err = p.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.FiveMin, start, time.Unix(1588745003, 0))
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -674,14 +669,10 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	}
 
 	_, err = p.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.FiveMin, time.Unix(1588741402, 0), time.Unix(1588745003, 0))
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Fatal(err)
 	}
 
-	_, err = p.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.Interval(time.Hour*7), time.Unix(1588741402, 0), time.Unix(1588745003, 0))
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
 }
 
 func TestGetRecentTrades(t *testing.T) {

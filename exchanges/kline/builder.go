@@ -71,6 +71,9 @@ func (b *Builder) ConvertCandles(timeSeries []Candle) (*Item, error) {
 		Candles:  timeSeries,
 	}
 
+	// NOTE: timeSeries param above must keep underlying slice reference in this
+	// function as it is used for method ConvertCandles on type BuilderExtended
+	// for SetHasDataFromCandles candle matching.
 	holder.RemoveDuplicates()
 	holder.RemoveOutsideRange(b.Start, b.End)
 	holder.SortCandlesByTimestamp(false)
@@ -97,6 +100,9 @@ func (b *BuilderExtended) ConvertCandles(timeSeries []Candle) (*Item, error) {
 	}
 
 	// This checks from pre-converted time series data for date range matching.
+	// NOTE: If there are any optimizations which copy timeSeries param slice
+	// in the function call ConvertCandles above then false positives can
+	// occur. // TODO: Improve implementation.
 	b.SetHasDataFromCandles(timeSeries)
 	summary := b.DataSummary(false)
 	if len(summary) > 0 {

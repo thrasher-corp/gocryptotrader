@@ -2004,18 +2004,10 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = k.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneMin, time.Now().Add(-time.Minute*3), time.Now())
+	_, err = k.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneMin, time.Now().Add(-time.Hour*12), time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// TODO: Fix
-	hello, err := k.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.Interval(time.Hour*7), time.Now().Add(-time.Hour*7), time.Now())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	fmt.Printf("%+v\n", hello)
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
@@ -2026,12 +2018,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	}
 
 	_, err = k.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneMin, time.Now().Add(-time.Minute*3), time.Now())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = k.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.Interval(time.Hour*7), time.Now().Add(-time.Hour*7), time.Now())
-	if err != nil {
+	if !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Fatal(err)
 	}
 }

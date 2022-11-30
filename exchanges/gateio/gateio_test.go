@@ -783,7 +783,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	}
 	startTime := time.Now().Add(-time.Hour * 2)
 	_, err = g.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneMin, startTime, time.Now())
-	if err != nil {
+	if !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Fatal(err)
 	}
 }

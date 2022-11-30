@@ -125,6 +125,7 @@ func (b *Bithumb) SetDefaults() {
 					kline.TwelveHour,
 					kline.OneDay,
 				),
+				ResultLimit: 1500,
 			},
 		},
 	}
