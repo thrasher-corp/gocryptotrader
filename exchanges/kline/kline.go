@@ -54,7 +54,7 @@ func CreateKline(trades []order.TradeHistory, interval Interval, pair currency.P
 	candles := make([]Candle, count)
 
 	// Opted for arithmetic operations for trade candle matching. It's not
-	// really neccesary for NS prec because we are only fitting in >=minute
+	// really necessary for NS prec because we are only fitting in >=minute
 	// candles but for future custom candles we can open up a <=100ms heartbeat
 	// if needed.
 	candleWindowNs := interval.Duration().Nanoseconds()
@@ -365,11 +365,13 @@ func CalculateCandleDateRanges(start, end time.Time, interval Interval, limit ui
 	window := end.Sub(start)
 	count := int64(window) / int64(interval)
 	requests := float64(count) / float64(limit)
-	if requests <= 1 {
+
+	switch {
+	case requests <= 1:
 		requests = 1
-	} else if limit == 0 {
+	case limit == 0:
 		requests, limit = 1, uint32(count)
-	} else if requests-float64(int64(requests)) > 0 {
+	case requests-float64(int64(requests)) > 0:
 		requests++
 	}
 
