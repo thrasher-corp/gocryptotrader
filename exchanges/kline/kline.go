@@ -406,11 +406,11 @@ func CalculateCandleDateRanges(start, end time.Time, interval Interval, limit ui
 // date inside the existing limits
 func (h *IntervalRangeHolder) HasDataAtDate(t time.Time) bool {
 	tu := t.Unix()
-	if tu < h.Start.Ticks || tu > h.End.Ticks {
+	if tu < h.Start.Ticks || tu >= h.End.Ticks {
 		return false
 	}
 	for i := range h.Ranges {
-		if tu < h.Ranges[i].Start.Ticks && tu >= h.Ranges[i].End.Ticks {
+		if tu < h.Ranges[i].Start.Ticks || tu >= h.Ranges[i].End.Ticks {
 			continue
 		}
 
