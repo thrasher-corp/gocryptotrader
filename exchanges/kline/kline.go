@@ -88,7 +88,6 @@ func CreateKline(trades []order.TradeHistory, interval Interval, pair currency.P
 			break
 		}
 	}
-
 	return &Item{
 		Exchange: exchName,
 		Pair:     pair,
@@ -183,13 +182,11 @@ func (k *Item) RemoveDuplicates() {
 	lookup := make(map[int64]bool)
 	target := 0
 	for _, keep := range k.Candles {
-		key := keep.Time.Unix()
-		if lookup[key] {
-			continue
+		if key := keep.Time.Unix(); !lookup[key] {
+			lookup[key] = true
+			k.Candles[target] = keep
+			target++
 		}
-		lookup[key] = true
-		k.Candles[target] = keep
-		target++
 	}
 	k.Candles = k.Candles[:target]
 }

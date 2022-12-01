@@ -2,7 +2,6 @@ package kline
 
 import (
 	"errors"
-	"fmt"
 	"testing"
 	"time"
 
@@ -182,9 +181,6 @@ func TestBuilder_ConvertCandles(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v', but expected '%v'", err, nil)
 	}
-
-	fmt.Printf("moo: '%+v'\n", holder)
-	fmt.Printf("moo: '%+v'\n", len(holder.Candles))
 
 	if len(holder.Candles) != 24 {
 		t.Fatalf("received: '%v', but expected '%v'", len(holder.Candles), 24)
