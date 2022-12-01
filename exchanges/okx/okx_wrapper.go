@@ -312,23 +312,11 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, 
 	selectedPairs := []string{}
 	for x := range insts {
 		var pair string
-		switch insts[x].InstrumentType {
-		case asset.Spot, asset.Margin:
-			c, err := currency.NewPairFromString(insts[x].InstrumentID)
-			if err != nil {
-				return nil, err
-			}
-			pair = format.Format(c)
-		case asset.Futures, asset.PerpetualSwap, asset.Option:
-			c, err := currency.NewPairFromString(insts[x].InstrumentID)
-			if err != nil {
-				return nil, err
-			}
-			pair = format.Format(c)
+		c, err := currency.NewPairFromString(insts[x].InstrumentID)
+		if err != nil {
+			return nil, err
 		}
-		if pair == "" {
-			return nil, errInvalidCurrencyPair
-		}
+		pair = format.Format(c)
 		if !pairsMap[pair] {
 			pairsMap[pair] = true
 			selectedPairs = append(selectedPairs, pair)
