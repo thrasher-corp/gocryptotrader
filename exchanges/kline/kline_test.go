@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
@@ -92,47 +91,43 @@ func TestValidateData(t *testing.T) {
 
 func TestCreateKline(t *testing.T) {
 	t.Parallel()
-	_, err := CreateKline(nil,
-		OneMin,
-		currency.NewPair(currency.BTC, currency.USD),
-		asset.Spot,
-		"Binance")
+
+	pair := currency.NewPair(currency.BTC, currency.USD)
+	_, err := CreateKline(nil, OneMin, pair, asset.Spot, "Binance")
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
 
+	tradeCountAlsoTotalAmounts := 24000
 	var trades []order.TradeHistory
 	rand.Seed(time.Now().Unix())
-	for i := 0; i < 24000; i++ {
+	execution := time.Now()
+	for i := 0; i < tradeCountAlsoTotalAmounts; i++ {
+		price, rndTime := 1000+float64(rand.Intn(1000)), rand.Intn(10) //nolint:gosec // no need to import crypo/rand for testing
+		execution = execution.Add(time.Duration(rndTime) * time.Second)
 		trades = append(trades, order.TradeHistory{
-			Timestamp: time.Now().Add((time.Duration(rand.Intn(10)) * time.Minute) + //nolint:gosec // no need to import crypo/rand for testing
-				(time.Duration(rand.Intn(10)) * time.Second)), //nolint:gosec // no need to import crypo/rand for testing
-			TID:    crypto.HexEncodeToString([]byte(string(rune(i)))),
-			Amount: float64(rand.Intn(20)) + 1,      //nolint:gosec // no need to import crypo/rand for testing
-			Price:  1000 + float64(rand.Intn(1000)), //nolint:gosec // no need to import crypo/rand for testing
+			Timestamp: execution,
+			Amount:    1, // Keep as one for counting
+			Price:     price,
 		})
 	}
 
-	_, err = CreateKline(trades,
-		0,
-		currency.NewPair(currency.BTC, currency.USD),
-		asset.Spot,
-		"Binance")
+	_, err = CreateKline(trades, 0, pair, asset.Spot, "Binance")
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
 
-	c, err := CreateKline(trades,
-		OneMin,
-		currency.NewPair(currency.BTC, currency.USD),
-		asset.Spot,
-		"Binance")
+	c, err := CreateKline(trades, OneMin, pair, asset.Spot, "Binance")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if len(c.Candles) == 0 {
-		t.Fatal("no data returned, expecting a lot.")
+	var amounts float64
+	for x := range c.Candles {
+		amounts += c.Candles[x].Volume
+	}
+	if amounts != float64(tradeCountAlsoTotalAmounts) {
+		t.Fatalf("received: '%v' but expected '%v'\n", amounts, float64(tradeCountAlsoTotalAmounts))
 	}
 }
 

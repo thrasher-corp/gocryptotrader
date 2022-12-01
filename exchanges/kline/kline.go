@@ -27,94 +27,75 @@ var (
 )
 
 // CreateKline creates candles out of trade history data for a set time interval
-func CreateKline(trades []order.TradeHistory, interval Interval, p currency.Pair, a asset.Item, exchange string) (Item, error) {
+func CreateKline(trades []order.TradeHistory, interval Interval, pair currency.Pair, a asset.Item, exchName string) (*Item, error) {
 	if interval.Duration() < time.Minute {
-		return Item{}, fmt.Errorf("invalid time interval: [%s]", interval)
+		return nil, fmt.Errorf("invalid time interval: [%s]", interval)
 	}
 
 	if err := validateData(trades); err != nil {
-		return Item{}, err
+		return nil, err
 	}
 
-	timeIntervalStart := trades[0].Timestamp.Truncate(interval.Duration())
-	timeIntervalEnd := trades[len(trades)-1].Timestamp
+	// Assuming the first trade is *actually* the first trade executed via
+	// matching engine within this candle.
+	timeSeriesStart := trades[0].Timestamp.Truncate(interval.Duration())
 
-	// Adds time interval buffer zones
-	var timeIntervalCache [][]order.TradeHistory
-	var candleStart []time.Time
+	// Assuming the last trade is *actually* the last trade executed via
+	// matching engine within this candle.
+	timeSeriesEnd := trades[len(trades)-1].Timestamp.Truncate(interval.Duration()).Add(interval.Duration())
 
-	for t := timeIntervalStart; t.Before(timeIntervalEnd); t = t.Add(interval.Duration()) {
-		timeBufferEnd := t.Add(interval.Duration())
-		insertionCount := 0
+	// Full duration window or block for which all trades will occur.
+	window := timeSeriesEnd.Sub(timeSeriesStart)
 
-		var zonedTradeHistory []order.TradeHistory
-		for i := 0; i < len(trades); i++ {
-			if (trades[i].Timestamp.After(t) ||
-				trades[i].Timestamp.Equal(t)) &&
-				(trades[i].Timestamp.Before(timeBufferEnd) ||
-					trades[i].Timestamp.Equal(timeBufferEnd)) {
-				zonedTradeHistory = append(zonedTradeHistory, trades[i])
-				insertionCount++
+	count := int64(window) / int64(interval)
+
+	// Opted to create blanks in memory so that if no trading occurs we don't
+	// need to insert a blank candle later.
+	candles := make([]Candle, count)
+
+	// Opted for arithmetic operations for trade candle matching. It's not
+	// really neccesary for NS prec because we are only fitting in >=minute
+	// candles but for future custom candles we can open up a <=100ms heartbeat
+	// if needed.
+	candleWindowNs := interval.Duration().Nanoseconds()
+
+	for x := range candles {
+		if candles[x].Time.IsZero() {
+			candles[x].Time = timeSeriesStart
+			timeSeriesStart = timeSeriesStart.Add(interval.Duration())
+		}
+		candleStartNs := candles[x].Time.UnixNano()
+		for y := range trades {
+			if (trades[y].Timestamp.UnixNano() - candleStartNs) < candleWindowNs {
+				if candles[x].Open == 0 {
+					candles[x].Open = trades[y].Price
+				}
+				if candles[x].High < trades[y].Price {
+					candles[x].High = trades[y].Price
+				}
+
+				if candles[x].Low == 0 || candles[x].Low > trades[y].Price {
+					candles[x].Low = trades[y].Price
+				}
+
+				candles[x].Close = trades[y].Price
+				candles[x].Volume += trades[y].Amount
 				continue
 			}
-			trades = trades[i:]
+			// Cleave used trades for faster walk. TODO: Might need to copy a
+			// full trade slice so that we don't purge the param reference.
+			trades = trades[y:]
 			break
 		}
-
-		candleStart = append(candleStart, t)
-
-		// Insert dummy in time period when there is no price action
-		if insertionCount == 0 {
-			timeIntervalCache = append(timeIntervalCache, []order.TradeHistory{})
-			continue
-		}
-		timeIntervalCache = append(timeIntervalCache, zonedTradeHistory)
 	}
 
-	if candleStart == nil {
-		return Item{}, errors.New("candle start cannot be nil")
-	}
-
-	var candles = Item{
-		Exchange: exchange,
-		Pair:     p,
+	return &Item{
+		Exchange: exchName,
+		Pair:     pair,
 		Asset:    a,
 		Interval: interval,
-	}
-
-	var closePriceOfLast float64
-	for x := range timeIntervalCache {
-		if len(timeIntervalCache[x]) == 0 {
-			candles.Candles = append(candles.Candles, Candle{
-				Time:  candleStart[x],
-				High:  closePriceOfLast,
-				Low:   closePriceOfLast,
-				Close: closePriceOfLast,
-				Open:  closePriceOfLast})
-			continue
-		}
-
-		var newCandle = Candle{
-			Open: timeIntervalCache[x][0].Price,
-			Time: candleStart[x],
-		}
-
-		for y := range timeIntervalCache[x] {
-			if y == len(timeIntervalCache[x])-1 {
-				newCandle.Close = timeIntervalCache[x][y].Price
-				closePriceOfLast = timeIntervalCache[x][y].Price
-			}
-			if newCandle.High < timeIntervalCache[x][y].Price {
-				newCandle.High = timeIntervalCache[x][y].Price
-			}
-			if newCandle.Low > timeIntervalCache[x][y].Price || newCandle.Low == 0 {
-				newCandle.Low = timeIntervalCache[x][y].Price
-			}
-			newCandle.Volume += timeIntervalCache[x][y].Amount
-		}
-		candles.Candles = append(candles.Candles, newCandle)
-	}
-	return candles, nil
+		Candles:  candles,
+	}, nil
 }
 
 // validateData checks for zero values on data and sorts before turning
@@ -125,12 +106,11 @@ func validateData(trades []order.TradeHistory) error {
 	}
 
 	for i := range trades {
-		if trades[i].Timestamp.IsZero() ||
-			trades[i].Timestamp.Unix() == 0 {
+		if trades[i].Timestamp.IsZero() || trades[i].Timestamp.Unix() == 0 {
 			return fmt.Errorf("timestamp not set for element %d", i)
 		}
 
-		if trades[i].Amount == 0 {
+		if trades[i].Amount <= 0 {
 			return fmt.Errorf("amount not set for element %d", i)
 		}
 
@@ -295,6 +275,9 @@ func durationToWord(in Interval) string {
 
 // TotalCandlesPerInterval turns total candles per period for interval
 func TotalCandlesPerInterval(start, end time.Time, interval Interval) int64 {
+	if interval <= 0 {
+		return 0
+	}
 	window := end.Sub(start)
 	return int64(window) / int64(interval)
 }
@@ -302,7 +285,7 @@ func TotalCandlesPerInterval(start, end time.Time, interval Interval) int64 {
 // IntervalsPerYear helps determine the number of intervals in a year
 // used in CAGR calculation to know the amount of time of an interval in a year
 func (i *Interval) IntervalsPerYear() float64 {
-	if i.Duration() == 0 {
+	if *i == 0 {
 		return 0
 	}
 	return oneYearDurationInNano / float64(i.Duration().Nanoseconds())
