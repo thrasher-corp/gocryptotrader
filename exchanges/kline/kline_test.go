@@ -23,11 +23,7 @@ import (
 
 var (
 	verbose       = false
-	testExchanges = []exchange.Details{
-		{
-			Name: "one",
-		},
-	}
+	testExchanges = []exchange.Details{{Name: "one"}}
 )
 
 func TestValidateData(t *testing.T) {

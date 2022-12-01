@@ -362,45 +362,41 @@ func CalculateCandleDateRanges(start, end time.Time, interval Interval, limit ui
 
 	start = start.Round(interval.Duration())
 	end = end.Round(interval.Duration())
-	resp := &IntervalRangeHolder{
-		Start: CreateIntervalTime(start),
-		End:   CreateIntervalTime(end),
-	}
-	var intervalsInWholePeriod []IntervalData
-	for i := start; i.Before(end) && !i.Equal(end); i = i.Add(interval.Duration()) {
-		intervalsInWholePeriod = append(intervalsInWholePeriod, IntervalData{
-			Start: CreateIntervalTime(i.Round(interval.Duration())),
-			End:   CreateIntervalTime(i.Round(interval.Duration()).Add(interval.Duration())),
-		})
-	}
-	if len(intervalsInWholePeriod) < int(limit) || limit == 0 {
-		resp.Ranges = []IntervalRange{{
-			Start:     CreateIntervalTime(start),
-			End:       CreateIntervalTime(end),
-			Intervals: intervalsInWholePeriod,
-		}}
-		return resp, nil
+	window := end.Sub(start)
+	count := int64(window) / int64(interval)
+	requests := float64(count) / float64(limit)
+	if requests <= 1 {
+		requests = 1
+	} else if limit == 0 {
+		requests, limit = 1, uint32(count)
+	} else if requests-float64(int64(requests)) > 0 {
+		requests++
 	}
 
-	var intervals []IntervalData
-	splitIntervalsByLimit := make([][]IntervalData, 0, len(intervalsInWholePeriod)/int(limit)+1)
-	for len(intervalsInWholePeriod) >= int(limit) {
-		intervals, intervalsInWholePeriod = intervalsInWholePeriod[:limit], intervalsInWholePeriod[limit:]
-		splitIntervalsByLimit = append(splitIntervalsByLimit, intervals)
-	}
-	if len(intervalsInWholePeriod) > 0 {
-		splitIntervalsByLimit = append(splitIntervalsByLimit, intervalsInWholePeriod)
-	}
+	potentialRequests := make([]IntervalRange, int(requests))
+	requestStart := start
+	for x := range potentialRequests {
+		potentialRequests[x].Start = CreateIntervalTime(requestStart)
 
-	for x := range splitIntervalsByLimit {
-		resp.Ranges = append(resp.Ranges, IntervalRange{
-			Start:     splitIntervalsByLimit[x][0].Start,
-			End:       splitIntervalsByLimit[x][len(splitIntervalsByLimit[x])-1].End,
-			Intervals: splitIntervalsByLimit[x],
-		})
-	}
+		count -= int64(limit)
+		if count < 0 {
+			potentialRequests[x].Intervals = make([]IntervalData, count+int64(limit))
+		} else {
+			potentialRequests[x].Intervals = make([]IntervalData, limit)
+		}
 
-	return resp, nil
+		for y := range potentialRequests[x].Intervals {
+			potentialRequests[x].Intervals[y].Start = CreateIntervalTime(requestStart)
+			requestStart = requestStart.Add(interval.Duration())
+			potentialRequests[x].Intervals[y].End = CreateIntervalTime(requestStart)
+		}
+		potentialRequests[x].End = CreateIntervalTime(requestStart)
+	}
+	return &IntervalRangeHolder{
+		Start:  CreateIntervalTime(start),
+		End:    CreateIntervalTime(requestStart),
+		Ranges: potentialRequests,
+	}, nil
 }
 
 // HasDataAtDate determines whether a there is any data at a set
@@ -411,20 +407,17 @@ func (h *IntervalRangeHolder) HasDataAtDate(t time.Time) bool {
 		return false
 	}
 	for i := range h.Ranges {
-		if tu >= h.Ranges[i].Start.Ticks && tu <= h.Ranges[i].End.Ticks {
-			for j := range h.Ranges[i].Intervals {
-				if tu >= h.Ranges[i].Intervals[j].Start.Ticks && tu < h.Ranges[i].Intervals[j].End.Ticks {
-					return h.Ranges[i].Intervals[j].HasData
-				}
-				if j == len(h.Ranges[i].Intervals)-1 {
-					if tu == h.Ranges[i].Start.Ticks {
-						return h.Ranges[i].Intervals[j].HasData
-					}
-				}
+		if tu < h.Ranges[i].Start.Ticks && tu >= h.Ranges[i].End.Ticks {
+			continue
+		}
+
+		for j := range h.Ranges[i].Intervals {
+			if tu >= h.Ranges[i].Intervals[j].Start.Ticks &&
+				tu < h.Ranges[i].Intervals[j].End.Ticks {
+				return h.Ranges[i].Intervals[j].HasData
 			}
 		}
 	}
-
 	return false
 }
 

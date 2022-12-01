@@ -52,6 +52,9 @@ func GetBuilder(name string, pair, formatted currency.Pair, a asset.Item, requir
 	if err != nil {
 		return nil, err
 	}
+	// Force alignment to request interval
+	start = start.Truncate(request.Duration())
+	end = end.Truncate(request.Duration())
 	return &Builder{name, pair, formatted, a, request, required, start, end}, nil
 }
 

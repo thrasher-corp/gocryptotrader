@@ -1190,7 +1190,7 @@ func TestExecuteStrategy(t *testing.T) {
 	}
 	bt, err = NewFromConfig(cfg, "", "", false)
 	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
+		t.Fatalf("received '%v' expected '%v'", err, nil)
 	}
 	err = bt.ExecuteStrategy(true)
 	if !errors.Is(err, nil) {
