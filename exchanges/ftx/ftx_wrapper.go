@@ -1221,7 +1221,7 @@ func (f *FTX) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair
 		return nil, err
 	}
 
-	var timeSeries []kline.Candle
+	timeSeries := make([]kline.Candle, 0, builder.Size())
 	for x := range builder.Ranges {
 		var ohlcData []OHLCVData
 		ohlcData, err = f.GetHistoricalData(ctx,

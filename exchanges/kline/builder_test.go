@@ -100,7 +100,14 @@ func TestGetRanges(t *testing.T) {
 	start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	end := start.AddDate(0, 0, 1)
 	pair := currency.NewPair(currency.BTC, currency.USDT)
-	builder, err := GetBuilder("name", pair, pair, asset.Spot, OneHour, OneMin, start, end)
+
+	var builder *Builder
+	_, err := builder.GetRanges(100)
+	if !errors.Is(err, errNilBuilder) {
+		t.Fatalf("received: '%v', but expected '%v'", err, errNilBuilder)
+	}
+
+	builder, err = GetBuilder("name", pair, pair, asset.Spot, OneHour, OneMin, start, end)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v', but expected '%v'", err, nil)
 	}
@@ -156,8 +163,14 @@ func TestBuilder_ConvertCandles(t *testing.T) {
 	end := start.AddDate(0, 0, 1)
 	pair := currency.NewPair(currency.BTC, currency.USDT)
 
+	var builder *Builder
+	_, err := builder.ConvertCandles(oneHourCandles)
+	if !errors.Is(err, errNilBuilder) {
+		t.Fatalf("received: '%v', but expected '%v'", err, errNilBuilder)
+	}
+
 	// no conversion
-	builder, err := GetBuilder("name", pair, pair, asset.Spot, OneHour, OneHour, start, end)
+	builder, err = GetBuilder("name", pair, pair, asset.Spot, OneHour, OneHour, start, end)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v', but expected '%v'", err, nil)
 	}
@@ -194,6 +207,12 @@ func TestBuilderExtended_ConvertCandles(t *testing.T) {
 	end := start.AddDate(0, 0, 1)
 	pair := currency.NewPair(currency.BTC, currency.USDT)
 
+	var buildExt *BuilderExtended
+	_, err := buildExt.ConvertCandles(oneHourCandles)
+	if !errors.Is(err, errNilBuilder) {
+		t.Fatalf("received: '%v', but expected '%v'", err, errNilBuilder)
+	}
+
 	// no conversion
 	builder, err := GetBuilder("name", pair, pair, asset.Spot, OneHour, OneHour, start, end)
 	if !errors.Is(err, nil) {
@@ -205,7 +224,7 @@ func TestBuilderExtended_ConvertCandles(t *testing.T) {
 		t.Fatalf("received: '%v', but expected '%v'", err, nil)
 	}
 
-	buildExt := BuilderExtended{builder, dates}
+	buildExt = &BuilderExtended{builder, dates}
 
 	holder, err := buildExt.ConvertCandles(oneHourCandles)
 	if !errors.Is(err, nil) {
@@ -227,7 +246,7 @@ func TestBuilderExtended_ConvertCandles(t *testing.T) {
 		t.Fatalf("received: '%v', but expected '%v'", err, nil)
 	}
 
-	buildExt = BuilderExtended{builder, dates}
+	buildExt = &BuilderExtended{builder, dates}
 
 	holder, err = buildExt.ConvertCandles(oneMinuteCandles)
 	if !errors.Is(err, nil) {
@@ -236,5 +255,19 @@ func TestBuilderExtended_ConvertCandles(t *testing.T) {
 
 	if len(holder.Candles) != 24 {
 		t.Fatalf("received: '%v', but expected '%v'", len(holder.Candles), 24)
+	}
+}
+
+func TestBuilderExtended_Size(t *testing.T) {
+	t.Parallel()
+
+	var buildExt *BuilderExtended
+	if buildExt.Size() != 0 {
+		t.Fatalf("received: '%v', but expected '%v'", buildExt.Size(), 0)
+	}
+
+	buildExt = &BuilderExtended{IntervalRangeHolder: &IntervalRangeHolder{Limit: 100, Ranges: []IntervalRange{{}, {}}}}
+	if buildExt.Size() != 200 {
+		t.Fatalf("received: '%v', but expected '%v'", buildExt.Size(), 200)
 	}
 }

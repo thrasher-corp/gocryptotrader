@@ -903,7 +903,7 @@ func (h *HitBTC) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 		return nil, err
 	}
 
-	var timeSeries []kline.Candle
+	timeSeries := make([]kline.Candle, 0, builder.Size())
 	for y := range builder.Ranges {
 		var data []ChartData
 		data, err = h.GetCandles(ctx,

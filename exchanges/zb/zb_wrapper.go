@@ -922,7 +922,7 @@ func (z *ZB) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair,
 	}
 
 	startTime := start
-	var timeSeries []kline.Candle
+	timeSeries := make([]kline.Candle, 0, builder.Size())
 allKlines:
 	for {
 		candles, err := z.GetSpotKline(ctx, KlinesRequestParams{

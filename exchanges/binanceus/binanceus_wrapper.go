@@ -911,7 +911,7 @@ func (bi *Binanceus) GetHistoricCandlesExtended(ctx context.Context, pair curren
 		return nil, err
 	}
 
-	var timeSeries []kline.Candle
+	timeSeries := make([]kline.Candle, 0, builder.Size())
 	for x := range builder.Ranges {
 		var candles []CandleStick
 		candles, err = bi.GetSpotKline(ctx, &KlinesRequestParams{

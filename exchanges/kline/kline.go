@@ -398,6 +398,7 @@ func CalculateCandleDateRanges(start, end time.Time, interval Interval, limit ui
 		Start:  CreateIntervalTime(start),
 		End:    CreateIntervalTime(requestStart),
 		Ranges: potentialRequests,
+		Limit:  int(limit),
 	}, nil
 }
 

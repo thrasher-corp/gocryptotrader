@@ -928,7 +928,7 @@ func (l *Lbank) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 		return nil, err
 	}
 
-	var timeSeries []kline.Candle
+	timeSeries := make([]kline.Candle, 0, builder.Size())
 	for x := range builder.Ranges {
 		var data []KlineResponse
 		data, err = l.GetKlines(ctx,

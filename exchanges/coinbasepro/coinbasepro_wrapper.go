@@ -939,7 +939,7 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(ctx context.Context, pair curre
 		return nil, err
 	}
 
-	var timeSeries []kline.Candle
+	timeSeries := make([]kline.Candle, 0, builder.Size())
 	for x := range builder.Ranges {
 		var history []History
 		history, err = c.GetHistoricRates(ctx,
