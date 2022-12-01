@@ -308,21 +308,15 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, 
 	if len(insts) == 0 {
 		return nil, errNoInstrumentFound
 	}
-	pairsMap := map[string]bool{}
-	selectedPairs := []string{}
+	pairs := make([]string, len(insts))
 	for x := range insts {
-		var pair string
 		c, err := currency.NewPairFromString(insts[x].InstrumentID)
 		if err != nil {
 			return nil, err
 		}
-		pair = format.Format(c)
-		if !pairsMap[pair] {
-			pairsMap[pair] = true
-			selectedPairs = append(selectedPairs, pair)
-		}
+		pairs[x] = format.Format(c)
 	}
-	return selectedPairs, nil
+	return pairs, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores them in the exchanges config
