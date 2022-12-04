@@ -189,6 +189,174 @@ func (a *WsFuturesExecutionData) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *WsFuturesFundingBegin) UnmarshalJSON(data []byte) error {
+	type Alias WsFuturesFundingBegin
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"timestamp"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, &chil); err != nil {
+		return err
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *WsFuturesTransactionStatisticsTimeEvent) UnmarshalJSON(data []byte) error {
+	type Alias WsFuturesTransactionStatisticsTimeEvent
+	chil := &struct {
+		*Alias
+		SnapshotTime int64 `json:"ts"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, &chil); err != nil {
+		return err
+	}
+	a.SnapshotTime = time.UnixMicro(int64(chil.SnapshotTime / 1e3))
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *WsFuturesTradeOrder) UnmarshalJSON(data []byte) error {
+	type Alias WsFuturesTradeOrder
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"ts"`
+		OrderTime int64 `json:"orderTime"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, &chil); err != nil {
+		return err
+	}
+	a.Timestamp = time.UnixMicro(int64(chil.Timestamp / 1e3))
+	a.OrderTime = time.UnixMicro(int64(chil.OrderTime / 1e3))
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *WsStopOrderLifecycleEvent) UnmarshalJSON(data []byte) error {
+	type Alias WsStopOrderLifecycleEvent
+	chil := &struct {
+		*Alias
+		CreatedAt int64 `json:"createdAt"`
+		Timestamp int64 `json:"ts"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, &chil); err != nil {
+		return err
+	}
+	a.CreatedAt = time.UnixMilli(chil.CreatedAt)
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *WsFuturesOrderMarginEvent) UnmarshalJSON(data []byte) error {
+	type Alias WsFuturesOrderMarginEvent
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"timestamp"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, &chil); err != nil {
+		return err
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *WsFuturesAvailableBalance) UnmarshalJSON(data []byte) error {
+	type Alias WsFuturesAvailableBalance
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"timestamp"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, &chil); err != nil {
+		return err
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *WsFuturesWithdrawalAmountAndTransferOutAmountEvent) UnmarshalJSON(data []byte) error {
+	type Alias WsFuturesWithdrawalAmountAndTransferOutAmountEvent
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"timestamp"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, &chil); err != nil {
+		return err
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *WsFuturesPosition) UnmarshalJSON(data []byte) error {
+	type Alias WsFuturesPosition
+	chil := &struct {
+		*Alias
+		OpeningTimestamp int64 `json:"openingTimestamp"` // Open time
+		CurrentTimestamp int64 `json:"currentTimestamp"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, &chil); err != nil {
+		return err
+	}
+	a.OpeningTimestamp = time.UnixMilli(chil.OpeningTimestamp)
+	a.CurrentTimestamp = time.UnixMilli(chil.CurrentTimestamp)
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *WsFuturesMarkPricePositionChanges) UnmarshalJSON(data []byte) error {
+	type Alias WsFuturesMarkPricePositionChanges
+	chil := &struct {
+		*Alias
+		CurrentTimestamp int64 `json:"currentTimestamp"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, &chil); err != nil {
+		return err
+	}
+	a.CurrentTimestamp = time.UnixMilli(chil.CurrentTimestamp)
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *WsFuturesPositionFundingSettlement) UnmarshalJSON(data []byte) error {
+	type Alias WsFuturesPositionFundingSettlement
+	chil := &struct {
+		*Alias
+		FundingTime      int64 `json:"fundingTime"`
+		CurrentTimestamp int64 `json:"ts"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, &chil); err != nil {
+		return err
+	}
+	a.FundingTime = time.UnixMilli(chil.FundingTime)
+	a.CurrentTimestamp = time.UnixMicro(int64(chil.CurrentTimestamp / 1e3))
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
 func (a *WsOrderbookLevel5) UnmarshalJSON(data []byte) error {
 	type Alias WsOrderbookLevel5
 	chil := &struct {

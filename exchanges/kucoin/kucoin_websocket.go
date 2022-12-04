@@ -215,22 +215,28 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 	case strings.HasPrefix(marketMatchChannel, topicInfo[0]):
 		return ku.processTradeData(resp.Data, topicInfo[1])
 	case strings.HasPrefix(indexPriceIndicatorChannel, topicInfo[0]):
-		return ku.pricessIndexPriceIndicator(resp.Data)
+		var response WsPriceIndicator
+		return ku.processData(resp.Data, &response)
 	case strings.HasPrefix(markPriceIndicatorChannel, topicInfo[0]):
-		return ku.pricessMarkPriceIndicator(resp.Data)
+		var response WsPriceIndicator
+		return ku.processData(resp.Data, &response)
 	case strings.HasPrefix(marginFundingbookChangeChannel, topicInfo[0]):
-		return ku.processMariginFundingBook(resp.Data)
+		var response WsMarginFundingBook
+		return ku.processData(resp.Data, &response)
 	case strings.HasPrefix(privateChannel, topicInfo[0]):
 		return ku.processOrderChangeEvent(resp.Data)
 	case strings.HasPrefix(accountBalanceChannel, topicInfo[0]):
 		return ku.processAccountBalanceChange(resp.Data)
 	case strings.HasPrefix(marginPositionChannel, topicInfo[0]):
 		if resp.Subject == "debt.ratio" {
-			return ku.processDebtRatioChange(resp.Data)
+			var response WsDebtRatioChange
+			return ku.processData(resp.Data, &response)
 		}
-		return ku.processPositionStatus(resp.Data)
+		var response WsPositionStatus
+		return ku.processData(resp.Data, &response)
 	case strings.HasPrefix(marginLoanChannel, topicInfo[0]) && resp.Subject == "order.done":
-		return ku.processMarginLendingTradeOrderDoneEvent(resp.Data)
+		var response WsMarginTradeOrderDoneEvent
+		return ku.processData(resp.Data, &response)
 	case strings.HasPrefix(marginLoanChannel, topicInfo[0]):
 		return ku.processMarginLendingTradeOrderEvent(resp.Data)
 	case strings.HasPrefix(spotMarketAdvancedChannel, topicInfo[0]):
@@ -243,24 +249,189 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 	case strings.HasPrefix(futuresOrderbookLevel2Channel, topicInfo[0]):
 		return ku.processFuturesOrderbookLevel2(resp.Data, topicInfo[1])
 	case strings.HasPrefix(futuresExecutionDataChannel, topicInfo[0]):
-		return ku.processFuturesExecutionData(resp.Data)
+		var response WsFuturesExecutionData
+		return ku.processData(resp.Data, &response)
 	case strings.HasPrefix(futuresOrderbookLevel2Depth5Channel, topicInfo[0]),
 		strings.HasPrefix(futuresOrderbookLevel2Depth50Channel, topicInfo[0]):
 		return ku.processFuturesOrderbookLevel5(resp.Data, topicInfo[1])
 	case strings.HasPrefix(futuresContractMarketDataChannel, topicInfo[0]):
+		if resp.Subject == "mark.index.price" {
+			return ku.processFuturesMarkPriceAndIndexPrice(resp.Data, topicInfo[1])
+		} else if resp.Subject == "funding.rate" {
+			return ku.processFuturesFundingData(resp.Data, topicInfo[1])
+		}
 	case strings.HasPrefix(futuresSystemAnnouncementChannel, topicInfo[0]):
+		return ku.processFuturesSystemAnnouncement(resp.Data, resp.Subject)
 	case strings.HasPrefix(futuresTrasactionStatisticsTimerEventChannel, topicInfo[0]):
-	case strings.HasPrefix(futuresTradeOrdersBySymbolChannel, topicInfo[0]):
-	case strings.HasPrefix(futuresTradeOrderChannel, topicInfo[0]):
+		return ku.processFuturesTransactionStatistics(resp.Data, topicInfo[1])
+	case strings.HasPrefix(futuresTradeOrdersBySymbolChannel, topicInfo[0]),
+		strings.HasPrefix(futuresTradeOrderChannel, topicInfo[0]):
+		return ku.processFuturesPrivateTradeOrders(resp.Data)
 	case strings.HasPrefix(futuresStopOrdersLifecycleEventChannel, topicInfo[0]):
+		return ku.processFuturesStopOrderLifecycleEvent(resp.Data)
 	case strings.HasPrefix(futuresAccountBalanceEventChannel, topicInfo[0]):
+		switch resp.Subject {
+		case "orderMargin.change":
+			var response WsFuturesOrderMarginEvent
+			return ku.processData(resp.Data, &response)
+		case "availableBalance.change":
+			return ku.processFuturesAccountBalanceEvent(resp.Data)
+		case "withdrawHold.change":
+			var response WsFuturesWithdrawalAmountAndTransferOutAmountEvent
+			return ku.processData(resp.Data, &response)
+		}
 	case strings.HasPrefix(futuresPositionChangeEventChannel, topicInfo[0]):
+		if resp.Subject == "position.change" {
+			if resp.ChannelType == "private" {
+				var response WsFuturesPosition
+				return ku.processData(resp.Data, &response)
+			}
+			var response WsFuturesMarkPricePositionChanges
+			return ku.processData(resp.Data, &response)
+		} else if resp.Subject == "position.settlement" {
+			var response WsFuturesPositionFundingSettlement
+			return ku.processData(resp.Data, &response)
+		}
 	default:
 		ku.Websocket.DataHandler <- stream.UnhandledMessageWarning{
 			Message: ku.Name + stream.UnhandledMessage + string(respData),
 		}
 		return errors.New("push data not handled")
 	}
+	return nil
+}
+
+func (ku *Kucoin) processData(respData []byte, resp interface{}) error {
+	if err := json.Unmarshal(respData, &resp); err != nil {
+		return err
+	}
+	ku.Websocket.DataHandler <- resp
+	return nil
+}
+
+func (ku *Kucoin) processFuturesAccountBalanceEvent(respData []byte) error {
+	resp := WsFuturesAvailableBalance{}
+	if err := json.Unmarshal(respData, &resp); err != nil {
+		return err
+	}
+	ku.Websocket.DataHandler <- []account.Change{{
+		Exchange: ku.Name,
+		Currency: currency.NewCode(resp.Currency),
+		Asset:    asset.Futures,
+		Amount:   resp.AvailableBalance,
+	}}
+	return nil
+}
+
+func (ku *Kucoin) processFuturesStopOrderLifecycleEvent(respData []byte) error {
+	resp := WsStopOrderLifecycleEvent{}
+	if err := json.Unmarshal(respData, &resp); err != nil {
+		return err
+	}
+	pair, err := currency.NewPairFromString(resp.Symbol)
+	if err != nil {
+		return err
+	}
+	oType, err := order.StringToOrderType(resp.OrderType)
+	if err != nil {
+		return err
+	}
+	side, err := order.StringToOrderSide(resp.Side)
+	if err != nil {
+		return err
+	}
+	ku.Websocket.DataHandler <- &order.Detail{
+		Price:        resp.OrderPrice,
+		TriggerPrice: resp.StopPrice,
+		Amount:       resp.Size,
+		// AverageExecutedPrice: response.,
+		Exchange:    ku.Name,
+		ID:          resp.OrderID,
+		Type:        oType,
+		Side:        side,
+		AssetType:   asset.Futures,
+		Date:        resp.CreatedAt,
+		LastUpdated: resp.Timestamp,
+		Pair:        pair,
+	}
+	return nil
+}
+
+func (ku *Kucoin) processFuturesPrivateTradeOrders(respData []byte) error {
+	resp := WsFuturesTradeOrder{}
+	if err := json.Unmarshal(respData, &resp); err != nil {
+		return err
+	}
+	oType, err := order.StringToOrderType(resp.OrderType)
+	if err != nil {
+		return err
+	}
+	oStatus, err := ku.stringToOrderStatus(resp.Status)
+	if err != nil {
+		return err
+	}
+	pair, err := currency.NewPairFromString(resp.Symbol)
+	if err != nil {
+		return err
+	}
+	side, err := order.StringToOrderSide(resp.Side)
+	if err != nil {
+		return err
+	}
+	ku.Websocket.DataHandler <- &order.Detail{
+		Type:            oType,
+		Status:          oStatus,
+		Pair:            pair,
+		Side:            side,
+		Amount:          resp.OrderSize,
+		Price:           resp.OrderPrice,
+		Exchange:        ku.Name,
+		ExecutedAmount:  resp.FilledSize,
+		RemainingAmount: resp.RemainSize,
+		ClientOrderID:   resp.ClientOid,
+		ID:              resp.TradeID,
+		AssetType:       asset.Futures,
+		LastUpdated:     resp.OrderTime,
+	}
+	return nil
+}
+
+func (ku *Kucoin) processFuturesTransactionStatistics(respData []byte, instrument string) error {
+	resp := WsFuturesTransactionStatisticsTimeEvent{}
+	if err := json.Unmarshal(respData, &resp); err != nil {
+		return err
+	}
+	resp.Symbol = instrument
+	return nil
+}
+
+func (ku *Kucoin) processFuturesSystemAnnouncement(respData []byte, subject string) error {
+	resp := WsFuturesFundingBegin{}
+	if err := json.Unmarshal(respData, &resp); err != nil {
+		return err
+	}
+	resp.Subject = subject
+	ku.Websocket.DataHandler <- &resp
+	return nil
+}
+
+func (ku *Kucoin) processFuturesFundingData(respData []byte, instrument string) error {
+	resp := WsFundingRate{}
+	if err := json.Unmarshal(respData, &resp); err != nil {
+		return err
+	}
+	resp.Symbol = instrument
+	ku.Websocket.DataHandler <- &resp
+	return nil
+}
+
+func (ku *Kucoin) processFuturesMarkPriceAndIndexPrice(respData []byte, instrument string) error {
+	resp := WsFuturesMarkPriceAndIndexPrice{}
+	if err := json.Unmarshal(respData, &resp); err != nil {
+		return err
+	}
+	resp.Symbol = instrument
+	ku.Websocket.DataHandler <- &resp
 	return nil
 }
 
@@ -282,15 +453,6 @@ func (ku *Kucoin) processFuturesOrderbookLevel5(respData []byte, instruments str
 		Asks:            resp.Asks,
 		Bids:            resp.Bids}
 	return ku.Websocket.Orderbook.LoadSnapshot(&base)
-}
-
-func (ku *Kucoin) processFuturesExecutionData(respData []byte) error {
-	resp := WsFuturesExecutionData{}
-	if err := json.Unmarshal(respData, &resp); err != nil {
-		return err
-	}
-	ku.Websocket.DataHandler <- resp
-	return nil
 }
 
 func (ku *Kucoin) processFuturesOrderbookLevel2(respData []byte, instrument string) error {
@@ -377,36 +539,9 @@ func (ku *Kucoin) processStopOrderEvent(respData []byte) error {
 	return nil
 }
 
-func (ku *Kucoin) processMarginLendingTradeOrderDoneEvent(respData []byte) error {
-	resp := WsMarginTradeOrderDoneEvent{}
-	if err := json.Unmarshal(respData, &resp); err != nil {
-		return err
-	}
-	ku.Websocket.DataHandler <- resp
-	return nil
-}
-
 func (ku *Kucoin) processMarginLendingTradeOrderEvent(respData []byte) error {
 	resp := WsMarginTradeOrderEntersEvent{}
 	if err := json.Unmarshal(respData, &resp); err != nil {
-		return err
-	}
-	ku.Websocket.DataHandler <- resp
-	return nil
-}
-
-func (ku *Kucoin) processPositionStatus(data []byte) error {
-	resp := WsPositionStatus{}
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return err
-	}
-	ku.Websocket.DataHandler <- resp
-	return nil
-}
-
-func (ku *Kucoin) processDebtRatioChange(data []byte) error {
-	resp := WsDebtRatioChange{}
-	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	ku.Websocket.DataHandler <- resp
@@ -419,12 +554,13 @@ func (ku *Kucoin) processAccountBalanceChange(respData []byte) error {
 	if err != nil {
 		return err
 	}
-	ku.Websocket.DataHandler <- account.Change{
-		Exchange: ku.Name,
-		Currency: currency.NewCode(response.Currency),
-		Asset:    asset.Futures,
-		Amount:   response.Available,
-	}
+	ku.Websocket.DataHandler <- []account.Change{
+		{
+			Exchange: ku.Name,
+			Currency: currency.NewCode(response.Currency),
+			Asset:    asset.Futures,
+			Amount:   response.Available,
+		}}
 	return nil
 }
 
@@ -467,35 +603,6 @@ func (ku *Kucoin) processOrderChangeEvent(respData []byte) error {
 		LastUpdated:     response.Timestamp,
 		Pair:            pair,
 	}
-	return nil
-}
-
-func (ku *Kucoin) processMariginFundingBook(respData []byte) error {
-	resp := WsMarginFundingBook{}
-	err := json.Unmarshal(respData, &resp)
-	if err != nil {
-		return err
-	}
-	ku.Websocket.DataHandler <- resp
-	return nil
-}
-
-func (ku *Kucoin) pricessMarkPriceIndicator(respData []byte) error {
-	resp := WsPriceIndicator{}
-	err := json.Unmarshal(respData, &resp)
-	if err != nil {
-		return err
-	}
-	ku.Websocket.DataHandler <- resp
-	return nil
-}
-func (ku *Kucoin) pricessIndexPriceIndicator(respData []byte) error {
-	resp := WsPriceIndicator{}
-	err := json.Unmarshal(respData, &resp)
-	if err != nil {
-		return err
-	}
-	ku.Websocket.DataHandler <- resp
 	return nil
 }
 
