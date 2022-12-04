@@ -318,7 +318,7 @@ func TestGetSpotOpenOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := g.GetSpotOpenOrders(context.Background(), 0, 0, asset.Spot); err != nil {
+	if _, err := g.GetSpotOpenOrders(context.Background(), 0, 0, false); err != nil {
 		t.Errorf("%s GetSpotOpenOrders() error %v", g.Name, err)
 	}
 }

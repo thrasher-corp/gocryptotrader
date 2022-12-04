@@ -1154,6 +1154,8 @@ func (g *Gateio) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order
 	var response order.CancelBatchResponse
 	if len(o) == 0 {
 		return response, errors.New("no cancel order passed")
+	} else if len(o) > 20 {
+		return response, fmt.Errorf("%w maximum order size,20 cancel orders, exceeded", errMultipleOrders)
 	}
 	var cancelSpotOrdersParam []CancelOrderByIDParam
 	a := o[0].AssetType
@@ -1496,7 +1498,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 	switch req.AssetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
 		var spotOrders []SpotOrdersDetail
-		spotOrders, err = g.GetSpotOpenOrders(ctx, 0, 0, req.AssetType)
+		spotOrders, err = g.GetSpotOpenOrders(ctx, 0, 0, req.AssetType == asset.CrossMargin)
 		if err != nil {
 			return nil, err
 		}
