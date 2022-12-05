@@ -81,7 +81,7 @@ func (a *Alphapoint) SetDefaults() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (a *Alphapoint) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
+func (a *Alphapoint) FetchTradablePairs(ctx context.Context, a asset.Item) ([]currency.Pair, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

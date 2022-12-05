@@ -151,7 +151,7 @@ func (l *LocalBitcoins) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (l *LocalBitcoins) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
+func (l *LocalBitcoins) FetchTradablePairs(ctx context.Context, a asset.Item) ([]currency.Pair, error) {
 	currencies, err := l.GetTradableCurrencies(ctx)
 	if err != nil {
 		return nil, err

@@ -60,10 +60,7 @@ func TestFetchTradablePairs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pairs, err := currency.NewPairsFromStrings(r)
-	if err != nil {
-		t.Fatal(err)
-	}
+	pairs := currency.Pairs(r)
 	if !pairs.Contains(currency.NewPair(currency.STORJ, currency.USD), false) {
 		t.Error("expected pair STORJ-USD")
 	}

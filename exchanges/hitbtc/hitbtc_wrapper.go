@@ -280,7 +280,7 @@ func (h *HitBTC) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (h *HitBTC) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
+func (h *HitBTC) FetchTradablePairs(ctx context.Context, a asset.Item) ([]currency.Pair, error) {
 	symbols, err := h.GetSymbolsDetailed(ctx)
 	if err != nil {
 		return nil, err

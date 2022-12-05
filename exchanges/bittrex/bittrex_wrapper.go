@@ -246,7 +246,7 @@ func (b *Bittrex) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *Bittrex) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
+func (b *Bittrex) FetchTradablePairs(ctx context.Context, a asset.Item) ([]currency.Pair, error) {
 	// Bittrex only supports spot trading
 	if !b.SupportsAsset(asset) {
 		return nil, fmt.Errorf("asset type of %s is not supported by %s", asset, b.Name)

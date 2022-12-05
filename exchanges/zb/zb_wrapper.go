@@ -221,7 +221,7 @@ func (z *ZB) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (z *ZB) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
+func (z *ZB) FetchTradablePairs(ctx context.Context, a asset.Item) ([]currency.Pair, error) {
 	markets, err := z.GetMarkets(ctx)
 	if err != nil {
 		return nil, err
