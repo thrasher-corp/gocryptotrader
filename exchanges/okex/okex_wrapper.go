@@ -311,26 +311,20 @@ func (o *OKEX) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (o *OKEX) FetchTradablePairs(ctx context.Context, i asset.Item) ([]string, error) {
-	var pairs []string
-
-	format, err := o.GetPairFormat(i, false)
-	if err != nil {
-		return nil, err
-	}
-
-	switch i {
+func (o *OKEX) FetchTradablePairs(ctx context.Context, a asset.Item) ([]currency.Pair, error) {
+	switch a {
 	case asset.Spot:
 		prods, err := o.GetSpotTokenPairDetails(ctx)
 		if err != nil {
 			return nil, err
 		}
-
+		pairs := make([]currency.Pair, len(prods))
 		for x := range prods {
-			pairs = append(pairs,
-				currency.NewPairWithDelimiter(prods[x].BaseCurrency,
-					prods[x].QuoteCurrency,
-					format.Delimiter).String())
+			pair, err := currency.NewPairFromStrings(prods[x].BaseCurrency, prods[x].QuoteCurrency)
+			if err != nil {
+				return nil, err
+			}
+			pairs[x] = pair
 		}
 		return pairs, nil
 	case asset.Futures:
@@ -339,25 +333,30 @@ func (o *OKEX) FetchTradablePairs(ctx context.Context, i asset.Item) ([]string, 
 			return nil, err
 		}
 
+		pairs := make([]currency.Pair, len(prods))
 		for x := range prods {
 			p := strings.Split(prods[x].InstrumentID, currency.DashDelimiter)
-			pairs = append(pairs, p[0]+currency.DashDelimiter+p[1]+format.Delimiter+p[2])
+			pair, err := currency.NewPairFromStrings(p[0], p[1]+currency.UnderscoreDelimiter+p[2])
+			if err != nil {
+				return nil, err
+			}
+			pairs[x] = pair
 		}
 		return pairs, nil
-
 	case asset.PerpetualSwap:
 		prods, err := o.GetSwapContractInformation(ctx)
 		if err != nil {
 			return nil, err
 		}
 
+		pairs := make([]currency.Pair, len(prods))
 		for x := range prods {
-			pairs = append(pairs,
-				prods[x].UnderlyingIndex+
-					currency.DashDelimiter+
-					prods[x].QuoteCurrency+
-					format.Delimiter+
-					"SWAP")
+			pair, err := currency.NewPairFromStrings(prods[x].UnderlyingIndex,
+				prods[x].QuoteCurrency+currency.UnderscoreDelimiter+"SWAP")
+			if err != nil {
+				return nil, err
+			}
+			pairs[x] = pair
 		}
 		return pairs, nil
 	case asset.Index:
@@ -384,49 +383,26 @@ func (o *OKEX) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error 
 		}
 
 		if assets[x] == asset.Futures {
-			var indexPairs []string
-			var futuresContracts []string
+			var indexPair currency.Pair
+			indexPairs := make(currency.Pairs, 0, len(pairs))
 			for i := range pairs {
-				item := strings.Split(pairs[i], currency.UnderscoreDelimiter)[0]
-				futuresContracts = append(futuresContracts, pairs[i])
-				if common.StringDataContains(indexPairs, item) {
-					continue
-				}
-				indexPairs = append(indexPairs, item)
-			}
-			var indexPair currency.Pairs
-			indexPair, err = currency.NewPairsFromStrings(indexPairs)
-			if err != nil {
-				return err
-			}
-
-			err = o.UpdatePairs(indexPair, asset.Index, false, forceUpdate)
-			if err != nil {
-				return err
-			}
-
-			var futurePairs currency.Pairs
-			for i := range futuresContracts {
-				var c currency.Pair
-				c, err = currency.NewPairDelimiter(futuresContracts[i], currency.UnderscoreDelimiter)
+				item := strings.Split(pairs[i].String(), currency.UnderscoreDelimiter)[0]
+				componant := strings.Split(item, currency.DashDelimiter)
+				indexPair, err = currency.NewPairFromStrings(componant[0], componant[1])
 				if err != nil {
 					return err
 				}
-				futurePairs = append(futurePairs, c)
+				if !indexPairs.Contains(indexPair, true) {
+					indexPairs = indexPairs.Add(indexPair)
+				}
 			}
-
-			err = o.UpdatePairs(futurePairs, asset.Futures, false, forceUpdate)
+			err = o.UpdatePairs(indexPairs, asset.Index, false, forceUpdate)
 			if err != nil {
 				return err
 			}
-			continue
-		}
-		p, err := currency.NewPairsFromStrings(pairs)
-		if err != nil {
-			return err
 		}
 
-		err = o.UpdatePairs(p, assets[x], false, forceUpdate)
+		err = o.UpdatePairs(pairs, assets[x], false, forceUpdate)
 		if err != nil {
 			return err
 		}

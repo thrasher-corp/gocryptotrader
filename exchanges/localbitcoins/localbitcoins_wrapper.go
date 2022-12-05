@@ -157,11 +157,15 @@ func (l *LocalBitcoins) FetchTradablePairs(ctx context.Context, a asset.Item) ([
 		return nil, err
 	}
 
-	pairs := make([]string, len(currencies))
+	pairs := make([]currency.Pair, len(currencies))
+	var pair currency.Pair
 	for x := range currencies {
-		pairs[x] = "BTC" + currencies[x]
+		pair, err = currency.NewPairFromStrings("BTC", currencies[x])
+		if err != nil {
+			return nil, err
+		}
+		pairs[x] = pair
 	}
-
 	return pairs, nil
 }
 
@@ -172,11 +176,7 @@ func (l *LocalBitcoins) UpdateTradablePairs(ctx context.Context, forceUpdate boo
 	if err != nil {
 		return err
 	}
-	p, err := currency.NewPairsFromStrings(pairs)
-	if err != nil {
-		return err
-	}
-	return l.UpdatePairs(p, asset.Spot, false, forceUpdate)
+	return l.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

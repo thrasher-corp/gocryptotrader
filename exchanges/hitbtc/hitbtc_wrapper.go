@@ -286,14 +286,14 @@ func (h *HitBTC) FetchTradablePairs(ctx context.Context, a asset.Item) ([]curren
 		return nil, err
 	}
 
-	format, err := h.GetPairFormat(asset, false)
-	if err != nil {
-		return nil, err
-	}
-
-	pairs := make([]string, len(symbols))
+	pairs := make([]currency.Pair, len(symbols))
+	var pair currency.Pair
 	for x := range symbols {
-		pairs[x] = symbols[x].BaseCurrency + format.Delimiter + symbols[x].QuoteCurrency
+		pair, err = currency.NewPairFromStrings(symbols[x].BaseCurrency, symbols[x].QuoteCurrency)
+		if err != nil {
+			return nil, err
+		}
+		pairs[x] = pair
 	}
 	return pairs, nil
 }
@@ -305,12 +305,7 @@ func (h *HitBTC) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 	if err != nil {
 		return err
 	}
-
-	p, err := currency.NewPairsFromStrings(pairs)
-	if err != nil {
-		return err
-	}
-	return h.UpdatePairs(p, asset.Spot, false, forceUpdate)
+	return h.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

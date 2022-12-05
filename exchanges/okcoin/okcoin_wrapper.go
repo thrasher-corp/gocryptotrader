@@ -253,16 +253,15 @@ func (o *OKCoin) FetchTradablePairs(ctx context.Context, a asset.Item) ([]curren
 		return nil, err
 	}
 
-	format, err := o.GetPairFormat(asset, false)
-	if err != nil {
-		return nil, err
-	}
-
-	pairs := make([]string, len(prods))
+	pairs := make([]currency.Pair, len(prods))
+	var pair currency.Pair
 	for x := range prods {
-		pairs[x] = prods[x].BaseCurrency + format.Delimiter + prods[x].QuoteCurrency
+		pair, err = currency.NewPairFromStrings(prods[x].BaseCurrency, prods[x].QuoteCurrency)
+		if err != nil {
+			return nil, err
+		}
+		pairs[x] = pair
 	}
-
 	return pairs, nil
 }
 
@@ -273,11 +272,7 @@ func (o *OKCoin) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 	if err != nil {
 		return err
 	}
-	p, err := currency.NewPairsFromStrings(pairs)
-	if err != nil {
-		return err
-	}
-	return o.UpdatePairs(p, asset.Spot, false, forceUpdate)
+	return o.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

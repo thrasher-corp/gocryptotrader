@@ -7,7 +7,6 @@ import (
 	"math"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -165,12 +164,18 @@ func (y *Yobit) FetchTradablePairs(ctx context.Context, a asset.Item) ([]currenc
 		return nil, err
 	}
 
-	currencies := make([]string, 0, len(info.Pairs))
-	for x := range info.Pairs {
-		currencies = append(currencies, strings.ToUpper(x))
+	pairs := make([]currency.Pair, len(info.Pairs))
+	var target int
+	var pair currency.Pair
+	for key := range info.Pairs {
+		pair, err = currency.NewPairFromString(key)
+		if err != nil {
+			return nil, err
+		}
+		pairs[target] = pair
+		target++
 	}
-
-	return currencies, nil
+	return pairs, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
@@ -180,11 +185,7 @@ func (y *Yobit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error
 	if err != nil {
 		return err
 	}
-	p, err := currency.NewPairsFromStrings(pairs)
-	if err != nil {
-		return err
-	}
-	return y.UpdatePairs(p, asset.Spot, false, forceUpdate)
+	return y.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

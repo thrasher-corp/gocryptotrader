@@ -105,15 +105,11 @@ func TestUpdateOrderbook(t *testing.T) {
 	if len(tradablePairs) == 0 {
 		t.Fatal("no tradable pairs")
 	}
-	cp, err := currency.NewPairFromString(tradablePairs[0])
+	reqPair, err := o.FormatExchangeCurrency(tradablePairs[0], asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
-	reqPair, err := o.FormatExchangeCurrency(cp, asset.Futures)
-	if err != nil {
-		t.Error(err)
-	}
-	cp, err = currency.NewPairFromString(reqPair.String())
+	cp, err := currency.NewPairFromString(reqPair.String())
 	if err != nil {
 		t.Error(err)
 	}
