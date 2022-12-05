@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -248,7 +249,7 @@ func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 	switch a {
 	case asset.Margin, asset.Spot, asset.CrossMargin:
 		var tickerNew *Ticker
-		tickerNew, err = g.GetTicker(ctx, fPair, "")
+		tickerNew, err = g.GetTicker(ctx, fPair.String(), "")
 		if err != nil {
 			return nil, err
 		}
@@ -269,7 +270,7 @@ func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 			return nil, errUnsupportedSettleValue
 		}
 		var tickers []FuturesTicker
-		tickers, err = g.GetFuturesTickers(ctx, fPair.Quote.String(), fPair)
+		tickers, err = g.GetFuturesTickers(ctx, fPair.Quote.String(), fPair.Upper().String())
 		if err != nil {
 			return nil, err
 		}
@@ -516,7 +517,7 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 	switch a {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
 		var tickers []Ticker
-		tickers, err = g.GetTickers(ctx, currency.EMPTYPAIR, "")
+		tickers, err = g.GetTickers(ctx, currency.EMPTYPAIR.String(), "")
 		if err != nil {
 			return err
 		}
@@ -547,7 +548,7 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 		var ticks []FuturesTicker
 		for _, settle := range []string{settleBTC, settleUSDT, settleUSD} {
 			if a == asset.Futures {
-				ticks, err = g.GetFuturesTickers(ctx, settle, currency.EMPTYPAIR)
+				ticks, err = g.GetFuturesTickers(ctx, settle, currency.EMPTYPAIR.String())
 			} else {
 				ticks, err = g.GetDeliveryFutureTickers(ctx, settle, currency.EMPTYPAIR)
 			}
@@ -647,7 +648,7 @@ func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 			!strings.HasPrefix(fPair.Quote.String(), currency.BTC.Upper().String()) {
 			return nil, errUnsupportedSettleValue
 		}
-		orderbookNew, err = g.GetFuturesOrderbook(ctx, fPair.Quote.String(), fPair, "", 0, true)
+		orderbookNew, err = g.GetFuturesOrderbook(ctx, fPair.Quote.String(), fPair.Upper().String(), "", 0, true)
 	case asset.DeliveryFutures:
 		if !strings.HasPrefix(fPair.Quote.String(), currency.USD.Upper().String()) &&
 			!strings.HasPrefix(fPair.Quote.String(), currency.USDT.Upper().String()) &&
@@ -847,7 +848,15 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.I
 	switch a {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
 		var tradeData []Trade
-		tradeData, err = g.GetMarketTrades(ctx, p, 0, "", false, time.Time{}, time.Time{}, 0)
+		if p.IsEmpty() {
+			return nil, currency.ErrCurrencyPairEmpty
+		}
+		var fPair currency.PairFormat
+		fPair, err = g.GetPairFormat(a, true)
+		if err != nil {
+			return nil, err
+		}
+		tradeData, err = g.GetMarketTrades(ctx, fPair.Format(p), 0, "", false, time.Time{}, time.Time{}, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -1129,7 +1138,7 @@ func (g *Gateio) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	}
 	switch o.AssetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
-		_, err = g.CancelSingleSpotOrder(ctx, o.OrderID, fPair, o.AssetType)
+		_, err = g.CancelSingleSpotOrder(ctx, o.OrderID, fPair.String(), o.AssetType)
 	case asset.Futures, asset.DeliveryFutures:
 		if !strings.EqualFold(fPair.Quote.String(), currency.USD.String()) &&
 			!strings.EqualFold(fPair.Quote.String(), currency.USDT.String()) &&
@@ -1154,29 +1163,19 @@ func (g *Gateio) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order
 	var response order.CancelBatchResponse
 	if len(o) == 0 {
 		return response, errors.New("no cancel order passed")
-	} else if len(o) > 20 {
-		return response, fmt.Errorf("%w maximum order size,20 cancel orders, exceeded", errMultipleOrders)
 	}
 	var cancelSpotOrdersParam []CancelOrderByIDParam
 	a := o[0].AssetType
-	currencyPair := o[0].Pair
-	orderSide := o[0].Side
 	for x := range o {
-		if a == asset.Spot {
+		if a != o[x].AssetType {
+			return response, errors.New("cannot cancel orders of different asset types")
+		}
+		if a == asset.Spot || a == asset.Margin || a == asset.CrossMargin {
 			cancelSpotOrdersParam = append(cancelSpotOrdersParam, CancelOrderByIDParam{
 				ID:           o[x].OrderID,
 				CurrencyPair: o[x].Pair,
 			})
 			continue
-		}
-		if a != o[x].AssetType {
-			return response, errors.New("cannot cancel orders of different asset types")
-		}
-		if !currencyPair.Equal(o[x].Pair) {
-			return response, errors.New("can't cancel different currency pairs")
-		}
-		if orderSide != o[x].Side {
-			return response, errors.New("can't cancel orders of different order side")
 		}
 		if err := o[x].Validate(o[x].StandardCancel()); err != nil {
 			return response, err
@@ -1184,44 +1183,60 @@ func (g *Gateio) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order
 	}
 	switch a {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
-		cancel, err := g.CancelBatchOrdersWithIDList(ctx, cancelSpotOrdersParam)
-		if err != nil {
-			return response, err
-		}
-		for x := range cancel {
-			response.Status[cancel[x].ID] = func() string {
-				if cancel[x].Succeeded {
-					return order.Cancelled.String()
-				}
-				return ""
-			}()
+		loop := int(math.Floor((float64(len(cancelSpotOrdersParam)) / 10)))
+		count := 0
+		for ; count < loop; count++ {
+			var input []CancelOrderByIDParam
+			if (count + 1) == loop {
+				input = cancelSpotOrdersParam[count*10:]
+			} else {
+				input = cancelSpotOrdersParam[count*10 : (count*10)+10]
+			}
+			cancel, err := g.CancelBatchOrdersWithIDList(ctx, input)
+			if err != nil {
+				return response, err
+			}
+			for x := range cancel {
+				response.Status[cancel[x].ID] = func() string {
+					if cancel[x].Succeeded {
+						return order.Cancelled.String()
+					}
+					return ""
+				}()
+			}
 		}
 	case asset.Futures:
-		cancel, err := g.CancelMultipleFuturesOpenOrders(ctx, currencyPair, orderSide.Lower(), currencyPair.Quote.String())
-		if err != nil {
-			return response, err
-		}
-		for x := range cancel {
-			response.Status[strconv.FormatInt(cancel[x].ID, 10)] = cancel[x].Status
+		for a := range o {
+			cancel, err := g.CancelMultipleFuturesOpenOrders(ctx, o[a].Pair, o[a].Side.Lower(), o[a].Pair.Quote.String())
+			if err != nil {
+				return response, err
+			}
+			for x := range cancel {
+				response.Status[strconv.FormatInt(cancel[x].ID, 10)] = cancel[x].Status
+			}
 		}
 	case asset.DeliveryFutures:
-		if !strings.EqualFold(currencyPair.Quote.String(), currency.USD.String()) && !strings.EqualFold(currencyPair.Quote.String(), currency.USDT.String()) && !strings.EqualFold(currencyPair.Quote.String(), currency.BTC.String()) {
-			return response, errUnsupportedSettleValue
-		}
-		cancel, err := g.CancelMultipleDeliveryOrders(ctx, currencyPair, orderSide.Lower(), currencyPair.Quote.Lower().String())
-		if err != nil {
-			return response, err
-		}
-		for x := range cancel {
-			response.Status[strconv.FormatInt(cancel[x].ID, 10)] = cancel[x].Status
+		for a := range o {
+			if !strings.EqualFold(o[a].Pair.Quote.String(), currency.USD.String()) && !strings.EqualFold(o[a].Pair.Quote.String(), currency.USDT.String()) && !strings.EqualFold(o[a].Pair.Quote.String(), currency.BTC.String()) {
+				return response, errUnsupportedSettleValue
+			}
+			cancel, err := g.CancelMultipleDeliveryOrders(ctx, o[a].Pair, o[a].Side.Lower(), o[a].Pair.Quote.Lower().String())
+			if err != nil {
+				return response, err
+			}
+			for x := range cancel {
+				response.Status[strconv.FormatInt(cancel[x].ID, 10)] = cancel[x].Status
+			}
 		}
 	case asset.Options:
-		cancel, err := g.CancelMultipleOptionOpenOrders(ctx, currencyPair, currencyPair.String(), orderSide.Lower())
-		if err != nil {
-			return response, err
-		}
-		for x := range cancel {
-			response.Status[strconv.FormatInt(cancel[x].OptionOrderID, 10)] = cancel[x].Status
+		for a := range o {
+			cancel, err := g.CancelMultipleOptionOpenOrders(ctx, o[a].Pair, o[a].Pair.String(), o[a].Side.Lower())
+			if err != nil {
+				return response, err
+			}
+			for x := range cancel {
+				response.Status[strconv.FormatInt(cancel[x].OptionOrderID, 10)] = cancel[x].Status
+			}
 		}
 	default:
 		return response, fmt.Errorf("%s does not support %s", g.Name, a)
@@ -1315,9 +1330,13 @@ func (g *Gateio) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.Ca
 // GetOrderInfo returns order information based on order ID
 func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, a asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
+	pair, err := g.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return orderDetail, err
+	}
 	switch a {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
-		spotOrder, err := g.GetSpotOrder(ctx, orderID, pair, a)
+		spotOrder, err := g.GetSpotOrder(ctx, orderID, pair.String(), a)
 		if err != nil {
 			return orderDetail, err
 		}
@@ -1746,7 +1765,18 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 	switch a {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
 		var candles []Candlestick
-		candles, err = g.GetCandlesticks(ctx, formattedPair, 0, start, end, interval)
+		if formattedPair.IsEmpty() {
+			return klineData, currency.ErrCurrencyPairEmpty
+		}
+		var fPair currency.PairFormat
+		fPair, err = g.GetPairFormat(a, true)
+		if err != nil {
+			fPair = currency.PairFormat{
+				Delimiter: currency.UnderscoreDelimiter,
+				Uppercase: true,
+			}
+		}
+		candles, err = g.GetCandlesticks(ctx, fPair.Format(formattedPair), 0, start, end, interval)
 		if err != nil {
 			return klineData, err
 		}
@@ -1771,7 +1801,7 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 
 		var candles []FuturesCandlestick
 		if a == asset.Futures {
-			candles, err = g.GetFuturesCandlesticks(ctx, formattedPair.Quote.Lower().String(), pair, start, end, 0, interval)
+			candles, err = g.GetFuturesCandlesticks(ctx, formattedPair.Quote.Lower().String(), formattedPair.String(), start, end, 0, interval)
 		} else {
 			candles, err = g.GetDeliveryFuturesCandlesticks(ctx, formattedPair.Quote.Lower().String(), formattedPair.Upper().String(), start, end, 0, interval)
 		}
@@ -1839,7 +1869,18 @@ func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 		switch a {
 		case asset.Spot, asset.Margin, asset.CrossMargin:
 			var candles []Candlestick
-			candles, err = g.GetCandlesticks(ctx, formattedPair, 0, dates.Ranges[b].Start.Time, dates.Ranges[b].End.Time, interval)
+			if formattedPair.IsEmpty() {
+				return klineData, currency.ErrCurrencyPairEmpty
+			}
+			var fPair currency.PairFormat
+			fPair, err = g.GetPairFormat(a, true)
+			if err != nil {
+				fPair = currency.PairFormat{
+					Delimiter: currency.UnderscoreDelimiter,
+					Uppercase: true,
+				}
+			}
+			candles, err = g.GetCandlesticks(ctx, fPair.Format(formattedPair), 0, dates.Ranges[b].Start.Time, dates.Ranges[b].End.Time, interval)
 			if err != nil {
 				return klineData, err
 			}
@@ -1862,7 +1903,7 @@ func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 
 			var candles []FuturesCandlestick
 			if a == asset.Futures {
-				candles, err = g.GetFuturesCandlesticks(ctx, formattedPair.Quote.Lower().String(), pair, dates.Ranges[b].Start.Time, dates.Ranges[b].End.Time, uint64(g.Features.Enabled.Kline.ResultLimit), interval)
+				candles, err = g.GetFuturesCandlesticks(ctx, formattedPair.Quote.Lower().String(), formattedPair.String(), dates.Ranges[b].Start.Time, dates.Ranges[b].End.Time, uint64(g.Features.Enabled.Kline.ResultLimit), interval)
 			} else {
 				candles, err = g.GetDeliveryFuturesCandlesticks(ctx, formattedPair.Quote.Lower().String(), formattedPair.Upper().String(), dates.Ranges[b].Start.Time, dates.Ranges[b].End.Time, uint64(g.Features.Enabled.Kline.ResultLimit), interval)
 			}

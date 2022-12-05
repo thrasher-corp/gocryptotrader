@@ -317,7 +317,7 @@ func (g *Gateio) processTrades(data []byte) error {
 		return err
 	}
 	return trade.AddTradesToBuffer(g.Name, trade.Data{
-		Timestamp:    time.UnixMilli(int64(tradeData.CreateTimeMs)),
+		Timestamp:    time.UnixMicro(int64(tradeData.CreateTimeMs * 1e3)), // the timestamp data is coming as a floating number.
 		CurrencyPair: currencyPair,
 		AssetType:    asset.Spot,
 		Exchange:     g.Name,
@@ -546,7 +546,7 @@ func (g *Gateio) processUserPersonalTrades(data []byte) error {
 			return err
 		}
 		fills[x] = fill.Data{
-			Timestamp:    time.UnixMilli(int64(resp.Result[x].CreateTimeMs)),
+			Timestamp:    time.UnixMicro(resp.Result[x].CreateTimeMicroS),
 			Exchange:     g.Name,
 			CurrencyPair: currencyPair,
 			Side:         side,

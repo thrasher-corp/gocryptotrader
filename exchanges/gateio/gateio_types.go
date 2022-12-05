@@ -914,8 +914,8 @@ type OptionContract struct {
 // OptionSettlement list settlement history
 type OptionSettlement struct {
 	Time        time.Time `json:"time"`
-	Profit      string    `json:"profit"`
-	Fee         string    `json:"fee"`
+	Profit      float64   `json:"profit"`
+	Fee         float64   `json:"fee"`
 	SettlePrice float64   `json:"settle_price,string"`
 	Contract    string    `json:"contract"`
 	StrikePrice float64   `json:"strike_price,string"`
@@ -957,13 +957,13 @@ type OptionsTicker struct {
 	Rho                   string  `json:"rho"`
 	Gamma                 string  `json:"gamma"`
 	Delta                 string  `json:"delta"`
-	MarkImpliedVolatility string  `json:"mark_iv"`
-	BidImpliedVolatility  string  `json:"bid_iv"`
-	AskImpliedVolatility  string  `json:"ask_iv"`
-	Leverage              string  `json:"leverage"`
+	MarkImpliedVolatility float64 `json:"mark_iv"`
+	BidImpliedVolatility  float64 `json:"bid_iv"`
+	AskImpliedVolatility  float64 `json:"ask_iv"`
+	Leverage              float64 `json:"leverage"`
 
 	// Added fields for the websocket
-	IndexPrice string `json:"index_price"`
+	IndexPrice float64 `json:"index_price"`
 }
 
 // OptionsUnderlyingTicker represents underlying ticker
@@ -2081,20 +2081,20 @@ type WsSpotOrder struct {
 
 // WsUserPersonalTrade represents a user's personal trade pushed through the websocket connection.
 type WsUserPersonalTrade struct {
-	ID           int64   `json:"id"`
-	UserID       int64   `json:"user_id"`
-	OrderID      string  `json:"order_id"`
-	CurrencyPair string  `json:"currency_pair"`
-	CreateTime   int64   `json:"create_time"`
-	CreateTimeMs float64 `json:"create_time_ms,string"`
-	Side         string  `json:"side"`
-	Amount       float64 `json:"amount,string"`
-	Role         string  `json:"role"`
-	Price        float64 `json:"price,string"`
-	Fee          float64 `json:"fee,string"`
-	PointFee     float64 `json:"point_fee,string"`
-	GtFee        string  `json:"gt_fee"`
-	Text         string  `json:"text"`
+	ID               int64   `json:"id"`
+	UserID           int64   `json:"user_id"`
+	OrderID          string  `json:"order_id"`
+	CurrencyPair     string  `json:"currency_pair"`
+	CreateTime       int64   `json:"create_time"`
+	CreateTimeMicroS int64   `json:"create_time_ms"`
+	Side             string  `json:"side"`
+	Amount           float64 `json:"amount,string"`
+	Role             string  `json:"role"`
+	Price            float64 `json:"price,string"`
+	Fee              float64 `json:"fee,string"`
+	PointFee         float64 `json:"point_fee,string"`
+	GtFee            string  `json:"gt_fee"`
+	Text             string  `json:"text"`
 }
 
 // WsSpotBalance represents a spot balance.
