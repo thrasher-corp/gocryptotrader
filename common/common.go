@@ -86,14 +86,6 @@ var (
 	ErrTypeAssertFailure = errors.New("type assert failure")
 )
 
-// MatchesIPV4Address ensures that the string is an IPV4 address by regexp check
-func MatchesIPV4Address(value string) bool {
-	if len(value) < 7 || len(value) > 15 {
-		return false
-	}
-	return ipV4AddressRX.MatchString(value)
-}
-
 // MatchesEmailPattern ensures that the string is an email address by regexp check
 func MatchesEmailPattern(value string) bool {
 	if len(value) < 3 || len(value) > 254 {

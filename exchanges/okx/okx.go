@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -1113,7 +1114,7 @@ func (ok *Okx) CancelAllRFQs(ctx context.Context) (time.Time, error) {
 		return time.Time{}, err
 	}
 	if len(resp) == 1 {
-		return resp[0].Timestamp, nil
+		return resp[0].Timestamp.Time(), nil
 	}
 	return time.Time{}, errNoValidResponseFromServer
 }
@@ -1178,7 +1179,7 @@ func (ok *Okx) ResetMMPStatus(ctx context.Context) (time.Time, error) {
 		return time.Time{}, err
 	}
 	if len(resp) == 1 {
-		return resp[0].Timestamp, nil
+		return resp[0].Timestamp.Time(), nil
 	}
 	return time.Time{}, errNoValidResponseFromServer
 }
@@ -1251,7 +1252,7 @@ func (ok *Okx) CancelAllQuotes(ctx context.Context) (time.Time, error) {
 		return time.Time{}, err
 	}
 	if len(resp) == 1 {
-		return resp[0].Timestamp, nil
+		return resp[0].Timestamp.Time(), nil
 	}
 	return time.Time{}, errMissingResponseBody
 }
@@ -2411,7 +2412,7 @@ func (ok *Okx) ResetSubAccountAPIKey(ctx context.Context, arg *SubAccountAPIKeyP
 		return nil, errInvalidAPIKey
 	}
 	var resp []SubAccountAPIKeyResponse
-	if arg.IP != "" && !common.MatchesIPV4Address(arg.IP) {
+	if arg.IP != "" && net.ParseIP(arg.IP).To4() == nil {
 		return nil, errInvalidIPAddress
 	}
 	if arg.APIKeyPermission == "" && len(arg.Permissions) != 0 {
@@ -3496,7 +3497,7 @@ func (ok *Okx) GetSystemTime(ctx context.Context) (time.Time, error) {
 		return time.Time{}, err
 	}
 	if len(resp) == 1 {
-		return resp[0].Timestamp, nil
+		return resp[0].Timestamp.Time(), nil
 	}
 	return time.Time{}, errNoValidResponseFromServer
 }

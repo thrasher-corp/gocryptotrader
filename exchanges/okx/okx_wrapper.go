@@ -96,6 +96,8 @@ func (ok *Okx) SetDefaults() {
 				CryptoWithdrawal:    true,
 				TradeFee:            true,
 				SubmitOrder:         true,
+				GetOrder:            true,
+				GetOrders:           true,
 				CancelOrder:         true,
 				CancelOrders:        true,
 				TradeFetching:       true,
@@ -360,23 +362,23 @@ func (ok *Okx) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) 
 	var quoteVolume float64
 	switch a {
 	case asset.Spot, asset.Margin:
-		baseVolume = mdata.Vol24H
-		quoteVolume = mdata.VolCcy24H
+		baseVolume = mdata.Vol24H.Float64()
+		quoteVolume = mdata.VolCcy24H.Float64()
 	case asset.PerpetualSwap, asset.Futures, asset.Option:
-		baseVolume = mdata.VolCcy24H
-		quoteVolume = mdata.Vol24H
+		baseVolume = mdata.VolCcy24H.Float64()
+		quoteVolume = mdata.Vol24H.Float64()
 	default:
 		return nil, fmt.Errorf("%w, asset type %s is not supported", errInvalidInstrumentType, a.String())
 	}
 	err = ticker.ProcessTicker(&ticker.Price{
-		Last:         mdata.LastTradePrice,
-		High:         mdata.High24H,
-		Low:          mdata.Low24H,
-		Bid:          mdata.BidPrice,
-		Ask:          mdata.BestAskPrice,
+		Last:         mdata.LastTradePrice.Float64(),
+		High:         mdata.High24H.Float64(),
+		Low:          mdata.Low24H.Float64(),
+		Bid:          mdata.BidPrice.Float64(),
+		Ask:          mdata.BestAskPrice.Float64(),
 		Volume:       baseVolume,
 		QuoteVolume:  quoteVolume,
-		Open:         mdata.Open24H,
+		Open:         mdata.Open24H.Float64(),
 		Pair:         p,
 		ExchangeName: ok.Name,
 		AssetType:    a,
@@ -412,14 +414,14 @@ func (ok *Okx) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 				continue
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
-				Last:         ticks[y].LastTradePrice,
-				High:         ticks[y].High24H,
-				Low:          ticks[y].Low24H,
-				Bid:          ticks[y].BidPrice,
-				Ask:          ticks[y].BestAskPrice,
-				Volume:       ticks[y].Vol24H,
-				QuoteVolume:  ticks[y].VolCcy24H,
-				Open:         ticks[y].Open24H,
+				Last:         ticks[y].LastTradePrice.Float64(),
+				High:         ticks[y].High24H.Float64(),
+				Low:          ticks[y].Low24H.Float64(),
+				Bid:          ticks[y].BidPrice.Float64(),
+				Ask:          ticks[y].BestAskPrice.Float64(),
+				Volume:       ticks[y].Vol24H.Float64(),
+				QuoteVolume:  ticks[y].VolCcy24H.Float64(),
+				Open:         ticks[y].Open24H.Float64(),
 				Pair:         pairFmt,
 				ExchangeName: ok.Name,
 				AssetType:    assetType,
@@ -570,7 +572,7 @@ func (ok *Okx) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, e
 		resp = append(resp, exchange.FundHistory{
 			ExchangeName:    ok.Name,
 			Status:          strconv.Itoa(depositHistories[x].State),
-			Timestamp:       depositHistories[x].Timestamp,
+			Timestamp:       depositHistories[x].Timestamp.Time(),
 			Currency:        depositHistories[x].Currency,
 			Amount:          depositHistories[x].Amount,
 			TransferType:    "deposit",
@@ -582,7 +584,7 @@ func (ok *Okx) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, e
 		resp = append(resp, exchange.FundHistory{
 			ExchangeName:    ok.Name,
 			Status:          withdrawalHistories[x].StateOfWithdrawal,
-			Timestamp:       withdrawalHistories[x].Timestamp,
+			Timestamp:       withdrawalHistories[x].Timestamp.Time(),
 			Currency:        withdrawalHistories[x].Currency,
 			Amount:          withdrawalHistories[x].Amount,
 			TransferType:    "withdrawal",
@@ -606,7 +608,7 @@ func (ok *Okx) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ ass
 	for x := range withdrawals {
 		resp = append(resp, exchange.WithdrawalHistory{
 			Status:          withdrawals[x].StateOfWithdrawal,
-			Timestamp:       withdrawals[x].Timestamp,
+			Timestamp:       withdrawals[x].Timestamp.Time(),
 			Currency:        withdrawals[x].Currency,
 			Amount:          withdrawals[x].Amount,
 			TransferType:    "withdrawal",
@@ -650,7 +652,7 @@ func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 			Side:         side,
 			Price:        tradeData[x].Price,
 			Amount:       tradeData[x].Quantity,
-			Timestamp:    tradeData[x].Timestamp,
+			Timestamp:    tradeData[x].Timestamp.Time(),
 		}
 	}
 	if ok.IsSaveTradeDataEnabled() {
@@ -690,8 +692,8 @@ allTrades:
 			break
 		}
 		for i := 0; i < len(trades); i++ {
-			if timestampStart.Equal(trades[i].Timestamp) ||
-				trades[i].Timestamp.Before(timestampStart) ||
+			if timestampStart.Equal(trades[i].Timestamp.Time()) ||
+				trades[i].Timestamp.Time().Before(timestampStart) ||
 				tradeIDEnd == trades[len(trades)-1].TradeID {
 				// reached end of trades to crawl
 				break allTrades
@@ -708,7 +710,7 @@ allTrades:
 				AssetType:    assetType,
 				Price:        trades[i].Price,
 				Amount:       trades[i].Quantity,
-				Timestamp:    trades[i].Timestamp,
+				Timestamp:    trades[i].Timestamp.Time(),
 				Side:         tradeSide,
 			})
 		}
@@ -1049,18 +1051,18 @@ func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 	}
 
 	return order.Detail{
-		Amount:         orderDetail.Size,
+		Amount:         orderDetail.Size.Float64(),
 		Exchange:       ok.Name,
 		OrderID:        orderDetail.OrderID,
 		ClientOrderID:  orderDetail.ClientSupplierOrderID,
 		Side:           orderDetail.Side,
 		Type:           orderType,
 		Pair:           pair,
-		Cost:           orderDetail.Price,
+		Cost:           orderDetail.Price.Float64(),
 		AssetType:      assetType,
 		Status:         status,
-		Price:          orderDetail.Price,
-		ExecutedAmount: orderDetail.RebateAmount,
+		Price:          orderDetail.Price.Float64(),
+		ExecutedAmount: orderDetail.RebateAmount.Float64(),
 		Date:           orderDetail.CreationTime,
 		LastUpdated:    orderDetail.UpdateTime,
 	}, err
@@ -1196,12 +1198,12 @@ allOrders:
 				return nil, err
 			}
 			resp = append(resp, order.Detail{
-				Amount:          orderList[i].Size,
+				Amount:          orderList[i].Size.Float64(),
 				Pair:            pair,
-				Price:           orderList[i].Price,
+				Price:           orderList[i].Price.Float64(),
 				ExecutedAmount:  orderList[i].FillSize,
-				RemainingAmount: orderList[i].Size - orderList[i].FillSize,
-				Fee:             orderList[i].TransactionFee,
+				RemainingAmount: orderList[i].Size.Float64() - orderList[i].FillSize,
+				Fee:             orderList[i].TransactionFee.Float64(),
 				FeeAsset:        currency.NewCode(orderList[i].FeeCurrency),
 				Exchange:        ok.Name,
 				OrderID:         orderList[i].OrderID,
@@ -1294,15 +1296,15 @@ allOrders:
 
 				remainingAmount := float64(0)
 				if orderStatus != order.Filled {
-					remainingAmount = orderAmount - orderList[i].AccumulatedFillSize
+					remainingAmount = orderAmount.Float64() - orderList[i].AccumulatedFillSize.Float64()
 				}
 				resp = append(resp, order.Detail{
-					Price:                orderList[i].Price,
-					AverageExecutedPrice: orderList[i].AveragePrice,
-					Amount:               orderAmount,
-					ExecutedAmount:       orderList[i].AccumulatedFillSize,
+					Price:                orderList[i].Price.Float64(),
+					AverageExecutedPrice: orderList[i].AveragePrice.Float64(),
+					Amount:               orderAmount.Float64(),
+					ExecutedAmount:       orderList[i].AccumulatedFillSize.Float64(),
 					RemainingAmount:      remainingAmount,
-					Fee:                  orderList[i].TransactionFee,
+					Fee:                  orderList[i].TransactionFee.Float64(),
 					FeeAsset:             currency.NewCode(orderList[i].FeeCurrency),
 					Exchange:             ok.Name,
 					OrderID:              orderList[i].OrderID,
@@ -1314,7 +1316,7 @@ allOrders:
 					Date:                 orderList[i].CreationTime,
 					LastUpdated:          orderList[i].UpdateTime,
 					Pair:                 pair,
-					Cost:                 orderList[i].AveragePrice * orderList[i].AccumulatedFillSize,
+					Cost:                 orderList[i].AveragePrice.Float64() * orderList[i].AccumulatedFillSize.Float64(),
 					CostAsset:            currency.NewCode(orderList[i].RebateCurrency),
 				})
 			}
@@ -1427,4 +1429,30 @@ func (ok *Okx) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pai
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
+}
+
+// GetAvailableTransferChains returns the available transfer blockchains for the specific
+// cryptocurrency
+func (ok *Okx) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
+	currencyChains, err := ok.GetFundingCurrencies(ctx)
+	if err != nil {
+		return nil, err
+	}
+	chains := make([]string, 0, len(currencyChains))
+	for x := range currencyChains {
+		if ((!cryptocurrency.IsEmpty() && strings.EqualFold(cryptocurrency.String(), currencyChains[x].Currency)) || cryptocurrency.String() == "") && currencyChains[x].Chain != "" {
+			chains = append(chains, currencyChains[x].Chain)
+		} else if currencyChains[x].MainNet && (!cryptocurrency.IsEmpty() && strings.EqualFold(cryptocurrency.String(), currencyChains[x].Currency)) {
+			depositAddress, err := ok.GetCurrencyDepositAddress(context.Background(), currencyChains[x].Currency)
+			if err != nil {
+				return nil, err
+			}
+			for y := range depositAddress {
+				if depositAddress[y].Selected && currencyChains[x].MainNet {
+					chains = append(chains, depositAddress[y].Chain)
+				}
+			}
+		}
+	}
+	return chains, nil
 }

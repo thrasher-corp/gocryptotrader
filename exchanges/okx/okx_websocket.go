@@ -819,7 +819,7 @@ func (ok *Okx) WsProcessSnapshotOrderBook(data WsOrderBookData, pair currency.Pa
 		Asset:           a,
 		Asks:            asks,
 		Bids:            bids,
-		LastUpdated:     data.Timestamp,
+		LastUpdated:     data.Timestamp.Time(),
 		Pair:            pair,
 		Exchange:        ok.Name,
 		VerifyOrderbook: ok.CanVerifyOrderbook,
@@ -1013,7 +1013,7 @@ func (ok *Okx) wsProcessTrades(data []byte) error {
 			CurrencyPair: pair,
 			Exchange:     ok.Name,
 			Side:         side,
-			Timestamp:    response.Data[i].Timestamp,
+			Timestamp:    response.Data[i].Timestamp.Time(),
 			TID:          response.Data[i].TradeID,
 			Price:        response.Data[i].Price,
 		}
@@ -1069,8 +1069,8 @@ func (ok *Okx) wsProcessOrders(respRaw []byte) error {
 		ok.Websocket.DataHandler <- &order.Detail{
 			Price:           response.Data[x].Price,
 			Amount:          response.Data[x].Size,
-			ExecutedAmount:  response.Data[x].LastFilledSize,
-			RemainingAmount: response.Data[x].AccumulatedFillSize - response.Data[x].LastFilledSize,
+			ExecutedAmount:  response.Data[x].LastFilledSize.Float64(),
+			RemainingAmount: response.Data[x].AccumulatedFillSize.Float64() - response.Data[x].LastFilledSize.Float64(),
 			Exchange:        ok.Name,
 			OrderID:         response.Data[x].OrderID,
 			Type:            orderType,
@@ -1183,29 +1183,29 @@ func (ok *Okx) wsProcessTickers(data []byte) error {
 		var quoteVolume float64
 		switch a {
 		case asset.Spot, asset.Margin:
-			baseVolume = response.Data[i].Vol24H
-			quoteVolume = response.Data[i].VolCcy24H
+			baseVolume = response.Data[i].Vol24H.Float64()
+			quoteVolume = response.Data[i].VolCcy24H.Float64()
 		case asset.PerpetualSwap, asset.Futures, asset.Option:
-			baseVolume = response.Data[i].VolCcy24H
-			quoteVolume = response.Data[i].Vol24H
+			baseVolume = response.Data[i].VolCcy24H.Float64()
+			quoteVolume = response.Data[i].Vol24H.Float64()
 		default:
 			return fmt.Errorf("%w, asset type %s is not supported", errInvalidInstrumentType, a.String())
 		}
 		tickData := &ticker.Price{
 			ExchangeName: ok.Name,
-			Open:         response.Data[i].Open24H,
+			Open:         response.Data[i].Open24H.Float64(),
 			Volume:       baseVolume,
 			QuoteVolume:  quoteVolume,
-			High:         response.Data[i].High24H,
-			Low:          response.Data[i].Low24H,
-			Bid:          response.Data[i].BidPrice,
-			Ask:          response.Data[i].BestAskPrice,
-			BidSize:      response.Data[i].BidSize,
-			AskSize:      response.Data[i].BestAskSize,
-			Last:         response.Data[i].LastTradePrice,
+			High:         response.Data[i].High24H.Float64(),
+			Low:          response.Data[i].Low24H.Float64(),
+			Bid:          response.Data[i].BidPrice.Float64(),
+			Ask:          response.Data[i].BestAskPrice.Float64(),
+			BidSize:      response.Data[i].BidSize.Float64(),
+			AskSize:      response.Data[i].BestAskSize.Float64(),
+			Last:         response.Data[i].LastTradePrice.Float64(),
 			AssetType:    a,
 			Pair:         c,
-			LastUpdated:  response.Data[i].TickerDataGenerationTime,
+			LastUpdated:  response.Data[i].TickerDataGenerationTime.Time(),
 		}
 		ok.Websocket.DataHandler <- tickData
 		if assetEnabledInMargin {

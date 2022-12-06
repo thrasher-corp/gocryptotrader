@@ -241,7 +241,7 @@
     {
         "name": "Okx",
         "enabled": true,
-        "verbose": true,
+        "verbose": false,
         "httpTimeout": 15000000000,
         "websocketResponseCheckTimeout": 30000000,
         "websocketResponseMaxLimit": 7000000000,
