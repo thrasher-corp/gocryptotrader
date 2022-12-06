@@ -3519,8 +3519,8 @@ type supaTestStrat struct {
 	strategy.Requirements
 }
 
-func (s supaTestStrat) GetState() (*strategy.State, error) {
-	return &strategy.State{}, nil
+func (s supaTestStrat) GetDetails() (*strategy.Details, error) {
+	return &strategy.Details{}, nil
 }
 
 func (s supaTestStrat) Stop() error {

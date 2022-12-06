@@ -1,13 +1,32 @@
 package common
 
 import (
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
-// NewScheduler returns a new schedular to assist in timing strategy heartbeat.
+var ErrCannotGenerateSignal = errors.New("cannot generate adequate signals")
+var ErrIntervalNotSupported = errors.New("interval currently not supported")
+
+// NewScheduler returns a standard schedular to generate signals at a defined
+// heartbeat within a scheduled start and end time. This can be set to align
+// to the interval candle open or it will operate at set heartbeat intervals
+// without truncation.
 func NewScheduler(start, end time.Time, aligned bool, heartbeat kline.Interval) (*Scheduler, error) {
+	if heartbeat < kline.OneMin {
+		return nil, ErrIntervalNotSupported
+	}
+	// If there is an actual set start and end time for this strategy.
+	if !end.IsZero() && start.After(time.Now()) {
+		window := end.Sub(start)
+		if (float64(window) / float64(heartbeat)) < 1 {
+			return nil, fmt.Errorf("due to time window %s and heart beat size %s cannot %w",
+				window, heartbeat, ErrCannotGenerateSignal)
+		}
+	}
 	schedule := &Scheduler{
 		start:          start,
 		end:            end,
@@ -15,47 +34,48 @@ func NewScheduler(start, end time.Time, aligned bool, heartbeat kline.Interval) 
 		alignmentToUTC: aligned,
 		interval:       heartbeat,
 	}
-	// NOTE: Pre-set timer and routine.
+	// Pre-set schedule for starting and ceasing operations
 	schedule.setTimer()
 	schedule.setEndTimer()
 	return schedule, nil
 }
 
-// Scheduler defines scheduling assistance for strategies. NOTE: Acts as base
-// for all potential strategies and all methods can be overridden. e.g.
-// GetSignal() <-chan interface{} core will return a time.Time and then signal
-// can be strategy defined in method OnSignal(ctx context.Context, sig interface{}).
-// This can then build up to market making bots and standard TA wrappers.
+// Scheduler provides scheduling assistance for strategies. This acts as a base
+// for potential strategies, and all methods can be overridden when embedded.
+// For example, the `GetSignal()` method returns a `time.Time`, and the
+// `OnSignal` method can be used to handle this signal in a strategy-defined
+// way. This can be used to create market making bots and standard technical
+// analysis wrappers.
 type Scheduler struct {
-	// start defines scheduled start time
+	// start is the scheduled start time for the strategy
 	start time.Time
-	// end defines scheduled end time
+	// end is the scheduled end time for the strategy
 	end time.Time
-	// next defines the next signal fire
+	// next is the next time the signal will be fired
 	next time.Time
-	// alignmentToUTC allows the heartbeat of strategy to occur at actual
-	// candle close
+	// alignmentToUTC determines whether the strategy's heartbeat should occur
+	// at the actual candle close.
 	alignmentToUTC bool
-	// interval defines the actual lowest interval as heart beat to execute
-	// strategy.
+	// interval is the lowest interval at which the strategy's heartbeat
+	// should execute.
 	interval kline.Interval
-	// timer defines the next firing sequence for the wake up signal
+	// timer is the next firing sequence for the wake up signal
 	timer *time.Timer
-	// ender defines the end of life for the strategy
+	// ender is the end of life for the strategy
 	ender *time.Timer
-	// the pipe defines a common channel to return to implement the GetSignal
-	// method, theres now way to type cast a channel in go and requires a
-	// routine
+	// pipe is a common channel used to implement the `GetSignal` method.
+	// There is no way to typecast a channel in Go, so a routine is required.
 	pipe chan interface{}
 }
 
-// GetSignal implements requirements interface
+// GetSignal returns a channel to an unspecified signal generator which will
+// be utilised in the `deploy()` method as defined in requirement.go.
 func (s *Scheduler) GetSignal() <-chan interface{} {
 	return s.pipeTimer()
 }
 
-// GetEnd returns when the strategy will cease to operate at a certain defined
-// time.
+// GetEnd returns the scheduled end time for the strategy. This indicates
+// when the strategy will cease operations.
 func (s *Scheduler) GetEnd() <-chan time.Time {
 	if s.ender == nil {
 		return nil
@@ -63,11 +83,11 @@ func (s *Scheduler) GetEnd() <-chan time.Time {
 	return s.ender.C
 }
 
-// pipeTimer converts channel to a <-chan interface{} for a future
-// strategy signals interface.
-// TODO: This might not be optimal for market making and orderbook
-// change signaling. Should not be called in multiple routines.
-// TODO: this will leak cause of input.C not closing gonna have to run a closer.
+// pipeTimer converts a channel to a `<-chan interface{}` for use with a
+// future strategy signals interface. This method should not be called in
+// multiple routines.
+// TODO: This will cause a leak due to input.C not being closed. A closer
+// will need to be run to avoid this.
 func (s *Scheduler) pipeTimer() <-chan interface{} {
 	if s.pipe == nil {
 		s.pipe = make(chan interface{})
@@ -76,8 +96,8 @@ func (s *Scheduler) pipeTimer() <-chan interface{} {
 	return s.pipe
 }
 
-// piper routine takes the timer signal and sends it to the OnSignal channel it
-// then resets the timer to the appropriate next heartbeat.
+// piper routine takes the timer signal and sends it to the `OnSignal` channel
+// it then resets the timer to the appropriate next heartbeat.
 func (s *Scheduler) piper() {
 	for signal := range s.timer.C {
 		s.pipe <- signal
@@ -88,25 +108,44 @@ func (s *Scheduler) piper() {
 // setTimer automatically resets timer to next heartbeat interval
 func (s *Scheduler) setTimer() {
 	tn := time.Now()
-	intDur := s.interval.Duration()
-	if s.alignmentToUTC {
-		tn = tn.Truncate(intDur)
-	}
-	s.next = tn.Add(intDur)
-	fireAt := time.Until(s.next)
-	if s.timer == nil {
+	duration := s.interval.Duration()
+	if s.next.Equal(s.start) {
+		if s.start.IsZero() {
+			s.start = tn
+		}
+		var fireAt time.Duration
+		// If scheduled at a later date else fire immediately
+		if s.start.After(tn) {
+			if s.alignmentToUTC {
+				// Never start before requested start.
+				fireAt = time.Until(s.start.Truncate(duration).Add(duration))
+			} else {
+				fireAt = time.Until(s.start)
+			}
+		}
 		s.timer = time.NewTimer(fireAt)
+		s.next = tn.Add(duration + fireAt)
 		return
 	}
-	s.timer.Reset(fireAt)
+	if s.alignmentToUTC {
+		tn = tn.Truncate(duration)
+	}
+	// Push forward next time
+	s.next = tn.Add(duration)
+	s.timer.Reset(time.Until(s.next))
 }
 
-// setEndTimer sets when the strategy will end
+// setEndTimer sets when the strategy will cease operations
 func (s *Scheduler) setEndTimer() {
+	if s.end.IsZero() {
+		return
+	}
 	fireAt := time.Until(s.end)
 	s.ender = time.NewTimer(fireAt)
 }
 
+// GetNext will return when the strategy will generate a new signal at a set
+// time.
 func (s *Scheduler) GetNext() time.Time {
 	return s.next
 }

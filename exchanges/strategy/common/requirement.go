@@ -9,53 +9,6 @@ import (
 	"github.com/gofrs/uuid"
 )
 
-const SimulationTag = "SIMULATION"
-
-var errRequirementIsNil = errors.New("requirement is nil")
-
-// Requirements define baseline functionality for strategy management
-type Requirements interface {
-	// Run checks the base requirement state and generates a routine to handle
-	// signals, shutdown, context done and other activities for the strategy as
-	// defined in method on type 'Requirement'.
-	Run(ctx context.Context, strategy Runner) error
-	// Stop stops the current operating strategy as defined in method on type
-	// 'Requirement'.
-	Stop() error
-	// GetDetails returns the base requirement detail as defined method on type
-	// 'Requirement'.
-	GetDetails() (*Details, error)
-
-	Runner
-}
-
-// Runner defines baseline functionality to handle strategy activities
-type Runner interface {
-	// GetSignal is a strategy defined function that alerts the deploy routine
-	// as defined method on type 'Requirement' to call 'OnSignal' method which
-	// will handle the data/change correctly. Type 'Scheduler' implements the
-	// default 'GetSignal' method.
-	GetSignal() <-chan interface{}
-
-	// GetEnd alerts the deploy routine as defined method on type 'Requirement'
-	// to return and finish when the strategy is scheduled to end. See type
-	// 'Scheduler' implements the default 'GetEnd' method. This can return a nil
-	// map type with no consequences.
-	GetEnd() <-chan time.Time
-
-	// GetSignal is a strategy defined function that handles the data that is
-	// returned from GetSignal().
-	OnSignal(ctx context.Context, signal interface{}) (bool, error)
-
-	// String is a strategy defined function that returns basic information
-	String() string
-
-	// GetNext return the next execution time.
-	GetNext() time.Time
-
-	Activity
-}
-
 // Requirement defines the base requirements for managing the operation of the
 // strategy so most of the internals can be abstracted away from individual
 // definitions.
@@ -72,13 +25,13 @@ type Requirement struct {
 
 // Run oversees the deployment of the current strategy adhering to policies,
 // limits, signals and schedules.
-func (r *Requirement) Run(ctx context.Context, strategy Runner) error {
-	if strategy == nil {
-		return ErrIsNil
-	}
-
+func (r *Requirement) Run(ctx context.Context, strategy Requirements) error {
 	if r == nil {
 		return errRequirementIsNil
+	}
+
+	if strategy == nil {
+		return ErrIsNil
 	}
 
 	r.mtx.Lock()
@@ -96,7 +49,7 @@ func (r *Requirement) Run(ctx context.Context, strategy Runner) error {
 }
 
 // deploy is the core routine that handles strategy functionality and lifecycle
-func (r *Requirement) deploy(ctx context.Context, strategy Runner) {
+func (r *Requirement) deploy(ctx context.Context, strategy Requirements) {
 	defer func() { r.wg.Done(); _ = r.Stop() }()
 	strategy.ReportStart(strategy)
 	for {
@@ -144,15 +97,7 @@ func (r *Requirement) Stop() error {
 	return nil
 }
 
-// Details define base level information
-type Details struct {
-	ID         uuid.UUID
-	Registered time.Time
-	Running    bool
-	Strategy   string
-}
-
-// GetState returns the state of the strategy
+// GetState returns the strategy details
 func (r *Requirement) GetDetails() (*Details, error) {
 	if r == nil {
 		return nil, errRequirementIsNil
@@ -160,13 +105,7 @@ func (r *Requirement) GetDetails() (*Details, error) {
 
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
-
-	return &Details{
-		ID:         r.id,
-		Registered: r.registered,
-		Running:    r.running,
-		Strategy:   r.strategy,
-	}, nil
+	return &Details{r.id, r.registered, r.running, r.strategy}, nil
 }
 
 // GetReporter returns a channel that allows the broadcast of activity from a
@@ -178,9 +117,25 @@ func (r *Requirement) GetReporter() (<-chan *Report, error) {
 
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
+	return r.getReporter()
+}
 
-	if r.reporter == nil {
-		return nil, ErrReporterIsNil
+// LoadID loads an externally generated uuid for tracking.
+func (r *Requirement) LoadID(id uuid.UUID) error {
+	if r == nil {
+		return errRequirementIsNil
 	}
-	return r.reporter, nil
+
+	if id.IsNil() {
+		return ErrInvalidUUID
+	}
+
+	r.mtx.Lock()
+	defer r.mtx.Unlock()
+
+	if !r.id.IsNil() {
+		return errors.New("id already set")
+	}
+	r.id = id
+	return nil
 }

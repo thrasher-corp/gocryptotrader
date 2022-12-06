@@ -185,7 +185,7 @@ func (s *Strategy) checkAndSubmit(ctx context.Context) error {
 	s.allocation.Deployed += s.allocation.Deployment
 	s.allocation.Deployments++
 
-	s.ReportOrder(&strategy.ExecutedOrder{Submit: submit, Response: resp, Orderbook: details})
+	s.ReportOrder(strategy.OrderAction{Submit: submit, Response: resp, Orderbook: details})
 	return nil
 }
 
@@ -229,7 +229,7 @@ func (s *Strategy) submitOrder(ctx context.Context, submit *order.Submit) (*orde
 		if !s.Simulate {
 			resp, err = s.Config.Exchange.SubmitOrder(ctx, submit)
 		} else {
-			resp, err = submit.DeriveSubmitResponse(strategy.SimulationTag)
+			resp, err = submit.DeriveSubmitResponse(strategy.Simulation)
 		}
 		if err == nil {
 			errors = nil // These errors prior we don't need to worry about.

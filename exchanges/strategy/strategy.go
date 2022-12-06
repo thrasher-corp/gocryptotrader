@@ -24,12 +24,19 @@ func (m *Manager) Register(strat strategy.Requirements) (uuid.UUID, error) {
 	if err != nil {
 		return uuid.Nil, err
 	}
+
+	err = strat.LoadID(id)
+	if err != nil {
+		return uuid.Nil, err
+	}
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.strategies == nil {
 		m.strategies = make(map[uuid.UUID]strategy.Requirements)
 	}
 	m.strategies[id] = strat
+	strat.ReportRegister()
 	return id, nil
 }
 
@@ -70,18 +77,18 @@ func (m *Manager) RunStream(ctx context.Context, id uuid.UUID) (<-chan *strategy
 func (m *Manager) GetAllStrategies(running bool) ([]strategy.Details, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	ss := make([]strategy.Details, len(m.strategies))
-	target := 0
-	for id, obj := range m.strategies {
+	loaded := make([]strategy.Details, 0, len(m.strategies))
+	for _, obj := range m.strategies {
 		details, err := obj.GetDetails()
 		if err != nil {
 			return nil, err
 		}
-		details.ID = id // TODO: Change this implementation.
-		ss[target] = *details
-		target++
+		if running && !details.Running {
+			continue
+		}
+		loaded = append(loaded, *details)
 	}
-	return ss, nil
+	return loaded, nil
 }
 
 // Stop stops a strategy from executing further orders

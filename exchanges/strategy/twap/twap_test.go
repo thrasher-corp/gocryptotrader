@@ -44,7 +44,7 @@ func (f *fake) GetOrderExecutionLimits(asset.Item, currency.Pair) (order.MinMaxL
 }
 
 func (f *fake) SubmitOrder(_ context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	return s.DeriveSubmitResponse(strategy.SimulationTag)
+	return s.DeriveSubmitResponse(strategy.Simulation)
 }
 
 func loadHoldingsState(pair currency.Pair, freeQuote, freeBase float64) error {
