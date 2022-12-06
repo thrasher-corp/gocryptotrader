@@ -5578,18 +5578,18 @@ func (s *RPCServer) GetAllStrategies(ctx context.Context, r *gctrpc.GetAllStrate
 		return nil, err
 	}
 
-	rpcStrats := make([]*gctrpc.Strategy, len(strats))
+	rpcStrats := make([]*gctrpc.Strategy, 0, len(strats))
 	for x := range strats {
 		if r.Running && !strats[x].Running {
 			continue
 		}
-		rpcStrats[x] = &gctrpc.Strategy{
+		rpcStrats = append(rpcStrats, &gctrpc.Strategy{
 			Id:      strats[x].ID.String(),
 			Name:    strats[x].Strategy,
 			State:   strats[x].Strategy,
 			Stopped: !strats[x].Running,
 			Running: strats[x].Running,
-		}
+		})
 	}
 	return &gctrpc.GetAllStrategiesResponse{Strategies: rpcStrats}, nil
 }
