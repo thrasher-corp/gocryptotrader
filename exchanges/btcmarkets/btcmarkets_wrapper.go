@@ -284,7 +284,7 @@ func (b *BTCMarkets) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *BTCMarkets) FetchTradablePairs(ctx context.Context, a asset.Item) ([]currency.Pair, error) {
+func (b *BTCMarkets) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if a != asset.Spot {
 		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, b.Name)
 	}

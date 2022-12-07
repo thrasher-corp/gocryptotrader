@@ -264,7 +264,7 @@ func (c *COINUT) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (c *COINUT) FetchTradablePairs(ctx context.Context, a asset.Item) ([]currency.Pair, error) {
+func (c *COINUT) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	var resp Instruments
 	var err error
 	if c.Websocket.IsConnected() {

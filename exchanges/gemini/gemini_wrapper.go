@@ -272,7 +272,7 @@ func (g *Gemini) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (g *Gemini) FetchTradablePairs(ctx context.Context, a asset.Item) ([]currency.Pair, error) {
+func (g *Gemini) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if !g.SupportsAsset(a) {
 		return nil, asset.ErrNotSupported
 	}

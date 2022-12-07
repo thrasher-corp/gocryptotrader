@@ -247,7 +247,7 @@ func (b *BTSE) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *BTSE) FetchTradablePairs(ctx context.Context, a asset.Item) ([]currency.Pair, error) {
+func (b *BTSE) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	m, err := b.GetMarketSummary(ctx, "", a == asset.Spot)
 	if err != nil {
 		return nil, err

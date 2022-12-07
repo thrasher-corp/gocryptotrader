@@ -158,7 +158,7 @@ func (y *Yobit) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (y *Yobit) FetchTradablePairs(ctx context.Context, a asset.Item) ([]currency.Pair, error) {
+func (y *Yobit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	info, err := y.GetInfo(ctx)
 	if err != nil {
 		return nil, err

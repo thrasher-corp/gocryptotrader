@@ -198,11 +198,10 @@ func TestGetTradingPairs(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	r, err := b.FetchTradablePairs(context.Background(), asset.Spot)
+	pairs, err := b.FetchTradablePairs(context.Background(), asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
-	pairs := currency.Pairs(r)
 	if !pairs.Contains(currency.NewPair(currency.COMP, currency.USD), false) {
 		t.Error("expected pair COMP/USD")
 	}

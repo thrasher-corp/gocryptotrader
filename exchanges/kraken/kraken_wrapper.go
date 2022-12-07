@@ -340,7 +340,7 @@ func (k *Kraken) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (k *Kraken) FetchTradablePairs(ctx context.Context, a asset.Item) ([]currency.Pair, error) {
+func (k *Kraken) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	var pairs []currency.Pair
 	var pair currency.Pair
 	switch a {

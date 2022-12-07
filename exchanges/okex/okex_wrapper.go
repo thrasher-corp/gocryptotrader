@@ -311,7 +311,7 @@ func (o *OKEX) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (o *OKEX) FetchTradablePairs(ctx context.Context, a asset.Item) ([]currency.Pair, error) {
+func (o *OKEX) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	switch a {
 	case asset.Spot:
 		prods, err := o.GetSpotTokenPairDetails(ctx)
@@ -387,8 +387,8 @@ func (o *OKEX) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error 
 			indexPairs := make(currency.Pairs, 0, len(pairs))
 			for i := range pairs {
 				item := strings.Split(pairs[i].String(), currency.UnderscoreDelimiter)[0]
-				componant := strings.Split(item, currency.DashDelimiter)
-				indexPair, err = currency.NewPairFromStrings(componant[0], componant[1])
+				component := strings.Split(item, currency.DashDelimiter)
+				indexPair, err = currency.NewPairFromStrings(component[0], component[1])
 				if err != nil {
 					return err
 				}

@@ -167,7 +167,7 @@ func (e *EXMO) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (e *EXMO) FetchTradablePairs(ctx context.Context, a asset.Item) ([]currency.Pair, error) {
+func (e *EXMO) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if !e.SupportsAsset(a) {
 		return nil, asset.ErrNotSupported
 	}

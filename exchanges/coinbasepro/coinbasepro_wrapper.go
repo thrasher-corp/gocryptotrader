@@ -283,7 +283,7 @@ func (c *CoinbasePro) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (c *CoinbasePro) FetchTradablePairs(ctx context.Context, a asset.Item) ([]currency.Pair, error) {
+func (c *CoinbasePro) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	products, err := c.GetProducts(ctx)
 	if err != nil {
 		return nil, err

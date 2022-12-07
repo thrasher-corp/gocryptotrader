@@ -337,7 +337,7 @@ func (h *HUOBI) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (h *HUOBI) FetchTradablePairs(ctx context.Context, a asset.Item) ([]currency.Pair, error) {
+func (h *HUOBI) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if !h.SupportsAsset(a) {
 		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, h.Name)
 	}

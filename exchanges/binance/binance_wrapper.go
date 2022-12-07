@@ -351,7 +351,7 @@ func (b *Binance) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *Binance) FetchTradablePairs(ctx context.Context, a asset.Item) ([]currency.Pair, error) {
+func (b *Binance) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if !b.SupportsAsset(a) {
 		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, b.Name)
 	}

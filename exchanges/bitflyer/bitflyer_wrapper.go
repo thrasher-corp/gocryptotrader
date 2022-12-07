@@ -152,7 +152,7 @@ func (b *Bitflyer) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *Bitflyer) FetchTradablePairs(ctx context.Context, a asset.Item) ([]currency.Pair, error) {
+func (b *Bitflyer) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	symbols, err := b.GetMarkets(ctx)
 	if err != nil {
 		return nil, err

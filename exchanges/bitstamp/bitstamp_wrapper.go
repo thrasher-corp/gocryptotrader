@@ -279,7 +279,7 @@ func (b *Bitstamp) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *Bitstamp) FetchTradablePairs(ctx context.Context, a asset.Item) ([]currency.Pair, error) {
+func (b *Bitstamp) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	symbols, err := b.GetTradingPairs(ctx)
 	if err != nil {
 		return nil, err

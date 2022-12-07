@@ -277,7 +277,7 @@ func (b *Bitfinex) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *Bitfinex) FetchTradablePairs(ctx context.Context, a asset.Item) ([]currency.Pair, error) {
+func (b *Bitfinex) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	items, err := b.GetTickerBatch(ctx)
 	if err != nil {
 		return nil, err

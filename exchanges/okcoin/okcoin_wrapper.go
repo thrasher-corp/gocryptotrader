@@ -247,7 +247,7 @@ func (o *OKCoin) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (o *OKCoin) FetchTradablePairs(ctx context.Context, a asset.Item) ([]currency.Pair, error) {
+func (o *OKCoin) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	prods, err := o.GetSpotTokenPairDetails(ctx)
 	if err != nil {
 		return nil, err
