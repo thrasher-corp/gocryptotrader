@@ -325,7 +325,6 @@ var (
 	errInvalidMarginTypeAdjust                       = errors.New("invalid margin type adjust, only 'add' and 'reduce' are allowed")
 	errInvalidAlgoOrderType                          = errors.New("invalid algo order type")
 	errEmptyArgument                                 = errors.New("empty argument")
-	errInvalidCurrencyPair                           = errors.New("invalid currency pair")
 	errInvalidIPAddress                              = errors.New("invalid ip address")
 	errInvalidAPIKeyPermission                       = errors.New("invalid API Key permission")
 	errNoInstrumentFound                             = errors.New("instruments not found")

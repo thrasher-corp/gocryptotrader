@@ -1450,19 +1450,10 @@ func (ok *Okx) GetAvailableTransferChains(ctx context.Context, cryptocurrency cu
 	}
 	chains := make([]string, 0, len(currencyChains))
 	for x := range currencyChains {
-		if ((!cryptocurrency.IsEmpty() && strings.EqualFold(cryptocurrency.String(), currencyChains[x].Currency)) || cryptocurrency.String() == "") && currencyChains[x].Chain != "" {
-			chains = append(chains, currencyChains[x].Chain)
-		} else if currencyChains[x].MainNet && (!cryptocurrency.IsEmpty() && strings.EqualFold(cryptocurrency.String(), currencyChains[x].Currency)) {
-			depositAddress, err := ok.GetCurrencyDepositAddress(context.Background(), currencyChains[x].Currency)
-			if err != nil {
-				return nil, err
-			}
-			for y := range depositAddress {
-				if depositAddress[y].Selected && currencyChains[x].MainNet {
-					chains = append(chains, depositAddress[y].Chain)
-				}
-			}
+		if !cryptocurrency.IsEmpty() && !strings.EqualFold(cryptocurrency.String(), currencyChains[x].Currency) {
+			continue
 		}
+		chains = append(chains, currencyChains[x].Chain)
 	}
 	return chains, nil
 }
