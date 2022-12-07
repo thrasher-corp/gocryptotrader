@@ -59,16 +59,12 @@ func TestMain(m *testing.M) {
 		exchCfg.API.AuthenticatedSupport = true
 		exchCfg.API.AuthenticatedWebsocketSupport = true
 	}
-	err = ok.Setup(exchCfg)
-	if err != nil {
-		log.Fatal(err)
-	}
 	ok.Websocket = sharedtestvalues.NewTestWebsocket()
-	request.MaxRequestJobs = 200
 	err = ok.Setup(exchCfg)
 	if err != nil {
 		log.Fatal(err)
 	}
+	request.MaxRequestJobs = 200
 	ok.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	ok.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	setupWS()
