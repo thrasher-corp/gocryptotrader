@@ -27,6 +27,8 @@ const (
 )
 
 var (
+	alphaNumericRegExp = "^[a-zA-Z0-9_]*$"
+
 	errTypeAssert                          = errors.New("type assertion failed")
 	errStartTimeCannotBeAfterEndTime       = errors.New("start timestamp cannot be after end timestamp")
 	errUnsupportedIndexName                = errors.New("unsupported index name")
@@ -46,6 +48,7 @@ var (
 	errMalformedData                       = errors.New("malformed data")
 	errInvalidResponseReceiver             = errors.New("invalid response receiver; must be a non nil pointer")
 	errWebsocketConnectionNotAuthenticated = errors.New("websocket connection is not authenticated")
+	errResolutionNotSet                    = errors.New("resolution not set")
 )
 
 // BookSummaryData stores summary data

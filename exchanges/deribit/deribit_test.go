@@ -232,7 +232,7 @@ func TestSubmitOrder(t *testing.T) {
 
 func TestGetMarkPriceHistory(t *testing.T) {
 	t.Parallel()
-	pairs, err := d.FetchTradablePairs(context.Background(), asset.Options)
+	pairs, err := d.FetchTradablePairs(context.Background(), asset.Futures)
 	if err != nil || len(pairs) == 0 {
 		t.Skip("tradable pairs not found")
 	}
@@ -522,20 +522,16 @@ func TestGetLastTradesByInstrumentAndTime(t *testing.T) {
 
 func TestGetOrderbookData(t *testing.T) {
 	t.Parallel()
-	cp, err := d.getFirstAssetTradablePair(t)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = d.GetOrderbookData(context.Background(), cp.String(), 0)
+	_, err := d.GetOrderbookData(context.Background(), btcPerpInstrument, 0)
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveOrderbookData(cp.String(), 0); err != nil {
+	if _, err = d.WSRetriveOrderbookData(btcPerpInstrument, 0); err != nil {
 		t.Error(err)
 	}
 }
 
-var orderbookJSON = `{	"timestamp":1550757626706,	"stats":{"volume":93.35589552,"price_change": 0.6913,		"low":3940.75,		"high":3976.25	},	"state":"open",	"settlement_price":3925.85,	"open_interest":45.27600333464605,	"min_price":3932.22,	"max_price":3971.74,	"mark_price":3931.97,	"last_price":3955.75,	"instrument_name":"BTC-PERPETUAL",	"index_price":3910.46,	"funding_8h":0.00455263,	"current_funding":0.00500063,	"change_id":474988,	"bids":[		[			3955.75,			30.0		],		[			3940.75,			102020.0		],		[			3423.0,			42840.0		]	],	"best_bid_price":3955.75,	"best_bid_amount":30.0,	"best_ask_price":0.0,	"best_ask_amount":0.0,	"asks":[	]}`
+var orderbookJSON = `{"underlying_price":16582.3,"underlying_index":"index_price","timestamp":1668792897465,"stats":{"volume":null,"price_change":null,"low":null,"high":null},"state":"inactive","settlement_price":0.18292605,"open_interest":0.0,"min_price":0.1678,"max_price":0.1977,"mark_price":0.1827,"mark_iv":0.0,"last_price":0.18,"interest_rate":0.0,"instrument_name":"BTC-BOX-30DEC22-17000_20000","index_price":16582.3,"implied_bid":0.1775,"implied_ask":0.193,"greeks":{"vega":0.00192,"theta":-0.00154,"rho":-3.4168,"gamma":0.0,"delta":0.00013},"estimated_delivery_price":16582.3,"combo_state":"inactive","change_id":51602345369,"bids":[],"bid_iv":0.0,"best_bid_price":0.0,"best_bid_amount":0.0,"best_ask_price":0.0,"best_ask_amount":0.0,"asks":[],"ask_iv":0.0}`
 
 func TestGetOrderbookByInstrumentID(t *testing.T) {
 	t.Parallel()
@@ -805,7 +801,7 @@ func TestGetPublicPortfolioMargins(t *testing.T) {
 }
 func TestWSRetrivePublicPortfolioMargins(t *testing.T) {
 	t.Parallel()
-	info, err := d.GetInstrumentData(context.Background(), "BTC-PERPETUAL")
+	info, err := d.GetInstrumentData(context.Background(), btcPerpInstrument)
 	if err != nil {
 		t.Skip(err)
 	}
@@ -861,11 +857,11 @@ func TestChangeSubAccountName(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(authenticationSkipMessage)
 	}
-	_, err := d.ChangeSubAccountName(context.Background(), 1, "new_sub")
+	err := d.ChangeSubAccountName(context.Background(), 1, "new_sub")
 	if err != nil && !strings.Contains(err.Error(), "unauthorized") {
 		t.Error(err)
 	}
-	if _, err = d.WSChangeSubAccountName(1, "new_sub"); err != nil && !strings.Contains(err.Error(), "unauthorized") {
+	if err = d.WSChangeSubAccountName(1, "new_sub"); err != nil && !strings.Contains(err.Error(), "unauthorized") {
 		t.Error(err)
 	}
 }
@@ -918,11 +914,11 @@ func TestDisableTFAForSubAccount(t *testing.T) {
 		t.Skip(endpointAuthorizationToManipulate)
 	}
 	// Use with caution will reduce the security of the account
-	_, err := d.DisableTFAForSubAccount(context.Background(), 1)
+	err := d.DisableTFAForSubAccount(context.Background(), 1)
 	if err != nil && !strings.Contains(err.Error(), "Method not found") { // this functionality is removed by now.
 		t.Error(err)
 	}
-	if _, err = d.WSDisableTFAForSubAccount(1); err != nil && !strings.Contains(err.Error(), "Method not found") { // this functionality is removed by now.
+	if err = d.WSDisableTFAForSubAccount(1); err != nil && !strings.Contains(err.Error(), "Method not found") { // this functionality is removed by now.
 		t.Error(err)
 	}
 }
@@ -932,11 +928,11 @@ func TestEnableAffiliateProgram(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(authenticationSkipMessage)
 	}
-	_, err := d.EnableAffiliateProgram(context.Background())
+	err := d.EnableAffiliateProgram(context.Background())
 	if err != nil && !strings.Contains(err.Error(), "not_allowed_to_enable_affiliate_program") {
 		t.Error(err)
 	}
-	if _, err = d.WSEnableAffiliateProgram(); err != nil && !strings.Contains(err.Error(), "not_allowed_to_enable_affiliate_program") {
+	if err = d.WSEnableAffiliateProgram(); err != nil && !strings.Contains(err.Error(), "not_allowed_to_enable_affiliate_program") {
 		t.Error(err)
 	}
 }
@@ -960,7 +956,7 @@ func TestGetAffiliateProgramInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(authenticationSkipMessage)
 	}
-	_, err := d.GetAffiliateProgramInfo(context.Background(), 1)
+	_, err := d.GetAffiliateProgramInfo(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -1130,11 +1126,11 @@ func TestRemoveAPIKey(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(authenticationSkipMessage)
 	}
-	_, err := d.RemoveAPIKey(context.Background(), 1)
+	err := d.RemoveAPIKey(context.Background(), 1)
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRemoveAPIKey(1); err != nil {
+	if err = d.WSRemoveAPIKey(1); err != nil {
 		t.Error(err)
 	}
 }
@@ -1144,11 +1140,11 @@ func TestRemoveSubAccount(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(authenticationSkipMessage)
 	}
-	_, err := d.RemoveSubAccount(context.Background(), 1)
+	err := d.RemoveSubAccount(context.Background(), 1)
 	if err != nil && !strings.Contains(err.Error(), "unauthorized") {
 		t.Error(err)
 	}
-	if _, err = d.WSRemoveSubAccount(1); err != nil && !strings.Contains(err.Error(), "unauthorized") {
+	if err = d.WSRemoveSubAccount(1); err != nil && !strings.Contains(err.Error(), "unauthorized") {
 		t.Error(err)
 	}
 }
@@ -1162,7 +1158,7 @@ func TestResetAPIKey(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSResetAPIKey(1); err != nil {
+	if err = d.WSResetAPIKey(1); err != nil {
 		t.Error(err)
 	}
 }
@@ -1172,7 +1168,7 @@ func TestSetAnnouncementAsRead(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(authenticationSkipMessage)
 	}
-	_, err := d.SetAnnouncementAsRead(context.Background(), 1)
+	err := d.SetAnnouncementAsRead(context.Background(), 1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1183,11 +1179,11 @@ func TestSetEmailForSubAccount(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(endpointAuthorizationToManipulate)
 	}
-	_, err := d.SetEmailForSubAccount(context.Background(), 1, "wrongemail@wrongemail.com")
+	err := d.SetEmailForSubAccount(context.Background(), 1, "wrongemail@wrongemail.com")
 	if err != nil && !strings.Contains(err.Error(), "could not link email (wrongemail@wrongemail.com) to subaccount 1") {
 		t.Error(err)
 	}
-	if _, err = d.WSSetEmailForSubAccount(1, "wrongemail@wrongemail.com"); err != nil && !strings.Contains(err.Error(), "could not link email (wrongemail@wrongemail.com) to subaccount 1") {
+	if err = d.WSSetEmailForSubAccount(1, "wrongemail@wrongemail.com"); err != nil && !strings.Contains(err.Error(), "could not link email (wrongemail@wrongemail.com) to subaccount 1") {
 		t.Error(err)
 	}
 }
@@ -1197,11 +1193,11 @@ func TestSetEmailLanguage(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(authenticationSkipMessage)
 	}
-	_, err := d.SetEmailLanguage(context.Background(), "en")
+	err := d.SetEmailLanguage(context.Background(), "en")
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err := d.WSSetEmailLanguage("en"); err != nil {
+	if err := d.WSSetEmailLanguage("en"); err != nil {
 		t.Error(err)
 	}
 }
@@ -1212,7 +1208,7 @@ func TestSetPasswordForSubAccount(t *testing.T) {
 		t.Skip(endpointAuthorizationToManipulate)
 	}
 	// Caution! This may reduce the security of the subaccount
-	_, err := d.SetPasswordForSubAccount(context.Background(), 1, "randompassword123")
+	err := d.SetPasswordForSubAccount(context.Background(), 1, "randompassword123")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1226,11 +1222,11 @@ func TestToggleNotificationsFromSubAccount(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(authenticationSkipMessage)
 	}
-	_, err := d.ToggleNotificationsFromSubAccount(context.Background(), 1, false)
+	err := d.ToggleNotificationsFromSubAccount(context.Background(), 1, false)
 	if err != nil && !strings.Contains(err.Error(), "unauthorized") {
 		t.Error(err)
 	}
-	if _, err = d.WSToggleNotificationsFromSubAccount(1, false); err != nil && !strings.Contains(err.Error(), "unauthorized") {
+	if err = d.WSToggleNotificationsFromSubAccount(1, false); err != nil && !strings.Contains(err.Error(), "unauthorized") {
 		t.Error(err)
 	}
 }
@@ -1261,11 +1257,11 @@ func TestToggleSubAccountLogin(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(authenticationSkipMessage)
 	}
-	_, err := d.ToggleSubAccountLogin(context.Background(), 1, false)
+	err := d.ToggleSubAccountLogin(context.Background(), 1, false)
 	if err != nil && !strings.Contains(err.Error(), "unauthorized") {
 		t.Error(err)
 	}
-	if _, err = d.WSToggleSubAccountLogin(1, false); err != nil && !strings.Contains(err.Error(), "unauthorized") {
+	if err = d.WSToggleSubAccountLogin(1, false); err != nil && !strings.Contains(err.Error(), "unauthorized") {
 		t.Error(err)
 	}
 }
@@ -1630,11 +1626,11 @@ func TestResetMMP(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(authenticationSkipMessage)
 	}
-	_, err := d.ResetMMP(context.Background(), currencyBTC)
+	err := d.ResetMMP(context.Background(), currencyBTC)
 	if err != nil && !strings.Contains(err.Error(), "MMP disabled") {
 		t.Error(err)
 	}
-	if _, err = d.WSResetMMP(currencyBTC); err != nil && !strings.Contains(err.Error(), "MMP disabled") {
+	if err = d.WSResetMMP(currencyBTC); err != nil && !strings.Contains(err.Error(), "MMP disabled") {
 		t.Error(err)
 	}
 }
@@ -1644,11 +1640,11 @@ func TestSendRequestForQuote(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(authenticationSkipMessage)
 	}
-	_, err := d.SendRequestForQuote(context.Background(), "BTC-PERPETUAL", 1000, order.Buy)
+	err := d.SendRequestForQuote(context.Background(), "BTC-PERPETUAL", 1000, order.Buy)
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSSendRequestForQuote("BTC-PERPETUAL", 1000, order.Buy); err != nil {
+	if err = d.WSSendRequestForQuote("BTC-PERPETUAL", 1000, order.Buy); err != nil {
 		t.Error(err)
 	}
 }
@@ -1658,11 +1654,11 @@ func TestSetMMPConfig(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(authenticationSkipMessage)
 	}
-	_, err := d.SetMMPConfig(context.Background(), currencyBTC, 5, 5, 0, 0)
+	err := d.SetMMPConfig(context.Background(), currencyBTC, 5, 5, 0, 0)
 	if err != nil && !strings.Contains(err.Error(), "MMP disabled") {
 		t.Error(err)
 	}
-	if _, err = d.WSSetMMPConfig(currencyBTC, 5, 5, 0, 0); err != nil && !strings.Contains(err.Error(), "MMP disabled") {
+	if err = d.WSSetMMPConfig(currencyBTC, 5, 5, 0, 0); err != nil && !strings.Contains(err.Error(), "MMP disabled") {
 		t.Error(err)
 	}
 }
@@ -2323,14 +2319,14 @@ func TestGetRecentTrades(t *testing.T) {
 	}
 }
 
-func (d *Deribit) getFirstAssetTradablePair(t *testing.T) (currency.Pair, error) {
+func (d *Deribit) getFirstAssetTradablePair(t *testing.T, a asset.Item) (currency.Pair, error) {
 	t.Helper()
-	instruments, err := d.FetchTradablePairs(context.Background(), asset.Futures)
+	instruments, err := d.FetchTradablePairs(context.Background(), a)
 	if err != nil {
-		t.Skip(err)
+		return currency.EMPTYPAIR, err
 	}
-	if len(instruments) < 1 {
-		t.Skip("no enough instrument found")
+	if len(instruments) == 0 {
+		return currency.EMPTYPAIR, errors.New("no enough instrument found")
 	}
 	cp, err := currency.NewPairFromString(instruments[0])
 	if err != nil {

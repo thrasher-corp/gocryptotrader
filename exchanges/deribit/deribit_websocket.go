@@ -302,45 +302,45 @@ func (d *Deribit) processOrders(respRaw []byte, channels []string) error {
 		return fmt.Errorf("%w, expected format 'user.orders.{instrument_name}.raw, user.orders.{instrument_name}.{interval}, user.orders.{kind}.{currency}.raw, or user.orders.{kind}.{currency}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
 	}
 	var response WsResponse
-	orderData := &[]WsOrder{}
+	orderData := []WsOrder{}
 	response.Params.Data = orderData
 	err = json.Unmarshal(respRaw, &response)
 	if err != nil {
 		return err
 	}
-	orderDetails := make([]order.Detail, len(*orderData))
-	for x := range *orderData {
-		oType, err := order.StringToOrderType((*orderData)[x].OrderType)
+	orderDetails := make([]order.Detail, len(orderData))
+	for x := range orderData {
+		oType, err := order.StringToOrderType((orderData)[x].OrderType)
 		if err != nil {
 			return err
 		}
-		side, err := order.StringToOrderSide((*orderData)[x].Direction)
+		side, err := order.StringToOrderSide((orderData)[x].Direction)
 		if err != nil {
 			return err
 		}
-		status, err := order.StringToOrderStatus((*orderData)[x].OrderState)
+		status, err := order.StringToOrderStatus((orderData)[x].OrderState)
 		if err != nil {
 			return err
 		}
 		if a != asset.Empty {
-			currencyPair, err = currency.NewPairFromString((*orderData)[x].InstrumentName)
+			currencyPair, err = currency.NewPairFromString((orderData)[x].InstrumentName)
 			if err != nil {
 				return err
 			}
 		}
 		orderDetails[x] = order.Detail{
-			Price:           (*orderData)[x].Price,
-			Amount:          (*orderData)[x].Amount,
-			ExecutedAmount:  (*orderData)[x].FilledAmount,
-			RemainingAmount: (*orderData)[x].Amount - (*orderData)[x].FilledAmount,
+			Price:           (orderData)[x].Price,
+			Amount:          (orderData)[x].Amount,
+			ExecutedAmount:  (orderData)[x].FilledAmount,
+			RemainingAmount: (orderData)[x].Amount - (orderData)[x].FilledAmount,
 			Exchange:        d.Name,
-			OrderID:         (*orderData)[x].OrderID,
+			OrderID:         (orderData)[x].OrderID,
 			Type:            oType,
 			Side:            side,
 			Status:          status,
 			AssetType:       a,
-			Date:            time.UnixMilli((*orderData)[x].CreationTimestamp),
-			LastUpdated:     time.UnixMilli((*orderData)[x].LastUpdateTimestamp),
+			Date:            time.UnixMilli((orderData)[x].CreationTimestamp),
+			LastUpdated:     time.UnixMilli((orderData)[x].LastUpdateTimestamp),
 			Pair:            currencyPair,
 		}
 	}
