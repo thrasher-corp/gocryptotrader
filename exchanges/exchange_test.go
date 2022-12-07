@@ -2618,6 +2618,8 @@ func TestGetPairAndAssetTypeRequestFormatted(t *testing.T) {
 }
 
 func TestSetRequester(t *testing.T) {
+	t.Parallel()
+
 	b := Base{
 		Config:    &config.Exchange{Name: "kitties"},
 		Requester: nil,
