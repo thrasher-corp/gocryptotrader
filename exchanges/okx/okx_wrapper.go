@@ -1079,7 +1079,7 @@ func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (ok *Okx) GetDepositAddress(ctx context.Context, c currency.Code, accountID, chain string) (*deposit.Address, error) {
+func (ok *Okx) GetDepositAddress(ctx context.Context, c currency.Code, _, chain string) (*deposit.Address, error) {
 	response, err := ok.GetCurrencyDepositAddress(ctx, c.String())
 	if err != nil {
 		return nil, err
