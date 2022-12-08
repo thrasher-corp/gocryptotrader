@@ -162,8 +162,8 @@ func (b *Bitflyer) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		return nil, err
 	}
 	pairs := make([]currency.Pair, 0, len(symbols))
-	var pair currency.Pair
 	for i := range symbols {
+		var pair currency.Pair
 		if symbols[i].Alias != "" && a == asset.Futures {
 			pair, err = currency.NewPairFromString(symbols[i].Alias)
 			if err != nil {

@@ -253,11 +253,11 @@ func (b *BTSE) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 		return nil, err
 	}
 	pairs := make([]currency.Pair, 0, len(m))
-	var pair currency.Pair
 	for x := range m {
 		if !m[x].Active {
 			continue
 		}
+		var pair currency.Pair
 		pair, err = currency.NewPairFromString(m[x].Symbol)
 		if err != nil {
 			return nil, err

@@ -166,8 +166,8 @@ func (y *Yobit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.
 
 	pairs := make([]currency.Pair, len(info.Pairs))
 	var target int
-	var pair currency.Pair
 	for key := range info.Pairs {
+		var pair currency.Pair
 		pair, err = currency.NewPairFromString(key)
 		if err != nil {
 			return nil, err

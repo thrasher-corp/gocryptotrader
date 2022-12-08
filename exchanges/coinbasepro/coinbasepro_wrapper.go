@@ -290,8 +290,8 @@ func (c *CoinbasePro) FetchTradablePairs(ctx context.Context, a asset.Item) (cur
 	}
 
 	pairs := make([]currency.Pair, len(products))
-	var pair currency.Pair
 	for x := range products {
+		var pair currency.Pair
 		pair, err = currency.NewPairFromStrings(products[x].BaseCurrency,
 			products[x].QuoteCurrency)
 		if err != nil {

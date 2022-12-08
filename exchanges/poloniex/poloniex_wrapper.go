@@ -262,8 +262,8 @@ func (p *Poloniex) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 
 	pairs := make([]currency.Pair, len(resp))
 	var target int
-	var pair currency.Pair
 	for key := range resp {
+		var pair currency.Pair
 		pair, err = currency.NewPairFromString(key)
 		if err != nil {
 			return nil, err

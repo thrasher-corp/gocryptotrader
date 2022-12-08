@@ -178,9 +178,9 @@ func (e *EXMO) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 	}
 
 	pairs := make([]currency.Pair, len(symbols))
-	var pair currency.Pair
 	var target int
 	for key := range symbols {
+		var pair currency.Pair
 		pair, err = currency.NewPairFromString(key)
 		if err != nil {
 			return nil, err

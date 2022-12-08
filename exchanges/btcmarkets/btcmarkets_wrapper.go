@@ -293,8 +293,8 @@ func (b *BTCMarkets) FetchTradablePairs(ctx context.Context, a asset.Item) (curr
 		return nil, err
 	}
 	pairs := make([]currency.Pair, len(markets))
-	var pair currency.Pair
 	for x := range markets {
+		var pair currency.Pair
 		pair, err = currency.NewPairFromString(markets[x].MarketID)
 		if err != nil {
 			return nil, err

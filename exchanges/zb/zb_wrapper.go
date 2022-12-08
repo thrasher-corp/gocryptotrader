@@ -229,8 +229,8 @@ func (z *ZB) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pai
 
 	pairs := make([]currency.Pair, len(markets))
 	var target int
-	var pair currency.Pair
 	for key := range markets {
+		var pair currency.Pair
 		pair, err = currency.NewPairFromString(key)
 		if err != nil {
 			return nil, err

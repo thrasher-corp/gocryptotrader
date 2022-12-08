@@ -287,8 +287,8 @@ func (h *HitBTC) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 	}
 
 	pairs := make([]currency.Pair, len(symbols))
-	var pair currency.Pair
 	for x := range symbols {
+		var pair currency.Pair
 		pair, err = currency.NewPairFromStrings(symbols[x].BaseCurrency, symbols[x].QuoteCurrency)
 		if err != nil {
 			return nil, err

@@ -286,11 +286,11 @@ func (b *Bitstamp) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 	}
 
 	pairs := make([]currency.Pair, 0, len(symbols))
-	var pair currency.Pair
 	for x := range symbols {
 		if symbols[x].Trading != "Enabled" {
 			continue
 		}
+		var pair currency.Pair
 		pair, err = currency.NewPairFromString(symbols[x].Name)
 		if err != nil {
 			return nil, err
