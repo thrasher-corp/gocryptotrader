@@ -116,7 +116,12 @@ func (a *Alphapoint) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 		AssetType:  assetType,
 	})
 
-	err = account.Process(&response)
+	creds, err := a.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
+	err = account.Process(&response, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -127,7 +132,11 @@ func (a *Alphapoint) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 // FetchAccountInfo retrieves balances for all enabled currencies on the
 // Alphapoint exchange
 func (a *Alphapoint) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(a.Name, assetType)
+	creds, err := a.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(a.Name, creds, assetType)
 	if err != nil {
 		return a.UpdateAccountInfo(ctx, assetType)
 	}
@@ -227,7 +236,7 @@ func (a *Alphapoint) GetFundingHistory(ctx context.Context) ([]exchange.FundHist
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (a *Alphapoint) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (a *Alphapoint) GetWithdrawalsHistory(ctx context.Context, c currency.Code, as asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -243,15 +252,14 @@ func (a *Alphapoint) GetHistoricTrades(_ context.Context, _ currency.Pair, _ ass
 
 // SubmitOrder submits a new order and returns a true value when
 // successfully submitted
-func (a *Alphapoint) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (a *Alphapoint) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	fPair, err := a.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	response, err := a.CreateOrder(ctx,
@@ -261,17 +269,9 @@ func (a *Alphapoint) SubmitOrder(ctx context.Context, s *order.Submit) (order.Su
 		s.Amount,
 		s.Price)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
-	if response > 0 {
-		submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
-	}
-	if s.Type == order.Market {
-		submitOrderResponse.FullyMatched = true
-	}
-	submitOrderResponse.IsOrderPlaced = true
-
-	return submitOrderResponse, nil
+	return s.DeriveSubmitResponse(strconv.FormatInt(response, 10))
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -285,7 +285,7 @@ func (a *Alphapoint) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
-	orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -363,8 +363,9 @@ func (a *Alphapoint) GetFeeByType(_ *exchange.FeeBuilder) (float64, error) {
 
 // GetActiveOrders retrieves any orders that are active/open
 // This function is not concurrency safe due to orderSide/orderType maps
-func (a *Alphapoint) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (a *Alphapoint) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 	resp, err := a.GetOrders(ctx)
@@ -384,7 +385,7 @@ func (a *Alphapoint) GetActiveOrders(ctx context.Context, req *order.GetOrdersRe
 				Exchange:        a.Name,
 				ExecutedAmount:  resp[x].OpenOrders[y].QtyTotal - resp[x].OpenOrders[y].QtyRemaining,
 				AccountID:       strconv.FormatInt(int64(resp[x].OpenOrders[y].AccountID), 10),
-				ID:              strconv.FormatInt(int64(resp[x].OpenOrders[y].ServerOrderID), 10),
+				OrderID:         strconv.FormatInt(int64(resp[x].OpenOrders[y].ServerOrderID), 10),
 				Price:           resp[x].OpenOrders[y].Price,
 				RemainingAmount: resp[x].OpenOrders[y].QtyRemaining,
 			}
@@ -395,21 +396,15 @@ func (a *Alphapoint) GetActiveOrders(ctx context.Context, req *order.GetOrdersRe
 			orders = append(orders, orderDetail)
 		}
 	}
-
-	order.FilterOrdersByType(&orders, req.Type)
-	order.FilterOrdersBySide(&orders, req.Side)
-	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", a.Name, err)
-	}
-	return orders, nil
+	return req.Filter(a.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 // This function is not concurrency safe due to orderSide/orderType maps
-func (a *Alphapoint) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (a *Alphapoint) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 
@@ -430,7 +425,7 @@ func (a *Alphapoint) GetOrderHistory(ctx context.Context, req *order.GetOrdersRe
 				AccountID:       strconv.FormatInt(int64(resp[x].OpenOrders[y].AccountID), 10),
 				Exchange:        a.Name,
 				ExecutedAmount:  resp[x].OpenOrders[y].QtyTotal - resp[x].OpenOrders[y].QtyRemaining,
-				ID:              strconv.FormatInt(int64(resp[x].OpenOrders[y].ServerOrderID), 10),
+				OrderID:         strconv.FormatInt(int64(resp[x].OpenOrders[y].ServerOrderID), 10),
 				Price:           resp[x].OpenOrders[y].Price,
 				RemainingAmount: resp[x].OpenOrders[y].QtyRemaining,
 			}
@@ -441,14 +436,7 @@ func (a *Alphapoint) GetOrderHistory(ctx context.Context, req *order.GetOrdersRe
 			orders = append(orders, orderDetail)
 		}
 	}
-
-	order.FilterOrdersByType(&orders, req.Type)
-	order.FilterOrdersBySide(&orders, req.Side)
-	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", a.Name, err)
-	}
-	return orders, nil
+	return req.Filter(a.Name, orders), nil
 }
 
 // ValidateCredentials validates current credentials used for wrapper

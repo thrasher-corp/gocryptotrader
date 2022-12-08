@@ -148,3 +148,40 @@ type Update struct {
 	// only exchange utilising this field.
 	MaxDepth int
 }
+
+// Movement defines orderbook traversal details from either hitting the bids or
+// lifting the asks.
+type Movement struct {
+	// NominalPercentage (real-world) defines how far in percentage terms is
+	// your average order price away from the reference price.
+	NominalPercentage float64
+	// ImpactPercentage defines how far the price has moved on the order book
+	// from the reference price.
+	ImpactPercentage float64
+	// SlippageCost is the cost of the slippage. This is priced in quotation.
+	SlippageCost float64
+	// StartPrice defines the reference price or the head of the orderbook side.
+	StartPrice float64
+	// EndPrice defines where the price has ended on the orderbook side.
+	EndPrice float64
+	// Sold defines the amount of currency sold.
+	Sold float64
+	// Purchases defines the amount of currency purchased.
+	Purchased float64
+	// AverageOrderCost defines the average order cost of position as it slips
+	// through the orderbook tranches.
+	AverageOrderCost float64
+	// FullBookSideConsumed defines if the orderbook liquidty has been consumed
+	// by the requested amount. This might not represent the actual book on the
+	// exchange as they might restrict the amount of information being passed
+	// back from either a REST request or websocket stream.
+	FullBookSideConsumed bool
+}
+
+// SideAmounts define the amounts total for the tranches, total value in
+// quotation and the cumulative base amounts.
+type SideAmounts struct {
+	Tranches   int64
+	QuoteValue float64
+	BaseAmount float64
+}

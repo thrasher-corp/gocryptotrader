@@ -492,12 +492,12 @@ func TestProcessOrderbook(t *testing.T) {
 		m.Unlock()
 		wg.Add(1)
 		go func() {
-			newName := "Exchange" + strconv.FormatInt(rand.Int63(), 10) // nolint:gosec // no need to import crypo/rand for testing
+			newName := "Exchange" + strconv.FormatInt(rand.Int63(), 10) //nolint:gosec // no need to import crypo/rand for testing
 			newPairs := currency.NewPair(currency.NewCode("BTC"+strconv.FormatInt(rand.Int63(), 10)),
-				currency.NewCode("USD"+strconv.FormatInt(rand.Int63(), 10))) // nolint:gosec // no need to import crypo/rand for testing
+				currency.NewCode("USD"+strconv.FormatInt(rand.Int63(), 10))) //nolint:gosec // no need to import crypo/rand for testing
 
-			asks := []Item{{Price: rand.Float64(), Amount: rand.Float64()}} // nolint:gosec // no need to import crypo/rand for testing
-			bids := []Item{{Price: rand.Float64(), Amount: rand.Float64()}} // nolint:gosec // no need to import crypo/rand for testing
+			asks := []Item{{Price: rand.Float64(), Amount: rand.Float64()}} //nolint:gosec // no need to import crypo/rand for testing
+			bids := []Item{{Price: rand.Float64(), Amount: rand.Float64()}} //nolint:gosec // no need to import crypo/rand for testing
 			base := &Base{
 				Pair:     newPairs,
 				Asks:     asks,
@@ -558,7 +558,7 @@ func deployUnorderedSlice() Items {
 	var items []Item
 	rand.Seed(time.Now().UnixNano())
 	for i := 0; i < 1000; i++ {
-		items = append(items, Item{Amount: 1, Price: rand.Float64(), ID: rand.Int63()}) // nolint:gosec // Not needed in tests
+		items = append(items, Item{Amount: 1, Price: rand.Float64(), ID: rand.Int63()}) //nolint:gosec // Not needed in tests
 	}
 	return items
 }
@@ -596,7 +596,7 @@ func deploySliceOrdered() Items {
 	rand.Seed(time.Now().UnixNano())
 	var items []Item
 	for i := 0; i < 1000; i++ {
-		items = append(items, Item{Amount: 1, Price: float64(i + 1), ID: rand.Int63()}) // nolint:gosec // Not needed in tests
+		items = append(items, Item{Amount: 1, Price: float64(i + 1), ID: rand.Int63()}) //nolint:gosec // Not needed in tests
 	}
 	return items
 }
@@ -620,7 +620,7 @@ func TestReverse(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.Asks = append(b.Bids[:0:0], b.Bids...) // nolint:gocritic //  Short hand
+	b.Asks = append(b.Bids[:0:0], b.Bids...) //nolint:gocritic //  Short hand
 	err = b.Verify()
 	if !errors.Is(err, errPriceOutOfOrder) {
 		t.Fatalf("error expected %v received %v", errPriceOutOfOrder, err)
@@ -645,11 +645,11 @@ func BenchmarkReverse(b *testing.B) {
 	}
 }
 
-//   20209	     56385 ns/op	   49189 B/op	       2 allocs/op
+// 20209	     56385 ns/op	   49189 B/op	       2 allocs/op
 func BenchmarkSortAsksDecending(b *testing.B) {
 	s := deploySliceOrdered()
 	for i := 0; i < b.N; i++ {
-		// nolint: gocritic
+		//nolint: gocritic
 		ts := append(s[:0:0], s...)
 		ts.SortAsks()
 	}
@@ -660,7 +660,7 @@ func BenchmarkSortBidsAscending(b *testing.B) {
 	s := deploySliceOrdered()
 	s.Reverse()
 	for i := 0; i < b.N; i++ {
-		// nolint: gocritic
+		//nolint: gocritic
 		ts := append(s[:0:0], s...)
 		ts.SortBids()
 	}
@@ -670,7 +670,7 @@ func BenchmarkSortBidsAscending(b *testing.B) {
 func BenchmarkSortAsksStandard(b *testing.B) {
 	s := deployUnorderedSlice()
 	for i := 0; i < b.N; i++ {
-		// nolint: gocritic
+		//nolint: gocritic
 		ts := append(s[:0:0], s...)
 		ts.SortAsks()
 	}
@@ -680,7 +680,7 @@ func BenchmarkSortAsksStandard(b *testing.B) {
 func BenchmarkSortBidsStandard(b *testing.B) {
 	s := deployUnorderedSlice()
 	for i := 0; i < b.N; i++ {
-		// nolint: gocritic
+		//nolint: gocritic
 		ts := append(s[:0:0], s...)
 		ts.SortBids()
 	}
@@ -690,7 +690,7 @@ func BenchmarkSortBidsStandard(b *testing.B) {
 func BenchmarkSortAsksAscending(b *testing.B) {
 	s := deploySliceOrdered()
 	for i := 0; i < b.N; i++ {
-		// nolint: gocritic
+		//nolint: gocritic
 		ts := append(s[:0:0], s...)
 		ts.SortAsks()
 	}
@@ -701,7 +701,7 @@ func BenchmarkSortBidsDescending(b *testing.B) {
 	s := deploySliceOrdered()
 	s.Reverse()
 	for i := 0; i < b.N; i++ {
-		// nolint: gocritic
+		//nolint: gocritic
 		ts := append(s[:0:0], s...)
 		ts.SortBids()
 	}

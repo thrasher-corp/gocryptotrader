@@ -453,7 +453,11 @@ func (h *HitBTC) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		Currencies: currencies,
 	})
 
-	err = account.Process(&response)
+	creds, err := h.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&response, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -463,7 +467,11 @@ func (h *HitBTC) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (h *HitBTC) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(h.Name, assetType)
+	creds, err := h.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(h.Name, creds, assetType)
 	if err != nil {
 		return h.UpdateAccountInfo(ctx, assetType)
 	}
@@ -478,7 +486,7 @@ func (h *HitBTC) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory,
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (h *HitBTC) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (h *HitBTC) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -556,26 +564,29 @@ allTrades:
 }
 
 // SubmitOrder submits a new order
-func (h *HitBTC) SubmitOrder(ctx context.Context, o *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (h *HitBTC) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitResponse, error) {
 	err := o.Validate()
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
+
+	var orderID string
+	status := order.New
 	if h.Websocket.IsConnected() && h.Websocket.CanUseAuthenticatedEndpoints() {
 		var response *WsSubmitOrderSuccessResponse
 		response, err = h.wsPlaceOrder(o.Pair, o.Side.String(), o.Amount, o.Price)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
-		submitOrderResponse.OrderID = strconv.FormatInt(response.ID, 10)
+		orderID = strconv.FormatInt(response.ID, 10)
 		if response.Result.CumQuantity == o.Amount {
-			submitOrderResponse.FullyMatched = true
+			status = order.Filled
 		}
 	} else {
-		fPair, err := h.FormatExchangeCurrency(o.Pair, o.AssetType)
+		var fPair currency.Pair
+		fPair, err = h.FormatExchangeCurrency(o.Pair, o.AssetType)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
 
 		var response OrderResponse
@@ -583,27 +594,28 @@ func (h *HitBTC) SubmitOrder(ctx context.Context, o *order.Submit) (order.Submit
 			fPair.String(),
 			o.Price,
 			o.Amount,
-			strings.ToLower(o.Type.String()),
-			strings.ToLower(o.Side.String()))
+			o.Type.Lower(),
+			o.Side.Lower())
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
-		if response.OrderNumber > 0 {
-			submitOrderResponse.OrderID = strconv.FormatInt(response.OrderNumber, 10)
-		}
+		orderID = strconv.FormatInt(response.OrderNumber, 10)
 		if o.Type == order.Market {
-			submitOrderResponse.FullyMatched = true
+			status = order.Filled
 		}
 	}
-	submitOrderResponse.IsOrderPlaced = true
-
-	return submitOrderResponse, nil
+	resp, err := o.DeriveSubmitResponse(orderID)
+	if err != nil {
+		return nil, err
+	}
+	resp.Status = status
+	return resp, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (h *HitBTC) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
-	return order.Modify{}, common.ErrFunctionNotSupported
+func (h *HitBTC) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -612,7 +624,7 @@ func (h *HitBTC) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -711,8 +723,9 @@ func (h *HitBTC) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuild
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (h *HitBTC) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (h *HitBTC) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 
@@ -722,7 +735,8 @@ func (h *HitBTC) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 
 	var allOrders []OrderHistoryResponse
 	for i := range req.Pairs {
-		resp, err := h.GetOpenOrders(ctx, req.Pairs[i].String())
+		var resp []OrderHistoryResponse
+		resp, err = h.GetOpenOrders(ctx, req.Pairs[i].String())
 		if err != nil {
 			return nil, err
 		}
@@ -748,7 +762,7 @@ func (h *HitBTC) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			return nil, err
 		}
 		orders[i] = order.Detail{
-			ID:       allOrders[i].ID,
+			OrderID:  allOrders[i].ID,
 			Amount:   allOrders[i].Quantity,
 			Exchange: h.Name,
 			Price:    allOrders[i].Price,
@@ -757,19 +771,14 @@ func (h *HitBTC) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			Pair:     symbol,
 		}
 	}
-
-	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", h.Name, err)
-	}
-	order.FilterOrdersBySide(&orders, req.Side)
-	return orders, nil
+	return req.Filter(h.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (h *HitBTC) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (h *HitBTC) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 
@@ -779,7 +788,8 @@ func (h *HitBTC) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 
 	var allOrders []OrderHistoryResponse
 	for i := range req.Pairs {
-		resp, err := h.GetOrders(ctx, req.Pairs[i].String())
+		var resp []OrderHistoryResponse
+		resp, err = h.GetOrders(ctx, req.Pairs[i].String())
 		if err != nil {
 			return nil, err
 		}
@@ -810,7 +820,7 @@ func (h *HitBTC) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 			log.Errorf(log.ExchangeSys, "%s %v", h.Name, err)
 		}
 		detail := order.Detail{
-			ID:                   allOrders[i].ID,
+			OrderID:              allOrders[i].ID,
 			Amount:               allOrders[i].Quantity,
 			ExecutedAmount:       allOrders[i].CumQuantity,
 			RemainingAmount:      allOrders[i].Quantity - allOrders[i].CumQuantity,
@@ -826,13 +836,7 @@ func (h *HitBTC) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		detail.InferCostsAndTimes()
 		orders[i] = detail
 	}
-
-	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", h.Name, err)
-	}
-	order.FilterOrdersBySide(&orders, req.Side)
-	return orders, nil
+	return req.Filter(h.Name, orders), nil
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

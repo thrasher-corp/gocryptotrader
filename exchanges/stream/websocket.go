@@ -46,6 +46,14 @@ var (
 	errClosedConnection                     = errors.New("use of closed network connection")
 )
 
+var globalReporter Reporter
+
+// SetupGlobalReporter sets a reporter interface to be used
+// for all exchange requests
+func SetupGlobalReporter(r Reporter) {
+	globalReporter = r
+}
+
 // New initialises the websocket struct
 func New() *Websocket {
 	return &Websocket{
@@ -183,6 +191,14 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 		connectionURL = c.URL
 	}
 
+	if c.ConnectionLevelReporter == nil {
+		c.ConnectionLevelReporter = w.ExchangeLevelReporter
+	}
+
+	if c.ConnectionLevelReporter == nil {
+		c.ConnectionLevelReporter = globalReporter
+	}
+
 	newConn := &WebsocketConnection{
 		ExchangeName:      w.exchangeName,
 		URL:               connectionURL,
@@ -195,6 +211,7 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 		Wg:                w.Wg,
 		Match:             w.Match,
 		RateLimit:         c.RateLimit,
+		Reporter:          c.ConnectionLevelReporter,
 	}
 
 	if c.Authenticated {
@@ -551,6 +568,8 @@ func (w *Websocket) trafficMonitor() {
 						w.trafficTimeout)
 				}
 				trafficTimer.Stop()
+				w.setTrafficMonitorRunning(false)
+				w.Wg.Done() // without this the w.Shutdown() call below will deadlock
 				if !w.IsConnecting() && w.IsConnected() {
 					err := w.Shutdown()
 					if err != nil {
@@ -559,8 +578,7 @@ func (w *Websocket) trafficMonitor() {
 							w.exchangeName, err)
 					}
 				}
-				w.setTrafficMonitorRunning(false)
-				w.Wg.Done()
+
 				return
 			}
 

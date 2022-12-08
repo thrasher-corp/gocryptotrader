@@ -58,8 +58,8 @@ const (
 
 	// Authenticated endpoints
 	bitmexEndpointAPIkeys               = "/apiKey"
-	bitmexEndpointDisableAPIkey         = "/apiKey/disable" // nolint:gosec // false positive
-	bitmexEndpointEnableAPIkey          = "/apiKey/enable"  // nolint:gosec // false positive
+	bitmexEndpointDisableAPIkey         = "/apiKey/disable" //nolint:gosec // false positive
+	bitmexEndpointEnableAPIkey          = "/apiKey/enable"  //nolint:gosec // false positive
 	bitmexEndpointTrollboxSend          = "/chat"
 	bitmexEndpointExecution             = "/execution"
 	bitmexEndpointExecutionTradeHistory = "/execution/tradeHistory"
@@ -103,6 +103,14 @@ const (
 	ContractDownsideProfit
 	// ContractUpsideProfit upside profit contract type
 	ContractUpsideProfit
+
+	perpetualContractID         = "FFWCSX"
+	spotID                      = "IFXXXP"
+	futuresID                   = "FFCCSX"
+	bitMEXBasketIndexID         = "MRBXXX"
+	bitMEXPriceIndexID          = "MRCXXX"
+	bitMEXLendingPremiumIndexID = "MRRXXX"
+	bitMEXVolatilityIndexID     = "MRIXXX"
 )
 
 // GetAnnouncement returns the general announcements from Bitmex

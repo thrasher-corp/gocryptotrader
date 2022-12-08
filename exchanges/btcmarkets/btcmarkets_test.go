@@ -217,6 +217,7 @@ func TestGetTradeByID(t *testing.T) {
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	_, err := b.SubmitOrder(context.Background(), &order.Submit{
+		Exchange:  b.Name,
 		Price:     100,
 		Amount:    1,
 		Type:      order.TrailingStop,
@@ -229,6 +230,7 @@ func TestSubmitOrder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrTypeIsInvalid)
 	}
 	_, err = b.SubmitOrder(context.Background(), &order.Submit{
+		Exchange:  b.Name,
 		Price:     100,
 		Amount:    1,
 		Type:      order.Limit,
@@ -245,6 +247,7 @@ func TestSubmitOrder(t *testing.T) {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 	_, err = b.SubmitOrder(context.Background(), &order.Submit{
+		Exchange:  b.Name,
 		Price:     100,
 		Amount:    1,
 		Type:      order.Limit,
@@ -537,6 +540,7 @@ func TestGetOrderHistory(t *testing.T) {
 	_, err := b.GetOrderHistory(context.Background(), &order.GetOrdersRequest{
 		Side:      order.Buy,
 		AssetType: asset.Spot,
+		Type:      order.AnyType,
 	})
 	if err != nil {
 		t.Error(err)
@@ -576,7 +580,7 @@ func TestGetActiveOrders(t *testing.T) {
 	}
 
 	_, err := b.GetActiveOrders(context.Background(),
-		&order.GetOrdersRequest{AssetType: asset.Spot})
+		&order.GetOrdersRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1041,6 +1045,60 @@ func TestGetTimeInForce(t *testing.T) {
 	}
 }
 
+func TestReplaceOrder(t *testing.T) {
+	t.Parallel()
+	_, err := b.ReplaceOrder(context.Background(), "", "bro", 0, 0)
+	if !errors.Is(err, errInvalidAmount) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidAmount)
+	}
+
+	_, err = b.ReplaceOrder(context.Background(), "", "bro", 1, 0)
+	if !errors.Is(err, errInvalidAmount) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidAmount)
+	}
+
+	_, err = b.ReplaceOrder(context.Background(), "", "bro", 1, 1)
+	if !errors.Is(err, errIDRequired) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errIDRequired)
+	}
+
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+	}
+
+	_, err = b.ReplaceOrder(context.Background(), "8207096301", "bruh", 100000, 0.001)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+}
+
+func TestWrapperModifyOrder(t *testing.T) {
+	t.Parallel()
+	_, err := b.ModifyOrder(context.Background(), &order.Modify{})
+	if !errors.Is(err, order.ErrPairIsEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrPairIsEmpty)
+	}
+
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+	}
+	mo, err := b.ModifyOrder(context.Background(), &order.Modify{
+		Pair:          currency.NewPair(currency.BTC, currency.AUD),
+		AssetType:     asset.Spot,
+		Price:         100000,
+		Amount:        0.001,
+		OrderID:       "8207123461",
+		ClientOrderID: "bruh3",
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if mo == nil {
+		t.Fatal("expected data return")
+	}
+}
+
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 	err := b.UpdateOrderExecutionLimits(context.Background(), asset.Empty)
@@ -1058,7 +1116,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	if lim == nil {
+	if lim == (order.MinMaxLevel{}) {
 		t.Fatal("expected value return")
 	}
 }

@@ -25,8 +25,7 @@ import (
 
 const (
 	krakenAPIURL         = "https://api.kraken.com"
-	krakenFuturesURL     = "https://futures.kraken.com"
-	futuresURL           = "https://futures.kraken.com/derivatives"
+	krakenFuturesURL     = "https://futures.kraken.com/derivatives"
 	krakenSpotVersion    = "0"
 	krakenFuturesVersion = "3"
 )
@@ -952,6 +951,10 @@ func (k *Kraken) AddOrder(ctx context.Context, symbol currency.Pair, side, order
 		params.Set("validate", "true")
 	}
 
+	if args.TimeInForce != "" {
+		params.Set("timeinforce", string(args.TimeInForce))
+	}
+
 	if err := k.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenOrderPlace, params, &response); err != nil {
 		return response.Result, err
 	}
@@ -977,11 +980,12 @@ func (k *Kraken) CancelExistingOrder(ctx context.Context, txid string) (CancelOr
 	return response.Result, GetError(response.Error)
 }
 
-// GetError parse Exchange errors in response and return the first one
+// GetError parse Exchange errors in response and return the first one.
+//
 // Error format from API doc:
-//   error = array of error messages in the format of:
-//       <char-severity code><string-error category>:<string-error type>[:<string-extra info>]
-//       severity code can be E for error or W for warning
+//   - error = array of error messages in the format of:
+//     <char-severity code><string-error category>:<string-error type>[:<string-extra info>]
+//     severity code can be E for error or W for warning
 func GetError(apiErrors []string) error {
 	const exchangeName = "Kraken"
 	for _, e := range apiErrors {

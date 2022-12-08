@@ -38,7 +38,7 @@ func TestWebsocketRoutineManagerSetup(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, errNilCurrencyPairFormat)
 	}
 
-	m, err := setupWebsocketRoutineManager(SetupExchangeManager(), &OrderManager{}, &syncManager{}, &currency.Config{}, false)
+	m, err := setupWebsocketRoutineManager(SetupExchangeManager(), &OrderManager{}, &syncManager{}, &currency.Config{CurrencyPairFormat: &currency.PairFormat{}}, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -77,7 +77,7 @@ func TestWebsocketRoutineManagerIsRunning(t *testing.T) {
 		t.Error("expected false")
 	}
 
-	m, err := setupWebsocketRoutineManager(SetupExchangeManager(), &OrderManager{}, &syncManager{}, &currency.Config{}, false)
+	m, err := setupWebsocketRoutineManager(SetupExchangeManager(), &OrderManager{}, &syncManager{}, &currency.Config{CurrencyPairFormat: &currency.PairFormat{}}, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -101,7 +101,7 @@ func TestWebsocketRoutineManagerStop(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
 	}
 
-	m, err = setupWebsocketRoutineManager(SetupExchangeManager(), &OrderManager{}, &syncManager{}, &currency.Config{}, false)
+	m, err = setupWebsocketRoutineManager(SetupExchangeManager(), &OrderManager{}, &syncManager{}, &currency.Config{CurrencyPairFormat: &currency.PairFormat{}}, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -131,7 +131,7 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 	exch.SetDefaults()
 	em.Add(exch)
 
-	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false)
+	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, false, 0)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -152,19 +152,15 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 	var orderID = "1337"
-	err = m.WebsocketDataHandler(exchName, errors.New("error"))
+	err = m.websocketDataHandler(exchName, errors.New("error"))
 	if err == nil {
 		t.Error("Error not handled correctly")
 	}
-	err = m.WebsocketDataHandler(exchName, nil)
-	if err == nil {
-		t.Error("Expected nil data error")
-	}
-	err = m.WebsocketDataHandler(exchName, stream.FundingData{})
+	err = m.websocketDataHandler(exchName, stream.FundingData{})
 	if err != nil {
 		t.Error(err)
 	}
-	err = m.WebsocketDataHandler(exchName, &ticker.Price{
+	err = m.websocketDataHandler(exchName, &ticker.Price{
 		ExchangeName: exchName,
 		Pair:         currency.NewPair(currency.BTC, currency.USDC),
 		AssetType:    asset.Spot,
@@ -172,30 +168,30 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	err = m.WebsocketDataHandler(exchName, stream.KlineData{})
+	err = m.websocketDataHandler(exchName, stream.KlineData{})
 	if err != nil {
 		t.Error(err)
 	}
 	origOrder := &order.Detail{
 		Exchange: exchName,
-		ID:       orderID,
+		OrderID:  orderID,
 		Amount:   1337,
 		Price:    1337,
 	}
-	err = m.WebsocketDataHandler(exchName, origOrder)
+	err = m.websocketDataHandler(exchName, origOrder)
 	if err != nil {
 		t.Error(err)
 	}
 	// Send it again since it exists now
-	err = m.WebsocketDataHandler(exchName, &order.Detail{
+	err = m.websocketDataHandler(exchName, &order.Detail{
 		Exchange: exchName,
-		ID:       orderID,
+		OrderID:  orderID,
 		Amount:   1338,
 	})
 	if err != nil {
 		t.Error(err)
 	}
-	updated, err := m.orderManager.GetByExchangeAndID(origOrder.Exchange, origOrder.ID)
+	updated, err := m.orderManager.GetByExchangeAndID(origOrder.Exchange, origOrder.OrderID)
 	if err != nil {
 		t.Error(err)
 	}
@@ -203,15 +199,15 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 		t.Error("Bad pipeline")
 	}
 
-	err = m.WebsocketDataHandler(exchName, &order.Modify{
+	err = m.websocketDataHandler(exchName, &order.Detail{
 		Exchange: "Bitstamp",
-		ID:       orderID,
+		OrderID:  orderID,
 		Status:   order.Active,
 	})
 	if err != nil {
 		t.Error(err)
 	}
-	updated, err = m.orderManager.GetByExchangeAndID(origOrder.Exchange, origOrder.ID)
+	updated, err = m.orderManager.GetByExchangeAndID(origOrder.Exchange, origOrder.OrderID)
 	if err != nil {
 		t.Error(err)
 	}
@@ -220,12 +216,12 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 	}
 
 	// Send some gibberish
-	err = m.WebsocketDataHandler(exchName, order.Stop)
+	err = m.websocketDataHandler(exchName, order.Stop)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = m.WebsocketDataHandler(exchName, stream.UnhandledMessageWarning{
+	err = m.websocketDataHandler(exchName, stream.UnhandledMessageWarning{
 		Message: "there's an issue here's a tissue"},
 	)
 	if err != nil {
@@ -237,7 +233,7 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 		OrderID:  "one",
 		Err:      errors.New("lol"),
 	}
-	err = m.WebsocketDataHandler(exchName, classificationError)
+	err = m.websocketDataHandler(exchName, classificationError)
 	if err == nil {
 		t.Error("Expected error")
 	}
@@ -245,15 +241,116 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, classificationError.Err)
 	}
 
-	err = m.WebsocketDataHandler(exchName, &orderbook.Base{
+	err = m.websocketDataHandler(exchName, &orderbook.Base{
 		Exchange: "Bitstamp",
 		Pair:     currency.NewPair(currency.BTC, currency.USD),
 	})
 	if err != nil {
 		t.Error(err)
 	}
-	err = m.WebsocketDataHandler(exchName, "this is a test string")
+	err = m.websocketDataHandler(exchName, "this is a test string")
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestRegisterWebsocketDataHandlerWithFunctionality(t *testing.T) {
+	t.Parallel()
+	var m *websocketRoutineManager
+	err := m.registerWebsocketDataHandler(nil, false)
+	if !errors.Is(err, ErrNilSubsystem) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNilSubsystem)
+	}
+
+	m = new(websocketRoutineManager)
+	m.shutdown = make(chan struct{})
+
+	err = m.registerWebsocketDataHandler(nil, false)
+	if !errors.Is(err, errNilWebsocketDataHandlerFunction) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNilWebsocketDataHandlerFunction)
+	}
+
+	// externally defined capture device
+	dataChan := make(chan interface{})
+	fn := func(_ string, data interface{}) error {
+		switch data.(type) {
+		case string:
+			dataChan <- data
+		default:
+		}
+		return nil
+	}
+
+	err = m.registerWebsocketDataHandler(fn, true)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(m.dataHandlers) != 1 {
+		t.Fatal("unexpected data handlers registered")
+	}
+
+	mock := stream.New()
+	mock.ToRoutine = make(chan interface{})
+	m.started = 1
+	err = m.websocketDataReceiver(mock)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mock.ToRoutine <- nil
+	mock.ToRoutine <- 1336
+	mock.ToRoutine <- "intercepted"
+
+	if r := <-dataChan; r != "intercepted" {
+		t.Fatal("unexpected value received")
+	}
+
+	close(m.shutdown)
+	m.wg.Wait()
+}
+
+func TestSetWebsocketDataHandler(t *testing.T) {
+	t.Parallel()
+	var m *websocketRoutineManager
+	err := m.setWebsocketDataHandler(nil)
+	if !errors.Is(err, ErrNilSubsystem) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNilSubsystem)
+	}
+
+	m = new(websocketRoutineManager)
+	m.shutdown = make(chan struct{})
+
+	err = m.setWebsocketDataHandler(nil)
+	if !errors.Is(err, errNilWebsocketDataHandlerFunction) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNilWebsocketDataHandlerFunction)
+	}
+
+	err = m.registerWebsocketDataHandler(m.websocketDataHandler, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	err = m.registerWebsocketDataHandler(m.websocketDataHandler, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	err = m.registerWebsocketDataHandler(m.websocketDataHandler, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(m.dataHandlers) != 3 {
+		t.Fatal("unexpected data handler count")
+	}
+
+	err = m.setWebsocketDataHandler(m.websocketDataHandler)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(m.dataHandlers) != 1 {
+		t.Fatal("unexpected data handler count")
 	}
 }

@@ -30,7 +30,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
@@ -53,6 +55,90 @@ type fExchange struct {
 	exchange.IBotExchange
 }
 
+func (f fExchange) GetPositionSummary(context.Context, *order.PositionSummaryRequest) (*order.PositionSummary, error) {
+	leet := decimal.NewFromInt(1337)
+	return &order.PositionSummary{
+		MaintenanceMarginRequirement: leet,
+		InitialMarginRequirement:     leet,
+		EstimatedLiquidationPrice:    leet,
+		CollateralUsed:               leet,
+		MarkPrice:                    leet,
+		CurrentSize:                  leet,
+		BreakEvenPrice:               leet,
+		AverageOpenPrice:             leet,
+		RecentPNL:                    leet,
+		MarginFraction:               leet,
+		FreeCollateral:               leet,
+		TotalCollateral:              leet,
+	}, nil
+}
+
+func (f fExchange) GetFuturesPositions(ctx context.Context, req *order.PositionsRequest) ([]order.PositionDetails, error) {
+	id, err := uuid.NewV4()
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]order.PositionDetails, len(req.Pairs))
+	tt := time.Now()
+	for i := range req.Pairs {
+		resp[i] = order.PositionDetails{
+			Exchange: f.GetName(),
+			Asset:    req.Asset,
+			Pair:     req.Pairs[i],
+			Orders: []order.Detail{
+				{
+					Exchange:        f.GetName(),
+					Price:           1337,
+					Amount:          1337,
+					InternalOrderID: id,
+					OrderID:         "1337",
+					ClientOrderID:   "1337",
+					Type:            order.Market,
+					Side:            order.Short,
+					Status:          order.Open,
+					AssetType:       req.Asset,
+					Date:            tt,
+					CloseTime:       tt,
+					LastUpdated:     tt,
+					Pair:            req.Pairs[i],
+				},
+			},
+		}
+	}
+	return resp, nil
+}
+
+func (f fExchange) GetFundingRates(ctx context.Context, request *order.FundingRatesRequest) ([]order.FundingRates, error) {
+	leet := decimal.NewFromInt(1337)
+	return []order.FundingRates{
+		{
+			Exchange:  f.GetName(),
+			Asset:     request.Asset,
+			Pair:      request.Pairs[0],
+			StartDate: request.StartDate,
+			EndDate:   request.EndDate,
+			LatestRate: order.FundingRate{
+				Time:    request.EndDate,
+				Rate:    leet,
+				Payment: leet,
+			},
+			PredictedUpcomingRate: order.FundingRate{
+				Time:    request.EndDate,
+				Rate:    leet,
+				Payment: leet,
+			},
+			FundingRates: []order.FundingRate{
+				{
+					Time:    request.EndDate,
+					Rate:    leet,
+					Payment: leet,
+				},
+			},
+			PaymentSum: leet,
+		},
+	}, nil
+}
+
 func (f fExchange) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{
 		Exchange: fakeExchangeName,
@@ -72,23 +158,61 @@ func (f fExchange) GetHistoricCandles(ctx context.Context, p currency.Pair, a as
 	}, nil
 }
 
+func generateCandles(amount int, timeStart time.Time, interval kline.Interval) []kline.Candle {
+	candy := make([]kline.Candle, amount)
+	for x := 0; x < amount; x++ {
+		candy[x] = kline.Candle{
+			Time:   timeStart,
+			Open:   1337,
+			High:   1337,
+			Low:    1337,
+			Close:  1337,
+			Volume: 1337,
+		}
+		timeStart = timeStart.Add(interval.Duration())
+	}
+	return candy
+}
+
 func (f fExchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{
 		Exchange: fakeExchangeName,
 		Pair:     p,
 		Asset:    a,
 		Interval: interval,
-		Candles: []kline.Candle{
-			{
-				Time:   timeStart,
-				Open:   1337,
-				High:   1337,
-				Low:    1337,
-				Close:  1337,
-				Volume: 1337,
+		Candles:  generateCandles(33, timeStart, interval),
+	}, nil
+}
+
+func (f fExchange) GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
+	leet := decimal.NewFromInt(1337)
+	rates := []margin.Rate{
+		{
+			Time:             time.Now(),
+			MarketBorrowSize: leet,
+			HourlyRate:       leet,
+			HourlyBorrowRate: leet,
+			LendingPayment: margin.LendingPayment{
+				Payment: leet,
+				Size:    leet,
+			},
+			BorrowCost: margin.BorrowCost{
+				Cost: leet,
+				Size: leet,
 			},
 		},
-	}, nil
+	}
+	resp := &margin.RateHistoryResponse{
+		Rates:              rates,
+		SumBorrowCosts:     leet,
+		AverageBorrowSize:  leet,
+		SumLendingPayments: leet,
+		AverageLendingSize: leet,
+		PredictedRate:      rates[0],
+		TakerFeeRate:       leet,
+	}
+
+	return resp, nil
 }
 
 func (f fExchange) FetchTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
@@ -130,25 +254,6 @@ func (f fExchange) FetchAccountInfo(_ context.Context, a asset.Item) (account.Ho
 					},
 				},
 			},
-		},
-	}, nil
-}
-
-// GetFuturesPositions overrides testExchange's GetFuturesPositions function
-func (f fExchange) GetFuturesPositions(_ context.Context, a asset.Item, cp currency.Pair, _, _ time.Time) ([]order.Detail, error) {
-	return []order.Detail{
-		{
-			Price:     1337,
-			Amount:    1337,
-			Fee:       1.337,
-			FeeAsset:  currency.Code{},
-			Exchange:  f.GetName(),
-			ID:        "test",
-			Side:      order.Long,
-			Status:    order.Open,
-			AssetType: a,
-			Date:      time.Now(),
-			Pair:      cp,
 		},
 	}, nil
 }
@@ -1139,7 +1244,7 @@ func TestGetOrders(t *testing.T) {
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
 	em.Add(exch)
 	var wg sync.WaitGroup
-	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, false)
+	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, false, false, 0)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -1246,7 +1351,7 @@ func TestGetOrder(t *testing.T) {
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
 	em.Add(exch)
 	var wg sync.WaitGroup
-	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, false)
+	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, false, false, 0)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -1360,6 +1465,7 @@ func TestCheckVars(t *testing.T) {
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
+			Delimiter: currency.DashDelimiter,
 		},
 	}
 	err = e.GetBase().StoreAssetPairFormat(asset.Spot, fmt1)
@@ -1388,7 +1494,10 @@ func TestCheckVars(t *testing.T) {
 		{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.USDT},
 	}
 
-	e.GetBase().CurrencyPairs.StorePairs(asset.Spot, data, false)
+	err = e.GetBase().CurrencyPairs.StorePairs(asset.Spot, data, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
 	if !errors.Is(err, errCurrencyNotEnabled) {
@@ -1775,7 +1884,7 @@ func TestGetManagedOrders(t *testing.T) {
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
 	em.Add(exch)
 	var wg sync.WaitGroup
-	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, false)
+	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, false, false, 0)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -1827,20 +1936,14 @@ func TestGetManagedOrders(t *testing.T) {
 	}
 
 	o := order.Detail{
-		Price:           100000,
-		Amount:          0.002,
-		Exchange:        "Binance",
-		InternalOrderID: "",
-		ID:              "",
-		ClientOrderID:   "",
-		AccountID:       "",
-		ClientID:        "",
-		WalletAddress:   "",
-		Type:            order.Limit,
-		Side:            order.Sell,
-		Status:          order.New,
-		AssetType:       asset.Spot,
-		Pair:            currency.NewPair(currency.BTC, currency.USDT),
+		Price:     100000,
+		Amount:    0.002,
+		Exchange:  "Binance",
+		Type:      order.Limit,
+		Side:      order.Sell,
+		Status:    order.New,
+		AssetType: asset.Spot,
+		Pair:      currency.NewPair(currency.BTC, currency.USDT),
 	}
 	err = om.Add(&o)
 	if err != nil {
@@ -2076,7 +2179,7 @@ func TestCurrencyStateTradingPair(t *testing.T) {
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		AssetEnabled: convert.BoolPtr(true),
-		ConfigFormat: &currency.PairFormat{},
+		ConfigFormat: &currency.EMPTYFORMAT,
 		Available:    currency.Pairs{cp},
 		Enabled:      currency.Pairs{cp},
 	}
@@ -2114,6 +2217,7 @@ func TestGetFuturesPositions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	cp.Delimiter = ""
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Futures] = &currency.PairStore{
@@ -2135,7 +2239,7 @@ func TestGetFuturesPositions(t *testing.T) {
 	}
 	em.Add(fakeExchange)
 	var wg sync.WaitGroup
-	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false)
+	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, false, time.Hour)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -2159,18 +2263,53 @@ func TestGetFuturesPositions(t *testing.T) {
 			Base:      cp.Base.String(),
 			Quote:     cp.Quote.String(),
 		},
-		Verbose: true,
 	})
 	if !errors.Is(err, exchange.ErrCredentialsAreEmpty) {
 		t.Fatalf("received '%v', expected '%v'", err, exchange.ErrCredentialsAreEmpty)
 	}
 
-	ctx := exchange.DeployCredentialsToContext(context.Background(), &exchange.Credentials{
-		Key:    "wow",
-		Secret: "super wow",
-	})
+	ctx := account.DeployCredentialsToContext(context.Background(),
+		&account.Credentials{
+			Key:    "wow",
+			Secret: "super wow",
+		},
+	)
 
-	r, err := s.GetFuturesPositions(ctx, &gctrpc.GetFuturesPositionsRequest{
+	_, err = s.GetFuturesPositions(ctx, &gctrpc.GetFuturesPositionsRequest{
+		Exchange: "test",
+		Asset:    asset.Futures.String(),
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: currency.DashDelimiter,
+			Base:      cp.Base.String(),
+			Quote:     cp.Quote.String(),
+		},
+		IncludeFullOrderData:    true,
+		IncludeFullFundingRates: true,
+		IncludePredictedRate:    true,
+		GetPositionStats:        true,
+		GetFundingPayments:      true,
+	})
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("received '%v', expected '%v'", err, ErrExchangeNotFound)
+	}
+
+	od := &order.Detail{
+		Price:     1337,
+		Amount:    1337,
+		Fee:       1.337,
+		Exchange:  fakeExchangeName,
+		OrderID:   "test",
+		Side:      order.Long,
+		Status:    order.Open,
+		AssetType: asset.Futures,
+		Date:      time.Now(),
+		Pair:      cp,
+	}
+	err = s.OrderManager.orderStore.futuresPositionController.TrackNewOrder(od)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received '%v', expected '%v'", err, nil)
+	}
+	_, err = s.GetFuturesPositions(ctx, &gctrpc.GetFuturesPositionsRequest{
 		Exchange: fakeExchangeName,
 		Asset:    asset.Futures.String(),
 		Pair: &gctrpc.CurrencyPair{
@@ -2178,19 +2317,10 @@ func TestGetFuturesPositions(t *testing.T) {
 			Base:      cp.Base.String(),
 			Quote:     cp.Quote.String(),
 		},
-		Verbose: true,
+		IncludeFullOrderData: true,
 	})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received '%v', expected '%v'", err, nil)
-	}
-	if r == nil { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
-		t.Fatal("expected not nil response")
-	}
-	if len(r.Positions) != 1 { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
-		t.Fatal("expected 1 position")
-	}
-	if r.TotalOrders != 1 { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
-		t.Fatal("expected 1 order")
 	}
 
 	_, err = s.GetFuturesPositions(ctx, &gctrpc.GetFuturesPositionsRequest{
@@ -2201,7 +2331,6 @@ func TestGetFuturesPositions(t *testing.T) {
 			Base:      cp.Base.String(),
 			Quote:     cp.Quote.String(),
 		},
-		Verbose: true,
 	})
 	if !errors.Is(err, order.ErrNotFuturesAsset) {
 		t.Errorf("received '%v', expected '%v'", err, order.ErrNotFuturesAsset)
@@ -2227,13 +2356,13 @@ func TestGetCollateral(t *testing.T) {
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Futures] = &currency.PairStore{
 		AssetEnabled: convert.BoolPtr(true),
-		ConfigFormat: &currency.PairFormat{},
+		ConfigFormat: &currency.EMPTYFORMAT,
 		Available:    currency.Pairs{cp},
 		Enabled:      currency.Pairs{cp},
 	}
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		AssetEnabled: convert.BoolPtr(true),
-		ConfigFormat: &currency.PairFormat{},
+		ConfigFormat: &currency.EMPTYFORMAT,
 		Available:    currency.Pairs{cp},
 		Enabled:      currency.Pairs{cp},
 	}
@@ -2258,7 +2387,8 @@ func TestGetCollateral(t *testing.T) {
 		t.Fatalf("received '%v', expected '%v'", err, exchange.ErrCredentialsAreEmpty)
 	}
 
-	ctx := exchange.DeployCredentialsToContext(context.Background(), &exchange.Credentials{Key: "fakerino", Secret: "supafake"})
+	ctx := account.DeployCredentialsToContext(context.Background(),
+		&account.Credentials{Key: "fakerino", Secret: "supafake"})
 
 	_, err = s.GetCollateral(ctx, &gctrpc.GetCollateralRequest{
 		Exchange: fakeExchangeName,
@@ -2268,7 +2398,8 @@ func TestGetCollateral(t *testing.T) {
 		t.Fatalf("received '%v', expected '%v'", err, errNoAccountInformation)
 	}
 
-	ctx = exchange.DeployCredentialsToContext(context.Background(), &exchange.Credentials{Key: "fakerino", Secret: "supafake", SubAccount: "1337"})
+	ctx = account.DeployCredentialsToContext(context.Background(),
+		&account.Credentials{Key: "fakerino", Secret: "supafake", SubAccount: "1337"})
 
 	r, err := s.GetCollateral(ctx, &gctrpc.GetCollateralRequest{
 		Exchange:         fakeExchangeName,
@@ -2302,5 +2433,1082 @@ func TestGetCollateral(t *testing.T) {
 	})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+}
+
+func TestShutdown(t *testing.T) {
+	t.Parallel()
+	s := RPCServer{Engine: &Engine{}}
+	_, err := s.Shutdown(context.Background(), &gctrpc.ShutdownRequest{})
+	if !errors.Is(err, errShutdownNotAllowed) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errShutdownNotAllowed)
+	}
+
+	s.Engine.Settings.EnableGRPCShutdown = true
+	_, err = s.Shutdown(context.Background(), &gctrpc.ShutdownRequest{})
+	if !errors.Is(err, errGRPCShutdownSignalIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errGRPCShutdownSignalIsNil)
+	}
+
+	s.Engine.GRPCShutdownSignal = make(chan struct{}, 1)
+	_, err = s.Shutdown(context.Background(), &gctrpc.ShutdownRequest{})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+}
+
+func TestGetTechnicalAnalysis(t *testing.T) {
+	t.Parallel()
+
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+
+	cp, err := currency.NewPairFromString("btc-usd")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received '%v', expected '%v'", err, nil)
+	}
+
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Futures] = &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+		ConfigFormat: &currency.PairFormat{},
+		Available:    currency.Pairs{cp},
+		Enabled:      currency.Pairs{cp},
+	}
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+		ConfigFormat: &currency.PairFormat{},
+		Available:    currency.Pairs{cp},
+		Enabled:      currency.Pairs{cp},
+	}
+
+	b.Features.Enabled.Kline.Intervals = map[string]bool{
+		kline.OneDay.Word(): true,
+	}
+	em.Add(fExchange{IBotExchange: exch})
+	s := RPCServer{
+		Engine: &Engine{
+			ExchangeManager: em,
+			currencyStateManager: &CurrencyStateManager{
+				started:          1,
+				iExchangeManager: em,
+			},
+		},
+	}
+
+	_, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{})
+	if !errors.Is(err, ErrExchangeNameIsEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeNameIsEmpty)
+	}
+
+	_, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{
+		Exchange: fakeExchangeName,
+	})
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	_, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{
+		Exchange:  fakeExchangeName,
+		AssetType: "upsideprofitcontract",
+		Pair:      &gctrpc.CurrencyPair{},
+	})
+	if !errors.Is(err, kline.ErrValidatingParams) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrValidatingParams)
+	}
+
+	_, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{
+		Exchange:  fakeExchangeName,
+		AssetType: "spot",
+		Pair:      &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"},
+		Interval:  int64(kline.OneDay),
+	})
+	if !errors.Is(err, errInvalidStrategy) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidStrategy)
+	}
+
+	resp, err := s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{
+		Exchange:      fakeExchangeName,
+		AssetType:     "spot",
+		Pair:          &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"},
+		Interval:      int64(kline.OneDay),
+		AlgorithmType: "twap",
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if resp.Signals["TWAP"].Signals[0] != 1337 {
+		t.Fatalf("received: '%v' but expected: '%v'", resp.Signals["TWAP"].Signals[0], 1337)
+	}
+
+	resp, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{
+		Exchange:      fakeExchangeName,
+		AssetType:     "spot",
+		Pair:          &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"},
+		Interval:      int64(kline.OneDay),
+		AlgorithmType: "vwap",
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(resp.Signals["VWAP"].Signals) != 33 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["VWAP"].Signals), 33)
+	}
+
+	resp, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{
+		Exchange:      fakeExchangeName,
+		AssetType:     "spot",
+		Pair:          &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"},
+		Interval:      int64(kline.OneDay),
+		AlgorithmType: "atr",
+		Period:        9,
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(resp.Signals["ATR"].Signals) != 33 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["ATR"].Signals), 33)
+	}
+
+	resp, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{
+		Exchange:              fakeExchangeName,
+		AssetType:             "spot",
+		Pair:                  &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"},
+		Interval:              int64(kline.OneDay),
+		AlgorithmType:         "bbands",
+		Period:                9,
+		StandardDeviationUp:   0.5,
+		StandardDeviationDown: 0.5,
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(resp.Signals["UPPER"].Signals) != 33 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["UPPER"].Signals), 33)
+	}
+
+	if len(resp.Signals["MIDDLE"].Signals) != 33 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["MIDDLE"].Signals), 33)
+	}
+
+	if len(resp.Signals["LOWER"].Signals) != 33 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["LOWER"].Signals), 33)
+	}
+
+	resp, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{
+		Exchange:      fakeExchangeName,
+		AssetType:     "spot",
+		Pair:          &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"},
+		OtherPair:     &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"},
+		Interval:      int64(kline.OneDay),
+		AlgorithmType: "COCO",
+		Period:        9,
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(resp.Signals["COCO"].Signals) != 33 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["COCO"].Signals), 33)
+	}
+
+	resp, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{
+		Exchange:      fakeExchangeName,
+		AssetType:     "spot",
+		Pair:          &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"},
+		Interval:      int64(kline.OneDay),
+		AlgorithmType: "sma",
+		Period:        9,
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(resp.Signals["SMA"].Signals) != 33 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["SMA"].Signals), 33)
+	}
+
+	resp, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{
+		Exchange:      fakeExchangeName,
+		AssetType:     "spot",
+		Pair:          &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"},
+		Interval:      int64(kline.OneDay),
+		AlgorithmType: "ema",
+		Period:        9,
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(resp.Signals["EMA"].Signals) != 33 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["EMA"].Signals), 33)
+	}
+
+	resp, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{
+		Exchange:      fakeExchangeName,
+		AssetType:     "spot",
+		Pair:          &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"},
+		Interval:      int64(kline.OneDay),
+		AlgorithmType: "macd",
+		Period:        9,
+		FastPeriod:    12,
+		SlowPeriod:    26,
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(resp.Signals["MACD"].Signals) != 33 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["MACD"].Signals), 33)
+	}
+
+	if len(resp.Signals["SIGNAL"].Signals) != 33 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["SIGNAL"].Signals), 33)
+	}
+
+	if len(resp.Signals["HISTOGRAM"].Signals) != 33 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["HISTOGRAM"].Signals), 33)
+	}
+
+	resp, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{
+		Exchange:      fakeExchangeName,
+		AssetType:     "spot",
+		Pair:          &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"},
+		Interval:      int64(kline.OneDay),
+		AlgorithmType: "mfi",
+		Period:        9,
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(resp.Signals["MFI"].Signals) != 33 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["MFI"].Signals), 33)
+	}
+
+	resp, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{
+		Exchange:      fakeExchangeName,
+		AssetType:     "spot",
+		Pair:          &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"},
+		Interval:      int64(kline.OneDay),
+		AlgorithmType: "obv",
+		Period:        9,
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(resp.Signals["OBV"].Signals) != 33 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["OBV"].Signals), 33)
+	}
+
+	resp, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{
+		Exchange:      fakeExchangeName,
+		AssetType:     "spot",
+		Pair:          &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"},
+		Interval:      int64(kline.OneDay),
+		AlgorithmType: "rsi",
+		Period:        9,
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(resp.Signals["RSI"].Signals) != 33 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["RSI"].Signals), 33)
+	}
+}
+
+func TestGetMarginRatesHistory(t *testing.T) {
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+
+	cp, err := currency.NewPairFromString("btc-usd")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received '%v', expected '%v'", err, nil)
+	}
+
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+		ConfigFormat: &currency.PairFormat{},
+		Available:    currency.Pairs{cp},
+		Enabled:      currency.Pairs{cp},
+	}
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	em.Add(fakeExchange)
+	s := RPCServer{
+		Engine: &Engine{
+			ExchangeManager: em,
+			currencyStateManager: &CurrencyStateManager{
+				started: 1, iExchangeManager: em,
+			},
+		},
+	}
+	_, err = s.GetMarginRatesHistory(context.Background(), nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrNilPointer)
+	}
+
+	request := &gctrpc.GetMarginRatesHistoryRequest{}
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, ErrExchangeNameIsEmpty) {
+		t.Errorf("received '%v' expected '%v'", err, ErrExchangeNameIsEmpty)
+	}
+
+	request.Exchange = fakeExchangeName
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("received '%v' expected '%v'", err, asset.ErrNotSupported)
+	}
+
+	request.Asset = asset.Spot.String()
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, currency.ErrCurrencyNotFound) {
+		t.Errorf("received '%v' expected '%v'", err, currency.ErrCurrencyNotFound)
+	}
+
+	request.Currency = "usd"
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	request.GetBorrowRates = true
+	request.GetLendingPayments = true
+	request.GetBorrowCosts = true
+	request.GetPredictedRate = true
+	request.IncludeAllRates = true
+	resp, err := s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if len(resp.Rates) == 0 {
+		t.Errorf("received '%v' expected '%v'", len(resp.Rates), 1)
+	}
+	if resp.PredictedRate == nil {
+		t.Errorf("received '%v' expected '%v'", nil, "not nil")
+	}
+	if resp.TakerFeeRate != "1337" {
+		t.Errorf("received '%v' expected '%v'", resp.TakerFeeRate, "1337")
+	}
+	if resp.SumLendingPayments != "1337" {
+		t.Errorf("received '%v' expected '%v'", resp.SumLendingPayments, "1337")
+	}
+	if resp.AvgBorrowSize != "1337" {
+		t.Errorf("received '%v' expected '%v'", resp.AvgBorrowSize, "1337")
+	}
+	if resp.AvgLendingSize != "1337" {
+		t.Errorf("received '%v' expected '%v'", resp.AvgLendingSize, "1337")
+	}
+	if resp.SumBorrowCosts != "1337" {
+		t.Errorf("received '%v' expected '%v'", resp.SumBorrowCosts, "1337")
+	}
+
+	request.CalculateOffline = true
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, common.ErrCannotCalculateOffline) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrCannotCalculateOffline)
+	}
+
+	request.TakerFeeRate = "-1337"
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, common.ErrCannotCalculateOffline) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrCannotCalculateOffline)
+	}
+
+	request.TakerFeeRate = "1337"
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, common.ErrCannotCalculateOffline) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrCannotCalculateOffline)
+	}
+
+	request.Rates = []*gctrpc.MarginRate{
+		{
+			Time:       time.Now().Format(common.SimpleTimeFormat),
+			HourlyRate: "1337",
+		},
+	}
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	request.Rates = []*gctrpc.MarginRate{
+		{
+			Time:           time.Now().Format(common.SimpleTimeFormat),
+			HourlyRate:     "1337",
+			LendingPayment: &gctrpc.LendingPayment{Size: "1337"},
+			BorrowCost:     &gctrpc.BorrowCost{Size: "1337"},
+		},
+	}
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+}
+
+func TestGetFundingRates(t *testing.T) {
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName("ftx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+
+	cp, err := currency.NewPairFromString("btc-perp")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Futures] = &currency.PairStore{
+		AssetEnabled:  convert.BoolPtr(true),
+		RequestFormat: &currency.PairFormat{Delimiter: "-"},
+		ConfigFormat:  &currency.PairFormat{Delimiter: "-"},
+		Available:     currency.Pairs{cp},
+		Enabled:       currency.Pairs{cp},
+	}
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled:  convert.BoolPtr(true),
+		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
+		RequestFormat: &currency.PairFormat{Delimiter: "/"},
+		Available:     currency.Pairs{cp},
+		Enabled:       currency.Pairs{cp},
+	}
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	em.Add(fakeExchange)
+	var wg sync.WaitGroup
+	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, false, time.Hour)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	om.started = 1
+	s := RPCServer{
+		Engine: &Engine{
+			ExchangeManager: em,
+			currencyStateManager: &CurrencyStateManager{
+				started:          1,
+				iExchangeManager: em,
+			},
+			OrderManager: om,
+		},
+	}
+
+	_, err = s.GetFundingRates(context.Background(), nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
+	}
+	request := &gctrpc.GetFundingRatesRequest{
+		Exchange:         "",
+		Asset:            "",
+		Pairs:            nil,
+		StartDate:        "",
+		EndDate:          "",
+		IncludePredicted: false,
+		IncludePayments:  false,
+	}
+	_, err = s.GetFundingRates(context.Background(), request)
+	if !errors.Is(err, ErrExchangeNameIsEmpty) {
+		t.Errorf("received: '%v' but expected: '%v'", err, ErrExchangeNameIsEmpty)
+	}
+	request.Exchange = exch.GetName()
+	_, err = s.GetFundingRates(context.Background(), request)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	request.Asset = asset.Spot.String()
+	_, err = s.GetFundingRates(context.Background(), request)
+	if !errors.Is(err, order.ErrNotFuturesAsset) {
+		t.Errorf("received: '%v' but expected: '%v'", err, order.ErrNotFuturesAsset)
+	}
+
+	request.Asset = asset.Futures.String()
+	request.Pairs = []string{cp.String()}
+	request.IncludePredicted = true
+	request.IncludePayments = true
+	_, err = s.GetFundingRates(context.Background(), request)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: '%v' but expected: '%v'", err, nil)
+	}
+}
+
+func TestGetManagedPosition(t *testing.T) {
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName("ftx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+
+	cp, err := currency.NewPairFromString("btc-perp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cp2, err := currency.NewPairFromString("btc-usd")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Futures] = &currency.PairStore{
+		AssetEnabled:  convert.BoolPtr(true),
+		RequestFormat: &currency.PairFormat{Delimiter: "-"},
+		ConfigFormat:  &currency.PairFormat{Delimiter: "-"},
+		Available:     currency.Pairs{cp, cp2},
+		Enabled:       currency.Pairs{cp, cp2},
+	}
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled:  convert.BoolPtr(true),
+		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
+		RequestFormat: &currency.PairFormat{Delimiter: "/"},
+		Available:     currency.Pairs{cp, cp2},
+		Enabled:       currency.Pairs{cp, cp2},
+	}
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	em.Add(fakeExchange)
+	var wg sync.WaitGroup
+	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, false, time.Hour)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	om.started = 1
+	s := RPCServer{
+		Engine: &Engine{
+			ExchangeManager: em,
+			currencyStateManager: &CurrencyStateManager{
+				started:          1,
+				iExchangeManager: em,
+			},
+			OrderManager: om,
+		},
+	}
+	_, err = s.GetManagedPosition(context.Background(), nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("received '%v', expected '%v'", err, common.ErrNilPointer)
+	}
+
+	request := &gctrpc.GetManagedPositionRequest{}
+	_, err = s.GetManagedPosition(context.Background(), request)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("received '%v', expected '%v'", err, common.ErrNilPointer)
+	}
+
+	request.Pair = &gctrpc.CurrencyPair{
+		Delimiter: "-",
+		Base:      "BTC",
+		Quote:     "USD",
+	}
+	_, err = s.GetManagedPosition(context.Background(), request)
+	if !errors.Is(err, ErrExchangeNameIsEmpty) {
+		t.Errorf("received '%v', expected '%v'", err, ErrExchangeNameIsEmpty)
+	}
+
+	request.Exchange = fakeExchangeName
+	_, err = s.GetManagedPosition(context.Background(), request)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
+	}
+
+	request.Asset = asset.Spot.String()
+	_, err = s.GetManagedPosition(context.Background(), request)
+	if !errors.Is(err, order.ErrNotFuturesAsset) {
+		t.Errorf("received '%v', expected '%v'", err, order.ErrNotFuturesAsset)
+	}
+
+	request.Asset = asset.Futures.String()
+	s.OrderManager, err = SetupOrderManager(em, &CommunicationManager{}, &wg, false, false, time.Hour)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	s.OrderManager.started = 1
+	s.OrderManager.activelyTrackFuturesPositions = true
+	_, err = s.GetManagedPosition(context.Background(), request)
+	if !errors.Is(err, order.ErrPositionNotFound) {
+		t.Errorf("received '%v', expected '%v'", err, order.ErrPositionNotFound)
+	}
+
+	err = s.OrderManager.orderStore.futuresPositionController.TrackNewOrder(&order.Detail{
+		Leverage:             1337,
+		Price:                1337,
+		Amount:               1337,
+		LimitPriceUpper:      1337,
+		LimitPriceLower:      1337,
+		TriggerPrice:         1337,
+		AverageExecutedPrice: 1337,
+		QuoteAmount:          1337,
+		ExecutedAmount:       1337,
+		RemainingAmount:      1337,
+		Cost:                 1337,
+		Exchange:             fakeExchangeName,
+		OrderID:              "1337",
+		Type:                 order.Market,
+		Side:                 order.Buy,
+		Status:               order.Filled,
+		AssetType:            asset.Futures,
+		Date:                 time.Now(),
+		LastUpdated:          time.Now(),
+		Pair:                 cp2,
+		Trades: []order.TradeHistory{
+			{
+				Timestamp: time.Now(),
+				Side:      order.Buy,
+			},
+		},
+	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	_, err = s.GetManagedPosition(context.Background(), request)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+}
+
+func TestGetAllManagedPositions(t *testing.T) {
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName("ftx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+
+	cp, err := currency.NewPairFromString("btc-perp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cp2, err := currency.NewPairFromString("btc-usd")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Futures] = &currency.PairStore{
+		AssetEnabled:  convert.BoolPtr(true),
+		RequestFormat: &currency.PairFormat{Delimiter: "-"},
+		ConfigFormat:  &currency.PairFormat{Delimiter: "-"},
+		Available:     currency.Pairs{cp, cp2},
+		Enabled:       currency.Pairs{cp, cp2},
+	}
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled:  convert.BoolPtr(true),
+		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
+		RequestFormat: &currency.PairFormat{Delimiter: "/"},
+		Available:     currency.Pairs{cp, cp2},
+		Enabled:       currency.Pairs{cp, cp2},
+	}
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	em.Add(fakeExchange)
+	var wg sync.WaitGroup
+	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, false, time.Hour)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	om.started = 1
+	s := RPCServer{
+		Engine: &Engine{
+			ExchangeManager: em,
+			currencyStateManager: &CurrencyStateManager{
+				started:          1,
+				iExchangeManager: em,
+			},
+			OrderManager: om,
+		},
+	}
+	_, err = s.GetAllManagedPositions(context.Background(), nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("received '%v', expected '%v'", err, common.ErrNilPointer)
+	}
+
+	request := &gctrpc.GetAllManagedPositionsRequest{}
+	s.OrderManager, err = SetupOrderManager(em, &CommunicationManager{}, &wg, false, true, time.Hour)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	s.OrderManager.started = 1
+	_, err = s.GetAllManagedPositions(context.Background(), request)
+	if !errors.Is(err, order.ErrNoPositionsFound) {
+		t.Errorf("received '%v', expected '%v'", err, order.ErrNoPositionsFound)
+	}
+
+	err = s.OrderManager.orderStore.futuresPositionController.TrackNewOrder(&order.Detail{
+		Leverage:             1337,
+		Price:                1337,
+		Amount:               1337,
+		LimitPriceUpper:      1337,
+		LimitPriceLower:      1337,
+		TriggerPrice:         1337,
+		AverageExecutedPrice: 1337,
+		QuoteAmount:          1337,
+		ExecutedAmount:       1337,
+		RemainingAmount:      1337,
+		Cost:                 1337,
+		Exchange:             fakeExchangeName,
+		OrderID:              "1337",
+		Type:                 order.Market,
+		Side:                 order.Buy,
+		Status:               order.Filled,
+		AssetType:            asset.Futures,
+		Date:                 time.Now(),
+		LastUpdated:          time.Now(),
+		Pair:                 cp2,
+	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	request.IncludePredictedRate = true
+	request.GetFundingPayments = true
+	request.IncludeFullFundingRates = true
+	request.IncludeFullOrderData = true
+	_, err = s.GetAllManagedPositions(context.Background(), request)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+}
+
+func TestGetOrderbookMovement(t *testing.T) {
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName("ftx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+
+	cp, err := currency.NewPairFromString("btc-metal")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled:  convert.BoolPtr(true),
+		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
+		RequestFormat: &currency.PairFormat{Delimiter: "/"},
+		Available:     currency.Pairs{cp},
+		Enabled:       currency.Pairs{cp},
+	}
+
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	em.Add(fakeExchange)
+
+	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+
+	req := &gctrpc.GetOrderbookMovementRequest{}
+	_, err = s.GetOrderbookMovement(context.Background(), req)
+	if !errors.Is(err, ErrExchangeNameIsEmpty) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, ErrExchangeNameIsEmpty)
+	}
+
+	req.Exchange = "fake"
+	_, err = s.GetOrderbookMovement(context.Background(), req)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	req.Asset = asset.Spot.String()
+	req.Pair = &gctrpc.CurrencyPair{}
+	_, err = s.GetOrderbookMovement(context.Background(), req)
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, currency.ErrCurrencyPairEmpty)
+	}
+
+	req.Pair = &gctrpc.CurrencyPair{
+		Base:  currency.BTC.String(),
+		Quote: currency.METAL.String(),
+	}
+	_, err = s.GetOrderbookMovement(context.Background(), req)
+	if !strings.Contains(err.Error(), "cannot find orderbook") {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, "cannot find orderbook")
+	}
+
+	depth, err := orderbook.DeployDepth(req.Exchange, currency.NewPair(currency.BTC, currency.METAL), asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bid := []orderbook.Item{
+		{Price: 10, Amount: 1},
+		{Price: 9, Amount: 1},
+		{Price: 8, Amount: 1},
+		{Price: 7, Amount: 1},
+	}
+	ask := []orderbook.Item{
+		{Price: 11, Amount: 1},
+		{Price: 12, Amount: 1},
+		{Price: 13, Amount: 1},
+		{Price: 14, Amount: 1},
+	}
+	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+
+	_, err = s.GetOrderbookMovement(context.Background(), req)
+	if err.Error() != "quote amount invalid" {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, "quote amount invalid")
+	}
+
+	req.Amount = 11
+	move, err := s.GetOrderbookMovement(context.Background(), req)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, nil)
+	}
+
+	if move.Bought != 1 {
+		t.Fatalf("received: '%v' but expected: '%v'", move.Bought, 1)
+	}
+
+	req.Sell = true
+	req.Amount = 1
+	move, err = s.GetOrderbookMovement(context.Background(), req)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, nil)
+	}
+
+	if move.Bought != 10 {
+		t.Fatalf("received: '%v' but expected: '%v'", move.Bought, 10)
+	}
+}
+
+func TestGetOrderbookAmountByNominal(t *testing.T) {
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName("ftx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+
+	cp, err := currency.NewPairFromString("btc-meme")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled:  convert.BoolPtr(true),
+		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
+		RequestFormat: &currency.PairFormat{Delimiter: "/"},
+		Available:     currency.Pairs{cp},
+		Enabled:       currency.Pairs{cp},
+	}
+
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	em.Add(fakeExchange)
+
+	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+
+	req := &gctrpc.GetOrderbookAmountByNominalRequest{}
+	_, err = s.GetOrderbookAmountByNominal(context.Background(), req)
+	if !errors.Is(err, ErrExchangeNameIsEmpty) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, ErrExchangeNameIsEmpty)
+	}
+
+	req.Exchange = "fake"
+	_, err = s.GetOrderbookAmountByNominal(context.Background(), req)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	req.Asset = asset.Spot.String()
+	req.Pair = &gctrpc.CurrencyPair{}
+	_, err = s.GetOrderbookAmountByNominal(context.Background(), req)
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, currency.ErrCurrencyPairEmpty)
+	}
+
+	req.Pair = &gctrpc.CurrencyPair{
+		Base:  currency.BTC.String(),
+		Quote: currency.MEME.String(),
+	}
+	_, err = s.GetOrderbookAmountByNominal(context.Background(), req)
+	if !strings.Contains(err.Error(), "cannot find orderbook") {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, "cannot find orderbook")
+	}
+
+	depth, err := orderbook.DeployDepth(req.Exchange, currency.NewPair(currency.BTC, currency.MEME), asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bid := []orderbook.Item{
+		{Price: 10, Amount: 1},
+		{Price: 9, Amount: 1},
+		{Price: 8, Amount: 1},
+		{Price: 7, Amount: 1},
+	}
+	ask := []orderbook.Item{
+		{Price: 11, Amount: 1},
+		{Price: 12, Amount: 1},
+		{Price: 13, Amount: 1},
+		{Price: 14, Amount: 1},
+	}
+	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+
+	nominal, err := s.GetOrderbookAmountByNominal(context.Background(), req)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, nil)
+	}
+
+	if nominal.AmountRequired != 11 {
+		t.Fatalf("received: '%v' but expected: '%v'", nominal.AmountRequired, 11)
+	}
+
+	req.Sell = true
+	nominal, err = s.GetOrderbookAmountByNominal(context.Background(), req)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, nil)
+	}
+
+	if nominal.AmountRequired != 1 {
+		t.Fatalf("received: '%v' but expected: '%v'", nominal.AmountRequired, 1)
+	}
+}
+
+func TestGetOrderbookAmountByImpact(t *testing.T) {
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName("ftx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+
+	cp, err := currency.NewPairFromString("btc-mad")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled:  convert.BoolPtr(true),
+		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
+		RequestFormat: &currency.PairFormat{Delimiter: "/"},
+		Available:     currency.Pairs{cp},
+		Enabled:       currency.Pairs{cp},
+	}
+
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	em.Add(fakeExchange)
+
+	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+
+	req := &gctrpc.GetOrderbookAmountByImpactRequest{}
+	_, err = s.GetOrderbookAmountByImpact(context.Background(), req)
+	if !errors.Is(err, ErrExchangeNameIsEmpty) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, ErrExchangeNameIsEmpty)
+	}
+
+	req.Exchange = "fake"
+	_, err = s.GetOrderbookAmountByImpact(context.Background(), req)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	req.Asset = asset.Spot.String()
+	req.Pair = &gctrpc.CurrencyPair{}
+	_, err = s.GetOrderbookAmountByImpact(context.Background(), req)
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, currency.ErrCurrencyPairEmpty)
+	}
+
+	req.Pair = &gctrpc.CurrencyPair{
+		Base:  currency.BTC.String(),
+		Quote: currency.MAD.String(),
+	}
+	_, err = s.GetOrderbookAmountByImpact(context.Background(), req)
+	if !strings.Contains(err.Error(), "cannot find orderbook") {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, "cannot find orderbook")
+	}
+
+	depth, err := orderbook.DeployDepth(req.Exchange, currency.NewPair(currency.BTC, currency.MAD), asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bid := []orderbook.Item{
+		{Price: 10, Amount: 1},
+		{Price: 9, Amount: 1},
+		{Price: 8, Amount: 1},
+		{Price: 7, Amount: 1},
+	}
+	ask := []orderbook.Item{
+		{Price: 11, Amount: 1},
+		{Price: 12, Amount: 1},
+		{Price: 13, Amount: 1},
+		{Price: 14, Amount: 1},
+	}
+	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+
+	req.ImpactPercentage = 9.090909090909092
+	impact, err := s.GetOrderbookAmountByImpact(context.Background(), req)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, nil)
+	}
+
+	if impact.AmountRequired != 11 {
+		t.Fatalf("received: '%v' but expected: '%v'", impact.AmountRequired, 11)
+	}
+
+	req.Sell = true
+	req.ImpactPercentage = 10
+	impact, err = s.GetOrderbookAmountByImpact(context.Background(), req)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, nil)
+	}
+
+	if impact.AmountRequired != 1 {
+		t.Fatalf("received: '%v' but expected: '%v'", impact.AmountRequired, 1)
 	}
 }

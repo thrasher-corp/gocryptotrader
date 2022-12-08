@@ -1,6 +1,9 @@
 package kline
 
-import "github.com/shopspring/decimal"
+import (
+	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+)
 
 // GetClosePrice returns the closing price of a kline
 func (k *Kline) GetClosePrice() decimal.Decimal {
@@ -20,4 +23,9 @@ func (k *Kline) GetLowPrice() decimal.Decimal {
 // GetOpenPrice returns the open price of a kline
 func (k *Kline) GetOpenPrice() decimal.Decimal {
 	return k.Open
+}
+
+// GetUnderlyingPair returns the open price of a kline
+func (k *Kline) GetUnderlyingPair() currency.Pair {
+	return k.UnderlyingPair
 }

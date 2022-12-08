@@ -445,6 +445,7 @@ func TestGetActiveOrders(t *testing.T) {
 		},
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
+		Side:      order.AnySide,
 	}
 
 	_, err := b.GetActiveOrders(context.Background(), &getOrdersRequest)
@@ -461,6 +462,7 @@ func TestGetOrderHistory(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
+		Side:      order.AnySide,
 	}
 	_, err := b.GetOrderHistory(context.Background(), &getOrdersRequest)
 	if err != nil {
@@ -585,6 +587,7 @@ func TestSubmitOrder(t *testing.T) {
 		t.Skip("skipping test, either api keys are unset or canManipulateRealOrders is false")
 	}
 	var orderSubmission = &order.Submit{
+		Exchange: b.Name,
 		Pair: currency.Pair{
 			Base:  currency.BTC,
 			Quote: currency.USD,
@@ -597,7 +600,7 @@ func TestSubmitOrder(t *testing.T) {
 		AssetType: asset.Spot,
 	}
 	response, err := b.SubmitOrder(context.Background(), orderSubmission)
-	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
+	if areTestAPIKeysSet() && (err != nil || response.Status != order.New) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
@@ -625,7 +628,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		currency.USD.String(),
 		"-")
 	var orderCancellation = &order.Cancel{
-		ID:            "b334ecef-2b42-4998-b8a4-b6b14f6d2671",
+		OrderID:       "b334ecef-2b42-4998-b8a4-b6b14f6d2671",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
@@ -657,7 +660,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		currency.USD.String(),
 		"-")
 	var orderCancellation = &order.Cancel{
-		ID:            "1",
+		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,

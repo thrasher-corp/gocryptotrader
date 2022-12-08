@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -263,6 +264,7 @@ func TestGetActiveOrders(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
+		Side:      order.AnySide,
 	}
 	_, err := c.GetActiveOrders(context.Background(), &getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
@@ -275,8 +277,8 @@ func TestGetOrderHistoryWrapper(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
-		Pairs: []currency.Pair{currency.NewPair(currency.BTC,
-			currency.USD)},
+		Pairs:     []currency.Pair{currency.NewPair(currency.BTC, currency.USD)},
+		Side:      order.AnySide,
 	}
 
 	_, err := c.GetOrderHistory(context.Background(), &getOrdersRequest)
@@ -298,6 +300,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var orderSubmission = &order.Submit{
+		Exchange: c.Name,
 		Pair: currency.Pair{
 			Base:  currency.BTC,
 			Quote: currency.USD,
@@ -310,7 +313,7 @@ func TestSubmitOrder(t *testing.T) {
 		AssetType: asset.Spot,
 	}
 	response, err := c.SubmitOrder(context.Background(), orderSubmission)
-	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
+	if areTestAPIKeysSet() && (err != nil || response.Status != order.New) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
@@ -323,7 +326,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 	currencyPair := currency.NewPair(currency.BTC, currency.USD)
 	var orderCancellation = &order.Cancel{
-		ID:            "1",
+		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
@@ -346,7 +349,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
-		ID:            "1",
+		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
@@ -831,7 +834,8 @@ func TestWsLogin(t *testing.T) {
    "unverified_email":"",
    "username":"test"
 }`)
-	ctx := exchange.DeployCredentialsToContext(context.Background(), &exchange.Credentials{Key: "b46e658f-d4c4-433c-b032-093423b1aaa4", ClientID: "dummy"})
+	ctx := account.DeployCredentialsToContext(context.Background(),
+		&account.Credentials{Key: "b46e658f-d4c4-433c-b032-093423b1aaa4", ClientID: "dummy"})
 	err := c.wsHandleData(ctx, pressXToJSON)
 	if err != nil {
 		t.Error(err)

@@ -21,6 +21,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
+var (
+	errInvalidAmount = errors.New("cannot be less than or equal to zero")
+	errIDRequired    = errors.New("id is required")
+)
+
 const (
 	btcMarketsAPIURL     = "https://api.btcmarkets.net"
 	btcMarketsAPIVersion = "/v3"
@@ -464,8 +469,8 @@ func (b *BTCMarkets) CancelAllOpenOrdersByPairs(ctx context.Context, marketIDs [
 }
 
 // FetchOrder finds order based on the provided id
-func (b *BTCMarkets) FetchOrder(ctx context.Context, id string) (OrderData, error) {
-	var resp OrderData
+func (b *BTCMarkets) FetchOrder(ctx context.Context, id string) (*OrderData, error) {
+	var resp *OrderData
 	return resp, b.SendAuthenticatedRequest(ctx, http.MethodGet,
 		btcMarketsOrders+"/"+id,
 		nil,
@@ -479,6 +484,36 @@ func (b *BTCMarkets) RemoveOrder(ctx context.Context, id string) (CancelOrderRes
 	return resp, b.SendAuthenticatedRequest(ctx, http.MethodDelete,
 		btcMarketsOrders+"/"+id,
 		nil,
+		&resp,
+		request.Auth)
+}
+
+// ReplaceOrder cancels an order and then places a new order.
+func (b *BTCMarkets) ReplaceOrder(ctx context.Context, id, clientOrderID string, price, amount float64) (*OrderData, error) {
+	if price <= 0 {
+		return nil, fmt.Errorf("price %w", errInvalidAmount)
+	}
+
+	if amount <= 0 {
+		return nil, fmt.Errorf("amount %w", errInvalidAmount)
+	}
+
+	if id == "" {
+		return nil, errIDRequired
+	}
+
+	req := make(map[string]interface{}, 3)
+	req["price"] = strconv.FormatFloat(price, 'f', -1, 64)
+	req["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
+	if clientOrderID != "" {
+		req["clientOrderId"] = clientOrderID
+	}
+
+	var resp *OrderData
+	return resp, b.SendAuthenticatedRequest(ctx,
+		http.MethodPut,
+		btcMarketsOrders+"/"+id,
+		req,
 		&resp,
 		request.Auth)
 }

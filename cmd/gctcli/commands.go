@@ -585,118 +585,6 @@ func getTickers(c *cli.Context) error {
 	return nil
 }
 
-var getOrderbookCommand = &cli.Command{
-	Name:      "getorderbook",
-	Usage:     "gets the orderbook for a specific currency pair and exchange",
-	ArgsUsage: "<exchange> <pair> <asset>",
-	Action:    getOrderbook,
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "exchange",
-			Usage: "the exchange to get the orderbook for",
-		},
-		&cli.StringFlag{
-			Name:  "pair",
-			Usage: "the currency pair to get the orderbook for",
-		},
-		&cli.StringFlag{
-			Name:  "asset",
-			Usage: "the asset type of the currency pair to get the orderbook for",
-		},
-	},
-}
-
-func getOrderbook(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getorderbook")
-	}
-
-	var exchangeName string
-	var currencyPair string
-	var assetType string
-
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
-	}
-
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(1)
-	}
-
-	if !validPair(currencyPair) {
-		return errInvalidPair
-	}
-
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(2)
-	}
-
-	assetType = strings.ToLower(assetType)
-	if !validAsset(assetType) {
-		return errInvalidAsset
-	}
-
-	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
-	if err != nil {
-		return err
-	}
-
-	conn, cancel, err := setupClient(c)
-	if err != nil {
-		return err
-	}
-	defer closeConn(conn, cancel)
-
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetOrderbook(c.Context,
-		&gctrpc.GetOrderbookRequest{
-			Exchange: exchangeName,
-			Pair: &gctrpc.CurrencyPair{
-				Delimiter: p.Delimiter,
-				Base:      p.Base.String(),
-				Quote:     p.Quote.String(),
-			},
-			AssetType: assetType,
-		},
-	)
-
-	if err != nil {
-		return err
-	}
-
-	jsonOutput(result)
-	return nil
-}
-
-var getOrderbooksCommand = &cli.Command{
-	Name:   "getorderbooks",
-	Usage:  "gets all orderbooks for all enabled exchanges and currency pairs",
-	Action: getOrderbooks,
-}
-
-func getOrderbooks(c *cli.Context) error {
-	conn, cancel, err := setupClient(c)
-	if err != nil {
-		return err
-	}
-	defer closeConn(conn, cancel)
-
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetOrderbooks(c.Context, &gctrpc.GetOrderbooksRequest{})
-	if err != nil {
-		return err
-	}
-
-	jsonOutput(result)
-	return nil
-}
-
 var getAccountInfoCommand = &cli.Command{
 	Name:      "getaccountinfo",
 	Usage:     "gets the exchange account balance info",
@@ -1757,107 +1645,6 @@ func simulateOrder(c *cli.Context) error {
 		},
 		Side:   orderSide,
 		Amount: amount,
-	})
-	if err != nil {
-		return err
-	}
-
-	jsonOutput(result)
-	return nil
-}
-
-var whaleBombCommand = &cli.Command{
-	Name:      "whalebomb",
-	Usage:     "whale bomb finds the amount required to reach a price target",
-	ArgsUsage: "<exchange> <pair> <side> <price>",
-	Action:    whaleBomb,
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "exchange",
-			Usage: "the exchange to whale bomb",
-		},
-		&cli.StringFlag{
-			Name:  "pair",
-			Usage: "the currency pair",
-		},
-		&cli.StringFlag{
-			Name:  "side",
-			Usage: "the order side to use (BUY OR SELL)",
-		},
-		&cli.Float64Flag{
-			Name:  "price",
-			Usage: "the price target",
-		},
-	},
-}
-
-func whaleBomb(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "whalebomb")
-	}
-
-	var exchangeName string
-	var currencyPair string
-	var orderSide string
-	var price float64
-
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
-	}
-
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(1)
-	}
-
-	if !validPair(currencyPair) {
-		return errInvalidPair
-	}
-
-	if c.IsSet("side") {
-		orderSide = c.String("side")
-	} else {
-		orderSide = c.Args().Get(2)
-	}
-
-	if orderSide == "" {
-		return errors.New("order side must be set")
-	}
-
-	if c.IsSet("price") {
-		price = c.Float64("price")
-	} else if c.Args().Get(3) != "" {
-		var err error
-		price, err = strconv.ParseFloat(c.Args().Get(3), 64)
-		if err != nil {
-			return err
-		}
-	}
-
-	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
-	if err != nil {
-		return err
-	}
-
-	conn, cancel, err := setupClient(c)
-	if err != nil {
-		return err
-	}
-	defer closeConn(conn, cancel)
-
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.WhaleBomb(c.Context, &gctrpc.WhaleBombRequest{
-		Exchange: exchangeName,
-		Pair: &gctrpc.CurrencyPair{
-			Delimiter: p.Delimiter,
-			Base:      p.Base.String(),
-			Quote:     p.Quote.String(),
-		},
-		Side:        orderSide,
-		PriceTarget: price,
 	})
 	if err != nil {
 		return err
@@ -3014,6 +2801,10 @@ var withdrawalRequestCommand = &cli.Command{
 					Name:  "currency",
 					Usage: "<currency>",
 				},
+				&cli.StringFlag{
+					Name:  "asset",
+					Usage: "the asset type of the currency pair",
+				},
 			},
 			Action: withdrawlRequestByExchangeID,
 		},
@@ -3089,7 +2880,7 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchange, currency string
+	var exchange, currency, assetType string
 	if c.IsSet("exchange") {
 		exchange = c.String("exchange")
 	} else {
@@ -3126,6 +2917,15 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 		if c.IsSet("currency") {
 			currency = c.String("currency")
 		}
+
+		if c.IsSet("asset") {
+			assetType = c.String("asset")
+		}
+
+		assetType = strings.ToLower(assetType)
+		if !validAsset(assetType) {
+			return errInvalidAsset
+		}
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -3138,10 +2938,11 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 
 	result, err := client.WithdrawalEventsByExchange(c.Context,
 		&gctrpc.WithdrawalEventsByExchangeRequest{
-			Exchange: exchange,
-			Id:       ID,
-			Limit:    int32(limit),
-			Currency: currency,
+			Exchange:  exchange,
+			Id:        ID,
+			Limit:     int32(limit),
+			Currency:  currency,
+			AssetType: assetType,
 		},
 	)
 	if err != nil {
@@ -3338,212 +3139,6 @@ func setLoggerDetails(c *cli.Context) error {
 	}
 	jsonOutput(result)
 	return nil
-}
-
-var getOrderbookStreamCommand = &cli.Command{
-	Name:      "getorderbookstream",
-	Usage:     "gets the orderbook stream for a specific currency pair and exchange",
-	ArgsUsage: "<exchange> <pair> <asset>",
-	Action:    getOrderbookStream,
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "exchange",
-			Usage: "the exchange to get the orderbook from",
-		},
-		&cli.StringFlag{
-			Name:  "pair",
-			Usage: "currency pair",
-		},
-		&cli.StringFlag{
-			Name:  "asset",
-			Usage: "the asset type of the currency pair",
-		},
-	},
-}
-
-func getOrderbookStream(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getorderbookstream")
-	}
-
-	var exchangeName string
-	var pair string
-	var assetType string
-
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
-	}
-
-	if c.IsSet("pair") {
-		pair = c.String("pair")
-	} else {
-		pair = c.Args().Get(1)
-	}
-
-	if !validPair(pair) {
-		return errInvalidPair
-	}
-
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(2)
-	}
-
-	assetType = strings.ToLower(assetType)
-
-	if !validAsset(assetType) {
-		return errInvalidAsset
-	}
-
-	p, err := currency.NewPairDelimiter(pair, pairDelimiter)
-	if err != nil {
-		return err
-	}
-
-	conn, cancel, err := setupClient(c)
-	if err != nil {
-		return err
-	}
-	defer closeConn(conn, cancel)
-
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetOrderbookStream(c.Context,
-		&gctrpc.GetOrderbookStreamRequest{
-			Exchange: exchangeName,
-			Pair: &gctrpc.CurrencyPair{
-				Base:      p.Base.String(),
-				Quote:     p.Quote.String(),
-				Delimiter: p.Delimiter,
-			},
-			AssetType: assetType,
-		},
-	)
-
-	if err != nil {
-		return err
-	}
-
-	for {
-		resp, err := result.Recv()
-		if err != nil {
-			return err
-		}
-
-		err = clearScreen()
-		if err != nil {
-			return err
-		}
-
-		fmt.Printf("Orderbook stream for %s %s:\n\n", exchangeName, resp.Pair)
-		if resp.Error != "" {
-			fmt.Printf("%s\n", resp.Error)
-			continue
-		}
-
-		fmt.Println("\t\tBids\t\t\t\tAsks")
-		fmt.Println()
-
-		bidLen := len(resp.Bids) - 1
-		askLen := len(resp.Asks) - 1
-
-		var maxLen int
-		if bidLen >= askLen {
-			maxLen = bidLen
-		} else {
-			maxLen = askLen
-		}
-
-		for i := 0; i < maxLen; i++ {
-			var bidAmount, bidPrice float64
-			if i <= bidLen {
-				bidAmount = resp.Bids[i].Amount
-				bidPrice = resp.Bids[i].Price
-			}
-
-			var askAmount, askPrice float64
-			if i <= askLen {
-				askAmount = resp.Asks[i].Amount
-				askPrice = resp.Asks[i].Price
-			}
-
-			fmt.Printf("%.8f %s @ %.8f %s\t\t%.8f %s @ %.8f %s\n",
-				bidAmount,
-				resp.Pair.Base,
-				bidPrice,
-				resp.Pair.Quote,
-				askAmount,
-				resp.Pair.Base,
-				askPrice,
-				resp.Pair.Quote)
-
-			if i >= 49 {
-				// limits orderbook display output
-				break
-			}
-		}
-	}
-}
-
-var getExchangeOrderbookStreamCommand = &cli.Command{
-	Name:      "getexchangeorderbookstream",
-	Usage:     "gets a stream for all orderbooks associated with an exchange",
-	ArgsUsage: "<exchange>",
-	Action:    getExchangeOrderbookStream,
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "exchange",
-			Usage: "the exchange to get the orderbook from",
-		},
-	},
-}
-
-func getExchangeOrderbookStream(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getexchangeorderbookstream")
-	}
-
-	var exchangeName string
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
-	}
-
-	conn, cancel, err := setupClient(c)
-	if err != nil {
-		return err
-	}
-	defer closeConn(conn, cancel)
-
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetExchangeOrderbookStream(c.Context,
-		&gctrpc.GetExchangeOrderbookStreamRequest{
-			Exchange: exchangeName,
-		})
-
-	if err != nil {
-		return err
-	}
-
-	for {
-		resp, err := result.Recv()
-		if err != nil {
-			return err
-		}
-
-		err = clearScreen()
-		if err != nil {
-			return err
-		}
-
-		fmt.Printf("Orderbook streamed for %s %s", exchangeName, resp.Pair)
-		if resp.Error != "" {
-			fmt.Printf("%s\n", resp.Error)
-		}
-	}
 }
 
 var getTickerStreamCommand = &cli.Command{
@@ -4728,174 +4323,13 @@ func findMissingSavedCandleIntervals(c *cli.Context) error {
 	return nil
 }
 
-var getFuturesPositionsCommand = &cli.Command{
-	Name:      "getfuturesposition",
-	Usage:     "will retrieve all futures positions in a timeframe, then calculate PNL based on that. Note, the dates have an impact on PNL calculations, ensure your start date is not after a new position is opened",
-	ArgsUsage: "<exchange> <pair> <asset> <start> <end> <limit> <status> <verbose> <overwrite>",
-	Action:    getFuturesPositions,
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:    "exchange",
-			Aliases: []string{"e"},
-			Usage:   "the exchange to retrieve futures positions from",
-		},
-		&cli.StringFlag{
-			Name:    "asset",
-			Aliases: []string{"a"},
-			Usage:   "the asset type of the currency pair, must be a futures type",
-		},
-		&cli.StringFlag{
-			Name:    "pair",
-			Aliases: []string{"p"},
-			Usage:   "the currency pair",
-		},
-		&cli.StringFlag{
-			Name:        "start",
-			Aliases:     []string{"sd"},
-			Usage:       "<start> rounded down to the nearest hour, ensure your starting position is within this window for accurate calculations",
-			Value:       time.Now().AddDate(-1, 0, 0).Truncate(time.Hour).Format(common.SimpleTimeFormat),
-			Destination: &startTime,
-		},
-		&cli.StringFlag{
-			Name:        "end",
-			Aliases:     []string{"ed"},
-			Usage:       "<end> rounded down to the nearest hour, ensure your last position is within this window for accurate calculations",
-			Value:       time.Now().Format(common.SimpleTimeFormat),
-			Destination: &endTime,
-		},
-		&cli.IntFlag{
-			Name:        "limit",
-			Aliases:     []string{"l"},
-			Usage:       "the number of positions (not orders) to return",
-			Value:       86400,
-			Destination: &limit,
-		},
-		&cli.StringFlag{
-			Name:    "status",
-			Aliases: []string{"s"},
-			Usage:   "limit return to position statuses - open, closed, any",
-			Value:   "ANY",
-		},
-		&cli.BoolFlag{
-			Name:    "verbose",
-			Aliases: []string{"v"},
-			Usage:   "includes all orders that make up a position in the response",
-		},
-		&cli.BoolFlag{
-			Name:    "overwrite",
-			Aliases: []string{"o"},
-			Usage:   "if true, will overwrite futures results for the provided exchange, asset, pair",
-		},
-	},
+var shutdownCommand = &cli.Command{
+	Name:   "shutdown",
+	Usage:  "shuts down bot instance",
+	Action: shutdown,
 }
 
-func getFuturesPositions(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getfuturesposition")
-	}
-
-	var exchangeName string
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
-	}
-
-	var assetType string
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(1)
-	}
-
-	if !validAsset(assetType) {
-		return errInvalidAsset
-	}
-
-	var currencyPair string
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(2)
-	}
-	if !validPair(currencyPair) {
-		return errInvalidPair
-	}
-
-	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
-	if err != nil {
-		return err
-	}
-
-	if !c.IsSet("start") {
-		if c.Args().Get(3) != "" {
-			startTime = c.Args().Get(3)
-		}
-	}
-
-	if !c.IsSet("end") {
-		if c.Args().Get(4) != "" {
-			endTime = c.Args().Get(4)
-		}
-	}
-	if c.IsSet("limit") {
-		limit = c.Int("limit")
-	} else if c.Args().Get(5) != "" {
-		var limit64 int64
-		limit64, err = strconv.ParseInt(c.Args().Get(5), 10, 64)
-		if err != nil {
-			return err
-		}
-		limit = int(limit64)
-	}
-
-	var status string
-	if c.IsSet("status") {
-		status = c.String("status")
-	} else if c.Args().Get(6) != "" {
-		status = c.Args().Get(6)
-	}
-	if !strings.EqualFold(status, "any") &&
-		!strings.EqualFold(status, "open") &&
-		!strings.EqualFold(status, "closed") &&
-		status != "" {
-		return errors.New("unrecognised status")
-	}
-
-	var verbose bool
-	if c.IsSet("verbose") {
-		verbose = c.Bool("verbose")
-	} else if c.Args().Get(7) != "" {
-		verbose, err = strconv.ParseBool(c.Args().Get(7))
-		if err != nil {
-			return err
-		}
-	}
-
-	var overwrite bool
-	if c.IsSet("overwrite") {
-		overwrite = c.Bool("overwrite")
-	} else if c.Args().Get(8) != "" {
-		overwrite, err = strconv.ParseBool(c.Args().Get(8))
-		if err != nil {
-			return err
-		}
-	}
-
-	var s, e time.Time
-	s, err = time.Parse(common.SimpleTimeFormat, startTime)
-	if err != nil {
-		return fmt.Errorf("invalid time format for start: %v", err)
-	}
-	e, err = time.Parse(common.SimpleTimeFormat, endTime)
-	if err != nil {
-		return fmt.Errorf("invalid time format for end: %v", err)
-	}
-
-	if e.Before(s) {
-		return errors.New("start cannot be after end")
-	}
-
+func shutdown(c *cli.Context) error {
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -4903,22 +4337,7 @@ func getFuturesPositions(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetFuturesPositions(c.Context,
-		&gctrpc.GetFuturesPositionsRequest{
-			Exchange: exchangeName,
-			Asset:    assetType,
-			Pair: &gctrpc.CurrencyPair{
-				Delimiter: p.Delimiter,
-				Base:      p.Base.String(),
-				Quote:     p.Quote.String(),
-			},
-			StartDate:     negateLocalOffset(s),
-			EndDate:       negateLocalOffset(e),
-			Status:        status,
-			PositionLimit: int64(limit),
-			Verbose:       verbose,
-			Overwrite:     overwrite,
-		})
+	result, err := client.Shutdown(c.Context, &gctrpc.ShutdownRequest{})
 	if err != nil {
 		return err
 	}
@@ -4927,41 +4346,70 @@ func getFuturesPositions(c *cli.Context) error {
 	return nil
 }
 
-var getCollateralCommand = &cli.Command{
-	Name:      "getcollateral",
-	Usage:     "returns total collateral for an exchange asset, with optional per currency breakdown",
-	ArgsUsage: "<exchange> <asset> <calculateoffline> <includebreakdown> <includezerovalues>",
-	Action:    getCollateral,
+var getMarginRatesHistoryCommand = &cli.Command{
+	Name:      "getmarginrateshistory",
+	Usage:     "returns margin lending/borrow rates for a period",
+	ArgsUsage: "<exchange> <asset> <currency> <start> <end> <getpredictedrate> <getlendingpayments> <getborrowrates> <getborrowcosts> <includeallrates>",
+	Action:    getMarginRatesHistory,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:    "exchange",
 			Aliases: []string{"e"},
-			Usage:   "the exchange to retrieve futures positions from",
+			Usage:   "the exchange to retrieve margin rates from",
 		},
 		&cli.StringFlag{
 			Name:    "asset",
 			Aliases: []string{"a"},
-			Usage:   "the asset type of the currency pair, must be a futures type",
+			Usage:   "the asset type of the currency pair",
 		},
-		&cli.BoolFlag{
-			Name:    "calculateoffline",
+		&cli.StringFlag{
+			Name:    "currency",
 			Aliases: []string{"c"},
-			Usage:   "use local scaling calculations instead of requesting the collateral values directly, depending on individual exchange support",
+			Usage:   "must be an enabled currency",
+		},
+		&cli.StringFlag{
+			Name:        "start",
+			Aliases:     []string{"sd"},
+			Usage:       "<start>",
+			Value:       time.Now().AddDate(0, -1, 0).Truncate(time.Hour).Format(common.SimpleTimeFormat),
+			Destination: &startTime,
+		},
+		&cli.StringFlag{
+			Name:        "end",
+			Aliases:     []string{"ed"},
+			Usage:       "<end>",
+			Value:       time.Now().Format(common.SimpleTimeFormat),
+			Destination: &endTime,
 		},
 		&cli.BoolFlag{
-			Name:    "includebreakdown",
-			Aliases: []string{"i"},
-			Usage:   "include a list of each held currency and its contribution to the overall collateral value",
+			Name:    "getpredictedrate",
+			Aliases: []string{"p"},
+			Usage:   "include the predicted upcoming rate in the response",
 		},
 		&cli.BoolFlag{
-			Name:    "includezerovalues",
-			Aliases: []string{"z"},
-			Usage:   "include collateral values that are zero",
+			Name:    "getlendingpayments",
+			Aliases: []string{"lp"},
+			Usage:   "retrieve and summarise your lending payments over the time period",
+		},
+		&cli.BoolFlag{
+			Name:    "getborrowrates",
+			Aliases: []string{"br"},
+			Usage:   "retrieve borrowing rates",
+		},
+		&cli.BoolFlag{
+			Name:    "getborrowcosts",
+			Aliases: []string{"bc"},
+			Usage:   "retrieve and summarise your borrowing costs over the time period",
+		},
+		&cli.BoolFlag{
+			Name:    "includeallrates",
+			Aliases: []string{"ar", "v", "verbose"},
+			Usage:   "include a detailed slice of all lending/borrowing rates over the time period",
 		},
 	},
 }
 
-func getCollateral(c *cli.Context) error {
+func getMarginRatesHistory(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowCommandHelp(c, c.Command.Name)
 	}
@@ -4984,35 +4432,89 @@ func getCollateral(c *cli.Context) error {
 		return errInvalidAsset
 	}
 
+	var curr string
+	if c.IsSet("currency") {
+		curr = c.String("currency")
+	} else {
+		curr = c.Args().Get(2)
+	}
+
+	if !c.IsSet("start") {
+		if c.Args().Get(3) != "" {
+			startTime = c.Args().Get(3)
+		}
+	}
+
+	if !c.IsSet("end") {
+		if c.Args().Get(4) != "" {
+			endTime = c.Args().Get(4)
+		}
+	}
+
 	var err error
-	var calculateOffline bool
-	if c.IsSet("calculateoffline") {
-		calculateOffline = c.Bool("calculateoffline")
-	} else if c.Args().Get(2) != "" {
-		calculateOffline, err = strconv.ParseBool(c.Args().Get(2))
+	var getPredictedRate bool
+	if c.IsSet("getpredictedrate") {
+		getPredictedRate = c.Bool("getpredictedrate")
+	} else if c.Args().Get(5) != "" {
+		getPredictedRate, err = strconv.ParseBool(c.Args().Get(5))
 		if err != nil {
 			return err
 		}
 	}
 
-	var includeBreakdown bool
-	if c.IsSet("includebreakdown") {
-		includeBreakdown = c.Bool("includebreakdown")
-	} else if c.Args().Get(3) != "" {
-		includeBreakdown, err = strconv.ParseBool(c.Args().Get(3))
+	var getLendingPayments bool
+	if c.IsSet("getlendingpayments") {
+		getLendingPayments = c.Bool("getlendingpayments")
+	} else if c.Args().Get(6) != "" {
+		getLendingPayments, err = strconv.ParseBool(c.Args().Get(6))
 		if err != nil {
 			return err
 		}
 	}
 
-	var includeZeroValues bool
-	if c.IsSet("includezerovalues") {
-		includeZeroValues = c.Bool("includezerovalues")
-	} else if c.Args().Get(4) != "" {
-		includeZeroValues, err = strconv.ParseBool(c.Args().Get(4))
+	var getBorrowRates bool
+	if c.IsSet("getborrowrates") {
+		getBorrowRates = c.Bool("getborrowrates")
+	} else if c.Args().Get(7) != "" {
+		getBorrowRates, err = strconv.ParseBool(c.Args().Get(7))
 		if err != nil {
 			return err
 		}
+	}
+
+	var getBorrowCosts bool
+	if c.IsSet("getborrowcosts") {
+		getBorrowCosts = c.Bool("getborrowcosts")
+	} else if c.Args().Get(8) != "" {
+		getBorrowCosts, err = strconv.ParseBool(c.Args().Get(8))
+		if err != nil {
+			return err
+		}
+	}
+
+	var includeAllRates bool
+	if c.IsSet("includeallrates") {
+		includeAllRates = c.Bool("includeallrates")
+	} else if c.Args().Get(9) != "" {
+		includeAllRates, err = strconv.ParseBool(c.Args().Get(9))
+		if err != nil {
+			return err
+		}
+	}
+
+	var s, e time.Time
+	s, err = time.Parse(common.SimpleTimeFormat, startTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for start: %v", err)
+	}
+	e, err = time.Parse(common.SimpleTimeFormat, endTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for end: %v", err)
+	}
+
+	err = common.StartEndTimeCheck(s, e)
+	if err != nil {
+		return err
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -5022,13 +4524,18 @@ func getCollateral(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetCollateral(c.Context,
-		&gctrpc.GetCollateralRequest{
-			Exchange:          exchangeName,
-			Asset:             assetType,
-			IncludeBreakdown:  includeBreakdown,
-			CalculateOffline:  calculateOffline,
-			IncludeZeroValues: includeZeroValues,
+	result, err := client.GetMarginRatesHistory(c.Context,
+		&gctrpc.GetMarginRatesHistoryRequest{
+			Exchange:           exchangeName,
+			Asset:              assetType,
+			Currency:           curr,
+			StartDate:          negateLocalOffset(s),
+			EndDate:            negateLocalOffset(e),
+			GetPredictedRate:   getPredictedRate,
+			GetLendingPayments: getLendingPayments,
+			GetBorrowRates:     getBorrowRates,
+			GetBorrowCosts:     getBorrowCosts,
+			IncludeAllRates:    includeAllRates,
 		})
 	if err != nil {
 		return err

@@ -58,7 +58,7 @@ func (b *Bitstamp) SetDefaults() {
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 	b.API.CredentialsValidator.RequiresClientID = true
-	requestFmt := &currency.PairFormat{}
+	requestFmt := &currency.EMPTYFORMAT
 	configFmt := &currency.PairFormat{
 		Uppercase: true,
 		Delimiter: currency.ForwardSlashDelimiter,
@@ -414,6 +414,8 @@ func (b *Bitstamp) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		}
 	}
 
+	filterOrderbookZeroBidPrice(book)
+
 	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
 		book.Asks[x] = orderbook.Item{
@@ -421,6 +423,7 @@ func (b *Bitstamp) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 			Price:  orderbookNew.Asks[x].Price,
 		}
 	}
+
 	err = book.Process()
 	if err != nil {
 		return book, err
@@ -452,7 +455,11 @@ func (b *Bitstamp) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 		Currencies: currencies,
 	})
 
-	err = account.Process(&response)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&response, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -462,11 +469,14 @@ func (b *Bitstamp) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (b *Bitstamp) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(b.Name, assetType)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(b.Name, creds, assetType)
 	if err != nil {
 		return b.UpdateAccountInfo(ctx, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -477,7 +487,7 @@ func (b *Bitstamp) GetFundingHistory(ctx context.Context) ([]exchange.FundHistor
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *Bitstamp) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (b *Bitstamp) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -526,43 +536,32 @@ func (b *Bitstamp) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset
 }
 
 // SubmitOrder submits a new order
-func (b *Bitstamp) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (b *Bitstamp) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	fPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
-	buy := s.Side == order.Buy
-	market := s.Type == order.Market
 	response, err := b.PlaceOrder(ctx,
 		fPair.String(),
 		s.Price,
 		s.Amount,
-		buy,
-		market)
+		s.Side == order.Buy,
+		s.Type == order.Market)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
-	if response.ID > 0 {
-		submitOrderResponse.OrderID = strconv.FormatInt(response.ID, 10)
-	}
-
-	submitOrderResponse.IsOrderPlaced = true
-	if s.Type == order.Market {
-		submitOrderResponse.FullyMatched = true
-	}
-	return submitOrderResponse, nil
+	return s.DeriveSubmitResponse(strconv.FormatInt(response.ID, 10))
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bitstamp) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
-	return order.Modify{}, common.ErrFunctionNotSupported
+func (b *Bitstamp) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -571,7 +570,7 @@ func (b *Bitstamp) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -702,8 +701,9 @@ func (b *Bitstamp) WithdrawFiatFundsToInternationalBank(ctx context.Context, wit
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *Bitstamp) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (b *Bitstamp) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 
@@ -711,7 +711,8 @@ func (b *Bitstamp) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 	if len(req.Pairs) != 1 {
 		currPair = "all"
 	} else {
-		fPair, err := b.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
+		var fPair currency.Pair
+		fPair, err = b.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
@@ -751,7 +752,7 @@ func (b *Bitstamp) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 
 		orders[i] = order.Detail{
 			Amount:   resp[i].Amount,
-			ID:       strconv.FormatInt(resp[i].ID, 10),
+			OrderID:  strconv.FormatInt(resp[i].ID, 10),
 			Price:    resp[i].Price,
 			Type:     order.Limit,
 			Side:     orderSide,
@@ -760,25 +761,21 @@ func (b *Bitstamp) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 			Exchange: b.Name,
 		}
 	}
-
-	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
-	}
-	order.FilterOrdersByPairs(&orders, req.Pairs)
-	return orders, nil
+	return req.Filter(b.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *Bitstamp) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (b *Bitstamp) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 
 	var currPair string
 	if len(req.Pairs) == 1 {
-		fPair, err := b.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
+		var fPair currency.Pair
+		fPair, err = b.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
@@ -841,19 +838,13 @@ func (b *Bitstamp) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 		}
 
 		orders = append(orders, order.Detail{
-			ID:       strconv.FormatInt(resp[i].OrderID, 10),
+			OrderID:  strconv.FormatInt(resp[i].OrderID, 10),
 			Date:     tm,
 			Exchange: b.Name,
 			Pair:     currPair,
 		})
 	}
-
-	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
-	}
-	order.FilterOrdersByPairs(&orders, req.Pairs)
-	return orders, nil
+	return req.Filter(b.Name, orders), nil
 }
 
 // ValidateCredentials validates current credentials used for wrapper

@@ -101,10 +101,13 @@ func main() {
 	flag.BoolVar(&verbose, "verbose", false, "increases logging verbosity for API Update Checker")
 	flag.BoolVar(&create, "create", false, "specifies whether to automatically create trello list, card and checklist in a given board")
 	flag.Parse()
-	var err error
-	log.RWM.Lock()
-	log.GlobalLogConfig = log.GenDefaultSettings()
-	log.RWM.Unlock()
+
+	err := log.SetGlobalLogConfig(log.GenDefaultSettings())
+	if err != nil {
+		fmt.Printf("Could not setup global logger. Error: %v.\n", err)
+		os.Exit(1)
+	}
+
 	err = log.SetupGlobalLogger()
 	if err != nil {
 		fmt.Printf("Could not setup global logger. Error: %v.\n", err)
@@ -1717,7 +1720,7 @@ func htmlScrapeBitfinex(htmlData *HTMLScrapingData) ([]string, error) {
 	return resp, nil
 }
 
-//  htmlScrapeBinance gets checkstring for binance exchange
+// htmlScrapeBinance gets checkstring for binance exchange
 func htmlScrapeBinance(htmlData *HTMLScrapingData) ([]string, error) {
 	temp, err := sendHTTPGetRequest(htmlData.Path, nil)
 	if err != nil {

@@ -1,0 +1,30 @@
+// import fmt package
+fmt := import("fmt")
+// import exchange package
+exch := import("exchange")
+
+
+load := func() {
+   // retrieve account information from exchange and store in info variable
+   // withdrawcrypto
+   // 1: Exchange name
+   // 2: currency
+   // 3: address
+   // 4: address tag
+   // 5: amount
+   // 6: fee amount
+   // 7: trade password
+   // 8: OTP
+
+   // Submit request to withdraw funds
+   // 'ctx' is already defined when we construct our bytecode from file.
+   // To add debugging information to the request, see verbose.gct. To add account credentials, see account.gct
+   info := exch.withdrawfiat(ctx, "BTC Markets", "AUD", "hello", 1, "-")
+   if is_error(info) {
+      // handle error
+   } 
+   // print out info
+   fmt.println(info)
+}
+
+load()

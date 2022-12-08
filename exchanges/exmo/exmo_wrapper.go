@@ -383,7 +383,11 @@ func (e *EXMO) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 		Currencies: currencies,
 	})
 
-	err = account.Process(&response)
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&response, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -393,11 +397,14 @@ func (e *EXMO) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (e *EXMO) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(e.Name, assetType)
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(e.Name, creds, assetType)
 	if err != nil {
 		return e.UpdateAccountInfo(ctx, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -408,7 +415,7 @@ func (e *EXMO) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, e
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (e *EXMO) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (e *EXMO) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -460,16 +467,15 @@ func (e *EXMO) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Ite
 }
 
 // SubmitOrder submits a new order
-func (e *EXMO) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (e *EXMO) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	var oT string
 	switch s.Type {
 	case order.Limit:
-		return submitOrderResponse, errors.New("unsupported order type")
+		return nil, errors.New("unsupported order type")
 	case order.Market:
 		if s.Side == order.Sell {
 			oT = "market_sell"
@@ -480,28 +486,21 @@ func (e *EXMO) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitRe
 
 	fPair, err := e.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	response, err := e.CreateOrder(ctx, fPair.String(), oT, s.Price, s.Amount)
 	if err != nil {
-		return submitOrderResponse, err
-	}
-	if response > 0 {
-		submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
+		return nil, err
 	}
 
-	submitOrderResponse.IsOrderPlaced = true
-	if s.Type == order.Market {
-		submitOrderResponse.FullyMatched = true
-	}
-	return submitOrderResponse, nil
+	return s.DeriveSubmitResponse(strconv.FormatInt(response, 10))
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (e *EXMO) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
-	return order.Modify{}, common.ErrFunctionNotSupported
+func (e *EXMO) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -510,7 +509,7 @@ func (e *EXMO) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -632,8 +631,9 @@ func (e *EXMO) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (e *EXMO) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (e *EXMO) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 
@@ -656,7 +656,7 @@ func (e *EXMO) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 			return nil, err
 		}
 		orders = append(orders, order.Detail{
-			ID:       strconv.FormatInt(resp[i].OrderID, 10),
+			OrderID:  strconv.FormatInt(resp[i].OrderID, 10),
 			Amount:   resp[i].Quantity,
 			Date:     orderDate,
 			Price:    resp[i].Price,
@@ -665,19 +665,14 @@ func (e *EXMO) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 			Pair:     symbol,
 		})
 	}
-
-	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
-	}
-	order.FilterOrdersBySide(&orders, req.Side)
-	return orders, nil
+	return req.Filter(e.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 
@@ -714,7 +709,7 @@ func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 			return nil, err
 		}
 		detail := order.Detail{
-			ID:             strconv.FormatInt(allTrades[i].TradeID, 10),
+			OrderID:        strconv.FormatInt(allTrades[i].TradeID, 10),
 			Amount:         allTrades[i].Quantity,
 			ExecutedAmount: allTrades[i].Quantity,
 			Cost:           allTrades[i].Amount,
@@ -728,13 +723,7 @@ func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 		detail.InferCostsAndTimes()
 		orders[i] = detail
 	}
-
-	err := order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
-	}
-	order.FilterOrdersBySide(&orders, req.Side)
-	return orders, nil
+	return req.Filter(e.Name, orders), nil
 }
 
 // ValidateCredentials validates current credentials used for wrapper

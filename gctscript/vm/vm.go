@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	scriptevent "github.com/thrasher-corp/gocryptotrader/database/repository/script"
+	"github.com/thrasher-corp/gocryptotrader/gctscript/modules/gct"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules/loader"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -33,10 +34,7 @@ func (g *GctScriptManager) NewVM() *VM {
 	}
 	newUUID, err := uuid.NewV4()
 	if err != nil {
-		log.Error(log.GCTScriptMgr, Error{
-			Action: "New: UUID",
-			Cause:  err,
-		})
+		log.Error(log.GCTScriptMgr, Error{Action: "New: UUID", Cause: err})
 		return nil
 	}
 
@@ -82,18 +80,19 @@ func (vm *VM) Load(file string) error {
 
 	code, err := os.ReadFile(file)
 	if err != nil {
-		return &Error{
-			Action: "Load: ReadFile",
-			Script: file,
-			Cause:  err,
-		}
+		return &Error{Action: "Load: ReadFile", Script: file, Cause: err}
 	}
 
 	vm.File = file
 	vm.Path = filepath.Dir(file)
 	vm.Script = tengo.NewScript(code)
-	scriptctx := vm.ShortName() + "-" + vm.ID.String()
-	err = vm.Script.Add("ctx", scriptctx)
+
+	scriptCtx := &gct.Context{}
+	scriptCtx.Value = map[string]tengo.Object{
+		"script": &tengo.String{Value: vm.ShortName() + "-" + vm.ID.String()},
+	}
+
+	err = vm.Script.Add("ctx", scriptCtx)
 	if err != nil {
 		return err
 	}
@@ -113,9 +112,8 @@ func (vm *VM) Load(file string) error {
 
 // Compile compiles to byte code loaded copy of vm script
 func (vm *VM) Compile() (err error) {
-	vm.Compiled = new(tengo.Compiled)
 	vm.Compiled, err = vm.Script.Compile()
-	return
+	return err
 }
 
 // RunCtx runs compiled byte code with context.Context support.
@@ -133,13 +131,10 @@ func (vm *VM) RunCtx() (err error) {
 	err = vm.Compiled.RunContext(ctx)
 	if err != nil {
 		vm.event(StatusFailure, TypeExecute)
-		return Error{
-			Action: "RunCtx",
-			Cause:  err,
-		}
+		return Error{Action: "RunCtx", Cause: err}
 	}
 	vm.event(StatusSuccess, TypeExecute)
-	return
+	return nil
 }
 
 // CompileAndRun Compile and Run script with support for task running
@@ -176,21 +171,18 @@ func (vm *VM) CompileAndRun() {
 			}
 			return
 		}
-		if vm.T < time.Nanosecond {
-			log.Error(log.GCTScriptMgr, "Repeat timer cannot be under 1 nano second")
-			err = vm.Shutdown()
-			if err != nil {
-				log.Errorln(log.GCTScriptMgr, err)
-			}
+		if vm.T > 0 {
+			vm.runner()
 			return
 		}
-		vm.runner()
-	} else {
-		err = vm.Shutdown()
-		if err != nil {
-			log.Error(log.GCTScriptMgr, err)
+
+		if vm.T < 0 {
+			log.Error(log.GCTScriptMgr, "Repeat timer cannot be under 1 nano second")
 		}
-		return
+	}
+	err = vm.Shutdown()
+	if err != nil {
+		log.Error(log.GCTScriptMgr, err)
 	}
 }
 
@@ -247,24 +239,23 @@ func (vm *VM) event(status, executionType string) {
 }
 
 func (vm *VM) scriptData() ([]byte, error) {
-	buf := new(bytes.Buffer)
-	w := zip.NewWriter(buf)
-
-	f, err := w.Create(vm.ShortName())
-	if err != nil {
-		return []byte{}, err
-	}
 	contents, err := vm.read()
 	if err != nil {
-		return []byte{}, err
+		return nil, err
+	}
+	buf := new(bytes.Buffer)
+	w := zip.NewWriter(buf)
+	f, err := w.Create(vm.ShortName())
+	if err != nil {
+		return nil, err
 	}
 	_, err = f.Write(contents)
 	if err != nil {
-		return []byte{}, err
+		return nil, err
 	}
 	err = w.Close()
 	if err != nil {
-		return []byte{}, err
+		return nil, err
 	}
 	return buf.Bytes(), nil
 }

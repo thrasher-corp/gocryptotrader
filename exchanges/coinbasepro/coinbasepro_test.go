@@ -441,6 +441,7 @@ func TestGetActiveOrders(t *testing.T) {
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Pairs:     []currency.Pair{testPair},
+		Side:      order.AnySide,
 	}
 
 	_, err := c.GetActiveOrders(context.Background(), &getOrdersRequest)
@@ -456,6 +457,7 @@ func TestGetOrderHistory(t *testing.T) {
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Pairs:     []currency.Pair{testPair},
+		Side:      order.AnySide,
 	}
 
 	_, err := c.GetOrderHistory(context.Background(), &getOrdersRequest)
@@ -493,7 +495,9 @@ func TestSubmitOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
+	// limit order
 	var orderSubmission = &order.Submit{
+		Exchange: c.Name,
 		Pair: currency.Pair{
 			Delimiter: "-",
 			Base:      currency.BTC,
@@ -502,12 +506,54 @@ func TestSubmitOrder(t *testing.T) {
 		Side:      order.Buy,
 		Type:      order.Limit,
 		Price:     1,
-		Amount:    1,
+		Amount:    0.001,
 		ClientID:  "meowOrder",
 		AssetType: asset.Spot,
 	}
 	response, err := c.SubmitOrder(context.Background(), orderSubmission)
-	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
+	if areTestAPIKeysSet() && (err != nil || response.Status != order.New) {
+		t.Errorf("Order failed to be placed: %v", err)
+	} else if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+
+	// market order from amount
+	orderSubmission = &order.Submit{
+		Exchange: c.Name,
+		Pair: currency.Pair{
+			Delimiter: "-",
+			Base:      currency.BTC,
+			Quote:     currency.USD,
+		},
+		Side:      order.Buy,
+		Type:      order.Market,
+		Amount:    0.001,
+		ClientID:  "meowOrder",
+		AssetType: asset.Spot,
+	}
+	response, err = c.SubmitOrder(context.Background(), orderSubmission)
+	if areTestAPIKeysSet() && (err != nil || response.Status != order.New) {
+		t.Errorf("Order failed to be placed: %v", err)
+	} else if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+
+	// market order from quote amount
+	orderSubmission = &order.Submit{
+		Exchange: c.Name,
+		Pair: currency.Pair{
+			Delimiter: "-",
+			Base:      currency.BTC,
+			Quote:     currency.USD,
+		},
+		Side:        order.Buy,
+		Type:        order.Market,
+		QuoteAmount: 1,
+		ClientID:    "meowOrder",
+		AssetType:   asset.Spot,
+	}
+	response, err = c.SubmitOrder(context.Background(), orderSubmission)
+	if areTestAPIKeysSet() && (err != nil || response.Status != order.New) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
@@ -520,7 +566,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 
 	var orderCancellation = &order.Cancel{
-		ID:            "1",
+		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          testPair,
@@ -542,7 +588,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	}
 
 	var orderCancellation = &order.Cancel{
-		ID:            "1",
+		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          testPair,

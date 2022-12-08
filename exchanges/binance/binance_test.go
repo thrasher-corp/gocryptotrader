@@ -48,6 +48,19 @@ func setFeeBuilder() *exchange.FeeBuilder {
 	}
 }
 
+// getTime returns a static time for mocking endpoints, if mock is not enabled
+// this will default to time now with a window size of 30 days.
+// Mock details are unix seconds; start = 1577836800 and end = 1580515200
+func getTime() (start, end time.Time) {
+	if mockTests {
+		return time.Unix(1577836800, 0), time.Unix(1580515200, 0)
+	}
+
+	tn := time.Now()
+	offset := time.Hour * 24 * 30
+	return tn.Add(-offset), tn
+}
+
 func TestStart(t *testing.T) {
 	t.Parallel()
 	err := b.Start(nil)
@@ -241,7 +254,8 @@ func TestUCompressedTrades(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.UCompressedTrades(context.Background(), currency.NewPair(currency.LTC, currency.USDT), "", 0, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	start, end := getTime()
+	_, err = b.UCompressedTrades(context.Background(), currency.NewPair(currency.LTC, currency.USDT), "", 0, start, end)
 	if err != nil {
 		t.Error(err)
 	}
@@ -253,7 +267,8 @@ func TestUKlineData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.UKlineData(context.Background(), currency.NewPair(currency.LTC, currency.USDT), "5m", 0, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	start, end := getTime()
+	_, err = b.UKlineData(context.Background(), currency.NewPair(currency.LTC, currency.USDT), "5m", 0, start, end)
 	if err != nil {
 		t.Error(err)
 	}
@@ -277,7 +292,8 @@ func TestUGetFundingHistory(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.UGetFundingHistory(context.Background(), currency.NewPair(currency.LTC, currency.USDT), 1, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	start, end := getTime()
+	_, err = b.UGetFundingHistory(context.Background(), currency.NewPair(currency.LTC, currency.USDT), 1, start, end)
 	if err != nil {
 		t.Error(err)
 	}
@@ -319,18 +335,6 @@ func TestUSymbolOrderbookTicker(t *testing.T) {
 	}
 }
 
-func TestULiquidationOrders(t *testing.T) {
-	t.Parallel()
-	_, err := b.ULiquidationOrders(context.Background(), currency.NewPair(currency.BTC, currency.USDT), 0, time.Time{}, time.Time{})
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = b.ULiquidationOrders(context.Background(), currency.NewPair(currency.LTC, currency.USDT), 5, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestUOpenInterest(t *testing.T) {
 	t.Parallel()
 	_, err := b.UOpenInterest(context.Background(), currency.NewPair(currency.BTC, currency.USDT))
@@ -345,7 +349,8 @@ func TestUOpenInterestStats(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.UOpenInterestStats(context.Background(), currency.NewPair(currency.LTC, currency.USDT), "1d", 10, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	start, end := getTime()
+	_, err = b.UOpenInterestStats(context.Background(), currency.NewPair(currency.LTC, currency.USDT), "1d", 10, start, end)
 	if err != nil {
 		t.Error(err)
 	}
@@ -357,7 +362,8 @@ func TestUTopAcccountsLongShortRatio(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.UTopAcccountsLongShortRatio(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "5m", 2, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	start, end := getTime()
+	_, err = b.UTopAcccountsLongShortRatio(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "5m", 2, start, end)
 	if err != nil {
 		t.Error(err)
 	}
@@ -369,7 +375,8 @@ func TestUTopPostionsLongShortRatio(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.UTopPostionsLongShortRatio(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "1d", 0, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	start, end := getTime()
+	_, err = b.UTopPostionsLongShortRatio(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "1d", 0, start, end)
 	if err != nil {
 		t.Error(err)
 	}
@@ -381,7 +388,8 @@ func TestUGlobalLongShortRatio(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.UGlobalLongShortRatio(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "4h", 0, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	start, end := getTime()
+	_, err = b.UGlobalLongShortRatio(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "4h", 0, start, end)
 	if err != nil {
 		t.Error(err)
 	}
@@ -389,7 +397,8 @@ func TestUGlobalLongShortRatio(t *testing.T) {
 
 func TestUTakerBuySellVol(t *testing.T) {
 	t.Parallel()
-	_, err := b.UTakerBuySellVol(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "5m", 10, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	start, end := getTime()
+	_, err := b.UTakerBuySellVol(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "5m", 10, start, end)
 	if err != nil {
 		t.Error(err)
 	}
@@ -416,7 +425,16 @@ func TestUFuturesNewOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-	_, err := b.UFuturesNewOrder(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "BUY", "", "LIMIT", "GTC", "", "", "", "", 1, 1, 0, 0, 0, false)
+	_, err := b.UFuturesNewOrder(context.Background(),
+		&UFuturesNewOrderRequest{
+			Symbol:      currency.NewPair(currency.BTC, currency.USDT),
+			Side:        "BUY",
+			OrderType:   "LIMIT",
+			TimeInForce: "GTC",
+			Quantity:    1,
+			Price:       1,
+		},
+	)
 	if err != nil {
 		t.Error(err)
 	}
@@ -694,11 +712,12 @@ func TestGetCrossMarginInterestHistory(t *testing.T) {
 
 func TestGetFundingRates(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetFundingRates(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "", time.Time{}, time.Time{})
+	_, err := b.FundingRates(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetFundingRates(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "2", time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	start, end := getTime()
+	_, err = b.FundingRates(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "2", start, end)
 	if err != nil {
 		t.Error(err)
 	}
@@ -759,7 +778,8 @@ func TestGetFuturesKlineData(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = b.GetFuturesKlineData(context.Background(), currency.NewPairWithDelimiter("LTCUSD", "PERP", "_"), "5m", 5, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	start, end := getTime()
+	_, err = b.GetFuturesKlineData(context.Background(), currency.NewPairWithDelimiter("LTCUSD", "PERP", "_"), "5m", 5, start, end)
 	if err != nil {
 		t.Error(err)
 	}
@@ -771,7 +791,8 @@ func TestGetContinuousKlineData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetContinuousKlineData(context.Background(), "BTCUSD", "CURRENT_QUARTER", "1M", 5, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	start, end := getTime()
+	_, err = b.GetContinuousKlineData(context.Background(), "BTCUSD", "CURRENT_QUARTER", "1M", 5, start, end)
 	if err != nil {
 		t.Error(err)
 	}
@@ -783,7 +804,8 @@ func TestGetIndexPriceKlines(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetIndexPriceKlines(context.Background(), "BTCUSD", "1M", 5, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	start, end := getTime()
+	_, err = b.GetIndexPriceKlines(context.Background(), "BTCUSD", "1M", 5, start, end)
 	if err != nil {
 		t.Error(err)
 	}
@@ -814,7 +836,8 @@ func TestFuturesGetFundingHistory(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.FuturesGetFundingHistory(context.Background(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), 50, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	start, end := getTime()
+	_, err = b.FuturesGetFundingHistory(context.Background(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), 50, start, end)
 	if err != nil {
 		t.Error(err)
 	}
@@ -855,18 +878,6 @@ func TestGetFuturesOrderbookTicker(t *testing.T) {
 	}
 }
 
-func TestGetFuturesLiquidationOrders(t *testing.T) {
-	t.Parallel()
-	_, err := b.GetFuturesLiquidationOrders(context.Background(), currency.EMPTYPAIR, "", 0, time.Time{}, time.Time{})
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = b.GetFuturesLiquidationOrders(context.Background(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "", 0, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetOpenInterest(context.Background(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"))
@@ -881,7 +892,8 @@ func TestGetOpenInterestStats(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetOpenInterestStats(context.Background(), "BTCUSD", "CURRENT_QUARTER", "5m", 0, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	start, end := getTime()
+	_, err = b.GetOpenInterestStats(context.Background(), "BTCUSD", "CURRENT_QUARTER", "5m", 0, start, end)
 	if err != nil {
 		t.Error(err)
 	}
@@ -893,7 +905,8 @@ func TestGetTraderFuturesAccountRatio(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetTraderFuturesAccountRatio(context.Background(), "BTCUSD", "5m", 0, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	start, end := getTime()
+	_, err = b.GetTraderFuturesAccountRatio(context.Background(), "BTCUSD", "5m", 0, start, end)
 	if err != nil {
 		t.Error(err)
 	}
@@ -905,7 +918,8 @@ func TestGetTraderFuturesPositionsRatio(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetTraderFuturesPositionsRatio(context.Background(), "BTCUSD", "5m", 0, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	start, end := getTime()
+	_, err = b.GetTraderFuturesPositionsRatio(context.Background(), "BTCUSD", "5m", 0, start, end)
 	if err != nil {
 		t.Error(err)
 	}
@@ -917,7 +931,8 @@ func TestGetMarketRatio(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetMarketRatio(context.Background(), "BTCUSD", "5m", 0, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	start, end := getTime()
+	_, err = b.GetMarketRatio(context.Background(), "BTCUSD", "5m", 0, start, end)
 	if err != nil {
 		t.Error(err)
 	}
@@ -929,7 +944,8 @@ func TestGetFuturesTakerVolume(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetFuturesTakerVolume(context.Background(), "BTCUSD", "ALL", "5m", 0, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	start, end := getTime()
+	_, err = b.GetFuturesTakerVolume(context.Background(), "BTCUSD", "ALL", "5m", 0, start, end)
 	if err != nil {
 		t.Error(err)
 	}
@@ -941,7 +957,8 @@ func TestFuturesBasisData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetFuturesBasisData(context.Background(), "BTCUSD", "CURRENT_QUARTER", "5m", 0, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	start, end := getTime()
+	_, err = b.GetFuturesBasisData(context.Background(), "BTCUSD", "CURRENT_QUARTER", "5m", 0, start, end)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1210,14 +1227,6 @@ func TestGetMarkPriceKline(t *testing.T) {
 	}
 }
 
-func TestGetMarginExchangeInfo(t *testing.T) {
-	t.Parallel()
-	_, err := b.GetMarginMarkets(context.Background())
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestGetExchangeInfo(t *testing.T) {
 	t.Parallel()
 	info, err := b.GetExchangeInfo(context.Background())
@@ -1278,9 +1287,10 @@ func TestGetMostRecentTrades(t *testing.T) {
 
 func TestGetHistoricalTrades(t *testing.T) {
 	t.Parallel()
-
 	_, err := b.GetHistoricalTrades(context.Background(), "BTCUSDT", 5, -1)
-	if err != nil {
+	if !mockTests && err == nil {
+		t.Errorf("Binance GetHistoricalTrades() error: %v", "expected error")
+	} else if mockTests && err != nil {
 		t.Errorf("Binance GetHistoricalTrades() error: %v", err)
 	}
 }
@@ -1299,13 +1309,14 @@ func TestGetAggregatedTrades(t *testing.T) {
 
 func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
+	start, end := getTime()
 	_, err := b.GetSpotKline(context.Background(),
 		&KlinesRequestParams{
 			Symbol:    currency.NewPair(currency.BTC, currency.USDT),
 			Interval:  kline.FiveMin.Short(),
 			Limit:     24,
-			StartTime: time.Unix(1577836800, 0),
-			EndTime:   time.Unix(1580515200, 0),
+			StartTime: start,
+			EndTime:   end,
 		})
 	if err != nil {
 		t.Error("Binance GetSpotKline() error", err)
@@ -1507,6 +1518,7 @@ func TestGetActiveOrders(t *testing.T) {
 		Type:      order.AnyType,
 		Pairs:     currency.Pairs{pair},
 		AssetType: asset.Spot,
+		Side:      order.AnySide,
 	}
 
 	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequest)
@@ -1526,6 +1538,7 @@ func TestGetOrderHistory(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
+		Side:      order.AnySide,
 	}
 
 	_, err := b.GetOrderHistory(context.Background(), &getOrdersRequest)
@@ -1770,6 +1783,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var orderSubmission = &order.Submit{
+		Exchange: b.Name,
 		Pair: currency.Pair{
 			Delimiter: "_",
 			Base:      currency.LTC,
@@ -1801,7 +1815,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 	var orderCancellation = &order.Cancel{
-		ID:            "1",
+		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currency.NewPair(currency.LTC, currency.BTC),
@@ -1826,7 +1840,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 	var orderCancellation = &order.Cancel{
-		ID:            "1",
+		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currency.NewPair(currency.LTC, currency.BTC),
@@ -1959,7 +1973,7 @@ func TestCancelOrder(t *testing.T) {
 	err = b.CancelOrder(context.Background(), &order.Cancel{
 		AssetType: asset.CoinMarginedFutures,
 		Pair:      fpair,
-		ID:        "1234",
+		OrderID:   "1234",
 	})
 	if err != nil {
 		t.Error(err)
@@ -1976,7 +1990,7 @@ func TestCancelOrder(t *testing.T) {
 	err = b.CancelOrder(context.Background(), &order.Cancel{
 		AssetType: asset.USDTMarginedFutures,
 		Pair:      fpair2,
-		ID:        "1234",
+		OrderID:   "1234",
 	})
 	if err != nil {
 		t.Error(err)
@@ -2072,7 +2086,7 @@ func TestWithdrawHistory(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	_, err := b.GetWithdrawalsHistory(context.Background(), currency.ETH)
+	_, err := b.GetWithdrawalsHistory(context.Background(), currency.ETH, asset.Spot)
 	switch {
 	case areTestAPIKeysSet() && err != nil:
 		t.Error("GetWithdrawalsHistory() error", err)
@@ -2622,7 +2636,7 @@ func TestSetExchangeOrderExecutionLimits(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if limit == nil {
+	if limit == (order.MinMaxLevel{}) {
 		t.Fatal("exchange limit should be loaded")
 	}
 
@@ -2653,7 +2667,7 @@ func TestWsOrderExecutionReport(t *testing.T) {
 		Fee:                  0,
 		FeeAsset:             currency.BTC,
 		Exchange:             "Binance",
-		ID:                   "5340845958",
+		OrderID:              "5340845958",
 		ClientOrderID:        "c4wyKsIhoAaittTYlIVLqk",
 		Type:                 order.Limit,
 		Side:                 order.Buy,
@@ -2837,7 +2851,7 @@ func TestFetchSpotExchangeLimits(t *testing.T) {
 	t.Parallel()
 	limits, err := b.FetchSpotExchangeLimits(context.Background())
 	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', epected '%v'", err, nil)
+		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 	if len(limits) == 0 {
 		t.Error("expected a response")

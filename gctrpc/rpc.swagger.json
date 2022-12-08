@@ -1135,6 +1135,54 @@
         ]
       }
     },
+    "/v1/getallmanagedpositions": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetAllManagedPositions",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetManagedPositionsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "includeFullOrderData",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "getFundingPayments",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "includeFullFundingRates",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "includePredictedRate",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
     "/v1/getauditevent": {
       "get": {
         "operationId": "GoCryptoTraderService_GetAuditEvent",
@@ -1823,6 +1871,76 @@
         ]
       }
     },
+    "/v1/getfundingrates": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetFundingRates",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetFundingRatesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pairs",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "includePredicted",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "includePayments",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
     "/v1/getfuturespositions": {
       "get": {
         "operationId": "GoCryptoTraderService_GetFuturesPositions",
@@ -1897,13 +2015,37 @@
             "format": "int64"
           },
           {
-            "name": "verbose",
+            "name": "overwrite",
             "in": "query",
             "required": false,
             "type": "boolean"
           },
           {
-            "name": "overwrite",
+            "name": "getPositionStats",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "includeFullOrderData",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "getFundingPayments",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "includeFullFundingRates",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "includePredictedRate",
             "in": "query",
             "required": false,
             "type": "boolean"
@@ -2176,6 +2318,180 @@
         ]
       }
     },
+    "/v1/getmanagedposition": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetManagedPosition",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetManagedPositionsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "includeFullOrderData",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "getFundingPayments",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "includeFullFundingRates",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "includePredictedRate",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
+    "/v1/getmarginrateshistory": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetMarginRatesHistory",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetMarginRatesHistoryResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "getPredictedRate",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "getLendingPayments",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "getBorrowRates",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "getBorrowCosts",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "includeAllRates",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "calculateOffline",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "takerFeeRate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
     "/v1/getorder": {
       "post": {
         "operationId": "GoCryptoTraderService_GetOrder",
@@ -2233,6 +2549,231 @@
             "schema": {
               "$ref": "#/definitions/gctrpcGetOrderbookRequest"
             }
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
+    "/v1/getorderbookamountbyimpact": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetOrderbookAmountByImpact",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetOrderbookAmountByImpactResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "impactPercentage",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "sell",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "requiresRestOrderbook",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
+    "/v1/getorderbookamountbynominal": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetOrderbookAmountByNominal",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetOrderbookAmountByNominalResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "nominalPercentage",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "sell",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "requiresRestOrderbook",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
+    "/v1/getorderbookmovement": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetOrderbookMovement",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetOrderbookMovementResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "amount",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "sell",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "requiresRestOrderbook",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "purchase",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -2572,6 +3113,159 @@
             }
           }
         },
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
+    "/v1/gettechnicalanalysis": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetTechnicalAnalysis",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetTechnicalAnalysisResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "assetType",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "algorithmType",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "interval",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "fastPeriod",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "slowPeriod",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "standardDeviationUp",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "standardDeviationDown",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "movingAverageType",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "otherExchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "otherPair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "otherPair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "otherPair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "otherAssetType",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
         "tags": [
           "GoCryptoTraderService"
         ]
@@ -3037,6 +3731,28 @@
             }
           }
         ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
+    "/v1/shutdown": {
+      "get": {
+        "operationId": "GoCryptoTraderService_Shutdown",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcShutdownResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
         "tags": [
           "GoCryptoTraderService"
         ]
@@ -3713,6 +4429,17 @@
         }
       }
     },
+    "gctrpcBorrowCost": {
+      "type": "object",
+      "properties": {
+        "cost": {
+          "type": "string"
+        },
+        "size": {
+          "type": "string"
+        }
+      }
+    },
     "gctrpcCancelAllOrdersRequest": {
       "type": "object",
       "properties": {
@@ -4273,13 +5000,89 @@
         }
       }
     },
+    "gctrpcFundingData": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "startDate": {
+          "type": "string"
+        },
+        "endDate": {
+          "type": "string"
+        },
+        "rates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcFundingRate"
+          }
+        },
+        "latestRate": {
+          "$ref": "#/definitions/gctrpcFundingRate"
+        },
+        "upcomingRate": {
+          "$ref": "#/definitions/gctrpcFundingRate"
+        },
+        "paymentSum": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcFundingRate": {
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string"
+        },
+        "rate": {
+          "type": "string"
+        },
+        "payment": {
+          "type": "string"
+        }
+      }
+    },
     "gctrpcFuturePosition": {
       "type": "object",
       "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
         "status": {
           "type": "string"
         },
+        "openingDate": {
+          "type": "string"
+        },
+        "openingDirection": {
+          "type": "string"
+        },
+        "openingPrice": {
+          "type": "string"
+        },
+        "openingSize": {
+          "type": "string"
+        },
         "currentDirection": {
+          "type": "string"
+        },
+        "currentPrice": {
+          "type": "string"
+        },
+        "currentSize": {
           "type": "string"
         },
         "unrealisedPnl": {
@@ -4288,17 +5091,65 @@
         "realisedPnl": {
           "type": "string"
         },
-        "openingDate": {
-          "type": "string"
-        },
         "closingDate": {
           "type": "string"
+        },
+        "orderCount": {
+          "type": "string",
+          "format": "int64"
         },
         "orders": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/gctrpcOrderDetails"
           }
+        },
+        "positionStats": {
+          "$ref": "#/definitions/gctrpcFuturesPositionStats"
+        },
+        "fundingData": {
+          "$ref": "#/definitions/gctrpcFundingData"
+        }
+      }
+    },
+    "gctrpcFuturesPositionStats": {
+      "type": "object",
+      "properties": {
+        "maintenanceMarginRequirement": {
+          "type": "string"
+        },
+        "initialMarginRequirement": {
+          "type": "string"
+        },
+        "estimatedLiquidationPrice": {
+          "type": "string"
+        },
+        "collateralUsed": {
+          "type": "string"
+        },
+        "markPrice": {
+          "type": "string"
+        },
+        "currentSize": {
+          "type": "string"
+        },
+        "breakEvenPrice": {
+          "type": "string"
+        },
+        "averageOpenPrice": {
+          "type": "string"
+        },
+        "recentPnl": {
+          "type": "string"
+        },
+        "marginFraction": {
+          "type": "string"
+        },
+        "freeCollateral": {
+          "type": "string"
+        },
+        "totalCollateral": {
+          "type": "string"
         }
       }
     },
@@ -4722,6 +5573,17 @@
         }
       }
     },
+    "gctrpcGetFundingRatesResponse": {
+      "type": "object",
+      "properties": {
+        "fundingPayments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcFundingData"
+          }
+        }
+      }
+    },
     "gctrpcGetFuturesPositionsResponse": {
       "type": "object",
       "properties": {
@@ -4826,6 +5688,53 @@
         }
       }
     },
+    "gctrpcGetManagedPositionsResponse": {
+      "type": "object",
+      "properties": {
+        "positions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcFuturePosition"
+          }
+        }
+      }
+    },
+    "gctrpcGetMarginRatesHistoryResponse": {
+      "type": "object",
+      "properties": {
+        "rates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcMarginRate"
+          }
+        },
+        "totalRates": {
+          "type": "string",
+          "format": "int64"
+        },
+        "sumBorrowCosts": {
+          "type": "string"
+        },
+        "avgBorrowSize": {
+          "type": "string"
+        },
+        "sumLendingPayments": {
+          "type": "string"
+        },
+        "avgLendingSize": {
+          "type": "string"
+        },
+        "latestRate": {
+          "$ref": "#/definitions/gctrpcMarginRate"
+        },
+        "predictedRate": {
+          "$ref": "#/definitions/gctrpcMarginRate"
+        },
+        "takerFeeRate": {
+          "type": "string"
+        }
+      }
+    },
     "gctrpcGetOrderRequest": {
       "type": "object",
       "properties": {
@@ -4840,6 +5749,149 @@
         },
         "asset": {
           "type": "string"
+        }
+      }
+    },
+    "gctrpcGetOrderbookAmountByImpactResponse": {
+      "type": "object",
+      "properties": {
+        "amountRequired": {
+          "type": "number",
+          "format": "double"
+        },
+        "currencySelling": {
+          "type": "string"
+        },
+        "amountReceived": {
+          "type": "number",
+          "format": "double"
+        },
+        "currencyBuying": {
+          "type": "string"
+        },
+        "startPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "endPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "averageOrderCost": {
+          "type": "number",
+          "format": "double"
+        },
+        "sideAffected": {
+          "type": "string"
+        },
+        "approximateImpactSlippagePercentage": {
+          "type": "number",
+          "format": "double"
+        },
+        "updateProtocol": {
+          "type": "string"
+        },
+        "fullOrderbookSideConsumed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "gctrpcGetOrderbookAmountByNominalResponse": {
+      "type": "object",
+      "properties": {
+        "amountRequired": {
+          "type": "number",
+          "format": "double"
+        },
+        "currencySelling": {
+          "type": "string"
+        },
+        "amountReceived": {
+          "type": "number",
+          "format": "double"
+        },
+        "currencyBuying": {
+          "type": "string"
+        },
+        "startPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "endPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "averageOrderCost": {
+          "type": "number",
+          "format": "double"
+        },
+        "sideAffected": {
+          "type": "string"
+        },
+        "approximateNominalSlippagePercentage": {
+          "type": "number",
+          "format": "double"
+        },
+        "updateProtocol": {
+          "type": "string"
+        },
+        "fullOrderbookSideConsumed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "gctrpcGetOrderbookMovementResponse": {
+      "type": "object",
+      "properties": {
+        "nominalPercentage": {
+          "type": "number",
+          "format": "double"
+        },
+        "impactPercentage": {
+          "type": "number",
+          "format": "double"
+        },
+        "slippageCost": {
+          "type": "number",
+          "format": "double"
+        },
+        "currencyBought": {
+          "type": "string"
+        },
+        "bought": {
+          "type": "number",
+          "format": "double"
+        },
+        "currencySold": {
+          "type": "string"
+        },
+        "sold": {
+          "type": "number",
+          "format": "double"
+        },
+        "sideAffected": {
+          "type": "string"
+        },
+        "updateProtocol": {
+          "type": "string"
+        },
+        "fullOrderbookSideConsumed": {
+          "type": "boolean"
+        },
+        "startPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "endPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "noSlippageOccurred": {
+          "type": "boolean"
+        },
+        "averageOrderCost": {
+          "type": "number",
+          "format": "double"
         }
       }
     },
@@ -4967,6 +6019,17 @@
         }
       }
     },
+    "gctrpcGetTechnicalAnalysisResponse": {
+      "type": "object",
+      "properties": {
+        "signals": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/gctrpcListOfSignals"
+          }
+        }
+      }
+    },
     "gctrpcGetTickerRequest": {
       "type": "object",
       "properties": {
@@ -4989,6 +6052,58 @@
           "items": {
             "$ref": "#/definitions/gctrpcTickers"
           }
+        }
+      }
+    },
+    "gctrpcLendingPayment": {
+      "type": "object",
+      "properties": {
+        "payment": {
+          "type": "string"
+        },
+        "size": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcListOfSignals": {
+      "type": "object",
+      "properties": {
+        "signals": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      }
+    },
+    "gctrpcMarginRate": {
+      "type": "object",
+      "properties": {
+        "time": {
+          "type": "string"
+        },
+        "marketBorrowSize": {
+          "type": "string"
+        },
+        "hourlyRate": {
+          "type": "string"
+        },
+        "yearlyRate": {
+          "type": "string"
+        },
+        "hourlyBorrowRate": {
+          "type": "string"
+        },
+        "yearlyBorrowRate": {
+          "type": "string"
+        },
+        "lendingPayment": {
+          "$ref": "#/definitions/gctrpcLendingPayment"
+        },
+        "borrowCost": {
+          "$ref": "#/definitions/gctrpcBorrowCost"
         }
       }
     },
@@ -5079,12 +6194,10 @@
           "type": "string"
         },
         "creationTime": {
-          "type": "string",
-          "format": "int64"
+          "type": "string"
         },
         "updateTime": {
-          "type": "string",
-          "format": "int64"
+          "type": "string"
         },
         "status": {
           "type": "string"
@@ -5345,6 +6458,9 @@
           "type": "string"
         }
       }
+    },
+    "gctrpcShutdownResponse": {
+      "type": "object"
     },
     "gctrpcSimulateOrderRequest": {
       "type": "object",
@@ -5720,6 +6836,9 @@
         },
         "side": {
           "type": "string"
+        },
+        "assetType": {
+          "type": "string"
         }
       }
     },
@@ -5856,6 +6975,9 @@
           "format": "int32"
         },
         "currency": {
+          "type": "string"
+        },
+        "assetType": {
           "type": "string"
         }
       }

@@ -1,6 +1,8 @@
 package ftx
 
 import (
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -10,9 +12,9 @@ import (
 
 // MarginFundingData stores borrowing/lending data for margin trading
 type MarginFundingData struct {
-	Coin     string  `json:"coin"`
-	Estimate float64 `json:"estimate"`
-	Previous float64 `json:"previous"`
+	Coin     currency.Code `json:"coin"`
+	Estimate float64       `json:"estimate"`
+	Previous float64       `json:"previous"`
 }
 
 // MarginDailyBorrowStats stores the daily borrowed amounts
@@ -32,11 +34,12 @@ type MarginMarketInfo struct {
 
 // MarginTransactionHistoryData stores margin borrowing/lending history
 type MarginTransactionHistoryData struct {
-	Coin string    `json:"coin"`
-	Cost float64   `json:"cost"`
-	Rate float64   `json:"rate"`
-	Size float64   `json:"size"`
-	Time time.Time `json:"time"`
+	Coin     currency.Code `json:"coin"`
+	Cost     float64       `json:"cost"`
+	Rate     float64       `json:"rate"`
+	Size     float64       `json:"size"`
+	Proceeds float64       `json:"proceeds"`
+	Time     time.Time     `json:"time"`
 }
 
 // LendingOffersData stores data for lending offers
@@ -186,26 +189,26 @@ type IndexWeights struct {
 
 // PositionData stores data of an open position
 type PositionData struct {
-	CollateralUsed               float64       `json:"collateralUsed"`
+	Future                       currency.Pair `json:"future"`
+	Size                         float64       `json:"size"`
+	Side                         string        `json:"side"`
+	NetSize                      float64       `json:"netSize"`
+	LongOrderSize                float64       `json:"longOrderSize"`
+	ShortOrderSize               float64       `json:"shortOrderSize"`
 	Cost                         float64       `json:"cost"`
+	EntryPrice                   float64       `json:"entryPrice"`
+	UnrealizedPNL                float64       `json:"unrealizedPnl"`
+	RealizedPNL                  float64       `json:"realizedPnl"`
+	InitialMarginRequirement     float64       `json:"initialMarginRequirement"`
+	MaintenanceMarginRequirement float64       `json:"maintenanceMarginRequirement"`
+	OpenSize                     float64       `json:"openSize"`
+	CollateralUsed               float64       `json:"collateralUsed"`
+	EstimatedLiquidationPrice    float64       `json:"estimatedLiquidationPrice"`
+	RecentAverageOpenPrice       float64       `json:"recentAverageOpenPrice"`
+	RecentPNL                    float64       `json:"recentPnl"`
+	RecentBreakEvenPrice         float64       `json:"recentBreakEvenPrice"`
 	CumulativeBuySize            float64       `json:"cumulativeBuySize"`
 	CumulativeSellSize           float64       `json:"cumulativeSellSize"`
-	EntryPrice                   float64       `json:"entryPrice"`
-	EstimatedLiquidationPrice    float64       `json:"estimatedLiquidationPrice"`
-	Future                       currency.Pair `json:"future"`
-	InitialMarginRequirement     float64       `json:"initialMarginRequirement"`
-	LongOrderSize                float64       `json:"longOrderSize"`
-	MaintenanceMarginRequirement float64       `json:"maintenanceMarginRequirement"`
-	NetSize                      float64       `json:"netSize"`
-	OpenSize                     float64       `json:"openSize"`
-	RealizedPNL                  float64       `json:"realizedPnl"`
-	RecentAverageOpenPrice       float64       `json:"recentAverageOpenPrice"`
-	RecentBreakEvenPrice         float64       `json:"recentBreakEvenPrice"`
-	RecentPnl                    float64       `json:"recentPnl"`
-	ShortOrderSize               float64       `json:"shortOrderSize"`
-	Side                         string        `json:"side"`
-	Size                         float64       `json:"size"`
-	UnrealizedPNL                float64       `json:"unrealizedPnl"`
 }
 
 // AccountInfoData stores account data
@@ -330,22 +333,22 @@ type WithdrawItem struct {
 
 // OrderData stores open order data
 type OrderData struct {
-	CreatedAt     time.Time `json:"createdAt"`
-	FilledSize    float64   `json:"filledSize"`
-	Future        string    `json:"future"`
-	ID            int64     `json:"id"`
-	Market        string    `json:"market"`
-	Price         float64   `json:"price"`
-	AvgFillPrice  float64   `json:"avgFillPrice"`
-	RemainingSize float64   `json:"remainingSize"`
-	Side          string    `json:"side"`
-	Size          float64   `json:"size"`
-	Status        string    `json:"status"`
-	OrderType     string    `json:"type"`
-	ReduceOnly    bool      `json:"reduceOnly"`
-	IOC           bool      `json:"ioc"`
-	PostOnly      bool      `json:"postOnly"`
-	ClientID      string    `json:"clientId"`
+	AvgFillPrice  float64       `json:"avgFillPrice"`
+	ClientID      string        `json:"clientId"`
+	CreatedAt     time.Time     `json:"createdAt"`
+	FilledSize    float64       `json:"filledSize"`
+	Future        currency.Pair `json:"future"`
+	ID            int64         `json:"id"`
+	IOC           bool          `json:"ioc"`
+	Market        currency.Pair `json:"market"`
+	PostOnly      bool          `json:"postOnly"`
+	Price         float64       `json:"price"`
+	ReduceOnly    bool          `json:"reduceOnly"`
+	RemainingSize float64       `json:"remainingSize"`
+	Side          string        `json:"side"`
+	Size          float64       `json:"size"`
+	Status        string        `json:"status"`
+	Type          string        `json:"type"`
 }
 
 // TriggerOrderData stores trigger order data
@@ -383,22 +386,22 @@ type TriggerData struct {
 
 // FillsData stores fills' data
 type FillsData struct {
-	Fee           float64   `json:"fee"`
-	FeeCurrency   string    `json:"feeCurrency"`
-	FeeRate       float64   `json:"feeRate"`
-	Future        string    `json:"future"`
-	ID            int64     `json:"id"`
-	Liquidity     string    `json:"liquidity"`
-	Market        string    `json:"market"`
-	BaseCurrency  string    `json:"baseCurrency"`
-	QuoteCurrency string    `json:"quoteCurrency"`
-	OrderID       int64     `json:"orderId"`
-	TradeID       int64     `json:"tradeId"`
-	Price         float64   `json:"price"`
-	Side          string    `json:"side"`
-	Size          float64   `json:"size"`
-	Time          time.Time `json:"time"`
-	OrderType     string    `json:"type"`
+	Fee           float64       `json:"fee"`
+	FeeCurrency   currency.Code `json:"feeCurrency"`
+	FeeRate       float64       `json:"feeRate"`
+	Future        string        `json:"future"`
+	ID            int64         `json:"id"`
+	Liquidity     string        `json:"liquidity"`
+	Market        string        `json:"market"`
+	BaseCurrency  string        `json:"baseCurrency"`
+	QuoteCurrency string        `json:"quoteCurrency"`
+	OrderID       int64         `json:"orderId"`
+	TradeID       int64         `json:"tradeId"`
+	Price         float64       `json:"price"`
+	Side          string        `json:"side"`
+	Size          float64       `json:"size"`
+	Time          time.Time     `json:"time"`
+	OrderType     string        `json:"type"`
 }
 
 // FundingPaymentsData stores funding payments' data
@@ -748,17 +751,6 @@ type WsFillsDataStore struct {
 // TimeInterval represents interval enum.
 type TimeInterval string
 
-// Vars related to time intervals
-var (
-	TimeIntervalFifteenSeconds = TimeInterval("15")
-	TimeIntervalMinute         = TimeInterval("60")
-	TimeIntervalFiveMinutes    = TimeInterval("300")
-	TimeIntervalFifteenMinutes = TimeInterval("900")
-	TimeIntervalHour           = TimeInterval("3600")
-	TimeIntervalFourHours      = TimeInterval("14400")
-	TimeIntervalDay            = TimeInterval("86400")
-)
-
 // OrderVars stores side, status and type for any order/trade
 type OrderVars struct {
 	Side      order.Side
@@ -946,4 +938,82 @@ type CollateralPosition struct {
 	MarkPrice      decimal.Decimal `json:"markPrice"`
 	RequiredMargin decimal.Decimal `json:"requiredMargin"`
 	CollateralUsed decimal.Decimal `json:"totalCollateralUsed"`
+}
+
+// CustomReferralCode stores custom referral code info
+type CustomReferralCode struct {
+	Code string `json:"code"`
+	ID   int64  `json:"id"`
+}
+
+// ReferralRebate stores the referral rebate info by account ID
+type ReferralRebate struct {
+	RefereeAccountID int64   `json:"refereeAccountId"`
+	TotalSize        float64 `json:"totalSize"`
+}
+
+// ReferralRebateHistory stores the daily referral rebate history info
+type ReferralRebateHistory struct {
+	Subaccount string    `json:"subaccount"`
+	Size       float64   `json:"size"`
+	Day        time.Time `json:"day"`
+}
+
+var errUnhandledOrderType = errors.New("unhandled order type")
+
+// validTypes attaches package specific checker functionality for valid type
+// check
+type validTypes struct {
+	*order.GetOrdersRequest
+}
+
+// Check determines if the request is valid
+func (v validTypes) Check() error {
+	for x := range validOrderTypeForRequest {
+		if v.Type == validOrderTypeForRequest[x] {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("%w %s, expected: [%v]",
+		errUnhandledOrderType,
+		v.Type,
+		validOrderTypeForRequest)
+}
+
+var validOrderTypeForRequest = []order.Type{
+	order.AnyType,
+	order.Stop,
+	order.TrailingStop,
+	order.TakeProfit,
+	order.Limit,
+	order.Market,
+}
+
+var errUnhandledOrderSide = errors.New("unhandled order side")
+
+// validSides attaches package specific checker functionality for valid side
+// check
+type validSides struct {
+	*order.GetOrdersRequest
+}
+
+// Check determines if the request is valid
+func (v validSides) Check() error {
+	for x := range validOrderSideForRequest {
+		if v.Side == validOrderSideForRequest[x] {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("%w %s, expected: %v",
+		errUnhandledOrderSide,
+		v.Type,
+		validOrderSideForRequest)
+}
+
+var validOrderSideForRequest = []order.Side{
+	order.AnySide,
+	order.Buy,
+	order.Sell,
 }

@@ -2,7 +2,6 @@ package config
 
 import (
 	"errors"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -676,12 +675,12 @@ func TestCheckPairConfigFormats(t *testing.T) {
 	c.Exchanges[0].CurrencyPairs = &currency.PairsManager{
 		Pairs: map[asset.Item]*currency.PairStore{
 			asset.Spot: {
-				RequestFormat: &currency.PairFormat{},
-				ConfigFormat:  &currency.PairFormat{},
+				RequestFormat: &currency.EMPTYFORMAT,
+				ConfigFormat:  &currency.EMPTYFORMAT,
 			},
 			asset.Futures: {
-				RequestFormat: &currency.PairFormat{},
-				ConfigFormat:  &currency.PairFormat{},
+				RequestFormat: &currency.EMPTYFORMAT,
+				ConfigFormat:  &currency.EMPTYFORMAT,
 			},
 		},
 	}
@@ -749,8 +748,9 @@ func TestCheckPairConsistency(t *testing.T) {
 	t.Parallel()
 
 	var c Config
-	if err := c.CheckPairConsistency("asdf"); err == nil {
-		t.Error("non-existent exchange should return an error")
+	err := c.CheckPairConsistency("asdf")
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Fatalf("received: '%v' buy expected: '%v'", err, ErrExchangeNotFound)
 	}
 
 	c.Exchanges = append(c.Exchanges,
@@ -760,8 +760,9 @@ func TestCheckPairConsistency(t *testing.T) {
 	)
 
 	// Test nil pair store
-	if err := c.CheckPairConsistency(testFakeExchangeName); err == nil {
-		t.Error("nil pair store should return an error")
+	err = c.CheckPairConsistency(testFakeExchangeName)
+	if !errors.Is(err, errPairsManagerIsNil) {
+		t.Fatalf("received: '%v' buy expected: '%v'", err, errPairsManagerIsNil)
 	}
 
 	enabled, err := currency.NewPairDelimiter("BTC_USD", "_")
@@ -789,8 +790,8 @@ func TestCheckPairConsistency(t *testing.T) {
 
 	// Test for nil avail pairs
 	err = c.CheckPairConsistency(testFakeExchangeName)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' buy expected: '%v'", err, nil)
 	}
 
 	p1, err := currency.NewPairDelimiter("LTC_USD", "_")
@@ -803,17 +804,19 @@ func TestCheckPairConsistency(t *testing.T) {
 		p1,
 	}
 
-	// LTC_USD is only found in the available pairs list and should therefor
+	// LTC_USD is only found in the available pairs list and should therefore
 	// be added to the enabled pairs list due to the atLestOneEnabled code
 	err = c.CheckPairConsistency(testFakeExchangeName)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for _, item := range c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled {
-		if !item.Equal(p1) {
-			t.Fatal("LTC_USD should be contained in the enabled pairs list")
-		}
+	if len(c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled) != 1 {
+		t.Fatal("there should be atleast one pair located in this list")
+	}
+
+	if !c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled[0].Equal(p1) {
+		t.Fatal("LTC_USD should be contained in the enabled pairs list")
 	}
 
 	p2, err := currency.NewPairDelimiter("BTC_USD", "_")
@@ -823,8 +826,7 @@ func TestCheckPairConsistency(t *testing.T) {
 
 	// Add the BTC_USD pair and see result
 	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Available = currency.Pairs{
-		p1,
-		p2,
+		p1, p2,
 	}
 
 	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
@@ -834,7 +836,7 @@ func TestCheckPairConsistency(t *testing.T) {
 	// Test that an empty enabled pair is populated with an available pair
 	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = nil
 	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
-		t.Error("unexpected result")
+		t.Error("unexpected result", err)
 	}
 
 	if len(c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled) != 1 {
@@ -901,7 +903,7 @@ func TestCheckPairConsistency(t *testing.T) {
 
 func TestSupportsPair(t *testing.T) {
 	t.Parallel()
-	fmt := &currency.PairFormat{}
+	fmt := &currency.EMPTYFORMAT
 	cfg := &Config{
 		Exchanges: []Exchange{
 			{
@@ -1576,7 +1578,7 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	}
 
 	// Make a sneaky copy for bank account testing
-	// nolint: gocritic
+	//nolint: gocritic
 	cpy := append(cfg.Exchanges[:0:0], cfg.Exchanges...)
 
 	// Test empty exchange name for an enabled exchange
@@ -1729,7 +1731,7 @@ func TestSaveConfigToFile(t *testing.T) {
 	if err != nil {
 		t.Errorf("TestSaveConfig.LoadConfig: %s", err.Error())
 	}
-	f, err := ioutil.TempFile("", "")
+	f, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Errorf("TestSaveConfig create file: %s", err)
 	}
@@ -1859,8 +1861,8 @@ func TestCheckConfig(t *testing.T) {
 							AssetEnabled:  convert.BoolPtr(true),
 							Available:     currency.Pairs{cp1, cp2},
 							Enabled:       currency.Pairs{cp1},
-							ConfigFormat:  &currency.PairFormat{},
-							RequestFormat: &currency.PairFormat{},
+							ConfigFormat:  &currency.EMPTYFORMAT,
+							RequestFormat: &currency.EMPTYFORMAT,
 						},
 					},
 				},

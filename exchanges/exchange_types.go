@@ -6,6 +6,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -17,8 +18,6 @@ import (
 
 // Endpoint authentication types
 const (
-	RestAuthentication      uint8 = 0
-	WebsocketAuthentication uint8 = 1
 	// Repeated exchange strings
 	// FeeType custom type for calculating fees based on method
 	WireTransfer InternationalBankTransactionType = iota
@@ -188,18 +187,20 @@ type API struct {
 
 	Endpoints *Endpoints
 
-	credentials *Credentials
+	credentials *account.Credentials
 	credMu      sync.RWMutex
 
-	CredentialsValidator struct {
-		// For Huobi (optional)
-		RequiresPEM bool
+	CredentialsValidator CredentialsValidator
+}
 
-		RequiresKey                bool
-		RequiresSecret             bool
-		RequiresClientID           bool
-		RequiresBase64DecodeSecret bool
-	}
+// CredentialsValidator determines what is required
+// to make authenticated requests for an exchange
+type CredentialsValidator struct {
+	RequiresPEM                bool
+	RequiresKey                bool
+	RequiresSecret             bool
+	RequiresClientID           bool
+	RequiresBase64DecodeSecret bool
 }
 
 // Base stores the individual exchange information
@@ -242,6 +243,7 @@ const (
 	RestUSDTMargined
 	RestCoinMargined
 	RestFutures
+	RestUSDCMargined
 	RestSwap
 	RestSandbox
 	WebsocketSpot
@@ -255,6 +257,7 @@ const (
 	restSpotSupplementaryURL      = "RestSpotSupplementaryURL"
 	restUSDTMarginedFuturesURL    = "RestUSDTMarginedFuturesURL"
 	restCoinMarginedFuturesURL    = "RestCoinMarginedFuturesURL"
+	restUSDCMarginedFuturesURL    = "RestUSDCMarginedFuturesURL"
 	restFuturesURL                = "RestFuturesURL"
 	restSandboxURL                = "RestSandboxURL"
 	restSwapURL                   = "RestSwapURL"
@@ -271,6 +274,7 @@ var keyURLs = []URL{RestSpot,
 	RestUSDTMargined,
 	RestCoinMargined,
 	RestFutures,
+	RestUSDCMargined,
 	RestSwap,
 	RestSandbox,
 	WebsocketSpot,

@@ -14,7 +14,7 @@ func TestPairsUpper(t *testing.T) {
 	}
 	if expected := "BTC_USD,BTC_AUD,BTC_LTC"; pairs.Upper().Join() != expected {
 		t.Errorf("Pairs Join() error expected %s but received %s",
-			expected, pairs.Join())
+			expected, pairs.Upper().Join())
 	}
 }
 
@@ -26,7 +26,7 @@ func TestPairsLower(t *testing.T) {
 	}
 	if expected := "btc_usd,btc_aud,btc_ltc"; pairs.Lower().Join() != expected {
 		t.Errorf("Pairs Join() error expected %s but received %s",
-			expected, pairs.Join())
+			expected, pairs.Lower().Join())
 	}
 }
 
@@ -96,20 +96,23 @@ func TestPairsFormat(t *testing.T) {
 	}
 
 	expected := "BTC-USD,BTC-AUD,BTC-LTC"
-	if pairs.Format("-", "", true).Join() != expected {
+	formatting := PairFormat{Delimiter: "-", Index: "", Uppercase: true}
+	if pairs.Format(formatting).Join() != expected {
 		t.Errorf("Pairs Join() error expected %s but received %s",
-			expected, pairs.Format("-", "", true).Join())
+			expected, pairs.Format(formatting).Join())
 	}
 
 	expected = "btc:usd,btc:aud,btc:ltc"
-	if pairs.Format(":", "", false).Join() != expected {
+	formatting = PairFormat{Delimiter: ":", Index: "", Uppercase: false}
+	if pairs.Format(formatting).Join() != expected {
 		t.Errorf("Pairs Join() error expected %s but received %s",
-			expected, pairs.Format(":", "", false).Join())
+			expected, pairs.Format(formatting).Join())
 	}
 
-	if pairs.Format(":", "KRW", false).Join() != "" {
+	formatting = PairFormat{Delimiter: ":", Index: "KRW", Uppercase: false}
+	if pairs.Format(formatting).Join() != "" {
 		t.Errorf("Pairs Join() error expected %s but received %s",
-			expected, pairs.Format(":", "KRW", true).Join())
+			expected, pairs.Format(formatting).Join())
 	}
 
 	pairs, err = NewPairsFromStrings([]string{"DASHKRW", "BTCKRW"})
@@ -117,9 +120,10 @@ func TestPairsFormat(t *testing.T) {
 		t.Fatal(err)
 	}
 	expected = "dash-krw,btc-krw"
-	if pairs.Format("-", "KRW", false).Join() != expected {
+	formatting = PairFormat{Delimiter: "-", Index: "KRW", Uppercase: false}
+	if pairs.Format(formatting).Join() != expected {
 		t.Errorf("Pairs Join() error expected %s but received %s",
-			expected, pairs.Format("-", "KRW", false).Join())
+			expected, pairs.Format(formatting).Join())
 	}
 }
 
@@ -220,16 +224,67 @@ func TestGetPairsByFilter(t *testing.T) {
 
 func TestRemove(t *testing.T) {
 	t.Parallel()
-	var pairs = Pairs{
+	var oldPairs = Pairs{
 		NewPair(BTC, USD),
 		NewPair(LTC, USD),
 		NewPair(LTC, USDT),
 	}
 
+	compare := make(Pairs, len(oldPairs))
+	copy(compare, oldPairs)
+
 	p := NewPair(BTC, USD)
-	pairs = pairs.Remove(p)
-	if pairs.Contains(p, true) || len(pairs) != 2 {
+	newPairs, err := oldPairs.Remove(p)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected '%v'", err, nil)
+	}
+
+	err = compare.ContainsAll(oldPairs, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if newPairs.Contains(p, true) || len(newPairs) != 2 {
 		t.Error("TestRemove unexpected result")
+	}
+
+	_, err = newPairs.Remove(p)
+	if !errors.Is(err, ErrPairNotFound) {
+		t.Fatalf("received: '%v' but expected '%v'", err, ErrPairNotFound)
+	}
+
+	newPairs, err = oldPairs.Remove(p)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected '%v'", err, nil)
+	}
+
+	newPairs, err = newPairs.Remove(NewPair(LTC, USD))
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected '%v'", err, nil)
+	}
+
+	err = compare.ContainsAll(oldPairs, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = newPairs.Remove(NewPair(LTC, USD))
+	if !errors.Is(err, ErrPairNotFound) {
+		t.Fatalf("received: '%v' but expected '%v'", err, ErrPairNotFound)
+	}
+
+	newPairs, err = newPairs.Remove(NewPair(LTC, USDT))
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected '%v'", err, nil)
+	}
+
+	if len(newPairs) != 0 {
+		t.Error("unexpected value")
+	}
+
+	_, err = newPairs.Remove(NewPair(LTC, USDT))
+	if !errors.Is(err, ErrPairNotFound) {
+		t.Fatalf("received: '%v' but expected '%v'", err, ErrPairNotFound)
 	}
 }
 
@@ -277,6 +332,62 @@ func TestContains(t *testing.T) {
 
 	if pairs.Contains(NewPair(ETH, USD), false) {
 		t.Errorf("TestContains: Non-existent pair was found")
+	}
+}
+
+func TestContainsAll(t *testing.T) {
+	t.Parallel()
+	var pairs = Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(USD, ZRX),
+	}
+
+	err := pairs.ContainsAll(nil, true)
+	if !errors.Is(err, errPairsEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errPairsEmpty)
+	}
+
+	err = pairs.ContainsAll(Pairs{NewPair(BTC, USD)}, true)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	err = pairs.ContainsAll(Pairs{NewPair(USD, BTC)}, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	err = pairs.ContainsAll(Pairs{NewPair(XRP, BTC)}, false)
+	if !errors.Is(err, ErrPairNotContainedInAvailablePairs) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrPairNotContainedInAvailablePairs)
+	}
+
+	err = pairs.ContainsAll(Pairs{NewPair(XRP, BTC)}, true)
+	if !errors.Is(err, ErrPairNotContainedInAvailablePairs) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrPairNotContainedInAvailablePairs)
+	}
+
+	err = pairs.ContainsAll(pairs, true)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	err = pairs.ContainsAll(pairs, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	var duplication = Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(USD, ZRX),
+		NewPair(USD, ZRX),
+	}
+
+	err = pairs.ContainsAll(duplication, false)
+	if !errors.Is(err, ErrPairDuplication) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrPairDuplication)
 	}
 }
 
@@ -502,8 +613,10 @@ func BenchmarkPairsFormat(b *testing.B) {
 		NewPair(DAI, XRP),
 	}
 
+	formatting := PairFormat{Delimiter: "/", Index: "", Uppercase: false}
+
 	for x := 0; x < b.N; x++ {
-		_ = pairs.Format("/", "", false)
+		_ = pairs.Format(formatting)
 	}
 }
 
@@ -582,5 +695,91 @@ func TestGetPairsByCurrencies(t *testing.T) {
 	enabled = available.GetPairsByCurrencies(Currencies{USD, BTC, LTC, NZD, USDT, DAI})
 	if len(enabled) != 5 {
 		t.Fatalf("received %v but expected  %v", enabled, 5)
+	}
+}
+
+func TestValidateAndConform(t *testing.T) {
+	t.Parallel()
+
+	conformMe := Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(USD, NZD),
+		NewPair(LTC, USDT),
+		NewPair(LTC, DAI),
+		NewPair(USDT, XRP),
+		NewPair(EMPTYCODE, EMPTYCODE),
+	}
+
+	_, err := conformMe.ValidateAndConform(EMPTYFORMAT, false)
+	if !errors.Is(err, ErrCurrencyPairEmpty) {
+		t.Fatalf("received: '%v' but expected '%v'", err, ErrCurrencyPairEmpty)
+	}
+
+	duplication, err := NewPairFromString("linkusdt")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	conformMe = Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(LINK, USDT),
+		NewPair(USD, NZD),
+		NewPair(LTC, USDT),
+		NewPair(LTC, DAI),
+		NewPair(USDT, XRP),
+		duplication,
+	}
+
+	_, err = conformMe.ValidateAndConform(EMPTYFORMAT, false)
+	if !errors.Is(err, ErrPairDuplication) {
+		t.Fatalf("received: '%v' but expected '%v'", err, ErrPairDuplication)
+	}
+
+	conformMe = Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(LINK, USDT),
+		NewPair(USD, NZD),
+		NewPair(LTC, USDT),
+		NewPair(LTC, DAI),
+		NewPair(USDT, XRP),
+	}
+
+	formatted, err := conformMe.ValidateAndConform(EMPTYFORMAT, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected '%v'", err, nil)
+	}
+
+	expected := "btcusd,ltcusd,linkusdt,usdnzd,ltcusdt,ltcdai,usdtxrp"
+
+	if formatted.Join() != expected {
+		t.Fatalf("received: '%v' but expected '%v'", formatted.Join(), expected)
+	}
+
+	formatted, err = formatted.ValidateAndConform(PairFormat{Delimiter: DashDelimiter, Uppercase: true}, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected '%v'", err, nil)
+	}
+
+	expected = "BTC-USD,LTC-USD,LINK-USDT,USD-NZD,LTC-USDT,LTC-DAI,USDT-XRP"
+
+	if formatted.Join() != expected {
+		t.Fatalf("received: '%v' but expected '%v'", formatted.Join(), expected)
+	}
+
+	formatted, err = formatted.ValidateAndConform(PairFormat{
+		Delimiter: UnderscoreDelimiter,
+		Uppercase: false},
+		true)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected '%v'", err, nil)
+	}
+
+	expected = "BTC-USD,LTC-USD,LINK-USDT,USD-NZD,LTC-USDT,LTC-DAI,USDT-XRP"
+
+	if formatted.Join() != expected {
+		t.Fatalf("received: '%v' but expected '%v'", formatted.Join(), expected)
 	}
 }

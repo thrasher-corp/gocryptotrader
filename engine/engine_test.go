@@ -271,7 +271,7 @@ func TestFlagSetWith(t *testing.T) {
 
 	flags["IS SET"] = true
 	isRunning = true
-	// Flag set true which will overide config
+	// Flag set true which will override config
 	flags.WithBool("IS SET", &isRunning, true)
 	if !isRunning {
 		t.Fatalf("received: '%v' but expected: '%v'", isRunning, true)
@@ -283,7 +283,7 @@ func TestFlagSetWith(t *testing.T) {
 
 	flags["IS SET"] = true
 	isRunning = false
-	// Flag set false which will overide config
+	// Flag set false which will override config
 	flags.WithBool("IS SET", &isRunning, true)
 	if isRunning {
 		t.Fatalf("received: '%v' but expected: '%v'", isRunning, false)
@@ -291,5 +291,35 @@ func TestFlagSetWith(t *testing.T) {
 	flags.WithBool("IS SET", &isRunning, false)
 	if isRunning {
 		t.Fatalf("received: '%v' but expected: '%v'", isRunning, false)
+	}
+}
+
+func TestRegisterWebsocketDataHandler(t *testing.T) {
+	t.Parallel()
+	var e *Engine
+	err := e.RegisterWebsocketDataHandler(nil, false)
+	if !errors.Is(err, errNilBot) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNilBot)
+	}
+
+	e = &Engine{websocketRoutineManager: &websocketRoutineManager{}}
+	err = e.RegisterWebsocketDataHandler(func(_ string, _ interface{}) error { return nil }, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+}
+
+func TestSetDefaultWebsocketDataHandler(t *testing.T) {
+	t.Parallel()
+	var e *Engine
+	err := e.SetDefaultWebsocketDataHandler()
+	if !errors.Is(err, errNilBot) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNilBot)
+	}
+
+	e = &Engine{websocketRoutineManager: &websocketRoutineManager{}}
+	err = e.SetDefaultWebsocketDataHandler()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 }

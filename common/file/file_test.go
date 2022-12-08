@@ -2,7 +2,6 @@ package file
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -162,7 +161,7 @@ func TestWriteAsCSV(t *testing.T) {
 		{"Sup", "bra"},
 	}
 
-	testFile, err := ioutil.TempFile(os.TempDir(), "gct-csv-test.*.csv")
+	testFile, err := os.CreateTemp(os.TempDir(), "gct-csv-test.*.csv")
 	if err != nil {
 		t.Fatal(err)
 	}

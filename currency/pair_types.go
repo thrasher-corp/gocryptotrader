@@ -9,3 +9,11 @@ type Pair struct {
 
 // Pairs defines a list of pairs
 type Pairs []Pair
+
+// PairDifference defines the difference between a set of pairs including a
+// change in format.
+type PairDifference struct {
+	New              Pairs
+	Remove           Pairs
+	FormatDifference bool
+}

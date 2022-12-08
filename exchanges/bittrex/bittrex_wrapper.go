@@ -425,12 +425,20 @@ func (b *Bittrex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 	})
 	resp.Exchange = b.Name
 
-	return resp, account.Process(&resp)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	return resp, account.Process(&resp, creds)
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (b *Bittrex) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	resp, err := account.GetHoldings(b.Name, assetType)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	resp, err := account.GetHoldings(b.Name, creds, assetType)
 	if err != nil {
 		return b.UpdateAccountInfo(ctx, assetType)
 	}
@@ -498,7 +506,7 @@ func (b *Bittrex) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *Bittrex) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (b *Bittrex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -549,9 +557,9 @@ func (b *Bittrex) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.
 }
 
 // SubmitOrder submits a new order
-func (b *Bittrex) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
+func (b *Bittrex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return order.SubmitResponse{}, err
+		return nil, err
 	}
 
 	if s.Side == order.Ask {
@@ -564,7 +572,7 @@ func (b *Bittrex) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 
 	formattedPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return order.SubmitResponse{}, err
+		return nil, err
 	}
 
 	orderData, err := b.Order(ctx,
@@ -576,19 +584,15 @@ func (b *Bittrex) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 		s.Amount,
 		0.0)
 	if err != nil {
-		return order.SubmitResponse{}, err
+		return nil, err
 	}
-
-	return order.SubmitResponse{
-		IsOrderPlaced: true,
-		OrderID:       orderData.ID,
-	}, nil
+	return s.DeriveSubmitResponse(orderData.ID)
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bittrex) ModifyOrder(_ context.Context, _ *order.Modify) (order.Modify, error) {
-	return order.Modify{}, common.ErrFunctionNotSupported
+func (b *Bittrex) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -596,7 +600,7 @@ func (b *Bittrex) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	if err := ord.Validate(ord.StandardCancel()); err != nil {
 		return err
 	}
-	_, err := b.CancelExistingOrder(ctx, ord.ID)
+	_, err := b.CancelExistingOrder(ctx, ord.OrderID)
 	return err
 }
 
@@ -697,7 +701,7 @@ func (b *Bittrex) ConstructOrderDetail(orderData *OrderData) (order.Detail, erro
 		RemainingAmount:   orderData.Quantity - orderData.FillQuantity,
 		Price:             orderData.Limit,
 		Date:              orderData.CreatedAt,
-		ID:                orderData.ID,
+		OrderID:           orderData.ID,
 		Exchange:          b.Name,
 		Type:              orderType,
 		Pair:              orderPair,
@@ -753,14 +757,16 @@ func (b *Bittrex) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *wit
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *Bittrex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (b *Bittrex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 
 	var currPair string
 	if len(req.Pairs) == 1 {
-		formattedPair, err := b.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
+		var formattedPair currency.Pair
+		formattedPair, err = b.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
@@ -809,7 +815,7 @@ func (b *Bittrex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 			ExecutedAmount:  orderData[i].FillQuantity,
 			Price:           orderData[i].Limit,
 			Date:            orderData[i].CreatedAt,
-			ID:              orderData[i].ID,
+			OrderID:         orderData[i].ID,
 			Exchange:        b.Name,
 			Type:            orderType,
 			Side:            orderSide,
@@ -817,22 +823,15 @@ func (b *Bittrex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 			Pair:            pair,
 		})
 	}
-
-	order.FilterOrdersByType(&resp, req.Type)
-	err = order.FilterOrdersByTimeRange(&resp, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
-	}
-	order.FilterOrdersByPairs(&resp, req.Pairs)
-
 	b.WsSequenceOrders = sequence
-	return resp, nil
+	return req.Filter(b.Name, resp), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *Bittrex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (b *Bittrex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 	if len(req.Pairs) == 0 {
@@ -895,7 +894,7 @@ func (b *Bittrex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 				Price:           orderData[i].Limit,
 				Date:            orderData[i].CreatedAt,
 				CloseTime:       orderData[i].ClosedAt,
-				ID:              orderData[i].ID,
+				OrderID:         orderData[i].ID,
 				Exchange:        b.Name,
 				Type:            orderType,
 				Side:            orderSide,
@@ -906,16 +905,8 @@ func (b *Bittrex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 			detail.InferCostsAndTimes()
 			resp = append(resp, detail)
 		}
-
-		order.FilterOrdersByType(&resp, req.Type)
-		err = order.FilterOrdersByTimeRange(&resp, req.StartTime, req.EndTime)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
-		}
-		order.FilterOrdersByPairs(&resp, req.Pairs)
 	}
-
-	return resp, nil
+	return req.Filter(b.Name, resp), nil
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction

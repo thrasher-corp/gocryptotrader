@@ -24,6 +24,7 @@ type Settings struct {
 	PortfolioManagerDelay       time.Duration
 	EnableGRPC                  bool
 	EnableGRPCProxy             bool
+	EnableGRPCShutdown          bool
 	EnableWebsocketRPC          bool
 	EnableDeprecatedRPC         bool
 	EnableCommsRelayer          bool
@@ -38,6 +39,7 @@ type Settings struct {
 	EnableWebsocketRoutine      bool
 	EnableCurrencyStateManager  bool
 	EventManagerDelay           time.Duration
+	EnableFuturesTracking       bool
 	Verbose                     bool
 
 	// Exchange syncer settings
@@ -58,17 +60,18 @@ type Settings struct {
 	EnableExchangeRateHost  bool
 
 	// Exchange tuning settings
-	EnableExchangeHTTPRateLimiter  bool
-	EnableExchangeHTTPDebugging    bool
-	EnableExchangeVerbose          bool
-	ExchangePurgeCredentials       bool
-	EnableExchangeAutoPairUpdates  bool
-	DisableExchangeAutoPairUpdates bool
-	EnableExchangeRESTSupport      bool
-	EnableExchangeWebsocketSupport bool
-	MaxHTTPRequestJobsLimit        int
-	TradeBufferProcessingInterval  time.Duration
-	RequestMaxRetryAttempts        int
+	EnableExchangeHTTPRateLimiter       bool
+	EnableExchangeHTTPDebugging         bool
+	EnableExchangeVerbose               bool
+	ExchangePurgeCredentials            bool
+	EnableExchangeAutoPairUpdates       bool
+	DisableExchangeAutoPairUpdates      bool
+	EnableExchangeRESTSupport           bool
+	EnableExchangeWebsocketSupport      bool
+	MaxHTTPRequestJobsLimit             int
+	TradeBufferProcessingInterval       time.Duration
+	RequestMaxRetryAttempts             int
+	AlertSystemPreAllocationCommsBuffer int // See exchanges/alert.go
 
 	// Global HTTP related settings
 	GlobalHTTPTimeout   time.Duration
@@ -90,6 +93,9 @@ type Settings struct {
 
 	// Withdraw settings
 	WithdrawCacheSize uint64
+
+	// Main shutdown channel
+	Shutdown chan struct{}
 }
 
 const (

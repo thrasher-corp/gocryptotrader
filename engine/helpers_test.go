@@ -118,7 +118,7 @@ func TestGetRPCEndpoints(t *testing.T) {
 	}
 }
 
-func TestSetSubsystem(t *testing.T) { // nolint // TO-DO: Fix race t.Parallel() usage
+func TestSetSubsystem(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() usage
 	testCases := []struct {
 		Subsystem    string
 		Engine       *Engine
@@ -1006,10 +1006,6 @@ func (f fakeDepositExchange) GetName() string {
 	return "fake"
 }
 
-func (f fakeDepositExchange) GetAuthenticatedAPISupport(endpoint uint8) bool {
-	return f.SupportsAuth
-}
-
 func (f fakeDepositExchange) GetBase() *exchange.Base {
 	return &exchange.Base{
 		Features: exchange.Features{Supports: exchange.FeaturesSupported{
@@ -1021,6 +1017,10 @@ func (f fakeDepositExchange) GetBase() *exchange.Base {
 	}
 }
 
+func (f fakeDepositExchange) IsRESTAuthenticationSupported() bool {
+	return f.SupportsAuth
+}
+
 func (f fakeDepositExchange) GetAvailableTransferChains(_ context.Context, c currency.Code) ([]string, error) {
 	if f.ThrowTransferChainError {
 		return nil, errors.New("unable to get available transfer chains")
@@ -1029,7 +1029,7 @@ func (f fakeDepositExchange) GetAvailableTransferChains(_ context.Context, c cur
 		return nil, nil
 	}
 	if c.Equal(currency.USDT) {
-		return []string{"sol", "btc", "usdt"}, nil
+		return []string{"sol", "btc", "usdt", ""}, nil
 	}
 	return []string{"BITCOIN"}, nil
 }
@@ -1065,7 +1065,7 @@ func createDepositEngine(opts *fakeDepositExchangeOpts) *Engine {
 					Enabled: true,
 					CurrencyPairs: &currency.PairsManager{
 						UseGlobalFormat: true,
-						ConfigFormat:    &currency.PairFormat{},
+						ConfigFormat:    &currency.EMPTYFORMAT,
 						Pairs: map[asset.Item]*currency.PairStore{
 							asset.Spot: &ps,
 						},
@@ -1318,7 +1318,7 @@ func TestCheckAndGenCerts(t *testing.T) {
 	}
 
 	defer cleanup()
-	if err := checkCerts(tempDir); err != nil {
+	if err := CheckCerts(tempDir); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1327,11 +1327,11 @@ func TestCheckAndGenCerts(t *testing.T) {
 	if err := os.Remove(certFile); err != nil {
 		t.Fatal(err)
 	}
-	if err := checkCerts(tempDir); err != nil {
+	if err := CheckCerts(tempDir); err != nil {
 		t.Fatal(err)
 	}
 
-	// Now call checkCerts to test an expired cert
+	// Now call CheckCerts to test an expired cert
 	certData, err := mockCert("", time.Now().Add(-time.Hour))
 	if err != nil {
 		t.Fatal(err)
@@ -1340,7 +1340,7 @@ func TestCheckAndGenCerts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = checkCerts(tempDir); err != nil {
+	if err = CheckCerts(tempDir); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -328,7 +328,11 @@ func (y *Yobit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 		Currencies: currencies,
 	})
 
-	err = account.Process(&response)
+	creds, err := y.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&response, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -338,11 +342,14 @@ func (y *Yobit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (y *Yobit) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(y.Name, assetType)
+	creds, err := y.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(y.Name, creds, assetType)
 	if err != nil {
 		return y.UpdateAccountInfo(ctx, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -353,7 +360,7 @@ func (y *Yobit) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, 
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (y *Yobit) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (y *Yobit) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -406,19 +413,18 @@ func (y *Yobit) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.It
 
 // SubmitOrder submits a new order
 // Yobit only supports limit orders
-func (y *Yobit) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (y *Yobit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	if s.Type != order.Limit {
-		return submitOrderResponse, errors.New("only limit orders are allowed")
+		return nil, errors.New("only limit orders are allowed")
 	}
 
 	fPair, err := y.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	response, err := y.Trade(ctx,
@@ -427,20 +433,15 @@ func (y *Yobit) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitR
 		s.Amount,
 		s.Price)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
-	if response > 0 {
-		submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
-	}
-
-	submitOrderResponse.IsOrderPlaced = true
-	return submitOrderResponse, nil
+	return s.DeriveSubmitResponse(strconv.FormatInt(response, 10))
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (y *Yobit) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
-	return order.Modify{}, common.ErrFunctionNotSupported
+func (y *Yobit) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -449,7 +450,7 @@ func (y *Yobit) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -570,18 +571,18 @@ func (y *Yobit) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilde
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (y *Yobit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (y *Yobit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
-
-	var orders []order.Detail
 
 	format, err := y.GetPairFormat(asset.Spot, false)
 	if err != nil {
 		return nil, err
 	}
 
+	var orders []order.Detail
 	for x := range req.Pairs {
 		var fCurr currency.Pair
 		fCurr, err = y.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
@@ -606,7 +607,7 @@ func (y *Yobit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 				return nil, err
 			}
 			orders = append(orders, order.Detail{
-				ID:       id,
+				OrderID:  id,
 				Amount:   resp[id].Amount,
 				Price:    resp[id].Rate,
 				Side:     side,
@@ -616,36 +617,33 @@ func (y *Yobit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 			})
 		}
 	}
-
-	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", y.Name, err)
-	}
-	order.FilterOrdersBySide(&orders, req.Side)
-	return orders, nil
+	return req.Filter(y.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 
 	var allOrders []TradeHistory
 	for x := range req.Pairs {
-		fpair, err := y.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
+		var fPair currency.Pair
+		fPair, err = y.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
-		resp, err := y.GetTradeHistory(ctx,
+		var resp map[string]TradeHistory
+		resp, err = y.GetTradeHistory(ctx,
 			0,
 			10000,
 			math.MaxInt64,
 			req.StartTime.Unix(),
 			req.EndTime.Unix(),
 			"DESC",
-			fpair.String())
+			fPair.String())
 		if err != nil {
 			return nil, err
 		}
@@ -674,7 +672,7 @@ func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 			return nil, err
 		}
 		detail := order.Detail{
-			ID:                   strconv.FormatFloat(allOrders[i].OrderID, 'f', -1, 64),
+			OrderID:              strconv.FormatFloat(allOrders[i].OrderID, 'f', -1, 64),
 			Amount:               allOrders[i].Amount,
 			ExecutedAmount:       allOrders[i].Amount,
 			Price:                allOrders[i].Rate,
@@ -688,9 +686,7 @@ func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 		detail.InferCostsAndTimes()
 		orders[i] = detail
 	}
-
-	order.FilterOrdersBySide(&orders, req.Side)
-	return orders, nil
+	return req.Filter(y.Name, orders), nil
 }
 
 // ValidateCredentials validates current credentials used for wrapper

@@ -67,7 +67,7 @@ func (b *Bithumb) SetDefaults() {
 	b.API.CredentialsValidator.RequiresSecret = true
 
 	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
-	configFmt := &currency.PairFormat{Uppercase: true, Index: "KRW"}
+	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
 	err := b.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -89,7 +89,6 @@ func (b *Bithumb) SetDefaults() {
 				GetOrder:            true,
 				CancelOrder:         true,
 				SubmitOrder:         true,
-				ModifyOrder:         true,
 				DepositHistory:      true,
 				WithdrawalHistory:   true,
 				UserTradeHistory:    true,
@@ -238,7 +237,7 @@ func (b *Bithumb) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]s
 	}
 
 	for x := range currencies {
-		currencies[x] += "KRW"
+		currencies[x] += currency.DashDelimiter + "KRW"
 	}
 
 	return currencies, nil
@@ -395,7 +394,11 @@ func (b *Bithumb) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 	})
 
 	info.Exchange = b.Name
-	err = account.Process(&info)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&info, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -405,11 +408,14 @@ func (b *Bithumb) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (b *Bithumb) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(b.Name, assetType)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(b.Name, creds, assetType)
 	if err != nil {
 		return b.UpdateAccountInfo(ctx, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -420,7 +426,7 @@ func (b *Bithumb) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *Bithumb) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (b *Bithumb) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -474,15 +480,14 @@ func (b *Bithumb) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.
 
 // SubmitOrder submits a new order
 // TODO: Fill this out to support limit orders
-func (b *Bithumb) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (b *Bithumb) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	fPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	var orderID string
@@ -490,54 +495,24 @@ func (b *Bithumb) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 		var result MarketBuy
 		result, err = b.MarketBuyOrder(ctx, fPair, s.Amount)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
 		orderID = result.OrderID
 	} else if s.Side == order.Sell {
 		var result MarketSell
 		result, err = b.MarketSellOrder(ctx, fPair, s.Amount)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
 		orderID = result.OrderID
 	}
-	if orderID != "" {
-		submitOrderResponse.OrderID = orderID
-		submitOrderResponse.FullyMatched = true
-	}
-	submitOrderResponse.IsOrderPlaced = true
-
-	return submitOrderResponse, nil
+	return s.DeriveSubmitResponse(orderID)
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bithumb) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
-	if err := action.Validate(); err != nil {
-		return order.Modify{}, err
-	}
-
-	o, err := b.ModifyTrade(ctx,
-		action.ID,
-		action.Pair.Base.String(),
-		action.Side.Lower(),
-		action.Amount,
-		int64(action.Price))
-
-	if err != nil {
-		return order.Modify{}, err
-	}
-
-	return order.Modify{
-		Exchange:  action.Exchange,
-		AssetType: action.AssetType,
-		Pair:      action.Pair,
-		ID:        o.Data[0].ContID,
-
-		Price:  float64(int64(action.Price)),
-		Amount: action.Amount,
-		Side:   action.Side,
-	}, nil
+func (b *Bithumb) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -546,9 +521,7 @@ func (b *Bithumb) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	_, err := b.CancelTrade(ctx, o.Side.String(),
-		o.ID,
-		o.Pair.Base.String())
+	_, err := b.CancelTrade(ctx, o.Side.String(), o.OrderID, o.Pair.Base.String())
 	return err
 }
 
@@ -686,8 +659,9 @@ func (b *Bithumb) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuil
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *Bithumb) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (b *Bithumb) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 
@@ -717,7 +691,7 @@ func (b *Bithumb) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 				Amount:          resp.Data[i].Units,
 				Exchange:        b.Name,
 				ExecutedAmount:  resp.Data[i].Units - resp.Data[i].UnitsRemaining,
-				ID:              resp.Data[i].OrderID,
+				OrderID:         resp.Data[i].OrderID,
 				Date:            resp.Data[i].OrderDate.Time(),
 				Price:           resp.Data[i].Price,
 				RemainingAmount: resp.Data[i].UnitsRemaining,
@@ -736,20 +710,14 @@ func (b *Bithumb) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 			orders = append(orders, orderDetail)
 		}
 	}
-
-	order.FilterOrdersBySide(&orders, req.Side)
-	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
-	}
-	order.FilterOrdersByPairs(&orders, req.Pairs)
-	return orders, nil
+	return req.Filter(b.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *Bithumb) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (b *Bithumb) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 
@@ -780,7 +748,7 @@ func (b *Bithumb) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 				ExecutedAmount:  resp.Data[i].Units - resp.Data[i].UnitsRemaining,
 				RemainingAmount: resp.Data[i].UnitsRemaining,
 				Exchange:        b.Name,
-				ID:              resp.Data[i].OrderID,
+				OrderID:         resp.Data[i].OrderID,
 				Date:            resp.Data[i].OrderDate.Time(),
 				Price:           resp.Data[i].Price,
 				Pair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
@@ -798,14 +766,7 @@ func (b *Bithumb) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 			orders = append(orders, orderDetail)
 		}
 	}
-
-	order.FilterOrdersBySide(&orders, req.Side)
-	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
-	}
-	order.FilterOrdersByPairs(&orders, req.Pairs)
-	return orders, nil
+	return req.Filter(b.Name, orders), nil
 }
 
 // ValidateCredentials validates current credentials used for wrapper

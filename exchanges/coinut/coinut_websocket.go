@@ -194,9 +194,9 @@ func (c *COINUT) wsHandleData(ctx context.Context, respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		c.Websocket.DataHandler <- &order.Modify{
+		c.Websocket.DataHandler <- &order.Detail{
 			Exchange:    c.Name,
-			ID:          strconv.FormatInt(cancel.OrderID, 10),
+			OrderID:     strconv.FormatInt(cancel.OrderID, 10),
 			Status:      order.Cancelled,
 			LastUpdated: time.Now(),
 			AssetType:   asset.Spot,
@@ -208,9 +208,9 @@ func (c *COINUT) wsHandleData(ctx context.Context, respRaw []byte) error {
 			return err
 		}
 		for i := range cancels.Results {
-			c.Websocket.DataHandler <- &order.Modify{
+			c.Websocket.DataHandler <- &order.Detail{
 				Exchange:    c.Name,
-				ID:          strconv.FormatInt(cancels.Results[i].OrderID, 10),
+				OrderID:     strconv.FormatInt(cancels.Results[i].OrderID, 10),
 				Status:      order.Cancelled,
 				LastUpdated: time.Now(),
 				AssetType:   asset.Spot,
@@ -447,7 +447,7 @@ func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detai
 		ExecutedAmount:  oContainer.FillQuantity,
 		RemainingAmount: oContainer.OpenQuantity,
 		Exchange:        c.Name,
-		ID:              orderID,
+		OrderID:         orderID,
 		Side:            oSide,
 		Status:          oStatus,
 		Date:            time.Unix(0, oContainer.Timestamp),
@@ -464,7 +464,7 @@ func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detai
 		}
 		o.RemainingAmount = oContainer.Order.OpenQuantity
 		o.Amount = oContainer.Order.Quantity
-		o.ID = strconv.FormatInt(oContainer.Order.OrderID, 10)
+		o.OrderID = strconv.FormatInt(oContainer.Order.OrderID, 10)
 		o.LastUpdated = time.Unix(0, oContainer.Timestamp)
 		o.Pair, o.AssetType, err = c.GetRequestFormattedPairAndAssetType(c.instrumentMap.LookupInstrument(oContainer.Order.InstrumentID))
 		if err != nil {

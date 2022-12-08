@@ -333,7 +333,11 @@ func (g *Gemini) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		Currencies: currencies,
 	})
 
-	err = account.Process(&response)
+	creds, err := g.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&response, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -343,11 +347,14 @@ func (g *Gemini) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (g *Gemini) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(g.Name, assetType)
+	creds, err := g.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(g.Name, creds, assetType)
 	if err != nil {
 		return g.UpdateAccountInfo(ctx, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -460,7 +467,7 @@ func (g *Gemini) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory,
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (g *Gemini) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (g *Gemini) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -537,20 +544,18 @@ allTrades:
 }
 
 // SubmitOrder submits a new order
-func (g *Gemini) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (g *Gemini) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	if s.Type != order.Limit {
-		return submitOrderResponse,
-			errors.New("only limit orders are enabled through this exchange")
+		return nil, errors.New("only limit orders are enabled through this exchange")
 	}
 
 	fpair, err := g.FormatExchangeCurrency(s.Pair, asset.Spot)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	response, err := g.NewOrder(ctx,
@@ -560,21 +565,16 @@ func (g *Gemini) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 		s.Side.String(),
 		"exchange limit")
 	if err != nil {
-		return submitOrderResponse, err
-	}
-	if response > 0 {
-		submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
+		return nil, err
 	}
 
-	submitOrderResponse.IsOrderPlaced = true
-
-	return submitOrderResponse, nil
+	return s.DeriveSubmitResponse(strconv.FormatInt(response, 10))
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (g *Gemini) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
-	return order.Modify{}, common.ErrFunctionNotSupported
+func (g *Gemini) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -583,7 +583,7 @@ func (g *Gemini) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -676,8 +676,9 @@ func (g *Gemini) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuild
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (g *Gemini) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (g *Gemini) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 
@@ -719,7 +720,7 @@ func (g *Gemini) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 		orders[i] = order.Detail{
 			Amount:          resp[i].OriginalAmount,
 			RemainingAmount: resp[i].RemainingAmount,
-			ID:              strconv.FormatInt(resp[i].OrderID, 10),
+			OrderID:         strconv.FormatInt(resp[i].OrderID, 10),
 			ExecutedAmount:  resp[i].ExecutedAmount,
 			Exchange:        g.Name,
 			Type:            orderType,
@@ -729,21 +730,14 @@ func (g *Gemini) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			Date:            orderDate,
 		}
 	}
-
-	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
-	}
-	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByType(&orders, req.Type)
-	order.FilterOrdersByPairs(&orders, req.Pairs)
-	return orders, nil
+	return req.Filter(g.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 
@@ -753,14 +747,14 @@ func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 
 	var trades []TradeHistory
 	for j := range req.Pairs {
-		fpair, err := g.FormatExchangeCurrency(req.Pairs[j], asset.Spot)
+		var fPair currency.Pair
+		fPair, err = g.FormatExchangeCurrency(req.Pairs[j], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
 
-		resp, err := g.GetTradeHistory(ctx,
-			fpair.String(),
-			req.StartTime.Unix())
+		var resp []TradeHistory
+		resp, err = g.GetTradeHistory(ctx, fPair.String(), req.StartTime.Unix())
 		if err != nil {
 			return nil, err
 		}
@@ -787,7 +781,7 @@ func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		orderDate := time.Unix(trades[i].Timestamp, 0)
 
 		detail := order.Detail{
-			ID:                   strconv.FormatInt(trades[i].OrderID, 10),
+			OrderID:              strconv.FormatInt(trades[i].OrderID, 10),
 			Amount:               trades[i].Amount,
 			ExecutedAmount:       trades[i].Amount,
 			Exchange:             g.Name,
@@ -805,13 +799,7 @@ func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		detail.InferCostsAndTimes()
 		orders[i] = detail
 	}
-
-	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
-	}
-	order.FilterOrdersBySide(&orders, req.Side)
-	return orders, nil
+	return req.Filter(g.Name, orders), nil
 }
 
 // ValidateCredentials validates current credentials used for wrapper

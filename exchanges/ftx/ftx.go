@@ -129,6 +129,12 @@ const (
 	spotString            = "spot"
 	futuresString         = "future"
 
+	// Referral endpoints
+	customReferralCodes   = "/custom_referral_codes"
+	referralRebates       = "/referral_rebates"
+	referralRebateHistory = "/referral_rebate_history"
+	referralRebateRate    = "/referral_rebate_rate"
+
 	ratePeriod = time.Second
 	rateLimit  = 30
 )
@@ -145,6 +151,7 @@ var (
 	errInvalidOrderAmounts                               = errors.New("filled amount should not exceed order amount")
 	errCollateralCurrencyNotFound                        = errors.New("no collateral scaling information found")
 	errCollateralInitialMarginFractionMissing            = errors.New("cannot scale collateral, missing initial margin fraction information")
+	errDepositAddressDoesNotExist                        = errors.New("deposit address does not exist")
 
 	validResolutionData = []int64{15, 60, 300, 900, 3600, 14400, 86400}
 )
@@ -307,11 +314,15 @@ func (f *FTX) GetFuture(ctx context.Context, futureName string) (FuturesData, er
 }
 
 // GetFutureStats gets data on a given future's stats
-func (f *FTX) GetFutureStats(ctx context.Context, futureName string) (FutureStatsData, error) {
+func (f *FTX) GetFutureStats(ctx context.Context, pair currency.Pair) (FutureStatsData, error) {
 	resp := struct {
 		Data FutureStatsData `json:"result"`
 	}{}
-	return resp.Data, f.SendHTTPRequest(ctx, exchange.RestSpot, fmt.Sprintf(getFutureStats, futureName), &resp)
+	p, err := f.FormatSymbol(pair, asset.Futures)
+	if err != nil {
+		return FutureStatsData{}, err
+	}
+	return resp.Data, f.SendHTTPRequest(ctx, exchange.RestSpot, fmt.Sprintf(getFutureStats, p), &resp)
 }
 
 // GetExpiredFuture returns information on an expired futures contract
@@ -340,21 +351,28 @@ func (f *FTX) GetExpiredFutures(ctx context.Context) ([]FuturesData, error) {
 	return resp.Data, f.SendHTTPRequest(ctx, exchange.RestSpot, getExpiredFutures, &resp)
 }
 
-// GetFundingRates gets data on funding rates
-func (f *FTX) GetFundingRates(ctx context.Context, startTime, endTime time.Time, future string) ([]FundingRatesData, error) {
+// FundingRates gets data on funding rates
+func (f *FTX) FundingRates(ctx context.Context, startTime, endTime time.Time, pair currency.Pair, limit int64) ([]FundingRatesData, error) {
 	resp := struct {
 		Data []FundingRatesData `json:"result"`
 	}{}
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {
-			return resp.Data, errStartTimeCannotBeAfterEndTime
+			return nil, errStartTimeCannotBeAfterEndTime
 		}
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	if future != "" {
-		params.Set("future", future)
+	if !pair.IsEmpty() {
+		p, err := f.FormatSymbol(pair, asset.Futures)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("future", p)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	endpoint := common.EncodeURLValues(getFundingRates, params)
 	return resp.Data, f.SendHTTPRequest(ctx, exchange.RestSpot, endpoint, &resp)
@@ -398,7 +416,7 @@ func (f *FTX) GetMarginLendingRates(ctx context.Context) ([]MarginFundingData, e
 	r := struct {
 		Data []MarginFundingData `json:"result"`
 	}{}
-	return r.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, marginLendingRates, nil, &r)
+	return r.Data, f.SendHTTPRequest(ctx, exchange.RestSpot, marginLendingRates, &r)
 }
 
 // MarginDailyBorrowedAmounts gets daily borrowed amounts for margin
@@ -435,7 +453,7 @@ func (f *FTX) GetMarginBorrowHistory(ctx context.Context, startTime, endTime tim
 	return r.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, nil, &r)
 }
 
-// GetMarginMarketLendingHistory gets the markets margin lending rate history
+// GetMarginMarketLendingHistory gets the market's margin lending rate history
 func (f *FTX) GetMarginMarketLendingHistory(ctx context.Context, coin currency.Code, startTime, endTime time.Time) ([]MarginTransactionHistoryData, error) {
 	r := struct {
 		Data []MarginTransactionHistoryData `json:"result"`
@@ -452,7 +470,7 @@ func (f *FTX) GetMarginMarketLendingHistory(ctx context.Context, coin currency.C
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
 	endpoint := common.EncodeURLValues(marginLendingHistory, params)
-	return r.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, params, &r)
+	return r.Data, f.SendHTTPRequest(ctx, exchange.RestSpot, endpoint, &r)
 }
 
 // GetMarginLendingHistory gets margin lending history
@@ -521,11 +539,17 @@ func (f *FTX) GetAccountInfo(ctx context.Context) (AccountInfoData, error) {
 }
 
 // GetPositions gets the users positions
-func (f *FTX) GetPositions(ctx context.Context) ([]PositionData, error) {
+func (f *FTX) GetPositions(ctx context.Context, includeAverages bool) ([]PositionData, error) {
 	resp := struct {
 		Data []PositionData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getPositions, nil, &resp)
+	requestURL := getPositions
+	if includeAverages {
+		vals := url.Values{}
+		vals.Set("showAvgPrice", "true")
+		requestURL = common.EncodeURLValues(getPositions, vals)
+	}
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, requestURL, nil, &resp)
 }
 
 // ChangeAccountLeverage changes default leverage used by account
@@ -569,15 +593,31 @@ func (f *FTX) GetAllWalletBalances(ctx context.Context) (AllWalletBalances, erro
 
 // FetchDepositAddress gets deposit address for a given coin
 func (f *FTX) FetchDepositAddress(ctx context.Context, coin currency.Code, chain string) (*DepositData, error) {
-	resp := struct {
-		Data DepositData `json:"result"`
+	var jsonResp json.RawMessage
+	resp := &struct {
+		Data *DepositData `json:"result"`
+	}{}
+	addressDoesNotExistResponse := &struct {
+		Data bool `json:"result"`
 	}{}
 	vals := url.Values{}
 	if chain != "" {
 		vals.Set("method", strings.ToLower(chain))
 	}
 	path := common.EncodeURLValues(getDepositAddress+coin.Upper().String(), vals)
-	return &resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp)
+	err := f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &jsonResp)
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(jsonResp, resp)
+	if err != nil {
+		errSecondPass := json.Unmarshal(jsonResp, addressDoesNotExistResponse)
+		if errSecondPass != nil {
+			return nil, errSecondPass
+		}
+		return nil, fmt.Errorf("%w %v %v", errDepositAddressDoesNotExist, coin, chain)
+	}
+	return resp.Data, nil
 }
 
 // FetchDepositHistory gets deposit history
@@ -935,8 +975,8 @@ func (f *FTX) GetFills(ctx context.Context, market currency.Pair, item asset.Ite
 	return resp, nil
 }
 
-// GetFundingPayments gets funding payments
-func (f *FTX) GetFundingPayments(ctx context.Context, startTime, endTime time.Time, future string) ([]FundingPaymentsData, error) {
+// FundingPayments gets funding payments
+func (f *FTX) FundingPayments(ctx context.Context, startTime, endTime time.Time, future currency.Pair, limit int64) ([]FundingPaymentsData, error) {
 	resp := struct {
 		Data []FundingPaymentsData `json:"result"`
 	}{}
@@ -948,8 +988,11 @@ func (f *FTX) GetFundingPayments(ctx context.Context, startTime, endTime time.Ti
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	if future != "" {
-		params.Set("future", future)
+	if !future.IsEmpty() {
+		params.Set("future", future.String())
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	endpoint := common.EncodeURLValues(getFundingPayments, params)
 	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, nil, &resp)
@@ -1290,7 +1333,7 @@ func (f *FTX) SendAuthHTTPRequest(ctx context.Context, ep exchange.URL, method, 
 // GetFee returns an estimate of fee based on type of transaction
 func (f *FTX) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
-	if !f.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+	if !f.IsRESTAuthenticationSupported() {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
 	switch feeBuilder.FeeType {
@@ -1534,11 +1577,11 @@ func (f *FTX) FetchExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, err
 		}
 
 		limits = append(limits, order.MinMaxLevel{
-			Pair:       cp,
-			Asset:      a,
-			StepPrice:  data[x].PriceIncrement,
-			StepAmount: data[x].SizeIncrement,
-			MinAmount:  data[x].MinProvideSize,
+			Pair:                    cp,
+			Asset:                   a,
+			PriceStepIncrementSize:  data[x].PriceIncrement,
+			AmountStepIncrementSize: data[x].SizeIncrement,
+			MinAmount:               data[x].MinProvideSize,
 		})
 	}
 	return limits, nil
@@ -1697,7 +1740,7 @@ func (f *FTX) LoadCollateralWeightings(ctx context.Context) error {
 	f.collateralWeight.load("ZM", 0.9, 0.85, 0.01)
 	f.collateralWeight.load("ZRX", 0.85, 0.8, 0.001)
 
-	if !f.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+	if !f.IsRESTAuthenticationSupported() {
 		return nil
 	}
 	coins, err := f.GetCoins(ctx)
@@ -1747,4 +1790,36 @@ func (c CollateralWeightHolder) load(code string, total, initial, imfFactor floa
 		Initial:                     initial,
 		InitialMarginFractionFactor: imfFactor,
 	}
+}
+
+// GetCustomReferralCodes returns the user's custom referral codes.
+func (f *FTX) GetCustomReferralCodes(ctx context.Context) ([]CustomReferralCode, error) {
+	resp := struct {
+		Data []CustomReferralCode `json:"result"`
+	}{}
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, customReferralCodes, nil, &resp)
+}
+
+// GetReferralRebates returns the user's referral rebates grouped by account ID.
+func (f *FTX) GetReferralRebates(ctx context.Context) ([]ReferralRebate, error) {
+	resp := struct {
+		Data []ReferralRebate `json:"result"`
+	}{}
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, referralRebates, nil, &resp)
+}
+
+// GetReferralRebateHistory returns the users daily referral rebate history.
+func (f *FTX) GetReferralRebateHistory(ctx context.Context) ([]ReferralRebateHistory, error) {
+	resp := struct {
+		Data []ReferralRebateHistory `json:"result"`
+	}{}
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, referralRebateHistory, nil, &resp)
+}
+
+// GetReferralRebateRate returns the referral rebate rate.
+func (f *FTX) GetReferralRebateRate(ctx context.Context) (float64, error) {
+	resp := struct {
+		Rate float64 `json:"result"`
+	}{}
+	return resp.Rate, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, referralRebateRate, nil, &resp)
 }

@@ -782,12 +782,13 @@ func (h *HUOBI) FPlaceBatchOrder(ctx context.Context, data []fBatchOrderData) (F
 }
 
 // FCancelOrder cancels a futures order
-func (h *HUOBI) FCancelOrder(ctx context.Context, symbol, orderID, clientOrderID string) (FCancelOrderData, error) {
+func (h *HUOBI) FCancelOrder(ctx context.Context, baseCurrency currency.Code, orderID, clientOrderID string) (FCancelOrderData, error) {
 	var resp FCancelOrderData
 	req := make(map[string]interface{})
-	if symbol != "" {
-		req["symbol"] = symbol
+	if baseCurrency.IsEmpty() {
+		return resp, fmt.Errorf("cannot cancel futures order %w", currency.ErrCurrencyCodeEmpty)
 	}
+	req["symbol"] = baseCurrency.String() // Upper and lower case are supported
 	if orderID != "" {
 		req["order_id"] = orderID
 	}
@@ -1218,7 +1219,7 @@ func (h *HUOBI) formatFuturesCode(p currency.Code) (string, error) {
 // formatFuturesPair handles pairs in the format as "BTC-NW" and "BTC210827"
 func (h *HUOBI) formatFuturesPair(p currency.Pair) (string, error) {
 	if common.StringDataCompareInsensitive(validContractShortTypes, p.Quote.String()) {
-		return p.Format("_", true).String(), nil
+		return p.Format(currency.PairFormat{Delimiter: "_", Uppercase: true}).String(), nil
 	}
 	return h.FormatSymbol(p, asset.Futures)
 }

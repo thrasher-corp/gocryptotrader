@@ -81,6 +81,7 @@ type Config struct {
 	Database             database.Config           `json:"database"`
 	Logging              log.Config                `json:"logging"`
 	ConnectionMonitor    ConnectionMonitorConfig   `json:"connectionMonitor"`
+	OrderManager         OrderManager              `json:"orderManager"`
 	DataHistoryManager   DataHistoryManager        `json:"dataHistoryManager"`
 	CurrencyStateManager CurrencyStateManager      `json:"currencyStateManager"`
 	Profiler             Profiler                  `json:"profiler"`
@@ -102,6 +103,14 @@ type Config struct {
 	// encryption session values
 	storedSalt []byte
 	sessionDK  []byte
+}
+
+// OrderManager holds settings used for the order manager
+type OrderManager struct {
+	Enabled                       *bool         `json:"enabled"`
+	Verbose                       bool          `json:"verbose"`
+	ActivelyTrackFuturesPositions bool          `json:"activelyTrackFuturesPositions"`
+	FuturesTrackingSeekDuration   time.Duration `json:"futuresTrackingSeekDuration"`
 }
 
 // DataHistoryManager holds all information required for the data history manager
@@ -190,6 +199,7 @@ type GRPCConfig struct {
 	ListenAddress          string `json:"listenAddress"`
 	GRPCProxyEnabled       bool   `json:"grpcProxyEnabled"`
 	GRPCProxyListenAddress string `json:"grpcProxyListenAddress"`
+	GRPCAllowBotShutdown   bool   `json:"grpcAllowBotShutdown"`
 	TimeInNanoSeconds      bool   `json:"timeInNanoSeconds"`
 }
 

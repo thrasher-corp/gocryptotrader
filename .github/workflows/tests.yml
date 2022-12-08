@@ -1,7 +1,7 @@
 on: [push, pull_request]
 name: CI
 env:
-  GO_VERSION: 1.18.x
+  GO_VERSION: 1.19.x
 jobs:
   backend-psql:
     name: GoCryptoTrader back-end with PSQL
@@ -22,15 +22,15 @@ jobs:
 
     steps:
     - name: Cancel previous workflow runs
-      uses: styfle/cancel-workflow-action@0.9.1
+      uses: styfle/cancel-workflow-action@0.11.0
       with:
         access_token: ${{ github.token }}
 
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Setup Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v3
       with:
         go-version: ${{ env.GO_VERSION }}
 
@@ -76,15 +76,15 @@ jobs:
 
     steps:
     - name: Cancel previous workflow runs
-      uses: styfle/cancel-workflow-action@0.9.1
+      uses: styfle/cancel-workflow-action@0.11.0
       with:
         access_token: ${{ github.token }}
 
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Setup Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v3
       with:
         go-version: ${{ env.GO_VERSION }}
 
@@ -115,6 +115,7 @@ jobs:
         PSQL_SSLMODE: disable
         GOARCH: 386
         CGO_ENABLED: 1
+        CGO_CFLAGS: -fno-stack-protector
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
@@ -124,11 +125,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Cancel previous workflow runs
-      uses: styfle/cancel-workflow-action@0.9.1
+      uses: styfle/cancel-workflow-action@0.11.0
       with:
         access_token: ${{ github.token }}
 
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Use Node.js
       uses: actions/setup-node@v3

@@ -11,7 +11,7 @@ import (
 )
 
 // ErrInitialFundsZero is an error when initial funds are zero or less
-var ErrInitialFundsZero = errors.New("initial funds < 0")
+var ErrInitialFundsZero = errors.New("initial funds <= 0")
 
 // Holding contains pricing statistics for a given time
 // for a given exchange asset pair
@@ -31,12 +31,12 @@ type Holding struct {
 	SoldAmount        decimal.Decimal `json:"sold-amount"`
 	SoldValue         decimal.Decimal `json:"sold-value"`
 	BoughtAmount      decimal.Decimal `json:"bought-amount"`
-	BoughtValue       decimal.Decimal `json:"bought-value"`
+	CommittedFunds    decimal.Decimal `json:"committed-funds"`
+
+	IsLiquidated bool
 
 	TotalValueDifference      decimal.Decimal
 	ChangeInTotalValuePercent decimal.Decimal
-	BoughtValueDifference     decimal.Decimal
-	SoldValueDifference       decimal.Decimal
 	PositionsValueDifference  decimal.Decimal
 
 	TotalValue                   decimal.Decimal `json:"total-value"`

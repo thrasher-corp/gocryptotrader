@@ -61,7 +61,9 @@ func (l *LocalBitcoins) SetDefaults() {
 	l.API.CredentialsValidator.RequiresSecret = true
 
 	requestFmt := &currency.PairFormat{Uppercase: true}
-	configFmt := &currency.PairFormat{Uppercase: true}
+	configFmt := &currency.PairFormat{
+		Uppercase: true,
+		Delimiter: currency.DashDelimiter}
 	err := l.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -300,7 +302,11 @@ func (l *LocalBitcoins) UpdateAccountInfo(ctx context.Context, assetType asset.I
 			}},
 	})
 
-	err = account.Process(&response)
+	creds, err := l.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&response, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -310,11 +316,14 @@ func (l *LocalBitcoins) UpdateAccountInfo(ctx context.Context, assetType asset.I
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (l *LocalBitcoins) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(l.Name, assetType)
+	creds, err := l.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(l.Name, creds, assetType)
 	if err != nil {
 		return l.UpdateAccountInfo(ctx, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -325,7 +334,7 @@ func (l *LocalBitcoins) GetFundingHistory(ctx context.Context) ([]exchange.FundH
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (l *LocalBitcoins) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (l *LocalBitcoins) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -369,15 +378,14 @@ func (l *LocalBitcoins) GetHistoricTrades(_ context.Context, _ currency.Pair, _ 
 }
 
 // SubmitOrder submits a new order
-func (l *LocalBitcoins) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (l *LocalBitcoins) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	fPair, err := l.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	// These are placeholder details
@@ -405,15 +413,17 @@ func (l *LocalBitcoins) SubmitOrder(ctx context.Context, s *order.Submit) (order
 	// Does not return any orderID, so create the add, then get the order
 	err = l.CreateAd(ctx, &params)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
-
-	submitOrderResponse.IsOrderPlaced = true
 
 	// Now to figure out what ad we just submitted
 	// The only details we have are the params above
-	var adID string
 	ads, err := l.Getads(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var adID string
 	for i := range ads.AdList {
 		if ads.AdList[i].Data.PriceEquation == params.PriceEquation &&
 			ads.AdList[i].Data.Lat == float64(params.Latitude) &&
@@ -431,22 +441,20 @@ func (l *LocalBitcoins) SubmitOrder(ctx context.Context, s *order.Submit) (order
 			ads.AdList[i].Data.TradeType == params.TradeType &&
 			ads.AdList[i].Data.MinAmount == strconv.FormatInt(int64(params.MinAmount), 10) {
 			adID = strconv.FormatInt(ads.AdList[i].Data.AdID, 10)
+			break
 		}
 	}
 
-	if adID != "" {
-		submitOrderResponse.OrderID = adID
-	} else {
-		return submitOrderResponse, errors.New("ad placed, but not found via API")
+	if adID == "" {
+		return nil, errors.New("ad placed, but not found via API")
 	}
-
-	return submitOrderResponse, err
+	return s.DeriveSubmitResponse(adID)
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (l *LocalBitcoins) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
-	return order.Modify{}, common.ErrFunctionNotSupported
+func (l *LocalBitcoins) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -454,7 +462,7 @@ func (l *LocalBitcoins) CancelOrder(ctx context.Context, o *order.Cancel) error 
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
-	return l.DeleteAd(ctx, o.ID)
+	return l.DeleteAd(ctx, o.OrderID)
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
@@ -545,8 +553,9 @@ func (l *LocalBitcoins) GetFeeByType(ctx context.Context, feeBuilder *exchange.F
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (l *LocalBitcoins) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := getOrdersRequest.Validate(); err != nil {
+func (l *LocalBitcoins) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := getOrdersRequest.Validate()
+	if err != nil {
 		return nil, err
 	}
 
@@ -578,32 +587,26 @@ func (l *LocalBitcoins) GetActiveOrders(ctx context.Context, getOrdersRequest *o
 		}
 
 		orders[i] = order.Detail{
-			Amount: resp[i].Data.AmountBTC,
-			Price:  resp[i].Data.Amount,
-			ID:     strconv.FormatInt(resp[i].Data.Advertisement.ID, 10),
-			Date:   orderDate,
-			Fee:    resp[i].Data.FeeBTC,
-			Side:   side,
+			Amount:  resp[i].Data.AmountBTC,
+			Price:   resp[i].Data.Amount,
+			OrderID: strconv.FormatInt(resp[i].Data.Advertisement.ID, 10),
+			Date:    orderDate,
+			Fee:     resp[i].Data.FeeBTC,
+			Side:    side,
 			Pair: currency.NewPairWithDelimiter(currency.BTC.String(),
 				resp[i].Data.Currency,
 				format.Delimiter),
 			Exchange: l.Name,
 		}
 	}
-
-	err = order.FilterOrdersByTimeRange(&orders, getOrdersRequest.StartTime,
-		getOrdersRequest.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", l.Name, err)
-	}
-	order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
-	return orders, nil
+	return getOrdersRequest.Filter(l.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (l *LocalBitcoins) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := getOrdersRequest.Validate(); err != nil {
+func (l *LocalBitcoins) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := getOrdersRequest.Validate()
+	if err != nil {
 		return nil, err
 	}
 
@@ -672,28 +675,20 @@ func (l *LocalBitcoins) GetOrderHistory(ctx context.Context, getOrdersRequest *o
 		}
 
 		orders[i] = order.Detail{
-			Amount: allTrades[i].Data.AmountBTC,
-			Price:  allTrades[i].Data.Amount,
-			ID:     strconv.FormatInt(allTrades[i].Data.Advertisement.ID, 10),
-			Date:   orderDate,
-			Fee:    allTrades[i].Data.FeeBTC,
-			Side:   side,
-			Status: orderStatus,
+			Amount:  allTrades[i].Data.AmountBTC,
+			Price:   allTrades[i].Data.Amount,
+			OrderID: strconv.FormatInt(allTrades[i].Data.Advertisement.ID, 10),
+			Date:    orderDate,
+			Fee:     allTrades[i].Data.FeeBTC,
+			Side:    side,
+			Status:  orderStatus,
 			Pair: currency.NewPairWithDelimiter(currency.BTC.String(),
 				allTrades[i].Data.Currency,
 				format.Delimiter),
 			Exchange: l.Name,
 		}
 	}
-
-	err = order.FilterOrdersByTimeRange(&orders, getOrdersRequest.StartTime,
-		getOrdersRequest.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", l.Name, err)
-	}
-	order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
-
-	return orders, nil
+	return getOrdersRequest.Filter(l.Name, orders), nil
 }
 
 // ValidateCredentials validates current credentials used for wrapper

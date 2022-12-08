@@ -82,6 +82,7 @@ func (b *BTSE) SetDefaults() {
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
+			Delimiter: currency.DashDelimiter,
 		},
 	}
 	err = b.StoreAssetPairFormat(asset.Futures, fmt2)
@@ -379,7 +380,7 @@ func (b *BTSE) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 			Amount: a.SellQuote[x].Size,
 		})
 	}
-	book.Asks.Reverse() // Reverse asks for correct alignment
+	book.Asks.SortAsks()
 	book.Pair = p
 	book.Exchange = b.Name
 	book.Asset = assetType
@@ -416,7 +417,11 @@ func (b *BTSE) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 		},
 	}
 
-	err = account.Process(&a)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&a, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -426,7 +431,11 @@ func (b *BTSE) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (b *BTSE) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(b.Name, assetType)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(b.Name, creds, assetType)
 	if err != nil {
 		return b.UpdateAccountInfo(ctx, assetType)
 	}
@@ -451,7 +460,7 @@ func (b *BTSE) withinLimits(pair currency.Pair, amount float64) bool {
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *BTSE) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (b *BTSE) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -509,19 +518,18 @@ func (b *BTSE) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Ite
 }
 
 // SubmitOrder submits a new order
-func (b *BTSE) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var resp order.SubmitResponse
+func (b *BTSE) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	fPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	inLimits := b.withinLimits(fPair, s.Amount)
 	if !inLimits {
-		return resp, errors.New("order outside of limits")
+		return nil, errors.New("order outside of limits")
 	}
 
 	r, err := b.CreateOrder(ctx,
@@ -537,22 +545,20 @@ func (b *BTSE) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitRe
 		"",
 		s.Type.String())
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
-	resp.IsOrderPlaced = true
-	resp.OrderID = r[0].OrderID
-
-	if s.Type == order.Market {
-		resp.FullyMatched = true
+	var orderID string
+	if len(r) > 0 {
+		orderID = r[0].OrderID
 	}
-	return resp, nil
+	return s.DeriveSubmitResponse(orderID)
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *BTSE) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
-	return order.Modify{}, common.ErrFunctionNotSupported
+func (b *BTSE) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -561,13 +567,12 @@ func (b *BTSE) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	fPair, err := b.FormatExchangeCurrency(o.Pair,
-		o.AssetType)
+	fPair, err := b.FormatExchangeCurrency(o.Pair, o.AssetType)
 	if err != nil {
 		return err
 	}
 
-	_, err = b.CancelExistingOrder(ctx, o.ID, fPair.String(), o.ClientOrderID)
+	_, err = b.CancelExistingOrder(ctx, o.OrderID, fPair.String(), o.ClientOrderID)
 	if err != nil {
 		return err
 	}
@@ -656,7 +661,7 @@ func (b *BTSE) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 		}
 		od.Exchange = b.Name
 		od.Amount = o[i].Size
-		od.ID = o[i].OrderID
+		od.OrderID = o[i].OrderID
 		od.Date = time.Unix(o[i].Timestamp, 0)
 		od.Side = side
 
@@ -773,8 +778,9 @@ func (b *BTSE) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdr
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *BTSE) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (b *BTSE) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 
@@ -824,7 +830,7 @@ func (b *BTSE) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 				Amount:          resp[i].Size,
 				ExecutedAmount:  resp[i].FilledSize,
 				RemainingAmount: resp[i].Size - resp[i].FilledSize,
-				ID:              resp[i].OrderID,
+				OrderID:         resp[i].OrderID,
 				Date:            time.Unix(resp[i].Timestamp, 0),
 				Side:            side,
 				Price:           resp[i].Price,
@@ -877,14 +883,7 @@ func (b *BTSE) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 			orders = append(orders, openOrder)
 		}
 	}
-
-	order.FilterOrdersByType(&orders, req.Type)
-	err := order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
-	}
-	order.FilterOrdersBySide(&orders, req.Side)
-	return orders, nil
+	return req.Filter(b.Name, orders), nil
 }
 
 func matchType(input int, required order.Type) bool {
@@ -896,8 +895,9 @@ func matchType(input int, required order.Type) bool {
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := getOrdersRequest.Validate(); err != nil {
+func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := getOrdersRequest.Validate()
+	if err != nil {
 		return nil, err
 	}
 
@@ -923,7 +923,7 @@ func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetO
 			if !matchType(currentOrder[y].OrderType, orderDeref.Type) {
 				continue
 			}
-			orderStatus, err := order.StringToOrderStatus(currentOrder[x].OrderState)
+			orderStatus, err := order.StringToOrderStatus(currentOrder[y].OrderState)
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
 			}
@@ -934,7 +934,7 @@ func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetO
 			}
 			orderTime := time.UnixMilli(currentOrder[y].Timestamp)
 			tempOrder := order.Detail{
-				ID:                   currentOrder[y].OrderID,
+				OrderID:              currentOrder[y].OrderID,
 				ClientID:             currentOrder[y].ClOrderID,
 				Exchange:             b.Name,
 				Price:                currentOrder[y].Price,
@@ -951,7 +951,7 @@ func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetO
 			resp = append(resp, tempOrder)
 		}
 	}
-	return resp, nil
+	return getOrdersRequest.Filter(b.Name, resp), nil
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction

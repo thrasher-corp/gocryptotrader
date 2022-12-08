@@ -65,7 +65,7 @@ func (b *Bitfinex) SetDefaults() {
 
 	fmt1 := currency.PairStore{
 		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
 	}
 
 	fmt2 := currency.PairStore{
@@ -323,9 +323,20 @@ func (b *Bitfinex) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 			return err
 		}
 
-		p, err := currency.NewPairsFromStrings(pairs)
-		if err != nil {
-			return err
+		var p currency.Pairs
+		if assets[i] == asset.MarginFunding {
+			p = make(currency.Pairs, len(pairs))
+			for x := range pairs {
+				p[x], err = currency.NewPairFromStrings(pairs[x], "")
+				if err != nil {
+					return err
+				}
+			}
+		} else {
+			p, err = currency.NewPairsFromStrings(pairs)
+			if err != nil {
+				return err
+			}
 		}
 
 		err = b.UpdatePairs(p, assets[i], false, forceUpdate)
@@ -519,7 +530,11 @@ func (b *Bitfinex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 	}
 
 	response.Accounts = Accounts
-	err = account.Process(&response)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&response, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -529,11 +544,14 @@ func (b *Bitfinex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (b *Bitfinex) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(b.Name, assetType)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(b.Name, creds, assetType)
 	if err != nil {
 		return b.UpdateAccountInfo(ctx, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -544,7 +562,7 @@ func (b *Bitfinex) GetFundingHistory(ctx context.Context) ([]exchange.FundHistor
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *Bitfinex) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (b *Bitfinex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -620,20 +638,21 @@ allTrades:
 }
 
 // SubmitOrder submits a new order
-func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitResponse, error) {
 	err := o.Validate()
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	fpair, err := b.FormatExchangeCurrency(o.Pair, o.AssetType)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
+	var orderID string
+	status := order.New
 	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		submitOrderResponse.OrderID, err = b.WsNewOrder(&WsNewOrderRequest{
+		orderID, err = b.WsNewOrder(&WsNewOrderRequest{
 			CustomID: b.Websocket.AuthConn.GenerateMessageID(false),
 			Type:     o.Type.String(),
 			Symbol:   fpair.String(),
@@ -641,11 +660,10 @@ func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (order.Subm
 			Price:    o.Price,
 		})
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
 	} else {
 		var response Order
-		isBuying := o.Side == order.Buy
 		b.appendOptionalDelimiter(&fpair)
 		orderType := o.Type.Lower()
 		if o.AssetType == asset.Spot {
@@ -656,55 +674,54 @@ func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (order.Subm
 			orderType,
 			o.Amount,
 			o.Price,
-			isBuying,
+			o.Side == order.Buy,
 			false)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
-		if response.ID > 0 {
-			submitOrderResponse.OrderID = strconv.FormatInt(response.ID, 10)
-		}
-		if response.RemainingAmount == 0 {
-			submitOrderResponse.FullyMatched = true
-		}
+		orderID = strconv.FormatInt(response.ID, 10)
 
-		submitOrderResponse.IsOrderPlaced = true
+		if response.RemainingAmount == 0 {
+			status = order.Filled
+		}
 	}
-	return submitOrderResponse, err
+	resp, err := o.DeriveSubmitResponse(orderID)
+	if err != nil {
+		return nil, err
+	}
+	resp.Status = status
+	return resp, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bitfinex) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
+func (b *Bitfinex) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
+	if !b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		return nil, common.ErrNotYetImplemented
+	}
+
 	if err := action.Validate(); err != nil {
-		return order.Modify{}, err
+		return nil, err
 	}
 
-	orderIDInt, err := strconv.ParseInt(action.ID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(action.OrderID, 10, 64)
 	if err != nil {
-		return order.Modify{ID: action.ID}, err
+		return &order.ModifyResponse{OrderID: action.OrderID}, err
 	}
-	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		request := WsUpdateOrderRequest{
-			OrderID: orderIDInt,
-			Price:   action.Price,
-			Amount:  action.Amount,
-		}
-		if action.Side == order.Sell && action.Amount > 0 {
-			request.Amount *= -1
-		}
-		err = b.WsModifyOrder(&request)
-		return order.Modify{
-			Exchange:  action.Exchange,
-			AssetType: action.AssetType,
-			Pair:      action.Pair,
-			ID:        action.ID,
 
-			Price:  action.Price,
-			Amount: action.Amount,
-		}, err
+	wsRequest := WsUpdateOrderRequest{
+		OrderID: orderIDInt,
+		Price:   action.Price,
+		Amount:  action.Amount,
 	}
-	return order.Modify{}, common.ErrNotYetImplemented
+	if action.Side == order.Sell && action.Amount > 0 {
+		wsRequest.Amount *= -1
+	}
+	err = b.WsModifyOrder(&wsRequest)
+	if err != nil {
+		return nil, err
+	}
+	return action.DeriveModifyResponse()
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -713,7 +730,7 @@ func (b *Bitfinex) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -884,8 +901,9 @@ func (b *Bitfinex) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *Bitfinex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (b *Bitfinex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 
@@ -919,7 +937,7 @@ func (b *Bitfinex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 			Amount:          resp[i].OriginalAmount,
 			Date:            time.Unix(int64(timestamp), 0),
 			Exchange:        b.Name,
-			ID:              strconv.FormatInt(resp[i].ID, 10),
+			OrderID:         strconv.FormatInt(resp[i].ID, 10),
 			Side:            side,
 			Price:           resp[i].Price,
 			RemainingAmount: resp[i].RemainingAmount,
@@ -952,21 +970,14 @@ func (b *Bitfinex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 
 		orders[i] = orderDetail
 	}
-
-	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByType(&orders, req.Type)
-	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
-	}
-	order.FilterOrdersByPairs(&orders, req.Pairs)
-	return orders, nil
+	return req.Filter(b.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
+func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := req.Validate()
+	if err != nil {
 		return nil, err
 	}
 
@@ -999,7 +1010,7 @@ func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 			Amount:               resp[i].OriginalAmount,
 			Date:                 orderDate,
 			Exchange:             b.Name,
-			ID:                   strconv.FormatInt(resp[i].ID, 10),
+			OrderID:              strconv.FormatInt(resp[i].ID, 10),
 			Side:                 side,
 			Price:                resp[i].Price,
 			AverageExecutedPrice: resp[i].AverageExecutionPrice,
@@ -1035,17 +1046,10 @@ func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 		orders[i] = orderDetail
 	}
 
-	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByType(&orders, req.Type)
-	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
-	}
 	for i := range req.Pairs {
 		b.appendOptionalDelimiter(&req.Pairs[i])
 	}
-	order.FilterOrdersByPairs(&orders, req.Pairs)
-	return orders, nil
+	return req.Filter(b.Name, orders), nil
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

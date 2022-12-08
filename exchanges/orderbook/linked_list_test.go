@@ -30,6 +30,29 @@ var ask = Items{
 	Item{Price: 1356, Amount: 1},
 }
 
+var bid = Items{
+	Item{Price: 1336, Amount: 1},
+	Item{Price: 1335, Amount: 1},
+	Item{Price: 1334, Amount: 1},
+	Item{Price: 1333, Amount: 1},
+	Item{Price: 1332, Amount: 1},
+	Item{Price: 1331, Amount: 1},
+	Item{Price: 1330, Amount: 1},
+	Item{Price: 1329, Amount: 1},
+	Item{Price: 1328, Amount: 1},
+	Item{Price: 1327, Amount: 1},
+	Item{Price: 1326, Amount: 1},
+	Item{Price: 1325, Amount: 1},
+	Item{Price: 1324, Amount: 1},
+	Item{Price: 1323, Amount: 1},
+	Item{Price: 1322, Amount: 1},
+	Item{Price: 1321, Amount: 1},
+	Item{Price: 1320, Amount: 1},
+	Item{Price: 1319, Amount: 1},
+	Item{Price: 1318, Amount: 1},
+	Item{Price: 1317, Amount: 1},
+}
+
 // Display displays depth content for tests
 func (ll *linkedList) display() {
 	for tip := ll.head; tip != nil; tip = tip.Next {
@@ -1445,5 +1468,676 @@ func TestShiftBookmark(t *testing.T) {
 
 	if head != originalBookmarkNext {
 		t.Fatal("unexpected pointer variable")
+	}
+}
+
+func TestGetMovementByBaseAmount(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		Name            string
+		BaseAmount      float64
+		ReferencePrice  float64
+		BidLiquidity    Items
+		ExpectedNominal float64
+		ExpectedImpact  float64
+		ExpectedCost    float64
+		ExpectedError   error
+	}{
+		{
+			Name:          "no amount",
+			ExpectedError: errBaseAmountInvalid,
+		},
+		{
+			Name:          "no reference price",
+			BaseAmount:    1,
+			ExpectedError: errInvalidReferencePrice,
+		},
+		{
+			Name:           "not enough liquidity to service quote amount",
+			BaseAmount:     1,
+			ReferencePrice: 1000,
+			ExpectedError:  errNoLiquidity,
+		},
+		{
+			Name:            "thrasher test",
+			BidLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 9900, Amount: 7}, {Price: 9800, Amount: 3}},
+			BaseAmount:      10,
+			ReferencePrice:  10000,
+			ExpectedNominal: 0.8999999999999999,
+			ExpectedImpact:  2,
+			ExpectedCost:    900,
+		},
+		{
+			Name:            "consume first tranche",
+			BidLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 9900, Amount: 7}, {Price: 9800, Amount: 3}},
+			BaseAmount:      2,
+			ReferencePrice:  10000,
+			ExpectedNominal: 0,
+			ExpectedImpact:  1,
+			ExpectedCost:    0,
+		},
+		{
+			Name:            "consume most of first tranche",
+			BidLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 9900, Amount: 7}, {Price: 9800, Amount: 3}},
+			BaseAmount:      1.5,
+			ReferencePrice:  10000,
+			ExpectedNominal: 0,
+			ExpectedImpact:  0,
+			ExpectedCost:    0,
+		},
+		{
+			Name:            "consume full liquidity",
+			BidLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 9900, Amount: 7}, {Price: 9800, Amount: 3}},
+			BaseAmount:      12,
+			ReferencePrice:  10000,
+			ExpectedNominal: 1.0833333333333395,
+			ExpectedImpact:  FullLiquidityExhaustedPercentage,
+			ExpectedCost:    1300,
+		},
+	}
+
+	for x := range cases {
+		tt := cases[x]
+		t.Run(tt.Name, func(t *testing.T) {
+			t.Parallel()
+			depth := NewDepth(id)
+			depth.LoadSnapshot(tt.BidLiquidity, nil, 0, time.Time{}, true)
+			movement, err := depth.bids.getMovementByBase(tt.BaseAmount, tt.ReferencePrice, false)
+			if !errors.Is(err, tt.ExpectedError) {
+				t.Fatalf("received: '%v' but expected: '%v'", err, tt.ExpectedError)
+			}
+
+			if movement == nil {
+				return
+			}
+			if movement.NominalPercentage != tt.ExpectedNominal {
+				t.Fatalf("nominal received: '%v' but expected: '%v'",
+					movement.NominalPercentage, tt.ExpectedNominal)
+			}
+
+			if movement.ImpactPercentage != tt.ExpectedImpact {
+				t.Fatalf("impact received: '%v' but expected: '%v'",
+					movement.ImpactPercentage, tt.ExpectedImpact)
+			}
+
+			if movement.SlippageCost != tt.ExpectedCost {
+				t.Fatalf("cost received: '%v' but expected: '%v'",
+					movement.SlippageCost, tt.ExpectedCost)
+			}
+		})
+	}
+}
+
+func TestGetBaseAmountFromNominalSlippage(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		Name            string
+		NominalSlippage float64
+		ReferencePrice  float64
+		BidLiquidity    Items
+		ExpectedShift   *Movement
+		ExpectedError   error
+	}{
+		{
+			Name:            "invalid slippage",
+			NominalSlippage: -1,
+			ExpectedError:   errInvalidNominalSlippage,
+		},
+		{
+			Name:            "invalid slippage - larger than 100%",
+			NominalSlippage: 101,
+			ExpectedError:   errInvalidSlippageCannotExceed100,
+		},
+		{
+			Name:            "no reference price",
+			NominalSlippage: 1,
+			ExpectedError:   errInvalidReferencePrice,
+		},
+		{
+			Name:            "no liquidity to service quote amount",
+			NominalSlippage: 1,
+			ReferencePrice:  1000,
+			ExpectedError:   errNoLiquidity,
+		},
+		{
+			Name:            "thrasher test",
+			BidLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 9900, Amount: 7}, {Price: 9800, Amount: 3}},
+			NominalSlippage: 1,
+			ReferencePrice:  10000,
+			ExpectedShift: &Movement{
+				Sold:              11,
+				Purchased:         108900,
+				AverageOrderCost:  9900,
+				NominalPercentage: 1,
+				StartPrice:        10000,
+				EndPrice:          9800,
+			},
+		},
+		{
+			Name:            "consume first tranche - take one amount out of second",
+			BidLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 9900, Amount: 7}, {Price: 9800, Amount: 3}},
+			NominalSlippage: 0.33333333333334,
+			ReferencePrice:  10000,
+			ExpectedShift: &Movement{
+				Sold:              3.0000000000000275, // <- expected rounding issue
+				Purchased:         29900.00000000027,
+				AverageOrderCost:  9966.666666666664,
+				NominalPercentage: 0.33333333333334,
+				StartPrice:        10000,
+				EndPrice:          9900,
+			},
+		},
+		{
+			Name:            "consume full liquidity",
+			BidLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 9900, Amount: 7}, {Price: 9800, Amount: 3}},
+			NominalSlippage: 10,
+			ReferencePrice:  10000,
+			ExpectedShift: &Movement{
+				Sold:                 12,
+				Purchased:            118700,
+				AverageOrderCost:     9891.666666666666,
+				NominalPercentage:    1.0833333333333395,
+				StartPrice:           10000,
+				EndPrice:             9800,
+				FullBookSideConsumed: true,
+			},
+		},
+		{
+			Name:            "scotts lovely slippery slippage requirements",
+			BidLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 9900, Amount: 7}, {Price: 9800, Amount: 3}},
+			NominalSlippage: 0.00000000000000000000000000000000000000000000000000000000000000000000000000000000001,
+			ReferencePrice:  10000,
+			ExpectedShift: &Movement{
+				Sold:             2,
+				Purchased:        20000,
+				AverageOrderCost: 10000,
+				StartPrice:       10000,
+				EndPrice:         10000,
+			},
+		},
+	}
+
+	for x := range cases {
+		tt := cases[x]
+		t.Run(tt.Name, func(t *testing.T) {
+			t.Parallel()
+			depth := NewDepth(id)
+			depth.LoadSnapshot(tt.BidLiquidity, nil, 0, time.Time{}, true)
+			base, err := depth.bids.hitBidsByNominalSlippage(tt.NominalSlippage, tt.ReferencePrice)
+			if !errors.Is(err, tt.ExpectedError) {
+				t.Fatalf("%s received: '%v' but expected: '%v'",
+					tt.Name, err, tt.ExpectedError)
+			}
+			if !base.IsEqual(tt.ExpectedShift) {
+				t.Fatalf("%s quote received: '%+v' but expected: '%+v'",
+					tt.Name, base, tt.ExpectedShift)
+			}
+		})
+	}
+}
+
+// IsEqual is a tester function for comparison.
+func (m *Movement) IsEqual(that *Movement) bool {
+	if m == nil || that == nil {
+		return m == nil && that == nil
+	}
+	return m.FullBookSideConsumed == that.FullBookSideConsumed &&
+		m.Sold == that.Sold &&
+		m.Purchased == that.Purchased &&
+		m.NominalPercentage == that.NominalPercentage &&
+		m.ImpactPercentage == that.ImpactPercentage &&
+		m.EndPrice == that.EndPrice &&
+		m.StartPrice == that.StartPrice &&
+		m.AverageOrderCost == that.AverageOrderCost
+}
+
+func TestGetBaseAmountFromImpact(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		Name           string
+		ImpactSlippage float64
+		ReferencePrice float64
+		BidLiquidity   Items
+		ExpectedShift  *Movement
+		ExpectedError  error
+	}{
+		{
+			Name:          "invalid slippage",
+			ExpectedError: errInvalidImpactSlippage,
+		},
+		{
+			Name:           "invalid slippage - exceed 100%",
+			ImpactSlippage: 101,
+			ExpectedError:  errInvalidSlippageCannotExceed100,
+		},
+		{
+			Name:           "no reference price",
+			ImpactSlippage: 1,
+			ExpectedError:  errInvalidReferencePrice,
+		},
+		{
+			Name:           "no liquidity",
+			ImpactSlippage: 1,
+			ReferencePrice: 10000,
+			ExpectedError:  errNoLiquidity,
+		},
+		{
+			Name:           "thrasher test",
+			BidLiquidity:   Items{{Price: 10000, Amount: 2}, {Price: 9900, Amount: 7}, {Price: 9800, Amount: 3}},
+			ImpactSlippage: 1,
+			ReferencePrice: 10000,
+			ExpectedShift: &Movement{
+				Sold:             2,
+				Purchased:        20000,
+				ImpactPercentage: 1,
+				AverageOrderCost: 10000,
+				StartPrice:       10000,
+				EndPrice:         9900,
+			},
+		},
+		{
+			Name:           "consume first tranche and second tranche",
+			BidLiquidity:   Items{{Price: 10000, Amount: 2}, {Price: 9900, Amount: 7}, {Price: 9800, Amount: 3}},
+			ImpactSlippage: 2,
+			ReferencePrice: 10000,
+			ExpectedShift: &Movement{
+				Sold:             9,
+				Purchased:        89300,
+				AverageOrderCost: 9922.222222222223,
+				ImpactPercentage: 2,
+				StartPrice:       10000,
+				EndPrice:         9800,
+			},
+		},
+		{
+			Name:           "consume full liquidity",
+			BidLiquidity:   Items{{Price: 10000, Amount: 2}, {Price: 9900, Amount: 7}, {Price: 9800, Amount: 3}},
+			ImpactSlippage: 10,
+			ReferencePrice: 10000,
+			ExpectedShift: &Movement{
+				Sold:                 12,
+				Purchased:            118700,
+				ImpactPercentage:     FullLiquidityExhaustedPercentage,
+				AverageOrderCost:     9891.666666666666,
+				StartPrice:           10000,
+				EndPrice:             9800,
+				FullBookSideConsumed: true,
+			},
+		},
+	}
+
+	for x := range cases {
+		tt := cases[x]
+		t.Run(tt.Name, func(t *testing.T) {
+			t.Parallel()
+			depth := NewDepth(id)
+			depth.LoadSnapshot(tt.BidLiquidity, nil, 0, time.Time{}, true)
+			base, err := depth.bids.hitBidsByImpactSlippage(tt.ImpactSlippage, tt.ReferencePrice)
+			if !errors.Is(err, tt.ExpectedError) {
+				t.Fatalf("%s received: '%v' but expected: '%v'", tt.Name, err, tt.ExpectedError)
+			}
+			if !base.IsEqual(tt.ExpectedShift) {
+				t.Fatalf("%s quote received: '%+v' but expected: '%+v'",
+					tt.Name, base, tt.ExpectedShift)
+			}
+		})
+	}
+}
+
+func TestGetMovementByQuoteAmount(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		Name            string
+		QuoteAmount     float64
+		ReferencePrice  float64
+		AskLiquidity    Items
+		ExpectedNominal float64
+		ExpectedImpact  float64
+		ExpectedCost    float64
+		ExpectedError   error
+	}{
+		{
+			Name:          "no amount",
+			ExpectedError: errQuoteAmountInvalid,
+		},
+		{
+			Name:          "no reference price",
+			QuoteAmount:   1,
+			ExpectedError: errInvalidReferencePrice,
+		},
+		{
+			Name:           "not enough liquidity to service quote amount",
+			QuoteAmount:    1,
+			ReferencePrice: 1000,
+			ExpectedError:  errNoLiquidity,
+		},
+		{
+			Name:            "thrasher test",
+			AskLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
+			QuoteAmount:     100900,
+			ReferencePrice:  10000,
+			ExpectedNominal: 0.8999999999999999,
+			ExpectedImpact:  2,
+			ExpectedCost:    900,
+		},
+		{
+			Name:            "consume first tranche",
+			AskLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
+			QuoteAmount:     20000,
+			ReferencePrice:  10000,
+			ExpectedNominal: 0,
+			ExpectedImpact:  1,
+			ExpectedCost:    0,
+		},
+		{
+			Name:            "consume most of first tranche",
+			AskLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
+			QuoteAmount:     15000,
+			ReferencePrice:  10000,
+			ExpectedNominal: 0,
+			ExpectedImpact:  0,
+			ExpectedCost:    0,
+		},
+		{
+			Name:            "consume full liquidity",
+			AskLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
+			QuoteAmount:     121300,
+			ReferencePrice:  10000,
+			ExpectedNominal: 1.0833333333333395,
+			ExpectedImpact:  FullLiquidityExhaustedPercentage,
+			ExpectedCost:    1300,
+		},
+	}
+
+	for x := range cases {
+		tt := cases[x]
+		t.Run(tt.Name, func(t *testing.T) {
+			t.Parallel()
+			depth := NewDepth(id)
+			depth.LoadSnapshot(nil, tt.AskLiquidity, 0, time.Time{}, true)
+			movement, err := depth.asks.getMovementByQuotation(tt.QuoteAmount, tt.ReferencePrice, false)
+			if !errors.Is(err, tt.ExpectedError) {
+				t.Fatalf("received: '%v' but expected: '%v'", err, tt.ExpectedError)
+			}
+
+			if movement == nil {
+				return
+			}
+			if movement.NominalPercentage != tt.ExpectedNominal {
+				t.Fatalf("nominal received: '%v' but expected: '%v'",
+					movement.NominalPercentage, tt.ExpectedNominal)
+			}
+
+			if movement.ImpactPercentage != tt.ExpectedImpact {
+				t.Fatalf("impact received: '%v' but expected: '%v'",
+					movement.ImpactPercentage, tt.ExpectedImpact)
+			}
+
+			if movement.SlippageCost != tt.ExpectedCost {
+				t.Fatalf("cost received: '%v' but expected: '%v'",
+					movement.SlippageCost, tt.ExpectedCost)
+			}
+		})
+	}
+}
+
+func TestGetQuoteAmountFromNominalSlippage(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		Name            string
+		NominalSlippage float64
+		ReferencePrice  float64
+		AskLiquidity    Items
+		ExpectedShift   *Movement
+		ExpectedError   error
+	}{
+		{
+			Name:            "invalid slippage",
+			NominalSlippage: -1,
+			ExpectedError:   errInvalidNominalSlippage,
+		},
+		{
+			Name:            "no reference price",
+			NominalSlippage: 1,
+			ExpectedError:   errInvalidReferencePrice,
+		},
+		{
+			Name:            "no liquidity",
+			NominalSlippage: 1,
+			ReferencePrice:  10000,
+			ExpectedError:   errNoLiquidity,
+		},
+		{
+			Name:            "consume first tranche - one amount on second tranche",
+			AskLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
+			NominalSlippage: 0.33333333333334,
+			ReferencePrice:  10000,
+			ExpectedShift: &Movement{
+				Sold:              30100.000000000276, // <- expected rounding issue
+				Purchased:         3.0000000000000275,
+				AverageOrderCost:  10033.333333333333333333333333333,
+				NominalPercentage: 0.33333333333334,
+				StartPrice:        10000,
+				EndPrice:          10100,
+			},
+		},
+		{
+			Name:            "last tranche total agg meeting 1 percent nominally",
+			AskLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
+			NominalSlippage: 1,
+			ReferencePrice:  10000,
+			ExpectedShift: &Movement{
+				Sold:              111100,
+				Purchased:         11,
+				AverageOrderCost:  10100,
+				NominalPercentage: 1,
+				StartPrice:        10000,
+				EndPrice:          10200,
+			},
+		},
+		{
+			Name:            "take full second tranche",
+			AskLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
+			NominalSlippage: 0.7777777777777738,
+			ReferencePrice:  10000,
+			ExpectedShift: &Movement{
+				Sold:              90700,
+				Purchased:         9,
+				AverageOrderCost:  10077.777777777777,
+				NominalPercentage: 0.7777777777777738,
+				StartPrice:        10000,
+				EndPrice:          10100,
+			},
+		},
+		{
+			Name:            "consume full liquidity",
+			AskLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
+			NominalSlippage: 10,
+			ReferencePrice:  10000,
+			ExpectedShift: &Movement{
+				Sold:                 121300,
+				Purchased:            12,
+				AverageOrderCost:     10108.333333333334,
+				NominalPercentage:    1.0833333333333395,
+				StartPrice:           10000,
+				EndPrice:             10200,
+				FullBookSideConsumed: true,
+			},
+		},
+		{
+			Name:            "scotts lovely slippery slippage requirements",
+			AskLiquidity:    Items{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
+			NominalSlippage: 0.00000000000000000000000000000000000000000000000000000000000000000000000000000000001,
+			ReferencePrice:  10000,
+			ExpectedShift: &Movement{
+				Sold:             20000,
+				Purchased:        2,
+				AverageOrderCost: 10000,
+				StartPrice:       10000,
+				EndPrice:         10000,
+			},
+		},
+	}
+
+	for x := range cases {
+		tt := cases[x]
+		t.Run(tt.Name, func(t *testing.T) {
+			t.Parallel()
+			depth := NewDepth(id)
+			depth.LoadSnapshot(nil, tt.AskLiquidity, 0, time.Time{}, true)
+			quote, err := depth.asks.liftAsksByNominalSlippage(tt.NominalSlippage, tt.ReferencePrice)
+			if !errors.Is(err, tt.ExpectedError) {
+				t.Fatalf("%s received: '%v' but expected: '%v'", tt.Name, err, tt.ExpectedError)
+			}
+			if !quote.IsEqual(tt.ExpectedShift) {
+				t.Fatalf("%s quote received: '%+v' but expected: '%+v'",
+					tt.Name, quote, tt.ExpectedShift)
+			}
+		})
+	}
+}
+
+func TestGetQuoteAmountFromImpact(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		Name           string
+		ImpactSlippage float64
+		ReferencePrice float64
+		AskLiquidity   Items
+		ExpectedShift  *Movement
+		ExpectedError  error
+	}{
+		{
+			Name:           "invalid slippage",
+			ImpactSlippage: -1,
+			ExpectedError:  errInvalidImpactSlippage,
+		},
+		{
+			Name:           "no reference price",
+			ImpactSlippage: 1,
+			ExpectedError:  errInvalidReferencePrice,
+		},
+		{
+			Name:           "no liquidity",
+			ImpactSlippage: 1,
+			ReferencePrice: 1000,
+			ExpectedError:  errNoLiquidity,
+		},
+		{
+			Name:           "thrasher test",
+			AskLiquidity:   Items{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
+			ImpactSlippage: 1,
+			ReferencePrice: 10000,
+			ExpectedShift: &Movement{
+				Sold:             20000,
+				Purchased:        2,
+				AverageOrderCost: 10000,
+				ImpactPercentage: 1,
+				StartPrice:       10000,
+				EndPrice:         10100,
+			},
+		},
+		{
+			Name:           "consume first tranche and second tranche",
+			AskLiquidity:   Items{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
+			ImpactSlippage: 2,
+			ReferencePrice: 10000,
+			ExpectedShift: &Movement{
+				Sold:             90700,
+				Purchased:        9,
+				AverageOrderCost: 10077.777777777777777777777777778,
+				ImpactPercentage: 2,
+				StartPrice:       10000,
+				EndPrice:         10200,
+			},
+		},
+		{
+			Name:           "consume full liquidity",
+			AskLiquidity:   Items{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
+			ImpactSlippage: 10,
+			ReferencePrice: 10000,
+			ExpectedShift: &Movement{
+				Sold:                 121300,
+				Purchased:            12,
+				AverageOrderCost:     10108.333333333333333333333333333,
+				ImpactPercentage:     FullLiquidityExhaustedPercentage,
+				StartPrice:           10000,
+				EndPrice:             10200,
+				FullBookSideConsumed: true,
+			},
+		},
+	}
+
+	for x := range cases {
+		tt := cases[x]
+		t.Run(tt.Name, func(t *testing.T) {
+			t.Parallel()
+			depth := NewDepth(id)
+			depth.LoadSnapshot(nil, tt.AskLiquidity, 0, time.Time{}, true)
+			quote, err := depth.asks.liftAsksByImpactSlippage(tt.ImpactSlippage, tt.ReferencePrice)
+			if !errors.Is(err, tt.ExpectedError) {
+				t.Fatalf("received: '%v' but expected: '%v'", err, tt.ExpectedError)
+			}
+			if !quote.IsEqual(tt.ExpectedShift) {
+				t.Fatalf("%s quote received: '%+v' but expected: '%+v'",
+					tt.Name, quote, tt.ExpectedShift)
+			}
+		})
+	}
+}
+
+func TestGetHeadPrice(t *testing.T) {
+	t.Parallel()
+	depth := NewDepth(id)
+	if _, err := depth.bids.getHeadPriceNoLock(); !errors.Is(err, errNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	}
+	if _, err := depth.asks.getHeadPriceNoLock(); !errors.Is(err, errNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	}
+	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+
+	val, err := depth.bids.getHeadPriceNoLock()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if val != 1336 {
+		t.Fatal("unexpected value")
+	}
+
+	val, err = depth.asks.getHeadPriceNoLock()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if val != 1337 {
+		t.Fatal("unexpected value", val)
+	}
+}
+
+func TestFinalizeFields(t *testing.T) {
+	m := &Movement{}
+	_, err := m.finalizeFields(0, 0, 0, 0, false)
+	if !errors.Is(err, errInvalidCost) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidCost)
+	}
+	_, err = m.finalizeFields(1, 0, 0, 0, false)
+	if !errors.Is(err, errInvalidAmount) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidAmount)
+	}
+	_, err = m.finalizeFields(1, 1, 0, 0, false)
+	if !errors.Is(err, errInvalidHeadPrice) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidHeadPrice)
+	}
+
+	// Test slippage as per https://en.wikipedia.org/wiki/Slippage_(finance)
+	mov, err := m.finalizeFields(20000*151.11585, 20000, 151.08, 0, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if mov.SlippageCost != 716.9999999995343 {
+		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 716.9999999995343)
 	}
 }

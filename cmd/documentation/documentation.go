@@ -6,12 +6,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"html/template"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -430,14 +430,16 @@ func GetTemplateFiles() (*template.Template, error) {
 				return nil
 			}
 
-			var parseError error
-			tmpl, parseError = tmpl.ParseGlob(filepath.Join(path, "*.tmpl"))
-			if parseError != nil {
-				if strings.Contains(parseError.Error(), "pattern matches no files") {
+			var tmplExt *template.Template
+			tmplExt, err = tmpl.ParseGlob(filepath.Join(path, "*.tmpl"))
+			if err != nil {
+				fmt.Println(err)
+				if strings.Contains(err.Error(), "pattern matches no files") {
 					return nil
 				}
-				return parseError
+				return err
 			}
+			tmpl = tmplExt
 			return filepath.SkipDir
 		}
 		return nil
@@ -484,7 +486,7 @@ func GetPackageName(name string, capital bool) string {
 		i = len(newStrings) - 1
 	}
 	if capital {
-		return strings.Replace(strings.Title(newStrings[i]), "_", " ", -1) // nolint // ignore staticcheck strings.Title warning
+		return strings.Replace(strings.Title(newStrings[i]), "_", " ", -1) //nolint:staticcheck // Ignore Title usage warning
 	}
 	return newStrings[i]
 }
@@ -538,7 +540,7 @@ func UpdateDocumentation(details DocumentationDetails) {
 			}
 			continue
 		}
-		if name == engineFolder {
+		if strings.Contains(name, engineFolder) {
 			d, err := os.ReadDir(details.Directories[i])
 			if err != nil {
 				fmt.Println("Excluding file:", err)

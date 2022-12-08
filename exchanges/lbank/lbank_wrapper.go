@@ -353,7 +353,11 @@ func (l *Lbank) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	info.Accounts = append(info.Accounts, acc)
 	info.Exchange = l.Name
 
-	err = account.Process(&info)
+	creds, err := l.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&info, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -362,7 +366,11 @@ func (l *Lbank) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (l *Lbank) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(l.Name, assetType)
+	creds, err := l.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(l.Name, creds, assetType)
 	if err != nil {
 		return l.UpdateAccountInfo(ctx, assetType)
 	}
@@ -376,7 +384,7 @@ func (l *Lbank) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, 
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (l *Lbank) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (l *Lbank) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -450,21 +458,20 @@ allTrades:
 }
 
 // SubmitOrder submits a new order
-func (l *Lbank) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var resp order.SubmitResponse
+func (l *Lbank) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	if s.Side != order.Buy && s.Side != order.Sell {
-		return resp,
+		return nil,
 			fmt.Errorf("%s order side is not supported by the exchange",
 				s.Side)
 	}
 
 	fpair, err := l.FormatExchangeCurrency(s.Pair, asset.Spot)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	tempResp, err := l.CreateOrder(ctx,
@@ -473,20 +480,15 @@ func (l *Lbank) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitR
 		s.Amount,
 		s.Price)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	resp.IsOrderPlaced = true
-	resp.OrderID = tempResp.OrderID
-	if s.Type == order.Market {
-		resp.FullyMatched = true
-	}
-	return resp, nil
+	return s.DeriveSubmitResponse(tempResp.OrderID)
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (l *Lbank) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
-	return order.Modify{}, common.ErrFunctionNotSupported
+func (l *Lbank) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -498,7 +500,7 @@ func (l *Lbank) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err != nil {
 		return err
 	}
-	_, err = l.RemoveOrder(ctx, fpair.String(), o.ID)
+	_, err = l.RemoveOrder(ctx, fpair.String(), o.OrderID)
 	return err
 }
 
@@ -653,8 +655,9 @@ func (l *Lbank) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withd
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (l *Lbank) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := getOrdersRequest.Validate(); err != nil {
+func (l *Lbank) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := getOrdersRequest.Validate()
+	if err != nil {
 		return nil, err
 	}
 
@@ -711,13 +714,14 @@ func (l *Lbank) GetActiveOrders(ctx context.Context, getOrdersRequest *order.Get
 			}
 		}
 	}
-	return finalResp, nil
+	return getOrdersRequest.Filter(l.Name, finalResp), nil
 }
 
 // GetOrderHistory retrieves account order information *
 // Can Limit response to specific order status
-func (l *Lbank) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := getOrdersRequest.Validate(); err != nil {
+func (l *Lbank) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	err := getOrdersRequest.Validate()
+	if err != nil {
 		return nil, err
 	}
 
@@ -784,7 +788,7 @@ func (l *Lbank) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Get
 			}
 		}
 	}
-	return finalResp, nil
+	return getOrdersRequest.Filter(l.Name, finalResp), nil
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction *

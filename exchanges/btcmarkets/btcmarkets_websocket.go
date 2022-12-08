@@ -300,7 +300,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			Amount:          originalAmount,
 			RemainingAmount: orderData.OpenVolume,
 			Exchange:        b.Name,
-			ID:              orderID,
+			OrderID:         orderID,
 			ClientID:        creds.ClientID,
 			Type:            oType,
 			Side:            oSide,

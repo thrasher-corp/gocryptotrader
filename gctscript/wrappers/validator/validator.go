@@ -122,7 +122,7 @@ func (w Wrapper) QueryOrder(ctx context.Context, exch, _ string, _ currency.Pair
 	return &order.Detail{
 		Exchange:        exch,
 		AccountID:       "hello",
-		ID:              "1",
+		OrderID:         "1",
 		Pair:            pair,
 		Side:            order.Ask,
 		Type:            order.Limit,
@@ -157,16 +157,17 @@ func (w Wrapper) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Submi
 		return nil, errTestFailed
 	}
 
-	tempOrder := &order.SubmitResponse{
-		IsOrderPlaced: false,
-		OrderID:       o.Exchange,
+	resp, err := o.DeriveSubmitResponse(o.Exchange)
+	if err != nil {
+		return nil, err
 	}
 
+	resp.Status = order.Rejected
 	if o.Exchange == "true" {
-		tempOrder.IsOrderPlaced = true
+		resp.Status = order.New
 	}
 
-	return tempOrder, nil
+	return resp, nil
 }
 
 // CancelOrder validator for test execution/scripts
@@ -262,7 +263,7 @@ func (w Wrapper) OHLCV(ctx context.Context, exch string, p currency.Pair, a asse
 	})
 
 	for x := 1; x < 200; x++ {
-		r := validatorLow + rand.Float64()*(validatorHigh-validatorLow) // nolint:gosec // no need to import crypo/rand
+		r := validatorLow + rand.Float64()*(validatorHigh-validatorLow) //nolint:gosec // no need to import crypo/rand
 		candle := kline.Candle{
 			Time:   candles[x-1].Time.Add(-i.Duration()),
 			Open:   r,

@@ -1,0 +1,45 @@
+package config
+
+import (
+	"path/filepath"
+	"runtime"
+
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
+	gctconfig "github.com/thrasher-corp/gocryptotrader/config"
+)
+
+var (
+	// DefaultBTDir is the default backtester config directory
+	DefaultBTDir = filepath.Join(gctcommon.GetDefaultDataDir(runtime.GOOS), "backtester")
+	// DefaultBTConfigDir is the default backtester config file
+	DefaultBTConfigDir = filepath.Join(DefaultBTDir, "config.json")
+)
+
+// BacktesterConfig contains the configuration for the backtester
+type BacktesterConfig struct {
+	PluginPath    string         `json:"plugin-path"`
+	PrintLogo     bool           `json:"print-logo"`
+	Verbose       bool           `json:"verbose"`
+	LogSubheaders bool           `json:"log-subheaders"`
+	Report        Report         `json:"report"`
+	GRPC          GRPC           `json:"grpc"`
+	UseCMDColours bool           `json:"use-cmd-colours"`
+	Colours       common.Colours `json:"cmd-colours"`
+}
+
+// Report contains the report settings
+type Report struct {
+	GenerateReport bool   `json:"output-report"`
+	TemplatePath   string `json:"template-path"`
+	OutputPath     string `json:"output-path"`
+	DarkMode       bool   `json:"dark-mode"`
+}
+
+// GRPC holds the GRPC configuration
+type GRPC struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	gctconfig.GRPCConfig
+	TLSDir string `json:"tls-dir"`
+}

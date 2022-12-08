@@ -53,7 +53,7 @@ func (s *Strategy) Description() string {
 
 // OnSignal handles a data event and returns what action the strategy believes should occur
 // however,this complex strategy cannot function on an individual basis
-func (s *Strategy) OnSignal(_ data.Handler, _ funding.IFundTransferer, _ portfolio.Handler) (signal.Event, error) {
+func (s *Strategy) OnSignal(_ data.Handler, _ funding.IFundingTransferer, _ portfolio.Handler) (signal.Event, error) {
 	return nil, errStrategyOnlySupportsSimultaneousProcessing
 }
 
@@ -67,7 +67,7 @@ func (s *Strategy) SupportsSimultaneousProcessing() bool {
 type mfiFundEvent struct {
 	event signal.Event
 	mfi   decimal.Decimal
-	funds funding.IPairReader
+	funds funding.IFundReader
 }
 
 // ByPrice used for sorting orders by order date
@@ -88,7 +88,7 @@ func sortByMFI(o *[]mfiFundEvent, reverse bool) {
 
 // OnSimultaneousSignals analyses multiple data points simultaneously, allowing flexibility
 // in allowing a strategy to only place an order for X currency if Y currency's price is Z
-func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransferer, _ portfolio.Handler) ([]signal.Event, error) {
+func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTransferer, _ portfolio.Handler) ([]signal.Event, error) {
 	if len(d) < 4 {
 		return nil, errStrategyCurrencyRequirements
 	}
@@ -137,13 +137,13 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 		latestMFI := decimal.NewFromFloat(mfi[len(mfi)-1])
 		if !d[i].HasDataAtTime(d[i].Latest().GetTime()) {
 			es.SetDirection(order.MissingData)
-			es.AppendReason(fmt.Sprintf("missing data at %v, cannot perform any actions. MFI %v", d[i].Latest().GetTime(), latestMFI))
+			es.AppendReasonf("missing data at %v, cannot perform any actions. MFI %v", d[i].Latest().GetTime(), latestMFI)
 			resp = append(resp, &es)
 			continue
 		}
 
 		es.SetDirection(order.DoNothing)
-		es.AppendReason(fmt.Sprintf("MFI at %v", latestMFI))
+		es.AppendReasonf("MFI at %v", latestMFI)
 
 		funds, err := f.GetFundingForEvent(&es)
 		if err != nil {
@@ -152,7 +152,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 		mfiFundEvents = append(mfiFundEvents, mfiFundEvent{
 			event: &es,
 			mfi:   latestMFI,
-			funds: funds,
+			funds: funds.FundReader(),
 		})
 	}
 

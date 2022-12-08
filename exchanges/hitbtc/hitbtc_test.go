@@ -174,7 +174,10 @@ func TestUpdateTicker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	h.CurrencyPairs.StorePairs(asset.Spot, pairs, true)
+	err = h.CurrencyPairs.StorePairs(asset.Spot, pairs, true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	_, err = h.UpdateTicker(context.Background(),
 		currency.NewPair(currency.BTC, currency.USD),
 		asset.Spot)
@@ -290,6 +293,7 @@ func TestGetActiveOrders(t *testing.T) {
 		Type:      order.AnyType,
 		Pairs:     []currency.Pair{currency.NewPair(currency.ETH, currency.BTC)},
 		AssetType: asset.Spot,
+		Side:      order.AnySide,
 	}
 
 	_, err := h.GetActiveOrders(context.Background(), &getOrdersRequest)
@@ -305,6 +309,7 @@ func TestGetOrderHistory(t *testing.T) {
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Pairs:     []currency.Pair{currency.NewPair(currency.ETH, currency.BTC)},
+		Side:      order.AnySide,
 	}
 
 	_, err := h.GetOrderHistory(context.Background(), &getOrdersRequest)
@@ -327,6 +332,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var orderSubmission = &order.Submit{
+		Exchange: h.Name,
 		Pair: currency.Pair{
 			Base:  currency.DGD,
 			Quote: currency.BTC,
@@ -339,7 +345,7 @@ func TestSubmitOrder(t *testing.T) {
 		AssetType: asset.Spot,
 	}
 	response, err := h.SubmitOrder(context.Background(), orderSubmission)
-	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
+	if areTestAPIKeysSet() && (err != nil || response.Status != order.New) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
@@ -353,7 +359,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
-		ID:            "1",
+		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
@@ -376,7 +382,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
-		ID:            "1",
+		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,

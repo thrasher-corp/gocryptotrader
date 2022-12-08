@@ -248,10 +248,10 @@ func TestGetActiveOrders(t *testing.T) {
 		t.Skip("skipping authenticated function for mock testing")
 	}
 	var getOrdersRequest = order.GetOrdersRequest{
-		Type: order.AnyType,
-		Pairs: []currency.Pair{currency.NewPair(currency.XRP,
-			currency.USDT)},
+		Type:      order.AnyType,
+		Pairs:     []currency.Pair{currency.NewPair(currency.XRP, currency.USDT)},
 		AssetType: asset.Spot,
+		Side:      order.AnySide,
 	}
 
 	_, err := z.GetActiveOrders(context.Background(), &getOrdersRequest)
@@ -270,8 +270,7 @@ func TestGetOrderHistory(t *testing.T) {
 		Type:      order.AnyType,
 		Side:      order.Buy,
 		AssetType: asset.Spot,
-		Pairs: []currency.Pair{currency.NewPair(currency.LTC,
-			currency.BTC)},
+		Pairs:     []currency.Pair{currency.NewPair(currency.LTC, currency.BTC)},
 	}
 
 	_, err := z.GetOrderHistory(context.Background(), &getOrdersRequest)
@@ -294,6 +293,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var orderSubmission = &order.Submit{
+		Exchange: z.Name,
 		Pair: currency.Pair{
 			Delimiter: "_",
 			Base:      currency.XRP,
@@ -327,7 +327,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.XRP, currency.USDT)
 	var orderCancellation = &order.Cancel{
-		ID:            "1",
+		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
@@ -352,7 +352,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.XRP, currency.USDT)
 	var orderCancellation = &order.Cancel{
-		ID:            "1",
+		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
@@ -988,7 +988,7 @@ func TestValidateCandlesRequest(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = z.validateCandlesRequest(currency.EMPTYPAIR, asset.Spot, time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC), time.Date(2020, 1, 1, 1, 1, 1, 3, time.UTC), kline.OneHour)
-	if err != nil && err.Error() != "pair not enabled" {
+	if !errors.Is(err, kline.ErrValidatingParams) {
 		t.Error(err)
 	}
 	var p currency.Pair

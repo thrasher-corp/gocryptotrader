@@ -1,0 +1,69 @@
+{
+ "nickname": "ExampleStrategyDCACSVCandles",
+ "goal": "To demonstrate the DCA strategy using CSV candle data",
+ "strategy-settings": {
+  "name": "dollarcostaverage",
+  "use-simultaneous-signal-processing": false,
+  "disable-usd-tracking": true
+ },
+ "funding-settings": {
+  "use-exchange-level-funding": false
+ },
+ "currency-settings": [
+  {
+   "exchange-name": "ftx",
+   "asset": "spot",
+   "base": "BTC",
+   "quote": "USDT",
+   "spot-details": {
+    "initial-quote-funds": "100000"
+   },
+   "buy-side": {
+    "minimum-size": "0.005",
+    "maximum-size": "2",
+    "maximum-total": "40000"
+   },
+   "sell-side": {
+    "minimum-size": "0.005",
+    "maximum-size": "2",
+    "maximum-total": "40000"
+   },
+   "min-slippage-percent": "0",
+   "max-slippage-percent": "0",
+   "maker-fee-override": "0.0002",
+   "taker-fee-override": "0.0007",
+   "maximum-holdings-ratio": "0",
+   "skip-candle-volume-fitting": false,
+   "use-exchange-order-limits": false,
+   "use-exchange-pnl-calculation": false
+  }
+ ],
+ "data-settings": {
+  "interval": 86400000000000,
+  "data-type": "candle",
+  "csv-data": {
+   "full-path": "..\\testdata\\binance_BTCUSDT_24h_2019_01_01_2020_01_01.csv"
+  }
+ },
+ "portfolio-settings": {
+  "leverage": {
+   "can-use-leverage": false,
+   "maximum-orders-with-leverage-ratio": "0",
+   "maximum-leverage-rate": "0",
+   "maximum-collateral-leverage-rate": "0"
+  },
+  "buy-side": {
+   "minimum-size": "0.005",
+   "maximum-size": "2",
+   "maximum-total": "40000"
+  },
+  "sell-side": {
+   "minimum-size": "0.005",
+   "maximum-size": "2",
+   "maximum-total": "40000"
+  }
+ },
+ "statistic-settings": {
+  "risk-free-rate": "0.03"
+ }
+}
