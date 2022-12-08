@@ -55,6 +55,10 @@ func TestMain(m *testing.M) {
 		Message:               make(chan *wsIncomingData),
 	}
 	ok.SetDefaults()
+	if apiKey != "" && apiSecret != "" && passphrase != "" {
+		exchCfg.API.AuthenticatedSupport = true
+		exchCfg.API.AuthenticatedWebsocketSupport = true
+	}
 	ok.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = ok.Setup(exchCfg)
 	if err != nil {

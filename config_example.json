@@ -295,8 +295,8 @@
             }
         },
         "api": {
-            "authenticatedSupport": true,
-            "authenticatedWebsocketApiSupport": true,
+            "authenticatedSupport": false,
+            "authenticatedWebsocketApiSupport": false,
             "credentials": {
                 "key": "",
                 "secret": "",
