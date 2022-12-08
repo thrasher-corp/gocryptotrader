@@ -1,15 +1,11 @@
 package common
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
-
-var ErrCannotGenerateSignal = errors.New("cannot generate adequate signals")
-var ErrIntervalNotSupported = errors.New("interval currently not supported")
 
 // NewScheduler returns a standard schedular to generate signals at a defined
 // heartbeat within a scheduled start and end time. This can be set to align
@@ -23,7 +19,7 @@ func NewScheduler(start, end time.Time, aligned bool, heartbeat kline.Interval) 
 	if !end.IsZero() && start.After(time.Now()) {
 		window := end.Sub(start)
 		if (float64(window) / float64(heartbeat)) < 1 {
-			return nil, fmt.Errorf("due to time window %s and heart beat size %s cannot %w",
+			return nil, fmt.Errorf("due to time window %s and heart beat size %s %w",
 				window, heartbeat, ErrCannotGenerateSignal)
 		}
 	}
@@ -107,31 +103,21 @@ func (s *Scheduler) piper() {
 
 // setTimer automatically resets timer to next heartbeat interval
 func (s *Scheduler) setTimer() {
-	tn := time.Now()
 	duration := s.interval.Duration()
-	if s.next.Equal(s.start) {
+	if s.timer == nil {
 		if s.start.IsZero() {
-			s.start = tn
+			s.start = time.Now()
 		}
-		var fireAt time.Duration
-		// If scheduled at a later date else fire immediately
-		if s.start.After(tn) {
-			if s.alignmentToUTC {
-				// Never start before requested start.
-				fireAt = time.Until(s.start.Truncate(duration).Add(duration))
-			} else {
-				fireAt = time.Until(s.start)
-			}
+		if s.alignmentToUTC {
+			s.next = s.start.Truncate(duration).Add(duration)
+		} else {
+			s.next = s.start
 		}
-		s.timer = time.NewTimer(fireAt)
-		s.next = tn.Add(duration + fireAt)
+		s.timer = time.NewTimer(time.Until(s.next))
 		return
 	}
-	if s.alignmentToUTC {
-		tn = tn.Truncate(duration)
-	}
 	// Push forward next time
-	s.next = tn.Add(duration)
+	s.next = s.next.Add(duration)
 	s.timer.Reset(time.Until(s.next))
 }
 

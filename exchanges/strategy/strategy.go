@@ -6,6 +6,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	strategy "github.com/thrasher-corp/gocryptotrader/exchanges/strategy/common"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // Manager defines strategy management - NOTE: This is a POC wrapper layer for
@@ -35,6 +36,7 @@ func (m *Manager) Register(strat strategy.Requirements) (uuid.UUID, error) {
 	if m.strategies == nil {
 		m.strategies = make(map[uuid.UUID]strategy.Requirements)
 	}
+	log.Debugf(log.Strategy, "ID: [%s] has been registered. Details: %s", strat.GetID(), strat.GetDescription())
 	m.strategies[id] = strat
 	strat.ReportRegister()
 	return id, nil
@@ -51,11 +53,12 @@ func (m *Manager) Run(ctx context.Context, id uuid.UUID) error {
 	if !ok {
 		return strategy.ErrNotFound
 	}
+	log.Debugf(log.Strategy, "ID: [%s] has been run.", strat.GetID())
 	return strat.Run(ctx, strat)
 }
 
 // RunStream runs then hooks into the strategy and reports events.
-func (m *Manager) RunStream(ctx context.Context, id uuid.UUID) (<-chan *strategy.Report, error) {
+func (m *Manager) RunStream(ctx context.Context, id uuid.UUID, verbose bool) (<-chan *strategy.Report, error) {
 	if id.IsNil() {
 		return nil, strategy.ErrInvalidUUID
 	}
@@ -69,7 +72,7 @@ func (m *Manager) RunStream(ctx context.Context, id uuid.UUID) (<-chan *strategy
 	if err != nil {
 		return nil, err
 	}
-	return strat.GetReporter()
+	return strat.GetReporter(verbose)
 }
 
 // GetAllStrategies returns all strategies if running set true will only return
@@ -102,5 +105,6 @@ func (m *Manager) Stop(id uuid.UUID) error {
 	if !ok {
 		return strategy.ErrNotFound
 	}
+	log.Debugf(log.Strategy, "ID: [%s] trading operations have been stopped.", strat.GetID())
 	return strat.Stop()
 }

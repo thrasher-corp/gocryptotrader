@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -16,23 +15,19 @@ import (
 	strategy "github.com/thrasher-corp/gocryptotrader/exchanges/strategy/common"
 )
 
-var (
-	errNoBalanceFound     = errors.New("no balance found")
-	errExceedsFreeBalance = errors.New("amount exceeds current free balance")
-	errInvalidAssetType   = errors.New("non spot trading pairs not currently supported")
-	errStrategyIsNil      = errors.New("strategy is nil")
-)
-
-// GetTWAP returns a TWAP struct to manage allocation or deallocation of
-// position(s).
-func New(ctx context.Context, c *Config) (*Strategy, error) {
+// New returns a struct that implements the Requirements interface to
+// manage allocation or deallocation of position(s) using the Time Weighted
+// Average Price (TWAP) strategy.
+func New(ctx context.Context, c *Config) (strategy.Requirements, error) {
 	err := c.Check(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	// NOTE: Other asset types currently not supported by this strategy
+	// TODO: Add support.
 	if c.Asset != asset.Spot {
-		return nil, errInvalidAssetType
+		return nil, strategy.ErrInvalidAssetType
 	}
 
 	depth, err := orderbook.GetDepth(c.Exchange.GetName(), c.Pair, c.Asset)
@@ -72,7 +67,7 @@ func New(ctx context.Context, c *Config) (*Strategy, error) {
 				deployment,
 				c.Amount,
 				c.Pair.Base,
-				errNoBalanceFound,
+				strategy.ErrNoBalance,
 				balance)
 		}
 
@@ -82,17 +77,19 @@ func New(ctx context.Context, c *Config) (*Strategy, error) {
 					deployment,
 					c.Amount,
 					c.Pair.Base,
-					errExceedsFreeBalance,
+					strategy.ErrExceedsFreeBalance,
 					balance)
 			}
 			balance = c.Amount
 		}
 	} else {
 		if c.FullAmount {
-			return nil, errors.New("full amount cannot be requested in simulation, for now")
+			return nil, strategy.ErrFullAmountSimulation
 		}
 		if c.Amount == 0 {
-			return nil, errors.New("invalid requested amount for simulation")
+			return nil, fmt.Errorf("%w %v for simulation",
+				strategy.ErrInvalidAmount,
+				c.Amount)
 		}
 		balance = c.Amount
 	}
@@ -100,7 +97,7 @@ func New(ctx context.Context, c *Config) (*Strategy, error) {
 	// NOTE: For now this will not allow any amount to deplete the full
 	// orderbook, just until a safe, effective and efficient system has been
 	// tested and deployed for public use.
-	// TODO: Bypass error errBookSmallerThanDeploymentAmount.
+	// TODO: Bypass error strategy.ErrExceedsFreeBalance.
 	allocation, err := c.GetDistrbutionAmount(ctx, balance, depth)
 	if err != nil {
 		return nil, err
@@ -111,12 +108,7 @@ func New(ctx context.Context, c *Config) (*Strategy, error) {
 		return nil, err
 	}
 
-	id, err := uuid.NewV4()
-	if err != nil {
-		return nil, err
-	}
-
-	activities, err := strategy.NewActivities("TIME WEIGHTED AVERAGE PRICE (TWAP)", id, c.Simulate)
+	activities, err := strategy.NewActivities("TIME WEIGHTED AVERAGE PRICE (TWAP)", c.Simulate)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +127,7 @@ func New(ctx context.Context, c *Config) (*Strategy, error) {
 // all checks pass.
 func (s *Strategy) checkAndSubmit(ctx context.Context) error {
 	if s == nil {
-		return errStrategyIsNil
+		return strategy.ErrIsNil
 	}
 
 	twapPrice, err := s.getTwapPrice(ctx)

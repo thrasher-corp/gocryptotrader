@@ -3,7 +3,6 @@ package common
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -34,18 +33,65 @@ const (
 	SignalRejection Reason = "SIGNAL REJECTED"
 )
 
+// Time window responses
+const (
+	MinimumSizeResponse = "reduce end date, increase granularity (interval) or increase deployable capital requirements"
+	MaximumSizeResponse = "increase end date, decrease granularity (interval) or decrease deployable capital requirements"
+)
+
+// Reason defines a simple string type on what the strategy is doing
+type Reason string
+
 var (
-	ErrInvalidUUID    = errors.New("invalid UUID")
-	ErrIsNil          = errors.New("strategy is nil")
-	ErrNotFound       = errors.New("strategy not found")
-	ErrAlreadyRunning = errors.New("strategy is already running")
-	ErrNotRunning     = errors.New("strategy not running")
-	ErrConfigIsNil    = errors.New("strategy configuration is nil")
-	ErrReporterIsNil  = errors.New("strategy reporter is nil")
+	// Initial check errors
+	ErrNilSignal            = errors.New("signal is nil")
+	ErrUnhandledSignal      = errors.New("signal type is unhandled")
+	ErrCannotGenerateSignal = errors.New("cannot generate adequate signals")
+	ErrIntervalNotSupported = errors.New("interval currently not supported")
+	ErrInvalidUUID          = errors.New("invalid UUID")
+	ErrIsNil                = errors.New("is nil")
+	ErrNotFound             = errors.New("not found")
+	ErrAlreadyRunning       = errors.New("already running")
+	ErrNotRunning           = errors.New("not running")
+	ErrConfigIsNil          = errors.New("configuration is nil")
+	ErrExchangeIsNil        = errors.New("exchange is nil ")
+	ErrReporterIsNil        = errors.New("strategy reporter is nil")
+	ErrInvalidAssetType     = errors.New("non spot trading pairs not currently supported") // TODO: Open up to all asset types.
+
+	// Value errors
+	ErrInvalidSlippage    = errors.New("invalid slippage percentage")
+	ErrInvalidSpread      = errors.New("invalid spread percentage")
+	ErrMaxSpreadExceeded  = errors.New("max spread percentage exceeded")
+	ErrMaxImpactExceeded  = errors.New("impact percentage exceeded")
+	ErrMaxNominalExceeded = errors.New("nominal percentage exceeded")
+	ErrInvalidAmount      = errors.New("invalid amount")
+	ErrCannotSetAmount    = errors.New("specific amount cannot be set, full amount bool set")
+	ErrUnderMinimumAmount = errors.New("amount is under the minimum requirements")
+	ErrOverMaximumAmount  = errors.New("amount is over the maximum requirments")
+	ErrInvalidPriceLimit  = errors.New("invalid price limit")
+	ErrPriceLimitExceeded = errors.New("price limit exceeded")
+
+	// Time errors
+	ErrInvalidOperatingWindow = errors.New("start to end time window cannot be less than the operating interval")
+	ErrEndBeforeTimeNow       = errors.New("end time is before time now")
+
+	// Orderbook errors
+	ErrOrderbookIsNil   = errors.New("orderbook is nil")
+	ErrExceedsLiquidity = errors.New("exceeds total orderbook liquidity")
+
+	// Order execution errors
+	ErrInvalidRetryAttempts = errors.New("invalid retry attempts")
+	ErrNoBalance            = errors.New("no balance")
+	ErrExceedsFreeBalance   = errors.New("exceeds current free balance")
+	ErrSubmitOrderIsNil     = errors.New("submit order is nil")
+
+	// Simulation errors
+	ErrFullAmountSimulation = errors.New("full amount cannot be requested in simulation, for now")
 
 	errStrategyDescriptionIsEmpty = errors.New("strategy description/name is empty")
 	errRequirementIsNil           = errors.New("requirement is nil")
 	errActivitiesIsNil            = errors.New("activities is nil")
+	errIDAlreadySet               = errors.New("id already set")
 )
 
 // Report defines a strategies actions at a certain point in time for ad-hoc
@@ -58,9 +104,6 @@ type Report struct {
 	Reason   Reason      `json:"reason"`
 	Time     time.Time   `json:"time"`
 }
-
-// Reason defines a simple string type on what the strategy is doing
-type Reason string
 
 // Defines reportable actions that this strategy might undertake, struct types
 // used for outbound json marshalling.
@@ -103,13 +146,11 @@ type Requirements interface {
 	// OnSignal is a strategy-defined function that handles the data that is
 	// returned from `GetSignal()`.
 	OnSignal(ctx context.Context, signal interface{}) (bool, error)
-	// String is a strategy-defined function that returns basic information.
-	String() string
 	// GetNext returns the next execution time for the strategy.
 	GetNext() time.Time
 	// GetReporter returns a channel that gives you a full report or summary of
 	// action as soon as it occurs.
-	GetReporter() (<-chan *Report, error)
+	GetReporter(verbose bool) (<-chan *Report, error)
 	// ReportComplete is called when a strategy has completed sufficiently.
 	// This will alert a receiver that it has completed and will close the
 	// reporting channel. This method is defined on the `Activities` type in
@@ -142,11 +183,11 @@ type Requirements interface {
 	// ReportOrder is called when the strategy wants to send order execution
 	// information to a reporter receiver. This method is defined on the
 	// `Activities` type in the `activities.go` file.
-	ReportOrder(*OrderAction)
+	ReportOrder(OrderAction)
 	// ReportStart is called when the strategy is accepted and run and is
 	// waiting for signals and sends a report to a reporter receiver. This
 	// method is defined on the `Activities` type in the `activities.go` file.
-	ReportStart(data fmt.Stringer)
+	ReportStart(description string)
 	// ReportRegister is called when the strategy is registered with the manager
 	// and sends a report to a reporter receiver. As defined as method on
 	// 'Activities' type in activities.go.
@@ -168,6 +209,10 @@ type Requirements interface {
 	// LoadID loads an externally generated uuid for tracking. This method is
 	// defined on the `Requirement` type in the `requirement.go` file.
 	LoadID(id uuid.UUID) error
+
+	GetID() uuid.UUID
+
+	GetDescription() string
 }
 
 // Details define base level information

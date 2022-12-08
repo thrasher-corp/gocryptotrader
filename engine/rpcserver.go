@@ -5644,23 +5644,22 @@ func (s *RPCServer) DCAStream(r *gctrpc.DCARequest, stream gctrpc.GoCryptoTrader
 
 	ctx := stream.Context()
 	dcaStrat, err := dca.New(ctx, &dca.Config{
-		Exchange:            exch,
-		Pair:                pair,
-		Asset:               as,
-		Simulate:            r.Simulate,
-		Start:               r.Start.AsTime(),
-		End:                 r.End.AsTime(),
-		Interval:            interval,
-		Amount:              r.Amount,
-		FullAmount:          r.FullAmount,
-		PriceLimit:          r.PriceLimit,
-		MaxImpactSlippage:   r.MaxImpactSlippage,
-		MaxNominalSlippage:  r.MaxNominalSlippage,
-		Buy:                 r.Buy,
-		MaxSpreadPercentage: r.MaxSpreadPercentage,
-		// TODO: Set values below via rpc
+		Exchange:                exch,
+		Pair:                    pair,
+		Asset:                   as,
+		Simulate:                r.Simulate,
+		Start:                   r.Start.AsTime(),
+		End:                     r.End.AsTime(),
+		Interval:                interval,
+		Amount:                  r.Amount,
+		FullAmount:              r.FullAmount,
+		PriceLimit:              r.PriceLimit,
+		MaxImpactSlippage:       r.MaxImpactSlippage,
+		MaxNominalSlippage:      r.MaxNominalSlippage,
+		Buy:                     r.Buy,
+		MaxSpreadPercentage:     r.MaxSpreadPercentage,
 		RetryAttempts:           3,
-		CandleStickAligned:      true,
+		CandleStickAligned:      r.AlignedToInterval,
 		AllowTradingPastEndTime: false, // TODO: Not yet supported
 	})
 	if err != nil {
@@ -5672,7 +5671,7 @@ func (s *RPCServer) DCAStream(r *gctrpc.DCARequest, stream gctrpc.GoCryptoTrader
 		return err
 	}
 
-	reporter, err := s.strategyManager.RunStream(ctx, id)
+	reporter, err := s.strategyManager.RunStream(ctx, id, r.Verbose)
 	if err != nil {
 		return err
 	}
@@ -5685,7 +5684,7 @@ func (s *RPCServer) DCAStream(r *gctrpc.DCARequest, stream gctrpc.GoCryptoTrader
 		err = stream.Send(&gctrpc.DCAStreamResponse{
 			Id:       report.ID.String(),
 			Strategy: report.Strategy,
-			Reason:   report.Reason,
+			Reason:   string(report.Reason),
 			Action:   action,
 			Finished: report.Finished,
 		})
@@ -5732,23 +5731,22 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 
 	ctx := stream.Context()
 	twapStrat, err := twap.New(ctx, &twap.Config{
-		Exchange:            exch,
-		Pair:                pair,
-		Asset:               as,
-		Simulate:            r.Simulate,
-		Start:               r.Start.AsTime(),
-		End:                 r.End.AsTime(),
-		Interval:            interval,
-		Amount:              r.Amount,
-		FullAmount:          r.FullAmount,
-		PriceLimit:          r.PriceLimit,
-		MaxImpactSlippage:   r.MaxImpactSlippage,
-		MaxNominalSlippage:  r.MaxNominalSlippage,
-		Buy:                 r.Buy,
-		MaxSpreadPercentage: r.MaxSpreadPercentage,
-		// TODO: Set values below via rpc
-		RetryAttempts:           3,
-		CandleStickAligned:      true,
+		Exchange:                exch,
+		Pair:                    pair,
+		Asset:                   as,
+		Simulate:                r.Simulate,
+		Start:                   r.Start.AsTime(),
+		End:                     r.End.AsTime(),
+		Interval:                interval,
+		Amount:                  r.Amount,
+		FullAmount:              r.FullAmount,
+		PriceLimit:              r.PriceLimit,
+		MaxImpactSlippage:       r.MaxImpactSlippage,
+		MaxNominalSlippage:      r.MaxNominalSlippage,
+		Buy:                     r.Buy,
+		MaxSpreadPercentage:     r.MaxSpreadPercentage,
+		RetryAttempts:           r.RetryAttempts,
+		CandleStickAligned:      r.AlignedToInterval,
 		AllowTradingPastEndTime: false, // TODO: Not yet supported
 	})
 	if err != nil {
@@ -5760,7 +5758,7 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 		return err
 	}
 
-	reporter, err := s.strategyManager.RunStream(ctx, id)
+	reporter, err := s.strategyManager.RunStream(ctx, id, r.Verbose)
 	if err != nil {
 		return err
 	}
@@ -5770,10 +5768,11 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 		if err != nil {
 			return err
 		}
+
 		err = stream.Send(&gctrpc.TWAPStreamResponse{
 			Id:       report.ID.String(),
 			Strategy: report.Strategy,
-			Reason:   report.Reason,
+			Reason:   string(report.Reason),
 			Action:   action,
 			Finished: report.Finished,
 		})

@@ -589,6 +589,25 @@
             "required": false,
             "type": "number",
             "format": "double"
+          },
+          {
+            "name": "alignedToInterval",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "retryAttempts",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "verbose",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -4149,6 +4168,25 @@
             "required": false,
             "type": "number",
             "format": "double"
+          },
+          {
+            "name": "alignedToInterval",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "retryAttempts",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "verbose",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [

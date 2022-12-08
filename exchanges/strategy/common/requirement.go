@@ -2,18 +2,17 @@ package common
 
 import (
 	"context"
-	"errors"
 	"sync"
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // Requirement defines the base requirements for managing the operation of the
 // strategy so most of the internals can be abstracted away from individual
 // definitions.
 type Requirement struct {
-	id         uuid.UUID
 	registered time.Time
 	strategy   string
 	Activities
@@ -51,12 +50,13 @@ func (r *Requirement) Run(ctx context.Context, strategy Requirements) error {
 // deploy is the core routine that handles strategy functionality and lifecycle
 func (r *Requirement) deploy(ctx context.Context, strategy Requirements) {
 	defer func() { r.wg.Done(); _ = r.Stop() }()
-	strategy.ReportStart(strategy)
+	strategy.ReportStart(strategy.GetDescription())
 	for {
 		select {
 		case signal := <-strategy.GetSignal():
 			complete, err := strategy.OnSignal(ctx, signal)
 			if err != nil {
+				log.Errorf(log.Strategy, "ID: [%s] has failed %v handling signal %T", strategy.GetID(), err, signal)
 				strategy.ReportFatalError(err)
 				return
 			}
@@ -69,6 +69,7 @@ func (r *Requirement) deploy(ctx context.Context, strategy Requirements) {
 			strategy.ReportTimeout(end)
 			return
 		case <-ctx.Done():
+			log.Warnf(log.Strategy, "ID: [%s] context has finished: %v", strategy.GetID(), ctx.Err())
 			strategy.ReportContextDone(ctx.Err())
 			return
 		case <-r.shutdown:
@@ -110,14 +111,14 @@ func (r *Requirement) GetDetails() (*Details, error) {
 
 // GetReporter returns a channel that allows the broadcast of activity from a
 // specific strategy.
-func (r *Requirement) GetReporter() (<-chan *Report, error) {
+func (r *Requirement) GetReporter(verbose bool) (<-chan *Report, error) {
 	if r == nil {
 		return nil, errRequirementIsNil
 	}
 
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
-	return r.getReporter()
+	return r.getReporter(verbose)
 }
 
 // LoadID loads an externally generated uuid for tracking.
@@ -134,8 +135,18 @@ func (r *Requirement) LoadID(id uuid.UUID) error {
 	defer r.mtx.Unlock()
 
 	if !r.id.IsNil() {
-		return errors.New("id already set")
+		return errIDAlreadySet
 	}
 	r.id = id
 	return nil
+}
+
+// GetID returns the ID for the loaded strategy
+func (r *Requirement) GetID() uuid.UUID {
+	if r == nil {
+		return uuid.Nil
+	}
+	r.mtx.Lock()
+	defer r.mtx.Unlock()
+	return r.id
 }

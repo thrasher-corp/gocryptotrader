@@ -254,5 +254,7 @@ func init() {
 	Trade = registerNewSubLogger("TRADE")
 	Fill = registerNewSubLogger("FILL")
 	Currency = registerNewSubLogger("CURRENCY")
+
+	Strategy = registerNewSubLogger("STRATEGY")
 	mu.Unlock()
 }

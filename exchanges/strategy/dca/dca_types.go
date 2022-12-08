@@ -9,8 +9,8 @@ import (
 	strategy "github.com/thrasher-corp/gocryptotrader/exchanges/strategy/common"
 )
 
-// Strategy defines a TWAP strategy that handles the accumulation/de-accumulation
-// of assets via a time weighted average price.
+// Strategy defines a DCA (Dollar Cost Average) strategy that handles the
+// accumulation/de-accumulation over a set period of time.
 type Strategy struct {
 	*Config
 	strategy.Requirement

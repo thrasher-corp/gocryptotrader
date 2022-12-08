@@ -30,6 +30,8 @@ var (
 	Trade     *SubLogger
 	Fill      *SubLogger
 	Currency  *SubLogger
+
+	Strategy *SubLogger
 )
 
 // SubLogger defines a sub logger can be used externally for packages wanted to

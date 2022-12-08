@@ -18,7 +18,7 @@ func (s *Strat) Run(ctx context.Context, runner strategy.Requirements) error {
 	return nil
 }
 
-func (s *Strat) GetReporter() (<-chan *strategy.Report, error) {
+func (s *Strat) GetReporter(_ bool) (<-chan *strategy.Report, error) {
 	m := make(chan *strategy.Report)
 	close(m)
 	return m, nil
@@ -89,7 +89,7 @@ func TestRunStream(t *testing.T) {
 	t.Parallel()
 
 	var m Manager
-	_, err := m.RunStream(context.Background(), uuid.Nil)
+	_, err := m.RunStream(context.Background(), uuid.Nil, false)
 	if !errors.Is(err, strategy.ErrInvalidUUID) {
 		t.Fatalf("received: '%v' but expected '%v'", err, strategy.ErrInvalidUUID)
 	}
@@ -108,12 +108,12 @@ func TestRunStream(t *testing.T) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
-	_, err = m.RunStream(context.Background(), notRegisteredID)
+	_, err = m.RunStream(context.Background(), notRegisteredID, false)
 	if !errors.Is(err, strategy.ErrNotFound) {
 		t.Fatalf("received: '%v' but expected '%v'", err, strategy.ErrNotFound)
 	}
 
-	reporter, err := m.RunStream(context.Background(), registeredID)
+	reporter, err := m.RunStream(context.Background(), registeredID, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}

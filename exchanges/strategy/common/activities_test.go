@@ -14,14 +14,9 @@ const testStrat = "test strategy"
 func TestNewActivities(t *testing.T) {
 	t.Parallel()
 
-	_, err := NewActivities("", uuid.Nil, false)
+	_, err := NewActivities("", false)
 	if !errors.Is(err, errStrategyDescriptionIsEmpty) {
 		t.Fatalf("received: '%v' but expected '%v'", err, errStrategyDescriptionIsEmpty)
-	}
-
-	_, err = NewActivities(testStrat, uuid.Nil, false)
-	if !errors.Is(err, ErrInvalidUUID) {
-		t.Fatalf("received: '%v' but expected '%v'", err, ErrInvalidUUID)
 	}
 
 	id, err := uuid.NewV4()
@@ -29,7 +24,7 @@ func TestNewActivities(t *testing.T) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
-	act, err := NewActivities(testStrat, id, false)
+	act, err := NewActivities(testStrat, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
@@ -50,17 +45,12 @@ func TestNewActivities(t *testing.T) {
 func TestReportComplete(t *testing.T) {
 	t.Parallel()
 
-	id, err := uuid.NewV4()
+	act, err := NewActivities(testStrat, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
-	act, err := NewActivities(testStrat, id, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
-
-	reporter, err := act.getReporter()
+	reporter, err := act.getReporter(false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
@@ -68,10 +58,6 @@ func TestReportComplete(t *testing.T) {
 	act.ReportComplete()
 
 	for report := range reporter {
-		if report.ID != id {
-			t.Fatalf("received: '%v' but expected '%v'", report.ID, id)
-		}
-
 		if report.Strategy != testStrat {
 			t.Fatalf("received: '%v' but expected '%v'", report.Strategy, testStrat)
 		}
@@ -97,17 +83,12 @@ func TestReportComplete(t *testing.T) {
 func TestReportTimeout(t *testing.T) {
 	t.Parallel()
 
-	id, err := uuid.NewV4()
+	act, err := NewActivities(testStrat, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
-	act, err := NewActivities(testStrat, id, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
-
-	reporter, err := act.getReporter()
+	reporter, err := act.getReporter(false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
@@ -117,10 +98,6 @@ func TestReportTimeout(t *testing.T) {
 	act.ReportTimeout(tn)
 
 	for report := range reporter {
-		if report.ID != id {
-			t.Fatalf("received: '%v' but expected '%v'", report.ID, id)
-		}
-
 		if report.Strategy != testStrat {
 			t.Fatalf("received: '%v' but expected '%v'", report.Strategy, testStrat)
 		}
@@ -146,17 +123,12 @@ func TestReportTimeout(t *testing.T) {
 func TestReportFatalError(t *testing.T) {
 	t.Parallel()
 
-	id, err := uuid.NewV4()
+	act, err := NewActivities(testStrat, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
-	act, err := NewActivities(testStrat, id, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
-
-	reporter, err := act.getReporter()
+	reporter, err := act.getReporter(false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
@@ -164,10 +136,6 @@ func TestReportFatalError(t *testing.T) {
 	act.ReportFatalError(errors.New("test error"))
 
 	for report := range reporter {
-		if report.ID != id {
-			t.Fatalf("received: '%v' but expected '%v'", report.ID, id)
-		}
-
 		if report.Strategy != testStrat {
 			t.Fatalf("received: '%v' but expected '%v'", report.Strategy, testStrat)
 		}
@@ -193,17 +161,12 @@ func TestReportFatalError(t *testing.T) {
 func TestReportContextDone(t *testing.T) {
 	t.Parallel()
 
-	id, err := uuid.NewV4()
+	act, err := NewActivities(testStrat, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
-	act, err := NewActivities(testStrat, id, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
-
-	reporter, err := act.getReporter()
+	reporter, err := act.getReporter(false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
@@ -211,10 +174,6 @@ func TestReportContextDone(t *testing.T) {
 	act.ReportContextDone(context.Canceled)
 
 	for report := range reporter {
-		if report.ID != id {
-			t.Fatalf("received: '%v' but expected '%v'", report.ID, id)
-		}
-
 		if report.Strategy != testStrat {
 			t.Fatalf("received: '%v' but expected '%v'", report.Strategy, testStrat)
 		}
@@ -240,17 +199,12 @@ func TestReportContextDone(t *testing.T) {
 func TestReportShutdown(t *testing.T) {
 	t.Parallel()
 
-	id, err := uuid.NewV4()
+	act, err := NewActivities(testStrat, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
-	act, err := NewActivities(testStrat, id, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
-
-	reporter, err := act.getReporter()
+	reporter, err := act.getReporter(false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
@@ -258,10 +212,6 @@ func TestReportShutdown(t *testing.T) {
 	act.ReportShutdown()
 
 	for report := range reporter {
-		if report.ID != id {
-			t.Fatalf("received: '%v' but expected '%v'", report.ID, id)
-		}
-
 		if report.Strategy != testStrat {
 			t.Fatalf("received: '%v' but expected '%v'", report.Strategy, testStrat)
 		}
@@ -287,27 +237,18 @@ func TestReportShutdown(t *testing.T) {
 func TestReportInfo(t *testing.T) {
 	t.Parallel()
 
-	id, err := uuid.NewV4()
+	act, err := NewActivities(testStrat, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
-	act, err := NewActivities(testStrat, id, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
-
-	reporter, err := act.getReporter()
+	reporter, err := act.getReporter(false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
 	act.ReportInfo("surprising action")
 	for report := range reporter {
-		if report.ID != id {
-			t.Fatalf("received: '%v' but expected '%v'", report.ID, id)
-		}
-
 		if report.Strategy != testStrat {
 			t.Fatalf("received: '%v' but expected '%v'", report.Strategy, testStrat)
 		}
@@ -336,28 +277,18 @@ func TestReportInfo(t *testing.T) {
 
 func TestReportOrder(t *testing.T) {
 	t.Parallel()
-
-	id, err := uuid.NewV4()
+	act, err := NewActivities(testStrat, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
-	act, err := NewActivities(testStrat, id, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
-
-	reporter, err := act.getReporter()
+	reporter, err := act.getReporter(false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
 	act.ReportOrder(OrderAction{})
 	for report := range reporter {
-		if report.ID != id {
-			t.Fatalf("received: '%v' but expected '%v'", report.ID, id)
-		}
-
 		if report.Strategy != testStrat {
 			t.Fatalf("received: '%v' but expected '%v'", report.Strategy, testStrat)
 		}
@@ -384,36 +315,21 @@ func TestReportOrder(t *testing.T) {
 	}
 }
 
-type hello struct{}
-
-func (h hello) String() string {
-	return ""
-}
-
 func TestReportStart(t *testing.T) {
 	t.Parallel()
 
-	id, err := uuid.NewV4()
+	act, err := NewActivities(testStrat, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
-	act, err := NewActivities(testStrat, id, false)
+	reporter, err := act.getReporter(false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
-	reporter, err := act.getReporter()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
-
-	act.ReportStart(hello{})
+	act.ReportStart("")
 	for report := range reporter {
-		if report.ID != id {
-			t.Fatalf("received: '%v' but expected '%v'", report.ID, id)
-		}
-
 		if report.Strategy != testStrat {
 			t.Fatalf("received: '%v' but expected '%v'", report.Strategy, testStrat)
 		}
@@ -443,27 +359,18 @@ func TestReportStart(t *testing.T) {
 func TestReportRegister(t *testing.T) {
 	t.Parallel()
 
-	id, err := uuid.NewV4()
+	act, err := NewActivities(testStrat, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
-	act, err := NewActivities(testStrat, id, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
-
-	reporter, err := act.getReporter()
+	reporter, err := act.getReporter(false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
 	act.ReportRegister()
 	for report := range reporter {
-		if report.ID != id {
-			t.Fatalf("received: '%v' but expected '%v'", report.ID, id)
-		}
-
 		if report.Strategy != testStrat {
 			t.Fatalf("received: '%v' but expected '%v'", report.Strategy, testStrat)
 		}
@@ -493,27 +400,18 @@ func TestReportRegister(t *testing.T) {
 func TestReportWait(t *testing.T) {
 	t.Parallel()
 
-	id, err := uuid.NewV4()
+	act, err := NewActivities(testStrat, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
-	act, err := NewActivities(testStrat, id, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
-
-	reporter, err := act.getReporter()
+	reporter, err := act.getReporter(false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
 	act.ReportWait(time.Now())
 	for report := range reporter {
-		if report.ID != id {
-			t.Fatalf("received: '%v' but expected '%v'", report.ID, id)
-		}
-
 		if report.Strategy != testStrat {
 			t.Fatalf("received: '%v' but expected '%v'", report.Strategy, testStrat)
 		}
@@ -543,27 +441,18 @@ func TestReportWait(t *testing.T) {
 func TestReportAcceptedSignal(t *testing.T) {
 	t.Parallel()
 
-	id, err := uuid.NewV4()
+	act, err := NewActivities(testStrat, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
-	act, err := NewActivities(testStrat, id, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
-
-	reporter, err := act.getReporter()
+	reporter, err := act.getReporter(false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
 	act.ReportAcceptedSignal(nil)
 	for report := range reporter {
-		if report.ID != id {
-			t.Fatalf("received: '%v' but expected '%v'", report.ID, id)
-		}
-
 		if report.Strategy != testStrat {
 			t.Fatalf("received: '%v' but expected '%v'", report.Strategy, testStrat)
 		}
@@ -593,27 +482,18 @@ func TestReportAcceptedSignal(t *testing.T) {
 func TestReportRejectedSignal(t *testing.T) {
 	t.Parallel()
 
-	id, err := uuid.NewV4()
+	act, err := NewActivities(testStrat, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
-	act, err := NewActivities(testStrat, id, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
-
-	reporter, err := act.getReporter()
+	reporter, err := act.getReporter(false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
 	act.ReportRejectedSignal(nil)
 	for report := range reporter {
-		if report.ID != id {
-			t.Fatalf("received: '%v' but expected '%v'", report.ID, id)
-		}
-
 		if report.Strategy != testStrat {
 			t.Fatalf("received: '%v' but expected '%v'", report.Strategy, testStrat)
 		}
