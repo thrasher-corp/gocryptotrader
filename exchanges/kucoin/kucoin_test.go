@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -46,12 +47,14 @@ func TestMain(m *testing.M) {
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
 	exchCfg.API.Credentials.OTPSecret = passPhrase
+	ku.SetDefaults()
+	ku.Websocket = sharedtestvalues.NewTestWebsocket()
+	ku.Websocket.Orderbook = buffer.Orderbook{}
+	// ku.Websocket.Orderbook.Setup(exchCfg)
 	err = ku.Setup(exchCfg)
 	if err != nil {
 		log.Fatal(err)
 	}
-	ku.SetDefaults()
-	ku.Websocket = sharedtestvalues.NewTestWebsocket()
 	ku.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	ku.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
@@ -157,17 +160,13 @@ func TestGetTradeHistory(t *testing.T) {
 
 func TestGetKlines(t *testing.T) {
 	t.Parallel()
-
 	_, err := ku.GetKlines(context.Background(), "BTC-USDT", "1week", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error("GetKlines() error", err)
 	}
-
-	results, err := ku.GetKlines(context.Background(), "BTC-USDT", "5min", time.Now().Add(-time.Hour*1), time.Now())
+	_, err = ku.GetKlines(context.Background(), "BTC-USDT", "5min", time.Now().Add(-time.Hour*1), time.Now())
 	if err != nil {
 		t.Error("GetKlines() error", err)
-	} else {
-		println(len(results))
 	}
 }
 
@@ -726,7 +725,6 @@ func TestGetRecentOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	ku.Verbose = true
 	_, err := ku.GetRecentOrders(context.Background())
 	if err != nil {
 		t.Error("GetRecentOrders() error", err)
@@ -751,7 +749,6 @@ func TestGetOrderByClientOID(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	ku.Verbose = true
 	_, err := ku.GetOrderByClientSuppliedOrderID(context.Background(), "6d539dc614db312")
 	if err != nil && !strings.Contains(err.Error(), "400100") {
 		t.Error("GetOrderByClientOID() error", err)
@@ -1139,7 +1136,6 @@ func TestGetFuturesContract(t *testing.T) {
 
 func TestGetFuturesRealTimeTicker(t *testing.T) {
 	t.Parallel()
-	ku.Verbose = true
 	results, err := ku.GetFuturesRealTimeTicker(context.Background(), "XBTUSDTM")
 	if err != nil {
 		t.Error("GetFuturesRealTimeTicker() error", err)
@@ -1790,8 +1786,8 @@ func TestMarketTradeSnapshotPushData(t *testing.T) {
 }
 
 var orderbookLevel2PushDataJSON = `{"type": "message","topic": "/market/level2:BTC-USDT",    "subject": "trade.l2update",    "data": {"changes": {"asks": [["18906","0.00331","14103845"],["18907.3","0.58751503","14103844"]],"bids": [["18891.9","0.15688","14103847"]]},"sequenceEnd": 14103847,"sequenceStart": 14103844,"symbol": "BTC-USDT","time": 1663747970273}}`
-var orderbookLevel5PushDataJSON = `{"type": "message","topic": "/spotMarket/level2Depth5:BTC-USDT",    "subject": "level2",    "data": {          "asks":[            ["9989","8"],            ["9990","32"],            ["9991","47"],            ["9992","3"],            ["9993","3"]        ],        "bids":[            ["9988","56"],            ["9987","15"],["9986","100"],["9985","10"],["9984","10"]],"timestamp": 1586948108193}}`
-var orderbookLevel50PushData = `{"type": "message",    "topic": "/spotMarket/level2Depth50:BTC-USDT",    "subject": "level2",    "data": {          "asks":[            ["9993","3"],            ["9992","3"],            ["9991","47"],            ["9990","32"],            ["9989","8"]        ],        "bids":[["9988","56"],["9987","15"],["9986","100"],["9985","10"],["9984","10"]]"timestamp": 1586948108193}}`
+var orderbookLevel5PushDataJSON = `{"type": "message","topic": "/spotMarket/level2Depth5:BTC-USDT",    "subject": "level2",    "data": {          "asks":[            ["9989","8"],            ["9990","32"],            ["9991","47"],            ["9992","3"],["9993","3"]],"bids":[["9988","56"],["9987","15"],["9986","100"],["9985","10"],["9984","10"]],"timestamp": 1586948108193}}`
+var orderbookLevel50PushData = `{"type":"message","topic": "/spotMarket/level2Depth50:BTC-USDT",    "subject": "level2",    "data": {"asks":[            ["9989","8"],            ["9990","32"],            ["9991","47"],            ["9992","3"],["9993","3"]],"bids":[["9988","56"],["9987","15"],["9986","100"],["9985","10"],["9984","10"]],"timestamp": 1586948108193}}`
 
 func TestOrderbookPushData(t *testing.T) {
 	err := ku.wsHandleData([]byte(orderbookLevel2PushDataJSON))
@@ -1931,6 +1927,159 @@ var stopOrderEventPushDataJSON = `{"type":"message","topic":"/spotMarket/advance
 func TestStopOrderEventPushData(t *testing.T) {
 	t.Parallel()
 	if err := ku.wsHandleData([]byte(stopOrderEventPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var publicFuturesTickerPushDataJSON = `{"subject": "tickerV2","topic": "/contractMarket/tickerV2:XBTUSDM","data": {"symbol": "XBTUSDM","bestBidSize": 795,"bestBidPrice": 3200.00,"bestAskPrice": 3600.00,"bestAskSize": 284,"ts": 1553846081210004941}}`
+
+func TestPublicFuturesTickerPushData(t *testing.T) {
+	t.Parallel()
+	if err := ku.wsHandleData([]byte(publicFuturesTickerPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var publicFuturesTickerV1PushDataJSON = `{"subject": "ticker","topic": "/contractMarket/ticker:XBTUSDM","data": {"symbol": "XBTUSDM","sequence": 45,"side": "sell","price": 3600.00,"size": 16,"tradeId": "5c9dcf4170744d6f5a3d32fb","bestBidSize": 795,"bestBidPrice": 3200.00,"bestAskPrice": 3600.00,"bestAskSize": 284,"ts": 1553846081210004941}}`
+
+func TestPublicFuturesTickerV2PushData(t *testing.T) {
+	t.Parallel()
+	if err := ku.wsHandleData([]byte(publicFuturesTickerV1PushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var publicFuturesLevel2OrderbookPushDataJSON = `{"subject": "level2",  "topic": "/contractMarket/level2:XBTUSDM",  "type": "message",  "data": {    "sequence": 18,    "change": "5000.0,sell,83","timestamp": 1551770400000}}`
+
+func TestPublicFuturesMarketData(t *testing.T) {
+	t.Parallel()
+	if err := ku.wsHandleData([]byte(publicFuturesLevel2OrderbookPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var publicFuturesExecutionDataJSON = `{"topic": "/contractMarket/execution:XBTUSDM","subject": "match","data": {"symbol": "XBTUSDM","sequence": 36,     "side": "buy","matchSize": 1,      "size": 1,"price": 3200.00,"takerOrderId": "5c9dd00870744d71c43f5e25","time": 1553846281766256031,               "makerOrderId": "5c9d852070744d0976909a0c",                   "tradeId": "5c9dd00970744d6f5a3d32fc"      }}`
+var publicFuturesOrderbookWithDepth5PushDataJSON = `{"type": "message","topic": "/contractMarket/level2Depth5:XBTUSDM","subject": "level2","data": {"asks":[["9990", "32"],["9991", "47"],["9993", "3"],["9992", "3"],["9989", "8"]],"bids":[["9984", "10"],["9985", "10"],["9986", "100"],["9987", "15"], ["9988", "56"]],"ts": 1590634672060667000}}`
+
+func TestPublicFuturesExecutionData(t *testing.T) {
+	t.Parallel()
+	ku.Verbose = true
+	if err := ku.wsHandleData([]byte(publicFuturesExecutionDataJSON)); err != nil {
+		t.Error(err)
+	}
+	if err := ku.wsHandleData([]byte(publicFuturesOrderbookWithDepth5PushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var privatePositionSettlementPushDataJSON = `{"userId": "xbc453tg732eba53a88ggyt8c","topic": "/contract/position:XBTUSDM","subject": "position.settlement","data": {"fundingTime": 1551770400000,"qty": 100,"markPrice": 3610.85,"fundingRate": -0.002966,"fundingFee": -296,"ts": 1547697294838004923,"settleCurrency": "XBT"}}`
+
+func TestFuturesPositionSettlementPushData(t *testing.T) {
+	t.Parallel()
+	if err := ku.wsHandleData([]byte(privatePositionSettlementPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var futuresPositionChangePushDataJSON = `{ "userId": "5cd3f1a7b7ebc19ae9558591","topic": "/contract/position:XBTUSDM",  "subject": "position.change", "data": {"markPrice": 7947.83,"markValue": 0.00251640,"maintMargin": 0.00252044,"realLeverage": 10.06,"unrealisedPnl": -0.00014735,"unrealisedRoePcnt": -0.0553,"unrealisedPnlPcnt": -0.0553,"delevPercentage": 0.52,"currentTimestamp": 1558087175068,"settleCurrency": "XBT"}}`
+var futuresPositionChangeWithChangeReasonPushDataJSON = `{ "type": "message","userId": "5c32d69203aa676ce4b543c7","channelType": "private","topic": "/contract/position:XBTUSDM",  "subject": "position.change", "data": {"realisedGrossPnl": 0E-8,"symbol":"XBTUSDM","crossMode": false,"liquidationPrice": 1000000.0,"posLoss": 0E-8,"avgEntryPrice": 7508.22,"unrealisedPnl": -0.00014735,"markPrice": 7947.83,"posMargin": 0.00266779,"autoDeposit": false,"riskLimit": 100000,"unrealisedCost": 0.00266375,"posComm": 0.00000392,"posMaint": 0.00001724,"posCost": 0.00266375,"maintMarginReq": 0.005,"bankruptPrice": 1000000.0,"realisedCost": 0.00000271,"markValue": 0.00251640,"posInit": 0.00266375,"realisedPnl": -0.00000253,"maintMargin": 0.00252044,"realLeverage": 1.06,"changeReason": "positionChange","currentCost": 0.00266375,"openingTimestamp": 1558433191000,"currentQty": -20,"delevPercentage": 0.52,"currentComm": 0.00000271,"realisedGrossCost": 0E-8,"isOpen": true,"posCross": 1.2E-7,"currentTimestamp": 1558506060394,"unrealisedRoePcnt": -0.0553,"unrealisedPnlPcnt": -0.0553,"settleCurrency": "XBT"}}`
+
+func TestFuturesPositionChangePushData(t *testing.T) {
+	t.Parallel()
+	if err := ku.wsHandleData([]byte(futuresPositionChangePushDataJSON)); err != nil {
+		t.Error(err)
+	}
+	if err := ku.wsHandleData([]byte(futuresPositionChangeWithChangeReasonPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var futuresWithdrawalAmountTransferOutAmountEventPushDataJSON = `{ "userId": "xbc453tg732eba53a88ggyt8c","topic": "/contractAccount/wallet","subject": "withdrawHold.change","data": {"withdrawHold": 5923,"currency":"USDT","timestamp": 1553842862614}}`
+
+func TestFuturesWithdrawHoldChangePushDataJSON(t *testing.T) {
+	t.Parallel()
+	if err := ku.wsHandleData([]byte(futuresWithdrawalAmountTransferOutAmountEventPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var futuresAvailableBalanceChangePushData = `{ "userId": "xbc453tg732eba53a88ggyt8c","topic": "/contractAccount/wallet","subject": "availableBalance.change","data": {"availableBalance": 5923,"holdBalance": 2312,"currency":"USDT","timestamp": 1553842862614}}`
+
+func TestFuturesAvailableBalanceChangePushData(t *testing.T) {
+	t.Parallel()
+	if err := ku.wsHandleData([]byte(futuresAvailableBalanceChangePushData)); err != nil {
+		t.Error(err)
+	}
+}
+
+var futuresOrderMarginChangePushDataJSON = `{ "userId": "xbc453tg732eba53a88ggyt8c","topic": "/contractAccount/wallet","subject": "orderMargin.change","data": {"orderMargin": 5923,"currency":"USDT","timestamp": 1553842862614}}`
+
+func TestFuturesOrderMarginChangePushData(t *testing.T) {
+	t.Parallel()
+	if err := ku.wsHandleData([]byte(futuresOrderMarginChangePushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var futuresStopOrderPushDataJSON = `{"userId": "5cd3f1a7b7ebc19ae9558591","topic": "/contractMarket/advancedOrders", "subject": "stopOrder","data": {"orderId": "5cdfc138b21023a909e5ad55","symbol": "XBTUSDM","type": "open","orderType":"stop","side":"buy","size":"1000","orderPrice":"9000","stop":"up","stopPrice":"9100","stopPriceType":"TP","triggerSuccess": true,"error": "error.createOrder.accountBalanceInsufficient","createdAt": 1558074652423,"ts":1558074652423004000}}`
+
+func TestFuturesStopOrderPushData(t *testing.T) {
+	t.Parallel()
+	if err := ku.wsHandleData([]byte(futuresStopOrderPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var futuresTradeOrdersPushDataJSON = `{"type": "message","topic": "/contractMarket/tradeOrders","subject": "orderChange","channelType": "private","data": {"orderId": "5cdfc138b21023a909e5ad55","symbol": "XBTUSDM","type": "match","status": "open","matchSize": "","matchPrice": "","orderType": "limit","side": "buy","price": "3600","size": "20000","remainSize": "20001","filledSize":"20000","canceledSize": "0","tradeId": "5ce24c16b210233c36eexxxx","clientOid": "5ce24c16b210233c36ee321d","orderTime": 1545914149935808589,"oldSize ": "15000","liquidity": "maker","ts": 1545914149935808589}}`
+
+func TestFuturesTradeOrderPushData(t *testing.T) {
+	t.Parallel()
+	if err := ku.wsHandleData([]byte(futuresTradeOrdersPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var transactionStaticsPushDataJSON = `{ "topic": "/contractMarket/snapshot:XBTUSDM","subject": "snapshot.24h","data": {"volume": 30449670,      "turnover": 845169919063,"lastPrice": 3551,       "priceChgPct": 0.0043,   "ts": 1547697294838004923}  }`
+
+func TestFuturesTrasactionStaticsPushData(t *testing.T) {
+	t.Parallel()
+	if err := ku.wsHandleData([]byte(transactionStaticsPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var futuresEndFundingFeeSettlementPushDataJSON = `{ "type":"message","topic": "/contract/announcement","subject": "funding.end","data": {"symbol": "XBTUSDM",         "fundingTime": 1551770400000,"fundingRate": -0.002966,    "timestamp": 1551770410000          }}`
+
+func TestFuturesEndFundingFeeSettlement(t *testing.T) {
+	t.Parallel()
+	if err := ku.wsHandleData([]byte(futuresEndFundingFeeSettlementPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var futuresStartFundingFeeSettlementPushDataJSON = `{ "topic": "/contract/announcement","subject": "funding.begin","data": {"symbol": "XBTUSDM","fundingTime": 1551770400000,"fundingRate": -0.002966,"timestamp": 1551770400000}}`
+
+func TestFuturesStartFundingFeeSettlementPushData(t *testing.T) {
+	t.Parallel()
+	if err := ku.wsHandleData([]byte(futuresStartFundingFeeSettlementPushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var futuresFundingRatePushDataJSON = `{ "topic": "/contract/instrument:XBTUSDM","subject": "funding.rate","data": {"granularity": 60000,"fundingRate": -0.002966,"timestamp": 1551770400000}}`
+
+func TestFuturesFundingRatePushData(t *testing.T) {
+	t.Parallel()
+	if err := ku.wsHandleData([]byte(futuresFundingRatePushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+var futuresMarkIndexPricePushDataJSON = `{ "topic": "/contract/instrument:XBTUSDM","subject": "mark.index.price","data": {"granularity": 1000,"indexPrice": 4000.23,"markPrice": 4010.52,"timestamp": 1551770400000}}`
+
+func TestFuturesMarkIndexPricePushData(t *testing.T) {
+	t.Parallel()
+	if err := ku.wsHandleData([]byte(futuresMarkIndexPricePushDataJSON)); err != nil {
 		t.Error(err)
 	}
 }

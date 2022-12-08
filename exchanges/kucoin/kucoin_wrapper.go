@@ -58,16 +58,16 @@ func (ku *Kucoin) SetDefaults() {
 		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
 	}
 
-	margin := currency.PairStore{
+	futures := currency.PairStore{
 		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: ""},
 	}
 
 	err := ku.StoreAssetPairFormat(asset.Spot, spot)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	err = ku.StoreAssetPairFormat(asset.Margin, margin)
+	err = ku.StoreAssetPairFormat(asset.Margin, futures)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -417,7 +417,11 @@ func (ku *Kucoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (ku *Kucoin) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(ku.Name, assetType)
+	creds, err := ku.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(ku.Name, creds, assetType)
 	if err != nil {
 		return ku.UpdateAccountInfo(ctx, assetType)
 	}
@@ -465,7 +469,7 @@ func (ku *Kucoin) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (ku *Kucoin) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (ku *Kucoin) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	withdrawals, err := ku.GetHistoricalWithdrawalList(ctx, c.String(), "", time.Time{}, time.Time{}, 0, 0)
 	if err != nil {
 		return
@@ -550,31 +554,30 @@ func (ku *Kucoin) GetHistoricTrades(ctx context.Context, p currency.Pair, assetT
 }
 
 // SubmitOrder submits a new order
-func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 	if s.AssetType.IsFutures() {
-		o, err := ku.PostFuturesOrder(ctx, s.ClientOrderID, s.Side.String(), s.Pair.String(), s.Type.Lower(), "", "", "", "", "", s.Amount, s.Price, s.Leverage, 0, s.ReduceOnly, false, false, s.PostOnly, s.HiddenOrder, false)
+		o, err := ku.PostFuturesOrder(ctx, s.ClientOrderID, s.Side.String(), s.Pair.String(), s.Type.Lower(), "", "", "", "", "", s.Amount, s.Price, s.Leverage, 0, s.ReduceOnly, false, false, s.PostOnly, true /* HiddenFields */, false)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
-		return order.SubmitResponse{OrderID: o}, nil
+		return &order.SubmitResponse{OrderID: o}, nil
 	}
-	o, err := ku.PostOrder(ctx, s.ClientOrderID, s.Side.Lower(), s.Pair.Upper().String(), s.Type.Lower(), "", "", "", s.Amount, s.Price, 0, 0, 0, s.PostOnly, s.HiddenOrder, false)
+	o, err := ku.PostOrder(ctx, s.ClientOrderID, s.Side.Lower(), s.Pair.Upper().String(), s.Type.Lower(), "", "", "", s.Amount, s.Price, 0, 0, 0, s.PostOnly /* Hidden Orders */, true, false)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
-	return order.SubmitResponse{
+	return &order.SubmitResponse{
 		OrderID: o,
 	}, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (ku *Kucoin) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
-	return order.Modify{}, common.ErrNotYetImplemented
+func (ku *Kucoin) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
+	return &order.ModifyResponse{}, common.ErrNotYetImplemented
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -617,7 +620,7 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		}
 		return order.Detail{
 			Exchange:        ku.Name,
-			ID:              orderDetail.ID,
+			OrderID:         orderDetail.ID,
 			Pair:            pair,
 			Type:            oType,
 			Side:            side,
@@ -679,7 +682,7 @@ func (ku *Kucoin) WithdrawFiatFundsToInternationalBank(ctx context.Context, with
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
 	if err := getOrdersRequest.Validate(); err != nil {
 		return nil, err
 	}
@@ -725,7 +728,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 				}
 			}
 			orders = append(orders, order.Detail{
-				ID:              futuresOrders[x].ID,
+				OrderID:         futuresOrders[x].ID,
 				Amount:          futuresOrders[x].Size,
 				RemainingAmount: futuresOrders[x].Size - futuresOrders[x].FilledSize,
 				ExecutedAmount:  futuresOrders[x].FilledSize,
@@ -743,7 +746,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
 	if err := getOrdersRequest.Validate(); err != nil {
 		return nil, err
 	}
@@ -775,7 +778,7 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.G
 			RemainingAmount: responseOrders[i].Size - responseOrders[i].DealSize,
 			Date:            responseOrders[i].CreatedAt.Time(),
 			Exchange:        ku.Name,
-			ID:              responseOrders[i].ID,
+			OrderID:         responseOrders[i].ID,
 			Side:            orderSide,
 			Status:          orderStatus,
 			Type:            oType,

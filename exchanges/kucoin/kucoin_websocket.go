@@ -192,7 +192,7 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 	switch {
 	case strings.HasPrefix(marketAllTickersChannel, topicInfo[0]) ||
 		strings.HasPrefix(marketTickerChannel, topicInfo[0]):
-		instruments := ""
+		var instruments string
 		if topicInfo[1] == "all" {
 			instruments = resp.Subject
 		} else {
@@ -205,7 +205,7 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 	case strings.HasPrefix(marketOrderbookLevel2Channels, topicInfo[0]),
 		strings.HasPrefix(marketOrderbookLevel2to5Channel, topicInfo[0]),
 		strings.HasPrefix(marketOrderbokLevel2To50Channel, topicInfo[0]):
-		return ku.processOrderbook(resp.Data, topicInfo[1])
+		return ku.processOrderbook(resp.Data, resp.Subject, topicInfo[1])
 	case strings.HasPrefix(marketCandlesChannel, topicInfo[0]):
 		symbolAndInterval := strings.Split(topicInfo[1], "_")
 		if len(symbolAndInterval) != 2 {
@@ -346,7 +346,7 @@ func (ku *Kucoin) processFuturesStopOrderLifecycleEvent(respData []byte) error {
 		Amount:       resp.Size,
 		// AverageExecutedPrice: response.,
 		Exchange:    ku.Name,
-		ID:          resp.OrderID,
+		OrderID:     resp.OrderID,
 		Type:        oType,
 		Side:        side,
 		AssetType:   asset.Futures,
@@ -389,7 +389,7 @@ func (ku *Kucoin) processFuturesPrivateTradeOrders(respData []byte) error {
 		ExecutedAmount:  resp.FilledSize,
 		RemainingAmount: resp.RemainSize,
 		ClientOrderID:   resp.ClientOid,
-		ID:              resp.TradeID,
+		OrderID:         resp.TradeID,
 		AssetType:       asset.Futures,
 		LastUpdated:     resp.OrderTime,
 	}
@@ -451,7 +451,8 @@ func (ku *Kucoin) processFuturesOrderbookLevel5(respData []byte, instruments str
 		Pair:            pair,
 		Asset:           asset.Futures,
 		Asks:            resp.Asks,
-		Bids:            resp.Bids}
+		Bids:            resp.Bids,
+	}
 	return ku.Websocket.Orderbook.LoadSnapshot(&base)
 }
 
@@ -464,9 +465,7 @@ func (ku *Kucoin) processFuturesOrderbookLevel2(respData []byte, instrument stri
 	if err != nil {
 		return err
 	}
-	if detail.Sequence != resp.Sequence {
-		return errors.New("orderbook data sequence mismatch")
-	}
+	detail.Sequence = resp.Sequence
 	pair, err := currency.NewPairFromString(instrument)
 	if err != nil {
 		return err
@@ -478,7 +477,8 @@ func (ku *Kucoin) processFuturesOrderbookLevel2(respData []byte, instrument stri
 		Pair:            pair,
 		Asset:           asset.Futures,
 		Asks:            detail.Asks,
-		Bids:            detail.Bids}
+		Bids:            detail.Bids,
+	}
 	return ku.Websocket.Orderbook.LoadSnapshot(&base)
 }
 
@@ -528,7 +528,7 @@ func (ku *Kucoin) processStopOrderEvent(respData []byte) error {
 		Amount:       resp.Size,
 		// AverageExecutedPrice: response.,
 		Exchange:    ku.Name,
-		ID:          resp.OrderID,
+		OrderID:     resp.OrderID,
 		Type:        oType,
 		Side:        side,
 		AssetType:   asset.Spot,
@@ -593,7 +593,7 @@ func (ku *Kucoin) processOrderChangeEvent(respData []byte) error {
 		ExecutedAmount:  response.FilledSize,
 		RemainingAmount: response.RemainSize,
 		Exchange:        ku.Name,
-		ID:              response.OrderID,
+		OrderID:         response.OrderID,
 		ClientOrderID:   response.ClientOid,
 		Type:            oType,
 		Side:            side,
@@ -691,9 +691,19 @@ func (ku *Kucoin) processCandlesticks(respData []byte, instrument, intervalStrin
 	return nil
 }
 
-func (ku *Kucoin) processOrderbook(respData []byte, instrument string) error {
+func (ku *Kucoin) processOrderbook(respData []byte, subject, instrument string) error {
 	response := WsOrderbook{}
-	err := json.Unmarshal(respData, &response)
+	var err error
+	if subject == "level2" {
+		result := WsLevel2Orderbook{}
+		err = json.Unmarshal(respData, &result)
+		response.Symbol = instrument
+		response.Changes.Asks = result.Asks
+		response.Changes.Bids = result.Bids
+		response.TimeMS = result.TimeMS
+	} else {
+		err = json.Unmarshal(respData, &response)
+	}
 	if err != nil {
 		return err
 	}
@@ -737,7 +747,8 @@ func (ku *Kucoin) processOrderbook(respData []byte, instrument string) error {
 		base.Bids = append(base.Bids, orderbook.Item{
 			Price:  price,
 			Amount: size,
-			ID:     sequence})
+			ID:     sequence,
+		})
 	}
 	return ku.Websocket.Orderbook.LoadSnapshot(&base)
 }

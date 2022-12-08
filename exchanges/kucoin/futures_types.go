@@ -89,7 +89,7 @@ type futuresOrderbookResponse struct {
 		Time     kucoinTimeNanoSec `json:"ts"`
 		Sequence int64             `json:"sequence"`
 		Symbol   string            `json:"symbol"`
-	} `json:"result"`
+	} `json:"data"`
 	Error
 }
 
