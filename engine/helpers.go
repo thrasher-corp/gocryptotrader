@@ -742,6 +742,13 @@ func (bot *Engine) GetAllExchangeCryptocurrencyDepositAddresses() map[string]map
 							depositAddrs = append(depositAddrs, *depositAddr)
 						}
 						for z := range availChains {
+							if availChains[z] == "" {
+								log.Warnf(log.Global, "%s %s available transfer chain is populated with an empty string\n",
+									exchName,
+									cryptocurrency)
+								continue
+							}
+
 							depositAddr, err := exch.GetDepositAddress(context.TODO(), currency.NewCode(cryptocurrency), "", availChains[z])
 							if err != nil {
 								log.Errorf(log.Global, "%s failed to get cryptocurrency deposit address for %s [chain %s]. Err: %s\n",
