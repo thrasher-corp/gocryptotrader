@@ -218,7 +218,7 @@ Yes means supported, No means not yet implemented and NA means protocol unsuppor
 | Lbank | Yes | No | NA |
 | LocalBitcoins | Yes | NA | NA |
 | OKCoin International | Yes | Yes | No |
-| Okx | Yes | Yes | Yes |
+| Okx | Yes | Yes | NA |
 | Poloniex | Yes | Yes | NA |
 | Yobit | Yes | NA | NA |
 | ZB.COM | Yes | Yes | NA |

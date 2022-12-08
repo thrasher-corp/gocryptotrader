@@ -55,10 +55,6 @@ func TestMain(m *testing.M) {
 		Message:               make(chan *wsIncomingData),
 	}
 	ok.SetDefaults()
-	if apiKey != "" && apiSecret != "" {
-		exchCfg.API.AuthenticatedSupport = true
-		exchCfg.API.AuthenticatedWebsocketSupport = true
-	}
 	ok.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = ok.Setup(exchCfg)
 	if err != nil {
@@ -2189,7 +2185,7 @@ func TestGetDepositAddress(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := ok.GetDepositAddress(context.Background(), currency.BTC, "", currency.USD.String()); err != nil && !errors.Is(err, errDepositAddressNotFound) {
+	if _, err := ok.GetDepositAddress(context.Background(), currency.BTC, "", ""); err != nil && !errors.Is(err, errDepositAddressNotFound) {
 		t.Error("Okx GetDepositAddress() error", err)
 	}
 }

@@ -1084,20 +1084,32 @@ func (ok *Okx) GetDepositAddress(ctx context.Context, c currency.Code, accountID
 	if err != nil {
 		return nil, err
 	}
-	for x := range response {
-		if accountID == response[x].Address && (strings.EqualFold(response[x].Chain, chain) || strings.HasPrefix(response[x].Chain, c.String()+"-"+chain)) {
+
+	// Check if a specific chain was requested
+	if chain != "" {
+		for x := range response {
+			if !strings.EqualFold(response[x].Chain, chain) {
+				continue
+			}
 			return &deposit.Address{
 				Address: response[x].Address,
 				Tag:     response[x].Tag,
 				Chain:   response[x].Chain,
 			}, nil
 		}
+		return nil, fmt.Errorf("specified chain %s not found", chain)
 	}
-	if len(response) > 0 {
+
+	// If no specific chain was requested, return the first selected address (mainnet addresses are returned first by default)
+	for x := range response {
+		if !response[x].Selected {
+			continue
+		}
+
 		return &deposit.Address{
-			Address: response[0].Address,
-			Tag:     response[0].Tag,
-			Chain:   response[0].Chain,
+			Address: response[x].Address,
+			Tag:     response[x].Tag,
+			Chain:   response[x].Chain,
 		}, nil
 	}
 	return nil, errDepositAddressNotFound
