@@ -1375,8 +1375,6 @@ func (ok *Okx) GetHistoricCandles(ctx context.Context, pair currency.Pair, a ass
 		return nil, err
 	}
 
-	fmt.Printf("%+v\n", builder)
-
 	candles, err := ok.GetCandlesticksHistory(ctx,
 		builder.Formatted.Base.String()+
 			currency.DashDelimiter+
@@ -1413,7 +1411,7 @@ func (ok *Okx) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pai
 				count, 1440, kline.ErrRequestExceedsExchangeLimits)
 	}
 
-	var timeSeries []kline.Candle
+	timeSeries := make([]kline.Candle, 0, builder.Size())
 	for y := range builder.Ranges {
 		var candles []CandleStick
 		candles, err = ok.GetCandlesticksHistory(ctx,

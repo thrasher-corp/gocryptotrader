@@ -2300,12 +2300,12 @@ func TestGetHistoricCandles(t *testing.T) {
 	pair := currency.NewPair(currency.BTC, currency.USDT)
 	startTime := time.Date(2021, 2, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, 9, 15, 0, 0, 0, 0, time.UTC)
-	_, err := ok.GetHistoricCandles(context.Background(), pair, kline.OneDay, asset.Spot, startTime, endTime)
+	_, err := ok.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, startTime, endTime)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = ok.GetHistoricCandles(context.Background(), pair, kline.Interval(time.Hour*4), asset.Spot, startTime, endTime)
+	_, err = ok.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.Interval(time.Hour*4), startTime, endTime)
 	if !errors.Is(err, kline.ErrRequestExceedsExchangeLimits) {
 		t.Errorf("received: '%v' but expected: '%v'", err, kline.ErrRequestExceedsExchangeLimits)
 	}
@@ -2314,7 +2314,7 @@ func TestGetHistoricCandles(t *testing.T) {
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
 	currencyPair := currency.NewPair(currency.BTC, currency.USDT)
-	_, err := ok.GetHistoricCandlesExtended(context.Background(), currencyPair, kline.OneMin, asset.Spot, time.Now().Add(-time.Hour), time.Now())
+	_, err := ok.GetHistoricCandlesExtended(context.Background(), currencyPair, asset.Spot, kline.OneMin, time.Now().Add(-time.Hour), time.Now())
 	if err != nil {
 		t.Errorf("%s GetHistoricCandlesExtended() error: %v", ok.Name, err)
 	}
