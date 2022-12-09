@@ -789,7 +789,7 @@ func TestSendWsMessages(t *testing.T) {
 	response := <-o.Websocket.DataHandler
 	if err, ok = response.(error); ok && err != nil {
 		if !strings.Contains(err.Error(), subscriptions[0].Channel) {
-			t.Error("Expecting OKEX error - 30040 message: Channel badChannel doesn't exist")
+			t.Error("Expecting OKCoin error - 30040 message: Channel badChannel doesn't exist")
 		}
 	}
 	err = o.WsLogin(context.Background())

@@ -45,7 +45,7 @@ func (o *OKCoin) GetDefaultConfig() (*config.Exchange, error) {
 	return exchCfg, nil
 }
 
-// SetDefaults method assignes the default values for OKEX
+// SetDefaults method assignes the default values for OKCoin
 func (o *OKCoin) SetDefaults() {
 	o.SetErrorDefaults()
 	o.SetCheckVarDefaults()
@@ -169,7 +169,7 @@ func (o *OKCoin) Start(wg *sync.WaitGroup) error {
 	return nil
 }
 
-// Run implements the OKEX wrapper
+// Run implements the OKCoin wrapper
 func (o *OKCoin) Run() {
 	if o.Verbose {
 		log.Debugf(log.ExchangeSys,

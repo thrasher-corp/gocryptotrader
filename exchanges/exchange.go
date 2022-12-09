@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -50,6 +51,16 @@ var (
 	errAssetRequestFormatIsNil           = errors.New("asset type request format is nil")
 	errAssetConfigFormatIsNil            = errors.New("asset type config format is nil")
 )
+
+// SetRequester sets the instance of the requester
+func (b *Base) SetRequester(r *request.Requester) error {
+	if r == nil {
+		return fmt.Errorf("%s cannot set requester, no requester provided", b.Name)
+	}
+
+	b.Requester = r
+	return nil
+}
 
 // SetClientProxyAddress sets a proxy address for REST and websocket requests
 func (b *Base) SetClientProxyAddress(addr string) error {

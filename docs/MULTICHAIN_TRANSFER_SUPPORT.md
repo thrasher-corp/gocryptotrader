@@ -67,7 +67,7 @@ $ ./gctcli withdrawcryptofunds --exchange=ftx --currency=USDT --address=TJU9piX2
 | Lbank | No | No | |
 | LocalBitcoins | No | No | Supports BTC only |
 | OKCoin International | No | No | Requires API update to version 5 |
-| OKEX | No | No | Same as above |
+| Okx | Yes | Yes | |
 | Poloniex | Yes | Yes | |
 | Yobit | No | No | |
 | ZB.COM | Yes | No | Addresses must be created via their website first |

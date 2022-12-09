@@ -2615,6 +2615,34 @@ func TestGetPairAndAssetTypeRequestFormatted(t *testing.T) {
 	}
 }
 
+func TestSetRequester(t *testing.T) {
+	t.Parallel()
+
+	b := Base{
+		Config:    &config.Exchange{Name: "kitties"},
+		Requester: nil,
+	}
+
+	err := b.SetRequester(nil)
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	requester, err := request.New("testingRequester", common.NewHTTPClientWithTimeout(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = b.SetRequester(requester)
+	if err != nil {
+		t.Fatalf("expected no error, received %v", err)
+	}
+
+	if b.Requester == nil {
+		t.Fatal("requester not set correctly")
+	}
+}
+
 func TestGetKlineBuilder(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "klineTest"}
@@ -2820,5 +2848,6 @@ func TestGetKlineBuilderExtended(t *testing.T) {
 
 	if len(builder.Ranges) != 15 { // 15 request at max 100 candles == 1440 1 min candles.
 		t.Fatalf("received: '%v' but expected: '%v'", len(builder.Ranges), 15)
+
 	}
 }
