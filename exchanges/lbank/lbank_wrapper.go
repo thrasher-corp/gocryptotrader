@@ -177,12 +177,12 @@ func (l *Lbank) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (l *Lbank) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
+func (l *Lbank) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	currencies, err := l.GetCurrencyPairs(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return currencies, nil
+	return currency.NewPairsFromStrings(currencies)
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
@@ -192,12 +192,7 @@ func (l *Lbank) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error
 	if err != nil {
 		return err
 	}
-
-	p, err := currency.NewPairsFromStrings(pairs)
-	if err != nil {
-		return err
-	}
-	return l.UpdatePairs(p, asset.Spot, false, forceUpdate)
+	return l.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

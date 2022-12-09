@@ -251,28 +251,26 @@ func (bi *Binanceus) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (bi *Binanceus) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, error) {
+func (bi *Binanceus) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if !bi.SupportsAsset(a) {
 		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, bi.Name)
 	}
-	format, err := bi.GetPairFormat(a, false)
+	info, err := bi.GetExchangeInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
-	tradingStatus := "TRADING"
-	var info ExchangeInfo
-	info, err = bi.GetExchangeInfo(ctx)
-	if err != nil {
-		return nil, err
-	}
-	pairs := make([]string, 0, len(info.Symbols))
+	pairs := make([]currency.Pair, 0, len(info.Symbols))
 	for x := range info.Symbols {
-		if info.Symbols[x].Status != tradingStatus || !info.Symbols[x].IsSpotTradingAllowed {
+		if info.Symbols[x].Status != "TRADING" ||
+			!info.Symbols[x].IsSpotTradingAllowed {
 			continue
 		}
-		pair := info.Symbols[x].BaseAsset +
-			format.Delimiter +
-			info.Symbols[x].QuoteAsset
+		var pair currency.Pair
+		pair, err = currency.NewPairFromStrings(info.Symbols[x].BaseAsset,
+			info.Symbols[x].QuoteAsset)
+		if err != nil {
+			return nil, err
+		}
 		pairs = append(pairs, pair)
 	}
 	return pairs, nil
@@ -285,11 +283,7 @@ func (bi *Binanceus) UpdateTradablePairs(ctx context.Context, forceUpdate bool) 
 	if err != nil {
 		return err
 	}
-	p, err := currency.NewPairsFromStrings(pairs)
-	if err != nil {
-		return err
-	}
-	return bi.UpdatePairs(p, asset.Spot, false, forceUpdate)
+	return bi.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

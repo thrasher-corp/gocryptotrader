@@ -84,7 +84,7 @@ func (c *CustomEx) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset
 }
 
 // FetchTradablePairs is a mock method for CustomEx
-func (c *CustomEx) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, error) {
+func (c *CustomEx) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	return nil, nil
 }
 

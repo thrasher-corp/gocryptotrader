@@ -151,11 +151,7 @@ func TestUpdateTicker(t *testing.T) {
 	if len(tradablePairs) == 0 {
 		t.Fatal("no tradable pairs")
 	}
-	cp, err := currency.NewPairFromString(tradablePairs[0])
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = b.UpdateTicker(context.Background(), cp, asset.CoinMarginedFutures)
+	_, err = b.UpdateTicker(context.Background(), tradablePairs[0], asset.CoinMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -167,11 +163,7 @@ func TestUpdateTicker(t *testing.T) {
 	if len(usdtMarginedPairs) == 0 {
 		t.Errorf("no pairs are enabled")
 	}
-	ucp, err := currency.NewPairFromString(usdtMarginedPairs[0])
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = b.UpdateTicker(context.Background(), ucp, asset.USDTMarginedFutures)
+	_, err = b.UpdateTicker(context.Background(), usdtMarginedPairs[0], asset.USDTMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2010,12 +2002,8 @@ func TestGetOrderInfo(t *testing.T) {
 	if len(tradablePairs) == 0 {
 		t.Fatal("no tradable pairs")
 	}
-	cp, err := currency.NewPairFromString(tradablePairs[0])
-	if err != nil {
-		t.Error(err)
-	}
 	_, err = b.GetOrderInfo(context.Background(),
-		"123", cp, asset.CoinMarginedFutures)
+		"123", tradablePairs[0], asset.CoinMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}

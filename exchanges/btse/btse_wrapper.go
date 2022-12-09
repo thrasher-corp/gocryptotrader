@@ -247,20 +247,24 @@ func (b *BTSE) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *BTSE) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, error) {
+func (b *BTSE) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	m, err := b.GetMarketSummary(ctx, "", a == asset.Spot)
 	if err != nil {
 		return nil, err
 	}
-
-	currencies := make([]string, 0, len(m))
+	pairs := make([]currency.Pair, 0, len(m))
 	for x := range m {
 		if !m[x].Active {
 			continue
 		}
-		currencies = append(currencies, m[x].Symbol)
+		var pair currency.Pair
+		pair, err = currency.NewPairFromString(m[x].Symbol)
+		if err != nil {
+			return nil, err
+		}
+		pairs = append(pairs, pair)
 	}
-	return currencies, nil
+	return pairs, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
@@ -272,13 +276,7 @@ func (b *BTSE) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error 
 		if err != nil {
 			return err
 		}
-
-		p, err := currency.NewPairsFromStrings(pairs)
-		if err != nil {
-			return err
-		}
-
-		err = b.UpdatePairs(p, a[i], false, forceUpdate)
+		err = b.UpdatePairs(pairs, a[i], false, forceUpdate)
 		if err != nil {
 			return err
 		}

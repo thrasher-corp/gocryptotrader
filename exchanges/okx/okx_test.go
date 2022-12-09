@@ -267,7 +267,11 @@ func TestGetOptionMarketData(t *testing.T) {
 
 func TestGetEstimatedDeliveryPrice(t *testing.T) {
 	t.Parallel()
-	if _, err := ok.GetEstimatedDeliveryPrice(context.Background(), "BTC-USD"); err != nil && !strings.Contains(err.Error(), "Instrument ID does not exist.") {
+	r, err := ok.FetchTradablePairs(context.Background(), asset.Futures)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ok.GetEstimatedDeliveryPrice(context.Background(), r[0].String()); err != nil {
 		t.Error("Okx GetEstimatedDeliveryPrice() error", err)
 	}
 }
@@ -295,7 +299,7 @@ func TestGetLiquidationOrders(t *testing.T) {
 	}
 	if _, err := ok.GetLiquidationOrders(context.Background(), &LiquidationOrderRequestParams{
 		InstrumentType: okxInstTypeMargin,
-		Underlying:     insts[0],
+		Underlying:     insts[0].String(),
 		Currency:       currency.BTC,
 		Limit:          2,
 	}); err != nil {
@@ -2727,11 +2731,7 @@ func TestEstimatedDeliveryExercisePriceSubscription(t *testing.T) {
 	if len(futuresPairs) == 0 {
 		t.SkipNow()
 	}
-	currencyPair, err := currency.NewPairFromString(futuresPairs[0])
-	if err != nil {
-		t.Error(err)
-	}
-	if err := ok.EstimatedDeliveryExercisePriceSubscription("subscribe", asset.Futures, currencyPair); err != nil {
+	if err := ok.EstimatedDeliveryExercisePriceSubscription("subscribe", asset.Futures, futuresPairs[0]); err != nil {
 		t.Errorf("%s EstimatedDeliveryExercisePriceSubscription() error: %v", ok.Name, err)
 	}
 }
@@ -2745,11 +2745,7 @@ func TestMarkPriceSubscription(t *testing.T) {
 	if len(futuresPairs) == 0 {
 		t.SkipNow()
 	}
-	currencyPair, err := currency.NewPairFromString(futuresPairs[0])
-	if err != nil {
-		t.Error(err)
-	}
-	if err := ok.MarkPriceSubscription("subscribe", asset.Futures, currencyPair); err != nil {
+	if err := ok.MarkPriceSubscription("subscribe", asset.Futures, futuresPairs[0]); err != nil {
 		t.Errorf("%s MarkPriceSubscription() error: %v", ok.Name, err)
 	}
 }

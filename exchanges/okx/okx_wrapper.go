@@ -270,15 +270,12 @@ func (ok *Okx) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, err
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, error) {
+func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if !ok.SupportsAsset(a) {
 		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, ok.Name)
 	}
-	format, err := ok.GetPairFormat(a, false)
-	if err != nil {
-		return nil, err
-	}
-	insts := []Instrument{}
+	var insts []Instrument
+	var err error
 	switch a {
 	case asset.Spot:
 		insts, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
@@ -298,8 +295,8 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, 
 		if err != nil {
 			return nil, err
 		}
-		var instruments []Instrument
 		for x := range underlyings {
+			var instruments []Instrument
 			instruments, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
 				InstrumentType: okxInstTypeOption,
 				Underlying:     underlyings[x],
@@ -320,13 +317,12 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, 
 	if len(insts) == 0 {
 		return nil, errNoInstrumentFound
 	}
-	pairs := make([]string, len(insts))
+	pairs := make([]currency.Pair, len(insts))
 	for x := range insts {
-		c, err := currency.NewPairFromString(insts[x].InstrumentID)
+		pairs[x], err = currency.NewPairFromString(insts[x].InstrumentID)
 		if err != nil {
 			return nil, err
 		}
-		pairs[x] = format.Format(c)
 	}
 	return pairs, nil
 }
@@ -335,11 +331,7 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, 
 func (ok *Okx) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 	assetTypes := ok.GetAssetTypes(false)
 	for i := range assetTypes {
-		p, err := ok.FetchTradablePairs(ctx, assetTypes[i])
-		if err != nil {
-			return err
-		}
-		pairs, err := currency.NewPairsFromStrings(p)
+		pairs, err := ok.FetchTradablePairs(ctx, assetTypes[i])
 		if err != nil {
 			return err
 		}

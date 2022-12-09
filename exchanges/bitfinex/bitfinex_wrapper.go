@@ -277,40 +277,52 @@ func (b *Bitfinex) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *Bitfinex) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, error) {
+func (b *Bitfinex) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	items, err := b.GetTickerBatch(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var symbols []string
+	pairs := make([]currency.Pair, 0, len(items))
+	var pair currency.Pair
 	switch a {
 	case asset.Spot:
 		for k := range items {
 			if !strings.HasPrefix(k, "t") {
 				continue
 			}
-			symbols = append(symbols, k[1:])
+			pair, err = currency.NewPairFromString(k[1:])
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, pair)
 		}
 	case asset.Margin:
 		for k := range items {
 			if !strings.Contains(k, ":") {
 				continue
 			}
-			symbols = append(symbols, k[1:])
+			pair, err = currency.NewPairFromStrings(k[1:], "")
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, pair)
 		}
 	case asset.MarginFunding:
 		for k := range items {
 			if !strings.HasPrefix(k, "f") {
 				continue
 			}
-			symbols = append(symbols, k[1:])
+			pair, err = currency.NewPairFromString(k[1:])
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, pair)
 		}
 	default:
 		return nil, errors.New("asset type not supported by this endpoint")
 	}
-
-	return symbols, nil
+	return pairs, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
@@ -323,23 +335,7 @@ func (b *Bitfinex) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 			return err
 		}
 
-		var p currency.Pairs
-		if assets[i] == asset.MarginFunding {
-			p = make(currency.Pairs, len(pairs))
-			for x := range pairs {
-				p[x], err = currency.NewPairFromStrings(pairs[x], "")
-				if err != nil {
-					return err
-				}
-			}
-		} else {
-			p, err = currency.NewPairsFromStrings(pairs)
-			if err != nil {
-				return err
-			}
-		}
-
-		err = b.UpdatePairs(p, assets[i], false, forceUpdate)
+		err = b.UpdatePairs(pairs, assets[i], false, forceUpdate)
 		if err != nil {
 			return err
 		}

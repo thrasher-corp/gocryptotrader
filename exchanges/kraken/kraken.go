@@ -390,7 +390,6 @@ func (k *Kraken) GetTrades(ctx context.Context, symbol currency.Pair) ([]RecentT
 		return nil, fmt.Errorf("no data returned for symbol %v", symbol)
 	}
 
-	var holder RecentTrades
 	var individualTrade []interface{}
 	recentTrades := make([]RecentTrades, len(trades))
 	for x := range trades {
@@ -401,38 +400,37 @@ func (k *Kraken) GetTrades(ctx context.Context, symbol currency.Pair) ([]RecentT
 		if len(individualTrade) != 7 {
 			return nil, errors.New("unrecognised trade data received")
 		}
-		holder.Price, err = strconv.ParseFloat(individualTrade[0].(string), 64)
+		var r RecentTrades
+		r.Price, err = strconv.ParseFloat(individualTrade[0].(string), 64)
 		if err != nil {
 			return nil, err
 		}
-		holder.Volume, err = strconv.ParseFloat(individualTrade[1].(string), 64)
+		r.Volume, err = strconv.ParseFloat(individualTrade[1].(string), 64)
 		if err != nil {
 			return nil, err
 		}
-		holder.Time, ok = individualTrade[2].(float64)
+		r.Time, ok = individualTrade[2].(float64)
 		if !ok {
 			return nil, errors.New("unable to parse time for individual trade data")
 		}
-		holder.BuyOrSell, ok = individualTrade[3].(string)
+		r.BuyOrSell, ok = individualTrade[3].(string)
 		if !ok {
 			return nil, errors.New("unable to parse order side for individual trade data")
 		}
-		holder.MarketOrLimit, ok = individualTrade[4].(string)
+		r.MarketOrLimit, ok = individualTrade[4].(string)
 		if !ok {
 			return nil, errors.New("unable to parse order type for individual trade data")
 		}
-		holder.Miscellaneous, ok = individualTrade[5].(string)
+		r.Miscellaneous, ok = individualTrade[5].(string)
 		if !ok {
 			return nil, errors.New("unable to parse misc field for individual trade data")
 		}
-		var id float64
-		id, ok = individualTrade[6].(float64)
+		tradeID, ok := individualTrade[6].(float64)
 		if !ok {
-			fmt.Printf("%T", individualTrade[6])
-			return nil, errors.New("unable to parse trade id field for individual trade data")
+			return nil, errors.New("unable to parse TradeID field for individual trade data")
 		}
-		holder.TradeID = int64(id)
-		recentTrades[x] = holder
+		r.TradeID = int64(tradeID)
+		recentTrades[x] = r
 	}
 	return recentTrades, nil
 }

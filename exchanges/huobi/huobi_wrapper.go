@@ -337,18 +337,13 @@ func (h *HUOBI) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (h *HUOBI) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, error) {
+func (h *HUOBI) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if !h.SupportsAsset(a) {
 		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, h.Name)
 	}
 
-	var pairs []string
-
-	format, err := h.GetPairFormat(a, false)
-	if err != nil {
-		return nil, err
-	}
-
+	var pairs []currency.Pair
+	var pair currency.Pair
 	switch a {
 	case asset.Spot:
 		symbols, err := h.GetSymbols(ctx)
@@ -356,44 +351,51 @@ func (h *HUOBI) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string,
 			return nil, err
 		}
 
+		pairs = make([]currency.Pair, 0, len(symbols))
 		for x := range symbols {
 			if symbols[x].State != "online" {
 				continue
 			}
-			pairs = append(pairs, symbols[x].BaseCurrency+
-				format.Delimiter+
-				symbols[x].QuoteCurrency)
-		}
 
+			pair, err = currency.NewPairFromStrings(symbols[x].BaseCurrency,
+				symbols[x].QuoteCurrency)
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, pair)
+		}
 	case asset.CoinMarginedFutures:
 		symbols, err := h.GetSwapMarkets(ctx, currency.EMPTYPAIR)
 		if err != nil {
 			return nil, err
 		}
 
+		pairs = make([]currency.Pair, 0, len(symbols))
 		for z := range symbols {
-			if symbols[z].ContractStatus == 1 {
-				curr, err := currency.NewPairFromString(symbols[z].ContractCode)
-				if err != nil {
-					return nil, err
-				}
-				pairs = append(pairs, format.Format(curr))
+			if symbols[z].ContractStatus != 1 {
+				continue
 			}
+			pair, err := currency.NewPairFromString(symbols[z].ContractCode)
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, pair)
 		}
 	case asset.Futures:
 		symbols, err := h.FGetContractInfo(ctx, "", "", currency.EMPTYPAIR)
 		if err != nil {
 			return nil, err
 		}
-
+		pairs = make([]currency.Pair, 0, len(symbols.Data))
 		for c := range symbols.Data {
-			if symbols.Data[c].ContractStatus == 1 {
-				curr, err := currency.NewPairFromString(symbols.Data[c].ContractCode)
-				if err != nil {
-					return nil, err
-				}
-				pairs = append(pairs, format.Format(curr))
+			if symbols.Data[c].ContractStatus != 1 {
+				continue
 			}
+			pair, err := currency.NewPairFromString(symbols.Data[c].ContractCode)
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, pair)
 		}
 	}
 	return pairs, nil
@@ -402,41 +404,18 @@ func (h *HUOBI) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string,
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (h *HUOBI) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	spotPairs, err := h.FetchTradablePairs(ctx, asset.Spot)
-	if err != nil {
-		return err
+	assets := h.GetAssetTypes(false)
+	for x := range assets {
+		pairs, err := h.FetchTradablePairs(ctx, assets[x])
+		if err != nil {
+			return err
+		}
+		err = h.UpdatePairs(pairs, assets[x], false, forceUpdate)
+		if err != nil {
+			return err
+		}
 	}
-	p, err := currency.NewPairsFromStrings(spotPairs)
-	if err != nil {
-		return err
-	}
-	err = h.UpdatePairs(p, asset.Spot, false, forceUpdate)
-	if err != nil {
-		return err
-	}
-
-	futuresPairs, err := h.FetchTradablePairs(ctx, asset.Futures)
-	if err != nil {
-		return err
-	}
-	fp, err := currency.NewPairsFromStrings(futuresPairs)
-	if err != nil {
-		return err
-	}
-	err = h.UpdatePairs(fp, asset.Futures, false, forceUpdate)
-	if err != nil {
-		return err
-	}
-
-	coinmarginedFuturesPairs, err := h.FetchTradablePairs(ctx, asset.CoinMarginedFutures)
-	if err != nil {
-		return err
-	}
-	cp, err := currency.NewPairsFromStrings(coinmarginedFuturesPairs)
-	if err != nil {
-		return err
-	}
-	return h.UpdatePairs(cp, asset.CoinMarginedFutures, false, forceUpdate)
+	return nil
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
