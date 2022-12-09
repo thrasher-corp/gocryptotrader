@@ -139,3 +139,8 @@ func (p Pair) Other(c Code) (Code, error) {
 	}
 	return EMPTYCODE, ErrCurrencyCodeEmpty
 }
+
+// IsPopulated returns true if the currency pair have both non-empty values for base and quote.
+func (p Pair) IsPopulated() bool {
+	return !p.Base.IsEmpty() && !p.Quote.IsEmpty()
+}
