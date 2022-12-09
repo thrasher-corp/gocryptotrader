@@ -5658,7 +5658,7 @@ func (s *RPCServer) DCAStream(r *gctrpc.DCARequest, stream gctrpc.GoCryptoTrader
 		MaxNominalSlippage:      r.MaxNominalSlippage,
 		Buy:                     r.Buy,
 		MaxSpreadPercentage:     r.MaxSpreadPercentage,
-		RetryAttempts:           3,
+		RetryAttempts:           r.RetryAttempts,
 		CandleStickAligned:      r.AlignedToInterval,
 		AllowTradingPastEndTime: false, // TODO: Not yet supported
 	})
@@ -5729,6 +5729,11 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 		return err
 	}
 
+	twapInterval, err := kline.NewInterval(r.TwapInterval, false)
+	if err != nil {
+		return err
+	}
+
 	ctx := stream.Context()
 	twapStrat, err := twap.New(ctx, &twap.Config{
 		Exchange:                exch,
@@ -5747,6 +5752,7 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 		MaxSpreadPercentage:     r.MaxSpreadPercentage,
 		RetryAttempts:           r.RetryAttempts,
 		CandleStickAligned:      r.AlignedToInterval,
+		TWAP:                    twapInterval,
 		AllowTradingPastEndTime: false, // TODO: Not yet supported
 	})
 	if err != nil {

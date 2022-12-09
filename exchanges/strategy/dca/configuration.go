@@ -16,71 +16,59 @@ import (
 // Config defines the base elements required to undertake the DCA (Dollar Cost Average)
 // strategy.
 type Config struct {
-	//
+	// Exchange defines the exchange that the strategy is acting on
 	Exchange exchange.IBotExchange
-	Pair     currency.Pair
-	Asset    asset.Item
-
+	// Pair defines the currency pair the strategy is acting on
+	Pair currency.Pair
+	// Asset is the current asset type the strategy is acting on
+	Asset asset.Item
 	// Simulate will run the strategy and order execution in simulation mode.
 	Simulate bool
-
 	// Start time will commence strategy operations after time.Now().
 	Start time.Time
-
 	// End will cease strategy operations unless AllowTradingPastEndTime is true
 	// then will cease operations after balance is deployed.
 	End time.Time
-
 	// AllowTradingPastEndTime if volume has not been met exceed end time.
 	AllowTradingPastEndTime bool
-
 	// Interval between market orders.
 	Interval kline.Interval
-
 	// Amount if buying refers to quotation used to buy, if selling it will
 	// refer to the base amount to sell.
 	Amount float64
-
 	// FullAmount if buying refers to all available quotation used to buy, if
 	// selling it will refer to all the base amount to sell.
 	FullAmount bool
-
 	// PriceLimit if lifting the asks it will not execute an order above this
 	// price. If hitting the bids this will not execute an order below this
 	// price.
 	PriceLimit float64
-
 	// MaxImpactSlippage is the max allowable distance through book that can
 	// occur. Usage to limit price effect on trading activity.
 	MaxImpactSlippage float64
-
 	// MaxNominalSlippage is the max allowable nominal
 	// (initial cost to average order cost) splippage percentage that
 	// can occur.
 	MaxNominalSlippage float64
-
 	// Buy if you are buying and lifting the asks else hitting those pesky bids.
 	Buy bool
-
 	// MaxSpreadPercentage defines the max spread percentage between best bid
 	// and ask. If exceeded will not execute an order.
 	MaxSpreadPercentage float64
-
-	// TODO:
-	// - Randomize and obfuscate amounts
-	// - Hybrid and randomize execution order types (limit/market)
-
 	// CandleStickAligned defines if the strategy will truncate to UTC candle
 	// stick standards without execution offsets/drift. e.g. 1 day candle
 	// interval will execute signal generation at candle close/open 00:00 UTC.
 	CandleStickAligned bool
-
 	// RetryAttempts will execute a retry order submission attempt N times
 	// before critical failure.
 	RetryAttempts int64
+
+	// TODO:
+	// - Randomize and obfuscate amounts
+	// - Hybrid and randomize execution order types (limit/market)
 }
 
-// Check validates all parameter fields before undertaking specfic strategy
+// Check validates all config fields before undertaking specfic strategy
 func (c *Config) Check(ctx context.Context) error {
 	if c == nil {
 		return strategy.ErrConfigIsNil
@@ -170,7 +158,7 @@ func (c *Config) GetDistrbutionAmount(allocatedAmount float64, book *orderbook.D
 		return nil, err
 	}
 
-	// NOTE: Don't need to returned conformed amount if returning quote holdings
+	// NOTE: Don't need to return conformed amount if returning quote holdings
 	_, err = c.VerifyExecutionLimitsReturnConformed(deploymentAmountInBase)
 	if err != nil {
 		return nil, err
@@ -180,10 +168,7 @@ func (c *Config) GetDistrbutionAmount(allocatedAmount float64, book *orderbook.D
 		Total:       allocatedAmount,
 		Deployment:  deploymentAmount,
 		Window:      window,
-		Interval:    c.Interval,
 		Deployments: deployments,
-		Start:       c.Start,
-		End:         c.End,
 	}, nil
 }
 
@@ -264,8 +249,9 @@ func (c *Config) VerifyBookDeployment(book *orderbook.Depth, deploymentAmount fl
 	return deploymentAmount, details, nil
 }
 
-// VerifyExecutionLimitsReturnConformed verifies if the deploument amount
-// exceeds the exchange execution limits. TODO: This will need to be expanded. Abstract further
+// VerifyExecutionLimitsReturnConformed verifies if the deployment amount
+// exceeds the exchange execution limits. TODO: This will need to be expanded
+// and abstracted further.
 func (c *Config) VerifyExecutionLimitsReturnConformed(deploymentAmountInBase float64) (float64, error) {
 	if c == nil {
 		return 0, strategy.ErrConfigIsNil

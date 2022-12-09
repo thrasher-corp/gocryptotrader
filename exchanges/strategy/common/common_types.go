@@ -144,7 +144,8 @@ type Requirements interface {
 	// if a strategy has no set end date.
 	GetEnd() <-chan time.Time
 	// OnSignal is a strategy-defined function that handles the data that is
-	// returned from `GetSignal()`.
+	// returned from `GetSignal()`. This method is defined on the `strategy`
+	// type in the `specific individual _wrapper.go` file.
 	OnSignal(ctx context.Context, signal interface{}) (bool, error)
 	// GetNext returns the next execution time for the strategy.
 	GetNext() time.Time
@@ -209,9 +210,12 @@ type Requirements interface {
 	// LoadID loads an externally generated uuid for tracking. This method is
 	// defined on the `Requirement` type in the `requirement.go` file.
 	LoadID(id uuid.UUID) error
-
+	// GetID returns a loaded uuid. This method is defined on the `Requirement`
+	// type in the `requirement.go` file.
 	GetID() uuid.UUID
-
+	// GetDescription returns a strategy defined string that defines basic
+	// operating information. This method is defined on the `strategy wrapper`
+	// type in the `specific individual _wrapper.go` file.
 	GetDescription() string
 }
 

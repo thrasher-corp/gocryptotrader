@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	strategy "github.com/thrasher-corp/gocryptotrader/exchanges/strategy/common"
 )
@@ -29,16 +28,8 @@ type Allocation struct {
 	Deployment float64
 	// Window defines estimated window of strategy operation
 	Window time.Duration
-	// Interval defines the spacing between deployment
-	Interval kline.Interval
 	// Deployments define the estimated orders to complete strategy
 	Deployments int64
-	// Start defines the time at which the strategy is scheduled to commence
-	Start time.Time
-	// End defines the time at which the strategy is estimated to be completed
-	End time.Time
 	// Deployed defines what has been deployed to the exchange
 	Deployed float64
-	// Runs define how many executions have occured
-	Runs int64
 }

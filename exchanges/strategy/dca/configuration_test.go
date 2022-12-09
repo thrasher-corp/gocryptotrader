@@ -1,4 +1,4 @@
-package twap
+package dca
 
 import (
 	"context"
@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	strategy "github.com/thrasher-corp/gocryptotrader/exchanges/strategy/common"
 )
 
 func TestConfig_Check(t *testing.T) {
@@ -18,14 +18,14 @@ func TestConfig_Check(t *testing.T) {
 
 	var c *Config
 	err := c.Check(context.Background())
-	if !errors.Is(err, errParamsAreNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errParamsAreNil)
+	if !errors.Is(err, strategy.ErrConfigIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrConfigIsNil)
 	}
 
 	c = &Config{}
 	err = c.Check(context.Background())
-	if !errors.Is(err, errExchangeIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeIsNil)
+	if !errors.Is(err, strategy.ErrExchangeIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrExchangeIsNil)
 	}
 
 	c.Exchange = &fake{}
@@ -41,16 +41,17 @@ func TestConfig_Check(t *testing.T) {
 	}
 
 	c.Asset = asset.Spot
+	c.End = time.Now().Add(-time.Hour)
 	err = c.Check(context.Background())
-	if !errors.Is(err, common.ErrDateUnset) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrDateUnset)
+	if !errors.Is(err, strategy.ErrEndBeforeTimeNow) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrEndBeforeTimeNow)
 	}
 
 	c.Start = time.Now().Add(-time.Hour * 2)
 	c.End = time.Now().Add(-time.Hour)
 	err = c.Check(context.Background())
-	if !errors.Is(err, errEndBeforeNow) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errEndBeforeNow)
+	if !errors.Is(err, strategy.ErrEndBeforeTimeNow) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrEndBeforeTimeNow)
 	}
 
 	c.Start = time.Now()
@@ -64,49 +65,49 @@ func TestConfig_Check(t *testing.T) {
 	c.FullAmount = true
 	c.Amount = 1
 	err = c.Check(context.Background())
-	if !errors.Is(err, errCannotSetAmount) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errCannotSetAmount)
+	if !errors.Is(err, strategy.ErrCannotSetAmount) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrCannotSetAmount)
 	}
 
 	c.Amount = 0
 	c.FullAmount = false
 	err = c.Check(context.Background())
-	if !errors.Is(err, errInvalidVolume) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidVolume)
+	if !errors.Is(err, strategy.ErrInvalidAmount) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrInvalidAmount)
 	}
 
 	c.Amount = 100000
 	c.MaxImpactSlippage = -1
 	err = c.Check(context.Background())
-	if !errors.Is(err, errInvalidMaxSlippageValue) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidMaxSlippageValue)
+	if !errors.Is(err, strategy.ErrInvalidSlippage) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrInvalidSlippage)
 	}
 
 	c.MaxImpactSlippage = 0
 	c.MaxNominalSlippage = -1
 	err = c.Check(context.Background())
-	if !errors.Is(err, errInvalidMaxSlippageValue) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidMaxSlippageValue)
+	if !errors.Is(err, strategy.ErrInvalidSlippage) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrInvalidSlippage)
 	}
 
 	c.MaxNominalSlippage = 0
 	c.PriceLimit = -1
 	err = c.Check(context.Background())
-	if !errors.Is(err, errInvalidPriceLimit) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidPriceLimit)
+	if !errors.Is(err, strategy.ErrInvalidPriceLimit) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrInvalidPriceLimit)
 	}
 
 	c.PriceLimit = 0
 	c.MaxSpreadPercentage = -1
 	err = c.Check(context.Background())
-	if !errors.Is(err, errInvalidMaxSpreadPercentage) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidMaxSpreadPercentage)
+	if !errors.Is(err, strategy.ErrInvalidSpread) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrInvalidSpread)
 	}
 
 	c.MaxSpreadPercentage = 0
 	err = c.Check(context.Background())
-	if !errors.Is(err, errInvalidRetryAttempts) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidRetryAttempts)
+	if !errors.Is(err, strategy.ErrInvalidRetryAttempts) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrInvalidRetryAttempts)
 	}
 
 	c.RetryAttempts = 3
@@ -121,26 +122,26 @@ func TestConfig_GetDistrbutionAmount(t *testing.T) {
 
 	var c *Config
 	_, err := c.GetDistrbutionAmount(0, nil)
-	if !errors.Is(err, errConfigurationIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errConfigurationIsNil)
+	if !errors.Is(err, strategy.ErrConfigIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrConfigIsNil)
 	}
 
 	tn := time.Now()
 	c = &Config{Start: tn, End: tn.Add(time.Minute)}
 	_, err = c.GetDistrbutionAmount(0, nil)
-	if !errors.Is(err, errExchangeIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeIsNil)
+	if !errors.Is(err, strategy.ErrExchangeIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrExchangeIsNil)
 	}
 
 	c.Exchange = &fake{}
 	_, err = c.GetDistrbutionAmount(0, nil)
-	if !errors.Is(err, errInvalidAllocatedAmount) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidAllocatedAmount)
+	if !errors.Is(err, strategy.ErrInvalidAmount) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrInvalidAmount)
 	}
 
 	_, err = c.GetDistrbutionAmount(5, nil)
-	if !errors.Is(err, errOrderbookIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errOrderbookIsNil)
+	if !errors.Is(err, strategy.ErrOrderbookIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrOrderbookIsNil)
 	}
 
 	depth, err := orderbook.DeployDepth("test", currency.NewPair(currency.MANA, currency.CYC), asset.Spot)
@@ -155,8 +156,8 @@ func TestConfig_GetDistrbutionAmount(t *testing.T) {
 
 	c.Interval = kline.OneMin
 	_, err = c.GetDistrbutionAmount(5, depth)
-	if !errors.Is(err, errInvalidOperationWindow) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidOperationWindow)
+	if !errors.Is(err, strategy.ErrInvalidOperatingWindow) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrInvalidOperatingWindow)
 	}
 
 	c.End = tn.Add(time.Minute * 5)
@@ -175,13 +176,13 @@ func TestConfig_GetDistrbutionAmount(t *testing.T) {
 
 	c.Buy = true
 	_, err = c.GetDistrbutionAmount(0.01, depth)
-	if !errors.Is(err, errUnderMinimumAmount) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errUnderMinimumAmount)
+	if !errors.Is(err, strategy.ErrUnderMinimumAmount) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrUnderMinimumAmount)
 	}
 
 	_, err = c.GetDistrbutionAmount(5000000, depth)
-	if !errors.Is(err, errOverMaximumAmount) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errOverMaximumAmount)
+	if !errors.Is(err, strategy.ErrOverMaximumAmount) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrOverMaximumAmount)
 	}
 
 	amount, err := c.GetDistrbutionAmount(500000, depth)
@@ -204,8 +205,8 @@ func TestConfig_VerifyBookDeployment(t *testing.T) {
 
 	var c *Config
 	_, _, err := c.VerifyBookDeployment(nil, 0)
-	if !errors.Is(err, errConfigurationIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errConfigurationIsNil)
+	if !errors.Is(err, strategy.ErrConfigIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrConfigIsNil)
 	}
 
 	c = &Config{
@@ -215,8 +216,8 @@ func TestConfig_VerifyBookDeployment(t *testing.T) {
 		PriceLimit:          75,
 	}
 	_, _, err = c.VerifyBookDeployment(nil, 0)
-	if !errors.Is(err, errOrderbookIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errOrderbookIsNil)
+	if !errors.Is(err, strategy.ErrOrderbookIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrOrderbookIsNil)
 	}
 
 	depth, err := orderbook.DeployDepth("test", currency.NewPair(currency.MANA, currency.C2), asset.Spot)
@@ -225,8 +226,8 @@ func TestConfig_VerifyBookDeployment(t *testing.T) {
 	}
 
 	_, _, err = c.VerifyBookDeployment(depth, 0)
-	if !errors.Is(err, errInvalidAllocatedAmount) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidAllocatedAmount)
+	if !errors.Is(err, strategy.ErrInvalidAmount) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrInvalidAmount)
 	}
 
 	depth.LoadSnapshot(
@@ -238,51 +239,42 @@ func TestConfig_VerifyBookDeployment(t *testing.T) {
 	)
 
 	_, _, err = c.VerifyBookDeployment(depth, 2)
-	if !errors.Is(err, errExceedsTotalBookLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errExceedsTotalBookLiquidity)
+	if !errors.Is(err, strategy.ErrExceedsLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrExceedsLiquidity)
 	}
 
 	_, _, err = c.VerifyBookDeployment(depth, 1.5)
-	if !errors.Is(err, errMaxImpactPercentageExceeded) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errMaxImpactPercentageExceeded)
+	if !errors.Is(err, strategy.ErrMaxImpactExceeded) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrMaxImpactExceeded)
 	}
 
 	c.MaxImpactSlippage = 0
 	_, _, err = c.VerifyBookDeployment(depth, 1.5)
-	if !errors.Is(err, errMaxNominalPercentageExceeded) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errMaxNominalPercentageExceeded)
+	if !errors.Is(err, strategy.ErrMaxNominalExceeded) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrMaxNominalExceeded)
 	}
 
 	c.MaxNominalSlippage = 0
 	_, _, err = c.VerifyBookDeployment(depth, 1.5)
-	if !errors.Is(err, errMaxPriceLimitExceeded) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errMaxPriceLimitExceeded)
+	if !errors.Is(err, strategy.ErrPriceLimitExceeded) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrPriceLimitExceeded)
 	}
 
 	c.Buy = true
 	_, _, err = c.VerifyBookDeployment(depth, 1.5)
-	if !errors.Is(err, errMaxPriceLimitExceeded) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errMaxPriceLimitExceeded)
+	if !errors.Is(err, strategy.ErrPriceLimitExceeded) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrPriceLimitExceeded)
 	}
 
 	c.Buy = false
 	c.PriceLimit = 0
 	_, _, err = c.VerifyBookDeployment(depth, 1.5)
-	if !errors.Is(err, errMaxSpreadPercentageExceeded) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errMaxSpreadPercentageExceeded)
+	if !errors.Is(err, strategy.ErrMaxSpreadExceeded) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrMaxSpreadExceeded)
 	}
 
 	c.MaxSpreadPercentage = 0
-	amount, _, err := c.VerifyBookDeployment(depth, 2.5)
-	if !errors.Is(err, errBookSmallerThanDeploymentAmount) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errBookSmallerThanDeploymentAmount)
-	}
-
-	if amount != 2 {
-		t.Fatalf("received: '%v' but expected: '%v'", amount, 2)
-	}
-
-	_, _, err = c.VerifyBookDeployment(depth, 2)
+	_, _, err = c.VerifyBookDeployment(depth, 1.5)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -293,24 +285,24 @@ func TestConfig_VerifyExecutionLimits(t *testing.T) {
 
 	var c *Config
 	_, err := c.VerifyExecutionLimitsReturnConformed(0)
-	if !errors.Is(err, errConfigurationIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errConfigurationIsNil)
+	if !errors.Is(err, strategy.ErrConfigIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrConfigIsNil)
 	}
 
 	c = &Config{Exchange: &fake{}}
 	_, err = c.VerifyExecutionLimitsReturnConformed(0)
-	if !errors.Is(err, errInvalidAllocatedAmount) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidAllocatedAmount)
+	if !errors.Is(err, strategy.ErrInvalidAmount) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrInvalidAmount)
 	}
 
 	_, err = c.VerifyExecutionLimitsReturnConformed(0.00001)
-	if !errors.Is(err, errUnderMinimumAmount) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errUnderMinimumAmount)
+	if !errors.Is(err, strategy.ErrUnderMinimumAmount) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrUnderMinimumAmount)
 	}
 
 	_, err = c.VerifyExecutionLimitsReturnConformed(1000000)
-	if !errors.Is(err, errOverMaximumAmount) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errOverMaximumAmount)
+	if !errors.Is(err, strategy.ErrOverMaximumAmount) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrOverMaximumAmount)
 	}
 
 	conformed, err := c.VerifyExecutionLimitsReturnConformed(1)

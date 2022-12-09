@@ -1399,6 +1399,7 @@ message TWAPRequest {
   bool aligned_to_interval = 15;
   int64 retry_attempts = 16;
   bool verbose = 17;
+  int64 twap_interval = 18;
 }
 
 message TWAPStreamResponse {

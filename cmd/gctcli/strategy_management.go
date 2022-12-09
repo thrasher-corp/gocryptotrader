@@ -15,12 +15,15 @@ import (
 )
 
 var (
-	stratStartTime   string
-	stratEndTime     string
-	stratGranularity int64
-	stratMaxImpact   float64
-	stratMaxSpread   float64
-	stratSimulate    bool
+	stratStartTime       string
+	stratEndTime         string
+	stratGranularity     int64
+	stratMaxImpact       float64
+	stratMaxSpread       float64
+	stratSimulate        bool
+	stratCandleAligned   bool
+	stratRetries         int64
+	stratTwapGranularity int64
 )
 
 var strategyManagementCommand = &cli.Command{
@@ -36,7 +39,7 @@ var strategyManagementCommand = &cli.Command{
 		},
 		{
 			Name:        "dca",
-			Usage:       "initiates a dollar cost average strategy to accumulate or decumulate your position",
+			Usage:       "initiates a DCA (Dollar Cost Average) strategy to accumulate or decumulate your position",
 			ArgsUsage:   "<command> <args>",
 			Subcommands: []*cli.Command{dcaStream},
 		},
@@ -150,6 +153,22 @@ var (
 				Value:       1, // Default 1% spread catch if not set.
 				Destination: &stratMaxSpread,
 			},
+			&cli.BoolFlag{
+				Name:        "aligned",
+				Usage:       "aligns execution to candle open based on requested interval",
+				Value:       true,
+				Destination: &stratCandleAligned,
+			},
+			&cli.Int64Flag{
+				Name:        "retries",
+				Usage:       "how many order retries will occur before a fatal error results",
+				Value:       3,
+				Destination: &stratRetries,
+			},
+			&cli.BoolFlag{
+				Name:  "verbose",
+				Usage: "more verbose output",
+			},
 		},
 	}
 
@@ -210,7 +229,7 @@ var (
 			},
 			&cli.Float64Flag{
 				Name:        "maximpact",
-				Usage:       "will enforce no orderbook impact slippage from TWAP beyond this percentage amount",
+				Usage:       "will enforce no orderbook impact slippage from *TWAP PRICE* beyond this percentage amount",
 				Value:       1, // Default 1% slippage catch if not set.
 				Destination: &stratMaxImpact,
 			},
@@ -227,6 +246,29 @@ var (
 				Usage:       "will enforce no orderbook spread percentage beyond this amount. If there is massive spread it usually means liquidity issues",
 				Value:       1, // Default 1% spread catch if not set.
 				Destination: &stratMaxSpread,
+			},
+			&cli.BoolFlag{
+				Name:        "aligned",
+				Usage:       "aligns execution to candle open based on requested interval",
+				Value:       true,
+				Destination: &stratCandleAligned,
+			},
+			&cli.Int64Flag{
+				Name:        "retries",
+				Usage:       "how many order retries will occur before a fatal error results",
+				Value:       3,
+				Destination: &stratRetries,
+			},
+			&cli.Int64Flag{
+				Name:        "twap",
+				Aliases:     []string{"g"},
+				Usage:       "TWAP generated granularity:" + klineMessage,
+				Value:       60,
+				Destination: &stratTwapGranularity,
+			},
+			&cli.BoolFlag{
+				Name:  "verbose",
+				Usage: "more verbose output",
 			},
 		},
 	}
@@ -374,11 +416,6 @@ func dcaStreamfunc(c *cli.Context) error {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
 
-	err = common.StartEndTimeCheck(s, e)
-	if err != nil && !errors.Is(err, common.ErrStartAfterTimeNow) {
-		return err
-	}
-
 	if c.IsSet("granularity") {
 		stratGranularity = c.Int64("granularity")
 	} else if c.Args().Get(6) != "" {
@@ -472,6 +509,28 @@ func dcaStreamfunc(c *cli.Context) error {
 		}
 	}
 
+	if c.IsSet("aligned") {
+		stratCandleAligned = c.Bool("aligned")
+	} else if c.Args().Get(14) != "" {
+		stratCandleAligned, _ = strconv.ParseBool(c.Args().Get(14))
+	}
+
+	if c.IsSet("retries") {
+		stratRetries = c.Int64("retries")
+	} else if c.Args().Get(15) != "" {
+		stratRetries, err = strconv.ParseInt(c.Args().Get(15), 10, 64)
+		if err != nil {
+			return err
+		}
+	}
+
+	var verbose bool
+	if c.IsSet("verbose") {
+		verbose = c.Bool("verbose")
+	} else if c.Args().Get(16) != "" {
+		verbose, _ = strconv.ParseBool(c.Args().Get(14))
+	}
+
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -497,6 +556,9 @@ func dcaStreamfunc(c *cli.Context) error {
 		MaxNominalSlippage:  maxNominal,
 		Buy:                 buy,
 		MaxSpreadPercentage: stratMaxSpread,
+		AlignedToInterval:   stratCandleAligned,
+		RetryAttempts:       stratRetries,
+		Verbose:             verbose,
 	})
 	if err != nil {
 		return err
@@ -683,6 +745,37 @@ func twapStreamfunc(c *cli.Context) error {
 		}
 	}
 
+	if c.IsSet("aligned") {
+		stratCandleAligned = c.Bool("aligned")
+	} else {
+		stratCandleAligned, _ = strconv.ParseBool(c.Args().Get(14))
+	}
+
+	if c.IsSet("retries") {
+		stratRetries = c.Int64("retries")
+	} else if c.Args().Get(15) != "" {
+		stratRetries, err = strconv.ParseInt(c.Args().Get(15), 10, 64)
+		if err != nil {
+			return err
+		}
+	}
+
+	if c.IsSet("twap") {
+		stratTwapGranularity = c.Int64("twap")
+	} else if c.Args().Get(16) != "" {
+		stratTwapGranularity, err = strconv.ParseInt(c.Args().Get(16), 10, 64)
+		if err != nil {
+			return err
+		}
+	}
+
+	var verbose bool
+	if c.IsSet("verbose") {
+		verbose = c.Bool("verbose")
+	} else if c.Args().Get(16) != "" {
+		verbose, _ = strconv.ParseBool(c.Args().Get(14))
+	}
+
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -708,6 +801,10 @@ func twapStreamfunc(c *cli.Context) error {
 		MaxNominalSlippage:  maxNominal,
 		Buy:                 buy,
 		MaxSpreadPercentage: stratMaxSpread,
+		AlignedToInterval:   stratCandleAligned,
+		RetryAttempts:       stratRetries,
+		TwapInterval:        stratTwapGranularity,
+		Verbose:             verbose,
 	})
 	if err != nil {
 		return err

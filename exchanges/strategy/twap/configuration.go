@@ -6,122 +6,83 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-)
-
-const (
-	minimumSizeResponse = "reduce end date, increase granularity (interval) or increase deployable capital requirements"
-	maximumSizeResponse = "increase end date, decrease granularity (interval) or decrease deployable capital requirements"
-)
-
-var (
-	errParamsAreNil                    = errors.New("params are nil")
-	errExchangeIsNil                   = errors.New("exchange is nil")
-	errEndBeforeNow                    = errors.New("end time is before current time")
-	errCannotSetAmount                 = errors.New("specific amount cannot be set, full amount bool set")
-	errInvalidVolume                   = errors.New("invalid volume")
-	errInvalidMaxSlippageValue         = errors.New("invalid max slippage percentage value")
-	errInvalidPriceLimit               = errors.New("invalid price limit")
-	errInvalidMaxSpreadPercentage      = errors.New("invalid spread percentage")
-	errUnderMinimumAmount              = errors.New("strategy deployment amount is under the exchange minimum")
-	errOverMaximumAmount               = errors.New("strategy deployment amount is over the exchange maximum")
-	errInvalidOperationWindow          = errors.New("start to end time window is cannot be less than or equal to interval")
-	errInvalidAllocatedAmount          = errors.New("allocated amount must be greater than zero")
-	errOrderbookIsNil                  = errors.New("orderbook is nil")
-	errMaxSpreadPercentageExceeded     = errors.New("max spread percentage exceeded")
-	errMaxImpactPercentageExceeded     = errors.New("impact percentage exceeded")
-	errMaxNominalPercentageExceeded    = errors.New("nominal percentage exceeded")
-	errMaxPriceLimitExceeded           = errors.New("price limit exceeded")
-	errExceedsTotalBookLiquidity       = errors.New("exceeds total orderbook liquidity")
-	errBookSmallerThanDeploymentAmount = errors.New("orderbook cannot take in deployment amount")
-	errConfigurationIsNil              = errors.New("strategy configuration is nil")
-	errInvalidRetryAttempts            = errors.New("invalid retry attempts")
-	errTimerIsNil                      = errors.New("timer is nil")
+	strategy "github.com/thrasher-corp/gocryptotrader/exchanges/strategy/common"
 )
 
 // Config defines the base elements required to undertake strategy
 type Config struct {
+	// Exchange defines the exchange that the strategy is acting on
 	Exchange exchange.IBotExchange
-	Pair     currency.Pair
-	Asset    asset.Item
-
+	// Pair defines the currency pair the strategy is acting on
+	Pair currency.Pair
+	// Asset is the current asset type the strategy is acting on
+	Asset asset.Item
 	// Simulate will run the strategy and order execution in simulation mode.
 	Simulate bool
-
 	// Start time will commence strategy operations after time.Now().
 	Start time.Time
-
 	// End will cease strategy operations unless AllowTradingPastEndTime is true
 	// then will cease operations after balance is deployed.
 	End time.Time
-
 	// AllowTradingPastEndTime if volume has not been met exceed end time.
 	AllowTradingPastEndTime bool
-
 	// Interval between market orders.
 	Interval kline.Interval
-
+	// TWAP is the interval to construct the TWAP price which will be the
+	// average(interval * 30)
+	TWAP kline.Interval
 	// Amount if buying refers to quotation used to buy, if selling it will
 	// refer to the base amount to sell.
 	Amount float64
-
 	// FullAmount if buying refers to all available quotation used to buy, if
 	// selling it will refer to all the base amount to sell.
 	FullAmount bool
-
 	// PriceLimit if lifting the asks it will not execute an order above this
 	// price. If hitting the bids this will not execute an order below this
 	// price.
 	PriceLimit float64
-
 	// MaxImpactSlippage is the max allowable distance through book that can
-	// occur. Usage to limit price effect on trading activity.
+	// occur *AWAY FROM TWAP PRICE*. Usage to limit price effect on trading
+	// activity.
 	MaxImpactSlippage float64
-
 	// MaxNominalSlippage is the max allowable nominal
 	// (initial cost to average order cost) splippage percentage that
 	// can occur.
 	MaxNominalSlippage float64
-
-	// TODO: When TWAP becomes applicable to use as a position allocator with
-	// margin.
-	// ReduceOnly does not add to the size of position.
-	// ReduceOnly bool
-
 	// Buy if you are buying and lifting the asks else hitting those pesky bids.
 	Buy bool
-
 	// MaxSpreadPercentage defines the max spread percentage between best bid
 	// and ask. If exceeded will not execute an order.
 	MaxSpreadPercentage float64
-
-	// TODO:
-	// - Randomize and obfuscate amounts
-	// - Hybrid and randomize execution order types (limit/market)
-
 	// CandleStickAligned defines if the strategy will truncate to UTC candle
 	// stick standards without execution offsets/drift. e.g. 1 day candle
 	// interval will execute signal generation at candle close/open 00:00 UTC.
 	CandleStickAligned bool
-
 	// RetryAttempts will execute a retry order submission attempt N times
 	// before critical failure.
 	RetryAttempts int64
+
+	// TODO:
+	// - Randomize and obfuscate amounts
+	// - Hybrid and randomize execution order types (limit/market)
+	// - When TWAP becomes applicable to use as a position allocator with margin.
+	// ReduceOnly does not add to the size of position.
+	// ReduceOnly bool
 }
 
-// Check validates all parameter fields before undertaking specfic strategy
+// Check validates all config fields before undertaking specfic strategy
 func (c *Config) Check(ctx context.Context) error {
 	if c == nil {
-		return errParamsAreNil
+		return strategy.ErrConfigIsNil
 	}
 
 	if c.Exchange == nil {
-		return errExchangeIsNil
+		return strategy.ErrExchangeIsNil
 	}
 
 	if c.Pair.IsEmpty() {
@@ -132,78 +93,73 @@ func (c *Config) Check(ctx context.Context) error {
 		return fmt.Errorf("'%v' %w", c.Asset, asset.ErrNotSupported)
 	}
 
-	err := common.StartEndTimeCheck(c.Start, c.End)
-	if err != nil {
-		if !errors.Is(err, common.ErrStartAfterTimeNow) {
-			// NOTE: This can schedule a future task.
-			return err
-		}
-	}
-
-	if c.End.Before(time.Now()) {
-		return errEndBeforeNow
+	if !c.End.IsZero() && c.End.Before(time.Now()) {
+		return strategy.ErrEndBeforeTimeNow
 	}
 
 	if c.Interval == 0 {
 		return kline.ErrUnsetInterval
 	}
 
+	if c.TWAP == 0 {
+		return fmt.Errorf("TWAP %w", kline.ErrUnsetInterval)
+	}
+
 	if c.FullAmount && c.Amount != 0 {
-		return errCannotSetAmount
+		return strategy.ErrCannotSetAmount
 	}
 
 	if !c.FullAmount && c.Amount <= 0 {
-		return errInvalidVolume
+		return strategy.ErrInvalidAmount
 	}
 
 	if c.MaxImpactSlippage < 0 || !c.Buy && c.MaxImpactSlippage > 100 {
-		return fmt.Errorf("impact '%v' %w",
-			c.MaxImpactSlippage, errInvalidMaxSlippageValue)
+		return fmt.Errorf("impact '%v' %w", c.MaxImpactSlippage, strategy.ErrInvalidSlippage)
 	}
 
 	if c.MaxNominalSlippage < 0 || !c.Buy && c.MaxNominalSlippage > 100 {
-		return fmt.Errorf("nominal '%v' %w",
-			c.MaxNominalSlippage, errInvalidMaxSlippageValue)
+		return fmt.Errorf("nominal '%v' %w", c.MaxNominalSlippage, strategy.ErrInvalidSlippage)
 	}
 
 	if c.PriceLimit < 0 {
-		return fmt.Errorf("price '%v' %w", c.PriceLimit, errInvalidPriceLimit)
+		return fmt.Errorf("price '%v' %w", c.PriceLimit, strategy.ErrInvalidPriceLimit)
 	}
 
 	if c.MaxSpreadPercentage < 0 {
-		return fmt.Errorf("max spread '%v' %w",
-			c.MaxSpreadPercentage, errInvalidMaxSpreadPercentage)
+		return fmt.Errorf("max spread '%v' %w", c.MaxSpreadPercentage, strategy.ErrInvalidSpread)
 	}
 
 	if c.RetryAttempts <= 0 {
-		return errInvalidRetryAttempts
+		return strategy.ErrInvalidRetryAttempts
 	}
 
 	return nil
 }
 
-// GetDeploymentAmount will truncate and equally distribute amounts across time.
+// GetDeploymentAmount will truncate and equally distribute amounts at or around
+// TWAP price.
 func (c *Config) GetDistrbutionAmount(ctx context.Context, allocatedAmount float64, book *orderbook.Depth) (*Allocation, error) {
 	if c == nil {
-		return nil, errConfigurationIsNil
+		return nil, strategy.ErrConfigIsNil
 	}
 	if c.Exchange == nil {
-		return nil, errExchangeIsNil
+		return nil, strategy.ErrExchangeIsNil
 	}
 	if allocatedAmount <= 0 {
-		return nil, errInvalidAllocatedAmount
+		return nil, fmt.Errorf("allocation amount: %w", strategy.ErrInvalidAmount)
 	}
 	if book == nil {
-		return nil, errOrderbookIsNil
+		return nil, strategy.ErrOrderbookIsNil
 	}
 	if c.Interval <= 0 {
-		return nil, kline.ErrUnsetInterval // This can panic on zero value.
+		return nil, kline.ErrUnsetInterval
 	}
 
 	window := c.End.Sub(c.Start)
 	if int64(window) <= int64(c.Interval) {
-		return nil, errInvalidOperationWindow
+		return nil, strategy.ErrInvalidOperatingWindow
 	}
+
 	deployments := int64(window) / int64(c.Interval)
 	deploymentAmount := allocatedAmount / float64(deployments)
 
@@ -219,7 +175,7 @@ func (c *Config) GetDistrbutionAmount(ctx context.Context, allocatedAmount float
 		return nil, err
 	}
 
-	// NOTE: Don't need to returned conformed amount if returning quote holdings
+	// NOTE: Don't need to return conformed amount if returning quote holdings
 	_, err = c.VerifyExecutionLimitsReturnConformed(deploymentAmountInBase)
 	if err != nil {
 		return nil, err
@@ -229,45 +185,67 @@ func (c *Config) GetDistrbutionAmount(ctx context.Context, allocatedAmount float
 		Total:       allocatedAmount,
 		Deployment:  deploymentAmount,
 		Window:      window,
-		Interval:    c.Interval,
 		Deployments: deployments,
-		Start:       c.Start,
-		End:         c.End,
 	}, nil
 }
+
+var errTwapPriceExceeded = errors.New("twap price has been exceeded")
 
 // VerifyBookDeployment verifies book liquidity and structure with deployment
 // amount and returns base amount and details.
 func (c *Config) VerifyBookDeployment(book *orderbook.Depth, deploymentAmount, twapPrice float64) (float64, *orderbook.Movement, error) {
 	if c == nil {
-		return 0, nil, errConfigurationIsNil
+		return 0, nil, strategy.ErrConfigIsNil
 	}
 	if book == nil {
-		return 0, nil, errOrderbookIsNil
+		return 0, nil, strategy.ErrOrderbookIsNil
 	}
 	if deploymentAmount <= 0 {
-		return 0, nil, errInvalidAllocatedAmount
+		return 0, nil, fmt.Errorf("deployment: %w", strategy.ErrInvalidAmount)
 	}
 
 	var details *orderbook.Movement
 	var err error
 	if c.Buy {
 		// Quote needs to be converted to base for deployment checks.
-		details, err = book.LiftTheAsksByImpactSlippage(c.MaxImpactSlippage, twapPrice)
+		details, err = book.LiftTheAsksByImpactSlippageFromBest(c.MaxImpactSlippage)
 		if err != nil {
 			return 0, nil, err
 		}
+		if twapPrice > details.EndPrice {
+			twapImpact := ((twapPrice - details.EndPrice) / details.EndPrice * 100)
+			if twapImpact > c.MaxImpactSlippage {
+				return 0, nil, fmt.Errorf("%w %v: by %v%% while lifting the asks",
+					errTwapPriceExceeded,
+					twapPrice,
+					twapImpact)
+			}
+		}
 		deploymentAmount = details.Purchased
 	} else {
-		details, err = book.HitTheBidsByImpactSlippage(deploymentAmount, twapPrice)
+		if twapPrice < details.EndPrice {
+			twapImpact := ((details.EndPrice - twapPrice) / twapPrice * 100)
+			if twapImpact > c.MaxImpactSlippage {
+				return 0, nil, fmt.Errorf("%w %v: by %v%% while hitting the bids",
+					errTwapPriceExceeded,
+					twapPrice,
+					twapImpact)
+			}
+		}
+
+		details, err = book.HitTheBidsByImpactSlippageFromBest(deploymentAmount)
 		if err != nil {
 			return 0, nil, err
 		}
 	}
 
+	if details.FullBookSideConsumed {
+		return 0, nil, strategy.ErrExceedsLiquidity
+	}
+
 	if c.MaxNominalSlippage != 0 && c.MaxNominalSlippage < details.NominalPercentage {
 		return 0, nil, fmt.Errorf("%w: book slippage: %f requested max slippage %f",
-			errMaxNominalPercentageExceeded,
+			strategy.ErrMaxNominalExceeded,
 			details.NominalPercentage,
 			c.MaxNominalSlippage)
 	}
@@ -277,12 +255,12 @@ func (c *Config) VerifyBookDeployment(book *orderbook.Depth, deploymentAmount, t
 			return 0, nil, fmt.Errorf("ask book head price: %f price limit: %f %w",
 				details.StartPrice,
 				c.PriceLimit,
-				errMaxPriceLimitExceeded)
+				strategy.ErrPriceLimitExceeded)
 		} else if !c.Buy && details.StartPrice < c.PriceLimit {
 			return 0, nil, fmt.Errorf("bid book head price: %f price limit: %f %w",
 				details.StartPrice,
 				c.PriceLimit,
-				errMaxPriceLimitExceeded)
+				strategy.ErrPriceLimitExceeded)
 		}
 	}
 
@@ -294,27 +272,23 @@ func (c *Config) VerifyBookDeployment(book *orderbook.Depth, deploymentAmount, t
 		}
 		if spread > c.MaxSpreadPercentage {
 			return 0, nil, fmt.Errorf("%w: book slippage: %f requested max slippage %f",
-				errMaxSpreadPercentageExceeded,
+				strategy.ErrMaxSpreadExceeded,
 				spread,
 				c.MaxSpreadPercentage)
 		}
 	}
-
-	if details.Sold < deploymentAmount {
-		return details.Sold, details, errBookSmallerThanDeploymentAmount
-	}
-
 	return deploymentAmount, details, nil
 }
 
-// VerifyExecutionLimitsReturnConformed verifies if the deploument amount
-// exceeds the exchange execution limits. TODO: This will need to be expanded. Abstract further
+// VerifyExecutionLimitsReturnConformed verifies if the deployment amount
+// exceeds the exchange execution limits. TODO:  This will need to be expanded
+// and abstracted further.
 func (c *Config) VerifyExecutionLimitsReturnConformed(deploymentAmountInBase float64) (float64, error) {
 	if c == nil {
-		return 0, errConfigurationIsNil
+		return 0, strategy.ErrConfigIsNil
 	}
 	if deploymentAmountInBase <= 0 {
-		return 0, errInvalidAllocatedAmount
+		return 0, fmt.Errorf("base deployment: %w", strategy.ErrInvalidAmount)
 	}
 
 	minMax, err := c.Exchange.GetOrderExecutionLimits(c.Asset, c.Pair)
@@ -323,56 +297,15 @@ func (c *Config) VerifyExecutionLimitsReturnConformed(deploymentAmountInBase flo
 	}
 
 	if minMax.MinAmount != 0 && minMax.MinAmount > deploymentAmountInBase {
-		return 0, fmt.Errorf("%w; %s", errUnderMinimumAmount, minimumSizeResponse)
+		return 0, fmt.Errorf("%w; %s",
+			strategy.ErrUnderMinimumAmount,
+			strategy.MinimumSizeResponse)
 	}
 
 	if minMax.MaxAmount != 0 && minMax.MaxAmount < deploymentAmountInBase {
-		return 0, fmt.Errorf("%w; %s", errOverMaximumAmount, maximumSizeResponse)
+		return 0, fmt.Errorf("%w; %s",
+			strategy.ErrOverMaximumAmount,
+			strategy.MaximumSizeResponse)
 	}
-
 	return minMax.ConformToAmount(deploymentAmountInBase), nil
-}
-
-// GetNextSchedule gets next signal/execution time, this will also allow
-// truncation to interval for alignment to candle.
-func (c *Config) GetNextSchedule(scheduled time.Time) (time.Duration, error) {
-	if c == nil {
-		return 0, errConfigurationIsNil
-	}
-	if c.Interval <= 0 {
-		return 0, kline.ErrUnsetInterval
-	}
-	if scheduled.IsZero() {
-		scheduled = time.Now()
-	}
-	if c.CandleStickAligned {
-		scheduled = scheduled.Truncate(c.Interval.Duration())
-	}
-	return time.Until(scheduled.Add(c.Interval.Duration())), nil
-}
-
-// SetTimer sets timer at new interval time.
-func (c *Config) SetTimer(timer *time.Timer) error {
-	if c == nil {
-		return errConfigurationIsNil
-	}
-	if timer == nil {
-		return errTimerIsNil
-	}
-	schedule, err := c.GetNextSchedule(time.Now())
-	if err != nil {
-		return err
-	}
-	timer.Reset(schedule)
-	return nil
-}
-
-// Quote needs to be converted to base for deployment checks.
-
-// GetImpact returns the orderbook movement details
-func (c Config) GetImpact(book *orderbook.Depth, twapPrice float64) (*orderbook.Movement, error) {
-	if c.Buy {
-		return book.LiftTheAsksByImpactSlippage(c.MaxImpactSlippage, twapPrice)
-	}
-	return book.HitTheBidsByImpactSlippage(c.MaxImpactSlippage, twapPrice)
 }

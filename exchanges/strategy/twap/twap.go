@@ -2,7 +2,6 @@ package twap
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -135,26 +134,12 @@ func (s *Strategy) checkAndSubmit(ctx context.Context) error {
 		return err
 	}
 
+	s.ReportInfo(fmt.Sprintf("TWAP PRICE: %v Interval: %s", twapPrice, s.TWAP))
+
 	deploymentInBase, details, err := s.VerifyBookDeployment(s.orderbook, s.allocation.Deployment, twapPrice)
 	if err != nil {
 		fmt.Println("Bro")
 		return err
-	}
-
-	// This check is nested because this cares about book impact slippage
-	// levels and has the potential to wipe out complete book stored in
-	// memory.
-	if details.FullBookSideConsumed {
-		return errExceedsTotalBookLiquidity
-	}
-
-	if s.MaxImpactSlippage < details.ImpactPercentage {
-		s.ReportInfo(fmt.Sprintf("%s: book slippage from TWAP-PRICE:%f: %f requested max slippage %f",
-			errMaxImpactPercentageExceeded,
-			twapPrice,
-			details.ImpactPercentage,
-			s.MaxImpactSlippage))
-		return nil
 	}
 
 	conformed, err := s.VerifyExecutionLimitsReturnConformed(deploymentInBase)
@@ -185,7 +170,7 @@ func (s *Strategy) checkAndSubmit(ctx context.Context) error {
 // futher.
 func (s *Strategy) deriveOrder(amountInBase float64) (*order.Submit, error) {
 	if amountInBase <= 0 {
-		return nil, errInvalidAllocatedAmount
+		return nil, fmt.Errorf("amount in base: %w", strategy.ErrInvalidAmount)
 	}
 	side := order.Buy
 	if !s.Buy {
@@ -204,7 +189,7 @@ func (s *Strategy) deriveOrder(amountInBase float64) (*order.Submit, error) {
 // submitOrder will submit and retry an order if fail. TODO: Abstract futher
 func (s *Strategy) submitOrder(ctx context.Context, submit *order.Submit) (*order.SubmitResponse, error) {
 	if submit == nil {
-		return nil, errors.New("submit order is invalid")
+		return nil, strategy.ErrSubmitOrderIsNil
 	}
 	var errors common.Errors
 	var resp *order.SubmitResponse
@@ -239,12 +224,14 @@ func (s *Strategy) submitOrder(ctx context.Context, submit *order.Submit) (*orde
 
 // getTwapPrice returns a typical twap price from an exchange
 func (c *Config) getTwapPrice(ctx context.Context) (float64, error) {
+	end := time.Now().Truncate(kline.OneDay.Duration())
+	start := end.AddDate(0, 0, -30)
 	candles, err := c.Exchange.GetHistoricCandles(ctx,
 		c.Pair,
 		c.Asset,
-		time.Now().AddDate(0, 0, -28),
-		time.Now(),
-		kline.OneDay)
+		start,
+		end,
+		c.TWAP)
 	if err != nil {
 		return 0, err
 	}
