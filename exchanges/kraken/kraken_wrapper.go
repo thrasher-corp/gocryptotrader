@@ -699,6 +699,7 @@ func (k *Kraken) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Volume,
 			Timestamp:    convert.TimeFromUnixTimestampDecimal(tradeData[i].Time),
+			TID:          strconv.FormatInt(tradeData[i].TradeID, 10),
 		}
 	}
 
