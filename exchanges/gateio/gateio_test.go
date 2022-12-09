@@ -1884,22 +1884,12 @@ func TestGetSettlementHistory(t *testing.T) {
 
 func TestGetOptionsSpecifiedSettlementHistory(t *testing.T) {
 	t.Parallel()
-	pairs, err := g.FetchTradablePairs(context.Background(), asset.Options)
+	underlying := "BTC_USDT"
+	val, err := g.GetSettlementHistory(context.Background(), underlying, 0, 1, time.Time{}, time.Time{})
 	if err != nil {
-		t.Skip(err)
+		t.Fatal(err)
 	}
-	if len(pairs) == 0 {
-		t.Skip(err)
-	}
-	pair, err := currency.NewPairFromString(pairs[0])
-	if err != nil {
-		t.Skip(err)
-	}
-	underlying, err := g.GetUnderlyingFromCurrencyPair(pair)
-	if err != nil {
-		t.Skip(err)
-	}
-	if _, err := g.GetOptionsSpecifiedContractsSettlement(context.Background(), pairs[0], underlying, 0); err != nil {
+	if _, err := g.GetOptionsSpecifiedContractsSettlement(context.Background(), val[0].Contract, underlying, val[0].Time.Unix()); err != nil {
 		t.Errorf("%s GetOptionsSpecifiedContractsSettlement() error %s", g.Name, err)
 	}
 }
