@@ -254,8 +254,8 @@ func (o *OKCoin) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 	}
 
 	pairs := make([]currency.Pair, len(prods))
-	var pair currency.Pair
 	for x := range prods {
+		var pair currency.Pair
 		pair, err = currency.NewPairFromStrings(prods[x].BaseCurrency, prods[x].QuoteCurrency)
 		if err != nil {
 			return nil, err

@@ -237,8 +237,8 @@ func (b *Bithumb) FetchTradablePairs(ctx context.Context, a asset.Item) (currenc
 	}
 
 	pairs := make([]currency.Pair, len(currencies))
-	var pair currency.Pair
 	for x := range currencies {
+		var pair currency.Pair
 		pair, err = currency.NewPairFromStrings(currencies[x], "KRW")
 		if err != nil {
 			return nil, err

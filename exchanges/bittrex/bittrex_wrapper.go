@@ -257,11 +257,11 @@ func (b *Bittrex) FetchTradablePairs(ctx context.Context, a asset.Item) (currenc
 	}
 
 	pairs := make([]currency.Pair, 0, len(markets))
-	var pair currency.Pair
 	for x := range markets {
 		if markets[x].Status != "ONLINE" {
 			continue
 		}
+		var pair currency.Pair
 		pair, err = currency.NewPairFromString(markets[x].Symbol)
 		if err != nil {
 			return nil, err
