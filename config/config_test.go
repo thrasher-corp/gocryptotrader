@@ -1289,7 +1289,7 @@ func TestGetPrimaryForexProvider(t *testing.T) {
 
 func TestUpdateExchangeConfig(t *testing.T) {
 	t.Parallel()
-	ok := "OKEX"
+	ok := "Okx"
 	cfg := &Config{
 		Exchanges: []Exchange{
 			{

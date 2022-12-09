@@ -151,7 +151,7 @@ func main() {
 }
 
 func parseCLFlags() {
-	flag.StringVar(&exchangesToUseOverride, "exchanges", "", "a + delimited list of exchange names to run tests against eg -exchanges=bitfinex+okex")
+	flag.StringVar(&exchangesToUseOverride, "exchanges", "", "a + delimited list of exchange names to run tests against eg -exchanges=bitfinex+okx")
 	flag.StringVar(&exchangesToExcludeOverride, "excluded-exchanges", "", "a + delimited list of exchange names to ignore when they're being temperamental eg -exchangesToExlude=lbank")
 	flag.StringVar(&assetTypeOverride, "asset", "", "the asset type to run tests against (where applicable)")
 	flag.StringVar(&currencyPairOverride, "currency", "", "the currency to run tests against (where applicable)")

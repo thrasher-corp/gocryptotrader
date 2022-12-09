@@ -143,8 +143,8 @@ type TransferAccountFundsResponse struct {
 type AccountWithdrawRequest struct {
 	Amount      float64 `json:"amount"`      // [required] withdrawal amount
 	Currency    string  `json:"currency"`    // [required] token
-	Destination int64   `json:"destination"` // [required] withdrawal address(2:OKCoin International 3:OKEx 4:others)
-	Fee         float64 `json:"fee"`         // [required] Network transaction fee≥0. Withdrawals to OKCoin or OKEx are fee-free, please set as 0. Withdrawal to external digital asset address requires network transaction fee.
+	Destination int64   `json:"destination"` // [required] withdrawal address(2:OKCoin International 3:others)
+	Fee         float64 `json:"fee"`         // [required] Network transaction fee≥0. Withdrawals to OKCoin are fee-free, please set as 0. Withdrawal to external digital asset address requires network transaction fee.
 	ToAddress   string  `json:"to_address"`  // [required] verified digital asset address, email or mobile number,some digital asset address format is address+tag , eg: "ARDOR-7JF3-8F2E-QUWZ-CAN7F：123456"
 	TradePwd    string  `json:"trade_pwd"`   // [required] fund password
 }
