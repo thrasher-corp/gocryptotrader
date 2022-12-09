@@ -284,7 +284,7 @@ func (b *BTCMarkets) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *BTCMarkets) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, error) {
+func (b *BTCMarkets) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if a != asset.Spot {
 		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, b.Name)
 	}
@@ -292,10 +292,14 @@ func (b *BTCMarkets) FetchTradablePairs(ctx context.Context, a asset.Item) ([]st
 	if err != nil {
 		return nil, err
 	}
-
-	pairs := make([]string, len(markets))
+	pairs := make([]currency.Pair, len(markets))
 	for x := range markets {
-		pairs[x] = markets[x].MarketID
+		var pair currency.Pair
+		pair, err = currency.NewPairFromString(markets[x].MarketID)
+		if err != nil {
+			return nil, err
+		}
+		pairs[x] = pair
 	}
 	return pairs, nil
 }
@@ -307,12 +311,7 @@ func (b *BTCMarkets) UpdateTradablePairs(ctx context.Context, forceUpdate bool) 
 	if err != nil {
 		return err
 	}
-	p, err := currency.NewPairsFromStrings(pairs)
-	if err != nil {
-		return err
-	}
-
-	return b.UpdatePairs(p, asset.Spot, false, forceUpdate)
+	return b.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

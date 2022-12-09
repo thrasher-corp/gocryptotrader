@@ -641,7 +641,7 @@ Supported Examples:
 
 ```go
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (f *FTX) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, error) {
+func (f *FTX) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if !f.SupportsAsset(a) {
 		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, f.Name)
 	}

@@ -152,29 +152,35 @@ func (b *Bitflyer) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *Bitflyer) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, error) {
-	pairs, err := b.GetMarkets(ctx)
+func (b *Bitflyer) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+	symbols, err := b.GetMarkets(ctx)
 	if err != nil {
 		return nil, err
 	}
-
 	format, err := b.GetPairFormat(a, false)
 	if err != nil {
 		return nil, err
 	}
-
-	var products []string
-	for i := range pairs {
-		if pairs[i].Alias != "" && a == asset.Futures {
-			products = append(products, pairs[i].Alias)
-		} else if pairs[i].Alias == "" &&
+	pairs := make([]currency.Pair, 0, len(symbols))
+	for i := range symbols {
+		var pair currency.Pair
+		if symbols[i].Alias != "" && a == asset.Futures {
+			pair, err = currency.NewPairFromString(symbols[i].Alias)
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, pair)
+		} else if symbols[i].Alias == "" &&
 			a == asset.Spot &&
-			strings.Contains(pairs[i].ProductCode,
-				format.Delimiter) {
-			products = append(products, pairs[i].ProductCode)
+			strings.Contains(symbols[i].ProductCode, format.Delimiter) {
+			pair, err = currency.NewPairFromString(symbols[i].ProductCode)
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, pair)
 		}
 	}
-	return products, nil
+	return pairs, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
@@ -187,12 +193,7 @@ func (b *Bitflyer) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 			return err
 		}
 
-		p, err := currency.NewPairsFromStrings(pairs)
-		if err != nil {
-			return err
-		}
-
-		err = b.UpdatePairs(p, assets[x], false, forceUpdate)
+		err = b.UpdatePairs(pairs, assets[x], false, forceUpdate)
 		if err != nil {
 			return err
 		}
