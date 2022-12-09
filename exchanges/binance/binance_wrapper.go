@@ -1729,7 +1729,7 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 		return nil, err
 	}
 
-	var timeSeries []kline.Candle
+	timeSeries := make([]kline.Candle, 0, builder.Size())
 	for x := range builder.Ranges {
 		var candles []CandleStick
 		candles, err = b.GetSpotKline(ctx, &KlinesRequestParams{

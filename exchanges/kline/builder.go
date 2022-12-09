@@ -11,8 +11,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// ErrUnsetName is an error for when the exchange name is not set
-var ErrUnsetName = errors.New("unset exchange name")
+var (
+	// ErrUnsetName is an error for when the exchange name is not set
+	ErrUnsetName  = errors.New("unset exchange name")
+	errNilBuilder = errors.New("nil kline builder")
+)
 
 // Builder is a helper to request and convert time series to a required candle
 // interval.
@@ -61,12 +64,19 @@ func GetBuilder(name string, pair, formatted currency.Pair, a asset.Item, requir
 // GetRanges returns the date ranges for candle intervals broken up over
 // requests
 func (b *Builder) GetRanges(limit uint32) (*IntervalRangeHolder, error) {
+	if b == nil {
+		return nil, errNilBuilder
+	}
 	return CalculateCandleDateRanges(b.Start, b.End, b.Request, limit)
 }
 
 // ConvertCandles converts time series candles into a kline.Item type. This will
 // auto convert from a lower to higher time series if applicable.
 func (b *Builder) ConvertCandles(timeSeries []Candle) (*Item, error) {
+	if b == nil {
+		return nil, errNilBuilder
+	}
+
 	holder := &Item{
 		Exchange: b.Name,
 		Pair:     b.Pair,
@@ -78,6 +88,7 @@ func (b *Builder) ConvertCandles(timeSeries []Candle) (*Item, error) {
 	// NOTE: timeSeries param above must keep underlying slice reference in this
 	// function as it is used for method ConvertCandles on type BuilderExtended
 	// for SetHasDataFromCandles candle matching.
+	// TODO: Shift burden of proof to the caller e.g. only find duplicates and error.
 	holder.RemoveDuplicates()
 	holder.RemoveOutsideRange(b.Start, b.End)
 	holder.SortCandlesByTimestamp(false)
@@ -98,6 +109,10 @@ type BuilderExtended struct {
 // ConvertCandles converts time series candles into a kline.Item type. This will
 // auto convert from a lower to higher time series if applicable.
 func (b *BuilderExtended) ConvertCandles(timeSeries []Candle) (*Item, error) {
+	if b == nil {
+		return nil, errNilBuilder
+	}
+
 	holder, err := b.Builder.ConvertCandles(timeSeries)
 	if err != nil {
 		return nil, err
@@ -113,4 +128,12 @@ func (b *BuilderExtended) ConvertCandles(timeSeries []Candle) (*Item, error) {
 		log.Warnf(log.ExchangeSys, "%v - %v", b.Name, summary)
 	}
 	return holder, nil
+}
+
+// Size returns the max length of return for pre-allocation.
+func (b *BuilderExtended) Size() int {
+	if b == nil {
+		return 0
+	}
+	return b.IntervalRangeHolder.Limit * len(b.IntervalRangeHolder.Ranges)
 }

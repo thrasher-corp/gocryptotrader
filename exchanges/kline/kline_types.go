@@ -150,6 +150,7 @@ type IntervalRangeHolder struct {
 	Start  IntervalTime
 	End    IntervalTime
 	Ranges []IntervalRange
+	Limit  int
 }
 
 // IntervalRange is a subset of candles based on exchange API request limits
