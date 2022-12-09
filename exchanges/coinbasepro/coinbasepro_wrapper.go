@@ -289,15 +289,17 @@ func (c *CoinbasePro) FetchTradablePairs(ctx context.Context, a asset.Item) (cur
 		return nil, err
 	}
 
-	pairs := make([]currency.Pair, len(products))
+	pairs := make([]currency.Pair, 0, len(products))
 	for x := range products {
+		if products[x].TradingDisabled {
+			continue
+		}
 		var pair currency.Pair
-		pair, err = currency.NewPairFromStrings(products[x].BaseCurrency,
-			products[x].QuoteCurrency)
+		pair, err = currency.NewPairDelimiter(products[x].ID, currency.DashDelimiter)
 		if err != nil {
 			return nil, err
 		}
-		pairs[x] = pair
+		pairs = append(pairs, pair)
 	}
 	return pairs, nil
 }
