@@ -173,7 +173,7 @@ func (b *Bitflyer) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		} else if symbols[i].Alias == "" &&
 			a == asset.Spot &&
 			strings.Contains(symbols[i].ProductCode, format.Delimiter) {
-			pair, err = currency.NewPairFromString(symbols[i].Alias)
+			pair, err = currency.NewPairFromString(symbols[i].ProductCode)
 			if err != nil {
 				return nil, err
 			}
