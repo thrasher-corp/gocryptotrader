@@ -292,7 +292,7 @@ const (
 )
 
 // Type enforces a standard for order types across the code base
-type Type uint16
+type Type uint32
 
 // MarshalJSON marshals as string
 func (t *Type) MarshalJSON() ([]byte, error) {
@@ -317,6 +317,7 @@ const (
 	AnyType
 	Liquidation
 	Trigger
+	OptimalLimitIOC
 )
 
 // Side enforces a standard for order sides across the code base

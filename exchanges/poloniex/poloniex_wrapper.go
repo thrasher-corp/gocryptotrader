@@ -254,18 +254,24 @@ func (p *Poloniex) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (p *Poloniex) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
+func (p *Poloniex) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	resp, err := p.GetTicker(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	currencies := make([]string, 0, len(resp))
-	for x := range resp {
-		currencies = append(currencies, x)
+	pairs := make([]currency.Pair, len(resp))
+	var target int
+	for key := range resp {
+		var pair currency.Pair
+		pair, err = currency.NewPairFromString(key)
+		if err != nil {
+			return nil, err
+		}
+		pairs[target] = pair
+		target++
 	}
-
-	return currencies, nil
+	return pairs, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
@@ -275,11 +281,7 @@ func (p *Poloniex) UpdateTradablePairs(ctx context.Context, forceUpgrade bool) e
 	if err != nil {
 		return err
 	}
-	ps, err := currency.NewPairsFromStrings(pairs)
-	if err != nil {
-		return err
-	}
-	return p.UpdatePairs(ps, asset.Spot, false, forceUpgrade)
+	return p.UpdatePairs(pairs, asset.Spot, false, forceUpgrade)
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

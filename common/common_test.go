@@ -721,3 +721,34 @@ func TestMatchesEmailPattern(t *testing.T) {
 		t.Error("MatchesEmailPattern() unexpected test validation result")
 	}
 }
+
+func TestGenerateRandomString(t *testing.T) {
+	t.Parallel()
+	sample, err := GenerateRandomString(5, NumberCharacters)
+	if err != nil {
+		t.Errorf("GenerateRandomString()  %v", err)
+	}
+	value, err := strconv.Atoi(sample)
+	if len(sample) != 5 || err != nil || value < 0 {
+		t.Error("GenerateRandomString() unexpected test validation result")
+	}
+	sample, err = GenerateRandomString(5)
+	if err != nil {
+		t.Errorf("GenerateRandomString()  %v", err)
+	}
+	values, err := strconv.ParseInt(sample, 10, 64)
+	if len(sample) != 5 || err != nil || values < 0 {
+		t.Error("GenerateRandomString() unexpected test validation result")
+	}
+	_, err = GenerateRandomString(1, "")
+	if err == nil {
+		t.Errorf("GenerateRandomString() expecting %s, but found %v", "invalid characters, character must not be empty", err)
+	}
+	sample, err = GenerateRandomString(0, "")
+	if err != nil && !strings.Contains(err.Error(), "invalid length") {
+		t.Errorf("GenerateRandomString()  %v", err)
+	}
+	if sample != "" {
+		t.Error("GenerateRandomString() unexpected test validation result")
+	}
+}

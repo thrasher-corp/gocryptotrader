@@ -23,12 +23,15 @@ const (
 	EightHour     = 8 * OneHour
 	TwelveHour    = 12 * OneHour
 	OneDay        = 24 * OneHour
+	TwoDay        = 2 * OneDay
 	ThreeDay      = 3 * OneDay
 	SevenDay      = 7 * OneDay
 	FifteenDay    = 15 * OneDay
 	OneWeek       = SevenDay
 	TwoWeek       = 2 * OneWeek
 	OneMonth      = 31 * OneDay
+	ThreeMonth    = 3 * OneMonth
+	SixMonth      = 6 * OneMonth
 	OneYear       = 365 * OneDay
 )
 

@@ -43,7 +43,7 @@ func (m *eventManager) Start() error {
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
 		return fmt.Errorf("event manager %w", ErrSubSystemAlreadyStarted)
 	}
-	log.Debugf(log.EventMgr, "Event Manager started. SleepDelay: %v\n", EventSleepDelay.String())
+	log.Debugf(log.EventMgr, "Event Manager started. SleepDelay: %v\n", m.sleepDelay.String())
 	m.shutdown = make(chan struct{})
 	go m.run()
 	return nil

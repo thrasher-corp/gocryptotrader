@@ -467,6 +467,8 @@ func (t Type) String() string {
 		return "LIQUIDATION"
 	case Trigger:
 		return "TRIGGER"
+	case OptimalLimitIOC:
+		return "OPTIMAL_LIMIT_IOC"
 	default:
 		return "UNKNOWN"
 	}
@@ -864,6 +866,8 @@ func StringToOrderType(oType string) (Type, error) {
 		return AnyType, nil
 	case Trigger.String():
 		return Trigger, nil
+	case OptimalLimitIOC.String():
+		return OptimalLimitIOC, nil
 	default:
 		return UnknownType, fmt.Errorf("'%v' %w", oType, errUnrecognisedOrderType)
 	}
@@ -878,7 +882,7 @@ func StringToOrderStatus(status string) (Status, error) {
 		return AnyStatus, nil
 	case New.String(), "PLACED", "ACCEPTED":
 		return New, nil
-	case Active.String(), "STATUS_ACTIVE":
+	case Active.String(), "STATUS_ACTIVE", "LIVE":
 		return Active, nil
 	case PartiallyFilled.String(), "PARTIALLY MATCHED", "PARTIALLY FILLED":
 		return PartiallyFilled, nil
