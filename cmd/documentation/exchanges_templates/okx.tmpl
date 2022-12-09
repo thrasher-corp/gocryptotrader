@@ -1,14 +1,15 @@
-{{define "exchanges okex" -}}
+{{define "exchanges okx" -}}
 {{template "header" .}}
-## OKex Exchange
+## Okx Exchange
 
 ### Current Features
 
 + REST Support
++ Websocket Support
 
 ### How to enable
 
-+ [Enable via configuration](https://github.com/thrasher-corp/gocryptotrader/tree/master/config#enable-exchange-via-config-example)
+ [Enable via configuration](https://github.com/thrasher-corp/gocryptotrader/tree/master/config#enable-exchange-via-config-example)
 
 + Individual package example below:
 
@@ -27,10 +28,10 @@ below:
 
 main.go
 ```go
-var o exchange.IBotExchange
+var ok exchange.IBotExchange
 
 for i := range bot.Exchanges {
-	if bot.Exchanges[i].GetName() == "OKex" {
+	if bot.Exchanges[i].GetName() == "Okx" {
 		y = bot.Exchanges[i]
 	}
 }
@@ -38,22 +39,22 @@ for i := range bot.Exchanges {
 // Public calls - wrapper functions
 
 // Fetches current ticker information
-tick, err := o.FetchTicker()
+tick, err := ok.FetchTicker()
 if err != nil {
 	// Handle error
 }
 
 // Fetches current orderbook information
-ob, err := o.FetchOrderbook()
+ob, err := ok.FetchOrderbook()
 if err != nil {
 	// Handle error
 }
 
-// Private calls - wrapper functions - make sure your APIKEY and APISECRET are
+// Private calls - wrapper functions - make sure your APIKEY, APISECRET, and API_CLIENT_ID are
 // set and AuthenticatedAPISupport is set to true
 
 // Fetches current account information
-accountInfo, err := o.GetAccountInfo()
+accountInfo, err := ok.GetAccountInfo()
 if err != nil {
 	// Handle error
 }
@@ -65,13 +66,26 @@ if err != nil {
 // Public calls
 
 // Fetches current ticker information
-ticker, err := o.GetSpotTicker()
+ticker, err := ok.GetTicker()
 if err != nil {
 	// Handle error
 }
 
 // Fetches current orderbook information
-ob, err := o.GetSpotMarketDepth()
+ob, err := ok.GetOrderBook()
+if err != nil {
+	// Handle error
+}
+
+// Fetches historic trade data within the timeframe provided
+tradeDatas, err := ok.GetHistoricTrades(...)
+if err != nil {
+	// Handle error
+}
+
+
+// Returns an estimate of fee based on the type of transaction
+fee, err := ok.GetFeeByType(...)
 if err != nil {
 	// Handle error
 }
@@ -79,17 +93,25 @@ if err != nil {
 // Private calls - make sure your APIKEY and APISECRET are set and
 // AuthenticatedAPISupport is set to true
 
-// GetContractPosition returns contract positioning
-accountInfo, err := o.GetContractPosition(...)
+// Submits an order and the exchange and returns its tradeID
+orderID, err := ok.SubmitOrder(...)
 if err != nil {
 	// Handle error
 }
 
-// Submits an order and the exchange and returns its tradeID
-tradeID, err := o.PlaceContractOrders(...)
+// ModifyOrder will allow of changing orderbook placement and limit to market conversion
+updatedOrder, err := ok.ModifyOrder(...)
 if err != nil {
 	// Handle error
 }
+
+```
+
+### How to do Websocket public/private calls
+
+```go
+	// Exchanges will be abstracted out in further updates and examples will be
+	// supplied then
 ```
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
