@@ -52,12 +52,10 @@ func (ku *Kucoin) SetDefaults() {
 	ku.Verbose = true
 	ku.API.CredentialsValidator.RequiresKey = true
 	ku.API.CredentialsValidator.RequiresSecret = true
-
 	spot := currency.PairStore{
 		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
 	}
-
 	futures := currency.PairStore{
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: ""},
@@ -67,12 +65,10 @@ func (ku *Kucoin) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	err = ku.StoreAssetPairFormat(asset.Margin, futures)
+	err = ku.StoreAssetPairFormat(asset.Futures, futures)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-
-	// Fill out the capabilities/features that the exchange supports
 	ku.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
@@ -212,7 +208,8 @@ func (ku *Kucoin) Run() {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (ku *Kucoin) FetchTradablePairs(ctx context.Context, assetType asset.Item) ([]string, error) {
-	if assetType.IsFutures() {
+	switch assetType {
+	case asset.Futures:
 		myPairs, err := ku.GetFuturesOpenContracts(ctx)
 		if err != nil {
 			return nil, err
@@ -222,30 +219,41 @@ func (ku *Kucoin) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 			pairs[x] = strings.ToUpper(myPairs[x].Symbol)
 		}
 		return pairs, nil
+	case asset.Spot:
+		myPairs, err := ku.GetSymbols(ctx, "")
+		if err != nil {
+			return nil, err
+		}
+		pairs := make([]string, len(myPairs))
+		for x := range myPairs {
+			pairs[x] = strings.ToUpper(myPairs[x].Name)
+		}
+		return pairs, nil
+	default:
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
-	myPairs, err := ku.GetSymbols(ctx, "")
-	if err != nil {
-		return nil, err
-	}
-	pairs := make([]string, len(myPairs))
-	for x := range myPairs {
-		pairs[x] = strings.ToUpper(myPairs[x].Name)
-	}
-	return pairs, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (ku *Kucoin) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	pairs, err := ku.FetchTradablePairs(ctx, asset.Spot)
-	if err != nil {
-		return err
+	assets := ku.GetAssetTypes(false)
+	println(len(assets))
+	for a := range assets {
+		pairs, err := ku.FetchTradablePairs(ctx, assets[a])
+		if err != nil {
+			return err
+		}
+		p, err := currency.NewPairsFromStrings(pairs)
+		if err != nil {
+			return err
+		}
+		err = ku.UpdatePairs(p, assets[a], false, forceUpdate)
+		if err != nil {
+			return err
+		}
 	}
-	p, err := currency.NewPairsFromStrings(pairs)
-	if err != nil {
-		return err
-	}
-	return ku.UpdatePairs(p, asset.Spot, false, forceUpdate)
+	return nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

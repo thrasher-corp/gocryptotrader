@@ -1930,6 +1930,10 @@
     "websocketOrderbookBufferLimit": 5,
     "baseCurrencies": "USD",
     "currencyPairs": {
+    "assetTypes": [
+      "spot",
+      "futures"
+    ],
     "pairs": {
       "spot": {
        "assetEnabled": true,
@@ -1960,7 +1964,7 @@
      }
     },
     "api": {
-     "authenticatedSupport": false,
+     "authenticatedSupport": true,
      "authenticatedWebsocketApiSupport": false,
      "endpoints": {
       "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",

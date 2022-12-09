@@ -1117,12 +1117,9 @@ func TestGetTradingFee(t *testing.T) {
 // futures
 func TestGetFuturesOpenContracts(t *testing.T) {
 	t.Parallel()
-	results, err := ku.GetFuturesOpenContracts(context.Background())
+	_, err := ku.GetFuturesOpenContracts(context.Background())
 	if err != nil {
 		t.Error("GetFuturesOpenContracts() error", err)
-	} else {
-		values, _ := json.Marshal(results)
-		println(string(values))
 	}
 }
 
@@ -1136,12 +1133,9 @@ func TestGetFuturesContract(t *testing.T) {
 
 func TestGetFuturesRealTimeTicker(t *testing.T) {
 	t.Parallel()
-	results, err := ku.GetFuturesRealTimeTicker(context.Background(), "XBTUSDTM")
+	_, err := ku.GetFuturesRealTimeTicker(context.Background(), "XBTUSDTM")
 	if err != nil {
 		t.Error("GetFuturesRealTimeTicker() error", err)
-	} else {
-		value, _ := json.Marshal(results)
-		println(string(value))
 	}
 }
 
@@ -1150,10 +1144,6 @@ func TestGetFuturesOrderbook(t *testing.T) {
 	pairs, err := ku.FetchTradablePairs(context.Background(), asset.Futures)
 	if err != nil {
 		t.Skip(err)
-	} else {
-		for x := range pairs {
-			print(pairs[x] + ",")
-		}
 	}
 	_, err = ku.GetFuturesOrderbook(context.Background(), pairs[0])
 	if err != nil {
@@ -1161,9 +1151,15 @@ func TestGetFuturesOrderbook(t *testing.T) {
 	}
 }
 
+func TestUpdateTradablePairs(t *testing.T) {
+	t.Parallel()
+	if err := ku.UpdateTradablePairs(context.Background(), false); err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetFuturesPartOrderbook20(t *testing.T) {
 	t.Parallel()
-
 	_, err := ku.GetFuturesPartOrderbook20(context.Background(), "XBTUSDTM")
 	if err != nil {
 		t.Error("GetFuturesPartOrderbook20() error", err)
@@ -1172,7 +1168,6 @@ func TestGetFuturesPartOrderbook20(t *testing.T) {
 
 func TestGetFuturesPartOrderbook100(t *testing.T) {
 	t.Parallel()
-
 	_, err := ku.GetFuturesPartOrderbook100(context.Background(), "XBTUSDTM")
 	if err != nil {
 		t.Error("GetFuturesPartOrderbook100() error", err)
@@ -1181,7 +1176,6 @@ func TestGetFuturesPartOrderbook100(t *testing.T) {
 
 func TestGetFuturesTradeHistory(t *testing.T) {
 	t.Parallel()
-
 	_, err := ku.GetFuturesTradeHistory(context.Background(), "XBTUSDTM")
 	if err != nil {
 		t.Error("GetFuturesTradeHistory() error", err)
@@ -1190,16 +1184,26 @@ func TestGetFuturesTradeHistory(t *testing.T) {
 
 func TestGetFuturesInterestRate(t *testing.T) {
 	t.Parallel()
-
 	_, err := ku.GetFuturesInterestRate(context.Background(), "XBTUSDTM", time.Time{}, time.Time{}, false, false, 0, 0)
 	if err != nil {
 		t.Error("GetFuturesInterestRate() error", err)
 	}
 }
 
+func TestGetFuturesIndexList(t *testing.T) {
+	t.Parallel()
+	pairs, err := ku.FetchTradablePairs(context.Background(), asset.Futures)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = ku.GetFuturesIndexList(context.Background(), pairs[0], time.Time{}, time.Time{}, false, false, 0, 10)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetFuturesCurrentMarkPrice(t *testing.T) {
 	t.Parallel()
-
 	_, err := ku.GetFuturesCurrentMarkPrice(context.Background(), "XBTUSDTM")
 	if err != nil {
 		t.Error("GetFuturesCurrentMarkPrice() error", err)
@@ -1208,7 +1212,6 @@ func TestGetFuturesCurrentMarkPrice(t *testing.T) {
 
 func TestGetFuturesPremiumIndex(t *testing.T) {
 	t.Parallel()
-
 	_, err := ku.GetFuturesPremiumIndex(context.Background(), "XBTUSDTM", time.Time{}, time.Time{}, false, false, 0, 0)
 	if err != nil {
 		t.Error("GetFuturesPremiumIndex() error", err)
@@ -1217,7 +1220,6 @@ func TestGetFuturesPremiumIndex(t *testing.T) {
 
 func TestGetFuturesCurrentFundingRate(t *testing.T) {
 	t.Parallel()
-
 	_, err := ku.GetFuturesCurrentFundingRate(context.Background(), "XBTUSDTM")
 	if err != nil {
 		t.Error("GetFuturesCurrentFundingRate() error", err)
@@ -1226,7 +1228,6 @@ func TestGetFuturesCurrentFundingRate(t *testing.T) {
 
 func TestGetFuturesServerTime(t *testing.T) {
 	t.Parallel()
-
 	_, err := ku.GetFuturesServerTime(context.Background(), "XBTUSDTM")
 	if err != nil {
 		t.Error("GetFuturesServerTime() error", err)
@@ -1235,8 +1236,7 @@ func TestGetFuturesServerTime(t *testing.T) {
 
 func TestGetFuturesServiceStatus(t *testing.T) {
 	t.Parallel()
-
-	_, _, err := ku.GetFuturesServiceStatus(context.Background(), "XBTUSDTM")
+	_, err := ku.GetFuturesServiceStatus(context.Background(), "XBTUSDTM")
 	if err != nil {
 		t.Error("GetFuturesServiceStatus() error", err)
 	}
@@ -1244,7 +1244,6 @@ func TestGetFuturesServiceStatus(t *testing.T) {
 
 func TestGetFuturesKline(t *testing.T) {
 	t.Parallel()
-
 	_, err := ku.GetFuturesKline(context.Background(), "30", "XBTUSDTM", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error("GetFuturesKline() error", err)
@@ -1704,7 +1703,15 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	results, err := ku.GetRecentTrades(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.Futures)
+	pairs, err := ku.FetchTradablePairs(context.Background(), asset.Futures)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pair, err := currency.NewPairFromString(pairs[0])
+	if err != nil {
+		t.Skip(err)
+	}
+	results, err := ku.GetRecentTrades(context.Background(), pair, asset.Futures)
 	if err != nil {
 		t.Error(err)
 	} else {
@@ -1750,9 +1757,12 @@ func TestGetAuthenticatedServersInstances(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := ku.GetAuthenticatedInstanceServers(context.Background())
+	results, err := ku.GetAuthenticatedInstanceServers(context.Background())
 	if err != nil {
 		t.Error(err)
+	} else {
+		values, _ := json.Marshal(results)
+		println(string(values))
 	}
 }
 
@@ -1873,10 +1883,6 @@ func TestOrderChangePushData(t *testing.T) {
 	}
 }
 
-// func TestMe(t *testing.T) {
-// 	println(1e3 == 1000)
-// }
-
 var accountBalanceNoticePushDataJSON = `{"type": "message","topic": "/account/balance","subject": "account.balance","channelType":"private","data": {"total": "88","available": "88","availableChange": "88","currency": "KCS","hold": "0","holdChange": "0","relationEvent": "trade.setted","relationEventId": "5c21e80303aa677bd09d7dff","relationContext": {"symbol":"BTC-USDT","tradeId":"5e6a5dca9e16882a7d83b7a4","orderId":"5ea10479415e2f0009949d54"},"time": "1545743136994"}}`
 
 func TestAccountBalanceNotice(t *testing.T) {
@@ -1958,8 +1964,8 @@ func TestPublicFuturesMarketData(t *testing.T) {
 	}
 }
 
-var publicFuturesExecutionDataJSON = `{"topic": "/contractMarket/execution:XBTUSDM","subject": "match","data": {"symbol": "XBTUSDM","sequence": 36,     "side": "buy","matchSize": 1,      "size": 1,"price": 3200.00,"takerOrderId": "5c9dd00870744d71c43f5e25","time": 1553846281766256031,               "makerOrderId": "5c9d852070744d0976909a0c",                   "tradeId": "5c9dd00970744d6f5a3d32fc"      }}`
-var publicFuturesOrderbookWithDepth5PushDataJSON = `{"type": "message","topic": "/contractMarket/level2Depth5:XBTUSDM","subject": "level2","data": {"asks":[["9990", "32"],["9991", "47"],["9993", "3"],["9992", "3"],["9989", "8"]],"bids":[["9984", "10"],["9985", "10"],["9986", "100"],["9987", "15"], ["9988", "56"]],"ts": 1590634672060667000}}`
+var publicFuturesExecutionDataJSON = `{"topic": "/contractMarket/execution:XBTUSDM","subject": "match","data": {"symbol": "XBTUSDM","sequence": 36,     "side": "buy","matchSize": 1,      "size": 1,"price": 3200.00,"takerOrderId": "5c9dd00870744d71c43f5e25","time": 1553846281766256031,"makerOrderId": "5c9d852070744d0976909a0c","tradeId": "5c9dd00970744d6f5a3d32fc"      }}`
+var publicFuturesOrderbookWithDepth5PushDataJSON = `{"type": "message","topic": "/contractMarket/level2Depth5:XBTUSDM","subject": "level2","data": {"sequence": 1668672185642,"asks": [[17222.00000000,10802],[17223,5691],[17224,8153],[17225,5051],[17226,20000]],"bids": [[17221.00000000,4690],[17220,3766],[17219.00000000,4857],[17218,750],[17217.00000000,2100]],    "ts": 1670571892868,    "timestamp": 1670571892868    }}`
 
 func TestPublicFuturesExecutionData(t *testing.T) {
 	t.Parallel()
@@ -2080,6 +2086,13 @@ var futuresMarkIndexPricePushDataJSON = `{ "topic": "/contract/instrument:XBTUSD
 func TestFuturesMarkIndexPricePushData(t *testing.T) {
 	t.Parallel()
 	if err := ku.wsHandleData([]byte(futuresMarkIndexPricePushDataJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGenerateDefaultSubscriptions(t *testing.T) {
+	t.Parallel()
+	if _, err := ku.GenerateDefaultSubscriptions(); err != nil {
 		t.Error(err)
 	}
 }

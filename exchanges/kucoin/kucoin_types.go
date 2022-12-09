@@ -819,28 +819,31 @@ type WsTicker struct {
 
 // WsTickerDetail represents a ticker snapshot data from server.
 type WsTickerDetail struct {
-	Sequence string `json:"sequence"`
-	Data     []struct {
-		Trading         bool    `json:"trading"`
-		Symbol          string  `json:"symbol"`
-		Buy             float64 `json:"buy"`
-		Sell            float64 `json:"sell"`
-		Sort            int     `json:"sort"`
-		VolValue        float64 `json:"volValue"`
-		BaseCurrency    string  `json:"baseCurrency"`
-		Market          string  `json:"market"`
-		QuoteCurrency   string  `json:"quoteCurrency"`
-		SymbolCode      string  `json:"symbolCode"`
-		Datetime        int64   `json:"datetime"`
-		High            float64 `json:"high"`
-		Vol             float64 `json:"vol"`
-		Low             float64 `json:"low"`
-		ChangePrice     float64 `json:"changePrice"`
-		ChangeRate      float64 `json:"changeRate"`
-		LastTradedPrice float64 `json:"lastTradedPrice"`
-		Board           int     `json:"board"`
-		Mark            int     `json:"mark"`
-	} `json:"data"`
+	Sequence string         `json:"sequence"`
+	Data     []WsSpotTicker `json:"data"`
+}
+
+// WsSpotTicker represents a spot ticker push data.
+type WsSpotTicker struct {
+	Trading         bool    `json:"trading"`
+	Symbol          string  `json:"symbol"`
+	Buy             float64 `json:"buy"`
+	Sell            float64 `json:"sell"`
+	Sort            int64   `json:"sort"`
+	VolValue        float64 `json:"volValue"`
+	BaseCurrency    string  `json:"baseCurrency"`
+	Market          string  `json:"market"`
+	QuoteCurrency   string  `json:"quoteCurrency"`
+	SymbolCode      string  `json:"symbolCode"`
+	Datetime        int64   `json:"datetime"`
+	High            float64 `json:"high"`
+	Vol             float64 `json:"vol"`
+	Low             float64 `json:"low"`
+	ChangePrice     float64 `json:"changePrice"`
+	ChangeRate      float64 `json:"changeRate"`
+	LastTradedPrice float64 `json:"lastTradedPrice"`
+	Board           float64 `json:"board"`
+	Mark            float64 `json:"mark"`
 }
 
 // WsOrderbook represents orderbook information.

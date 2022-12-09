@@ -1881,7 +1881,6 @@ func (ku *Kucoin) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path 
 	if err != nil {
 		return err
 	}
-
 	err = ku.SendPayload(ctx, f, func() (*request.Item, error) {
 		return &request.Item{
 			Method:        http.MethodGet,

@@ -2,7 +2,6 @@ package kucoin
 
 import (
 	"encoding/json"
-	"strconv"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -129,7 +128,7 @@ func (a *WsAccountBalance) UnmarshalJSON(data []byte) error {
 	type Alias WsAccountBalance
 	chil := &struct {
 		*Alias
-		Time int64 `json:"time"`
+		Time int64 `json:"time,string"`
 	}{
 		Alias: (*Alias)(a),
 	}
@@ -361,9 +360,9 @@ func (a *WsOrderbookLevel5) UnmarshalJSON(data []byte) error {
 	type Alias WsOrderbookLevel5
 	chil := &struct {
 		*Alias
-		Asks      [][2]string `json:"asks"`
-		Bids      [][2]string `json:"bids"`
-		Timestamp int64       `json:"ts"`
+		Asks      [][2]float64 `json:"asks"`
+		Bids      [][2]float64 `json:"bids"`
+		Timestamp int64        `json:"ts"`
 	}{
 		Alias: (*Alias)(a),
 	}
@@ -372,32 +371,16 @@ func (a *WsOrderbookLevel5) UnmarshalJSON(data []byte) error {
 	}
 	a.Asks = make([]orderbook.Item, len(chil.Asks))
 	for x := range chil.Asks {
-		price, err := strconv.ParseFloat(chil.Asks[x][0], 64)
-		if err != nil {
-			return err
-		}
-		amount, err := strconv.ParseFloat(chil.Asks[x][1], 64)
-		if err != nil {
-			return err
-		}
 		a.Asks[x] = orderbook.Item{
-			Price:  price,
-			Amount: amount,
+			Price:  chil.Asks[x][0],
+			Amount: chil.Asks[x][1],
 		}
 	}
 	a.Bids = make([]orderbook.Item, len(chil.Bids))
 	for x := range chil.Bids {
-		price, err := strconv.ParseFloat(chil.Bids[x][0], 64)
-		if err != nil {
-			return err
-		}
-		amount, err := strconv.ParseFloat(chil.Bids[x][1], 64)
-		if err != nil {
-			return err
-		}
 		a.Bids[x] = orderbook.Item{
-			Price:  price,
-			Amount: amount,
+			Price:  chil.Bids[x][0],
+			Amount: chil.Bids[x][1],
 		}
 	}
 	a.Timestamp = time.UnixMicro(int64(chil.Timestamp / 1e3))

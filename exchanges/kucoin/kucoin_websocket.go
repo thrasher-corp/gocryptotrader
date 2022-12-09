@@ -201,7 +201,7 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		return ku.processTicker(resp.Data, instruments)
 	case strings.HasPrefix(marketTickerSnapshotChannel, topicInfo[0]) ||
 		strings.HasPrefix(marketTickerSnapshotForCurrencyChannel, topicInfo[0]):
-		return ku.processMarketSnapshot(resp.Data)
+		return ku.processMarketSnapshot(resp.Data, topicInfo[1])
 	case strings.HasPrefix(marketOrderbookLevel2Channels, topicInfo[0]),
 		strings.HasPrefix(marketOrderbookLevel2to5Channel, topicInfo[0]),
 		strings.HasPrefix(marketOrderbokLevel2To50Channel, topicInfo[0]):
@@ -587,9 +587,8 @@ func (ku *Kucoin) processOrderChangeEvent(respData []byte) error {
 		return err
 	}
 	ku.Websocket.DataHandler <- &order.Detail{
-		Price:  response.Price,
-		Amount: response.Size,
-		// AverageExecutedPrice: response.,
+		Price:           response.Price,
+		Amount:          response.Size,
 		ExecutedAmount:  response.FilledSize,
 		RemainingAmount: response.RemainSize,
 		Exchange:        ku.Name,
@@ -753,33 +752,27 @@ func (ku *Kucoin) processOrderbook(respData []byte, subject, instrument string) 
 	return ku.Websocket.Orderbook.LoadSnapshot(&base)
 }
 
-func (ku *Kucoin) processMarketSnapshot(respData []byte) error {
-	response := WsTickerDetail{}
-	err := json.Unmarshal(respData, &response)
+func (ku *Kucoin) processMarketSnapshot(respData []byte, instrument string) error {
+	response := WsSpotTicker{}
+	err := json.Unmarshal(respData, &(response))
 	if err != nil {
 		return err
 	}
-	tickers := make([]ticker.Price, len(response.Data))
-	for x := range response.Data {
-		pair, err := currency.NewPairFromString(response.Data[x].Symbol)
-		if err != nil {
-			return err
-		}
-		tickers[x] = ticker.Price{
-			ExchangeName: ku.Name,
-			AssetType:    asset.Spot,
-			Last:         response.Data[x].LastTradedPrice,
-			Pair:         pair,
-			// Open: response.Data.,
-			// Close: response.Data.Close,
-			Low:         response.Data[x].Low,
-			High:        response.Data[x].High,
-			QuoteVolume: response.Data[x].VolValue,
-			Volume:      response.Data[x].Vol,
-			LastUpdated: time.UnixMilli(response.Data[x].Datetime),
-		}
+	pair, err := currency.NewPairFromString(instrument)
+	if err != nil {
+		return err
 	}
-	ku.Websocket.DataHandler <- tickers
+	ku.Websocket.DataHandler <- &ticker.Price{
+		ExchangeName: ku.Name,
+		AssetType:    asset.Spot,
+		Last:         response.LastTradedPrice,
+		Pair:         pair,
+		Low:          response.Low,
+		High:         response.High,
+		QuoteVolume:  response.VolValue,
+		Volume:       response.Vol,
+		LastUpdated:  time.UnixMilli(response.Datetime),
+	}
 	return nil
 }
 

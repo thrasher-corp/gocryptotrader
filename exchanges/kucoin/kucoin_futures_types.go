@@ -382,3 +382,9 @@ type Transfer struct {
 	TransferBase
 	Offset int64 `json:"offset"`
 }
+
+// FuturesServiceStatus represents service status.
+type FuturesServiceStatus struct {
+	Status  string `json:"status"`
+	Message string `json:"msg"`
+}

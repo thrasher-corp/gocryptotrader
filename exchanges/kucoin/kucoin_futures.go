@@ -323,15 +323,12 @@ func (k *Kucoin) GetFuturesServerTime(ctx context.Context, symbol string) (time.
 }
 
 // GetFuturesServiceStatus get service status
-func (k *Kucoin) GetFuturesServiceStatus(ctx context.Context, symbol string) (string, string, error) {
+func (k *Kucoin) GetFuturesServiceStatus(ctx context.Context, symbol string) (*FuturesServiceStatus, error) {
 	resp := struct {
-		Data struct {
-			Status  string `json:"status"`
-			Message string `json:"msg"`
-		} `json:"data"`
+		Data FuturesServiceStatus `json:"data"`
 		Error
 	}{}
-	return resp.Data.Status, resp.Data.Message, k.SendHTTPRequest(ctx, exchange.RestFutures, kucoinFuturesServiceStatus, publicSpotRate, &resp)
+	return &resp.Data, k.SendHTTPRequest(ctx, exchange.RestFutures, kucoinFuturesServiceStatus, publicSpotRate, &resp)
 }
 
 // GetFuturesKline get contract's kline data
@@ -359,12 +356,10 @@ func (k *Kucoin) GetFuturesKline(ctx context.Context, granularity, symbol string
 	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(from.UnixMilli(), 10))
 	}
-
 	err := k.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues(kucoinFuturesKline, params), publicSpotRate, &resp)
 	if err != nil {
 		return nil, err
 	}
-
 	kline := make([]FuturesKline, len(resp.Data))
 	for i := range resp.Data {
 		kline[i] = FuturesKline{
