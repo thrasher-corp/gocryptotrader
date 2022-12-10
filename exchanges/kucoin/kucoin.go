@@ -1159,8 +1159,6 @@ func (ku *Kucoin) GetOrders(ctx context.Context, status, symbol, side, orderType
 	if err != nil {
 		return nil, err
 	}
-	values, _ := json.Marshal(resp)
-	println(string(values))
 	return resp.Data.Items, nil
 }
 

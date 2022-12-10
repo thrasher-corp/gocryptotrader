@@ -20,6 +20,8 @@ var (
 	errInvalidPrice            = errors.New("invalid price")
 	errInvalidSize             = errors.New("invalid size")
 	errMalformedData           = errors.New("malformed data")
+	errNoDepositAddress        = errors.New("no deposit address found")
+	errMultipleDepositAddress  = errors.New("multiple deposit addresses")
 )
 
 var offlineTradeFee = map[currency.Code]float64{

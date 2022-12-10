@@ -3005,6 +3005,8 @@ var (
 	APE              = NewCode("APE")
 	TEL              = NewCode("TEL")
 	XDC              = NewCode("XDC")
+	MHC              = NewCode("MHC")
+	OXEN             = NewCode("OXEN")
 
 	stables = Currencies{
 		USDT,

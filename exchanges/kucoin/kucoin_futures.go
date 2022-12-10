@@ -340,11 +340,12 @@ func (k *Kucoin) GetFuturesKline(ctx context.Context, granularity, symbol string
 
 	params := url.Values{}
 	if granularity == "" {
-		return nil, errors.New("granularity can't be empty")
+		return nil, errors.New("granularity can not be empty")
 	}
 	if !common.StringDataContains(validGranularity, granularity) {
 		return nil, errors.New("invalid granularity")
 	}
+	// The granularity (granularity parameter of K-line) represents the number of minutes, the available granularity scope is: 1,5,15,30,60,120,240,480,720,1440,10080. Requests beyond the above range will be rejected.
 	params.Set("granularity", granularity)
 	if symbol == "" {
 		return nil, errors.New("symbol can't be empty")
@@ -354,7 +355,7 @@ func (k *Kucoin) GetFuturesKline(ctx context.Context, granularity, symbol string
 		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
 	}
 	if !to.IsZero() {
-		params.Set("to", strconv.FormatInt(from.UnixMilli(), 10))
+		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
 	}
 	err := k.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues(kucoinFuturesKline, params), publicSpotRate, &resp)
 	if err != nil {

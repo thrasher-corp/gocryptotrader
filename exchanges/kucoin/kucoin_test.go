@@ -3,6 +3,7 @@ package kucoin
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"os"
 	"strings"
@@ -10,13 +11,16 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -43,18 +47,20 @@ func TestMain(m *testing.M) {
 	}
 
 	exchCfg.API.AuthenticatedSupport = true
-	exchCfg.API.AuthenticatedWebsocketSupport = true
+	exchCfg.API.AuthenticatedWebsocketSupport = false
+
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
 	exchCfg.API.Credentials.OTPSecret = passPhrase
+
 	ku.SetDefaults()
 	ku.Websocket = sharedtestvalues.NewTestWebsocket()
 	ku.Websocket.Orderbook = buffer.Orderbook{}
-	// ku.Websocket.Orderbook.Setup(exchCfg)
 	err = ku.Setup(exchCfg)
 	if err != nil {
 		log.Fatal(err)
 	}
+	request.MaxRequestJobs = 100
 	ku.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	ku.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
@@ -1145,7 +1151,7 @@ func TestGetFuturesOrderbook(t *testing.T) {
 	if err != nil {
 		t.Skip(err)
 	}
-	_, err = ku.GetFuturesOrderbook(context.Background(), pairs[0])
+	_, err = ku.GetFuturesOrderbook(context.Background(), pairs[0].String())
 	if err != nil {
 		t.Error("GetFuturesOrderbook() error", err)
 	}
@@ -1196,7 +1202,7 @@ func TestGetFuturesIndexList(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = ku.GetFuturesIndexList(context.Background(), pairs[0], time.Time{}, time.Time{}, false, false, 0, 10)
+	_, err = ku.GetFuturesIndexList(context.Background(), pairs[0].String(), time.Time{}, time.Time{}, false, false, 0, 10)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1304,9 +1310,12 @@ func TestGetFuturesOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := ku.GetFuturesOrders(context.Background(), "", "", "", "", time.Time{}, time.Time{})
+	results, err := ku.GetFuturesOrders(context.Background(), "", "", "", "", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error("GetFuturesOrders() error", err)
+	} else {
+		values, _ := json.Marshal(results)
+		println(string(values))
 	}
 }
 
@@ -1631,18 +1640,11 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	pairs, err := ku.FetchTradablePairs(context.Background(), asset.Futures)
+	enabledPairs, err := ku.GetEnabledPairs(asset.Futures)
 	if err != nil {
-		t.Skip(err)
+		t.Fatal(err)
 	}
-	if len(pairs) == 0 {
-		t.Skip("no tradable pair found")
-	}
-	cp, err := currency.NewPairFromString(pairs[0])
-	if err != nil {
-		t.Skip(err)
-	}
-	if _, err := ku.UpdateOrderbook(context.Background(), cp, asset.Spot); err != nil {
+	if _, err := ku.UpdateOrderbook(context.Background(), enabledPairs[0], asset.Futures); err != nil {
 		t.Error(err)
 	}
 }
@@ -1653,89 +1655,183 @@ func TestUpdateTickers(t *testing.T) {
 		t.Fatal(err)
 	}
 }
-
-func TestGetHistoricCandles(t *testing.T) {
-	pairs, err := ku.FetchTradablePairs(context.Background(), asset.Empty)
+func TestUpdateTicker(t *testing.T) {
+	t.Parallel()
+	enabledPair, err := ku.GetEnabledPairs(asset.Spot)
 	if err != nil {
-		t.Skip(err)
+		t.Error(err)
 	}
-	currencyPair, err := currency.NewPairFromString(pairs[0])
+	ticker, err := ku.UpdateTicker(context.Background(), enabledPair[0], asset.Spot)
 	if err != nil {
 		t.Fatal(err)
+	} else {
+		values, _ := json.Marshal(ticker)
+		println(string(values))
+	}
+}
+
+func TestFetchTicker(t *testing.T) {
+	t.Parallel()
+	enabledPair, err := ku.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	if _, err := ku.FetchTicker(context.Background(), enabledPair[0], asset.Spot); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFetchOrderbook(t *testing.T) {
+	t.Parallel()
+	enabledPair, err := ku.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	if _, err := ku.FetchOrderbook(context.Background(), enabledPair[0], asset.Spot); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	enabledPairs, err := ku.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		t.Error(err)
 	}
 	startTime := time.Now().Add(-time.Hour * 4)
 	endTime := time.Now().Add(-time.Hour * 3)
-	_, err = ku.GetHistoricCandles(context.Background(), currencyPair, asset.Spot, startTime, endTime, kline.OneHour)
+	_, err = ku.GetHistoricCandles(context.Background(), enabledPairs[0], asset.Futures, startTime, endTime, kline.OneHour)
 	if err != nil {
 		t.Fatal(err)
 	}
-	candle, err := ku.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin*1337)
-	if err == nil {
+	enabledPairs, err = ku.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = ku.GetHistoricCandles(context.Background(), enabledPairs[len(enabledPairs)-1], asset.Spot, startTime, time.Now(), kline.OneHour)
+	if err != nil {
 		t.Fatal(err)
-	} else {
-		println(len(candle.Candles))
 	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	pairs, err := ku.FetchTradablePairs(context.Background(), asset.Empty)
-	if err != nil {
-		t.Skip(err)
-	}
-	currencyPair, err := currency.NewPairFromString(pairs[0])
+	enabledPairs, err := ku.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
-	startTime := time.Now().Add(-time.Hour * 3)
+	startTime := time.Now().Add(-time.Hour * 5)
 	endTime := time.Now().Add(-time.Hour * 2)
-	_, err = ku.GetHistoricCandlesExtended(context.Background(),
-		currencyPair, asset.Spot, startTime, endTime, kline.OneHour)
+	_, err = ku.GetHistoricCandlesExtended(context.Background(), enabledPairs[0], asset.Spot, startTime, endTime, kline.OneHour)
 	if err != nil {
 		t.Fatal(err)
 	}
-	results, err := ku.GetHistoricCandlesExtended(context.Background(),
-		currencyPair, asset.Spot, startTime, endTime, kline.FiveMin)
+	_, err = ku.GetHistoricCandlesExtended(context.Background(), enabledPairs[0], asset.Spot, startTime, endTime, kline.FiveMin)
 	if err != nil {
-		println(len(results.Candles))
+		t.Error(err)
+	}
+	enabledPairs, err = ku.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = ku.GetHistoricCandlesExtended(context.Background(), enabledPairs[0], asset.Futures, startTime, endTime, kline.OneHour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = ku.GetHistoricCandlesExtended(context.Background(), enabledPairs[0], asset.Futures, startTime, endTime, kline.FiveMin)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	pairs, err := ku.FetchTradablePairs(context.Background(), asset.Futures)
+	enabledPairs, err := ku.GetEnabledPairs(asset.Futures)
 	if err != nil {
 		t.Fatal(err)
 	}
-	pair, err := currency.NewPairFromString(pairs[0])
-	if err != nil {
-		t.Skip(err)
-	}
-	results, err := ku.GetRecentTrades(context.Background(), pair, asset.Futures)
+	_, err = ku.GetRecentTrades(context.Background(), enabledPairs[0], asset.Futures)
 	if err != nil {
 		t.Error(err)
-	} else {
-		values, _ := json.Marshal(results)
-		println(string(values))
+	}
+	enabledPairs, err = ku.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = ku.GetRecentTrades(context.Background(), enabledPairs[0], asset.Spot)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	var getOrdersRequest = order.GetOrdersRequest{
-		Type: order.Limit,
-		Pairs: []currency.Pair{
-			currency.NewPair(
-				currency.LTC,
-				currency.BTC)},
+		Type:      order.Limit,
+		Pairs:     []currency.Pair{currency.NewPair(currency.LTC, currency.BTC), currency.NewPair(currency.MHC, currency.ETH), currency.NewPair(currency.MHC, currency.BTC), currency.NewPair(currency.OXEN, currency.BTC)},
 		AssetType: asset.Spot,
 		Side:      order.Sell,
 	}
 	_, err := ku.GetOrderHistory(context.Background(), &getOrdersRequest)
-	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Could not get order history: %s", err)
-	} else if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetActiveOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	enabledPairs, err := ku.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var getOrdersRequest = order.GetOrdersRequest{
+		Type:      order.Limit,
+		Pairs:     enabledPairs,
+		AssetType: asset.Spot,
+		Side:      order.Buy,
+	}
+	if _, err := ku.GetActiveOrders(context.Background(), &getOrdersRequest); err != nil {
+		t.Error("Kucoin GetActiveOrders() error", err)
+	}
+	getOrdersRequest.Pairs = []currency.Pair{}
+	if orders, err := ku.GetActiveOrders(context.Background(), &getOrdersRequest); err != nil {
+		t.Error("Kucoin GetActiveOrders() error", err)
+	} else {
+		values, _ := json.Marshal(orders)
+		println(string(values))
+	}
+}
+
+func TestGetFeeByType(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if results, err := ku.GetFeeByType(context.Background(), &exchange.FeeBuilder{
+		Amount:              1,
+		FeeType:             exchange.CryptocurrencyTradeFee,
+		Pair:                currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), currency.DashDelimiter),
+		PurchasePrice:       1,
+		FiatCurrency:        currency.USD,
+		BankTransactionType: exchange.WireTransfer,
+	}); err != nil {
+		t.Errorf("%s GetFeeByType() error %v", ku.Name, err)
+	} else {
+		println(results)
+	}
+}
+
+func TestValidateCredentials(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if err := ku.ValidateCredentials(context.Background(), asset.Spot); err != nil {
+		t.Errorf("%s ValidateCredentials() error %v", ku.Name, err)
 	}
 }
 
@@ -2094,5 +2190,71 @@ func TestGenerateDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
 	if _, err := ku.GenerateDefaultSubscriptions(); err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetAvailableTransferChains(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := ku.GetAvailableTransferChains(context.Background(), currency.BTC); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWithdrawalsHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := ku.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot); err != nil {
+		t.Errorf("%s GetWithdrawalsHistory() error %v", ku.Name, err)
+	}
+}
+
+func TestGetOrderInfo(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("Kucoin GetOrderInfo() skipping test: api keys not set")
+	}
+	enabled, err := ku.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Error("couldn't find enabled tradable pairs")
+	}
+	if len(enabled) == 0 {
+		t.SkipNow()
+	}
+	_, err = ku.GetOrderInfo(context.Background(), "123", enabled[0], asset.Spot)
+	if err != nil && !strings.Contains(err.Error(), "order not exist.") {
+		t.Errorf("Kucoin GetOrderInfo() expecting %s, but found %v", "Order does not exist", err)
+	}
+}
+
+func TestGetDepositAddress(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := ku.GetDepositAddress(context.Background(), currency.BTC, "", ""); err != nil && errors.Is(err, errNoDepositAddress) {
+		t.Error("Okx GetDepositAddress() error", err)
+	}
+}
+
+func TestWithdrawCryptocurrencyFunds(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	withdrawCryptoRequest := withdraw.Request{
+		Exchange: ku.Name,
+		Amount:   0.00000000001,
+		Currency: currency.BTC,
+		Crypto: withdraw.CryptoRequest{
+			Address: core.BitcoinDonationAddress,
+		},
+	}
+	if _, err := ku.WithdrawCryptocurrencyFunds(context.Background(), &withdrawCryptoRequest); err != nil {
+		t.Error("Okx WithdrawCryptoCurrencyFunds() error", err)
 	}
 }
