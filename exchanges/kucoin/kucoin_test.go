@@ -1776,7 +1776,7 @@ func TestGetActiveOrders(t *testing.T) {
 		AssetType: asset.Spot,
 		Side:      order.Buy,
 	}
-	if _, err := ku.GetActiveOrders(context.Background(), &getOrdersRequest); err != nil {
+	if _, err = ku.GetActiveOrders(context.Background(), &getOrdersRequest); err != nil {
 		t.Error("Kucoin GetActiveOrders() error", err)
 	}
 	getOrdersRequest.Pairs = []currency.Pair{}

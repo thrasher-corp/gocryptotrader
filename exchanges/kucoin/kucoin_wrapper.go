@@ -525,7 +525,7 @@ func (ku *Kucoin) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a 
 		}
 		return resp, nil
 	case asset.Futures:
-		var futuresWithdrawals []WithdrawalHistory
+		var futuresWithdrawals []FuturesWithdrawalHistory
 		futuresWithdrawals, err = ku.GetFuturesWithdrawalList(ctx, c.String(), "", time.Time{}, time.Time{})
 		if err != nil {
 			return nil, err
@@ -818,7 +818,7 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (ku *Kucoin) GetDepositAddress(ctx context.Context, c currency.Code, accountID string, chain string) (*deposit.Address, error) {
+func (ku *Kucoin) GetDepositAddress(ctx context.Context, c currency.Code, accountID, chain string) (*deposit.Address, error) {
 	ad, err := ku.GetDepositAddressV2(ctx, c.Upper().String())
 	if err != nil {
 		fad, err := ku.GetFuturesDepositAddress(ctx, c.String())

@@ -148,6 +148,7 @@ type FuturesKline struct {
 	Volume    float64
 }
 
+// FuturesOrder represents futures order information
 type FuturesOrder struct {
 	ID             string             `json:"id"`
 	Symbol         string             `json:"symbol"`
@@ -187,6 +188,7 @@ type FuturesOrder struct {
 	ReduceOnly     bool               `json:"reduceOnly"`
 }
 
+// FuturesFill represents list of recent fills for futures orders.
 type FuturesFill struct {
 	Symbol         string             `json:"symbol"`
 	TradeID        string             `json:"tradeId"`
@@ -209,7 +211,8 @@ type FuturesFill struct {
 	TradeTime      kucoinTimeNanoSec  `json:"tradeTime"`
 }
 
-type OpenOrderStats struct {
+// FuturesOpenOrderStats represents futures open order summary stats information.
+type FuturesOpenOrderStats struct {
 	OpenOrderBuySize  int64   `json:"openOrderBuySize"`
 	OpenOrderSellSize int64   `json:"openOrderSellSize"`
 	OpenOrderBuyCost  float64 `json:"openOrderBuyCost,string"`
@@ -217,7 +220,8 @@ type OpenOrderStats struct {
 	SettleCurrency    string  `json:"settleCurrency"`
 }
 
-type Position struct {
+// FuturesPosition represents futures position detailed information.
+type FuturesPosition struct {
 	ID                   string             `json:"id"`
 	Symbol               string             `json:"symbol"`
 	AutoDeposit          bool               `json:"autoDeposit"`
@@ -229,21 +233,21 @@ type Position struct {
 	OpeningTimestamp     kucoinTimeMilliSec `json:"openingTimestamp"`
 	CurrentTimestamp     kucoinTimeMilliSec `json:"currentTimestamp"`
 	CurrentQty           int64              `json:"currentQty"`
-	CurrentCost          float64            `json:"currentCost"` //Current postion value
-	CurrentComm          float64            `json:"currentComm"` //Current commission
+	CurrentCost          float64            `json:"currentCost"` // Current position value
+	CurrentComm          float64            `json:"currentComm"` // Current commission
 	UnrealisedCost       float64            `json:"unrealisedCost"`
 	RealisedGrossCost    float64            `json:"realisedGrossCost"`
 	RealisedCost         float64            `json:"realisedCost"`
 	IsOpen               bool               `json:"isOpen"`
 	MarkPrice            float64            `json:"markPrice"`
 	MarkValue            float64            `json:"markValue"`
-	PosCost              float64            `json:"posCost"`   //Position value
-	PosCross             float64            `json:"posCross"`  //Added margin
-	PosInit              float64            `json:"posInit"`   //Leverage margin
-	PosComm              float64            `json:"posComm"`   //Bankruptcy cost
-	PosLoss              float64            `json:"posLoss"`   //Funding fees paid out
-	PosMargin            float64            `json:"posMargin"` //Position margin
-	PosMaint             float64            `json:"posMaint"`  //Maintenance margin
+	PosCost              float64            `json:"posCost"`   // Position value
+	PosCross             float64            `json:"posCross"`  // Added margin
+	PosInit              float64            `json:"posInit"`   // Leverage margin
+	PosComm              float64            `json:"posComm"`   // Bankruptcy cost
+	PosLoss              float64            `json:"posLoss"`   // Funding fees paid out
+	PosMargin            float64            `json:"posMargin"` // Position margin
+	PosMaint             float64            `json:"posMaint"`  // Maintenance margin
 	MaintMargin          float64            `json:"maintMargin"`
 	RealisedGrossPnl     float64            `json:"realisedGrossPnl"`
 	RealisedPnl          float64            `json:"realisedPnl"`
@@ -258,7 +262,8 @@ type Position struct {
 	RiskLimitLevel       int64              `json:"riskLimitLevel"`
 }
 
-type RiskLimitLevel struct {
+// FuturesRiskLimitLevel represents futures risk limit level information.
+type FuturesRiskLimitLevel struct {
 	Symbol         string  `json:"symbol"`
 	Level          int64   `json:"level"`
 	MaxRiskLimit   int64   `json:"maxRiskLimit"`
@@ -268,7 +273,8 @@ type RiskLimitLevel struct {
 	MaintainMargin float64 `json:"maintainMargin"`
 }
 
-type FundingHistory struct {
+// FuturesFundingHistory represents futures funding information.
+type FuturesFundingHistory struct {
 	ID             string             `json:"id"`
 	Symbol         string             `json:"symbol"`
 	Time           kucoinTimeMilliSec `json:"timePoint"`
@@ -280,7 +286,8 @@ type FundingHistory struct {
 	SettleCurrency string             `json:"settleCurrency"`
 }
 
-type Account struct {
+// FuturesAccount holds futures account detail information.
+type FuturesAccount struct {
 	AccountEquity    float64 `json:"accountEquity"` // marginBalance + Unrealised PNL
 	UnrealisedPNL    float64 `json:"unrealisedPNL"` // unrealised profit and loss
 	MarginBalance    float64 `json:"marginBalance"` // positionMargin + orderMargin + frozenFunds + availableBalance - unrealisedPNL
@@ -291,7 +298,8 @@ type Account struct {
 	Currency         string  `json:"currency"`
 }
 
-type TransactionHistory struct {
+// FuturesTransactionHistory represents a transaction history
+type FuturesTransactionHistory struct {
 	Time          kucoinTimeMilliSec `json:"time"`
 	Type          string             `json:"type"`
 	Amount        float64            `json:"amount"`
@@ -303,6 +311,7 @@ type TransactionHistory struct {
 	Currency      string             `json:"currency"`
 }
 
+// APIKeyDetail represents the API key detail
 type APIKeyDetail struct {
 	SubName     string             `json:"subName"`
 	Remark      string             `json:"remark"`
@@ -314,7 +323,8 @@ type APIKeyDetail struct {
 	CreateAt    kucoinTimeMilliSec `json:"createdAt"`
 }
 
-type DepositDetail struct {
+// FuturesDepositDetail represents futures deposit detail information.
+type FuturesDepositDetail struct {
 	Currency   string             `json:"currency"`
 	Status     string             `json:"status"`
 	Address    string             `json:"address"`
@@ -325,7 +335,8 @@ type DepositDetail struct {
 	CreatedAt  kucoinTimeMilliSec `json:"createdAt"`
 }
 
-type WithdrawalLimit struct {
+// FuturesWithdrawalLimit represents withdrawal limit information.
+type FuturesWithdrawalLimit struct {
 	Currency            string  `json:"currency"`
 	ChainID             string  `json:"chainId"`
 	LimitAmount         float64 `json:"limitAmount"`
@@ -339,7 +350,8 @@ type WithdrawalLimit struct {
 	Precision           float64 `json:"precision"`
 }
 
-type WithdrawalHistory struct {
+// FuturesWithdrawalHistory represents a list of Futures withdrawal history.
+type FuturesWithdrawalHistory struct {
 	WithdrawalID string             `json:"withdrawalId"`
 	Currency     string             `json:"currency"`
 	Status       string             `json:"status"`
@@ -354,6 +366,7 @@ type WithdrawalHistory struct {
 	Reason       string             `json:"reason"`
 }
 
+// TransferBase represents transfer base information.
 type TransferBase struct {
 	ApplyID   string             `json:"applyId"`
 	Currency  string             `json:"currency"`
@@ -379,6 +392,7 @@ type TransferRes struct {
 	UpdatedAt      kucoinTimeMilliSec `json:"updatedAt"`
 }
 
+// Transfer represents a transfer detail.
 type Transfer struct {
 	TransferBase
 	Offset int64 `json:"offset"`

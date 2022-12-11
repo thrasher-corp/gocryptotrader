@@ -120,10 +120,13 @@ func (ku *Kucoin) WsConnect() error {
 	}
 	ku.Websocket.Wg.Add(1)
 	go ku.wsReadData()
-	pingMessage, _ := json.Marshal(&WSConnMessages{
+	pingMessage, err := json.Marshal(&WSConnMessages{
 		ID:   strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10),
 		Type: channelPing,
 	})
+	if err != nil {
+		return err
+	}
 	ku.Websocket.Conn.SetupPingHandler(stream.PingHandler{
 		Delay:       time.Millisecond * time.Duration(instances.InstanceServers[0].PingTimeout),
 		Message:     pingMessage,
@@ -138,7 +141,7 @@ func (ku *Kucoin) GetInstanceServers(ctx context.Context) (*WSInstanceServers, e
 		Data WSInstanceServers `json:"data"`
 		Error
 	}{}
-	return &(response.Data), ku.SendPayload(ctx, publicSpotRate, func() (*request.Item, error) {
+	return &(response.Data), ku.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		endpointPath, err := ku.API.Endpoints.GetURL(exchange.RestSpot)
 		if err != nil {
 			return nil, err
@@ -160,7 +163,7 @@ func (ku *Kucoin) GetAuthenticatedInstanceServers(ctx context.Context) (*WSInsta
 		Data WSInstanceServers `json:"data"`
 		Error
 	}{}
-	return &response.Data, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, privateBullets, nil, publicSpotRate, &response)
+	return &response.Data, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, privateBullets, nil, &response)
 }
 
 // wsReadData receives and passes on websocket messages for processing
@@ -809,12 +812,13 @@ func (ku *Kucoin) handleSubscriptions(payloads []WsSubscriptionInput) error {
 			return err
 		}
 		if resp.Type != "ack" {
-			return fmt.Errorf("subscription to %s with unique ID %s was not succesful", payloads[x].Topic, payloads[x].ID)
+			return fmt.Errorf("subscription to %s with unique ID %s was not successful", payloads[x].Topic, payloads[x].ID)
 		}
 	}
 	return nil
 }
 
+// GenerateDefaultSubscriptions Adds default subscriptions to websocket.
 func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	channels := defaultSubscriptionChannels
 	subscriptions := []stream.ChannelSubscription{}

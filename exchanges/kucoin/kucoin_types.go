@@ -508,6 +508,7 @@ type MarginTradeData struct {
 	Timestamp    kucoinTimeNanoSec `json:"timestamp"`
 }
 
+// IsolatedMarginPairConfig current isolated margin trading pair configuration
 type IsolatedMarginPairConfig struct {
 	Symbol                string  `json:"symbol"`
 	SymbolName            string  `json:"symbolName"`
@@ -533,6 +534,7 @@ type baseAsset struct {
 	BorrowableAmount float64 `json:"borrowableAmount,string"`
 }
 
+// AssetInfo holds asset information for an instrument.
 type AssetInfo struct {
 	Symbol     string    `json:"symbol"`
 	Status     string    `json:"status"`
@@ -541,6 +543,7 @@ type AssetInfo struct {
 	QuoteAsset baseAsset `json:"quoteAsset"`
 }
 
+// IsolatedMarginAccountInfo holds isolated margin accounts of the current user
 type IsolatedMarginAccountInfo struct {
 	TotalConversionBalance     float64     `json:"totalConversionBalance,string"`
 	LiabilityConversionBalance float64     `json:"liabilityConversionBalance,string"`
@@ -559,23 +562,27 @@ type baseRepaymentRecord struct {
 	DailyInterestRate float64 `json:"dailyInterestRate,string"`
 }
 
+// OutstandingRepaymentRecord represents outstanding repayment records of isolated margin positions
 type OutstandingRepaymentRecord struct {
 	baseRepaymentRecord
 	LiabilityBalance float64 `json:"liabilityBalance,string"`
 	MaturityTime     int64   `json:"maturityTime"`
 }
 
+// CompletedRepaymentRecord represents repayment records of isolated margin positions
 type CompletedRepaymentRecord struct {
 	baseRepaymentRecord
 	RepayFinishAt int64 `json:"repayFinishAt"`
 }
 
+// PostMarginOrderResp represents response data for placing margin orders
 type PostMarginOrderResp struct {
 	OrderID     string  `json:"orderId"`
 	BorrowSize  float64 `json:"borrowSize"`
 	LoanApplyID string  `json:"loanApplyId"`
 }
 
+// OrderRequest represents place order request parameters
 type OrderRequest struct {
 	ClientOID   string  `json:"clientOid"`
 	Symbol      string  `json:"symbol"`
@@ -595,6 +602,7 @@ type OrderRequest struct {
 	VisibleSize string  `json:"visibleSize,omitempty"` // optional
 }
 
+// PostBulkOrderResp response data for submitting a bulk order
 type PostBulkOrderResp struct {
 	OrderRequest
 	Channel string `json:"channel"`
@@ -603,6 +611,7 @@ type PostBulkOrderResp struct {
 	FailMsg string `json:"failMsg"`
 }
 
+// OrderDetail represents order detail
 type OrderDetail struct {
 	OrderRequest
 	Channel       string             `json:"channel"`
@@ -621,11 +630,12 @@ type OrderDetail struct {
 	TradeType     string             `json:"tradeType"`
 }
 
+// Fill represents order fills for margin and spot orders.
 type Fill struct {
 	Symbol         string             `json:"symbol"`
 	TradeID        string             `json:"tradeId"`
 	OrderID        string             `json:"orderId"`
-	CounterOrderId string             `json:"counterOrderId"`
+	CounterOrderID string             `json:"counterOrderId"`
 	Side           string             `json:"side"`
 	Liquidity      string             `json:"liquidity"`
 	ForceTaker     bool               `json:"forceTaker"`
@@ -641,6 +651,7 @@ type Fill struct {
 	TradeType      string             `json:"tradeType"`
 }
 
+// StopOrder holds a stop order detail
 type StopOrder struct {
 	OrderRequest
 	ID              string             `json:"id"`
@@ -649,7 +660,7 @@ type StopOrder struct {
 	Funds           float64            `json:"funds,string"`
 	Channel         string             `json:"channel"`
 	Tags            string             `json:"tags"`
-	DomainId        string             `json:"domainId"`
+	DomainID        string             `json:"domainId"`
 	TradeSource     string             `json:"tradeSource"`
 	TradeType       string             `json:"tradeType"`
 	FeeCurrency     string             `json:"feeCurrency"`
@@ -667,12 +678,14 @@ type baseAccount struct {
 	Holds     float64 `json:"holds,string"`
 }
 
+// AccountInfo represents account information
 type AccountInfo struct {
 	baseAccount
 	ID   string `json:"id"`
 	Type string `json:"type"`
 }
 
+// LedgerInfo represents account ledger information.
 type LedgerInfo struct {
 	ID          string             `json:"id"`
 	Currency    string             `json:"currency"`
@@ -686,6 +699,7 @@ type LedgerInfo struct {
 	Context     string             `json:"context"`
 }
 
+// MainAccountInfo represents main account detailed information.
 type MainAccountInfo struct {
 	baseAccount
 	BaseCurrency      string  `json:"baseCurrency"`
@@ -693,6 +707,7 @@ type MainAccountInfo struct {
 	BaseAmount        float64 `json:"baseAmount,string"`
 }
 
+// SubAccountInfo holds subaccount data for main, spot(trade), and margin accounts.
 type SubAccountInfo struct {
 	SubUserID      string            `json:"subUserId"`
 	SubName        string            `json:"subName"`
@@ -701,11 +716,13 @@ type SubAccountInfo struct {
 	MarginAccounts []MainAccountInfo `json:"marginAccounts"`
 }
 
+// TransferableBalanceInfo represents transferable balance information
 type TransferableBalanceInfo struct {
 	baseAccount
 	Transferable float64 `json:"transferable,string"`
 }
 
+// DepositAddress represents deposit address information for Spot and Marigin trading.
 type DepositAddress struct {
 	Address         string `json:"address"`
 	Memo            string `json:"memo"`
@@ -721,6 +738,7 @@ type baseDeposit struct {
 	Status     string  `json:"status"`
 }
 
+// Deposit represents deposit address and detail and timestamp information.
 type Deposit struct {
 	baseDeposit
 	Address   string  `json:"address"`
@@ -731,16 +749,19 @@ type Deposit struct {
 	UpdatedAt kucoinTimeMilliSec
 }
 
+// HistoricalDepositWithdrawal represents deposit and withdrawal funding information details.
 type HistoricalDepositWithdrawal struct {
 	baseDeposit
 	CreatedAt kucoinTimeMilliSec `json:"createAt"`
 }
 
+// Withdrawal represents withdrawal funding information.
 type Withdrawal struct {
 	Deposit
 	ID string `json:"id"`
 }
 
+// WithdrawalQuota represents withdrawal quota detail information.
 type WithdrawalQuota struct {
 	Currency            string  `json:"currency"`
 	LimitBTCAmount      float64 `json:"limitBTCAmount,string"`
@@ -755,13 +776,14 @@ type WithdrawalQuota struct {
 	Chain               string  `json:"chain"`
 }
 
+// Fees represents taker and maker fee information a symbol.
 type Fees struct {
 	Symbol       string  `json:"symbol"`
 	TakerFeeRate float64 `json:"takerFeeRate,string"`
 	MakerFeeRate float64 `json:"makerFeeRate,string"`
 }
 
-// WSInstanceServers response
+// WSInstanceServers response connection token and websocket instance server information.
 type WSInstanceServers struct {
 	Token           string           `json:"token"`
 	InstanceServers []InstanceServer `json:"instanceServers"`
@@ -1020,13 +1042,13 @@ type WsPositionStatus struct {
 // when the order enters the order book or when the order is executed.
 type WsMarginTradeOrderEntersEvent struct {
 	Currency     string    `json:"currency"`
-	OrderID      string    `json:"orderId"`      //Trade ID
-	DailyIntRate float64   `json:"dailyIntRate"` //Daily interest rate.
-	Term         int64     `json:"term"`         //Term (Unit: Day)
-	Size         float64   `json:"size"`         //Size
-	LentSize     float64   `json:"lentSize"`     //Size executed -- filled when the subject is order.update
-	Side         string    `json:"side"`         //Lend or borrow. Currently, only "Lend" is available
-	Timestamp    time.Time `json:"ts"`           //Timestamp (nanosecond)
+	OrderID      string    `json:"orderId"`      // Trade ID
+	DailyIntRate float64   `json:"dailyIntRate"` // Daily interest rate.
+	Term         int64     `json:"term"`         // Term (Unit: Day)
+	Size         float64   `json:"size"`         // Size
+	LentSize     float64   `json:"lentSize"`     // Size executed -- filled when the subject is order.update
+	Side         string    `json:"side"`         // Lend or borrow. Currently, only "Lend" is available
+	Timestamp    time.Time `json:"ts"`           // Timestamp (nanosecond)
 }
 
 // WsMarginTradeOrderDoneEvent represents a push message to the lenders when the order is completed.
@@ -1201,56 +1223,56 @@ type WsFuturesWithdrawalAmountAndTransferOutAmountEvent struct {
 
 // WsFuturesPosition represents futures account position change event.
 type WsFuturesPosition struct {
-	RealisedGrossPnl  float64   `json:"realisedGrossPnl"` //Accumulated realised profit and loss
+	RealisedGrossPnl  float64   `json:"realisedGrossPnl"` // Accumulated realised profit and loss
 	Symbol            string    `json:"symbol"`
-	CrossMode         bool      `json:"crossMode"`        //Cross mode or not
-	LiquidationPrice  float64   `json:"liquidationPrice"` //Liquidation price
-	PosLoss           float64   `json:"posLoss"`          //Manually added margin amount
-	AvgEntryPrice     float64   `json:"avgEntryPrice"`    //Average entry price
-	UnrealisedPnl     float64   `json:"unrealisedPnl"`    //Unrealised profit and loss
-	MarkPrice         float64   `json:"markPrice"`        //Mark price
-	PosMargin         float64   `json:"posMargin"`        //Position margin
-	AutoDeposit       bool      `json:"autoDeposit"`      //Auto deposit margin or not
+	CrossMode         bool      `json:"crossMode"`        // Cross mode or not
+	LiquidationPrice  float64   `json:"liquidationPrice"` // Liquidation price
+	PosLoss           float64   `json:"posLoss"`          // Manually added margin amount
+	AvgEntryPrice     float64   `json:"avgEntryPrice"`    // Average entry price
+	UnrealisedPnl     float64   `json:"unrealisedPnl"`    // Unrealised profit and loss
+	MarkPrice         float64   `json:"markPrice"`        // Mark price
+	PosMargin         float64   `json:"posMargin"`        // Position margin
+	AutoDeposit       bool      `json:"autoDeposit"`      // Auto deposit margin or not
 	RiskLimit         float64   `json:"riskLimit"`
-	UnrealisedCost    float64   `json:"unrealisedCost"`    //Unrealised value
-	PosComm           float64   `json:"posComm"`           //Bankruptcy cost
-	PosMaint          float64   `json:"posMaint"`          //Maintenance margin
-	PosCost           float64   `json:"posCost"`           //Position value
-	MaintMarginReq    float64   `json:"maintMarginReq"`    //Maintenance margin rate
-	BankruptPrice     float64   `json:"bankruptPrice"`     //Bankruptcy price
-	RealisedCost      float64   `json:"realisedCost"`      //Currently accumulated realised position value
-	MarkValue         float64   `json:"markValue"`         //Mark value
-	PosInit           float64   `json:"posInit"`           //Position margin
-	RealisedPnl       float64   `json:"realisedPnl"`       //Realised profit and losts
-	MaintMargin       float64   `json:"maintMargin"`       //Position margin
-	RealLeverage      float64   `json:"realLeverage"`      //Leverage of the order
-	ChangeReason      string    `json:"changeReason"`      //changeReason:marginChange、positionChange、liquidation、autoAppendMarginStatusChange、adl
-	CurrentCost       float64   `json:"currentCost"`       //Current position value
+	UnrealisedCost    float64   `json:"unrealisedCost"`    // Unrealised value
+	PosComm           float64   `json:"posComm"`           // Bankruptcy cost
+	PosMaint          float64   `json:"posMaint"`          // Maintenance margin
+	PosCost           float64   `json:"posCost"`           // Position value
+	MaintMarginReq    float64   `json:"maintMarginReq"`    // Maintenance margin rate
+	BankruptPrice     float64   `json:"bankruptPrice"`     // Bankruptcy price
+	RealisedCost      float64   `json:"realisedCost"`      // Currently accumulated realised position value
+	MarkValue         float64   `json:"markValue"`         // Mark value
+	PosInit           float64   `json:"posInit"`           // Position margin
+	RealisedPnl       float64   `json:"realisedPnl"`       // Realised profit and losts
+	MaintMargin       float64   `json:"maintMargin"`       // Position margin
+	RealLeverage      float64   `json:"realLeverage"`      // Leverage of the order
+	ChangeReason      string    `json:"changeReason"`      // changeReason:marginChange、positionChange、liquidation、autoAppendMarginStatusChange、adl
+	CurrentCost       float64   `json:"currentCost"`       // Current position value
 	OpeningTimestamp  time.Time `json:"openingTimestamp"`  // Open time
-	CurrentQty        float64   `json:"currentQty"`        //Current position
-	DelevPercentage   float64   `json:"delevPercentage"`   //ADL ranking percentile
-	CurrentComm       float64   `json:"currentComm"`       //Current commission
-	RealisedGrossCost float64   `json:"realisedGrossCost"` //Accumulated reliased gross profit value
-	IsOpen            bool      `json:"isOpen"`            //Opened position or not
-	PosCross          float64   `json:"posCross"`          //Manually added margin
-	CurrentTimestamp  time.Time `json:"currentTimestamp"`  //Current timestamp
-	UnrealisedRoePcnt float64   `json:"unrealisedRoePcnt"` //Rate of return on investment
-	UnrealisedPnlPcnt float64   `json:"unrealisedPnlPcnt"` //Position profit and loss ratio
-	SettleCurrency    string    `json:"settleCurrency"`    //Currency used to clear and settle the trades
+	CurrentQty        float64   `json:"currentQty"`        // Current position
+	DelevPercentage   float64   `json:"delevPercentage"`   // ADL ranking percentile
+	CurrentComm       float64   `json:"currentComm"`       // Current commission
+	RealisedGrossCost float64   `json:"realisedGrossCost"` // Accumulated realised gross profit value
+	IsOpen            bool      `json:"isOpen"`            // Opened position or not
+	PosCross          float64   `json:"posCross"`          // Manually added margin
+	CurrentTimestamp  time.Time `json:"currentTimestamp"`  // Current timestamp
+	UnrealisedRoePcnt float64   `json:"unrealisedRoePcnt"` // Rate of return on investment
+	UnrealisedPnlPcnt float64   `json:"unrealisedPnlPcnt"` // Position profit and loss ratio
+	SettleCurrency    string    `json:"settleCurrency"`    // Currency used to clear and settle the trades
 }
 
 // WsFuturesMarkPricePositionChanges represents futures account position change caused by mark price.
 type WsFuturesMarkPricePositionChanges struct {
-	MarkPrice         float64   `json:"markPrice"`         //Mark price
-	MarkValue         float64   `json:"markValue"`         //Mark value
-	MaintMargin       float64   `json:"maintMargin"`       //Position margin
-	RealLeverage      float64   `json:"realLeverage"`      //Leverage of the order
-	UnrealisedPnl     float64   `json:"unrealisedPnl"`     //Unrealised profit and lost
-	UnrealisedRoePcnt float64   `json:"unrealisedRoePcnt"` //Rate of return on investment
-	UnrealisedPnlPcnt float64   `json:"unrealisedPnlPcnt"` //Position profit and loss ratio
-	DelevPercentage   float64   `json:"delevPercentage"`   //ADL ranking percentile
-	CurrentTimestamp  time.Time `json:"currentTimestamp"`  //Current timestamp
-	SettleCurrency    string    `json:"settleCurrency"`    //Currency used to clear and settle the trades
+	MarkPrice         float64   `json:"markPrice"`         // Mark price
+	MarkValue         float64   `json:"markValue"`         // Mark value
+	MaintMargin       float64   `json:"maintMargin"`       // Position margin
+	RealLeverage      float64   `json:"realLeverage"`      // Leverage of the order
+	UnrealisedPnl     float64   `json:"unrealisedPnl"`     // Unrealised profit and lost
+	UnrealisedRoePcnt float64   `json:"unrealisedRoePcnt"` // Rate of return on investment
+	UnrealisedPnlPcnt float64   `json:"unrealisedPnlPcnt"` // Position profit and loss ratio
+	DelevPercentage   float64   `json:"delevPercentage"`   // ADL ranking percentile
+	CurrentTimestamp  time.Time `json:"currentTimestamp"`  // Current timestamp
+	SettleCurrency    string    `json:"settleCurrency"`    // Currency used to clear and settle the trades
 }
 
 // WsFuturesPositionFundingSettlement represents futures account position funding settlement push data.
