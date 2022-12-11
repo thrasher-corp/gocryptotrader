@@ -2,7 +2,6 @@ package kucoin
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log"
 	"os"
@@ -64,14 +63,6 @@ func TestMain(m *testing.M) {
 	ku.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	ku.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
-}
-
-// Ensures that this exchange package is compatible with IBotExchange
-func TestInterface(t *testing.T) {
-	var e exchange.IBotExchange
-	if e = new(Kucoin); e == nil {
-		t.Fatal("unable to allocate exchange")
-	}
 }
 
 func areTestAPIKeysSet() bool {
@@ -529,7 +520,7 @@ func TestInitiateIsolateMarginBorrowing(t *testing.T) {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
 
-	_, _, _, err := ku.InitiateIsolateMarginBorrowing(context.Background(), "BTC-USDT", "USDT", "FOK", "", 10, 0)
+	_, err := ku.InitiateIsolateMarginBorrowing(context.Background(), "BTC-USDT", "USDT", "FOK", "", 10, 0)
 	if err != nil {
 		t.Error("InitiateIsolateMarginBorrowing() error", err)
 	}
@@ -1100,11 +1091,9 @@ func TestGetBasicFee(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 
-	fee, err := ku.GetBasicFee(context.Background(), "1")
+	_, err := ku.GetBasicFee(context.Background(), "1")
 	if err != nil {
 		t.Error("GetBasicFee() error", err)
-	} else {
-		log.Printf("%s %f %f ", fee.Symbol, fee.TakerFeeRate, fee.MakerFeeRate)
 	}
 }
 
@@ -1298,7 +1287,6 @@ func TestCancelAllFuturesStopOrders(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-
 	_, err := ku.CancelAllFuturesStopOrders(context.Background(), "XBTUSDM")
 	if err != nil {
 		t.Error("CancelAllFuturesStopOrders() error", err)
@@ -1310,12 +1298,9 @@ func TestGetFuturesOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	results, err := ku.GetFuturesOrders(context.Background(), "", "", "", "", time.Time{}, time.Time{})
+	_, err := ku.GetFuturesOrders(context.Background(), "", "", "", "", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error("GetFuturesOrders() error", err)
-	} else {
-		values, _ := json.Marshal(results)
-		println(string(values))
 	}
 }
 
@@ -1661,12 +1646,9 @@ func TestUpdateTicker(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	ticker, err := ku.UpdateTicker(context.Background(), enabledPair[0], asset.Spot)
+	_, err = ku.UpdateTicker(context.Background(), enabledPair[0], asset.Spot)
 	if err != nil {
 		t.Fatal(err)
-	} else {
-		values, _ := json.Marshal(ticker)
-		println(string(values))
 	}
 }
 
@@ -1798,11 +1780,8 @@ func TestGetActiveOrders(t *testing.T) {
 		t.Error("Kucoin GetActiveOrders() error", err)
 	}
 	getOrdersRequest.Pairs = []currency.Pair{}
-	if orders, err := ku.GetActiveOrders(context.Background(), &getOrdersRequest); err != nil {
+	if _, err = ku.GetActiveOrders(context.Background(), &getOrdersRequest); err != nil {
 		t.Error("Kucoin GetActiveOrders() error", err)
-	} else {
-		values, _ := json.Marshal(orders)
-		println(string(values))
 	}
 }
 
@@ -1811,7 +1790,7 @@ func TestGetFeeByType(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if results, err := ku.GetFeeByType(context.Background(), &exchange.FeeBuilder{
+	if _, err := ku.GetFeeByType(context.Background(), &exchange.FeeBuilder{
 		Amount:              1,
 		FeeType:             exchange.CryptocurrencyTradeFee,
 		Pair:                currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), currency.DashDelimiter),
@@ -1820,8 +1799,6 @@ func TestGetFeeByType(t *testing.T) {
 		BankTransactionType: exchange.WireTransfer,
 	}); err != nil {
 		t.Errorf("%s GetFeeByType() error %v", ku.Name, err)
-	} else {
-		println(results)
 	}
 }
 
@@ -1853,12 +1830,9 @@ func TestGetAuthenticatedServersInstances(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	results, err := ku.GetAuthenticatedInstanceServers(context.Background())
+	_, err := ku.GetAuthenticatedInstanceServers(context.Background())
 	if err != nil {
 		t.Error(err)
-	} else {
-		values, _ := json.Marshal(results)
-		println(string(values))
 	}
 }
 
@@ -2237,7 +2211,7 @@ func TestGetDepositAddress(t *testing.T) {
 		t.SkipNow()
 	}
 	if _, err := ku.GetDepositAddress(context.Background(), currency.BTC, "", ""); err != nil && errors.Is(err, errNoDepositAddress) {
-		t.Error("Okx GetDepositAddress() error", err)
+		t.Error("Kucoin GetDepositAddress() error", err)
 	}
 }
 
@@ -2255,6 +2229,60 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 		},
 	}
 	if _, err := ku.WithdrawCryptocurrencyFunds(context.Background(), &withdrawCryptoRequest); err != nil {
-		t.Error("Okx WithdrawCryptoCurrencyFunds() error", err)
+		t.Error("Kucoin WithdrawCryptoCurrencyFunds() error", err)
+	}
+}
+
+func TestSubmitOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	var orderSubmission = &order.Submit{
+		Pair: currency.Pair{
+			Base:  currency.LTC,
+			Quote: currency.BTC,
+		},
+		Exchange:  ku.Name,
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Price:     1,
+		Amount:    1000000000,
+		ClientID:  "myOrder",
+		AssetType: asset.Spot,
+	}
+	_, err := ku.SubmitOrder(context.Background(), orderSubmission)
+	if err != nil {
+		t.Error("Kucoin SubmitOrder() error", err)
+	}
+}
+
+func TestCancelOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	var orderCancellation = &order.Cancel{
+		OrderID:       "1",
+		WalletAddress: core.BitcoinDonationAddress,
+		AccountID:     "1",
+		Pair:          currency.NewPair(currency.LTC, currency.BTC),
+		AssetType:     asset.Spot,
+	}
+	if err := ku.CancelOrder(context.Background(), orderCancellation); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelAllOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	if _, err := ku.CancelAllOrders(context.Background(), &order.Cancel{
+		AssetType:  asset.Margin,
+		MarginMode: "isolated",
+	}); err != nil {
+		t.Errorf("%s CancelAllOrders() error: %v", ku.Name, err)
 	}
 }

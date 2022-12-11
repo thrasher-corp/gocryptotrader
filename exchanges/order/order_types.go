@@ -62,6 +62,10 @@ type Submit struct {
 	TriggerPrice  float64
 	ClientID      string // TODO: Shift to credentials
 	ClientOrderID string
+
+	// Margin Mode for Margint trades
+	MarginMode string
+	AutoBorrow bool
 }
 
 // SubmitResponse is what is returned after submitting an order to an exchange
@@ -91,6 +95,9 @@ type SubmitResponse struct {
 	Trades      []TradeHistory
 	Fee         float64
 	Cost        float64
+
+	BorrowSize  float64
+	LoanApplyID string
 }
 
 // Modify contains all properties of an order
@@ -214,6 +221,8 @@ type Cancel struct {
 	Side          Side
 	AssetType     asset.Item
 	Pair          currency.Pair
+
+	MarginMode string
 }
 
 // CancelAllResponse returns the status from attempting to

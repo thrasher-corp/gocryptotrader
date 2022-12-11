@@ -78,7 +78,7 @@ type FuturesTicker struct {
 	BestBidPrice float64           `json:"bestBidPrice,string"`
 	BestAskSize  float64           `json:"bestAskSize"`
 	BestAskPrice float64           `json:"bestAskPrice,string"`
-	TradeId      string            `json:"tradeId"`
+	TradeID      string            `json:"tradeId"`
 	FilledTime   kucoinTimeNanoSec `json:"time"`
 }
 
@@ -97,8 +97,8 @@ type futuresOrderbookResponse struct {
 type FuturesTrade struct {
 	Sequence     int64             `json:"sequence"`
 	TradeID      string            `json:"tradeId"`
-	TakerOrderId string            `json:"takerOrderId"`
-	MakerOrderId string            `json:"makerOrderId"`
+	TakerOrderID string            `json:"takerOrderId"`
+	MakerOrderID string            `json:"makerOrderId"`
 	Price        float64           `json:"price,string"`
 	Size         float64           `json:"size"`
 	Side         string            `json:"side"`
@@ -321,13 +321,13 @@ type DepositDetail struct {
 	IsInner    bool               `json:"isInner"`
 	Amount     float64            `json:"amount"`
 	Fee        float64            `json:"fee"`
-	WalletTxId string             `json:"walletTxId"`
+	WalletTxID string             `json:"walletTxId"`
 	CreatedAt  kucoinTimeMilliSec `json:"createdAt"`
 }
 
 type WithdrawalLimit struct {
 	Currency            string  `json:"currency"`
-	ChainId             string  `json:"chainId"`
+	ChainID             string  `json:"chainId"`
 	LimitAmount         float64 `json:"limitAmount"`
 	UsedAmount          float64 `json:"usedAmount"`
 	RemainAmount        float64 `json:"remainAmount"`
@@ -366,6 +366,7 @@ type TransferBase struct {
 	Remark    string             `json:"remark"`
 }
 
+// TransferRes represents a transfer response
 type TransferRes struct {
 	TransferBase
 	BizNo          string             `json:"bizNo"`

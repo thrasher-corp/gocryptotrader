@@ -147,7 +147,7 @@ func (e Error) GetError() error {
 	case 200000, 200:
 		return nil
 	default:
-		return fmt.Errorf("Code: %s Message: %s", e.Code, e.Msg)
+		return fmt.Errorf("code: %s message: %s", e.Code, e.Msg)
 	}
 }
 
@@ -784,7 +784,7 @@ type WSConnMessages struct {
 
 // WsSubscriptionInput represents a subscription information structure.
 type WsSubscriptionInput struct {
-	ID             int64  `json:"id"`
+	ID             string `json:"id"`
 	Type           string `json:"type"`
 	Topic          string `json:"topic"`
 	PrivateChannel bool   `json:"privateChannel"`
@@ -999,7 +999,7 @@ type WsAccountBalance struct {
 		TradeID string `json:"tradeId"`
 		OrderID string `json:"orderId"`
 	} `json:"relationContext"`
-	Time time.Time `json:"time,string"`
+	Time time.Time `json:"time"`
 }
 
 // WsDebtRatioChange represents a push data
@@ -1262,4 +1262,11 @@ type WsFuturesPositionFundingSettlement struct {
 	FundingTime      time.Time `json:"fundingTime"`
 	CurrentTimestamp time.Time `json:"ts"`
 	SettleCurrency   string    `json:"settleCurrency"`
+}
+
+// IsolatedMarginBorrowing represents response data for initiating isolated margin borrowing.
+type IsolatedMarginBorrowing struct {
+	OrderID    string  `json:"orderId"`
+	Currency   string  `json:"currency"`
+	ActualSize float64 `json:"actualSize,string"`
 }

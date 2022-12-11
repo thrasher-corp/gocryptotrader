@@ -120,7 +120,7 @@ func (ku *Kucoin) WsConnect() error {
 	}
 	ku.Websocket.Wg.Add(1)
 	go ku.wsReadData()
-	pingMessage, err := json.Marshal(&WSConnMessages{
+	pingMessage, _ := json.Marshal(&WSConnMessages{
 		ID:   strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10),
 		Type: channelPing,
 	})
@@ -727,6 +727,9 @@ func (ku *Kucoin) processOrderbook(respData []byte, subject, instrument string) 
 			return err
 		}
 		sequence, err := strconv.ParseInt(response.Changes.Asks[x][2], 10, 64)
+		if err != nil {
+			return err
+		}
 		base.Asks = append(base.Asks, orderbook.Item{
 			Price:  price,
 			Amount: size,
@@ -801,7 +804,13 @@ func (ku *Kucoin) handleSubscriptions(payloads []WsSubscriptionInput) error {
 			return err
 		}
 		resp := WSSubscriptionResponse{}
-		return json.Unmarshal(response, &resp)
+		err = json.Unmarshal(response, &resp)
+		if err != nil {
+			return err
+		}
+		if resp.Type != "ack" {
+			return fmt.Errorf("subscription to %s with unique ID %s was not succesful", payloads[x].Topic, payloads[x].ID)
+		}
 	}
 	return nil
 }
@@ -976,7 +985,7 @@ func (ku *Kucoin) generatePayloads(subscriptions []stream.ChannelSubscription, o
 				return nil, errors.New("symbols not passed")
 			}
 			payloads[x] = WsSubscriptionInput{
-				ID:       ku.Websocket.AuthConn.GenerateMessageID(false),
+				ID:       strconv.FormatInt(ku.Websocket.AuthConn.GenerateMessageID(false), 10),
 				Type:     operation,
 				Topic:    fmt.Sprintf(subscriptions[x].Channel, symbols),
 				Response: true,
@@ -990,7 +999,7 @@ func (ku *Kucoin) generatePayloads(subscriptions []stream.ChannelSubscription, o
 			futuresStopOrdersLifecycleEventChannel,
 			futuresAccountBalanceEventChannel, futuresSystemAnnouncementChannel:
 			input := WsSubscriptionInput{
-				ID:       ku.Websocket.AuthConn.GenerateMessageID(false),
+				ID:       strconv.FormatInt(ku.Websocket.AuthConn.GenerateMessageID(false), 10),
 				Type:     operation,
 				Topic:    subscriptions[x].Channel,
 				Response: true,
@@ -1019,7 +1028,7 @@ func (ku *Kucoin) generatePayloads(subscriptions []stream.ChannelSubscription, o
 				return nil, err
 			}
 			payloads[x] = WsSubscriptionInput{
-				ID:       ku.Websocket.AuthConn.GenerateMessageID(false),
+				ID:       strconv.FormatInt(ku.Websocket.AuthConn.GenerateMessageID(false), 10),
 				Type:     operation,
 				Topic:    fmt.Sprintf(subscriptions[x].Channel, symbol),
 				Response: true,
@@ -1035,7 +1044,7 @@ func (ku *Kucoin) generatePayloads(subscriptions []stream.ChannelSubscription, o
 				subscriptions[x].Channel += "%s"
 			}
 			payloads[x] = WsSubscriptionInput{
-				ID:       ku.Websocket.AuthConn.GenerateMessageID(false),
+				ID:       strconv.FormatInt(ku.Websocket.AuthConn.GenerateMessageID(false), 10),
 				Type:     operation,
 				Topic:    fmt.Sprintf(subscriptions[x].Channel, subscriptions[x].Currency.Base.Upper().String()),
 				Response: true,
@@ -1046,7 +1055,7 @@ func (ku *Kucoin) generatePayloads(subscriptions []stream.ChannelSubscription, o
 				return nil, err
 			}
 			payloads[x] = WsSubscriptionInput{
-				ID:       ku.Websocket.AuthConn.GenerateMessageID(false),
+				ID:       strconv.FormatInt(ku.Websocket.AuthConn.GenerateMessageID(false), 10),
 				Type:     operation,
 				Topic:    fmt.Sprintf(subscriptions[x].Channel, subscriptions[x].Currency.Base.Upper().String(), interval),
 				Response: true,
@@ -1057,7 +1066,7 @@ func (ku *Kucoin) generatePayloads(subscriptions []stream.ChannelSubscription, o
 				return nil, errors.New("currencies not passed")
 			}
 			payloads[x] = WsSubscriptionInput{
-				ID:       ku.Websocket.AuthConn.GenerateMessageID(false),
+				ID:       strconv.FormatInt(ku.Websocket.AuthConn.GenerateMessageID(false), 10),
 				Type:     operation,
 				Topic:    fmt.Sprintf(subscriptions[x].Channel, currencies),
 				Response: true,
