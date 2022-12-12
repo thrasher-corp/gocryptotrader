@@ -2848,6 +2848,5 @@ func TestGetKlineBuilderExtended(t *testing.T) {
 
 	if len(builder.Ranges) != 15 { // 15 request at max 100 candles == 1440 1 min candles.
 		t.Fatalf("received: '%v' but expected: '%v'", len(builder.Ranges), 15)
-
 	}
 }
