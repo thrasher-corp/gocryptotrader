@@ -261,9 +261,8 @@ var (
 			},
 			&cli.Int64Flag{
 				Name:        "twap",
-				Aliases:     []string{"g"},
 				Usage:       "TWAP generated granularity:" + klineMessage,
-				Value:       60,
+				Value:       3600,
 				Destination: &stratTwapGranularity,
 			},
 			&cli.BoolFlag{
@@ -747,7 +746,7 @@ func twapStreamfunc(c *cli.Context) error {
 
 	if c.IsSet("aligned") {
 		stratCandleAligned = c.Bool("aligned")
-	} else {
+	} else if c.Args().Get(14) != "" {
 		stratCandleAligned, _ = strconv.ParseBool(c.Args().Get(14))
 	}
 
@@ -803,7 +802,7 @@ func twapStreamfunc(c *cli.Context) error {
 		MaxSpreadPercentage: stratMaxSpread,
 		AlignedToInterval:   stratCandleAligned,
 		RetryAttempts:       stratRetries,
-		TwapInterval:        stratTwapGranularity,
+		TwapInterval:        stratTwapGranularity * int64(time.Second),
 		Verbose:             verbose,
 	})
 	if err != nil {

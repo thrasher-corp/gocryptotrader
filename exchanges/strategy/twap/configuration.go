@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -208,22 +209,13 @@ func (c *Config) VerifyBookDeployment(book *orderbook.Depth, deploymentAmount, t
 	var err error
 	if c.Buy {
 		// Quote needs to be converted to base for deployment checks.
-		details, err = book.LiftTheAsksByImpactSlippageFromBest(c.MaxImpactSlippage)
+		details, err = book.LiftTheAsksFromBest(deploymentAmount, false)
 		if err != nil {
 			return 0, nil, err
 		}
-		if twapPrice > details.EndPrice {
-			twapImpact := ((twapPrice - details.EndPrice) / details.EndPrice * 100)
-			if twapImpact > c.MaxImpactSlippage {
-				return 0, nil, fmt.Errorf("%w %v: by %v%% while lifting the asks",
-					errTwapPriceExceeded,
-					twapPrice,
-					twapImpact)
-			}
-		}
 		deploymentAmount = details.Purchased
 	} else {
-		if twapPrice < details.EndPrice {
+		if twapPrice > details.EndPrice {
 			twapImpact := ((details.EndPrice - twapPrice) / twapPrice * 100)
 			if twapImpact > c.MaxImpactSlippage {
 				return 0, nil, fmt.Errorf("%w %v: by %v%% while hitting the bids",
@@ -233,7 +225,7 @@ func (c *Config) VerifyBookDeployment(book *orderbook.Depth, deploymentAmount, t
 			}
 		}
 
-		details, err = book.HitTheBidsByImpactSlippageFromBest(deploymentAmount)
+		details, err = book.HitTheBidsFromBest(deploymentAmount, false)
 		if err != nil {
 			return 0, nil, err
 		}
@@ -308,4 +300,30 @@ func (c *Config) VerifyExecutionLimitsReturnConformed(deploymentAmountInBase flo
 			strategy.MaximumSizeResponse)
 	}
 	return minMax.ConformToAmount(deploymentAmountInBase), nil
+}
+
+// SignalTWAP defines the main signal for the TWAP strategy
+type SignalTWAP struct {
+	Price            float64 `json:"twap"`
+	Interval         string  `json:"twapInterval"`
+	Period           int     `json:"period"`
+	Window           string  `json:"window"`
+	EndPrice         float64 `json:"endPrice"`
+	PercentageImpact float64 `json:"percentageImpact"`
+	Exceeded         bool    `json:"parametersExceeded"`
+}
+
+// CheckTWAP checks the potential orderbook tranche end price after a potential
+// amount deployment.
+func (c *Config) CheckTWAP(twap float64, trancheEndPrice float64) *SignalTWAP {
+	impact := math.Abs((twap - trancheEndPrice) / trancheEndPrice * 100)
+	return &SignalTWAP{
+		Price:            twap,
+		Interval:         c.TWAP.String(),
+		Period:           30,
+		Window:           (30 * c.TWAP.Duration()).String(),
+		EndPrice:         trancheEndPrice,
+		PercentageImpact: impact,
+		Exceeded:         impact > c.MaxImpactSlippage,
+	}
 }

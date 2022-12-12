@@ -170,8 +170,5 @@ func (r *Activities) ReportAcceptedSignal(reason interface{}) {
 // generated is rejected and will not allow a strategy to execute pre-defined
 // code and sends a report to a reporter receiver.
 func (r *Activities) ReportRejectedSignal(reason interface{}) {
-	if !r.verbose {
-		return
-	}
 	r.send(SignalRejection, SignalAction{Reason: reason}, false)
 }

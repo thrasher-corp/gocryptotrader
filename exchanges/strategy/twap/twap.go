@@ -8,7 +8,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	strategy "github.com/thrasher-corp/gocryptotrader/exchanges/strategy/common"
@@ -134,13 +133,17 @@ func (s *Strategy) checkAndSubmit(ctx context.Context) error {
 		return err
 	}
 
-	s.ReportInfo(fmt.Sprintf("TWAP PRICE: %v Interval: %s", twapPrice, s.TWAP))
-
 	deploymentInBase, details, err := s.VerifyBookDeployment(s.orderbook, s.allocation.Deployment, twapPrice)
 	if err != nil {
-		fmt.Println("Bro")
 		return err
 	}
+
+	twapSignal := s.CheckTWAP(twapPrice, details.EndPrice)
+	if twapSignal.Exceeded {
+		s.ReportRejectedSignal(twapSignal)
+		return nil
+	}
+	s.ReportAcceptedSignal(twapSignal)
 
 	conformed, err := s.VerifyExecutionLimitsReturnConformed(deploymentInBase)
 	if err != nil {
@@ -224,8 +227,8 @@ func (s *Strategy) submitOrder(ctx context.Context, submit *order.Submit) (*orde
 
 // getTwapPrice returns a typical twap price from an exchange
 func (c *Config) getTwapPrice(ctx context.Context) (float64, error) {
-	end := time.Now().Truncate(kline.OneDay.Duration())
-	start := end.AddDate(0, 0, -30)
+	end := time.Now().Truncate(time.Duration(c.TWAP))
+	start := end.Add(-time.Duration(c.TWAP) * 30)
 	candles, err := c.Exchange.GetHistoricCandles(ctx,
 		c.Pair,
 		c.Asset,

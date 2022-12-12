@@ -41,9 +41,9 @@ func (s *Strategy) GetDescription() string {
 	if s == nil {
 		return ""
 	}
-	return fmt.Sprintf("Start:%s End:%s Exchange:%s Pair:%s Asset:%s Interval:%s Window:%s Simulation:%v Amount:%v Deployent:%v",
-		s.Start.Format(common.SimpleTimeFormat),
-		s.End.Format(common.SimpleTimeFormat),
+	return fmt.Sprintf("Start:%s End:%s Exchange:%s Pair:%s Asset:%s Interval:%s Window:%s Simulation:%v Amount:%v Deployent:%v Buying: %v",
+		s.Start.UTC().Format(common.SimpleTimeFormat),
+		s.End.UTC().Format(common.SimpleTimeFormat),
 		s.Config.Exchange.GetName(),
 		s.Config.Pair,
 		s.Config.Asset,
@@ -51,5 +51,6 @@ func (s *Strategy) GetDescription() string {
 		s.allocation.Window,
 		s.Config.Simulate,
 		s.allocation.Total,
-		s.allocation.Deployment)
+		s.allocation.Deployment,
+		s.Buy)
 }
