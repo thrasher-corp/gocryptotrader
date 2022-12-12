@@ -755,13 +755,16 @@ func (ku *Kucoin) UpdateRiskLmitLevel(ctx context.Context, symbol string, level 
 // GetFuturesFundingHistory gets information about funding history
 func (ku *Kucoin) GetFuturesFundingHistory(ctx context.Context, symbol string, offset, maxCount int64, reverse, forward bool, startAt, endAt time.Time) ([]FuturesFundingHistory, error) {
 	resp := struct {
-		Data []FuturesFundingHistory `json:"data"`
+		Data struct {
+			DataList []FuturesFundingHistory `json:"dataList"`
+			HasMore  bool                    `json:"hasMore"`
+		} `json:"data"`
 		Error
 	}{}
 
 	params := url.Values{}
 	if symbol == "" {
-		return resp.Data, errors.New("symbol can't be empty")
+		return nil, errors.New("symbol can't be empty")
 	}
 	params.Set("symbol", symbol)
 	if !startAt.IsZero() {
@@ -786,7 +789,7 @@ func (ku *Kucoin) GetFuturesFundingHistory(ctx context.Context, symbol string, o
 	if maxCount != 0 {
 		params.Set("maxCount", strconv.FormatInt(maxCount, 10))
 	}
-	return resp.Data, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(kucoinFuturesFundingHistory, params), nil, &resp)
+	return resp.Data.DataList, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(kucoinFuturesFundingHistory, params), nil, &resp)
 }
 
 // GetFuturesAccountOverview gets future account overview

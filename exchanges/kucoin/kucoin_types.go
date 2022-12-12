@@ -813,12 +813,6 @@ type WsSubscriptionInput struct {
 	Response       bool   `json:"response,omitempty"`
 }
 
-// WSSubscriptionResponse represents a subscription response.
-type WSSubscriptionResponse struct {
-	ID   string `json:"id"`
-	Type string `json:"type"`
-}
-
 // WsPushData represents a push data from a server.
 type WsPushData struct {
 	ID          string          `json:"id"`
@@ -839,12 +833,6 @@ type WsTicker struct {
 	Price       float64 `json:"price,string"`
 	BestAskSize float64 `json:"bestAskSize,string"`
 	BestBid     float64 `json:"bestBid,string"`
-}
-
-// WsTickerDetail represents a ticker snapshot data from server.
-type WsTickerDetail struct {
-	Sequence string         `json:"sequence"`
-	Data     []WsSpotTicker `json:"data"`
 }
 
 // WsSpotTicker represents a spot ticker push data.
@@ -975,10 +963,10 @@ type WsPriceIndicator struct {
 type WsMarginFundingBook struct {
 	Sequence           int64     `json:"sequence"`
 	Currency           string    `json:"currency"`
-	DailyInterestRate  float64   `json:"dailyIntRate,string"`
-	AnnualInterestRate float64   `json:"annualIntRate,string"`
+	DailyInterestRate  float64   `json:"dailyIntRate"`
+	AnnualInterestRate float64   `json:"annualIntRate"`
 	Term               int64     `json:"term"`
-	Size               float64   `json:"size,string"`
+	Size               float64   `json:"size"`
 	Side               string    `json:"side"`
 	Timestamp          time.Time `json:"ts"` // In Nanosecond
 

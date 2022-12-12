@@ -35,10 +35,7 @@ func (ku *Kucoin) GetDefaultConfig() (*config.Exchange, error) {
 	exchCfg.Name = ku.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = ku.BaseCurrencies
-	err := ku.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
+
 	if ku.Features.Supports.RESTCapabilities.AutoPairUpdates {
 		err := ku.UpdateTradablePairs(context.TODO(), true)
 		if err != nil {
@@ -56,6 +53,8 @@ func (ku *Kucoin) SetDefaults() {
 
 	ku.API.CredentialsValidator.RequiresKey = true
 	ku.API.CredentialsValidator.RequiresSecret = true
+	ku.API.CredentialsValidator.RequiresPEM = true
+
 	spot := currency.PairStore{
 		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
@@ -76,6 +75,8 @@ func (ku *Kucoin) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
+	ku.API.AuthenticatedSupport = true
+	ku.API.AuthenticatedWebsocketSupport = true
 	ku.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
@@ -83,13 +84,33 @@ func (ku *Kucoin) SetDefaults() {
 			RESTCapabilities: protocol.Features{
 				TickerFetching:    true,
 				OrderbookFetching: true,
+				AutoPairUpdates:   true,
+				AccountInfo:       true,
+				CryptoWithdrawal:  true,
+				SubmitOrder:       true,
+				GetOrder:          true,
+				GetOrders:         true,
+				CancelOrder:       true,
+				CancelOrders:      true,
+				TradeFetching:     true,
+				UserTradeHistory:  true,
+				KlineFetching:     true,
+				DepositHistory:    true,
+				WithdrawalHistory: true,
 			},
 			WebsocketCapabilities: protocol.Features{
-				TickerFetching:    true,
-				OrderbookFetching: true,
+				TickerFetching:         true,
+				OrderbookFetching:      true,
+				Subscribe:              true,
+				Unsubscribe:            true,
+				AuthenticatedEndpoints: true,
+				AccountInfo:            true,
+				GetOrders:              true,
+				TradeFetching:          true,
+				KlineFetching:          true,
+				GetOrder:               true,
 			},
-			WithdrawPermissions: exchange.AutoWithdrawCrypto |
-				exchange.AutoWithdrawFiat,
+			WithdrawPermissions: exchange.AutoWithdrawCrypto,
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
@@ -128,7 +149,7 @@ func (ku *Kucoin) SetDefaults() {
 	}
 	ku.Websocket = stream.New()
 	ku.Websocket.Wg = &sync.WaitGroup{}
-	ku.Websocket.Match = &stream.Match{}
+	ku.Websocket.Match = stream.NewMatch()
 	ku.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	ku.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	ku.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -173,8 +194,9 @@ func (ku *Kucoin) Setup(exch *config.Exchange) error {
 		ProxyURL:         ku.Websocket.GetProxyAddress(),
 		Verbose:          ku.Verbose,
 		ResponseMaxLimit: exch.WebsocketResponseMaxLimit,
-		Wg:               &sync.WaitGroup{},
-		Match:            &stream.Match{},
+		Wg:               ku.Websocket.Wg,
+		Match:            ku.Websocket.Match,
+		RateLimit:        500,
 	}
 	return nil
 }
@@ -305,6 +327,8 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 				High:         ticks[x].HighPrice,
 				Low:          ticks[x].LowPrice,
 				Volume:       ticks[x].VolumeOf24h,
+				Ask:          ticks[x].IndexPrice,
+				Bid:          ticks[x].MarkPrice,
 				Pair:         pair,
 				ExchangeName: ku.Name,
 				AssetType:    assetType,
@@ -314,7 +338,7 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 			}
 		}
 		return nil
-	case asset.Spot, asset.Margin:
+	case asset.Spot:
 		ticks, err := ku.GetAllTickers(ctx)
 		if err != nil {
 			return err
@@ -324,19 +348,28 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 			if err != nil {
 				return err
 			}
-			err = ticker.ProcessTicker(&ticker.Price{
+			tick := &ticker.Price{
 				Last:         ticks[t].Last,
 				High:         ticks[t].High,
 				Low:          ticks[t].Low,
 				Volume:       ticks[t].Volume,
+				Ask:          ticks[t].Buy,
+				Bid:          ticks[t].Sell,
 				Pair:         pair,
 				ExchangeName: ku.Name,
 				AssetType:    assetType,
-			})
+			}
+			err = ticker.ProcessTicker(tick)
+			if err != nil {
+				return err
+			}
+			tick.AssetType = asset.Margin
+			err = ticker.ProcessTicker(tick)
 			if err != nil {
 				return err
 			}
 		}
+	case asset.Margin:
 	default:
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}

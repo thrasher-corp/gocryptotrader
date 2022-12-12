@@ -46,11 +46,11 @@ func TestMain(m *testing.M) {
 	}
 
 	exchCfg.API.AuthenticatedSupport = true
-	exchCfg.API.AuthenticatedWebsocketSupport = false
+	exchCfg.API.AuthenticatedWebsocketSupport = true
 
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
-	exchCfg.API.Credentials.OTPSecret = passPhrase
+	exchCfg.API.Credentials.PEMKey = passPhrase
 
 	ku.SetDefaults()
 	ku.Websocket = sharedtestvalues.NewTestWebsocket()
@@ -1333,9 +1333,8 @@ func TestGetFuturesOrderDetails(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-
 	_, err := ku.GetFuturesOrderDetails(context.Background(), "5cdfc138b21023a909e5ad55")
-	if err != nil && err.Error() != "error.getOrder.orderNotExist" {
+	if err != nil && !strings.Contains(err.Error(), "error.getOrder.orderNotExist") {
 		t.Error("GetFuturesOrderDetails() error", err)
 	}
 }
@@ -1347,7 +1346,7 @@ func TestGetFuturesOrderDetailsByClientID(t *testing.T) {
 	}
 
 	_, err := ku.GetFuturesOrderDetailsByClientID(context.Background(), "eresc138b21023a909e5ad59")
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), "error.getOrder.orderNotExist") {
 		t.Error("GetFuturesOrderDetailsByClientID() error", err)
 	}
 }
@@ -1465,7 +1464,7 @@ func TestGetFuturesFundingHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-
+	ku.Verbose = true
 	_, err := ku.GetFuturesFundingHistory(context.Background(), "XBTUSDM", 0, 0, true, true, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error("GetFuturesFundingHistory() error", err)
@@ -1836,8 +1835,10 @@ func TestGetAuthenticatedServersInstances(t *testing.T) {
 	}
 }
 
-var symbolTickerPushDataJSON = `{"type":"message","topic":"/market/ticker:BTC-USDT","subject":"trade.ticker","data":{"sequence":"1545896668986","price":"0.08","size":"0.011","bestAsk":"0.08","bestAskSize":"0.18","bestBid":"0.049","bestBidSize":"0.036"}}`
-var allSymbolsTickerPushDataJSON = `{"type":"message","topic":"/market/ticker:all","subject":"BTC-USDT","data":{"sequence":"1545896668986","bestAsk":"0.08","size":"0.011","bestBidSize":"0.036","price":"0.08","bestAskSize":"0.18",        "bestBid":"0.049"    }}`
+var (
+	symbolTickerPushDataJSON     = `{"type":"message","topic":"/market/ticker:BTC-USDT","subject":"trade.ticker","data":{"sequence":"1545896668986","price":"0.08","size":"0.011","bestAsk":"0.08","bestAskSize":"0.18","bestBid":"0.049","bestBidSize":"0.036"}}`
+	allSymbolsTickerPushDataJSON = `{"type":"message","topic":"/market/ticker:all","subject":"BTC-USDT","data":{"sequence":"1545896668986","bestAsk":"0.08","size":"0.011","bestBidSize":"0.036","price":"0.08","bestAskSize":"0.18",        "bestBid":"0.049"    }}`
+)
 
 func TestSybmbolTicker(t *testing.T) {
 	err := ku.wsHandleData([]byte(symbolTickerPushDataJSON))
@@ -1865,9 +1866,11 @@ func TestMarketTradeSnapshotPushData(t *testing.T) {
 	}
 }
 
-var orderbookLevel2PushDataJSON = `{"type": "message","topic": "/market/level2:BTC-USDT",    "subject": "trade.l2update",    "data": {"changes": {"asks": [["18906","0.00331","14103845"],["18907.3","0.58751503","14103844"]],"bids": [["18891.9","0.15688","14103847"]]},"sequenceEnd": 14103847,"sequenceStart": 14103844,"symbol": "BTC-USDT","time": 1663747970273}}`
-var orderbookLevel5PushDataJSON = `{"type": "message","topic": "/spotMarket/level2Depth5:BTC-USDT",    "subject": "level2",    "data": {          "asks":[            ["9989","8"],            ["9990","32"],            ["9991","47"],            ["9992","3"],["9993","3"]],"bids":[["9988","56"],["9987","15"],["9986","100"],["9985","10"],["9984","10"]],"timestamp": 1586948108193}}`
-var orderbookLevel50PushData = `{"type":"message","topic": "/spotMarket/level2Depth50:BTC-USDT",    "subject": "level2",    "data": {"asks":[            ["9989","8"],            ["9990","32"],            ["9991","47"],            ["9992","3"],["9993","3"]],"bids":[["9988","56"],["9987","15"],["9986","100"],["9985","10"],["9984","10"]],"timestamp": 1586948108193}}`
+var (
+	orderbookLevel2PushDataJSON = `{"type": "message","topic": "/market/level2:BTC-USDT",    "subject": "trade.l2update",    "data": {"changes": {"asks": [["18906","0.00331","14103845"],["18907.3","0.58751503","14103844"]],"bids": [["18891.9","0.15688","14103847"]]},"sequenceEnd": 14103847,"sequenceStart": 14103844,"symbol": "BTC-USDT","time": 1663747970273}}`
+	orderbookLevel5PushDataJSON = `{"type": "message","topic": "/spotMarket/level2Depth5:BTC-USDT",    "subject": "level2",    "data": {          "asks":[            ["9989","8"],            ["9990","32"],            ["9991","47"],            ["9992","3"],["9993","3"]],"bids":[["9988","56"],["9987","15"],["9986","100"],["9985","10"],["9984","10"]],"timestamp": 1586948108193}}`
+	orderbookLevel50PushData    = `{"type":"message","topic": "/spotMarket/level2Depth50:BTC-USDT",    "subject": "level2",    "data": {"asks":[            ["9989","8"],            ["9990","32"],            ["9991","47"],            ["9992","3"],["9993","3"]],"bids":[["9988","56"],["9987","15"],["9986","100"],["9985","10"],["9984","10"]],"timestamp": 1586948108193}}`
+)
 
 func TestOrderbookPushData(t *testing.T) {
 	err := ku.wsHandleData([]byte(orderbookLevel2PushDataJSON))
@@ -1918,7 +1921,7 @@ func TestMarkPricePushData(t *testing.T) {
 	}
 }
 
-var orderbookChangePushDataJSON = `{"id": "","type": "message","topic": "/margin/fundingBook:BTC","subject": "funding.update","data": {"sequence": 1000000,"currency": "BTC","dailyIntRate": "0.00007","annualIntRate": "0.12","term": 7,"size": "1017.5","side": "lend","ts": 1553846081210004941}}`
+var orderbookChangePushDataJSON = `{"type":"message","topic":"/margin/fundingBook:USDT","subject":"funding.update","data":{"annualIntRate":0.0547,"currency":"USDT","dailyIntRate":0.00015,"sequence":87611418,"side":"lend","size":25040,"term":7,"ts":1671005721087508735}}`
 
 func TestOrderbookChangePushDataJSON(t *testing.T) {
 	t.Parallel()
@@ -1927,11 +1930,13 @@ func TestOrderbookChangePushDataJSON(t *testing.T) {
 	}
 }
 
-var orderChangeStateOpenPushDataJSON = `{"type":"message","topic":"/spotMarket/tradeOrders","subject":"orderChange","channelType":"private","data":{"symbol":"KCS-USDT","orderType":"limit","side":"buy","orderId":"5efab07953bdea00089965d2","type":"open","orderTime":1593487481683297666,"size":"0.1","filledSize":"0","price":"0.937","clientOid":"1593487481000906","remainSize":"0.1","status":"open","ts":1593487481683297666}}`
-var orderChangeStateMatchPushDataJSON = `{"type":"message","topic":"/spotMarket/tradeOrders","subject":"orderChange","channelType":"private","data":{"symbol":"KCS-USDT","orderType":"limit","side":"sell","orderId":"5efab07953bdea00089965fa","liquidity":"taker","type":"match","orderTime":1593487482038606180,"size":"0.1","filledSize":"0.1","price":"0.938","matchPrice":"0.96738","matchSize":"0.1","tradeId":"5efab07a4ee4c7000a82d6d9","clientOid":"1593487481000313","remainSize":"0","status":"match","ts":1593487482038606180}}`
-var orderChangeStateFilledPushDataJSON = `{"type":"message","topic":"/spotMarket/tradeOrders","subject":"orderChange","channelType":"private","data":{"symbol":"KCS-USDT","orderType":"limit","side":"sell","orderId":"5efab07953bdea00089965fa","type":"filled","orderTime":1593487482038606180,"size":"0.1","filledSize":"0.1","price":"0.938","clientOid":"1593487481000313","remainSize":"0","status":"done","ts":1593487482038606180}}`
-var orderChangeStateCancelledPushDataJSON = `{"type":"message","topic":"/spotMarket/tradeOrders","subject":"orderChange","channelType":"private","data":{"symbol":"KCS-USDT","orderType":"limit","side":"buy","orderId":"5efab07953bdea00089965d2","type":"canceled","orderTime":1593487481683297666,"size":"0.1","filledSize":"0","price":"0.937","clientOid":"1593487481000906","remainSize":"0","status":"done","ts":1593487481893140844}}`
-var orderChangeStateUpdatePushDataJSON = `{"type":"message","topic":"/spotMarket/tradeOrders","subject":"orderChange","channelType":"private","data":{"symbol":"KCS-USDT","orderType":"limit","side":"buy","orderId":"5efab13f53bdea00089971df","type":"update","oldSize":"0.1","orderTime":1593487679693183319,"size":"0.06","filledSize":"0","price":"0.937","clientOid":"1593487679000249","remainSize":"0.06","status":"open","ts":1593487682916117521}}`
+var (
+	orderChangeStateOpenPushDataJSON      = `{"type":"message","topic":"/spotMarket/tradeOrders","subject":"orderChange","channelType":"private","data":{"symbol":"KCS-USDT","orderType":"limit","side":"buy","orderId":"5efab07953bdea00089965d2","type":"open","orderTime":1593487481683297666,"size":"0.1","filledSize":"0","price":"0.937","clientOid":"1593487481000906","remainSize":"0.1","status":"open","ts":1593487481683297666}}`
+	orderChangeStateMatchPushDataJSON     = `{"type":"message","topic":"/spotMarket/tradeOrders","subject":"orderChange","channelType":"private","data":{"symbol":"KCS-USDT","orderType":"limit","side":"sell","orderId":"5efab07953bdea00089965fa","liquidity":"taker","type":"match","orderTime":1593487482038606180,"size":"0.1","filledSize":"0.1","price":"0.938","matchPrice":"0.96738","matchSize":"0.1","tradeId":"5efab07a4ee4c7000a82d6d9","clientOid":"1593487481000313","remainSize":"0","status":"match","ts":1593487482038606180}}`
+	orderChangeStateFilledPushDataJSON    = `{"type":"message","topic":"/spotMarket/tradeOrders","subject":"orderChange","channelType":"private","data":{"symbol":"KCS-USDT","orderType":"limit","side":"sell","orderId":"5efab07953bdea00089965fa","type":"filled","orderTime":1593487482038606180,"size":"0.1","filledSize":"0.1","price":"0.938","clientOid":"1593487481000313","remainSize":"0","status":"done","ts":1593487482038606180}}`
+	orderChangeStateCancelledPushDataJSON = `{"type":"message","topic":"/spotMarket/tradeOrders","subject":"orderChange","channelType":"private","data":{"symbol":"KCS-USDT","orderType":"limit","side":"buy","orderId":"5efab07953bdea00089965d2","type":"canceled","orderTime":1593487481683297666,"size":"0.1","filledSize":"0","price":"0.937","clientOid":"1593487481000906","remainSize":"0","status":"done","ts":1593487481893140844}}`
+	orderChangeStateUpdatePushDataJSON    = `{"type":"message","topic":"/spotMarket/tradeOrders","subject":"orderChange","channelType":"private","data":{"symbol":"KCS-USDT","orderType":"limit","side":"buy","orderId":"5efab13f53bdea00089971df","type":"update","oldSize":"0.1","orderTime":1593487679693183319,"size":"0.06","filledSize":"0","price":"0.937","clientOid":"1593487679000249","remainSize":"0.06","status":"open","ts":1593487682916117521}}`
+)
 
 func TestOrderChangePushData(t *testing.T) {
 	t.Parallel()
@@ -1980,9 +1985,11 @@ func TestPositionStatusChangeEvent(t *testing.T) {
 	}
 }
 
-var marginTradeOrderEntersEventPushDataJSON = `{"type": "message","topic": "/margin/loan:BTC","subject": "order.open","channelType":"private","data": {    "currency": "BTC",    "orderId": "ac928c66ca53498f9c13a127a60e8",    "dailyIntRate": 0.0001,    "term": 7,    "size": 1,        "side": "lend",    "ts": 1553846081210004941}}`
-var marginTradeOrderUpdateEventPushDataJSON = `{"type": "message","topic": "/margin/loan:BTC","subject": "order.update","channelType":"private","data": {    "currency": "BTC",    "orderId": "ac928c66ca53498f9c13a127a60e8",    "dailyIntRate": 0.0001,    "term": 7,    "size": 1,    "lentSize": 0.5,    "side": "lend",    "ts": 1553846081210004941}}`
-var marginTradeOrderDoneEventPushDataJSON = `{"type": "message","topic": "/margin/loan:BTC","subject": "order.done","channelType":"private","data": {    "currency": "BTC",    "orderId": "ac928c66ca53498f9c13a127a60e8",    "reason": "filled",    "side": "lend",    "ts": 1553846081210004941  }}`
+var (
+	marginTradeOrderEntersEventPushDataJSON = `{"type": "message","topic": "/margin/loan:BTC","subject": "order.open","channelType":"private","data": {    "currency": "BTC",    "orderId": "ac928c66ca53498f9c13a127a60e8",    "dailyIntRate": 0.0001,    "term": 7,    "size": 1,        "side": "lend",    "ts": 1553846081210004941}}`
+	marginTradeOrderUpdateEventPushDataJSON = `{"type": "message","topic": "/margin/loan:BTC","subject": "order.update","channelType":"private","data": {    "currency": "BTC",    "orderId": "ac928c66ca53498f9c13a127a60e8",    "dailyIntRate": 0.0001,    "term": 7,    "size": 1,    "lentSize": 0.5,    "side": "lend",    "ts": 1553846081210004941}}`
+	marginTradeOrderDoneEventPushDataJSON   = `{"type": "message","topic": "/margin/loan:BTC","subject": "order.done","channelType":"private","data": {    "currency": "BTC",    "orderId": "ac928c66ca53498f9c13a127a60e8",    "reason": "filled",    "side": "lend",    "ts": 1553846081210004941  }}`
+)
 
 func TestMarginTradeOrderPushData(t *testing.T) {
 	t.Parallel()
@@ -2034,8 +2041,10 @@ func TestPublicFuturesMarketData(t *testing.T) {
 	}
 }
 
-var publicFuturesExecutionDataJSON = `{"topic": "/contractMarket/execution:XBTUSDM","subject": "match","data": {"symbol": "XBTUSDM","sequence": 36,     "side": "buy","matchSize": 1,      "size": 1,"price": 3200.00,"takerOrderId": "5c9dd00870744d71c43f5e25","time": 1553846281766256031,"makerOrderId": "5c9d852070744d0976909a0c","tradeId": "5c9dd00970744d6f5a3d32fc"      }}`
-var publicFuturesOrderbookWithDepth5PushDataJSON = `{"type": "message","topic": "/contractMarket/level2Depth5:XBTUSDM","subject": "level2","data": {"sequence": 1668672185642,"asks": [[17222.00000000,10802],[17223,5691],[17224,8153],[17225,5051],[17226,20000]],"bids": [[17221.00000000,4690],[17220,3766],[17219.00000000,4857],[17218,750],[17217.00000000,2100]],    "ts": 1670571892868,    "timestamp": 1670571892868    }}`
+var (
+	publicFuturesExecutionDataJSON               = `{"topic": "/contractMarket/execution:XBTUSDM","subject": "match","data": {"symbol": "XBTUSDM","sequence": 36,     "side": "buy","matchSize": 1,      "size": 1,"price": 3200.00,"takerOrderId": "5c9dd00870744d71c43f5e25","time": 1553846281766256031,"makerOrderId": "5c9d852070744d0976909a0c","tradeId": "5c9dd00970744d6f5a3d32fc"      }}`
+	publicFuturesOrderbookWithDepth5PushDataJSON = `{"type": "message","topic": "/contractMarket/level2Depth5:XBTUSDM","subject": "level2","data": {"sequence": 1668672185642,"asks": [[17222.00000000,10802],[17223,5691],[17224,8153],[17225,5051],[17226,20000]],"bids": [[17221.00000000,4690],[17220,3766],[17219.00000000,4857],[17218,750],[17217.00000000,2100]],    "ts": 1670571892868,    "timestamp": 1670571892868    }}`
+)
 
 func TestPublicFuturesExecutionData(t *testing.T) {
 	t.Parallel()
@@ -2057,8 +2066,10 @@ func TestFuturesPositionSettlementPushData(t *testing.T) {
 	}
 }
 
-var futuresPositionChangePushDataJSON = `{ "userId": "5cd3f1a7b7ebc19ae9558591","topic": "/contract/position:XBTUSDM",  "subject": "position.change", "data": {"markPrice": 7947.83,"markValue": 0.00251640,"maintMargin": 0.00252044,"realLeverage": 10.06,"unrealisedPnl": -0.00014735,"unrealisedRoePcnt": -0.0553,"unrealisedPnlPcnt": -0.0553,"delevPercentage": 0.52,"currentTimestamp": 1558087175068,"settleCurrency": "XBT"}}`
-var futuresPositionChangeWithChangeReasonPushDataJSON = `{ "type": "message","userId": "5c32d69203aa676ce4b543c7","channelType": "private","topic": "/contract/position:XBTUSDM",  "subject": "position.change", "data": {"realisedGrossPnl": 0E-8,"symbol":"XBTUSDM","crossMode": false,"liquidationPrice": 1000000.0,"posLoss": 0E-8,"avgEntryPrice": 7508.22,"unrealisedPnl": -0.00014735,"markPrice": 7947.83,"posMargin": 0.00266779,"autoDeposit": false,"riskLimit": 100000,"unrealisedCost": 0.00266375,"posComm": 0.00000392,"posMaint": 0.00001724,"posCost": 0.00266375,"maintMarginReq": 0.005,"bankruptPrice": 1000000.0,"realisedCost": 0.00000271,"markValue": 0.00251640,"posInit": 0.00266375,"realisedPnl": -0.00000253,"maintMargin": 0.00252044,"realLeverage": 1.06,"changeReason": "positionChange","currentCost": 0.00266375,"openingTimestamp": 1558433191000,"currentQty": -20,"delevPercentage": 0.52,"currentComm": 0.00000271,"realisedGrossCost": 0E-8,"isOpen": true,"posCross": 1.2E-7,"currentTimestamp": 1558506060394,"unrealisedRoePcnt": -0.0553,"unrealisedPnlPcnt": -0.0553,"settleCurrency": "XBT"}}`
+var (
+	futuresPositionChangePushDataJSON                 = `{ "userId": "5cd3f1a7b7ebc19ae9558591","topic": "/contract/position:XBTUSDM",  "subject": "position.change", "data": {"markPrice": 7947.83,"markValue": 0.00251640,"maintMargin": 0.00252044,"realLeverage": 10.06,"unrealisedPnl": -0.00014735,"unrealisedRoePcnt": -0.0553,"unrealisedPnlPcnt": -0.0553,"delevPercentage": 0.52,"currentTimestamp": 1558087175068,"settleCurrency": "XBT"}}`
+	futuresPositionChangeWithChangeReasonPushDataJSON = `{ "type": "message","userId": "5c32d69203aa676ce4b543c7","channelType": "private","topic": "/contract/position:XBTUSDM",  "subject": "position.change", "data": {"realisedGrossPnl": 0E-8,"symbol":"XBTUSDM","crossMode": false,"liquidationPrice": 1000000.0,"posLoss": 0E-8,"avgEntryPrice": 7508.22,"unrealisedPnl": -0.00014735,"markPrice": 7947.83,"posMargin": 0.00266779,"autoDeposit": false,"riskLimit": 100000,"unrealisedCost": 0.00266375,"posComm": 0.00000392,"posMaint": 0.00001724,"posCost": 0.00266375,"maintMarginReq": 0.005,"bankruptPrice": 1000000.0,"realisedCost": 0.00000271,"markValue": 0.00251640,"posInit": 0.00266375,"realisedPnl": -0.00000253,"maintMargin": 0.00252044,"realLeverage": 1.06,"changeReason": "positionChange","currentCost": 0.00266375,"openingTimestamp": 1558433191000,"currentQty": -20,"delevPercentage": 0.52,"currentComm": 0.00000271,"realisedGrossCost": 0E-8,"isOpen": true,"posCross": 1.2E-7,"currentTimestamp": 1558506060394,"unrealisedRoePcnt": -0.0553,"unrealisedPnlPcnt": -0.0553,"settleCurrency": "XBT"}}`
+)
 
 func TestFuturesPositionChangePushData(t *testing.T) {
 	t.Parallel()

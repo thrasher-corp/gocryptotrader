@@ -1915,7 +1915,7 @@ func (ku *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, m
 		if err != nil {
 			return nil, err
 		}
-		passPhraseHash, err = crypto.GetHMAC(crypto.HashSHA256, []byte(creds.OneTimePassword), []byte(creds.Secret))
+		passPhraseHash, err = crypto.GetHMAC(crypto.HashSHA256, []byte(creds.PEMKey), []byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
