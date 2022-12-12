@@ -191,8 +191,11 @@ func (d *Deribit) wsHandleData(respRaw []byte) error {
 	if err != nil {
 		return fmt.Errorf("%s - err %s could not parse websocket data: %s", d.Name, err, respRaw)
 	}
-	if response.ID > 0 && !d.Websocket.Match.IncomingWithData(response.ID, respRaw) {
-		return fmt.Errorf("can't send ws incoming data to Matched channel with RequestID: %d", response.ID)
+	if response.ID > 0 {
+		if !d.Websocket.Match.IncomingWithData(response.ID, respRaw) {
+			return fmt.Errorf("can't send ws incoming data to Matched channel with RequestID: %d", response.ID)
+		}
+		return nil
 	}
 	channels := strings.Split(response.Params.Channel, ".")
 	switch channels[0] {

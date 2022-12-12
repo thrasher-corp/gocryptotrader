@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"regexp"
 	"strings"
 	"time"
 
@@ -159,14 +158,13 @@ func (d *Deribit) WSRetriveHistoricalVolatility(symbol string) ([]HistoricalVola
 
 // WSRetriveCurrencyIndexPrice the current index price for the instruments, for the selected currency through the websocket connection.
 func (d *Deribit) WSRetriveCurrencyIndexPrice(symbol string) (map[string]float64, error) {
-	symbol = strings.ToUpper(symbol)
 	if symbol == "" {
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
 	}
 	input := &struct {
 		Currency string `json:"currency"`
 	}{
-		Currency: symbol,
+		Currency: strings.ToUpper(symbol),
 	}
 	var resp map[string]float64
 	return resp, d.SendWSRequest(getCurrencyIndexPrice, input, &resp, false)
@@ -799,7 +797,7 @@ func (d *Deribit) WSChangeAPIKeyName(id int64, name string) (*APIKeyData, error)
 	if id <= 0 {
 		return nil, fmt.Errorf("%w, invalid api key id", errInvalidID)
 	}
-	if !regexp.MustCompile(alphaNumericRegExp).MatchString(name) {
+	if !alphaNumericRegExp.MatchString(name) {
 		return nil, errors.New("unacceptable api key name")
 	}
 	input := &struct {

@@ -2,6 +2,7 @@ package deribit
 
 import (
 	"errors"
+	"regexp"
 	"time"
 )
 
@@ -27,7 +28,7 @@ const (
 )
 
 var (
-	alphaNumericRegExp = "^[a-zA-Z0-9_]*$"
+	alphaNumericRegExp = regexp.MustCompile("^[a-zA-Z0-9_]*$")
 
 	errTypeAssert                          = errors.New("type assertion failed")
 	errStartTimeCannotBeAfterEndTime       = errors.New("start timestamp cannot be after end timestamp")

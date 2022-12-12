@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -927,7 +926,7 @@ func (d *Deribit) ChangeAPIKeyName(ctx context.Context, id int64, name string) (
 	if id <= 0 {
 		return nil, fmt.Errorf("%w, invalid api key id", errInvalidID)
 	}
-	if !regexp.MustCompile(alphaNumericRegExp).MatchString(name) {
+	if !alphaNumericRegExp.MatchString(name) {
 		return nil, errors.New("unacceptable api key name")
 	}
 	params := url.Values{}
@@ -1086,14 +1085,13 @@ func (d *Deribit) GetNewAnnouncements(ctx context.Context) ([]Announcement, erro
 
 // GetPrivatePortfolioMargins calculates portfolio margin info for simulated position or current position of the user. This request has special restricted rate limit (not more than once per a second).
 func (d *Deribit) GetPrivatePortfolioMargins(ctx context.Context, ccy string, accPositions bool, simulatedPositions map[string]float64) (*PortfolioMargin, error) {
-	ccy = strings.ToUpper(ccy)
 	if ccy == "" {
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", strings.ToUpper(ccy))
 	if accPositions {
-		params.Set("acc_positions", strconv.FormatBool(accPositions))
+		params.Set("acc_positions", "true")
 	}
 	if len(simulatedPositions) != 0 {
 		values, err := json.Marshal(simulatedPositions)
@@ -2064,7 +2062,7 @@ func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, meth
 	reqDataStr := method + "\n" + deribitAPIVersion + "/" + common.EncodeURLValues(path, data) + "\n" + "" + "\n"
 	n := d.Requester.GetNonce(true)
 	strTS := strconv.FormatInt(time.Now().UnixMilli(), 10)
-	str2Sign := fmt.Sprintf(strTS + "\n" + n.String() + "\n" + reqDataStr)
+	str2Sign := strTS + "\n" + n.String() + "\n" + reqDataStr
 	creds, err := d.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -2077,7 +2075,7 @@ func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, meth
 		return err
 	}
 	headers := make(map[string]string)
-	headerString := fmt.Sprintf("deri-hmac-sha256 id=" + creds.Key + ",ts=" + strTS + ",sig=" + crypto.HexEncodeToString(hmac) + ",nonce=" + n.String())
+	headerString := "deri-hmac-sha256 id=" + creds.Key + ",ts=" + strTS + ",sig=" + crypto.HexEncodeToString(hmac) + ",nonce=" + n.String()
 	headers["Authorization"] = headerString
 	headers["Content-Type"] = "application/json"
 	var tempData struct {
@@ -2110,12 +2108,11 @@ func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, meth
 // GetComboIDS Retrieves available combos.
 // This method can be used to get the list of all combos, or only the list of combos in the given state.
 func (d *Deribit) GetComboIDS(ctx context.Context, ccy, state string) ([]string, error) {
-	ccy = strings.ToUpper(ccy)
 	if ccy == "" {
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", strings.ToUpper(ccy))
 	if state != "" {
 		params.Set("state", state)
 	}
