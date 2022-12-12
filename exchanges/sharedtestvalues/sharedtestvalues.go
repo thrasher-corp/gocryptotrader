@@ -16,7 +16,7 @@ const (
 	WebsocketResponseExtendedTimeout = (15 * time.Second)
 	// WebsocketChannelOverrideCapacity used in websocket testing
 	// Defines channel capacity as defaults size can block tests
-	WebsocketChannelOverrideCapacity = 75
+	WebsocketChannelOverrideCapacity = 500
 
 	MockTesting = "Mock testing framework in use for %s exchange on REST endpoints only"
 	LiveTesting = "Mock testing bypassed; live testing of REST endpoints in use for %s exchange"
@@ -38,7 +38,7 @@ func GetWebsocketStructChannelOverride() chan struct{} {
 func NewTestWebsocket() *stream.Websocket {
 	return &stream.Websocket{
 		Init:              true,
-		DataHandler:       make(chan interface{}, 75),
+		DataHandler:       make(chan interface{}, WebsocketChannelOverrideCapacity),
 		ToRoutine:         make(chan interface{}, 1000),
 		TrafficAlert:      make(chan struct{}),
 		ReadMessageErrors: make(chan error),

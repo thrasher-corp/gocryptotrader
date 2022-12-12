@@ -45,7 +45,7 @@ func (o *OKCoin) GetDefaultConfig() (*config.Exchange, error) {
 	return exchCfg, nil
 }
 
-// SetDefaults method assignes the default values for OKEX
+// SetDefaults method assignes the default values for OKCoin
 func (o *OKCoin) SetDefaults() {
 	o.SetErrorDefaults()
 	o.SetCheckVarDefaults()
@@ -169,7 +169,7 @@ func (o *OKCoin) Start(wg *sync.WaitGroup) error {
 	return nil
 }
 
-// Run implements the OKEX wrapper
+// Run implements the OKCoin wrapper
 func (o *OKCoin) Run() {
 	if o.Verbose {
 		log.Debugf(log.ExchangeSys,
@@ -247,22 +247,21 @@ func (o *OKCoin) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (o *OKCoin) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
+func (o *OKCoin) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	prods, err := o.GetSpotTokenPairDetails(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	format, err := o.GetPairFormat(asset, false)
-	if err != nil {
-		return nil, err
-	}
-
-	pairs := make([]string, len(prods))
+	pairs := make([]currency.Pair, len(prods))
 	for x := range prods {
-		pairs[x] = prods[x].BaseCurrency + format.Delimiter + prods[x].QuoteCurrency
+		var pair currency.Pair
+		pair, err = currency.NewPairFromStrings(prods[x].BaseCurrency, prods[x].QuoteCurrency)
+		if err != nil {
+			return nil, err
+		}
+		pairs[x] = pair
 	}
-
 	return pairs, nil
 }
 
@@ -273,11 +272,7 @@ func (o *OKCoin) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 	if err != nil {
 		return err
 	}
-	p, err := currency.NewPairsFromStrings(pairs)
-	if err != nil {
-		return err
-	}
-	return o.UpdatePairs(p, asset.Spot, false, forceUpdate)
+	return o.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

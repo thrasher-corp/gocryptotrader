@@ -457,12 +457,8 @@ func TestFOrder(t *testing.T) {
 	if len(tradablePairs) == 0 {
 		t.Fatal("no tradable pairs")
 	}
-	cp, err := currency.NewPairFromString(tradablePairs[0])
-	if err != nil {
-		t.Error(err)
-	}
 	_, err = h.FOrder(context.Background(),
-		currency.EMPTYPAIR, cp.Base.Upper().String(),
+		currency.EMPTYPAIR, tradablePairs[0].Base.Upper().String(),
 		"quarter", "123", "BUY", "open", "limit", 1, 1, 1)
 	if err != nil {
 		t.Error(err)
@@ -529,11 +525,7 @@ func TestFCancelAllOrders(t *testing.T) {
 	if len(tradablePairs) == 0 {
 		t.Fatal("no tradable pairs")
 	}
-	cp, err := currency.NewPairFromString(tradablePairs[0])
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = h.FCancelAllOrders(context.Background(), cp, "", "")
+	_, err = h.FCancelAllOrders(context.Background(), tradablePairs[0], "", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -598,12 +590,8 @@ func TestFGetOrderHistory(t *testing.T) {
 	if len(tradablePairs) == 0 {
 		t.Fatal("no tradable pairs")
 	}
-	cp, err := currency.NewPairFromString(tradablePairs[0])
-	if err != nil {
-		t.Error(err)
-	}
 	_, err = h.FGetOrderHistory(context.Background(),
-		currency.EMPTYPAIR, cp.Base.Upper().String(),
+		currency.EMPTYPAIR, tradablePairs[0].Base.Upper().String(),
 		"all", "all", "limit",
 		[]order.Status{},
 		5, 0, 0)
@@ -726,11 +714,7 @@ func TestUpdateTickerFutures(t *testing.T) {
 	if len(tradablePairs) == 0 {
 		t.Fatal("no tradable pairs")
 	}
-	cp2, err := currency.NewPairFromString(tradablePairs[0])
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = h.UpdateTicker(context.Background(), cp2, asset.Futures)
+	_, err = h.UpdateTicker(context.Background(), tradablePairs[0], asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -770,11 +754,7 @@ func TestUpdateOrderbookFuture(t *testing.T) {
 	if len(tradablePairs) == 0 {
 		t.Fatal("no tradable pairs")
 	}
-	cp2, err := currency.NewPairFromString(tradablePairs[0])
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = h.UpdateOrderbook(context.Background(), cp2, asset.Futures)
+	_, err = h.UpdateOrderbook(context.Background(), tradablePairs[0], asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -786,11 +766,7 @@ func TestUpdateOrderbookFuture(t *testing.T) {
 	if len(tradablePairs) == 0 {
 		t.Fatal("no tradable pairs")
 	}
-	cp2, err = currency.NewPairFromString(tradablePairs[0])
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = h.UpdateOrderbook(context.Background(), cp2, asset.CoinMarginedFutures)
+	_, err = h.UpdateOrderbook(context.Background(), tradablePairs[0], asset.CoinMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -842,11 +818,7 @@ func TestGetOrderHistory(t *testing.T) {
 	if len(tradablePairs) == 0 {
 		t.Fatal("no tradable pairs")
 	}
-	cp2, err := currency.NewPairFromString(tradablePairs[0])
-	if err != nil {
-		t.Error(err)
-	}
-	getOrdersRequest.Pairs = []currency.Pair{cp2}
+	getOrdersRequest.Pairs = []currency.Pair{tradablePairs[0]}
 	getOrdersRequest.AssetType = asset.Futures
 	_, err = h.GetOrderHistory(context.Background(), &getOrdersRequest)
 	if err != nil {
@@ -2746,11 +2718,7 @@ func TestFormatFuturesPair(t *testing.T) {
 	}
 	// test getting a tradable pair in the format of BTC210827 but make it lower
 	// case to test correct formatting
-	p, err := currency.NewPairFromString(strings.ToLower(availInstruments[0]))
-	if err != nil {
-		t.Fatal(err)
-	}
-	r, err = h.formatFuturesPair(p)
+	r, err = h.formatFuturesPair(availInstruments[0])
 	if err != nil {
 		t.Fatal(err)
 	}

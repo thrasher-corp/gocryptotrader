@@ -218,7 +218,7 @@ Yes means supported, No means not yet implemented and NA means protocol unsuppor
 | Lbank | Yes | No | NA |
 | LocalBitcoins | Yes | NA | NA |
 | OKCoin International | Yes | Yes | No |
-| OKEX | Yes | Yes | No |
+| Okx | Yes | Yes | NA |
 | Poloniex | Yes | Yes | NA |
 | Yobit | Yes | NA | NA |
 | ZB.COM | Yes | Yes | NA |
@@ -249,7 +249,7 @@ var Exchanges = []string{
 	"lbank",
 	"localbitcoins",
 	"okcoin international",
-	"okex",
+	"okx",
 	"poloniex",
 	"yobit",
     "zb",
@@ -641,7 +641,7 @@ Supported Examples:
 
 ```go
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (f *FTX) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, error) {
+func (f *FTX) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if !f.SupportsAsset(a) {
 		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, f.Name)
 	}
