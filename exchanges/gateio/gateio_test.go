@@ -29,6 +29,9 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	canManipulateRealOrders = false
+
+	credInformationNotProvided                                   = "credentials information not provided"
+	credInformationNotProvidedOrManipulatingRealOrdersNotAllowed = "credentials information not provided or cannot manipulate real orders"
 )
 
 var g Gateio
@@ -104,7 +107,7 @@ func getFirstTradablePair(t *testing.T, a asset.Item) (currency.Pair, error) {
 func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip()
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	currencyPair, err := getFirstTradablePair(t, asset.Options)
 	if err != nil {
@@ -134,7 +137,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	_, err := g.UpdateAccountInfo(context.Background(), asset.Spot)
 	if err != nil {
@@ -169,7 +172,7 @@ func TestWithdraw(t *testing.T) {
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	cp, err := getFirstTradablePair(t, asset.Spot)
 	if err != nil {
@@ -277,7 +280,7 @@ func TestGetCandlesticks(t *testing.T) {
 func TestGetTradingFeeRatio(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetTradingFeeRatio(context.Background(), currency.NewPair(currency.BTC, currency.USDT)); err != nil {
 		t.Errorf("%s GetTradingFeeRatio() error %v", g.Name, err)
@@ -287,7 +290,7 @@ func TestGetTradingFeeRatio(t *testing.T) {
 func TestGetSpotAccounts(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetSpotAccounts(context.Background(), currency.BTC); err != nil {
 		t.Errorf("%s GetSpotAccounts() error %v", g.Name, err)
@@ -324,7 +327,7 @@ func TestCreateBatchOrders(t *testing.T) {
 func TestGetSpotOpenOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetSpotOpenOrders(context.Background(), 0, 0, false); err != nil {
 		t.Errorf("%s GetSpotOpenOrders() error %v", g.Name, err)
@@ -365,7 +368,7 @@ func TestCreateSpotOrder(t *testing.T) {
 func TestGetSpotOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetSpotOrders(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "open", 0, 0); err != nil {
 		t.Errorf("%s GetSpotOrders() error %v", g.Name, err)
@@ -375,7 +378,7 @@ func TestGetSpotOrders(t *testing.T) {
 func TestCancelAllOpenOrdersSpecifiedCurrencyPair(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.CancelAllOpenOrdersSpecifiedCurrencyPair(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}.String(), order.Sell, asset.Empty); err != nil {
 		t.Errorf("%s CancelAllOpenOrdersSpecifiedCurrencyPair() error %v", g.Name, err)
@@ -404,7 +407,7 @@ func TestCancelBatchOrdersWithIDList(t *testing.T) {
 func TestGetSpotOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetSpotOrder(context.Background(), "1234", currency.Pair{
 		Base:      currency.BTC,
@@ -416,7 +419,7 @@ func TestGetSpotOrder(t *testing.T) {
 func TestCancelSingleSpotOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.CancelSingleSpotOrder(context.Background(), "1234",
 		currency.Pair{Base: currency.ETH,
@@ -429,7 +432,7 @@ func TestCancelSingleSpotOrder(t *testing.T) {
 func TestGetPersonalTradingHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetPersonalTradingHistory(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "", 0, 0, asset.Spot, time.Time{}, time.Time{}); err != nil {
 		t.Errorf("%s GetPersonalTradingHistory() error %v", g.Name, err)
@@ -439,7 +442,7 @@ func TestGetPersonalTradingHistory(t *testing.T) {
 func TestGetServerTime(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetServerTime(context.Background(), asset.Empty); err != nil {
 		t.Errorf("%s GetServerTime() error %v", g.Name, err)
@@ -449,7 +452,7 @@ func TestGetServerTime(t *testing.T) {
 func TestCountdownCancelorder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.CountdownCancelorder(context.Background(), CountdownCancelOrderParam{
 		Timeout:      10,
@@ -486,7 +489,7 @@ func TestCreatePriceTriggeredOrder(t *testing.T) {
 func TestGetPriceTriggeredOrderList(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetPriceTriggeredOrderList(context.Background(), "open", currency.EMPTYPAIR, asset.Empty, 0, 0); err != nil {
 		t.Errorf("%s GetPriceTriggeredOrderList() error %v", g.Name, err)
@@ -506,7 +509,7 @@ func TestCancelAllOpenOrders(t *testing.T) {
 func TestGetSinglePriceTriggeredOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetSinglePriceTriggeredOrder(context.Background(), "1234"); err != nil && !strings.Contains(err.Error(), "no order_id match") {
 		t.Errorf("%s GetSinglePriceTriggeredOrder() error %v", g.Name, err)
@@ -516,7 +519,7 @@ func TestGetSinglePriceTriggeredOrder(t *testing.T) {
 func TestCancelPriceTriggeredOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.CancelPriceTriggeredOrder(context.Background(), "1234"); err != nil &&
 		!strings.Contains(err.Error(), "no order_id match") {
@@ -527,7 +530,7 @@ func TestCancelPriceTriggeredOrder(t *testing.T) {
 func TestGetMarginAccountList(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetMarginAccountList(context.Background(), currency.EMPTYPAIR); err != nil {
 		t.Errorf("%s GetMarginAccountList() error %v", g.Name, err)
@@ -537,7 +540,7 @@ func TestGetMarginAccountList(t *testing.T) {
 func TestListMarginAccountBalanceChangeHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.ListMarginAccountBalanceChangeHistory(context.Background(), currency.BTC, currency.Pair{
 		Base:      currency.BTC,
@@ -550,7 +553,7 @@ func TestListMarginAccountBalanceChangeHistory(t *testing.T) {
 func TestGetMarginFundingAccountList(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetMarginFundingAccountList(context.Background(), currency.BTC); err != nil {
 		t.Errorf("%s GetMarginFundingAccountList %v", g.Name, err)
@@ -560,7 +563,7 @@ func TestGetMarginFundingAccountList(t *testing.T) {
 func TestMarginLoan(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.MarginLoan(context.Background(), &MarginLoanRequestParam{
 		Side:         "borrow",
@@ -577,7 +580,7 @@ func TestMarginLoan(t *testing.T) {
 func TestGetMarginAllLoans(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetMarginAllLoans(context.Background(), "open", "lend", currency.BTC, currency.Pair{Base: currency.BTC, Delimiter: currency.UnderscoreDelimiter, Quote: currency.USDT}.String(), "", false, 0, 0); err != nil {
 		t.Errorf("%s GetMarginAllLoans() error %v", g.Name, err)
@@ -587,7 +590,7 @@ func TestGetMarginAllLoans(t *testing.T) {
 func TestMergeMultipleLendingLoans(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.MergeMultipleLendingLoans(context.Background(), currency.USDT, []string{"123", "23423"}); err != nil && !strings.Contains(err.Error(), "Orders which can be merged are not found") {
 		t.Errorf("%s MergeMultipleLendingLoans() error %v", g.Name, err)
@@ -597,7 +600,7 @@ func TestMergeMultipleLendingLoans(t *testing.T) {
 func TestRetriveOneSingleLoanDetail(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.RetriveOneSingleLoanDetail(context.Background(), "borrow", "123"); err != nil && !strings.Contains(err.Error(), "Loan not found") {
 		t.Errorf("%s RetriveOneSingleLoanDetail() error %v", g.Name, err)
@@ -607,7 +610,7 @@ func TestRetriveOneSingleLoanDetail(t *testing.T) {
 func TestModifyALoan(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.ModifyALoan(context.Background(), "1234", &ModifyLoanRequestParam{
 		Currency:  currency.BTC,
@@ -621,7 +624,7 @@ func TestModifyALoan(t *testing.T) {
 func TestCancelLendingLoan(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.CancelLendingLoan(context.Background(), currency.BTC, "1234"); err != nil && !strings.Contains(err.Error(), "Loan not found") {
 		t.Errorf("%s CancelLendingLoan() error %v", g.Name, err)
@@ -631,7 +634,7 @@ func TestCancelLendingLoan(t *testing.T) {
 func TestRepayALoan(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.RepayALoan(context.Background(), "1234", &RepayLoanRequestParam{
 		CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
@@ -645,7 +648,7 @@ func TestRepayALoan(t *testing.T) {
 func TestListLoanRepaymentRecords(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.ListLoanRepaymentRecords(context.Background(), "1234"); err != nil &&
 		!strings.Contains(err.Error(), "Loan not found") {
@@ -656,7 +659,7 @@ func TestListLoanRepaymentRecords(t *testing.T) {
 func TestListRepaymentRecordsOfSpecificLoan(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.ListRepaymentRecordsOfSpecificLoan(context.Background(), "1234", "", 0, 0); err != nil {
 		t.Errorf("%s error while ListRepaymentRecordsOfSpecificLoan() %v", g.Name, err)
@@ -666,7 +669,7 @@ func TestListRepaymentRecordsOfSpecificLoan(t *testing.T) {
 func TestGetOneSingleloanRecord(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetOneSingleloanRecord(context.Background(), "1234", "123"); err != nil && !strings.Contains(err.Error(), "Loan record not found") {
 		t.Errorf("%s error while GetOneSingleloanRecord() %v", g.Name, err)
@@ -676,7 +679,7 @@ func TestGetOneSingleloanRecord(t *testing.T) {
 func TestModifyALoanRecord(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.ModifyALoanRecord(context.Background(), "1234", &ModifyLoanRequestParam{
 		Currency:     currency.USDT,
@@ -692,7 +695,7 @@ func TestModifyALoanRecord(t *testing.T) {
 func TestUpdateUsersAutoRepaymentSetting(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.UpdateUsersAutoRepaymentSetting(context.Background(), "on"); err != nil {
 		t.Errorf("%s UpdateUsersAutoRepaymentSetting() error %v", g.Name, err)
@@ -702,7 +705,7 @@ func TestUpdateUsersAutoRepaymentSetting(t *testing.T) {
 func TestGetUserAutoRepaymentSetting(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetUserAutoRepaymentSetting(context.Background()); err != nil {
 		t.Errorf("%s GetUserAutoRepaymentSetting() error %v", g.Name, err)
@@ -712,7 +715,7 @@ func TestGetUserAutoRepaymentSetting(t *testing.T) {
 func TestGetMaxTransferableAmountForSpecificMarginCurrency(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetMaxTransferableAmountForSpecificMarginCurrency(context.Background(), currency.BTC, currency.EMPTYPAIR); err != nil {
 		t.Errorf("%s GetMaxTransferableAmountForSpecificMarginCurrency() error %v", g.Name, err)
@@ -722,7 +725,7 @@ func TestGetMaxTransferableAmountForSpecificMarginCurrency(t *testing.T) {
 func TestGetMaxBorrowableAmountForSpecificMarginCurrency(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetMaxBorrowableAmountForSpecificMarginCurrency(context.Background(), currency.BTC, currency.EMPTYPAIR); err != nil && !strings.Contains(err.Error(), "No margin account or margin balance is not enough") {
 		t.Errorf("%s GetMaxBorrowableAmountForSpecificMarginCurrency() error %v", g.Name, err)
@@ -732,7 +735,7 @@ func TestGetMaxBorrowableAmountForSpecificMarginCurrency(t *testing.T) {
 func TestCurrencySupportedByCrossMargin(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.CurrencySupportedByCrossMargin(context.Background()); err != nil {
 		t.Errorf("%s CurrencySupportedByCrossMargin() error %v", g.Name, err)
@@ -742,7 +745,7 @@ func TestCurrencySupportedByCrossMargin(t *testing.T) {
 func TestGetCrossMarginSupportedCurrencyDetail(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetCrossMarginSupportedCurrencyDetail(context.Background(), currency.BTC); err != nil {
 		t.Errorf("%s GetCrossMarginSupportedCurrencyDetail() error %v", g.Name, err)
@@ -752,7 +755,7 @@ func TestGetCrossMarginSupportedCurrencyDetail(t *testing.T) {
 func TestGetCrossMarginAccounts(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetCrossMarginAccounts(context.Background()); err != nil && !strings.Contains(err.Error(), "CROSS_ACCOUNT_NOT_FOUND") {
 		t.Errorf("%s GetCrossMarginAccounts() error %v", g.Name, err)
@@ -762,7 +765,7 @@ func TestGetCrossMarginAccounts(t *testing.T) {
 func TestGetCrossMarginAccountChangeHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetCrossMarginAccountChangeHistory(context.Background(), currency.BTC, time.Time{}, time.Time{}, 0, 6, "in"); err != nil && !strings.Contains(err.Error(), "CROSS_ACCOUNT_NOT_FOUND") {
 		t.Errorf("%s GetCrossMarginAccountChangeHistory() error %v", g.Name, err)
@@ -778,7 +781,7 @@ func TestCreateCrossMarginBorrowLoan(t *testing.T) {
 		t.Errorf("%s error while deserializing to CrossMarginBorrowLoanResponse %v", g.Name, err)
 	}
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.CreateCrossMarginBorrowLoan(context.Background(), CrossMarginBorrowLoanParams{
 		Currency: currency.BTC,
@@ -791,7 +794,7 @@ func TestCreateCrossMarginBorrowLoan(t *testing.T) {
 func TestGetCrossMarginBorrowHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetCrossMarginBorrowHistory(context.Background(), 1, currency.BTC, 0, 0, false); err != nil && !strings.Contains(err.Error(), "CROSS_ACCOUNT_NOT_FOUND") {
 		t.Errorf("%s GetCrossMarginBorrowHistory() error %v", g.Name, err)
@@ -801,7 +804,7 @@ func TestGetCrossMarginBorrowHistory(t *testing.T) {
 func TestGetSingleBorrowLoanDetail(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetSingleBorrowLoanDetail(context.Background(), "1234"); err != nil && !strings.Contains(err.Error(), "LOAN_NOT_FOUND") {
 		t.Errorf("%s GetSingleBorrowLoanDetail() error %v", g.Name, err)
@@ -811,7 +814,7 @@ func TestGetSingleBorrowLoanDetail(t *testing.T) {
 func TestExecuteRepayment(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.ExecuteRepayment(context.Background(), CurrencyAndAmount{
 		Currency: currency.USD,
@@ -824,7 +827,7 @@ func TestExecuteRepayment(t *testing.T) {
 func TestGetCrossMarginRepayments(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetCrossMarginRepayments(context.Background(), currency.BTC, "123", 0, 0, false); err != nil && !strings.Contains(err.Error(), "CROSS_ACCOUNT_NOT_FOUND") {
 		t.Errorf("%s GetCrossMarginRepayments() error %v", g.Name, err)
@@ -834,7 +837,7 @@ func TestGetCrossMarginRepayments(t *testing.T) {
 func TestGetMaxTransferableAmountForSpecificCrossMarginCurrency(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetMaxTransferableAmountForSpecificCrossMarginCurrency(context.Background(), currency.BTC); err != nil && !strings.Contains(err.Error(), "CROSS_ACCOUNT_NOT_FOUND") {
 		t.Errorf("%s GetMaxTransferableAmountForSpecificCrossMarginCurrency() error %v", g.Name, err)
@@ -844,7 +847,7 @@ func TestGetMaxTransferableAmountForSpecificCrossMarginCurrency(t *testing.T) {
 func TestGetMaxBorrowableAmountForSpecificCrossMarginCurrency(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetMaxBorrowableAmountForSpecificCrossMarginCurrency(context.Background(), currency.BTC); err != nil && !strings.Contains(err.Error(), "CROSS_ACCOUNT_NOT_FOUND") {
 		t.Errorf("%s GetMaxBorrowableAmountForSpecificCrossMarginCurrency() error %v", g.Name, err)
@@ -861,7 +864,7 @@ func TestListCurrencyChain(t *testing.T) {
 func TestGenerateCurrencyDepositAddress(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GenerateCurrencyDepositAddress(context.Background(), currency.BTC); err != nil {
 		t.Errorf("%s GenerateCurrencyDepositAddress() error %v", g.Name, err)
@@ -871,7 +874,7 @@ func TestGenerateCurrencyDepositAddress(t *testing.T) {
 func TestGetWithdrawalRecords(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetWithdrawalRecords(context.Background(), currency.BTC, time.Time{}, time.Time{}, 0, 0); err != nil {
 		t.Errorf("%s GetWithdrawalRecords() error %v", g.Name, err)
@@ -881,7 +884,7 @@ func TestGetWithdrawalRecords(t *testing.T) {
 func TestGetDepositRecords(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetDepositRecords(context.Background(), currency.BTC, time.Time{}, time.Time{}, 0, 0); err != nil {
 		t.Errorf("%s GetDepositRecords() error %v", g.Name, err)
@@ -891,7 +894,7 @@ func TestGetDepositRecords(t *testing.T) {
 func TestTransferCurrency(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.TransferCurrency(context.Background(), &TransferCurrencyParam{
 		Currency:     currency.BTC,
@@ -907,7 +910,7 @@ func TestTransferCurrency(t *testing.T) {
 func TestSubAccountTransfer(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if err := g.SubAccountTransfer(context.Background(), SubAccountTransferParam{
 		Currency:   currency.BTC,
@@ -922,7 +925,7 @@ func TestSubAccountTransfer(t *testing.T) {
 func TestGetSubAccountTransferHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetSubAccountTransferHistory(context.Background(), "", time.Time{}, time.Time{}, 0, 0); err != nil {
 		t.Errorf("%s GetSubAccountTransferHistory() error %v", g.Name, err)
@@ -932,7 +935,7 @@ func TestGetSubAccountTransferHistory(t *testing.T) {
 func TestGetWithdrawalStatus(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetWithdrawalStatus(context.Background(), currency.NewCode("")); err != nil {
 		t.Errorf("%s GetWithdrawalStatus() error %v", g.Name, err)
@@ -942,7 +945,7 @@ func TestGetWithdrawalStatus(t *testing.T) {
 func TestGetSubAccountBalances(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetSubAccountBalances(context.Background(), ""); err != nil {
 		t.Errorf("%s GetSubAccountBalances() error %v", g.Name, err)
@@ -952,7 +955,7 @@ func TestGetSubAccountBalances(t *testing.T) {
 func TestGetSubAccountMarginBalances(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetSubAccountMarginBalances(context.Background(), ""); err != nil {
 		t.Errorf("%s GetSubAccountMarginBalances() error %v", g.Name, err)
@@ -962,7 +965,7 @@ func TestGetSubAccountMarginBalances(t *testing.T) {
 func TestGetSubAccountFuturesBalances(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetSubAccountFuturesBalances(context.Background(), "", ""); err != nil {
 		t.Errorf("%s GetSubAccountFuturesBalance() error %v", g.Name, err)
@@ -972,7 +975,7 @@ func TestGetSubAccountFuturesBalances(t *testing.T) {
 func TestGetSubAccountCrossMarginBalances(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetSubAccountCrossMarginBalances(context.Background(), ""); err != nil {
 		t.Errorf("%s GetSubAccountCrossMarginBalances() error %v", g.Name, err)
@@ -982,7 +985,7 @@ func TestGetSubAccountCrossMarginBalances(t *testing.T) {
 func TestGetSavedAddresses(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetSavedAddresses(context.Background(), currency.BTC, "", 0); err != nil {
 		t.Errorf("%s GetSavedAddresses() error %v", g.Name, err)
@@ -992,7 +995,7 @@ func TestGetSavedAddresses(t *testing.T) {
 func TestGetPersonalTradingFee(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetPersonalTradingFee(context.Background(), currency.NewPair(currency.BTC, currency.USDT)); err != nil {
 		t.Errorf("%s GetPersonalTradingFee() error %v", g.Name, err)
@@ -1002,7 +1005,7 @@ func TestGetPersonalTradingFee(t *testing.T) {
 func TestGetUsersTotalBalance(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetUsersTotalBalance(context.Background(), currency.BTC); err != nil {
 		t.Errorf("%s GetUsersTotalBalance() error %v", g.Name, err)
@@ -1139,7 +1142,7 @@ func TestGetLiquidationHistory(t *testing.T) {
 func TestQueryFuturesAccount(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.QueryFuturesAccount(context.Background(), settleUSDT); err != nil && !strings.Contains(err.Error(), "USER_NOT_FOUND") {
 		t.Errorf("%s QueryFuturesAccount() error %v", g.Name, err)
@@ -1149,7 +1152,7 @@ func TestQueryFuturesAccount(t *testing.T) {
 func TestGetFuturesAccountBooks(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetFuturesAccountBooks(context.Background(), settleUSDT, 0, time.Time{}, time.Time{}, "dnw"); err != nil {
 		t.Errorf("%s GetFuturesAccountBooks() error %v", g.Name, err)
@@ -1159,7 +1162,7 @@ func TestGetFuturesAccountBooks(t *testing.T) {
 func TestGetAllPositionsOfUsers(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetAllFuturesPositionsOfUsers(context.Background(), settleUSDT); err != nil && !strings.Contains(err.Error(), "USER_NOT_FOUND") {
 		t.Errorf("%s GetAllPositionsOfUsers() error %v", g.Name, err)
@@ -1169,7 +1172,7 @@ func TestGetAllPositionsOfUsers(t *testing.T) {
 func TestGetSinglePosition(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetSinglePosition(context.Background(), settleUSDT, currency.Pair{Quote: currency.BTC, Base: currency.USDT}); err != nil && !strings.Contains(err.Error(), "NOT_FOUND") {
 		t.Errorf("%s GetSinglePosition() error %v", g.Name, err)
@@ -1179,7 +1182,7 @@ func TestGetSinglePosition(t *testing.T) {
 func TestUpdatePositionMargin(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.UpdateFuturesPositionMargin(context.Background(), settleUSDT, 0.01, currency.NewPair(currency.ETH, currency.USD)); err != nil && !strings.Contains(err.Error(), "USER_NOT_FOUND") {
 		t.Errorf("%s UpdatePositionMargin() error %v", g.Name, err)
@@ -1189,7 +1192,7 @@ func TestUpdatePositionMargin(t *testing.T) {
 func TestUpdatePositionLeverage(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.UpdateFuturesPositionLeverage(context.Background(), settleUSDT, currency.Pair{Base: currency.BTC, Quote: currency.USDT}, 1, 0); err != nil && !strings.Contains(err.Error(), "USER_NOT_FOUND") {
 		t.Errorf("%s UpdatePositionLeverage() error %v", g.Name, err)
@@ -1199,7 +1202,7 @@ func TestUpdatePositionLeverage(t *testing.T) {
 func TestUpdatePositionRiskLimit(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.UpdateFuturesPositionRiskLimit(context.Background(), settleUSDT, currency.Pair{Base: currency.BTC, Quote: currency.USDT}, 10); err != nil && !strings.Contains(err.Error(), "USER_NOT_FOUND") {
 		t.Errorf("%s UpdatePositionRiskLimit() error %v", g.Name, err)
@@ -1209,7 +1212,7 @@ func TestUpdatePositionRiskLimit(t *testing.T) {
 func TestCreateDeliveryOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	currencyPair, err := getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
@@ -1231,7 +1234,7 @@ func TestCreateDeliveryOrder(t *testing.T) {
 func TestGetDeliveryOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	cp, err := getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
@@ -1245,7 +1248,7 @@ func TestGetDeliveryOrders(t *testing.T) {
 func TestCancelAllDeliveryOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	cp, err := getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
@@ -1259,7 +1262,7 @@ func TestCancelAllDeliveryOrders(t *testing.T) {
 func TestGetSingleDeliveryOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetSingleDeliveryOrder(context.Background(), settleUSDT, "123456"); err != nil && !strings.Contains(err.Error(), "ORDER_NOT_FOUND") {
 		t.Errorf("%s GetSingleDeliveryOrder() error %v", g.Name, err)
@@ -1269,7 +1272,7 @@ func TestGetSingleDeliveryOrder(t *testing.T) {
 func TestCancelSingleDeliveryOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.CancelSingleDeliveryOrder(context.Background(), settleUSDT, "123456"); err != nil && !strings.Contains(err.Error(), "ORDER_NOT_FOUND") {
 		t.Errorf("%s CancelSingleDeliveryOrder() error %v", g.Name, err)
@@ -1279,7 +1282,7 @@ func TestCancelSingleDeliveryOrder(t *testing.T) {
 func TestGetDeliveryPersonalTradingHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	cp, err := getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
@@ -1293,7 +1296,7 @@ func TestGetDeliveryPersonalTradingHistory(t *testing.T) {
 func TestGetDeliveryPositionCloseHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	pair, err := getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
@@ -1307,7 +1310,7 @@ func TestGetDeliveryPositionCloseHistory(t *testing.T) {
 func TestGetDeliveryLiquidationHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	cp, err := getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
@@ -1321,7 +1324,7 @@ func TestGetDeliveryLiquidationHistory(t *testing.T) {
 func TestGetDeliverySettlementHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	cp, err := getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
@@ -1335,7 +1338,7 @@ func TestGetDeliverySettlementHistory(t *testing.T) {
 func TestGetDeliveryPriceTriggeredOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	cp, err := getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
@@ -1360,7 +1363,7 @@ func TestGetDeliveryPriceTriggeredOrder(t *testing.T) {
 func TestGetDeliveryAllAutoOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	cp, err := getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
@@ -1374,7 +1377,7 @@ func TestGetDeliveryAllAutoOrder(t *testing.T) {
 func TestCancelAllDeliveryPriceTriggeredOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	cp, err := getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
@@ -1388,7 +1391,7 @@ func TestCancelAllDeliveryPriceTriggeredOrder(t *testing.T) {
 func TestGetSingleDeliveryPriceTriggeredOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetSingleDeliveryPriceTriggeredOrder(context.Background(), settleBTC, "12345"); err != nil && !strings.Contains(err.Error(), "no orderID match") {
 		t.Errorf("%s GetSingleDeliveryPriceTriggeredOrder() error %v", g.Name, err)
@@ -1398,7 +1401,7 @@ func TestGetSingleDeliveryPriceTriggeredOrder(t *testing.T) {
 func TestCancelDeliveryPriceTriggeredOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.CancelDeliveryPriceTriggeredOrder(context.Background(), settleUSDT, "12345"); err != nil && !strings.Contains(err.Error(), "not found order info id:12345 count:0") {
 		t.Errorf("%s CancelDeliveryPriceTriggeredOrder() error %v", g.Name, err)
@@ -1408,7 +1411,7 @@ func TestCancelDeliveryPriceTriggeredOrder(t *testing.T) {
 func TestEnableOrDisableDualMode(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.EnableOrDisableDualMode(context.Background(), settleBTC, true); err != nil && !strings.Contains(err.Error(), "NOT_FOUND") {
 		t.Errorf("%s EnableOrDisableDualMode() error %v", g.Name, err)
@@ -1418,7 +1421,7 @@ func TestEnableOrDisableDualMode(t *testing.T) {
 func TestRetrivePositionDetailInDualMode(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.RetrivePositionDetailInDualMode(context.Background(), settleBTC, currency.NewPair(currency.USDT, currency.BTC)); err != nil && !strings.Contains(err.Error(), "please transfer funds first to create futures account") {
 		t.Errorf("%s RetrivePositionDetailInDualMode() error %v", g.Name, err)
@@ -1428,7 +1431,7 @@ func TestRetrivePositionDetailInDualMode(t *testing.T) {
 func TestUpdatePositionMarginInDualMode(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.UpdatePositionMarginInDualMode(context.Background(), settleUSDT, currency.NewPair(currency.BTC, currency.USDT), 0.001, "dual_long"); err != nil && !strings.Contains(err.Error(), "please transfer funds first to create futures account") && !strings.Contains(err.Error(), "INVALID_PROTOCOL") {
 		t.Errorf("%s UpdatePositionMarginInDualMode() error %v", g.Name, err)
@@ -1437,7 +1440,7 @@ func TestUpdatePositionMarginInDualMode(t *testing.T) {
 func TestUpdatePositionLeverageInDualMode(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.UpdatePositionLeverageInDualMode(context.Background(), settleUSDT, currency.NewPair(currency.BTC, currency.USDT), 0.001, 0.001); err != nil && !strings.Contains(err.Error(), "INVALID_PROTOCOL") {
 		t.Errorf("%s UpdatePositionLeverageInDualMode() error %v", g.Name, err)
@@ -1447,7 +1450,7 @@ func TestUpdatePositionLeverageInDualMode(t *testing.T) {
 func TestUpdatePositionRiskLimitinDualMode(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.UpdatePositionRiskLimitinDualMode(context.Background(), settleUSDT, currency.NewPair(currency.BTC, currency.USDT), 10); err != nil && !strings.Contains(err.Error(), "INVALID_PROTOCOL") {
 		t.Errorf("%s UpdatePositionRiskLimitinDualMode() error %v", g.Name, err)
@@ -1457,7 +1460,7 @@ func TestUpdatePositionRiskLimitinDualMode(t *testing.T) {
 func TestCreateFuturesOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.PlaceFuturesOrder(context.Background(), &OrderCreateParams{
 		Contract:    currency.NewPair(currency.BTC, currency.USDT),
@@ -1475,7 +1478,7 @@ func TestCreateFuturesOrder(t *testing.T) {
 func TestGetFuturesOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetFuturesOrders(context.Background(), currency.NewPair(currency.BTC, currency.USD), "open", 0, 0, "", 1, settleBTC); err != nil && !strings.Contains(err.Error(), "USER_NOT_FOUND") {
 		t.Errorf("%s GetFuturesOrders() error %v", g.Name, err)
@@ -1485,7 +1488,7 @@ func TestGetFuturesOrders(t *testing.T) {
 func TestCancelMultipleFuturesOpenOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.CancelMultipleFuturesOpenOrders(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "ask", settleUSDT); err != nil && !strings.Contains(err.Error(), "USER_NOT_FOUND") {
 		t.Errorf("%s CancelAllOpenOrdersMatched() error %v", g.Name, err)
@@ -1495,7 +1498,7 @@ func TestCancelMultipleFuturesOpenOrders(t *testing.T) {
 func TestGetSingleFuturesPriceTriggeredOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetSingleFuturesPriceTriggeredOrder(context.Background(), settleBTC, "12345"); err != nil && !strings.Contains(err.Error(), "no orderID match") {
 		t.Errorf("%s GetSingleFuturesPriceTriggeredOrder() error %v", g.Name, err)
@@ -1505,7 +1508,7 @@ func TestGetSingleFuturesPriceTriggeredOrder(t *testing.T) {
 func TestCancelFuturesPriceTriggeredOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.CancelFuturesPriceTriggeredOrder(context.Background(), settleUSDT, "12345"); err != nil && !strings.Contains(err.Error(), "not found order info id:12345 count:0") {
 		t.Errorf("%s CancelFuturesPriceTriggeredOrder() error %v", g.Name, err)
@@ -1515,7 +1518,7 @@ func TestCancelFuturesPriceTriggeredOrder(t *testing.T) {
 func TestCreateBatchFuturesOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.PlaceBatchFuturesOrders(context.Background(), settleBTC, []OrderCreateParams{
 		{
@@ -1544,7 +1547,7 @@ func TestCreateBatchFuturesOrders(t *testing.T) {
 func TestGetSingleFuturesOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetSingleFuturesOrder(context.Background(), settleBTC, "12345"); err != nil && !strings.Contains(err.Error(), "ORDER_NOT_FOUND") {
 		t.Errorf("%s GetSingleFuturesOrder() error %v", g.Name, err)
@@ -1553,7 +1556,7 @@ func TestGetSingleFuturesOrder(t *testing.T) {
 func TestCancelSingleFuturesOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.CancelSingleFuturesOrder(context.Background(), settleBTC, "12345"); err != nil && !strings.Contains(err.Error(), "ORDER_NOT_FOUND") {
 		t.Errorf("%s CancelSingleFuturesOrder() error %v", g.Name, err)
@@ -1562,7 +1565,7 @@ func TestCancelSingleFuturesOrder(t *testing.T) {
 func TestAmendFuturesOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.AmendFuturesOrder(context.Background(), settleBTC, "1234", AmendFuturesOrderParam{
 		Price: 12345.990,
@@ -1574,7 +1577,7 @@ func TestAmendFuturesOrder(t *testing.T) {
 func TestGetMyPersonalTradingHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	cp, err := getFirstTradablePair(t, asset.Futures)
 	if err != nil {
@@ -1588,7 +1591,7 @@ func TestGetMyPersonalTradingHistory(t *testing.T) {
 func TestGetPositionCloseHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	cp, err := getFirstTradablePair(t, asset.Futures)
 	if err != nil {
@@ -1602,7 +1605,7 @@ func TestGetPositionCloseHistory(t *testing.T) {
 func TestGetFuturesLiquidationHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	cp, err := getFirstTradablePair(t, asset.Futures)
 	if err != nil {
@@ -1616,7 +1619,7 @@ func TestGetFuturesLiquidationHistory(t *testing.T) {
 func TestCountdownCancelOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.CountdownCancelOrders(context.Background(), settleBTC, CountdownParams{
 		Timeout: 8,
@@ -1628,7 +1631,7 @@ func TestCountdownCancelOrders(t *testing.T) {
 func TestCreatePriceTriggeredFuturesOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.CreatePriceTriggeredFuturesOrder(context.Background(), settleBTC, &FuturesPriceTriggeredOrderParam{
 		Initial: FuturesInitial{
@@ -1658,7 +1661,7 @@ func TestCreatePriceTriggeredFuturesOrder(t *testing.T) {
 func TestListAllFuturesAutoOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.ListAllFuturesAutoOrders(context.Background(), "open", settleBTC, currency.EMPTYPAIR, 0, 0); err != nil {
 		t.Errorf("%s ListAllFuturesAutoOrders() error %v", g.Name, err)
@@ -1668,7 +1671,7 @@ func TestListAllFuturesAutoOrders(t *testing.T) {
 func TestCancelAllFuturesOpenOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.CancelAllFuturesOpenOrders(context.Background(), settleBTC, currency.NewPair(currency.OKB, currency.USDT)); err != nil {
 		t.Errorf("%s CancelAllFuturesOpenOrders() error %v", g.Name, err)
@@ -1758,7 +1761,7 @@ func TestGetDeliveryInsuranceBalanceHistory(t *testing.T) {
 func TestQueryDeliveryFuturesAccounts(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetDeliveryFuturesAccounts(context.Background(), settleUSDT); err != nil && !strings.Contains(err.Error(), "please transfer funds first to create futures account") {
 		t.Errorf("%s QueryDeliveryFuturesAccounts() error %v", g.Name, err)
@@ -1767,7 +1770,7 @@ func TestQueryDeliveryFuturesAccounts(t *testing.T) {
 func TestGetDeliveryAccountBooks(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetDeliveryAccountBooks(context.Background(), settleUSDT, 0, time.Time{}, time.Now(), "dnw"); err != nil {
 		t.Errorf("%s GetDeliveryAccountBooks() error %v", g.Name, err)
@@ -1777,7 +1780,7 @@ func TestGetDeliveryAccountBooks(t *testing.T) {
 func TestGetAllDeliveryPositionsOfUser(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetAllDeliveryPositionsOfUser(context.Background(), settleUSDT); err != nil && !strings.Contains(err.Error(), "please transfer funds first to create futures account") {
 		t.Errorf("%s GetAllDeliveryPositionsOfUser() error %v", g.Name, err)
@@ -1787,7 +1790,7 @@ func TestGetAllDeliveryPositionsOfUser(t *testing.T) {
 func TestGetSingleDeliveryPosition(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	cp, err := getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
@@ -1801,7 +1804,7 @@ func TestGetSingleDeliveryPosition(t *testing.T) {
 func TestUpdateDeliveryPositionMargin(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	cp, err := getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
@@ -1815,7 +1818,7 @@ func TestUpdateDeliveryPositionMargin(t *testing.T) {
 func TestUpdateDeliveryPositionLeverage(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	cp, err := getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
@@ -1829,7 +1832,7 @@ func TestUpdateDeliveryPositionLeverage(t *testing.T) {
 func TestUpdateDeliveryPositionRiskLimit(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	cp, err := getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
@@ -1910,7 +1913,7 @@ func TestCreateFlashSwapOrder(t *testing.T) {
 		t.Errorf("%s error while deserializing to FlashSwapOrderResponse %v", g.Name, err)
 	}
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.CreateFlashSwapOrder(context.Background(), FlashSwapOrderParams{
 		PreviewID:    "1234",
@@ -1926,7 +1929,7 @@ func TestCreateFlashSwapOrder(t *testing.T) {
 func TestGetAllFlashSwapOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetAllFlashSwapOrders(context.Background(), 1, currency.EMPTYCODE, currency.EMPTYCODE, true, 0, 0); err != nil {
 		t.Errorf("%s GetAllFlashSwapOrders() error %v", g.Name, err)
@@ -1936,7 +1939,7 @@ func TestGetAllFlashSwapOrders(t *testing.T) {
 func TestGetSingleFlashSwapOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetSingleFlashSwapOrder(context.Background(), "1234"); err != nil {
 		t.Errorf("%s GetSingleFlashSwapOrder() error %v", g.Name, err)
@@ -1946,7 +1949,7 @@ func TestGetSingleFlashSwapOrders(t *testing.T) {
 func TestInitiateFlashSwapOrderReview(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.InitiateFlashSwapOrderReview(context.Background(), FlashSwapOrderParams{
 		PreviewID:    "1234",
@@ -1961,7 +1964,7 @@ func TestInitiateFlashSwapOrderReview(t *testing.T) {
 func TestGetMyOptionsSettlements(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetMyOptionsSettlements(context.Background(), "BTC_USDT", "", 0, 0, time.Time{}); err != nil {
 		t.Errorf("%s GetMyOptionsSettlements() error %v", g.Name, err)
@@ -1971,7 +1974,7 @@ func TestGetMyOptionsSettlements(t *testing.T) {
 func TestGetOptionAccounts(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetOptionAccounts(context.Background()); err != nil && !strings.Contains(err.Error(), "USER_NOT_FOUND") {
 		t.Errorf("%s GetOptionAccounts() error %v", g.Name, err)
@@ -1981,7 +1984,7 @@ func TestGetOptionAccounts(t *testing.T) {
 func TestGetAccountChangingHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetAccountChangingHistory(context.Background(), 0, 0, time.Time{}, time.Time{}, ""); err != nil {
 		t.Errorf("%s GetAccountChangingHistory() error %v", g.Name, err)
@@ -1991,7 +1994,7 @@ func TestGetAccountChangingHistory(t *testing.T) {
 func TestGetUsersPositionSpecifiedUnderlying(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetUsersPositionSpecifiedUnderlying(context.Background(), ""); err != nil && !strings.Contains(err.Error(), "USER_NOT_FOUND") {
 		t.Errorf("%s GetUsersPositionSpecifiedUnderlying() error %v", g.Name, err)
@@ -2001,7 +2004,7 @@ func TestGetUsersPositionSpecifiedUnderlying(t *testing.T) {
 func TestGetSpecifiedContractPosition(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	_, err := g.GetSpecifiedContractPosition(context.Background(), "")
 	if err != nil && !errors.Is(err, errInvalidOrMissingContractParam) {
@@ -2016,7 +2019,7 @@ func TestGetSpecifiedContractPosition(t *testing.T) {
 func TestGetUsersLiquidationHistoryForSpecifiedUnderlying(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetUsersLiquidationHistoryForSpecifiedUnderlying(context.Background(), "BTC_USDT", ""); err != nil {
 		t.Errorf("%s GetUsersLiquidationHistoryForSpecifiedUnderlying() error %v", g.Name, err)
@@ -2026,7 +2029,7 @@ func TestGetUsersLiquidationHistoryForSpecifiedUnderlying(t *testing.T) {
 func TestPlaceOptionOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	_, err := g.PlaceOptionOrder(context.Background(), OptionOrderParam{
 		Contract:    "BTC_USDT-20220902-18000-P",
@@ -2044,7 +2047,7 @@ func TestPlaceOptionOrder(t *testing.T) {
 func TestGetOptionFuturesOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetOptionFuturesOrders(context.Background(), "", "", "", 0, 0, time.Time{}, time.Time{}); err != nil && !strings.Contains(err.Error(), "INVALID_KEY") {
 		t.Errorf("%s GetOptionFuturesOrders() error %v", g.Name, err)
@@ -2054,7 +2057,7 @@ func TestGetOptionFuturesOrders(t *testing.T) {
 func TestCancelOptionOpenOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	pairs, err := g.FetchTradablePairs(context.Background(), asset.Options)
 	if err != nil {
@@ -2074,7 +2077,7 @@ func TestCancelOptionOpenOrders(t *testing.T) {
 func TestGetSingleOptionOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetSingleOptionOrder(context.Background(), ""); err != nil && !errors.Is(errInvalidOrderID, err) {
 		t.Errorf("%s GetSingleOptionorder() expecting %v, but found %v", g.Name, errInvalidOrderID, err)
@@ -2087,7 +2090,7 @@ func TestGetSingleOptionOrder(t *testing.T) {
 func TestCancelSingleOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.CancelOptionSingleOrder(context.Background(), "1234"); err != nil && !strings.Contains(err.Error(), "ORDER_NOT_FOUND") && !strings.Contains(err.Error(), "INVALID_KEY") {
 		t.Errorf("%s CancelSingleOrder() error %v", g.Name, err)
@@ -2097,7 +2100,7 @@ func TestCancelSingleOrder(t *testing.T) {
 func TestGetOptionsPersonalTradingHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetOptionsPersonalTradingHistory(context.Background(), "BTC_USDT", "", 0, 0, time.Time{}, time.Time{}); err != nil && !strings.Contains(err.Error(), "INVALID_KEY") {
 		t.Errorf("%s GetOptionPersonalTradingHistory() error %v", g.Name, err)
@@ -2107,7 +2110,7 @@ func TestGetOptionsPersonalTradingHistory(t *testing.T) {
 func TestWithdrawCurrency(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	_, err := g.WithdrawCurrency(context.Background(), WithdrawalRequestParam{})
 	if err != nil && !errors.Is(err, errInvalidAmount) {
@@ -2126,7 +2129,7 @@ func TestWithdrawCurrency(t *testing.T) {
 func TestCancelWithdrawalWithSpecifiedID(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.CancelWithdrawalWithSpecifiedID(context.Background(), "1234567"); err != nil && !strings.Contains(err.Error(), "INVALID_WITHDRAW_ID") {
 		t.Errorf("%s CancelWithdrawalWithSpecifiedID() error %v", g.Name, err)
@@ -2198,7 +2201,7 @@ func TestGetOptionsTradeHistory(t *testing.T) {
 func TestCreateNewSubAccount(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.CreateNewSubAccount(context.Background(), SubAccountParams{
 		LoginName: "Sub_Acconunt_for_testing",
@@ -2210,7 +2213,7 @@ func TestCreateNewSubAccount(t *testing.T) {
 func TestGetSubAccounts(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetSubAccounts(context.Background()); err != nil && !strings.Contains(err.Error(), "Request API key does not have sub_accounts permission") {
 		t.Errorf("%s GetSubAccounts() error %v", g.Name, err)
@@ -2220,7 +2223,7 @@ func TestGetSubAccounts(t *testing.T) {
 func TestGetSingleSubAccount(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetSingleSubAccount(context.Background(), "Sub_Acconunt_for_testing"); err != nil && !strings.Contains(err.Error(), "FORBIDDEN") {
 		t.Errorf("%s GetSingleSubAccount() error %v", g.Name, err)
@@ -2268,7 +2271,7 @@ func TestUpdateOrderbook(t *testing.T) {
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Empty); err != nil {
 		t.Errorf("%s GetWithdrawalsHistory() error %v", g.Name, err)
@@ -2297,7 +2300,7 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip()
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	var orderSubmission = &order.Submit{
 		Exchange: g.Name,
@@ -2321,7 +2324,7 @@ func TestSubmitOrder(t *testing.T) {
 
 func TestCancelExchangeOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip()
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
@@ -2338,7 +2341,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 func TestCancelBatchOrders(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip()
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	_, err := g.CancelBatchOrders(context.Background(), []order.Cancel{
@@ -2362,7 +2365,7 @@ func TestCancelBatchOrders(t *testing.T) {
 
 func TestGetDepositAddress(t *testing.T) {
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	_, err := g.GetDepositAddress(context.Background(), currency.USDT, "", "TRX")
 	if err != nil {
@@ -2372,7 +2375,7 @@ func TestGetDepositAddress(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	var getOrdersRequest = order.GetOrdersRequest{
 		Pairs:     []currency.Pair{currency.NewPair(currency.USDT, currency.BTC)},
@@ -2387,16 +2390,16 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credInformationNotProvided)
 	}
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
+		Side:      order.Buy,
 	}
 	currPair := currency.NewPair(currency.LTC, currency.BTC)
 	currPair.Delimiter = currency.UnderscoreDelimiter
 	getOrdersRequest.Pairs = []currency.Pair{currPair}
-
 	_, err := g.GetOrderHistory(context.Background(), &getOrdersRequest)
 	if err != nil {
 		t.Errorf("%s GetOrderhistory() error: %v", g.Name, err)

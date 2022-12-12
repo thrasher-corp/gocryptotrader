@@ -705,7 +705,7 @@ func (g *Gateio) CancelBatchOrdersWithIDList(ctx context.Context, args []CancelO
 		return nil, fmt.Errorf("%w maximum order size to cancel is 20", errInvalidOrderSize)
 	}
 	for x := 0; x < len(args); x++ {
-		if (args[x].CurrencyPair.IsEmpty()) || args[x].ID == "" {
+		if args[x].CurrencyPair.IsEmpty() || args[x].ID == "" {
 			return nil, errors.New("currency pair and order ID are required")
 		}
 		args[x].CurrencyPair.Delimiter = currency.UnderscoreDelimiter
@@ -945,13 +945,13 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 		return err
 	}
 	headers := make(map[string]string)
-	urlPath := "/" + gateioAPIVersion + "/" + endpoint
+	urlPath := endpoint
 	timestamp := time.Now()
 	var paramValue string
 	if param != nil {
 		paramValue = param.Encode()
 	}
-	hmac, err := g.GenerateSignature(creds.Secret, method, urlPath, paramValue, data, timestamp)
+	hmac, err := g.GenerateSignature(creds.Secret, method, "/"+gateioAPIVersion+endpoint, paramValue, data, timestamp)
 	if err != nil {
 		return err
 	}
@@ -1656,10 +1656,10 @@ func (g *Gateio) GetCrossMarginAccounts(ctx context.Context) (*CrossMarginAccoun
 
 // GetCrossMarginAccountChangeHistory retrieve cross margin account change history
 // Record time range cannot exceed 30 days
-func (g *Gateio) GetCrossMarginAccountChangeHistory(ctx context.Context, currency currency.Code, from, to time.Time, page, limit uint64, accountChangeType string) ([]CrossMarginAccountHistoryItem, error) {
+func (g *Gateio) GetCrossMarginAccountChangeHistory(ctx context.Context, ccy currency.Code, from, to time.Time, page, limit uint64, accountChangeType string) ([]CrossMarginAccountHistoryItem, error) {
 	params := url.Values{}
-	if !currency.IsEmpty() {
-		params.Set("currency", currency.String())
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
 	}
 	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.Unix(), 10))
@@ -1753,14 +1753,14 @@ func (g *Gateio) GetMaxBorrowableAmountForSpecificCrossMarginCurrency(ctx contex
 
 // GetCrossMarginBorrowHistory retrieves cross margin borrow history sorted by creation time in descending order by default.
 // Set reverse=false to return ascending results.
-func (g *Gateio) GetCrossMarginBorrowHistory(ctx context.Context, status uint64, currency currency.Code, limit, offset uint64, reverse bool) ([]CrossMarginLoanResponse, error) {
+func (g *Gateio) GetCrossMarginBorrowHistory(ctx context.Context, status uint64, ccy currency.Code, limit, offset uint64, reverse bool) ([]CrossMarginLoanResponse, error) {
 	if status < 1 || status > 3 {
 		return nil, fmt.Errorf("%s %v, only allowed status values are 1:failed, 2:borrowed, and 3:repayment", g.Name, errInvalidOrderStatus)
 	}
 	params := url.Values{}
 	params.Set("status", strconv.FormatUint(status, 10))
-	if !currency.IsEmpty() {
-		params.Set("currency", currency.String())
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))

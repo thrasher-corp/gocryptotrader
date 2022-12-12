@@ -1025,9 +1025,9 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		response.Date = sOrder.CreateTime
 		return response, nil
 	case asset.Futures:
-		if !strings.EqualFold(fPair.Quote.String(), currency.USD.String()) &&
-			!strings.EqualFold(fPair.Quote.String(), currency.USDT.String()) &&
-			!strings.EqualFold(fPair.Quote.String(), currency.BTC.String()) {
+		if !fPair.Quote.Equal(currency.USD) &&
+			!fPair.Quote.Equal(currency.USDT) &&
+			!fPair.Quote.Equal(currency.BTC) {
 			return nil, errUnsupportedSettleValue
 		}
 		if orderTypeFormat == "bid" && s.Price < 0 {
@@ -1771,10 +1771,7 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		var fPair currency.PairFormat
 		fPair, err = g.GetPairFormat(a, true)
 		if err != nil {
-			fPair = currency.PairFormat{
-				Delimiter: currency.UnderscoreDelimiter,
-				Uppercase: true,
-			}
+			return klineData, err
 		}
 		candles, err = g.GetCandlesticks(ctx, fPair.Format(formattedPair), 0, start, end, interval)
 		if err != nil {
@@ -1865,20 +1862,17 @@ func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 		return kline.Item{}, err
 	}
 	var candlestickItems []kline.Candle
+	var fPair currency.PairFormat
+	fPair, err = g.GetPairFormat(a, true)
+	if err != nil {
+		return kline.Item{}, err
+	}
 	for b := range dates.Ranges {
 		switch a {
 		case asset.Spot, asset.Margin, asset.CrossMargin:
 			var candles []Candlestick
 			if formattedPair.IsEmpty() {
 				return klineData, currency.ErrCurrencyPairEmpty
-			}
-			var fPair currency.PairFormat
-			fPair, err = g.GetPairFormat(a, true)
-			if err != nil {
-				fPair = currency.PairFormat{
-					Delimiter: currency.UnderscoreDelimiter,
-					Uppercase: true,
-				}
 			}
 			candles, err = g.GetCandlesticks(ctx, fPair.Format(formattedPair), 0, dates.Ranges[b].Start.Time, dates.Ranges[b].End.Time, interval)
 			if err != nil {
