@@ -1463,6 +1463,7 @@ func TestGetAllOpenFuturesPositions(t *testing.T) {
 
 func TestGetOpenFuturesPosition(t *testing.T) {
 	t.Parallel()
+	t.Skip("TODO: Link to new exchange after FTX implosion")
 	wg := &sync.WaitGroup{}
 	o, err := SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, wg, false, false, time.Hour)
 	if !errors.Is(err, nil) {
@@ -1552,6 +1553,7 @@ func TestGetOpenFuturesPosition(t *testing.T) {
 
 func TestProcessFuturesPositions(t *testing.T) {
 	t.Parallel()
+	t.Skip("TODO: Link to new exchange after FTX implosion")
 	o := &OrderManager{}
 	err := o.processFuturesPositions(nil, nil)
 	if !errors.Is(err, errFuturesTrackingDisabled) {

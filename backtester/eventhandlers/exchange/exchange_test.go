@@ -18,12 +18,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ftx"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-const testExchange = "ftx"
+const testExchange = "binance"
 
 type fakeFund struct{}
 
@@ -85,7 +85,7 @@ func TestSetCurrency(t *testing.T) {
 	if len(e.CurrencySettings) != 0 {
 		t.Error("expected 0")
 	}
-	f := &ftx.FTX{}
+	f := &binance.Binance{}
 	f.Name = testExchange
 	cs := &Settings{
 		Exchange:      f,
@@ -233,7 +233,7 @@ func TestExecuteOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := &ftx.FTX{}
+	f := &binance.Binance{}
 	f.Name = testExchange
 	cs := Settings{
 		Exchange:            f,
@@ -342,7 +342,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := &ftx.FTX{}
+	f := &binance.Binance{}
 	f.Name = testExchange
 	cs := Settings{
 		Exchange:      f,

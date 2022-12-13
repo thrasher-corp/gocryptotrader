@@ -1,7 +1,6 @@
 package size
 
 import (
-	"context"
 	"errors"
 	"testing"
 	"time"
@@ -14,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ftx"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -251,7 +249,9 @@ func TestSizeOrder(t *testing.T) {
 		MatchesOrderAmount: true,
 		ClosePrice:         decimal.NewFromInt(1337),
 	}
-	exch := ftx.FTX{}
+
+	/* TODO: Fix once binance collateral weights is implemented
+	exch := &binance.Binance{}
 	err = exch.LoadCollateralWeightings(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -268,4 +268,5 @@ func TestSizeOrder(t *testing.T) {
 	if !errors.Is(err, errCannotAllocate) {
 		t.Errorf("received: %v, expected: %v", err, errCannotAllocate)
 	}
+	*/
 }

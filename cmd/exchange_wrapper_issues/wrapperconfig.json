@@ -96,11 +96,6 @@
    "secret": "Secret",
    "otpSecret": "-"
   },
-  "ftx": {
-   "key": "Key",
-   "secret": "Secret",
-   "otpSecret": "-"
-  },
   "gateio": {
    "key": "Key",
    "secret": "Secret",

@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	testExchange = "ftx"
+	testExchange = "binance"
 	dca          = "dollarcostaverage"
 	// change this if you modify a config and want it to save to the example folder
 	saveConfig = false
@@ -616,7 +616,7 @@ func TestGenerateConfigForDCAAPITrades(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: "ftx",
+				ExchangeName: testExchange,
 				Asset:        asset.Spot,
 				Base:         currency.BTC,
 				Quote:        currency.USDT,
@@ -1286,7 +1286,7 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 			UseExchangeLevelFunding: true,
 			ExchangeLevelFunding: []ExchangeLevelFunding{
 				{
-					ExchangeName: "ftx",
+					ExchangeName: testExchange,
 					Asset:        asset.Spot,
 					Currency:     currency.USD,
 					InitialFunds: *initialFunds100000,
@@ -1295,7 +1295,7 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: "ftx",
+				ExchangeName: testExchange,
 				Asset:        asset.Futures,
 				Base:         currency.BTC,
 				Quote:        currency.NewCode("20210924"),
@@ -1303,7 +1303,7 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 				TakerFee:     &takerFee,
 			},
 			{
-				ExchangeName: "ftx",
+				ExchangeName: testExchange,
 				Asset:        asset.Spot,
 				Base:         currency.BTC,
 				Quote:        currency.USD,
