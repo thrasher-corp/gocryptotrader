@@ -479,6 +479,30 @@ func StartEndTimeCheck(start, end time.Time) error {
 	return nil
 }
 
+// GenerateRandomString generates a random string provided a length and list of Character types { SmallLetters, CapitalLetters, NumberCharacters}.
+// if no characters are provided, the function uses a NumberCharacters(string of numeric characters).
+func GenerateRandomString(length uint, characters ...string) (string, error) {
+	if length == 0 {
+		return "", errors.New("invalid length, length must be non-zero positive integer")
+	}
+	b := make([]byte, length)
+	chars := strings.Replace(strings.Join(characters, ""), " ", "", -1)
+	if chars == "" && len(characters) != 0 {
+		return "", errors.New("invalid characters, character must not be empty")
+	} else if chars == "" {
+		chars = NumberCharacters
+	}
+	for i := range b {
+		nBig, err := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
+		if err != nil {
+			return "", err
+		}
+		n := nBig.Int64()
+		b[i] = chars[n]
+	}
+	return string(b), nil
+}
+
 // GetAssertError returns additional information for when an assertion failure
 // occurs.
 func GetAssertError(required string, received interface{}) error {

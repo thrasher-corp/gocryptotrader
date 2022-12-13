@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 // TimeInterval Interval represents interval enum.
@@ -1123,8 +1122,8 @@ type DepositRecord struct {
 // TransferCurrencyParam represents currency transfer.
 type TransferCurrencyParam struct {
 	Currency     currency.Code `json:"currency"`
-	From         asset.Item    `json:"from"`
-	To           asset.Item    `json:"to"`
+	From         string        `json:"from"`
+	To           string        `json:"to"`
 	Amount       float64       `json:"amount,string"`
 	CurrencyPair currency.Pair `json:"currency_pair"`
 	Settle       string        `json:"settle"`
@@ -1141,7 +1140,7 @@ type SubAccountTransferParam struct {
 	SubAccount     string        `json:"sub_account"`
 	Direction      string        `json:"direction"`
 	Amount         float64       `json:"amount,string"`
-	SubAccountType asset.Item    `json:"sub_account_type"`
+	SubAccountType string        `json:"sub_account_type"`
 }
 
 // SubAccountTransferResponse represents transfer records between main and sub accounts
@@ -1343,7 +1342,7 @@ type CreateOrderRequestData struct {
 	Text         string        `json:"text,omitempty"`
 	CurrencyPair currency.Pair `json:"currency_pair,omitempty"`
 	Type         string        `json:"type,omitempty"`
-	Account      asset.Item    `json:"account,omitempty"`
+	Account      string        `json:"account,omitempty"`
 	Side         string        `json:"side,omitempty"`
 	Iceberg      string        `json:"iceberg,omitempty"`
 	Amount       float64       `json:"amount,string,omitempty"`

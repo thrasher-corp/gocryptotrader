@@ -421,7 +421,7 @@ func (g *Gateio) procesFuturesAndOptionsOrderbookUpdate(data []byte) error {
 	}
 	var assetType asset.Item
 	if response.Channel == optionsOrderbookUpdateChannel {
-		assetType = asset.Options
+		assetType = asset.Option
 	} else {
 		assetType = futuresAssetType
 	}

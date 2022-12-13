@@ -403,7 +403,7 @@ func TestHTMLScrapeOk(t *testing.T) {
 		Val:          "./#change-change",
 		TokenDataEnd: "./#change-",
 		RegExp:       `./#change-\d{8}`,
-		Path:         "https://www.okex.com/docs/en/"}
+		Path:         "https://www.okx.com/docs/en/"}
 	if _, err := htmlScrapeOk(&data); err != nil {
 		t.Error(err)
 	}

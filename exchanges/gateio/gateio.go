@@ -559,7 +559,9 @@ func (g *Gateio) CreateBatchOrders(ctx context.Context, args []CreateOrderReques
 		if args[x].Side != "buy" && args[x].Side != "sell" {
 			return nil, errInvalidOrderSide
 		}
-		if args[x].Account != asset.Spot && args[x].Account != asset.CrossMargin && args[x].Account != asset.Margin {
+		if !strings.EqualFold(args[x].Account, asset.Spot.String()) &&
+			!strings.EqualFold(args[x].Account, asset.CrossMargin.String()) &&
+			!strings.EqualFold(args[x].Account, asset.Margin.String()) {
 			return nil, errors.New("only spot, margin, and cross_margin area allowed")
 		}
 		if args[x].Text == "" {
@@ -636,7 +638,9 @@ func (g *Gateio) PlaceSpotOrder(ctx context.Context, arg *CreateOrderRequestData
 	if arg.Side != "buy" && arg.Side != "sell" {
 		return nil, errInvalidOrderSide
 	}
-	if arg.Account != asset.Spot && arg.Account != asset.CrossMargin && arg.Account != asset.Margin {
+	if !strings.EqualFold(arg.Account, asset.Spot.String()) &&
+		!strings.EqualFold(arg.Account, asset.CrossMargin.String()) &&
+		!strings.EqualFold(arg.Account, asset.Margin.String()) {
 		return nil, errors.New("only 'spot', 'cross_margin', and 'margin' area allowed")
 	}
 	if arg.Text == "" {
@@ -1137,22 +1141,35 @@ func (g *Gateio) TransferCurrency(ctx context.Context, arg *TransferCurrencyPara
 	if !arg.CurrencyPair.IsEmpty() {
 		arg.CurrencyPair.Delimiter = currency.UnderscoreDelimiter
 	}
-	if arg.From != asset.Spot {
+	if !strings.EqualFold(arg.From, asset.Spot.String()) {
 		return nil, fmt.Errorf("%w, only %s accounts can be used to transfer from", errInvalidAssetType, asset.Spot)
 	}
-	if arg.To != asset.Spot &&
-		arg.To != asset.Margin &&
-		arg.To != asset.Futures &&
-		arg.To != asset.DeliveryFutures &&
-		arg.To != asset.CrossMargin &&
-		arg.To != asset.Options {
-		return nil, fmt.Errorf("%w, only %v,%v,%v,%v,%v,and %v", errInvalidAssetType, asset.Spot, asset.Margin, asset.Futures, asset.DeliveryFutures, asset.CrossMargin, asset.Options)
+	if g.isAccountAccepted(arg.To) {
+		return nil, fmt.Errorf("%w, only %v,%v,%v,%v,%v,and %v", errInvalidAssetType, asset.Spot, asset.Margin, asset.Futures, asset.DeliveryFutures, asset.CrossMargin, asset.Option)
 	}
 	if arg.Amount < 0 {
 		return nil, errInvalidAmount
 	}
 	var response TransactionIDResponse
 	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, walletTransfer, nil, &arg, &response)
+}
+
+func (g *Gateio) isAccountAccepted(account string) bool {
+	if account == "" {
+		return false
+	}
+	acc, err := asset.New(account)
+	if err != nil {
+		return false
+	}
+	return acc == asset.Spot || acc == asset.Margin || acc == asset.CrossMargin || acc == asset.Futures || acc == asset.DeliveryFutures || acc == asset.Option
+}
+
+func (g *Gateio) assetTypeToString(acc asset.Item) string {
+	if acc == asset.Option {
+		return "options"
+	}
+	return acc.String()
 }
 
 // SubAccountTransfer to transfer between main and sub accounts
@@ -1171,7 +1188,7 @@ func (g *Gateio) SubAccountTransfer(ctx context.Context, arg SubAccountTransferP
 	if arg.Amount <= 0 {
 		return errInvalidAmount
 	}
-	if arg.SubAccountType != asset.Empty && arg.SubAccountType != asset.Spot && arg.SubAccountType != asset.Futures && arg.SubAccountType != asset.CrossMargin {
+	if arg.SubAccountType != "" && arg.SubAccountType != asset.Spot.String() && arg.SubAccountType != asset.Futures.String() && arg.SubAccountType != asset.CrossMargin.String() {
 		return fmt.Errorf("%v; only %v,%v, and %v are allowed", errInvalidAssetType, asset.Spot, asset.Futures, asset.CrossMargin)
 	}
 	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, walletSubAccountTransfer, nil, &arg, nil)

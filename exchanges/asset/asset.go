@@ -27,7 +27,6 @@ const (
 	MarginFunding
 	Index
 	Binary
-	Options
 	PerpetualContract
 	PerpetualSwap
 	Futures
@@ -37,9 +36,10 @@ const (
 	CoinMarginedFutures
 	USDTMarginedFutures
 	USDCMarginedFutures
+	Option
 
 	futuresFlag   = PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures
-	supportedFlag = Spot | Margin | CrossMargin | MarginFunding | Index | Binary | Options | PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures
+	supportedFlag = Spot | Margin | CrossMargin | MarginFunding | Index | Binary | PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Option
 
 	spot                   = "spot"
 	margin                 = "margin"
@@ -60,7 +60,7 @@ const (
 )
 
 var (
-	supportedList = Items{Spot, Margin, CrossMargin, MarginFunding, Index, Binary, Options, PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures}
+	supportedList = Items{Spot, Margin, CrossMargin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, Option}
 )
 
 // Supported returns a list of supported asset types
@@ -103,6 +103,8 @@ func (a Item) String() string {
 		return usdtMarginedFutures
 	case USDCMarginedFutures:
 		return usdcMarginedFutures
+	case Option:
+		return option
 	default:
 		return ""
 	}
@@ -180,8 +182,6 @@ func New(input string) (Item, error) {
 		return MarginFunding, nil
 	case crossMargin:
 		return CrossMargin, nil
-	case option:
-		return Options, nil
 	case deliveryFutures:
 		return DeliveryFutures, nil
 	case index:
@@ -204,6 +204,8 @@ func New(input string) (Item, error) {
 		return USDTMarginedFutures, nil
 	case usdcMarginedFutures:
 		return USDCMarginedFutures, nil
+	case option, "options":
+		return Option, nil
 	default:
 		return 0, fmt.Errorf("%w '%v', only supports %s",
 			ErrNotSupported,
