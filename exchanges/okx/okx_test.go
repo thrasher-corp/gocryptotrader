@@ -1967,7 +1967,7 @@ func TestSystemStatusResponse(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	if _, err := ok.FetchTradablePairs(context.Background(), asset.Option); err != nil {
+	if _, err := ok.FetchTradablePairs(context.Background(), asset.Options); err != nil {
 		t.Error("Okx FetchTradablePairs() error", err)
 	}
 }
@@ -2845,10 +2845,10 @@ func TestPublicStructureBlockTradesSubscription(t *testing.T) {
 }
 func TestBlockTickerSubscription(t *testing.T) {
 	t.Parallel()
-	if err := ok.BlockTickerSubscription("subscribe", asset.Option, currency.NewPair(currency.BTC, currency.USDT)); err != nil {
+	if err := ok.BlockTickerSubscription("subscribe", asset.Options, currency.NewPair(currency.BTC, currency.USDT)); err != nil {
 		t.Errorf("%s BlockTickerSubscription() error: %v", ok.Name, err)
 	}
-	if err := ok.BlockTickerSubscription("unsubscribe", asset.Option, currency.NewPair(currency.BTC, currency.USDT)); err != nil {
+	if err := ok.BlockTickerSubscription("unsubscribe", asset.Options, currency.NewPair(currency.BTC, currency.USDT)); err != nil {
 		t.Errorf("%s BlockTickerSubscription() error: %v", ok.Name, err)
 	}
 }
@@ -2980,7 +2980,7 @@ func TestWsPositionChannel(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if err := ok.WsPositionChannel("subscribe", asset.Option, currency.NewPair(currency.USD, currency.BTC)); err != nil {
+	if err := ok.WsPositionChannel("subscribe", asset.Options, currency.NewPair(currency.USD, currency.BTC)); err != nil {
 		t.Errorf("%s WsPositionChannel() error : %v", ok.Name, err)
 	}
 }

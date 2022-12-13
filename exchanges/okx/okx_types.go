@@ -688,7 +688,7 @@ type OrderDetail struct {
 
 // OrderListRequestParams represents order list requesting parameters.
 type OrderListRequestParams struct {
-	InstrumentType string    `json:"instType"` // SPOT , MARGIN, SWAP, FUTURES , option
+	InstrumentType string    `json:"instType"` // SPOT , MARGIN, SWAP, FUTURES , OPTIONS
 	Underlying     string    `json:"uly"`
 	InstrumentID   string    `json:"instId"`
 	OrderType      string    `json:"orderType"`
