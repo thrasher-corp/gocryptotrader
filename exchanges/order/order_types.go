@@ -286,7 +286,7 @@ const (
 )
 
 // Type enforces a standard for order types across the code base
-type Type uint16
+type Type uint32
 
 // Defined package order types
 const (
@@ -306,6 +306,7 @@ const (
 	AnyType
 	Liquidation
 	Trigger
+	OptimalLimitIOC
 )
 
 // Side enforces a standard for order sides across the code base

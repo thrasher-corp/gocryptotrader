@@ -202,7 +202,7 @@ func New(input string) (Item, error) {
 		return USDTMarginedFutures, nil
 	case usdcMarginedFutures:
 		return USDCMarginedFutures, nil
-	case options:
+	case options, "option":
 		return Options, nil
 	case optionCombo:
 		return OptionCombo, nil

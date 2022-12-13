@@ -152,10 +152,10 @@ func TestExchangeAddressExists(t *testing.T) {
 func TestAddExchangeAddress(t *testing.T) {
 	t.Parallel()
 	newBase := Base{}
-	newBase.AddExchangeAddress("OKEX", currency.BTC, 100)
-	newBase.AddExchangeAddress("OKEX", currency.BTC, 200)
+	newBase.AddExchangeAddress("Okx", currency.BTC, 100)
+	newBase.AddExchangeAddress("Okx", currency.BTC, 200)
 
-	if !newBase.ExchangeAddressExists("OKEX", currency.BTC) {
+	if !newBase.ExchangeAddressExists("Okx", currency.BTC) {
 		t.Error("address doesn't exist")
 	}
 }
@@ -369,13 +369,13 @@ func TestUpdatePortfolio(t *testing.T) {
 func TestGetPortfolioByExchange(t *testing.T) {
 	t.Parallel()
 	newBase := Base{}
-	newBase.AddExchangeAddress("OKEX", currency.LTC, 0.07)
+	newBase.AddExchangeAddress("Okx", currency.LTC, 0.07)
 	newBase.AddExchangeAddress("Bitfinex", currency.LTC, 0.05)
 	err := newBase.AddAddress("someaddress", "LTC", currency.NewCode(PersonalAddress), 0.03)
 	if err != nil {
 		t.Fatal(err)
 	}
-	value := newBase.GetPortfolioByExchange("OKEX")
+	value := newBase.GetPortfolioByExchange("Okx")
 	result, ok := value[currency.LTC]
 	if !ok {
 		t.Error("missing portfolio entry")
@@ -399,7 +399,7 @@ func TestGetPortfolioByExchange(t *testing.T) {
 func TestGetExchangePortfolio(t *testing.T) {
 	t.Parallel()
 	newBase := Base{}
-	err := newBase.AddAddress("OKEX", ExchangeAddress, currency.LTC, 0.03)
+	err := newBase.AddAddress("Okx", ExchangeAddress, currency.LTC, 0.03)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -481,7 +481,7 @@ func TestGetPortfolioSummary(t *testing.T) {
 	// Exchange holdings
 	newBase.AddExchangeAddress("Bitfinex", currency.LTC, 20)
 	newBase.AddExchangeAddress("Bitfinex", currency.BTC, 100)
-	newBase.AddExchangeAddress("OKEX", currency.ETH, 42)
+	newBase.AddExchangeAddress("Okx", currency.ETH, 42)
 
 	value := newBase.GetPortfolioSummary()
 

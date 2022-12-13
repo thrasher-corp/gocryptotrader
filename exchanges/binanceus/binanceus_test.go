@@ -300,12 +300,10 @@ func TestGetOrderInfo(t *testing.T) {
 	if len(tradablePairs) == 0 {
 		t.Fatal("Binanceus GetOrderInfo() no tradable pairs")
 	}
-	cp, err := currency.NewPairFromString(tradablePairs[0])
-	if err != nil {
-		t.Error("Binanceus GetOrderInfo() error", err)
-	}
 	_, err = bi.GetOrderInfo(context.Background(),
-		"123", cp, asset.Spot)
+		"123",
+		tradablePairs[0],
+		asset.Spot)
 	if !strings.Contains(err.Error(), "Order does not exist.") {
 		t.Error("Binanceus GetOrderInfo() error", err)
 	}

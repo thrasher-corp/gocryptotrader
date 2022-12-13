@@ -167,18 +167,28 @@ func (e *EXMO) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (e *EXMO) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
-	pairs, err := e.GetPairSettings(ctx)
+func (e *EXMO) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+	if !e.SupportsAsset(a) {
+		return nil, asset.ErrNotSupported
+	}
+
+	symbols, err := e.GetPairSettings(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	currencies := make([]string, 0, len(pairs))
-	for x := range pairs {
-		currencies = append(currencies, x)
+	pairs := make([]currency.Pair, len(symbols))
+	var target int
+	for key := range symbols {
+		var pair currency.Pair
+		pair, err = currency.NewPairFromString(key)
+		if err != nil {
+			return nil, err
+		}
+		pairs[target] = pair
+		target++
 	}
-
-	return currencies, nil
+	return pairs, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
@@ -188,13 +198,7 @@ func (e *EXMO) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error 
 	if err != nil {
 		return err
 	}
-
-	p, err := currency.NewPairsFromStrings(pairs)
-	if err != nil {
-		return err
-	}
-
-	return e.UpdatePairs(p, asset.Spot, false, forceUpdate)
+	return e.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

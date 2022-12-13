@@ -428,7 +428,7 @@ func (k *Kraken) GetTrades(ctx context.Context, symbol currency.Pair) ([]RecentT
 		if !ok {
 			return nil, errors.New("unable to parse individual trade data")
 		}
-		if len(individualTrade) != 6 {
+		if len(individualTrade) != 7 {
 			return nil, errors.New("unrecognised trade data received")
 		}
 		r.Price, err = strconv.ParseFloat(individualTrade[0].(string), 64)
@@ -455,6 +455,11 @@ func (k *Kraken) GetTrades(ctx context.Context, symbol currency.Pair) ([]RecentT
 		if !ok {
 			return nil, errors.New("unable to parse misc field for individual trade data")
 		}
+		tradeID, ok := individualTrade[6].(float64)
+		if !ok {
+			return nil, errors.New("unable to parse TradeID field for individual trade data")
+		}
+		r.TradeID = int64(tradeID)
 		recentTrades[x] = r
 	}
 	return recentTrades, nil

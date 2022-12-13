@@ -8,13 +8,23 @@ import (
 
 // Product holds product information
 type Product struct {
-	ID             string      `json:"id"`
-	BaseCurrency   string      `json:"base_currency"`
-	QuoteCurrency  string      `json:"quote_currency"`
-	BaseMinSize    float64     `json:"base_min_size,string"`
-	BaseMaxSize    interface{} `json:"base_max_size"`
-	QuoteIncrement float64     `json:"quote_increment,string"`
-	DisplayName    string      `json:"string"`
+	ID                        string  `json:"id"`
+	BaseCurrency              string  `json:"base_currency"`
+	QuoteCurrency             string  `json:"quote_currency"`
+	QuoteIncrement            float64 `json:"quote_increment,string"`
+	BaseIncrement             float64 `json:"base_increment,string"`
+	DisplayName               string  `json:"display_name"`
+	MinimumMarketFunds        float64 `json:"min_market_funds,string"`
+	MarginEnabled             bool    `json:"margin_enabled"`
+	PostOnly                  bool    `json:"post_only"`
+	LimitOnly                 bool    `json:"limit_only"`
+	CancelOnly                bool    `json:"cancel_only"`
+	Status                    string  `json:"status"`
+	StatusMessage             string  `json:"status_message"`
+	TradingDisabled           bool    `json:"trading_disabled"`
+	ForeignExchangeStableCoin bool    `json:"fx_stablecoin"`
+	MaxSlippagePercentage     float64 `json:"max_slippage_percentage,string"`
+	AuctionMode               bool    `json:"auction_mode"`
 }
 
 // Ticker holds basic ticker information

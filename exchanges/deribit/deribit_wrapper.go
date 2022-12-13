@@ -213,11 +213,11 @@ func (d *Deribit) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (d *Deribit) FetchTradablePairs(ctx context.Context, assetType asset.Item) ([]string, error) {
+func (d *Deribit) FetchTradablePairs(ctx context.Context, assetType asset.Item) ([]currency.Pair, error) {
 	if !d.SupportsAsset(assetType) {
 		return nil, fmt.Errorf("%s: %w - %s", d.Name, asset.ErrNotSupported, assetType.String())
 	}
-	var resp []string
+	var resp []currency.Pair
 	for _, x := range []string{"BTC", "SOL", "ETH", "USDC"} {
 		var instrumentsData []InstrumentData
 		var err error
@@ -230,7 +230,11 @@ func (d *Deribit) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 			return nil, err
 		}
 		for y := range instrumentsData {
-			resp = append(resp, instrumentsData[y].InstrumentName)
+			cp, err := currency.NewPairFromString(instrumentsData[y].InstrumentName)
+			if err != nil {
+				return nil, err
+			}
+			resp = append(resp, cp)
 		}
 	}
 	return resp, nil
@@ -245,11 +249,7 @@ func (d *Deribit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 		if err != nil {
 			return err
 		}
-		p, err := currency.NewPairsFromStrings(pairs)
-		if err != nil {
-			return err
-		}
-		err = d.UpdatePairs(p, assets[x], false, forceUpdate)
+		err = d.UpdatePairs(pairs, assets[x], false, forceUpdate)
 		if err != nil {
 			return err
 		}

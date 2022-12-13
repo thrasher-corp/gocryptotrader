@@ -172,6 +172,7 @@ type RecentTrades struct {
 	BuyOrSell     string
 	MarketOrLimit string
 	Miscellaneous interface{}
+	TradeID       int64
 }
 
 // OrderbookBase stores the orderbook price and amount data

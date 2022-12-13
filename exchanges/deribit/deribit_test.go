@@ -236,11 +236,11 @@ func TestGetMarkPriceHistory(t *testing.T) {
 	if err != nil || len(pairs) == 0 {
 		t.Skip("tradable pairs not found")
 	}
-	_, err = d.GetMarkPriceHistory(context.Background(), pairs[0], time.Now().Add(-5*time.Minute), time.Now())
+	_, err = d.GetMarkPriceHistory(context.Background(), pairs[0].String(), time.Now().Add(-5*time.Minute), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err := d.WSRetriveMarkPriceHistory(pairs[0], time.Now().Add(-4*time.Hour), time.Now()); err != nil {
+	if _, err := d.WSRetriveMarkPriceHistory(pairs[0].String(), time.Now().Add(-4*time.Hour), time.Now()); err != nil {
 		t.Error(err)
 	}
 }
@@ -1276,7 +1276,7 @@ func TestSubmitBuy(t *testing.T) {
 		t.Skip(err)
 	}
 	_, err = d.SubmitBuy(context.Background(), &OrderBuyAndSellParams{
-		Instrument: pairs[0], OrderType: "limit",
+		Instrument: pairs[0].String(), OrderType: "limit",
 		Label: "testOrder", TimeInForce: "",
 		Trigger: "", Advanced: "",
 		Amount: 30, Price: 500000,
@@ -1773,11 +1773,11 @@ func TestCreateCombo(t *testing.T) {
 	}
 	_, err = d.CreateCombo(context.Background(), []ComboParam{
 		{
-			InstrumentName: instruments[0],
+			InstrumentName: instruments[0].String(),
 			Direction:      "sell",
 		},
 		{
-			InstrumentName: instruments[1],
+			InstrumentName: instruments[1].String(),
 			Direction:      "sell",
 			Amount:         1200,
 		},
@@ -1787,11 +1787,11 @@ func TestCreateCombo(t *testing.T) {
 	}
 	_, err = d.CreateCombo(context.Background(), []ComboParam{
 		{
-			InstrumentName: instruments[0],
+			InstrumentName: instruments[0].String(),
 			Amount:         123,
 		},
 		{
-			InstrumentName: instruments[1],
+			InstrumentName: instruments[1].String(),
 			Direction:      "sell",
 			Amount:         1200,
 		},
@@ -1801,12 +1801,12 @@ func TestCreateCombo(t *testing.T) {
 	}
 	_, err = d.CreateCombo(context.Background(), []ComboParam{
 		{
-			InstrumentName: instruments[0],
+			InstrumentName: instruments[0].String(),
 			Direction:      "buy",
 			Amount:         123,
 		},
 		{
-			InstrumentName: instruments[1],
+			InstrumentName: instruments[1].String(),
 			Direction:      "buy",
 			Amount:         1200,
 		},
@@ -1820,11 +1820,11 @@ func TestCreateCombo(t *testing.T) {
 	}
 	_, err = d.WSCreateCombo([]ComboParam{
 		{
-			InstrumentName: instruments[0],
+			InstrumentName: instruments[0].String(),
 			Direction:      "sell",
 		},
 		{
-			InstrumentName: instruments[1],
+			InstrumentName: instruments[1].String(),
 			Direction:      "sell",
 			Amount:         1200,
 		},
@@ -1834,11 +1834,11 @@ func TestCreateCombo(t *testing.T) {
 	}
 	_, err = d.WSCreateCombo([]ComboParam{
 		{
-			InstrumentName: instruments[0],
+			InstrumentName: instruments[0].String(),
 			Amount:         123,
 		},
 		{
-			InstrumentName: instruments[1],
+			InstrumentName: instruments[1].String(),
 			Direction:      "sell",
 			Amount:         1200,
 		},
@@ -1848,12 +1848,12 @@ func TestCreateCombo(t *testing.T) {
 	}
 	if _, err = d.WSCreateCombo([]ComboParam{
 		{
-			InstrumentName: instruments[0],
+			InstrumentName: instruments[0].String(),
 			Direction:      "buy",
 			Amount:         123,
 		},
 		{
-			InstrumentName: instruments[1],
+			InstrumentName: instruments[1].String(),
 			Direction:      "buy",
 			Amount:         1200,
 		},
@@ -2338,7 +2338,7 @@ func (d *Deribit) getFirstAssetTradablePair(t *testing.T, a asset.Item) (currenc
 	if len(instruments) == 0 {
 		return currency.EMPTYPAIR, errors.New("no enough instrument found")
 	}
-	cp, err := currency.NewPairFromString(instruments[0])
+	cp, err := currency.NewPairFromString(instruments[0].String())
 	if err != nil {
 		return currency.EMPTYPAIR, err
 	}

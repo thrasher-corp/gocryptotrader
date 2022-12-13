@@ -340,61 +340,66 @@ func (k *Kraken) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (k *Kraken) FetchTradablePairs(ctx context.Context, assetType asset.Item) ([]string, error) {
-	var products []string
-	format, err := k.GetPairFormat(assetType, false)
-	if err != nil {
-		return nil, err
-	}
-	switch assetType {
+func (k *Kraken) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+	var pairs []currency.Pair
+	var pair currency.Pair
+	switch a {
 	case asset.Spot:
 		if !assetTranslator.Seeded() {
 			if err := k.SeedAssets(ctx); err != nil {
 				return nil, err
 			}
 		}
-		pairs, err := k.GetAssetPairs(ctx, []string{}, "")
+		symbols, err := k.GetAssetPairs(ctx, nil, "")
 		if err != nil {
 			return nil, err
 		}
-		for i := range pairs {
-			if strings.Contains(pairs[i].Altname, ".d") {
+
+		pairs = make([]currency.Pair, 0, len(symbols))
+		for i := range symbols {
+			if strings.Contains(symbols[i].Altname, ".d") {
 				continue
 			}
-			base := assetTranslator.LookupAltname(pairs[i].Base)
+			base := assetTranslator.LookupAltname(symbols[i].Base)
 			if base == "" {
 				log.Warnf(log.ExchangeSys,
 					"%s unable to lookup altname for base currency %s",
 					k.Name,
-					pairs[i].Base)
+					symbols[i].Base)
 				continue
 			}
-			quote := assetTranslator.LookupAltname(pairs[i].Quote)
+			quote := assetTranslator.LookupAltname(symbols[i].Quote)
 			if quote == "" {
 				log.Warnf(log.ExchangeSys,
 					"%s unable to lookup altname for quote currency %s",
 					k.Name,
-					pairs[i].Quote)
+					symbols[i].Quote)
 				continue
 			}
-			products = append(products, base+format.Delimiter+quote)
+			pair, err = currency.NewPairFromStrings(base, quote)
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, pair)
 		}
 	case asset.Futures:
-		pairs, err := k.GetFuturesMarkets(ctx)
+		symbols, err := k.GetFuturesMarkets(ctx)
 		if err != nil {
 			return nil, err
 		}
-		for x := range pairs.Instruments {
-			if pairs.Instruments[x].Tradable {
-				curr, err := currency.NewPairFromString(pairs.Instruments[x].Symbol)
-				if err != nil {
-					return nil, err
-				}
-				products = append(products, format.Format(curr))
+		pairs = make([]currency.Pair, 0, len(symbols.Instruments))
+		for x := range symbols.Instruments {
+			if !symbols.Instruments[x].Tradable {
+				continue
 			}
+			pair, err := currency.NewPairFromString(symbols.Instruments[x].Symbol)
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, pair)
 		}
 	}
-	return products, nil
+	return pairs, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
@@ -406,11 +411,7 @@ func (k *Kraken) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 		if err != nil {
 			return err
 		}
-		p, err := currency.NewPairsFromStrings(pairs)
-		if err != nil {
-			return err
-		}
-		err = k.UpdatePairs(p, assets[x], false, forceUpdate)
+		err = k.UpdatePairs(pairs, assets[x], false, forceUpdate)
 		if err != nil {
 			return err
 		}
@@ -698,6 +699,7 @@ func (k *Kraken) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Volume,
 			Timestamp:    convert.TimeFromUnixTimestampDecimal(tradeData[i].Time),
+			TID:          strconv.FormatInt(tradeData[i].TradeID, 10),
 		}
 	}
 
