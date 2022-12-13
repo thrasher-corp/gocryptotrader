@@ -142,7 +142,7 @@ type Requirements interface {
 	// is scheduled to end. The `Scheduler` type implements the default
 	// `GetEnd` method. This can return a `nil` channel with no consequences
 	// if a strategy has no set end date.
-	GetEnd() <-chan time.Time
+	GetEnd(suppress bool) <-chan time.Time
 	// OnSignal is a strategy-defined function that handles the data that is
 	// returned from `GetSignal()`. This method is defined on the `strategy`
 	// type in the `specific individual _wrapper.go` file.
@@ -217,6 +217,11 @@ type Requirements interface {
 	// operating information. This method is defined on the `strategy wrapper`
 	// type in the `specific individual _wrapper.go` file.
 	GetDescription() string
+	// CanContinuePassedEnd returns if the strategy will continue to operate
+	// passed expected final date/time if the strategy for example does not
+	// deplete
+	// all funds.
+	CanContinuePassedEnd() bool
 }
 
 // Details define base level information

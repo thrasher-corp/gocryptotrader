@@ -29,18 +29,20 @@ func TestNewScheduler(t *testing.T) {
 
 	<-sched.GetSignal() // This should fire immediately
 
-	if sched.GetEnd() != nil {
+	if sched.GetEnd(false) != nil {
 		t.Fatalf("received: '%v' but expected '%v'", "chan", "nil chan")
 	}
 
 	nextDeploymentTime := sched.GetNext()
-	if time.Until(nextDeploymentTime) != time.Minute {
+	if time.Until(nextDeploymentTime) > time.Minute {
 		t.Fatalf("received: '%v' but expected '%v'", time.Until(nextDeploymentTime), time.Minute)
 	}
 
 	// schedule start not aligned
-	start = time.Now().Add(time.Minute)
-	end = start.Add(time.Minute * 5)
+	start = time.Now().Add(time.Minute) // Should fire 1 minute from now
+	end = start.Add(time.Minute * 5)    // Should finish 5 minutes from now
+	// expectedWindow := end.Sub(start)
+
 	sched, err = NewScheduler(start, end, false, kline.OneMin)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
@@ -52,13 +54,17 @@ func TestNewScheduler(t *testing.T) {
 	default:
 	}
 
-	if sched.GetEnd() == nil {
+	if sched.GetEnd(false) == nil {
 		t.Fatalf("received: '%v' but expected '%v'", "nil chan", "non-nil chan")
 	}
 
+	if !sched.end.Equal(end) {
+		t.Fatalf("set: '%v' but expected '%v'", sched.end, end)
+	}
+
 	nextDeploymentTime = sched.GetNext()
-	if time.Until(nextDeploymentTime) != time.Minute*2 {
-		t.Fatalf("received: '%v' but expected '%v'", time.Until(nextDeploymentTime), time.Minute*2)
+	if time.Until(nextDeploymentTime) > time.Minute {
+		t.Fatalf("received: '%v' but expected '%v'", time.Until(nextDeploymentTime), time.Minute)
 	}
 
 	// schedule start aligned
@@ -75,12 +81,12 @@ func TestNewScheduler(t *testing.T) {
 	default:
 	}
 
-	if sched.GetEnd() == nil {
+	if sched.GetEnd(false) == nil {
 		t.Fatalf("received: '%v' but expected '%v'", "nil chan", "non-nil chan")
 	}
 
 	nextDeploymentTime = sched.GetNext()
-	if time.Until(nextDeploymentTime) < time.Minute*2 { // Variation here so shouldn't be less than 2
-		t.Fatalf("received: '%v' but expected '%v'", time.Until(nextDeploymentTime), time.Minute*2)
+	if time.Until(nextDeploymentTime) < time.Minute {
+		t.Fatalf("received: '%v' but expected '%v'", time.Until(nextDeploymentTime), time.Minute)
 	}
 }

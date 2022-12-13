@@ -79,8 +79,8 @@ func TestNew(t *testing.T) {
 	t.Parallel()
 
 	_, err := New(context.Background(), nil)
-	if !errors.Is(err, errParamsAreNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errParamsAreNil)
+	if !errors.Is(err, strategy.ErrConfigIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrConfigIsNil)
 	}
 
 	tn := time.Now()
@@ -98,8 +98,8 @@ func TestNew(t *testing.T) {
 	}
 
 	_, err = New(context.Background(), c)
-	if !errors.Is(err, errInvalidAssetType) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidAssetType)
+	if !errors.Is(err, strategy.ErrInvalidAssetType) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrInvalidAssetType)
 	}
 
 	c.Asset = asset.Spot
@@ -128,8 +128,8 @@ func TestNew(t *testing.T) {
 
 	ctx := account.DeployCredentialsToContext(context.Background(), &account.Credentials{Key: "KEY"})
 	_, err = New(ctx, c)
-	if !errors.Is(err, errNoBalanceFound) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoBalanceFound)
+	if !errors.Is(err, strategy.ErrNoBalance) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrNoBalance)
 	}
 
 	err = loadHoldingsState(btcusd, 500, 0)
@@ -138,8 +138,8 @@ func TestNew(t *testing.T) {
 	}
 
 	_, err = New(ctx, c)
-	if !errors.Is(err, errExceedsFreeBalance) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errExceedsFreeBalance)
+	if !errors.Is(err, strategy.ErrNoBalance) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrNoBalance)
 	}
 
 	c.FullAmount = true
@@ -151,12 +151,18 @@ func TestNew(t *testing.T) {
 		time.Time{},
 		true)
 
+	err = loadHoldingsState(btcusd, 0, 1)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	c.Buy = true
 	_, err = New(ctx, c)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	err = loadHoldingsState(btcusd, 0, 1)
+	err = loadHoldingsState(btcusd, 50000, 0)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -173,8 +179,8 @@ func TestStrategy_CheckAndSubmit(t *testing.T) {
 
 	var s *Strategy
 	err := s.checkAndSubmit(context.Background())
-	if !errors.Is(err, errStrategyIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errStrategyIsNil)
+	if !errors.Is(err, strategy.ErrIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrIsNil)
 	}
 
 	pair := currency.NewPair(currency.B20, currency.F16)
@@ -199,7 +205,7 @@ func TestStrategy_CheckAndSubmit(t *testing.T) {
 
 	ctx := account.DeployCredentialsToContext(context.Background(), &account.Credentials{Key: "KEY"})
 
-	s, err = New(ctx, &Config{
+	strate, err := New(ctx, &Config{
 		Exchange:      &fake{},
 		Pair:          pair,
 		Asset:         asset.Spot,
@@ -215,11 +221,14 @@ func TestStrategy_CheckAndSubmit(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
+	s = strate.(*Strategy)
+	s.allocation.Deployment = 0
 	err = s.checkAndSubmit(context.Background())
-	if !errors.Is(err, errInvalidAllocatedAmount) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidAllocatedAmount)
+	if !errors.Is(err, strategy.ErrInvalidAmount) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrInvalidAmount)
 	}
 
+	s.allocation.Deployment = .2
 	err = s.checkAndSubmit(context.Background())
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)

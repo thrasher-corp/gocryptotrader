@@ -1371,6 +1371,7 @@ message DCARequest {
   bool aligned_to_interval = 15;
   int64 retry_attempts = 16;
   bool verbose = 17;
+  bool allow_trading_passed_end = 18;
 }
 
 message DCAStreamResponse {
@@ -1400,6 +1401,7 @@ message TWAPRequest {
   int64 retry_attempts = 16;
   bool verbose = 17;
   int64 twap_interval = 18;
+  bool allow_trading_passed_end = 19;
 }
 
 message TWAPStreamResponse {

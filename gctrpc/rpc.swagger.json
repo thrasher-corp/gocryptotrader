@@ -608,6 +608,12 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "allowTradingPassedEnd",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -4194,6 +4200,12 @@
             "required": false,
             "type": "string",
             "format": "int64"
+          },
+          {
+            "name": "allowTradingPassedEnd",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [

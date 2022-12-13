@@ -151,7 +151,7 @@ func TestNew(t *testing.T) {
 		time.Time{},
 		true)
 
-	err = loadHoldingsState(btcusd, 0, 1)
+	err = loadHoldingsState(btcusd, 50000, 0)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -162,7 +162,7 @@ func TestNew(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	err = loadHoldingsState(btcusd, 50000, 0)
+	err = loadHoldingsState(btcusd, 0, 1)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}

@@ -48,13 +48,14 @@ func New(ctx context.Context, c *Config) (strategy.Requirements, error) {
 		}
 
 		deployment := c.Pair.Quote
-		selling, err := account.GetBalance(c.Exchange.GetName(),
+		selling, err = account.GetBalance(c.Exchange.GetName(),
 			creds.SubAccount, creds, c.Asset, c.Pair.Quote)
 		if err != nil {
 			return nil, err
 		}
 
 		if !c.Buy {
+			fmt.Println("BRUH")
 			selling = buying
 			deployment = c.Pair.Base
 		}
@@ -112,12 +113,15 @@ func New(ctx context.Context, c *Config) (strategy.Requirements, error) {
 	}
 
 	return &Strategy{
-		Config:      c,
-		orderbook:   depth,
-		Selling:     selling,
-		allocation:  allocation,
-		Scheduler:   schedule,
-		Requirement: strategy.Requirement{Activities: *activities},
+		Config:     c,
+		orderbook:  depth,
+		Selling:    selling,
+		allocation: allocation,
+		Scheduler:  schedule,
+		Requirement: strategy.Requirement{
+			Activities:       *activities,
+			OperateBeyondEnd: c.AllowTradingPastEndTime,
+		},
 	}, nil
 }
 
@@ -132,6 +136,8 @@ func (s *Strategy) checkAndSubmit(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	fmt.Println("Alloc:", s.allocation.Deployment)
 
 	deploymentInBase, details, err := s.VerifyBookDeployment(s.orderbook, s.allocation.Deployment, twapPrice)
 	if err != nil {

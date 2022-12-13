@@ -16,10 +16,11 @@ type Requirement struct {
 	registered time.Time
 	strategy   string
 	Activities
-	wg       sync.WaitGroup
-	shutdown chan struct{}
-	running  bool
-	mtx      sync.Mutex
+	wg               sync.WaitGroup
+	shutdown         chan struct{}
+	running          bool
+	OperateBeyondEnd bool
+	mtx              sync.Mutex
 }
 
 // Run oversees the deployment of the current strategy adhering to policies,
@@ -65,7 +66,7 @@ func (r *Requirement) deploy(ctx context.Context, strategy Requirements) {
 				return
 			}
 			strategy.ReportWait(strategy.GetNext())
-		case end := <-strategy.GetEnd():
+		case end := <-strategy.GetEnd(strategy.CanContinuePassedEnd()):
 			strategy.ReportTimeout(end)
 			return
 		case <-ctx.Done():
@@ -149,4 +150,15 @@ func (r *Requirement) GetID() uuid.UUID {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 	return r.id
+}
+
+// CanContinuePassedEnd returns if the strategy can continue to operated passed
+// an end date/time.
+func (r *Requirement) CanContinuePassedEnd() bool {
+	if r == nil {
+		return false
+	}
+	r.mtx.Lock()
+	defer r.mtx.Unlock()
+	return r.OperateBeyondEnd
 }

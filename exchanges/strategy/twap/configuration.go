@@ -2,7 +2,6 @@ package twap
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
 	"time"
@@ -71,7 +70,8 @@ type Config struct {
 	// TODO:
 	// - Randomize and obfuscate amounts
 	// - Hybrid and randomize execution order types (limit/market)
-	// - When TWAP becomes applicable to use as a position allocator with margin.
+	//
+	// When TWAP becomes applicable to use as a position allocator with margin.
 	// ReduceOnly does not add to the size of position.
 	// ReduceOnly bool
 }
@@ -190,8 +190,6 @@ func (c *Config) GetDistrbutionAmount(ctx context.Context, allocatedAmount float
 	}, nil
 }
 
-var errTwapPriceExceeded = errors.New("twap price has been exceeded")
-
 // VerifyBookDeployment verifies book liquidity and structure with deployment
 // amount and returns base amount and details.
 func (c *Config) VerifyBookDeployment(book *orderbook.Depth, deploymentAmount, twapPrice float64) (float64, *orderbook.Movement, error) {
@@ -208,6 +206,7 @@ func (c *Config) VerifyBookDeployment(book *orderbook.Depth, deploymentAmount, t
 	var details *orderbook.Movement
 	var err error
 	if c.Buy {
+		fmt.Println("using moolah to buy", deploymentAmount)
 		// Quote needs to be converted to base for deployment checks.
 		details, err = book.LiftTheAsksFromBest(deploymentAmount, false)
 		if err != nil {
@@ -215,16 +214,7 @@ func (c *Config) VerifyBookDeployment(book *orderbook.Depth, deploymentAmount, t
 		}
 		deploymentAmount = details.Purchased
 	} else {
-		if twapPrice > details.EndPrice {
-			twapImpact := ((details.EndPrice - twapPrice) / twapPrice * 100)
-			if twapImpact > c.MaxImpactSlippage {
-				return 0, nil, fmt.Errorf("%w %v: by %v%% while hitting the bids",
-					errTwapPriceExceeded,
-					twapPrice,
-					twapImpact)
-			}
-		}
-
+		fmt.Println("using moolah to sell", deploymentAmount)
 		details, err = book.HitTheBidsFromBest(deploymentAmount, false)
 		if err != nil {
 			return 0, nil, err

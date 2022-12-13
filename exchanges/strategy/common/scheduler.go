@@ -72,8 +72,8 @@ func (s *Scheduler) GetSignal() <-chan interface{} {
 
 // GetEnd returns the scheduled end time for the strategy. This indicates
 // when the strategy will cease operations.
-func (s *Scheduler) GetEnd() <-chan time.Time {
-	if s.ender == nil {
+func (s *Scheduler) GetEnd(suppress bool) <-chan time.Time {
+	if s.ender == nil || suppress {
 		return nil
 	}
 	return s.ender.C
@@ -109,9 +109,12 @@ func (s *Scheduler) setTimer() {
 			s.start = time.Now()
 		}
 		if s.alignmentToUTC {
+			// This adds duration after trunc so that a strategy execute trading
+			// before start time.
 			s.next = s.start.Truncate(duration).Add(duration)
 		} else {
-			s.next = s.start
+			// Don't need monotonic clock for now.
+			s.next = s.start.Round(0)
 		}
 		s.timer = time.NewTimer(time.Until(s.next))
 		return

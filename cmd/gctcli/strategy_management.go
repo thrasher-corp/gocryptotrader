@@ -169,6 +169,10 @@ var (
 				Name:  "verbose",
 				Usage: "more verbose output",
 			},
+			&cli.BoolFlag{
+				Name:  "overtrade",
+				Usage: "allow trades to continue passed the designated end date/time",
+			},
 		},
 	}
 
@@ -268,6 +272,10 @@ var (
 			&cli.BoolFlag{
 				Name:  "verbose",
 				Usage: "more verbose output",
+			},
+			&cli.BoolFlag{
+				Name:  "overtrade",
+				Usage: "allow trades to continue passed the designated end date/time",
 			},
 		},
 	}
@@ -444,7 +452,7 @@ func dcaStreamfunc(c *cli.Context) error {
 	var priceLimit float64
 	if c.IsSet("pricelimit") {
 		priceLimit = c.Float64("pricelimit")
-	} else if c.Args().Get(7) != "" {
+	} else if c.Args().Get(9) != "" {
 		priceLimit, err = strconv.ParseFloat(c.Args().Get(9), 64)
 		if err != nil {
 			return err
@@ -453,7 +461,7 @@ func dcaStreamfunc(c *cli.Context) error {
 
 	if c.IsSet("maximpact") {
 		stratMaxImpact = c.Float64("maximpact")
-	} else if c.Args().Get(7) != "" {
+	} else if c.Args().Get(10) != "" {
 		stratMaxImpact, err = strconv.ParseFloat(c.Args().Get(10), 64)
 		if err != nil {
 			return err
@@ -463,7 +471,7 @@ func dcaStreamfunc(c *cli.Context) error {
 	var maxNominal float64
 	if c.IsSet("maxnominal") {
 		maxNominal = c.Float64("maxnominal")
-	} else if c.Args().Get(7) != "" {
+	} else if c.Args().Get(11) != "" {
 		maxNominal, err = strconv.ParseFloat(c.Args().Get(11), 64)
 		if err != nil {
 			return err
@@ -490,7 +498,7 @@ func dcaStreamfunc(c *cli.Context) error {
 
 	if c.IsSet("maxspread") {
 		stratMaxSpread = c.Float64("maxspread")
-	} else if c.Args().Get(7) != "" {
+	} else if c.Args().Get(13) != "" {
 		stratMaxSpread, err = strconv.ParseFloat(c.Args().Get(13), 64)
 		if err != nil {
 			return err
@@ -527,7 +535,14 @@ func dcaStreamfunc(c *cli.Context) error {
 	if c.IsSet("verbose") {
 		verbose = c.Bool("verbose")
 	} else if c.Args().Get(16) != "" {
-		verbose, _ = strconv.ParseBool(c.Args().Get(14))
+		verbose, _ = strconv.ParseBool(c.Args().Get(16))
+	}
+
+	var overtrade bool
+	if c.IsSet("overtrade") {
+		verbose = c.Bool("overtrade")
+	} else if c.Args().Get(17) != "" {
+		verbose, _ = strconv.ParseBool(c.Args().Get(17))
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -543,21 +558,22 @@ func dcaStreamfunc(c *cli.Context) error {
 			Base:  cp.Base.String(),
 			Quote: cp.Quote.String(),
 		},
-		Simulate:            stratSimulate,
-		Asset:               assetType,
-		Start:               negateLocalOffsetTS(s),
-		End:                 negateLocalOffsetTS(e),
-		Interval:            stratGranularity * int64(time.Second),
-		Amount:              amount,
-		FullAmount:          fullAmount,
-		PriceLimit:          priceLimit,
-		MaxImpactSlippage:   stratMaxImpact,
-		MaxNominalSlippage:  maxNominal,
-		Buy:                 buy,
-		MaxSpreadPercentage: stratMaxSpread,
-		AlignedToInterval:   stratCandleAligned,
-		RetryAttempts:       stratRetries,
-		Verbose:             verbose,
+		Simulate:              stratSimulate,
+		Asset:                 assetType,
+		Start:                 negateLocalOffsetTS(s),
+		End:                   negateLocalOffsetTS(e),
+		Interval:              stratGranularity * int64(time.Second),
+		Amount:                amount,
+		FullAmount:            fullAmount,
+		PriceLimit:            priceLimit,
+		MaxImpactSlippage:     stratMaxImpact,
+		MaxNominalSlippage:    maxNominal,
+		Buy:                   buy,
+		MaxSpreadPercentage:   stratMaxSpread,
+		AlignedToInterval:     stratCandleAligned,
+		RetryAttempts:         stratRetries,
+		Verbose:               verbose,
+		AllowTradingPassedEnd: overtrade,
 	})
 	if err != nil {
 		return err
@@ -680,7 +696,7 @@ func twapStreamfunc(c *cli.Context) error {
 	var priceLimit float64
 	if c.IsSet("pricelimit") {
 		priceLimit = c.Float64("pricelimit")
-	} else if c.Args().Get(7) != "" {
+	} else if c.Args().Get(9) != "" {
 		priceLimit, err = strconv.ParseFloat(c.Args().Get(9), 64)
 		if err != nil {
 			return err
@@ -689,7 +705,7 @@ func twapStreamfunc(c *cli.Context) error {
 
 	if c.IsSet("maximpact") {
 		stratMaxImpact = c.Float64("maximpact")
-	} else if c.Args().Get(7) != "" {
+	} else if c.Args().Get(10) != "" {
 		stratMaxImpact, err = strconv.ParseFloat(c.Args().Get(10), 64)
 		if err != nil {
 			return err
@@ -699,7 +715,7 @@ func twapStreamfunc(c *cli.Context) error {
 	var maxNominal float64
 	if c.IsSet("maxnominal") {
 		maxNominal = c.Float64("maxnominal")
-	} else if c.Args().Get(7) != "" {
+	} else if c.Args().Get(11) != "" {
 		maxNominal, err = strconv.ParseFloat(c.Args().Get(11), 64)
 		if err != nil {
 			return err
@@ -726,7 +742,7 @@ func twapStreamfunc(c *cli.Context) error {
 
 	if c.IsSet("maxspread") {
 		stratMaxSpread = c.Float64("maxspread")
-	} else if c.Args().Get(7) != "" {
+	} else if c.Args().Get(13) != "" {
 		stratMaxSpread, err = strconv.ParseFloat(c.Args().Get(13), 64)
 		if err != nil {
 			return err
@@ -771,8 +787,15 @@ func twapStreamfunc(c *cli.Context) error {
 	var verbose bool
 	if c.IsSet("verbose") {
 		verbose = c.Bool("verbose")
-	} else if c.Args().Get(16) != "" {
-		verbose, _ = strconv.ParseBool(c.Args().Get(14))
+	} else if c.Args().Get(17) != "" {
+		verbose, _ = strconv.ParseBool(c.Args().Get(17))
+	}
+
+	var overtrade bool
+	if c.IsSet("overtrade") {
+		verbose = c.Bool("overtrade")
+	} else if c.Args().Get(18) != "" {
+		verbose, _ = strconv.ParseBool(c.Args().Get(18))
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -788,22 +811,23 @@ func twapStreamfunc(c *cli.Context) error {
 			Base:  cp.Base.String(),
 			Quote: cp.Quote.String(),
 		},
-		Simulate:            stratSimulate,
-		Asset:               assetType,
-		Start:               negateLocalOffsetTS(s),
-		End:                 negateLocalOffsetTS(e),
-		Interval:            stratGranularity * int64(time.Second),
-		Amount:              amount,
-		FullAmount:          fullAmount,
-		PriceLimit:          priceLimit,
-		MaxImpactSlippage:   stratMaxImpact,
-		MaxNominalSlippage:  maxNominal,
-		Buy:                 buy,
-		MaxSpreadPercentage: stratMaxSpread,
-		AlignedToInterval:   stratCandleAligned,
-		RetryAttempts:       stratRetries,
-		TwapInterval:        stratTwapGranularity * int64(time.Second),
-		Verbose:             verbose,
+		Simulate:              stratSimulate,
+		Asset:                 assetType,
+		Start:                 negateLocalOffsetTS(s),
+		End:                   negateLocalOffsetTS(e),
+		Interval:              stratGranularity * int64(time.Second),
+		Amount:                amount,
+		FullAmount:            fullAmount,
+		PriceLimit:            priceLimit,
+		MaxImpactSlippage:     stratMaxImpact,
+		MaxNominalSlippage:    maxNominal,
+		Buy:                   buy,
+		MaxSpreadPercentage:   stratMaxSpread,
+		AlignedToInterval:     stratCandleAligned,
+		RetryAttempts:         stratRetries,
+		TwapInterval:          stratTwapGranularity * int64(time.Second),
+		Verbose:               verbose,
+		AllowTradingPassedEnd: overtrade,
 	})
 	if err != nil {
 		return err

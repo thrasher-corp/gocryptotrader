@@ -3,10 +3,12 @@ package common
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
-	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
 const testStrat = "test strategy"
@@ -19,18 +21,9 @@ func TestNewActivities(t *testing.T) {
 		t.Fatalf("received: '%v' but expected '%v'", err, errStrategyDescriptionIsEmpty)
 	}
 
-	id, err := uuid.NewV4()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
-
 	act, err := NewActivities(testStrat, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
-
-	if act.id != id {
-		t.Fatalf("received: '%v' but expected '%v'", act.id, id)
 	}
 
 	if act.strategy != testStrat {
@@ -287,13 +280,21 @@ func TestReportOrder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
+	act.ReportOrder(OrderAction{
+		Orderbook: &orderbook.Movement{},
+		Response:  &order.SubmitResponse{},
+	})
+	act.verbose = true
 	act.ReportOrder(OrderAction{})
 	for report := range reporter {
 		if report.Strategy != testStrat {
 			t.Fatalf("received: '%v' but expected '%v'", report.Strategy, testStrat)
 		}
 
-		if _, ok := report.Action.(OrderAction); !ok {
+		_, messageAct := report.Action.(MessageAction)
+		_, orderAct := report.Action.(OrderAction)
+
+		if !messageAct && !orderAct {
 			if report.Reason == Shutdown {
 				continue
 			}
@@ -328,7 +329,8 @@ func TestReportStart(t *testing.T) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
-	act.ReportStart("")
+	act.ReportStart("") // Skip empty
+	act.ReportStart("INTENSE REPORT OF SCRUTINY!!!!!")
 	for report := range reporter {
 		if report.Strategy != testStrat {
 			t.Fatalf("received: '%v' but expected '%v'", report.Strategy, testStrat)
@@ -369,20 +371,20 @@ func TestReportRegister(t *testing.T) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
-	act.ReportRegister()
+	act.ReportRegister() // Skip non-verbose
+	act.verbose = true
+	act.ReportRegister() // Don't skip
 	for report := range reporter {
 		if report.Strategy != testStrat {
 			t.Fatalf("received: '%v' but expected '%v'", report.Strategy, testStrat)
 		}
 
-		if _, ok := report.Action.(RegisterAction); !ok {
-			if report.Reason == Shutdown {
-				continue
-			}
-			t.Fatalf("received: '%T' but expected '%T'", report.Action, RegisterAction{})
+		if report.Reason == Shutdown {
+			break
 		}
 
 		if report.Finished {
+			fmt.Printf("%+v\n", report)
 			t.Fatalf("received: '%v' but expected '%v'", report.Finished, false)
 		}
 
@@ -410,6 +412,8 @@ func TestReportWait(t *testing.T) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
+	act.ReportWait(time.Now()) // Skip non-verbose
+	act.verbose = true
 	act.ReportWait(time.Now())
 	for report := range reporter {
 		if report.Strategy != testStrat {
@@ -451,6 +455,8 @@ func TestReportAcceptedSignal(t *testing.T) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
+	act.ReportAcceptedSignal(nil) // Skip non-verbose
+	act.verbose = true
 	act.ReportAcceptedSignal(nil)
 	for report := range reporter {
 		if report.Strategy != testStrat {

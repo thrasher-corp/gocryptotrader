@@ -5660,7 +5660,7 @@ func (s *RPCServer) DCAStream(r *gctrpc.DCARequest, stream gctrpc.GoCryptoTrader
 		MaxSpreadPercentage:     r.MaxSpreadPercentage,
 		RetryAttempts:           r.RetryAttempts,
 		CandleStickAligned:      r.AlignedToInterval,
-		AllowTradingPastEndTime: false, // TODO: Not yet supported
+		AllowTradingPastEndTime: r.AllowTradingPassedEnd,
 	})
 	if err != nil {
 		return err
@@ -5753,7 +5753,7 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 		RetryAttempts:           r.RetryAttempts,
 		CandleStickAligned:      r.AlignedToInterval,
 		TWAP:                    twapInterval,
-		AllowTradingPastEndTime: false, // TODO: Not yet supported
+		AllowTradingPastEndTime: r.AllowTradingPassedEnd,
 	})
 	if err != nil {
 		return err

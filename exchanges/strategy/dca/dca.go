@@ -47,6 +47,8 @@ func New(ctx context.Context, c *Config) (strategy.Requirements, error) {
 			return nil, err
 		}
 
+		fmt.Printf("%s %v %v %v %v %s", c.Exchange.GetName(), buying, creds.SubAccount, creds, c.Asset, c.Pair.Base)
+
 		deployment := c.Pair.Quote
 		selling, err := account.GetBalance(c.Exchange.GetName(),
 			creds.SubAccount, creds, c.Asset, c.Pair.Quote)
@@ -112,12 +114,15 @@ func New(ctx context.Context, c *Config) (strategy.Requirements, error) {
 	}
 
 	return &Strategy{
-		Config:      c,
-		orderbook:   depth,
-		Selling:     selling,
-		allocation:  allocation,
-		Scheduler:   schedule,
-		Requirement: strategy.Requirement{Activities: *activities},
+		Config:     c,
+		orderbook:  depth,
+		Selling:    selling,
+		allocation: allocation,
+		Scheduler:  schedule,
+		Requirement: strategy.Requirement{
+			Activities:       *activities,
+			OperateBeyondEnd: c.AllowTradingPastEndTime,
+		},
 	}, nil
 }
 
