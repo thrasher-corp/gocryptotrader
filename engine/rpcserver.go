@@ -5637,7 +5637,7 @@ func (s *RPCServer) DCAStream(r *gctrpc.DCARequest, stream gctrpc.GoCryptoTrader
 		return err
 	}
 
-	interval, err := kline.NewInterval(r.Interval, false)
+	interval, err := kline.NewInterval(r.Interval)
 	if err != nil {
 		return err
 	}
@@ -5724,12 +5724,12 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 		return err
 	}
 
-	interval, err := kline.NewInterval(r.Interval, false)
+	interval, err := kline.NewInterval(r.Interval)
 	if err != nil {
 		return err
 	}
 
-	twapInterval, err := kline.NewInterval(r.TwapInterval, false)
+	twapInterval, err := kline.NewInterval(r.TwapInterval)
 	if err != nil {
 		return err
 	}

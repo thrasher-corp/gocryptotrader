@@ -3,6 +3,7 @@ package kline
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
@@ -26,9 +27,9 @@ const (
 	TwoDay        = 2 * OneDay
 	ThreeDay      = 3 * OneDay
 	SevenDay      = 7 * OneDay
-	FifteenDay    = 15 * OneDay
 	OneWeek       = SevenDay
 	TwoWeek       = 2 * OneWeek
+	FifteenDay    = 15 * OneDay
 	OneMonth      = 31 * OneDay
 	ThreeMonth    = 3 * OneMonth
 	SixMonth      = 6 * OneMonth
@@ -51,11 +52,14 @@ var supportedIntervals = map[int64]Interval{
 	int64(EightHour):     EightHour,
 	int64(TwelveHour):    TwelveHour,
 	int64(OneDay):        OneDay,
+	int64(TwoDay):        TwoDay,
 	int64(ThreeDay):      ThreeDay,
 	int64(FifteenDay):    FifteenDay,
 	int64(OneWeek):       OneWeek,
 	int64(TwoWeek):       TwoWeek,
 	int64(OneMonth):      OneMonth,
+	int64(ThreeMonth):    ThreeMonth,
+	int64(SixMonth):      SixMonth,
 	int64(OneYear):       OneYear,
 }
 
@@ -69,14 +73,10 @@ var (
 )
 
 // NewInterval returns a new interval derived from a nanosecond integer. This
-// checks against supported list if a specific custom interval is *not* being
-// generated.
-func NewInterval(ns int64, custom bool) (Interval, error) {
+// checks against supported list.
+func NewInterval(ns int64) (Interval, error) {
 	if ns <= 0 {
 		return 0, ErrInvalidIntervalNumber
-	}
-	if custom {
-		return Interval(ns), nil
 	}
 	interval, ok := supportedIntervals[ns]
 	if !ok {
@@ -93,6 +93,9 @@ func GetSupportedIntervals() []Interval {
 		supported[target] = interval
 		target++
 	}
+	sort.Slice(supported, func(i, j int) bool {
+		return supported[i] < supported[j]
+	})
 	return supported
 }
 

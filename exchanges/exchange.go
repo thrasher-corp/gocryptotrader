@@ -193,18 +193,18 @@ func (b *Base) GetPairAssetType(c currency.Pair) (asset.Item, error) {
 // types. e.g. "BTC-USD" Spot and "BTC_USD" PERP request formatted.
 func (b *Base) GetPairAndAssetTypeRequestFormatted(symbol string) (currency.Pair, asset.Item, error) {
 	if symbol == "" {
-		return currency.Pair{}, asset.Empty, currency.ErrCurrencyPairEmpty
+		return currency.EMPTYPAIR, asset.Empty, currency.ErrCurrencyPairEmpty
 	}
 	assetTypes := b.GetAssetTypes(true)
 	for i := range assetTypes {
 		pFmt, err := b.GetPairFormat(assetTypes[i], true)
 		if err != nil {
-			return currency.Pair{}, asset.Empty, err
+			return currency.EMPTYPAIR, asset.Empty, err
 		}
 
 		enabled, err := b.GetEnabledPairs(assetTypes[i])
 		if err != nil {
-			return currency.Pair{}, asset.Empty, err
+			return currency.EMPTYPAIR, asset.Empty, err
 		}
 		for j := range enabled {
 			if pFmt.Format(enabled[j]) == symbol {
@@ -212,7 +212,7 @@ func (b *Base) GetPairAndAssetTypeRequestFormatted(symbol string) (currency.Pair
 			}
 		}
 	}
-	return currency.Pair{}, asset.Empty, errSymbolCannotBeMatched
+	return currency.EMPTYPAIR, asset.Empty, errSymbolCannotBeMatched
 }
 
 // GetClientBankAccounts returns banking details associated with

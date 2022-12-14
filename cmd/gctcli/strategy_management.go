@@ -335,23 +335,6 @@ func stopStrategy(c *cli.Context) error {
 	return nil
 }
 
-type StrategyReponse struct {
-	ID       string      `json:"id,omitempty"`
-	Strategy string      `json:"strategy,omitempty"`
-	Reason   string      `json:"reason,omitempty"`
-	Time     string      `json:"time,omitempty"`
-	Action   interface{} `json:"action,omitempty"`
-	Finished bool        `json:"finished,omitempty"`
-}
-
-func jsonStrategyOutput(id, strategy, reason, timeOfBroadcast string, action []byte, finished bool) {
-	var ready interface{}
-	_ = json.Unmarshal(action, &ready)
-
-	payload, _ := json.MarshalIndent(StrategyReponse{ID: id, Strategy: strategy, Action: ready, Finished: finished, Reason: reason, Time: timeOfBroadcast}, "", " ")
-	fmt.Println(string(payload))
-}
-
 func dcaStreamfunc(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
@@ -843,4 +826,24 @@ func twapStreamfunc(c *cli.Context) error {
 			return nil
 		}
 	}
+}
+
+type strategyReponse struct {
+	ID       string      `json:"id,omitempty"`
+	Strategy string      `json:"strategy,omitempty"`
+	Reason   string      `json:"reason,omitempty"`
+	Time     string      `json:"time,omitempty"`
+	Action   interface{} `json:"action,omitempty"`
+	Finished bool        `json:"finished,omitempty"`
+}
+
+// jsonStrategyOutput allows for a consistent output with respect to the action
+// as it can be an interface. // TODO: Make a better implementation when there
+// are more strategies involved.
+func jsonStrategyOutput(id, strategy, reason, timeOfBroadcast string, action []byte, finished bool) {
+	var ready interface{}
+	_ = json.Unmarshal(action, &ready)
+
+	payload, _ := json.MarshalIndent(strategyReponse{ID: id, Strategy: strategy, Action: ready, Finished: finished, Reason: reason, Time: timeOfBroadcast}, "", " ")
+	fmt.Println(string(payload))
 }
