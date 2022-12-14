@@ -3170,3 +3170,23 @@ func TestGetAvailableTransferChains(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestGuessAssetTypeFromInstrumentID(t *testing.T) {
+	t.Parallel()
+	ass, err := ok.GuessAssetTypeFromInstrumentID("BTC-USD-220930-28000-P")
+	if err != nil {
+		t.Error(err)
+	} else if ass != asset.Options {
+		t.Error("unexpected result")
+	}
+	if ass, err = ok.GuessAssetTypeFromInstrumentID("BTC-USD-221007"); err != nil {
+		t.Error(err)
+	} else if ass != asset.Futures {
+		t.Error("unexpected result")
+	}
+	if ass, err = ok.GuessAssetTypeFromInstrumentID("BTC-USD-SWAP"); err != nil {
+		t.Error(err)
+	} else if ass != asset.PerpetualSwap {
+		t.Error("unexpected result")
+	}
+}
