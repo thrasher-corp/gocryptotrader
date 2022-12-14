@@ -4290,10 +4290,11 @@ func (ok *Okx) GuessAssetTypeFromInstrumentID(instrumentID string) (asset.Item, 
 	if strings.HasSuffix(instrumentID, okxInstTypeSwap) {
 		return asset.PerpetualSwap, nil
 	}
+	count := strings.Count(instrumentID, currency.DashDelimiter)
 	switch {
-	case strings.Count(instrumentID, currency.DashDelimiter) >= 3:
+	case count >= 3:
 		return asset.Options, nil
-	case strings.Count(instrumentID, currency.DashDelimiter) == 2:
+	case count == 2:
 		return asset.Futures, nil
 	default:
 		pair, err := currency.NewPairFromString(instrumentID)
