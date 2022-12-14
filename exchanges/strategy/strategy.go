@@ -17,8 +17,8 @@ type Manager struct {
 }
 
 // Register stores the current strategy for management
-func (m *Manager) Register(strat strategy.Requirements) (uuid.UUID, error) {
-	if strat == nil {
+func (m *Manager) Register(strat_ strategy.Requirements) (uuid.UUID, error) {
+	if strat_ == nil {
 		return uuid.Nil, strategy.ErrIsNil
 	}
 	id, err := uuid.NewV4()
@@ -26,7 +26,7 @@ func (m *Manager) Register(strat strategy.Requirements) (uuid.UUID, error) {
 		return uuid.Nil, err
 	}
 
-	err = strat.LoadID(id)
+	err = strat_.LoadID(id)
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -36,9 +36,9 @@ func (m *Manager) Register(strat strategy.Requirements) (uuid.UUID, error) {
 	if m.strategies == nil {
 		m.strategies = make(map[uuid.UUID]strategy.Requirements)
 	}
-	log.Debugf(log.Strategy, "ID: [%s] has been registered. Details: %s", strat.GetID(), strat.GetDescription())
-	m.strategies[id] = strat
-	strat.ReportRegister()
+	log.Debugf(log.Strategy, "ID: [%s] has been registered. Details: %s", strat_.GetID(), strat_.GetDescription())
+	m.strategies[id] = strat_
+	strat_.ReportRegister()
 	return id, nil
 }
 
@@ -49,12 +49,12 @@ func (m *Manager) Run(ctx context.Context, id uuid.UUID) error {
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	strat, ok := m.strategies[id]
+	strat_, ok := m.strategies[id]
 	if !ok {
 		return strategy.ErrNotFound
 	}
-	log.Debugf(log.Strategy, "ID: [%s] has been run.", strat.GetID())
-	return strat.Run(ctx, strat)
+	log.Debugf(log.Strategy, "ID: [%s] has been run.", strat_.GetID())
+	return strat_.Run(ctx, strat_)
 }
 
 // RunStream runs then hooks into the strategy and reports events.
@@ -64,15 +64,15 @@ func (m *Manager) RunStream(ctx context.Context, id uuid.UUID, verbose bool) (<-
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	strat, ok := m.strategies[id]
+	strat_, ok := m.strategies[id]
 	if !ok {
 		return nil, strategy.ErrNotFound
 	}
-	err := strat.Run(ctx, strat)
+	err := strat_.Run(ctx, strat_)
 	if err != nil {
 		return nil, err
 	}
-	return strat.GetReporter(verbose)
+	return strat_.GetReporter(verbose)
 }
 
 // GetAllStrategies returns all strategies if running set true will only return

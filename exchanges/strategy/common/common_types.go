@@ -44,49 +44,113 @@ const (
 type Reason string
 
 var (
-	// Initial check errors
-	ErrNilSignal            = errors.New("signal is nil")
-	ErrUnhandledSignal      = errors.New("signal type is unhandled")
-	ErrCannotGenerateSignal = errors.New("cannot generate adequate signals")
-	ErrIntervalNotSupported = errors.New("interval currently not supported")
-	ErrInvalidUUID          = errors.New("invalid UUID")
-	ErrIsNil                = errors.New("is nil")
-	ErrNotFound             = errors.New("not found")
-	ErrAlreadyRunning       = errors.New("already running")
-	ErrNotRunning           = errors.New("not running")
-	ErrConfigIsNil          = errors.New("configuration is nil")
-	ErrExchangeIsNil        = errors.New("exchange is nil ")
-	ErrReporterIsNil        = errors.New("strategy reporter is nil")
-	ErrInvalidAssetType     = errors.New("non spot trading pairs not currently supported") // TODO: Open up to all asset types.
+	// Initial check errors:
 
-	// Value errors
-	ErrInvalidSlippage    = errors.New("invalid slippage percentage")
-	ErrInvalidSpread      = errors.New("invalid spread percentage")
-	ErrMaxSpreadExceeded  = errors.New("max spread percentage exceeded")
-	ErrMaxImpactExceeded  = errors.New("impact percentage exceeded")
+	// ErrNilSignal indicates that a signal is nil.
+	ErrNilSignal = errors.New("signal is nil")
+	// ErrUnhandledSignal indicates that a signal of an unknown or unhandled
+	// type was encountered.
+	ErrUnhandledSignal = errors.New("signal type is unhandled")
+	// ErrCannotGenerateSignal indicates that it was not possible to generate
+	// the required signals.
+	ErrCannotGenerateSignal = errors.New("cannot generate adequate signals")
+	// ErrIntervalNotSupported indicates that the specified interval is not
+	// supported by the function or method.
+	ErrIntervalNotSupported = errors.New("interval currently not supported")
+	// ErrInvalidUUID indicates that the provided UUID (universally unique identifier)
+	// is invalid.
+	ErrInvalidUUID = errors.New("invalid UUID")
+	// ErrIsNil indicates that a value is nil, which means it is an empty or
+	// uninitialized value.
+	ErrIsNil = errors.New("is nil")
+	// ErrNotFound indicates that a specified item or value was not found.
+	ErrNotFound = errors.New("not found")
+	// ErrAlreadyRunning indicates that a process or operation is already
+	// running and cannot be started again.
+	ErrAlreadyRunning = errors.New("already running")
+	// ErrNotRunning indicates that a process or operation is not currently
+	// running and cannot be stopped or interrupted.
+	ErrNotRunning = errors.New("not running")
+	// ErrConfigIsNil indicates that the provided configuration is nil, which
+	// means it is an empty or uninitialized value.
+	ErrConfigIsNil = errors.New("configuration is nil")
+	// ErrExchangeIsNil indicates that the provided exchange is nil, which means
+	//  it is an empty or uninitialized value.
+	ErrExchangeIsNil = errors.New("exchange is nil")
+	// ErrReporterIsNil indicates that the provided strategy reporter is nil,
+	// which means it is an empty or uninitialized value.
+	ErrReporterIsNil = errors.New("strategy reporter is nil")
+	// ErrInvalidAssetType indicates that the provided asset type is not
+	// currently supported for spot trading pairs.
+	ErrInvalidAssetType = errors.New("non spot trading pairs not currently supported") // TODO: Open up to all asset types.
+
+	// Value errors:
+
+	// ErrInvalidSlippage indicates that an invalid slippage percentage was
+	// provided.
+	ErrInvalidSlippage = errors.New("invalid slippage percentage")
+	// ErrInvalidSpread indicates that an invalid spread percentage was provided.
+	ErrInvalidSpread = errors.New("invalid spread percentage")
+	// ErrMaxSpreadExceeded indicates that the maximum spread percentage was
+	/// exceeded.
+	ErrMaxSpreadExceeded = errors.New("max spread percentage exceeded")
+	// ErrMaxImpactExceeded indicates that the maximum impact percentage was
+	// exceeded.
+	ErrMaxImpactExceeded = errors.New("impact percentage exceeded")
+	// ErrMaxNominalExceeded indicates that the maximum nominal percentage was
+	// exceeded.
 	ErrMaxNominalExceeded = errors.New("nominal percentage exceeded")
-	ErrInvalidAmount      = errors.New("invalid amount")
-	ErrCannotSetAmount    = errors.New("specific amount cannot be set, full amount bool set")
+	// ErrInvalidAmount indicates that an invalid amount was provided.
+	ErrInvalidAmount = errors.New("invalid amount")
+	// ErrCannotSetAmount indicates that a specific amount cannot be set because
+	//  the full amount bool is set.
+	ErrCannotSetAmount = errors.New("specific amount cannot be set, full amount bool set")
+	// ErrUnderMinimumAmount indicates that the provided amount is under the
+	// minimum required amount.
 	ErrUnderMinimumAmount = errors.New("amount is under the minimum requirements")
-	ErrOverMaximumAmount  = errors.New("amount is over the maximum requirments")
-	ErrInvalidPriceLimit  = errors.New("invalid price limit")
+	// ErrOverMaximumAmount indicates that the provided amount is over the
+	// maximum allowed amount.
+	ErrOverMaximumAmount = errors.New("amount is over the maximum requirments")
+	// ErrInvalidPriceLimit indicates that an invalid price limit was provided.
+	ErrInvalidPriceLimit = errors.New("invalid price limit")
+	// ErrPriceLimitExceeded indicates that the provided price limit was exceeded.
 	ErrPriceLimitExceeded = errors.New("price limit exceeded")
 
-	// Time errors
-	ErrInvalidOperatingWindow = errors.New("start to end time window cannot be less than the operating interval")
-	ErrEndBeforeTimeNow       = errors.New("end time is before time now")
+	// Time errors:
 
-	// Orderbook errors
-	ErrOrderbookIsNil   = errors.New("orderbook is nil")
+	// ErrInvalidOperatingWindow indicates that the provided start to end time
+	// window is less than the operating interval.
+	ErrInvalidOperatingWindow = errors.New("start to end time window cannot be less than the operating interval")
+	// ErrEndBeforeTimeNow indicates that the provided end time is before the
+	// current time.
+	ErrEndBeforeTimeNow = errors.New("end time is before time now")
+
+	// Orderbook errors:
+
+	// ErrOrderbookIsNil indicates that the provided orderbook is nil.
+	ErrOrderbookIsNil = errors.New("orderbook is nil")
+	// ErrExceedsLiquidity indicates that the requested operation exceeds the
+	// total orderbook liquidity.
 	ErrExceedsLiquidity = errors.New("exceeds total orderbook liquidity")
 
-	// Order execution errors
-	ErrInvalidRetryAttempts = errors.New("invalid retry attempts")
-	ErrNoBalance            = errors.New("no balance")
-	ErrExceedsFreeBalance   = errors.New("exceeds current free balance")
-	ErrSubmitOrderIsNil     = errors.New("submit order is nil")
+	// Order execution errors:
 
-	// Simulation errors
+	// ErrInvalidRetryAttempts indicates that the provided number of retry
+	// attempts is invalid.
+	ErrInvalidRetryAttempts = errors.New("invalid retry attempts")
+	// ErrNoBalance indicates that there is no balance available for the
+	// requested operation.
+	ErrNoBalance = errors.New("no balance")
+	// ErrExceedsFreeBalance indicates that the requested operation exceeds the
+	// current free balance.
+	ErrExceedsFreeBalance = errors.New("exceeds current free balance")
+	// ErrSubmitOrderIsNil indicates that the provided submit order is nil.
+	ErrSubmitOrderIsNil = errors.New("submit order is nil")
+
+	// Simulation errors:
+
+	// ErrFullAmountSimulation indicates that the full amount cannot be
+	// requested in a simulation.
 	ErrFullAmountSimulation = errors.New("full amount cannot be requested in simulation, for now")
 
 	errStrategyDescriptionIsEmpty = errors.New("strategy description/name is empty")
@@ -109,17 +173,53 @@ type Report struct {
 // Defines reportable actions that this strategy might undertake, struct types
 // used for outbound json marshalling.
 type (
-	TimeoutAction struct{ EndTime time.Time }
-	ErrorAction   struct{ Error error }
-	MessageAction struct{ Message string }
-	WaitAction    struct{ Until string }
-	SignalAction  struct{ Reason interface{} }
-	OrderAction   struct {
-		Submit    *order.Submit         `json:"submit,omitempty"`
-		Response  *order.SubmitResponse `json:"response,omitempty"`
-		Orderbook *orderbook.Movement   `json:"orderbook,omitempty"`
+	// TimeoutAction represents an action that indicates that a time limit has
+	// been reached or exceeded.
+	TimeoutAction struct {
+		// EndTime specifies the time at which the time limit expired or was
+		// reached.
+		EndTime time.Time
 	}
-	RegisterAction struct{ Time time.Time }
+	// ErrorAction represents an action that indicates that an error has occurred.
+	ErrorAction struct {
+		// Error specifies the error that occurred.
+		Error error
+	}
+	// MessageAction represents an action that sends a message to a specified
+	// recipient.
+	MessageAction struct {
+		// Message specifies the message that should be sent.
+		Message string
+	}
+	// WaitAction represents an action that indicates that the process or
+	// operation should wait until a specified time.
+	WaitAction struct {
+		// Until specifies the time at which the wait should end.
+		Until string
+	}
+	// SignalAction represents an action that sends a signal to a specified
+	// recipient.
+	SignalAction struct {
+		// Reason specifies the reason or purpose for the signal.
+		Reason interface{}
+	}
+	// OrderAction represents an action that involves an order, such as
+	// submitting an order or receiving a response to an order.
+	OrderAction struct {
+		// Submit specifies the order that should be submitted.
+		Submit *order.Submit
+		// Response specifies the response to a previously submitted order.
+		Response *order.SubmitResponse
+		// Orderbook specifies the orderbook movement that *theoretically*
+		// performed.
+		Orderbook *orderbook.Movement
+	}
+	// RegisterAction represents an action that registers a strategy for into
+	// the manager.
+	RegisterAction struct {
+		// Time specifies the time at which the registration occurred.
+		Time time.Time
+	}
 )
 
 // Requirements defines the baseline functionality for managing strategies

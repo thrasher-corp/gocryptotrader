@@ -80,7 +80,7 @@ var (
 
 	dcaStream = &cli.Command{
 		Name:      "stream",
-		Usage:     "executes strategy while reporting all actions to the client, exiting will stop strategy NOTE: cli flag might need to be used to access underyling funds e.g. --apisubaccount='main' for ftx main sub account",
+		Usage:     "executes strategy while reporting all actions to the client, exiting will stop strategy NOTE: cli flag might need to be used to access underyling funds e.g. --apisubaccount='main' for main sub account",
 		ArgsUsage: "<exchange> <pair> <asset> <start> <end>",
 		Action:    dcaStreamfunc,
 		Flags: []cli.Flag{
@@ -178,7 +178,7 @@ var (
 
 	twapStream = &cli.Command{
 		Name:      "stream",
-		Usage:     "executes strategy while reporting all actions to the client, exiting will stop strategy NOTE: cli flag might need to be used to access underyling funds e.g. --apisubaccount='main' for ftx main sub account",
+		Usage:     "executes strategy while reporting all actions to the client, exiting will stop strategy NOTE: cli flag might need to be used to access underyling funds e.g. --apisubaccount='main' for main sub account",
 		ArgsUsage: "<exchange> <pair> <asset> <start> <end>",
 		Action:    twapStreamfunc,
 		Flags: []cli.Flag{

@@ -125,7 +125,7 @@ func (c *Config) Check(ctx context.Context) error {
 	return nil
 }
 
-// GetDeploymentAmount will truncate and equally distribute amounts across time.
+// GetDistrbutionAmount will truncate and equally distribute amounts across time.
 func (c *Config) GetDistrbutionAmount(allocatedAmount float64, book *orderbook.Depth) (*Allocation, error) {
 	if c == nil {
 		return nil, strategy.ErrConfigIsNil

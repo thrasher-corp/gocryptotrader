@@ -85,7 +85,7 @@ func TestNewExchangeByName(t *testing.T) {
 	exchanges := []string{"binanceus", "binance", "bitfinex", "bitflyer", "bithumb", "bitmex", "bitstamp", "bittrex", "btc markets", "btse", "bybit", "coinut", "exmo", "coinbasepro", "ftx", "gateio", "gemini", "hitbtc", "huobi", "itbit", "kraken", "lbank", "localbitcoins", "okcoin international", "okx", "poloniex", "yobit", "zb", "fake"}
 	for i := range exchanges {
 		exch, err := m.NewExchangeByName(exchanges[i])
-		if err != nil && exchanges[i] != "fake" {
+		if err != nil && exchanges[i] != fakeExchangeName {
 			t.Fatal(err)
 		}
 		if err == nil {

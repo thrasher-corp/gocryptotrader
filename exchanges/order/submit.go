@@ -2,7 +2,6 @@ package order
 
 import (
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -115,23 +114,6 @@ func (s *Submit) DeriveSubmitResponse(orderID string) (*SubmitResponse, error) {
 	}, nil
 }
 
-// String implements the stringer interface for basic logging
-func (s *Submit) String() string {
-	if s == nil {
-		return ""
-	}
-	submit := "Exchange:" + s.Exchange +
-		" Asset:" + s.AssetType.String() +
-		" Pair:" + s.Pair.String() +
-		" Side:" + s.Side.String() +
-		" Type:" + s.Type.String() +
-		" For Amount:" + strconv.FormatFloat(s.Amount, 'f', -1, 64)
-	if s.Price != 0 {
-		submit += " At Price:" + strconv.FormatFloat(s.Price, 'f', -1, 64)
-	}
-	return submit
-}
-
 // DeriveDetail will construct an order detail when a successful submission
 // has occurred. Has an optional parameter field internal uuid for internal
 // management.
@@ -169,28 +151,4 @@ func (s *SubmitResponse) DeriveDetail(internal uuid.UUID) (*Detail, error) {
 		Fee:         s.Fee,
 		Cost:        s.Cost,
 	}, nil
-}
-
-// String implements the stringer interface for basic logging
-func (s *SubmitResponse) String() string {
-	if s == nil {
-		return ""
-	}
-	submit := "Exchange:" + s.Exchange +
-		" Asset:" + s.AssetType.String() +
-		" Pair:" + s.Pair.String() +
-		" Side:" + s.Side.String() +
-		" Type:" + s.Type.String() +
-		" For Amount:" + strconv.FormatFloat(s.Amount, 'f', -1, 64)
-	if s.Price != 0 {
-		submit += " At Price:" + strconv.FormatFloat(s.Price, 'f', -1, 64)
-	}
-	submit += " Status:" + s.Status.String() +
-		" Executed At:" + s.Date.Format(time.RFC822) +
-		" (" + s.Date.UTC().Format(time.RFC822) + ")" +
-		" For Order ID:" + s.OrderID
-	if s.ClientOrderID != "" {
-		submit += " With ClientID:" + s.OrderID
-	}
-	return submit
 }

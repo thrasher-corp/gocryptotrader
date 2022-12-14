@@ -2,7 +2,6 @@ package orderbook
 
 import (
 	"errors"
-	"strconv"
 	"sync"
 	"time"
 
@@ -177,25 +176,6 @@ type Movement struct {
 	// exchange as they might restrict the amount of information being passed
 	// back from either a REST request or websocket stream.
 	FullBookSideConsumed bool
-}
-
-// String implements the stringer interface for basic logging
-func (m *Movement) String() string {
-	if m == nil {
-		return ""
-	}
-	move := "Nominal Percentage:" + strconv.FormatFloat(m.NominalPercentage, 'f', -1, 64) +
-		" Impact Percentage:" + strconv.FormatFloat(m.ImpactPercentage, 'f', -1, 64) +
-		" Slippage Cost:" + strconv.FormatFloat(m.SlippageCost, 'f', -1, 64) +
-		" Start Price:" + strconv.FormatFloat(m.StartPrice, 'f', -1, 64) +
-		" End Price:" + strconv.FormatFloat(m.EndPrice, 'f', -1, 64) +
-		" Sold:" + strconv.FormatFloat(m.Sold, 'f', -1, 64) +
-		" Purchased:" + strconv.FormatFloat(m.Purchased, 'f', -1, 64) +
-		" Average Order Cost:" + strconv.FormatFloat(m.AverageOrderCost, 'f', -1, 64)
-	if m.FullBookSideConsumed {
-		move += " Warning: Full orderbook has been consumed."
-	}
-	return move
 }
 
 // SideAmounts define the amounts total for the tranches, total value in

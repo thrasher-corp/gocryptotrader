@@ -113,7 +113,6 @@ func TestRun(t *testing.T) {
 	}
 
 	<-s.RandoReporter
-
 }
 
 func TestStop(t *testing.T) {

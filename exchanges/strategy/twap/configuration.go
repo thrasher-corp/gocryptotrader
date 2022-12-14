@@ -303,7 +303,7 @@ type SignalTWAP struct {
 
 // CheckTWAP checks the potential orderbook tranche end price after a potential
 // amount deployment.
-func (c *Config) CheckTWAP(twap float64, trancheEndPrice float64) *SignalTWAP {
+func (c *Config) CheckTWAP(twap, trancheEndPrice float64) *SignalTWAP {
 	impact := math.Abs((twap - trancheEndPrice) / trancheEndPrice * 100)
 	return &SignalTWAP{
 		Price:            twap,

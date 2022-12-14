@@ -41,7 +41,6 @@ func TestNewScheduler(t *testing.T) {
 	// schedule start not aligned
 	start = time.Now().Add(time.Minute) // Should fire 1 minute from now
 	end = start.Add(time.Minute * 5)    // Should finish 5 minutes from now
-	// expectedWindow := end.Sub(start)
 
 	sched, err = NewScheduler(start, end, false, kline.OneMin)
 	if !errors.Is(err, nil) {

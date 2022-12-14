@@ -99,7 +99,7 @@ func (r *Requirement) Stop() error {
 	return nil
 }
 
-// GetState returns the strategy details
+// GetDetails returns the strategy details
 func (r *Requirement) GetDetails() (*Details, error) {
 	if r == nil {
 		return nil, errRequirementIsNil
