@@ -53,7 +53,6 @@ func (ku *Kucoin) SetDefaults() {
 
 	ku.API.CredentialsValidator.RequiresKey = true
 	ku.API.CredentialsValidator.RequiresSecret = true
-	ku.API.CredentialsValidator.RequiresPEM = true
 
 	spot := currency.PairStore{
 		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
@@ -75,8 +74,6 @@ func (ku *Kucoin) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	ku.API.AuthenticatedSupport = true
-	ku.API.AuthenticatedWebsocketSupport = true
 	ku.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,

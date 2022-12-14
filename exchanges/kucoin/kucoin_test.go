@@ -148,7 +148,6 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
-
 	_, err := ku.GetTradeHistory(context.Background(), "BTC-USDT")
 	if err != nil {
 		t.Error("GetTradeHistory() error", err)
@@ -177,7 +176,6 @@ func TestGetCurrencies(t *testing.T) {
 
 func TestGetCurrency(t *testing.T) {
 	t.Parallel()
-
 	_, err := ku.GetCurrency(context.Background(), "BTC", "")
 	if err != nil {
 		t.Error("GetCurrency() error", err)
@@ -191,7 +189,6 @@ func TestGetCurrency(t *testing.T) {
 
 func TestGetFiatPrice(t *testing.T) {
 	t.Parallel()
-
 	_, err := ku.GetFiatPrice(context.Background(), "", "")
 	if err != nil {
 		t.Error("GetFiatPrice() error", err)
@@ -205,7 +202,6 @@ func TestGetFiatPrice(t *testing.T) {
 
 func TestGetMarkPrice(t *testing.T) {
 	t.Parallel()
-
 	_, err := ku.GetMarkPrice(context.Background(), "USDT-BTC")
 	if err != nil {
 		t.Error("GetMarkPrice() error", err)
@@ -1819,6 +1815,7 @@ func TestGetInstanceServers(t *testing.T) {
 }
 
 func TestWSConnect(t *testing.T) {
+	ku.Verbose = true
 	err := ku.WsConnect()
 	if err != nil {
 		t.Error(err)

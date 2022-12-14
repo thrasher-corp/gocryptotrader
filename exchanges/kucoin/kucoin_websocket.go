@@ -100,8 +100,8 @@ func (ku *Kucoin) WsConnect() error {
 	dialer.Proxy = http.ProxyFromEnvironment
 	var instances *WSInstanceServers
 	_, err := ku.GetCredentials(context.Background())
-	if err == nil {
-		ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	if err != nil {
+		ku.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
 	if ku.Websocket.CanUseAuthenticatedEndpoints() {
 		instances, err = ku.GetAuthenticatedInstanceServers(context.Background())
