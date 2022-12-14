@@ -47,38 +47,39 @@ func New(ctx context.Context, c *Config) (strategy.Requirements, error) {
 			return nil, err
 		}
 
-		fmt.Printf("%s %v %v %v %v %s", c.Exchange.GetName(), buying, creds.SubAccount, creds, c.Asset, c.Pair.Base)
-
-		deployment := c.Pair.Quote
 		selling, err := account.GetBalance(c.Exchange.GetName(),
 			creds.SubAccount, creds, c.Asset, c.Pair.Quote)
 		if err != nil {
 			return nil, err
 		}
 
+		deployment, acquiring := c.Pair.Quote, c.Pair.Base
 		if !c.Buy {
 			selling = buying
 			deployment = c.Pair.Base
+			acquiring = c.Pair.Quote
 		}
 
 		balance = selling.GetFree()
 		if balance == 0 {
-			return nil, fmt.Errorf("cannot sell %s amount %f to buy base %s %w of %f",
-				deployment,
+			return nil, fmt.Errorf("cannot sell %v %s to acquire %s this %w of %v %s",
 				c.Amount,
-				c.Pair.Base,
+				deployment,
+				acquiring,
 				strategy.ErrNoBalance,
-				balance)
+				balance,
+				deployment)
 		}
 
 		if !c.FullAmount {
 			if c.Amount > balance {
-				return nil, fmt.Errorf("cannot sell %s amount %f to buy base %s %w of %f",
-					deployment,
+				return nil, fmt.Errorf("cannot sell %v %s to acquire %s this %w of %v %s",
 					c.Amount,
-					c.Pair.Base,
+					deployment,
+					acquiring,
 					strategy.ErrExceedsFreeBalance,
-					balance)
+					balance,
+					deployment)
 			}
 			balance = c.Amount
 		}
@@ -147,6 +148,8 @@ func (s *Strategy) checkAndSubmit(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	s.ReportAcceptedSignal(nil)
 
 	resp, err := s.submitOrder(ctx, submit)
 	if err != nil {

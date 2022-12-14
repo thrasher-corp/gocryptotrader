@@ -12,25 +12,32 @@ import (
 type Strat struct {
 	strategy.Requirements
 	Running bool
+	id      uuid.UUID
 }
 
 func (s *Strat) Run(ctx context.Context, runner strategy.Requirements) error {
 	return nil
 }
-
 func (s *Strat) GetReporter(_ bool) (<-chan *strategy.Report, error) {
 	m := make(chan *strategy.Report)
 	close(m)
 	return m, nil
 }
-
 func (s *Strat) GetDetails() (*strategy.Details, error) {
-	return &strategy.Details{Running: s.Running}, nil
+	return &strategy.Details{Running: s.Running, ID: s.id}, nil
 }
-
-func (s *Strat) Stop() error {
+func (s *Strat) Stop() error { return nil }
+func (s *Strat) LoadID(id uuid.UUID) error {
+	s.id = id
 	return nil
 }
+func (s *Strat) GetID() uuid.UUID {
+	return s.id
+}
+func (s *Strat) GetDescription() strategy.Descriptor {
+	return nil
+}
+func (s *Strat) ReportRegister() {}
 
 func TestRegister(t *testing.T) {
 	t.Parallel()

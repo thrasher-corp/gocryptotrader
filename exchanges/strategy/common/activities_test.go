@@ -316,6 +316,12 @@ func TestReportOrder(t *testing.T) {
 	}
 }
 
+type TestDescription struct{}
+
+func (t TestDescription) String() string {
+	return "INTENSE REPORT OF SCRUTINY!!!!!"
+}
+
 func TestReportStart(t *testing.T) {
 	t.Parallel()
 
@@ -329,8 +335,8 @@ func TestReportStart(t *testing.T) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
-	act.ReportStart("") // Skip empty
-	act.ReportStart("INTENSE REPORT OF SCRUTINY!!!!!")
+	act.ReportStart(nil) // Skip empty
+	act.ReportStart(TestDescription{})
 	for report := range reporter {
 		if report.Strategy != testStrat {
 			t.Fatalf("received: '%v' but expected '%v'", report.Strategy, testStrat)

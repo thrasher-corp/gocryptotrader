@@ -47,37 +47,37 @@ func New(ctx context.Context, c *Config) (strategy.Requirements, error) {
 			return nil, err
 		}
 
-		deployment := c.Pair.Quote
 		selling, err = account.GetBalance(c.Exchange.GetName(),
 			creds.SubAccount, creds, c.Asset, c.Pair.Quote)
 		if err != nil {
 			return nil, err
 		}
 
+		deployment, acquiring := c.Pair.Quote, c.Pair.Base
 		if !c.Buy {
-			fmt.Println("BRUH")
 			selling = buying
 			deployment = c.Pair.Base
+			acquiring = c.Pair.Quote
 		}
 
 		balance = selling.GetFree()
 		if balance == 0 {
-			return nil, fmt.Errorf("cannot sell %s amount %f to buy base %s %w of %f",
-				deployment,
+			return nil, fmt.Errorf("cannot sell %v %s to acquire %s, %w",
 				c.Amount,
-				c.Pair.Base,
-				strategy.ErrNoBalance,
-				balance)
+				deployment,
+				acquiring,
+				strategy.ErrNoBalance)
 		}
 
 		if !c.FullAmount {
 			if c.Amount > balance {
-				return nil, fmt.Errorf("cannot sell %s amount %f to buy base %s %w of %f",
-					deployment,
+				return nil, fmt.Errorf("cannot sell %v %s to acquire %s this %w of %v %s",
 					c.Amount,
-					c.Pair.Base,
+					deployment,
+					acquiring,
 					strategy.ErrExceedsFreeBalance,
-					balance)
+					balance,
+					deployment)
 			}
 			balance = c.Amount
 		}
@@ -136,8 +136,6 @@ func (s *Strategy) checkAndSubmit(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
-	fmt.Println("Alloc:", s.allocation.Deployment)
 
 	deploymentInBase, details, err := s.VerifyBookDeployment(s.orderbook, s.allocation.Deployment, twapPrice)
 	if err != nil {

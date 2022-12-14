@@ -206,7 +206,6 @@ func (c *Config) VerifyBookDeployment(book *orderbook.Depth, deploymentAmount, t
 	var details *orderbook.Movement
 	var err error
 	if c.Buy {
-		fmt.Println("using moolah to buy", deploymentAmount)
 		// Quote needs to be converted to base for deployment checks.
 		details, err = book.LiftTheAsksFromBest(deploymentAmount, false)
 		if err != nil {
@@ -214,7 +213,6 @@ func (c *Config) VerifyBookDeployment(book *orderbook.Depth, deploymentAmount, t
 		}
 		deploymentAmount = details.Purchased
 	} else {
-		fmt.Println("using moolah to sell", deploymentAmount)
 		details, err = book.HitTheBidsFromBest(deploymentAmount, false)
 		if err != nil {
 			return 0, nil, err

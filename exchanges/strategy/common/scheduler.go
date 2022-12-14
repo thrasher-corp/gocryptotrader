@@ -138,3 +138,25 @@ func (s *Scheduler) setEndTimer() {
 func (s *Scheduler) GetNext() time.Time {
 	return s.next
 }
+
+// Schedule defines schedule operating details for the strategy
+type Schedule struct {
+	Start      time.Time
+	End        time.Time
+	Next       time.Time
+	UntilStart time.Duration
+	SinceStart time.Duration
+	Window     time.Duration
+}
+
+// GetSchedule returns the actual schedule details
+func (s *Scheduler) GetSchedule() Schedule {
+	return Schedule{
+		Start:      s.start,
+		End:        s.end,
+		Next:       s.next,
+		UntilStart: time.Until(s.start),
+		SinceStart: time.Since(s.start),
+		Window:     s.end.Sub(s.start),
+	}
+}

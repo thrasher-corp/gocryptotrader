@@ -540,9 +540,9 @@ func dcaStreamfunc(c *cli.Context) error {
 
 	var overtrade bool
 	if c.IsSet("overtrade") {
-		verbose = c.Bool("overtrade")
+		overtrade = c.Bool("overtrade")
 	} else if c.Args().Get(17) != "" {
-		verbose, _ = strconv.ParseBool(c.Args().Get(17))
+		overtrade, _ = strconv.ParseBool(c.Args().Get(17))
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -793,9 +793,9 @@ func twapStreamfunc(c *cli.Context) error {
 
 	var overtrade bool
 	if c.IsSet("overtrade") {
-		verbose = c.Bool("overtrade")
+		overtrade = c.Bool("overtrade")
 	} else if c.Args().Get(18) != "" {
-		verbose, _ = strconv.ParseBool(c.Args().Get(18))
+		overtrade, _ = strconv.ParseBool(c.Args().Get(18))
 	}
 
 	conn, cancel, err := setupClient(c)

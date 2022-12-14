@@ -24,6 +24,25 @@ type fake struct {
 	exchange.IBotExchange
 }
 
+func (f *fake) GetHistoricCandles(_ context.Context, p currency.Pair, a asset.Item, timeStart, timeEnd time.Time, interval kline.Interval) (kline.Item, error) {
+	tn := time.Now().Truncate(interval.Duration()).Add(interval.Duration())
+	candleLicious := make([]kline.Candle, 30)
+	for x := range candleLicious {
+		candleLicious[x] = kline.Candle{
+			Time:   tn,
+			Open:   1000,
+			High:   1000,
+			Low:    1000,
+			Close:  1000,
+			Volume: 1,
+		}
+		tn = tn.Add(interval.Duration())
+	}
+	return kline.Item{
+		Candles: candleLicious,
+	}, nil
+}
+
 func (f *fake) GetCredentials(ctx context.Context) (*account.Credentials, error) {
 	creds, err := f.fields.GetCredentials(ctx)
 	if err != nil {
@@ -35,9 +54,7 @@ func (f *fake) GetCredentials(ctx context.Context) (*account.Credentials, error)
 	return creds, nil
 }
 
-func (f *fake) GetName() string {
-	return "fake"
-}
+func (f *fake) GetName() string { return "fake" }
 
 func (f *fake) GetOrderExecutionLimits(asset.Item, currency.Pair) (order.MinMaxLevel, error) {
 	return order.MinMaxLevel{MinAmount: 0.0001, MaxAmount: 1000}, nil
@@ -59,12 +76,12 @@ func loadHoldingsState(pair currency.Pair, freeQuote, freeBase float64) error {
 					AssetType: asset.Spot,
 					Currencies: []account.Balance{
 						{
-							CurrencyName:           pair.Quote,
-							AvailableWithoutBorrow: freeQuote,
+							CurrencyName: pair.Quote,
+							Free:         freeQuote,
 						},
 						{
-							CurrencyName:           pair.Base,
-							AvailableWithoutBorrow: freeBase,
+							CurrencyName: pair.Base,
+							Free:         freeBase,
 							// TODO: Upgrade to allow for no balance loaded.
 						},
 					},
@@ -95,6 +112,7 @@ func TestNew(t *testing.T) {
 		Amount:        100001, // Quotation funding (USD)
 		Buy:           true,
 		RetryAttempts: 3,
+		TWAP:          kline.OneHour,
 	}
 
 	_, err = New(context.Background(), c)
@@ -138,8 +156,8 @@ func TestNew(t *testing.T) {
 	}
 
 	_, err = New(ctx, c)
-	if !errors.Is(err, strategy.ErrNoBalance) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrNoBalance)
+	if !errors.Is(err, strategy.ErrExceedsFreeBalance) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrExceedsFreeBalance)
 	}
 
 	c.FullAmount = true
@@ -158,11 +176,16 @@ func TestNew(t *testing.T) {
 
 	c.Buy = true
 	_, err = New(ctx, c)
+	if !errors.Is(err, strategy.ErrNoBalance) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrNoBalance)
+	}
+
+	err = loadHoldingsState(btcusd, 50000, 1)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	err = loadHoldingsState(btcusd, 50000, 0)
+	_, err = New(ctx, c)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -216,6 +239,7 @@ func TestStrategy_CheckAndSubmit(t *testing.T) {
 		Buy:           true,
 		Simulate:      true,
 		RetryAttempts: 3,
+		TWAP:          kline.OneHour,
 	})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)

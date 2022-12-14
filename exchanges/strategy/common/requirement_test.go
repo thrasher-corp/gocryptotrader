@@ -17,7 +17,7 @@ type superstrat struct {
 	RandoReporter     chan struct{}
 }
 
-func (s *superstrat) ReportStart(_ string)           {}
+func (s *superstrat) ReportStart(_ Descriptor)       {}
 func (s *superstrat) GetEnd(_ bool) <-chan time.Time { return nil }
 func (s *superstrat) GetNext() time.Time             { return time.Time{} }
 func (s *superstrat) ReportShutdown()                { s.RandoReporter <- struct{}{} }
@@ -26,7 +26,7 @@ func (s *superstrat) ReportTimeout(_ time.Time)      { s.RandoReporter <- struct
 func (s *superstrat) ReportComplete()                { s.RandoReporter <- struct{}{} }
 func (s *superstrat) ReportFatalError(_ error)       { s.RandoReporter <- struct{}{} }
 func (s *superstrat) ReportWait(_ time.Time)         { s.RandoReporter <- struct{}{} }
-func (s *superstrat) GetDescription() string         { return "" }
+func (s *superstrat) GetDescription() Descriptor     { return nil }
 func (s *superstrat) CanContinuePassedEnd() bool     { return false }
 func (s *superstrat) GetID() uuid.UUID               { return uuid.Nil }
 func (s *superstrat) OnSignal(_ context.Context, _ interface{}) (bool, error) {

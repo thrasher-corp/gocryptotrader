@@ -3,6 +3,7 @@ package common
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -188,7 +189,7 @@ type Requirements interface {
 	// ReportStart is called when the strategy is accepted and run and is
 	// waiting for signals and sends a report to a reporter receiver. This
 	// method is defined on the `Activities` type in the `activities.go` file.
-	ReportStart(description string)
+	ReportStart(description Descriptor)
 	// ReportRegister is called when the strategy is registered with the manager
 	// and sends a report to a reporter receiver. As defined as method on
 	// 'Activities' type in activities.go.
@@ -213,15 +214,21 @@ type Requirements interface {
 	// GetID returns a loaded uuid. This method is defined on the `Requirement`
 	// type in the `requirement.go` file.
 	GetID() uuid.UUID
-	// GetDescription returns a strategy defined string that defines basic
+	// GetDescription returns a strategy defined type that defines basic
 	// operating information. This method is defined on the `strategy wrapper`
 	// type in the `specific individual _wrapper.go` file.
-	GetDescription() string
+	GetDescription() Descriptor
 	// CanContinuePassedEnd returns if the strategy will continue to operate
 	// passed expected final date/time if the strategy for example does not
-	// deplete
-	// all funds.
+	// deplete all funds.
 	CanContinuePassedEnd() bool
+}
+
+// Descriptor interface allows a strategy defined type to be passed back to rpc
+// and in logger params.
+type Descriptor interface {
+	// Stringer functionality allows for short descriptions
+	fmt.Stringer
 }
 
 // Details define base level information

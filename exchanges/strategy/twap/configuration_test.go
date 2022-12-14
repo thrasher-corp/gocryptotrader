@@ -65,6 +65,12 @@ func TestConfig_Check(t *testing.T) {
 	c.FullAmount = true
 	c.Amount = 1
 	err = c.Check(context.Background())
+	if !errors.Is(err, kline.ErrUnsetInterval) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrUnsetInterval)
+	}
+
+	c.TWAP = kline.OneHour
+	err = c.Check(context.Background())
 	if !errors.Is(err, strategy.ErrCannotSetAmount) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrCannotSetAmount)
 	}
@@ -244,8 +250,8 @@ func TestConfig_VerifyBookDeployment(t *testing.T) {
 	}
 
 	_, _, err = c.VerifyBookDeployment(depth, 1.5, 0)
-	if !errors.Is(err, strategy.ErrMaxImpactExceeded) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrMaxImpactExceeded)
+	if !errors.Is(err, strategy.ErrMaxNominalExceeded) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrMaxNominalExceeded)
 	}
 
 	c.MaxImpactSlippage = 0

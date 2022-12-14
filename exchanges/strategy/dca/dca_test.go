@@ -59,12 +59,12 @@ func loadHoldingsState(pair currency.Pair, freeQuote, freeBase float64) error {
 					AssetType: asset.Spot,
 					Currencies: []account.Balance{
 						{
-							CurrencyName:           pair.Quote,
-							AvailableWithoutBorrow: freeQuote,
+							CurrencyName: pair.Quote,
+							Free:         freeQuote,
 						},
 						{
-							CurrencyName:           pair.Base,
-							AvailableWithoutBorrow: freeBase,
+							CurrencyName: pair.Base,
+							Free:         freeBase,
 							// TODO: Upgrade to allow for no balance loaded.
 						},
 					},
@@ -138,8 +138,8 @@ func TestNew(t *testing.T) {
 	}
 
 	_, err = New(ctx, c)
-	if !errors.Is(err, strategy.ErrNoBalance) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrNoBalance)
+	if !errors.Is(err, strategy.ErrExceedsFreeBalance) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, strategy.ErrExceedsFreeBalance)
 	}
 
 	c.FullAmount = true

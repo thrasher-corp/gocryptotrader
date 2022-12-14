@@ -131,11 +131,15 @@ func (r *Activities) ReportOrder(action OrderAction) {
 
 // ReportStart is called when the strategy is accepted and run and is waiting
 // for signals and sends a report to a reporter receiver.
-func (r *Activities) ReportStart(description string) {
-	if description == "" {
+func (r *Activities) ReportStart(description Descriptor) {
+	if description == nil {
 		return
 	}
-	r.send(Start, MessageAction{Message: description}, false)
+	if r.verbose {
+		r.send(Start, description, false)
+		return
+	}
+	r.send(Start, MessageAction{Message: description.String()}, false)
 }
 
 // ReportRegister is called when the strategy is registered with the manager
