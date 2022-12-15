@@ -3245,7 +3245,7 @@ func TestGetOrderbookMovement(t *testing.T) {
 		t.Fatalf("received: '%+v' but expected: '%v'", err, ErrExchangeNameIsEmpty)
 	}
 
-	req.Exchange = "fake"
+	req.Exchange = fakeExchangeName
 	_, err = s.GetOrderbookMovement(context.Background(), req)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: '%+v' but expected: '%v'", err, asset.ErrNotSupported)
@@ -3352,7 +3352,7 @@ func TestGetOrderbookAmountByNominal(t *testing.T) {
 		t.Fatalf("received: '%+v' but expected: '%v'", err, ErrExchangeNameIsEmpty)
 	}
 
-	req.Exchange = "fake"
+	req.Exchange = fakeExchangeName
 	_, err = s.GetOrderbookAmountByNominal(context.Background(), req)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: '%+v' but expected: '%v'", err, asset.ErrNotSupported)
@@ -3452,7 +3452,7 @@ func TestGetOrderbookAmountByImpact(t *testing.T) {
 		t.Fatalf("received: '%+v' but expected: '%v'", err, ErrExchangeNameIsEmpty)
 	}
 
-	req.Exchange = "fake"
+	req.Exchange = fakeExchangeName
 	_, err = s.GetOrderbookAmountByImpact(context.Background(), req)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: '%+v' but expected: '%v'", err, asset.ErrNotSupported)
@@ -3636,7 +3636,7 @@ func TestDCAStream(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeNameIsEmpty)
 	}
 
-	request.Exchange = "fake"
+	request.Exchange = fakeExchangeName
 	request.Pair = &gctrpc.CurrencyPair{}
 	err = s.DCAStream(request, nil)
 	if !errors.Is(err, errCurrencyPairUnset) {
@@ -3717,7 +3717,7 @@ func TestTWAPStream(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeNameIsEmpty)
 	}
 
-	request.Exchange = "fake"
+	request.Exchange = fakeExchangeName
 	request.Pair = &gctrpc.CurrencyPair{}
 	err = s.TWAPStream(request, nil)
 	if !errors.Is(err, errCurrencyPairUnset) {
