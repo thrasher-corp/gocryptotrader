@@ -50,7 +50,6 @@ func (r *Requirement) Run(ctx context.Context, strategy Requirements) error {
 
 // deploy is the core routine that handles strategy functionality and lifecycle
 func (r *Requirement) deploy(ctx context.Context, strategy Requirements) {
-	// defer func() { r.wg.Done(); _ = r.Stop() }()
 	strategy.ReportStart(strategy.GetDescription())
 	for {
 		select {
