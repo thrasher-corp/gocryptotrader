@@ -53,6 +53,7 @@ func (ku *Kucoin) SetDefaults() {
 
 	ku.API.CredentialsValidator.RequiresKey = true
 	ku.API.CredentialsValidator.RequiresSecret = true
+	ku.API.CredentialsValidator.RequiresPEM = true
 
 	spot := currency.PairStore{
 		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},

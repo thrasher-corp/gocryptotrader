@@ -1802,8 +1802,8 @@ func TestValidateCredentials(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if err := ku.ValidateCredentials(context.Background(), asset.Spot); err != nil {
-		t.Errorf("%s ValidateCredentials() error %v", ku.Name, err)
+	if ku.ValidateCredentials(context.Background(), asset.Spot) != ku.ValidateCredentials(context.Background(), asset.Futures) {
+		t.Errorf("%s ValidateCredentials() error", ku.Name)
 	}
 }
 
