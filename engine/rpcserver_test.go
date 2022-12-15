@@ -3517,15 +3517,18 @@ func TestGetOrderbookAmountByImpact(t *testing.T) {
 
 type supaTestStrat struct {
 	strategy.Requirements
+	id uuid.UUID
 }
 
-func (s supaTestStrat) GetDetails() (*strategy.Details, error) {
-	return &strategy.Details{}, nil
+func (s *supaTestStrat) GetDetails() (*strategy.Details, error) {
+	return &strategy.Details{ID: s.id}, nil
 }
 
-func (s supaTestStrat) Stop() error {
-	return nil
-}
+func (s *supaTestStrat) Stop() error                         { return nil }
+func (s *supaTestStrat) LoadID(id uuid.UUID) error           { s.id = id; return nil }
+func (s *supaTestStrat) GetID() uuid.UUID                    { return s.id }
+func (s *supaTestStrat) GetDescription() strategy.Descriptor { return nil }
+func (s *supaTestStrat) ReportRegister()                     {}
 
 func TestGetAllStrategies(t *testing.T) {
 	t.Parallel()
@@ -3590,11 +3593,90 @@ func TestStopStrategy(t *testing.T) {
 	}
 }
 
-type streamyMcStreamServer struct {
+type dcaStreamyMcStreamServer struct {
+	gctrpc.GoCryptoTraderService_DCAStreamServer
+}
+
+func (s *dcaStreamyMcStreamServer) Context() context.Context {
+	return context.Background()
+}
+
+func TestDCAStream(t *testing.T) {
+	t.Parallel()
+
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName("ftx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+
+	cp := currency.NewPair(currency.ACA, currency.MOOND)
+
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled:  convert.BoolPtr(true),
+		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
+		RequestFormat: &currency.PairFormat{Delimiter: "/"},
+		Available:     currency.Pairs{cp},
+		Enabled:       currency.Pairs{cp},
+	}
+
+	fakeExchange := fExchange{IBotExchange: exch}
+	em.Add(fakeExchange)
+
+	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+
+	request := &gctrpc.DCARequest{}
+	err = s.DCAStream(request, nil)
+	if !errors.Is(err, ErrExchangeNameIsEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeNameIsEmpty)
+	}
+
+	request.Exchange = "fake"
+	request.Pair = &gctrpc.CurrencyPair{}
+	err = s.DCAStream(request, nil)
+	if !errors.Is(err, errCurrencyPairUnset) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errCurrencyPairUnset)
+	}
+
+	request.Pair = &gctrpc.CurrencyPair{Base: "BRO", Quote: "MOOND"}
+	err = s.DCAStream(request, nil)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	request.Asset = asset.Spot.String()
+	err = s.DCAStream(request, nil)
+	if !errors.Is(err, errCurrencyPairInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errCurrencyPairInvalid)
+	}
+
+	request.Pair = &gctrpc.CurrencyPair{Base: "ACA", Quote: "MOOND"}
+	err = s.DCAStream(request, nil)
+	if !errors.Is(err, kline.ErrInvalidIntervalNumber) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrInvalidIntervalNumber)
+	}
+
+	request.Interval = int64(kline.OneMin.Duration())
+	request.Simulate = true
+	request.Start = timestamppb.New(time.Now())
+	request.End = timestamppb.New(time.Now().Add(time.Minute))
+	request.Amount = 1000
+	err = s.DCAStream(request, &dcaStreamyMcStreamServer{})
+	if errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, "An Error")
+	}
+}
+
+type twapStreamyMcStreamServer struct {
 	gctrpc.GoCryptoTraderService_TWAPStreamServer
 }
 
-func (s *streamyMcStreamServer) Context() context.Context {
+func (s *twapStreamyMcStreamServer) Context() context.Context {
 	return context.Background()
 }
 
@@ -3665,7 +3747,7 @@ func TestTWAPStream(t *testing.T) {
 	request.Start = timestamppb.New(time.Now())
 	request.End = timestamppb.New(time.Now().Add(time.Minute))
 	request.Amount = 1000
-	err = s.TWAPStream(request, &streamyMcStreamServer{})
+	err = s.TWAPStream(request, &twapStreamyMcStreamServer{})
 	if errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, "An Error")
 	}
