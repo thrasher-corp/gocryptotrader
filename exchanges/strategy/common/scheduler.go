@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -62,18 +63,26 @@ type Scheduler struct {
 	// pipe is a common channel used to implement the `GetSignal` method.
 	// There is no way to typecast a channel in Go, so a routine is required.
 	pipe chan interface{}
+	mtx  sync.Mutex
 }
 
 // GetSignal returns a channel to an unspecified signal generator which will
 // be utilised in the `deploy()` method as defined in requirement.go.
 func (s *Scheduler) GetSignal() <-chan interface{} {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 	return s.pipeTimer()
 }
 
 // GetEnd returns the scheduled end time for the strategy. This indicates
 // when the strategy will cease operations.
 func (s *Scheduler) GetEnd(suppress bool) <-chan time.Time {
-	if s.ender == nil || suppress {
+	if suppress {
+		return nil
+	}
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	if s.ender == nil {
 		return nil
 	}
 	return s.ender.C
@@ -103,6 +112,8 @@ func (s *Scheduler) piper() {
 
 // setTimer automatically resets timer to next heartbeat interval
 func (s *Scheduler) setTimer() {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 	duration := s.interval.Duration()
 	if s.timer == nil {
 		if s.start.IsZero() {
@@ -126,6 +137,8 @@ func (s *Scheduler) setTimer() {
 
 // setEndTimer sets when the strategy will cease operations
 func (s *Scheduler) setEndTimer() {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 	if s.end.IsZero() {
 		return
 	}
@@ -136,6 +149,8 @@ func (s *Scheduler) setEndTimer() {
 // GetNext will return when the strategy will generate a new signal at a set
 // time.
 func (s *Scheduler) GetNext() time.Time {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 	return s.next
 }
 
@@ -151,6 +166,8 @@ type Schedule struct {
 
 // GetSchedule returns the actual schedule details
 func (s *Scheduler) GetSchedule() Schedule {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 	return Schedule{
 		Start:      s.start,
 		End:        s.end,

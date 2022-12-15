@@ -50,30 +50,51 @@ func (r *Requirement) Run(ctx context.Context, strategy Requirements) error {
 
 // deploy is the core routine that handles strategy functionality and lifecycle
 func (r *Requirement) deploy(ctx context.Context, strategy Requirements) {
-	defer func() { r.wg.Done(); _ = r.Stop() }()
+	// defer func() { r.wg.Done(); _ = r.Stop() }()
 	strategy.ReportStart(strategy.GetDescription())
 	for {
 		select {
 		case signal := <-strategy.GetSignal():
 			complete, err := strategy.OnSignal(ctx, signal)
 			if err != nil {
+				r.wg.Done()
+				errStop := r.Stop()
+				if errStop != nil {
+					log.Errorf(log.Strategy, "ID: [%s] %v", strategy.GetID(), errStop)
+				}
 				log.Errorf(log.Strategy, "ID: [%s] has failed %v handling signal %T", strategy.GetID(), err, signal)
 				strategy.ReportFatalError(err)
 				return
 			}
 			if complete {
+				r.wg.Done()
+				errStop := r.Stop()
+				if errStop != nil {
+					log.Errorf(log.Strategy, "ID: [%s] %v", strategy.GetID(), errStop)
+				}
 				strategy.ReportComplete()
 				return
 			}
 			strategy.ReportWait(strategy.GetNext())
 		case end := <-strategy.GetEnd(strategy.CanContinuePassedEnd()):
+			r.wg.Done()
+			err := r.Stop()
+			if err != nil {
+				log.Errorf(log.Strategy, "ID: [%s] %v", strategy.GetID(), err)
+			}
 			strategy.ReportTimeout(end)
 			return
 		case <-ctx.Done():
+			r.wg.Done()
+			err := r.Stop()
+			if err != nil {
+				log.Errorf(log.Strategy, "ID: [%s] %v", strategy.GetID(), err)
+			}
 			log.Warnf(log.Strategy, "ID: [%s] context has finished: %v", strategy.GetID(), ctx.Err())
 			strategy.ReportContextDone(ctx.Err())
 			return
 		case <-r.shutdown:
+			r.wg.Done()
 			strategy.ReportShutdown()
 			return
 		}
