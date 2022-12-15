@@ -101,10 +101,10 @@ func (m *Manager) Stop(id uuid.UUID) error {
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	strat, ok := m.strategies[id]
+	st, ok := m.strategies[id]
 	if !ok {
 		return strategy.ErrNotFound
 	}
-	log.Debugf(log.Strategy, "ID: [%s] trading operations have been stopped.", strat.GetID())
-	return strat.Stop()
+	log.Debugf(log.Strategy, "ID: [%s] trading operations have been stopped.", st.GetID())
+	return st.Stop()
 }
