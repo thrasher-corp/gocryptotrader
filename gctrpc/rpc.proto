@@ -1417,7 +1417,7 @@ message Strategy {
   string name = 2;
   string state = 3;
   bool stopped = 4;
-  bool running = 5; 
+  bool running = 5;
 }
 
 message GetAllStrategiesRequest {
