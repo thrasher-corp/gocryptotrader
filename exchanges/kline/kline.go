@@ -23,13 +23,15 @@ var (
 	// requires multiple candles to generate.
 	ErrInsufficientCandleData = errors.New("insufficient candle data to generate new candle")
 
+	errInsufficientTradeData = errors.New("insufficient trade data")
+
 	oneYearDurationInNano = float64(OneYear.Duration().Nanoseconds())
 )
 
 // CreateKline creates candles out of trade history data for a set time interval
 func CreateKline(trades []order.TradeHistory, interval Interval, pair currency.Pair, a asset.Item, exchName string) (*Item, error) {
 	if interval.Duration() < time.Minute {
-		return nil, fmt.Errorf("invalid time interval: [%s]", interval)
+		return nil, fmt.Errorf("%w: [%s]", ErrInvalidInterval, interval)
 	}
 
 	if err := validateData(trades); err != nil {
@@ -59,13 +61,14 @@ func CreateKline(trades []order.TradeHistory, interval Interval, pair currency.P
 	// if needed.
 	candleWindowNs := interval.Duration().Nanoseconds()
 
+	var offset int
 	for x := range candles {
 		if candles[x].Time.IsZero() {
 			candles[x].Time = timeSeriesStart
 			timeSeriesStart = timeSeriesStart.Add(interval.Duration())
 		}
 		candleStartNs := candles[x].Time.UnixNano()
-		for y := range trades {
+		for y := offset; y < len(trades); y++ {
 			if (trades[y].Timestamp.UnixNano() - candleStartNs) < candleWindowNs {
 				if candles[x].Open == 0 {
 					candles[x].Open = trades[y].Price
@@ -82,9 +85,8 @@ func CreateKline(trades []order.TradeHistory, interval Interval, pair currency.P
 				candles[x].Volume += trades[y].Amount
 				continue
 			}
-			// Cleave used trades for faster walk. TODO: Might need to copy a
-			// full trade slice so that we don't purge the param reference.
-			trades = trades[y:]
+			// Push foward offset
+			offset = y
 			break
 		}
 	}
@@ -101,7 +103,7 @@ func CreateKline(trades []order.TradeHistory, interval Interval, pair currency.P
 // converting into OHLC
 func validateData(trades []order.TradeHistory) error {
 	if len(trades) < 2 {
-		return errors.New("insufficient data")
+		return errInsufficientTradeData
 	}
 
 	for i := range trades {
@@ -175,9 +177,9 @@ func (k *Item) FillMissingDataWithEmptyEntries(i *IntervalRangeHolder) {
 	}
 }
 
-// RemoveDuplicates removes any duplicate candles
-// Filter in place must be used as it keeps the slice reference pointer the same.
-// If changed BuilderExteneded ConvertCandles functionality will break.
+// RemoveDuplicates removes any duplicate candles. NOTE: Filter-in-place is used
+// in this function for optimization and to keep the slice reference pointer the
+// same, if changed BuilderExteneded ConvertCandles functionality will break.
 func (k *Item) RemoveDuplicates() {
 	lookup := make(map[int64]bool)
 	target := 0
@@ -191,9 +193,10 @@ func (k *Item) RemoveDuplicates() {
 	k.Candles = k.Candles[:target]
 }
 
-// RemoveOutsideRange removes any candles outside the start and end date
-// Filter in place must be used as it keeps the slice reference pointer the same.
-// If changed BuilderExteneded ConvertCandles functionality will break.
+// RemoveOutsideRange removes any candles outside the start and end date.
+// NOTE: Filter-in-place is used in this function for optimization and to keep
+// the slice reference pointer the same, if changed BuilderExteneded
+// ConvertCandles functionality will break.
 func (k *Item) RemoveOutsideRange(start, end time.Time) {
 	target := 0
 	for _, keep := range k.Candles {
@@ -281,69 +284,78 @@ func TotalCandlesPerInterval(start, end time.Time, interval Interval) int64 {
 
 // IntervalsPerYear helps determine the number of intervals in a year
 // used in CAGR calculation to know the amount of time of an interval in a year
-func (i *Interval) IntervalsPerYear() float64 {
-	if *i == 0 {
+func (i Interval) IntervalsPerYear() float64 {
+	if i == 0 {
 		return 0
 	}
-	return oneYearDurationInNano / float64(i.Duration().Nanoseconds())
+	return oneYearDurationInNano / float64(i)
 }
 
 // ConvertToNewInterval allows the scaling of candles to larger candles
 // e.g. Convert OneDay candles to ThreeDay candles, if there are adequate
-// candles. Incomplete candles are NOT converted e.g. an 4 OneDay candles will
+// candles. Incomplete candles are NOT converted e.g. 4 OneDay candles will
 // convert to one ThreeDay candle, skipping the fourth.
-func ConvertToNewInterval(old *Item, newInterval Interval) (*Item, error) {
-	if old == nil {
+func (k *Item) ConvertToNewInterval(newInterval Interval) (*Item, error) {
+	if k == nil {
 		return nil, errNilKline
 	}
+	if k.Interval <= 0 {
+		return nil, fmt.Errorf("%w for old candle", ErrUnsetInterval)
+	}
 	if newInterval <= 0 {
-		return nil, ErrUnsetInterval
+		return nil, fmt.Errorf("%w for new candle", ErrUnsetInterval)
 	}
-	if newInterval <= old.Interval {
-		return nil, ErrCanOnlyDownscaleCandles
+	if newInterval <= k.Interval {
+		return nil, fmt.Errorf("%w %s is less than or equal to %s",
+			ErrCanOnlyUpscaleCandles,
+			newInterval,
+			k.Interval)
 	}
-	if newInterval%old.Interval != 0 {
-		return nil, ErrWholeNumberScaling
+	if newInterval%k.Interval != 0 {
+		return nil, fmt.Errorf("%s %w %s",
+			k.Interval,
+			ErrWholeNumberScaling,
+			newInterval)
 	}
 
-	oldIntervalsPerNewCandle := int(newInterval / old.Interval)
-	candles := make([]Candle, len(old.Candles)/oldIntervalsPerNewCandle)
+	oldIntervalsPerNewCandle := int(newInterval / k.Interval)
+	candles := make([]Candle, len(k.Candles)/oldIntervalsPerNewCandle)
 	if len(candles) == 0 {
-		return nil, ErrInsufficientCandleData
+		return nil, fmt.Errorf("%w to %v no candle data", ErrInsufficientCandleData, newInterval)
 	}
 	var target int
-	for x := range old.Candles {
+	for x := range k.Candles {
 		if candles[target].Time.IsZero() {
-			candles[target].Time = old.Candles[x].Time
-			candles[target].Open = old.Candles[x].Open
+			candles[target].Time = k.Candles[x].Time
+			candles[target].Open = k.Candles[x].Open
 		}
 
-		if old.Candles[x].High > candles[target].High {
-			candles[target].High = old.Candles[x].High
+		if k.Candles[x].High > candles[target].High {
+			candles[target].High = k.Candles[x].High
 		}
 
-		if candles[target].Low == 0 || candles[target].Low != 0 && old.Candles[x].Low < candles[target].Low {
-			candles[target].Low = old.Candles[x].Low
+		if candles[target].Low == 0 || candles[target].Low != 0 && k.Candles[x].Low < candles[target].Low {
+			candles[target].Low = k.Candles[x].Low
 		}
 
-		candles[target].Volume += old.Candles[x].Volume
+		candles[target].Volume += k.Candles[x].Volume
 
 		if (x+1)%oldIntervalsPerNewCandle == 0 {
-			candles[target].Close = old.Candles[x].Close
+			candles[target].Close = k.Candles[x].Close
 			target++
 			// Note: Below checks the length of the proceeding slice so we can
 			// break instantly if we cannot make an entire candle. e.g. 60 min
 			// candles in an hour candle and we have 59 minute candles left.
 			// This entire procession is cleaved.
-			if len(old.Candles[x:])-1 < oldIntervalsPerNewCandle {
+			if len(k.Candles[x:])-1 < oldIntervalsPerNewCandle {
 				break
 			}
 		}
 	}
 	return &Item{
-		Exchange: old.Exchange,
-		Pair:     old.Pair,
-		Asset:    old.Asset,
+		Exchange: k.Exchange,
+		Pair:     k.Pair,
+		Asset:    k.Asset,
 		Interval: newInterval,
 		Candles:  candles,
 	}, nil
@@ -531,11 +543,11 @@ func DeployExchangeIntervals(enabled ...Interval) ExchangeIntervals {
 	return ExchangeIntervals{supported: supported, aligned: enabled}
 }
 
-// Supports returns if the exchange directly supports the interval. In future
-// this might be able to be deprecated because we can construct custom intervals
-// from the supported list.
-func (e *ExchangeIntervals) Supports(required Interval) bool {
-	return e.supported[required]
+// ExchangeSupported returns if the exchange directly supports the interval. In
+// future this might be able to be deprecated because we can construct custom
+// intervals from the supported list.
+func (e *ExchangeIntervals) ExchangeSupported(in Interval) bool {
+	return e.supported[in]
 }
 
 // Construct fetches supported interval that can construct the required interval

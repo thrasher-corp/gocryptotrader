@@ -49,6 +49,8 @@ const (
 	fakeExchangeName      = "fake"
 )
 
+var errExpectedTestError = errors.New("expected test error")
+
 // fExchange is a fake exchange with function overrides
 // we're not testing an actual exchange's implemented functions
 type fExchange struct {
@@ -174,11 +176,9 @@ func generateCandles(amount int, timeStart time.Time, interval kline.Interval) [
 	return candy
 }
 
-var errTest = errors.New("test error")
-
 func (f fExchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, interval kline.Interval, timeStart, _ time.Time) (*kline.Item, error) {
 	if interval == 0 {
-		return nil, errTest
+		return nil, errExpectedTestError
 	}
 	return &kline.Item{
 		Exchange: fakeExchangeName,
@@ -2522,8 +2522,8 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 		AssetType: "upsideprofitcontract",
 		Pair:      &gctrpc.CurrencyPair{},
 	})
-	if !errors.Is(err, errTest) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errTest)
+	if !errors.Is(err, errExpectedTestError) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errExpectedTestError)
 	}
 
 	_, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{

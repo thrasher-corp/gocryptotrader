@@ -861,8 +861,8 @@ func (h *HitBTC) FormatExchangeKlineInterval(in kline.Interval) string {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (h *HitBTC) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := h.GetKlineBuilder(pair, a, required, start, end)
+func (h *HitBTC) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := h.GetKlineBuilder(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -892,8 +892,8 @@ func (h *HitBTC) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (h *HitBTC) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := h.GetKlineBuilderExtended(pair, a, required, start, end)
+func (h *HitBTC) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := h.GetKlineBuilderExtended(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}

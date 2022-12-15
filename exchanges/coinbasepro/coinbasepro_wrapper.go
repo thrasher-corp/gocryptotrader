@@ -889,8 +889,8 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersR
 
 // GetHistoricCandles returns a set of candle between two time periods for a
 // designated time period
-func (c *CoinbasePro) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := c.GetKlineBuilder(pair, a, required, start, end)
+func (c *CoinbasePro) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := c.GetKlineBuilder(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -924,8 +924,8 @@ func (c *CoinbasePro) GetHistoricCandles(ctx context.Context, pair currency.Pair
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (c *CoinbasePro) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := c.GetKlineBuilderExtended(pair, a, required, start, end)
+func (c *CoinbasePro) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := c.GetKlineBuilderExtended(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}

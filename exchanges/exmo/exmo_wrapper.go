@@ -738,12 +738,12 @@ func (e *EXMO) ValidateCredentials(ctx context.Context, assetType asset.Item) er
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (e *EXMO) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
+func (e *EXMO) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (e *EXMO) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
+func (e *EXMO) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

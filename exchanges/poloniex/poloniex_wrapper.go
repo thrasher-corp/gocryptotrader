@@ -940,8 +940,8 @@ func (p *Poloniex) ValidateCredentials(ctx context.Context, assetType asset.Item
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (p *Poloniex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := p.GetKlineBuilder(pair, a, required, start, end)
+func (p *Poloniex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := p.GetKlineBuilder(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}

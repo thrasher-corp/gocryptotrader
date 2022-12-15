@@ -1743,8 +1743,8 @@ func (h *HUOBI) FormatExchangeKlineInterval(in kline.Interval) string {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := h.GetKlineBuilder(pair, a, required, start, end)
+func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := h.GetKlineBuilder(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}

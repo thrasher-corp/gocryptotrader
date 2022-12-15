@@ -90,15 +90,15 @@ func TestCreateKline(t *testing.T) {
 
 	pair := currency.NewPair(currency.BTC, currency.USD)
 	_, err := CreateKline(nil, OneMin, pair, asset.Spot, "Binance")
-	if err == nil {
-		t.Fatal("error cannot be nil")
+	if !errors.Is(err, errInsufficientTradeData) {
+		t.Fatalf("received: '%v' but expected '%v'", err, errInsufficientTradeData)
 	}
 
-	tradeCountAlsoTotalAmounts := 24000
+	tradeTotal := 24000
 	var trades []order.TradeHistory
 	rand.Seed(time.Now().Unix())
 	execution := time.Now()
-	for i := 0; i < tradeCountAlsoTotalAmounts; i++ {
+	for i := 0; i < tradeTotal; i++ {
 		price, rndTime := 1000+float64(rand.Intn(1000)), rand.Intn(10) //nolint:gosec // no need to import crypo/rand for testing
 		execution = execution.Add(time.Duration(rndTime) * time.Second)
 		trades = append(trades, order.TradeHistory{
@@ -109,8 +109,8 @@ func TestCreateKline(t *testing.T) {
 	}
 
 	_, err = CreateKline(trades, 0, pair, asset.Spot, "Binance")
-	if err == nil {
-		t.Fatal("error cannot be nil")
+	if !errors.Is(err, ErrInvalidInterval) {
+		t.Fatalf("received: '%v' but expected '%v'", err, ErrInvalidInterval)
 	}
 
 	c, err := CreateKline(trades, OneMin, pair, asset.Spot, "Binance")
@@ -122,8 +122,8 @@ func TestCreateKline(t *testing.T) {
 	for x := range c.Candles {
 		amounts += c.Candles[x].Volume
 	}
-	if amounts != float64(tradeCountAlsoTotalAmounts) {
-		t.Fatalf("received: '%v' but expected '%v'\n", amounts, float64(tradeCountAlsoTotalAmounts))
+	if amounts != float64(tradeTotal) {
+		t.Fatalf("received: '%v' but expected '%v'", amounts, float64(tradeTotal))
 	}
 }
 
@@ -870,9 +870,14 @@ func BenchmarkJustifyIntervalTimeStoringUnixValues2(b *testing.B) {
 }
 
 func TestConvertToNewInterval(t *testing.T) {
-	_, err := ConvertToNewInterval(nil, OneMin)
+	_, err := (*Item)(nil).ConvertToNewInterval(OneMin)
 	if !errors.Is(err, errNilKline) {
 		t.Errorf("received '%v' expected '%v'", err, errNilKline)
+	}
+
+	_, err = (&Item{}).ConvertToNewInterval(OneMin)
+	if !errors.Is(err, ErrUnsetInterval) {
+		t.Errorf("received '%v' expected '%v'", err, ErrUnsetInterval)
 	}
 
 	old := &Item{
@@ -908,23 +913,23 @@ func TestConvertToNewInterval(t *testing.T) {
 		},
 	}
 
-	_, err = ConvertToNewInterval(old, 0)
+	_, err = old.ConvertToNewInterval(0)
 	if !errors.Is(err, ErrUnsetInterval) {
 		t.Errorf("received '%v' expected '%v'", err, ErrUnsetInterval)
 	}
-	_, err = ConvertToNewInterval(old, OneMin)
-	if !errors.Is(err, ErrCanOnlyDownscaleCandles) {
-		t.Errorf("received '%v' expected '%v'", err, ErrCanOnlyDownscaleCandles)
+	_, err = old.ConvertToNewInterval(OneMin)
+	if !errors.Is(err, ErrCanOnlyUpscaleCandles) {
+		t.Errorf("received '%v' expected '%v'", err, ErrCanOnlyUpscaleCandles)
 	}
 	old.Interval = ThreeDay
-	_, err = ConvertToNewInterval(old, OneWeek)
+	_, err = old.ConvertToNewInterval(OneWeek)
 	if !errors.Is(err, ErrWholeNumberScaling) {
 		t.Errorf("received '%v' expected '%v'", err, ErrWholeNumberScaling)
 	}
 
 	old.Interval = OneDay
 	newInterval := ThreeDay
-	newCandle, err := ConvertToNewInterval(old, newInterval)
+	newCandle, err := old.ConvertToNewInterval(newInterval)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -947,7 +952,7 @@ func TestConvertToNewInterval(t *testing.T) {
 		Close:  7777,
 		Volume: 111,
 	})
-	newCandle, err = ConvertToNewInterval(old, newInterval)
+	newCandle, err = old.ConvertToNewInterval(newInterval)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -955,7 +960,7 @@ func TestConvertToNewInterval(t *testing.T) {
 		t.Error("expected one candle")
 	}
 
-	_, err = ConvertToNewInterval(old, OneMonth)
+	_, err = old.ConvertToNewInterval(OneMonth)
 	if !errors.Is(err, ErrInsufficientCandleData) {
 		t.Errorf("received '%v' expected '%v'", err, ErrInsufficientCandleData)
 	}
@@ -991,13 +996,13 @@ func TestGetClosePriceAtTime(t *testing.T) {
 func TestDeployExchangeIntervals(t *testing.T) {
 	t.Parallel()
 	exchangeIntervals := DeployExchangeIntervals()
-	if exchangeIntervals.Supports(OneWeek) {
-		t.Errorf("received '%v' expected '%v'", exchangeIntervals.Supports(OneWeek), false)
+	if exchangeIntervals.ExchangeSupported(OneWeek) {
+		t.Errorf("received '%v' expected '%v'", exchangeIntervals.ExchangeSupported(OneWeek), false)
 	}
 
 	exchangeIntervals = DeployExchangeIntervals(OneWeek)
-	if !exchangeIntervals.Supports(OneWeek) {
-		t.Errorf("received '%v' expected '%v'", exchangeIntervals.Supports(OneWeek), true)
+	if !exchangeIntervals.ExchangeSupported(OneWeek) {
+		t.Errorf("received '%v' expected '%v'", exchangeIntervals.ExchangeSupported(OneWeek), true)
 	}
 
 	_, err := exchangeIntervals.Construct(0)

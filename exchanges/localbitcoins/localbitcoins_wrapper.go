@@ -699,11 +699,11 @@ func (l *LocalBitcoins) ValidateCredentials(ctx context.Context, assetType asset
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (l *LocalBitcoins) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
+func (l *LocalBitcoins) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (l *LocalBitcoins) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
+func (l *LocalBitcoins) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	return nil, common.ErrFunctionNotSupported
 }

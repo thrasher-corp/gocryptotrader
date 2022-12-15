@@ -1083,8 +1083,8 @@ func (b *Bitfinex) FormatExchangeKlineInterval(in kline.Interval) string {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (b *Bitfinex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := b.GetKlineBuilder(pair, a, required, start, end)
+func (b *Bitfinex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := b.GetKlineBuilder(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -1119,8 +1119,8 @@ func (b *Bitfinex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (b *Bitfinex) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := b.GetKlineBuilderExtended(pair, a, required, start, end)
+func (b *Bitfinex) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := b.GetKlineBuilderExtended(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}

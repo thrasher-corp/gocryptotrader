@@ -1179,8 +1179,8 @@ func (f *FTX) ValidateCredentials(ctx context.Context, assetType asset.Item) err
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (f *FTX) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := f.GetKlineBuilder(pair, a, required, start, end)
+func (f *FTX) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := f.GetKlineBuilder(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -1210,8 +1210,8 @@ func (f *FTX) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asse
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (f *FTX) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := f.GetKlineBuilderExtended(pair, a, required, start, end)
+func (f *FTX) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := f.GetKlineBuilderExtended(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}

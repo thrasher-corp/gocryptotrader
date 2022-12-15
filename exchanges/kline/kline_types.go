@@ -44,10 +44,10 @@ var (
 	ErrUnsetInterval = errors.New("cannot calculate range, interval unset")
 	// ErrUnsupportedInterval returns when the provided interval is not supported by an exchange
 	ErrUnsupportedInterval = errors.New("interval unsupported by exchange")
-	// ErrCanOnlyDownscaleCandles returns when attempting to upscale candles
-	ErrCanOnlyDownscaleCandles = errors.New("interval must be a longer duration to scale")
+	// ErrCanOnlyUpscaleCandles returns when attempting to upscale candles
+	ErrCanOnlyUpscaleCandles = errors.New("interval must be a longer duration to scale")
 	// ErrWholeNumberScaling returns when old interval data cannot neatly fit into new interval size
-	ErrWholeNumberScaling = errors.New("new interval must scale properly into new candle")
+	ErrWholeNumberScaling = errors.New("old interval must scale properly into new candle")
 	errNilKline           = errors.New("kline item is nil")
 	// ErrNotFoundAtTime returned when looking up a candle at a specific time
 	ErrNotFoundAtTime = errors.New("candle not found at time")

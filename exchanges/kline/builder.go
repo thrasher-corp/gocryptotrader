@@ -96,7 +96,7 @@ func (b *Builder) ConvertCandles(timeSeries []Candle) (*Item, error) {
 	if b.Required == b.Request {
 		return holder, nil
 	}
-	return ConvertToNewInterval(holder, b.Required)
+	return holder.ConvertToNewInterval(b.Required)
 }
 
 // BuilderExtended used in extended functionality for when candles requested
@@ -132,8 +132,11 @@ func (b *BuilderExtended) ConvertCandles(timeSeries []Candle) (*Item, error) {
 
 // Size returns the max length of return for pre-allocation.
 func (b *BuilderExtended) Size() int {
-	if b == nil {
+	if b == nil || b.IntervalRangeHolder == nil {
 		return 0
+	}
+	if b.IntervalRangeHolder.Limit == 0 {
+		log.Warnf(log.ExchangeSys, "%v candle builder limit is zero while calling Size()", b.Name)
 	}
 	return b.IntervalRangeHolder.Limit * len(b.IntervalRangeHolder.Ranges)
 }

@@ -952,8 +952,8 @@ func (b *Bittrex) FormatExchangeKlineInterval(in kline.Interval) string {
 // - 1 day interval: candles for 366 days
 // This implementation rounds returns candles up to the next interval or to the end
 // time (whichever comes first)
-func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := b.GetKlineBuilder(pair, a, required, start, end)
+func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := b.GetKlineBuilder(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}

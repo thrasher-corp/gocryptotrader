@@ -1361,8 +1361,8 @@ func (ok *Okx) ValidateCredentials(ctx context.Context, assetType asset.Item) er
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (ok *Okx) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := ok.GetKlineBuilder(pair, a, required, start, end)
+func (ok *Okx) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := ok.GetKlineBuilder(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -1391,8 +1391,8 @@ func (ok *Okx) GetHistoricCandles(ctx context.Context, pair currency.Pair, a ass
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (ok *Okx) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := ok.GetKlineBuilderExtended(pair, a, required, start, end)
+func (ok *Okx) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := ok.GetKlineBuilderExtended(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}

@@ -1127,7 +1127,7 @@ func (b *Base) AuthenticateWebsocket(_ context.Context) error {
 // KlineIntervalEnabled returns if requested interval is enabled on exchange
 func (b *Base) klineIntervalEnabled(in kline.Interval) bool {
 	// TODO: Add in the ability to use custom klines
-	return b.Features.Enabled.Kline.Intervals.Supports(in)
+	return b.Features.Enabled.Kline.Intervals.ExchangeSupported(in)
 }
 
 // FormatExchangeKlineInterval returns Interval to string
@@ -1500,7 +1500,7 @@ func (b *Base) IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error
 
 // GetKlineBuilder returns a helper for the fetching of candle/kline data for
 // a single request within a pre-determined time window.
-func (b *Base) GetKlineBuilder(pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Builder, error) {
+func (b *Base) GetKlineBuilder(pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Builder, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -1511,7 +1511,7 @@ func (b *Base) GetKlineBuilder(pair currency.Pair, a asset.Item, required kline.
 	// NOTE: This allows for checking that the required kline interval is
 	// supported by the exchange and/or can be constructed from lower time frame
 	// intervals.
-	request, err := b.Features.Enabled.Kline.Intervals.Construct(required)
+	request, err := b.Features.Enabled.Kline.Intervals.Construct(interval)
 	if err != nil {
 		return nil, err
 	}
@@ -1537,13 +1537,13 @@ func (b *Base) GetKlineBuilder(pair currency.Pair, a asset.Item, required kline.
 		return nil, err
 	}
 
-	return kline.GetBuilder(b.Name, pair, formatted, a, required, request, start, end)
+	return kline.GetBuilder(b.Name, pair, formatted, a, interval, request, start, end)
 }
 
 // GetKlineBuilderExtended returns a helper for the fetching of candle/kline
 // data for a *multi* request within a pre-determined time window. This has
 // extended functionality to also break down calls to fetch total history.
-func (b *Base) GetKlineBuilderExtended(pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.BuilderExtended, error) {
+func (b *Base) GetKlineBuilderExtended(pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.BuilderExtended, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -1551,7 +1551,7 @@ func (b *Base) GetKlineBuilderExtended(pair currency.Pair, a asset.Item, require
 		return nil, asset.ErrNotSupported
 	}
 
-	request, err := b.Features.Enabled.Kline.Intervals.Construct(required)
+	request, err := b.Features.Enabled.Kline.Intervals.Construct(interval)
 	if err != nil {
 		return nil, err
 	}
@@ -1566,7 +1566,7 @@ func (b *Base) GetKlineBuilderExtended(pair currency.Pair, a asset.Item, require
 		return nil, err
 	}
 
-	builder, err := kline.GetBuilder(b.Name, pair, formatted, a, required, request, start, end)
+	builder, err := kline.GetBuilder(b.Name, pair, formatted, a, interval, request, start, end)
 	if err != nil {
 		return nil, err
 	}

@@ -867,8 +867,8 @@ func (bi *Binanceus) ValidateCredentials(ctx context.Context, assetType asset.It
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (bi *Binanceus) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := bi.GetKlineBuilder(pair, a, required, start, end)
+func (bi *Binanceus) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := bi.GetKlineBuilder(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -899,8 +899,8 @@ func (bi *Binanceus) GetHistoricCandles(ctx context.Context, pair currency.Pair,
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (bi *Binanceus) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := bi.GetKlineBuilderExtended(pair, a, required, start, end)
+func (bi *Binanceus) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := bi.GetKlineBuilderExtended(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}

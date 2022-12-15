@@ -655,8 +655,8 @@ func (o *OKGroup) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (o *OKGroup) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := o.GetKlineBuilder(pair, a, required, start, end)
+func (o *OKGroup) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := o.GetKlineBuilder(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -710,8 +710,8 @@ func (o *OKGroup) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (o *OKGroup) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := o.GetKlineBuilderExtended(pair, a, required, start, end)
+func (o *OKGroup) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := o.GetKlineBuilderExtended(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}

@@ -1011,8 +1011,8 @@ func (b *BTCMarkets) FormatExchangeKlineInterval(in kline.Interval) string {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (b *BTCMarkets) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := b.GetKlineBuilder(pair, a, required, start, end)
+func (b *BTCMarkets) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := b.GetKlineBuilder(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -1031,7 +1031,7 @@ func (b *BTCMarkets) GetHistoricCandles(ctx context.Context, pair currency.Pair,
 
 	timeSeries := make([]kline.Candle, len(candles))
 	for x := range candles {
-		timeSeries[x], err = convert(&candles[x])
+		timeSeries[x], err = convertToKlineCandle(candles[x])
 		if err != nil {
 			return nil, err
 		}
@@ -1040,8 +1040,8 @@ func (b *BTCMarkets) GetHistoricCandles(ctx context.Context, pair currency.Pair,
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (b *BTCMarkets) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, required kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := b.GetKlineBuilderExtended(pair, a, required, start, end)
+func (b *BTCMarkets) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	builder, err := b.GetKlineBuilderExtended(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -1062,7 +1062,7 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(ctx context.Context, pair curren
 		}
 
 		for i := range candles {
-			elem, err := convert(&candles[i])
+			elem, err := convertToKlineCandle(candles[i])
 			if err != nil {
 				return nil, err
 			}
@@ -1108,11 +1108,8 @@ func (b *BTCMarkets) UpdateOrderExecutionLimits(ctx context.Context, a asset.Ite
 	return b.LoadLimits(limits)
 }
 
-func convert(candle *[6]string) (kline.Candle, error) {
+func convertToKlineCandle(candle [6]string) (kline.Candle, error) {
 	var elem kline.Candle
-	if candle == nil {
-		return kline.Candle{}, errors.New("nil candle")
-	}
 	var err error
 	elem.Time, err = time.Parse(time.RFC3339, candle[0])
 	if err != nil {
