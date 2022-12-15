@@ -43,7 +43,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Lbank | Yes | No | NA |
 | LocalBitcoins | Yes | NA | NA |
 | OKCoin International | Yes | Yes | No |
-| OKEX | Yes | Yes | No |
+| Okx | Yes | Yes | NA |
 | Poloniex | Yes | Yes | NA |
 | Yobit | Yes | NA | NA |
 | ZB.COM | Yes | Yes | NA |
@@ -146,9 +146,9 @@ Binaries will be published once the codebase reaches a stable condition.
 |User|Contribution Amount|
 |--|--|
 | [thrasher-](https://github.com/thrasher-) | 670 |
-| [shazbert](https://github.com/shazbert) | 267 |
+| [shazbert](https://github.com/shazbert) | 268 |
 | [gloriousCode](https://github.com/gloriousCode) | 202 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 128 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 130 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
 | [lrascao](https://github.com/lrascao) | 27 |

@@ -870,7 +870,6 @@ func (w *Websocket) UnsubscribeChannels(channels []ChannelSubscription) error {
 			w.exchangeName)
 	}
 	w.subscriptionMutex.Lock()
-	defer w.subscriptionMutex.Unlock()
 
 channels:
 	for x := range channels {
@@ -879,10 +878,12 @@ channels:
 				continue channels
 			}
 		}
+		w.subscriptionMutex.Unlock()
 		return fmt.Errorf("%s websocket: subscription not found in list: %+v",
 			w.exchangeName,
 			channels[x])
 	}
+	w.subscriptionMutex.Unlock()
 	return w.Unsubscriber(channels)
 }
 
@@ -902,16 +903,17 @@ func (w *Websocket) SubscribeToChannels(channels []ChannelSubscription) error {
 			w.exchangeName)
 	}
 	w.subscriptionMutex.Lock()
-	defer w.subscriptionMutex.Unlock()
 	for x := range channels {
 		for y := range w.subscriptions {
 			if channels[x].Equal(&w.subscriptions[y]) {
+				w.subscriptionMutex.Unlock()
 				return fmt.Errorf("%s websocket: %v already subscribed",
 					w.exchangeName,
 					channels[x])
 			}
 		}
 	}
+	w.subscriptionMutex.Unlock()
 	if err := w.Subscriber(channels); err != nil {
 		return fmt.Errorf("%v %w: %v", w.exchangeName, ErrSubscriptionFailure, err)
 	}
@@ -921,12 +923,16 @@ func (w *Websocket) SubscribeToChannels(channels []ChannelSubscription) error {
 // AddSuccessfulSubscriptions adds subscriptions to the subscription lists that
 // has been successfully subscribed
 func (w *Websocket) AddSuccessfulSubscriptions(channels ...ChannelSubscription) {
+	w.subscriptionMutex.Lock()
 	w.subscriptions = append(w.subscriptions, channels...)
+	w.subscriptionMutex.Unlock()
 }
 
 // RemoveSuccessfulUnsubscriptions removes subscriptions from the subscription
 // list that has been successfulling unsubscribed
 func (w *Websocket) RemoveSuccessfulUnsubscriptions(channels ...ChannelSubscription) {
+	w.subscriptionMutex.Lock()
+	defer w.subscriptionMutex.Unlock()
 	for x := range channels {
 		for y := range w.subscriptions {
 			if channels[x].Equal(&w.subscriptions[y]) {

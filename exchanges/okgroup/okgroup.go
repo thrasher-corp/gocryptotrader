@@ -82,11 +82,11 @@ const (
 	okGroupGetRepayment          = "repayment"
 )
 
-// OKGroup is the overaching type across the all of OKEx's exchange methods
+// OKGroup is the overaching type across the all of OKCoin's exchange methods
 type OKGroup struct {
 	exchange.Base
 	ExchangeName string
-	// Spot and contract market error codes as per https://www.okex.com/rest_request.html
+	// Spot and contract market error codes
 	ErrorCodes map[string]error
 	// Stores for corresponding variable checks
 	ContractTypes         []string
@@ -121,7 +121,7 @@ func (o *OKGroup) TransferAccountFunds(ctx context.Context, request TransferAcco
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, okGroupAccountSubsection, okGroupFundsTransfer, request, &resp, true)
 }
 
-// AccountWithdraw withdrawal of tokens to OKCoin International, other OKEx accounts or other addresses.
+// AccountWithdraw withdrawal of tokens to OKCoin International or other addresses.
 func (o *OKGroup) AccountWithdraw(ctx context.Context, request AccountWithdrawRequest) (resp AccountWithdrawResponse, _ error) {
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, okGroupAccountSubsection, okGroupWithdraw, request, &resp, true)
 }
@@ -435,8 +435,7 @@ func (o *OKGroup) RepayMarginLoan(ctx context.Context, request RepayMarginLoanRe
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, okGroupMarginTradingSubsection, requestURL, request, &resp, true)
 }
 
-// PlaceMarginOrder OKEx API only supports limit and market orders (more orders will become available in the future).
-// You can place an order only if you have enough funds. Once your order is placed, the amount will be put on hold.
+// PlaceMarginOrder You can place an order only if you have enough funds. Once your order is placed, the amount will be put on hold.
 func (o *OKGroup) PlaceMarginOrder(ctx context.Context, request *PlaceOrderRequest) (resp PlaceOrderResponse, _ error) {
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, okGroupMarginTradingSubsection, OKGroupOrders, request, &resp, true)
 }
@@ -529,7 +528,7 @@ func (o *OKGroup) GetMarginTransactionDetails(ctx context.Context, request GetSp
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, okGroupMarginTradingSubsection, requestURL, nil, &resp, true)
 }
 
-// FormatParameters Formats URL parameters, useful for optional parameters due to OKEX signature check
+// FormatParameters Formats URL parameters, useful for optional parameters due to OKCoin signature check
 func FormatParameters(request interface{}) (parameters string) {
 	v, err := query.Values(request)
 	if err != nil {

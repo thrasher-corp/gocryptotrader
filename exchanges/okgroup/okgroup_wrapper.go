@@ -26,7 +26,7 @@ import (
 )
 
 // Note: GoCryptoTrader wrapper funcs currently only support SPOT trades.
-// Therefore this OKGroup_Wrapper can be shared between OKEX and OKCoin.
+// Therefore this OKGroup_Wrapper can be shared between OKCoin and OKCoin.
 // When circumstances change, wrapper funcs can be split appropriately
 
 var errNoAccountDepositAddress = errors.New("no account deposit address")

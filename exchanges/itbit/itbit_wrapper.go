@@ -136,7 +136,7 @@ func (i *ItBit) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (i *ItBit) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
+func (i *ItBit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
