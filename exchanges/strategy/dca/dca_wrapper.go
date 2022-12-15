@@ -28,7 +28,6 @@ func (s *Strategy) OnSignal(ctx context.Context, signal interface{}) (bool, erro
 
 	err := s.checkAndSubmit(ctx)
 	if err != nil {
-		fmt.Println(err)
 		return false, err
 	}
 
@@ -111,7 +110,7 @@ func (d *Description) String() string {
 		sim = "[STRATEGY IS IN SIMULATION]"
 	}
 
-	return fmt.Sprintf("Exchange:%s Pair:%s Asset:%s Interval:%s Total:%v%s individual:%v%s StartingIn:%s %s",
+	return fmt.Sprintf("Exchange:%s Pair:%s Asset:%s Interval:%s Total:%v[%s] individual:%v[%s] StartingIn:%s %s",
 		d.Exchange,
 		d.Pair,
 		d.Asset,

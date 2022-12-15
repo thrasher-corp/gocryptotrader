@@ -1196,32 +1196,43 @@ func (b *Binance) FetchSpotExchangeLimits(ctx context.Context) ([]order.MinMaxLe
 			}
 		}
 
+		minMax := getMinMaxLevels(spot.Symbols[x].Filters, cp)
 		for z := range assets {
-			if len(spot.Symbols[x].Filters) < 8 {
-				continue
-			}
-
-			limits = append(limits, order.MinMaxLevel{
-				Pair:                    cp,
-				Asset:                   assets[z],
-				MinPrice:                spot.Symbols[x].Filters[0].MinPrice,
-				MaxPrice:                spot.Symbols[x].Filters[0].MaxPrice,
-				PriceStepIncrementSize:  spot.Symbols[x].Filters[0].TickSize,
-				MultiplierUp:            spot.Symbols[x].Filters[1].MultiplierUp,
-				MultiplierDown:          spot.Symbols[x].Filters[1].MultiplierDown,
-				AveragePriceMinutes:     spot.Symbols[x].Filters[1].AvgPriceMinutes,
-				MaxAmount:               spot.Symbols[x].Filters[2].MaxQty,
-				MinAmount:               spot.Symbols[x].Filters[2].MinQty,
-				AmountStepIncrementSize: spot.Symbols[x].Filters[2].StepSize,
-				MinNotional:             spot.Symbols[x].Filters[3].MinNotional,
-				MaxIcebergParts:         spot.Symbols[x].Filters[4].Limit,
-				MarketMinQty:            spot.Symbols[x].Filters[5].MinQty,
-				MarketMaxQty:            spot.Symbols[x].Filters[5].MaxQty,
-				MarketStepIncrementSize: spot.Symbols[x].Filters[5].StepSize,
-				MaxTotalOrders:          spot.Symbols[x].Filters[6].MaxNumOrders,
-				MaxAlgoOrders:           spot.Symbols[x].Filters[7].MaxNumAlgoOrders,
-			})
+			minMax.Asset = assets[z]
+			limits = append(limits, minMax)
 		}
 	}
 	return limits, nil
+}
+
+func getMinMaxLevels(filters []Filter, cp currency.Pair) order.MinMaxLevel {
+	minMax := order.MinMaxLevel{Pair: cp}
+	for x := range filters {
+		switch filters[x].FilterType {
+		case "PRICE_FILTER":
+			minMax.MinPrice = filters[x].MinPrice
+			minMax.MaxPrice = filters[x].MaxPrice
+			minMax.PriceStepIncrementSize = filters[x].TickSize
+		case "LOT_SIZE":
+			minMax.MaxAmount = filters[x].MaxQty
+			minMax.MinAmount = filters[x].MinQty
+			minMax.AmountStepIncrementSize = filters[x].StepSize
+		case "MIN_NOTIONAL":
+			minMax.MinNotional = filters[x].MinNotional
+			minMax.AveragePriceMinutes = filters[x].AvgPriceMinutes
+		case "ICEBERG_PARTS":
+			minMax.MaxIcebergParts = filters[x].Limit
+		case "MARKET_LOT_SIZE":
+			minMax.MarketMinQty = filters[x].MinQty
+			minMax.MarketMaxQty = filters[x].MaxQty
+			minMax.MarketStepIncrementSize = filters[x].StepSize
+		case "MAX_NUM_ORDERS":
+			minMax.MaxTotalOrders = filters[x].MaxNumOrders
+		case "MAX_NUM_ALGO_ORDERS":
+			minMax.MaxAlgoOrders = filters[x].MaxNumAlgoOrders
+
+		case "TRAILING_DELTA", "PERCENT_PRICE_BY_SIDE", "MAX_POSITION": // Not yet implemented
+		}
+	}
+	return minMax
 }

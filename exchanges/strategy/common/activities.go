@@ -84,16 +84,28 @@ func (r *Activities) ReportTimeout(end time.Time) {
 // the reporting channel.
 func (r *Activities) ReportFatalError(err error) {
 	if err == nil {
-		panic("fatal error should not be nil")
+		return
 	}
-	r.send(FatalError, ErrorAction{Error: err}, true)
+	r.send(FatalError, ErrorAction{Error: err.Error()}, true)
+}
+
+// ReportError is called when a strategy has errored.
+func (r *Activities) ReportError(err error) {
+	if err == nil {
+		return
+	}
+	r.send(Error, ErrorAction{Error: err.Error()}, false)
 }
 
 // ReportContextDone is called when a context has timed-out or has been
 // cancelled and cannot continue operations. This will alert a receiver that it
 // has completed and will close the reporting channel.
 func (r *Activities) ReportContextDone(err error) {
-	r.send(ContextDone, ErrorAction{Error: err}, true)
+	message := ""
+	if err != nil {
+		message = err.Error()
+	}
+	r.send(ContextDone, ErrorAction{Error: message}, true)
 }
 
 // ReportShutdown is called when the strategy has been shutdown and cannot

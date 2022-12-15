@@ -23,6 +23,7 @@ const (
 	Complete        Reason = "COMPLETE"
 	TimeOut         Reason = "TIMEOUT"
 	FatalError      Reason = "FATAL ERROR"
+	Error           Reason = "ERROR"
 	ContextDone     Reason = "CONTEXT DONE"
 	Shutdown        Reason = "SHUTDOWN"
 	Info            Reason = "INFO"
@@ -146,6 +147,9 @@ var (
 	ErrExceedsFreeBalance = errors.New("exceeds current free balance")
 	// ErrSubmitOrderIsNil indicates that the provided submit order is nil.
 	ErrSubmitOrderIsNil = errors.New("submit order is nil")
+	// ErrSubmitOrderFailed indicates that the provided submit order attempts
+	// have surpassed retry amounts and cannot continue.
+	ErrSubmitOrderFailed = errors.New("order submission failed and exceeded retry attempts")
 
 	// Simulation errors:
 
@@ -183,7 +187,7 @@ type (
 	// ErrorAction represents an action that indicates that an error has occurred.
 	ErrorAction struct {
 		// Error specifies the error that occurred.
-		Error error
+		Error string
 	}
 	// MessageAction represents an action that sends a message to a specified
 	// recipient.

@@ -213,12 +213,12 @@ func (s *Strategy) submitOrder(ctx context.Context, submit *order.Submit) (*orde
 			errors = nil // These errors prior we don't need to worry about.
 			break
 		}
+		s.ReportError(err)
 		errors = append(errors, err)
 		time.Sleep(time.Second)
 	}
-	var errReturn error
 	if errors != nil {
-		errReturn = errors
+		return nil, fmt.Errorf("%w %s", strategy.ErrSubmitOrderFailed, errors)
 	}
-	return resp, errReturn
+	return resp, nil
 }
