@@ -17,8 +17,8 @@ type Manager struct {
 }
 
 // Register stores the current strategy for management
-func (m *Manager) Register(strat_ strategy.Requirements) (uuid.UUID, error) {
-	if strat_ == nil {
+func (m *Manager) Register(st strategy.Requirements) (uuid.UUID, error) {
+	if st == nil {
 		return uuid.Nil, strategy.ErrIsNil
 	}
 	id, err := uuid.NewV4()
@@ -26,7 +26,7 @@ func (m *Manager) Register(strat_ strategy.Requirements) (uuid.UUID, error) {
 		return uuid.Nil, err
 	}
 
-	err = strat_.LoadID(id)
+	err = st.LoadID(id)
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -36,9 +36,9 @@ func (m *Manager) Register(strat_ strategy.Requirements) (uuid.UUID, error) {
 	if m.strategies == nil {
 		m.strategies = make(map[uuid.UUID]strategy.Requirements)
 	}
-	log.Debugf(log.Strategy, "ID: [%s] has been registered. Details: %s", strat_.GetID(), strat_.GetDescription())
-	m.strategies[id] = strat_
-	strat_.ReportRegister()
+	log.Debugf(log.Strategy, "ID: [%s] has been registered. Details: %s", st.GetID(), st.GetDescription())
+	m.strategies[id] = st
+	st.ReportRegister()
 	return id, nil
 }
 
@@ -49,12 +49,12 @@ func (m *Manager) Run(ctx context.Context, id uuid.UUID) error {
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	strat_, ok := m.strategies[id]
+	st, ok := m.strategies[id]
 	if !ok {
 		return strategy.ErrNotFound
 	}
-	log.Debugf(log.Strategy, "ID: [%s] has been run.", strat_.GetID())
-	return strat_.Run(ctx, strat_)
+	log.Debugf(log.Strategy, "ID: [%s] has been run.", st.GetID())
+	return st.Run(ctx, st)
 }
 
 // RunStream runs then hooks into the strategy and reports events.
@@ -64,15 +64,15 @@ func (m *Manager) RunStream(ctx context.Context, id uuid.UUID, verbose bool) (<-
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	strat_, ok := m.strategies[id]
+	st, ok := m.strategies[id]
 	if !ok {
 		return nil, strategy.ErrNotFound
 	}
-	err := strat_.Run(ctx, strat_)
+	err := st.Run(ctx, st)
 	if err != nil {
 		return nil, err
 	}
-	return strat_.GetReporter(verbose)
+	return st.GetReporter(verbose)
 }
 
 // GetAllStrategies returns all strategies if running set true will only return

@@ -76,7 +76,7 @@ type Config struct {
 	// ReduceOnly bool
 }
 
-// Check validates all config fields before undertaking specfic strategy
+// Check validates all config fields before undertaking specific strategy
 func (c *Config) Check(ctx context.Context) error {
 	if c == nil {
 		return strategy.ErrConfigIsNil
@@ -137,7 +137,7 @@ func (c *Config) Check(ctx context.Context) error {
 	return nil
 }
 
-// GetDeploymentAmount will truncate and equally distribute amounts at or around
+// GetDistrbutionAmount will truncate and equally distribute amounts at or around
 // TWAP price.
 func (c *Config) GetDistrbutionAmount(ctx context.Context, allocatedAmount float64, book *orderbook.Depth) (*Allocation, error) {
 	if c == nil {

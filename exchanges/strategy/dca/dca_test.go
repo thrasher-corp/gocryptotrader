@@ -221,7 +221,11 @@ func TestStrategy_CheckAndSubmit(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	s = strate.(*Strategy)
+	var ok bool
+	s, ok = strate.(*Strategy)
+	if !ok {
+		t.Fatal("type assertion failed")
+	}
 	s.allocation.Deployment = 0
 	err = s.checkAndSubmit(context.Background())
 	if !errors.Is(err, strategy.ErrInvalidAmount) {

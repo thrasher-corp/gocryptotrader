@@ -20,7 +20,7 @@ func (s *Strategy) OnSignal(ctx context.Context, sig interface{}) (bool, error) 
 	}
 
 	if sig == nil {
-		return false, errors.New("signal is non-existant")
+		return false, errors.New("signal is non-existent")
 	}
 
 	if _, ok := sig.(time.Time); !ok {
@@ -88,7 +88,7 @@ type Deployment struct {
 }
 
 // Description defines the full operating description of the strategy with its
-// configuration paramaters.
+// configuration parameters.
 type Description struct {
 	Exchange           string         `json:"exchange"`
 	Pair               currency.Pair  `json:"pair"`

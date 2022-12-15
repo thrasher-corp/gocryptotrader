@@ -9,35 +9,35 @@ import (
 	strategy "github.com/thrasher-corp/gocryptotrader/exchanges/strategy/common"
 )
 
-type Strat struct {
+type testStrat struct {
 	strategy.Requirements
 	Running bool
 	id      uuid.UUID
 }
 
-func (s *Strat) Run(ctx context.Context, runner strategy.Requirements) error {
+func (s *testStrat) Run(ctx context.Context, runner strategy.Requirements) error {
 	return nil
 }
-func (s *Strat) GetReporter(_ bool) (<-chan *strategy.Report, error) {
+func (s *testStrat) GetReporter(_ bool) (<-chan *strategy.Report, error) {
 	m := make(chan *strategy.Report)
 	close(m)
 	return m, nil
 }
-func (s *Strat) GetDetails() (*strategy.Details, error) {
+func (s *testStrat) GetDetails() (*strategy.Details, error) {
 	return &strategy.Details{Running: s.Running, ID: s.id}, nil
 }
-func (s *Strat) Stop() error { return nil }
-func (s *Strat) LoadID(id uuid.UUID) error {
+func (s *testStrat) Stop() error { return nil }
+func (s *testStrat) LoadID(id uuid.UUID) error {
 	s.id = id
 	return nil
 }
-func (s *Strat) GetID() uuid.UUID {
+func (s *testStrat) GetID() uuid.UUID {
 	return s.id
 }
-func (s *Strat) GetDescription() strategy.Descriptor {
+func (s *testStrat) GetDescription() strategy.Descriptor {
 	return nil
 }
-func (s *Strat) ReportRegister() {}
+func (s *testStrat) ReportRegister() {}
 
 func TestRegister(t *testing.T) {
 	t.Parallel()
@@ -48,7 +48,7 @@ func TestRegister(t *testing.T) {
 		t.Fatalf("received: '%v' but expected '%v'", err, strategy.ErrIsNil)
 	}
 
-	id, err := m.Register(&Strat{})
+	id, err := m.Register(&testStrat{})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
@@ -67,7 +67,7 @@ func TestRun(t *testing.T) {
 		t.Fatalf("received: '%v' but expected '%v'", err, strategy.ErrInvalidUUID)
 	}
 
-	registeredID, err := m.Register(&Strat{})
+	registeredID, err := m.Register(&testStrat{})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
@@ -101,7 +101,7 @@ func TestRunStream(t *testing.T) {
 		t.Fatalf("received: '%v' but expected '%v'", err, strategy.ErrInvalidUUID)
 	}
 
-	registeredID, err := m.Register(&Strat{})
+	registeredID, err := m.Register(&testStrat{})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
@@ -143,17 +143,17 @@ func TestGetAllStrategies(t *testing.T) {
 		t.Fatalf("received: '%v' but expected '%v'", len(deets), 0)
 	}
 
-	id1, err := m.Register(&Strat{Running: true})
+	id1, err := m.Register(&testStrat{Running: true})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
-	id2, err := m.Register(&Strat{Running: true})
+	id2, err := m.Register(&testStrat{Running: true})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
-	id3, err := m.Register(&Strat{})
+	id3, err := m.Register(&testStrat{})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
@@ -208,7 +208,7 @@ func TestStop(t *testing.T) {
 		t.Fatalf("received: '%v' but expected '%v'", err, strategy.ErrNotFound)
 	}
 
-	id, err = m.Register(&Strat{})
+	id, err = m.Register(&testStrat{})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}

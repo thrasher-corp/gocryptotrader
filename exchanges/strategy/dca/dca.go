@@ -36,18 +36,20 @@ func New(ctx context.Context, c *Config) (strategy.Requirements, error) {
 	var selling *account.ProtectedBalance
 	var balance float64
 	if !c.Simulate {
-		creds, err := c.Exchange.GetCredentials(ctx)
+		var creds *account.Credentials
+		creds, err = c.Exchange.GetCredentials(ctx)
 		if err != nil {
 			return nil, err
 		}
 
-		buying, err := account.GetBalance(c.Exchange.GetName(),
+		var buying *account.ProtectedBalance
+		buying, err = account.GetBalance(c.Exchange.GetName(),
 			creds.SubAccount, creds, c.Asset, c.Pair.Base)
 		if err != nil {
 			return nil, err
 		}
 
-		selling, err := account.GetBalance(c.Exchange.GetName(),
+		selling, err = account.GetBalance(c.Exchange.GetName(),
 			creds.SubAccount, creds, c.Asset, c.Pair.Quote)
 		if err != nil {
 			return nil, err
@@ -166,7 +168,7 @@ func (s *Strategy) checkAndSubmit(ctx context.Context) error {
 }
 
 // deriveOrder checks amount and returns an order submission. TODO: Abstract
-// futher.
+// further.
 func (s *Strategy) deriveOrder(amountInBase float64) (*order.Submit, error) {
 	if amountInBase <= 0 {
 		return nil, fmt.Errorf("amount in base: %w", strategy.ErrInvalidAmount)
@@ -185,7 +187,7 @@ func (s *Strategy) deriveOrder(amountInBase float64) (*order.Submit, error) {
 	}, nil
 }
 
-// submitOrder will submit and retry an order if fail. TODO: Abstract futher
+// submitOrder will submit and retry an order if fail. TODO: Abstract further
 func (s *Strategy) submitOrder(ctx context.Context, submit *order.Submit) (*order.SubmitResponse, error) {
 	if submit == nil {
 		return nil, strategy.ErrSubmitOrderIsNil

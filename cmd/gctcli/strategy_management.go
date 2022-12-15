@@ -80,7 +80,7 @@ var (
 
 	dcaStream = &cli.Command{
 		Name:      "stream",
-		Usage:     "executes strategy while reporting all actions to the client, exiting will stop strategy NOTE: cli flag might need to be used to access underyling funds e.g. --apisubaccount='main' for main sub account",
+		Usage:     "executes strategy while reporting all actions to the client, exiting will stop strategy NOTE: cli flag might need to be used to access underlying funds e.g. --apisubaccount='main' for main sub account",
 		ArgsUsage: "<exchange> <pair> <asset> <start> <end>",
 		Action:    dcaStreamfunc,
 		Flags: []cli.Flag{
@@ -90,7 +90,7 @@ var (
 			},
 			&cli.StringFlag{
 				Name:  "pair",
-				Usage: "curreny pair",
+				Usage: "currency pair",
 			},
 			&cli.StringFlag{
 				Name:  "asset",
@@ -178,7 +178,7 @@ var (
 
 	twapStream = &cli.Command{
 		Name:      "stream",
-		Usage:     "executes strategy while reporting all actions to the client, exiting will stop strategy NOTE: cli flag might need to be used to access underyling funds e.g. --apisubaccount='main' for main sub account",
+		Usage:     "executes strategy while reporting all actions to the client, exiting will stop strategy NOTE: cli flag might need to be used to access underlying funds e.g. --apisubaccount='main' for main sub account",
 		ArgsUsage: "<exchange> <pair> <asset> <start> <end>",
 		Action:    twapStreamfunc,
 		Flags: []cli.Flag{
@@ -188,7 +188,7 @@ var (
 			},
 			&cli.StringFlag{
 				Name:  "pair",
-				Usage: "curreny pair",
+				Usage: "currency pair",
 			},
 			&cli.StringFlag{
 				Name:  "asset",
@@ -464,7 +464,7 @@ func dcaStreamfunc(c *cli.Context) error {
 	if stratMaxImpact <= 0 && maxNominal <= 0 {
 		log.Println("Warning: No slippage protection on strategy run, this can have dire consequences. Continue (y/n)?")
 		input := ""
-		if _, err := fmt.Scanln(&input); err != nil {
+		if _, err = fmt.Scanln(&input); err != nil {
 			return err
 		}
 		if !common.YesOrNo(input) {
@@ -491,7 +491,7 @@ func dcaStreamfunc(c *cli.Context) error {
 	if stratMaxSpread <= 0 {
 		log.Println("Warning: No max spread protection on strategy run, this can have dire consequences. Continue (y/n)?")
 		input := ""
-		if _, err := fmt.Scanln(&input); err != nil {
+		if _, err = fmt.Scanln(&input); err != nil {
 			return err
 		}
 		if !common.YesOrNo(input) {
@@ -708,7 +708,7 @@ func twapStreamfunc(c *cli.Context) error {
 	if stratMaxImpact <= 0 && maxNominal <= 0 {
 		log.Println("Warning: No slippage protection on strategy run, this can have dire consequences. Continue (y/n)?")
 		input := ""
-		if _, err := fmt.Scanln(&input); err != nil {
+		if _, err = fmt.Scanln(&input); err != nil {
 			return err
 		}
 		if !common.YesOrNo(input) {
@@ -735,7 +735,7 @@ func twapStreamfunc(c *cli.Context) error {
 	if stratMaxSpread <= 0 {
 		log.Println("Warning: No max spread protection on strategy run, this can have dire consequences. Continue (y/n)?")
 		input := ""
-		if _, err := fmt.Scanln(&input); err != nil {
+		if _, err = fmt.Scanln(&input); err != nil {
 			return err
 		}
 		if !common.YesOrNo(input) {
@@ -842,8 +842,16 @@ type strategyReponse struct {
 // are more strategies involved.
 func jsonStrategyOutput(id, strategy, reason, timeOfBroadcast string, action []byte, finished bool) {
 	var ready interface{}
-	_ = json.Unmarshal(action, &ready)
+	err := json.Unmarshal(action, &ready)
+	if err != nil {
+		fmt.Println("jsonStrategyOutput Error:", err)
+		return
+	}
 
-	payload, _ := json.MarshalIndent(strategyReponse{ID: id, Strategy: strategy, Action: ready, Finished: finished, Reason: reason, Time: timeOfBroadcast}, "", " ")
+	payload, err := json.MarshalIndent(strategyReponse{ID: id, Strategy: strategy, Action: ready, Finished: finished, Reason: reason, Time: timeOfBroadcast}, "", " ")
+	if err != nil {
+		fmt.Println("jsonStrategyOutput Error:", err)
+		return
+	}
 	fmt.Println(string(payload))
 }

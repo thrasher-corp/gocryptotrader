@@ -68,7 +68,7 @@ type Config struct {
 	// - Hybrid and randomize execution order types (limit/market)
 }
 
-// Check validates all config fields before undertaking specfic strategy
+// Check validates all config fields before undertaking specific strategy
 func (c *Config) Check(ctx context.Context) error {
 	if c == nil {
 		return strategy.ErrConfigIsNil
