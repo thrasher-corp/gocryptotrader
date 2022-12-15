@@ -46,6 +46,7 @@ const (
 	publicProifle                  = "profile/%s" // profile/:publicId
 
 	// Authenticated endpoints
+
 )
 
 var (

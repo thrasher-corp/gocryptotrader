@@ -239,3 +239,17 @@ type PublicProfile struct {
 		PrevEpochEstimatedRewards int    `json:"prevEpochEstimatedRewards"`
 	} `json:"tradingRewards"`
 }
+
+// WSOrderbookData represents the websocket orderbook data pushed through the channel.
+type WSOrderbookData struct {
+	Type         string `json:"type"`
+	ConnectionID string `json:"connection_id"`
+	MessageID    int    `json:"message_id"`
+	ID           string `json:"id"`
+	Channel      string `json:"channel"`
+	Contents     struct {
+		Offset string        `json:"offset"`
+		Bids   [][]string    `json:"bids"`
+		Asks   []interface{} `json:"asks"`
+	} `json:"contents"`
+}

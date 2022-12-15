@@ -166,13 +166,14 @@ func (dy *DYDX) Setup(exch *config.Exchange) error {
 
 	err = dy.Websocket.Setup(
 		&stream.WebsocketSetup{
-			ExchangeConfig: exch,
-			DefaultURL:     dydxWSAPIURL,
-			RunningURL:     wsRunningEndpoint,
-			// Connector:      dy.WsConnect,
-			// Subscriber:     dy.Subscribe,
-			// Unsubscriber:   dy.Unsubscribe,
-			Features: &dy.Features.Supports.WebsocketCapabilities,
+			ExchangeConfig:        exch,
+			DefaultURL:            dydxWSAPIURL,
+			RunningURL:            wsRunningEndpoint,
+			Connector:             dy.WsConnect,
+			Subscriber:            dy.Subscribe,
+			Unsubscriber:          dy.Unsubscribe,
+			GenerateSubscriptions: dy.GenerateDefaultSubscriptions,
+			Features:              &dy.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err
@@ -226,9 +227,22 @@ func (dy *DYDX) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (dy *DYDX) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
-	// Implement fetching the exchange available pairs if supported
-	return nil, nil
+func (dy *DYDX) FetchTradablePairs(ctx context.Context, _ asset.Item) ([]currency.Pair, error) {
+	instruments, err := dy.GetMarkets(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+	pairs := make(currency.Pairs, len(instruments.Markets))
+	count := 0
+	for key, _ := range instruments.Markets {
+		cp, err := currency.NewPairFromString(key)
+		if err != nil {
+			return nil, err
+		}
+		pairs[count] = cp
+		count++
+	}
+	return pairs, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
@@ -238,13 +252,7 @@ func (dy *DYDX) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error
 	if err != nil {
 		return err
 	}
-
-	p, err := currency.NewPairsFromStrings(pairs)
-	if err != nil {
-		return err
-	}
-
-	return dy.UpdatePairs(p, asset.Spot, false, forceUpdate)
+	return dy.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
