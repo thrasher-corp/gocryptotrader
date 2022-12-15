@@ -179,7 +179,7 @@ func (k *Item) FillMissingDataWithEmptyEntries(i *IntervalRangeHolder) {
 
 // RemoveDuplicates removes any duplicate candles. NOTE: Filter-in-place is used
 // in this function for optimization and to keep the slice reference pointer the
-// same, if changed BuilderExteneded ConvertCandles functionality will break.
+// same, if changed RequestExtended ConvertCandles functionality will break.
 func (k *Item) RemoveDuplicates() {
 	lookup := make(map[int64]bool)
 	target := 0
@@ -195,7 +195,7 @@ func (k *Item) RemoveDuplicates() {
 
 // RemoveOutsideRange removes any candles outside the start and end date.
 // NOTE: Filter-in-place is used in this function for optimization and to keep
-// the slice reference pointer the same, if changed BuilderExteneded
+// the slice reference pointer the same, if changed RequestExtended
 // ConvertCandles functionality will break.
 func (k *Item) RemoveOutsideRange(start, end time.Time) {
 	target := 0

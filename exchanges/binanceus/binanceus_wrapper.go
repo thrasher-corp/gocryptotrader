@@ -868,16 +868,16 @@ func (bi *Binanceus) ValidateCredentials(ctx context.Context, assetType asset.It
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (bi *Binanceus) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := bi.GetKlineBuilder(pair, a, interval, start, end)
+	req, err := bi.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
 
 	candles, err := bi.GetSpotKline(ctx, &KlinesRequestParams{
-		Interval:  bi.GetIntervalEnum(builder.Request),
-		Symbol:    builder.Pair,
-		StartTime: builder.Start,
-		EndTime:   builder.End,
+		Interval:  bi.GetIntervalEnum(req.Outbound),
+		Symbol:    req.Pair,
+		StartTime: req.Start,
+		EndTime:   req.End,
 		Limit:     int64(bi.Features.Enabled.Kline.ResultLimit),
 	})
 	if err != nil {
@@ -895,24 +895,24 @@ func (bi *Binanceus) GetHistoricCandles(ctx context.Context, pair currency.Pair,
 			Volume: candles[x].Volume,
 		}
 	}
-	return builder.ConvertCandles(timeSeries)
+	return req.ConvertCandles(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (bi *Binanceus) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := bi.GetKlineBuilderExtended(pair, a, interval, start, end)
+	req, err := bi.GetKlineRequestExtended(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
 
-	timeSeries := make([]kline.Candle, 0, builder.Size())
-	for x := range builder.Ranges {
+	timeSeries := make([]kline.Candle, 0, req.Size())
+	for x := range req.Ranges {
 		var candles []CandleStick
 		candles, err = bi.GetSpotKline(ctx, &KlinesRequestParams{
-			Interval:  bi.GetIntervalEnum(builder.Request),
-			Symbol:    builder.Pair,
-			StartTime: builder.Ranges[x].Start.Time,
-			EndTime:   builder.Ranges[x].End.Time,
+			Interval:  bi.GetIntervalEnum(req.Outbound),
+			Symbol:    req.Pair,
+			StartTime: req.Ranges[x].Start.Time,
+			EndTime:   req.Ranges[x].End.Time,
 			Limit:     int64(bi.Features.Enabled.Kline.ResultLimit),
 		})
 		if err != nil {
@@ -930,7 +930,7 @@ func (bi *Binanceus) GetHistoricCandlesExtended(ctx context.Context, pair curren
 			})
 		}
 	}
-	return builder.ConvertCandles(timeSeries)
+	return req.ConvertCandles(timeSeries)
 }
 
 // GetAvailableTransferChains returns the available transfer blockchains for the specific

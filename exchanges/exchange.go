@@ -1498,9 +1498,9 @@ func (b *Base) IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error
 	return false, common.ErrNotYetImplemented
 }
 
-// GetKlineBuilder returns a helper for the fetching of candle/kline data for
+// GetKlineRequest returns a helper for the fetching of candle/kline data for
 // a single request within a pre-determined time window.
-func (b *Base) GetKlineBuilder(pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Builder, error) {
+func (b *Base) GetKlineRequest(pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Request, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -1537,13 +1537,13 @@ func (b *Base) GetKlineBuilder(pair currency.Pair, a asset.Item, interval kline.
 		return nil, err
 	}
 
-	return kline.GetBuilder(b.Name, pair, formatted, a, interval, request, start, end)
+	return kline.CreateKlineRequest(b.Name, pair, formatted, a, interval, request, start, end)
 }
 
-// GetKlineBuilderExtended returns a helper for the fetching of candle/kline
+// GetKlineRequestExtended returns a helper for the fetching of candle/kline
 // data for a *multi* request within a pre-determined time window. This has
 // extended functionality to also break down calls to fetch total history.
-func (b *Base) GetKlineBuilderExtended(pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.BuilderExtended, error) {
+func (b *Base) GetKlineRequestExtended(pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.RequestExtended, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -1566,15 +1566,15 @@ func (b *Base) GetKlineBuilderExtended(pair currency.Pair, a asset.Item, interva
 		return nil, err
 	}
 
-	builder, err := kline.GetBuilder(b.Name, pair, formatted, a, interval, request, start, end)
+	r, err := kline.CreateKlineRequest(b.Name, pair, formatted, a, interval, request, start, end)
 	if err != nil {
 		return nil, err
 	}
 
-	dates, err := builder.GetRanges(b.Features.Enabled.Kline.ResultLimit)
+	dates, err := r.GetRanges(b.Features.Enabled.Kline.ResultLimit)
 	if err != nil {
 		return nil, err
 	}
 
-	return &kline.BuilderExtended{Builder: builder, IntervalRangeHolder: dates}, nil
+	return &kline.RequestExtended{Request: r, IntervalRangeHolder: dates}, nil
 }

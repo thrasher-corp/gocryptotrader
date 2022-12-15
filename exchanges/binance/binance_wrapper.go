@@ -1681,16 +1681,16 @@ func (b *Binance) FormatExchangeKlineInterval(interval kline.Interval) string {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (b *Binance) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := b.GetKlineBuilder(pair, a, interval, start, end)
+	req, err := b.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
 
 	candles, err := b.GetSpotKline(ctx, &KlinesRequestParams{
-		Interval:  b.FormatExchangeKlineInterval(builder.Request),
-		Symbol:    builder.Pair,
-		StartTime: builder.Start,
-		EndTime:   builder.End,
+		Interval:  b.FormatExchangeKlineInterval(req.Outbound),
+		Symbol:    req.Pair,
+		StartTime: req.Start,
+		EndTime:   req.End,
 		Limit:     int(b.Features.Enabled.Kline.ResultLimit),
 	})
 	if err != nil {
@@ -1707,25 +1707,25 @@ func (b *Binance) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 			Volume: candles[x].Volume,
 		}
 	}
-	return builder.ConvertCandles(timeSeries)
+	return req.ConvertCandles(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set
 // time interval
 func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := b.GetKlineBuilderExtended(pair, a, interval, start, end)
+	req, err := b.GetKlineRequestExtended(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
 
-	timeSeries := make([]kline.Candle, 0, builder.Size())
-	for x := range builder.Ranges {
+	timeSeries := make([]kline.Candle, 0, req.Size())
+	for x := range req.Ranges {
 		var candles []CandleStick
 		candles, err = b.GetSpotKline(ctx, &KlinesRequestParams{
-			Interval:  b.FormatExchangeKlineInterval(builder.Request),
-			Symbol:    builder.Pair,
-			StartTime: builder.Ranges[x].Start.Time,
-			EndTime:   builder.Ranges[x].End.Time,
+			Interval:  b.FormatExchangeKlineInterval(req.Outbound),
+			Symbol:    req.Pair,
+			StartTime: req.Ranges[x].Start.Time,
+			EndTime:   req.Ranges[x].End.Time,
 			Limit:     int(b.Features.Enabled.Kline.ResultLimit),
 		})
 		if err != nil {
@@ -1743,7 +1743,7 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			})
 		}
 	}
-	return builder.ConvertCandles(timeSeries)
+	return req.ConvertCandles(timeSeries)
 }
 
 func compatibleOrderVars(side, status, orderType string) OrderVars {

@@ -941,7 +941,7 @@ func (p *Poloniex) ValidateCredentials(ctx context.Context, assetType asset.Item
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (p *Poloniex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := p.GetKlineBuilder(pair, a, interval, start, end)
+	req, err := p.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -951,10 +951,10 @@ func (p *Poloniex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	// minutes will go down 10:15 this is due to poloniex returning a
 	// non-complete candle if the time does not match.
 	resp, err := p.GetChartData(ctx,
-		builder.Formatted.String(),
-		builder.Start.Truncate(builder.Request.Duration()),
-		builder.End,
-		p.FormatExchangeKlineInterval(builder.Request))
+		req.Formatted.String(),
+		req.Start.Truncate(req.Outbound.Duration()),
+		req.End,
+		p.FormatExchangeKlineInterval(req.Outbound))
 	if err != nil {
 		return nil, err
 	}
@@ -970,7 +970,7 @@ func (p *Poloniex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 			Volume: resp[x].Volume,
 		}
 	}
-	return builder.ConvertCandles(timeSeries)
+	return req.ConvertCandles(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval

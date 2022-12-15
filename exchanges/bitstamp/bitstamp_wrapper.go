@@ -854,16 +854,16 @@ func (b *Bitstamp) ValidateCredentials(ctx context.Context, assetType asset.Item
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (b *Bitstamp) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := b.GetKlineBuilder(pair, a, interval, start, end)
+	req, err := b.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
 
 	candles, err := b.OHLC(ctx,
-		builder.Formatted.String(),
-		builder.Start,
-		builder.End,
-		b.FormatExchangeKlineInterval(builder.Request),
+		req.Formatted.String(),
+		req.Start,
+		req.End,
+		b.FormatExchangeKlineInterval(req.Outbound),
 		strconv.FormatInt(int64(b.Features.Enabled.Kline.ResultLimit), 10))
 	if err != nil {
 		return nil, err
@@ -872,7 +872,7 @@ func (b *Bitstamp) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	timeSeries := make([]kline.Candle, 0, len(candles.Data.OHLCV))
 	for x := range candles.Data.OHLCV {
 		timestamp := time.Unix(candles.Data.OHLCV[x].Timestamp, 0)
-		if timestamp.Before(builder.Start) || timestamp.After(builder.End) {
+		if timestamp.Before(req.Start) || timestamp.After(req.End) {
 			continue
 		}
 		timeSeries = append(timeSeries, kline.Candle{
@@ -884,24 +884,24 @@ func (b *Bitstamp) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 			Volume: candles.Data.OHLCV[x].Volume,
 		})
 	}
-	return builder.ConvertCandles(timeSeries)
+	return req.ConvertCandles(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (b *Bitstamp) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := b.GetKlineBuilderExtended(pair, a, interval, start, end)
+	req, err := b.GetKlineRequestExtended(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
 
-	timeSeries := make([]kline.Candle, 0, builder.Size())
-	for x := range builder.Ranges {
+	timeSeries := make([]kline.Candle, 0, req.Size())
+	for x := range req.Ranges {
 		var candles OHLCResponse
 		candles, err = b.OHLC(ctx,
-			builder.Formatted.String(),
-			builder.Ranges[x].Start.Time,
-			builder.Ranges[x].End.Time,
-			b.FormatExchangeKlineInterval(builder.Request),
+			req.Formatted.String(),
+			req.Ranges[x].Start.Time,
+			req.Ranges[x].End.Time,
+			b.FormatExchangeKlineInterval(req.Outbound),
 			strconv.FormatInt(int64(b.Features.Enabled.Kline.ResultLimit), 10),
 		)
 		if err != nil {
@@ -910,8 +910,8 @@ func (b *Bitstamp) GetHistoricCandlesExtended(ctx context.Context, pair currency
 
 		for i := range candles.Data.OHLCV {
 			timstamp := time.Unix(candles.Data.OHLCV[i].Timestamp, 0)
-			if timstamp.Before(builder.Ranges[x].Start.Time) ||
-				timstamp.After(builder.Ranges[x].End.Time) {
+			if timstamp.Before(req.Ranges[x].Start.Time) ||
+				timstamp.After(req.Ranges[x].End.Time) {
 				continue
 			}
 			timeSeries = append(timeSeries, kline.Candle{
@@ -924,5 +924,5 @@ func (b *Bitstamp) GetHistoricCandlesExtended(ctx context.Context, pair currency
 			})
 		}
 	}
-	return builder.ConvertCandles(timeSeries)
+	return req.ConvertCandles(timeSeries)
 }

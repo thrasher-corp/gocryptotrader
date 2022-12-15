@@ -656,17 +656,17 @@ func (o *OKGroup) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (o *OKGroup) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := o.GetKlineBuilder(pair, a, interval, start, end)
+	req, err := o.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
 
 	candles, err := o.GetMarketData(ctx, &GetMarketDataRequest{
-		Asset:        builder.Asset,
-		Start:        builder.Start.UTC().Format(time.RFC3339),
-		End:          builder.End.UTC().Format(time.RFC3339),
-		Granularity:  o.FormatExchangeKlineInterval(builder.Request),
-		InstrumentID: builder.Formatted.String(),
+		Asset:        req.Asset,
+		Start:        req.Start.UTC().Format(time.RFC3339),
+		End:          req.End.UTC().Format(time.RFC3339),
+		Granularity:  o.FormatExchangeKlineInterval(req.Outbound),
+		InstrumentID: req.Formatted.String(),
 	})
 	if err != nil {
 		return nil, err
@@ -706,25 +706,25 @@ func (o *OKGroup) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		}
 		timeSeries[x] = tempCandle
 	}
-	return builder.ConvertCandles(timeSeries)
+	return req.ConvertCandles(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (o *OKGroup) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := o.GetKlineBuilderExtended(pair, a, interval, start, end)
+	req, err := o.GetKlineRequestExtended(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
 
-	timeSeries := make([]kline.Candle, 0, builder.Size())
-	for x := range builder.Ranges {
+	timeSeries := make([]kline.Candle, 0, req.Size())
+	for x := range req.Ranges {
 		var candles GetMarketDataResponse
 		candles, err = o.GetMarketData(ctx, &GetMarketDataRequest{
-			Asset:        builder.Asset,
-			Start:        builder.Ranges[x].Start.Time.UTC().Format(time.RFC3339),
-			End:          builder.Ranges[x].End.Time.UTC().Format(time.RFC3339),
-			Granularity:  o.FormatExchangeKlineInterval(builder.Request),
-			InstrumentID: builder.Formatted.String(),
+			Asset:        req.Asset,
+			Start:        req.Ranges[x].Start.Time.UTC().Format(time.RFC3339),
+			End:          req.Ranges[x].End.Time.UTC().Format(time.RFC3339),
+			Granularity:  o.FormatExchangeKlineInterval(req.Outbound),
+			InstrumentID: req.Formatted.String(),
 		})
 		if err != nil {
 			return nil, err
@@ -767,5 +767,5 @@ func (o *OKGroup) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			timeSeries = append(timeSeries, tempCandle)
 		}
 	}
-	return builder.ConvertCandles(timeSeries)
+	return req.ConvertCandles(timeSeries)
 }

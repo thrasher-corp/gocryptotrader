@@ -884,14 +884,14 @@ func (z *ZB) FormatExchangeKlineInterval(in kline.Interval) string {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (z *ZB) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := z.GetKlineBuilder(pair, a, interval, start, end)
+	req, err := z.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
 
 	candles, err := z.GetSpotKline(ctx, KlinesRequestParams{
-		Type:   z.FormatExchangeKlineInterval(builder.Request),
-		Symbol: builder.Formatted.String(),
+		Type:   z.FormatExchangeKlineInterval(req.Outbound),
+		Symbol: req.Formatted.String(),
 		Since:  start.UnixMilli(),
 		Size:   int64(z.Features.Enabled.Kline.ResultLimit),
 	})
@@ -913,23 +913,23 @@ func (z *ZB) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset
 			Volume: candles.Data[x].Volume,
 		})
 	}
-	return builder.ConvertCandles(timeSeries)
+	return req.ConvertCandles(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (z *ZB) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := z.GetKlineBuilderExtended(pair, a, interval, start, end)
+	req, err := z.GetKlineRequestExtended(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
 
 	startTime := start
-	timeSeries := make([]kline.Candle, 0, builder.Size())
+	timeSeries := make([]kline.Candle, 0, req.Size())
 allKlines:
 	for {
 		candles, err := z.GetSpotKline(ctx, KlinesRequestParams{
-			Type:   z.FormatExchangeKlineInterval(builder.Request),
-			Symbol: builder.Formatted.String(),
+			Type:   z.FormatExchangeKlineInterval(req.Outbound),
+			Symbol: req.Formatted.String(),
 			Since:  startTime.UnixMilli(),
 			Size:   int64(z.Features.Enabled.Kline.ResultLimit),
 		})
@@ -961,7 +961,7 @@ allKlines:
 			break allKlines
 		}
 	}
-	return builder.ConvertCandles(timeSeries)
+	return req.ConvertCandles(timeSeries)
 }
 
 // GetAvailableTransferChains returns the available transfer blockchains for the specific

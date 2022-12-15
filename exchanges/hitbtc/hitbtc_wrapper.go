@@ -862,17 +862,17 @@ func (h *HitBTC) FormatExchangeKlineInterval(in kline.Interval) string {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (h *HitBTC) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := h.GetKlineBuilder(pair, a, interval, start, end)
+	req, err := h.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
 
 	data, err := h.GetCandles(ctx,
-		builder.Formatted.String(),
+		req.Formatted.String(),
 		strconv.FormatInt(int64(h.Features.Enabled.Kline.ResultLimit), 10),
-		h.FormatExchangeKlineInterval(builder.Request),
-		builder.Start,
-		builder.End)
+		h.FormatExchangeKlineInterval(req.Outbound),
+		req.Start,
+		req.End)
 	if err != nil {
 		return nil, err
 	}
@@ -888,25 +888,25 @@ func (h *HitBTC) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 			Volume: data[x].Volume,
 		}
 	}
-	return builder.ConvertCandles(timeSeries)
+	return req.ConvertCandles(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (h *HitBTC) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := h.GetKlineBuilderExtended(pair, a, interval, start, end)
+	req, err := h.GetKlineRequestExtended(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
 
-	timeSeries := make([]kline.Candle, 0, builder.Size())
-	for y := range builder.Ranges {
+	timeSeries := make([]kline.Candle, 0, req.Size())
+	for y := range req.Ranges {
 		var data []ChartData
 		data, err = h.GetCandles(ctx,
-			builder.Formatted.String(),
+			req.Formatted.String(),
 			strconv.FormatInt(int64(h.Features.Enabled.Kline.ResultLimit), 10),
-			h.FormatExchangeKlineInterval(builder.Request),
-			builder.Ranges[y].Start.Time,
-			builder.Ranges[y].End.Time)
+			h.FormatExchangeKlineInterval(req.Outbound),
+			req.Ranges[y].Start.Time,
+			req.Ranges[y].End.Time)
 		if err != nil {
 			return nil, err
 		}
@@ -922,5 +922,5 @@ func (h *HitBTC) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 			})
 		}
 	}
-	return builder.ConvertCandles(timeSeries)
+	return req.ConvertCandles(timeSeries)
 }

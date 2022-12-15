@@ -901,20 +901,20 @@ func (g *Gateio) FormatExchangeKlineInterval(in kline.Interval) string {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := g.GetKlineBuilder(pair, a, interval, start, end)
+	req, err := g.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
 
 	klineData, err := g.GetSpotKline(ctx, KlinesRequestParams{
-		Symbol:   builder.Formatted.String(),
-		GroupSec: g.FormatExchangeKlineInterval(builder.Request),
-		HourSize: int(time.Since(builder.Start).Hours()),
+		Symbol:   req.Formatted.String(),
+		GroupSec: g.FormatExchangeKlineInterval(req.Outbound),
+		HourSize: int(time.Since(req.Start).Hours()),
 	})
 	if err != nil {
 		return nil, err
 	}
-	return builder.ConvertCandles(klineData)
+	return req.ConvertCandles(klineData)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval

@@ -1362,16 +1362,19 @@ func (ok *Okx) ValidateCredentials(ctx context.Context, assetType asset.Item) er
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (ok *Okx) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := ok.GetKlineBuilder(pair, a, interval, start, end)
+	req, err := ok.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
 
 	candles, err := ok.GetCandlesticksHistory(ctx,
-		builder.Formatted.Base.String()+
+		req.Formatted.Base.String()+
 			currency.DashDelimiter+
-			builder.Formatted.Quote.String(),
-		builder.Request, start, end, 300)
+			req.Formatted.Quote.String(),
+		req.Outbound,
+		start,
+		end,
+		300)
 	if err != nil {
 		return nil, err
 	}
@@ -1387,32 +1390,32 @@ func (ok *Okx) GetHistoricCandles(ctx context.Context, pair currency.Pair, a ass
 			Volume: candles[x].Volume,
 		}
 	}
-	return builder.ConvertCandles(timeSeries)
+	return req.ConvertCandles(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (ok *Okx) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := ok.GetKlineBuilderExtended(pair, a, interval, start, end)
+	req, err := ok.GetKlineRequestExtended(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
 
-	if count := kline.TotalCandlesPerInterval(start, end, builder.Request); count > 1440 {
+	if count := kline.TotalCandlesPerInterval(start, end, req.Outbound); count > 1440 {
 		return nil,
 			fmt.Errorf("candles count: %d, exceeds max lookback limit for exchange: %d %w",
 				count, 1440, kline.ErrRequestExceedsExchangeLimits)
 	}
 
-	timeSeries := make([]kline.Candle, 0, builder.Size())
-	for y := range builder.Ranges {
+	timeSeries := make([]kline.Candle, 0, req.Size())
+	for y := range req.Ranges {
 		var candles []CandleStick
 		candles, err = ok.GetCandlesticksHistory(ctx,
-			builder.Formatted.Base.String()+
+			req.Formatted.Base.String()+
 				currency.DashDelimiter+
-				builder.Formatted.Quote.String(),
-			builder.Request,
-			builder.Ranges[y].Start.Time,
-			builder.Ranges[y].End.Time,
+				req.Formatted.Quote.String(),
+			req.Outbound,
+			req.Ranges[y].Start.Time,
+			req.Ranges[y].End.Time,
 			300)
 		if err != nil {
 			return nil, err
@@ -1428,7 +1431,7 @@ func (ok *Okx) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pai
 			})
 		}
 	}
-	return builder.ConvertCandles(timeSeries)
+	return req.ConvertCandles(timeSeries)
 }
 
 // GetAvailableTransferChains returns the available transfer blockchains for the specific

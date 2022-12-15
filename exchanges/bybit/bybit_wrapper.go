@@ -1828,21 +1828,21 @@ func (by *Bybit) FormatExchangeKlineIntervalFutures(ctx context.Context, interva
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := by.GetKlineBuilder(pair, a, interval, start, end)
+	req, err := by.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
 
 	var timeSeries []kline.Candle
-	switch builder.Asset {
+	switch req.Asset {
 	case asset.Spot:
 		var candles []KlineItem
 		candles, err = by.GetKlines(ctx,
-			builder.Formatted.String(),
-			by.FormatExchangeKlineInterval(ctx, builder.Request),
+			req.Formatted.String(),
+			by.FormatExchangeKlineInterval(ctx, req.Outbound),
 			int64(by.Features.Enabled.Kline.ResultLimit),
-			builder.Start,
-			builder.End)
+			req.Start,
+			req.End)
 		if err != nil {
 			return nil, err
 		}
@@ -1861,10 +1861,10 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 	case asset.CoinMarginedFutures, asset.Futures:
 		var candles []FuturesCandleStickWithStringParam
 		candles, err = by.GetFuturesKlineData(ctx,
-			builder.Formatted,
-			by.FormatExchangeKlineIntervalFutures(ctx, builder.Request),
+			req.Formatted,
+			by.FormatExchangeKlineIntervalFutures(ctx, req.Outbound),
 			int64(by.Features.Enabled.Kline.ResultLimit),
-			builder.Start)
+			req.Start)
 		if err != nil {
 			return nil, err
 		}
@@ -1883,10 +1883,10 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 	case asset.USDTMarginedFutures:
 		var candles []FuturesCandleStick
 		candles, err = by.GetUSDTFuturesKlineData(ctx,
-			builder.Formatted,
-			by.FormatExchangeKlineIntervalFutures(ctx, builder.Request),
+			req.Formatted,
+			by.FormatExchangeKlineIntervalFutures(ctx, req.Outbound),
 			int64(by.Features.Enabled.Kline.ResultLimit),
-			builder.Start)
+			req.Start)
 		if err != nil {
 			return nil, err
 		}
@@ -1905,9 +1905,9 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 	case asset.USDCMarginedFutures:
 		var candles []USDCKline
 		candles, err = by.GetUSDCKlines(ctx,
-			builder.Formatted,
-			by.FormatExchangeKlineIntervalFutures(ctx, builder.Request),
-			builder.Start,
+			req.Formatted,
+			by.FormatExchangeKlineIntervalFutures(ctx, req.Outbound),
+			req.Start,
 			int64(by.Features.Enabled.Kline.ResultLimit))
 		if err != nil {
 			return nil, err
@@ -1925,29 +1925,29 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 			}
 		}
 	default:
-		return nil, fmt.Errorf("%s %w", builder.Asset, asset.ErrNotSupported)
+		return nil, fmt.Errorf("%s %w", req.Asset, asset.ErrNotSupported)
 	}
-	return builder.ConvertCandles(timeSeries)
+	return req.ConvertCandles(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := by.GetKlineBuilderExtended(pair, a, interval, start, end)
+	req, err := by.GetKlineRequestExtended(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
 
-	timeSeries := make([]kline.Candle, 0, builder.Size())
-	for x := range builder.Ranges {
-		switch builder.Asset {
+	timeSeries := make([]kline.Candle, 0, req.Size())
+	for x := range req.Ranges {
+		switch req.Asset {
 		case asset.Spot:
 			var candles []KlineItem
 			candles, err = by.GetKlines(ctx,
-				builder.Formatted.String(),
-				by.FormatExchangeKlineInterval(ctx, builder.Request),
+				req.Formatted.String(),
+				by.FormatExchangeKlineInterval(ctx, req.Outbound),
 				int64(by.Features.Enabled.Kline.ResultLimit),
-				builder.Ranges[x].Start.Time,
-				builder.Ranges[x].End.Time)
+				req.Ranges[x].Start.Time,
+				req.Ranges[x].End.Time)
 			if err != nil {
 				return nil, err
 			}
@@ -1965,10 +1965,10 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 		case asset.CoinMarginedFutures, asset.Futures:
 			var candles []FuturesCandleStickWithStringParam
 			candles, err = by.GetFuturesKlineData(ctx,
-				builder.Formatted,
-				by.FormatExchangeKlineIntervalFutures(ctx, builder.Request),
+				req.Formatted,
+				by.FormatExchangeKlineIntervalFutures(ctx, req.Outbound),
 				int64(by.Features.Enabled.Kline.ResultLimit),
-				builder.Ranges[x].Start.Time)
+				req.Ranges[x].Start.Time)
 			if err != nil {
 				return nil, err
 			}
@@ -1986,10 +1986,10 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 		case asset.USDTMarginedFutures:
 			var candles []FuturesCandleStick
 			candles, err := by.GetUSDTFuturesKlineData(ctx,
-				builder.Formatted,
-				by.FormatExchangeKlineIntervalFutures(ctx, builder.Request),
+				req.Formatted,
+				by.FormatExchangeKlineIntervalFutures(ctx, req.Outbound),
 				int64(by.Features.Enabled.Kline.ResultLimit),
-				builder.Ranges[x].Start.Time)
+				req.Ranges[x].Start.Time)
 			if err != nil {
 				return nil, err
 			}
@@ -2007,9 +2007,9 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 		case asset.USDCMarginedFutures:
 			var candles []USDCKline
 			candles, err = by.GetUSDCKlines(ctx,
-				builder.Formatted,
-				by.FormatExchangeKlineIntervalFutures(ctx, builder.Request),
-				builder.Ranges[x].Start.Time,
+				req.Formatted,
+				by.FormatExchangeKlineIntervalFutures(ctx, req.Outbound),
+				req.Ranges[x].Start.Time,
 				int64(by.Features.Enabled.Kline.ResultLimit))
 			if err != nil {
 				return nil, err
@@ -2026,10 +2026,10 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 				})
 			}
 		default:
-			return nil, fmt.Errorf("%s %w", builder.Asset, asset.ErrNotSupported)
+			return nil, fmt.Errorf("%s %w", req.Asset, asset.ErrNotSupported)
 		}
 	}
-	return builder.ConvertCandles(timeSeries)
+	return req.ConvertCandles(timeSeries)
 }
 
 // GetServerTime returns the current exchange server time.

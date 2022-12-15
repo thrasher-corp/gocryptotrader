@@ -1012,16 +1012,16 @@ func (b *BTCMarkets) FormatExchangeKlineInterval(in kline.Interval) string {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (b *BTCMarkets) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := b.GetKlineBuilder(pair, a, interval, start, end)
+	req, err := b.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
 
 	candles, err := b.GetMarketCandles(ctx,
-		builder.Formatted.String(),
-		b.FormatExchangeKlineInterval(builder.Request),
-		builder.Start,
-		builder.End,
+		req.Formatted.String(),
+		b.FormatExchangeKlineInterval(req.Outbound),
+		req.Start,
+		req.End,
 		-1,
 		-1,
 		-1)
@@ -1036,24 +1036,24 @@ func (b *BTCMarkets) GetHistoricCandles(ctx context.Context, pair currency.Pair,
 			return nil, err
 		}
 	}
-	return builder.ConvertCandles(timeSeries)
+	return req.ConvertCandles(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (b *BTCMarkets) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := b.GetKlineBuilderExtended(pair, a, interval, start, end)
+	req, err := b.GetKlineRequestExtended(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
 
-	timeSeries := make([]kline.Candle, 0, builder.Size())
-	for x := range builder.Ranges {
+	timeSeries := make([]kline.Candle, 0, req.Size())
+	for x := range req.Ranges {
 		var candles CandleResponse
 		candles, err = b.GetMarketCandles(ctx,
-			builder.Formatted.String(),
-			b.FormatExchangeKlineInterval(builder.Request),
-			builder.Ranges[x].Start.Time,
-			builder.Ranges[x].End.Time,
+			req.Formatted.String(),
+			b.FormatExchangeKlineInterval(req.Outbound),
+			req.Ranges[x].Start.Time,
+			req.Ranges[x].End.Time,
 			-1,
 			-1,
 			-1)
@@ -1069,7 +1069,7 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(ctx context.Context, pair curren
 			timeSeries = append(timeSeries, elem)
 		}
 	}
-	return builder.ConvertCandles(timeSeries)
+	return req.ConvertCandles(timeSeries)
 }
 
 // GetServerTime returns the current exchange server time.

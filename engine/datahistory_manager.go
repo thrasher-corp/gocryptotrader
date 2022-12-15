@@ -870,7 +870,7 @@ func (m *DataHistoryManager) convertCandleData(job *DataHistoryJob, startRange, 
 		r.Status = dataHistoryStatusFailed
 		return r, nil //nolint:nilerr // error is returned in the job result
 	}
-	newCandles, err := kline.ConvertToNewInterval(candles, job.ConversionInterval)
+	newCandles, err := candles.ConvertToNewInterval(job.ConversionInterval)
 	if err != nil {
 		r.Result = "could not convert candles in range: " + err.Error()
 		r.Status = dataHistoryStatusFailed
@@ -1231,7 +1231,7 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 
 	b := exch.GetBase()
 	// TODO: In future allow custom candles.
-	if !b.Features.Enabled.Kline.Intervals.Supports(job.Interval) &&
+	if !b.Features.Enabled.Kline.Intervals.ExchangeSupported(job.Interval) &&
 		(job.DataType == dataHistoryCandleDataType || job.DataType == dataHistoryCandleValidationDataType) {
 		return fmt.Errorf("job interval %s %s %w %s", job.Nickname, job.Interval.Word(), kline.ErrUnsupportedInterval, job.Exchange)
 	}

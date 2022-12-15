@@ -1472,13 +1472,13 @@ func (k *Kraken) FormatExchangeKlineInterval(in kline.Interval) string {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (k *Kraken) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := k.GetKlineBuilder(pair, a, interval, start, end)
+	req, err := k.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
 	candles, err := k.GetOHLC(ctx,
-		builder.Pair,
-		k.FormatExchangeKlineInterval(builder.Request))
+		req.Pair,
+		k.FormatExchangeKlineInterval(req.Outbound))
 	if err != nil {
 		return nil, err
 	}
@@ -1489,7 +1489,7 @@ func (k *Kraken) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		if err != nil {
 			return nil, err
 		}
-		if timeValue.Before(builder.Start) || timeValue.After(builder.End) {
+		if timeValue.Before(req.Start) || timeValue.After(req.End) {
 			continue
 		}
 		timeSeries = append(timeSeries, kline.Candle{
@@ -1501,7 +1501,7 @@ func (k *Kraken) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 			Volume: candles[x].Volume,
 		})
 	}
-	return builder.ConvertCandles(timeSeries)
+	return req.ConvertCandles(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval

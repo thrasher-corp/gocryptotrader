@@ -1744,14 +1744,14 @@ func (h *HUOBI) FormatExchangeKlineInterval(in kline.Interval) string {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := h.GetKlineBuilder(pair, a, interval, start, end)
+	req, err := h.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
 
 	candles, err := h.GetSpotKline(ctx, KlinesRequestParams{
-		Period: h.FormatExchangeKlineInterval(builder.Request),
-		Symbol: builder.Pair,
+		Period: h.FormatExchangeKlineInterval(req.Outbound),
+		Symbol: req.Pair,
 	})
 	if err != nil {
 		return nil, err
@@ -1760,7 +1760,7 @@ func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 	timeSeries := make([]kline.Candle, 0, len(candles))
 	for x := range candles {
 		timestamp := time.Unix(candles[x].ID, 0)
-		if timestamp.Before(builder.Start) || timestamp.After(builder.End) {
+		if timestamp.Before(req.Start) || timestamp.After(req.End) {
 			continue
 		}
 		timeSeries = append(timeSeries, kline.Candle{
@@ -1772,7 +1772,7 @@ func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 			Volume: candles[x].Volume,
 		})
 	}
-	return builder.ConvertCandles(timeSeries)
+	return req.ConvertCandles(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval

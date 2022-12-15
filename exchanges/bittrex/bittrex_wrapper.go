@@ -953,39 +953,39 @@ func (b *Bittrex) FormatExchangeKlineInterval(in kline.Interval) string {
 // This implementation rounds returns candles up to the next interval or to the end
 // time (whichever comes first)
 func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := b.GetKlineBuilder(pair, a, interval, start, end)
+	req, err := b.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
 
-	candleInterval := b.FormatExchangeKlineInterval(builder.Request)
+	candleInterval := b.FormatExchangeKlineInterval(req.Outbound)
 	if candleInterval == "notfound" {
 		return nil, errors.New("invalid interval")
 	}
 
-	year, month, day := builder.Start.Date()
+	year, month, day := req.Start.Date()
 	curYear, curMonth, curDay := time.Now().Date()
 
 	getHistoric := false // nolint:ifshort,nolintlint // false positive and triggers only on Windows
 	getRecent := false   // nolint:ifshort,nolintlint // false positive and triggers only on Windows
 
-	switch builder.Request {
+	switch req.Outbound {
 	case kline.OneMin, kline.FiveMin:
-		if time.Since(builder.Start) > 24*time.Hour {
+		if time.Since(req.Start) > 24*time.Hour {
 			getHistoric = true
 		}
 		if year >= curYear && month >= curMonth && day >= curDay {
 			getRecent = true
 		}
 	case kline.OneHour:
-		if time.Since(builder.Start) > 31*24*time.Hour {
+		if time.Since(req.Start) > 31*24*time.Hour {
 			getHistoric = true
 		}
 		if year >= curYear && month >= curMonth {
 			getRecent = true
 		}
 	case kline.OneDay:
-		if time.Since(builder.Start) > 366*24*time.Hour {
+		if time.Since(req.Start) > 366*24*time.Hour {
 			getHistoric = true
 		}
 		if year >= curYear {
@@ -997,8 +997,8 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 	if getHistoric {
 		var historicData []CandleData
 		historicData, err = b.GetHistoricalCandles(ctx,
-			builder.Formatted.String(),
-			b.FormatExchangeKlineInterval(builder.Request),
+			req.Formatted.String(),
+			b.FormatExchangeKlineInterval(req.Outbound),
 			"TRADE",
 			year,
 			int(month),
@@ -1011,8 +1011,8 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 	if getRecent {
 		var recentData []CandleData
 		recentData, err = b.GetRecentCandles(ctx,
-			builder.Formatted.String(),
-			b.FormatExchangeKlineInterval(builder.Request),
+			req.Formatted.String(),
+			b.FormatExchangeKlineInterval(req.Outbound),
 			"TRADE")
 		if err != nil {
 			return nil, err
@@ -1022,8 +1022,8 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 
 	timeSeries := make([]kline.Candle, 0, len(ohlcData))
 	for x := range ohlcData {
-		if ohlcData[x].StartsAt.Before(builder.Start) ||
-			ohlcData[x].StartsAt.After(builder.End) {
+		if ohlcData[x].StartsAt.Before(req.Start) ||
+			ohlcData[x].StartsAt.After(req.End) {
 			continue
 		}
 		timeSeries = append(timeSeries, kline.Candle{
@@ -1035,7 +1035,7 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 			Volume: ohlcData[x].Volume,
 		})
 	}
-	return builder.ConvertCandles(timeSeries)
+	return req.ConvertCandles(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval

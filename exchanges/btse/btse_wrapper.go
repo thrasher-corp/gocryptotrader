@@ -978,23 +978,23 @@ func (b *BTSE) FormatExchangeKlineInterval(in kline.Interval) string {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (b *BTSE) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := b.GetKlineBuilder(pair, a, interval, start, end)
+	req, err := b.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
 
-	intervalInt, err := strconv.Atoi(b.FormatExchangeKlineInterval(builder.Request))
+	intervalInt, err := strconv.Atoi(b.FormatExchangeKlineInterval(req.Outbound))
 	if err != nil {
 		return nil, err
 	}
 
 	var timeSeries []kline.Candle
-	switch builder.Asset {
+	switch req.Asset {
 	case asset.Spot:
 		req, err := b.OHLCV(ctx,
-			builder.Formatted.String(),
-			builder.Start,
-			builder.End,
+			req.Formatted.String(),
+			req.Start,
+			req.End,
 			intervalInt)
 		if err != nil {
 			return nil, err
@@ -1014,9 +1014,9 @@ func (b *BTSE) GetHistoricCandles(ctx context.Context, pair currency.Pair, a ass
 	case asset.Futures:
 		return nil, common.ErrNotYetImplemented
 	default:
-		return nil, fmt.Errorf("asset %s not supported", builder.Asset)
+		return nil, fmt.Errorf("asset %s not supported", req.Asset)
 	}
-	return builder.ConvertCandles(timeSeries)
+	return req.ConvertCandles(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval

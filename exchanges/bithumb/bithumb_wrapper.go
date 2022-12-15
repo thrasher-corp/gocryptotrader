@@ -783,14 +783,14 @@ func (b *Bithumb) FormatExchangeKlineInterval(in kline.Interval) string {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (b *Bithumb) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := b.GetKlineBuilder(pair, a, interval, start, end)
+	req, err := b.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
 
 	candle, err := b.GetCandleStick(ctx,
-		builder.Formatted.String(),
-		b.FormatExchangeKlineInterval(builder.Request))
+		req.Formatted.String(),
+		b.FormatExchangeKlineInterval(req.Outbound))
 	if err != nil {
 		return nil, err
 	}
@@ -804,10 +804,10 @@ func (b *Bithumb) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		if tempCandle.Time, err = convert.TimeFromUnixTimestampFloat(candle.Data[x][0]); err != nil {
 			return nil, fmt.Errorf("unable to convert timestamp: %w", err)
 		}
-		if tempCandle.Time.Before(builder.Start) {
+		if tempCandle.Time.Before(req.Start) {
 			continue
 		}
-		if tempCandle.Time.After(builder.End) {
+		if tempCandle.Time.After(req.End) {
 			break
 		}
 		if tempCandle.Open, err = convert.FloatFromString(candle.Data[x][1]); err != nil {
@@ -827,7 +827,7 @@ func (b *Bithumb) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		}
 		timeSeries = append(timeSeries, tempCandle)
 	}
-	return builder.ConvertCandles(timeSeries)
+	return req.ConvertCandles(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval

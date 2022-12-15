@@ -1180,17 +1180,17 @@ func (f *FTX) ValidateCredentials(ctx context.Context, assetType asset.Item) err
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (f *FTX) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := f.GetKlineBuilder(pair, a, interval, start, end)
+	req, err := f.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
 
 	ohlcData, err := f.GetHistoricalData(ctx,
-		builder.Formatted.String(),
-		int64(builder.Request.Duration().Seconds()),
+		req.Formatted.String(),
+		int64(req.Outbound.Duration().Seconds()),
 		int64(f.Features.Enabled.Kline.ResultLimit),
-		builder.Start,
-		builder.End)
+		req.Start,
+		req.End)
 	if err != nil {
 		return nil, err
 	}
@@ -1206,25 +1206,25 @@ func (f *FTX) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asse
 			Volume: ohlcData[x].Volume,
 		}
 	}
-	return builder.ConvertCandles(candles)
+	return req.ConvertCandles(candles)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (f *FTX) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	builder, err := f.GetKlineBuilderExtended(pair, a, interval, start, end)
+	req, err := f.GetKlineRequestExtended(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
 
-	timeSeries := make([]kline.Candle, 0, builder.Size())
-	for x := range builder.Ranges {
+	timeSeries := make([]kline.Candle, 0, req.Size())
+	for x := range req.Ranges {
 		var ohlcData []OHLCVData
 		ohlcData, err = f.GetHistoricalData(ctx,
-			builder.Formatted.String(),
-			int64(builder.Request.Duration().Seconds()),
+			req.Formatted.String(),
+			int64(req.Outbound.Duration().Seconds()),
 			int64(f.Features.Enabled.Kline.ResultLimit),
-			builder.Ranges[x].Start.Time,
-			builder.Ranges[x].End.Time)
+			req.Ranges[x].Start.Time,
+			req.Ranges[x].End.Time)
 		if err != nil {
 			return nil, err
 		}
@@ -1240,7 +1240,7 @@ func (f *FTX) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair
 			})
 		}
 	}
-	return builder.ConvertCandles(timeSeries)
+	return req.ConvertCandles(timeSeries)
 }
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type

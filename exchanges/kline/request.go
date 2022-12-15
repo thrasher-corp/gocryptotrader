@@ -14,25 +14,25 @@ import (
 var (
 	// ErrUnsetName is an error for when the exchange name is not set
 	ErrUnsetName  = errors.New("unset exchange name")
-	errNilBuilder = errors.New("nil kline builder")
+	errNilRequest = errors.New("nil kline request")
 )
 
-// Builder is a helper to request and convert time series to a required candle
+// Request is a helper to request and convert time series to a required candle
 // interval.
-type Builder struct {
+type Request struct {
 	Name      string
 	Pair      currency.Pair
 	Formatted currency.Pair
 	Asset     asset.Item
-	Request   Interval
+	Outbound  Interval
 	Required  Interval
 	Start     time.Time
 	End       time.Time
 }
 
-// GetBuilder generates a builder for interval conversions supported by an
-// exchange.
-func GetBuilder(name string, pair, formatted currency.Pair, a asset.Item, required, request Interval, start, end time.Time) (*Builder, error) {
+// CreateKlineRequest generates a `Request` type for interval conversions
+// supported by an exchange.
+func CreateKlineRequest(name string, pair, formatted currency.Pair, a asset.Item, required, outbound Interval, start, end time.Time) (*Request, error) {
 	if name == "" {
 		return nil, ErrUnsetName
 	}
@@ -48,7 +48,7 @@ func GetBuilder(name string, pair, formatted currency.Pair, a asset.Item, requir
 	if required == 0 {
 		return nil, fmt.Errorf("required %w", ErrUnsetInterval)
 	}
-	if request == 0 {
+	if outbound == 0 {
 		return nil, fmt.Errorf("request %w", ErrUnsetInterval)
 	}
 	err := common.StartEndTimeCheck(start, end)
@@ -56,64 +56,64 @@ func GetBuilder(name string, pair, formatted currency.Pair, a asset.Item, requir
 		return nil, err
 	}
 	// Force alignment to request interval
-	start = start.Truncate(request.Duration())
-	end = end.Truncate(request.Duration())
-	return &Builder{name, pair, formatted, a, request, required, start, end}, nil
+	start = start.Truncate(outbound.Duration())
+	end = end.Truncate(outbound.Duration())
+	return &Request{name, pair, formatted, a, outbound, required, start, end}, nil
 }
 
 // GetRanges returns the date ranges for candle intervals broken up over
 // requests
-func (b *Builder) GetRanges(limit uint32) (*IntervalRangeHolder, error) {
-	if b == nil {
-		return nil, errNilBuilder
+func (r *Request) GetRanges(limit uint32) (*IntervalRangeHolder, error) {
+	if r == nil {
+		return nil, errNilRequest
 	}
-	return CalculateCandleDateRanges(b.Start, b.End, b.Request, limit)
+	return CalculateCandleDateRanges(r.Start, r.End, r.Outbound, limit)
 }
 
 // ConvertCandles converts time series candles into a kline.Item type. This will
 // auto convert from a lower to higher time series if applicable.
-func (b *Builder) ConvertCandles(timeSeries []Candle) (*Item, error) {
-	if b == nil {
-		return nil, errNilBuilder
+func (r *Request) ConvertCandles(timeSeries []Candle) (*Item, error) {
+	if r == nil {
+		return nil, errNilRequest
 	}
 
 	holder := &Item{
-		Exchange: b.Name,
-		Pair:     b.Pair,
-		Asset:    b.Asset,
-		Interval: b.Request,
+		Exchange: r.Name,
+		Pair:     r.Pair,
+		Asset:    r.Asset,
+		Interval: r.Outbound,
 		Candles:  timeSeries,
 	}
 
 	// NOTE: timeSeries param above must keep underlying slice reference in this
-	// function as it is used for method ConvertCandles on type BuilderExtended
+	// function as it is used for method ConvertCandles on type RequestExtended
 	// for SetHasDataFromCandles candle matching.
 	// TODO: Shift burden of proof to the caller e.g. only find duplicates and error.
 	holder.RemoveDuplicates()
-	holder.RemoveOutsideRange(b.Start, b.End)
+	holder.RemoveOutsideRange(r.Start, r.End)
 	holder.SortCandlesByTimestamp(false)
 
-	if b.Required == b.Request {
+	if r.Required == r.Outbound {
 		return holder, nil
 	}
-	return holder.ConvertToNewInterval(b.Required)
+	return holder.ConvertToNewInterval(r.Required)
 }
 
-// BuilderExtended used in extended functionality for when candles requested
+// RequestExtended used in extended functionality for when candles requested
 // exceed exchange limits and require multiple requests.
-type BuilderExtended struct {
-	*Builder
+type RequestExtended struct {
+	*Request
 	*IntervalRangeHolder
 }
 
 // ConvertCandles converts time series candles into a kline.Item type. This will
 // auto convert from a lower to higher time series if applicable.
-func (b *BuilderExtended) ConvertCandles(timeSeries []Candle) (*Item, error) {
-	if b == nil {
-		return nil, errNilBuilder
+func (r *RequestExtended) ConvertCandles(timeSeries []Candle) (*Item, error) {
+	if r == nil {
+		return nil, errNilRequest
 	}
 
-	holder, err := b.Builder.ConvertCandles(timeSeries)
+	holder, err := r.Request.ConvertCandles(timeSeries)
 	if err != nil {
 		return nil, err
 	}
@@ -122,21 +122,21 @@ func (b *BuilderExtended) ConvertCandles(timeSeries []Candle) (*Item, error) {
 	// NOTE: If there are any optimizations which copy timeSeries param slice
 	// in the function call ConvertCandles above then false positives can
 	// occur. // TODO: Improve implementation.
-	b.SetHasDataFromCandles(timeSeries)
-	summary := b.DataSummary(false)
+	r.SetHasDataFromCandles(timeSeries)
+	summary := r.DataSummary(false)
 	if len(summary) > 0 {
-		log.Warnf(log.ExchangeSys, "%v - %v", b.Name, summary)
+		log.Warnf(log.ExchangeSys, "%v - %v", r.Name, summary)
 	}
 	return holder, nil
 }
 
 // Size returns the max length of return for pre-allocation.
-func (b *BuilderExtended) Size() int {
-	if b == nil || b.IntervalRangeHolder == nil {
+func (r *RequestExtended) Size() int {
+	if r == nil || r.IntervalRangeHolder == nil {
 		return 0
 	}
-	if b.IntervalRangeHolder.Limit == 0 {
-		log.Warnf(log.ExchangeSys, "%v candle builder limit is zero while calling Size()", b.Name)
+	if r.IntervalRangeHolder.Limit == 0 {
+		log.Warnf(log.ExchangeSys, "%v candle request limit is zero while calling Size()", r.Name)
 	}
-	return b.IntervalRangeHolder.Limit * len(b.IntervalRangeHolder.Ranges)
+	return r.IntervalRangeHolder.Limit * len(r.IntervalRangeHolder.Ranges)
 }
