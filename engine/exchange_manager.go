@@ -30,7 +30,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kraken"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/lbank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/localbitcoins"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/okcoin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okx"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/poloniex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/yobit"
@@ -194,7 +193,7 @@ func (m *ExchangeManager) NewExchangeByName(name string) (exchange.IBotExchange,
 	case "localbitcoins":
 		exch = new(localbitcoins.LocalBitcoins)
 	case "okcoin international":
-		exch = new(okcoin.OKCoin)
+		exch = new(o.OKCoin)
 	case "okx":
 		exch = new(okx.Okx)
 	case "poloniex":
