@@ -109,7 +109,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
-	currencyPair, err := getFirstTradablePair(t, asset.Option)
+	currencyPair, err := getFirstTradablePair(t, asset.Options)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +118,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
-		AssetType:     asset.Option,
+		AssetType:     asset.Options,
 	}
 	resp, err := g.CancelAllOrders(context.Background(), orderCancellation)
 
@@ -143,7 +143,7 @@ func TestGetAccountInfo(t *testing.T) {
 	if err != nil {
 		t.Error("GetAccountInfo() error", err)
 	}
-	if _, err := g.UpdateAccountInfo(context.Background(), asset.Option); err != nil && !strings.Contains(err.Error(), "USER_NOT_FOUND") {
+	if _, err := g.UpdateAccountInfo(context.Background(), asset.Options); err != nil && !strings.Contains(err.Error(), "USER_NOT_FOUND") {
 		t.Errorf("%s UpdateAccountInfo() error %v", g.Name, err)
 	}
 }
@@ -189,11 +189,11 @@ func TestGetOrderInfo(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	cp, err := getFirstTradablePair(t, asset.Option)
+	cp, err := getFirstTradablePair(t, asset.Options)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = g.UpdateTicker(context.Background(), cp, asset.Option)
+	_, err = g.UpdateTicker(context.Background(), cp, asset.Options)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1866,7 +1866,7 @@ func TestGetAllContractOfUnderlyingWithinExpiryDate(t *testing.T) {
 
 func TestGetOptionsSpecifiedContractDetail(t *testing.T) {
 	t.Parallel()
-	pairs, err := g.FetchTradablePairs(context.Background(), asset.Option)
+	pairs, err := g.FetchTradablePairs(context.Background(), asset.Options)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2059,7 +2059,7 @@ func TestCancelOptionOpenOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credInformationNotProvided)
 	}
-	pairs, err := g.FetchTradablePairs(context.Background(), asset.Option)
+	pairs, err := g.FetchTradablePairs(context.Background(), asset.Options)
 	if err != nil {
 		t.Skip(err)
 	}
@@ -2138,7 +2138,7 @@ func TestCancelWithdrawalWithSpecifiedID(t *testing.T) {
 
 func TestGetOptionsOrderbook(t *testing.T) {
 	t.Parallel()
-	cp, err := getFirstTradablePair(t, asset.Option)
+	cp, err := getFirstTradablePair(t, asset.Options)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2163,7 +2163,7 @@ func TestGetOptionUnderlyingTickers(t *testing.T) {
 
 func TestGetOptionFuturesCandlesticks(t *testing.T) {
 	t.Parallel()
-	pairs, err := g.FetchTradablePairs(context.Background(), asset.Option)
+	pairs, err := g.FetchTradablePairs(context.Background(), asset.Options)
 	if err != nil {
 		t.Skip(err)
 	}
@@ -2184,7 +2184,7 @@ func TestGetOptionFuturesMarkPriceCandlesticks(t *testing.T) {
 
 func TestGetOptionsTradeHistory(t *testing.T) {
 	t.Parallel()
-	pairs, err := g.FetchTradablePairs(context.Background(), asset.Option)
+	pairs, err := g.FetchTradablePairs(context.Background(), asset.Options)
 	if err != nil {
 		t.Skip(err)
 	}
@@ -2238,7 +2238,7 @@ func TestFetchTradablePairs(t *testing.T) {
 	if err != nil {
 		t.Errorf("%s FetchTradablePairs() error %v", g.Name, err)
 	}
-	if _, err = g.FetchTradablePairs(context.Background(), asset.Option); err != nil {
+	if _, err = g.FetchTradablePairs(context.Background(), asset.Options); err != nil {
 		t.Errorf("%s FetchTradablePairs() error %v", g.Name, err)
 	}
 }
@@ -2292,7 +2292,7 @@ func TestGetRecentTrades(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = g.GetRecentTrades(context.Background(), currencyPair, asset.Option)
+	_, err = g.GetRecentTrades(context.Background(), currencyPair, asset.Options)
 	if err != nil {
 		t.Error(err)
 	}

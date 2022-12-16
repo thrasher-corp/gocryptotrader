@@ -1145,7 +1145,7 @@ func (g *Gateio) TransferCurrency(ctx context.Context, arg *TransferCurrencyPara
 		return nil, fmt.Errorf("%w, only %s accounts can be used to transfer from", errInvalidAssetType, asset.Spot)
 	}
 	if g.isAccountAccepted(arg.To) {
-		return nil, fmt.Errorf("%w, only %v,%v,%v,%v,%v,and %v", errInvalidAssetType, asset.Spot, asset.Margin, asset.Futures, asset.DeliveryFutures, asset.CrossMargin, asset.Option)
+		return nil, fmt.Errorf("%w, only %v,%v,%v,%v,%v,and %v", errInvalidAssetType, asset.Spot, asset.Margin, asset.Futures, asset.DeliveryFutures, asset.CrossMargin, asset.Options)
 	}
 	if arg.Amount < 0 {
 		return nil, errInvalidAmount
@@ -1162,11 +1162,11 @@ func (g *Gateio) isAccountAccepted(account string) bool {
 	if err != nil {
 		return false
 	}
-	return acc == asset.Spot || acc == asset.Margin || acc == asset.CrossMargin || acc == asset.Futures || acc == asset.DeliveryFutures || acc == asset.Option
+	return acc == asset.Spot || acc == asset.Margin || acc == asset.CrossMargin || acc == asset.Futures || acc == asset.DeliveryFutures || acc == asset.Options
 }
 
 func (g *Gateio) assetTypeToString(acc asset.Item) string {
-	if acc == asset.Option {
+	if acc == asset.Options {
 		return "options"
 	}
 	return acc.String()

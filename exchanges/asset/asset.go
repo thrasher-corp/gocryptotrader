@@ -36,10 +36,10 @@ const (
 	CoinMarginedFutures
 	USDTMarginedFutures
 	USDCMarginedFutures
-	Option
+	Options
 
 	futuresFlag   = PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures
-	supportedFlag = Spot | Margin | CrossMargin | MarginFunding | Index | Binary | PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Option
+	supportedFlag = Spot | Margin | CrossMargin | MarginFunding | Index | Binary | PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Options
 
 	spot                   = "spot"
 	margin                 = "margin"
@@ -47,7 +47,6 @@ const (
 	marginFunding          = "marginfunding"
 	index                  = "index"
 	binary                 = "binary"
-	option                 = "option"
 	perpetualContract      = "perpetualcontract"
 	perpetualSwap          = "perpetualswap"
 	futures                = "futures"
@@ -57,10 +56,11 @@ const (
 	coinMarginedFutures    = "coinmarginedfutures"
 	usdtMarginedFutures    = "usdtmarginedfutures"
 	usdcMarginedFutures    = "usdcmarginedfutures"
+	options                = "options"
 )
 
 var (
-	supportedList = Items{Spot, Margin, CrossMargin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, Option}
+	supportedList = Items{Spot, Margin, CrossMargin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, Options}
 )
 
 // Supported returns a list of supported asset types
@@ -83,8 +83,6 @@ func (a Item) String() string {
 		return index
 	case Binary:
 		return binary
-	case Options:
-		return option
 	case PerpetualContract:
 		return perpetualContract
 	case PerpetualSwap:
@@ -103,8 +101,8 @@ func (a Item) String() string {
 		return usdtMarginedFutures
 	case USDCMarginedFutures:
 		return usdcMarginedFutures
-	case Option:
-		return option
+	case Options:
+		return options
 	default:
 		return ""
 	}
@@ -204,8 +202,8 @@ func New(input string) (Item, error) {
 		return USDTMarginedFutures, nil
 	case usdcMarginedFutures:
 		return USDCMarginedFutures, nil
-	case option, "options":
-		return Option, nil
+	case options, "option":
+		return Options, nil
 	default:
 		return 0, fmt.Errorf("%w '%v', only supports %s",
 			ErrNotSupported,

@@ -103,7 +103,7 @@ func (g *Gateio) GenerateOptionsDefaultSubscriptions() ([]stream.ChannelSubscrip
 		)
 	}
 	var subscriptions []stream.ChannelSubscription
-	pairs, err := g.GetEnabledPairs(asset.Option)
+	pairs, err := g.GetEnabledPairs(asset.Options)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +120,7 @@ func (g *Gateio) GenerateOptionsDefaultSubscriptions() ([]stream.ChannelSubscrip
 				params["interval"] = kline.ThousandMilliseconds
 				params["level"] = 20
 			}
-			fpair, err := g.FormatExchangeCurrency(pairs[j], asset.Option)
+			fpair, err := g.FormatExchangeCurrency(pairs[j], asset.Options)
 			if err != nil {
 				return nil, err
 			}
@@ -154,7 +154,7 @@ func (g *Gateio) processOptionsContractTickers(data []byte) error {
 		AskSize:      tickerData.Ask1Size,
 		BidSize:      tickerData.Bid1Size,
 		ExchangeName: g.Name,
-		AssetType:    asset.Option,
+		AssetType:    asset.Options,
 	}
 	return nil
 }
@@ -195,7 +195,7 @@ func (g *Gateio) processOptionsTradesPushData(data []byte) error {
 		trades[x] = trade.Data{
 			Timestamp:    time.UnixMilli(resp.Result[x].CreateTimeMs),
 			CurrencyPair: currencyPair,
-			AssetType:    asset.Option,
+			AssetType:    asset.Options,
 			Exchange:     g.Name,
 			Price:        resp.Result[x].Price,
 			Amount:       resp.Result[x].Size,
@@ -276,7 +276,7 @@ func (g *Gateio) processOptionsCandlestickPushData(data []byte) error {
 		}
 		klineDatas[x] = stream.KlineData{
 			Pair:       currencyPair,
-			AssetType:  asset.Option,
+			AssetType:  asset.Options,
 			Exchange:   g.Name,
 			StartTime:  time.Unix(resp.Result[x].Timestamp, 0),
 			Interval:   icp[0],
@@ -317,7 +317,7 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, data []by
 			return err
 		}
 		base := orderbook.Base{
-			Asset:           asset.Option,
+			Asset:           asset.Options,
 			Exchange:        g.Name,
 			Pair:            pair,
 			LastUpdated:     time.Unix(snapshot.Timestamp, 0),
@@ -381,7 +381,7 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, data []by
 		err = g.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 			Asks:            ab[0],
 			Bids:            ab[1],
-			Asset:           asset.Option,
+			Asset:           asset.Options,
 			Exchange:        g.Name,
 			Pair:            currencyPair,
 			LastUpdated:     time.Unix(resp.Time, 0),
@@ -429,7 +429,7 @@ func (g *Gateio) processOptionsOrderPushData(data []byte) error {
 			Date:           time.UnixMilli(resp.Result[x].CreationTimeMs),
 			ExecutedAmount: resp.Result[x].Size - resp.Result[x].Left,
 			Price:          resp.Result[x].Price,
-			AssetType:      asset.Option,
+			AssetType:      asset.Options,
 			AccountID:      resp.Result[x].User,
 		}
 	}
