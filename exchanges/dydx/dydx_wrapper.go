@@ -2,7 +2,10 @@ package dydx
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -227,7 +230,7 @@ func (dy *DYDX) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (dy *DYDX) FetchTradablePairs(ctx context.Context, _ asset.Item) ([]currency.Pair, error) {
+func (dy *DYDX) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.Pairs, error) {
 	instruments, err := dy.GetMarkets(ctx, "")
 	if err != nil {
 		return nil, err
@@ -257,62 +260,85 @@ func (dy *DYDX) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (dy *DYDX) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	// NOTE: EXAMPLE FOR GETTING TICKER PRICE
-	/*
-		tickerPrice := new(ticker.Price)
-		tick, err := dy.GetTicker(p.String())
+	fPair, err := dy.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	stats, err := dy.GetMarketStats(ctx, fPair.String(), 1)
+	if err != nil {
+		return nil, err
+	}
+	if len(stats) == 0 {
+		return nil, fmt.Errorf("missing ticker data for instrument %s", fPair.String())
+	}
+	for key, tick := range stats {
+		if !fPair.IsEmpty() && !strings.EqualFold(fPair.String(), key) {
+			continue
+		}
+		cp, err := currency.NewPairFromString(tick.Market)
 		if err != nil {
-			return tickerPrice, err
+			return nil, err
 		}
-		tickerPrice = &ticker.Price{
-			High:    tick.High,
-			Low:     tick.Low,
-			Bid:     tick.Bid,
-			Ask:     tick.Ask,
-			Open:    tick.Open,
-			Close:   tick.Close,
-			Pair:    p,
-		}
-		err = ticker.ProcessTicker(dy.Name, tickerPrice, assetType)
+		err = ticker.ProcessTicker(&ticker.Price{
+			Pair:         cp,
+			High:         tick.High,
+			Low:          tick.Low,
+			Close:        tick.Close,
+			Open:         tick.Open,
+			Volume:       tick.BaseVolume,
+			QuoteVolume:  tick.QuoteVolume,
+			ExchangeName: dy.Name,
+			AssetType:    assetType,
+		})
 		if err != nil {
-			return tickerPrice, err
+			return nil, err
 		}
-	*/
+		if !fPair.IsEmpty() && cp.Equal(fPair) {
+			return ticker.GetTicker(dy.Name, p, assetType)
+		}
+	}
 	return ticker.GetTicker(dy.Name, p, assetType)
 }
 
 // UpdateTickers updates all currency pairs of a given asset type
 func (dy *DYDX) UpdateTickers(ctx context.Context, assetType asset.Item) error {
-	// NOTE: EXAMPLE FOR GETTING TICKER PRICE
-	/*
-			tick, err := dy.GetTickers()
+	pairs, err := dy.GetEnabledPairs(assetType)
+	if err != nil {
+		return err
+	}
+	if !dy.SupportsAsset(assetType) {
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
+	}
+	stats, err := dy.GetMarketStats(ctx, "", 30)
+	if err != nil {
+		return err
+	}
+
+	for x := range stats {
+		pair, err := currency.NewPairFromString(stats[x].Market)
+		if err != nil {
+			return err
+		}
+		for i := range pairs {
+			if !pair.Equal(pairs[i]) {
+				continue
+			}
+			err = ticker.ProcessTicker(&ticker.Price{
+				Pair:         pair,
+				High:         stats[x].High,
+				Low:          stats[x].Low,
+				Close:        stats[x].Close,
+				Open:         stats[x].Open,
+				Volume:       stats[x].BaseVolume,
+				QuoteVolume:  stats[x].QuoteVolume,
+				ExchangeName: dy.Name,
+				AssetType:    assetType,
+			})
 			if err != nil {
 				return err
 			}
-		    for y := range tick {
-		        cp, err := currency.NewPairFromString(tick[y].Symbol)
-		        if err != nil {
-		            return err
-		        }
-		        err = ticker.ProcessTicker(&ticker.Price{
-		            Last:         tick[y].LastPrice,
-		            High:         tick[y].HighPrice,
-		            Low:          tick[y].LowPrice,
-		            Bid:          tick[y].BidPrice,
-		            Ask:          tick[y].AskPrice,
-		            Volume:       tick[y].Volume,
-		            QuoteVolume:  tick[y].QuoteVolume,
-		            Open:         tick[y].OpenPrice,
-		            Close:        tick[y].PrevClosePrice,
-		            Pair:         cp,
-		            ExchangeName: b.Name,
-		            AssetType:    assetType,
-		        })
-		        if err != nil {
-		            return err
-		        }
-		    }
-	*/
+		}
+	}
 	return nil
 }
 
@@ -342,36 +368,17 @@ func (dy *DYDX) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTy
 		Asset:           assetType,
 		VerifyOrderbook: dy.CanVerifyOrderbook,
 	}
-
-	// NOTE: UPDATE ORDERBOOK EXAMPLE
-	/*
-		orderbookNew, err := dy.GetOrderBook(exchange.FormatExchangeCurrency(dy.Name, p).String(), 1000)
-		if err != nil {
-			return book, err
-		}
-
-		book.Bids = make([]orderbook.Item, len(orderbookNew.Bids))
-		for x := range orderbookNew.Bids {
-			book.Bids[x] = orderbook.Item{
-				Amount: orderbookNew.Bids[x].Quantity,
-				Price: orderbookNew.Bids[x].Price,
-			}
-		}
-
-		book.Asks = make([]orderbook.Item, len(orderbookNew.Asks))
-		for x := range orderbookNew.Asks {
-			book.Asks[x] = orderbook.Item{
-				Amount: orderBookNew.Asks[x].Quantity,
-				Price: orderBookNew.Asks[x].Price,
-			}
-		}
-	*/
-
-	err := book.Process()
+	fPair, err := dy.FormatSymbol(pair, assetType)
+	if err != nil {
+		return nil, err
+	}
+	books, err := dy.GetOrderbooks(ctx, fPair)
+	book.Asks = books.Asks.generateOrderbookItem()
+	book.Bids = books.Bids.generateOrderbookItem()
+	err = book.Process()
 	if err != nil {
 		return book, err
 	}
-
 	return orderbook.Get(dy.Name, pair, assetType)
 }
 
@@ -410,12 +417,88 @@ func (dy *DYDX) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a as
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (dy *DYDX) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return nil, common.ErrNotYetImplemented
+	if !dy.SupportsAsset(assetType) {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
+	}
+	format, err := dy.GetPairFormat(assetType, false)
+	if err != nil {
+		return nil, err
+	}
+	if !p.IsPopulated() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	instrumentID := format.Format(p)
+	trades, err := dy.GetTrades(ctx, instrumentID, time.Time{}, 0)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]trade.Data, len(trades))
+	for x := range trades {
+		side, err := order.StringToOrderSide(trades[x].Side)
+		if err != nil {
+			return nil, err
+		}
+		resp[x] = trade.Data{
+			Exchange:     dy.Name,
+			CurrencyPair: p,
+			AssetType:    assetType,
+			Side:         side,
+			Price:        trades[x].Price,
+			Amount:       trades[x].Size,
+			Timestamp:    trades[x].CreatedAt,
+		}
+	}
+	if dy.IsSaveTradeDataEnabled() {
+		err = trade.AddTradesToBuffer(dy.Name, resp...)
+		if err != nil {
+			return nil, err
+		}
+	}
+	sort.Sort(trade.ByDate(resp))
+	return resp, nil
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (dy *DYDX) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
-	return nil, common.ErrNotYetImplemented
+func (dy *DYDX) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, _ time.Time) ([]trade.Data, error) {
+	if !dy.SupportsAsset(assetType) {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
+	}
+	format, err := dy.GetPairFormat(assetType, false)
+	if err != nil {
+		return nil, err
+	}
+	if !p.IsPopulated() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	instrumentID := format.Format(p)
+	trades, err := dy.GetTrades(ctx, instrumentID, timestampStart, 0)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]trade.Data, len(trades))
+	for x := range trades {
+		side, err := order.StringToOrderSide(trades[x].Side)
+		if err != nil {
+			return nil, err
+		}
+		resp[x] = trade.Data{
+			Exchange:     dy.Name,
+			CurrencyPair: p,
+			AssetType:    assetType,
+			Side:         side,
+			Price:        trades[x].Price,
+			Amount:       trades[x].Size,
+			Timestamp:    trades[x].CreatedAt,
+		}
+	}
+	if dy.IsSaveTradeDataEnabled() {
+		err = trade.AddTradesToBuffer(dy.Name, resp...)
+		if err != nil {
+			return nil, err
+		}
+	}
+	sort.Sort(trade.ByDate(resp))
+	return resp, nil
 }
 
 // SubmitOrder submits a new order
@@ -540,10 +623,44 @@ func (dy *DYDX) ValidateCredentials(ctx context.Context, assetType asset.Item) e
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (dy *DYDX) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrNotYetImplemented
+	if err := dy.ValidateKline(pair, a, interval); err != nil {
+		return kline.Item{}, err
+	}
+	if kline.TotalCandlesPerInterval(start, end, interval) > 100 {
+		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
+	}
+	format, err := dy.GetPairFormat(a, false)
+	if err != nil {
+		return kline.Item{}, err
+	}
+	if !pair.IsPopulated() {
+		return kline.Item{}, currency.ErrCurrencyPairEmpty
+	}
+	candles, err := dy.GetCandlesForMarket(ctx, format.Format(pair), interval, "", "", 0)
+	if err != nil {
+		return kline.Item{}, err
+	}
+	response := kline.Item{
+		Exchange: dy.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+	for x := range candles {
+		response.Candles = append(response.Candles, kline.Candle{
+			Time:   candles[x].UpdatedAt,
+			Open:   candles[x].Open,
+			High:   candles[x].High,
+			Low:    candles[x].Low,
+			Close:  candles[x].Close,
+			Volume: candles[x].BaseTokenVolume,
+		})
+	}
+	response.SortCandlesByTimestamp(false)
+	return response, nil
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (dy *DYDX) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrNotYetImplemented
+	return kline.Item{}, common.ErrFunctionNotSupported
 }

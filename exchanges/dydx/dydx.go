@@ -118,9 +118,6 @@ func (dy *DYDX) GetFastWithdrawalLiquidity(ctx context.Context, creditAsset stri
 // GetMarketStats retrives an individual market's statistics over a set period of time or all available periods of time.
 func (dy *DYDX) GetMarketStats(ctx context.Context, instrument string, days int64) (map[string]TickerData, error) {
 	params := url.Values{}
-	if instrument == "" {
-		return nil, errMissingMarketInstrument
-	}
 	if days != 0 {
 		if days != 1 && days != 7 && days != 30 {
 			return nil, errors.New("only 1,7, and 30 days are allowed")

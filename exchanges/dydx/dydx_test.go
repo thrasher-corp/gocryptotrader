@@ -11,6 +11,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
@@ -100,7 +101,8 @@ func TestGetFastWithdrawalLiquidity(t *testing.T) {
 
 func TestGetMarketStats(t *testing.T) {
 	t.Parallel()
-	if _, err := dy.GetMarketStats(context.Background(), "CRV-USD", 7); err != nil {
+	dy.Verbose = true
+	if _, err := dy.GetMarketStats(context.Background(), "", 7); err != nil {
 		t.Error(err)
 	}
 }
@@ -193,5 +195,16 @@ func TestGetPublicProfile(t *testing.T) {
 	t.Parallel()
 	if _, err := dy.GetPublicProfile(context.Background(), "some_public_profile"); err != nil && !strings.Contains(err.Error(), "User not found") {
 		t.Error(err)
+	}
+}
+
+func TestFetchTradablePairs(t *testing.T) {
+	t.Parallel()
+	if pairs, err := dy.FetchTradablePairs(context.Background(), asset.Spot); err != nil {
+		t.Error(err)
+	} else {
+		for x := range pairs {
+			print(pairs[x].String() + ",")
+		}
 	}
 }
