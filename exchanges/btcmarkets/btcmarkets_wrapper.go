@@ -31,6 +31,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+var errFailedToConvertToCandle = errors.New("cannot convert time series data to kline.Candle, insufficient data")
+
 // GetDefaultConfig returns a default exchange config
 func (b *BTCMarkets) GetDefaultConfig() (*config.Exchange, error) {
 	b.SetDefaults()
@@ -1031,7 +1033,7 @@ func (b *BTCMarkets) GetHistoricCandles(ctx context.Context, pair currency.Pair,
 
 	timeSeries := make([]kline.Candle, len(candles))
 	for x := range candles {
-		timeSeries[x], err = convertToKlineCandle(candles[x])
+		timeSeries[x], err = convertToKlineCandle(&candles[x])
 		if err != nil {
 			return nil, err
 		}
@@ -1062,7 +1064,7 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(ctx context.Context, pair curren
 		}
 
 		for i := range candles {
-			elem, err := convertToKlineCandle(candles[i])
+			elem, err := convertToKlineCandle(&candles[i])
 			if err != nil {
 				return nil, err
 			}
@@ -1108,8 +1110,11 @@ func (b *BTCMarkets) UpdateOrderExecutionLimits(ctx context.Context, a asset.Ite
 	return b.LoadLimits(limits)
 }
 
-func convertToKlineCandle(candle [6]string) (kline.Candle, error) {
+func convertToKlineCandle(candle *[6]string) (kline.Candle, error) {
 	var elem kline.Candle
+	if candle == nil {
+		return elem, errFailedToConvertToCandle
+	}
 	var err error
 	elem.Time, err = time.Parse(time.RFC3339, candle[0])
 	if err != nil {

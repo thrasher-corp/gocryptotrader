@@ -1985,7 +1985,7 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 			}
 		case asset.USDTMarginedFutures:
 			var candles []FuturesCandleStick
-			candles, err := by.GetUSDTFuturesKlineData(ctx,
+			candles, err = by.GetUSDTFuturesKlineData(ctx,
 				req.Formatted,
 				by.FormatExchangeKlineIntervalFutures(ctx, req.Outbound),
 				int64(by.Features.Enabled.Kline.ResultLimit),

@@ -85,7 +85,7 @@ func CreateKline(trades []order.TradeHistory, interval Interval, pair currency.P
 				candles[x].Volume += trades[y].Amount
 				continue
 			}
-			// Push foward offset
+			// Push forward offset
 			offset = y
 			break
 		}

@@ -1112,3 +1112,43 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		t.Fatal("expected value return")
 	}
 }
+
+func TestConvertToKlineCandle(t *testing.T) {
+	t.Parallel()
+
+	_, err := convertToKlineCandle(nil)
+	if !errors.Is(err, errFailedToConvertToCandle) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errFailedToConvertToCandle)
+	}
+
+	data := [6]string{time.RFC3339[:len(time.RFC3339)-5], "1.0", "2", "3", "4", "5"}
+
+	candle, err := convertToKlineCandle(&data)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if candle.Time.IsZero() {
+		t.Fatal("time unset")
+	}
+
+	if candle.Open != 1 {
+		t.Fatalf("received: '%v' but expected: '%v'", candle.Open, 1)
+	}
+
+	if candle.High != 2 {
+		t.Fatalf("received: '%v' but expected: '%v'", candle.High, 2)
+	}
+
+	if candle.Low != 3 {
+		t.Fatalf("received: '%v' but expected: '%v'", candle.Low, 3)
+	}
+
+	if candle.Close != 4 {
+		t.Fatalf("received: '%v' but expected: '%v'", candle.Close, 4)
+	}
+
+	if candle.Volume != 5 {
+		t.Fatalf("received: '%v' but expected: '%v'", candle.Volume, 5)
+	}
+}

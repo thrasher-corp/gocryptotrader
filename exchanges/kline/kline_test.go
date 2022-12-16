@@ -1035,3 +1035,12 @@ func TestDeployExchangeIntervals(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", request, OneDay)
 	}
 }
+
+func TestXxx(t *testing.T) {
+	start := time.Date(2022, 3, 6, 0, 0, 0, 0, time.UTC)
+
+	fmt.Println(start)
+	start = start.Truncate(time.Duration(OneWeek))
+
+	fmt.Println(start)
+}
