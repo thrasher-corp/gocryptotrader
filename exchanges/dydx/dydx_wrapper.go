@@ -55,46 +55,13 @@ func (dy *DYDX) SetDefaults() {
 	dy.API.CredentialsValidator.RequiresKey = true
 	dy.API.CredentialsValidator.RequiresSecret = true
 
-	// If using only one pair format for request and configuration, across all
-	// supported asset types either SPOT and FUTURES etc. You can use the
-	// example below:
-
-	// Request format denotes what the pair as a string will be, when you send
-	// a request to an exchange.
-	requestFmt := &currency.PairFormat{ /*Set pair request formatting details here for e.g.*/ Uppercase: true, Delimiter: ":"}
-	// Config format denotes what the pair as a string will be, when saved to
-	// the config.json file.
-	configFmt := &currency.PairFormat{ /*Set pair request formatting details here*/ }
-	err := dy.SetGlobalPairsManager(requestFmt, configFmt /*multiple assets can be set here using the asset package ie asset.Spot*/)
+	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
+	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
+	err := dy.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	// If assets require multiple differences in formating for request and
-	// configuration, another exchange method can be be used e.g. futures
-	// contracts require a dash as a delimiter rather than an underscore. You
-	// can use this example below:
-
-	fmt1 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true},
-	}
-
-	fmt2 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: ":"},
-	}
-
-	err = dy.StoreAssetPairFormat(asset.Spot, fmt1)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = dy.StoreAssetPairFormat(asset.Margin, fmt2)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-
-	// Fill out the capabilities/features that the exchange supports
 	dy.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
@@ -126,19 +93,18 @@ func (dy *DYDX) SetDefaults() {
 			},
 		},
 	}
-	// NOTE: SET THE EXCHANGES RATE LIMIT HERE
 	dy.Requester, err = request.New(dy.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	// NOTE: SET THE URLs HERE
 	dy.API.Endpoints = dy.NewEndpoints()
 	dy.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      dydxAPIURL,
 		exchange.WebsocketSpot: dydxWSAPIURL,
 	})
+
 	dy.Websocket = stream.New()
 	dy.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	dy.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -164,8 +130,6 @@ func (dy *DYDX) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-
-	// If websocket is supported, please fill out the following
 
 	err = dy.Websocket.Setup(
 		&stream.WebsocketSetup{
@@ -391,16 +355,6 @@ func (dy *DYDX) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (dy *DYDX) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	// Example implementation below:
-	// 	creds, err := dy.GetCredentials(ctx)
-	// 	if err != nil {
-	// 		return account.Holdings{}, err
-	// 	}
-	// 	acc, err := account.GetHoldings(dy.Name, creds, assetType)
-	// 	if err != nil {
-	// 		return dy.UpdateAccountInfo(ctx, assetType)
-	// 	}
-	// 	return acc, nil
 	return account.Holdings{}, common.ErrNotYetImplemented
 }
 
@@ -624,6 +578,10 @@ func (dy *DYDX) ValidateCredentials(ctx context.Context, assetType asset.Item) e
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (dy *DYDX) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	if err := dy.ValidateKline(pair, a, interval); err != nil {
+		return kline.Item{}, err
+	}
+	pair, err := dy.FormatExchangeCurrency(pair, a)
+	if err != nil {
 		return kline.Item{}, err
 	}
 	if kline.TotalCandlesPerInterval(start, end, interval) > 100 {

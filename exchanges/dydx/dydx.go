@@ -46,7 +46,34 @@ const (
 	publicProifle                  = "profile/%s" // profile/:publicId
 
 	// Authenticated endpoints
-
+	onboarding                      = "onboarding"
+	recovery                        = "recovery"
+	registration                    = "registration"
+	apiKeys                         = "api-keys"
+	users                           = "users"
+	userActiveLinks                 = "users/links"
+	userPendingLinkRequests         = "users/links/requests"
+	accounts                        = "accounts"
+	accountIDs                      = "accounts/:%s"                             // accounts/:id
+	accountLeaderBoardPNL           = "accounts/leaderboard-pnl/:%s"             // accounts/leaderboard-pnl/:period
+	accountHistoricalLeaderboardPNL = "accounts/historical-leaderboard-pnls/:%s" // accounts/historical-leaderboard-pnls/:period
+	positions                       = "positions"
+	transfers                       = "transfers"
+	withdrawals                     = "withdrawals"
+	orders                          = "orders"
+	orderByID                       = "orders/:%s"        // orders/:id
+	activeOrders                    = "active-orders"     // active-orders
+	orderClientID                   = "orders/client/:%s" // orders/client/:id
+	fills                           = "fills"
+	funding                         = "funding"
+	historicalPNL                   = "historical-pnl"
+	rewardsWeight                   = "rewards/weight"
+	rewardsLiquidityProvider        = "rewards/liquidity-provider"
+	reqardLiquidity                 = "rewards/liquidity"
+	rewardsRetroactiveMining        = "rewards/retroactive-mining"
+	emailsSendVeroficationEmail     = "emails/send-verification-email"
+	testnetTokens                   = "testnet/tokens"
+	privateProfile                  = "profile/private"
 )
 
 var (
@@ -82,7 +109,7 @@ func (dy *DYDX) GetTrades(ctx context.Context, instrument string, startingBefore
 		return nil, errMissingMarketInstrument
 	}
 	if !startingBeforeOrAT.IsZero() {
-		params.Set("startingBeforeOrAt", startingBeforeOrAT.String())
+		params.Set("startingBeforeOrAt", startingBeforeOrAT.Format("2021-09-05T17:33:43.163Z"))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))

@@ -10,9 +10,11 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -46,7 +48,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	setupWS()
 	os.Exit(m.Run())
 }
 
@@ -200,11 +202,127 @@ func TestGetPublicProfile(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	if pairs, err := dy.FetchTradablePairs(context.Background(), asset.Spot); err != nil {
+	if _, err := dy.FetchTradablePairs(context.Background(), asset.Spot); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	t.Parallel()
+	pair := currency.NewPair(currency.BTC, currency.USD)
+	startTime := time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
+	endTime := time.Date(2021, 2, 15, 0, 0, 0, 0, time.UTC)
+	_, err := dy.GetHistoricCandles(context.Background(), pair, asset.Spot, startTime, endTime, kline.Interval(time.Hour*5))
+	if err != nil && !strings.Contains(err.Error(), "interval not supported") {
+		t.Errorf("%s GetHistoricCandles() expected %s, but found %v", "interval not supported", dy.Name, err)
+	}
+	_, err = dy.GetHistoricCandles(context.Background(), pair, asset.Spot, time.Time{}, time.Time{}, kline.Interval(time.Hour*4))
+	if err != nil {
+		t.Errorf("%s GetHistoricCandles() error %s", err, dy.Name)
+	}
+}
+
+func TestGetHistoricTrades(t *testing.T) {
+	t.Parallel()
+	if _, err := dy.GetHistoricTrades(context.Background(), currency.NewPair(currency.BTC, currency.USD), asset.Spot, time.Time{} /*Now().Add(-time.Minute*4)*/, time.Now().Add(-time.Minute*2)); err != nil {
+		t.Errorf("%s GetHistoricTrades() error %v", dy.Name, err)
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	t.Parallel()
+	if _, err := dy.GetRecentTrades(context.Background(), currency.NewPair(currency.BTC, currency.USD), asset.Spot); err != nil {
+		t.Errorf("%s GetRecentTrades() error %s", dy.Name, err)
+	}
+}
+
+func TestUpdateOrderbook(t *testing.T) {
+	t.Parallel()
+	if _, err := dy.UpdateOrderbook(context.Background(), currency.NewPair(currency.BTC, currency.NewCode("USD")), asset.Spot); err != nil {
+		t.Errorf("%s UpdateOrderbook() error %s", err, dy.Name)
+	}
+}
+
+func TestFetchOrderbook(t *testing.T) {
+	t.Parallel()
+	if _, err := dy.FetchOrderbook(context.Background(), currency.NewPair(currency.BTC, currency.USD), asset.Spot); err != nil {
+		t.Errorf("%v FetchOrderbook() error %v", dy.Name, err)
+	}
+}
+
+func TestFetchTicker(t *testing.T) {
+	t.Parallel()
+	if _, err := dy.FetchTicker(context.Background(), currency.NewPair(currency.BTC, currency.USD), asset.Spot); err != nil {
+		t.Errorf("%s FetchTicker() error %v", dy.Name, err)
+	}
+}
+
+func TestUpdateTickers(t *testing.T) {
+	t.Parallel()
+	if err := dy.UpdateTickers(context.Background(), asset.Spot); err != nil {
+		t.Errorf("%s UpdateTicker() error %v", dy.Name, err)
+	}
+}
+
+func TestUpdateTicker(t *testing.T) {
+	t.Parallel()
+	if _, err := dy.UpdateTicker(context.Background(), currency.NewPair(currency.BTC, currency.USD), asset.Spot); err != nil {
+		t.Errorf("%s UpdateTicker() error %v", dy.Name, err)
+	}
+}
+
+func TestUpdateTradablePairs(t *testing.T) {
+	t.Parallel()
+	if err := dy.UpdateTradablePairs(context.Background(), true); err != nil {
+		t.Errorf("%s UpdateTradablePairs() error %v", dy.Name, err)
+	}
+}
+
+func TestWsConnect(t *testing.T) {
+	t.Parallel()
+	dy.Verbose = true
+	if err := dy.WsConnect(); err != nil {
+		t.Error(err)
+	}
+}
+
+func setupWS() {
+	if !dy.Websocket.IsEnabled() {
+		return
+	}
+	if !areTestAPIKeysSet() {
+		dy.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	}
+	err := dy.WsConnect()
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func TestGenerateDefaultSubscriptions(t *testing.T) {
+	t.Parallel()
+	if subscriptions, err := dy.GenerateDefaultSubscriptions(); err != nil {
 		t.Error(err)
 	} else {
-		for x := range pairs {
-			print(pairs[x].String() + ",")
+		for x := range subscriptions {
+			val, _ := json.Marshal(subscriptions[x])
+			println(string(val))
 		}
+	}
+}
+
+func TestSubscribe(t *testing.T) {
+	t.Parallel()
+	if err := dy.Subscribe([]stream.ChannelSubscription{
+		{
+			Channel: "v3_orderbook",
+			Currency: currency.Pair{
+				Base:      currency.LTC,
+				Delimiter: currency.DashDelimiter,
+				Quote:     currency.USD,
+			},
+		},
+	}); err != nil {
+		t.Error(err)
 	}
 }

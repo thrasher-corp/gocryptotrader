@@ -1351,15 +1351,28 @@
         }
     },
     "api": {
-     "authenticatedSupport": false,
-     "authenticatedWebsocketApiSupport": false,
+     "authenticatedSupport": true,
+     "authenticatedWebsocketApiSupport": true,
      "credentials": {
       "key": "Key",
       "secret": "Secret"
      },
      "urlEndpoints": null
     },
-    "features": null,
+    "features": {
+        "supports": {
+            "restAPI": true,
+            "restCapabilities": {
+            "autoPairUpdates": true
+            },
+            "websocketAPI": true,
+            "websocketCapabilities": {}
+        },
+        "enabled": {
+            "autoPairUpdates": true,
+            "websocketAPI": true
+          }
+        },
     "orderbook": {
      "verificationBypass": false,
      "websocketBufferLimit": 0,
