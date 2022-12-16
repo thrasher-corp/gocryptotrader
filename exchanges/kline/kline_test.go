@@ -240,6 +240,14 @@ func TestDurationToWord(t *testing.T) {
 			OneMonth,
 		},
 		{
+			"ThreeMonth",
+			ThreeMonth,
+		},
+		{
+			"SixMonth",
+			SixMonth,
+		},
+		{
 			"OneYear",
 			OneYear,
 		},

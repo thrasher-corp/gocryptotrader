@@ -270,6 +270,10 @@ func durationToWord(in Interval) string {
 		return "twoweek"
 	case OneMonth:
 		return "onemonth"
+	case ThreeMonth:
+		return "threemonth"
+	case SixMonth:
+		return "sixmonth"
 	case OneYear:
 		return "oneyear"
 	default:
@@ -318,6 +322,10 @@ func TotalCandlesPerInterval(start, end time.Time, interval Interval) (out float
 		return end.Sub(start).Hours() / (24 * 14)
 	case OneMonth:
 		return end.Sub(start).Hours() / (24 * 30)
+	case ThreeMonth:
+		return end.Sub(start).Hours() / (24 * 90)
+	case SixMonth:
+		return end.Sub(start).Hours() / (24 * 180)
 	case OneYear:
 		return end.Sub(start).Hours() / 8760
 	}

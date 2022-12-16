@@ -32,8 +32,8 @@ const (
 	OneWeek       = 7 * OneDay
 	TwoWeek       = 2 * OneWeek
 	OneMonth      = 31 * OneDay
-	ThreeMonth    = 3 * OneMonth
-	SixMonth      = 6 * OneMonth
+	ThreeMonth    = 90 * OneDay
+	SixMonth      = 2 * ThreeMonth
 	OneYear       = 365 * OneDay
 )
 
