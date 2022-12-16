@@ -92,6 +92,19 @@ func TestCreateKlineRequest(t *testing.T) {
 	if r.Formatted.String() != "BTCUSDT" {
 		t.Fatalf("received: '%v' but expected: '%v'", r.Formatted.String(), "BTCUSDT")
 	}
+
+	// Check end date/time shift if the request time is mid candle and not
+	// aligned correctly.
+	end = end.Round(0)
+	end = end.Add(time.Second * 30)
+	r, err = CreateKlineRequest("name", pair, pair2, asset.Spot, OneHour, OneMin, start, end)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v', but expected '%v'", err, nil)
+	}
+
+	if !r.End.Equal(end.Add(OneHour.Duration() - (time.Second * 30))) {
+		t.Fatalf("received: '%v', but expected '%v'", r.End, end.Add(OneHour.Duration()-(time.Second*30)))
+	}
 }
 
 func TestGetRanges(t *testing.T) {

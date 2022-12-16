@@ -20,14 +20,24 @@ var (
 // Request is a helper to request and convert time series to a required candle
 // interval.
 type Request struct {
-	Name      string
-	Pair      currency.Pair
+	// Name refers to the exchange name
+	Name string
+	// Pair refers to the currency pair
+	Pair currency.Pair
+	// Formatted refers to the currency pair formatted by the exchange asset
+	// for outbound requests
 	Formatted currency.Pair
-	Asset     asset.Item
-	Outbound  Interval
-	Required  Interval
-	Start     time.Time
-	End       time.Time
+	// Asset refers to the asset type
+	Asset asset.Item
+	// Outbound refers to the interval that is used to construct the required
+	// interval this will be less than or equal to the required interval.
+	Outbound Interval
+	// Required refers to the actual required interval needed
+	Required Interval
+	// Start is the start time aligned to UTC and to the Required interval candle
+	Start time.Time
+	// End is the end time aligned to UTC and to the Required interval candle
+	End time.Time
 }
 
 // CreateKlineRequest generates a `Request` type for interval conversions
@@ -55,9 +65,27 @@ func CreateKlineRequest(name string, pair, formatted currency.Pair, a asset.Item
 	if err != nil {
 		return nil, err
 	}
-	// Force alignment to request interval
-	start = start.Truncate(outbound.Duration())
-	end = end.Truncate(outbound.Duration())
+
+	// Force UTC alignment
+	start = start.UTC()
+	end = end.UTC()
+
+	// Force alignment to required interval which is the higher time value e.g.
+	// 1hr required as opposed to 1min request/outbound interval used to
+	// construct the higher time value candle. This is to make sure there are
+	// minimal missing candles which is used to create the bigger candle.
+	start = start.Truncate(required.Duration())
+
+	// Strip montonic clock reading for comparison
+	end = end.Round(0)
+
+	endTrunc := end.Truncate(required.Duration())
+	// Check to see if truncation moves end time and if so we want to make sure
+	// the candle period is included on the end.
+	forward := endTrunc.Add(required.Duration())
+	if !endTrunc.Equal(end) && !forward.After(time.Now()) {
+		end = forward
+	}
 	return &Request{name, pair, formatted, a, outbound, required, start, end}, nil
 }
 
