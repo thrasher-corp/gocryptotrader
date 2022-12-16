@@ -213,7 +213,7 @@ func (d *Deribit) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (d *Deribit) FetchTradablePairs(ctx context.Context, assetType asset.Item) ([]currency.Pair, error) {
+func (d *Deribit) FetchTradablePairs(ctx context.Context, assetType asset.Item) (currency.Pairs, error) {
 	if !d.SupportsAsset(assetType) {
 		return nil, fmt.Errorf("%s: %w - %s", d.Name, asset.ErrNotSupported, assetType.String())
 	}
