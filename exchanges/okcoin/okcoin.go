@@ -6,6 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/url"
+	"reflect"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/google/go-querystring/query"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -13,12 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
-	"net/http"
-	"net/url"
-	"reflect"
-	"strconv"
-	"strings"
-	"time"
 )
 
 const (
@@ -90,6 +91,9 @@ func (o *OKCoin) GetAccountCurrencies(ctx context.Context) ([]GetAccountCurrenci
 	for i := range respData {
 		var mw float64
 		mw, err = strconv.ParseFloat(respData[i].MinWithdrawal, 64)
+		if err != nil {
+			return nil, err
+		}
 		resp[i] = GetAccountCurrenciesResponse{
 			Name:          respData[i].Name,
 			Currency:      respData[i].Currency,

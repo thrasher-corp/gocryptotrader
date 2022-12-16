@@ -256,7 +256,7 @@ func TestHTMLScrapeDefault(t *testing.T) {
 		DateFormat:    "2006-01-02",
 		RegExp:        "(2\\d{3}-\\d{1,2}-\\d{1,2})",
 		CheckString:   "2019-04-28",
-		Path:          "https://www.o.com/docs/en/#change-change"}
+		Path:          "https://www.okcoin.com/docs/en/#change-change"}
 	_, err := htmlScrapeDefault(&data)
 	if err != nil {
 		t.Error(err)

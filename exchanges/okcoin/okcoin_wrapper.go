@@ -4,11 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"sort"
 	"strconv"
 	"strings"
@@ -16,18 +11,23 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -609,7 +609,11 @@ func (o *OKCoin) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory,
 	if err != nil {
 		return nil, err
 	}
-	resp := make([]exchange.FundHistory, len(accountDepositHistory))
+	accountWithdrawlHistory, err := o.GetAccountWithdrawalHistory(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]exchange.FundHistory, len(accountDepositHistory)+len(accountWithdrawlHistory))
 	for x := range accountDepositHistory {
 		orderStatus := ""
 		switch accountDepositHistory[x].Status {
@@ -621,7 +625,7 @@ func (o *OKCoin) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory,
 			orderStatus = "recharge success"
 		}
 
-		resp = append(resp, exchange.FundHistory{
+		resp[x] = exchange.FundHistory{
 			Amount:       accountDepositHistory[x].Amount,
 			Currency:     accountDepositHistory[x].Currency,
 			ExchangeName: o.Name,
@@ -629,11 +633,11 @@ func (o *OKCoin) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory,
 			Timestamp:    accountDepositHistory[x].Timestamp,
 			TransferID:   accountDepositHistory[x].TransactionID,
 			TransferType: "deposit",
-		})
+		}
 	}
-	accountWithdrawlHistory, err := o.GetAccountWithdrawalHistory(ctx, "")
+
 	for i := range accountWithdrawlHistory {
-		resp = append(resp, exchange.FundHistory{
+		resp[len(accountDepositHistory)+i] = exchange.FundHistory{
 			Amount:       accountWithdrawlHistory[i].Amount,
 			Currency:     accountWithdrawlHistory[i].Currency,
 			ExchangeName: o.Name,
@@ -641,7 +645,7 @@ func (o *OKCoin) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory,
 			Timestamp:    accountWithdrawlHistory[i].Timestamp,
 			TransferID:   accountWithdrawlHistory[i].TransactionID,
 			TransferType: "withdrawal",
-		})
+		}
 	}
 	return resp, nil
 }

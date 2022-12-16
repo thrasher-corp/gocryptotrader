@@ -2,10 +2,11 @@ package okcoin
 
 import (
 	"errors"
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"sync"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 var errNoAccountDepositAddress = errors.New("no account deposit address")
