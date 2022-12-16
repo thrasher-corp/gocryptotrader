@@ -39,7 +39,12 @@ func CreateKline(trades []order.TradeHistory, interval Interval, pair currency.P
 	}
 
 	// Assuming the first trade is *actually* the first trade executed via
-	// matching engine within this candle.
+	// matching engine within this candle. e.g. For a block of trades that takes
+	// place from 12:30 to 17:30 UTC, the data will be converted into hourly
+	// candles that are aligned with UTC. The resulting candles will have an
+	// open time of 12:00 and a close time of 17:59.9999 (17:00 open time). This
+	// means that the first and last candles in this 6-hour window will have
+	// half an hour of trading activity missing.
 	timeSeriesStart := trades[0].Timestamp.Truncate(interval.Duration())
 
 	// Assuming the last trade is *actually* the last trade executed via
