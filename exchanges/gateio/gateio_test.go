@@ -90,18 +90,11 @@ func getFirstTradablePair(t *testing.T, a asset.Item) (currency.Pair, error) {
 	if len(pairs) == 0 {
 		t.Skip("No tradable pairs found for asset ")
 	}
-	if len(pairs[0]) < 3 {
+	if pairs[0].IsEmpty() {
 		return currency.EMPTYPAIR, fmt.Errorf("invalid currency pair string %s", pairs[0])
 	}
-	ps := strings.Split(strings.ToUpper(pairs[0]), currency.UnderscoreDelimiter)
-	if len(ps) < 2 {
-		return currency.EMPTYPAIR, fmt.Errorf("invalid currency pair string %s", pairs[0])
-	}
-	return currency.Pair{
-		Base:      currency.NewCode(ps[0]),
-		Quote:     currency.NewCode(strings.Join(ps[1:], currency.UnderscoreDelimiter)),
-		Delimiter: currency.UnderscoreDelimiter,
-	}, nil
+	pairs[0].Delimiter = currency.UnderscoreDelimiter
+	return pairs[0], nil
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
@@ -262,7 +255,7 @@ func TestGetMarketTrades(t *testing.T) {
 	if err != nil {
 		t.Skip(err)
 	}
-	if _, err := g.GetMarketTrades(context.Background(), pairs[0], 0, "", true, time.Time{}, time.Time{}, 1); err != nil {
+	if _, err := g.GetMarketTrades(context.Background(), pairs[0].String(), 0, "", true, time.Time{}, time.Time{}, 1); err != nil {
 		t.Errorf("%s GetMarketTrades() error %v", g.Name, err)
 	}
 }
@@ -273,7 +266,7 @@ func TestGetCandlesticks(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err := g.GetCandlesticks(context.Background(), pairs[0], 0, time.Time{}, time.Time{}, kline.OneDay); err != nil {
+	if _, err := g.GetCandlesticks(context.Background(), pairs[0].String(), 0, time.Time{}, time.Time{}, kline.OneDay); err != nil {
 		t.Errorf("%s GetCandlesticks() error %v", g.Name, err)
 	}
 }
@@ -1025,7 +1018,7 @@ func TestGetMarginSupportedCurrencyPair(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err := g.GetMarginSupportedCurrencyPair(context.Background(), pairs[0]); err != nil {
+	if _, err := g.GetMarginSupportedCurrencyPair(context.Background(), pairs[0].String()); err != nil {
 		t.Errorf("%s GetMarginSupportedCurrencyPair() error %v", g.Name, err)
 	}
 }
@@ -1694,7 +1687,7 @@ func TestGetSingleDeliveryContracts(t *testing.T) {
 	if len(instruments) == 0 {
 		t.Skip("no instrument found")
 	}
-	if _, err := g.GetSingleDeliveryContracts(context.Background(), settleBTC, instruments[0]); err != nil {
+	if _, err := g.GetSingleDeliveryContracts(context.Background(), settleBTC, instruments[0].String()); err != nil {
 		t.Errorf("%s GetSingleDeliveryContracts() error %v", g.Name, err)
 	}
 }
@@ -1708,7 +1701,7 @@ func TestGetDeliveryOrderbook(t *testing.T) {
 	if len(instruments) == 0 {
 		t.Skip("no instrument found")
 	}
-	if _, err := g.GetDeliveryOrderbook(context.Background(), settleBTC, instruments[0], "0", 0, false); err != nil {
+	if _, err := g.GetDeliveryOrderbook(context.Background(), settleBTC, instruments[0].String(), "0", 0, false); err != nil {
 		t.Errorf("%s GetDeliveryOrderbook() error %v", g.Name, err)
 	}
 }
@@ -1722,7 +1715,7 @@ func TestGetDeliveryTradingHistory(t *testing.T) {
 	if len(instruments) == 0 {
 		t.Skip("no instrument found")
 	}
-	if _, err := g.GetDeliveryTradingHistory(context.Background(), settleBTC, instruments[0], 0, "", time.Time{}, time.Time{}); err != nil {
+	if _, err := g.GetDeliveryTradingHistory(context.Background(), settleBTC, instruments[0].String(), 0, "", time.Time{}, time.Time{}); err != nil {
 		t.Errorf("%s GetDeliveryTradingHistory() error %v", g.Name, err)
 	}
 }
@@ -1735,7 +1728,7 @@ func TestGetDeliveryFuturesCandlesticks(t *testing.T) {
 	if len(instruments) == 0 {
 		t.Skip("no instrument found")
 	}
-	if _, err := g.GetDeliveryFuturesCandlesticks(context.Background(), settleBTC, instruments[0], time.Time{}, time.Time{}, 0, kline.OneWeek); err != nil {
+	if _, err := g.GetDeliveryFuturesCandlesticks(context.Background(), settleBTC, instruments[0].String(), time.Time{}, time.Time{}, 0, kline.OneWeek); err != nil {
 		t.Errorf("%s GetFuturesCandlesticks() error %v", g.Name, err)
 	}
 }
@@ -1873,7 +1866,7 @@ func TestGetOptionsSpecifiedContractDetail(t *testing.T) {
 	if len(pairs) == 0 {
 		t.Skip(errors.New("no options contract found"))
 	}
-	if _, err := g.GetOptionsSpecifiedContractDetail(context.Background(), pairs[0]); err != nil {
+	if _, err := g.GetOptionsSpecifiedContractDetail(context.Background(), pairs[0].String()); err != nil {
 		t.Errorf("%s GetOptionsSpecifiedContractDetail() error %v", g.Name, err)
 	}
 }
@@ -2066,11 +2059,7 @@ func TestCancelOptionOpenOrders(t *testing.T) {
 	if len(pairs) == 0 {
 		t.Skip("No tradable pairs found")
 	}
-	pair, err := currency.NewPairFromString(pairs[0])
-	if err != nil {
-		t.Skip(err)
-	}
-	if _, err := g.CancelMultipleOptionOpenOrders(context.Background(), pair, "", ""); err != nil && !strings.Contains(err.Error(), "INVALID_KEY") {
+	if _, err := g.CancelMultipleOptionOpenOrders(context.Background(), pairs[0], "", ""); err != nil && !strings.Contains(err.Error(), "INVALID_KEY") {
 		t.Errorf("%s CancelOptionOpenOrders() error %v", g.Name, err)
 	}
 }
@@ -2170,7 +2159,7 @@ func TestGetOptionFuturesCandlesticks(t *testing.T) {
 	if len(pairs) == 0 {
 		t.Skip("No options tradable pairs found")
 	}
-	if _, err := g.GetOptionFuturesCandlesticks(context.Background(), pairs[0], 0, time.Time{}, time.Time{}, kline.ThirtyDay); err != nil {
+	if _, err := g.GetOptionFuturesCandlesticks(context.Background(), pairs[0].String(), 0, time.Time{}, time.Time{}, kline.OneMonth); err != nil {
 		t.Errorf("%s GetOptionFuturesCandlesticks() error %v", g.Name, err)
 	}
 }
@@ -2191,7 +2180,7 @@ func TestGetOptionsTradeHistory(t *testing.T) {
 	if len(pairs) == 0 {
 		t.Skip("No options tradable pairs found")
 	}
-	if _, err := g.GetOptionsTradeHistory(context.Background(), pairs[0], "C", 0, 0, time.Time{}, time.Time{}); err != nil {
+	if _, err := g.GetOptionsTradeHistory(context.Background(), pairs[0].String(), "C", 0, 0, time.Time{}, time.Time{}); err != nil {
 		t.Errorf("%s GetOptionsTradeHistory() error %v", g.Name, err)
 	}
 }

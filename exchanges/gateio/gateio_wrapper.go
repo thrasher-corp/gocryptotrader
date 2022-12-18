@@ -384,7 +384,7 @@ func (g *Gateio) FetchTicker(ctx context.Context, p currency.Pair, assetType ass
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, error) {
+func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if !g.SupportsAsset(a) {
 		return nil, fmt.Errorf("%s does not support %s", g.Name, a)
 	}
@@ -394,13 +394,17 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 		if err != nil {
 			return nil, err
 		}
-		pairs := make([]string, 0, len(tradables))
+		pairs := make([]currency.Pair, 0, len(tradables))
 		for x := range tradables {
 			p := strings.ToUpper(tradables[x].Base + currency.UnderscoreDelimiter + tradables[x].Quote)
 			if !g.IsValidPairString(p) {
 				continue
 			}
-			pairs = append(pairs, p)
+			cp, err := currency.NewPairFromString(p)
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, cp)
 		}
 		return pairs, nil
 	case asset.Margin, asset.CrossMargin:
@@ -408,13 +412,17 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 		if err != nil {
 			return nil, err
 		}
-		pairs := []string{}
+		pairs := []currency.Pair{}
 		for x := range tradables {
 			p := strings.ToUpper(tradables[x].Base + currency.UnderscoreDelimiter + tradables[x].Quote)
 			if !g.IsValidPairString(p) {
 				continue
 			}
-			pairs = append(pairs, p)
+			cp, err := currency.NewPairFromString(p)
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, cp)
 		}
 		return pairs, nil
 	case asset.Futures:
@@ -427,13 +435,17 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 			return nil, err
 		}
 		btcContracts = append(btcContracts, usdtContracts...)
-		pairs := []string{}
+		pairs := []currency.Pair{}
 		for x := range btcContracts {
 			p := strings.ToUpper(btcContracts[x].Name)
 			if !g.IsValidPairString(p) {
 				continue
 			}
-			pairs = append(pairs, p)
+			cp, err := currency.NewPairFromString(p)
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, cp)
 		}
 		return pairs, nil
 	case asset.DeliveryFutures:
@@ -451,13 +463,17 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 		}
 		btcContracts = append(btcContracts, usdtContracts...)
 		btcContracts = append(btcContracts, usdContracts...)
-		pairs := []string{}
+		pairs := []currency.Pair{}
 		for x := range btcContracts {
 			p := strings.ToUpper(btcContracts[x].Name)
 			if !g.IsValidPairString(p) {
 				continue
 			}
-			pairs = append(pairs, p)
+			cp, err := currency.NewPairFromString(p)
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, cp)
 		}
 		return pairs, nil
 	case asset.Options:
@@ -465,7 +481,7 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 		if err != nil {
 			return nil, err
 		}
-		pairs := []string{}
+		pairs := []currency.Pair{}
 		for x := range underlyings {
 			contracts, err := g.GetAllContractOfUnderlyingWithinExpiryDate(ctx, underlyings[x].Name, time.Time{})
 			if err != nil {
@@ -475,7 +491,11 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 				if !g.IsValidPairString(contracts[c].Name) {
 					continue
 				}
-				pairs = append(pairs, strings.ToUpper(contracts[c].Name))
+				cp, err := currency.NewPairFromString(contracts[c].Name)
+				if err != nil {
+					return nil, err
+				}
+				pairs = append(pairs, cp)
 			}
 		}
 		return pairs, nil
@@ -493,14 +513,10 @@ func (g *Gateio) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 		if err != nil {
 			return err
 		}
-		p, err := currency.NewPairsFromStrings(pairs)
-		p = p.Upper()
-		if err != nil {
-			return err
-		} else if len(p) == 0 {
+		if len(pairs) == 0 {
 			continue
 		}
-		err = g.UpdatePairs(p, assets[x], false, forceUpdate)
+		err = g.UpdatePairs(pairs, assets[x], false, forceUpdate)
 		if err != nil {
 			return err
 		}
@@ -1261,17 +1277,13 @@ func (g *Gateio) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.Ca
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
-		currencyPairs, err := currency.NewPairsFromStrings(contracts)
-		if err != nil {
-			return cancelAllOrdersResponse, err
-		}
-		for i := range currencyPairs {
-			if !strings.EqualFold(currencyPairs[i].Quote.String(), currency.USD.String()) &&
-				!strings.EqualFold(currencyPairs[i].Quote.String(), currency.USDT.String()) &&
-				!strings.EqualFold(currencyPairs[i].Quote.String(), currency.BTC.String()) {
+		for i := range contracts {
+			if !strings.EqualFold(contracts[i].Quote.String(), currency.USD.String()) &&
+				!strings.EqualFold(contracts[i].Quote.String(), currency.USDT.String()) &&
+				!strings.EqualFold(contracts[i].Quote.String(), currency.BTC.String()) {
 				continue
 			}
-			cancel, err := g.CancelMultipleFuturesOpenOrders(ctx, currencyPairs[i], o.Side.Lower(), currencyPairs[i].Quote.String())
+			cancel, err := g.CancelMultipleFuturesOpenOrders(ctx, contracts[i], o.Side.Lower(), contracts[i].Quote.String())
 			if err != nil && len(cancelAllOrdersResponse.Status) != 0 {
 				return cancelAllOrdersResponse, err
 			}
@@ -1284,17 +1296,13 @@ func (g *Gateio) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.Ca
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
-		currencyPairs, err := currency.NewPairsFromStrings(contracts)
-		if err != nil {
-			return cancelAllOrdersResponse, err
-		}
-		for i := range currencyPairs {
-			if !strings.EqualFold(currencyPairs[i].Quote.String(), currency.USD.String()) &&
-				!strings.EqualFold(currencyPairs[i].Quote.String(), currency.USDT.String()) &&
-				!strings.EqualFold(currencyPairs[i].Quote.String(), currency.BTC.String()) {
+		for i := range contracts {
+			if !strings.EqualFold(contracts[i].Quote.String(), currency.USD.String()) &&
+				!strings.EqualFold(contracts[i].Quote.String(), currency.USDT.String()) &&
+				!strings.EqualFold(contracts[i].Quote.String(), currency.BTC.String()) {
 				continue
 			}
-			cancel, err := g.CancelMultipleDeliveryOrders(ctx, currencyPairs[i], o.Side.Lower(), currencyPairs[i].Quote.String())
+			cancel, err := g.CancelMultipleDeliveryOrders(ctx, contracts[i], o.Side.Lower(), contracts[i].Quote.String())
 			if err != nil && len(cancelAllOrdersResponse.Status) != 0 {
 				return cancelAllOrdersResponse, err
 			}
@@ -1307,12 +1315,8 @@ func (g *Gateio) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.Ca
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
-		currencyPairs, err := currency.NewPairsFromStrings(contracts)
-		if err != nil {
-			return cancelAllOrdersResponse, err
-		}
-		for i := range currencyPairs {
-			cancel, err := g.CancelMultipleOptionOpenOrders(ctx, currencyPairs[i], currencyPairs[i].String(), o.Side.Lower())
+		for i := range contracts {
+			cancel, err := g.CancelMultipleOptionOpenOrders(ctx, contracts[i], contracts[i].String(), o.Side.Lower())
 			if err != nil && len(cancelAllOrdersResponse.Status) != 0 {
 				return cancelAllOrdersResponse, err
 			}
@@ -1561,12 +1565,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 	case asset.Futures, asset.DeliveryFutures:
 		var pairs []currency.Pair
 		if len(req.Pairs) == 0 {
-			var pairStrings []string
-			pairStrings, err = g.FetchTradablePairs(ctx, req.AssetType)
-			if err != nil {
-				return nil, err
-			}
-			pairs, err = currency.NewPairsFromStrings(pairStrings)
+			pairs, err = g.FetchTradablePairs(ctx, req.AssetType)
 			if err != nil {
 				return nil, err
 			}
