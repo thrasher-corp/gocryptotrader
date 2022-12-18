@@ -130,7 +130,7 @@ func (g *Gateio) SetDefaults() {
 					kline.TwelveHour.Word():           true,
 					kline.OneDay.Word():               true,
 					kline.OneWeek.Word():              true,
-					kline.ThirtyDay.Word():            true,
+					kline.OneMonth.Word():             true,
 				},
 				ResultLimit: 1000,
 			},

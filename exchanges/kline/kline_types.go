@@ -15,7 +15,7 @@ const (
 	ThousandMilliseconds = 10 * HundredMilliseconds
 	TenSecond            = Interval(10 * time.Second)
 	FifteenSecond        = Interval(15 * time.Second)
-	ThirtySecond         = FifteenSecond * 2
+	ThirtySecond         = 2 * FifteenSecond
 	OneMin               = Interval(time.Minute)
 	ThreeMin             = 3 * OneMin
 	FiveMin              = 5 * OneMin
@@ -29,13 +29,15 @@ const (
 	EightHour            = 8 * OneHour
 	TwelveHour           = 12 * OneHour
 	OneDay               = 24 * OneHour
+	TwoDay               = 2 * OneDay
 	ThreeDay             = 3 * OneDay
 	SevenDay             = 7 * OneDay
 	FifteenDay           = 15 * OneDay
 	OneWeek              = 7 * OneDay
 	TwoWeek              = 2 * OneWeek
-	ThirtyDay            = 30 * OneDay
 	OneMonth             = 31 * OneDay
+	ThreeMonth           = 90 * OneDay
+	SixMonth             = 2 * ThreeMonth
 	OneYear              = 365 * OneDay
 )
 

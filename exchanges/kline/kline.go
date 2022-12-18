@@ -232,6 +232,12 @@ func (k *Item) FormatDates() {
 // durationToWord returns english version of interval
 func durationToWord(in Interval) string {
 	switch in {
+	case HundredMilliseconds:
+		return "hundredmillisec"
+	case ThousandMilliseconds:
+		return "thausandmillisec"
+	case TenSecond:
+		return "tensec"
 	case FifteenSecond:
 		return "fifteensecond"
 	case OneMin:
@@ -270,6 +276,10 @@ func durationToWord(in Interval) string {
 		return "twoweek"
 	case OneMonth:
 		return "onemonth"
+	case ThreeMonth:
+		return "threemonth"
+	case SixMonth:
+		return "sixmonth"
 	case OneYear:
 		return "oneyear"
 	default:
@@ -280,6 +290,12 @@ func durationToWord(in Interval) string {
 // TotalCandlesPerInterval turns total candles per period for interval
 func TotalCandlesPerInterval(start, end time.Time, interval Interval) (out float64) {
 	switch interval {
+	case HundredMilliseconds:
+		return float64(end.Sub(start).Milliseconds() / 100)
+	case ThousandMilliseconds:
+		return float64(end.Sub(start).Microseconds() / 1)
+	case TenSecond:
+		return end.Sub(start).Seconds() / 10
 	case FifteenSecond:
 		return end.Sub(start).Seconds() / 15
 	case OneMin:
@@ -318,6 +334,10 @@ func TotalCandlesPerInterval(start, end time.Time, interval Interval) (out float
 		return end.Sub(start).Hours() / (24 * 14)
 	case OneMonth:
 		return end.Sub(start).Hours() / (24 * 30)
+	case ThreeMonth:
+		return end.Sub(start).Hours() / (24 * 90)
+	case SixMonth:
+		return end.Sub(start).Hours() / (24 * 180)
 	case OneYear:
 		return end.Sub(start).Hours() / 8760
 	}

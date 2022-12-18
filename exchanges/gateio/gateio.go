@@ -343,7 +343,7 @@ func (g *Gateio) GetIntervalString(interval kline.Interval) (string, error) {
 		return "1d", nil
 	case kline.SevenDay:
 		return "7d", nil
-	case kline.ThirtyDay, kline.OneMonth:
+	case kline.OneMonth:
 		return "30d", nil
 	default:
 		return "", kline.ErrUnsupportedInterval
@@ -380,7 +380,7 @@ func (g *Gateio) GetIntervalFromString(interval string) (kline.Interval, error) 
 	case "7d":
 		return kline.SevenDay, nil
 	case "30d":
-		return kline.ThirtyDay, nil
+		return kline.OneMonth, nil
 	case "100ms":
 		return kline.HundredMilliseconds, nil
 	case "1000ms":
