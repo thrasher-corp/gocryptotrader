@@ -585,9 +585,9 @@ func (m *syncManager) controller() {
 					lastUpdatedIsZero = c.Trade.LastUpdated.IsZero()
 					if m.config.SynchronizeTrades &&
 						!m.isProcessing(exchangeName, c.Pair, c.AssetType, SyncItemTrade) &&
-						(lastUpdatedIsZero && !usingWebsocket) ||
+						((lastUpdatedIsZero && !usingWebsocket) ||
 						(!lastUpdatedIsZero && time.Since(c.Trade.LastUpdated) >= m.config.TimeoutREST) ||
-						(!lastUpdatedIsZero && time.Since(c.Ticker.LastUpdated) >= m.config.TimeoutWebsocket && usingWebsocket) {
+						(!lastUpdatedIsZero && time.Since(c.Ticker.LastUpdated) >= m.config.TimeoutWebsocket && usingWebsocket)) {
 						m.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemTrade, true)
 						m.jobs <- syncJob{
 							exch:  exchanges[x],
