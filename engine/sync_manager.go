@@ -532,8 +532,8 @@ func (m *syncManager) controller() {
 					if m.config.SynchronizeOrderbook &&
 						!m.isProcessing(exchangeName, c.Pair, c.AssetType, SyncItemOrderbook) &&
 						((lastUpdatedIsZero && !usingWebsocket) ||
-						(!lastUpdatedIsZero && time.Since(c.Orderbook.LastUpdated) >= m.config.TimeoutREST && usingREST) ||
-						(!lastUpdatedIsZero && time.Since(c.Orderbook.LastUpdated) >= m.config.TimeoutWebsocket && usingWebsocket)) {
+							(!lastUpdatedIsZero && time.Since(c.Orderbook.LastUpdated) >= m.config.TimeoutREST && usingREST) ||
+							(!lastUpdatedIsZero && time.Since(c.Orderbook.LastUpdated) >= m.config.TimeoutWebsocket && usingWebsocket)) {
 						if usingWebsocket && supportsREST {
 							c.Orderbook.IsUsingWebsocket = false
 							c.Orderbook.IsUsingREST = true
@@ -559,8 +559,8 @@ func (m *syncManager) controller() {
 					if m.config.SynchronizeTicker &&
 						!m.isProcessing(exchangeName, c.Pair, c.AssetType, SyncItemTicker) &&
 						((lastUpdatedIsZero && !usingWebsocket) ||
-						(!lastUpdatedIsZero && time.Since(c.Ticker.LastUpdated) >= m.config.TimeoutREST && usingREST) ||
-						(!lastUpdatedIsZero && time.Since(c.Ticker.LastUpdated) >= m.config.TimeoutWebsocket && usingWebsocket)) {
+							(!lastUpdatedIsZero && time.Since(c.Ticker.LastUpdated) >= m.config.TimeoutREST && usingREST) ||
+							(!lastUpdatedIsZero && time.Since(c.Ticker.LastUpdated) >= m.config.TimeoutWebsocket && usingWebsocket)) {
 						if usingWebsocket && supportsREST {
 							c.Ticker.IsUsingWebsocket = false
 							c.Ticker.IsUsingREST = true
@@ -586,8 +586,8 @@ func (m *syncManager) controller() {
 					if m.config.SynchronizeTrades &&
 						!m.isProcessing(exchangeName, c.Pair, c.AssetType, SyncItemTrade) &&
 						((lastUpdatedIsZero && !usingWebsocket) ||
-						(!lastUpdatedIsZero && time.Since(c.Trade.LastUpdated) >= m.config.TimeoutREST) ||
-						(!lastUpdatedIsZero && time.Since(c.Ticker.LastUpdated) >= m.config.TimeoutWebsocket && usingWebsocket)) {
+							(!lastUpdatedIsZero && time.Since(c.Trade.LastUpdated) >= m.config.TimeoutREST) ||
+							(!lastUpdatedIsZero && time.Since(c.Ticker.LastUpdated) >= m.config.TimeoutWebsocket && usingWebsocket)) {
 						m.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemTrade, true)
 						m.jobs <- syncJob{
 							exch:  exchanges[x],

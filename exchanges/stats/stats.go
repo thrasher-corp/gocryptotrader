@@ -22,46 +22,19 @@ type item struct {
 
 // items holds a match lookup and alignment
 var items = struct {
+	// The bucket field is a slice containing all ticker items that have been updated.
 	bucket []item
-	match  map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*item
-	mu     sync.Mutex
+	// The match field is a map that allows for fast lookup of ticker items by address.
+	match map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*item
+	// The mu field is a mutex used to synchronize access to the bucket and match fields.
+	mu sync.Mutex
 }{
 	match: make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*item),
 }
 
-// ByPrice allows sorting by price
-type ByPrice []item
-
-func (b ByPrice) Len() int {
-	return len(b)
-}
-
-func (b ByPrice) Less(i, j int) bool {
-	return b[i].Price < b[j].Price
-}
-
-func (b ByPrice) Swap(i, j int) {
-	b[i], b[j] = b[j], b[i]
-}
-
-// ByVolume allows sorting by volume
-type ByVolume []item
-
-func (b ByVolume) Len() int {
-	return len(b)
-}
-
-func (b ByVolume) Less(i, j int) bool {
-	return b[i].Volume < b[j].Volume
-}
-
-func (b ByVolume) Swap(i, j int) {
-	b[i], b[j] = b[j], b[i]
-}
-
 // Add adds or updates the item stats
 func Add(exchName string, p currency.Pair, a asset.Item, price, volume float64) error {
-	if exchName == "" ||  !p.IsPopulated() || !a.IsValid() || price <= 0 || volume <= 0 {
+	if exchName == "" || !p.IsPopulated() || !a.IsValid() || price <= 0 || volume <= 0 {
 		return errInvalidParams
 	}
 
@@ -106,7 +79,10 @@ func update(exchName string, p currency.Pair, a asset.Item, price, volume float6
 		data.Volume = volume
 		return
 	}
+	// If not found append item to the bucket list
 	items.bucket = append(items.bucket, item{exchName, p, a, price, volume})
+	// Take last address entered and use for lookup table item for faster
+	// matching.
 	m3[p.Quote.Item] = &items.bucket[len(items.bucket)-1]
 }
 
@@ -114,21 +90,23 @@ func update(exchName string, p currency.Pair, a asset.Item, price, volume float6
 // currency pair and asset type. Reverse will reverse the order from lowest to
 // highest
 func SortExchangesByVolume(p currency.Pair, a asset.Item, reverse bool) []item {
+	// NOTE: Opted to not pre-alloc here because its only going to be the number
+	// of enabled exchanges and the underlying bucket can be in excess of
+	// thousands.
+	var result []item
 	items.mu.Lock()
-	defer items.mu.Unlock()
-
-	result := make(ByVolume, 0, len(items.bucket))
 	for x := range items.bucket {
 		if items.bucket[x].Pair.EqualIncludeReciprocal(p) &&
 			items.bucket[x].AssetType == a {
 			result = append(result, items.bucket[x])
 		}
 	}
+	items.mu.Unlock()
 
 	if reverse {
-		sort.Sort(sort.Reverse(result))
+		sort.Slice(result, func(i, j int) bool { return result[i].Volume > result[j].Volume })
 	} else {
-		sort.Sort(result)
+		sort.Slice(result, func(i, j int) bool { return result[i].Volume < result[j].Volume })
 	}
 	return result
 }
@@ -137,21 +115,23 @@ func SortExchangesByVolume(p currency.Pair, a asset.Item, reverse bool) []item {
 // currency pair and asset type. Reverse will reverse the order from lowest to
 // highest
 func SortExchangesByPrice(p currency.Pair, a asset.Item, reverse bool) []item {
+	// NOTE: Opted to not pre-alloc here because its only going to be the number
+	// of enabled exchanges and the underlying bucket can be in excess of
+	// thousands.
+	var result []item
 	items.mu.Lock()
-	defer items.mu.Unlock()
-
-	result := make(ByPrice, 0, len(items.bucket))
 	for x := range items.bucket {
 		if items.bucket[x].Pair.EqualIncludeReciprocal(p) &&
 			items.bucket[x].AssetType == a {
 			result = append(result, items.bucket[x])
 		}
 	}
+	items.mu.Unlock()
 
 	if reverse {
-		sort.Sort(sort.Reverse(result))
+		sort.Slice(result, func(i, j int) bool { return result[i].Price > result[j].Price })
 	} else {
-		sort.Sort(result)
+		sort.Slice(result, func(i, j int) bool { return result[i].Price < result[j].Price })
 	}
 	return result
 }
