@@ -51,7 +51,7 @@ func (a *WsMarginTradeOrderEntersEvent) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &chil); err != nil {
 		return err
 	}
-	a.Timestamp = time.UnixMicro(chil.TimestampNS / 1000)
+	a.Timestamp = time.Unix(0, chil.TimestampNS)
 	return nil
 }
 
@@ -67,7 +67,7 @@ func (a *WsMarginTradeOrderDoneEvent) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &chil); err != nil {
 		return err
 	}
-	a.Timestamp = time.UnixMicro(chil.TimestampNS / 1000)
+	a.Timestamp = time.Unix(0, chil.TimestampNS)
 	return nil
 }
 
@@ -84,8 +84,8 @@ func (a *WsStopOrder) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &chil); err != nil {
 		return err
 	}
-	a.Timestamp = time.UnixMicro(chil.TimestampNS / 1000)
-	a.CreatedAt = time.UnixMicro(chil.CreatedAt / 1000)
+	a.Timestamp = time.Unix(0, chil.TimestampNS)
+	a.CreatedAt = time.Unix(0, chil.CreatedAt)
 	return nil
 }
 
@@ -101,7 +101,7 @@ func (a *WsMarginFundingBook) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &chil); err != nil {
 		return err
 	}
-	a.Timestamp = time.UnixMicro(chil.TimestampNS / 1000)
+	a.Timestamp = time.Unix(0, chil.TimestampNS)
 	return nil
 }
 
@@ -151,7 +151,7 @@ func (a *WsFuturesTicker) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &chil); err != nil {
 		return err
 	}
-	a.FilledTime = time.UnixMicro(chil.FilledTime / 1e3)
+	a.FilledTime = time.Unix(0, chil.FilledTime)
 	return nil
 }
 
@@ -183,7 +183,7 @@ func (a *WsFuturesExecutionData) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &chil); err != nil {
 		return err
 	}
-	a.Time = time.UnixMicro(chil.Time / 1e3)
+	a.Time = time.Unix(0, chil.Time)
 	return nil
 }
 
@@ -215,7 +215,7 @@ func (a *WsFuturesTransactionStatisticsTimeEvent) UnmarshalJSON(data []byte) err
 	if err := json.Unmarshal(data, &chil); err != nil {
 		return err
 	}
-	a.SnapshotTime = time.UnixMicro(chil.SnapshotTime / 1e3)
+	a.SnapshotTime = time.Unix(0, chil.SnapshotTime)
 	return nil
 }
 
@@ -232,8 +232,8 @@ func (a *WsFuturesTradeOrder) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &chil); err != nil {
 		return err
 	}
-	a.Timestamp = time.UnixMicro(chil.Timestamp / 1e3)
-	a.OrderTime = time.UnixMicro(chil.OrderTime / 1e3)
+	a.Timestamp = time.Unix(0, chil.Timestamp)
+	a.OrderTime = time.Unix(0, chil.OrderTime)
 	return nil
 }
 
@@ -351,7 +351,7 @@ func (a *WsFuturesPositionFundingSettlement) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	a.FundingTime = time.UnixMilli(chil.FundingTime)
-	a.CurrentTimestamp = time.UnixMicro(chil.CurrentTimestamp / 1e3)
+	a.CurrentTimestamp = time.Unix(0, chil.CurrentTimestamp)
 	return nil
 }
 
@@ -383,6 +383,6 @@ func (a *WsOrderbookLevel5) UnmarshalJSON(data []byte) error {
 			Amount: chil.Bids[x][1],
 		}
 	}
-	a.Timestamp = time.UnixMicro(chil.Timestamp / 1e3)
+	a.Timestamp = time.Unix(0, chil.Timestamp)
 	return nil
 }

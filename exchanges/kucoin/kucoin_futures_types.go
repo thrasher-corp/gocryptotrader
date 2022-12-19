@@ -83,14 +83,11 @@ type FuturesTicker struct {
 }
 
 type futuresOrderbookResponse struct {
-	Data struct {
-		Asks     [][2]float64      `json:"asks"`
-		Bids     [][2]float64      `json:"bids"`
-		Time     kucoinTimeNanoSec `json:"ts"`
-		Sequence int64             `json:"sequence"`
-		Symbol   string            `json:"symbol"`
-	} `json:"data"`
-	Error
+	Asks     [][2]float64      `json:"asks"`
+	Bids     [][2]float64      `json:"bids"`
+	Time     kucoinTimeNanoSec `json:"ts"`
+	Sequence int64             `json:"sequence"`
+	Symbol   string            `json:"symbol"`
 }
 
 // FuturesTrade stores trade data
@@ -266,9 +263,9 @@ type FuturesPosition struct {
 type FuturesRiskLimitLevel struct {
 	Symbol         string  `json:"symbol"`
 	Level          int64   `json:"level"`
-	MaxRiskLimit   int64   `json:"maxRiskLimit"`
-	MinRiskLimit   int64   `json:"minRiskLimit"`
-	MaxLeverage    int64   `json:"maxLeverage"`
+	MaxRiskLimit   float64 `json:"maxRiskLimit"`
+	MinRiskLimit   float64 `json:"minRiskLimit"`
+	MaxLeverage    float64 `json:"maxLeverage"`
 	InitialMargin  float64 `json:"initialMargin"`
 	MaintainMargin float64 `json:"maintainMargin"`
 }

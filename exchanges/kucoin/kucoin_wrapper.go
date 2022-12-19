@@ -1139,7 +1139,7 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.G
 		log.Errorf(log.ExchangeSys, "%s %v", ku.Name, err)
 	}
 	order.FilterOrdersByPairs(&orders, getOrdersRequest.Pairs)
-	return orders, nil
+	return getOrdersRequest.Filter(ku.Name, orders), nil
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
@@ -1325,7 +1325,7 @@ func (ku *Kucoin) GetAvailableTransferChains(ctx context.Context, cryptocurrency
 	if cryptocurrency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	currencyDetail, err := ku.GetCurrency(ctx, cryptocurrency.String(), "")
+	currencyDetail, err := ku.GetCurrencyDetail(ctx, cryptocurrency.String(), "")
 	if err != nil {
 		return nil, err
 	}

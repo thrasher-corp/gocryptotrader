@@ -320,12 +320,12 @@ func (ku *Kucoin) processFuturesAccountBalanceEvent(respData []byte) error {
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
-	ku.Websocket.DataHandler <- []account.Change{{
+	ku.Websocket.DataHandler <- account.Change{
 		Exchange: ku.Name,
 		Currency: currency.NewCode(resp.Currency),
 		Asset:    asset.Futures,
 		Amount:   resp.AvailableBalance,
-	}}
+	}
 	return nil
 }
 
@@ -350,15 +350,14 @@ func (ku *Kucoin) processFuturesStopOrderLifecycleEvent(respData []byte) error {
 		Price:        resp.OrderPrice,
 		TriggerPrice: resp.StopPrice,
 		Amount:       resp.Size,
-		// AverageExecutedPrice: response.,
-		Exchange:    ku.Name,
-		OrderID:     resp.OrderID,
-		Type:        oType,
-		Side:        side,
-		AssetType:   asset.Futures,
-		Date:        resp.CreatedAt,
-		LastUpdated: resp.Timestamp,
-		Pair:        pair,
+		Exchange:     ku.Name,
+		OrderID:      resp.OrderID,
+		Type:         oType,
+		Side:         side,
+		AssetType:    asset.Futures,
+		Date:         resp.CreatedAt,
+		LastUpdated:  resp.Timestamp,
+		Pair:         pair,
 	}
 	return nil
 }
@@ -559,13 +558,12 @@ func (ku *Kucoin) processAccountBalanceChange(respData []byte) error {
 	if err != nil {
 		return err
 	}
-	ku.Websocket.DataHandler <- []account.Change{
-		{
-			Exchange: ku.Name,
-			Currency: currency.NewCode(response.Currency),
-			Asset:    asset.Futures,
-			Amount:   response.Available,
-		}}
+	ku.Websocket.DataHandler <- account.Change{
+		Exchange: ku.Name,
+		Currency: currency.NewCode(response.Currency),
+		Asset:    asset.Futures,
+		Amount:   response.Available,
+	}
 	return nil
 }
 

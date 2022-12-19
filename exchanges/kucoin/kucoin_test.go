@@ -28,6 +28,9 @@ const (
 	apiSecret               = ""
 	passPhrase              = ""
 	canManipulateRealOrders = false
+
+	cantManipulateRealOrdersOrCredentialsNotSet = "either API keys are missing or canManipulateRealOrders not enabled"
+	credentialsNotSet                           = "credentials not set"
 )
 
 var ku Kucoin
@@ -84,7 +87,6 @@ func TestGetSymbols(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-
 	_, err := ku.GetTicker(context.Background(), "BTC-USDT")
 	if err != nil {
 		t.Error("GetTicker() error", err)
@@ -93,7 +95,6 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetAllTickers(t *testing.T) {
 	t.Parallel()
-
 	_, err := ku.GetAllTickers(context.Background())
 	if err != nil {
 		t.Error("GetAllTickers() error", err)
@@ -176,12 +177,12 @@ func TestGetCurrencies(t *testing.T) {
 
 func TestGetCurrency(t *testing.T) {
 	t.Parallel()
-	_, err := ku.GetCurrency(context.Background(), "BTC", "")
+	_, err := ku.GetCurrencyDetail(context.Background(), "BTC", "")
 	if err != nil {
 		t.Error("GetCurrency() error", err)
 	}
 
-	_, err = ku.GetCurrency(context.Background(), "BTC", "ETH")
+	_, err = ku.GetCurrencyDetail(context.Background(), "BTC", "ETH")
 	if err != nil {
 		t.Error("GetCurrency() error", err)
 	}
@@ -1742,7 +1743,7 @@ func TestGetRecentTrades(t *testing.T) {
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.Limit,
@@ -1759,7 +1760,7 @@ func TestGetOrderHistory(t *testing.T) {
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credentialsNotSet)
 	}
 	enabledPairs, err := ku.GetEnabledPairs(asset.Spot)
 	if err != nil {
@@ -1783,7 +1784,7 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetFeeByType(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credentialsNotSet)
 	}
 	if _, err := ku.GetFeeByType(context.Background(), &exchange.FeeBuilder{
 		Amount:              1,
@@ -1800,7 +1801,7 @@ func TestGetFeeByType(t *testing.T) {
 func TestValidateCredentials(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credentialsNotSet)
 	}
 	if ku.ValidateCredentials(context.Background(), asset.Spot) != ku.ValidateCredentials(context.Background(), asset.Futures) {
 		t.Errorf("%s ValidateCredentials() error", ku.Name)
@@ -2178,7 +2179,7 @@ func TestGenerateDefaultSubscriptions(t *testing.T) {
 func TestGetAvailableTransferChains(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credentialsNotSet)
 	}
 	if _, err := ku.GetAvailableTransferChains(context.Background(), currency.BTC); err != nil {
 		t.Error(err)
@@ -2188,7 +2189,7 @@ func TestGetAvailableTransferChains(t *testing.T) {
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credentialsNotSet)
 	}
 	if _, err := ku.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot); err != nil {
 		t.Errorf("%s GetWithdrawalsHistory() error %v", ku.Name, err)
@@ -2205,7 +2206,7 @@ func TestGetOrderInfo(t *testing.T) {
 		t.Error("couldn't find enabled tradable pairs")
 	}
 	if len(enabled) == 0 {
-		t.SkipNow()
+		t.Skip(cantManipulateRealOrdersOrCredentialsNotSet)
 	}
 	_, err = ku.GetOrderInfo(context.Background(), "123", enabled[0], asset.Spot)
 	if err != nil && !strings.Contains(err.Error(), "order not exist.") {
@@ -2216,7 +2217,7 @@ func TestGetOrderInfo(t *testing.T) {
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip(credentialsNotSet)
 	}
 	if _, err := ku.GetDepositAddress(context.Background(), currency.BTC, "", ""); err != nil && errors.Is(err, errNoDepositAddress) {
 		t.Error("Kucoin GetDepositAddress() error", err)
@@ -2226,7 +2227,7 @@ func TestGetDepositAddress(t *testing.T) {
 func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.SkipNow()
+		t.Skip(cantManipulateRealOrdersOrCredentialsNotSet)
 	}
 	withdrawCryptoRequest := withdraw.Request{
 		Exchange: ku.Name,
@@ -2244,7 +2245,7 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.SkipNow()
+		t.Skip(cantManipulateRealOrdersOrCredentialsNotSet)
 	}
 	var orderSubmission = &order.Submit{
 		Pair: currency.Pair{
@@ -2268,7 +2269,7 @@ func TestSubmitOrder(t *testing.T) {
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.SkipNow()
+		t.Skip(cantManipulateRealOrdersOrCredentialsNotSet)
 	}
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
@@ -2285,7 +2286,7 @@ func TestCancelOrder(t *testing.T) {
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.SkipNow()
+		t.Skip(cantManipulateRealOrdersOrCredentialsNotSet)
 	}
 	if _, err := ku.CancelAllOrders(context.Background(), &order.Cancel{
 		AssetType:  asset.Margin,
@@ -2293,4 +2294,7 @@ func TestCancelAllOrders(t *testing.T) {
 	}); err != nil {
 		t.Errorf("%s CancelAllOrders() error: %v", ku.Name, err)
 	}
+}
+
+func TestUnix(t *testing.T) {
 }

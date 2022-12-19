@@ -22,6 +22,7 @@ var (
 	errMalformedData           = errors.New("malformed data")
 	errNoDepositAddress        = errors.New("no deposit address found")
 	errMultipleDepositAddress  = errors.New("multiple deposit addresses")
+	errInvalidResultInterface  = errors.New("result interface has to be pointer")
 )
 
 var offlineTradeFee = map[currency.Code]float64{
@@ -285,13 +286,10 @@ type Orderbook struct {
 }
 
 type orderbookResponse struct {
-	Data struct {
-		Asks     [][2]string        `json:"asks"`
-		Bids     [][2]string        `json:"bids"`
-		Time     kucoinTimeMilliSec `json:"time"`
-		Sequence string             `json:"sequence"`
-	} `json:"data"`
-	Error
+	Asks     [][2]string        `json:"asks"`
+	Bids     [][2]string        `json:"bids"`
+	Time     kucoinTimeMilliSec `json:"time"`
+	Sequence string             `json:"sequence"`
 }
 
 // Trade stores trade data
@@ -1279,4 +1277,10 @@ type IsolatedMarginBorrowing struct {
 	OrderID    string  `json:"orderId"`
 	Currency   string  `json:"currency"`
 	ActualSize float64 `json:"actualSize,string"`
+}
+
+// Response represents response model and implements UnmarshalTo interface.
+type Response struct {
+	Data interface{} `json:"data"`
+	Error
 }
