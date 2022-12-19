@@ -37,6 +37,8 @@ const (
 	// Loan sides
 	sideLend   = "lend"
 	sideBorrow = "borrow"
+
+	forceUpdate = false
 )
 
 // TimeInterval vars

@@ -44,7 +44,7 @@ func (g *Gateio) GetDefaultConfig() (*config.Exchange, error) {
 	}
 
 	if g.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = g.UpdateTradablePairs(context.TODO(), true)
+		err = g.UpdateTradablePairs(context.TODO(), forceUpdate)
 		if err != nil {
 			return nil, err
 		}
@@ -221,11 +221,10 @@ func (g *Gateio) Run() {
 	if g.Verbose {
 		g.PrintEnabledPairs()
 	}
-
 	if !g.GetEnabledFeatures().AutoPairUpdates {
 		return
 	}
-	err := g.UpdateTradablePairs(context.TODO(), false)
+	err := g.UpdateTradablePairs(context.TODO(), forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", g.Name, err)
 	}
