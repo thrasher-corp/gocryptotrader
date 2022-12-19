@@ -558,9 +558,9 @@ func (m *syncManager) controller() {
 					lastUpdatedIsZero = c.Ticker.LastUpdated.IsZero()
 					if m.config.SynchronizeTicker &&
 						!m.isProcessing(exchangeName, c.Pair, c.AssetType, SyncItemTicker) &&
-						(lastUpdatedIsZero && !usingWebsocket) ||
+						((lastUpdatedIsZero && !usingWebsocket) ||
 						(!lastUpdatedIsZero && time.Since(c.Ticker.LastUpdated) >= m.config.TimeoutREST && usingREST) ||
-						(!lastUpdatedIsZero && time.Since(c.Ticker.LastUpdated) >= m.config.TimeoutWebsocket && usingWebsocket) {
+						(!lastUpdatedIsZero && time.Since(c.Ticker.LastUpdated) >= m.config.TimeoutWebsocket && usingWebsocket)) {
 						if usingWebsocket && supportsREST {
 							c.Ticker.IsUsingWebsocket = false
 							c.Ticker.IsUsingREST = true
