@@ -371,7 +371,7 @@ func (m *syncManager) setProcessing(exchangeName string, p currency.Pair, a asse
 	}
 }
 
-// Update notifies the syncManager to change the last updated time for a exchange asset pair
+// Update notifies the syncManager to change the last updated time for an exchange asset pair
 func (m *syncManager) Update(exchangeName string, p currency.Pair, a asset.Item, syncType int, incomingErr error) error {
 	if m == nil {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", ErrNilSubsystem)
