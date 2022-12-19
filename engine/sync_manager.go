@@ -531,9 +531,9 @@ func (m *syncManager) controller() {
 					lastUpdatedIsZero := c.Orderbook.LastUpdated.IsZero()
 					if m.config.SynchronizeOrderbook &&
 						!m.isProcessing(exchangeName, c.Pair, c.AssetType, SyncItemOrderbook) &&
-						(lastUpdatedIsZero && !usingWebsocket) ||
+						((lastUpdatedIsZero && !usingWebsocket) ||
 						(!lastUpdatedIsZero && time.Since(c.Orderbook.LastUpdated) >= m.config.TimeoutREST && usingREST) ||
-						(!lastUpdatedIsZero && time.Since(c.Orderbook.LastUpdated) >= m.config.TimeoutWebsocket && usingWebsocket) {
+						(!lastUpdatedIsZero && time.Since(c.Orderbook.LastUpdated) >= m.config.TimeoutWebsocket && usingWebsocket)) {
 						if usingWebsocket && supportsREST {
 							c.Orderbook.IsUsingWebsocket = false
 							c.Orderbook.IsUsingREST = true
