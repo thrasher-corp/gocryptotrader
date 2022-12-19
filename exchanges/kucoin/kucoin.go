@@ -1680,7 +1680,7 @@ func (ku *Kucoin) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path 
 	var resp UnmarshalTo
 	_, okay := result.(UnmarshalTo)
 	if okay {
-		resp = result.(UnmarshalTo)
+		resp, _ = result.(UnmarshalTo)
 	} else {
 		resp = &Response{Data: result}
 	}
@@ -1717,7 +1717,7 @@ func (ku *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, m
 	var resp UnmarshalTo
 	_, okay := result.(UnmarshalTo)
 	if okay {
-		resp = result.(UnmarshalTo)
+		resp, _ = result.(UnmarshalTo)
 	} else {
 		resp = &Response{Data: result}
 	}

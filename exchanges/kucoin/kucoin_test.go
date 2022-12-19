@@ -29,8 +29,8 @@ const (
 	passPhrase              = ""
 	canManipulateRealOrders = false
 
-	cantManipulateRealOrdersOrCredentialsNotSet = "either API keys are missing or canManipulateRealOrders not enabled"
-	credentialsNotSet                           = "credentials not set"
+	cantManipulateRealOrdersOrKeysNotSet = "either API keys are missing or canManipulateRealOrders not enabled"
+	credentialsNotSet                    = "credentials not set"
 )
 
 var ku Kucoin
@@ -2206,7 +2206,7 @@ func TestGetOrderInfo(t *testing.T) {
 		t.Error("couldn't find enabled tradable pairs")
 	}
 	if len(enabled) == 0 {
-		t.Skip(cantManipulateRealOrdersOrCredentialsNotSet)
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 	_, err = ku.GetOrderInfo(context.Background(), "123", enabled[0], asset.Spot)
 	if err != nil && !strings.Contains(err.Error(), "order not exist.") {
@@ -2227,7 +2227,7 @@ func TestGetDepositAddress(t *testing.T) {
 func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip(cantManipulateRealOrdersOrCredentialsNotSet)
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 	withdrawCryptoRequest := withdraw.Request{
 		Exchange: ku.Name,
@@ -2245,7 +2245,7 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip(cantManipulateRealOrdersOrCredentialsNotSet)
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 	var orderSubmission = &order.Submit{
 		Pair: currency.Pair{
@@ -2269,7 +2269,7 @@ func TestSubmitOrder(t *testing.T) {
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip(cantManipulateRealOrdersOrCredentialsNotSet)
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
@@ -2286,7 +2286,7 @@ func TestCancelOrder(t *testing.T) {
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip(cantManipulateRealOrdersOrCredentialsNotSet)
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 	if _, err := ku.CancelAllOrders(context.Background(), &order.Cancel{
 		AssetType:  asset.Margin,
