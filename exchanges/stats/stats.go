@@ -61,7 +61,7 @@ func (b ByVolume) Swap(i, j int) {
 
 // Add adds or updates the item stats
 func Add(exchName string, p currency.Pair, a asset.Item, price, volume float64) error {
-	if exchName == "" || p.Base.IsEmpty() || p.Quote.IsEmpty() || !a.IsValid() || price <= 0 || volume <= 0 {
+	if exchName == "" ||  !p.IsPopulated() || !a.IsValid() || price <= 0 || volume <= 0 {
 		return errInvalidParams
 	}
 
