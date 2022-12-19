@@ -466,7 +466,7 @@ func (m *syncManager) controller() {
 			supportsREST := exchanges[x].SupportsREST()
 
 			usingWebsocket := exchanges[x].SupportsWebsocket() && exchanges[x].IsWebsocketEnabled()
-			if exchanges[x].SupportsWebsocket() && exchanges[x].IsWebsocketEnabled() {
+			if usingWebsocket {
 				ws, err := exchanges[x].GetWebsocket()
 				if err != nil {
 					log.Errorf(log.SyncMgr, "%s unable to get websocket pointer. Err: %s", exchangeName, err)
