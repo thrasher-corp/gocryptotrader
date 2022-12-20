@@ -18,6 +18,7 @@ type syncBase struct {
 	LastUpdated      time.Time
 	HaveData         bool
 	NumErrors        int
+	mu               sync.Mutex
 }
 
 // currencyPairSyncAgent stores the sync agent info
@@ -55,7 +56,6 @@ type syncManager struct {
 	websocketRoutineManagerEnabled bool
 	mu                             sync.Mutex
 	initSyncWG                     sync.WaitGroup
-	inService                      sync.WaitGroup
 
 	currencyPairs            map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]*currencyPairSyncAgent
 	tickerBatchLastRequested map[string]map[asset.Item]time.Time
@@ -68,7 +68,9 @@ type syncManager struct {
 	createdCounter int64
 	removedCounter int64
 
-	jobs chan syncJob
+	orderbookJobs chan syncJob
+	tickerJobs    chan syncJob
+	tradeJobs     chan syncJob
 }
 
 // syncJob defines a potential REST synchronization job
