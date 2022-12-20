@@ -594,8 +594,8 @@ func formatParameters(request interface{}) string {
 		return ""
 	}
 	resp := v.Encode()
-	if len(resp) == 0 {
-		return ""
+	if resp == "" {
+		return resp
 	}
 	return "?" + resp
 }
