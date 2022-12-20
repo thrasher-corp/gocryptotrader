@@ -25,6 +25,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem/synchronize"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -53,7 +54,7 @@ func (bot *Engine) GetSubsystemsStatus() map[string]bool {
 		PortfolioManagerName:          bot.portfolioManager.IsRunning(),
 		NTPManagerName:                bot.ntpManager.IsRunning(),
 		DatabaseConnectionManagerName: bot.DatabaseManager.IsRunning(),
-		SyncManagerName:               bot.Settings.EnableExchangeSyncManager,
+		synchronize.SyncManagerName:   bot.Settings.EnableExchangeSyncManager,
 		grpcName:                      bot.Settings.EnableGRPC,
 		grpcProxyName:                 bot.Settings.EnableGRPCProxy,
 		vm.Name:                       bot.gctScriptManager.IsRunning(),
@@ -183,10 +184,10 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 			return bot.DatabaseManager.Start(&bot.ServicesWG)
 		}
 		return bot.DatabaseManager.Stop()
-	case SyncManagerName:
+	case synchronize.SyncManagerName:
 		if enable {
 			if bot.currencyPairSyncer == nil {
-				exchangeSyncCfg := &SyncManagerConfig{
+				exchangeSyncCfg := &synchronize.SyncManagerConfig{
 					SynchronizeTicker:       bot.Settings.EnableTickerSyncing,
 					SynchronizeOrderbook:    bot.Settings.EnableOrderbookSyncing,
 					SynchronizeTrades:       bot.Settings.EnableTradeSyncing,
@@ -197,7 +198,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 					FiatDisplayCurrency:     bot.Config.Currency.FiatDisplayCurrency,
 					Verbose:                 bot.Settings.Verbose,
 				}
-				bot.currencyPairSyncer, err = setupSyncManager(
+				bot.currencyPairSyncer, err = synchronize.SetupSyncManager(
 					exchangeSyncCfg,
 					bot.ExchangeManager,
 					&bot.Config.RemoteControl,

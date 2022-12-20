@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem/synchronize"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -207,7 +208,7 @@ func (m *websocketRoutineManager) websocketDataHandler(exchName string, data int
 			err := m.syncer.Update(exchName,
 				d.Pair,
 				d.AssetType,
-				SyncItemTicker,
+				synchronize.SyncItemTicker,
 				nil)
 			if err != nil {
 				return err
@@ -235,7 +236,7 @@ func (m *websocketRoutineManager) websocketDataHandler(exchName string, data int
 			err := m.syncer.Update(exchName,
 				base.Pair,
 				base.Asset,
-				SyncItemOrderbook,
+				synchronize.SyncItemOrderbook,
 				nil)
 			if err != nil {
 				return err

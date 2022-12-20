@@ -1,4 +1,4 @@
-package engine
+package synchronize
 
 import (
 	"context"
@@ -43,8 +43,8 @@ var (
 	errSyncerNotFound     = errors.New("sync agent not found")
 )
 
-// setupSyncManager starts a new CurrencyPairSyncer
-func setupSyncManager(c *SyncManagerConfig, exchangeManager subsystem.ExchangeManager, remoteConfig *config.RemoteControlConfig, websocketRoutineManagerEnabled bool) (*syncManager, error) {
+// SetupSyncManager starts a new CurrencyPairSyncer
+func SetupSyncManager(c *SyncManagerConfig, exchangeManager subsystem.ExchangeManager, remoteConfig *config.RemoteControlConfig, websocketRoutineManagerEnabled bool) (*SyncManager, error) {
 	if c == nil {
 		return nil, fmt.Errorf("%T %w", c, common.ErrNilPointer)
 	}
@@ -83,7 +83,7 @@ func setupSyncManager(c *SyncManagerConfig, exchangeManager subsystem.ExchangeMa
 		return nil, fmt.Errorf("%T %w", c.PairFormatDisplay, common.ErrNilPointer)
 	}
 
-	s := &syncManager{
+	s := &SyncManager{
 		config:                         *c,
 		remoteConfig:                   remoteConfig,
 		exchangeManager:                exchangeManager,
@@ -108,12 +108,12 @@ func setupSyncManager(c *SyncManagerConfig, exchangeManager subsystem.ExchangeMa
 }
 
 // IsRunning safely checks whether the subsystem is running
-func (m *syncManager) IsRunning() bool {
+func (m *SyncManager) IsRunning() bool {
 	return m != nil && atomic.LoadInt32(&m.started) == 1
 }
 
 // Start runs the subsystem
-func (m *syncManager) Start() error {
+func (m *SyncManager) Start() error {
 	if m == nil {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", subsystem.ErrNil)
 	}
@@ -214,7 +214,7 @@ func (m *syncManager) Start() error {
 }
 
 // Stop shuts down the exchange currency pair syncer
-func (m *syncManager) Stop() error {
+func (m *SyncManager) Stop() error {
 	if m == nil {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", subsystem.ErrNil)
 	}
@@ -227,7 +227,7 @@ func (m *syncManager) Stop() error {
 }
 
 // Update notifies the syncManager to change the last updated time for an exchange asset pair
-func (m *syncManager) Update(exchangeName string, p currency.Pair, a asset.Item, syncType int, incomingErr error) error {
+func (m *SyncManager) Update(exchangeName string, p currency.Pair, a asset.Item, syncType int, incomingErr error) error {
 	if m == nil {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", subsystem.ErrNil)
 	}
@@ -304,7 +304,7 @@ func (m *syncManager) Update(exchangeName string, p currency.Pair, a asset.Item,
 // controller checks all enabled assets on all enabled exchanges for correct
 // synchronization. If an assets needs updating via REST it will push the work
 // to worker routines.
-func (m *syncManager) controller() {
+func (m *SyncManager) controller() {
 	defer log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer worker shutting down.")
 	timer := time.NewTimer(0) // Fire immediately for initial synchronization
 	for range timer.C {
@@ -364,7 +364,7 @@ func (m *syncManager) controller() {
 
 // GetSmallestTimeout returns the smallest configured timeout for all supported
 // synchronization protocols for controller sync.
-func (m *syncManager) GetSmallestTimeout() time.Duration {
+func (m *SyncManager) GetSmallestTimeout() time.Duration {
 	if m.config.TimeoutREST < m.config.TimeoutWebsocket {
 		return m.config.TimeoutREST
 	}
@@ -372,7 +372,7 @@ func (m *syncManager) GetSmallestTimeout() time.Duration {
 }
 
 // CheckSyncItems checks agent against it's current last update time on all
-func (m *syncManager) CheckSyncItems(exch exchange.IBotExchange, pair currency.Pair, a asset.Item, usingREST, usingWS, supportsREST, switchedToRest bool) time.Duration {
+func (m *SyncManager) CheckSyncItems(exch exchange.IBotExchange, pair currency.Pair, a asset.Item, usingREST, usingWS, supportsREST, switchedToRest bool) time.Duration {
 	agent := m.getAgent(exch.GetName(), pair, a, usingREST, usingWS)
 
 	untilUpdate := m.GetSmallestTimeout()
@@ -477,7 +477,7 @@ func (s *syncBase) SetProcessing(processing bool) error {
 
 // sendJob sets agent base as processing for that ticker item then sends the
 // REST sync job to the jobs channel for processing.
-func (m *syncManager) sendJob(exch exchange.IBotExchange, pair currency.Pair, a asset.Item, class int) {
+func (m *SyncManager) sendJob(exch exchange.IBotExchange, pair currency.Pair, a asset.Item, class int) {
 	// NOTE: This is blocking, if there are no receivers and the buffer size is
 	// full then this will hang the controller.
 	switch class {
@@ -491,7 +491,7 @@ func (m *syncManager) sendJob(exch exchange.IBotExchange, pair currency.Pair, a 
 }
 
 // getAgent returns an agent and will generate a new agent if not found.
-func (m *syncManager) getAgent(exch string, pair currency.Pair, a asset.Item, usingRest, usingWS bool) *currencyPairSyncAgent {
+func (m *SyncManager) getAgent(exch string, pair currency.Pair, a asset.Item, usingRest, usingWS bool) *currencyPairSyncAgent {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -540,7 +540,7 @@ func (m *syncManager) getAgent(exch string, pair currency.Pair, a asset.Item, us
 // deployBase deploys a instance of a base struct for each individiual
 // synchronization item. If verbose it will display the added item. If state
 // is in initial sync it will increment counter and add to the waitgroup.
-func (m *syncManager) deployBase(service string, agent *currencyPairSyncAgent, usingWS, usingREST bool) syncBase {
+func (m *SyncManager) deployBase(service string, agent *currencyPairSyncAgent, usingWS, usingREST bool) syncBase {
 	if m.config.Verbose {
 		log.Debugf(log.SyncMgr,
 			"%s: Added trade sync item %s: using websocket: %v using REST: %v",
@@ -553,7 +553,7 @@ func (m *syncManager) deployBase(service string, agent *currencyPairSyncAgent, u
 	return syncBase{IsUsingREST: usingREST, IsUsingWebsocket: usingWS}
 }
 
-func (m *syncManager) orderbookWorker(ctx context.Context) {
+func (m *SyncManager) orderbookWorker(ctx context.Context) {
 	for j := range m.orderbookJobs {
 		if atomic.LoadInt32(&m.started) == 0 {
 			return
@@ -573,7 +573,7 @@ func (m *syncManager) orderbookWorker(ctx context.Context) {
 	}
 }
 
-func (m *syncManager) tickerWorker(ctx context.Context) {
+func (m *SyncManager) tickerWorker(ctx context.Context) {
 	for j := range m.orderbookJobs {
 		if atomic.LoadInt32(&m.started) == 0 {
 			return
@@ -615,7 +615,7 @@ func (m *syncManager) tickerWorker(ctx context.Context) {
 	}
 }
 
-func (m *syncManager) tradeWorker(ctx context.Context) {
+func (m *SyncManager) tradeWorker(ctx context.Context) {
 	for j := range m.tradeJobs {
 		if atomic.LoadInt32(&m.started) == 0 {
 			return
@@ -671,7 +671,7 @@ func printConvertCurrencyFormat(origPrice float64, origCurrency, displayCurrency
 }
 
 // PrintTickerSummary outputs the ticker results
-func (m *syncManager) PrintTickerSummary(result *ticker.Price, protocol string, err error) {
+func (m *SyncManager) PrintTickerSummary(result *ticker.Price, protocol string, err error) {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return
 	}
@@ -739,7 +739,7 @@ func (m *syncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 
 // FormatCurrency is a method that formats and returns a currency pair
 // based on the user currency display preferences
-func (m *syncManager) FormatCurrency(p currency.Pair) currency.Pair {
+func (m *SyncManager) FormatCurrency(p currency.Pair) currency.Pair {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return p
 	}
@@ -751,7 +751,7 @@ const (
 )
 
 // PrintOrderbookSummary outputs orderbook results
-func (m *syncManager) PrintOrderbookSummary(result *orderbook.Base, protocol string, err error) {
+func (m *SyncManager) PrintOrderbookSummary(result *orderbook.Base, protocol string, err error) {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return
 	}
@@ -820,7 +820,7 @@ func (m *syncManager) PrintOrderbookSummary(result *orderbook.Base, protocol str
 // WaitForInitialSync allows for a routine to wait for an initial sync to be
 // completed without exposing the underlying type. This needs to be called in a
 // separate routine.
-func (m *syncManager) WaitForInitialSync() error {
+func (m *SyncManager) WaitForInitialSync() error {
 	if m == nil {
 		return fmt.Errorf("sync manager %w", subsystem.ErrNil)
 	}
@@ -832,15 +832,17 @@ func (m *syncManager) WaitForInitialSync() error {
 }
 
 func relayWebsocketEvent(result interface{}, event, assetType, exchangeName string) {
-	evt := WebsocketEvent{
-		Data:      result,
-		Event:     event,
-		AssetType: assetType,
-		Exchange:  exchangeName,
-	}
-	err := BroadcastWebsocketMessage(evt)
-	if !errors.Is(err, ErrWebsocketServiceNotRunning) {
-		log.Errorf(log.APIServerMgr, "Failed to broadcast websocket event %v. Error: %s",
-			event, err)
-	}
+	// evt := WebsocketEvent{
+	// 	Data:      result,
+	// 	Event:     event,
+	// 	AssetType: assetType,
+	// 	Exchange:  exchangeName,
+	// }
+	// err := BroadcastWebsocketMessage(evt)
+	// if !errors.Is(err, ErrWebsocketServiceNotRunning) {
+	// 	log.Errorf(log.APIServerMgr, "Failed to broadcast websocket event %v. Error: %s",
+	// 		event, err)
+	// }
+
+	// TODO: Package tech
 }

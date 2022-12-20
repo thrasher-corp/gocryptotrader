@@ -1,4 +1,4 @@
-package engine
+package synchronize
 
 import (
 	"sync"
@@ -47,7 +47,7 @@ type SyncManagerConfig struct {
 }
 
 // syncManager stores the exchange currency pair syncer object
-type syncManager struct {
+type SyncManager struct {
 	initSyncCompleted              int32
 	initSyncStarted                int32
 	started                        int32
