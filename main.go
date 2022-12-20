@@ -66,11 +66,11 @@ func main() {
 	flag.BoolVar(&settings.EnableTickerSyncing, "tickersync", true, "enables ticker syncing for all enabled exchanges")
 	flag.BoolVar(&settings.EnableOrderbookSyncing, "orderbooksync", true, "enables orderbook syncing for all enabled exchanges")
 	flag.BoolVar(&settings.EnableTradeSyncing, "tradesync", false, "enables trade syncing for all enabled exchanges")
-	flag.IntVar(&settings.SyncWorkersCount, "syncworkers", synchronize.DefaultSyncerWorkers, "the amount of workers (goroutines) to use for syncing exchange data")
+	flag.IntVar(&settings.SyncWorkersCount, "syncworkers", synchronize.DefaultWorkers, "the amount of workers (goroutines) to use for syncing exchange data")
 	flag.BoolVar(&settings.SyncContinuously, "synccontinuously", true, "whether to sync exchange data continuously (ticker, orderbook and trade history info")
-	flag.DurationVar(&settings.SyncTimeoutREST, "synctimeoutrest", synchronize.DefaultSyncerTimeoutREST,
+	flag.DurationVar(&settings.SyncTimeoutREST, "synctimeoutrest", synchronize.DefaultTimeoutREST,
 		"the amount of time before the syncer will switch from rest protocol to the streaming protocol (e.g. from REST to websocket)")
-	flag.DurationVar(&settings.SyncTimeoutWebsocket, "synctimeoutwebsocket", synchronize.DefaultSyncerTimeoutWebsocket,
+	flag.DurationVar(&settings.SyncTimeoutWebsocket, "synctimeoutwebsocket", synchronize.DefaultTimeoutWebsocket,
 		"the amount of time before the syncer will switch from the websocket protocol to REST protocol (e.g. from websocket to REST)")
 
 	// Forex provider settings

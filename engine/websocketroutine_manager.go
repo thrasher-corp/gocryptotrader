@@ -206,9 +206,10 @@ func (m *websocketRoutineManager) websocketDataHandler(exchName string, data int
 	case *ticker.Price:
 		if m.syncer.IsRunning() {
 			err := m.syncer.Update(exchName,
+				synchronize.WebsocketUpdate,
 				d.Pair,
 				d.AssetType,
-				synchronize.SyncItemTicker,
+				int(synchronize.Ticker),
 				nil)
 			if err != nil {
 				return err
@@ -218,7 +219,7 @@ func (m *websocketRoutineManager) websocketDataHandler(exchName string, data int
 		if err != nil {
 			return err
 		}
-		m.syncer.PrintTickerSummary(d, "websocket", err)
+		m.syncer.PrintTickerSummary(d, synchronize.WebsocketUpdate, err)
 	case stream.KlineData:
 		if m.verbose {
 			log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v",
@@ -234,15 +235,16 @@ func (m *websocketRoutineManager) websocketDataHandler(exchName string, data int
 		}
 		if m.syncer.IsRunning() {
 			err := m.syncer.Update(exchName,
+				synchronize.WebsocketUpdate,
 				base.Pair,
 				base.Asset,
-				synchronize.SyncItemOrderbook,
+				int(synchronize.Orderbook),
 				nil)
 			if err != nil {
 				return err
 			}
 		}
-		m.syncer.PrintOrderbookSummary(base, "websocket", nil)
+		m.syncer.PrintOrderbookSummary(base, synchronize.WebsocketUpdate, nil)
 	case *order.Detail:
 		if !m.orderManager.Exists(d) {
 			err := m.orderManager.Add(d)

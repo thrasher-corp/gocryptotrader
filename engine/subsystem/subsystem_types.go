@@ -77,7 +77,7 @@ type CurrencyPairSyncer interface {
 	IsRunning() bool
 	PrintTickerSummary(*ticker.Price, string, error)
 	PrintOrderbookSummary(*orderbook.Base, string, error)
-	Update(string, currency.Pair, asset.Item, int, error) error
+	Update(exchangeName, protocol string, pair currency.Pair, a asset.Item, syncType int, incomingErr error) error
 }
 
 // DatabaseConnectionManager defines a limited scoped databaseConnectionManager

@@ -11,8 +11,19 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-// syncBase stores information
-type syncBase struct {
+// const holds the sync item types
+const (
+	Ticker SyncType = iota
+	Orderbook
+	Trade
+	ManagerName = "exchange_syncer"
+)
+
+// SyncItem defines a synchronization item
+type SyncType int
+
+// Base stores independent sync information e.g a specific orderbook.
+type Base struct {
 	IsUsingWebsocket bool
 	IsUsingREST      bool
 	IsProcessing     bool
@@ -22,62 +33,62 @@ type syncBase struct {
 	mu               sync.Mutex
 }
 
-// currencyPairSyncAgent stores the sync agent info
-type currencyPairSyncAgent struct {
+// Agent stores the sync agent information on exchange, asset type and pair
+// and holds the individual item bases.
+type Agent struct {
 	Exchange  string
 	AssetType asset.Item
 	Pair      currency.Pair
-	Ticker    syncBase
-	Orderbook syncBase
-	Trade     syncBase
+	Ticker    Base
+	Orderbook Base
+	Trade     Base
 }
 
-// SyncManagerConfig stores the currency pair synchronization manager config
-type SyncManagerConfig struct {
-	SynchronizeTicker       bool
-	SynchronizeOrderbook    bool
-	SynchronizeTrades       bool
-	SynchronizeContinuously bool
-	TimeoutREST             time.Duration
-	TimeoutWebsocket        time.Duration
-	NumWorkers              int
-	FiatDisplayCurrency     currency.Code
-	PairFormatDisplay       *currency.PairFormat
-	Verbose                 bool
+// ManagerConfig stores the currency pair synchronization manager config
+type ManagerConfig struct {
+	SynchronizeTicker              bool
+	SynchronizeOrderbook           bool
+	SynchronizeTrades              bool
+	SynchronizeContinuously        bool
+	TimeoutREST                    time.Duration
+	TimeoutWebsocket               time.Duration
+	NumWorkers                     int
+	FiatDisplayCurrency            currency.Code
+	PairFormatDisplay              currency.PairFormat
+	Verbose                        bool
+	ExchangeManager                subsystem.ExchangeManager
+	RemoteConfig                   *config.RemoteControlConfig
+	WebsocketRoutineManagerEnabled bool
 }
 
-// syncManager stores the exchange currency pair syncer object
-type SyncManager struct {
-	initSyncCompleted              int32
-	initSyncStarted                int32
-	started                        int32
-	format                         currency.PairFormat
-	initSyncStartTime              time.Time
-	fiatDisplayCurrency            currency.Code
-	websocketRoutineManagerEnabled bool
-	mu                             sync.Mutex
-	initSyncWG                     sync.WaitGroup
+// Manager defines the main total currency pair synchronization subsystem that
+// fetches and maintains up to date market data.
+type Manager struct {
+	initSyncCompleted int32
+	initSyncStarted   int32
+	started           int32
+	initSyncStartTime time.Time
+	mu                sync.Mutex
+	initSyncWG        sync.WaitGroup
 
-	currencyPairs            map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]*currencyPairSyncAgent
+	currencyPairs            map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]*Agent
 	tickerBatchLastRequested map[string]map[asset.Item]time.Time
 	batchMtx                 sync.Mutex
 
-	remoteConfig    *config.RemoteControlConfig
-	config          SyncManagerConfig
-	exchangeManager subsystem.ExchangeManager
+	ManagerConfig
 
 	createdCounter int64
 	removedCounter int64
 
-	orderbookJobs chan syncJob
-	tickerJobs    chan syncJob
-	tradeJobs     chan syncJob
+	orderbookJobs chan RESTJob
+	tickerJobs    chan RESTJob
+	tradeJobs     chan RESTJob
 }
 
-// syncJob defines a potential REST synchronization job
-type syncJob struct {
+// RESTJob defines a potential REST synchronization job
+type RESTJob struct {
 	exch  exchange.IBotExchange
 	Pair  currency.Pair
 	Asset asset.Item
-	class int
+	Item  SyncType
 }

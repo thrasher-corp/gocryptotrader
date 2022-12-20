@@ -54,7 +54,7 @@ func (bot *Engine) GetSubsystemsStatus() map[string]bool {
 		PortfolioManagerName:          bot.portfolioManager.IsRunning(),
 		NTPManagerName:                bot.ntpManager.IsRunning(),
 		DatabaseConnectionManagerName: bot.DatabaseManager.IsRunning(),
-		synchronize.SyncManagerName:   bot.Settings.EnableExchangeSyncManager,
+		synchronize.ManagerName:       bot.Settings.EnableExchangeSyncManager,
 		grpcName:                      bot.Settings.EnableGRPC,
 		grpcProxyName:                 bot.Settings.EnableGRPCProxy,
 		vm.Name:                       bot.gctScriptManager.IsRunning(),
@@ -184,25 +184,24 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 			return bot.DatabaseManager.Start(&bot.ServicesWG)
 		}
 		return bot.DatabaseManager.Stop()
-	case synchronize.SyncManagerName:
+	case synchronize.ManagerName:
 		if enable {
 			if bot.currencyPairSyncer == nil {
-				exchangeSyncCfg := &synchronize.SyncManagerConfig{
-					SynchronizeTicker:       bot.Settings.EnableTickerSyncing,
-					SynchronizeOrderbook:    bot.Settings.EnableOrderbookSyncing,
-					SynchronizeTrades:       bot.Settings.EnableTradeSyncing,
-					SynchronizeContinuously: bot.Settings.SyncContinuously,
-					TimeoutREST:             bot.Settings.SyncTimeoutREST,
-					TimeoutWebsocket:        bot.Settings.SyncTimeoutWebsocket,
-					NumWorkers:              bot.Settings.SyncWorkersCount,
-					FiatDisplayCurrency:     bot.Config.Currency.FiatDisplayCurrency,
-					Verbose:                 bot.Settings.Verbose,
-				}
-				bot.currencyPairSyncer, err = synchronize.SetupSyncManager(
-					exchangeSyncCfg,
-					bot.ExchangeManager,
-					&bot.Config.RemoteControl,
-					bot.Settings.EnableWebsocketRoutine)
+				bot.currencyPairSyncer, err = synchronize.NewManager(&synchronize.ManagerConfig{
+					SynchronizeTicker:              bot.Settings.EnableTickerSyncing,
+					SynchronizeOrderbook:           bot.Settings.EnableOrderbookSyncing,
+					SynchronizeTrades:              bot.Settings.EnableTradeSyncing,
+					SynchronizeContinuously:        bot.Settings.SyncContinuously,
+					TimeoutREST:                    bot.Settings.SyncTimeoutREST,
+					TimeoutWebsocket:               bot.Settings.SyncTimeoutWebsocket,
+					NumWorkers:                     bot.Settings.SyncWorkersCount,
+					FiatDisplayCurrency:            bot.Config.Currency.FiatDisplayCurrency,
+					Verbose:                        bot.Settings.Verbose,
+					PairFormatDisplay:              *bot.Config.Currency.CurrencyPairFormat,
+					ExchangeManager:                bot.ExchangeManager,
+					RemoteConfig:                   &bot.Config.RemoteControl,
+					WebsocketRoutineManagerEnabled: bot.Settings.EnableWebsocketRoutine,
+				})
 				if err != nil {
 					return err
 				}
