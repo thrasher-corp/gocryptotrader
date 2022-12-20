@@ -2,7 +2,6 @@ package okcoin
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -11,7 +10,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -352,7 +350,7 @@ func (o *OKCoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 	case asset.Spot:
 		var tradeData []GetSpotFilledOrdersInformationResponse
 		tradeData, err = o.GetSpotFilledOrdersInformation(ctx,
-			GetSpotFilledOrdersInformationRequest{
+			&GetSpotFilledOrdersInformationRequest{
 				InstrumentID: p.String(),
 			})
 		if err != nil {
@@ -391,10 +389,6 @@ func (o *OKCoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 func (o *OKCoin) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
-
-// Note: GoCryptoTrader wrapper funcs currently only support SPOT trades.
-// Therefore, this OKCoin_Wrapper can be shared between OKCoin and O.
-// When circumstances change, wrapper funcs can be split appropriately
 
 // Setup sets user exchange configuration settings
 func (o *OKCoin) Setup(exch *config.Exchange) error {
@@ -709,7 +703,7 @@ func (o *OKCoin) CancelOrder(ctx context.Context, cancel *order.Cancel) error {
 	}
 
 	orderCancellationResponse, err := o.CancelSpotOrder(ctx,
-		CancelSpotOrderRequest{
+		&CancelSpotOrderRequest{
 			InstrumentID: fpair.String(),
 			OrderID:      orderID,
 		})
@@ -750,7 +744,7 @@ func (o *OKCoin) CancelAllOrders(ctx context.Context, orderCancellation *order.C
 	}
 
 	cancelOrdersResponse, err := o.CancelMultipleSpotOrders(ctx,
-		CancelMultipleSpotOrdersRequest{
+		&CancelMultipleSpotOrdersRequest{
 			InstrumentID: fpair.String(),
 			OrderIDs:     orderIDNumbers,
 		})
@@ -774,7 +768,7 @@ func (o *OKCoin) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		return resp, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
 
-	mOrder, err := o.GetSpotOrder(ctx, GetSpotOrderRequest{OrderID: orderID})
+	mOrder, err := o.GetSpotOrder(ctx, &GetSpotOrderRequest{OrderID: orderID})
 	if err != nil {
 		return resp, err
 	}
@@ -834,7 +828,7 @@ func (o *OKCoin) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReques
 		return nil, err
 	}
 	withdrawal, err := o.AccountWithdraw(ctx,
-		AccountWithdrawRequest{
+		&AccountWithdrawRequest{
 			Amount:      withdrawRequest.Amount,
 			Currency:    withdrawRequest.Currency.Lower().String(),
 			Destination: 4, // 1, 2, 3 are all internal
@@ -890,7 +884,7 @@ func (o *OKCoin) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 		}
 		var spotOpenOrders []GetSpotOrderResponse
 		spotOpenOrders, err = o.GetSpotOpenOrders(ctx,
-			GetSpotOpenOrdersRequest{
+			&GetSpotOpenOrdersRequest{
 				InstrumentID: fPair.String(),
 			})
 		if err != nil {
@@ -946,7 +940,7 @@ func (o *OKCoin) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		}
 		var spotOrders []GetSpotOrderResponse
 		spotOrders, err = o.GetSpotOrders(ctx,
-			GetSpotOrdersRequest{
+			&GetSpotOrdersRequest{
 				Status:       strings.Join([]string{"filled", "cancelled", "failure"}, "|"),
 				InstrumentID: fPair.String(),
 			})
@@ -1043,52 +1037,19 @@ func (o *OKCoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		InstrumentID: formattedPair.String(),
 	}
 
-	candles, err := o.GetMarketData(ctx, req)
-	if err != nil {
-		return kline.Item{}, err
-	}
-
 	ret := kline.Item{
 		Exchange: o.Name,
 		Pair:     pair,
 		Asset:    a,
 		Interval: interval,
 	}
-
-	for x := range candles {
-		t, ok := candles[x].([]interface{})
-		if !ok {
-			return kline.Item{}, errors.New("unable to type asset candle data")
-		}
-		if len(t) < 6 {
-			return kline.Item{}, errors.New("incorrect candles data length")
-		}
-		v, ok := t[0].(string)
-		if !ok {
-			return kline.Item{}, errors.New("unable to type asset time data")
-		}
-		var tempCandle kline.Candle
-		if tempCandle.Time, err = time.Parse(time.RFC3339, v); err != nil {
-			return kline.Item{}, err
-		}
-		if tempCandle.Open, err = convert.FloatFromString(t[1]); err != nil {
-			return kline.Item{}, err
-		}
-		if tempCandle.High, err = convert.FloatFromString(t[2]); err != nil {
-			return kline.Item{}, err
-		}
-		if tempCandle.Low, err = convert.FloatFromString(t[3]); err != nil {
-			return kline.Item{}, err
-		}
-		if tempCandle.Close, err = convert.FloatFromString(t[4]); err != nil {
-			return kline.Item{}, err
-		}
-		if tempCandle.Volume, err = convert.FloatFromString(t[5]); err != nil {
-			return kline.Item{}, err
-		}
-		ret.Candles = append(ret.Candles, tempCandle)
+	ret.Candles, err = o.GetMarketData(ctx, req)
+	if err != nil {
+		return kline.Item{}, err
 	}
 
+	ret.RemoveDuplicates()
+	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }
@@ -1124,48 +1085,12 @@ func (o *OKCoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 			InstrumentID: formattedPair.String(),
 		}
 
-		var candles GetMarketDataResponse
+		var candles []kline.Candle
 		candles, err = o.GetMarketData(ctx, req)
 		if err != nil {
 			return kline.Item{}, err
 		}
-
-		for i := range candles {
-			t, ok := candles[i].([]interface{})
-			if !ok {
-				return kline.Item{}, errors.New("unable to type assert candles data")
-			}
-			if len(t) < 6 {
-				return kline.Item{}, errors.New("candle data length invalid")
-			}
-			v, ok := t[0].(string)
-			if !ok {
-				return kline.Item{}, errors.New("unable to type assert time value")
-			}
-			var tempCandle kline.Candle
-			if tempCandle.Time, err = time.Parse(time.RFC3339, v); err != nil {
-				return kline.Item{}, err
-			}
-			if tempCandle.Open, err = convert.FloatFromString(t[1]); err != nil {
-				return kline.Item{}, err
-			}
-			if tempCandle.High, err = convert.FloatFromString(t[2]); err != nil {
-				return kline.Item{}, err
-			}
-
-			if tempCandle.Low, err = convert.FloatFromString(t[3]); err != nil {
-				return kline.Item{}, err
-			}
-
-			if tempCandle.Close, err = convert.FloatFromString(t[4]); err != nil {
-				return kline.Item{}, err
-			}
-
-			if tempCandle.Volume, err = convert.FloatFromString(t[5]); err != nil {
-				return kline.Item{}, err
-			}
-			ret.Candles = append(ret.Candles, tempCandle)
-		}
+		ret.Candles = append(ret.Candles, candles...)
 	}
 
 	dates.SetHasDataFromCandles(ret.Candles)

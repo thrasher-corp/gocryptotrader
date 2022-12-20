@@ -9,7 +9,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-var errNoAccountDepositAddress = errors.New("no account deposit address")
+var (
+	errNoAccountDepositAddress   = errors.New("no account deposit address")
+	errIncorrectCandleDataLength = errors.New("incorrect candles data length")
+)
 
 // PerpSwapInstrumentData stores instrument data for perpetual swap contracts
 type PerpSwapInstrumentData struct {
@@ -433,7 +436,8 @@ type GetMarketDataRequest struct {
 // low 	string 	Lowest price
 // close 	string 	Close price
 // volume 	string 	Trading volume
-type GetMarketDataResponse []interface{}
+type GetMarketDataResponse struct {
+}
 
 // GetMarginAccountsResponse response data for GetMarginAccounts
 type GetMarginAccountsResponse struct {
