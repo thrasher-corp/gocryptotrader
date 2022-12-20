@@ -19,12 +19,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // setupAPIServerManager checks and creates an api server manager
-func setupAPIServerManager(remoteConfig *config.RemoteControlConfig, pprofConfig *config.Profiler, exchangeManager iExchangeManager, bot iBot, portfolioManager iPortfolioManager, configPath string) (*apiServerManager, error) {
+func setupAPIServerManager(remoteConfig *config.RemoteControlConfig, pprofConfig *config.Profiler, exchangeManager subsystem.ExchangeManager, bot subsystem.Bot, portfolioManager subsystem.PortfolioManager, configPath string) (*apiServerManager, error) {
 	if remoteConfig == nil {
 		return nil, errNilRemoteConfig
 	}
@@ -32,7 +33,7 @@ func setupAPIServerManager(remoteConfig *config.RemoteControlConfig, pprofConfig
 		return nil, errNilPProfConfig
 	}
 	if exchangeManager == nil {
-		return nil, errNilExchangeManager
+		return nil, subsystem.ErrNilExchangeManager
 	}
 	if bot == nil {
 		return nil, errNilBot
@@ -71,10 +72,10 @@ func (m *apiServerManager) IsWebsocketServerRunning() bool {
 // StopRESTServer attempts to shutdown the subsystem
 func (m *apiServerManager) StopRESTServer() error {
 	if m == nil {
-		return fmt.Errorf("api server %w", ErrNilSubsystem)
+		return fmt.Errorf("api server %w", subsystem.ErrNil)
 	}
 	if !atomic.CompareAndSwapInt32(&m.restStarted, 1, 0) {
-		return fmt.Errorf("apiserver deprecated server %w", ErrSubSystemNotStarted)
+		return fmt.Errorf("apiserver deprecated server %w", subsystem.ErrNotStarted)
 	}
 	err := m.restHTTPServer.Shutdown(context.Background())
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -87,10 +88,10 @@ func (m *apiServerManager) StopRESTServer() error {
 
 func (m *apiServerManager) StopWebsocketServer() error {
 	if m == nil {
-		return fmt.Errorf("api server %w", ErrNilSubsystem)
+		return fmt.Errorf("api server %w", subsystem.ErrNil)
 	}
 	if !atomic.CompareAndSwapInt32(&m.websocketStarted, 1, 0) {
-		return fmt.Errorf("apiserver websocket server %w", ErrSubSystemNotStarted)
+		return fmt.Errorf("apiserver websocket server %w", subsystem.ErrNotStarted)
 	}
 
 	err := m.websocketHTTPServer.Shutdown(context.Background())
@@ -302,7 +303,7 @@ func (m *apiServerManager) getIndex(w http.ResponseWriter, _ *http.Request) {
 }
 
 // getAllActiveOrderbooks returns all enabled exchanges orderbooks
-func getAllActiveOrderbooks(m iExchangeManager) []EnabledExchangeOrderbooks {
+func getAllActiveOrderbooks(m subsystem.ExchangeManager) []EnabledExchangeOrderbooks {
 	exchanges, err := m.GetExchanges()
 	if err != nil {
 		log.Errorf(log.APIServerMgr, "Cannot get exchanges: %v", err)
@@ -344,7 +345,7 @@ func getAllActiveOrderbooks(m iExchangeManager) []EnabledExchangeOrderbooks {
 }
 
 // getAllActiveTickers returns all enabled exchanges tickers
-func getAllActiveTickers(m iExchangeManager) []EnabledExchangeCurrencies {
+func getAllActiveTickers(m subsystem.ExchangeManager) []EnabledExchangeCurrencies {
 	exchanges, err := m.GetExchanges()
 	if err != nil {
 		log.Errorf(log.APIServerMgr, "Cannot get exchanges: %v", err)
@@ -386,7 +387,7 @@ func getAllActiveTickers(m iExchangeManager) []EnabledExchangeCurrencies {
 }
 
 // getAllActiveAccounts returns all enabled exchanges accounts
-func getAllActiveAccounts(m iExchangeManager) []AllEnabledExchangeAccounts {
+func getAllActiveAccounts(m subsystem.ExchangeManager) []AllEnabledExchangeAccounts {
 	exchanges, err := m.GetExchanges()
 	if err != nil {
 		log.Errorf(log.APIServerMgr, "Cannot get exchanges: %v", err)

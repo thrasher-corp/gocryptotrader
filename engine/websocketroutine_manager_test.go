@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -15,8 +16,8 @@ import (
 
 func TestWebsocketRoutineManagerSetup(t *testing.T) {
 	_, err := setupWebsocketRoutineManager(nil, nil, nil, nil, false)
-	if !errors.Is(err, errNilExchangeManager) {
-		t.Errorf("error '%v', expected '%v'", err, errNilExchangeManager)
+	if !errors.Is(err, subsystem.ErrNilExchangeManager) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNilExchangeManager)
 	}
 
 	_, err = setupWebsocketRoutineManager(SetupExchangeManager(), nil, nil, nil, false)
@@ -50,8 +51,8 @@ func TestWebsocketRoutineManagerSetup(t *testing.T) {
 func TestWebsocketRoutineManagerStart(t *testing.T) {
 	var m *websocketRoutineManager
 	err := m.Start()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 	cfg := &currency.Config{CurrencyPairFormat: &currency.PairFormat{
 		Uppercase: false,
@@ -66,8 +67,8 @@ func TestWebsocketRoutineManagerStart(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 	err = m.Start()
-	if !errors.Is(err, ErrSubSystemAlreadyStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemAlreadyStarted)
+	if !errors.Is(err, subsystem.ErrAlreadyStarted) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrAlreadyStarted)
 	}
 }
 
@@ -97,8 +98,8 @@ func TestWebsocketRoutineManagerIsRunning(t *testing.T) {
 func TestWebsocketRoutineManagerStop(t *testing.T) {
 	var m *websocketRoutineManager
 	err := m.Stop()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 
 	m, err = setupWebsocketRoutineManager(SetupExchangeManager(), &OrderManager{}, &syncManager{}, &currency.Config{CurrencyPairFormat: &currency.PairFormat{}}, false)
@@ -106,8 +107,8 @@ func TestWebsocketRoutineManagerStop(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 	err = m.Stop()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNotStarted)
 	}
 
 	err = m.Start()
@@ -258,8 +259,8 @@ func TestRegisterWebsocketDataHandlerWithFunctionality(t *testing.T) {
 	t.Parallel()
 	var m *websocketRoutineManager
 	err := m.registerWebsocketDataHandler(nil, false)
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, subsystem.ErrNil)
 	}
 
 	m = new(websocketRoutineManager)
@@ -314,8 +315,8 @@ func TestSetWebsocketDataHandler(t *testing.T) {
 	t.Parallel()
 	var m *websocketRoutineManager
 	err := m.setWebsocketDataHandler(nil)
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, subsystem.ErrNil)
 	}
 
 	m = new(websocketRoutineManager)

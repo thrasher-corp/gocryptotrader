@@ -8,6 +8,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -54,9 +55,9 @@ type apiServerManager struct {
 
 	remoteConfig     *config.RemoteControlConfig
 	pprofConfig      *config.Profiler
-	exchangeManager  iExchangeManager
-	bot              iBot
-	portfolioManager iPortfolioManager
+	exchangeManager  subsystem.ExchangeManager
+	bot              subsystem.Bot
+	portfolioManager subsystem.PortfolioManager
 }
 
 // websocketClient stores information related to the websocket client
@@ -69,9 +70,9 @@ type websocketClient struct {
 	username         string
 	password         string
 	maxAuthFailures  int
-	exchangeManager  iExchangeManager
-	bot              iBot
-	portfolioManager iPortfolioManager
+	exchangeManager  subsystem.ExchangeManager
+	bot              subsystem.Bot
+	portfolioManager subsystem.PortfolioManager
 	configPath       string
 }
 

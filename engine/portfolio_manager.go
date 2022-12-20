@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -38,7 +39,7 @@ type portfolioManager struct {
 // setupPortfolioManager creates a new portfolio manager
 func setupPortfolioManager(e *ExchangeManager, portfolioManagerDelay time.Duration, cfg *portfolio.Base) (*portfolioManager, error) {
 	if e == nil {
-		return nil, errNilExchangeManager
+		return nil, subsystem.ErrNilExchangeManager
 	}
 	if portfolioManagerDelay <= 0 {
 		portfolioManagerDelay = PortfolioSleepDelay
@@ -63,16 +64,16 @@ func (m *portfolioManager) IsRunning() bool {
 // Start runs the subsystem
 func (m *portfolioManager) Start(wg *sync.WaitGroup) error {
 	if m == nil {
-		return fmt.Errorf("portfolio manager %w", ErrNilSubsystem)
+		return fmt.Errorf("portfolio manager %w", subsystem.ErrNil)
 	}
 	if wg == nil {
-		return errNilWaitGroup
+		return subsystem.ErrNilWaitGroup
 	}
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
-		return fmt.Errorf("portfolio manager %w", ErrSubSystemAlreadyStarted)
+		return fmt.Errorf("portfolio manager %w", subsystem.ErrAlreadyStarted)
 	}
 
-	log.Debugf(log.PortfolioMgr, "Portfolio manager %s", MsgSubSystemStarting)
+	log.Debugf(log.PortfolioMgr, "Portfolio manager %s", subsystem.MsgStarting)
 	m.shutdown = make(chan struct{})
 	wg.Add(1)
 	go m.run(wg)
@@ -82,16 +83,16 @@ func (m *portfolioManager) Start(wg *sync.WaitGroup) error {
 // Stop attempts to shutdown the subsystem
 func (m *portfolioManager) Stop() error {
 	if m == nil {
-		return fmt.Errorf("portfolio manager %w", ErrNilSubsystem)
+		return fmt.Errorf("portfolio manager %w", subsystem.ErrNil)
 	}
 	if !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
-		return fmt.Errorf("portfolio manager %w", ErrSubSystemNotStarted)
+		return fmt.Errorf("portfolio manager %w", subsystem.ErrNotStarted)
 	}
 	defer func() {
 		atomic.CompareAndSwapInt32(&m.started, 1, 0)
 	}()
 
-	log.Debugf(log.PortfolioMgr, "Portfolio manager %s", MsgSubSystemShuttingDown)
+	log.Debugf(log.PortfolioMgr, "Portfolio manager %s", subsystem.MsgShuttingDown)
 	close(m.shutdown)
 	return nil
 }
@@ -283,10 +284,10 @@ func (m *portfolioManager) getExchangeAccountInfo(exchanges []exchange.IBotExcha
 // AddAddress adds a new portfolio address for the portfolio manager to track
 func (m *portfolioManager) AddAddress(address, description string, coinType currency.Code, balance float64) error {
 	if m == nil {
-		return fmt.Errorf("portfolio manager %w", ErrNilSubsystem)
+		return fmt.Errorf("portfolio manager %w", subsystem.ErrNil)
 	}
 	if !m.IsRunning() {
-		return fmt.Errorf("portfolio manager %w", ErrSubSystemNotStarted)
+		return fmt.Errorf("portfolio manager %w", subsystem.ErrNotStarted)
 	}
 	m.m.Lock()
 	defer m.m.Unlock()
@@ -296,10 +297,10 @@ func (m *portfolioManager) AddAddress(address, description string, coinType curr
 // RemoveAddress removes a portfolio address
 func (m *portfolioManager) RemoveAddress(address, description string, coinType currency.Code) error {
 	if m == nil {
-		return fmt.Errorf("portfolio manager %w", ErrNilSubsystem)
+		return fmt.Errorf("portfolio manager %w", subsystem.ErrNil)
 	}
 	if !m.IsRunning() {
-		return fmt.Errorf("portfolio manager %w", ErrSubSystemNotStarted)
+		return fmt.Errorf("portfolio manager %w", subsystem.ErrNotStarted)
 	}
 	m.m.Lock()
 	defer m.m.Unlock()

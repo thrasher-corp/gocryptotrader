@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -157,16 +158,16 @@ func (f omfExchange) GetFuturesPositions(ctx context.Context, req *order.Positio
 
 func TestSetupOrderManager(t *testing.T) {
 	_, err := SetupOrderManager(nil, nil, nil, false, false, 0)
-	if !errors.Is(err, errNilExchangeManager) {
-		t.Errorf("error '%v', expected '%v'", err, errNilExchangeManager)
+	if !errors.Is(err, subsystem.ErrNilExchangeManager) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNilExchangeManager)
 	}
 	_, err = SetupOrderManager(SetupExchangeManager(), nil, nil, false, false, 0)
 	if !errors.Is(err, errNilCommunicationsManager) {
 		t.Errorf("error '%v', expected '%v'", err, errNilCommunicationsManager)
 	}
 	_, err = SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, nil, false, false, 0)
-	if !errors.Is(err, errNilWaitGroup) {
-		t.Errorf("error '%v', expected '%v'", err, errNilWaitGroup)
+	if !errors.Is(err, subsystem.ErrNilWaitGroup) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNilWaitGroup)
 	}
 	var wg sync.WaitGroup
 	_, err = SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, &wg, false, false, 0)
@@ -186,8 +187,8 @@ func TestSetupOrderManager(t *testing.T) {
 func TestOrderManagerStart(t *testing.T) {
 	var m *OrderManager
 	err := m.Start()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 	var wg sync.WaitGroup
 	m, err = SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, &wg, false, false, 0)
@@ -199,8 +200,8 @@ func TestOrderManagerStart(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 	err = m.Start()
-	if !errors.Is(err, ErrSubSystemAlreadyStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemAlreadyStarted)
+	if !errors.Is(err, subsystem.ErrAlreadyStarted) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrAlreadyStarted)
 	}
 }
 
@@ -231,8 +232,8 @@ func TestOrderManagerIsRunning(t *testing.T) {
 func TestOrderManagerStop(t *testing.T) {
 	var m *OrderManager
 	err := m.Stop()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 
 	var wg sync.WaitGroup
@@ -241,8 +242,8 @@ func TestOrderManagerStop(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 	err = m.Stop()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNotStarted)
 	}
 
 	err = m.Start()
@@ -1140,8 +1141,8 @@ func TestGetFuturesPositionsForExchange(t *testing.T) {
 	o := &OrderManager{}
 	cp := currency.NewPair(currency.BTC, currency.USDT)
 	_, err := o.GetFuturesPositionsForExchange("test", asset.Spot, cp)
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("received '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("received '%v', expected '%v'", err, subsystem.ErrNotStarted)
 	}
 	o.started = 1
 	o.orderStore.futuresPositionController = order.SetupPositionController()
@@ -1177,8 +1178,8 @@ func TestGetFuturesPositionsForExchange(t *testing.T) {
 
 	o = nil
 	_, err = o.GetFuturesPositionsForExchange("test", asset.Futures, cp)
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("received '%v', expected '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("received '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 }
 
@@ -1187,8 +1188,8 @@ func TestClearFuturesPositionsForExchange(t *testing.T) {
 	o := &OrderManager{}
 	cp := currency.NewPair(currency.BTC, currency.USDT)
 	err := o.ClearFuturesTracking("test", asset.Spot, cp)
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("received '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("received '%v', expected '%v'", err, subsystem.ErrNotStarted)
 	}
 	o.started = 1
 	o.orderStore.futuresPositionController = order.SetupPositionController()
@@ -1228,8 +1229,8 @@ func TestClearFuturesPositionsForExchange(t *testing.T) {
 
 	o = nil
 	err = o.ClearFuturesTracking("test", asset.Futures, cp)
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("received '%v', expected '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("received '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 }
 
@@ -1238,8 +1239,8 @@ func TestUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 	o := &OrderManager{}
 	cp := currency.NewPair(currency.BTC, currency.USDT)
 	_, err := o.UpdateOpenPositionUnrealisedPNL("test", asset.Spot, cp, 1, time.Now())
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("received '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("received '%v', expected '%v'", err, subsystem.ErrNotStarted)
 	}
 	o.started = 1
 	o.orderStore.futuresPositionController = order.SetupPositionController()
@@ -1275,8 +1276,8 @@ func TestUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 
 	o = nil
 	_, err = o.UpdateOpenPositionUnrealisedPNL("test", asset.Spot, cp, 1, time.Now())
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("received '%v', expected '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("received '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 }
 
@@ -1285,8 +1286,8 @@ func TestSubmitFakeOrder(t *testing.T) {
 	o := &OrderManager{}
 	resp := &order.SubmitResponse{}
 	_, err := o.SubmitFakeOrder(nil, resp, false)
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("received '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("received '%v', expected '%v'", err, subsystem.ErrNotStarted)
 	}
 
 	o.started = 1
@@ -1417,8 +1418,8 @@ func TestOrderManagerAdd(t *testing.T) {
 	t.Parallel()
 	o := &OrderManager{}
 	err := o.Add(nil)
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("received '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("received '%v', expected '%v'", err, subsystem.ErrNotStarted)
 	}
 	o.started = 1
 	err = o.Add(nil)
@@ -1428,8 +1429,8 @@ func TestOrderManagerAdd(t *testing.T) {
 
 	o = nil
 	err = o.Add(nil)
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("received '%v', expected '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("received '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 }
 
@@ -1442,8 +1443,8 @@ func TestGetAllOpenFuturesPositions(t *testing.T) {
 	}
 	o.started = 0
 	_, err = o.GetAllOpenFuturesPositions()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("received '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("received '%v', expected '%v'", err, subsystem.ErrNotStarted)
 	}
 
 	o.started = 1
@@ -1456,8 +1457,8 @@ func TestGetAllOpenFuturesPositions(t *testing.T) {
 
 	o = nil
 	_, err = o.GetAllOpenFuturesPositions()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("received '%v', expected '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("received '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 }
 
@@ -1471,8 +1472,8 @@ func TestGetOpenFuturesPosition(t *testing.T) {
 	o.started = 0
 	cp := currency.NewPair(currency.BTC, currency.PERP)
 	_, err = o.GetOpenFuturesPosition(testExchange, asset.Spot, cp)
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("received '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("received '%v', expected '%v'", err, subsystem.ErrNotStarted)
 	}
 
 	o.started = 1
@@ -1545,8 +1546,8 @@ func TestGetOpenFuturesPosition(t *testing.T) {
 
 	o = nil
 	_, err = o.GetOpenFuturesPosition(testExchange, asset.Spot, cp)
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("received '%v', expected '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("received '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 }
 

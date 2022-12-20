@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 )
 
 func TestLoadConfigWithSettings(t *testing.T) {
@@ -142,8 +143,8 @@ func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
 func TestGetExchangeByName(t *testing.T) {
 	t.Parallel()
 	_, err := (*ExchangeManager)(nil).GetExchangeByName("tehehe")
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("received: %v expected: %v", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("received: %v expected: %v", err, subsystem.ErrNil)
 	}
 
 	em := SetupExchangeManager()

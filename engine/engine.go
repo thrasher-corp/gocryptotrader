@@ -556,8 +556,7 @@ func (bot *Engine) Start() error {
 			PairFormatDisplay:       bot.Config.Currency.CurrencyPairFormat,
 		}
 
-		bot.currencyPairSyncer, err = setupSyncManager(
-			exchangeSyncCfg,
+		bot.currencyPairSyncer, err = setupSyncManager(exchangeSyncCfg,
 			bot.ExchangeManager,
 			&bot.Config.RemoteControl,
 			bot.Settings.EnableWebsocketRoutine)

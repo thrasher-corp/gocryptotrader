@@ -9,6 +9,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -16,12 +17,12 @@ import (
 )
 
 // setupEventManager loads and validates the communications manager config
-func setupEventManager(comManager iCommsManager, exchangeManager iExchangeManager, sleepDelay time.Duration, verbose bool) (*eventManager, error) {
+func setupEventManager(comManager subsystem.CommsManager, exchangeManager subsystem.ExchangeManager, sleepDelay time.Duration, verbose bool) (*eventManager, error) {
 	if comManager == nil {
 		return nil, errNilComManager
 	}
 	if exchangeManager == nil {
-		return nil, errNilExchangeManager
+		return nil, subsystem.ErrNilExchangeManager
 	}
 	if sleepDelay <= 0 {
 		sleepDelay = EventSleepDelay
@@ -38,10 +39,10 @@ func setupEventManager(comManager iCommsManager, exchangeManager iExchangeManage
 // Start runs the subsystem
 func (m *eventManager) Start() error {
 	if m == nil {
-		return fmt.Errorf("event manager %w", ErrNilSubsystem)
+		return fmt.Errorf("event manager %w", subsystem.ErrNil)
 	}
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
-		return fmt.Errorf("event manager %w", ErrSubSystemAlreadyStarted)
+		return fmt.Errorf("event manager %w", subsystem.ErrAlreadyStarted)
 	}
 	log.Debugf(log.EventMgr, "Event Manager started. SleepDelay: %v\n", m.sleepDelay.String())
 	m.shutdown = make(chan struct{})
@@ -60,10 +61,10 @@ func (m *eventManager) IsRunning() bool {
 // Stop attempts to shutdown the subsystem
 func (m *eventManager) Stop() error {
 	if m == nil {
-		return fmt.Errorf("event manager %w", ErrNilSubsystem)
+		return fmt.Errorf("event manager %w", subsystem.ErrNil)
 	}
 	if !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
-		return fmt.Errorf("event manager %w", ErrSubSystemNotStarted)
+		return fmt.Errorf("event manager %w", subsystem.ErrNotStarted)
 	}
 	close(m.shutdown)
 	return nil
@@ -110,10 +111,10 @@ func (m *eventManager) executeEvent(i int) {
 // and an error
 func (m *eventManager) Add(exchange, item string, condition EventConditionParams, p currency.Pair, a asset.Item, action string) (int64, error) {
 	if m == nil {
-		return 0, fmt.Errorf("event manager %w", ErrNilSubsystem)
+		return 0, fmt.Errorf("event manager %w", subsystem.ErrNil)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return 0, fmt.Errorf("event manager %w", ErrSubSystemNotStarted)
+		return 0, fmt.Errorf("event manager %w", subsystem.ErrNotStarted)
 	}
 	err := m.isValidEvent(exchange, item, condition, action)
 	if err != nil {
@@ -175,10 +176,10 @@ func (m *eventManager) getEventCounter() (total, executed int) {
 // met
 func (m *eventManager) checkEventCondition(e *Event) error {
 	if m == nil {
-		return fmt.Errorf("event manager %w", ErrNilSubsystem)
+		return fmt.Errorf("event manager %w", subsystem.ErrNil)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return fmt.Errorf("event manager %w", ErrSubSystemNotStarted)
+		return fmt.Errorf("event manager %w", subsystem.ErrNotStarted)
 	}
 	if e == nil {
 		return errNilEvent

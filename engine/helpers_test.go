@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -105,8 +106,8 @@ func TestGetSubsystemsStatus(t *testing.T) {
 
 func TestGetRPCEndpoints(t *testing.T) {
 	_, err := (&Engine{}).GetRPCEndpoints()
-	if !errors.Is(err, errNilConfig) {
-		t.Fatalf("received: %v, but expected: %v", err, errNilConfig)
+	if !errors.Is(err, subsystem.ErrNilConfig) {
+		t.Fatalf("received: %v, but expected: %v", err, subsystem.ErrNilConfig)
 	}
 
 	m, err := (&Engine{Config: &config.Config{}}).GetRPCEndpoints()
@@ -126,13 +127,13 @@ func TestSetSubsystem(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() u
 		DisableError error
 	}{
 		{Subsystem: "sillyBilly", EnableError: errNilBot, DisableError: errNilBot},
-		{Subsystem: "sillyBilly", Engine: &Engine{}, EnableError: errNilConfig, DisableError: errNilConfig},
+		{Subsystem: "sillyBilly", Engine: &Engine{}, EnableError: subsystem.ErrNilConfig, DisableError: subsystem.ErrNilConfig},
 		{Subsystem: "sillyBilly", Engine: &Engine{Config: &config.Config{}}, EnableError: errSubsystemNotFound, DisableError: errSubsystemNotFound},
 		{
 			Subsystem:    CommunicationsManagerName,
 			Engine:       &Engine{Config: &config.Config{}},
 			EnableError:  communications.ErrNoRelayersEnabled,
-			DisableError: ErrNilSubsystem,
+			DisableError: subsystem.ErrNil,
 		},
 		{
 			Subsystem:    ConnectionManagerName,
@@ -149,26 +150,26 @@ func TestSetSubsystem(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() u
 		{
 			Subsystem:    PortfolioManagerName,
 			Engine:       &Engine{Config: &config.Config{}},
-			EnableError:  errNilExchangeManager,
-			DisableError: ErrNilSubsystem,
+			EnableError:  subsystem.ErrNilExchangeManager,
+			DisableError: subsystem.ErrNil,
 		},
 		{
 			Subsystem:    NTPManagerName,
 			Engine:       &Engine{Config: &config.Config{Logging: log.Config{Enabled: convert.BoolPtr(false)}}},
 			EnableError:  errNilNTPConfigValues,
-			DisableError: ErrNilSubsystem,
+			DisableError: subsystem.ErrNil,
 		},
 		{
 			Subsystem:    DatabaseConnectionManagerName,
 			Engine:       &Engine{Config: &config.Config{}},
 			EnableError:  database.ErrDatabaseSupportDisabled,
-			DisableError: ErrSubSystemNotStarted,
+			DisableError: subsystem.ErrNotStarted,
 		},
 		{
 			Subsystem:    SyncManagerName,
 			Engine:       &Engine{Config: &config.Config{}},
 			EnableError:  errNoSyncItemsEnabled,
-			DisableError: ErrNilSubsystem,
+			DisableError: subsystem.ErrNil,
 		},
 		{
 			Subsystem:    dispatch.Name,
@@ -181,13 +182,13 @@ func TestSetSubsystem(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() u
 			Subsystem:    DeprecatedName,
 			Engine:       &Engine{Config: &config.Config{}, Settings: Settings{ConfigFile: config.DefaultFilePath()}},
 			EnableError:  errServerDisabled,
-			DisableError: ErrSubSystemNotStarted,
+			DisableError: subsystem.ErrNotStarted,
 		},
 		{
 			Subsystem:    WebsocketName,
 			Engine:       &Engine{Config: &config.Config{}, Settings: Settings{ConfigFile: config.DefaultFilePath()}},
 			EnableError:  errServerDisabled,
-			DisableError: ErrSubSystemNotStarted,
+			DisableError: subsystem.ErrNotStarted,
 		},
 		{
 			Subsystem:    grpcName,
@@ -203,7 +204,7 @@ func TestSetSubsystem(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() u
 			Subsystem:    dataHistoryManagerName,
 			Engine:       &Engine{Config: &config.Config{}},
 			EnableError:  database.ErrNilInstance,
-			DisableError: ErrNilSubsystem,
+			DisableError: subsystem.ErrNil,
 		},
 		{
 			Subsystem:    vm.Name,

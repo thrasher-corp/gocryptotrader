@@ -8,6 +8,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 )
 
 func CreateDatabase(t *testing.T) {
@@ -27,8 +28,8 @@ func CreateDatabase(t *testing.T) {
 
 func TestSetupDatabaseConnectionManager(t *testing.T) {
 	_, err := SetupDatabaseConnectionManager(nil)
-	if !errors.Is(err, errNilConfig) {
-		t.Errorf("error '%v', expected '%v'", err, errNilConfig)
+	if !errors.Is(err, subsystem.ErrNilConfig) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNilConfig)
 	}
 
 	m, err := SetupDatabaseConnectionManager(&database.Config{})
@@ -144,8 +145,8 @@ func TestDatabaseConnectionManagerStop(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 	err = m.Stop()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNotStarted)
 	}
 
 	var wg sync.WaitGroup
@@ -161,8 +162,8 @@ func TestDatabaseConnectionManagerStop(t *testing.T) {
 
 	m = nil
 	err = m.Stop()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 }
 
@@ -170,8 +171,8 @@ func TestCheckConnection(t *testing.T) {
 	CreateDatabase(t)
 	var m *DatabaseConnectionManager
 	err := m.checkConnection()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 	m, err = SetupDatabaseConnectionManager(&database.Config{
 		Enabled: true,
@@ -185,8 +186,8 @@ func TestCheckConnection(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 	err = m.checkConnection()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNotStarted)
 	}
 	var wg sync.WaitGroup
 	err = m.Start(&wg)
@@ -203,8 +204,8 @@ func TestCheckConnection(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 	err = m.checkConnection()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNotStarted)
 	}
 
 	err = m.Start(&wg)

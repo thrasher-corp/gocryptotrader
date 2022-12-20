@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -73,7 +74,7 @@ type RPCEndpoint struct {
 // GetRPCEndpoints returns a list of RPC endpoints and their listen addrs
 func (bot *Engine) GetRPCEndpoints() (map[string]RPCEndpoint, error) {
 	if bot.Config == nil {
-		return nil, errNilConfig
+		return nil, subsystem.ErrNilConfig
 	}
 	return map[string]RPCEndpoint{
 		grpcName: {
@@ -102,7 +103,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 	}
 
 	if bot.Config == nil {
-		return errNilConfig
+		return subsystem.ErrNilConfig
 	}
 
 	var err error

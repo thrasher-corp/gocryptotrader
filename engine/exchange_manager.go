@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binanceus"
@@ -80,7 +81,7 @@ func (m *ExchangeManager) Add(exch exchange.IBotExchange) {
 // GetExchanges returns all stored exchanges
 func (m *ExchangeManager) GetExchanges() ([]exchange.IBotExchange, error) {
 	if m == nil {
-		return nil, fmt.Errorf("exchange manager: %w", ErrNilSubsystem)
+		return nil, fmt.Errorf("exchange manager: %w", subsystem.ErrNil)
 	}
 	m.m.Lock()
 	defer m.m.Unlock()
@@ -114,7 +115,7 @@ func (m *ExchangeManager) RemoveExchange(exchName string) error {
 // GetExchangeByName returns an exchange by its name if it exists
 func (m *ExchangeManager) GetExchangeByName(exchangeName string) (exchange.IBotExchange, error) {
 	if m == nil {
-		return nil, fmt.Errorf("exchange manager: %w", ErrNilSubsystem)
+		return nil, fmt.Errorf("exchange manager: %w", subsystem.ErrNil)
 	}
 	if exchangeName == "" {
 		return nil, fmt.Errorf("exchange manager: %w", ErrExchangeNameIsEmpty)
@@ -138,7 +139,7 @@ func (m *ExchangeManager) Len() int {
 // NewExchangeByName helps create a new exchange to be loaded
 func (m *ExchangeManager) NewExchangeByName(name string) (exchange.IBotExchange, error) {
 	if m == nil {
-		return nil, fmt.Errorf("exchange manager %w", ErrNilSubsystem)
+		return nil, fmt.Errorf("exchange manager %w", subsystem.ErrNil)
 	}
 	nameLower := strings.ToLower(name)
 	if exch, _ := m.GetExchangeByName(nameLower); exch != nil {

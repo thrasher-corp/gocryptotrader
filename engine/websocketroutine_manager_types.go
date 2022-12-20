@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 )
 
 var (
@@ -21,9 +22,9 @@ var (
 type websocketRoutineManager struct {
 	started         int32
 	verbose         bool
-	exchangeManager iExchangeManager
-	orderManager    iOrderManager
-	syncer          iCurrencyPairSyncer
+	exchangeManager subsystem.ExchangeManager
+	orderManager    subsystem.OrderManager
+	syncer          subsystem.CurrencyPairSyncer
 	currencyConfig  *currency.Config
 	shutdown        chan struct{}
 	dataHandlers    []WebsocketDataHandler

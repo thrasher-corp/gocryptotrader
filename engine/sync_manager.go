@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -43,7 +44,7 @@ var (
 )
 
 // setupSyncManager starts a new CurrencyPairSyncer
-func setupSyncManager(c *SyncManagerConfig, exchangeManager iExchangeManager, remoteConfig *config.RemoteControlConfig, websocketRoutineManagerEnabled bool) (*syncManager, error) {
+func setupSyncManager(c *SyncManagerConfig, exchangeManager subsystem.ExchangeManager, remoteConfig *config.RemoteControlConfig, websocketRoutineManagerEnabled bool) (*syncManager, error) {
 	if c == nil {
 		return nil, fmt.Errorf("%T %w", c, common.ErrNilPointer)
 	}
@@ -52,10 +53,10 @@ func setupSyncManager(c *SyncManagerConfig, exchangeManager iExchangeManager, re
 		return nil, errNoSyncItemsEnabled
 	}
 	if exchangeManager == nil {
-		return nil, errNilExchangeManager
+		return nil, subsystem.ErrNilExchangeManager
 	}
 	if remoteConfig == nil {
-		return nil, errNilConfig
+		return nil, subsystem.ErrNilConfig
 	}
 
 	if c.NumWorkers <= 0 {
@@ -114,10 +115,10 @@ func (m *syncManager) IsRunning() bool {
 // Start runs the subsystem
 func (m *syncManager) Start() error {
 	if m == nil {
-		return fmt.Errorf("exchange CurrencyPairSyncer %w", ErrNilSubsystem)
+		return fmt.Errorf("exchange CurrencyPairSyncer %w", subsystem.ErrNil)
 	}
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
-		return ErrSubSystemAlreadyStarted
+		return subsystem.ErrAlreadyStarted
 	}
 	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer started.")
 	exchanges, err := m.exchangeManager.GetExchanges()
@@ -215,10 +216,10 @@ func (m *syncManager) Start() error {
 // Stop shuts down the exchange currency pair syncer
 func (m *syncManager) Stop() error {
 	if m == nil {
-		return fmt.Errorf("exchange CurrencyPairSyncer %w", ErrNilSubsystem)
+		return fmt.Errorf("exchange CurrencyPairSyncer %w", subsystem.ErrNil)
 	}
 	if !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
-		return fmt.Errorf("exchange CurrencyPairSyncer %w", ErrSubSystemNotStarted)
+		return fmt.Errorf("exchange CurrencyPairSyncer %w", subsystem.ErrNotStarted)
 	}
 	m.initSyncWG.Add(1)
 	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer stopped.")
@@ -228,10 +229,10 @@ func (m *syncManager) Stop() error {
 // Update notifies the syncManager to change the last updated time for an exchange asset pair
 func (m *syncManager) Update(exchangeName string, p currency.Pair, a asset.Item, syncType int, incomingErr error) error {
 	if m == nil {
-		return fmt.Errorf("exchange CurrencyPairSyncer %w", ErrNilSubsystem)
+		return fmt.Errorf("exchange CurrencyPairSyncer %w", subsystem.ErrNil)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return fmt.Errorf("exchange CurrencyPairSyncer %w", ErrSubSystemNotStarted)
+		return fmt.Errorf("exchange CurrencyPairSyncer %w", subsystem.ErrNotStarted)
 	}
 
 	if atomic.LoadInt32(&m.initSyncStarted) != 1 {
@@ -821,10 +822,10 @@ func (m *syncManager) PrintOrderbookSummary(result *orderbook.Base, protocol str
 // separate routine.
 func (m *syncManager) WaitForInitialSync() error {
 	if m == nil {
-		return fmt.Errorf("sync manager %w", ErrNilSubsystem)
+		return fmt.Errorf("sync manager %w", subsystem.ErrNil)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return fmt.Errorf("sync manager %w", ErrSubSystemNotStarted)
+		return fmt.Errorf("sync manager %w", subsystem.ErrNotStarted)
 	}
 	m.initSyncWG.Wait()
 	return nil

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
@@ -19,8 +20,8 @@ func TestSetupEventManager(t *testing.T) {
 	}
 
 	_, err = setupEventManager(&CommunicationManager{}, nil, 0, false)
-	if !errors.Is(err, errNilExchangeManager) {
-		t.Errorf("error '%v', expected '%v'", err, errNilExchangeManager)
+	if !errors.Is(err, subsystem.ErrNilExchangeManager) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNilExchangeManager)
 	}
 
 	m, err := setupEventManager(&CommunicationManager{}, &ExchangeManager{}, 0, false)
@@ -46,14 +47,14 @@ func TestEventManagerStart(t *testing.T) {
 	}
 
 	err = m.Start()
-	if !errors.Is(err, ErrSubSystemAlreadyStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemAlreadyStarted)
+	if !errors.Is(err, subsystem.ErrAlreadyStarted) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrAlreadyStarted)
 	}
 
 	m = nil
 	err = m.Start()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 }
 
@@ -95,13 +96,13 @@ func TestEventManagerStop(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 	err = m.Stop()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNotStarted)
 	}
 	m = nil
 	err = m.Stop()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 }
 
@@ -113,8 +114,8 @@ func TestEventManagerAdd(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 	_, err = m.Add("", "", EventConditionParams{}, currency.NewPair(currency.BTC, currency.USDC), asset.Spot, "")
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNotStarted)
 	}
 	err = m.Start()
 	if !errors.Is(err, nil) {
@@ -246,8 +247,8 @@ func TestCheckEventCondition(t *testing.T) {
 	}
 	m.m.Lock()
 	err = m.checkEventCondition(nil)
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNotStarted)
 	}
 	m.m.Unlock()
 	err = m.Start()

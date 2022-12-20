@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	dbpsql "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -45,7 +46,7 @@ func (m *DatabaseConnectionManager) GetInstance() database.IDatabase {
 // SetupDatabaseConnectionManager creates a new database manager
 func SetupDatabaseConnectionManager(cfg *database.Config) (*DatabaseConnectionManager, error) {
 	if cfg == nil {
-		return nil, errNilConfig
+		return nil, subsystem.ErrNilConfig
 	}
 	m := &DatabaseConnectionManager{
 		shutdown: make(chan struct{}),
@@ -73,10 +74,10 @@ func (m *DatabaseConnectionManager) Start(wg *sync.WaitGroup) (err error) {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
 	if m == nil {
-		return fmt.Errorf("%s %w", DatabaseConnectionManagerName, ErrNilSubsystem)
+		return fmt.Errorf("%s %w", DatabaseConnectionManagerName, subsystem.ErrNil)
 	}
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
-		return fmt.Errorf("database manager %w", ErrSubSystemAlreadyStarted)
+		return fmt.Errorf("database manager %w", subsystem.ErrAlreadyStarted)
 	}
 	defer func() {
 		if err != nil {
@@ -123,10 +124,10 @@ func (m *DatabaseConnectionManager) Start(wg *sync.WaitGroup) (err error) {
 // Stop attempts to shutdown the subsystem
 func (m *DatabaseConnectionManager) Stop() error {
 	if m == nil {
-		return fmt.Errorf("%s %w", DatabaseConnectionManagerName, ErrNilSubsystem)
+		return fmt.Errorf("%s %w", DatabaseConnectionManagerName, subsystem.ErrNil)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return fmt.Errorf("%s %w", DatabaseConnectionManagerName, ErrSubSystemNotStarted)
+		return fmt.Errorf("%s %w", DatabaseConnectionManagerName, subsystem.ErrNotStarted)
 	}
 	defer func() {
 		atomic.CompareAndSwapInt32(&m.started, 1, 0)
@@ -168,10 +169,10 @@ func (m *DatabaseConnectionManager) run(wg *sync.WaitGroup) {
 
 func (m *DatabaseConnectionManager) checkConnection() error {
 	if m == nil {
-		return fmt.Errorf("%s %w", DatabaseConnectionManagerName, ErrNilSubsystem)
+		return fmt.Errorf("%s %w", DatabaseConnectionManagerName, subsystem.ErrNil)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return fmt.Errorf("%s %w", DatabaseConnectionManagerName, ErrSubSystemNotStarted)
+		return fmt.Errorf("%s %w", DatabaseConnectionManagerName, subsystem.ErrNotStarted)
 	}
 	if !m.cfg.Enabled {
 		return database.ErrDatabaseSupportDisabled

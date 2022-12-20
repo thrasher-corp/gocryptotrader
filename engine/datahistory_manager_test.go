@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjob"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjobresult"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -27,18 +28,18 @@ import (
 func TestSetupDataHistoryManager(t *testing.T) {
 	t.Parallel()
 	_, err := SetupDataHistoryManager(nil, nil, nil)
-	if !errors.Is(err, errNilExchangeManager) {
-		t.Errorf("error '%v', expected '%v'", err, errNilConfig)
+	if !errors.Is(err, subsystem.ErrNilExchangeManager) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNilConfig)
 	}
 
 	_, err = SetupDataHistoryManager(SetupExchangeManager(), nil, nil)
-	if !errors.Is(err, errNilDatabaseConnectionManager) {
-		t.Errorf("error '%v', expected '%v'", err, errNilDatabaseConnectionManager)
+	if !errors.Is(err, subsystem.ErrNilDatabaseConnectionManager) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNilDatabaseConnectionManager)
 	}
 
 	_, err = SetupDataHistoryManager(SetupExchangeManager(), &DatabaseConnectionManager{}, nil)
-	if !errors.Is(err, errNilConfig) {
-		t.Errorf("error '%v', expected '%v'", err, errNilConfig)
+	if !errors.Is(err, subsystem.ErrNilConfig) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNilConfig)
 	}
 
 	_, err = SetupDataHistoryManager(SetupExchangeManager(), &DatabaseConnectionManager{}, &config.DataHistoryManager{})
@@ -96,13 +97,13 @@ func TestDataHistoryManagerStart(t *testing.T) {
 	}
 
 	err = m.Start()
-	if !errors.Is(err, ErrSubSystemAlreadyStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemAlreadyStarted)
+	if !errors.Is(err, subsystem.ErrAlreadyStarted) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrAlreadyStarted)
 	}
 	m = nil
 	err = m.Start()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 }
 
@@ -115,13 +116,13 @@ func TestDataHistoryManagerStop(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 	err = m.Stop()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNotStarted)
 	}
 	m = nil
 	err = m.Stop()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 }
 
@@ -278,14 +279,14 @@ func TestSetJobStatus(t *testing.T) {
 
 	atomic.StoreInt32(&m.started, 0)
 	err = m.SetJobStatus("", dhj.ID.String(), 0)
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNotStarted)
 	}
 
 	m = nil
 	err = m.SetJobStatus("", dhj.ID.String(), 0)
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 }
 
@@ -321,14 +322,14 @@ func TestGetByNickname(t *testing.T) {
 
 	atomic.StoreInt32(&m.started, 0)
 	_, err = m.GetByNickname("test123", false)
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNotStarted)
 	}
 
 	m = nil
 	_, err = m.GetByNickname("test123", false)
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 }
 
@@ -365,14 +366,14 @@ func TestGetByID(t *testing.T) {
 
 	atomic.StoreInt32(&m.started, 0)
 	_, err = m.GetByID(dhj.ID)
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNotStarted)
 	}
 
 	m = nil
 	_, err = m.GetByID(dhj.ID)
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 }
 
@@ -403,14 +404,14 @@ func TestRetrieveJobs(t *testing.T) {
 
 	atomic.StoreInt32(&m.started, 0)
 	_, err = m.retrieveJobs()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNotStarted)
 	}
 
 	m = nil
 	_, err = m.retrieveJobs()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 }
 
@@ -451,14 +452,14 @@ func TestGetActiveJobs(t *testing.T) {
 
 	atomic.StoreInt32(&m.started, 0)
 	_, err = m.GetActiveJobs()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNotStarted)
 	}
 
 	m = nil
 	_, err = m.GetActiveJobs()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 }
 
@@ -573,14 +574,14 @@ func TestGetAllJobStatusBetween(t *testing.T) {
 
 	m.started = 0
 	_, err = m.GetAllJobStatusBetween(time.Now().Add(-time.Hour), time.Now().Add(-time.Minute*30))
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNotStarted)
 	}
 
 	m = nil
 	_, err = m.GetAllJobStatusBetween(time.Now().Add(-time.Hour), time.Now().Add(-time.Minute*30))
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 }
 
@@ -596,13 +597,13 @@ func TestPrepareJobs(t *testing.T) {
 	}
 	m.started = 0
 	_, err = m.PrepareJobs()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNotStarted)
 	}
 	m = nil
 	_, err = m.PrepareJobs()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 }
 
@@ -644,13 +645,13 @@ func TestCompareJobsToData(t *testing.T) {
 
 	m.started = 0
 	err = m.compareJobsToData(dhj)
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNotStarted)
 	}
 	m = nil
 	err = m.compareJobsToData(dhj)
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 }
 
@@ -768,14 +769,14 @@ func TestRunJob(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() usage
 
 			atomic.StoreInt32(&m.started, 0)
 			err = m.runJob(test)
-			if !errors.Is(err, ErrSubSystemNotStarted) {
-				t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
+			if !errors.Is(err, subsystem.ErrNotStarted) {
+				t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNotStarted)
 			}
 
 			m = nil
 			err = m.runJob(test)
-			if !errors.Is(err, ErrNilSubsystem) {
-				t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+			if !errors.Is(err, subsystem.ErrNil) {
+				t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNil)
 			}
 		})
 	}
@@ -808,14 +809,14 @@ func TestGenerateJobSummaryTest(t *testing.T) {
 
 	atomic.StoreInt32(&m.started, 0)
 	_, err = m.GenerateJobSummary("TestGenerateJobSummary")
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNotStarted)
 	}
 
 	m = nil
 	_, err = m.GenerateJobSummary("TestGenerateJobSummary")
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 }
 
@@ -828,14 +829,14 @@ func TestRunJobs(t *testing.T) {
 	}
 	atomic.StoreInt32(&m.started, 0)
 	err = m.runJobs()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNotStarted)
 	}
 
 	m = nil
 	err = m.runJobs()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 }
 
@@ -1263,14 +1264,14 @@ func TestSetJobRelationship(t *testing.T) {
 	}
 	m.started = 0
 	err = m.SetJobRelationship("", "")
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("received %v expected %v", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("received %v expected %v", err, subsystem.ErrNotStarted)
 	}
 
 	m = nil
 	err = m.SetJobRelationship("", "")
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("received %v expected %v", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("received %v expected %v", err, subsystem.ErrNil)
 	}
 }
 
@@ -1327,8 +1328,8 @@ func TestCheckCandleIssue(t *testing.T) {
 
 	m.started = 0
 	issue, replace = m.CheckCandleIssue(nil, 0, 0, 0, "")
-	if issue != ErrSubSystemNotStarted.Error() {
-		t.Errorf("expected %v received %v", ErrSubSystemNotStarted, issue)
+	if issue != subsystem.ErrNotStarted.Error() {
+		t.Errorf("expected %v received %v", subsystem.ErrNotStarted, issue)
 	}
 	if replace {
 		t.Errorf("expected %v received %v", false, replace)
@@ -1336,8 +1337,8 @@ func TestCheckCandleIssue(t *testing.T) {
 
 	m = nil
 	issue, replace = m.CheckCandleIssue(nil, 0, 0, 0, "")
-	if issue != ErrNilSubsystem.Error() {
-		t.Errorf("expected %v received %v", ErrNilSubsystem, issue)
+	if issue != subsystem.ErrNil.Error() {
+		t.Errorf("expected %v received %v", subsystem.ErrNil, issue)
 	}
 	if replace {
 		t.Errorf("expected %v received %v", false, replace)
@@ -1390,8 +1391,8 @@ func TestSaveCandlesInBatches(t *testing.T) {
 		candleSaver: dataHistoryCandleSaver,
 	}
 	err := dhm.saveCandlesInBatches(nil, nil, nil)
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("received %v expected %v", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("received %v expected %v", err, subsystem.ErrNotStarted)
 	}
 
 	dhm.started = 1

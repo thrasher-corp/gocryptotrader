@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -22,15 +23,15 @@ import (
 )
 
 // SetupOrderManager will boot up the OrderManager
-func SetupOrderManager(exchangeManager iExchangeManager, communicationsManager iCommsManager, wg *sync.WaitGroup, verbose, activelyTrackFuturesPositions bool, futuresTrackingSeekDuration time.Duration) (*OrderManager, error) {
+func SetupOrderManager(exchangeManager subsystem.ExchangeManager, communicationsManager subsystem.CommsManager, wg *sync.WaitGroup, verbose, activelyTrackFuturesPositions bool, futuresTrackingSeekDuration time.Duration) (*OrderManager, error) {
 	if exchangeManager == nil {
-		return nil, errNilExchangeManager
+		return nil, subsystem.ErrNilExchangeManager
 	}
 	if communicationsManager == nil {
 		return nil, errNilCommunicationsManager
 	}
 	if wg == nil {
-		return nil, errNilWaitGroup
+		return nil, subsystem.ErrNilWaitGroup
 	}
 
 	om := &OrderManager{
@@ -65,10 +66,10 @@ func (m *OrderManager) IsRunning() bool {
 // Start runs the subsystem
 func (m *OrderManager) Start() error {
 	if m == nil {
-		return fmt.Errorf("order manager %w", ErrNilSubsystem)
+		return fmt.Errorf("order manager %w", subsystem.ErrNil)
 	}
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
-		return fmt.Errorf("order manager %w", ErrSubSystemAlreadyStarted)
+		return fmt.Errorf("order manager %w", subsystem.ErrAlreadyStarted)
 	}
 	log.Debugln(log.OrderMgr, "Order manager starting...")
 	m.shutdown = make(chan struct{})
@@ -80,10 +81,10 @@ func (m *OrderManager) Start() error {
 // Stop attempts to shutdown the subsystem
 func (m *OrderManager) Stop() error {
 	if m == nil {
-		return fmt.Errorf("order manager %w", ErrNilSubsystem)
+		return fmt.Errorf("order manager %w", subsystem.ErrNil)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
+		return fmt.Errorf("order manager %w", subsystem.ErrNotStarted)
 	}
 	log.Debugln(log.OrderMgr, "Order manager shutting down...")
 	close(m.shutdown)
@@ -162,10 +163,10 @@ func (m *OrderManager) CancelAllOrders(ctx context.Context, exchanges []exchange
 // to the exchange and if successful, update the status of the order
 func (m *OrderManager) Cancel(ctx context.Context, cancel *order.Cancel) error {
 	if m == nil {
-		return fmt.Errorf("order manager %w", ErrNilSubsystem)
+		return fmt.Errorf("order manager %w", subsystem.ErrNil)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
+		return fmt.Errorf("order manager %w", subsystem.ErrNotStarted)
 	}
 	var err error
 	defer func() {
@@ -232,10 +233,10 @@ func (m *OrderManager) Cancel(ctx context.Context, cancel *order.Cancel) error {
 // the order manager's futures position tracker that match the provided params
 func (m *OrderManager) GetFuturesPositionsForExchange(exch string, item asset.Item, pair currency.Pair) ([]order.Position, error) {
 	if m == nil {
-		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
+		return nil, fmt.Errorf("order manager %w", subsystem.ErrNil)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
+		return nil, fmt.Errorf("order manager %w", subsystem.ErrNotStarted)
 	}
 	if !item.IsFutures() {
 		return nil, fmt.Errorf("%v %w", item, order.ErrNotFuturesAsset)
@@ -248,10 +249,10 @@ func (m *OrderManager) GetFuturesPositionsForExchange(exch string, item asset.It
 // the order manager's futures position tracker that match the provided params
 func (m *OrderManager) GetOpenFuturesPosition(exch string, item asset.Item, pair currency.Pair) (*order.Position, error) {
 	if m == nil {
-		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
+		return nil, fmt.Errorf("order manager %w", subsystem.ErrNil)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
+		return nil, fmt.Errorf("order manager %w", subsystem.ErrNotStarted)
 	}
 	if !item.IsFutures() {
 		return nil, fmt.Errorf("%v %w", item, order.ErrNotFuturesAsset)
@@ -266,10 +267,10 @@ func (m *OrderManager) GetOpenFuturesPosition(exch string, item asset.Item, pair
 // the order manager's futures position tracker that match the provided params
 func (m *OrderManager) GetAllOpenFuturesPositions() ([]order.Position, error) {
 	if m == nil {
-		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
+		return nil, fmt.Errorf("order manager %w", subsystem.ErrNil)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
+		return nil, fmt.Errorf("order manager %w", subsystem.ErrNotStarted)
 	}
 	if !m.activelyTrackFuturesPositions {
 		return nil, errFuturesTrackingDisabled
@@ -281,10 +282,10 @@ func (m *OrderManager) GetAllOpenFuturesPositions() ([]order.Position, error) {
 // asset, pair for the event that positions have not been tracked accurately
 func (m *OrderManager) ClearFuturesTracking(exch string, item asset.Item, pair currency.Pair) error {
 	if m == nil {
-		return fmt.Errorf("order manager %w", ErrNilSubsystem)
+		return fmt.Errorf("order manager %w", subsystem.ErrNil)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
+		return fmt.Errorf("order manager %w", subsystem.ErrNotStarted)
 	}
 	if !item.IsFutures() {
 		return fmt.Errorf("%v %w", item, order.ErrNotFuturesAsset)
@@ -298,10 +299,10 @@ func (m *OrderManager) ClearFuturesTracking(exch string, item asset.Item, pair c
 // using the latest ticker data
 func (m *OrderManager) UpdateOpenPositionUnrealisedPNL(e string, item asset.Item, pair currency.Pair, last float64, updated time.Time) (decimal.Decimal, error) {
 	if m == nil {
-		return decimal.Zero, fmt.Errorf("order manager %w", ErrNilSubsystem)
+		return decimal.Zero, fmt.Errorf("order manager %w", subsystem.ErrNil)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return decimal.Zero, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
+		return decimal.Zero, fmt.Errorf("order manager %w", subsystem.ErrNotStarted)
 	}
 	if !item.IsFutures() {
 		return decimal.Zero, fmt.Errorf("%v %w", item, order.ErrNotFuturesAsset)
@@ -314,10 +315,10 @@ func (m *OrderManager) UpdateOpenPositionUnrealisedPNL(e string, item asset.Item
 // and stores the result in the order manager
 func (m *OrderManager) GetOrderInfo(ctx context.Context, exchangeName, orderID string, cp currency.Pair, a asset.Item) (order.Detail, error) {
 	if m == nil {
-		return order.Detail{}, fmt.Errorf("order manager %w", ErrNilSubsystem)
+		return order.Detail{}, fmt.Errorf("order manager %w", subsystem.ErrNil)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return order.Detail{}, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
+		return order.Detail{}, fmt.Errorf("order manager %w", subsystem.ErrNotStarted)
 	}
 
 	if orderID == "" {
@@ -380,10 +381,10 @@ func (m *OrderManager) validate(newOrder *order.Submit) error {
 // identify an order to modify.
 func (m *OrderManager) Modify(ctx context.Context, mod *order.Modify) (*order.ModifyResponse, error) {
 	if m == nil {
-		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
+		return nil, fmt.Errorf("order manager %w", subsystem.ErrNil)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
+		return nil, fmt.Errorf("order manager %w", subsystem.ErrNotStarted)
 	}
 
 	// Fetch details from locally managed order store.
@@ -451,10 +452,10 @@ func (m *OrderManager) Modify(ctx context.Context, mod *order.Modify) (*order.Mo
 // populate it in the OrderManager if successful
 func (m *OrderManager) Submit(ctx context.Context, newOrder *order.Submit) (*OrderSubmitResponse, error) {
 	if m == nil {
-		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
+		return nil, fmt.Errorf("order manager %w", subsystem.ErrNil)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
+		return nil, fmt.Errorf("order manager %w", subsystem.ErrNotStarted)
 	}
 
 	err := m.validate(newOrder)
@@ -502,10 +503,10 @@ func (m *OrderManager) Submit(ctx context.Context, newOrder *order.Submit) (*Ord
 // but does not touch live endpoints
 func (m *OrderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder *order.SubmitResponse, checkExchangeLimits bool) (*OrderSubmitResponse, error) {
 	if m == nil {
-		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
+		return nil, fmt.Errorf("order manager %w", subsystem.ErrNil)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
+		return nil, fmt.Errorf("order manager %w", subsystem.ErrNotStarted)
 	}
 
 	err := m.validate(newOrder)
@@ -558,10 +559,10 @@ func (m *OrderManager) GetOrdersSnapshot(s order.Status) []order.Detail {
 // Filtering is applied based on the order.Filter unless entries are empty
 func (m *OrderManager) GetOrdersFiltered(f *order.Filter) ([]order.Detail, error) {
 	if m == nil {
-		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
+		return nil, fmt.Errorf("order manager %w", subsystem.ErrNil)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
+		return nil, fmt.Errorf("order manager %w", subsystem.ErrNotStarted)
 	}
 	return m.orderStore.getFilteredOrders(f)
 }
@@ -570,10 +571,10 @@ func (m *OrderManager) GetOrdersFiltered(f *order.Filter) ([]order.Detail, error
 // that have a status that indicates it's currently tradable
 func (m *OrderManager) GetOrdersActive(f *order.Filter) ([]order.Detail, error) {
 	if m == nil {
-		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
+		return nil, fmt.Errorf("order manager %w", subsystem.ErrNil)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
+		return nil, fmt.Errorf("order manager %w", subsystem.ErrNotStarted)
 	}
 	return m.orderStore.getActiveOrders(f), nil
 }
@@ -852,10 +853,10 @@ func (m *OrderManager) Exists(o *order.Detail) bool {
 // Add adds an order to the orderstore
 func (m *OrderManager) Add(o *order.Detail) error {
 	if m == nil {
-		return fmt.Errorf("order manager %w", ErrNilSubsystem)
+		return fmt.Errorf("order manager %w", subsystem.ErrNil)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
+		return fmt.Errorf("order manager %w", subsystem.ErrNotStarted)
 	}
 
 	return m.orderStore.add(o)
@@ -864,10 +865,10 @@ func (m *OrderManager) Add(o *order.Detail) error {
 // GetByExchangeAndID returns a copy of an order from an exchange if it matches the ID
 func (m *OrderManager) GetByExchangeAndID(exchangeName, id string) (*order.Detail, error) {
 	if m == nil {
-		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
+		return nil, fmt.Errorf("order manager %w", subsystem.ErrNil)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
+		return nil, fmt.Errorf("order manager %w", subsystem.ErrNotStarted)
 	}
 	return m.orderStore.getByExchangeAndID(exchangeName, id)
 }
@@ -875,10 +876,10 @@ func (m *OrderManager) GetByExchangeAndID(exchangeName, id string) (*order.Detai
 // UpdateExistingOrder will update an existing order in the orderstore
 func (m *OrderManager) UpdateExistingOrder(od *order.Detail) error {
 	if m == nil {
-		return fmt.Errorf("order manager %w", ErrNilSubsystem)
+		return fmt.Errorf("order manager %w", subsystem.ErrNil)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
+		return fmt.Errorf("order manager %w", subsystem.ErrNotStarted)
 	}
 	return m.orderStore.updateExisting(od)
 }
@@ -886,10 +887,10 @@ func (m *OrderManager) UpdateExistingOrder(od *order.Detail) error {
 // UpsertOrder updates an existing order or adds a new one to the orderstore
 func (m *OrderManager) UpsertOrder(od *order.Detail) (resp *OrderUpsertResponse, err error) {
 	if m == nil {
-		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
+		return nil, fmt.Errorf("order manager %w", subsystem.ErrNil)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
+		return nil, fmt.Errorf("order manager %w", subsystem.ErrNotStarted)
 	}
 	if od == nil {
 		return nil, errNilOrder

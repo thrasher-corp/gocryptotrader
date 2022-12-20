@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -27,14 +28,14 @@ func TestSetupSyncManager(t *testing.T) {
 
 	_, err = setupSyncManager(&SyncManagerConfig{SynchronizeTrades: true},
 		nil, nil, false)
-	if !errors.Is(err, errNilExchangeManager) {
-		t.Errorf("error '%v', expected '%v'", err, errNilExchangeManager)
+	if !errors.Is(err, subsystem.ErrNilExchangeManager) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNilExchangeManager)
 	}
 
 	_, err = setupSyncManager(&SyncManagerConfig{SynchronizeTrades: true},
 		&ExchangeManager{}, nil, false)
-	if !errors.Is(err, errNilConfig) {
-		t.Errorf("error '%v', expected '%v'", err, errNilConfig)
+	if !errors.Is(err, subsystem.ErrNilConfig) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNilConfig)
 	}
 
 	_, err = setupSyncManager(&SyncManagerConfig{SynchronizeTrades: true},
@@ -98,14 +99,14 @@ func TestSyncManagerStart(t *testing.T) {
 	}
 
 	err = m.Start()
-	if !errors.Is(err, ErrSubSystemAlreadyStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemAlreadyStarted)
+	if !errors.Is(err, subsystem.ErrAlreadyStarted) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrAlreadyStarted)
 	}
 
 	m = nil
 	err = m.Start()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 }
 
@@ -113,8 +114,8 @@ func TestSyncManagerStop(t *testing.T) {
 	t.Parallel()
 	var m *syncManager
 	err := m.Stop()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 
 	em := SetupExchangeManager()
@@ -135,8 +136,8 @@ func TestSyncManagerStop(t *testing.T) {
 	}
 
 	err = m.Stop()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNotStarted)
 	}
 
 	err = m.Start()
@@ -265,14 +266,14 @@ func TestRelayWebsocketEvent(t *testing.T) {
 func TestWaitForInitialSync(t *testing.T) {
 	var m *syncManager
 	err := m.WaitForInitialSync()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Fatalf("received %v, but expected: %v", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Fatalf("received %v, but expected: %v", err, subsystem.ErrNil)
 	}
 
 	m = &syncManager{}
 	err = m.WaitForInitialSync()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Fatalf("received %v, but expected: %v", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Fatalf("received %v, but expected: %v", err, subsystem.ErrNotStarted)
 	}
 
 	m.started = 1
@@ -286,14 +287,14 @@ func TestSyncManagerUpdate(t *testing.T) {
 	t.Parallel()
 	var m *syncManager
 	err := m.Update("", currency.EMPTYPAIR, 1, 47, nil)
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Fatalf("received %v, but expected: %v", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Fatalf("received %v, but expected: %v", err, subsystem.ErrNil)
 	}
 
 	m = &syncManager{}
 	err = m.Update("", currency.EMPTYPAIR, 1, 47, nil)
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Fatalf("received %v, but expected: %v", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Fatalf("received %v, but expected: %v", err, subsystem.ErrNotStarted)
 	}
 
 	m.started = 1

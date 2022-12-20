@@ -6,6 +6,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -17,9 +18,9 @@ import (
 )
 
 // setupWebsocketRoutineManager creates a new websocket routine manager
-func setupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager iOrderManager, syncer iCurrencyPairSyncer, cfg *currency.Config, verbose bool) (*websocketRoutineManager, error) {
+func setupWebsocketRoutineManager(exchangeManager subsystem.ExchangeManager, orderManager subsystem.OrderManager, syncer subsystem.CurrencyPairSyncer, cfg *currency.Config, verbose bool) (*websocketRoutineManager, error) {
 	if exchangeManager == nil {
-		return nil, errNilExchangeManager
+		return nil, subsystem.ErrNilExchangeManager
 	}
 	if orderManager == nil {
 		return nil, errNilOrderManager
@@ -47,7 +48,7 @@ func setupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager
 // Start runs the subsystem
 func (m *websocketRoutineManager) Start() error {
 	if m == nil {
-		return fmt.Errorf("websocket routine manager %w", ErrNilSubsystem)
+		return fmt.Errorf("websocket routine manager %w", subsystem.ErrNil)
 	}
 
 	if m.currencyConfig == nil {
@@ -59,7 +60,7 @@ func (m *websocketRoutineManager) Start() error {
 	}
 
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
-		return ErrSubSystemAlreadyStarted
+		return subsystem.ErrAlreadyStarted
 	}
 	m.shutdown = make(chan struct{})
 	m.websocketRoutine()
@@ -77,10 +78,10 @@ func (m *websocketRoutineManager) IsRunning() bool {
 // Stop attempts to shutdown the subsystem
 func (m *websocketRoutineManager) Stop() error {
 	if m == nil {
-		return fmt.Errorf("websocket routine manager %w", ErrNilSubsystem)
+		return fmt.Errorf("websocket routine manager %w", subsystem.ErrNil)
 	}
 	if !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
-		return fmt.Errorf("websocket routine manager %w", ErrSubSystemNotStarted)
+		return fmt.Errorf("websocket routine manager %w", subsystem.ErrNotStarted)
 	}
 	close(m.shutdown)
 	m.wg.Wait()
@@ -148,7 +149,7 @@ func (m *websocketRoutineManager) websocketRoutine() {
 // associated with an exchange
 func (m *websocketRoutineManager) websocketDataReceiver(ws *stream.Websocket) error {
 	if m == nil {
-		return fmt.Errorf("websocket routine manager %w", ErrNilSubsystem)
+		return fmt.Errorf("websocket routine manager %w", subsystem.ErrNil)
 	}
 
 	if ws == nil {
@@ -350,7 +351,7 @@ func (m *websocketRoutineManager) printAccountHoldingsChangeSummary(o account.Ch
 // (including default) bypassing all other handling.
 func (m *websocketRoutineManager) registerWebsocketDataHandler(fn WebsocketDataHandler, interceptorOnly bool) error {
 	if m == nil {
-		return fmt.Errorf("%T %w", m, ErrNilSubsystem)
+		return fmt.Errorf("%T %w", m, subsystem.ErrNil)
 	}
 
 	if fn == nil {
@@ -373,7 +374,7 @@ func (m *websocketRoutineManager) registerWebsocketDataHandler(fn WebsocketDataH
 // pre-existing handlers.
 func (m *websocketRoutineManager) setWebsocketDataHandler(fn WebsocketDataHandler) error {
 	if m == nil {
-		return fmt.Errorf("%T %w", m, ErrNilSubsystem)
+		return fmt.Errorf("%T %w", m, subsystem.ErrNil)
 	}
 	if fn == nil {
 		return errNilWebsocketDataHandlerFunction

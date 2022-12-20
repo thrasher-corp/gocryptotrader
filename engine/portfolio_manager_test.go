@@ -4,12 +4,14 @@ import (
 	"errors"
 	"sync"
 	"testing"
+
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 )
 
 func TestSetupPortfolioManager(t *testing.T) {
 	_, err := setupPortfolioManager(nil, 0, nil)
-	if !errors.Is(err, errNilExchangeManager) {
-		t.Errorf("error '%v', expected '%v'", err, errNilExchangeManager)
+	if !errors.Is(err, subsystem.ErrNilExchangeManager) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNilExchangeManager)
 	}
 
 	m, err := setupPortfolioManager(SetupExchangeManager(), 0, nil)
@@ -48,8 +50,8 @@ func TestPortfolioManagerStart(t *testing.T) {
 	var m *portfolioManager
 	var wg sync.WaitGroup
 	err := m.Start(nil)
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 
 	m, err = setupPortfolioManager(SetupExchangeManager(), 0, nil)
@@ -58,8 +60,8 @@ func TestPortfolioManagerStart(t *testing.T) {
 	}
 
 	err = m.Start(nil)
-	if !errors.Is(err, errNilWaitGroup) {
-		t.Errorf("error '%v', expected '%v'", err, errNilWaitGroup)
+	if !errors.Is(err, subsystem.ErrNilWaitGroup) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNilWaitGroup)
 	}
 
 	err = m.Start(&wg)
@@ -68,8 +70,8 @@ func TestPortfolioManagerStart(t *testing.T) {
 	}
 
 	err = m.Start(&wg)
-	if !errors.Is(err, ErrSubSystemAlreadyStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemAlreadyStarted)
+	if !errors.Is(err, subsystem.ErrAlreadyStarted) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrAlreadyStarted)
 	}
 }
 
@@ -77,8 +79,8 @@ func TestPortfolioManagerStop(t *testing.T) {
 	var m *portfolioManager
 	var wg sync.WaitGroup
 	err := m.Stop()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 
 	m, err = setupPortfolioManager(SetupExchangeManager(), 0, nil)
@@ -86,8 +88,8 @@ func TestPortfolioManagerStop(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 	err = m.Stop()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNotStarted)
 	}
 
 	err = m.Start(&wg)

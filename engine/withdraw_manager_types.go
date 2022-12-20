@@ -2,6 +2,8 @@ package engine
 
 import (
 	"errors"
+
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 )
 
 var (
@@ -12,7 +14,7 @@ var (
 // WithdrawManager is responsible for performing withdrawal requests and
 // saving them to the database
 type WithdrawManager struct {
-	exchangeManager  iExchangeManager
-	portfolioManager iPortfolioManager
+	exchangeManager  subsystem.ExchangeManager
+	portfolioManager subsystem.PortfolioManager
 	isDryRun         bool
 }

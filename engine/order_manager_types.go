@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -54,8 +55,8 @@ type OrderManager struct {
 type store struct {
 	m                         sync.RWMutex
 	Orders                    map[string][]*order.Detail
-	commsManager              iCommsManager
-	exchangeManager           iExchangeManager
+	commsManager              subsystem.CommsManager
+	exchangeManager           subsystem.ExchangeManager
 	wg                        *sync.WaitGroup
 	futuresPositionController order.PositionController
 }

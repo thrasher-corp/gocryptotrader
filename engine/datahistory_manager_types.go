@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjob"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjobresult"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -121,7 +122,7 @@ var (
 // DataHistoryManager is responsible for synchronising,
 // retrieving and saving candle and trade data from loaded jobs
 type DataHistoryManager struct {
-	exchangeManager            iExchangeManager
+	exchangeManager            subsystem.ExchangeManager
 	databaseConnectionInstance database.IDatabase
 	started                    int32
 	processing                 int32

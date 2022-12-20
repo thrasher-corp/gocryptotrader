@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
@@ -64,11 +65,11 @@ type Event struct {
 // eventManager holds communication manager data
 type eventManager struct {
 	started         int32
-	comms           iCommsManager
+	comms           subsystem.CommsManager
 	events          []Event
 	verbose         bool
 	sleepDelay      time.Duration
-	exchangeManager iExchangeManager
+	exchangeManager subsystem.ExchangeManager
 	shutdown        chan struct{}
 	m               sync.Mutex
 }

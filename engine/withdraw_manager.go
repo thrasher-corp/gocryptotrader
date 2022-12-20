@@ -7,6 +7,7 @@ import (
 	"time"
 
 	dbwithdraw "github.com/thrasher-corp/gocryptotrader/database/repository/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -14,7 +15,7 @@ import (
 )
 
 // SetupWithdrawManager creates a new withdraw manager
-func SetupWithdrawManager(em iExchangeManager, pm iPortfolioManager, isDryRun bool) (*WithdrawManager, error) {
+func SetupWithdrawManager(em subsystem.ExchangeManager, pm subsystem.PortfolioManager, isDryRun bool) (*WithdrawManager, error) {
 	if em == nil {
 		return nil, errors.New("nil manager")
 	}
@@ -29,7 +30,7 @@ func SetupWithdrawManager(em iExchangeManager, pm iPortfolioManager, isDryRun bo
 // exchange
 func (m *WithdrawManager) SubmitWithdrawal(ctx context.Context, req *withdraw.Request) (*withdraw.Response, error) {
 	if m == nil {
-		return nil, ErrNilSubsystem
+		return nil, subsystem.ErrNil
 	}
 	if req == nil {
 		return nil, withdraw.ErrRequestCannotBeNil
@@ -96,7 +97,7 @@ func (m *WithdrawManager) SubmitWithdrawal(ctx context.Context, req *withdraw.Re
 // WithdrawalEventByID returns a withdrawal request by ID
 func (m *WithdrawManager) WithdrawalEventByID(id string) (*withdraw.Response, error) {
 	if m == nil {
-		return nil, ErrNilSubsystem
+		return nil, subsystem.ErrNil
 	}
 	if v := withdraw.Cache.Get(id); v != nil {
 		wdResp, ok := v.(*withdraw.Response)
@@ -117,7 +118,7 @@ func (m *WithdrawManager) WithdrawalEventByID(id string) (*withdraw.Response, er
 // WithdrawalEventByExchange returns a withdrawal request by ID
 func (m *WithdrawManager) WithdrawalEventByExchange(exchange string, limit int) ([]*withdraw.Response, error) {
 	if m == nil {
-		return nil, ErrNilSubsystem
+		return nil, subsystem.ErrNil
 	}
 	_, err := m.exchangeManager.GetExchangeByName(exchange)
 	if err != nil {
@@ -130,7 +131,7 @@ func (m *WithdrawManager) WithdrawalEventByExchange(exchange string, limit int) 
 // WithdrawEventByDate returns a withdrawal request by ID
 func (m *WithdrawManager) WithdrawEventByDate(exchange string, start, end time.Time, limit int) ([]*withdraw.Response, error) {
 	if m == nil {
-		return nil, ErrNilSubsystem
+		return nil, subsystem.ErrNil
 	}
 	_, err := m.exchangeManager.GetExchangeByName(exchange)
 	if err != nil {
@@ -143,7 +144,7 @@ func (m *WithdrawManager) WithdrawEventByDate(exchange string, start, end time.T
 // WithdrawalEventByExchangeID returns a withdrawal request by Exchange ID
 func (m *WithdrawManager) WithdrawalEventByExchangeID(exchange, id string) (*withdraw.Response, error) {
 	if m == nil {
-		return nil, ErrNilSubsystem
+		return nil, subsystem.ErrNil
 	}
 	_, err := m.exchangeManager.GetExchangeByName(exchange)
 	if err != nil {

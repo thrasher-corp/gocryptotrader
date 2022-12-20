@@ -9,6 +9,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
@@ -161,10 +162,10 @@ func TestWithdrawalEventByExchange(t *testing.T) {
 	}
 
 	_, err = (*WithdrawManager)(nil).WithdrawalEventByExchange("xxx", 0)
-	if !errors.Is(err, ErrNilSubsystem) {
+	if !errors.Is(err, subsystem.ErrNil) {
 		t.Errorf("received: %v but expected: %v",
 			err,
-			ErrNilSubsystem)
+			subsystem.ErrNil)
 	}
 
 	_, err = m.WithdrawalEventByExchange("xxx", 0)
@@ -184,10 +185,10 @@ func TestWithdrawEventByDate(t *testing.T) {
 	}
 
 	_, err = (*WithdrawManager)(nil).WithdrawEventByDate("xxx", time.Now(), time.Now(), 1)
-	if !errors.Is(err, ErrNilSubsystem) {
+	if !errors.Is(err, subsystem.ErrNil) {
 		t.Errorf("received: %v but expected: %v",
 			err,
-			ErrNilSubsystem)
+			subsystem.ErrNil)
 	}
 
 	_, err = m.WithdrawEventByDate("xxx", time.Now(), time.Now(), 1)
@@ -207,10 +208,10 @@ func TestWithdrawalEventByExchangeID(t *testing.T) {
 	}
 
 	_, err = (*WithdrawManager)(nil).WithdrawalEventByExchangeID("xxx", "xxx")
-	if !errors.Is(err, ErrNilSubsystem) {
+	if !errors.Is(err, subsystem.ErrNil) {
 		t.Errorf("received: %v but expected: %v",
 			err,
-			ErrNilSubsystem)
+			subsystem.ErrNil)
 	}
 
 	_, err = m.WithdrawalEventByExchangeID("xxx", "xxx")

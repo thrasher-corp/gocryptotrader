@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 )
 
@@ -107,7 +108,7 @@ func (m *DepositAddressManager) GetDepositAddressesByExchange(exchName string) (
 // Sync synchronises all deposit addresses
 func (m *DepositAddressManager) Sync(addresses map[string]map[string][]deposit.Address) error {
 	if m == nil {
-		return fmt.Errorf("deposit address manager %w", ErrNilSubsystem)
+		return fmt.Errorf("deposit address manager %w", subsystem.ErrNil)
 	}
 	m.m.Lock()
 	defer m.m.Unlock()

@@ -10,6 +10,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
@@ -32,14 +33,14 @@ type CurrencyStateManager struct {
 	started  int32
 	shutdown chan struct{}
 	wg       sync.WaitGroup
-	iExchangeManager
+	subsystem.ExchangeManager
 	sleep time.Duration
 }
 
 // SetupCurrencyStateManager applies configuration parameters before running
-func SetupCurrencyStateManager(interval time.Duration, em iExchangeManager) (*CurrencyStateManager, error) {
+func SetupCurrencyStateManager(interval time.Duration, em subsystem.ExchangeManager) (*CurrencyStateManager, error) {
 	if em == nil {
-		return nil, errNilExchangeManager
+		return nil, subsystem.ErrNilExchangeManager
 	}
 	var c CurrencyStateManager
 	if interval <= 0 {
@@ -49,7 +50,7 @@ func SetupCurrencyStateManager(interval time.Duration, em iExchangeManager) (*Cu
 		interval = DefaultStateManagerDelay
 	}
 	c.sleep = interval
-	c.iExchangeManager = em
+	c.ExchangeManager = em
 	c.shutdown = make(chan struct{})
 	return &c, nil
 }
@@ -58,11 +59,11 @@ func SetupCurrencyStateManager(interval time.Duration, em iExchangeManager) (*Cu
 func (c *CurrencyStateManager) Start() error {
 	log.Debugln(log.ExchangeSys, "Currency state manager starting...")
 	if c == nil {
-		return fmt.Errorf("%s %w", CurrencyStateManagementName, ErrNilSubsystem)
+		return fmt.Errorf("%s %w", CurrencyStateManagementName, subsystem.ErrNil)
 	}
 
 	if !atomic.CompareAndSwapInt32(&c.started, 0, 1) {
-		return fmt.Errorf("%s %w", CurrencyStateManagementName, ErrSubSystemAlreadyStarted)
+		return fmt.Errorf("%s %w", CurrencyStateManagementName, subsystem.ErrAlreadyStarted)
 	}
 	c.wg.Add(1)
 	go c.monitor()
@@ -73,17 +74,17 @@ func (c *CurrencyStateManager) Start() error {
 // Stop stops the subsystem
 func (c *CurrencyStateManager) Stop() error {
 	if c == nil {
-		return fmt.Errorf("%s %w", CurrencyStateManagementName, ErrNilSubsystem)
+		return fmt.Errorf("%s %w", CurrencyStateManagementName, subsystem.ErrNil)
 	}
 	if atomic.LoadInt32(&c.started) == 0 {
-		return fmt.Errorf("%s %w", CurrencyStateManagementName, ErrSubSystemNotStarted)
+		return fmt.Errorf("%s %w", CurrencyStateManagementName, subsystem.ErrNotStarted)
 	}
 
-	log.Debugf(log.ExchangeSys, "Currency state manager %s", MsgSubSystemShuttingDown)
+	log.Debugf(log.ExchangeSys, "Currency state manager %s", subsystem.MsgShuttingDown)
 	close(c.shutdown)
 	c.wg.Wait()
 	c.shutdown = make(chan struct{})
-	log.Debugf(log.ExchangeSys, "Currency state manager %s", MsgSubSystemShutdown)
+	log.Debugf(log.ExchangeSys, "Currency state manager %s", subsystem.MsgShutdown)
 	atomic.StoreInt32(&c.started, 0)
 	return nil
 }
@@ -176,7 +177,7 @@ func (c *CurrencyStateManager) update(exch exchange.IBotExchange, wg *sync.WaitG
 // to be withdrawn, deposited or traded on an exchange for RPC.
 func (c *CurrencyStateManager) GetAllRPC(exchName string) (*gctrpc.CurrencyStateResponse, error) {
 	if !c.IsRunning() {
-		return nil, fmt.Errorf("%s %w", CurrencyStateManagementName, ErrSubSystemNotStarted)
+		return nil, fmt.Errorf("%s %w", CurrencyStateManagementName, subsystem.ErrNotStarted)
 	}
 	exch, err := c.GetExchangeByName(exchName)
 	if err != nil {
@@ -205,7 +206,7 @@ func (c *CurrencyStateManager) GetAllRPC(exchName string) (*gctrpc.CurrencyState
 // from an exchange for RPC
 func (c *CurrencyStateManager) CanWithdrawRPC(exchName string, cc currency.Code, a asset.Item) (*gctrpc.GenericResponse, error) {
 	if !c.IsRunning() {
-		return nil, fmt.Errorf("%s %w", CurrencyStateManagementName, ErrSubSystemNotStarted)
+		return nil, fmt.Errorf("%s %w", CurrencyStateManagementName, subsystem.ErrNotStarted)
 	}
 
 	exch, err := c.GetExchangeByName(exchName)
@@ -224,7 +225,7 @@ func (c *CurrencyStateManager) CanWithdrawRPC(exchName string, cc currency.Code,
 // to an exchange for RPC
 func (c *CurrencyStateManager) CanDepositRPC(exchName string, cc currency.Code, a asset.Item) (*gctrpc.GenericResponse, error) {
 	if !c.IsRunning() {
-		return nil, fmt.Errorf("%s %w", CurrencyStateManagementName, ErrSubSystemNotStarted)
+		return nil, fmt.Errorf("%s %w", CurrencyStateManagementName, subsystem.ErrNotStarted)
 	}
 
 	exch, err := c.GetExchangeByName(exchName)
@@ -243,7 +244,7 @@ func (c *CurrencyStateManager) CanDepositRPC(exchName string, cc currency.Code, 
 // RPC
 func (c *CurrencyStateManager) CanTradeRPC(exchName string, cc currency.Code, a asset.Item) (*gctrpc.GenericResponse, error) {
 	if !c.IsRunning() {
-		return nil, fmt.Errorf("%s %w", CurrencyStateManagementName, ErrSubSystemNotStarted)
+		return nil, fmt.Errorf("%s %w", CurrencyStateManagementName, subsystem.ErrNotStarted)
 	}
 
 	exch, err := c.GetExchangeByName(exchName)
@@ -261,7 +262,7 @@ func (c *CurrencyStateManager) CanTradeRPC(exchName string, cc currency.Code, a 
 // CanTradePairRPC determines if the pair is operational for trading for RPC
 func (c *CurrencyStateManager) CanTradePairRPC(exchName string, pair currency.Pair, a asset.Item) (*gctrpc.GenericResponse, error) {
 	if !c.IsRunning() {
-		return nil, fmt.Errorf("%s %w", CurrencyStateManagementName, ErrSubSystemNotStarted)
+		return nil, fmt.Errorf("%s %w", CurrencyStateManagementName, subsystem.ErrNotStarted)
 	}
 
 	exch, err := c.GetExchangeByName(exchName)

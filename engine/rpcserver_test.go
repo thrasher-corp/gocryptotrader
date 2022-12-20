@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	dbexchange "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	sqltrade "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -2096,8 +2097,8 @@ func TestCurrencyStateGetAll(t *testing.T) {
 	t.Parallel()
 	_, err := (&RPCServer{Engine: &Engine{}}).CurrencyStateGetAll(context.Background(),
 		&gctrpc.CurrencyStateGetAllRequest{Exchange: fakeExchangeName})
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("received %v, expected %v", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("received %v, expected %v", err, subsystem.ErrNotStarted)
 	}
 }
 
@@ -2117,8 +2118,8 @@ func TestCurrencyStateWithdraw(t *testing.T) {
 	}).CurrencyStateWithdraw(context.Background(),
 		&gctrpc.CurrencyStateWithdrawRequest{
 			Exchange: "wow", Asset: "spot"})
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Fatalf("received: %v, but expected: %v", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Fatalf("received: %v, but expected: %v", err, subsystem.ErrNotStarted)
 	}
 }
 
@@ -2136,8 +2137,8 @@ func TestCurrencyStateDeposit(t *testing.T) {
 		Engine: &Engine{},
 	}).CurrencyStateDeposit(context.Background(),
 		&gctrpc.CurrencyStateDepositRequest{Exchange: "wow", Asset: "spot"})
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Fatalf("received: %v, but expected: %v", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Fatalf("received: %v, but expected: %v", err, subsystem.ErrNotStarted)
 	}
 }
 
@@ -2155,8 +2156,8 @@ func TestCurrencyStateTrading(t *testing.T) {
 		Engine: &Engine{},
 	}).CurrencyStateTrading(context.Background(),
 		&gctrpc.CurrencyStateTradingRequest{Exchange: "wow", Asset: "spot"})
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Fatalf("received: %v, but expected: %v", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Fatalf("received: %v, but expected: %v", err, subsystem.ErrNotStarted)
 	}
 }
 
@@ -2188,7 +2189,7 @@ func TestCurrencyStateTradingPair(t *testing.T) {
 	}
 	em.Add(fakeExchange)
 	s := RPCServer{Engine: &Engine{ExchangeManager: em,
-		currencyStateManager: &CurrencyStateManager{started: 1, iExchangeManager: em}}}
+		currencyStateManager: &CurrencyStateManager{started: 1, ExchangeManager: em}}}
 
 	_, err = s.CurrencyStateTradingPair(context.Background(),
 		&gctrpc.CurrencyStateTradingPairRequest{
@@ -2248,8 +2249,8 @@ func TestGetFuturesPositions(t *testing.T) {
 		Engine: &Engine{
 			ExchangeManager: em,
 			currencyStateManager: &CurrencyStateManager{
-				started:          1,
-				iExchangeManager: em,
+				started:         1,
+				ExchangeManager: em,
 			},
 			OrderManager: om,
 		},
@@ -2374,7 +2375,7 @@ func TestGetCollateral(t *testing.T) {
 		Engine: &Engine{
 			ExchangeManager: em,
 			currencyStateManager: &CurrencyStateManager{
-				started: 1, iExchangeManager: em,
+				started: 1, ExchangeManager: em,
 			},
 		},
 	}
@@ -2496,8 +2497,8 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 		Engine: &Engine{
 			ExchangeManager: em,
 			currencyStateManager: &CurrencyStateManager{
-				started:          1,
-				iExchangeManager: em,
+				started:         1,
+				ExchangeManager: em,
 			},
 		},
 	}
@@ -2760,7 +2761,7 @@ func TestGetMarginRatesHistory(t *testing.T) {
 		Engine: &Engine{
 			ExchangeManager: em,
 			currencyStateManager: &CurrencyStateManager{
-				started: 1, iExchangeManager: em,
+				started: 1, ExchangeManager: em,
 			},
 		},
 	}
@@ -2913,8 +2914,8 @@ func TestGetFundingRates(t *testing.T) {
 		Engine: &Engine{
 			ExchangeManager: em,
 			currencyStateManager: &CurrencyStateManager{
-				started:          1,
-				iExchangeManager: em,
+				started:         1,
+				ExchangeManager: em,
 			},
 			OrderManager: om,
 		},
@@ -3009,8 +3010,8 @@ func TestGetManagedPosition(t *testing.T) {
 		Engine: &Engine{
 			ExchangeManager: em,
 			currencyStateManager: &CurrencyStateManager{
-				started:          1,
-				iExchangeManager: em,
+				started:         1,
+				ExchangeManager: em,
 			},
 			OrderManager: om,
 		},
@@ -3147,8 +3148,8 @@ func TestGetAllManagedPositions(t *testing.T) {
 		Engine: &Engine{
 			ExchangeManager: em,
 			currencyStateManager: &CurrencyStateManager{
-				started:          1,
-				iExchangeManager: em,
+				started:         1,
+				ExchangeManager: em,
 			},
 			OrderManager: om,
 		},

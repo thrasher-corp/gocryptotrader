@@ -6,6 +6,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/communications"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -23,7 +24,7 @@ type CommunicationManager struct {
 // SetupCommunicationManager creates a communications manager
 func SetupCommunicationManager(cfg *base.CommunicationsConfig) (*CommunicationManager, error) {
 	if cfg == nil {
-		return nil, errNilConfig
+		return nil, subsystem.ErrNilConfig
 	}
 	manager := &CommunicationManager{
 		shutdown: make(chan struct{}),
@@ -48,12 +49,12 @@ func (m *CommunicationManager) IsRunning() bool {
 // Start runs the subsystem
 func (m *CommunicationManager) Start() error {
 	if m == nil {
-		return fmt.Errorf("communications manager server %w", ErrNilSubsystem)
+		return fmt.Errorf("communications manager server %w", subsystem.ErrNil)
 	}
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
-		return fmt.Errorf("communications manager %w", ErrSubSystemAlreadyStarted)
+		return fmt.Errorf("communications manager %w", subsystem.ErrAlreadyStarted)
 	}
-	log.Debugf(log.CommunicationMgr, "Communications manager %s", MsgSubSystemStarting)
+	log.Debugf(log.CommunicationMgr, "Communications manager %s", subsystem.MsgStarting)
 	m.shutdown = make(chan struct{})
 	go m.run()
 	return nil
@@ -62,7 +63,7 @@ func (m *CommunicationManager) Start() error {
 // GetStatus returns the status of communications
 func (m *CommunicationManager) GetStatus() (map[string]base.CommsStatus, error) {
 	if !m.IsRunning() {
-		return nil, fmt.Errorf("communications manager %w", ErrSubSystemNotStarted)
+		return nil, fmt.Errorf("communications manager %w", subsystem.ErrNotStarted)
 	}
 	return m.comms.GetStatus(), nil
 }
@@ -70,16 +71,16 @@ func (m *CommunicationManager) GetStatus() (map[string]base.CommsStatus, error) 
 // Stop attempts to shutdown the subsystem
 func (m *CommunicationManager) Stop() error {
 	if m == nil {
-		return fmt.Errorf("communications manager server %w", ErrNilSubsystem)
+		return fmt.Errorf("communications manager server %w", subsystem.ErrNil)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return fmt.Errorf("communications manager %w", ErrSubSystemNotStarted)
+		return fmt.Errorf("communications manager %w", subsystem.ErrNotStarted)
 	}
 	defer func() {
 		atomic.CompareAndSwapInt32(&m.started, 1, 0)
 	}()
 	close(m.shutdown)
-	log.Debugf(log.CommunicationMgr, "Communications manager %s", MsgSubSystemShuttingDown)
+	log.Debugf(log.CommunicationMgr, "Communications manager %s", subsystem.MsgShuttingDown)
 	return nil
 }
 
@@ -97,10 +98,10 @@ func (m *CommunicationManager) PushEvent(evt base.Event) {
 
 // run takes awaiting messages and pushes them to be handled by communications
 func (m *CommunicationManager) run() {
-	log.Debugf(log.Global, "Communications manager %s", MsgSubSystemStarted)
+	log.Debugf(log.Global, "Communications manager %s", subsystem.MsgStarted)
 	defer func() {
 		// TO-DO shutdown comms connections for connected services (Slack etc)
-		log.Debugf(log.CommunicationMgr, "Communications manager %s", MsgSubSystemShutdown)
+		log.Debugf(log.CommunicationMgr, "Communications manager %s", subsystem.MsgShutdown)
 	}()
 
 	for {

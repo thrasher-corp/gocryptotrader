@@ -6,6 +6,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -63,7 +64,7 @@ type syncManager struct {
 
 	remoteConfig    *config.RemoteControlConfig
 	config          SyncManagerConfig
-	exchangeManager iExchangeManager
+	exchangeManager subsystem.ExchangeManager
 
 	createdCounter int64
 	removedCounter int64

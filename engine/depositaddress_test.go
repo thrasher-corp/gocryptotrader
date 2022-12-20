@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 )
 
@@ -93,8 +94,8 @@ func TestSync(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("received %v, expected %v", err, ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("received %v, expected %v", err, subsystem.ErrNil)
 	}
 }
 

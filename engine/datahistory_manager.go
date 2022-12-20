@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository/candle"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjob"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjobresult"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -26,15 +27,15 @@ import (
 )
 
 // SetupDataHistoryManager creates a data history manager subsystem
-func SetupDataHistoryManager(em iExchangeManager, dcm iDatabaseConnectionManager, cfg *config.DataHistoryManager) (*DataHistoryManager, error) {
+func SetupDataHistoryManager(em subsystem.ExchangeManager, dcm subsystem.DatabaseConnectionManager, cfg *config.DataHistoryManager) (*DataHistoryManager, error) {
 	if em == nil {
-		return nil, errNilExchangeManager
+		return nil, subsystem.ErrNilExchangeManager
 	}
 	if dcm == nil {
-		return nil, errNilDatabaseConnectionManager
+		return nil, subsystem.ErrNilDatabaseConnectionManager
 	}
 	if cfg == nil {
-		return nil, errNilConfig
+		return nil, subsystem.ErrNilConfig
 	}
 	if cfg.CheckInterval <= 0 {
 		cfg.CheckInterval = defaultDataHistoryTicker
@@ -75,17 +76,17 @@ func SetupDataHistoryManager(em iExchangeManager, dcm iDatabaseConnectionManager
 // Start runs the subsystem
 func (m *DataHistoryManager) Start() error {
 	if m == nil {
-		return ErrNilSubsystem
+		return subsystem.ErrNil
 	}
 	if m.databaseConnectionInstance == nil {
-		return errNilDatabaseConnectionManager
+		return subsystem.ErrNilDatabaseConnectionManager
 	}
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
-		return ErrSubSystemAlreadyStarted
+		return subsystem.ErrAlreadyStarted
 	}
 	m.shutdown = make(chan struct{})
 	m.run()
-	log.Debugf(log.DataHistory, "Data history manager %v", MsgSubSystemStarted)
+	log.Debugf(log.DataHistory, "Data history manager %v", subsystem.MsgStarted)
 
 	return nil
 }
@@ -101,23 +102,23 @@ func (m *DataHistoryManager) IsRunning() bool {
 // Stop stops the subsystem
 func (m *DataHistoryManager) Stop() error {
 	if m == nil {
-		return ErrNilSubsystem
+		return subsystem.ErrNil
 	}
 	if !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
-		return ErrSubSystemNotStarted
+		return subsystem.ErrNotStarted
 	}
 	close(m.shutdown)
-	log.Debugf(log.DataHistory, "Data history manager %v", MsgSubSystemShutdown)
+	log.Debugf(log.DataHistory, "Data history manager %v", subsystem.MsgShutdown)
 	return nil
 }
 
 // retrieveJobs will connect to the database and look for existing jobs
 func (m *DataHistoryManager) retrieveJobs() ([]*DataHistoryJob, error) {
 	if m == nil {
-		return nil, ErrNilSubsystem
+		return nil, subsystem.ErrNil
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return nil, ErrSubSystemNotStarted
+		return nil, subsystem.ErrNotStarted
 	}
 	dbJobs, err := m.jobDB.GetAllIncompleteJobsAndResults()
 	if err != nil {
@@ -146,10 +147,10 @@ func (m *DataHistoryManager) retrieveJobs() ([]*DataHistoryJob, error) {
 // m.jobs will be overridden by this function
 func (m *DataHistoryManager) PrepareJobs() ([]*DataHistoryJob, error) {
 	if m == nil {
-		return nil, ErrNilSubsystem
+		return nil, subsystem.ErrNil
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return nil, ErrSubSystemNotStarted
+		return nil, subsystem.ErrNotStarted
 	}
 	jobs, err := m.retrieveJobs()
 	if err != nil {
@@ -171,10 +172,10 @@ func (m *DataHistoryManager) PrepareJobs() ([]*DataHistoryJob, error) {
 
 func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 	if m == nil {
-		return ErrNilSubsystem
+		return subsystem.ErrNil
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return ErrSubSystemNotStarted
+		return subsystem.ErrNotStarted
 	}
 	var err error
 	for i := range jobs {
@@ -242,10 +243,10 @@ func (m *DataHistoryManager) run() {
 
 func (m *DataHistoryManager) runJobs() error {
 	if m == nil {
-		return ErrNilSubsystem
+		return subsystem.ErrNil
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return ErrSubSystemNotStarted
+		return subsystem.ErrNotStarted
 	}
 
 	if !atomic.CompareAndSwapInt32(&m.processing, 0, 1) {
@@ -283,10 +284,10 @@ func (m *DataHistoryManager) runJobs() error {
 // for a given date range and saves all results to the database
 func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 	if m == nil {
-		return ErrNilSubsystem
+		return subsystem.ErrNil
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return ErrSubSystemNotStarted
+		return subsystem.ErrNotStarted
 	}
 	if job == nil {
 		return errNilJob
@@ -346,7 +347,7 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 // into a new candle type
 func (m *DataHistoryManager) runDataJob(job *DataHistoryJob, exch exchange.IBotExchange) error {
 	if !m.IsRunning() {
-		return ErrSubSystemNotStarted
+		return subsystem.ErrNotStarted
 	}
 	var intervalsProcessed int64
 	var err error
@@ -495,7 +496,7 @@ completionCheck:
 // the original API's data, or a secondary exchange source
 func (m *DataHistoryManager) runValidationJob(job *DataHistoryJob, exch exchange.IBotExchange) error {
 	if !m.IsRunning() {
-		return ErrSubSystemNotStarted
+		return subsystem.ErrNotStarted
 	}
 	var intervalsProcessed int64
 	var jobIntervals, intervalsToCheck []time.Time
@@ -596,7 +597,7 @@ completionCheck:
 // set any jobs' status where the current job is a prerequisite to 'active'
 func (m *DataHistoryManager) completeJob(job *DataHistoryJob, allResultsSuccessful, allResultsFailed bool) error {
 	if !m.IsRunning() {
-		return ErrSubSystemNotStarted
+		return subsystem.ErrNotStarted
 	}
 	if job == nil {
 		return errNilJob
@@ -636,7 +637,7 @@ func (m *DataHistoryManager) completeJob(job *DataHistoryJob, allResultsSuccessf
 
 func (m *DataHistoryManager) saveCandlesInBatches(job *DataHistoryJob, candles *kline.Item, r *DataHistoryJobResult) error {
 	if !m.IsRunning() {
-		return ErrSubSystemNotStarted
+		return subsystem.ErrNotStarted
 	}
 	if job == nil {
 		return errNilJob
@@ -680,7 +681,7 @@ func (m *DataHistoryManager) saveCandlesInBatches(job *DataHistoryJob, candles *
 
 func (m *DataHistoryManager) processCandleData(job *DataHistoryJob, exch exchange.IBotExchange, startRange, endRange time.Time, intervalIndex int64) (*DataHistoryJobResult, error) {
 	if !m.IsRunning() {
-		return nil, ErrSubSystemNotStarted
+		return nil, subsystem.ErrNotStarted
 	}
 	if job == nil {
 		return nil, errNilJob
@@ -731,7 +732,7 @@ func (m *DataHistoryManager) processCandleData(job *DataHistoryJob, exch exchang
 
 func (m *DataHistoryManager) processTradeData(job *DataHistoryJob, exch exchange.IBotExchange, startRange, endRange time.Time, intervalIndex int64) (*DataHistoryJobResult, error) {
 	if !m.IsRunning() {
-		return nil, ErrSubSystemNotStarted
+		return nil, subsystem.ErrNotStarted
 	}
 	if job == nil {
 		return nil, errNilJob
@@ -805,7 +806,7 @@ func (m *DataHistoryManager) processTradeData(job *DataHistoryJob, exch exchange
 
 func (m *DataHistoryManager) convertTradesToCandles(job *DataHistoryJob, startRange, endRange time.Time) (*DataHistoryJobResult, error) {
 	if !m.IsRunning() {
-		return nil, ErrSubSystemNotStarted
+		return nil, subsystem.ErrNotStarted
 	}
 	if job == nil {
 		return nil, errNilJob
@@ -844,7 +845,7 @@ func (m *DataHistoryManager) convertTradesToCandles(job *DataHistoryJob, startRa
 
 func (m *DataHistoryManager) convertCandleData(job *DataHistoryJob, startRange, endRange time.Time) (*DataHistoryJobResult, error) {
 	if !m.IsRunning() {
-		return nil, ErrSubSystemNotStarted
+		return nil, subsystem.ErrNotStarted
 	}
 	if job == nil {
 		return nil, errNilJob
@@ -883,7 +884,7 @@ func (m *DataHistoryManager) convertCandleData(job *DataHistoryJob, startRange, 
 
 func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.IBotExchange, startRange, endRange time.Time) (*DataHistoryJobResult, error) {
 	if !m.IsRunning() {
-		return nil, ErrSubSystemNotStarted
+		return nil, subsystem.ErrNotStarted
 	}
 	if job == nil {
 		return nil, errNilJob
@@ -1021,10 +1022,10 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 // a job can also replace data with API data if the database data exceeds the tolerance
 func (m *DataHistoryManager) CheckCandleIssue(job *DataHistoryJob, multiplier int64, apiData, dbData float64, candleField string) (issue string, replace bool) {
 	if m == nil {
-		return ErrNilSubsystem.Error(), false
+		return subsystem.ErrNil.Error(), false
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return ErrSubSystemNotStarted.Error(), false
+		return subsystem.ErrNotStarted.Error(), false
 	}
 	if job == nil {
 		return errNilJob.Error(), false
@@ -1060,10 +1061,10 @@ func (m *DataHistoryManager) CheckCandleIssue(job *DataHistoryJob, multiplier in
 // if deleting, it will remove the relationship from the database and set the job to active
 func (m *DataHistoryManager) SetJobRelationship(prerequisiteJobNickname, jobNickname string) error {
 	if m == nil {
-		return ErrNilSubsystem
+		return subsystem.ErrNil
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return ErrSubSystemNotStarted
+		return subsystem.ErrNotStarted
 	}
 	if jobNickname == "" {
 		return errNicknameUnset
@@ -1093,10 +1094,10 @@ func (m *DataHistoryManager) SetJobRelationship(prerequisiteJobNickname, jobNick
 // UpsertJob allows for GRPC interaction to upsert a job to be processed
 func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) error {
 	if m == nil {
-		return ErrNilSubsystem
+		return subsystem.ErrNil
 	}
 	if !m.IsRunning() {
-		return ErrSubSystemNotStarted
+		return subsystem.ErrNotStarted
 	}
 	if job == nil {
 		return errNilJob
@@ -1163,7 +1164,7 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 
 func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 	if !m.IsRunning() {
-		return ErrSubSystemNotStarted
+		return subsystem.ErrNotStarted
 	}
 	if job == nil {
 		return errNilJob
@@ -1265,10 +1266,10 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 // GetByID returns a job's details from its ID
 func (m *DataHistoryManager) GetByID(id uuid.UUID) (*DataHistoryJob, error) {
 	if m == nil {
-		return nil, ErrNilSubsystem
+		return nil, subsystem.ErrNil
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return nil, ErrSubSystemNotStarted
+		return nil, subsystem.ErrNotStarted
 	}
 	if id == uuid.Nil {
 		return nil, errEmptyID
@@ -1289,10 +1290,10 @@ func (m *DataHistoryManager) GetByID(id uuid.UUID) (*DataHistoryJob, error) {
 // if fullDetails is enabled, it will retrieve all job history results from the database
 func (m *DataHistoryManager) GetByNickname(nickname string, fullDetails bool) (*DataHistoryJob, error) {
 	if m == nil {
-		return nil, ErrNilSubsystem
+		return nil, subsystem.ErrNil
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return nil, ErrSubSystemNotStarted
+		return nil, subsystem.ErrNotStarted
 	}
 	if fullDetails {
 		dbJ, err := m.jobDB.GetJobAndAllResults(nickname)
@@ -1324,10 +1325,10 @@ func (m *DataHistoryManager) GetByNickname(nickname string, fullDetails bool) (*
 // GetAllJobStatusBetween will return all jobs between two ferns
 func (m *DataHistoryManager) GetAllJobStatusBetween(start, end time.Time) ([]*DataHistoryJob, error) {
 	if m == nil {
-		return nil, ErrNilSubsystem
+		return nil, subsystem.ErrNil
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return nil, ErrSubSystemNotStarted
+		return nil, subsystem.ErrNotStarted
 	}
 	if err := common.StartEndTimeCheck(start, end); err != nil {
 		return nil, err
@@ -1350,10 +1351,10 @@ func (m *DataHistoryManager) GetAllJobStatusBetween(start, end time.Time) ([]*Da
 // SetJobStatus helper function to assist in setting a job to deleted
 func (m *DataHistoryManager) SetJobStatus(nickname, id string, status dataHistoryStatus) error {
 	if m == nil {
-		return ErrNilSubsystem
+		return subsystem.ErrNil
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return ErrSubSystemNotStarted
+		return subsystem.ErrNotStarted
 	}
 	if nickname == "" && id == "" {
 		return errNicknameIDUnset
@@ -1407,10 +1408,10 @@ func (m *DataHistoryManager) SetJobStatus(nickname, id string, status dataHistor
 // GetActiveJobs returns all jobs with the status `dataHistoryStatusActive`
 func (m *DataHistoryManager) GetActiveJobs() ([]DataHistoryJob, error) {
 	if m == nil {
-		return nil, ErrNilSubsystem
+		return nil, subsystem.ErrNil
 	}
 	if !m.IsRunning() {
-		return nil, ErrSubSystemNotStarted
+		return nil, subsystem.ErrNotStarted
 	}
 
 	var results []DataHistoryJob
@@ -1436,10 +1437,10 @@ func (m *DataHistoryManager) GetActiveJobs() ([]DataHistoryJob, error) {
 // GenerateJobSummary returns a human readable summary of a job's status
 func (m *DataHistoryManager) GenerateJobSummary(nickname string) (*DataHistoryJobSummary, error) {
 	if m == nil {
-		return nil, ErrNilSubsystem
+		return nil, subsystem.ErrNil
 	}
 	if !m.IsRunning() {
-		return nil, ErrSubSystemNotStarted
+		return nil, subsystem.ErrNotStarted
 	}
 	job, err := m.GetByNickname(nickname, false)
 	if err != nil {
@@ -1468,7 +1469,7 @@ func (m *DataHistoryManager) GenerateJobSummary(nickname string) (*DataHistoryJo
 // ----------------------------Lovely-converters----------------------------
 func (m *DataHistoryManager) convertDBModelToJob(dbModel *datahistoryjob.DataHistoryJob) (*DataHistoryJob, error) {
 	if !m.IsRunning() {
-		return nil, ErrSubSystemNotStarted
+		return nil, subsystem.ErrNotStarted
 	}
 	id, err := uuid.FromString(dbModel.ID)
 	if err != nil {
@@ -1526,7 +1527,7 @@ func (m *DataHistoryManager) convertDBModelToJob(dbModel *datahistoryjob.DataHis
 
 func (m *DataHistoryManager) convertDBResultToJobResult(dbModels []*datahistoryjobresult.DataHistoryJobResult) (map[int64][]DataHistoryJobResult, error) {
 	if !m.IsRunning() {
-		return nil, ErrSubSystemNotStarted
+		return nil, subsystem.ErrNotStarted
 	}
 	result := make(map[int64][]DataHistoryJobResult)
 	for i := range dbModels {
