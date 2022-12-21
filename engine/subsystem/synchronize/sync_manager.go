@@ -16,29 +16,35 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
-)
-
-var (
-	// DefaultWorkers limits the number of sync workers
-	DefaultWorkers = 15
-	// DefaultTimeoutREST the default time to switch from REST to websocket
-	// protocols without a response.
-	DefaultTimeoutREST = time.Second * 15
-	// DefaultTimeoutWebsocket the default time to switch from websocket to REST
-	// protocols without a response.
-	DefaultTimeoutWebsocket = time.Minute
-
-	defaultChannelBuffer  = 10000
-	errNoSyncItemsEnabled = errors.New("no sync items enabled")
-	errUnknownSyncType    = errors.New("unknown sync type")
-	errSyncerNotFound     = errors.New("sync agent not found")
 )
 
 const (
 	WebsocketUpdate = "WEBSOCKET"
 	RESTUpdate      = "REST"
+
+	// DefaultWorkers limits the number of sync workers
+	DefaultWorkers = 15
+
+	// DefaultTimeoutREST the default time to switch from REST to websocket
+	// protocols without a response.
+	DefaultTimeoutREST = time.Second * 15
+
+	// DefaultTimeoutWebsocket the default time to switch from websocket to REST
+	// protocols without a response.
+	DefaultTimeoutWebsocket = time.Minute
+
+	defaultChannelBuffer = 10000
+)
+
+var (
+	errNoSyncItemsEnabled = errors.New("no sync items enabled")
+	errUnknownSyncType    = errors.New("unknown sync type")
+	errAgentNotFound      = errors.New("sync agent not found")
+	errExchangeNameUnset  = errors.New("exchange name unset")
+	errProtocolUnset      = errors.New("protocol unset")
 )
 
 // NewManager returns a new sychronization manager
@@ -55,6 +61,7 @@ func NewManager(c *ManagerConfig) (*Manager, error) {
 		return nil, subsystem.ErrNilExchangeManager
 	}
 
+	// TODO: Remove this remote config only one bool is used.
 	if c.RemoteConfig == nil {
 		return nil, fmt.Errorf("remote control: %w", subsystem.ErrNilConfig)
 	}
@@ -112,58 +119,6 @@ func (m *Manager) Start() error {
 		return subsystem.ErrAlreadyStarted
 	}
 	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer started.")
-	exchanges, err := m.ExchangeManager.GetExchanges()
-	if err != nil {
-		return err
-	}
-	for x := range exchanges {
-		exchangeName := exchanges[x].GetName()
-		supportsWebsocket := exchanges[x].SupportsWebsocket()
-		supportsREST := exchanges[x].SupportsREST()
-
-		if !supportsREST && !supportsWebsocket {
-			// TODO: Should error?
-			log.Warnf(log.SyncMgr, "Loaded exchange %s does not support REST or Websocket.", exchangeName)
-			continue
-		}
-
-		usingWebsocket := m.WebsocketRoutineManagerEnabled && supportsWebsocket && exchanges[x].IsWebsocketEnabled()
-		usingREST := supportsREST && !usingWebsocket
-
-		assetTypes := exchanges[x].GetAssetTypes(false)
-		for y := range assetTypes {
-			if exchanges[x].GetBase().CurrencyPairs.IsAssetEnabled(assetTypes[y]) != nil {
-				log.Warnf(log.SyncMgr,
-					"%s asset type %s is disabled, fetching enabled pairs is paused",
-					exchangeName,
-					assetTypes[y])
-				continue
-			}
-
-			wsAssetSupported := exchanges[x].IsAssetWebsocketSupported(assetTypes[y])
-			if !wsAssetSupported {
-				log.Warnf(log.SyncMgr,
-					"%s asset type %s websocket functionality is unsupported, REST fetching only.",
-					exchangeName,
-					assetTypes[y])
-			}
-			enabledPairs, err := exchanges[x].GetEnabledPairs(assetTypes[y])
-			if err != nil {
-				log.Errorf(log.SyncMgr,
-					"%s failed to get enabled pairs. Err: %s",
-					exchangeName,
-					err)
-				continue
-			}
-			for i := range enabledPairs {
-				_ = m.getAgent(exchangeName,
-					enabledPairs[i],
-					assetTypes[y],
-					usingREST || !wsAssetSupported,
-					usingWebsocket && wsAssetSupported)
-			}
-		}
-	}
 
 	if atomic.CompareAndSwapInt32(&m.initSyncStarted, 0, 1) {
 		log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync started. %d items to process.",
@@ -171,10 +126,23 @@ func (m *Manager) Start() error {
 		m.initSyncStartTime = time.Now()
 	}
 
+	// Set job channel lanes for differing update speeds per exchange.
+	// TODO: Add workers for each individual exchange and lane.
+	for i := 0; i < m.NumWorkers; i++ {
+		go m.orderbookWorker(context.TODO())
+		go m.tickerWorker(context.TODO())
+		go m.tradeWorker(context.TODO())
+	}
+
+	err := m.controller()
+	if err != nil {
+		return err
+	}
+
 	go func() {
 		m.initSyncWG.Wait()
 		if atomic.CompareAndSwapInt32(&m.initSyncCompleted, 0, 1) {
-			log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial completed. Sync took %v [%v sync items].",
+			log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync completed. Sync took %v [%v sync items].",
 				time.Since(m.initSyncStartTime),
 				m.createdCounter)
 
@@ -190,16 +158,10 @@ func (m *Manager) Start() error {
 	}()
 
 	if atomic.LoadInt32(&m.initSyncCompleted) == 1 && !m.SynchronizeContinuously {
+		// TODO: Not effective - Change me
 		return nil
 	}
 
-	go m.controller()
-
-	for i := 0; i < m.NumWorkers; i++ {
-		go m.orderbookWorker(context.TODO())
-		go m.tickerWorker(context.TODO())
-		go m.tradeWorker(context.TODO())
-	}
 	m.initSyncWG.Done()
 	return nil
 }
@@ -212,18 +174,29 @@ func (m *Manager) Stop() error {
 	if !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", subsystem.ErrNotStarted)
 	}
-	m.initSyncWG.Add(1)
 	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer stopped.")
 	return nil
 }
 
 // Update notifies the syncManager to change the last updated time for an exchange asset pair
-func (m *Manager) Update(exchangeName, protocol string, p currency.Pair, a asset.Item, item int, incomingErr error) error {
+func (m *Manager) Update(exchangeName, updateProtocol string, p currency.Pair, a asset.Item, item int, incomingErr error) error {
 	if m == nil {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", subsystem.ErrNil)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", subsystem.ErrNotStarted)
+	}
+	if exchangeName == "" {
+		return errExchangeNameUnset
+	}
+	if updateProtocol == "" {
+		return errProtocolUnset
+	}
+	if p.IsEmpty() {
+		return currency.ErrCurrencyPairEmpty
+	}
+	if !a.IsValid() {
+		return asset.ErrNotSupported
 	}
 
 	if atomic.LoadInt32(&m.initSyncStarted) != 1 {
@@ -252,96 +225,113 @@ func (m *Manager) Update(exchangeName, protocol string, p currency.Pair, a asset
 
 	agent, ok := m.currencyPairs[exchangeName][p.Base.Item][p.Quote.Item][a]
 	if !ok {
-		return fmt.Errorf("%v %v %v %w", exchangeName, a, p, errSyncerNotFound)
+		return fmt.Errorf("%v %v %v %w", exchangeName, a, p, errAgentNotFound)
 	}
 
 	var name string
-	var origHadData bool
 	switch SyncType(item) {
 	case Ticker:
-		name = "ticker"
-		origHadData = agent.Ticker.Update(name, "", exchangeName, p, a, incomingErr)
+		if agent.Ticker.Update(name, updateProtocol, exchangeName, p, a, incomingErr) {
+			return nil
+		}
+		name = "TICKER"
 	case Orderbook:
-		name = "orderbook"
-		origHadData = agent.Orderbook.Update(name, "", exchangeName, p, a, incomingErr)
+		if agent.Orderbook.Update(name, updateProtocol, exchangeName, p, a, incomingErr) {
+			return nil
+		}
+		name = "ORDERBOOK"
 	case Trade:
-		name = "trade"
-		origHadData = agent.Trade.Update(name, "", exchangeName, p, a, incomingErr)
+		if agent.Trade.Update(name, updateProtocol, exchangeName, p, a, incomingErr) {
+			return nil
+		}
+		name = "TRADE"
 	}
 
-	if atomic.LoadInt32(&m.initSyncCompleted) == 1 && origHadData {
-		return nil
-	}
 	m.removedCounter++
-	log.Debugf(log.SyncMgr, "%s %s sync complete %v [%d/%d].",
+	log.Debugf(log.SyncMgr, "%s %s sync complete %s via %s [%d/%d].",
 		exchangeName,
 		name,
-		m.FormatCurrency(p).String(),
+		m.FormatCurrency(p),
+		updateProtocol,
 		m.removedCounter,
 		m.createdCounter)
 	m.initSyncWG.Done()
 	return nil
 }
 
+// checkAllExchangeAssets checks all exchanges, assets, and enabled pairs
+// against the list of configured synchronization agents. If a currency pair is
+// disabled during operation, it is ignored. If a currency pair is not found in
+// the list of loaded agents, it is added. The function returns duration until
+// the next update is required.
+func (m *Manager) checkAllExchangeAssets() (time.Duration, error) {
+	wait := m.GetSmallestTimeout()
+	exchs, err := m.ExchangeManager.GetExchanges()
+	if err != nil {
+		return 0, err
+	}
+	for x := range exchs {
+		usingWebsocket := exchs[x].SupportsWebsocket() && exchs[x].IsWebsocketEnabled()
+		if usingWebsocket {
+			var ws *stream.Websocket
+			ws, err = exchs[x].GetWebsocket()
+			if err != nil {
+				return 0, err
+			}
+			usingWebsocket = ws.IsConnected() || ws.IsConnecting()
+		}
+		usingREST := !usingWebsocket
+
+		supportsREST := exchs[x].SupportsREST()
+		assetTypes := exchs[x].GetAssetTypes(true)
+		for y := range assetTypes {
+			enabledPairs, err := exchs[x].GetEnabledPairs(assetTypes[y])
+			if err != nil {
+				return 0, err
+			}
+			wsAssetSupported := exchs[x].IsAssetWebsocketSupported(assetTypes[y])
+			for i := range enabledPairs {
+				untilTimeout := m.CheckSyncItems(exchs[x],
+					enabledPairs[i],
+					assetTypes[y],
+					(usingREST || !wsAssetSupported),
+					(usingWebsocket && wsAssetSupported),
+					supportsREST)
+				if untilTimeout < wait {
+					wait = untilTimeout
+				}
+			}
+		}
+	}
+	return wait, nil
+}
+
 // controller checks all enabled assets on all enabled exchanges for correct
 // synchronization. If an assets needs updating via REST it will push the work
 // to worker routines.
-func (m *Manager) controller() {
-	defer log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer worker shutting down.")
-	timer := time.NewTimer(0) // Fire immediately for initial synchronization
-	for range timer.C {
-		if atomic.LoadInt32(&m.started) == 0 {
-			return
-		}
-		wait := m.GetSmallestTimeout()
-		exchanges, err := m.ExchangeManager.GetExchanges()
-		if err != nil {
-			log.Errorf(log.SyncMgr, "Sync manager cannot get exchanges: %v", err)
-		}
-		for x := range exchanges {
-			exchangeName := exchanges[x].GetName()
-			supportsREST := exchanges[x].SupportsREST()
-			usingWebsocket := exchanges[x].SupportsWebsocket() &&
-				exchanges[x].IsWebsocketEnabled()
-			if usingWebsocket {
-				ws, err := exchanges[x].GetWebsocket()
-				if err != nil {
-					log.Errorf(log.SyncMgr, "%s unable to get websocket pointer. Err: %s", exchangeName, err)
-				}
-				usingWebsocket = ws.IsConnected() || ws.IsConnecting()
-			}
-			usingREST := !usingWebsocket
-
-			var switchedToRest bool
-			assetTypes := exchanges[x].GetAssetTypes(true)
-			for y := range assetTypes {
-				enabledPairs, err := exchanges[x].GetEnabledPairs(assetTypes[y])
-				if err != nil {
-					log.Errorf(log.SyncMgr, "%s failed to get enabled pairs. Err: %s",
-						exchangeName,
-						err)
-					continue
-				}
-				wsAssetSupported := exchanges[x].IsAssetWebsocketSupported(assetTypes[y])
-				for i := range enabledPairs {
-					if atomic.LoadInt32(&m.started) == 0 {
-						return
-					}
-					untilTimeout := m.CheckSyncItems(exchanges[x],
-						enabledPairs[i],
-						assetTypes[y],
-						(usingREST || !wsAssetSupported),
-						(usingWebsocket && wsAssetSupported),
-						supportsREST,
-						switchedToRest)
-					if untilTimeout < wait {
-						wait = untilTimeout
-					}
-				}
-			}
-		}
-		timer.Reset(wait)
+func (m *Manager) controller() error {
+	// Pre-load all items for intial sync. The controller routine will take
+	// over this functionality to keep assets updated via REST.
+	_, err := m.checkAllExchangeAssets()
+	if err != nil {
+		return err
 	}
+	go func() {
+		defer log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer worker shutting down.")
+		timer := time.NewTimer(m.GetSmallestTimeout())
+		for range timer.C {
+			if atomic.LoadInt32(&m.started) == 0 {
+				return
+			}
+			wait, err := m.checkAllExchangeAssets()
+			if err != nil {
+				log.Errorf(log.SyncMgr, "Sync manager checking all exchange assets. Error: %s", err)
+				wait = m.GetSmallestTimeout()
+			}
+			timer.Reset(wait)
+		}
+	}()
+	return nil
 }
 
 // GetSmallestTimeout returns the smallest configured timeout for all supported
@@ -354,13 +344,13 @@ func (m *Manager) GetSmallestTimeout() time.Duration {
 }
 
 // CheckSyncItems checks agent against it's current last update time on all
-func (m *Manager) CheckSyncItems(exch exchange.IBotExchange, pair currency.Pair, a asset.Item, usingREST, usingWS, supportsREST, switchedToRest bool) time.Duration {
+func (m *Manager) CheckSyncItems(exch exchange.IBotExchange, pair currency.Pair, a asset.Item, usingREST, usingWS, supportsREST bool) time.Duration {
 	agent := m.getAgent(exch.GetName(), pair, a, usingREST, usingWS)
 
 	untilUpdate := m.GetSmallestTimeout()
 	until, update := agent.Orderbook.NeedsUpdate(m.SynchronizeOrderbook, m.TimeoutREST, m.TimeoutWebsocket)
 	if update {
-		err := agent.Orderbook.SetProcessing(exch.GetName(), "Orderbook", agent.Pair, agent.AssetType, m.TimeoutWebsocket, true)
+		err := agent.Orderbook.SetProcessing(exch.GetName(), "ORDERBOOK", agent.Pair, agent.AssetType, m.TimeoutWebsocket, true)
 		if err != nil {
 			panic(err)
 		}
@@ -371,7 +361,7 @@ func (m *Manager) CheckSyncItems(exch exchange.IBotExchange, pair currency.Pair,
 
 	until, update = agent.Ticker.NeedsUpdate(m.SynchronizeTicker, m.TimeoutREST, m.TimeoutWebsocket)
 	if update {
-		err := agent.Ticker.SetProcessing(exch.GetName(), "Ticker", agent.Pair, agent.AssetType, m.TimeoutWebsocket, true)
+		err := agent.Ticker.SetProcessing(exch.GetName(), "TICKER", agent.Pair, agent.AssetType, m.TimeoutWebsocket, true)
 		if err != nil {
 			panic(err)
 		}
@@ -382,7 +372,7 @@ func (m *Manager) CheckSyncItems(exch exchange.IBotExchange, pair currency.Pair,
 
 	until, update = agent.Trade.NeedsUpdate(m.SynchronizeTrades, m.TimeoutREST, m.TimeoutWebsocket)
 	if update {
-		err := agent.Trade.SetProcessing(exch.GetName(), "Trade", agent.Pair, agent.AssetType, m.TimeoutWebsocket, true)
+		err := agent.Trade.SetProcessing(exch.GetName(), "TRADE", agent.Pair, agent.AssetType, m.TimeoutWebsocket, true)
 		if err != nil {
 			panic(err)
 		}
@@ -390,7 +380,6 @@ func (m *Manager) CheckSyncItems(exch exchange.IBotExchange, pair currency.Pair,
 	} else if until > 0 && until < untilUpdate {
 		untilUpdate = until
 	}
-
 	return untilUpdate
 }
 
@@ -493,7 +482,7 @@ func (m *Manager) orderbookWorker(ctx context.Context) {
 }
 
 func (m *Manager) tickerWorker(ctx context.Context) {
-	for j := range m.orderbookJobs {
+	for j := range m.tickerJobs {
 		if atomic.LoadInt32(&m.started) == 0 {
 			return
 		}
@@ -665,9 +654,7 @@ func (m *Manager) FormatCurrency(p currency.Pair) currency.Pair {
 	return p.Format(m.PairFormatDisplay)
 }
 
-const (
-	book = "%s %s %s %s ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s"
-)
+const book = "%s %s %s %s ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s"
 
 // PrintOrderbookSummary outputs orderbook results
 func (m *Manager) PrintOrderbookSummary(result *orderbook.Base, protocol string, err error) {
@@ -800,7 +787,7 @@ func (b *Base) SetProcessing(exch, service string, pair currency.Pair, a asset.I
 	return nil
 }
 
-func (b *Base) Update(service, protocol, exch string, pair currency.Pair, a asset.Item, incomingErr error) bool {
+func (b *Base) Update(service, protocol, exch string, pair currency.Pair, a asset.Item, incomingErr error) (hadData bool) {
 	b.mu.Lock()
 	origHadData := b.HaveData
 	b.LastUpdated = time.Now()
