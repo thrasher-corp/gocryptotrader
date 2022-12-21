@@ -160,6 +160,46 @@ func (o *OKCoin) SetDefaults() {
 	o.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
+// Setup sets user exchange configuration settings
+func (o *OKCoin) Setup(exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
+	if !exch.Enabled {
+		o.SetEnabled(false)
+		return nil
+	}
+	err = o.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
+
+	wsEndpoint, err := o.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+	err = o.Websocket.Setup(&stream.WebsocketSetup{
+		ExchangeConfig:        exch,
+		DefaultURL:            wsEndpoint,
+		RunningURL:            wsEndpoint,
+		Connector:             o.WsConnect,
+		Subscriber:            o.Subscribe,
+		Unsubscriber:          o.Unsubscribe,
+		GenerateSubscriptions: o.GenerateDefaultSubscriptions,
+		Features:              &o.Features.Supports.WebsocketCapabilities,
+	})
+	if err != nil {
+		return err
+	}
+
+	return o.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		RateLimit:            okcoinWsRateLimit,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	})
+}
+
 // Start starts the OKCoin go routine
 func (o *OKCoin) Start(wg *sync.WaitGroup) error {
 	if wg == nil {
@@ -388,46 +428,6 @@ func (o *OKCoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
 func (o *OKCoin) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
-}
-
-// Setup sets user exchange configuration settings
-func (o *OKCoin) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
-		return err
-	}
-	if !exch.Enabled {
-		o.SetEnabled(false)
-		return nil
-	}
-	err = o.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
-
-	wsEndpoint, err := o.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
-	err = o.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            wsEndpoint,
-		RunningURL:            wsEndpoint,
-		Connector:             o.WsConnect,
-		Subscriber:            o.Subscribe,
-		Unsubscriber:          o.Unsubscribe,
-		GenerateSubscriptions: o.GenerateDefaultSubscriptions,
-		Features:              &o.Features.Supports.WebsocketCapabilities,
-	})
-	if err != nil {
-		return err
-	}
-
-	return o.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		RateLimit:            okcoinWsRateLimit,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	})
 }
 
 // FetchOrderbook returns orderbook base on the currency pair

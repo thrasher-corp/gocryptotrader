@@ -21,7 +21,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -112,11 +111,9 @@ func (o *OKCoin) GetAccountCurrencies(ctx context.Context) ([]GetAccountCurrenci
 
 // GetAccountWalletInformation returns a list of wallets and their properties
 func (o *OKCoin) GetAccountWalletInformation(ctx context.Context, currency string) ([]WalletInformationResponse, error) {
-	var requestURL string
+	requestURL := getAccountWalletInformation
 	if currency != "" {
-		requestURL = getAccountWalletInformation + "/" + currency
-	} else {
-		requestURL = getAccountWalletInformation
+		requestURL += "/" + currency
 	}
 	var resp []WalletInformationResponse
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, accountSubsection, requestURL, nil, &resp, true)
@@ -136,11 +133,9 @@ func (o *OKCoin) AccountWithdraw(ctx context.Context, request *AccountWithdrawRe
 
 // GetAccountWithdrawalFee retrieves the information about the recommended network transaction fee for withdrawals to digital asset addresses. The higher the fees are, the sooner the confirmations you will get.
 func (o *OKCoin) GetAccountWithdrawalFee(ctx context.Context, currency string) ([]GetAccountWithdrawalFeeResponse, error) {
-	var requestURL string
+	requestURL := getWithdrawalFees
 	if currency != "" {
-		requestURL = getWithdrawalFees + "?currency=" + currency
-	} else {
-		requestURL = getAccountWalletInformation
+		requestURL += "?currency=" + currency
 	}
 
 	var resp []GetAccountWithdrawalFeeResponse
@@ -149,11 +144,9 @@ func (o *OKCoin) GetAccountWithdrawalFee(ctx context.Context, currency string) (
 
 // GetAccountWithdrawalHistory retrieves all recent withdrawal records.
 func (o *OKCoin) GetAccountWithdrawalHistory(ctx context.Context, currency string) ([]WithdrawalHistoryResponse, error) {
-	var requestURL string
+	requestURL := getWithdrawalHistory
 	if currency != "" {
-		requestURL = getWithdrawalHistory + "/" + currency
-	} else {
-		requestURL = getWithdrawalHistory
+		requestURL += "/" + currency
 	}
 	var resp []WithdrawalHistoryResponse
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, accountSubsection, requestURL, nil, &resp, true)
@@ -163,7 +156,11 @@ func (o *OKCoin) GetAccountWithdrawalHistory(ctx context.Context, currency strin
 // which means the latest will be at the top. Please refer to the pagination section for additional records after the first page.
 // 3 months recent records will be returned at maximum
 func (o *OKCoin) GetAccountBillDetails(ctx context.Context, request *GetAccountBillDetailsRequest) ([]GetAccountBillDetailsResponse, error) {
-	requestURL := ledger + formatParameters(request)
+	encodedRequest, err := encodeRequest(request)
+	if err != nil {
+		return nil, err
+	}
+	requestURL := ledger + encodedRequest
 	var resp []GetAccountBillDetailsResponse
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, accountSubsection, requestURL, nil, &resp, true)
 }
@@ -179,11 +176,9 @@ func (o *OKCoin) GetAccountDepositAddressForCurrency(ctx context.Context, curren
 
 // GetAccountDepositHistory retrieves the deposit history of all tokens.100 recent records will be returned at maximum
 func (o *OKCoin) GetAccountDepositHistory(ctx context.Context, currency string) ([]GetAccountDepositHistoryResponse, error) {
-	var requestURL string
+	requestURL := getAccountDepositHistory
 	if currency != "" {
-		requestURL = getAccountDepositHistory + "/" + currency
-	} else {
-		requestURL = getAccountDepositHistory
+		requestURL += "/" + currency
 	}
 	var resp []GetAccountDepositHistoryResponse
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, accountSubsection, requestURL, nil, &resp, true)
@@ -204,7 +199,11 @@ func (o *OKCoin) GetSpotTradingAccountForCurrency(ctx context.Context, currency 
 
 // GetSpotBillDetailsForCurrency This endpoint supports getting the balance, amount available/on hold of a token in spot account.
 func (o *OKCoin) GetSpotBillDetailsForCurrency(ctx context.Context, request *GetSpotBillDetailsForCurrencyRequest) ([]GetSpotBillDetailsForCurrencyResponse, error) {
-	requestURL := accounts + "/" + request.Currency + "/" + ledger + formatParameters(request)
+	encodedRequest, err := encodeRequest(request)
+	if err != nil {
+		return nil, err
+	}
+	requestURL := accounts + "/" + request.Currency + "/" + ledger + encodedRequest
 	var resp []GetSpotBillDetailsForCurrencyResponse
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, tokenSubsection, requestURL, nil, &resp, true)
 }
@@ -299,7 +298,11 @@ func (o *OKCoin) CancelMultipleSpotOrders(ctx context.Context, request *CancelMu
 // GetSpotOrders List your orders. Cursor pagination is used.
 // All paginated requests return the latest information (newest) as the first page sorted by newest (in chronological time) first.
 func (o *OKCoin) GetSpotOrders(ctx context.Context, request *GetSpotOrdersRequest) ([]GetSpotOrderResponse, error) {
-	requestURL := orders + formatParameters(request)
+	encodedRequest, err := encodeRequest(request)
+	if err != nil {
+		return nil, err
+	}
+	requestURL := orders + encodedRequest
 	var resp []GetSpotOrderResponse
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, tokenSubsection, requestURL, nil, &resp, true)
 }
@@ -307,14 +310,22 @@ func (o *OKCoin) GetSpotOrders(ctx context.Context, request *GetSpotOrdersReques
 // GetSpotOpenOrders List all your current open orders. Cursor pagination is used.
 // All paginated requests return the latest information (newest) as the first page sorted by newest (in chronological time) first.
 func (o *OKCoin) GetSpotOpenOrders(ctx context.Context, request *GetSpotOpenOrdersRequest) ([]GetSpotOrderResponse, error) {
-	requestURL := pendingOrders + formatParameters(request)
+	encodedRequest, err := encodeRequest(request)
+	if err != nil {
+		return nil, err
+	}
+	requestURL := pendingOrders + encodedRequest
 	var resp []GetSpotOrderResponse
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, tokenSubsection, requestURL, nil, &resp, true)
 }
 
 // GetSpotOrder Get order details by order ID.
 func (o *OKCoin) GetSpotOrder(ctx context.Context, request *GetSpotOrderRequest) (*GetSpotOrderResponse, error) {
-	requestURL := orders + "/" + request.OrderID + formatParameters(request)
+	encodedRequest, err := encodeRequest(request)
+	if err != nil {
+		return nil, err
+	}
+	requestURL := orders + "/" + request.OrderID + encodedRequest
 	var resp *GetSpotOrderResponse
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, tokenSubsection, requestURL, request, &resp, true)
 }
@@ -322,7 +333,11 @@ func (o *OKCoin) GetSpotOrder(ctx context.Context, request *GetSpotOrderRequest)
 // GetSpotTransactionDetails Get details of the recent filled orders. Cursor pagination is used.
 // All paginated requests return the latest information (newest) as the first page sorted by newest (in chronological time) first.
 func (o *OKCoin) GetSpotTransactionDetails(ctx context.Context, request *GetSpotTransactionDetailsRequest) ([]GetSpotTransactionDetailsResponse, error) {
-	requestURL := getSpotTransactionDetails + formatParameters(request)
+	encodedRequest, err := encodeRequest(request)
+	if err != nil {
+		return nil, err
+	}
+	requestURL := getSpotTransactionDetails + encodedRequest
 	var resp []GetSpotTransactionDetailsResponse
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, tokenSubsection, requestURL, nil, &resp, true)
 }
@@ -338,20 +353,16 @@ func (o *OKCoin) GetSpotTokenPairDetails(ctx context.Context) ([]GetSpotTokenPai
 // supported here. The whole book will be returned for one request. Websocket is
 // recommended here.
 func (o *OKCoin) GetOrderBook(ctx context.Context, request *GetOrderBookRequest, a asset.Item) (*GetOrderBookResponse, error) {
-	var requestType, endpoint string
 	var resp *GetOrderBookResponse
 	if a != asset.Spot {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-	switch a {
-	case asset.Spot:
-		endpoint = getSpotOrderBook
-		requestType = tokenSubsection
-	default:
-		return resp, errors.New("unhandled asset type")
+	encodedRequest, err := encodeRequest(request)
+	if err != nil {
+		return nil, err
 	}
-	requestURL := instruments + "/" + request.InstrumentID + "/" + endpoint + formatParameters(request)
-	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, requestType, requestURL, nil, &resp, false)
+	requestURL := instruments + "/" + request.InstrumentID + "/" + getSpotOrderBook + encodedRequest
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, tokenSubsection, requestURL, nil, &resp, false)
 }
 
 // GetSpotAllTokenPairsInformation Get the last traded price, best bid/ask price, 24 hour trading volume and more info of all trading pairs.
@@ -371,19 +382,27 @@ func (o *OKCoin) GetSpotAllTokenPairsInformationForCurrency(ctx context.Context,
 // GetSpotFilledOrdersInformation Get the recent 60 transactions of all trading pairs.
 // Cursor pagination is used. All paginated requests return the latest information (newest) as the first page sorted by newest (in chronological time) first.
 func (o *OKCoin) GetSpotFilledOrdersInformation(ctx context.Context, request *GetSpotFilledOrdersInformationRequest) ([]GetSpotFilledOrdersInformationResponse, error) {
-	requestURL := instruments + "/" + request.InstrumentID + "/" + trades + formatParameters(request)
+	encodedRequest, err := encodeRequest(request)
+	if err != nil {
+		return nil, err
+	}
+	requestURL := instruments + "/" + request.InstrumentID + "/" + trades + encodedRequest
 	var resp []GetSpotFilledOrdersInformationResponse
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, tokenSubsection, requestURL, nil, &resp, false)
 }
 
 // GetMarketData Get the charts of the trading pairs. Charts are returned in grouped buckets based on requested granularity.
 func (o *OKCoin) GetMarketData(ctx context.Context, request *GetMarketDataRequest) ([]kline.Candle, error) {
-	requestURL := instruments + "/" + request.InstrumentID + "/" + getSpotMarketData + formatParameters(request)
+	encodedRequest, err := encodeRequest(request)
+	if err != nil {
+		return nil, err
+	}
+	requestURL := instruments + "/" + request.InstrumentID + "/" + getSpotMarketData + encodedRequest
 	if request.Asset != asset.Spot && request.Asset != asset.Margin {
 		return nil, asset.ErrNotSupported
 	}
 	var resp []interface{}
-	err := o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, tokenSubsection, requestURL, nil, &resp, false)
+	err = o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, tokenSubsection, requestURL, nil, &resp, false)
 	if err != nil {
 		return nil, err
 	}
@@ -441,7 +460,11 @@ func (o *OKCoin) GetMarginTradingAccountsForCurrency(ctx context.Context, curren
 // before and after cursor arguments should not be confused with before and after in chronological time.
 // Most paginated requests return the latest information (newest) as the first page sorted by newest (in chronological time) first.
 func (o *OKCoin) GetMarginBillDetails(ctx context.Context, request *GetMarginBillDetailsRequest) ([]GetSpotBillDetailsForCurrencyResponse, error) {
-	requestURL := accounts + "/" + request.InstrumentID + "/" + ledger + formatParameters(request)
+	encodedRequest, err := encodeRequest(request)
+	if err != nil {
+		return nil, err
+	}
+	requestURL := accounts + "/" + request.InstrumentID + "/" + ledger + encodedRequest
 	var resp []GetSpotBillDetailsForCurrencyResponse
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, marginTradingSubsection, requestURL, nil, &resp, true)
 }
@@ -449,11 +472,9 @@ func (o *OKCoin) GetMarginBillDetails(ctx context.Context, request *GetMarginBil
 // GetMarginAccountSettings Get all information of the margin trading account,
 // including the maximum loan amount, interest rate, and maximum leverage.
 func (o *OKCoin) GetMarginAccountSettings(ctx context.Context, currency string) ([]GetMarginAccountSettingsResponse, error) {
-	var requestURL string
+	requestURL := accounts + "/" + getMarketAvailability
 	if currency != "" {
 		requestURL = accounts + "/" + currency + "/" + getMarketAvailability
-	} else {
-		requestURL = accounts + "/" + getMarketAvailability
 	}
 	var resp []GetMarginAccountSettingsResponse
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, marginTradingSubsection, requestURL, nil, &resp, true)
@@ -463,11 +484,9 @@ func (o *OKCoin) GetMarginAccountSettings(ctx context.Context, currency string) 
 // Pagination is used here. before and after cursor arguments should not be confused with before and after in chronological time.
 // Most paginated requests return the latest information (newest) as the first page sorted by newest (in chronological time) first.
 func (o *OKCoin) GetMarginLoanHistory(ctx context.Context, request *GetMarginLoanHistoryRequest) ([]GetMarginLoanHistoryResponse, error) {
-	var requestURL string
+	requestURL := accounts + "/" + getLoan
 	if len(request.InstrumentID) > 0 {
 		requestURL = accounts + "/" + request.InstrumentID + "/" + getLoan
-	} else {
-		requestURL = accounts + "/" + getLoan
 	}
 	var resp []GetMarginLoanHistoryResponse
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, marginTradingSubsection, requestURL, nil, &resp, true)
@@ -559,21 +578,33 @@ func (o *OKCoin) CancelMultipleMarginOrders(ctx context.Context, request *Cancel
 
 // GetMarginOrders List your orders. Cursor pagination is used. All paginated requests return the latest information (newest) as the first page sorted by newest (in chronological time) first.
 func (o *OKCoin) GetMarginOrders(ctx context.Context, request *GetSpotOrdersRequest) ([]GetSpotOrderResponse, error) {
-	requestURL := orders + formatParameters(request)
+	encodedRequest, err := encodeRequest(request)
+	if err != nil {
+		return nil, err
+	}
+	requestURL := orders + encodedRequest
 	var resp []GetSpotOrderResponse
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, marginTradingSubsection, requestURL, nil, &resp, true)
 }
 
 // GetMarginOpenOrders List all your current open orders. Cursor pagination is used. All paginated requests return the latest information (newest) as the first page sorted by newest (in chronological time) first.
 func (o *OKCoin) GetMarginOpenOrders(ctx context.Context, request *GetSpotOpenOrdersRequest) ([]GetSpotOrderResponse, error) {
-	requestURL := pendingOrders + formatParameters(request)
+	encodedRequest, err := encodeRequest(request)
+	if err != nil {
+		return nil, err
+	}
+	requestURL := pendingOrders + encodedRequest
 	var resp []GetSpotOrderResponse
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, marginTradingSubsection, requestURL, nil, &resp, true)
 }
 
 // GetMarginOrder Get order details by order ID.
 func (o *OKCoin) GetMarginOrder(ctx context.Context, request *GetSpotOrderRequest) (*GetSpotOrderResponse, error) {
-	requestURL := orders + "/" + request.OrderID + formatParameters(request)
+	encodedRequest, err := encodeRequest(request)
+	if err != nil {
+		return nil, err
+	}
+	requestURL := orders + "/" + request.OrderID + encodedRequest
 	var resp *GetSpotOrderResponse
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, marginTradingSubsection, requestURL, request, &resp, true)
 }
@@ -581,23 +612,26 @@ func (o *OKCoin) GetMarginOrder(ctx context.Context, request *GetSpotOrderReques
 // GetMarginTransactionDetails Get details of the recent filled orders. Cursor pagination is used.
 // All paginated requests return the latest information (newest) as the first page sorted by newest (in chronological time) first.
 func (o *OKCoin) GetMarginTransactionDetails(ctx context.Context, request *GetSpotTransactionDetailsRequest) ([]GetSpotTransactionDetailsResponse, error) {
-	requestURL := getSpotTransactionDetails + formatParameters(request)
+	encodedRequest, err := encodeRequest(request)
+	if err != nil {
+		return nil, err
+	}
+	requestURL := getSpotTransactionDetails + encodedRequest
 	var resp []GetSpotTransactionDetailsResponse
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, marginTradingSubsection, requestURL, nil, &resp, true)
 }
 
-// formatParameters Formats URL parameters, useful for optional parameters due to OKCoin signature check
-func formatParameters(request interface{}) string {
+// encodeRequest Formats URL parameters, useful for optional parameters due to OKCoin signature check
+func encodeRequest(request interface{}) (string, error) {
 	v, err := query.Values(request)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v %v", okCoinExchangeName, err)
-		return ""
+		return "", err
 	}
 	resp := v.Encode()
 	if resp == "" {
-		return resp
+		return resp, nil
 	}
-	return "?" + resp
+	return "?" + resp, nil
 }
 
 // GetErrorCode returns an error code
@@ -683,9 +717,9 @@ func (o *OKCoin) SendHTTPRequest(ctx context.Context, ep exchange.URL, httpMetho
 	}
 
 	type errCapFormat struct {
-		Error        int64  `json:"error_code,omitempty"`
-		ErrorMessage string `json:"error_message,omitempty"`
-		Result       bool   `json:"result,string,omitempty"`
+		Error        int64  `json:"error_code"`
+		ErrorMessage string `json:"error_message"`
+		Result       bool   `json:"result,string"`
 	}
 	errCap := errCapFormat{Result: true}
 
