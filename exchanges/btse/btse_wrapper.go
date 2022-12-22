@@ -983,7 +983,7 @@ func (b *BTSE) GetHistoricCandles(ctx context.Context, pair currency.Pair, a ass
 		return nil, err
 	}
 
-	intervalInt, err := strconv.Atoi(b.FormatExchangeKlineInterval(req.Outbound))
+	intervalInt, err := strconv.Atoi(b.FormatExchangeKlineInterval(req.ExchangeInterval))
 	if err != nil {
 		return nil, err
 	}
@@ -992,7 +992,7 @@ func (b *BTSE) GetHistoricCandles(ctx context.Context, pair currency.Pair, a ass
 	switch req.Asset {
 	case asset.Spot:
 		req, err := b.OHLCV(ctx,
-			req.Formatted.String(),
+			req.RequestFormatted.String(),
 			req.Start,
 			req.End,
 			intervalInt)

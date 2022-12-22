@@ -1686,8 +1686,13 @@ func (b *Binance) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		return nil, err
 	}
 
+	if a != asset.Spot {
+		// TODO: Add support for other asset types.
+		return nil, common.ErrNotYetImplemented
+	}
+
 	candles, err := b.GetSpotKline(ctx, &KlinesRequestParams{
-		Interval:  b.FormatExchangeKlineInterval(req.Outbound),
+		Interval:  b.FormatExchangeKlineInterval(req.ExchangeInterval),
 		Symbol:    req.Pair,
 		StartTime: req.Start,
 		EndTime:   req.End,
@@ -1713,16 +1718,21 @@ func (b *Binance) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 // GetHistoricCandlesExtended returns candles between a time period for a set
 // time interval
 func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := b.GetKlineRequestExtended(pair, a, interval, start, end)
+	req, err := b.GetKlineExtendedRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
+	}
+
+	if a != asset.Spot {
+		// TODO: Add support for other asset types.
+		return nil, common.ErrNotYetImplemented
 	}
 
 	timeSeries := make([]kline.Candle, 0, req.Size())
 	for x := range req.Ranges {
 		var candles []CandleStick
 		candles, err = b.GetSpotKline(ctx, &KlinesRequestParams{
-			Interval:  b.FormatExchangeKlineInterval(req.Outbound),
+			Interval:  b.FormatExchangeKlineInterval(req.ExchangeInterval),
 			Symbol:    req.Pair,
 			StartTime: req.Ranges[x].Start.Time,
 			EndTime:   req.Ranges[x].End.Time,

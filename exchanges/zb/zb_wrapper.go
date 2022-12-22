@@ -890,8 +890,8 @@ func (z *ZB) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset
 	}
 
 	candles, err := z.GetSpotKline(ctx, KlinesRequestParams{
-		Type:   z.FormatExchangeKlineInterval(req.Outbound),
-		Symbol: req.Formatted.String(),
+		Type:   z.FormatExchangeKlineInterval(req.ExchangeInterval),
+		Symbol: req.RequestFormatted.String(),
 		Since:  start.UnixMilli(),
 		Size:   int64(z.Features.Enabled.Kline.ResultLimit),
 	})
@@ -918,7 +918,7 @@ func (z *ZB) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (z *ZB) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := z.GetKlineRequestExtended(pair, a, interval, start, end)
+	req, err := z.GetKlineExtendedRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -928,8 +928,8 @@ func (z *ZB) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair,
 allKlines:
 	for {
 		candles, err := z.GetSpotKline(ctx, KlinesRequestParams{
-			Type:   z.FormatExchangeKlineInterval(req.Outbound),
-			Symbol: req.Formatted.String(),
+			Type:   z.FormatExchangeKlineInterval(req.ExchangeInterval),
+			Symbol: req.RequestFormatted.String(),
 			Since:  startTime.UnixMilli(),
 			Size:   int64(z.Features.Enabled.Kline.ResultLimit),
 		})

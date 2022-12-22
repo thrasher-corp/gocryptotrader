@@ -40,8 +40,6 @@ const (
 var (
 	// ErrRequestExceedsExchangeLimits locale for exceeding rate limits message
 	ErrRequestExceedsExchangeLimits = errors.New("request will exceed exchange limits, please reduce start-end time window or use GetHistoricCandlesExtended")
-	// ErrUnsetInterval is an error for date range calculation
-	ErrUnsetInterval = errors.New("cannot calculate range, interval unset")
 	// ErrUnsupportedInterval returns when the provided interval is not supported by an exchange
 	ErrUnsupportedInterval = errors.New("interval unsupported by exchange")
 	// ErrCanOnlyUpscaleCandles returns when attempting to upscale candles
@@ -51,10 +49,21 @@ var (
 	errNilKline           = errors.New("kline item is nil")
 	// ErrNotFoundAtTime returned when looking up a candle at a specific time
 	ErrNotFoundAtTime = errors.New("candle not found at time")
-
 	// ErrValidatingParams defines an error when the kline params are either not
 	// enabled or are invalid.
 	ErrValidatingParams = errors.New("kline param(s) are invalid")
+	// ErrInvalidInterval defines when an interval is invalid e.g. interval <= 0
+	ErrInvalidInterval = errors.New("invalid/unset interval")
+	// ErrCannotConstructInterval defines an error when an interval cannot be
+	// constructed from a list of support intervals.
+	ErrCannotConstructInterval = errors.New("cannot construct required interval from supported intervals")
+	// ErrInsufficientCandleData defines an error when you have a candle that
+	// requires multiple candles to generate.
+	ErrInsufficientCandleData = errors.New("insufficient candle data to generate new candle")
+
+	errInsufficientTradeData = errors.New("insufficient trade data")
+
+	oneYearDurationInNano = float64(OneYear.Duration().Nanoseconds())
 
 	// SupportedIntervals is a list of all supported intervals
 	SupportedIntervals = []Interval{

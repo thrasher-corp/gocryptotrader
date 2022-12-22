@@ -860,10 +860,10 @@ func (b *Bitstamp) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	}
 
 	candles, err := b.OHLC(ctx,
-		req.Formatted.String(),
+		req.RequestFormatted.String(),
 		req.Start,
 		req.End,
-		b.FormatExchangeKlineInterval(req.Outbound),
+		b.FormatExchangeKlineInterval(req.ExchangeInterval),
 		strconv.FormatInt(int64(b.Features.Enabled.Kline.ResultLimit), 10))
 	if err != nil {
 		return nil, err
@@ -889,7 +889,7 @@ func (b *Bitstamp) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (b *Bitstamp) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := b.GetKlineRequestExtended(pair, a, interval, start, end)
+	req, err := b.GetKlineExtendedRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -898,10 +898,10 @@ func (b *Bitstamp) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	for x := range req.Ranges {
 		var candles OHLCResponse
 		candles, err = b.OHLC(ctx,
-			req.Formatted.String(),
+			req.RequestFormatted.String(),
 			req.Ranges[x].Start.Time,
 			req.Ranges[x].End.Time,
-			b.FormatExchangeKlineInterval(req.Outbound),
+			b.FormatExchangeKlineInterval(req.ExchangeInterval),
 			strconv.FormatInt(int64(b.Features.Enabled.Kline.ResultLimit), 10),
 		)
 		if err != nil {

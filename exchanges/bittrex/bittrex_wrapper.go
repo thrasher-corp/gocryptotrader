@@ -958,7 +958,7 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		return nil, err
 	}
 
-	candleInterval := b.FormatExchangeKlineInterval(req.Outbound)
+	candleInterval := b.FormatExchangeKlineInterval(req.ExchangeInterval)
 	if candleInterval == "notfound" {
 		return nil, errors.New("invalid interval")
 	}
@@ -969,7 +969,7 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 	getHistoric := false // nolint:ifshort,nolintlint // false positive and triggers only on Windows
 	getRecent := false   // nolint:ifshort,nolintlint // false positive and triggers only on Windows
 
-	switch req.Outbound {
+	switch req.ExchangeInterval {
 	case kline.OneMin, kline.FiveMin:
 		if time.Since(req.Start) > 24*time.Hour {
 			getHistoric = true
@@ -997,8 +997,8 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 	if getHistoric {
 		var historicData []CandleData
 		historicData, err = b.GetHistoricalCandles(ctx,
-			req.Formatted.String(),
-			b.FormatExchangeKlineInterval(req.Outbound),
+			req.RequestFormatted.String(),
+			b.FormatExchangeKlineInterval(req.ExchangeInterval),
 			"TRADE",
 			year,
 			int(month),
@@ -1011,8 +1011,8 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 	if getRecent {
 		var recentData []CandleData
 		recentData, err = b.GetRecentCandles(ctx,
-			req.Formatted.String(),
-			b.FormatExchangeKlineInterval(req.Outbound),
+			req.RequestFormatted.String(),
+			b.FormatExchangeKlineInterval(req.ExchangeInterval),
 			"TRADE")
 		if err != nil {
 			return nil, err

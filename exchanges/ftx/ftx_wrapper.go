@@ -1186,8 +1186,8 @@ func (f *FTX) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asse
 	}
 
 	ohlcData, err := f.GetHistoricalData(ctx,
-		req.Formatted.String(),
-		int64(req.Outbound.Duration().Seconds()),
+		req.RequestFormatted.String(),
+		int64(req.ExchangeInterval.Duration().Seconds()),
 		int64(f.Features.Enabled.Kline.ResultLimit),
 		req.Start,
 		req.End)
@@ -1211,7 +1211,7 @@ func (f *FTX) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asse
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (f *FTX) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := f.GetKlineRequestExtended(pair, a, interval, start, end)
+	req, err := f.GetKlineExtendedRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -1220,8 +1220,8 @@ func (f *FTX) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair
 	for x := range req.Ranges {
 		var ohlcData []OHLCVData
 		ohlcData, err = f.GetHistoricalData(ctx,
-			req.Formatted.String(),
-			int64(req.Outbound.Duration().Seconds()),
+			req.RequestFormatted.String(),
+			int64(req.ExchangeInterval.Duration().Seconds()),
 			int64(f.Features.Enabled.Kline.ResultLimit),
 			req.Ranges[x].Start.Time,
 			req.Ranges[x].End.Time)

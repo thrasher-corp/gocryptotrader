@@ -3145,7 +3145,7 @@ func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, inte
 	}
 	params.Set("instId", instrumentID)
 	var resp [][7]string
-	if limit <= 100 {
+	if limit <= 300 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	} else if limit > 300 {
 		return nil, fmt.Errorf("%w can not exceed 300", errLimitExceedsMaximumResultPerRequest)

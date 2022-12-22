@@ -1020,8 +1020,8 @@ func (b *BTCMarkets) GetHistoricCandles(ctx context.Context, pair currency.Pair,
 	}
 
 	candles, err := b.GetMarketCandles(ctx,
-		req.Formatted.String(),
-		b.FormatExchangeKlineInterval(req.Outbound),
+		req.RequestFormatted.String(),
+		b.FormatExchangeKlineInterval(req.ExchangeInterval),
 		req.Start,
 		req.End,
 		-1,
@@ -1043,7 +1043,7 @@ func (b *BTCMarkets) GetHistoricCandles(ctx context.Context, pair currency.Pair,
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (b *BTCMarkets) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := b.GetKlineRequestExtended(pair, a, interval, start, end)
+	req, err := b.GetKlineExtendedRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -1052,8 +1052,8 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(ctx context.Context, pair curren
 	for x := range req.Ranges {
 		var candles CandleResponse
 		candles, err = b.GetMarketCandles(ctx,
-			req.Formatted.String(),
-			b.FormatExchangeKlineInterval(req.Outbound),
+			req.RequestFormatted.String(),
+			b.FormatExchangeKlineInterval(req.ExchangeInterval),
 			req.Ranges[x].Start.Time,
 			req.Ranges[x].End.Time,
 			-1,

@@ -789,8 +789,8 @@ func (b *Bithumb) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 	}
 
 	candle, err := b.GetCandleStick(ctx,
-		req.Formatted.String(),
-		b.FormatExchangeKlineInterval(req.Outbound))
+		req.RequestFormatted.String(),
+		b.FormatExchangeKlineInterval(req.ExchangeInterval))
 	if err != nil {
 		return nil, err
 	}

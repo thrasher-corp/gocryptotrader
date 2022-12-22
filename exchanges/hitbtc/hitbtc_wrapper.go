@@ -868,9 +868,9 @@ func (h *HitBTC) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 	}
 
 	data, err := h.GetCandles(ctx,
-		req.Formatted.String(),
+		req.RequestFormatted.String(),
 		strconv.FormatInt(int64(h.Features.Enabled.Kline.ResultLimit), 10),
-		h.FormatExchangeKlineInterval(req.Outbound),
+		h.FormatExchangeKlineInterval(req.ExchangeInterval),
 		req.Start,
 		req.End)
 	if err != nil {
@@ -893,7 +893,7 @@ func (h *HitBTC) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (h *HitBTC) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := h.GetKlineRequestExtended(pair, a, interval, start, end)
+	req, err := h.GetKlineExtendedRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -902,9 +902,9 @@ func (h *HitBTC) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 	for y := range req.Ranges {
 		var data []ChartData
 		data, err = h.GetCandles(ctx,
-			req.Formatted.String(),
+			req.RequestFormatted.String(),
 			strconv.FormatInt(int64(h.Features.Enabled.Kline.ResultLimit), 10),
-			h.FormatExchangeKlineInterval(req.Outbound),
+			h.FormatExchangeKlineInterval(req.ExchangeInterval),
 			req.Ranges[y].Start.Time,
 			req.Ranges[y].End.Time)
 		if err != nil {

@@ -1096,7 +1096,7 @@ func (b *Bitfinex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 
 	candles, err := b.GetCandles(ctx,
 		cf,
-		b.FormatExchangeKlineInterval(req.Outbound),
+		b.FormatExchangeKlineInterval(req.ExchangeInterval),
 		req.Start.UnixMilli(),
 		req.End.UnixMilli(),
 		b.Features.Enabled.Kline.ResultLimit, true)
@@ -1120,7 +1120,7 @@ func (b *Bitfinex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (b *Bitfinex) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := b.GetKlineRequestExtended(pair, a, interval, start, end)
+	req, err := b.GetKlineExtendedRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -1135,7 +1135,7 @@ func (b *Bitfinex) GetHistoricCandlesExtended(ctx context.Context, pair currency
 		var candles []Candle
 		candles, err = b.GetCandles(ctx,
 			cf,
-			b.FormatExchangeKlineInterval(req.Outbound),
+			b.FormatExchangeKlineInterval(req.ExchangeInterval),
 			req.Ranges[x].Start.Ticks*1000,
 			req.Ranges[x].End.Ticks*1000,
 			b.Features.Enabled.Kline.ResultLimit,

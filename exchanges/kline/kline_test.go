@@ -393,8 +393,8 @@ func TestCalculateCandleDateRanges(t *testing.T) {
 	}
 
 	_, err = CalculateCandleDateRanges(et, ft, 0, 300)
-	if !errors.Is(err, ErrUnsetInterval) {
-		t.Errorf("received %v expected %v", err, ErrUnsetInterval)
+	if !errors.Is(err, ErrInvalidInterval) {
+		t.Errorf("received %v expected %v", err, ErrInvalidInterval)
 	}
 
 	_, err = CalculateCandleDateRanges(et, et, OneMin, 300)
@@ -876,8 +876,8 @@ func TestConvertToNewInterval(t *testing.T) {
 	}
 
 	_, err = (&Item{}).ConvertToNewInterval(OneMin)
-	if !errors.Is(err, ErrUnsetInterval) {
-		t.Errorf("received '%v' expected '%v'", err, ErrUnsetInterval)
+	if !errors.Is(err, ErrInvalidInterval) {
+		t.Errorf("received '%v' expected '%v'", err, ErrInvalidInterval)
 	}
 
 	old := &Item{
@@ -914,8 +914,8 @@ func TestConvertToNewInterval(t *testing.T) {
 	}
 
 	_, err = old.ConvertToNewInterval(0)
-	if !errors.Is(err, ErrUnsetInterval) {
-		t.Errorf("received '%v' expected '%v'", err, ErrUnsetInterval)
+	if !errors.Is(err, ErrInvalidInterval) {
+		t.Errorf("received '%v' expected '%v'", err, ErrInvalidInterval)
 	}
 	_, err = old.ConvertToNewInterval(OneMin)
 	if !errors.Is(err, ErrCanOnlyUpscaleCandles) {

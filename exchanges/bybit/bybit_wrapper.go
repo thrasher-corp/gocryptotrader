@@ -1838,8 +1838,8 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 	case asset.Spot:
 		var candles []KlineItem
 		candles, err = by.GetKlines(ctx,
-			req.Formatted.String(),
-			by.FormatExchangeKlineInterval(ctx, req.Outbound),
+			req.RequestFormatted.String(),
+			by.FormatExchangeKlineInterval(ctx, req.ExchangeInterval),
 			int64(by.Features.Enabled.Kline.ResultLimit),
 			req.Start,
 			req.End)
@@ -1861,8 +1861,8 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 	case asset.CoinMarginedFutures, asset.Futures:
 		var candles []FuturesCandleStickWithStringParam
 		candles, err = by.GetFuturesKlineData(ctx,
-			req.Formatted,
-			by.FormatExchangeKlineIntervalFutures(ctx, req.Outbound),
+			req.RequestFormatted,
+			by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval),
 			int64(by.Features.Enabled.Kline.ResultLimit),
 			req.Start)
 		if err != nil {
@@ -1883,8 +1883,8 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 	case asset.USDTMarginedFutures:
 		var candles []FuturesCandleStick
 		candles, err = by.GetUSDTFuturesKlineData(ctx,
-			req.Formatted,
-			by.FormatExchangeKlineIntervalFutures(ctx, req.Outbound),
+			req.RequestFormatted,
+			by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval),
 			int64(by.Features.Enabled.Kline.ResultLimit),
 			req.Start)
 		if err != nil {
@@ -1905,8 +1905,8 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 	case asset.USDCMarginedFutures:
 		var candles []USDCKline
 		candles, err = by.GetUSDCKlines(ctx,
-			req.Formatted,
-			by.FormatExchangeKlineIntervalFutures(ctx, req.Outbound),
+			req.RequestFormatted,
+			by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval),
 			req.Start,
 			int64(by.Features.Enabled.Kline.ResultLimit))
 		if err != nil {
@@ -1932,7 +1932,7 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := by.GetKlineRequestExtended(pair, a, interval, start, end)
+	req, err := by.GetKlineExtendedRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -1943,8 +1943,8 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 		case asset.Spot:
 			var candles []KlineItem
 			candles, err = by.GetKlines(ctx,
-				req.Formatted.String(),
-				by.FormatExchangeKlineInterval(ctx, req.Outbound),
+				req.RequestFormatted.String(),
+				by.FormatExchangeKlineInterval(ctx, req.ExchangeInterval),
 				int64(by.Features.Enabled.Kline.ResultLimit),
 				req.Ranges[x].Start.Time,
 				req.Ranges[x].End.Time)
@@ -1965,8 +1965,8 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 		case asset.CoinMarginedFutures, asset.Futures:
 			var candles []FuturesCandleStickWithStringParam
 			candles, err = by.GetFuturesKlineData(ctx,
-				req.Formatted,
-				by.FormatExchangeKlineIntervalFutures(ctx, req.Outbound),
+				req.RequestFormatted,
+				by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval),
 				int64(by.Features.Enabled.Kline.ResultLimit),
 				req.Ranges[x].Start.Time)
 			if err != nil {
@@ -1986,8 +1986,8 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 		case asset.USDTMarginedFutures:
 			var candles []FuturesCandleStick
 			candles, err = by.GetUSDTFuturesKlineData(ctx,
-				req.Formatted,
-				by.FormatExchangeKlineIntervalFutures(ctx, req.Outbound),
+				req.RequestFormatted,
+				by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval),
 				int64(by.Features.Enabled.Kline.ResultLimit),
 				req.Ranges[x].Start.Time)
 			if err != nil {
@@ -2007,8 +2007,8 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 		case asset.USDCMarginedFutures:
 			var candles []USDCKline
 			candles, err = by.GetUSDCKlines(ctx,
-				req.Formatted,
-				by.FormatExchangeKlineIntervalFutures(ctx, req.Outbound),
+				req.RequestFormatted,
+				by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval),
 				req.Ranges[x].Start.Time,
 				int64(by.Features.Enabled.Kline.ResultLimit))
 			if err != nil {

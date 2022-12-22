@@ -951,10 +951,10 @@ func (p *Poloniex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	// minutes will go down 10:15 this is due to poloniex returning a
 	// non-complete candle if the time does not match.
 	resp, err := p.GetChartData(ctx,
-		req.Formatted.String(),
-		req.Start.Truncate(req.Outbound.Duration()),
+		req.RequestFormatted.String(),
+		req.Start.Truncate(req.ExchangeInterval.Duration()),
 		req.End,
-		p.FormatExchangeKlineInterval(req.Outbound))
+		p.FormatExchangeKlineInterval(req.ExchangeInterval))
 	if err != nil {
 		return nil, err
 	}

@@ -1368,10 +1368,10 @@ func (ok *Okx) GetHistoricCandles(ctx context.Context, pair currency.Pair, a ass
 	}
 
 	candles, err := ok.GetCandlesticksHistory(ctx,
-		req.Formatted.Base.String()+
+		req.RequestFormatted.Base.String()+
 			currency.DashDelimiter+
-			req.Formatted.Quote.String(),
-		req.Outbound,
+			req.RequestFormatted.Quote.String(),
+		req.ExchangeInterval,
 		start,
 		end,
 		300)
@@ -1395,12 +1395,12 @@ func (ok *Okx) GetHistoricCandles(ctx context.Context, pair currency.Pair, a ass
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (ok *Okx) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := ok.GetKlineRequestExtended(pair, a, interval, start, end)
+	req, err := ok.GetKlineExtendedRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
 
-	if count := kline.TotalCandlesPerInterval(start, end, req.Outbound); count > 1440 {
+	if count := kline.TotalCandlesPerInterval(start, end, req.ExchangeInterval); count > 1440 {
 		return nil,
 			fmt.Errorf("candles count: %d, exceeds max lookback limit for exchange: %d %w",
 				count, 1440, kline.ErrRequestExceedsExchangeLimits)
@@ -1410,10 +1410,10 @@ func (ok *Okx) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pai
 	for y := range req.Ranges {
 		var candles []CandleStick
 		candles, err = ok.GetCandlesticksHistory(ctx,
-			req.Formatted.Base.String()+
+			req.RequestFormatted.Base.String()+
 				currency.DashDelimiter+
-				req.Formatted.Quote.String(),
-			req.Outbound,
+				req.RequestFormatted.Quote.String(),
+			req.ExchangeInterval,
 			req.Ranges[y].Start.Time,
 			req.Ranges[y].End.Time,
 			300)

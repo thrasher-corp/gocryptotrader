@@ -1488,7 +1488,7 @@ func (b *Base) GetFuturesPositions(context.Context, *order.PositionsRequest) ([]
 }
 
 // GetFundingRates returns funding rates based on request data
-func (b *Base) GetFundingRates(ctx context.Context, request *order.FundingRatesRequest) ([]order.FundingRates, error) {
+func (b *Base) GetFundingRates(context.Context, *order.FundingRatesRequest) ([]order.FundingRates, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -1511,7 +1511,7 @@ func (b *Base) GetKlineRequest(pair currency.Pair, a asset.Item, interval kline.
 	// NOTE: This allows for checking that the required kline interval is
 	// supported by the exchange and/or can be constructed from lower time frame
 	// intervals.
-	request, err := b.Features.Enabled.Kline.Intervals.Construct(interval)
+	exchangeInterval, err := b.Features.Enabled.Kline.Intervals.Construct(interval)
 	if err != nil {
 		return nil, err
 	}
@@ -1519,7 +1519,7 @@ func (b *Base) GetKlineRequest(pair currency.Pair, a asset.Item, interval kline.
 	// NOTE: This check is here to make sure a client is notified that using
 	// this functionality will result in error if the total candles cannot be
 	// theoretically retrieved.
-	if count := kline.TotalCandlesPerInterval(start, end, request); count >
+	if count := kline.TotalCandlesPerInterval(start, end, exchangeInterval); count >
 		int64(b.Features.Enabled.Kline.ResultLimit) {
 		return nil, fmt.Errorf("candles count: %d, max limit: %d %w",
 			count,
@@ -1527,7 +1527,7 @@ func (b *Base) GetKlineRequest(pair currency.Pair, a asset.Item, interval kline.
 			kline.ErrRequestExceedsExchangeLimits)
 	}
 
-	err = b.ValidateKline(pair, a, request)
+	err = b.ValidateKline(pair, a, exchangeInterval)
 	if err != nil {
 		return nil, err
 	}
@@ -1537,13 +1537,13 @@ func (b *Base) GetKlineRequest(pair currency.Pair, a asset.Item, interval kline.
 		return nil, err
 	}
 
-	return kline.CreateKlineRequest(b.Name, pair, formatted, a, interval, request, start, end)
+	return kline.CreateKlineRequest(b.Name, pair, formatted, a, interval, exchangeInterval, start, end)
 }
 
-// GetKlineRequestExtended returns a helper for the fetching of candle/kline
+// GetKlineExtendedRequest returns a helper for the fetching of candle/kline
 // data for a *multi* request within a pre-determined time window. This has
 // extended functionality to also break down calls to fetch total history.
-func (b *Base) GetKlineRequestExtended(pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.RequestExtended, error) {
+func (b *Base) GetKlineExtendedRequest(pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.ExtendedRequest, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -1551,12 +1551,12 @@ func (b *Base) GetKlineRequestExtended(pair currency.Pair, a asset.Item, interva
 		return nil, asset.ErrNotSupported
 	}
 
-	request, err := b.Features.Enabled.Kline.Intervals.Construct(interval)
+	exchangeInterval, err := b.Features.Enabled.Kline.Intervals.Construct(interval)
 	if err != nil {
 		return nil, err
 	}
 
-	err = b.ValidateKline(pair, a, request)
+	err = b.ValidateKline(pair, a, exchangeInterval)
 	if err != nil {
 		return nil, err
 	}
@@ -1566,7 +1566,7 @@ func (b *Base) GetKlineRequestExtended(pair currency.Pair, a asset.Item, interva
 		return nil, err
 	}
 
-	r, err := kline.CreateKlineRequest(b.Name, pair, formatted, a, interval, request, start, end)
+	r, err := kline.CreateKlineRequest(b.Name, pair, formatted, a, interval, exchangeInterval, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -1576,5 +1576,5 @@ func (b *Base) GetKlineRequestExtended(pair currency.Pair, a asset.Item, interva
 		return nil, err
 	}
 
-	return &kline.RequestExtended{Request: r, IntervalRangeHolder: dates}, nil
+	return &kline.ExtendedRequest{Request: r, IntervalRangeHolder: dates}, nil
 }

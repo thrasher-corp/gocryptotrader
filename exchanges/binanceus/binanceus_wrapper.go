@@ -874,7 +874,7 @@ func (bi *Binanceus) GetHistoricCandles(ctx context.Context, pair currency.Pair,
 	}
 
 	candles, err := bi.GetSpotKline(ctx, &KlinesRequestParams{
-		Interval:  bi.GetIntervalEnum(req.Outbound),
+		Interval:  bi.GetIntervalEnum(req.ExchangeInterval),
 		Symbol:    req.Pair,
 		StartTime: req.Start,
 		EndTime:   req.End,
@@ -900,7 +900,7 @@ func (bi *Binanceus) GetHistoricCandles(ctx context.Context, pair currency.Pair,
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (bi *Binanceus) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := bi.GetKlineRequestExtended(pair, a, interval, start, end)
+	req, err := bi.GetKlineExtendedRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -909,7 +909,7 @@ func (bi *Binanceus) GetHistoricCandlesExtended(ctx context.Context, pair curren
 	for x := range req.Ranges {
 		var candles []CandleStick
 		candles, err = bi.GetSpotKline(ctx, &KlinesRequestParams{
-			Interval:  bi.GetIntervalEnum(req.Outbound),
+			Interval:  bi.GetIntervalEnum(req.ExchangeInterval),
 			Symbol:    req.Pair,
 			StartTime: req.Ranges[x].Start.Time,
 			EndTime:   req.Ranges[x].End.Time,

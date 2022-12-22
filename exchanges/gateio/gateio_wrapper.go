@@ -907,8 +907,8 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 	}
 
 	klineData, err := g.GetSpotKline(ctx, KlinesRequestParams{
-		Symbol:   req.Formatted.String(),
-		GroupSec: g.FormatExchangeKlineInterval(req.Outbound),
+		Symbol:   req.RequestFormatted.String(),
+		GroupSec: g.FormatExchangeKlineInterval(req.ExchangeInterval),
 		HourSize: int(time.Since(req.Start).Hours()),
 	})
 	if err != nil {

@@ -665,8 +665,8 @@ func (o *OKGroup) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		Asset:        req.Asset,
 		Start:        req.Start.UTC().Format(time.RFC3339),
 		End:          req.End.UTC().Format(time.RFC3339),
-		Granularity:  o.FormatExchangeKlineInterval(req.Outbound),
-		InstrumentID: req.Formatted.String(),
+		Granularity:  o.FormatExchangeKlineInterval(req.ExchangeInterval),
+		InstrumentID: req.RequestFormatted.String(),
 	})
 	if err != nil {
 		return nil, err
@@ -711,7 +711,7 @@ func (o *OKGroup) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (o *OKGroup) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := o.GetKlineRequestExtended(pair, a, interval, start, end)
+	req, err := o.GetKlineExtendedRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -723,8 +723,8 @@ func (o *OKGroup) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			Asset:        req.Asset,
 			Start:        req.Ranges[x].Start.Time.UTC().Format(time.RFC3339),
 			End:          req.Ranges[x].End.Time.UTC().Format(time.RFC3339),
-			Granularity:  o.FormatExchangeKlineInterval(req.Outbound),
-			InstrumentID: req.Formatted.String(),
+			Granularity:  o.FormatExchangeKlineInterval(req.ExchangeInterval),
+			InstrumentID: req.RequestFormatted.String(),
 		})
 		if err != nil {
 			return nil, err

@@ -13,24 +13,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-var (
-	// ErrInvalidInterval defines when an interval is invalid e.g. interval <= 0
-	ErrInvalidInterval = errors.New("invalid interval")
-	// ErrCannotConstructInterval defines an error when an interval cannot be
-	// constructed from a list of support intervals.
-	ErrCannotConstructInterval = errors.New("cannot construct required interval from supported intervals")
-	// ErrInsufficientCandleData defines an error when you have a candle that
-	// requires multiple candles to generate.
-	ErrInsufficientCandleData = errors.New("insufficient candle data to generate new candle")
-
-	errInsufficientTradeData = errors.New("insufficient trade data")
-
-	oneYearDurationInNano = float64(OneYear.Duration().Nanoseconds())
-)
-
 // CreateKline creates candles out of trade history data for a set time interval
 func CreateKline(trades []order.TradeHistory, interval Interval, pair currency.Pair, a asset.Item, exchName string) (*Item, error) {
-	if interval.Duration() < time.Minute {
+	if interval < FifteenSecond {
 		return nil, fmt.Errorf("%w: [%s]", ErrInvalidInterval, interval)
 	}
 
@@ -74,25 +59,25 @@ func CreateKline(trades []order.TradeHistory, interval Interval, pair currency.P
 		}
 		candleStartNs := candles[x].Time.UnixNano()
 		for y := offset; y < len(trades); y++ {
-			if (trades[y].Timestamp.UnixNano() - candleStartNs) < candleWindowNs {
-				if candles[x].Open == 0 {
-					candles[x].Open = trades[y].Price
-				}
-				if candles[x].High < trades[y].Price {
-					candles[x].High = trades[y].Price
-				}
-
-				if candles[x].Low == 0 || candles[x].Low > trades[y].Price {
-					candles[x].Low = trades[y].Price
-				}
-
-				candles[x].Close = trades[y].Price
-				candles[x].Volume += trades[y].Amount
-				continue
+			if (trades[y].Timestamp.UnixNano() - candleStartNs) >= candleWindowNs {
+				// Push forward offset
+				offset = y
+				break
 			}
-			// Push forward offset
-			offset = y
-			break
+
+			if candles[x].Open == 0 {
+				candles[x].Open = trades[y].Price
+			}
+			if candles[x].High < trades[y].Price {
+				candles[x].High = trades[y].Price
+			}
+
+			if candles[x].Low == 0 || candles[x].Low > trades[y].Price {
+				candles[x].Low = trades[y].Price
+			}
+
+			candles[x].Close = trades[y].Price
+			candles[x].Volume += trades[y].Amount
 		}
 	}
 	return &Item{
@@ -184,7 +169,7 @@ func (k *Item) FillMissingDataWithEmptyEntries(i *IntervalRangeHolder) {
 
 // RemoveDuplicates removes any duplicate candles. NOTE: Filter-in-place is used
 // in this function for optimization and to keep the slice reference pointer the
-// same, if changed RequestExtended ConvertCandles functionality will break.
+// same, if changed ExtendedRequest ConvertCandles functionality will break.
 func (k *Item) RemoveDuplicates() {
 	lookup := make(map[int64]bool)
 	target := 0
@@ -200,7 +185,7 @@ func (k *Item) RemoveDuplicates() {
 
 // RemoveOutsideRange removes any candles outside the start and end date.
 // NOTE: Filter-in-place is used in this function for optimization and to keep
-// the slice reference pointer the same, if changed RequestExtended
+// the slice reference pointer the same, if changed ExtendedRequest
 // ConvertCandles functionality will break.
 func (k *Item) RemoveOutsideRange(start, end time.Time) {
 	target := 0
@@ -305,10 +290,10 @@ func (k *Item) ConvertToNewInterval(newInterval Interval) (*Item, error) {
 		return nil, errNilKline
 	}
 	if k.Interval <= 0 {
-		return nil, fmt.Errorf("%w for old candle", ErrUnsetInterval)
+		return nil, fmt.Errorf("%w for old candle", ErrInvalidInterval)
 	}
 	if newInterval <= 0 {
-		return nil, fmt.Errorf("%w for new candle", ErrUnsetInterval)
+		return nil, fmt.Errorf("%w for new candle", ErrInvalidInterval)
 	}
 	if newInterval <= k.Interval {
 		return nil, fmt.Errorf("%w %s is less than or equal to %s",
@@ -374,7 +359,7 @@ func CalculateCandleDateRanges(start, end time.Time, interval Interval, limit ui
 		return nil, err
 	}
 	if interval <= 0 {
-		return nil, ErrUnsetInterval
+		return nil, ErrInvalidInterval
 	}
 
 	start = start.Round(interval.Duration())

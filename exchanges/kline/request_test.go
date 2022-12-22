@@ -35,13 +35,13 @@ func TestCreateKlineRequest(t *testing.T) {
 	}
 
 	_, err = CreateKlineRequest("name", pair, pair2, asset.Spot, 0, 0, time.Time{}, time.Time{})
-	if !errors.Is(err, ErrUnsetInterval) {
-		t.Fatalf("received: '%v', but expected '%v'", err, ErrUnsetInterval)
+	if !errors.Is(err, ErrInvalidInterval) {
+		t.Fatalf("received: '%v', but expected '%v'", err, ErrInvalidInterval)
 	}
 
 	_, err = CreateKlineRequest("name", pair, pair2, asset.Spot, OneHour, 0, time.Time{}, time.Time{})
-	if !errors.Is(err, ErrUnsetInterval) {
-		t.Fatalf("received: '%v', but expected '%v'", err, ErrUnsetInterval)
+	if !errors.Is(err, ErrInvalidInterval) {
+		t.Fatalf("received: '%v', but expected '%v'", err, ErrInvalidInterval)
 	}
 
 	_, err = CreateKlineRequest("name", pair, pair2, asset.Spot, OneHour, OneMin, time.Time{}, time.Time{})
@@ -61,8 +61,8 @@ func TestCreateKlineRequest(t *testing.T) {
 		t.Fatalf("received: '%v', but expected '%v'", err, nil)
 	}
 
-	if r.Name != "name" {
-		t.Fatalf("received: '%v' but expected: '%v'", r.Name, "name")
+	if r.Exchange != "name" {
+		t.Fatalf("received: '%v' but expected: '%v'", r.Exchange, "name")
 	}
 
 	if !r.Pair.Equal(pair) {
@@ -73,12 +73,12 @@ func TestCreateKlineRequest(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", r.Asset, asset.Spot)
 	}
 
-	if r.Outbound != OneMin {
-		t.Fatalf("received: '%v' but expected: '%v'", r.Outbound, OneMin)
+	if r.ExchangeInterval != OneMin {
+		t.Fatalf("received: '%v' but expected: '%v'", r.ExchangeInterval, OneMin)
 	}
 
-	if r.Required != OneHour {
-		t.Fatalf("received: '%v' but expected: '%v'", r.Required, OneHour)
+	if r.ClientRequired != OneHour {
+		t.Fatalf("received: '%v' but expected: '%v'", r.ClientRequired, OneHour)
 	}
 
 	if r.Start != start {
@@ -89,8 +89,8 @@ func TestCreateKlineRequest(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", r.End, end)
 	}
 
-	if r.Formatted.String() != "BTCUSDT" {
-		t.Fatalf("received: '%v' but expected: '%v'", r.Formatted.String(), "BTCUSDT")
+	if r.RequestFormatted.String() != "BTCUSDT" {
+		t.Fatalf("received: '%v' but expected: '%v'", r.RequestFormatted.String(), "BTCUSDT")
 	}
 
 	// Check end date/time shift if the request time is mid candle and not
@@ -213,14 +213,14 @@ func TestRequest_ConvertCandles(t *testing.T) {
 	}
 }
 
-func TestRequestExtended_ConvertCandles(t *testing.T) {
+func TestExtendedRequest_ConvertCandles(t *testing.T) {
 	t.Parallel()
 
 	start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	end := start.AddDate(0, 0, 1)
 	pair := currency.NewPair(currency.BTC, currency.USDT)
 
-	var rExt *RequestExtended
+	var rExt *ExtendedRequest
 	_, err := rExt.ConvertCandles(oneHourCandles)
 	if !errors.Is(err, errNilRequest) {
 		t.Fatalf("received: '%v', but expected '%v'", err, errNilRequest)
@@ -237,7 +237,7 @@ func TestRequestExtended_ConvertCandles(t *testing.T) {
 		t.Fatalf("received: '%v', but expected '%v'", err, nil)
 	}
 
-	rExt = &RequestExtended{r, dates}
+	rExt = &ExtendedRequest{r, dates}
 
 	holder, err := rExt.ConvertCandles(oneHourCandles)
 	if !errors.Is(err, nil) {
@@ -259,7 +259,7 @@ func TestRequestExtended_ConvertCandles(t *testing.T) {
 		t.Fatalf("received: '%v', but expected '%v'", err, nil)
 	}
 
-	rExt = &RequestExtended{r, dates}
+	rExt = &ExtendedRequest{r, dates}
 
 	holder, err = rExt.ConvertCandles(oneMinuteCandles)
 	if !errors.Is(err, nil) {
@@ -271,15 +271,15 @@ func TestRequestExtended_ConvertCandles(t *testing.T) {
 	}
 }
 
-func TestRequestExtended_Size(t *testing.T) {
+func TestExtendedRequest_Size(t *testing.T) {
 	t.Parallel()
 
-	var rExt *RequestExtended
+	var rExt *ExtendedRequest
 	if rExt.Size() != 0 {
 		t.Fatalf("received: '%v', but expected '%v'", rExt.Size(), 0)
 	}
 
-	rExt = &RequestExtended{IntervalRangeHolder: &IntervalRangeHolder{Limit: 100, Ranges: []IntervalRange{{}, {}}}}
+	rExt = &ExtendedRequest{IntervalRangeHolder: &IntervalRangeHolder{Limit: 100, Ranges: []IntervalRange{{}, {}}}}
 	if rExt.Size() != 200 {
 		t.Fatalf("received: '%v', but expected '%v'", rExt.Size(), 200)
 	}
