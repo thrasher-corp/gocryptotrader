@@ -19,29 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-const (
-	// DefaultWorkers limits the number of sync workers
-	DefaultWorkers = 15
-
-	// DefaultTimeoutREST the default time to switch from REST to websocket
-	// protocols without a response.
-	DefaultTimeoutREST = time.Second * 15
-
-	// DefaultTimeoutWebsocket the default time to switch from websocket to REST
-	// protocols without a response.
-	DefaultTimeoutWebsocket = time.Minute
-
-	defaultChannelBuffer = 10000
-)
-
-var (
-	ErrNoItemsEnabled    = errors.New("no sync items enabled")
-	errUnknownSyncType   = errors.New("unknown sync type")
-	errAgentNotFound     = errors.New("sync agent not found")
-	errExchangeNameUnset = errors.New("exchange name unset")
-	errProtocolUnset     = errors.New("protocol unset")
-)
-
 // NewManager returns a new sychronization manager
 func NewManager(c *ManagerConfig) (*Manager, error) {
 	if c == nil {
@@ -143,7 +120,7 @@ func (m *Manager) checkAllExchangeAssets() (time.Duration, error) {
 // synchronization. If an assets needs updating via REST it will push the work
 // to worker routines.
 func (m *Manager) controller() error {
-	// Pre-load all items for intial sync. The controller routine will take
+	// Pre-load all items for initial sync. The controller routine will take
 	// over this functionality to keep assets updated via REST only if needed.
 	wait, err := m.checkAllExchangeAssets()
 	if err != nil {
@@ -155,7 +132,7 @@ func (m *Manager) controller() error {
 				log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer worker shutting down.")
 				return
 			}
-			wait, err := m.checkAllExchangeAssets()
+			wait, err = m.checkAllExchangeAssets()
 			if err != nil {
 				log.Errorf(log.SyncMgr, "Sync manager checking all exchange assets. Error: %s", err)
 				wait = m.getSmallestTimeout()
@@ -203,8 +180,8 @@ func (m *Manager) checkSyncItem(exch exchange.IBotExchange, indv *Base, agent *A
 		// to when this item was last updated. It also helps to *theoretically*
 		// reduce pressure on rate limiters by staggering synchronization items
 		// away from each other, depending on the endpoint update time. This
-		// also endeavers to be a more efficient use of the processer instead
-		// of having a 50ms heartbeat check.
+		// also endeavers to be a more efficient use of the processor instead
+		// of having a 50ms heartbeat check across multiple routines.
 		*update = until
 	}
 }
@@ -258,27 +235,32 @@ func (m *Manager) getAgent(exch string, pair currency.Pair, a asset.Item, usingR
 
 	agent = &Agent{Exchange: exch, Pair: pair, AssetType: a}
 	if m.SynchronizeTicker {
-		agent.Ticker = m.deployBase(subsystem.Ticker.String(), agent, usingREST)
+		agent.Ticker = m.deployBase(subsystem.Ticker, agent, usingREST)
 	}
 	if m.SynchronizeOrderbook {
-		agent.Orderbook = m.deployBase(subsystem.Orderbook.String(), agent, usingREST)
+		agent.Orderbook = m.deployBase(subsystem.Orderbook, agent, usingREST)
 	}
 	if m.SynchronizeTrades {
-		agent.Trade = m.deployBase(subsystem.Trade.String(), agent, usingREST)
+		agent.Trade = m.deployBase(subsystem.Trade, agent, usingREST)
 	}
 
 	m3[a] = agent
 	return agent
 }
 
-// deployBase deploys a instance of a base struct for each individiual
+// deployBase deploys a instance of a base struct for each individual
 // synchronization item. If verbose it will display the added item. If state
 // is in initial sync it will increment counter and add to the waitgroup.
-func (m *Manager) deployBase(service string, agent *Agent, usingREST bool) Base {
+func (m *Manager) deployBase(service subsystem.SynchronizationType, agent *Agent, usingREST bool) Base {
 	if m.Verbose {
 		log.Debugf(log.SyncMgr,
-			"%s: Added trade sync item %s: using websocket: %v using REST: %v",
-			agent.Exchange, m.FormatCurrency(agent.Pair), !usingREST, usingREST)
+			"%s: Added %s sync item %s [%s]: using websocket: %v using REST: %v",
+			agent.Exchange,
+			service,
+			m.formatCurrency(agent.Pair),
+			agent.AssetType,
+			!usingREST,
+			usingREST)
 	}
 	if atomic.LoadInt32(&m.initSyncCompleted) != 1 {
 		m.initSyncWG.Add(1)
@@ -287,6 +269,7 @@ func (m *Manager) deployBase(service string, agent *Agent, usingREST bool) Base 
 	return Base{IsUsingREST: usingREST, IsUsingWebsocket: !usingREST}
 }
 
+// orderbookWorker waits for an orderbook job then executes a REST request.
 func (m *Manager) orderbookWorker(ctx context.Context) {
 	for j := range m.orderbookJobs {
 		if atomic.LoadInt32(&m.started) == 0 {
@@ -307,6 +290,7 @@ func (m *Manager) orderbookWorker(ctx context.Context) {
 	}
 }
 
+// tickerWorker waits for a ticker job then executes a REST request.
 func (m *Manager) tickerWorker(ctx context.Context) {
 	for j := range m.tickerJobs {
 		if atomic.LoadInt32(&m.started) == 0 {
@@ -349,14 +333,17 @@ func (m *Manager) tickerWorker(ctx context.Context) {
 	}
 }
 
-func (m *Manager) tradeWorker(ctx context.Context) {
+// tradeWorker waits for a trade job then executes a REST request. NOTE: This
+// is a POC routine which just blocks because there is currently no support for
+// this just yet.
+// TODO: Implement trade synchronization.
+func (m *Manager) tradeWorker(_ context.Context) {
 	for j := range m.tradeJobs {
 		if atomic.LoadInt32(&m.started) == 0 {
 			return
 		}
 		exchName := j.exch.GetName()
 		var err error
-		// TODO: Implement trade synchronization.
 		err = m.Update(exchName, subsystem.Rest, j.Pair, j.Asset, j.Item, err)
 		if err != nil {
 			log.Error(log.SyncMgr, err)
@@ -406,7 +393,7 @@ func printConvertCurrencyFormat(origPrice float64, origCurrency, displayCurrency
 
 // FormatCurrency is a method that formats and returns a currency pair
 // based on the user currency display preferences
-func (m *Manager) FormatCurrency(p currency.Pair) currency.Pair {
+func (m *Manager) formatCurrency(p currency.Pair) currency.Pair {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return p
 	}
@@ -465,7 +452,9 @@ func (b *Base) SetProcessing(exch, service string, pair currency.Pair, a asset.I
 	}
 }
 
-func (b *Base) Update(service, exch string, protocol subsystem.ProtocolType, pair currency.Pair, a asset.Item, incomingErr error) (hadData bool) {
+// Update updates the underlying sync bases' data and last updated fields.
+// If protocol is switched from REST to WEBSOCKET it will display that switch.
+func (b *Base) Update(service subsystem.SynchronizationType, exch string, protocol subsystem.ProtocolType, pair currency.Pair, a asset.Item, incomingErr error) (hadData bool) {
 	b.mu.Lock()
 	origHadData := b.HaveData
 	b.LastUpdated = time.Now()

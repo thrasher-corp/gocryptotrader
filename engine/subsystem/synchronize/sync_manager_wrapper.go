@@ -18,8 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-const book = "%s %s %s %s ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s"
-
 // IsRunning safely checks whether the subsystem is running
 func (m *Manager) IsRunning() bool {
 	return m != nil && atomic.LoadInt32(&m.started) == 1
@@ -73,7 +71,6 @@ func (m *Manager) Start() error {
 	}()
 
 	if atomic.LoadInt32(&m.initSyncCompleted) == 1 && !m.SynchronizeContinuously {
-		// TODO: Not effective - Change me
 		return nil
 	}
 
@@ -145,15 +142,15 @@ func (m *Manager) Update(exchangeName string, updateProtocol subsystem.ProtocolT
 
 	switch item {
 	case subsystem.Ticker:
-		if agent.Ticker.Update(item.String(), exchangeName, updateProtocol, p, a, incomingErr) {
+		if agent.Ticker.Update(item, exchangeName, updateProtocol, p, a, incomingErr) {
 			return nil
 		}
 	case subsystem.Orderbook:
-		if agent.Orderbook.Update(item.String(), exchangeName, updateProtocol, p, a, incomingErr) {
+		if agent.Orderbook.Update(item, exchangeName, updateProtocol, p, a, incomingErr) {
 			return nil
 		}
 	case subsystem.Trade:
-		if agent.Trade.Update(item.String(), exchangeName, updateProtocol, p, a, incomingErr) {
+		if agent.Trade.Update(item, exchangeName, updateProtocol, p, a, incomingErr) {
 			return nil
 		}
 	}
@@ -162,7 +159,7 @@ func (m *Manager) Update(exchangeName string, updateProtocol subsystem.ProtocolT
 	log.Debugf(log.SyncMgr, "%s %s sync complete %s via %s [%d/%d].",
 		exchangeName,
 		item,
-		m.FormatCurrency(p),
+		m.formatCurrency(p),
 		updateProtocol,
 		m.removedCounter,
 		m.createdCounter)
@@ -198,7 +195,7 @@ func (m *Manager) PrintTickerSummary(result *ticker.Price, protocol subsystem.Pr
 		log.Infof(log.SyncMgr, "%s %s %s %s TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f",
 			result.ExchangeName,
 			protocol,
-			m.FormatCurrency(result.Pair),
+			m.formatCurrency(result.Pair),
 			strings.ToUpper(result.AssetType.String()),
 			printConvertCurrencyFormat(result.Last, origCurrency, m.FiatDisplayCurrency),
 			printConvertCurrencyFormat(result.Ask, origCurrency, m.FiatDisplayCurrency),
@@ -213,7 +210,7 @@ func (m *Manager) PrintTickerSummary(result *ticker.Price, protocol subsystem.Pr
 			log.Infof(log.SyncMgr, "%s %s %s %s TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f",
 				result.ExchangeName,
 				protocol,
-				m.FormatCurrency(result.Pair),
+				m.formatCurrency(result.Pair),
 				strings.ToUpper(result.AssetType.String()),
 				printCurrencyFormat(result.Last, m.FiatDisplayCurrency),
 				printCurrencyFormat(result.Ask, m.FiatDisplayCurrency),
@@ -225,7 +222,7 @@ func (m *Manager) PrintTickerSummary(result *ticker.Price, protocol subsystem.Pr
 			log.Infof(log.SyncMgr, "%s %s %s %s TICKER: Last %.8f Ask %.8f Bid %.8f High %.8f Low %.8f Volume %.8f",
 				result.ExchangeName,
 				protocol,
-				m.FormatCurrency(result.Pair),
+				m.formatCurrency(result.Pair),
 				strings.ToUpper(result.AssetType.String()),
 				result.Last,
 				result.Ask,
@@ -291,7 +288,7 @@ func (m *Manager) PrintOrderbookSummary(result *orderbook.Base, protocol subsyst
 	log.Infof(log.SyncMgr, book,
 		result.Exchange,
 		protocol,
-		m.FormatCurrency(result.Pair),
+		m.formatCurrency(result.Pair),
 		strings.ToUpper(result.Asset.String()),
 		len(result.Bids),
 		bidsAmount,

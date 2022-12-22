@@ -17,12 +17,18 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
 
+var (
+	errGetExchanges    = errors.New("get exchanges error")
+	errGetWebsocket    = errors.New("get websocket error")
+	errGetEnabledPairs = errors.New("get enabled pairs error")
+	testName           = "test"
+	testPair           = currency.NewPair(currency.BTC, currency.USD)
+)
+
 type TestExchangeManager struct {
 	hold  []exchange.IBotExchange
 	Error bool
 }
-
-var errGetExchanges = errors.New("get exchanges error")
 
 func (em *TestExchangeManager) GetExchanges() ([]exchange.IBotExchange, error) {
 	if !em.Error {
@@ -30,7 +36,6 @@ func (em *TestExchangeManager) GetExchanges() ([]exchange.IBotExchange, error) {
 	}
 	return nil, errGetExchanges
 }
-
 func (em *TestExchangeManager) GetExchangeByName(string) (exchange.IBotExchange, error) {
 	return nil, nil
 }
@@ -39,9 +44,7 @@ type testStreamer stream.Websocket
 
 func (e *testStreamer) IsConnected() bool { return true }
 
-type TestExchange struct {
-	exchange.IBotExchange
-}
+type TestExchange struct{ exchange.IBotExchange }
 
 func (e *TestExchange) GetName() string                           { return "test" }
 func (e *TestExchange) SupportsWebsocket() bool                   { return true }
@@ -60,13 +63,9 @@ type ProblemWithGettingWebsocketP struct {
 	TestExchange
 }
 
-var errGetWebsocket = errors.New("get websocket error")
-
 func (e *ProblemWithGettingWebsocketP) GetWebsocket() (*stream.Websocket, error) {
 	return nil, errGetWebsocket
 }
-
-var errGetEnabledPairs = errors.New("get enabled pairs error")
 
 type ProblemWithGettingEnabledPairs struct {
 	TestExchange
@@ -75,9 +74,6 @@ type ProblemWithGettingEnabledPairs struct {
 func (e *ProblemWithGettingEnabledPairs) GetEnabledPairs(asset.Item) (currency.Pairs, error) {
 	return nil, errGetEnabledPairs
 }
-
-var testName = "test"
-var testPair = currency.NewPair(currency.BTC, currency.USD)
 
 func TestNewManager(t *testing.T) {
 	t.Parallel()

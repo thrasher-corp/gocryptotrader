@@ -1,6 +1,7 @@
 package synchronize
 
 import (
+	"errors"
 	"sync"
 	"time"
 
@@ -11,8 +12,32 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-// const holds the sync item types
-const ManagerName = "exchange_syncer"
+const (
+	// DefaultWorkers limits the number of sync workers
+	DefaultWorkers = 15
+	// DefaultTimeoutREST the default time to switch from REST to websocket
+	// protocols without a response.
+	DefaultTimeoutREST = time.Second * 15
+	// DefaultTimeoutWebsocket the default time to switch from websocket to REST
+	// protocols without a response.
+	DefaultTimeoutWebsocket = time.Minute
+	// ManagerName defines a string identifier for the subsystem
+	ManagerName = "exchange_syncer"
+
+	defaultChannelBuffer = 10000
+	book                 = "%s %s %s %s ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s"
+)
+
+var (
+	// ErrNoItemsEnabled is for when there is not atleast one sync item enabled
+	// e.g. an orderbook or ticker item.
+	ErrNoItemsEnabled = errors.New("no sync items enabled")
+
+	errUnknownSyncType   = errors.New("unknown sync type")
+	errAgentNotFound     = errors.New("sync agent not found")
+	errExchangeNameUnset = errors.New("exchange name unset")
+	errProtocolUnset     = errors.New("protocol unset")
+)
 
 // Base stores independent sync information e.g a specific orderbook.
 type Base struct {

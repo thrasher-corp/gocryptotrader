@@ -32,13 +32,18 @@ var (
 	// ErrNotStarted message to return when subsystem not started
 	ErrNotStarted = errors.New("subsystem not started")
 	// ErrNil is returned when a subsystem hasn't had its Setup() func run
-	ErrNil                          = errors.New("subsystem not setup")
-	ErrNilWaitGroup                 = errors.New("nil wait group received")
-	ErrNilExchangeManager           = errors.New("cannot start with nil exchange manager")
+	ErrNil = errors.New("subsystem not setup")
+	// ErrNilWaitGroup is when a wait group pointer is nil
+	ErrNilWaitGroup = errors.New("nil wait group received")
+	// ErrNilExchangeManager defines an error when the exchange mananger is nil
+	ErrNilExchangeManager = errors.New("cannot start with nil exchange manager")
+	// ErrNilExchangeManager defines an error when the database connection
+	// mananger is nil.
 	ErrNilDatabaseConnectionManager = errors.New("cannot start with nil database connection manager")
-	ErrNilConfig                    = errors.New("received nil config")
-	// ErrWebsocketServiceNotRunning occurs when a message is sent to be broadcast via websocket
-	// and its not running
+	// ErrNilConfig defines an error when the configuration is nil
+	ErrNilConfig = errors.New("received nil config")
+	// ErrWebsocketServiceNotRunning occurs when a message is sent to be
+	// broadcast via websocket and its not running.
 	ErrWebsocketServiceNotRunning = errors.New("websocket service not started")
 )
 
@@ -88,6 +93,7 @@ type DatabaseConnectionManager interface {
 	GetInstance() database.IDatabase
 }
 
+// APIServer defines restricted functionality for the API server.
 type APIServer interface {
 	BroadcastWebsocketMessage(evt WebsocketEvent) error
 	IsWebsocketServerRunning() bool
