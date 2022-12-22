@@ -56,11 +56,7 @@ func TestGetSymbols(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	r, err := g.FetchTradablePairs(context.Background(), asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	pairs, err := currency.NewPairsFromStrings(r)
+	pairs, err := g.FetchTradablePairs(context.Background(), asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1029,7 +1029,7 @@ func (f fakeDepositExchange) GetAvailableTransferChains(_ context.Context, c cur
 		return nil, nil
 	}
 	if c.Equal(currency.USDT) {
-		return []string{"sol", "btc", "usdt"}, nil
+		return []string{"sol", "btc", "usdt", ""}, nil
 	}
 	return []string{"BITCOIN"}, nil
 }

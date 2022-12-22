@@ -287,9 +287,10 @@ func main() {
 				URL:           "https://github.com/lozdog245",
 				Contributions: 2,
 			},
+
 			{
 				Login:         "if1live",
-				URL:           "https://github.com/soxipy",
+				URL:           "https://github.com/if1live",
 				Contributions: 2,
 			},
 		}...)

@@ -265,7 +265,7 @@ func (f *FTX) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (f *FTX) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, error) {
+func (f *FTX) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if !f.SupportsAsset(a) {
 		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, f.Name)
 	}
@@ -273,31 +273,30 @@ func (f *FTX) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, e
 	if err != nil {
 		return nil, err
 	}
-	format, err := f.GetPairFormat(a, false)
-	if err != nil {
-		return nil, err
-	}
-	var pairs []string
+	pairs := make([]currency.Pair, 0, len(markets))
+	var pair currency.Pair
 	switch a {
 	case asset.Spot:
 		for x := range markets {
-			if markets[x].MarketType == spotString {
-				curr, err := currency.NewPairFromString(markets[x].Name)
-				if err != nil {
-					return nil, err
-				}
-				pairs = append(pairs, format.Format(curr))
+			if markets[x].MarketType != spotString {
+				continue
 			}
+			pair, err = currency.NewPairFromString(markets[x].Name)
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, pair)
 		}
 	case asset.Futures:
 		for x := range markets {
-			if markets[x].MarketType == futuresString {
-				curr, err := currency.NewPairFromString(markets[x].Name)
-				if err != nil {
-					return nil, err
-				}
-				pairs = append(pairs, format.Format(curr))
+			if markets[x].MarketType != futuresString {
+				continue
 			}
+			pair, err := currency.NewPairFromString(markets[x].Name)
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, pair)
 		}
 	}
 	return pairs, nil
@@ -312,11 +311,7 @@ func (f *FTX) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 		if err != nil {
 			return err
 		}
-		p, err := currency.NewPairsFromStrings(pairs)
-		if err != nil {
-			return err
-		}
-		err = f.UpdatePairs(p, assets[x], false, forceUpdate)
+		err = f.UpdatePairs(pairs, assets[x], false, forceUpdate)
 		if err != nil {
 			return err
 		}

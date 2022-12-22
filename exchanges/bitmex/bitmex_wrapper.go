@@ -244,22 +244,27 @@ func (b *Bitmex) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *Bitmex) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, error) {
+func (b *Bitmex) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	marketInfo, err := b.GetActiveAndIndexInstruments(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	products := make([]string, 0, len(marketInfo))
+	pairs := make([]currency.Pair, 0, len(marketInfo))
 	for x := range marketInfo {
 		if marketInfo[x].State != "Open" && a != asset.Index {
 			continue
 		}
 
+		var pair currency.Pair
 		switch a {
 		case asset.Spot:
 			if marketInfo[x].Typ == spotID {
-				products = append(products, marketInfo[x].Symbol)
+				pair, err = currency.NewPairFromString(marketInfo[x].Symbol)
+				if err != nil {
+					return nil, err
+				}
+				pairs = append(pairs, pair)
 			}
 		case asset.PerpetualContract:
 			if marketInfo[x].Typ == perpetualContractID {
@@ -276,9 +281,12 @@ func (b *Bitmex) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 					}
 					settleTrail = currency.UnderscoreDelimiter + settlement[1]
 				}
-				products = append(products, marketInfo[x].Underlying+
-					currency.DashDelimiter+
+				pair, err = currency.NewPairFromStrings(marketInfo[x].Underlying,
 					marketInfo[x].QuoteCurrency+settleTrail)
+				if err != nil {
+					return nil, err
+				}
+				pairs = append(pairs, pair)
 			}
 		case asset.Futures:
 			if marketInfo[x].Typ == futuresID {
@@ -299,7 +307,11 @@ func (b *Bitmex) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 				root := isolate[0][:len(isolate[0])-3]
 				contract := isolate[0][len(isolate[0])-3:]
 
-				products = append(products, root+currency.DashDelimiter+contract+settleTrail)
+				pair, err = currency.NewPairFromStrings(root, contract+settleTrail)
+				if err != nil {
+					return nil, err
+				}
+				pairs = append(pairs, pair)
 			}
 		case asset.Index:
 			// TODO: This can be expanded into individual assets later.
@@ -307,13 +319,17 @@ func (b *Bitmex) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 				marketInfo[x].Typ == bitMEXPriceIndexID ||
 				marketInfo[x].Typ == bitMEXLendingPremiumIndexID ||
 				marketInfo[x].Typ == bitMEXVolatilityIndexID {
-				products = append(products, marketInfo[x].Symbol)
+				pair, err = currency.NewPairFromString(marketInfo[x].Symbol)
+				if err != nil {
+					return nil, err
+				}
+				pairs = append(pairs, pair)
 			}
 		default:
 			return nil, errors.New("unhandled asset type")
 		}
 	}
-	return products, nil
+	return pairs, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
@@ -322,12 +338,7 @@ func (b *Bitmex) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 	assets := b.GetAssetTypes(false)
 
 	for x := range assets {
-		pairsStr, err := b.FetchTradablePairs(ctx, assets[x])
-		if err != nil {
-			return err
-		}
-
-		pairs, err := currency.NewPairsFromStrings(pairsStr)
+		pairs, err := b.FetchTradablePairs(ctx, assets[x])
 		if err != nil {
 			return err
 		}

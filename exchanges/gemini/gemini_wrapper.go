@@ -272,24 +272,33 @@ func (g *Gemini) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (g *Gemini) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
-	pairs, err := g.GetSymbols(ctx)
+func (g *Gemini) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+	if !g.SupportsAsset(a) {
+		return nil, asset.ErrNotSupported
+	}
+
+	symbols, err := g.GetSymbols(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var tradablePairs []string
-	for x := range pairs {
-		switch len(pairs[x]) {
+	pairs := make([]currency.Pair, len(symbols))
+	for x := range symbols {
+		var pair currency.Pair
+		switch len(symbols[x]) {
 		case 8:
-			tradablePairs = append(tradablePairs, pairs[x][0:5]+currency.DashDelimiter+pairs[x][5:])
+			pair, err = currency.NewPairFromStrings(symbols[x][0:5], symbols[x][5:])
 		case 7:
-			tradablePairs = append(tradablePairs, pairs[x][0:4]+currency.DashDelimiter+pairs[x][4:])
+			pair, err = currency.NewPairFromStrings(symbols[x][0:4], symbols[x][4:])
 		default:
-			tradablePairs = append(tradablePairs, pairs[x][0:3]+currency.DashDelimiter+pairs[x][3:])
+			pair, err = currency.NewPairFromStrings(symbols[x][0:3], symbols[x][3:])
 		}
+		if err != nil {
+			return nil, err
+		}
+		pairs[x] = pair
 	}
-	return tradablePairs, nil
+	return pairs, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
@@ -299,13 +308,7 @@ func (g *Gemini) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 	if err != nil {
 		return err
 	}
-
-	p, err := currency.NewPairsFromStrings(pairs)
-	if err != nil {
-		return err
-	}
-
-	return g.UpdatePairs(p, asset.Spot, false, forceUpdate)
+	return g.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
 }
 
 // UpdateAccountInfo Retrieves balances for all enabled currencies for the

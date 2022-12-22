@@ -191,7 +191,7 @@ func (z *ZB) Setup(exch *config.Exchange) error {
 	})
 }
 
-// Start starts the OKEX go routine
+// Start starts the ZB go routine
 func (z *ZB) Start(wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
@@ -204,7 +204,7 @@ func (z *ZB) Start(wg *sync.WaitGroup) error {
 	return nil
 }
 
-// Run implements the OKEX wrapper
+// Run implements the ZB wrapper
 func (z *ZB) Run() {
 	if z.Verbose {
 		z.PrintEnabledPairs()
@@ -221,18 +221,24 @@ func (z *ZB) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (z *ZB) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
+func (z *ZB) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	markets, err := z.GetMarkets(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	currencies := make([]string, 0, len(markets))
-	for x := range markets {
-		currencies = append(currencies, x)
+	pairs := make([]currency.Pair, len(markets))
+	var target int
+	for key := range markets {
+		var pair currency.Pair
+		pair, err = currency.NewPairFromString(key)
+		if err != nil {
+			return nil, err
+		}
+		pairs[target] = pair
+		target++
 	}
-
-	return currencies, nil
+	return pairs, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
@@ -242,11 +248,7 @@ func (z *ZB) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 	if err != nil {
 		return err
 	}
-	p, err := currency.NewPairsFromStrings(pairs)
-	if err != nil {
-		return err
-	}
-	return z.UpdatePairs(p, asset.Spot, false, forceUpdate)
+	return z.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

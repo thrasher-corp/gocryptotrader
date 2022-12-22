@@ -279,21 +279,25 @@ func (b *Bitstamp) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *Bitstamp) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
-	pairs, err := b.GetTradingPairs(ctx)
+func (b *Bitstamp) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+	symbols, err := b.GetTradingPairs(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	products := make([]string, 0, len(pairs))
-	for x := range pairs {
-		if pairs[x].Trading != "Enabled" {
+	pairs := make([]currency.Pair, 0, len(symbols))
+	for x := range symbols {
+		if symbols[x].Trading != "Enabled" {
 			continue
 		}
-		products = append(products, pairs[x].Name)
+		var pair currency.Pair
+		pair, err = currency.NewPairFromString(symbols[x].Name)
+		if err != nil {
+			return nil, err
+		}
+		pairs = append(pairs, pair)
 	}
-
-	return products, nil
+	return pairs, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
@@ -303,13 +307,7 @@ func (b *Bitstamp) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 	if err != nil {
 		return err
 	}
-
-	p, err := currency.NewPairsFromStrings(pairs)
-	if err != nil {
-		return err
-	}
-
-	return b.UpdatePairs(p, asset.Spot, false, forceUpdate)
+	return b.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

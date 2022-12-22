@@ -351,30 +351,28 @@ func (b *Binance) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *Binance) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, error) {
+func (b *Binance) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if !b.SupportsAsset(a) {
 		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, b.Name)
 	}
-	format, err := b.GetPairFormat(a, false)
-	if err != nil {
-		return nil, err
-	}
 	tradingStatus := "TRADING"
-	var pairs []string
+	var pairs []currency.Pair
 	switch a {
 	case asset.Spot, asset.Margin:
-		var info ExchangeInfo
-		info, err = b.GetExchangeInfo(ctx)
+		info, err := b.GetExchangeInfo(ctx)
 		if err != nil {
 			return nil, err
 		}
+		pairs = make([]currency.Pair, 0, len(info.Symbols))
 		for x := range info.Symbols {
 			if info.Symbols[x].Status != tradingStatus {
 				continue
 			}
-			pair := info.Symbols[x].BaseAsset +
-				format.Delimiter +
-				info.Symbols[x].QuoteAsset
+			pair, err := currency.NewPairFromStrings(info.Symbols[x].BaseAsset,
+				info.Symbols[x].QuoteAsset)
+			if err != nil {
+				return nil, err
+			}
 			if a == asset.Spot && info.Symbols[x].IsSpotTradingAllowed {
 				pairs = append(pairs, pair)
 			}
@@ -383,46 +381,42 @@ func (b *Binance) FetchTradablePairs(ctx context.Context, a asset.Item) ([]strin
 			}
 		}
 	case asset.CoinMarginedFutures:
-		var cInfo CExchangeInfo
-		cInfo, err = b.FuturesExchangeInfo(ctx)
+		cInfo, err := b.FuturesExchangeInfo(ctx)
 		if err != nil {
-			return pairs, err
+			return nil, err
 		}
+		pairs = make([]currency.Pair, 0, len(cInfo.Symbols))
 		for z := range cInfo.Symbols {
 			if cInfo.Symbols[z].ContractStatus != tradingStatus {
 				continue
 			}
-			var curr currency.Pair
-			curr, err = currency.NewPairFromString(cInfo.Symbols[z].Symbol)
+			pair, err := currency.NewPairFromString(cInfo.Symbols[z].Symbol)
 			if err != nil {
 				return nil, err
 			}
-			pairs = append(pairs, format.Format(curr))
+			pairs = append(pairs, pair)
 		}
 	case asset.USDTMarginedFutures:
-		var uInfo UFuturesExchangeInfo
-		uInfo, err = b.UExchangeInfo(ctx)
+		uInfo, err := b.UExchangeInfo(ctx)
 		if err != nil {
-			return pairs, err
+			return nil, err
 		}
+		pairs = make([]currency.Pair, 0, len(uInfo.Symbols))
 		for u := range uInfo.Symbols {
 			if uInfo.Symbols[u].Status != tradingStatus {
 				continue
 			}
-			var curr currency.Pair
+			var pair currency.Pair
 			if uInfo.Symbols[u].ContractType == "PERPETUAL" {
-				curr, err = currency.NewPairFromStrings(uInfo.Symbols[u].BaseAsset, uInfo.Symbols[u].QuoteAsset)
-				if err != nil {
-					return nil, err
-				}
+				pair, err = currency.NewPairFromStrings(uInfo.Symbols[u].BaseAsset,
+					uInfo.Symbols[u].QuoteAsset)
 			} else {
-				curr, err = currency.NewPairFromString(uInfo.Symbols[u].Symbol)
-				if err != nil {
-					return nil, err
-				}
+				pair, err = currency.NewPairFromString(uInfo.Symbols[u].Symbol)
 			}
-
-			pairs = append(pairs, format.Format(curr))
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, pair)
 		}
 	}
 	return pairs, nil
@@ -433,12 +427,7 @@ func (b *Binance) FetchTradablePairs(ctx context.Context, a asset.Item) ([]strin
 func (b *Binance) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 	assetTypes := b.GetAssetTypes(false)
 	for i := range assetTypes {
-		p, err := b.FetchTradablePairs(ctx, assetTypes[i])
-		if err != nil {
-			return err
-		}
-
-		pairs, err := currency.NewPairsFromStrings(p)
+		pairs, err := b.FetchTradablePairs(ctx, assetTypes[i])
 		if err != nil {
 			return err
 		}

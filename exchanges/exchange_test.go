@@ -2617,6 +2617,34 @@ func TestGetPairAndAssetTypeRequestFormatted(t *testing.T) {
 	}
 }
 
+func TestSetRequester(t *testing.T) {
+	t.Parallel()
+
+	b := Base{
+		Config:    &config.Exchange{Name: "kitties"},
+		Requester: nil,
+	}
+
+	err := b.SetRequester(nil)
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	requester, err := request.New("testingRequester", common.NewHTTPClientWithTimeout(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = b.SetRequester(requester)
+	if err != nil {
+		t.Fatalf("expected no error, received %v", err)
+	}
+
+	if b.Requester == nil {
+		t.Fatal("requester not set correctly")
+	}
+}
+
 func TestGetCollateralCurrencyForContract(t *testing.T) {
 	t.Parallel()
 	b := Base{}

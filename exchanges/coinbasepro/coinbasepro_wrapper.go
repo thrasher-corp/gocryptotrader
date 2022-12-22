@@ -283,23 +283,25 @@ func (c *CoinbasePro) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (c *CoinbasePro) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
-	pairs, err := c.GetProducts(ctx)
+func (c *CoinbasePro) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+	products, err := c.GetProducts(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	format, err := c.GetPairFormat(asset, false)
-	if err != nil {
-		return nil, err
+	pairs := make([]currency.Pair, 0, len(products))
+	for x := range products {
+		if products[x].TradingDisabled {
+			continue
+		}
+		var pair currency.Pair
+		pair, err = currency.NewPairDelimiter(products[x].ID, currency.DashDelimiter)
+		if err != nil {
+			return nil, err
+		}
+		pairs = append(pairs, pair)
 	}
-
-	products := make([]string, len(pairs))
-	for x := range pairs {
-		products[x] = pairs[x].BaseCurrency + format.Delimiter + pairs[x].QuoteCurrency
-	}
-
-	return products, nil
+	return pairs, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
@@ -309,13 +311,7 @@ func (c *CoinbasePro) UpdateTradablePairs(ctx context.Context, forceUpdate bool)
 	if err != nil {
 		return err
 	}
-
-	p, err := currency.NewPairsFromStrings(pairs)
-	if err != nil {
-		return err
-	}
-
-	return c.UpdatePairs(p, asset.Spot, false, forceUpdate)
+	return c.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
@@ -549,7 +545,7 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 		orderID, err = c.PlaceMarketOrder(ctx,
 			"",
 			s.Amount,
-			s.Amount,
+			s.QuoteAmount,
 			s.Side.Lower(),
 			fpair.String(),
 			"")

@@ -359,22 +359,6 @@
    "Disabled": false
   },
   {
-   "Name": "Okex",
-   "CheckType": "HTML String Check",
-   "Data": {
-    "HTMLData": {
-     "TokenData": "a",
-     "Key": "href",
-     "Val": "./#change-change",
-     "TokenDataEnd": "./#change-",
-     "RegExp": "./#change-\\d{8}",
-     "CheckString": "20200331",
-     "Path": "https://www.okex.com/docs/en/#change-change"
-    }
-   },
-   "Disabled": false
-  },
-  {
    "Name": "Gemini",
    "CheckType": "HTML String Check",
    "Data": {

@@ -230,17 +230,22 @@ func (b *Bithumb) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *Bithumb) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
+func (b *Bithumb) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	currencies, err := b.GetTradablePairs(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	pairs := make([]currency.Pair, len(currencies))
 	for x := range currencies {
-		currencies[x] += currency.DashDelimiter + "KRW"
+		var pair currency.Pair
+		pair, err = currency.NewPairFromStrings(currencies[x], "KRW")
+		if err != nil {
+			return nil, err
+		}
+		pairs[x] = pair
 	}
-
-	return currencies, nil
+	return pairs, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
@@ -250,13 +255,7 @@ func (b *Bithumb) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 	if err != nil {
 		return err
 	}
-
-	p, err := currency.NewPairsFromStrings(pairs)
-	if err != nil {
-		return err
-	}
-
-	return b.UpdatePairs(p, asset.Spot, false, forceUpdate)
+	return b.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

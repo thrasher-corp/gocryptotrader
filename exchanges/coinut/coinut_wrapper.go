@@ -264,35 +264,31 @@ func (c *COINUT) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (c *COINUT) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
-	var instruments map[string][]InstrumentBase
+func (c *COINUT) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	var resp Instruments
 	var err error
 	if c.Websocket.IsConnected() {
 		resp, err = c.WsGetInstruments()
-		if err != nil {
-			return nil, err
-		}
 	} else {
 		resp, err = c.GetInstruments(ctx)
-		if err != nil {
-			return nil, err
-		}
 	}
-
-	format, err := c.GetPairFormat(asset, false)
 	if err != nil {
 		return nil, err
 	}
 
-	instruments = resp.Instruments
-	pairs := make([]string, 0, len(instruments))
-	for i := range instruments {
-		c.instrumentMap.Seed(instruments[i][0].Base+instruments[i][0].Quote, instruments[i][0].InstrumentID)
-		p := instruments[i][0].Base + format.Delimiter + instruments[i][0].Quote
-		pairs = append(pairs, p)
+	pairs := make([]currency.Pair, 0, len(resp.Instruments))
+	var pair currency.Pair
+	for _, instrument := range resp.Instruments {
+		if len(instrument) == 0 {
+			return nil, errors.New("invalid data received")
+		}
+		c.instrumentMap.Seed(instrument[0].Base+instrument[0].Quote, instrument[0].InstrumentID)
+		pair, err = currency.NewPairFromStrings(instrument[0].Base, instrument[0].Quote)
+		if err != nil {
+			return nil, err
+		}
+		pairs = append(pairs, pair)
 	}
-
 	return pairs, nil
 }
 
@@ -303,12 +299,7 @@ func (c *COINUT) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 	if err != nil {
 		return err
 	}
-
-	p, err := currency.NewPairsFromStrings(pairs)
-	if err != nil {
-		return err
-	}
-	return c.UpdatePairs(p, asset.Spot, false, forceUpdate)
+	return c.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the

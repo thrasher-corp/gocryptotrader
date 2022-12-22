@@ -246,25 +246,29 @@ func (b *Bittrex) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *Bittrex) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
+func (b *Bittrex) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	// Bittrex only supports spot trading
-	if !b.SupportsAsset(asset) {
-		return nil, fmt.Errorf("asset type of %s is not supported by %s", asset, b.Name)
+	if !b.SupportsAsset(a) {
+		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, b.Name)
 	}
 	markets, err := b.GetMarkets(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	resp := make([]string, 0, len(markets))
+	pairs := make([]currency.Pair, 0, len(markets))
 	for x := range markets {
 		if markets[x].Status != "ONLINE" {
 			continue
 		}
-		resp = append(resp, markets[x].Symbol)
+		var pair currency.Pair
+		pair, err = currency.NewPairFromString(markets[x].Symbol)
+		if err != nil {
+			return nil, err
+		}
+		pairs = append(pairs, pair)
 	}
-
-	return resp, nil
+	return pairs, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
@@ -274,13 +278,7 @@ func (b *Bittrex) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 	if err != nil {
 		return err
 	}
-
-	p, err := currency.NewPairsFromStrings(pairs)
-	if err != nil {
-		return err
-	}
-
-	return b.UpdatePairs(p, asset.Spot, false, forceUpdate)
+	return b.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
