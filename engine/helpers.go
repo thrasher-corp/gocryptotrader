@@ -188,19 +188,19 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 		if enable {
 			if bot.currencyPairSyncer == nil {
 				bot.currencyPairSyncer, err = synchronize.NewManager(&synchronize.ManagerConfig{
-					SynchronizeTicker:              bot.Settings.EnableTickerSyncing,
-					SynchronizeOrderbook:           bot.Settings.EnableOrderbookSyncing,
-					SynchronizeTrades:              bot.Settings.EnableTradeSyncing,
-					SynchronizeContinuously:        bot.Settings.SyncContinuously,
-					TimeoutREST:                    bot.Settings.SyncTimeoutREST,
-					TimeoutWebsocket:               bot.Settings.SyncTimeoutWebsocket,
-					NumWorkers:                     bot.Settings.SyncWorkersCount,
-					FiatDisplayCurrency:            bot.Config.Currency.FiatDisplayCurrency,
-					Verbose:                        bot.Settings.Verbose,
-					PairFormatDisplay:              *bot.Config.Currency.CurrencyPairFormat,
-					ExchangeManager:                bot.ExchangeManager,
-					RemoteConfig:                   &bot.Config.RemoteControl,
-					WebsocketRoutineManagerEnabled: bot.Settings.EnableWebsocketRoutine,
+					SynchronizeTicker:       bot.Settings.EnableTickerSyncing,
+					SynchronizeOrderbook:    bot.Settings.EnableOrderbookSyncing,
+					SynchronizeTrades:       bot.Settings.EnableTradeSyncing,
+					SynchronizeContinuously: bot.Settings.SyncContinuously,
+					TimeoutREST:             bot.Settings.SyncTimeoutREST,
+					TimeoutWebsocket:        bot.Settings.SyncTimeoutWebsocket,
+					NumWorkers:              bot.Settings.SyncWorkersCount,
+					FiatDisplayCurrency:     bot.Config.Currency.FiatDisplayCurrency,
+					Verbose:                 bot.Settings.Verbose,
+					PairFormatDisplay:       *bot.Config.Currency.CurrencyPairFormat,
+					ExchangeManager:         bot.ExchangeManager,
+					RemoteConfig:            &bot.Config.RemoteControl,
+					APIServerManager:        bot.apiServer,
 				})
 				if err != nil {
 					return err

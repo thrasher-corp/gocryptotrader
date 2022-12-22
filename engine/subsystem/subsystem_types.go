@@ -37,6 +37,9 @@ var (
 	ErrNilExchangeManager           = errors.New("cannot start with nil exchange manager")
 	ErrNilDatabaseConnectionManager = errors.New("cannot start with nil database connection manager")
 	ErrNilConfig                    = errors.New("received nil config")
+	// ErrWebsocketServiceNotRunning occurs when a message is sent to be broadcast via websocket
+	// and its not running
+	ErrWebsocketServiceNotRunning = errors.New("websocket service not started")
 )
 
 // ExchangeManager limits exposure of accessible functions to exchange manager
@@ -75,12 +78,49 @@ type Bot interface {
 // CurrencyPairSyncer defines a limited scoped currency pair syncer
 type CurrencyPairSyncer interface {
 	IsRunning() bool
-	PrintTickerSummary(*ticker.Price, string, error)
-	PrintOrderbookSummary(*orderbook.Base, string, error)
-	Update(exchangeName, protocol string, pair currency.Pair, a asset.Item, syncType int, incomingErr error) error
+	PrintTickerSummary(tick *ticker.Price, protocol ProtocolType, err error)
+	PrintOrderbookSummary(ob *orderbook.Base, protocol ProtocolType, err error)
+	Update(exchangeName string, protocol ProtocolType, pair currency.Pair, a asset.Item, syncType SynchronizationType, incomingErr error) error
 }
 
 // DatabaseConnectionManager defines a limited scoped databaseConnectionManager
 type DatabaseConnectionManager interface {
 	GetInstance() database.IDatabase
 }
+
+type APIServer interface {
+	BroadcastWebsocketMessage(evt WebsocketEvent) error
+	IsWebsocketServerRunning() bool
+}
+
+// WebsocketEvent is the struct used for websocket events
+type WebsocketEvent struct {
+	Exchange  string `json:"exchange,omitempty"`
+	AssetType string `json:"assetType,omitempty"`
+	Event     string
+	Data      interface{}
+}
+
+// SynchronizationType defines an int to differentiate between orderbook, trade
+// and ticker updates.
+type SynchronizationType int
+
+const (
+	// Orderbook defines an orderbook update
+	Orderbook SynchronizationType = iota + 1
+	// Trade defines a trade update
+	Trade
+	// Ticker defines a ticker update
+	Ticker
+)
+
+// ProtocolType defines a string to differentiate between WEBSOCKET and REST
+// updates for synchronization.
+type ProtocolType string
+
+const (
+	// Websocket defines a WEBSOCKET protocol update
+	Websocket ProtocolType = "WEBSOCKET"
+	// Rest defines a REST protocol update
+	Rest ProtocolType = "REST"
+)

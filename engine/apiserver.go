@@ -616,10 +616,11 @@ func StartWebsocketHandler() {
 	}
 }
 
-// BroadcastWebsocketMessage meow
-func BroadcastWebsocketMessage(evt WebsocketEvent) error {
+// BroadcastWebsocketMessage broadcasts a websocket message through the API
+// server
+func (m *apiServerManager) BroadcastWebsocketMessage(evt subsystem.WebsocketEvent) error {
 	if !wsHubStarted {
-		return ErrWebsocketServiceNotRunning
+		return subsystem.ErrWebsocketServiceNotRunning
 	}
 
 	data, err := json.Marshal(evt)

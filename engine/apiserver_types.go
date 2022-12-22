@@ -31,9 +31,6 @@ var (
 	errEmptyConfigPath = errors.New("received empty config path")
 	errServerDisabled  = errors.New("server disabled")
 	errAlreadyRunning  = errors.New("already running")
-	// ErrWebsocketServiceNotRunning occurs when a message is sent to be broadcast via websocket
-	// and its not running
-	ErrWebsocketServiceNotRunning = errors.New("websocket service not started")
 )
 
 // apiServerManager holds all relevant fields to manage both REST and websocket

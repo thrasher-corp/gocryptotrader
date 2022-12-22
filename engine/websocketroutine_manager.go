@@ -7,7 +7,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
-	"github.com/thrasher-corp/gocryptotrader/engine/subsystem/synchronize"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -206,10 +205,10 @@ func (m *websocketRoutineManager) websocketDataHandler(exchName string, data int
 	case *ticker.Price:
 		if m.syncer.IsRunning() {
 			err := m.syncer.Update(exchName,
-				synchronize.WebsocketUpdate,
+				subsystem.Websocket,
 				d.Pair,
 				d.AssetType,
-				int(synchronize.Ticker),
+				subsystem.Ticker,
 				nil)
 			if err != nil {
 				return err
@@ -219,7 +218,7 @@ func (m *websocketRoutineManager) websocketDataHandler(exchName string, data int
 		if err != nil {
 			return err
 		}
-		m.syncer.PrintTickerSummary(d, synchronize.WebsocketUpdate, err)
+		m.syncer.PrintTickerSummary(d, subsystem.Websocket, err)
 	case stream.KlineData:
 		if m.verbose {
 			log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v",
@@ -235,16 +234,16 @@ func (m *websocketRoutineManager) websocketDataHandler(exchName string, data int
 		}
 		if m.syncer.IsRunning() {
 			err := m.syncer.Update(exchName,
-				synchronize.WebsocketUpdate,
+				subsystem.Websocket,
 				base.Pair,
 				base.Asset,
-				int(synchronize.Orderbook),
+				subsystem.Orderbook,
 				nil)
 			if err != nil {
 				return err
 			}
 		}
-		m.syncer.PrintOrderbookSummary(base, synchronize.WebsocketUpdate, nil)
+		m.syncer.PrintOrderbookSummary(base, subsystem.Websocket, nil)
 	case *order.Detail:
 		if !m.orderManager.Exists(d) {
 			err := m.orderManager.Add(d)

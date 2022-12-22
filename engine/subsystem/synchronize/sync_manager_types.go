@@ -12,15 +12,7 @@ import (
 )
 
 // const holds the sync item types
-const (
-	Ticker SyncType = iota
-	Orderbook
-	Trade
-	ManagerName = "exchange_syncer"
-)
-
-// SyncItem defines a synchronization item
-type SyncType int
+const ManagerName = "exchange_syncer"
 
 // Base stores independent sync information e.g a specific orderbook.
 type Base struct {
@@ -46,19 +38,19 @@ type Agent struct {
 
 // ManagerConfig stores the currency pair synchronization manager config
 type ManagerConfig struct {
-	SynchronizeTicker              bool
-	SynchronizeOrderbook           bool
-	SynchronizeTrades              bool
-	SynchronizeContinuously        bool
-	TimeoutREST                    time.Duration
-	TimeoutWebsocket               time.Duration
-	NumWorkers                     int
-	FiatDisplayCurrency            currency.Code
-	PairFormatDisplay              currency.PairFormat
-	Verbose                        bool
-	ExchangeManager                subsystem.ExchangeManager
-	RemoteConfig                   *config.RemoteControlConfig
-	WebsocketRoutineManagerEnabled bool
+	SynchronizeTicker       bool
+	SynchronizeOrderbook    bool
+	SynchronizeTrades       bool
+	SynchronizeContinuously bool
+	TimeoutREST             time.Duration
+	TimeoutWebsocket        time.Duration
+	NumWorkers              int
+	FiatDisplayCurrency     currency.Code
+	PairFormatDisplay       currency.PairFormat
+	Verbose                 bool
+	ExchangeManager         subsystem.ExchangeManager
+	RemoteConfig            *config.RemoteControlConfig
+	APIServerManager        subsystem.APIServer
 }
 
 // Manager defines the main total currency pair synchronization subsystem that
@@ -90,5 +82,5 @@ type RESTJob struct {
 	exch  exchange.IBotExchange
 	Pair  currency.Pair
 	Asset asset.Item
-	Item  SyncType
+	Item  subsystem.SynchronizationType
 }

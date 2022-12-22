@@ -25,6 +25,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem/synchronize"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -166,9 +167,9 @@ func TestSetSubsystem(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() u
 			DisableError: subsystem.ErrNotStarted,
 		},
 		{
-			Subsystem:    SyncManagerName,
+			Subsystem:    synchronize.ManagerName,
 			Engine:       &Engine{Config: &config.Config{}},
-			EnableError:  errNoSyncItemsEnabled,
+			EnableError:  synchronize.ErrNoItemsEnabled,
 			DisableError: subsystem.ErrNil,
 		},
 		{

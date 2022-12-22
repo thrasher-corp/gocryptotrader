@@ -545,19 +545,19 @@ func (bot *Engine) Start() error {
 
 	if bot.Settings.EnableExchangeSyncManager {
 		bot.currencyPairSyncer, err = synchronize.NewManager(&synchronize.ManagerConfig{
-			SynchronizeTicker:              bot.Settings.EnableTickerSyncing,
-			SynchronizeOrderbook:           bot.Settings.EnableOrderbookSyncing,
-			SynchronizeTrades:              bot.Settings.EnableTradeSyncing,
-			SynchronizeContinuously:        bot.Settings.SyncContinuously,
-			TimeoutREST:                    bot.Settings.SyncTimeoutREST,
-			TimeoutWebsocket:               bot.Settings.SyncTimeoutWebsocket,
-			NumWorkers:                     bot.Settings.SyncWorkersCount,
-			Verbose:                        bot.Settings.Verbose,
-			FiatDisplayCurrency:            bot.Config.Currency.FiatDisplayCurrency,
-			PairFormatDisplay:              *bot.Config.Currency.CurrencyPairFormat,
-			ExchangeManager:                bot.ExchangeManager,
-			RemoteConfig:                   &bot.Config.RemoteControl,
-			WebsocketRoutineManagerEnabled: bot.Settings.EnableWebsocketRoutine,
+			SynchronizeTicker:       bot.Settings.EnableTickerSyncing,
+			SynchronizeOrderbook:    bot.Settings.EnableOrderbookSyncing,
+			SynchronizeTrades:       bot.Settings.EnableTradeSyncing,
+			SynchronizeContinuously: bot.Settings.SyncContinuously,
+			TimeoutREST:             bot.Settings.SyncTimeoutREST,
+			TimeoutWebsocket:        bot.Settings.SyncTimeoutWebsocket,
+			NumWorkers:              bot.Settings.SyncWorkersCount,
+			Verbose:                 bot.Settings.Verbose,
+			FiatDisplayCurrency:     bot.Config.Currency.FiatDisplayCurrency,
+			PairFormatDisplay:       *bot.Config.Currency.CurrencyPairFormat,
+			ExchangeManager:         bot.ExchangeManager,
+			RemoteConfig:            &bot.Config.RemoteControl,
+			APIServerManager:        bot.apiServer,
 		})
 		if err != nil {
 			gctlog.Errorf(gctlog.Global, "Unable to initialise exchange currency pair syncer. Err: %s", err)
