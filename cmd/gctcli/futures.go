@@ -264,7 +264,7 @@ var futuresCommands = &cli.Command{
 
 func getManagedPosition(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getmanagedposition")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -446,7 +446,7 @@ func getAllManagedPositions(c *cli.Context) error {
 
 func getFuturesPositions(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getfuturespositions")
+		return cli.ShowSubcommandHelp(c)
 	}
 	var (
 		exchangeName          string
@@ -633,7 +633,7 @@ func getFuturesPositions(c *cli.Context) error {
 
 func getCollateral(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, c.Command.Name)
+		return cli.ShowSubcommandHelp(c)
 	}
 	var (
 		exchangeName, assetType                               string
@@ -707,7 +707,7 @@ func getCollateral(c *cli.Context) error {
 
 func getFundingRates(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getfundingrates")
+		return cli.ShowSubcommandHelp(c)
 	}
 	var (
 		exchangeName, assetType           string

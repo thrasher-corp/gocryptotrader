@@ -296,7 +296,7 @@ var (
 
 func getDataHistoryJob(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, c.Command.Name)
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var id string
@@ -357,7 +357,7 @@ func getActiveDataHistoryJobs(c *cli.Context) error {
 
 func upsertDataHistoryJob(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, c.Command.Name)
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var (
@@ -531,7 +531,7 @@ func upsertDataHistoryJob(c *cli.Context) error {
 
 func getDataHistoryJobsBetween(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, c.Command.Name)
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	if c.IsSet("start_date") {
@@ -578,7 +578,7 @@ func getDataHistoryJobsBetween(c *cli.Context) error {
 
 func setDataHistoryJobStatus(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, c.Command.Name)
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var id string
@@ -632,7 +632,7 @@ func setDataHistoryJobStatus(c *cli.Context) error {
 
 func getDataHistoryJobSummary(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, c.Command.Name)
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var nickname string
@@ -663,7 +663,7 @@ func getDataHistoryJobSummary(c *cli.Context) error {
 
 func setPrerequisiteJob(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, c.Command.Name)
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var nickname string
