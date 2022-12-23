@@ -562,10 +562,10 @@ func (o *OKCoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		}
 		currencyAccount.Currencies = append(currencyAccount.Currencies,
 			account.Balance{
-				CurrencyName: currency.NewCode(currencies[i].Currency),
-				Total:        totalValue,
-				Hold:         hold,
-				Free:         totalValue - hold,
+				Currency: currency.NewCode(currencies[i].Currency),
+				Total:    totalValue,
+				Hold:     hold,
+				Free:     totalValue - hold,
 			})
 	}
 
@@ -1048,7 +1048,7 @@ func (o *OKCoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		return kline.Item{}, err
 	}
 
-	ret.RemoveDuplicates()
+	ret.RemoveDuplicateCandlesByTime()
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
@@ -1098,7 +1098,7 @@ func (o *OKCoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 	if len(summary) > 0 {
 		log.Warnf(log.ExchangeSys, "%v - %v", o.Base.Name, summary)
 	}
-	ret.RemoveDuplicates()
+	ret.RemoveDuplicateCandlesByTime()
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
