@@ -45,7 +45,9 @@ func closeConn(conn *grpc.ClientConn, cancel context.CancelFunc) {
 // to allow for proper use at RPCServer
 func negateLocalOffset(t time.Time) string {
 	_, offset := time.Now().Zone()
-	return t.Add(-time.Duration(offset) * time.Second).Format(common.SimpleTimeFormat)
+	return t.In(time.UTC).Format(common.SimpleTimeFormat)
+}
+
 }
 
 func negateLocalOffsetTS(t time.Time) *timestamppb.Timestamp {
