@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -73,6 +74,7 @@ func (b *Bitstamp) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
+				TickerBatching:    true,
 				TickerFetching:    true,
 				TradeFetching:     true,
 				OrderbookFetching: true,
@@ -312,7 +314,40 @@ func (b *Bitstamp) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (b *Bitstamp) UpdateTickers(ctx context.Context, a asset.Item) error {
-	return common.ErrFunctionNotSupported
+	ticks, err := b.GetTickers(ctx)
+	if err != nil {
+		return err
+	}
+
+	pairs, err := b.GetEnabledPairs(a)
+	if err != nil {
+		return err
+	}
+
+	for x := range ticks {
+		var pair currency.Pair
+		pair, err = pairs.DeriveFrom(strings.Replace(ticks[x].Pair, currency.ForwardSlashDelimiter, "", 1))
+		if err != nil {
+			continue
+		}
+
+		err = ticker.ProcessTicker(&ticker.Price{
+			Last:         ticks[x].Last,
+			High:         ticks[x].High,
+			Low:          ticks[x].Low,
+			Bid:          ticks[x].Bid,
+			Ask:          ticks[x].Ask,
+			Volume:       ticks[x].Volume,
+			Open:         ticks[x].Open,
+			Pair:         pair,
+			LastUpdated:  time.Unix(ticks[x].Timestamp, 0),
+			ExchangeName: b.Name,
+			AssetType:    a})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

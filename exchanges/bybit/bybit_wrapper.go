@@ -91,6 +91,7 @@ func (by *Bybit) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
+				TickerBatching:        true,
 				TickerFetching:        true,
 				TradeFetching:         true,
 				KlineFetching:         true,
@@ -450,7 +451,6 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 				}
 			}
 		}
-
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures:
 		tick, err := by.GetFuturesSymbolPriceTicker(ctx, currency.Pair{})
 		if err != nil {
@@ -487,7 +487,6 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 				}
 			}
 		}
-
 	case asset.USDCMarginedFutures:
 		for p := range allPairs {
 			formattedPair, err := by.FormatExchangeCurrency(allPairs[p], assetType)

@@ -306,23 +306,36 @@ func (m *Manager) tickerWorker(ctx context.Context) {
 		if j.exch.SupportsRESTTickerBatchUpdates() {
 			m.batchMtx.Lock()
 			batchLastDone := m.tickerBatchLastRequested[exchName][j.Asset]
-			if batchLastDone.IsZero() || time.Since(batchLastDone) > m.TimeoutREST {
+			if batchLastDone.IsZero() || time.Since(batchLastDone) >= m.TimeoutREST {
 				if m.Verbose {
 					log.Debugf(log.SyncMgr, "Initialising %s REST ticker batching", exchName)
 				}
-				_ = j.exch.UpdateTickers(ctx, j.Asset)
-				assetMap, ok := m.tickerBatchLastRequested[exchName]
-				if !ok {
-					assetMap = make(map[asset.Item]time.Time)
-					m.tickerBatchLastRequested[exchName] = assetMap
+				err = j.exch.UpdateTickers(ctx, j.Asset)
+				if err != nil {
+					log.Errorf(log.SyncMgr, "%s failed batch cache: %v", exchName, err)
+				} else {
+					assetMap, ok := m.tickerBatchLastRequested[exchName]
+					if !ok {
+						assetMap = make(map[asset.Item]time.Time)
+						m.tickerBatchLastRequested[exchName] = assetMap
+					}
+					assetMap[j.Asset] = time.Now()
 				}
-				assetMap[j.Asset] = time.Now()
 			}
 			m.batchMtx.Unlock()
 			if m.Verbose {
 				log.Debugf(log.SyncMgr, "%s Using recent batching cache", exchName)
 			}
-			result, err = j.exch.FetchTicker(ctx, j.Pair, j.Asset)
+			// NOTE: Use ticker package `GetTicker()` as this should be updated
+			// via batch and executing exchange `FetchTicker` here will call
+			// `UpdateTicker` on any errors. Which:
+			// 1) Nullifies all future price updates when `FetchTicker`
+			// functionality is used and once updated `UpdateTicker` will never
+			// be called again.
+			// 2) Supress error when `FetchTicker` is called and obfuscate
+			// config storage issues.
+			// 3) Ultimately misuse resources.
+			result, err = ticker.GetTicker(exchName, j.Pair, j.Asset)
 		} else {
 			result, err = j.exch.UpdateTicker(ctx, j.Pair, j.Asset)
 		}

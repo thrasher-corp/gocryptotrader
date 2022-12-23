@@ -364,13 +364,16 @@ func (b *Bitmex) UpdateTickers(ctx context.Context, a asset.Item) error {
 	}
 
 	for j := range tick {
-		var pair currency.Pair
-		pair, err = currency.NewPairFromString(tick[j].Symbol)
-		if err != nil {
-			return err
+		symbol := tick[j].Symbol
+		if tick[j].Typ != futuresID &&
+			tick[j].Typ != perpetualContractID &&
+			strings.Contains(tick[j].Symbol, "_") {
+			symbol = strings.ReplaceAll(symbol, "_", "")
 		}
 
-		if !pairs.Contains(pair, true) {
+		var pair currency.Pair
+		pair, err = pairs.DeriveFrom(symbol)
+		if err != nil {
 			continue
 		}
 

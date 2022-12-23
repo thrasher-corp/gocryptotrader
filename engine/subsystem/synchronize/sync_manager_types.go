@@ -34,7 +34,6 @@ var (
 	ErrNoItemsEnabled = errors.New("no sync items enabled")
 
 	errUnknownSyncType   = errors.New("unknown sync type")
-	errAgentNotFound     = errors.New("sync agent not found")
 	errExchangeNameUnset = errors.New("exchange name unset")
 	errProtocolUnset     = errors.New("protocol unset")
 )

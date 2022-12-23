@@ -35,6 +35,7 @@ const (
 	getMarkets           = "/markets"
 	getMarketSummaries   = "/markets/summaries"
 	getTicker            = "/markets/%s/ticker"
+	getTickers           = "/markets/tickers"
 	getMarketSummary     = "/markets/%s/summary"
 	getMarketTrades      = "/markets/%s/trades"
 	getOrderbook         = "/markets/%s/orderbook?depth=%s"
@@ -77,6 +78,12 @@ func (b *Bittrex) GetMarkets(ctx context.Context) ([]MarketData, error) {
 func (b *Bittrex) GetCurrencies(ctx context.Context) ([]CurrencyData, error) {
 	var resp []CurrencyData
 	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, getCurrencies, &resp, nil)
+}
+
+// GetTickers sends a public get request and returns all tickers
+func (b *Bittrex) GetTickers(ctx context.Context) ([]TickerData, error) {
+	var resp []TickerData
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, getTickers, &resp, nil)
 }
 
 // GetTicker sends a public get request and returns current ticker information

@@ -31,9 +31,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-const (
-	okxWebsocketResponseMaxLimit = time.Second * 3
-)
+const okxWebsocketResponseMaxLimit = time.Second * 3
 
 // GetDefaultConfig returns a default exchange config
 func (ok *Okx) GetDefaultConfig() (*config.Exchange, error) {
@@ -87,6 +85,7 @@ func (ok *Okx) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
+				TickerBatching:        true,
 				TickerFetching:        true,
 				OrderbookFetching:     true,
 				AutoPairUpdates:       true,
@@ -397,40 +396,42 @@ func (ok *Okx) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 	if err != nil {
 		return err
 	}
-	instrumentType := ok.GetInstrumentTypeFromAssetItem(assetType)
+
+	// outbound is the request asset that is overwritten if the asset it margin
+	requestAssset := assetType
+	if assetType == asset.Margin {
+		// Reflects the same values as spot tickers, needs to match with spot
+		// that is returned.
+		requestAssset = asset.Spot
+	}
+
+	instrumentType := ok.GetInstrumentTypeFromAssetItem(requestAssset)
 	ticks, err := ok.GetTickers(ctx, strings.ToUpper(instrumentType), "", "")
 	if err != nil {
 		return err
 	}
 	for y := range ticks {
-		pair, err := ok.GetPairFromInstrumentID(ticks[y].InstrumentID)
+		symbol := strings.Replace(ticks[y].InstrumentID, "-", "", 1)
+		var pair currency.Pair
+		pair, err = pairs.DeriveFrom(symbol)
+		if err != nil {
+			continue
+		}
+		err = ticker.ProcessTicker(&ticker.Price{
+			Last:         ticks[y].LastTradePrice.Float64(),
+			High:         ticks[y].High24H.Float64(),
+			Low:          ticks[y].Low24H.Float64(),
+			Bid:          ticks[y].BidPrice.Float64(),
+			Ask:          ticks[y].BestAskPrice.Float64(),
+			Volume:       ticks[y].Vol24H.Float64(),
+			QuoteVolume:  ticks[y].VolCcy24H.Float64(),
+			Open:         ticks[y].Open24H.Float64(),
+			Pair:         pair,
+			ExchangeName: ok.Name,
+			AssetType:    assetType,
+		})
 		if err != nil {
 			return err
-		}
-		for i := range pairs {
-			pairFmt, err := ok.FormatExchangeCurrency(pairs[i], assetType)
-			if err != nil {
-				return err
-			}
-			if !pair.Equal(pairFmt) {
-				continue
-			}
-			err = ticker.ProcessTicker(&ticker.Price{
-				Last:         ticks[y].LastTradePrice.Float64(),
-				High:         ticks[y].High24H.Float64(),
-				Low:          ticks[y].Low24H.Float64(),
-				Bid:          ticks[y].BidPrice.Float64(),
-				Ask:          ticks[y].BestAskPrice.Float64(),
-				Volume:       ticks[y].Vol24H.Float64(),
-				QuoteVolume:  ticks[y].VolCcy24H.Float64(),
-				Open:         ticks[y].Open24H.Float64(),
-				Pair:         pairFmt,
-				ExchangeName: ok.Name,
-				AssetType:    assetType,
-			})
-			if err != nil {
-				return err
-			}
 		}
 	}
 	return nil

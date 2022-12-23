@@ -20,15 +20,18 @@ var errWSPairParsingError = errors.New("unable to parse currency pair from wsRes
 
 // Ticker holds ticker information
 type Ticker struct {
-	Last      float64 `json:"last,string"`
-	High      float64 `json:"high,string"`
-	Low       float64 `json:"low,string"`
-	Vwap      float64 `json:"vwap,string"`
-	Volume    float64 `json:"volume,string"`
-	Bid       float64 `json:"bid,string"`
-	Ask       float64 `json:"ask,string"`
-	Timestamp int64   `json:"timestamp,string"`
-	Open      float64 `json:"open,string"`
+	Last                 float64 `json:"last,string"`
+	High                 float64 `json:"high,string"`
+	Low                  float64 `json:"low,string"`
+	Vwap                 float64 `json:"vwap,string"`
+	Volume               float64 `json:"volume,string"`
+	Bid                  float64 `json:"bid,string"`
+	Ask                  float64 `json:"ask,string"`
+	Timestamp            int64   `json:"timestamp,string"`
+	Open                 float64 `json:"open,string"`
+	Open24Hr             float64 `json:"open_24,string"`
+	PercentageChange24Hr float64 `json:"percent_change_24,string"`
+	Pair                 string  `json:"pair"`
 }
 
 // OrderbookBase holds singular price information

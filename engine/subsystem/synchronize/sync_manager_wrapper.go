@@ -114,6 +114,7 @@ func (m *Manager) Update(exchangeName string, updateProtocol subsystem.ProtocolT
 		return asset.ErrNotSupported
 	}
 
+	// NOTE: Switch for a pre-lock check aginst config field bools.
 	switch item {
 	case subsystem.Orderbook:
 		if !m.SynchronizeOrderbook {
@@ -152,10 +153,11 @@ func (m *Manager) Update(exchangeName string, updateProtocol subsystem.ProtocolT
 	}
 
 	m.removedCounter++
-	log.Debugf(log.SyncMgr, "%s %s sync complete %s via %s [%d/%d].",
+	log.Debugf(log.SyncMgr, "%s %s sync complete for %s %s via %s [%d/%d].",
 		exchangeName,
 		item,
 		m.formatCurrency(p),
+		strings.ToUpper(a.String()),
 		updateProtocol,
 		m.removedCounter,
 		m.createdCounter)
