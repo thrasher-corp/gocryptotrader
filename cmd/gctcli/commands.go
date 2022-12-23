@@ -137,7 +137,7 @@ var disableSubsystemCommand = &cli.Command{
 
 func disableSubsystem(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "disablesubsystem")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var subsystemName string

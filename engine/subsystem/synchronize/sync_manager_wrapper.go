@@ -39,8 +39,15 @@ func (m *Manager) Start() error {
 		m.initSyncStartTime = time.Now()
 	}
 
-	// Set job channel lanes for differing update speeds per exchange.
-	// TODO: Add workers for each individual exchange and lane.
+	m.orderbookJobs = make(chan RESTJob, defaultChannelBuffer)
+	m.tickerJobs = make(chan RESTJob, defaultChannelBuffer)
+	m.tradeJobs = make(chan RESTJob, defaultChannelBuffer)
+
+	// Set job channel lanes for differing update speeds per exchange. POC;
+	// dangly routines will just block.
+	// TODO: Add workers for each individual exchange and lane. In future would
+	// like to add priority lanes for requests (order management) which will
+	// need to be heavily coupled with the rate limit systems.
 	for i := 0; i < m.NumWorkers; i++ {
 		go m.orderbookWorker(context.TODO())
 		go m.tickerWorker(context.TODO())
@@ -54,25 +61,24 @@ func (m *Manager) Start() error {
 
 	go func() {
 		m.initSyncWG.Wait()
-		if atomic.CompareAndSwapInt32(&m.initSyncCompleted, 0, 1) {
-			log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync completed. Sync took %v [%v sync items].",
-				time.Since(m.initSyncStartTime),
-				m.createdCounter)
+		if !atomic.CompareAndSwapInt32(&m.initSyncCompleted, 0, 1) {
+			return
+		}
 
-			if !m.SynchronizeContinuously {
-				log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer stopping.")
-				err := m.Stop()
-				if err != nil {
-					log.Error(log.SyncMgr, err)
-				}
-				return
-			}
+		log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync completed. Sync took %v [%v sync items].",
+			time.Since(m.initSyncStartTime),
+			m.createdCounter)
+
+		if m.SynchronizeContinuously {
+			return
+		}
+
+		log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer stopping.")
+		err := m.Stop()
+		if err != nil {
+			log.Error(log.SyncMgr, err)
 		}
 	}()
-
-	if atomic.LoadInt32(&m.initSyncCompleted) == 1 && !m.SynchronizeContinuously {
-		return nil
-	}
 
 	m.initSyncWG.Done()
 	return nil
@@ -86,6 +92,9 @@ func (m *Manager) Stop() error {
 	if !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", subsystem.ErrNotStarted)
 	}
+	close(m.orderbookJobs)
+	close(m.tickerJobs)
+	close(m.tradeJobs)
 	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer stopped.")
 	return nil
 }
@@ -132,13 +141,7 @@ func (m *Manager) Update(exchangeName string, updateProtocol subsystem.ProtocolT
 		return fmt.Errorf("%v %w", item, errUnknownSyncType)
 	}
 
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	agent, ok := m.currencyPairs[exchangeName][p.Base.Item][p.Quote.Item][a]
-	if !ok {
-		return fmt.Errorf("%v %v %v %w", exchangeName, a, p, errAgentNotFound)
-	}
+	agent := m.getAgent(exchangeName, p, a, false /*Not using REST*/)
 
 	switch item {
 	case subsystem.Ticker:
@@ -153,6 +156,9 @@ func (m *Manager) Update(exchangeName string, updateProtocol subsystem.ProtocolT
 		if agent.Trade.Update(item, exchangeName, updateProtocol, p, a, incomingErr) {
 			return nil
 		}
+	}
+	if atomic.LoadInt32(&m.initSyncCompleted) == 1 {
+		return nil
 	}
 
 	m.removedCounter++

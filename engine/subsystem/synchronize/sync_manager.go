@@ -69,9 +69,6 @@ func NewManager(c *ManagerConfig) (*Manager, error) {
 	manager := &Manager{
 		ManagerConfig:            *c,
 		tickerBatchLastRequested: make(map[string]map[asset.Item]time.Time),
-		orderbookJobs:            make(chan RESTJob, defaultChannelBuffer),
-		tickerJobs:               make(chan RESTJob, defaultChannelBuffer),
-		tradeJobs:                make(chan RESTJob, defaultChannelBuffer),
 	}
 	manager.initSyncWG.Add(1)
 	return manager, nil

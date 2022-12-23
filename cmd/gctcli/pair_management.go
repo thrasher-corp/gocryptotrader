@@ -162,11 +162,7 @@ var exchangePairManagerCommand = &cli.Command{
 func enableDisableExchangePair(c *cli.Context) error {
 	enable := c.Bool("enable")
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		if enable {
-			return cli.ShowCommandHelp(c, "enable")
-		}
-
-		return cli.ShowCommandHelp(c, "disable")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchange string

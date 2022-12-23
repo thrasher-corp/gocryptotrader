@@ -37,8 +37,8 @@ var (
 	ErrNilWaitGroup = errors.New("nil wait group received")
 	// ErrNilExchangeManager defines an error when the exchange mananger is nil
 	ErrNilExchangeManager = errors.New("cannot start with nil exchange manager")
-	// ErrNilExchangeManager defines an error when the database connection
-	// mananger is nil.
+	// ErrNilDatabaseConnectionManager defines an error when the database
+	// connection mananger is nil.
 	ErrNilDatabaseConnectionManager = errors.New("cannot start with nil database connection manager")
 	// ErrNilConfig defines an error when the configuration is nil
 	ErrNilConfig = errors.New("received nil config")

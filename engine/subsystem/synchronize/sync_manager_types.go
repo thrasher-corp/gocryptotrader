@@ -63,6 +63,7 @@ type Agent struct {
 
 // ManagerConfig stores the currency pair synchronization manager config
 type ManagerConfig struct {
+	// TODO: Bitmask booleans to reduce switch cases.
 	SynchronizeTicker       bool
 	SynchronizeOrderbook    bool
 	SynchronizeTrades       bool
