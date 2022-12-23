@@ -219,7 +219,7 @@ var tradeCommand = &cli.Command{
 
 func findMissingSavedTradeIntervals(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "findmissingsavedtradeintervals")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -305,7 +305,7 @@ func findMissingSavedTradeIntervals(c *cli.Context) error {
 
 func setExchangeTradeProcessing(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "setexchangetradeprocessing")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -348,7 +348,7 @@ func setExchangeTradeProcessing(c *cli.Context) error {
 
 func getSavedTrades(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getsaved")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -438,7 +438,7 @@ func getSavedTrades(c *cli.Context) error {
 
 func getRecentTrades(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getrecent")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -500,7 +500,7 @@ func getRecentTrades(c *cli.Context) error {
 
 func getHistoricTrades(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "gethistoric")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -613,7 +613,7 @@ func getHistoricTrades(c *cli.Context) error {
 
 func convertSavedTradesToCandles(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "convertsavedtradestocandles")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string

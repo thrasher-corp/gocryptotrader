@@ -47,7 +47,7 @@ func executeStrategyFromFile(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, c.Command.Name)
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var path string
@@ -132,7 +132,7 @@ func startRun(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, c.Command.Name)
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var id string
@@ -206,7 +206,7 @@ func stopRun(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, c.Command.Name)
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var id string
@@ -280,7 +280,7 @@ func clearRun(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, c.Command.Name)
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var id string
