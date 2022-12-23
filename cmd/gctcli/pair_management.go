@@ -125,7 +125,7 @@ var exchangePairManagerCommand = &cli.Command{
 		},
 		{
 			Name:  "disableall",
-			Usage: "dissable all pairs",
+			Usage: "disable all pairs",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:  "exchange",
@@ -284,10 +284,7 @@ func getExchangePairs(c *cli.Context) error {
 func enableDisableExchangeAsset(c *cli.Context) error {
 	enable := c.Bool("enable")
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		if enable {
-			return cli.ShowCommandHelp(c, "enableasset")
-		}
-		return cli.ShowCommandHelp(c, "disableasset")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchange string
@@ -334,10 +331,7 @@ func enableDisableExchangeAsset(c *cli.Context) error {
 func enableDisableAllExchangePairs(c *cli.Context) error {
 	enable := c.Bool("enable")
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		if enable {
-			return cli.ShowCommandHelp(c, "enableall")
-		}
-		return cli.ShowCommandHelp(c, "disableall")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchange string

@@ -76,7 +76,7 @@ func (ok *Okx) SetDefaults() {
 		},
 	}
 
-	err := ok.SetGlobalPairsManager(fmt1.RequestFormat, fmt1.ConfigFormat, asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Option, asset.Margin)
+	err := ok.SetGlobalPairsManager(fmt1.RequestFormat, fmt1.ConfigFormat, asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Options, asset.Margin)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -289,7 +289,7 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 		insts, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
 			InstrumentType: okxInstTypeSwap,
 		})
-	case asset.Option:
+	case asset.Options:
 		var underlyings []string
 		underlyings, err = ok.GetPublicUnderlyings(context.Background(), okxInstTypeOption)
 		if err != nil {
@@ -366,7 +366,7 @@ func (ok *Okx) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) 
 	case asset.Spot, asset.Margin:
 		baseVolume = mdata.Vol24H.Float64()
 		quoteVolume = mdata.VolCcy24H.Float64()
-	case asset.PerpetualSwap, asset.Futures, asset.Option:
+	case asset.PerpetualSwap, asset.Futures, asset.Options:
 		baseVolume = mdata.VolCcy24H.Float64()
 		quoteVolume = mdata.Vol24H.Float64()
 	default:

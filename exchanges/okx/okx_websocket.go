@@ -1185,7 +1185,7 @@ func (ok *Okx) wsProcessTickers(data []byte) error {
 		case asset.Spot, asset.Margin:
 			baseVolume = response.Data[i].Vol24H.Float64()
 			quoteVolume = response.Data[i].VolCcy24H.Float64()
-		case asset.PerpetualSwap, asset.Futures, asset.Option:
+		case asset.PerpetualSwap, asset.Futures, asset.Options:
 			baseVolume = response.Data[i].VolCcy24H.Float64()
 			quoteVolume = response.Data[i].Vol24H.Float64()
 		default:
@@ -1931,7 +1931,7 @@ func (ok *Okx) TickersSubscription(operation string, assetType asset.Item, pair 
 
 // OpenInterestSubscription to subscribe or unsubscribe to "open-interest" channel to retrieve the open interest. Data will by pushed every 3 seconds.
 func (ok *Okx) OpenInterestSubscription(operation string, assetType asset.Item, pair currency.Pair) error {
-	if assetType != asset.Futures && assetType != asset.Option && assetType != asset.PerpetualSwap {
+	if assetType != asset.Futures && assetType != asset.Options && assetType != asset.PerpetualSwap {
 		return fmt.Errorf("%w, only FUTURES, SWAP and OPTION asset types are supported", errInvalidInstrumentType)
 	}
 	return ok.wsChannelSubscription(operation, okxChannelOpenInterest, assetType, pair, false, true, false)
@@ -1952,7 +1952,7 @@ func (ok *Okx) TradesSubscription(operation string, assetType asset.Item, pair c
 
 // EstimatedDeliveryExercisePriceSubscription to subscribe or unsubscribe to "estimated-price" channel to retrieve the estimated delivery/exercise price of FUTURES contracts and OPTION.
 func (ok *Okx) EstimatedDeliveryExercisePriceSubscription(operation string, assetType asset.Item, pair currency.Pair) error {
-	if assetType != asset.Futures && assetType != asset.Option {
+	if assetType != asset.Futures && assetType != asset.Options {
 		return fmt.Errorf("%w, only FUTURES and OPTION asset types are supported", errInvalidInstrumentType)
 	}
 	return ok.wsChannelSubscription(operation, okxChannelEstimatedPrice, assetType, pair, true, true, false)
@@ -1990,7 +1990,7 @@ func (ok *Okx) OrderBooksSubscription(operation, channel string, assetType asset
 // OptionSummarySubscription a method to subscribe or unsubscribe to "opt-summary" channel
 // to retrieve detailed pricing information of all OPTION contracts. Data will be pushed at once.
 func (ok *Okx) OptionSummarySubscription(operation string, pair currency.Pair) error {
-	return ok.wsChannelSubscription(operation, okxChannelOptSummary, asset.Option, pair, false, false, true)
+	return ok.wsChannelSubscription(operation, okxChannelOptSummary, asset.Options, pair, false, false, true)
 }
 
 // FundingRateSubscription a method to subscribe and unsubscribe to "funding-rate" channel.

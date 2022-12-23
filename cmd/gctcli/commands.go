@@ -87,7 +87,7 @@ var enableSubsystemCommand = &cli.Command{
 
 func enableSubsystem(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "enablesubsystem")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var subsystemName string
@@ -279,7 +279,7 @@ var enableExchangeCommand = &cli.Command{
 
 func enableExchange(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "enableexchange")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -325,7 +325,7 @@ var disableExchangeCommand = &cli.Command{
 
 func disableExchange(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "disableexchange")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -371,7 +371,7 @@ var getExchangeOTPCommand = &cli.Command{
 
 func getExchangeOTPCode(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getexchangeotp")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -442,7 +442,7 @@ var getExchangeInfoCommand = &cli.Command{
 
 func getExchangeInfo(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getexchangeinfo")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -496,7 +496,7 @@ var getTickerCommand = &cli.Command{
 
 func getTicker(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getticker")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -604,7 +604,7 @@ var getAccountInfoCommand = &cli.Command{
 
 func getAccountInfo(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getaccountinfo")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchange string
@@ -664,7 +664,7 @@ var getAccountInfoStreamCommand = &cli.Command{
 
 func getAccountInfoStream(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getaccountinfostream")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -735,7 +735,7 @@ var updateAccountInfoCommand = &cli.Command{
 
 func updateAccountInfo(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "updateaccountinfo")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchange string
@@ -881,7 +881,7 @@ var addPortfolioAddressCommand = &cli.Command{
 
 func addPortfolioAddress(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "addportfolioaddress")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var address string
@@ -982,7 +982,7 @@ var removePortfolioAddressCommand = &cli.Command{
 
 func removePortfolioAddress(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "removeportfolioaddress")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var address string
@@ -1111,7 +1111,7 @@ var getOrdersCommand = &cli.Command{
 
 func getOrders(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getorders")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -1224,7 +1224,7 @@ var getManagedOrdersCommand = &cli.Command{
 
 func getManagedOrders(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getmanagedorders")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -1314,7 +1314,7 @@ var getOrderCommand = &cli.Command{
 
 func getOrder(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getorder")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -1425,7 +1425,7 @@ var submitOrderCommand = &cli.Command{
 
 func submitOrder(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "submitorder")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -1576,7 +1576,7 @@ var simulateOrderCommand = &cli.Command{
 
 func simulateOrder(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "simulateorder")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -1693,7 +1693,7 @@ var cancelOrderCommand = &cli.Command{
 
 func cancelOrder(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "cancelorder")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -1835,7 +1835,7 @@ var cancelBatchOrdersCommand = &cli.Command{
 
 func cancelBatchOrders(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "cancelbatchorders")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -2012,7 +2012,7 @@ func cancelAllOrders(c *cli.Context) error {
 
 func modifyOrder(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "modifyorder")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	// Parse positional arguments.
@@ -2173,7 +2173,7 @@ var addEventCommand = &cli.Command{
 
 func addEvent(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "addevent")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -2299,7 +2299,7 @@ var removeEventCommand = &cli.Command{
 
 func removeEvent(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "removeevent")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var eventID int64
@@ -2349,7 +2349,7 @@ var getCryptocurrencyDepositAddressesCommand = &cli.Command{
 
 func getCryptocurrencyDepositAddresses(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getcryptocurrencydepositaddresses")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -2403,7 +2403,7 @@ var getCryptocurrencyDepositAddressCommand = &cli.Command{
 
 func getCryptocurrencyDepositAddress(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getcryptocurrencydepositaddress")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -2485,7 +2485,7 @@ var getAvailableTransferChainsCommand = &cli.Command{
 
 func getAvailableTransferChains(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getavailabletransferchains")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -2571,7 +2571,7 @@ var withdrawCryptocurrencyFundsCommand = &cli.Command{
 
 func withdrawCryptocurrencyFunds(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "withdrawcryptofunds")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchange, cur, address, addressTag, chain, description string
@@ -2689,7 +2689,7 @@ var withdrawFiatFundsCommand = &cli.Command{
 
 func withdrawFiatFunds(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "withdrawfiatfunds")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchange, cur, description, bankAccountID string
@@ -3041,7 +3041,7 @@ var getLoggerDetailsCommand = &cli.Command{
 
 func getLoggerDetails(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getloggerdetails")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var logger string
@@ -3094,7 +3094,7 @@ var setLoggerDetailsCommand = &cli.Command{
 
 func setLoggerDetails(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "setloggerdetails")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var logger string
@@ -3164,7 +3164,7 @@ var getTickerStreamCommand = &cli.Command{
 
 func getTickerStream(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "gettickerstream")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -3269,7 +3269,7 @@ var getExchangeTickerStreamCommand = &cli.Command{
 
 func getExchangeTickerStream(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getexchangetickerstream")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -3894,7 +3894,7 @@ var getHistoricCandlesCommand = &cli.Command{
 
 func getHistoricCandles(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "gethistoriccandles")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -4049,7 +4049,7 @@ var getHistoricCandlesExtendedCommand = &cli.Command{
 
 func getHistoricCandlesExtended(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "gethistoriccandlesextended")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -4224,7 +4224,7 @@ var findMissingSavedCandleIntervalsCommand = &cli.Command{
 
 func findMissingSavedCandleIntervals(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "findmissingsavedcandleintervals")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -4411,7 +4411,7 @@ var getMarginRatesHistoryCommand = &cli.Command{
 
 func getMarginRatesHistory(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, c.Command.Name)
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string

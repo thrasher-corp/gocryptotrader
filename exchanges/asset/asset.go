@@ -34,10 +34,10 @@ const (
 	CoinMarginedFutures
 	USDTMarginedFutures
 	USDCMarginedFutures
-	Option
+	Options
 
 	futuresFlag   = PerpetualContract | PerpetualSwap | Futures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures
-	supportedFlag = Spot | Margin | MarginFunding | Index | Binary | PerpetualContract | PerpetualSwap | Futures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Option
+	supportedFlag = Spot | Margin | MarginFunding | Index | Binary | PerpetualContract | PerpetualSwap | Futures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Options
 
 	spot                   = "spot"
 	margin                 = "margin"
@@ -52,11 +52,11 @@ const (
 	coinMarginedFutures    = "coinmarginedfutures"
 	usdtMarginedFutures    = "usdtmarginedfutures"
 	usdcMarginedFutures    = "usdcmarginedfutures"
-	option                 = "option"
+	options                = "options"
 )
 
 var (
-	supportedList = Items{Spot, Margin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, Option}
+	supportedList = Items{Spot, Margin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, Options}
 )
 
 // Supported returns a list of supported asset types
@@ -93,8 +93,8 @@ func (a Item) String() string {
 		return usdtMarginedFutures
 	case USDCMarginedFutures:
 		return usdcMarginedFutures
-	case Option:
-		return option
+	case Options:
+		return options
 	default:
 		return ""
 	}
@@ -190,8 +190,8 @@ func New(input string) (Item, error) {
 		return USDTMarginedFutures, nil
 	case usdcMarginedFutures:
 		return USDCMarginedFutures, nil
-	case option:
-		return Option, nil
+	case options, "option":
+		return Options, nil
 	default:
 		return 0, fmt.Errorf("%w '%v', only supports %s",
 			ErrNotSupported,
