@@ -33,12 +33,6 @@ func (m *Manager) Start() error {
 	}
 	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer started.")
 
-	if atomic.CompareAndSwapInt32(&m.initSyncStarted, 0, 1) {
-		log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync started. %d items to process.",
-			m.createdCounter)
-		m.initSyncStartTime = time.Now()
-	}
-
 	m.orderbookJobs = make(chan RESTJob, defaultChannelBuffer)
 	m.tickerJobs = make(chan RESTJob, defaultChannelBuffer)
 	m.tradeJobs = make(chan RESTJob, defaultChannelBuffer)
@@ -118,10 +112,6 @@ func (m *Manager) Update(exchangeName string, updateProtocol subsystem.ProtocolT
 	}
 	if !a.IsValid() {
 		return asset.ErrNotSupported
-	}
-
-	if atomic.LoadInt32(&m.initSyncStarted) != 1 {
-		return nil
 	}
 
 	switch item {

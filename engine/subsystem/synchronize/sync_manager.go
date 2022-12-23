@@ -123,6 +123,13 @@ func (m *Manager) controller() error {
 	if err != nil {
 		return err
 	}
+
+	if atomic.LoadInt32(&m.initSyncCompleted) != 1 {
+		log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync started. %d items to process.",
+			m.createdCounter)
+		m.initSyncStartTime = time.Now()
+	}
+
 	go func(timer *time.Timer) {
 		for range timer.C {
 			if atomic.LoadInt32(&m.started) == 0 {

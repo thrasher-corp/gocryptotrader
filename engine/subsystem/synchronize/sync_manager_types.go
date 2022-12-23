@@ -83,7 +83,6 @@ type ManagerConfig struct {
 // fetches and maintains up to date market data.
 type Manager struct {
 	initSyncCompleted int32
-	initSyncStarted   int32
 	started           int32
 	initSyncStartTime time.Time
 	mu                sync.Mutex
