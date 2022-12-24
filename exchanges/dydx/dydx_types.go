@@ -284,3 +284,487 @@ type WsTrades struct {
 		CreatedAt time.Time `json:"createdAt"`
 	} `json:"trades"`
 }
+
+type OnboardingResponse struct {
+	APIKey struct {
+		Key        string `json:"key"`
+		Passphrase string `json:"passphrase"`
+		Secret     string `json:"secret"`
+	} `json:"apiKey"`
+	User struct {
+		EthereumAddress         string      `json:"ethereumAddress"`
+		IsRegistered            bool        `json:"isRegistered"`
+		Email                   string      `json:"email"`
+		Username                string      `json:"username"`
+		ReferredByAffiliateLink interface{} `json:"referredByAffiliateLink"`
+		MakerFeeRate            string      `json:"makerFeeRate"`
+		TakerFeeRate            string      `json:"takerFeeRate"`
+		MakerVolume30D          string      `json:"makerVolume30D"`
+		TakerVolume30D          string      `json:"takerVolume30D"`
+		Fees30D                 string      `json:"fees30D"`
+		UserData                struct {
+		} `json:"userData"`
+		DydxTokenBalance       string      `json:"dydxTokenBalance"`
+		StakedDydxTokenBalance string      `json:"stakedDydxTokenBalance"`
+		IsEmailVerified        bool        `json:"isEmailVerified"`
+		IsSharingUsername      interface{} `json:"isSharingUsername"`
+		IsSharingAddress       bool        `json:"isSharingAddress"`
+		Country                string      `json:"country"`
+	} `json:"user"`
+	Account struct {
+		StarkKey           string    `json:"starkKey"`
+		PositionID         string    `json:"positionId"`
+		Equity             string    `json:"equity"`
+		FreeCollateral     string    `json:"freeCollateral"`
+		QuoteBalance       string    `json:"quoteBalance"`
+		PendingDeposits    string    `json:"pendingDeposits"`
+		PendingWithdrawals string    `json:"pendingWithdrawals"`
+		CreatedAt          time.Time `json:"createdAt"`
+		OpenPositions      struct {
+			BTCUSD struct {
+				Market        string      `json:"market"`
+				Status        string      `json:"status"`
+				Side          string      `json:"side"`
+				Size          string      `json:"size"`
+				MaxSize       string      `json:"maxSize"`
+				EntryPrice    string      `json:"entryPrice"`
+				ExitPrice     interface{} `json:"exitPrice"`
+				UnrealizedPnl string      `json:"unrealizedPnl"`
+				RealizedPnl   string      `json:"realizedPnl"`
+				CreatedAt     time.Time   `json:"createdAt"`
+				ClosedAt      interface{} `json:"closedAt"`
+				NetFunding    string      `json:"netFunding"`
+				SumOpen       string      `json:"sumOpen"`
+				SumClose      string      `json:"sumClose"`
+			} `json:"BTC-USD"`
+		} `json:"openPositions"`
+		AccountNumber string `json:"accountNumber"`
+		ID            string `json:"id"`
+	} `json:"account"`
+}
+
+type PositionResponse struct {
+	Positions []Position `json:"positions"`
+}
+
+type Position struct {
+	Market        string      `json:"market"`
+	Status        string      `json:"status"`
+	Side          string      `json:"side"`
+	Size          string      `json:"size"`
+	MaxSize       string      `json:"maxSize"`
+	EntryPrice    string      `json:"entryPrice"`
+	ExitPrice     interface{} `json:"exitPrice"`
+	UnrealizedPnl string      `json:"unrealizedPnl"`
+	RealizedPnl   string      `json:"realizedPnl"`
+	CreatedAt     time.Time   `json:"createdAt"`
+	ClosedAt      interface{} `json:"closedAt"`
+	NetFunding    string      `json:"netFunding"`
+	SumOpen       string      `json:"sumOpen"`
+	SumClose      string      `json:"sumClose"`
+}
+
+type UsersResponse struct {
+	User User `json:"user"`
+}
+
+type User struct {
+	PublicID                     string         `json:"publicId"`
+	EthereumAddress              string         `json:"ethereumAddress"`
+	IsRegistered                 bool           `json:"isRegistered"`
+	Email                        string         `json:"email"`
+	Username                     string         `json:"username"`
+	UserData                     UserDataDetail `json:"userData"`
+	MakerFeeRate                 string         `json:"makerFeeRate"`
+	TakerFeeRate                 string         `json:"takerFeeRate"`
+	MakerVolume30D               string         `json:"makerVolume30D"`
+	TakerVolume30D               string         `json:"takerVolume30D"`
+	Fees30D                      string         `json:"fees30D"`
+	ReferredByAffiliateLink      string         `json:"referredByAffiliateLink"`
+	IsSharingUsername            bool           `json:"isSharingUsername"`
+	IsSharingAddress             bool           `json:"isSharingAddress"`
+	DydxTokenBalance             string         `json:"dydxTokenBalance"`
+	StakedDydxTokenBalance       string         `json:"stakedDydxTokenBalance"`
+	ActiveStakedDydxTokenBalance string         `json:"activeStakedDydxTokenBalance"`
+	IsEmailVerified              bool           `json:"isEmailVerified"`
+	Country                      interface{}    `json:"country"`
+	HedgiesHeld                  []interface{}  `json:"hedgiesHeld"`
+}
+
+// UpdateUserParams request parameters for updating user information.
+type UpdateUserParams struct {
+	UserData          map[string]string `json:"userData"`
+	Email             string            `json:"email,omitempty"`
+	Username          string            `json:"username,omitempty"`
+	IsSharingUsername bool              `json:"isSharingUsername,omitempty"`
+	IsSharingAddress  bool              `json:"isSharingAddress,omitempty"`
+	Country           string            `json:"country,omitempty"`
+	LanguageCode      string            `json:"languageCode,omitempty"`
+}
+
+// UserDataDetail represents user data detailed information.
+type UserDataDetail struct {
+	WalletType  string `json:"walletType"`
+	Preferences struct {
+		SaveOrderAmount  bool `json:"saveOrderAmount"`
+		UserTradeOptions map[string]struct {
+			PostOnlyChecked           bool   `json:"postOnlyChecked"`
+			GoodTilTimeInput          string `json:"goodTilTimeInput"`
+			GoodTilTimeTimescale      string `json:"goodTilTimeTimescale"`
+			SelectedTimeInForceOption string `json:"selectedTimeInForceOption"`
+		} `json:"userTradeOptions"`
+		PopUpNotifications      bool      `json:"popUpNotifications"`
+		OrderbookAnimations     bool      `json:"orderbookAnimations"`
+		OneTimeNotifications    []string  `json:"oneTimeNotifications"`
+		LeaguesCurrentStartDate time.Time `json:"leaguesCurrentStartDate"`
+	} `json:"preferences"`
+	Notifications map[string]struct {
+		Email bool `json:"email"`
+	} `json:"notifications"`
+	StarredMarkets []interface{} `json:"starredMarkets"`
+}
+
+// UserActiveLink represents a user's active link to the specified user type.
+type UserActiveLink struct {
+	UserType           string `json:"userType,string"`
+	PrimaryAddress     string `json:"primaryAddress,string"`
+	SecondaryAddresses string `json:"secondaryAddresses,string"`
+}
+
+// UserLinkParams represents a user's link request parameters.
+type UserLinkParams struct {
+	Action  string `json:"action,omitempty"`
+	Address string `json:"address,omitempty"`
+}
+
+// UserPendingLink represents a user's pending link request
+type UserPendingLink struct {
+	UserType         string   `json:"userType"`
+	OutgoingRequests []string `json:"outgoingRequests"`
+	IncomingRequests []struct {
+		PrimaryAddress   string `json:"primaryAddress"`
+		SecondaryAddress string `json:"secondaryAddress"`
+	} `json:"incomingRequests"`
+}
+
+// AccountLeaderboardPNL represents a leaderboard
+type AccountLeaderboardPNL struct {
+	AbsolutePnl           string    `json:"absolutePnl"`
+	PercentPnl            string    `json:"percentPnl"`
+	AbsoluteRank          int       `json:"absoluteRank"`
+	PercentRank           int       `json:"percentRank"`
+	StartedAt             time.Time `json:"startedAt"`
+	EndsAt                time.Time `json:"endsAt"`
+	UpdatedAt             time.Time `json:"updatedAt"`
+	AccountID             string    `json:"accountId"`
+	Period                string    `json:"period"`
+	SeasonExpectedOutcome string    `json:"seasonExpectedOutcome"`
+	SeasonNumber          int       `json:"seasonNumber"`
+	HedgieWon             string    `json:"hedgieWon"`
+	PrizeWon              string    `json:"prizeWon"`
+}
+
+// AccountHistorical represents an account's historical leaderboard pnls.
+type AccountHistorical struct {
+	LeaderboardPnls []struct {
+		AbsolutePnl   string      `json:"absolutePnl"`
+		PercentPnl    string      `json:"percentPnl"`
+		AbsoluteRank  int         `json:"absoluteRank"`
+		PercentRank   int         `json:"percentRank"`
+		StartedAt     time.Time   `json:"startedAt"`
+		EndsAt        time.Time   `json:"endsAt"`
+		UpdatedAt     time.Time   `json:"updatedAt"`
+		AccountID     string      `json:"accountId"`
+		Period        string      `json:"period"`
+		SeasonOutcome string      `json:"seasonOutcome"`
+		SeasonNumber  int         `json:"seasonNumber"`
+		HedgieWon     interface{} `json:"hedgieWon"`
+		PrizeWon      string      `json:"prizeWon"`
+	} `json:"leaderboardPnls"`
+}
+
+// AccountsResponse represents the accounts response.
+type AccountsResponse struct {
+	Accounts []Account `json:"accounts"`
+}
+
+// AccountResponse represents the list of accounts instance.
+type AccountResponse struct {
+	Account []Account `json:"accounts"`
+}
+
+// Account represents a user account instance.
+type Account struct {
+	PositionId         int64               `json:"positionId,string"`
+	ID                 string              `json:"id"`
+	StarkKey           string              `json:"starkKey"`
+	Equity             string              `json:"equity"`
+	FreeCollateral     string              `json:"freeCollateral"`
+	QuoteBalance       string              `json:"quoteBalance"`
+	PendingDeposits    string              `json:"pendingDeposits"`
+	PendingWithdrawals string              `json:"pendingWithdrawals"`
+	AccountNumber      string              `json:"accountNumber"`
+	OpenPositions      map[string]Position `json:"openPositions"`
+	CreatedAt          time.Time           `json:"createdAt"`
+}
+
+// TransfersResponse transfers for a user
+type TransfersResponse struct {
+	Transfers []TransferResponse `json:"transfers"`
+}
+
+// WithdrawalResponse withdrawals for a user
+type WithdrawalResponse struct {
+	Withdrawal TransferResponse `json:"withdrawal"`
+}
+
+// TransferResponse represents a user's transfer request response.
+type TransferResponse struct {
+	ID              string      `json:"id"`
+	Type            string      `json:"type"`
+	DebitAsset      string      `json:"debitAsset"`
+	CreditAsset     string      `json:"creditAsset"`
+	DebitAmount     string      `json:"debitAmount"`
+	CreditAmount    string      `json:"creditAmount"`
+	TransactionHash string      `json:"transactionHash"`
+	Status          string      `json:"status"`
+	CreatedAt       time.Time   `json:"createdAt"`
+	ConfirmedAt     time.Time   `json:"confirmedAt"`
+	ClientID        string      `json:"clientId"`
+	FromAddress     string      `json:"fromAddress"`
+	ToAddress       interface{} `json:"toAddress"`
+}
+
+// CreateOrderRequestParams represents parameters for creating a new order.
+type CreateOrderRequestParams struct {
+	Market          string  `json:"market"`
+	Side            string  `json:"side"`
+	Type            string  `json:"type"`
+	PostOnly        bool    `json:"postOnly"`
+	Size            float64 `json:"size,string"`
+	Price           float64 `json:"price,string"`
+	LimitFee        float64 `json:"limitFee"`
+	Expiration      string  `json:"expiration,omitempty"`
+	TimeInForce     string  `json:"timeInForce,omitempty"`
+	Cancelled       bool    `json:"cancelId,string"`
+	TriggerPrice    float64 `json:"triggerPrice,omitempty,string"`
+	TrailingPercent float64 `json:"trailingPercent,omitempty,string"`
+	ReduceOnly      bool    `json:"reduceOnly,omitempty"`
+	ClientID        string  `json:"clientId"`
+	Signature       string  `json:"signature"`
+}
+
+// OrderResponse represents an order response data.
+type OrderResponse struct {
+	Order Order `json:"order"`
+}
+
+// Order represents a single order instance.
+type Order struct {
+	ID              string      `json:"id"`
+	ClientID        string      `json:"clientId"`
+	AccountID       string      `json:"accountId"`
+	Market          string      `json:"market"`
+	Side            string      `json:"side"`
+	Price           string      `json:"price"`
+	TriggerPrice    float64     `json:"triggerPrice"`
+	TrailingPercent float64     `json:"trailingPercent"`
+	Size            string      `json:"size"`
+	RemainingSize   string      `json:"remainingSize"`
+	Type            string      `json:"type"`
+	CreatedAt       time.Time   `json:"createdAt"`
+	UnfillableAt    interface{} `json:"unfillableAt"`
+	ExpiresAt       time.Time   `json:"expiresAt"`
+	Status          string      `json:"status"`
+	TimeInForce     string      `json:"timeInForce"`
+	PostOnly        bool        `json:"postOnly"`
+	ReduceOnly      bool        `json:"reduceOnly"`
+	CancelReason    string      `json:"cancelReason"`
+}
+
+// OrderFill represents order fill.
+type OrderFill struct {
+	ID        string    `json:"id"`
+	Side      string    `json:"side"`
+	Liquidity string    `json:"liquidity"`
+	Type      string    `json:"type"`
+	Market    string    `json:"market"`
+	OrderID   string    `json:"orderId"`
+	Price     string    `json:"price"`
+	Size      string    `json:"size"`
+	Fee       string    `json:"fee"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+// FundingPayments represents a list of funding payments
+type FundingPayments struct {
+	FundingPayments []FundingPayment `json:"fundingPayments"`
+}
+
+// FundingPayment represents a funding payment instance.
+type FundingPayment struct {
+	Market       string    `json:"market"`
+	Payment      string    `json:"payment"`
+	Rate         string    `json:"rate"`
+	PositionSize string    `json:"positionSize"`
+	Price        string    `json:"price"`
+	EffectiveAt  time.Time `json:"effectiveAt"`
+}
+
+// HistoricPNLResponse represents a historic PNL response.
+type HistoricPNLResponse struct {
+	HistoricalPNL []HistoricPNL `json:"historicalPnl"`
+}
+
+// HistoricPNL represents a historical PNL instance.
+type HistoricPNL struct {
+	Equity       string    `json:"equity"`
+	TotalPnl     string    `json:"totalPnl"`
+	CreatedAt    time.Time `json:"createdAt"`
+	NetTransfers string    `json:"netTransfers"`
+	AccountID    string    `json:"accountId"`
+}
+
+// TradingRewards represents trading rewards detail.
+type TradingRewards struct {
+	Epoch      int       `json:"epoch"`
+	EpochStart time.Time `json:"epochStart"`
+	EpochEnd   time.Time `json:"epochEnd"`
+	Fees       struct {
+		FeesPaid      string `json:"feesPaid"`
+		TotalFeesPaid string `json:"totalFeesPaid"`
+	} `json:"fees"`
+	OpenInterest struct {
+		AverageOpenInterest      string `json:"averageOpenInterest"`
+		TotalAverageOpenInterest string `json:"totalAverageOpenInterest"`
+	} `json:"openInterest"`
+	StakedDYDX struct {
+		PrimaryStakedDYDX          string `json:"primaryStakedDYDX"`
+		AverageStakedDYDX          string `json:"averageStakedDYDX"`
+		AverageStakedDYDXWithFloor string `json:"averageStakedDYDXWithFloor"`
+		TotalAverageStakedDYDX     string `json:"totalAverageStakedDYDX"`
+	} `json:"stakedDYDX"`
+	Weight struct {
+		Weight      string `json:"weight"`
+		TotalWeight string `json:"totalWeight"`
+	} `json:"weight"`
+	TotalRewards     string `json:"totalRewards"`
+	EstimatedRewards string `json:"estimatedRewards"`
+}
+
+// LiquidityProviderRewards represents liquidity provider rewards of a given epoch
+type LiquidityProviderRewards struct {
+	Epoch      int       `json:"epoch"`
+	EpochStart string    `json:"epochStart"`
+	EpochEnd   time.Time `json:"epochEnd"`
+	Markets    map[string]struct {
+		Market              string `json:"market"`
+		DepthSpreadScore    string `json:"depthSpreadScore"`
+		Uptime              string `json:"uptime"`
+		LinkedUptime        string `json:"linkedUptime"`
+		MaxUptime           string `json:"maxUptime"`
+		Score               string `json:"score"`
+		TotalScore          string `json:"totalScore"`
+		MakerVolume         string `json:"makerVolume"`
+		TotalMakerVolume    string `json:"totalMakerVolume"`
+		TotalRewards        string `json:"totalRewards"`
+		EstimatedRewards    string `json:"estimatedRewards"`
+		SecondaryAllocation string `json:"secondaryAllocation"`
+	} `json:"markets"`
+	StakedDYDX struct {
+		AverageStakedDYDX      string `json:"averageStakedDYDX"`
+		TotalAverageStakedDYDX string `json:"totalAverageStakedDYDX"`
+	} `json:"stakedDYDX"`
+	LinkedAddressRewards map[string]struct {
+		Markets map[string]struct {
+			Market              string `json:"market"`
+			DepthSpreadScore    string `json:"depthSpreadScore"`
+			Uptime              string `json:"uptime"`
+			LinkedUptime        string `json:"linkedUptime"`
+			MaxUptime           string `json:"maxUptime"`
+			Score               string `json:"score"`
+			TotalScore          string `json:"totalScore"`
+			MakerVolume         string `json:"makerVolume"`
+			TotalMakerVolume    string `json:"totalMakerVolume"`
+			TotalRewards        string `json:"totalRewards"`
+			EstimatedRewards    string `json:"estimatedRewards"`
+			SecondaryAllocation string `json:"secondaryAllocation"`
+		} `json:"markets"`
+		AverageStakedDYDX string `json:"averageStakedDYDX"`
+	} `json:"linkedAddressRewards"`
+}
+
+// RetroactiveMining represents the retroactive mining rewards of a given epoch.
+type RetroactiveMining struct {
+	Epoch             int64     `json:"epoch"`
+	EpochStart        time.Time `json:"epochStart"`
+	EpochEnd          time.Time `json:"epochEnd"`
+	RetroactiveMining struct {
+		Allocation   string `json:"allocation"`
+		TargetVolume string `json:"targetVolume"`
+		Volume       string `json:"volume"`
+	} `json:"retroactiveMining"`
+	EstimatedRewards string `json:"estimatedRewards"`
+}
+
+// TestnetToken represents a tokens on dYdX's staging server.
+type TestnetToken struct {
+	Transfer struct {
+		ID              string      `json:"id"`
+		Type            string      `json:"type"`
+		DebitAsset      string      `json:"debitAsset"`
+		CreditAsset     string      `json:"creditAsset"`
+		DebitAmount     string      `json:"debitAmount"`
+		CreditAmount    string      `json:"creditAmount"`
+		TransactionHash interface{} `json:"transactionHash"`
+		Status          string      `json:"status"`
+		CreatedAt       time.Time   `json:"createdAt"`
+		ConfirmedAt     interface{} `json:"confirmedAt"`
+		ClientID        string      `json:"clientId"`
+		FromAddress     interface{} `json:"fromAddress"`
+		ToAddress       interface{} `json:"toAddress"`
+	} `json:"transfer"`
+}
+
+// PrivateProfile represents a profile data of the user.
+type PrivateProfile struct {
+	Username           string        `json:"username"`
+	PublicID           string        `json:"publicId"`
+	EthereumAddress    string        `json:"ethereumAddress"`
+	DYDXHoldings       string        `json:"DYDXHoldings"`
+	StakedDYDXHoldings string        `json:"stakedDYDXHoldings"`
+	HedgiesHeld        []interface{} `json:"hedgiesHeld"`
+	TwitterHandle      string        `json:"twitterHandle"`
+	AffiliateLinks     []struct {
+		Link         string `json:"link"`
+		DiscountRate string `json:"discountRate"`
+	} `json:"affiliateLinks"`
+	AffiliateApplicationStatus interface{} `json:"affiliateApplicationStatus"`
+	TradingLeagues             struct {
+		CurrentLeague        interface{} `json:"currentLeague"`
+		CurrentLeagueRanking interface{} `json:"currentLeagueRanking"`
+	} `json:"tradingLeagues"`
+	TradingPnls struct {
+		AbsolutePnl30D string `json:"absolutePnl30D"`
+		PercentPnl30D  string `json:"percentPnl30D"`
+		Volume30D      string `json:"volume30D"`
+	} `json:"tradingPnls"`
+	TradingRewards struct {
+		CurEpoch                  int    `json:"curEpoch"`
+		CurEpochEstimatedRewards  string `json:"curEpochEstimatedRewards"`
+		PrevEpochEstimatedRewards string `json:"prevEpochEstimatedRewards"`
+	} `json:"tradingRewards"`
+	AffiliateStatistics struct {
+		CurrentEpoch struct {
+			UsersReferred    string `json:"usersReferred"`
+			Revenue          string `json:"revenue"`
+			RevenueShareRate string `json:"revenueShareRate"`
+		} `json:"currentEpoch"`
+		PreviousEpochs struct {
+			UsersReferred string `json:"usersReferred"`
+			Revenue       string `json:"revenue"`
+			RevenuePaid   string `json:"revenuePaid"`
+		} `json:"previousEpochs"`
+		LastEpochPaid string `json:"lastEpochPaid"`
+	} `json:"affiliateStatistics"`
+}

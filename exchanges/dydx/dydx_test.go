@@ -14,13 +14,16 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	apiKey                  = "e9cd2230-22ac-eaf2-07f0-3d2c0f43d32d"
+	apiSecret               = "CLeJcRYPX_zIJyGs4EzvsCYiSSbvl3WxHzLVtKAU"
+	passphrase              = "EtHmxjwy-P_mpQG5_X5g"
+	etheriumAddress         = "0x4cd67530b9526f43681C0666075D30c717e51E72"
 	canManipulateRealOrders = false
 )
 
@@ -39,10 +42,15 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 
-	exchCfg.API.AuthenticatedSupport = true
-	exchCfg.API.AuthenticatedWebsocketSupport = true
+	if apiKey != "" && apiSecret != "" && passphrase != "" {
+		exchCfg.API.AuthenticatedSupport = true
+		exchCfg.API.AuthenticatedWebsocketSupport = true
+	}
+
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
+	exchCfg.API.Credentials.ClientID = etheriumAddress
+	exchCfg.API.Credentials.PEMKey = passphrase
 
 	err = dy.Setup(exchCfg)
 	if err != nil {
@@ -64,9 +72,7 @@ func areTestAPIKeysSet() bool {
 	return dy.ValidateAPICredentials(dy.GetDefaultCredentials()) == nil
 }
 
-// Implement tests for API endpoints below
-
-var instrumentJSON = `{	"markets": {	  "LINK-USD": {	  "market": "LINK-USD",	  "status": "ONLINE",	  "baseAsset": "LINK",	  "quoteAsset": "USD",	  "stepSize": "0.1",	  "tickSize": "0.01",	  "indexPrice": "12",	  "oraclePrice": "101",	  "priceChange24H": "0",	  "nextFundingRate": "0.0000125000",	  "nextFundingAt": "2021-03-01T18:00:00.000Z",	  "minOrderSize": "1",	  "type": "PERPETUAL",	  "initialMarginFraction": "0.10",	  "maintenanceMarginFraction": "0.05",	  "baselinePositionSize": "1000",	  "incrementalPositionSize": "1000",	  "incrementalInitialMarginFraction": "0.2",	  "volume24H": "0",	  "trades24H": "0",	  "openInterest": "0",	  "maxPositionSize": "10000",	  "assetResolution": "10000000",	  "syntheticAssetId": "0x4c494e4b2d37000000000000000000"	}	}}`
+var instrumentJSON = `{	"markets": {"LINK-USD": {"market": "LINK-USD","status": "ONLINE","baseAsset": "LINK","quoteAsset": "USD","stepSize": "0.1","tickSize": "0.01","indexPrice": "12","oraclePrice": "101","priceChange24H": "0","nextFundingRate": "0.0000125000","nextFundingAt": "2021-03-01T18:00:00.000Z","minOrderSize": "1","type": "PERPETUAL","initialMarginFraction": "0.10","maintenanceMarginFraction": "0.05","baselinePositionSize": "1000","incrementalPositionSize": "1000","incrementalInitialMarginFraction": "0.2","volume24H": "0","trades24H": "0","openInterest": "0","maxPositionSize": "10000",	  "assetResolution": "10000000","syntheticAssetId": "0x4c494e4b2d37000000000000000000"}}}`
 
 func TestGetInstruments(t *testing.T) {
 	t.Parallel()
@@ -280,7 +286,6 @@ func TestUpdateTradablePairs(t *testing.T) {
 
 func TestWsConnect(t *testing.T) {
 	t.Parallel()
-	dy.Verbose = true
 	if err := dy.WsConnect(); err != nil {
 		t.Error(err)
 	}
@@ -301,13 +306,8 @@ func setupWS() {
 
 func TestGenerateDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
-	if subscriptions, err := dy.GenerateDefaultSubscriptions(); err != nil {
+	if _, err := dy.GenerateDefaultSubscriptions(); err != nil {
 		t.Error(err)
-	} else {
-		for x := range subscriptions {
-			val, _ := json.Marshal(subscriptions[x])
-			println(string(val))
-		}
 	}
 }
 
@@ -323,6 +323,372 @@ func TestSubscribe(t *testing.T) {
 			},
 		},
 	}); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestOnboarding(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	err := dy.Onboarding(context.Background(), "", "", "", "", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPositions(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := dy.GetPositions(context.Background(), "", "", "", 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUsers(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := dy.GetUsers(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateusers(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := dy.Updateusers(context.Background(), UpdateUserParams{
+		IsSharingUsername: true,
+		IsSharingAddress:  true,
+	}); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUserActiveLinks(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := dy.GetUserActiveLinks(context.Background(), "PRIMARY", etheriumAddress, "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSendUserLinkRequest(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := dy.SendUserLinkRequest(context.Background(), UserLinkParams{Action: "CREATE_SECONDARY_REQUEST", Address: "0xb794f5ea0ba39494ce839613fffba74279579268"})
+	if err != nil && !strings.Contains(err.Error(), "No receiving user found with address") {
+		t.Error(err)
+	}
+}
+
+func TestGetUserPendingLinkRequest(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := dy.GetUserPendingLinkRequest(context.Background(), "", "", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCreateAccount(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := dy.CreateAccount(context.Background(), "starkKey", "ycoordinate")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAccount(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := dy.GetAccount(context.Background(), etheriumAddress); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAccountLeaderboardPNLs(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := dy.GetAccountLeaderboardPNLs(context.Background(), "WEEKLY", time.Time{}); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAccountHistoricalLeaderboardPNLs(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := dy.GetAccountHistoricalLeaderboardPNLs(context.Background(), "DAILY", 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAccounts(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := dy.GetAccounts(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPosition(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := dy.GetPosition(context.Background(), "", "", 0, time.Time{}); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestTransferResponse(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := dy.GetTransfers(context.Background(), "DEPOSIT", 10, time.Time{}); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCreateTransfers(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := dy.CreateTransfer(context.Background(), 123, "141324", time.Now().Add(time.Hour*24*4), "ec84385a-ad03-55a8-86bf-a8213571f0ee", "", "037f9c7a8511ea61adf3074f3b60d3911f37bb95cd31cbc712629d992d13e109", ""); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCreateFastWithdrawal(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := dy.CreateFastWithdrawal(context.Background(), currency.USDC, 123, 100, 0.34, "037f9c7a8511ea61adf3074f3b60d3911f37bb95cd31cbc712629d992d13e109", "", time.Time{}, "", ""); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCreateNewOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := dy.CreateNewOrder(context.Background(), CreateOrderRequestParams{
+		Market:       "BTC-USD",
+		Side:         order.Buy.String(),
+		Type:         order.Limit.String(),
+		PostOnly:     true,
+		Size:         1,
+		Price:        123,
+		LimitFee:     0,
+		Expiration:   time.Now().Add(time.Hour * 24 * 3).UTC().Format("2006-01-02T15:04:05.999Z"),
+		TimeInForce:  "GTT",
+		Cancelled:    true,
+		TriggerPrice: 0,
+	}); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelOrderByID(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := dy.CancelOrderByID(context.Background(), "1234"); err != nil && !strings.Contains(err.Error(), "No order exists with id: 1234") {
+		t.Error(err)
+	}
+}
+
+func TestCancelMultipleOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := dy.CancelMultipleOrders(context.Background(), ""); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelActiveOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	enabledPairs, err := dy.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := dy.CancelActiveOrders(context.Background(), enabledPairs[0].String(), "buy", ""); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOpenOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	dy.Verbose = true
+	enabledPairs, err := dy.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := dy.GetOrders(context.Background(), enabledPairs[0].String(), "PENDING", "", "TRAILING_STOP", 90, time.Time{}, true); err != nil {
+		t.Error(err)
+	}
+	if _, err := dy.GetOpenOrders(context.Background(), enabledPairs[0].String(), "", ""); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOrderByID(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := dy.GetOrderByID(context.Background(), "1234"); err != nil && !strings.Contains(err.Error(), "No order found with id: 1234") {
+		t.Error(err)
+	}
+}
+
+func TestGetOrderByClientID(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := dy.GetOrderByClientID(context.Background(), "1234"); err != nil && !strings.Contains(err.Error(), "No order found with clientId: 1234") {
+		t.Error(err)
+	}
+}
+
+func TestGetFills(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	enabledPairs, err := dy.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := dy.GetFills(context.Background(), enabledPairs[0].String(), "", 10, time.Now().Add(time.Hour*4)); err != nil {
+		t.Error(err)
+	}
+}
+func TestGetFundingPayment(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	enabledPairs, err := dy.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := dy.GetFundingPayment(context.Background(), enabledPairs[0].String(), 10, time.Time{}); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetHistoricPNLTicks(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := dy.GetHistoricPNLTicks(context.Background(), time.Time{}, time.Time{}); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetTradingRewards(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := dy.GetTradingRewards(context.Background(), 4, ""); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetLiquidityProviderRewards(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := dy.GetLiquidityProviderRewards(context.Background(), 14); err != nil && !strings.Contains(err.Error(), "User is not a liquidity provider") {
+		t.Error(err)
+	}
+	if _, err := dy.GetLiquidityRewards(context.Background(), 14, ""); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetRetroactiveMiningRewards(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := dy.GetRetroactiveMiningRewards(context.Background()); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSendVerificationEmail(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := dy.SendVerificationEmail(context.Background()); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestRequestTestnetTokens(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := dy.RequestTestnetTokens(context.Background()); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPrivateProfile(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := dy.GetPrivateProfile(context.Background()); err != nil {
 		t.Error(err)
 	}
 }

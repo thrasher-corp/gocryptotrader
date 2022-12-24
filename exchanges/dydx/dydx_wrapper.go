@@ -54,6 +54,8 @@ func (dy *DYDX) SetDefaults() {
 	dy.Verbose = true
 	dy.API.CredentialsValidator.RequiresKey = true
 	dy.API.CredentialsValidator.RequiresSecret = true
+	dy.API.CredentialsValidator.RequiresClientID = true
+	dy.API.CredentialsValidator.RequiresPEM = true
 
 	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
 	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
@@ -566,6 +568,8 @@ func (dy *DYDX) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Get
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
 func (dy *DYDX) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+
+	// https://dydxprotocol.github.io/v3-teacher/?json#order-limitfee
 	return 0, common.ErrNotYetImplemented
 }
 

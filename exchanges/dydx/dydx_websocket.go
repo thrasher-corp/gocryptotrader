@@ -67,7 +67,6 @@ func (dy *DYDX) wsReadData() {
 }
 
 func (dy *DYDX) wsHandleData(respRaw []byte) error {
-	println(string(respRaw))
 	var resp WsResponse
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -155,7 +154,7 @@ func (dy *DYDX) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions
 func (dy *DYDX) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	channels := defaultSubscriptions
 	if dy.Websocket.CanUseAuthenticatedEndpoints() {

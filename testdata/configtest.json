@@ -1367,17 +1367,17 @@
      "urlEndpoints": null
     },
     "features": {
-    "supports": {
-        "restAPI": true,
-        "restCapabilities": {
-        "autoPairUpdates": true
+        "supports": {
+            "restAPI": true,
+            "restCapabilities": {
+            "autoPairUpdates": true
+            },
+            "websocketAPI": true,
+            "websocketCapabilities": {}
         },
-        "websocketAPI": true,
-        "websocketCapabilities": {}
-    },
-    "enabled": {
-        "autoPairUpdates": true,
-        "websocketAPI": true
+        "enabled": {
+            "autoPairUpdates": true,
+            "websocketAPI": true
       }
     },
     "orderbook": {
