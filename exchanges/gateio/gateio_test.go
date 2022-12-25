@@ -182,19 +182,20 @@ func TestGetOrderInfo(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	cp, err := getFirstTradablePair(t, asset.Options)
+	tradablePairs, err := g.FetchTradablePairs(context.Background(), asset.Options)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = g.UpdateTicker(context.Background(), cp, asset.Options)
+	println(tradablePairs[0].String())
+	_, err = g.UpdateTicker(context.Background(), tradablePairs[0], asset.Options)
 	if err != nil {
 		t.Error(err)
 	}
-	cp, err = getFirstTradablePair(t, asset.DeliveryFutures)
+	enabledPairs, err := g.FetchTradablePairs(context.Background(), asset.DeliveryFutures)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = g.UpdateTicker(context.Background(), cp, asset.DeliveryFutures)
+	_, err = g.UpdateTicker(context.Background(), enabledPairs[0], asset.DeliveryFutures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2049,7 +2050,7 @@ func TestGetOptionFuturesOrders(t *testing.T) {
 
 func TestCancelOptionOpenOrders(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(credInformationNotProvided)
 	}
 	pairs, err := g.FetchTradablePairs(context.Background(), asset.Options)
@@ -2071,7 +2072,7 @@ func TestGetSingleOptionOrder(t *testing.T) {
 	if _, err := g.GetSingleOptionOrder(context.Background(), ""); err != nil && !errors.Is(errInvalidOrderID, err) {
 		t.Errorf("%s GetSingleOptionorder() expecting %v, but found %v", g.Name, errInvalidOrderID, err)
 	}
-	if _, err := g.GetSingleOptionOrder(context.Background(), "1234"); err != nil && !strings.Contains(err.Error(), "INVALID_KEY") {
+	if _, err := g.GetSingleOptionOrder(context.Background(), "1234"); err != nil && !strings.Contains(err.Error(), "order not found") {
 		t.Errorf("%s GetSingleOptionOrder() error %v", g.Name, err)
 	}
 }
@@ -2193,7 +2194,7 @@ func TestCreateNewSubAccount(t *testing.T) {
 		t.Skip(credInformationNotProvided)
 	}
 	if _, err := g.CreateNewSubAccount(context.Background(), SubAccountParams{
-		LoginName: "Sub_Acconunt_for_testing",
+		LoginName: "Sub_Account_for_testing",
 	}); err != nil && !strings.Contains(err.Error(), "Request API key does not have sub_accounts permission") {
 		t.Errorf("%s CreateNewSubAccount() error %v", g.Name, err)
 	}
@@ -2214,7 +2215,7 @@ func TestGetSingleSubAccount(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credInformationNotProvided)
 	}
-	if _, err := g.GetSingleSubAccount(context.Background(), "Sub_Acconunt_for_testing"); err != nil && !strings.Contains(err.Error(), "FORBIDDEN") {
+	if _, err := g.GetSingleSubAccount(context.Background(), "Sub_Account_for_testing"); err != nil && !strings.Contains(err.Error(), "FORBIDDEN") {
 		t.Errorf("%s GetSingleSubAccount() error %v", g.Name, err)
 	}
 }
@@ -2227,7 +2228,7 @@ func TestFetchTradablePairs(t *testing.T) {
 	if err != nil {
 		t.Errorf("%s FetchTradablePairs() error %v", g.Name, err)
 	}
-	if _, err = g.FetchTradablePairs(context.Background(), asset.Options); err != nil {
+	if _, err := g.FetchTradablePairs(context.Background(), asset.Options); err != nil {
 		t.Errorf("%s FetchTradablePairs() error %v", g.Name, err)
 	}
 }
@@ -2302,7 +2303,6 @@ func TestSubmitOrder(t *testing.T) {
 		Type:      order.Limit,
 		Price:     1,
 		Amount:    1,
-		ClientID:  "meowOrder",
 		AssetType: asset.CrossMargin,
 	}
 	_, err := g.SubmitOrder(context.Background(), orderSubmission)
@@ -2386,10 +2386,12 @@ func TestGetOrderHistory(t *testing.T) {
 		AssetType: asset.Spot,
 		Side:      order.Buy,
 	}
-	currPair := currency.NewPair(currency.LTC, currency.BTC)
-	currPair.Delimiter = currency.UnderscoreDelimiter
-	getOrdersRequest.Pairs = []currency.Pair{currPair}
-	_, err := g.GetOrderHistory(context.Background(), &getOrdersRequest)
+	enabledPairs, err := g.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	getOrdersRequest.Pairs = enabledPairs[:3]
+	_, err = g.GetOrderHistory(context.Background(), &getOrdersRequest)
 	if err != nil {
 		t.Errorf("%s GetOrderhistory() error: %v", g.Name, err)
 	}

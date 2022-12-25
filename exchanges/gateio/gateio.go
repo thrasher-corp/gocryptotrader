@@ -1017,6 +1017,7 @@ func (g *Gateio) SendHTTPRequest(ctx context.Context, ep exchange.URL, path stri
 	if err != nil {
 		return err
 	}
+	println(endpoint + path)
 	item := &request.Item{
 		Method:        http.MethodGet,
 		Path:          endpoint + path,
@@ -3451,7 +3452,7 @@ func (g *Gateio) PlaceOptionOrder(ctx context.Context, arg OptionOrderParam) (*O
 		arg.Price = 0
 	}
 	var response OptionOrderResponse
-	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost,
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
 		optionsOrders, nil, &arg, &response)
 }
 
@@ -3481,7 +3482,7 @@ func (g *Gateio) GetOptionFuturesOrders(ctx context.Context, contract, underlyin
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
 	var response []OptionOrderResponse
-	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary,
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot,
 		http.MethodGet, optionsOrders, params, nil, &response)
 }
 
@@ -3500,7 +3501,7 @@ func (g *Gateio) CancelMultipleOptionOpenOrders(ctx context.Context, contract cu
 	}
 	var response []OptionOrderResponse
 	return response, g.SendAuthenticatedHTTPRequest(ctx,
-		exchange.RestSpotSupplementary, http.MethodDelete, optionsOrders, params, nil, &response)
+		exchange.RestSpot, http.MethodDelete, optionsOrders, params, nil, &response)
 }
 
 // GetSingleOptionOrder retrieves a single option order
@@ -3509,7 +3510,7 @@ func (g *Gateio) GetSingleOptionOrder(ctx context.Context, orderID string) (*Opt
 		return nil, errInvalidOrderID
 	}
 	var order OptionOrderResponse
-	return &order, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet,
+	return &order, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
 		optionsOrders+"/"+orderID, nil, nil, &order)
 }
 
@@ -3519,7 +3520,7 @@ func (g *Gateio) CancelOptionSingleOrder(ctx context.Context, orderID string) (*
 		return nil, errInvalidOrderID
 	}
 	var response OptionOrderResponse
-	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodDelete,
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete,
 		fmt.Sprintf(optionsOrders+"/"+orderID), nil, nil, &response)
 }
 
@@ -3546,7 +3547,7 @@ func (g *Gateio) GetOptionsPersonalTradingHistory(ctx context.Context, underlyin
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
 	var resp []OptionTradingHistory
-	return resp, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, optionsMyTrades, params, nil, &resp)
+	return resp, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, optionsMyTrades, params, nil, &resp)
 }
 
 // GetOptionsTickers lists  tickers of options contracts

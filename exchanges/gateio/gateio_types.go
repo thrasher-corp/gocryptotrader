@@ -1378,9 +1378,12 @@ type SpotOrder struct {
 	FilledTotal        float64   `json:"filled_total,omitempty,string"`
 	Fee                float64   `json:"fee,omitempty,string"`
 	FeeCurrency        string    `json:"fee_currency,omitempty"`
+	FillPrice          float64   `json:"fill_price,string"`
 	PointFee           string    `json:"point_fee,omitempty"`
 	GtFee              string    `json:"gt_fee,omitempty"`
 	GtDiscount         bool      `json:"gt_discount,omitempty"`
+	GtMakerFee         float64   `json:"gt_maker_fee,omitempty,string"`
+	GtTakerFee         float64   `json:"gt_taker_fee,omitempty,string"`
 	RebatedFee         string    `json:"rebated_fee,omitempty"`
 	RebatedFeeCurrency string    `json:"rebated_fee_currency,omitempty"`
 }
@@ -1425,7 +1428,7 @@ type SpotPersonalTradeHistory struct {
 	Role         string    `json:"role"`
 	Amount       float64   `json:"amount,string"`
 	Price        float64   `json:"price,string"`
-	Fee          string    `json:"fee"`
+	Fee          float64   `json:"fee,string"`
 	FeeCurrency  string    `json:"fee_currency"`
 	PointFee     string    `json:"point_fee"`
 	GtFee        string    `json:"gt_fee"`
