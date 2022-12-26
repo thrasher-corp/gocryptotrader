@@ -309,7 +309,8 @@ func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 			}
 			tick := &tickers[x]
 			var cp currency.Pair
-			cp, err = currency.NewPairFromString(tick.Name)
+			cp, err = currency.NewPairFromString((strings.ReplaceAll(tick.Name, currency.DashDelimiter, currency.UnderscoreDelimiter)))
+			cp.Quote = currency.NewCode(strings.ReplaceAll(cp.Quote.String(), currency.UnderscoreDelimiter, currency.DashDelimiter))
 			if err != nil {
 				return nil, err
 			}
@@ -339,10 +340,9 @@ func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 			return nil, errUnsupportedSettleValue
 		}
 		var settle string
-		if strings.HasPrefix(currency.USDT.String(), fPair.Quote.String()) {
-			settle = settleUSDT
-		} else {
-			settle = settleBTC
+		settle, err = g.getSettlementFromCurrency(fPair)
+		if err != nil {
+			return nil, err
 		}
 		var tickers []FuturesTicker
 		tickers, err = g.GetDeliveryFutureTickers(ctx, settle, fPair)
@@ -933,14 +933,13 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.I
 			!strings.HasPrefix(p.Quote.Upper().String(), currency.BTC.String()) {
 			return nil, errUnsupportedSettleValue
 		}
-		var quote string
-		if strings.HasPrefix(p.Quote.String(), currency.USDT.Upper().String()) {
-			quote = settleUSDT
-		} else {
-			quote = settleBTC
+		var settle string
+		settle, err = g.getSettlementFromCurrency(p)
+		if err != nil {
+			return nil, err
 		}
 		var deliveryTrades []DeliveryTradingHistory
-		deliveryTrades, err = g.GetDeliveryTradingHistory(ctx, quote, p.Upper().String(), 0, "", time.Time{}, time.Time{})
+		deliveryTrades, err = g.GetDeliveryTradingHistory(ctx, settle, p.Upper().String(), 0, "", time.Time{}, time.Time{})
 		if err != nil {
 			return nil, err
 		}
@@ -1747,7 +1746,6 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 			if err != nil {
 				return nil, err
 			}
-			println(req.Pairs[x].Format(format).String())
 			for o := range optionOrders {
 				detail := order.Detail{
 					OrderID:   strconv.FormatInt(optionOrders[o].OrderID, 10),

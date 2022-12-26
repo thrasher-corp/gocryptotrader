@@ -186,7 +186,6 @@ func TestUpdateTicker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	println(tradablePairs[0].String())
 	_, err = g.UpdateTicker(context.Background(), tradablePairs[0], asset.Options)
 	if err != nil {
 		t.Error(err)
@@ -1688,7 +1687,11 @@ func TestGetSingleDeliveryContracts(t *testing.T) {
 	if len(instruments) == 0 {
 		t.Skip("no instrument found")
 	}
-	if _, err := g.GetSingleDeliveryContracts(context.Background(), settleBTC, instruments[0].String()); err != nil {
+	settle, err := g.getSettlementFromCurrency(instruments[0])
+	if err != nil {
+		t.Skip(err)
+	}
+	if _, err := g.GetSingleDeliveryContracts(context.Background(), settle, instruments[0].String()); err != nil {
 		t.Errorf("%s GetSingleDeliveryContracts() error %v", g.Name, err)
 	}
 }
@@ -1702,7 +1705,7 @@ func TestGetDeliveryOrderbook(t *testing.T) {
 	if len(instruments) == 0 {
 		t.Skip("no instrument found")
 	}
-	if _, err := g.GetDeliveryOrderbook(context.Background(), settleBTC, instruments[0].String(), "0", 0, false); err != nil {
+	if _, err := g.GetDeliveryOrderbook(context.Background(), settleUSDT, instruments[0].String(), "0", 0, false); err != nil {
 		t.Errorf("%s GetDeliveryOrderbook() error %v", g.Name, err)
 	}
 }
@@ -1716,7 +1719,11 @@ func TestGetDeliveryTradingHistory(t *testing.T) {
 	if len(instruments) == 0 {
 		t.Skip("no instrument found")
 	}
-	if _, err := g.GetDeliveryTradingHistory(context.Background(), settleBTC, instruments[0].String(), 0, "", time.Time{}, time.Time{}); err != nil {
+	settle, err := g.getSettlementFromCurrency(instruments[0])
+	if err != nil {
+		t.Skip(err)
+	}
+	if _, err := g.GetDeliveryTradingHistory(context.Background(), settle, instruments[0].String(), 0, "", time.Time{}, time.Time{}); err != nil {
 		t.Errorf("%s GetDeliveryTradingHistory() error %v", g.Name, err)
 	}
 }
@@ -1729,7 +1736,11 @@ func TestGetDeliveryFuturesCandlesticks(t *testing.T) {
 	if len(instruments) == 0 {
 		t.Skip("no instrument found")
 	}
-	if _, err := g.GetDeliveryFuturesCandlesticks(context.Background(), settleBTC, instruments[0].String(), time.Time{}, time.Time{}, 0, kline.OneWeek); err != nil {
+	settle, err := g.getSettlementFromCurrency(instruments[0])
+	if err != nil {
+		t.Skip(err)
+	}
+	if _, err := g.GetDeliveryFuturesCandlesticks(context.Background(), settle, instruments[0].String(), time.Time{}, time.Time{}, 0, kline.OneWeek); err != nil {
 		t.Errorf("%s GetFuturesCandlesticks() error %v", g.Name, err)
 	}
 }
@@ -1740,7 +1751,11 @@ func TestGetDeliveryFutureTickers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := g.GetDeliveryFutureTickers(context.Background(), settleBTC, cp); err != nil {
+	settle, err := g.getSettlementFromCurrency(cp)
+	if err != nil {
+		t.Skip(err)
+	}
+	if _, err := g.GetDeliveryFutureTickers(context.Background(), settle, cp); err != nil {
 		t.Errorf("%s GetDeliveryFutureTickers() error %v", g.Name, err)
 	}
 }

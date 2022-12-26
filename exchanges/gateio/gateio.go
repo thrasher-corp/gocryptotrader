@@ -1017,7 +1017,6 @@ func (g *Gateio) SendHTTPRequest(ctx context.Context, ep exchange.URL, path stri
 	if err != nil {
 		return err
 	}
-	println(endpoint + path)
 	item := &request.Item{
 		Method:        http.MethodGet,
 		Path:          endpoint + path,
@@ -3802,4 +3801,18 @@ func (g *Gateio) GetSettleCurrencyFromContract(ccy currency.Code) (string, error
 		return "", fmt.Errorf("no valid settlement string in the currency code %s", ccy)
 	}
 	return codes[0], nil
+}
+
+func (g *Gateio) getSettlementFromCurrency(currencyPair currency.Pair) (settlement string, err error) {
+	currencyPair = currencyPair.Upper()
+	switch {
+	case strings.Contains(currencyPair.Quote.String(), currency.USDT.String()):
+		return currency.USDT.Lower().String(), nil
+	case strings.Contains(currencyPair.Quote.String(), currency.BTC.String()):
+		return currency.BTC.Lower().String(), nil
+	case strings.Contains(currencyPair.Quote.String(), currency.USD.String()):
+		return currency.USD.Lower().String(), nil
+	default:
+		return "", errors.New("can't derive settlement")
+	}
 }
