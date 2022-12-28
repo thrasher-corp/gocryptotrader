@@ -126,6 +126,13 @@ func (b *Base) SetFeatureDefaults() {
 			b.Config.Features.Supports.RESTCapabilities.TickerBatching = b.Features.Supports.RESTCapabilities.TickerBatching
 		}
 
+		for key, val := range b.Features.Supports.RESTCapabilities.TickerBatchingByAsset {
+			if b.Config.Features.Supports.RESTCapabilities.TickerBatchingByAsset == nil {
+				b.Config.Features.Supports.RESTCapabilities.TickerBatchingByAsset = make(map[asset.Item]bool)
+			}
+			b.Config.Features.Supports.RESTCapabilities.TickerBatchingByAsset[key] = val
+		}
+
 		if b.Features.Supports.Websocket != b.Config.Features.Supports.Websocket {
 			b.Config.Features.Supports.Websocket = b.Features.Supports.Websocket
 		}
@@ -146,10 +153,12 @@ func (b *Base) SetFeatureDefaults() {
 	}
 }
 
-// SupportsRESTTickerBatchUpdates returns whether or not the
-// exhange supports REST batch ticker fetching
-func (b *Base) SupportsRESTTickerBatchUpdates() bool {
-	return b.Features.Supports.RESTCapabilities.TickerBatching
+// SupportsRESTTickerBatchUpdates returns whether or not the exhange supports
+// REST batch ticker fetching by asset.
+func (b *Base) SupportsRESTTickerBatchUpdates(a asset.Item) bool {
+	return b.Features.Supports.RESTCapabilities.TickerBatching ||
+		(b.Features.Supports.RESTCapabilities.TickerBatchingByAsset != nil &&
+			b.Features.Supports.RESTCapabilities.TickerBatchingByAsset[a])
 }
 
 // SupportsAutoPairUpdates returns whether or not the exchange supports

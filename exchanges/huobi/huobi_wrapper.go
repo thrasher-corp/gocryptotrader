@@ -104,6 +104,11 @@ func (h *HUOBI) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
+				TickerBatchingByAsset: map[asset.Item]bool{
+					asset.Spot:                true,
+					asset.CoinMarginedFutures: false, // Not supported
+					asset.Futures:             false, // Not supported
+				},
 				TickerFetching:                 true,
 				KlineFetching:                  true,
 				TradeFetching:                  true,
@@ -420,7 +425,46 @@ func (h *HUOBI) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
-	return common.ErrFunctionNotSupported
+	enabled, err := h.GetEnabledPairs(a)
+	if err != nil {
+		return err
+	}
+
+	if a != asset.Spot {
+		return common.ErrFunctionNotSupported
+	}
+
+	tickers, err := h.GetTickers(ctx)
+	if err != nil {
+		return err
+	}
+
+	for x := range tickers.Data {
+		var pair currency.Pair
+		pair, err = enabled.DeriveFrom(tickers.Data[x].Symbol)
+		if err != nil {
+			continue
+		}
+
+		err = ticker.ProcessTicker(&ticker.Price{
+			High:         tickers.Data[x].High,
+			Low:          tickers.Data[x].Low,
+			Volume:       tickers.Data[x].Volume,
+			Open:         tickers.Data[x].Open,
+			Close:        tickers.Data[x].Close,
+			Bid:          tickers.Data[x].Bid,
+			BidSize:      tickers.Data[x].BidSize,
+			Ask:          tickers.Data[x].Ask,
+			AskSize:      tickers.Data[x].AskSize,
+			Pair:         pair,
+			ExchangeName: h.Name,
+			AssetType:    asset.Spot,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

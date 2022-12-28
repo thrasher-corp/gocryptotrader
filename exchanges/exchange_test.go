@@ -39,7 +39,7 @@ func TestSupportsRESTTickerBatchUpdates(t *testing.T) {
 		},
 	}
 
-	if !b.SupportsRESTTickerBatchUpdates() {
+	if !b.SupportsRESTTickerBatchUpdates(asset.Spot) {
 		t.Fatal("TestSupportsRESTTickerBatchUpdates returned false")
 	}
 }

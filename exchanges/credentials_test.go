@@ -172,6 +172,7 @@ func TestValidateAPICredentials(t *testing.T) {
 	for x := range testCases {
 		testData := &testCases[x]
 		t.Run("", func(t *testing.T) {
+			x := x
 			t.Parallel()
 			b := setupBase(testData)
 			if err := b.ValidateAPICredentials(b.API.credentials); !errors.Is(err, testData.Expected) {

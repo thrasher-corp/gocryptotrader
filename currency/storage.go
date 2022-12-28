@@ -45,6 +45,7 @@ var (
 	errNoForeignExchangeProvidersEnabled    = errors.New("no foreign exchange providers enabled")
 	errNotFiatCurrency                      = errors.New("not a fiat currency")
 	errInvalidAmount                        = errors.New("invalid amount")
+	errFiatExchangeMarketsIsNil             = errors.New("fiat exchange markets is nil")
 )
 
 // SetDefaults sets storage defaults for basic package functionality
@@ -546,6 +547,9 @@ func (s *Storage) GetDefaultForeignExchangeRates() (Conversions, error) {
 func (s *Storage) SeedDefaultForeignExchangeRates() error {
 	s.fxRates.mtx.Lock()
 	defer s.fxRates.mtx.Unlock()
+	if s.fiatExchangeMarkets == nil {
+		return fmt.Errorf("cannot seed default foreign exchange rates %w", errFiatExchangeMarketsIsNil)
+	}
 	rates, err := s.fiatExchangeMarkets.GetCurrencyData(
 		s.defaultBaseCurrency.String(),
 		s.defaultFiatCurrencies.Strings())

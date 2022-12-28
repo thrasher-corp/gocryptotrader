@@ -303,7 +303,7 @@ func (m *Manager) tickerWorker(ctx context.Context) {
 		exchName := j.exch.GetName()
 		var err error
 		var result *ticker.Price
-		if j.exch.SupportsRESTTickerBatchUpdates() {
+		if j.exch.SupportsRESTTickerBatchUpdates(j.Asset) {
 			m.batchMtx.Lock()
 			batchLastDone := m.tickerBatchLastRequested[exchName][j.Asset]
 			if batchLastDone.IsZero() || time.Since(batchLastDone) >= m.TimeoutREST {

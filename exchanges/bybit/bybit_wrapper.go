@@ -91,7 +91,13 @@ func (by *Bybit) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerBatching:        true,
+				TickerBatchingByAsset: map[asset.Item]bool{
+					asset.Spot:                true,
+					asset.CoinMarginedFutures: true,
+					asset.USDTMarginedFutures: true,
+					asset.Futures:             true,
+					asset.USDCMarginedFutures: false, // Batching not supported
+				},
 				TickerFetching:        true,
 				TradeFetching:         true,
 				KlineFetching:         true,

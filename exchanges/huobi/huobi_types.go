@@ -521,14 +521,18 @@ type Tickers struct {
 
 // Ticker latest ticker data
 type Ticker struct {
-	Amount float64 `json:"amount"`
-	Close  float64 `json:"close"`
-	Count  int64   `json:"count"`
-	High   float64 `json:"high"`
-	Low    float64 `json:"low"`
-	Open   float64 `json:"open"`
-	Symbol string  `json:"symbol"`
-	Volume float64 `json:"vol"`
+	Amount  float64 `json:"amount"`
+	Close   float64 `json:"close"`
+	Count   int64   `json:"count"`
+	High    float64 `json:"high"`
+	Low     float64 `json:"low"`
+	Open    float64 `json:"open"`
+	Symbol  string  `json:"symbol"`
+	Volume  float64 `json:"vol"`
+	Bid     float64 `json:"bid"`
+	BidSize float64 `json:"bidSize"`
+	Ask     float64 `json:"ask"`
+	AskSize float64 `json:"askSize"`
 }
 
 // OrderBookDataRequestParamsType var for request param types

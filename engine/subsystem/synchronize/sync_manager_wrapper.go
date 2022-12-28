@@ -73,7 +73,6 @@ func (m *Manager) Start() error {
 			log.Error(log.SyncMgr, err)
 		}
 	}()
-
 	m.initSyncWG.Done()
 	return nil
 }
