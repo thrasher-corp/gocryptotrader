@@ -33,7 +33,7 @@ type Request struct {
 	// client required interval, this will be less than or equal to the client
 	// required interval.
 	ExchangeInterval Interval
-	// ClientRequired refers to the actual clients' actual required interval
+	// ClientRequired refers to the clients' actual required interval
 	// needed.
 	ClientRequired Interval
 	// Start is the start time aligned to UTC and to the Required interval candle
