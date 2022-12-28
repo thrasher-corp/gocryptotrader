@@ -931,7 +931,7 @@ func TestConvertToNewInterval(t *testing.T) {
 	newInterval := ThreeDay
 	newCandle, err := old.ConvertToNewInterval(newInterval)
 	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
+		t.Fatalf("received '%v' expected '%v'", err, nil)
 	}
 	if len(newCandle.Candles) != 1 {
 		t.Error("expected one candle")
@@ -963,6 +963,175 @@ func TestConvertToNewInterval(t *testing.T) {
 	_, err = old.ConvertToNewInterval(OneMonth)
 	if !errors.Is(err, ErrInsufficientCandleData) {
 		t.Errorf("received '%v' expected '%v'", err, ErrInsufficientCandleData)
+	}
+
+	tn := time.Now().Truncate(time.Duration(OneDay))
+
+	// Test incorrectly padded candles
+	old.Candles = []Candle{
+		{
+			Time:   tn,
+			Open:   1337,
+			High:   1339,
+			Low:    1336,
+			Close:  1338,
+			Volume: 1337,
+		},
+		{
+			Time:   tn.AddDate(0, 0, 1),
+			Open:   1338,
+			High:   2000,
+			Low:    1332,
+			Close:  1696,
+			Volume: 6420,
+		},
+		{
+			Time:   tn.AddDate(0, 0, 2),
+			Open:   1696,
+			High:   1998,
+			Low:    1337,
+			Close:  6969,
+			Volume: 2520,
+		},
+		// empty candle should be here <---
+		// aaaand empty candle should be here <---
+		{
+			Time:   tn.AddDate(0, 0, 5),
+			Open:   6969,
+			High:   8888,
+			Low:    1111,
+			Close:  5555,
+			Volume: 2520,
+		},
+	}
+
+	_, err = old.ConvertToNewInterval(newInterval)
+	if !errors.Is(err, errCandleDataNotPadded) {
+		t.Errorf("received '%v' expected '%v'", err, errCandleDataNotPadded)
+	}
+
+	err = old.AddPadding()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	newCandle, err = old.ConvertToNewInterval(newInterval)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	if len(newCandle.Candles) != 2 {
+		t.Errorf("received '%v' expected '%v'", len(newCandle.Candles), 2)
+	}
+}
+
+func TestAddPadding(t *testing.T) {
+	t.Parallel()
+
+	var k *Item
+	err := k.AddPadding()
+	if !errors.Is(err, errNilKline) {
+		t.Fatalf("received '%v' expected '%v'", err, errNilKline)
+	}
+
+	k = &Item{}
+	err = k.AddPadding()
+	if !errors.Is(err, ErrInsufficientCandleData) {
+		t.Fatalf("received '%v' expected '%v'", err, ErrInsufficientCandleData)
+	}
+
+	tn := time.Now().Truncate(time.Duration(OneDay))
+
+	k.Candles = []Candle{
+		{
+			Time:   tn,
+			Open:   1337,
+			High:   1339,
+			Low:    1336,
+			Close:  1338,
+			Volume: 1337,
+		},
+	}
+	err = k.AddPadding()
+	if !errors.Is(err, ErrInvalidInterval) {
+		t.Fatalf("received '%v' expected '%v'", err, ErrInvalidInterval)
+	}
+
+	k.Interval = OneDay
+	k.Candles = []Candle{
+		{
+			Time:   tn.AddDate(0, 0, 1),
+			Open:   1338,
+			High:   2000,
+			Low:    1332,
+			Close:  1696,
+			Volume: 6420,
+		},
+		{
+			Time:   tn,
+			Open:   1337,
+			High:   1339,
+			Low:    1336,
+			Close:  1338,
+			Volume: 1337,
+		},
+	}
+	err = k.AddPadding()
+	if !errors.Is(err, errCannotEstablishTimeWindow) {
+		t.Fatalf("received '%v' expected '%v'", err, errCannotEstablishTimeWindow)
+	}
+
+	k.Candles = []Candle{
+		{
+			Time:   tn,
+			Open:   1337,
+			High:   1339,
+			Low:    1336,
+			Close:  1338,
+			Volume: 1337,
+		},
+		{
+			Time:   tn.AddDate(0, 0, 1),
+			Open:   1338,
+			High:   2000,
+			Low:    1332,
+			Close:  1696,
+			Volume: 6420,
+		},
+		{
+			Time:   tn.AddDate(0, 0, 2),
+			Open:   1696,
+			High:   1998,
+			Low:    1337,
+			Close:  6969,
+			Volume: 2520,
+		}}
+
+	err = k.AddPadding()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received '%v' expected '%v'", err, nil)
+	}
+
+	if len(k.Candles) != 3 {
+		t.Fatalf("received '%v' expected '%v'", len(k.Candles), 3)
+	}
+
+	k.Candles = append(k.Candles, Candle{
+		Time:   tn.AddDate(0, 0, 5),
+		Open:   6969,
+		High:   8888,
+		Low:    1111,
+		Close:  5555,
+		Volume: 2520,
+	})
+
+	err = k.AddPadding()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received '%v' expected '%v'", err, nil)
+	}
+
+	if len(k.Candles) != 6 {
+		t.Fatalf("received '%v' expected '%v'", len(k.Candles), 6)
 	}
 }
 

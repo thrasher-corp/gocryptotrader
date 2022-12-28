@@ -46,7 +46,6 @@ var (
 	ErrCanOnlyUpscaleCandles = errors.New("interval must be a longer duration to scale")
 	// ErrWholeNumberScaling returns when old interval data cannot neatly fit into new interval size
 	ErrWholeNumberScaling = errors.New("old interval must scale properly into new candle")
-	errNilKline           = errors.New("kline item is nil")
 	// ErrNotFoundAtTime returned when looking up a candle at a specific time
 	ErrNotFoundAtTime = errors.New("candle not found at time")
 	// ErrValidatingParams defines an error when the kline params are either not
@@ -61,7 +60,10 @@ var (
 	// requires multiple candles to generate.
 	ErrInsufficientCandleData = errors.New("insufficient candle data to generate new candle")
 
-	errInsufficientTradeData = errors.New("insufficient trade data")
+	errInsufficientTradeData     = errors.New("insufficient trade data")
+	errCandleDataNotPadded       = errors.New("candle data not padded")
+	errCannotEstablishTimeWindow = errors.New("cannot establish time window")
+	errNilKline                  = errors.New("kline item is nil")
 
 	oneYearDurationInNano = float64(OneYear.Duration().Nanoseconds())
 

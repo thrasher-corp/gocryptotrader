@@ -167,6 +167,49 @@ func (k *Item) FillMissingDataWithEmptyEntries(i *IntervalRangeHolder) {
 	}
 }
 
+// AddPadding inserts padding time aligned when exchanges do not supply all data
+// when there is no activity in a certain time interval.
+func (k *Item) AddPadding() error {
+	if k == nil {
+		return errNilKline
+	}
+
+	if len(k.Candles) == 0 {
+		return ErrInsufficientCandleData
+	}
+
+	if k.Interval <= 0 {
+		return ErrInvalidInterval
+	}
+
+	start := k.Candles[0].Time
+	end := k.Candles[len(k.Candles)-1].Time.Add(k.Interval.Duration())
+	window := end.Sub(start)
+
+	if window <= 0 {
+		return errCannotEstablishTimeWindow
+	}
+
+	segments := int(window / k.Interval.Duration())
+	if segments == len(k.Candles) {
+		return nil
+	}
+
+	padded := make([]Candle, segments)
+	var target int
+	for x := range padded {
+		if !k.Candles[target].Time.Equal(start) {
+			padded[x].Time = start
+		} else {
+			padded[x] = k.Candles[target]
+			target++
+		}
+		start = start.Add(k.Interval.Duration())
+	}
+	k.Candles = padded
+	return nil
+}
+
 // RemoveDuplicates removes any duplicate candles. NOTE: Filter-in-place is used
 // in this function for optimization and to keep the slice reference pointer the
 // same, if changed ExtendedRequest ConvertCandles functionality will break.
@@ -308,6 +351,14 @@ func (k *Item) ConvertToNewInterval(newInterval Interval) (*Item, error) {
 			newInterval)
 	}
 
+	start := k.Candles[0].Time
+	end := k.Candles[len(k.Candles)-1].Time.Add(k.Interval.Duration())
+	window := end.Sub(start)
+	segments := int(window / k.Interval.Duration())
+	if segments != len(k.Candles) {
+		return nil, errCandleDataNotPadded
+	}
+
 	oldIntervalsPerNewCandle := int(newInterval / k.Interval)
 	candles := make([]Candle, len(k.Candles)/oldIntervalsPerNewCandle)
 	if len(candles) == 0 {
@@ -317,6 +368,9 @@ func (k *Item) ConvertToNewInterval(newInterval Interval) (*Item, error) {
 	for x := range k.Candles {
 		if candles[target].Time.IsZero() {
 			candles[target].Time = k.Candles[x].Time
+		}
+
+		if candles[target].Open == 0 {
 			candles[target].Open = k.Candles[x].Open
 		}
 
@@ -324,7 +378,7 @@ func (k *Item) ConvertToNewInterval(newInterval Interval) (*Item, error) {
 			candles[target].High = k.Candles[x].High
 		}
 
-		if candles[target].Low == 0 || candles[target].Low != 0 && k.Candles[x].Low < candles[target].Low {
+		if candles[target].Low == 0 || k.Candles[x].Low < candles[target].Low {
 			candles[target].Low = k.Candles[x].Low
 		}
 
