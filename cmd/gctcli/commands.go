@@ -1162,11 +1162,11 @@ func getOrders(c *cli.Context) error {
 		}
 	}
 	var s, e time.Time
-	s, err = time.Parse(common.SimpleTimeFormat, startTime)
+	s, err = time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err = time.Parse(common.SimpleTimeFormat, endTime)
+	e, err = time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -1190,8 +1190,8 @@ func getOrders(c *cli.Context) error {
 			Base:      p.Base.String(),
 			Quote:     p.Quote.String(),
 		},
-		StartDate: negateLocalOffset(s),
-		EndDate:   negateLocalOffset(e),
+		StartDate: s.Format(common.SimpleTimeFormatWithTimezone),
+		EndDate:   e.Format(common.SimpleTimeFormatWithTimezone),
 	})
 	if err != nil {
 		return err
@@ -2991,11 +2991,11 @@ func withdrawlRequestByDate(c *cli.Context) error {
 		limit = limitStr
 	}
 
-	s, err := time.Parse(common.SimpleTimeFormat, startTime)
+	s, err := time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err := time.Parse(common.SimpleTimeFormat, endTime)
+	e, err := time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -3014,8 +3014,8 @@ func withdrawlRequestByDate(c *cli.Context) error {
 	result, err := client.WithdrawalEventsByDate(c.Context,
 		&gctrpc.WithdrawalEventsByDateRequest{
 			Exchange: exchange,
-			Start:    negateLocalOffset(s),
-			End:      negateLocalOffset(e),
+			Start:    s.Format(common.SimpleTimeFormatWithTimezone),
+			End:      e.Format(common.SimpleTimeFormatWithTimezone),
 			Limit:    int32(limit),
 		},
 	)
@@ -3382,12 +3382,12 @@ func getAuditEvent(c *cli.Context) error {
 		}
 	}
 
-	s, err := time.Parse(common.SimpleTimeFormat, startTime)
+	s, err := time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
 
-	e, err := time.Parse(common.SimpleTimeFormat, endTime)
+	e, err := time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -3407,8 +3407,8 @@ func getAuditEvent(c *cli.Context) error {
 
 	result, err := client.GetAuditEvent(c.Context,
 		&gctrpc.GetAuditEventRequest{
-			StartDate: negateLocalOffset(s),
-			EndDate:   negateLocalOffset(e),
+			StartDate: s.Format(common.SimpleTimeFormatWithTimezone),
+			EndDate:   e.Format(common.SimpleTimeFormatWithTimezone),
 			Limit:     int32(limit),
 			OrderBy:   orderingDirection,
 		})
@@ -3974,8 +3974,8 @@ func getHistoricCandles(c *cli.Context) error {
 				Quote:     p.Quote.String(),
 			},
 			AssetType:             assetType,
-			Start:                 negateLocalOffset(s),
-			End:                   negateLocalOffset(e),
+			Start:                 s.Format(common.SimpleTimeFormatWithTimezone),
+			End:                   e.Format(common.SimpleTimeFormatWithTimezone),
 			TimeInterval:          int64(candleInterval),
 			FillMissingWithTrades: fillMissingData,
 		})
@@ -4133,11 +4133,11 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 
 	candleInterval := time.Duration(candleGranularity) * time.Second
 	var s, e time.Time
-	s, err = time.Parse(common.SimpleTimeFormat, startTime)
+	s, err = time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err = time.Parse(common.SimpleTimeFormat, endTime)
+	e, err = time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -4162,8 +4162,8 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 				Quote:     p.Quote.String(),
 			},
 			AssetType:             assetType,
-			Start:                 negateLocalOffset(s),
-			End:                   negateLocalOffset(e),
+			Start:                 s.Format(common.SimpleTimeFormatWithTimezone),
+			End:                   e.Format(common.SimpleTimeFormatWithTimezone),
 			TimeInterval:          int64(candleInterval),
 			ExRequest:             true,
 			Sync:                  sync,
@@ -4282,11 +4282,11 @@ func findMissingSavedCandleIntervals(c *cli.Context) error {
 
 	candleInterval := time.Duration(candleGranularity) * time.Second
 	var s, e time.Time
-	s, err = time.Parse(common.SimpleTimeFormat, startTime)
+	s, err = time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err = time.Parse(common.SimpleTimeFormat, endTime)
+	e, err = time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -4311,8 +4311,8 @@ func findMissingSavedCandleIntervals(c *cli.Context) error {
 				Quote:     p.Quote.String(),
 			},
 			AssetType: assetType,
-			Start:     negateLocalOffset(s),
-			End:       negateLocalOffset(e),
+			Start:     s.Format(common.SimpleTimeFormatWithTimezone),
+			End:       e.Format(common.SimpleTimeFormatWithTimezone),
 			Interval:  int64(candleInterval),
 		})
 	if err != nil {
@@ -4503,11 +4503,11 @@ func getMarginRatesHistory(c *cli.Context) error {
 	}
 
 	var s, e time.Time
-	s, err = time.Parse(common.SimpleTimeFormat, startTime)
+	s, err = time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err = time.Parse(common.SimpleTimeFormat, endTime)
+	e, err = time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -4529,8 +4529,8 @@ func getMarginRatesHistory(c *cli.Context) error {
 			Exchange:           exchangeName,
 			Asset:              assetType,
 			Currency:           curr,
-			StartDate:          negateLocalOffset(s),
-			EndDate:            negateLocalOffset(e),
+			StartDate:          s.Format(common.SimpleTimeFormatWithTimezone),
+			EndDate:            e.Format(common.SimpleTimeFormatWithTimezone),
 			GetPredictedRate:   getPredictedRate,
 			GetLendingPayments: getLendingPayments,
 			GetBorrowRates:     getBorrowRates,
