@@ -44,6 +44,11 @@ func (dy *DYDX) WsConnect() error {
 	if err != nil {
 		return err
 	}
+	dy.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+		Message:     []byte(`pong`),
+		MessageType: websocket.TextMessage,
+		Delay:       time.Second * 30,
+	})
 	if dy.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", dy.Name)
 	}

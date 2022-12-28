@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/yanue/starkex"
 )
 
 // DYDX is the overarching type across this package
@@ -31,9 +32,10 @@ type DYDX struct {
 }
 
 const (
-	dydxAPIURL     = "https://api.dydx.exchange/" + dydxAPIVersion
-	dydxAPIVersion = "v3/"
-	dydxWSAPIURL   = "wss://api.dydx.exchange/" + dydxAPIVersion + "ws"
+	dydxOnlySignOnDomainMainnet = "https://trade.dydx.exchange"
+	dydxAPIURL                  = "https://api.dydx.exchange/" + dydxAPIVersion
+	dydxAPIVersion              = "v3/"
+	dydxWSAPIURL                = "wss://api.dydx.exchange/" + dydxAPIVersion + "ws"
 
 	// Public endpoints
 	markets                        = "markets"
@@ -126,7 +128,7 @@ func (dy *DYDX) GetTrades(ctx context.Context, instrument string, startingBefore
 		return nil, errMissingMarketInstrument
 	}
 	if !startingBeforeOrAT.IsZero() {
-		params.Set("startingBeforeOrAt", startingBeforeOrAT.Format("2021-09-05T17:33:43.163Z"))
+		params.Set("startingBeforeOrAt", startingBeforeOrAT.UTC().Format("2006-01-02T15:04:05.999Z"))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -139,21 +141,21 @@ func (dy *DYDX) GetTrades(ctx context.Context, instrument string, startingBefore
 // Given a debitAmount and asset the user wants sent to L1, this endpoint also returns the predicted amount of the desired asset the user will be credited on L1.
 // Given a creditAmount and asset the user wants sent to L1,
 // this endpoint also returns the predicted amount the user will be debited on L2.
-func (dy *DYDX) GetFastWithdrawalLiquidity(ctx context.Context, creditAsset string, creditAmount, debitAmount float64) (map[string]LiquidityProvider, error) {
+func (dy *DYDX) GetFastWithdrawalLiquidity(ctx context.Context, param FastWithdrawalParam) (map[string]LiquidityProvider, error) {
 	params := url.Values{}
-	if creditAsset != "" {
-		params.Set("creditAsset", creditAsset)
+	if param.CreditAsset != "" {
+		params.Set("creditAsset", param.CreditAsset)
 	}
-	if (creditAmount != 0 || debitAmount != 0) && creditAsset == "" {
+	if (param.CreditAmount != 0 || param.DebitAmount != 0) && param.CreditAsset == "" {
 		return nil, errors.New("cannot find quote without creditAsset")
-	} else if creditAmount != 0 && debitAmount != 0 {
+	} else if param.CreditAmount != 0 && param.DebitAmount != 0 {
 		return nil, errors.New("creditAmount and debitAmount cannot both be set")
 	}
-	if creditAmount != 0 {
-		params.Set("creditAmount", strconv.FormatFloat(creditAmount, 'f', -1, 64))
+	if param.CreditAmount != 0 {
+		params.Set("creditAmount", strconv.FormatFloat(param.CreditAmount, 'f', -1, 64))
 	}
-	if debitAmount != 0 {
-		params.Set("debitAmount", strconv.FormatFloat(debitAmount, 'f', -1, 64))
+	if param.DebitAmount != 0 {
+		params.Set("debitAmount", strconv.FormatFloat(param.DebitAmount, 'f', -1, 64))
 	}
 	var resp WithdrawalLiquidityResponse
 	return resp.LiquidityProviders, dy.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(fastWithdrawals, params), &resp)
@@ -179,7 +181,7 @@ func (dy *DYDX) GetHistoricalFunding(ctx context.Context, instrument string, eff
 		return nil, errMissingMarketInstrument
 	}
 	if !effectiveBeforeOrAt.IsZero() {
-		params.Set("effectiveBeforeOrAt", effectiveBeforeOrAt.String())
+		params.Set("effectiveBeforeOrAt", effectiveBeforeOrAt.UTC().Format("2006-01-02T15:04:05.999Z"))
 	}
 	var resp HistoricFundingResponse
 	return resp.HistoricalFundings, dy.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(fmt.Sprintf(marketHistoricalFunds, instrument), params), &resp)
@@ -539,81 +541,74 @@ func (dy *DYDX) GetTransfers(ctx context.Context, transferType string, limit int
 }
 
 // CreateTransfer sends a StarkEx L2 transfer.
-func (dy *DYDX) CreateTransfer(ctx context.Context, amount float64, clientID string, expiration time.Time, receiverAccountID string, signature, receiverPublicKey, receiverPositionID string) (*TransferResponse, error) {
+func (dy *DYDX) CreateTransfer(ctx context.Context, param TransferParam) (*TransferResponse, error) {
+	if param.Amount <= 0 {
+		return nil, errors.New("amount must be greater than zero")
+	}
+	if param.ClientID == "" {
+		param.ClientID = strconv.FormatInt(dy.Websocket.Conn.GenerateMessageID(true), 10)
+	}
+	if param.ReceiverAccountID == "" {
+		return nil, errors.New("invalid receiver account id")
+	}
+	if param.ReceiverPublicKey == "" {
+		return nil, errors.New("invalid stark receiver public key")
+	}
+	creds, err := dy.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	signature, err := starkex.TransferSign(creds.SubAccount, starkex.TransferSignParam{
+		NetworkId: 1,
+		ClientId:  param.ClientID,
+		// DebitAmount: param.DebitAmount,
+	})
 	resp := &struct {
 		Transfer TransferResponse `json:"transfer"`
 	}{}
-	arg := map[string]interface{}{}
-	if amount <= 0 {
-		return nil, errors.New("amount must be greater than zero")
-	}
-	arg["amount"] = amount
-	if clientID == "" {
-		clientID = strconv.FormatInt(dy.Websocket.Conn.GenerateMessageID(true), 10)
-	}
-	arg["clientId"] = clientID
-	if !expiration.IsZero() && expiration.Before(time.Now().Add(time.Hour*24*7)) && expiration.After(time.Now()) {
-		arg["expiration"] = expiration.UTC().Format("2006-01-02T15:04:05.999Z")
-	}
-	if receiverAccountID == "" {
-		return nil, errors.New("invalid receiver account id")
-	}
-	arg["receiverAccountId"] = receiverAccountID
-	if receiverPublicKey == "" {
-		return nil, errors.New("invalid stark receiver public key")
-	}
-	if signature != "" {
-		arg["signature"] = signature
-	}
-	arg["receiverPublicKey"] = receiverPublicKey
-	if receiverPositionID != "" {
-		arg["receiverPositionId"] = receiverPositionID
-	}
-	return &resp.Transfer, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, transfers, arg, &resp)
+	param.Signature = signature
+	return &resp.Transfer, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, transfers, param, &resp)
 }
 
 // CreateFastWithdrawal creates a fast withdrawal. Fast withdrawals utilize a withdrawal liquidity provider to send funds immediately and do not require users to wait for a Layer 2 block to be mined.
 // Users do not need to send any Transactions to perform a fast withdrawal.
 // Behind the scenes, the withdrawal liquidity provider will immediately send a transaction to Ethereum which, once mined, will send the user their funds.
 // Users must pay a fee to the liquidity provider for fast withdrawals equal to the greater of the gas fee the provider must pay and 0.1% of the amount of the withdraw.
-func (dy *DYDX) CreateFastWithdrawal(ctx context.Context, creditAsset currency.Code, creditAmount, debitAmount, slippageTolerance float64, toAddress, lPPositionID string, expiration time.Time, signature, clientID string) (*TransferResponse, error) {
-	if creditAsset.IsEmpty() {
+func (dy *DYDX) CreateFastWithdrawal(ctx context.Context, param WithdrawalParam) (*TransferResponse, error) {
+	if param.CreditAsset == "" {
 		return nil, fmt.Errorf("%w parameter: creditAsset", currency.ErrCurrencyCodeEmpty)
 	}
-	if creditAmount <= 0 {
+	if param.CreditAmount <= 0 {
 		return nil, fmt.Errorf("%w parameter: creditAmount", errInvalidAmount)
 	}
-	if debitAmount <= 0 {
+	if param.DebitAmount <= 0 {
 		return nil, fmt.Errorf("%w parameter: debitAmount", errInvalidAmount)
 	}
-	if slippageTolerance < 0 || slippageTolerance > 1 {
-		return nil, fmt.Errorf("slippageTolerance has to be less than 1 and grater than 0 but passed %f", slippageTolerance)
+	if param.SlippageTolerance < 0 || param.SlippageTolerance > 1 {
+		return nil, fmt.Errorf("slippageTolerance has to be less than 1 and grater than 0 but passed %f", param.SlippageTolerance)
 	}
-	if toAddress == "" {
+	if param.ToAddress == "" {
 		// Address to be credited
 		return nil, fmt.Errorf("address to be credited must not be empty")
 	}
-	arg := map[string]interface{}{}
-	arg["creditAsset"] = creditAsset.String()
-	arg["creditAmount"] = creditAmount
-	arg["debitAmount"] = debitAmount
-	arg["slippageTolerance"] = slippageTolerance
-	arg["toAddress"] = toAddress
-	if lPPositionID != "" {
-		arg["lPPositionId"] = lPPositionID
+	creds, err := dy.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
 	}
-	if !expiration.IsZero() && expiration.Before(time.Now().Add(time.Hour*24*7)) && expiration.After(time.Now()) {
-		arg["expiration"] = expiration.UTC().Format("2006-01-02T15:04:05.999Z")
+	if err != nil {
+		return nil, errors.New("sign error")
 	}
-	if signature != "" {
-		arg["signature"] = signature
-	}
-	if clientID == "" {
-		clientID = strconv.FormatInt(dy.Websocket.Conn.GenerateMessageID(true), 10)
-	}
-	arg["clientId"] = clientID
+	// Here SubAccount represents the starkx private account
+	signature, err := starkex.WithdrawSign(creds.SubAccount, starkex.WithdrawSignParam{
+		NetworkId:   1,
+		ClientId:    param.ClientID,
+		PositionId:  int64(param.LpPositionId),
+		HumanAmount: strconv.FormatFloat(param.CreditAmount, 'f', -1, 64),
+		Expiration:  param.Expiration,
+	})
+	param.Signature = signature
 	var resp WithdrawalResponse
-	return &resp.Withdrawal, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, withdrawals, arg, &resp)
+	return &resp.Withdrawal, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, withdrawals, param, &resp)
 }
 
 // CreateNewOrder creates a new order.
@@ -639,8 +634,25 @@ func (dy *DYDX) CreateNewOrder(ctx context.Context, arg CreateOrderRequestParams
 	if arg.PostOnly && arg.TimeInForce == "FOK" {
 		return nil, errors.New("Order cannot be postOnly and have timeInForce: FOK")
 	}
-	// TODO: generate signature from the request body.
-	// arg.Signature = stark.Sign()
+	creds, err := dy.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	orderSignParam := starkex.OrderSignParam{
+		NetworkId:  1,
+		Market:     arg.Market,
+		Side:       arg.Side,
+		HumanSize:  strconv.FormatFloat(arg.Size, 'f', -1, 64),
+		HumanPrice: strconv.FormatFloat(arg.Price, 'f', -1, 64),
+		LimitFee:   strconv.FormatFloat(arg.LimitFee, 'f', -1, 64),
+		ClientId:   arg.ClientID,
+		Expiration: arg.Expiration,
+	}
+	signature, err := starkex.OrderSign(creds.SubAccount, orderSignParam)
+	if err != nil {
+		return nil, errors.New("sign error")
+	}
+	arg.Signature = signature
 	var resp Order
 	return &resp, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, orders, &arg, &resp)
 }
@@ -897,8 +909,7 @@ func (dy *DYDX) SendAuthenticatedHTTPRequest(ctx context.Context, endpoint excha
 		h := hmac.New(sha256.New, secret)
 		h.Write([]byte(message))
 		headers := make(map[string]string)
-		headers["DYDX-SIGNATURE"] = base64.URLEncoding.EncodeToString(h.Sum(nil)) //crypto.HexEncodeToString(hmacs)
-		headers["DYDX-ETHEREUM-ADDRESS"] = creds.ClientID
+		headers["DYDX-SIGNATURE"] = base64.URLEncoding.EncodeToString(h.Sum(nil))
 		headers["DYDX-PASSPHRASE"] = creds.PEMKey
 		headers["DYDX-API-KEY"] = creds.Key
 		headers["DYDX-TIMESTAMP"] = timestamp

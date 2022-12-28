@@ -20,10 +20,11 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = "e9cd2230-22ac-eaf2-07f0-3d2c0f43d32d"
-	apiSecret               = "CLeJcRYPX_zIJyGs4EzvsCYiSSbvl3WxHzLVtKAU"
-	passphrase              = "EtHmxjwy-P_mpQG5_X5g"
-	etheriumAddress         = "0x4cd67530b9526f43681C0666075D30c717e51E72"
+	apiKey                  = ""
+	apiSecret               = ""
+	passphrase              = ""
+	etheriumAddress         = ""
+	starkPrivateKey         = ""
 	canManipulateRealOrders = false
 )
 
@@ -51,6 +52,7 @@ func TestMain(m *testing.M) {
 	exchCfg.API.Credentials.Secret = apiSecret
 	exchCfg.API.Credentials.ClientID = etheriumAddress
 	exchCfg.API.Credentials.PEMKey = passphrase
+	exchCfg.API.Credentials.Subaccount = starkPrivateKey
 
 	err = dy.Setup(exchCfg)
 	if err != nil {
@@ -102,7 +104,7 @@ func TestGetTrades(t *testing.T) {
 
 func TestGetFastWithdrawalLiquidity(t *testing.T) {
 	t.Parallel()
-	if _, err := dy.GetFastWithdrawalLiquidity(context.Background(), "", 0, 0); err != nil {
+	if _, err := dy.GetFastWithdrawalLiquidity(context.Background(), FastWithdrawalParam{}); err != nil {
 		t.Error(err)
 	}
 }
@@ -484,7 +486,15 @@ func TestCreateTransfers(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := dy.CreateTransfer(context.Background(), 123, "141324", time.Now().Add(time.Hour*24*4), "ec84385a-ad03-55a8-86bf-a8213571f0ee", "", "037f9c7a8511ea61adf3074f3b60d3911f37bb95cd31cbc712629d992d13e109", ""); err != nil {
+	if _, err := dy.CreateTransfer(context.Background(), TransferParam{
+		Amount:             123,
+		ClientID:           "141324",
+		Expiration:         time.Now().Add(time.Hour * 24 * 4).UTC().Format(timeFormat),
+		ReceiverAccountID:  "ec84385a-ad03-55a8-86bf-a8213571f0ee",
+		Signature:          "",
+		ReceiverPublicKey:  "037f9c7a8511ea61adf3074f3b60d3911f37bb95cd31cbc712629d992d13e109",
+		ReceiverPositionID: "",
+	}); err != nil {
 		t.Error(err)
 	}
 }
@@ -494,7 +504,15 @@ func TestCreateFastWithdrawal(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := dy.CreateFastWithdrawal(context.Background(), currency.USDC, 123, 100, 0.34, "037f9c7a8511ea61adf3074f3b60d3911f37bb95cd31cbc712629d992d13e109", "", time.Time{}, "", ""); err != nil {
+	input := WithdrawalParam{
+		CreditAsset:  currency.USDC.String(),
+		CreditAmount: 123,
+		DebitAmount:  100,
+		LpPositionId: 1,
+		Expiration:   time.Time{}.UTC().Format(timeFormat),
+		ClientID:     "",
+	}
+	if _, err := dy.CreateFastWithdrawal(context.Background(), input); err != nil {
 		t.Error(err)
 	}
 }

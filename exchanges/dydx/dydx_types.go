@@ -7,6 +7,37 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
+const (
+	NetworkIdMainnet = 1
+	NetworkIdRopsten = 3
+
+	timeFormat = "2006-01-02T15:04:05.999Z"
+
+	Eip712OnboardingActionStructString        = "dYdX(string action,string onlySignOn)"
+	Eip712OnboardingActionStructStringTestnet = "dYdX(string action)"
+	Eip712StructName                          = "dYdX"
+
+	Domain                       = "dYdX"
+	Version                      = "1.0"
+	Eip712DomainStringNoContract = "EIP712Domain(string name,string version,uint256 chainId)"
+)
+
+type ApiKeyCredentials struct {
+	Key        string
+	Secret     string
+	Passphrase string
+}
+
+var (
+	Eip712OnboardingActionStruct = []map[string]string{
+		{"type": "string", "name": "action"},
+		{"type": "string", "name": "onlySignOn"},
+	}
+	Eip712OnboardingActionStructTestnet = []map[string]string{
+		{"type": "string", "name": "action"},
+	}
+)
+
 // InstrumentDatas metadata about each retrieved market.
 type InstrumentDatas struct {
 	Markets map[string]struct {
@@ -767,4 +798,38 @@ type PrivateProfile struct {
 		} `json:"previousEpochs"`
 		LastEpochPaid string `json:"lastEpochPaid"`
 	} `json:"affiliateStatistics"`
+}
+
+// WithdrawalParam represents a parameter for asset withdrawal
+type WithdrawalParam struct {
+	ClientID     string  `json:"clientId,omitempty"`
+	ToAddress    string  `json:"toAddress"`
+	CreditAsset  string  `json:"creditAsset"`
+	CreditAmount float64 `json:"creditAmount,string"`
+
+	DebitAmount float64 `json:"debitAmount,string"`
+
+	SlippageTolerance float64 `json:"slippageTolerance,string"`
+
+	LpPositionId float64 `json:"lpPositionId,string,omitempty"`
+	Expiration   string  `json:"expiration"`
+	Signature    string  `json:"signature"`
+}
+
+// FastWithdrawalParam represents a parameter for fast withdrawal
+type FastWithdrawalParam struct {
+	CreditAsset  string  `json:"creditAsset,string"`
+	CreditAmount float64 `json:"creditAmount,string"`
+	DebitAmount  float64 `json:"debitAmount,string"`
+}
+
+// TransferParam represents a parameter for transfer
+type TransferParam struct {
+	Amount             float64 `json:"amount,string"`
+	ClientID           string  `json:"clientId"`
+	Expiration         string  `json:"expiration,omitempty"`
+	ReceiverAccountID  string  `json:"receiverAccountId"`
+	Signature          string  `json:"signature,omitempty"`
+	ReceiverPublicKey  string  `json:"receiverPublicKey"`
+	ReceiverPositionID string  `json:"receiverPositionID"`
 }

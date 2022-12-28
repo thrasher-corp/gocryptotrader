@@ -103,8 +103,9 @@ func (dy *DYDX) SetDefaults() {
 
 	dy.API.Endpoints = dy.NewEndpoints()
 	dy.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:      dydxAPIURL,
-		exchange.WebsocketSpot: dydxWSAPIURL,
+		exchange.RestSpot:              dydxAPIURL,
+		exchange.RestSpotSupplementary: dydxOnlySignOnDomainMainnet,
+		exchange.WebsocketSpot:         dydxWSAPIURL,
 	})
 
 	dy.Websocket = stream.New()
@@ -147,15 +148,11 @@ func (dy *DYDX) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-
-	dy.Websocket.Conn = &stream.WebsocketConnection{
-		ExchangeName: dy.Name,
-		URL:          dy.Websocket.GetWebsocketURL(),
-		ProxyURL:     dy.Websocket.GetProxyAddress(),
-		Verbose:      dy.Verbose,
-		// ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit: exch.WebsocketResponseMaxLimit,
-	}
+	dy.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		URL:                  dy.Websocket.GetWebsocketURL(),
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	})
 	return nil
 }
 
