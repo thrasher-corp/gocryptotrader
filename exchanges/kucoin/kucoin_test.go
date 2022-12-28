@@ -103,7 +103,6 @@ func TestGetAllTickers(t *testing.T) {
 
 func TestGet24hrStats(t *testing.T) {
 	t.Parallel()
-
 	_, err := ku.Get24hrStats(context.Background(), "BTC-USDT")
 	if err != nil {
 		t.Error("Get24hrStats() error", err)
@@ -112,7 +111,6 @@ func TestGet24hrStats(t *testing.T) {
 
 func TestGetMarketList(t *testing.T) {
 	t.Parallel()
-
 	_, err := ku.GetMarketList(context.Background())
 	if err != nil {
 		t.Error("GetMarketList() error", err)
@@ -121,7 +119,6 @@ func TestGetMarketList(t *testing.T) {
 
 func TestGetPartOrderbook20(t *testing.T) {
 	t.Parallel()
-
 	_, err := ku.GetPartOrderbook20(context.Background(), "BTC-USDT")
 	if err != nil {
 		t.Error("GetPartOrderbook20() error", err)
@@ -1638,11 +1635,11 @@ func TestUpdateTickers(t *testing.T) {
 }
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	enabledPair, err := ku.GetEnabledPairs(asset.Spot)
+	newP, err := currency.NewPairFromString("MKR-USDT")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = ku.UpdateTicker(context.Background(), enabledPair[0], asset.Spot)
+	_, err = ku.UpdateTicker(context.Background(), newP, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1650,11 +1647,11 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestFetchTicker(t *testing.T) {
 	t.Parallel()
-	enabledPair, err := ku.GetEnabledPairs(asset.Spot)
+	tradablePairs, err := ku.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err := ku.FetchTicker(context.Background(), enabledPair[0], asset.Spot); err != nil {
+	if _, err := ku.FetchTicker(context.Background(), tradablePairs[len(tradablePairs)-1], asset.Spot); err != nil {
 		t.Error(err)
 	}
 }
