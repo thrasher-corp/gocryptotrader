@@ -142,7 +142,7 @@ func (b *Bitstamp) GetTicker(ctx context.Context, currency string, hourly bool) 
 	return &response, b.SendHTTPRequest(ctx, exchange.RestSpot, path, &response)
 }
 
-// GetTicker returns all tickers information
+// GetTickers returns all tickers information
 func (b *Bitstamp) GetTickers(ctx context.Context) ([]Ticker, error) {
 	var response []Ticker
 	path := "/v" + bitstampAPIVersion + "/" + bitstampAPITicker + "/"

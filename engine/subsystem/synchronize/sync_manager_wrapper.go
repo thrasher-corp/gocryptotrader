@@ -113,7 +113,7 @@ func (m *Manager) Update(exchangeName string, updateProtocol subsystem.ProtocolT
 		return asset.ErrNotSupported
 	}
 
-	// NOTE: Switch for a pre-lock check aginst config field bools.
+	// NOTE: Switch for a pre-lock check against config field bools.
 	switch item {
 	case subsystem.Orderbook:
 		if !m.SynchronizeOrderbook {

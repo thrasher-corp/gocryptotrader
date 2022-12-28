@@ -335,7 +335,7 @@ func (m *Manager) tickerWorker(ctx context.Context) {
 			// 1) Nullifies all future price updates when `FetchTicker`
 			// functionality is used and once updated `UpdateTicker` will never
 			// be called again.
-			// 2) Supress error when `FetchTicker` is called and obfuscate
+			// 2) Suppress error when `FetchTicker` is called and obfuscate
 			// config storage issues.
 			// 3) Ultimately misuse resources.
 			result, err = ticker.GetTicker(exchName, j.Pair, j.Asset)
