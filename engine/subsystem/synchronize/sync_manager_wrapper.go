@@ -131,7 +131,7 @@ func (m *Manager) Update(exchangeName string, updateProtocol subsystem.ProtocolT
 		return fmt.Errorf("%v %w", item, errUnknownSyncType)
 	}
 
-	agent := m.getAgent(exchangeName, p, a, false /*Not using REST*/)
+	agent := m.getAgent(exchangeName, p, a, updateProtocol == subsystem.Rest)
 
 	switch item {
 	case subsystem.Ticker:

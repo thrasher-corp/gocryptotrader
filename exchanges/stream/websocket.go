@@ -332,8 +332,8 @@ func (w *Websocket) dataMonitor() {
 					return
 				default:
 					log.Warnf(log.WebsocketMgr,
-						"%s exchange backlog in websocket processing detected",
-						w.exchangeName)
+						"%s exchange backlog in websocket processing detected %T: %+v",
+						w.exchangeName, d, d)
 					select {
 					case w.ToRoutine <- d:
 					case <-w.ShutdownC:

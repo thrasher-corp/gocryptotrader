@@ -295,12 +295,12 @@ type Instrument struct {
 	ContractType                    string            `json:"ctType"`
 	Alias                           string            `json:"alias"`
 	State                           string            `json:"state"`
-	MaxQuantityOfSpotLimitOrder     float64           `json:"maxLmtSz,string"`
-	MaxQuantityOfMarketLimitOrder   float64           `json:"maxMktSz,string"`
-	MaxQuantityOfSpotTwapLimitOrder float64           `json:"maxTwapSz,string"`
-	MaxSpotIcebergSize              float64           `json:"maxIcebergSz,string"`
-	MaxTriggerSize                  float64           `json:"maxTriggerSz,string"`
-	MaxStopSize                     float64           `json:"maxStopSz,string"`
+	MaxQuantityOfSpotLimitOrder     okxNumericalValue `json:"maxLmtSz"`
+	MaxQuantityOfMarketLimitOrder   okxNumericalValue `json:"maxMktSz"`
+	MaxQuantityOfSpotTwapLimitOrder okxNumericalValue `json:"maxTwapSz"`
+	MaxSpotIcebergSize              okxNumericalValue `json:"maxIcebergSz"`
+	MaxTriggerSize                  okxNumericalValue `json:"maxTriggerSz"`
+	MaxStopSize                     okxNumericalValue `json:"maxStopSz"`
 }
 
 // DeliveryHistoryDetail holds instrument id and delivery price information detail
