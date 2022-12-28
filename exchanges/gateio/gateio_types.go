@@ -7,9 +7,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
-// TimeInterval Interval represents interval enum.
-type TimeInterval int
-
 const (
 	// Order book depth intervals
 
@@ -39,20 +36,6 @@ const (
 	sideBorrow = "borrow"
 
 	forceUpdate = false
-)
-
-// TimeInterval vars
-var (
-	TimeIntervalMinute         = TimeInterval(60)
-	TimeIntervalThreeMinutes   = TimeInterval(60 * 3)
-	TimeIntervalFiveMinutes    = TimeInterval(60 * 5)
-	TimeIntervalFifteenMinutes = TimeInterval(60 * 15)
-	TimeIntervalThirtyMinutes  = TimeInterval(60 * 30)
-	TimeIntervalHour           = TimeInterval(60 * 60)
-	TimeIntervalTwoHours       = TimeInterval(2 * 60 * 60)
-	TimeIntervalFourHours      = TimeInterval(4 * 60 * 60)
-	TimeIntervalSixHours       = TimeInterval(6 * 60 * 60)
-	TimeIntervalDay            = TimeInterval(60 * 60 * 24)
 )
 
 // WithdrawalFees the large list of predefined withdrawal fees
@@ -782,20 +765,20 @@ type InsuranceBalance struct {
 
 // ContractStat represents futures stats
 type ContractStat struct {
-	Time                  time.Time `json:"time"`
-	LongShortTaker        float64   `json:"lsr_taker"`
-	LongShortAccount      float64   `json:"lsr_account"`
-	LongLiqSize           float64   `json:"long_liq_size"`
-	ShortLiqudiationSize  float64   `json:"short_liq_size"`
-	OpenInterest          float64   `json:"open_interest"`
-	ShortLiquidationUsd   float64   `json:"short_liq_usd"`
-	MarkPrice             float64   `json:"mark_price"`
-	TopLongShortSize      float64   `json:"top_lsr_size"`
-	ShortLiqudationAmount float64   `json:"short_liq_amount"`
-	LongLiqudiationAmount float64   `json:"long_liq_amount"`
-	OpenInterestUsd       float64   `json:"open_interest_usd"`
-	TopLongShortAccount   float64   `json:"top_lsr_account"`
-	LongLiqudationUsd     float64   `json:"long_liq_usd"`
+	Time                   time.Time `json:"time"`
+	LongShortTaker         float64   `json:"lsr_taker"`
+	LongShortAccount       float64   `json:"lsr_account"`
+	LongLiqSize            float64   `json:"long_liq_size"`
+	ShortLiquidiationSize  float64   `json:"short_liq_size"`
+	OpenInterest           float64   `json:"open_interest"`
+	ShortLiquidationUsd    float64   `json:"short_liq_usd"`
+	MarkPrice              float64   `json:"mark_price"`
+	TopLongShortSize       float64   `json:"top_lsr_size"`
+	ShortLiquidationAmount float64   `json:"short_liq_amount"`
+	LongLiquidiationAmount float64   `json:"long_liq_amount"`
+	OpenInterestUsd        float64   `json:"open_interest_usd"`
+	TopLongShortAccount    float64   `json:"top_lsr_account"`
+	LongLiquidationUSD     float64   `json:"long_liq_usd"`
 }
 
 // IndexConstituent represents index constituents
@@ -1168,7 +1151,7 @@ type WithdrawalStatus struct {
 	WithdrawDayLimit       string            `json:"withdraw_day_limit"`
 	WithdrawDayLimitRemain string            `json:"withdraw_day_limit_remain"`
 	WithdrawAmountMini     string            `json:"withdraw_amount_mini"`
-	WithdrawEachtimeLimit  string            `json:"withdraw_eachtime_limit"`
+	WithdrawEachTimeLimit  string            `json:"withdraw_eachtime_limit"`
 	WithdrawFixOnChains    map[string]string `json:"withdraw_fix_on_chains"`
 	AdditionalProperties   string            `json:"additionalProperties"`
 }
@@ -1547,7 +1530,7 @@ type MaxTransferAndLoanAmount struct {
 type CrossMarginCurrencies struct {
 	Name                 string  `json:"name"`
 	Rate                 float64 `json:"rate,string"`
-	Precesion            float64 `json:"prec,string"`
+	Precision            float64 `json:"prec,string"`
 	Discount             string  `json:"discount"`
 	MinBorrowAmount      float64 `json:"min_borrow_amount,string"`
 	UserMaxBorrowAmount  float64 `json:"user_max_borrow_amount,string"`
@@ -1727,7 +1710,7 @@ type Position struct {
 	CrossLeverageLimit string `json:"cross_leverage_limit"`
 }
 
-// DualModeResponse represents  dual mode enable or diable
+// DualModeResponse represents  dual mode enable or disable
 type DualModeResponse struct {
 	User           int64   `json:"user"`
 	Currency       string  `json:"currency"`
@@ -2008,7 +1991,7 @@ type WsTrade struct {
 	Price        float64 `json:"price,string"`
 }
 
-// WsCandlesticks respresents the candlestick data for spot, margin and cross margin trades pushed through the websocket channel.
+// WsCandlesticks represents the candlestick data for spot, margin and cross margin trades pushed through the websocket channel.
 type WsCandlesticks struct {
 	Timestamp          int64   `json:"t,string"`
 	TotalVolume        float64 `json:"v,string"`
@@ -2283,8 +2266,8 @@ type WsFuturesUserTrade struct {
 	PointFee     int64   `json:"point_fee"`
 }
 
-// WsFuturesLiquidiationNotification represents a liquidation notification push data
-type WsFuturesLiquidiationNotification struct {
+// WsFuturesLiquidationNotification represents a liquidation notification push data
+type WsFuturesLiquidationNotification struct {
 	EntryPrice int64   `json:"entry_price"`
 	FillPrice  float64 `json:"fill_price"`
 	Left       float64 `json:"left"`

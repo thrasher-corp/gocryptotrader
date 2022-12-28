@@ -664,7 +664,7 @@ func TestGetOneSingleloanRecord(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credInformationNotProvided)
 	}
-	if _, err := g.GetOneSingleloanRecord(context.Background(), "1234", "123"); err != nil && !strings.Contains(err.Error(), "Loan record not found") {
+	if _, err := g.GetOneSingleLoanRecord(context.Background(), "1234", "123"); err != nil && !strings.Contains(err.Error(), "Loan record not found") {
 		t.Errorf("%s error while GetOneSingleloanRecord() %v", g.Name, err)
 	}
 }

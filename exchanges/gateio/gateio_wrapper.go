@@ -421,7 +421,7 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		if err != nil {
 			return nil, err
 		}
-		pairs := []currency.Pair{}
+		pairs := make([]currency.Pair, 0, len(tradables))
 		for x := range tradables {
 			p := strings.ToUpper(tradables[x].Base + currency.UnderscoreDelimiter + tradables[x].Quote)
 			if !g.IsValidPairString(p) {
@@ -444,7 +444,7 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 			return nil, err
 		}
 		btcContracts = append(btcContracts, usdtContracts...)
-		pairs := []currency.Pair{}
+		pairs := make([]currency.Pair, 0, len(btcContracts))
 		for x := range btcContracts {
 			p := strings.ToUpper(btcContracts[x].Name)
 			if !g.IsValidPairString(p) {
@@ -472,7 +472,7 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		}
 		btcContracts = append(btcContracts, usdtContracts...)
 		btcContracts = append(btcContracts, usdContracts...)
-		pairs := []currency.Pair{}
+		pairs := make([]currency.Pair, 0, len(btcContracts))
 		for x := range btcContracts {
 			p := strings.ToUpper(btcContracts[x].Name)
 			if !g.IsValidPairString(p) {
@@ -500,7 +500,7 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 				if !g.IsValidPairString(contracts[c].Name) {
 					continue
 				}
-				cp, err := currency.NewPairFromString((strings.ReplaceAll(contracts[c].Name, currency.DashDelimiter, currency.UnderscoreDelimiter)))
+				cp, err := currency.NewPairFromString(strings.ReplaceAll(contracts[c].Name, currency.DashDelimiter, currency.UnderscoreDelimiter))
 				cp.Quote = currency.NewCode(strings.ReplaceAll(cp.Quote.String(), currency.UnderscoreDelimiter, currency.DashDelimiter))
 				if err != nil {
 					return nil, err
@@ -1525,10 +1525,6 @@ func (g *Gateio) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuild
 
 // GetActiveOrders retrieves any orders that are active/open
 func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
-	err := req.Validate()
-	if err != nil {
-		return nil, err
-	}
 	var orders []order.Detail
 	format, err := g.GetPairFormat(req.AssetType, false)
 	if err != nil {
@@ -1543,8 +1539,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 		}
 		for x := range spotOrders {
 			var symbol currency.Pair
-			symbol, err = currency.NewPairDelimiter(spotOrders[x].CurrencyPair,
-				format.Delimiter)
+			symbol, err = currency.NewPairDelimiter(spotOrders[x].CurrencyPair, format.Delimiter)
 			if err != nil {
 				return nil, err
 			}
@@ -1556,6 +1551,9 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 				side, err = order.StringToOrderSide(spotOrders[x].Orders[x].Side)
 				if err != nil {
 					log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
+				}
+				if req.Side != order.AnySide && req.Side != side {
+					continue
 				}
 				var status order.Status
 				status, err = order.StringToOrderStatus(spotOrders[x].Orders[y].Status)

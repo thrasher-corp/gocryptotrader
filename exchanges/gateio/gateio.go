@@ -840,7 +840,7 @@ func (g *Gateio) CreatePriceTriggeredOrder(ctx context.Context, arg *PriceTrigge
 		return nil, errInvalidAmount
 	}
 	arg.Put.Account = strings.ToLower(arg.Put.Account)
-	if arg.Put.Account != "" && arg.Put.Account == "spot" {
+	if arg.Put.Account == "spot" {
 		arg.Put.Account = "normal"
 	}
 	if arg.Put.TimeInForce != gtcTIF && arg.Put.TimeInForce != iocTIF {
@@ -955,7 +955,7 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 	if param != nil {
 		paramValue = param.Encode()
 	}
-	hmac, err := g.GenerateSignature(creds.Secret, method, "/"+gateioAPIVersion+endpoint, paramValue, data, timestamp)
+	sig, err := g.GenerateSignature(creds.Secret, method, "/"+gateioAPIVersion+endpoint, paramValue, data, timestamp)
 	if err != nil {
 		return err
 	}
@@ -963,7 +963,7 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 	headers["KEY"] = creds.Key
 	headers["TIMESTAMP"] = strconv.FormatInt(timestamp.Unix(), 10)
 	headers["Accept"] = "application/json"
-	headers["SIGN"] = hmac
+	headers["SIGN"] = sig
 	var intermediary json.RawMessage
 	urlPath = ePoint + urlPath
 	if param != nil {
@@ -1144,8 +1144,8 @@ func (g *Gateio) TransferCurrency(ctx context.Context, arg *TransferCurrencyPara
 	if !strings.EqualFold(arg.From, asset.Spot.String()) {
 		return nil, fmt.Errorf("%w, only %s accounts can be used to transfer from", errInvalidAssetType, asset.Spot)
 	}
-	if g.isAccountAccepted(arg.To) {
-		return nil, fmt.Errorf("%w, only %v,%v,%v,%v,%v,and %v", errInvalidAssetType, asset.Spot, asset.Margin, asset.Futures, asset.DeliveryFutures, asset.CrossMargin, asset.Options)
+	if !g.isAccountAccepted(arg.To) {
+		return nil, fmt.Errorf("%w, only %v,%v,%v,%v,%v,and %v are supported", errInvalidAssetType, asset.Spot, asset.Margin, asset.Futures, asset.DeliveryFutures, asset.CrossMargin, asset.Options)
 	}
 	if arg.Amount < 0 {
 		return nil, errInvalidAmount
@@ -1564,8 +1564,8 @@ func (g *Gateio) ListRepaymentRecordsOfSpecificLoan(ctx context.Context, loanID,
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, marginLoanRecords, params, nil, &response)
 }
 
-// GetOneSingleloanRecord get one single loan record
-func (g *Gateio) GetOneSingleloanRecord(ctx context.Context, loanID, loanRecordID string) (*LoanRecord, error) {
+// GetOneSingleLoanRecord get one single loan record
+func (g *Gateio) GetOneSingleLoanRecord(ctx context.Context, loanID, loanRecordID string) (*LoanRecord, error) {
 	if loanID == "" {
 		return nil, fmt.Errorf("%w, %v", errInvalidLoanID, " loan_id is required")
 	}
@@ -3508,9 +3508,9 @@ func (g *Gateio) GetSingleOptionOrder(ctx context.Context, orderID string) (*Opt
 	if orderID == "" {
 		return nil, errInvalidOrderID
 	}
-	var order OptionOrderResponse
-	return &order, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
-		optionsOrders+"/"+orderID, nil, nil, &order)
+	var o OptionOrderResponse
+	return &o, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
+		optionsOrders+"/"+orderID, nil, nil, &o)
 }
 
 // CancelOptionSingleOrder cancel a single order.
@@ -3792,15 +3792,6 @@ func (g *Gateio) GetUnderlyingFromCurrencyPair(p currency.Pair) (string, error) 
 		return "", errors.New("invalid currency pair")
 	}
 	return ccies[0] + currency.UnderscoreDelimiter + ccies[1], nil
-}
-
-// GetSettleCurrencyFromContract returns a settlement string 'btc','usdt', or 'usd' from the currency code.
-func (g *Gateio) GetSettleCurrencyFromContract(ccy currency.Code) (string, error) {
-	codes := strings.Split(ccy.Lower().String(), currency.UnderscoreDelimiter)
-	if len(codes) == 0 || (codes[0] != settleBTC && codes[0] != settleUSDT && codes[0] != settleUSD) {
-		return "", fmt.Errorf("no valid settlement string in the currency code %s", ccy)
-	}
-	return codes[0], nil
 }
 
 func (g *Gateio) getSettlementFromCurrency(currencyPair currency.Pair) (settlement string, err error) {

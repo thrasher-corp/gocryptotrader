@@ -407,7 +407,7 @@ func (g *Gateio) processFuturesOrderbookTicker(data []byte) error {
 	return nil
 }
 
-func (g *Gateio) procesFuturesAndOptionsOrderbookUpdate(data []byte) error {
+func (g *Gateio) processFuturesAndOptionsOrderbookUpdate(data []byte) error {
 	var response WsResponse
 	update := &WsFuturesAndOptionsOrderbookUpdate{}
 	response.Result = update
@@ -618,10 +618,10 @@ func (g *Gateio) procesFuturesUserTrades(data []byte) error {
 
 func (g *Gateio) processFuturesLiquidatesNotification(data []byte) error {
 	resp := struct {
-		Time    int64                               `json:"time"`
-		Channel string                              `json:"channel"`
-		Event   string                              `json:"event"`
-		Result  []WsFuturesLiquidiationNotification `json:"result"`
+		Time    int64                              `json:"time"`
+		Channel string                             `json:"channel"`
+		Event   string                             `json:"event"`
+		Result  []WsFuturesLiquidationNotification `json:"result"`
 	}{}
 	err := json.Unmarshal(data, &resp)
 	if err != nil {

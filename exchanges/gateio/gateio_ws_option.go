@@ -437,7 +437,7 @@ func (g *Gateio) processOptionsOrderPushData(data []byte) error {
 	return nil
 }
 
-func (g *Gateio) procesOptionsUserTradesPushData(data []byte) error {
+func (g *Gateio) processOptionsUserTradesPushData(data []byte) error {
 	resp := struct {
 		Time    int64                `json:"time"`
 		Channel string               `json:"channel"`

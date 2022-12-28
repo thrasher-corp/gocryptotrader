@@ -203,7 +203,7 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 	case futuresOrderbookTickerChannel:
 		return g.processFuturesOrderbookTicker(respRaw)
 	case futuresOrderbookUpdateChannel:
-		return g.procesFuturesAndOptionsOrderbookUpdate(respRaw)
+		return g.processFuturesAndOptionsOrderbookUpdate(respRaw)
 	case futuresCandlesticksChannel:
 		return g.processFuturesCandlesticks(respRaw)
 	case futuresOrdersChannel:
@@ -249,11 +249,11 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 	case optionsOrderbookTickerChannel:
 		return g.processOrderbookTickerPushData(respRaw)
 	case optionsOrderbookUpdateChannel:
-		return g.procesFuturesAndOptionsOrderbookUpdate(respRaw)
+		return g.processFuturesAndOptionsOrderbookUpdate(respRaw)
 	case optionsOrdersChannel:
 		return g.processOptionsOrderPushData(respRaw)
 	case optionsUserTradesChannel:
-		return g.procesOptionsUserTradesPushData(respRaw)
+		return g.processOptionsUserTradesPushData(respRaw)
 	case optionsLiquidatesChannel:
 		return g.processOptionsLiquidatesPushData(respRaw)
 	case optionsUserSettlementChannel:
@@ -733,7 +733,7 @@ func (g *Gateio) handleSubscription(event string, channelsToSubscribe []stream.C
 			ID:   strconv.FormatInt(payloads[k].ID, 10),
 			Chan: channel,
 		}
-		ticker := time.NewTicker(time.Second * 3)
+		t := time.NewTicker(time.Second * 3)
 	receive:
 		for {
 			select {
@@ -748,8 +748,8 @@ func (g *Gateio) handleSubscription(event string, channelsToSubscribe []stream.C
 				g.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[k])
 				g.WsChannelsMultiplexer.Unregister <- strconv.FormatInt(payloads[k].ID, 10)
 				break receive
-			case <-ticker.C:
-				ticker.Stop()
+			case <-t.C:
+				t.Stop()
 				errs = append(errs, fmt.Errorf("%s websocket connection: timeout waiting for response with and subscription: %v",
 					g.Name, payloads[k].Channel))
 				g.WsChannelsMultiplexer.Unregister <- strconv.FormatInt(payloads[k].ID, 10)
@@ -792,7 +792,7 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 			}
 			params = append(params, uly)
 		case optionsBalancesChannel:
-			// options.balance channel does not require neither underlying not contract
+			// options.balance channel does not require underlying or contract
 		default:
 			channelsToSubscribe[i].Currency.Delimiter = currency.UnderscoreDelimiter
 			params = append(params, channelsToSubscribe[i].Currency.String())
@@ -818,22 +818,22 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 		case futuresOrderbookChannel:
 			limit, ok := channelsToSubscribe[i].Params["limit"].(int)
 			if !ok {
-				return nil, errors.New("invlaid futures orderbook limit")
+				return nil, fmt.Errorf("%w, invalid futures orderbook limit", orderbook.ErrOrderbookInvalid)
 			}
 			interval, ok := channelsToSubscribe[i].Params["interval"].(string)
 			if !ok {
-				return nil, errors.New("missing futures orderbook interval parameter")
+				return nil, fmt.Errorf("%w, missing futures orderbook interval", orderbook.ErrOrderbookInvalid)
 			}
 			params = append(params,
 				strconv.Itoa(limit), interval)
 		case optionsOrderbookChannel:
 			accuracy, ok := channelsToSubscribe[i].Params["accuracy"].(string)
 			if !ok {
-				return nil, errors.New("invalid options orderbook accuracy parameter")
+				return nil, fmt.Errorf("%w, invalid options orderbook accuracy", orderbook.ErrOrderbookInvalid)
 			}
 			level, ok := channelsToSubscribe[i].Params["level"].(string)
 			if !ok {
-				return nil, errors.New("invalid options orderbook level parameter")
+				return nil, fmt.Errorf("%w, invalid options orderbook level", orderbook.ErrOrderbookInvalid)
 			}
 			params = append(
 				params,
@@ -843,7 +843,7 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 		case futuresOrderbookUpdateChannel:
 			interval, ok := channelsToSubscribe[i].Params["frequency"].(kline.Interval)
 			if !ok {
-				return nil, errors.New("missing frequency for futures orderbook update")
+				return nil, fmt.Errorf("%w, missing frequency for futures orderbook update", orderbook.ErrOrderbookInvalid)
 			}
 			intervalString, err = g.GetIntervalString(interval)
 			if err != nil {
@@ -858,7 +858,7 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 		case optionsOrderbookUpdateChannel:
 			interval, ok := channelsToSubscribe[i].Params["interval"].(kline.Interval)
 			if !ok {
-				return nil, errors.New("missing options orderbook interval")
+				return nil, fmt.Errorf("%w, missing options orderbook interval", orderbook.ErrOrderbookInvalid)
 			}
 			intervalString, err = g.GetIntervalString(interval)
 			if err != nil {
