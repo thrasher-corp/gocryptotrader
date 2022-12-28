@@ -6,15 +6,6 @@ import (
 	"time"
 )
 
-// UnmarshalError is the struct which is used for unmarshalling errors
-type UnmarshalError struct {
-	Message string `json:"message"`
-	Data    struct {
-		Reason string `json:"reason"`
-	}
-	Code int64 `json:"code"`
-}
-
 const (
 	sideBUY  = "buy"
 	sideSELL = "sell"
@@ -51,6 +42,15 @@ var (
 	errWebsocketConnectionNotAuthenticated = errors.New("websocket connection is not authenticated")
 	errResolutionNotSet                    = errors.New("resolution not set")
 )
+
+// UnmarshalError is the struct which is used for unmarshalling errors
+type UnmarshalError struct {
+	Message string `json:"message"`
+	Data    struct {
+		Reason string `json:"reason"`
+	}
+	Code int64 `json:"code"`
+}
 
 // BookSummaryData stores summary data
 type BookSummaryData struct {

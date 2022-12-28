@@ -1115,7 +1115,6 @@ func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			len(tradingViewData.Volume) != checkLen {
 			return kline.Item{}, fmt.Errorf("%s - %s - %v: invalid trading view chart data received", d.Name, a, pair)
 		}
-
 		for x := range tradingViewData.Ticks {
 			resp.Candles = append(resp.Candles, kline.Candle{
 				Time:   time.UnixMilli(int64(tradingViewData.Ticks[x])),
