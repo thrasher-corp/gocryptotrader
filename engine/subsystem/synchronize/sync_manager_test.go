@@ -243,13 +243,17 @@ func TestSyncManagerUpdate(t *testing.T) {
 		t.Fatalf("received %v, but expected: %v", err, asset.ErrNotSupported)
 	}
 
-	// not started initial sync
 	err = m.Update(testName, subsystem.Websocket, testPair, asset.Spot, 47, nil)
+	if !errors.Is(err, errUnknownSyncType) {
+		t.Fatalf("received %v, but expected: %v", err, errUnknownSyncType)
+	}
+
+	// not started initial sync
+	err = m.Update(testName, subsystem.Websocket, testPair, asset.Spot, subsystem.Orderbook, nil)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received %v, but expected: %v", err, nil)
 	}
 
-	m.initSyncStarted = 1
 	// orderbook not enabled
 	err = m.Update(testName, subsystem.Websocket, testPair, asset.Spot, subsystem.Orderbook, nil)
 	if !errors.Is(err, nil) {
@@ -274,11 +278,6 @@ func TestSyncManagerUpdate(t *testing.T) {
 	err = m.Update(testName, subsystem.Websocket, testPair, asset.Spot, 1336, nil)
 	if !errors.Is(err, errUnknownSyncType) {
 		t.Fatalf("received %v, but expected: %v", err, errUnknownSyncType)
-	}
-
-	err = m.Update("bruh?", "bruh?", currency.NewPair(currency.NOO, currency.BRAIN), asset.Spot, 1, nil)
-	if !errors.Is(err, errAgentNotFound) {
-		t.Fatalf("received %v, but expected: %v", err, errAgentNotFound)
 	}
 
 	m.currencyPairs = make(map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]*Agent)
