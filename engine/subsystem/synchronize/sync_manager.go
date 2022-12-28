@@ -183,12 +183,6 @@ func (m *Manager) checkSyncItem(exch exchange.IBotExchange, indv *Base, agent *A
 		indv.SetProcessing(agent.Exchange, sync.String(), agent.Pair, agent.AssetType, m.TimeoutWebsocket, true)
 		m.sendJob(exch, agent.Pair, agent.AssetType, sync)
 	} else if until > 0 && until < *update {
-		// This helps to achieve a better rate of update by restricting the time
-		// to when this item was last updated. It also helps to *theoretically*
-		// reduce pressure on rate limiters by staggering synchronization items
-		// away from each other, depending on the endpoint update time. This
-		// also endeavers to be a more efficient use of the processor instead
-		// of having a 50ms heartbeat check across multiple routines.
 		*update = until
 	}
 }
