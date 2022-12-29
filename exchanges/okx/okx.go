@@ -3026,10 +3026,14 @@ func (ok *Okx) GetIndexTickers(ctx context.Context, quoteCurrency, instID string
 
 // GetInstrumentTypeFromAssetItem returns a string representation of asset.Item; which is an equivalent term for InstrumentType in Okx exchange.
 func (ok *Okx) GetInstrumentTypeFromAssetItem(assetType asset.Item) string {
-	if assetType == asset.PerpetualSwap {
+	switch assetType {
+	case asset.PerpetualSwap:
 		return okxInstTypeSwap
+	case asset.Options:
+		return okxInstTypeOption
+	default:
+		return assetType.String()
 	}
-	return assetType.String()
 }
 
 // GetUnderlying returns the instrument ID for the corresponding asset pairs and asset type( Instrument Type )
@@ -4274,14 +4278,6 @@ func GetAssetTypeFromInstrumentType(instrumentType string) (asset.Item, error) {
 	switch strings.ToUpper(instrumentType) {
 	case okxInstTypeSwap, okxInstTypeContract:
 		return asset.PerpetualSwap, nil
-	case okxInstTypeSpot:
-		return asset.Spot, nil
-	case okxInstTypeFutures:
-		return asset.Futures, nil
-	case okxInstTypeOption:
-		return asset.Option, nil
-	case okxInstTypeMargin:
-		return asset.Margin, nil
 	case okxInstTypeANY:
 		return asset.Empty, nil
 	default:
@@ -4294,11 +4290,11 @@ func (ok *Okx) GuessAssetTypeFromInstrumentID(instrumentID string) (asset.Item, 
 	if strings.HasSuffix(instrumentID, okxInstTypeSwap) {
 		return asset.PerpetualSwap, nil
 	}
-	filter := strings.Split(instrumentID, currency.DashDelimiter)
+	count := strings.Count(instrumentID, currency.DashDelimiter)
 	switch {
-	case len(filter) >= 4:
-		return asset.Option, nil
-	case len(filter) == 3:
+	case count >= 3:
+		return asset.Options, nil
+	case count == 2:
 		return asset.Futures, nil
 	default:
 		pair, err := currency.NewPairFromString(instrumentID)

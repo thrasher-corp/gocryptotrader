@@ -296,7 +296,7 @@ var (
 
 func getDataHistoryJob(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, c.Command.Name)
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var id string
@@ -357,7 +357,7 @@ func getActiveDataHistoryJobs(c *cli.Context) error {
 
 func upsertDataHistoryJob(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, c.Command.Name)
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var (
@@ -399,11 +399,11 @@ func upsertDataHistoryJob(c *cli.Context) error {
 	}
 
 	var s, e time.Time
-	s, err = time.Parse(common.SimpleTimeFormat, startTime)
+	s, err = time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err = time.Parse(common.SimpleTimeFormat, endTime)
+	e, err = time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -504,8 +504,8 @@ func upsertDataHistoryJob(c *cli.Context) error {
 			Base:      p.Base.String(),
 			Quote:     p.Quote.String(),
 		},
-		StartDate:                negateLocalOffset(s),
-		EndDate:                  negateLocalOffset(e),
+		StartDate:                s.Format(common.SimpleTimeFormatWithTimezone),
+		EndDate:                  e.Format(common.SimpleTimeFormatWithTimezone),
 		Interval:                 int64(candleInterval),
 		RequestSizeLimit:         int64(requestSizeLimit),
 		DataType:                 dataType,
@@ -531,7 +531,7 @@ func upsertDataHistoryJob(c *cli.Context) error {
 
 func getDataHistoryJobsBetween(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, c.Command.Name)
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	if c.IsSet("start_date") {
@@ -544,11 +544,11 @@ func getDataHistoryJobsBetween(c *cli.Context) error {
 	} else {
 		endTime = c.Args().Get(1)
 	}
-	s, err := time.Parse(common.SimpleTimeFormat, startTime)
+	s, err := time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err := time.Parse(common.SimpleTimeFormat, endTime)
+	e, err := time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -566,8 +566,8 @@ func getDataHistoryJobsBetween(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetDataHistoryJobsBetween(c.Context,
 		&gctrpc.GetDataHistoryJobsBetweenRequest{
-			StartDate: negateLocalOffset(s),
-			EndDate:   negateLocalOffset(e),
+			StartDate: s.Format(common.SimpleTimeFormatWithTimezone),
+			EndDate:   e.Format(common.SimpleTimeFormatWithTimezone),
 		})
 	if err != nil {
 		return err
@@ -578,7 +578,7 @@ func getDataHistoryJobsBetween(c *cli.Context) error {
 
 func setDataHistoryJobStatus(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, c.Command.Name)
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var id string
@@ -632,7 +632,7 @@ func setDataHistoryJobStatus(c *cli.Context) error {
 
 func getDataHistoryJobSummary(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, c.Command.Name)
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var nickname string
@@ -663,7 +663,7 @@ func getDataHistoryJobSummary(c *cli.Context) error {
 
 func setPrerequisiteJob(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, c.Command.Name)
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var nickname string

@@ -936,13 +936,13 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 
 	var start, end time.Time
 	if r.StartDate != "" {
-		start, err = time.Parse(common.SimpleTimeFormat, r.StartDate)
+		start, err = time.Parse(common.SimpleTimeFormatWithTimezone, r.StartDate)
 		if err != nil {
 			return nil, err
 		}
 	}
 	if r.EndDate != "" {
-		end, err = time.Parse(common.SimpleTimeFormat, r.EndDate)
+		end, err = time.Parse(common.SimpleTimeFormatWithTimezone, r.EndDate)
 		if err != nil {
 			return nil, err
 		}
@@ -1913,11 +1913,11 @@ func (s *RPCServer) WithdrawalEventsByExchange(ctx context.Context, r *gctrpc.Wi
 
 // WithdrawalEventsByDate returns previous withdrawal request details by exchange
 func (s *RPCServer) WithdrawalEventsByDate(_ context.Context, r *gctrpc.WithdrawalEventsByDateRequest) (*gctrpc.WithdrawalEventsByExchangeResponse, error) {
-	start, err := time.Parse(common.SimpleTimeFormat, r.Start)
+	start, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.Start)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
 	}
-	end, err := time.Parse(common.SimpleTimeFormat, r.End)
+	end, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.End)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
 	}
@@ -2353,11 +2353,11 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 
 // GetAuditEvent returns matching audit events from database
 func (s *RPCServer) GetAuditEvent(_ context.Context, r *gctrpc.GetAuditEventRequest) (*gctrpc.GetAuditEventResponse, error) {
-	start, err := time.Parse(common.SimpleTimeFormat, r.StartDate)
+	start, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.StartDate)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
 	}
-	end, err := time.Parse(common.SimpleTimeFormat, r.EndDate)
+	end, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.EndDate)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
 	}
@@ -2401,11 +2401,11 @@ func (s *RPCServer) GetAuditEvent(_ context.Context, r *gctrpc.GetAuditEventRequ
 
 // GetHistoricCandles returns historical candles for a given exchange
 func (s *RPCServer) GetHistoricCandles(ctx context.Context, r *gctrpc.GetHistoricCandlesRequest) (*gctrpc.GetHistoricCandlesResponse, error) {
-	start, err := time.Parse(common.SimpleTimeFormat, r.Start)
+	start, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.Start)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
 	}
-	end, err := time.Parse(common.SimpleTimeFormat, r.End)
+	end, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.End)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
 	}
@@ -2416,7 +2416,6 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, r *gctrpc.GetHistori
 	if r.Pair == nil {
 		return nil, errCurrencyPairUnset
 	}
-
 	pair := currency.Pair{
 		Delimiter: r.Pair.Delimiter,
 		Base:      currency.NewCode(r.Pair.Base),
@@ -3166,11 +3165,11 @@ func (s *RPCServer) GetSavedTrades(_ context.Context, r *gctrpc.GetSavedTradesRe
 		return nil, err
 	}
 
-	start, err := time.Parse(common.SimpleTimeFormat, r.Start)
+	start, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.Start)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
 	}
-	end, err := time.Parse(common.SimpleTimeFormat, r.End)
+	end, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.End)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
 	}
@@ -3209,11 +3208,11 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 	if r.End == "" || r.Start == "" || r.Exchange == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" || r.TimeInterval == 0 {
 		return nil, errInvalidArguments
 	}
-	start, err := time.Parse(common.SimpleTimeFormat, r.Start)
+	start, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.Start)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
 	}
-	end, err := time.Parse(common.SimpleTimeFormat, r.End)
+	end, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.End)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
 	}
@@ -3313,11 +3312,11 @@ func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc
 		return nil, err
 	}
 
-	start, err := time.Parse(common.SimpleTimeFormat, r.Start)
+	start, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.Start)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
 	}
-	end, err := time.Parse(common.SimpleTimeFormat, r.End)
+	end, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.End)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
 	}
@@ -3404,11 +3403,11 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 	if err != nil {
 		return nil, err
 	}
-	start, err := time.Parse(common.SimpleTimeFormat, r.Start)
+	start, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.Start)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
 	}
-	end, err := time.Parse(common.SimpleTimeFormat, r.End)
+	end, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.End)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
 	}
@@ -3522,11 +3521,11 @@ func (s *RPCServer) GetHistoricTrades(r *gctrpc.GetSavedTradesRequest, stream gc
 		return err
 	}
 	var trades []trade.Data
-	start, err := time.Parse(common.SimpleTimeFormat, r.Start)
+	start, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.Start)
 	if err != nil {
 		return fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
 	}
-	end, err := time.Parse(common.SimpleTimeFormat, r.End)
+	end, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.End)
 	if err != nil {
 		return fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
 	}
@@ -3830,11 +3829,11 @@ func (s *RPCServer) UpsertDataHistoryJob(_ context.Context, r *gctrpc.UpsertData
 		return nil, err
 	}
 
-	start, err := time.Parse(common.SimpleTimeFormat, r.StartDate)
+	start, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.StartDate)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
 	}
-	end, err := time.Parse(common.SimpleTimeFormat, r.EndDate)
+	end, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.EndDate)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
 	}
@@ -4001,11 +4000,11 @@ func (s *RPCServer) GetDataHistoryJobsBetween(_ context.Context, r *gctrpc.GetDa
 	if r == nil {
 		return nil, errNilRequestData
 	}
-	start, err := time.Parse(common.SimpleTimeFormat, r.StartDate)
+	start, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.StartDate)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
 	}
-	end, err := time.Parse(common.SimpleTimeFormat, r.EndDate)
+	end, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.EndDate)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
 	}
@@ -4395,13 +4394,13 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 	}
 	var start, end time.Time
 	if r.StartDate != "" {
-		start, err = time.Parse(common.SimpleTimeFormat, r.StartDate)
+		start, err = time.Parse(common.SimpleTimeFormatWithTimezone, r.StartDate)
 		if err != nil {
 			return nil, err
 		}
 	}
 	if r.EndDate != "" {
-		end, err = time.Parse(common.SimpleTimeFormat, r.EndDate)
+		end, err = time.Parse(common.SimpleTimeFormatWithTimezone, r.EndDate)
 		if err != nil {
 			return nil, err
 		}
@@ -4665,13 +4664,13 @@ func (s *RPCServer) GetFundingRates(ctx context.Context, r *gctrpc.GetFundingRat
 	start := time.Now().AddDate(-1, 0, 0)
 	end := time.Now()
 	if r.StartDate != "" {
-		start, err = time.Parse(common.SimpleTimeFormat, r.StartDate)
+		start, err = time.Parse(common.SimpleTimeFormatWithTimezone, r.StartDate)
 		if err != nil {
 			return nil, err
 		}
 	}
 	if r.EndDate != "" {
-		end, err = time.Parse(common.SimpleTimeFormat, r.EndDate)
+		end, err = time.Parse(common.SimpleTimeFormatWithTimezone, r.EndDate)
 		if err != nil {
 			return nil, err
 		}
@@ -5177,13 +5176,13 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 	start := time.Now().AddDate(0, -1, 0)
 	end := time.Now()
 	if r.StartDate != "" {
-		start, err = time.Parse(common.SimpleTimeFormat, r.StartDate)
+		start, err = time.Parse(common.SimpleTimeFormatWithTimezone, r.StartDate)
 		if err != nil {
 			return nil, err
 		}
 	}
 	if r.EndDate != "" {
-		end, err = time.Parse(common.SimpleTimeFormat, r.EndDate)
+		end, err = time.Parse(common.SimpleTimeFormatWithTimezone, r.EndDate)
 		if err != nil {
 			return nil, err
 		}
@@ -5223,7 +5222,7 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 		req.Rates = make([]margin.Rate, len(r.Rates))
 		for i := range r.Rates {
 			var offlineRate margin.Rate
-			offlineRate.Time, err = time.Parse(common.SimpleTimeFormat, r.Rates[i].Time)
+			offlineRate.Time, err = time.Parse(common.SimpleTimeFormatWithTimezone, r.Rates[i].Time)
 			if err != nil {
 				return nil, err
 			}
