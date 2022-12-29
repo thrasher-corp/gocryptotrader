@@ -1037,11 +1037,6 @@ func TestAddPadding(t *testing.T) {
 	}
 
 	k = &Item{}
-	// err = k.addPadding(tn, tn.AddDate(0, 0, 5))
-	// if !errors.Is(err, ErrInsufficientCandleData) {
-	// 	t.Fatalf("received '%v' expected '%v'", err, ErrInsufficientCandleData)
-	// }
-
 	k.Candles = []Candle{
 		{
 			Time:   tn,
