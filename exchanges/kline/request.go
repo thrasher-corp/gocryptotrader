@@ -122,7 +122,10 @@ func (r *Request) ConvertCandles(timeSeries []Candle) (*Item, error) {
 	holder.RemoveDuplicates()
 	holder.RemoveOutsideRange(r.Start, r.End)
 	holder.SortCandlesByTimestamp(false)
-	holder.addPadding(r.Start, r.End)
+	err := holder.addPadding(r.Start, r.End)
+	if err != nil {
+		return nil, err
+	}
 
 	if r.ClientRequired == r.ExchangeInterval {
 		return holder, nil

@@ -1010,7 +1010,7 @@ func TestConvertToNewInterval(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, errCandleDataNotPadded)
 	}
 
-	err = old.addPadding(tn, tn.AddDate(0, 0, 5))
+	err = old.addPadding(tn, tn.AddDate(0, 0, 6))
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
