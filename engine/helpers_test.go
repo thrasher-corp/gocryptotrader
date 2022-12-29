@@ -167,8 +167,12 @@ func TestSetSubsystem(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() u
 			DisableError: subsystem.ErrNotStarted,
 		},
 		{
-			Subsystem:    synchronize.ManagerName,
-			Engine:       &Engine{Config: &config.Config{}},
+			Subsystem: synchronize.ManagerName,
+			Engine: &Engine{Config: &config.Config{
+				Currency: currency.Config{
+					CurrencyPairFormat: &currency.PairFormat{},
+				},
+			}},
 			EnableError:  synchronize.ErrNoItemsEnabled,
 			DisableError: subsystem.ErrNil,
 		},
@@ -178,7 +182,6 @@ func TestSetSubsystem(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() u
 			EnableError:  nil,
 			DisableError: nil,
 		},
-
 		{
 			Subsystem:    DeprecatedName,
 			Engine:       &Engine{Config: &config.Config{}, Settings: Settings{ConfigFile: config.DefaultFilePath()}},
