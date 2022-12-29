@@ -167,25 +167,22 @@ func (k *Item) FillMissingDataWithEmptyEntries(i *IntervalRangeHolder) {
 	}
 }
 
-// AddPadding inserts padding time aligned when exchanges do not supply all data
+// addPadding inserts padding time aligned when exchanges do not supply all data
 // when there is no activity in a certain time interval.
-func (k *Item) AddPadding() error {
+// Start defines the request start and due to potential no activity from this
+// point onwards this needs to be specified. ExclusiveEnd defines the end date
+// which does not include a candle so everything from start can essentially be
+// added with blank spaces.
+func (k *Item) addPadding(start, exclusiveEnd time.Time) error {
 	if k == nil {
 		return errNilKline
-	}
-
-	if len(k.Candles) == 0 {
-		return ErrInsufficientCandleData
 	}
 
 	if k.Interval <= 0 {
 		return ErrInvalidInterval
 	}
 
-	start := k.Candles[0].Time
-	end := k.Candles[len(k.Candles)-1].Time.Add(k.Interval.Duration())
-	window := end.Sub(start)
-
+	window := exclusiveEnd.Sub(start)
 	if window <= 0 {
 		return errCannotEstablishTimeWindow
 	}
@@ -198,7 +195,7 @@ func (k *Item) AddPadding() error {
 	padded := make([]Candle, segments)
 	var target int
 	for x := range padded {
-		if !k.Candles[target].Time.Equal(start) {
+		if target >= len(k.Candles) || !k.Candles[target].Time.Equal(start) {
 			padded[x].Time = start
 		} else {
 			padded[x] = k.Candles[target]
@@ -354,9 +351,13 @@ func (k *Item) ConvertToNewInterval(newInterval Interval) (*Item, error) {
 	start := k.Candles[0].Time
 	end := k.Candles[len(k.Candles)-1].Time.Add(k.Interval.Duration())
 	window := end.Sub(start)
-	segments := int(window / k.Interval.Duration())
-	if segments != len(k.Candles) {
-		return nil, errCandleDataNotPadded
+	if expected := int(window / k.Interval.Duration()); expected != len(k.Candles) {
+		return nil, fmt.Errorf("%w expected candles %d but have only %d when converting from %s to %s interval",
+			errCandleDataNotPadded,
+			expected,
+			len(k.Candles),
+			k.Interval,
+			newInterval)
 	}
 
 	oldIntervalsPerNewCandle := int(newInterval / k.Interval)

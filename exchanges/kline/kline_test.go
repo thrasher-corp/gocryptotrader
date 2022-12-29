@@ -1010,7 +1010,7 @@ func TestConvertToNewInterval(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, errCandleDataNotPadded)
 	}
 
-	err = old.AddPadding()
+	err = old.addPadding(tn, tn.AddDate(0, 0, 5))
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -1028,19 +1028,19 @@ func TestConvertToNewInterval(t *testing.T) {
 func TestAddPadding(t *testing.T) {
 	t.Parallel()
 
+	tn := time.Now().Truncate(time.Duration(OneDay))
+
 	var k *Item
-	err := k.AddPadding()
+	err := k.addPadding(tn, tn.AddDate(0, 0, 5))
 	if !errors.Is(err, errNilKline) {
 		t.Fatalf("received '%v' expected '%v'", err, errNilKline)
 	}
 
 	k = &Item{}
-	err = k.AddPadding()
-	if !errors.Is(err, ErrInsufficientCandleData) {
-		t.Fatalf("received '%v' expected '%v'", err, ErrInsufficientCandleData)
-	}
-
-	tn := time.Now().Truncate(time.Duration(OneDay))
+	// err = k.addPadding(tn, tn.AddDate(0, 0, 5))
+	// if !errors.Is(err, ErrInsufficientCandleData) {
+	// 	t.Fatalf("received '%v' expected '%v'", err, ErrInsufficientCandleData)
+	// }
 
 	k.Candles = []Candle{
 		{
@@ -1052,7 +1052,7 @@ func TestAddPadding(t *testing.T) {
 			Volume: 1337,
 		},
 	}
-	err = k.AddPadding()
+	err = k.addPadding(tn, tn.AddDate(0, 0, 5))
 	if !errors.Is(err, ErrInvalidInterval) {
 		t.Fatalf("received '%v' expected '%v'", err, ErrInvalidInterval)
 	}
@@ -1076,7 +1076,7 @@ func TestAddPadding(t *testing.T) {
 			Volume: 1337,
 		},
 	}
-	err = k.AddPadding()
+	err = k.addPadding(tn.AddDate(0, 0, 5), tn)
 	if !errors.Is(err, errCannotEstablishTimeWindow) {
 		t.Fatalf("received '%v' expected '%v'", err, errCannotEstablishTimeWindow)
 	}
@@ -1107,7 +1107,7 @@ func TestAddPadding(t *testing.T) {
 			Volume: 2520,
 		}}
 
-	err = k.AddPadding()
+	err = k.addPadding(tn, tn.AddDate(0, 0, 3))
 	if !errors.Is(err, nil) {
 		t.Fatalf("received '%v' expected '%v'", err, nil)
 	}
@@ -1125,13 +1125,25 @@ func TestAddPadding(t *testing.T) {
 		Volume: 2520,
 	})
 
-	err = k.AddPadding()
+	err = k.addPadding(tn, tn.AddDate(0, 0, 6))
 	if !errors.Is(err, nil) {
 		t.Fatalf("received '%v' expected '%v'", err, nil)
 	}
 
 	if len(k.Candles) != 6 {
 		t.Fatalf("received '%v' expected '%v'", len(k.Candles), 6)
+	}
+
+	// No candles test when there is zero activity for that period
+	k.Candles = nil
+
+	err = k.addPadding(tn, tn.AddDate(0, 0, 6))
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	if len(k.Candles) != 6 {
+		t.Errorf("received '%v' expected '%v'", len(k.Candles), 6)
 	}
 }
 
