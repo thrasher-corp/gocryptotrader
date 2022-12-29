@@ -240,12 +240,11 @@ func (k *Item) RemoveOutsideRange(start, end time.Time) {
 
 // SortCandlesByTimestamp sorts candles by timestamp
 func (k *Item) SortCandlesByTimestamp(desc bool) {
-	sort.Slice(k.Candles, func(i, j int) bool {
-		if desc {
-			return k.Candles[i].Time.After(k.Candles[j].Time)
-		}
-		return k.Candles[i].Time.Before(k.Candles[j].Time)
-	})
+	if desc {
+		sort.Slice(k.Candles, func(i, j int) bool { return k.Candles[i].Time.After(k.Candles[j].Time) })
+		return
+	}
+	sort.Slice(k.Candles, func(i, j int) bool { return k.Candles[i].Time.Before(k.Candles[j].Time) })
 }
 
 // FormatDates converts all dates to UTC time
