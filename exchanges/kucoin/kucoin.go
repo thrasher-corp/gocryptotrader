@@ -431,7 +431,10 @@ func (ku *Kucoin) GetOutstandingRecord(ctx context.Context, ccy string) ([]Outst
 		params.Set("currency", ccy)
 	}
 	resp := []OutstandingRecord{}
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetOutstandingRecord, params), nil, &resp)
+	incoming := ListCounter{
+		Items: &resp,
+	}
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetOutstandingRecord, params), nil, &incoming)
 }
 
 // GetRepaidRecord gets repaid record information
@@ -440,8 +443,14 @@ func (ku *Kucoin) GetRepaidRecord(ctx context.Context, ccy string) ([]RepaidReco
 	if ccy != "" {
 		params.Set("currency", ccy)
 	}
-	resp := []RepaidRecord{}
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetRepaidRecord, params), nil, &resp)
+	resp := struct {
+		CurrentPage int64          `json:"currentPage"`
+		PageSize    int64          `json:"pageSize"`
+		TotalNumber int64          `json:"totalNum"`
+		TotalPage   int64          `json:"totalPage"`
+		Items       []RepaidRecord `json:"items"`
+	}{}
+	return resp.Items, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetRepaidRecord, params), nil, &resp)
 }
 
 // OneClickRepayment used to compplete repayment in single go
@@ -1088,7 +1097,8 @@ func (ku *Kucoin) GetFills(ctx context.Context, orderID, symbol, side, orderType
 		params.Set("tradeType", tradeType)
 	}
 	var resp []Fill
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetFills, params), nil, &resp)
+	incoming := ListCounter{Items: &resp}
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetFills, params), nil, &incoming)
 }
 
 // GetRecentFills get a list of 1000 fills in last 24 hours
@@ -1245,14 +1255,11 @@ func (ku *Kucoin) GetAllStopOrder(ctx context.Context, symbol, side, orderType, 
 	if pageSize != 0 {
 		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
 	}
-	resp := struct {
-		CurrentPage int64       `json:"currentPage"`
-		PageSize    int64       `json:"pageSize"`
-		TotalNum    int64       `json:"totalNum"`
-		TotalPage   int64       `json:"totalPage"`
-		Items       []StopOrder `json:"items"`
-	}{}
-	return resp.Items, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinStopOrder, params), nil, &resp)
+	resp := []StopOrder{}
+	incoming := ListCounter{
+		Items: &resp,
+	}
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinStopOrder, params), nil, &incoming)
 }
 
 // GetStopOrderByClientID get a stop order information via the clientOID

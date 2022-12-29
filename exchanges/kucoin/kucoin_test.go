@@ -266,7 +266,7 @@ func TestGetBorrowOrder(t *testing.T) {
 	}
 
 	_, err := ku.GetBorrowOrder(context.Background(), "orderID")
-	if err != nil && err.Error() != "Not Found" {
+	if err != nil && !strings.Contains(err.Error(), "Not Found") {
 		t.Error("GetBorrowOrder() error", err)
 	}
 }
@@ -276,7 +276,6 @@ func TestGetOutstandingRecord(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-
 	_, err := ku.GetOutstandingRecord(context.Background(), "BTC")
 	if err != nil {
 		t.Error("GetOutstandingRecord() error", err)
@@ -288,7 +287,7 @@ func TestGetRepaidRecord(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-
+	ku.Verbose = true
 	_, err := ku.GetRepaidRecord(context.Background(), "BTC")
 	if err != nil {
 		t.Error("GetRepaidRecord() error", err)
@@ -728,9 +727,8 @@ func TestGetOrderByID(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-
 	_, err := ku.GetOrderByID(context.Background(), "5c35c02703aa673ceec2a168")
-	if err != nil && err.Error() != "order not exist." {
+	if err != nil && !strings.Contains(err.Error(), "order not exist.") {
 		t.Error("GetOrderByID() error", err)
 	}
 }
@@ -751,7 +749,6 @@ func TestGetFills(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-
 	_, err := ku.GetFills(context.Background(), "", "", "", "", "", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error("GetFills() error", err)
@@ -848,7 +845,7 @@ func TestGetStopOrderByClientID(t *testing.T) {
 
 func TestCancelStopOrderByClientID(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set")
 	}
 

@@ -1284,3 +1284,12 @@ type Response struct {
 	Data interface{} `json:"data"`
 	Error
 }
+
+// ListCounter represents a list unknown list and information about the list.
+type ListCounter struct {
+	CurrentPage int64       `json:"currentPage"`
+	PageSize    int64       `json:"pageSize"`
+	TotalNumber int64       `json:"totalNum"`
+	TatalPage   int64       `json:"totalPage"`
+	Items       interface{} `json:"items"` // lists
+}
