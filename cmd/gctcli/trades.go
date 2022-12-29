@@ -267,11 +267,11 @@ func findMissingSavedTradeIntervals(c *cli.Context) error {
 	}
 
 	var s, e time.Time
-	s, err = time.Parse(common.SimpleTimeFormat, startTime)
+	s, err = time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err = time.Parse(common.SimpleTimeFormat, endTime)
+	e, err = time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -292,8 +292,8 @@ func findMissingSavedTradeIntervals(c *cli.Context) error {
 				Quote:     p.Quote.String(),
 			},
 			AssetType: assetType,
-			Start:     negateLocalOffset(s),
-			End:       negateLocalOffset(e),
+			Start:     s.Format(common.SimpleTimeFormatWithTimezone),
+			End:       e.Format(common.SimpleTimeFormatWithTimezone),
 		})
 	if err != nil {
 		return err
@@ -396,11 +396,11 @@ func getSavedTrades(c *cli.Context) error {
 	}
 
 	var s, e time.Time
-	s, err = time.Parse(common.SimpleTimeFormat, startTime)
+	s, err = time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err = time.Parse(common.SimpleTimeFormat, endTime)
+	e, err = time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -425,8 +425,8 @@ func getSavedTrades(c *cli.Context) error {
 				Quote:     p.Quote.String(),
 			},
 			AssetType: assetType,
-			Start:     negateLocalOffset(s),
-			End:       negateLocalOffset(e),
+			Start:     s.Format(common.SimpleTimeFormatWithTimezone),
+			End:       e.Format(common.SimpleTimeFormatWithTimezone),
 		})
 	if err != nil {
 		return err
@@ -547,11 +547,11 @@ func getHistoricTrades(c *cli.Context) error {
 		}
 	}
 	var s, e time.Time
-	s, err = time.Parse(common.SimpleTimeFormat, startTime)
+	s, err = time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err = time.Parse(common.SimpleTimeFormat, endTime)
+	e, err = time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -577,8 +577,8 @@ func getHistoricTrades(c *cli.Context) error {
 				Quote:     p.Quote.String(),
 			},
 			AssetType: assetType,
-			Start:     negateLocalOffset(s),
-			End:       negateLocalOffset(e),
+			Start:     s.Format(common.SimpleTimeFormatWithTimezone),
+			End:       e.Format(common.SimpleTimeFormatWithTimezone),
 		})
 	if err != nil {
 		return err
@@ -685,11 +685,11 @@ func convertSavedTradesToCandles(c *cli.Context) error {
 
 	candleInterval := time.Duration(candleGranularity) * time.Second
 	var s, e time.Time
-	s, err = time.Parse(common.SimpleTimeFormat, startTime)
+	s, err = time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err = time.Parse(common.SimpleTimeFormat, endTime)
+	e, err = time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -714,8 +714,8 @@ func convertSavedTradesToCandles(c *cli.Context) error {
 				Quote:     p.Quote.String(),
 			},
 			AssetType:    assetType,
-			Start:        negateLocalOffset(s),
-			End:          negateLocalOffset(e),
+			Start:        s.Format(common.SimpleTimeFormatWithTimezone),
+			End:          e.Format(common.SimpleTimeFormatWithTimezone),
 			TimeInterval: int64(candleInterval),
 			Sync:         sync,
 			Force:        force,

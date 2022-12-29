@@ -478,8 +478,8 @@ func TestGetSavedTrades(t *testing.T) {
 			Quote:     currency.USD.String(),
 		},
 		AssetType: asset.Spot.String(),
-		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
-		End:       time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormat),
+		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+		End:       time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
 	})
 	if !errors.Is(err, ErrExchangeNotFound) {
 		t.Error(err)
@@ -492,14 +492,14 @@ func TestGetSavedTrades(t *testing.T) {
 			Quote:     currency.USD.String(),
 		},
 		AssetType: asset.Spot.String(),
-		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
-		End:       time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormat),
+		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+		End:       time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
 	})
 	if err == nil {
 		t.Error(unexpectedLackOfError)
 		return
 	}
-	if err.Error() != "request for Bitstamp spot trade data between 2019-11-30 00:00:00 and 2020-01-01 01:01:01 and returned no results" {
+	if err.Error() != "request for Bitstamp spot trade data between 2019-11-30 00:00:00 UTC and 2020-01-01 01:01:01 UTC and returned no results" {
 		t.Error(err)
 	}
 	err = sqltrade.Insert(sqltrade.Data{
@@ -524,8 +524,8 @@ func TestGetSavedTrades(t *testing.T) {
 			Quote:     currency.USD.String(),
 		},
 		AssetType: asset.Spot.String(),
-		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
-		End:       time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormat),
+		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+		End:       time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
 	})
 	if err != nil {
 		t.Error(err)
@@ -551,8 +551,8 @@ func TestConvertTradesToCandles(t *testing.T) {
 			Quote:     currency.USD.String(),
 		},
 		AssetType:    asset.Spot.String(),
-		Start:        time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
-		End:          time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
+		Start:        time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+		End:          time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
 		TimeInterval: int64(kline.OneHour.Duration()),
 	})
 	if !errors.Is(err, ErrExchangeNotFound) {
@@ -568,8 +568,8 @@ func TestConvertTradesToCandles(t *testing.T) {
 			Quote:     currency.USD.String(),
 		},
 		AssetType:    asset.Spot.String(),
-		Start:        time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
-		End:          time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
+		Start:        time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+		End:          time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
 		TimeInterval: int64(kline.OneHour.Duration()),
 	})
 	if !errors.Is(err, errNoTrades) {
@@ -601,8 +601,8 @@ func TestConvertTradesToCandles(t *testing.T) {
 			Quote:     currency.USD.String(),
 		},
 		AssetType:    asset.Spot.String(),
-		Start:        time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
-		End:          time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
+		Start:        time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+		End:          time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
 		TimeInterval: int64(kline.OneHour.Duration()),
 	})
 	if err != nil {
@@ -621,8 +621,8 @@ func TestConvertTradesToCandles(t *testing.T) {
 			Quote:     currency.USD.String(),
 		},
 		AssetType:    asset.Spot.String(),
-		Start:        time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
-		End:          time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
+		Start:        time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+		End:          time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
 		TimeInterval: int64(kline.OneHour.Duration()),
 		Sync:         true,
 	})
@@ -639,8 +639,8 @@ func TestConvertTradesToCandles(t *testing.T) {
 			Quote:     currency.USD.String(),
 		},
 		AssetType:    asset.Spot.String(),
-		Start:        time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
-		End:          time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
+		Start:        time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+		End:          time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
 		TimeInterval: int64(kline.OneHour.Duration()),
 		Sync:         true,
 		Force:        true,
@@ -658,8 +658,8 @@ func TestConvertTradesToCandles(t *testing.T) {
 			Quote:     currency.USD.String(),
 		},
 		AssetType:    asset.Spot.String(),
-		Start:        time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
-		End:          time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
+		Start:        time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+		End:          time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
 		TimeInterval: int64(kline.OneHour.Duration()),
 		UseDb:        true,
 	})
@@ -686,8 +686,8 @@ func TestGetHistoricCandles(t *testing.T) {
 			Base:  cp.Base.String(),
 			Quote: cp.Quote.String(),
 		},
-		Start:     defaultStart.Format(common.SimpleTimeFormat),
-		End:       defaultEnd.Format(common.SimpleTimeFormat),
+		Start:     defaultStart.Format(common.SimpleTimeFormatWithTimezone),
+		End:       defaultEnd.Format(common.SimpleTimeFormatWithTimezone),
 		AssetType: asset.Spot.String(),
 	})
 	if !errors.Is(err, ErrExchangeNameIsEmpty) {
@@ -700,8 +700,8 @@ func TestGetHistoricCandles(t *testing.T) {
 			Base:  cp.Base.String(),
 			Quote: cp.Quote.String(),
 		},
-		Start:     defaultStart.Format(common.SimpleTimeFormat),
-		End:       defaultEnd.Format(common.SimpleTimeFormat),
+		Start:     defaultStart.Format(common.SimpleTimeFormatWithTimezone),
+		End:       defaultEnd.Format(common.SimpleTimeFormatWithTimezone),
 		AssetType: asset.Spot.String(),
 	})
 	if !errors.Is(err, ErrExchangeNotFound) {
@@ -710,8 +710,8 @@ func TestGetHistoricCandles(t *testing.T) {
 
 	_, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
 		Exchange:  testExchange,
-		Start:     defaultStart.Format(common.SimpleTimeFormat),
-		End:       defaultEnd.Format(common.SimpleTimeFormat),
+		Start:     defaultStart.Format(common.SimpleTimeFormatWithTimezone),
+		End:       defaultEnd.Format(common.SimpleTimeFormatWithTimezone),
 		Pair:      nil,
 		AssetType: asset.Spot.String(),
 	})
@@ -724,8 +724,8 @@ func TestGetHistoricCandles(t *testing.T) {
 			Base:  currency.BTC.String(),
 			Quote: currency.USD.String(),
 		},
-		Start: "2020-01-02 15:04:05",
-		End:   "2020-01-02 15:04:05",
+		Start: "2020-01-02 15:04:05 UTC",
+		End:   "2020-01-02 15:04:05 UTC",
 	})
 	if !errors.Is(err, common.ErrStartEqualsEnd) {
 		t.Errorf("received %v, expected %v", err, common.ErrStartEqualsEnd)
@@ -738,8 +738,8 @@ func TestGetHistoricCandles(t *testing.T) {
 			Base:  cp.Base.String(),
 			Quote: cp.Quote.String(),
 		},
-		Start:        defaultStart.Format(common.SimpleTimeFormat),
-		End:          defaultEnd.Format(common.SimpleTimeFormat),
+		Start:        defaultStart.Format(common.SimpleTimeFormatWithTimezone),
+		End:          defaultEnd.Format(common.SimpleTimeFormatWithTimezone),
 		AssetType:    asset.Spot.String(),
 		TimeInterval: int64(kline.OneHour.Duration()),
 	})
@@ -758,8 +758,8 @@ func TestGetHistoricCandles(t *testing.T) {
 			Quote: cp.Quote.String(),
 		},
 		AssetType:    asset.Spot.String(),
-		Start:        defaultStart.Format(common.SimpleTimeFormat),
-		End:          defaultEnd.Format(common.SimpleTimeFormat),
+		Start:        defaultStart.Format(common.SimpleTimeFormatWithTimezone),
+		End:          defaultEnd.Format(common.SimpleTimeFormatWithTimezone),
 		TimeInterval: int64(kline.OneHour.Duration()),
 		Sync:         true,
 		ExRequest:    true,
@@ -779,8 +779,8 @@ func TestGetHistoricCandles(t *testing.T) {
 			Quote: cp.Quote.String(),
 		},
 		AssetType:    asset.Spot.String(),
-		Start:        defaultStart.Format(common.SimpleTimeFormat),
-		End:          defaultEnd.Format(common.SimpleTimeFormat),
+		Start:        defaultStart.Format(common.SimpleTimeFormatWithTimezone),
+		End:          defaultEnd.Format(common.SimpleTimeFormatWithTimezone),
 		TimeInterval: int64(kline.OneHour.Duration()),
 		UseDb:        true,
 	})
@@ -812,8 +812,8 @@ func TestGetHistoricCandles(t *testing.T) {
 			Quote: cp.Quote.String(),
 		},
 		AssetType:             asset.Spot.String(),
-		Start:                 defaultStart.Format(common.SimpleTimeFormat),
-		End:                   time.Date(2020, 0, 0, 3, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
+		Start:                 defaultStart.Format(common.SimpleTimeFormatWithTimezone),
+		End:                   time.Date(2020, 0, 0, 3, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
 		TimeInterval:          int64(kline.OneHour.Duration()),
 		UseDb:                 true,
 		FillMissingWithTrades: true,
@@ -852,8 +852,8 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 			Base:  cp.Base.String(),
 			Quote: cp.Quote.String(),
 		},
-		Start: defaultStart.UTC().Format(common.SimpleTimeFormat),
-		End:   defaultEnd.UTC().Format(common.SimpleTimeFormat),
+		Start: defaultStart.UTC().Format(common.SimpleTimeFormatWithTimezone),
+		End:   defaultEnd.UTC().Format(common.SimpleTimeFormatWithTimezone),
 	})
 	if err != nil {
 		t.Error(err)
@@ -884,8 +884,8 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 			Base:  cp.Base.String(),
 			Quote: cp.Quote.String(),
 		},
-		Start: defaultStart.In(time.UTC).Format(common.SimpleTimeFormat),
-		End:   defaultEnd.In(time.UTC).Format(common.SimpleTimeFormat),
+		Start: defaultStart.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+		End:   defaultEnd.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
 	})
 	if err != nil {
 		t.Error(err)
@@ -917,8 +917,8 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 			Base:  cp.Base.String(),
 			Quote: cp.Quote.String(),
 		},
-		Start: defaultStart.In(time.UTC).Format(common.SimpleTimeFormat),
-		End:   defaultEnd.In(time.UTC).Format(common.SimpleTimeFormat),
+		Start: defaultStart.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+		End:   defaultEnd.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
 	})
 	if err != nil {
 		t.Error(err)
@@ -955,8 +955,8 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 			Quote: cp.Quote.String(),
 		},
 		Interval: int64(time.Hour),
-		Start:    defaultStart.Format(common.SimpleTimeFormat),
-		End:      defaultEnd.Format(common.SimpleTimeFormat),
+		Start:    defaultStart.Format(common.SimpleTimeFormatWithTimezone),
+		End:      defaultEnd.Format(common.SimpleTimeFormatWithTimezone),
 	})
 	if err != nil && err.Error() != "no candle data found: Bitstamp BTC USD 3600 spot" {
 		t.Error(err)
@@ -993,8 +993,8 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 			Quote: cp.Quote.String(),
 		},
 		Interval: int64(time.Hour),
-		Start:    defaultStart.Format(common.SimpleTimeFormat),
-		End:      defaultEnd.Format(common.SimpleTimeFormat),
+		Start:    defaultStart.Format(common.SimpleTimeFormatWithTimezone),
+		End:      defaultEnd.Format(common.SimpleTimeFormatWithTimezone),
 	})
 	if err != nil {
 		t.Error(err)
@@ -1030,8 +1030,8 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 			Quote: cp.Quote.String(),
 		},
 		Interval: int64(time.Hour),
-		Start:    defaultStart.Format(common.SimpleTimeFormat),
-		End:      defaultEnd.Format(common.SimpleTimeFormat),
+		Start:    defaultStart.Format(common.SimpleTimeFormatWithTimezone),
+		End:      defaultEnd.Format(common.SimpleTimeFormatWithTimezone),
 	})
 	if err != nil {
 		t.Error(err)
@@ -1089,8 +1089,8 @@ func TestGetRecentTrades(t *testing.T) {
 			Quote:     currency.USD.String(),
 		},
 		AssetType: asset.Spot.String(),
-		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
-		End:       time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
+		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+		End:       time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
 	})
 	if !errors.Is(err, ErrExchangeNotFound) {
 		t.Error(err)
@@ -1137,8 +1137,8 @@ func TestGetHistoricTrades(t *testing.T) {
 			Quote:     currency.USD.String(),
 		},
 		AssetType: asset.Spot.String(),
-		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
-		End:       time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
+		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+		End:       time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
 	}, nil)
 	if !errors.Is(err, ErrExchangeNotFound) {
 		t.Error(err)
@@ -1151,8 +1151,8 @@ func TestGetHistoricTrades(t *testing.T) {
 			Quote:     currency.USD.String(),
 		},
 		AssetType: asset.Spot.String(),
-		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
-		End:       time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
+		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+		End:       time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
 	}, &dummyServer{})
 	if err != common.ErrFunctionNotSupported {
 		t.Error(err)
@@ -1299,8 +1299,8 @@ func TestGetOrders(t *testing.T) {
 		Exchange:  exchName,
 		AssetType: asset.Spot.String(),
 		Pair:      p,
-		StartDate: time.Now().UTC().Add(time.Second).Format(common.SimpleTimeFormat),
-		EndDate:   time.Now().UTC().Add(-time.Hour).Format(common.SimpleTimeFormat),
+		StartDate: time.Now().UTC().Add(time.Second).Format(common.SimpleTimeFormatWithTimezone),
+		EndDate:   time.Now().UTC().Add(-time.Hour).Format(common.SimpleTimeFormatWithTimezone),
 	})
 	if !errors.Is(err, common.ErrStartAfterTimeNow) {
 		t.Errorf("received %v, expected %v", err, common.ErrStartAfterTimeNow)
@@ -1310,8 +1310,8 @@ func TestGetOrders(t *testing.T) {
 		Exchange:  exchName,
 		AssetType: asset.Spot.String(),
 		Pair:      p,
-		StartDate: time.Now().UTC().Add(-time.Hour).Format(common.SimpleTimeFormat),
-		EndDate:   time.Now().UTC().Add(time.Hour).Format(common.SimpleTimeFormat),
+		StartDate: time.Now().UTC().Add(-time.Hour).Format(common.SimpleTimeFormatWithTimezone),
+		EndDate:   time.Now().UTC().Add(time.Hour).Format(common.SimpleTimeFormatWithTimezone),
 	})
 	if !errors.Is(err, exchange.ErrCredentialsAreEmpty) {
 		t.Errorf("received '%v', expected '%v'", err, exchange.ErrCredentialsAreEmpty)
@@ -1617,8 +1617,8 @@ func TestRPCServerUpsertDataHistoryJob(t *testing.T) {
 			Base:      "BTC",
 			Quote:     "USD",
 		},
-		StartDate:        time.Now().Add(-time.Hour * 24).Format(common.SimpleTimeFormat),
-		EndDate:          time.Now().Format(common.SimpleTimeFormat),
+		StartDate:        time.Now().Add(-time.Hour * 24).Format(common.SimpleTimeFormatWithTimezone),
+		EndDate:          time.Now().Format(common.SimpleTimeFormatWithTimezone),
 		Interval:         int64(kline.OneHour.Duration()),
 		RequestSizeLimit: 10,
 		DataType:         int64(dataHistoryCandleDataType),
@@ -1795,8 +1795,8 @@ func TestGetDataHistoryJobsBetween(t *testing.T) {
 	}
 
 	_, err = s.GetDataHistoryJobsBetween(context.Background(), &gctrpc.GetDataHistoryJobsBetweenRequest{
-		StartDate: time.Now().UTC().Add(time.Minute).Format(common.SimpleTimeFormat),
-		EndDate:   time.Now().UTC().Format(common.SimpleTimeFormat),
+		StartDate: time.Now().UTC().Add(time.Minute).Format(common.SimpleTimeFormatWithTimezone),
+		EndDate:   time.Now().UTC().Format(common.SimpleTimeFormatWithTimezone),
 	})
 	if !errors.Is(err, common.ErrStartAfterTimeNow) {
 		t.Fatalf("received %v, expected %v", err, common.ErrStartAfterTimeNow)
@@ -1808,8 +1808,8 @@ func TestGetDataHistoryJobsBetween(t *testing.T) {
 	}
 
 	r, err := s.GetDataHistoryJobsBetween(context.Background(), &gctrpc.GetDataHistoryJobsBetweenRequest{
-		StartDate: time.Now().Add(-time.Minute).UTC().Format(common.SimpleTimeFormat),
-		EndDate:   time.Now().Add(time.Minute).UTC().Format(common.SimpleTimeFormat),
+		StartDate: time.Now().Add(-time.Minute).UTC().Format(common.SimpleTimeFormatWithTimezone),
+		EndDate:   time.Now().Add(time.Minute).UTC().Format(common.SimpleTimeFormatWithTimezone),
 	})
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
@@ -1993,6 +1993,7 @@ func TestRPCServer_unixTimestamp(t *testing.T) {
 }
 
 func TestRPCServer_GetTicker_LastUpdatedNanos(t *testing.T) {
+	t.Parallel()
 	// Make a dummy pair we'll be using for this test.
 	pair := currency.NewPairWithDelimiter("XXXXX", "YYYYY", "")
 
@@ -2844,7 +2845,7 @@ func TestGetMarginRatesHistory(t *testing.T) {
 
 	request.Rates = []*gctrpc.MarginRate{
 		{
-			Time:       time.Now().Format(common.SimpleTimeFormat),
+			Time:       time.Now().Format(common.SimpleTimeFormatWithTimezone),
 			HourlyRate: "1337",
 		},
 	}
@@ -2855,7 +2856,7 @@ func TestGetMarginRatesHistory(t *testing.T) {
 
 	request.Rates = []*gctrpc.MarginRate{
 		{
-			Time:           time.Now().Format(common.SimpleTimeFormat),
+			Time:           time.Now().Format(common.SimpleTimeFormatWithTimezone),
 			HourlyRate:     "1337",
 			LendingPayment: &gctrpc.LendingPayment{Size: "1337"},
 			BorrowCost:     &gctrpc.BorrowCost{Size: "1337"},
