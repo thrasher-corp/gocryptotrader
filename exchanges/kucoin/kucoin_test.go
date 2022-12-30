@@ -1742,7 +1742,7 @@ func TestGetOrderHistory(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.Limit,
 		Pairs:     []currency.Pair{currency.NewPair(currency.LTC, currency.BTC), currency.NewPair(currency.MHC, currency.ETH), currency.NewPair(currency.MHC, currency.BTC), currency.NewPair(currency.OXEN, currency.BTC)},
-		AssetType: asset.Spot,
+		AssetType: asset.Futures,
 		Side:      order.Sell,
 	}
 	_, err := ku.GetOrderHistory(context.Background(), &getOrdersRequest)
@@ -1763,7 +1763,7 @@ func TestGetActiveOrders(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.Limit,
 		Pairs:     enabledPairs,
-		AssetType: asset.Spot,
+		AssetType: asset.Futures,
 		Side:      order.Buy,
 	}
 	if _, err = ku.GetActiveOrders(context.Background(), &getOrdersRequest); err != nil {
@@ -2185,7 +2185,7 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-	if _, err := ku.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot); err != nil {
+	if _, err := ku.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Futures); err != nil {
 		t.Errorf("%s GetWithdrawalsHistory() error %v", ku.Name, err)
 	}
 }
@@ -2202,8 +2202,8 @@ func TestGetOrderInfo(t *testing.T) {
 	if len(enabled) == 0 {
 		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
-	_, err = ku.GetOrderInfo(context.Background(), "123", enabled[0], asset.Spot)
-	if err != nil && !strings.Contains(err.Error(), "order not exist.") {
+	_, err = ku.GetOrderInfo(context.Background(), "123", enabled[0], asset.Futures)
+	if err != nil && !strings.Contains(err.Error(), "orderNotExist") {
 		t.Errorf("Kucoin GetOrderInfo() expecting %s, but found %v", "Order does not exist", err)
 	}
 }
