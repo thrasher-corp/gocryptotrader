@@ -644,3 +644,15 @@ func BenchmarkNewCode(b *testing.B) {
 		_ = NewCode("someCode")
 	}
 }
+
+func TestMatchAny(t *testing.T) {
+	if !BTC.MatchAny(USDT, BTC, USD) {
+		t.Errorf("unexpected result, BTC should match the second BTC parameter")
+	}
+	if !BTC.MatchAny(BTC) {
+		t.Errorf("unexpected result, BTC should match the first BTC parameter")
+	}
+	if USDT.MatchAny(BTC) {
+		t.Errorf("unexpected result, USDT should not match BTC")
+	}
+}

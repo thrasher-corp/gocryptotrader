@@ -391,13 +391,11 @@ func (g *Gateio) GetIntervalFromString(interval string) (kline.Interval, error) 
 }
 
 // GetOrderbook returns the orderbook data for a suppled currency pair
-func (g *Gateio) GetOrderbook(ctx context.Context, currencyPair currency.Pair, interval string, limit uint64, withOrderbookID bool) (*Orderbook, error) {
-	if currencyPair.IsEmpty() {
+func (g *Gateio) GetOrderbook(ctx context.Context, pairString, interval string, limit uint64, withOrderbookID bool) (*Orderbook, error) {
+	if pairString == "" {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params := url.Values{}
-	currencyPair.Delimiter = currency.UnderscoreDelimiter
-	pairString := strings.ToUpper(currencyPair.String())
 	params.Set("currency_pair", pairString)
 	if interval != "" {
 		params.Set("interval", interval)
@@ -565,11 +563,7 @@ func (g *Gateio) CreateBatchOrders(ctx context.Context, args []CreateOrderReques
 			return nil, errors.New("only spot, margin, and cross_margin area allowed")
 		}
 		if args[x].Text == "" {
-			text, err := common.GenerateRandomString(10, common.NumberCharacters)
-			if err != nil {
-				return nil, err
-			}
-			args[x].Text = "t-" + text
+			args[x].Text = "t-" + strconv.FormatInt(g.Websocket.Conn.GenerateMessageID(true), 10)
 		}
 		if args[x].Amount <= 0 {
 			return nil, errInvalidAmount
@@ -644,11 +638,7 @@ func (g *Gateio) PlaceSpotOrder(ctx context.Context, arg *CreateOrderRequestData
 		return nil, errors.New("only 'spot', 'cross_margin', and 'margin' area allowed")
 	}
 	if arg.Text == "" {
-		text, err := common.GenerateRandomString(10, common.NumberCharacters)
-		if err != nil {
-			return nil, err
-		}
-		arg.Text = "t-" + text
+		arg.Text = "t-" + strconv.FormatInt(g.Websocket.Conn.GenerateMessageID(true), 10)
 	}
 	if arg.Amount <= 0 {
 		return nil, errInvalidAmount
@@ -2284,8 +2274,8 @@ func (g *Gateio) PlaceFuturesOrder(ctx context.Context, arg *OrderCreateParams) 
 	if arg.Price < 0 {
 		return nil, errInvalidPrice
 	}
-	if arg.Text != "" && !strings.HasPrefix(arg.Text, "t-") {
-		arg.Text = "t-" + arg.Text
+	if arg.Text == "" {
+		arg.Text = "t-" + strconv.FormatInt(g.Websocket.Conn.GenerateMessageID(true), 10)
 	}
 	if arg.AutoSize != "" && (arg.AutoSize == "close_long" || arg.AutoSize == "close_short") {
 		return nil, errInvalidAutoSizeValue
@@ -2934,8 +2924,8 @@ func (g *Gateio) PlaceDeliveryOrder(ctx context.Context, arg *OrderCreateParams)
 	if arg.Price < 0 {
 		return nil, errInvalidPrice
 	}
-	if arg.Text != "" && !strings.HasPrefix(arg.Text, "t-") {
-		arg.Text = "t-" + arg.Text
+	if arg.Text == "" {
+		arg.Text = "t-" + strconv.FormatInt(g.Websocket.Conn.GenerateMessageID(true), 10)
 	}
 	if arg.AutoSize != "" && (arg.AutoSize == "close_long" || arg.AutoSize == "close_short") {
 		return nil, errInvalidAutoSizeValue
@@ -3450,6 +3440,7 @@ func (g *Gateio) PlaceOptionOrder(ctx context.Context, arg OptionOrderParam) (*O
 	if arg.TimeInForce == iocTIF || arg.Price < 0 {
 		arg.Price = 0
 	}
+	arg.Text = "t-" + strconv.FormatInt(g.Websocket.Conn.GenerateMessageID(true), 10)
 	var response OptionOrderResponse
 	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
 		optionsOrders, nil, &arg, &response)

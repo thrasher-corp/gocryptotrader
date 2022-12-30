@@ -769,7 +769,7 @@ type ContractStat struct {
 	LongShortTaker         float64   `json:"lsr_taker"`
 	LongShortAccount       float64   `json:"lsr_account"`
 	LongLiqSize            float64   `json:"long_liq_size"`
-	ShortLiquidiationSize  float64   `json:"short_liq_size"`
+	ShortLiquidationSize   float64   `json:"short_liq_size"`
 	OpenInterest           float64   `json:"open_interest"`
 	ShortLiquidationUsd    float64   `json:"short_liq_usd"`
 	MarkPrice              float64   `json:"mark_price"`

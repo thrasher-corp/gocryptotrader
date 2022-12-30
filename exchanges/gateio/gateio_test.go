@@ -26,8 +26,8 @@ import (
 // Please supply your own APIKEYS here for due diligence testing
 
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	apiKey                  = "6345dcf56e642a63878a29367b67038c"
+	apiSecret               = "d7fbe8eba7b36c5959ea9c1c0f970eed253f8f7a5f1bb34255531cf4f0e90714"
 	canManipulateRealOrders = false
 
 	credInformationNotProvided                                   = "credentials information not provided"
@@ -244,7 +244,11 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GetOrderbook(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "0.1", 10, false); err != nil {
+	enabledPairs, err := g.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = g.GetOrderbook(context.Background(), enabledPairs[0].String(), "0.1", 10, false); err != nil {
 		t.Errorf("%s GetOrderbook() error %v", g.Name, err)
 	}
 }

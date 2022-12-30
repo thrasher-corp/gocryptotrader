@@ -336,3 +336,13 @@ func (c Code) IsCryptocurrency() bool {
 func (c Code) IsStableCurrency() bool {
 	return c.Item != nil && c.Item.Role == Stable
 }
+
+// MatchAny checks if any of the currency codes in the parameter list matches the method calling currency code.
+func (c Code) MatchAny(codes ...Code) bool {
+	for x := range codes {
+		if c.Equal(codes[x]) {
+			return true
+		}
+	}
+	return false
+}
