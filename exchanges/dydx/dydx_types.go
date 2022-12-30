@@ -526,14 +526,14 @@ type AccountResponse struct {
 
 // Account represents a user account instance.
 type Account struct {
-	PositionId         int64               `json:"positionId,string"`
+	PositionID         int64               `json:"positionId,string"`
 	ID                 string              `json:"id"`
 	StarkKey           string              `json:"starkKey"`
 	Equity             string              `json:"equity"`
-	FreeCollateral     string              `json:"freeCollateral"`
-	QuoteBalance       string              `json:"quoteBalance"`
+	FreeCollateral     float64             `json:"freeCollateral,string"`
+	QuoteBalance       float64             `json:"quoteBalance,string"`
 	PendingDeposits    string              `json:"pendingDeposits"`
-	PendingWithdrawals string              `json:"pendingWithdrawals"`
+	PendingWithdrawals float64             `json:"pendingWithdrawals,string"`
 	AccountNumber      string              `json:"accountNumber"`
 	OpenPositions      map[string]Position `json:"openPositions"`
 	CreatedAt          time.Time           `json:"createdAt"`
@@ -551,19 +551,19 @@ type WithdrawalResponse struct {
 
 // TransferResponse represents a user's transfer request response.
 type TransferResponse struct {
-	ID              string      `json:"id"`
-	Type            string      `json:"type"`
-	DebitAsset      string      `json:"debitAsset"`
-	CreditAsset     string      `json:"creditAsset"`
-	DebitAmount     string      `json:"debitAmount"`
-	CreditAmount    string      `json:"creditAmount"`
-	TransactionHash string      `json:"transactionHash"`
-	Status          string      `json:"status"`
-	CreatedAt       time.Time   `json:"createdAt"`
-	ConfirmedAt     time.Time   `json:"confirmedAt"`
-	ClientID        string      `json:"clientId"`
-	FromAddress     string      `json:"fromAddress"`
-	ToAddress       interface{} `json:"toAddress"`
+	ID              string    `json:"id"`
+	Type            string    `json:"type"`
+	DebitAsset      string    `json:"debitAsset"`
+	CreditAsset     string    `json:"creditAsset"`
+	DebitAmount     float64   `json:"debitAmount,string"`
+	CreditAmount    float64   `json:"creditAmount,string"`
+	TransactionHash string    `json:"transactionHash"`
+	Status          string    `json:"status"`
+	CreatedAt       time.Time `json:"createdAt"`
+	ConfirmedAt     time.Time `json:"confirmedAt"`
+	ClientID        string    `json:"clientId"`
+	FromAddress     string    `json:"fromAddress"`
+	ToAddress       string    `json:"toAddress"`
 }
 
 // CreateOrderRequestParams represents parameters for creating a new order.
@@ -592,25 +592,25 @@ type OrderResponse struct {
 
 // Order represents a single order instance.
 type Order struct {
-	ID              string      `json:"id"`
-	ClientID        string      `json:"clientId"`
-	AccountID       string      `json:"accountId"`
-	Market          string      `json:"market"`
-	Side            string      `json:"side"`
-	Price           string      `json:"price"`
-	TriggerPrice    float64     `json:"triggerPrice"`
-	TrailingPercent float64     `json:"trailingPercent"`
-	Size            string      `json:"size"`
-	RemainingSize   string      `json:"remainingSize"`
-	Type            string      `json:"type"`
-	CreatedAt       time.Time   `json:"createdAt"`
-	UnfillableAt    interface{} `json:"unfillableAt"`
-	ExpiresAt       time.Time   `json:"expiresAt"`
-	Status          string      `json:"status"`
-	TimeInForce     string      `json:"timeInForce"`
-	PostOnly        bool        `json:"postOnly"`
-	ReduceOnly      bool        `json:"reduceOnly"`
-	CancelReason    string      `json:"cancelReason"`
+	ID               string      `json:"id"`
+	ClientAssignedID string      `json:"clientId"`
+	AccountID        string      `json:"accountId"`
+	Market           string      `json:"market"`
+	Side             string      `json:"side"`
+	Price            float64     `json:"price,string"`
+	TriggerPrice     float64     `json:"triggerPrice"`
+	TrailingPercent  float64     `json:"trailingPercent"`
+	Size             float64     `json:"size,string"`
+	RemainingSize    float64     `json:"remainingSize,string"`
+	Type             string      `json:"type"`
+	CreatedAt        time.Time   `json:"createdAt"`
+	UnfillableAt     interface{} `json:"unfillableAt"`
+	ExpiresAt        time.Time   `json:"expiresAt"`
+	Status           string      `json:"status"`
+	TimeInForce      string      `json:"timeInForce"`
+	PostOnly         bool        `json:"postOnly"`
+	ReduceOnly       bool        `json:"reduceOnly"`
+	CancelReason     string      `json:"cancelReason"`
 }
 
 // OrderFill represents order fill.
@@ -800,8 +800,8 @@ type PrivateProfile struct {
 	} `json:"affiliateStatistics"`
 }
 
-// WithdrawalParam represents a parameter for asset withdrawal
-type WithdrawalParam struct {
+// FastWithdrawalParam represents a parameter for asset withdrawal
+type FastWithdrawalParam struct {
 	ClientID     string  `json:"clientId,omitempty"`
 	ToAddress    string  `json:"toAddress"`
 	CreditAsset  string  `json:"creditAsset"`
@@ -816,8 +816,8 @@ type WithdrawalParam struct {
 	Signature    string  `json:"signature"`
 }
 
-// FastWithdrawalParam represents a parameter for fast withdrawal
-type FastWithdrawalParam struct {
+// FastWithdrawalRequestParam represents a parameter for fast withdrawal
+type FastWithdrawalRequestParam struct {
 	CreditAsset  string  `json:"creditAsset,string"`
 	CreditAmount float64 `json:"creditAmount,string"`
 	DebitAmount  float64 `json:"debitAmount,string"`
@@ -832,4 +832,13 @@ type TransferParam struct {
 	Signature          string  `json:"signature,omitempty"`
 	ReceiverPublicKey  string  `json:"receiverPublicKey"`
 	ReceiverPositionID string  `json:"receiverPositionID"`
+}
+
+// WithdrawalParam argument struct representing withdrawal request input.
+type WithdrawalParam struct {
+	Amount            float64 `json:"amount,string"`
+	Asset             string  `json:"asset"`
+	Expiration        string  `json:"expiration"`
+	ClientGeneratedID string  `json:"clientId"`
+	Signature         string  `json:"signature"`
 }

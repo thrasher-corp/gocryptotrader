@@ -89,17 +89,18 @@ const (
 )
 
 var (
-	errMissingMarketInstrument  = errors.New("missing market instrument")
-	errInvalidPeriod            = errors.New("invalid period specified")
-	errSortByIsRequired         = errors.New("parameter \"sortBy\" is required")
-	errMissingPublicID          = errors.New("missing user public id")
-	errInvalidSendRequestAction = errors.New("invalid send request action")
-	errInvalidStarkCredentials  = errors.New("invalid stark key credentials")
-	errInvalidTransferType      = errors.New("invalid transfer type")
-	errInvalidAmount            = errors.New("amount must be greater than zero")
-	errInvalidMarket            = errors.New("missing market name")
-	errInvalidSide              = errors.New("invalid order side")
-	errInvalidPrice             = errors.New("invalid order price")
+	errMissingMarketInstrument     = errors.New("missing market instrument")
+	errInvalidPeriod               = errors.New("invalid period specified")
+	errSortByIsRequired            = errors.New("parameter \"sortBy\" is required")
+	errMissingPublicID             = errors.New("missing user public id")
+	errInvalidSendRequestAction    = errors.New("invalid send request action")
+	errInvalidStarkCredentials     = errors.New("invalid stark key credentials")
+	errInvalidTransferType         = errors.New("invalid transfer type")
+	errInvalidAmount               = errors.New("amount must be greater than zero")
+	errInvalidMarket               = errors.New("missing market name")
+	errInvalidSide                 = errors.New("invalid order side")
+	errInvalidPrice                = errors.New("invalid order price")
+	errInvalidExpirationTimeString = errors.New("invalid expiration time string")
 )
 
 // GetMarkets retrives one or all markets as well as metadata about each retrieved market.
@@ -141,7 +142,7 @@ func (dy *DYDX) GetTrades(ctx context.Context, instrument string, startingBefore
 // Given a debitAmount and asset the user wants sent to L1, this endpoint also returns the predicted amount of the desired asset the user will be credited on L1.
 // Given a creditAmount and asset the user wants sent to L1,
 // this endpoint also returns the predicted amount the user will be debited on L2.
-func (dy *DYDX) GetFastWithdrawalLiquidity(ctx context.Context, param FastWithdrawalParam) (map[string]LiquidityProvider, error) {
+func (dy *DYDX) GetFastWithdrawalLiquidity(ctx context.Context, param FastWithdrawalRequestParam) (map[string]LiquidityProvider, error) {
 	params := url.Values{}
 	if param.CreditAsset != "" {
 		params.Set("creditAsset", param.CreditAsset)
@@ -570,11 +571,42 @@ func (dy *DYDX) CreateTransfer(ctx context.Context, param TransferParam) (*Trans
 	return &resp.Transfer, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, transfers, param, &resp)
 }
 
+// CreateWithdrawal create a withdrawal from an account.
+// An additional L1 transaction has to be sent to the Starkware contract to retrieve funds after a slow withdrawal. This cannot be done until the zero-knowledge proof for the block has been constructed and verified on-chain.
+// For the L1 transaction, the Ethereum address that the starkKey is registered to must call either the withdraw or withdrawTo smart-contract functions. The contract ABI is not tied to a particular client but can be accessed via a client. All withdrawable funds are withdrawn at once.
+func (dy *DYDX) CreateWithdrawal(ctx context.Context, arg WithdrawalParam) (*TransferResponse, error) {
+	if arg.Amount <= 0 {
+		return nil, errInvalidAmount
+	}
+	if arg.Asset == "" {
+		return nil, fmt.Errorf("%w parameter: asset", currency.ErrCurrencyCodeEmpty)
+	}
+	if arg.Expiration == "" {
+		return nil, errInvalidExpirationTimeString
+	}
+	if arg.ClientGeneratedID == "" {
+		arg.ClientGeneratedID = strconv.FormatInt(dy.Websocket.Conn.GenerateMessageID(true), 10)
+	}
+	creds, err := dy.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	signature, err := starkex.WithdrawSign(creds.SubAccount, starkex.WithdrawSignParam{
+		NetworkId:   1,
+		HumanAmount: strconv.FormatFloat(arg.Amount, 'f', -1, 64),
+		Expiration:  arg.Expiration,
+		ClientId:    arg.ClientGeneratedID,
+	})
+	arg.Signature = signature
+	var resp *TransferResponse
+	return resp, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, withdrawals, &arg, &resp)
+}
+
 // CreateFastWithdrawal creates a fast withdrawal. Fast withdrawals utilize a withdrawal liquidity provider to send funds immediately and do not require users to wait for a Layer 2 block to be mined.
 // Users do not need to send any Transactions to perform a fast withdrawal.
 // Behind the scenes, the withdrawal liquidity provider will immediately send a transaction to Ethereum which, once mined, will send the user their funds.
 // Users must pay a fee to the liquidity provider for fast withdrawals equal to the greater of the gas fee the provider must pay and 0.1% of the amount of the withdraw.
-func (dy *DYDX) CreateFastWithdrawal(ctx context.Context, param WithdrawalParam) (*TransferResponse, error) {
+func (dy *DYDX) CreateFastWithdrawal(ctx context.Context, param FastWithdrawalParam) (*TransferResponse, error) {
 	if param.CreditAsset == "" {
 		return nil, fmt.Errorf("%w parameter: creditAsset", currency.ErrCurrencyCodeEmpty)
 	}
@@ -606,9 +638,12 @@ func (dy *DYDX) CreateFastWithdrawal(ctx context.Context, param WithdrawalParam)
 		HumanAmount: strconv.FormatFloat(param.CreditAmount, 'f', -1, 64),
 		Expiration:  param.Expiration,
 	})
+	if err != nil {
+		return nil, err
+	}
 	param.Signature = signature
 	var resp WithdrawalResponse
-	return &resp.Withdrawal, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, withdrawals, param, &resp)
+	return &resp.Withdrawal, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, fastWithdrawals, param, &resp)
 }
 
 // CreateNewOrder creates a new order.

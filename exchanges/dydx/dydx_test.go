@@ -10,12 +10,14 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -104,7 +106,7 @@ func TestGetTrades(t *testing.T) {
 
 func TestGetFastWithdrawalLiquidity(t *testing.T) {
 	t.Parallel()
-	if _, err := dy.GetFastWithdrawalLiquidity(context.Background(), FastWithdrawalParam{}); err != nil {
+	if _, err := dy.GetFastWithdrawalLiquidity(context.Background(), FastWithdrawalRequestParam{}); err != nil {
 		t.Error(err)
 	}
 }
@@ -504,7 +506,7 @@ func TestCreateFastWithdrawal(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	input := WithdrawalParam{
+	input := FastWithdrawalParam{
 		CreditAsset:  currency.USDC.String(),
 		CreditAmount: 123,
 		DebitAmount:  100,
@@ -708,5 +710,183 @@ func TestGetPrivateProfile(t *testing.T) {
 	}
 	if _, err := dy.GetPrivateProfile(context.Background()); err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetWithdrawalsHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := dy.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
+	if err == nil {
+		t.Error("GetWithdrawalsHistory() Spot Expected error")
+	}
+}
+
+func TestSubmitOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	var oSpot = &order.Submit{
+		Exchange: "Bybit",
+		Pair: currency.Pair{
+			Delimiter: "-",
+			Base:      currency.LTC,
+			Quote:     currency.BTC,
+		},
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Price:     0.0001,
+		Amount:    10,
+		ClientID:  "newOrder",
+		AssetType: asset.Spot,
+	}
+	_, err := dy.SubmitOrder(context.Background(), oSpot)
+	if err != nil {
+		if strings.TrimSpace(err.Error()) != "Balance insufficient" {
+			t.Error(err)
+		}
+	}
+}
+
+func TestCancelOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+	err := dy.CancelOrder(context.Background(), &order.Cancel{
+		AssetType: asset.Spot,
+		OrderID:   "1234",
+	})
+	if err == nil {
+		t.Error("CancelOrder() Spot Expected error")
+	}
+}
+
+func TestCancelBatchOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	enabledPair, err := dy.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var orderCancellationParams = []order.Cancel{
+		{
+			OrderID:   "1",
+			Side:      order.Sell,
+			Pair:      enabledPair[0],
+			AssetType: asset.Spot,
+		},
+		{
+			OrderID:   "2",
+			Side:      order.Buy,
+			Pair:      enabledPair[1],
+			AssetType: asset.PerpetualSwap,
+		},
+	}
+	_, err = dy.CancelBatchOrders(context.Background(), orderCancellationParams)
+	if err != nil && !strings.Contains(err.Error(), "order does not exist.") {
+		t.Error("CancelBatchOrders() error", err)
+	}
+}
+
+func TestGetOrderInfo(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("GetOrderInfo() skipping test: api keys not set")
+	}
+	enabled, err := dy.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Error("couldn't find enabled tradable pairs")
+	}
+	if len(enabled) == 0 {
+		t.SkipNow()
+	}
+	_, err = dy.GetOrderInfo(context.Background(),
+		"123", enabled[0], asset.Spot)
+	if err != nil && !strings.Contains(err.Error(), "Order does not exist") {
+		t.Errorf("GetOrderInfo() expecting %s, but found %v", "Order does not exist", err)
+	}
+}
+
+func TestCreateWithdrawal(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	_, err := dy.CreateWithdrawal(context.Background(), WithdrawalParam{
+		Asset:      currency.USDC.String(),
+		Expiration: time.Now().Add(time.Hour * 24 * 10).UTC().Format(timeFormat),
+		Amount:     10,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWithdraw(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	withdrawCryptoRequest := withdraw.Request{
+		Exchange: dy.Name,
+		Amount:   100,
+		Currency: currency.BTC,
+		Crypto: withdraw.CryptoRequest{
+			Address: core.BitcoinDonationAddress,
+		},
+	}
+	if _, err := dy.WithdrawCryptocurrencyFunds(context.Background(), &withdrawCryptoRequest); err != nil {
+		t.Error("WithdrawCryptoCurrencyFunds() error", err)
+	}
+}
+
+func TestGetActiveOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	enabledPairs, err := dy.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var getOrdersRequest = order.GetOrdersRequest{
+		Type:      order.Limit,
+		Pairs:     enabledPairs[:3],
+		AssetType: asset.Spot,
+		Side:      order.Buy,
+	}
+	if _, err := dy.GetActiveOrders(context.Background(), &getOrdersRequest); err != nil {
+		t.Error("GetActiveOrders() error", err)
+	}
+}
+
+func TestGetOrderHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	enabledPairs, err := dy.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var getOrdersRequest = order.GetOrdersRequest{
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
+		Side:      order.Buy,
+	}
+	_, err = dy.GetOrderHistory(context.Background(), &getOrdersRequest)
+	if err != nil {
+		t.Error("GetOrderHistory() error", err)
+	}
+	getOrdersRequest.Pairs = enabledPairs[:3]
+	if _, err := dy.GetOrderHistory(context.Background(), &getOrdersRequest); err != nil {
+		t.Error("GetOrderHistory() error", err)
 	}
 }
