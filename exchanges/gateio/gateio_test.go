@@ -26,8 +26,8 @@ import (
 // Please supply your own APIKEYS here for due diligence testing
 
 const (
-	apiKey                  = "6345dcf56e642a63878a29367b67038c"
-	apiSecret               = "d7fbe8eba7b36c5959ea9c1c0f970eed253f8f7a5f1bb34255531cf4f0e90714"
+	apiKey                  = ""
+	apiSecret               = ""
 	canManipulateRealOrders = false
 
 	credInformationNotProvided                                   = "credentials information not provided"
@@ -2388,6 +2388,7 @@ func TestGetActiveOrders(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
 		Pairs:     []currency.Pair{currency.NewPair(currency.USDT, currency.BTC)},
 		Type:      order.AnyType,
+		Side:      order.AnySide,
 		AssetType: asset.Spot,
 	}
 	_, err := g.GetActiveOrders(context.Background(), &getOrdersRequest)

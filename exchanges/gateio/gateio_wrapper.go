@@ -262,7 +262,8 @@ func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 			AssetType:    a,
 		}
 	case asset.Futures:
-		settle, err := g.getSettlementFromCurrency(fPair)
+		var settle string
+		settle, err = g.getSettlementFromCurrency(fPair)
 		if err != nil {
 			return nil, err
 		}
@@ -332,7 +333,8 @@ func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 		}
 		return ticker.GetTicker(g.Name, fPair, a)
 	case asset.DeliveryFutures:
-		settle, err := g.getSettlementFromCurrency(fPair)
+		var settle string
+		settle, err = g.getSettlementFromCurrency(fPair)
 		if err != nil {
 			return nil, err
 		}
@@ -655,13 +657,15 @@ func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 	case asset.Spot, asset.Margin, asset.CrossMargin:
 		orderbookNew, err = g.GetOrderbook(ctx, fPair.String(), "", 0, true)
 	case asset.Futures:
-		settle, err := g.getSettlementFromCurrency(fPair)
+		var settle string
+		settle, err = g.getSettlementFromCurrency(fPair)
 		if err != nil {
 			return nil, err
 		}
 		orderbookNew, err = g.GetFuturesOrderbook(ctx, settle, fPair.Upper().String(), "", 0, true)
 	case asset.DeliveryFutures:
-		settle, err := g.getSettlementFromCurrency(fPair)
+		var settle string
+		settle, err = g.getSettlementFromCurrency(fPair)
 		if err != nil {
 			return nil, err
 		}
@@ -1479,6 +1483,9 @@ func (g *Gateio) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuild
 
 // GetActiveOrders retrieves any orders that are active/open
 func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
 	var orders []order.Detail
 	format, err := g.GetPairFormat(req.AssetType, false)
 	if err != nil {
@@ -1505,9 +1512,6 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 				side, err = order.StringToOrderSide(spotOrders[x].Orders[x].Side)
 				if err != nil {
 					log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
-				}
-				if req.Side != order.AnySide && req.Side != side {
-					continue
 				}
 				var status order.Status
 				status, err = order.StringToOrderStatus(spotOrders[x].Orders[y].Status)
