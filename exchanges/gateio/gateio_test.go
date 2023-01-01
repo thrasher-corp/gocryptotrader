@@ -1063,7 +1063,11 @@ func TestGetFuturesOrderbook(t *testing.T) {
 }
 func TestGetFuturesTradingHistory(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GetFuturesTradingHistory(context.Background(), settleUSDT, currency.NewPair(currency.COMP, currency.USDT), 0, 0, "", time.Time{}, time.Time{}); err != nil {
+	tradablePairs, err := g.FetchTradablePairs(context.Background(), asset.Futures)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := g.GetFuturesTradingHistory(context.Background(), settleUSDT, tradablePairs[0], 0, 0, "", time.Time{}, time.Time{}); err != nil {
 		t.Errorf("%s GetFuturesTradingHistory() error %v", g.Name, err)
 	}
 }
@@ -2447,7 +2451,7 @@ func TestGetAvailableTransferTrains(t *testing.T) {
 
 func TestGetUnderlyingFromCurrencyPair(t *testing.T) {
 	t.Parallel()
-	if uly, err := g.GetUnderlyingFromCurrencyPair(currency.NewPair(currency.BTC, currency.NewCode("USDT_LLK"))); err != nil {
+	if uly, err := g.GetUnderlyingFromCurrencyPair(currency.Pair{Delimiter: currency.UnderscoreDelimiter, Base: currency.BTC, Quote: currency.NewCode("USDT_LLK")}); err != nil {
 		t.Error(err)
 	} else if uly != "BTC_USDT" {
 		t.Error("unexpected underlying")
@@ -2490,8 +2494,10 @@ func TestWsOrderbookTickerPushData(t *testing.T) {
 	}
 }
 
-var wsOrderbookUpdatePushDataJSON = `{	"time": 1606294781,	"channel": "spot.order_book_update",	"event": "update",	"result": {	  "t": 1606294781123,	  "e": "depthUpdate",	  "E": 1606294781,"s": "BTC_USDT","U": 48776301,"u": 48776306,"b": [["19137.74","0.0001"],["19088.37","0"]],"a": [["19137.75","0.6135"]]	}}`
-var wsOrderbookSnapshotPushDataJSON = `{"time":1606295412,"channel": "spot.order_book",	"event": "update",	"result": {	  "t": 1606295412123,	  "lastUpdateId": 48791820,	  "s": "BTC_USDT",	  "bids": [		[		  "19079.55",		  "0.0195"		],		[		  "19079.07",		  "0.7341"],["19076.23",		  "0.00011808"		],		[		  "19073.9",		  "0.105"		],		[		  "19068.83",		  "0.1009"		]	  ],	  "asks": [		[		  "19080.24",		  "0.1638"		],		[		  "19080.91","0.1366"],["19080.92","0.01"],["19081.29","0.01"],["19083.8","0.097"]]}}`
+var (
+	wsOrderbookUpdatePushDataJSON   = `{	"time": 1606294781,	"channel": "spot.order_book_update",	"event": "update",	"result": {	  "t": 1606294781123,	  "e": "depthUpdate",	  "E": 1606294781,"s": "BTC_USDT","U": 48776301,"u": 48776306,"b": [["19137.74","0.0001"],["19088.37","0"]],"a": [["19137.75","0.6135"]]	}}`
+	wsOrderbookSnapshotPushDataJSON = `{"time":1606295412,"channel": "spot.order_book",	"event": "update",	"result": {	  "t": 1606295412123,	  "lastUpdateId": 48791820,	  "s": "BTC_USDT",	  "bids": [		[		  "19079.55",		  "0.0195"		],		[		  "19079.07",		  "0.7341"],["19076.23",		  "0.00011808"		],		[		  "19073.9",		  "0.105"		],		[		  "19068.83",		  "0.1009"		]	  ],	  "asks": [		[		  "19080.24",		  "0.1638"		],		[		  "19080.91","0.1366"],["19080.92","0.01"],["19081.29","0.01"],["19083.8","0.097"]]}}`
+)
 
 func TestWsOrderbookSnapshotPushData(t *testing.T) {
 	t.Parallel()
@@ -2585,9 +2591,11 @@ func TestFuturesCandlestickPushData(t *testing.T) {
 	}
 }
 
-var wsFuturesOrderbookSnapshotJSON = `{    "time": 1664737901,    "channel": "futures.order_book",    "event": "all",    "result": {        "t": 1664737900964,        "id": 3821654062,        "contract": "BTC_USD",        "asks": [            {                "p": "19298.5",                "s": 3000            },            {                "p": "19298.6",                "s": 3350            },            {                "p": "19299.5",                "s": 1457            },            {                "p": "19299.6",                "s": 9554            },            {                "p": "19301.5",                "s": 24100            },            {                "p": "19301.6",                "s": 603            },            {                "p": "19306.1",                "s": 4383            },            {                "p": "19306.7",                "s": 3263            },            {                "p": "19308.8",                "s": 4177            },            {                "p": "19309.1",                "s": 9600            },            {                "p": "19310.3",                "s": 125126            },            {                "p": "19311.7",                "s": 20000            },            {                "p": "19312.7",                "s": 2854            },            {                "p": "19320.3",                "s": 8335            },            {                "p": "19322.9",                "s": 219892            },            {                "p": "19325",                "s": 6204            },            {                "p": "19329.5",                "s": 83333            },            {                "p": "19330.4",                "s": 12171            },            {                "p": "19334.8",                "s": 60000            },            {                "p": "19337.3",                "s": 295085            }        ],        "bids": [            {                "p": "19291.1",                "s": 602            },            {                "p": "19291",                "s": 3350            },            {                "p": "19290",                "s": 3100            },            {                "p": "19289.9",                "s": 1507            },            {                "p": "19289.7",                "s": 27450            },            {                "p": "19284.6",                "s": 8112            },            {                "p": "19280.5",                "s": 3685            },            {                "p": "19277.4",                "s": 9600            },            {                "p": "19276.3",                "s": 826            },            {                "p": "19274.9",                "s": 5371            },            {                "p": "19272",                "s": 4177            },            {                "p": "19270.5",                "s": 54849            },            {                "p": "19267.1",                "s": 20000            },            {                "p": "19264.8",                "s": 1            },            {                "p": "19264.2",                "s": 5371            },            {                "p": "19262",                "s": 83333            },            {                "p": "19260.9",                "s": 138875            },            {                "p": "19258.5",                "s": 8335            },            {                "p": "19255.8",                "s": 2638            },            {                "p": "19253.8",                "s": 12171            }        ]    }}`
-var wsFuturesOrderbookUpdateJSON = `{	"time": 1615366381,	"channel": "futures.order_book_update",	"event": "update",	"error": null,	"result": {	  "t": 1615366381417,	  "s": "BTC_USD",	  "U": 2517661101,	  "u": 2517661113,	  "b": [		{		  "p": "54672.1",		  "s": 0		},		{		  "p": "54664.5",		  "s": 58794		}	  ],	  "a": [		{		  "p": "54743.6",		  "s": 0		},		{		  "p": "54742",		  "s": 95		}	  ]	}}`
-var wsFuturesOrderbookTickerJSON = `{	"time": 1615366379,	"channel": "futures.book_ticker",	"event": "update",	"error": null,	"result": {	  "t": 1615366379123,	  "u": 2517661076,	  "s": "BTC_USD",	  "b": "54696.6",	  "B": 37000,	  "a": "54696.7",	  "A": 47061	}}`
+var (
+	wsFuturesOrderbookSnapshotJSON = `{    "time": 1664737901,    "channel": "futures.order_book",    "event": "all",    "result": {        "t": 1664737900964,        "id": 3821654062,        "contract": "BTC_USD",        "asks": [            {                "p": "19298.5",                "s": 3000            },            {                "p": "19298.6",                "s": 3350            },            {                "p": "19299.5",                "s": 1457            },            {                "p": "19299.6",                "s": 9554            },            {                "p": "19301.5",                "s": 24100            },            {                "p": "19301.6",                "s": 603            },            {                "p": "19306.1",                "s": 4383            },            {                "p": "19306.7",                "s": 3263            },            {                "p": "19308.8",                "s": 4177            },            {                "p": "19309.1",                "s": 9600            },            {                "p": "19310.3",                "s": 125126            },            {                "p": "19311.7",                "s": 20000            },            {                "p": "19312.7",                "s": 2854            },            {                "p": "19320.3",                "s": 8335            },            {                "p": "19322.9",                "s": 219892            },            {                "p": "19325",                "s": 6204            },            {                "p": "19329.5",                "s": 83333            },            {                "p": "19330.4",                "s": 12171            },            {                "p": "19334.8",                "s": 60000            },            {                "p": "19337.3",                "s": 295085            }        ],        "bids": [            {                "p": "19291.1",                "s": 602            },            {                "p": "19291",                "s": 3350            },            {                "p": "19290",                "s": 3100            },            {                "p": "19289.9",                "s": 1507            },            {                "p": "19289.7",                "s": 27450            },            {                "p": "19284.6",                "s": 8112            },            {                "p": "19280.5",                "s": 3685            },            {                "p": "19277.4",                "s": 9600            },            {                "p": "19276.3",                "s": 826            },            {                "p": "19274.9",                "s": 5371            },            {                "p": "19272",                "s": 4177            },            {                "p": "19270.5",                "s": 54849            },            {                "p": "19267.1",                "s": 20000            },            {                "p": "19264.8",                "s": 1            },            {                "p": "19264.2",                "s": 5371            },            {                "p": "19262",                "s": 83333            },            {                "p": "19260.9",                "s": 138875            },            {                "p": "19258.5",                "s": 8335            },            {                "p": "19255.8",                "s": 2638            },            {                "p": "19253.8",                "s": 12171            }        ]    }}`
+	wsFuturesOrderbookUpdateJSON   = `{	"time": 1615366381,	"channel": "futures.order_book_update",	"event": "update",	"error": null,	"result": {	  "t": 1615366381417,	  "s": "BTC_USD",	  "U": 2517661101,	  "u": 2517661113,	  "b": [		{		  "p": "54672.1",		  "s": 0		},		{		  "p": "54664.5",		  "s": 58794		}	  ],	  "a": [		{		  "p": "54743.6",		  "s": 0		},		{		  "p": "54742",		  "s": 95		}	  ]	}}`
+	wsFuturesOrderbookTickerJSON   = `{	"time": 1615366379,	"channel": "futures.book_ticker",	"event": "update",	"error": null,	"result": {	  "t": 1615366379123,	  "u": 2517661076,	  "s": "BTC_USD",	  "b": "54696.6",	  "B": 37000,	  "a": "54696.7",	  "A": 47061	}}`
+)
 
 func TestOrderbookData(t *testing.T) {
 	t.Parallel()
@@ -2639,7 +2647,7 @@ func TestFuturesAutoDeleverges(t *testing.T) {
 	}
 }
 
-var wsFuturesPositionClosePushDataJSON = ` {	"channel": "futures.position_closes",	"event": "update",	"time": 1541505434,	"result": [	  {		"contract": "BTC_USD",		"pnl": -0.000624354791,		"side": "long",		"text": "web",		"time": 1547198562,		"time_ms": 1547198562123,		"user": "211xxxx"	  }	]}`
+var wsFuturesPositionClosePushDataJSON = ` {"channel": "futures.position_closes",	"event": "update",	"time": 1541505434,	"result": [	  {		"contract": "BTC_USD",		"pnl": -0.000624354791,		"side": "long",		"text": "web",		"time": 1547198562,		"time_ms": 1547198562123,		"user": "211xxxx"	  }	]}`
 
 func TestPositionClosePushData(t *testing.T) {
 	t.Parallel()
@@ -2648,7 +2656,7 @@ func TestPositionClosePushData(t *testing.T) {
 	}
 }
 
-var wsFuturesBalanceNotificationPushDataJSON = `{	"channel": "futures.balances",	"event": "update",	"time": 1541505434,	"result": [	  {		"balance": 9.998739899488,		"change": -0.000002074115,		"text": "BTC_USD:3914424",		"time": 1547199246,		"time_ms": 1547199246123,		"type": "fee",		"user": "211xxx"	  }	]}`
+var wsFuturesBalanceNotificationPushDataJSON = `{"channel": "futures.balances",	"event": "update",	"time": 1541505434,	"result": [	  {		"balance": 9.998739899488,		"change": -0.000002074115,		"text": "BTC_USD:3914424",		"time": 1547199246,		"time_ms": 1547199246123,		"type": "fee",		"user": "211xxx"	  }	]}`
 
 func TestFuturesBalanceNotification(t *testing.T) {
 	t.Parallel()
@@ -2657,7 +2665,7 @@ func TestFuturesBalanceNotification(t *testing.T) {
 	}
 }
 
-var wsFuturesReduceRiskLimitNotificationPushDataJSON = `{	"time": 1551858330,	"channel": "futures.reduce_risk_limits",	"event": "update",	"error": null,	"result": [	  {		"cancel_orders": 0,		"contract": "ETH_USD",		"leverage_max": 10,		"liq_price": 136.53,		"maintenance_rate": 0.09,		"risk_limit": 450,		"time": 1551858330,		"time_ms": 1551858330123,		"user": "20011"	  }	]}`
+var wsFuturesReduceRiskLimitNotificationPushDataJSON = `{"time": 1551858330,	"channel": "futures.reduce_risk_limits",	"event": "update",	"error": null,	"result": [	  {		"cancel_orders": 0,		"contract": "ETH_USD",		"leverage_max": 10,		"liq_price": 136.53,		"maintenance_rate": 0.09,		"risk_limit": 450,		"time": 1551858330,		"time_ms": 1551858330123,		"user": "20011"	  }	]}`
 
 func TestFuturesReduceRiskLimitPushData(t *testing.T) {
 	t.Parallel()
@@ -2675,7 +2683,7 @@ func TestFuturesPositionsNotification(t *testing.T) {
 	}
 }
 
-var wsFuturesAutoOrdersPushDataJSON = `{	"time": 1596798126,	"channel": "futures.autoorders",	"event": "update",	"error": null,	"result": [	  {		"user": 123456,		"trigger": {		  "strategy_type": 0,		  "price_type": 0,		  "price": "10000",		  "rule": 2,		  "expiration": 86400		},		"initial": {		  "contract": "BTC_USDT",		  "size": 10,		  "price": "10000",		  "tif": "gtc",		  "text": "web",		  "iceberg": 0,		  "is_close": false,		  "is_reduce_only": false		},		"id": 9256,		"trade_id": 0,		"status": "open",		"reason": "",		"create_time": 1596798126,		"name": "price_autoorders",		"is_stop_order": false,		"stop_trigger": {		  "rule": 0,		  "trigger_price": "",		  "order_price": ""		}	  }	]}`
+var wsFuturesAutoOrdersPushDataJSON = `{"time": 1596798126,	"channel": "futures.autoorders",	"event": "update",	"error": null,	"result": [	  {		"user": 123456,		"trigger": {		  "strategy_type": 0,		  "price_type": 0,		  "price": "10000",		  "rule": 2,		  "expiration": 86400		},		"initial": {		  "contract": "BTC_USDT",		  "size": 10,		  "price": "10000",		  "tif": "gtc",		  "text": "web",		  "iceberg": 0,		  "is_close": false,		  "is_reduce_only": false		},		"id": 9256,		"trade_id": 0,		"status": "open",		"reason": "",		"create_time": 1596798126,		"name": "price_autoorders",		"is_stop_order": false,		"stop_trigger": {		  "rule": 0,		  "trigger_price": "",		  "order_price": ""		}	  }	]}`
 
 func TestFuturesAutoOrderPushData(t *testing.T) {
 	t.Parallel()
@@ -2686,7 +2694,7 @@ func TestFuturesAutoOrderPushData(t *testing.T) {
 
 // ******************************************** Options web-socket unit test funcs ********************
 
-var optionsContractTickerPushDataJSON = `{	"time": 1630576352,	"channel": "options.contract_tickers",	"event": "update",	"result": {    "name": "BTC_USDT-20211231-59800-P",    "last_price": "11349.5",    "mark_price": "11170.19",    "index_price": "",    "position_size": 993,    "bid1_price": "10611.7",    "bid1_size": 100,    "ask1_price": "11728.7",    "ask1_size": 100,    "vega": "34.8731",    "theta": "-72.80588",    "rho": "-28.53331",    "gamma": "0.00003",    "delta": "-0.78311",    "mark_iv": "0.86695",    "bid_iv": "0.65481",    "ask_iv": "0.88145",    "leverage": "3.5541112718136"	}}`
+var optionsContractTickerPushDataJSON = `{"time": 1630576352,	"channel": "options.contract_tickers",	"event": "update",	"result": {    "name": "BTC_USDT-20211231-59800-P",    "last_price": "11349.5",    "mark_price": "11170.19",    "index_price": "",    "position_size": 993,    "bid1_price": "10611.7",    "bid1_size": 100,    "ask1_price": "11728.7",    "ask1_size": 100,    "vega": "34.8731",    "theta": "-72.80588",    "rho": "-28.53331",    "gamma": "0.00003",    "delta": "-0.78311",    "mark_iv": "0.86695",    "bid_iv": "0.65481",    "ask_iv": "0.88145",    "leverage": "3.5541112718136"	}}`
 
 func TestOptionsContractTickerPushData(t *testing.T) {
 	t.Parallel()
@@ -2695,7 +2703,7 @@ func TestOptionsContractTickerPushData(t *testing.T) {
 	}
 }
 
-var optionsUnderlyingTickerPushDataJSON = `{	"time": 1630576352,	"channel": "options.ul_tickers",	"event": "update",	"result": {	   "trade_put": 800,	   "trade_call": 41700,	   "index_price": "50695.43",	   "name": "BTC_USDT"	}}`
+var optionsUnderlyingTickerPushDataJSON = `{"time": 1630576352,	"channel": "options.ul_tickers",	"event": "update",	"result": {	   "trade_put": 800,	   "trade_call": 41700,	   "index_price": "50695.43",	   "name": "BTC_USDT"	}}`
 
 func TestOptionsUnderlyingTickerPushData(t *testing.T) {
 	t.Parallel()
@@ -2704,7 +2712,7 @@ func TestOptionsUnderlyingTickerPushData(t *testing.T) {
 	}
 }
 
-var optionsContractTradesPushDataJSON = `{	"time": 1630576356,	"channel": "options.trades",	"event": "update",	"result": [    {        "contract": "BTC_USDT-20211231-59800-C",        "create_time": 1639144526,        "id": 12279,        "price": 997.8,        "size": -100,        "create_time_ms": 1639144526597,        "underlying": "BTC_USDT"    }	]}`
+var optionsContractTradesPushDataJSON = `{"time": 1630576356,	"channel": "options.trades",	"event": "update",	"result": [    {        "contract": "BTC_USDT-20211231-59800-C",        "create_time": 1639144526,        "id": 12279,        "price": 997.8,        "size": -100,        "create_time_ms": 1639144526597,        "underlying": "BTC_USDT"    }	]}`
 
 func TestOptionsContractTradesPushData(t *testing.T) {
 	t.Parallel()
@@ -2758,8 +2766,10 @@ func TestOptionsContractPushData(t *testing.T) {
 	}
 }
 
-var optionsContractCandlesticksPushDataJSON = `{	"time": 1630650451,	"channel": "options.contract_candlesticks",	"event": "update",	"result": [   {       "t": 1639039260,       "v": 100,       "c": "1041.4",       "h": "1041.4",       "l": "1041.4",       "o": "1041.4",       "a": "0",       "n": "10s_BTC_USDT-20211231-59800-C"   }	]}`
-var optionsUnderlyingCandlesticksPushDataJSON = `{	"time": 1630650451,	"channel": "options.ul_candlesticks",	"event": "update",	"result": [    {        "t": 1639039260,        "v": 100,        "c": "1041.4",        "h": "1041.4",        "l": "1041.4",        "o": "1041.4",        "a": "0",        "n": "10s_BTC_USDT"    }	]}`
+var (
+	optionsContractCandlesticksPushDataJSON   = `{	"time": 1630650451,	"channel": "options.contract_candlesticks",	"event": "update",	"result": [   {       "t": 1639039260,       "v": 100,       "c": "1041.4",       "h": "1041.4",       "l": "1041.4",       "o": "1041.4",       "a": "0",       "n": "10s_BTC_USDT-20211231-59800-C"   }	]}`
+	optionsUnderlyingCandlesticksPushDataJSON = `{	"time": 1630650451,	"channel": "options.ul_candlesticks",	"event": "update",	"result": [    {        "t": 1639039260,        "v": 100,        "c": "1041.4",        "h": "1041.4",        "l": "1041.4",        "o": "1041.4",        "a": "0",        "n": "10s_BTC_USDT"    }	]}`
+)
 
 func TestOptionsCandlesticksPushData(t *testing.T) {
 	t.Parallel()
@@ -2771,10 +2781,12 @@ func TestOptionsCandlesticksPushData(t *testing.T) {
 	}
 }
 
-var optionsOrderbookTickerPushDataJSON = `{	"time": 1630650452,	"channel": "options.book_ticker",	"event": "update",	"result": {    "t": 1615366379123,    "u": 2517661076,    "s": "BTC_USDT-20211130-50000-C",    "b": "54696.6",    "B": 37000,    "a": "54696.7",    "A": 47061	}}`
-var optionsOrderbookUpdatePushDataJSON = `{	"time": 1630650445,	"channel": "options.order_book_update",	"event": "update",	"result": {    "t": 1615366381417,    "s": "BTC_USDT-20211130-50000-C",    "U": 2517661101,    "u": 2517661113,    "b": [        {            "p": "54672.1",            "s": 95        },        {            "p": "54664.5",            "s": 58794        }    ],    "a": [        {            "p": "54743.6",            "s": 95        },        {            "p": "54742",            "s": 95        }    ]	}}`
-var optionsOrderbookSnapshotPushDataJSON = `{	"time": 1630650445,	"channel": "options.order_book",	"event": "all",	"result": {    "t": 1541500161123,    "contract": "BTC_USDT-20211130-50000-C",    "id": 93973511,    "asks": [        {            "p": "97.1",            "s": 2245        },		{            "p": "97.2",            "s": 2245        }    ],    "bids": [		{            "p": "97.2",            "s": 2245        },        {            "p": "97.1",            "s": 2245        }    ]	}}`
-var optionsOrderbookSnapshotUpdateEventPushDataJSON = `{"channel": "options.order_book",	"event": "update",	"time": 1630650445,	"result": [	  {		"p": "49525.6",		"s": 7726,		"c": "BTC_USDT-20211130-50000-C",		"id": 93973511	  }	]}`
+var (
+	optionsOrderbookTickerPushDataJSON              = `{	"time": 1630650452,	"channel": "options.book_ticker",	"event": "update",	"result": {    "t": 1615366379123,    "u": 2517661076,    "s": "BTC_USDT-20211130-50000-C",    "b": "54696.6",    "B": 37000,    "a": "54696.7",    "A": 47061	}}`
+	optionsOrderbookUpdatePushDataJSON              = `{	"time": 1630650445,	"channel": "options.order_book_update",	"event": "update",	"result": {    "t": 1615366381417,    "s": "BTC_USDT-20211130-50000-C",    "U": 2517661101,    "u": 2517661113,    "b": [        {            "p": "54672.1",            "s": 95        },        {            "p": "54664.5",            "s": 58794        }    ],    "a": [        {            "p": "54743.6",            "s": 95        },        {            "p": "54742",            "s": 95        }    ]	}}`
+	optionsOrderbookSnapshotPushDataJSON            = `{	"time": 1630650445,	"channel": "options.order_book",	"event": "all",	"result": {    "t": 1541500161123,    "contract": "BTC_USDT-20211130-50000-C",    "id": 93973511,    "asks": [        {            "p": "97.1",            "s": 2245        },		{            "p": "97.2",            "s": 2245        }    ],    "bids": [		{            "p": "97.2",            "s": 2245        },        {            "p": "97.1",            "s": 2245        }    ]	}}`
+	optionsOrderbookSnapshotUpdateEventPushDataJSON = `{"channel": "options.order_book",	"event": "update",	"time": 1630650445,	"result": [	  {		"p": "49525.6",		"s": 7726,		"c": "BTC_USDT-20211130-50000-C",		"id": 93973511	  }	]}`
+)
 
 func TestOptionsOrderbookPushData(t *testing.T) {
 	t.Parallel()
@@ -2829,7 +2841,7 @@ func TestOptionsSettlementPushData(t *testing.T) {
 	}
 }
 
-var optionsPositionClosePushDataJSON = `{	"channel": "options.position_closes",	"event": "update",	"time": 1630654851,	"result": [{"contract": "BTC_USDT-20211130-50000-C","pnl": -0.0056,"settle_size": 0,"side": "long","text": "web","underlying": "BTC_USDT","user": "11xxxxx","time": 1639051907,"time_ms": 1639051907000}]}`
+var optionsPositionClosePushDataJSON = `{"channel": "options.position_closes",	"event": "update",	"time": 1630654851,	"result": [{"contract": "BTC_USDT-20211130-50000-C","pnl": -0.0056,"settle_size": 0,"side": "long","text": "web","underlying": "BTC_USDT","user": "11xxxxx","time": 1639051907,"time_ms": 1639051907000}]}`
 
 func TestOptionsPositionClosePushData(t *testing.T) {
 	t.Parallel()
@@ -2847,7 +2859,7 @@ func TestOptionsBalancePushData(t *testing.T) {
 	}
 }
 
-var optionsPositionPushDataJSON = `{	"time": 1630654851,	"channel": "options.positions",	"event": "update",	"error": null,	"result": [	   {		  "entry_price": 0,		  "realised_pnl": -13.028,		  "size": 0,		  "contract": "BTC_USDT-20211130-65000-C",		  "user": "9010",		  "time": 1639051907,		  "time_ms": 1639051907000	   }	]}`
+var optionsPositionPushDataJSON = `{"time": 1630654851,	"channel": "options.positions",	"event": "update",	"error": null,	"result": [	   {		  "entry_price": 0,		  "realised_pnl": -13.028,		  "size": 0,		  "contract": "BTC_USDT-20211130-65000-C",		  "user": "9010",		  "time": 1639051907,		  "time_ms": 1639051907000	   }	]}`
 
 func TestOptionsPositionPushData(t *testing.T) {
 	t.Parallel()
