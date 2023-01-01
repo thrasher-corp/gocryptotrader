@@ -64,14 +64,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// Ensures that this exchange package is compatible with IBotExchange
-func TestInterface(t *testing.T) {
-	var e exchange.IBotExchange
-	if e = new(DYDX); e == nil {
-		t.Fatal("unable to allocate exchange")
-	}
-}
-
 func areTestAPIKeysSet() bool {
 	return dy.ValidateAPICredentials(dy.GetDefaultCredentials()) == nil
 }
@@ -234,7 +226,7 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	if _, err := dy.GetHistoricTrades(context.Background(), currency.NewPair(currency.BTC, currency.USD), asset.Spot, time.Time{} /*Now().Add(-time.Minute*4)*/, time.Now().Add(-time.Minute*2)); err != nil {
+	if _, err := dy.GetHistoricTrades(context.Background(), currency.NewPair(currency.BTC, currency.USD), asset.Spot, time.Time{}, time.Now().Add(-time.Minute*2)); err != nil {
 		t.Errorf("%s GetHistoricTrades() error %v", dy.Name, err)
 	}
 }
@@ -293,6 +285,7 @@ func TestWsConnect(t *testing.T) {
 	if err := dy.WsConnect(); err != nil {
 		t.Error(err)
 	}
+	time.Sleep(time.Second * 20)
 }
 
 func setupWS() {
@@ -369,7 +362,7 @@ func TestUpdateusers(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := dy.Updateusers(context.Background(), UpdateUserParams{
+	if _, err := dy.Updateusers(context.Background(), &UpdateUserParams{
 		IsSharingUsername: true,
 		IsSharingAddress:  true,
 	}); err != nil {
@@ -488,7 +481,7 @@ func TestCreateTransfers(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := dy.CreateTransfer(context.Background(), TransferParam{
+	if _, err := dy.CreateTransfer(context.Background(), &TransferParam{
 		Amount:             123,
 		ClientID:           "141324",
 		Expiration:         time.Now().Add(time.Hour * 24 * 4).UTC().Format(timeFormat),
@@ -510,11 +503,11 @@ func TestCreateFastWithdrawal(t *testing.T) {
 		CreditAsset:  currency.USDC.String(),
 		CreditAmount: 123,
 		DebitAmount:  100,
-		LpPositionId: 1,
+		LPPositionID: 1,
 		Expiration:   time.Time{}.UTC().Format(timeFormat),
 		ClientID:     "",
 	}
-	if _, err := dy.CreateFastWithdrawal(context.Background(), input); err != nil {
+	if _, err := dy.CreateFastWithdrawal(context.Background(), &input); err != nil {
 		t.Error(err)
 	}
 }
@@ -524,7 +517,7 @@ func TestCreateNewOrder(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := dy.CreateNewOrder(context.Background(), CreateOrderRequestParams{
+	if _, err := dy.CreateNewOrder(context.Background(), &CreateOrderRequestParams{
 		Market:       "BTC-USD",
 		Side:         order.Buy.String(),
 		Type:         order.Limit.String(),
@@ -888,5 +881,20 @@ func TestGetOrderHistory(t *testing.T) {
 	getOrdersRequest.Pairs = enabledPairs[:3]
 	if _, err := dy.GetOrderHistory(context.Background(), &getOrdersRequest); err != nil {
 		t.Error("GetOrderHistory() error", err)
+	}
+}
+
+func TestGetFeeByType(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := dy.GetFeeByType(context.Background(), &exchange.FeeBuilder{
+		Amount:        10000,
+		FeeType:       exchange.CryptocurrencyTradeFee,
+		PurchasePrice: 1000000,
+		IsMaker:       true,
+	}); err != nil {
+		t.Errorf("GetFeeByType() error %v", err)
 	}
 }

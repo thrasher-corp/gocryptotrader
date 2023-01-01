@@ -104,12 +104,14 @@ func (dy *DYDX) SetDefaults() {
 	}
 
 	dy.API.Endpoints = dy.NewEndpoints()
-	dy.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+	err = dy.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:              dydxAPIURL,
 		exchange.RestSpotSupplementary: dydxOnlySignOnDomainMainnet,
 		exchange.WebsocketSpot:         dydxWSAPIURL,
 	})
-
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	dy.Websocket = stream.New()
 	dy.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	dy.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -150,12 +152,11 @@ func (dy *DYDX) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	dy.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return dy.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  dy.Websocket.GetWebsocketURL(),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
-	return nil
 }
 
 // Start starts the Dydx go routine
@@ -205,7 +206,7 @@ func (dy *DYDX) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.
 	}
 	pairs := make(currency.Pairs, len(instruments.Markets))
 	count := 0
-	for key, _ := range instruments.Markets {
+	for key := range instruments.Markets {
 		cp, err := currency.NewPairFromString(key)
 		if err != nil {
 			return nil, err
@@ -403,7 +404,7 @@ func (dy *DYDX) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, 
 	for x := range transfers.Transfers {
 		switch transfers.Transfers[x].Type {
 		case "DEPOSIT":
-			fundingDatas = append(fundingDatas, exchange.FundHistory{
+			fundingDatas[x] = exchange.FundHistory{
 				Timestamp:         transfers.Transfers[x].CreatedAt,
 				TransferType:      transfers.Transfers[x].Type,
 				ExchangeName:      dy.Name,
@@ -413,9 +414,9 @@ func (dy *DYDX) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, 
 				Status:            transfers.Transfers[x].Status,
 				Amount:            transfers.Transfers[x].CreditAmount,
 				Currency:          transfers.Transfers[x].CreditAsset,
-			})
+			}
 		case "WITHDRAWAL", "FAST_WITHDRAWAL":
-			fundingDatas = append(fundingDatas, exchange.FundHistory{
+			fundingDatas[x] = exchange.FundHistory{
 				Timestamp:         transfers.Transfers[x].CreatedAt,
 				TransferType:      transfers.Transfers[x].Type,
 				ExchangeName:      dy.Name,
@@ -425,7 +426,7 @@ func (dy *DYDX) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, 
 				Status:            transfers.Transfers[x].Status,
 				Amount:            transfers.Transfers[x].DebitAmount,
 				Currency:          transfers.Transfers[x].DebitAsset,
-			})
+			}
 		}
 	}
 	return fundingDatas, nil
@@ -476,7 +477,8 @@ func (dy *DYDX) GetRecentTrades(ctx context.Context, p currency.Pair, assetType 
 	}
 	resp := make([]trade.Data, len(trades))
 	for x := range trades {
-		side, err := order.StringToOrderSide(trades[x].Side)
+		var side order.Side
+		side, err = order.StringToOrderSide(trades[x].Side)
 		if err != nil {
 			return nil, err
 		}
@@ -519,7 +521,8 @@ func (dy *DYDX) GetHistoricTrades(ctx context.Context, p currency.Pair, assetTyp
 	}
 	resp := make([]trade.Data, len(trades))
 	for x := range trades {
-		side, err := order.StringToOrderSide(trades[x].Side)
+		var side order.Side
+		side, err = order.StringToOrderSide(trades[x].Side)
 		if err != nil {
 			return nil, err
 		}
@@ -552,7 +555,7 @@ func (dy *DYDX) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 	if err != nil {
 		return nil, err
 	}
-	ord, err := dy.CreateNewOrder(ctx, CreateOrderRequestParams{
+	ord, err := dy.CreateNewOrder(ctx, &CreateOrderRequestParams{
 		Market:     formattedPair.String(),
 		Side:       s.Side.Lower(),
 		Type:       s.Type.Lower(),
@@ -575,9 +578,9 @@ func (dy *DYDX) ModifyOrder(ctx context.Context, action *order.Modify) (*order.M
 
 // CancelOrder cancels an order by its corresponding ID number
 func (dy *DYDX) CancelOrder(ctx context.Context, ord *order.Cancel) error {
-	// if err := ord.Validate(ord.StandardCancel()); err != nil {
-	// 	return err
-	// }
+	if err := ord.Validate(ord.StandardCancel()); err != nil {
+		return err
+	}
 	if ord.OrderID == "" {
 		return errors.New("Order ID is required")
 	}
@@ -672,11 +675,12 @@ func (dy *DYDX) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pai
 		Status:          orderStatus,
 		Side:            orderSide,
 		Type:            orderType,
+		Fee:             orderDetail.LimitFee,
 	}, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (dy *DYDX) GetDepositAddress(ctx context.Context, c currency.Code, accountID string, chain string) (*deposit.Address, error) {
+func (dy *DYDX) GetDepositAddress(ctx context.Context, c currency.Code, accountID, chain string) (*deposit.Address, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -762,6 +766,7 @@ func (dy *DYDX) GetActiveOrders(ctx context.Context, getOrdersRequest *order.Get
 				Status:          orderStatus,
 				Type:            orderType,
 				Side:            orderSide,
+				Fee:             orders[x].LimitFee,
 			})
 		}
 	}
@@ -837,16 +842,35 @@ func (dy *DYDX) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Get
 			Status:          orderStatus,
 			Type:            orderType,
 			Side:            orderSide,
+			Fee:             orders[x].LimitFee,
 		})
 	}
 	return getOrdersRequest.Filter(dy.Name, filteredOrders), nil
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
+// https://dydxprotocol.github.io/v3-teacher/?json#order-limitfee
 func (dy *DYDX) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
-
-	// https://dydxprotocol.github.io/v3-teacher/?json#order-limitfee
-	return 0, common.ErrNotYetImplemented
+	var fee float64
+	if !dy.IsRESTAuthenticationSupported() {
+		return fee, errors.New("order limit fee is authenticated")
+	}
+	user, err := dy.GetUsers(ctx)
+	if err != nil {
+		return fee, err
+	}
+	switch {
+	case feeBuilder.IsMaker, feeBuilder.PostOnly:
+		fee = user.User.MakerFeeRate * feeBuilder.Amount * feeBuilder.PurchasePrice
+	case !feeBuilder.IsMaker,
+		feeBuilder.OrderType == order.FillOrKill ||
+			feeBuilder.OrderType == order.ImmediateOrCancel:
+		fee = user.User.TakerFeeRate * feeBuilder.Amount * feeBuilder.PurchasePrice
+	}
+	if fee < 0 {
+		fee = 0
+	}
+	return fee, nil
 }
 
 // ValidateCredentials validates current credentials used for wrapper

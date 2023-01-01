@@ -8,39 +8,29 @@ import (
 )
 
 const (
-	NetworkIdMainnet = 1
-	NetworkIdRopsten = 3
-
 	timeFormat = "2006-01-02T15:04:05.999Z"
-
-	Eip712OnboardingActionStructString        = "dYdX(string action,string onlySignOn)"
-	Eip712OnboardingActionStructStringTestnet = "dYdX(string action)"
-	Eip712StructName                          = "dYdX"
-
-	Domain                       = "dYdX"
-	Version                      = "1.0"
-	Eip712DomainStringNoContract = "EIP712Domain(string name,string version,uint256 chainId)"
 )
 
-type ApiKeyCredentials struct {
+// APIKeyCredentials represents authentication credentials {API Credentials} information.
+type APIKeyCredentials struct {
 	Key        string
 	Secret     string
 	Passphrase string
 }
 
 var (
-	Eip712OnboardingActionStruct = []map[string]string{
+	eip712OnboardingActionStruct = []map[string]string{
 		{"type": "string", "name": "action"},
 		{"type": "string", "name": "onlySignOn"},
 	}
-	Eip712OnboardingActionStructTestnet = []map[string]string{
+	eip712OnboardingActionStructTestnet = []map[string]string{
 		{"type": "string", "name": "action"},
 	}
 )
 
 // InstrumentDatas metadata about each retrieved market.
 type InstrumentDatas struct {
-	Markets map[string]struct {
+	Markets map[string]*struct {
 		Market                           string    `json:"market"`
 		Status                           string    `json:"status"`
 		BaseAsset                        string    `json:"baseAsset"`
@@ -182,19 +172,19 @@ type ConfigurationVariableResponse struct {
 	MaxExpectedBatchLengthMinutes string `json:"maxExpectedBatchLengthMinutes"`
 	MaxFastWithdrawalAmount       string `json:"maxFastWithdrawalAmount"`
 	CancelOrderRateLimiting       struct {
-		MaxPointsMulti  int `json:"maxPointsMulti"`
-		MaxPointsSingle int `json:"maxPointsSingle"`
-		WindowSecMulti  int `json:"windowSecMulti"`
-		WindowSecSingle int `json:"windowSecSingle"`
+		MaxPointsMulti  int64 `json:"maxPointsMulti"`
+		MaxPointsSingle int64 `json:"maxPointsSingle"`
+		WindowSecMulti  int64 `json:"windowSecMulti"`
+		WindowSecSingle int64 `json:"windowSecSingle"`
 	} `json:"cancelOrderRateLimiting"`
 	PlaceOrderRateLimiting struct {
-		MaxPoints                 int `json:"maxPoints"`
-		WindowSec                 int `json:"windowSec"`
-		TargetNotional            int `json:"targetNotional"`
-		MinLimitConsumption       int `json:"minLimitConsumption"`
-		MinMarketConsumption      int `json:"minMarketConsumption"`
-		MinTriggerableConsumption int `json:"minTriggerableConsumption"`
-		MaxOrderConsumption       int `json:"maxOrderConsumption"`
+		MaxPoints                 int64 `json:"maxPoints"`
+		WindowSec                 int64 `json:"windowSec"`
+		TargetNotional            int64 `json:"targetNotional"`
+		MinLimitConsumption       int64 `json:"minLimitConsumption"`
+		MinMarketConsumption      int64 `json:"minMarketConsumption"`
+		MinTriggerableConsumption int64 `json:"minTriggerableConsumption"`
+		MaxOrderConsumption       int64 `json:"maxOrderConsumption"`
 	} `json:"placeOrderRateLimiting"`
 }
 
@@ -294,28 +284,28 @@ type PublicProfile struct {
 type WsInput struct {
 	Type    string `json:"type"`
 	Channel string `json:"channel"`
-	ID      string `json:"id"`
+	ID      string `json:"id,omitempty"`
+
+	// for authenticated channel subscription
+	AccountNumber string `json:"accountNumber,omitempty"`
+	APIKey        string `json:"apiKey,omitempty"`
+	Signature     string `json:"signature,omitempty"`
+	Timestamp     string `json:"timestamp,omitempty"`
+	Passphrase    string `json:"passphrase,omitempty"`
 }
 
 // WsResponse represents a websocket response.
 type WsResponse struct {
 	Type         string          `json:"type"`
 	ConnectionID string          `json:"connection_id"`
-	MessageID    int             `json:"message_id"`
+	MessageID    int64           `json:"message_id"`
 	Channel      string          `json:"channel"`
 	ID           string          `json:"id"`
 	Contents     json.RawMessage `json:"contents"`
+	Transfers    json.RawMessage `json:"transfers"`
 }
 
-type WsTrades struct {
-	Trades []struct {
-		Side      string    `json:"side"`
-		Size      string    `json:"size"`
-		Price     string    `json:"price"`
-		CreatedAt time.Time `json:"createdAt"`
-	} `json:"trades"`
-}
-
+// OnboardingResponse represents an onboarding detail.
 type OnboardingResponse struct {
 	APIKey struct {
 		Key        string `json:"key"`
@@ -374,10 +364,12 @@ type OnboardingResponse struct {
 	} `json:"account"`
 }
 
+// PositionResponse represents a position list data.
 type PositionResponse struct {
 	Positions []Position `json:"positions"`
 }
 
+// Position represents a user position information.
 type Position struct {
 	Market        string      `json:"market"`
 	Status        string      `json:"status"`
@@ -395,10 +387,12 @@ type Position struct {
 	SumClose      string      `json:"sumClose"`
 }
 
+// UsersResponse represents a user response detail for authenticated user.
 type UsersResponse struct {
 	User User `json:"user"`
 }
 
+// User represents a user account information.
 type User struct {
 	PublicID                     string         `json:"publicId"`
 	EthereumAddress              string         `json:"ethereumAddress"`
@@ -406,8 +400,8 @@ type User struct {
 	Email                        string         `json:"email"`
 	Username                     string         `json:"username"`
 	UserData                     UserDataDetail `json:"userData"`
-	MakerFeeRate                 string         `json:"makerFeeRate"`
-	TakerFeeRate                 string         `json:"takerFeeRate"`
+	MakerFeeRate                 float64        `json:"makerFeeRate,string"`
+	TakerFeeRate                 float64        `json:"takerFeeRate,string"`
 	MakerVolume30D               string         `json:"makerVolume30D"`
 	TakerVolume30D               string         `json:"takerVolume30D"`
 	Fees30D                      string         `json:"fees30D"`
@@ -526,15 +520,17 @@ type AccountResponse struct {
 
 // Account represents a user account instance.
 type Account struct {
-	PositionID         int64               `json:"positionId,string"`
 	ID                 string              `json:"id"`
+	PositionID         string              `json:"positionId"`
+	UserID             string              `json:"userId"`
+	AccountNumber      string              `json:"accountNumber"`
 	StarkKey           string              `json:"starkKey"`
+	QuoteBalance       float64             `json:"quoteBalance,string"`
+	PendingDeposits    float64             `json:"pendingDeposits,string"`
+	PendingWithdrawals float64             `json:"pendingWithdrawals,string"`
+	LastTransactionID  string              `json:"lastTransactionId"`
 	Equity             string              `json:"equity"`
 	FreeCollateral     float64             `json:"freeCollateral,string"`
-	QuoteBalance       float64             `json:"quoteBalance,string"`
-	PendingDeposits    string              `json:"pendingDeposits"`
-	PendingWithdrawals float64             `json:"pendingWithdrawals,string"`
-	AccountNumber      string              `json:"accountNumber"`
 	OpenPositions      map[string]Position `json:"openPositions"`
 	CreatedAt          time.Time           `json:"createdAt"`
 }
@@ -611,6 +607,8 @@ type Order struct {
 	PostOnly         bool        `json:"postOnly"`
 	ReduceOnly       bool        `json:"reduceOnly"`
 	CancelReason     string      `json:"cancelReason"`
+	LimitFee         float64     `json:"limitFee,string"`
+	Signature        string      `json:"signature"`
 }
 
 // OrderFill represents order fill.
@@ -811,7 +809,7 @@ type FastWithdrawalParam struct {
 
 	SlippageTolerance float64 `json:"slippageTolerance,string"`
 
-	LpPositionId float64 `json:"lpPositionId,string,omitempty"`
+	LPPositionID float64 `json:"lpPositionId,string,omitempty"`
 	Expiration   string  `json:"expiration"`
 	Signature    string  `json:"signature"`
 }
@@ -841,4 +839,34 @@ type WithdrawalParam struct {
 	Expiration        string  `json:"expiration"`
 	ClientGeneratedID string  `json:"clientId"`
 	Signature         string  `json:"signature"`
+}
+
+// AccountSubscriptionResponse represents a subscriptions to v3_accounts subscription.
+type AccountSubscriptionResponse struct {
+	Type         string `json:"type"`
+	Channel      string `json:"channel"`
+	ConnectionID string `json:"connection_id"`
+	ID           string `json:"id"`
+	MessageID    int    `json:"message_id"`
+	Contents     struct {
+		Orders  []Order `json:"orders"`
+		Account Account `json:"account"`
+	} `json:"contents"`
+	Transfers       []TransferResponse `json:"transfers"`
+	FundingPayments []FundingPayment   `json:"fundingPayments"`
+}
+
+// AccountChannelData represents a push data message to v3_account subscription.
+type AccountChannelData struct {
+	Type         string `json:"type"`
+	Channel      string `json:"channel"`
+	ConnectionID string `json:"connection_id"`
+	ID           string `json:"id"`
+	MessageID    int64  `json:"message_id"`
+	Contents     struct {
+		Fills     []OrderFill `json:"fills"`
+		Orders    []Order     `json:"orders"`
+		Positions []Position  `json:"positions"`
+		Accounts  []Account   `json:"accounts"`
+	} `json:"contents,omitempty"`
 }

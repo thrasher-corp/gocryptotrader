@@ -391,7 +391,7 @@ func (dy *DYDX) GetUsers(ctx context.Context) (*UsersResponse, error) {
 }
 
 // Updateusers update user information and return the updated user.
-func (dy *DYDX) Updateusers(ctx context.Context, params UpdateUserParams) (*UsersResponse, error) {
+func (dy *DYDX) Updateusers(ctx context.Context, params *UpdateUserParams) (*UsersResponse, error) {
 	var resp UsersResponse
 	return &resp, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPut, users, &params, &resp)
 }
@@ -542,7 +542,7 @@ func (dy *DYDX) GetTransfers(ctx context.Context, transferType string, limit int
 }
 
 // CreateTransfer sends a StarkEx L2 transfer.
-func (dy *DYDX) CreateTransfer(ctx context.Context, param TransferParam) (*TransferResponse, error) {
+func (dy *DYDX) CreateTransfer(ctx context.Context, param *TransferParam) (*TransferResponse, error) {
 	if param.Amount <= 0 {
 		return nil, errors.New("amount must be greater than zero")
 	}
@@ -559,11 +559,15 @@ func (dy *DYDX) CreateTransfer(ctx context.Context, param TransferParam) (*Trans
 	if err != nil {
 		return nil, err
 	}
-	signature, err := starkex.TransferSign(creds.SubAccount, starkex.TransferSignParam{
+	var signature string
+	signature, err = starkex.TransferSign(creds.SubAccount, starkex.TransferSignParam{
 		NetworkId: 1,
 		ClientId:  param.ClientID,
-		// DebitAmount: param.DebitAmount,
+		// TODO: More information to generate signature.
 	})
+	if err != nil {
+		return nil, err
+	}
 	resp := &struct {
 		Transfer TransferResponse `json:"transfer"`
 	}{}
@@ -591,12 +595,16 @@ func (dy *DYDX) CreateWithdrawal(ctx context.Context, arg WithdrawalParam) (*Tra
 	if err != nil {
 		return nil, err
 	}
-	signature, err := starkex.WithdrawSign(creds.SubAccount, starkex.WithdrawSignParam{
+	var signature string
+	signature, err = starkex.WithdrawSign(creds.SubAccount, starkex.WithdrawSignParam{
 		NetworkId:   1,
 		HumanAmount: strconv.FormatFloat(arg.Amount, 'f', -1, 64),
 		Expiration:  arg.Expiration,
 		ClientId:    arg.ClientGeneratedID,
 	})
+	if err != nil {
+		return nil, err
+	}
 	arg.Signature = signature
 	var resp *TransferResponse
 	return resp, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, withdrawals, &arg, &resp)
@@ -606,7 +614,7 @@ func (dy *DYDX) CreateWithdrawal(ctx context.Context, arg WithdrawalParam) (*Tra
 // Users do not need to send any Transactions to perform a fast withdrawal.
 // Behind the scenes, the withdrawal liquidity provider will immediately send a transaction to Ethereum which, once mined, will send the user their funds.
 // Users must pay a fee to the liquidity provider for fast withdrawals equal to the greater of the gas fee the provider must pay and 0.1% of the amount of the withdraw.
-func (dy *DYDX) CreateFastWithdrawal(ctx context.Context, param FastWithdrawalParam) (*TransferResponse, error) {
+func (dy *DYDX) CreateFastWithdrawal(ctx context.Context, param *FastWithdrawalParam) (*TransferResponse, error) {
 	if param.CreditAsset == "" {
 		return nil, fmt.Errorf("%w parameter: creditAsset", currency.ErrCurrencyCodeEmpty)
 	}
@@ -634,7 +642,7 @@ func (dy *DYDX) CreateFastWithdrawal(ctx context.Context, param FastWithdrawalPa
 	signature, err := starkex.WithdrawSign(creds.SubAccount, starkex.WithdrawSignParam{
 		NetworkId:   1,
 		ClientId:    param.ClientID,
-		PositionId:  int64(param.LpPositionId),
+		PositionId:  int64(param.LPPositionID),
 		HumanAmount: strconv.FormatFloat(param.CreditAmount, 'f', -1, 64),
 		Expiration:  param.Expiration,
 	})
@@ -647,7 +655,7 @@ func (dy *DYDX) CreateFastWithdrawal(ctx context.Context, param FastWithdrawalPa
 }
 
 // CreateNewOrder creates a new order.
-func (dy *DYDX) CreateNewOrder(ctx context.Context, arg CreateOrderRequestParams) (*Order, error) {
+func (dy *DYDX) CreateNewOrder(ctx context.Context, arg *CreateOrderRequestParams) (*Order, error) {
 	if arg.Market == "" {
 		return nil, errInvalidMarket
 	}
@@ -914,7 +922,8 @@ func (dy *DYDX) SendAuthenticatedHTTPRequest(ctx context.Context, endpoint excha
 	if data == nil {
 		dataString = ""
 	} else {
-		value, err := json.Marshal(data)
+		var value []byte
+		value, err = json.Marshal(data)
 		if err != nil {
 			return err
 		}

@@ -109,6 +109,10 @@ type FeeBuilder struct {
 	// Used to multiply for fee calculations
 	PurchasePrice float64
 	Amount        float64
+
+	// Order related informations
+	PostOnly  bool
+	OrderType order.Type
 }
 
 // FundHistory holds exchange funding history data
