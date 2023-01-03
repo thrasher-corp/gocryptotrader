@@ -13,8 +13,9 @@ import (
 
 var (
 	// ErrUnsetName is an error for when the exchange name is not set
-	ErrUnsetName  = errors.New("unset exchange name")
-	errNilRequest = errors.New("nil kline request")
+	ErrUnsetName                 = errors.New("unset exchange name")
+	errNilRequest                = errors.New("nil kline request")
+	errNoTimeSeriesDataToConvert = errors.New("no time series data to convert")
 )
 
 // Request is a helper to request and convert time series to a required candle
@@ -78,7 +79,7 @@ func CreateKlineRequest(name string, pair, formatted currency.Pair, a asset.Item
 	// minimal missing candles which is used to create the bigger candle.
 	start = start.Truncate(clientRequired.Duration())
 
-	// Strip montonic clock reading for comparison
+	// Strip monotonic clock reading for comparison
 	end = end.Round(0)
 
 	endTrunc := end.Truncate(clientRequired.Duration())
@@ -105,6 +106,10 @@ func (r *Request) GetRanges(limit uint32) (*IntervalRangeHolder, error) {
 func (r *Request) ConvertCandles(timeSeries []Candle) (*Item, error) {
 	if r == nil {
 		return nil, errNilRequest
+	}
+
+	if len(timeSeries) == 0 {
+		return nil, errNoTimeSeriesDataToConvert
 	}
 
 	holder := &Item{
@@ -145,6 +150,10 @@ type ExtendedRequest struct {
 func (r *ExtendedRequest) ConvertCandles(timeSeries []Candle) (*Item, error) {
 	if r == nil {
 		return nil, errNilRequest
+	}
+
+	if len(timeSeries) == 0 {
+		return nil, errNoTimeSeriesDataToConvert
 	}
 
 	holder, err := r.Request.ConvertCandles(timeSeries)

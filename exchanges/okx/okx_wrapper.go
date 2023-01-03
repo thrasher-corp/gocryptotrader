@@ -1372,7 +1372,7 @@ func (ok *Okx) GetHistoricCandles(ctx context.Context, pair currency.Pair, a ass
 			currency.DashDelimiter+
 			req.RequestFormatted.Quote.String(),
 		req.ExchangeInterval,
-		start,
+		start.Add(-time.Nanosecond), // Start time not inclusive of candle.
 		end,
 		300)
 	if err != nil {
@@ -1414,7 +1414,7 @@ func (ok *Okx) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pai
 				currency.DashDelimiter+
 				req.RequestFormatted.Quote.String(),
 			req.ExchangeInterval,
-			req.Ranges[y].Start.Time,
+			req.Ranges[y].Start.Time.Add(-time.Nanosecond), // Start time not inclusive of candle.
 			req.Ranges[y].End.Time,
 			300)
 		if err != nil {

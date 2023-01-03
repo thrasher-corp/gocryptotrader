@@ -196,9 +196,15 @@ func TestRequest_ConvertCandles(t *testing.T) {
 	pair := currency.NewPair(currency.BTC, currency.USDT)
 
 	var r *Request
-	_, err := r.ConvertCandles(getOneHour())
+	_, err := r.ConvertCandles(nil)
 	if !errors.Is(err, errNilRequest) {
 		t.Fatalf("received: '%v', but expected '%v'", err, errNilRequest)
+	}
+
+	r = &Request{}
+	_, err = r.ConvertCandles(nil)
+	if !errors.Is(err, errNoTimeSeriesDataToConvert) {
+		t.Fatalf("received: '%v', but expected '%v'", err, errNoTimeSeriesDataToConvert)
 	}
 
 	// no conversion
@@ -240,9 +246,15 @@ func TestExtendedRequest_ConvertCandles(t *testing.T) {
 	pair := currency.NewPair(currency.BTC, currency.USDT)
 
 	var rExt *ExtendedRequest
-	_, err := rExt.ConvertCandles(getOneHour())
+	_, err := rExt.ConvertCandles(nil)
 	if !errors.Is(err, errNilRequest) {
 		t.Fatalf("received: '%v', but expected '%v'", err, errNilRequest)
+	}
+
+	rExt = &ExtendedRequest{}
+	_, err = rExt.ConvertCandles(nil)
+	if !errors.Is(err, errNoTimeSeriesDataToConvert) {
+		t.Fatalf("received: '%v', but expected '%v'", err, errNoTimeSeriesDataToConvert)
 	}
 
 	// no conversion
