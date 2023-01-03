@@ -11,11 +11,40 @@ const (
 	timeFormat = "2006-01-02T15:04:05.999Z"
 )
 
+var (
+	eip712OnboardingActionStructString = "dYdX(string action,string onlySignOn)"
+
+	eip712OnboardingActionsStructTestnet = []map[string]string{
+		{"type": "string", "name": "action"},
+	}
+
+	onlySignOnDomainMainnet = "https://trade.dydx.exchange"
+)
+var (
+	eip712OnboardingActionsStruct = []map[string]string{
+		{"type": "string", "name": "action"},
+		{"type": "string", "name": "onlySignOn"},
+	}
+)
+
+const eip712StructName = "dYdX"
+
+const (
+	domain                       = "dYdX"
+	version                      = "1.0"
+	eip712DomainStringNoContract = "EIP712Domain(string name,string version,uint256 chainId)"
+)
+
+const (
+	offChainOnboardingAction    = "dYdX Onboarding"
+	offChainKeyDerivationAction = "dYdX STARK Key"
+)
+
 // APIKeyCredentials represents authentication credentials {API Credentials} information.
 type APIKeyCredentials struct {
-	Key        string
-	Secret     string
-	Passphrase string
+	Key        string `json:"key"`
+	Secret     string `json:"passphrase"`
+	Passphrase string `json:"secret"`
 }
 
 var (
@@ -307,12 +336,8 @@ type WsResponse struct {
 
 // OnboardingResponse represents an onboarding detail.
 type OnboardingResponse struct {
-	APIKey struct {
-		Key        string `json:"key"`
-		Passphrase string `json:"passphrase"`
-		Secret     string `json:"secret"`
-	} `json:"apiKey"`
-	User struct {
+	APIKey APIKeyCredentials `json:"apiKey"`
+	User   struct {
 		EthereumAddress         string      `json:"ethereumAddress"`
 		IsRegistered            bool        `json:"isRegistered"`
 		Email                   string      `json:"email"`
@@ -332,36 +357,7 @@ type OnboardingResponse struct {
 		IsSharingAddress       bool        `json:"isSharingAddress"`
 		Country                string      `json:"country"`
 	} `json:"user"`
-	Account struct {
-		StarkKey           string    `json:"starkKey"`
-		PositionID         string    `json:"positionId"`
-		Equity             string    `json:"equity"`
-		FreeCollateral     string    `json:"freeCollateral"`
-		QuoteBalance       string    `json:"quoteBalance"`
-		PendingDeposits    string    `json:"pendingDeposits"`
-		PendingWithdrawals string    `json:"pendingWithdrawals"`
-		CreatedAt          time.Time `json:"createdAt"`
-		OpenPositions      struct {
-			BTCUSD struct {
-				Market        string      `json:"market"`
-				Status        string      `json:"status"`
-				Side          string      `json:"side"`
-				Size          string      `json:"size"`
-				MaxSize       string      `json:"maxSize"`
-				EntryPrice    string      `json:"entryPrice"`
-				ExitPrice     interface{} `json:"exitPrice"`
-				UnrealizedPnl string      `json:"unrealizedPnl"`
-				RealizedPnl   string      `json:"realizedPnl"`
-				CreatedAt     time.Time   `json:"createdAt"`
-				ClosedAt      interface{} `json:"closedAt"`
-				NetFunding    string      `json:"netFunding"`
-				SumOpen       string      `json:"sumOpen"`
-				SumClose      string      `json:"sumClose"`
-			} `json:"BTC-USD"`
-		} `json:"openPositions"`
-		AccountNumber string `json:"accountNumber"`
-		ID            string `json:"id"`
-	} `json:"account"`
+	Account Account `json:"account"`
 }
 
 // PositionResponse represents a position list data.
@@ -869,4 +865,29 @@ type AccountChannelData struct {
 		Positions []Position  `json:"positions"`
 		Accounts  []Account   `json:"accounts"`
 	} `json:"contents,omitempty"`
+}
+
+// OnboardingParam represents onboarding request parameters.
+type OnboardingParam struct {
+	StarkKey                string `json:"starkKey"`
+	StarkYCoordinate        string `json:"starkKeyYCoordinate"`
+	EthereumAddress         string `json:"ethereumAddress"`
+	ReferredByAffiliateLink string `json:"referredByAffiliateLink"` // Optional
+	Country                 string `json:"country"`
+}
+
+// RecoverAPIKeysResponse represents parameters for recovering stark-key,quote balance, and open positions.
+type RecoverAPIKeysResponse struct {
+	StarkKey       string     `json:"starkKey"`
+	PositionID     string     `json:"positionId"`
+	Equity         string     `json:"equity"`
+	FreeCollateral string     `json:"freeCollateral"`
+	QuoteBalance   string     `json:"quoteBalance"`
+	Positions      []Position `json:"positions"`
+}
+
+// SignatureResponse represents a signature response containing a string
+// representing ethereum signature authorizing the user's Ethereum address to register for the corresponding position id.
+type SignatureResponse struct {
+	Signature string `json:"signature"`
 }
