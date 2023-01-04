@@ -355,8 +355,8 @@ func (ku *Kucoin) processFuturesStopOrderLifecycleEvent(respData []byte) error {
 		Type:         oType,
 		Side:         side,
 		AssetType:    asset.Futures,
-		Date:         resp.CreatedAt,
-		LastUpdated:  resp.Timestamp,
+		Date:         resp.CreatedAt.Time(),
+		LastUpdated:  resp.Timestamp.Time(),
 		Pair:         pair,
 	}
 	return nil
@@ -396,7 +396,7 @@ func (ku *Kucoin) processFuturesPrivateTradeOrders(respData []byte) error {
 		ClientOrderID:   resp.ClientOid,
 		OrderID:         resp.TradeID,
 		AssetType:       asset.Futures,
-		LastUpdated:     resp.OrderTime,
+		LastUpdated:     resp.OrderTime.Time(),
 	}
 	return nil
 }
@@ -499,7 +499,7 @@ func (ku *Kucoin) processFuturesTickerV2(respData []byte) error {
 	ku.Websocket.DataHandler <- &ticker.Price{
 		AssetType:    asset.Futures,
 		Last:         resp.FilledSize,
-		LastUpdated:  resp.FilledTime,
+		LastUpdated:  resp.FilledTime.Time(),
 		ExchangeName: ku.Name,
 		Pair:         pair,
 		Ask:          resp.BestAskPrice,
@@ -536,8 +536,8 @@ func (ku *Kucoin) processStopOrderEvent(respData []byte) error {
 		Type:         oType,
 		Side:         side,
 		AssetType:    asset.Spot,
-		Date:         resp.CreatedAt,
-		LastUpdated:  resp.Timestamp,
+		Date:         resp.CreatedAt.Time(),
+		LastUpdated:  resp.Timestamp.Time(),
 		Pair:         pair,
 	}
 	return nil
@@ -601,8 +601,8 @@ func (ku *Kucoin) processOrderChangeEvent(respData []byte) error {
 		Side:            side,
 		Status:          oStatus,
 		AssetType:       asset.Spot,
-		Date:            response.OrderTime,
-		LastUpdated:     response.Timestamp,
+		Date:            response.OrderTime.Time(),
+		LastUpdated:     response.Timestamp.Time(),
 		Pair:            pair,
 	}
 	return nil

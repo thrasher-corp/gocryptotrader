@@ -146,7 +146,7 @@ func (ku *Kucoin) GetFuturesTradeHistory(ctx context.Context, symbol string) ([]
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	resp := []FuturesTrade{}
+	var resp []FuturesTrade
 	return resp, ku.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues(kucoinFuturesTradeHistory, params), &resp)
 }
 
