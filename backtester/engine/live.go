@@ -317,7 +317,7 @@ func (d *dataChecker) AppendDataSource(dataSource *liveDataSourceSetup) error {
 		return err
 	}
 	if dataSource.dataRequestRetryTolerance <= 0 {
-		log.Warnf(common.LiveStrategy, "invalid data retry tolerance, setting %v to %v", dataSource.dataRequestRetryTolerance, defaultDataRetryAttempts)
+		log.Warnf(common.LiveStrategy, "Invalid data retry tolerance, setting %v to %v", dataSource.dataRequestRetryTolerance, defaultDataRetryAttempts)
 		dataSource.dataRequestRetryTolerance = defaultDataRetryAttempts
 	}
 	if dataSource.dataRequestRetryWaitTime <= 0 {
