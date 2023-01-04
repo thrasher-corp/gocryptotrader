@@ -238,7 +238,7 @@ func main() {
 			log.Error(common.Backtester, err)
 		}
 		for i := range stopped {
-			log.Infof(common.Backtester, "task %v %v was stopped", stopped[i].MetaData.ID, stopped[i].MetaData.Strategy)
+			log.Infof(common.Backtester, "Task %v %v was stopped", stopped[i].MetaData.ID, stopped[i].MetaData.Strategy)
 		}
 	} else {
 		var tasks []*backtest.TaskSummary
@@ -253,7 +253,7 @@ func main() {
 					log.Error(common.Backtester, err)
 					continue
 				}
-				log.Infof(common.Backtester, "task %v %v was stopped", tasks[i].MetaData.ID, tasks[i].MetaData.Strategy)
+				log.Infof(common.Backtester, "Task %v %v was stopped", tasks[i].MetaData.ID, tasks[i].MetaData.Strategy)
 			}
 		}
 	}

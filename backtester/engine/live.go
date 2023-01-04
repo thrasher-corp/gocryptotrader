@@ -41,11 +41,11 @@ func (bt *BackTest) SetupLiveDataHandler(eventTimeout, dataCheckInterval time.Du
 		return fmt.Errorf("%w funding manager", gctcommon.ErrNilPointer)
 	}
 	if eventTimeout <= 0 {
-		log.Warnf(common.LiveStrategy, "invalid event timeout '%v', defaulting to '%v'", eventTimeout, defaultEventTimeout)
+		log.Warnf(common.LiveStrategy, "Invalid event timeout '%v', defaulting to '%v'", eventTimeout, defaultEventTimeout)
 		eventTimeout = defaultEventTimeout
 	}
 	if dataCheckInterval <= 0 {
-		log.Warnf(common.LiveStrategy, "invalid data check interval '%v', defaulting to '%v'", dataCheckInterval, defaultDataCheckInterval)
+		log.Warnf(common.LiveStrategy, "Invalid data check interval '%v', defaulting to '%v'", dataCheckInterval, defaultDataCheckInterval)
 		dataCheckInterval = defaultDataCheckInterval
 	}
 	bt.LiveDataHandler = &dataChecker{
@@ -167,7 +167,7 @@ func (d *dataChecker) checkData() error {
 		go func() {
 			err = d.UpdateFunding(false)
 			if err != nil {
-				log.Errorf(common.LiveStrategy, "could not update funding %v", err)
+				log.Errorf(common.LiveStrategy, "Could not update funding: %v", err)
 			}
 		}()
 	}

@@ -316,11 +316,11 @@ func (f *FundManager) GenerateReport() (*Report, error) {
 			}
 			last, err := usdStream.Last()
 			if err != nil {
-				log.Errorf(common.FundManager, "usd tracking data is nil for %v %v %v, please ensure data is present", f.items[x].exchange, f.items[x].asset, f.items[x].currency)
+				log.Errorf(common.FundManager, "USD tracking data is nil for %v %v %v, please ensure data is present", f.items[x].exchange, f.items[x].asset, f.items[x].currency)
 			}
 			first, err := usdStream.First()
 			if err != nil {
-				log.Errorf(common.FundManager, "usd tracking data is nil for %v %v %v, please ensure data is present", f.items[x].exchange, f.items[x].asset, f.items[x].currency)
+				log.Errorf(common.FundManager, "USD tracking data is nil for %v %v %v, please ensure data is present", f.items[x].exchange, f.items[x].asset, f.items[x].currency)
 			}
 			if !item.IsCollateral {
 				item.USDInitialFunds = f.items[x].initialFunds.Mul(first.GetClosePrice())

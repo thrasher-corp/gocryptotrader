@@ -66,10 +66,10 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 	var err error
 	defer func() {
 		if err != nil {
-			log.Errorf(common.Backtester, "could not setup backtester %v: %v", cfg.Nickname, err)
+			log.Errorf(common.Backtester, "Could not setup backtester %v: %v", cfg.Nickname, err)
 		}
 	}()
-	log.Infoln(common.Setup, "loading config...")
+	log.Infoln(common.Setup, "Loading config...")
 	if cfg == nil {
 		return errNilConfig
 	}
@@ -584,7 +584,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (*exchange.Exchang
 		if limits != (gctorder.MinMaxLevel{}) {
 			if !cfg.CurrencySettings[i].CanUseExchangeLimits {
 				if realOrders {
-					log.Warnf(common.Setup, "Exchange %s order execution limits enabled for %s %s due to using real orders ",
+					log.Warnf(common.Setup, "Exchange %s order execution limits enabled for %s %s due to using real orders",
 						cfg.CurrencySettings[i].ExchangeName,
 						pair,
 						a)
