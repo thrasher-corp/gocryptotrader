@@ -141,6 +141,8 @@ func (s *Statistic) CreateLog(data common.Event) (string, error) {
 		direction := ev.GetDirection()
 		if direction == order.CouldNotBuy ||
 			direction == order.CouldNotSell ||
+			direction == order.CouldNotLong ||
+			direction == order.CouldNotShort ||
 			direction == order.MissingData ||
 			direction == order.DoNothing ||
 			direction == order.TransferredFunds ||

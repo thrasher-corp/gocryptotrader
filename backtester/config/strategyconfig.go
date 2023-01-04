@@ -239,7 +239,7 @@ func (c *Config) PrintSetting() {
 		log.Info(common.Config, common.CMDColours.H2+"------------------Funding Settings---------------------------"+common.CMDColours.Default)
 		log.Infof(common.Config, "Use Exchange Level Funding: %v", c.FundingSettings.UseExchangeLevelFunding)
 		if c.DataSettings.LiveData != nil && c.DataSettings.LiveData.RealOrders {
-			log.Infof(common.Config, "funding levels will be set by the exchange")
+			log.Infof(common.Config, "Funding levels will be set by the exchange")
 		} else {
 			for i := range c.FundingSettings.ExchangeLevelFunding {
 				log.Infof(common.Config, "Initial funds for %v %v %v: %v",
@@ -260,7 +260,7 @@ func (c *Config) PrintSetting() {
 		log.Infof(common.Config, "Exchange: %v", c.CurrencySettings[i].ExchangeName)
 		switch {
 		case c.DataSettings.LiveData != nil && c.DataSettings.LiveData.RealOrders:
-			log.Infof(common.Config, "funding levels will be set by the exchange")
+			log.Infof(common.Config, "Funding levels will be set by the exchange")
 		case !c.FundingSettings.UseExchangeLevelFunding && c.CurrencySettings[i].SpotDetails != nil:
 			if c.CurrencySettings[i].SpotDetails.InitialBaseFunds != nil {
 				log.Infof(common.Config, "Initial base funds: %v %v",
@@ -309,7 +309,7 @@ func (c *Config) PrintSetting() {
 		log.Infof(common.Config, "Data check timer: %v", c.DataSettings.LiveData.DataCheckTimer)
 		log.Infof(common.Config, "New event timeout: %v", c.DataSettings.LiveData.NewEventTimeout)
 		for i := range c.DataSettings.LiveData.ExchangeCredentials {
-			log.Infof(common.Config, "%s credentials: %s", c.DataSettings.LiveData.ExchangeCredentials[i].Exchange, c.DataSettings.LiveData.ExchangeCredentials[i].Keys)
+			log.Infof(common.Config, "%s credentials: %s", c.DataSettings.LiveData.ExchangeCredentials[i].Exchange, c.DataSettings.LiveData.ExchangeCredentials[i].Keys.String())
 		}
 	}
 	if c.DataSettings.APIData != nil {

@@ -159,7 +159,7 @@ func startTask(c *cli.Context) error {
 
 var startAllTasksCommand = &cli.Command{
 	Name:   "startalltasks",
-	Usage:  "executes all strategies loaded into the server that have not been task",
+	Usage:  "executes all strategies loaded into the server that have not been run",
 	Action: startAllTasks,
 }
 

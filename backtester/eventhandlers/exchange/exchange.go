@@ -139,6 +139,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, dh data.Handler, om *engine.Order
 	orderID, err := e.placeOrder(context.TODO(), price, amount, fee, cs.UseRealOrders, cs.CanUseExchangeLimits, f, om)
 	if err != nil {
 		f.AppendReasonf("could not place order: %v", err)
+		setCannotPurchaseDirection(f)
 		return f, err
 	}
 	ords := om.GetOrdersSnapshot(gctorder.UnknownStatus)
@@ -230,14 +231,7 @@ func allocateFundsPostOrder(f *fill.Fill, funds funding.IFundReleaser, orderErro
 			if err != nil {
 				return err
 			}
-			switch f.GetDirection() {
-			case gctorder.Short, gctorder.Sell, gctorder.Ask:
-				f.SetDirection(gctorder.CouldNotShort)
-			case gctorder.Long, gctorder.Buy, gctorder.Bid:
-				f.SetDirection(gctorder.CouldNotLong)
-			default:
-				return fmt.Errorf("%w asset type %v", common.ErrInvalidDataType, f.GetDirection())
-			}
+			setCannotPurchaseDirection(f)
 			return orderError
 		}
 	default:
@@ -266,6 +260,19 @@ func summarisePosition(direction gctorder.Side, orderAmount, orderTotal, orderFe
 	)
 }
 
+func setCannotPurchaseDirection(f fill.Event) {
+	switch f.GetDirection() {
+	case gctorder.Buy, gctorder.Bid:
+		f.SetDirection(gctorder.CouldNotBuy)
+	case gctorder.Sell, gctorder.Ask:
+		f.SetDirection(gctorder.CouldNotSell)
+	case gctorder.Long:
+		f.SetDirection(gctorder.CouldNotLong)
+	case gctorder.Short:
+		f.SetDirection(gctorder.CouldNotShort)
+	}
+}
+
 // verifyOrderWithinLimits conforms the amount to fall into the minimum size and maximum size limit after reduced
 func verifyOrderWithinLimits(f fill.Event, amount decimal.Decimal, cs *Settings) error {
 	if f == nil {
@@ -278,18 +285,12 @@ func verifyOrderWithinLimits(f fill.Event, amount decimal.Decimal, cs *Settings)
 	var minMax MinMax
 	var direction gctorder.Side
 	switch f.GetDirection() {
-	case gctorder.Buy, gctorder.Bid:
+	case gctorder.Buy, gctorder.Bid, gctorder.Long:
 		minMax = cs.BuySide
-		direction = gctorder.CouldNotBuy
-	case gctorder.Sell, gctorder.Ask:
+		setCannotPurchaseDirection(f)
+	case gctorder.Sell, gctorder.Ask, gctorder.Short:
+		setCannotPurchaseDirection(f)
 		minMax = cs.SellSide
-		direction = gctorder.CouldNotSell
-	case gctorder.Long:
-		minMax = cs.BuySide
-		direction = gctorder.CouldNotLong
-	case gctorder.Short:
-		minMax = cs.SellSide
-		direction = gctorder.CouldNotShort
 	case gctorder.ClosePosition:
 		return nil
 	default:

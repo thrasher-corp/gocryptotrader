@@ -244,6 +244,13 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		if err != nil {
 			return err
 		}
+		if cfg.DataSettings.LiveData != nil && cfg.DataSettings.LiveData.RealOrders {
+			exchBase := exch.GetBase()
+			err = setExchangeCredentials(cfg, exchBase)
+			if err != nil {
+				return err
+			}
+		}
 		portSet := &risk.CurrencySettings{
 			MaximumHoldingRatio: cfg.CurrencySettings[i].MaximumHoldingsRatio,
 		}
@@ -263,13 +270,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		var baseItem, quoteItem, futureItem *funding.Item
 		switch {
 		case cfg.FundingSettings.UseExchangeLevelFunding:
-			if cfg.DataSettings.LiveData != nil && cfg.DataSettings.LiveData.RealOrders {
-				exchBase := exch.GetBase()
-				err = setExchangeCredentials(cfg, exchBase)
-				if err != nil {
-					return err
-				}
-			}
+
 			switch {
 			case a == asset.Spot:
 				// add any remaining currency items that have no funding data in the strategy config
@@ -583,11 +584,19 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (*exchange.Exchang
 
 		if limits != (gctorder.MinMaxLevel{}) {
 			if !cfg.CurrencySettings[i].CanUseExchangeLimits {
-				log.Warnf(common.Setup, "Exchange %s order execution limits supported but disabled for %s %s, live results may differ",
-					cfg.CurrencySettings[i].ExchangeName,
-					pair,
-					a)
-				cfg.CurrencySettings[i].ShowExchangeOrderLimitWarning = true
+				if realOrders {
+					log.Warnf(common.Setup, "Exchange %s order execution limits enabled for %s %s due to using real orders ",
+						cfg.CurrencySettings[i].ExchangeName,
+						pair,
+						a)
+					cfg.CurrencySettings[i].CanUseExchangeLimits = true
+				} else {
+					log.Warnf(common.Setup, "Exchange %s order execution limits supported but disabled for %s %s, live results may differ",
+						cfg.CurrencySettings[i].ExchangeName,
+						pair,
+						a)
+					cfg.CurrencySettings[i].ShowExchangeOrderLimitWarning = true
+				}
 			}
 		}
 		var lev exchange.Leverage

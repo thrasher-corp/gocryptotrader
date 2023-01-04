@@ -188,7 +188,7 @@ func (bt *BackTest) Run() error {
 			}
 			if doubleNil {
 				if bt.verbose {
-					log.Info(common.Backtester, "no new data on second check")
+					log.Info(common.Backtester, "No new data on second check")
 				}
 				return nil
 			}
@@ -618,7 +618,7 @@ func (bt *BackTest) Stop() error {
 	if bt.MetaData.ClosePositionsOnStop {
 		err := bt.CloseAllPositions()
 		if err != nil {
-			log.Errorf(common.Backtester, "could not close all positions on stop: %s", err)
+			log.Errorf(common.Backtester, "Could not close all positions on stop: %s", err)
 		}
 	}
 	err := bt.Statistic.CalculateAllResults()
@@ -703,7 +703,7 @@ func (bt *BackTest) CloseAllPositions() error {
 	events, err := bt.Strategy.CloseAllPositions(bt.Portfolio.GetLatestHoldingsForAllCurrencies(), latestPrices)
 	if err != nil {
 		if errors.Is(err, gctcommon.ErrFunctionNotSupported) {
-			log.Warnf(common.LiveStrategy, "closing all positions is not supported by strategy %v", bt.Strategy.Name())
+			log.Warnf(common.LiveStrategy, "Closing all positions is not supported by strategy %v", bt.Strategy.Name())
 			return nil
 		}
 		return err
