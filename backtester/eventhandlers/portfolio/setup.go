@@ -78,7 +78,6 @@ func (p *Portfolio) SetCurrencySettingsMap(setup *exchange.Settings) error {
 		m3 = make(map[*currency.Item]*Settings)
 		m2[setup.Pair.Base.Item] = m3
 	}
-
 	settings := &Settings{
 		Exchange:          setup.Exchange,
 		exchangeName:      name,

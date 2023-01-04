@@ -833,14 +833,6 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 	}
 
 	resp.Item.UnderlyingPair = underlyingPair
-	err = b.ValidateKline(fPair, a, resp.Item.Interval)
-	if err != nil {
-		// TODO: In future allow custom candles.
-		if dataType != common.DataTrade || !strings.EqualFold(err.Error(), "interval not supported") {
-			return nil, err
-		}
-	}
-
 	err = resp.Load()
 	if err != nil {
 		return nil, err
@@ -899,8 +891,6 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	if len(summary) > 0 {
 		log.Warnf(common.Setup, "%v", summary)
 	}
-	candles.FillMissingDataWithEmptyEntries(dates)
-	candles.RemoveOutsideRange(cfg.DataSettings.APIData.StartDate, cfg.DataSettings.APIData.EndDate)
 	return &kline.DataFromKline{
 		Base:        &data.Base{},
 		Item:        candles,

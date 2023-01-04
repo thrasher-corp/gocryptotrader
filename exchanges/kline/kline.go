@@ -143,30 +143,6 @@ func (i Interval) Short() string {
 	return s
 }
 
-// FillMissingDataWithEmptyEntries amends a kline item to have candle entries
-// for every interval between its start and end dates derived from ranges
-func (k *Item) FillMissingDataWithEmptyEntries(i *IntervalRangeHolder) {
-	var anyChanges bool
-	for x := range i.Ranges {
-		for y := range i.Ranges[x].Intervals {
-			if !i.Ranges[x].Intervals[y].HasData {
-				for z := range k.Candles {
-					if i.Ranges[x].Intervals[y].Start.Equal(k.Candles[z].Time) {
-						break
-					}
-				}
-				anyChanges = true
-				k.Candles = append(k.Candles, Candle{
-					Time: i.Ranges[x].Intervals[y].Start.Time,
-				})
-			}
-		}
-	}
-	if anyChanges {
-		k.SortCandlesByTimestamp(false)
-	}
-}
-
 // addPadding inserts padding time aligned when exchanges do not supply all data
 // when there is no activity in a certain time interval.
 // Start defines the request start and due to potential no activity from this
@@ -507,6 +483,12 @@ func (h *IntervalRangeHolder) SetHasDataFromCandles(incoming []Candle) {
 	intervals:
 		for y := range h.Ranges[x].Intervals {
 			for z := range bucket {
+				if bucket[z].Low <= 0 && bucket[z].High <= 0 &&
+					bucket[z].Close <= 0 && bucket[z].Open <= 0 &&
+					bucket[z].Volume <= 0 {
+					// function AddPadding has already been called and filled entries with empty entries
+					continue
+				}
 				cu := bucket[z].Time.Unix()
 				if cu >= h.Ranges[x].Intervals[y].Start.Ticks &&
 					cu < h.Ranges[x].Intervals[y].End.Ticks {
