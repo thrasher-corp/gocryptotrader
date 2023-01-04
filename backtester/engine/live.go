@@ -321,7 +321,7 @@ func (d *dataChecker) AppendDataSource(dataSource *liveDataSourceSetup) error {
 		dataSource.dataRequestRetryTolerance = defaultDataRetryAttempts
 	}
 	if dataSource.dataRequestRetryWaitTime <= 0 {
-		log.Warnf(common.LiveStrategy, "invalid data request wait time, setting %v to %v", dataSource.dataRequestRetryWaitTime, defaultDataRequestWaitTime)
+		log.Warnf(common.LiveStrategy, "Invalid data request wait time, setting %v to %v", dataSource.dataRequestRetryWaitTime, defaultDataRequestWaitTime)
 		dataSource.dataRequestRetryWaitTime = defaultDataRequestWaitTime
 	}
 	d.sourcesToCheck = append(d.sourcesToCheck, &liveDataSourceDataHandler{
