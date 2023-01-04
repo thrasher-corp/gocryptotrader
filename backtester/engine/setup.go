@@ -270,7 +270,6 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		var baseItem, quoteItem, futureItem *funding.Item
 		switch {
 		case cfg.FundingSettings.UseExchangeLevelFunding:
-
 			switch {
 			case a == asset.Spot:
 				// add any remaining currency items that have no funding data in the strategy config

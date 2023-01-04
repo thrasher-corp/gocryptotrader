@@ -33,6 +33,11 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 	for i := range report.Items {
 		exchangeAssetStats, ok := currStats[report.Items[i].Exchange][report.Items[i].Asset]
 		if !ok {
+			if report.Items[i].AppendedViaAPI {
+				// items added via API may not have been processed along with typical events
+				// are not relevant to calculating statistics
+				continue
+			}
 			return nil, fmt.Errorf("%w for %v %v",
 				errNoRelevantStatsFound,
 				report.Items[i].Exchange,

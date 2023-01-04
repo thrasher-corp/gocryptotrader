@@ -287,9 +287,9 @@ func verifyOrderWithinLimits(f fill.Event, amount decimal.Decimal, cs *Settings)
 	switch f.GetDirection() {
 	case gctorder.Buy, gctorder.Bid, gctorder.Long:
 		minMax = cs.BuySide
-		setCannotPurchaseDirection(f)
+		direction = gctorder.CouldNotBuy
 	case gctorder.Sell, gctorder.Ask, gctorder.Short:
-		setCannotPurchaseDirection(f)
+		direction = gctorder.CouldNotSell
 		minMax = cs.SellSide
 	case gctorder.ClosePosition:
 		return nil
