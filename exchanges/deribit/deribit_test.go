@@ -26,7 +26,7 @@ const (
 	apiKey    = ""
 	apiSecret = ""
 
-	canManipulateRealOrders = true
+	canManipulateRealOrders = false
 	btcPerpInstrument       = "BTC-PERPETUAL"
 
 	authenticationSkipMessage         = "missing API credentials"
@@ -1867,15 +1867,15 @@ func TestVerifyBlockTrade(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(authenticationSkipMessage)
 	}
-	info, err := d.GetInstrumentData(context.Background(), "BTC-PERPETUAL")
+	info, err := d.GetInstrumentData(context.Background(), btcPerpInstrument)
 	if err != nil {
 		t.Skip(err)
 	}
 	_, err = d.VerifyBlockTrade(context.Background(), time.Now(), "sdjkafdad", "maker", "", []BlockTradeParam{
 		{
 			Price:          0.777 * 25000,
-			InstrumentName: "BTC-PERPETUAL",
-			Direction:      "buy",
+			InstrumentName: btcPerpInstrument,
+			Direction:      order.Buy.Lower(),
 			Amount:         info.MinimumTradeAmount*5 + (200000 - info.MinimumTradeAmount*5) + 10,
 		},
 	})

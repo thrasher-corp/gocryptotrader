@@ -421,7 +421,7 @@ func (d *Deribit) GetLastTradesByCurrency(ctx context.Context, ccy, kind, startI
 // GetLastTradesByCurrencyAndTime gets last trades for requested currency and time intervals
 func (d *Deribit) GetLastTradesByCurrencyAndTime(ctx context.Context, ccy, kind, sorting string, count int64, includeOld bool, startTime, endTime time.Time) (*PublicTradesData, error) {
 	if ccy == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, strings.ToUpper(ccy))
+		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
 	}
 	params := url.Values{}
 	params.Set("currency", strings.ToUpper(ccy))
