@@ -103,6 +103,7 @@ func (l *Lbank) SetDefaults() {
 					kline.TwelveHour,
 					kline.OneDay,
 					kline.OneWeek,
+					kline.OneMonth,
 				),
 				ResultLimit: 2000,
 			},

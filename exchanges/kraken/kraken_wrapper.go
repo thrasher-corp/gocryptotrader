@@ -159,15 +159,14 @@ func (k *Kraken) SetDefaults() {
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
 					kline.OneMin,
-					kline.ThreeMin,
 					kline.FiveMin,
 					kline.FifteenMin,
 					kline.ThirtyMin,
 					kline.OneHour,
 					kline.FourHour,
 					kline.OneDay,
-					kline.FifteenDay,
 					kline.OneWeek,
+					kline.FifteenDay,
 				),
 				ResultLimit: 720,
 			},

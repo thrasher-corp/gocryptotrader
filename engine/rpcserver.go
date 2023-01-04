@@ -2442,8 +2442,8 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, r *gctrpc.GetHistori
 	resp := gctrpc.GetHistoricCandlesResponse{
 		Interval: interval.Short(),
 		Pair:     r.Pair,
-		Start:    r.Start,
-		End:      r.End,
+		Start:    start.UTC().Format(common.SimpleTimeFormatWithTimezone),
+		End:      end.UTC().Format(common.SimpleTimeFormatWithTimezone),
 	}
 
 	var klineItem *kline.Item
@@ -2477,7 +2477,7 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, r *gctrpc.GetHistori
 	resp.Exchange = klineItem.Exchange
 	for i := range klineItem.Candles {
 		resp.Candle = append(resp.Candle, &gctrpc.Candle{
-			Time:   klineItem.Candles[i].Time.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+			Time:   klineItem.Candles[i].Time.UTC().Format(common.SimpleTimeFormatWithTimezone),
 			Low:    klineItem.Candles[i].Low,
 			High:   klineItem.Candles[i].High,
 			Open:   klineItem.Candles[i].Open,

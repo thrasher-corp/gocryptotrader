@@ -20,6 +20,7 @@ const (
 	ThirtyMin     = 30 * OneMin
 	OneHour       = Interval(time.Hour)
 	TwoHour       = 2 * OneHour
+	ThreeHour     = 3 * OneHour
 	FourHour      = 4 * OneHour
 	SixHour       = 6 * OneHour
 	EightHour     = 8 * OneHour
@@ -78,6 +79,7 @@ var (
 		ThirtyMin,
 		OneHour,
 		TwoHour,
+		ThreeHour,
 		FourHour,
 		SixHour,
 		EightHour,

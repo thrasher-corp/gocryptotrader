@@ -971,8 +971,7 @@ func (b *Bitfinex) GetLends(ctx context.Context, symbol string, values url.Value
 }
 
 // GetCandles returns candle chart data
-// timeFrame values: '1m', '5m', '15m', '30m', '1h', '3h', '6h', '12h', '1D',
-// '7D', '14D', '1M'
+// timeFrame values: '1m', '5m', '15m', '30m', '1h', '3h', '6h', '12h', '1D', '1W', '14D', '1M'
 // section values: last or hist
 func (b *Bitfinex) GetCandles(ctx context.Context, symbol, timeFrame string, start, end int64, limit uint32, historic bool) ([]Candle, error) {
 	var fundingPeriod string

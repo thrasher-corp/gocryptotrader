@@ -117,10 +117,14 @@ func (b *BTCMarkets) SetDefaults() {
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
 					kline.OneMin,
+					kline.ThreeMin,
 					kline.FiveMin,
 					kline.FifteenMin,
 					kline.ThirtyMin,
 					kline.OneHour,
+					kline.TwoHour,
+					kline.ThreeHour,
+					kline.FourHour,
 					kline.SixHour,
 					kline.OneDay,
 					kline.OneWeek,
