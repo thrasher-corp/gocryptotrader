@@ -302,7 +302,7 @@ func durationToWord(in Interval) string {
 	}
 }
 
-// TotalCandlesPerInterval turns total candles per period for interval
+// TotalCandlesPerInterval returns the total number of candle intervals between the start and end date
 func TotalCandlesPerInterval(start, end time.Time, interval Interval) int64 {
 	if interval <= 0 {
 		return 0
