@@ -480,7 +480,7 @@ func parseLive(reader *bufio.Reader, cfg *config.Config) {
 			fmt.Println("What is the subaccount to use? (leave blank if not applicable)")
 			creds.Keys.SubAccount = quickParse(reader)
 			fmt.Println("What is the PEM key? (leave blank if not applicable)")
-			creds.Keys.SubAccount = quickParse(reader)
+			creds.Keys.PEMKey = quickParse(reader)
 			cfg.DataSettings.LiveData.ExchangeCredentials = append(cfg.DataSettings.LiveData.ExchangeCredentials, creds)
 			fmt.Printf("Do you want to add another? y/n\n")
 			if input != yes && input != y {
