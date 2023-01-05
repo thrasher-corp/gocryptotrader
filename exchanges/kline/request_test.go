@@ -188,7 +188,7 @@ var oneHourCandles = func() []Candle {
 	return candles
 }()
 
-func TestRequest_ConvertCandles(t *testing.T) {
+func TestRequest_ProcessResponse(t *testing.T) {
 	t.Parallel()
 
 	start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -196,13 +196,13 @@ func TestRequest_ConvertCandles(t *testing.T) {
 	pair := currency.NewPair(currency.BTC, currency.USDT)
 
 	var r *Request
-	_, err := r.ConvertCandles(nil)
+	_, err := r.ProcessResponse(nil)
 	if !errors.Is(err, errNilRequest) {
 		t.Fatalf("received: '%v', but expected '%v'", err, errNilRequest)
 	}
 
 	r = &Request{}
-	_, err = r.ConvertCandles(nil)
+	_, err = r.ProcessResponse(nil)
 	if !errors.Is(err, errNoTimeSeriesDataToConvert) {
 		t.Fatalf("received: '%v', but expected '%v'", err, errNoTimeSeriesDataToConvert)
 	}
@@ -213,7 +213,7 @@ func TestRequest_ConvertCandles(t *testing.T) {
 		t.Fatalf("received: '%v', but expected '%v'", err, nil)
 	}
 
-	holder, err := r.ConvertCandles(getOneHour())
+	holder, err := r.ProcessResponse(getOneHour())
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v', but expected '%v'", err, nil)
 	}
@@ -228,7 +228,7 @@ func TestRequest_ConvertCandles(t *testing.T) {
 		t.Fatalf("received: '%v', but expected '%v'", err, nil)
 	}
 
-	holder, err = r.ConvertCandles(getOneMinute())
+	holder, err = r.ProcessResponse(getOneMinute())
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v', but expected '%v'", err, nil)
 	}
@@ -238,7 +238,7 @@ func TestRequest_ConvertCandles(t *testing.T) {
 	}
 }
 
-func TestExtendedRequest_ConvertCandles(t *testing.T) {
+func TestExtendedRequest_ProcessResponse(t *testing.T) {
 	t.Parallel()
 
 	start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -246,13 +246,13 @@ func TestExtendedRequest_ConvertCandles(t *testing.T) {
 	pair := currency.NewPair(currency.BTC, currency.USDT)
 
 	var rExt *ExtendedRequest
-	_, err := rExt.ConvertCandles(nil)
+	_, err := rExt.ProcessResponse(nil)
 	if !errors.Is(err, errNilRequest) {
 		t.Fatalf("received: '%v', but expected '%v'", err, errNilRequest)
 	}
 
 	rExt = &ExtendedRequest{}
-	_, err = rExt.ConvertCandles(nil)
+	_, err = rExt.ProcessResponse(nil)
 	if !errors.Is(err, errNoTimeSeriesDataToConvert) {
 		t.Fatalf("received: '%v', but expected '%v'", err, errNoTimeSeriesDataToConvert)
 	}
@@ -270,7 +270,7 @@ func TestExtendedRequest_ConvertCandles(t *testing.T) {
 
 	rExt = &ExtendedRequest{r, dates}
 
-	holder, err := rExt.ConvertCandles(getOneHour())
+	holder, err := rExt.ProcessResponse(getOneHour())
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v', but expected '%v'", err, nil)
 	}
@@ -292,7 +292,7 @@ func TestExtendedRequest_ConvertCandles(t *testing.T) {
 
 	rExt = &ExtendedRequest{r, dates}
 
-	holder, err = rExt.ConvertCandles(getOneMinute())
+	holder, err = rExt.ProcessResponse(getOneMinute())
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v', but expected '%v'", err, nil)
 	}

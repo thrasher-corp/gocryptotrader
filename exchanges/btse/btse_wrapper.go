@@ -1009,7 +1009,7 @@ func (b *BTSE) GetHistoricCandles(ctx context.Context, pair currency.Pair, a ass
 	default:
 		return nil, fmt.Errorf("asset %s not supported", req.Asset)
 	}
-	return req.ConvertCandles(timeSeries)
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval

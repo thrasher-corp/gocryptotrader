@@ -1035,7 +1035,7 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 			Volume: ohlcData[x].Volume,
 		})
 	}
-	return req.ConvertCandles(timeSeries)
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval

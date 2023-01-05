@@ -913,7 +913,7 @@ func (z *ZB) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset
 			Volume: candles.Data[x].Volume,
 		})
 	}
-	return req.ConvertCandles(timeSeries)
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
@@ -961,7 +961,7 @@ allKlines:
 			break allKlines
 		}
 	}
-	return req.ConvertCandles(timeSeries)
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetAvailableTransferChains returns the available transfer blockchains for the specific

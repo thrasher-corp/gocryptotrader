@@ -2802,9 +2802,9 @@ func TestGetKlineExtendedRequest(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	// The one hour is not supported in this situation and will be converted
-	// to one minute request interval for construction. Below will demonstrate
-	// that correct flow.
+	// The one hour time interval is not supported in this context, so it will
+	// be converted to a one minute interval to be used in a request to
+	// construct one hour candles.
 	r, err := b.GetKlineExtendedRequest(pair, asset.Spot, kline.OneHour, start, end)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)

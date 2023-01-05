@@ -890,7 +890,7 @@ func (h *HitBTC) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 			Volume: data[x].Volume,
 		}
 	}
-	return req.ConvertCandles(timeSeries)
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
@@ -924,5 +924,5 @@ func (h *HitBTC) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 			})
 		}
 	}
-	return req.ConvertCandles(timeSeries)
+	return req.ProcessResponse(timeSeries)
 }

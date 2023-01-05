@@ -1195,9 +1195,9 @@ func (f *FTX) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asse
 		return nil, err
 	}
 
-	candles := make([]kline.Candle, len(ohlcData))
+	timeSeries := make([]kline.Candle, len(ohlcData))
 	for x := range ohlcData {
-		candles[x] = kline.Candle{
+		timeSeries[x] = kline.Candle{
 			Time:   ohlcData[x].StartTime,
 			Open:   ohlcData[x].Open,
 			High:   ohlcData[x].High,
@@ -1206,7 +1206,7 @@ func (f *FTX) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asse
 			Volume: ohlcData[x].Volume,
 		}
 	}
-	return req.ConvertCandles(candles)
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
@@ -1240,7 +1240,7 @@ func (f *FTX) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair
 			})
 		}
 	}
-	return req.ConvertCandles(timeSeries)
+	return req.ProcessResponse(timeSeries)
 }
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type

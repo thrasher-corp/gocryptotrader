@@ -1114,7 +1114,7 @@ func (b *Bitfinex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 			Volume: candles[x].Volume,
 		}
 	}
-	return req.ConvertCandles(timeSeries)
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
@@ -1154,7 +1154,7 @@ func (b *Bitfinex) GetHistoricCandlesExtended(ctx context.Context, pair currency
 			})
 		}
 	}
-	return req.ConvertCandles(timeSeries)
+	return req.ProcessResponse(timeSeries)
 }
 
 func (b *Bitfinex) fixCasing(in currency.Pair, a asset.Item) (string, error) {

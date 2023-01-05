@@ -224,88 +224,88 @@ func (by *Bybit) GetKlines(ctx context.Context, symbol, period string, limit int
 	klines := make([]KlineItem, len(resp.Data))
 	for x := range resp.Data {
 		if len(resp.Data[x]) != 11 {
-			return klines, fmt.Errorf("%v GetKlines: invalid response, array length not as expected, check api docs for updates", by.Name)
+			return nil, fmt.Errorf("%v GetKlines: invalid response, array length not as expected, check api docs for updates", by.Name)
 		}
 		var err error
 		startTime, ok := resp.Data[x][0].(float64)
 		if !ok {
-			return klines, fmt.Errorf("%v GetKlines: %w for StartTime", by.Name, errTypeAssert)
+			return nil, fmt.Errorf("%v GetKlines: %w for StartTime", by.Name, errTypeAssert)
 		}
 		klines[x].StartTime = time.UnixMilli(int64(startTime))
 
 		open, ok := resp.Data[x][1].(string)
 		if !ok {
-			return klines, fmt.Errorf("%v GetKlines: %w for Open", by.Name, errTypeAssert)
+			return nil, fmt.Errorf("%v GetKlines: %w for Open", by.Name, errTypeAssert)
 		}
 		klines[x].Open, err = strconv.ParseFloat(open, 64)
 		if err != nil {
-			return klines, fmt.Errorf("%v GetKlines: %w for Open", by.Name, errStrParsing)
+			return nil, fmt.Errorf("%v GetKlines: %w for Open", by.Name, errStrParsing)
 		}
 
 		high, ok := resp.Data[x][2].(string)
 		if !ok {
-			return klines, fmt.Errorf("%v GetKlines: %w for High", by.Name, errTypeAssert)
+			return nil, fmt.Errorf("%v GetKlines: %w for High", by.Name, errTypeAssert)
 		}
 		klines[x].High, err = strconv.ParseFloat(high, 64)
 		if err != nil {
-			return klines, fmt.Errorf("%v GetKlines: %w for High", by.Name, errStrParsing)
+			return nil, fmt.Errorf("%v GetKlines: %w for High", by.Name, errStrParsing)
 		}
 
 		low, ok := resp.Data[x][3].(string)
 		if !ok {
-			return klines, fmt.Errorf("%v GetKlines: %w for Low", by.Name, errTypeAssert)
+			return nil, fmt.Errorf("%v GetKlines: %w for Low", by.Name, errTypeAssert)
 		}
 		klines[x].Low, err = strconv.ParseFloat(low, 64)
 		if err != nil {
-			return klines, fmt.Errorf("%v GetKlines: %w for Low", by.Name, errStrParsing)
+			return nil, fmt.Errorf("%v GetKlines: %w for Low", by.Name, errStrParsing)
 		}
 
 		c, ok := resp.Data[x][4].(string)
 		if !ok {
-			return klines, fmt.Errorf("%v GetKlines: %w for Close", by.Name, errTypeAssert)
+			return nil, fmt.Errorf("%v GetKlines: %w for Close", by.Name, errTypeAssert)
 		}
 		klines[x].Close, err = strconv.ParseFloat(c, 64)
 		if err != nil {
-			return klines, fmt.Errorf("%v GetKlines: %w for Close", by.Name, errStrParsing)
+			return nil, fmt.Errorf("%v GetKlines: %w for Close", by.Name, errStrParsing)
 		}
 
 		volume, ok := resp.Data[x][5].(string)
 		if !ok {
-			return klines, fmt.Errorf("%v GetKlines: %w for Volume", by.Name, errTypeAssert)
+			return nil, fmt.Errorf("%v GetKlines: %w for Volume", by.Name, errTypeAssert)
 		}
 		klines[x].Volume, err = strconv.ParseFloat(volume, 64)
 		if err != nil {
-			return klines, fmt.Errorf("%v GetKlines: %w for Volume", by.Name, errStrParsing)
+			return nil, fmt.Errorf("%v GetKlines: %w for Volume", by.Name, errStrParsing)
 		}
 
 		endTime, ok := resp.Data[x][6].(float64)
 		if !ok {
-			return klines, fmt.Errorf("%v GetKlines: %w for EndTime", by.Name, errTypeAssert)
+			return nil, fmt.Errorf("%v GetKlines: %w for EndTime", by.Name, errTypeAssert)
 		}
 		klines[x].EndTime = time.UnixMilli(int64(endTime))
 		quoteAssetVolume, ok := resp.Data[x][7].(string)
 		if !ok {
-			return klines, fmt.Errorf("%v GetKlines: %w for QuoteAssetVolume", by.Name, errTypeAssert)
+			return nil, fmt.Errorf("%v GetKlines: %w for QuoteAssetVolume", by.Name, errTypeAssert)
 		}
 		klines[x].QuoteAssetVolume, err = strconv.ParseFloat(quoteAssetVolume, 64)
 		if err != nil {
-			return klines, fmt.Errorf("%v GetKlines: %w for QuoteAssetVolume", by.Name, errStrParsing)
+			return nil, fmt.Errorf("%v GetKlines: %w for QuoteAssetVolume", by.Name, errStrParsing)
 		}
 
 		tradesCount, ok := resp.Data[x][8].(float64)
 		if !ok {
-			return klines, fmt.Errorf("%v GetKlines: %w for TradesCount", by.Name, errTypeAssert)
+			return nil, fmt.Errorf("%v GetKlines: %w for TradesCount", by.Name, errTypeAssert)
 		}
 		klines[x].TradesCount = int64(tradesCount)
 
 		klines[x].TakerBaseVolume, ok = resp.Data[x][9].(float64)
 		if !ok {
-			return klines, fmt.Errorf("%v GetKlines: %w for TakerBaseVolume", by.Name, errTypeAssert)
+			return nil, fmt.Errorf("%v GetKlines: %w for TakerBaseVolume", by.Name, errTypeAssert)
 		}
 
 		klines[x].TakerQuoteVolume, ok = resp.Data[x][10].(float64)
 		if !ok {
-			return klines, fmt.Errorf("%v GetKlines: %w for TakerQuoteVolume", by.Name, errTypeAssert)
+			return nil, fmt.Errorf("%v GetKlines: %w for TakerQuoteVolume", by.Name, errTypeAssert)
 		}
 	}
 	return klines, nil

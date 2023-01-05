@@ -895,7 +895,7 @@ func (bi *Binanceus) GetHistoricCandles(ctx context.Context, pair currency.Pair,
 			Volume: candles[x].Volume,
 		}
 	}
-	return req.ConvertCandles(timeSeries)
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
@@ -930,7 +930,7 @@ func (bi *Binanceus) GetHistoricCandlesExtended(ctx context.Context, pair curren
 			})
 		}
 	}
-	return req.ConvertCandles(timeSeries)
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetAvailableTransferChains returns the available transfer blockchains for the specific

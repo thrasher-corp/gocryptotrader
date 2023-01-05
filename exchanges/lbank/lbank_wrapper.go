@@ -914,7 +914,7 @@ func (l *Lbank) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 			Volume: data[x].TradingVolume,
 		}
 	}
-	return req.ConvertCandles(timeSeries)
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
@@ -950,7 +950,7 @@ func (l *Lbank) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 			})
 		}
 	}
-	return req.ConvertCandles(timeSeries)
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetStatus returns the order.Status from the int representation.

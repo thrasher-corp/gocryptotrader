@@ -1390,7 +1390,7 @@ func (ok *Okx) GetHistoricCandles(ctx context.Context, pair currency.Pair, a ass
 			Volume: candles[x].Volume,
 		}
 	}
-	return req.ConvertCandles(timeSeries)
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
@@ -1431,7 +1431,7 @@ func (ok *Okx) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pai
 			})
 		}
 	}
-	return req.ConvertCandles(timeSeries)
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetAvailableTransferChains returns the available transfer blockchains for the specific

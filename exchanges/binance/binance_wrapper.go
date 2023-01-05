@@ -1712,7 +1712,7 @@ func (b *Binance) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 			Volume: candles[x].Volume,
 		}
 	}
-	return req.ConvertCandles(timeSeries)
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set
@@ -1753,7 +1753,7 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			})
 		}
 	}
-	return req.ConvertCandles(timeSeries)
+	return req.ProcessResponse(timeSeries)
 }
 
 func compatibleOrderVars(side, status, orderType string) OrderVars {

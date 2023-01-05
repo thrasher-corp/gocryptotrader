@@ -101,9 +101,9 @@ func (r *Request) GetRanges(limit uint32) (*IntervalRangeHolder, error) {
 	return CalculateCandleDateRanges(r.Start, r.End, r.ExchangeInterval, limit)
 }
 
-// ConvertCandles converts time series candles into a kline.Item type. This will
-// auto convert from a lower to higher time series if applicable.
-func (r *Request) ConvertCandles(timeSeries []Candle) (*Item, error) {
+// ProcessResponse converts time series candles into a kline.Item type. This
+// will auto convert from a lower to higher time series if applicable.
+func (r *Request) ProcessResponse(timeSeries []Candle) (*Item, error) {
 	if r == nil {
 		return nil, errNilRequest
 	}
@@ -145,9 +145,9 @@ type ExtendedRequest struct {
 	*IntervalRangeHolder
 }
 
-// ConvertCandles converts time series candles into a kline.Item type. This will
-// auto convert from a lower to higher time series if applicable.
-func (r *ExtendedRequest) ConvertCandles(timeSeries []Candle) (*Item, error) {
+// ProcessResponse converts time series candles into a kline.Item type. This
+// will auto convert from a lower to higher time series if applicable.
+func (r *ExtendedRequest) ProcessResponse(timeSeries []Candle) (*Item, error) {
 	if r == nil {
 		return nil, errNilRequest
 	}
@@ -156,7 +156,7 @@ func (r *ExtendedRequest) ConvertCandles(timeSeries []Candle) (*Item, error) {
 		return nil, errNoTimeSeriesDataToConvert
 	}
 
-	holder, err := r.Request.ConvertCandles(timeSeries)
+	holder, err := r.Request.ProcessResponse(timeSeries)
 	if err != nil {
 		return nil, err
 	}

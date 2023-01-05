@@ -884,7 +884,7 @@ func (b *Bitstamp) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 			Volume: candles.Data.OHLCV[x].Volume,
 		})
 	}
-	return req.ConvertCandles(timeSeries)
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
@@ -924,5 +924,5 @@ func (b *Bitstamp) GetHistoricCandlesExtended(ctx context.Context, pair currency
 			})
 		}
 	}
-	return req.ConvertCandles(timeSeries)
+	return req.ProcessResponse(timeSeries)
 }

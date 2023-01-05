@@ -1036,7 +1036,7 @@ func (o *OKCoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		return nil, err
 	}
 
-	return req.ConvertCandles(timeSeries)
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
@@ -1062,5 +1062,5 @@ func (o *OKCoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 		}
 		timeSeries = append(timeSeries, candles...)
 	}
-	return req.ConvertCandles(timeSeries)
+	return req.ProcessResponse(timeSeries)
 }

@@ -906,7 +906,7 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		return nil, err
 	}
 
-	klineData, err := g.GetSpotKline(ctx, KlinesRequestParams{
+	timeSeries, err := g.GetSpotKline(ctx, KlinesRequestParams{
 		Symbol:   req.RequestFormatted.String(),
 		GroupSec: g.FormatExchangeKlineInterval(req.ExchangeInterval),
 		HourSize: int(time.Since(req.Start).Hours()),
@@ -914,7 +914,7 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 	if err != nil {
 		return nil, err
 	}
-	return req.ConvertCandles(klineData)
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval

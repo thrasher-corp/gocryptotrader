@@ -1927,7 +1927,7 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 	default:
 		return nil, fmt.Errorf("%s %w", req.Asset, asset.ErrNotSupported)
 	}
-	return req.ConvertCandles(timeSeries)
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
@@ -2029,7 +2029,7 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 			return nil, fmt.Errorf("%s %w", req.Asset, asset.ErrNotSupported)
 		}
 	}
-	return req.ConvertCandles(timeSeries)
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetServerTime returns the current exchange server time.

@@ -1042,7 +1042,7 @@ func (b *BTCMarkets) GetHistoricCandles(ctx context.Context, pair currency.Pair,
 			return nil, err
 		}
 	}
-	return req.ConvertCandles(timeSeries)
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
@@ -1075,7 +1075,7 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(ctx context.Context, pair curren
 			timeSeries = append(timeSeries, elem)
 		}
 	}
-	return req.ConvertCandles(timeSeries)
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetServerTime returns the current exchange server time.

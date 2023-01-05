@@ -895,16 +895,11 @@ func (c *CoinbasePro) GetHistoricCandles(ctx context.Context, pair currency.Pair
 		return nil, err
 	}
 
-	gran, err := strconv.ParseInt(c.FormatExchangeKlineInterval(req.ExchangeInterval), 10, 64)
-	if err != nil {
-		return nil, err
-	}
-
 	history, err := c.GetHistoricRates(ctx,
 		req.RequestFormatted.String(),
 		start.Format(time.RFC3339),
 		end.Format(time.RFC3339),
-		gran)
+		int64(req.ExchangeInterval.Duration().Seconds()))
 	if err != nil {
 		return nil, err
 	}
@@ -920,17 +915,12 @@ func (c *CoinbasePro) GetHistoricCandles(ctx context.Context, pair currency.Pair
 			Volume: history[x].Volume,
 		}
 	}
-	return req.ConvertCandles(timeSeries)
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (c *CoinbasePro) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	req, err := c.GetKlineExtendedRequest(pair, a, interval, start, end)
-	if err != nil {
-		return nil, err
-	}
-
-	gran, err := strconv.ParseInt(c.FormatExchangeKlineInterval(req.ExchangeInterval), 10, 64)
 	if err != nil {
 		return nil, err
 	}
@@ -942,7 +932,7 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(ctx context.Context, pair curre
 			req.RequestFormatted.String(),
 			req.Ranges[x].Start.Time.Format(time.RFC3339),
 			req.Ranges[x].End.Time.Format(time.RFC3339),
-			gran)
+			int64(req.ExchangeInterval.Duration().Seconds()))
 		if err != nil {
 			return nil, err
 		}
@@ -958,7 +948,7 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(ctx context.Context, pair curre
 			})
 		}
 	}
-	return req.ConvertCandles(timeSeries)
+	return req.ProcessResponse(timeSeries)
 }
 
 // ValidateCredentials validates current credentials used for wrapper
