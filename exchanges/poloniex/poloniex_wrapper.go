@@ -954,13 +954,9 @@ func (p *Poloniex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 		return nil, err
 	}
 
-	// we use Truncate here to round start to the nearest even number that
-	// matches the requested interval example 10:17 with an interval of 15
-	// minutes will go down 10:15 this is due to poloniex returning a
-	// non-complete candle if the time does not match.
 	resp, err := p.GetChartData(ctx,
 		req.RequestFormatted.String(),
-		req.Start.Truncate(req.ExchangeInterval.Duration()),
+		req.Start,
 		req.End,
 		p.FormatExchangeKlineInterval(req.ExchangeInterval))
 	if err != nil {
