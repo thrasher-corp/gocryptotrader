@@ -183,17 +183,14 @@ func (k *Item) FillMissingDataWithEmptyEntries(i *IntervalRangeHolder) {
 	}
 }
 
-// RemoveDuplicates removes any duplicate candles
-func (k *Item) RemoveDuplicates() {
+// RemoveDuplicateCandlesByTime removes any duplicate candles
+func (k *Item) RemoveDuplicateCandlesByTime() {
 	var newCandles []Candle
+	candleMap := make(map[int64]struct{})
 	for x := range k.Candles {
-		if x == 0 {
+		if _, ok := candleMap[k.Candles[x].Time.UnixNano()]; !ok {
 			newCandles = append(newCandles, k.Candles[x])
-			continue
-		}
-		if !k.Candles[x].Time.Equal(k.Candles[x-1].Time) {
-			// don't add duplicate
-			newCandles = append(newCandles, k.Candles[x])
+			candleMap[k.Candles[x].Time.UnixNano()] = struct{}{}
 		}
 	}
 
@@ -585,4 +582,21 @@ func CreateIntervalTime(tt time.Time) IntervalTime {
 // Equal allows for easier unix comparison
 func (i *IntervalTime) Equal(tt time.Time) bool {
 	return tt.Unix() == i.Ticks
+}
+
+// EqualSource checks whether two sets of candles
+// come from the same data source
+func (k *Item) EqualSource(i *Item) error {
+	if k == nil || i == nil {
+		return common.ErrNilPointer
+	}
+	if k.Exchange != i.Exchange ||
+		k.Asset != i.Asset ||
+		!k.Pair.Equal(i.Pair) {
+		return fmt.Errorf("%v %v %v %w %v %v %v", k.Exchange, k.Asset, k.Pair, ErrItemNotEqual, i.Exchange, i.Asset, i.Pair)
+	}
+	if !k.UnderlyingPair.IsEmpty() && !i.UnderlyingPair.IsEmpty() && !k.UnderlyingPair.Equal(i.UnderlyingPair) {
+		return fmt.Errorf("%w %v %v", ErrItemUnderlyingNotEqual, k.UnderlyingPair, i.UnderlyingPair)
+	}
+	return nil
 }

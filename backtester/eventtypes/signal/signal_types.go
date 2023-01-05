@@ -4,6 +4,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -11,10 +12,14 @@ import (
 // Event handler is used for getting trade signal details
 // Example Amount and Price of current candle tick
 type Event interface {
-	common.EventHandler
+	common.Event
 	common.Directioner
-
+	ToKline() kline.Event
 	GetClosePrice() decimal.Decimal
+	GetHighPrice() decimal.Decimal
+	GetOpenPrice() decimal.Decimal
+	GetLowPrice() decimal.Decimal
+	GetVolume() decimal.Decimal
 	IsSignal() bool
 	GetSellLimit() decimal.Decimal
 	GetBuyLimit() decimal.Decimal

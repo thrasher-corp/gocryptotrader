@@ -55,13 +55,17 @@ var (
 	ErrCanOnlyDownscaleCandles = errors.New("interval must be a longer duration to scale")
 	// ErrWholeNumberScaling returns when old interval data cannot neatly fit into new interval size
 	ErrWholeNumberScaling = errors.New("new interval must scale properly into new candle")
-	errNilKline           = errors.New("kline item is nil")
 	// ErrNotFoundAtTime returned when looking up a candle at a specific time
 	ErrNotFoundAtTime = errors.New("candle not found at time")
-
+	// ErrItemNotEqual returns when comparison between two kline items fail
+	ErrItemNotEqual = errors.New("kline item not equal")
+	// ErrItemUnderlyingNotEqual returns when the underlying pair is not equal
+	ErrItemUnderlyingNotEqual = errors.New("kline item underlying pair not equal")
 	// ErrValidatingParams defines an error when the kline params are either not
 	// enabled or are invalid.
 	ErrValidatingParams = errors.New("kline param(s) are invalid")
+
+	errNilKline = errors.New("kline item is nil")
 
 	// SupportedIntervals is a list of all supported intervals
 	SupportedIntervals = []Interval{

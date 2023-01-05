@@ -1068,7 +1068,11 @@ func TestGetFuturesTradingHistory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := g.GetFuturesTradingHistory(context.Background(), settleUSDT, tradablePairs[0], 0, 0, "", time.Time{}, time.Time{}); err != nil {
+	settle, err := g.getSettlementFromCurrency(tradablePairs[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := g.GetFuturesTradingHistory(context.Background(), settle, tradablePairs[0], 0, 0, "", time.Time{}, time.Time{}); err != nil {
 		t.Errorf("%s GetFuturesTradingHistory() error %v", g.Name, err)
 	}
 }

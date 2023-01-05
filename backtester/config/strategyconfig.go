@@ -35,7 +35,7 @@ func ReadStrategyConfigFromFile(path string) (*Config, error) {
 // Validate checks all config settings
 func (c *Config) Validate() error {
 	if c == nil {
-		return fmt.Errorf("%w nil config", common.ErrNilArguments)
+		return fmt.Errorf("%w config", gctcommon.ErrNilPointer)
 	}
 	err := c.validateDate()
 	if err != nil {
@@ -122,7 +122,7 @@ func (c *Config) validateStrategySettings() error {
 			}
 		}
 	}
-	strats := strategies.GetStrategies()
+	strats := strategies.GetSupportedStrategies()
 	for i := range strats {
 		if strings.EqualFold(strats[i].Name(), c.StrategySettings.Name) {
 			return nil
@@ -158,12 +158,11 @@ func (c *Config) validateCurrencySettings() error {
 			c.CurrencySettings[i].Asset == asset.PerpetualContract {
 			return errPerpetualsUnsupported
 		}
-		if c.CurrencySettings[i].Asset == asset.Futures &&
-			(c.CurrencySettings[i].Quote.String() == "PERP" || c.CurrencySettings[i].Base.String() == "PI") {
-			return errPerpetualsUnsupported
-		}
 		if c.CurrencySettings[i].Asset.IsFutures() {
 			hasFutures = true
+			if c.CurrencySettings[i].Quote.String() == "PERP" || c.CurrencySettings[i].Base.String() == "PI" {
+				return errPerpetualsUnsupported
+			}
 		}
 		if c.CurrencySettings[i].SpotDetails != nil {
 			if c.FundingSettings.UseExchangeLevelFunding {
@@ -239,12 +238,16 @@ func (c *Config) PrintSetting() {
 	if c.FundingSettings.UseExchangeLevelFunding && c.StrategySettings.SimultaneousSignalProcessing {
 		log.Info(common.Config, common.CMDColours.H2+"------------------Funding Settings---------------------------"+common.CMDColours.Default)
 		log.Infof(common.Config, "Use Exchange Level Funding: %v", c.FundingSettings.UseExchangeLevelFunding)
-		for i := range c.FundingSettings.ExchangeLevelFunding {
-			log.Infof(common.Config, "Initial funds for %v %v %v: %v",
-				c.FundingSettings.ExchangeLevelFunding[i].ExchangeName,
-				c.FundingSettings.ExchangeLevelFunding[i].Asset,
-				c.FundingSettings.ExchangeLevelFunding[i].Currency,
-				c.FundingSettings.ExchangeLevelFunding[i].InitialFunds.Round(8))
+		if c.DataSettings.LiveData != nil && c.DataSettings.LiveData.RealOrders {
+			log.Infof(common.Config, "Funding levels will be set by the exchange")
+		} else {
+			for i := range c.FundingSettings.ExchangeLevelFunding {
+				log.Infof(common.Config, "Initial funds for %v %v %v: %v",
+					c.FundingSettings.ExchangeLevelFunding[i].ExchangeName,
+					c.FundingSettings.ExchangeLevelFunding[i].Asset,
+					c.FundingSettings.ExchangeLevelFunding[i].Currency,
+					c.FundingSettings.ExchangeLevelFunding[i].InitialFunds.Round(8))
+			}
 		}
 	}
 
@@ -255,7 +258,10 @@ func (c *Config) PrintSetting() {
 			c.CurrencySettings[i].Quote)
 		log.Infof(common.Config, currStr[:61])
 		log.Infof(common.Config, "Exchange: %v", c.CurrencySettings[i].ExchangeName)
-		if !c.FundingSettings.UseExchangeLevelFunding && c.CurrencySettings[i].SpotDetails != nil {
+		switch {
+		case c.DataSettings.LiveData != nil && c.DataSettings.LiveData.RealOrders:
+			log.Infof(common.Config, "Funding levels will be set by the exchange")
+		case !c.FundingSettings.UseExchangeLevelFunding && c.CurrencySettings[i].SpotDetails != nil:
 			if c.CurrencySettings[i].SpotDetails.InitialBaseFunds != nil {
 				log.Infof(common.Config, "Initial base funds: %v %v",
 					c.CurrencySettings[i].SpotDetails.InitialBaseFunds.Round(8),
@@ -299,8 +305,12 @@ func (c *Config) PrintSetting() {
 		log.Info(common.Config, common.CMDColours.H2+"------------------Live Settings------------------------------"+common.CMDColours.Default)
 		log.Infof(common.Config, "Data type: %v", c.DataSettings.DataType)
 		log.Infof(common.Config, "Interval: %v", c.DataSettings.Interval)
-		log.Infof(common.Config, "REAL ORDERS: %v", c.DataSettings.LiveData.RealOrders)
-		log.Infof(common.Config, "Overriding GCT API settings: %v", c.DataSettings.LiveData.APIClientIDOverride != "")
+		log.Infof(common.Config, "Using real orders: %v", c.DataSettings.LiveData.RealOrders)
+		log.Infof(common.Config, "Data check timer: %v", c.DataSettings.LiveData.DataCheckTimer)
+		log.Infof(common.Config, "New event timeout: %v", c.DataSettings.LiveData.NewEventTimeout)
+		for i := range c.DataSettings.LiveData.ExchangeCredentials {
+			log.Infof(common.Config, "%s credentials: %s", c.DataSettings.LiveData.ExchangeCredentials[i].Exchange, c.DataSettings.LiveData.ExchangeCredentials[i].Keys.String())
+		}
 	}
 	if c.DataSettings.APIData != nil {
 		log.Info(common.Config, common.CMDColours.H2+"------------------API Settings-------------------------------"+common.CMDColours.Default)

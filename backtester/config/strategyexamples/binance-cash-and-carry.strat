@@ -2,7 +2,7 @@
  "nickname": "ExampleCashAndCarry",
  "goal": "To demonstrate a cash and carry strategy",
  "strategy-settings": {
-  "name": "ftx-cash-carry",
+  "name": "binance-cash-carry",
   "use-simultaneous-signal-processing": true,
   "disable-usd-tracking": false
  },
@@ -10,9 +10,9 @@
   "use-exchange-level-funding": true,
   "exchange-level-funding": [
    {
-    "exchange-name": "ftx",
+    "exchange-name": "binance",
     "asset": "spot",
-    "currency": "USD",
+    "currency": "USDT",
     "initial-funds": "100000",
     "transfer-fee": "0"
    }
@@ -20,19 +20,19 @@
  },
  "currency-settings": [
   {
-   "exchange-name": "ftx",
-   "asset": "futures",
+   "exchange-name": "binance",
+   "asset": "usdtmarginedfutures",
    "base": "BTC",
-   "quote": "20210924",
+   "quote": "USDT",
    "buy-side": {
-    "minimum-size": "0",
-    "maximum-size": "0",
-    "maximum-total": "0"
+    "minimum-size": "0.005",
+    "maximum-size": "2",
+    "maximum-total": "40000"
    },
    "sell-side": {
-    "minimum-size": "0",
-    "maximum-size": "0",
-    "maximum-total": "0"
+    "minimum-size": "0.005",
+    "maximum-size": "2",
+    "maximum-total": "40000"
    },
    "min-slippage-percent": "0",
    "max-slippage-percent": "0",
@@ -44,19 +44,19 @@
    "use-exchange-pnl-calculation": false
   },
   {
-   "exchange-name": "ftx",
+   "exchange-name": "binance",
    "asset": "spot",
    "base": "BTC",
-   "quote": "USD",
+   "quote": "USDT",
    "buy-side": {
-    "minimum-size": "0",
-    "maximum-size": "0",
-    "maximum-total": "0"
+    "minimum-size": "0.005",
+    "maximum-size": "2",
+    "maximum-total": "40000"
    },
    "sell-side": {
-    "minimum-size": "0",
-    "maximum-size": "0",
-    "maximum-total": "0"
+    "minimum-size": "0.005",
+    "maximum-size": "2",
+    "maximum-total": "40000"
    },
    "min-slippage-percent": "0",
    "max-slippage-percent": "0",
@@ -71,6 +71,7 @@
  "data-settings": {
   "interval": 86400000000000,
   "data-type": "candle",
+  "verbose-exchange-requests": false,
   "api-data": {
    "start-date": "2021-01-14T00:00:00Z",
    "end-date": "2021-09-24T00:00:00Z",
@@ -79,7 +80,7 @@
  },
  "portfolio-settings": {
   "leverage": {
-   "can-use-leverage": true,
+   "can-use-leverage": false,
    "maximum-orders-with-leverage-ratio": "0",
    "maximum-leverage-rate": "0",
    "maximum-collateral-leverage-rate": "0"

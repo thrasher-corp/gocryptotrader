@@ -516,10 +516,10 @@ func (b *Bitfinex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 			if Accounts[i].ID == accountBalance[x].Type {
 				Accounts[i].Currencies = append(Accounts[i].Currencies,
 					account.Balance{
-						CurrencyName: currency.NewCode(accountBalance[x].Currency),
-						Total:        accountBalance[x].Amount,
-						Hold:         accountBalance[x].Amount - accountBalance[x].Available,
-						Free:         accountBalance[x].Available,
+						Currency: currency.NewCode(accountBalance[x].Currency),
+						Total:    accountBalance[x].Amount,
+						Hold:     accountBalance[x].Amount - accountBalance[x].Available,
+						Free:     accountBalance[x].Available,
 					})
 			}
 		}
@@ -1174,7 +1174,7 @@ func (b *Bitfinex) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	if len(summary) > 0 {
 		log.Warnf(log.ExchangeSys, "%v - %v", b.Name, summary)
 	}
-	ret.RemoveDuplicates()
+	ret.RemoveDuplicateCandlesByTime()
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil

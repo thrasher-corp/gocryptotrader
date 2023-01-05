@@ -711,10 +711,10 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.H
 		}
 		for x := range balances {
 			currencies[x] = account.Balance{
-				CurrencyName: currency.NewCode(balances[x].Currency),
-				Total:        balances[x].Available - balances[x].Locked,
-				Hold:         balances[x].Locked,
-				Free:         balances[x].Available,
+				Currency: currency.NewCode(balances[x].Currency),
+				Total:    balances[x].Available - balances[x].Locked,
+				Hold:     balances[x].Locked,
+				Free:     balances[x].Available,
 			}
 		}
 		info.Accounts = append(info.Accounts, account.SubAccount{
@@ -730,15 +730,15 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.H
 		var currencies []account.Balance
 		for x := range balances {
 			currencies = append(currencies, account.Balance{
-				CurrencyName: currency.NewCode(balances[x].Base.Currency),
-				Total:        balances[x].Base.Available + balances[x].Base.Locked,
-				Hold:         balances[x].Base.Locked,
-				Free:         balances[x].Base.Available,
+				Currency: currency.NewCode(balances[x].Base.Currency),
+				Total:    balances[x].Base.Available + balances[x].Base.Locked,
+				Hold:     balances[x].Base.Locked,
+				Free:     balances[x].Base.Available,
 			}, account.Balance{
-				CurrencyName: currency.NewCode(balances[x].Quote.Currency),
-				Total:        balances[x].Quote.Available + balances[x].Quote.Locked,
-				Hold:         balances[x].Quote.Locked,
-				Free:         balances[x].Quote.Available,
+				Currency: currency.NewCode(balances[x].Quote.Currency),
+				Total:    balances[x].Quote.Available + balances[x].Quote.Locked,
+				Hold:     balances[x].Quote.Locked,
+				Free:     balances[x].Quote.Available,
 			})
 		}
 		info.Accounts = append(info.Accounts, account.SubAccount{
@@ -759,10 +759,10 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.H
 				return info, err
 			}
 			currencies[x] = account.Balance{
-				CurrencyName: currency.NewCode(balance.Currency),
-				Total:        balance.Total,
-				Hold:         balance.Total - balance.Available,
-				Free:         balance.Available,
+				Currency: currency.NewCode(balance.Currency),
+				Total:    balance.Total,
+				Hold:     balance.Total - balance.Available,
+				Free:     balance.Available,
 			}
 		}
 		info.Accounts = append(info.Accounts, account.SubAccount{
@@ -779,10 +779,10 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.H
 			AssetType: a,
 			Currencies: []account.Balance{
 				{
-					CurrencyName: currency.NewCode(balance.Currency),
-					Total:        balance.Total,
-					Hold:         balance.Total - balance.Available,
-					Free:         balance.Available,
+					Currency: currency.NewCode(balance.Currency),
+					Total:    balance.Total,
+					Hold:     balance.Total - balance.Available,
+					Free:     balance.Available,
 				},
 			},
 		})
