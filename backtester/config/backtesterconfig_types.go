@@ -21,7 +21,7 @@ type BacktesterConfig struct {
 	PrintLogo           bool           `json:"print-logo"`
 	LogSubheaders       bool           `json:"log-subheaders"`
 	Verbose             bool           `json:"verbose"`
-	StopAllTasksOnClose bool           `json:"stop-all-jobs-on-close"`
+	StopAllTasksOnClose bool           `json:"stop-all-tasks-on-close"`
 	PluginPath          string         `json:"plugin-path"`
 	Report              Report         `json:"report"`
 	GRPC                GRPC           `json:"grpc"`
