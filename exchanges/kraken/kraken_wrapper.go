@@ -1475,6 +1475,12 @@ func (k *Kraken) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 	if err != nil {
 		return nil, err
 	}
+
+	if a != asset.Spot {
+		// TODO: Implement futures
+		return nil, common.ErrNotYetImplemented
+	}
+
 	candles, err := k.GetOHLC(ctx,
 		req.Pair,
 		k.FormatExchangeKlineInterval(req.ExchangeInterval))

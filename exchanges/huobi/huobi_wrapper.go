@@ -1749,6 +1749,11 @@ func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 		return nil, err
 	}
 
+	if a != asset.Spot {
+		// TODO: Implement futures and coin margined futures
+		return nil, common.ErrNotYetImplemented
+	}
+
 	candles, err := h.GetSpotKline(ctx, KlinesRequestParams{
 		Period: h.FormatExchangeKlineInterval(req.ExchangeInterval),
 		Symbol: req.Pair,
