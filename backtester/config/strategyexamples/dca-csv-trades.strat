@@ -11,7 +11,7 @@
  },
  "currency-settings": [
   {
-   "exchange-name": "ftx",
+   "exchange-name": "binance",
    "asset": "spot",
    "base": "BTC",
    "quote": "USDT",
@@ -41,6 +41,7 @@
  "data-settings": {
   "interval": 60000000000,
   "data-type": "trade",
+  "verbose-exchange-requests": false,
   "csv-data": {
    "full-path": "..\\testdata\\binance_BTCUSDT_24h-trades_2020_11_16.csv"
   }

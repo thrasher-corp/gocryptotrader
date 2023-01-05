@@ -26,9 +26,6 @@ const (
 )
 
 var (
-	// ErrNilArguments is a common error response to highlight that nils were passed in
-	// when they should not have been
-	ErrNilArguments = errors.New("received nil argument(s)")
 	// ErrNilEvent is a common error for whenever a nil event occurs when it shouldn't have
 	ErrNilEvent = errors.New("nil event received")
 	// ErrInvalidDataType occurs when an invalid data type is defined in the config
@@ -39,8 +36,8 @@ var (
 	errCannotGenerateFileName = errors.New("cannot generate filename")
 )
 
-// EventHandler interface implements required GetTime() & Pair() return
-type EventHandler interface {
+// Event interface implements required GetTime() & Pair() return
+type Event interface {
 	GetBase() *event.Base
 	GetOffset() int64
 	SetOffset(int64)
@@ -61,6 +58,7 @@ type EventHandler interface {
 // custom subloggers for backtester use
 var (
 	Backtester         *log.SubLogger
+	LiveStrategy       *log.SubLogger
 	Setup              *log.SubLogger
 	Strategy           *log.SubLogger
 	Config             *log.SubLogger
@@ -73,17 +71,8 @@ var (
 	FundingStatistics  *log.SubLogger
 	Holdings           *log.SubLogger
 	Data               *log.SubLogger
+	FundManager        *log.SubLogger
 )
-
-// DataEventHandler interface used for loading and interacting with Data
-type DataEventHandler interface {
-	EventHandler
-	GetUnderlyingPair() currency.Pair
-	GetClosePrice() decimal.Decimal
-	GetHighPrice() decimal.Decimal
-	GetLowPrice() decimal.Decimal
-	GetOpenPrice() decimal.Decimal
-}
 
 // Directioner dictates the side of an order
 type Directioner interface {

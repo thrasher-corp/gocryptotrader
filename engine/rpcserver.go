@@ -192,9 +192,14 @@ func (s *RPCServer) StartRPCRESTProxy() {
 	}
 
 	go func() {
-		if err := http.ListenAndServe(s.Config.RemoteControl.GRPC.GRPCProxyListenAddress, mux); err != nil {
-			log.Errorf(log.GRPCSys, "gRPC proxy failed to server: %s\n", err)
-			return
+		server := &http.Server{
+			Addr:              s.Config.RemoteControl.GRPC.GRPCProxyListenAddress,
+			ReadHeaderTimeout: time.Minute,
+			ReadTimeout:       time.Minute,
+		}
+
+		if err = server.ListenAndServe(); err != nil {
+			log.Errorf(log.GRPCSys, "GRPC proxy failed to server: %s\n", err)
 		}
 	}()
 
@@ -636,7 +641,7 @@ func createAccountInfoRequest(h account.Holdings) (*gctrpc.GetAccountInfoRespons
 				continue
 			}
 			a.Currencies = append(a.Currencies, &gctrpc.AccountCurrencyInfo{
-				Currency:          y.CurrencyName.String(),
+				Currency:          y.Currency.String(),
 				TotalValue:        y.Total,
 				Hold:              y.Hold,
 				Free:              y.Free,
@@ -677,7 +682,7 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 		subAccounts := make([]*gctrpc.AccountCurrencyInfo, len(initAcc.Accounts[x].Currencies))
 		for y := range initAcc.Accounts[x].Currencies {
 			subAccounts[y] = &gctrpc.AccountCurrencyInfo{
-				Currency:   initAcc.Accounts[x].Currencies[y].CurrencyName.String(),
+				Currency:   initAcc.Accounts[x].Currencies[y].Currency.String(),
 				TotalValue: initAcc.Accounts[x].Currencies[y].Total,
 				Hold:       initAcc.Accounts[x].Currencies[y].Hold,
 			}
@@ -724,7 +729,7 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 			subAccounts := make([]*gctrpc.AccountCurrencyInfo, len(holdings.Accounts[x].Currencies))
 			for y := range holdings.Accounts[x].Currencies {
 				subAccounts[y] = &gctrpc.AccountCurrencyInfo{
-					Currency:   holdings.Accounts[x].Currencies[y].CurrencyName.String(),
+					Currency:   holdings.Accounts[x].Currencies[y].Currency.String(),
 					TotalValue: holdings.Accounts[x].Currencies[y].Total,
 					Hold:       holdings.Accounts[x].Currencies[y].Hold,
 				}
@@ -4809,15 +4814,15 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		free := decimal.NewFromFloat(acc.Currencies[i].AvailableWithoutBorrow)
 		cal := order.CollateralCalculator{
 			CalculateOffline:   r.CalculateOffline,
-			CollateralCurrency: acc.Currencies[i].CurrencyName,
+			CollateralCurrency: acc.Currencies[i].Currency,
 			Asset:              a,
 			FreeCollateral:     free,
 			LockedCollateral:   total.Sub(free),
 		}
 		if r.CalculateOffline &&
-			!acc.Currencies[i].CurrencyName.Equal(currency.USD) {
+			!acc.Currencies[i].Currency.Equal(currency.USD) {
 			var tick *ticker.Price
-			tickerCurr := currency.NewPair(acc.Currencies[i].CurrencyName, currency.USD)
+			tickerCurr := currency.NewPair(acc.Currencies[i].Currency, currency.USD)
 			if !spotPairs.Contains(tickerCurr, true) {
 				// cannot price currency to calculate collateral
 				continue

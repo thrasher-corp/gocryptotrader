@@ -286,10 +286,10 @@ func (i *ItBit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	fullBalance := make([]account.Balance, 0, len(amounts))
 	for key := range amounts {
 		fullBalance = append(fullBalance, account.Balance{
-			CurrencyName: currency.NewCode(key),
-			Total:        amounts[key].Total,
-			Hold:         amounts[key].Hold,
-			Free:         amounts[key].Free,
+			Currency: currency.NewCode(key),
+			Total:    amounts[key].Total,
+			Hold:     amounts[key].Hold,
+			Free:     amounts[key].Free,
 		})
 	}
 

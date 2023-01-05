@@ -295,10 +295,10 @@ func (l *LocalBitcoins) UpdateAccountInfo(ctx context.Context, assetType asset.I
 		AssetType: assetType,
 		Currencies: []account.Balance{
 			{
-				CurrencyName: currency.BTC,
-				Total:        accountBalance.Total.Balance,
-				Hold:         accountBalance.Total.Balance - accountBalance.Total.Sendable,
-				Free:         accountBalance.Total.Sendable,
+				Currency: currency.BTC,
+				Total:    accountBalance.Total.Balance,
+				Hold:     accountBalance.Total.Balance - accountBalance.Total.Sendable,
+				Free:     accountBalance.Total.Sendable,
 			}},
 	})
 

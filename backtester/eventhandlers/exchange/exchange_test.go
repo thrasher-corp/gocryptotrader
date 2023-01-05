@@ -9,57 +9,86 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ftx"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-const testExchange = "ftx"
+const testExchange = "binance"
 
 type fakeFund struct{}
 
+var leet = decimal.NewFromInt(1337)
+
 func (f *fakeFund) GetPairReader() (funding.IPairReader, error) {
-	return nil, nil
+	i, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, leet, leet)
+	if err != nil {
+		return nil, err
+	}
+	j, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, leet, leet)
+	if err != nil {
+		return nil, err
+	}
+	return funding.CreatePair(i, j)
 }
 
 func (f *fakeFund) GetCollateralReader() (funding.ICollateralReader, error) {
-	return nil, nil
+	i, err := funding.CreateItem(testExchange, asset.Futures, currency.BTC, leet, leet)
+	if err != nil {
+		return nil, err
+	}
+	j, err := funding.CreateItem(testExchange, asset.Futures, currency.USDT, leet, leet)
+	if err != nil {
+		return nil, err
+	}
+	return funding.CreateCollateral(i, j)
 }
 
 func (f *fakeFund) PairReleaser() (funding.IPairReleaser, error) {
-	btc, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(9999), decimal.NewFromInt(9999))
+	btc, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, leet, leet)
 	if err != nil {
 		return nil, err
 	}
-	usd, err := funding.CreateItem(testExchange, asset.Spot, currency.USD, decimal.NewFromInt(9999), decimal.NewFromInt(9999))
+	usdt, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, leet, leet)
 	if err != nil {
 		return nil, err
 	}
-	p, err := funding.CreatePair(btc, usd)
+	p, err := funding.CreatePair(btc, usdt)
 	if err != nil {
 		return nil, err
 	}
-	err = p.Reserve(decimal.NewFromInt(1337), gctorder.Buy)
+	err = p.Reserve(leet, gctorder.Buy)
 	if err != nil {
 		return nil, err
 	}
-	err = p.Reserve(decimal.NewFromInt(1337), gctorder.Sell)
+	err = p.Reserve(leet, gctorder.Sell)
 	if err != nil {
 		return nil, err
 	}
 	return p, nil
 }
 func (f *fakeFund) CollateralReleaser() (funding.ICollateralReleaser, error) {
-	return nil, nil
+	i, err := funding.CreateItem(testExchange, asset.Futures, currency.BTC, decimal.Zero, decimal.Zero)
+	if err != nil {
+		return nil, err
+	}
+	j, err := funding.CreateItem(testExchange, asset.Futures, currency.USDT, decimal.Zero, decimal.Zero)
+	if err != nil {
+		return nil, err
+	}
+	return funding.CreateCollateral(i, j)
 }
 
 func (f *fakeFund) IncreaseAvailable(decimal.Decimal, gctorder.Side) {}
@@ -69,12 +98,23 @@ func (f *fakeFund) Release(decimal.Decimal, decimal.Decimal, gctorder.Side) erro
 
 func TestReset(t *testing.T) {
 	t.Parallel()
-	e := Exchange{
-		CurrencySettings: []Settings{},
+	e := &Exchange{
+		CurrencySettings: []Settings{
+			{},
+		},
 	}
-	e.Reset()
-	if e.CurrencySettings != nil {
-		t.Error("expected nil")
+	err := e.Reset()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if len(e.CurrencySettings) > 0 {
+		t.Error("expected no entries")
+	}
+
+	e = nil
+	err = e.Reset()
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 }
 
@@ -85,7 +125,7 @@ func TestSetCurrency(t *testing.T) {
 	if len(e.CurrencySettings) != 0 {
 		t.Error("expected 0")
 	}
-	f := &ftx.FTX{}
+	f := &binance.Binance{}
 	f.Name = testExchange
 	cs := &Settings{
 		Exchange:      f,
@@ -95,8 +135,8 @@ func TestSetCurrency(t *testing.T) {
 	}
 	e.SetExchangeAssetCurrencySettings(asset.Spot, currency.NewPair(currency.BTC, currency.USDT), cs)
 	result, err := e.GetCurrencySettings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	if !result.UseRealOrders {
 		t.Error("expected true")
@@ -148,23 +188,17 @@ func TestPlaceOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
-	cfg, err := exch.GetDefaultConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = exch.Setup(cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
+	exchB := exch.GetBase()
+	exchB.States = currencystate.NewCurrencyStates()
 	em.Add(exch)
 	bot.ExchangeManager = em
 	bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &bot.ServicesWG, false, false, 0)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	err = bot.OrderManager.Start()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	e := Exchange{}
 	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), decimal.Zero, false, true, nil, nil)
@@ -188,13 +222,13 @@ func TestPlaceOrder(t *testing.T) {
 	f.AssetType = asset.Spot
 	f.Direction = gctorder.Buy
 	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), decimal.Zero, false, true, f, bot.OrderManager)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), decimal.Zero, true, true, f, bot.OrderManager)
-	if !errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {
-		t.Errorf("received: %v but expected: %v", err, exchange.ErrAuthenticationSupportNotEnabled)
+	if !errors.Is(err, exchange.ErrCredentialsAreEmpty) {
+		t.Errorf("received: %v but expected: %v", err, exchange.ErrCredentialsAreEmpty)
 	}
 }
 
@@ -208,23 +242,17 @@ func TestExecuteOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
-	cfg, err := exch.GetDefaultConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = exch.Setup(cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
+	exchB := exch.GetBase()
+	exchB.States = currencystate.NewCurrencyStates()
 	em.Add(exch)
 	bot.ExchangeManager = em
 	bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &bot.ServicesWG, false, false, 0)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	err = bot.OrderManager.Start()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	p := currency.NewPair(currency.BTC, currency.USDT)
@@ -233,7 +261,7 @@ func TestExecuteOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := &ftx.FTX{}
+	f := &binance.Binance{}
 	f.Name = testExchange
 	cs := Settings{
 		Exchange:            f,
@@ -267,21 +295,25 @@ func TestExecuteOrder(t *testing.T) {
 		Interval: 0,
 		Candles: []gctkline.Candle{
 			{
-				Close:  1,
-				High:   1,
-				Low:    1,
-				Volume: 1,
+				Close: 1,
+				High:  1,
+				Low:   1,
+				Time:  time.Now(),
 			},
 		},
 	}
 	d := &kline.DataFromKline{
+		Base: &data.Base{},
 		Item: item,
 	}
 	err = d.Load()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	d.Next()
+	_, err = d.Next()
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
 	if !errors.Is(err, errNoCurrencySettingsFound) {
 		t.Error(err)
@@ -292,8 +324,31 @@ func TestExecuteOrder(t *testing.T) {
 	o.Direction = gctorder.Sell
 	e.CurrencySettings = []Settings{cs}
 	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
-	if !errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {
-		t.Errorf("received: %v but expected: %v", err, exchange.ErrAuthenticationSupportNotEnabled)
+	if !errors.Is(err, exchange.ErrCredentialsAreEmpty) {
+		t.Errorf("received: %v but expected: %v", err, exchange.ErrCredentialsAreEmpty)
+	}
+
+	o.LiquidatingPosition = true
+	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v but expected: %v", err, nil)
+	}
+
+	o.AssetType = asset.Futures
+	e.CurrencySettings[0].Asset = asset.Futures
+	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v but expected: %v", err, nil)
+	}
+
+	o.LiquidatingPosition = false
+	o.Amount = decimal.Zero
+	o.AssetType = asset.Spot
+	e.CurrencySettings[0].Asset = asset.Spot
+	e.CurrencySettings[0].UseRealOrders = false
+	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
+	if !errors.Is(err, gctorder.ErrAmountIsInvalid) {
+		t.Errorf("received: %v but expected: %v", err, gctorder.ErrAmountIsInvalid)
 	}
 }
 
@@ -307,24 +362,17 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
-	cfg, err := exch.GetDefaultConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = exch.Setup(cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	exchB := exch.GetBase()
+	exchB.States = currencystate.NewCurrencyStates()
 	em.Add(exch)
 	bot.ExchangeManager = em
 	bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &bot.ServicesWG, false, false, 0)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	err = bot.OrderManager.Start()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	a := asset.Spot
@@ -342,7 +390,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := &ftx.FTX{}
+	f := &binance.Binance{}
 	f.Name = testExchange
 	cs := Settings{
 		Exchange:      f,
@@ -378,26 +426,31 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	}
 
 	d := &kline.DataFromKline{
+		Base: &data.Base{},
 		Item: &gctkline.Item{
-			Exchange: "",
-			Pair:     currency.EMPTYPAIR,
-			Asset:    asset.Empty,
-			Interval: 0,
+			Exchange: testExchange,
+			Pair:     p,
+			Asset:    asset.Spot,
+			Interval: gctkline.FifteenMin,
 			Candles: []gctkline.Candle{
 				{
 					Close:  1,
 					High:   1,
 					Low:    1,
 					Volume: 1,
+					Time:   time.Now(),
 				},
 			},
 		},
 	}
 	err = d.Load()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	d.Next()
+	_, err = d.Next()
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
 	if !errors.Is(err, errExceededPortfolioLimit) {
 		t.Errorf("received %v expected %v", err, errExceededPortfolioLimit)
@@ -465,8 +518,8 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 
 	e.CurrencySettings = []Settings{cs}
 	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
-	if !errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {
-		t.Errorf("received: %v but expected: %v", err, exchange.ErrAuthenticationSupportNotEnabled)
+	if !errors.Is(err, exchange.ErrCredentialsAreEmpty) {
+		t.Errorf("received: %v but expected: %v", err, exchange.ErrCredentialsAreEmpty)
 	}
 }
 
@@ -587,7 +640,7 @@ func TestAllocateFundsPostOrder(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 
-	expectedError = common.ErrNilArguments
+	expectedError = gctcommon.ErrNilPointer
 	f := &fill.Fill{
 		Base: &event.Base{
 			AssetType: asset.Spot,
@@ -605,7 +658,7 @@ func TestAllocateFundsPostOrder(t *testing.T) {
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
-	item2, err := funding.CreateItem(testExchange, asset.Spot, currency.USD, decimal.NewFromInt(1337), decimal.Zero)
+	item2, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(1337), decimal.Zero)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
@@ -646,7 +699,7 @@ func TestAllocateFundsPostOrder(t *testing.T) {
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
-	item4, err := funding.CreateItem(testExchange, asset.Futures, currency.USD, decimal.NewFromInt(1337), decimal.Zero)
+	item4, err := funding.CreateItem(testExchange, asset.Futures, currency.USDT, decimal.NewFromInt(1337), decimal.Zero)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}

@@ -1,6 +1,7 @@
 package funding
 
 import (
+	"errors"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -8,26 +9,49 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+var (
+	// ErrFundsNotFound used when funds are requested but the funding is not found in the manager
+	ErrFundsNotFound = errors.New("funding not found")
+	// ErrAlreadyExists used when a matching item or pair is already in the funding manager
+	ErrAlreadyExists = errors.New("funding already exists")
+	// ErrUSDTrackingDisabled used when attempting to track USD values when disabled
+	ErrUSDTrackingDisabled = errors.New("USD tracking disabled")
+
+	errCannotAllocate             = errors.New("cannot allocate funds")
+	errZeroAmountReceived         = errors.New("amount received less than or equal to zero")
+	errNegativeAmountReceived     = errors.New("received negative decimal")
+	errNotEnoughFunds             = errors.New("not enough funds")
+	errCannotTransferToSameFunds  = errors.New("cannot send funds to self")
+	errTransferMustBeSameCurrency = errors.New("cannot transfer to different currency")
+	errCannotMatchTrackingToItem  = errors.New("cannot match tracking data to funding items")
+	errNotFutures                 = errors.New("item linking collateral currencies must be a futures asset")
+	errExchangeManagerRequired    = errors.New("exchange manager required")
+)
+
 // IFundingManager limits funding usage for portfolio event handling
 type IFundingManager interface {
-	Reset()
+	Reset() error
 	IsUsingExchangeLevelFunding() bool
-	GetFundingForEvent(common.EventHandler) (IFundingPair, error)
+	GetFundingForEvent(common.Event) (IFundingPair, error)
 	Transfer(decimal.Decimal, *Item, *Item, bool) error
-	GenerateReport() *Report
+	GenerateReport() (*Report, error)
 	AddUSDTrackingData(*kline.DataFromKline) error
-	CreateSnapshot(time.Time)
+	CreateSnapshot(time.Time) error
 	USDTrackingDisabled() bool
-	Liquidate(common.EventHandler)
-	GetAllFunding() []BasicItem
-	UpdateCollateral(common.EventHandler) error
+	Liquidate(common.Event) error
+	GetAllFunding() ([]BasicItem, error)
+	UpdateCollateralForEvent(common.Event, bool) error
+	UpdateAllCollateral(isLive, hasUpdateFunding bool) error
+	UpdateFundingFromLiveData(hasUpdatedFunding bool) error
 	HasFutures() bool
-	HasExchangeBeenLiquidated(handler common.EventHandler) bool
+	HasExchangeBeenLiquidated(handler common.Event) bool
 	RealisePNL(receivingExchange string, receivingAsset asset.Item, receivingCurrency currency.Code, realisedPNL decimal.Decimal) error
+	SetFunding(string, asset.Item, *account.Balance, bool) error
 }
 
 // IFundingTransferer allows for funding amounts to be transferred
@@ -35,15 +59,15 @@ type IFundingManager interface {
 type IFundingTransferer interface {
 	IsUsingExchangeLevelFunding() bool
 	Transfer(decimal.Decimal, *Item, *Item, bool) error
-	GetFundingForEvent(common.EventHandler) (IFundingPair, error)
-	HasExchangeBeenLiquidated(handler common.EventHandler) bool
+	GetFundingForEvent(common.Event) (IFundingPair, error)
+	HasExchangeBeenLiquidated(handler common.Event) bool
 }
 
 // IFundingReader is a simple interface of
 // IFundingManager for readonly access at portfolio
 // manager
 type IFundingReader interface {
-	GetFundingForEvent(common.EventHandler) (IFundingPair, error)
+	GetFundingForEvent(common.Event) (IFundingPair, error)
 	GetAllFunding() []BasicItem
 }
 
@@ -120,6 +144,7 @@ type FundManager struct {
 	disableUSDTracking        bool
 	items                     []*Item
 	exchangeManager           *engine.ExchangeManager
+	verbose                   bool
 }
 
 // Item holds funding data per currency item
@@ -136,6 +161,7 @@ type Item struct {
 	snapshot          map[int64]ItemSnapshot
 	isCollateral      bool
 	isLiquidated      bool
+	appendedViaAPI    bool
 	collateralCandles map[currency.Code]kline.DataFromKline
 }
 
@@ -190,8 +216,9 @@ type ReportItem struct {
 	USDPairCandle        *kline.DataFromKline
 	Difference           decimal.Decimal
 	ShowInfinite         bool
-	PairedWith           currency.Code
 	IsCollateral         bool
+	AppendedViaAPI       bool
+	PairedWith           currency.Code
 }
 
 // ItemSnapshot holds USD values to allow for tracking

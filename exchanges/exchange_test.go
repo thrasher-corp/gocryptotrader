@@ -2643,6 +2643,44 @@ func TestSetRequester(t *testing.T) {
 	}
 }
 
+func TestGetCollateralCurrencyForContract(t *testing.T) {
+	t.Parallel()
+	b := Base{}
+	_, _, err := b.GetCollateralCurrencyForContract(asset.Futures, currency.NewPair(currency.XRP, currency.BABYDOGE))
+	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNotYetImplemented)
+	}
+}
+
+func TestGetCurrencyForRealisedPNL(t *testing.T) {
+	t.Parallel()
+	b := Base{}
+	_, _, err := b.GetCurrencyForRealisedPNL(asset.Empty, currency.EMPTYPAIR)
+	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNotYetImplemented)
+	}
+}
+
+func TestHasAssetTypeAccountSegregation(t *testing.T) {
+	t.Parallel()
+	b := Base{
+		Name: "RAWR",
+		Features: Features{
+			Supports: FeaturesSupported{
+				REST: true,
+				RESTCapabilities: protocol.Features{
+					HasAssetTypeAccountSegregation: true,
+				},
+			},
+		},
+	}
+
+	has := b.HasAssetTypeAccountSegregation()
+	if !has {
+		t.Errorf("expected '%v' received '%v'", true, false)
+	}
+}
+
 func TestGetKlineRequest(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "klineTest"}

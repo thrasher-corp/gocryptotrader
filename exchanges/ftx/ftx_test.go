@@ -678,6 +678,7 @@ func TestSubmitOrder(t *testing.T) {
 		Amount:        1,
 		AssetType:     asset.Spot,
 		ClientOrderID: "order12345679$$$$$",
+		RetrieveFees:  true,
 	}
 	_, err = f.SubmitOrder(context.Background(), orderSubmission)
 	if err != nil {
@@ -766,25 +767,30 @@ func TestGetFills(t *testing.T) {
 		t.Skip()
 	}
 	_, err := f.GetFills(context.Background(),
-		currency.Pair{}, asset.Futures, time.Now().Add(time.Hour*24*365), time.Now())
+		currency.Pair{}, asset.Futures, time.Now().Add(time.Hour*24*365), time.Now(), "")
 	if !errors.Is(err, errStartTimeCannotBeAfterEndTime) {
 		t.Errorf("received '%v' expected '%v'", err, errStartTimeCannotBeAfterEndTime)
 	}
 
 	_, err = f.GetFills(context.Background(),
-		currency.Pair{}, asset.Futures, time.Time{}, time.Time{})
+		currency.Pair{}, asset.Futures, time.Time{}, time.Time{}, "")
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	_, err = f.GetFills(context.Background(),
-		currency.Pair{}, asset.Futures, time.Now().Add(-time.Hour*24*365), time.Now())
+		currency.Pair{}, asset.Futures, time.Now().Add(-time.Hour*24*365), time.Now(), "")
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	_, err = f.GetFills(context.Background(),
-		spotPair, asset.Spot, time.Now().Add(-time.Hour*24*365), time.Now())
+		spotPair, asset.Spot, time.Now().Add(-time.Hour*24*365), time.Now(), "")
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	_, err = f.GetFills(context.Background(),
+		currency.EMPTYPAIR, asset.Futures, time.Time{}, time.Time{}, "177453606715")
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -2807,5 +2813,38 @@ func TestGetReferralRebateRate(t *testing.T) {
 
 	if _, err := f.GetReferralRebateRate(context.Background()); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestGetCollateralCurrencyForContract(t *testing.T) {
+	t.Parallel()
+	c, a, err := f.GetCollateralCurrencyForContract(asset.Futures, currency.NewPair(currency.XRP, currency.BABYDOGE))
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+	if a != asset.Futures {
+		t.Fatalf("received: '%v' but expected: '%v'", a, asset.Futures)
+	}
+	if !c.Equal(currency.USD) {
+		t.Fatalf("received: '%v' but expected: '%v'", c, currency.USD)
+	}
+}
+
+func TestGetCurrencyForRealisedPNL(t *testing.T) {
+	t.Parallel()
+	c, a, err := f.GetCurrencyForRealisedPNL(asset.Futures, currency.NewPair(currency.XRP, currency.BABYDOGE))
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+	if a != asset.Spot {
+		t.Fatalf("received: '%v' but expected: '%v'", a, asset.Spot)
+	}
+	if !c.Equal(currency.USD) {
+		t.Fatalf("received: '%v' but expected: '%v'", c, currency.USD)
+	}
+
+	_, _, err = f.GetCurrencyForRealisedPNL(asset.Spot, currency.NewPair(currency.SHIB, currency.DOGE))
+	if !errors.Is(err, order.ErrNotFuturesAsset) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrNotFuturesAsset)
 	}
 }

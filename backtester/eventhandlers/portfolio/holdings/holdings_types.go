@@ -49,6 +49,6 @@ type Holding struct {
 // ClosePriceReader is used for holdings calculations
 // without needing to consider event types
 type ClosePriceReader interface {
-	common.EventHandler
+	common.Event
 	GetClosePrice() decimal.Decimal
 }

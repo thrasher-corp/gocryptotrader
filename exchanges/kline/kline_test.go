@@ -1143,6 +1143,7 @@ func TestAddPadding(t *testing.T) {
 }
 
 func TestGetClosePriceAtTime(t *testing.T) {
+	t.Parallel()
 	tt := time.Now()
 	k := Item{
 		Candles: []Candle{

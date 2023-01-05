@@ -394,10 +394,10 @@ func (b *BTSE) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 	currencies := make([]account.Balance, len(balance))
 	for b := range balance {
 		currencies[b] = account.Balance{
-			CurrencyName: currency.NewCode(balance[b].Currency),
-			Total:        balance[b].Total,
-			Hold:         balance[b].Total - balance[b].Available,
-			Free:         balance[b].Available,
+			Currency: currency.NewCode(balance[b].Currency),
+			Total:    balance[b].Total,
+			Hold:     balance[b].Total - balance[b].Available,
+			Free:     balance[b].Available,
 		}
 	}
 	a.Exchange = b.Name

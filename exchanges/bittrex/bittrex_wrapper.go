@@ -411,10 +411,10 @@ func (b *Bittrex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 	currencies := make([]account.Balance, len(balanceData))
 	for i := range balanceData {
 		currencies[i] = account.Balance{
-			CurrencyName: currency.NewCode(balanceData[i].CurrencySymbol),
-			Total:        balanceData[i].Total,
-			Hold:         balanceData[i].Total - balanceData[i].Available,
-			Free:         balanceData[i].Available,
+			Currency: currency.NewCode(balanceData[i].CurrencySymbol),
+			Total:    balanceData[i].Total,
+			Hold:     balanceData[i].Total - balanceData[i].Available,
+			Free:     balanceData[i].Available,
 		}
 	}
 

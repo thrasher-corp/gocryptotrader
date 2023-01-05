@@ -381,10 +381,10 @@ func (b *Bithumb) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		}
 
 		exchangeBalances = append(exchangeBalances, account.Balance{
-			CurrencyName: currency.NewCode(key),
-			Total:        totalAmount,
-			Hold:         hold,
-			Free:         avail,
+			Currency: currency.NewCode(key),
+			Total:    totalAmount,
+			Hold:     hold,
+			Free:     avail,
 		})
 	}
 

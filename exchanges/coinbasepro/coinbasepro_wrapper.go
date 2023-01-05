@@ -329,7 +329,7 @@ func (c *CoinbasePro) UpdateAccountInfo(ctx context.Context, assetType asset.Ite
 		profileID := accountBalance[i].ProfileID
 		currencies := accountCurrencies[profileID]
 		accountCurrencies[profileID] = append(currencies, account.Balance{
-			CurrencyName:           currency.NewCode(accountBalance[i].Currency),
+			Currency:               currency.NewCode(accountBalance[i].Currency),
 			Total:                  accountBalance[i].Balance,
 			Hold:                   accountBalance[i].Hold,
 			Free:                   accountBalance[i].Available,

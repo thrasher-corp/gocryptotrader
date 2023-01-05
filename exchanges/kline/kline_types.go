@@ -39,6 +39,8 @@ const (
 )
 
 var (
+	// ErrUnsetInterval is an error for date range calculation
+	ErrUnsetInterval = errors.New("cannot calculate range, interval unset")
 	// ErrRequestExceedsExchangeLimits locale for exceeding rate limits message
 	ErrRequestExceedsExchangeLimits = errors.New("request will exceed exchange limits, please reduce start-end time window or use GetHistoricCandlesExtended")
 	// ErrUnsupportedInterval returns when the provided interval is not supported by an exchange
@@ -49,6 +51,10 @@ var (
 	ErrWholeNumberScaling = errors.New("old interval must scale properly into new candle")
 	// ErrNotFoundAtTime returned when looking up a candle at a specific time
 	ErrNotFoundAtTime = errors.New("candle not found at time")
+	// ErrItemNotEqual returns when comparison between two kline items fail
+	ErrItemNotEqual = errors.New("kline item not equal")
+	// ErrItemUnderlyingNotEqual returns when the underlying pair is not equal
+	ErrItemUnderlyingNotEqual = errors.New("kline item underlying pair not equal")
 	// ErrValidatingParams defines an error when the kline params are either not
 	// enabled or are invalid.
 	ErrValidatingParams = errors.New("kline param(s) are invalid")
@@ -120,20 +126,20 @@ type Candle struct {
 	ValidationIssues string
 }
 
-// ByDate allows for sorting candle entries by date
-type ByDate []Candle
+// // ByDate allows for sorting candle entries by date
+// type ByDate []Candle
 
-func (b ByDate) Len() int {
-	return len(b)
-}
+// func (b ByDate) Len() int {
+// 	return len(b)
+// }
 
-func (b ByDate) Less(i, j int) bool {
-	return b[i].Time.Before(b[j].Time)
-}
+// func (b ByDate) Less(i, j int) bool {
+// 	return b[i].Time.Before(b[j].Time)
+// }
 
-func (b ByDate) Swap(i, j int) {
-	b[i], b[j] = b[j], b[i]
-}
+// func (b ByDate) Swap(i, j int) {
+// 	b[i], b[j] = b[j], b[i]
+// }
 
 // ExchangeCapabilitiesSupported all kline related exchange supported options
 type ExchangeCapabilitiesSupported struct {

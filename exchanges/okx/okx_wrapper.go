@@ -527,10 +527,10 @@ func (ok *Okx) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 		free := balances[i].AvailBal
 		locked := balances[i].FrozenBalance
 		currencyBalance[i] = account.Balance{
-			CurrencyName: currency.NewCode(balances[i].Currency),
-			Total:        balances[i].Balance,
-			Hold:         locked,
-			Free:         free,
+			Currency: currency.NewCode(balances[i].Currency),
+			Total:    balances[i].Balance,
+			Hold:     locked,
+			Free:     free,
 		}
 	}
 	acc.Currencies = currencyBalance

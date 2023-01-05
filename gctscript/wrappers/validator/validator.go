@@ -201,7 +201,7 @@ func (w Wrapper) AccountInformation(ctx context.Context, exch string, assetType 
 				AssetType: assetType,
 				Currencies: []account.Balance{
 					{
-						CurrencyName: currency.Code{
+						Currency: currency.Code{
 							Item: &currency.Item{
 								ID:         0,
 								FullName:   "Bitcoin",

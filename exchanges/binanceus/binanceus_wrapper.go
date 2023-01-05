@@ -441,10 +441,10 @@ func (bi *Binanceus) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 		locked := theAccount.Balances[i].Locked.InexactFloat64()
 
 		currencyBalance[i] = account.Balance{
-			CurrencyName: currency.NewCode(theAccount.Balances[i].Asset),
-			Total:        freeBalance + locked,
-			Hold:         locked,
-			Free:         freeBalance,
+			Currency: currency.NewCode(theAccount.Balances[i].Asset),
+			Total:    freeBalance + locked,
+			Hold:     locked,
+			Free:     freeBalance,
 		}
 	}
 	acc.Currencies = currencyBalance
