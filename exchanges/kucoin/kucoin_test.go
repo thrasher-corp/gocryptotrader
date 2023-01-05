@@ -680,7 +680,7 @@ func TestCancelOrderByClientOID(t *testing.T) {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
 
-	_, _, err := ku.CancelOrderByClientOID(context.Background(), "5bd6e9286d99522a52e458de")
+	_, err := ku.CancelOrderByClientOID(context.Background(), "5bd6e9286d99522a52e458de")
 	if err != nil && err.Error() != "order_not_exist_or_not_allow_to_cancel" {
 		t.Error("CancelOrderByClientOID() error", err)
 	}
@@ -849,7 +849,7 @@ func TestCancelStopOrderByClientID(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 
-	_, _, err := ku.CancelStopOrderByClientID(context.Background(), "", "5bd6e9286d99522a52e458de")
+	_, err := ku.CancelStopOrderByClientID(context.Background(), "", "5bd6e9286d99522a52e458de")
 	if err != nil && err.Error() != "order_not_exist_or_not_allow_to_cancel" {
 		t.Error("CancelStopOrderByClientID() error", err)
 	}
@@ -896,7 +896,6 @@ func TestGetAccountLedgers(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-
 	_, err := ku.GetAccountLedgers(context.Background(), "", "", "", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error("GetAccountLedgers() error", err)
@@ -2290,5 +2289,17 @@ func TestCancelAllOrders(t *testing.T) {
 	}
 }
 
-func TestUnix(t *testing.T) {
+func TestGeneratePayloads(t *testing.T) {
+	t.Parallel()
+	subscriptions, err := ku.GenerateDefaultSubscriptions()
+	if err != nil {
+		t.Error(err)
+	}
+	payload, err := ku.generatePayloads(subscriptions, "subscribe")
+	if err != nil {
+		t.Error(err)
+	}
+	if len(payload) != len(subscriptions) {
+		t.Error(errors.New("derived payload is not same as generated channel subscription instances"))
+	}
 }

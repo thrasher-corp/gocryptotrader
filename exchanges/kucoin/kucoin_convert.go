@@ -2,6 +2,7 @@ package kucoin
 
 import (
 	"encoding/json"
+	"strconv"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -36,5 +37,43 @@ func (a *WsOrderbookLevel5) UnmarshalJSON(data []byte) error {
 		}
 	}
 	a.Timestamp = time.Unix(0, chil.Timestamp)
+	return nil
+}
+
+// UnmarshalJSON is custom type json unmarshaller for kucoinTimeMilliSec
+func (k *kucoinTimeMilliSec) UnmarshalJSON(data []byte) error {
+	var timestamp int64
+	err := json.Unmarshal(data, &timestamp)
+	if err != nil {
+		return err
+	}
+	*k = kucoinTimeMilliSec(time.UnixMilli(timestamp))
+	return nil
+}
+
+// UnmarshalJSON is custom type json unmarshaller for kucoinTimeMilliSecStr
+func (k *kucoinTimeMilliSecStr) UnmarshalJSON(data []byte) error {
+	var timestamp string
+	err := json.Unmarshal(data, &timestamp)
+	if err != nil {
+		return err
+	}
+
+	t, err := strconv.ParseInt(timestamp, 10, 64)
+	if err != nil {
+		return err
+	}
+	*k = kucoinTimeMilliSecStr(time.UnixMilli(t))
+	return nil
+}
+
+// UnmarshalJSON is custom type json unmarshaller for kucoinTimeNanoSec
+func (k *kucoinTimeNanoSec) UnmarshalJSON(data []byte) error {
+	var timestamp int64
+	err := json.Unmarshal(data, &timestamp)
+	if err != nil {
+		return err
+	}
+	*k = kucoinTimeNanoSec(time.Unix(0, timestamp))
 	return nil
 }

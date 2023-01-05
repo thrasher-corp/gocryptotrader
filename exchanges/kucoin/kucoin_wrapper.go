@@ -274,6 +274,8 @@ func (ku *Kucoin) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 func (ku *Kucoin) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 	assets := ku.GetAssetTypes(false)
 	for a := range assets {
+		// Since the tradable pairs of Margin is same as that of Spot, calling the tradable pairs for Margin is not necessary.
+		// Instead, calling the UpdatePairs() method with Spot and Margin for Spot instruments saves call to FetchTradablePair() method with Margin.
 		if assets[a] == asset.Margin {
 			continue
 		}
@@ -368,6 +370,8 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 			}
 		}
 	case asset.Margin:
+		// Since margin and spot use the same currencies, update call to Spot tradable pairs ticker information updates
+		// the ticker information of Margin currencies too.
 	default:
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
@@ -416,9 +420,9 @@ func (ku *Kucoin) UpdateOrderbook(ctx context.Context, pair currency.Pair, asset
 	switch assetType {
 	case asset.Futures:
 		fPair.Delimiter = ""
-		ordBook, err = ku.GetFuturesPartOrderbook100(ctx, fPair.String())
+		ordBook, err = ku.GetFuturesOrderbook(ctx, fPair.String())
 	case asset.Spot, asset.Margin:
-		ordBook, err = ku.GetPartOrderbook100(ctx, fPair.String())
+		ordBook, err = ku.GetOrderbook(ctx, fPair.String())
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
@@ -457,7 +461,7 @@ func (ku *Kucoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 				Free:         accoutH.AvailableBalance,
 			}},
 		})
-	case asset.Spot, asset.Margin, asset.Empty:
+	case asset.Spot, asset.Margin:
 		acc := ku.accountTypeToString(assetType)
 		accountH, err := ku.GetAllAccounts(ctx, "", acc)
 		if err != nil {
@@ -475,6 +479,8 @@ func (ku *Kucoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 					}},
 			})
 		}
+	default:
+		return holding, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	return holding, nil
 }
@@ -643,8 +649,8 @@ func (ku *Kucoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (ku *Kucoin) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
-	return ku.GetRecentTrades(ctx, p, assetType)
+func (ku *Kucoin) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order
@@ -717,7 +723,7 @@ func (ku *Kucoin) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 			if ord.ClientID != "" && ord.ClientOrderID == "" {
 				ord.ClientOrderID = ord.ClientID
 			}
-			_, _, err = ku.CancelOrderByClientOID(ctx, ord.ClientOrderID)
+			_, err = ku.CancelOrderByClientOID(ctx, ord.ClientOrderID)
 		}
 		return err
 	case asset.Futures:
@@ -964,7 +970,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 				Pair:            dPair,
 			})
 		}
-	case asset.Spot:
+	case asset.Spot, asset.Margin:
 		if len(getOrdersRequest.Pairs) == 1 {
 			pair = format.Format(getOrdersRequest.Pairs[0])
 		}

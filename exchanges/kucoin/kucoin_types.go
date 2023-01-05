@@ -16,7 +16,7 @@ var (
 		"1min", "3min", "5min", "15min", "30min", "1hour", "2hour", "4hour", "6hour", "8hour", "12hour", "1day", "1week",
 	}
 
-	errInvalidResponseReciever = errors.New("invalid response receiver")
+	errInvalidResponseReceiver = errors.New("invalid response receiver")
 	errInvalidPrice            = errors.New("invalid price")
 	errInvalidSize             = errors.New("invalid size")
 	errMalformedData           = errors.New("malformed data")
@@ -155,17 +155,6 @@ func (e Error) GetError() error {
 // kucoinTimeMilliSec provides an internal conversion helper
 type kucoinTimeMilliSec time.Time
 
-// UnmarshalJSON is custom type json unmarshaller for kucoinTimeMilliSec
-func (k *kucoinTimeMilliSec) UnmarshalJSON(data []byte) error {
-	var timestamp int64
-	err := json.Unmarshal(data, &timestamp)
-	if err != nil {
-		return err
-	}
-	*k = kucoinTimeMilliSec(time.UnixMilli(timestamp))
-	return nil
-}
-
 // Time returns a time.Time object
 func (k kucoinTimeMilliSec) Time() time.Time {
 	return time.Time(k)
@@ -174,22 +163,6 @@ func (k kucoinTimeMilliSec) Time() time.Time {
 // kucoinTimeMilliSecStr provides an internal conversion helper
 type kucoinTimeMilliSecStr time.Time
 
-// UnmarshalJSON is custom type json unmarshaller for kucoinTimeMilliSecStr
-func (k *kucoinTimeMilliSecStr) UnmarshalJSON(data []byte) error {
-	var timestamp string
-	err := json.Unmarshal(data, &timestamp)
-	if err != nil {
-		return err
-	}
-
-	t, err := strconv.ParseInt(timestamp, 10, 64)
-	if err != nil {
-		return err
-	}
-	*k = kucoinTimeMilliSecStr(time.UnixMilli(t))
-	return nil
-}
-
 // Time returns a time.Time object
 func (k kucoinTimeMilliSecStr) Time() time.Time {
 	return time.Time(k)
@@ -197,17 +170,6 @@ func (k kucoinTimeMilliSecStr) Time() time.Time {
 
 // kucoinTimeNanoSec provides an internal conversion helper
 type kucoinTimeNanoSec time.Time
-
-// UnmarshalJSON is custom type json unmarshaller for kucoinTimeNanoSec
-func (k *kucoinTimeNanoSec) UnmarshalJSON(data []byte) error {
-	var timestamp int64
-	err := json.Unmarshal(data, &timestamp)
-	if err != nil {
-		return err
-	}
-	*k = kucoinTimeNanoSec(time.Unix(0, timestamp))
-	return nil
-}
 
 // Time returns a time.Time object
 func (k kucoinTimeNanoSec) Time() time.Time {
@@ -389,7 +351,7 @@ type MarginRiskLimit struct {
 	Precision       int64   `json:"precision"`
 }
 
-// PostBorrowOrderResp stores borrow order resposne
+// PostBorrowOrderResp stores borrow order response
 type PostBorrowOrderResp struct {
 	OrderID  string `json:"orderId"`
 	Currency string `json:"currency"`
@@ -419,6 +381,15 @@ type baseRecord struct {
 	Principal    float64 `json:"principal,string"`
 	RepaidSize   float64 `json:"repaidSize,string"`
 	Term         int64   `json:"term"`
+}
+
+// OutstandingRecordResponse represents outstanding record detail.
+type OutstandingRecordResponse struct {
+	CurrentPage int64               `json:"currentPage"`
+	PageSize    int64               `json:"pageSize"`
+	TotalNumber int64               `json:"totalNum"`
+	TotalPage   int64               `json:"totalPage"`
+	Items       []OutstandingRecord `json:"items"` // lists
 }
 
 // OutstandingRecord stores outstanding record
@@ -628,6 +599,15 @@ type OrderDetail struct {
 	TradeType     string             `json:"tradeType"`
 }
 
+// FillsResponse represents fills response list detail.
+type FillsResponse struct {
+	CurrentPage int64  `json:"currentPage"`
+	PageSize    int64  `json:"pageSize"`
+	TotalNumber int64  `json:"totalNum"`
+	TotalPage   int64  `json:"totalPage"`
+	Items       []Fill `json:"items"`
+}
+
 // Fill represents order fills for margin and spot orders.
 type Fill struct {
 	Symbol         string             `json:"symbol"`
@@ -647,6 +627,15 @@ type Fill struct {
 	OrderType      string             `json:"type"`
 	CreatedAt      kucoinTimeMilliSec `json:"createdAt"`
 	TradeType      string             `json:"tradeType"`
+}
+
+// StopOrderListResponse represents a list of spot orders details.
+type StopOrderListResponse struct {
+	CurrentPage int64       `json:"currentPage"`
+	PageSize    int64       `json:"pageSize"`
+	TotalNumber int64       `json:"totalNum"`
+	TotalPage   int64       `json:"totalPage"`
+	Items       []StopOrder `json:"items"`
 }
 
 // StopOrder holds a stop order detail
@@ -720,7 +709,7 @@ type TransferableBalanceInfo struct {
 	Transferable float64 `json:"transferable,string"`
 }
 
-// DepositAddress represents deposit address information for Spot and Marigin trading.
+// DepositAddress represents deposit address information for Spot and Margin trading.
 type DepositAddress struct {
 	Address         string `json:"address"`
 	Memo            string `json:"memo"`
@@ -787,7 +776,7 @@ type WSInstanceServers struct {
 	InstanceServers []InstanceServer `json:"instanceServers"`
 }
 
-// InstanceServer represents a a single websocket instance server information.
+// InstanceServer represents a single websocket instance server information.
 type InstanceServer struct {
 	Endpoint     string `json:"endpoint"`
 	Encrypt      bool   `json:"encrypt"`
@@ -1185,7 +1174,7 @@ type WsStopOrderLifecycleEvent struct {
 	Timestamp      kucoinTimeMilliSec `json:"ts"`
 }
 
-// WsFuturesOrderMarginEvent represents a order margin account balance event.
+// WsFuturesOrderMarginEvent represents an order margin account balance event.
 type WsFuturesOrderMarginEvent struct {
 	OrderMargin float64            `json:"orderMargin"`
 	Currency    string             `json:"currency"`
@@ -1229,7 +1218,7 @@ type WsFuturesPosition struct {
 	RealisedCost      float64            `json:"realisedCost"`      // Currently accumulated realised position value
 	MarkValue         float64            `json:"markValue"`         // Mark value
 	PosInit           float64            `json:"posInit"`           // Position margin
-	RealisedPnl       float64            `json:"realisedPnl"`       // Realised profit and losts
+	RealisedPnl       float64            `json:"realisedPnl"`       // Realised profit and loss
 	MaintMargin       float64            `json:"maintMargin"`       // Position margin
 	RealLeverage      float64            `json:"realLeverage"`      // Leverage of the order
 	ChangeReason      string             `json:"changeReason"`      // changeReason:marginChange、positionChange、liquidation、autoAppendMarginStatusChange、adl
@@ -1285,11 +1274,18 @@ type Response struct {
 	Error
 }
 
-// ListCounter represents a list unknown list and information about the list.
-type ListCounter struct {
-	CurrentPage int64       `json:"currentPage"`
-	PageSize    int64       `json:"pageSize"`
-	TotalNumber int64       `json:"totalNum"`
-	TatalPage   int64       `json:"totalPage"`
-	Items       interface{} `json:"items"` // lists
+// CancelOrderResponse represents cancel order response model.
+type CancelOrderResponse struct {
+	CancelledOrderID string `json:"cancelledOrderId"`
+	ClientOID        string `json:"clientOid"`
+	Error
+}
+
+// AccountLedgerResponse represents the account ledger response detailed information
+type AccountLedgerResponse struct {
+	CurrentPage int64        `json:"currentPage"`
+	PageSize    int64        `json:"pageSize"`
+	TotalNum    int64        `json:"totalNum"`
+	TotalPage   int64        `json:"totalPage"`
+	Items       []LedgerInfo `json:"items"`
 }

@@ -70,7 +70,7 @@ const (
 
 // GetFuturesOpenContracts gets all open futures contract with its details
 func (ku *Kucoin) GetFuturesOpenContracts(ctx context.Context) ([]Contract, error) {
-	resp := []Contract{}
+	var resp []Contract
 	return resp, ku.SendHTTPRequest(ctx, exchange.RestFutures, kucoinFuturesOpenContracts, &resp)
 }
 
@@ -534,7 +534,7 @@ func (ku *Kucoin) GetFuturesFills(ctx context.Context, orderID, symbol, side, or
 
 // GetFuturesRecentFills gets list of 1000 recent fills in the last 24 hrs
 func (ku *Kucoin) GetFuturesRecentFills(ctx context.Context) ([]FuturesFill, error) {
-	resp := []FuturesFill{}
+	var resp []FuturesFill
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, kucoinFuturesRecentFills, nil, &resp)
 }
 
@@ -599,7 +599,7 @@ func (ku *Kucoin) AddMargin(ctx context.Context, symbol, uniqueID string, margin
 
 // GetFuturesRiskLimitLevel gets information about risk limit level of a specific contract
 func (ku *Kucoin) GetFuturesRiskLimitLevel(ctx context.Context, symbol string) ([]FuturesRiskLimitLevel, error) {
-	resp := []FuturesRiskLimitLevel{}
+	var resp []FuturesRiskLimitLevel
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, fmt.Sprintf(kucoinFuturesRiskLimitLevel, symbol), nil, &resp)
 }
 

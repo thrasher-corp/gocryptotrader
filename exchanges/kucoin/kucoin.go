@@ -32,7 +32,6 @@ type Kucoin struct {
 
 const (
 	kucoinAPIURL        = "https://api.kucoin.com/api"
-	kucoinAPIVersion    = "1"
 	kucoinAPIKeyVersion = "2"
 
 	// Public endpoints
@@ -425,16 +424,13 @@ func (ku *Kucoin) GetBorrowOrder(ctx context.Context, orderID string) (*BorrowOr
 }
 
 // GetOutstandingRecord gets outstanding record information
-func (ku *Kucoin) GetOutstandingRecord(ctx context.Context, ccy string) ([]OutstandingRecord, error) {
+func (ku *Kucoin) GetOutstandingRecord(ctx context.Context, ccy string) (*OutstandingRecordResponse, error) {
 	params := make(map[string]interface{})
 	if ccy != "" {
 		params["currency"] = ccy
 	}
-	resp := []OutstandingRecord{}
-	incoming := ListCounter{
-		Items: &resp,
-	}
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, kucoinGetOutstandingRecord, params, &incoming)
+	var resp *OutstandingRecordResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, kucoinGetOutstandingRecord, params, &resp)
 }
 
 // GetRepaidRecord gets repaid record information
@@ -607,7 +603,7 @@ func (ku *Kucoin) GetAccountLendRecord(ctx context.Context, ccy string) ([]LendR
 	if ccy != "" {
 		params["currency"] = ccy
 	}
-	resp := []LendRecord{}
+	var resp []LendRecord
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, kucoinGetAccountLendRecord, params, &resp)
 }
 
@@ -621,7 +617,7 @@ func (ku *Kucoin) GetLendingMarketData(ctx context.Context, ccy string, term int
 	if term != 0 {
 		params["term"] = strconv.FormatInt(term, 10)
 	}
-	resp := []LendMarketData{}
+	var resp []LendMarketData
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, kucoinGetLendingMarketData, params, &resp)
 }
 
@@ -632,13 +628,13 @@ func (ku *Kucoin) GetMarginTradeData(ctx context.Context, ccy string) ([]MarginT
 	}
 	params := make(map[string]interface{})
 	params["currency"] = ccy
-	resp := []MarginTradeData{}
+	var resp []MarginTradeData
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, kucoinGetMarginTradeData, params, &resp)
 }
 
 // GetIsolatedMarginPairConfig get the current isolated margin trading pair configuration
 func (ku *Kucoin) GetIsolatedMarginPairConfig(ctx context.Context) ([]IsolatedMarginPairConfig, error) {
-	resp := []IsolatedMarginPairConfig{}
+	var resp []IsolatedMarginPairConfig
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, kucoinGetIsolatedMarginPairConfig, nil, &resp)
 }
 
@@ -746,19 +742,19 @@ func (ku *Kucoin) InitiateIsolatedMarginQuickRepayment(ctx context.Context, symb
 	if symbol == "" {
 		return currency.ErrCurrencyPairEmpty
 	}
-	params := make(map[string]interface{})
-	params["symbol"] = symbol
-	if ccy == "" {
-		return currency.ErrCurrencyCodeEmpty
-	}
-	params["currency"] = ccy
-	if seqStrategy == "" {
-		return errors.New("seqStrategy can not be empty")
-	}
-	params["seqStrategy"] = seqStrategy
 	if size == 0 {
 		return errors.New("size can not be zero")
 	}
+	if seqStrategy == "" {
+		return errors.New("seqStrategy can not be empty")
+	}
+	if ccy == "" {
+		return currency.ErrCurrencyCodeEmpty
+	}
+	params := make(map[string]interface{})
+	params["symbol"] = symbol
+	params["currency"] = ccy
+	params["seqStrategy"] = seqStrategy
 	params["size"] = strconv.FormatInt(size, 10)
 	resp := struct {
 		Error
@@ -968,7 +964,7 @@ func (ku *Kucoin) PostBulkOrder(ctx context.Context, symbol string, orderList []
 	params := make(map[string]interface{})
 	params["symbol"] = symbol
 	params["orderList"] = orderList
-	resp := []PostBulkOrderResp{}
+	var resp []PostBulkOrderResp
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinPostBulkOrder, params, &resp)
 }
 
@@ -985,13 +981,9 @@ func (ku *Kucoin) CancelSingleOrder(ctx context.Context, orderID string) ([]stri
 }
 
 // CancelOrderByClientOID used to cancel order via the clientOid
-func (ku *Kucoin) CancelOrderByClientOID(ctx context.Context, orderID string) (cancelledOrderID, clientOrderID string, err error) {
-	resp := struct {
-		CancelledOrderID string `json:"cancelledOrderId"`
-		ClientOID        string `json:"clientOid"`
-		Error
-	}{}
-	return resp.CancelledOrderID, resp.ClientOID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, fmt.Sprintf(kucoinOrderByClientOID, orderID), nil, &resp)
+func (ku *Kucoin) CancelOrderByClientOID(ctx context.Context, orderID string) (*CancelOrderResponse, error) {
+	var resp *CancelOrderResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, fmt.Sprintf(kucoinOrderByClientOID, orderID), nil, &resp)
 }
 
 // CancelAllOpenOrders used to cancel all order based upon the parameters passed
@@ -1073,7 +1065,7 @@ func (ku *Kucoin) GetOrderByClientSuppliedOrderID(ctx context.Context, clientOID
 }
 
 // GetFills get fills
-func (ku *Kucoin) GetFills(ctx context.Context, orderID, symbol, side, orderType, tradeType string, startAt, endAt time.Time) ([]Fill, error) {
+func (ku *Kucoin) GetFills(ctx context.Context, orderID, symbol, side, orderType, tradeType string, startAt, endAt time.Time) (*FillsResponse, error) {
 	params := make(map[string]interface{})
 	if orderID != "" {
 		params["orderId"] = orderID
@@ -1096,9 +1088,8 @@ func (ku *Kucoin) GetFills(ctx context.Context, orderID, symbol, side, orderType
 	if tradeType != "" {
 		params["tradeType"] = tradeType
 	}
-	var resp []Fill
-	incoming := ListCounter{Items: &resp}
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, kucoinGetFills, params, &incoming)
+	var resp *FillsResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, kucoinGetFills, params, &resp)
 }
 
 // GetRecentFills get a list of 1000 fills in last 24 hours
@@ -1226,7 +1217,7 @@ func (ku *Kucoin) GetStopOrder(ctx context.Context, orderID string) (*StopOrder,
 }
 
 // GetAllStopOrder get all current untriggered stop orders
-func (ku *Kucoin) GetAllStopOrder(ctx context.Context, symbol, side, orderType, tradeType, orderIDs string, startAt, endAt time.Time, currentPage, pageSize int64) ([]StopOrder, error) {
+func (ku *Kucoin) GetAllStopOrder(ctx context.Context, symbol, side, orderType, tradeType, orderIDs string, startAt, endAt time.Time, currentPage, pageSize int64) (*StopOrderListResponse, error) {
 	params := make(map[string]interface{})
 	if symbol != "" {
 		params["symbol"] = symbol
@@ -1255,11 +1246,8 @@ func (ku *Kucoin) GetAllStopOrder(ctx context.Context, symbol, side, orderType, 
 	if pageSize != 0 {
 		params["pageSize"] = strconv.FormatInt(pageSize, 10)
 	}
-	resp := []StopOrder{}
-	incoming := ListCounter{
-		Items: &resp,
-	}
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, kucoinStopOrder, params, &incoming)
+	var resp *StopOrderListResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, kucoinStopOrder, params, &resp)
 }
 
 // GetStopOrderByClientID get a stop order information via the clientOID
@@ -1277,21 +1265,17 @@ func (ku *Kucoin) GetStopOrderByClientID(ctx context.Context, symbol, clientOID 
 }
 
 // CancelStopOrderByClientID used to cancel a stop order via the clientOID.
-func (ku *Kucoin) CancelStopOrderByClientID(ctx context.Context, symbol, clientOID string) (cancelledOrderID, clientOrderID string, err error) {
+func (ku *Kucoin) CancelStopOrderByClientID(ctx context.Context, symbol, clientOID string) (*CancelOrderResponse, error) {
 	if clientOID == "" {
-		return "", "", errors.New("clientOID can not be empty")
+		return nil, errors.New("clientOID can not be empty")
 	}
 	params := make(map[string]interface{})
 	params["clientOid"] = clientOID
 	if symbol != "" {
 		params["symbol"] = symbol
 	}
-	resp := struct {
-		CancelledOrderID string `json:"cancelledOrderId"`
-		ClientOID        string `json:"clientOid"`
-		Error
-	}{}
-	return resp.CancelledOrderID, resp.ClientOID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, kucoinCancelStopOrderByClientID, params, &resp)
+	var resp *CancelOrderResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, kucoinCancelStopOrderByClientID, params, &resp)
 }
 
 // CreateAccount creates an account
@@ -1332,7 +1316,7 @@ func (ku *Kucoin) GetAccount(ctx context.Context, accountID string) (*AccountInf
 }
 
 // GetAccountLedgers get the history of deposit/withdrawal of all accounts, supporting inquiry of various currencies
-func (ku *Kucoin) GetAccountLedgers(ctx context.Context, ccy, direction, bizType string, startAt, endAt time.Time) ([]LedgerInfo, error) {
+func (ku *Kucoin) GetAccountLedgers(ctx context.Context, ccy, direction, bizType string, startAt, endAt time.Time) (*AccountLedgerResponse, error) {
 	params := make(map[string]interface{})
 	if ccy != "" {
 		params["currency"] = ccy
@@ -1349,14 +1333,8 @@ func (ku *Kucoin) GetAccountLedgers(ctx context.Context, ccy, direction, bizType
 	if !endAt.IsZero() {
 		params["endAt"] = strconv.FormatInt(endAt.UnixMilli(), 10)
 	}
-	resp := struct {
-		CurrentPage int64        `json:"currentPage"`
-		PageSize    int64        `json:"pageSize"`
-		TotalNum    int64        `json:"totalNum"`
-		TotalPage   int64        `json:"totalPage"`
-		Items       []LedgerInfo `json:"items"`
-	}{}
-	return resp.Items, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, kucoinGetAccountLedgers, params, &resp)
+	var resp *AccountLedgerResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, kucoinGetAccountLedgers, params, &resp)
 }
 
 // GetSubAccountBalance get account info of a sub-user specified by the subUserID
@@ -1734,7 +1712,7 @@ func (ku *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, m
 	}
 	val := reflect.ValueOf(result)
 	if val.IsNil() || val.Kind() != reflect.Pointer {
-		return fmt.Errorf("%w receiver has to be non-nil pointer", errInvalidResponseReciever)
+		return fmt.Errorf("%w receiver has to be non-nil pointer", errInvalidResponseReceiver)
 	}
 	err = ku.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		var (
