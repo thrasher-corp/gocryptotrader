@@ -73,7 +73,9 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 	if cfg == nil {
 		return errNilConfig
 	}
-
+	if cfg.DataSettings.Interval < gctkline.FifteenSecond {
+		return fmt.Errorf("%w %v min interval size of %v", gctkline.ErrInvalidInterval, cfg.DataSettings.Interval, gctkline.FifteenSecond)
+	}
 	if cfg.DataSettings.DatabaseData != nil {
 		bt.databaseManager, err = engine.SetupDatabaseConnectionManager(&cfg.DataSettings.DatabaseData.Config)
 		if err != nil {
@@ -814,6 +816,9 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			return resp, err
 		}
 	case cfg.DataSettings.LiveData != nil:
+		if !b.Features.Enabled.Kline.Intervals.ExchangeSupported(cfg.DataSettings.Interval) {
+			return nil, fmt.Errorf("%w don't trade live on custom candle interval of %v", gctkline.ErrCannotConstructInterval, cfg.DataSettings.DatabaseData)
+		}
 		bt.exchangeManager.Add(exch)
 		err = bt.LiveDataHandler.AppendDataSource(&liveDataSourceSetup{
 			exchange:                  exch,
@@ -867,6 +872,7 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	if cfg.DataSettings.Interval <= 0 {
 		return nil, errIntervalUnset
 	}
+
 	dates, err := gctkline.CalculateCandleDateRanges(
 		cfg.DataSettings.APIData.StartDate,
 		cfg.DataSettings.APIData.EndDate,
