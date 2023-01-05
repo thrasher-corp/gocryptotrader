@@ -65,28 +65,29 @@ No. The already existing `CurrencySettings` will populate the funding manager wi
 
 #### Strategy Settings
 
-| Key | Description | Example |
-| --- | ------- | --- |
-| Name | The strategy to use | `rsi` |
-| UsesSimultaneousProcessing | This denotes whether multiple currencies are processed simultaneously with the strategy function `OnSimultaneousSignals`. Eg If you have multiple CurrencySettings and only wish to purchase BTC-USDT when XRP-DOGE is 1337, this setting is useful as you can analyse both signal events to output a purchase call for BTC | `true` |
-| CustomSettings | This is a map where you can enter custom settings for a strategy. The RSI strategy allows for customisation of the upper, lower and length variables to allow you to change them from 70, 30 and 14 respectively to 69, 36, 12 | `"custom-settings": { "rsi-high": 70, "rsi-low": 30, "rsi-period": 14 } ` |
-
-#### Funding Settings
-
-| Key | Description | Example |
-| --- | ------- | --- |
-| UseExchangeLevelFunding | This allows shared exchange funds to be used in your strategy. Requires `UsesSimultaneousProcessing` to be set to `true` to use  | `false` |
-| ExchangeLevelFunding | This is a list of funding definitions if `UseExchangeLevelFunding` is set to true  | See below table |
+| Key                                | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Example                                                                   |
+|------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------|
+| name                               | The strategy to use                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | `rsi`                                                                     |
+| use-simultaneous-signal-processing | This denotes whether multiple currencies are processed simultaneously with the strategy function `OnSimultaneousSignals`. Eg If you have multiple CurrencySettings and only wish to purchase BTC-USDT when XRP-DOGE is 1337, this setting is useful as you can analyse both signal events to output a purchase call for BTC                                                                                                                                                                                                                                                                                                    | `true`                                                                    |
+| disable-usd-tracking               | If `false`, will track all currencies used in your strategy against USD equivalent candles. For example, if you are running a strategy for BTC/XRP, then the GoCryptoTrader Backtester will also retreive candles data for BTC/USD and XRP/USD to then track strategy performance against a single currency. This also tracks against USDT and other USD tracked stablecoins, so one exchange supporting USDT and another BUSD will still allow unified strategy performance analysis. If disabled, will not track against USD, this can be especially helpful when running strategies under live, database and CSV based data | `false`                                                                   |
+| custom-settings                    | This is a map where you can enter custom settings for a strategy. The RSI strategy allows for customisation of the upper, lower and length variables to allow you to change them from 70, 30 and 14 respectively to 69, 36, 12                                                                                                                                                                                                                                                                                                                                                                                                 | `"custom-settings": { "rsi-high": 70, "rsi-low": 30, "rsi-period": 14 } ` |
 
 #### Funding Config Settings
 
-| Key | Description | Example |
-| --- | ------- | ----- |
-| ExchangeName | The exchange to set funds. See [here](https://github.com/thrasher-corp/gocryptotrader/blob/master/README.md) for a list of supported exchanges | `Binance` |
-| Asset | The asset type to set funds. Typically, this will be `spot`, however, see [this package](https://github.com/thrasher-corp/gocryptotrader/blob/master/exchanges/asset/asset.go) for the various asset types GoCryptoTrader supports| `spot` |
-| Currency | The currency to set funds | `BTC` |
-| InitialFunds | The initial funding for the currency | `1337` |
-| TransferFee | If your strategy utilises transferring of funds via the Funding Manager, this is deducted upon doing so | `0.005` |
+| Key                        | Description                                                                                                                                                                                                                           | Example |
+|----------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------|
+| use-exchange-level-funding | Allows shared funding at an exchange asset level. You can set funding for `USDT` and all pairs that feature `USDT` will have access to those funds when making orders. See [this](/backtester/funding/README.md) for more information | `false` |
+| exchange-level-funding     | An array of exchange level funding settings.  See below, or [this](/backtester/funding/README.md) for more information                                                                                                                | `[]`    |
+
+##### Funding Item Config Settings
+
+| Key           | Description                                                                                                                                                                                                                        | Example   |
+|---------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|
+| exchange-name | The exchange to set funds. See [here](https://github.com/thrasher-corp/gocryptotrader/blob/master/README.md) for a list of supported exchanges                                                                                     | `Binance` |
+| asset         | The asset type to set funds. Typically, this will be `spot`, however, see [this package](https://github.com/thrasher-corp/gocryptotrader/blob/master/exchanges/asset/asset.go) for the various asset types GoCryptoTrader supports | `spot`    |
+| currency      | The currency to set funds                                                                                                                                                                                                          | `BTC`     |
+| initial-funds | The initial funding for the currency                                                                                                                                                                                               | `1337`    |
+| transfer-fee  | If your strategy utilises transferring of funds via the Funding Manager, this is deducted upon doing so                                                                                                                            | `0.005`   |
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 
