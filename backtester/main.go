@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
@@ -18,13 +20,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/signaler"
 )
 
-var singleRunStrategyPath, templatePath, outputPath, btConfigDir, strategyPluginPath string
-var printLogo, generateReport, darkReport, colourOutput, logSubHeader bool
+var singleTaskStrategyPath, templatePath, outputPath, btConfigDir, strategyPluginPath, pprofURL string
+var printLogo, generateReport, darkReport, colourOutput, logSubHeader, enablePProf bool
 
 func main() {
 	wd, err := os.Getwd()
 	if err != nil {
-		fmt.Printf("Could not get working directory. Error: %v.\n", err)
+		fmt.Printf("Could not get working directory. Error: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -34,34 +36,47 @@ func main() {
 		btConfigDir = config.DefaultBTConfigDir
 		log.Infof(log.Global, "Blank config received, using default path '%v'", btConfigDir)
 	}
+
+	if enablePProf {
+		go func() {
+			server := &http.Server{
+				Addr:              pprofURL,
+				ReadHeaderTimeout: time.Minute,
+				ReadTimeout:       time.Minute,
+			}
+
+			fmt.Println(server.ListenAndServe())
+		}()
+	}
+
 	fe := file.Exists(btConfigDir)
 	switch {
 	case fe:
 		btCfg, err = config.ReadBacktesterConfigFromPath(btConfigDir)
 		if err != nil {
-			fmt.Printf("Could not read config. Error: %v.\n", err)
+			fmt.Printf("Could not read config. Error: %v\n", err)
 			os.Exit(1)
 		}
 	case !fe && btConfigDir == config.DefaultBTConfigDir:
 		btCfg, err = config.GenerateDefaultConfig()
 		if err != nil {
-			fmt.Printf("Could not generate config. Error: %v.\n", err)
+			fmt.Printf("Could not generate config. Error: %v\n", err)
 			os.Exit(1)
 		}
 		var btCfgJSON []byte
 		btCfgJSON, err = json.MarshalIndent(btCfg, "", " ")
 		if err != nil {
-			fmt.Printf("Could not generate config. Error: %v.\n", err)
+			fmt.Printf("Could not generate config. Error: %v\n", err)
 			os.Exit(1)
 		}
 		err = os.MkdirAll(config.DefaultBTDir, file.DefaultPermissionOctal)
 		if err != nil {
-			fmt.Printf("Could not generate config. Error: %v.\n", err)
+			fmt.Printf("Could not generate config. Error: %v\n", err)
 			os.Exit(1)
 		}
 		err = os.WriteFile(btConfigDir, btCfgJSON, file.DefaultPermissionOctal)
 		if err != nil {
-			fmt.Printf("Could not generate config. Error: %v.\n", err)
+			fmt.Printf("Could not generate config. Error: %v\n", err)
 			os.Exit(1)
 		}
 	default:
@@ -76,8 +91,8 @@ func main() {
 	flagSet.WithBool("logsubheaders", &logSubHeader, btCfg.LogSubheaders)
 	flagSet.WithBool("colouroutput", &colourOutput, btCfg.UseCMDColours)
 
-	if singleRunStrategyPath != "" && !file.Exists(singleRunStrategyPath) {
-		fmt.Printf("Strategy config path not found '%v'", singleRunStrategyPath)
+	if singleTaskStrategyPath != "" && !file.Exists(singleTaskStrategyPath) {
+		fmt.Printf("Strategy config path not found '%v'", singleTaskStrategyPath)
 		os.Exit(1)
 	}
 
@@ -119,19 +134,19 @@ func main() {
 	defaultLogSettings.AdvancedSettings.Headers.Error = common.CMDColours.Error + "[ERROR]" + common.CMDColours.Default
 	err = log.SetGlobalLogConfig(defaultLogSettings)
 	if err != nil {
-		fmt.Printf("Could not setup global logger. Error: %v.\n", err)
+		fmt.Printf("Could not setup global logger. Error: %v\n", err)
 		os.Exit(1)
 	}
 
 	err = log.SetupGlobalLogger()
 	if err != nil {
-		fmt.Printf("Could not setup global logger. Error: %v.\n", err)
+		fmt.Printf("Could not setup global logger. Error: %v\n", err)
 		os.Exit(1)
 	}
 
 	err = common.RegisterBacktesterSubLoggers()
 	if err != nil {
-		fmt.Printf("Could not register subloggers. Error: %v.\n", err)
+		fmt.Printf("Could not register subloggers. Error: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -145,18 +160,18 @@ func main() {
 	if strategyPluginPath != "" {
 		err = strategies.LoadCustomStrategies(strategyPluginPath)
 		if err != nil {
-			fmt.Printf("Could not load custom strategies. Error: %v.\n", err)
+			fmt.Printf("Could not load custom strategies. Error: %v\n", err)
 			os.Exit(1)
 		}
 		log.Infof(common.Backtester, "Loaded plugin %v\n", strategyPluginPath)
 	}
 
-	if singleRunStrategyPath != "" {
-		dir := singleRunStrategyPath
+	if singleTaskStrategyPath != "" {
+		dir := singleTaskStrategyPath
 		var cfg *config.Config
 		cfg, err = config.ReadStrategyConfigFromFile(dir)
 		if err != nil {
-			fmt.Printf("Could not read strategy config. Error: %v.\n", err)
+			fmt.Printf("Could not read strategy config. Error: %v\n", err)
 			os.Exit(1)
 		}
 		var bt *backtest.BackTest
@@ -169,23 +184,27 @@ func main() {
 			},
 		})
 		if err != nil {
-			fmt.Printf("Could not execute strategy. Error: %v.\n", err)
+			fmt.Printf("Could not execute strategy. Error: %v\n", err)
 			os.Exit(1)
 		}
 		if bt.MetaData.LiveTesting {
 			err = bt.ExecuteStrategy(false)
 			if err != nil {
-				fmt.Printf("Could execute strategy. Error: %v.\n", err)
+				fmt.Printf("Could not stop task %v %v. Error: %v\n", bt.MetaData.ID, bt.MetaData.Strategy, err)
 				os.Exit(1)
 			}
 			interrupt := signaler.WaitForInterrupt()
-			log.Infof(log.Global, "Captured %v, shutdown requested.\n", interrupt)
+			log.Infof(log.Global, "Captured %v, shutdown requested\n", interrupt)
 			log.Infoln(log.Global, "Exiting.")
-			bt.Stop()
+			err = bt.Stop()
+			if err != nil {
+				fmt.Printf("Could not stop task %v %v. Error: %v\n", bt.MetaData.ID, bt.MetaData.Strategy, err)
+				os.Exit(1)
+			}
 		} else {
 			err = bt.ExecuteStrategy(true)
 			if err != nil {
-				fmt.Printf("Could execute strategy. Error: %v.\n", err)
+				fmt.Printf("Could not stop task %v %v. Error: %v\n", bt.MetaData.ID, bt.MetaData.Strategy, err)
 				os.Exit(1)
 			}
 		}
@@ -196,7 +215,7 @@ func main() {
 	btCfg.Report.DarkMode = darkReport
 	btCfg.Report.GenerateReport = generateReport
 
-	runManager := backtest.SetupRunManager()
+	runManager := backtest.NewTaskManager()
 
 	go func(c *config.BacktesterConfig) {
 		log.Info(log.GRPCSys, "Starting RPC server")
@@ -204,14 +223,45 @@ func main() {
 		s, err = backtest.SetupRPCServer(c, runManager)
 		err = backtest.StartRPCServer(s)
 		if err != nil {
-			fmt.Printf("Could not start RPC server. Error: %v.\n", err)
+			fmt.Printf("Could not start RPC server. Error: %v\n", err)
 			os.Exit(1)
 		}
 		log.Info(log.GRPCSys, "Ready to receive commands")
 	}(btCfg)
 	interrupt := signaler.WaitForInterrupt()
-	log.Infof(log.Global, "Captured %v, shutdown requested.\n", interrupt)
-	log.Infoln(log.Global, "Exiting.")
+	log.Infof(log.Global, "Captured %v, shutdown requested\n", interrupt)
+	if btCfg.StopAllTasksOnClose {
+		log.Infoln(log.Global, "Stopping all running tasks on close")
+		var stopped []*backtest.TaskSummary
+		stopped, err = runManager.StopAllTasks()
+		if err != nil {
+			log.Error(common.Backtester, err)
+		}
+		for i := range stopped {
+			log.Infof(common.Backtester, "Task %v %v was stopped", stopped[i].MetaData.ID, stopped[i].MetaData.Strategy)
+		}
+	} else {
+		var tasks []*backtest.TaskSummary
+		tasks, err = runManager.List()
+		if err != nil {
+			log.Error(common.Backtester, err)
+		}
+		for i := range tasks {
+			if tasks[i].MetaData.ClosePositionsOnStop && !tasks[i].MetaData.Closed {
+				err = runManager.StopTask(tasks[i].MetaData.ID)
+				if err != nil {
+					log.Error(common.Backtester, err)
+					continue
+				}
+				log.Infof(common.Backtester, "Task %v %v was stopped", tasks[i].MetaData.ID, tasks[i].MetaData.Strategy)
+			}
+		}
+	}
+	log.Infoln(log.Global, "Exiting. Have a nice day")
+	err = log.CloseLogger()
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
 func parseFlags(wd string) map[string]bool {
@@ -229,7 +279,7 @@ func parseFlags(wd string) map[string]bool {
 		wd,
 		"results")
 	flag.StringVar(
-		&singleRunStrategyPath,
+		&singleTaskStrategyPath,
 		"singlerunstrategypath",
 		"",
 		fmt.Sprintf("path to a strategy file. Will execute strategy and exit, instead of creating a GRPC server. Example %v", defaultStrategy))
@@ -261,7 +311,7 @@ func parseFlags(wd string) map[string]bool {
 	flag.BoolVar(
 		&colourOutput,
 		"colouroutput",
-		false,
+		true,
 		"if enabled, will print in colours, if your terminal supports \033[38;5;99m[colours like this]\u001b[0m")
 	flag.BoolVar(
 		&logSubHeader,
@@ -278,6 +328,16 @@ func parseFlags(wd string) map[string]bool {
 		"strategypluginpath",
 		"",
 		"example path: "+filepath.Join(wd, "plugins", "strategies", "example", "example.so"))
+	flag.BoolVar(
+		&enablePProf,
+		"enablepprof",
+		false,
+		"if enabled, runs a pprof server for debugging")
+	flag.StringVar(
+		&pprofURL,
+		"pprofurl",
+		"http://localhost:6060",
+		"")
 	flag.Parse()
 	// collect flags
 	flags := make(map[string]bool)

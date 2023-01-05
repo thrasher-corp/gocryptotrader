@@ -25,8 +25,8 @@ func TestLoadDataCandles(t *testing.T) {
 		p,
 		a,
 		false)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 }
 
@@ -42,8 +42,8 @@ func TestLoadDataTrades(t *testing.T) {
 		p,
 		a,
 		false)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 }
 

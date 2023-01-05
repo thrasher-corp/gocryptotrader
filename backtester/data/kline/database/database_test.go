@@ -85,8 +85,8 @@ func TestLoadDataCandles(t *testing.T) {
 	database.MigrationDir = filepath.Join("..", "..", "..", "..", "database", "migrations")
 	testhelpers.MigrationDir = filepath.Join("..", "..", "..", "..", "database", "migrations")
 	conn, err := testhelpers.ConnectToDatabase(&dbConfg)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	err = exchangeDB.InsertMany([]exchangeDB.Details{{Name: testExchange}})
@@ -115,13 +115,13 @@ func TestLoadDataCandles(t *testing.T) {
 		},
 	}
 	_, err = gctkline.StoreInDatabase(data, true)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	_, err = LoadData(dStart, dEnd, gctkline.FifteenMin.Duration(), exch, common.DataCandle, p, a, false)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	if err = conn.SQL.Close(); err != nil {
@@ -160,8 +160,8 @@ func TestLoadDataTrades(t *testing.T) {
 	database.MigrationDir = filepath.Join("..", "..", "..", "..", "database", "migrations")
 	testhelpers.MigrationDir = filepath.Join("..", "..", "..", "..", "database", "migrations")
 	conn, err := testhelpers.ConnectToDatabase(&dbConfg)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	err = exchangeDB.InsertMany([]exchangeDB.Details{{Name: testExchange}})
@@ -183,13 +183,13 @@ func TestLoadDataTrades(t *testing.T) {
 		Side:      gctorder.Buy.String(),
 		Timestamp: dInsert,
 	})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	_, err = LoadData(dStart, dEnd, gctkline.FifteenMin.Duration(), exch, common.DataTrade, p, a, false)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	if err = conn.SQL.Close(); err != nil {

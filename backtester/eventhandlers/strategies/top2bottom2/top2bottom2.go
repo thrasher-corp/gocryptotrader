@@ -102,20 +102,36 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 		if err != nil {
 			return nil, err
 		}
-		es.SetPrice(d[i].Latest().GetClosePrice())
-		offset := d[i].Offset()
+		latest, err := d[i].Latest()
+		if err != nil {
+			return nil, err
+		}
+		es.SetPrice(latest.GetClosePrice())
+		offset := latest.GetOffset()
 
-		if offset <= int(s.mfiPeriod.IntPart()) {
+		if offset <= s.mfiPeriod.IntPart() {
 			es.AppendReason("Not enough data for signal generation")
 			es.SetDirection(order.DoNothing)
 			resp = append(resp, &es)
 			continue
 		}
 
-		closeData := d[i].StreamClose()
-		volumeData := d[i].StreamVol()
-		highData := d[i].StreamHigh()
-		lowData := d[i].StreamLow()
+		history, err := d[i].History()
+		if err != nil {
+			return nil, err
+		}
+		var (
+			closeData  = make([]decimal.Decimal, len(history))
+			volumeData = make([]decimal.Decimal, len(history))
+			highData   = make([]decimal.Decimal, len(history))
+			lowData    = make([]decimal.Decimal, len(history))
+		)
+		for i := range history {
+			closeData[i] = history[i].GetClosePrice()
+			volumeData[i] = history[i].GetVolume()
+			highData[i] = history[i].GetHighPrice()
+			lowData[i] = history[i].GetLowPrice()
+		}
 		var massagedCloseData, massagedVolumeData, massagedHighData, massagedLowData []float64
 		massagedCloseData, err = s.massageMissingData(closeData, es.GetTime())
 		if err != nil {
@@ -135,9 +151,13 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 		}
 		mfi := indicators.MFI(massagedHighData, massagedLowData, massagedCloseData, massagedVolumeData, int(s.mfiPeriod.IntPart()))
 		latestMFI := decimal.NewFromFloat(mfi[len(mfi)-1])
-		if !d[i].HasDataAtTime(d[i].Latest().GetTime()) {
+		hasDataAtTime, err := d[i].HasDataAtTime(latest.GetTime())
+		if err != nil {
+			return nil, err
+		}
+		if !hasDataAtTime {
 			es.SetDirection(order.MissingData)
-			es.AppendReasonf("missing data at %v, cannot perform any actions. MFI %v", d[i].Latest().GetTime(), latestMFI)
+			es.AppendReasonf("missing data at %v, cannot perform any actions. MFI %v", latest.GetTime(), latestMFI)
 			resp = append(resp, &es)
 			continue
 		}

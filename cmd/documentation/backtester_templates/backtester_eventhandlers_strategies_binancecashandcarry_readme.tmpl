@@ -1,21 +1,24 @@
-{{define "backtester eventhandlers strategies ftxcashandcarry" -}}
+{{define "backtester eventhandlers strategies binancecashandcarry" -}}
 {{template "backtester-header" .}}
-## FTX Cash and carry strategy overview
+## Binance Cash and carry strategy overview
+
+## Important
+This strategy was initially designed for the exchange FTX. It is currently being ported to Binance. It does not work at present.
 
 ### Description
 Cash and carry is a strategy which takes advantage of the difference in pricing between a long-dated futures contract and a SPOT asset.
-By default, this cash and carry strategy will, upon the first data event, purchase BTC-USD SPOT asset from FTX exchange and then, once filled, raise a SHORT for BTC-20210924 FUTURES contract.
+By default, this cash and carry strategy will, upon the first data event, purchase BTC-USD SPOT asset from Binance exchange and then, once filled, raise a SHORT for BTC-20210924 FUTURES contract.
 On the last event, the strategy will close the SHORT position by raising a LONG of the same contract amount, thereby netting the difference in prices
 
 ### Requirements
-- At this time of writing, this strategy is only compatible with FTX
+- At this time of writing, this strategy is only compatible with Binance
 - This strategy *requires* `Simultaneous Signal Processing` aka [use-simultaneous-signal-processing](/backtester/config/README.md).
 - This strategy *requires* `Exchange Level Funding` aka [use-exchange-level-funding](/backtester/config/README.md).
 
 ### Creating a strategy config
 - The long-dated futures contract will need to be part of the `currency-settings` of the contract
 - Funding for purchasing SPOT assets will need to be part of `funding-settings`
-- See the [example config](./config/examples/ftx-cash-carry.strat)
+- See the [example config](./config/strategyexamples/binance-cash-carry.strat)
 
 ### Customisation
 This strategy does support strategy customisation in the following ways:
@@ -32,3 +35,4 @@ This strategy does support strategy customisation in the following ways:
 {{template "contributions"}}
 {{template "donations" .}}
 {{end}}
+

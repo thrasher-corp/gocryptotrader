@@ -236,7 +236,7 @@ func parseExchangeSettings(reader *bufio.Reader, cfg *config.Config) error {
 
 func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) error {
 	fmt.Println("Firstly, please select which strategy you wish to use")
-	strats := strategies.GetStrategies()
+	strats := strategies.GetSupportedStrategies()
 	strategiesToUse := make([]string, len(strats))
 	for i := range strats {
 		fmt.Printf("%v. %s\n", i+1, strats[i].Name())
@@ -460,19 +460,32 @@ func parseLive(reader *bufio.Reader, cfg *config.Config) {
 	input := quickParse(reader)
 	cfg.DataSettings.LiveData.RealOrders = input == y || input == yes
 	if cfg.DataSettings.LiveData.RealOrders {
-		fmt.Printf("Do you want to override GoCryptoTrader's API credentials for %s? y/n\n", cfg.CurrencySettings[0].ExchangeName)
+		fmt.Printf("Do you want to set credentials for exchanges? y/n\n")
 		input = quickParse(reader)
-		if input == y || input == yes {
+		if input != yes && input != y {
+			return
+		}
+		for {
+			var creds config.Credentials
+			fmt.Printf("What is the exchange name? y/n\n")
+			creds.Exchange = quickParse(reader)
 			fmt.Println("What is the API key?")
-			cfg.DataSettings.LiveData.APIKeyOverride = quickParse(reader)
+			creds.Keys.Key = quickParse(reader)
 			fmt.Println("What is the API secret?")
-			cfg.DataSettings.LiveData.APISecretOverride = quickParse(reader)
-			fmt.Println("What is the Client ID?")
-			cfg.DataSettings.LiveData.APIClientIDOverride = quickParse(reader)
-			fmt.Println("What is the 2FA seed?")
-			cfg.DataSettings.LiveData.API2FAOverride = quickParse(reader)
-			fmt.Println("What is the subaccount to use?")
-			cfg.DataSettings.LiveData.APISubAccountOverride = quickParse(reader)
+			creds.Keys.Secret = quickParse(reader)
+			fmt.Println("What is the Client ID? (leave blank if not applicable)")
+			creds.Keys.ClientID = quickParse(reader)
+			fmt.Println("What is the 2FA seed? (leave blank if not applicable)")
+			creds.Keys.OneTimePassword = quickParse(reader)
+			fmt.Println("What is the subaccount to use? (leave blank if not applicable)")
+			creds.Keys.SubAccount = quickParse(reader)
+			fmt.Println("What is the PEM key? (leave blank if not applicable)")
+			creds.Keys.PEMKey = quickParse(reader)
+			cfg.DataSettings.LiveData.ExchangeCredentials = append(cfg.DataSettings.LiveData.ExchangeCredentials, creds)
+			fmt.Printf("Do you want to add another? y/n\n")
+			if input != yes && input != y {
+				break
+			}
 		}
 	}
 }
@@ -556,10 +569,7 @@ func customSettingsLoop(reader *bufio.Reader) map[string]interface{} {
 }
 
 func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*config.CurrencySettings, error) {
-	setting := config.CurrencySettings{
-		BuySide:  config.MinMax{},
-		SellSide: config.MinMax{},
-	}
+	setting := config.CurrencySettings{}
 	fmt.Println("Enter the exchange name. eg Binance")
 	setting.ExchangeName = quickParse(reader)
 
