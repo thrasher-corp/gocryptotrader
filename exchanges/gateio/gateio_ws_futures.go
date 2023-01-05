@@ -115,9 +115,9 @@ func (g *Gateio) WsFuturesConnect() error {
 		Delay:       time.Second * 15,
 		Message:     pingMessage,
 	})
-	g.Websocket.Wg.Add(1)
+	g.Websocket.Wg.Add(2)
 	go g.wsReadData()
-	go g.WsChannelsMultiplexer.Run()
+	go g.RunWsMultiplexer()
 	return nil
 }
 

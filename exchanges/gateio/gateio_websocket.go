@@ -81,9 +81,9 @@ func (g *Gateio) WsConnect() error {
 		Message:     pingMessage,
 		MessageType: websocket.PingMessage,
 	})
-	g.Websocket.Wg.Add(1)
+	g.Websocket.Wg.Add(2)
 	go g.wsReadConnData()
-	go g.WsChannelsMultiplexer.Run()
+	go g.RunWsMultiplexer()
 	return nil
 }
 
@@ -164,7 +164,6 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 	}
 	err = json.Unmarshal(respRaw, &result)
 	if err != nil {
-		g.Websocket.DataHandler <- err
 		return err
 	}
 	switch result.Channel {
@@ -912,7 +911,6 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 			channelsToSubscribe[i].Channel == spotFundingBalanceChannel ||
 			channelsToSubscribe[i].Channel == crossMarginBalanceChannel ||
 			channelsToSubscribe[i].Channel == crossMarginLoanChannel ||
-
 			channelsToSubscribe[i].Channel == optionsOrdersChannel ||
 			channelsToSubscribe[i].Channel == optionsUserTradesChannel ||
 			channelsToSubscribe[i].Channel == optionsLiquidatesChannel ||

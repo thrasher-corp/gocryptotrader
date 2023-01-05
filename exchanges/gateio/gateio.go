@@ -27,7 +27,7 @@ import (
 const (
 	gateioTradeURL                      = "https://api.gateio.ws/" + gateioAPIVersion
 	gateioFuturesTestnetTrading         = "https://fx-api-testnet.gateio.ws"
-	gateioFuturesLiveTradingAlternative = "https://fx-api.gateio.ws"
+	gateioFuturesLiveTradingAlternative = "https://fx-api.gateio.ws/" + gateioAPIVersion
 	gateioAPIVersion                    = "api/v4/"
 
 	// SubAccount Endpoints
@@ -633,8 +633,14 @@ func (g *Gateio) PlaceSpotOrder(ctx context.Context, arg *CreateOrderRequestData
 		!strings.EqualFold(arg.Account, asset.Margin.String()) {
 		return nil, errors.New("only 'spot', 'cross_margin', and 'margin' area allowed")
 	}
-	if arg.Text == "" {
-		arg.Text = "t-" + strconv.FormatInt(g.Websocket.Conn.GenerateMessageID(true), 10)
+	if arg.Text != "" {
+		arg.Text = "t-" + arg.Text
+	} else {
+		randomString, err := common.GenerateRandomString(10, common.NumberCharacters)
+		if err != nil {
+			return nil, err
+		}
+		arg.Text = "t-" + randomString
 	}
 	if arg.Amount <= 0 {
 		return nil, errInvalidAmount
@@ -1855,7 +1861,7 @@ func (g *Gateio) GetFuturesCandlesticks(ctx context.Context, settle, contract st
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params := url.Values{}
-	params.Set("contract", contract)
+	params.Set("contract", strings.ToUpper(contract))
 	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.Unix(), 10))
 	}
@@ -1873,7 +1879,7 @@ func (g *Gateio) GetFuturesCandlesticks(ctx context.Context, settle, contract st
 		params.Set("interval", intervalString)
 	}
 	var candlesticks []FuturesCandlestick
-	return candlesticks, g.SendHTTPRequest(ctx, exchange.RestSpot,
+	return candlesticks, g.SendHTTPRequest(ctx, exchange.RestFutures,
 		common.EncodeURLValues(fmt.Sprintf(futuresCandlesticks, settle), params),
 		&candlesticks)
 }
@@ -2238,8 +2244,14 @@ func (g *Gateio) PlaceFuturesOrder(ctx context.Context, arg *OrderCreateParams) 
 	if arg.Price < 0 {
 		return nil, errInvalidPrice
 	}
-	if arg.Text == "" {
-		arg.Text = "t-" + strconv.FormatInt(g.Websocket.Conn.GenerateMessageID(true), 10)
+	if arg.Text != "" {
+		arg.Text = "t-" + arg.Text
+	} else {
+		randomString, err := common.GenerateRandomString(10, common.NumberCharacters)
+		if err != nil {
+			return nil, err
+		}
+		arg.Text = "t-" + randomString
 	}
 	if arg.AutoSize != "" && (arg.AutoSize == "close_long" || arg.AutoSize == "close_short") {
 		return nil, errInvalidAutoSizeValue
@@ -2688,7 +2700,7 @@ func (g *Gateio) GetDeliveryFuturesCandlesticks(ctx context.Context, settle, con
 		return nil, errInvalidOrMissingContractParam
 	}
 	params := url.Values{}
-	params.Set("contract", contract)
+	params.Set("contract", strings.ToUpper(contract))
 	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.Unix(), 10))
 	}
@@ -2873,8 +2885,14 @@ func (g *Gateio) PlaceDeliveryOrder(ctx context.Context, arg *OrderCreateParams)
 	if arg.Price < 0 {
 		return nil, errInvalidPrice
 	}
-	if arg.Text == "" {
-		arg.Text = "t-" + strconv.FormatInt(g.Websocket.Conn.GenerateMessageID(true), 10)
+	if arg.Text != "" {
+		arg.Text = "t-" + arg.Text
+	} else {
+		randomString, err := common.GenerateRandomString(10, common.NumberCharacters)
+		if err != nil {
+			return nil, err
+		}
+		arg.Text = "t-" + randomString
 	}
 	if arg.AutoSize != "" && (arg.AutoSize == "close_long" || arg.AutoSize == "close_short") {
 		return nil, errInvalidAutoSizeValue

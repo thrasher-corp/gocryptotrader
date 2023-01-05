@@ -1942,16 +1942,17 @@ type WsMultiplexer struct {
 	Message    chan *WsEventResponse
 }
 
-// Run multiplexes incoming messages to *WsEventResponse channels listening.
-func (w *WsMultiplexer) Run() {
+// RunWsMultiplexer multiplexes incoming messages to *WsEventResponse channels listening.
+func (g *Gateio) RunWsMultiplexer() {
+	g.Websocket.Wg.Done()
 	for {
 		select {
-		case unreg := <-w.Unregister:
-			delete(w.Channels, unreg)
-		case reg := <-w.Register:
-			w.Channels[reg.ID] = reg.Chan
-		case msg := <-w.Message:
-			if dchann, okay := w.Channels[strconv.FormatInt(msg.ID, 10)]; okay {
+		case unreg := <-g.WsChannelsMultiplexer.Unregister:
+			delete(g.WsChannelsMultiplexer.Channels, unreg)
+		case reg := <-g.WsChannelsMultiplexer.Register:
+			g.WsChannelsMultiplexer.Channels[reg.ID] = reg.Chan
+		case msg := <-g.WsChannelsMultiplexer.Message:
+			if dchann, okay := g.WsChannelsMultiplexer.Channels[strconv.FormatInt(msg.ID, 10)]; okay {
 				dchann <- msg
 			}
 		}

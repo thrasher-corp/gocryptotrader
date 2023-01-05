@@ -65,6 +65,9 @@ var (
 
 	// SupportedIntervals is a list of all supported intervals
 	SupportedIntervals = []Interval{
+		HundredMilliseconds,
+		ThousandMilliseconds,
+		TenSecond,
 		FifteenSecond,
 		OneMin,
 		ThreeMin,
@@ -86,6 +89,8 @@ var (
 		TwoWeek,
 		OneMonth,
 		OneYear,
+		ThreeMonth,
+		SixMonth,
 	}
 )
 
