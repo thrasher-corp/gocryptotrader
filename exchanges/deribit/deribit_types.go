@@ -41,6 +41,7 @@ var (
 	errInvalidResponseReceiver             = errors.New("invalid response receiver; must be a non nil pointer")
 	errWebsocketConnectionNotAuthenticated = errors.New("websocket connection is not authenticated")
 	errResolutionNotSet                    = errors.New("resolution not set")
+	errInvalidDestinationID                = errors.New("invalid destination address")
 )
 
 // UnmarshalError is the struct which is used for unmarshalling errors

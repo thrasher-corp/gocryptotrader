@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -290,7 +291,8 @@ func TestGetCurrencies(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveCurrencies(); err != nil {
+	d.Verbose = true
+	if _, err := d.WSRetriveCurrencies(); err != nil {
 		t.Error(err)
 	}
 }
@@ -2329,20 +2331,20 @@ func TestGetRecentTrades(t *testing.T) {
 	}
 }
 
-func (d *Deribit) getFirstAssetTradablePair(t *testing.T, a asset.Item) (currency.Pair, error) {
-	t.Helper()
-	instruments, err := d.FetchTradablePairs(context.Background(), a)
+func TestSubscribe(t *testing.T) {
+	t.Parallel()
+	tradablePairs, err := d.FetchTradablePairs(context.Background(), asset.OptionCombo)
 	if err != nil {
-		return currency.EMPTYPAIR, err
+		t.Fatal(err)
 	}
-	if len(instruments) == 0 {
-		return currency.EMPTYPAIR, errors.New("no enough instrument found")
-	}
-	cp, err := currency.NewPairFromString(instruments[0].String())
+	err = d.Subscribe([]stream.ChannelSubscription{
+		{
+			Channel:  userOrdersWithIntervalChannel,
+			Asset:    asset.Futures,
+			Currency: tradablePairs[0],
+			Params:   map[string]interface{}{"interval": "100ms"},
+		}})
 	if err != nil {
-		return currency.EMPTYPAIR, err
+		t.Error(err)
 	}
-	cp = cp.Upper()
-	cp.Delimiter = currency.DashDelimiter
-	return cp, nil
 }

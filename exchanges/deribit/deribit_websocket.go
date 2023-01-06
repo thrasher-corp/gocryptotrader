@@ -75,13 +75,11 @@ var defaultSubscriptions = []string{
 var (
 	pingMessage = WsSubscriptionInput{
 		JSONRPCVersion: rpcVersion,
-		ID:             8212,
 		Method:         "public/test",
 		Params:         map[string][]string{},
 	}
 	setHeartBeatMessage = wsInput{
 		JSONRPCVersion: "2.0",
-		ID:             9098,
 		Method:         "public/set_heartbeat",
 		Params: map[string]interface{}{
 			"interval": 30,
@@ -131,7 +129,7 @@ func (d *Deribit) wsLogin(ctx context.Context) error {
 	d.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	n := d.Requester.GetNonce(true)
 	strTS := strconv.FormatInt(time.Now().UnixMilli(), 10)
-	str2Sign := strTS + "\n" + n.String() + "\n" + ""
+	str2Sign := strTS + "\n" + n.String() + "\n"
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(str2Sign),
 		[]byte(creds.Secret))
@@ -148,7 +146,6 @@ func (d *Deribit) wsLogin(ctx context.Context) error {
 			"client_id":  creds.Key,
 			"timestamp":  strTS,
 			"nonce":      n.String(),
-			"data":       "",
 			"signature":  crypto.HexEncodeToString(hmac),
 		},
 	}
@@ -277,6 +274,7 @@ func (d *Deribit) wsHandleData(respRaw []byte) error {
 			}
 			return nil
 		}
+	case "public/test", "public/set_heartbeat":
 	default:
 		d.Websocket.DataHandler <- stream.UnhandledMessageWarning{
 			Message: d.Name + stream.UnhandledMessage + string(respRaw),
@@ -313,37 +311,37 @@ func (d *Deribit) processOrders(respRaw []byte, channels []string) error {
 	}
 	orderDetails := make([]order.Detail, len(orderData))
 	for x := range orderData {
-		oType, err := order.StringToOrderType((orderData)[x].OrderType)
+		oType, err := order.StringToOrderType(orderData[x].OrderType)
 		if err != nil {
 			return err
 		}
-		side, err := order.StringToOrderSide((orderData)[x].Direction)
+		side, err := order.StringToOrderSide(orderData[x].Direction)
 		if err != nil {
 			return err
 		}
-		status, err := order.StringToOrderStatus((orderData)[x].OrderState)
+		status, err := order.StringToOrderStatus(orderData[x].OrderState)
 		if err != nil {
 			return err
 		}
 		if a != asset.Empty {
-			currencyPair, err = currency.NewPairFromString((orderData)[x].InstrumentName)
+			currencyPair, err = currency.NewPairFromString(orderData[x].InstrumentName)
 			if err != nil {
 				return err
 			}
 		}
 		orderDetails[x] = order.Detail{
-			Price:           (orderData)[x].Price,
-			Amount:          (orderData)[x].Amount,
-			ExecutedAmount:  (orderData)[x].FilledAmount,
-			RemainingAmount: (orderData)[x].Amount - (orderData)[x].FilledAmount,
+			Price:           orderData[x].Price,
+			Amount:          orderData[x].Amount,
+			ExecutedAmount:  orderData[x].FilledAmount,
+			RemainingAmount: orderData[x].Amount - orderData[x].FilledAmount,
 			Exchange:        d.Name,
-			OrderID:         (orderData)[x].OrderID,
+			OrderID:         orderData[x].OrderID,
 			Type:            oType,
 			Side:            side,
 			Status:          status,
 			AssetType:       a,
-			Date:            time.UnixMilli((orderData)[x].CreationTimestamp),
-			LastUpdated:     time.UnixMilli((orderData)[x].LastUpdateTimestamp),
+			Date:            time.UnixMilli(orderData[x].CreationTimestamp),
+			LastUpdated:     time.UnixMilli(orderData[x].LastUpdateTimestamp),
 			Pair:            currencyPair,
 		}
 	}

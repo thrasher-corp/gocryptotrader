@@ -164,7 +164,7 @@ func (d *Deribit) WSRetriveCurrencyIndexPrice(symbol string) (map[string]float64
 	input := &struct {
 		Currency string `json:"currency"`
 	}{
-		Currency: strings.ToUpper(symbol),
+		Currency: symbol,
 	}
 	var resp map[string]float64
 	return resp, d.SendWSRequest(getCurrencyIndexPrice, input, &resp, false)
@@ -206,7 +206,6 @@ func (d *Deribit) WSRetriveInstrumentData(instrument string) (*InstrumentData, e
 
 // WSRetriveInstrumentsData gets data for all available instruments
 func (d *Deribit) WSRetriveInstrumentsData(symbol, kind string, expired bool) ([]InstrumentData, error) {
-	symbol = strings.ToUpper(symbol)
 	if symbol == "" {
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
 	}
@@ -225,7 +224,6 @@ func (d *Deribit) WSRetriveInstrumentsData(symbol, kind string, expired bool) ([
 
 // WSRetriveLastSettlementsByCurrency retrives last settlement data by currency through the websocket connection.
 func (d *Deribit) WSRetriveLastSettlementsByCurrency(symbol, settlementType, continuation string, count int64, startTime time.Time) (*SettlementsData, error) {
-	symbol = strings.ToUpper(symbol)
 	if symbol == "" {
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
 	}
@@ -241,9 +239,6 @@ func (d *Deribit) WSRetriveLastSettlementsByCurrency(symbol, settlementType, con
 		Continuation:         continuation,
 		Count:                count,
 		SearchStartTimestamp: startTime.UnixMilli(),
-	}
-	if !startTime.IsZero() {
-		input.SearchStartTimestamp = startTime.UnixMilli()
 	}
 	var resp *SettlementsData
 	return resp, d.SendWSRequest(getLastSettlementsByCurrency, input, &resp, false)
@@ -275,7 +270,6 @@ func (d *Deribit) WSRetriveLastSettlementsByInstrument(instrument, settlementTyp
 
 // WSRetriveLastTradesByCurrency retrives last trades for requested currency through the websocket connection.
 func (d *Deribit) WSRetriveLastTradesByCurrency(symbol, kind, startID, endID, sorting string, count int64, includeOld bool) (*PublicTradesData, error) {
-	symbol = strings.ToUpper(symbol)
 	if symbol == "" {
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
 	}
@@ -302,7 +296,6 @@ func (d *Deribit) WSRetriveLastTradesByCurrency(symbol, kind, startID, endID, so
 
 // WSRetriveLastTradesByCurrencyAndTime retrives last trades for requested currency and time intervals through the websocket connection.
 func (d *Deribit) WSRetriveLastTradesByCurrencyAndTime(symbol, kind, sorting string, count int64, includeOld bool, startTime, endTime time.Time) (*PublicTradesData, error) {
-	symbol = strings.ToUpper(symbol)
 	if symbol == "" {
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
 	}
@@ -689,7 +682,7 @@ func (d *Deribit) WSSubmitTransferToSubAccount(symbol string, amount float64, de
 		return nil, errInvalidAmount
 	}
 	if destinationID <= 0 {
-		return nil, errors.New("invalid destination address")
+		return nil, errInvalidDestinationID
 	}
 	input := &struct {
 		Currency    string  `json:"currency"`
@@ -713,7 +706,7 @@ func (d *Deribit) WSSubmitTransferToUser(symbol, tfa, destinationAddress string,
 		return nil, errInvalidAmount
 	}
 	if destinationAddress == "" {
-		return nil, errors.New("invalid destination address")
+		return nil, errInvalidDestinationID
 	}
 	input := &struct {
 		Currency                    string  `json:"currency"`
@@ -2083,6 +2076,7 @@ func (d *Deribit) SendWSRequest(method string, params, response interface{}, aut
 	if err != nil {
 		return err
 	}
+	println(string(result))
 	resp := &wsResponse{Result: response}
 	err = json.Unmarshal(result, resp)
 	if err != nil {

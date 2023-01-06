@@ -166,7 +166,7 @@ func (d *Deribit) GetBookSummaryByCurrency(ctx context.Context, ccy, kind string
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	if kind != "" {
 		params.Set("kind", kind)
 	}
@@ -260,7 +260,7 @@ func (d *Deribit) GetHistoricalVolatility(ctx context.Context, ccy string) ([]Hi
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	var data [][2]interface{}
 	err := d.SendHTTPRequest(ctx, exchange.RestFutures,
 		common.EncodeURLValues(getHistoricalVolatility, params), &data)
@@ -291,7 +291,7 @@ func (d *Deribit) GetCurrencyIndexPrice(ctx context.Context, ccy string) (map[st
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, strings.ToUpper(ccy))
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	var resp map[string]float64
 	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues(getCurrencyIndexPrice, params), &resp)
 }
@@ -332,11 +332,13 @@ func (d *Deribit) GetInstrumentsData(ctx context.Context, ccy, kind string, expi
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, strings.ToUpper(ccy))
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	if kind != "" {
 		params.Set("kind", kind)
 	}
-	params.Set("expired", strconv.FormatBool(expired))
+	if expired {
+		params.Set("expired", "true")
+	}
 	var resp []InstrumentData
 	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures,
 		common.EncodeURLValues(getInstruments, params), &resp)
@@ -348,7 +350,7 @@ func (d *Deribit) GetLastSettlementsByCurrency(ctx context.Context, ccy, settlem
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, strings.ToUpper(ccy))
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	if settlementType != "" {
 		params.Set("type", settlementType)
 	}
@@ -396,7 +398,7 @@ func (d *Deribit) GetLastTradesByCurrency(ctx context.Context, ccy, kind, startI
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, strings.ToUpper(ccy))
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	if kind != "" {
 		params.Set("kind", kind)
 	}
@@ -412,7 +414,9 @@ func (d *Deribit) GetLastTradesByCurrency(ctx context.Context, ccy, kind, startI
 	if count != 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
-	params.Set("include_old", strconv.FormatBool(includeOld))
+	if includeOld {
+		params.Set("include_old", "true")
+	}
 	var resp *PublicTradesData
 	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures,
 		common.EncodeURLValues(getLastTradesByCurrency, params), &resp)
@@ -424,7 +428,7 @@ func (d *Deribit) GetLastTradesByCurrencyAndTime(ctx context.Context, ccy, kind,
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	if kind != "" {
 		params.Set("kind", kind)
 	}
@@ -464,7 +468,9 @@ func (d *Deribit) GetLastTradesByInstrument(ctx context.Context, instrument, sta
 	if count != 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
-	params.Set("include_old", strconv.FormatBool(includeOld))
+	if includeOld {
+		params.Set("include_old", "true")
+	}
 	var resp *PublicTradesData
 	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues(getLastTradesByInstrument, params), &resp)
 }
@@ -546,7 +552,7 @@ func (d *Deribit) GetRequestForQuote(ctx context.Context, ccy, kind string) ([]R
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	if kind != "" {
 		params.Set("kind", kind)
 	}
@@ -557,7 +563,9 @@ func (d *Deribit) GetRequestForQuote(ctx context.Context, ccy, kind string) ([]R
 // GetTradeVolumes gets trade volumes' data of all instruments
 func (d *Deribit) GetTradeVolumes(ctx context.Context, extended bool) ([]TradeVolumesData, error) {
 	params := url.Values{}
-	params.Set("extended", strconv.FormatBool(extended))
+	if extended {
+		params.Set("extended", "true")
+	}
 	var resp []TradeVolumesData
 	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures,
 		common.EncodeURLValues(getTradeVolumes, params), &resp)
@@ -632,7 +640,7 @@ func (d *Deribit) GetVolatilityIndexData(ctx context.Context, ccy, resolution st
 		return nil, errResolutionNotSet
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	params.Set("start_timestamp", strconv.FormatInt(startTime.UnixMilli(), 10))
 	params.Set("end_timestamp", strconv.FormatInt(endTime.UnixMilli(), 10))
 	params.Set("resolution", resolution)
@@ -702,8 +710,10 @@ func (d *Deribit) GetAccountSummary(ctx context.Context, ccy string, extended bo
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
-	params.Set("extended", strconv.FormatBool(extended))
+	params.Set("currency", ccy)
+	if extended {
+		params.Set("extended", "true")
+	}
 	var resp *AccountSummaryData
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet, getAccountSummary, params, &resp)
 }
@@ -717,7 +727,7 @@ func (d *Deribit) CancelWithdrawal(ctx context.Context, ccy string, id int64) (*
 		return nil, fmt.Errorf("%w, withdrawal id has to be positive integer", errInvalidID)
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	params.Set("id", strconv.FormatInt(id, 10))
 	var resp *CancelWithdrawalData
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
@@ -733,7 +743,7 @@ func (d *Deribit) CancelTransferByID(ctx context.Context, ccy, tfa string, id in
 		return nil, fmt.Errorf("%w, transfer id has to be positive integer", errInvalidID)
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	if tfa != "" {
 		params.Set("tfa", tfa)
 	}
@@ -748,7 +758,7 @@ func (d *Deribit) CreateDepositAddress(ctx context.Context, ccy string) (*Deposi
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	var resp *DepositAddressData
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
 		createDepositAddress, params, &resp)
@@ -760,7 +770,7 @@ func (d *Deribit) GetCurrentDepositAddress(ctx context.Context, ccy string) (*De
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	var resp *DepositAddressData
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet, getCurrentDepositAddress, params, &resp)
 }
@@ -771,7 +781,7 @@ func (d *Deribit) GetDeposits(ctx context.Context, ccy string, count, offset int
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	if count != 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
@@ -788,7 +798,7 @@ func (d *Deribit) GetTransfers(ctx context.Context, ccy string, count, offset in
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	if count != 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
@@ -806,7 +816,7 @@ func (d *Deribit) GetWithdrawals(ctx context.Context, ccy string, count, offset 
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	if count != 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
@@ -827,10 +837,10 @@ func (d *Deribit) SubmitTransferToSubAccount(ctx context.Context, ccy string, am
 		return nil, errInvalidAmount
 	}
 	if destinationID <= 0 {
-		return nil, errors.New("invalid destination address")
+		return nil, errInvalidDestinationID
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	params.Set("destination", strconv.FormatInt(destinationID, 10))
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	var resp *TransferData
@@ -847,13 +857,13 @@ func (d *Deribit) SubmitTransferToUser(ctx context.Context, ccy, tfa, destinatio
 		return nil, errInvalidAmount
 	}
 	if destinationAddress == "" {
-		return nil, errors.New("invalid destination address")
+		return nil, errInvalidDestinationID
 	}
 	params := url.Values{}
 	if tfa != "" {
 		params.Set("tfa", tfa)
 	}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	params.Set("destination", destinationAddress)
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	var resp *TransferData
@@ -873,7 +883,7 @@ func (d *Deribit) SubmitWithdraw(ctx context.Context, ccy, address, priority str
 		return nil, errInvalidCryptoAddress
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	params.Set("address", address)
 	if priority != "" {
 		params.Set("priority", priority)
@@ -903,7 +913,7 @@ func (d *Deribit) GetPublicPortfolioMargins(ctx context.Context, ccy string, sim
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	if len(simulatedPositions) != 0 {
 		values, err := json.Marshal(simulatedPositions)
 		if err != nil {
@@ -974,7 +984,9 @@ func (d *Deribit) CreateAPIKey(ctx context.Context, maxScope, name string, defau
 	if name != "" {
 		params.Set("name", name)
 	}
-	params.Set("default", strconv.FormatBool(defaultKey))
+	if defaultKey {
+		params.Set("default", "true")
+	}
 	var resp *APIKeyData
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
 		createAPIKey, params, &resp)
@@ -1083,7 +1095,7 @@ func (d *Deribit) GetPrivatePortfolioMargins(ctx context.Context, ccy string, ac
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	if accPositions {
 		params.Set("acc_positions", "true")
 	}
@@ -1113,7 +1125,9 @@ func (d *Deribit) GetPosition(ctx context.Context, instrument string) (*Position
 // GetSubAccounts gets all subaccounts' data
 func (d *Deribit) GetSubAccounts(ctx context.Context, withPortfolio bool) ([]SubAccountData, error) {
 	params := url.Values{}
-	params.Set("with_portfolio", strconv.FormatBool(withPortfolio))
+	if withPortfolio {
+		params.Set("with_portfolio", "true")
+	}
 	var resp []SubAccountData
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
 		getSubAccounts, params, &resp)
@@ -1125,9 +1139,9 @@ func (d *Deribit) GetSubAccountDetails(ctx context.Context, ccy string, withOpen
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	if withOpenOrders {
-		params.Set("with_open_orders", strconv.FormatBool(withOpenOrders))
+		params.Set("with_open_orders", "true")
 	}
 	var resp []SubAccountDetail
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet, getSubAccountDetails, params, &resp)
@@ -1139,7 +1153,7 @@ func (d *Deribit) GetPositions(ctx context.Context, ccy, kind string) ([]Positio
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	if kind != "" {
 		params.Set("kind", kind)
 	}
@@ -1154,7 +1168,7 @@ func (d *Deribit) GetTransactionLog(ctx context.Context, ccy, query string, star
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	if query != "" {
 		params.Set("query", query)
 	}
@@ -1365,7 +1379,9 @@ func (d *Deribit) ToggleNotificationsFromSubAccount(ctx context.Context, sid int
 	}
 	params := url.Values{}
 	params.Set("sid", strconv.FormatInt(sid, 10))
-	params.Set("state", strconv.FormatBool(state))
+	if state {
+		params.Set("state", "true")
+	}
 	var resp string
 	err := d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
 		toggleNotificationsFromSubAccount, params, &resp)
@@ -1385,9 +1401,11 @@ func (d *Deribit) TogglePortfolioMargining(ctx context.Context, userID int64, en
 	}
 	params := url.Values{}
 	params.Set("user_id", strconv.FormatInt(userID, 10))
-	params.Set("enabled", strconv.FormatBool(enabled))
+	if enabled {
+		params.Set("enabled", "true")
+	}
 	if dryRun {
-		params.Set("dry_run", strconv.FormatBool(dryRun))
+		params.Set("dry_run", "true")
 	}
 	var resp []TogglePortfolioMarginResponse
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet, togglePortfolioMargining, params, &resp)
@@ -1400,7 +1418,9 @@ func (d *Deribit) ToggleSubAccountLogin(ctx context.Context, sid int64, state bo
 	}
 	params := url.Values{}
 	params.Set("sid", strconv.FormatInt(sid, 10))
-	params.Set("state", strconv.FormatBool(state))
+	if state {
+		params.Set("state", "true")
+	}
 	var resp string
 	err := d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet, toggleSubAccountLogin, params, &resp)
 	if err != nil {
@@ -1438,10 +1458,18 @@ func (d *Deribit) SubmitBuy(ctx context.Context, arg *OrderBuyAndSellParams) (*P
 	if arg.MaxShow != 0 {
 		params.Set("max_show", strconv.FormatFloat(arg.MaxShow, 'f', -1, 64))
 	}
-	params.Set("post_only", strconv.FormatBool(arg.PostOnly))
-	params.Set("reject_post_only", strconv.FormatBool(arg.RejectPostOnly))
-	params.Set("reduce_only", strconv.FormatBool(arg.ReduceOnly))
-	params.Set("mmp", strconv.FormatBool(arg.MMP))
+	if arg.PostOnly {
+		params.Set("post_only", "true")
+	}
+	if arg.RejectPostOnly {
+		params.Set("reject_post_only", "true")
+	}
+	if arg.ReduceOnly {
+		params.Set("reduce_only", "true")
+	}
+	if arg.MMP {
+		params.Set("mmp", "true")
+	}
 	if arg.TriggerPrice != 0 {
 		params.Set("trigger_price", strconv.FormatFloat(arg.TriggerPrice, 'f', -1, 64))
 	}
@@ -1483,10 +1511,18 @@ func (d *Deribit) SubmitSell(ctx context.Context, arg *OrderBuyAndSellParams) (*
 		return nil, errInvalidPrice
 	}
 	params.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
-	params.Set("post_only", strconv.FormatBool(arg.PostOnly))
-	params.Set("reject_post_only", strconv.FormatBool(arg.RejectPostOnly))
-	params.Set("reduce_only", strconv.FormatBool(arg.ReduceOnly))
-	params.Set("mmp", strconv.FormatBool(arg.MMP))
+	if arg.PostOnly {
+		params.Set("post_only", "true")
+	}
+	if arg.RejectPostOnly {
+		params.Set("reject_post_only", "true")
+	}
+	if arg.ReduceOnly {
+		params.Set("reduce_only", "true")
+	}
+	if arg.MMP {
+		params.Set("mmp", "true")
+	}
 	if arg.TriggerPrice != 0 {
 		params.Set("trigger_price", strconv.FormatFloat(arg.TriggerPrice, 'f', -1, 64))
 	}
@@ -1515,10 +1551,18 @@ func (d *Deribit) SubmitEdit(ctx context.Context, arg *OrderBuyAndSellParams) (*
 	params := url.Values{}
 	params.Set("order_id", arg.OrderID)
 	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
-	params.Set("post_only", strconv.FormatBool(arg.PostOnly))
-	params.Set("reject_post_only", strconv.FormatBool(arg.RejectPostOnly))
-	params.Set("reduce_only", strconv.FormatBool(arg.ReduceOnly))
-	params.Set("mmp", strconv.FormatBool(arg.MMP))
+	if arg.PostOnly {
+		params.Set("post_only", "true")
+	}
+	if arg.RejectPostOnly {
+		params.Set("reject_post_only", "true")
+	}
+	if arg.ReduceOnly {
+		params.Set("reduce_only", "true")
+	}
+	if arg.MMP {
+		params.Set("mmp", "true")
+	}
 	if arg.TriggerPrice != 0 {
 		params.Set("trigger_price", strconv.FormatFloat(arg.TriggerPrice, 'f', -1, 64))
 	}
@@ -1549,10 +1593,18 @@ func (d *Deribit) EditOrderByLabel(ctx context.Context, arg *OrderBuyAndSellPara
 	}
 	params.Set("instrument_name", arg.Instrument)
 	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
-	params.Set("post_only", strconv.FormatBool(arg.PostOnly))
-	params.Set("reject_post_only", strconv.FormatBool(arg.RejectPostOnly))
-	params.Set("reduce_only", strconv.FormatBool(arg.ReduceOnly))
-	params.Set("mmp", strconv.FormatBool(arg.MMP))
+	if arg.PostOnly {
+		params.Set("post_only", "true")
+	}
+	if arg.RejectPostOnly {
+		params.Set("reject_post_only", "true")
+	}
+	if arg.ReduceOnly {
+		params.Set("reduce_only", "true")
+	}
+	if arg.MMP {
+		params.Set("mmp", "true")
+	}
 	if arg.TriggerPrice != 0 {
 		params.Set("trigger_price", strconv.FormatFloat(arg.TriggerPrice, 'f', -1, 64))
 	}
@@ -1589,7 +1641,7 @@ func (d *Deribit) SubmitCancelAllByCurrency(ctx context.Context, ccy, kind, orde
 		return 0, fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	if kind != "" {
 		params.Set("kind", kind)
 	}
@@ -1621,7 +1673,7 @@ func (d *Deribit) SubmitCancelByLabel(ctx context.Context, label, ccy string) (i
 	params := url.Values{}
 	params.Set("label", label)
 	if ccy != "" {
-		params.Set("currency", strings.ToUpper(ccy))
+		params.Set("currency", ccy)
 	}
 	var resp int64
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
@@ -1670,7 +1722,7 @@ func (d *Deribit) GetMMPConfig(ctx context.Context, ccy string) (*MMPConfigData,
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	var resp *MMPConfigData
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
 		getMMPConfig, params, &resp)
@@ -1682,7 +1734,7 @@ func (d *Deribit) GetOpenOrdersByCurrency(ctx context.Context, ccy, kind, orderT
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	if kind != "" {
 		params.Set("kind", kind)
 	}
@@ -1715,7 +1767,7 @@ func (d *Deribit) GetOrderHistoryByCurrency(ctx context.Context, ccy, kind strin
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	if kind != "" {
 		params.Set("kind", kind)
 	}
@@ -1725,8 +1777,12 @@ func (d *Deribit) GetOrderHistoryByCurrency(ctx context.Context, ccy, kind strin
 	if offset != 0 {
 		params.Set("offset", strconv.FormatInt(offset, 10))
 	}
-	params.Set("include_old", strconv.FormatBool(includeOld))
-	params.Set("include_unfilled", strconv.FormatBool(includeUnfilled))
+	if includeOld {
+		params.Set("include_old", "true")
+	}
+	if includeUnfilled {
+		params.Set("include_unfilled", "true")
+	}
 	var resp []OrderData
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
 		getOrderHistoryByCurrency, params, &resp)
@@ -1745,8 +1801,12 @@ func (d *Deribit) GetOrderHistoryByInstrument(ctx context.Context, instrument st
 	if offset != 0 {
 		params.Set("offset", strconv.FormatInt(offset, 10))
 	}
-	params.Set("include_old", strconv.FormatBool(includeOld))
-	params.Set("include_unfilled", strconv.FormatBool(includeUnfilled))
+	if includeOld {
+		params.Set("include_old", "true")
+	}
+	if includeUnfilled {
+		params.Set("include_unfilled", "true")
+	}
 	var resp []OrderData
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
 		getOrderHistoryByInstrument, params, &resp)
@@ -1786,7 +1846,7 @@ func (d *Deribit) GetTriggerOrderHistory(ctx context.Context, ccy, instrumentNam
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	if instrumentName != "" {
 		params.Set("instrument_name", instrumentName)
 	}
@@ -1807,7 +1867,7 @@ func (d *Deribit) GetUserTradesByCurrency(ctx context.Context, ccy, kind, startI
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	if kind != "" {
 		params.Set("kind", kind)
 	}
@@ -1823,7 +1883,9 @@ func (d *Deribit) GetUserTradesByCurrency(ctx context.Context, ccy, kind, startI
 	if count != 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
-	params.Set("include_old", strconv.FormatBool(includeOld))
+	if includeOld {
+		params.Set("include_old", "true")
+	}
 	var resp *UserTradesData
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
 		getUserTradesByCurrency, params, &resp)
@@ -1835,7 +1897,7 @@ func (d *Deribit) GetUserTradesByCurrencyAndTime(ctx context.Context, ccy, kind,
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	if kind != "" {
 		params.Set("kind", kind)
 	}
@@ -1875,7 +1937,9 @@ func (d *Deribit) GetUserTradesByInstrument(ctx context.Context, instrument, sor
 	if count != 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
-	params.Set("include_old", strconv.FormatBool(includeOld))
+	if includeOld {
+		params.Set("include_old", "true")
+	}
 	var resp *UserTradesData
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
 		getUserTradesByInstrument, params, &resp)
@@ -1926,7 +1990,7 @@ func (d *Deribit) ResetMMP(ctx context.Context, ccy string) error {
 		return fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	var resp string
 	err := d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet, resetMMP, params, &resp)
 	if err != nil {
@@ -1968,7 +2032,7 @@ func (d *Deribit) SetMMPConfig(ctx context.Context, ccy string, interval, frozen
 		return fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	var resp string
 	err := d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet,
 		resetMMP, params, &resp)
@@ -2011,7 +2075,7 @@ func (d *Deribit) GetSettlementHistoryByCurency(ctx context.Context, ccy, settle
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	if settlementType != "" {
 		params.Set("settlement_type", settlementType)
 	}
@@ -2039,7 +2103,7 @@ func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, meth
 	if err != nil {
 		return err
 	}
-	reqDataStr := method + "\n" + deribitAPIVersion + "/" + common.EncodeURLValues(path, data) + "\n" + "" + "\n"
+	reqDataStr := method + "\n" + deribitAPIVersion + "/" + common.EncodeURLValues(path, data) + "\n\n"
 	n := d.Requester.GetNonce(true)
 	strTS := strconv.FormatInt(time.Now().UnixMilli(), 10)
 	str2Sign := strTS + "\n" + n.String() + "\n" + reqDataStr
@@ -2050,7 +2114,6 @@ func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, meth
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(str2Sign),
 		[]byte(creds.Secret))
-
 	if err != nil {
 		return err
 	}
@@ -2092,7 +2155,7 @@ func (d *Deribit) GetComboIDS(ctx context.Context, ccy, state string) ([]string,
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	if state != "" {
 		params.Set("state", state)
 	}
@@ -2117,7 +2180,7 @@ func (d *Deribit) GetCombos(ctx context.Context, ccy string) ([]ComboDetail, err
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	var resp []ComboDetail
 	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues(getCombos, params), &resp)
 }
@@ -2190,7 +2253,7 @@ func (d *Deribit) ExecuteBlockTrade(ctx context.Context, timestampMS time.Time, 
 	}
 	params := url.Values{}
 	if ccy != "" {
-		params.Set("currency", strings.ToUpper(ccy))
+		params.Set("currency", ccy)
 	}
 	params.Set("trades", string(values))
 	params.Set("nonce", nonce)
@@ -2237,7 +2300,7 @@ func (d *Deribit) VerifyBlockTrade(ctx context.Context, timestampMS time.Time, n
 	params := url.Values{}
 	params.Set("timestamp", strconv.FormatInt(timestampMS.UnixMilli(), 10))
 	if ccy != "" {
-		params.Set("currency", strings.ToUpper(ccy))
+		params.Set("currency", ccy)
 	}
 	params.Set("nonce", nonce)
 	params.Set("role", role)
@@ -2265,7 +2328,7 @@ func (d *Deribit) GetLastBlockTradesByCurrency(ctx context.Context, ccy, startID
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, strings.ToUpper(ccy))
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	if startID != "" {
 		params.Set("start_id", startID)
 	}
@@ -2306,7 +2369,7 @@ func (d *Deribit) MovePositions(ctx context.Context, ccy string, sourceSubAccoun
 		return nil, err
 	}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(ccy))
+	params.Set("currency", ccy)
 	params.Set("source_uid", strconv.FormatInt(sourceSubAccountUID, 10))
 	params.Set("target_uid", strconv.FormatInt(targetSubAccountUID, 10))
 	params.Set("trades", string(values))
