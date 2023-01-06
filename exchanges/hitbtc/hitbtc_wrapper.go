@@ -436,10 +436,10 @@ func (h *HitBTC) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	currencies := make([]account.Balance, 0, len(accountBalance))
 	for i := range accountBalance {
 		currencies = append(currencies, account.Balance{
-			CurrencyName: currency.NewCode(accountBalance[i].Currency),
-			Total:        accountBalance[i].Available + accountBalance[i].Reserved,
-			Hold:         accountBalance[i].Reserved,
-			Free:         accountBalance[i].Available,
+			Currency: currency.NewCode(accountBalance[i].Currency),
+			Total:    accountBalance[i].Available + accountBalance[i].Reserved,
+			Hold:     accountBalance[i].Reserved,
+			Free:     accountBalance[i].Available,
 		})
 	}
 
@@ -951,7 +951,7 @@ func (h *HitBTC) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 	if len(summary) > 0 {
 		log.Warnf(log.ExchangeSys, "%v - %v", h.Name, summary)
 	}
-	ret.RemoveDuplicates()
+	ret.RemoveDuplicateCandlesByTime()
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil

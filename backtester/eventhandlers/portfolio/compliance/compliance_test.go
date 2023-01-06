@@ -19,23 +19,19 @@ func TestAddSnapshot(t *testing.T) {
 	}
 
 	err = m.AddSnapshot(&Snapshot{
-		Offset:    0,
 		Timestamp: tt,
-		Orders:    nil,
 	}, false)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	if len(m.Snapshots) != 1 {
 		t.Error("expected 1")
 	}
 	err = m.AddSnapshot(&Snapshot{
-		Offset:    0,
 		Timestamp: tt,
-		Orders:    nil,
 	}, true)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	if len(m.Snapshots) != 1 {
 		t.Error("expected 1")
@@ -57,13 +53,13 @@ func TestGetSnapshotAtTime(t *testing.T) {
 			},
 		},
 	}, false)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	var snappySnap Snapshot
 	snappySnap, err = m.GetSnapshotAtTime(tt)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	if len(snappySnap.Orders) == 0 {
 		t.Fatal("expected an order")
@@ -90,12 +86,10 @@ func TestGetLatestSnapshot(t *testing.T) {
 	}
 	tt := time.Now()
 	err := m.AddSnapshot(&Snapshot{
-		Offset:    0,
 		Timestamp: tt,
-		Orders:    nil,
 	}, false)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	err = m.AddSnapshot(&Snapshot{
 		Offset:    1,

@@ -66,7 +66,7 @@ var nominal = &cli.Command{
 func getNominal(c *cli.Context) error {
 	isSelling := c.Bool("sell")
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "nominal")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -152,7 +152,7 @@ var impact = &cli.Command{
 func getImpact(c *cli.Context) error {
 	isSelling := c.Bool("sell")
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "impact")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -276,7 +276,7 @@ var quoteRequired = &cli.Command{
 
 func getMovement(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, c.Command.Name)
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -372,7 +372,7 @@ var getOrderbookCommand = &cli.Command{
 
 func getOrderbook(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getorderbook")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -471,7 +471,7 @@ var getOrderbookStreamCommand = &cli.Command{
 
 func getOrderbookStream(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getorderbookstream")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -610,7 +610,7 @@ var getExchangeOrderbookStreamCommand = &cli.Command{
 
 func getExchangeOrderbookStream(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getexchangeorderbookstream")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -685,7 +685,7 @@ var whaleBombCommand = &cli.Command{
 
 func whaleBomb(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "whalebomb")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string

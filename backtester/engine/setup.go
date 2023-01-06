@@ -8,15 +8,16 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/api"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/csv"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/database"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange/slippage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
@@ -37,45 +38,57 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// NewFromConfig takes a strategy config and configures a backtester variable to run
-func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool) (*BackTest, error) {
-	log.Infoln(common.Setup, "Loading config...")
-	if cfg == nil {
-		return nil, errNilConfig
+// NewBacktester returns a new BackTest instance
+func NewBacktester() (*BackTest, error) {
+	bt := &BackTest{
+		shutdown:                 make(chan struct{}),
+		DataHolder:               &data.HandlerHolder{},
+		EventQueue:               &eventholder.Holder{},
+		hasProcessedDataAtOffset: make(map[int64]bool),
 	}
-	bt, err := New()
+	err := bt.SetupMetaData()
 	if err != nil {
 		return nil, err
 	}
 	bt.exchangeManager = engine.SetupExchangeManager()
-	bt.orderManager, err = engine.SetupOrderManager(bt.exchangeManager, &engine.CommunicationManager{}, &sync.WaitGroup{}, false, false, 0)
-	if err != nil {
-		return nil, err
+
+	return bt, nil
+}
+
+// SetupFromConfig takes a strategy config and configures a backtester variable to run
+func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output string, verbose bool) error {
+	var err error
+	defer func() {
+		if err != nil {
+			log.Errorf(common.Backtester, "Could not setup backtester %v: %v", cfg.Nickname, err)
+		}
+	}()
+	log.Infoln(common.Setup, "Loading config...")
+	if cfg == nil {
+		return errNilConfig
 	}
 
-	err = bt.orderManager.Start()
-	if err != nil {
-		return nil, err
-	}
 	if cfg.DataSettings.DatabaseData != nil {
 		bt.databaseManager, err = engine.SetupDatabaseConnectionManager(&cfg.DataSettings.DatabaseData.Config)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
+	bt.verbose = verbose
+	bt.DataHolder = data.NewHandlerHolder()
 	reports := &report.Data{
 		Config:       cfg,
 		TemplatePath: templatePath,
 		OutputPath:   output,
 	}
 	bt.Reports = reports
-
 	buyRule := exchange.MinMax{
 		MinimumSize:  cfg.PortfolioSettings.BuySide.MinimumSize,
 		MaximumSize:  cfg.PortfolioSettings.BuySide.MaximumSize,
@@ -95,12 +108,13 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 		bt.exchangeManager,
 		cfg.FundingSettings.UseExchangeLevelFunding,
 		cfg.StrategySettings.DisableUSDTracking,
+		bt.verbose,
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	if cfg.FundingSettings.UseExchangeLevelFunding {
+	if cfg.FundingSettings.UseExchangeLevelFunding && !(cfg.DataSettings.LiveData != nil && cfg.DataSettings.LiveData.RealOrders) {
 		for i := range cfg.FundingSettings.ExchangeLevelFunding {
 			a := cfg.FundingSettings.ExchangeLevelFunding[i].Asset
 			cq := cfg.FundingSettings.ExchangeLevelFunding[i].Currency
@@ -111,71 +125,101 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 				cfg.FundingSettings.ExchangeLevelFunding[i].InitialFunds,
 				cfg.FundingSettings.ExchangeLevelFunding[i].TransferFee)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			err = funds.AddItem(item)
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 	}
-
-	var emm = make(map[string]gctexchange.IBotExchange)
 	for i := range cfg.CurrencySettings {
-		_, ok := emm[cfg.CurrencySettings[i].ExchangeName]
-		if ok {
-			continue
-		}
 		var exch gctexchange.IBotExchange
-		exch, err = bt.exchangeManager.NewExchangeByName(cfg.CurrencySettings[i].ExchangeName)
+		exch, err = bt.exchangeManager.GetExchangeByName(cfg.CurrencySettings[i].ExchangeName)
 		if err != nil {
-			return nil, err
-		}
-		var conf *gctconfig.Exchange
-		conf, err = exch.GetDefaultConfig()
-		if err != nil {
-			return nil, err
-		}
-		conf.Enabled = true
-		conf.WebsocketTrafficTimeout = time.Second
-		conf.Websocket = convert.BoolPtr(false)
-		conf.WebsocketResponseCheckTimeout = time.Second
-		conf.WebsocketResponseMaxLimit = time.Second
-		conf.Verbose = verbose
-		err = exch.Setup(conf)
-		if err != nil {
-			return nil, err
+			if errors.Is(err, engine.ErrExchangeNotFound) {
+				exch, err = bt.exchangeManager.NewExchangeByName(cfg.CurrencySettings[i].ExchangeName)
+				if err != nil {
+					return err
+				}
+				exch.SetDefaults()
+				exchBase := exch.GetBase()
+				exchBase.Verbose = cfg.DataSettings.VerboseExchangeRequests
+				exchBase.Config = &gctconfig.Exchange{
+					Name:           exchBase.Name,
+					HTTPTimeout:    gctexchange.DefaultHTTPTimeout,
+					BaseCurrencies: exchBase.BaseCurrencies,
+					CurrencyPairs:  &currency.PairsManager{},
+				}
+				err = exch.UpdateTradablePairs(context.TODO(), true)
+				if err != nil {
+					return err
+				}
+				if cfg.DataSettings.LiveData != nil && cfg.DataSettings.LiveData.RealOrders {
+					exchBase.States = currencystate.NewCurrencyStates()
+				}
+				if cfg.CurrencySettings[i].CanUseExchangeLimits || (cfg.DataSettings.LiveData != nil && cfg.DataSettings.LiveData.RealOrders) {
+					err = exch.UpdateOrderExecutionLimits(context.TODO(), cfg.CurrencySettings[i].Asset)
+					if err != nil && !errors.Is(err, gctcommon.ErrNotYetImplemented) {
+						return err
+					}
+				}
+				bt.exchangeManager.Add(exch)
+			} else {
+				return err
+			}
 		}
 
 		exchBase := exch.GetBase()
-		err = exch.UpdateTradablePairs(context.Background(), true)
-		if err != nil {
-			return nil, err
+		exchangeAsset, ok := exchBase.CurrencyPairs.Pairs[cfg.CurrencySettings[i].Asset]
+		if !ok {
+			return fmt.Errorf("%v %v %w", cfg.CurrencySettings[i].ExchangeName, cfg.CurrencySettings[i].Asset, asset.ErrNotSupported)
 		}
-		assets := exchBase.CurrencyPairs.GetAssetTypes(false)
-		for i := range assets {
-			exchBase.CurrencyPairs.Pairs[assets[i]].AssetEnabled = convert.BoolPtr(true)
-			err = exch.SetPairs(exchBase.CurrencyPairs.Pairs[assets[i]].Available, assets[i], true)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		bt.exchangeManager.Add(exch)
-		emm[cfg.CurrencySettings[i].ExchangeName] = exch
+		exchangeAsset.AssetEnabled = convert.BoolPtr(true)
+		cp := currency.NewPair(cfg.CurrencySettings[i].Base, cfg.CurrencySettings[i].Quote).Format(*exchangeAsset.RequestFormat)
+		exchangeAsset.Available = exchangeAsset.Available.Add(cp)
+		exchangeAsset.Enabled = exchangeAsset.Enabled.Add(cp)
+		exchBase.Verbose = verbose
+		exchBase.CurrencyPairs.Pairs[cfg.CurrencySettings[i].Asset] = exchangeAsset
 	}
 
 	portfolioRisk := &risk.Risk{
-		CurrencySettings: make(map[string]map[asset.Item]map[currency.Pair]*risk.CurrencySettings),
+		CurrencySettings: make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*risk.CurrencySettings),
+	}
+
+	bt.Funding = funds
+	var trackFuturesPositions bool
+	if cfg.DataSettings.LiveData != nil {
+		trackFuturesPositions = cfg.DataSettings.LiveData.RealOrders
+		err = bt.SetupLiveDataHandler(cfg.DataSettings.LiveData.NewEventTimeout, cfg.DataSettings.LiveData.DataCheckTimer, cfg.DataSettings.LiveData.RealOrders, verbose)
+		if err != nil {
+			return err
+		}
+	}
+
+	bt.orderManager, err = engine.SetupOrderManager(
+		bt.exchangeManager,
+		&engine.CommunicationManager{},
+		&sync.WaitGroup{},
+		verbose,
+		trackFuturesPositions,
+		0)
+	if err != nil {
+		return err
+	}
+
+	err = bt.orderManager.Start()
+	if err != nil {
+		return err
 	}
 
 	for i := range cfg.CurrencySettings {
 		if portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName] == nil {
-			portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName] = make(map[asset.Item]map[currency.Pair]*risk.CurrencySettings)
+			portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName] = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*risk.CurrencySettings)
 		}
 		a := cfg.CurrencySettings[i].Asset
 		if !a.IsValid() {
-			return nil, fmt.Errorf(
+			return fmt.Errorf(
 				"%w for %v %v %v-%v. Err %v",
 				asset.ErrNotSupported,
 				cfg.CurrencySettings[i].ExchangeName,
@@ -185,46 +229,28 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 				err)
 		}
 		if portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a] == nil {
-			portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a] = make(map[currency.Pair]*risk.CurrencySettings)
+			portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a] = make(map[*currency.Item]map[*currency.Item]*risk.CurrencySettings)
+		}
+		if portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a][cfg.CurrencySettings[i].Base.Item] == nil {
+			portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a][cfg.CurrencySettings[i].Base.Item] = make(map[*currency.Item]*risk.CurrencySettings)
 		}
 		var curr currency.Pair
 		var b, q currency.Code
 		b = cfg.CurrencySettings[i].Base
 		q = cfg.CurrencySettings[i].Quote
-		curr = currency.NewPair(b, q)
+		curr = currency.NewPair(b, q).Format(currency.EMPTYFORMAT)
 		var exch gctexchange.IBotExchange
 		exch, err = bt.exchangeManager.GetExchangeByName(cfg.CurrencySettings[i].ExchangeName)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		exchBase := exch.GetBase()
-		var requestFormat currency.PairFormat
-		requestFormat, err = exchBase.GetPairFormat(a, true)
-		if err != nil {
-			return nil, fmt.Errorf("could not get pair format %v, %w", curr, err)
+		if cfg.DataSettings.LiveData != nil && cfg.DataSettings.LiveData.RealOrders {
+			exchBase := exch.GetBase()
+			err = setExchangeCredentials(cfg, exchBase)
+			if err != nil {
+				return err
+			}
 		}
-		curr = curr.Format(requestFormat)
-		var avail, enabled currency.Pairs
-		avail, err = exch.GetAvailablePairs(a)
-		if err != nil {
-			return nil, fmt.Errorf("could not format currency %v, %w", curr, err)
-		}
-		enabled, err = exch.GetEnabledPairs(a)
-		if err != nil {
-			return nil, fmt.Errorf("could not format currency %v, %w", curr, err)
-		}
-
-		avail = avail.Add(curr)
-		enabled = enabled.Add(curr)
-		err = exch.SetPairs(enabled, a, true)
-		if err != nil {
-			return nil, fmt.Errorf("could not format currency %v, %w", curr, err)
-		}
-		err = exch.SetPairs(avail, a, false)
-		if err != nil {
-			return nil, fmt.Errorf("could not format currency %v, %w", curr, err)
-		}
-
 		portSet := &risk.CurrencySettings{
 			MaximumHoldingRatio: cfg.CurrencySettings[i].MaximumHoldingsRatio,
 		}
@@ -232,7 +258,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 			portSet.MaximumOrdersWithLeverageRatio = cfg.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrdersWithLeverageRatio
 			portSet.MaxLeverageRate = cfg.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrderLeverageRate
 		}
-		portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a][curr] = portSet
+		portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a][curr.Base.Item][curr.Quote.Item] = portSet
 		if cfg.CurrencySettings[i].MakerFee != nil &&
 			cfg.CurrencySettings[i].TakerFee != nil &&
 			cfg.CurrencySettings[i].MakerFee.GreaterThan(*cfg.CurrencySettings[i].TakerFee) {
@@ -242,7 +268,8 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 		}
 
 		var baseItem, quoteItem, futureItem *funding.Item
-		if cfg.FundingSettings.UseExchangeLevelFunding {
+		switch {
+		case cfg.FundingSettings.UseExchangeLevelFunding:
 			switch {
 			case a == asset.Spot:
 				// add any remaining currency items that have no funding data in the strategy config
@@ -252,7 +279,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 					decimal.Zero,
 					decimal.Zero)
 				if err != nil {
-					return nil, err
+					return err
 				}
 				quoteItem, err = funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,
 					a,
@@ -260,15 +287,15 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 					decimal.Zero,
 					decimal.Zero)
 				if err != nil {
-					return nil, err
+					return err
 				}
 				err = funds.AddItem(baseItem)
 				if err != nil && !errors.Is(err, funding.ErrAlreadyExists) {
-					return nil, err
+					return err
 				}
 				err = funds.AddItem(quoteItem)
 				if err != nil && !errors.Is(err, funding.ErrAlreadyExists) {
-					return nil, err
+					return err
 				}
 			case a.IsFutures():
 				// setup contract items
@@ -279,27 +306,27 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 					decimal.Zero,
 					decimal.Zero)
 				if err != nil {
-					return nil, err
+					return err
 				}
 
 				var collateralCurrency currency.Code
 				collateralCurrency, _, err = exch.GetCollateralCurrencyForContract(a, currency.NewPair(b, q))
 				if err != nil {
-					return nil, err
+					return err
 				}
 
 				err = funds.LinkCollateralCurrency(futureItem, collateralCurrency)
 				if err != nil {
-					return nil, err
+					return err
 				}
 				err = funds.AddItem(futureItem)
 				if err != nil {
-					return nil, err
+					return err
 				}
 			default:
-				return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, a)
+				return fmt.Errorf("%w: %v", asset.ErrNotSupported, a)
 			}
-		} else {
+		default:
 			var bFunds, qFunds decimal.Decimal
 			if cfg.CurrencySettings[i].SpotDetails != nil {
 				if cfg.CurrencySettings[i].SpotDetails.InitialBaseFunds != nil {
@@ -316,7 +343,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 				bFunds,
 				decimal.Zero)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			quoteItem, err = funding.CreateItem(
 				cfg.CurrencySettings[i].ExchangeName,
@@ -325,30 +352,29 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 				qFunds,
 				decimal.Zero)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			var pair *funding.SpotPair
 			pair, err = funding.CreatePair(baseItem, quoteItem)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			err = funds.AddPair(pair)
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 	}
 
-	bt.Funding = funds
 	var p *portfolio.Portfolio
 	p, err = portfolio.Setup(sizeManager, portfolioRisk, cfg.StatisticSettings.RiskFreeRate)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	bt.Strategy, err = strategies.LoadStrategyByName(cfg.StrategySettings.Name, cfg.StrategySettings.SimultaneousSignalProcessing)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	bt.MetaData.Strategy = bt.Strategy.Name()
 	bt.Strategy.SetDefaults()
@@ -356,7 +382,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 	if cfg.StrategySettings.CustomSettings != nil {
 		err = bt.Strategy.SetCustomSettings(cfg.StrategySettings.CustomSettings)
 		if err != nil && !errors.Is(err, base.ErrCustomSettingsUnsupported) {
-			return nil, err
+			return err
 		}
 	}
 	stats := &statistics.Statistic{
@@ -364,7 +390,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 		StrategyNickname:            cfg.Nickname,
 		StrategyDescription:         bt.Strategy.Description(),
 		StrategyGoal:                cfg.Goal,
-		ExchangeAssetPairStatistics: make(map[string]map[asset.Item]map[currency.Pair]*statistics.CurrencyPairStatistic),
+		ExchangeAssetPairStatistics: make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*statistics.CurrencyPairStatistic),
 		RiskFreeRate:                cfg.StatisticSettings.RiskFreeRate,
 		CandleInterval:              cfg.DataSettings.Interval,
 		FundManager:                 bt.Funding,
@@ -384,7 +410,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 		}
 		trackingPairs, err = trackingcurrencies.CreateUSDTrackingPairs(trackingPairs, bt.exchangeManager)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	trackingPairCheck:
 		for i := range trackingPairs {
@@ -403,44 +429,55 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 				Quote:           trackingPairs[i].Quote,
 				USDTrackingPair: true,
 			})
+			// ensure new tracking pairs are enabled
+			var exch gctexchange.IBotExchange
+			exch, err = bt.exchangeManager.GetExchangeByName(trackingPairs[i].Exchange)
+			if err != nil {
+				return err
+			}
+			exchBase := exch.GetBase()
+			exchangeAsset := exchBase.CurrencyPairs.Pairs[trackingPairs[i].Asset] // no ok as handled earlier
+			exchangeAsset.Enabled = exchangeAsset.Enabled.Add(currency.NewPair(trackingPairs[i].Base, trackingPairs[i].Quote))
 		}
 	}
 
 	e, err := bt.setupExchangeSettings(cfg)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	bt.Exchange = &e
+	bt.Exchange = e
 	for i := range e.CurrencySettings {
-		err = p.SetupCurrencySettingsMap(&e.CurrencySettings[i])
+		err = p.SetCurrencySettingsMap(&e.CurrencySettings[i])
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 	bt.Portfolio = p
-
 	hasFunding := false
-	fundingItems := funds.GetAllFunding()
+	fundingItems, err := funds.GetAllFunding()
+	if err != nil {
+		return err
+	}
 	for i := range fundingItems {
 		if fundingItems[i].InitialFunds.IsPositive() {
 			hasFunding = true
 			break
 		}
 	}
-	if !hasFunding {
-		return nil, holdings.ErrInitialFundsZero
+	if !hasFunding && !(cfg.DataSettings.LiveData != nil && cfg.DataSettings.LiveData.RealOrders) {
+		return holdings.ErrInitialFundsZero
 	}
 
 	cfg.PrintSetting()
 
-	return bt, nil
+	return nil
 }
 
-func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange, error) {
+func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (*exchange.Exchange, error) {
 	log.Infoln(common.Setup, "Setting exchange settings...")
-	resp := exchange.Exchange{}
 
+	resp := &exchange.Exchange{}
 	for i := range cfg.CurrencySettings {
 		exch, pair, a, err := bt.loadExchangePairAssetBase(
 			cfg.CurrencySettings[i].ExchangeName,
@@ -448,29 +485,31 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			cfg.CurrencySettings[i].Quote,
 			cfg.CurrencySettings[i].Asset)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 
 		exchangeName := strings.ToLower(exch.GetName())
-		bt.Datas.Setup()
 		klineData, err := bt.loadData(cfg, exch, pair, a, cfg.CurrencySettings[i].USDTrackingPair)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
+		if bt.LiveDataHandler == nil {
+			err = bt.Funding.AddUSDTrackingData(klineData)
+			if err != nil &&
+				!errors.Is(err, trackingcurrencies.ErrCurrencyDoesNotContainsUSD) &&
+				!errors.Is(err, funding.ErrUSDTrackingDisabled) {
+				return nil, err
+			}
 
-		err = bt.Funding.AddUSDTrackingData(klineData)
-		if err != nil &&
-			!errors.Is(err, trackingcurrencies.ErrCurrencyDoesNotContainsUSD) &&
-			!errors.Is(err, funding.ErrUSDTrackingDisabled) {
-			return resp, err
+			if cfg.CurrencySettings[i].USDTrackingPair {
+				continue
+			}
+
+			err = bt.DataHolder.SetDataForCurrency(exchangeName, a, pair, klineData)
+			if err != nil {
+				return nil, err
+			}
 		}
-
-		if cfg.CurrencySettings[i].USDTrackingPair {
-			continue
-		}
-
-		bt.Datas.SetDataForCurrency(exchangeName, a, pair, klineData)
-
 		var makerFee, takerFee decimal.Decimal
 		if cfg.CurrencySettings[i].MakerFee != nil && cfg.CurrencySettings[i].MakerFee.GreaterThan(decimal.Zero) {
 			makerFee = *cfg.CurrencySettings[i].MakerFee
@@ -480,7 +519,10 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		}
 		if cfg.CurrencySettings[i].TakerFee == nil || cfg.CurrencySettings[i].MakerFee == nil {
 			var apiMakerFee, apiTakerFee decimal.Decimal
-			apiMakerFee, apiTakerFee = getFees(context.TODO(), exch, pair)
+			apiMakerFee, apiTakerFee, err = getFees(context.TODO(), exch, pair)
+			if err != nil {
+				log.Errorf(common.Setup, "Could not retrieve fees for %v. %v", exch.GetName(), err)
+			}
 			if cfg.CurrencySettings[i].MakerFee == nil {
 				makerFee = apiMakerFee
 				cfg.CurrencySettings[i].MakerFee = &makerFee
@@ -520,6 +562,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			realOrders = cfg.DataSettings.LiveData.RealOrders
 			bt.MetaData.LiveTesting = true
 			bt.MetaData.RealOrders = realOrders
+			bt.MetaData.ClosePositionsOnStop = cfg.DataSettings.LiveData.ClosePositionsOnStop
 		}
 
 		buyRule := exchange.MinMax{
@@ -540,11 +583,19 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 
 		if limits != (gctorder.MinMaxLevel{}) {
 			if !cfg.CurrencySettings[i].CanUseExchangeLimits {
-				log.Warnf(common.Setup, "Exchange %s order execution limits supported but disabled for %s %s, live results may differ",
-					cfg.CurrencySettings[i].ExchangeName,
-					pair,
-					a)
-				cfg.CurrencySettings[i].ShowExchangeOrderLimitWarning = true
+				if realOrders {
+					log.Warnf(common.Setup, "Exchange %s order execution limits enabled for %s %s due to using real orders",
+						cfg.CurrencySettings[i].ExchangeName,
+						pair,
+						a)
+					cfg.CurrencySettings[i].CanUseExchangeLimits = true
+				} else {
+					log.Warnf(common.Setup, "Exchange %s order execution limits supported but disabled for %s %s, live results may differ",
+						cfg.CurrencySettings[i].ExchangeName,
+						pair,
+						a)
+					cfg.CurrencySettings[i].ShowExchangeOrderLimitWarning = true
+				}
 			}
 		}
 		var lev exchange.Leverage
@@ -587,10 +638,6 @@ func (bt *BackTest) loadExchangePairAssetBase(exch string, base, quote currency.
 	cp = currency.NewPair(base, quote)
 
 	exchangeBase := e.GetBase()
-	if exchangeBase.ValidateAPICredentials(exchangeBase.GetDefaultCredentials()) != nil {
-		log.Warnf(common.Setup, "No credentials set for %v, this is theoretical only", exchangeBase.Name)
-	}
-
 	fPair, err = exchangeBase.FormatExchangeCurrency(cp, ai)
 	if err != nil {
 		return nil, currency.EMPTYPAIR, asset.Empty, err
@@ -599,7 +646,13 @@ func (bt *BackTest) loadExchangePairAssetBase(exch string, base, quote currency.
 }
 
 // getFees will return an exchange's fee rate from GCT's wrapper function
-func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee, takerFee decimal.Decimal) {
+func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee, takerFee decimal.Decimal, err error) {
+	if exch == nil {
+		return decimal.Zero, decimal.Zero, fmt.Errorf("exchange %w", gctcommon.ErrNilPointer)
+	}
+	if fPair.IsEmpty() {
+		return decimal.Zero, decimal.Zero, currency.ErrCurrencyPairEmpty
+	}
 	fTakerFee, err := exch.GetFeeByType(ctx,
 		&gctexchange.FeeBuilder{FeeType: gctexchange.OfflineTradeFee,
 			Pair:          fPair,
@@ -608,7 +661,7 @@ func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.
 			Amount:        1,
 		})
 	if err != nil {
-		log.Errorf(common.Setup, "Could not retrieve taker fee for %v. %v", exch.GetName(), err)
+		return decimal.Zero, decimal.Zero, err
 	}
 
 	fMakerFee, err := exch.GetFeeByType(ctx,
@@ -620,10 +673,10 @@ func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.
 			Amount:        1,
 		})
 	if err != nil {
-		log.Errorf(common.Setup, "Could not retrieve maker fee for %v. %v", exch.GetName(), err)
+		return decimal.Zero, decimal.Zero, err
 	}
 
-	return decimal.NewFromFloat(fMakerFee), decimal.NewFromFloat(fTakerFee)
+	return decimal.NewFromFloat(fMakerFee), decimal.NewFromFloat(fTakerFee), nil
 }
 
 // loadData will create kline data from the sources defined in start config files. It can exist from databases, csv or API endpoints
@@ -654,7 +707,23 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 	}
 
 	log.Infof(common.Setup, "Loading data for %v %v %v...\n", exch.GetName(), a, fPair)
-	resp := &kline.DataFromKline{}
+	resp := kline.NewDataFromKline()
+	underlyingPair := currency.EMPTYPAIR
+	if a.IsFutures() {
+		// returning the collateral currency along with using the
+		// fPair base creates a pair that links the futures contract to
+		// its underlyingPair pair
+		// eg BTCUSDT-PERP on Binance has a collateral currency of USDT
+		// taking the BTC base and USDT as quote, allows linking
+		// BTC-USDT and BTCUSDT-PERP
+		var curr currency.Code
+		curr, _, err = exch.GetCollateralCurrencyForContract(a, fPair)
+		if err != nil {
+			return resp, err
+		}
+		underlyingPair = currency.NewPair(fPair.Base, curr)
+	}
+
 	switch {
 	case cfg.DataSettings.CSVData != nil:
 		if cfg.DataSettings.Interval <= 0 {
@@ -671,7 +740,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if err != nil {
 			return nil, fmt.Errorf("%v. Please check your GoCryptoTrader configuration", err)
 		}
-		resp.Item.RemoveDuplicates()
+		resp.Item.RemoveDuplicateCandlesByTime()
 		resp.Item.SortCandlesByTimestamp(false)
 		resp.RangeHolder, err = gctkline.CalculateCandleDateRanges(
 			resp.Item.Candles[0].Time,
@@ -714,7 +783,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			return nil, fmt.Errorf("unable to retrieve data from GoCryptoTrader database. Error: %v. Please ensure the database is setup correctly and has data before use", err)
 		}
 
-		resp.Item.RemoveDuplicates()
+		resp.Item.RemoveDuplicateCandlesByTime()
 		resp.Item.SortCandlesByTimestamp(false)
 		resp.RangeHolder, err = gctkline.CalculateCandleDateRanges(
 			cfg.DataSettings.DatabaseData.StartDate,
@@ -745,44 +814,25 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			return resp, err
 		}
 	case cfg.DataSettings.LiveData != nil:
-		if isUSDTrackingPair {
-			return nil, errLiveUSDTrackingNotSupported
-		}
-		if len(cfg.CurrencySettings) > 1 {
-			return nil, errors.New("live data simulation only supports one currency")
-		}
-		err = loadLiveData(cfg, b)
-		if err != nil {
-			return nil, err
-		}
-		go bt.loadLiveDataLoop(
-			resp,
-			cfg,
-			exch,
-			fPair,
-			a,
-			dataType)
-		return resp, nil
+		bt.exchangeManager.Add(exch)
+		err = bt.LiveDataHandler.AppendDataSource(&liveDataSourceSetup{
+			exchange:                  exch,
+			interval:                  cfg.DataSettings.Interval,
+			asset:                     a,
+			pair:                      fPair,
+			underlyingPair:            underlyingPair,
+			dataType:                  dataType,
+			dataRequestRetryTolerance: cfg.DataSettings.LiveData.DataRequestRetryTolerance,
+			dataRequestRetryWaitTime:  cfg.DataSettings.LiveData.DataRequestRetryWaitTime,
+			verboseExchangeRequest:    cfg.DataSettings.VerboseExchangeRequests,
+		})
+		return nil, err
 	}
 	if resp == nil {
 		return nil, fmt.Errorf("processing error, response returned nil")
 	}
 
-	if a.IsFutures() {
-		// returning the collateral currency along with using the
-		// fPair base creates a pair that links the futures contract to
-		// is underlying pair
-		// eg BTC-PERP on FTX has a collateral currency of USD
-		// taking the BTC base and USD as quote, allows linking
-		// BTC-USD and BTC-PERP
-		var curr currency.Code
-		curr, _, err = exch.GetCollateralCurrencyForContract(a, fPair)
-		if err != nil {
-			return resp, err
-		}
-		resp.Item.UnderlyingPair = currency.NewPair(fPair.Base, curr)
-	}
-
+	resp.Item.UnderlyingPair = underlyingPair
 	err = b.ValidateKline(fPair, a, resp.Item.Interval)
 	if err != nil {
 		if dataType != common.DataTrade || !strings.EqualFold(err.Error(), "interval not supported") {
@@ -794,7 +844,10 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 	if err != nil {
 		return nil, err
 	}
-	bt.Reports.AddKlineItem(&resp.Item)
+	err = bt.Reports.SetKlineData(&resp.Item)
+	if err != nil {
+		return nil, err
+	}
 	return resp, nil
 }
 
@@ -848,41 +901,47 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	candles.FillMissingDataWithEmptyEntries(dates)
 	candles.RemoveOutsideRange(cfg.DataSettings.APIData.StartDate, cfg.DataSettings.APIData.EndDate)
 	return &kline.DataFromKline{
+		Base:        &data.Base{},
 		Item:        *candles,
 		RangeHolder: dates,
 	}, nil
 }
 
-func loadLiveData(cfg *config.Config, base *gctexchange.Base) error {
+func setExchangeCredentials(cfg *config.Config, base *gctexchange.Base) error {
 	if cfg == nil || base == nil || cfg.DataSettings.LiveData == nil {
-		return common.ErrNilArguments
+		return gctcommon.ErrNilPointer
+	}
+	if !cfg.DataSettings.LiveData.RealOrders {
+		return nil
 	}
 	if cfg.DataSettings.Interval <= 0 {
 		return errIntervalUnset
 	}
+	if len(cfg.DataSettings.LiveData.ExchangeCredentials) == 0 {
+		return errNoCredsNoLive
+	}
+	name := strings.ToLower(base.Name)
+	for i := range cfg.DataSettings.LiveData.ExchangeCredentials {
+		if !strings.EqualFold(cfg.DataSettings.LiveData.ExchangeCredentials[i].Exchange, name) ||
+			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.IsEmpty() {
+			return fmt.Errorf("%v %w, please review your live, real order config", base.GetName(), gctexchange.ErrCredentialsAreEmpty)
+		}
 
-	if cfg.DataSettings.LiveData.APIKeyOverride != "" {
-		base.API.SetKey(cfg.DataSettings.LiveData.APIKeyOverride)
-	}
-	if cfg.DataSettings.LiveData.APISecretOverride != "" {
-		base.API.SetSecret(cfg.DataSettings.LiveData.APISecretOverride)
-	}
-	if cfg.DataSettings.LiveData.APIClientIDOverride != "" {
-		base.API.SetClientID(cfg.DataSettings.LiveData.APIClientIDOverride)
-	}
-	if cfg.DataSettings.LiveData.API2FAOverride != "" {
-		base.API.SetPEMKey(cfg.DataSettings.LiveData.API2FAOverride)
-	}
-	if cfg.DataSettings.LiveData.APISubAccountOverride != "" {
-		base.API.SetSubAccount(cfg.DataSettings.LiveData.APISubAccountOverride)
+		base.SetCredentials(
+			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.Key,
+			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.Secret,
+			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.ClientID,
+			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.SubAccount,
+			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.PEMKey,
+			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.OneTimePassword,
+		)
+		validated := base.AreCredentialsValid(context.TODO())
+		base.API.AuthenticatedSupport = validated
+		if !validated {
+			return fmt.Errorf("%v %w", base.GetName(), errInvalidCredentials)
+		}
 	}
 
-	validated := base.AreCredentialsValid(context.TODO())
-	base.API.AuthenticatedSupport = validated
-	if !validated && cfg.DataSettings.LiveData.RealOrders {
-		log.Warn(common.Setup, "Invalid API credentials set, real orders set to false")
-		cfg.DataSettings.LiveData.RealOrders = false
-	}
 	return nil
 }
 
@@ -897,7 +956,11 @@ func NewBacktesterFromConfigs(strategyCfg *config.Config, backtesterCfg *config.
 	if err := strategyCfg.Validate(); err != nil {
 		return nil, err
 	}
-	bt, err := NewFromConfig(strategyCfg, backtesterCfg.Report.TemplatePath, backtesterCfg.Report.OutputPath, backtesterCfg.Verbose)
+	bt, err := NewBacktester()
+	if err != nil {
+		return nil, err
+	}
+	err = bt.SetupFromConfig(strategyCfg, backtesterCfg.Report.TemplatePath, backtesterCfg.Report.OutputPath, backtesterCfg.Verbose)
 	if err != nil {
 		return nil, err
 	}

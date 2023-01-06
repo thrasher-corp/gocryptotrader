@@ -311,9 +311,8 @@ func (y *Yobit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	currencies := make([]account.Balance, 0, len(accountBalance.FundsInclOrders))
 	for x, y := range accountBalance.FundsInclOrders {
 		var exchangeCurrency account.Balance
-		exchangeCurrency.CurrencyName = currency.NewCode(x)
+		exchangeCurrency.Currency = currency.NewCode(x)
 		exchangeCurrency.Total = y
-		exchangeCurrency.Hold = 0
 		for z, w := range accountBalance.Funds {
 			if z == x {
 				exchangeCurrency.Hold = y - w

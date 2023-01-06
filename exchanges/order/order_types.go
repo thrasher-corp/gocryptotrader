@@ -32,7 +32,7 @@ var (
 // Submit contains all properties of an order that may be required
 // for an order to be created on an exchange
 // Each exchange has their own requirements, so not all fields
-// are required to be populated
+// need to be populated
 type Submit struct {
 	Exchange  string
 	Type      Type
@@ -62,6 +62,13 @@ type Submit struct {
 	TriggerPrice  float64
 	ClientID      string // TODO: Shift to credentials
 	ClientOrderID string
+	// RetrieveFees use if an API submit order response does not return fees
+	// enabling this will perform additional request(s) to retrieve them
+	// and set it in the SubmitResponse
+	RetrieveFees bool
+	// RetrieveFeeDelay some exchanges take time to properly save order data
+	// and cannot retrieve fees data immediately
+	RetrieveFeeDelay time.Duration
 }
 
 // SubmitResponse is what is returned after submitting an order to an exchange
@@ -90,6 +97,7 @@ type SubmitResponse struct {
 	OrderID     string
 	Trades      []TradeHistory
 	Fee         float64
+	FeeAsset    currency.Code
 	Cost        float64
 }
 

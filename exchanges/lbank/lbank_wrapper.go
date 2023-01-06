@@ -338,10 +338,10 @@ func (l *Lbank) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 			return info, parseErr
 		}
 		acc.Currencies = append(acc.Currencies, account.Balance{
-			CurrencyName: c,
-			Total:        totalVal,
-			Hold:         totalHold,
-			Free:         totalVal - totalHold,
+			Currency: c,
+			Total:    totalVal,
+			Hold:     totalHold,
+			Free:     totalVal - totalHold,
 		})
 	}
 
@@ -980,7 +980,7 @@ func (l *Lbank) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 	if len(summary) > 0 {
 		log.Warnf(log.ExchangeSys, "%v - %v", l.Name, summary)
 	}
-	ret.RemoveDuplicates()
+	ret.RemoveDuplicateCandlesByTime()
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil

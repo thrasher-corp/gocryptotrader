@@ -391,9 +391,9 @@ func (d *Deribit) UpdateAccountInfo(ctx context.Context, _ asset.Item) (account.
 		}
 		var subAcc account.SubAccount
 		subAcc.Currencies = append(subAcc.Currencies, account.Balance{
-			CurrencyName: currency.NewCode(currencies[x].Currency),
-			Total:        data.Balance,
-			Hold:         data.Balance - data.AvailableFunds,
+			Currency: currency.NewCode(currencies[x].Currency),
+			Total:    data.Balance,
+			Hold:     data.Balance - data.AvailableFunds,
 		})
 		resp.Accounts[x] = subAcc
 	}
@@ -846,10 +846,13 @@ func (d *Deribit) GetDepositAddress(ctx context.Context, cryptocurrency currency
 	} else {
 		addressData, err = d.GetCurrentDepositAddress(ctx, cryptocurrency.String())
 	}
+	if err != nil {
+		return nil, err
+	}
 	return &deposit.Address{
 		Address: addressData.Address,
 		Chain:   addressData.Currency,
-	}, err
+	}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

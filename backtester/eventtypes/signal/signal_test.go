@@ -5,6 +5,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -33,7 +34,7 @@ func TestSetPrice(t *testing.T) {
 	}
 	s.SetPrice(decimal.NewFromInt(1337))
 	if !s.GetClosePrice().Equal(decimal.NewFromInt(1337)) {
-		t.Error("expected decimal.NewFromInt(1337)")
+		t.Errorf("received '%v' expected '%v'", s.GetClosePrice(), 1337)
 	}
 }
 
@@ -152,5 +153,51 @@ func TestMatchOrderAmount(t *testing.T) {
 	s.MatchesOrderAmount = true
 	if !s.MatchOrderAmount() {
 		t.Error("expected true")
+	}
+}
+
+func TestGetHighPrice(t *testing.T) {
+	t.Parallel()
+	s := Signal{
+		HighPrice: decimal.NewFromInt(1337),
+	}
+	if !s.GetHighPrice().Equal(decimal.NewFromInt(1337)) {
+		t.Errorf("received '%v' expected '%v'", s.GetHighPrice(), 1337)
+	}
+}
+
+func TestGetLowPrice(t *testing.T) {
+	t.Parallel()
+	s := Signal{
+		LowPrice: decimal.NewFromInt(1337),
+	}
+	if !s.GetLowPrice().Equal(decimal.NewFromInt(1337)) {
+		t.Errorf("received '%v' expected '%v'", s.GetLowPrice(), 1337)
+	}
+}
+
+func TestGetOpenPrice(t *testing.T) {
+	t.Parallel()
+	s := Signal{
+		OpenPrice: decimal.NewFromInt(1337),
+	}
+	if !s.GetOpenPrice().Equal(decimal.NewFromInt(1337)) {
+		t.Errorf("received '%v' expected '%v'", s.GetOpenPrice(), 1337)
+	}
+}
+
+func TestToKline(t *testing.T) {
+	t.Parallel()
+	s := Signal{
+		OpenPrice: decimal.NewFromInt(1337),
+	}
+	k := s.ToKline()
+	switch k.(type) {
+	case kline.Event:
+		if !k.GetOpenPrice().Equal(decimal.NewFromInt(1337)) {
+			t.Errorf("received '%v' expected '%v'", k.GetOpenPrice(), 1337)
+		}
+	default:
+		t.Errorf("expected  '%v' received '%v'", "kline event", "signal event")
 	}
 }
