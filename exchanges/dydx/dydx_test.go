@@ -328,7 +328,7 @@ func TestSubscribe(t *testing.T) {
 }
 func TestRecoverStarkKeyQuoteBalanceAndOpenPosition(t *testing.T) {
 	t.Parallel()
-	_, err := dy.RecoverStarkKeyQuoteBalanceAndOpenPosition(context.Background(), "")
+	_, err := dy.RecoverStarkKeyQuoteBalanceAndOpenPosition(context.Background(), defaultEthereumAddress)
 	if err != nil {
 		t.Error(err)
 	}
@@ -336,7 +336,7 @@ func TestRecoverStarkKeyQuoteBalanceAndOpenPosition(t *testing.T) {
 
 func TestGetRegistration(t *testing.T) {
 	t.Parallel()
-	_, err := dy.GetRegistration(context.Background(), "ethereumAddress")
+	_, err := dy.GetRegistration(context.Background(), defaultEthereumAddress)
 	if err != nil {
 		t.Error(err)
 	}
@@ -344,7 +344,7 @@ func TestGetRegistration(t *testing.T) {
 
 func TestRegisterAPIKey(t *testing.T) {
 	t.Parallel()
-	_, err := dy.RegisterAPIKey(context.Background(), "ethereumAddress")
+	_, err := dy.RegisterAPIKey(context.Background(), defaultEthereumAddress)
 	if err != nil {
 		t.Error(err)
 	}
@@ -352,7 +352,8 @@ func TestRegisterAPIKey(t *testing.T) {
 
 func TestGetAPIKeys(t *testing.T) {
 	t.Parallel()
-	_, err := dy.GetAPIKeys(context.Background(), "ethereumAddress")
+	dy.Verbose = true
+	_, err := dy.GetAPIKeys(context.Background(), defaultEthereumAddress)
 	if err != nil {
 		t.Error(err)
 	}
@@ -360,7 +361,7 @@ func TestGetAPIKeys(t *testing.T) {
 
 func TestDeleteAPIKeys(t *testing.T) {
 	t.Parallel()
-	_, err := dy.DeleteAPIKeys(context.Background(), "publicKey", "ethereumAddress")
+	_, err := dy.DeleteAPIKeys(context.Background(), "publicKey", defaultEthereumAddress)
 	if err != nil {
 		t.Error(err)
 	}
@@ -370,8 +371,8 @@ func TestOnboarding(t *testing.T) {
 	t.Parallel()
 	_, err := dy.Onboarding(context.Background(), &OnboardingParam{
 		StarkKey:         "",
-		StarkYCoordinate: "fakdjfaljdflkajsdflakd",
-		EthereumAddress:  "",
+		StarkYCoordinate: "",
+		EthereumAddress:  defaultEthereumAddress,
 		Country:          "RU",
 	})
 	if err != nil {

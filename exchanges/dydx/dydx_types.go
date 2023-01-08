@@ -27,7 +27,11 @@ var (
 	}
 )
 
-const eip712StructName = "dYdX"
+const (
+	eip712StructName       = "dYdX"
+	web3ProviderURL        = "http://localhost:8545"
+	defaultEthereumAddress = "0x22d491Bde2303f2f43325b2108D26f1eAbA1e32b"
+)
 
 const (
 	domain                       = "dYdX"

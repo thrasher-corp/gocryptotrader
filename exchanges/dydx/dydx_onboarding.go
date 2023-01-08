@@ -27,7 +27,10 @@ func (dy *DYDX) GenerateOnboardingSignature(signerAddress string) (string, error
 	message["action"] = offChainOnboardingAction
 	message["onlySignOn"] = dydxOnlySignOnDomainMainnet
 	eip712Message := dy.getEIP712Message(message)
-	client := &jsonrpc.Client{}
+	client, err := jsonrpc.NewClient(web3ProviderURL)
+	if err != nil {
+		return "", err
+	}
 	var out string
 	if err := client.Call("eth_signTypedData", &out, signerAddress, eip712Message); err != nil {
 		return "", err
@@ -46,7 +49,7 @@ func (dy *DYDX) GenerateEtheriumKeyPrivateEndpointsSignature(signerAddress, meth
 	var err error
 	var out string
 	var client *jsonrpc.Client
-	client, err = jsonrpc.NewClient("eth_signTypedData")
+	client, err = jsonrpc.NewClient(web3ProviderURL)
 	if err != nil {
 		return "", err
 	}
@@ -174,6 +177,7 @@ func (dy *DYDX) SendEthereumSignedRequest(ctx context.Context, endpoint exchange
 			headers["DYDX-TIMESTAMP"] = timestamp
 		}
 		headers["Content-Type"] = "application/json"
+		println(urlPath + path)
 		return &request.Item{
 			Method:        method,
 			Path:          urlPath + path,
