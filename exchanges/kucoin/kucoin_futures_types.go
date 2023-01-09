@@ -145,6 +145,15 @@ type FuturesKline struct {
 	Volume    float64
 }
 
+// FutureOrdersResponse represents a future order response list detail.
+type FutureOrdersResponse struct {
+	CurrentPage int64          `json:"currentPage"`
+	PageSize    int64          `json:"pageSize"`
+	TotalNum    int64          `json:"totalNum"`
+	TotalPage   int64          `json:"totalPage"`
+	Items       []FuturesOrder `json:"items"`
+}
+
 // FuturesOrder represents futures order information
 type FuturesOrder struct {
 	ID             string             `json:"id"`
@@ -183,6 +192,15 @@ type FuturesOrder struct {
 	FilledValue    float64            `json:"filledValue,string"`
 	FilledSize     float64            `json:"filledSize"`
 	ReduceOnly     bool               `json:"reduceOnly"`
+}
+
+// FutureFillsResponse represents a future fills list response detail.
+type FutureFillsResponse struct {
+	CurrentPage int64         `json:"currentPage"`
+	PageSize    int64         `json:"pageSize"`
+	TotalNum    int64         `json:"totalNum"`
+	TotalPage   int64         `json:"totalPage"`
+	Items       []FuturesFill `json:"items"`
 }
 
 // FuturesFill represents list of recent fills for futures orders.
@@ -320,6 +338,15 @@ type APIKeyDetail struct {
 	CreateAt    kucoinTimeMilliSec `json:"createdAt"`
 }
 
+// FuturesDepositDetailsResponse represents a futures deposits list detail response.
+type FuturesDepositDetailsResponse struct {
+	CurrentPage int64                  `json:"currentPage"`
+	PageSize    int64                  `json:"pageSize"`
+	TotalNum    int64                  `json:"totalNum"`
+	TotalPage   int64                  `json:"totalPage"`
+	Items       []FuturesDepositDetail `json:"items"`
+}
+
 // FuturesDepositDetail represents futures deposit detail information.
 type FuturesDepositDetail struct {
 	Currency   string             `json:"currency"`
@@ -345,6 +372,15 @@ type FuturesWithdrawalLimit struct {
 	WithdrawMinSize     float64 `json:"withdrawMinSize"`
 	IsWithdrawEnabled   bool    `json:"isWithdrawEnabled"`
 	Precision           float64 `json:"precision"`
+}
+
+// FuturesWithdrawalsListResponse represents a list of futures Withdrawal history instance.
+type FuturesWithdrawalsListResponse struct {
+	CurrentPage int64                      `json:"currentPage"`
+	PageSize    int64                      `json:"pageSize"`
+	TotalNum    int64                      `json:"totalNum"`
+	TotalPage   int64                      `json:"totalPage"`
+	Items       []FuturesWithdrawalHistory `json:"items"`
 }
 
 // FuturesWithdrawalHistory represents a list of Futures withdrawal history.
@@ -387,6 +423,15 @@ type TransferRes struct {
 	Fee            float64            `json:"fee,string"`
 	Serial         int64              `json:"sn"`
 	UpdatedAt      kucoinTimeMilliSec `json:"updatedAt"`
+}
+
+// TransferListsResponse represents a transfer lists detail.
+type TransferListsResponse struct {
+	CurrentPage int64      `json:"currentPage"`
+	PageSize    int64      `json:"pageSize"`
+	TotalNum    int64      `json:"totalNum"`
+	TotalPage   int64      `json:"totalPage"`
+	Items       []Transfer `json:"items"`
 }
 
 // Transfer represents a transfer detail.

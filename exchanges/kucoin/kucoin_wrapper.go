@@ -422,7 +422,12 @@ func (ku *Kucoin) UpdateOrderbook(ctx context.Context, pair currency.Pair, asset
 		fPair.Delimiter = ""
 		ordBook, err = ku.GetFuturesOrderbook(ctx, fPair.String())
 	case asset.Spot, asset.Margin:
-		ordBook, err = ku.GetOrderbook(ctx, fPair.String())
+		_, err = ku.GetCredentials(ctx)
+		if err != nil {
+			ordBook, err = ku.GetPartOrderbook100(ctx, fPair.String())
+		} else {
+			ordBook, err = ku.GetOrderbook(ctx, fPair.String())
+		}
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
@@ -509,31 +514,31 @@ func (ku *Kucoin) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 	if err != nil {
 		return nil, err
 	}
-	fundingData := make([]exchange.FundHistory, len(withdrawalsData)+len(depositsData))
-	for x := range depositsData {
+	fundingData := make([]exchange.FundHistory, len(withdrawalsData.Items)+len(depositsData.Items))
+	for x := range depositsData.Items {
 		fundingData[x] = exchange.FundHistory{
-			Timestamp:    depositsData[x].CreatedAt.Time(),
+			Timestamp:    depositsData.Items[x].CreatedAt.Time(),
 			ExchangeName: ku.Name,
 			TransferType: "deposit",
-			CryptoTxID:   depositsData[x].WalletTxID,
-			Status:       depositsData[x].Status,
-			Amount:       depositsData[x].Amount,
-			Currency:     depositsData[x].Currency,
+			CryptoTxID:   depositsData.Items[x].WalletTxID,
+			Status:       depositsData.Items[x].Status,
+			Amount:       depositsData.Items[x].Amount,
+			Currency:     depositsData.Items[x].Currency,
 		}
 	}
-	length := len(depositsData)
-	for x := range withdrawalsData {
+	length := len(depositsData.Items)
+	for x := range withdrawalsData.Items {
 		fundingData[length+x] = exchange.FundHistory{
-			Fee:             withdrawalsData[x].Fee,
-			Timestamp:       withdrawalsData[x].UpdatedAt.Time(),
+			Fee:             withdrawalsData.Items[x].Fee,
+			Timestamp:       withdrawalsData.Items[x].UpdatedAt.Time(),
 			ExchangeName:    ku.Name,
 			TransferType:    "withdrawal",
-			CryptoToAddress: withdrawalsData[x].Address,
-			CryptoTxID:      withdrawalsData[x].WalletTxID,
-			Status:          withdrawalsData[x].Status,
-			Amount:          withdrawalsData[x].Amount,
-			Currency:        withdrawalsData[x].Currency,
-			TransferID:      withdrawalsData[x].ID,
+			CryptoToAddress: withdrawalsData.Items[x].Address,
+			CryptoTxID:      withdrawalsData.Items[x].WalletTxID,
+			Status:          withdrawalsData.Items[x].Status,
+			Amount:          withdrawalsData.Items[x].Amount,
+			Currency:        withdrawalsData.Items[x].Currency,
+			TransferID:      withdrawalsData.Items[x].ID,
 		}
 	}
 	return fundingData, nil
@@ -544,36 +549,36 @@ func (ku *Kucoin) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a 
 	var err error
 	switch a {
 	case asset.Spot:
-		var withdrawals []HistoricalDepositWithdrawal
+		var withdrawals *HistoricalDepositWithdrawalResponse
 		withdrawals, err = ku.GetHistoricalWithdrawalList(ctx, c.String(), "", time.Time{}, time.Time{}, 0, 0)
 		if err != nil {
 			return nil, err
 		}
-		resp := make([]exchange.WithdrawalHistory, len(withdrawals))
-		for x := range withdrawals {
+		resp := make([]exchange.WithdrawalHistory, len(withdrawals.Items))
+		for x := range withdrawals.Items {
 			resp[x] = exchange.WithdrawalHistory{
-				Status:       withdrawals[x].Status,
-				CryptoTxID:   withdrawals[x].WalletTxID,
-				Timestamp:    withdrawals[x].CreatedAt.Time(),
-				Amount:       withdrawals[x].Amount,
+				Status:       withdrawals.Items[x].Status,
+				CryptoTxID:   withdrawals.Items[x].WalletTxID,
+				Timestamp:    withdrawals.Items[x].CreatedAt.Time(),
+				Amount:       withdrawals.Items[x].Amount,
 				TransferType: "withdrawal",
 				Currency:     c.String(),
 			}
 		}
 		return resp, nil
 	case asset.Futures:
-		var futuresWithdrawals []FuturesWithdrawalHistory
+		var futuresWithdrawals *FuturesWithdrawalsListResponse
 		futuresWithdrawals, err = ku.GetFuturesWithdrawalList(ctx, c.String(), "", time.Time{}, time.Time{})
 		if err != nil {
 			return nil, err
 		}
-		resp := make([]exchange.WithdrawalHistory, len(futuresWithdrawals))
-		for y := range futuresWithdrawals {
+		resp := make([]exchange.WithdrawalHistory, len(futuresWithdrawals.Items))
+		for y := range futuresWithdrawals.Items {
 			resp[y] = exchange.WithdrawalHistory{
-				Status:       futuresWithdrawals[y].Status,
-				CryptoTxID:   futuresWithdrawals[y].WalletTxID,
-				Timestamp:    futuresWithdrawals[y].CreatedAt.Time(),
-				Amount:       futuresWithdrawals[y].Amount,
+				Status:       futuresWithdrawals.Items[y].Status,
+				CryptoTxID:   futuresWithdrawals.Items[y].WalletTxID,
+				Timestamp:    futuresWithdrawals.Items[y].CreatedAt.Time(),
+				Amount:       futuresWithdrawals.Items[y].Amount,
 				Currency:     c.String(),
 				TransferType: "withdrawal",
 			}
@@ -856,7 +861,7 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (ku *Kucoin) GetDepositAddress(ctx context.Context, c currency.Code, accountID, chain string) (*deposit.Address, error) {
-	ad, err := ku.GetDepositAddressV2(ctx, c.Upper().String())
+	ad, err := ku.GetDepositAddressesV2(ctx, c.Upper().String())
 	if err != nil {
 		fad, err := ku.GetFuturesDepositAddress(ctx, c.String())
 		if err != nil {
@@ -926,11 +931,11 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 		if err != nil {
 			return nil, err
 		}
-		for x := range futuresOrders {
-			if !futuresOrders[x].IsActive {
+		for x := range futuresOrders.Items {
+			if !futuresOrders.Items[x].IsActive {
 				return nil, err
 			}
-			dPair, err := currency.NewPairFromString(futuresOrders[x].Symbol)
+			dPair, err := currency.NewPairFromString(futuresOrders.Items[x].Symbol)
 			if err != nil {
 				return nil, err
 			}
@@ -948,23 +953,23 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 					continue
 				}
 			}
-			side, err := order.StringToOrderSide(futuresOrders[x].Side)
+			side, err := order.StringToOrderSide(futuresOrders.Items[x].Side)
 			if err != nil {
 				return nil, err
 			}
-			oType, err := order.StringToOrderType(futuresOrders[x].OrderType)
+			oType, err := order.StringToOrderType(futuresOrders.Items[x].OrderType)
 			if err != nil {
 				return nil, err
 			}
 			orders = append(orders, order.Detail{
-				OrderID:         futuresOrders[x].ID,
-				Amount:          futuresOrders[x].Size,
-				RemainingAmount: futuresOrders[x].Size - futuresOrders[x].FilledSize,
-				ExecutedAmount:  futuresOrders[x].FilledSize,
+				OrderID:         futuresOrders.Items[x].ID,
+				Amount:          futuresOrders.Items[x].Size,
+				RemainingAmount: futuresOrders.Items[x].Size - futuresOrders.Items[x].FilledSize,
+				ExecutedAmount:  futuresOrders.Items[x].FilledSize,
 				Exchange:        ku.Name,
-				Date:            futuresOrders[x].CreatedAt.Time(),
-				LastUpdated:     futuresOrders[x].UpdatedAt.Time(),
-				Price:           futuresOrders[x].Price,
+				Date:            futuresOrders.Items[x].CreatedAt.Time(),
+				LastUpdated:     futuresOrders.Items[x].UpdatedAt.Time(),
+				Price:           futuresOrders.Items[x].Price,
 				Side:            side,
 				Type:            oType,
 				Pair:            dPair,
@@ -978,11 +983,11 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 		if err != nil {
 			return nil, err
 		}
-		for x := range spotOrders {
-			if !spotOrders[x].IsActive {
+		for x := range spotOrders.Items {
+			if !spotOrders.Items[x].IsActive {
 				continue
 			}
-			dPair, err := currency.NewPairFromString(spotOrders[x].Symbol)
+			dPair, err := currency.NewPairFromString(spotOrders.Items[x].Symbol)
 			if err != nil {
 				return nil, err
 			}
@@ -1000,22 +1005,22 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 					continue
 				}
 			}
-			side, err := order.StringToOrderSide(spotOrders[x].Side)
+			side, err := order.StringToOrderSide(spotOrders.Items[x].Side)
 			if err != nil {
 				return nil, err
 			}
-			oType, err := order.StringToOrderType(spotOrders[x].TradeType)
+			oType, err := order.StringToOrderType(spotOrders.Items[x].TradeType)
 			if err != nil {
 				return nil, err
 			}
 			orders = append(orders, order.Detail{
-				OrderID:         spotOrders[x].ID,
-				Amount:          spotOrders[x].Size,
-				RemainingAmount: spotOrders[x].Size - spotOrders[x].DealSize,
-				ExecutedAmount:  spotOrders[x].DealSize,
+				OrderID:         spotOrders.Items[x].ID,
+				Amount:          spotOrders.Items[x].Size,
+				RemainingAmount: spotOrders.Items[x].Size - spotOrders.Items[x].DealSize,
+				ExecutedAmount:  spotOrders.Items[x].DealSize,
 				Exchange:        ku.Name,
-				Date:            spotOrders[x].CreatedAt.Time(),
-				Price:           spotOrders[x].Price,
+				Date:            spotOrders.Items[x].CreatedAt.Time(),
+				Price:           spotOrders.Items[x].Price,
 				Side:            side,
 				Type:            oType,
 				Pair:            dPair,
@@ -1041,8 +1046,8 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.G
 	var err error
 	switch getOrdersRequest.AssetType {
 	case asset.Futures:
-		var futuresOrders []FuturesOrder
-		var newOrders []FuturesOrder
+		var futuresOrders *FutureOrdersResponse
+		var newOrders *FutureOrdersResponse
 		if len(getOrdersRequest.Pairs) == 0 {
 			futuresOrders, err = ku.GetFuturesOrders(ctx, "", "", getOrdersRequest.Side.Lower(), getOrdersRequest.Type.Lower(), getOrdersRequest.StartTime, getOrdersRequest.EndTime)
 			if err != nil {
@@ -1055,31 +1060,31 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.G
 				if err != nil {
 					return nil, fmt.Errorf("%w while fetching for symbol %s", err, getOrdersRequest.Pairs[x].String())
 				}
-				futuresOrders = append(futuresOrders, newOrders...)
+				futuresOrders.Items = append(futuresOrders.Items, newOrders.Items...)
 			}
 		}
-		orders = make(order.FilteredOrders, len(futuresOrders))
+		orders = make(order.FilteredOrders, len(futuresOrders.Items))
 		for i := range orders {
-			orderSide, err = order.StringToOrderSide(futuresOrders[i].Side)
+			orderSide, err = order.StringToOrderSide(futuresOrders.Items[i].Side)
 			if err != nil {
 				return nil, err
 			}
-			pair, err = currency.NewPairFromString(futuresOrders[i].Symbol)
+			pair, err = currency.NewPairFromString(futuresOrders.Items[i].Symbol)
 			if err != nil {
 				return nil, err
 			}
-			oType, err = order.StringToOrderType(futuresOrders[i].OrderType)
+			oType, err = order.StringToOrderType(futuresOrders.Items[i].OrderType)
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "%s %v", ku.Name, err)
 			}
 			orders[i] = order.Detail{
-				Price:           futuresOrders[i].Price,
-				Amount:          futuresOrders[i].Size,
-				ExecutedAmount:  futuresOrders[i].DealSize,
-				RemainingAmount: futuresOrders[i].Size - futuresOrders[i].DealSize,
-				Date:            futuresOrders[i].CreatedAt.Time(),
+				Price:           futuresOrders.Items[i].Price,
+				Amount:          futuresOrders.Items[i].Size,
+				ExecutedAmount:  futuresOrders.Items[i].DealSize,
+				RemainingAmount: futuresOrders.Items[i].Size - futuresOrders.Items[i].DealSize,
+				Date:            futuresOrders.Items[i].CreatedAt.Time(),
 				Exchange:        ku.Name,
-				OrderID:         futuresOrders[i].ID,
+				OrderID:         futuresOrders.Items[i].ID,
 				Side:            orderSide,
 				Status:          orderStatus,
 				Type:            oType,
@@ -1088,8 +1093,8 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.G
 			orders[i].InferCostsAndTimes()
 		}
 	case asset.Spot, asset.Margin:
-		var responseOrders []OrderDetail
-		var newOrders []OrderDetail
+		var responseOrders *OrdersListResponse
+		var newOrders *OrdersListResponse
 		if len(getOrdersRequest.Pairs) == 0 {
 			responseOrders, err = ku.GetOrders(ctx, "", "", getOrdersRequest.Side.Lower(), getOrdersRequest.Type.Lower(), "", getOrdersRequest.StartTime, getOrdersRequest.EndTime)
 			if err != nil {
@@ -1102,34 +1107,34 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.G
 				if err != nil {
 					return nil, fmt.Errorf("%w while fetching for symbol %s", err, getOrdersRequest.Pairs[x].String())
 				}
-				responseOrders = append(responseOrders, newOrders...)
+				responseOrders.Items = append(responseOrders.Items, newOrders.Items...)
 			}
 		}
-		orders = make([]order.Detail, len(responseOrders))
+		orders = make([]order.Detail, len(responseOrders.Items))
 		for i := range orders {
-			orderSide, err = order.StringToOrderSide(responseOrders[i].Side)
+			orderSide, err = order.StringToOrderSide(responseOrders.Items[i].Side)
 			if err != nil {
 				return nil, err
 			}
 			var orderStatus order.Status
-			pair, err = currency.NewPairFromString(responseOrders[i].Symbol)
+			pair, err = currency.NewPairFromString(responseOrders.Items[i].Symbol)
 			if err != nil {
 				return nil, err
 			}
 			pair.Delimiter = currency.DashDelimiter
 			var oType order.Type
-			oType, err = order.StringToOrderType(responseOrders[i].Type)
+			oType, err = order.StringToOrderType(responseOrders.Items[i].Type)
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "%s %v", ku.Name, err)
 			}
 			orders[i] = order.Detail{
-				Price:           responseOrders[i].Price,
-				Amount:          responseOrders[i].Size,
-				ExecutedAmount:  responseOrders[i].DealSize,
-				RemainingAmount: responseOrders[i].Size - responseOrders[i].DealSize,
-				Date:            responseOrders[i].CreatedAt.Time(),
+				Price:           responseOrders.Items[i].Price,
+				Amount:          responseOrders.Items[i].Size,
+				ExecutedAmount:  responseOrders.Items[i].DealSize,
+				RemainingAmount: responseOrders.Items[i].Size - responseOrders.Items[i].DealSize,
+				Date:            responseOrders.Items[i].CreatedAt.Time(),
 				Exchange:        ku.Name,
-				OrderID:         responseOrders[i].ID,
+				OrderID:         responseOrders.Items[i].ID,
 				Side:            orderSide,
 				Status:          orderStatus,
 				Type:            oType,

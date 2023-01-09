@@ -420,7 +420,7 @@ func (ku *Kucoin) CancelAllFuturesStopOrders(ctx context.Context, symbol string)
 }
 
 // GetFuturesOrders gets the user current futures order list
-func (ku *Kucoin) GetFuturesOrders(ctx context.Context, status, symbol, side, orderType string, startAt, endAt time.Time) ([]FuturesOrder, error) {
+func (ku *Kucoin) GetFuturesOrders(ctx context.Context, status, symbol, side, orderType string, startAt, endAt time.Time) (*FutureOrdersResponse, error) {
 	params := url.Values{}
 	if status != "" {
 		params.Set("status", status)
@@ -440,18 +440,12 @@ func (ku *Kucoin) GetFuturesOrders(ctx context.Context, status, symbol, side, or
 	if !endAt.IsZero() {
 		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
 	}
-	resp := struct {
-		CurrentPage int64          `json:"currentPage"`
-		PageSize    int64          `json:"pageSize"`
-		TotalNum    int64          `json:"totalNum"`
-		TotalPage   int64          `json:"totalPage"`
-		Items       []FuturesOrder `json:"items"`
-	}{}
-	return resp.Items, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(kucoinFuturesOrder, params), nil, &resp)
+	var resp *FutureOrdersResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(kucoinFuturesOrder, params), nil, &resp)
 }
 
 // GetUntriggeredFuturesStopOrders gets the untriggered stop orders list
-func (ku *Kucoin) GetUntriggeredFuturesStopOrders(ctx context.Context, symbol, side, orderType string, startAt, endAt time.Time) ([]FuturesOrder, error) {
+func (ku *Kucoin) GetUntriggeredFuturesStopOrders(ctx context.Context, symbol, side, orderType string, startAt, endAt time.Time) (*FutureOrdersResponse, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -468,14 +462,8 @@ func (ku *Kucoin) GetUntriggeredFuturesStopOrders(ctx context.Context, symbol, s
 	if !endAt.IsZero() {
 		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
 	}
-	resp := struct {
-		CurrentPage int64          `json:"currentPage"`
-		PageSize    int64          `json:"pageSize"`
-		TotalNum    int64          `json:"totalNum"`
-		TotalPage   int64          `json:"totalPage"`
-		Items       []FuturesOrder `json:"items"`
-	}{}
-	return resp.Items, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(kucoinFuturesStopOrder, params), nil, &resp)
+	var resp *FutureOrdersResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(kucoinFuturesStopOrder, params), nil, &resp)
 }
 
 // GetFuturesRecentCompletedOrders gets list of recent 1000 orders in the last 24 hours
@@ -502,7 +490,7 @@ func (ku *Kucoin) GetFuturesOrderDetailsByClientID(ctx context.Context, clientID
 }
 
 // GetFuturesFills gets list of recent fills
-func (ku *Kucoin) GetFuturesFills(ctx context.Context, orderID, symbol, side, orderType string, startAt, endAt time.Time) ([]FuturesFill, error) {
+func (ku *Kucoin) GetFuturesFills(ctx context.Context, orderID, symbol, side, orderType string, startAt, endAt time.Time) (*FutureFillsResponse, error) {
 	params := url.Values{}
 	if orderID != "" {
 		params.Set("orderId", orderID)
@@ -522,14 +510,8 @@ func (ku *Kucoin) GetFuturesFills(ctx context.Context, orderID, symbol, side, or
 	if !endAt.IsZero() {
 		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
 	}
-	resp := struct {
-		CurrentPage int64         `json:"currentPage"`
-		PageSize    int64         `json:"pageSize"`
-		TotalNum    int64         `json:"totalNum"`
-		TotalPage   int64         `json:"totalPage"`
-		Items       []FuturesFill `json:"items"`
-	}{}
-	return resp.Items, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(kucoinFuturesFills, params), nil, &resp)
+	var resp *FutureFillsResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(kucoinFuturesFills, params), nil, &resp)
 }
 
 // GetFuturesRecentFills gets list of 1000 recent fills in the last 24 hrs
@@ -719,7 +701,7 @@ func (ku *Kucoin) GetFuturesDepositAddress(ctx context.Context, currency string)
 }
 
 // GetFuturesDepositsList gets deposits list
-func (ku *Kucoin) GetFuturesDepositsList(ctx context.Context, currency, status string, startAt, endAt time.Time) ([]FuturesDepositDetail, error) {
+func (ku *Kucoin) GetFuturesDepositsList(ctx context.Context, currency, status string, startAt, endAt time.Time) (*FuturesDepositDetailsResponse, error) {
 	params := url.Values{}
 	if currency != "" {
 		params.Set("currency", currency)
@@ -733,14 +715,8 @@ func (ku *Kucoin) GetFuturesDepositsList(ctx context.Context, currency, status s
 	if !endAt.IsZero() {
 		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
 	}
-	resp := struct {
-		CurrentPage int64                  `json:"currentPage"`
-		PageSize    int64                  `json:"pageSize"`
-		TotalNum    int64                  `json:"totalNum"`
-		TotalPage   int64                  `json:"totalPage"`
-		Items       []FuturesDepositDetail `json:"items"`
-	}{}
-	return resp.Items, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(kucoinFuturesDepositsList, params), nil, &resp)
+	var resp *FuturesDepositDetailsResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(kucoinFuturesDepositsList, params), nil, &resp)
 }
 
 // GetFuturesWithdrawalLimit gets withdrawal limits for currency
@@ -755,7 +731,7 @@ func (ku *Kucoin) GetFuturesWithdrawalLimit(ctx context.Context, currency string
 }
 
 // GetFuturesWithdrawalList gets withdrawal list
-func (ku *Kucoin) GetFuturesWithdrawalList(ctx context.Context, currency, status string, startAt, endAt time.Time) ([]FuturesWithdrawalHistory, error) {
+func (ku *Kucoin) GetFuturesWithdrawalList(ctx context.Context, currency, status string, startAt, endAt time.Time) (*FuturesWithdrawalsListResponse, error) {
 	params := url.Values{}
 	if currency != "" {
 		params.Set("currency", currency)
@@ -769,14 +745,8 @@ func (ku *Kucoin) GetFuturesWithdrawalList(ctx context.Context, currency, status
 	if !endAt.IsZero() {
 		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
 	}
-	resp := struct {
-		CurrentPage int64                      `json:"currentPage"`
-		PageSize    int64                      `json:"pageSize"`
-		TotalNum    int64                      `json:"totalNum"`
-		TotalPage   int64                      `json:"totalPage"`
-		Items       []FuturesWithdrawalHistory `json:"items"`
-	}{}
-	return resp.Items, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(kucoinFuturesWithdrawalList, params), nil, &resp)
+	var resp *FuturesWithdrawalsListResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(kucoinFuturesWithdrawalList, params), nil, &resp)
 }
 
 // CancelFuturesWithdrawal is used to cancel withdrawal request of only PROCESSING status
@@ -826,7 +796,7 @@ func (ku *Kucoin) TransferFundsToFuturesAccount(ctx context.Context, amount floa
 }
 
 // GetFuturesTransferOutList gets list of trasfer out
-func (ku *Kucoin) GetFuturesTransferOutList(ctx context.Context, currency, status string, startAt, endAt time.Time) ([]Transfer, error) {
+func (ku *Kucoin) GetFuturesTransferOutList(ctx context.Context, currency, status string, startAt, endAt time.Time) (*TransferListsResponse, error) {
 	if currency == "" {
 		return nil, errors.New("currency can't be empty")
 	}
@@ -841,14 +811,8 @@ func (ku *Kucoin) GetFuturesTransferOutList(ctx context.Context, currency, statu
 	if !endAt.IsZero() {
 		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
 	}
-	resp := struct {
-		CurrentPage int64      `json:"currentPage"`
-		PageSize    int64      `json:"pageSize"`
-		TotalNum    int64      `json:"totalNum"`
-		TotalPage   int64      `json:"totalPage"`
-		Items       []Transfer `json:"items"`
-	}{}
-	return resp.Items, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(kucoinFuturesTransferOutList, params), nil, &resp)
+	var resp *TransferListsResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, common.EncodeURLValues(kucoinFuturesTransferOutList, params), nil, &resp)
 }
 
 // CancelFuturesTransferOut is used to cancel transfer out request of only PROCESSING status

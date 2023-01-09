@@ -30,7 +30,7 @@ const (
 	canManipulateRealOrders = false
 
 	cantManipulateRealOrdersOrKeysNotSet = "either API keys are missing or canManipulateRealOrders not enabled"
-	credentialsNotSet                    = "credentials not set"
+	credentialsNotSet                    = "credentials not set" // "skipping test message: api keys not set"
 )
 
 var ku Kucoin
@@ -136,7 +136,7 @@ func TestGetPartOrderbook100(t *testing.T) {
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 	_, err := ku.GetOrderbook(context.Background(), "BTC-USDT")
 	if err != nil {
@@ -217,7 +217,7 @@ func TestGetMarginConfiguration(t *testing.T) {
 func TestGetMarginAccount(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 	_, err := ku.GetMarginAccount(context.Background())
 	if err != nil {
@@ -228,7 +228,7 @@ func TestGetMarginAccount(t *testing.T) {
 func TestGetMarginRiskLimit(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetMarginRiskLimit(context.Background(), "cross")
@@ -262,7 +262,7 @@ func TestPostBorrowOrder(t *testing.T) {
 func TestGetBorrowOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetBorrowOrder(context.Background(), "orderID")
@@ -274,7 +274,7 @@ func TestGetBorrowOrder(t *testing.T) {
 func TestGetOutstandingRecord(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 	_, err := ku.GetOutstandingRecord(context.Background(), "BTC")
 	if err != nil {
@@ -285,7 +285,7 @@ func TestGetOutstandingRecord(t *testing.T) {
 func TestGetRepaidRecord(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 	ku.Verbose = true
 	_, err := ku.GetRepaidRecord(context.Background(), "BTC")
@@ -357,7 +357,7 @@ func TestSetAutoLend(t *testing.T) {
 func TestGetActiveOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetActiveOrder(context.Background(), "")
@@ -374,7 +374,7 @@ func TestGetActiveOrder(t *testing.T) {
 func TestGetLendHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetLendHistory(context.Background(), "")
@@ -391,7 +391,7 @@ func TestGetLendHistory(t *testing.T) {
 func TestGetUnsettleLendOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetUnsettleLendOrder(context.Background(), "")
@@ -408,7 +408,7 @@ func TestGetUnsettleLendOrder(t *testing.T) {
 func TestGetSettleLendOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetSettleLendOrder(context.Background(), "")
@@ -425,7 +425,7 @@ func TestGetSettleLendOrder(t *testing.T) {
 func TestGetAccountLendRecord(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetAccountLendRecord(context.Background(), "")
@@ -442,7 +442,7 @@ func TestGetAccountLendRecord(t *testing.T) {
 func TestGetLendingMarketData(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetLendingMarketData(context.Background(), "BTC", 0)
@@ -459,7 +459,7 @@ func TestGetLendingMarketData(t *testing.T) {
 func TestGetMarginTradeData(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetMarginTradeData(context.Background(), "BTC")
@@ -471,7 +471,7 @@ func TestGetMarginTradeData(t *testing.T) {
 func TestGetIsolatedMarginPairConfig(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetIsolatedMarginPairConfig(context.Background())
@@ -483,7 +483,7 @@ func TestGetIsolatedMarginPairConfig(t *testing.T) {
 func TestGetIsolatedMarginAccountInfo(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 	_, err := ku.GetIsolatedMarginAccountInfo(context.Background(), "")
 	if err != nil {
@@ -498,7 +498,7 @@ func TestGetIsolatedMarginAccountInfo(t *testing.T) {
 func TestGetSingleIsolatedMarginAccountInfo(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetSingleIsolatedMarginAccountInfo(context.Background(), "BTC-USDT")
@@ -522,7 +522,7 @@ func TestInitiateIsolateMarginBorrowing(t *testing.T) {
 func TestGetIsolatedOutstandingRepaymentRecords(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetIsolatedOutstandingRepaymentRecords(context.Background(), "", "", 0, 0)
@@ -539,7 +539,7 @@ func TestGetIsolatedOutstandingRepaymentRecords(t *testing.T) {
 func TestGetIsolatedMarginRepaymentRecords(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetIsolatedMarginRepaymentRecords(context.Background(), "", "", 0, 0)
@@ -588,8 +588,7 @@ func TestGetCurrentServerTime(t *testing.T) {
 
 func TestGetServiceStatus(t *testing.T) {
 	t.Parallel()
-
-	_, _, err := ku.GetServiceStatus(context.Background())
+	_, err := ku.GetServiceStatus(context.Background())
 	if err != nil {
 		t.Error("GetServiceStatus() error", err)
 	}
@@ -701,7 +700,7 @@ func TestCancelAllOpenOrders(t *testing.T) {
 func TestGetOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 	_, err := ku.GetOrders(context.Background(), "", "", "", "", "", time.Time{}, time.Time{})
 	if err != nil {
@@ -713,7 +712,7 @@ func TestGetOrders(t *testing.T) {
 func TestGetRecentOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 	_, err := ku.GetRecentOrders(context.Background())
 	if err != nil {
@@ -725,7 +724,7 @@ func TestGetRecentOrders(t *testing.T) {
 func TestGetOrderByID(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 	_, err := ku.GetOrderByID(context.Background(), "5c35c02703aa673ceec2a168")
 	if err != nil && !strings.Contains(err.Error(), "order not exist.") {
@@ -736,7 +735,7 @@ func TestGetOrderByID(t *testing.T) {
 func TestGetOrderByClientOID(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 	_, err := ku.GetOrderByClientSuppliedOrderID(context.Background(), "6d539dc614db312")
 	if err != nil && !strings.Contains(err.Error(), "400100") {
@@ -747,7 +746,7 @@ func TestGetOrderByClientOID(t *testing.T) {
 func TestGetFills(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 	_, err := ku.GetFills(context.Background(), "", "", "", "", "", time.Time{}, time.Time{})
 	if err != nil {
@@ -763,7 +762,7 @@ func TestGetFills(t *testing.T) {
 func TestGetRecentFills(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetRecentFills(context.Background())
@@ -810,7 +809,7 @@ func TestCancelAllStopOrder(t *testing.T) {
 func TestGetStopOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetStopOrder(context.Background(), "5bd6e9286d99522a52e458de")
@@ -822,7 +821,7 @@ func TestGetStopOrder(t *testing.T) {
 func TestGetAllStopOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetAllStopOrder(context.Background(), "", "", "", "", "", time.Time{}, time.Time{}, 0, 0)
@@ -834,7 +833,7 @@ func TestGetAllStopOrder(t *testing.T) {
 func TestGetStopOrderByClientID(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetStopOrderByClientID(context.Background(), "", "5bd6e9286d99522a52e458de")
@@ -846,7 +845,7 @@ func TestGetStopOrderByClientID(t *testing.T) {
 func TestCancelStopOrderByClientID(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.CancelStopOrderByClientID(context.Background(), "", "5bd6e9286d99522a52e458de")
@@ -855,22 +854,10 @@ func TestCancelStopOrderByClientID(t *testing.T) {
 	}
 }
 
-func TestCreateAccount(t *testing.T) {
-	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
-	}
-
-	_, err := ku.CreateAccount(context.Background(), "BTC", "main")
-	if err != nil {
-		t.Error("CreateAccount() error", err)
-	}
-}
-
 func TestGetAllAccounts(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetAllAccounts(context.Background(), "", "")
@@ -882,7 +869,7 @@ func TestGetAllAccounts(t *testing.T) {
 func TestGetAccount(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetAccount(context.Background(), "62fcd1969474ea0001fd20e4")
@@ -894,7 +881,7 @@ func TestGetAccount(t *testing.T) {
 func TestGetAccountLedgers(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 	_, err := ku.GetAccountLedgers(context.Background(), "", "", "", time.Time{}, time.Time{})
 	if err != nil {
@@ -902,13 +889,23 @@ func TestGetAccountLedgers(t *testing.T) {
 	}
 }
 
+func TestGetAccountSummaryInformation(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip(credentialsNotSet)
+	}
+	if _, err := ku.GetAccountSummaryInformation(context.Background()); err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetSubAccountBalance(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
-	_, err := ku.GetSubAccountBalance(context.Background(), "62fcd1969474ea0001fd20e4")
+	_, err := ku.GetSubAccountBalance(context.Background(), "62fcd1969474ea0001fd20e4", false)
 	if err != nil && err.Error() != "User not found." {
 		t.Error("GetSubAccountBalance() error", err)
 	}
@@ -917,19 +914,29 @@ func TestGetSubAccountBalance(t *testing.T) {
 func TestGetAggregatedSubAccountBalance(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
-
 	_, err := ku.GetAggregatedSubAccountBalance(context.Background())
 	if err != nil {
 		t.Error("GetAggregatedSubAccountBalance() error", err)
 	}
 }
 
+func TestGetPaginatedSubAccountInformation(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip(credentialsNotSet)
+	}
+	_, err := ku.GetPaginatedSubAccountInformation(context.Background(), 0, 10)
+	if err != nil {
+		t.Error("GetPaginatedSubAccountInformation() error", err)
+	}
+}
+
 func TestGetTransferableBalance(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetTransferableBalance(context.Background(), "BTC", "MAIN", "")
@@ -982,10 +989,10 @@ func TestCreateDepositAddress(t *testing.T) {
 func TestGetDepositAddressV2(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
-	_, err := ku.GetDepositAddressV2(context.Background(), "BTC")
+	_, err := ku.GetDepositAddressesV2(context.Background(), "BTC")
 	if err != nil {
 		t.Error("GetDepositAddressV2() error", err)
 	}
@@ -994,7 +1001,7 @@ func TestGetDepositAddressV2(t *testing.T) {
 func TestGetDepositList(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetDepositList(context.Background(), "", "", time.Time{}, time.Time{})
@@ -1006,7 +1013,7 @@ func TestGetDepositList(t *testing.T) {
 func TestGetHistoricalDepositList(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetHistoricalDepositList(context.Background(), "", "", time.Time{}, time.Time{})
@@ -1018,7 +1025,7 @@ func TestGetHistoricalDepositList(t *testing.T) {
 func TestGetWithdrawalList(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetWithdrawalList(context.Background(), "", "", time.Time{}, time.Time{})
@@ -1030,7 +1037,7 @@ func TestGetWithdrawalList(t *testing.T) {
 func TestGetHistoricalWithdrawalList(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetHistoricalWithdrawalList(context.Background(), "", "", time.Time{}, time.Time{}, 0, 0)
@@ -1042,7 +1049,7 @@ func TestGetHistoricalWithdrawalList(t *testing.T) {
 func TestGetWithdrawalQuotas(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetWithdrawalQuotas(context.Background(), "BTC", "")
@@ -1078,7 +1085,7 @@ func TestCancelWithdrawal(t *testing.T) {
 func TestGetBasicFee(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetBasicFee(context.Background(), "1")
@@ -1090,7 +1097,7 @@ func TestGetBasicFee(t *testing.T) {
 func TestGetTradingFee(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetTradingFee(context.Background(), "BTC-USDT")
@@ -1286,7 +1293,7 @@ func TestCancelAllFuturesStopOrders(t *testing.T) {
 func TestGetFuturesOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 	_, err := ku.GetFuturesOrders(context.Background(), "", "", "", "", time.Time{}, time.Time{})
 	if err != nil {
@@ -1297,7 +1304,7 @@ func TestGetFuturesOrders(t *testing.T) {
 func TestGetUntriggeredFuturesStopOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetUntriggeredFuturesStopOrders(context.Background(), "", "", "", time.Time{}, time.Time{})
@@ -1309,7 +1316,7 @@ func TestGetUntriggeredFuturesStopOrders(t *testing.T) {
 func TestGetFuturesRecentCompletedOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetFuturesRecentCompletedOrders(context.Background())
@@ -1321,7 +1328,7 @@ func TestGetFuturesRecentCompletedOrders(t *testing.T) {
 func TestGetFuturesOrderDetails(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 	_, err := ku.GetFuturesOrderDetails(context.Background(), "5cdfc138b21023a909e5ad55")
 	if err != nil && !strings.Contains(err.Error(), "error.getOrder.orderNotExist") {
@@ -1332,7 +1339,7 @@ func TestGetFuturesOrderDetails(t *testing.T) {
 func TestGetFuturesOrderDetailsByClientID(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetFuturesOrderDetailsByClientID(context.Background(), "eresc138b21023a909e5ad59")
@@ -1344,7 +1351,7 @@ func TestGetFuturesOrderDetailsByClientID(t *testing.T) {
 func TestGetFuturesFills(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetFuturesFills(context.Background(), "", "", "", "", time.Time{}, time.Time{})
@@ -1356,7 +1363,7 @@ func TestGetFuturesFills(t *testing.T) {
 func TestGetFuturesRecentFills(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetFuturesRecentFills(context.Background())
@@ -1368,7 +1375,7 @@ func TestGetFuturesRecentFills(t *testing.T) {
 func TestGetFuturesOpenOrderStats(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetFuturesOpenOrderStats(context.Background(), "XBTUSDM")
@@ -1380,7 +1387,7 @@ func TestGetFuturesOpenOrderStats(t *testing.T) {
 func TestGetFuturesPosition(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetFuturesPosition(context.Background(), "XBTUSDM")
@@ -1392,7 +1399,7 @@ func TestGetFuturesPosition(t *testing.T) {
 func TestGetFuturesPositionList(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetFuturesPositionList(context.Background())
@@ -1428,7 +1435,7 @@ func TestAddMargin(t *testing.T) {
 func TestGetFuturesRiskLimitLevel(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetFuturesRiskLimitLevel(context.Background(), "ADAUSDTM")
@@ -1452,7 +1459,7 @@ func TestUpdateRiskLmitLevel(t *testing.T) {
 func TestGetFuturesFundingHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 	ku.Verbose = true
 	_, err := ku.GetFuturesFundingHistory(context.Background(), "XBTUSDM", 0, 0, true, true, time.Time{}, time.Time{})
@@ -1464,7 +1471,7 @@ func TestGetFuturesFundingHistory(t *testing.T) {
 func TestGetFuturesAccountOverview(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetFuturesAccountOverview(context.Background(), "")
@@ -1476,7 +1483,7 @@ func TestGetFuturesAccountOverview(t *testing.T) {
 func TestGetFuturesTransactionHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetFuturesTransactionHistory(context.Background(), "", "", 0, 0, true, time.Time{}, time.Time{})
@@ -1500,7 +1507,7 @@ func TestCreateFuturesSubAccountAPIKey(t *testing.T) {
 func TestGetFuturesDepositAddress(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetFuturesDepositAddress(context.Background(), "XBT")
@@ -1512,7 +1519,7 @@ func TestGetFuturesDepositAddress(t *testing.T) {
 func TestGetFuturesDepositsList(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetFuturesDepositsList(context.Background(), "", "", time.Time{}, time.Time{})
@@ -1524,7 +1531,7 @@ func TestGetFuturesDepositsList(t *testing.T) {
 func TestGetFuturesWithdrawalLimit(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetFuturesWithdrawalLimit(context.Background(), "XBT")
@@ -1536,7 +1543,7 @@ func TestGetFuturesWithdrawalLimit(t *testing.T) {
 func TestGetFuturesWithdrawalList(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 	_, err := ku.GetFuturesWithdrawalList(context.Background(), "", "", time.Time{}, time.Time{})
 	if err != nil {
@@ -1583,7 +1590,7 @@ func TestTransferFundsToFuturesAccount(t *testing.T) {
 func TestGetFuturesTransferOutList(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 
 	_, err := ku.GetFuturesTransferOutList(context.Background(), "USDT", "", time.Time{}, time.Time{})
@@ -1818,7 +1825,7 @@ func TestWSConnect(t *testing.T) {
 
 func TestGetAuthenticatedServersInstances(t *testing.T) {
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 	_, err := ku.GetAuthenticatedInstanceServers(context.Background())
 	if err != nil {
@@ -2301,5 +2308,83 @@ func TestGeneratePayloads(t *testing.T) {
 	}
 	if len(payload) != len(subscriptions) {
 		t.Error(errors.New("derived payload is not same as generated channel subscription instances"))
+	}
+}
+
+func TestCreateSubUser(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
+	}
+	if _, err := ku.CreateSubUser(context.Background(), "SamuaelTee1", "sdfajdlkad", "", ""); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSubAccountSpotAPIList(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip(credentialsNotSet)
+	}
+	if _, err := ku.GetSubAccountSpotAPIList(context.Background(), "sam", ""); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCreateSpotAPIsForSubAccount(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
+	}
+	if _, err := ku.CreateSpotAPIsForSubAccount(context.Background(), &SpotAPISubAccountParams{
+		SubAccountName: "gocryptoTrader1",
+		Passphrase:     "mysecretPassphrase123",
+		Remark:         "123456",
+	}); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestModifySubAccountSpotAPIs(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
+	}
+	if _, err := ku.ModifySubAccountSpotAPIs(context.Background(), &SpotAPISubAccountParams{
+		SubAccountName: "gocryptoTrader1",
+		Passphrase:     "mysecretPassphrase123",
+		Remark:         "123456",
+	}); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestDeleteSubAccountSpoAPI(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
+	}
+	if _, err := ku.DeleteSubAccountSpoAPI(context.Background(), apiKey, "mysecretPassphrase123", "gocryptoTrader1"); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUserInfoOfAllSubAccounts(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip(credentialsNotSet)
+	}
+	if _, err := ku.GetUserInfoOfAllSubAccounts(context.Background()); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPaginatedListOfSubAccounts(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip(credentialsNotSet)
+	}
+	if _, err := ku.GetPaginatedListOfSubAccounts(context.Background(), 1, 100); err != nil {
+		t.Error(err)
 	}
 }

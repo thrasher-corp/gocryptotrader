@@ -16,13 +16,15 @@ var (
 		"1min", "3min", "5min", "15min", "30min", "1hour", "2hour", "4hour", "6hour", "8hour", "12hour", "1day", "1week",
 	}
 
-	errInvalidResponseReceiver = errors.New("invalid response receiver")
-	errInvalidPrice            = errors.New("invalid price")
-	errInvalidSize             = errors.New("invalid size")
-	errMalformedData           = errors.New("malformed data")
-	errNoDepositAddress        = errors.New("no deposit address found")
-	errMultipleDepositAddress  = errors.New("multiple deposit addresses")
-	errInvalidResultInterface  = errors.New("result interface has to be pointer")
+	errInvalidResponseReceiver   = errors.New("invalid response receiver")
+	errInvalidPrice              = errors.New("invalid price")
+	errInvalidSize               = errors.New("invalid size")
+	errMalformedData             = errors.New("malformed data")
+	errNoDepositAddress          = errors.New("no deposit address found")
+	errMultipleDepositAddress    = errors.New("multiple deposit addresses")
+	errInvalidResultInterface    = errors.New("result interface has to be pointer")
+	errInvalidSubAccountName     = errors.New("invalid sub-account name")
+	errInvalidPassPhraseInstance = errors.New("invalid passphrase string")
 )
 
 var offlineTradeFee = map[currency.Code]float64{
@@ -401,6 +403,15 @@ type OutstandingRecord struct {
 	CreatedAt       kucoinTimeMilliSecStr `json:"createdAt"`
 }
 
+// RepaidRecordsResponse stores list of repaid record details.
+type RepaidRecordsResponse struct {
+	CurrentPage int64          `json:"currentPage"`
+	PageSize    int64          `json:"pageSize"`
+	TotalNumber int64          `json:"totalNum"`
+	TotalPage   int64          `json:"totalPage"`
+	Items       []RepaidRecord `json:"items"`
+}
+
 // RepaidRecord stores repaid record
 type RepaidRecord struct {
 	baseRecord
@@ -531,11 +542,35 @@ type baseRepaymentRecord struct {
 	DailyInterestRate float64 `json:"dailyInterestRate,string"`
 }
 
-// OutstandingRepaymentRecord represents outstanding repayment records of isolated margin positions
+// OutstandingRepaymentRecordsResponse represents an outstanding repayment records of isolated margin positions list
+type OutstandingRepaymentRecordsResponse struct {
+	CurrentPage int64                        `json:"currentPage"`
+	PageSize    int64                        `json:"pageSize"`
+	TotalNum    int64                        `json:"totalNum"`
+	TotalPage   int64                        `json:"totalPage"`
+	Items       []OutstandingRepaymentRecord `json:"items"`
+}
+
+// OutstandingRepaymentRecord represents an outstanding repayment records of isolated margin positions
 type OutstandingRepaymentRecord struct {
 	baseRepaymentRecord
 	LiabilityBalance float64 `json:"liabilityBalance,string"`
 	MaturityTime     int64   `json:"maturityTime"`
+}
+
+// ServiceStatus represents a service status message.
+type ServiceStatus struct {
+	Status  string `json:"status"`
+	Message string `json:"msg"`
+}
+
+// CompletedRepaymentRecordsResponse represents a completed payment records list.
+type CompletedRepaymentRecordsResponse struct {
+	CurrentPage int64                      `json:"currentPage"`
+	PageSize    int64                      `json:"pageSize"`
+	TotalNum    int64                      `json:"totalNum"`
+	TotalPage   int64                      `json:"totalPage"`
+	Items       []CompletedRepaymentRecord `json:"items"`
 }
 
 // CompletedRepaymentRecord represents repayment records of isolated margin positions
@@ -580,6 +615,15 @@ type PostBulkOrderResp struct {
 	FailMsg string `json:"failMsg"`
 }
 
+// OrdersListResponse represents an order list response.
+type OrdersListResponse struct {
+	CurrentPage int64         `json:"currentPage"`
+	PageSize    int64         `json:"pageSize"`
+	TotalNum    int64         `json:"totalNum"`
+	TotalPage   int64         `json:"totalPage"`
+	Items       []OrderDetail `json:"items"`
+}
+
 // OrderDetail represents order detail
 type OrderDetail struct {
 	OrderRequest
@@ -599,8 +643,8 @@ type OrderDetail struct {
 	TradeType     string             `json:"tradeType"`
 }
 
-// FillsResponse represents fills response list detail.
-type FillsResponse struct {
+// ListFills represents fills response list detail.
+type ListFills struct {
 	CurrentPage int64  `json:"currentPage"`
 	PageSize    int64  `json:"pageSize"`
 	TotalNumber int64  `json:"totalNum"`
@@ -694,6 +738,33 @@ type MainAccountInfo struct {
 	BaseAmount        float64 `json:"baseAmount,string"`
 }
 
+// AccountSummaryInformation represents account summary information detail.
+type AccountSummaryInformation struct {
+	Level             int64 `json:"level"`
+	SubQuantity       int64 `json:"subQuantity"`
+	SubQuantityByType struct {
+		GeneralSubQuantity int64 `json:"generalSubQuantity"`
+		MarginSubQuantity  int64 `json:"marginSubQuantity"`
+		FuturesSubQuantity int64 `json:"futuresSubQuantity"`
+	} `json:"subQuantityByType"`
+	MaxSubQuantity       int64 `json:"maxSubQuantity"`
+	MaxSubQuantityByType struct {
+		MaxDefaultSubQuantity int64 `json:"maxDefaultSubQuantity"`
+		MaxGeneralSubQuantity int64 `json:"maxGeneralSubQuantity"`
+		MaxMarginSubQuantity  int64 `json:"maxMarginSubQuantity"`
+		MaxFuturesSubQuantity int64 `json:"maxFuturesSubQuantity"`
+	} `json:"maxSubQuantityByType"`
+}
+
+// SubAccountsResponse represents a sub-accounts items response instance.
+type SubAccountsResponse struct {
+	CurrentPage int64            `json:"currentPage"`
+	PageSize    int64            `json:"pageSize"`
+	TotalNumber int64            `json:"totalNum"`
+	TotalPage   int64            `json:"totalPage"`
+	Items       []SubAccountInfo `json:"items"`
+}
+
 // SubAccountInfo holds subaccount data for main, spot(trade), and margin accounts.
 type SubAccountInfo struct {
 	SubUserID      string            `json:"subUserId"`
@@ -725,6 +796,15 @@ type baseDeposit struct {
 	Status     string  `json:"status"`
 }
 
+// DepositResponse represents a detailed response for list of deposit.
+type DepositResponse struct {
+	CurrentPage int64     `json:"currentPage"`
+	PageSize    int64     `json:"pageSize"`
+	TotalNum    int64     `json:"totalNum"`
+	TotalPage   int64     `json:"totalPage"`
+	Items       []Deposit `json:"items"`
+}
+
 // Deposit represents deposit address and detail and timestamp information.
 type Deposit struct {
 	baseDeposit
@@ -736,10 +816,28 @@ type Deposit struct {
 	UpdatedAt kucoinTimeMilliSec
 }
 
-// HistoricalDepositWithdrawal represents deposit and withdrawal funding information details.
+// HistoricalDepositWithdrawalResponse represents deposit and withdrawal funding items details.
+type HistoricalDepositWithdrawalResponse struct {
+	CurrentPage int64                         `json:"currentPage"`
+	PageSize    int64                         `json:"pageSize"`
+	TotalNum    int64                         `json:"totalNum"`
+	TotalPage   int64                         `json:"totalPage"`
+	Items       []HistoricalDepositWithdrawal `json:"items"`
+}
+
+// HistoricalDepositWithdrawal represents deposit and withdrawal funding item.
 type HistoricalDepositWithdrawal struct {
 	baseDeposit
 	CreatedAt kucoinTimeMilliSec `json:"createAt"`
+}
+
+// WithdrawalsResponse represents a withdrawals list of items details.
+type WithdrawalsResponse struct {
+	CurrentPage int64        `json:"currentPage"`
+	PageSize    int64        `json:"pageSize"`
+	TotalNum    int64        `json:"totalNum"`
+	TotalPage   int64        `json:"totalPage"`
+	Items       []Withdrawal `json:"items"`
 }
 
 // Withdrawal represents withdrawal funding information.
@@ -1288,4 +1386,53 @@ type AccountLedgerResponse struct {
 	TotalNum    int64        `json:"totalNum"`
 	TotalPage   int64        `json:"totalPage"`
 	Items       []LedgerInfo `json:"items"`
+}
+
+// SpotAPISubAccountParams parameters for Spot APIs for sub-accounts
+type SpotAPISubAccountParams struct {
+	SubAccountName string `json:"subName"`
+	Passphrase     string `json:"passphrase"`
+	Remark         string `json:"remark"`
+	Permission     string `json:"permission,omitempty"`    // Permissions(Only "General" and "Trade" permissions can be set, such as "General, Trade". The default is "General")
+	IPWhitelist    string `json:"ipWhitelist,omitempty"`   // IP whitelist(You may add up to 20 IPs. Use a halfwidth comma to each IP)
+	Expire         int    `json:"expire,string,omitempty"` // API expiration time; Never expire(default)-1，30Day30，90Day90，180Day180，360Day360
+}
+
+// SubAccountResponse represents the sub-user detail.
+type SubAccountResponse struct {
+	CurrentPage int64        `json:"currentPage"`
+	PageSize    int64        `json:"pageSize"`
+	TotalNum    int64        `json:"totalNum"`
+	TotalPage   int64        `json:"totalPage"`
+	Items       []SubAccount `json:"items"`
+}
+
+// SubAccount represents sub-user
+type SubAccount struct {
+	UserID    string `json:"userId"`
+	SubName   string `json:"subName"`
+	Type      int    `json:"type"` //type:1-rebot  or type:0-nomal
+	Remarks   string `json:"remarks"`
+	UID       int    `json:"uid,omitempty"`
+	Status    int    `json:"status,omitempty"`
+	Access    string `json:"access,omitempty"`
+	CreatedAt int64  `json:"createdAt,omitempty"`
+}
+
+// SpotAPISubAccount represents a Spot APIs for sub-accounts.
+type SpotAPISubAccount struct {
+	SubName     string `json:"subName"`
+	Remark      string `json:"remark"`
+	APIKey      string `json:"apiKey"`
+	APISecret   string `json:"apiSecret"`
+	Passphrase  string `json:"passphrase"`
+	Permission  string `json:"permission"`
+	IPWhitelist string `json:"ipWhitelist"`
+	CreatedAt   int64  `json:"createdAt,omitempty"`
+}
+
+// DeleteSubAccountResponse represents delete sub-account response.
+type DeleteSubAccountResponse struct {
+	SubAccountName string `json:"subName"`
+	APIKey         string `json:"apiKey"`
 }
