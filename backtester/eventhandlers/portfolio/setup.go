@@ -5,8 +5,9 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -32,12 +33,19 @@ func Setup(sh SizeHandler, r risk.Handler, riskFreeRate decimal.Decimal) (*Portf
 }
 
 // Reset returns the portfolio manager to its default state
-func (p *Portfolio) Reset() {
-	p.exchangeAssetPairSettings = nil
+func (p *Portfolio) Reset() error {
+	if p == nil {
+		return gctcommon.ErrNilPointer
+	}
+	p.exchangeAssetPairPortfolioSettings = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings)
+	p.riskFreeRate = decimal.Zero
+	p.sizeManager = nil
+	p.riskManager = nil
+	return nil
 }
 
-// SetupCurrencySettingsMap ensures a map is created and no panics happen
-func (p *Portfolio) SetupCurrencySettingsMap(setup *exchange.Settings) error {
+// SetCurrencySettingsMap ensures a map is created and no panics happen
+func (p *Portfolio) SetCurrencySettingsMap(setup *exchange.Settings) error {
 	if setup == nil {
 		return errNoPortfolioSettings
 	}
@@ -50,31 +58,42 @@ func (p *Portfolio) SetupCurrencySettingsMap(setup *exchange.Settings) error {
 	if setup.Pair.IsEmpty() {
 		return errCurrencyPairUnset
 	}
-	if p.exchangeAssetPairSettings == nil {
-		p.exchangeAssetPairSettings = make(map[string]map[asset.Item]map[currency.Pair]*Settings)
+
+	if p.exchangeAssetPairPortfolioSettings == nil {
+		p.exchangeAssetPairPortfolioSettings = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings)
 	}
 	name := strings.ToLower(setup.Exchange.GetName())
-	if p.exchangeAssetPairSettings[name] == nil {
-		p.exchangeAssetPairSettings[name] = make(map[asset.Item]map[currency.Pair]*Settings)
+	m, ok := p.exchangeAssetPairPortfolioSettings[name]
+	if !ok {
+		m = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings)
+		p.exchangeAssetPairPortfolioSettings[name] = m
 	}
-	if p.exchangeAssetPairSettings[name][setup.Asset] == nil {
-		p.exchangeAssetPairSettings[name][setup.Asset] = make(map[currency.Pair]*Settings)
+	m2, ok := m[setup.Asset]
+	if !ok {
+		m2 = make(map[*currency.Item]map[*currency.Item]*Settings)
+		m[setup.Asset] = m2
 	}
-	if _, ok := p.exchangeAssetPairSettings[name][setup.Asset][setup.Pair]; ok {
-		return nil
+	m3, ok := m2[setup.Pair.Base.Item]
+	if !ok {
+		m3 = make(map[*currency.Item]*Settings)
+		m2[setup.Pair.Base.Item] = m3
 	}
-	collateralCurrency, _, err := setup.Exchange.GetCollateralCurrencyForContract(setup.Asset, setup.Pair)
-	if err != nil {
-		return err
-	}
+
 	settings := &Settings{
+		Exchange:          setup.Exchange,
+		exchangeName:      name,
+		assetType:         setup.Asset,
+		pair:              setup.Pair,
 		BuySideSizing:     setup.BuySide,
 		SellSideSizing:    setup.SellSide,
 		Leverage:          setup.Leverage,
-		Exchange:          setup.Exchange,
-		ComplianceManager: compliance.Manager{},
+		HoldingsSnapshots: make(map[int64]*holdings.Holding),
 	}
 	if setup.Asset.IsFutures() {
+		collateralCurrency, _, err := setup.Exchange.GetCollateralCurrencyForContract(setup.Asset, setup.Pair)
+		if err != nil {
+			return err
+		}
 		futureTrackerSetup := &gctorder.MultiPositionTrackerSetup{
 			Exchange:                  name,
 			Asset:                     setup.Asset,
@@ -94,6 +113,6 @@ func (p *Portfolio) SetupCurrencySettingsMap(setup *exchange.Settings) error {
 		}
 		settings.FuturesTracker = tracker
 	}
-	p.exchangeAssetPairSettings[name][setup.Asset][setup.Pair] = settings
+	m3[setup.Pair.Quote.Item] = settings
 	return nil
 }

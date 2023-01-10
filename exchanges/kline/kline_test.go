@@ -879,6 +879,7 @@ func BenchmarkJustifyIntervalTimeStoringUnixValues2(b *testing.B) {
 }
 
 func TestConvertToNewInterval(t *testing.T) {
+	t.Parallel()
 	_, err := ConvertToNewInterval(nil, OneMin)
 	if !errors.Is(err, errNilKline) {
 		t.Errorf("received '%v' expected '%v'", err, errNilKline)
@@ -966,6 +967,7 @@ func TestConvertToNewInterval(t *testing.T) {
 }
 
 func TestGetClosePriceAtTime(t *testing.T) {
+	t.Parallel()
 	tt := time.Now()
 	k := Item{
 		Candles: []Candle{
@@ -989,5 +991,36 @@ func TestGetClosePriceAtTime(t *testing.T) {
 	_, err = k.GetClosePriceAtTime(tt.Add(time.Minute))
 	if !errors.Is(err, ErrNotFoundAtTime) {
 		t.Errorf("received '%v' expected '%v'", err, ErrNotFoundAtTime)
+	}
+}
+
+func TestRemoveDuplicateCandlesByTime(t *testing.T) {
+	t.Parallel()
+	tt := time.Now()
+	k := Item{
+		Candles: []Candle{
+			{
+				// out of order duplicate time
+				Time:  tt.Add(time.Hour),
+				Close: 1337,
+			},
+			{
+				Time:  tt,
+				Close: 1337,
+			},
+			{
+				Time:  tt.Add(time.Hour),
+				Close: 1338,
+			},
+		},
+	}
+	k.RemoveDuplicateCandlesByTime()
+	if len(k.Candles) != 2 {
+		t.Errorf("received '%v' expected '%v'", len(k.Candles), 2)
+	}
+	k.Candles[0].Time = tt
+	k.RemoveDuplicateCandlesByTime()
+	if len(k.Candles) != 1 {
+		t.Errorf("received '%v' expected '%v'", len(k.Candles), 1)
 	}
 }

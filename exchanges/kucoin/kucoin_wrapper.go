@@ -461,10 +461,10 @@ func (ku *Kucoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		holding.Accounts = append(holding.Accounts, account.SubAccount{
 			AssetType: assetType,
 			Currencies: []account.Balance{{
-				CurrencyName: currency.NewCode(accoutH.Currency),
-				Total:        accoutH.AvailableBalance + accoutH.MarginBalance,
-				Hold:         accoutH.FrozenFunds,
-				Free:         accoutH.AvailableBalance,
+				Currency: currency.NewCode(accoutH.Currency),
+				Total:    accoutH.AvailableBalance + accoutH.MarginBalance,
+				Hold:     accoutH.FrozenFunds,
+				Free:     accoutH.AvailableBalance,
 			}},
 		})
 	case asset.Spot, asset.Margin:
@@ -478,10 +478,10 @@ func (ku *Kucoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 				AssetType: assetType,
 				Currencies: []account.Balance{
 					{
-						CurrencyName: currency.NewCode(accountH[x].Currency),
-						Total:        accountH[x].Balance,
-						Hold:         accountH[x].Holds,
-						Free:         accountH[x].Available,
+						Currency: currency.NewCode(accountH[x].Currency),
+						Total:    accountH[x].Balance,
+						Hold:     accountH[x].Holds,
+						Free:     accountH[x].Available,
 					}},
 			})
 		}
@@ -1325,7 +1325,7 @@ func (ku *Kucoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 	if len(summary) > 0 {
 		log.Warnf(log.ExchangeSys, "%v - %v", ku.Name, summary)
 	}
-	ret.RemoveDuplicates()
+	ret.RemoveDuplicateCandlesByTime()
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil

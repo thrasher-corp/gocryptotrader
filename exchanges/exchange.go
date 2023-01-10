@@ -1444,7 +1444,7 @@ func (b *Base) CalculateTotalCollateral(ctx context.Context, calculator *order.T
 }
 
 // GetCollateralCurrencyForContract returns the collateral currency for an asset and contract pair
-func (b *Base) GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error) {
+func (b *Base) GetCollateralCurrencyForContract(a asset.Item, cp currency.Pair) (currency.Code, asset.Item, error) {
 	return currency.Code{}, asset.Empty, common.ErrNotYetImplemented
 }
 

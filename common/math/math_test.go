@@ -444,6 +444,7 @@ func TestFinancialGeometricAverage(t *testing.T) {
 }
 
 func TestArithmeticAverage(t *testing.T) {
+	t.Parallel()
 	values := []float64{1, 2, 3, 4, 5, 6, 7, 8}
 	_, err := ArithmeticMean(nil)
 	if !errors.Is(err, errZeroValue) {
@@ -846,6 +847,7 @@ func TestDecimalFinancialGeometricAverage(t *testing.T) {
 }
 
 func TestDecimalArithmeticAverage(t *testing.T) {
+	t.Parallel()
 	values := []decimal.Decimal{
 		decimal.NewFromInt(1),
 		decimal.NewFromInt(2),
@@ -867,5 +869,31 @@ func TestDecimalArithmeticAverage(t *testing.T) {
 	}
 	if !avg.Equal(decimal.NewFromFloat(4.5)) {
 		t.Error("expected 4.5")
+	}
+}
+
+func TestDecimalPow(t *testing.T) {
+	t.Parallel()
+	pow := DecimalPow(decimal.NewFromInt(2), decimal.NewFromInt(2))
+	if !pow.Equal(decimal.NewFromInt(4)) {
+		t.Errorf("received '%v' expected '%v'", pow, 4)
+	}
+
+	// zero
+	pow = DecimalPow(decimal.Zero, decimal.NewFromInt(1))
+	if !pow.Equal(decimal.Zero) {
+		t.Errorf("received '%v' expected '%v'", pow, 0)
+	}
+
+	// inf
+	pow = DecimalPow(decimal.Zero, decimal.NewFromInt(-3))
+	if !pow.Equal(decimal.Zero) {
+		t.Errorf("received '%v' expected '%v'", pow, 0)
+	}
+
+	// nan
+	pow = DecimalPow(decimal.NewFromInt(-1), decimal.NewFromFloat(0.1111))
+	if !pow.Equal(decimal.Zero) {
+		t.Errorf("received '%v' expected '%v'", pow, 0)
 	}
 }

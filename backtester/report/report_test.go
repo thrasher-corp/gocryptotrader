@@ -234,19 +234,21 @@ func TestGenerateReport(t *testing.T) {
 			},
 			StrategyName: "testStrat",
 			RiskFreeRate: decimal.NewFromFloat(0.03),
-			ExchangeAssetPairStatistics: map[string]map[asset.Item]map[currency.Pair]*statistics.CurrencyPairStatistic{
+			ExchangeAssetPairStatistics: map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*statistics.CurrencyPairStatistic{
 				e: {
 					a: {
-						p: &statistics.CurrencyPairStatistic{
-							LowestClosePrice:         statistics.ValueAtTime{Value: decimal.NewFromInt(100)},
-							HighestClosePrice:        statistics.ValueAtTime{Value: decimal.NewFromInt(200)},
-							MarketMovement:           decimal.NewFromInt(100),
-							StrategyMovement:         decimal.NewFromInt(100),
-							CompoundAnnualGrowthRate: decimal.NewFromInt(1),
-							BuyOrders:                1,
-							SellOrders:               1,
-							ArithmeticRatios:         &statistics.Ratios{},
-							GeometricRatios:          &statistics.Ratios{},
+						p.Base.Item: {
+							p.Quote.Item: &statistics.CurrencyPairStatistic{
+								LowestClosePrice:         statistics.ValueAtTime{Value: decimal.NewFromInt(100)},
+								HighestClosePrice:        statistics.ValueAtTime{Value: decimal.NewFromInt(200)},
+								MarketMovement:           decimal.NewFromInt(100),
+								StrategyMovement:         decimal.NewFromInt(100),
+								CompoundAnnualGrowthRate: decimal.NewFromInt(1),
+								BuyOrders:                1,
+								SellOrders:               1,
+								ArithmeticRatios:         &statistics.Ratios{},
+								GeometricRatios:          &statistics.Ratios{},
+							},
 						},
 					},
 				},
@@ -323,23 +325,27 @@ func TestEnhanceCandles(t *testing.T) {
 	if !errors.Is(err, errNoCandles) {
 		t.Errorf("received: %v, expected: %v", err, errNoCandles)
 	}
-	d.AddKlineItem(&gctkline.Item{})
+	err = d.SetKlineData(&gctkline.Item{})
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 	err = d.enhanceCandles()
 	if !errors.Is(err, errStatisticsUnset) {
 		t.Errorf("received: %v, expected: %v", err, errStatisticsUnset)
 	}
 	d.Statistics = &statistics.Statistic{}
 	err = d.enhanceCandles()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	d.Statistics.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*statistics.CurrencyPairStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[testExchange] = make(map[asset.Item]map[currency.Pair]*statistics.CurrencyPairStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot] = make(map[currency.Pair]*statistics.CurrencyPairStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.NewPair(currency.BTC, currency.USDT)] = &statistics.CurrencyPairStatistic{}
+	d.Statistics.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*statistics.CurrencyPairStatistic)
+	d.Statistics.ExchangeAssetPairStatistics[testExchange] = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*statistics.CurrencyPairStatistic)
+	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot] = make(map[*currency.Item]map[*currency.Item]*statistics.CurrencyPairStatistic)
+	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.BTC.Item] = make(map[*currency.Item]*statistics.CurrencyPairStatistic)
+	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.BTC.Item][currency.USDT.Item] = &statistics.CurrencyPairStatistic{}
 
-	d.AddKlineItem(&gctkline.Item{
+	err = d.SetKlineData(&gctkline.Item{
 		Exchange: testExchange,
 		Pair:     currency.NewPair(currency.BTC, currency.USDT),
 		Asset:    asset.Spot,
@@ -355,12 +361,15 @@ func TestEnhanceCandles(t *testing.T) {
 			},
 		},
 	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 	err = d.enhanceCandles()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	d.AddKlineItem(&gctkline.Item{
+	err = d.SetKlineData(&gctkline.Item{
 		Exchange: testExchange,
 		Pair:     currency.NewPair(currency.BTC, currency.USDT),
 		Asset:    asset.Spot,
@@ -384,13 +393,16 @@ func TestEnhanceCandles(t *testing.T) {
 			},
 		},
 	})
-
-	err = d.enhanceCandles()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.NewPair(currency.BTC, currency.USDT)].FinalOrders = compliance.Snapshot{
+	err = d.enhanceCandles()
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+
+	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.BTC.Item][currency.USDT.Item].FinalOrders = compliance.Snapshot{
 		Orders: []compliance.SnapshotOrder{
 			{
 				ClosePrice:          decimal.NewFromInt(1335),
@@ -403,11 +415,11 @@ func TestEnhanceCandles(t *testing.T) {
 		Timestamp: tt,
 	}
 	err = d.enhanceCandles()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.NewPair(currency.BTC, currency.USDT)].FinalOrders = compliance.Snapshot{
+	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.BTC.Item][currency.USDT.Item].FinalOrders = compliance.Snapshot{
 		Orders: []compliance.SnapshotOrder{
 			{
 				ClosePrice:          decimal.NewFromInt(1335),
@@ -423,11 +435,11 @@ func TestEnhanceCandles(t *testing.T) {
 		Timestamp: tt,
 	}
 	err = d.enhanceCandles()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.NewPair(currency.BTC, currency.USDT)].FinalOrders = compliance.Snapshot{
+	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.BTC.Item][currency.USDT.Item].FinalOrders = compliance.Snapshot{
 		Orders: []compliance.SnapshotOrder{
 			{
 				ClosePrice:          decimal.NewFromInt(1335),
@@ -443,8 +455,8 @@ func TestEnhanceCandles(t *testing.T) {
 		Timestamp: tt,
 	}
 	err = d.enhanceCandles()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	if len(d.EnhancedCandles) == 0 {
@@ -456,37 +468,46 @@ func TestUpdateItem(t *testing.T) {
 	t.Parallel()
 	d := Data{}
 	tt := time.Now()
-	d.UpdateItem(&gctkline.Item{
+	err := d.SetKlineData(&gctkline.Item{
 		Candles: []gctkline.Candle{
 			{
 				Time: tt,
 			},
 		},
 	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 	if len(d.OriginalCandles) != 1 {
 		t.Fatal("expected Original Candles len of 1")
 	}
 	if len(d.OriginalCandles[0].Candles) != 1 {
 		t.Error("expected one candle")
 	}
-	d.UpdateItem(&gctkline.Item{
+	err = d.SetKlineData(&gctkline.Item{
 		Candles: []gctkline.Candle{
 			{
 				Time: tt,
 			},
 		},
 	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 	if len(d.OriginalCandles[0].Candles) != 1 {
 		t.Error("expected one candle")
 	}
 
-	d.UpdateItem(&gctkline.Item{
+	err = d.SetKlineData(&gctkline.Item{
 		Candles: []gctkline.Candle{
 			{
 				Time: tt.Add(1),
 			},
 		},
 	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 	if len(d.OriginalCandles[0].Candles) != 2 {
 		t.Error("expected two candles")
 	}
