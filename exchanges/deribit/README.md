@@ -50,7 +50,7 @@ var d exchange.IBotExchange
 
 for i := range bot.Exchanges {
 	if bot.Exchanges[i].GetName() == "Deribit" {
-		c = bot.Exchanges[i]
+		d = bot.Exchanges[i]
 	}
 }
 

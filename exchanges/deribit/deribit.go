@@ -3,7 +3,6 @@ package deribit
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -931,7 +930,7 @@ func (d *Deribit) ChangeAPIKeyName(ctx context.Context, id int64, name string) (
 		return nil, fmt.Errorf("%w, invalid api key id", errInvalidID)
 	}
 	if !alphaNumericRegExp.MatchString(name) {
-		return nil, errors.New("unacceptable api key name")
+		return nil, errUnacceptableAPIKey
 	}
 	params := url.Values{}
 	params.Set("id", strconv.FormatInt(id, 10))
@@ -960,7 +959,7 @@ func (d *Deribit) ChangeSubAccountName(ctx context.Context, sid int64, name stri
 		return fmt.Errorf("%w, invalid subaccount user id", errInvalidID)
 	}
 	if name == "" {
-		return errors.New("new username has to be specified")
+		return errInvalidusername
 	}
 	params := url.Values{}
 	params.Set("sid", strconv.FormatInt(sid, 10))
@@ -1321,7 +1320,7 @@ func (d *Deribit) SetEmailForSubAccount(ctx context.Context, sid int64, email st
 // SetEmailLanguage sets a requested language for an email
 func (d *Deribit) SetEmailLanguage(ctx context.Context, language string) error {
 	if language == "" {
-		return errors.New("field language cannot be empty")
+		return errLanguageIsRequired
 	}
 	params := url.Values{}
 	params.Set("language", language)
@@ -1342,7 +1341,7 @@ func (d *Deribit) SetPasswordForSubAccount(ctx context.Context, sid int64, passw
 		return fmt.Errorf("%w, invalid subaccount user id", errInvalidID)
 	}
 	if password == "" {
-		return errors.New("subaccount password must not be empty")
+		return errInvalidSubaccountPassword
 	}
 	params := url.Values{}
 	params.Set("password", password)
@@ -1397,7 +1396,7 @@ func (d *Deribit) ToggleNotificationsFromSubAccount(ctx context.Context, sid int
 // TogglePortfolioMargining toggle between SM and PM models.
 func (d *Deribit) TogglePortfolioMargining(ctx context.Context, userID int64, enabled, dryRun bool) ([]TogglePortfolioMarginResponse, error) {
 	if userID == 0 {
-		return nil, errors.New("missing user id")
+		return nil, errUserIDRequired
 	}
 	params := url.Values{}
 	params.Set("user_id", strconv.FormatInt(userID, 10))
@@ -2196,7 +2195,7 @@ func (d *Deribit) CreateCombo(ctx context.Context, args []ComboParam) (*ComboDet
 		}
 		args[x].Direction = strings.ToLower(args[x].Direction)
 		if args[x].Direction != sideBUY && args[x].Direction != sideSELL {
-			return nil, errors.New("invalid direction, only 'buy' or 'sell' are supported")
+			return nil, errInvalidOrderSideOrDirection
 		}
 		if args[x].Amount <= 0 {
 			return nil, errInvalidAmount
@@ -2231,7 +2230,7 @@ func (d *Deribit) ExecuteBlockTrade(ctx context.Context, timestampMS time.Time, 
 		}
 		trades[x].Direction = strings.ToLower(trades[x].Direction)
 		if trades[x].Direction != sideBUY && trades[x].Direction != sideSELL {
-			return nil, errors.New("invalid direction, only 'buy' or 'sell' are supported")
+			return nil, errInvalidOrderSideOrDirection
 		}
 		if trades[x].Amount <= 0 {
 			return nil, errInvalidAmount
@@ -2249,7 +2248,7 @@ func (d *Deribit) ExecuteBlockTrade(ctx context.Context, timestampMS time.Time, 
 		return nil, err
 	}
 	if timestampMS.IsZero() {
-		return nil, errors.New("zero timestamp")
+		return nil, errZeroTimestamp
 	}
 	params := url.Values{}
 	if ccy != "" {
@@ -2281,7 +2280,7 @@ func (d *Deribit) VerifyBlockTrade(ctx context.Context, timestampMS time.Time, n
 		}
 		trades[x].Direction = strings.ToLower(trades[x].Direction)
 		if trades[x].Direction != sideBUY && trades[x].Direction != sideSELL {
-			return "", errors.New("invalid direction, only 'buy' or 'sell' are supported")
+			return "", errInvalidOrderSideOrDirection
 		}
 		if trades[x].Amount <= 0 {
 			return "", errInvalidAmount
@@ -2295,7 +2294,7 @@ func (d *Deribit) VerifyBlockTrade(ctx context.Context, timestampMS time.Time, n
 		return "", err
 	}
 	if timestampMS.IsZero() {
-		return "", errors.New("zero timestamp")
+		return "", errZeroTimestamp
 	}
 	params := url.Values{}
 	params.Set("timestamp", strconv.FormatInt(timestampMS.UnixMilli(), 10))
@@ -2311,10 +2310,10 @@ func (d *Deribit) VerifyBlockTrade(ctx context.Context, timestampMS time.Time, n
 	return resp.Signature, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, http.MethodGet, verifyBlockTrades, params, resp)
 }
 
-// GetUserBlocTrade returns information about users block trade
-func (d *Deribit) GetUserBlocTrade(ctx context.Context, id string) ([]BlockTradeData, error) {
+// GetUserBlockTrade returns information about users block trade
+func (d *Deribit) GetUserBlockTrade(ctx context.Context, id string) ([]BlockTradeData, error) {
 	if id == "" {
-		return nil, errors.New("missing block trade id")
+		return nil, errMissingBlockTradeID
 	}
 	params := url.Values{}
 	params.Set("id", id)
@@ -2348,10 +2347,10 @@ func (d *Deribit) MovePositions(ctx context.Context, ccy string, sourceSubAccoun
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, strings.ToUpper(ccy))
 	}
 	if sourceSubAccountUID == 0 {
-		return nil, errors.New("missing source subaccount id")
+		return nil, fmt.Errorf("%w source sub-account id", errMissingSubAccountID)
 	}
 	if targetSubAccountUID == 0 {
-		return nil, errors.New("missing target subaccount id")
+		return nil, fmt.Errorf("%w target sub-account id", errMissingSubAccountID)
 	}
 	for x := range trades {
 		if trades[x].InstrumentName == "" {

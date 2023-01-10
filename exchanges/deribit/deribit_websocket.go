@@ -74,12 +74,14 @@ var defaultSubscriptions = []string{
 
 var (
 	pingMessage = WsSubscriptionInput{
+		ID:             2,
 		JSONRPCVersion: rpcVersion,
 		Method:         "public/test",
 		Params:         map[string][]string{},
 	}
 	setHeartBeatMessage = wsInput{
-		JSONRPCVersion: "2.0",
+		ID:             1,
+		JSONRPCVersion: rpcVersion,
 		Method:         "public/set_heartbeat",
 		Params: map[string]interface{}{
 			"interval": 30,
@@ -188,10 +190,12 @@ func (d *Deribit) wsHandleData(respRaw []byte) error {
 	if err != nil {
 		return fmt.Errorf("%s - err %s could not parse websocket data: %s", d.Name, err, respRaw)
 	}
-	if response.ID > 0 {
+	if response.ID > 2 {
 		if !d.Websocket.Match.IncomingWithData(response.ID, respRaw) {
 			return fmt.Errorf("can't send ws incoming data to Matched channel with RequestID: %d", response.ID)
 		}
+		return nil
+	} else if response.ID > 0 {
 		return nil
 	}
 	channels := strings.Split(response.Params.Channel, ".")
@@ -810,7 +814,7 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 				case rawUsersOrdersKindCurrencyChannel:
 					subscriptions = append(subscriptions,
 						stream.ChannelSubscription{
-							Channel:  userOrdersWithIntervalChannel,
+							Channel:  rawUsersOrdersKindCurrencyChannel,
 							Currency: pairs[z],
 							Asset:    assets[y],
 							Params: map[string]interface{}{
@@ -820,7 +824,7 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 				case tradesWithKindChannel:
 					subscriptions = append(subscriptions,
 						stream.ChannelSubscription{
-							Channel:  userOrdersWithIntervalChannel,
+							Channel:  tradesWithKindChannel,
 							Currency: pairs[z],
 							Asset:    assets[y],
 							Params: map[string]interface{}{
@@ -973,7 +977,7 @@ func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs 
 			}
 			subscription.Params["channels"] = []string{fmt.Sprintf(subscs[x].Channel, kind, currencyCode, interval)}
 		default:
-			return nil, errors.New("channels not supported")
+			return nil, errUnsupportedChannel
 		}
 		subscriptionPayloads[x] = subscription
 	}

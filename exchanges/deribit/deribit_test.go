@@ -291,7 +291,6 @@ func TestGetCurrencies(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	d.Verbose = true
 	if _, err := d.WSRetriveCurrencies(); err != nil {
 		t.Error(err)
 	}
@@ -1941,11 +1940,11 @@ func TestGetUserBlocTrade(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(authenticationSkipMessage)
 	}
-	_, err := d.GetUserBlocTrade(context.Background(), "12345567")
+	_, err := d.GetUserBlockTrade(context.Background(), "12345567")
 	if err != nil && !strings.Contains(err.Error(), "block_trade_not_found") {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveUserBlocTrade("12345567"); err != nil && !strings.Contains(err.Error(), "block_trade_not_found") {
+	if _, err = d.WSRetriveUserBlockTrade("12345567"); err != nil && !strings.Contains(err.Error(), "block_trade_not_found") {
 		t.Error(err)
 	}
 }
@@ -2339,10 +2338,9 @@ func TestSubscribe(t *testing.T) {
 	}
 	err = d.Subscribe([]stream.ChannelSubscription{
 		{
-			Channel:  userOrdersWithIntervalChannel,
+			Channel:  chartTradesChannel,
 			Asset:    asset.Futures,
 			Currency: tradablePairs[0],
-			Params:   map[string]interface{}{"interval": "100ms"},
 		}})
 	if err != nil {
 		t.Error(err)

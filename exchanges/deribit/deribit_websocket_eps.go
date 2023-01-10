@@ -2,7 +2,6 @@ package deribit
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -791,7 +790,7 @@ func (d *Deribit) WSChangeAPIKeyName(id int64, name string) (*APIKeyData, error)
 		return nil, fmt.Errorf("%w, invalid api key id", errInvalidID)
 	}
 	if !alphaNumericRegExp.MatchString(name) {
-		return nil, errors.New("unacceptable api key name")
+		return nil, errUnacceptableAPIKey
 	}
 	input := &struct {
 		ID   int64  `json:"id"`
@@ -826,7 +825,7 @@ func (d *Deribit) WSChangeSubAccountName(sid int64, name string) error {
 		return fmt.Errorf("%w, invalid subaccount user id", errInvalidID)
 	}
 	if name == "" {
-		return errors.New("new username has to be specified")
+		return errInvalidusername
 	}
 	input := &struct {
 		SID  int64  `json:"sid"`
@@ -1203,7 +1202,7 @@ func (d *Deribit) WSSetEmailForSubAccount(sid int64, email string) error {
 // WSSetEmailLanguage sets a requested language for an email through the websocket connecton.
 func (d *Deribit) WSSetEmailLanguage(language string) error {
 	if language == "" {
-		return errors.New("language is required")
+		return errLanguageIsRequired
 	}
 	var resp string
 	err := d.SendWSRequest(setEmailLanguage, map[string]string{"language": language}, &resp, true)
@@ -1222,7 +1221,7 @@ func (d *Deribit) WSSetPasswordForSubAccount(sid int64, password string) (interf
 		return "", fmt.Errorf("%w, invalid subaccount user id", errInvalidID)
 	}
 	if password == "" {
-		return "", errors.New("subaccount password must not be empty")
+		return "", errInvalidSubaccountPassword
 	}
 	input := &struct {
 		Password string `json:"password"`
@@ -1281,7 +1280,7 @@ func (d *Deribit) WSToggleNotificationsFromSubAccount(sid int64, state bool) err
 // WSTogglePortfolioMargining toggle between SM and PM models through the websocket connection.
 func (d *Deribit) WSTogglePortfolioMargining(userID int64, enabled, dryRun bool) ([]TogglePortfolioMarginResponse, error) {
 	if userID == 0 {
-		return nil, errors.New("missing user id")
+		return nil, errUserIDRequired
 	}
 	input := &struct {
 		UserID  int64 `json:"user_id"`
@@ -1875,7 +1874,7 @@ func (d *Deribit) WSCreateCombo(args []ComboParam) (*ComboDetail, error) {
 		}
 		args[x].Direction = strings.ToLower(args[x].Direction)
 		if args[x].Direction != sideBUY && args[x].Direction != sideSELL {
-			return nil, errors.New("invalid direction, only 'buy' or 'sell' are supported")
+			return nil, errInvalidOrderSideOrDirection
 		}
 		if args[x].Amount <= 0 {
 			return nil, errInvalidAmount
@@ -1906,7 +1905,7 @@ func (d *Deribit) WSExecuteBlockTrade(timestampMS time.Time, nonce, role, symbol
 		}
 		trades[x].Direction = strings.ToLower(trades[x].Direction)
 		if trades[x].Direction != sideBUY && trades[x].Direction != sideSELL {
-			return nil, errors.New("invalid direction, only 'buy' or 'sell' are supported")
+			return nil, errInvalidOrderSideOrDirection
 		}
 		if trades[x].Amount <= 0 {
 			return nil, errInvalidAmount
@@ -1916,7 +1915,7 @@ func (d *Deribit) WSExecuteBlockTrade(timestampMS time.Time, nonce, role, symbol
 		}
 	}
 	if timestampMS.IsZero() {
-		return nil, errors.New("zero timestamp")
+		return nil, errZeroTimestamp
 	}
 	signature, err := d.WSVerifyBlockTrade(timestampMS, nonce, role, symbol, trades)
 	if err != nil {
@@ -1958,7 +1957,7 @@ func (d *Deribit) WSVerifyBlockTrade(timestampMS time.Time, nonce, role, symbol 
 		}
 		trades[x].Direction = strings.ToLower(trades[x].Direction)
 		if trades[x].Direction != sideBUY && trades[x].Direction != sideSELL {
-			return "", errors.New("invalid direction, only 'buy' or 'sell' are supported")
+			return "", errInvalidOrderSideOrDirection
 		}
 		if trades[x].Amount <= 0 {
 			return "", errInvalidAmount
@@ -1968,7 +1967,7 @@ func (d *Deribit) WSVerifyBlockTrade(timestampMS time.Time, nonce, role, symbol 
 		}
 	}
 	if timestampMS.IsZero() {
-		return "", errors.New("zero timestamp")
+		return "", errZeroTimestamp
 	}
 	input := &struct {
 		Nonce                 string            `json:"nonce"`
@@ -1990,10 +1989,10 @@ func (d *Deribit) WSVerifyBlockTrade(timestampMS time.Time, nonce, role, symbol 
 	return resp.Signature, d.SendWSRequest(verifyBlockTrades, input, &resp, true)
 }
 
-// WSRetriveUserBlocTrade returns information about users block trade through the websocket connection.
-func (d *Deribit) WSRetriveUserBlocTrade(id string) ([]BlockTradeData, error) {
+// WSRetriveUserBlockTrade returns information about users block trade through the websocket connection.
+func (d *Deribit) WSRetriveUserBlockTrade(id string) ([]BlockTradeData, error) {
 	if id == "" {
-		return nil, errors.New("missing block trade id")
+		return nil, errMissingBlockTradeID
 	}
 	var resp []BlockTradeData
 	return resp, d.SendWSRequest(getBlockTrades, map[string]string{"id": id}, &resp, true)
@@ -2025,10 +2024,10 @@ func (d *Deribit) WSMovePositions(symbol string, sourceSubAccountUID, targetSubA
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
 	}
 	if sourceSubAccountUID == 0 {
-		return nil, errors.New("missing source subaccount id")
+		return nil, fmt.Errorf("%w source sub-account id", errMissingSubAccountID)
 	}
 	if targetSubAccountUID == 0 {
-		return nil, errors.New("missing target subaccount id")
+		return nil, fmt.Errorf("%w target sub-account id", errMissingSubAccountID)
 	}
 	for x := range trades {
 		if trades[x].InstrumentName == "" {
@@ -2076,7 +2075,6 @@ func (d *Deribit) SendWSRequest(method string, params, response interface{}, aut
 	if err != nil {
 		return err
 	}
-	println(string(result))
 	resp := &wsResponse{Result: response}
 	err = json.Unmarshal(result, resp)
 	if err != nil {

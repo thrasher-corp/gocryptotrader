@@ -42,6 +42,16 @@ var (
 	errWebsocketConnectionNotAuthenticated = errors.New("websocket connection is not authenticated")
 	errResolutionNotSet                    = errors.New("resolution not set")
 	errInvalidDestinationID                = errors.New("invalid destination address")
+	errUnsupportedChannel                  = errors.New("channels not supported")
+	errUnacceptableAPIKey                  = errors.New("unacceptable api key name")
+	errInvalidusername                     = errors.New("new username has to be specified")
+	errLanguageIsRequired                  = errors.New("language is required")
+	errInvalidSubaccountPassword           = errors.New("subaccount password can not be empty")
+	errUserIDRequired                      = errors.New("userID is required")
+	errInvalidOrderSideOrDirection         = errors.New("invalid direction, only 'buy' or 'sell' are supported")
+	errZeroTimestamp                       = errors.New("zero timestamps are not allowed")
+	errMissingBlockTradeID                 = errors.New("missing block trade id")
+	errMissingSubAccountID                 = errors.New("missing subaccount id")
 )
 
 // UnmarshalError is the struct which is used for unmarshalling errors

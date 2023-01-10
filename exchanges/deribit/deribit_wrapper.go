@@ -2,7 +2,6 @@ package deribit
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -350,7 +349,7 @@ func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 			Amount: obData.Asks[x][1],
 		}
 		if book.Asks[x].Price == 0 {
-			return nil, errors.New("asks price cannot be zero")
+			return nil, fmt.Errorf("%w, ask price=%f", errInvalidPrice, book.Asks[x].Price)
 		}
 	}
 	book.Bids = make([]orderbook.Item, len(obData.Bids))
@@ -360,7 +359,7 @@ func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 			Amount: obData.Bids[x][1],
 		}
 		if book.Bids[x].Price == 0 {
-			return nil, errors.New("bids price cannot be zero")
+			return nil, fmt.Errorf("%w, bid price=%f", errInvalidPrice, book.Asks[x].Price)
 		}
 	}
 	err = book.Process()
