@@ -52,7 +52,6 @@ func TestMain(m *testing.M) {
 	gConf.API.Credentials.Key = apiKey
 	gConf.API.Credentials.Secret = apiSecret
 	g.Websocket = sharedtestvalues.NewTestWebsocket()
-	g.Verbose = true
 	err = g.Setup(gConf)
 	if err != nil {
 		log.Fatal("GateIO setup error", err)
@@ -387,7 +386,6 @@ func TestCancelBatchOrdersWithIDList(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
-	g.Verbose = true
 	if _, err := g.CancelBatchOrdersWithIDList(context.Background(), []CancelOrderByIDParam{
 		{
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),

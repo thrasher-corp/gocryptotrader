@@ -564,9 +564,12 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 			if a == asset.Futures {
 				ticks, err = g.GetFuturesTickers(ctx, settle, currency.EMPTYPAIR.String())
 			} else {
+				if settle == settleUSD {
+					continue
+				}
 				ticks, err = g.GetDeliveryFutureTickers(ctx, settle, currency.EMPTYPAIR)
 			}
-			if err != nil && !strings.Contains(err.Error(), "404 Not Found") {
+			if err != nil {
 				return err
 			}
 			tickers = append(tickers, ticks...)
@@ -1266,7 +1269,7 @@ func (g *Gateio) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.Ca
 			return cancelAllOrdersResponse, err
 		}
 		for x := range cancel {
-			cancelAllOrdersResponse.Status[strconv.FormatInt(cancel[x].ID, 10)] = cancel[0].Status
+			cancelAllOrdersResponse.Status[strconv.FormatInt(cancel[x].ID, 10)] = cancel[x].Status
 		}
 	case asset.Futures:
 		contracts, err := g.GetAvailablePairs(asset.Futures)
@@ -1536,7 +1539,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 					log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
 				}
 				var oType order.Type
-				oType, err = order.StringToOrderType(spotOrders[x].Orders[x].Type)
+				oType, err = order.StringToOrderType(spotOrders[x].Orders[y].Type)
 				if err != nil {
 					return nil, err
 				}

@@ -1944,7 +1944,10 @@ type WsMultiplexer struct {
 
 // RunWsMultiplexer multiplexes incoming messages to *WsEventResponse channels listening.
 func (g *Gateio) RunWsMultiplexer() {
-	g.Websocket.Wg.Done()
+	defer close(g.WsChannelsMultiplexer.Unregister)
+	defer close(g.WsChannelsMultiplexer.Register)
+	defer close(g.WsChannelsMultiplexer.Message)
+	defer g.Websocket.Wg.Done()
 	for {
 		select {
 		case unreg := <-g.WsChannelsMultiplexer.Unregister:
