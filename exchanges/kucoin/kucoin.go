@@ -84,16 +84,16 @@ const (
 	kucoinPostOrder        = "/v1/orders"
 	kucoinPostMarginOrder  = "/v1/margin/order"
 	kucoinPostBulkOrder    = "/v1/orders/multi"
-	kucoinOrderByID        = "/v1/orders/%s"             // used by CancelSingleOrder and GetOrderByID
-	kucoinOrderByClientOID = "/v1/order/client-order/%s" // used by CancelOrderByClientOID and GetOrderByClientOID
-	kucoinOrders           = "/v1/orders"                // used by CancelAllOpenOrders and GetOrders
+	kucoinOrderByID        = "/v1/orders/"             // used by CancelSingleOrder and GetOrderByID
+	kucoinOrderByClientOID = "/v1/order/client-order/" // used by CancelOrderByClientOID and GetOrderByClientOID
+	kucoinOrders           = "/v1/orders"              // used by CancelAllOpenOrders and GetOrders
 	kucoinGetRecentOrders  = "/v1/limit/orders"
 
 	kucoinGetFills       = "/v1/fills"
 	kucoinGetRecentFills = "/v1/limit/fills"
 
 	kucoinStopOrder                 = "/v1/stop-order"
-	kucoinStopOrderByID             = "/v1/stop-order/%s"
+	kucoinStopOrderByID             = "/v1/stop-order/"
 	kucoinCancelAllStopOrder        = "/v1/stop-order/cancel"
 	kucoinGetStopOrderByClientID    = "/v1/stop-order/queryOrderByClientOid"
 	kucoinCancelStopOrderByClientID = "/v1/stop-order/cancelOrderByClientOid"
@@ -106,7 +106,7 @@ const (
 
 	// account
 	kucoinAccount                        = "/v1/accounts"
-	kucoinGetAccount                     = "/v1/accounts/%s"
+	kucoinGetAccount                     = "/v1/accounts/"
 	kucoinGetAccountLedgers              = "/v1/accounts/ledgers"
 	kucoinUserInfo                       = "/v1/user-info"
 	kucoinGetSubAccountBalance           = "/v1/sub-accounts/"
@@ -126,7 +126,7 @@ const (
 	kucoinWithdrawal                  = "/v1/withdrawals"
 	kucoinGetHistoricalWithdrawalList = "/v1/hist-withdrawals"
 	kucoinGetWithdrawalQuotas         = "/v1/withdrawals/quotas"
-	kucoinCancelWithdrawal            = "/v1/withdrawals/%s"
+	kucoinCancelWithdrawal            = "/v1/withdrawals/"
 
 	kucoinBasicFee   = "/v1/base-fee"
 	kucoinTradingFee = "/v1/trade-fees"
@@ -139,7 +139,7 @@ func (ku *Kucoin) GetSymbols(ctx context.Context, ccy string) ([]SymbolInfo, err
 		params.Set("market", ccy)
 	}
 	var resp []SymbolInfo
-	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(kucoinGetSymbols, params), &resp)
+	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, common.EncodeURLValues(kucoinGetSymbols, params), &resp)
 }
 
 // GetTicker gets pair ticker information
@@ -150,7 +150,7 @@ func (ku *Kucoin) GetTicker(ctx context.Context, pair string) (*Ticker, error) {
 	params := url.Values{}
 	params.Set("symbol", pair)
 	var resp *Ticker
-	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(kucoinGetTicker, params), &resp)
+	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, common.EncodeURLValues(kucoinGetTicker, params), &resp)
 }
 
 // GetAllTickers gets all trading pair ticker information including 24h volume
@@ -159,7 +159,7 @@ func (ku *Kucoin) GetAllTickers(ctx context.Context) ([]TickerInfo, error) {
 		Time    kucoinTimeMilliSec `json:"time"`
 		Tickers []TickerInfo       `json:"ticker"`
 	}{}
-	return resp.Tickers, ku.SendHTTPRequest(ctx, exchange.RestSpot, kucoinGetAllTickers, &resp)
+	return resp.Tickers, ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, kucoinGetAllTickers, &resp)
 }
 
 // Get24hrStats get the statistics of the specified pair in the last 24 hours
@@ -170,13 +170,13 @@ func (ku *Kucoin) Get24hrStats(ctx context.Context, pair string) (*Stats24hrs, e
 	params := url.Values{}
 	params.Set("symbol", pair)
 	var resp *Stats24hrs
-	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(kucoinGet24hrStats, params), &resp)
+	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, common.EncodeURLValues(kucoinGet24hrStats, params), &resp)
 }
 
 // GetMarketList get the transaction currency for the entire trading market
 func (ku *Kucoin) GetMarketList(ctx context.Context) ([]string, error) {
 	var resp []string
-	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, kucoinGetMarketList, &resp)
+	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, kucoinGetMarketList, &resp)
 }
 
 func processOB(ob [][2]string) ([]orderbook.Item, error) {
@@ -223,7 +223,7 @@ func (ku *Kucoin) GetPartOrderbook20(ctx context.Context, pair string) (*Orderbo
 	params := url.Values{}
 	params.Set("symbol", pair)
 	var o *orderbookResponse
-	err := ku.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(kucoinGetPartOrderbook20, params), &o)
+	err := ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, common.EncodeURLValues(kucoinGetPartOrderbook20, params), &o)
 	if err != nil {
 		return nil, err
 	}
@@ -238,7 +238,7 @@ func (ku *Kucoin) GetPartOrderbook100(ctx context.Context, pair string) (*Orderb
 	params := url.Values{}
 	params.Set("symbol", pair)
 	var o *orderbookResponse
-	err := ku.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(kucoinGetPartOrderbook100, params), &o)
+	err := ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, common.EncodeURLValues(kucoinGetPartOrderbook100, params), &o)
 	if err != nil {
 		return nil, err
 	}
@@ -253,7 +253,7 @@ func (ku *Kucoin) GetOrderbook(ctx context.Context, pair string) (*Orderbook, er
 	params := url.Values{}
 	params.Set("symbol", pair)
 	var o *orderbookResponse
-	err := ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetOrderbook, params), nil, &o)
+	err := ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, retriveFullOrderbookEPL, http.MethodGet, common.EncodeURLValues(kucoinGetOrderbook, params), nil, &o)
 	if err != nil {
 		return nil, err
 	}
@@ -268,7 +268,7 @@ func (ku *Kucoin) GetTradeHistory(ctx context.Context, pair string) ([]Trade, er
 	params := url.Values{}
 	params.Set("symbol", pair)
 	var resp []Trade
-	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(kucoinGetTradeHistory, params), &resp)
+	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, common.EncodeURLValues(kucoinGetTradeHistory, params), &resp)
 }
 
 // GetKlines gets kline of the specified pair
@@ -292,7 +292,7 @@ func (ku *Kucoin) GetKlines(ctx context.Context, pair, period string, start, end
 		params.Set("endAt", strconv.FormatInt(end.Unix(), 10))
 	}
 	var resp [][7]string
-	err := ku.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(kucoinGetKlines, params), &resp)
+	err := ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, common.EncodeURLValues(kucoinGetKlines, params), &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -334,7 +334,7 @@ func (ku *Kucoin) GetKlines(ctx context.Context, pair, period string, start, end
 // GetCurrencies gets list of currencies
 func (ku *Kucoin) GetCurrencies(ctx context.Context) ([]Currency, error) {
 	var resp []Currency
-	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, kucoinGetCurrencies, &resp)
+	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, kucoinGetCurrencies, &resp)
 }
 
 // GetCurrencyDetail gets currency detail using currency code and chain information.
@@ -347,7 +347,7 @@ func (ku *Kucoin) GetCurrencyDetail(ctx context.Context, ccy, chain string) (*Cu
 		params.Set("chain", chain)
 	}
 	var resp *CurrencyDetail
-	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(kucoinGetCurrency+strings.ToUpper(ccy), params), &resp)
+	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, common.EncodeURLValues(kucoinGetCurrency+strings.ToUpper(ccy), params), &resp)
 }
 
 // GetFiatPrice gets fiat prices of currencies, default base currency is USD
@@ -360,7 +360,7 @@ func (ku *Kucoin) GetFiatPrice(ctx context.Context, base, currencies string) (ma
 		params.Set("currencies", currencies)
 	}
 	var resp map[string]string
-	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(kucoinGetFiatPrice, params), &resp)
+	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, common.EncodeURLValues(kucoinGetFiatPrice, params), &resp)
 }
 
 // GetMarkPrice gets index price of the specified pair
@@ -369,19 +369,19 @@ func (ku *Kucoin) GetMarkPrice(ctx context.Context, pair string) (*MarkPrice, er
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	var resp *MarkPrice
-	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, fmt.Sprintf(kucoinGetMarkPrice, pair), &resp)
+	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, fmt.Sprintf(kucoinGetMarkPrice, pair), &resp)
 }
 
 // GetMarginConfiguration gets configure info of the margin
 func (ku *Kucoin) GetMarginConfiguration(ctx context.Context) (*MarginConfiguration, error) {
 	var resp *MarginConfiguration
-	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, kucoinGetMarginConfiguration, &resp)
+	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, kucoinGetMarginConfiguration, &resp)
 }
 
 // GetMarginAccount gets configure info of the margin
 func (ku *Kucoin) GetMarginAccount(ctx context.Context) (*MarginAccounts, error) {
 	var resp *MarginAccounts
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, kucoinGetMarginAccount, nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, kucoinGetMarginAccount, nil, &resp)
 }
 
 // GetMarginRiskLimit gets cross/isolated margin risk limit, default model is cross margin
@@ -391,7 +391,7 @@ func (ku *Kucoin) GetMarginRiskLimit(ctx context.Context, marginModel string) ([
 		params.Set("marginModel", marginModel)
 	}
 	var resp []MarginRiskLimit
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetMarginRiskLimit, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, retriveMarginAccountEPL, http.MethodGet, common.EncodeURLValues(kucoinGetMarginRiskLimit, params), nil, &resp)
 }
 
 // PostBorrowOrder used to post borrow order
@@ -416,7 +416,7 @@ func (ku *Kucoin) PostBorrowOrder(ctx context.Context, ccy, orderType, term stri
 		params["term"] = term
 	}
 	var resp *PostBorrowOrderResp
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinBorrowOrder, params, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, kucoinBorrowOrder, params, &resp)
 }
 
 // GetBorrowOrder gets borrow order information
@@ -427,7 +427,7 @@ func (ku *Kucoin) GetBorrowOrder(ctx context.Context, orderID string) (*BorrowOr
 	params := url.Values{}
 	params.Set("orderId", orderID)
 	var resp *BorrowOrder
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinBorrowOrder, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinBorrowOrder, params), nil, &resp)
 }
 
 // GetOutstandingRecord gets outstanding record information
@@ -437,7 +437,7 @@ func (ku *Kucoin) GetOutstandingRecord(ctx context.Context, ccy string) (*Outsta
 		params.Set("currency", ccy)
 	}
 	var resp *OutstandingRecordResponse
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetOutstandingRecord, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinGetOutstandingRecord, params), nil, &resp)
 }
 
 // GetRepaidRecord gets repaid record information
@@ -447,7 +447,7 @@ func (ku *Kucoin) GetRepaidRecord(ctx context.Context, ccy string) (*RepaidRecor
 		params.Set("currency", ccy)
 	}
 	var resp *RepaidRecordsResponse
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetRepaidRecord, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinGetRepaidRecord, params), nil, &resp)
 }
 
 // OneClickRepayment used to complete repayment in single go
@@ -465,7 +465,7 @@ func (ku *Kucoin) OneClickRepayment(ctx context.Context, ccy, sequence string, s
 		return errors.New("size can not be zero")
 	}
 	params["size"] = strconv.FormatFloat(size, 'f', -1, 64)
-	return ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinOneClickRepayment, params, &struct{}{})
+	return ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, kucoinOneClickRepayment, params, &struct{}{})
 }
 
 // SingleOrderRepayment used to repay single order
@@ -483,7 +483,7 @@ func (ku *Kucoin) SingleOrderRepayment(ctx context.Context, ccy, tradeID string,
 		return errors.New("size can not be zero")
 	}
 	params["size"] = strconv.FormatFloat(size, 'f', -1, 64)
-	return ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinRepaySingleOrder, params, &struct{}{})
+	return ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, kucoinRepaySingleOrder, params, &struct{}{})
 }
 
 // PostLendOrder used to create lend order
@@ -509,7 +509,7 @@ func (ku *Kucoin) PostLendOrder(ctx context.Context, ccy string, dailyIntRate, s
 		OrderID string `json:"orderId"`
 		Error
 	}{}
-	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinLendOrder, params, &resp)
+	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, kucoinLendOrder, params, &resp)
 }
 
 // CancelLendOrder used to cancel lend order
@@ -517,7 +517,7 @@ func (ku *Kucoin) CancelLendOrder(ctx context.Context, orderID string) error {
 	resp := struct {
 		Error
 	}{}
-	return ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, kucoinLendOrder+"/"+orderID, nil, &resp)
+	return ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodDelete, kucoinLendOrder+"/"+orderID, nil, &resp)
 }
 
 // SetAutoLend used to set up the automatic lending for a specified currency
@@ -543,7 +543,7 @@ func (ku *Kucoin) SetAutoLend(ctx context.Context, ccy string, dailyIntRate, ret
 	resp := struct {
 		Error
 	}{}
-	return ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinSetAutoLend, params, &resp)
+	return ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, kucoinSetAutoLend, params, &resp)
 }
 
 // GetActiveOrder gets active lend orders
@@ -556,7 +556,7 @@ func (ku *Kucoin) GetActiveOrder(ctx context.Context, ccy string) ([]LendOrder, 
 		Data []LendOrder `json:"items"`
 		Error
 	}{}
-	return resp.Data, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetActiveOrder, params), nil, &resp)
+	return resp.Data, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinGetActiveOrder, params), nil, &resp)
 }
 
 // GetLendHistory gets lend orders
@@ -569,7 +569,7 @@ func (ku *Kucoin) GetLendHistory(ctx context.Context, ccy string) ([]LendOrderHi
 		Data []LendOrderHistory `json:"items"`
 		Error
 	}{}
-	return resp.Data, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetLendHistory, params), nil, &resp)
+	return resp.Data, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinGetLendHistory, params), nil, &resp)
 }
 
 // GetUnsettleLendOrder gets outstanding lend order list
@@ -582,7 +582,7 @@ func (ku *Kucoin) GetUnsettleLendOrder(ctx context.Context, ccy string) ([]Unset
 		Data []UnsettleLendOrder `json:"items"`
 		Error
 	}{}
-	return resp.Data, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetUnsettleLendOrder, params), nil, &resp)
+	return resp.Data, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinGetUnsettleLendOrder, params), nil, &resp)
 }
 
 // GetSettleLendOrder gets settle lend orders
@@ -595,7 +595,7 @@ func (ku *Kucoin) GetSettleLendOrder(ctx context.Context, ccy string) ([]SettleL
 		Data []SettleLendOrder `json:"items"`
 		Error
 	}{}
-	return resp.Data, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetSettleLendOrder, params), nil, &resp)
+	return resp.Data, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinGetSettleLendOrder, params), nil, &resp)
 }
 
 // GetAccountLendRecord get the lending history of the main account
@@ -605,7 +605,7 @@ func (ku *Kucoin) GetAccountLendRecord(ctx context.Context, ccy string) ([]LendR
 		params.Set("currency", ccy)
 	}
 	var resp []LendRecord
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetAccountLendRecord, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinGetAccountLendRecord, params), nil, &resp)
 }
 
 // GetLendingMarketData get the lending market data
@@ -619,7 +619,7 @@ func (ku *Kucoin) GetLendingMarketData(ctx context.Context, ccy string, term int
 		params.Set("term", strconv.FormatInt(term, 10))
 	}
 	var resp []LendMarketData
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetLendingMarketData, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinGetLendingMarketData, params), nil, &resp)
 }
 
 // GetMarginTradeData get the last 300 fills in the lending and borrowing market
@@ -630,13 +630,13 @@ func (ku *Kucoin) GetMarginTradeData(ctx context.Context, ccy string) ([]MarginT
 	params := url.Values{}
 	params.Set("currency", ccy)
 	var resp []MarginTradeData
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetMarginTradeData, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinGetMarginTradeData, params), nil, &resp)
 }
 
 // GetIsolatedMarginPairConfig get the current isolated margin trading pair configuration
 func (ku *Kucoin) GetIsolatedMarginPairConfig(ctx context.Context) ([]IsolatedMarginPairConfig, error) {
 	var resp []IsolatedMarginPairConfig
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, kucoinGetIsolatedMarginPairConfig, nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, kucoinGetIsolatedMarginPairConfig, nil, &resp)
 }
 
 // GetIsolatedMarginAccountInfo get all isolated margin accounts of the current user
@@ -646,7 +646,7 @@ func (ku *Kucoin) GetIsolatedMarginAccountInfo(ctx context.Context, balanceCurre
 		params.Set("balanceCurrency", balanceCurrency)
 	}
 	var resp *IsolatedMarginAccountInfo
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetIsolatedMarginAccountInfo, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinGetIsolatedMarginAccountInfo, params), nil, &resp)
 }
 
 // GetSingleIsolatedMarginAccountInfo get single isolated margin accounts of the current user
@@ -655,7 +655,7 @@ func (ku *Kucoin) GetSingleIsolatedMarginAccountInfo(ctx context.Context, symbol
 		return nil, errors.New("symbol can not be empty")
 	}
 	var resp *AssetInfo
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, kucoinGetSingleIsolatedMarginAccountInfo+symbol, nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, kucoinGetSingleIsolatedMarginAccountInfo+symbol, nil, &resp)
 }
 
 // InitiateIsolateMarginBorrowing initiates isolated margin borrowing
@@ -685,7 +685,7 @@ func (ku *Kucoin) InitiateIsolateMarginBorrowing(ctx context.Context, symbol, cc
 		params["maxRate"] = strconv.FormatInt(maxRate, 10)
 	}
 	var resp *IsolatedMarginBorrowing
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinInitiateIsolatedMarginBorrowing, params, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, kucoinInitiateIsolatedMarginBorrowing, params, &resp)
 }
 
 // GetIsolatedOutstandingRepaymentRecords get the outstanding repayment records of isolated margin positions
@@ -704,7 +704,7 @@ func (ku *Kucoin) GetIsolatedOutstandingRepaymentRecords(ctx context.Context, sy
 		params.Set("currentPage", strconv.FormatInt(currentPage, 10))
 	}
 	var resp *OutstandingRepaymentRecordsResponse
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetIsolatedOutstandingRepaymentRecords, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinGetIsolatedOutstandingRepaymentRecords, params), nil, &resp)
 }
 
 // GetIsolatedMarginRepaymentRecords get the repayment records of isolated margin positions
@@ -723,7 +723,7 @@ func (ku *Kucoin) GetIsolatedMarginRepaymentRecords(ctx context.Context, symbol,
 		params.Set("currentPage", strconv.FormatInt(currentPage, 10))
 	}
 	var resp *CompletedRepaymentRecordsResponse
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetIsolatedMarginRepaymentRecords, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinGetIsolatedMarginRepaymentRecords, params), nil, &resp)
 }
 
 // InitiateIsolatedMarginQuickRepayment is used to initiate quick repayment for isolated margin accounts
@@ -748,7 +748,7 @@ func (ku *Kucoin) InitiateIsolatedMarginQuickRepayment(ctx context.Context, symb
 	resp := struct {
 		Error
 	}{}
-	return ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinInitiateIsolatedMarginQuickRepayment, params, &resp)
+	return ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, kucoinInitiateIsolatedMarginQuickRepayment, params, &resp)
 }
 
 // InitiateIsolatedMarginSingleRepayment is used to initiate quick repayment for single margin accounts
@@ -773,7 +773,7 @@ func (ku *Kucoin) InitiateIsolatedMarginSingleRepayment(ctx context.Context, sym
 	resp := struct {
 		Error
 	}{}
-	return ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinInitiateIsolatedMarginSingleRepayment, params, &resp)
+	return ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, kucoinInitiateIsolatedMarginSingleRepayment, params, &resp)
 }
 
 // GetCurrentServerTime gets the server time
@@ -782,13 +782,13 @@ func (ku *Kucoin) GetCurrentServerTime(ctx context.Context) (time.Time, error) {
 		Timestamp kucoinTimeMilliSec `json:"data"`
 		Error
 	}{}
-	return resp.Timestamp.Time(), ku.SendHTTPRequest(ctx, exchange.RestSpot, kucoinGetServerTime, &resp)
+	return resp.Timestamp.Time(), ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, kucoinGetServerTime, &resp)
 }
 
 // GetServiceStatus gets the service status
 func (ku *Kucoin) GetServiceStatus(ctx context.Context) (*ServiceStatus, error) {
 	var resp *ServiceStatus
-	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, kucoinGetServiceStatus, &resp)
+	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, kucoinGetServiceStatus, &resp)
 }
 
 // PostOrder used to place two types of orders: limit and market
@@ -854,7 +854,7 @@ func (ku *Kucoin) PostOrder(ctx context.Context, clientOID, side, symbol, orderT
 		OrderID string `json:"orderId"`
 		Error
 	}{}
-	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinPostOrder, params, &resp)
+	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, kucoinPostOrder, params, &resp)
 }
 
 // PostMarginOrder used to place two types of margin orders: limit and market
@@ -923,7 +923,7 @@ func (ku *Kucoin) PostMarginOrder(ctx context.Context, clientOID, side, symbol, 
 		PostMarginOrderResp
 		Error
 	}{}
-	return &resp.PostMarginOrderResp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinPostMarginOrder, params, &resp)
+	return &resp.PostMarginOrderResp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, placeMarginOrdersEPL, http.MethodPost, kucoinPostMarginOrder, params, &resp)
 }
 
 // PostBulkOrder used to place 5 orders at the same time. The order type must be a limit order of the same symbol
@@ -951,7 +951,7 @@ func (ku *Kucoin) PostBulkOrder(ctx context.Context, symbol string, orderList []
 	params["symbol"] = symbol
 	params["orderList"] = orderList
 	var resp []PostBulkOrderResp
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinPostBulkOrder, params, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, placeBulkOrdersEPL, http.MethodPost, kucoinPostBulkOrder, params, &resp)
 }
 
 // CancelSingleOrder used to cancel single order previously placed
@@ -963,13 +963,13 @@ func (ku *Kucoin) CancelSingleOrder(ctx context.Context, orderID string) ([]stri
 		CancelledOrderIDs []string `json:"cancelledOrderIds"`
 		Error
 	}{}
-	return resp.CancelledOrderIDs, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, fmt.Sprintf(kucoinOrderByID, orderID), nil, &resp)
+	return resp.CancelledOrderIDs, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, cancelOrderEPL, http.MethodDelete, kucoinOrderByID+orderID, nil, &resp)
 }
 
 // CancelOrderByClientOID used to cancel order via the clientOid
 func (ku *Kucoin) CancelOrderByClientOID(ctx context.Context, orderID string) (*CancelOrderResponse, error) {
 	var resp *CancelOrderResponse
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, fmt.Sprintf(kucoinOrderByClientOID, orderID), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodDelete, kucoinOrderByClientOID+orderID, nil, &resp)
 }
 
 // CancelAllOpenOrders used to cancel all order based upon the parameters passed
@@ -985,7 +985,7 @@ func (ku *Kucoin) CancelAllOpenOrders(ctx context.Context, symbol, tradeType str
 		CancelledOrderIDs []string `json:"cancelledOrderIds"`
 		Error
 	}{}
-	return resp.CancelledOrderIDs, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, common.EncodeURLValues(kucoinOrders, params), nil, &resp)
+	return resp.CancelledOrderIDs, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, cancelAllOrdersEPL, http.MethodDelete, common.EncodeURLValues(kucoinOrders, params), nil, &resp)
 }
 
 // GetOrders gets the user order list
@@ -1013,7 +1013,7 @@ func (ku *Kucoin) GetOrders(ctx context.Context, status, symbol, side, orderType
 		params.Set("startAt", strconv.FormatInt(endAt.UnixMilli(), 10))
 	}
 	var resp *OrdersListResponse
-	err := ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinOrders, params), nil, &resp)
+	err := ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, listOrdersEPL, http.MethodGet, common.EncodeURLValues(kucoinOrders, params), nil, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -1023,7 +1023,7 @@ func (ku *Kucoin) GetOrders(ctx context.Context, status, symbol, side, orderType
 // GetRecentOrders get orders in the last 24 hours.
 func (ku *Kucoin) GetRecentOrders(ctx context.Context) ([]OrderDetail, error) {
 	var resp []OrderDetail
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, kucoinGetRecentOrders, nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, kucoinGetRecentOrders, nil, &resp)
 }
 
 // GetOrderByID get a single order info by order ID
@@ -1032,7 +1032,7 @@ func (ku *Kucoin) GetOrderByID(ctx context.Context, orderID string) (*OrderDetai
 		return nil, errors.New("orderID can not be empty")
 	}
 	var resp *OrderDetail
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf(kucoinOrderByID, orderID), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, kucoinOrderByID+orderID, nil, &resp)
 }
 
 // GetOrderByClientSuppliedOrderID get a single order info by client order ID
@@ -1041,7 +1041,7 @@ func (ku *Kucoin) GetOrderByClientSuppliedOrderID(ctx context.Context, clientOID
 		return nil, errors.New("client order ID can not be empty")
 	}
 	var resp *OrderDetail
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf(kucoinOrderByClientOID, clientOID), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, kucoinOrderByClientOID+clientOID, nil, &resp)
 }
 
 // GetFills get fills
@@ -1069,13 +1069,13 @@ func (ku *Kucoin) GetFills(ctx context.Context, orderID, symbol, side, orderType
 		params.Set("tradeType", tradeType)
 	}
 	var resp *ListFills
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetFills, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, listFillsEPL, http.MethodGet, common.EncodeURLValues(kucoinGetFills, params), nil, &resp)
 }
 
 // GetRecentFills get a list of 1000 fills in last 24 hours
 func (ku *Kucoin) GetRecentFills(ctx context.Context) ([]Fill, error) {
 	var resp []Fill
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, kucoinGetRecentFills, nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, kucoinGetRecentFills, nil, &resp)
 }
 
 // PostStopOrder used to place two types of stop orders: limit and market
@@ -1150,7 +1150,7 @@ func (ku *Kucoin) PostStopOrder(ctx context.Context, clientOID, side, symbol, or
 		OrderID string `json:"orderId"`
 		Error
 	}{}
-	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinStopOrder, params, &resp)
+	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, kucoinStopOrder, params, &resp)
 }
 
 // CancelStopOrder used to cancel single stop order previously placed
@@ -1162,7 +1162,7 @@ func (ku *Kucoin) CancelStopOrder(ctx context.Context, orderID string) ([]string
 		Data []string `json:"cancelledOrderIds"`
 		Error
 	}{}
-	return resp.Data, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, fmt.Sprintf(kucoinStopOrderByID, orderID), nil, &resp)
+	return resp.Data, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodDelete, kucoinStopOrderByID+orderID, nil, &resp)
 }
 
 // CancelAllStopOrder used to cancel all order based upon the parameters passed
@@ -1181,7 +1181,7 @@ func (ku *Kucoin) CancelAllStopOrder(ctx context.Context, symbol, tradeType, ord
 		CancelledOrderIDs []string `json:"cancelledOrderIds"`
 		Error
 	}{}
-	return resp.CancelledOrderIDs, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, common.EncodeURLValues(kucoinCancelAllStopOrder, params), nil, &resp)
+	return resp.CancelledOrderIDs, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodDelete, common.EncodeURLValues(kucoinCancelAllStopOrder, params), nil, &resp)
 }
 
 // GetStopOrder used to cancel single stop order previously placed
@@ -1193,7 +1193,7 @@ func (ku *Kucoin) GetStopOrder(ctx context.Context, orderID string) (*StopOrder,
 		StopOrder
 		Error
 	}{}
-	return &resp.StopOrder, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf(kucoinStopOrderByID, orderID), nil, &resp)
+	return &resp.StopOrder, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, kucoinStopOrderByID+orderID, nil, &resp)
 }
 
 // GetAllStopOrder get all current untriggered stop orders
@@ -1227,7 +1227,7 @@ func (ku *Kucoin) GetAllStopOrder(ctx context.Context, symbol, side, orderType, 
 		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
 	}
 	var resp *StopOrderListResponse
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinStopOrder, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinStopOrder, params), nil, &resp)
 }
 
 // GetStopOrderByClientID get a stop order information via the clientOID
@@ -1241,7 +1241,7 @@ func (ku *Kucoin) GetStopOrderByClientID(ctx context.Context, symbol, clientOID 
 		params.Set("symbol", symbol)
 	}
 	var resp []StopOrder
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetStopOrderByClientID, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinGetStopOrderByClientID, params), nil, &resp)
 }
 
 // CancelStopOrderByClientID used to cancel a stop order via the clientOID.
@@ -1255,7 +1255,7 @@ func (ku *Kucoin) CancelStopOrderByClientID(ctx context.Context, symbol, clientO
 		params.Set("symbol", symbol)
 	}
 	var resp *CancelOrderResponse
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, common.EncodeURLValues(kucoinCancelStopOrderByClientID, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodDelete, common.EncodeURLValues(kucoinCancelStopOrderByClientID, params), nil, &resp)
 }
 
 // CreateSubUser creates a new sub-user for the account.
@@ -1276,7 +1276,7 @@ func (ku *Kucoin) CreateSubUser(ctx context.Context, subAccountName, password, r
 		params["access"] = access
 	}
 	var resp *SubAccount
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinSubUser, params, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, kucoinSubUser, params, &resp)
 }
 
 // GetSubAccountSpotAPIList used to obtain a list of Spot APIs pertaining to a sub-account.
@@ -1290,7 +1290,7 @@ func (ku *Kucoin) GetSubAccountSpotAPIList(ctx context.Context, subAccountName, 
 		params.Set("apiKey", apiKeys)
 	}
 	var resp *SubAccountResponse
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinSubAccountSpotAPIs, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinSubAccountSpotAPIs, params), nil, &resp)
 }
 
 // CreateSpotAPIsForSubAccount can be used to create Spot APIs for sub-accounts.
@@ -1305,7 +1305,7 @@ func (ku *Kucoin) CreateSpotAPIsForSubAccount(ctx context.Context, arg *SpotAPIS
 		return nil, errors.New("remark is required")
 	}
 	var resp *SpotAPISubAccount
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinSubAccountSpotAPIs, &arg, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, kucoinSubAccountSpotAPIs, &arg, &resp)
 }
 
 // ModifySubAccountSpotAPIs modifies sub-account Spot APIs.
@@ -1320,7 +1320,7 @@ func (ku *Kucoin) ModifySubAccountSpotAPIs(ctx context.Context, arg *SpotAPISubA
 		return nil, errors.New("remark is required")
 	}
 	var resp *SpotAPISubAccount
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPut, kucoinUpdateModifySubAccountSpotAPIs, &arg, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPut, kucoinUpdateModifySubAccountSpotAPIs, &arg, &resp)
 }
 
 // DeleteSubAccountSpoAPI delete sub-account Spot APIs.
@@ -1339,13 +1339,13 @@ func (ku *Kucoin) DeleteSubAccountSpoAPI(ctx context.Context, apiKey, passphrase
 	params.Set("passphrase", passphrase)
 	params.Set("subName", subAccountName)
 	var resp *DeleteSubAccountResponse
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, common.EncodeURLValues(kucoinSubAccountSpotAPIs, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodDelete, common.EncodeURLValues(kucoinSubAccountSpotAPIs, params), nil, &resp)
 }
 
 // GetUserInfoOfAllSubAccounts get the user info of all sub-users via this interface.
 func (ku *Kucoin) GetUserInfoOfAllSubAccounts(ctx context.Context) (*SubAccountResponse, error) {
 	var resp *SubAccountResponse
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, kucoinSubUser, nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, kucoinSubUser, nil, &resp)
 }
 
 // GetPaginatedListOfSubAccounts to retrieve a paginated list of sub-accounts. Pagination is required.
@@ -1358,7 +1358,7 @@ func (ku *Kucoin) GetPaginatedListOfSubAccounts(ctx context.Context, currentPage
 		params.Set("currentPage", strconv.FormatInt(currentPage, 10))
 	}
 	var resp *SubAccountResponse
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinSubUser, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinSubUser, params), nil, &resp)
 }
 
 // GetAllAccounts get all accounts
@@ -1371,13 +1371,13 @@ func (ku *Kucoin) GetAllAccounts(ctx context.Context, ccy, accountType string) (
 		params.Set("type", accountType)
 	}
 	var resp []AccountInfo
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinAccount, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinAccount, params), nil, &resp)
 }
 
 // GetAccount get information of single account
 func (ku *Kucoin) GetAccount(ctx context.Context, accountID string) (*AccountInfo, error) {
 	var resp *AccountInfo
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf(kucoinGetAccount, accountID), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, kucoinGetAccount+accountID, nil, &resp)
 }
 
 // GetAccountLedgers get the history of deposit/withdrawal of all accounts, supporting inquiry of various currencies
@@ -1399,13 +1399,13 @@ func (ku *Kucoin) GetAccountLedgers(ctx context.Context, ccy, direction, bizType
 		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
 	}
 	var resp *AccountLedgerResponse
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetAccountLedgers, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, retriveAccountLedgerEPL, http.MethodGet, common.EncodeURLValues(kucoinGetAccountLedgers, params), nil, &resp)
 }
 
 // GetAccountSummaryInformation this can be used to obtain account summary information.
 func (ku *Kucoin) GetAccountSummaryInformation(ctx context.Context) (*AccountSummaryInformation, error) {
 	var resp *AccountSummaryInformation
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, kucoinUserInfo, nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, kucoinUserInfo, nil, &resp)
 }
 
 // GetSubAccountBalance get account info of a sub-user specified by the subUserID
@@ -1415,13 +1415,13 @@ func (ku *Kucoin) GetSubAccountBalance(ctx context.Context, subUserID string, in
 		params.Set("includeBaseAmount", "true")
 	}
 	var resp *SubAccountInfo
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetSubAccountBalance+subUserID, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinGetSubAccountBalance+subUserID, params), nil, &resp)
 }
 
 // GetAggregatedSubAccountBalance get the account info of all sub-users
 func (ku *Kucoin) GetAggregatedSubAccountBalance(ctx context.Context) ([]SubAccountInfo, error) {
 	var resp []SubAccountInfo
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, kucoinGetAggregatedSubAccountBalance, nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, kucoinGetAggregatedSubAccountBalance, nil, &resp)
 }
 
 // GetPaginatedSubAccountInformation this endpoint can be used to get paginated sub-account information. Pagination is required.
@@ -1434,7 +1434,7 @@ func (ku *Kucoin) GetPaginatedSubAccountInformation(ctx context.Context, current
 		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
 	}
 	var resp *SubAccountsResponse
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetAggregatedSubAccountBalance, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinGetAggregatedSubAccountBalance, params), nil, &resp)
 }
 
 // GetTransferableBalance get the transferable balance of a specified account
@@ -1452,7 +1452,7 @@ func (ku *Kucoin) GetTransferableBalance(ctx context.Context, ccy, accountType, 
 		params.Set("tag", tag)
 	}
 	var resp *TransferableBalanceInfo
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetTransferableBalance, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinGetTransferableBalance, params), nil, &resp)
 }
 
 // TransferMainToSubAccount used to transfer funds from main account to sub-account
@@ -1487,7 +1487,7 @@ func (ku *Kucoin) TransferMainToSubAccount(ctx context.Context, clientOID, ccy, 
 	resp := struct {
 		OrderID string `json:"orderId"`
 	}{}
-	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinTransferMainToSubAccount, params, &resp)
+	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, masterSubUserTransferEPL, http.MethodPost, kucoinTransferMainToSubAccount, params, &resp)
 }
 
 // MakeInnerTransfer used to transfer funds between accounts internally
@@ -1522,7 +1522,7 @@ func (ku *Kucoin) MakeInnerTransfer(ctx context.Context, clientOID, ccy, from, t
 	resp := struct {
 		OrderID string `json:"orderId"`
 	}{}
-	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinInnerTransfer, params, &resp)
+	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, kucoinInnerTransfer, params, &resp)
 }
 
 // CreateDepositAddress create a deposit address for a currency you intend to deposit
@@ -1536,7 +1536,7 @@ func (ku *Kucoin) CreateDepositAddress(ctx context.Context, ccy, chain string) (
 		params["chain"] = chain
 	}
 	var resp *DepositAddress
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinCreateDepositAddress, params, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, kucoinCreateDepositAddress, params, &resp)
 }
 
 // GetDepositAddressesV2 get all deposit addresses for the currency you intend to deposit
@@ -1547,7 +1547,7 @@ func (ku *Kucoin) GetDepositAddressesV2(ctx context.Context, ccy string) ([]Depo
 	params := url.Values{}
 	params.Set("currency", ccy)
 	var resp []DepositAddress
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetDepositAddressesV2, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinGetDepositAddressesV2, params), nil, &resp)
 }
 
 // GetDepositAddressesV1 get a deposit address for the currency you intend to deposit
@@ -1561,7 +1561,7 @@ func (ku *Kucoin) GetDepositAddressesV1(ctx context.Context, ccy, chain string) 
 		params.Set("chain", chain)
 	}
 	var resp []DepositAddress
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetDepositAddressV1, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinGetDepositAddressV1, params), nil, &resp)
 }
 
 // GetDepositList get deposit list items and sorted to show the latest first
@@ -1580,7 +1580,7 @@ func (ku *Kucoin) GetDepositList(ctx context.Context, ccy, status string, startA
 		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
 	}
 	var resp *DepositResponse
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetDepositList, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, retriveDepositListEPL, http.MethodGet, common.EncodeURLValues(kucoinGetDepositList, params), nil, &resp)
 }
 
 // GetHistoricalDepositList get historical deposit list items
@@ -1599,7 +1599,7 @@ func (ku *Kucoin) GetHistoricalDepositList(ctx context.Context, ccy, status stri
 		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
 	}
 	var resp *HistoricalDepositWithdrawalResponse
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetHistoricalDepositList, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, retriveV1HistoricalDepositListEPL, http.MethodGet, common.EncodeURLValues(kucoinGetHistoricalDepositList, params), nil, &resp)
 }
 
 // GetWithdrawalList get withdrawal list items
@@ -1618,7 +1618,7 @@ func (ku *Kucoin) GetWithdrawalList(ctx context.Context, ccy, status string, sta
 		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
 	}
 	var resp *WithdrawalsResponse
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinWithdrawal, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, retriveWithdrawalListEPL, http.MethodGet, common.EncodeURLValues(kucoinWithdrawal, params), nil, &resp)
 }
 
 // GetHistoricalWithdrawalList get historical withdrawal list items
@@ -1643,7 +1643,7 @@ func (ku *Kucoin) GetHistoricalWithdrawalList(ctx context.Context, ccy, status s
 		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
 	}
 	var resp *HistoricalDepositWithdrawalResponse
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetHistoricalWithdrawalList, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, retriveV1HistoricalWithdrawalListEPL, http.MethodGet, common.EncodeURLValues(kucoinGetHistoricalWithdrawalList, params), nil, &resp)
 }
 
 // GetWithdrawalQuotas get withdrawal quota details
@@ -1657,7 +1657,7 @@ func (ku *Kucoin) GetWithdrawalQuotas(ctx context.Context, ccy, chain string) (*
 		params.Set("chain", chain)
 	}
 	var resp *WithdrawalQuota
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetWithdrawalQuotas, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinGetWithdrawalQuotas, params), nil, &resp)
 }
 
 // ApplyWithdrawal create a withdrawal request
@@ -1692,12 +1692,12 @@ func (ku *Kucoin) ApplyWithdrawal(ctx context.Context, ccy, address, memo, remar
 		WithdrawalID string `json:"withdrawalId"`
 		Error
 	}{}
-	return resp.WithdrawalID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, kucoinWithdrawal, params, &resp)
+	return resp.WithdrawalID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, kucoinWithdrawal, params, &resp)
 }
 
 // CancelWithdrawal used to cancel a withdrawal request
 func (ku *Kucoin) CancelWithdrawal(ctx context.Context, withdrawalID string) error {
-	return ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, fmt.Sprintf(kucoinCancelWithdrawal, withdrawalID), nil, &struct{}{})
+	return ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodDelete, kucoinCancelWithdrawal+withdrawalID, nil, &struct{}{})
 }
 
 // GetBasicFee get basic fee rate of users
@@ -1707,7 +1707,7 @@ func (ku *Kucoin) GetBasicFee(ctx context.Context, currencyType string) (*Fees, 
 		params.Set("currencyType", currencyType)
 	}
 	var resp *Fees
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinBasicFee, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinBasicFee, params), nil, &resp)
 }
 
 // GetTradingFee get fee rate of trading pairs
@@ -1717,11 +1717,11 @@ func (ku *Kucoin) GetTradingFee(ctx context.Context, symbols string) ([]Fees, er
 		params.Set("symbols", symbols)
 	}
 	var resp []Fees
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinTradingFee, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinTradingFee, params), nil, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (ku *Kucoin) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, result interface{}) error {
+func (ku *Kucoin) SendHTTPRequest(ctx context.Context, ePath exchange.URL, epl request.EndpointLimit, path string, result interface{}) error {
 	value := reflect.ValueOf(result)
 	if value.Kind() != reflect.Pointer {
 		return errInvalidResultInterface
@@ -1737,7 +1737,7 @@ func (ku *Kucoin) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path 
 	if err != nil {
 		return err
 	}
-	err = ku.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	err = ku.SendPayload(ctx, epl, func() (*request.Item, error) {
 		return &request.Item{
 			Method:        http.MethodGet,
 			Path:          endpointPath + path,
@@ -1754,7 +1754,7 @@ func (ku *Kucoin) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path 
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
 // Request parameters are added to path variable for GET and DELETE request and for other requests its passed in params variable
-func (ku *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, arg, result interface{}) error {
+func (ku *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, epl request.EndpointLimit, method, path string, arg, result interface{}) error {
 	value := reflect.ValueOf(result)
 	if value.Kind() != reflect.Pointer {
 		return errInvalidResultInterface
@@ -1778,7 +1778,7 @@ func (ku *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, m
 	if val.IsNil() || val.Kind() != reflect.Pointer {
 		return fmt.Errorf("%w receiver has to be non-nil pointer", errInvalidResponseReceiver)
 	}
-	err = ku.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	err = ku.SendPayload(ctx, epl, func() (*request.Item, error) {
 		var (
 			body    io.Reader
 			payload []byte

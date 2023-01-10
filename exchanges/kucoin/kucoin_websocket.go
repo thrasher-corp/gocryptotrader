@@ -164,9 +164,9 @@ func (ku *Kucoin) GetAuthenticatedInstanceServers(ctx context.Context) (*WSInsta
 		Data WSInstanceServers `json:"data"`
 		Error
 	}{}
-	err := ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, privateBullets, nil, &response)
+	err := ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, privateBullets, nil, &response)
 	if err != nil && strings.Contains(err.Error(), "400003") {
-		return &response.Data, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, privateBullets, nil, &response)
+		return &response.Data, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, http.MethodPost, privateBullets, nil, &response)
 	}
 	return &response.Data, err
 }

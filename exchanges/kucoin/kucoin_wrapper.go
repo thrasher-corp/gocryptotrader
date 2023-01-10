@@ -131,7 +131,8 @@ func (ku *Kucoin) SetDefaults() {
 		},
 	}
 	ku.Requester, err = request.New(ku.Name,
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		request.WithLimiter(SetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
