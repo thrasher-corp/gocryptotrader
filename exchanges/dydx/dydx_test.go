@@ -26,6 +26,8 @@ const (
 	apiSecret               = ""
 	passphrase              = ""
 	etheriumAddress         = ""
+	starkKeyXCoordinate     = ""
+	starkKeyYCoordinate     = ""
 	starkPrivateKey         = ""
 	canManipulateRealOrders = false
 
@@ -328,7 +330,7 @@ func TestSubscribe(t *testing.T) {
 }
 func TestRecoverStarkKeyQuoteBalanceAndOpenPosition(t *testing.T) {
 	t.Parallel()
-	_, err := dy.RecoverStarkKeyQuoteBalanceAndOpenPosition(context.Background(), defaultEthereumAddress)
+	_, err := dy.RecoverStarkKeyQuoteBalanceAndOpenPosition(context.Background(), etheriumAddress)
 	if err != nil {
 		t.Error(err)
 	}
@@ -336,7 +338,7 @@ func TestRecoverStarkKeyQuoteBalanceAndOpenPosition(t *testing.T) {
 
 func TestGetRegistration(t *testing.T) {
 	t.Parallel()
-	_, err := dy.GetRegistration(context.Background(), defaultEthereumAddress)
+	_, err := dy.GetRegistration(context.Background(), etheriumAddress)
 	if err != nil {
 		t.Error(err)
 	}
@@ -344,7 +346,7 @@ func TestGetRegistration(t *testing.T) {
 
 func TestRegisterAPIKey(t *testing.T) {
 	t.Parallel()
-	_, err := dy.RegisterAPIKey(context.Background(), defaultEthereumAddress)
+	_, err := dy.RegisterAPIKey(context.Background(), etheriumAddress)
 	if err != nil {
 		t.Error(err)
 	}
@@ -352,8 +354,7 @@ func TestRegisterAPIKey(t *testing.T) {
 
 func TestGetAPIKeys(t *testing.T) {
 	t.Parallel()
-	dy.Verbose = true
-	_, err := dy.GetAPIKeys(context.Background(), defaultEthereumAddress)
+	_, err := dy.GetAPIKeys(context.Background(), etheriumAddress)
 	if err != nil {
 		t.Error(err)
 	}
@@ -361,7 +362,7 @@ func TestGetAPIKeys(t *testing.T) {
 
 func TestDeleteAPIKeys(t *testing.T) {
 	t.Parallel()
-	_, err := dy.DeleteAPIKeys(context.Background(), "publicKey", defaultEthereumAddress)
+	_, err := dy.DeleteAPIKeys(context.Background(), "publicKey", etheriumAddress)
 	if err != nil {
 		t.Error(err)
 	}
@@ -370,9 +371,9 @@ func TestDeleteAPIKeys(t *testing.T) {
 func TestOnboarding(t *testing.T) {
 	t.Parallel()
 	_, err := dy.Onboarding(context.Background(), &OnboardingParam{
-		StarkKey:         "",
-		StarkYCoordinate: "",
-		EthereumAddress:  defaultEthereumAddress,
+		StarkXCoordinate: starkPrivateKey,
+		StarkYCoordinate: starkKeyYCoordinate,
+		EthereumAddress:  etheriumAddress,
 		Country:          "RU",
 	})
 	if err != nil {

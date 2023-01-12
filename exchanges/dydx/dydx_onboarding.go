@@ -31,11 +31,11 @@ func (dy *DYDX) GenerateOnboardingSignature(signerAddress string) (string, error
 	if err != nil {
 		return "", err
 	}
-	var out string
-	if err := client.Call("eth_signTypedData", &out, signerAddress, eip712Message); err != nil {
+	var out []byte
+	if err := client.Call(ethSignMethod, &out, signerAddress, eip712Message); err != nil {
 		return "", err
 	}
-	return createTypedSignature(out, 0)
+	return createTypedSignature(string(out), 0)
 }
 
 // GenerateEtheriumKeyPrivateEndpointsSignature sends a request to Onboarging or or Etherium private endpoints.
@@ -53,7 +53,7 @@ func (dy *DYDX) GenerateEtheriumKeyPrivateEndpointsSignature(signerAddress, meth
 	if err != nil {
 		return "", err
 	}
-	if err := client.Call("eth_signTypedData", &out, signerAddress, eip712Message); err != nil {
+	if err := client.Call(ethSignMethod, &out, signerAddress, eip712Message); err != nil {
 		return "", err
 	}
 	return createTypedSignature(out, 0)
@@ -62,7 +62,7 @@ func (dy *DYDX) GenerateEtheriumKeyPrivateEndpointsSignature(signerAddress, meth
 // Onboarding onboard a user so they can begin using dYdX V3 API. This will generate a user, account and derive a key, passphrase and secret from the signature.
 func (dy *DYDX) Onboarding(ctx context.Context, arg *OnboardingParam) (*OnboardingResponse, error) {
 	var resp OnboardingResponse
-	if arg.StarkKey == "" {
+	if arg.StarkXCoordinate == "" {
 		return nil, errors.New("missing Stark Key X-Coordinate")
 	}
 	if arg.StarkYCoordinate == "" {

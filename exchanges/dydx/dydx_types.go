@@ -37,6 +37,7 @@ const (
 	domain                       = "dYdX"
 	version                      = "1.0"
 	eip712DomainStringNoContract = "EIP712Domain(string name,string version,uint256 chainId)"
+	ethSignMethod                = "eth_sign"
 )
 
 const (
@@ -873,7 +874,7 @@ type AccountChannelData struct {
 
 // OnboardingParam represents onboarding request parameters.
 type OnboardingParam struct {
-	StarkKey                string `json:"starkKey"`
+	StarkXCoordinate        string `json:"starkKey"`
 	StarkYCoordinate        string `json:"starkKeyYCoordinate"`
 	EthereumAddress         string `json:"ethereumAddress"`
 	ReferredByAffiliateLink string `json:"referredByAffiliateLink"` // Optional

@@ -131,7 +131,7 @@ func (dy *DYDX) GetTrades(ctx context.Context, instrument string, startingBefore
 	}
 	params := url.Values{}
 	if !startingBeforeOrAT.IsZero() {
-		params.Set("startingBeforeOrAt", startingBeforeOrAT.UTC().Format("2006-01-02T15:04:05.999Z"))
+		params.Set("startingBeforeOrAt", startingBeforeOrAT.UTC().Format(timeFormat))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -184,7 +184,7 @@ func (dy *DYDX) GetHistoricalFunding(ctx context.Context, instrument string, eff
 	}
 	params := url.Values{}
 	if !effectiveBeforeOrAt.IsZero() {
-		params.Set("effectiveBeforeOrAt", effectiveBeforeOrAt.UTC().Format("2006-01-02T15:04:05.999Z"))
+		params.Set("effectiveBeforeOrAt", effectiveBeforeOrAt.UTC().Format(timeFormat))
 	}
 	var resp *HistoricFundingResponse
 	return resp.HistoricalFundings, dy.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(fmt.Sprintf(marketHistoricalFunds, instrument), params), &resp)
@@ -269,13 +269,13 @@ func (dy *DYDX) GetPublicLeaderboardPNLs(ctx context.Context, period, sortBy str
 	if period == "" {
 		return nil, fmt.Errorf("%w \"period\" is required", errInvalidPeriod)
 	}
+	if sortBy == "" {
+		return nil, errSortByIsRequired
+	}
 	params := url.Values{}
 	params.Set("period", period)
 	if !startingBeforeOrAt.IsZero() {
-		params.Set("startingBeforeOrAt", startingBeforeOrAt.Format("2022-02-02T15:31:10.813Z"))
-	}
-	if sortBy == "" {
-		return nil, errSortByIsRequired
+		params.Set("startingBeforeOrAt", startingBeforeOrAt.Format(timeFormat))
 	}
 	params.Set("sortBy", sortBy)
 	if limit > 0 {
@@ -475,7 +475,7 @@ func (dy *DYDX) GetAccountLeaderboardPNLs(ctx context.Context, period string, st
 	}
 	param := url.Values{}
 	if !startingBeforeOrAt.IsZero() {
-		param.Set("startingBeforeOrAt", startingBeforeOrAt.UTC().Format("2006-01-02T15:04:05.999Z"))
+		param.Set("startingBeforeOrAt", startingBeforeOrAt.UTC().Format(timeFormat))
 	}
 	var resp *AccountLeaderboardPNL
 	return resp, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(fmt.Sprintf(accountLeaderBoardPNL, period), param), nil, &resp)
@@ -514,7 +514,7 @@ func (dy *DYDX) GetPosition(ctx context.Context, market, status string, limit in
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !createdBeforeOrAt.IsZero() {
-		params.Set("createdBeforeOrAt", createdBeforeOrAt.UTC().Format("2006-01-02T15:04:05.999Z"))
+		params.Set("createdBeforeOrAt", createdBeforeOrAt.UTC().Format(timeFormat))
 	}
 	var resp *Position
 	return resp, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(positions, params), nil, &resp)
@@ -531,7 +531,7 @@ func (dy *DYDX) GetTransfers(ctx context.Context, transferType string, limit int
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !createdBeforeOrAt.IsZero() {
-		params.Set("createdBeforeOrAt", createdBeforeOrAt.UTC().Format("2006-01-02T15:04:05.999Z"))
+		params.Set("createdBeforeOrAt", createdBeforeOrAt.UTC().Format(timeFormat))
 	}
 	var resp *TransfersResponse
 	return resp, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(transfers, params), nil, &resp)
@@ -542,9 +542,6 @@ func (dy *DYDX) CreateTransfer(ctx context.Context, param *TransferParam) (*Tran
 	if param.Amount <= 0 {
 		return nil, errors.New("amount must be greater than zero")
 	}
-	if param.ClientID == "" {
-		param.ClientID = strconv.FormatInt(dy.Websocket.Conn.GenerateMessageID(true), 10)
-	}
 	if param.ReceiverAccountID == "" {
 		return nil, errors.New("invalid receiver account id")
 	}
@@ -554,6 +551,9 @@ func (dy *DYDX) CreateTransfer(ctx context.Context, param *TransferParam) (*Tran
 	creds, err := dy.GetCredentials(ctx)
 	if err != nil {
 		return nil, err
+	}
+	if param.ClientID == "" {
+		param.ClientID = strconv.FormatInt(dy.Websocket.Conn.GenerateMessageID(true), 10)
 	}
 	var signature string
 	signature, err = starkex.TransferSign(creds.SubAccount, starkex.TransferSignParam{
@@ -584,12 +584,12 @@ func (dy *DYDX) CreateWithdrawal(ctx context.Context, arg WithdrawalParam) (*Tra
 	if arg.Expiration == "" {
 		return nil, errInvalidExpirationTimeString
 	}
-	if arg.ClientGeneratedID == "" {
-		arg.ClientGeneratedID = strconv.FormatInt(dy.Websocket.Conn.GenerateMessageID(true), 10)
-	}
 	creds, err := dy.GetCredentials(ctx)
 	if err != nil {
 		return nil, err
+	}
+	if arg.ClientGeneratedID == "" {
+		arg.ClientGeneratedID = strconv.FormatInt(dy.Websocket.Conn.GenerateMessageID(true), 10)
 	}
 	var signature string
 	signature, err = starkex.WithdrawSign(creds.SubAccount, starkex.WithdrawSignParam{
@@ -751,7 +751,7 @@ func (dy *DYDX) GetOrders(ctx context.Context, market, status, side, orderType s
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !createdBeforeOrAt.IsZero() {
-		params.Set("createdBeforeOrAt", createdBeforeOrAt.UTC().Format("2006-01-02T15:04:05.999Z"))
+		params.Set("createdBeforeOrAt", createdBeforeOrAt.UTC().Format(timeFormat))
 	}
 	if returnLatestOrders {
 		params.Set("returnLatestOrders", "true")
@@ -810,7 +810,7 @@ func (dy *DYDX) GetFills(ctx context.Context, market, orderID string, limit int6
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !createdBeforeOrAt.IsZero() {
-		params.Set("createdBeforeOrAt", createdBeforeOrAt.UTC().Format("2006-01-02T15:04:05.999Z"))
+		params.Set("createdBeforeOrAt", createdBeforeOrAt.UTC().Format(timeFormat))
 	}
 	resp := &struct {
 		Fills []OrderFill `json:"fills"`
@@ -828,7 +828,7 @@ func (dy *DYDX) GetFundingPayment(ctx context.Context, market string, limit int6
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !effectiveBeforeOrAt.IsZero() {
-		params.Set("effectiveBeforeOrAt", effectiveBeforeOrAt.UTC().Format("2006-01-02T15:04:05.999Z"))
+		params.Set("effectiveBeforeOrAt", effectiveBeforeOrAt.UTC().Format(timeFormat))
 	}
 	var resp *FundingPayments
 	return resp.FundingPayments, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(funding, params), nil, &resp)
@@ -838,10 +838,10 @@ func (dy *DYDX) GetFundingPayment(ctx context.Context, market string, limit int6
 func (dy *DYDX) GetHistoricPNLTicks(ctx context.Context, effectiveBeforeOrAt, effectiveAtOrAfter time.Time) ([]HistoricPNL, error) {
 	params := url.Values{}
 	if effectiveBeforeOrAt.IsZero() {
-		params.Set("effectiveBeforeOrAt", effectiveBeforeOrAt.UTC().Format("2006-01-02T15:04:05.999Z"))
+		params.Set("effectiveBeforeOrAt", effectiveBeforeOrAt.UTC().Format(timeFormat))
 	}
 	if effectiveAtOrAfter.IsZero() {
-		params.Set("effectiveAtOrAfter", effectiveAtOrAfter.UTC().Format("2006-01-02T15:04:05.999Z"))
+		params.Set("effectiveAtOrAfter", effectiveAtOrAfter.UTC().Format(timeFormat))
 	}
 	var resp *HistoricPNLResponse
 	return resp.HistoricalPNL, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(historicalPNL, params), nil, &resp)
@@ -943,7 +943,7 @@ func (dy *DYDX) SendAuthenticatedHTTPRequest(ctx context.Context, endpoint excha
 		if err != nil {
 			return nil, err
 		}
-		timestamp := time.Now().UTC().Format("2006-01-02T15:04:05.999Z")
+		timestamp := time.Now().UTC().Format(timeFormat)
 		message := fmt.Sprintf("%s%s%s%s", timestamp, strings.ToUpper(method), "/"+dydxAPIVersion+path, dataString)
 		secret, _ := base64.URLEncoding.DecodeString(creds.Secret)
 		h := hmac.New(sha256.New, secret)
