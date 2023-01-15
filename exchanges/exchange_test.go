@@ -356,6 +356,30 @@ func TestGetAssetTypes(t *testing.T) {
 	}
 }
 
+func TestIsAssetTypeEnabled(t *testing.T) {
+	t.Parallel()
+	assetEnabled := new(currency.PairStore)
+	assetEnabled.AssetEnabled = &[]bool{true}[0]
+	testExchange := Base{
+		CurrencyPairs: currency.PairsManager{
+			Pairs: map[asset.Item]*currency.PairStore{
+				asset.Spot:    assetEnabled,
+				asset.Binary:  new(currency.PairStore),
+				asset.Futures: new(currency.PairStore),
+			},
+		},
+	}
+	if testExchange.IsAssetTypeEnabled(asset.Spot) != nil {
+		t.Error("TestIsAssetTypeEnabled failed")
+	}
+	if testExchange.IsAssetTypeEnabled(asset.Futures) == nil {
+		t.Error("TestIsAssetTypeEnabled failed")
+	}
+	if testExchange.IsAssetTypeEnabled(asset.Margin) == nil {
+		t.Error("TestIsAssetTypeEnabled failed")
+	}
+}
+
 func TestGetClientBankAccounts(t *testing.T) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig(config.TestFile, true)

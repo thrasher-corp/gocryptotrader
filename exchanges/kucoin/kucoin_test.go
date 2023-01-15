@@ -53,7 +53,7 @@ func TestMain(m *testing.M) {
 
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
-	exchCfg.API.Credentials.PEMKey = passPhrase
+	exchCfg.API.Credentials.ClientID = passPhrase
 
 	ku.SetDefaults()
 	ku.Websocket = sharedtestvalues.NewTestWebsocket()
@@ -776,7 +776,7 @@ func TestPostStopOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-	_, err := ku.PostStopOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "", "", "entry", "10000", "11000", "", "", "", 0.1, 0, 0, 0, true, false, false)
+	_, err := ku.PostStopOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "", "", "entry", "10000", "11000", "", 0.1, 1, 0, 0, 0, 0, true, false, false)
 	if err != nil {
 		t.Error("PostStopOrder() error", err)
 	}
@@ -1220,7 +1220,7 @@ func TestGetFuturesCurrentFundingRate(t *testing.T) {
 
 func TestGetFuturesServerTime(t *testing.T) {
 	t.Parallel()
-	_, err := ku.GetFuturesServerTime(context.Background(), "XBTUSDTM")
+	_, err := ku.GetFuturesServerTime(context.Background())
 	if err != nil {
 		t.Error("GetFuturesServerTime() error", err)
 	}
@@ -1248,7 +1248,7 @@ func TestPostFuturesOrder(t *testing.T) {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
 	_, err := ku.PostFuturesOrder(context.Background(), "5bd6e9286d99522a52e458de",
-		"buy", "XBTUSDM", "", "10", "", "", "", "", 1, 1000, 0,
+		"buy", "XBTUSDM", "", "10", "", "", "", 1, 1000, 0, 0.02,
 		0, false, false, false, false, false, false)
 	if err != nil {
 		t.Error("PostFuturesOrder() error", err)
@@ -1720,6 +1720,18 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	}
 }
 
+func TestGetServerTime(t *testing.T) {
+	t.Parallel()
+	_, err := ku.GetServerTime(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = ku.GetServerTime(context.Background(), asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
 	enabledPairs, err := ku.GetEnabledPairs(asset.Futures)
@@ -1752,6 +1764,11 @@ func TestGetOrderHistory(t *testing.T) {
 		Side:      order.Sell,
 	}
 	_, err := ku.GetOrderHistory(context.Background(), &getOrdersRequest)
+	if err != nil {
+		t.Error(err)
+	}
+	getOrdersRequest.Pairs = []currency.Pair{}
+	_, err = ku.GetOrderHistory(context.Background(), &getOrdersRequest)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1816,11 +1833,11 @@ func TestGetInstanceServers(t *testing.T) {
 }
 
 func TestWSConnect(t *testing.T) {
-	ku.Verbose = true
 	err := ku.WsConnect()
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
+	time.Sleep(time.Second * 60)
 }
 
 func TestGetAuthenticatedServersInstances(t *testing.T) {
@@ -2364,7 +2381,7 @@ func TestDeleteSubAccountSpoAPI(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
-	if _, err := ku.DeleteSubAccountSpoAPI(context.Background(), apiKey, "mysecretPassphrase123", "gocryptoTrader1"); err != nil {
+	if _, err := ku.DeleteSubAccountSpotAPI(context.Background(), apiKey, "mysecretPassphrase123", "gocryptoTrader1"); err != nil {
 		t.Error(err)
 	}
 }

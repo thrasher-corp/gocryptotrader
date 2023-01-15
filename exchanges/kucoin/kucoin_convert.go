@@ -47,7 +47,7 @@ func (k *kucoinTimeMilliSec) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	*k = kucoinTimeMilliSec(time.UnixMilli(timestamp))
+	*k = kucoinTimeMilliSec(timestamp)
 	return nil
 }
 

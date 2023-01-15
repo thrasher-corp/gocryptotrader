@@ -782,7 +782,11 @@ func (ku *Kucoin) GetCurrentServerTime(ctx context.Context) (time.Time, error) {
 		Timestamp kucoinTimeMilliSec `json:"data"`
 		Error
 	}{}
-	return resp.Timestamp.Time(), ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, kucoinGetServerTime, &resp)
+	err := ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, kucoinGetServerTime, &resp)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return resp.Timestamp.Time(), nil
 }
 
 // GetServiceStatus gets the service status
@@ -1079,7 +1083,7 @@ func (ku *Kucoin) GetRecentFills(ctx context.Context) ([]Fill, error) {
 }
 
 // PostStopOrder used to place two types of stop orders: limit and market
-func (ku *Kucoin) PostStopOrder(ctx context.Context, clientOID, side, symbol, orderType, remark, stop, price, stopPrice, stp, tradeType, timeInForce string, size, cancelAfter, visibleSize, funds float64, postOnly, hidden, iceberg bool) (string, error) {
+func (ku *Kucoin) PostStopOrder(ctx context.Context, clientOID, side, symbol, orderType, remark, stop, stp, tradeType, timeInForce string, size, price, stopPrice, cancelAfter, visibleSize, funds float64, postOnly, hidden, iceberg bool) (string, error) {
 	params := make(map[string]interface{})
 	if clientOID == "" {
 		return "", errors.New("clientOid can not be empty")
@@ -1098,10 +1102,10 @@ func (ku *Kucoin) PostStopOrder(ctx context.Context, clientOID, side, symbol, or
 	}
 	if stop != "" {
 		params["stop"] = stop
-		if stopPrice == "" {
-			return "", errors.New("stopPrice can not be empty when stop is set")
+		if stopPrice <= 0 {
+			return "", errors.New("stopPrice is required")
 		}
-		params["stopPrice"] = stopPrice
+		params["stopPrice"] = strconv.FormatFloat(stopPrice, 'f', -1, 64)
 	}
 	if stp != "" {
 		params["stp"] = stp
@@ -1111,10 +1115,10 @@ func (ku *Kucoin) PostStopOrder(ctx context.Context, clientOID, side, symbol, or
 	}
 	switch orderType {
 	case "limit", "":
-		if price == "" {
-			return "", errors.New("price can not be empty")
+		if price <= 0 {
+			return "", errors.New("price is required")
 		}
-		params["price"] = price
+		params["price"] = strconv.FormatFloat(price, 'f', -1, 64)
 		if size <= 0 {
 			return "", errors.New("size can not be zero or negative")
 		}
@@ -1323,8 +1327,8 @@ func (ku *Kucoin) ModifySubAccountSpotAPIs(ctx context.Context, arg *SpotAPISubA
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPut, kucoinUpdateModifySubAccountSpotAPIs, &arg, &resp)
 }
 
-// DeleteSubAccountSpoAPI delete sub-account Spot APIs.
-func (ku *Kucoin) DeleteSubAccountSpoAPI(ctx context.Context, apiKey, passphrase, subAccountName string) (*DeleteSubAccountResponse, error) {
+// DeleteSubAccountSpotAPI delete sub-account Spot APIs.
+func (ku *Kucoin) DeleteSubAccountSpotAPI(ctx context.Context, apiKey, passphrase, subAccountName string) (*DeleteSubAccountResponse, error) {
 	if regexp.MustCompile("^[a-zA-Z0-9]{7-32}$").MatchString(subAccountName) {
 		return nil, errInvalidSubAccountName
 	}
@@ -1661,6 +1665,7 @@ func (ku *Kucoin) GetWithdrawalQuotas(ctx context.Context, ccy, chain string) (*
 }
 
 // ApplyWithdrawal create a withdrawal request
+// The endpoint was deprecated for futures, please transfer assets from the FUTURES account to the MAIN account first, and then withdraw from the MAIN account
 func (ku *Kucoin) ApplyWithdrawal(ctx context.Context, ccy, address, memo, remark, chain, feeDeductType string, isInner bool, amount float64) (string, error) {
 	if ccy == "" {
 		return "", currency.ErrCurrencyPairEmpty
@@ -1749,6 +1754,9 @@ func (ku *Kucoin) SendHTTPRequest(ctx context.Context, ePath exchange.URL, epl r
 	if err != nil {
 		return err
 	}
+	if result == nil {
+		return errNoValidResponseFromServer
+	}
 	return resp.GetError()
 }
 
@@ -1783,8 +1791,7 @@ func (ku *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, e
 			body    io.Reader
 			payload []byte
 		)
-		refArg := reflect.ValueOf(arg)
-		if refArg.Kind() == reflect.Pointer && arg != nil {
+		if arg != nil {
 			payload, err = json.Marshal(arg)
 			if err != nil {
 				return nil, err
@@ -1797,7 +1804,7 @@ func (ku *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, e
 		if err != nil {
 			return nil, err
 		}
-		passPhraseHash, err = crypto.GetHMAC(crypto.HashSHA256, []byte(creds.PEMKey), []byte(creds.Secret))
+		passPhraseHash, err = crypto.GetHMAC(crypto.HashSHA256, []byte(creds.ClientID), []byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
@@ -1822,6 +1829,9 @@ func (ku *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, e
 	})
 	if err != nil {
 		return err
+	}
+	if result == nil {
+		return errNoValidResponseFromServer
 	}
 	return resp.GetError()
 }

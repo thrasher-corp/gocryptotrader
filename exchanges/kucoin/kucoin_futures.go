@@ -254,12 +254,16 @@ func (ku *Kucoin) GetFuturesCurrentFundingRate(ctx context.Context, symbol strin
 }
 
 // GetFuturesServerTime get server time
-func (ku *Kucoin) GetFuturesServerTime(ctx context.Context, symbol string) (time.Time, error) {
+func (ku *Kucoin) GetFuturesServerTime(ctx context.Context) (time.Time, error) {
 	resp := struct {
 		Data kucoinTimeMilliSec `json:"data"`
 		Error
 	}{}
-	return resp.Data.Time(), ku.SendHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, kucoinFuturesServerTime, &resp)
+	err := ku.SendHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, kucoinFuturesServerTime, &resp)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return resp.Data.Time(), nil
 }
 
 // GetFuturesServiceStatus get service status
@@ -312,75 +316,76 @@ func (ku *Kucoin) GetFuturesKline(ctx context.Context, granularity, symbol strin
 // PostFuturesOrder used to place two types of futures orders: limit and market
 func (ku *Kucoin) PostFuturesOrder(ctx context.Context, clientOID, side, symbol,
 	orderType, remark,
-	stop, stopPriceType, stopPrice, timeInForce string, size, price,
+	stop, stopPriceType, timeInForce string, size, price, stopPrice,
 	leverage, visibleSize float64, reduceOnly, closeOrder, forceHold, postOnly, hidden, iceberg bool) (string, error) {
-	params := make(map[string]interface{})
+	if leverage < 0.01 {
+		return "", errors.New("leverage must be greater than 0.01")
+	}
+	args := make(map[string]interface{})
 	if clientOID == "" {
 		return "", errors.New("clientOid can't be empty")
 	}
-	params["clientOid"] = clientOID
+	args["clientOid"] = clientOID
 	if side == "" {
 		return "", errors.New("side can't be empty")
 	}
-	params["side"] = side
+	args["side"] = side
 	if symbol == "" {
 		return "", errors.New("symbol can't be empty")
 	}
-	params["symbol"] = symbol
-	if leverage != 0 {
-		params["leverage"] = strconv.FormatFloat(leverage, 'f', -1, 64)
-	}
+	args["symbol"] = symbol
+	args["leverage"] = strconv.FormatFloat(leverage, 'f', -1, 64)
 	if remark != "" {
-		params["remark"] = remark
+		args["remark"] = remark
 	}
 	if stop != "" {
-		params["stp"] = stop
+		args["stp"] = stop
 		if stopPriceType == "" {
 			return "", errors.New("stopPriceType can't be empty")
 		}
-		params["stopPriceType"] = stopPriceType
-		if stopPrice == "" {
-			return "", errors.New("stopPrice can't be empty")
+		args["stopPriceType"] = stopPriceType
+		if stopPrice <= 0 {
+			return "", errors.New("stopPrice is required")
 		}
-		params["stopPrice"] = stopPrice
+		args["stopPrice"] = strconv.FormatFloat(stopPrice, 'f', -1, 64)
 	}
 	switch orderType {
 	case "limit", "":
 		if price <= 0 {
 			return "", fmt.Errorf("%w %f", errInvalidPrice, price)
 		}
-		params["price"] = price
+		args["price"] = price
 		if size <= 0 {
 			return "", fmt.Errorf("%w size must be non-zero positive value", errInvalidSize)
 		}
-		params["size"] = strconv.FormatFloat(size, 'f', -1, 64)
+		args["size"] = strconv.FormatFloat(size, 'f', -1, 64)
 		if timeInForce != "" {
-			params["timeInForce"] = timeInForce
+			args["timeInForce"] = timeInForce
 		}
-		params["postOnly"] = postOnly
-		params["hidden"] = hidden
-		params["iceberg"] = iceberg
+		args["postOnly"] = postOnly
+		args["hidden"] = hidden
+		args["iceberg"] = iceberg
 		if visibleSize > 0 {
-			params["visibleSize"] = strconv.FormatFloat(visibleSize, 'f', -1, 64)
+			args["visibleSize"] = strconv.FormatFloat(visibleSize, 'f', -1, 64)
 		}
 	case "market":
 		if size > 0 {
-			params["size"] = strconv.FormatFloat(size, 'f', -1, 64)
+			args["size"] = strconv.FormatFloat(size, 'f', -1, 64)
 		}
 	default:
 		return "", errors.New("invalid orderType")
 	}
 
 	if orderType != "" {
-		params["type"] = orderType
+		args["type"] = orderType
 	}
-	params["reduceOnly"] = reduceOnly
-	params["closeOrder"] = closeOrder
-	params["forceHold"] = forceHold
+	args["reduceOnly"] = reduceOnly
+	args["closeOrder"] = closeOrder
+	args["forceHold"] = forceHold
 	resp := struct {
 		OrderID string `json:"orderId"`
 	}{}
-	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresPlaceOrderEPL, http.MethodPost, kucoinFuturesOrder, params, &resp)
+	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresPlaceOrderEPL, http.MethodPost, kucoinFuturesOrder, args, &resp)
 }
 
 // CancelFuturesOrder used to cancel single order previously placed including a stop order

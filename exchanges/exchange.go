@@ -171,6 +171,18 @@ func (b *Base) GetAssetTypes(enabled bool) asset.Items {
 	return b.CurrencyPairs.GetAssetTypes(enabled)
 }
 
+// IsAssetTypeEnabled returns true if the asset type is available and enabled
+func (b *Base) IsAssetTypeEnabled(assetType asset.Item) error {
+	ps, err := b.CurrencyPairs.Get(assetType)
+	if err != nil {
+		return fmt.Errorf("%s %v", b.Name, err)
+	}
+	if ps.AssetEnabled != nil && *ps.AssetEnabled {
+		return nil
+	}
+	return fmt.Errorf("%s asset type %v is not enabled", b.Name, assetType)
+}
+
 // GetPairAssetType returns the associated asset type for the currency pair
 // This method is only useful for exchanges that have pair names with multiple delimiters (BTC-USD-0626)
 // Helpful if the exchange has only a single asset type but in that case the asset type can be hard coded

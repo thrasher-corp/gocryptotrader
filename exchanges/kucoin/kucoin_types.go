@@ -25,6 +25,7 @@ var (
 	errInvalidResultInterface    = errors.New("result interface has to be pointer")
 	errInvalidSubAccountName     = errors.New("invalid sub-account name")
 	errInvalidPassPhraseInstance = errors.New("invalid passphrase string")
+	errNoValidResponseFromServer = errors.New("no valud response from server")
 )
 
 var offlineTradeFee = map[currency.Code]float64{
@@ -155,11 +156,11 @@ func (e Error) GetError() error {
 }
 
 // kucoinTimeMilliSec provides an internal conversion helper
-type kucoinTimeMilliSec time.Time
+type kucoinTimeMilliSec int64
 
 // Time returns a time.Time object
 func (k kucoinTimeMilliSec) Time() time.Time {
-	return time.Time(k)
+	return time.UnixMilli(int64(k))
 }
 
 // kucoinTimeMilliSecStr provides an internal conversion helper
@@ -531,15 +532,15 @@ type IsolatedMarginAccountInfo struct {
 }
 
 type baseRepaymentRecord struct {
-	LoanID            string  `json:"loanId"`
-	Symbol            string  `json:"symbol"`
-	Currency          string  `json:"currency"`
-	PrincipalTotal    float64 `json:"principalTotal,string"`
-	InterestBalance   float64 `json:"interestBalance,string"`
-	CreatedAt         int64   `json:"createdAt"`
-	Period            int64   `json:"period"`
-	RepaidSize        float64 `json:"repaidSize,string"`
-	DailyInterestRate float64 `json:"dailyInterestRate,string"`
+	LoanID            string             `json:"loanId"`
+	Symbol            string             `json:"symbol"`
+	Currency          string             `json:"currency"`
+	PrincipalTotal    float64            `json:"principalTotal,string"`
+	InterestBalance   float64            `json:"interestBalance,string"`
+	CreatedAt         kucoinTimeMilliSec `json:"createdAt"`
+	Period            int64              `json:"period"`
+	RepaidSize        float64            `json:"repaidSize,string"`
+	DailyInterestRate float64            `json:"dailyInterestRate,string"`
 }
 
 // OutstandingRepaymentRecordsResponse represents an outstanding repayment records of isolated margin positions list
@@ -576,7 +577,7 @@ type CompletedRepaymentRecordsResponse struct {
 // CompletedRepaymentRecord represents repayment records of isolated margin positions
 type CompletedRepaymentRecord struct {
 	baseRepaymentRecord
-	RepayFinishAt int64 `json:"repayFinishAt"`
+	RepayFinishAt kucoinTimeMilliSec `json:"repayFinishAt"`
 }
 
 // PostMarginOrderResp represents response data for placing margin orders
@@ -957,8 +958,8 @@ type WsOrderbook struct {
 
 // WsLevel2Orderbook represents orderbook information.
 type WsLevel2Orderbook struct {
-	Asks   [][3]string `json:"asks"`
-	Bids   [][3]string `json:"bids"`
+	Asks   [][2]string `json:"asks"`
+	Bids   [][2]string `json:"bids"`
 	Symbol string      `json:"symbol"`
 	TimeMS int64       `json:"time"`
 }
@@ -1409,30 +1410,36 @@ type SubAccountResponse struct {
 
 // SubAccount represents sub-user
 type SubAccount struct {
-	UserID    string `json:"userId"`
-	SubName   string `json:"subName"`
-	Type      int    `json:"type"` //type:1-rebot  or type:0-nomal
-	Remarks   string `json:"remarks"`
-	UID       int    `json:"uid,omitempty"`
-	Status    int    `json:"status,omitempty"`
-	Access    string `json:"access,omitempty"`
-	CreatedAt int64  `json:"createdAt,omitempty"`
+	UserID    string             `json:"userId"`
+	SubName   string             `json:"subName"`
+	Type      int                `json:"type"` //type:1-rebot  or type:0-nomal
+	Remarks   string             `json:"remarks"`
+	UID       int                `json:"uid,omitempty"`
+	Status    int                `json:"status,omitempty"`
+	Access    string             `json:"access,omitempty"`
+	CreatedAt kucoinTimeMilliSec `json:"createdAt,omitempty"`
 }
 
 // SpotAPISubAccount represents a Spot APIs for sub-accounts.
 type SpotAPISubAccount struct {
-	SubName     string `json:"subName"`
-	Remark      string `json:"remark"`
-	APIKey      string `json:"apiKey"`
-	APISecret   string `json:"apiSecret"`
-	Passphrase  string `json:"passphrase"`
-	Permission  string `json:"permission"`
-	IPWhitelist string `json:"ipWhitelist"`
-	CreatedAt   int64  `json:"createdAt,omitempty"`
+	SubName     string             `json:"subName"`
+	Remark      string             `json:"remark"`
+	APIKey      string             `json:"apiKey"`
+	APISecret   string             `json:"apiSecret"`
+	Passphrase  string             `json:"passphrase"`
+	Permission  string             `json:"permission"`
+	IPWhitelist string             `json:"ipWhitelist"`
+	CreatedAt   kucoinTimeMilliSec `json:"createdAt,omitempty"`
 }
 
 // DeleteSubAccountResponse represents delete sub-account response.
 type DeleteSubAccountResponse struct {
 	SubAccountName string `json:"subName"`
 	APIKey         string `json:"apiKey"`
+}
+
+// ConnectionMessage represents a connection and subscription status message.
+type ConnectionMessage struct {
+	ID   string `json:"id"`
+	Type string `json:"type"`
 }

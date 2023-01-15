@@ -1396,7 +1396,8 @@
      },
      "credentials": {
       "key": "Key",
-      "secret": "Secret"
+      "secret": "Secret",
+      "clientID": "ClientID"
      },
      "credentialsValidator": {
       "requiresKey": true,
