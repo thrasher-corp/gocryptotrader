@@ -400,7 +400,10 @@ func RPCTestSetup(t *testing.T) *Engine {
 		AssetEnabled:  convert.BoolPtr(true),
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 
 	exch, err = em.NewExchangeByName("Binance")
 	if err != nil {
@@ -416,7 +419,10 @@ func RPCTestSetup(t *testing.T) *Engine {
 		AssetEnabled:  convert.BoolPtr(true),
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	engerino.ExchangeManager = em
 
 	engerino.Config.Database = dbConf
@@ -1053,7 +1059,10 @@ func TestSetExchangeTradeProcessing(t *testing.T) {
 	b.Config = &config.Exchange{
 		Features: &config.FeaturesConfig{Enabled: config.FeaturesEnabledConfig{SaveTradeData: false}},
 	}
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 	_, err = s.SetExchangeTradeProcessing(context.Background(), &gctrpc.SetExchangeTradeProcessingRequest{Exchange: testExchange, Status: true})
 	if err != nil {
@@ -1176,7 +1185,10 @@ func TestGetAccountInfo(t *testing.T) {
 	fakeExchange := fExchange{
 		IBotExchange: exch,
 	}
-	em.Add(fakeExchange)
+	err = em.Add(fakeExchange)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 	_, err = s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakeExchangeName, AssetType: asset.Spot.String()})
 	if !errors.Is(err, nil) {
@@ -1201,7 +1213,10 @@ func TestUpdateAccountInfo(t *testing.T) {
 	fakeExchange := fExchange{
 		IBotExchange: exch,
 	}
-	em.Add(fakeExchange)
+	err = em.Add(fakeExchange)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 
 	_, err = s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakeExchangeName, AssetType: asset.Spot.String()})
@@ -1242,7 +1257,10 @@ func TestGetOrders(t *testing.T) {
 		AssetEnabled:  convert.BoolPtr(true),
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	var wg sync.WaitGroup
 	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, false, false, 0)
 	if !errors.Is(err, nil) {
@@ -1349,7 +1367,10 @@ func TestGetOrder(t *testing.T) {
 		AssetEnabled:  convert.BoolPtr(true),
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	var wg sync.WaitGroup
 	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, false, false, 0)
 	if !errors.Is(err, nil) {
@@ -1596,7 +1617,10 @@ func TestRPCServerUpsertDataHistoryJob(t *testing.T) {
 		Available:    currency.Pairs{cp},
 		Enabled:      currency.Pairs{cp},
 		AssetEnabled: convert.BoolPtr(true)}
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	s := RPCServer{Engine: &Engine{dataHistoryManager: m, ExchangeManager: em}}
 	_, err = s.UpsertDataHistoryJob(context.Background(), nil)
 	if !errors.Is(err, errNilRequestData) {
@@ -1882,7 +1906,10 @@ func TestGetManagedOrders(t *testing.T) {
 		AssetEnabled:  convert.BoolPtr(true),
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	var wg sync.WaitGroup
 	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, false, false, 0)
 	if !errors.Is(err, nil) {
@@ -2187,7 +2214,10 @@ func TestCurrencyStateTradingPair(t *testing.T) {
 	fakeExchange := fExchange{
 		IBotExchange: exch,
 	}
-	em.Add(fakeExchange)
+	err = em.Add(fakeExchange)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	s := RPCServer{Engine: &Engine{ExchangeManager: em,
 		currencyStateManager: &CurrencyStateManager{started: 1, iExchangeManager: em}}}
 
@@ -2238,7 +2268,10 @@ func TestGetFuturesPositions(t *testing.T) {
 	fakeExchange := fExchange{
 		IBotExchange: exch,
 	}
-	em.Add(fakeExchange)
+	err = em.Add(fakeExchange)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	var wg sync.WaitGroup
 	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, false, time.Hour)
 	if !errors.Is(err, nil) {
@@ -2370,7 +2403,10 @@ func TestGetCollateral(t *testing.T) {
 	fakeExchange := fExchange{
 		IBotExchange: exch,
 	}
-	em.Add(fakeExchange)
+	err = em.Add(fakeExchange)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	s := RPCServer{
 		Engine: &Engine{
 			ExchangeManager: em,
@@ -2492,7 +2528,10 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 	b.Features.Enabled.Kline.Intervals = map[string]bool{
 		kline.OneDay.Word(): true,
 	}
-	em.Add(fExchange{IBotExchange: exch})
+	err = em.Add(fExchange{IBotExchange: exch})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	s := RPCServer{
 		Engine: &Engine{
 			ExchangeManager: em,
@@ -2756,7 +2795,10 @@ func TestGetMarginRatesHistory(t *testing.T) {
 	fakeExchange := fExchange{
 		IBotExchange: exch,
 	}
-	em.Add(fakeExchange)
+	err = em.Add(fakeExchange)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	s := RPCServer{
 		Engine: &Engine{
 			ExchangeManager: em,
@@ -2903,7 +2945,10 @@ func TestGetFundingRates(t *testing.T) {
 	fakeExchange := fExchange{
 		IBotExchange: exch,
 	}
-	em.Add(fakeExchange)
+	err = em.Add(fakeExchange)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	var wg sync.WaitGroup
 	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, false, time.Hour)
 	if !errors.Is(err, nil) {
@@ -2999,7 +3044,10 @@ func TestGetManagedPosition(t *testing.T) {
 	fakeExchange := fExchange{
 		IBotExchange: exch,
 	}
-	em.Add(fakeExchange)
+	err = em.Add(fakeExchange)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	var wg sync.WaitGroup
 	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, false, time.Hour)
 	if !errors.Is(err, nil) {
@@ -3137,7 +3185,10 @@ func TestGetAllManagedPositions(t *testing.T) {
 	fakeExchange := fExchange{
 		IBotExchange: exch,
 	}
-	em.Add(fakeExchange)
+	err = em.Add(fakeExchange)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	var wg sync.WaitGroup
 	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, false, time.Hour)
 	if !errors.Is(err, nil) {
@@ -3234,7 +3285,10 @@ func TestGetOrderbookMovement(t *testing.T) {
 	fakeExchange := fExchange{
 		IBotExchange: exch,
 	}
-	em.Add(fakeExchange)
+	err = em.Add(fakeExchange)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 
@@ -3341,7 +3395,10 @@ func TestGetOrderbookAmountByNominal(t *testing.T) {
 	fakeExchange := fExchange{
 		IBotExchange: exch,
 	}
-	em.Add(fakeExchange)
+	err = em.Add(fakeExchange)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 
@@ -3441,7 +3498,10 @@ func TestGetOrderbookAmountByImpact(t *testing.T) {
 	fakeExchange := fExchange{
 		IBotExchange: exch,
 	}
-	em.Add(fakeExchange)
+	err = em.Add(fakeExchange)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 

@@ -196,7 +196,10 @@ func TestGetAllActiveOrderbooks(t *testing.T) {
 		t.Fatal(err)
 	}
 	bs.SetDefaults()
-	man.Add(bs)
+	err = man.Add(bs)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	resp := getAllActiveOrderbooks(man)
 	if resp == nil {
 		t.Error("expected not nil")
@@ -211,7 +214,10 @@ func TestGetAllActiveTickers(t *testing.T) {
 		t.Fatal(err)
 	}
 	bs.SetDefaults()
-	man.Add(bs)
+	err = man.Add(bs)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	resp := getAllActiveTickers(man)
 	if resp == nil {
 		t.Error("expected not nil")
@@ -226,7 +232,10 @@ func TestGetAllActiveAccounts(t *testing.T) {
 		t.Fatal(err)
 	}
 	bs.SetDefaults()
-	man.Add(bs)
+	err = man.Add(bs)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	resp := getAllActiveAccounts(man)
 	if resp == nil {
 		t.Error("expected not nil")

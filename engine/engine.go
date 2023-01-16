@@ -718,7 +718,8 @@ func (bot *Engine) Stop() {
 		gctlog.Errorf(gctlog.Global, "Exchange manager unable to stop. Error: %v", err)
 	}
 
-	if err := currency.ShutdownStorageUpdater(); err != nil {
+	err = currency.ShutdownStorageUpdater()
+	if err != nil {
 		gctlog.Errorf(gctlog.Global, "ExchangeSettings storage system. Error: %v", err)
 	}
 
@@ -865,7 +866,11 @@ func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
 		return err
 	}
 
-	bot.ExchangeManager.Add(exch)
+	err = bot.ExchangeManager.Add(exch)
+	if err != nil {
+		return err
+	}
+
 	base := exch.GetBase()
 	if base.API.AuthenticatedSupport ||
 		base.API.AuthenticatedWebsocketSupport {

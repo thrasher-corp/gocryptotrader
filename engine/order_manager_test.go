@@ -277,7 +277,10 @@ func OrdersSetup(t *testing.T) *OrderManager {
 	fakeExchange := omfExchange{
 		IBotExchange: exch,
 	}
-	em.Add(fakeExchange)
+	err = em.Add(fakeExchange)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	m, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, false, 0)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -742,7 +745,10 @@ func TestProcessOrders(t *testing.T) {
 	fakeExchange := omfExchange{
 		IBotExchange: exch,
 	}
-	em.Add(fakeExchange)
+	err = em.Add(fakeExchange)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	m, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, false, 0)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -1311,7 +1317,10 @@ func TestSubmitFakeOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	o.orderStore.exchangeManager = em
 
 	resp, err = ord.DeriveSubmitResponse("1234")
@@ -1508,7 +1517,10 @@ func TestGetOpenFuturesPosition(t *testing.T) {
 	fakeExchange := fExchange{
 		IBotExchange: exch,
 	}
-	em.Add(fakeExchange)
+	err = em.Add(fakeExchange)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	o, err = SetupOrderManager(em, &CommunicationManager{}, wg, false, true, time.Hour)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
@@ -1594,7 +1606,10 @@ func TestProcessFuturesPositions(t *testing.T) {
 	fakeExchange := fExchange{
 		IBotExchange: exch,
 	}
-	em.Add(fakeExchange)
+	err = em.Add(fakeExchange)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	var wg sync.WaitGroup
 	o, err = SetupOrderManager(em, &CommunicationManager{}, &wg, false, true, time.Hour)
 	if !errors.Is(err, nil) {

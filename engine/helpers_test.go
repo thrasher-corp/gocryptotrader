@@ -1189,7 +1189,10 @@ func TestGetExchangeNames(t *testing.T) {
 		}
 		if exch != nil {
 			exch.SetDefaults()
-			bot.ExchangeManager.Add(exch)
+			err = bot.ExchangeManager.Add(exch)
+			if !errors.Is(err, nil) {
+				t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+			}
 		}
 	}
 	if e := bot.GetExchangeNames(false); len(e) != len(bot.Config.Exchanges) {

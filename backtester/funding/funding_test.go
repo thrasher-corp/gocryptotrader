@@ -785,7 +785,10 @@ func TestUpdateCollateral(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	f.exchangeManager = em
 
 	expectedError = nil
@@ -925,7 +928,10 @@ func TestUpdateFundingFromLiveData(t *testing.T) {
 
 	ff := &binance.Binance{}
 	ff.SetDefaults()
-	f.exchangeManager.Add(ff)
+	err = f.exchangeManager.Add(ff)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	err = f.UpdateFundingFromLiveData(false)
 	if !errors.Is(err, exchange.ErrCredentialsAreEmpty) {
 		t.Errorf("received '%v', expected  '%v'", err, exchange.ErrCredentialsAreEmpty)
@@ -968,7 +974,10 @@ func TestUpdateAllCollateral(t *testing.T) {
 
 	ff := &binance.Binance{}
 	ff.SetDefaults()
-	f.exchangeManager.Add(ff)
+	err = f.exchangeManager.Add(ff)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	err = f.UpdateAllCollateral(false, false)
 	if !errors.Is(err, gctcommon.ErrNotYetImplemented) {
 		t.Errorf("received '%v', expected  '%v'", err, gctcommon.ErrNotYetImplemented)

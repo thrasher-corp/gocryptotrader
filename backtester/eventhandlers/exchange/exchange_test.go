@@ -190,7 +190,10 @@ func TestPlaceOrder(t *testing.T) {
 	exch.SetDefaults()
 	exchB := exch.GetBase()
 	exchB.States = currencystate.NewCurrencyStates()
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	bot.ExchangeManager = em
 	bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &bot.ServicesWG, false, false, 0)
 	if !errors.Is(err, nil) {
@@ -244,7 +247,10 @@ func TestExecuteOrder(t *testing.T) {
 	exch.SetDefaults()
 	exchB := exch.GetBase()
 	exchB.States = currencystate.NewCurrencyStates()
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	bot.ExchangeManager = em
 	bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &bot.ServicesWG, false, false, 0)
 	if !errors.Is(err, nil) {
@@ -364,7 +370,10 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	exch.SetDefaults()
 	exchB := exch.GetBase()
 	exchB.States = currencystate.NewCurrencyStates()
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	bot.ExchangeManager = em
 	bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &bot.ServicesWG, false, false, 0)
 	if !errors.Is(err, nil) {

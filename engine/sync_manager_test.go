@@ -70,7 +70,10 @@ func TestSyncManagerStart(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	m.exchangeManager = em
 	m.config.SynchronizeContinuously = true
 	err = m.Start()
@@ -104,7 +107,10 @@ func TestSyncManagerStop(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	m, err = setupSyncManager(&SyncManagerConfig{SynchronizeTrades: true, SynchronizeContinuously: true, FiatDisplayCurrency: currency.USD, PairFormatDisplay: &currency.EMPTYFORMAT}, em, &config.RemoteControlConfig{}, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -152,7 +158,10 @@ func TestPrintTickerSummary(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	m, err = setupSyncManager(&SyncManagerConfig{SynchronizeTrades: true, SynchronizeContinuously: true, FiatDisplayCurrency: currency.USD, PairFormatDisplay: &currency.EMPTYFORMAT}, em, &config.RemoteControlConfig{}, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -191,7 +200,10 @@ func TestPrintOrderbookSummary(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	m, err = setupSyncManager(&SyncManagerConfig{SynchronizeTrades: true, SynchronizeContinuously: true, FiatDisplayCurrency: currency.USD, PairFormatDisplay: &currency.EMPTYFORMAT}, em, &config.RemoteControlConfig{}, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)

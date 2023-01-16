@@ -1095,7 +1095,10 @@ func TestProcessFillEvent(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	b, err := funding.CreateItem(testExchange, a, cp.Base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
@@ -1202,7 +1205,10 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	b, err := funding.CreateItem(testExchange, a, cp.Base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)

@@ -153,7 +153,10 @@ func TestGetExchangeByName(t *testing.T) {
 	}
 	exch.SetDefaults()
 	exch.SetEnabled(true)
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	e := &Engine{ExchangeManager: em}
 
 	if !exch.IsEnabled() {
@@ -187,7 +190,10 @@ func TestUnloadExchange(t *testing.T) {
 	}
 	exch.SetDefaults()
 	exch.SetEnabled(true)
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	e := &Engine{ExchangeManager: em,
 		Config: &config.Config{Exchanges: []config.Exchange{{Name: testExchange}}},
 	}

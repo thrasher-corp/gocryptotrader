@@ -164,7 +164,10 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 						return err
 					}
 				}
-				bt.exchangeManager.Add(exch)
+				err = bt.exchangeManager.Add(exch)
+				if err != nil {
+					return err
+				}
 			} else {
 				return err
 			}
@@ -814,7 +817,10 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			return resp, err
 		}
 	case cfg.DataSettings.LiveData != nil:
-		bt.exchangeManager.Add(exch)
+		err = bt.exchangeManager.Add(exch)
+		if err != nil {
+			return nil, err
+		}
 		err = bt.LiveDataHandler.AppendDataSource(&liveDataSourceSetup{
 			exchange:                  exch,
 			interval:                  cfg.DataSettings.Interval,
