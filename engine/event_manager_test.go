@@ -107,7 +107,7 @@ func TestEventManagerStop(t *testing.T) {
 
 func TestEventManagerAdd(t *testing.T) {
 	t.Parallel()
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	m, err := setupEventManager(&CommunicationManager{}, em, 0, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -159,7 +159,7 @@ func TestEventManagerAdd(t *testing.T) {
 
 func TestEventManagerRemove(t *testing.T) {
 	t.Parallel()
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	m, err := setupEventManager(&CommunicationManager{}, em, 0, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -198,7 +198,7 @@ func TestEventManagerRemove(t *testing.T) {
 
 func TestGetEventCounter(t *testing.T) {
 	t.Parallel()
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	m, err := setupEventManager(&CommunicationManager{}, em, 0, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -239,7 +239,7 @@ func TestGetEventCounter(t *testing.T) {
 }
 
 func TestCheckEventCondition(t *testing.T) {
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	m, err := setupEventManager(&CommunicationManager{}, em, 0, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)

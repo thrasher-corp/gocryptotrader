@@ -146,7 +146,7 @@ func TestGetExchangeByName(t *testing.T) {
 		t.Errorf("received: %v expected: %v", err, ErrNilSubsystem)
 	}
 
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received '%v' expected '%v'", err, nil)
@@ -180,7 +180,7 @@ func TestGetExchangeByName(t *testing.T) {
 
 func TestUnloadExchange(t *testing.T) {
 	t.Parallel()
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received '%v' expected '%v'", err, nil)
@@ -211,7 +211,7 @@ func TestUnloadExchange(t *testing.T) {
 func TestDryRunParamInteraction(t *testing.T) {
 	t.Parallel()
 	bot := &Engine{
-		ExchangeManager: SetupExchangeManager(),
+		ExchangeManager: NewExchangeManager(),
 		Settings:        Settings{},
 		Config: &config.Config{
 			Exchanges: []config.Exchange{

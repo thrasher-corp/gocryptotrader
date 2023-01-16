@@ -385,7 +385,7 @@ func RPCTestSetup(t *testing.T) *Engine {
 	})
 
 	engerino.Config = &config.Config{}
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
@@ -1043,7 +1043,7 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 
 func TestSetExchangeTradeProcessing(t *testing.T) {
 	t.Parallel()
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
@@ -1161,7 +1161,7 @@ func TestGetHistoricTrades(t *testing.T) {
 
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
@@ -1186,7 +1186,7 @@ func TestGetAccountInfo(t *testing.T) {
 
 func TestUpdateAccountInfo(t *testing.T) {
 	t.Parallel()
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
@@ -1227,7 +1227,7 @@ func TestGetOrders(t *testing.T) {
 	t.Parallel()
 	exchName := "Binance"
 	engerino := &Engine{}
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(exchName)
 	if err != nil {
 		t.Fatal(err)
@@ -1334,7 +1334,7 @@ func TestGetOrder(t *testing.T) {
 	t.Parallel()
 	exchName := "Binance"
 	engerino := &Engine{}
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(exchName)
 	if err != nil {
 		t.Fatal(err)
@@ -1583,7 +1583,7 @@ func TestParseEvents(t *testing.T) {
 func TestRPCServerUpsertDataHistoryJob(t *testing.T) {
 	t.Parallel()
 	m, _ := createDHM(t)
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
@@ -1867,7 +1867,7 @@ func TestGetDataHistoryJobSummary(t *testing.T) {
 func TestGetManagedOrders(t *testing.T) {
 	exchName := "Binance"
 	engerino := &Engine{}
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(exchName)
 	if err != nil {
 		t.Fatal(err)
@@ -2163,7 +2163,7 @@ func TestCurrencyStateTrading(t *testing.T) {
 
 func TestCurrencyStateTradingPair(t *testing.T) {
 	t.Parallel()
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
@@ -2204,7 +2204,7 @@ func TestCurrencyStateTradingPair(t *testing.T) {
 
 func TestGetFuturesPositions(t *testing.T) {
 	t.Parallel()
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName("ftx")
 	if err != nil {
 		t.Fatal(err)
@@ -2340,7 +2340,7 @@ func TestGetFuturesPositions(t *testing.T) {
 
 func TestGetCollateral(t *testing.T) {
 	t.Parallel()
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
@@ -2461,7 +2461,7 @@ func TestShutdown(t *testing.T) {
 func TestGetTechnicalAnalysis(t *testing.T) {
 	t.Parallel()
 
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
@@ -2732,7 +2732,7 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 
 func TestGetMarginRatesHistory(t *testing.T) {
 	t.Parallel()
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
@@ -2870,7 +2870,7 @@ func TestGetMarginRatesHistory(t *testing.T) {
 
 func TestGetFundingRates(t *testing.T) {
 	t.Parallel()
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName("ftx")
 	if err != nil {
 		t.Fatal(err)
@@ -2962,7 +2962,7 @@ func TestGetFundingRates(t *testing.T) {
 
 func TestGetManagedPosition(t *testing.T) {
 	t.Parallel()
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName("ftx")
 	if err != nil {
 		t.Fatal(err)
@@ -3100,7 +3100,7 @@ func TestGetManagedPosition(t *testing.T) {
 
 func TestGetAllManagedPositions(t *testing.T) {
 	t.Parallel()
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName("ftx")
 	if err != nil {
 		t.Fatal(err)
@@ -3207,7 +3207,7 @@ func TestGetAllManagedPositions(t *testing.T) {
 
 func TestGetOrderbookMovement(t *testing.T) {
 	t.Parallel()
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName("ftx")
 	if err != nil {
 		t.Fatal(err)
@@ -3314,7 +3314,7 @@ func TestGetOrderbookMovement(t *testing.T) {
 
 func TestGetOrderbookAmountByNominal(t *testing.T) {
 	t.Parallel()
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName("ftx")
 	if err != nil {
 		t.Fatal(err)
@@ -3414,7 +3414,7 @@ func TestGetOrderbookAmountByNominal(t *testing.T) {
 
 func TestGetOrderbookAmountByImpact(t *testing.T) {
 	t.Parallel()
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName("ftx")
 	if err != nil {
 		t.Fatal(err)

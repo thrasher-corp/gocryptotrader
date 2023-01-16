@@ -11,9 +11,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
-func TestSetupExchangeManager(t *testing.T) {
+func TestNewExchangeManager(t *testing.T) {
 	t.Parallel()
-	m := SetupExchangeManager()
+	m := NewExchangeManager()
 	if m == nil { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Fatalf("unexpected response")
 	}
@@ -24,10 +24,13 @@ func TestSetupExchangeManager(t *testing.T) {
 
 func TestExchangeManagerAdd(t *testing.T) {
 	t.Parallel()
-	m := SetupExchangeManager()
+	m := NewExchangeManager()
 	b := new(bitfinex.Bitfinex)
 	b.SetDefaults()
-	m.Add(b)
+	err := m.Add(b)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	exchanges, err := m.GetExchanges()
 	if err != nil {
 		t.Error("no exchange manager found")
@@ -39,7 +42,7 @@ func TestExchangeManagerAdd(t *testing.T) {
 
 func TestExchangeManagerGetExchanges(t *testing.T) {
 	t.Parallel()
-	m := SetupExchangeManager()
+	m := NewExchangeManager()
 	exchanges, err := m.GetExchanges()
 	if err != nil {
 		t.Error("no exchange manager found")
@@ -49,7 +52,10 @@ func TestExchangeManagerGetExchanges(t *testing.T) {
 	}
 	b := new(bitfinex.Bitfinex)
 	b.SetDefaults()
-	m.Add(b)
+	err = m.Add(b)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	exchanges, err = m.GetExchanges()
 	if err != nil {
 		t.Error("no exchange manager found")
@@ -61,27 +67,35 @@ func TestExchangeManagerGetExchanges(t *testing.T) {
 
 func TestExchangeManagerRemoveExchange(t *testing.T) {
 	t.Parallel()
-	m := SetupExchangeManager()
-	if err := m.RemoveExchange("Bitfinex"); err != ErrNoExchangesLoaded {
-		t.Error("no exchanges should be loaded")
+	m := NewExchangeManager()
+	err := m.RemoveExchange("Bitfinex")
+	if !errors.Is(err, ErrNoExchangesLoaded) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNoExchangesLoaded)
 	}
 	b := new(bitfinex.Bitfinex)
 	b.SetDefaults()
-	m.Add(b)
-	err := m.RemoveExchange("Bitstamp")
+	err = m.Add(b)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	err = m.RemoveExchange("Bitstamp")
 	if !errors.Is(err, ErrExchangeNotFound) {
 		t.Errorf("received: %v but expected: %v", err, ErrExchangeNotFound)
 	}
-	if err := m.RemoveExchange("BiTFiNeX"); err != nil {
-		t.Error("exchange should have been removed")
+
+	err = m.RemoveExchange("BiTFiNeX")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
+
 	if m.Len() != 0 {
 		t.Error("exchange manager len should be 0")
 	}
 }
 
 func TestNewExchangeByName(t *testing.T) {
-	m := SetupExchangeManager()
+	m := NewExchangeManager()
 	exchanges := []string{"binanceus", "binance", "bitfinex", "bitflyer", "bithumb", "bitmex", "bitstamp", "bittrex", "btc markets", "btse", "bybit", "coinut", "exmo", "coinbasepro", "ftx", "gateio", "gemini", "hitbtc", "huobi", "itbit", "kraken", "lbank", "localbitcoins", "okcoin international", "okx", "poloniex", "yobit", "zb", "fake"}
 	for i := range exchanges {
 		exch, err := m.NewExchangeByName(exchanges[i])
@@ -113,7 +127,7 @@ func (n ExchangeBuilder) NewExchangeByName(name string) (exchange.IBotExchange, 
 }
 
 func TestNewCustomExchangeByName(t *testing.T) {
-	m := SetupExchangeManager()
+	m := NewExchangeManager()
 	m.Builder = ExchangeBuilder{}
 	name := "customex"
 	exch, err := m.NewExchangeByName(name)

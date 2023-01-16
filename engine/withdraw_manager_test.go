@@ -22,7 +22,7 @@ const (
 
 func withdrawManagerTestHelper(t *testing.T) (*ExchangeManager, *portfolioManager) {
 	t.Helper()
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	b := new(binance.Binance)
 	b.SetDefaults()
 	cfg, err := b.GetDefaultConfig()

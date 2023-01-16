@@ -30,7 +30,7 @@ func TestCreateUSDTrackingPairs(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, errExchangeManagerRequired)
 	}
 
-	em := engine.SetupExchangeManager()
+	em := engine.NewExchangeManager()
 	_, err = CreateUSDTrackingPairs([]TrackingPair{{Exchange: eName}}, em)
 	if !errors.Is(err, engine.ErrExchangeNotFound) {
 		t.Errorf("received '%v' expected '%v'", err, engine.ErrExchangeNotFound)

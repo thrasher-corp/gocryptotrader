@@ -324,7 +324,7 @@ func TestLoadDataLive(t *testing.T) {
 		Funding:         &funding.FundManager{},
 		DataHolder:      &data.HandlerHolder{},
 		Statistic:       &fakeStats{},
-		exchangeManager: engine.SetupExchangeManager(),
+		exchangeManager: engine.NewExchangeManager(),
 		shutdown:        make(chan struct{}),
 	}
 
@@ -1089,7 +1089,7 @@ func TestProcessFillEvent(t *testing.T) {
 	ev := &fill.Fill{
 		Base: de.Base,
 	}
-	em := engine.SetupExchangeManager()
+	em := engine.NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
@@ -1196,7 +1196,7 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 	ev := &fill.Fill{
 		Base: de.Base,
 	}
-	em := engine.SetupExchangeManager()
+	em := engine.NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)

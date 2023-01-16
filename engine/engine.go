@@ -114,7 +114,7 @@ func NewFromSettings(settings *Settings, flagSet map[string]bool) (*Engine, erro
 		return nil, fmt.Errorf("failed to create script manager. Err: %w", err)
 	}
 
-	b.ExchangeManager = SetupExchangeManager()
+	b.ExchangeManager = NewExchangeManager()
 
 	validateSettings(&b, settings, flagSet)
 
@@ -713,12 +713,17 @@ func (bot *Engine) Stop() {
 		}
 	}
 
+	err := bot.ExchangeManager.Shutdown()
+	if err != nil {
+		gctlog.Errorf(gctlog.Global, "Exchange manager unable to stop. Error: %v", err)
+	}
+
 	if err := currency.ShutdownStorageUpdater(); err != nil {
 		gctlog.Errorf(gctlog.Global, "ExchangeSettings storage system. Error: %v", err)
 	}
 
 	if !bot.Settings.EnableDryRun {
-		err := bot.Config.SaveConfigToFile(bot.Settings.ConfigFile)
+		err = bot.Config.SaveConfigToFile(bot.Settings.ConfigFile)
 		if err != nil {
 			gctlog.Errorln(gctlog.Global, "Unable to save config.")
 		} else {

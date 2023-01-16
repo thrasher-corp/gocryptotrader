@@ -64,7 +64,7 @@ func TestSyncManagerStart(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName("Bitstamp")
 	if err != nil {
 		t.Fatal(err)
@@ -98,7 +98,7 @@ func TestSyncManagerStop(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
 	}
 
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName("Bitstamp")
 	if err != nil {
 		t.Fatal(err)
@@ -146,7 +146,7 @@ func TestPrintTickerSummary(t *testing.T) {
 	var m *syncManager
 	m.PrintTickerSummary(&ticker.Price{}, "REST", nil)
 
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName("Bitstamp")
 	if err != nil {
 		t.Fatal(err)
@@ -185,7 +185,7 @@ func TestPrintOrderbookSummary(t *testing.T) {
 	var m *syncManager
 	m.PrintOrderbookSummary(nil, "REST", nil)
 
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName("Bitstamp")
 	if err != nil {
 		t.Fatal(err)

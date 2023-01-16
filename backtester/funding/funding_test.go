@@ -779,7 +779,7 @@ func TestUpdateCollateral(t *testing.T) {
 		currency:  currency.BTC,
 		available: decimal.NewFromInt(1336),
 	})
-	em := engine.SetupExchangeManager()
+	em := engine.NewExchangeManager()
 	exch, err := em.NewExchangeByName(exchName)
 	if err != nil {
 		t.Fatal(err)
@@ -917,7 +917,7 @@ func TestUpdateFundingFromLiveData(t *testing.T) {
 		t.Errorf("received '%v', expected  '%v'", err, engine.ErrNilSubsystem)
 	}
 
-	f.exchangeManager = engine.SetupExchangeManager()
+	f.exchangeManager = engine.NewExchangeManager()
 	err = f.UpdateFundingFromLiveData(false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected  '%v'", err, nil)
@@ -960,7 +960,7 @@ func TestUpdateAllCollateral(t *testing.T) {
 		t.Errorf("received '%v', expected  '%v'", err, engine.ErrNilSubsystem)
 	}
 
-	f.exchangeManager = engine.SetupExchangeManager()
+	f.exchangeManager = engine.NewExchangeManager()
 	err = f.UpdateAllCollateral(false, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected  '%v'", err, nil)

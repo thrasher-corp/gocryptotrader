@@ -201,7 +201,7 @@ func setupEngine() (err error) {
 		return err
 	}
 
-	em := engine.SetupExchangeManager()
+	em := engine.NewExchangeManager()
 	engine.Bot.ExchangeManager = em
 
 	return engine.Bot.LoadExchange(exchName, nil)

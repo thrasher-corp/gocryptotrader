@@ -59,7 +59,7 @@ func CreateTestBot(t *testing.T) *Engine {
 		},
 	}
 	bot := &Engine{
-		ExchangeManager: SetupExchangeManager(),
+		ExchangeManager: NewExchangeManager(),
 		Config: &config.Config{Exchanges: []config.Exchange{
 			{
 				Name:                    testExchange,

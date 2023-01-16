@@ -56,7 +56,7 @@ func NewBacktester() (*BackTest, error) {
 	if err != nil {
 		return nil, err
 	}
-	bt.exchangeManager = engine.SetupExchangeManager()
+	bt.exchangeManager = engine.NewExchangeManager()
 
 	return bt, nil
 }

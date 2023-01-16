@@ -182,7 +182,7 @@ func TestPlaceOrder(t *testing.T) {
 	t.Parallel()
 	bot := &engine.Engine{}
 	var err error
-	em := engine.SetupExchangeManager()
+	em := engine.NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
@@ -236,7 +236,7 @@ func TestExecuteOrder(t *testing.T) {
 	t.Parallel()
 	bot := &engine.Engine{}
 	var err error
-	em := engine.SetupExchangeManager()
+	em := engine.NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
@@ -356,7 +356,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	t.Parallel()
 	bot := &engine.Engine{}
 	var err error
-	em := engine.SetupExchangeManager()
+	em := engine.NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)

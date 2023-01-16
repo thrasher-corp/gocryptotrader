@@ -25,7 +25,7 @@ func main() {
 	}
 
 	engine.Bot.Config.PurgeExchangeAPICredentials()
-	engine.Bot.ExchangeManager = engine.SetupExchangeManager()
+	engine.Bot.ExchangeManager = engine.NewExchangeManager()
 
 	log.Printf("Loading exchanges..")
 	var wg sync.WaitGroup

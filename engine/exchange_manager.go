@@ -33,6 +33,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okcoin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okx"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/poloniex"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/yobit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/zb"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -45,6 +46,8 @@ var (
 	ErrExchangeAlreadyLoaded = errors.New("exchange already loaded")
 	ErrExchangeFailedToLoad  = errors.New("exchange failed to load")
 	ErrExchangeNameIsEmpty   = errors.New("exchange name is empty")
+
+	errExchangeIsNil = errors.New("exchange is nil")
 )
 
 // CustomExchangeBuilder interface allows external applications to create
@@ -55,26 +58,34 @@ type CustomExchangeBuilder interface {
 
 // ExchangeManager manages what exchanges are loaded
 type ExchangeManager struct {
-	m         sync.Mutex
+	mtx       sync.Mutex
 	exchanges map[string]exchange.IBotExchange
 	Builder   CustomExchangeBuilder
 }
 
-// SetupExchangeManager creates a new exchange manager
-func SetupExchangeManager() *ExchangeManager {
+// NewExchangeManager creates a new exchange manager
+func NewExchangeManager() *ExchangeManager {
 	return &ExchangeManager{
 		exchanges: make(map[string]exchange.IBotExchange),
 	}
 }
 
-// Add adds or replaces an exchange
-func (m *ExchangeManager) Add(exch exchange.IBotExchange) {
-	if exch == nil {
-		return
+// Add adds an exchange
+func (m *ExchangeManager) Add(exch exchange.IBotExchange) error {
+	if m == nil {
+		return fmt.Errorf("exchange manager: %w", ErrNilSubsystem)
 	}
-	m.m.Lock()
+	if exch == nil {
+		return errExchangeIsNil
+	}
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	_, ok := m.exchanges[strings.ToLower(exch.GetName())]
+	if ok {
+		return errors.New("exchange already loaded")
+	}
 	m.exchanges[strings.ToLower(exch.GetName())] = exch
-	m.m.Unlock()
+	return nil
 }
 
 // GetExchanges returns all stored exchanges
@@ -82,32 +93,46 @@ func (m *ExchangeManager) GetExchanges() ([]exchange.IBotExchange, error) {
 	if m == nil {
 		return nil, fmt.Errorf("exchange manager: %w", ErrNilSubsystem)
 	}
-	m.m.Lock()
-	defer m.m.Unlock()
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
 	exchs := make([]exchange.IBotExchange, 0, len(m.exchanges))
-	for _, x := range m.exchanges {
-		exchs = append(exchs, x)
+	for _, exch := range m.exchanges {
+		exchs = append(exchs, exch)
 	}
 	return exchs, nil
 }
 
 // RemoveExchange removes an exchange from the manager
-func (m *ExchangeManager) RemoveExchange(exchName string) error {
+func (m *ExchangeManager) RemoveExchange(exchangeName string) error {
+	if m == nil {
+		return fmt.Errorf("exchange manager: %w", ErrNilSubsystem)
+	}
 	if m.Len() == 0 {
 		return ErrNoExchangesLoaded
 	}
-	exch, err := m.GetExchangeByName(exchName)
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	exch, err := m.getExchangeByName(exchangeName)
 	if err != nil {
 		return err
 	}
-	m.m.Lock()
-	defer m.m.Unlock()
+	return m.unload(exchangeName, exch)
+}
+
+// unload shutsdown and cleans up exchange and removes its reference from memory
+// NOTE: This requires a lock.
+func (m *ExchangeManager) unload(name string, exch exchange.IBotExchange) error {
+	err := exch.GetBase().Websocket.Shutdown()
+	if err != nil && !errors.Is(err, stream.ErrNotConnected) {
+		return err
+	}
 	err = exch.GetBase().Requester.Shutdown()
 	if err != nil {
 		return err
 	}
-	delete(m.exchanges, strings.ToLower(exchName))
-	log.Infof(log.ExchangeSys, "%s exchange unloaded successfully.\n", exchName)
+	delete(m.exchanges, strings.ToLower(name))
+	log.Infof(log.ExchangeSys, "%s exchange unloaded successfully.\n", name)
+
 	return nil
 }
 
@@ -116,22 +141,31 @@ func (m *ExchangeManager) GetExchangeByName(exchangeName string) (exchange.IBotE
 	if m == nil {
 		return nil, fmt.Errorf("exchange manager: %w", ErrNilSubsystem)
 	}
-	if exchangeName == "" {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	return m.getExchangeByName(exchangeName)
+}
+
+// getExchangeByName finds and returns an exchange by its name.
+// NOTE: This requires a mutex lock.
+func (m *ExchangeManager) getExchangeByName(exchName string) (exchange.IBotExchange, error) {
+	if exchName == "" {
 		return nil, fmt.Errorf("exchange manager: %w", ErrExchangeNameIsEmpty)
 	}
-	m.m.Lock()
-	defer m.m.Unlock()
-	exch, ok := m.exchanges[strings.ToLower(exchangeName)]
+	exch, ok := m.exchanges[strings.ToLower(exchName)]
 	if !ok {
-		return nil, fmt.Errorf("%s %w", exchangeName, ErrExchangeNotFound)
+		return nil, fmt.Errorf("%s %w", exchName, ErrExchangeNotFound)
 	}
 	return exch, nil
 }
 
 // Len says how many exchanges are loaded
 func (m *ExchangeManager) Len() int {
-	m.m.Lock()
-	defer m.m.Unlock()
+	if m == nil {
+		return 0
+	}
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
 	return len(m.exchanges)
 }
 
@@ -210,4 +244,21 @@ func (m *ExchangeManager) NewExchangeByName(name string) (exchange.IBotExchange,
 		return nil, fmt.Errorf("%s, %w", nameLower, ErrExchangeNotFound)
 	}
 	return exch, nil
+}
+
+// Shutdown shuts down all exchanges and unloads them
+func (m *ExchangeManager) Shutdown() error {
+	if m == nil {
+		return fmt.Errorf("exchange manager %w", ErrNilSubsystem)
+	}
+
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	for _, exch := range m.exchanges {
+		err := m.unload(exch.GetName(), exch)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

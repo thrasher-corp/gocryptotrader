@@ -190,7 +190,7 @@ func TestIsWebsocketServerRunning(t *testing.T) {
 }
 
 func TestGetAllActiveOrderbooks(t *testing.T) {
-	man := SetupExchangeManager()
+	man := NewExchangeManager()
 	bs, err := man.NewExchangeByName("Bitstamp")
 	if err != nil {
 		t.Fatal(err)
@@ -205,7 +205,7 @@ func TestGetAllActiveOrderbooks(t *testing.T) {
 
 func TestGetAllActiveTickers(t *testing.T) {
 	t.Parallel()
-	man := SetupExchangeManager()
+	man := NewExchangeManager()
 	bs, err := man.NewExchangeByName("Bitstamp")
 	if err != nil {
 		t.Fatal(err)
@@ -220,7 +220,7 @@ func TestGetAllActiveTickers(t *testing.T) {
 
 func TestGetAllActiveAccounts(t *testing.T) {
 	t.Parallel()
-	man := SetupExchangeManager()
+	man := NewExchangeManager()
 	bs, err := man.NewExchangeByName("Bitstamp")
 	if err != nil {
 		t.Fatal(err)

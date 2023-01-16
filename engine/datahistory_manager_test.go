@@ -31,17 +31,17 @@ func TestSetupDataHistoryManager(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, errNilConfig)
 	}
 
-	_, err = SetupDataHistoryManager(SetupExchangeManager(), nil, nil)
+	_, err = SetupDataHistoryManager(NewExchangeManager(), nil, nil)
 	if !errors.Is(err, errNilDatabaseConnectionManager) {
 		t.Errorf("error '%v', expected '%v'", err, errNilDatabaseConnectionManager)
 	}
 
-	_, err = SetupDataHistoryManager(SetupExchangeManager(), &DatabaseConnectionManager{}, nil)
+	_, err = SetupDataHistoryManager(NewExchangeManager(), &DatabaseConnectionManager{}, nil)
 	if !errors.Is(err, errNilConfig) {
 		t.Errorf("error '%v', expected '%v'", err, errNilConfig)
 	}
 
-	_, err = SetupDataHistoryManager(SetupExchangeManager(), &DatabaseConnectionManager{}, &config.DataHistoryManager{})
+	_, err = SetupDataHistoryManager(NewExchangeManager(), &DatabaseConnectionManager{}, &config.DataHistoryManager{})
 	if !errors.Is(err, database.ErrNilInstance) {
 		t.Errorf("error '%v', expected '%v'", err, database.ErrNilInstance)
 	}
@@ -60,7 +60,7 @@ func TestSetupDataHistoryManager(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	m, err := SetupDataHistoryManager(SetupExchangeManager(), dbCM, &config.DataHistoryManager{})
+	m, err := SetupDataHistoryManager(NewExchangeManager(), dbCM, &config.DataHistoryManager{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -924,7 +924,7 @@ func TestConverters(t *testing.T) {
 // test helper functions
 func createDHM(t *testing.T) (*DataHistoryManager, *datahistoryjob.DataHistoryJob) {
 	t.Helper()
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if !errors.Is(err, nil) {
 		t.Fatalf("error '%v', expected '%v'", err, nil)
@@ -1029,7 +1029,7 @@ func TestProcessCandleData(t *testing.T) {
 		t.Errorf("received %v expected %v", err, ErrExchangeNotFound)
 	}
 
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -1085,7 +1085,7 @@ func TestProcessTradeData(t *testing.T) {
 		t.Errorf("received %v expected %v", err, ErrExchangeNotFound)
 	}
 
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -1204,7 +1204,7 @@ func TestValidateCandles(t *testing.T) {
 		t.Errorf("received %v expected %v", err, ErrExchangeNotFound)
 	}
 
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)

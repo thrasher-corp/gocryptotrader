@@ -160,24 +160,24 @@ func TestSetupOrderManager(t *testing.T) {
 	if !errors.Is(err, errNilExchangeManager) {
 		t.Errorf("error '%v', expected '%v'", err, errNilExchangeManager)
 	}
-	_, err = SetupOrderManager(SetupExchangeManager(), nil, nil, false, false, 0)
+	_, err = SetupOrderManager(NewExchangeManager(), nil, nil, false, false, 0)
 	if !errors.Is(err, errNilCommunicationsManager) {
 		t.Errorf("error '%v', expected '%v'", err, errNilCommunicationsManager)
 	}
-	_, err = SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, nil, false, false, 0)
+	_, err = SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, nil, false, false, 0)
 	if !errors.Is(err, errNilWaitGroup) {
 		t.Errorf("error '%v', expected '%v'", err, errNilWaitGroup)
 	}
 	var wg sync.WaitGroup
-	_, err = SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, &wg, false, false, 0)
+	_, err = SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, &wg, false, false, 0)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	_, err = SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, &wg, false, true, 0)
+	_, err = SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, &wg, false, true, 0)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	_, err = SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, &wg, false, true, 1337)
+	_, err = SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, &wg, false, true, 1337)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -190,7 +190,7 @@ func TestOrderManagerStart(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
 	}
 	var wg sync.WaitGroup
-	m, err = SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, &wg, false, false, 0)
+	m, err = SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, &wg, false, false, 0)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -211,7 +211,7 @@ func TestOrderManagerIsRunning(t *testing.T) {
 	}
 
 	var wg sync.WaitGroup
-	m, err := SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, &wg, false, false, 0)
+	m, err := SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, &wg, false, false, 0)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -236,7 +236,7 @@ func TestOrderManagerStop(t *testing.T) {
 	}
 
 	var wg sync.WaitGroup
-	m, err = SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, &wg, false, false, 0)
+	m, err = SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, &wg, false, false, 0)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -258,7 +258,7 @@ func TestOrderManagerStop(t *testing.T) {
 func OrdersSetup(t *testing.T) *OrderManager {
 	t.Helper()
 	var wg sync.WaitGroup
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
@@ -733,7 +733,7 @@ func TestOrderManager_Modify(t *testing.T) {
 
 func TestProcessOrders(t *testing.T) {
 	var wg sync.WaitGroup
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
@@ -1305,7 +1305,7 @@ func TestSubmitFakeOrder(t *testing.T) {
 	ord.Side = order.Buy
 	ord.Type = order.Market
 	ord.Amount = 1337
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
@@ -1436,7 +1436,7 @@ func TestOrderManagerAdd(t *testing.T) {
 func TestGetAllOpenFuturesPositions(t *testing.T) {
 	t.Parallel()
 	wg := &sync.WaitGroup{}
-	o, err := SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, wg, false, false, time.Hour)
+	o, err := SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, wg, false, false, time.Hour)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -1464,7 +1464,7 @@ func TestGetAllOpenFuturesPositions(t *testing.T) {
 func TestGetOpenFuturesPosition(t *testing.T) {
 	t.Parallel()
 	wg := &sync.WaitGroup{}
-	o, err := SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, wg, false, false, time.Hour)
+	o, err := SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, wg, false, false, time.Hour)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -1481,7 +1481,7 @@ func TestGetOpenFuturesPosition(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, order.ErrNotFuturesAsset)
 	}
 
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName("ftx")
 	if err != nil {
 		t.Fatal(err)
@@ -1557,7 +1557,7 @@ func TestProcessFuturesPositions(t *testing.T) {
 	if !errors.Is(err, errFuturesTrackingDisabled) {
 		t.Errorf("received '%v', expected '%v'", err, errFuturesTrackingDisabled)
 	}
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName("ftx")
 	if err != nil {
 		t.Fatal(err)
