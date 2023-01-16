@@ -407,7 +407,7 @@ func (ku *Kucoin) FetchOrderbook(ctx context.Context, pair currency.Pair, assetT
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (ku *Kucoin) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	err := ku.IsAssetTypeEnabled(assetType)
+	err := ku.CurrencyPairs.IsAssetEnabled(assetType)
 	if err != nil {
 		return nil, err
 	}
@@ -454,7 +454,7 @@ func (ku *Kucoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 	holding := account.Holdings{
 		Exchange: ku.Name,
 	}
-	err := ku.IsAssetTypeEnabled(assetType)
+	err := ku.CurrencyPairs.IsAssetEnabled(assetType)
 	if err != nil {
 		return holding, asset.ErrNotSupported
 	}
@@ -553,7 +553,7 @@ func (ku *Kucoin) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 
 // GetWithdrawalsHistory returns previous withdrawals data
 func (ku *Kucoin) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
-	err := ku.IsAssetTypeEnabled(a)
+	err := ku.CurrencyPairs.IsAssetEnabled(a)
 	if err != nil {
 		return nil, err
 	}
@@ -670,11 +670,11 @@ func (ku *Kucoin) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.
 
 // SubmitOrder submits a new order
 func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	err := ku.IsAssetTypeEnabled(s.AssetType)
+	err := s.Validate()
 	if err != nil {
 		return nil, err
 	}
-	err = s.Validate()
+	err = ku.CurrencyPairs.IsAssetEnabled(s.AssetType)
 	if err != nil {
 		return nil, err
 	}
@@ -727,7 +727,7 @@ func (ku *Kucoin) ModifyOrder(ctx context.Context, action *order.Modify) (*order
 
 // CancelOrder cancels an order by its corresponding ID number
 func (ku *Kucoin) CancelOrder(ctx context.Context, ord *order.Cancel) error {
-	err := ku.IsAssetTypeEnabled(ord.AssetType)
+	err := ku.CurrencyPairs.IsAssetEnabled(ord.AssetType)
 	if err != nil {
 		return err
 	}
@@ -765,7 +765,7 @@ func (ku *Kucoin) CancelBatchOrders(ctx context.Context, orders []order.Cancel) 
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (ku *Kucoin) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
-	if err := ku.IsAssetTypeEnabled(orderCancellation.AssetType); err != nil {
+	if err := ku.CurrencyPairs.IsAssetEnabled(orderCancellation.AssetType); err != nil {
 		return order.CancelAllResponse{}, err
 	}
 	result := order.CancelAllResponse{}
@@ -811,7 +811,7 @@ func (ku *Kucoin) CancelAllOrders(ctx context.Context, orderCancellation *order.
 
 // GetOrderInfo returns order information based on order ID
 func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
-	if err := ku.IsAssetTypeEnabled(assetType); err != nil {
+	if err := ku.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return order.Detail{}, err
 	}
 	switch assetType {
@@ -943,7 +943,7 @@ func (ku *Kucoin) WithdrawFiatFundsToInternationalBank(ctx context.Context, with
 
 // GetActiveOrders retrieves any orders that are active/open
 func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
-	err := ku.IsAssetTypeEnabled(getOrdersRequest.AssetType)
+	err := ku.CurrencyPairs.IsAssetEnabled(getOrdersRequest.AssetType)
 	if err != nil {
 		return nil, err
 	}
@@ -1069,7 +1069,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
-	err := ku.IsAssetTypeEnabled(getOrdersRequest.AssetType)
+	err := ku.CurrencyPairs.IsAssetEnabled(getOrdersRequest.AssetType)
 	if err != nil {
 		return nil, err
 	}
@@ -1239,7 +1239,7 @@ func (ku *Kucoin) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuil
 
 // ValidateCredentials validates current credentials used for wrapper
 func (ku *Kucoin) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
-	err := ku.IsAssetTypeEnabled(assetType)
+	err := ku.CurrencyPairs.IsAssetEnabled(assetType)
 	if err != nil {
 		return err
 	}

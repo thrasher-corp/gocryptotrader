@@ -958,10 +958,10 @@ type WsOrderbook struct {
 
 // WsLevel2Orderbook represents orderbook information.
 type WsLevel2Orderbook struct {
-	Asks   [][2]string `json:"asks"`
-	Bids   [][2]string `json:"bids"`
-	Symbol string      `json:"symbol"`
-	TimeMS int64       `json:"time"`
+	Asks   [][2]string        `json:"asks"`
+	Bids   [][2]string        `json:"bids"`
+	Symbol string             `json:"symbol"`
+	TimeMS kucoinTimeMilliSec `json:"time"`
 }
 
 // WsCandlestickData represents candlestick information push data for a symbol.

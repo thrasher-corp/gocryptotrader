@@ -356,30 +356,6 @@ func TestGetAssetTypes(t *testing.T) {
 	}
 }
 
-func TestIsAssetTypeEnabled(t *testing.T) {
-	t.Parallel()
-	assetEnabled := new(currency.PairStore)
-	assetEnabled.AssetEnabled = &[]bool{true}[0]
-	testExchange := Base{
-		CurrencyPairs: currency.PairsManager{
-			Pairs: map[asset.Item]*currency.PairStore{
-				asset.Spot:    assetEnabled,
-				asset.Binary:  new(currency.PairStore),
-				asset.Futures: new(currency.PairStore),
-			},
-		},
-	}
-	if testExchange.IsAssetTypeEnabled(asset.Spot) != nil {
-		t.Error("TestIsAssetTypeEnabled failed")
-	}
-	if testExchange.IsAssetTypeEnabled(asset.Futures) == nil {
-		t.Error("TestIsAssetTypeEnabled failed")
-	}
-	if testExchange.IsAssetTypeEnabled(asset.Margin) == nil {
-		t.Error("TestIsAssetTypeEnabled failed")
-	}
-}
-
 func TestGetClientBankAccounts(t *testing.T) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig(config.TestFile, true)
@@ -2666,43 +2642,5 @@ func TestSetRequester(t *testing.T) {
 
 	if b.Requester == nil {
 		t.Fatal("requester not set correctly")
-	}
-}
-
-func TestGetCollateralCurrencyForContract(t *testing.T) {
-	t.Parallel()
-	b := Base{}
-	_, _, err := b.GetCollateralCurrencyForContract(asset.Futures, currency.NewPair(currency.XRP, currency.BABYDOGE))
-	if !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNotYetImplemented)
-	}
-}
-
-func TestGetCurrencyForRealisedPNL(t *testing.T) {
-	t.Parallel()
-	b := Base{}
-	_, _, err := b.GetCurrencyForRealisedPNL(asset.Empty, currency.EMPTYPAIR)
-	if !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNotYetImplemented)
-	}
-}
-
-func TestHasAssetTypeAccountSegregation(t *testing.T) {
-	t.Parallel()
-	b := Base{
-		Name: "RAWR",
-		Features: Features{
-			Supports: FeaturesSupported{
-				REST: true,
-				RESTCapabilities: protocol.Features{
-					HasAssetTypeAccountSegregation: true,
-				},
-			},
-		},
-	}
-
-	has := b.HasAssetTypeAccountSegregation()
-	if !has {
-		t.Errorf("expected '%v' received '%v'", true, false)
 	}
 }

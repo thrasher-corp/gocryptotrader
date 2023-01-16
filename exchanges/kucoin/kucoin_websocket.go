@@ -738,7 +738,7 @@ func (ku *Kucoin) processOrderbookWithDepth(respData []byte, instrument string) 
 	base := orderbook.Base{
 		Exchange:        ku.Name,
 		VerifyOrderbook: ku.CanVerifyOrderbook,
-		LastUpdated:     time.UnixMilli(response.TimeMS),
+		LastUpdated:     response.TimeMS.Time(),
 		Pair:            pair,
 		Asset:           asset.Spot,
 	}
@@ -884,7 +884,7 @@ func (ku *Kucoin) handleSubscriptions(subscriptions []stream.ChannelSubscription
 				return err
 			}
 			if info.Type == "ack" {
-				if err = ku.IsAssetTypeEnabled(ku.getChannelsAssetType(subscriptions[x].Channel)); err != nil {
+				if err = ku.CurrencyPairs.IsAssetEnabled(ku.getChannelsAssetType(subscriptions[x].Channel)); err != nil {
 					if ku.Verbose {
 						log.Debug(log.ExchangeSys, fmt.Sprintf("asset type %v is enabled", subscriptions[x].Asset))
 					}
