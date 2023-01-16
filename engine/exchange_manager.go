@@ -119,14 +119,16 @@ func (m *ExchangeManager) RemoveExchange(exchangeName string) error {
 	return m.unload(exchangeName, exch)
 }
 
-// unload shutsdown and cleans up exchange and removes its reference from memory
+// unload shuts down and cleans up exchange and removes its reference from memory
 // NOTE: This requires a lock.
 func (m *ExchangeManager) unload(name string, exch exchange.IBotExchange) error {
-	err := exch.GetBase().Websocket.Shutdown()
-	if err != nil && !errors.Is(err, stream.ErrNotConnected) {
-		return err
+	if exch.GetBase().Websocket != nil {
+		err := exch.GetBase().Websocket.Shutdown()
+		if err != nil && !errors.Is(err, stream.ErrNotConnected) {
+			return err
+		}
 	}
-	err = exch.GetBase().Requester.Shutdown()
+	err := exch.GetBase().Requester.Shutdown()
 	if err != nil {
 		return err
 	}
