@@ -1322,6 +1322,44 @@
    ]
   },
   {
+    "name": "Cryptodotcom",
+    "enabled": true,
+    "verbose": false,
+    "httpTimeout": 0,
+    "websocketResponseCheckTimeout": 0,
+    "websocketResponseMaxLimit": 0,
+    "websocketTrafficTimeout": 0,
+    "baseCurrencies": "",
+    "currencyPairs": {
+     "bypassConfigFormatUpgrades": false,
+     "requestFormat": {
+      "uppercase": true
+     },
+     "configFormat": {
+      "uppercase": true,
+      "delimiter": "-"
+     },
+     "useGlobalFormat": true,
+     "pairs": {}
+    },
+    "api": {
+     "authenticatedSupport": false,
+     "authenticatedWebsocketApiSupport": false,
+     "credentials": {
+      "key": "Key",
+      "secret": "Secret"
+     },
+     "urlEndpoints": null
+    },
+    "features": null,
+    "orderbook": {
+     "verificationBypass": false,
+     "websocketBufferLimit": 0,
+     "websocketBufferEnabled": false,
+     "publishPeriod": null
+    }
+    },
+  {
    "name": "EXMO",
    "enabled": true,
    "verbose": false,
