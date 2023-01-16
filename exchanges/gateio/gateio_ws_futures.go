@@ -115,9 +115,8 @@ func (g *Gateio) WsFuturesConnect() error {
 		Delay:       time.Second * 15,
 		Message:     pingMessage,
 	})
-	g.Websocket.Wg.Add(2)
+	g.Websocket.Wg.Add(1)
 	go g.wsReadData()
-	go g.RunWsMultiplexer()
 	return nil
 }
 
@@ -182,43 +181,31 @@ func (g *Gateio) handleFuturesSubscription(event string, channelsToSubscribe []s
 		return err
 	}
 	var errs common.Errors
+	var respByte []byte
+	// con represents the websocket connection. 0 - for usdt settle and 1 - for btc settle connections.
 	for con := range payloads {
 		for k := range payloads[con] {
 			if con == 0 {
-				err = g.Websocket.Conn.SendJSONMessage(payloads[con][k])
+				respByte, err = g.Websocket.Conn.SendMessageReturnResponse(payloads[con][k].ID, payloads[con][k])
 			} else {
-				err = g.Websocket.AuthConn.SendJSONMessage(payloads[con][k])
+				respByte, err = g.Websocket.AuthConn.SendMessageReturnResponse(payloads[con][k].ID, payloads[con][k])
 			}
 			if err != nil {
 				errs = append(errs, err)
 				continue
 			}
-			channel := make(chan *WsEventResponse)
-			g.WsChannelsMultiplexer.Register <- &wsChanReg{
-				ID:   strconv.FormatInt(payloads[con][k].ID, 10),
-				Chan: channel,
-			}
-			ticker := time.NewTicker(time.Second * 3)
-		receive:
-			for {
-				select {
-				case resp := <-channel:
-					if resp.Result != nil && resp.Result.Status != "success" {
-						errs = append(errs, fmt.Errorf("%s websocket connection: timeout waiting for response with and subscription: %v", g.Name, payloads[con][k].Channel))
-						break receive
-					} else if resp.Error != nil && resp.Error.Code != 0 {
-						errs = append(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[con][k].Event, payloads[con][k].Channel, resp.Error.Code, resp.Error.Message))
-						break receive
-					}
-					g.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[k])
-					g.WsChannelsMultiplexer.Unregister <- strconv.FormatInt(payloads[con][k].ID, 10)
-					break receive
-				case <-ticker.C:
-					ticker.Stop()
-					errs = append(errs, fmt.Errorf("%s websocket connection: timeout waiting for response with and subscription: %v",
-						g.Name, payloads[con][k].Channel))
-					g.WsChannelsMultiplexer.Unregister <- strconv.FormatInt(payloads[con][k].ID, 10)
+			var resp WsEventResponse
+			if err = json.Unmarshal(respByte, &resp); err != nil {
+				errs = append(errs, err)
+			} else {
+				if resp.Result != nil && resp.Result.Status != "success" {
+					errs = append(errs, fmt.Errorf("%s websocket connection: timeout waiting for response with and subscription: %v", g.Name, payloads[con][k].Channel))
+					continue
+				} else if resp.Error != nil && resp.Error.Code != 0 {
+					errs = append(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[con][k].Event, payloads[con][k].Channel, resp.Error.Code, resp.Error.Message))
+					continue
 				}
+				g.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[k])
 			}
 		}
 	}

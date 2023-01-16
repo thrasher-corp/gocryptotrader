@@ -157,12 +157,6 @@ func (g *Gateio) SetDefaults() {
 	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	g.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-	g.WsChannelsMultiplexer = &WsMultiplexer{
-		Channels:   map[string]chan *WsEventResponse{},
-		Register:   make(chan *wsChanReg),
-		Unregister: make(chan string),
-		Message:    make(chan *WsEventResponse),
-	}
 }
 
 // Setup sets user configuration

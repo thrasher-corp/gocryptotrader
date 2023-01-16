@@ -1934,34 +1934,6 @@ type wsChanReg struct {
 	Chan chan *WsEventResponse
 }
 
-// WsMultiplexer represents a websocket response multiplexer.
-type WsMultiplexer struct {
-	Channels   map[string]chan *WsEventResponse
-	Register   chan *wsChanReg
-	Unregister chan string
-	Message    chan *WsEventResponse
-}
-
-// RunWsMultiplexer multiplexes incoming messages to *WsEventResponse channels listening.
-func (g *Gateio) RunWsMultiplexer() {
-	defer close(g.WsChannelsMultiplexer.Unregister)
-	defer close(g.WsChannelsMultiplexer.Register)
-	defer close(g.WsChannelsMultiplexer.Message)
-	defer g.Websocket.Wg.Done()
-	for {
-		select {
-		case unreg := <-g.WsChannelsMultiplexer.Unregister:
-			delete(g.WsChannelsMultiplexer.Channels, unreg)
-		case reg := <-g.WsChannelsMultiplexer.Register:
-			g.WsChannelsMultiplexer.Channels[reg.ID] = reg.Chan
-		case msg := <-g.WsChannelsMultiplexer.Message:
-			if dchann, okay := g.WsChannelsMultiplexer.Channels[strconv.FormatInt(msg.ID, 10)]; okay {
-				dchann <- msg
-			}
-		}
-	}
-}
-
 // WsResponse represents generalized websocket push data from the server.
 type WsResponse struct {
 	ID      int64       `json:"id"`

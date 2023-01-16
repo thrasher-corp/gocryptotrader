@@ -77,9 +77,8 @@ func (g *Gateio) WsDeliveryFuturesConnect() error {
 	if err != nil {
 		return err
 	}
-	g.Websocket.Wg.Add(2)
+	g.Websocket.Wg.Add(1)
 	go g.wsReadData()
-	go g.RunWsMultiplexer()
 	g.Websocket.Conn.SetupPingHandler(stream.PingHandler{
 		Websocket:   true,
 		Delay:       time.Second * 5,
@@ -104,7 +103,7 @@ func (g *Gateio) GenerateDeliveryFuturesDefaultSubscriptions() ([]stream.Channel
 			futuresBalancesChannel,
 		)
 	}
-	pairs, err := g.GetEnabledPairs(asset.DeliveryFutures)
+	pairs, err := g.FetchTradablePairs(context.Background(), asset.DeliveryFutures)
 	if err != nil {
 		return nil, err
 	}

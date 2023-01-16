@@ -81,9 +81,8 @@ func (g *Gateio) WsOptionsConnect() error {
 	if err != nil {
 		return err
 	}
-	g.Websocket.Wg.Add(2)
+	g.Websocket.Wg.Add(1)
 	go g.wsReadConnData()
-	go g.RunWsMultiplexer()
 	g.Websocket.Conn.SetupPingHandler(stream.PingHandler{
 		Websocket:   true,
 		Delay:       time.Second * 5,
