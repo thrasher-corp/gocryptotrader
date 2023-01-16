@@ -126,21 +126,6 @@ type Candle struct {
 	ValidationIssues string
 }
 
-// // ByDate allows for sorting candle entries by date
-// type ByDate []Candle
-
-// func (b ByDate) Len() int {
-// 	return len(b)
-// }
-
-// func (b ByDate) Less(i, j int) bool {
-// 	return b[i].Time.Before(b[j].Time)
-// }
-
-// func (b ByDate) Swap(i, j int) {
-// 	b[i], b[j] = b[j], b[i]
-// }
-
 // ExchangeCapabilitiesSupported all kline related exchange supported options
 type ExchangeCapabilitiesSupported struct {
 	Intervals  bool

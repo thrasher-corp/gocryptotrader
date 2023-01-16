@@ -225,17 +225,19 @@ func ({{.Variable}} *{{.CapitalName}}) FetchTradablePairs(ctx context.Context, a
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func ({{.Variable}} *{{.CapitalName}}) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	pairs, err := {{.Variable}}.FetchTradablePairs(ctx, asset.Spot)
-	if err != nil {
-		return err
-	}
+	assetTypes := {{.Variable}}.GetAssetTypes(false)
+	for x := range assetTypes {
+		pairs, err := {{.Variable}}.FetchTradablePairs(ctx, assetTypes[x])
+		if err != nil {
+			return err
+		}
 
-	p, err := currency.NewPairsFromStrings(pairs)
-	if err != nil {
-		return err
+		err = {{.Variable}}.UpdatePairs(pairs, assetTypes[x], false, forceUpdate)
+		if err != nil {
+			return err
+		}
 	}
-
-	return {{.Variable}}.UpdatePairs(p, asset.Spot, false, forceUpdate)
+	return nil
 }
 
 
