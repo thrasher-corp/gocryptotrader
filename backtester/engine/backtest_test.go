@@ -62,10 +62,15 @@ func TestSetupFromConfig(t *testing.T) {
 	}
 	cfg := &config.Config{}
 	err = bt.SetupFromConfig(cfg, "", "", false)
+	if !errors.Is(err, gctkline.ErrInvalidInterval) {
+		t.Errorf("received: %v, expected: %v", err, gctkline.ErrInvalidInterval)
+	}
+
+	cfg.DataSettings.Interval = gctkline.OneMonth
+	err = bt.SetupFromConfig(cfg, "", "", false)
 	if !errors.Is(err, base.ErrStrategyNotFound) {
 		t.Errorf("received: %v, expected: %v", err, base.ErrStrategyNotFound)
 	}
-
 	cfg.CurrencySettings = []config.CurrencySettings{
 		{
 			ExchangeName: testExchange,
@@ -101,8 +106,8 @@ func TestSetupFromConfig(t *testing.T) {
 	}
 	cfg.DataSettings.DataType = common.CandleStr
 	err = bt.SetupFromConfig(cfg, "", "", false)
-	if !errors.Is(err, errIntervalUnset) {
-		t.Errorf("received: %v, expected: %v", err, errIntervalUnset)
+	if !errors.Is(err, gctcommon.ErrDateUnset) {
+		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrDateUnset)
 	}
 	cfg.DataSettings.Interval = gctkline.OneMin
 	cfg.CurrencySettings[0].MakerFee = &decimal.Zero
@@ -345,7 +350,7 @@ func TestLoadDataLive(t *testing.T) {
 		},
 		DataSettings: config.DataSettings{
 			DataType: common.CandleStr,
-			Interval: gctkline.OneMin,
+			Interval: 1234,
 			LiveData: &config.LiveData{
 				ExchangeCredentials: []config.Credentials{
 					{
@@ -391,9 +396,16 @@ func TestLoadDataLive(t *testing.T) {
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
 	_, err = bt.loadData(cfg, exch, cp, asset.Spot, false)
+	if !errors.Is(err, gctkline.ErrCannotConstructInterval) {
+		t.Errorf("received: %v, expected: %v", err, gctkline.ErrCannotConstructInterval)
+	}
+
+	cfg.DataSettings.Interval = gctkline.OneMin
+	_, err = bt.loadData(cfg, exch, cp, asset.Spot, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
+
 	err = bt.Stop()
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)

@@ -23,10 +23,10 @@ import (
 )
 
 const (
-	testExchange = "binance"
+	mainExchange = "binance"
 	dca          = "dollarcostaverage"
 	// change this if you modify a config and want it to save to the example folder
-	saveConfig = !false
+	saveConfig = false
 )
 
 var (
