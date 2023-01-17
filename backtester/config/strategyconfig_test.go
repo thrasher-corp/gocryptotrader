@@ -985,7 +985,7 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 			},
 		},
 		DataSettings: DataSettings{
-			Interval: kline.OneHour * 3,
+			Interval: kline.ThreeHour,
 			DataType: common.CandleStr,
 			APIData: &APIData{
 				StartDate:        startDate,

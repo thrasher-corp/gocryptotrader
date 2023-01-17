@@ -1212,3 +1212,42 @@ func TestDeployExchangeIntervals(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", request, OneDay)
 	}
 }
+
+func TestSetHasDataFromCandles(t *testing.T) {
+	t.Parallel()
+	oh := getOneHour()
+
+	i, err := CalculateCandleDateRanges(oh[0].Time, oh[len(oh)-1].Time, OneHour, 100000)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	i.SetHasDataFromCandles(oh)
+	if !i.Start.Equal(oh[0].Time) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if !i.End.Equal(oh[len(oh)-1].Time) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	k := Item{
+		Interval: OneHour,
+		Candles:  oh[2:],
+	}
+	err = k.addPadding(i.Start.Time, i.End.Time, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	i.SetHasDataFromCandles(k.Candles)
+	if !i.Start.Equal(k.Candles[0].Time) {
+		t.Errorf("received '%v' expected '%v'", i.Start.Time, k.Candles[0].Time)
+	}
+	if i.HasDataAtDate(k.Candles[0].Time) {
+		t.Errorf("received '%v' expected '%v'", false, true)
+
+	}
+	if !i.HasDataAtDate(k.Candles[len(k.Candles)-1].Time) {
+		t.Errorf("received '%v' expected '%v'", true, false)
+	}
+}
