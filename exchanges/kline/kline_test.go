@@ -1244,7 +1244,6 @@ func TestSetHasDataFromCandles(t *testing.T) {
 	}
 	if i.HasDataAtDate(k.Candles[0].Time) {
 		t.Errorf("received '%v' expected '%v'", false, true)
-
 	}
 	if !i.HasDataAtDate(k.Candles[len(k.Candles)-1].Time) {
 		t.Errorf("received '%v' expected '%v'", true, false)
