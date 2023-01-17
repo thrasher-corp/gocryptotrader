@@ -304,8 +304,17 @@ func TestRequest_ProcessResponse(t *testing.T) {
 		t.Fatalf("received: '%v', but expected '%v'", err, nil)
 	}
 
+	if len(sweetItem.Candles) != 5 {
+		t.Fatalf("received: '%v', but expected '%v'", len(sweetItem.Candles), 5)
+	}
+
 	if sweetItem.Candles[len(sweetItem.Candles)-1].ValidationIssues == PartialCandle {
 		t.Fatalf("received: '%v', but expected '%v'", sweetItem.Candles[len(sweetItem.Candles)-1].ValidationIssues, "no issues")
+	}
+
+	laterEndDate := end.AddDate(1, 0, 0).UTC().Truncate(time.Duration(OneDay)).Add(-time.Duration(OneDay))
+	if sweetItem.Candles[len(sweetItem.Candles)-1].Time.Equal(laterEndDate) {
+		t.Fatalf("received: '%v', but expected '%v'", sweetItem.Candles[len(sweetItem.Candles)-1].ValidationIssues, "should not equal")
 	}
 }
 
