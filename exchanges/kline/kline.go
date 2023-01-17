@@ -173,7 +173,7 @@ func (k *Item) FillMissingDataWithEmptyEntries(i *IntervalRangeHolder) {
 // point onwards this needs to be specified. ExclusiveEnd defines the end date
 // which does not include a candle so everything from start can essentially be
 // added with blank spaces.
-func (k *Item) addPadding(start, exclusiveEnd time.Time) error {
+func (k *Item) addPadding(start, exclusiveEnd time.Time, purgeOnPartial bool) error {
 	if k == nil {
 		return errNilKline
 	}
@@ -202,6 +202,13 @@ func (k *Item) addPadding(start, exclusiveEnd time.Time) error {
 			target++
 		}
 		start = start.Add(k.Interval.Duration())
+	}
+
+	// NOTE: This checks if the end time exceeds time.Now() and we are capturing
+	// a partially created candle. This will only delete an element if it is
+	// empty.
+	if purgeOnPartial && padded[len(padded)-1].Volume == 0 {
+		padded = padded[:len(padded)-1]
 	}
 	k.Candles = padded
 	return nil

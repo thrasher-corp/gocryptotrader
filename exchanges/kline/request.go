@@ -16,6 +16,10 @@ var (
 	ErrUnsetName                 = errors.New("unset exchange name")
 	errNilRequest                = errors.New("nil kline request")
 	errNoTimeSeriesDataToConvert = errors.New("no time series data to convert")
+
+	// PartialCandle is string flag for when the most recent candle is partially
+	// formed.
+	PartialCandle = "Partial Candle"
 )
 
 // Request is a helper to request and convert time series to a required candle
@@ -41,6 +45,9 @@ type Request struct {
 	Start time.Time
 	// End is the end time aligned to UTC and to the Required interval candle
 	End time.Time
+	// PartialCandle defines when a request's end time interval goes beyond
+	// current time it potentially has a partially formed candle.
+	PartialCandle bool
 }
 
 // CreateKlineRequest generates a `Request` type for interval conversions
@@ -85,11 +92,10 @@ func CreateKlineRequest(name string, pair, formatted currency.Pair, a asset.Item
 	endTrunc := end.Truncate(clientRequired.Duration())
 	// Check to see if truncation moves end time and if so we want to make sure
 	// the candle period is included on the end.
-	forward := endTrunc.Add(clientRequired.Duration())
-	if !endTrunc.Equal(end) && !forward.After(time.Now()) {
-		end = forward
+	if !endTrunc.Equal(end) {
+		end = endTrunc.Add(clientRequired.Duration())
 	}
-	return &Request{name, pair, formatted, a, exchangeInterval, clientRequired, start, end}, nil
+	return &Request{name, pair, formatted, a, exchangeInterval, clientRequired, start, end, end.After(time.Now())}, nil
 }
 
 // GetRanges returns the date ranges for candle intervals broken up over
@@ -127,15 +133,25 @@ func (r *Request) ProcessResponse(timeSeries []Candle) (*Item, error) {
 	holder.RemoveDuplicates()
 	holder.RemoveOutsideRange(r.Start, r.End)
 	holder.SortCandlesByTimestamp(false)
-	err := holder.addPadding(r.Start, r.End)
+	err := holder.addPadding(r.Start, r.End, r.PartialCandle)
 	if err != nil {
 		return nil, err
 	}
 
-	if r.ClientRequired == r.ExchangeInterval {
-		return holder, nil
+	if r.ClientRequired != r.ExchangeInterval {
+		holder, err = holder.ConvertToNewInterval(r.ClientRequired)
 	}
-	return holder.ConvertToNewInterval(r.ClientRequired)
+
+	if r.PartialCandle {
+		// NOTE: Some endpoints do not return incomplete candles, verify for
+		// incomplete candle.
+		recentCandle := &holder.Candles[len(holder.Candles)-1]
+		if recentCandle.Time.Add(r.ClientRequired.Duration()).After(time.Now()) {
+			recentCandle.ValidationIssues = PartialCandle
+		}
+	}
+
+	return holder, err
 }
 
 // ExtendedRequest used in extended functionality for when candles requested

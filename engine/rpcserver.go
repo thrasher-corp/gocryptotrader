@@ -2482,12 +2482,13 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, r *gctrpc.GetHistori
 	resp.Exchange = klineItem.Exchange
 	for i := range klineItem.Candles {
 		resp.Candle = append(resp.Candle, &gctrpc.Candle{
-			Time:   klineItem.Candles[i].Time.UTC().Format(common.SimpleTimeFormatWithTimezone),
-			Low:    klineItem.Candles[i].Low,
-			High:   klineItem.Candles[i].High,
-			Open:   klineItem.Candles[i].Open,
-			Close:  klineItem.Candles[i].Close,
-			Volume: klineItem.Candles[i].Volume,
+			Time:      klineItem.Candles[i].Time.UTC().Format(common.SimpleTimeFormatWithTimezone),
+			Low:       klineItem.Candles[i].Low,
+			High:      klineItem.Candles[i].High,
+			Open:      klineItem.Candles[i].Open,
+			Close:     klineItem.Candles[i].Close,
+			Volume:    klineItem.Candles[i].Volume,
+			IsPartial: klineItem.Candles[i].ValidationIssues == kline.PartialCandle,
 		})
 	}
 
@@ -3272,12 +3273,13 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 	}
 	for i := range klineItem.Candles {
 		resp.Candle = append(resp.Candle, &gctrpc.Candle{
-			Time:   klineItem.Candles[i].Time.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
-			Low:    klineItem.Candles[i].Low,
-			High:   klineItem.Candles[i].High,
-			Open:   klineItem.Candles[i].Open,
-			Close:  klineItem.Candles[i].Close,
-			Volume: klineItem.Candles[i].Volume,
+			Time:      klineItem.Candles[i].Time.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+			Low:       klineItem.Candles[i].Low,
+			High:      klineItem.Candles[i].High,
+			Open:      klineItem.Candles[i].Open,
+			Close:     klineItem.Candles[i].Close,
+			Volume:    klineItem.Candles[i].Volume,
+			IsPartial: klineItem.Candles[i].ValidationIssues == kline.PartialCandle,
 		})
 	}
 

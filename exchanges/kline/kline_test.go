@@ -1010,7 +1010,7 @@ func TestConvertToNewInterval(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, errCandleDataNotPadded)
 	}
 
-	err = old.addPadding(tn, tn.AddDate(0, 0, 6))
+	err = old.addPadding(tn, tn.AddDate(0, 0, 6), false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -1031,7 +1031,7 @@ func TestAddPadding(t *testing.T) {
 	tn := time.Now().Truncate(time.Duration(OneDay))
 
 	var k *Item
-	err := k.addPadding(tn, tn.AddDate(0, 0, 5))
+	err := k.addPadding(tn, tn.AddDate(0, 0, 5), false)
 	if !errors.Is(err, errNilKline) {
 		t.Fatalf("received '%v' expected '%v'", err, errNilKline)
 	}
@@ -1047,7 +1047,7 @@ func TestAddPadding(t *testing.T) {
 			Volume: 1337,
 		},
 	}
-	err = k.addPadding(tn, tn.AddDate(0, 0, 5))
+	err = k.addPadding(tn, tn.AddDate(0, 0, 5), false)
 	if !errors.Is(err, ErrInvalidInterval) {
 		t.Fatalf("received '%v' expected '%v'", err, ErrInvalidInterval)
 	}
@@ -1071,7 +1071,7 @@ func TestAddPadding(t *testing.T) {
 			Volume: 1337,
 		},
 	}
-	err = k.addPadding(tn.AddDate(0, 0, 5), tn)
+	err = k.addPadding(tn.AddDate(0, 0, 5), tn, false)
 	if !errors.Is(err, errCannotEstablishTimeWindow) {
 		t.Fatalf("received '%v' expected '%v'", err, errCannotEstablishTimeWindow)
 	}
@@ -1102,7 +1102,7 @@ func TestAddPadding(t *testing.T) {
 			Volume: 2520,
 		}}
 
-	err = k.addPadding(tn, tn.AddDate(0, 0, 3))
+	err = k.addPadding(tn, tn.AddDate(0, 0, 3), false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received '%v' expected '%v'", err, nil)
 	}
@@ -1120,7 +1120,7 @@ func TestAddPadding(t *testing.T) {
 		Volume: 2520,
 	})
 
-	err = k.addPadding(tn, tn.AddDate(0, 0, 6))
+	err = k.addPadding(tn, tn.AddDate(0, 0, 6), false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received '%v' expected '%v'", err, nil)
 	}
@@ -1132,7 +1132,7 @@ func TestAddPadding(t *testing.T) {
 	// No candles test when there is zero activity for that period
 	k.Candles = nil
 
-	err = k.addPadding(tn, tn.AddDate(0, 0, 6))
+	err = k.addPadding(tn, tn.AddDate(0, 0, 6), false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
