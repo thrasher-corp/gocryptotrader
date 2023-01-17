@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
@@ -225,17 +226,46 @@ func (m *ExchangeManager) NewExchangeByName(name string) (exchange.IBotExchange,
 // Shutdown shuts down all exchanges and unloads them
 func (m *ExchangeManager) Shutdown() error {
 	if m == nil {
-		return fmt.Errorf("exchange manager %w", ErrNilSubsystem)
+		return fmt.Errorf("exchange manager: %w", ErrNilSubsystem)
 	}
 
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
+	var mtx sync.Mutex
+	timer := time.NewTimer(time.Second * 10)
+	var wg sync.WaitGroup
 	for _, exch := range m.exchanges {
-		err := exch.Shutdown()
-		if err != nil {
-			return fmt.Errorf("exchange manager: %w", err)
-		}
-		delete(m.exchanges, strings.ToLower(exch.GetName()))
+		wg.Add(1)
+		go func(wg *sync.WaitGroup, mtx *sync.Mutex, exch exchange.IBotExchange) {
+			err := exch.Shutdown()
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s failed to shutdown %v.\n", exch.GetName(), err)
+			}
+			mtx.Lock()
+			delete(m.exchanges, strings.ToLower(exch.GetName()))
+			mtx.Unlock()
+			wg.Done()
+		}(&wg, &mtx, exch)
+
 	}
+
+	ch := make(chan struct{})
+	go func(wg *sync.WaitGroup, finish chan<- struct{}) {
+		wg.Wait()
+		finish <- struct{}{}
+	}(&wg, ch)
+
+	select {
+	// Possible deadlock in a number of operating exchanges.
+	case <-timer.C:
+		mtx.Lock()
+		for name := range m.exchanges {
+			log.Warnf(log.ExchangeSys, "%s has failed to shutdown in a timely fassion, please review.\n", name)
+		}
+		mtx.Unlock()
+	case <-ch:
+		// Every exchange has cleanly shutdown.
+	}
+
 	return nil
 }

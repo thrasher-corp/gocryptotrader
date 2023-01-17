@@ -243,7 +243,7 @@ func TestExchangeManagerShutdown(t *testing.T) {
 	}
 
 	err = m.Shutdown()
-	if !errors.Is(err, errExpectedTestError) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errExpectedTestError)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 }
