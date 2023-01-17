@@ -314,7 +314,7 @@ func TestRequest_ProcessResponse(t *testing.T) {
 
 	laterEndDate := end.AddDate(1, 0, 0).UTC().Truncate(time.Duration(OneDay)).Add(-time.Duration(OneDay))
 	if sweetItem.Candles[len(sweetItem.Candles)-1].Time.Equal(laterEndDate) {
-		t.Fatalf("received: '%v', but expected '%v'", sweetItem.Candles[len(sweetItem.Candles)-1].ValidationIssues, "should not equal")
+		t.Fatalf("received: '%v', but expected '%v'", sweetItem.Candles[len(sweetItem.Candles)-1].Time, "should not equal")
 	}
 }
 
