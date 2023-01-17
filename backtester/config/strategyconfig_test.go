@@ -985,10 +985,10 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 			},
 		},
 		DataSettings: DataSettings{
-			Interval: kline.Interval(time.Minute * 2),
+			Interval: kline.OneHour * 2,
 			DataType: common.CandleStr,
 			APIData: &APIData{
-				StartDate:        endDate.Add(-time.Hour),
+				StartDate:        startDate,
 				EndDate:          endDate,
 				InclusiveEndDate: false,
 			},
