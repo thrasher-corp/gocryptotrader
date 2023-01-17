@@ -86,6 +86,11 @@ func CreateKlineRequest(name string, pair, formatted currency.Pair, a asset.Item
 	// minimal missing candles which is used to create the bigger candle.
 	start = start.Truncate(clientRequired.Duration())
 
+	// Strip future time to current time so there is no extra padding.
+	if end.After(time.Now()) {
+		end = time.Now().UTC()
+	}
+
 	// Strip monotonic clock reading for comparison
 	end = end.Round(0)
 

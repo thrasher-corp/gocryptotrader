@@ -283,6 +283,30 @@ func TestRequest_ProcessResponse(t *testing.T) {
 	if sweetItem.Candles[len(sweetItem.Candles)-1].ValidationIssues == PartialCandle {
 		t.Fatalf("received: '%v', but expected '%v'", sweetItem.Candles[len(sweetItem.Candles)-1].ValidationIssues, "no issues")
 	}
+
+	// end date far into the dark depths of future reality
+	r, err = CreateKlineRequest("name", pair, pair, asset.Spot, OneDay, OneDay, start, end.AddDate(1, 0, 0))
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v', but expected '%v'", err, nil)
+	}
+
+	sweetItem, err = r.ProcessResponse(hasIncomplete)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v', but expected '%v'", err, nil)
+	}
+
+	if sweetItem.Candles[len(sweetItem.Candles)-1].ValidationIssues != PartialCandle {
+		t.Fatalf("received: '%v', but expected '%v'", "no issues", PartialCandle)
+	}
+
+	sweetItem, err = r.ProcessResponse(missingIncomplete)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v', but expected '%v'", err, nil)
+	}
+
+	if sweetItem.Candles[len(sweetItem.Candles)-1].ValidationIssues == PartialCandle {
+		t.Fatalf("received: '%v', but expected '%v'", sweetItem.Candles[len(sweetItem.Candles)-1].ValidationIssues, "no issues")
+	}
 }
 
 func TestExtendedRequest_ProcessResponse(t *testing.T) {
