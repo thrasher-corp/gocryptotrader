@@ -1215,24 +1215,23 @@ func TestDeployExchangeIntervals(t *testing.T) {
 
 func TestSetHasDataFromCandles(t *testing.T) {
 	t.Parallel()
-	oh := getOneHour()
-
-	i, err := CalculateCandleDateRanges(oh[0].Time, oh[len(oh)-1].Time, OneHour, 100000)
+	ohc := getOneHour()
+	i, err := CalculateCandleDateRanges(ohc[0].Time, ohc[len(ohc)-1].Time, OneHour, 100000)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
-	i.SetHasDataFromCandles(oh)
-	if !i.Start.Equal(oh[0].Time) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
+	i.SetHasDataFromCandles(ohc)
+	if !i.Start.Equal(ohc[0].Time) {
+		t.Errorf("received '%v' expected '%v'", i.Start.Time, ohc[0].Time)
 	}
-	if !i.End.Equal(oh[len(oh)-1].Time) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
+	if !i.End.Equal(ohc[len(ohc)-1].Time) {
+		t.Errorf("received '%v' expected '%v'", i.End.Time, ohc[len(ohc)-1].Time)
 	}
 
 	k := Item{
 		Interval: OneHour,
-		Candles:  oh[2:],
+		Candles:  ohc[2:],
 	}
 	err = k.addPadding(i.Start.Time, i.End.Time, false)
 	if !errors.Is(err, nil) {
