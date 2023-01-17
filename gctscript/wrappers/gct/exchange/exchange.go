@@ -216,14 +216,14 @@ func (e Exchange) WithdrawalCryptoFunds(ctx context.Context, request *withdraw.R
 }
 
 // OHLCV returns open high low close volume candles for requested exchange/pair/asset/start & end time
-func (e Exchange) OHLCV(ctx context.Context, exch string, pair currency.Pair, item asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (e Exchange) OHLCV(ctx context.Context, exch string, pair currency.Pair, item asset.Item, start, end time.Time, interval kline.Interval) (*kline.Item, error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
-	ret, err := ex.GetHistoricCandlesExtended(ctx, pair, item, start, end, interval)
+	ret, err := ex.GetHistoricCandlesExtended(ctx, pair, item, interval, start, end)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
 	sort.Slice(ret.Candles, func(i, j int) bool {
@@ -231,6 +231,5 @@ func (e Exchange) OHLCV(ctx context.Context, exch string, pair currency.Pair, it
 	})
 
 	ret.FormatDates()
-
 	return ret, nil
 }

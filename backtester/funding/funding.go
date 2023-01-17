@@ -223,14 +223,13 @@ func (f *FundManager) setUSDCandles(k *kline.DataFromKline, i *Item) error {
 			Close: 1,
 		}
 	}
-	usdData := &kline.DataFromKline{
-		Base: &data.Base{},
-		Item: usdCandles,
-	}
-	if err := usdData.Load(); err != nil {
+	cpy := *k
+	cpy.Item = &usdCandles
+	cpy.Base = &data.Base{}
+	if err := cpy.Load(); err != nil {
 		return err
 	}
-	i.trackingCandles = usdData
+	i.trackingCandles = &cpy
 	return nil
 }
 

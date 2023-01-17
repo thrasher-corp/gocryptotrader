@@ -740,7 +740,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if err != nil {
 			return nil, fmt.Errorf("%v. Please check your GoCryptoTrader configuration", err)
 		}
-		resp.Item.RemoveDuplicateCandlesByTime()
+		resp.Item.RemoveDuplicates()
 		resp.Item.SortCandlesByTimestamp(false)
 		resp.RangeHolder, err = gctkline.CalculateCandleDateRanges(
 			resp.Item.Candles[0].Time,
@@ -783,7 +783,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			return nil, fmt.Errorf("unable to retrieve data from GoCryptoTrader database. Error: %v. Please ensure the database is setup correctly and has data before use", err)
 		}
 
-		resp.Item.RemoveDuplicateCandlesByTime()
+		resp.Item.RemoveDuplicates()
 		resp.Item.SortCandlesByTimestamp(false)
 		resp.RangeHolder, err = gctkline.CalculateCandleDateRanges(
 			cfg.DataSettings.DatabaseData.StartDate,
@@ -835,6 +835,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 	resp.Item.UnderlyingPair = underlyingPair
 	err = b.ValidateKline(fPair, a, resp.Item.Interval)
 	if err != nil {
+		// TODO: In future allow custom candles.
 		if dataType != common.DataTrade || !strings.EqualFold(err.Error(), "interval not supported") {
 			return nil, err
 		}
@@ -844,7 +845,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 	if err != nil {
 		return nil, err
 	}
-	err = bt.Reports.SetKlineData(&resp.Item)
+	err = bt.Reports.SetKlineData(resp.Item)
 	if err != nil {
 		return nil, err
 	}
@@ -902,7 +903,7 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	candles.RemoveOutsideRange(cfg.DataSettings.APIData.StartDate, cfg.DataSettings.APIData.EndDate)
 	return &kline.DataFromKline{
 		Base:        &data.Base{},
-		Item:        *candles,
+		Item:        candles,
 		RangeHolder: dates,
 	}, nil
 }

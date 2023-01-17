@@ -304,7 +304,7 @@ func (d *dataChecker) AppendDataSource(dataSource *liveDataSourceSetup) error {
 		}
 	}
 	k := kline.NewDataFromKline()
-	k.Item = gctkline.Item{
+	k.Item = &gctkline.Item{
 		Exchange:       exchName,
 		Pair:           dataSource.pair,
 		UnderlyingPair: dataSource.underlyingPair,
@@ -386,7 +386,7 @@ func (d *dataChecker) FetchLatestData() (bool, error) {
 		if err != nil {
 			return false, err
 		}
-		err = d.report.SetKlineData(&d.sourcesToCheck[i].pairCandles.Item)
+		err = d.report.SetKlineData(d.sourcesToCheck[i].pairCandles.Item)
 		if err != nil {
 			return false, err
 		}
@@ -440,12 +440,12 @@ func (d *dataChecker) SetDataForClosingAllPositions(s ...signal.Event) error {
 				Close:  s[x].GetClosePrice().InexactFloat64(),
 				Volume: s[x].GetVolume().InexactFloat64(),
 			})
-			err = d.sourcesToCheck[y].pairCandles.AppendResults(&d.sourcesToCheck[y].pairCandles.Item)
+			err = d.sourcesToCheck[y].pairCandles.AppendResults(d.sourcesToCheck[y].pairCandles.Item)
 			if err != nil {
 				log.Errorf(common.LiveStrategy, "%v %v %v issue appending kline data: %v", d.sourcesToCheck[y].exchangeName, d.sourcesToCheck[y].asset, d.sourcesToCheck[y].pair, err)
 				continue
 			}
-			err = d.report.SetKlineData(&d.sourcesToCheck[y].pairCandles.Item)
+			err = d.report.SetKlineData(d.sourcesToCheck[y].pairCandles.Item)
 			if err != nil {
 				log.Errorf(common.LiveStrategy, "%v %v %v issue processing kline data: %v", d.sourcesToCheck[y].exchangeName, d.sourcesToCheck[y].asset, d.sourcesToCheck[y].pair, err)
 				continue

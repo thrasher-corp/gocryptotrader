@@ -57,7 +57,7 @@ func TestGetBase(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	_, err = s.GetBaseData(&datakline.DataFromKline{
-		Item:        gctkline.Item{},
+		Item:        &gctkline.Item{},
 		Base:        d,
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	})

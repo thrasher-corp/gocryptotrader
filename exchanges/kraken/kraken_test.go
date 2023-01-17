@@ -2001,39 +2001,27 @@ func TestParseTime(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("XBT-USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = k.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, time.Now(), time.Now().Add(-time.Minute*3), kline.OneMin)
+	pair, err := currency.NewPairFromString("XBT-USD")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = k.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, time.Now(), time.Now(), kline.Interval(time.Hour*7))
-	if err == nil {
-		t.Fatal("unexpected result")
+	_, err = k.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneMin, time.Now().Add(-time.Hour*12), time.Now())
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("XBT-USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = k.GetHistoricCandlesExtended(context.Background(),
-		currencyPair, asset.Spot, time.Now().Add(-time.Hour*48), time.Now(), kline.OneDay)
+	pair, err := currency.NewPairFromString("XBT-USD")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = k.GetHistoricCandlesExtended(context.Background(),
-		currencyPair, asset.Spot, time.Now(), time.Now(), kline.Interval(time.Hour*7))
-	if err == nil {
-		t.Fatal("unexpected result")
+	_, err = k.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneMin, time.Now().Add(-time.Minute*3), time.Now())
+	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Fatal(err)
 	}
 }
 

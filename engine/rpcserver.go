@@ -2447,11 +2447,11 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, r *gctrpc.GetHistori
 	resp := gctrpc.GetHistoricCandlesResponse{
 		Interval: interval.Short(),
 		Pair:     r.Pair,
-		Start:    r.Start,
-		End:      r.End,
+		Start:    start.UTC().Format(common.SimpleTimeFormatWithTimezone),
+		End:      end.UTC().Format(common.SimpleTimeFormatWithTimezone),
 	}
 
-	var klineItem kline.Item
+	var klineItem *kline.Item
 	if r.UseDb {
 		klineItem, err = kline.LoadFromDatabase(r.Exchange,
 			pair,
@@ -2459,34 +2459,20 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, r *gctrpc.GetHistori
 			interval,
 			start,
 			end)
-		if err != nil {
-			return nil, err
-		}
 	} else {
 		if r.ExRequest {
-			klineItem, err = exch.GetHistoricCandlesExtended(ctx,
-				pair,
-				a,
-				start,
-				end,
-				interval)
+			klineItem, err = exch.GetHistoricCandlesExtended(ctx, pair, a, interval, start, end)
 		} else {
-			klineItem, err = exch.GetHistoricCandles(ctx,
-				pair,
-				a,
-				start,
-				end,
-				interval)
+			klineItem, err = exch.GetHistoricCandles(ctx, pair, a, interval, start, end)
 		}
 	}
-
 	if err != nil {
 		return nil, err
 	}
 
 	if r.FillMissingWithTrades {
 		var tradeDataKline *kline.Item
-		tradeDataKline, err = fillMissingCandlesWithStoredTrades(start, end, &klineItem)
+		tradeDataKline, err = fillMissingCandlesWithStoredTrades(start, end, klineItem)
 		if err != nil {
 			return nil, err
 		}
@@ -2496,17 +2482,18 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, r *gctrpc.GetHistori
 	resp.Exchange = klineItem.Exchange
 	for i := range klineItem.Candles {
 		resp.Candle = append(resp.Candle, &gctrpc.Candle{
-			Time:   klineItem.Candles[i].Time.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
-			Low:    klineItem.Candles[i].Low,
-			High:   klineItem.Candles[i].High,
-			Open:   klineItem.Candles[i].Open,
-			Close:  klineItem.Candles[i].Close,
-			Volume: klineItem.Candles[i].Volume,
+			Time:      klineItem.Candles[i].Time.UTC().Format(common.SimpleTimeFormatWithTimezone),
+			Low:       klineItem.Candles[i].Low,
+			High:      klineItem.Candles[i].High,
+			Open:      klineItem.Candles[i].Open,
+			Close:     klineItem.Candles[i].Close,
+			Volume:    klineItem.Candles[i].Volume,
+			IsPartial: klineItem.Candles[i].ValidationIssues == kline.PartialCandle,
 		})
 	}
 
 	if r.Sync && !r.UseDb {
-		_, err = kline.StoreInDatabase(&klineItem, r.Force)
+		_, err = kline.StoreInDatabase(klineItem, r.Force)
 		if err != nil {
 			if errors.Is(err, exchangeDB.ErrNoExchangeFound) {
 				return nil, errors.New("exchange was not found in database, you can seed existing data or insert a new exchange via the dbseed")
@@ -2533,7 +2520,7 @@ func fillMissingCandlesWithStoredTrades(startTime, endTime time.Time, klineItem 
 		if ranges[i].HasDataInRange {
 			continue
 		}
-		var tradeCandles kline.Item
+		var tradeCandles *kline.Item
 		trades, err := trade.GetTradesInRange(
 			klineItem.Exchange,
 			klineItem.Asset.String(),
@@ -3260,17 +3247,16 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 		return nil, err
 	}
 
-	var trades []trade.Data
-	trades, err = trade.GetTradesInRange(r.Exchange, r.AssetType, r.Pair.Base, r.Pair.Quote, start, end)
+	trades, err := trade.GetTradesInRange(r.Exchange, r.AssetType, r.Pair.Base, r.Pair.Quote, start, end)
 	if err != nil {
 		return nil, err
 	}
 	if len(trades) == 0 {
 		return nil, errNoTrades
 	}
+
 	interval := kline.Interval(r.TimeInterval)
-	var klineItem kline.Item
-	klineItem, err = trade.ConvertTradesToCandles(interval, trades...)
+	klineItem, err := trade.ConvertTradesToCandles(interval, trades...)
 	if err != nil {
 		return nil, err
 	}
@@ -3287,17 +3273,18 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 	}
 	for i := range klineItem.Candles {
 		resp.Candle = append(resp.Candle, &gctrpc.Candle{
-			Time:   klineItem.Candles[i].Time.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
-			Low:    klineItem.Candles[i].Low,
-			High:   klineItem.Candles[i].High,
-			Open:   klineItem.Candles[i].Open,
-			Close:  klineItem.Candles[i].Close,
-			Volume: klineItem.Candles[i].Volume,
+			Time:      klineItem.Candles[i].Time.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+			Low:       klineItem.Candles[i].Low,
+			High:      klineItem.Candles[i].High,
+			Open:      klineItem.Candles[i].Open,
+			Close:     klineItem.Candles[i].Close,
+			Volume:    klineItem.Candles[i].Volume,
+			IsPartial: klineItem.Candles[i].ValidationIssues == kline.PartialCandle,
 		})
 	}
 
 	if r.Sync {
-		_, err = kline.StoreInDatabase(&klineItem, r.Force)
+		_, err = kline.StoreInDatabase(klineItem, r.Force)
 		if err != nil {
 			return nil, err
 		}
@@ -5023,19 +5010,11 @@ func (s *RPCServer) GetTechnicalAnalysis(ctx context.Context, r *gctrpc.GetTechn
 		return nil, err
 	}
 
-	klineInterval := kline.Interval(r.Interval)
-
-	err = exch.GetBase().ValidateKline(pair, as, klineInterval)
-	if err != nil {
-		return nil, err
-	}
-
-	klines, err := exch.GetHistoricCandlesExtended(ctx,
-		pair,
+	klines, err := exch.GetHistoricCandlesExtended(ctx, pair,
 		as,
+		kline.Interval(r.Interval),
 		r.Start.AsTime(),
-		r.End.AsTime(),
-		klineInterval)
+		r.End.AsTime())
 	if err != nil {
 		return nil, err
 	}
@@ -5102,15 +5081,19 @@ func (s *RPCServer) GetTechnicalAnalysis(ctx context.Context, r *gctrpc.GetTechn
 			return nil, err
 		}
 
-		var otherKlines kline.Item
+		var otherKlines *kline.Item
 		otherKlines, err = otherExch.GetHistoricCandlesExtended(ctx,
-			otherPair, otherAs, r.Start.AsTime(), r.End.AsTime(), klineInterval)
+			otherPair,
+			otherAs,
+			kline.Interval(r.Interval),
+			r.Start.AsTime(),
+			r.End.AsTime())
 		if err != nil {
 			return nil, err
 		}
 
 		var correlation []float64
-		correlation, err = klines.GetCorrelationCoefficient(&otherKlines, r.Period)
+		correlation, err = klines.GetCorrelationCoefficient(otherKlines, r.Period)
 		if err != nil {
 			return nil, err
 		}

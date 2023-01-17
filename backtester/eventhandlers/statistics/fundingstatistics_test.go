@@ -66,7 +66,7 @@ func TestCalculateFundingStatistics(t *testing.T) {
 	}
 	dfk := &kline.DataFromKline{
 		Base: &data.Base{},
-		Item: usdKline,
+		Item: &usdKline,
 	}
 	err = dfk.Load()
 	if !errors.Is(err, nil) {
@@ -173,7 +173,7 @@ func TestCalculateIndividualFundingStatistics(t *testing.T) {
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	ri.USDPairCandle = &kline.DataFromKline{
 		Base: &data.Base{},
-		Item: gctkline.Item{
+		Item: &gctkline.Item{
 			Exchange:       testExchange,
 			Pair:           cp,
 			UnderlyingPair: cp,
