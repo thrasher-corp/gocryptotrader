@@ -51,27 +51,12 @@ func (cr *Cryptodotcom) SetDefaults() {
 	cr.Verbose = true
 	cr.API.CredentialsValidator.RequiresKey = true
 	cr.API.CredentialsValidator.RequiresSecret = true
-
-	// If using only one pair format for request and configuration, across all
-	// supported asset types either SPOT and FUTURES etc. You can use the
-	// example below:
-
-	// Request format denotes what the pair as a string will be, when you send
-	// a request to an exchange.
-	requestFmt := &currency.PairFormat{ /*Set pair request formatting details here for e.g.*/ Uppercase: true, Delimiter: ":"}
-	// Config format denotes what the pair as a string will be, when saved to
-	// the config.json file.
-	configFmt := &currency.PairFormat{ /*Set pair request formatting details here*/ }
-	err := cr.SetGlobalPairsManager(requestFmt, configFmt /*multiple assets can be set here using the asset package ie asset.Spot*/)
+	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: ":"}
+	configFmt := &currency.PairFormat{}
+	err := cr.SetGlobalPairsManager(requestFmt, configFmt)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-
-	// If assets require multiple differences in formating for request and
-	// configuration, another exchange method can be be used e.g. futures
-	// contracts require a dash as a delimiter rather than an underscore. You
-	// can use this example below:
-
 	fmt1 := currency.PairStore{
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
@@ -90,7 +75,6 @@ func (cr *Cryptodotcom) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-
 	// Fill out the capabilities/features that the exchange supports
 	cr.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
@@ -113,25 +97,26 @@ func (cr *Cryptodotcom) SetDefaults() {
 				Intervals: map[string]bool{
 					kline.OneMin.Word():     true,
 					kline.FiveMin.Word():    true,
-					kline.FifteenDay.Word(): true,
+					kline.FifteenMin.Word(): true,
 					kline.ThirtyMin.Word():  true,
 					kline.OneHour.Word():    true,
+					kline.FourHour.Word():   true,
+					kline.SixHour.Word():    true,
+					kline.TwelveHour.Word(): true,
 					kline.OneDay.Word():     true,
 					kline.SevenDay.Word():   true,
+					kline.TwoWeek.Word():    true,
 					kline.OneMonth.Word():   true,
 				},
 				ResultLimit: 200,
 			},
 		},
 	}
-	// NOTE: SET THE EXCHANGES RATE LIMIT HERE
 	cr.Requester, err = request.New(cr.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-
-	// NOTE: SET THE URLs HERE
 	cr.API.Endpoints = cr.NewEndpoints()
 	cr.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      cryptodotcomAPIURL,
@@ -157,39 +142,29 @@ func (cr *Cryptodotcom) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-
-	/*
-		wsRunningEndpoint, err := cr.API.Endpoints.GetURL(exchange.WebsocketSpot)
-		if err != nil {
-			return err
-		}
-
-		// If websocket is supported, please fill out the following
-
-		err = cr.Websocket.Setup(
-			&stream.WebsocketSetup{
-				ExchangeConfig:  exch,
-				DefaultURL:      cryptodotcomWSAPIURL,
-				RunningURL:      wsRunningEndpoint,
-				Connector:       cr.WsConnect,
-				Subscriber:      cr.Subscribe,
-				UnSubscriber:    cr.Unsubscribe,
-				Features:        &cr.Features.Supports.WebsocketCapabilities,
-			})
-		if err != nil {
-			return err
-		}
-
-		cr.WebsocketConn = &stream.WebsocketConnection{
-			ExchangeName:         cr.Name,
-			URL:                  cr.Websocket.GetWebsocketURL(),
-			ProxyURL:             cr.Websocket.GetProxyAddress(),
-			Verbose:              cr.Verbose,
-			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		}
-	*/
-	return nil
+	wsRunningEndpoint, err := cr.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+	err = cr.Websocket.Setup(
+		&stream.WebsocketSetup{
+			ExchangeConfig:        exch,
+			DefaultURL:            cryptodotcomWebsocketURL,
+			RunningURL:            wsRunningEndpoint,
+			Connector:             cr.WsConnect,
+			Subscriber:            cr.Subscribe,
+			Unsubscriber:          cr.Unsubscribe,
+			GenerateSubscriptions: cr.GenerateDefaultSubscriptions,
+			Features:              &cr.Features.Supports.WebsocketCapabilities,
+		})
+	if err != nil {
+		return err
+	}
+	return cr.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		URL:                  cr.Websocket.GetWebsocketURL(),
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	})
 }
 
 // Start starts the Cryptodotcom go routine

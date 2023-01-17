@@ -5,10 +5,14 @@ import (
 	"log"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/core"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -27,22 +31,23 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	exchCfg, err := cfg.GetExchangeConfig("Cryptodotcom")
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	exchCfg.API.AuthenticatedSupport = true
-	exchCfg.API.AuthenticatedWebsocketSupport = true
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
-
+	if apiKey != "" && apiSecret != "" {
+		exchCfg.API.AuthenticatedSupport = true
+		exchCfg.API.AuthenticatedWebsocketSupport = true
+	}
+	cr.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = cr.Setup(exchCfg)
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	cr.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	cr.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
 }
 
@@ -62,39 +67,105 @@ func areTestAPIKeysSet() bool {
 
 func TestGetSymbols(t *testing.T) {
 	t.Parallel()
-	_, err := cr.GetSymbols(context.Background())
+	_, err := cr.GetInstruments(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
 }
 
-func TestGetTickersInAllAvailableMarkets(t *testing.T) {
+func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := cr.GetTickersInAllAvailableMarkets(context.Background())
+	_, err := cr.GetOrderbook(context.Background(), "BTC_USDT", 0)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
-func TestGetTickerForParticularMarket(t *testing.T) {
+func TestGetCandlestickDetail(t *testing.T) {
 	t.Parallel()
-	pairs, err := cr.GetSymbols(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = cr.GetTickerForParticularMarket(context.Background(), pairs[0].Symbol)
+	_, err := cr.GetCandlestickDetail(context.Background(), "BTC_USDT", kline.FiveMin)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
-func TestGetKlineDataOverSpecifiedPeriod(t *testing.T) {
+func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	pairs, err := cr.GetSymbols(context.Background())
+	_, err := cr.GetTicker(context.Background(), "BTC_USDT")
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
-	_, err = cr.GetKlineDataOverSpecifiedPeriod(context.Background(), kline.FiveMin, pairs[0].Symbol)
+}
+
+func TestGetTrades(t *testing.T) {
+	t.Parallel()
+	_, err := cr.GetTrades(context.Background(), "BTC_USDT")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWithdrawFunds(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	_, err := cr.WithdrawFunds(context.Background(), currency.BTC, 10, core.BitcoinDonationAddress, "", "", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetCurrencyNetworks(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := cr.GetCurrencyNetworks(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWithdrawalHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Parallel()
+	}
+	_, err := cr.GetWithdrawalHistory(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetDepositHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Parallel()
+	}
+	_, err := cr.GetDepositHistory(context.Background(), currency.EMPTYCODE, time.Time{}, time.Time{}, 20, 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPersonalDepositAddress(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := cr.GetPersonalDepositAddress(context.Background(), currency.BTC)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAccountSummary(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := cr.GetAccountSummary(context.Background(), currency.USDT)
 	if err != nil {
 		t.Error(err)
 	}
