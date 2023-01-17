@@ -2,7 +2,6 @@ package kline
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -240,7 +239,6 @@ func TestRequest_ProcessResponse(t *testing.T) {
 
 	// Potential partial candle
 	end = time.Now().UTC()
-	fmt.Println("END:", end)
 	start = end.AddDate(0, 0, -5).Truncate(time.Duration(OneDay))
 	r, err = CreateKlineRequest("name", pair, pair, asset.Spot, OneDay, OneDay, start, end)
 	if !errors.Is(err, nil) {
@@ -259,10 +257,6 @@ func TestRequest_ProcessResponse(t *testing.T) {
 		{Time: start.Add(OneDay.Duration() * 4), Close: 5},
 		{Time: start.Add(OneDay.Duration() * 5), Close: 5.5},
 	}
-
-	fmt.Println("start", start)
-
-	fmt.Printf("hasIncomplete: %+v\n", hasIncomplete)
 
 	sweetItem, err := r.ProcessResponse(hasIncomplete)
 	if !errors.Is(err, nil) {
