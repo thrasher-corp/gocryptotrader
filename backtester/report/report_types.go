@@ -24,8 +24,7 @@ var (
 // Handler contains all functions required to generate statistical reporting for backtesting results
 type Handler interface {
 	GenerateReport() error
-	AddKlineItem(*kline.Item)
-	UpdateItem(*kline.Item)
+	SetKlineData(*kline.Item) error
 	UseDarkMode(bool)
 }
 

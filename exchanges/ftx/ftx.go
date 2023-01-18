@@ -764,7 +764,11 @@ func (f *FTX) Order(
 	req := make(map[string]interface{})
 	req["market"] = marketName
 	req["side"] = side
-	req["price"] = price
+	if orderType == "market" {
+		req["price"] = nil
+	} else {
+		req["price"] = price
+	}
 	req["type"] = orderType
 	req["size"] = size
 	if reduceOnly {
@@ -922,7 +926,7 @@ func (f *FTX) DeleteTriggerOrder(ctx context.Context, orderID string) (string, e
 
 // GetFills gets order fills data and ensures that all
 // fills are retrieved from the supplied timeframe
-func (f *FTX) GetFills(ctx context.Context, market currency.Pair, item asset.Item, startTime, endTime time.Time) ([]FillsData, error) {
+func (f *FTX) GetFills(ctx context.Context, market currency.Pair, item asset.Item, startTime, endTime time.Time, orderID string) ([]FillsData, error) {
 	var resp []FillsData
 	var nextEnd = endTime
 	limit := 200
@@ -945,6 +949,9 @@ func (f *FTX) GetFills(ctx context.Context, market currency.Pair, item asset.Ite
 			}
 			params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 			params.Set("end_time", strconv.FormatInt(nextEnd.Unix(), 10))
+		}
+		if orderID != "" {
+			params.Set("orderId", orderID)
 		}
 		endpoint := common.EncodeURLValues(getFills, params)
 		err := f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, nil, &data)
@@ -1763,10 +1770,6 @@ func (f *FTX) LoadCollateralWeightings(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-func (c CollateralWeightHolder) hasData() bool {
-	return len(c) > 0
 }
 
 func (c CollateralWeightHolder) loadTotal(code string, weighting float64) {

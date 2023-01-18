@@ -4942,6 +4942,9 @@
         "volume": {
           "type": "number",
           "format": "double"
+        },
+        "isPartial": {
+          "type": "boolean"
         }
       }
     },

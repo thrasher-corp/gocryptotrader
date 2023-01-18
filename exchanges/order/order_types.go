@@ -33,7 +33,7 @@ var (
 // Submit contains all properties of an order that may be required
 // for an order to be created on an exchange
 // Each exchange has their own requirements, so not all fields
-// are required to be populated
+// need to be populated
 type Submit struct {
 	Exchange  string        `json:"exchange"`
 	Type      Type          `json:"type"`
@@ -63,6 +63,13 @@ type Submit struct {
 	TriggerPrice  float64 `json:"triggerPrice,omitempty"`
 	ClientID      string  `json:"clientID,omitempty"` // TODO: Shift to credentials
 	ClientOrderID string  `json:"clientOrderID,omitempty"`
+	// RetrieveFees use if an API submit order response does not return fees
+	// enabling this will perform additional request(s) to retrieve them
+	// and set it in the SubmitResponse
+	RetrieveFees bool `json:"retrieveFees,omitempty"`
+	// RetrieveFeeDelay some exchanges take time to properly save order data
+	// and cannot retrieve fees data immediately
+	RetrieveFeeDelay time.Duration `json:"retrieveFeeDelay,omitempty"`
 }
 
 // SubmitResponse is what is returned after submitting an order to an exchange
@@ -91,6 +98,7 @@ type SubmitResponse struct {
 	OrderID     string         `json:"orderID,omitempty"`
 	Trades      []TradeHistory `json:"trades,omitempty"`
 	Fee         float64        `json:"fee,omitempty"`
+	FeeAsset    currency.Code  `json:"feeAsset,omitempty"`
 	Cost        float64        `json:"cost,omitempty"`
 }
 

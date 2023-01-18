@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -62,15 +63,15 @@ func TestCreate(t *testing.T) {
 	_, err = Create(&fill.Fill{
 		Base: &event.Base{AssetType: asset.Spot},
 	}, pair(t))
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	_, err = Create(&fill.Fill{
 		Base: &event.Base{AssetType: asset.Futures},
 	}, collateral(t))
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 }
 
@@ -79,8 +80,8 @@ func TestUpdate(t *testing.T) {
 	h, err := Create(&fill.Fill{
 		Base: &event.Base{AssetType: asset.Spot},
 	}, pair(t))
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	t1 := h.Timestamp // nolint:ifshort,nolintlint // false positive and triggers only on Windows
 	err = h.Update(&fill.Fill{
@@ -88,8 +89,8 @@ func TestUpdate(t *testing.T) {
 			Time: time.Now(),
 		},
 	}, pair(t))
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	if t1.Equal(h.Timestamp) {
 		t.Errorf("expected '%v' received '%v'", h.Timestamp, t1)
@@ -102,14 +103,23 @@ func TestUpdateValue(t *testing.T) {
 	h, err := Create(&fill.Fill{
 		Base: b,
 	}, pair(t))
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
+
+	err = h.UpdateValue(nil)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNilPointer)
+	}
+
 	h.BaseSize = decimal.NewFromInt(1)
-	h.UpdateValue(&kline.Kline{
+	err = h.UpdateValue(&kline.Kline{
 		Base:  b,
 		Close: decimal.NewFromInt(1337),
 	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 	if !h.BaseValue.Equal(decimal.NewFromInt(1337)) {
 		t.Errorf("expected '%v' received '%v'", h.BaseSize, decimal.NewFromInt(1337))
 	}
@@ -132,8 +142,8 @@ func TestUpdateBuyStats(t *testing.T) {
 	h, err := Create(&fill.Fill{
 		Base: &event.Base{AssetType: asset.Spot},
 	}, pair(t))
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	err = h.update(&fill.Fill{
@@ -166,8 +176,8 @@ func TestUpdateBuyStats(t *testing.T) {
 			Fee:         1,
 		},
 	}, p)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	if !h.BaseSize.Equal(p.BaseAvailable()) {
 		t.Errorf("expected '%v' received '%v'", 1, h.BaseSize)
@@ -221,8 +231,8 @@ func TestUpdateBuyStats(t *testing.T) {
 			Fee:         0.5,
 		},
 	}, p)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	if !h.BoughtAmount.Equal(decimal.NewFromFloat(1.5)) {
@@ -254,8 +264,8 @@ func TestUpdateSellStats(t *testing.T) {
 	h, err := Create(&fill.Fill{
 		Base: &event.Base{AssetType: asset.Spot},
 	}, p)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	err = h.update(&fill.Fill{
 		Base: &event.Base{
@@ -286,8 +296,8 @@ func TestUpdateSellStats(t *testing.T) {
 			Fee:         1,
 		},
 	}, p)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	if !h.BaseSize.Equal(decimal.NewFromInt(1)) {
 		t.Errorf("expected '%v' received '%v'", 1, h.BaseSize)
@@ -344,8 +354,8 @@ func TestUpdateSellStats(t *testing.T) {
 			Fee:         1,
 		},
 	}, p)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	if !h.BoughtAmount.Equal(decimal.NewFromInt(1)) {

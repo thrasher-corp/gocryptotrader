@@ -182,7 +182,7 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 		if err != nil {
 			return err
 		}
-		var candles kline.Item
+		var candles *kline.Item
 		switch jobs[i].DataType {
 		case dataHistoryCandleDataType,
 			dataHistoryCandleValidationDataType,
@@ -707,9 +707,9 @@ func (m *DataHistoryManager) processCandleData(job *DataHistoryJob, exch exchang
 	candles, err := exch.GetHistoricCandlesExtended(context.TODO(),
 		job.Pair,
 		job.Asset,
+		job.Interval,
 		startRange,
-		endRange,
-		job.Interval)
+		endRange)
 	if err != nil {
 		r.Result += "could not get candles: " + err.Error() + ". "
 		r.Status = dataHistoryStatusFailed
@@ -725,7 +725,7 @@ func (m *DataHistoryManager) processCandleData(job *DataHistoryJob, exch exchang
 		}
 	}
 	candles.SourceJobID = job.ID
-	err = m.saveCandlesInBatches(job, &candles, r)
+	err = m.saveCandlesInBatches(job, candles, r)
 	return r, err
 }
 
@@ -838,7 +838,7 @@ func (m *DataHistoryManager) convertTradesToCandles(job *DataHistoryJob, startRa
 		return r, nil //nolint:nilerr // error is returned in the job result
 	}
 	candles.SourceJobID = job.ID
-	err = m.saveCandlesInBatches(job, &candles, r)
+	err = m.saveCandlesInBatches(job, candles, r)
 	return r, err
 }
 
@@ -870,14 +870,14 @@ func (m *DataHistoryManager) convertCandleData(job *DataHistoryJob, startRange, 
 		r.Status = dataHistoryStatusFailed
 		return r, nil //nolint:nilerr // error is returned in the job result
 	}
-	newCandles, err := kline.ConvertToNewInterval(&candles, job.ConversionInterval)
+	newCandles, err := candles.ConvertToNewInterval(job.ConversionInterval)
 	if err != nil {
 		r.Result = "could not convert candles in range: " + err.Error()
 		r.Status = dataHistoryStatusFailed
 		return r, nil //nolint:nilerr // error is returned in the job result
 	}
 	newCandles.SourceJobID = job.ID
-	err = m.saveCandlesInBatches(job, &candles, r)
+	err = m.saveCandlesInBatches(job, candles, r)
 	return r, err
 }
 
@@ -910,9 +910,9 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 	apiCandles, err := exch.GetHistoricCandlesExtended(context.TODO(),
 		job.Pair,
 		job.Asset,
+		job.Interval,
 		startRange,
-		endRange,
-		job.Interval)
+		endRange)
 	if err != nil {
 		r.Result = "could not get API candles: " + err.Error()
 		r.Status = dataHistoryStatusFailed
@@ -1012,7 +1012,7 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 	if len(validationIssues) > 0 {
 		r.Result = strings.Join(validationIssues, " -- ")
 	}
-	err = m.saveCandlesInBatches(job, &apiCandles, r)
+	err = m.saveCandlesInBatches(job, apiCandles, r)
 	return r, err
 }
 
@@ -1230,7 +1230,8 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 	}
 
 	b := exch.GetBase()
-	if !b.Features.Enabled.Kline.Intervals[job.Interval.Word()] &&
+	// TODO: In future allow custom candles.
+	if !b.Features.Enabled.Kline.Intervals.ExchangeSupported(job.Interval) &&
 		(job.DataType == dataHistoryCandleDataType || job.DataType == dataHistoryCandleValidationDataType) {
 		return fmt.Errorf("job interval %s %s %w %s", job.Nickname, job.Interval.Word(), kline.ErrUnsupportedInterval, job.Exchange)
 	}

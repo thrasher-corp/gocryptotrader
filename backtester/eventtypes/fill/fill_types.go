@@ -26,7 +26,7 @@ type Fill struct {
 
 // Event holds all functions required to handle a fill event
 type Event interface {
-	common.EventHandler
+	common.Event
 	common.Directioner
 
 	SetAmount(decimal.Decimal)

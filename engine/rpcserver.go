@@ -196,9 +196,14 @@ func (s *RPCServer) StartRPCRESTProxy() {
 	}
 
 	go func() {
-		if err := http.ListenAndServe(s.Config.RemoteControl.GRPC.GRPCProxyListenAddress, mux); err != nil {
-			log.Errorf(log.GRPCSys, "gRPC proxy failed to server: %s\n", err)
-			return
+		server := &http.Server{
+			Addr:              s.Config.RemoteControl.GRPC.GRPCProxyListenAddress,
+			ReadHeaderTimeout: time.Minute,
+			ReadTimeout:       time.Minute,
+		}
+
+		if err = server.ListenAndServe(); err != nil {
+			log.Errorf(log.GRPCSys, "GRPC proxy failed to server: %s\n", err)
 		}
 	}()
 
@@ -640,7 +645,7 @@ func createAccountInfoRequest(h account.Holdings) (*gctrpc.GetAccountInfoRespons
 				continue
 			}
 			a.Currencies = append(a.Currencies, &gctrpc.AccountCurrencyInfo{
-				Currency:          y.CurrencyName.String(),
+				Currency:          y.Currency.String(),
 				TotalValue:        y.Total,
 				Hold:              y.Hold,
 				Free:              y.Free,
@@ -681,7 +686,7 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 		subAccounts := make([]*gctrpc.AccountCurrencyInfo, len(initAcc.Accounts[x].Currencies))
 		for y := range initAcc.Accounts[x].Currencies {
 			subAccounts[y] = &gctrpc.AccountCurrencyInfo{
-				Currency:   initAcc.Accounts[x].Currencies[y].CurrencyName.String(),
+				Currency:   initAcc.Accounts[x].Currencies[y].Currency.String(),
 				TotalValue: initAcc.Accounts[x].Currencies[y].Total,
 				Hold:       initAcc.Accounts[x].Currencies[y].Hold,
 			}
@@ -728,7 +733,7 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 			subAccounts := make([]*gctrpc.AccountCurrencyInfo, len(holdings.Accounts[x].Currencies))
 			for y := range holdings.Accounts[x].Currencies {
 				subAccounts[y] = &gctrpc.AccountCurrencyInfo{
-					Currency:   holdings.Accounts[x].Currencies[y].CurrencyName.String(),
+					Currency:   holdings.Accounts[x].Currencies[y].Currency.String(),
 					TotalValue: holdings.Accounts[x].Currencies[y].Total,
 					Hold:       holdings.Accounts[x].Currencies[y].Hold,
 				}
@@ -940,13 +945,13 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 
 	var start, end time.Time
 	if r.StartDate != "" {
-		start, err = time.Parse(common.SimpleTimeFormat, r.StartDate)
+		start, err = time.Parse(common.SimpleTimeFormatWithTimezone, r.StartDate)
 		if err != nil {
 			return nil, err
 		}
 	}
 	if r.EndDate != "" {
-		end, err = time.Parse(common.SimpleTimeFormat, r.EndDate)
+		end, err = time.Parse(common.SimpleTimeFormatWithTimezone, r.EndDate)
 		if err != nil {
 			return nil, err
 		}
@@ -1917,11 +1922,11 @@ func (s *RPCServer) WithdrawalEventsByExchange(ctx context.Context, r *gctrpc.Wi
 
 // WithdrawalEventsByDate returns previous withdrawal request details by exchange
 func (s *RPCServer) WithdrawalEventsByDate(_ context.Context, r *gctrpc.WithdrawalEventsByDateRequest) (*gctrpc.WithdrawalEventsByExchangeResponse, error) {
-	start, err := time.Parse(common.SimpleTimeFormat, r.Start)
+	start, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.Start)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
 	}
-	end, err := time.Parse(common.SimpleTimeFormat, r.End)
+	end, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.End)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
 	}
@@ -2357,11 +2362,11 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 
 // GetAuditEvent returns matching audit events from database
 func (s *RPCServer) GetAuditEvent(_ context.Context, r *gctrpc.GetAuditEventRequest) (*gctrpc.GetAuditEventResponse, error) {
-	start, err := time.Parse(common.SimpleTimeFormat, r.StartDate)
+	start, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.StartDate)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
 	}
-	end, err := time.Parse(common.SimpleTimeFormat, r.EndDate)
+	end, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.EndDate)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
 	}
@@ -2405,11 +2410,11 @@ func (s *RPCServer) GetAuditEvent(_ context.Context, r *gctrpc.GetAuditEventRequ
 
 // GetHistoricCandles returns historical candles for a given exchange
 func (s *RPCServer) GetHistoricCandles(ctx context.Context, r *gctrpc.GetHistoricCandlesRequest) (*gctrpc.GetHistoricCandlesResponse, error) {
-	start, err := time.Parse(common.SimpleTimeFormat, r.Start)
+	start, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.Start)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
 	}
-	end, err := time.Parse(common.SimpleTimeFormat, r.End)
+	end, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.End)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
 	}
@@ -2420,7 +2425,6 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, r *gctrpc.GetHistori
 	if r.Pair == nil {
 		return nil, errCurrencyPairUnset
 	}
-
 	pair := currency.Pair{
 		Delimiter: r.Pair.Delimiter,
 		Base:      currency.NewCode(r.Pair.Base),
@@ -2447,11 +2451,11 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, r *gctrpc.GetHistori
 	resp := gctrpc.GetHistoricCandlesResponse{
 		Interval: interval.Short(),
 		Pair:     r.Pair,
-		Start:    r.Start,
-		End:      r.End,
+		Start:    start.UTC().Format(common.SimpleTimeFormatWithTimezone),
+		End:      end.UTC().Format(common.SimpleTimeFormatWithTimezone),
 	}
 
-	var klineItem kline.Item
+	var klineItem *kline.Item
 	if r.UseDb {
 		klineItem, err = kline.LoadFromDatabase(r.Exchange,
 			pair,
@@ -2459,34 +2463,20 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, r *gctrpc.GetHistori
 			interval,
 			start,
 			end)
-		if err != nil {
-			return nil, err
-		}
 	} else {
 		if r.ExRequest {
-			klineItem, err = exch.GetHistoricCandlesExtended(ctx,
-				pair,
-				a,
-				start,
-				end,
-				interval)
+			klineItem, err = exch.GetHistoricCandlesExtended(ctx, pair, a, interval, start, end)
 		} else {
-			klineItem, err = exch.GetHistoricCandles(ctx,
-				pair,
-				a,
-				start,
-				end,
-				interval)
+			klineItem, err = exch.GetHistoricCandles(ctx, pair, a, interval, start, end)
 		}
 	}
-
 	if err != nil {
 		return nil, err
 	}
 
 	if r.FillMissingWithTrades {
 		var tradeDataKline *kline.Item
-		tradeDataKline, err = fillMissingCandlesWithStoredTrades(start, end, &klineItem)
+		tradeDataKline, err = fillMissingCandlesWithStoredTrades(start, end, klineItem)
 		if err != nil {
 			return nil, err
 		}
@@ -2496,17 +2486,18 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, r *gctrpc.GetHistori
 	resp.Exchange = klineItem.Exchange
 	for i := range klineItem.Candles {
 		resp.Candle = append(resp.Candle, &gctrpc.Candle{
-			Time:   klineItem.Candles[i].Time.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
-			Low:    klineItem.Candles[i].Low,
-			High:   klineItem.Candles[i].High,
-			Open:   klineItem.Candles[i].Open,
-			Close:  klineItem.Candles[i].Close,
-			Volume: klineItem.Candles[i].Volume,
+			Time:      klineItem.Candles[i].Time.UTC().Format(common.SimpleTimeFormatWithTimezone),
+			Low:       klineItem.Candles[i].Low,
+			High:      klineItem.Candles[i].High,
+			Open:      klineItem.Candles[i].Open,
+			Close:     klineItem.Candles[i].Close,
+			Volume:    klineItem.Candles[i].Volume,
+			IsPartial: klineItem.Candles[i].ValidationIssues == kline.PartialCandle,
 		})
 	}
 
 	if r.Sync && !r.UseDb {
-		_, err = kline.StoreInDatabase(&klineItem, r.Force)
+		_, err = kline.StoreInDatabase(klineItem, r.Force)
 		if err != nil {
 			if errors.Is(err, exchangeDB.ErrNoExchangeFound) {
 				return nil, errors.New("exchange was not found in database, you can seed existing data or insert a new exchange via the dbseed")
@@ -2533,7 +2524,7 @@ func fillMissingCandlesWithStoredTrades(startTime, endTime time.Time, klineItem 
 		if ranges[i].HasDataInRange {
 			continue
 		}
-		var tradeCandles kline.Item
+		var tradeCandles *kline.Item
 		trades, err := trade.GetTradesInRange(
 			klineItem.Exchange,
 			klineItem.Asset.String(),
@@ -3184,11 +3175,11 @@ func (s *RPCServer) GetSavedTrades(_ context.Context, r *gctrpc.GetSavedTradesRe
 		return nil, err
 	}
 
-	start, err := time.Parse(common.SimpleTimeFormat, r.Start)
+	start, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.Start)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
 	}
-	end, err := time.Parse(common.SimpleTimeFormat, r.End)
+	end, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.End)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
 	}
@@ -3227,11 +3218,11 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 	if r.End == "" || r.Start == "" || r.Exchange == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" || r.TimeInterval == 0 {
 		return nil, errInvalidArguments
 	}
-	start, err := time.Parse(common.SimpleTimeFormat, r.Start)
+	start, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.Start)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
 	}
-	end, err := time.Parse(common.SimpleTimeFormat, r.End)
+	end, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.End)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
 	}
@@ -3260,17 +3251,16 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 		return nil, err
 	}
 
-	var trades []trade.Data
-	trades, err = trade.GetTradesInRange(r.Exchange, r.AssetType, r.Pair.Base, r.Pair.Quote, start, end)
+	trades, err := trade.GetTradesInRange(r.Exchange, r.AssetType, r.Pair.Base, r.Pair.Quote, start, end)
 	if err != nil {
 		return nil, err
 	}
 	if len(trades) == 0 {
 		return nil, errNoTrades
 	}
+
 	interval := kline.Interval(r.TimeInterval)
-	var klineItem kline.Item
-	klineItem, err = trade.ConvertTradesToCandles(interval, trades...)
+	klineItem, err := trade.ConvertTradesToCandles(interval, trades...)
 	if err != nil {
 		return nil, err
 	}
@@ -3287,17 +3277,18 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 	}
 	for i := range klineItem.Candles {
 		resp.Candle = append(resp.Candle, &gctrpc.Candle{
-			Time:   klineItem.Candles[i].Time.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
-			Low:    klineItem.Candles[i].Low,
-			High:   klineItem.Candles[i].High,
-			Open:   klineItem.Candles[i].Open,
-			Close:  klineItem.Candles[i].Close,
-			Volume: klineItem.Candles[i].Volume,
+			Time:      klineItem.Candles[i].Time.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+			Low:       klineItem.Candles[i].Low,
+			High:      klineItem.Candles[i].High,
+			Open:      klineItem.Candles[i].Open,
+			Close:     klineItem.Candles[i].Close,
+			Volume:    klineItem.Candles[i].Volume,
+			IsPartial: klineItem.Candles[i].ValidationIssues == kline.PartialCandle,
 		})
 	}
 
 	if r.Sync {
-		_, err = kline.StoreInDatabase(&klineItem, r.Force)
+		_, err = kline.StoreInDatabase(klineItem, r.Force)
 		if err != nil {
 			return nil, err
 		}
@@ -3332,11 +3323,11 @@ func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc
 		return nil, err
 	}
 
-	start, err := time.Parse(common.SimpleTimeFormat, r.Start)
+	start, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.Start)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
 	}
-	end, err := time.Parse(common.SimpleTimeFormat, r.End)
+	end, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.End)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
 	}
@@ -3423,11 +3414,11 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 	if err != nil {
 		return nil, err
 	}
-	start, err := time.Parse(common.SimpleTimeFormat, r.Start)
+	start, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.Start)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
 	}
-	end, err := time.Parse(common.SimpleTimeFormat, r.End)
+	end, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.End)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
 	}
@@ -3541,11 +3532,11 @@ func (s *RPCServer) GetHistoricTrades(r *gctrpc.GetSavedTradesRequest, stream gc
 		return err
 	}
 	var trades []trade.Data
-	start, err := time.Parse(common.SimpleTimeFormat, r.Start)
+	start, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.Start)
 	if err != nil {
 		return fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
 	}
-	end, err := time.Parse(common.SimpleTimeFormat, r.End)
+	end, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.End)
 	if err != nil {
 		return fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
 	}
@@ -3849,11 +3840,11 @@ func (s *RPCServer) UpsertDataHistoryJob(_ context.Context, r *gctrpc.UpsertData
 		return nil, err
 	}
 
-	start, err := time.Parse(common.SimpleTimeFormat, r.StartDate)
+	start, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.StartDate)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
 	}
-	end, err := time.Parse(common.SimpleTimeFormat, r.EndDate)
+	end, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.EndDate)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
 	}
@@ -4020,11 +4011,11 @@ func (s *RPCServer) GetDataHistoryJobsBetween(_ context.Context, r *gctrpc.GetDa
 	if r == nil {
 		return nil, errNilRequestData
 	}
-	start, err := time.Parse(common.SimpleTimeFormat, r.StartDate)
+	start, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.StartDate)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
 	}
-	end, err := time.Parse(common.SimpleTimeFormat, r.EndDate)
+	end, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.EndDate)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
 	}
@@ -4414,13 +4405,13 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 	}
 	var start, end time.Time
 	if r.StartDate != "" {
-		start, err = time.Parse(common.SimpleTimeFormat, r.StartDate)
+		start, err = time.Parse(common.SimpleTimeFormatWithTimezone, r.StartDate)
 		if err != nil {
 			return nil, err
 		}
 	}
 	if r.EndDate != "" {
-		end, err = time.Parse(common.SimpleTimeFormat, r.EndDate)
+		end, err = time.Parse(common.SimpleTimeFormatWithTimezone, r.EndDate)
 		if err != nil {
 			return nil, err
 		}
@@ -4684,13 +4675,13 @@ func (s *RPCServer) GetFundingRates(ctx context.Context, r *gctrpc.GetFundingRat
 	start := time.Now().AddDate(-1, 0, 0)
 	end := time.Now()
 	if r.StartDate != "" {
-		start, err = time.Parse(common.SimpleTimeFormat, r.StartDate)
+		start, err = time.Parse(common.SimpleTimeFormatWithTimezone, r.StartDate)
 		if err != nil {
 			return nil, err
 		}
 	}
 	if r.EndDate != "" {
-		end, err = time.Parse(common.SimpleTimeFormat, r.EndDate)
+		end, err = time.Parse(common.SimpleTimeFormatWithTimezone, r.EndDate)
 		if err != nil {
 			return nil, err
 		}
@@ -4829,15 +4820,15 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		free := decimal.NewFromFloat(acc.Currencies[i].AvailableWithoutBorrow)
 		cal := order.CollateralCalculator{
 			CalculateOffline:   r.CalculateOffline,
-			CollateralCurrency: acc.Currencies[i].CurrencyName,
+			CollateralCurrency: acc.Currencies[i].Currency,
 			Asset:              a,
 			FreeCollateral:     free,
 			LockedCollateral:   total.Sub(free),
 		}
 		if r.CalculateOffline &&
-			!acc.Currencies[i].CurrencyName.Equal(currency.USD) {
+			!acc.Currencies[i].Currency.Equal(currency.USD) {
 			var tick *ticker.Price
-			tickerCurr := currency.NewPair(acc.Currencies[i].CurrencyName, currency.USD)
+			tickerCurr := currency.NewPair(acc.Currencies[i].Currency, currency.USD)
 			if !spotPairs.Contains(tickerCurr, true) {
 				// cannot price currency to calculate collateral
 				continue
@@ -5023,19 +5014,11 @@ func (s *RPCServer) GetTechnicalAnalysis(ctx context.Context, r *gctrpc.GetTechn
 		return nil, err
 	}
 
-	klineInterval := kline.Interval(r.Interval)
-
-	err = exch.GetBase().ValidateKline(pair, as, klineInterval)
-	if err != nil {
-		return nil, err
-	}
-
-	klines, err := exch.GetHistoricCandlesExtended(ctx,
-		pair,
+	klines, err := exch.GetHistoricCandlesExtended(ctx, pair,
 		as,
+		kline.Interval(r.Interval),
 		r.Start.AsTime(),
-		r.End.AsTime(),
-		klineInterval)
+		r.End.AsTime())
 	if err != nil {
 		return nil, err
 	}
@@ -5102,15 +5085,19 @@ func (s *RPCServer) GetTechnicalAnalysis(ctx context.Context, r *gctrpc.GetTechn
 			return nil, err
 		}
 
-		var otherKlines kline.Item
+		var otherKlines *kline.Item
 		otherKlines, err = otherExch.GetHistoricCandlesExtended(ctx,
-			otherPair, otherAs, r.Start.AsTime(), r.End.AsTime(), klineInterval)
+			otherPair,
+			otherAs,
+			kline.Interval(r.Interval),
+			r.Start.AsTime(),
+			r.End.AsTime())
 		if err != nil {
 			return nil, err
 		}
 
 		var correlation []float64
-		correlation, err = klines.GetCorrelationCoefficient(&otherKlines, r.Period)
+		correlation, err = klines.GetCorrelationCoefficient(otherKlines, r.Period)
 		if err != nil {
 			return nil, err
 		}
@@ -5200,13 +5187,13 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 	start := time.Now().AddDate(0, -1, 0)
 	end := time.Now()
 	if r.StartDate != "" {
-		start, err = time.Parse(common.SimpleTimeFormat, r.StartDate)
+		start, err = time.Parse(common.SimpleTimeFormatWithTimezone, r.StartDate)
 		if err != nil {
 			return nil, err
 		}
 	}
 	if r.EndDate != "" {
-		end, err = time.Parse(common.SimpleTimeFormat, r.EndDate)
+		end, err = time.Parse(common.SimpleTimeFormatWithTimezone, r.EndDate)
 		if err != nil {
 			return nil, err
 		}
@@ -5246,7 +5233,7 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 		req.Rates = make([]margin.Rate, len(r.Rates))
 		for i := range r.Rates {
 			var offlineRate margin.Rate
-			offlineRate.Time, err = time.Parse(common.SimpleTimeFormat, r.Rates[i].Time)
+			offlineRate.Time, err = time.Parse(common.SimpleTimeFormatWithTimezone, r.Rates[i].Time)
 			if err != nil {
 				return nil, err
 			}

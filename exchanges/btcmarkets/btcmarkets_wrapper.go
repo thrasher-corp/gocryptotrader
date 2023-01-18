@@ -31,6 +31,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+var errFailedToConvertToCandle = errors.New("cannot convert time series data to kline.Candle, insufficient data")
+
 // GetDefaultConfig returns a default exchange config
 func (b *BTCMarkets) GetDefaultConfig() (*config.Exchange, error) {
 	b.SetDefaults()
@@ -113,17 +115,21 @@ func (b *BTCMarkets) SetDefaults() {
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.OneMin.Word():     true,
-					kline.FiveMin.Word():    true,
-					kline.FifteenMin.Word(): true,
-					kline.ThirtyMin.Word():  true,
-					kline.OneHour.Word():    true,
-					kline.SixHour.Word():    true,
-					kline.OneDay.Word():     true,
-					kline.OneWeek.Word():    true,
-					kline.OneMonth.Word():   true,
-				},
+				Intervals: kline.DeployExchangeIntervals(
+					kline.OneMin,
+					kline.ThreeMin,
+					kline.FiveMin,
+					kline.FifteenMin,
+					kline.ThirtyMin,
+					kline.OneHour,
+					kline.TwoHour,
+					kline.ThreeHour,
+					kline.FourHour,
+					kline.SixHour,
+					kline.OneDay,
+					kline.OneWeek,
+					kline.OneMonth,
+				),
 				ResultLimit: 1000,
 			},
 		},
@@ -447,10 +453,10 @@ func (b *BTCMarkets) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 	acc.AssetType = assetType
 	for x := range data {
 		acc.Currencies = append(acc.Currencies, account.Balance{
-			CurrencyName: currency.NewCode(data[x].AssetName),
-			Total:        data[x].Balance,
-			Hold:         data[x].Locked,
-			Free:         data[x].Available,
+			Currency: currency.NewCode(data[x].AssetName),
+			Total:    data[x].Balance,
+			Hold:     data[x].Locked,
+			Free:     data[x].Available,
 		})
 	}
 	resp.Accounts = append(resp.Accounts, acc)
@@ -1011,147 +1017,65 @@ func (b *BTCMarkets) FormatExchangeKlineInterval(in kline.Interval) string {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (b *BTCMarkets) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := b.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
-	}
-
-	if kline.TotalCandlesPerInterval(start, end, interval) > float64(b.Features.Enabled.Kline.ResultLimit) {
-		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
-	}
-
-	formattedPair, err := b.FormatExchangeCurrency(pair, a)
+func (b *BTCMarkets) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := b.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
 	candles, err := b.GetMarketCandles(ctx,
-		formattedPair.String(),
-		b.FormatExchangeKlineInterval(interval),
-		start,
-		end,
+		req.RequestFormatted.String(),
+		b.FormatExchangeKlineInterval(req.ExchangeInterval),
+		req.Start,
+		req.End,
 		-1,
 		-1,
 		-1)
-
 	if err != nil {
-		return kline.Item{}, err
-	}
-	ret := kline.Item{
-		Exchange: b.Name,
-		Pair:     formattedPair,
-		Asset:    asset.Spot,
-		Interval: interval,
+		return nil, err
 	}
 
+	timeSeries := make([]kline.Candle, len(candles))
 	for x := range candles {
-		var tempTime time.Time
-		var tempData kline.Candle
-		tempTime, err = time.Parse(time.RFC3339, candles[x][0])
+		timeSeries[x], err = convertToKlineCandle(&candles[x])
 		if err != nil {
-			return kline.Item{}, err
+			return nil, err
 		}
-		tempData.Time = tempTime
-		tempData.Open, err = strconv.ParseFloat(candles[x][1], 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
-		tempData.High, err = strconv.ParseFloat(candles[x][2], 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
-		tempData.Low, err = strconv.ParseFloat(candles[x][3], 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
-		tempData.Close, err = strconv.ParseFloat(candles[x][4], 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
-		tempData.Volume, err = strconv.ParseFloat(candles[x][5], 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
-		ret.Candles = append(ret.Candles, tempData)
 	}
-
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (b *BTCMarkets) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := b.ValidateKline(p, a, interval); err != nil {
-		return kline.Item{}, err
-	}
-
-	fPair, err := b.FormatExchangeCurrency(p, a)
+func (b *BTCMarkets) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := b.GetKlineExtendedRequest(pair, a, interval, start, end)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
-	ret := kline.Item{
-		Exchange: b.Name,
-		Pair:     fPair,
-		Asset:    a,
-		Interval: interval,
-	}
-
-	dates, err := kline.CalculateCandleDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
-	if err != nil {
-		return kline.Item{}, err
-	}
-	for x := range dates.Ranges {
+	timeSeries := make([]kline.Candle, 0, req.Size())
+	for x := range req.Ranges {
 		var candles CandleResponse
 		candles, err = b.GetMarketCandles(ctx,
-			fPair.String(),
-			b.FormatExchangeKlineInterval(interval),
-			dates.Ranges[x].Start.Time, dates.Ranges[x].End.Time, -1, -1, -1)
+			req.RequestFormatted.String(),
+			b.FormatExchangeKlineInterval(req.ExchangeInterval),
+			req.Ranges[x].Start.Time,
+			req.Ranges[x].End.Time,
+			-1,
+			-1,
+			-1)
 		if err != nil {
-			return kline.Item{}, err
+			return nil, err
 		}
 
 		for i := range candles {
-			var tempTime time.Time
-			var tempData kline.Candle
-			tempTime, err = time.Parse(time.RFC3339, candles[i][0])
+			elem, err := convertToKlineCandle(&candles[i])
 			if err != nil {
-				return kline.Item{}, err
+				return nil, err
 			}
-			tempData.Time = tempTime
-			tempData.Open, err = strconv.ParseFloat(candles[i][1], 64)
-			if err != nil {
-				return kline.Item{}, err
-			}
-			tempData.High, err = strconv.ParseFloat(candles[i][2], 64)
-			if err != nil {
-				return kline.Item{}, err
-			}
-			tempData.Low, err = strconv.ParseFloat(candles[i][3], 64)
-			if err != nil {
-				return kline.Item{}, err
-			}
-			tempData.Close, err = strconv.ParseFloat(candles[i][4], 64)
-			if err != nil {
-				return kline.Item{}, err
-			}
-			tempData.Volume, err = strconv.ParseFloat(candles[i][5], 64)
-			if err != nil {
-				return kline.Item{}, err
-			}
-			ret.Candles = append(ret.Candles, tempData)
+			timeSeries = append(timeSeries, elem)
 		}
 	}
-
-	dates.SetHasDataFromCandles(ret.Candles)
-	summary := dates.DataSummary(false)
-	if len(summary) > 0 {
-		log.Warnf(log.ExchangeSys, "%v - %v", b.Name, summary)
-	}
-	ret.RemoveDuplicates()
-	ret.RemoveOutsideRange(start, end)
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetServerTime returns the current exchange server time.
@@ -1188,4 +1112,37 @@ func (b *BTCMarkets) UpdateOrderExecutionLimits(ctx context.Context, a asset.Ite
 		}
 	}
 	return b.LoadLimits(limits)
+}
+
+func convertToKlineCandle(candle *[6]string) (kline.Candle, error) {
+	var elem kline.Candle
+	if candle == nil {
+		return elem, errFailedToConvertToCandle
+	}
+	var err error
+	elem.Time, err = time.Parse(time.RFC3339, candle[0])
+	if err != nil {
+		return elem, err
+	}
+	elem.Open, err = strconv.ParseFloat(candle[1], 64)
+	if err != nil {
+		return elem, err
+	}
+	elem.High, err = strconv.ParseFloat(candle[2], 64)
+	if err != nil {
+		return elem, err
+	}
+	elem.Low, err = strconv.ParseFloat(candle[3], 64)
+	if err != nil {
+		return elem, err
+	}
+	elem.Close, err = strconv.ParseFloat(candle[4], 64)
+	if err != nil {
+		return elem, err
+	}
+	elem.Volume, err = strconv.ParseFloat(candle[5], 64)
+	if err != nil {
+		return elem, err
+	}
+	return elem, nil
 }

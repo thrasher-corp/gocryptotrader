@@ -19,9 +19,10 @@ const (
 	orderSubmissionValidSides = Buy | Sell | Bid | Ask | Long | Short
 	shortSide                 = Short | Sell | Ask
 	longSide                  = Long | Buy | Bid
-	inactiveStatuses          = Filled | Cancelled | InsufficientBalance | MarketUnavailable | Rejected | PartiallyCancelled | Expired | Closed | AnyStatus | Cancelling | Liquidated
-	activeStatuses            = Active | Open | PartiallyFilled | New | PendingCancel | Hidden | AutoDeleverage | Pending
-	notPlaced                 = InsufficientBalance | MarketUnavailable | Rejected
+
+	inactiveStatuses = Filled | Cancelled | InsufficientBalance | MarketUnavailable | Rejected | PartiallyCancelled | Expired | Closed | AnyStatus | Cancelling | Liquidated
+	activeStatuses   = Active | Open | PartiallyFilled | New | PendingCancel | Hidden | AutoDeleverage | Pending
+	notPlaced        = InsufficientBalance | MarketUnavailable | Rejected
 )
 
 var (
@@ -38,6 +39,12 @@ var (
 	errOrderSubmitResponseIsNil = errors.New("order submit response is nil")
 	errOrderDetailIsNil         = errors.New("order detail is nil")
 )
+
+// IsValidOrderSubmissionSide validates that the order side is a valid submission direction
+// TODO: Method.
+func IsValidOrderSubmissionSide(s Side) bool {
+	return s != UnknownSide && orderSubmissionValidSides&s == s
+}
 
 // UpdateOrderFromDetail Will update an order detail (used in order management)
 // by comparing passed in and existing values

@@ -18,12 +18,12 @@ import (
 )
 
 // LoadFromDatabase returns Item from database seeded data
-func LoadFromDatabase(exchange string, pair currency.Pair, a asset.Item, interval Interval, start, end time.Time) (Item, error) {
+func LoadFromDatabase(exchange string, pair currency.Pair, a asset.Item, interval Interval, start, end time.Time) (*Item, error) {
 	retCandle, err := candle.Series(exchange,
 		pair.Base.String(), pair.Quote.String(),
 		int64(interval.Duration().Seconds()), a.String(), start, end)
 	if err != nil {
-		return Item{}, err
+		return nil, err
 	}
 
 	ret := Item{
@@ -37,13 +37,13 @@ func LoadFromDatabase(exchange string, pair currency.Pair, a asset.Item, interva
 		if ret.SourceJobID == uuid.Nil && retCandle.Candles[x].SourceJobID != "" {
 			ret.SourceJobID, err = uuid.FromString(retCandle.Candles[x].SourceJobID)
 			if err != nil {
-				return Item{}, err
+				return nil, err
 			}
 		}
 		if ret.ValidationJobID == uuid.Nil && retCandle.Candles[x].ValidationJobID != "" {
 			ret.ValidationJobID, err = uuid.FromString(retCandle.Candles[x].ValidationJobID)
 			if err != nil {
-				return Item{}, err
+				return nil, err
 			}
 		}
 		ret.Candles = append(ret.Candles, Candle{
@@ -56,7 +56,7 @@ func LoadFromDatabase(exchange string, pair currency.Pair, a asset.Item, interva
 			ValidationIssues: retCandle.Candles[x].ValidationIssues,
 		})
 	}
-	return ret, nil
+	return &ret, nil
 }
 
 // StoreInDatabase returns Item from database seeded data

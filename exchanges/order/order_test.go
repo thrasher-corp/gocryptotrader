@@ -1945,3 +1945,16 @@ func TestGetOrdersRequest_Filter(t *testing.T) {
 		}
 	}
 }
+
+func TestIsValidOrderSubmissionSide(t *testing.T) {
+	t.Parallel()
+	if IsValidOrderSubmissionSide(UnknownSide) {
+		t.Error("expected false")
+	}
+	if !IsValidOrderSubmissionSide(Buy) {
+		t.Error("expected true")
+	}
+	if IsValidOrderSubmissionSide(CouldNotBuy) {
+		t.Error("expected false")
+	}
+}

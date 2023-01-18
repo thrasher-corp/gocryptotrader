@@ -264,7 +264,7 @@ var futuresCommands = &cli.Command{
 
 func getManagedPosition(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getmanagedposition")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
@@ -446,7 +446,7 @@ func getAllManagedPositions(c *cli.Context) error {
 
 func getFuturesPositions(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getfuturespositions")
+		return cli.ShowSubcommandHelp(c)
 	}
 	var (
 		exchangeName          string
@@ -583,11 +583,11 @@ func getFuturesPositions(c *cli.Context) error {
 		return err
 	}
 
-	s, err = time.Parse(common.SimpleTimeFormat, startTime)
+	s, err = time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err = time.Parse(common.SimpleTimeFormat, endTime)
+	e, err = time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -612,8 +612,8 @@ func getFuturesPositions(c *cli.Context) error {
 				Base:      p.Base.String(),
 				Quote:     p.Quote.String(),
 			},
-			StartDate:               negateLocalOffset(s),
-			EndDate:                 negateLocalOffset(e),
+			StartDate:               s.Format(common.SimpleTimeFormatWithTimezone),
+			EndDate:                 e.Format(common.SimpleTimeFormatWithTimezone),
 			Status:                  status,
 			PositionLimit:           int64(limit),
 			Overwrite:               overwrite,
@@ -633,7 +633,7 @@ func getFuturesPositions(c *cli.Context) error {
 
 func getCollateral(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, c.Command.Name)
+		return cli.ShowSubcommandHelp(c)
 	}
 	var (
 		exchangeName, assetType                               string
@@ -707,7 +707,7 @@ func getCollateral(c *cli.Context) error {
 
 func getFundingRates(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getfundingrates")
+		return cli.ShowSubcommandHelp(c)
 	}
 	var (
 		exchangeName, assetType           string
@@ -774,11 +774,11 @@ func getFundingRates(c *cli.Context) error {
 			return err
 		}
 	}
-	s, err = time.Parse(common.SimpleTimeFormat, startTime)
+	s, err = time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err = time.Parse(common.SimpleTimeFormat, endTime)
+	e, err = time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -799,8 +799,8 @@ func getFundingRates(c *cli.Context) error {
 			Exchange:         exchangeName,
 			Asset:            assetType,
 			Pairs:            currencyPairs,
-			StartDate:        negateLocalOffset(s),
-			EndDate:          negateLocalOffset(e),
+			StartDate:        s.Format(common.SimpleTimeFormatWithTimezone),
+			EndDate:          e.Format(common.SimpleTimeFormatWithTimezone),
 			IncludePredicted: includePredicted,
 			IncludePayments:  includePayments,
 		})

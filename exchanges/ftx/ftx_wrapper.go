@@ -136,15 +136,15 @@ func (f *FTX) SetDefaults() {
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.FifteenSecond.Word(): true,
-					kline.OneMin.Word():        true,
-					kline.FiveMin.Word():       true,
-					kline.FifteenMin.Word():    true,
-					kline.OneHour.Word():       true,
-					kline.FourHour.Word():      true,
-					kline.OneDay.Word():        true,
-				},
+				Intervals: kline.DeployExchangeIntervals(
+					kline.FifteenSecond,
+					kline.OneMin,
+					kline.FiveMin,
+					kline.FifteenMin,
+					kline.OneHour,
+					kline.FourHour,
+					kline.OneDay,
+				),
 				ResultLimit: 5000,
 			},
 		},
@@ -168,6 +168,14 @@ func (f *FTX) SetDefaults() {
 	f.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	f.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	f.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
+
+	err = f.LoadCollateralWeightings(context.TODO())
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to store collateral weightings. Err: %s",
+			f.Name,
+			err)
+	}
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -206,15 +214,6 @@ func (f *FTX) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	if err = f.CurrencyPairs.IsAssetEnabled(asset.Futures); err == nil {
-		err = f.LoadCollateralWeightings(context.TODO())
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to store collateral weightings. Err: %s",
-				f.Name,
-				err)
-		}
-	}
 	return f.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -490,7 +489,7 @@ func (f *FTX) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Hold
 			hold := balances[x].Total - balances[x].AvailableWithoutBorrow
 			acc.Currencies = append(acc.Currencies,
 				account.Balance{
-					CurrencyName:           balances[x].Coin,
+					Currency:               balances[x].Coin,
 					Total:                  balances[x].Total,
 					Hold:                   hold,
 					AvailableWithoutBorrow: balances[x].AvailableWithoutBorrow,
@@ -648,10 +647,10 @@ func (f *FTX) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitRe
 		return nil, err
 	}
 
-	if s.Side == order.Ask {
+	if s.Side.IsShort() {
 		s.Side = order.Sell
 	}
-	if s.Side == order.Bid {
+	if s.Side.IsLong() {
 		s.Side = order.Buy
 	}
 
@@ -674,7 +673,43 @@ func (f *FTX) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitRe
 		return nil, err
 	}
 
-	return s.DeriveSubmitResponse(strconv.FormatInt(tempResp.ID, 10))
+	resp, err := s.DeriveSubmitResponse(strconv.FormatInt(tempResp.ID, 10))
+	if err != nil {
+		return nil, err
+	}
+	if !s.RetrieveFees {
+		return resp, nil
+	}
+	time.Sleep(s.RetrieveFeeDelay)
+	fills, err := f.GetFills(ctx, s.Pair, s.AssetType, time.Time{}, time.Time{}, strconv.FormatInt(tempResp.ID, 10))
+	if err != nil {
+		// choosing to return with no error so that a valid order is still returned to caller
+		log.Errorf(log.ExchangeSys, "could not retrieve fees for order %v: %v", tempResp.ID, err)
+		return resp, nil
+	}
+	for i := range fills {
+		resp.Fee += fills[i].Fee
+		var side order.Side
+		side, err = order.StringToOrderSide(fills[i].Side)
+		if err != nil {
+			return nil, err
+		}
+		if resp.FeeAsset.IsEmpty() {
+			resp.FeeAsset = fills[i].FeeCurrency
+		}
+		resp.Trades = append(resp.Trades, order.TradeHistory{
+			Price:     fills[i].Price,
+			Amount:    fills[i].Size,
+			Fee:       fills[i].Fee,
+			Exchange:  f.Name,
+			TID:       strconv.FormatInt(fills[i].TradeID, 10),
+			Side:      side,
+			Timestamp: fills[i].Time,
+			IsMaker:   fills[i].Liquidity == "maker",
+			FeeAsset:  fills[i].FeeCurrency.String(),
+		})
+	}
+	return resp, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -1179,83 +1214,58 @@ func (f *FTX) ValidateCredentials(ctx context.Context, assetType asset.Item) err
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (f *FTX) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := f.ValidateKline(p, a, interval); err != nil {
-		return kline.Item{}, err
-	}
-
-	formattedPair, err := f.FormatExchangeCurrency(p, a)
+func (f *FTX) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := f.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
 	ohlcData, err := f.GetHistoricalData(ctx,
-		formattedPair.String(),
-		int64(interval.Duration().Seconds()),
+		req.RequestFormatted.String(),
+		int64(req.ExchangeInterval.Duration().Seconds()),
 		int64(f.Features.Enabled.Kline.ResultLimit),
-		start,
-		end)
+		req.Start,
+		req.End)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
-	ret := kline.Item{
-		Exchange: f.Name,
-		Pair:     p,
-		Asset:    a,
-		Interval: interval,
-	}
-
+	timeSeries := make([]kline.Candle, len(ohlcData))
 	for x := range ohlcData {
-		ret.Candles = append(ret.Candles, kline.Candle{
+		timeSeries[x] = kline.Candle{
 			Time:   ohlcData[x].StartTime,
 			Open:   ohlcData[x].Open,
 			High:   ohlcData[x].High,
 			Low:    ohlcData[x].Low,
 			Close:  ohlcData[x].Close,
 			Volume: ohlcData[x].Volume,
-		})
+		}
 	}
-	return ret, nil
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (f *FTX) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := f.ValidateKline(p, a, interval); err != nil {
-		return kline.Item{}, err
-	}
-
-	ret := kline.Item{
-		Exchange: f.Name,
-		Pair:     p,
-		Asset:    a,
-		Interval: interval,
-	}
-
-	dates, err := kline.CalculateCandleDateRanges(start, end, interval, f.Features.Enabled.Kline.ResultLimit)
+func (f *FTX) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := f.GetKlineExtendedRequest(pair, a, interval, start, end)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
-	formattedPair, err := f.FormatExchangeCurrency(p, a)
-	if err != nil {
-		return kline.Item{}, err
-	}
-
-	for x := range dates.Ranges {
+	timeSeries := make([]kline.Candle, 0, req.Size())
+	for x := range req.Ranges {
 		var ohlcData []OHLCVData
 		ohlcData, err = f.GetHistoricalData(ctx,
-			formattedPair.String(),
-			int64(interval.Duration().Seconds()),
+			req.RequestFormatted.String(),
+			int64(req.ExchangeInterval.Duration().Seconds()),
 			int64(f.Features.Enabled.Kline.ResultLimit),
-			dates.Ranges[x].Start.Time,
-			dates.Ranges[x].End.Time)
+			req.Ranges[x].Start.Time,
+			req.Ranges[x].End.Time)
 		if err != nil {
-			return kline.Item{}, err
+			return nil, err
 		}
 
 		for i := range ohlcData {
-			ret.Candles = append(ret.Candles, kline.Candle{
+			timeSeries = append(timeSeries, kline.Candle{
 				Time:   ohlcData[i].StartTime,
 				Open:   ohlcData[i].Open,
 				High:   ohlcData[i].High,
@@ -1265,15 +1275,7 @@ func (f *FTX) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a
 			})
 		}
 	}
-	dates.SetHasDataFromCandles(ret.Candles)
-	summary := dates.DataSummary(false)
-	if len(summary) > 0 {
-		log.Warnf(log.ExchangeSys, "%v - %v", f.Name, summary)
-	}
-	ret.RemoveDuplicates()
-	ret.RemoveOutsideRange(start, end)
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
+	return req.ProcessResponse(timeSeries)
 }
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
@@ -1696,7 +1698,7 @@ func (f *FTX) GetFuturesPositions(ctx context.Context, request *order.PositionsR
 	allPositions:
 		for {
 			var fills []FillsData
-			fills, err = f.GetFills(ctx, request.Pairs[x], request.Asset, request.StartDate, endTime)
+			fills, err = f.GetFills(ctx, request.Pairs[x], request.Asset, request.StartDate, endTime, "")
 			if err != nil {
 				return nil, err
 			}
@@ -1760,12 +1762,15 @@ func (f *FTX) GetFuturesPositions(ctx context.Context, request *order.PositionsR
 }
 
 // GetCollateralCurrencyForContract returns the collateral currency for an asset and contract pair
-func (f *FTX) GetCollateralCurrencyForContract(_ asset.Item, _ currency.Pair) (currency.Code, asset.Item, error) {
+func (f *FTX) GetCollateralCurrencyForContract(a asset.Item, _ currency.Pair) (currency.Code, asset.Item, error) {
 	return currency.USD, asset.Futures, nil
 }
 
 // GetCurrencyForRealisedPNL returns where to put realised PNL
-func (f *FTX) GetCurrencyForRealisedPNL(_ asset.Item, _ currency.Pair) (currency.Code, asset.Item, error) {
+func (f *FTX) GetCurrencyForRealisedPNL(a asset.Item, _ currency.Pair) (currency.Code, asset.Item, error) {
+	if !a.IsFutures() {
+		return currency.EMPTYCODE, asset.Empty, fmt.Errorf("%v %w", a, order.ErrNotFuturesAsset)
+	}
 	return currency.USD, asset.Spot, nil
 }
 

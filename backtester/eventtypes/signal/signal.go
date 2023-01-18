@@ -2,6 +2,7 @@ package signal
 
 import (
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -51,6 +52,26 @@ func (s *Signal) GetClosePrice() decimal.Decimal {
 	return s.ClosePrice
 }
 
+// GetHighPrice returns the high price of a signal
+func (s *Signal) GetHighPrice() decimal.Decimal {
+	return s.HighPrice
+}
+
+// GetLowPrice returns the low price of a signal
+func (s *Signal) GetLowPrice() decimal.Decimal {
+	return s.LowPrice
+}
+
+// GetOpenPrice returns the open price of a signal
+func (s *Signal) GetOpenPrice() decimal.Decimal {
+	return s.OpenPrice
+}
+
+// GetVolume returns the volume of a signal
+func (s *Signal) GetVolume() decimal.Decimal {
+	return s.Volume
+}
+
 // SetPrice sets the price
 func (s *Signal) SetPrice(f decimal.Decimal) {
 	s.ClosePrice = f
@@ -91,4 +112,19 @@ func (s *Signal) IsNil() bool {
 // its set amount or fail
 func (s *Signal) MatchOrderAmount() bool {
 	return s.MatchesOrderAmount
+}
+
+// ToKline is used to convert a signal event
+// to a data event for the purpose of closing all positions
+// function CloseAllPositions is builds signal data, but
+// data event data must still be populated
+func (s *Signal) ToKline() kline.Event {
+	return &kline.Kline{
+		Base:   s.Base,
+		Open:   s.OpenPrice,
+		Close:  s.ClosePrice,
+		Low:    s.LowPrice,
+		High:   s.HighPrice,
+		Volume: s.Volume,
+	}
 }

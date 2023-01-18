@@ -717,6 +717,7 @@ message Candle {
   double open = 4;
   double close = 5;
   double volume = 6;
+  bool is_partial = 7;
 }
 
 message AuditEvent {

@@ -39,7 +39,7 @@ type GCTExchange interface {
 	DepositAddress(exch, chain string, currencyCode currency.Code) (*deposit.Address, error)
 	WithdrawalFiatFunds(ctx context.Context, bankAccountID string, request *withdraw.Request) (out string, err error)
 	WithdrawalCryptoFunds(ctx context.Context, request *withdraw.Request) (out string, err error)
-	OHLCV(ctx context.Context, exch string, pair currency.Pair, item asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error)
+	OHLCV(ctx context.Context, exch string, pair currency.Pair, item asset.Item, start, end time.Time, interval kline.Interval) (*kline.Item, error)
 }
 
 // SetModuleWrapper link the wrapper and interface to use for modules

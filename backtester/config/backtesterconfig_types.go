@@ -18,14 +18,15 @@ var (
 
 // BacktesterConfig contains the configuration for the backtester
 type BacktesterConfig struct {
-	PluginPath    string         `json:"plugin-path"`
-	PrintLogo     bool           `json:"print-logo"`
-	Verbose       bool           `json:"verbose"`
-	LogSubheaders bool           `json:"log-subheaders"`
-	Report        Report         `json:"report"`
-	GRPC          GRPC           `json:"grpc"`
-	UseCMDColours bool           `json:"use-cmd-colours"`
-	Colours       common.Colours `json:"cmd-colours"`
+	PrintLogo           bool           `json:"print-logo"`
+	LogSubheaders       bool           `json:"log-subheaders"`
+	Verbose             bool           `json:"verbose"`
+	StopAllTasksOnClose bool           `json:"stop-all-tasks-on-close"`
+	PluginPath          string         `json:"plugin-path"`
+	Report              Report         `json:"report"`
+	GRPC                GRPC           `json:"grpc"`
+	UseCMDColours       bool           `json:"use-cmd-colours"`
+	Colours             common.Colours `json:"cmd-colours"`
 }
 
 // Report contains the report settings

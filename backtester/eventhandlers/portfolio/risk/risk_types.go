@@ -24,7 +24,7 @@ type Handler interface {
 
 // Risk contains all currency settings in order to evaluate potential orders
 type Risk struct {
-	CurrencySettings map[string]map[asset.Item]map[currency.Pair]*CurrencySettings
+	CurrencySettings map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*CurrencySettings
 	CanUseLeverage   bool
 	MaximumLeverage  decimal.Decimal
 }

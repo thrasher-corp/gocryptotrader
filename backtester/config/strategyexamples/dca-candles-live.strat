@@ -11,7 +11,7 @@
  },
  "currency-settings": [
   {
-   "exchange-name": "ftx",
+   "exchange-name": "binance",
    "asset": "spot",
    "base": "BTC",
    "quote": "USDT",
@@ -19,14 +19,14 @@
     "initial-quote-funds": "100000"
    },
    "buy-side": {
-    "minimum-size": "0.005",
-    "maximum-size": "2",
-    "maximum-total": "40000"
+    "minimum-size": "0.001",
+    "maximum-size": "0.05",
+    "maximum-total": "100"
    },
    "sell-side": {
-    "minimum-size": "0.005",
-    "maximum-size": "2",
-    "maximum-total": "40000"
+    "minimum-size": "0.001",
+    "maximum-size": "0.05",
+    "maximum-total": "100"
    },
    "min-slippage-percent": "0",
    "max-slippage-percent": "0",
@@ -41,13 +41,27 @@
  "data-settings": {
   "interval": 60000000000,
   "data-type": "candle",
+  "verbose-exchange-requests": false,
   "live-data": {
-   "api-key-override": "",
-   "api-secret-override": "",
-   "api-client-id-override": "",
-   "api-2fa-override": "",
-   "api-sub-account-override": "",
-   "real-orders": false
+   "new-event-timeout": 120000000000,
+   "data-check-timer": 1000000000,
+   "real-orders": false,
+   "close-positions-on-stop": false,
+   "data-request-retry-tolerance": 3,
+   "data-request-retry-wait-time": 500000000,
+   "exchange-credentials": [
+    {
+     "exchange": "binance",
+     "credentials": {
+      "Key": "",
+      "Secret": "",
+      "ClientID": "",
+      "PEMKey": "",
+      "SubAccount": "",
+      "OneTimePassword": ""
+     }
+    }
+   ]
   }
  },
  "portfolio-settings": {
@@ -58,14 +72,14 @@
    "maximum-collateral-leverage-rate": "0"
   },
   "buy-side": {
-   "minimum-size": "0.005",
-   "maximum-size": "2",
-   "maximum-total": "40000"
+   "minimum-size": "0.001",
+   "maximum-size": "0.05",
+   "maximum-total": "100"
   },
   "sell-side": {
-   "minimum-size": "0.005",
-   "maximum-size": "2",
-   "maximum-total": "40000"
+   "minimum-size": "0.001",
+   "maximum-size": "0.05",
+   "maximum-total": "100"
   }
  },
  "statistic-settings": {

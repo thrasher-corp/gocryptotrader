@@ -67,5 +67,6 @@ func GenerateDefaultConfig() (*BacktesterConfig, error) {
 			Warn:     common.CMDColours.Warn,
 			Error:    common.CMDColours.Error,
 		},
+		StopAllTasksOnClose: true,
 	}, nil
 }
