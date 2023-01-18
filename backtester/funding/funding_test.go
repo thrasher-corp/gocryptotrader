@@ -14,6 +14,7 @@ import (
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -913,8 +914,8 @@ func TestUpdateFundingFromLiveData(t *testing.T) {
 	t.Parallel()
 	f := &FundManager{}
 	err := f.UpdateFundingFromLiveData(false)
-	if !errors.Is(err, engine.ErrNilSubsystem) {
-		t.Errorf("received '%v', expected  '%v'", err, engine.ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("received '%v', expected  '%v'", err, subsystem.ErrNil)
 	}
 
 	f.exchangeManager = engine.SetupExchangeManager()
@@ -956,8 +957,8 @@ func TestUpdateAllCollateral(t *testing.T) {
 	t.Parallel()
 	f := &FundManager{}
 	err := f.UpdateAllCollateral(false, false)
-	if !errors.Is(err, engine.ErrNilSubsystem) {
-		t.Errorf("received '%v', expected  '%v'", err, engine.ErrNilSubsystem)
+	if !errors.Is(err, subsystem.ErrNil) {
+		t.Errorf("received '%v', expected  '%v'", err, subsystem.ErrNil)
 	}
 
 	f.exchangeManager = engine.SetupExchangeManager()

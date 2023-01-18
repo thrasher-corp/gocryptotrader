@@ -16,7 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -71,7 +71,7 @@ func (d *dataChecker) Start() error {
 		return gctcommon.ErrNilPointer
 	}
 	if !atomic.CompareAndSwapUint32(&d.started, 0, 1) {
-		return engine.ErrSubSystemAlreadyStarted
+		return subsystem.ErrAlreadyStarted
 	}
 	d.wg.Add(1)
 	d.shutdown = make(chan bool)
@@ -101,7 +101,7 @@ func (d *dataChecker) Stop() error {
 		return gctcommon.ErrNilPointer
 	}
 	if !atomic.CompareAndSwapUint32(&d.started, 1, 0) {
-		return engine.ErrSubSystemNotStarted
+		return subsystem.ErrNotStarted
 	}
 	close(d.shutdown)
 	return nil
@@ -116,7 +116,7 @@ func (d *dataChecker) SignalStopFromError(err error) error {
 		return gctcommon.ErrNilPointer
 	}
 	if !atomic.CompareAndSwapUint32(&d.started, 1, 0) {
-		return engine.ErrSubSystemNotStarted
+		return subsystem.ErrNotStarted
 	}
 	log.Error(common.LiveStrategy, err)
 	d.shutdownErr <- true
@@ -130,7 +130,7 @@ func (d *dataChecker) DataFetcher() error {
 	}
 	d.wg.Done()
 	if atomic.LoadUint32(&d.started) == 0 {
-		return engine.ErrSubSystemNotStarted
+		return subsystem.ErrNotStarted
 	}
 	checkTimer := time.NewTimer(0)
 	timeoutTimer := time.NewTimer(d.eventTimeout)
@@ -347,7 +347,7 @@ func (d *dataChecker) FetchLatestData() (bool, error) {
 		return false, fmt.Errorf("%w dataChecker", gctcommon.ErrNilPointer)
 	}
 	if atomic.LoadUint32(&d.started) == 0 {
-		return false, engine.ErrSubSystemNotStarted
+		return false, subsystem.ErrNotStarted
 	}
 	d.m.Lock()
 	defer d.m.Unlock()

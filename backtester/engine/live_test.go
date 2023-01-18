@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -87,8 +88,8 @@ func TestStart(t *testing.T) {
 	dc.wg.Wait()
 	atomic.CompareAndSwapUint32(&dc.started, 0, 1)
 	err = dc.Start()
-	if !errors.Is(err, engine.ErrSubSystemAlreadyStarted) {
-		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemAlreadyStarted)
+	if !errors.Is(err, subsystem.ErrAlreadyStarted) {
+		t.Errorf("received '%v' expected '%v'", err, subsystem.ErrAlreadyStarted)
 	}
 
 	var dh *dataChecker
@@ -123,8 +124,8 @@ func TestLiveHandlerStop(t *testing.T) {
 		shutdown: make(chan bool),
 	}
 	err := dc.Stop()
-	if !errors.Is(err, engine.ErrSubSystemNotStarted) {
-		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("received '%v' expected '%v'", err, subsystem.ErrNotStarted)
 	}
 
 	dc.started = 1
@@ -134,8 +135,8 @@ func TestLiveHandlerStop(t *testing.T) {
 	}
 	dc.shutdown = make(chan bool)
 	err = dc.Stop()
-	if !errors.Is(err, engine.ErrSubSystemNotStarted) {
-		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("received '%v' expected '%v'", err, subsystem.ErrNotStarted)
 	}
 
 	var dh *dataChecker
@@ -151,8 +152,8 @@ func TestLiveHandlerStopFromError(t *testing.T) {
 		shutdownErr: make(chan bool, 10),
 	}
 	err := dc.SignalStopFromError(errNoCredsNoLive)
-	if !errors.Is(err, engine.ErrSubSystemNotStarted) {
-		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("received '%v' expected '%v'", err, subsystem.ErrNotStarted)
 	}
 
 	err = dc.SignalStopFromError(nil)
@@ -189,8 +190,8 @@ func TestDataFetcher(t *testing.T) {
 	}
 	dc.wg.Add(1)
 	err := dc.DataFetcher()
-	if !errors.Is(err, engine.ErrSubSystemNotStarted) {
-		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("received '%v' expected '%v'", err, subsystem.ErrNotStarted)
 	}
 
 	dc.started = 1
@@ -315,8 +316,8 @@ func TestFetchLatestData(t *testing.T) {
 		funding: &fakeFunding{},
 	}
 	_, err := dataHandler.FetchLatestData()
-	if !errors.Is(err, engine.ErrSubSystemNotStarted) {
-		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystem.ErrNotStarted) {
+		t.Errorf("received '%v' expected '%v'", err, subsystem.ErrNotStarted)
 	}
 
 	dataHandler.started = 1
