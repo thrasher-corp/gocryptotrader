@@ -493,7 +493,7 @@ func TestFullCycle(t *testing.T) {
 
 	bt.DataHolder = data.NewHandlerHolder()
 	k := &kline.DataFromKline{
-		Item: gctkline.Item{
+		Item: &gctkline.Item{
 			Exchange: ex,
 			Pair:     cp,
 			Asset:    a,
@@ -633,7 +633,7 @@ func TestFullCycleMulti(t *testing.T) {
 
 	bt.DataHolder = data.NewHandlerHolder()
 	k := &kline.DataFromKline{
-		Item: gctkline.Item{
+		Item: &gctkline.Item{
 			Exchange: ex,
 			Pair:     cp,
 			Asset:    a,
@@ -756,7 +756,7 @@ func TestTriggerLiquidationsForExchange(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	da := &kline.DataFromKline{
-		Item: gctkline.Item{
+		Item: &gctkline.Item{
 			Exchange: testExchange,
 			Asset:    a,
 			Pair:     cp,
@@ -1008,7 +1008,7 @@ func TestProcessOrderEvent(t *testing.T) {
 	tt := time.Now()
 	bt.DataHolder = data.NewHandlerHolder()
 	k := &kline.DataFromKline{
-		Item: gctkline.Item{
+		Item: &gctkline.Item{
 			Exchange: testExchange,
 			Pair:     cp,
 			Asset:    a,
@@ -1124,7 +1124,7 @@ func TestProcessFillEvent(t *testing.T) {
 	}
 	bt.DataHolder = data.NewHandlerHolder()
 	k := &kline.DataFromKline{
-		Item: gctkline.Item{
+		Item: &gctkline.Item{
 			Exchange: testExchange,
 			Pair:     cp,
 			Asset:    a,
@@ -1236,7 +1236,7 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 	tt := time.Now()
 	bt.DataHolder = data.NewHandlerHolder()
 	k := &kline.DataFromKline{
-		Item: gctkline.Item{
+		Item: &gctkline.Item{
 			Exchange: testExchange,
 			Pair:     cp,
 			Asset:    a,
@@ -1348,7 +1348,7 @@ func TestCloseAllPositions(t *testing.T) {
 		dataRequestRetryTolerance: 1,
 		pairCandles: &kline.DataFromKline{
 			Base: &data.Base{},
-			Item: gctkline.Item{
+			Item: &gctkline.Item{
 				Exchange:       testExchange,
 				Pair:           cp,
 				UnderlyingPair: cp,
@@ -1856,7 +1856,7 @@ func TestExecuteStrategy(t *testing.T) {
 	bt.m.Unlock()
 	err = bt.ExecuteStrategy(false)
 	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
+		t.Fatalf("received '%v' expected '%v'", err, nil)
 	}
 
 	bt.m.Lock()
@@ -1971,7 +1971,7 @@ func TestProcessSingleDataEvent(t *testing.T) {
 	tt := time.Now()
 	bt.DataHolder = data.NewHandlerHolder()
 	k := &kline.DataFromKline{
-		Item: gctkline.Item{
+		Item: &gctkline.Item{
 			Exchange: testExchange,
 			Pair:     cp,
 			Asset:    a,

@@ -345,7 +345,7 @@ func TestFetchLatestData(t *testing.T) {
 			underlyingPair:            cp,
 			pairCandles: &datakline.DataFromKline{
 				Base: &data.Base{},
-				Item: kline.Item{
+				Item: &kline.Item{
 					Exchange:       testExchange,
 					Pair:           cp,
 					UnderlyingPair: cp,
@@ -408,7 +408,7 @@ func TestLoadCandleData(t *testing.T) {
 	l.pair = cp
 	l.pairCandles = &datakline.DataFromKline{
 		Base: &data.Base{},
-		Item: kline.Item{
+		Item: &kline.Item{
 			Exchange:       testExchange,
 			Asset:          asset.Spot,
 			Pair:           cp,
@@ -460,7 +460,7 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 			underlyingPair:            cp,
 			pairCandles: &datakline.DataFromKline{
 				Base: &data.Base{},
-				Item: kline.Item{
+				Item: &kline.Item{
 					Exchange:       testExchange,
 					Pair:           cp,
 					UnderlyingPair: cp,

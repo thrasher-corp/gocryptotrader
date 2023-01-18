@@ -501,7 +501,7 @@ func TestUpdateItem(t *testing.T) {
 	err = d.SetKlineData(&gctkline.Item{
 		Candles: []gctkline.Candle{
 			{
-				Time: tt.Add(1),
+				Time: tt.Add(gctkline.OneMin.Duration()),
 			},
 		},
 	})

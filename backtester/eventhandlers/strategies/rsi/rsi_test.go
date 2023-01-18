@@ -119,7 +119,7 @@ func TestOnSignal(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	da := &kline.DataFromKline{
-		Item:        gctkline.Item{},
+		Item:        &gctkline.Item{},
 		Base:        d,
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
@@ -135,7 +135,7 @@ func TestOnSignal(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	da.Item = gctkline.Item{
+	da.Item = &gctkline.Item{
 		Exchange: exch,
 		Pair:     p,
 		Asset:    a,
@@ -206,7 +206,7 @@ func TestOnSignals(t *testing.T) {
 		t.Errorf("received '%v' expected '%v", err, nil)
 	}
 	da := &kline.DataFromKline{
-		Item:        gctkline.Item{},
+		Item:        &gctkline.Item{},
 		Base:        d,
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}

@@ -11,8 +11,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
-var errExpectedTestError = errors.New("expected test error")
-
 type broken struct {
 	bitfinex.Bitfinex
 }

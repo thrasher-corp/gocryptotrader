@@ -49,6 +49,8 @@ const (
 	fakeExchangeName      = "fake"
 )
 
+var errExpectedTestError = errors.New("expected test error")
+
 // fExchange is a fake exchange with function overrides
 // we're not testing an actual exchange's implemented functions
 type fExchange struct {
@@ -139,8 +141,8 @@ func (f fExchange) GetFundingRates(ctx context.Context, request *order.FundingRa
 	}, nil
 }
 
-func (f fExchange) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{
+func (f fExchange) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.Item, interval kline.Interval, timeStart, _ time.Time) (*kline.Item, error) {
+	return &kline.Item{
 		Exchange: fakeExchangeName,
 		Pair:     p,
 		Asset:    a,
@@ -174,8 +176,11 @@ func generateCandles(amount int, timeStart time.Time, interval kline.Interval) [
 	return candy
 }
 
-func (f fExchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{
+func (f fExchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, interval kline.Interval, timeStart, _ time.Time) (*kline.Item, error) {
+	if interval == 0 {
+		return nil, errExpectedTestError
+	}
+	return &kline.Item{
 		Exchange: fakeExchangeName,
 		Pair:     p,
 		Asset:    a,
@@ -2525,9 +2530,7 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 		Enabled:      currency.Pairs{cp},
 	}
 
-	b.Features.Enabled.Kline.Intervals = map[string]bool{
-		kline.OneDay.Word(): true,
-	}
+	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.OneDay)
 	err = em.Add(fExchange{IBotExchange: exch})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -2559,8 +2562,8 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 		AssetType: "upsideprofitcontract",
 		Pair:      &gctrpc.CurrencyPair{},
 	})
-	if !errors.Is(err, kline.ErrValidatingParams) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrValidatingParams)
+	if !errors.Is(err, errExpectedTestError) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errExpectedTestError)
 	}
 
 	_, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{

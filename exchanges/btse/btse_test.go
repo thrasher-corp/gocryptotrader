@@ -180,49 +180,33 @@ func TestFormatExchangeKlineInterval(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	curr, err := currency.NewPairFromString(testSPOTPair)
+	pair, err := currency.NewPairFromString(testSPOTPair)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetHistoricCandles(context.Background(),
-		curr, asset.Spot,
-		time.Time{}, time.Time{},
-		kline.OneMin)
+	start := time.Now().AddDate(0, 0, -1)
+	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneHour, start, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetHistoricCandles(context.Background(),
-		curr, asset.Spot,
-		time.Time{}, time.Time{},
-		kline.OneDay)
+	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, start, time.Now())
 	if err != nil {
 		t.Fatal(err)
-	}
-
-	curr.Quote = currency.XRP
-	_, err = b.GetHistoricCandles(context.Background(),
-		curr, asset.Spot,
-		time.Time{}, time.Time{},
-		kline.OneMin)
-	if err == nil {
-		t.Fatal("expected error when requesting with disabled pair")
 	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	curr, err := currency.NewPairFromString(testSPOTPair)
+	pair, err := currency.NewPairFromString(testSPOTPair)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetHistoricCandlesExtended(context.Background(),
-		curr, asset.Spot,
-		time.Time{}, time.Time{},
-		kline.OneMin)
-	if err != nil {
+	start := time.Now().AddDate(0, 0, -1)
+	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneMin, start, time.Now())
+	if !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Fatal(err)
 	}
 }

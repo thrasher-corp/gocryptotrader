@@ -3093,28 +3093,28 @@ func (ok *Okx) GetIntervalEnum(interval kline.Interval) string {
 		return "2H"
 	case kline.FourHour:
 		return "4H"
-	case kline.SixHour:
-		return "6H"
+	case kline.SixHour: // NOTE: Cases here and below force UTC return instead of hong Kong time.
+		return "6Hutc"
 	case kline.EightHour:
-		return "8H"
+		return "8Hutc"
 	case kline.TwelveHour:
-		return "12H"
+		return "12Hutc"
 	case kline.OneDay:
-		return "1D"
+		return "1Dutc"
 	case kline.TwoDay:
-		return "2D"
+		return "2Dutc"
 	case kline.ThreeDay:
-		return "3D"
+		return "3Dutc"
 	case kline.OneWeek:
-		return "1W"
+		return "1Wutc"
 	case kline.OneMonth:
-		return "1M"
+		return "1Mutc"
 	case kline.ThreeMonth:
-		return "3M"
+		return "3Mutc"
 	case kline.SixMonth:
-		return "6M"
+		return "6Mutc"
 	case kline.OneYear:
-		return "1Y"
+		return "1Yutc"
 	default:
 		return ""
 	}
@@ -3149,10 +3149,10 @@ func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, inte
 	}
 	params.Set("instId", instrumentID)
 	var resp [][7]string
-	if limit <= 100 {
+	if limit <= 300 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
-	} else if limit > 100 {
-		return nil, fmt.Errorf("%w limit can not exceed 100", errLimitExceedsMaximumResultPerRequest)
+	} else if limit > 300 {
+		return nil, fmt.Errorf("%w can not exceed 300", errLimitExceedsMaximumResultPerRequest)
 	}
 	if !before.IsZero() {
 		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
@@ -3164,7 +3164,7 @@ func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, inte
 	if bar != "" {
 		params.Set("bar", bar)
 	}
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getCandlesticksEPL, http.MethodGet, common.EncodeURLValues(marketCandles, params), nil, &resp, false)
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getCandlesticksEPL, http.MethodGet, common.EncodeURLValues(route, params), nil, &resp, false)
 	if err != nil {
 		return nil, err
 	}
