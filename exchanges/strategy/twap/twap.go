@@ -238,9 +238,9 @@ func (c *Config) getTwapPrice(ctx context.Context) (float64, error) {
 	candles, err := c.Exchange.GetHistoricCandles(ctx,
 		c.Pair,
 		c.Asset,
+		c.TWAP,
 		start,
-		end,
-		c.TWAP)
+		end)
 	if err != nil {
 		return 0, err
 	}

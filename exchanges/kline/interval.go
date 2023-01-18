@@ -19,6 +19,7 @@ const (
 	ThirtyMin     = 30 * OneMin
 	OneHour       = Interval(time.Hour)
 	TwoHour       = 2 * OneHour
+	ThreeHour     = 3 * OneHour
 	FourHour      = 4 * OneHour
 	SixHour       = 6 * OneHour
 	EightHour     = 8 * OneHour
@@ -30,7 +31,7 @@ const (
 	OneWeek       = SevenDay
 	TwoWeek       = 2 * OneWeek
 	FifteenDay    = 15 * OneDay
-	OneMonth      = 31 * OneDay
+	OneMonth      = 30 * OneDay
 	ThreeMonth    = 3 * OneMonth
 	SixMonth      = 6 * OneMonth
 	OneYear       = 365 * OneDay
@@ -47,6 +48,7 @@ var supportedIntervals = map[int64]Interval{
 	int64(ThirtyMin):     ThirtyMin,
 	int64(OneHour):       OneHour,
 	int64(TwoHour):       TwoHour,
+	int64(ThreeHour):     ThreeHour,
 	int64(FourHour):      FourHour,
 	int64(SixHour):       SixHour,
 	int64(EightHour):     EightHour,
@@ -93,26 +95,18 @@ func GetSupportedIntervals() []Interval {
 		supported[target] = interval
 		target++
 	}
-	sort.Slice(supported, func(i, j int) bool {
-		return supported[i] < supported[j]
-	})
+	sort.Slice(supported, func(i, j int) bool { return supported[i] < supported[j] })
 	return supported
 }
 
 // String returns numeric string
-func (i Interval) String() string {
-	return i.Duration().String()
-}
+func (i Interval) String() string { return i.Duration().String() }
 
 // Word returns text version of Interval
-func (i Interval) Word() string {
-	return durationToWord(i)
-}
+func (i Interval) Word() string { return durationToWord(i) }
 
 // Duration returns interval casted as time.Duration for compatibility
-func (i Interval) Duration() time.Duration {
-	return time.Duration(i)
-}
+func (i Interval) Duration() time.Duration { return time.Duration(i) }
 
 // Short returns short string version of interval
 func (i Interval) Short() string {

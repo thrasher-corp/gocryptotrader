@@ -9,7 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 )
 
-// Validate checks the supplied data and returns whether or not it's valid
+// Validate checks the supplied data and returns whether it's valid
 func (s *Submit) Validate(opt ...validate.Checker) error {
 	if s == nil {
 		return ErrSubmissionIsNil
@@ -31,8 +31,8 @@ func (s *Submit) Validate(opt ...validate.Checker) error {
 		return fmt.Errorf("'%s' %w", s.AssetType, asset.ErrNotSupported)
 	}
 
-	if s.Side == UnknownSide || orderSubmissionValidSides&s.Side != s.Side {
-		return ErrSideIsInvalid
+	if !IsValidOrderSubmissionSide(s.Side) {
+		return fmt.Errorf("%w %v", ErrSideIsInvalid, s.Side)
 	}
 
 	if s.Type != Market && s.Type != Limit {
@@ -48,11 +48,11 @@ func (s *Submit) Validate(opt ...validate.Checker) error {
 	}
 
 	if s.Amount < 0 {
-		return fmt.Errorf("submit validation error base %w, suppled: %v", ErrAmountIsInvalid, s.Amount)
+		return fmt.Errorf("submit validation error base %w, supplied: %v", ErrAmountIsInvalid, s.Amount)
 	}
 
 	if s.QuoteAmount < 0 {
-		return fmt.Errorf("submit validation error quote %w, suppled: %v", ErrAmountIsInvalid, s.QuoteAmount)
+		return fmt.Errorf("submit validation error quote %w, supplied: %v", ErrAmountIsInvalid, s.QuoteAmount)
 	}
 
 	if s.Type == Limit && s.Price <= 0 {

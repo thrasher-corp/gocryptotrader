@@ -59,12 +59,12 @@ func loadHoldingsState(pair currency.Pair, freeQuote, freeBase float64) error {
 					AssetType: asset.Spot,
 					Currencies: []account.Balance{
 						{
-							CurrencyName: pair.Quote,
-							Free:         freeQuote,
+							Currency: pair.Quote,
+							Free:     freeQuote,
 						},
 						{
-							CurrencyName: pair.Base,
-							Free:         freeBase,
+							Currency: pair.Base,
+							Free:     freeBase,
 							// TODO: Upgrade to allow for no balance loaded.
 						},
 					},

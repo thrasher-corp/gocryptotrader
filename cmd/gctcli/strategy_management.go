@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/urfave/cli/v2"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var (
@@ -543,8 +544,8 @@ func dcaStreamfunc(c *cli.Context) error {
 		},
 		Simulate:              stratSimulate,
 		Asset:                 assetType,
-		Start:                 negateLocalOffsetTS(s),
-		End:                   negateLocalOffsetTS(e),
+		Start:                 timestamppb.New(s),
+		End:                   timestamppb.New(e),
 		Interval:              stratGranularity * int64(time.Second),
 		Amount:                amount,
 		FullAmount:            fullAmount,
@@ -796,8 +797,8 @@ func twapStreamfunc(c *cli.Context) error {
 		},
 		Simulate:              stratSimulate,
 		Asset:                 assetType,
-		Start:                 negateLocalOffsetTS(s),
-		End:                   negateLocalOffsetTS(e),
+		Start:                 timestamppb.New(s),
+		End:                   timestamppb.New(e),
 		Interval:              stratGranularity * int64(time.Second),
 		Amount:                amount,
 		FullAmount:            fullAmount,

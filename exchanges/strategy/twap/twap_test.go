@@ -24,7 +24,7 @@ type fake struct {
 	exchange.IBotExchange
 }
 
-func (f *fake) GetHistoricCandles(_ context.Context, p currency.Pair, a asset.Item, timeStart, timeEnd time.Time, interval kline.Interval) (kline.Item, error) {
+func (f *fake) GetHistoricCandles(_ context.Context, p currency.Pair, a asset.Item, interval kline.Interval, timeStart, timeEnd time.Time) (*kline.Item, error) {
 	tn := time.Now().Truncate(interval.Duration()).Add(interval.Duration())
 	candleLicious := make([]kline.Candle, 30)
 	for x := range candleLicious {
@@ -38,9 +38,7 @@ func (f *fake) GetHistoricCandles(_ context.Context, p currency.Pair, a asset.It
 		}
 		tn = tn.Add(interval.Duration())
 	}
-	return kline.Item{
-		Candles: candleLicious,
-	}, nil
+	return &kline.Item{Candles: candleLicious}, nil
 }
 
 func (f *fake) GetCredentials(ctx context.Context) (*account.Credentials, error) {
@@ -76,12 +74,12 @@ func loadHoldingsState(pair currency.Pair, freeQuote, freeBase float64) error {
 					AssetType: asset.Spot,
 					Currencies: []account.Balance{
 						{
-							CurrencyName: pair.Quote,
-							Free:         freeQuote,
+							Currency: pair.Quote,
+							Free:     freeQuote,
 						},
 						{
-							CurrencyName: pair.Base,
-							Free:         freeBase,
+							Currency: pair.Base,
+							Free:     freeBase,
 							// TODO: Upgrade to allow for no balance loaded.
 						},
 					},
