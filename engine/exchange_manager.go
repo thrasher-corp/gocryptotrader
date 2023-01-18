@@ -262,11 +262,16 @@ func (m *ExchangeManager) Shutdown() error {
 		// Possible deadlock in a number of operating exchanges.
 		mtx.Lock()
 		for name := range m.exchanges {
-			log.Warnf(log.ExchangeSys, "%s has failed to shutdown in a timely fassion, please review.\n", name)
+			log.Warnf(log.ExchangeSys, "%s has failed to shutdown in a timely fashion, please review.\n", name)
 		}
 		mtx.Unlock()
 	case <-ch:
-		// Every exchange has cleanly shutdown.
+		// Every exchange has finished their shutdown call.
+		mtx.Lock()
+		for name := range m.exchanges {
+			log.Warnf(log.ExchangeSys, "%s has failed to shutdown due to error, please review.\n", name)
+		}
+		mtx.Unlock()
 	}
 	return nil
 }
