@@ -229,24 +229,26 @@ func (m *ExchangeManager) Shutdown() error {
 		return fmt.Errorf("exchange manager: %w", ErrNilSubsystem)
 	}
 
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
 	var mtx sync.Mutex
 	timer := time.NewTimer(time.Second * 10)
 	var wg sync.WaitGroup
+
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+
 	for _, exch := range m.exchanges {
 		wg.Add(1)
 		go func(wg *sync.WaitGroup, mtx *sync.Mutex, exch exchange.IBotExchange) {
 			err := exch.Shutdown()
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "%s failed to shutdown %v.\n", exch.GetName(), err)
+			} else {
+				mtx.Lock()
+				delete(m.exchanges, strings.ToLower(exch.GetName()))
+				mtx.Unlock()
 			}
-			mtx.Lock()
-			delete(m.exchanges, strings.ToLower(exch.GetName()))
-			mtx.Unlock()
 			wg.Done()
 		}(&wg, &mtx, exch)
-
 	}
 
 	ch := make(chan struct{})
@@ -256,8 +258,8 @@ func (m *ExchangeManager) Shutdown() error {
 	}(&wg, ch)
 
 	select {
-	// Possible deadlock in a number of operating exchanges.
 	case <-timer.C:
+		// Possible deadlock in a number of operating exchanges.
 		mtx.Lock()
 		for name := range m.exchanges {
 			log.Warnf(log.ExchangeSys, "%s has failed to shutdown in a timely fassion, please review.\n", name)
@@ -266,6 +268,5 @@ func (m *ExchangeManager) Shutdown() error {
 	case <-ch:
 		// Every exchange has cleanly shutdown.
 	}
-
 	return nil
 }
