@@ -117,14 +117,14 @@ func (c *CoinbasePro) SetDefaults() {
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.OneMin.Word():     true,
-					kline.FiveMin.Word():    true,
-					kline.FifteenMin.Word(): true,
-					kline.OneHour.Word():    true,
-					kline.SixHour.Word():    true,
-					kline.OneDay.Word():     true,
-				},
+				Intervals: kline.DeployExchangeIntervals(
+					kline.OneMin,
+					kline.FiveMin,
+					kline.FifteenMin,
+					kline.OneHour,
+					kline.SixHour,
+					kline.OneDay,
+				),
 				ResultLimit: 300,
 			},
 		},
@@ -329,7 +329,7 @@ func (c *CoinbasePro) UpdateAccountInfo(ctx context.Context, assetType asset.Ite
 		profileID := accountBalance[i].ProfileID
 		currencies := accountCurrencies[profileID]
 		accountCurrencies[profileID] = append(currencies, account.Balance{
-			CurrencyName:           currency.NewCode(accountBalance[i].Currency),
+			Currency:               currency.NewCode(accountBalance[i].Currency),
 			Total:                  accountBalance[i].Balance,
 			Hold:                   accountBalance[i].Hold,
 			Free:                   accountBalance[i].Available,
@@ -887,65 +887,26 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersR
 	return req.Filter(c.Name, orders), nil
 }
 
-// checkInterval checks allowable interval
-func checkInterval(i time.Duration) (int64, error) {
-	switch i.Seconds() {
-	case 60:
-		return 60, nil
-	case 300:
-		return 300, nil
-	case 900:
-		return 900, nil
-	case 3600:
-		return 3600, nil
-	case 21600:
-		return 21600, nil
-	case 86400:
-		return 86400, nil
-	}
-	return 0, fmt.Errorf("interval not allowed %v", i.Seconds())
-}
-
 // GetHistoricCandles returns a set of candle between two time periods for a
 // designated time period
-func (c *CoinbasePro) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := c.ValidateKline(p, a, interval); err != nil {
-		return kline.Item{}, err
-	}
-
-	if kline.TotalCandlesPerInterval(start, end, interval) > float64(c.Features.Enabled.Kline.ResultLimit) {
-		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
-	}
-
-	gran, err := strconv.ParseInt(c.FormatExchangeKlineInterval(interval), 10, 64)
+func (c *CoinbasePro) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := c.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
-		return kline.Item{}, err
-	}
-
-	formatP, err := c.FormatExchangeCurrency(p, a)
-	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
 	history, err := c.GetHistoricRates(ctx,
-		formatP.String(),
+		req.RequestFormatted.String(),
 		start.Format(time.RFC3339),
 		end.Format(time.RFC3339),
-		gran)
+		int64(req.ExchangeInterval.Duration().Seconds()))
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
-	candles := kline.Item{
-		Exchange: c.Name,
-		Pair:     p,
-		Asset:    a,
-		Interval: interval,
-		Candles:  make([]kline.Candle, len(history)),
-	}
-
+	timeSeries := make([]kline.Candle, len(history))
 	for x := range history {
-		candles.Candles[x] = kline.Candle{
+		timeSeries[x] = kline.Candle{
 			Time:   history[x].Time,
 			Low:    history[x].Low,
 			High:   history[x].High,
@@ -954,51 +915,30 @@ func (c *CoinbasePro) GetHistoricCandles(ctx context.Context, p currency.Pair, a
 			Volume: history[x].Volume,
 		}
 	}
-
-	candles.SortCandlesByTimestamp(false)
-	return candles, nil
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (c *CoinbasePro) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := c.ValidateKline(p, a, interval); err != nil {
-		return kline.Item{}, err
-	}
-
-	gran, err := strconv.ParseInt(c.FormatExchangeKlineInterval(interval), 10, 64)
+func (c *CoinbasePro) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := c.GetKlineExtendedRequest(pair, a, interval, start, end)
 	if err != nil {
-		return kline.Item{}, err
-	}
-	dates, err := kline.CalculateCandleDateRanges(start, end, interval, c.Features.Enabled.Kline.ResultLimit)
-	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
-	formattedPair, err := c.FormatExchangeCurrency(p, a)
-	if err != nil {
-		return kline.Item{}, err
-	}
-
-	ret := kline.Item{
-		Exchange: c.Name,
-		Pair:     p,
-		Asset:    a,
-		Interval: interval,
-	}
-
-	for x := range dates.Ranges {
+	timeSeries := make([]kline.Candle, 0, req.Size())
+	for x := range req.Ranges {
 		var history []History
 		history, err = c.GetHistoricRates(ctx,
-			formattedPair.String(),
-			dates.Ranges[x].Start.Time.Format(time.RFC3339),
-			dates.Ranges[x].End.Time.Format(time.RFC3339),
-			gran)
+			req.RequestFormatted.String(),
+			req.Ranges[x].Start.Time.Format(time.RFC3339),
+			req.Ranges[x].End.Time.Format(time.RFC3339),
+			int64(req.ExchangeInterval.Duration().Seconds()))
 		if err != nil {
-			return kline.Item{}, err
+			return nil, err
 		}
 
 		for i := range history {
-			ret.Candles = append(ret.Candles, kline.Candle{
+			timeSeries = append(timeSeries, kline.Candle{
 				Time:   history[i].Time,
 				Low:    history[i].Low,
 				High:   history[i].High,
@@ -1008,15 +948,7 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(ctx context.Context, p currency
 			})
 		}
 	}
-	dates.SetHasDataFromCandles(ret.Candles)
-	summary := dates.DataSummary(false)
-	if len(summary) > 0 {
-		log.Warnf(log.ExchangeSys, "%v - %v", c.Name, summary)
-	}
-	ret.RemoveDuplicates()
-	ret.RemoveOutsideRange(start, end)
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
+	return req.ProcessResponse(timeSeries)
 }
 
 // ValidateCredentials validates current credentials used for wrapper

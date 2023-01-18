@@ -18,7 +18,7 @@ func TestCollectBalances(t *testing.T) {
 	accounts, err := CollectBalances(
 		map[string][]Balance{
 			"someAccountID": {
-				{CurrencyName: currency.BTC, Total: 40000, Hold: 1},
+				{Currency: currency.BTC, Total: 40000, Hold: 1},
 			},
 		},
 		asset.Spot,
@@ -31,7 +31,7 @@ func TestCollectBalances(t *testing.T) {
 	if subAccount.AssetType != asset.Spot {
 		t.Error("subAccount AssetType not set correctly")
 	}
-	if balance.CurrencyName != currency.BTC || balance.Total != 40000 || balance.Hold != 1 {
+	if balance.Currency != currency.BTC || balance.Total != 40000 || balance.Hold != 1 {
 		t.Error("subAccount currency balance not set correctly")
 	}
 	if err != nil {
@@ -112,9 +112,9 @@ func TestGetHoldings(t *testing.T) {
 				ID:        "1337",
 				Currencies: []Balance{
 					{
-						CurrencyName: currency.BTC,
-						Total:        100,
-						Hold:         20,
+						Currency: currency.BTC,
+						Total:    100,
+						Hold:     20,
 					},
 				},
 			}},
@@ -132,9 +132,9 @@ func TestGetHoldings(t *testing.T) {
 				ID:        "1337",
 				Currencies: []Balance{
 					{
-						CurrencyName: currency.BTC,
-						Total:        100,
-						Hold:         20,
+						Currency: currency.BTC,
+						Total:    100,
+						Hold:     20,
 					},
 				},
 			}},
@@ -182,9 +182,9 @@ func TestGetHoldings(t *testing.T) {
 		t.Errorf("expecting 1337 but received %s", u.Accounts[0].ID)
 	}
 
-	if !u.Accounts[0].Currencies[0].CurrencyName.Equal(currency.BTC) {
+	if !u.Accounts[0].Currencies[0].Currency.Equal(currency.BTC) {
 		t.Errorf("expecting BTC but received %s",
-			u.Accounts[0].Currencies[0].CurrencyName)
+			u.Accounts[0].Currencies[0].Currency)
 	}
 
 	if u.Accounts[0].Currencies[0].Total != 100 {
@@ -228,9 +228,9 @@ func TestGetHoldings(t *testing.T) {
 			AssetType: asset.MarginFunding,
 			Currencies: []Balance{
 				{
-					CurrencyName: currency.BTC,
-					Total:        100000,
-					Hold:         20,
+					Currency: currency.BTC,
+					Total:    100000,
+					Hold:     20,
 				},
 			},
 		}},
@@ -309,9 +309,9 @@ func TestGetBalance(t *testing.T) {
 				ID:        "1337",
 				Currencies: []Balance{
 					{
-						CurrencyName: currency.BTC,
-						Total:        2,
-						Hold:         1,
+						Currency: currency.BTC,
+						Total:    2,
+						Hold:     1,
 					},
 				},
 			},
@@ -424,9 +424,9 @@ func TestUpdate(t *testing.T) {
 				ID:        "1337",
 				Currencies: []Balance{
 					{
-						CurrencyName: currency.BTC,
-						Total:        100,
-						Hold:         20,
+						Currency: currency.BTC,
+						Total:    100,
+						Hold:     20,
 					},
 				},
 			},
@@ -436,9 +436,9 @@ func TestUpdate(t *testing.T) {
 				ID:        "1337",
 				Currencies: []Balance{
 					{
-						CurrencyName: currency.BTC,
-						Total:        100,
-						Hold:         20,
+						Currency: currency.BTC,
+						Total:    100,
+						Hold:     20,
 					},
 				},
 			},
@@ -456,9 +456,9 @@ func TestUpdate(t *testing.T) {
 				ID:        "1337",
 				Currencies: []Balance{
 					{
-						CurrencyName: currency.BTC,
-						Total:        100,
-						Hold:         20,
+						Currency: currency.BTC,
+						Total:    100,
+						Hold:     20,
 					},
 				},
 			},

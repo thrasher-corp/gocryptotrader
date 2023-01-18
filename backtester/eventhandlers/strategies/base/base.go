@@ -3,21 +3,25 @@ package base
 import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 )
 
 // Strategy is base implementation of the Handler interface
 type Strategy struct {
 	useSimultaneousProcessing bool
-	usingExchangeLevelFunding bool
 }
 
 // GetBaseData returns the non-interface version of the Handler
 func (s *Strategy) GetBaseData(d data.Handler) (signal.Signal, error) {
 	if d == nil {
-		return signal.Signal{}, common.ErrNilArguments
+		return signal.Signal{}, gctcommon.ErrNilPointer
 	}
-	latest := d.Latest()
+	latest, err := d.Latest()
+	if err != nil {
+		return signal.Signal{}, err
+	}
 	if latest == nil {
 		return signal.Signal{}, common.ErrNilEvent
 	}
@@ -40,12 +44,10 @@ func (s *Strategy) SetSimultaneousProcessing(b bool) {
 	s.useSimultaneousProcessing = b
 }
 
-// UsingExchangeLevelFunding returns whether funding is based on currency pairs or individual currencies at the exchange level
-func (s *Strategy) UsingExchangeLevelFunding() bool {
-	return s.usingExchangeLevelFunding
-}
-
-// SetExchangeLevelFunding sets whether funding is based on currency pairs or individual currencies at the exchange level
-func (s *Strategy) SetExchangeLevelFunding(b bool) {
-	s.usingExchangeLevelFunding = b
+// CloseAllPositions sends a closing signal to supported
+// strategies, allowing them to sell off any positions held
+// default use-case is for when a user closes the application when running
+// a live strategy
+func (s *Strategy) CloseAllPositions([]holdings.Holding, []data.Event) ([]signal.Event, error) {
+	return nil, gctcommon.ErrFunctionNotSupported
 }

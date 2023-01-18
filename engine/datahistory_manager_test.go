@@ -1164,7 +1164,7 @@ func TestUpscaleJobCandleData(t *testing.T) {
 		Exchange:           testExchange,
 		Asset:              asset.Spot,
 		Pair:               currency.NewPair(currency.BTC, currency.USDT),
-		StartDate:          time.Now().Add(-kline.OneHour.Duration() * 2),
+		StartDate:          time.Now().Add(-kline.OneHour.Duration() * 24),
 		EndDate:            time.Now(),
 		Interval:           kline.OneHour,
 		ConversionInterval: kline.OneDay,
@@ -1531,22 +1531,26 @@ func dataHistoryTraderLoader(exch, a, base, quote string, start, _ time.Time) ([
 	}, nil
 }
 
-func dataHistoryCandleLoader(exch string, cp currency.Pair, a asset.Item, i kline.Interval, start, _ time.Time) (kline.Item, error) {
-	return kline.Item{
+func dataHistoryCandleLoader(exch string, cp currency.Pair, a asset.Item, i kline.Interval, start, _ time.Time) (*kline.Item, error) {
+	start = start.Truncate(i.Duration())
+	var candles []kline.Candle
+	for x := 0; x < 24; x++ {
+		candles = append(candles, kline.Candle{
+			Time:   start,
+			Open:   1,
+			High:   10,
+			Low:    1,
+			Close:  4,
+			Volume: 8,
+		})
+		start = start.Add(i.Duration())
+	}
+	return &kline.Item{
 		Exchange: exch,
 		Pair:     cp,
 		Asset:    a,
 		Interval: i,
-		Candles: []kline.Candle{
-			{
-				Time:   start,
-				Open:   1,
-				High:   10,
-				Low:    1,
-				Close:  4,
-				Volume: 8,
-			},
-		},
+		Candles:  candles,
 	}, nil
 }
 
@@ -1564,8 +1568,8 @@ type dhmExchange struct {
 	exchange.IBotExchange
 }
 
-func (f dhmExchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{
+func (f dhmExchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, interval kline.Interval, timeStart, _ time.Time) (*kline.Item, error) {
+	return &kline.Item{
 		Exchange: testExchange,
 		Pair:     p,
 		Asset:    a,

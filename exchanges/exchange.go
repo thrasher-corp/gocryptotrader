@@ -46,6 +46,10 @@ var (
 	errEndpointStringNotFound            = errors.New("endpoint string not found")
 	errConfigPairFormatRequiresDelimiter = errors.New("config pair format requires delimiter")
 	errSymbolCannotBeMatched             = errors.New("symbol cannot be matched")
+	errGlobalRequestFormatIsNil          = errors.New("global request format is nil")
+	errGlobalConfigFormatIsNil           = errors.New("global config format is nil")
+	errAssetRequestFormatIsNil           = errors.New("asset type request format is nil")
+	errAssetConfigFormatIsNil            = errors.New("asset type config format is nil")
 )
 
 // SetRequester sets the instance of the requester
@@ -368,15 +372,13 @@ func (b *Base) GetPairFormat(assetType asset.Item, requestFormat bool) (currency
 	if b.CurrencyPairs.UseGlobalFormat {
 		if requestFormat {
 			if b.CurrencyPairs.RequestFormat == nil {
-				return currency.EMPTYFORMAT,
-					errors.New("global request format is nil")
+				return currency.EMPTYFORMAT, errGlobalRequestFormatIsNil
 			}
 			return *b.CurrencyPairs.RequestFormat, nil
 		}
 
 		if b.CurrencyPairs.ConfigFormat == nil {
-			return currency.EMPTYFORMAT,
-				errors.New("global config format is nil")
+			return currency.EMPTYFORMAT, errGlobalConfigFormatIsNil
 		}
 		return *b.CurrencyPairs.ConfigFormat, nil
 	}
@@ -388,15 +390,13 @@ func (b *Base) GetPairFormat(assetType asset.Item, requestFormat bool) (currency
 
 	if requestFormat {
 		if ps.RequestFormat == nil {
-			return currency.EMPTYFORMAT,
-				errors.New("asset type request format is nil")
+			return currency.EMPTYFORMAT, errAssetRequestFormatIsNil
 		}
 		return *ps.RequestFormat, nil
 	}
 
 	if ps.ConfigFormat == nil {
-		return currency.EMPTYFORMAT,
-			errors.New("asset type config format is nil")
+		return currency.EMPTYFORMAT, errAssetConfigFormatIsNil
 	}
 	return *ps.ConfigFormat, nil
 }
@@ -1135,7 +1135,8 @@ func (b *Base) AuthenticateWebsocket(_ context.Context) error {
 
 // KlineIntervalEnabled returns if requested interval is enabled on exchange
 func (b *Base) klineIntervalEnabled(in kline.Interval) bool {
-	return b.Features.Enabled.Kline.Intervals[in.Word()]
+	// TODO: Add in the ability to use custom klines
+	return b.Features.Enabled.Kline.Intervals.ExchangeSupported(in)
 }
 
 // FormatExchangeKlineInterval returns Interval to string
@@ -1453,7 +1454,7 @@ func (b *Base) CalculateTotalCollateral(ctx context.Context, calculator *order.T
 }
 
 // GetCollateralCurrencyForContract returns the collateral currency for an asset and contract pair
-func (b *Base) GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error) {
+func (b *Base) GetCollateralCurrencyForContract(a asset.Item, cp currency.Pair) (currency.Code, asset.Item, error) {
 	return currency.Code{}, asset.Empty, common.ErrNotYetImplemented
 }
 
@@ -1496,7 +1497,7 @@ func (b *Base) GetFuturesPositions(context.Context, *order.PositionsRequest) ([]
 }
 
 // GetFundingRates returns funding rates based on request data
-func (b *Base) GetFundingRates(ctx context.Context, request *order.FundingRatesRequest) ([]order.FundingRates, error) {
+func (b *Base) GetFundingRates(context.Context, *order.FundingRatesRequest) ([]order.FundingRates, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -1504,4 +1505,85 @@ func (b *Base) GetFundingRates(ctx context.Context, request *order.FundingRatesR
 // differs by exchange
 func (b *Base) IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error) {
 	return false, common.ErrNotYetImplemented
+}
+
+// GetKlineRequest returns a helper for the fetching of candle/kline data for
+// a single request within a pre-determined time window.
+func (b *Base) GetKlineRequest(pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Request, error) {
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if !a.IsValid() {
+		return nil, asset.ErrNotSupported
+	}
+
+	// NOTE: This allows for checking that the required kline interval is
+	// supported by the exchange and/or can be constructed from lower time frame
+	// intervals.
+	exchangeInterval, err := b.Features.Enabled.Kline.Intervals.Construct(interval)
+	if err != nil {
+		return nil, err
+	}
+
+	// NOTE: This check is here to make sure a client is notified that using
+	// this functionality will result in error if the total candles cannot be
+	// theoretically retrieved.
+	if count := kline.TotalCandlesPerInterval(start, end, exchangeInterval); count >
+		int64(b.Features.Enabled.Kline.ResultLimit) {
+		return nil, fmt.Errorf("candles count: %d, max limit: %d %w",
+			count,
+			b.Features.Enabled.Kline.ResultLimit,
+			kline.ErrRequestExceedsExchangeLimits)
+	}
+
+	err = b.ValidateKline(pair, a, exchangeInterval)
+	if err != nil {
+		return nil, err
+	}
+
+	formatted, err := b.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return nil, err
+	}
+
+	return kline.CreateKlineRequest(b.Name, pair, formatted, a, interval, exchangeInterval, start, end)
+}
+
+// GetKlineExtendedRequest returns a helper for the fetching of candle/kline
+// data for a *multi* request within a pre-determined time window. This has
+// extended functionality to also break down calls to fetch total history.
+func (b *Base) GetKlineExtendedRequest(pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.ExtendedRequest, error) {
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if !a.IsValid() {
+		return nil, asset.ErrNotSupported
+	}
+
+	exchangeInterval, err := b.Features.Enabled.Kline.Intervals.Construct(interval)
+	if err != nil {
+		return nil, err
+	}
+
+	err = b.ValidateKline(pair, a, exchangeInterval)
+	if err != nil {
+		return nil, err
+	}
+
+	formatted, err := b.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return nil, err
+	}
+
+	r, err := kline.CreateKlineRequest(b.Name, pair, formatted, a, interval, exchangeInterval, start, end)
+	if err != nil {
+		return nil, err
+	}
+
+	dates, err := r.GetRanges(b.Features.Enabled.Kline.ResultLimit)
+	if err != nil {
+		return nil, err
+	}
+
+	return &kline.ExtendedRequest{Request: r, IntervalRangeHolder: dates}, nil
 }

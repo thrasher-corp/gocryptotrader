@@ -1,12 +1,13 @@
 package statistics
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -15,33 +16,47 @@ import (
 
 // CalculateFundingStatistics calculates funding statistics for total USD strategy results
 // along with individual funding item statistics
-func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic, riskFreeRate decimal.Decimal, interval gctkline.Interval) (*FundingStatistics, error) {
+func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*CurrencyPairStatistic, riskFreeRate decimal.Decimal, interval gctkline.Interval) (*FundingStatistics, error) {
 	if currStats == nil {
-		return nil, common.ErrNilArguments
+		return nil, gctcommon.ErrNilPointer
 	}
-	report := funds.GenerateReport()
+	report, err := funds.GenerateReport()
+	if err != nil {
+		return nil, err
+	}
+	if report == nil {
+		return nil, errReceivedNoData
+	}
 	response := &FundingStatistics{
 		Report: report,
 	}
 	for i := range report.Items {
 		exchangeAssetStats, ok := currStats[report.Items[i].Exchange][report.Items[i].Asset]
 		if !ok {
+			if report.Items[i].AppendedViaAPI {
+				// items added via API may not have been processed along with typical events
+				// are not relevant to calculating statistics
+				continue
+			}
 			return nil, fmt.Errorf("%w for %v %v",
 				errNoRelevantStatsFound,
 				report.Items[i].Exchange,
 				report.Items[i].Asset)
 		}
 		var relevantStats []relatedCurrencyPairStatistics
-		for k, v := range exchangeAssetStats {
-			if k.Base.Equal(report.Items[i].Currency) {
-				relevantStats = append(relevantStats, relatedCurrencyPairStatistics{isBaseCurrency: true, stat: v})
-				continue
-			}
-			if k.Quote.Equal(report.Items[i].Currency) {
-				relevantStats = append(relevantStats, relatedCurrencyPairStatistics{stat: v})
+		for b, baseMap := range exchangeAssetStats {
+			for q, v := range baseMap {
+				if b.Currency().Equal(report.Items[i].Currency) {
+					relevantStats = append(relevantStats, relatedCurrencyPairStatistics{isBaseCurrency: true, stat: v})
+					continue
+				}
+				if q.Currency().Equal(report.Items[i].Currency) {
+					relevantStats = append(relevantStats, relatedCurrencyPairStatistics{stat: v})
+				}
 			}
 		}
-		fundingStat, err := CalculateIndividualFundingStatistics(report.DisableUSDTracking, &report.Items[i], relevantStats)
+		var fundingStat *FundingItemStatistics
+		fundingStat, err = CalculateIndividualFundingStatistics(report.DisableUSDTracking, &report.Items[i], relevantStats)
 		if err != nil {
 			return nil, err
 		}
@@ -79,12 +94,6 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 		return nil, fmt.Errorf("%w and holding values", errMissingSnapshots)
 	}
 
-	if !usdStats.HoldingValues[0].Value.IsZero() {
-		usdStats.StrategyMovement = usdStats.HoldingValues[len(usdStats.HoldingValues)-1].Value.Sub(
-			usdStats.HoldingValues[0].Value).Div(
-			usdStats.HoldingValues[0].Value).Mul(
-			decimal.NewFromInt(100))
-	}
 	usdStats.HoldingValueDifference = report.FinalFunds.Sub(report.InitialFunds).Div(report.InitialFunds).Mul(decimal.NewFromInt(100))
 
 	riskFreeRatePerCandle := usdStats.RiskFreeRate.Div(decimal.NewFromFloat(interval.IntervalsPerYear()))
@@ -101,8 +110,9 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 	}
 	benchmarkRates = benchmarkRates[1:]
 	returnsPerCandle = returnsPerCandle[1:]
-	usdStats.BenchmarkMarketMovement = benchmarkMovement.Sub(usdStats.HoldingValues[0].Value).Div(usdStats.HoldingValues[0].Value).Mul(decimal.NewFromInt(100))
-	var err error
+	if !usdStats.HoldingValues[0].Value.IsZero() {
+		usdStats.BenchmarkMarketMovement = benchmarkMovement.Sub(usdStats.HoldingValues[0].Value).Div(usdStats.HoldingValues[0].Value).Mul(decimal.NewFromInt(100))
+	}
 	usdStats.MaxDrawdown, err = CalculateBiggestValueAtTimeDrawdown(usdStats.HoldingValues, interval)
 	if err != nil {
 		return nil, err
@@ -114,8 +124,8 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 		return nil, err
 	}
 
+	var cagr decimal.Decimal
 	for i := range response.Items {
-		var cagr decimal.Decimal
 		if response.Items[i].ReportItem.InitialFunds.IsZero() {
 			continue
 		}
@@ -125,26 +135,25 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 			decimal.NewFromFloat(interval.IntervalsPerYear()),
 			decimal.NewFromInt(int64(len(usdStats.HoldingValues))),
 		)
-		if err != nil {
+		if err != nil && !errors.Is(err, gctmath.ErrPowerDifferenceTooSmall) {
 			return nil, err
 		}
 		response.Items[i].CompoundAnnualGrowthRate = cagr
 	}
 	if !usdStats.HoldingValues[0].Value.IsZero() {
-		var cagr decimal.Decimal
 		cagr, err = gctmath.DecimalCompoundAnnualGrowthRate(
 			usdStats.HoldingValues[0].Value,
 			usdStats.HoldingValues[len(usdStats.HoldingValues)-1].Value,
 			decimal.NewFromFloat(interval.IntervalsPerYear()),
 			decimal.NewFromInt(int64(len(usdStats.HoldingValues))),
 		)
-		if err != nil {
+		if err != nil && !errors.Is(err, gctmath.ErrPowerDifferenceTooSmall) {
 			return nil, err
 		}
 		usdStats.CompoundAnnualGrowthRate = cagr
 	}
-	usdStats.DidStrategyMakeProfit = usdStats.HoldingValues[len(usdStats.HoldingValues)-1].Value.GreaterThan(usdStats.HoldingValues[0].Value)
-	usdStats.DidStrategyBeatTheMarket = usdStats.StrategyMovement.GreaterThan(usdStats.BenchmarkMarketMovement)
+	usdStats.DidStrategyMakeProfit = report.FinalFunds.GreaterThan(report.InitialFunds)
+	usdStats.DidStrategyBeatTheMarket = usdStats.HoldingValueDifference.GreaterThan(usdStats.BenchmarkMarketMovement)
 	response.TotalUSDStatistics = usdStats
 
 	return response, nil
@@ -153,15 +162,15 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 // CalculateIndividualFundingStatistics calculates statistics for an individual report item
 func CalculateIndividualFundingStatistics(disableUSDTracking bool, reportItem *funding.ReportItem, relatedStats []relatedCurrencyPairStatistics) (*FundingItemStatistics, error) {
 	if reportItem == nil {
-		return nil, fmt.Errorf("%w - nil report item", common.ErrNilArguments)
+		return nil, fmt.Errorf("%w - nil report item", gctcommon.ErrNilPointer)
 	}
+
 	item := &FundingItemStatistics{
 		ReportItem: reportItem,
 	}
-	if disableUSDTracking {
+	if disableUSDTracking || reportItem.AppendedViaAPI {
 		return item, nil
 	}
-
 	closePrices := reportItem.Snapshots
 	if len(closePrices) == 0 {
 		return nil, errMissingSnapshots
@@ -175,7 +184,7 @@ func CalculateIndividualFundingStatistics(disableUSDTracking bool, reportItem *f
 		Value: closePrices[len(closePrices)-1].USDClosePrice,
 	}
 	for i := range closePrices {
-		if closePrices[i].USDClosePrice.LessThan(item.LowestClosePrice.Value) || !item.LowestClosePrice.Set {
+		if (closePrices[i].USDClosePrice.LessThan(item.LowestClosePrice.Value) || !item.LowestClosePrice.Set) && !closePrices[i].USDClosePrice.IsZero() {
 			item.LowestClosePrice.Value = closePrices[i].USDClosePrice
 			item.LowestClosePrice.Time = closePrices[i].Time
 			item.LowestClosePrice.Set = true
@@ -220,7 +229,7 @@ func CalculateIndividualFundingStatistics(disableUSDTracking bool, reportItem *f
 	if !reportItem.IsCollateral {
 		for i := range relatedStats {
 			if relatedStats[i].stat == nil {
-				return nil, fmt.Errorf("%w related stats", common.ErrNilArguments)
+				return nil, fmt.Errorf("%w related stats", gctcommon.ErrNilPointer)
 			}
 			if relatedStats[i].isBaseCurrency {
 				item.BuyOrders += relatedStats[i].stat.BuyOrders
@@ -262,14 +271,16 @@ func CalculateIndividualFundingStatistics(disableUSDTracking bool, reportItem *f
 	if item.ReportItem.USDPairCandle == nil && !reportItem.IsCollateral {
 		return nil, fmt.Errorf("%w usd candles missing", errMissingSnapshots)
 	}
-	s := item.ReportItem.USDPairCandle.GetStream()
+	s, err := item.ReportItem.USDPairCandle.GetStream()
+	if err != nil {
+		return nil, err
+	}
 	if len(s) == 0 {
 		return nil, fmt.Errorf("%w stream missing", errMissingSnapshots)
 	}
 	if reportItem.IsCollateral {
 		return item, nil
 	}
-	var err error
 	item.MaxDrawdown, err = CalculateBiggestEventDrawdown(s)
 	return item, err
 }

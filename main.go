@@ -149,12 +149,12 @@ func main() {
 		log.Fatalf("Unable to start bot engine. Error: %s\n", err)
 	}
 
-	go waitForInterupt(settings.Shutdown)
+	go waitForInterrupt(settings.Shutdown)
 	<-settings.Shutdown
 	engine.Bot.Stop()
 }
 
-func waitForInterupt(waiter chan<- struct{}) {
+func waitForInterrupt(waiter chan<- struct{}) {
 	interrupt := signaler.WaitForInterrupt()
 	gctlog.Infof(gctlog.Global, "Captured %v, shutdown requested.\n", interrupt)
 	waiter <- struct{}{}

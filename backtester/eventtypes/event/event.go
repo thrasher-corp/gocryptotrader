@@ -27,7 +27,7 @@ func (b *Base) IsEvent() bool {
 
 // GetTime returns the time
 func (b *Base) GetTime() time.Time {
-	return b.Time
+	return b.Time.UTC()
 }
 
 // Pair returns the currency pair

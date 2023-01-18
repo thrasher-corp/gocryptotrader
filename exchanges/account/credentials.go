@@ -118,7 +118,7 @@ func (c *Credentials) Equal(other *Credentials) bool {
 		other != nil &&
 		c.Key == other.Key &&
 		c.ClientID == other.ClientID &&
-		c.SubAccount == other.SubAccount
+		(c.SubAccount == other.SubAccount || c.SubAccount == "" && other.SubAccount == "main" || c.SubAccount == "main" && other.SubAccount == "")
 }
 
 // ContextCredentialsStore protects the stored credentials for use in a context

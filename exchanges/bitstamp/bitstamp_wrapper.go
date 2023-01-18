@@ -112,20 +112,20 @@ func (b *Bitstamp) SetDefaults() {
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.OneMin.Word():     true,
-					kline.ThreeMin.Word():   true,
-					kline.FiveMin.Word():    true,
-					kline.FifteenMin.Word(): true,
-					kline.ThirtyMin.Word():  true,
-					kline.OneHour.Word():    true,
-					kline.TwoHour.Word():    true,
-					kline.FourHour.Word():   true,
-					kline.SixHour.Word():    true,
-					kline.TwelveHour.Word(): true,
-					kline.OneDay.Word():     true,
-					kline.ThreeDay.Word():   true,
-				},
+				Intervals: kline.DeployExchangeIntervals(
+					kline.OneMin,
+					kline.ThreeMin,
+					kline.FiveMin,
+					kline.FifteenMin,
+					kline.ThirtyMin,
+					kline.OneHour,
+					kline.TwoHour,
+					kline.FourHour,
+					kline.SixHour,
+					kline.TwelveHour,
+					kline.OneDay,
+					kline.ThreeDay,
+				),
 				ResultLimit: 1000,
 			},
 		},
@@ -477,10 +477,10 @@ func (b *Bitstamp) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 	currencies := make([]account.Balance, 0, len(accountBalance))
 	for k, v := range accountBalance {
 		currencies = append(currencies, account.Balance{
-			CurrencyName: currency.NewCode(k),
-			Total:        v.Balance,
-			Hold:         v.Reserved,
-			Free:         v.Available,
+			Currency: currency.NewCode(k),
+			Total:    v.Balance,
+			Hold:     v.Reserved,
+			Free:     v.Available,
 		})
 	}
 	response.Accounts = append(response.Accounts, account.SubAccount{
@@ -888,42 +888,30 @@ func (b *Bitstamp) ValidateCredentials(ctx context.Context, assetType asset.Item
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (b *Bitstamp) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := b.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
-	}
-
-	ret := kline.Item{
-		Exchange: b.Name,
-		Pair:     pair,
-		Asset:    a,
-		Interval: interval,
-	}
-
-	formattedPair, err := b.FormatExchangeCurrency(pair, a)
+func (b *Bitstamp) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := b.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
 	candles, err := b.OHLC(ctx,
-		formattedPair.Lower().String(),
-		start,
-		end,
-		b.FormatExchangeKlineInterval(interval),
-		strconv.FormatInt(int64(b.Features.Enabled.Kline.ResultLimit), 10),
-	)
-
+		req.RequestFormatted.String(),
+		req.Start,
+		req.End,
+		b.FormatExchangeKlineInterval(req.ExchangeInterval),
+		strconv.FormatInt(int64(b.Features.Enabled.Kline.ResultLimit), 10))
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
+	timeSeries := make([]kline.Candle, 0, len(candles.Data.OHLCV))
 	for x := range candles.Data.OHLCV {
-		if time.Unix(candles.Data.OHLCV[x].Timestamp, 0).Before(start) ||
-			time.Unix(candles.Data.OHLCV[x].Timestamp, 0).After(end) {
+		timestamp := time.Unix(candles.Data.OHLCV[x].Timestamp, 0)
+		if timestamp.Before(req.Start) || timestamp.After(req.End) {
 			continue
 		}
-		ret.Candles = append(ret.Candles, kline.Candle{
-			Time:   time.Unix(candles.Data.OHLCV[x].Timestamp, 0),
+		timeSeries = append(timeSeries, kline.Candle{
+			Time:   timestamp,
 			Open:   candles.Data.OHLCV[x].Open,
 			High:   candles.Data.OHLCV[x].High,
 			Low:    candles.Data.OHLCV[x].Low,
@@ -931,52 +919,37 @@ func (b *Bitstamp) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 			Volume: candles.Data.OHLCV[x].Volume,
 		})
 	}
-
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (b *Bitstamp) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := b.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
-	}
-
-	ret := kline.Item{
-		Exchange: b.Name,
-		Pair:     pair,
-		Asset:    a,
-		Interval: interval,
-	}
-
-	dates, err := kline.CalculateCandleDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
+func (b *Bitstamp) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := b.GetKlineExtendedRequest(pair, a, interval, start, end)
 	if err != nil {
-		return kline.Item{}, err
-	}
-	formattedPair, err := b.FormatExchangeCurrency(pair, a)
-	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
-	for x := range dates.Ranges {
+	timeSeries := make([]kline.Candle, 0, req.Size())
+	for x := range req.Ranges {
 		var candles OHLCResponse
 		candles, err = b.OHLC(ctx,
-			formattedPair.Lower().String(),
-			dates.Ranges[x].Start.Time,
-			dates.Ranges[x].End.Time,
-			b.FormatExchangeKlineInterval(interval),
+			req.RequestFormatted.String(),
+			req.Ranges[x].Start.Time,
+			req.Ranges[x].End.Time,
+			b.FormatExchangeKlineInterval(req.ExchangeInterval),
 			strconv.FormatInt(int64(b.Features.Enabled.Kline.ResultLimit), 10),
 		)
 		if err != nil {
-			return kline.Item{}, err
+			return nil, err
 		}
 
 		for i := range candles.Data.OHLCV {
-			if time.Unix(candles.Data.OHLCV[i].Timestamp, 0).Before(start) ||
-				time.Unix(candles.Data.OHLCV[i].Timestamp, 0).After(end) {
+			timstamp := time.Unix(candles.Data.OHLCV[i].Timestamp, 0)
+			if timstamp.Before(req.Ranges[x].Start.Time) ||
+				timstamp.After(req.Ranges[x].End.Time) {
 				continue
 			}
-			ret.Candles = append(ret.Candles, kline.Candle{
+			timeSeries = append(timeSeries, kline.Candle{
 				Time:   time.Unix(candles.Data.OHLCV[i].Timestamp, 0),
 				Open:   candles.Data.OHLCV[i].Open,
 				High:   candles.Data.OHLCV[i].High,
@@ -986,13 +959,5 @@ func (b *Bitstamp) GetHistoricCandlesExtended(ctx context.Context, pair currency
 			})
 		}
 	}
-	dates.SetHasDataFromCandles(ret.Candles)
-	summary := dates.DataSummary(false)
-	if len(summary) > 0 {
-		log.Warnf(log.ExchangeSys, "%v - %v", b.Name, summary)
-	}
-	ret.RemoveDuplicates()
-	ret.RemoveOutsideRange(start, end)
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
+	return req.ProcessResponse(timeSeries)
 }

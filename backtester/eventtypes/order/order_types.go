@@ -28,7 +28,7 @@ type Order struct {
 
 // Event inherits common event interfaces along with extra functions related to handling orders
 type Event interface {
-	common.EventHandler
+	common.Event
 	common.Directioner
 	GetClosePrice() decimal.Decimal
 	GetBuyLimit() decimal.Decimal

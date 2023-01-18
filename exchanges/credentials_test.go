@@ -171,6 +171,7 @@ func TestValidateAPICredentials(t *testing.T) {
 
 	for x := range testCases {
 		testData := &testCases[x]
+		x := x
 		t.Run("", func(t *testing.T) {
 			x := x
 			t.Parallel()

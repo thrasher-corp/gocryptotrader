@@ -122,14 +122,23 @@ func (p *Poloniex) SetDefaults() {
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.FiveMin.Word():    true,
-					kline.FifteenMin.Word(): true,
-					kline.ThirtyMin.Word():  true,
-					kline.TwoHour.Word():    true,
-					kline.FourHour.Word():   true,
-					kline.OneDay.Word():     true,
-				},
+				Intervals: kline.DeployExchangeIntervals(
+					kline.OneMin,
+					kline.FiveMin,
+					kline.TenMin,
+					kline.FifteenMin,
+					kline.ThirtyMin,
+					kline.OneHour,
+					kline.TwoHour,
+					kline.FourHour,
+					kline.SixHour,
+					kline.TwelveHour,
+					kline.OneDay,
+					kline.ThreeDay,
+					kline.OneWeek,
+					kline.OneMonth,
+				),
+				ResultLimit: 500,
 			},
 		},
 	}
@@ -419,8 +428,8 @@ func (p *Poloniex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 	currencies := make([]account.Balance, 0, len(accountBalance.Currency))
 	for x, y := range accountBalance.Currency {
 		currencies = append(currencies, account.Balance{
-			CurrencyName: currency.NewCode(x),
-			Total:        y,
+			Currency: currency.NewCode(x),
+			Total:    y,
 		})
 	}
 
@@ -939,52 +948,38 @@ func (p *Poloniex) ValidateCredentials(ctx context.Context, assetType asset.Item
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (p *Poloniex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := p.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
-	}
-
-	formattedPair, err := p.FormatExchangeCurrency(pair, a)
+func (p *Poloniex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := p.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
-	// we use Truncate here to round star to the nearest even number that matches the requested interval
-	// example 10:17 with an interval of 15 minutes will go down 10:15
-	// this is due to poloniex returning a non-complete candle if the time does not match
-	candles, err := p.GetChartData(ctx,
-		formattedPair.String(),
-		start.Truncate(interval.Duration()), end,
-		p.FormatExchangeKlineInterval(interval))
+	resp, err := p.GetChartData(ctx,
+		req.RequestFormatted.String(),
+		req.Start,
+		req.End,
+		p.FormatExchangeKlineInterval(req.ExchangeInterval))
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
-	ret := kline.Item{
-		Exchange: p.Name,
-		Interval: interval,
-		Pair:     pair,
-		Asset:    a,
+	timeSeries := make([]kline.Candle, len(resp))
+	for x := range resp {
+		timeSeries[x] = kline.Candle{
+			Time:   time.UnixMilli(resp[x].Date),
+			Open:   resp[x].Open,
+			High:   resp[x].High,
+			Low:    resp[x].Low,
+			Close:  resp[x].Close,
+			Volume: resp[x].Volume,
+		}
 	}
-
-	for x := range candles {
-		ret.Candles = append(ret.Candles, kline.Candle{
-			Time:   time.Unix(candles[x].Date, 0),
-			Open:   candles[x].Open,
-			High:   candles[x].High,
-			Low:    candles[x].Low,
-			Close:  candles[x].Close,
-			Volume: candles[x].Volume,
-		})
-	}
-
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (p *Poloniex) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return p.GetHistoricCandles(ctx, pair, a, start, end, interval)
+func (p *Poloniex) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetAvailableTransferChains returns the available transfer blockchains for the specific

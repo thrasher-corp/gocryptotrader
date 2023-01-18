@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
-	gctkline "github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -23,8 +23,8 @@ import (
 var errNoUSDData = errors.New("could not retrieve USD CSV candle data")
 
 // LoadData is a basic csv reader which converts the found CSV file into a kline item
-func LoadData(dataType int64, filepath, exchangeName string, interval time.Duration, fPair currency.Pair, a asset.Item, isUSDTrackingPair bool) (*gctkline.DataFromKline, error) {
-	resp := &gctkline.DataFromKline{}
+func LoadData(dataType int64, filepath, exchangeName string, interval time.Duration, fPair currency.Pair, a asset.Item, isUSDTrackingPair bool) (*kline.DataFromKline, error) {
+	resp := kline.NewDataFromKline()
 	csvFile, err := os.Open(filepath)
 	if err != nil {
 		return nil, err
@@ -41,11 +41,11 @@ func LoadData(dataType int64, filepath, exchangeName string, interval time.Durat
 
 	switch dataType {
 	case common.DataCandle:
-		candles := kline.Item{
+		candles := gctkline.Item{
 			Exchange: exchangeName,
 			Pair:     fPair,
 			Asset:    a,
-			Interval: kline.Interval(interval),
+			Interval: gctkline.Interval(interval),
 		}
 
 		for {
@@ -57,7 +57,7 @@ func LoadData(dataType int64, filepath, exchangeName string, interval time.Durat
 				return nil, fmt.Errorf("could not read csv data for %v %v %v, %v", exchangeName, a, fPair, errCSV)
 			}
 
-			candle := kline.Candle{}
+			candle := gctkline.Candle{}
 			v, errParse := strconv.ParseInt(row[0], 10, 32)
 			if errParse != nil {
 				return nil, errParse
@@ -103,7 +103,7 @@ func LoadData(dataType int64, filepath, exchangeName string, interval time.Durat
 		if err != nil {
 			return nil, fmt.Errorf("could not read csv candle data for %v %v %v, %v", exchangeName, a, fPair, err)
 		}
-		resp.Item = candles
+		resp.Item = &candles
 	case common.DataTrade:
 		var trades []trade.Data
 		for {
@@ -146,7 +146,7 @@ func LoadData(dataType int64, filepath, exchangeName string, interval time.Durat
 
 			trades = append(trades, t)
 		}
-		resp.Item, err = trade.ConvertTradesToCandles(kline.Interval(interval), trades...)
+		resp.Item, err = trade.ConvertTradesToCandles(gctkline.Interval(interval), trades...)
 		if err != nil {
 			return nil, fmt.Errorf("could not read csv trade data for %v %v %v, %v", exchangeName, a, fPair, err)
 		}
@@ -159,7 +159,7 @@ func LoadData(dataType int64, filepath, exchangeName string, interval time.Durat
 	resp.Item.Exchange = strings.ToLower(exchangeName)
 	resp.Item.Pair = fPair
 	resp.Item.Asset = a
-	resp.Item.Interval = kline.Interval(interval)
+	resp.Item.Interval = gctkline.Interval(interval)
 
 	return resp, nil
 }

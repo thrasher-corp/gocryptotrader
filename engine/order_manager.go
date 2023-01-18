@@ -466,7 +466,6 @@ func (m *OrderManager) Submit(ctx context.Context, newOrder *order.Submit) (*Ord
 	if err != nil {
 		return nil, err
 	}
-
 	// Checks for exchange min max limits for order amounts before order
 	// execution can occur
 	err = exch.CheckOrderExecutionLimits(newOrder.AssetType,
@@ -479,7 +478,6 @@ func (m *OrderManager) Submit(ctx context.Context, newOrder *order.Submit) (*Ord
 			newOrder.Exchange,
 			err)
 	}
-
 	// Determines if current trading activity is turned off by the exchange for
 	// the currency pair
 	err = exch.CanTradePair(newOrder.Pair, newOrder.AssetType)
@@ -684,22 +682,20 @@ func (m *OrderManager) processOrders() {
 					err)
 				continue
 			}
-			if len(orders) > 0 && len(result) > 0 {
-				for z := range result {
-					var upsertResponse *OrderUpsertResponse
-					upsertResponse, err = m.UpsertOrder(&result[z])
-					if err != nil {
-						log.Error(log.OrderMgr, err)
-					} else {
-						for i := range orders {
-							if orders[i].InternalOrderID != upsertResponse.OrderDetails.InternalOrderID {
-								continue
-							}
-							orders[i] = orders[len(orders)-1]
-							orders = orders[:len(orders)-1]
-							break
-						}
+			for z := range result {
+				var upsertResponse *OrderUpsertResponse
+				upsertResponse, err = m.UpsertOrder(&result[z])
+				if err != nil {
+					log.Error(log.OrderMgr, err)
+					continue
+				}
+				for i := range orders {
+					if orders[i].InternalOrderID != upsertResponse.OrderDetails.InternalOrderID {
+						continue
 					}
+					orders[i] = orders[len(orders)-1]
+					orders = orders[:len(orders)-1]
+					break
 				}
 			}
 
