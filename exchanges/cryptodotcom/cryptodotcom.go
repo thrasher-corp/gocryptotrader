@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -241,6 +242,106 @@ func (cr *Cryptodotcom) GetAccountSummary(ctx context.Context, ccy currency.Code
 	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.Unset, privateGetAccountSummary, params, &resp)
 }
 
+// CreateOrder created a new BUY or SELL order on the Exchange.
+func (cr *Cryptodotcom) CreateOrder(ctx context.Context, instrumentName, clientOrderID, timeInForce string, side order.Side, orderType order.Type, postOnly bool, triggerPrice, price, quantity, notional float64) (*CreateOrderResponse, error) {
+	if instrumentName == "" {
+		return nil, errSymbolIsRequired
+	}
+	if side != order.Sell && side != order.Buy {
+		return nil, fmt.Errorf("%w, side: %s", order.ErrSideIsInvalid, side)
+	}
+	if orderType == order.UnknownType || orderType == order.AnyType {
+		return nil, fmt.Errorf("%w, Order Type: %v", order.ErrTypeIsInvalid, orderType)
+	}
+	if orderType == order.Limit && price <= 0 { // Unit price
+		return nil, fmt.Errorf("%w, price must be non-zero positive decimal value", order.ErrPriceBelowMin)
+	}
+	params := make(map[string]interface{})
+	params["instrument_name"] = instrumentName
+	params["side"] = side.String()
+	params["type"] = orderType.String()
+	params["price"] = price
+	if quantity > 0 {
+		params["quantity"] = quantity
+	}
+	if notional > 0 {
+		params["notional"] = notional
+	}
+	if clientOrderID != "" {
+		params["client_oid"] = clientOrderID
+	}
+	if timeInForce != "" {
+		params["time_in_force"] = timeInForce
+	}
+	if postOnly {
+		params["exec_inst"] = "POST_ONLY"
+	}
+	if triggerPrice > 0 {
+		params["trigger_price"] = triggerPrice
+	}
+	var resp *CreateOrderResponse
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.Unset, privateCreateOrder, params, &resp)
+}
+
+// CancelExistingOrder cancels and existing open order.
+func (cr *Cryptodotcom) CancelExistingOrder(ctx context.Context, instrumentName, orderID string) error {
+	params := make(map[string]interface{})
+	if instrumentName == "" {
+		return errSymbolIsRequired
+	}
+	if orderID == "" {
+		return order.ErrOrderIDNotSet
+	}
+	params["instrument_name"] = instrumentName
+	params["order_id"] = orderID
+	return cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.Unset, privateCancelOrder, params, nil)
+}
+
+/*
+*
+*
+*
+*
+ */
+
+//  func (cr *Cryptodotcom) GetPersonalOpenOrders(ctx context.Context,instrumentName string, pageSize, page int64)
+
+// GetOrderDetail retrives details on a particular order ID
+func (cr *Cryptodotcom) GetOrderDetail(ctx context.Context, orderID string) (*OrderDetail, error) {
+	var resp *OrderDetail
+	if orderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	params := make(map[string]interface{})
+	params["order_id"] = orderID
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.Unset, privateGetOrderDetail, params, &resp)
+}
+
+//	GetPersonalTrades gets all executed trades for a particular instrument.
+//
+// If paging is used, enumerate each page (starting with 0) until an empty trade_list array appears in the response.
+// Users should use user.trade to keep track of real-time trades, and private/get-trades should primarily be used for recovery; typically when the websocket is disconnected.
+func (cr *Cryptodotcom) GetPersonalTrades(ctx context.Context, instrumentName string, startTimestamp, endTimestamp time.Time, pageSize, page int64) (*PersonalTrades, error) {
+	params := make(map[string]interface{})
+	if instrumentName != "" {
+		params["instrument_name"] = instrumentName
+	}
+	if !startTimestamp.IsZero() {
+		params["start_ts"] = strconv.FormatInt(startTimestamp.UnixMilli(), 10)
+	}
+	if !endTimestamp.IsZero() {
+		params["end_ts"] = strconv.FormatInt(endTimestamp.UnixMilli(), 10)
+	}
+	if pageSize != 0 {
+		params["page_size"] = pageSize
+	}
+	if page != 0 {
+		params["page"] = page
+	}
+	var resp *PersonalTrades
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.Unset, privateGetTrades, params, &resp)
+}
+
 // SetCancelOnDisconnect cancel on Disconnect is an optional feature that will cancel all open orders created by the connection upon loss of connectivity between client or server.
 func (cr *Cryptodotcom) SetCancelOnDisconnect(ctx context.Context, scope string) (*CancelOnDisconnectScope, error) {
 	if scope != "ACCOUNT" && scope != "CONNECTION" {
@@ -425,6 +526,8 @@ func (cr *Cryptodotcom) SendAuthHTTPRequest(ctx context.Context, ePath exchange.
 	if err != nil {
 		return err
 	}
+	by, _ := response.Result.MarshalJSON()
+	println(string(by))
 	return json.Unmarshal(response.Result, resp)
 }
 

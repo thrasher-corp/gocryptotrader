@@ -12,13 +12,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	apiKey                  = "sLsbTxsHCgzCAqQAqbxrMr"
+	apiSecret               = "Bg6wMPnb8XWEwFhmfSY8GX"
 	canManipulateRealOrders = false
 )
 
@@ -166,6 +167,51 @@ func TestGetAccountSummary(t *testing.T) {
 		t.SkipNow()
 	}
 	_, err := cr.GetAccountSummary(context.Background(), currency.USDT)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCreateOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() { //} || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	_, err := cr.CreateOrder(context.Background(), "BTC_USDT", "", "", order.Buy, order.Limit, false, 0, 123, 12, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelExistingOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() { //} || !canManip
+		t.SkipNow()
+	}
+	err := cr.CancelExistingOrder(context.Background(), "BTC_USDT", "1232412")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPersonalTrades(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := cr.GetPersonalTrades(context.Background(), "BTC_USDT", time.Time{}, time.Time{}, 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOrderDetail(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	cr.Verbose = true
+	_, err := cr.GetOrderDetail(context.Background(), "1234")
 	if err != nil {
 		t.Error(err)
 	}
