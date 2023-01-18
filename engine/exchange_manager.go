@@ -269,7 +269,7 @@ func (m *ExchangeManager) Shutdown() error {
 		// Every exchange has finished their shutdown call.
 		mtx.Lock()
 		for name := range m.exchanges {
-			log.Warnf(log.ExchangeSys, "%s has failed to shutdown due to error, please review.\n", name)
+			log.Errorf(log.ExchangeSys, "%s has failed to shutdown due to error, please review.\n", name)
 		}
 		mtx.Unlock()
 	}
