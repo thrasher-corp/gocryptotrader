@@ -119,7 +119,7 @@ func (d *Data) SetKlineData(k *kline.Item) error {
 			continue
 		}
 		d.OriginalCandles[i].Candles = append(d.OriginalCandles[i].Candles, k.Candles...)
-		d.OriginalCandles[i].RemoveDuplicateCandlesByTime()
+		d.OriginalCandles[i].RemoveDuplicates()
 		return nil
 	}
 	d.OriginalCandles = append(d.OriginalCandles, k)

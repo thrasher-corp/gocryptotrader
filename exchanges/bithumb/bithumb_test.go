@@ -613,13 +613,12 @@ func TestGetCandleStick(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("BTCKRW")
+	pair, err := currency.NewPairFromString("BTCKRW")
 	if err != nil {
 		t.Fatal(err)
 	}
-	startTime := time.Now().Add(-time.Hour * 24)
-	_, err = b.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, startTime, time.Now(), kline.OneDay)
+	startTime := time.Now().AddDate(0, 0, -1)
+	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneMin, startTime, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -627,14 +626,13 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("BTCKRW")
+	pair, err := currency.NewPairFromString("BTCKRW")
 	if err != nil {
 		t.Fatal(err)
 	}
 	startTime := time.Now().Add(-time.Hour * 24)
-	_, err = b.GetHistoricCandlesExtended(context.Background(),
-		currencyPair, asset.Spot, startTime, time.Now(), kline.OneDay)
-	if err != nil {
+	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneDay, startTime, time.Now())
+	if !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Fatal(err)
 	}
 }

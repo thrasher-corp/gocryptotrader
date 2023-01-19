@@ -47,7 +47,7 @@ func (d *DataFromKline) HasDataAtTime(t time.Time) (bool, error) {
 
 // Load sets the candle data to the stream for processing
 func (d *DataFromKline) Load() error {
-	if len(d.Item.Candles) == 0 {
+	if d.Item == nil || len(d.Item.Candles) == 0 {
 		return errNoCandleData
 	}
 
@@ -127,7 +127,7 @@ candleLoop:
 		return err
 	}
 
-	d.Item.RemoveDuplicateCandlesByTime()
+	d.Item.RemoveDuplicates()
 	d.Item.SortCandlesByTimestamp(false)
 	if d.RangeHolder != nil {
 		// offline data check when there is a known range

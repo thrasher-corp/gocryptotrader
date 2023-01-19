@@ -2465,14 +2465,14 @@ func TestGetHistoricCandles(t *testing.T) {
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTC_USDT")
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTC_USDT")
 	if err != nil {
 		t.Fatal(err)
 	}
-	currencyPair = currencyPair.Upper()
 	startTime := time.Now().Add(-time.Minute * 2)
 	_, err = g.GetHistoricCandlesExtended(context.Background(),
-		currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
+		pair.Upper(), asset.Spot, startTime, time.Now(), kline.OneMin)
 	if err != nil {
 		t.Fatal(err)
 	}

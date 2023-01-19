@@ -103,7 +103,7 @@ func LoadData(dataType int64, filepath, exchangeName string, interval time.Durat
 		if err != nil {
 			return nil, fmt.Errorf("could not read csv candle data for %v %v %v, %v", exchangeName, a, fPair, err)
 		}
-		resp.Item = candles
+		resp.Item = &candles
 	case common.DataTrade:
 		var trades []trade.Data
 		for {
