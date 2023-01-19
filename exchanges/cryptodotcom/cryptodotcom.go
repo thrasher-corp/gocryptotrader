@@ -37,7 +37,8 @@ const (
 	cryptodotcomUATSandboxWebsocketURL = "wss://uat-stream.3ona.co"
 	cryptodotcomWebsocketURL           = "wss://stream.crypto.com"
 
-	cryptodotcomAPIVersion = "/v2/"
+	cryptodotcomAPIVersion  = "/v2/"
+	cryptodotcomAPIVersion1 = "/v1/"
 
 	// Public endpoints
 	publicAuth                      = "public/auth"
@@ -383,12 +384,55 @@ func (cr *Cryptodotcom) CancelOrderList(ctx context.Context, args []CancelOrderP
 	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.Unset, privateCancelOrderList, params, &resp)
 }
 
-/*
-*
-*
-*
-*
- */
+// GetAccounts retrives Account and its Sub Accounts
+func (cr *Cryptodotcom) GetAccounts(ctx context.Context) (*AccountResponse, error) {
+	var resp *AccountResponse
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.Unset, privateGetAccounts, nil, &resp)
+}
+
+// GetTransactions fetches recent transactions
+func (cr *Cryptodotcom) GetTransactions(ctx context.Context, instrumentName, journalType string, startTimestamp, endTimestamp time.Time, limit int64) (*TransactionResponse, error) {
+	params := make(map[string]interface{})
+	if instrumentName != "" {
+		params["instrument_name"] = instrumentName
+	}
+	if journalType != "" {
+		params["journal_type"] = journalType
+	}
+	if !startTimestamp.IsZero() {
+		params["start_time"] = startTimestamp.UnixMilli()
+	}
+	if !endTimestamp.IsZero() {
+		params["end_time"] = endTimestamp.UnixMilli()
+	}
+	if limit > 0 {
+		params["limit"] = limit
+	}
+	var resp *TransactionResponse
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.Unset, privateGetTransactions, params, &resp)
+}
+
+// CreateSubAccountTransfer transfer between subaccounts (and master account).
+func (cr *Cryptodotcom) CreateSubAccountTransfer(ctx context.Context, from, to string, ccy currency.Code, amount float64) error {
+	params := make(map[string]interface{})
+	if from == "" {
+		return errors.New("'from' subaccount address is required")
+	}
+	if to == "" {
+		return errors.New("'to' subaccount address is required")
+	}
+	if ccy.IsEmpty() {
+		return fmt.Errorf("%w Currency: %v", currency.ErrCurrencyCodeEmpty, ccy)
+	}
+	if amount <= 0 {
+		return errors.New("'amount' must be greater than 0")
+	}
+	params["from"] = from
+	params["to"] = to
+	params["currency"] = ccy.String()
+	params["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
+	return cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.Unset, privateCreateSubAccountTransfer, params, nil)
+}
 
 //	GetPersonalOrderHistory gets the order history for a particular instrument
 //

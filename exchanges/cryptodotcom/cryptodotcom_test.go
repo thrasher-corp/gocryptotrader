@@ -265,3 +265,37 @@ func TestCancelOrderList(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestGetAccounts(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := cr.GetAccounts(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetTransactions(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	cr.Verbose = true
+	_, err := cr.GetTransactions(context.Background(), "", "", time.Time{}, time.Time{}, 20)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCreateSubAccountTransfer(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	err := cr.CreateSubAccountTransfer(context.Background(), "bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfavf", core.BitcoinDonationAddress, currency.USDT, 1232)
+	if err != nil {
+		t.Error(err)
+	}
+}

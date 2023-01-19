@@ -337,3 +337,56 @@ type OrderCreationResultItem struct {
 	OrderID   string `json:"order_id"`
 	ClientOid string `json:"client_oid"`
 }
+
+type AccountResponse struct {
+	MasterAccount  AccountInfo   `json:"master_account"`
+	SubAccountList []AccountInfo `json:"sub_account_list"`
+}
+
+// AccountInfo represents the account information.
+type AccountInfo struct {
+	UUID              string               `json:"uuid"`
+	MasterAccountUUID string               `json:"master_account_uuid"`
+	MarginAccountUUID string               `json:"margin_account_uuid"`
+	Enabled           bool                 `json:"enabled"`
+	Tradable          bool                 `json:"tradable"`
+	Name              string               `json:"name"`
+	Email             string               `json:"email"`
+	MobileNumber      string               `json:"mobile_number"`
+	CountryCode       string               `json:"country_code"`
+	Address           string               `json:"address"`
+	MarginAccess      string               `json:"margin_access"`
+	DerivativesAccess string               `json:"derivatives_access"`
+	CreateTime        cryptoDotComMilliSec `json:"create_time"`
+	UpdateTime        cryptoDotComMilliSec `json:"update_time"`
+	TwoFaEnabled      bool                 `json:"two_fa_enabled"`
+	KycLevel          string               `json:"kyc_level"`
+	Suspended         bool                 `json:"suspended"`
+	Terminated        bool                 `json:"terminated"`
+	Label             string               `json:"label"`
+}
+
+// TransactionResponse represents a transaction response.
+type TransactionResponse struct {
+	Data []TransactionItem `json:"data"`
+}
+
+// TransactionItem represents a transaction instance.
+type TransactionItem struct {
+	AccountID        string `json:"account_id"`
+	EventDate        string `json:"event_date"`
+	JournalType      string `json:"journal_type"`
+	JournalID        string `json:"journal_id"`
+	TransactionQty   string `json:"transaction_qty"`
+	TransactionCost  string `json:"transaction_cost"`
+	RealizedPnl      string `json:"realized_pnl"`
+	OrderID          string `json:"order_id,omitempty"`
+	TradeID          string `json:"trade_id,omitempty"`
+	TradeMatchID     string `json:"trade_match_id"`
+	EventTimestampMs int64  `json:"event_timestamp_ms"`
+	EventTimestampNs string `json:"event_timestamp_ns"`
+	ClientOid        string `json:"client_oid"`
+	TakerSide        string `json:"taker_side"`
+	Side             string `json:"side,omitempty"`
+	InstrumentName   string `json:"instrument_name"`
+}
