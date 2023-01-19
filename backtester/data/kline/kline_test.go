@@ -32,7 +32,7 @@ func TestLoad(t *testing.T) {
 	if !errors.Is(err, errNoCandleData) {
 		t.Errorf("received: %v, expected: %v", err, errNoCandleData)
 	}
-	d.Item = gctkline.Item{
+	d.Item = &gctkline.Item{
 		Exchange: exch,
 		Pair:     p,
 		Asset:    a,
@@ -82,7 +82,7 @@ func TestHasDataAtTime(t *testing.T) {
 		t.Error("expected false")
 	}
 
-	d.Item = gctkline.Item{
+	d.Item = &gctkline.Item{
 		Exchange: exch,
 		Pair:     p,
 		Asset:    a,
@@ -149,7 +149,7 @@ func TestAppend(t *testing.T) {
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := DataFromKline{
 		Base: &data.Base{},
-		Item: gctkline.Item{
+		Item: &gctkline.Item{
 			Exchange: testExchange,
 			Asset:    a,
 			Pair:     p,

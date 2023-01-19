@@ -113,20 +113,20 @@ func (ku *Kucoin) SetDefaults() {
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.OneMin.Word():     true,
-					kline.ThreeMin.Word():   true,
-					kline.FiveMin.Word():    true,
-					kline.FifteenMin.Word(): true,
-					kline.ThirtyMin.Word():  true,
-					kline.OneHour.Word():    true,
-					kline.FourHour.Word():   true,
-					kline.SixHour.Word():    true,
-					kline.EightHour.Word():  true,
-					kline.TwelveHour.Word(): true,
-					kline.OneDay.Word():     true,
-					kline.OneWeek.Word():    true,
-				},
+				Intervals: kline.DeployExchangeIntervals(
+					kline.OneMin,
+					kline.ThreeMin,
+					kline.FiveMin,
+					kline.FifteenMin,
+					kline.ThirtyMin,
+					kline.OneHour,
+					kline.FourHour,
+					kline.SixHour,
+					kline.EightHour,
+					kline.TwelveHour,
+					kline.OneDay,
+					kline.OneWeek,
+				),
 			},
 		},
 	}
@@ -1248,16 +1248,16 @@ func (ku *Kucoin) ValidateCredentials(ctx context.Context, assetType asset.Item)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (ku *Kucoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (ku *Kucoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	err := ku.ValidateKline(pair, a, interval)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 	fPair, err := ku.FormatExchangeCurrency(pair, a)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
-	ret := kline.Item{
+	ret := &kline.Item{
 		Exchange: ku.Name,
 		Pair:     fPair,
 		Asset:    a,
@@ -1269,7 +1269,7 @@ func (ku *Kucoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		pair.Delimiter = ""
 		candles, err := ku.GetFuturesKline(ctx, "30", pair.String(), start, end)
 		if err != nil {
-			return ret, err
+			return nil, err
 		}
 		for x := range candles {
 			ret.Candles = append(
@@ -1286,7 +1286,7 @@ func (ku *Kucoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 	case asset.Spot:
 		intervalString, err := ku.intervalToString(interval)
 		if err != nil {
-			return ret, err
+			return nil, err
 		}
 		var candles []Kline
 		pair.Delimiter = currency.DashDelimiter
@@ -1311,15 +1311,15 @@ func (ku *Kucoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (ku *Kucoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (ku *Kucoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	if err := ku.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 	dates, err := kline.CalculateCandleDateRanges(start, end, interval, ku.Features.Enabled.Kline.ResultLimit)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
-	ret := kline.Item{
+	ret := &kline.Item{
 		Exchange: ku.Name,
 		Pair:     pair,
 		Asset:    a,
@@ -1332,7 +1332,7 @@ func (ku *Kucoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			pair.Delimiter = ""
 			candles, err := ku.GetFuturesKline(ctx, "720", pair.String(), dates.Ranges[x].Start.Time, dates.Ranges[x].End.Time)
 			if err != nil {
-				return ret, err
+				return nil, err
 			}
 			for x := range candles {
 				ret.Candles = append(
@@ -1376,7 +1376,6 @@ func (ku *Kucoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 	if len(summary) > 0 {
 		log.Warnf(log.ExchangeSys, "%v - %v", ku.Name, summary)
 	}
-	ret.RemoveDuplicateCandlesByTime()
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil

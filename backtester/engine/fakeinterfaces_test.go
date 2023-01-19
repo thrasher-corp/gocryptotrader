@@ -170,7 +170,7 @@ func (f fakeDataHolder) GetAllData() ([]data.Handler, error) {
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	return []data.Handler{&kline.DataFromKline{
 		Base: &data.Base{},
-		Item: gctkline.Item{
+		Item: &gctkline.Item{
 			Exchange:       testExchange,
 			Pair:           cp,
 			UnderlyingPair: cp,

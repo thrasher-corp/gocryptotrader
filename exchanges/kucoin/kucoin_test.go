@@ -1677,7 +1677,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	}
 	startTime := time.Now().Add(-time.Hour * 4)
 	endTime := time.Now().Add(-time.Hour * 3)
-	_, err = ku.GetHistoricCandles(context.Background(), enabledPairs[0], asset.Futures, startTime, endTime, kline.OneHour)
+	_, err = ku.GetHistoricCandles(context.Background(), enabledPairs[0], asset.Futures, kline.OneHour, startTime, endTime)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1685,7 +1685,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = ku.GetHistoricCandles(context.Background(), enabledPairs[len(enabledPairs)-1], asset.Spot, startTime, time.Now(), kline.OneHour)
+	_, err = ku.GetHistoricCandles(context.Background(), enabledPairs[len(enabledPairs)-1], asset.Spot, kline.OneHour, startTime, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1698,11 +1698,11 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	}
 	startTime := time.Now().Add(-time.Hour * 5)
 	endTime := time.Now().Add(-time.Hour * 2)
-	_, err = ku.GetHistoricCandlesExtended(context.Background(), enabledPairs[0], asset.Spot, startTime, endTime, kline.OneHour)
+	_, err = ku.GetHistoricCandlesExtended(context.Background(), enabledPairs[0], asset.Spot, kline.OneHour, startTime, endTime)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = ku.GetHistoricCandlesExtended(context.Background(), enabledPairs[0], asset.Spot, startTime, endTime, kline.FiveMin)
+	_, err = ku.GetHistoricCandlesExtended(context.Background(), enabledPairs[0], asset.Spot, kline.FiveMin, startTime, endTime)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1710,11 +1710,11 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = ku.GetHistoricCandlesExtended(context.Background(), enabledPairs[0], asset.Futures, startTime, endTime, kline.OneHour)
+	_, err = ku.GetHistoricCandlesExtended(context.Background(), enabledPairs[0], asset.Futures, kline.OneHour, startTime, endTime)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = ku.GetHistoricCandlesExtended(context.Background(), enabledPairs[0], asset.Futures, startTime, endTime, kline.FiveMin)
+	_, err = ku.GetHistoricCandlesExtended(context.Background(), enabledPairs[0], asset.Futures, kline.FiveMin, startTime, endTime)
 	if err != nil {
 		t.Error(err)
 	}
