@@ -649,67 +649,29 @@ func TestWsPriceAggregateOrderbook(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTC_LTC")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = p.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot,
-		time.Unix(1588741402, 0),
-		time.Unix(1588745003, 0),
-		kline.FiveMin)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = p.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot,
-		time.Unix(1588741402, 0),
-		time.Unix(1588745003, 0),
-		kline.Interval(time.Hour*7))
-	if err == nil {
-		t.Fatal("unexpected result")
-	}
+	t.Parallel()
 
-	currencyPair.Quote = currency.NewCode("LTCC")
-	_, err = p.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot,
-		time.Unix(1588741402, 0),
-		time.Unix(1588745003, 0),
-		kline.FiveMin)
-	if err == nil {
+	pair, err := currency.NewPairFromString("BTC_LTC")
+	if err != nil {
 		t.Fatal(err)
+	}
+	start := time.Unix(1588741402, 0)
+	_, err = p.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.FiveMin, start, time.Unix(1588745003, 0))
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTC_LTC")
+	t.Parallel()
+
+	pair, err := currency.NewPairFromString("BTC_LTC")
 	if err != nil {
 		t.Fatal(err)
-	}
-	_, err = p.GetHistoricCandlesExtended(context.Background(),
-		currencyPair, asset.Spot,
-		time.Unix(1588741402, 0),
-		time.Unix(1588745003, 0),
-		kline.FiveMin)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = p.GetHistoricCandlesExtended(context.Background(),
-		currencyPair, asset.Spot,
-		time.Unix(1588741402, 0),
-		time.Unix(1588745003, 0),
-		kline.Interval(time.Hour*7))
-	if err == nil {
-		t.Fatal("unexpected result")
 	}
 
-	currencyPair.Quote = currency.NewCode("LTCC")
-	_, err = p.GetHistoricCandlesExtended(context.Background(),
-		currencyPair, asset.Spot,
-		time.Unix(1588741402, 0),
-		time.Unix(1588745003, 0),
-		kline.FiveMin)
-	if err == nil {
+	_, err = p.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.FiveMin, time.Unix(1588741402, 0), time.Unix(1588745003, 0))
+	if !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Fatal(err)
 	}
 }

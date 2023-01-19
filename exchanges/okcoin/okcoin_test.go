@@ -1272,9 +1272,13 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
+	pair, err := currency.NewPairFromString("BTC-USD")
+	if err != nil {
+		t.Fatal(err)
+	}
 	startTime := time.Unix(1588636800, 0)
-	_, err := o.GetHistoricCandles(context.Background(),
-		spotCurrency, asset.Spot, startTime, time.Now(), kline.OneMin)
+	_, err = o.GetHistoricCandles(context.Background(),
+		pair, asset.Spot, kline.OneDay, startTime, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1282,15 +1286,20 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
+	pair, err := currency.NewPairFromString("BTC-USD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	startTime := time.Unix(1588636800, 0)
-	_, err := o.GetHistoricCandlesExtended(context.Background(),
-		spotCurrency, asset.Spot, startTime, time.Now(), kline.OneWeek)
+	_, err = o.GetHistoricCandlesExtended(context.Background(),
+		pair, asset.Spot, kline.OneWeek, startTime, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	_, err = o.GetHistoricCandles(context.Background(),
-		spotCurrency, asset.Spot, startTime, time.Now(), kline.Interval(time.Hour*7))
+		pair, asset.Spot, kline.Interval(time.Hour*7), startTime, time.Now())
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
