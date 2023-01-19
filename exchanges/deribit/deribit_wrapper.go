@@ -102,20 +102,20 @@ func (d *Deribit) SetDefaults() {
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.OneMin.Word():     true,
-					kline.ThreeMin.Word():   true,
-					kline.FiveMin.Word():    true,
-					kline.TenMin.Word():     true,
-					kline.FifteenMin.Word(): true,
-					kline.ThirtyMin.Word():  true,
-					kline.OneHour.Word():    true,
-					kline.TwoHour.Word():    true,
-					kline.ThreeHour.Word():  true,
-					kline.SixHour.Word():    true,
-					kline.TwelveHour.Word(): true,
-					kline.OneDay.Word():     true,
-				},
+				Intervals: kline.DeployExchangeIntervals(
+					kline.OneMin,
+					kline.ThreeMin,
+					kline.FiveMin,
+					kline.TenMin,
+					kline.FifteenMin,
+					kline.ThirtyMin,
+					kline.OneHour,
+					kline.TwoHour,
+					kline.ThreeHour,
+					kline.SixHour,
+					kline.TwelveHour,
+					kline.OneDay,
+				),
 			},
 		},
 	}
@@ -1027,17 +1027,17 @@ func (d *Deribit) ValidateCredentials(ctx context.Context, assetType asset.Item)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (d *Deribit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (d *Deribit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	if err := d.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 	fmtPair, err := d.FormatExchangeCurrency(pair, a)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 	intervalString, err := d.GetResolutionFromInterval(interval)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 	var tradingViewData *TVChartData
 	if d.Websocket.IsConnected() {
@@ -1046,7 +1046,7 @@ func (d *Deribit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		tradingViewData, err = d.GetTradingViewChartData(ctx, fmtPair.String(), intervalString, start, end)
 	}
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 	checkLen := len(tradingViewData.Ticks)
 	if len(tradingViewData.Open) != checkLen ||
@@ -1054,9 +1054,9 @@ func (d *Deribit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		len(tradingViewData.Low) != checkLen ||
 		len(tradingViewData.Close) != checkLen ||
 		len(tradingViewData.Volume) != checkLen {
-		return kline.Item{}, fmt.Errorf("%s - %s - %v: invalid trading view chart data received", d.Name, a, fmtPair)
+		return nil, fmt.Errorf("%s - %s - %v: invalid trading view chart data received", d.Name, a, fmtPair)
 	}
-	resp := kline.Item{
+	resp := &kline.Item{
 		Pair:     fmtPair,
 		Asset:    a,
 		Interval: interval,
@@ -1077,15 +1077,15 @@ func (d *Deribit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	if err := d.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 	fmtPair, err := d.FormatExchangeCurrency(pair, a)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
-	resp := kline.Item{
+	resp := &kline.Item{
 		Pair:     fmtPair,
 		Asset:    a,
 		Interval: interval,
@@ -1093,13 +1093,13 @@ func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 	}
 	dates, err := kline.CalculateCandleDateRanges(start, end, interval, d.Features.Enabled.Kline.ResultLimit)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 	var tradingViewData *TVChartData
 	for x := range dates.Ranges {
 		intervalString, err := d.GetResolutionFromInterval(interval)
 		if err != nil {
-			return kline.Item{}, err
+			return nil, err
 		}
 		if d.Websocket.IsConnected() {
 			tradingViewData, err = d.WSRetrivesTradingViewChartData(fmtPair.String(), intervalString, dates.Ranges[x].Start.Time, dates.Ranges[x].End.Time)
@@ -1107,7 +1107,7 @@ func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			tradingViewData, err = d.GetTradingViewChartData(ctx, fmtPair.String(), intervalString, dates.Ranges[x].Start.Time, dates.Ranges[x].End.Time)
 		}
 		if err != nil {
-			return kline.Item{}, err
+			return nil, err
 		}
 		checkLen := len(tradingViewData.Ticks)
 		if len(tradingViewData.Open) != checkLen ||
@@ -1115,7 +1115,7 @@ func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			len(tradingViewData.Low) != checkLen ||
 			len(tradingViewData.Close) != checkLen ||
 			len(tradingViewData.Volume) != checkLen {
-			return kline.Item{}, fmt.Errorf("%s - %s - %v: invalid trading view chart data received", d.Name, a, pair)
+			return nil, fmt.Errorf("%s - %s - %v: invalid trading view chart data received", d.Name, a, pair)
 		}
 		for x := range tradingViewData.Ticks {
 			resp.Candles = append(resp.Candles, kline.Candle{

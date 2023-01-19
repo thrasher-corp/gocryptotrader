@@ -131,7 +131,7 @@ func TestOnSignals(t *testing.T) {
 		t.Errorf("received '%v', expected  '%v'", err, nil)
 	}
 	da := &kline.DataFromKline{
-		Item:        gctkline.Item{},
+		Item:        &gctkline.Item{},
 		Base:        d,
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}

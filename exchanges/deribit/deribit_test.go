@@ -180,7 +180,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.GetHistoricCandles(context.Background(), cp, asset.Futures, time.Now().Add(-time.Hour), time.Now(), kline.FifteenMin)
+	_, err = d.GetHistoricCandles(context.Background(), cp, asset.Futures, kline.FifteenMin, time.Now().Add(-time.Hour), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
@@ -193,9 +193,9 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	}
 	_, err = d.GetHistoricCandlesExtended(context.Background(), cp,
 		asset.Futures,
+		kline.FifteenMin,
 		time.Now().Add(-time.Hour*10),
-		time.Now(),
-		kline.FifteenMin)
+		time.Now())
 	if err != nil {
 		t.Error(err)
 	}

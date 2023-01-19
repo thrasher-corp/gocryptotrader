@@ -1559,58 +1559,44 @@ func TestGetSpotKline(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = h.GetSpotKline(context.Background(),
-		&KlinesRequestParams{
-			Symbol: cp,
-			Period: "1min",
-			Size:   0,
-		})
+	_, err = h.GetSpotKline(context.Background(), KlinesRequestParams{
+		Symbol: cp,
+		Period: "1min",
+	})
 	if err != nil {
 		t.Errorf("Huobi TestGetSpotKline: %s", err)
 	}
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTC-USDT")
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTC-USDT")
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	startTime := time.Now().Add(-time.Hour * 1)
-	_, err = h.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
+	_, err = h.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneMin, startTime, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = h.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, startTime.AddDate(0, 0, -7), time.Now(), kline.OneDay)
+	_, err = h.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, startTime.AddDate(0, 0, -7), time.Now())
 	if err != nil {
 		t.Fatal(err)
-	}
-
-	_, err = h.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, startTime, time.Now(), kline.Interval(time.Hour*7))
-	if err == nil {
-		t.Fatal("unexpected result")
 	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTC-USDT")
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTC-USDT")
 	if err != nil {
 		t.Fatal(err)
 	}
-	startTime := time.Now().Add(-time.Minute * 2)
-	_, err = h.GetHistoricCandlesExtended(context.Background(),
-		currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
-	if err != nil {
+	startTime := time.Now().Add(-time.Hour * 1)
+	_, err = h.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneMin, startTime, time.Now())
+	if !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Fatal(err)
-	}
-
-	_, err = h.GetHistoricCandlesExtended(context.Background(),
-		currencyPair, asset.Spot, startTime, time.Now(), kline.Interval(time.Hour*7))
-	if err == nil {
-		t.Fatal("unexpected result")
 	}
 }
 

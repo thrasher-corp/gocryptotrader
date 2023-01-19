@@ -22,7 +22,6 @@ func LoadData(ctx context.Context, timeToRetrieve time.Time, exch exchange.IBotE
 	if exch == nil {
 		return nil, fmt.Errorf("%w IBotExchange", gctcommon.ErrNilPointer)
 	}
-	var candles kline.Item
 	var err error
 	if verbose {
 		ctx = request.WithVerbose(ctx)
@@ -35,15 +34,16 @@ func LoadData(ctx context.Context, timeToRetrieve time.Time, exch exchange.IBotE
 	}
 	startTime = timeToRetrieve.Truncate(interval).Add(-interval)
 	endTime = timeToRetrieve.Truncate(interval).Add(-1)
+
+	var candles *kline.Item
 	switch dataType {
 	case common.DataCandle:
 		candles, err = exch.GetHistoricCandles(ctx,
 			pFmt,
 			a,
-			startTime,
-			endTime,
 			kline.Interval(interval),
-		)
+			startTime,
+			endTime)
 		if err != nil {
 			return nil, fmt.Errorf("could not retrieve live candle data for %v %v %v, %v", exch.GetName(), a, currencyPair, err)
 		}
@@ -85,5 +85,5 @@ func LoadData(ctx context.Context, timeToRetrieve time.Time, exch exchange.IBotE
 	}
 	candles.Exchange = strings.ToLower(exch.GetName())
 	candles.UnderlyingPair = underlyingPair
-	return &candles, nil
+	return candles, nil
 }

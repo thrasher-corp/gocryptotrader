@@ -102,14 +102,14 @@ type OrderTrade struct {
 
 // ChartData holds kline data
 type ChartData struct {
-	Date            int64   `json:"date"`
-	High            float64 `json:"high"`
-	Low             float64 `json:"low"`
-	Open            float64 `json:"open"`
-	Close           float64 `json:"close"`
-	Volume          float64 `json:"volume"`
-	QuoteVolume     float64 `json:"quoteVolume"`
-	WeightedAverage float64 `json:"weightedAverage"`
+	Date            int64   `json:"date,string"`
+	High            float64 `json:"high,string"`
+	Low             float64 `json:"low,string"`
+	Open            float64 `json:"open,string"`
+	Close           float64 `json:"close,string"`
+	Volume          float64 `json:"volume,string"`
+	QuoteVolume     float64 `json:"quoteVolume,string"`
+	WeightedAverage float64 `json:"weightedAverage,string"`
 	Error           string  `json:"error"`
 }
 
