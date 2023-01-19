@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // CreateKline creates candles out of trade history data for a set time interval
@@ -212,6 +213,8 @@ func (k *Item) RemoveDuplicates() {
 // ConvertCandles functionality will break.
 func (k *Item) RemoveOutsideRange(start, end time.Time) {
 	target := 0
+	origLen := len(k.Candles)
+	log.Debugf(log.ExchangeSys, "%v", origLen)
 	for _, keep := range k.Candles {
 		if keep.Time.Equal(start) || (keep.Time.After(start) && keep.Time.Before(end)) {
 			k.Candles[target] = keep
@@ -474,32 +477,40 @@ func (k *Item) GetClosePriceAtTime(t time.Time) (float64, error) {
 	return -1, fmt.Errorf("%w at %v", ErrNotFoundAtTime, t)
 }
 
-// SetHasDataFromCandles will calculate whether there is data in each candle
-// allowing any missing data from an API request to be highlighted
-func (h *IntervalRangeHolder) SetHasDataFromCandles(incoming []Candle) {
-	bucket := make([]Candle, len(incoming))
-	copy(bucket, incoming)
-	for x := range h.Ranges {
-	intervals:
-		for y := range h.Ranges[x].Intervals {
-			for z := range bucket {
-				if bucket[z].Low <= 0 && bucket[z].High <= 0 &&
-					bucket[z].Close <= 0 && bucket[z].Open <= 0 &&
-					bucket[z].Volume <= 0 {
-					// function AddPadding has already been called and filled entries with empty entries
-					continue
-				}
-				cu := bucket[z].Time.Unix()
-				if cu >= h.Ranges[x].Intervals[y].Start.Ticks &&
-					cu < h.Ranges[x].Intervals[y].End.Ticks {
-					h.Ranges[x].Intervals[y].HasData = true
-					bucket = bucket[z+1:]
-					continue intervals
-				}
-			}
-			h.Ranges[x].Intervals[y].HasData = false
+// CandleLen returns the amount of candles inside the rangeholder
+func (h *IntervalRangeHolder) CandleLen() int {
+	var count int
+	for i := range h.Ranges {
+		for range h.Ranges[i].Intervals {
+			count++
 		}
 	}
+	return count
+}
+
+// SetHasDataFromCandles will calculate whether there is data in each candle
+// allowing any missing data from an API request to be highlighted
+func (h *IntervalRangeHolder) SetHasDataFromCandles(incoming []Candle) error {
+	if h.CandleLen() != len(incoming) {
+		return fmt.Errorf("%w received %v, expected %v", errDataLengthMismatch, len(incoming), h.CandleLen())
+	}
+	var offset int
+	for x := range h.Ranges {
+		for y := range h.Ranges[x].Intervals {
+			if !h.Ranges[x].Intervals[y].Start.Time.Equal(incoming[offset].Time) {
+				return fmt.Errorf("%w '%v' expected '%v'", errInvalidPeriod, incoming[offset].Time, h.Ranges[x].Intervals[y].Start.Time)
+			}
+			if incoming[offset].Low <= 0 && incoming[offset].High <= 0 &&
+				incoming[offset].Close <= 0 && incoming[offset].Open <= 0 &&
+				incoming[offset].Volume <= 0 {
+				h.Ranges[x].Intervals[y].HasData = false
+			} else {
+				h.Ranges[x].Intervals[y].HasData = true
+			}
+			offset++
+		}
+	}
+	return nil
 }
 
 // DataSummary returns a summary of a data range to highlight where data is missing

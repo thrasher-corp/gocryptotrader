@@ -753,7 +753,10 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if err != nil {
 			return nil, err
 		}
-		resp.RangeHolder.SetHasDataFromCandles(resp.Item.Candles)
+		err = resp.RangeHolder.SetHasDataFromCandles(resp.Item.Candles)
+		if err != nil {
+			return nil, err
+		}
 		summary := resp.RangeHolder.DataSummary(false)
 		if len(summary) > 0 {
 			log.Warnf(common.Setup, "%v", summary)
@@ -796,7 +799,11 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if err != nil {
 			return nil, err
 		}
-		resp.RangeHolder.SetHasDataFromCandles(resp.Item.Candles)
+		err = resp.RangeHolder.SetHasDataFromCandles(resp.Item.Candles)
+		if err != nil {
+			return nil, err
+		}
+
 		summary := resp.RangeHolder.DataSummary(false)
 		if len(summary) > 0 {
 			log.Warnf(common.Setup, "%v", summary)
@@ -881,10 +888,11 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	if err != nil {
 		return nil, err
 	}
+
 	candles, err := api.LoadData(context.TODO(),
 		dataType,
-		cfg.DataSettings.APIData.StartDate,
-		cfg.DataSettings.APIData.EndDate,
+		dates.Start.Time,
+		dates.End.Time,
 		cfg.DataSettings.Interval.Duration(),
 		exch,
 		fPair,
@@ -892,7 +900,12 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	if err != nil {
 		return nil, fmt.Errorf("%v. Please check your GoCryptoTrader configuration", err)
 	}
-	dates.SetHasDataFromCandles(candles.Candles)
+
+	err = dates.SetHasDataFromCandles(candles.Candles)
+	if err != nil {
+		return nil, err
+	}
+
 	summary := dates.DataSummary(false)
 	if len(summary) > 0 {
 		log.Warnf(common.Setup, "%v", summary)

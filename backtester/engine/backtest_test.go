@@ -117,8 +117,8 @@ func TestSetupFromConfig(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrDateUnset)
 	}
 
-	cfg.DataSettings.APIData.StartDate = time.Now().Add(-time.Minute)
-	cfg.DataSettings.APIData.EndDate = time.Now()
+	cfg.DataSettings.APIData.StartDate = time.Now().Truncate(gctkline.OneMin.Duration()).Add(-gctkline.OneMin.Duration())
+	cfg.DataSettings.APIData.EndDate = cfg.DataSettings.APIData.StartDate.Add(gctkline.OneMin.Duration())
 	cfg.DataSettings.APIData.InclusiveEndDate = true
 	err = bt.SetupFromConfig(cfg, "", "", false)
 	if !errors.Is(err, gctcommon.ErrNotYetImplemented) {
@@ -169,8 +169,8 @@ func TestLoadDataAPI(t *testing.T) {
 			DataType: common.CandleStr,
 			Interval: gctkline.OneMin,
 			APIData: &config.APIData{
-				StartDate: time.Now().Add(-time.Minute * 5),
-				EndDate:   time.Now(),
+				StartDate: time.Now().Truncate(gctkline.OneMin.Duration()).Add(-time.Minute * 5),
+				EndDate:   time.Now().Truncate(gctkline.OneMin.Duration()),
 			}},
 		StrategySettings: config.StrategySettings{
 			Name: dollarcostaverage.Name,

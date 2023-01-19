@@ -1407,15 +1407,15 @@ func (ok *Okx) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pai
 	}
 
 	timeSeries := make([]kline.Candle, 0, req.Size())
-	for y := range req.Ranges {
+	for y := range req.RangeHolder.Ranges {
 		var candles []CandleStick
 		candles, err = ok.GetCandlesticksHistory(ctx,
 			req.RequestFormatted.Base.String()+
 				currency.DashDelimiter+
 				req.RequestFormatted.Quote.String(),
 			req.ExchangeInterval,
-			req.Ranges[y].Start.Time.Add(-time.Nanosecond), // Start time not inclusive of candle.
-			req.Ranges[y].End.Time,
+			req.RangeHolder.Ranges[y].Start.Time.Add(-time.Nanosecond), // Start time not inclusive of candle.
+			req.RangeHolder.Ranges[y].End.Time,
 			300)
 		if err != nil {
 			return nil, err
