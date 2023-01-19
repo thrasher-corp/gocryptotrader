@@ -1747,17 +1747,17 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	formattedPair, err := g.FormatExchangeCurrency(pair, a)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 	formattedPair = formattedPair.Upper()
 	err = g.ValidateKline(formattedPair, a, interval)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
-	klineData := kline.Item{
+	klineData := &kline.Item{
 		Interval: interval,
 		Asset:    a,
 		Pair:     formattedPair.Upper(),
@@ -1768,15 +1768,15 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		var candles []Candlestick
 		var fPair currency.PairFormat
 		if formattedPair.IsEmpty() {
-			return klineData, currency.ErrCurrencyPairEmpty
+			return nil, currency.ErrCurrencyPairEmpty
 		}
 		fPair, err = g.GetPairFormat(a, true)
 		if err != nil {
-			return klineData, err
+			return nil, err
 		}
 		candles, err = g.GetCandlesticks(ctx, fPair.Format(formattedPair), 0, start, end, interval)
 		if err != nil {
-			return klineData, err
+			return nil, err
 		}
 		klineData.Candles = make([]kline.Candle, len(candles))
 		for x := range candles {
@@ -1839,17 +1839,17 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	err := g.ValidateKline(pair, a, interval)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 	var formattedPair currency.Pair
 	formattedPair, err = g.FormatExchangeCurrency(pair, a)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
-	klineData := kline.Item{
+	klineData := &kline.Item{
 		Interval: interval,
 		Asset:    a,
 		Pair:     formattedPair.Upper(),
@@ -1858,13 +1858,13 @@ func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 	var dates *kline.IntervalRangeHolder
 	dates, err = kline.CalculateCandleDateRanges(start, end, interval, 0)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 	var candlestickItems []kline.Candle
 	var fPair currency.PairFormat
 	fPair, err = g.GetPairFormat(a, true)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 	for b := range dates.Ranges {
 		switch a {

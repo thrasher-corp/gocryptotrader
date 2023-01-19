@@ -2459,7 +2459,7 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GetHistoricCandles(context.Background(), currency.NewPair(currency.OMG, currency.TRY), asset.Spot, time.Time{}, time.Time{}, kline.OneDay); err != nil {
+	if _, err := g.GetHistoricCandles(context.Background(), currency.NewPair(currency.OMG, currency.TRY), asset.Spot, kline.OneDay, time.Time{}, time.Time{}); err != nil {
 		t.Errorf("%s GetHistoricCandles() error: %v", g.Name, err)
 	}
 }
@@ -2472,7 +2472,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	}
 	startTime := time.Now().Add(-time.Minute * 2)
 	_, err = g.GetHistoricCandlesExtended(context.Background(),
-		pair.Upper(), asset.Spot, startTime, time.Now(), kline.OneMin)
+		pair.Upper(), asset.Spot, kline.OneMin, startTime, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2481,7 +2481,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = g.GetHistoricCandlesExtended(context.Background(),
-		enabledPairs[0], asset.Options, startTime, time.Now(), kline.OneMin)
+		enabledPairs[0], asset.Options, kline.OneMin, startTime, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2489,7 +2489,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = g.GetHistoricCandlesExtended(context.Background(), enabledPairs[0], asset.Futures, startTime, time.Now(), kline.OneMin)
+	_, err = g.GetHistoricCandlesExtended(context.Background(), enabledPairs[0], asset.Futures, kline.OneMin, startTime, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2498,7 +2498,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = g.GetHistoricCandlesExtended(context.Background(),
-		enabledPairs[0], asset.CrossMargin, startTime, time.Now(), kline.OneMin)
+		enabledPairs[0], asset.CrossMargin, kline.OneMin, startTime, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
