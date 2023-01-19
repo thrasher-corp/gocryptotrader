@@ -243,41 +243,10 @@ func (cr *Cryptodotcom) GetAccountSummary(ctx context.Context, ccy currency.Code
 }
 
 // CreateOrder created a new BUY or SELL order on the Exchange.
-func (cr *Cryptodotcom) CreateOrder(ctx context.Context, instrumentName, clientOrderID, timeInForce string, side order.Side, orderType order.Type, postOnly bool, triggerPrice, price, quantity, notional float64) (*CreateOrderResponse, error) {
-	if instrumentName == "" {
-		return nil, errSymbolIsRequired
-	}
-	if side != order.Sell && side != order.Buy {
-		return nil, fmt.Errorf("%w, side: %s", order.ErrSideIsInvalid, side)
-	}
-	if orderType == order.UnknownType || orderType == order.AnyType {
-		return nil, fmt.Errorf("%w, Order Type: %v", order.ErrTypeIsInvalid, orderType)
-	}
-	if orderType == order.Limit && price <= 0 { // Unit price
-		return nil, fmt.Errorf("%w, price must be non-zero positive decimal value", order.ErrPriceBelowMin)
-	}
-	params := make(map[string]interface{})
-	params["instrument_name"] = instrumentName
-	params["side"] = side.String()
-	params["type"] = orderType.String()
-	params["price"] = price
-	if quantity > 0 {
-		params["quantity"] = quantity
-	}
-	if notional > 0 {
-		params["notional"] = notional
-	}
-	if clientOrderID != "" {
-		params["client_oid"] = clientOrderID
-	}
-	if timeInForce != "" {
-		params["time_in_force"] = timeInForce
-	}
-	if postOnly {
-		params["exec_inst"] = "POST_ONLY"
-	}
-	if triggerPrice > 0 {
-		params["trigger_price"] = triggerPrice
+func (cr *Cryptodotcom) CreateOrder(ctx context.Context, arg CreateOrderParam) (*CreateOrderResponse, error) {
+	params, err := cr.getCreateParamMap(arg)
+	if err != nil {
+		return nil, err
 	}
 	var resp *CreateOrderResponse
 	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.Unset, privateCreateOrder, params, &resp)
@@ -297,6 +266,123 @@ func (cr *Cryptodotcom) CancelExistingOrder(ctx context.Context, instrumentName,
 	return cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.Unset, privateCancelOrder, params, nil)
 }
 
+func (cr *Cryptodotcom) getCreateParamMap(arg CreateOrderParam) (map[string]interface{}, error) {
+	if arg.InstrumentName == "" {
+		return nil, errSymbolIsRequired
+	}
+	if arg.Side != order.Sell && arg.Side != order.Buy {
+		return nil, fmt.Errorf("%w, side: %s", order.ErrSideIsInvalid, arg.Side)
+	}
+	if arg.OrderType == order.UnknownType || arg.OrderType == order.AnyType {
+		return nil, fmt.Errorf("%w, Order Type: %v", order.ErrTypeIsInvalid, arg.OrderType)
+	}
+	switch arg.OrderType {
+	case order.Limit, order.StopLimit, order.TakeProfitLimit:
+		if arg.Price <= 0 { // Unit price
+			return nil, fmt.Errorf("%w, price must be non-zero positive decimal value", order.ErrPriceBelowMin)
+		}
+		if arg.Quantity <= 0 {
+			return nil, fmt.Errorf("quantity must be non-zero positive decimal value")
+		}
+		switch arg.OrderType {
+		case order.StopLimit, order.TakeProfitLimit:
+			if arg.TriggerPrice <= 0 {
+				return nil, fmt.Errorf("trigger price is required for Order Type: %v", arg.OrderType)
+			}
+		}
+	case order.Market:
+		if arg.Side == order.Buy {
+			if arg.Notional <= 0 && arg.Quantity <= 0 {
+				return nil, fmt.Errorf("either notional or quantity must be non-zero value for order type: %v and order side: %v", arg.OrderType, arg.Side)
+			}
+		} else {
+			if arg.Quantity <= 0 {
+				return nil, fmt.Errorf("quantity must be non-zero positive decimal value for order type: %v and order side: %v", arg.OrderType, arg.Side)
+			}
+		}
+	case order.StopLoss, order.TakeProfit:
+		if arg.Side == order.Sell {
+			if arg.Quantity <= 0 {
+				return nil, fmt.Errorf("quantity must be non-zero positive decimal value for order type: %v and order side: %v", arg.OrderType, arg.Side)
+			}
+		} else {
+			if arg.Notional <= 0 {
+				return nil, fmt.Errorf("quantity must be non-zero positive decimal value for order type: %v", arg.OrderType)
+			}
+		}
+		if arg.TriggerPrice <= 0 {
+			return nil, fmt.Errorf("trigger price is required for Order Type: %v", arg.OrderType)
+		}
+	}
+	params := make(map[string]interface{})
+	params["instrument_name"] = arg.InstrumentName
+	params["side"] = arg.Side.String()
+	params["type"] = arg.OrderType.String()
+	params["price"] = arg.Price
+	if arg.Quantity > 0 {
+		params["quantity"] = arg.Quantity
+	}
+	if arg.Notional > 0 {
+		params["notional"] = arg.Notional
+	}
+	if arg.ClientOrderID != "" {
+		params["client_oid"] = arg.ClientOrderID
+	}
+	if arg.TimeInForce != "" {
+		params["time_in_force"] = arg.TimeInForce
+	}
+	if arg.PostOnly {
+		params["exec_inst"] = "POST_ONLY"
+	}
+	if arg.TriggerPrice > 0 {
+		params["trigger_price"] = arg.TriggerPrice
+	}
+	return params, nil
+}
+
+// CreateOrderList create a list of orders on the Exchange.
+// contingency_type must be LIST, for list of orders creation.
+// This call is asynchronous, so the response is simply a confirmation of the request.
+func (cr *Cryptodotcom) CreateOrderList(ctx context.Context, contingencyType string, arg []CreateOrderParam) (*OrderCreationResponse, error) {
+	params := make(map[string]interface{})
+	orderParams := make([]map[string]interface{}, len(arg))
+	for x := range arg {
+		p, err := cr.getCreateParamMap(arg[x])
+		if err != nil {
+			return nil, err
+		}
+		orderParams[x] = p
+	}
+	params["order_list"] = orderParams
+	var resp *OrderCreationResponse
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.Unset, privateCreateOrderList, params, &resp)
+}
+
+// CancelOrderList cancel a list of orders on the Exchange.
+func (cr *Cryptodotcom) CancelOrderList(ctx context.Context, args []CancelOrderParam) (*CancelOrdersResponse, error) {
+	if len(args) == 0 {
+		return nil, errNoArgumentPassed
+	}
+	params := make(map[string]interface{})
+	cancelOrderList := []map[string]interface{}{}
+	for x := range args {
+		if args[x].InstrumentName == "" && args[x].OrderID == "" {
+			continue
+		}
+		result := make(map[string]interface{})
+		if args[x].InstrumentName != "" {
+			result["instrument_name"] = args[x].InstrumentName
+		}
+		if args[x].OrderID != "" {
+			result["order_id"] = args[x].OrderID
+		}
+		cancelOrderList = append(cancelOrderList, result)
+	}
+	params["order_list"] = cancelOrderList
+	var resp *CancelOrdersResponse
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.Unset, privateCancelOrderList, params, &resp)
+}
+
 /*
 *
 *
@@ -304,7 +390,45 @@ func (cr *Cryptodotcom) CancelExistingOrder(ctx context.Context, instrumentName,
 *
  */
 
-//  func (cr *Cryptodotcom) GetPersonalOpenOrders(ctx context.Context,instrumentName string, pageSize, page int64)
+//	GetPersonalOrderHistory gets the order history for a particular instrument
+//
+// If paging is used, enumerate each page (starting with 0) until an empty order_list array appears in the response.
+func (cr *Cryptodotcom) GetPersonalOrderHistory(ctx context.Context, instrumentName string, startTimestamp, endTimestamp time.Time, pageSize, page int64) (*PersonalOrdersResponse, error) {
+	params := make(map[string]interface{})
+	if instrumentName != "" {
+		params["instrument_name"] = instrumentName
+	}
+	if !startTimestamp.IsZero() {
+		params["start_ts"] = strconv.FormatInt(startTimestamp.UnixMilli(), 10)
+	}
+	if !endTimestamp.IsZero() {
+		params["end_ts"] = strconv.FormatInt(endTimestamp.UnixMilli(), 10)
+	}
+	if pageSize > 0 {
+		params["page_size"] = pageSize
+	}
+	if page > 0 {
+		params["page"] = page
+	}
+	var resp *PersonalOrdersResponse
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.Unset, privateGetOrderHistory, params, &resp)
+}
+
+// GetPersonalOpenOrders retrives all open orders of particular instrument.
+func (cr *Cryptodotcom) GetPersonalOpenOrders(ctx context.Context, instrumentName string, pageSize, page int64) (*PersonalOrdersResponse, error) {
+	params := make(map[string]interface{})
+	if instrumentName != "" {
+		params["instrument_name"] = instrumentName
+	}
+	if pageSize > 0 {
+		params["page_size"] = pageSize
+	}
+	if page > 0 {
+		params["page"] = page
+	}
+	var resp *PersonalOrdersResponse
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.Unset, privateGetOpenOrders, params, &resp)
+}
 
 // GetOrderDetail retrives details on a particular order ID
 func (cr *Cryptodotcom) GetOrderDetail(ctx context.Context, orderID string) (*OrderDetail, error) {
@@ -526,8 +650,6 @@ func (cr *Cryptodotcom) SendAuthHTTPRequest(ctx context.Context, ePath exchange.
 	if err != nil {
 		return err
 	}
-	by, _ := response.Result.MarshalJSON()
-	println(string(by))
 	return json.Unmarshal(response.Result, resp)
 }
 
@@ -549,6 +671,11 @@ func (cr *Cryptodotcom) getParamString(params map[string]interface{}) string {
 			paramString += keys[x] + cr.getParamString((params[keys[x]]).(map[string]interface{}))
 		case reflect.String:
 			paramString += keys[x] + params[keys[x]].(string)
+		case reflect.Slice:
+			listOfMaps := params[keys[x]].([]map[string]interface{})
+			for y := range listOfMaps {
+				paramString += cr.getParamString(listOfMaps[y])
+			}
 		}
 	}
 	return paramString
@@ -561,4 +688,15 @@ func (cr *Cryptodotcom) sortParams(params map[string]interface{}) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+func (cr *Cryptodotcom) orderTypeToString(orderType order.Type) string {
+	switch orderType {
+	case order.StopLimit:
+		return "STOP_LIMIT"
+	case order.TakeProfit:
+		return "TAKE_PROFIT"
+	default:
+		return orderType.String()
+	}
 }

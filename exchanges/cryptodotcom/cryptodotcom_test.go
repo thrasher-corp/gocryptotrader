@@ -18,8 +18,8 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = "sLsbTxsHCgzCAqQAqbxrMr"
-	apiSecret               = "Bg6wMPnb8XWEwFhmfSY8GX"
+	apiKey                  = ""
+	apiSecret               = ""
 	canManipulateRealOrders = false
 )
 
@@ -174,10 +174,10 @@ func TestGetAccountSummary(t *testing.T) {
 
 func TestCreateOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() { //} || !canManipulateRealOrders {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
-	_, err := cr.CreateOrder(context.Background(), "BTC_USDT", "", "", order.Buy, order.Limit, false, 0, 123, 12, 0)
+	_, err := cr.CreateOrder(context.Background(), CreateOrderParam{InstrumentName: "BTC_USDT", ClientOrderID: "", TimeInForce: "", Side: order.Buy, OrderType: order.Limit, PostOnly: false, TriggerPrice: 0, Price: 123, Quantity: 12, Notional: 0})
 	if err != nil {
 		t.Error(err)
 	}
@@ -185,7 +185,7 @@ func TestCreateOrder(t *testing.T) {
 
 func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() { //} || !canManip
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	err := cr.CancelExistingOrder(context.Background(), "BTC_USDT", "1232412")
@@ -212,6 +212,55 @@ func TestGetOrderDetail(t *testing.T) {
 	}
 	cr.Verbose = true
 	_, err := cr.GetOrderDetail(context.Background(), "1234")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPersonalOpenOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := cr.GetPersonalOpenOrders(context.Background(), "", 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPersonalOrderHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := cr.GetPersonalOrderHistory(context.Background(), "", time.Time{}, time.Time{}, 0, 20)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCreateOrderList(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := cr.CreateOrderList(context.Background(), "LIST", []CreateOrderParam{
+		{
+			InstrumentName: "BTC_USDT", ClientOrderID: "", TimeInForce: "", Side: order.Buy, OrderType: order.Limit, PostOnly: false, TriggerPrice: 0, Price: 123, Quantity: 12, Notional: 0,
+		}})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelOrderList(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	_, err := cr.CancelOrderList(context.Background(), []CancelOrderParam{
+		{InstrumentName: "BTC_USDT", OrderID: "1234567"}, {InstrumentName: "BTC_USDT",
+			OrderID: "123450067"}})
 	if err != nil {
 		t.Error(err)
 	}

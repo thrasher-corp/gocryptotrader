@@ -605,6 +605,10 @@ func (t Type) String() string {
 		return "STOP MARKET"
 	case TakeProfit:
 		return "TAKE PROFIT"
+	case TakeProfitLimit:
+		return "TAKE_PROFIT_LIMIT"
+	case StopLoss:
+		return "STOP_LOSS"
 	case TakeProfitMarket:
 		return "TAKE PROFIT MARKET"
 	case TrailingStop:
@@ -1018,6 +1022,10 @@ func StringToOrderType(oType string) (Type, error) {
 		return Trigger, nil
 	case OptimalLimitIOC.String():
 		return OptimalLimitIOC, nil
+	case TakeProfitLimit.String():
+		return TakeProfitLimit, nil
+	case StopLoss.String():
+		return StopLoss, nil
 	default:
 		return UnknownType, fmt.Errorf("'%v' %w", oType, errUnrecognisedOrderType)
 	}
