@@ -299,3 +299,68 @@ func TestCreateSubAccountTransfer(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestGetOTCUser(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := cr.GetOTCUser(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOTCInstruments(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := cr.GetOTCInstruments(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+func TestRequestOTCQuote(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := cr.RequestOTCQuote(context.Background(), currency.BTC, currency.USDT, .001, 232, "BUY")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestAcceptOTCQuote(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := cr.AcceptOTCQuote(context.Background(), "12323123", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOTCQuoteHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := cr.GetOTCQuoteHistory(context.Background(), currency.EMPTYCODE, currency.EMPTYCODE, time.Time{}, time.Time{}, 0, 10)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOTCTradeHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := cr.GetOTCTradeHistory(context.Background(), currency.BTC, currency.USDT, time.Time{}, time.Time{}, 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}

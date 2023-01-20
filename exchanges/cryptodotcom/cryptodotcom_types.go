@@ -390,3 +390,118 @@ type TransactionItem struct {
 	Side             string `json:"side,omitempty"`
 	InstrumentName   string `json:"instrument_name"`
 }
+
+// OTCTrade represents an OTC trade.
+type OTCTrade struct {
+	AccountUUID         string               `json:"account_uuid"`
+	RequestsPerMinute   int                  `json:"requests_per_minute"`
+	MaxTradeValueUsd    string               `json:"max_trade_value_usd"`
+	MinTradeValueUsd    string               `json:"min_trade_value_usd"`
+	AcceptOtcTcDatetime cryptoDotComMilliSec `json:"accept_otc_tc_datetime"`
+}
+
+// OTCInstrumentsResponse represents an OTC instruments instance.
+type OTCInstrumentsResponse struct {
+	InstrumentList []OTCInstrument `json:"instrument_list"`
+}
+
+// OTCInstrument represents an OTC instrument.
+type OTCInstrument struct {
+	InstrumentName               string `json:"instrument_name"`
+	BaseCurrency                 string `json:"base_currency"`
+	QuoteCurrency                string `json:"quote_currency"`
+	BaseCurrencyDecimals         int    `json:"base_currency_decimals"`
+	QuoteCurrencyDecimals        int    `json:"quote_currency_decimals"`
+	BaseCurrencyDisplayDecimals  int    `json:"base_currency_display_decimals"`
+	QuoteCurrencyDisplayDecimals int    `json:"quote_currency_display_decimals"`
+	Tradable                     bool   `json:"tradable"`
+}
+
+// OTCQuoteResponse represents quote to buy or sell with either base currency or quote currency.
+type OTCQuoteResponse struct {
+	QuoteID           string               `json:"quote_id"`
+	QuoteStatus       string               `json:"quote_status"`
+	QuoteDirection    string               `json:"quote_direction"`
+	BaseCurrency      string               `json:"base_currency"`
+	QuoteCurrency     string               `json:"quote_currency"`
+	BaseCurrencySize  float64              `json:"base_currency_size"`
+	QuoteCurrencySize string               `json:"quote_currency_size"`
+	QuoteBuy          string               `json:"quote_buy"`
+	QuoteBuyQuantity  string               `json:"quote_buy_quantity"`
+	QuoteBuyValue     string               `json:"quote_buy_value"`
+	QuoteSell         string               `json:"quote_sell"`
+	QuoteSellQuantity string               `json:"quote_sell_quantity"`
+	QuoteSellValue    string               `json:"quote_sell_value"`
+	QuoteDuration     int                  `json:"quote_duration"`
+	QuoteTime         cryptoDotComMilliSec `json:"quote_time"`
+	QuoteExpiryTime   cryptoDotComMilliSec `json:"quote_expiry_time"`
+}
+
+// AcceptQuoteResponse represents response param for accepting quote.
+type AcceptQuoteResponse struct {
+	QuoteID           string      `json:"quote_id"`
+	QuoteStatus       string      `json:"quote_status"`
+	QuoteDirection    string      `json:"quote_direction"`
+	BaseCurrency      string      `json:"base_currency"`
+	QuoteCurrency     string      `json:"quote_currency"`
+	BaseCurrencySize  interface{} `json:"base_currency_size"`
+	QuoteCurrencySize string      `json:"quote_currency_size"`
+	QuoteBuy          string      `json:"quote_buy"`
+	QuoteSell         interface{} `json:"quote_sell"`
+	QuoteDuration     int         `json:"quote_duration"`
+	QuoteTime         int64       `json:"quote_time"`
+	QuoteExpiryTime   int64       `json:"quote_expiry_time"`
+	TradeDirection    string      `json:"trade_direction"`
+	TradePrice        string      `json:"trade_price"`
+	TradeQuantity     string      `json:"trade_quantity"`
+	TradeValue        string      `json:"trade_value"`
+	TradeTime         int64       `json:"trade_time"`
+}
+
+// QuoteHistoryResponse represents a quote history instance.
+type QuoteHistoryResponse struct {
+	Count     int `json:"count"`
+	QuoteList []struct {
+		QuoteID           string               `json:"quote_id"`
+		QuoteStatus       string               `json:"quote_status"`
+		QuoteDirection    string               `json:"quote_direction"`
+		BaseCurrency      string               `json:"base_currency"`
+		QuoteCurrency     string               `json:"quote_currency"`
+		BaseCurrencySize  float64              `json:"base_currency_size"`
+		QuoteCurrencySize string               `json:"quote_currency_size"`
+		QuoteBuy          string               `json:"quote_buy"`
+		QuoteSell         float64              `json:"quote_sell"`
+		QuoteDuration     int                  `json:"quote_duration"`
+		QuoteTime         cryptoDotComMilliSec `json:"quote_time"`
+		QuoteExpiryTime   int64                `json:"quote_expiry_time"`
+		TradeDirection    string               `json:"trade_direction"`
+		TradePrice        float64              `json:"trade_price"`
+		TradeQuantity     float64              `json:"trade_quantity"`
+		TradeValue        float64              `json:"trade_value"`
+		TradeTime         cryptoDotComMilliSec `json:"trade_time"`
+	} `json:"quote_list"`
+}
+
+// OTCTradeHistoryResponse represents an OTC trade history response.
+type OTCTradeHistoryResponse struct {
+	Count     int `json:"count"`
+	TradeList []struct {
+		QuoteID           string               `json:"quote_id"`
+		QuoteStatus       string               `json:"quote_status"`
+		QuoteDirection    string               `json:"quote_direction"`
+		BaseCurrency      string               `json:"base_currency"`
+		QuoteCurrency     string               `json:"quote_currency"`
+		BaseCurrencySize  string               `json:"base_currency_size"`
+		QuoteCurrencySize string               `json:"quote_currency_size"`
+		QuoteBuy          string               `json:"quote_buy"`
+		QuoteSell         string               `json:"quote_sell"`
+		QuoteDuration     int                  `json:"quote_duration"`
+		QuoteTime         cryptoDotComMilliSec `json:"quote_time"`
+		QuoteExpiryTime   int64                `json:"quote_expiry_time"`
+		TradeDirection    string               `json:"trade_direction"`
+		TradePrice        string               `json:"trade_price"`
+		TradeQuantity     string               `json:"trade_quantity"`
+		TradeValue        string               `json:"trade_value"`
+		TradeTime         cryptoDotComMilliSec `json:"trade_time"`
+	} `json:"trade_list"`
+}
