@@ -105,7 +105,7 @@ func CreateUSDTrackingPairs(tp []TrackingPair, em *engine.ExchangeManager) ([]Tr
 // tracks against USD value, ie is in rankedUSDs
 func CurrencyIsUSDTracked(code currency.Code) bool {
 	for i := range rankedUSDs {
-		if code == rankedUSDs[i] {
+		if code.Equal(rankedUSDs[i]) {
 			return true
 		}
 	}

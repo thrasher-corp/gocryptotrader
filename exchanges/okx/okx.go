@@ -3026,10 +3026,14 @@ func (ok *Okx) GetIndexTickers(ctx context.Context, quoteCurrency, instID string
 
 // GetInstrumentTypeFromAssetItem returns a string representation of asset.Item; which is an equivalent term for InstrumentType in Okx exchange.
 func (ok *Okx) GetInstrumentTypeFromAssetItem(assetType asset.Item) string {
-	if assetType == asset.PerpetualSwap {
+	switch assetType {
+	case asset.PerpetualSwap:
 		return okxInstTypeSwap
+	case asset.Options:
+		return okxInstTypeOption
+	default:
+		return assetType.String()
 	}
-	return assetType.String()
 }
 
 // GetUnderlying returns the instrument ID for the corresponding asset pairs and asset type( Instrument Type )
@@ -3089,28 +3093,28 @@ func (ok *Okx) GetIntervalEnum(interval kline.Interval) string {
 		return "2H"
 	case kline.FourHour:
 		return "4H"
-	case kline.SixHour:
-		return "6H"
+	case kline.SixHour: // NOTE: Cases here and below force UTC return instead of hong Kong time.
+		return "6Hutc"
 	case kline.EightHour:
-		return "8H"
+		return "8Hutc"
 	case kline.TwelveHour:
-		return "12H"
+		return "12Hutc"
 	case kline.OneDay:
-		return "1D"
+		return "1Dutc"
 	case kline.TwoDay:
-		return "2D"
+		return "2Dutc"
 	case kline.ThreeDay:
-		return "3D"
+		return "3Dutc"
 	case kline.OneWeek:
-		return "1W"
+		return "1Wutc"
 	case kline.OneMonth:
-		return "1M"
+		return "1Mutc"
 	case kline.ThreeMonth:
-		return "3M"
+		return "3Mutc"
 	case kline.SixMonth:
-		return "6M"
+		return "6Mutc"
 	case kline.OneYear:
-		return "1Y"
+		return "1Yutc"
 	default:
 		return ""
 	}
@@ -3145,10 +3149,10 @@ func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, inte
 	}
 	params.Set("instId", instrumentID)
 	var resp [][7]string
-	if limit <= 100 {
+	if limit <= 300 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
-	} else if limit > 100 {
-		return nil, fmt.Errorf("%w limit can not exceed 100", errLimitExceedsMaximumResultPerRequest)
+	} else if limit > 300 {
+		return nil, fmt.Errorf("%w can not exceed 300", errLimitExceedsMaximumResultPerRequest)
 	}
 	if !before.IsZero() {
 		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
@@ -3160,7 +3164,7 @@ func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, inte
 	if bar != "" {
 		params.Set("bar", bar)
 	}
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getCandlesticksEPL, http.MethodGet, common.EncodeURLValues(marketCandles, params), nil, &resp, false)
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getCandlesticksEPL, http.MethodGet, common.EncodeURLValues(route, params), nil, &resp, false)
 	if err != nil {
 		return nil, err
 	}
@@ -4274,14 +4278,6 @@ func GetAssetTypeFromInstrumentType(instrumentType string) (asset.Item, error) {
 	switch strings.ToUpper(instrumentType) {
 	case okxInstTypeSwap, okxInstTypeContract:
 		return asset.PerpetualSwap, nil
-	case okxInstTypeSpot:
-		return asset.Spot, nil
-	case okxInstTypeFutures:
-		return asset.Futures, nil
-	case okxInstTypeOption:
-		return asset.Option, nil
-	case okxInstTypeMargin:
-		return asset.Margin, nil
 	case okxInstTypeANY:
 		return asset.Empty, nil
 	default:
@@ -4294,11 +4290,11 @@ func (ok *Okx) GuessAssetTypeFromInstrumentID(instrumentID string) (asset.Item, 
 	if strings.HasSuffix(instrumentID, okxInstTypeSwap) {
 		return asset.PerpetualSwap, nil
 	}
-	filter := strings.Split(instrumentID, currency.DashDelimiter)
+	count := strings.Count(instrumentID, currency.DashDelimiter)
 	switch {
-	case len(filter) >= 4:
-		return asset.Option, nil
-	case len(filter) == 3:
+	case count >= 3:
+		return asset.Options, nil
+	case count == 2:
 		return asset.Futures, nil
 	default:
 		pair, err := currency.NewPairFromString(instrumentID)

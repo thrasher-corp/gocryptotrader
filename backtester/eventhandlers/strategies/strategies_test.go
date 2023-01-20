@@ -16,7 +16,7 @@ import (
 
 func TestGetStrategies(t *testing.T) {
 	t.Parallel()
-	if resp := GetStrategies(); len(resp) < 2 {
+	if resp := GetSupportedStrategies(); len(resp) < 2 {
 		t.Error("expected at least 2 strategies to be loaded")
 	}
 }
@@ -34,23 +34,23 @@ func TestLoadStrategyByName(t *testing.T) {
 	}
 
 	resp, err = LoadStrategyByName(dollarcostaverage.Name, false)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	if resp.Name() != dollarcostaverage.Name {
 		t.Error("expected dca")
 	}
 	resp, err = LoadStrategyByName(dollarcostaverage.Name, true)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	if !resp.UsingSimultaneousProcessing() {
 		t.Error("expected true")
 	}
 
 	resp, err = LoadStrategyByName(rsi.Name, false)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	if resp.Name() != rsi.Name {
 		t.Error("expected rsi")
@@ -58,6 +58,55 @@ func TestLoadStrategyByName(t *testing.T) {
 	_, err = LoadStrategyByName(rsi.Name, true)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+}
+
+func TestAddStrategy(t *testing.T) {
+	t.Parallel()
+	err := AddStrategy(nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrNilPointer)
+	}
+	err = AddStrategy(new(dollarcostaverage.Strategy))
+	if !errors.Is(err, ErrStrategyAlreadyExists) {
+		t.Errorf("received '%v' expected '%v'", err, ErrStrategyAlreadyExists)
+	}
+
+	err = AddStrategy(new(customStrategy))
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+}
+
+func TestCreateNewStrategy(t *testing.T) {
+	t.Parallel()
+
+	// invalid Handler
+	resp, err := createNewStrategy(dollarcostaverage.Name, false, nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrNilPointer)
+	}
+	if resp != nil {
+		t.Errorf("received '%v' expected '%v'", resp, nil)
+	}
+
+	// mismatched name
+	resp, err = createNewStrategy(dollarcostaverage.Name, false, &customStrategy{})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if resp != nil {
+		t.Errorf("received '%v' expected '%v'", resp, nil)
+	}
+
+	// valid
+	h := new(dollarcostaverage.Strategy)
+	resp, err = createNewStrategy(dollarcostaverage.Name, false, h)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if resp == nil {
+		t.Errorf("received '%v' expected '%v'", resp, h)
 	}
 }
 
@@ -89,20 +138,3 @@ func (s *customStrategy) SetCustomSettings(map[string]interface{}) error {
 
 // SetDefaults sets default values for overridable custom settings
 func (s *customStrategy) SetDefaults() {}
-
-func TestAddStrategy(t *testing.T) {
-	t.Parallel()
-	err := AddStrategy(nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, common.ErrNilPointer)
-	}
-	err = AddStrategy(new(dollarcostaverage.Strategy))
-	if !errors.Is(err, ErrStrategyAlreadyExists) {
-		t.Errorf("received '%v' expected '%v'", err, ErrStrategyAlreadyExists)
-	}
-
-	err = AddStrategy(new(customStrategy))
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-}

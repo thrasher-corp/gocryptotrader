@@ -1,4 +1,4 @@
-package ftxcashandcarry
+package binancecashandcarry
 
 import (
 	"errors"
@@ -9,17 +9,16 @@ import (
 
 const (
 	// Name is the strategy name
-	Name                               = "ftx-cash-carry"
+	Name                               = "binance-cash-carry"
 	description                        = `A cash and carry trade (or basis trading) consists in taking advantage of the premium of a futures contract over the spot price. For example if Ethereum Futures are trading well above its Spot price (contango) you could perform an arbitrage and take advantage of this opportunity.`
-	exchangeName                       = "ftx"
+	exchangeName                       = "binance"
 	openShortDistancePercentageString  = "openShortDistancePercentage"
 	closeShortDistancePercentageString = "closeShortDistancePercentage"
 )
 
 var (
-	errFuturesOnly      = errors.New("can only work with futures")
-	errOnlyFTXSupported = errors.New("only FTX supported for this strategy")
-	errNoSignals        = errors.New("no data signals to process")
+	errFuturesOnly          = errors.New("can only work with futures")
+	errOnlyBinanceSupported = errors.New("only Binance supported for this strategy")
 )
 
 // Strategy is an implementation of the Handler interface

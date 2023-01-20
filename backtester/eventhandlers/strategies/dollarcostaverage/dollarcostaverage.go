@@ -44,13 +44,21 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, _ port
 		return nil, err
 	}
 
-	if !d.HasDataAtTime(d.Latest().GetTime()) {
+	latest, err := d.Latest()
+	if err != nil {
+		return nil, err
+	}
+	hasDataAtTime, err := d.HasDataAtTime(latest.GetTime())
+	if err != nil {
+		return nil, err
+	}
+	if !hasDataAtTime {
 		es.SetDirection(order.MissingData)
-		es.AppendReasonf("missing data at %v, cannot perform any actions", d.Latest().GetTime())
+		es.AppendReasonf("missing data at %v, cannot perform any actions", latest.GetTime())
 		return &es, nil
 	}
 
-	es.SetPrice(d.Latest().GetClosePrice())
+	es.SetPrice(latest.GetClosePrice())
 	es.SetDirection(order.Buy)
 	es.AppendReason("DCA purchases on every iteration")
 	return &es, nil

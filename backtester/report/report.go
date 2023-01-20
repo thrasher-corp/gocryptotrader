@@ -107,20 +107,23 @@ func (d *Data) GenerateReport() error {
 	return nil
 }
 
-// AddKlineItem appends a SET of candles for the report to enhance upon
-// generation
-func (d *Data) AddKlineItem(k *kline.Item) {
-	d.OriginalCandles = append(d.OriginalCandles, k)
-}
-
-// UpdateItem updates an existing kline item for LIVE data usage
-func (d *Data) UpdateItem(k *kline.Item) {
+// SetKlineData updates an existing kline item for LIVE data usage
+func (d *Data) SetKlineData(k *kline.Item) error {
 	if len(d.OriginalCandles) == 0 {
 		d.OriginalCandles = append(d.OriginalCandles, k)
-	} else {
-		d.OriginalCandles[0].Candles = append(d.OriginalCandles[0].Candles, k.Candles...)
-		d.OriginalCandles[0].RemoveDuplicates()
+		return nil
 	}
+	for i := range d.OriginalCandles {
+		err := d.OriginalCandles[i].EqualSource(k)
+		if err != nil {
+			continue
+		}
+		d.OriginalCandles[i].Candles = append(d.OriginalCandles[i].Candles, k.Candles...)
+		d.OriginalCandles[i].RemoveDuplicates()
+		return nil
+	}
+	d.OriginalCandles = append(d.OriginalCandles, k)
+	return nil
 }
 
 // enhanceCandles will enhance candle data with order information allowing
@@ -145,7 +148,7 @@ func (d *Data) enhanceCandles() error {
 		}
 
 		statsForCandles :=
-			d.Statistics.ExchangeAssetPairStatistics[lookup.Exchange][lookup.Asset][lookup.Pair]
+			d.Statistics.ExchangeAssetPairStatistics[lookup.Exchange][lookup.Asset][lookup.Pair.Base.Item][lookup.Pair.Quote.Item]
 		if statsForCandles == nil {
 			continue
 		}
@@ -217,11 +220,12 @@ func (d *Data) enhanceCandles() error {
 }
 
 func (d *DetailedCandle) copyCloseFromPreviousEvent(ek *EnhancedKline) {
+	cp := ek.Candles[len(ek.Candles)-1].Close
 	// if the data is missing, ensure that all values just continue the previous candle's close price visually
-	d.Open = ek.Candles[len(ek.Candles)-1].Close
-	d.High = ek.Candles[len(ek.Candles)-1].Close
-	d.Low = ek.Candles[len(ek.Candles)-1].Close
-	d.Close = ek.Candles[len(ek.Candles)-1].Close
+	d.Open = cp
+	d.High = cp
+	d.Low = cp
+	d.Close = cp
 	d.Colour = "white"
 	d.Position = "aboveBar"
 	d.Shape = "arrowDown"

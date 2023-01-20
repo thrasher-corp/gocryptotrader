@@ -86,6 +86,10 @@ func RegisterBacktesterSubLoggers() error {
 	if err != nil {
 		return err
 	}
+	LiveStrategy, err = log.NewSubLogger("LiveStrategy")
+	if err != nil {
+		return err
+	}
 	Setup, err = log.NewSubLogger("Setup")
 	if err != nil {
 		return err
@@ -110,15 +114,15 @@ func RegisterBacktesterSubLoggers() error {
 	if err != nil {
 		return err
 	}
-	Backtester, err = log.NewSubLogger("Sizing")
-	if err != nil {
-		return err
-	}
 	Holdings, err = log.NewSubLogger("Holdings")
 	if err != nil {
 		return err
 	}
 	Data, err = log.NewSubLogger("Data")
+	if err != nil {
+		return err
+	}
+	FundManager, err = log.NewSubLogger("FundManager")
 	if err != nil {
 		return err
 	}

@@ -115,7 +115,7 @@ func GetHoldings(exch string, creds *Credentials, assetType asset.Item) (Holding
 			for item, balance := range currencyHoldings {
 				balance.m.Lock()
 				currencyBalances[target] = Balance{
-					CurrencyName:           currency.Code{Item: item, UpperCase: true},
+					Currency:               currency.Code{Item: item, UpperCase: true},
 					Total:                  balance.total,
 					Hold:                   balance.hold,
 					Free:                   balance.free,
@@ -281,10 +281,10 @@ func (s *Service) Update(incoming *Holdings, creds *Credentials) error {
 		}
 
 		for y := range incoming.Accounts[x].Currencies {
-			bal := currencyBalances[incoming.Accounts[x].Currencies[y].CurrencyName.Item]
+			bal := currencyBalances[incoming.Accounts[x].Currencies[y].Currency.Item]
 			if bal == nil {
 				bal = &ProtectedBalance{}
-				currencyBalances[incoming.Accounts[x].Currencies[y].CurrencyName.Item] = bal
+				currencyBalances[incoming.Accounts[x].Currencies[y].Currency.Item] = bal
 			}
 			bal.load(incoming.Accounts[x].Currencies[y])
 		}

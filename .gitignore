@@ -15,6 +15,7 @@ vendor/
 
 # Binaries for programs and plugins
 gocryptotrader
+/backtester/backtester
 cmd/gctcli/gctcli
 backtester/backtester
 backtester/btcli/btcli

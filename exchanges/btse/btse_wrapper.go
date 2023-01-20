@@ -129,22 +129,15 @@ func (b *BTSE) SetDefaults() {
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.OneMin.Word():     true,
-					kline.ThreeMin.Word():   true,
-					kline.FiveMin.Word():    true,
-					kline.FifteenMin.Word(): true,
-					kline.ThirtyMin.Word():  true,
-					kline.OneHour.Word():    true,
-					kline.TwoHour.Word():    true,
-					kline.FourHour.Word():   true,
-					kline.SixHour.Word():    true,
-					kline.TwelveHour.Word(): true,
-					kline.OneDay.Word():     true,
-					kline.ThreeDay.Word():   true,
-					kline.OneWeek.Word():    true,
-					kline.OneMonth.Word():   true,
-				},
+				Intervals: kline.DeployExchangeIntervals(
+					kline.OneMin,
+					kline.FiveMin,
+					kline.FifteenMin,
+					kline.ThirtyMin,
+					kline.OneHour,
+					kline.SixHour,
+					kline.OneDay,
+				),
 				ResultLimit: 300,
 			},
 		},
@@ -401,10 +394,10 @@ func (b *BTSE) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 	currencies := make([]account.Balance, len(balance))
 	for b := range balance {
 		currencies[b] = account.Balance{
-			CurrencyName: currency.NewCode(balance[b].Currency),
-			Total:        balance[b].Total,
-			Hold:         balance[b].Total - balance[b].Available,
-			Free:         balance[b].Available,
+			Currency: currency.NewCode(balance[b].Currency),
+			Total:    balance[b].Total,
+			Hold:     balance[b].Total - balance[b].Available,
+			Free:     balance[b].Available,
 		}
 	}
 	a.Exchange = b.Name
@@ -977,111 +970,51 @@ func (b *BTSE) FormatExchangeKlineInterval(in kline.Interval) string {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (b *BTSE) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := b.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
-	}
-
-	fPair, err := b.FormatExchangeCurrency(pair, a)
+func (b *BTSE) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := b.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
-	intervalInt, err := strconv.Atoi(b.FormatExchangeKlineInterval(interval))
+
+	intervalInt, err := strconv.Atoi(b.FormatExchangeKlineInterval(req.ExchangeInterval))
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
-	klineRet := kline.Item{
-		Exchange: b.Name,
-		Pair:     fPair,
-		Asset:    a,
-		Interval: interval,
-	}
-
-	switch a {
+	var timeSeries []kline.Candle
+	switch req.Asset {
 	case asset.Spot:
 		req, err := b.OHLCV(ctx,
-			fPair.String(),
-			start,
-			end,
+			req.RequestFormatted.String(),
+			req.Start,
+			req.End,
 			intervalInt)
 		if err != nil {
-			return kline.Item{}, err
+			return nil, err
 		}
+
+		timeSeries = make([]kline.Candle, len(req))
 		for x := range req {
-			klineRet.Candles = append(klineRet.Candles, kline.Candle{
+			timeSeries[x] = kline.Candle{
 				Time:   time.Unix(int64(req[x][0]), 0),
 				Open:   req[x][1],
 				High:   req[x][2],
 				Low:    req[x][3],
 				Close:  req[x][4],
 				Volume: req[x][5],
-			})
+			}
 		}
 	case asset.Futures:
-		return kline.Item{}, common.ErrNotYetImplemented
+		return nil, common.ErrNotYetImplemented
 	default:
-		return kline.Item{}, fmt.Errorf("asset %v not supported", a.String())
+		return nil, fmt.Errorf("asset %s not supported", req.Asset)
 	}
-
-	klineRet.SortCandlesByTimestamp(false)
-	return klineRet, nil
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (b *BTSE) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := b.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
-	}
-
-	if kline.TotalCandlesPerInterval(start, end, interval) > float64(b.Features.Enabled.Kline.ResultLimit) {
-		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
-	}
-
-	fPair, err := b.FormatExchangeCurrency(pair, a)
-	if err != nil {
-		return kline.Item{}, err
-	}
-	intervalInt, err := strconv.Atoi(b.FormatExchangeKlineInterval(interval))
-	if err != nil {
-		return kline.Item{}, err
-	}
-
-	klineRet := kline.Item{
-		Exchange: b.Name,
-		Pair:     fPair,
-		Asset:    a,
-		Interval: interval,
-	}
-
-	switch a {
-	case asset.Spot:
-		req, err := b.OHLCV(ctx,
-			fPair.String(),
-			start,
-			end,
-			intervalInt)
-		if err != nil {
-			return kline.Item{}, err
-		}
-		for x := range req {
-			klineRet.Candles = append(klineRet.Candles, kline.Candle{
-				Time:   time.Unix(int64(req[x][0]), 0),
-				Open:   req[x][1],
-				High:   req[x][2],
-				Low:    req[x][3],
-				Close:  req[x][4],
-				Volume: req[x][5],
-			})
-		}
-	case asset.Futures:
-		return kline.Item{}, common.ErrNotYetImplemented
-	default:
-		return kline.Item{}, fmt.Errorf("asset %v not supported", a.String())
-	}
-
-	klineRet.SortCandlesByTimestamp(false)
-	return klineRet, nil
+func (b *BTSE) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 func (b *BTSE) seedOrderSizeLimits(ctx context.Context) error {

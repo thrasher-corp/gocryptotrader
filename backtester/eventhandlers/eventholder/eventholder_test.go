@@ -1,24 +1,35 @@
 package eventholder
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 )
 
 func TestReset(t *testing.T) {
 	t.Parallel()
-	e := Holder{Queue: []common.EventHandler{}}
-	e.Reset()
+	e := &Holder{Queue: []common.Event{}}
+	err := e.Reset()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	if e.Queue != nil {
 		t.Error("expected nil")
+	}
+
+	e = nil
+	err = e.Reset()
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 }
 
 func TestAppendEvent(t *testing.T) {
 	t.Parallel()
-	e := Holder{Queue: []common.EventHandler{}}
+	e := Holder{Queue: []common.Event{}}
 	e.AppendEvent(&order.Order{})
 	if len(e.Queue) != 1 {
 		t.Error("expected 1")
@@ -27,12 +38,12 @@ func TestAppendEvent(t *testing.T) {
 
 func TestNextEvent(t *testing.T) {
 	t.Parallel()
-	e := Holder{Queue: []common.EventHandler{}}
+	e := Holder{Queue: []common.Event{}}
 	if ev := e.NextEvent(); ev != nil {
 		t.Error("expected not ok")
 	}
 
-	e = Holder{Queue: []common.EventHandler{
+	e = Holder{Queue: []common.Event{
 		&order.Order{},
 		&order.Order{},
 		&order.Order{},

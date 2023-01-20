@@ -11,6 +11,7 @@ import (
 	datakline "github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -20,11 +21,11 @@ func TestGetBase(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
 	_, err := s.GetBaseData(nil)
-	if !errors.Is(err, common.ErrNilArguments) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilArguments)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNilPointer)
 	}
 
-	_, err = s.GetBaseData(&datakline.DataFromKline{})
+	_, err = s.GetBaseData(datakline.NewDataFromKline())
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
@@ -32,8 +33,8 @@ func TestGetBase(t *testing.T) {
 	exch := "binance"
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	d := data.Base{}
-	d.SetStream([]common.DataEventHandler{&kline.Kline{
+	d := &data.Base{}
+	err = d.SetStream([]data.Event{&kline.Kline{
 		Base: &event.Base{
 			Exchange:     exch,
 			Time:         tt,
@@ -47,15 +48,21 @@ func TestGetBase(t *testing.T) {
 		High:   decimal.NewFromInt(1337),
 		Volume: decimal.NewFromInt(1337),
 	}})
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 
-	d.Next()
+	_, err = d.Next()
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 	_, err = s.GetBaseData(&datakline.DataFromKline{
-		Item:        gctkline.Item{},
+		Item:        &gctkline.Item{},
 		Base:        d,
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 }
 
@@ -73,26 +80,11 @@ func TestSetSimultaneousProcessing(t *testing.T) {
 	}
 }
 
-func TestUsingExchangeLevelFunding(t *testing.T) {
+func TestCloseAllPositions(t *testing.T) {
 	t.Parallel()
 	s := &Strategy{}
-	if s.UsingExchangeLevelFunding() {
-		t.Error("expected false")
-	}
-	s.usingExchangeLevelFunding = true
-	if !s.UsingExchangeLevelFunding() {
-		t.Error("expected true")
-	}
-}
-
-func TestSetExchangeLevelFunding(t *testing.T) {
-	t.Parallel()
-	s := &Strategy{}
-	s.SetExchangeLevelFunding(true)
-	if !s.UsingExchangeLevelFunding() {
-		t.Error("expected true")
-	}
-	if !s.UsingExchangeLevelFunding() {
-		t.Error("expected true")
+	_, err := s.CloseAllPositions(nil, nil)
+	if !errors.Is(err, gctcommon.ErrFunctionNotSupported) {
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrFunctionNotSupported)
 	}
 }
