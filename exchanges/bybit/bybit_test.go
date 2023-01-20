@@ -2173,12 +2173,18 @@ func TestUpdateTicker(t *testing.T) {
 		t.Error(err)
 	}
 
-	pair2, err := currency.NewPairFromString("BTCUSD-Z22")
+	// Futures update dynamically, so fetch the available tradable futures for this test
+	availPairs, err := b.FetchTradablePairs(context.Background(), asset.Futures)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = b.UpdateTicker(context.Background(), pair2, asset.Futures)
+	// Needs to be set before calling extractCurrencyPair
+	if err = b.SetPairs(availPairs, asset.Futures, true); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.UpdateTicker(context.Background(), availPairs[0], asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}

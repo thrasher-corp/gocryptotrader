@@ -32,7 +32,7 @@ $ ./gctcli getcryptocurrencydepositaddress --exchange=binance --cryptocurrency=u
 ## Withdrawing
 
 ```sh
-$ ./gctcli withdrawcryptofunds --exchange=ftx --currency=binance --address=TJU9piX2WA8WTvxVKMqpvTzZGhvXQAZKSY --amount=10 --chain=trx
+$ ./gctcli withdrawcryptofunds --exchange=binance --currency=USDT --address=TJU9piX2WA8WTvxVKMqpvTzZGhvXQAZKSY --amount=10 --chain=trx
 {
  "id": "01234567-0000-0000-0000-000000000000",
 }

@@ -882,7 +882,7 @@
     }
    },
    "api": {
-    "authenticatedSupport": true,
+    "authenticatedSupport": false,
     "authenticatedWebsocketApiSupport": false,
     "credentials": {
      "key": "Key",
@@ -905,13 +905,13 @@
     "supports": {
      "restAPI": true,
      "restCapabilities": {
-      "autoPairUpdates": false
+      "autoPairUpdates": true
      },
      "websocketAPI": true,
      "websocketCapabilities": {}
     },
     "enabled": {
-     "autoPairUpdates": false,
+     "autoPairUpdates": true,
      "websocketAPI": true,
      "saveTradeData": false,
      "tradeFeed": false,

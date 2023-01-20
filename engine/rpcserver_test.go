@@ -2209,9 +2209,8 @@ func TestCurrencyStateTradingPair(t *testing.T) {
 
 func TestGetFuturesPositions(t *testing.T) {
 	t.Parallel()
-	t.Skip("TODO: Link to new exchange after FTX implosion")
 	em := SetupExchangeManager()
-	exch, err := em.NewExchangeByName("ftx")
+	exch, err := em.NewExchangeByName("binance")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2874,9 +2873,9 @@ func TestGetMarginRatesHistory(t *testing.T) {
 
 func TestGetFundingRates(t *testing.T) {
 	t.Parallel()
-	t.Skip("TODO: Link to new exchange after FTX implosion")
+
 	em := SetupExchangeManager()
-	exch, err := em.NewExchangeByName("ftx")
+	exch, err := em.NewExchangeByName("binance")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2967,9 +2966,8 @@ func TestGetFundingRates(t *testing.T) {
 
 func TestGetManagedPosition(t *testing.T) {
 	t.Parallel()
-	t.Skip("TODO: Link to new exchange after FTX implosion")
 	em := SetupExchangeManager()
-	exch, err := em.NewExchangeByName("ftx")
+	exch, err := em.NewExchangeByName("binance")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3106,9 +3104,9 @@ func TestGetManagedPosition(t *testing.T) {
 
 func TestGetAllManagedPositions(t *testing.T) {
 	t.Parallel()
-	t.Skip("TODO: Link to new exchange after FTX implosion")
+
 	em := SetupExchangeManager()
-	exch, err := em.NewExchangeByName("ftx")
+	exch, err := em.NewExchangeByName("binance")
 	if err != nil {
 		t.Fatal(err)
 	}

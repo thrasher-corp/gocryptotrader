@@ -258,12 +258,10 @@ func TestSizeOrder(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNotYetImplemented)
 	}
 
-	/*
-		o.ClosePrice = decimal.NewFromInt(1000000000)
-		o.Amount = decimal.NewFromInt(1000000000)
-		_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
-		if !errors.Is(err, gctcommon.ErrNotYetImplemented) {
-			t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNotYetImplemented)
-		}
-	*/
+	o.ClosePrice = decimal.NewFromInt(1000000000)
+	o.Amount = decimal.NewFromInt(1000000000)
+	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
+	if !errors.Is(err, gctcommon.ErrNotYetImplemented) {
+		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNotYetImplemented)
+	}
 }

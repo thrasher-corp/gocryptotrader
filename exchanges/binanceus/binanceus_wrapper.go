@@ -539,8 +539,8 @@ func (bi *Binanceus) GetHistoricTrades(ctx context.Context, p currency.Pair,
 	assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	req := AggregatedTradeRequestParams{
 		Symbol:    p,
-		StartTime: uint64(timestampStart.UnixMilli()),
-		EndTime:   uint64(timestampEnd.UnixMilli()),
+		StartTime: timestampStart.UnixMilli(),
+		EndTime:   timestampEnd.UnixMilli(),
 	}
 	trades, err := bi.GetAggregateTrades(ctx, &req)
 	if err != nil {

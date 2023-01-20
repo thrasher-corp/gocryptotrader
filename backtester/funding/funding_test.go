@@ -759,15 +759,12 @@ func TestCreateCollateral(t *testing.T) {
 
 func TestUpdateCollateral(t *testing.T) {
 	t.Parallel()
-	t.Skip("TODO: Link to new exchange after FTX implosion")
 	f := &FundManager{}
 	expectedError := common.ErrNilEvent
 	err := f.UpdateCollateralForEvent(nil, false)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
 	}
-
-	const exchName = "binance"
 
 	ev := &signal.Signal{
 		Base: &event.Base{

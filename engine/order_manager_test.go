@@ -1463,7 +1463,6 @@ func TestGetAllOpenFuturesPositions(t *testing.T) {
 
 func TestGetOpenFuturesPosition(t *testing.T) {
 	t.Parallel()
-	t.Skip("TODO: Link to new exchange after FTX implosion")
 	wg := &sync.WaitGroup{}
 	o, err := SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, wg, false, false, time.Hour)
 	if !errors.Is(err, nil) {
@@ -1483,7 +1482,7 @@ func TestGetOpenFuturesPosition(t *testing.T) {
 	}
 
 	em := SetupExchangeManager()
-	exch, err := em.NewExchangeByName("ftx")
+	exch, err := em.NewExchangeByName("binance")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1553,14 +1552,13 @@ func TestGetOpenFuturesPosition(t *testing.T) {
 
 func TestProcessFuturesPositions(t *testing.T) {
 	t.Parallel()
-	t.Skip("TODO: Link to new exchange after FTX implosion")
 	o := &OrderManager{}
 	err := o.processFuturesPositions(nil, nil)
 	if !errors.Is(err, errFuturesTrackingDisabled) {
 		t.Errorf("received '%v', expected '%v'", err, errFuturesTrackingDisabled)
 	}
 	em := SetupExchangeManager()
-	exch, err := em.NewExchangeByName("ftx")
+	exch, err := em.NewExchangeByName("binance")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1641,7 +1639,7 @@ func TestProcessFuturesPositions(t *testing.T) {
 	position.Orders[0].AssetType = asset.Futures
 	position.Asset = asset.Futures
 	err = o.processFuturesPositions(fakeExchange, position)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
+	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Errorf("received '%v', expected '%v'", err, common.ErrNotYetImplemented)
 	}
 }

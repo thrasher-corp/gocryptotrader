@@ -50,7 +50,6 @@ func TestExecuteStrategyFromFile(t *testing.T) {
 		t.Errorf("received '%v' expecting '%v'", err, common.ErrFileNotFound)
 	}
 
-	t.Skip("TODO: Link to new exchange after FTX implosion")
 	_, err = s.ExecuteStrategyFromFile(context.Background(), &btrpc.ExecuteStrategyFromFileRequest{
 		StrategyFilePath: dcaConfigPath,
 	})
@@ -275,7 +274,6 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 		},
 	}
 
-	t.Skip("TODO: Link to new exchange after FTX implosion")
 	_, err = s.ExecuteStrategyFromConfig(context.Background(), &btrpc.ExecuteStrategyFromConfigRequest{
 		Config: cfg,
 	})
