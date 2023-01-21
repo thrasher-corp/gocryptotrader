@@ -293,7 +293,7 @@ type OrderItem struct {
 
 // PersonalOrdersResponse represents a personal order.
 type PersonalOrdersResponse struct {
-	Count     int         `json:"count,omitempty"`
+	Count     int64       `json:"count,omitempty"`
 	OrderList []OrderItem `json:"order_list"`
 }
 

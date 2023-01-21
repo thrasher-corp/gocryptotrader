@@ -2,7 +2,6 @@ package cryptodotcom
 
 import (
 	"context"
-	"errors"
 	"log"
 	"os"
 	"testing"
@@ -20,8 +19,8 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = "sLsbTxsHCgzCAqQAqbxrMr"
-	apiSecret               = "Bg6wMPnb8XWEwFhmfSY8GX"
+	apiKey                  = ""
+	apiSecret               = ""
 	canManipulateRealOrders = false
 )
 
@@ -487,7 +486,47 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = cr.GetHistoricCandles(context.Background(), enabledPairs[0], asset.Spot, kline.FiveMin, startTime, endTime)
-	if !errors.Is(err, kline.ErrRequestExceedsExchangeLimits) {
-		t.Errorf("received: '%v' but expected: '%v'", err, kline.ErrRequestExceedsExchangeLimits)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetActiveOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	enabledPairs, err := cr.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	var getOrdersRequest = order.GetOrdersRequest{
+		Type:      order.Limit,
+		Pairs:     currency.Pairs{enabledPairs[0], currency.NewPair(currency.USDT, currency.USD), currency.NewPair(currency.USD, currency.LTC)},
+		AssetType: asset.Spot,
+		Side:      order.Buy,
+	}
+	if _, err := cr.GetActiveOrders(context.Background(), &getOrdersRequest); err != nil {
+		t.Error("Cryptodotcom GetActiveOrders() error", err)
+	}
+}
+
+func TestGetOrderHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	var getOrdersRequest = order.GetOrdersRequest{
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
+		Side:      order.Buy,
+	}
+	_, err := cr.GetOrderHistory(context.Background(), &getOrdersRequest)
+	if err != nil {
+		t.Error(err)
+	}
+	getOrdersRequest.Pairs = []currency.Pair{currency.NewPair(currency.LTC, currency.BTC)}
+	if _, err := cr.GetOrderHistory(context.Background(), &getOrdersRequest); err != nil {
+		t.Error(err)
 	}
 }

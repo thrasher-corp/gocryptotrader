@@ -596,19 +596,129 @@ func (cr *Cryptodotcom) WithdrawFiatFundsToInternationalBank(ctx context.Context
 
 // GetActiveOrders retrieves any orders that are active/open
 func (cr *Cryptodotcom) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
-	// if err := getOrdersRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
-	return nil, common.ErrNotYetImplemented
+	if err := getOrdersRequest.Validate(); err != nil {
+		return nil, err
+	}
+	orders, err := cr.GetPersonalOpenOrders(ctx, "", 0, 0)
+	if err != nil {
+		return nil, err
+	}
+	pairFormat, err := cr.GetPairFormat(getOrdersRequest.AssetType, false)
+	if err != nil {
+		return nil, err
+	}
+	resp := []order.Detail{}
+	for x := range orders.OrderList {
+		cp, err := currency.NewPairFromString(orders.OrderList[x].InstrumentName)
+		if err != nil {
+			return nil, err
+		}
+		if len(orders.OrderList) != 0 {
+			found := false
+			for b := range getOrdersRequest.Pairs {
+				if cp.Equal(getOrdersRequest.Pairs[b].Format(pairFormat)) {
+					found = true
+				}
+			}
+			if !found {
+				continue
+			}
+		}
+		orderType, err := order.StringToOrderType(orders.OrderList[x].Type)
+		if err != nil {
+			return nil, err
+		}
+		side, err := order.StringToOrderSide(orders.OrderList[x].Side)
+		if err != nil {
+			return nil, err
+		}
+		status, err := order.StringToOrderStatus(orders.OrderList[x].Status)
+		if err != nil {
+			return nil, err
+		}
+		resp = append(resp, order.Detail{
+			Price:                orders.OrderList[x].Price,
+			AverageExecutedPrice: orders.OrderList[x].AvgPrice,
+			Amount:               orders.OrderList[x].CumulativeQuantity,
+			ExecutedAmount:       orders.OrderList[x].Quantity,
+			RemainingAmount:      orders.OrderList[x].CumulativeQuantity - orders.OrderList[x].Quantity,
+			Exchange:             cr.Name,
+			OrderID:              orders.OrderList[x].OrderID,
+			ClientOrderID:        orders.OrderList[x].ClientOid,
+			Status:               status,
+			Side:                 side,
+			Type:                 orderType,
+			AssetType:            getOrdersRequest.AssetType,
+			Date:                 orders.OrderList[x].CreateTime.Time(),
+			LastUpdated:          orders.OrderList[x].UpdateTime.Time(),
+			Pair:                 cp,
+		})
+	}
+	return getOrdersRequest.Filter(cr.Name, resp), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (cr *Cryptodotcom) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
-	// if err := getOrdersRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
-	return nil, common.ErrNotYetImplemented
+	if err := getOrdersRequest.Validate(); err != nil {
+		return nil, err
+	}
+	pairFormat, err := cr.GetPairFormat(getOrdersRequest.AssetType, false)
+	if err != nil {
+		return nil, err
+	}
+	orders, err := cr.GetPersonalOrderHistory(ctx, "", getOrdersRequest.StartTime, getOrdersRequest.EndTime, 0, 0)
+	if err != nil {
+		return nil, err
+	}
+	resp := []order.Detail{}
+	for x := range orders.OrderList {
+		cp, err := currency.NewPairFromString(orders.OrderList[x].InstrumentName)
+		if err != nil {
+			return nil, err
+		}
+		if len(orders.OrderList) != 0 {
+			found := false
+			for b := range getOrdersRequest.Pairs {
+				if cp.Equal(getOrdersRequest.Pairs[b].Format(pairFormat)) {
+					found = true
+				}
+			}
+			if !found {
+				continue
+			}
+		}
+		orderType, err := order.StringToOrderType(orders.OrderList[x].Type)
+		if err != nil {
+			return nil, err
+		}
+		side, err := order.StringToOrderSide(orders.OrderList[x].Side)
+		if err != nil {
+			return nil, err
+		}
+		status, err := order.StringToOrderStatus(orders.OrderList[x].Status)
+		if err != nil {
+			return nil, err
+		}
+		resp = append(resp, order.Detail{
+			Price:                orders.OrderList[x].Price,
+			AverageExecutedPrice: orders.OrderList[x].AvgPrice,
+			Amount:               orders.OrderList[x].CumulativeQuantity,
+			ExecutedAmount:       orders.OrderList[x].Quantity,
+			RemainingAmount:      orders.OrderList[x].CumulativeQuantity - orders.OrderList[x].Quantity,
+			Exchange:             cr.Name,
+			OrderID:              orders.OrderList[x].OrderID,
+			ClientOrderID:        orders.OrderList[x].ClientOid,
+			Status:               status,
+			Side:                 side,
+			Type:                 orderType,
+			AssetType:            getOrdersRequest.AssetType,
+			Date:                 orders.OrderList[x].CreateTime.Time(),
+			LastUpdated:          orders.OrderList[x].UpdateTime.Time(),
+			Pair:                 cp,
+		})
+	}
+	return getOrdersRequest.Filter(cr.Name, resp), nil
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
