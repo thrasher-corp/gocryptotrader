@@ -66,8 +66,7 @@ const (
 	privateCancelOrder           = "private/cancel-order"
 	privateCreateOrderList       = "private/create-order-list"
 	privateCancelOrderList       = "private/cancel-order-list"
-	privateGetOrderList          = "private/get-order-list"
-	privateCancelAllOrders       = "private/cancel-all-orders"
+	privateCancelAllOrders       = "private/cancel-all-orders" // TODO:
 	privateClosePosition         = "private/close-position"
 	privateGetOrderHistory       = "private/get-order-history"
 	privateGetOpenOrders         = "private/get-open-orders"
@@ -374,7 +373,7 @@ func (cr *Cryptodotcom) CancelOrderList(ctx context.Context, args []CancelOrderP
 	cancelOrderList := []map[string]interface{}{}
 	for x := range args {
 		if args[x].InstrumentName == "" && args[x].OrderID == "" {
-			continue
+			return nil, errors.New("either InstrumentName or OrderID is required")
 		}
 		result := make(map[string]interface{})
 		if args[x].InstrumentName != "" {
@@ -388,6 +387,17 @@ func (cr *Cryptodotcom) CancelOrderList(ctx context.Context, args []CancelOrderP
 	params["order_list"] = cancelOrderList
 	var resp *CancelOrdersResponse
 	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCancelOrderListRate, privateCancelOrderList, params, &resp)
+}
+
+// CancelAllPersonalOrders cancels all orders for a particular instrument/pair (asynchronous)
+// This call is asynchronous, so the response is simply a confirmation of the request.
+func (cr *Cryptodotcom) CancelAllPersonalOrders(ctx context.Context, instrumentName string) error {
+	if instrumentName == "" {
+		return errSymbolIsRequired
+	}
+	params := make(map[string]interface{})
+	params["instrument_name"] = instrumentName
+	return cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCancelAllOrdersRate, privateCancelAllOrders, params, nil)
 }
 
 // GetAccounts retrives Account and its Sub Accounts

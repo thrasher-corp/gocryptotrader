@@ -507,59 +507,155 @@ func (cr *Cryptodotcom) SubmitOrder(ctx context.Context, s *order.Submit) (*orde
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
-	// When an order has been submitted you can use this helpful constructor to
-	// return. Please add any additional order details to the
-	// order.SubmitResponse if you think they are applicable.
-	// resp, err := s.DeriveSubmitResponse( /*newOrderID*/)
-	// if err != nil {
-	// 	return nil, nil
-	// }
-	// resp.Date = exampleTime // e.g. If this is supplied by the exchanges API.
-	// return resp, nil
-	return nil, common.ErrNotYetImplemented
+	if !cr.SupportsAsset(s.AssetType) {
+		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, s.AssetType)
+	}
+	if s.Amount <= 0 {
+		return nil, fmt.Errorf("amount, or size (sz) of quantity to buy or sell hast to be greater than zero ")
+	}
+	format, err := cr.GetPairFormat(s.AssetType, false)
+	if err != nil {
+		return nil, err
+	}
+	if !s.Pair.IsPopulated() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	var notional float64
+	switch s.Type {
+	case order.Market, order.StopLoss, order.TakeProfit:
+		// For MARKET (BUY), STOP_LOSS (BUY), TAKE_PROFIT (BUY) orders only: Amount to spend
+		notional = s.Amount
+	}
+	ordersResp, err := cr.CreateOrder(ctx, CreateOrderParam{
+		InstrumentName: format.Format(s.Pair),
+		Side:           s.Side,
+		OrderType:      s.Type,
+		Price:          s.Price,
+		Quantity:       s.Amount,
+		ClientOrderID:  s.ClientOrderID,
+		Notional:       notional,
+		PostOnly:       s.PostOnly,
+		TriggerPrice:   s.TriggerPrice,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return s.DeriveSubmitResponse(ordersResp.OrderID)
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
 func (cr *Cryptodotcom) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
-	if err := action.Validate(); err != nil {
-		return nil, err
-	}
-	// When an order has been modified you can use this helpful constructor to
-	// return. Please add any additional order details to the
-	// order.ModifyResponse if you think they are applicable.
-	// resp, err := action.DeriveModifyResponse()
-	// if err != nil {
-	// 	return nil, nil
-	// }
-	// resp.OrderID = maybeANewOrderID // e.g. If this is supplied by the exchanges API.
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
 func (cr *Cryptodotcom) CancelOrder(ctx context.Context, ord *order.Cancel) error {
-	// if err := ord.Validate(ord.StandardCancel()); err != nil {
-	//	 return err
-	// }
-	return common.ErrNotYetImplemented
+	err := ord.Validate(ord.StandardCancel())
+	if err != nil {
+		return err
+	}
+	if !cr.SupportsAsset(ord.AssetType) {
+		return fmt.Errorf("%w: %v", asset.ErrNotSupported, ord.AssetType)
+	}
+	format, err := cr.GetPairFormat(ord.AssetType, false)
+	if err != nil {
+		return err
+	}
+	if !ord.Pair.IsPopulated() {
+		return currency.ErrCurrencyPairEmpty
+	}
+	return cr.CancelExistingOrder(ctx, format.Format(ord.Pair), ord.OrderID)
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
 func (cr *Cryptodotcom) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+	cancelBatchResponse := order.CancelBatchResponse{
+		Status: map[string]string{},
+	}
+	cancelOrderParams := []CancelOrderParam{}
+	format, err := cr.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		return cancelBatchResponse, err
+	}
+	for x := range orders {
+		cancelOrderParams = append(cancelOrderParams, CancelOrderParam{
+			InstrumentName: format.Format(orders[x].Pair),
+			OrderID:        orders[x].OrderID,
+		})
+	}
+	cancelResp, err := cr.CancelOrderList(ctx, cancelOrderParams)
+	if err != nil {
+		return cancelBatchResponse, err
+	}
+	for x := range cancelResp.ResultList {
+		if cancelResp.ResultList[x].Code != 0 {
+			cancelBatchResponse.Status[cancelOrderParams[cancelResp.ResultList[x].Index].InstrumentName] = ""
+		} else {
+			cancelBatchResponse.Status[cancelOrderParams[cancelResp.ResultList[x].Index].InstrumentName] = order.Cancelled.String()
+		}
+	}
+	return cancelBatchResponse, nil
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (cr *Cryptodotcom) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
-	// if err := orderCancellation.Validate(); err != nil {
-	//	 return err
-	// }
-	return order.CancelAllResponse{}, common.ErrNotYetImplemented
+	cancelAllResponse := order.CancelAllResponse{
+		Status: map[string]string{},
+	}
+	err := orderCancellation.Validate()
+	if err != nil {
+		return cancelAllResponse, err
+	}
+	format, err := cr.GetPairFormat(orderCancellation.AssetType, true)
+	if err != nil {
+		return cancelAllResponse, err
+	}
+	return order.CancelAllResponse{}, cr.CancelAllPersonalOrders(ctx, orderCancellation.Pair.Format(format).String())
 }
 
 // GetOrderInfo returns order information based on order ID
 func (cr *Cryptodotcom) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
-	return order.Detail{}, common.ErrNotYetImplemented
+	var respData order.Detail
+	if !cr.SupportsAsset(assetType) {
+		return respData, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
+	}
+	if !pair.IsPopulated() {
+		return respData, currency.ErrCurrencyPairEmpty
+	}
+	orderDetail, err := cr.GetOrderDetail(ctx, orderID)
+	if err != nil {
+		return respData, err
+	}
+	status, err := order.StringToOrderStatus(orderDetail.OrderInfo.Status)
+	if err != nil {
+		return respData, err
+	}
+	orderType, err := order.StringToOrderType(orderDetail.OrderInfo.Type)
+	if err != nil {
+		return respData, err
+	}
+	side, err := order.StringToOrderSide(orderDetail.OrderInfo.Side)
+	if err != nil {
+		return respData, err
+	}
+
+	return order.Detail{
+		Amount:         orderDetail.OrderInfo.Quantity,
+		Exchange:       cr.Name,
+		OrderID:        orderDetail.OrderInfo.OrderID,
+		ClientOrderID:  orderDetail.OrderInfo.ClientOid,
+		Side:           side,
+		Type:           orderType,
+		Pair:           pair,
+		Cost:           orderDetail.OrderInfo.CumulativeValue,
+		AssetType:      assetType,
+		Status:         status,
+		Price:          orderDetail.OrderInfo.Price,
+		ExecutedAmount: orderDetail.OrderInfo.CumulativeQuantity - orderDetail.OrderInfo.Quantity,
+		Date:           orderDetail.OrderInfo.CreateTime.Time(),
+		LastUpdated:    orderDetail.OrderInfo.UpdateTime.Time(),
+	}, err
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -579,19 +675,13 @@ func (cr *Cryptodotcom) WithdrawCryptocurrencyFunds(ctx context.Context, withdra
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (cr *Cryptodotcom) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	// if err := withdrawRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
 func (cr *Cryptodotcom) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	// if err := withdrawRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetActiveOrders retrieves any orders that are active/open

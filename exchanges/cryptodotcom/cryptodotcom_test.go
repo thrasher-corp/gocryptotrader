@@ -271,6 +271,21 @@ func TestCancelOrderList(t *testing.T) {
 	}
 }
 
+func TestCancelAllPersonalOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	enabledPairs, err := cr.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cr.CancelAllPersonalOrders(context.Background(), enabledPairs[0].String())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetAccounts(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
@@ -527,6 +542,94 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 	getOrdersRequest.Pairs = []currency.Pair{currency.NewPair(currency.LTC, currency.BTC)}
 	if _, err := cr.GetOrderHistory(context.Background(), &getOrdersRequest); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSubmitOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	var orderSubmission = &order.Submit{
+		Pair: currency.Pair{
+			Base:  currency.LTC,
+			Quote: currency.BTC,
+		},
+		Exchange:  cr.Name,
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Price:     1,
+		Amount:    1000000000,
+		ClientID:  "myOwnOrder",
+		AssetType: asset.Spot,
+	}
+	_, err := cr.SubmitOrder(context.Background(), orderSubmission)
+	if err != nil {
+		t.Error("Cryptodotcom SubmitOrder() error", err)
+	}
+}
+func TestCancelOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	var orderCancellation = &order.Cancel{
+		OrderID:   "1",
+		Pair:      currency.NewPair(currency.LTC, currency.BTC),
+		AssetType: asset.Spot,
+	}
+	if err := cr.CancelOrder(context.Background(), orderCancellation); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelBatchOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	var orderCancellationParams = []order.Cancel{
+		{
+			OrderID: "1",
+			Pair:    currency.NewPair(currency.LTC, currency.BTC),
+		},
+		{
+			OrderID: "1",
+			Pair:    currency.NewPair(currency.LTC, currency.BTC),
+		},
+	}
+	_, err := cr.CancelBatchOrders(context.Background(), orderCancellationParams)
+	if err != nil {
+		t.Error("Cryptodotcom CancelBatchOrders() error", err)
+	}
+}
+
+func TestCancelAllOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	if _, err := cr.CancelAllOrders(context.Background(), &order.Cancel{}); err != nil {
+		t.Errorf("%s CancelAllOrders() error: %v", cr.Name, err)
+	}
+}
+
+func TestGetOrderInfo(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("Okx GetOrderInfo() skipping test: api keys not set")
+	}
+	enabled, err := cr.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Error("couldn't find enabled tradable pairs")
+	}
+	if len(enabled) == 0 {
+		t.SkipNow()
+	}
+	_, err = cr.GetOrderInfo(context.Background(),
+		"123", enabled[0], asset.Spot)
+	if err != nil {
 		t.Error(err)
 	}
 }
