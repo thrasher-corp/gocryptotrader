@@ -12,6 +12,7 @@ var (
 	errInvalidCurrency               = errors.New("invalid currency")
 	errInvalidAmount                 = errors.New("amount has to be greater than zero")
 	errNoArgumentPassed              = errors.New("no argument passed")
+	errInvalidResponseFromServer     = errors.New("invalid response from server")
 )
 
 // InstrumentsResponse represents instruments response.
@@ -77,17 +78,17 @@ type TickersResponse struct {
 
 // TickerItem represents a ticker item.
 type TickerItem struct {
-	HighestTradePrice string               `json:"h"` // Price of the 24h highest trade
-	LowestTradePrice  string               `json:"l"` // Price of the 24h lowest trade, null if there weren't any trades
-	LatestTradePrice  string               `json:"a"` // The price of the latest trade, null if there weren't any trades
-	InstrumentName    string               `json:"i"`
-	TradedVolume      string               `json:"v"`  // The total 24h traded volume
-	TradedVolumeInUSD string               `json:"vv"` // The total 24h traded volume value (in USD)
-	OpenInterest      string               `json:"oi"`
-	PriceChange       string               `json:"c"` // 24-hour price change, null if there weren't any trades
-	BidPriceChange    string               `json:"b"` // The current best bid price, null if there aren't any bids
-	BestAskPrice      string               `json:"k"` // The current best ask price, null if there aren't any asks
-	TradeTimestamp    cryptoDotComMilliSec `json:"t"`
+	HighestTradePrice    float64              `json:"h,string"` // Price of the 24h highest trade
+	LowestTradePrice     float64              `json:"l,string"` // Price of the 24h lowest trade, null if there weren't any trades
+	LatestTradePrice     float64              `json:"a,string"` // The price of the latest trade, null if there weren't any trades
+	InstrumentName       string               `json:"i"`
+	TradedVolume         float64              `json:"v,string"`  // The total 24h traded volume
+	TradedVolumeInUSD24H float64              `json:"vv,string"` // The total 24h traded volume value (in USD)
+	OpenInterest         float64              `json:"oi,string"`
+	PriceChange24H       float64              `json:"c,string"` // 24-hour price change, null if there weren't any trades
+	BestBidPrice         float64              `json:"b,string"` // The current best bid price, null if there aren't any bids
+	BestAskPrice         float64              `json:"k,string"` // The current best ask price, null if there aren't any asks
+	TradeTimestamp       cryptoDotComMilliSec `json:"t"`
 }
 
 // TradesResponse represents public trades for a particular instrument.
@@ -148,15 +149,15 @@ type WithdrawalResponse struct {
 
 // WithdrawalItem represents a withdrawal instance item.
 type WithdrawalItem struct {
-	Currency   string  `json:"currency"`
-	Fee        float64 `json:"fee"`
-	ID         string  `json:"id"`
-	UpdateTime int64   `json:"update_time"`
-	Amount     int     `json:"amount"`
-	Address    string  `json:"address"`
-	Status     string  `json:"status"`
-	Txid       string  `json:"txid"`
-	NetworkID  string  `json:"network_id"`
+	Currency      string               `json:"currency"`
+	Fee           float64              `json:"fee"`
+	ID            string               `json:"id"`
+	UpdateTime    cryptoDotComMilliSec `json:"update_time"`
+	Amount        float64              `json:"amount"`
+	Address       string               `json:"address"`
+	Status        string               `json:"status"`
+	TransactionID string               `json:"txid"`
+	NetworkID     string               `json:"network_id"`
 
 	Symbol             string               `json:"symbol"`
 	ClientWithdrawalID string               `json:"client_wid"` // client generated withdrawal id.
@@ -170,14 +171,14 @@ type DepositResponse struct {
 
 // DepositItem represents accounts deposit item
 type DepositItem struct {
-	Currency   string  `json:"currency"`
-	Fee        float64 `json:"fee"`
-	CreateTime int64   `json:"create_time"`
-	ID         string  `json:"id"`
-	UpdateTime int64   `json:"update_time"`
-	Amount     float64 `json:"amount"`
-	Address    string  `json:"address"`
-	Status     string  `json:"status"`
+	Currency   string               `json:"currency"`
+	Fee        float64              `json:"fee"`
+	CreateTime cryptoDotComMilliSec `json:"create_time"`
+	ID         string               `json:"id"`
+	UpdateTime cryptoDotComMilliSec `json:"update_time"`
+	Amount     float64              `json:"amount"`
+	Address    string               `json:"address"`
+	Status     string               `json:"status"`
 }
 
 // DepositAddresses represents a list of deposit address.
@@ -205,7 +206,7 @@ type AccountItem struct {
 	Balance   float64 `json:"balance"`
 	Available float64 `json:"available"`
 	Order     float64 `json:"order"`
-	Stake     int     `json:"stake"`
+	Stake     float64 `json:"stake"`
 	Currency  string  `json:"currency"`
 }
 

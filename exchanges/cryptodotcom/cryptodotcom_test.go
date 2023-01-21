@@ -2,6 +2,7 @@ package cryptodotcom
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -18,8 +20,8 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	apiKey                  = "sLsbTxsHCgzCAqQAqbxrMr"
+	apiSecret               = "Bg6wMPnb8XWEwFhmfSY8GX"
 	canManipulateRealOrders = false
 )
 
@@ -93,6 +95,10 @@ func TestGetCandlestickDetail(t *testing.T) {
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
 	_, err := cr.GetTicker(context.Background(), "BTC_USDT")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = cr.GetTicker(context.Background(), "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -362,5 +368,126 @@ func TestGetOTCTradeHistory(t *testing.T) {
 	_, err := cr.GetOTCTradeHistory(context.Background(), currency.BTC, currency.USDT, time.Time{}, time.Time{}, 0, 0)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+// wrapper test functions
+
+func TestFetchTradablePairs(t *testing.T) {
+	t.Parallel()
+	_, err := cr.FetchTradablePairs(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateTicker(t *testing.T) {
+	t.Parallel()
+	enabledPairs, err := cr.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = cr.UpdateTicker(context.Background(), enabledPairs[0], asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateTickers(t *testing.T) {
+	t.Parallel()
+	err := cr.UpdateTickers(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFetchTicker(t *testing.T) {
+	t.Parallel()
+	enabledPairs, err := cr.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = cr.FetchTicker(context.Background(), enabledPairs[0], asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFetchOrderbook(t *testing.T) {
+	t.Parallel()
+	enabledPairs, err := cr.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = cr.FetchOrderbook(context.Background(), enabledPairs[1], asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateOrderbook(t *testing.T) {
+	t.Parallel()
+	enabledPairs, err := cr.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = cr.UpdateOrderbook(context.Background(), enabledPairs[0], asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateAccountInfo(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := cr.UpdateAccountInfo(context.Background(), asset.Spot); err != nil {
+		t.Error("Cryptodotcom UpdateAccountInfo() error", err)
+	}
+}
+
+func TestGetWithdrawalsHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := cr.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot); err != nil {
+		t.Error("Cryptodotcom GetWithdrawalsHistory() error", err)
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	t.Parallel()
+	if _, err := cr.GetRecentTrades(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.PerpetualSwap); err != nil {
+		t.Error("Cryptodotcom GetRecentTrades() error", err)
+	}
+}
+
+func TestGetFundingHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, err := cr.GetFundingHistory(context.Background()); err != nil {
+		t.Error("Cryptodotcom GetFundingHistory() error", err)
+	}
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	t.Parallel()
+	enabledPairs, err := cr.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	startTime := time.Now().Add(-time.Hour * 40)
+	endTime := time.Now()
+	_, err = cr.GetHistoricCandles(context.Background(), enabledPairs[0], asset.Spot, kline.OneDay, startTime, endTime)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = cr.GetHistoricCandles(context.Background(), enabledPairs[0], asset.Spot, kline.FiveMin, startTime, endTime)
+	if !errors.Is(err, kline.ErrRequestExceedsExchangeLimits) {
+		t.Errorf("received: '%v' but expected: '%v'", err, kline.ErrRequestExceedsExchangeLimits)
 	}
 }

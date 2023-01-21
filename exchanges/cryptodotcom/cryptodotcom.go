@@ -137,9 +137,6 @@ func (cr *Cryptodotcom) GetCandlestickDetail(ctx context.Context, instrumentName
 // GetTicker fetches the public tickers for an instrument.
 func (cr *Cryptodotcom) GetTicker(ctx context.Context, instrumentName string) (*TickersResponse, error) {
 	params := url.Values{}
-	if instrumentName == "" {
-		return nil, errSymbolIsRequired
-	}
 	if instrumentName != "" {
 		params.Set("instrument_name", instrumentName)
 	}
@@ -866,5 +863,41 @@ func (cr *Cryptodotcom) orderTypeToString(orderType order.Type) string {
 		return "TAKE_PROFIT"
 	default:
 		return orderType.String()
+	}
+}
+
+func translateWithdrawalStatus(status string) string {
+	switch status {
+	case "0":
+		return "Pending"
+	case "1":
+		return "Processing"
+	case "2":
+		return "Rejected"
+	case "3":
+		return "Payment In-progress"
+	case "4":
+		return "Payment Failed"
+	case "5":
+		return "Completed"
+	case "6":
+		return "Cancelled"
+	default:
+		return status
+	}
+}
+
+func translateDepositStatus(status string) string {
+	switch status {
+	case "0":
+		return "Not Arrived"
+	case "1":
+		return "Arrived"
+	case "2":
+		return "Failed"
+	case "3":
+		return "Pending"
+	default:
+		return status
 	}
 }

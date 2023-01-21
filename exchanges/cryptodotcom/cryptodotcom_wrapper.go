@@ -3,6 +3,8 @@ package cryptodotcom
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -51,27 +53,10 @@ func (cr *Cryptodotcom) SetDefaults() {
 	cr.Verbose = true
 	cr.API.CredentialsValidator.RequiresKey = true
 	cr.API.CredentialsValidator.RequiresSecret = true
-	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: ":"}
-	configFmt := &currency.PairFormat{}
-	err := cr.SetGlobalPairsManager(requestFmt, configFmt)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	fmt1 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true},
-	}
 
-	fmt2 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: ":"},
-	}
-
-	err = cr.StoreAssetPairFormat(asset.Spot, fmt1)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = cr.StoreAssetPairFormat(asset.Margin, fmt2)
+	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
+	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
+	err := cr.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -207,8 +192,22 @@ func (cr *Cryptodotcom) Run() {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (cr *Cryptodotcom) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
-	// Implement fetching the exchange available pairs if supported
-	return nil, nil
+	if !cr.SupportsAsset(a) {
+		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, cr.Name)
+	}
+	instruments, err := cr.GetInstruments(ctx)
+	if err != nil {
+		return nil, err
+	}
+	pairs := make(currency.Pairs, len(instruments))
+	for x := range instruments {
+		cp, err := currency.NewPairFromString(instruments[x].InstrumentName)
+		if err != nil {
+			return nil, err
+		}
+		pairs[x] = cp
+	}
+	return pairs, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
@@ -223,62 +222,62 @@ func (cr *Cryptodotcom) UpdateTradablePairs(ctx context.Context, forceUpdate boo
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (cr *Cryptodotcom) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	// NOTE: EXAMPLE FOR GETTING TICKER PRICE
-	/*
-		tickerPrice := new(ticker.Price)
-		tick, err := cr.GetTicker(p.String())
-		if err != nil {
-			return tickerPrice, err
-		}
-		tickerPrice = &ticker.Price{
-			High:    tick.High,
-			Low:     tick.Low,
-			Bid:     tick.Bid,
-			Ask:     tick.Ask,
-			Open:    tick.Open,
-			Close:   tick.Close,
-			Pair:    p,
-		}
-		err = ticker.ProcessTicker(cr.Name, tickerPrice, assetType)
-		if err != nil {
-			return tickerPrice, err
-		}
-	*/
+	tickerPrice := new(ticker.Price)
+	tick, err := cr.GetTicker(ctx, p.String())
+	if err != nil {
+		return tickerPrice, err
+	}
+	if len(tick.Data) != 1 {
+		return tickerPrice, errInvalidResponseFromServer
+	}
+	tickerPrice = &ticker.Price{
+		High:         tick.Data[0].HighestTradePrice,
+		Low:          tick.Data[0].LowestTradePrice,
+		Bid:          tick.Data[0].BestBidPrice,
+		Ask:          tick.Data[0].BestAskPrice,
+		Open:         tick.Data[0].OpenInterest,
+		Last:         tick.Data[0].LatestTradePrice,
+		Volume:       tick.Data[0].TradedVolume,
+		LastUpdated:  tick.Data[0].TradeTimestamp.Time(),
+		AssetType:    assetType,
+		ExchangeName: cr.Name,
+		Pair:         p,
+	}
+	err = ticker.ProcessTicker(tickerPrice)
+	if err != nil {
+		return tickerPrice, err
+	}
 	return ticker.GetTicker(cr.Name, p, assetType)
 }
 
 // UpdateTickers updates all currency pairs of a given asset type
 func (cr *Cryptodotcom) UpdateTickers(ctx context.Context, assetType asset.Item) error {
-	// NOTE: EXAMPLE FOR GETTING TICKER PRICE
-	/*
-			tick, err := cr.GetTickers()
-			if err != nil {
-				return err
-			}
-		    for y := range tick {
-		        cp, err := currency.NewPairFromString(tick[y].Symbol)
-		        if err != nil {
-		            return err
-		        }
-		        err = ticker.ProcessTicker(&ticker.Price{
-		            Last:         tick[y].LastPrice,
-		            High:         tick[y].HighPrice,
-		            Low:          tick[y].LowPrice,
-		            Bid:          tick[y].BidPrice,
-		            Ask:          tick[y].AskPrice,
-		            Volume:       tick[y].Volume,
-		            QuoteVolume:  tick[y].QuoteVolume,
-		            Open:         tick[y].OpenPrice,
-		            Close:        tick[y].PrevClosePrice,
-		            Pair:         cp,
-		            ExchangeName: b.Name,
-		            AssetType:    assetType,
-		        })
-		        if err != nil {
-		            return err
-		        }
-		    }
-	*/
+	tick, err := cr.GetTicker(ctx, "")
+	if err != nil {
+		return err
+	}
+	for y := range tick.Data {
+		cp, err := currency.NewPairFromString(tick.Data[y].InstrumentName)
+		if err != nil {
+			return err
+		}
+		err = ticker.ProcessTicker(&ticker.Price{
+			Last:         tick.Data[y].LatestTradePrice,
+			High:         tick.Data[y].HighestTradePrice,
+			Low:          tick.Data[y].LowestTradePrice,
+			Bid:          tick.Data[y].BestBidPrice,
+			Ask:          tick.Data[y].BestAskPrice,
+			Volume:       tick.Data[y].TradedVolume,
+			Open:         tick.Data[y].OpenInterest,
+			Pair:         cp,
+			ExchangeName: cr.Name,
+			AssetType:    assetType,
+			// QuoteVolume:  tick.Data[y].QuoteVolume,
+		})
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -302,86 +301,205 @@ func (cr *Cryptodotcom) FetchOrderbook(ctx context.Context, pair currency.Pair, 
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (cr *Cryptodotcom) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	orderbookNew, err := cr.GetOrderbook(context.Background(), pair.String(), 0)
+	if err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        cr.Name,
 		Pair:            pair,
 		Asset:           assetType,
 		VerifyOrderbook: cr.CanVerifyOrderbook,
 	}
-
-	// NOTE: UPDATE ORDERBOOK EXAMPLE
-	/*
-		orderbookNew, err := cr.GetOrderBook(exchange.FormatExchangeCurrency(cr.Name, p).String(), 1000)
+	book.Bids = make([]orderbook.Item, len(orderbookNew.Data[0].Bids))
+	for x := range orderbookNew.Data[0].Bids {
+		price, err := strconv.ParseFloat(orderbookNew.Data[0].Bids[x][0], 64)
 		if err != nil {
-			return book, err
+			return nil, err
 		}
-
-		book.Bids = make([]orderbook.Item, len(orderbookNew.Bids))
-		for x := range orderbookNew.Bids {
-			book.Bids[x] = orderbook.Item{
-				Amount: orderbookNew.Bids[x].Quantity,
-				Price: orderbookNew.Bids[x].Price,
-			}
+		amount, err := strconv.ParseFloat(orderbookNew.Data[0].Bids[x][1], 64)
+		if err != nil {
+			return nil, err
 		}
-
-		book.Asks = make([]orderbook.Item, len(orderbookNew.Asks))
-		for x := range orderbookNew.Asks {
-			book.Asks[x] = orderbook.Item{
-				Amount: orderBookNew.Asks[x].Quantity,
-				Price: orderBookNew.Asks[x].Price,
-			}
+		book.Bids[x] = orderbook.Item{
+			Amount: amount,
+			Price:  price,
 		}
-	*/
-
-	err := book.Process()
+	}
+	book.Asks = make([]orderbook.Item, len(orderbookNew.Data[0].Asks))
+	for x := range orderbookNew.Data[0].Asks {
+		price, err := strconv.ParseFloat(orderbookNew.Data[0].Asks[x][0], 64)
+		if err != nil {
+			return nil, err
+		}
+		amount, err := strconv.ParseFloat(orderbookNew.Data[0].Asks[x][1], 64)
+		if err != nil {
+			return nil, err
+		}
+		book.Asks[x] = orderbook.Item{
+			Amount: amount,
+			Price:  price,
+		}
+	}
+	err = book.Process()
 	if err != nil {
 		return book, err
 	}
-
 	return orderbook.Get(cr.Name, pair, assetType)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
 func (cr *Cryptodotcom) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	// If fetching requires more than one asset type please set
-	// HasAssetTypeAccountSegregation to true in RESTCapabilities above.
-	return account.Holdings{}, common.ErrNotYetImplemented
+	var info account.Holdings
+	info.Exchange = cr.Name
+	if !cr.SupportsAsset(assetType) {
+		return info, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
+	}
+	accs, err := cr.GetAccountSummary(ctx, currency.EMPTYCODE)
+	if err != nil {
+		return info, err
+	}
+	balances := make([]account.Balance, len(accs.Accounts))
+	for i := range accs.Accounts {
+		balances[i] = account.Balance{
+			Currency: currency.NewCode(accs.Accounts[i].Currency),
+			Total:    accs.Accounts[i].Balance,
+			Hold:     accs.Accounts[i].Stake + accs.Accounts[i].Order,
+			Free:     accs.Accounts[i].Available,
+		}
+	}
+	acc := account.SubAccount{
+		Currencies: balances,
+		AssetType:  assetType,
+	}
+	info.Accounts = []account.SubAccount{acc}
+	creds, err := cr.GetCredentials(ctx)
+	if err != nil {
+		return info, err
+	}
+	if err := account.Process(&info, creds); err != nil {
+		return account.Holdings{}, err
+	}
+	return info, nil
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (cr *Cryptodotcom) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	// Example implementation below:
-	// 	creds, err := cr.GetCredentials(ctx)
-	// 	if err != nil {
-	// 		return account.Holdings{}, err
-	// 	}
-	// 	acc, err := account.GetHoldings(cr.Name, creds, assetType)
-	// 	if err != nil {
-	// 		return cr.UpdateAccountInfo(ctx, assetType)
-	// 	}
-	// 	return acc, nil
-	return account.Holdings{}, common.ErrNotYetImplemented
+	creds, err := cr.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(cr.Name, creds, assetType)
+	if err != nil {
+		return cr.UpdateAccountInfo(ctx, assetType)
+	}
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (cr *Cryptodotcom) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
-	return nil, common.ErrNotYetImplemented
+	withdrawals, err := cr.GetWithdrawalHistory(ctx)
+	if err != nil {
+		return nil, err
+	}
+	deposits, err := cr.GetDepositHistory(ctx, currency.EMPTYCODE, time.Time{}, time.Time{}, 0, 0, 0)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]exchange.FundHistory, 0, len(withdrawals.WithdrawalList)+len(deposits.DepositList))
+	for x := range withdrawals.WithdrawalList {
+		resp = append(resp, exchange.FundHistory{
+			Status:          translateWithdrawalStatus(withdrawals.WithdrawalList[x].Status),
+			Timestamp:       withdrawals.WithdrawalList[x].UpdateTime.Time(),
+			Currency:        withdrawals.WithdrawalList[x].Currency,
+			Amount:          withdrawals.WithdrawalList[x].Amount,
+			TransferType:    "withdrawal",
+			CryptoToAddress: withdrawals.WithdrawalList[x].Address,
+			TransferID:      withdrawals.WithdrawalList[x].TransactionID,
+			Fee:             withdrawals.WithdrawalList[x].Fee,
+		})
+	}
+	for x := range deposits.DepositList {
+		resp = append(resp, exchange.FundHistory{
+			ExchangeName:    cr.Name,
+			Status:          translateDepositStatus(deposits.DepositList[x].Status),
+			Timestamp:       deposits.DepositList[x].UpdateTime.Time(),
+			Currency:        deposits.DepositList[x].Currency,
+			Amount:          deposits.DepositList[x].Amount,
+			TransferType:    "deposit",
+			CryptoToAddress: deposits.DepositList[x].Address,
+			CryptoTxID:      deposits.DepositList[x].ID,
+		})
+	}
+	return resp, nil
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (cr *Cryptodotcom) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
-	return nil, common.ErrNotYetImplemented
+func (cr *Cryptodotcom) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
+	withdrawals, err := cr.GetWithdrawalHistory(ctx)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]exchange.WithdrawalHistory, len(withdrawals.WithdrawalList))
+	for x := range withdrawals.WithdrawalList {
+		resp[x] = exchange.WithdrawalHistory{
+			Status:          translateWithdrawalStatus(withdrawals.WithdrawalList[x].Status),
+			Timestamp:       withdrawals.WithdrawalList[x].UpdateTime.Time(),
+			Currency:        withdrawals.WithdrawalList[x].Currency,
+			Amount:          withdrawals.WithdrawalList[x].Amount,
+			TransferType:    "withdrawal",
+			CryptoToAddress: withdrawals.WithdrawalList[x].Address,
+			TransferID:      withdrawals.WithdrawalList[x].TransactionID,
+			Fee:             withdrawals.WithdrawalList[x].Fee,
+		}
+	}
+	return resp, nil
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (cr *Cryptodotcom) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return nil, common.ErrNotYetImplemented
+	format, err := cr.GetPairFormat(assetType, false)
+	if err != nil {
+		return nil, err
+	}
+	if !p.IsPopulated() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	trades, err := cr.GetTrades(ctx, format.Format(p))
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]trade.Data, len(trades.Data))
+	for x := range trades.Data {
+		side, err := order.StringToOrderSide(trades.Data[x].Side)
+		if err != nil {
+			return nil, err
+		}
+		resp[x] = trade.Data{
+			TID:          trades.Data[x].TradeID,
+			Exchange:     cr.Name,
+			CurrencyPair: p,
+			AssetType:    assetType,
+			Side:         side,
+			Price:        trades.Data[x].TradePrice,
+			Amount:       trades.Data[x].TradeQuantity,
+			Timestamp:    trades.Data[x].DataTime.Time(),
+		}
+	}
+	if cr.IsSaveTradeDataEnabled() {
+		err = trade.AddTradesToBuffer(cr.Name, resp...)
+		if err != nil {
+			return nil, err
+		}
+	}
+	sort.Sort(trade.ByDate(resp))
+	return resp, nil
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (cr *Cryptodotcom) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order
@@ -505,11 +623,42 @@ func (cr *Cryptodotcom) ValidateCredentials(ctx context.Context, assetType asset
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (cr *Cryptodotcom) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	return nil, common.ErrNotYetImplemented
+func (cr *Cryptodotcom) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, _, _ time.Time) (*kline.Item, error) {
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if !a.IsValid() {
+		return nil, asset.ErrNotSupported
+	}
+	formattedPair, err := cr.FormatSymbol(pair, a)
+	if err != nil {
+		return nil, err
+	}
+	candles, err := cr.GetCandlestickDetail(ctx, formattedPair, interval)
+	if err != nil {
+		return nil, err
+	}
+	candleElements := make([]kline.Candle, len(candles.Data))
+	for x := range candles.Data {
+		candleElements[x] = kline.Candle{
+			Time:   candles.Data[x].EndTime.Time(),
+			Open:   candles.Data[x].Open,
+			High:   candles.Data[x].High,
+			Low:    candles.Data[x].Low,
+			Close:  candles.Data[x].Close,
+			Volume: candles.Data[x].Volume,
+		}
+	}
+	return &kline.Item{
+		Exchange: cr.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+		Candles:  candleElements,
+	}, nil
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (cr *Cryptodotcom) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	return nil, common.ErrNotYetImplemented
+	return cr.GetHistoricCandles(ctx, pair, a, interval, start, end)
 }
