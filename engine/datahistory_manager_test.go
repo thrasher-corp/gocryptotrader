@@ -1020,8 +1020,8 @@ func TestProcessCandleData(t *testing.T) {
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USDT),
-		StartDate: time.Now().Add(-kline.OneHour.Duration() * 2),
-		EndDate:   time.Now(),
+		StartDate: time.Now().Add(-kline.OneHour.Duration() * 2).Truncate(kline.OneHour.Duration()),
+		EndDate:   time.Now().Truncate(kline.OneHour.Duration()),
 		Interval:  kline.OneHour,
 	}
 	_, err = m.processCandleData(j, nil, time.Time{}, time.Time{}, 0)

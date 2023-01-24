@@ -478,9 +478,7 @@ func (k *Item) GetClosePriceAtTime(t time.Time) (float64, error) {
 func (h *IntervalRangeHolder) CandleLen() int {
 	var count int
 	for i := range h.Ranges {
-		for range h.Ranges[i].Intervals {
-			count++
-		}
+		count += len(h.Ranges[i].Intervals)
 	}
 	return count
 }
@@ -495,7 +493,7 @@ func (h *IntervalRangeHolder) SetHasDataFromCandles(incoming []Candle) error {
 				return nil
 			}
 			if !h.Ranges[x].Intervals[y].Start.Time.Equal(incoming[offset].Time) {
-				return fmt.Errorf("%w '%v' expected '%v'", errInvalidPeriod, incoming[offset].Time, h.Ranges[x].Intervals[y].Start.Time)
+				return fmt.Errorf("%w '%v' expected '%v'", errInvalidPeriod, incoming[offset].Time.UTC(), h.Ranges[x].Intervals[y].Start.Time.UTC())
 			}
 			if incoming[offset].Low <= 0 && incoming[offset].High <= 0 &&
 				incoming[offset].Close <= 0 && incoming[offset].Open <= 0 &&
