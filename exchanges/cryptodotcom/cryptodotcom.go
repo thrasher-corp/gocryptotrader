@@ -35,8 +35,8 @@ const (
 	cryptodotcomAPIURL           = "https://api.crypto.com"
 
 	// cryptodotcom websocket endpoints.
-	cryptodotcomUATSandboxWebsocketURL = "wss://uat-stream.3ona.co"
-	cryptodotcomWebsocketURL           = "wss://stream.crypto.com"
+	cryptodotcomWebsocketUserAPI   = "wss://stream.crypto.com/v2/user"
+	cryptodotcomWebsocketMarketAPI = "wss://stream.crypto.com/v2/market"
 
 	cryptodotcomAPIVersion  = "/v2/"
 	cryptodotcomAPIVersion1 = "/v1/"

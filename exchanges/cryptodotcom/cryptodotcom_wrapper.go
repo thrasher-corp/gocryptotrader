@@ -106,8 +106,9 @@ func (cr *Cryptodotcom) SetDefaults() {
 	}
 	cr.API.Endpoints = cr.NewEndpoints()
 	cr.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:      cryptodotcomAPIURL,
-		exchange.WebsocketSpot: cryptodotcomWebsocketURL,
+		exchange.RestSpot:                   cryptodotcomAPIURL,
+		exchange.WebsocketSpot:              cryptodotcomWebsocketMarketAPI,
+		exchange.WebsocketSpotSupplementary: cryptodotcomWebsocketUserAPI,
 	})
 	cr.Websocket = stream.New()
 	cr.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -136,7 +137,7 @@ func (cr *Cryptodotcom) Setup(exch *config.Exchange) error {
 	err = cr.Websocket.Setup(
 		&stream.WebsocketSetup{
 			ExchangeConfig:        exch,
-			DefaultURL:            cryptodotcomWebsocketURL,
+			DefaultURL:            cryptodotcomWebsocketUserAPI,
 			RunningURL:            wsRunningEndpoint,
 			Connector:             cr.WsConnect,
 			Subscriber:            cr.Subscribe,
@@ -147,10 +148,19 @@ func (cr *Cryptodotcom) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	return cr.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL:                  cr.Websocket.GetWebsocketURL(),
+	err = cr.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		URL:                  cryptodotcomWebsocketMarketAPI,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	})
+	if err != nil {
+		return err
+	}
+	return cr.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		URL:                  cryptodotcomWebsocketMarketAPI,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		Authenticated:        true,
 	})
 }
 

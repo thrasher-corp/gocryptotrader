@@ -2,6 +2,15 @@ package cryptodotcom
 
 import "github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 
+var websocketSubscriptionEndpointsURL = []string{
+	publicAuth,
+	publicInstruments,
+
+	//
+	privateSetCancelOnDisconnect,
+	privateGetCancelOnDisconnect,
+}
+
 func (cr *Cryptodotcom) WsConnect() error {
 	return nil
 }
