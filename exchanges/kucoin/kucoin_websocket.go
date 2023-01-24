@@ -143,24 +143,11 @@ func (ku *Kucoin) WsConnect() error {
 		return err
 	}
 	ku.Websocket.Conn.SetupPingHandler(stream.PingHandler{
-		UseGorillaHandler: true,
-		Delay:             time.Millisecond * time.Duration(instances.InstanceServers[0].PingTimeout),
-		Message:           []byte(`{"type":"ping"}`),
-		MessageType:       websocket.TextMessage,
+		Delay:       time.Millisecond * time.Duration(instances.InstanceServers[0].PingTimeout),
+		Message:     []byte(`{"type":"ping"}`),
+		MessageType: websocket.TextMessage,
 	})
-	pairs, err := ku.GetEnabledPairs(asset.Futures)
-	if err != nil {
-		return err
-	}
-	subscriptions := []stream.ChannelSubscription{{
-		Channel:  futuresOrderbookLevel2Channel,
-		Asset:    asset.Futures,
-		Currency: pairs[0],
-	}}
-	if err != nil {
-		return err
-	}
-	return ku.Subscribe(subscriptions)
+	return nil
 }
 
 // GetInstanceServers retrives the server list and temporary public token
@@ -224,6 +211,9 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 				return fmt.Errorf("can not match subscription message with signature ID:%s", resp.ID)
 			}
 		}
+		return nil
+	}
+	if resp.Type == "pong" || resp.Type == "welcome" {
 		return nil
 	}
 	topicInfo := strings.Split(resp.Topic, ":")
@@ -527,15 +517,14 @@ func (ku *Kucoin) processFuturesTickerV2(respData []byte) error {
 	if err != nil {
 		return err
 	}
-	pair.Delimiter = ""
 	ku.Websocket.DataHandler <- &ticker.Price{
 		AssetType:    asset.Futures,
 		Last:         resp.FilledSize,
 		LastUpdated:  resp.FilledTime.Time(),
 		ExchangeName: ku.Name,
 		Pair:         pair,
-		Ask:          resp.BestAskPrice,
-		Bid:          resp.BestBidPrice,
+		Ask:          resp.BestAskPrice.Float64(),
+		Bid:          resp.BestBidPrice.Float64(),
 		AskSize:      resp.BestAskSize,
 		BidSize:      resp.BestBidSize,
 	}
@@ -1039,7 +1028,10 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 				continue
 			}
 			for b := range pairs {
-				pairs[b].Delimiter = ""
+				pairs[b], err = ku.FormatExchangeCurrency(pairs[b], asset.Futures)
+				if err != nil {
+					continue
+				}
 				subscriptions = append(subscriptions, stream.ChannelSubscription{
 					Channel:  futuresTickerV2Channel,
 					Asset:    asset.Futures,
@@ -1052,7 +1044,10 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 				continue
 			}
 			for b := range pairs {
-				pairs[b].Delimiter = ""
+				pairs[b], err = ku.FormatExchangeCurrency(pairs[b], asset.Futures)
+				if err != nil {
+					continue
+				}
 				subscriptions = append(subscriptions, stream.ChannelSubscription{
 					Channel:  futuresOrderbookLevel2Depth50Channel,
 					Asset:    asset.Futures,
@@ -1067,7 +1062,10 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 				continue
 			}
 			for b := range pairs {
-				pairs[b].Delimiter = ""
+				pairs[b], err = ku.FormatExchangeCurrency(pairs[b], asset.Futures)
+				if err != nil {
+					continue
+				}
 				subscriptions = append(subscriptions, stream.ChannelSubscription{
 					Channel:  futuresTradeOrdersBySymbolChannel,
 					Asset:    asset.Futures,
@@ -1088,7 +1086,10 @@ func (ku *Kucoin) generatePayloads(subscriptions []stream.ChannelSubscription, o
 			return nil, err
 		}
 		if subscriptions[x].Asset == asset.Futures {
-			subscriptions[x].Currency.Delimiter = ""
+			subscriptions[x].Currency, err = ku.FormatExchangeCurrency(subscriptions[x].Currency, asset.Futures)
+			if err != nil {
+				continue
+			}
 		}
 		switch subscriptions[x].Channel {
 		case marketTickerChannel,

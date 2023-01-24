@@ -1833,11 +1833,11 @@ func TestGetInstanceServers(t *testing.T) {
 }
 
 func TestWSConnect(t *testing.T) {
+	ku.Verbose = true
 	err := ku.WsConnect()
 	if err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(time.Second * 60)
 }
 
 func TestGetAuthenticatedServersInstances(t *testing.T) {
@@ -1882,9 +1882,9 @@ func TestMarketTradeSnapshotPushData(t *testing.T) {
 }
 
 var (
-	orderbookLevel2PushDataJSON = `{"type": "message","topic": "/market/level2:BTC-USDT",    "subject": "trade.l2update",    "data": {"changes": {"asks": [["18906","0.00331","14103845"],["18907.3","0.58751503","14103844"]],"bids": [["18891.9","0.15688","14103847"]]},"sequenceEnd": 14103847,"sequenceStart": 14103844,"symbol": "BTC-USDT","time": 1663747970273}}`
-	orderbookLevel5PushDataJSON = `{"type": "message","topic": "/spotMarket/level2Depth5:BTC-USDT",    "subject": "level2",    "data": {          "asks":[            ["9989","8"],            ["9990","32"],            ["9991","47"],            ["9992","3"],["9993","3"]],"bids":[["9988","56"],["9987","15"],["9986","100"],["9985","10"],["9984","10"]],"timestamp": 1586948108193}}`
-	orderbookLevel50PushData    = `{"type":"message","topic": "/spotMarket/level2Depth50:BTC-USDT",    "subject": "level2",    "data": {"asks":[            ["9989","8"],            ["9990","32"],            ["9991","47"],            ["9992","3"],["9993","3"]],"bids":[["9988","56"],["9987","15"],["9986","100"],["9985","10"],["9984","10"]],"timestamp": 1586948108193}}`
+	orderbookLevel2PushDataJSON = `{"type": "message","topic": "/market/level2:BTC-USDT","subject": "trade.l2update","data": {"changes": {"asks": [["18906","0.00331","14103845"],["18907.3","0.58751503","14103844"]],"bids": [["18891.9","0.15688","14103847"]]},"sequenceEnd": 14103847,"sequenceStart": 14103844,"symbol": "BTC-USDT","time": 1663747970273}}`
+	orderbookLevel5PushDataJSON = `{"type": "message","topic": "/spotMarket/level2Depth5:BTC-USDT","subject": "level2","data": {"asks":[["9989","8"],["9990","32"],["9991","47"],["9992","3"],["9993","3"]],"bids":[["9988","56"],["9987","15"],["9986","100"],["9985","10"],["9984","10"]],"timestamp": 1586948108193}}`
+	orderbookLevel50PushData    = `{"type":"message","topic": "/spotMarket/level2Depth50:BTC-USDT","subject": "level2","data": {"asks":[["9989","8"],["9990","32"],["9991","47"],["9992","3"],["9993","3"]],"bids":[["9988","56"],["9987","15"],["9986","100"],["9985","10"],["9984","10"]],"timestamp": 1586948108193}}`
 )
 
 func TestOrderbookPushData(t *testing.T) {

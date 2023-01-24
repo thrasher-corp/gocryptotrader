@@ -1155,17 +1155,17 @@ type WsStopOrder struct {
 
 // WsFuturesTicker represents a futures ticker push data.
 type WsFuturesTicker struct {
-	Symbol       string            `json:"symbol"`
-	Sequence     int64             `json:"sequence"`
-	Side         string            `json:"side"`
-	FilledPrice  float64           `json:"price"`
-	FilledSize   float64           `json:"size"`
-	TradeID      string            `json:"tradeId"`
-	BestBidSize  float64           `json:"bestBidSize"`
-	BestBidPrice float64           `json:"bestBidPrice"`
-	BestAskPrice float64           `json:"bestAskPrice"`
-	BestAskSize  float64           `json:"bestAskSize"`
-	FilledTime   kucoinTimeNanoSec `json:"ts"`
+	Symbol       string               `json:"symbol"`
+	Sequence     int64                `json:"sequence"`
+	Side         string               `json:"side"`
+	FilledPrice  float64              `json:"price"`
+	FilledSize   float64              `json:"size"`
+	TradeID      string               `json:"tradeId"`
+	BestBidSize  float64              `json:"bestBidSize"`
+	BestBidPrice kucoinUmbiguousFloat `json:"bestBidPrice"`
+	BestAskPrice kucoinUmbiguousFloat `json:"bestAskPrice"`
+	BestAskSize  float64              `json:"bestAskSize"`
+	FilledTime   kucoinTimeNanoSec    `json:"ts"`
 }
 
 // WsFuturesOrderbokInfo represents Level 2 order book information.
