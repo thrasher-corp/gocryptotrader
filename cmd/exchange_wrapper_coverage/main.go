@@ -31,6 +31,10 @@ func main() {
 	log.Printf("Loading exchanges..")
 	var wg sync.WaitGroup
 	for x := range exchange.Exchanges {
+		if exchange.Exchanges[x] == "ftx" {
+			log.Println("skipping exchange FTX...")
+			continue
+		}
 		err = engine.Bot.LoadExchange(exchange.Exchanges[x], &wg)
 		if err != nil {
 			log.Printf("Failed to load exchange %s. Err: %s",
@@ -44,18 +48,21 @@ func main() {
 
 	log.Printf("Testing exchange wrappers..")
 	results := make(map[string][]string)
-	wg = sync.WaitGroup{}
+	var mtx sync.Mutex
+
 	exchanges := engine.Bot.GetExchanges()
 	for x := range exchanges {
-		exch := exchanges[x]
 		wg.Add(1)
-		go func(e exchange.IBotExchange) {
-			results[e.GetName()], err = testWrappers(e)
+		go func(exch exchange.IBotExchange) {
+			strResults, err := testWrappers(exch)
 			if err != nil {
-				fmt.Printf("failed to test wrappers for %s %s", e.GetName(), err)
+				fmt.Printf("failed to test wrappers for %s %s", exch.GetName(), err)
 			}
+			mtx.Lock()
+			results[exch.GetName()] = strResults
+			mtx.Unlock()
 			wg.Done()
-		}(exch)
+		}(exchanges[x])
 	}
 	wg.Wait()
 	log.Println("Done.")
@@ -96,6 +103,7 @@ func testWrappers(e exchange.IBotExchange) ([]string, error) {
 		name := iExchange.Method(x).Name
 		method := actualExchange.MethodByName(name)
 		inputs := make([]reflect.Value, method.Type().NumIn())
+
 		for y := 0; y < method.Type().NumIn(); y++ {
 			input := method.Type().In(y)
 
@@ -109,6 +117,12 @@ func testWrappers(e exchange.IBotExchange) ([]string, error) {
 		}
 
 		outputs := method.Call(inputs)
+		if method.Type().NumIn() == 0 {
+			// Some empty functions will reset the exchange struct to defaults,
+			// so turn off verbosity.
+			e.GetBase().Verbose = false
+		}
+
 		for y := range outputs {
 			incoming := outputs[y].Interface()
 			if reflect.TypeOf(incoming) == errType {
