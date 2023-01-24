@@ -56,7 +56,7 @@ func main() {
 		go func(exch exchange.IBotExchange) {
 			strResults, err := testWrappers(exch)
 			if err != nil {
-				fmt.Printf("Failed to test wrappers for %s. Err: %s", exch.GetName(), err)
+				log.Printf("Failed to test wrappers for %s. Err: %s", exch.GetName(), err)
 			}
 			mtx.Lock()
 			results[exch.GetName()] = strResults
