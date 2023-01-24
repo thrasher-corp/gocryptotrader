@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -88,6 +89,8 @@ func testWrappers(e exchange.IBotExchange) ([]string, error) {
 	actualExchange := reflect.ValueOf(e)
 	errType := reflect.TypeOf(common.ErrNotYetImplemented)
 
+	contextParam := reflect.TypeOf((*context.Context)(nil)).Elem()
+
 	var funcs []string
 	for x := 0; x < iExchange.NumMethod(); x++ {
 		name := iExchange.Method(x).Name
@@ -95,6 +98,13 @@ func testWrappers(e exchange.IBotExchange) ([]string, error) {
 		inputs := make([]reflect.Value, method.Type().NumIn())
 		for y := 0; y < method.Type().NumIn(); y++ {
 			input := method.Type().In(y)
+
+			if input.Implements(contextParam) {
+				// Need to deploy a context.Context value as nil value is not
+				// checked throughout codebase.
+				inputs[y] = reflect.ValueOf(context.Background())
+				continue
+			}
 			inputs[y] = reflect.Zero(input)
 		}
 

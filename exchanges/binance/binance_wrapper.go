@@ -634,6 +634,8 @@ func (b *Binance) FetchTicker(ctx context.Context, p currency.Pair, assetType as
 func (b *Binance) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
+		// TODO: Disconnect update orderbook functionality from fetch orderbook
+		// functionality across all wrappers as this mutes potential errors.
 		return b.UpdateOrderbook(ctx, p, assetType)
 	}
 	return ob, nil
@@ -659,6 +661,8 @@ func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		orderbookNew, err = b.UFuturesOrderbook(ctx, p, 1000)
 	case asset.CoinMarginedFutures:
 		orderbookNew, err = b.GetFuturesOrderbook(ctx, p, 1000)
+	default:
+		return nil, fmt.Errorf("[%s] %w", assetType, asset.ErrNotSupported)
 	}
 	if err != nil {
 		return book, err
