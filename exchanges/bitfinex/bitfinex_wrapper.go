@@ -1158,6 +1158,9 @@ func (b *Bitfinex) GetHistoricCandlesExtended(ctx context.Context, pair currency
 }
 
 func (b *Bitfinex) fixCasing(in currency.Pair, a asset.Item) (string, error) {
+	if in.IsEmpty() {
+		return "", currency.ErrCurrencyPairEmpty
+	}
 	var checkString [2]byte
 	if a == asset.Spot || a == asset.Margin {
 		checkString[0] = 't'
