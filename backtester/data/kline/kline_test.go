@@ -57,8 +57,7 @@ func TestLoad(t *testing.T) {
 func TestHasDataAtTime(t *testing.T) {
 	t.Parallel()
 	dStart := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
-	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	dEnd := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)
+	dEnd := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
@@ -89,7 +88,7 @@ func TestHasDataAtTime(t *testing.T) {
 		Interval: gctkline.OneDay,
 		Candles: []gctkline.Candle{
 			{
-				Time:   dInsert,
+				Time:   dStart,
 				Open:   1337,
 				High:   1337,
 				Low:    1337,
@@ -102,7 +101,7 @@ func TestHasDataAtTime(t *testing.T) {
 		t.Error(err)
 	}
 
-	has, err = d.HasDataAtTime(dInsert)
+	has, err = d.HasDataAtTime(dStart)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -115,8 +114,11 @@ func TestHasDataAtTime(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	d.RangeHolder = ranger
-	d.RangeHolder.SetHasDataFromCandles(d.Item.Candles)
-	has, err = d.HasDataAtTime(dInsert)
+	err = d.RangeHolder.SetHasDataFromCandles(d.Item.Candles)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+	has, err = d.HasDataAtTime(dStart)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -134,7 +136,7 @@ func TestHasDataAtTime(t *testing.T) {
 	if has {
 		t.Error("expected false")
 	}
-	has, err = d.HasDataAtTime(dInsert)
+	has, err = d.HasDataAtTime(dStart)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -147,12 +149,15 @@ func TestAppend(t *testing.T) {
 	t.Parallel()
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
+	tt1 := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
+	tt2 := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	d := DataFromKline{
 		Base: &data.Base{},
 		Item: &gctkline.Item{
 			Exchange: testExchange,
 			Asset:    a,
 			Pair:     p,
+			Interval: gctkline.OneDay,
 		},
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
@@ -160,7 +165,15 @@ func TestAppend(t *testing.T) {
 		Interval: gctkline.OneDay,
 		Candles: []gctkline.Candle{
 			{
-				Time:   time.Now(),
+				Time:   tt1,
+				Open:   1337,
+				High:   1337,
+				Low:    1337,
+				Close:  1337,
+				Volume: 1337,
+			},
+			{
+				Time:   tt2,
 				Open:   1337,
 				High:   1337,
 				Low:    1337,
@@ -177,6 +190,7 @@ func TestAppend(t *testing.T) {
 	item.Exchange = testExchange
 	item.Pair = p
 	item.Asset = a
+
 	err = d.AppendResults(&item)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)

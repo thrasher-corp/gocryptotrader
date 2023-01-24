@@ -1053,13 +1053,13 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(ctx context.Context, pair curren
 	}
 
 	timeSeries := make([]kline.Candle, 0, req.Size())
-	for x := range req.Ranges {
+	for x := range req.RangeHolder.Ranges {
 		var candles CandleResponse
 		candles, err = b.GetMarketCandles(ctx,
 			req.RequestFormatted.String(),
 			b.FormatExchangeKlineInterval(req.ExchangeInterval),
-			req.Ranges[x].Start.Time,
-			req.Ranges[x].End.Time,
+			req.RangeHolder.Ranges[x].Start.Time,
+			req.RangeHolder.Ranges[x].End.Time,
 			-1,
 			-1,
 			-1)

@@ -44,12 +44,12 @@
   }
  ],
  "data-settings": {
-  "interval": 86400000000000,
+  "interval": 10800000000000,
   "data-type": "candle",
   "verbose-exchange-requests": false,
   "api-data": {
-   "start-date": "2021-05-01T00:00:00+10:00",
-   "end-date": "2021-12-01T00:00:00+11:00",
+   "start-date": "2022-08-01T00:00:00+10:00",
+   "end-date": "2022-12-01T01:00:00+11:00",
    "inclusive-end-date": false
   }
  },

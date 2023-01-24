@@ -1400,22 +1400,23 @@ func (ok *Okx) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pai
 		return nil, err
 	}
 
-	if count := kline.TotalCandlesPerInterval(start, end, req.ExchangeInterval); count > 1440 {
+	count := kline.TotalCandlesPerInterval(req.Start, req.End, req.ExchangeInterval)
+	if count > 1440 {
 		return nil,
 			fmt.Errorf("candles count: %d max lookback: %d, %w",
 				count, 1440, kline.ErrRequestExceedsMaxLookback)
 	}
 
 	timeSeries := make([]kline.Candle, 0, req.Size())
-	for y := range req.Ranges {
+	for y := range req.RangeHolder.Ranges {
 		var candles []CandleStick
 		candles, err = ok.GetCandlesticksHistory(ctx,
 			req.RequestFormatted.Base.String()+
 				currency.DashDelimiter+
 				req.RequestFormatted.Quote.String(),
 			req.ExchangeInterval,
-			req.Ranges[y].Start.Time.Add(-time.Nanosecond), // Start time not inclusive of candle.
-			req.Ranges[y].End.Time,
+			req.RangeHolder.Ranges[y].Start.Time.Add(-time.Nanosecond), // Start time not inclusive of candle.
+			req.RangeHolder.Ranges[y].End.Time,
 			300)
 		if err != nil {
 			return nil, err
