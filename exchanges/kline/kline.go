@@ -143,30 +143,6 @@ func (i Interval) Short() string {
 	return s
 }
 
-// FillMissingDataWithEmptyEntries amends a kline item to have candle entries
-// for every interval between its start and end dates derived from ranges
-func (k *Item) FillMissingDataWithEmptyEntries(i *IntervalRangeHolder) {
-	var anyChanges bool
-	for x := range i.Ranges {
-		for y := range i.Ranges[x].Intervals {
-			if !i.Ranges[x].Intervals[y].HasData {
-				for z := range k.Candles {
-					if i.Ranges[x].Intervals[y].Start.Equal(k.Candles[z].Time) {
-						break
-					}
-				}
-				anyChanges = true
-				k.Candles = append(k.Candles, Candle{
-					Time: i.Ranges[x].Intervals[y].Start.Time,
-				})
-			}
-		}
-	}
-	if anyChanges {
-		k.SortCandlesByTimestamp(false)
-	}
-}
-
 // addPadding inserts padding time aligned when exchanges do not supply all data
 // when there is no activity in a certain time interval.
 // Start defines the request start and due to potential no activity from this
@@ -502,24 +478,27 @@ func (k *Item) GetClosePriceAtTime(t time.Time) (float64, error) {
 
 // SetHasDataFromCandles will calculate whether there is data in each candle
 // allowing any missing data from an API request to be highlighted
-func (h *IntervalRangeHolder) SetHasDataFromCandles(incoming []Candle) {
-	bucket := make([]Candle, len(incoming))
-	copy(bucket, incoming)
+func (h *IntervalRangeHolder) SetHasDataFromCandles(incoming []Candle) error {
+	var offset int
 	for x := range h.Ranges {
-	intervals:
 		for y := range h.Ranges[x].Intervals {
-			for z := range bucket {
-				cu := bucket[z].Time.Unix()
-				if cu >= h.Ranges[x].Intervals[y].Start.Ticks &&
-					cu < h.Ranges[x].Intervals[y].End.Ticks {
-					h.Ranges[x].Intervals[y].HasData = true
-					bucket = bucket[z+1:]
-					continue intervals
-				}
+			if offset >= len(incoming) {
+				return nil
 			}
-			h.Ranges[x].Intervals[y].HasData = false
+			if !h.Ranges[x].Intervals[y].Start.Time.Equal(incoming[offset].Time) {
+				return fmt.Errorf("%w '%v' expected '%v'", errInvalidPeriod, incoming[offset].Time.UTC(), h.Ranges[x].Intervals[y].Start.Time.UTC())
+			}
+			if incoming[offset].Low <= 0 && incoming[offset].High <= 0 &&
+				incoming[offset].Close <= 0 && incoming[offset].Open <= 0 &&
+				incoming[offset].Volume <= 0 {
+				h.Ranges[x].Intervals[y].HasData = false
+			} else {
+				h.Ranges[x].Intervals[y].HasData = true
+			}
+			offset++
 		}
 	}
+	return nil
 }
 
 // DataSummary returns a summary of a data range to highlight where data is missing

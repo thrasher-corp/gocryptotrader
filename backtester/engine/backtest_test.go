@@ -63,6 +63,12 @@ func TestSetupFromConfig(t *testing.T) {
 	}
 	cfg := &config.Config{}
 	err = bt.SetupFromConfig(cfg, "", "", false)
+	if !errors.Is(err, gctkline.ErrInvalidInterval) {
+		t.Errorf("received: %v, expected: %v", err, gctkline.ErrInvalidInterval)
+	}
+
+	cfg.DataSettings.Interval = gctkline.OneMonth
+	err = bt.SetupFromConfig(cfg, "", "", false)
 	if !errors.Is(err, base.ErrStrategyNotFound) {
 		t.Errorf("received: %v, expected: %v", err, base.ErrStrategyNotFound)
 	}
@@ -102,8 +108,8 @@ func TestSetupFromConfig(t *testing.T) {
 	}
 	cfg.DataSettings.DataType = common.CandleStr
 	err = bt.SetupFromConfig(cfg, "", "", false)
-	if !errors.Is(err, errIntervalUnset) {
-		t.Errorf("received: %v, expected: %v", err, errIntervalUnset)
+	if !errors.Is(err, gctcommon.ErrDateUnset) {
+		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrDateUnset)
 	}
 	cfg.DataSettings.Interval = gctkline.OneMin
 	cfg.CurrencySettings[0].MakerFee = &decimal.Zero
@@ -113,8 +119,8 @@ func TestSetupFromConfig(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrDateUnset)
 	}
 
-	cfg.DataSettings.APIData.StartDate = time.Now().Add(-time.Minute)
-	cfg.DataSettings.APIData.EndDate = time.Now()
+	cfg.DataSettings.APIData.StartDate = time.Now().Truncate(gctkline.OneMin.Duration()).Add(-gctkline.OneMin.Duration())
+	cfg.DataSettings.APIData.EndDate = cfg.DataSettings.APIData.StartDate.Add(gctkline.OneMin.Duration())
 	cfg.DataSettings.APIData.InclusiveEndDate = true
 	err = bt.SetupFromConfig(cfg, "", "", false)
 	if !errors.Is(err, gctcommon.ErrNotYetImplemented) {
@@ -165,8 +171,8 @@ func TestLoadDataAPI(t *testing.T) {
 			DataType: common.CandleStr,
 			Interval: gctkline.OneMin,
 			APIData: &config.APIData{
-				StartDate: time.Now().Add(-time.Minute * 5),
-				EndDate:   time.Now(),
+				StartDate: time.Now().Truncate(gctkline.OneMin.Duration()).Add(-time.Minute * 5),
+				EndDate:   time.Now().Truncate(gctkline.OneMin.Duration()),
 			}},
 		StrategySettings: config.StrategySettings{
 			Name: dollarcostaverage.Name,
@@ -346,7 +352,7 @@ func TestLoadDataLive(t *testing.T) {
 		},
 		DataSettings: config.DataSettings{
 			DataType: common.CandleStr,
-			Interval: gctkline.OneMin,
+			Interval: 1234,
 			LiveData: &config.LiveData{
 				ExchangeCredentials: []config.Credentials{
 					{
@@ -392,9 +398,16 @@ func TestLoadDataLive(t *testing.T) {
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
 	_, err = bt.loadData(cfg, exch, cp, asset.Spot, false)
+	if !errors.Is(err, gctkline.ErrCannotConstructInterval) {
+		t.Errorf("received: %v, expected: %v", err, gctkline.ErrCannotConstructInterval)
+	}
+
+	cfg.DataSettings.Interval = gctkline.OneMin
+	_, err = bt.loadData(cfg, exch, cp, asset.Spot, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
+
 	err = bt.Stop()
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)

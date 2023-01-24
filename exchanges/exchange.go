@@ -1570,11 +1570,11 @@ func (b *Base) GetKlineExtendedRequest(pair currency.Pair, a asset.Item, interva
 	if err != nil {
 		return nil, err
 	}
-
+	r.IsExtended = true
 	dates, err := r.GetRanges(b.Features.Enabled.Kline.ResultLimit)
 	if err != nil {
 		return nil, err
 	}
 
-	return &kline.ExtendedRequest{Request: r, IntervalRangeHolder: dates}, nil
+	return &kline.ExtendedRequest{Request: r, RangeHolder: dates}, nil
 }

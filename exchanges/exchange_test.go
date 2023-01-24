@@ -2880,7 +2880,7 @@ func TestGetKlineExtendedRequest(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", r.RequestFormatted.String(), "BTCUSDT")
 	}
 
-	if len(r.Ranges) != 15 { // 15 request at max 100 candles == 1440 1 min candles.
-		t.Fatalf("received: '%v' but expected: '%v'", len(r.Ranges), 15)
+	if len(r.RangeHolder.Ranges) != 15 { // 15 request at max 100 candles == 1440 1 min candles.
+		t.Fatalf("received: '%v' but expected: '%v'", len(r.RangeHolder.Ranges), 15)
 	}
 }

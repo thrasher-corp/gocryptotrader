@@ -320,9 +320,9 @@ func TestRequest_ProcessResponse(t *testing.T) {
 
 func TestExtendedRequest_ProcessResponse(t *testing.T) {
 	t.Parallel()
-
-	start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	end := start.AddDate(0, 0, 1)
+	ohc := getOneHour()
+	start := ohc[0].Time
+	end := ohc[len(ohc)-1].Time.Add(OneHour.Duration())
 	pair := currency.NewPair(currency.BTC, currency.USDT)
 
 	var rExt *ExtendedRequest
@@ -342,7 +342,7 @@ func TestExtendedRequest_ProcessResponse(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v', but expected '%v'", err, nil)
 	}
-
+	r.ProcessedCandles = ohc
 	dates, err := r.GetRanges(100)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v', but expected '%v'", err, nil)
@@ -350,7 +350,7 @@ func TestExtendedRequest_ProcessResponse(t *testing.T) {
 
 	rExt = &ExtendedRequest{r, dates}
 
-	holder, err := rExt.ProcessResponse(getOneHour())
+	holder, err := rExt.ProcessResponse(ohc)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v', but expected '%v'", err, nil)
 	}
@@ -360,6 +360,7 @@ func TestExtendedRequest_ProcessResponse(t *testing.T) {
 	}
 
 	// with conversion
+	ohc = getOneMinute()
 	r, err = CreateKlineRequest("name", pair, pair, asset.Spot, OneHour, OneMin, start, end)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v', but expected '%v'", err, nil)
@@ -370,9 +371,9 @@ func TestExtendedRequest_ProcessResponse(t *testing.T) {
 		t.Fatalf("received: '%v', but expected '%v'", err, nil)
 	}
 
+	r.IsExtended = true
 	rExt = &ExtendedRequest{r, dates}
-
-	holder, err = rExt.ProcessResponse(getOneMinute())
+	holder, err = rExt.ProcessResponse(ohc)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v', but expected '%v'", err, nil)
 	}
@@ -390,7 +391,7 @@ func TestExtendedRequest_Size(t *testing.T) {
 		t.Fatalf("received: '%v', but expected '%v'", rExt.Size(), 0)
 	}
 
-	rExt = &ExtendedRequest{IntervalRangeHolder: &IntervalRangeHolder{Limit: 100, Ranges: []IntervalRange{{}, {}}}}
+	rExt = &ExtendedRequest{RangeHolder: &IntervalRangeHolder{Limit: 100, Ranges: []IntervalRange{{}, {}}}}
 	if rExt.Size() != 200 {
 		t.Fatalf("received: '%v', but expected '%v'", rExt.Size(), 200)
 	}

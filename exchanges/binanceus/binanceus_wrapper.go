@@ -906,13 +906,13 @@ func (bi *Binanceus) GetHistoricCandlesExtended(ctx context.Context, pair curren
 	}
 
 	timeSeries := make([]kline.Candle, 0, req.Size())
-	for x := range req.Ranges {
+	for x := range req.RangeHolder.Ranges {
 		var candles []CandleStick
 		candles, err = bi.GetSpotKline(ctx, &KlinesRequestParams{
 			Interval:  bi.GetIntervalEnum(req.ExchangeInterval),
 			Symbol:    req.Pair,
-			StartTime: req.Ranges[x].Start.Time,
-			EndTime:   req.Ranges[x].End.Time,
+			StartTime: req.RangeHolder.Ranges[x].Start.Time,
+			EndTime:   req.RangeHolder.Ranges[x].End.Time,
 			Limit:     int64(bi.Features.Enabled.Kline.ResultLimit),
 		})
 		if err != nil {
