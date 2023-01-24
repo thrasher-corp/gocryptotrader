@@ -3206,7 +3206,7 @@ func TestGetIntervalEnum(t *testing.T) {
 		{Description: "4hr with UTC", Interval: kline.FourHour, Expected: "4H", AppendUTC: true},
 		{Description: "6H without UTC", Interval: kline.SixHour, Expected: "6H", AppendUTC: false},
 		{Description: "6H with UTC", Interval: kline.SixHour, Expected: "6Hutc", AppendUTC: true},
-		{Description: "Unsupported interval with UTC", Interval: kline.Interval(time.Hour * 420), Expected: "", AppendUTC: true},
+		{Description: "Unsupported interval with UTC", Expected: "", AppendUTC: true},
 	}
 
 	for x := range tests {
