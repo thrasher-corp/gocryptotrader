@@ -3097,7 +3097,7 @@ func (ok *Okx) GetIntervalEnum(interval kline.Interval, appendUTC bool) string {
 
 	duration := ""
 	switch interval {
-	case kline.SixHour: // NOTE: Cases here and below can either be local Hong Kong timeor UTC time.
+	case kline.SixHour: // NOTE: Cases here and below can either be local Hong Kong time or UTC time.
 		duration = "6H"
 	case kline.TwelveHour:
 		duration = "12H"
@@ -3120,7 +3120,7 @@ func (ok *Okx) GetIntervalEnum(interval kline.Interval, appendUTC bool) string {
 	case kline.OneYear:
 		duration = "1Y"
 	default:
-		return ""
+		return duration
 	}
 
 	if appendUTC {
