@@ -32,7 +32,7 @@ func main() {
 	var wg sync.WaitGroup
 	for x := range exchange.Exchanges {
 		if exchange.Exchanges[x] == "ftx" {
-			log.Println("skipping exchange FTX...")
+			log.Println("Skipping exchange FTX...")
 			continue
 		}
 		err = engine.Bot.LoadExchange(exchange.Exchanges[x], &wg)
@@ -56,7 +56,7 @@ func main() {
 		go func(exch exchange.IBotExchange) {
 			strResults, err := testWrappers(exch)
 			if err != nil {
-				fmt.Printf("failed to test wrappers for %s %s", exch.GetName(), err)
+				fmt.Printf("Failed to test wrappers for %s. Err: %s", exch.GetName(), err)
 			}
 			mtx.Lock()
 			results[exch.GetName()] = strResults
