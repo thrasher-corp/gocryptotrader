@@ -609,7 +609,7 @@ func TestPrepareJobs(t *testing.T) {
 func TestCompareJobsToData(t *testing.T) {
 	t.Parallel()
 	m, _ := createDHM(t)
-	tt := time.Now().Truncate(kline.OneMin.Duration())
+	tt := time.Now().Truncate(kline.OneHour.Duration())
 	dhj := &DataHistoryJob{
 		Nickname:           "TestGenerateJobSummary",
 		Exchange:           testExchange,
@@ -655,70 +655,72 @@ func TestCompareJobsToData(t *testing.T) {
 	}
 }
 
-func TestRunJob(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() usage
+func TestRunJob(t *testing.T) { 
+	t.Parallel()
+	tt := time.Now().Truncate(kline.OneHour.Duration())
 	testCases := []*DataHistoryJob{
 		{
 			Nickname:  "TestRunJobDataHistoryCandleDataType",
-			Exchange:  "Binance",
+			Exchange:  testExchange,
 			Asset:     asset.Spot,
 			Pair:      currency.NewPair(currency.BTC, currency.USDT),
-			StartDate: time.Now().Add(-time.Minute * 30),
-			EndDate:   time.Now(),
+			StartDate: tt.Add(-time.Minute * 30),
+			EndDate:   tt,
 			Interval:  kline.FifteenMin,
 			DataType:  dataHistoryCandleDataType,
 		},
 		{
 			Nickname:  "TestRunJobDataHistoryTradeDataType",
-			Exchange:  "Binance",
+			Exchange:  testExchange,
 			Asset:     asset.Spot,
 			Pair:      currency.NewPair(currency.BTC, currency.USDT),
-			StartDate: time.Now().Add(-time.Minute * 15),
-			EndDate:   time.Now(),
+			StartDate: tt.Add(-time.Minute * 15),
+			EndDate:   tt,
 			Interval:  kline.OneMin,
 			DataType:  dataHistoryTradeDataType,
 		},
 		{
 			Nickname:           "TestRunJobDataHistoryConvertCandlesDataType",
-			Exchange:           "Binance",
+			Exchange:           testExchange,
 			Asset:              asset.Spot,
 			Pair:               currency.NewPair(currency.BTC, currency.USDT),
-			StartDate:          time.Now().Add(-time.Hour * 2),
-			EndDate:            time.Now(),
+			StartDate:          tt.Add(-time.Hour * 2),
+			EndDate:            tt,
 			Interval:           kline.FifteenMin,
 			DataType:           dataHistoryConvertCandlesDataType,
 			ConversionInterval: kline.OneHour,
 		},
 		{
 			Nickname:           "TestRunJobDataHistoryConvertTradesDataType",
-			Exchange:           "Binance",
+			Exchange:           testExchange,
 			Asset:              asset.Spot,
 			Pair:               currency.NewPair(currency.BTC, currency.USDT),
-			StartDate:          time.Now().Add(-time.Hour * 2),
-			EndDate:            time.Now(),
+			StartDate:          tt.Add(-time.Hour * 2),
+			EndDate:            tt,
 			Interval:           kline.FifteenMin,
 			DataType:           dataHistoryConvertTradesDataType,
 			ConversionInterval: kline.OneHour,
 		},
 		{
 			Nickname:  "TestRunJobDataHistoryCandleValidationDataType",
-			Exchange:  "Binance",
+			Exchange:  testExchange,
 			Asset:     asset.Spot,
 			Pair:      currency.NewPair(currency.BTC, currency.USDT),
-			StartDate: time.Now().Add(-time.Hour * 2),
-			EndDate:   time.Now(),
+			StartDate: tt.Add(-time.Hour * 2),
+			EndDate:   tt,
 			Interval:  kline.OneHour,
 			DataType:  dataHistoryCandleValidationDataType,
 		},
 		{
 			Nickname:                "TestRunJobDataHistoryCandleSecondaryValidationDataType",
-			Exchange:                "Binance",
+			Exchange:                testExchange,
 			Asset:                   asset.Spot,
 			Pair:                    currency.NewPair(currency.BTC, currency.USDT),
-			StartDate:               time.Now().Add(-time.Hour * 2),
-			EndDate:                 time.Now(),
+			StartDate:               tt.Add(-time.Hour * 2),
+			EndDate:                 tt,
 			Interval:                kline.OneMin,
 			DataType:                dataHistoryCandleValidationSecondarySourceType,
-			SecondaryExchangeSource: testExchange,
+			SecondaryExchangeSource: "Binance",
 		},
 	}
 
@@ -1077,8 +1079,8 @@ func TestProcessTradeData(t *testing.T) {
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USDT),
-		StartDate: time.Now().Add(-kline.OneHour.Duration() * 2),
-		EndDate:   time.Now(),
+		StartDate: time.Now().Add(-kline.OneHour.Duration() * 2).Truncate(kline.OneHour.Duration()),
+		EndDate:   time.Now().Truncate(kline.OneHour.Duration()),
 		Interval:  kline.OneHour,
 	}
 	_, err = m.processTradeData(j, nil, time.Time{}, time.Time{}, 0)
