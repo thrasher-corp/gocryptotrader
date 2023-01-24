@@ -1325,8 +1325,8 @@ func TestGetOrders(t *testing.T) {
 		StartDate: time.Now().UTC().Add(time.Second).Format(common.SimpleTimeFormatWithTimezone),
 		EndDate:   time.Now().UTC().Add(-time.Hour).Format(common.SimpleTimeFormatWithTimezone),
 	})
-	if !errors.Is(err, common.ErrStartAfterTimeNow) {
-		t.Errorf("received %v, expected %v", err, common.ErrStartAfterTimeNow)
+	if !errors.Is(err, common.ErrStartAfterEnd) {
+		t.Errorf("received %v, expected %v", err, common.ErrStartAfterEnd)
 	}
 
 	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
@@ -1827,8 +1827,8 @@ func TestGetDataHistoryJobsBetween(t *testing.T) {
 		StartDate: time.Now().UTC().Add(time.Minute).Format(common.SimpleTimeFormatWithTimezone),
 		EndDate:   time.Now().UTC().Format(common.SimpleTimeFormatWithTimezone),
 	})
-	if !errors.Is(err, common.ErrStartAfterTimeNow) {
-		t.Fatalf("received %v, expected %v", err, common.ErrStartAfterTimeNow)
+	if !errors.Is(err, common.ErrStartAfterEnd) {
+		t.Fatalf("received %v, expected %v", err, common.ErrStartAfterEnd)
 	}
 
 	err = m.UpsertJob(dhj, false)

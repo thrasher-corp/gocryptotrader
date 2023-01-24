@@ -1130,13 +1130,13 @@ func (b *Bitfinex) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	}
 
 	timeSeries := make([]kline.Candle, 0, req.Size())
-	for x := range req.Ranges {
+	for x := range req.RangeHolder.Ranges {
 		var candles []Candle
 		candles, err = b.GetCandles(ctx,
 			cf,
 			b.FormatExchangeKlineInterval(req.ExchangeInterval),
-			req.Ranges[x].Start.Ticks*1000,
-			req.Ranges[x].End.Ticks*1000,
+			req.RangeHolder.Ranges[x].Start.Ticks*1000,
+			req.RangeHolder.Ranges[x].End.Ticks*1000,
 			b.Features.Enabled.Kline.ResultLimit,
 			true)
 		if err != nil {

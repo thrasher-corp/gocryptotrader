@@ -48,6 +48,11 @@ type Request struct {
 	// PartialCandle defines when a request's end time interval goes beyond
 	// current time it potentially has a partially formed candle.
 	PartialCandle bool
+	// IsExtended denotes whether the candle request is for extended candles
+	IsExtended bool
+	// ProcessedCandles stores the candles that have been processed, but not converted
+	// to the ClientRequiredInterval
+	ProcessedCandles []Candle
 }
 
 // CreateKlineRequest generates a `Request` type for interval conversions
@@ -100,7 +105,18 @@ func CreateKlineRequest(name string, pair, formatted currency.Pair, a asset.Item
 	if !endTrunc.Equal(end) {
 		end = endTrunc.Add(clientRequired.Duration())
 	}
-	return &Request{name, pair, formatted, a, exchangeInterval, clientRequired, start, end, end.After(time.Now())}, nil
+
+	return &Request{
+		Exchange:         name,
+		Pair:             pair,
+		RequestFormatted: formatted,
+		Asset:            a,
+		ExchangeInterval: exchangeInterval,
+		ClientRequired:   clientRequired,
+		Start:            start,
+		End:              end,
+		PartialCandle:    end.After(time.Now()),
+	}, nil
 }
 
 // GetRanges returns the date ranges for candle intervals broken up over
@@ -143,6 +159,12 @@ func (r *Request) ProcessResponse(timeSeries []Candle) (*Item, error) {
 		return nil, err
 	}
 
+	if r.IsExtended {
+		// NOTE: This allows for a processed candles to be analysed
+		// in the context of ExtendedRequest's ProcessResponse function
+		r.ProcessedCandles = make([]Candle, len(holder.Candles))
+		copy(r.ProcessedCandles, holder.Candles)
+	}
 	if r.ClientRequired != r.ExchangeInterval {
 		holder, err = holder.ConvertToNewInterval(r.ClientRequired)
 	}
@@ -163,7 +185,7 @@ func (r *Request) ProcessResponse(timeSeries []Candle) (*Item, error) {
 // exceed exchange limits and require multiple requests.
 type ExtendedRequest struct {
 	*Request
-	*IntervalRangeHolder
+	RangeHolder *IntervalRangeHolder
 }
 
 // ProcessResponse converts time series candles into a kline.Item type. This
@@ -181,13 +203,12 @@ func (r *ExtendedRequest) ProcessResponse(timeSeries []Candle) (*Item, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = r.RangeHolder.SetHasDataFromCandles(r.Request.ProcessedCandles)
+	if err != nil {
+		return nil, err
+	}
 
-	// This checks from pre-converted time series data for date range matching.
-	// NOTE: If there are any optimizations which copy timeSeries param slice
-	// in the function call ConvertCandles above then false positives can
-	// occur. // TODO: Improve implementation.
-	r.SetHasDataFromCandles(timeSeries)
-	summary := r.DataSummary(false)
+	summary := r.RangeHolder.DataSummary(false)
 	if len(summary) > 0 {
 		log.Warnf(log.ExchangeSys, "%v - %v", r.Exchange, summary)
 	}
@@ -196,11 +217,11 @@ func (r *ExtendedRequest) ProcessResponse(timeSeries []Candle) (*Item, error) {
 
 // Size returns the max length of return for pre-allocation.
 func (r *ExtendedRequest) Size() int {
-	if r == nil || r.IntervalRangeHolder == nil {
+	if r == nil || r.RangeHolder == nil {
 		return 0
 	}
-	if r.IntervalRangeHolder.Limit == 0 {
+	if r.RangeHolder.Limit == 0 {
 		log.Warnf(log.ExchangeSys, "%v candle request limit is zero while calling Size()", r.Exchange)
 	}
-	return r.IntervalRangeHolder.Limit * len(r.IntervalRangeHolder.Ranges)
+	return r.RangeHolder.Limit * len(r.RangeHolder.Ranges)
 }

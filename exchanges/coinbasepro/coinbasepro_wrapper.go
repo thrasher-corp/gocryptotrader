@@ -926,12 +926,12 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(ctx context.Context, pair curre
 	}
 
 	timeSeries := make([]kline.Candle, 0, req.Size())
-	for x := range req.Ranges {
+	for x := range req.RangeHolder.Ranges {
 		var history []History
 		history, err = c.GetHistoricRates(ctx,
 			req.RequestFormatted.String(),
-			req.Ranges[x].Start.Time.Format(time.RFC3339),
-			req.Ranges[x].End.Time.Format(time.RFC3339),
+			req.RangeHolder.Ranges[x].Start.Time.Format(time.RFC3339),
+			req.RangeHolder.Ranges[x].End.Time.Format(time.RFC3339),
 			int64(req.ExchangeInterval.Duration().Seconds()))
 		if err != nil {
 			return nil, err

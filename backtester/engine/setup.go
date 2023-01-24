@@ -73,7 +73,9 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 	if cfg == nil {
 		return errNilConfig
 	}
-
+	if cfg.DataSettings.Interval < gctkline.FifteenSecond {
+		return fmt.Errorf("%w %v min interval size of %v", gctkline.ErrInvalidInterval, cfg.DataSettings.Interval, gctkline.FifteenSecond)
+	}
 	if cfg.DataSettings.DatabaseData != nil {
 		bt.databaseManager, err = engine.SetupDatabaseConnectionManager(&cfg.DataSettings.DatabaseData.Config)
 		if err != nil {
@@ -754,7 +756,10 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if err != nil {
 			return nil, err
 		}
-		resp.RangeHolder.SetHasDataFromCandles(resp.Item.Candles)
+		err = resp.RangeHolder.SetHasDataFromCandles(resp.Item.Candles)
+		if err != nil {
+			return nil, err
+		}
 		summary := resp.RangeHolder.DataSummary(false)
 		if len(summary) > 0 {
 			log.Warnf(common.Setup, "%v", summary)
@@ -797,7 +802,11 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if err != nil {
 			return nil, err
 		}
-		resp.RangeHolder.SetHasDataFromCandles(resp.Item.Candles)
+		err = resp.RangeHolder.SetHasDataFromCandles(resp.Item.Candles)
+		if err != nil {
+			return nil, err
+		}
+
 		summary := resp.RangeHolder.DataSummary(false)
 		if len(summary) > 0 {
 			log.Warnf(common.Setup, "%v", summary)
@@ -817,6 +826,11 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			return resp, err
 		}
 	case cfg.DataSettings.LiveData != nil:
+		if !b.Features.Enabled.Kline.Intervals.ExchangeSupported(cfg.DataSettings.Interval) {
+			return nil, fmt.Errorf("%w don't trade live on custom candle interval of %v",
+				gctkline.ErrCannotConstructInterval,
+				cfg.DataSettings.Interval)
+		}
 		err = bt.exchangeManager.Add(exch)
 		if err != nil {
 			return nil, err
@@ -839,14 +853,6 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 	}
 
 	resp.Item.UnderlyingPair = underlyingPair
-	err = b.ValidateKline(fPair, a, resp.Item.Interval)
-	if err != nil {
-		// TODO: In future allow custom candles.
-		if dataType != common.DataTrade || !strings.EqualFold(err.Error(), "interval not supported") {
-			return nil, err
-		}
-	}
-
 	err = resp.Load()
 	if err != nil {
 		return nil, err
@@ -881,6 +887,7 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	if cfg.DataSettings.Interval <= 0 {
 		return nil, errIntervalUnset
 	}
+
 	dates, err := gctkline.CalculateCandleDateRanges(
 		cfg.DataSettings.APIData.StartDate,
 		cfg.DataSettings.APIData.EndDate,
@@ -889,10 +896,11 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	if err != nil {
 		return nil, err
 	}
+
 	candles, err := api.LoadData(context.TODO(),
 		dataType,
-		cfg.DataSettings.APIData.StartDate,
-		cfg.DataSettings.APIData.EndDate,
+		dates.Start.Time,
+		dates.End.Time,
 		cfg.DataSettings.Interval.Duration(),
 		exch,
 		fPair,
@@ -900,13 +908,16 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	if err != nil {
 		return nil, fmt.Errorf("%v. Please check your GoCryptoTrader configuration", err)
 	}
-	dates.SetHasDataFromCandles(candles.Candles)
+
+	err = dates.SetHasDataFromCandles(candles.Candles)
+	if err != nil {
+		return nil, err
+	}
+
 	summary := dates.DataSummary(false)
 	if len(summary) > 0 {
 		log.Warnf(common.Setup, "%v", summary)
 	}
-	candles.FillMissingDataWithEmptyEntries(dates)
-	candles.RemoveOutsideRange(cfg.DataSettings.APIData.StartDate, cfg.DataSettings.APIData.EndDate)
 	return &kline.DataFromKline{
 		Base:        &data.Base{},
 		Item:        candles,
