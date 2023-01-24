@@ -1567,6 +1567,21 @@ func TestFixCasing(t *testing.T) {
 	if ret != "fUSD" {
 		t.Errorf("unexpected result: %v", ret)
 	}
+
+	_, err = b.fixCasing(currency.NewPair(currency.EMPTYCODE, currency.BTC), asset.MarginFunding)
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrCurrencyPairEmpty)
+	}
+
+	_, err = b.fixCasing(currency.NewPair(currency.BTC, currency.EMPTYCODE), asset.MarginFunding)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	_, err = b.fixCasing(currency.EMPTYPAIR, asset.MarginFunding)
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrCurrencyPairEmpty)
+	}
 }
 
 func Test_FormatExchangeKlineInterval(t *testing.T) {
