@@ -182,12 +182,17 @@ func (by *Bybit) SetDefaults() {
 
 // Setup takes in the supplied exchange configuration details and sets params
 func (by *Bybit) Setup(exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
+
 	if !exch.Enabled {
 		by.SetEnabled(false)
 		return nil
 	}
 
-	err := by.SetupDefaults(exch)
+	err = by.SetupDefaults(exch)
 	if err != nil {
 		return err
 	}
