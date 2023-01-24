@@ -11,7 +11,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // CreateKline creates candles out of trade history data for a set time interval
@@ -213,8 +212,6 @@ func (k *Item) RemoveDuplicates() {
 // ConvertCandles functionality will break.
 func (k *Item) RemoveOutsideRange(start, end time.Time) {
 	target := 0
-	origLen := len(k.Candles)
-	log.Debugf(log.ExchangeSys, "%v", origLen)
 	for _, keep := range k.Candles {
 		if keep.Time.Equal(start) || (keep.Time.After(start) && keep.Time.Before(end)) {
 			k.Candles[target] = keep
@@ -491,12 +488,12 @@ func (h *IntervalRangeHolder) CandleLen() int {
 // SetHasDataFromCandles will calculate whether there is data in each candle
 // allowing any missing data from an API request to be highlighted
 func (h *IntervalRangeHolder) SetHasDataFromCandles(incoming []Candle) error {
-	if h.CandleLen() != len(incoming) {
-		return fmt.Errorf("%w received %v, expected %v", errDataLengthMismatch, len(incoming), h.CandleLen())
-	}
 	var offset int
 	for x := range h.Ranges {
 		for y := range h.Ranges[x].Intervals {
+			if offset >= len(incoming) {
+				return nil
+			}
 			if !h.Ranges[x].Intervals[y].Start.Time.Equal(incoming[offset].Time) {
 				return fmt.Errorf("%w '%v' expected '%v'", errInvalidPeriod, incoming[offset].Time, h.Ranges[x].Intervals[y].Start.Time)
 			}

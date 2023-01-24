@@ -1734,8 +1734,8 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 		candles, err = b.GetSpotKline(ctx, &KlinesRequestParams{
 			Interval:  b.FormatExchangeKlineInterval(req.ExchangeInterval),
 			Symbol:    req.Pair,
-			StartTime: req.RangeHolder.Ranges[x].Start.Time.UTC(),
-			EndTime:   req.RangeHolder.Ranges[x].End.Time.UTC(),
+			StartTime: req.RangeHolder.Ranges[x].Start.Time,
+			EndTime:   req.RangeHolder.Ranges[x].End.Time,
 			Limit:     int(b.Features.Enabled.Kline.ResultLimit),
 		})
 		if err != nil {
@@ -1744,7 +1744,7 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 
 		for i := range candles {
 			timeSeries = append(timeSeries, kline.Candle{
-				Time:   candles[i].OpenTime.UTC(),
+				Time:   candles[i].OpenTime,
 				Open:   candles[i].Open,
 				High:   candles[i].High,
 				Low:    candles[i].Low,

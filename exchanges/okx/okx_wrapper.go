@@ -1400,7 +1400,8 @@ func (ok *Okx) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pai
 		return nil, err
 	}
 
-	if count := kline.TotalCandlesPerInterval(start, end, req.ExchangeInterval); count > 1440 {
+	count := kline.TotalCandlesPerInterval(req.Start, req.End, req.ExchangeInterval)
+	if count > 1440 {
 		return nil,
 			fmt.Errorf("candles count: %d max lookback: %d, %w",
 				count, 1440, kline.ErrRequestExceedsMaxLookback)
