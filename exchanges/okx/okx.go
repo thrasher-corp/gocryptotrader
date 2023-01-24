@@ -3119,6 +3119,8 @@ func (ok *Okx) GetIntervalEnum(interval kline.Interval, appendUTC bool) string {
 		duration = "6M"
 	case kline.OneYear:
 		duration = "1Y"
+	default:
+		return ""
 	}
 
 	if appendUTC {
