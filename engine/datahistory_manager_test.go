@@ -609,13 +609,14 @@ func TestPrepareJobs(t *testing.T) {
 func TestCompareJobsToData(t *testing.T) {
 	t.Parallel()
 	m, _ := createDHM(t)
+	tt := time.Now().Truncate(kline.OneMin.Duration())
 	dhj := &DataHistoryJob{
 		Nickname:           "TestGenerateJobSummary",
 		Exchange:           testExchange,
 		Asset:              asset.Spot,
 		Pair:               currency.NewPair(currency.BTC, currency.USD),
-		StartDate:          time.Now().Add(-time.Minute * 5),
-		EndDate:            time.Now(),
+		StartDate:          tt.Add(-time.Minute * 5),
+		EndDate:            tt,
 		Interval:           kline.OneMin,
 		ConversionInterval: kline.FiveMin,
 	}
@@ -1530,10 +1531,13 @@ func dataHistoryTraderLoader(exch, a, base, quote string, start, _ time.Time) ([
 	}, nil
 }
 
-func dataHistoryCandleLoader(exch string, cp currency.Pair, a asset.Item, i kline.Interval, start, _ time.Time) (*kline.Item, error) {
+func dataHistoryCandleLoader(exch string, cp currency.Pair, a asset.Item, i kline.Interval, start, end time.Time) (*kline.Item, error) {
 	start = start.Truncate(i.Duration())
 	var candles []kline.Candle
-	for x := 0; x < 24; x++ {
+	for {
+		if start.Equal(end) || start.After(end) {
+			break
+		}
 		candles = append(candles, kline.Candle{
 			Time:   start,
 			Open:   1,
