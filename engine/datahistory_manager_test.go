@@ -655,7 +655,7 @@ func TestCompareJobsToData(t *testing.T) {
 	}
 }
 
-func TestRunJob(t *testing.T) { 
+func TestRunJob(t *testing.T) {
 	t.Parallel()
 	tt := time.Now().Truncate(kline.OneHour.Duration())
 	testCases := []*DataHistoryJob{
