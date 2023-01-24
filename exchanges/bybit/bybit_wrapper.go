@@ -1938,7 +1938,7 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 	}
 
 	timeSeries := make([]kline.Candle, 0, req.Size())
-	for x := range req.Ranges {
+	for x := range req.RangeHolder.Ranges {
 		switch req.Asset {
 		case asset.Spot:
 			var candles []KlineItem
@@ -1946,8 +1946,8 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 				req.RequestFormatted.String(),
 				by.FormatExchangeKlineInterval(ctx, req.ExchangeInterval),
 				int64(by.Features.Enabled.Kline.ResultLimit),
-				req.Ranges[x].Start.Time,
-				req.Ranges[x].End.Time)
+				req.RangeHolder.Ranges[x].Start.Time,
+				req.RangeHolder.Ranges[x].End.Time)
 			if err != nil {
 				return nil, err
 			}
@@ -1968,7 +1968,7 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 				req.RequestFormatted,
 				by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval),
 				int64(by.Features.Enabled.Kline.ResultLimit),
-				req.Ranges[x].Start.Time)
+				req.RangeHolder.Ranges[x].Start.Time)
 			if err != nil {
 				return nil, err
 			}
@@ -1989,7 +1989,7 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 				req.RequestFormatted,
 				by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval),
 				int64(by.Features.Enabled.Kline.ResultLimit),
-				req.Ranges[x].Start.Time)
+				req.RangeHolder.Ranges[x].Start.Time)
 			if err != nil {
 				return nil, err
 			}
@@ -2009,7 +2009,7 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 			candles, err = by.GetUSDCKlines(ctx,
 				req.RequestFormatted,
 				by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval),
-				req.Ranges[x].Start.Time,
+				req.RangeHolder.Ranges[x].Start.Time,
 				int64(by.Features.Enabled.Kline.ResultLimit))
 			if err != nil {
 				return nil, err
