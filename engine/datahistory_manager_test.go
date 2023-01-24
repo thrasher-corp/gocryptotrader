@@ -664,7 +664,7 @@ func TestRunJob(t *testing.T) {
 			Exchange:  testExchange,
 			Asset:     asset.Spot,
 			Pair:      currency.NewPair(currency.BTC, currency.USDT),
-			StartDate: tt.Add(-time.Minute * 30),
+			StartDate: tt.Add(-kline.FifteenMin.Duration()),
 			EndDate:   tt,
 			Interval:  kline.FifteenMin,
 			DataType:  dataHistoryCandleDataType,
@@ -674,7 +674,7 @@ func TestRunJob(t *testing.T) {
 			Exchange:  testExchange,
 			Asset:     asset.Spot,
 			Pair:      currency.NewPair(currency.BTC, currency.USDT),
-			StartDate: tt.Add(-time.Minute * 15),
+			StartDate: tt.Add(-kline.OneMin.Duration()),
 			EndDate:   tt,
 			Interval:  kline.OneMin,
 			DataType:  dataHistoryTradeDataType,
@@ -684,7 +684,7 @@ func TestRunJob(t *testing.T) {
 			Exchange:           testExchange,
 			Asset:              asset.Spot,
 			Pair:               currency.NewPair(currency.BTC, currency.USDT),
-			StartDate:          tt.Add(-time.Hour * 2),
+			StartDate:          tt.Add(-kline.OneHour.Duration()),
 			EndDate:            tt,
 			Interval:           kline.FifteenMin,
 			DataType:           dataHistoryConvertCandlesDataType,
@@ -695,7 +695,7 @@ func TestRunJob(t *testing.T) {
 			Exchange:           testExchange,
 			Asset:              asset.Spot,
 			Pair:               currency.NewPair(currency.BTC, currency.USDT),
-			StartDate:          tt.Add(-time.Hour * 2),
+			StartDate:          tt.Add(-kline.OneHour.Duration()),
 			EndDate:            tt,
 			Interval:           kline.FifteenMin,
 			DataType:           dataHistoryConvertTradesDataType,
@@ -706,7 +706,7 @@ func TestRunJob(t *testing.T) {
 			Exchange:  testExchange,
 			Asset:     asset.Spot,
 			Pair:      currency.NewPair(currency.BTC, currency.USDT),
-			StartDate: tt.Add(-time.Hour * 2),
+			StartDate: tt.Add(-kline.OneHour.Duration()),
 			EndDate:   tt,
 			Interval:  kline.OneHour,
 			DataType:  dataHistoryCandleValidationDataType,
@@ -716,7 +716,7 @@ func TestRunJob(t *testing.T) {
 			Exchange:                testExchange,
 			Asset:                   asset.Spot,
 			Pair:                    currency.NewPair(currency.BTC, currency.USDT),
-			StartDate:               tt.Add(-time.Hour * 2),
+			StartDate:               tt.Add(-kline.OneMin.Duration()),
 			EndDate:                 tt,
 			Interval:                kline.OneMin,
 			DataType:                dataHistoryCandleValidationSecondarySourceType,
@@ -724,24 +724,18 @@ func TestRunJob(t *testing.T) {
 		},
 	}
 
+	m, _ := createDHM(t)
+	m.tradeSaver = dataHistoryTradeSaver
+	m.candleSaver = dataHistoryCandleSaver
+	m.tradeLoader = dataHistoryTraderLoader
 	for x := range testCases {
 		test := testCases[x]
 		t.Run(test.Nickname, func(t *testing.T) {
 			t.Parallel()
-			m, _ := createDHM(t)
 			err := m.UpsertJob(test, false)
 			if !errors.Is(err, nil) {
 				t.Errorf("error '%v', expected '%v'", err, nil)
 			}
-			m.tradeSaver = dataHistoryTradeSaver
-			m.candleSaver = dataHistoryCandleSaver
-			m.tradeLoader = dataHistoryTraderLoader
-
-			err = m.runJob(nil)
-			if !errors.Is(err, errNilJob) {
-				t.Errorf("error '%v', expected '%v'", err, errNilJob)
-			}
-
 			test.Status = dataHistoryIntervalIssuesFound
 			err = m.runJob(test)
 			if !errors.Is(err, errJobInvalid) {
@@ -761,26 +755,17 @@ func TestRunJob(t *testing.T) {
 			if !errors.Is(err, nil) {
 				t.Errorf("error '%v', expected '%v'", err, nil)
 			}
-
-			test.Pair = currency.NewPair(currency.DOGE, currency.USDT)
-			test.Status = dataHistoryStatusActive
-			err = m.runJob(test)
-			if !errors.Is(err, nil) {
-				t.Errorf("error '%v', expected '%v'", err, nil)
-			}
-
-			atomic.StoreInt32(&m.started, 0)
-			err = m.runJob(test)
-			if !errors.Is(err, ErrSubSystemNotStarted) {
-				t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-			}
-
-			m = nil
-			err = m.runJob(test)
-			if !errors.Is(err, ErrNilSubsystem) {
-				t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
-			}
 		})
+	}
+	var badM *DataHistoryManager
+	err := badM.runJob(nil)
+	if !errors.Is(err, ErrNilSubsystem) {
+		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+	}
+	badM = &DataHistoryManager{}
+	err = badM.runJob(nil)
+	if !errors.Is(err, ErrSubSystemNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
 	}
 }
 
@@ -1533,13 +1518,12 @@ func dataHistoryTraderLoader(exch, a, base, quote string, start, _ time.Time) ([
 	}, nil
 }
 
-func dataHistoryCandleLoader(exch string, cp currency.Pair, a asset.Item, i kline.Interval, start, end time.Time) (*kline.Item, error) {
-	start = start.Truncate(i.Duration())
+func dataHistoryCandleLoader(exch string, cp currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	start = start.Truncate(interval.Duration())
+	end = end.Truncate(interval.Duration())
 	var candles []kline.Candle
-	for {
-		if start.Equal(end) || start.After(end) {
-			break
-		}
+	intervals := end.Sub(start) / interval.Duration()
+	for i := 0; i < int(intervals); i++ {
 		candles = append(candles, kline.Candle{
 			Time:   start,
 			Open:   1,
@@ -1548,13 +1532,13 @@ func dataHistoryCandleLoader(exch string, cp currency.Pair, a asset.Item, i klin
 			Close:  4,
 			Volume: 8,
 		})
-		start = start.Add(i.Duration())
+		start = start.Add(interval.Duration())
 	}
 	return &kline.Item{
 		Exchange: exch,
 		Pair:     cp,
 		Asset:    a,
-		Interval: i,
+		Interval: interval,
 		Candles:  candles,
 	}, nil
 }

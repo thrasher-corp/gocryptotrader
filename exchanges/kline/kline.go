@@ -474,15 +474,6 @@ func (k *Item) GetClosePriceAtTime(t time.Time) (float64, error) {
 	return -1, fmt.Errorf("%w at %v", ErrNotFoundAtTime, t)
 }
 
-// CandleLen returns the amount of candles inside the rangeholder
-func (h *IntervalRangeHolder) CandleLen() int {
-	var count int
-	for i := range h.Ranges {
-		count += len(h.Ranges[i].Intervals)
-	}
-	return count
-}
-
 // SetHasDataFromCandles will calculate whether there is data in each candle
 // allowing any missing data from an API request to be highlighted
 func (h *IntervalRangeHolder) SetHasDataFromCandles(incoming []Candle) error {

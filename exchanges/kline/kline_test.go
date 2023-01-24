@@ -1278,15 +1278,3 @@ func TestSetHasDataFromCandles(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", true, false)
 	}
 }
-
-func TestCandlLen(t *testing.T) {
-	t.Parallel()
-	ohc := getOneHour()
-	i, err := CalculateCandleDateRanges(ohc[0].Time, ohc[len(ohc)-1].Time.Add(OneHour.Duration()), OneHour, 100000)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if i.CandleLen() != len(ohc) {
-		t.Errorf("received '%v' expected '%v'", i.CandleLen(), len(ohc))
-	}
-}
