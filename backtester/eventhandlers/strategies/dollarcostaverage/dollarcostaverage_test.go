@@ -49,8 +49,7 @@ func TestOnSignal(t *testing.T) {
 	}
 
 	dStart := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
-	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	dEnd := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)
+	dEnd := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	exch := "binance"
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
@@ -58,7 +57,7 @@ func TestOnSignal(t *testing.T) {
 	err = d.SetStream([]data.Event{&eventkline.Kline{
 		Base: &event.Base{
 			Exchange:     exch,
-			Time:         dInsert,
+			Time:         dStart,
 			Interval:     gctkline.OneDay,
 			CurrencyPair: p,
 			AssetType:    a,
@@ -97,7 +96,7 @@ func TestOnSignal(t *testing.T) {
 		Interval: gctkline.OneDay,
 		Candles: []gctkline.Candle{
 			{
-				Time:   dInsert,
+				Time:   dStart,
 				Open:   1337,
 				High:   1337,
 				Low:    1337,
@@ -116,7 +115,11 @@ func TestOnSignal(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	da.RangeHolder = ranger
-	da.RangeHolder.SetHasDataFromCandles(da.Item.Candles)
+	err = da.RangeHolder.SetHasDataFromCandles(da.Item.Candles)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+
 	resp, err = s.OnSignal(da, nil, nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
@@ -133,8 +136,7 @@ func TestOnSignals(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
 	dStart := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
-	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	dEnd := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)
+	dEnd := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	exch := "binance"
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
@@ -143,7 +145,7 @@ func TestOnSignals(t *testing.T) {
 		Base: &event.Base{
 			Offset:       1,
 			Exchange:     exch,
-			Time:         dInsert,
+			Time:         dStart,
 			Interval:     gctkline.OneDay,
 			CurrencyPair: p,
 			AssetType:    a,
@@ -185,7 +187,7 @@ func TestOnSignals(t *testing.T) {
 		Interval: gctkline.OneDay,
 		Candles: []gctkline.Candle{
 			{
-				Time:   dInsert,
+				Time:   dStart,
 				Open:   1337,
 				High:   1337,
 				Low:    1337,
@@ -204,7 +206,11 @@ func TestOnSignals(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	da.RangeHolder = ranger
-	da.RangeHolder.SetHasDataFromCandles(da.Item.Candles)
+	err = da.RangeHolder.SetHasDataFromCandles(da.Item.Candles)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+
 	resp, err = s.OnSimultaneousSignals([]data.Handler{da}, nil, nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)

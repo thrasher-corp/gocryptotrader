@@ -130,9 +130,13 @@ candleLoop:
 	d.Item.RemoveDuplicates()
 	d.Item.SortCandlesByTimestamp(false)
 	if d.RangeHolder != nil {
+		d.RangeHolder, err = gctkline.CalculateCandleDateRanges(d.Item.Candles[0].Time, d.Item.Candles[len(d.Item.Candles)-1].Time.Add(d.Item.Interval.Duration()), d.Item.Interval, uint32(d.RangeHolder.Limit))
+		if err != nil {
+			return err
+		}
 		// offline data check when there is a known range
 		// live data does not need this
-		d.RangeHolder.SetHasDataFromCandles(d.Item.Candles)
+		return d.RangeHolder.SetHasDataFromCandles(d.Item.Candles)
 	}
 	return nil
 }

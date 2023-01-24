@@ -192,7 +192,10 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 			if err != nil && !errors.Is(err, candle.ErrNoCandleDataFound) {
 				return fmt.Errorf("%s could not load candle data: %w", jobs[i].Nickname, err)
 			}
-			jobs[i].rangeHolder.SetHasDataFromCandles(candles.Candles)
+			err = jobs[i].rangeHolder.SetHasDataFromCandles(candles.Candles)
+			if err != nil {
+				return err
+			}
 		case dataHistoryTradeDataType:
 			for x := range jobs[i].rangeHolder.Ranges {
 				results, ok := jobs[i].Results[jobs[i].rangeHolder.Ranges[x].Start.Time.Unix()]
@@ -213,7 +216,10 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 			if err != nil && !errors.Is(err, candle.ErrNoCandleDataFound) {
 				return fmt.Errorf("%s could not load candle data: %w", jobs[i].Nickname, err)
 			}
-			jobs[i].rangeHolder.SetHasDataFromCandles(candles.Candles)
+			err = jobs[i].rangeHolder.SetHasDataFromCandles(candles.Candles)
+			if err != nil {
+				return err
+			}
 		default:
 			return fmt.Errorf("%s %w %s", jobs[i].Nickname, errUnknownDataType, jobs[i].DataType)
 		}
@@ -715,7 +721,10 @@ func (m *DataHistoryManager) processCandleData(job *DataHistoryJob, exch exchang
 		r.Status = dataHistoryStatusFailed
 		return r, nil //nolint:nilerr // error is returned in the job result
 	}
-	job.rangeHolder.SetHasDataFromCandles(candles.Candles)
+	err = job.rangeHolder.SetHasDataFromCandles(candles.Candles)
+	if err != nil {
+		return nil, err
+	}
 	for i := range job.rangeHolder.Ranges[intervalIndex].Intervals {
 		if !job.rangeHolder.Ranges[intervalIndex].Intervals[i].HasData {
 			r.Status = dataHistoryStatusFailed
@@ -770,7 +779,10 @@ func (m *DataHistoryManager) processTradeData(job *DataHistoryJob, exch exchange
 		r.Status = dataHistoryStatusFailed
 		return r, nil //nolint:nilerr // error is returned in the job result
 	}
-	job.rangeHolder.SetHasDataFromCandles(candles.Candles)
+	err = job.rangeHolder.SetHasDataFromCandles(candles.Candles)
+	if err != nil {
+		return nil, err
+	}
 	for i := range job.rangeHolder.Ranges[intervalIndex].Intervals {
 		if !job.rangeHolder.Ranges[intervalIndex].Intervals[i].HasData {
 			r.Status = dataHistoryStatusFailed

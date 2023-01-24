@@ -43,8 +43,8 @@
   "data-type": "trade",
   "verbose-exchange-requests": false,
   "api-data": {
-   "start-date": "2021-08-01T00:00:00+10:00",
-   "end-date": "2021-08-04T00:00:00+10:00",
+   "start-date": "2022-08-01T00:00:00+10:00",
+   "end-date": "2022-08-04T00:00:00+10:00",
    "inclusive-end-date": false
   }
  },

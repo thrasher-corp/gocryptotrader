@@ -466,14 +466,14 @@ func StartEndTimeCheck(start, end time.Time) error {
 	if end.IsZero() || end.Equal(zeroValueUnix) {
 		return fmt.Errorf("end %w", ErrDateUnset)
 	}
-	if start.After(time.Now()) {
-		return ErrStartAfterTimeNow
-	}
 	if start.After(end) {
 		return ErrStartAfterEnd
 	}
 	if start.Equal(end) {
 		return ErrStartEqualsEnd
+	}
+	if start.After(time.Now()) {
+		return ErrStartAfterTimeNow
 	}
 
 	return nil
