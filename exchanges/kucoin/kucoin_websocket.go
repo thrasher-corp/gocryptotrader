@@ -236,7 +236,7 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		strings.HasPrefix(marketOrderbokLevel2To50Channel, topicInfo[0]):
 		return ku.processOrderbookWithDepth(resp.Data, topicInfo[1])
 	case strings.HasPrefix(marketCandlesChannel, topicInfo[0]):
-		symbolAndInterval := strings.Split(topicInfo[1], "_")
+		symbolAndInterval := strings.Split(topicInfo[1], currency.UnderscoreDelimiter)
 		if len(symbolAndInterval) != 2 {
 			return errMalformedData
 		}

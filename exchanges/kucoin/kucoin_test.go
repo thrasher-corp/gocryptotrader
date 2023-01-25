@@ -1833,14 +1833,15 @@ func TestGetInstanceServers(t *testing.T) {
 }
 
 func TestWSConnect(t *testing.T) {
-	ku.Verbose = true
+	t.Parallel()
 	err := ku.WsConnect()
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 }
 
 func TestGetAuthenticatedServersInstances(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
