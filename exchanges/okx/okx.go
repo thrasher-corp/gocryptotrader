@@ -3783,7 +3783,7 @@ func (ok *Okx) GetMarginLendingRatio(ctx context.Context, currency string, begin
 	if !end.IsZero() {
 		params.Set("end", strconv.FormatInt(begin.UnixMilli(), 10))
 	}
-	interval := ok.GetIntervalEnum(period, true)
+	interval := ok.GetIntervalEnum(period, false)
 	if interval != "" {
 		params.Set("period", interval)
 	}
@@ -3823,7 +3823,7 @@ func (ok *Okx) GetLongShortRatio(ctx context.Context, currency string, begin, en
 	if !end.IsZero() {
 		params.Set("end", strconv.FormatInt(begin.UnixMilli(), 10))
 	}
-	interval := ok.GetIntervalEnum(period, true)
+	interval := ok.GetIntervalEnum(period, false)
 	if interval != "" {
 		params.Set("period", interval)
 	}

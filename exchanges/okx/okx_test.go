@@ -370,7 +370,7 @@ func TestGetSupportCoins(t *testing.T) {
 
 func TestGetTakerVolume(t *testing.T) {
 	t.Parallel()
-	if _, err := ok.GetTakerVolume(context.Background(), "BTC", "SPOT", time.Time{}, time.Time{}, kline.FiveMin); err != nil {
+	if _, err := ok.GetTakerVolume(context.Background(), "BTC", "SPOT", time.Time{}, time.Time{}, kline.OneDay); err != nil {
 		t.Error("Okx GetTakerVolume() error", err)
 	}
 }
@@ -383,7 +383,7 @@ func TestGetMarginLendingRatio(t *testing.T) {
 
 func TestGetLongShortRatio(t *testing.T) {
 	t.Parallel()
-	if _, err := ok.GetLongShortRatio(context.Background(), "BTC", time.Time{}, time.Time{}, kline.FiveMin); err != nil {
+	if _, err := ok.GetLongShortRatio(context.Background(), "BTC", time.Time{}, time.Time{}, kline.OneDay); err != nil {
 		t.Error("Okx GetLongShortRatio() error", err)
 	}
 }
