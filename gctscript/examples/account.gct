@@ -20,7 +20,7 @@ load := func() {
     // account details while utilizing the configured config.json apikeys. 
     // ctx = global.set_sub_account(ctx, "sub_account_str")
 
-    info := exch.accountinfo(ctx, "ftx", "spot")
+    info := exch.accountinfo(ctx, "binance", "spot")
     if is_error(info) {
         // handle error 
     }

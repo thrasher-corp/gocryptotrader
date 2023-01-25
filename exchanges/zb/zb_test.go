@@ -877,7 +877,6 @@ func TestGetSpotKline(t *testing.T) {
 		arg.Since = startTime.UnixMilli()
 		arg.Type = "1day"
 	}
-
 	_, err := z.GetSpotKline(context.Background(), arg)
 	if err != nil {
 		t.Errorf("ZB GetSpotKline: %s", err)
@@ -890,7 +889,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	startTime := time.Now().Add(-time.Hour * 1)
+	startTime := time.Now().Add(-time.Hour * 24)
 	endTime := time.Now()
 	if mockTests {
 		startTime = time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
@@ -910,13 +909,20 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	startTime := time.Now().Add(-time.Hour * 1)
-	endTime := time.Now()
-	if mockTests {
-		startTime = time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
-		endTime = time.Date(2020, 9, 2, 0, 0, 0, 0, time.UTC)
+	startTime := time.Now().Add(-time.Hour * 24 * 365)
+	endTime := startTime.Add(time.Hour * 1001)
+	_, err = z.GetHistoricCandlesExtended(context.Background(),
+		currencyPair, asset.Spot, kline.OneHour, startTime, endTime)
+	if !errors.Is(err, kline.ErrRequestExceedsMaxLookback) {
+		t.Fatal(err)
 	}
-	// Current endpoint is dead.
+
+	startTime = time.Now().Add(-time.Hour * 24 * 365)
+	endTime = time.Now()
+	if mockTests {
+		startTime = time.UnixMilli(1674489600000)
+		endTime = startTime.Add(kline.OneDay.Duration())
+	}
 	_, err = z.GetHistoricCandlesExtended(context.Background(),
 		currencyPair, asset.Spot, kline.OneDay, startTime, endTime)
 	if err != nil {

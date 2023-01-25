@@ -28,6 +28,7 @@ const (
 	OneDay        = 24 * OneHour
 	TwoDay        = 2 * OneDay
 	ThreeDay      = 3 * OneDay
+	FiveDay       = 5 * OneDay
 	SevenDay      = 7 * OneDay
 	FifteenDay    = 15 * OneDay
 	OneWeek       = 7 * OneDay

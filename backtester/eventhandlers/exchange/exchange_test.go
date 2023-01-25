@@ -21,6 +21,8 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/binanceus"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/btcmarkets"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -237,6 +239,7 @@ func TestExecuteOrder(t *testing.T) {
 	bot := &engine.Engine{}
 	var err error
 	em := engine.SetupExchangeManager()
+	const testExchange = "binanceus"
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
@@ -261,7 +264,7 @@ func TestExecuteOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := &binance.Binance{}
+	f := &binanceus.Binanceus{}
 	f.Name = testExchange
 	cs := Settings{
 		Exchange:            f,
@@ -357,6 +360,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	bot := &engine.Engine{}
 	var err error
 	em := engine.SetupExchangeManager()
+	const testExchange = "BTC Markets"
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
@@ -374,7 +378,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewPair(currency.BTC, currency.AUD)
 	a := asset.Spot
 	_, err = exch.FetchOrderbook(context.Background(), p, a)
 	if err != nil {
@@ -390,7 +394,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := &binance.Binance{}
+	f := &btcmarkets.BTCMarkets{}
 	f.Name = testExchange
 	cs := Settings{
 		Exchange:      f,

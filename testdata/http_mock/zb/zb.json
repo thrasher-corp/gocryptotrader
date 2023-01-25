@@ -2135,6 +2135,25 @@
      "queryString": "market=btc_usdt\u0026since=1598918400000\u0026size=1000\u0026type=1day",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": {
+      "data": [
+       [
+        1674489600000,
+        22202.37,
+        22222,
+        22000.03,
+        22033.84,
+        2321.1898
+       ]
+      ],
+      "moneyType": "USDT",
+      "symbol": "BTC"
+     },
+     "queryString": "market=btc_usdt\u0026since=1674432000000\u0026size=1000\u0026type=1day",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
