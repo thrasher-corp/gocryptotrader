@@ -506,3 +506,18 @@ type OTCTradeHistoryResponse struct {
 		TradeTime         cryptoDotComMilliSec `json:"trade_time"`
 	} `json:"trade_list"`
 }
+
+// SubscriptionPayload represents a subscription payload
+type SubscriptionPayload struct {
+	ID     int                 `json:"id"`
+	Method string              `json:"method"`
+	Params map[string][]string `json:"params"`
+	Nonce  int64               `json:"nonce"`
+}
+
+// SubscriptionResponse represents a websocket subscription response.
+type SubscriptionResponse struct {
+	ID     int64  `json:"id"`
+	Code   int64  `json:"code"`
+	Method string `json:"method"`
+}

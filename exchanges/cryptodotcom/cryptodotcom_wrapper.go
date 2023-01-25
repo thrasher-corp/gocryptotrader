@@ -157,7 +157,7 @@ func (cr *Cryptodotcom) Setup(exch *config.Exchange) error {
 		return err
 	}
 	return cr.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL:                  cryptodotcomWebsocketMarketAPI,
+		URL:                  cryptodotcomWebsocketUserAPI,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		Authenticated:        true,

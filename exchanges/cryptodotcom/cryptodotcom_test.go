@@ -2,6 +2,7 @@ package cryptodotcom
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"os"
 	"testing"
@@ -631,5 +632,31 @@ func TestGetOrderInfo(t *testing.T) {
 		"123", enabled[0], asset.Spot)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestWsConnect(t *testing.T) {
+	t.Parallel()
+	cr.Verbose = true
+	err := cr.WsConnect()
+	if err != nil {
+		t.Error(err)
+	}
+	time.Sleep(time.Second * 60)
+}
+
+func TestGenerateDefaultSubscriptions(t *testing.T) {
+	t.Parallel()
+	subscriptions, err := cr.GenerateDefaultSubscriptions()
+	if err != nil {
+		t.Error(err)
+	} else {
+		println(len(subscriptions))
+		vals, err := cr.generatePayload("subscribe", subscriptions)
+		if err != nil {
+			t.Error(err)
+		}
+		v, _ := json.Marshal(vals)
+		println(string(v))
 	}
 }
