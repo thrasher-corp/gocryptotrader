@@ -180,7 +180,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.GetHistoricCandles(context.Background(), cp, asset.Futures, kline.FifteenMin, time.Now().Add(-time.Hour), time.Now())
+	_, err = d.GetHistoricCandles(context.Background(), cp, asset.Futures, kline.FifteenMin, time.Now().Add(-time.Minute*5), time.Now())
 	if err != nil {
 		t.Error(err)
 	}

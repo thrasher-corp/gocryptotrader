@@ -1028,7 +1028,12 @@ func (d *Deribit) ValidateCredentials(ctx context.Context, assetType asset.Item)
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (d *Deribit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	if err := d.ValidateKline(pair, a, interval); err != nil {
+	req, err := d.GetKlineRequest(pair, a, interval, start, end)
+	if err != nil {
+		return nil, err
+	}
+	err = d.ValidateKline(pair, a, interval)
+	if err != nil {
 		return nil, err
 	}
 	fmtPair, err := d.FormatExchangeCurrency(pair, a)
@@ -1056,15 +1061,9 @@ func (d *Deribit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		len(tradingViewData.Volume) != checkLen {
 		return nil, fmt.Errorf("%s - %s - %v: invalid trading view chart data received", d.Name, a, fmtPair)
 	}
-	resp := &kline.Item{
-		Pair:     fmtPair,
-		Asset:    a,
-		Interval: interval,
-		Exchange: d.Name,
-	}
-	resp.Candles = make([]kline.Candle, len(tradingViewData.Ticks))
+	listCandles := make([]kline.Candle, len(tradingViewData.Ticks))
 	for x := range tradingViewData.Ticks {
-		resp.Candles[x] = kline.Candle{
+		listCandles[x] = kline.Candle{
 			Time:   time.UnixMilli(int64(tradingViewData.Ticks[x])),
 			Open:   tradingViewData.Open[x],
 			High:   tradingViewData.High[x],
@@ -1073,29 +1072,30 @@ func (d *Deribit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 			Volume: tradingViewData.Volume[x],
 		}
 	}
-	return resp, nil
+	return req.ProcessResponse(listCandles)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	if err := d.ValidateKline(pair, a, interval); err != nil {
+	req, err := d.GetKlineExtendedRequest(pair, a, interval, start, end)
+	if err != nil {
+		return nil, err
+	}
+	err = d.ValidateKline(pair, a, interval)
+	if err != nil {
 		return nil, err
 	}
 	fmtPair, err := d.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return nil, err
 	}
-	resp := &kline.Item{
-		Pair:     fmtPair,
-		Asset:    a,
-		Interval: interval,
-		Exchange: d.Name,
-	}
+	req.Pair = fmtPair
 	dates, err := kline.CalculateCandleDateRanges(start, end, interval, d.Features.Enabled.Kline.ResultLimit)
 	if err != nil {
 		return nil, err
 	}
 	var tradingViewData *TVChartData
+	timeSeries := []kline.Candle{}
 	for x := range dates.Ranges {
 		intervalString, err := d.GetResolutionFromInterval(interval)
 		if err != nil {
@@ -1118,7 +1118,7 @@ func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			return nil, fmt.Errorf("%s - %s - %v: invalid trading view chart data received", d.Name, a, pair)
 		}
 		for x := range tradingViewData.Ticks {
-			resp.Candles = append(resp.Candles, kline.Candle{
+			timeSeries = append(timeSeries, kline.Candle{
 				Time:   time.UnixMilli(int64(tradingViewData.Ticks[x])),
 				Open:   tradingViewData.Open[x],
 				High:   tradingViewData.High[x],
@@ -1128,5 +1128,5 @@ func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			})
 		}
 	}
-	return resp, nil
+	return req.ProcessResponse(timeSeries)
 }
