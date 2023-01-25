@@ -1162,8 +1162,8 @@ type WsFuturesTicker struct {
 	FilledSize   float64              `json:"size"`
 	TradeID      string               `json:"tradeId"`
 	BestBidSize  float64              `json:"bestBidSize"`
-	BestBidPrice kucoinUmbiguousFloat `json:"bestBidPrice"`
-	BestAskPrice kucoinUmbiguousFloat `json:"bestAskPrice"`
+	BestBidPrice kucoinAmbiguousFloat `json:"bestBidPrice"`
+	BestAskPrice kucoinAmbiguousFloat `json:"bestAskPrice"`
 	BestAskSize  float64              `json:"bestAskSize"`
 	FilledTime   kucoinTimeNanoSec    `json:"ts"`
 }

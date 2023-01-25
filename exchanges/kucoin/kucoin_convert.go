@@ -79,10 +79,10 @@ func (k *kucoinTimeNanoSec) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-type kucoinUmbiguousFloat float64
+type kucoinAmbiguousFloat float64
 
 // UnmarshalJSON is custom type json unmarshaller for kucoinUmbiguousFloat
-func (k *kucoinUmbiguousFloat) UnmarshalJSON(data []byte) error {
+func (k *kucoinAmbiguousFloat) UnmarshalJSON(data []byte) error {
 	var newVal interface{}
 	err := json.Unmarshal(data, &newVal)
 	if err != nil {
@@ -90,18 +90,18 @@ func (k *kucoinUmbiguousFloat) UnmarshalJSON(data []byte) error {
 	}
 	val := reflect.ValueOf(newVal)
 	if val.Kind() == reflect.Float64 {
-		*k = kucoinUmbiguousFloat(val.Float())
+		*k = kucoinAmbiguousFloat(val.Float())
 	} else if val.Kind() == reflect.String {
 		value, err := strconv.ParseFloat(newVal.(string), 64)
 		if err != nil {
 			return err
 		}
-		*k = kucoinUmbiguousFloat(value)
+		*k = kucoinAmbiguousFloat(value)
 	}
 	return nil
 }
 
 // Float64 returns floating values from kucoinUmbiguousFloat.
-func (k *kucoinUmbiguousFloat) Float64() float64 {
+func (k *kucoinAmbiguousFloat) Float64() float64 {
 	return float64(*k)
 }
