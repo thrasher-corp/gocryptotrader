@@ -8,12 +8,6 @@ import (
 )
 
 const (
-	// Order book depth intervals
-
-	orderbookIntervalZero        = "0" // orderbookIntervalZero means no aggregation is applied. default to 0
-	orderbookIntervalZeroPt1     = "0.1"
-	orderbookIntervalZeroPtZero1 = "0.01"
-
 	// Settles
 	settleBTC  = "btc"
 	settleUSD  = "usd"
@@ -1754,26 +1748,26 @@ type OrderCreateParams struct {
 
 // Order represents future order response
 type Order struct {
-	ID              int64     `json:"id"`
-	User            int64     `json:"user"`
-	Contract        string    `json:"contract"`
-	CreateTime      time.Time `json:"create_time"`
-	Size            float64   `json:"size"`
-	Iceberg         int64     `json:"iceberg"`
-	Left            float64   `json:"left"`
-	Price           float64   `json:"price,string"`
-	FillPrice       float64   `json:"fill_price,string"`
-	MakerFee        string    `json:"mkfr"`
-	TakerFee        string    `json:"tkfr"`
-	TimeInForce     string    `json:"tif"`
-	ReferenceUserID int64     `json:"refu"`
-	IsReduceOnly    bool      `json:"is_reduce_only"`
-	IsClose         bool      `json:"is_close"`
-	IsLiq           bool      `json:"is_liq"`
-	Text            string    `json:"text"`
-	Status          string    `json:"status"`
-	FinishTime      time.Time `json:"finish_time"`
-	FinishAs        string    `json:"finish_as"`
+	ID                    int64     `json:"id"`
+	User                  int64     `json:"user"`
+	Contract              string    `json:"contract"`
+	CreateTime            time.Time `json:"create_time"`
+	Size                  float64   `json:"size"`
+	Iceberg               int64     `json:"iceberg"`
+	RemainingAmount       float64   `json:"left"` // Size left to be traded
+	OrderPrice            float64   `json:"price,string"`
+	FillPrice             float64   `json:"fill_price,string"` // Fill price of the order. total filled in quote currency.
+	MakerFee              string    `json:"mkfr"`
+	TakerFee              string    `json:"tkfr"`
+	TimeInForce           string    `json:"tif"`
+	ReferenceUserID       int64     `json:"refu"`
+	IsReduceOnly          bool      `json:"is_reduce_only"`
+	IsClose               bool      `json:"is_close"`
+	IsOrderForLiquidation bool      `json:"is_liq"`
+	Text                  string    `json:"text"`
+	Status                string    `json:"status"`
+	FinishTime            time.Time `json:"finish_time"`
+	FinishAs              string    `json:"finish_as"`
 }
 
 // AmendFuturesOrderParam represents amend futures order parameter

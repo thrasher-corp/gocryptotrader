@@ -1017,9 +1017,12 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		}
 		response.Status = status
 		response.Fee = sOrder.Fee
+		response.FeeAsset = currency.NewCode(sOrder.FeeCurrency)
 		response.Pair = fPair
 		response.Date = sOrder.CreateTime
 		response.ClientOrderID = sOrder.Text
+		response.Date = sOrder.CreateTimeMs
+		response.LastUpdated = sOrder.UpdateTimeMs
 		return response, nil
 	case asset.Futures:
 		if !fPair.Quote.Upper().MatchAny(currency.USD, currency.USDT, currency.BTC) {
@@ -1054,6 +1057,8 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		response.Pair = fPair
 		response.Date = fOrder.CreateTime
 		response.ClientOrderID = fOrder.Text
+		response.ReduceOnly = fOrder.IsReduceOnly
+		response.Amount = fOrder.RemainingAmount
 		return response, nil
 	case asset.DeliveryFutures:
 		settle, err := g.getSettlementFromCurrency(fPair)
@@ -1089,6 +1094,8 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		response.Pair = fPair
 		response.Date = dOrder.CreateTime
 		response.ClientOrderID = dOrder.Text
+		response.Amount = dOrder.Size
+		response.Price = dOrder.OrderPrice
 		return response, nil
 	case asset.Options:
 		optionOrder, err := g.PlaceOptionOrder(ctx, OptionOrderParam{
@@ -1387,11 +1394,11 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		}
 		return order.Detail{
 			Amount:         fOrder.Size,
-			ExecutedAmount: fOrder.Size - fOrder.Left,
+			ExecutedAmount: fOrder.Size - fOrder.RemainingAmount,
 			Exchange:       g.Name,
 			OrderID:        orderID,
 			Status:         orderStatus,
-			Price:          fOrder.Price,
+			Price:          fOrder.OrderPrice,
 			Date:           fOrder.CreateTime,
 			LastUpdated:    fOrder.FinishTime,
 			Pair:           pair,
@@ -1595,9 +1602,9 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 					Amount:          futuresOrders[x].Size,
 					Pair:            pairs[x],
 					OrderID:         strconv.FormatInt(futuresOrders[x].ID, 10),
-					Price:           futuresOrders[x].Price,
-					ExecutedAmount:  futuresOrders[x].Size - futuresOrders[x].Left,
-					RemainingAmount: futuresOrders[x].Left,
+					Price:           futuresOrders[x].OrderPrice,
+					ExecutedAmount:  futuresOrders[x].Size - futuresOrders[x].RemainingAmount,
+					RemainingAmount: futuresOrders[x].RemainingAmount,
 					LastUpdated:     futuresOrders[x].FinishTime,
 					Date:            futuresOrders[x].CreateTime,
 					ClientOrderID:   futuresOrders[x].Text,
@@ -1748,21 +1755,21 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := g.GetKlineRequest(pair, a, interval, start, end)
+	if err != nil {
+		return nil, err
+	}
 	formattedPair, err := g.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return nil, err
 	}
+	req.Pair = formattedPair
 	formattedPair = formattedPair.Upper()
 	err = g.ValidateKline(formattedPair, a, interval)
 	if err != nil {
 		return nil, err
 	}
-	klineData := &kline.Item{
-		Interval: interval,
-		Asset:    a,
-		Pair:     formattedPair.Upper(),
-		Exchange: g.Name,
-	}
+	listCandlesticks := []kline.Candle{}
 	switch a {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
 		var candles []Candlestick
@@ -1778,21 +1785,19 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		if err != nil {
 			return nil, err
 		}
-		klineData.Candles = make([]kline.Candle, len(candles))
 		for x := range candles {
-			klineData.Candles[x] = kline.Candle{
+			listCandlesticks = append(listCandlesticks, kline.Candle{
 				Time:   candles[x].Timestamp,
 				Open:   candles[x].OpenPrice,
 				High:   candles[x].HighestPrice,
 				Low:    candles[x].LowestPrice,
 				Close:  candles[x].ClosePrice,
 				Volume: candles[x].QuoteCcyVolume,
-			}
+			})
 		}
-		return klineData, nil
 	case asset.Futures, asset.DeliveryFutures:
 		if formattedPair.Quote.MatchAny(currency.USD, currency.USDT, currency.BTC) {
-			return klineData, errUnsupportedSettleValue
+			return nil, errUnsupportedSettleValue
 		}
 
 		var candles []FuturesCandlestick
@@ -1802,45 +1807,46 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 			candles, err = g.GetDeliveryFuturesCandlesticks(ctx, formattedPair.Quote.Lower().String(), formattedPair.Upper().String(), start, end, 0, interval)
 		}
 		if err != nil {
-			return klineData, err
+			return nil, err
 		}
-		klineData.Candles = make([]kline.Candle, len(candles))
 		for x := range candles {
-			klineData.Candles[x] = kline.Candle{
+			listCandlesticks = append(listCandlesticks, kline.Candle{
 				Time:   candles[x].Timestamp,
 				Open:   candles[x].OpenPrice,
 				High:   candles[x].HighestPrice,
 				Low:    candles[x].LowestPrice,
 				Close:  candles[x].ClosePrice,
 				Volume: candles[x].Volume,
-			}
+			})
 		}
-		return klineData, nil
 	case asset.Options:
 		candles, err := g.GetOptionFuturesCandlesticks(ctx, formattedPair.Upper().String(), 0, start, end, interval)
 		if err != nil {
-			return klineData, err
+			return nil, err
 		}
-		klineData.Candles = make([]kline.Candle, len(candles))
 		for x := range candles {
-			klineData.Candles[x] = kline.Candle{
+			listCandlesticks = append(listCandlesticks, kline.Candle{
 				Time:   candles[x].Timestamp,
 				Open:   candles[x].OpenPrice,
 				High:   candles[x].HighestPrice,
 				Low:    candles[x].LowestPrice,
 				Close:  candles[x].ClosePrice,
 				Volume: candles[x].Volume,
-			}
+			})
 		}
-		return klineData, nil
 	default:
-		return klineData, fmt.Errorf("%s does not support %s", g.Name, a)
+		return nil, fmt.Errorf("%s does not support %s", g.Name, a)
 	}
+	return req.ProcessResponse(listCandlesticks)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	err := g.ValidateKline(pair, a, interval)
+	req, err := g.GetKlineExtendedRequest(pair, a, interval, start, end)
+	if err != nil {
+		return nil, err
+	}
+	err = g.ValidateKline(pair, a, interval)
 	if err != nil {
 		return nil, err
 	}
@@ -1849,33 +1855,27 @@ func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 	if err != nil {
 		return nil, err
 	}
-	klineData := &kline.Item{
-		Interval: interval,
-		Asset:    a,
-		Pair:     formattedPair.Upper(),
-		Exchange: g.Name,
-	}
 	var dates *kline.IntervalRangeHolder
 	dates, err = kline.CalculateCandleDateRanges(start, end, interval, 0)
 	if err != nil {
 		return nil, err
 	}
-	var candlestickItems []kline.Candle
 	var fPair currency.PairFormat
 	fPair, err = g.GetPairFormat(a, true)
 	if err != nil {
 		return nil, err
 	}
+	candlestickItems := []kline.Candle{}
 	for b := range dates.Ranges {
 		switch a {
 		case asset.Spot, asset.Margin, asset.CrossMargin:
 			var candles []Candlestick
 			if formattedPair.IsEmpty() {
-				return klineData, currency.ErrCurrencyPairEmpty
+				return nil, currency.ErrCurrencyPairEmpty
 			}
 			candles, err = g.GetCandlesticks(ctx, fPair.Format(formattedPair), 0, dates.Ranges[b].Start.Time, dates.Ranges[b].End.Time, interval)
 			if err != nil {
-				return klineData, err
+				return nil, err
 			}
 			for x := range candles {
 				candlestickItems = append(candlestickItems, kline.Candle{
@@ -1890,7 +1890,7 @@ func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 		case asset.Futures, asset.DeliveryFutures:
 			settle, err := g.getSettlementFromCurrency(formattedPair)
 			if err != nil {
-				return klineData, err
+				return nil, err
 			}
 			var candles []FuturesCandlestick
 			if a == asset.Futures {
@@ -1899,7 +1899,7 @@ func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 				candles, err = g.GetDeliveryFuturesCandlesticks(ctx, settle, formattedPair.Upper().String(), dates.Ranges[b].Start.Time, dates.Ranges[b].End.Time, 0, interval)
 			}
 			if err != nil {
-				return klineData, err
+				return nil, err
 			}
 			for x := range candles {
 				candlestickItems = append(candlestickItems, kline.Candle{
@@ -1911,11 +1911,10 @@ func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 					Volume: candles[x].Volume,
 				})
 			}
-			klineData.Candles = candlestickItems
 		case asset.Options:
 			candles, err := g.GetOptionFuturesCandlesticks(ctx, formattedPair.Upper().String(), uint64(g.Features.Enabled.Kline.ResultLimit), start, end, interval)
 			if err != nil {
-				return klineData, err
+				return nil, err
 			}
 			for x := range candles {
 				candlestickItems = append(candlestickItems, kline.Candle{
@@ -1928,13 +1927,10 @@ func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 				})
 			}
 		default:
-			return klineData, fmt.Errorf("%s does not support %s", g.Name, a)
+			return nil, fmt.Errorf("%s does not support %s", g.Name, a)
 		}
 	}
-	klineData.Candles = candlestickItems
-	klineData.SortCandlesByTimestamp(false)
-	klineData.RemoveOutsideRange(start, end)
-	return klineData, nil
+	return req.ProcessResponse(candlestickItems)
 }
 
 // GetAvailableTransferChains returns the available transfer blockchains for the specific
