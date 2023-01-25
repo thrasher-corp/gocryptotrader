@@ -29,7 +29,6 @@ var Exchanges = []string{
 	"coinut",
 	"deribit",
 	"exmo",
-	"ftx",
 	"gateio",
 	"gemini",
 	"hitbtc",

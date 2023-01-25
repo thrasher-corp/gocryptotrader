@@ -9,7 +9,7 @@ A simple demonstration using `gctcli` is as follows:
 ## Obtaining a list of supported transfer chains
 
 ```sh
-$ ./gctcli getavailabletransferchains --exchange=ftx --cryptocurrency=usdt
+$ ./gctcli getavailabletransferchains --exchange=binance --cryptocurrency=usdt
 {
  "chains": [
   "erc20",
@@ -23,7 +23,7 @@ $ ./gctcli getavailabletransferchains --exchange=ftx --cryptocurrency=usdt
 ## Obtaining a deposit address based on a specific cryptocurrency and chain
 
 ```sh
-$ ./gctcli getcryptocurrencydepositaddress --exchange=ftx --cryptocurrency=usdt --chain=sol
+$ ./gctcli getcryptocurrencydepositaddress --exchange=binance --cryptocurrency=usdt --chain=sol
 {
  "address": "GW3oT9JpFyTkCWPnt6Yw9ugppSQwDv4ZMG1vabC8WmHS"
 }
@@ -32,7 +32,7 @@ $ ./gctcli getcryptocurrencydepositaddress --exchange=ftx --cryptocurrency=usdt 
 ## Withdrawing
 
 ```sh
-$ ./gctcli withdrawcryptofunds --exchange=ftx --currency=USDT --address=TJU9piX2WA8WTvxVKMqpvTzZGhvXQAZKSY --amount=10 --chain=trx
+$ ./gctcli withdrawcryptofunds --exchange=binance --currency=USDT --address=TJU9piX2WA8WTvxVKMqpvTzZGhvXQAZKSY --amount=10 --chain=trx
 {
  "id": "01234567-0000-0000-0000-000000000000",
 }
@@ -58,7 +58,6 @@ $ ./gctcli withdrawcryptofunds --exchange=ftx --currency=USDT --address=TJU9piX2
 | COINUT | No | No | NA |
 | Deribit | Yes | Yes | |
 | Exmo | Yes | Yes | Addresses must be created via their website first |
-| FTX | Yes | Yes | |
 | GateIO | Yes | Yes | |
 | Gemini | No | No | |
 | HitBTC | No | No | |

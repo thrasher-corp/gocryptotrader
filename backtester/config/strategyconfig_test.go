@@ -489,7 +489,7 @@ func TestGenerateConfigForDCAAPICandles(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: mainExchange,
+				ExchangeName: "bybit",
 				Asset:        asset.Spot,
 				Base:         mainCurrencyPair.Base,
 				Quote:        mainCurrencyPair.Quote,

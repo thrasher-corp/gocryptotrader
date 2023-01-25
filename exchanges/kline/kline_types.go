@@ -37,6 +37,7 @@ const (
 	ThreeMonth      = 12 * OneWeek
 	SixMonth        = 2 * ThreeMonth
 	OneYear         = 365 * OneDay
+	FiveDay         = 5 * OneDay
 )
 
 var (
