@@ -39,6 +39,11 @@
    "secret": "Secret",
    "otpSecret": "-"
   },
+  "binanceus": {
+   "key": "Key",
+   "secret": "Secret",
+   "otpSecret": "-"
+  },
   "bitfinex": {
    "key": "Key",
    "secret": "Secret",
@@ -80,6 +85,11 @@
    "secret": "Secret",
    "otpSecret": "-"
   },
+  "bybit": {
+   "key": "Key",
+   "secret": "Secret",
+   "otpSecret": "-"
+  },
   "coinbasepro": {
    "key": "Key",
    "secret": "Secret",
@@ -92,11 +102,6 @@
    "otpSecret": "-"
   },
   "exmo": {
-   "key": "Key",
-   "secret": "Secret",
-   "otpSecret": "-"
-  },
-  "ftx": {
    "key": "Key",
    "secret": "Secret",
    "otpSecret": "-"
@@ -148,10 +153,10 @@
    "otpSecret": "-"
   },
   "okx": {
-    "key": "Key",
-    "secret": "Secret",
-    "clientID": "ClientID",
-    "otpSecret": "-"
+   "key": "Key",
+   "secret": "Secret",
+   "clientID": "ClientID",
+   "otpSecret": "-"
   },
   "poloniex": {
    "key": "Key",

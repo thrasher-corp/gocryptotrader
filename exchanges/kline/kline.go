@@ -270,6 +270,8 @@ func durationToWord(in Interval) string {
 		return "oneday"
 	case ThreeDay:
 		return "threeday"
+	case FiveDay:
+		return "fiveday"
 	case FifteenDay:
 		return "fifteenday"
 	case OneWeek:

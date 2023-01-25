@@ -2240,7 +2240,7 @@ func TestCurrencyStateTradingPair(t *testing.T) {
 func TestGetFuturesPositions(t *testing.T) {
 	t.Parallel()
 	em := NewExchangeManager()
-	exch, err := em.NewExchangeByName("ftx")
+	exch, err := em.NewExchangeByName("binance")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2915,8 +2915,9 @@ func TestGetMarginRatesHistory(t *testing.T) {
 
 func TestGetFundingRates(t *testing.T) {
 	t.Parallel()
+
 	em := NewExchangeManager()
-	exch, err := em.NewExchangeByName("ftx")
+	exch, err := em.NewExchangeByName("binance")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3011,7 +3012,7 @@ func TestGetFundingRates(t *testing.T) {
 func TestGetManagedPosition(t *testing.T) {
 	t.Parallel()
 	em := NewExchangeManager()
-	exch, err := em.NewExchangeByName("ftx")
+	exch, err := em.NewExchangeByName("binance")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3151,8 +3152,9 @@ func TestGetManagedPosition(t *testing.T) {
 
 func TestGetAllManagedPositions(t *testing.T) {
 	t.Parallel()
+
 	em := NewExchangeManager()
-	exch, err := em.NewExchangeByName("ftx")
+	exch, err := em.NewExchangeByName("binance")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3262,7 +3264,7 @@ func TestGetAllManagedPositions(t *testing.T) {
 func TestGetOrderbookMovement(t *testing.T) {
 	t.Parallel()
 	em := NewExchangeManager()
-	exch, err := em.NewExchangeByName("ftx")
+	exch, err := em.NewExchangeByName("binance")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3372,7 +3374,7 @@ func TestGetOrderbookMovement(t *testing.T) {
 func TestGetOrderbookAmountByNominal(t *testing.T) {
 	t.Parallel()
 	em := NewExchangeManager()
-	exch, err := em.NewExchangeByName("ftx")
+	exch, err := em.NewExchangeByName("binance")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3475,7 +3477,7 @@ func TestGetOrderbookAmountByNominal(t *testing.T) {
 func TestGetOrderbookAmountByImpact(t *testing.T) {
 	t.Parallel()
 	em := NewExchangeManager()
-	exch, err := em.NewExchangeByName("ftx")
+	exch, err := em.NewExchangeByName("binance")
 	if err != nil {
 		t.Fatal(err)
 	}

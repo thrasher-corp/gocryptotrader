@@ -10,20 +10,20 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bybit"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 const (
-	exchangeName = "Binance"
+	exchangeName = "Bybit"
 )
 
 func withdrawManagerTestHelper(t *testing.T) (*ExchangeManager, *portfolioManager) {
 	t.Helper()
 	em := NewExchangeManager()
-	b := new(binance.Binance)
+	b := new(bybit.Bybit)
 	b.SetDefaults()
 	cfg, err := b.GetDefaultConfig()
 	if err != nil {

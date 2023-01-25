@@ -1139,10 +1139,7 @@ func disruptFormatting(p currency.Pair) (currency.Pair, error) {
 	if p.Base.IsEmpty() {
 		return currency.EMPTYPAIR, errors.New("cannot disrupt formatting as base is not populated")
 	}
-	if p.Quote.IsEmpty() {
-		return currency.EMPTYPAIR, errors.New("cannot disrupt formatting as quote is not populated")
-	}
-
+	// NOTE: Quote can be empty for margin funding
 	return currency.Pair{
 		Base:      p.Base.Upper(),
 		Quote:     p.Quote.Lower(),

@@ -42,11 +42,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/binanceus"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-const testExchange = "binance"
+const testExchange = "binanceus"
 
 var leet = decimal.NewFromInt(1337)
 
@@ -71,11 +72,14 @@ func TestSetupFromConfig(t *testing.T) {
 	if !errors.Is(err, base.ErrStrategyNotFound) {
 		t.Errorf("received: %v, expected: %v", err, base.ErrStrategyNotFound)
 	}
+
+	const testExchange = "bybit"
+
 	cfg.CurrencySettings = []config.CurrencySettings{
 		{
 			ExchangeName: testExchange,
 			Base:         currency.BTC,
-			Quote:        currency.NewCode("0624"),
+			Quote:        currency.USDT,
 			Asset:        asset.Spot,
 		},
 		{
@@ -96,8 +100,6 @@ func TestSetupFromConfig(t *testing.T) {
 			"hello": "moto",
 		},
 	}
-	cfg.CurrencySettings[0].Base = currency.BTC
-	cfg.CurrencySettings[0].Quote = currency.USDT
 	cfg.DataSettings.APIData = &config.APIData{}
 
 	err = bt.SetupFromConfig(cfg, "", "", false)
@@ -156,7 +158,7 @@ func TestLoadDataAPI(t *testing.T) {
 	cfg := &config.Config{
 		CurrencySettings: []config.CurrencySettings{
 			{
-				ExchangeName: "Binance",
+				ExchangeName: testExchange,
 				Asset:        asset.Spot,
 				Base:         cp.Base,
 				Quote:        cp.Quote,
@@ -180,7 +182,7 @@ func TestLoadDataAPI(t *testing.T) {
 		},
 	}
 	em := engine.ExchangeManager{}
-	exch, err := em.NewExchangeByName("Binance")
+	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -209,7 +211,7 @@ func TestLoadDataCSV(t *testing.T) {
 	cfg := &config.Config{
 		CurrencySettings: []config.CurrencySettings{
 			{
-				ExchangeName: "Binance",
+				ExchangeName: testExchange,
 				Asset:        asset.Spot,
 				Base:         cp.Base,
 				Quote:        cp.Quote,
@@ -234,7 +236,7 @@ func TestLoadDataCSV(t *testing.T) {
 		},
 	}
 	em := engine.ExchangeManager{}
-	exch, err := em.NewExchangeByName("Binance")
+	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1549,7 +1551,7 @@ func TestSetExchangeCredentials(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 	cfg := &config.Config{}
-	f := &binance.Binance{}
+	f := &binanceus.Binanceus{}
 	f.SetDefaults()
 	b := f.GetBase()
 	err = setExchangeCredentials(cfg, b)
