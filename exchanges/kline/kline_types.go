@@ -40,6 +40,7 @@ const (
 	ThreeMonth           = 90 * OneDay
 	SixMonth             = 2 * ThreeMonth
 	OneYear              = 365 * OneDay
+	FiveDay              = 5 * OneDay
 )
 
 var (
