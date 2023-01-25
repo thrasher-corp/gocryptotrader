@@ -215,6 +215,10 @@ func TestDurationToWord(t *testing.T) {
 			ThreeDay,
 		},
 		{
+			"FiveDay",
+			FiveDay,
+		},
+		{
 			"FifteenDay",
 			FifteenDay,
 		},
@@ -336,6 +340,11 @@ func TestTotalCandlesPerInterval(t *testing.T) {
 			"ThreeDay",
 			ThreeDay,
 			121,
+		},
+		{
+			"FiveDay",
+			FiveDay,
+			73,
 		},
 		{
 			"FifteenDay",

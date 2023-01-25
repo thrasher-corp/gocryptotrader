@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/binanceus"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
@@ -328,7 +329,7 @@ func TestFetchLatestData(t *testing.T) {
 		currency.PairFormat{
 			Uppercase: true,
 		})
-	f := &binance.Binance{}
+	f := &binanceus.Binanceus{}
 	f.SetDefaults()
 	fb := f.GetBase()
 	fbA := fb.CurrencyPairs.Pairs[asset.Spot]
@@ -392,7 +393,7 @@ func TestLoadCandleData(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 
-	exch := &binance.Binance{}
+	exch := &binanceus.Binanceus{}
 	exch.SetDefaults()
 	cp := currency.NewPair(currency.BTC, currency.USDT).Format(
 		currency.PairFormat{
@@ -443,7 +444,7 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 		currency.PairFormat{
 			Uppercase: true,
 		})
-	f := &binance.Binance{}
+	f := &binanceus.Binanceus{}
 	f.SetDefaults()
 	fb := f.GetBase()
 	fbA := fb.CurrencyPairs.Pairs[asset.Spot]

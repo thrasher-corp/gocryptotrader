@@ -836,7 +836,7 @@ func (ok *Okx) PlaceTWAPOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoO
 	if arg.PriceLimit <= 0 {
 		return nil, errInvalidPriceLimit
 	}
-	if ok.GetIntervalEnum(arg.TimeInterval) == "" {
+	if ok.GetIntervalEnum(arg.TimeInterval, true) == "" {
 		return nil, errMissingIntervalValue
 	}
 	return ok.PlaceAlgoOrder(ctx, arg)
@@ -3075,7 +3075,7 @@ func (ok *Okx) GetOrderBookDepth(ctx context.Context, instrumentID string, depth
 }
 
 // GetIntervalEnum allowed interval params by Okx Exchange
-func (ok *Okx) GetIntervalEnum(interval kline.Interval) string {
+func (ok *Okx) GetIntervalEnum(interval kline.Interval, appendUTC bool) string {
 	switch interval {
 	case kline.OneMin:
 		return "1m"
@@ -3093,31 +3093,41 @@ func (ok *Okx) GetIntervalEnum(interval kline.Interval) string {
 		return "2H"
 	case kline.FourHour:
 		return "4H"
-	case kline.SixHour: // NOTE: Cases here and below force UTC return instead of hong Kong time.
-		return "6Hutc"
-	case kline.EightHour:
-		return "8Hutc"
-	case kline.TwelveHour:
-		return "12Hutc"
-	case kline.OneDay:
-		return "1Dutc"
-	case kline.TwoDay:
-		return "2Dutc"
-	case kline.ThreeDay:
-		return "3Dutc"
-	case kline.OneWeek:
-		return "1Wutc"
-	case kline.OneMonth:
-		return "1Mutc"
-	case kline.ThreeMonth:
-		return "3Mutc"
-	case kline.SixMonth:
-		return "6Mutc"
-	case kline.OneYear:
-		return "1Yutc"
-	default:
-		return ""
 	}
+
+	duration := ""
+	switch interval {
+	case kline.SixHour: // NOTE: Cases here and below can either be local Hong Kong time or UTC time.
+		duration = "6H"
+	case kline.TwelveHour:
+		duration = "12H"
+	case kline.OneDay:
+		duration = "1D"
+	case kline.TwoDay:
+		duration = "2D"
+	case kline.ThreeDay:
+		duration = "3D"
+	case kline.FiveDay:
+		duration = "5D"
+	case kline.OneWeek:
+		duration = "1W"
+	case kline.OneMonth:
+		duration = "1M"
+	case kline.ThreeMonth:
+		duration = "3M"
+	case kline.SixMonth:
+		duration = "6M"
+	case kline.OneYear:
+		duration = "1Y"
+	default:
+		return duration
+	}
+
+	if appendUTC {
+		duration += "utc"
+	}
+
+	return duration
 }
 
 // GetCandlesticks Retrieve the candlestick charts. This endpoint can retrieve the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
@@ -3160,7 +3170,7 @@ func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, inte
 	if !after.IsZero() {
 		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
 	}
-	bar := ok.GetIntervalEnum(interval)
+	bar := ok.GetIntervalEnum(interval, true)
 	if bar != "" {
 		params.Set("bar", bar)
 	}
@@ -3719,7 +3729,7 @@ func (ok *Okx) GetTakerVolume(ctx context.Context, currency, instrumentType stri
 		return nil, errInvalidInstrumentType
 	}
 	params.Set("instType", strings.ToUpper(instrumentType))
-	interval := ok.GetIntervalEnum(period)
+	interval := ok.GetIntervalEnum(period, false)
 	if interval != "" {
 		params.Set("period", interval)
 	}
@@ -3773,7 +3783,7 @@ func (ok *Okx) GetMarginLendingRatio(ctx context.Context, currency string, begin
 	if !end.IsZero() {
 		params.Set("end", strconv.FormatInt(begin.UnixMilli(), 10))
 	}
-	interval := ok.GetIntervalEnum(period)
+	interval := ok.GetIntervalEnum(period, false)
 	if interval != "" {
 		params.Set("period", interval)
 	}
@@ -3813,7 +3823,7 @@ func (ok *Okx) GetLongShortRatio(ctx context.Context, currency string, begin, en
 	if !end.IsZero() {
 		params.Set("end", strconv.FormatInt(begin.UnixMilli(), 10))
 	}
-	interval := ok.GetIntervalEnum(period)
+	interval := ok.GetIntervalEnum(period, false)
 	if interval != "" {
 		params.Set("period", interval)
 	}
@@ -3857,7 +3867,7 @@ func (ok *Okx) GetContractsOpenInterestAndVolume(
 	if !end.IsZero() {
 		params.Set("end", strconv.FormatInt(begin.UnixMilli(), 10))
 	}
-	interval := ok.GetIntervalEnum(period)
+	interval := ok.GetIntervalEnum(period, false)
 	if interval != "" {
 		params.Set("period", interval)
 	}
@@ -3901,7 +3911,7 @@ func (ok *Okx) GetOptionsOpenInterestAndVolume(ctx context.Context, currency str
 	if currency != "" {
 		params.Set("ccy", currency)
 	}
-	interval := ok.GetIntervalEnum(period)
+	interval := ok.GetIntervalEnum(period, false)
 	if interval != "" {
 		params.Set("period", interval)
 	}
@@ -3945,7 +3955,7 @@ func (ok *Okx) GetPutCallRatio(ctx context.Context, currency string,
 	if currency != "" {
 		params.Set("ccy", currency)
 	}
-	interval := ok.GetIntervalEnum(period)
+	interval := ok.GetIntervalEnum(period, false)
 	if interval != "" {
 		params.Set("period", interval)
 	}
@@ -3984,7 +3994,7 @@ func (ok *Okx) GetOpenInterestAndVolumeExpiry(ctx context.Context, currency stri
 	if currency != "" {
 		params.Set("ccy", currency)
 	}
-	interval := ok.GetIntervalEnum(period)
+	interval := ok.GetIntervalEnum(period, false)
 	if interval != "" {
 		params.Set("period", interval)
 	}
@@ -4068,7 +4078,7 @@ func (ok *Okx) GetOpenInterestAndVolumeStrike(ctx context.Context, currency stri
 	if currency != "" {
 		params.Set("ccy", currency)
 	}
-	interval := ok.GetIntervalEnum(period)
+	interval := ok.GetIntervalEnum(period, false)
 	if interval != "" {
 		params.Set("period", interval)
 	}
@@ -4128,7 +4138,7 @@ func (ok *Okx) GetTakerFlow(ctx context.Context, currency string, period kline.I
 	if currency != "" {
 		params.Set("ccy", currency)
 	}
-	interval := ok.GetIntervalEnum(period)
+	interval := ok.GetIntervalEnum(period, false)
 	if interval != "" {
 		params.Set("period", interval)
 	}
