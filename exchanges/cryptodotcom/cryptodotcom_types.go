@@ -1,9 +1,11 @@
 package cryptodotcom
 
 import (
+	"encoding/json"
 	"errors"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
 var (
@@ -63,12 +65,15 @@ type CandlestickDetail struct {
 
 // CandlestickItem candlesticks (k-line data history) item.
 type CandlestickItem struct {
-	EndTime cryptoDotComMilliSec `json:"t"`
+	EndTime cryptoDotComMilliSec `json:"t"` // this represents Start Time for websocket push data.
 	Open    float64              `json:"o,string"`
 	High    float64              `json:"h,string"`
 	Low     float64              `json:"l,string"`
 	Close   float64              `json:"c,string"`
 	Volume  float64              `json:"v,string"`
+
+	// Added for websocket push data
+	UpdateTime cryptoDotComMilliSec `json:"ut"` // this represents Update Time for websocket push data.
 }
 
 // TickersResponse represents a list of tickers.
@@ -89,6 +94,10 @@ type TickerItem struct {
 	BestBidPrice         float64              `json:"b,string"` // The current best bid price, null if there aren't any bids
 	BestAskPrice         float64              `json:"k,string"` // The current best ask price, null if there aren't any asks
 	TradeTimestamp       cryptoDotComMilliSec `json:"t"`
+
+	// Added for websocket push datas.
+	BestBidSize float64 `json:"bs,string"`
+	BestAskSize float64 `json:"ks,string"`
 }
 
 // TradesResponse represents public trades for a particular instrument.
@@ -509,15 +518,123 @@ type OTCTradeHistoryResponse struct {
 
 // SubscriptionPayload represents a subscription payload
 type SubscriptionPayload struct {
-	ID     int                 `json:"id"`
-	Method string              `json:"method"`
-	Params map[string][]string `json:"params"`
-	Nonce  int64               `json:"nonce"`
+	ID            int                 `json:"id"`
+	Method        string              `json:"method"`
+	Params        map[string][]string `json:"params"`
+	Nonce         int64               `json:"nonce"`
+	Authenticated bool                `json:"-"`
 }
 
 // SubscriptionResponse represents a websocket subscription response.
 type SubscriptionResponse struct {
-	ID     int64  `json:"id"`
-	Code   int64  `json:"code"`
-	Method string `json:"method"`
+	ID     int64    `json:"id"`
+	Code   int64    `json:"code,omitempty"`
+	Method string   `json:"method"`
+	Result WsResult `json:"result"`
+}
+
+// SubscriptionRawData represents a subscription response raw data.
+type SubscriptionRawData struct {
+	Data          stream.Response
+	Authenticated bool
+}
+
+// WsResult represents a subscriptions response result
+type WsResult struct {
+	Channel        string          `json:"channel"`
+	Subscription   string          `json:"subscription"`
+	Data           json.RawMessage `json:"data"`
+	InstrumentName string          `json:"instrument_name"`
+
+	Depth int64 `json:"depth"` // for orderbooks
+
+	Interval string `json:"interval"` // for candlestick datas.
+}
+
+// UserOrderbook represents a user orderbook object.
+type UserOrderbook struct {
+	Status                     string               `json:"status"`
+	Side                       string               `json:"side"`
+	Price                      float64              `json:"price"`
+	Quantity                   float64              `json:"quantity"`
+	OrderID                    string               `json:"order_id"`
+	ClientOrderID              string               `json:"client_oid"`
+	CreateTime                 cryptoDotComMilliSec `json:"create_time"`
+	UpdateTime                 cryptoDotComMilliSec `json:"update_time"`
+	Type                       string               `json:"type"`
+	InstrumentName             string               `json:"instrument_name"`
+	CumulativeExecutedQuantity float64              `json:"cumulative_quantity"`
+	CumulativeExecutedValue    float64              `json:"cumulative_value"`
+	AvgPrice                   float64              `json:"avg_price"`
+	FeeCurrency                string               `json:"fee_currency"`
+	TimeInForce                string               `json:"time_in_force"`
+}
+
+// UserTrade represents a user trade instance.
+type UserTrade struct {
+	Side           string                     `json:"side"`
+	InstrumentName string                     `json:"instrument_name"`
+	Fee            float64                    `json:"fee"`
+	TradeID        string                     `json:"trade_id"`
+	CreateTime     cryptoDotComMilliSecString `json:"create_time"`
+	TradedPrice    float64                    `json:"traded_price"`
+	TradedQuantity float64                    `json:"traded_quantity"`
+	FeeCurrency    string                     `json:"fee_currency"`
+	OrderID        string                     `json:"order_id"`
+}
+
+// UserBalance represents a user balance information.
+type UserBalance struct {
+	Currency  string  `json:"currency"`
+	Balance   float64 `json:"balance"`
+	Available float64 `json:"available"`
+	Order     float64 `json:"order"`
+	Stake     int     `json:"stake"`
+}
+
+// WsOrderbook represents an orderbook websocket push data.
+type WsOrderbook struct {
+	Asks                [][3]string          `json:"asks"`
+	Bids                [][3]string          `json:"bids"`
+	PushTime            cryptoDotComMilliSec `json:"t"`
+	OrderbookUpdateTime cryptoDotComMilliSec `json:"tt"`
+	UpdateSequence      int64                `json:"u"`
+	Cs                  int                  `json:"cs"`
+}
+
+// WsRequestPayload represents authentication and request sending payload
+type WsRequestPayload struct {
+	ID        int64                  `json:"id"`
+	Method    string                 `json:"method"`
+	APIKey    string                 `json:"api_key,omitempty"`
+	Signature string                 `json:"sig,omitempty"`
+	Nonce     int64                  `json:"nonce,omitempty"`
+	Params    map[string]interface{} `json:"params,omitempty"`
+}
+
+// RespData represents a generalized object structure of responses.
+type RespData struct {
+	ID            int             `json:"id"`
+	Method        string          `json:"method"`
+	Code          int             `json:"code"`
+	Message       string          `json:"message"`
+	DetailCode    string          `json:"detail_code"`
+	DetailMessage string          `json:"detail_message"`
+	Result        json.RawMessage `json:"result"`
+}
+
+// WSRespData represents a generalized object structure of websocket responses.
+type WSRespData struct {
+	ID            int         `json:"id"`
+	Method        string      `json:"method"`
+	Code          int         `json:"code"`
+	Message       string      `json:"message"`
+	DetailCode    string      `json:"detail_code"`
+	DetailMessage string      `json:"detail_message"`
+	Result        interface{} `json:"result"`
+}
+
+// InstrumentList represents a list of instruments detail items.
+type InstrumentList struct {
+	Instruments []Instrument `json:"instruments"`
 }

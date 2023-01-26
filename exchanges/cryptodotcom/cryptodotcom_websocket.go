@@ -6,17 +6,26 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
-	publicHeartbeat         = "public/heartbeat"
-	publicResponsdHeartbeat = "public/respond-heartbeat"
+	publicHeartbeat        = "public/heartbeat"
+	publicRespondHeartbeat = "public/respond-heartbeat"
 )
 
 var websocketSubscriptionEndpointsURL = []string{
@@ -65,7 +74,7 @@ var defaultSubscriptions = []string{
 }
 
 // responseStream a channel thought which the data coming from the two websocket connection will go through.
-var responseStream = make(chan stream.Response)
+var responseStream = make(chan SubscriptionRawData)
 
 func (cr *Cryptodotcom) WsConnect() error {
 	if !cr.Websocket.IsEnabled() || !cr.IsEnabled() {
@@ -79,7 +88,7 @@ func (cr *Cryptodotcom) WsConnect() error {
 		return err
 	}
 	cr.Websocket.Wg.Add(2)
-	go cr.wsFunnelConnectionData(cr.Websocket.Conn)
+	go cr.wsFunnelConnectionData(cr.Websocket.Conn, false)
 	go cr.WsReadData()
 	if cr.Verbose {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
@@ -97,22 +106,24 @@ func (cr *Cryptodotcom) WsConnect() error {
 		err = cr.WsAuthConnect(context.TODO(), authDialer)
 		if err != nil {
 			cr.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		} else {
+			cr.Websocket.Wg.Add(1)
+			go cr.wsFunnelConnectionData(cr.Websocket.AuthConn, true)
 		}
 	}
-	subscriptions, _ := cr.GenerateDefaultSubscriptions()
-	return cr.Subscribe(subscriptions)
+	return nil
 }
 
 // wsFunnelConnectionData receives data from multiple connection and pass the data
 // to wsRead through a channel responseStream
-func (cr *Cryptodotcom) wsFunnelConnectionData(ws stream.Connection) {
+func (cr *Cryptodotcom) wsFunnelConnectionData(ws stream.Connection, authenticated bool) {
 	defer cr.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
-		responseStream <- stream.Response{Raw: resp.Raw}
+		responseStream <- SubscriptionRawData{stream.Response{Raw: resp.Raw}, authenticated}
 	}
 }
 
@@ -124,7 +135,7 @@ func (cr *Cryptodotcom) WsReadData() {
 		case <-cr.Websocket.ShutdownC:
 			select {
 			case resp := <-responseStream:
-				err := cr.WsHandleData(resp.Raw)
+				err := cr.WsHandleData(resp.Data.Raw, resp.Authenticated)
 				if err != nil {
 					select {
 					case cr.Websocket.DataHandler <- err:
@@ -136,7 +147,7 @@ func (cr *Cryptodotcom) WsReadData() {
 			}
 			return
 		case resp := <-responseStream:
-			err := cr.WsHandleData(resp.Raw)
+			err := cr.WsHandleData(resp.Data.Raw, resp.Authenticated)
 			if err != nil {
 				cr.Websocket.DataHandler <- err
 			}
@@ -144,18 +155,12 @@ func (cr *Cryptodotcom) WsReadData() {
 	}
 }
 
-// WsHandleData will read websocket raw data and pass to appropriate handler
-func (cr *Cryptodotcom) WsHandleData(respRaw []byte) error {
-	println(string(respRaw))
-	var resp *SubscriptionResponse
-	err := json.Unmarshal(respRaw, &resp)
-	if err != nil {
-		return err
+func (cr *Cryptodotcom) respondHeartbeat(resp *SubscriptionResponse, authConnection bool) error {
+	resp.Method = publicRespondHeartbeat
+	if authConnection {
+		return cr.Websocket.AuthConn.SendJSONMessage(resp)
 	}
-	if resp.ID != 0 {
-		cr.Websocket.Match.IncomingWithData(resp.ID, respRaw)
-	}
-	return nil
+	return cr.Websocket.Conn.SendJSONMessage(resp)
 }
 
 // WsAuthConnect represents an authenticated connection to a websocket server
@@ -167,28 +172,79 @@ func (cr *Cryptodotcom) WsAuthConnect(ctx context.Context, dialer websocket.Dial
 	if err != nil {
 		return fmt.Errorf("%v Websocket connection %v error. Error %v", cr.Name, cryptodotcomWebsocketUserAPI, err)
 	}
+	return cr.WsAuthenticate()
+}
+
+// WsAuthenticate authenticates the websocekt connection.
+func (cr *Cryptodotcom) WsAuthenticate() error {
+	creds, err := cr.GetCredentials(context.Background())
+	if err != nil {
+		return err
+	}
+	timestamp := time.Now()
+	var idInt int64
+	idInt = cr.Websocket.AuthConn.GenerateMessageID(true)
+	req := &WsRequestPayload{
+		ID:     idInt,
+		Method: publicAuth,
+		Nonce:  timestamp.UnixMilli(),
+	}
+	var hmac, payload []byte
+	signaturePayload := publicAuth + strconv.FormatInt(idInt, 10) + creds.Key + cr.getParamString(nil) + strconv.FormatInt(timestamp.UnixMilli(), 10)
+	hmac, err = crypto.GetHMAC(crypto.HashSHA256,
+		[]byte(signaturePayload),
+		[]byte(creds.Secret))
+	if err != nil {
+		return err
+	}
+	req.APIKey = creds.Key
+	req.Signature = crypto.HexEncodeToString(hmac)
+	payload, err = cr.Websocket.AuthConn.SendMessageReturnResponse(req.ID, req)
+	if err != nil {
+		return err
+	}
+	var resp *RespData
+	err = json.Unmarshal(payload, &resp)
+	if err != nil {
+		return err
+	} else if resp == nil {
+		return errors.New("no valid response from server")
+	}
+	println("Waiting: ", strconv.FormatInt(req.ID, 10), ", But found: ", resp.ID)
+	if resp.Code != 0 {
+		mes := fmt.Sprintf("error code: %d Message: %s", resp.Code, resp.Message)
+		if resp.DetailCode != "0" && resp.DetailCode != "" {
+			mes = fmt.Sprintf("%s Detail: %s %s", mes, resp.DetailCode, resp.DetailMessage)
+		}
+		return errors.New(mes)
+	}
 	return nil
 }
 
-// WsAuthenticate sends authentication request through the websocket connection.
-func (cr *Cryptodotcom) WsAuthenticate(ctx context.Context) error {
-	return nil
-}
-
-// func (cr)
-
+// Subscribe sends a websocket subscription to a channel message through the websocket connection handlers.
 func (cr *Cryptodotcom) Subscribe(subscriptions []stream.ChannelSubscription) error {
 	return cr.handleSubscriptions("subscribe", subscriptions)
 }
 
+// Unsubscribe sends a websocket unsubscription to a channel message through the websocket connection handlers.
 func (cr *Cryptodotcom) Unsubscribe(subscriptions []stream.ChannelSubscription) error {
 	return cr.handleSubscriptions("unsubscribe", subscriptions)
 }
 
-// GenerateDefaultSubscriptions ...
+// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (cr *Cryptodotcom) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	subscriptions := []stream.ChannelSubscription{}
 	channels := defaultSubscriptions
+	if cr.Websocket.CanUseAuthenticatedEndpoints() {
+		channels = append(
+			channels,
+
+			// authenticated endpoint subscriptions.
+			userBalanceCnl,
+			userOrderCnl,
+			userTradeCnl,
+		)
+	}
 	for x := range channels {
 		if channels[x] == userBalanceCnl {
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
@@ -204,6 +260,8 @@ func (cr *Cryptodotcom) GenerateDefaultSubscriptions() ([]stream.ChannelSubscrip
 			switch channels[x] {
 			case instrumentOrderbookCnl,
 				tickerCnl,
+				userOrderCnl,
+				userTradeCnl,
 				tradeCnl:
 				subscriptions = append(subscriptions, stream.ChannelSubscription{
 					Channel:  channels[x],
@@ -231,9 +289,11 @@ func (cr *Cryptodotcom) handleSubscriptions(operation string, subscriptions []st
 		return err
 	}
 	for p := range subscriptionPayloads {
-		val, _ := json.Marshal(subscriptionPayloads[p])
-		println("Payload: ", string(val))
-		err := cr.Websocket.Conn.SendJSONMessage(subscriptionPayloads[p])
+		if subscriptionPayloads[p].Authenticated {
+			err = cr.Websocket.AuthConn.SendJSONMessage(subscriptionPayloads[p])
+		} else {
+			err = cr.Websocket.Conn.SendJSONMessage(subscriptionPayloads[p])
+		}
 		if err != nil {
 			return err
 		}
@@ -263,6 +323,295 @@ func (cr *Cryptodotcom) generatePayload(operation string, subscription []stream.
 		case userBalanceCnl:
 			subscriptionPayloads[x].Params = map[string][]string{"channels": {subscription[x].Channel}}
 		}
+		switch subscription[x].Channel {
+		case userOrderCnl, userTradeCnl, userBalanceCnl:
+			subscriptionPayloads[x].Authenticated = true
+		}
 	}
 	return subscriptionPayloads, nil
+}
+
+// WsHandleData will read websocket raw data and pass to appropriate handler
+func (cr *Cryptodotcom) WsHandleData(respRaw []byte, authConnection bool) error {
+	println(string(respRaw))
+	var resp *SubscriptionResponse
+	err := json.Unmarshal(respRaw, &resp)
+	if err != nil {
+		return err
+	}
+	if resp.ID > 0 {
+		if resp.Method == publicHeartbeat {
+			return cr.respondHeartbeat(resp, authConnection)
+		}
+	}
+	if resp.Method == "subscribe" {
+		switch resp.Result.Channel {
+		case "user.order":
+			return cr.processUserOrderbook(&resp.Result)
+		case "user.trade":
+			if !cr.IsFillsFeedEnabled() {
+				return nil
+			}
+			return cr.processUserTrade(&resp.Result)
+		case "user.balance":
+			return cr.processUserBalance(&resp.Result)
+		case "book":
+			return cr.processOrderbook(&resp.Result)
+		case "ticker":
+			return cr.processTicker(&resp.Result)
+		case "trade":
+			return cr.processTrades(&resp.Result)
+		case "candlestick":
+			return cr.processCandlestick(&resp.Result)
+		default:
+			if !cr.Websocket.Match.IncomingWithData(resp.ID, respRaw) {
+				return fmt.Errorf("can not pass push data message with signature %d with method %s", resp.ID, resp.Method)
+			}
+		}
+	} else if !cr.Websocket.Match.IncomingWithData(resp.ID, respRaw) {
+		return fmt.Errorf("can not pass push data message with signature %d with method %s", resp.ID, resp.Method)
+	}
+	return nil
+}
+
+func (cr *Cryptodotcom) processCandlestick(resp *WsResult) error {
+	var data []CandlestickItem
+	err := json.Unmarshal(resp.Data, &data)
+	if err != nil {
+		return nil
+	}
+	cp, err := currency.NewPairFromString(resp.InstrumentName)
+	if err != nil {
+		return err
+	}
+	interval, err := stringToInterval(resp.Interval)
+	if err != nil {
+		return err
+	}
+	for x := range data {
+		cr.Websocket.DataHandler <- stream.KlineData{
+			Pair:      cp,
+			Exchange:  cr.Name,
+			Timestamp: data[x].UpdateTime.Time(),
+			Interval:  interval.Word(),
+			AssetType: asset.Spot,
+			OpenPrice: data[x].Open,
+			HighPrice: data[x].High,
+			LowPrice:  data[x].Low,
+			Volume:    data[x].Volume,
+			StartTime: data[x].EndTime.Time(), // This field represents Start Timestamp for websocket push data. and End Timestamp for REST
+		}
+	}
+	return nil
+}
+
+func (cr *Cryptodotcom) processTrades(resp *WsResult) error {
+	var data []TradeItem
+	err := json.Unmarshal(resp.Data, &data)
+	if err != nil {
+		return nil
+	}
+	cp, err := currency.NewPairFromString(resp.InstrumentName)
+	if err != nil {
+		return err
+	}
+	trades := make([]trade.Data, len(data))
+	for i := range data {
+		var oSide order.Side
+		oSide, err = order.StringToOrderSide(data[i].Side)
+		if err != nil {
+			return err
+		}
+		trades[i] = trade.Data{
+			Amount:       data[i].TradeQuantity,
+			Price:        data[i].TradePrice,
+			AssetType:    asset.Spot,
+			CurrencyPair: cp,
+			Exchange:     cr.Name,
+			Side:         oSide,
+			Timestamp:    data[i].TradeTimestamp.Time(),
+			TID:          data[i].TradeID,
+		}
+	}
+	return trade.AddTradesToBuffer(cr.Name, trades...)
+}
+
+func (cr *Cryptodotcom) processTicker(resp *WsResult) error {
+	var data []TickerItem
+	err := json.Unmarshal(resp.Data, &data)
+	if err != nil {
+		return nil
+	}
+	cp, err := currency.NewPairFromString(resp.InstrumentName)
+	if err != nil {
+		return err
+	}
+	for x := range data {
+		cr.Websocket.DataHandler <- &ticker.Price{
+			ExchangeName: cr.Name,
+			Volume:       data[x].TradedVolume,
+			QuoteVolume:  data[x].TradedVolumeInUSD24H,
+			High:         data[x].HighestTradePrice,
+			Low:          data[x].LowestTradePrice,
+			Bid:          data[x].BestBidPrice,
+			BidSize:      data[x].BestBidSize,
+			Ask:          data[x].BestAskPrice,
+			AskSize:      data[x].BestAskSize,
+			Last:         data[x].LatestTradePrice,
+			AssetType:    asset.Spot,
+			Pair:         cp,
+		}
+	}
+	return nil
+}
+
+func (cr *Cryptodotcom) processOrderbook(resp *WsResult) error {
+	var data []WsOrderbook
+	err := json.Unmarshal(resp.Data, &data)
+	if err != nil {
+		return nil
+	}
+	cp, err := currency.NewPairFromString(resp.InstrumentName)
+	if err != nil {
+		return err
+	}
+	for x := range data {
+		book := orderbook.Base{
+			Exchange:        cr.Name,
+			Pair:            cp,
+			Asset:           asset.Spot,
+			LastUpdated:     data[x].OrderbookUpdateTime.Time(),
+			LastUpdateID:    data[x].UpdateSequence,
+			VerifyOrderbook: cr.CanVerifyOrderbook,
+		}
+		book.Asks = make([]orderbook.Item, len(data[x].Asks))
+		for i := range data[x].Asks {
+			book.Asks[i].Price, err = strconv.ParseFloat(data[x].Asks[i][0], 64)
+			if err != nil {
+				return err
+			}
+			book.Asks[i].Amount, err = strconv.ParseFloat(data[x].Asks[i][1], 64)
+			if err != nil {
+				return err
+			}
+		}
+		book.Bids = make([]orderbook.Item, len(data[x].Bids))
+		for i := range data[x].Bids {
+			book.Bids[i].Price, err = strconv.ParseFloat(data[x].Bids[i][0], 64)
+			if err != nil {
+				return err
+			}
+			book.Bids[i].Amount, err = strconv.ParseFloat(data[x].Bids[i][1], 64)
+			if err != nil {
+				return err
+			}
+		}
+		book.Asks.SortAsks()
+		book.Bids.SortBids()
+		err = cr.Websocket.Orderbook.LoadSnapshot(&book)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (cr *Cryptodotcom) processUserBalance(resp *WsResult) error {
+	var data []UserBalance
+	err := json.Unmarshal(resp.Data, &data)
+	if err != nil {
+		return nil
+	}
+	for x := range data {
+		cr.Websocket.DataHandler <- account.Change{
+			Exchange: cr.Name,
+			Currency: currency.NewCode(data[x].Currency),
+			Asset:    asset.Spot,
+			Amount:   data[x].Balance,
+		}
+	}
+	return nil
+}
+
+func (cr *Cryptodotcom) processUserTrade(resp *WsResult) error {
+	var data []UserTrade
+	err := json.Unmarshal(resp.Data, &data)
+	if err != nil {
+		return err
+	}
+	cp, err := currency.NewPairFromString(resp.InstrumentName)
+	if err != nil {
+		return err
+	}
+	fills := make([]fill.Data, len(data))
+	for x := range data {
+		oSide, err := order.StringToOrderSide(data[x].Side)
+		if err != nil {
+			cr.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: cr.Name,
+				Err:      err,
+			}
+		}
+		fills[x] = fill.Data{
+			ID:           data[x].OrderID,
+			Timestamp:    data[x].CreateTime.Time(),
+			Exchange:     cr.Name,
+			AssetType:    asset.Spot,
+			CurrencyPair: cp,
+			Side:         oSide,
+			OrderID:      data[x].OrderID,
+			TradeID:      data[x].TradeID,
+			Price:        data[x].TradedPrice,
+			Amount:       data[x].TradedQuantity,
+		}
+
+	}
+	return cr.Websocket.Fills.Update(fills...)
+}
+
+func (cr *Cryptodotcom) processUserOrderbook(resp *WsResult) error {
+	var data []UserOrderbook
+	err := json.Unmarshal(resp.Data, &data)
+	if err != nil {
+		return err
+	}
+	cp, err := currency.NewPairFromString(resp.InstrumentName)
+	if err != nil {
+		return err
+	}
+	for x := range data {
+		status, err := order.StringToOrderStatus(data[x].Status)
+		if err != nil {
+			return err
+		}
+		oType, err := order.StringToOrderType(data[x].Type)
+		if err != nil {
+			return err
+		}
+		oSide, err := order.StringToOrderSide(data[x].Side)
+		if err != nil {
+			return err
+		}
+		cr.Websocket.DataHandler <- &order.Detail{
+			Price:                data[x].Price,
+			Amount:               data[x].Quantity,
+			AverageExecutedPrice: data[x].AvgPrice,
+			ExecutedAmount:       data[x].CumulativeExecutedQuantity,
+			RemainingAmount:      data[x].Quantity - data[x].CumulativeExecutedQuantity,
+			Cost:                 data[x].CumulativeExecutedValue,
+			CostAsset:            cp.Quote,
+			FeeAsset:             currency.NewCode(data[x].FeeCurrency),
+			Exchange:             cr.Name,
+			OrderID:              data[x].OrderID,
+			ClientOrderID:        data[x].ClientOrderID,
+			LastUpdated:          data[x].UpdateTime.Time(),
+			Date:                 data[x].CreateTime.Time(),
+			Side:                 oSide,
+			Type:                 oType,
+			AssetType:            asset.Spot,
+			Status:               status,
+			Pair:                 cp,
+		}
+	}
+	return nil
 }

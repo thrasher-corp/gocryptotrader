@@ -51,6 +51,7 @@ func TestMain(m *testing.M) {
 	}
 	cr.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	cr.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	setupWS()
 	os.Exit(m.Run())
 }
 
@@ -645,6 +646,19 @@ func TestWsConnect(t *testing.T) {
 	time.Sleep(time.Second * 60)
 }
 
+func setupWS() {
+	if !cr.Websocket.IsEnabled() {
+		return
+	}
+	if !areTestAPIKeysSet() {
+		cr.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	}
+	err := cr.WsConnect()
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
 func TestGenerateDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
 	subscriptions, err := cr.GenerateDefaultSubscriptions()
@@ -658,5 +672,25 @@ func TestGenerateDefaultSubscriptions(t *testing.T) {
 		}
 		v, _ := json.Marshal(vals)
 		println(string(v))
+	}
+}
+
+func TestWsGetInstruments(t *testing.T) {
+	t.Parallel()
+	instruments, err := cr.WsGetInstruments()
+	if err != nil {
+		t.Error(err)
+	} else {
+		cal, _ := json.Marshal(instruments)
+		println(string(cal))
+
+	}
+}
+
+func TestWsRetriveTrades(t *testing.T) {
+	t.Parallel()
+	_, err := cr.WsRetriveTrades("BTC_USDT")
+	if err != nil {
+		t.Error(err)
 	}
 }

@@ -97,11 +97,9 @@ const (
 	privateGetAccountSummary = "private/get-account-summary"
 )
 
-// GetSymbols provides information on all supported instruments
+// GetInstruments provides information on all supported instruments
 func (cr *Cryptodotcom) GetInstruments(ctx context.Context) ([]Instrument, error) {
-	resp := &struct {
-		Instruments []Instrument `json:"instruments"`
-	}{}
+	var resp *InstrumentList
 	return resp.Instruments, cr.SendHTTPRequest(ctx, exchange.RestSpot, publicInstruments, request.Unset, &resp)
 }
 
@@ -715,15 +713,7 @@ func (cr *Cryptodotcom) SendHTTPRequest(ctx context.Context, ePath exchange.URL,
 	if err != nil {
 		return err
 	}
-	response := &struct {
-		ID            int             `json:"id"`
-		Method        string          `json:"method"`
-		Code          int             `json:"code"`
-		Message       string          `json:"message"`
-		DetailCode    string          `json:"detail_code"`
-		DetailMessage string          `json:"detail_message"`
-		Result        json.RawMessage `json:"result"`
-	}{}
+	response := &RespData{}
 	err = cr.SendPayload(ctx, f, func() (*request.Item, error) {
 		return &request.Item{
 			Method:        http.MethodGet,
@@ -757,15 +747,7 @@ func (cr *Cryptodotcom) SendAuthHTTPRequest(ctx context.Context, ePath exchange.
 	if err != nil {
 		return err
 	}
-	response := &struct {
-		ID            int             `json:"id"`
-		Method        string          `json:"method"`
-		Code          int             `json:"code"`
-		Message       string          `json:"message"`
-		DetailCode    string          `json:"detail_code"`
-		DetailMessage string          `json:"detail_message"`
-		Result        json.RawMessage `json:"result"`
-	}{}
+	response := &RespData{}
 	newRequest := func() (*request.Item, error) {
 		timestamp := time.Now()
 		var body io.Reader
