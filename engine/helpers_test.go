@@ -974,7 +974,7 @@ func TestGetExchangeLowestPriceByCurrencyPair(t *testing.T) {
 
 	_, err = GetExchangeLowestPriceByCurrencyPair(btcaud, asset.Spot)
 	if err == nil {
-		t.Error("Unexpected reuslt")
+		t.Error("Unexpected result")
 	}
 }
 

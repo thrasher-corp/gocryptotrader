@@ -1600,7 +1600,7 @@ func (b *Bitfinex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscriptio
 	return nil
 }
 
-// WsSendAuth sends a autheticated event payload
+// WsSendAuth sends a authenticated event payload
 func (b *Bitfinex) WsSendAuth(ctx context.Context) error {
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {

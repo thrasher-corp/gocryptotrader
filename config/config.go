@@ -583,7 +583,7 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 		atLeastOneEnabled = true
 	}
 
-	// If no pair is enabled across the entire range of assets, then atleast
+	// If no pair is enabled across the entire range of assets, then at least
 	// enable one and turn on the asset type
 	if !atLeastOneEnabled {
 		avail, err := c.GetAvailablePairs(exchName, assetTypes[0])
@@ -661,7 +661,7 @@ func (c *Config) GetPairFormat(exchName string, assetType asset.Item) (currency.
 	return *p.ConfigFormat, nil
 }
 
-// GetAvailablePairs returns a list of currency pairs for a specifc exchange
+// GetAvailablePairs returns a list of currency pairs for a specific exchange
 func (c *Config) GetAvailablePairs(exchName string, assetType asset.Item) (currency.Pairs, error) {
 	exchCfg, err := c.GetExchangeConfig(exchName)
 	if err != nil {
@@ -685,7 +685,7 @@ func (c *Config) GetAvailablePairs(exchName string, assetType asset.Item) (curre
 	return pairs.Format(pairFormat), nil
 }
 
-// GetEnabledPairs returns a list of currency pairs for a specifc exchange
+// GetEnabledPairs returns a list of currency pairs for a specific exchange
 func (c *Config) GetEnabledPairs(exchName string, assetType asset.Item) (currency.Pairs, error) {
 	exchCfg, err := c.GetExchangeConfig(exchName)
 	if err != nil {
@@ -755,7 +755,7 @@ func (c *Config) GetAllExchangeConfigs() []Exchange {
 	return configs
 }
 
-// GetExchangeConfig returns exchange configurations by its indivdual name
+// GetExchangeConfig returns exchange configurations by its individual name
 func (c *Config) GetExchangeConfig(name string) (*Exchange, error) {
 	m.Lock()
 	defer m.Unlock()
@@ -780,7 +780,7 @@ func (c *Config) UpdateExchangeConfig(e *Exchange) error {
 	return fmt.Errorf("%s %w", e.Name, ErrExchangeNotFound)
 }
 
-// CheckExchangeConfigValues returns configuation values for all enabled
+// CheckExchangeConfigValues returns configuration values for all enabled
 // exchanges
 func (c *Config) CheckExchangeConfigValues() error {
 	if len(c.Exchanges) == 0 {

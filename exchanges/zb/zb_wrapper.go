@@ -501,9 +501,9 @@ func (z *ZB) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitRes
 		}
 		return o.DeriveSubmitResponse(strconv.FormatInt(response.Data.EntrustID, 10))
 	}
-	var oT = SpotNewOrderRequestParamsTypeSell
+	var orderType = SpotNewOrderRequestParamsTypeSell
 	if o.Side == order.Buy {
-		oT = SpotNewOrderRequestParamsTypeBuy
+		orderType = SpotNewOrderRequestParamsTypeBuy
 	}
 
 	fPair, err := z.FormatExchangeCurrency(o.Pair, o.AssetType)
@@ -515,7 +515,7 @@ func (z *ZB) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitRes
 		Amount: o.Amount,
 		Price:  o.Price,
 		Symbol: fPair.Lower().String(),
-		Type:   oT,
+		Type:   orderType,
 	}
 	var response int64
 	response, err = z.SpotNewOrder(ctx, params)

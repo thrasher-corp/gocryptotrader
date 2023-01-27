@@ -476,15 +476,15 @@ func (e *EXMO) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		return nil, err
 	}
 
-	var oT string
+	var orderType string
 	switch s.Type {
 	case order.Limit:
 		return nil, errors.New("unsupported order type")
 	case order.Market:
 		if s.Side == order.Sell {
-			oT = "market_sell"
+			orderType = "market_sell"
 		} else {
-			oT = "market_buy"
+			orderType = "market_buy"
 		}
 	}
 
@@ -493,7 +493,7 @@ func (e *EXMO) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		return nil, err
 	}
 
-	response, err := e.CreateOrder(ctx, fPair.String(), oT, s.Price, s.Amount)
+	response, err := e.CreateOrder(ctx, fPair.String(), orderType, s.Price, s.Amount)
 	if err != nil {
 		return nil, err
 	}

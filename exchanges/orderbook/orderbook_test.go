@@ -387,7 +387,7 @@ func TestProcessOrderbook(t *testing.T) {
 	base.Asset = asset.Spot
 	err = base.Process()
 	if err != nil {
-		t.Error("unexpcted result: ", err)
+		t.Error("unexpected result: ", err)
 	}
 	result, err := Get("ProcessOrderbook", c, asset.Spot)
 	if err != nil {

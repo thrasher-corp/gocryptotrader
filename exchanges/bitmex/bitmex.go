@@ -206,7 +206,7 @@ func (b *Bitmex) GetTrollboxConnectedUsers(ctx context.Context) (ConnectedUsers,
 }
 
 // GetAccountExecutions returns all raw transactions, which includes order
-// opening and cancelation, and order status changes. It can be quite noisy.
+// opening and cancellation, and order status changes. It can be quite noisy.
 // More focused information is available at /execution/tradeHistory.
 func (b *Bitmex) GetAccountExecutions(ctx context.Context, params *GenericRequestParams) ([]Execution, error) {
 	var executionList []Execution

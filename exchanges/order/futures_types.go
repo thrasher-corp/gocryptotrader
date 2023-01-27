@@ -277,7 +277,7 @@ type PNLResult struct {
 	Direction             Side
 	Fee                   decimal.Decimal
 	IsLiquidated          bool
-	// Is event is supposed to show that something has happened and it isnt just tracking in time
+	// Is event is supposed to show that something has happened and it isn't just tracking in time
 	IsOrder bool
 }
 

@@ -600,7 +600,7 @@ func (b *BTSE) calculateTradingFee(ctx context.Context, feeBuilder *exchange.Fee
 	}
 	feeTiers, err := b.GetFeeInformation(ctx, formattedPair.String())
 	if err != nil {
-		// TODO: Return actual error, we should't pivot around errors.
+		// TODO: Return actual error, we shouldn't pivot around errors.
 		if feeBuilder.IsMaker {
 			return 0.001
 		}

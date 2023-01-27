@@ -34,7 +34,7 @@ func TestCollateralTakeProfit(t *testing.T) {
 	var expectedError error
 	err := c.TakeProfit(decimal.NewFromInt(1), decimal.NewFromInt(1))
 	if !errors.Is(err, expectedError) {
-		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 }
 
@@ -44,7 +44,7 @@ func TestCollateralCollateralCurrency(t *testing.T) {
 		collateral: &Item{currency: currency.DOGE},
 	}
 	if !c.CollateralCurrency().Equal(currency.DOGE) {
-		t.Errorf("recevied '%v' expected '%v'", c.CollateralCurrency(), currency.DOGE)
+		t.Errorf("received '%v' expected '%v'", c.CollateralCurrency(), currency.DOGE)
 	}
 }
 
@@ -54,7 +54,7 @@ func TestCollateralContractCurrency(t *testing.T) {
 		contract: &Item{currency: currency.DOGE},
 	}
 	if !c.ContractCurrency().Equal(currency.DOGE) {
-		t.Errorf("recevied '%v' expected '%v'", c.ContractCurrency(), currency.DOGE)
+		t.Errorf("received '%v' expected '%v'", c.ContractCurrency(), currency.DOGE)
 	}
 }
 
@@ -64,7 +64,7 @@ func TestCollateralInitialFunds(t *testing.T) {
 		collateral: &Item{initialFunds: decimal.NewFromInt(1337)},
 	}
 	if !c.InitialFunds().Equal(decimal.NewFromInt(1337)) {
-		t.Errorf("recevied '%v' expected '%v'", c.InitialFunds(), decimal.NewFromInt(1337))
+		t.Errorf("received '%v' expected '%v'", c.InitialFunds(), decimal.NewFromInt(1337))
 	}
 }
 
@@ -74,7 +74,7 @@ func TestCollateralAvailableFunds(t *testing.T) {
 		collateral: &Item{available: decimal.NewFromInt(1337)},
 	}
 	if !c.AvailableFunds().Equal(decimal.NewFromInt(1337)) {
-		t.Errorf("recevied '%v' expected '%v'", c.AvailableFunds(), decimal.NewFromInt(1337))
+		t.Errorf("received '%v' expected '%v'", c.AvailableFunds(), decimal.NewFromInt(1337))
 	}
 }
 
@@ -85,7 +85,7 @@ func TestCollateralGetPairReader(t *testing.T) {
 		collateral: &Item{},
 	}
 	if _, err := c.GetPairReader(); !errors.Is(err, ErrNotPair) {
-		t.Errorf("recevied '%v' expected '%v'", err, ErrNotPair)
+		t.Errorf("received '%v' expected '%v'", err, ErrNotPair)
 	}
 }
 
@@ -97,7 +97,7 @@ func TestCollateralGetCollateralReader(t *testing.T) {
 	var expectedError error
 	cr, err := c.GetCollateralReader()
 	if !errors.Is(err, expectedError) {
-		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 	if cr != c {
 		t.Error("expected the same thing")
@@ -119,27 +119,27 @@ func TestCollateralUpdateContracts(t *testing.T) {
 	leet := decimal.NewFromInt(1337)
 	err := c.UpdateContracts(gctorder.Buy, leet)
 	if !errors.Is(err, expectedError) {
-		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 	if !c.contract.available.Equal(leet) {
-		t.Errorf("recevied '%v' expected '%v'", c.contract.available, leet)
+		t.Errorf("received '%v' expected '%v'", c.contract.available, leet)
 	}
 	b = gctorder.Sell
 	err = c.UpdateContracts(gctorder.Buy, leet)
 	if !errors.Is(err, expectedError) {
-		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 	if !c.contract.available.Equal(decimal.Zero) {
-		t.Errorf("recevied '%v' expected '%v'", c.contract.available, decimal.Zero)
+		t.Errorf("received '%v' expected '%v'", c.contract.available, decimal.Zero)
 	}
 
 	c.currentDirection = nil
 	err = c.UpdateContracts(gctorder.Buy, leet)
 	if !errors.Is(err, expectedError) {
-		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 	if !c.contract.available.Equal(leet) {
-		t.Errorf("recevied '%v' expected '%v'", c.contract.available, leet)
+		t.Errorf("received '%v' expected '%v'", c.contract.available, leet)
 	}
 }
 
@@ -158,20 +158,20 @@ func TestCollateralReleaseContracts(t *testing.T) {
 	expectedError := errPositiveOnly
 	err := c.ReleaseContracts(decimal.Zero)
 	if !errors.Is(err, expectedError) {
-		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 
 	expectedError = errCannotAllocate
 	err = c.ReleaseContracts(decimal.NewFromInt(1337))
 	if !errors.Is(err, expectedError) {
-		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 
 	expectedError = nil
 	c.contract.available = decimal.NewFromInt(1337)
 	err = c.ReleaseContracts(decimal.NewFromInt(1337))
 	if !errors.Is(err, expectedError) {
-		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 }
 
@@ -192,7 +192,7 @@ func TestCollateralPairReleaser(t *testing.T) {
 		contract:   &Item{},
 	}
 	if _, err := c.PairReleaser(); !errors.Is(err, ErrNotPair) {
-		t.Errorf("recevied '%v' expected '%v'", err, ErrNotPair)
+		t.Errorf("received '%v' expected '%v'", err, ErrNotPair)
 	}
 }
 
@@ -214,7 +214,7 @@ func TestCollateralCollateralReleaser(t *testing.T) {
 	}
 	var expectedError error
 	if _, err := c.CollateralReleaser(); !errors.Is(err, expectedError) {
-		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 }
 
@@ -241,41 +241,41 @@ func TestCollateralReserve(t *testing.T) {
 	var expectedError error
 	err := c.Reserve(decimal.NewFromInt(1), gctorder.Long)
 	if !errors.Is(err, expectedError) {
-		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 	if !c.collateral.reserved.Equal(decimal.NewFromInt(1)) {
-		t.Errorf("recevied '%v' expected '%v'", c.collateral.reserved, decimal.NewFromInt(1))
+		t.Errorf("received '%v' expected '%v'", c.collateral.reserved, decimal.NewFromInt(1))
 	}
 	if !c.collateral.available.Equal(decimal.NewFromInt(1336)) {
-		t.Errorf("recevied '%v' expected '%v'", c.collateral.available, decimal.NewFromInt(1336))
+		t.Errorf("received '%v' expected '%v'", c.collateral.available, decimal.NewFromInt(1336))
 	}
 
 	err = c.Reserve(decimal.NewFromInt(1), gctorder.Short)
 	if !errors.Is(err, expectedError) {
-		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 	if !c.collateral.reserved.Equal(decimal.NewFromInt(2)) {
-		t.Errorf("recevied '%v' expected '%v'", c.collateral.reserved, decimal.NewFromInt(2))
+		t.Errorf("received '%v' expected '%v'", c.collateral.reserved, decimal.NewFromInt(2))
 	}
 	if !c.collateral.available.Equal(decimal.NewFromInt(1335)) {
-		t.Errorf("recevied '%v' expected '%v'", c.collateral.available, decimal.NewFromInt(1335))
+		t.Errorf("received '%v' expected '%v'", c.collateral.available, decimal.NewFromInt(1335))
 	}
 
 	err = c.Reserve(decimal.NewFromInt(2), gctorder.ClosePosition)
 	if !errors.Is(err, expectedError) {
-		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 	if !c.collateral.reserved.Equal(decimal.NewFromInt(4)) {
-		t.Errorf("recevied '%v' expected '%v'", c.collateral.reserved, decimal.Zero)
+		t.Errorf("received '%v' expected '%v'", c.collateral.reserved, decimal.Zero)
 	}
 	if !c.collateral.available.Equal(decimal.NewFromInt(1333)) {
-		t.Errorf("recevied '%v' expected '%v'", c.collateral.available, decimal.NewFromInt(1333))
+		t.Errorf("received '%v' expected '%v'", c.collateral.available, decimal.NewFromInt(1333))
 	}
 
 	expectedError = errCannotAllocate
 	err = c.Reserve(decimal.NewFromInt(2), gctorder.Buy)
 	if !errors.Is(err, expectedError) {
-		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 }
 
@@ -293,10 +293,10 @@ func TestCollateralLiquidate(t *testing.T) {
 	}
 	c.Liquidate()
 	if !c.collateral.available.Equal(decimal.Zero) {
-		t.Errorf("recevied '%v' expected '%v'", c.collateral.available, decimal.Zero)
+		t.Errorf("received '%v' expected '%v'", c.collateral.available, decimal.Zero)
 	}
 	if !c.contract.available.Equal(decimal.Zero) {
-		t.Errorf("recevied '%v' expected '%v'", c.contract.available, decimal.Zero)
+		t.Errorf("received '%v' expected '%v'", c.contract.available, decimal.Zero)
 	}
 }
 
@@ -306,6 +306,6 @@ func TestCollateralCurrentHoldings(t *testing.T) {
 		contract: &Item{available: decimal.NewFromInt(1337)},
 	}
 	if !c.CurrentHoldings().Equal(decimal.NewFromInt(1337)) {
-		t.Errorf("recevied '%v' expected '%v'", c.CurrentHoldings(), decimal.NewFromInt(1337))
+		t.Errorf("received '%v' expected '%v'", c.CurrentHoldings(), decimal.NewFromInt(1337))
 	}
 }

@@ -209,7 +209,7 @@ func tradeSQLTester(t *testing.T) {
 		t.Error(err)
 	}
 	if len(v) != 0 {
-		t.Errorf("should all be ded %v", v)
+		t.Errorf("should all be dead %v", v)
 	}
 }
 

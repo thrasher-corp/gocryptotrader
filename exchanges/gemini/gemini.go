@@ -190,7 +190,7 @@ func (g *Gemini) CancelExistingOrder(ctx context.Context, orderID int64) (Order,
 // CancelExistingOrders will cancel all outstanding orders created by all
 // sessions owned by this account, including interactive orders placed through
 // the UI. If sessions = true will only cancel the order that is called on this
-// session asssociated with the APIKEY
+// session associated with the APIKEY
 func (g *Gemini) CancelExistingOrders(ctx context.Context, cancelBySession bool) (OrderResult, error) {
 	path := geminiOrderCancelAll
 	if cancelBySession {

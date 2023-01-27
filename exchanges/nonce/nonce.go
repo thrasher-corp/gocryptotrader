@@ -11,7 +11,7 @@ type Nonce struct {
 	m sync.Mutex
 }
 
-// Get retrives the nonce value
+// Get retrieves the nonce value
 func (n *Nonce) Get() Value {
 	n.m.Lock()
 	defer n.m.Unlock()
