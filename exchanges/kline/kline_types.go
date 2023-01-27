@@ -36,7 +36,7 @@ const (
 	FifteenDay           = 15 * OneDay
 	OneWeek              = 7 * OneDay
 	TwoWeek              = 2 * OneWeek
-	OneMonth             = 31 * OneDay
+	OneMonth             = 30 * OneDay
 	ThreeMonth           = 90 * OneDay
 	SixMonth             = 2 * ThreeMonth
 	OneYear              = 365 * OneDay
@@ -103,6 +103,7 @@ var (
 		TwelveHour,
 		OneDay,
 		ThreeDay,
+		FiveDay,
 		SevenDay,
 		FifteenDay,
 		OneWeek,

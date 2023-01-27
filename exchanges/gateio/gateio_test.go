@@ -201,6 +201,7 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestListAllCurrencies(t *testing.T) {
 	t.Parallel()
+	g.Verbose = true
 	if _, err := g.ListAllCurrencies(context.Background()); err != nil {
 		t.Errorf("%s ListAllCurrencies() error %v", g.Name, err)
 	}
@@ -993,7 +994,7 @@ func TestGetPersonalTradingFee(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credInformationNotProvided)
 	}
-	if _, err := g.GetPersonalTradingFee(context.Background(), currency.NewPair(currency.BTC, currency.USDT)); err != nil {
+	if _, err := g.GetPersonalTradingFee(context.Background(), currency.NewPair(currency.BTC, currency.USDT), ""); err != nil {
 		t.Errorf("%s GetPersonalTradingFee() error %v", g.Name, err)
 	}
 }
@@ -2135,6 +2136,7 @@ func TestWithdrawCurrency(t *testing.T) {
 	_, err = g.WithdrawCurrency(context.Background(), WithdrawalRequestParam{
 		Currency: currency.BTC,
 		Amount:   0.00000001,
+		Chain:    "BTC",
 		Address:  core.BitcoinDonationAddress,
 	})
 	if err != nil && !strings.Contains(err.Error(), "only used addresses or verified addresses are allowed for api withdrawal") {
@@ -2459,7 +2461,7 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GetHistoricCandles(context.Background(), currency.NewPair(currency.OMG, currency.TRY), asset.Spot, kline.OneDay, time.Time{}, time.Time{}); err != nil {
+	if _, err := g.GetHistoricCandles(context.Background(), currency.NewPair(currency.OMG, currency.TRY), asset.Spot, kline.OneDay, time.Now().Add(-time.Hour), time.Now()); err != nil {
 		t.Errorf("%s GetHistoricCandles() error: %v", g.Name, err)
 	}
 }
@@ -2470,7 +2472,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	startTime := time.Now().Add(-time.Minute * 2)
+	startTime := time.Now().Add(-time.Minute * 10)
 	_, err = g.GetHistoricCandlesExtended(context.Background(),
 		pair.Upper(), asset.Spot, kline.OneMin, startTime, time.Now())
 	if err != nil {
@@ -2505,9 +2507,12 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 }
 func TestGetAvailableTransferTrains(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetAvailableTransferChains(context.Background(), currency.USDT)
+	results, err := g.GetAvailableTransferChains(context.Background(), currency.USDT)
 	if err != nil {
 		t.Error(err)
+	} else {
+		val, _ := json.Marshal(results)
+		println(string(val))
 	}
 }
 
@@ -2934,18 +2939,12 @@ func TestWsConnect(t *testing.T) {
 	if err := g.WsConnect(); err != nil {
 		t.Errorf("%s WsConnect failed: %v", g.Name, err)
 	}
-}
-func TestWsFuturesConnect(t *testing.T) {
 	if err := g.WsFuturesConnect(); err != nil {
 		t.Errorf("%s WsFuturesConnect failed: %v", g.Name, err)
 	}
-}
-func TestWsDeliveryFuturesConnect(t *testing.T) {
 	if err := g.WsDeliveryFuturesConnect(); err != nil {
 		t.Errorf("%s WsDeliveryFuturesConnect failed: %v", g.Name, err)
 	}
-}
-func TestWsOptionsConnect(t *testing.T) {
 	if err := g.WsOptionsConnect(); err != nil {
 		t.Errorf("%s WsOptionsConnect failed: %v", g.Name, err)
 	}

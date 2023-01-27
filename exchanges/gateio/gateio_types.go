@@ -1061,15 +1061,18 @@ type WithdrawalResponse struct {
 	Memo          string    `json:"memo"`
 	Status        string    `json:"status"`
 	Chain         string    `json:"chain"`
+	Fee           float64   `json:"fee,string"`
 }
 
 // WithdrawalRequestParam represents currency withdrawal request param.
 type WithdrawalRequestParam struct {
 	Currency currency.Code `json:"currency"`
-	Address  string        `json:"address"`
 	Amount   float64       `json:"amount,string"`
-	Memo     string        `json:"memo"`
-	Chain    string        `json:"chain"`
+	Chain    string        `json:"chain,omitempty"`
+
+	// Optional parameters
+	Address string `json:"address,omitempty"`
+	Memo    string `json:"memo,omitempty"`
 }
 
 // CurrencyDepositAddressInfo represents a crypto deposit address
@@ -1096,6 +1099,7 @@ type DepositRecord struct {
 	Memo          string    `json:"memo"`
 	Status        string    `json:"status"`
 	Chain         string    `json:"chain"`
+	Fee           float64   `json:"fee,string"`
 }
 
 // TransferCurrencyParam represents currency transfer.
@@ -1158,8 +1162,35 @@ type SubAccountBalance struct {
 
 // SubAccountMarginBalance represents sub account margin balance for specific sub account and several currencies
 type SubAccountMarginBalance struct {
-	UID       string              `json:"uid"`
-	Available []MarginAccountItem `json:"available"`
+	UID       string `json:"uid"`
+	Available struct {
+		AdditionalProperties struct {
+			Total                   string `json:"total"` // total is the balance after the user's accumulated deposit, withdraw, profit and loss (including realized profit and loss, fund, fee and referral rebate), excluding unrealized profit and loss. total = SUM(history_dnw, history_pnl, history_fee, history_refr, history_fund)
+			UnrealizedProfitAndLoss string `json:"unrealized_pnl"`
+			PositionMargin          string `json:"position_margin"`
+			OrderMargin             string `json:"order_margin"`
+			Available               string `json:"available"`
+			PointAmount             string `json:"point"`
+			SettleCurrency          string `json:"currency"`
+			InDualMode              bool   `json:"in_dual_mode"`
+			EnableCredit            bool   `json:"enable_credit"`
+			PositionInitialMargin   string `json:"position_initial_margin"`
+			MaintenanceMargin       string `json:"maintenance_margin"`
+			PerpetualContractBounce string `json:"bounce"`
+			History                 struct {
+				DepositAndWithdrawal string `json:"dnw"`       // total amount of deposit and withdraw
+				ProfitAndLoss        string `json:"pnl"`       // total amount of trading profit and loss
+				Fee                  string `json:"fee"`       // total amount of fee
+				RefererRebate        string `json:"refr"`      // total amount of referrer rebates
+				Fund                 string `json:"fund"`      // total amount of funding cost
+				PointDNW             string `json:"point_dnw"` // total amount of point deposit and withdraw
+				TotalPointFee        string `json:"point_fee"`
+				PointRefr            string `json:"point_refr"`   // total amount of referrer rebates of point fee
+				BonusDNW             string `json:"bonus_dnw"`    // total amount of perpetual contract bonus transfer
+				BonusOffset          string `json:"bonus_offset"` // total amount of perpetual contract bonus deduction
+			} `json:"history"`
+		} `json:"additionalProperties"`
+	} `json:"available"`
 }
 
 // MarginAccountItem margin account item
@@ -1168,18 +1199,18 @@ type MarginAccountItem struct {
 	CurrencyPair string `json:"currency_pair"`
 	Risk         string `json:"risk"`
 	Base         struct {
-		Available float64 `json:"available,string"`
-		Borrowed  string  `json:"borrowed"`
-		Interest  string  `json:"interest"`
-		Currency  string  `json:"currency"`
-		Locked    float64 `json:"locked,string"`
+		Available    float64 `json:"available,string"`
+		Borrowed     float64 `json:"borrowed,string"`
+		Interest     float64 `json:"interest,string"`
+		Currency     string  `json:"currency"`
+		LockedAmount float64 `json:"locked,string"`
 	} `json:"base"`
 	Quote struct {
-		Available float64 `json:"available,string"`
-		Borrowed  string  `json:"borrowed"`
-		Interest  string  `json:"interest"`
-		Currency  string  `json:"currency"`
-		Locked    float64 `json:"locked,string"`
+		Available    float64 `json:"available,string"`
+		Borrowed     float64 `json:"borrowed,string"`
+		Interest     float64 `json:"interest,string"`
+		Currency     string  `json:"currency"`
+		LockedAmount float64 `json:"locked,string"`
 	} `json:"quote"`
 }
 
@@ -1239,7 +1270,7 @@ type SubAccountCrossMarginInfo struct {
 		Locked                     bool   `json:"locked"`
 		Total                      string `json:"total"`
 		Borrowed                   string `json:"borrowed"`
-		Interest                   string `json:"interest"`
+		Interest                   string `json:"interest"` // Total unpaid interests in USDT, i.e., the sum of all currencies' interest*price*discount
 		BorrowedNet                string `json:"borrowed_net"`
 		Net                        string `json:"net"`
 		Leverage                   string `json:"leverage"`
@@ -1250,11 +1281,23 @@ type SubAccountCrossMarginInfo struct {
 		TotalInitialMarginRate     string `json:"total_initial_margin_rate"`
 		TotalMaintenanceMarginRate string `json:"total_maintenance_margin_rate"`
 		TotalAvailableMargin       string `json:"total_available_margin"`
-		Balances                   map[string]struct {
-			Available string `json:"available"`
-			Freeze    string `json:"freeze"`
-			Borrowed  string `json:"borrowed"`
-			Interest  string `json:"interest"`
+		CurrencyBalances           map[string]struct {
+			Available          string `json:"available"`
+			Freeze             string `json:"freeze"`
+			Borrowed           string `json:"borrowed"`
+			Interest           string `json:"interest"`
+			CrossMarginBalance struct {
+				Available string `json:"available"`
+				Freeze    string `json:"freeze"`
+				Borrowed  string `json:"borrowed"`
+				Interest  string `json:"interest"`
+			} `json:"CrossMarginBalance"`
+			Total                      string `json:"total"`
+			BorrowedNet                string `json:"borrowed_net"`
+			TotalNetAssetInUSDT        string `json:"net"`
+			PositionLeverage           string `json:"leverage"`
+			TotalUnpaidInterestsInUSDT string `json:"interest"`
+			Risk                       string `json:"risk"` // Risk rate. When it belows 110%, liquidation will be triggered. Calculation formula: total / (borrowed+interest)
 		} `json:"balances"`
 	} `json:"available"`
 }
@@ -1876,14 +1919,18 @@ type SettlementHistoryItem struct {
 
 // SubAccountParams represents subaccount creation parameters
 type SubAccountParams struct {
-	Remark    string `json:"remark"`
+	Remark    string `json:"remark,omitempty"`
 	LoginName string `json:"login_name"`
+	Email     string `json:"email,omitempty"`    // The sub-account's password.
+	Password  string `json:"password,omitempty"` // The sub-account's email address.
 }
 
 // SubAccount represents a subaccount response
 type SubAccount struct {
 	Remark     string    `json:"remark"`
 	LoginName  string    `json:"login_name"`
+	Password   string    `json:"password"`
+	Email      string    `json:"email"`
 	UserID     int64     `json:"user_id"`
 	State      int64     `json:"state"`
 	CreateTime time.Time `json:"create_time"`
