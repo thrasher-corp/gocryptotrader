@@ -34,7 +34,6 @@ const (
 	htmlScrape           = "HTML String Check"
 	pathBinance          = "https://binance-docs.github.io/apidocs/spot/en/#change-log"
 	pathOkCoin           = "https://www.okcoin.com/docs/en/#change-change"
-	pathFTX              = "https://github.com/ftexchange/ftx"
 	pathBTSE             = "https://www.btse.com/apiexplorer/spot/#btse-spot-api"
 	pathBitfinex         = "https://docs.bitfinex.com/docs/changelog"
 	pathBitmex           = "https://www.bitmex.com/static/md/en-US/apiChangelog"
@@ -463,8 +462,6 @@ func checkChangeLog(htmlData *HTMLScrapingData) (string, error) {
 		dataStrings, err = htmlScrapeBinance(htmlData)
 	case pathBTSE:
 		dataStrings, err = htmlScrapeBTSE(htmlData)
-	case pathFTX:
-		dataStrings, err = htmlScrapeFTX(htmlData)
 	case pathBitfinex:
 		dataStrings, err = htmlScrapeBitfinex(htmlData)
 	case pathBitmex:
@@ -1594,95 +1591,6 @@ loop:
 	}
 	resp = append(resp, tempArray[1])
 	return resp, nil
-}
-
-// htmlScrapeFTX gets the check string for FTX exchange
-func htmlScrapeFTX(htmlData *HTMLScrapingData) ([]string, error) {
-	temp, err := sendHTTPGetRequest(htmlData.Path, nil)
-	if err != nil {
-		return nil, err
-	}
-	defer temp.Body.Close()
-	a := temp.Body
-	tokenizer := html.NewTokenizer(a)
-	var respStr string
-loop:
-	for {
-		next := tokenizer.Next()
-		switch next {
-		case html.ErrorToken:
-			break loop
-		case html.StartTagToken:
-			token := tokenizer.Token()
-			if token.Data == htmlData.TokenData {
-				for _, a := range token.Attr {
-					if a.Key == htmlData.Key && a.Val == htmlData.Val {
-					loop2:
-						for {
-							anotherToken := tokenizer.Next()
-							switch anotherToken {
-							case html.StartTagToken:
-								z := tokenizer.Token()
-								if z.Data == "a" {
-									for _, m := range z.Attr {
-										if m.Key == "title" {
-											switch m.Val {
-											case "rest":
-											loop3:
-												for {
-													nextToken := tokenizer.Next()
-													switch nextToken {
-													case html.StartTagToken:
-														f := tokenizer.Token()
-														if f.Data == "time-ago" {
-															for _, b := range f.Attr {
-																if b.Key == "datetime" {
-																	respStr += b.Val
-																}
-															}
-														}
-													case html.EndTagToken:
-														tk := tokenizer.Token()
-														if tk.Data == htmlData.TokenDataEnd {
-															break loop3
-														}
-													}
-												}
-											case "websocket":
-											loop4:
-												for {
-													nextToken := tokenizer.Next()
-													switch nextToken {
-													case html.StartTagToken:
-														f := tokenizer.Token()
-														if f.Data == "time-ago" {
-															for _, b := range f.Attr {
-																if b.Key == "datetime" {
-																	respStr += b.Val
-																}
-															}
-														}
-													case html.EndTagToken:
-														tk := tokenizer.Token()
-														if tk.Data == htmlData.TokenDataEnd {
-															break loop4
-														}
-													}
-												}
-											}
-										}
-									}
-								}
-							case html.ErrorToken:
-								break loop2
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-	return []string{respStr}, nil
 }
 
 // htmlScrapeBitfinex gets the check string for Bitfinex exchange

@@ -16,7 +16,7 @@ load := func() {
     // NOTE: Get account info is cached and updated by another worker thread 
     // therefore calling this script multiple times, if data has already been 
     // fetched request verbosity will be limited. 
-    info := exch.accountinfo(ctx, "ftx", "spot")
+    info := exch.accountinfo(ctx, "binance", "spot")
     if is_error(info) {
         // handle error 
     }

@@ -264,8 +264,7 @@ func TestFQueryTopPositionsRatio(t *testing.T) {
 
 func TestFLiquidationOrders(t *testing.T) {
 	t.Parallel()
-	_, err := h.FLiquidationOrders(context.Background(), "BTC", "filled", 0, 0, 7)
-	if err != nil {
+	if _, err := h.FLiquidationOrders(context.Background(), currency.BTC, "filled", 0, 0, "", 0); err != nil {
 		t.Error(err)
 	}
 }
@@ -1002,8 +1001,8 @@ func TestGetLiquidationOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = h.GetLiquidationOrders(context.Background(), cp, "closed", 0, 0, 7)
-	if err != nil {
+
+	if _, err = h.GetLiquidationOrders(context.Background(), cp, "closed", 0, 0, "", 0); err != nil {
 		t.Error(err)
 	}
 }

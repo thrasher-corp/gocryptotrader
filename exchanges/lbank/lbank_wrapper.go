@@ -925,19 +925,19 @@ func (l *Lbank) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 	}
 
 	timeSeries := make([]kline.Candle, 0, req.Size())
-	for x := range req.Ranges {
+	for x := range req.RangeHolder.Ranges {
 		var data []KlineResponse
 		data, err = l.GetKlines(ctx,
 			req.RequestFormatted.String(),
 			strconv.FormatInt(int64(l.Features.Enabled.Kline.ResultLimit), 10),
 			l.FormatExchangeKlineInterval(req.ExchangeInterval),
-			strconv.FormatInt(req.Ranges[x].Start.Ticks, 10))
+			strconv.FormatInt(req.RangeHolder.Ranges[x].Start.Ticks, 10))
 		if err != nil {
 			return nil, err
 		}
 		for i := range data {
-			if (data[i].TimeStamp.Unix() < req.Ranges[x].Start.Ticks) ||
-				(data[i].TimeStamp.Unix() > req.Ranges[x].End.Ticks) {
+			if (data[i].TimeStamp.Unix() < req.RangeHolder.Ranges[x].Start.Ticks) ||
+				(data[i].TimeStamp.Unix() > req.RangeHolder.Ranges[x].End.Ticks) {
 				continue
 			}
 			timeSeries = append(timeSeries, kline.Candle{

@@ -1048,12 +1048,12 @@ func (o *OKCoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 
 	gran := o.FormatExchangeKlineInterval(interval)
 	timeSeries := make([]kline.Candle, 0, req.Size())
-	for x := range req.Ranges {
+	for x := range req.RangeHolder.Ranges {
 		var candles []kline.Candle
 		candles, err = o.GetMarketData(ctx, &GetMarketDataRequest{
 			Asset:        a,
-			Start:        req.Ranges[x].Start.Time.UTC().Format(time.RFC3339),
-			End:          req.Ranges[x].End.Time.UTC().Format(time.RFC3339),
+			Start:        req.RangeHolder.Ranges[x].Start.Time.UTC().Format(time.RFC3339),
+			End:          req.RangeHolder.Ranges[x].End.Time.UTC().Format(time.RFC3339),
 			Granularity:  gran,
 			InstrumentID: req.RequestFormatted.String(),
 		})
