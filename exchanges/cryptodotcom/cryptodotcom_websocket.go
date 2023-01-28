@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -82,6 +83,7 @@ var responseStream chan SubscriptionRawData
 var websocketAuthenticationFailed bool
 var wAuthFailure sync.Mutex
 
+// WsConnect creates a new websocket to public and private endpoints.
 func (cr *Cryptodotcom) WsConnect() error {
 	responseStream = make(chan SubscriptionRawData)
 	if !cr.Websocket.IsEnabled() || !cr.IsEnabled() {
@@ -110,7 +112,7 @@ func (cr *Cryptodotcom) WsConnect() error {
 		var authDialer websocket.Dialer
 		authDialer.ReadBufferSize = 8192
 		authDialer.WriteBufferSize = 8192
-		err = cr.WsAuthConnect(context.TODO(), authDialer)
+		err = cr.WsAuthConnect(context.TODO(), &authDialer)
 		if err != nil {
 			wAuthFailure.Lock()
 			websocketAuthenticationFailed = true
@@ -132,7 +134,6 @@ func (cr *Cryptodotcom) wsFunnelConnectionData(ws stream.Connection, authenticat
 				return
 			}
 			wAuthFailure.Unlock()
-
 		}
 		resp := ws.ReadMessage()
 		if resp.Raw == nil {
@@ -179,11 +180,11 @@ func (cr *Cryptodotcom) respondHeartbeat(resp *SubscriptionResponse, authConnect
 }
 
 // WsAuthConnect represents an authenticated connection to a websocket server
-func (cr *Cryptodotcom) WsAuthConnect(ctx context.Context, dialer websocket.Dialer) error {
+func (cr *Cryptodotcom) WsAuthConnect(ctx context.Context, dialer *websocket.Dialer) error {
 	if !cr.Websocket.CanUseAuthenticatedEndpoints() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", cr.Name)
 	}
-	err := cr.Websocket.AuthConn.Dial(&dialer, http.Header{})
+	err := cr.Websocket.AuthConn.Dial(dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v Websocket connection %v error. Error %v", cr.Name, cryptodotcomWebsocketUserAPI, err)
 	}
@@ -199,15 +200,13 @@ func (cr *Cryptodotcom) AuthenticateWebsocketConnection() error {
 		return err
 	}
 	timestamp := time.Now()
-	var idInt int64
-	idInt = cr.Websocket.AuthConn.GenerateMessageID(true)
 	req := &WsRequestPayload{
-		ID:     idInt,
+		ID:     cr.Websocket.AuthConn.GenerateMessageID(true),
 		Method: publicAuth,
 		Nonce:  timestamp.UnixMilli(),
 	}
 	var hmac, payload []byte
-	signaturePayload := publicAuth + strconv.FormatInt(idInt, 10) + creds.Key + strconv.FormatInt(timestamp.UnixMilli(), 10)
+	signaturePayload := publicAuth + strconv.FormatInt(req.ID, 10) + creds.Key + strconv.FormatInt(timestamp.UnixMilli(), 10)
 	hmac, err = crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(signaturePayload),
 		[]byte(creds.Secret))
@@ -335,7 +334,11 @@ func (cr *Cryptodotcom) generatePayload(operation string, subscription []stream.
 			tradeCnl:
 			subscriptionPayloads[x].Params = map[string][]string{"channels": {fmt.Sprintf(subscription[x].Channel, subscription[x].Currency.String())}}
 		case candlestickCnl:
-			subscriptionPayloads[x].Params = map[string][]string{"channels": {fmt.Sprintf(subscription[x].Channel, subscription[x].Params["interval"].(string), subscription[x].Currency.String())}}
+			interval, okay := subscription[x].Params["interval"].(string)
+			if !okay {
+				return nil, kline.ErrUnsetInterval
+			}
+			subscriptionPayloads[x].Params = map[string][]string{"channels": {fmt.Sprintf(subscription[x].Channel, interval, subscription[x].Currency.String())}}
 		case userBalanceCnl:
 			subscriptionPayloads[x].Params = map[string][]string{"channels": {subscription[x].Channel}}
 		}
@@ -394,7 +397,7 @@ func (cr *Cryptodotcom) processCandlestick(resp *WsResult) error {
 	var data []CandlestickItem
 	err := json.Unmarshal(resp.Data, &data)
 	if err != nil {
-		return nil
+		return err
 	}
 	cp, err := currency.NewPairFromString(resp.InstrumentName)
 	if err != nil {
@@ -425,7 +428,7 @@ func (cr *Cryptodotcom) processTrades(resp *WsResult) error {
 	var data []TradeItem
 	err := json.Unmarshal(resp.Data, &data)
 	if err != nil {
-		return nil
+		return err
 	}
 	cp, err := currency.NewPairFromString(resp.InstrumentName)
 	if err != nil {
@@ -456,7 +459,7 @@ func (cr *Cryptodotcom) processTicker(resp *WsResult) error {
 	var data []TickerItem
 	err := json.Unmarshal(resp.Data, &data)
 	if err != nil {
-		return nil
+		return err
 	}
 	cp, err := currency.NewPairFromString(resp.InstrumentName)
 	if err != nil {
@@ -485,7 +488,7 @@ func (cr *Cryptodotcom) processOrderbook(resp *WsResult) error {
 	var data []WsOrderbook
 	err := json.Unmarshal(resp.Data, &data)
 	if err != nil {
-		return nil
+		return err
 	}
 	cp, err := currency.NewPairFromString(resp.InstrumentName)
 	if err != nil {
@@ -536,7 +539,7 @@ func (cr *Cryptodotcom) processUserBalance(resp *WsResult) error {
 	var data []UserBalance
 	err := json.Unmarshal(resp.Data, &data)
 	if err != nil {
-		return nil
+		return err
 	}
 	for x := range data {
 		cr.Websocket.DataHandler <- account.Change{
@@ -580,7 +583,6 @@ func (cr *Cryptodotcom) processUserTrade(resp *WsResult) error {
 			Price:        data[x].TradedPrice,
 			Amount:       data[x].TradedQuantity,
 		}
-
 	}
 	return cr.Websocket.Fills.Update(fills...)
 }

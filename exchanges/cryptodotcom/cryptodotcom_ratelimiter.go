@@ -66,6 +66,7 @@ const (
 	privateGetAccountSummaryRate
 )
 
+// RateLimiter represents the rate limiter struct for Crypto.com endpoints
 type RateLimiter struct {
 	PublicAuth                      *rate.Limiter
 	PublicInstruments               *rate.Limiter
@@ -111,6 +112,7 @@ type RateLimiter struct {
 	PrivateGetAccountSummary        *rate.Limiter
 }
 
+// Limit limits the endpoint functionality
 func (r *RateLimiter) Limit(ctx context.Context, f request.EndpointLimit) error {
 	switch f {
 	case publicAuthRate:

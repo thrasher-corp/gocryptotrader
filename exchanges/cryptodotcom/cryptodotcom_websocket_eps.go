@@ -82,7 +82,7 @@ func (cr *Cryptodotcom) WsRetriveWithdrawalHistory() (*WithdrawalResponse, error
 }
 
 // WsPlaceOrder created a new BUY or SELL order on the Exchange through the websocket connection.
-func (cr *Cryptodotcom) WsPlaceOrder(arg CreateOrderParam) (*CreateOrderResponse, error) {
+func (cr *Cryptodotcom) WsPlaceOrder(arg *CreateOrderParam) (*CreateOrderResponse, error) {
 	params, err := cr.getCreateParamMap(arg)
 	if err != nil {
 		return nil, err
@@ -112,7 +112,7 @@ func (cr *Cryptodotcom) WsCreateOrderList(contingencyType string, arg []CreateOr
 	params := make(map[string]interface{})
 	orderParams := make([]map[string]interface{}, len(arg))
 	for x := range arg {
-		p, err := cr.getCreateParamMap(arg[x])
+		p, err := cr.getCreateParamMap(&arg[x])
 		if err != nil {
 			return nil, err
 		}
@@ -159,7 +159,7 @@ func (cr *Cryptodotcom) WsCancelAllPersonalOrders(instrumentName string) error {
 	return cr.SendWebsocketRequest(privateCancelAllOrders, params, nil, true)
 }
 
-//	WsRetrivePersonalOrderHistory gets the order history for a particular instrument
+// WsRetrivePersonalOrderHistory gets the order history for a particular instrument
 //
 // If paging is used, enumerate each page (starting with 0) until an empty order_list array appears in the response.
 func (cr *Cryptodotcom) WsRetrivePersonalOrderHistory(instrumentName string, startTimestamp, endTimestamp time.Time, pageSize, page int64) (*PersonalOrdersResponse, error) {
@@ -208,7 +208,7 @@ func (cr *Cryptodotcom) WsRetriveOrderDetail(orderID string) (*OrderDetail, erro
 	return resp, cr.SendWebsocketRequest(privateGetOrderDetail, params, &resp, true)
 }
 
-//	WsRetrivePrivateTrades gets all executed trades for a particular instrument.
+// WsRetrivePrivateTrades gets all executed trades for a particular instrument.
 //
 // If paging is used, enumerate each page (starting with 0) until an empty trade_list array appears in the response.
 // Users should use user.trade to keep track of real-time trades, and private/get-trades should primarily be used for recovery; typically when the websocket is disconnected.

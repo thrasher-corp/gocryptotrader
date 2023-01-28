@@ -10,7 +10,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -55,19 +54,9 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// Ensures that this exchange package is compatible with IBotExchange
-func TestInterface(t *testing.T) {
-	var e exchange.IBotExchange
-	if e = new(Cryptodotcom); e == nil {
-		t.Fatal("unable to allocate exchange")
-	}
-}
-
 func areTestAPIKeysSet() bool {
 	return cr.ValidateAPICredentials(cr.GetDefaultCredentials()) == nil
 }
-
-// Implement tests for API endpoints below
 
 func TestGetSymbols(t *testing.T) {
 	t.Parallel()
@@ -196,11 +185,11 @@ func TestCreateOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
-	_, err := cr.CreateOrder(context.Background(), CreateOrderParam{InstrumentName: "BTC_USDT", ClientOrderID: "", TimeInForce: "", Side: order.Buy, OrderType: order.Limit, PostOnly: false, TriggerPrice: 0, Price: 123, Quantity: 12, Notional: 0})
+	_, err := cr.CreateOrder(context.Background(), &CreateOrderParam{InstrumentName: "BTC_USDT", ClientOrderID: "", TimeInForce: "", Side: order.Buy, OrderType: order.Limit, PostOnly: false, TriggerPrice: 0, Price: 123, Quantity: 12, Notional: 0})
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = cr.WsPlaceOrder(CreateOrderParam{InstrumentName: "BTC_USDT", ClientOrderID: "", TimeInForce: "", Side: order.Buy, OrderType: order.Limit, PostOnly: false, TriggerPrice: 0, Price: 123, Quantity: 12, Notional: 0})
+	_, err = cr.WsPlaceOrder(&CreateOrderParam{InstrumentName: "BTC_USDT", ClientOrderID: "", TimeInForce: "", Side: order.Buy, OrderType: order.Limit, PostOnly: false, TriggerPrice: 0, Price: 123, Quantity: 12, Notional: 0})
 	if err != nil {
 		t.Error(err)
 	}
@@ -338,7 +327,6 @@ func TestCancelAllPersonalOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
 }
 
 func TestGetAccounts(t *testing.T) {

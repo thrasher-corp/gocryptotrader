@@ -348,6 +348,7 @@ type OrderCreationResultItem struct {
 	ClientOid string `json:"client_oid"`
 }
 
+// AccountResponse represents main and sub account detail informations
 type AccountResponse struct {
 	MasterAccount  AccountInfo   `json:"master_account"`
 	SubAccountList []AccountInfo `json:"sub_account_list"`

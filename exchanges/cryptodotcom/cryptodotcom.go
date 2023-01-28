@@ -248,7 +248,7 @@ func (cr *Cryptodotcom) GetAccountSummary(ctx context.Context, ccy currency.Code
 }
 
 // CreateOrder created a new BUY or SELL order on the Exchange.
-func (cr *Cryptodotcom) CreateOrder(ctx context.Context, arg CreateOrderParam) (*CreateOrderResponse, error) {
+func (cr *Cryptodotcom) CreateOrder(ctx context.Context, arg *CreateOrderParam) (*CreateOrderResponse, error) {
 	params, err := cr.getCreateParamMap(arg)
 	if err != nil {
 		return nil, err
@@ -271,7 +271,10 @@ func (cr *Cryptodotcom) CancelExistingOrder(ctx context.Context, instrumentName,
 	return cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCancelOrderRate, privateCancelOrder, params, nil)
 }
 
-func (cr *Cryptodotcom) getCreateParamMap(arg CreateOrderParam) (map[string]interface{}, error) {
+func (cr *Cryptodotcom) getCreateParamMap(arg *CreateOrderParam) (map[string]interface{}, error) {
+	if arg == nil {
+		return nil, fmt.Errorf("%w nil argument", common.ErrNilPointer)
+	}
 	if arg.InstrumentName == "" {
 		return nil, errSymbolIsRequired
 	}
@@ -352,7 +355,7 @@ func (cr *Cryptodotcom) CreateOrderList(ctx context.Context, contingencyType str
 	params := make(map[string]interface{})
 	orderParams := make([]map[string]interface{}, len(arg))
 	for x := range arg {
-		p, err := cr.getCreateParamMap(arg[x])
+		p, err := cr.getCreateParamMap(&arg[x])
 		if err != nil {
 			return nil, err
 		}
@@ -449,7 +452,7 @@ func (cr *Cryptodotcom) CreateSubAccountTransfer(ctx context.Context, from, to s
 	return cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCreateSubAccountTransferRate, privateCreateSubAccountTransfer, params, nil)
 }
 
-//	GetPersonalOrderHistory gets the order history for a particular instrument
+// GetPersonalOrderHistory gets the order history for a particular instrument
 //
 // If paging is used, enumerate each page (starting with 0) until an empty order_list array appears in the response.
 func (cr *Cryptodotcom) GetPersonalOrderHistory(ctx context.Context, instrumentName string, startTimestamp, endTimestamp time.Time, pageSize, page int64) (*PersonalOrdersResponse, error) {
@@ -500,7 +503,7 @@ func (cr *Cryptodotcom) GetOrderDetail(ctx context.Context, orderID string) (*Or
 	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOrderDetailRate, privateGetOrderDetail, params, &resp)
 }
 
-//	GetPrivateTrades gets all executed trades for a particular instrument.
+// GetPrivateTrades gets all executed trades for a particular instrument.
 //
 // If paging is used, enumerate each page (starting with 0) until an empty trade_list array appears in the response.
 // Users should use user.trade to keep track of real-time trades, and private/get-trades should primarily be used for recovery; typically when the websocket is disconnected.
@@ -531,7 +534,7 @@ func (cr *Cryptodotcom) GetOTCUser(ctx context.Context) (*OTCTrade, error) {
 	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOTCUserRate, privateGetOTCUser, nil, &resp)
 }
 
-// GetOTCInstruments retrive tradable OTC instruments.
+// GetOTCInstruments retrieve tradable OTC instruments.
 func (cr *Cryptodotcom) GetOTCInstruments(ctx context.Context) (*OTCInstrumentsResponse, error) {
 	var resp *OTCInstrumentsResponse
 	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOTCInstrumentsRate, privateGetOTCInstruments, nil, &resp)
@@ -812,17 +815,40 @@ func (cr *Cryptodotcom) getParamString(params map[string]interface{}) string {
 		}
 		switch reflect.ValueOf(params[keys[x]]).Kind() {
 		case reflect.Bool:
-			paramString += keys[x] + strconv.FormatBool(params[keys[x]].(bool))
+			param, ok := params[keys[x]].(bool)
+			if !ok {
+				param = false
+			}
+			paramString += keys[x] + strconv.FormatBool(param)
 		case reflect.Int64:
-			paramString += keys[x] + strconv.FormatInt(params[keys[x]].(int64), 10)
+			param, ok := params[keys[x]].(int64)
+			if !ok {
+				param = 0
+			}
+			paramString += keys[x] + strconv.FormatInt(param, 10)
 		case reflect.Float32:
-			paramString += keys[x] + strconv.FormatFloat(params[keys[x]].(float64), 'f', -1, 64)
+			param, ok := params[keys[x]].(float64)
+			if !ok {
+				param = 0.0
+			}
+			paramString += keys[x] + strconv.FormatFloat(param, 'f', -1, 64)
 		case reflect.Map:
-			paramString += keys[x] + cr.getParamString((params[keys[x]]).(map[string]interface{}))
+			param, ok := params[keys[x]].(map[string]interface{})
+			if !ok {
+				param = map[string]interface{}{}
+			}
+			paramString += keys[x] + cr.getParamString((param))
 		case reflect.String:
-			paramString += keys[x] + params[keys[x]].(string)
+			param, ok := params[keys[x]].(string)
+			if !ok {
+				param = ""
+			}
+			paramString += keys[x] + param
 		case reflect.Slice:
-			listOfMaps := params[keys[x]].([]map[string]interface{})
+			listOfMaps, ok := params[keys[x]].([]map[string]interface{})
+			if !ok {
+				return ""
+			}
 			for y := range listOfMaps {
 				paramString += cr.getParamString(listOfMaps[y])
 			}

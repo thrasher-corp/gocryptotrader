@@ -34,9 +34,10 @@ func (cr *Cryptodotcom) GetDefaultConfig() (*config.Exchange, error) {
 	exchCfg.Name = cr.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = cr.BaseCurrencies
-
-	cr.SetupDefaults(exchCfg)
-
+	err := cr.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
 	if cr.Features.Supports.RESTCapabilities.AutoPairUpdates {
 		err := cr.UpdateTradablePairs(context.TODO(), true)
 		if err != nil {
@@ -105,11 +106,14 @@ func (cr *Cryptodotcom) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 	cr.API.Endpoints = cr.NewEndpoints()
-	cr.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+	err = cr.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:                   cryptodotcomAPIURL,
 		exchange.WebsocketSpot:              cryptodotcomWebsocketMarketAPI,
 		exchange.WebsocketSpotSupplementary: cryptodotcomWebsocketUserAPI,
 	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	cr.Websocket = stream.New()
 	cr.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	cr.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -323,11 +327,13 @@ func (cr *Cryptodotcom) UpdateOrderbook(ctx context.Context, pair currency.Pair,
 	}
 	book.Bids = make([]orderbook.Item, len(orderbookNew.Data[0].Bids))
 	for x := range orderbookNew.Data[0].Bids {
-		price, err := strconv.ParseFloat(orderbookNew.Data[0].Bids[x][0], 64)
+		var price float64
+		var amount float64
+		price, err = strconv.ParseFloat(orderbookNew.Data[0].Bids[x][0], 64)
 		if err != nil {
 			return nil, err
 		}
-		amount, err := strconv.ParseFloat(orderbookNew.Data[0].Bids[x][1], 64)
+		amount, err = strconv.ParseFloat(orderbookNew.Data[0].Bids[x][1], 64)
 		if err != nil {
 			return nil, err
 		}
@@ -338,11 +344,13 @@ func (cr *Cryptodotcom) UpdateOrderbook(ctx context.Context, pair currency.Pair,
 	}
 	book.Asks = make([]orderbook.Item, len(orderbookNew.Data[0].Asks))
 	for x := range orderbookNew.Data[0].Asks {
-		price, err := strconv.ParseFloat(orderbookNew.Data[0].Asks[x][0], 64)
+		var price float64
+		var amount float64
+		price, err = strconv.ParseFloat(orderbookNew.Data[0].Asks[x][0], 64)
 		if err != nil {
 			return nil, err
 		}
-		amount, err := strconv.ParseFloat(orderbookNew.Data[0].Asks[x][1], 64)
+		amount, err = strconv.ParseFloat(orderbookNew.Data[0].Asks[x][1], 64)
 		if err != nil {
 			return nil, err
 		}
@@ -482,7 +490,8 @@ func (cr *Cryptodotcom) GetRecentTrades(ctx context.Context, p currency.Pair, as
 	}
 	resp := make([]trade.Data, len(trades.Data))
 	for x := range trades.Data {
-		side, err := order.StringToOrderSide(trades.Data[x].Side)
+		var side order.Side
+		side, err = order.StringToOrderSide(trades.Data[x].Side)
 		if err != nil {
 			return nil, err
 		}
@@ -548,7 +557,7 @@ allTrades:
 				AssetType:    assetType,
 				Side:         side,
 				Price:        tradeData.Data[i].TradePrice,
-				Amount:       float64(tradeData.Data[i].TradeQuantity),
+				Amount:       tradeData.Data[i].TradeQuantity,
 				Timestamp:    tradeData.Data[i].TradeTimestamp.Time(),
 				TID:          tradeData.Data[i].TradeID,
 			})
@@ -597,7 +606,7 @@ func (cr *Cryptodotcom) SubmitOrder(ctx context.Context, s *order.Submit) (*orde
 		// For MARKET (BUY), STOP_LOSS (BUY), TAKE_PROFIT (BUY) orders only: Amount to spend
 		notional = s.Amount
 	}
-	ordersResp, err := cr.CreateOrder(ctx, CreateOrderParam{
+	ordersResp, err := cr.CreateOrder(ctx, &CreateOrderParam{
 		InstrumentName: format.Format(s.Pair),
 		Side:           s.Side,
 		OrderType:      s.Type,
@@ -729,7 +738,7 @@ func (cr *Cryptodotcom) GetOrderInfo(ctx context.Context, orderID string, pair c
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (cr *Cryptodotcom) GetDepositAddress(ctx context.Context, c currency.Code, accountID string, chain string) (*deposit.Address, error) {
+func (cr *Cryptodotcom) GetDepositAddress(ctx context.Context, c currency.Code, accountID, chain string) (*deposit.Address, error) {
 	dAddresses, err := cr.GetPersonalDepositAddress(ctx, c)
 	if err != nil {
 		return nil, err
