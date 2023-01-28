@@ -724,12 +724,10 @@ func (ku *Kucoin) processOrderbookWithDepth(respData []byte, instrument string) 
 	if err != nil {
 		return err
 	}
-	base := orderbook.Base{
-		Exchange:        ku.Name,
-		VerifyOrderbook: ku.CanVerifyOrderbook,
-		LastUpdated:     response.TimeMS.Time(),
-		Pair:            pair,
-		Asset:           asset.Spot,
+	update := orderbook.Update{
+		UpdateTime: response.TimeMS.Time(),
+		Pair:       pair,
+		Asset:      asset.Spot,
 	}
 	for x := range response.Asks {
 		item := orderbook.Item{}
@@ -741,7 +739,7 @@ func (ku *Kucoin) processOrderbookWithDepth(respData []byte, instrument string) 
 		if err != nil {
 			return err
 		}
-		base.Asks = append(base.Asks, item)
+		update.Asks = append(update.Asks, item)
 	}
 	for x := range response.Bids {
 		item := orderbook.Item{}
@@ -753,9 +751,9 @@ func (ku *Kucoin) processOrderbookWithDepth(respData []byte, instrument string) 
 		if err != nil {
 			return err
 		}
-		base.Bids = append(base.Bids, item)
+		update.Bids = append(update.Bids, item)
 	}
-	return nil
+	return ku.Websocket.Orderbook.Update(&update)
 }
 
 func (ku *Kucoin) processOrderbook(respData []byte, instrument string) error {
@@ -773,6 +771,7 @@ func (ku *Kucoin) processOrderbook(respData []byte, instrument string) error {
 		UpdateTime: time.UnixMilli(response.TimeMS),
 		Pair:       pair,
 		Asset:      asset.Spot,
+		UpdateID:   response.SequenceEnd,
 	}
 	for x := range response.Changes.Asks {
 		item := orderbook.Item{}
@@ -895,7 +894,7 @@ func (ku *Kucoin) handleSubscriptions(subscriptions []stream.ChannelSubscription
 		}
 		ku.Websocket.AddSuccessfulSubscriptions(subscriptions[x])
 	}
-	return errs
+	return errs.Unwrap()
 }
 
 // getChannelsAssetType returns the asset type to which the subscription channel belongs to

@@ -1333,7 +1333,7 @@ func (ku *Kucoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 		case asset.Futures:
 			var candles []FuturesKline
 			pair.Delimiter = ""
-			candles, err := ku.GetFuturesKline(ctx, "720", pair.String(), dates.Ranges[x].Start.Time, dates.Ranges[x].End.Time)
+			candles, err = ku.GetFuturesKline(ctx, "720", pair.String(), dates.Ranges[x].Start.Time, dates.Ranges[x].End.Time)
 			if err != nil {
 				return nil, err
 			}
@@ -1350,7 +1350,8 @@ func (ku *Kucoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			}
 			ret.SortCandlesByTimestamp(false)
 		case asset.Spot:
-			intervalString, err := ku.intervalToString(interval)
+			var intervalString string
+			intervalString, err = ku.intervalToString(interval)
 			if err != nil {
 				return ret, err
 			}
@@ -1374,7 +1375,10 @@ func (ku *Kucoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			ret.SortCandlesByTimestamp(false)
 		}
 	}
-	dates.SetHasDataFromCandles(ret.Candles)
+	err = dates.SetHasDataFromCandles(ret.Candles)
+	if err != nil {
+		return nil, err
+	}
 	summary := dates.DataSummary(false)
 	if len(summary) > 0 {
 		log.Warnf(log.ExchangeSys, "%v - %v", ku.Name, summary)
