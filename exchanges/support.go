@@ -27,6 +27,7 @@ var Exchanges = []string{
 	"bybit",
 	"coinbasepro",
 	"coinut",
+	"cryptodotcom",
 	"exmo",
 	"gateio",
 	"gemini",

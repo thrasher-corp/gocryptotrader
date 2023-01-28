@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bybit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/coinbasepro"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/coinut"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/cryptodotcom"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/exmo"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/gateio"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/gemini"
@@ -170,6 +171,8 @@ func (m *ExchangeManager) NewExchangeByName(name string) (exchange.IBotExchange,
 		exch = new(bybit.Bybit)
 	case "coinut":
 		exch = new(coinut.COINUT)
+	case "cryptodotcom":
+		exch = new(cryptodotcom.Cryptodotcom)
 	case "exmo":
 		exch = new(exmo.EXMO)
 	case "coinbasepro":
