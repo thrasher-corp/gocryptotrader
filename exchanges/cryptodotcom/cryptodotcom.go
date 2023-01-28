@@ -33,6 +33,7 @@ const (
 	// cryptodotcom API endpoints.
 	cryptodotcomUATSandboxAPIURL = "https://uat-api.3ona.co"
 	cryptodotcomAPIURL           = "https://api.crypto.com"
+	// cryptodotcomAPIURL           = "https://uat-api.3ona.co"
 
 	// cryptodotcom websocket endpoints.
 	cryptodotcomWebsocketUserAPI   = "wss://stream.crypto.com/v2/user"
@@ -79,7 +80,7 @@ const (
 	postWithdrawal = "private/create-withdrawal"
 
 	privateGetCurrencyNetworks = "private/get-currency-networks"
-	privategetDepositAddress   = "private/get-deposit-address"
+	privateGetDepositAddress   = "private/get-deposit-address"
 	privateGetAccounts         = "private/get-accounts"
 
 	// OTC Trading API
@@ -231,7 +232,7 @@ func (cr *Cryptodotcom) GetPersonalDepositAddress(ctx context.Context, ccy curre
 	params := make(map[string]interface{})
 	params["currency"] = ccy.String()
 	var resp *DepositAddresses
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privategetDepositAddressRate, privategetDepositAddress, params, &resp)
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privategetDepositAddressRate, privateGetDepositAddress, params, &resp)
 }
 
 // SPOT Trading API endpoints.
@@ -499,11 +500,11 @@ func (cr *Cryptodotcom) GetOrderDetail(ctx context.Context, orderID string) (*Or
 	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOrderDetailRate, privateGetOrderDetail, params, &resp)
 }
 
-//	GetPersonalTrades gets all executed trades for a particular instrument.
+//	GetPrivateTrades gets all executed trades for a particular instrument.
 //
 // If paging is used, enumerate each page (starting with 0) until an empty trade_list array appears in the response.
 // Users should use user.trade to keep track of real-time trades, and private/get-trades should primarily be used for recovery; typically when the websocket is disconnected.
-func (cr *Cryptodotcom) GetPersonalTrades(ctx context.Context, instrumentName string, startTimestamp, endTimestamp time.Time, pageSize, page int64) (*PersonalTrades, error) {
+func (cr *Cryptodotcom) GetPrivateTrades(ctx context.Context, instrumentName string, startTimestamp, endTimestamp time.Time, pageSize, page int64) (*PersonalTrades, error) {
 	params := make(map[string]interface{})
 	if instrumentName != "" {
 		params["instrument_name"] = instrumentName
@@ -522,17 +523,6 @@ func (cr *Cryptodotcom) GetPersonalTrades(ctx context.Context, instrumentName st
 	}
 	var resp *PersonalTrades
 	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetTradesRate, privateGetTrades, params, &resp)
-}
-
-// SetCancelOnDisconnect cancel on Disconnect is an optional feature that will cancel all open orders created by the connection upon loss of connectivity between client or server.
-func (cr *Cryptodotcom) SetCancelOnDisconnect(ctx context.Context, scope string) (*CancelOnDisconnectScope, error) {
-	if scope != "ACCOUNT" && scope != "CONNECTION" {
-		return nil, errInvalidOrderCancellationScope
-	}
-	params := make(map[string]interface{})
-	params["scope"] = scope
-	var resp *CancelOnDisconnectScope
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateSetCancelOnDisconnectRate, privateSetCancelOnDisconnect, params, &resp)
 }
 
 // GetOTCUser retrives OTC User.
@@ -771,6 +761,9 @@ func (cr *Cryptodotcom) SendAuthHTTPRequest(ctx context.Context, ePath exchange.
 		}
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
+		if arg == nil {
+			arg = map[string]interface{}{}
+		}
 		req := &PrivateRequestParam{
 			ID:        idInt,
 			Method:    path,

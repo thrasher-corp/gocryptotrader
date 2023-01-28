@@ -1450,7 +1450,7 @@
    },
    "api": {
     "authenticatedSupport": false,
-    "authenticatedWebsocketApiSupport": false,
+    "authenticatedWebsocketApiSupport": true,
     "credentials": {},
     "credentialsValidator": {
      "requiresKey": true,
@@ -1458,7 +1458,7 @@
     },
     "urlEndpoints": {
      "RestSpotURL": "https://api.crypto.com",
-     "WebsocketSpotURL": "wss://stream.crypto.com"
+     "WebsocketSpotURL": "wss://stream.crypto.com/v2/market"
     }
    },
    "features": {

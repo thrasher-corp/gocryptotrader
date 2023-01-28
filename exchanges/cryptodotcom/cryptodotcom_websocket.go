@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -74,9 +75,15 @@ var defaultSubscriptions = []string{
 }
 
 // responseStream a channel thought which the data coming from the two websocket connection will go through.
-var responseStream = make(chan SubscriptionRawData)
+var responseStream chan SubscriptionRawData
+
+// this field is used to notify the websocket authentication status for the running go-routine
+// and the Mutex locker below is used to safely access the field websocketAuthenticationFailed
+var websocketAuthenticationFailed bool
+var wAuthFailure sync.Mutex
 
 func (cr *Cryptodotcom) WsConnect() error {
+	responseStream = make(chan SubscriptionRawData)
 	if !cr.Websocket.IsEnabled() || !cr.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -99,16 +106,16 @@ func (cr *Cryptodotcom) WsConnect() error {
 		MessageType:       websocket.PingMessage,
 		Delay:             time.Second * 10,
 	})
-	if cr.IsWebsocketAuthenticationSupported() {
+	if cr.Websocket.CanUseAuthenticatedEndpoints() {
 		var authDialer websocket.Dialer
 		authDialer.ReadBufferSize = 8192
 		authDialer.WriteBufferSize = 8192
 		err = cr.WsAuthConnect(context.TODO(), authDialer)
 		if err != nil {
+			wAuthFailure.Lock()
+			websocketAuthenticationFailed = true
+			wAuthFailure.Unlock()
 			cr.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		} else {
-			cr.Websocket.Wg.Add(1)
-			go cr.wsFunnelConnectionData(cr.Websocket.AuthConn, true)
 		}
 	}
 	return nil
@@ -119,6 +126,14 @@ func (cr *Cryptodotcom) WsConnect() error {
 func (cr *Cryptodotcom) wsFunnelConnectionData(ws stream.Connection, authenticated bool) {
 	defer cr.Websocket.Wg.Done()
 	for {
+		if authenticated {
+			wAuthFailure.Lock()
+			if websocketAuthenticationFailed {
+				return
+			}
+			wAuthFailure.Unlock()
+
+		}
 		resp := ws.ReadMessage()
 		if resp.Raw == nil {
 			return
@@ -172,11 +187,13 @@ func (cr *Cryptodotcom) WsAuthConnect(ctx context.Context, dialer websocket.Dial
 	if err != nil {
 		return fmt.Errorf("%v Websocket connection %v error. Error %v", cr.Name, cryptodotcomWebsocketUserAPI, err)
 	}
-	return cr.WsAuthenticate()
+	cr.Websocket.Wg.Add(1)
+	go cr.wsFunnelConnectionData(cr.Websocket.AuthConn, true)
+	return cr.AuthenticateWebsocketConnection()
 }
 
-// WsAuthenticate authenticates the websocekt connection.
-func (cr *Cryptodotcom) WsAuthenticate() error {
+// AuthenticateWebsocketConnection authenticates the websocekt connection.
+func (cr *Cryptodotcom) AuthenticateWebsocketConnection() error {
 	creds, err := cr.GetCredentials(context.Background())
 	if err != nil {
 		return err
@@ -190,7 +207,7 @@ func (cr *Cryptodotcom) WsAuthenticate() error {
 		Nonce:  timestamp.UnixMilli(),
 	}
 	var hmac, payload []byte
-	signaturePayload := publicAuth + strconv.FormatInt(idInt, 10) + creds.Key + cr.getParamString(nil) + strconv.FormatInt(timestamp.UnixMilli(), 10)
+	signaturePayload := publicAuth + strconv.FormatInt(idInt, 10) + creds.Key + strconv.FormatInt(timestamp.UnixMilli(), 10)
 	hmac, err = crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(signaturePayload),
 		[]byte(creds.Secret))
@@ -210,7 +227,6 @@ func (cr *Cryptodotcom) WsAuthenticate() error {
 	} else if resp == nil {
 		return errors.New("no valid response from server")
 	}
-	println("Waiting: ", strconv.FormatInt(req.ID, 10), ", But found: ", resp.ID)
 	if resp.Code != 0 {
 		mes := fmt.Sprintf("error code: %d Message: %s", resp.Code, resp.Message)
 		if resp.DetailCode != "0" && resp.DetailCode != "" {
@@ -333,12 +349,12 @@ func (cr *Cryptodotcom) generatePayload(operation string, subscription []stream.
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
 func (cr *Cryptodotcom) WsHandleData(respRaw []byte, authConnection bool) error {
-	println(string(respRaw))
 	var resp *SubscriptionResponse
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
 		return err
 	}
+
 	if resp.ID > 0 {
 		if resp.Method == publicHeartbeat {
 			return cr.respondHeartbeat(resp, authConnection)

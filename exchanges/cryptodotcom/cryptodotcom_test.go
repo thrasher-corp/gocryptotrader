@@ -2,7 +2,6 @@ package cryptodotcom
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"os"
 	"testing"
@@ -16,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -122,6 +122,10 @@ func TestWithdrawFunds(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	_, err = cr.WsCreateWithdrawal(currency.BTC, 10, core.BitcoinDonationAddress, "", "", "")
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestGetCurrencyNetworks(t *testing.T) {
@@ -141,6 +145,10 @@ func TestGetWithdrawalHistory(t *testing.T) {
 		t.Parallel()
 	}
 	_, err := cr.GetWithdrawalHistory(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = cr.WsRetriveWithdrawalHistory()
 	if err != nil {
 		t.Error(err)
 	}
@@ -177,6 +185,10 @@ func TestGetAccountSummary(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	_, err = cr.WsRetriveAccountSummary(currency.BTC)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestCreateOrder(t *testing.T) {
@@ -185,6 +197,10 @@ func TestCreateOrder(t *testing.T) {
 		t.SkipNow()
 	}
 	_, err := cr.CreateOrder(context.Background(), CreateOrderParam{InstrumentName: "BTC_USDT", ClientOrderID: "", TimeInForce: "", Side: order.Buy, OrderType: order.Limit, PostOnly: false, TriggerPrice: 0, Price: 123, Quantity: 12, Notional: 0})
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = cr.WsPlaceOrder(CreateOrderParam{InstrumentName: "BTC_USDT", ClientOrderID: "", TimeInForce: "", Side: order.Buy, OrderType: order.Limit, PostOnly: false, TriggerPrice: 0, Price: 123, Quantity: 12, Notional: 0})
 	if err != nil {
 		t.Error(err)
 	}
@@ -199,14 +215,22 @@ func TestCancelExistingOrder(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	err = cr.WsCancelExistingOrder("BTC_USDT", "1232412")
+	if err != nil {
+		t.Error(err)
+	}
 }
 
-func TestGetPersonalTrades(t *testing.T) {
+func TestGetPrivateTrades(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	_, err := cr.GetPersonalTrades(context.Background(), "BTC_USDT", time.Time{}, time.Time{}, 0, 0)
+	_, err := cr.GetPrivateTrades(context.Background(), "", time.Time{}, time.Time{}, 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = cr.WsRetrivePrivateTrades("", time.Time{}, time.Time{}, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -217,8 +241,11 @@ func TestGetOrderDetail(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	cr.Verbose = true
 	_, err := cr.GetOrderDetail(context.Background(), "1234")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = cr.WsRetriveOrderDetail("1234")
 	if err != nil {
 		t.Error(err)
 	}
@@ -233,6 +260,10 @@ func TestGetPersonalOpenOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	_, err = cr.WsRetrivePersonalOpenOrders("", 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestGetPersonalOrderHistory(t *testing.T) {
@@ -244,14 +275,25 @@ func TestGetPersonalOrderHistory(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	_, err = cr.WsRetrivePersonalOrderHistory("", time.Time{}, time.Time{}, 0, 20)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestCreateOrderList(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.SkipNow()
 	}
 	_, err := cr.CreateOrderList(context.Background(), "LIST", []CreateOrderParam{
+		{
+			InstrumentName: "BTC_USDT", ClientOrderID: "", TimeInForce: "", Side: order.Buy, OrderType: order.Limit, PostOnly: false, TriggerPrice: 0, Price: 123, Quantity: 12, Notional: 0,
+		}})
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = cr.WsCreateOrderList("LIST", []CreateOrderParam{
 		{
 			InstrumentName: "BTC_USDT", ClientOrderID: "", TimeInForce: "", Side: order.Buy, OrderType: order.Limit, PostOnly: false, TriggerPrice: 0, Price: 123, Quantity: 12, Notional: 0,
 		}})
@@ -266,6 +308,12 @@ func TestCancelOrderList(t *testing.T) {
 		t.SkipNow()
 	}
 	_, err := cr.CancelOrderList(context.Background(), []CancelOrderParam{
+		{InstrumentName: "BTC_USDT", OrderID: "1234567"}, {InstrumentName: "BTC_USDT",
+			OrderID: "123450067"}})
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = cr.WsCancelOrderList([]CancelOrderParam{
 		{InstrumentName: "BTC_USDT", OrderID: "1234567"}, {InstrumentName: "BTC_USDT",
 			OrderID: "123450067"}})
 	if err != nil {
@@ -286,6 +334,11 @@ func TestCancelAllPersonalOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	err = cr.WsCancelAllPersonalOrders(enabledPairs[0].String())
+	if err != nil {
+		t.Error(err)
+	}
+
 }
 
 func TestGetAccounts(t *testing.T) {
@@ -480,6 +533,13 @@ func TestGetRecentTrades(t *testing.T) {
 	}
 }
 
+func TestGetHistoricTrades(t *testing.T) {
+	t.Parallel()
+	if _, err := cr.GetHistoricTrades(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.Spot, time.Now().Add(-time.Hour*4), time.Now()); err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetFundingHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
@@ -636,6 +696,36 @@ func TestGetOrderInfo(t *testing.T) {
 	}
 }
 
+func TestGetDepositAddress(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("GetOrderInfo() skipping test: api keys not set")
+	}
+	_, err := cr.GetDepositAddress(context.Background(), currency.ETH, "", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWithdrawCryptocurrencyFunds(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := cr.WithdrawCryptocurrencyFunds(context.Background(), &withdraw.Request{
+		Amount:   10,
+		Currency: currency.BTC,
+		Crypto: withdraw.CryptoRequest{
+			Chain:      currency.BTC.String(),
+			Address:    core.BitcoinDonationAddress,
+			AddressTag: "",
+		}})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestWsConnect(t *testing.T) {
 	t.Parallel()
 	cr.Verbose = true
@@ -643,7 +733,6 @@ func TestWsConnect(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	time.Sleep(time.Second * 60)
 }
 
 func setupWS() {
@@ -661,35 +750,24 @@ func setupWS() {
 
 func TestGenerateDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
-	subscriptions, err := cr.GenerateDefaultSubscriptions()
+	_, err := cr.GenerateDefaultSubscriptions()
 	if err != nil {
 		t.Error(err)
-	} else {
-		println(len(subscriptions))
-		vals, err := cr.generatePayload("subscribe", subscriptions)
-		if err != nil {
-			t.Error(err)
-		}
-		v, _ := json.Marshal(vals)
-		println(string(v))
 	}
 }
 
-func TestWsGetInstruments(t *testing.T) {
+func TestWsRetriveCancelOnDisconnect(t *testing.T) {
 	t.Parallel()
-	instruments, err := cr.WsGetInstruments()
+	cr.Verbose = true
+	time.Sleep(time.Second * 10)
+	_, err := cr.WsRetriveCancelOnDisconnect()
 	if err != nil {
 		t.Error(err)
-	} else {
-		cal, _ := json.Marshal(instruments)
-		println(string(cal))
-
 	}
 }
-
-func TestWsRetriveTrades(t *testing.T) {
+func TestWsSetCancelOnDisconnect(t *testing.T) {
 	t.Parallel()
-	_, err := cr.WsRetriveTrades("BTC_USDT")
+	_, err := cr.WsSetCancelOnDisconnect("ACCOUNT")
 	if err != nil {
 		t.Error(err)
 	}

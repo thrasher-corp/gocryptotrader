@@ -509,7 +509,68 @@ func (cr *Cryptodotcom) GetRecentTrades(ctx context.Context, p currency.Pair, as
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (cr *Cryptodotcom) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
-	return nil, common.ErrFunctionNotSupported
+	if assetType == asset.Index {
+		return nil, fmt.Errorf("asset type '%v' not supported", assetType)
+	}
+	if err := common.StartEndTimeCheck(timestampStart, timestampEnd); err != nil {
+		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v %w", timestampStart, timestampEnd, err)
+	}
+	var err error
+	p, err = cr.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	limit := 1000
+	ts := timestampStart
+	var resp []trade.Data
+allTrades:
+	for {
+		var tradeData *TradesResponse
+		tradeData, err = cr.GetTrades(ctx, p.String())
+		if err != nil {
+			return nil, err
+		}
+		for i := range tradeData.Data {
+			if tradeData.Data[i].TradeTimestamp.Time().Before(timestampStart) || tradeData.Data[i].TradeTimestamp.Time().After(timestampEnd) {
+				break allTrades
+			}
+			var side order.Side
+			side, err = order.StringToOrderSide(tradeData.Data[i].Side)
+			if err != nil {
+				return nil, err
+			}
+			if tradeData.Data[i].TradePrice == 0 {
+				continue
+			}
+			resp = append(resp, trade.Data{
+				Exchange:     cr.Name,
+				CurrencyPair: p,
+				AssetType:    assetType,
+				Side:         side,
+				Price:        tradeData.Data[i].TradePrice,
+				Amount:       float64(tradeData.Data[i].TradeQuantity),
+				Timestamp:    tradeData.Data[i].TradeTimestamp.Time(),
+				TID:          tradeData.Data[i].TradeID,
+			})
+			if i == len(tradeData.Data)-1 {
+				if ts.Equal(tradeData.Data[i].TradeTimestamp.Time()) {
+					// reached end of trades to crawl
+					break allTrades
+				}
+				ts = tradeData.Data[i].TradeTimestamp.Time()
+			}
+		}
+		if len(tradeData.Data) != limit {
+			break allTrades
+		}
+	}
+	err = cr.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Sort(trade.ByDate(resp))
+	return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil
 }
 
 // SubmitOrder submits a new order
@@ -649,7 +710,6 @@ func (cr *Cryptodotcom) GetOrderInfo(ctx context.Context, orderID string, pair c
 	if err != nil {
 		return respData, err
 	}
-
 	return order.Detail{
 		Amount:         orderDetail.OrderInfo.Quantity,
 		Exchange:       cr.Name,
@@ -670,16 +730,39 @@ func (cr *Cryptodotcom) GetOrderInfo(ctx context.Context, orderID string, pair c
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (cr *Cryptodotcom) GetDepositAddress(ctx context.Context, c currency.Code, accountID string, chain string) (*deposit.Address, error) {
-	return nil, common.ErrNotYetImplemented
+	dAddresses, err := cr.GetPersonalDepositAddress(ctx, c)
+	if err != nil {
+		return nil, err
+	}
+	for x := range dAddresses.DepositAddressList {
+		if dAddresses.DepositAddressList[x].Currency == c.String() &&
+			(accountID == "" || accountID == dAddresses.DepositAddressList[x].ID) &&
+			(chain == "" || chain == dAddresses.DepositAddressList[x].Network) {
+			return &deposit.Address{
+				Address: dAddresses.DepositAddressList[x].Address,
+				Chain:   dAddresses.DepositAddressList[x].Network,
+			}, nil
+		}
+	}
+	return nil, fmt.Errorf("deposit address not found for currency: %s chain: %s", c, chain)
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (cr *Cryptodotcom) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	// if err := withdrawRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
-	return nil, common.ErrNotYetImplemented
+	err := withdrawRequest.Validate()
+	if err != nil {
+		return nil, err
+	}
+	withdrawalResp, err := cr.WithdrawFunds(ctx, withdrawRequest.Currency, withdrawRequest.Amount, withdrawRequest.Crypto.Address, withdrawRequest.Crypto.AddressTag, withdrawRequest.Crypto.Chain, withdrawRequest.ClientOrderID)
+	if err != nil {
+		return nil, err
+	}
+	return &withdraw.ExchangeResponse{
+		ID:     withdrawalResp.ID,
+		Name:   cr.Name,
+		Status: withdrawalResp.Status,
+	}, nil
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
@@ -869,6 +952,6 @@ func (cr *Cryptodotcom) GetHistoricCandles(ctx context.Context, pair currency.Pa
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (cr *Cryptodotcom) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	return cr.GetHistoricCandles(ctx, pair, a, interval, start, end)
+func (cr *Cryptodotcom) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, _, _ time.Time) (*kline.Item, error) {
+	return cr.GetHistoricCandles(ctx, pair, a, interval, time.Time{}, time.Time{})
 }
