@@ -30,7 +30,10 @@ const (
 	gateioAPIVersion                    = "api/v4/"
 
 	// SubAccount Endpoints
-	subAccounts = "sub_accounts"
+	subAccounts          = "sub_accounts"
+	subAccountKeysUserID = "sub_accounts/%d/keys"   // sub_accounts/{user_id}/keys
+	subAccountLock       = "sub_accounts/%d/lock"   // sub_accounts/{user_id}/lock
+	subAccountUnlock     = "sub_accounts/%d/unlock" // sub_accounts/{user_id}/unlock
 
 	// Spot
 	spotCurrencies                                 = "spot/currencies"
@@ -51,9 +54,6 @@ const (
 	spotAllCountdown                               = "spot/countdown_cancel_all"
 	spotPriceOrders                                = "spot/price_orders"
 
-	// Withdrawal operation
-	withdrawals = "withdrawals"
-
 	// Wallets
 	walletCurrencyChain                 = "wallet/currency_chains"
 	walletDepositAddress                = "wallet/deposit_address"
@@ -61,6 +61,7 @@ const (
 	walletDeposits                      = "wallet/deposits"
 	walletTransfer                      = "wallet/transfers"
 	walletSubAccountTransfer            = "wallet/sub_account_transfers"
+	walletInterSubAccountTransfer       = "wallet/sub_account_to_sub_account"
 	walletWithdrawStatus                = "wallet/withdraw_status"
 	walletSubAccountBalance             = "wallet/sub_account_balances"
 	walletSubAccountMarginBalance       = "wallet/sub_account_margin_balances"
@@ -212,6 +213,9 @@ var (
 	errNilArgument                         = errors.New("null argument")
 	errInvalidTimezone                     = errors.New("invalid timezone")
 	errMultipleOrders                      = errors.New("multiple orders passed")
+	errMissingWithdrawalID                 = errors.New("missing withdrawal ID")
+	errInvalidSubAccountUserID             = errors.New("sub-account user id is required")
+	errMissingAPIKey                       = errors.New("missing API key information")
 )
 
 // Gateio is the overarching type across this package
@@ -243,7 +247,66 @@ func (g *Gateio) GetSingleSubAccount(ctx context.Context, userID string) (*SubAc
 	}
 	var response *SubAccount
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotDefaultEPL, http.MethodGet,
-		subAccounts+userID, nil, nil, &response)
+		subAccounts+"/"+userID, nil, nil, &response)
+}
+
+// CreateAPIKeysOfSubAccount creates a sub-account for the sub-account
+//
+// name: Permission name (all permissions will be removed if no value is passed)
+// >> wallet: wallet, spot: spot/margin, futures: perpetual contract, delivery: delivery, earn: earn, options: options
+func (g *Gateio) CreateAPIKeysOfSubAccount(ctx context.Context, arg CreateAPIKeySubAccountParams) (*CreateAPIKeyResponse, error) {
+	if arg.SubAccountUserID == 0 {
+		return nil, errInvalidSubAccountUserID
+	}
+	if arg.Body == nil {
+		return nil, errors.New("sub-account key information is required")
+	}
+	var resp *CreateAPIKeyResponse
+	return resp, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPlaceOrdersEPL, http.MethodPost, fmt.Sprintf(subAccountKeysUserID, arg.SubAccountUserID), nil, &arg, &resp)
+}
+
+// GetAllAPIKeyOfSubAccount list all API Key of the sub-account
+func (g *Gateio) GetAllAPIKeyOfSubAccount(ctx context.Context, userID int64) ([]CreateAPIKeyResponse, error) {
+	var resp []CreateAPIKeyResponse
+	return resp, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPrivateEPL, http.MethodGet, fmt.Sprintf(subAccountKeysUserID, userID), nil, nil, &resp)
+}
+
+// UpdateAPIKeyOfSubAccount update API key of the sub-account
+func (g *Gateio) UpdateAPIKeyOfSubAccount(ctx context.Context, arg CreateAPIKeySubAccountParams) error {
+	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPlaceOrdersEPL, http.MethodPut, fmt.Sprintf(subAccountKeysUserID, arg.SubAccountUserID), nil, &arg, nil)
+}
+
+// DeleteAPIKeySubAccount deletes an API Key of the sub-account
+func (g *Gateio) DeleteAPIKeyOfSubAccount(ctx context.Context, userID int64, apiKey string) error {
+	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotCancelOrdersEPL, http.MethodDelete, fmt.Sprintf(subAccountKeysUserID, userID), nil, nil, nil)
+}
+
+// GetAPIKeyOfSubAccount retrives the API Key of the sub-account
+func (g *Gateio) GetAPIKeyOfSubAccount(ctx context.Context, subAccountUserID int64, apiKey string) (*CreateAPIKeyResponse, error) {
+	if subAccountUserID == 0 {
+		return nil, errInvalidSubAccountUserID
+	}
+	if apiKey == "" {
+		return nil, errMissingAPIKey
+	}
+	var resp *CreateAPIKeyResponse
+	return resp, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPrivateEPL, http.MethodGet, fmt.Sprintf(subAccountKeysUserID+"/%s", subAccountUserID, apiKey), nil, nil, &resp)
+}
+
+// LockSubAccount locks the sub-account
+func (g *Gateio) LockSubAccount(ctx context.Context, subAccountUserID int64) error {
+	if subAccountUserID == 0 {
+		return errInvalidSubAccountUserID
+	}
+	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPrivateEPL, http.MethodPost, fmt.Sprintf(subAccountLock, subAccountUserID), nil, nil, nil)
+}
+
+// UnlockSubAccount locks the sub-account
+func (g *Gateio) UnlockSubAccount(ctx context.Context, subAccountUserID int64) error {
+	if subAccountUserID == 0 {
+		return errInvalidSubAccountUserID
+	}
+	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPrivateEPL, http.MethodPost, fmt.Sprintf(subAccountUnlock, subAccountUserID), nil, nil, nil)
 }
 
 // *****************************************  Spot **************************************
@@ -414,9 +477,12 @@ func (g *Gateio) GetOrderbook(ctx context.Context, pairString, interval string, 
 }
 
 // GetMarketTrades retrieve market trades
-func (g *Gateio) GetMarketTrades(ctx context.Context, pairString string, limit uint64, lastID string, reverse bool, from, to time.Time, page uint64) ([]Trade, error) {
+func (g *Gateio) GetMarketTrades(ctx context.Context, pairString currency.Pair, limit uint64, lastID string, reverse bool, from, to time.Time, page uint64) ([]Trade, error) {
 	params := url.Values{}
-	params.Set("currency_pair", pairString)
+	if pairString.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	params.Set("currency_pair", pairString.String())
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
@@ -441,13 +507,16 @@ func (g *Gateio) GetMarketTrades(ctx context.Context, pairString string, limit u
 }
 
 // GetCandlesticks retrieves market candlesticks.
-func (g *Gateio) GetCandlesticks(ctx context.Context, currencyPair string, limit uint64, from, to time.Time, interval kline.Interval) ([]Candlestick, error) {
-	var err error
+func (g *Gateio) GetCandlesticks(ctx context.Context, currencyPair currency.Pair, limit uint64, from, to time.Time, interval kline.Interval) ([]Candlestick, error) {
 	params := url.Values{}
-	params.Set("currency_pair", currencyPair)
+	if currencyPair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	params.Set("currency_pair", currencyPair.String())
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
+	var err error
 	if interval.Duration().Microseconds() != 0 {
 		var intervalString string
 		intervalString, err = g.GetIntervalString(interval)
@@ -516,7 +585,7 @@ func (g *Gateio) GetCandlesticks(ctx context.Context, currencyPair string, limit
 // GetTradingFeeRatio retrieves user trading fee rates
 func (g *Gateio) GetTradingFeeRatio(ctx context.Context, currencyPair currency.Pair) (*SpotTradingFeeRate, error) {
 	params := url.Values{}
-	if !currencyPair.IsEmpty() {
+	if currencyPair.IsPopulated() {
 		// specify a currency pair to retrieve precise fee rate
 		params.Set("currency_pair", currencyPair.String())
 	}
@@ -674,12 +743,12 @@ func (g *Gateio) GetSpotOrders(ctx context.Context, currencyPair currency.Pair, 
 }
 
 // CancelAllOpenOrdersSpecifiedCurrencyPair cancel all open orders in specified currency pair
-func (g *Gateio) CancelAllOpenOrdersSpecifiedCurrencyPair(ctx context.Context, currencyPair string, side order.Side, account asset.Item) ([]SpotOrder, error) {
-	if currencyPair == "" {
+func (g *Gateio) CancelAllOpenOrdersSpecifiedCurrencyPair(ctx context.Context, currencyPair currency.Pair, side order.Side, account asset.Item) ([]SpotOrder, error) {
+	if currencyPair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params := url.Values{}
-	params.Set("currency_pair", currencyPair)
+	params.Set("currency_pair", currencyPair.String())
 	if side == order.Buy || side == order.Sell {
 		params.Set("side", strings.ToLower(side.Title()))
 	}
@@ -709,21 +778,40 @@ func (g *Gateio) CancelBatchOrdersWithIDList(ctx context.Context, args []CancelO
 }
 
 // GetSpotOrder retrieves a single spot order using the order id and currency pair information.
-func (g *Gateio) GetSpotOrder(ctx context.Context, orderID, currencyPair string, account asset.Item) (*SpotOrder, error) {
+func (g *Gateio) GetSpotOrder(ctx context.Context, orderID string, currencyPair currency.Pair, account asset.Item) (*SpotOrder, error) {
 	if orderID == "" {
 		return nil, errInvalidOrderID
 	}
-	if currencyPair == "" {
+	if currencyPair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params := url.Values{}
-	params.Set("currency_pair", currencyPair)
+	params.Set("currency_pair", currencyPair.String())
 	if accountType := account.String(); accountType != "" {
 		params.Set("account", accountType)
 	}
 	var response *SpotOrder
 	return response, g.SendAuthenticatedHTTPRequest(ctx,
-		exchange.RestSpot, spotPrivateEPL, http.MethodGet, fmt.Sprintf(spotOrders+"/"+orderID), params, nil, &response)
+		exchange.RestSpot, spotPrivateEPL, http.MethodGet, spotOrders+"/"+orderID, params, nil, &response)
+}
+
+// AmendSpotOrder amend an order
+func (g *Gateio) AmendSpotOrder(ctx context.Context, orderID string, currencyPair currency.Pair, account asset.Item, arg *PriceAndAmount) (*SpotOrder, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	if orderID == "" {
+		return nil, errInvalidOrderID
+	}
+	if currencyPair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	params := url.Values{}
+	if g.SupportsAsset(account) {
+		params.Set("account", account.String())
+	}
+	var resp *SpotOrder
+	return resp, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPlaceOrdersEPL, http.MethodPut, spotOrders+"/"+orderID, params, arg, &resp)
 }
 
 // CancelSingleSpotOrder cancels a single order
@@ -908,7 +996,6 @@ func (g *Gateio) GenerateSignature(secret, method, path, query string, body inte
 		if err != nil {
 			return "", err
 		}
-		println(string(val))
 		h.Write(val)
 	}
 	h.Write(nil)
@@ -918,9 +1005,7 @@ func (g *Gateio) GenerateSignature(secret, method, path, query string, body inte
 	if err != nil {
 		return "", err
 	}
-	println("Mehod; ", method)
 	msg := method + "\n" + path + "\n" + rawQuery + "\n" + hashedPayload + "\n" + t
-	println(msg)
 	mac := hmac.New(sha512.New, []byte(secret))
 	mac.Write([]byte(msg))
 	return hex.EncodeToString(mac.Sum(nil)), nil
@@ -946,8 +1031,6 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 		if param != nil {
 			paramValue = param.Encode()
 		}
-		println("Param Valu: ", paramValue)
-
 		sig, err := g.GenerateSignature(creds.Secret, method, "/"+gateioAPIVersion+endpoint, paramValue, data, timestamp)
 		if err != nil {
 			return nil, err
@@ -1027,9 +1110,6 @@ func (g *Gateio) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl reque
 // WithdrawCurrency to withdraw a currency.
 func (g *Gateio) WithdrawCurrency(ctx context.Context, arg WithdrawalRequestParam) (*WithdrawalResponse, error) {
 	if arg.Amount <= 0 {
-		return nil, errInvalidAmount
-	}
-	if arg.Amount <= 0 {
 		return nil, fmt.Errorf("%w currency amount must be greater than zero", errInvalidAmount)
 	}
 	if arg.Currency.IsEmpty() {
@@ -1044,6 +1124,9 @@ func (g *Gateio) WithdrawCurrency(ctx context.Context, arg WithdrawalRequestPara
 
 // CancelWithdrawalWithSpecifiedID cancels withdrawal with specified ID.
 func (g *Gateio) CancelWithdrawalWithSpecifiedID(ctx context.Context, withdrawalID string) (*WithdrawalResponse, error) {
+	if withdrawalID == "" {
+		return nil, errMissingWithdrawalID
+	}
 	var response *WithdrawalResponse
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, withdrawalEPL, http.MethodDelete, withdrawal+"/"+withdrawalID, nil, nil, &response)
 }
@@ -1213,6 +1296,29 @@ func (g *Gateio) GetSubAccountTransferHistory(ctx context.Context, subAccountUse
 		http.MethodGet, walletSubAccountTransfer, params, nil, &response)
 }
 
+// SubAccountTransferToSubAccount performs sub-account transfers to sub-account
+func (g *Gateio) SubAccountTransferToSubAccount(ctx context.Context, arg InterSubAccountTransferParams) error {
+	if arg.Currency.IsEmpty() {
+		return currency.ErrCurrencyCodeEmpty
+	}
+	if arg.SubAccountFromUserID == "" {
+		return errors.New("sub-account from user-id is required")
+	}
+	if arg.SubAccountFromAssetType == asset.Empty {
+		return errors.New("sub-account to transfer the asset from is required")
+	}
+	if arg.SubAccountToUserID == "" {
+		return errors.New("sub-account to user-id is required")
+	}
+	if arg.SubAccountToAssetType == asset.Empty {
+		return errors.New("sub-account to transfer to is required")
+	}
+	if arg.Amount <= 0 {
+		return errInvalidAmount
+	}
+	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletEPL, http.MethodPost, walletInterSubAccountTransfer, nil, &arg, nil)
+}
+
 // GetWithdrawalStatus retrieves withdrawal status
 func (g *Gateio) GetWithdrawalStatus(ctx context.Context, ccy currency.Code) ([]WithdrawalStatus, error) {
 	params := url.Values{}
@@ -1224,12 +1330,12 @@ func (g *Gateio) GetWithdrawalStatus(ctx context.Context, ccy currency.Code) ([]
 }
 
 // GetSubAccountBalances retrieve sub account balances
-func (g *Gateio) GetSubAccountBalances(ctx context.Context, subAccountUserID string) ([]SubAccountBalance, error) {
+func (g *Gateio) GetSubAccountBalances(ctx context.Context, subAccountUserID string) ([]FuturesSubAccountBalance, error) {
 	params := url.Values{}
 	if subAccountUserID != "" {
 		params.Set("sub_uid", subAccountUserID)
 	}
-	var response []SubAccountBalance
+	var response []FuturesSubAccountBalance
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletEPL, http.MethodGet, walletSubAccountBalance, params, nil, &response)
 }
 
@@ -1244,7 +1350,7 @@ func (g *Gateio) GetSubAccountMarginBalances(ctx context.Context, subAccountUser
 }
 
 // GetSubAccountFuturesBalances retrieves sub accounts' futures account balances
-func (g *Gateio) GetSubAccountFuturesBalances(ctx context.Context, subAccountUserID, settle string) ([]SubAccountBalance, error) {
+func (g *Gateio) GetSubAccountFuturesBalances(ctx context.Context, subAccountUserID, settle string) ([]FuturesSubAccountBalance, error) {
 	params := url.Values{}
 	if subAccountUserID != "" {
 		params.Set("sub_uid", subAccountUserID)
@@ -1252,7 +1358,7 @@ func (g *Gateio) GetSubAccountFuturesBalances(ctx context.Context, subAccountUse
 	if settle != "" {
 		params.Set("settle", settle)
 	}
-	var response []SubAccountBalance
+	var response []FuturesSubAccountBalance
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletEPL, http.MethodGet, walletSubAccountFuturesBalance, params, nil, &response)
 }
 
@@ -1269,9 +1375,10 @@ func (g *Gateio) GetSubAccountCrossMarginBalances(ctx context.Context, subAccoun
 // GetSavedAddresses retrieves saved currency address info and related details.
 func (g *Gateio) GetSavedAddresses(ctx context.Context, ccy currency.Code, chain string, limit uint64) ([]WalletSavedAddress, error) {
 	params := url.Values{}
-	if !ccy.IsEmpty() {
-		params.Set("currency", ccy.String())
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w address is required", currency.ErrCurrencyPairEmpty)
 	}
+	params.Set("currency", ccy.String())
 	if chain != "" {
 		params.Set("chain", chain)
 	}
@@ -1336,7 +1443,7 @@ func (g *Gateio) GetOrderbookOfLendingLoans(ctx context.Context, ccy currency.Co
 // GetMarginAccountList margin account list
 func (g *Gateio) GetMarginAccountList(ctx context.Context, currencyPair currency.Pair) ([]MarginAccountItem, error) {
 	params := url.Values{}
-	if !currencyPair.IsEmpty() {
+	if currencyPair.IsPopulated() {
 		params.Set("currency_pair", currencyPair.String())
 	}
 	var response []MarginAccountItem
@@ -1611,7 +1718,7 @@ func (g *Gateio) GetMaxTransferableAmountForSpecificMarginCurrency(ctx context.C
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	params := url.Values{}
-	if !currencyPair.IsEmpty() {
+	if currencyPair.IsPopulated() {
 		params.Set("currency_pair", currencyPair.String())
 	}
 	params.Set("currency", ccy.String())
@@ -1625,7 +1732,7 @@ func (g *Gateio) GetMaxBorrowableAmountForSpecificMarginCurrency(ctx context.Con
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	params := url.Values{}
-	if !currencyPair.IsEmpty() {
+	if currencyPair.IsPopulated() {
 		params.Set("currency_pair", currencyPair.String())
 	}
 	params.Set("currency", ccy.String())
@@ -2433,7 +2540,7 @@ func (g *Gateio) GetMyPersonalTradingHistory(ctx context.Context, settle string,
 		return nil, errInvalidSettleCurrency
 	}
 	params := url.Values{}
-	if !contract.IsEmpty() {
+	if contract.IsPopulated() {
 		params.Set("contract", contract.String())
 	}
 	if orderID != "" {
@@ -2462,7 +2569,7 @@ func (g *Gateio) GetFuturesPositionCloseHistory(ctx context.Context, settle stri
 		return nil, errInvalidSettleCurrency
 	}
 	params := url.Values{}
-	if !contract.IsEmpty() {
+	if contract.IsPopulated() {
 		params.Set("contract", contract.String())
 	}
 	if limit > 0 {
@@ -2488,7 +2595,7 @@ func (g *Gateio) GetFuturesLiquidationHistory(ctx context.Context, settle string
 		return nil, errInvalidSettleCurrency
 	}
 	params := url.Values{}
-	if !contract.IsEmpty() {
+	if contract.IsPopulated() {
 		params.Set("contract", contract.String())
 	}
 	if limit > 0 {
@@ -2573,7 +2680,7 @@ func (g *Gateio) ListAllFuturesAutoOrders(ctx context.Context, status, settle st
 	if offset > 0 {
 		params.Set("offset", strconv.FormatUint(offset, 10))
 	}
-	if !contract.IsEmpty() {
+	if contract.IsPopulated() {
 		params.Set("contract", contract.String())
 	}
 	var response []PriceTriggeredOrder
@@ -2742,7 +2849,7 @@ func (g *Gateio) GetDeliveryFutureTickers(ctx context.Context, settle string, co
 		return nil, errInvalidSettleCurrency
 	}
 	params := url.Values{}
-	if !contract.IsEmpty() {
+	if contract.IsPopulated() {
 		params.Set("contract", contract.String())
 	}
 	var tickers []FuturesTicker
@@ -3003,7 +3110,7 @@ func (g *Gateio) GetDeliveryPersonalTradingHistory(ctx context.Context, settle s
 		return nil, errInvalidSettleCurrency
 	}
 	params := url.Values{}
-	if !contract.IsEmpty() {
+	if contract.IsPopulated() {
 		params.Set("contract", contract.String())
 	}
 	if orderID != "" {
@@ -3032,7 +3139,7 @@ func (g *Gateio) GetDeliveryPositionCloseHistory(ctx context.Context, settle str
 		return nil, errInvalidSettleCurrency
 	}
 	params := url.Values{}
-	if !contract.IsEmpty() {
+	if contract.IsPopulated() {
 		params.Set("contract", contract.String())
 	}
 	if limit > 0 {
@@ -3058,7 +3165,7 @@ func (g *Gateio) GetDeliveryLiquidationHistory(ctx context.Context, settle strin
 		return nil, errInvalidSettleCurrency
 	}
 	params := url.Values{}
-	if !contract.IsEmpty() {
+	if contract.IsPopulated() {
 		params.Set("contract", contract.String())
 	}
 	if limit > 0 {
@@ -3078,7 +3185,7 @@ func (g *Gateio) GetDeliverySettlementHistory(ctx context.Context, settle string
 		return nil, errInvalidSettleCurrency
 	}
 	params := url.Values{}
-	if !contract.IsEmpty() {
+	if contract.IsPopulated() {
 		params.Set("contract", contract.String())
 	}
 	if limit > 0 {
@@ -3155,7 +3262,7 @@ func (g *Gateio) GetDeliveryAllAutoOrder(ctx context.Context, status, settle str
 	if offset > 0 {
 		params.Set("offset", strconv.FormatUint(offset, 10))
 	}
-	if !contract.IsEmpty() {
+	if contract.IsPopulated() {
 		params.Set("contract", contract.String())
 	}
 	var response []PriceTriggeredOrder
@@ -3447,7 +3554,7 @@ func (g *Gateio) GetOptionFuturesOrders(ctx context.Context, contract, underlyin
 // CancelMultipleOptionOpenOrders cancels all open orders matched
 func (g *Gateio) CancelMultipleOptionOpenOrders(ctx context.Context, contract currency.Pair, underlying, side string) ([]OptionOrderResponse, error) {
 	params := url.Values{}
-	if !contract.IsEmpty() {
+	if contract.IsPopulated() {
 		params.Set("contract", contract.String())
 	}
 	if underlying != "" {

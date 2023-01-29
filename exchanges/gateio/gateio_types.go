@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 const (
@@ -493,11 +494,11 @@ type CurrencyPairDetail struct {
 	ID              string  `json:"id"`
 	Base            string  `json:"base"`
 	Quote           string  `json:"quote"`
-	Fee             float64 `json:"fee"`
+	TradingFee      float64 `json:"fee"`
 	MinBaseAmount   float64 `json:"min_base_amount"`
 	MinQuoteAmount  float64 `json:"min_quote_amount"`
-	AmountPrecision float64 `json:"amount_precision"`
-	Precision       float64 `json:"precision"`
+	AmountPrecision float64 `json:"amount_precision"` // Amount scale
+	Precision       float64 `json:"precision"`        // Price scale
 	TradeStatus     string  `json:"trade_status"`
 	SellStart       float64 `json:"sell_start"`
 	BuyStart        float64 `json:"buy_start"`
@@ -1052,16 +1053,16 @@ type OptionTradingHistory struct {
 
 // WithdrawalResponse represents withdrawal response
 type WithdrawalResponse struct {
-	ID            string    `json:"id"`
-	Timestamp     time.Time `json:"timestamp"`
-	Currency      string    `json:"currency"`
-	Address       string    `json:"address"`
-	TransactionID string    `json:"txid"`
-	Amount        float64   `json:"amount,string"`
-	Memo          string    `json:"memo"`
-	Status        string    `json:"status"`
-	Chain         string    `json:"chain"`
-	Fee           float64   `json:"fee,string"`
+	ID                string    `json:"id"`
+	Timestamp         time.Time `json:"timestamp"`
+	Currency          string    `json:"currency"`
+	WithdrawalAddress string    `json:"address"`
+	TransactionID     string    `json:"txid"`
+	Amount            float64   `json:"amount,string"`
+	Memo              string    `json:"memo"`
+	Status            string    `json:"status"`
+	Chain             string    `json:"chain"`
+	Fee               float64   `json:"fee,string"`
 }
 
 // WithdrawalRequestParam represents currency withdrawal request param.
@@ -1077,15 +1078,18 @@ type WithdrawalRequestParam struct {
 
 // CurrencyDepositAddressInfo represents a crypto deposit address
 type CurrencyDepositAddressInfo struct {
-	Currency            string `json:"currency"`
-	Address             string `json:"address"`
-	MultichainAddresses []struct {
-		Chain        string `json:"chain"`
-		Address      string `json:"address"`
-		PaymentID    string `json:"payment_id"`
-		PaymentName  string `json:"payment_name"`
-		ObtainFailed int64  `json:"obtain_failed"`
-	} `json:"multichain_addresses"`
+	Currency            string                  `json:"currency"`
+	Address             string                  `json:"address"`
+	MultichainAddresses []MultiChainAddressItem `json:"multichain_addresses"`
+}
+
+// MultiChainAddressItem represents a multi-chain address item
+type MultiChainAddressItem struct {
+	Chain        string `json:"chain"`
+	Address      string `json:"address"`
+	PaymentID    string `json:"payment_id"`
+	PaymentName  string `json:"payment_name"`
+	ObtainFailed int64  `json:"obtain_failed"`
 }
 
 // DepositRecord represents deposit record item
@@ -1128,14 +1132,14 @@ type SubAccountTransferParam struct {
 
 // SubAccountTransferResponse represents transfer records between main and sub accounts
 type SubAccountTransferResponse struct {
-	UID            string    `json:"uid"`
-	Timestamp      time.Time `json:"timest"`
-	Source         string    `json:"source"`
-	Currency       string    `json:"currency"`
-	SubAccount     string    `json:"sub_account"`
-	Direction      string    `json:"direction"`
-	Amount         float64   `json:"amount,string"`
-	SubAccountType string    `json:"sub_account_type"`
+	MainAccountUserID string    `json:"uid"`
+	Timestamp         time.Time `json:"timest"`
+	Source            string    `json:"source"`
+	Currency          string    `json:"currency"`
+	SubAccount        string    `json:"sub_account"`
+	TransferDirection string    `json:"direction"`
+	Amount            float64   `json:"amount,string"`
+	SubAccountType    string    `json:"sub_account_type"`
 }
 
 // WithdrawalStatus represents currency withdrawal status
@@ -1145,52 +1149,65 @@ type WithdrawalStatus struct {
 	CurrencyNameChinese    string            `json:"name_cn"`
 	Deposit                float64           `json:"deposit,string"`
 	WithdrawPercent        string            `json:"withdraw_percent"`
-	WithdrawFix            string            `json:"withdraw_fix"`
-	WithdrawDayLimit       string            `json:"withdraw_day_limit"`
-	WithdrawDayLimitRemain string            `json:"withdraw_day_limit_remain"`
-	WithdrawAmountMini     string            `json:"withdraw_amount_mini"`
-	WithdrawEachTimeLimit  string            `json:"withdraw_eachtime_limit"`
+	FixedWithdrawalFee     float64           `json:"withdraw_fix,string"`
+	WithdrawDayLimit       float64           `json:"withdraw_day_limit,string"`
+	WithdrawDayLimitRemain float64           `json:"withdraw_day_limit_remain,string"`
+	WithdrawAmountMini     float64           `json:"withdraw_amount_mini,string"`
+	WithdrawEachTimeLimit  float64           `json:"withdraw_eachtime_limit,string"`
 	WithdrawFixOnChains    map[string]string `json:"withdraw_fix_on_chains"`
 	AdditionalProperties   string            `json:"additionalProperties"`
 }
 
-// SubAccountBalance represents sub account balance for specific sub account and several currencies
-type SubAccountBalance struct {
-	UID       string            `json:"uid"`
-	Available map[string]string `json:"available"`
+// FuturesSubAccountBalance represents sub account balance for specific sub account and several currencies
+type FuturesSubAccountBalance struct {
+	UserID    string `json:"uid"`
+	Available struct {
+		Total                     float64 `json:"total,string"`
+		UnrealisedProfitAndLoss   string  `json:"unrealised_pnl"`
+		PositionMargin            string  `json:"position_margin"`
+		OrderMargin               string  `json:"order_margin"`
+		TotalAvailable            float64 `json:"available,string"`
+		PointAmount               float64 `json:"point"`
+		SettleCurrency            string  `json:"currency"`
+		InDualMode                bool    `json:"in_dual_mode"`
+		EnableCredit              bool    `json:"enable_credit"`
+		PositionInitialMargin     string  `json:"position_initial_margin"` // applicable to the portfolio margin account model
+		MaintenanceMarginPosition string  `json:"maintenance_margin"`
+		PerpetualContractBonus    string  `json:"bonus"`
+		StatisticalData           struct {
+			TotalDNW         float64 `json:"dnw,string"` // total amount of deposit and withdraw
+			ProfitAndLoss    float64 `json:"pnl,string"` // total amount of trading profit and loss
+			TotalAmountOfFee float64 `json:"fee,string"`
+			ReferrerRebates  float64 `json:"refr,string"` // total amount of referrer rebates
+			Fund             float64 `json:"fund,string"` // total amount of funding costs
+			PointDNW         float64 `json:"point_dnw,string"`
+			PoointFee        float64 `json:"point_fee,string"`
+			PointRefr        float64 `json:"point_refr,string"`
+			BonusDNW         float64 `json:"bonus_dnw,string"`
+			BonusOffset      float64 `json:"bonus_offset,string"`
+		} `json:"history"`
+	} `json:"available"`
 }
 
 // SubAccountMarginBalance represents sub account margin balance for specific sub account and several currencies
 type SubAccountMarginBalance struct {
 	UID       string `json:"uid"`
-	Available struct {
-		AdditionalProperties struct {
-			Total                   string `json:"total"` // total is the balance after the user's accumulated deposit, withdraw, profit and loss (including realized profit and loss, fund, fee and referral rebate), excluding unrealized profit and loss. total = SUM(history_dnw, history_pnl, history_fee, history_refr, history_fund)
-			UnrealizedProfitAndLoss string `json:"unrealized_pnl"`
-			PositionMargin          string `json:"position_margin"`
-			OrderMargin             string `json:"order_margin"`
-			Available               string `json:"available"`
-			PointAmount             string `json:"point"`
-			SettleCurrency          string `json:"currency"`
-			InDualMode              bool   `json:"in_dual_mode"`
-			EnableCredit            bool   `json:"enable_credit"`
-			PositionInitialMargin   string `json:"position_initial_margin"`
-			MaintenanceMargin       string `json:"maintenance_margin"`
-			PerpetualContractBounce string `json:"bounce"`
-			History                 struct {
-				DepositAndWithdrawal string `json:"dnw"`       // total amount of deposit and withdraw
-				ProfitAndLoss        string `json:"pnl"`       // total amount of trading profit and loss
-				Fee                  string `json:"fee"`       // total amount of fee
-				RefererRebate        string `json:"refr"`      // total amount of referrer rebates
-				Fund                 string `json:"fund"`      // total amount of funding cost
-				PointDNW             string `json:"point_dnw"` // total amount of point deposit and withdraw
-				TotalPointFee        string `json:"point_fee"`
-				PointRefr            string `json:"point_refr"`   // total amount of referrer rebates of point fee
-				BonusDNW             string `json:"bonus_dnw"`    // total amount of perpetual contract bonus transfer
-				BonusOffset          string `json:"bonus_offset"` // total amount of perpetual contract bonus deduction
-			} `json:"history"`
-		} `json:"additionalProperties"`
+	Available []struct {
+		CurrencyPair string                `json:"currency_pair"`
+		Locked       bool                  `json:"locked"`
+		Risk         string                `json:"risk"`
+		Base         MarginCurrencyBalance `json:"base"`
+		Quote        MarginCurrencyBalance `json:"quote"`
 	} `json:"available"`
+}
+
+// MarginCurrencyBalance represents a currency balance detail information.
+type MarginCurrencyBalance struct {
+	Currency       string  `json:"currency"`
+	Available      float64 `json:"available,string"`
+	Locked         float64 `json:"locked,string"`
+	BorrowedAmount float64 `json:"borrowed,string"`
+	UnpairInterest float64 `json:"interest,string"`
 }
 
 // MarginAccountItem margin account item
@@ -1266,40 +1283,36 @@ type MarginLoanResponse struct {
 type SubAccountCrossMarginInfo struct {
 	UID       string `json:"uid"`
 	Available struct {
-		UserID                     int64  `json:"user_id"`
-		Locked                     bool   `json:"locked"`
-		Total                      string `json:"total"`
-		Borrowed                   string `json:"borrowed"`
-		Interest                   string `json:"interest"` // Total unpaid interests in USDT, i.e., the sum of all currencies' interest*price*discount
-		BorrowedNet                string `json:"borrowed_net"`
-		Net                        string `json:"net"`
-		Leverage                   string `json:"leverage"`
-		Risk                       string `json:"risk"`
-		TotalInitialMargin         string `json:"total_initial_margin"`
-		TotalMarginBalance         string `json:"total_margin_balance"`
-		TotalMaintenanceMargin     string `json:"total_maintenance_margin"`
-		TotalInitialMarginRate     string `json:"total_initial_margin_rate"`
-		TotalMaintenanceMarginRate string `json:"total_maintenance_margin_rate"`
-		TotalAvailableMargin       string `json:"total_available_margin"`
-		CurrencyBalances           map[string]struct {
-			Available          string `json:"available"`
-			Freeze             string `json:"freeze"`
-			Borrowed           string `json:"borrowed"`
-			Interest           string `json:"interest"`
-			CrossMarginBalance struct {
-				Available string `json:"available"`
-				Freeze    string `json:"freeze"`
-				Borrowed  string `json:"borrowed"`
-				Interest  string `json:"interest"`
-			} `json:"CrossMarginBalance"`
-			Total                      string `json:"total"`
-			BorrowedNet                string `json:"borrowed_net"`
-			TotalNetAssetInUSDT        string `json:"net"`
-			PositionLeverage           string `json:"leverage"`
-			TotalUnpaidInterestsInUSDT string `json:"interest"`
-			Risk                       string `json:"risk"` // Risk rate. When it belows 110%, liquidation will be triggered. Calculation formula: total / (borrowed+interest)
-		} `json:"balances"`
+		UserID                     int64                         `json:"user_id"`
+		Locked                     bool                          `json:"locked"`
+		Total                      float64                       `json:"total,string"`
+		Borrowed                   float64                       `json:"borrowed,string"`
+		Interest                   float64                       `json:"interest,string"` // Total unpaid interests in USDT, i.e., the sum of all currencies' interest*price*discount
+		BorrowedNet                string                        `json:"borrowed_net"`
+		TotalNetAssets             float64                       `json:"net,string"`
+		Leverage                   float64                       `json:"leverage,string"`
+		Risk                       string                        `json:"risk"`
+		TotalInitialMargin         float64                       `json:"total_initial_margin,string"`
+		TotalMarginBalance         float64                       `json:"total_margin_balance,string"`
+		TotalMaintenanceMargin     float64                       `json:"total_maintenance_margin,string"`
+		TotalInitialMarginRate     float64                       `json:"total_initial_margin_rate,string"`
+		TotalMaintenanceMarginRate float64                       `json:"total_maintenance_margin_rate,string"`
+		TotalAvailableMargin       float64                       `json:"total_available_margin,string"`
+		CurrencyBalances           map[string]CrossMarginBalance `json:"balances"`
 	} `json:"available"`
+}
+
+// CrossMarginBalance represents cross-margin currency balance detail
+type CrossMarginBalance struct {
+	Available           float64 `json:"available,string"`
+	Freeze              float64 `json:"freeze,string"`
+	Borrowed            float64 `json:"borrowed,string"`
+	Interest            float64 `json:"interest,string"`
+	Total               string  `json:"total"`
+	BorrowedNet         string  `json:"borrowed_net"`
+	TotalNetAssetInUSDT string  `json:"net"`
+	PositionLeverage    string  `json:"leverage"`
+	Risk                string  `json:"risk"` // Risk rate. When it belows 110%, liquidation will be triggered. Calculation formula: total / (borrowed+interest)
 }
 
 // WalletSavedAddress represents currency saved address
@@ -1309,7 +1322,7 @@ type WalletSavedAddress struct {
 	Address  string `json:"address"`
 	Name     string `json:"name"`
 	Tag      string `json:"tag"`
-	Verified string `json:"verified"`
+	Verified string `json:"verified"` // Whether to pass the verification 0-unverified, 1-verified
 }
 
 // PersonalTradingFee represents personal trading fee for specific currency pair
@@ -1317,13 +1330,13 @@ type PersonalTradingFee struct {
 	UserID          int64   `json:"user_id"`
 	TakerFee        float64 `json:"taker_fee,string"`
 	MakerFee        float64 `json:"maker_fee,string"`
+	GtDiscount      bool    `json:"gt_discount"`
+	GtTakerFee      string  `json:"gt_taker_fee,string"`
+	GtMakerFee      string  `json:"gt_maker_fee,string"`
+	LoanFee         float64 `json:"loan_fee,string"`
+	PointType       string  `json:"point_type"`
 	FuturesTakerFee float64 `json:"futures_taker_fee,string"`
 	FuturesMakerFee float64 `json:"futures_maker_fee,string"`
-	GtDiscount      bool    `json:"gt_discount"`
-	GtTakerFee      string  `json:"gt_taker_fee"`
-	GtMakerFee      string  `json:"gt_maker_fee"`
-	LoanFee         string  `json:"loan_fee"`
-	PointType       string  `json:"point_type"`
 }
 
 // UsersAllAccountBalance represents user all account balances.
@@ -1340,16 +1353,16 @@ type CurrencyBalanceAmount struct {
 
 // SpotTradingFeeRate user trading fee rates
 type SpotTradingFeeRate struct {
-	UserID          int64  `json:"user_id"`
-	TakerFee        string `json:"taker_fee"`
-	MakerFee        string `json:"maker_fee"`
-	FuturesTakerFee string `json:"futures_taker_fee"`
-	FuturesMakerFee string `json:"futures_maker_fee"`
-	GtDiscount      bool   `json:"gt_discount"`
-	GtTakerFee      string `json:"gt_taker_fee"`
-	GtMakerFee      string `json:"gt_maker_fee"`
-	LoanFee         string `json:"loan_fee"`
-	PointType       string `json:"point_type"`
+	UserID          int64   `json:"user_id"`
+	TakerFee        float64 `json:"taker_fee,string"`
+	MakerFee        float64 `json:"maker_fee,string"`
+	GtDiscount      bool    `json:"gt_discount"`
+	GtTakerFee      float64 `json:"gt_taker_fee,string"`
+	GtMakerFee      float64 `json:"gt_maker_fee,string"`
+	FuturesTakerFee float64 `json:"futures_taker_fee,string"`
+	FuturesMakerFee float64 `json:"futures_maker_fee,string"`
+	LoanFee         float64 `json:"loan_fee,string"`
+	PointType       string  `json:"point_type"`
 }
 
 // SpotAccount represents spot account
@@ -1375,11 +1388,11 @@ type CreateOrderRequestData struct {
 
 // SpotOrder represents create order response.
 type SpotOrder struct {
-	ID                 string    `json:"id,omitempty"`
+	OrderID            string    `json:"id,omitempty"`
 	User               int64     `json:"user"`
 	Text               string    `json:"text,omitempty"`
-	Succeeded          bool      `json:"succeeded,omitempty"`
-	Label              string    `json:"label,omitempty"`
+	Succeeded          bool      `json:"succeeded"`
+	ErrorLabel         string    `json:"label,omitempty"`
 	Message            string    `json:"message,omitempty"`
 	CreateTime         time.Time `json:"create_time,omitempty"`
 	CreateTimeMs       time.Time `json:"create_time_ms,omitempty"`
@@ -1394,17 +1407,19 @@ type SpotOrder struct {
 	Price              float64   `json:"price,omitempty,string"`
 	TimeInForce        string    `json:"time_in_force,omitempty"`
 	Iceberg            string    `json:"iceberg,omitempty"`
+	AutoRepay          bool      `json:"auto_repay"`
 	Left               float64   `json:"left,omitempty"`
-	FilledTotal        float64   `json:"filled_total,omitempty,string"`
-	Fee                float64   `json:"fee,omitempty,string"`
+	FilledPrice        float64   `json:"fill_price,string"`
+	FilledTotal        float64   `json:"filled_total,string"`
+	FeeDeducted        float64   `json:"fee,string"`
 	FeeCurrency        string    `json:"fee_currency,omitempty"`
 	FillPrice          float64   `json:"fill_price,string"`
-	PointFee           string    `json:"point_fee,omitempty"`
+	PointFee           float64   `json:"point_fee,string"`
 	GtFee              string    `json:"gt_fee,omitempty"`
 	GtDiscount         bool      `json:"gt_discount,omitempty"`
 	GtMakerFee         float64   `json:"gt_maker_fee,omitempty,string"`
 	GtTakerFee         float64   `json:"gt_taker_fee,omitempty,string"`
-	RebatedFee         string    `json:"rebated_fee,omitempty"`
+	RebatedFee         float64   `json:"rebated_fee,string"`
 	RebatedFeeCurrency string    `json:"rebated_fee_currency,omitempty"`
 }
 
@@ -1431,11 +1446,12 @@ type CancelOrderByIDParam struct {
 
 // CancelOrderByIDResponse represents calcel order response when deleted by id.
 type CancelOrderByIDResponse struct {
-	CurrencyPair string      `json:"currency_pair"`
-	ID           string      `json:"id"`
-	Succeeded    bool        `json:"succeeded"`
-	Label        interface{} `json:"label"`
-	Message      interface{} `json:"message"`
+	CurrencyPair string `json:"currency_pair"`
+	OrderID      string `json:"id"`
+	Succeeded    bool   `json:"succeeded"`
+	Label        string `json:"label"`
+	Message      string `json:"message"`
+	Account      string `json:"account"`
 }
 
 // SpotPersonalTradeHistory represents personal trading history.
@@ -1919,21 +1935,21 @@ type SettlementHistoryItem struct {
 
 // SubAccountParams represents subaccount creation parameters
 type SubAccountParams struct {
+	LoginName string `json:"login_name,"`
 	Remark    string `json:"remark,omitempty"`
-	LoginName string `json:"login_name"`
 	Email     string `json:"email,omitempty"`    // The sub-account's password.
 	Password  string `json:"password,omitempty"` // The sub-account's email address.
 }
 
 // SubAccount represents a subaccount response
 type SubAccount struct {
-	Remark     string    `json:"remark"`
-	LoginName  string    `json:"login_name"`
-	Password   string    `json:"password"`
-	Email      string    `json:"email"`
-	UserID     int64     `json:"user_id"`
-	State      int64     `json:"state"`
-	CreateTime time.Time `json:"create_time"`
+	Remark          string    `json:"remark"`     // custom text
+	LoginName       string    `json:"login_name"` // SubAccount login name
+	Password        string    `json:"password"`   // The sub-account's password
+	SubAccountEmail string    `json:"email"`      // The sub-account's email
+	UserID          int64     `json:"user_id"`
+	State           int64     `json:"state"`
+	CreateTime      time.Time `json:"create_time"`
 }
 
 // **************************************************************************************************
@@ -2603,4 +2619,54 @@ type WsOptionsPosition struct {
 	User         string  `json:"user"`
 	UpdateTime   int64   `json:"time"`
 	UpdateTimeMs int64   `json:"time_ms"`
+}
+
+// InterSubAccountTransferParams represents parameters to transfer funds between sub-accounts.
+type InterSubAccountTransferParams struct {
+	Currency                currency.Code `json:"currency"` // Required
+	SubAccountType          string        `json:"sub_account_type"`
+	SubAccountFromUserID    string        `json:"sub_account_from"`      // Required
+	SubAccountFromAssetType asset.Item    `json:"sub_account_from_type"` // Required
+	SubAccountToUserID      string        `json:"sub_account_to"`        // Required
+	SubAccountToAssetType   asset.Item    `json:"sub_account_to_type"`   // Required
+	Amount                  float64       `json:"amount,string"`         // Required
+}
+
+// CreateAPIKeySubAccountParams represents subaccount new API key creation parameters.
+type CreateAPIKeySubAccountParams struct {
+	SubAccountUserID int64          `json:"user_id"`
+	Body             *SubAccountKey `json:"body"`
+}
+
+// SubAccountKey represents sub-account key detail information
+// this is a struct to be used for outbound requests.
+type SubAccountKey struct {
+	APIKeyName  string         `json:"name,omitempty"`
+	Permissions []APIV4KeyPerm `json:"perms,omitempty"`
+}
+
+// APIV4KeyPerm represents an API Version 4 Key permission informations
+type APIV4KeyPerm struct {
+	PermissionName string   `json:"name,omitempty"`
+	ReadOnly       bool     `json:"read_only,omitempty"`
+	IPWhitelist    []string `json:"ip_whitelist,omitempty"`
+}
+
+// CreateAPIKeyResponse represents an API key response object
+type CreateAPIKeyResponse struct {
+	UserID      string                `json:"user_id"`
+	APIKeyName  string                `json:"name"` // API key name
+	Permissions []APIV4KeyPerm        `json:"perms"`
+	IPWhitelist []string              `json:"ip_whitelist,omitempty"`
+	APIKey      string                `json:"key"`
+	Secret      string                `json:"secret"`
+	State       int                   `json:"state"` // State 1 - normal 2 - locked 3 - frozen
+	CreatedAt   gateioMilliSecTimeInt `json:"created_at"`
+	UpdatedAt   gateioMilliSecTimeInt `json:"updated_at"`
+}
+
+// PriceAndAmount used in updating an order
+type PriceAndAmount struct {
+	Amount float64 `json:"amount,string"`
+	Price  float64 `json:"price,string"`
 }

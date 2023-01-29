@@ -259,7 +259,7 @@ func TestGetMarketTrades(t *testing.T) {
 	if err != nil {
 		t.Skip(err)
 	}
-	if _, err := g.GetMarketTrades(context.Background(), pairs[0].String(), 0, "", true, time.Time{}, time.Time{}, 1); err != nil {
+	if _, err := g.GetMarketTrades(context.Background(), pairs[0], 0, "", true, time.Time{}, time.Time{}, 1); err != nil {
 		t.Errorf("%s GetMarketTrades() error %v", g.Name, err)
 	}
 }
@@ -270,7 +270,7 @@ func TestGetCandlesticks(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err := g.GetCandlesticks(context.Background(), pairs[0].String(), 0, time.Time{}, time.Time{}, kline.OneDay); err != nil {
+	if _, err := g.GetCandlesticks(context.Background(), pairs[0], 0, time.Time{}, time.Time{}, kline.OneDay); err != nil {
 		t.Errorf("%s GetCandlesticks() error %v", g.Name, err)
 	}
 }
@@ -377,7 +377,7 @@ func TestCancelAllOpenOrdersSpecifiedCurrencyPair(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credInformationNotProvided)
 	}
-	if _, err := g.CancelAllOpenOrdersSpecifiedCurrencyPair(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}.String(), order.Sell, asset.Empty); err != nil {
+	if _, err := g.CancelAllOpenOrdersSpecifiedCurrencyPair(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, order.Sell, asset.Empty); err != nil {
 		t.Errorf("%s CancelAllOpenOrdersSpecifiedCurrencyPair() error %v", g.Name, err)
 	}
 }
@@ -409,9 +409,27 @@ func TestGetSpotOrder(t *testing.T) {
 	if _, err := g.GetSpotOrder(context.Background(), "1234", currency.Pair{
 		Base:      currency.BTC,
 		Delimiter: currency.UnderscoreDelimiter,
-		Quote:     currency.USDT}.String(), asset.Spot); err != nil && !strings.Contains(err.Error(), "Order with ID 1234 not found") {
+		Quote:     currency.USDT}, asset.Spot); err != nil && !strings.Contains(err.Error(), "Order with ID 1234 not found") {
 		t.Errorf("%s GetSpotOrder() error %v", g.Name, err)
 	}
+}
+func TestAmendSpotOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
+	}
+	enabledPairs, err := g.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = g.AmendSpotOrder(context.Background(), "123", enabledPairs[0], asset.Spot, &PriceAndAmount{
+		Price:  1000,
+		Amount: 1,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
 }
 func TestCancelSingleSpotOrder(t *testing.T) {
 	t.Parallel()
@@ -926,6 +944,23 @@ func TestGetSubAccountTransferHistory(t *testing.T) {
 	}
 	if _, err := g.GetSubAccountTransferHistory(context.Background(), "", time.Time{}, time.Time{}, 0, 0); err != nil {
 		t.Errorf("%s GetSubAccountTransferHistory() error %v", g.Name, err)
+	}
+}
+
+func TestSubAccountTransferToSubAccount(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvided)
+	}
+	if err := g.SubAccountTransferToSubAccount(context.Background(), InterSubAccountTransferParams{
+		Currency:                currency.BTC,
+		SubAccountFromUserID:    "1234",
+		SubAccountFromAssetType: asset.Spot,
+		SubAccountToUserID:      "4567",
+		SubAccountToAssetType:   asset.Spot,
+		Amount:                  1234,
+	}); err != nil {
+		t.Error(err)
 	}
 }
 
@@ -2243,7 +2278,7 @@ func TestGetSingleSubAccount(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credInformationNotProvided)
 	}
-	if _, err := g.GetSingleSubAccount(context.Background(), "Sub_Account_for_testing"); err != nil && !strings.Contains(err.Error(), "FORBIDDEN") {
+	if _, err := g.GetSingleSubAccount(context.Background(), "123423"); err != nil && !strings.Contains(err.Error(), "FORBIDDEN") {
 		t.Errorf("%s GetSingleSubAccount() error %v", g.Name, err)
 	}
 }
@@ -2507,12 +2542,9 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 }
 func TestGetAvailableTransferTrains(t *testing.T) {
 	t.Parallel()
-	results, err := g.GetAvailableTransferChains(context.Background(), currency.USDT)
+	_, err := g.GetAvailableTransferChains(context.Background(), currency.USDT)
 	if err != nil {
 		t.Error(err)
-	} else {
-		val, _ := json.Marshal(results)
-		println(string(val))
 	}
 }
 
@@ -2971,6 +3003,140 @@ func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
 	if _, err := g.GenerateOptionsDefaultSubscriptions(); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCreateAPIKeysOfSubAccount(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
+	}
+	if _, err := g.CreateAPIKeysOfSubAccount(context.Background(), CreateAPIKeySubAccountParams{
+		SubAccountUserID: 12345,
+		Body: &SubAccountKey{
+			APIKeyName: "12312mnfsndfsfjsdklfjsdlkfj",
+			Permissions: []APIV4KeyPerm{
+				{
+					PermissionName: "wallet",
+					ReadOnly:       false,
+				},
+				{
+					PermissionName: "spot",
+					ReadOnly:       false,
+				},
+				{
+					PermissionName: "futures",
+					ReadOnly:       false,
+				},
+				{
+					PermissionName: "delivery",
+					ReadOnly:       false,
+				},
+				{
+					PermissionName: "earn",
+					ReadOnly:       false,
+				},
+				{
+					PermissionName: "options",
+					ReadOnly:       false,
+				},
+			},
+		},
+	}); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestListAllAPIKeyOfSubAccount(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Error(credInformationNotProvided)
+	}
+	_, err := g.GetAllAPIKeyOfSubAccount(context.Background(), 1234)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateAPIKeyOfSubAccount(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
+	}
+	if err := g.UpdateAPIKeyOfSubAccount(context.Background(), CreateAPIKeySubAccountParams{
+		SubAccountUserID: 12345,
+		Body: &SubAccountKey{
+			APIKeyName: "12312mnfsndfsfjsdklfjsdlkfj",
+			Permissions: []APIV4KeyPerm{
+				{
+					PermissionName: "wallet",
+					ReadOnly:       false,
+				},
+				{
+					PermissionName: "spot",
+					ReadOnly:       false,
+				},
+				{
+					PermissionName: "futures",
+					ReadOnly:       false,
+				},
+				{
+					PermissionName: "delivery",
+					ReadOnly:       false,
+				},
+				{
+					PermissionName: "earn",
+					ReadOnly:       false,
+				},
+				{
+					PermissionName: "options",
+					ReadOnly:       false,
+				},
+			},
+		},
+	}); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestDeleteAPIKeyOfSubAccount(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
+	}
+	if err := g.DeleteAPIKeyOfSubAccount(context.Background(), 123224, "samuaeldsajflaksdj"); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAPIKeyOfSubAccount(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip(credInformationNotProvided)
+	}
+	_, err := g.GetAPIKeyOfSubAccount(context.Background(), 1234, "djfakdjfalkdfj")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestLockSubAccount(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip(credInformationNotProvided)
+	}
+	if err := g.LockSubAccount(context.Background(), 1234); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUnlockSubAccount(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip(credInformationNotProvided)
+	}
+	if err := g.UnlockSubAccount(context.Background(), 1234); err != nil {
 		t.Error(err)
 	}
 }

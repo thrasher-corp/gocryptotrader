@@ -7,6 +7,24 @@ import (
 	"time"
 )
 
+type gateioMilliSecTimeInt int64
+
+// UnmarshalJSON decerializes json, and timestamp information.
+func (a *gateioMilliSecTimeInt) UnmarshalJSON(data []byte) error {
+	var value int64
+	err := json.Unmarshal(data, &value)
+	if err != nil {
+		return err
+	}
+	*a = gateioMilliSecTimeInt(value)
+	return nil
+}
+
+// Time represents a time instance.
+func (a *gateioMilliSecTimeInt) Time() time.Time {
+	return time.UnixMilli(int64(*a))
+}
+
 // UnmarshalJSON decerializes json, and timestamp information.
 func (a *CrossMarginAccountHistoryItem) UnmarshalJSON(data []byte) error {
 	type Alias CrossMarginAccountHistoryItem
@@ -307,7 +325,7 @@ func (a *CurrencyPairDetail) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if chil.Fee != "" {
-		a.Fee, err = strconv.ParseFloat(chil.Fee, 64)
+		a.TradingFee, err = strconv.ParseFloat(chil.Fee, 64)
 		if err != nil {
 			return err
 		}

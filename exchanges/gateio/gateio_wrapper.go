@@ -832,7 +832,7 @@ func (g *Gateio) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ a
 			Currency:        records[x].Currency,
 			Amount:          records[x].Amount,
 			CryptoTxID:      records[x].TransactionID,
-			CryptoToAddress: records[x].Address,
+			CryptoToAddress: records[x].WithdrawalAddress,
 			Timestamp:       records[x].Timestamp,
 		}
 	}
@@ -852,12 +852,7 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.I
 		if p.IsEmpty() {
 			return nil, currency.ErrCurrencyPairEmpty
 		}
-		var fPair currency.PairFormat
-		fPair, err = g.GetPairFormat(a, true)
-		if err != nil {
-			return nil, err
-		}
-		tradeData, err = g.GetMarketTrades(ctx, fPair.Format(p), 0, "", false, time.Time{}, time.Time{}, 0)
+		tradeData, err = g.GetMarketTrades(ctx, p, 0, "", false, time.Time{}, time.Time{}, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -1004,7 +999,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		if err != nil {
 			return nil, err
 		}
-		response, err := s.DeriveSubmitResponse(sOrder.ID)
+		response, err := s.DeriveSubmitResponse(sOrder.OrderID)
 		if err != nil {
 			return nil, err
 		}
@@ -1018,7 +1013,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			return nil, err
 		}
 		response.Status = status
-		response.Fee = sOrder.Fee
+		response.Fee = sOrder.FeeDeducted
 		response.FeeAsset = currency.NewCode(sOrder.FeeCurrency)
 		response.Pair = fPair
 		response.Date = sOrder.CreateTime
@@ -1214,7 +1209,7 @@ func (g *Gateio) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order
 				return response, err
 			}
 			for x := range cancel {
-				response.Status[cancel[x].ID] = func() string {
+				response.Status[cancel[x].OrderID] = func() string {
 					if cancel[x].Succeeded {
 						return order.Cancelled.String()
 					}
@@ -1340,7 +1335,7 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 	}
 	switch a {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
-		spotOrder, err := g.GetSpotOrder(ctx, orderID, pair.String(), a)
+		spotOrder, err := g.GetSpotOrder(ctx, orderID, pair, a)
 		if err != nil {
 			return orderDetail, err
 		}
@@ -1359,11 +1354,11 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		return order.Detail{
 			Amount:         spotOrder.Amount,
 			Exchange:       g.Name,
-			OrderID:        spotOrder.ID,
+			OrderID:        spotOrder.OrderID,
 			Side:           side,
 			Type:           orderType,
 			Pair:           pair,
-			Cost:           spotOrder.Fee,
+			Cost:           spotOrder.FeeDeducted,
 			AssetType:      a,
 			Status:         orderStatus,
 			Price:          spotOrder.Price,
@@ -1556,7 +1551,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 					Type:            oType,
 					Status:          status,
 					Pair:            symbol,
-					OrderID:         spotOrders[x].Orders[y].ID,
+					OrderID:         spotOrders[x].Orders[y].OrderID,
 					Amount:          spotOrders[x].Orders[y].Amount,
 					ExecutedAmount:  spotOrders[x].Orders[y].Amount - spotOrders[x].Orders[y].Left,
 					RemainingAmount: spotOrders[x].Orders[y].Left,
@@ -1765,7 +1760,7 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 	switch a {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
 		var candles []Candlestick
-		candles, err = g.GetCandlesticks(ctx, req.RequestFormatted.String(), 0, start, end, interval)
+		candles, err = g.GetCandlesticks(ctx, req.RequestFormatted, 0, start, end, interval)
 		if err != nil {
 			return nil, err
 		}
@@ -1842,7 +1837,7 @@ func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 		switch a {
 		case asset.Spot, asset.Margin, asset.CrossMargin:
 			var candles []Candlestick
-			candles, err = g.GetCandlesticks(ctx, req.RequestFormatted.String(), 0, dates.Ranges[b].Start.Time, dates.Ranges[b].End.Time, interval)
+			candles, err = g.GetCandlesticks(ctx, req.RequestFormatted, 0, dates.Ranges[b].Start.Time, dates.Ranges[b].End.Time, interval)
 			if err != nil {
 				return nil, err
 			}
