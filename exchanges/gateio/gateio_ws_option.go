@@ -192,7 +192,7 @@ func (g *Gateio) processOptionsTradesPushData(data []byte) error {
 			return err
 		}
 		trades[x] = trade.Data{
-			Timestamp:    time.UnixMilli(resp.Result[x].CreateTimeMs),
+			Timestamp:    resp.Result[x].CreateTimeMs.Time(),
 			CurrencyPair: currencyPair,
 			AssetType:    asset.Options,
 			Exchange:     g.Name,

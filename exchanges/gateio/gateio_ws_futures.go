@@ -369,7 +369,7 @@ func (g *Gateio) processFuturesCandlesticks(data []byte) error {
 			Pair:       currencyPair,
 			AssetType:  futuresAssetType,
 			Exchange:   g.Name,
-			StartTime:  resp.Result[x].Timestamp,
+			StartTime:  resp.Result[x].Timestamp.Time(),
 			Interval:   icp[0],
 			OpenPrice:  resp.Result[x].OpenPrice,
 			ClosePrice: resp.Result[x].ClosePrice,

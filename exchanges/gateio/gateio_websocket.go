@@ -516,8 +516,8 @@ func (g *Gateio) processSpotOrders(data []byte) error {
 			AssetType:      a,
 			Price:          resp.Result[x].Price,
 			ExecutedAmount: resp.Result[x].Amount - resp.Result[x].Left,
-			Date:           resp.Result[x].CreateTimeMs,
-			LastUpdated:    resp.Result[x].UpdateTimeMs,
+			Date:           resp.Result[x].CreateTimeMs.Time(),
+			LastUpdated:    resp.Result[x].UpdateTimeMs.Time(),
 		}
 	}
 	g.Websocket.DataHandler <- details
@@ -546,7 +546,7 @@ func (g *Gateio) processUserPersonalTrades(data []byte) error {
 			return err
 		}
 		fills[x] = fill.Data{
-			Timestamp:    time.UnixMicro(resp.Result[x].CreateTimeMicroS),
+			Timestamp:    resp.Result[x].CreateTimeMicroS,
 			Exchange:     g.Name,
 			CurrencyPair: currencyPair,
 			Side:         side,

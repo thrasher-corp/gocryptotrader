@@ -2,311 +2,93 @@ package gateio
 
 import (
 	"encoding/json"
-	"math"
+	"reflect"
 	"strconv"
 	"time"
 )
 
-type gateioMilliSecTimeInt int64
+type gateioMilliSecTime int64
 
 // UnmarshalJSON decerializes json, and timestamp information.
-func (a *gateioMilliSecTimeInt) UnmarshalJSON(data []byte) error {
-	var value int64
+func (a *gateioMilliSecTime) UnmarshalJSON(data []byte) error {
+	var value interface{}
 	err := json.Unmarshal(data, &value)
 	if err != nil {
 		return err
 	}
-	*a = gateioMilliSecTimeInt(value)
+	val := reflect.ValueOf(value)
+	switch val.Kind() {
+	case reflect.Int64, reflect.Int32:
+		valueInteger, ok := value.(int64)
+		if !ok {
+			valueInteger = 0
+		}
+		*a = gateioMilliSecTime(valueInteger)
+	case reflect.Float64, reflect.Float32:
+		parsedValue, ok := value.(float64)
+		if !ok {
+			parsedValue = 0
+		}
+		*a = gateioMilliSecTime(int64(parsedValue))
+	default:
+		stringValue, ok := value.(string)
+		if !ok {
+			stringValue = "0"
+		}
+		parsedValue, err := strconv.ParseFloat(stringValue, 64)
+		if err != nil {
+			return err
+		}
+		*a = gateioMilliSecTime(int64(parsedValue))
+	}
 	return nil
 }
 
 // Time represents a time instance.
-func (a *gateioMilliSecTimeInt) Time() time.Time {
+func (a *gateioMilliSecTime) Time() time.Time {
 	return time.UnixMilli(int64(*a))
 }
 
+type gateioTime int64
+
 // UnmarshalJSON decerializes json, and timestamp information.
-func (a *CrossMarginAccountHistoryItem) UnmarshalJSON(data []byte) error {
-	type Alias CrossMarginAccountHistoryItem
-	chil := &struct {
-		*Alias
-		Time int64 `json:"time"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
+func (a *gateioTime) UnmarshalJSON(data []byte) error {
+	var value interface{}
+	err := json.Unmarshal(data, &value)
+	if err != nil {
 		return err
 	}
-	a.Time = time.Unix(chil.Time, 0)
+	val := reflect.ValueOf(value)
+	switch val.Kind() {
+	case reflect.Int64, reflect.Int32:
+		valueInteger, ok := value.(int64)
+		if !ok {
+			valueInteger = 0
+		}
+		*a = gateioTime(valueInteger)
+	case reflect.Float64, reflect.Float32:
+		parsedValue, ok := value.(float64)
+		if !ok {
+			parsedValue = 0
+		}
+		*a = gateioTime(int64(parsedValue))
+	default:
+		stringValue, ok := value.(string)
+		if !ok {
+			stringValue = "0"
+		}
+		parsedValue, err := strconv.ParseFloat(stringValue, 64)
+		if err != nil {
+			return err
+		}
+		*a = gateioTime(int64(parsedValue))
+	}
 	return nil
 }
 
-// UnmarshalJSON decerializes json, and timestamp information.
-func (a *DeliveryTradingHistory) UnmarshalJSON(data []byte) error {
-	type Alias DeliveryTradingHistory
-	chil := &struct {
-		*Alias
-		CreateTime float64 `json:"create_time"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.CreateTime = time.Unix(int64(math.Round(chil.CreateTime)), 0)
-	return nil
-}
-
-// UnmarshalJSON decerializes json, and timestamp information.
-func (a *FlashSwapOrderResponse) UnmarshalJSON(data []byte) error {
-	type Alias FlashSwapOrderResponse
-	chil := &struct {
-		*Alias
-		CreateTime int64 `json:"create_time"`
-		UpdateTime int64 `json:"update_time"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.CreateTime = time.UnixMilli(chil.CreateTime)
-	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
-	return nil
-}
-
-// UnmarshalJSON decerializes json, and timestamp information.
-func (a *RepaymentHistoryItem) UnmarshalJSON(data []byte) error {
-	type Alias RepaymentHistoryItem
-	chil := &struct {
-		*Alias
-		CreateTime int64 `json:"create_time"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.CreateTime = time.Unix(chil.CreateTime, 0)
-	return nil
-}
-
-// UnmarshalJSON decerializes json, and timestamp information.
-func (a *TriggerTimeResponse) UnmarshalJSON(data []byte) error {
-	type Alias TriggerTimeResponse
-	chil := &struct {
-		*Alias
-		TriggerTime int64 `json:"trigger_time,string"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.TriggerTime = time.Unix(chil.TriggerTime, 0)
-	return nil
-}
-
-// UnmarshalJSON decerializes json, and timestamp information.
-func (a *LoanRepaymentRecord) UnmarshalJSON(data []byte) error {
-	type Alias LoanRepaymentRecord
-	chil := &struct {
-		*Alias
-		CreateTime int64 `json:"create_time,string"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.CreateTime = time.Unix(chil.CreateTime, 0)
-	return nil
-}
-
-// UnmarshalJSON decerializes json, and timestamp information.
-func (a *CrossMarginLoanResponse) UnmarshalJSON(data []byte) error {
-	type Alias CrossMarginLoanResponse
-	chil := &struct {
-		*Alias
-		CreateTime int64 `json:"create_time"`
-		UpdateTime int64 `json:"update_time"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.CreateTime = time.Unix(chil.CreateTime, 0)
-	a.UpdateTime = time.Unix(chil.UpdateTime, 0)
-	return nil
-}
-
-// UnmarshalJSON decerializes json, and timestamp information.
-func (a *LoanRecord) UnmarshalJSON(data []byte) error {
-	type Alias LoanRecord
-	chil := &struct {
-		*Alias
-		CreateTime int64 `json:"create_time,string"`
-		ExpireTime int64 `json:"expire_time,string"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.CreateTime = time.Unix(chil.CreateTime, 0)
-	a.ExpireTime = time.Unix(chil.ExpireTime, 0)
-	return nil
-}
-
-// UnmarshalJSON deserialises the JSON info, including the timestamp
-func (a *SpotPriceTriggeredOrder) UnmarshalJSON(data []byte) error {
-	type Alias SpotPriceTriggeredOrder
-	chil := &struct {
-		*Alias
-		CreationTime int64 `json:"ctime"`
-		FireTime     int64 `json:"ftime"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.CreationTime = time.Unix(chil.CreationTime, 0)
-	a.FireTime = time.Unix(chil.FireTime, 0)
-	return nil
-}
-
-// UnmarshalJSON decerializes json, and timestamp information.
-func (a *SpotPersonalTradeHistory) UnmarshalJSON(data []byte) error {
-	type Alias SpotPersonalTradeHistory
-	chil := &struct {
-		*Alias
-		CreateTime   float64 `json:"create_time,string"`
-		CreateTimeMs float64 `json:"create_time_ms,string"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.CreateTime = time.Unix(int64(chil.CreateTime), 0)
-	a.CreateTimeMs = time.UnixMilli(int64(chil.CreateTime))
-	return nil
-}
-
-// UnmarshalJSON decerializes json, and timestamp information.
-func (a *SubAccountTransferResponse) UnmarshalJSON(data []byte) error {
-	type Alias SubAccountTransferResponse
-	chil := &struct {
-		*Alias
-		Timestamp float64 `json:"timest,string"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.Timestamp = time.Unix(int64(chil.Timestamp), 0)
-	return nil
-}
-
-// UnmarshalJSON decerializes json, and timestamp information.
-func (a *WithdrawalResponse) UnmarshalJSON(data []byte) error {
-	type Alias WithdrawalResponse
-	chil := &struct {
-		*Alias
-		Timestamp float64 `json:"timestamp,string"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.Timestamp = time.Unix(int64(chil.Timestamp), 0)
-	return nil
-}
-
-// UnmarshalJSON decerializes json, and timestamp information.
-func (a *OptionTradingHistory) UnmarshalJSON(data []byte) error {
-	type Alias OptionTradingHistory
-	chil := &struct {
-		*Alias
-		CreateTime float64 `json:"create_time"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.CreateTime = time.Unix(int64(chil.CreateTime), 0)
-	return nil
-}
-
-// UnmarshalJSON decerializes json, and timestamp information.
-func (a *SettlementHistoryItem) UnmarshalJSON(data []byte) error {
-	type Alias SettlementHistoryItem
-	chil := &struct {
-		*Alias
-		Time float64 `json:"time"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.Time = time.Unix(int64(chil.Time), 0)
-	return nil
-}
-
-// UnmarshalJSON decerializes json, and timestamp information.
-func (a *OptionOrderResponse) UnmarshalJSON(data []byte) error {
-	type Alias OptionOrderResponse
-	chil := &struct {
-		*Alias
-		CreateTime float64 `json:"create_time"`
-		FinishTime float64 `json:"finish_time"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.CreateTime = time.Unix(int64(chil.CreateTime), 0)
-	a.FinishTime = time.Unix(int64(chil.FinishTime), 0)
-	return nil
-}
-
-// UnmarshalJSON decerializes json, and timestamp information.
-func (a *ContractClosePosition) UnmarshalJSON(data []byte) error {
-	type Alias ContractClosePosition
-	chil := &struct {
-		*Alias
-		PositionCloseTime float64 `json:"time"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.PositionCloseTime = time.Unix(int64(chil.PositionCloseTime), 0)
-	return nil
-}
-
-// UnmarshalJSON decerializes json, and timestamp information.
-func (a *AccountBook) UnmarshalJSON(data []byte) error {
-	type Alias AccountBook
-	chil := &struct {
-		*Alias
-		ChangeTime float64 `json:"time"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.ChangeTime = time.Unix(int64(chil.ChangeTime), 0)
-	return nil
+// Time represents a time instance.
+func (a *gateioTime) Time() time.Time {
+	return time.Unix(int64(*a), 0)
 }
 
 // UnmarshalJSON decerializes json data into CurrencyPairDetail
@@ -408,24 +190,6 @@ func (a *Ticker) UnmarshalJSON(data []byte) error {
 		}
 	}
 	a.EtfPreTimestamp = time.Unix(child.EtfPreTimestamp, 0)
-	return nil
-}
-
-// UnmarshalJSON to decerialize the timestamp information to golang time.Time instance
-func (a *OrderbookData) UnmarshalJSON(data []byte) error {
-	type Alias OrderbookData
-	chil := &struct {
-		*Alias
-		Current int64 `json:"current"`
-		Update  int64 `json:"update"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.Current = time.UnixMilli(chil.Current)
-	a.Update = time.UnixMilli(chil.Update)
 	return nil
 }
 
@@ -538,81 +302,12 @@ func (a *Orderbook) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// UnmarshalJSON decerializes the unix seconds, and milliseconds timestamp information to builtin time.Time.
-func (a *Trade) UnmarshalJSON(data []byte) error {
-	type Alias Trade
-	chil := &struct {
-		*Alias
-		TradingTime  int64   `json:"create_time,string"`
-		CreateTimeMs float64 `json:"create_time_ms,string"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.TradingTime = time.Unix(chil.TradingTime, 0)
-	a.CreateTimeMs = time.UnixMilli(int64(math.Round(chil.CreateTimeMs)))
-	return nil
-}
-
-// UnmarshalJSON to decerialize timestamp information to built-int golang time.Time instance.
-func (a *FuturesContract) UnmarshalJSON(data []byte) error {
-	type Alias FuturesContract
-	chil := &struct {
-		*Alias
-		FundingNextApply int64 `json:"funding_next_apply"`
-		ConfigChangeTime int64 `json:"config_change_time"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.FundingNextApply = time.Unix(chil.FundingNextApply, 0)
-	a.ConfigChangeTime = time.Unix(chil.ConfigChangeTime, 0)
-	return nil
-}
-
-// UnmarshalJSON deserialises the JSON info, including the timestamp
-func (a *TradingHistoryItem) UnmarshalJSON(data []byte) error {
-	type Alias TradingHistoryItem
-	chil := &struct {
-		*Alias
-		CreateTime float64 `json:"create_time"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.CreateTime = time.Unix(int64(chil.CreateTime), 0)
-	return nil
-}
-
-// UnmarshalJSON deserialises the JSON info, including the timestamp
-func (a *FuturesCandlestick) UnmarshalJSON(data []byte) error {
-	type Alias FuturesCandlestick
-	chil := &struct {
-		*Alias
-		Timestamp float64 `json:"t"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.Timestamp = time.Unix(int64(chil.Timestamp), 10)
-	return nil
-}
-
 // UnmarshalJSON deserialises the JSON info, including the timestamp
 func (a *FuturesFundingRate) UnmarshalJSON(data []byte) error {
 	type Alias FuturesFundingRate
 	chil := &struct {
 		*Alias
-		Timestamp float64 `json:"t"`
-		Rate      string  `json:"r"`
+		Rate string `json:"r"`
 	}{
 		Alias: (*Alias)(a),
 	}
@@ -625,91 +320,6 @@ func (a *FuturesFundingRate) UnmarshalJSON(data []byte) error {
 			return err
 		}
 	}
-	a.Timestamp = time.Unix(int64(chil.Timestamp), 0)
-	return nil
-}
-
-// UnmarshalJSON deserialises the JSON info, including the timestamp
-func (a *InsuranceBalance) UnmarshalJSON(data []byte) error {
-	type Alias InsuranceBalance
-	chil := &struct {
-		*Alias
-		Timestamp float64 `json:"t"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.Timestamp = time.Unix(int64(chil.Timestamp), 0)
-	return nil
-}
-
-// UnmarshalJSON deserialises the JSON info, including the timestamp
-func (a *ContractStat) UnmarshalJSON(data []byte) error {
-	type Alias ContractStat
-	chil := &struct {
-		*Alias
-		Time float64 `json:"time"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.Time = time.Unix(int64(chil.Time), 0)
-	return nil
-}
-
-// UnmarshalJSON deserialises the JSON info, including the timestamp.
-func (a *LiquidationHistory) UnmarshalJSON(data []byte) error {
-	type Alias LiquidationHistory
-	chil := &struct {
-		*Alias
-		Time float64 `json:"time"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.Time = time.Unix(int64(chil.Time), 0)
-	return nil
-}
-
-// UnmarshalJSON deserialises the JSON info, including the timestamp
-func (a *DeliveryContract) UnmarshalJSON(data []byte) error {
-	type Alias DeliveryContract
-	chil := &struct {
-		*Alias
-		ExpireTime       float64 `json:"expire_time"`
-		ConfigChangeTime float64 `json:"config_change_time"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.ExpireTime = time.Unix(int64(chil.ExpireTime), 0)
-	a.ConfigChangeTime = time.Unix(int64(chil.ConfigChangeTime), 0)
-	return nil
-}
-
-// UnmarshalJSON deserialises the JSON info, including the timestamp
-func (a *OptionContract) UnmarshalJSON(data []byte) error {
-	type Alias OptionContract
-	chil := &struct {
-		*Alias
-		CreateTime     float64 `json:"create_time"`
-		ExpirationTime float64 `json:"expiration_time"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.CreateTime = time.Unix(int64(chil.CreateTime), 0)
-	a.ExpirationTime = time.Unix(int64(chil.ExpirationTime), 0)
 	return nil
 }
 
@@ -743,22 +353,6 @@ func (a *OptionSettlement) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalJSON deserialises the JSON info, including the timestamp
-func (a *PositionCloseHistoryResponse) UnmarshalJSON(data []byte) error {
-	type Alias PositionCloseHistoryResponse
-	chil := &struct {
-		*Alias
-		Time int64 `json:"time"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.Time = time.Unix(chil.Time, 0)
-	return nil
-}
-
-// UnmarshalJSON deserialises the JSON info, including the timestamp
 func (a *WsUserPersonalTrade) UnmarshalJSON(data []byte) error {
 	type Alias WsUserPersonalTrade
 	chil := &struct {
@@ -770,23 +364,7 @@ func (a *WsUserPersonalTrade) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, chil); err != nil {
 		return err
 	}
-	a.CreateTimeMicroS = int64(chil.CreateTimeMicroS * 1000)
-	return nil
-}
-
-// UnmarshalJSON deserialises the JSON info, including the timestamp
-func (a *LiquidationHistoryItem) UnmarshalJSON(data []byte) error {
-	type Alias LiquidationHistoryItem
-	chil := &struct {
-		*Alias
-		Time int64 `json:"time"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.Time = time.Unix(chil.Time, 0)
+	a.CreateTimeMicroS = time.UnixMicro(int64(chil.CreateTimeMicroS * 1000))
 	return nil
 }
 
@@ -795,11 +373,7 @@ func (a *SpotOrder) UnmarshalJSON(data []byte) error {
 	type Alias SpotOrder
 	chil := &struct {
 		*Alias
-		CreateTime   int64  `json:"create_time,string"`
-		UpdateTime   int64  `json:"update_time,string"`
-		CreateTimeMs int64  `json:"create_time_ms"`
-		UpdateTimeMs int64  `json:"update_time_ms"`
-		Left         string `json:"left"`
+		Left string `json:"left"`
 	}{
 		Alias: (*Alias)(a),
 	}
@@ -812,10 +386,6 @@ func (a *SpotOrder) UnmarshalJSON(data []byte) error {
 			return err
 		}
 	}
-	a.CreateTime = time.Unix(chil.CreateTime, 0)
-	a.UpdateTime = time.Unix(chil.UpdateTime, 0)
-	a.CreateTimeMs = time.UnixMilli(chil.CreateTimeMs)
-	a.UpdateTimeMs = time.UnixMilli(chil.UpdateTimeMs)
 	return nil
 }
 
@@ -824,11 +394,7 @@ func (a *WsSpotOrder) UnmarshalJSON(data []byte) error {
 	type Alias WsSpotOrder
 	chil := &struct {
 		*Alias
-		CreateTime   int64   `json:"create_time,string"`
-		UpdateTime   int64   `json:"update_time,string"`
-		CreateTimeMs float64 `json:"create_time_ms,string"`
-		UpdateTimeMs float64 `json:"update_time_ms,string"`
-		Left         string  `json:"left"`
+		Left string `json:"left"`
 	}{
 		Alias: (*Alias)(a),
 	}
@@ -841,133 +407,5 @@ func (a *WsSpotOrder) UnmarshalJSON(data []byte) error {
 			return err
 		}
 	}
-	a.CreateTime = time.Unix(chil.CreateTime, 0)
-	a.UpdateTime = time.Unix(chil.UpdateTime, 0)
-	a.CreateTimeMs = time.UnixMilli(int64(chil.CreateTimeMs))
-	a.UpdateTimeMs = time.UnixMilli(int64(chil.UpdateTimeMs))
-	return nil
-}
-
-// UnmarshalJSON decerializes json, and timestamp information
-func (a *MarginAccountBalanceChangeInfo) UnmarshalJSON(data []byte) error {
-	type Alias MarginAccountBalanceChangeInfo
-	chil := &struct {
-		*Alias
-		Time   int64 `json:"time,string"`
-		TimeMs int64 `json:"time_ms"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.Time = time.Unix(chil.Time, 0)
-	a.TimeMs = time.UnixMilli(chil.TimeMs)
-	return nil
-}
-
-// UnmarshalJSON decerializes json, and timestamp information
-func (a *AccountBookItem) UnmarshalJSON(data []byte) error {
-	type Alias AccountBookItem
-	chil := &struct {
-		*Alias
-		Time int64 `json:"time"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.Time = time.Unix(chil.Time, 0)
-	return nil
-}
-
-// UnmarshalJSON decerializes json, and timestamp information
-func (a *Order) UnmarshalJSON(data []byte) error {
-	type Alias Order
-	chil := &struct {
-		*Alias
-		FinishTime int64 `json:"finish_time"`
-		CreateTime int64 `json:"create_time"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.FinishTime = time.Unix(chil.FinishTime, 0)
-	a.CreateTime = time.Unix(chil.CreateTime, 0)
-	return nil
-}
-
-// UnmarshalJSON decerializes json, and timestamp information
-func (a *PriceTriggeredOrder) UnmarshalJSON(data []byte) error {
-	type Alias PriceTriggeredOrder
-	chil := &struct {
-		*Alias
-		CreateTime int64 `json:"create_time"`
-		FinishTime int64 `json:"finish_time"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.CreateTime = time.Unix(chil.CreateTime, 0)
-	a.FinishTime = time.Unix(chil.FinishTime, 0)
-	return nil
-}
-
-// UnmarshalJSON decerializes json, and timestamp information
-func (a *SubAccount) UnmarshalJSON(data []byte) error {
-	type Alias SubAccount
-	chil := &struct {
-		*Alias
-		CreateTime int64 `json:"create_time"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.CreateTime = time.Unix(chil.CreateTime, 0)
-	return nil
-}
-
-// UnmarshalJSON decerializes json, and timestamp information
-func (a *WsOptionsTrades) UnmarshalJSON(data []byte) error {
-	type Alias WsOptionsTrades
-	chil := &struct {
-		*Alias
-		CreateTime   int64 `json:"create_time"`
-		CreateTimeMs int64 `json:"create_time_ms"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.CreateTime = time.UnixMilli(func() int64 {
-		if chil.CreateTimeMs != 0 {
-			return chil.CreateTimeMs
-		}
-		return chil.CreateTime
-	}())
-	return nil
-}
-
-// UnmarshalJSON decerializes json, and timestamp information
-func (a *OptionUnderlying) UnmarshalJSON(data []byte) error {
-	type Alias OptionUnderlying
-	chil := &struct {
-		*Alias
-		IndexTime int64 `json:"index_time"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.IndexTime = time.Unix(chil.IndexTime, 0)
 	return nil
 }

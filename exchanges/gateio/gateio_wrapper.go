@@ -267,7 +267,7 @@ func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 			return nil, err
 		}
 		var tickers []FuturesTicker
-		tickers, err = g.GetFuturesTickers(ctx, settle, fPair.String())
+		tickers, err = g.GetFuturesTickers(ctx, settle, fPair)
 		if err != nil {
 			return nil, err
 		}
@@ -558,7 +558,7 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 		var ticks []FuturesTicker
 		for _, settle := range []string{settleBTC, settleUSDT, settleUSD} {
 			if a == asset.Futures {
-				ticks, err = g.GetFuturesTickers(ctx, settle, currency.EMPTYPAIR.String())
+				ticks, err = g.GetFuturesTickers(ctx, settle, currency.EMPTYPAIR)
 			} else {
 				if settle == settleUSD {
 					continue
@@ -667,7 +667,7 @@ func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 		if err != nil {
 			return nil, err
 		}
-		orderbookNew, err = g.GetDeliveryOrderbook(ctx, settle, fPair.Upper().String(), "", 0, true)
+		orderbookNew, err = g.GetDeliveryOrderbook(ctx, settle, "", fPair.Upper(), 0, true)
 	case asset.Options:
 		orderbookNew, err = g.GetOptionsOrderbook(ctx, fPair, "", 0, true)
 	}
@@ -833,7 +833,7 @@ func (g *Gateio) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ a
 			Amount:          records[x].Amount,
 			CryptoTxID:      records[x].TransactionID,
 			CryptoToAddress: records[x].WithdrawalAddress,
-			Timestamp:       records[x].Timestamp,
+			Timestamp:       records[x].Timestamp.Time(),
 		}
 	}
 	return withdrawalHistories, nil
@@ -871,7 +871,7 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.I
 				Side:         side,
 				Price:        tradeData[i].Price,
 				Amount:       tradeData[i].Amount,
-				Timestamp:    tradeData[i].CreateTimeMs,
+				Timestamp:    tradeData[i].CreateTimeMs.Time(),
 			}
 		}
 	case asset.Futures:
@@ -892,7 +892,7 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.I
 				AssetType:    a,
 				Price:        futuresTrades[i].Price,
 				Amount:       futuresTrades[i].Size,
-				Timestamp:    futuresTrades[i].CreateTime,
+				Timestamp:    futuresTrades[i].CreateTime.Time(),
 			}
 		}
 	case asset.DeliveryFutures:
@@ -907,7 +907,7 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.I
 			return nil, err
 		}
 		var deliveryTrades []DeliveryTradingHistory
-		deliveryTrades, err = g.GetDeliveryTradingHistory(ctx, settle, p.Upper().String(), 0, "", time.Time{}, time.Time{})
+		deliveryTrades, err = g.GetDeliveryTradingHistory(ctx, settle, "", p.Upper(), 0, time.Time{}, time.Time{})
 		if err != nil {
 			return nil, err
 		}
@@ -920,12 +920,12 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.I
 				AssetType:    a,
 				Price:        deliveryTrades[i].Price,
 				Amount:       deliveryTrades[i].Size,
-				Timestamp:    deliveryTrades[i].CreateTime,
+				Timestamp:    deliveryTrades[i].CreateTime.Time(),
 			}
 		}
 	case asset.Options:
 		var trades []TradingHistoryItem
-		trades, err = g.GetOptionsTradeHistory(ctx, p.Upper().String(), "", 0, 0, time.Time{}, time.Time{})
+		trades, err = g.GetOptionsTradeHistory(ctx, p.Upper(), "", 0, 0, time.Time{}, time.Time{})
 		if err != nil {
 			return nil, err
 		}
@@ -938,7 +938,7 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.I
 				AssetType:    a,
 				Price:        trades[i].Price,
 				Amount:       trades[i].Size,
-				Timestamp:    trades[i].CreateTime,
+				Timestamp:    trades[i].CreateTime.Time(),
 			}
 		}
 	default:
@@ -1016,10 +1016,10 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		response.Fee = sOrder.FeeDeducted
 		response.FeeAsset = currency.NewCode(sOrder.FeeCurrency)
 		response.Pair = fPair
-		response.Date = sOrder.CreateTime
+		response.Date = sOrder.CreateTime.Time()
 		response.ClientOrderID = sOrder.Text
-		response.Date = sOrder.CreateTimeMs
-		response.LastUpdated = sOrder.UpdateTimeMs
+		response.Date = sOrder.CreateTimeMs.Time()
+		response.LastUpdated = sOrder.UpdateTimeMs.Time()
 		return response, nil
 	case asset.Futures:
 		if !fPair.Quote.Upper().MatchAny(currency.USD, currency.USDT, currency.BTC) {
@@ -1052,7 +1052,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		}
 		response.Status = status
 		response.Pair = fPair
-		response.Date = fOrder.CreateTime
+		response.Date = fOrder.CreateTime.Time()
 		response.ClientOrderID = fOrder.Text
 		response.ReduceOnly = fOrder.IsReduceOnly
 		response.Amount = fOrder.RemainingAmount
@@ -1089,7 +1089,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		}
 		response.Status = status
 		response.Pair = fPair
-		response.Date = dOrder.CreateTime
+		response.Date = dOrder.CreateTime.Time()
 		response.ClientOrderID = dOrder.Text
 		response.Amount = dOrder.Size
 		response.Price = dOrder.OrderPrice
@@ -1115,7 +1115,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		}
 		response.Status = status
 		response.Pair = fPair
-		response.Date = optionOrder.CreateTime
+		response.Date = optionOrder.CreateTime.Time()
 		response.ClientOrderID = optionOrder.Text
 		return response, nil
 	default:
@@ -1139,7 +1139,7 @@ func (g *Gateio) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	}
 	switch o.AssetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
-		_, err = g.CancelSingleSpotOrder(ctx, o.OrderID, fPair.String(), o.AssetType)
+		_, err = g.CancelSingleSpotOrder(ctx, o.OrderID, fPair.String(), o.AssetType == asset.CrossMargin)
 	case asset.Futures, asset.DeliveryFutures:
 		var settle string
 		settle, err = g.getSettlementFromCurrency(fPair)
@@ -1267,7 +1267,7 @@ func (g *Gateio) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.Ca
 			return cancelAllOrdersResponse, err
 		}
 		for x := range cancel {
-			cancelAllOrdersResponse.Status[strconv.FormatInt(cancel[x].ID, 10)] = cancel[x].Status
+			cancelAllOrdersResponse.Status[strconv.FormatInt(cancel[x].AutoOrderID, 10)] = cancel[x].Status
 		}
 	case asset.Futures:
 		contracts, err := g.GetAvailablePairs(asset.Futures)
@@ -1363,8 +1363,8 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			Status:         orderStatus,
 			Price:          spotOrder.Price,
 			ExecutedAmount: spotOrder.Amount - spotOrder.Left,
-			Date:           spotOrder.CreateTimeMs,
-			LastUpdated:    spotOrder.UpdateTimeMs,
+			Date:           spotOrder.CreateTimeMs.Time(),
+			LastUpdated:    spotOrder.UpdateTimeMs.Time(),
 		}, nil
 	case asset.Futures, asset.DeliveryFutures:
 		pair = pair.Upper()
@@ -1396,8 +1396,8 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			OrderID:        orderID,
 			Status:         orderStatus,
 			Price:          fOrder.OrderPrice,
-			Date:           fOrder.CreateTime,
-			LastUpdated:    fOrder.FinishTime,
+			Date:           fOrder.CreateTime.Time(),
+			LastUpdated:    fOrder.FinishTime.Time(),
 			Pair:           pair,
 			AssetType:      a,
 		}, nil
@@ -1421,8 +1421,8 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			OrderID:        orderID,
 			Status:         orderStatus,
 			Price:          optionOrder.Price,
-			Date:           optionOrder.CreateTime,
-			LastUpdated:    optionOrder.FinishTime,
+			Date:           optionOrder.CreateTime.Time(),
+			LastUpdated:    optionOrder.FinishTime.Time(),
 			Pair:           pair,
 			AssetType:      a,
 		}, nil
@@ -1556,8 +1556,8 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 					ExecutedAmount:  spotOrders[x].Orders[y].Amount - spotOrders[x].Orders[y].Left,
 					RemainingAmount: spotOrders[x].Orders[y].Left,
 					Price:           spotOrders[x].Orders[y].Price,
-					Date:            spotOrders[x].Orders[y].CreateTimeMs,
-					LastUpdated:     spotOrders[x].Orders[y].UpdateTimeMs,
+					Date:            spotOrders[x].Orders[y].CreateTimeMs.Time(),
+					LastUpdated:     spotOrders[x].Orders[y].UpdateTimeMs.Time(),
 					Exchange:        g.Name,
 					AssetType:       req.AssetType,
 					ClientOrderID:   spotOrders[x].Orders[y].Text,
@@ -1578,9 +1578,9 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			}
 			var futuresOrders []Order
 			if req.AssetType == asset.Futures {
-				futuresOrders, err = g.GetFuturesOrders(ctx, pairs[z], "open", 0, 0, "", 0, pairs[z].Quote.Lower().String())
+				futuresOrders, err = g.GetFuturesOrders(ctx, pairs[z], "open", "", pairs[z].Quote.Lower().String(), 0, 0, 0)
 			} else {
-				futuresOrders, err = g.GetDeliveryOrders(ctx, pairs[z], "open", 0, 0, "", 0, pairs[z].Quote.Lower().String())
+				futuresOrders, err = g.GetDeliveryOrders(ctx, pairs[z], "open", pairs[z].Quote.Lower().String(), "", 0, 0, 0)
 			}
 			if err != nil {
 				return nil, err
@@ -1602,8 +1602,8 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 					Price:           futuresOrders[x].OrderPrice,
 					ExecutedAmount:  futuresOrders[x].Size - futuresOrders[x].RemainingAmount,
 					RemainingAmount: futuresOrders[x].RemainingAmount,
-					LastUpdated:     futuresOrders[x].FinishTime,
-					Date:            futuresOrders[x].CreateTime,
+					LastUpdated:     futuresOrders[x].FinishTime.Time(),
+					Date:            futuresOrders[x].CreateTime.Time(),
 					ClientOrderID:   futuresOrders[x].Text,
 					Exchange:        g.Name,
 					AssetType:       req.AssetType,
@@ -1612,7 +1612,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 		}
 	case asset.Options:
 		var optionsOrders []OptionOrderResponse
-		optionsOrders, err = g.GetOptionFuturesOrders(ctx, "", "", "open", 0, 0, req.StartTime, req.EndTime)
+		optionsOrders, err = g.GetOptionFuturesOrders(ctx, currency.EMPTYPAIR, "", "open", 0, 0, req.StartTime, req.EndTime)
 		if err != nil {
 			return nil, err
 		}
@@ -1635,8 +1635,8 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 				Price:           optionsOrders[x].Price,
 				ExecutedAmount:  optionsOrders[x].Size - optionsOrders[x].Left,
 				RemainingAmount: optionsOrders[x].Left,
-				LastUpdated:     optionsOrders[x].FinishTime,
-				Date:            optionsOrders[x].CreateTime,
+				LastUpdated:     optionsOrders[x].FinishTime.Time(),
+				Date:            optionsOrders[x].CreateTime.Time(),
 				Exchange:        g.Name,
 				AssetType:       req.AssetType,
 				ClientOrderID:   optionsOrders[x].Text,
@@ -1664,7 +1664,7 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 	case asset.Spot, asset.Margin, asset.CrossMargin:
 		for x := range req.Pairs {
 			var spotOrders []SpotPersonalTradeHistory
-			spotOrders, err = g.GetPersonalTradingHistory(ctx, req.Pairs[x], req.OrderID, 0, 0, req.AssetType, req.StartTime, req.EndTime)
+			spotOrders, err = g.GetPersonalTradingHistory(ctx, req.Pairs[x], req.OrderID, 0, 0, req.AssetType == asset.CrossMargin, req.StartTime, req.EndTime)
 			if err != nil {
 				return nil, err
 			}
@@ -1683,7 +1683,7 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 					Amount:         spotOrders[o].Amount,
 					ExecutedAmount: spotOrders[o].Amount,
 					Price:          spotOrders[o].Price,
-					Date:           spotOrders[o].CreateTime,
+					Date:           spotOrders[o].CreateTime.Time(),
 					Side:           side,
 					Exchange:       g.Name,
 					Pair:           req.Pairs[x],
@@ -1702,9 +1702,9 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 			}
 			var futuresOrder []TradingHistoryItem
 			if req.AssetType == asset.Futures {
-				futuresOrder, err = g.GetMyPersonalTradingHistory(ctx, req.Pairs[x].Quote.String(), req.Pairs[x], req.OrderID, 0, 0, 0, "")
+				futuresOrder, err = g.GetMyPersonalTradingHistory(ctx, req.Pairs[x].Quote.String(), "", req.OrderID, req.Pairs[x], 0, 0, 0)
 			} else {
-				futuresOrder, err = g.GetDeliveryPersonalTradingHistory(ctx, req.Pairs[x].Quote.String(), req.Pairs[x], req.OrderID, 0, 0, 0, "")
+				futuresOrder, err = g.GetDeliveryPersonalTradingHistory(ctx, req.Pairs[x].Quote.String(), req.OrderID, req.Pairs[x], 0, 0, 0, "")
 			}
 			if err != nil {
 				return nil, err
@@ -1714,7 +1714,7 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 					OrderID:   strconv.FormatInt(futuresOrder[o].ID, 10),
 					Amount:    futuresOrder[o].Size,
 					Price:     futuresOrder[o].Price,
-					Date:      futuresOrder[o].CreateTime,
+					Date:      futuresOrder[o].CreateTime.Time(),
 					Exchange:  g.Name,
 					Pair:      req.Pairs[x].Format(format),
 					AssetType: req.AssetType,
@@ -1726,7 +1726,7 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 	case asset.Options:
 		for x := range req.Pairs {
 			var optionOrders []OptionTradingHistory
-			optionOrders, err = g.GetOptionsPersonalTradingHistory(ctx, format.Format(req.Pairs[x]), req.Pairs[x].Upper().String(), 0, 0, req.StartTime, req.EndTime)
+			optionOrders, err = g.GetOptionsPersonalTradingHistory(ctx, format.Format(req.Pairs[x]), req.Pairs[x].Upper(), 0, 0, req.StartTime, req.EndTime)
 			if err != nil {
 				return nil, err
 			}
@@ -1735,7 +1735,7 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 					OrderID:   strconv.FormatInt(optionOrders[o].OrderID, 10),
 					Amount:    optionOrders[o].Size,
 					Price:     optionOrders[o].Price,
-					Date:      optionOrders[o].CreateTime,
+					Date:      optionOrders[o].CreateTime.Time(),
 					Exchange:  g.Name,
 					Pair:      req.Pairs[x].Format(format),
 					AssetType: req.AssetType,
@@ -1783,7 +1783,7 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		if a == asset.Futures {
 			candles, err = g.GetFuturesCandlesticks(ctx, req.RequestFormatted.Quote.Lower().String(), req.RequestFormatted.String(), start, end, 0, interval)
 		} else {
-			candles, err = g.GetDeliveryFuturesCandlesticks(ctx, req.RequestFormatted.Quote.Lower().String(), req.RequestFormatted.Upper().String(), start, end, 0, interval)
+			candles, err = g.GetDeliveryFuturesCandlesticks(ctx, req.RequestFormatted.Quote.Lower().String(), req.RequestFormatted.Upper(), start, end, 0, interval)
 		}
 		if err != nil {
 			return nil, err
@@ -1791,7 +1791,7 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		listCandlesticks = make([]kline.Candle, len(candles))
 		for x := range candles {
 			listCandlesticks[x] = kline.Candle{
-				Time:   candles[x].Timestamp,
+				Time:   candles[x].Timestamp.Time(),
 				Open:   candles[x].OpenPrice,
 				High:   candles[x].HighestPrice,
 				Low:    candles[x].LowestPrice,
@@ -1800,14 +1800,14 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 			}
 		}
 	case asset.Options:
-		candles, err := g.GetOptionFuturesCandlesticks(ctx, req.RequestFormatted.Upper().String(), 0, start, end, interval)
+		candles, err := g.GetOptionFuturesCandlesticks(ctx, req.RequestFormatted.Upper(), 0, start, end, interval)
 		if err != nil {
 			return nil, err
 		}
 		listCandlesticks = make([]kline.Candle, len(candles))
 		for x := range candles {
 			listCandlesticks[x] = kline.Candle{
-				Time:   candles[x].Timestamp,
+				Time:   candles[x].Timestamp.Time(),
 				Open:   candles[x].OpenPrice,
 				High:   candles[x].HighestPrice,
 				Low:    candles[x].LowestPrice,
@@ -1827,17 +1827,12 @@ func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 	if err != nil {
 		return nil, err
 	}
-	var dates *kline.IntervalRangeHolder
-	dates, err = req.GetRanges(0)
-	if err != nil {
-		return nil, err
-	}
 	candlestickItems := make([]kline.Candle, 0, req.Size())
-	for b := range dates.Ranges {
+	for b := range req.RangeHolder.Ranges {
 		switch a {
 		case asset.Spot, asset.Margin, asset.CrossMargin:
 			var candles []Candlestick
-			candles, err = g.GetCandlesticks(ctx, req.RequestFormatted, 0, dates.Ranges[b].Start.Time, dates.Ranges[b].End.Time, interval)
+			candles, err = g.GetCandlesticks(ctx, req.RequestFormatted, 0, req.RangeHolder.Ranges[b].Start.Time, req.RangeHolder.Ranges[b].End.Time, interval)
 			if err != nil {
 				return nil, err
 			}
@@ -1858,16 +1853,16 @@ func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 			}
 			var candles []FuturesCandlestick
 			if a == asset.Futures {
-				candles, err = g.GetFuturesCandlesticks(ctx, settle, req.RequestFormatted.String(), dates.Ranges[b].Start.Time, dates.Ranges[b].End.Time, 0, interval)
+				candles, err = g.GetFuturesCandlesticks(ctx, settle, req.RequestFormatted.String(), req.RangeHolder.Ranges[b].Start.Time, req.RangeHolder.Ranges[b].End.Time, 0, interval)
 			} else {
-				candles, err = g.GetDeliveryFuturesCandlesticks(ctx, settle, req.RequestFormatted.Upper().String(), dates.Ranges[b].Start.Time, dates.Ranges[b].End.Time, 0, interval)
+				candles, err = g.GetDeliveryFuturesCandlesticks(ctx, settle, req.RequestFormatted.Upper(), req.RangeHolder.Ranges[b].Start.Time, req.RangeHolder.Ranges[b].End.Time, 0, interval)
 			}
 			if err != nil {
 				return nil, err
 			}
 			for x := range candles {
 				candlestickItems = append(candlestickItems, kline.Candle{
-					Time:   candles[x].Timestamp,
+					Time:   candles[x].Timestamp.Time(),
 					Open:   candles[x].OpenPrice,
 					High:   candles[x].HighestPrice,
 					Low:    candles[x].LowestPrice,
@@ -1876,13 +1871,13 @@ func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 				})
 			}
 		case asset.Options:
-			candles, err := g.GetOptionFuturesCandlesticks(ctx, req.RequestFormatted.Upper().String(), uint64(g.Features.Enabled.Kline.ResultLimit), start, end, interval)
+			candles, err := g.GetOptionFuturesCandlesticks(ctx, req.RequestFormatted.Upper(), uint64(g.Features.Enabled.Kline.ResultLimit), start, end, interval)
 			if err != nil {
 				return nil, err
 			}
 			for x := range candles {
 				candlestickItems = append(candlestickItems, kline.Candle{
-					Time:   candles[x].Timestamp,
+					Time:   candles[x].Timestamp.Time(),
 					Open:   candles[x].OpenPrice,
 					High:   candles[x].HighestPrice,
 					Low:    candles[x].LowestPrice,
