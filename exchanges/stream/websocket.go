@@ -117,7 +117,7 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	}
 	w.connectionMonitorDelay = s.ConnectionMonitorDelay
 	if w.connectionMonitorDelay <= 0 {
-		w.connectionMonitorDelay = defaultConnectionMonitorDelay
+		w.connectionMonitorDelay = config.DefaultConnectionMonitorDelay
 	}
 	w.Unsubscriber = s.Unsubscriber
 
