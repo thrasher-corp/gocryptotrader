@@ -1198,6 +1198,7 @@ func TestSetupDefaults(t *testing.T) {
 		API: config.APIConfig{
 			AuthenticatedSupport: true,
 		},
+		ConnectionMonitorDelay: time.Second * 5,
 	}
 
 	err = b.SetupDefaults(&cfg)
