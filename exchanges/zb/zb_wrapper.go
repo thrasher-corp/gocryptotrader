@@ -171,13 +171,14 @@ func (z *ZB) Setup(exch *config.Exchange) error {
 	}
 
 	err = z.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            zbWebsocketAPI,
-		RunningURL:            wsRunningURL,
-		Connector:             z.WsConnect,
-		GenerateSubscriptions: z.GenerateDefaultSubscriptions,
-		Subscriber:            z.Subscribe,
-		Features:              &z.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             zbWebsocketAPI,
+		RunningURL:             wsRunningURL,
+		Connector:              z.WsConnect,
+		GenerateSubscriptions:  z.GenerateDefaultSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Subscriber:             z.Subscribe,
+		Features:               &z.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err

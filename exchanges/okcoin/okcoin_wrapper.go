@@ -180,14 +180,15 @@ func (o *OKCoin) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = o.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            wsEndpoint,
-		RunningURL:            wsEndpoint,
-		Connector:             o.WsConnect,
-		Subscriber:            o.Subscribe,
-		Unsubscriber:          o.Unsubscribe,
-		GenerateSubscriptions: o.GenerateDefaultSubscriptions,
-		Features:              &o.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             wsEndpoint,
+		RunningURL:             wsEndpoint,
+		Connector:              o.WsConnect,
+		Subscriber:             o.Subscribe,
+		Unsubscriber:           o.Unsubscribe,
+		GenerateSubscriptions:  o.GenerateDefaultSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &o.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err

@@ -185,14 +185,15 @@ func (b *BTSE) Setup(exch *config.Exchange) error {
 	}
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            btseWebsocket,
-		RunningURL:            wsRunningURL,
-		Connector:             b.WsConnect,
-		Subscriber:            b.Subscribe,
-		Unsubscriber:          b.Unsubscribe,
-		GenerateSubscriptions: b.GenerateDefaultSubscriptions,
-		Features:              &b.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             btseWebsocket,
+		RunningURL:             wsRunningURL,
+		Connector:              b.WsConnect,
+		Subscriber:             b.Subscribe,
+		Unsubscriber:           b.Unsubscribe,
+		GenerateSubscriptions:  b.GenerateDefaultSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &b.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err

@@ -1821,5 +1821,10 @@ func (c *Exchange) Validate() error {
 	if c == nil {
 		return errExchangeConfigIsNil
 	}
+
+	if c.ConnectionMonitorDelay <= 0 {
+		c.ConnectionMonitorDelay = DefaultConnectionMonitorDelay
+	}
+
 	return nil
 }

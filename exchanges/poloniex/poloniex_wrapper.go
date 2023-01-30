@@ -184,14 +184,15 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 	}
 
 	err = p.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            poloniexWebsocketAddress,
-		RunningURL:            wsRunningURL,
-		Connector:             p.WsConnect,
-		Subscriber:            p.Subscribe,
-		Unsubscriber:          p.Unsubscribe,
-		GenerateSubscriptions: p.GenerateDefaultSubscriptions,
-		Features:              &p.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             poloniexWebsocketAddress,
+		RunningURL:             wsRunningURL,
+		Connector:              p.WsConnect,
+		Subscriber:             p.Subscribe,
+		Unsubscriber:           p.Unsubscribe,
+		GenerateSubscriptions:  p.GenerateDefaultSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &p.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,

@@ -183,14 +183,15 @@ func (b *Bitmex) Setup(exch *config.Exchange) error {
 	}
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            bitmexWSURL,
-		RunningURL:            wsEndpoint,
-		Connector:             b.WsConnect,
-		Subscriber:            b.Subscribe,
-		Unsubscriber:          b.Unsubscribe,
-		GenerateSubscriptions: b.GenerateDefaultSubscriptions,
-		Features:              &b.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             bitmexWSURL,
+		RunningURL:             wsEndpoint,
+		Connector:              b.WsConnect,
+		Subscriber:             b.Subscribe,
+		Unsubscriber:           b.Unsubscribe,
+		GenerateSubscriptions:  b.GenerateDefaultSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			UpdateEntriesByID: true,
 		},
