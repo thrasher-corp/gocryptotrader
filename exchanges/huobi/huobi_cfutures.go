@@ -584,7 +584,7 @@ func (h *HUOBI) GetSwapOrderLimitInfo(ctx context.Context, code currency.Pair, o
 	}
 	req["contract_code"] = codeValue
 	if !common.StringDataCompareInsensitive(validOrderTypes, orderType) {
-		return resp, fmt.Errorf("inavlid ordertype provided")
+		return resp, fmt.Errorf("invalid ordertype provided")
 	}
 	req["order_price_type"] = orderType
 	return resp, h.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapOrderLimitInfo, nil, req, &resp)
@@ -638,7 +638,7 @@ func (h *HUOBI) AccountTransferData(ctx context.Context, code currency.Pair, sub
 	req["subUid"] = subUID
 	req["amount"] = amount
 	if !common.StringDataCompareInsensitive(validTransferType, transferType) {
-		return resp, fmt.Errorf("inavlid transferType received")
+		return resp, fmt.Errorf("invalid transferType received")
 	}
 	req["type"] = transferType
 	return resp, h.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapInternalTransferData, nil, req, &resp)
@@ -654,7 +654,7 @@ func (h *HUOBI) AccountTransferRecords(ctx context.Context, code currency.Pair, 
 	}
 	req["contract_code"] = codeValue
 	if !common.StringDataCompareInsensitive(validTransferType, transferType) {
-		return resp, fmt.Errorf("inavlid transferType received")
+		return resp, fmt.Errorf("invalid transferType received")
 	}
 	req["type"] = transferType
 	if createDate > 90 {
@@ -685,7 +685,7 @@ func (h *HUOBI) PlaceSwapOrders(ctx context.Context, code currency.Pair, clientO
 	req["direction"] = direction
 	req["offset"] = offset
 	if !common.StringDataCompareInsensitive(validOrderTypes, orderPriceType) {
-		return resp, fmt.Errorf("inavlid ordertype provided")
+		return resp, fmt.Errorf("invalid ordertype provided")
 	}
 	req["order_price_type"] = orderPriceType
 	req["price"] = price

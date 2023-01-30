@@ -37,7 +37,7 @@ const (
 	pubGetHealth           = "/gethealth"
 	pubGetChats            = "/getchats"
 
-	// Autheticated Endpoints
+	// Authenticated Endpoints
 	privGetPermissions             = "/me/getpermissions"
 	privGetBalance                 = "/me/getbalance"
 	privMarginStatus               = "/me/getcollateral"
@@ -161,7 +161,7 @@ func (b *Bitflyer) GetExchangeStatus(ctx context.Context) (string, error) {
 }
 
 // GetChats returns trollbox chat log
-// Note: returns vary from instant to infinty
+// Note: returns vary from instant to infinity
 func (b *Bitflyer) GetChats(ctx context.Context, fromDate string) ([]ChatLog, error) {
 	var resp []ChatLog
 	v := url.Values{}

@@ -244,7 +244,7 @@ func (s *RPCServer) GetSubsystems(_ context.Context, _ *gctrpc.GetSubsystemsRequ
 	return &gctrpc.GetSusbsytemsResponse{SubsystemsStatus: s.GetSubsystemsStatus()}, nil
 }
 
-// EnableSubsystem enables a engine subsytem
+// EnableSubsystem enables a engine subsystem
 func (s *RPCServer) EnableSubsystem(_ context.Context, r *gctrpc.GenericSubsystemRequest) (*gctrpc.GenericResponse, error) {
 	err := s.SetSubsystem(r.Subsystem, true)
 	if err != nil {
@@ -254,7 +254,7 @@ func (s *RPCServer) EnableSubsystem(_ context.Context, r *gctrpc.GenericSubsyste
 		Data: fmt.Sprintf("subsystem %s enabled", r.Subsystem)}, nil
 }
 
-// DisableSubsystem disables a engine subsytem
+// DisableSubsystem disables a engine subsystem
 func (s *RPCServer) DisableSubsystem(_ context.Context, r *gctrpc.GenericSubsystemRequest) (*gctrpc.GenericResponse, error) {
 	err := s.SetSubsystem(r.Subsystem, false)
 	if err != nil {

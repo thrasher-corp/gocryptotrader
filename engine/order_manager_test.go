@@ -112,12 +112,12 @@ func (f omfExchange) GetActiveOrders(ctx context.Context, req *order.GetOrdersRe
 }
 
 func (f omfExchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
-	ans, err := action.DeriveModifyResponse()
+	modResp, err := action.DeriveModifyResponse()
 	if err != nil {
 		return nil, err
 	}
-	ans.OrderID = "modified_order_id"
-	return ans, nil
+	modResp.OrderID = "modified_order_id"
+	return modResp, nil
 }
 
 func (f omfExchange) GetFuturesPositions(ctx context.Context, req *order.PositionsRequest) ([]order.PositionDetails, error) {

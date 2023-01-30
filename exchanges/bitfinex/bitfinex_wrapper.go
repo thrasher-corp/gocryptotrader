@@ -1026,7 +1026,7 @@ func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 			orderDetail.Status = order.UnknownStatus
 		}
 
-		// API docs discrepency. Example contains prefixed "exchange "
+		// API docs discrepancy. Example contains prefixed "exchange "
 		// Return type suggests “market” / “limit” / “stop” / “trailing-stop”
 		orderType := strings.Replace(resp[i].Type, "exchange ", "", 1)
 		if orderType == "trailing-stop" {

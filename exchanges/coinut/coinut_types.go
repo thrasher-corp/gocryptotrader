@@ -186,7 +186,7 @@ type TradeHistory struct {
 	Trades      []OrderFilledResponse `json:"trades"`
 }
 
-// IndexTicker holds indexed ticker inforamtion
+// IndexTicker holds indexed ticker information
 type IndexTicker struct {
 	Asset string  `json:"asset"`
 	Price float64 `json:"price,string"`
@@ -633,7 +633,7 @@ type WsLoginResponse struct {
 	WithdrawEnabled bool     `json:"withdraw_enabled"`
 }
 
-// WsNewOrderResponse returns if new_order response failes
+// WsNewOrderResponse returns if new_order response fails
 type WsNewOrderResponse struct {
 	Message string   `json:"msg"`
 	Nonce   int64    `json:"nonce"`

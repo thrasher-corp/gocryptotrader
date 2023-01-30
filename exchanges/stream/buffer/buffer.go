@@ -260,7 +260,7 @@ func (w *Orderbook) processObUpdate(o *orderbookHolder, u *orderbook.Update) err
 	return nil
 }
 
-// updateByPrice ammends amount if match occurs by price, deletes if amount is
+// updateByPrice amends amount if match occurs by price, deletes if amount is
 // zero or less and inserts if not found.
 func (o *orderbookHolder) updateByPrice(updts *orderbook.Update) {
 	o.ob.UpdateBidAskByPrice(updts)

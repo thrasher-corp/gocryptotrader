@@ -19,7 +19,7 @@ import (
 const (
 	localbitcoinsAPIURL = "https://localbitcoins.com"
 
-	// Autheticated Calls
+	// Authenticated Calls
 	localbitcoinsAPIAccountInfo        = "api/account_info"
 	localbitcoinsAPIMyself             = "myself/"
 	localbitcoinsAPIAds                = "ads/"
