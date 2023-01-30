@@ -233,6 +233,9 @@ func (m *ExchangeManager) Shutdown() error {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 
+	// loopSegregation relieves race between map lookup and delete.
+	var loopSegregation sync.WaitGroup
+	loopSegregation.Add(1)
 	for _, exch := range m.exchanges {
 		wg.Add(1)
 		go func(wg *sync.WaitGroup, mtx *sync.Mutex, exch exchange.IBotExchange) {
@@ -240,6 +243,7 @@ func (m *ExchangeManager) Shutdown() error {
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "%s failed to shutdown %v.\n", exch.GetName(), err)
 			} else {
+				loopSegregation.Wait()
 				mtx.Lock()
 				delete(m.exchanges, strings.ToLower(exch.GetName()))
 				mtx.Unlock()
@@ -247,6 +251,7 @@ func (m *ExchangeManager) Shutdown() error {
 			wg.Done()
 		}(&wg, &mtx, exch)
 	}
+	loopSegregation.Done()
 
 	ch := make(chan struct{})
 	go func(wg *sync.WaitGroup, finish chan<- struct{}) {

@@ -731,7 +731,6 @@ func TestRunJob(t *testing.T) {
 	for x := range testCases {
 		test := testCases[x]
 		t.Run(test.Nickname, func(t *testing.T) {
-			t.Parallel()
 			err := m.UpsertJob(test, false)
 			if !errors.Is(err, nil) {
 				t.Errorf("error '%v', expected '%v'", err, nil)
@@ -975,16 +974,14 @@ func createDHM(t *testing.T) (*DataHistoryManager, *datahistoryjob.DataHistoryJo
 	}
 	m := &DataHistoryManager{
 		databaseConnectionInstance: &dataBaseConnection{},
-		jobDB: dataHistoryJobService{
-			job: j,
-		},
-		jobResultDB:         dataHistoryJobResultService{},
-		started:             1,
-		exchangeManager:     em,
-		candleLoader:        dataHistoryCandleLoader,
-		interval:            time.NewTicker(time.Minute),
-		verbose:             true,
-		maxResultInsertions: defaultMaxResultInsertions,
+		jobDB:                      &dataHistoryJobService{job: j},
+		jobResultDB:                dataHistoryJobResultService{},
+		started:                    1,
+		exchangeManager:            em,
+		candleLoader:               dataHistoryCandleLoader,
+		interval:                   time.NewTicker(time.Minute),
+		verbose:                    true,
+		maxResultInsertions:        defaultMaxResultInsertions,
 	}
 	return m, j
 }

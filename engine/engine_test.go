@@ -209,8 +209,8 @@ func TestUnloadExchange(t *testing.T) {
 	}
 
 	err = e.UnloadExchange(testExchange)
-	if !errors.Is(err, ErrNoExchangesLoaded) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNoExchangesLoaded)
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("error '%v', expected '%v'", err, ErrExchangeNotFound)
 	}
 }
 
