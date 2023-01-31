@@ -367,7 +367,7 @@ func (a *KlineStream) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// UnmarshalJSON deserialises the JSON info, including the (Timesamp and EventTime) timestamp
+// UnmarshalJSON deserialises the JSON info, including the (Timestamp and EventTime) timestamp
 func (a *TradeStream) UnmarshalJSON(data []byte) error {
 	type Alias TradeStream
 	aux := &struct {

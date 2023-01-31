@@ -81,12 +81,12 @@ func TestGet(t *testing.T) {
 
 	_, err = p.Get(asset.Empty)
 	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' bu expected: '%v'", err, asset.ErrNotSupported)
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
 	}
 
 	_, err = p.Get(asset.CoinMarginedFutures)
 	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' bu expected: '%v'", err, asset.ErrNotSupported)
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
 	}
 }
 
@@ -132,12 +132,12 @@ func TestStore(t *testing.T) {
 
 	err = p.Store(asset.Empty, nil)
 	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' bu expected: '%v'", err, asset.ErrNotSupported)
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
 	}
 
 	err = p.Store(asset.Futures, nil)
 	if !errors.Is(err, errPairStoreIsNil) {
-		t.Fatalf("received: '%v' bu expected: '%v'", err, errPairStoreIsNil)
+		t.Fatalf("received: '%v' but expected: '%v'", err, errPairStoreIsNil)
 	}
 }
 
@@ -200,7 +200,7 @@ func TestGetPairs(t *testing.T) {
 
 	pairs, err = p.GetPairs(asset.Empty, true)
 	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' but expetced: '%v'", err, asset.ErrNotSupported)
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
 	}
 
 	if pairs != nil {

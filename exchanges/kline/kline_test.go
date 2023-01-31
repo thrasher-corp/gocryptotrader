@@ -658,7 +658,7 @@ func TestLoadFromDatabase(t *testing.T) {
 				t.Fatal(err)
 			}
 			if ret.Exchange != testExchanges[0].Name {
-				t.Fatalf("uncorrect data returned: %v", ret.Exchange)
+				t.Fatalf("incorrect data returned: %v", ret.Exchange)
 			}
 
 			err = testhelpers.CloseDatabase(dbConn)

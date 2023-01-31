@@ -189,14 +189,15 @@ func (bi *Binanceus) Setup(exch *config.Exchange) error {
 	}
 
 	err = bi.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            binanceusDefaultWebsocketURL,
-		RunningURL:            ePoint,
-		Connector:             bi.WsConnect,
-		Subscriber:            bi.Subscribe,
-		Unsubscriber:          bi.Unsubscribe,
-		GenerateSubscriptions: bi.GenerateSubscriptions,
-		Features:              &bi.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             binanceusDefaultWebsocketURL,
+		RunningURL:             ePoint,
+		Connector:              bi.WsConnect,
+		Subscriber:             bi.Subscribe,
+		Unsubscriber:           bi.Unsubscribe,
+		GenerateSubscriptions:  bi.GenerateSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &bi.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
