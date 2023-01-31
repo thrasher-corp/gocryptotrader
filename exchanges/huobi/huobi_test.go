@@ -683,7 +683,7 @@ func TestUpdateTickerSpot(t *testing.T) {
 	t.Parallel()
 	_, err := h.UpdateTicker(context.Background(), currency.NewPairWithDelimiter("INV", "ALID", "-"), asset.Spot)
 	if err == nil {
-		t.Error("exepcted invalid pair")
+		t.Error("expected invalid pair")
 	}
 	_, err = h.UpdateTicker(context.Background(), currency.NewPairWithDelimiter("BTC", "USDT", "_"), asset.Spot)
 	if err != nil {
@@ -695,7 +695,7 @@ func TestUpdateTickerCMF(t *testing.T) {
 	t.Parallel()
 	_, err := h.UpdateTicker(context.Background(), currency.NewPairWithDelimiter("INV", "ALID", "_"), asset.CoinMarginedFutures)
 	if err == nil {
-		t.Error("exepcted invalid contract code")
+		t.Error("expected invalid contract code")
 	}
 	_, err = h.UpdateTicker(context.Background(), currency.NewPairWithDelimiter("BTC", "USD", "_"), asset.CoinMarginedFutures)
 	if err != nil {
@@ -2553,7 +2553,7 @@ func TestStringToOrderStatus(t *testing.T) {
 	for i := range testCases {
 		result, _ := stringToOrderStatus(testCases[i].Case)
 		if result != testCases[i].Result {
-			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
+			t.Errorf("Expected: %v, received: %v", testCases[i].Result, result)
 		}
 	}
 }
@@ -2571,7 +2571,7 @@ func TestStringToOrderSide(t *testing.T) {
 	for i := range testCases {
 		result, _ := stringToOrderSide(testCases[i].Case)
 		if result != testCases[i].Result {
-			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
+			t.Errorf("Expected: %v, received: %v", testCases[i].Result, result)
 		}
 	}
 }
@@ -2589,7 +2589,7 @@ func TestStringToOrderType(t *testing.T) {
 	for i := range testCases {
 		result, _ := stringToOrderType(testCases[i].Case)
 		if result != testCases[i].Result {
-			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
+			t.Errorf("Expected: %v, received: %v", testCases[i].Result, result)
 		}
 	}
 }

@@ -231,7 +231,7 @@ func (y *Yobit) WithdrawCoinsToAddress(ctx context.Context, coin string, amount 
 	return result, nil
 }
 
-// CreateCoupon creates an exchange coupon for a sepcific currency
+// CreateCoupon creates an exchange coupon for a specific currency
 func (y *Yobit) CreateCoupon(ctx context.Context, currency string, amount float64) (CreateCoupon, error) {
 	req := url.Values{}
 	req.Add("currency", currency)

@@ -1178,7 +1178,7 @@ func (k *Kraken) WithdrawStatus(ctx context.Context, c currency.Code, method str
 	return response.Result, GetError(response.Error)
 }
 
-// WithdrawCancel sends a withdrawal cancelation request
+// WithdrawCancel sends a withdrawal cancellation request
 func (k *Kraken) WithdrawCancel(ctx context.Context, c currency.Code, refID string) (bool, error) {
 	var response struct {
 		Error  []string `json:"error"`

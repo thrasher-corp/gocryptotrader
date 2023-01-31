@@ -358,7 +358,7 @@ func TestGetOpenDepositsForCurrency(t *testing.T) {
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isn't set correctly")
 	}
 	_, err := b.Withdraw(context.Background(),
 		curr, "", core.BitcoinDonationAddress, 0.0009)

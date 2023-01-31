@@ -265,7 +265,7 @@ func (p *Portfolio) OnFill(ev fill.Event, funds funding.IFundReleaser) (fill.Eve
 	return ev, nil
 }
 
-// addComplianceSnapshot gets the previous snapshot of compliance events, updates with the latest fillevent
+// addComplianceSnapshot gets the previous snapshot of compliance events, updates with the latest fill event
 // then saves the snapshot to the c
 func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
 	if fillEvent == nil {
@@ -276,17 +276,17 @@ func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
 		return err
 	}
 	prevSnap := complianceManager.GetLatestSnapshot()
-	if fo := fillEvent.GetOrder(); fo != nil {
-		price := decimal.NewFromFloat(fo.Price)
-		amount := decimal.NewFromFloat(fo.Amount)
-		fee := decimal.NewFromFloat(fo.Fee)
+	if filledOrder := fillEvent.GetOrder(); filledOrder != nil {
+		price := decimal.NewFromFloat(filledOrder.Price)
+		amount := decimal.NewFromFloat(filledOrder.Amount)
+		fee := decimal.NewFromFloat(filledOrder.Fee)
 		snapOrder := compliance.SnapshotOrder{
 			ClosePrice:          fillEvent.GetClosePrice(),
 			VolumeAdjustedPrice: fillEvent.GetVolumeAdjustedPrice(),
 			SlippageRate:        fillEvent.GetSlippageRate(),
 			CostBasis:           price.Mul(amount).Add(fee),
 		}
-		snapOrder.Order = fo
+		snapOrder.Order = filledOrder
 		prevSnap.Orders = append(prevSnap.Orders, snapOrder)
 	}
 	snap := &compliance.Snapshot{

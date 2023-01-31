@@ -266,17 +266,17 @@ func TestOrderSides(t *testing.T) {
 func TestOrderTypes(t *testing.T) {
 	t.Parallel()
 
-	var ot Type
-	if ot.String() != "UNKNOWN" {
-		t.Errorf("unexpected string %s", ot.String())
+	var orderType Type
+	if orderType.String() != "UNKNOWN" {
+		t.Errorf("unexpected string %s", orderType.String())
 	}
 
-	if ot.Lower() != "unknown" {
-		t.Errorf("unexpected string %s", ot.Lower())
+	if orderType.Lower() != "unknown" {
+		t.Errorf("unexpected string %s", orderType.Lower())
 	}
 
-	if ot.Title() != "Unknown" {
-		t.Errorf("unexpected string %s", ot.Title())
+	if orderType.Title() != "Unknown" {
+		t.Errorf("unexpected string %s", orderType.Title())
 	}
 }
 

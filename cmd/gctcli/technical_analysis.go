@@ -119,7 +119,7 @@ var (
 
 var technicalAnalysisCommand = &cli.Command{
 	Name:      "technicalanalysis",
-	Usage:     "get techincal analysis command",
+	Usage:     "get technical analysis command",
 	Aliases:   []string{"ta"},
 	ArgsUsage: "<command> <args>",
 	Subcommands: []*cli.Command{

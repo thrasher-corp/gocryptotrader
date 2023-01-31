@@ -204,14 +204,15 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 	}
 
 	err = h.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            wsMarketURL,
-		RunningURL:            wsRunningURL,
-		Connector:             h.WsConnect,
-		Subscriber:            h.Subscribe,
-		Unsubscriber:          h.Unsubscribe,
-		GenerateSubscriptions: h.GenerateDefaultSubscriptions,
-		Features:              &h.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             wsMarketURL,
+		RunningURL:             wsRunningURL,
+		Connector:              h.WsConnect,
+		Subscriber:             h.Subscribe,
+		Unsubscriber:           h.Unsubscribe,
+		GenerateSubscriptions:  h.GenerateDefaultSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &h.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err

@@ -235,7 +235,7 @@ func (g *Gateio) GetSpotKline(ctx context.Context, arg KlinesRequestParams) ([]k
 		if err != nil {
 			return nil, err
 		}
-		ot, err := convert.TimeFromUnixTimestampFloat(otString)
+		orderType, err := convert.TimeFromUnixTimestampFloat(otString)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse Kline.OpenTime. Err: %s", err)
 		}
@@ -260,7 +260,7 @@ func (g *Gateio) GetSpotKline(ctx context.Context, arg KlinesRequestParams) ([]k
 			return nil, fmt.Errorf("cannot parse Kline.Open. Err: %s", err)
 		}
 		timeSeries[x] = kline.Candle{
-			Time:   ot,
+			Time:   orderType,
 			Volume: _vol,
 			Close:  _close,
 			High:   _high,

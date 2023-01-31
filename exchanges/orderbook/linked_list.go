@@ -132,7 +132,7 @@ updates:
 
 // cleanup reduces the max size of the depth length if exceeded. Is used after
 // updates have been applied instead of adhoc, reason being its easier to prune
-// at the end. (cant inline)
+// at the end. (can't inline)
 func (ll *linkedList) cleanup(maxChainLength int, stack *stack) {
 	// Reduces the max length of total linked list chain, occurs after updates
 	// have been implemented as updates can push length out of bounds, if

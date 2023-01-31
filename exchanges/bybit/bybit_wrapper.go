@@ -204,15 +204,16 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 
 	err = by.Websocket.Setup(
 		&stream.WebsocketSetup{
-			ExchangeConfig:        exch,
-			DefaultURL:            bybitWSBaseURL + wsSpotPublicTopicV2,
-			RunningURL:            wsRunningEndpoint,
-			RunningURLAuth:        bybitWSBaseURL + wsSpotPrivate,
-			Connector:             by.WsConnect,
-			Subscriber:            by.Subscribe,
-			Unsubscriber:          by.Unsubscribe,
-			GenerateSubscriptions: by.GenerateDefaultSubscriptions,
-			Features:              &by.Features.Supports.WebsocketCapabilities,
+			ExchangeConfig:         exch,
+			DefaultURL:             bybitWSBaseURL + wsSpotPublicTopicV2,
+			RunningURL:             wsRunningEndpoint,
+			RunningURLAuth:         bybitWSBaseURL + wsSpotPrivate,
+			Connector:              by.WsConnect,
+			Subscriber:             by.Subscribe,
+			Unsubscriber:           by.Unsubscribe,
+			GenerateSubscriptions:  by.GenerateDefaultSubscriptions,
+			ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+			Features:               &by.Features.Supports.WebsocketCapabilities,
 			OrderbookBufferConfig: buffer.Config{
 				SortBuffer:            true,
 				SortBufferByUpdateIDs: true,

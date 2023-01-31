@@ -133,7 +133,7 @@ func TestFindMatchingUSDPairs(t *testing.T) {
 			expectedErr:    errNoMatchingPairUSDFound,
 		},
 		{
-			description:    "currency doesnt exist in available pairs",
+			description:    "currency doesn't exist in available pairs",
 			initialPair:    currency.NewPair(currency.BTC, currency.LTC),
 			availablePairs: &currency.PairStore{Available: currency.Pairs{currency.NewPair(currency.BTC, currency.DOGE)}},
 			basePair:       currency.EMPTYPAIR,

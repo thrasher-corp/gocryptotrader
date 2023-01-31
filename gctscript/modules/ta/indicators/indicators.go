@@ -47,7 +47,7 @@ func ParseIndicatorSelector(in string) (int, error) {
 	}
 }
 
-// ParseMAType returns moving average from sring
+// ParseMAType returns moving average from string
 func ParseMAType(in string) (indicators.MaType, error) {
 	in = strings.ToLower(in)
 	switch in {
