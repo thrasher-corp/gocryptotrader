@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -60,7 +62,17 @@ func TestNewExchange(t *testing.T) {
 		t.Error(err)
 	}
 
-	if err := os.RemoveAll(testExchangeDir); err != nil {
-		t.Errorf("unable to remove dir: %s, manual removal required", err)
+	cmd := exec.Command("go", "build")
+	cmd.Dir = testExchangeDir
+
+	if _, err = cmd.Output(); err != nil {
+		if stdErr, ok := err.(*exec.ExitError); ok {
+			err = fmt.Errorf("%s: stderr: %s", err, stdErr.Stderr)
+		}
+		t.Error(err)
+	}
+
+	if err = os.RemoveAll(testExchangeDir); err != nil {
+		t.Errorf("RemoveAll failed: %s, manual deletion of test directory required", err)
 	}
 }
