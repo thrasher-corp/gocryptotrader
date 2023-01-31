@@ -250,7 +250,7 @@ func runCommand(dir, param string) error {
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("unable to go %s stdout: %s stderr: %s",
-			param, err, out)
+			param, out, err)
 	}
 	return nil
 }
